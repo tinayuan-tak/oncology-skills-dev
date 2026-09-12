@@ -677,6 +677,15 @@ positive_signals:
   # counts, so it must corroborate (raise confidence) without minting a `strong` tier by being counted
   # twice. coherent_epigenetic_silencing is deliberately NOT a positive (a silenced gene is turned OFF —
   # an SL hypothesis, not a druggable-dependency nomination). See cis_coherence.resolver.yaml.
+  # coherent_cis_loss_of_function (resolver v1.3.0, 2026-09-12) is UNREGISTERED for the SAME reason and
+  # deliberately so: it is the deletion-coupled, no-dependency cell of the cross-tab — loss lowers the
+  # target's expression — which is a synthetic-lethal / re-expression / loss-biomarker hypothesis, not a
+  # reason to nominate the target for direct inhibition. It must not be a positive_signal (it says the
+  # target is DOWN where the locus is lost) and must not be a positive_contradiction either (it does not
+  # contradict anything the other axes claim — an SL hypothesis is a different question, and turning it
+  # into a contradiction would block `strong` for every deleted suppressor the framework profiles).
+  # APC / STK11 / NF1 are the live cases. Confirm this list against the resolver's verdict enum whenever
+  # a cis_coherence rung is added: an UNREGISTERED verdict is a choice, and it should be a stated one.
   - {sub_skill: cis_coherence,   verdict: coherent_cis_driver,            weight: supportive}
   # differentiation GRADUATION (2026-09-07): strong_mutually_exclusive = the target's mutations are
   # strongly mutually-exclusive with established driver partner(s) — a classic DRIVER-INFERENCE +

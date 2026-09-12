@@ -25,7 +25,7 @@
 #   - Model.csv — CCLE NAME_TISSUE → StrippedCellLineName → ModelID bridge
 
 card_id: cellline-methylation-expression-coherence
-version: 1.0.0
+version: 1.1.0
 question: "Across DepMap cell lines, does {target.symbol}'s own promoter methylation predict its own LOW expression (epigenetic silencing) — driven by a hypermethylated subset, or broadly?"
 
 applies_when:
@@ -57,12 +57,20 @@ outputs:
     - mean_log2tpm_hypermethylated
     - mean_log2tpm_unmethylated
     - delta_log2tpm_hyper_vs_unmethylated        # mean-based contrast (interpretability)
+    # === LINEAGE-COLLAPSE guard (v1.1.0) — does the contrast survive conditioning on lineage? ===
+    - subset_within_lineage_delta_log2tpm        # pooled WITHIN-lineage median delta (hyper - rest)
+    - subset_n_lineages_compared                 # lineages jointly powered (>=3 lines a side) in the pooling
+    - hypermethylated_dominant_lineage_fraction  # largest single lineage's share of the hypermethylated group
+    - lineage_collapse_ratio                     # |within-lineage delta| / |pan-panel delta|; the guard's discriminator
     # === Pan-panel correlation (SECONDARY — broadly-methylated genes) ===
     - methyl_expr_spearman_r                      # NEGATIVE = methylation predicts LOW expression
     - methyl_expr_spearman_p
     - methyl_expr_pearson_r
     - methyl_expr_pearson_p
     - methyl_expr_slope_log2tpm_per_methyl        # provenance (may be null if the OLS SVD did not converge)
+    # === EFFECT-SIZE floor on the broad path (v1.1.0) — significance alone is not silencing ===
+    - broad_quartile_delta_log2tpm               # top-vs-bottom methylation-quartile median log2TPM delta
+    - broad_quartile_within_lineage_delta_log2tpm # its within-lineage counterpart (same collapse guard)
     # === Variation context ===
     - methylation_p10_p90_spread                  # p90-p10 methylation spread (broad-testability gate)
     - log2tpm_iqr
@@ -78,6 +86,7 @@ outputs:
     methylation_silencing_class:
       - silencing_coupled_strong                 # subset Δ <= -1.0 (q<=α) OR pan-panel spearman r <= -0.4 (p<=α)
       - silencing_coupled_moderate               # subset Δ <= -0.5 (q<=α) OR spearman r <= -0.25 (p<=α)
+      - silencing_lineage_confounded              # a LARGE, significant contrast that COLLAPSES within lineage (ratio < 0.35) — measured, and NOT interpretable as cis silencing
       - methylation_uncoupled                    # methylation varies / a hypermethylated subset exists, but no silencing coupling
       - methylation_invariant_panel              # no hypermethylated subset AND no broad methylation variation (untestable, honest)
       - data_unavailable
@@ -93,10 +102,33 @@ thresholds:
   moderate_silencing_subset_delta: -0.5
   significance_alpha: 0.01
   min_cell_lines_for_correlation: 50
-  min_hypermethylated: 10                        # min hypermethylated lines to run the subset contrast
+  # Raised 10→20 (calibration 2026-09-12): an n=10 hypermethylated minority (ERBB2: 10/820 = 1.2% of the
+  # RRBS panel) is an underpowered Mann-Whitney and, for an amplification-driven oncogene, a lineage-
+  # confounded artifact. n>=20 keeps every validated silenced TSG (MLH1 25, CDKN2A 52, MGMT 85).
+  min_hypermethylated: 20                        # min hypermethylated lines to run the subset contrast
   min_unmethylated_comparator: 30
   min_methylation_p10_p90_spread: 0.1            # broad-testability floor (methylation fraction 0..1)
   hypermethylation_threshold: 0.5
+  # LINEAGE-COLLAPSE guard (v1.1.0, round-2 panel calibration 2026-09-12). The subset contrast is an
+  # UNSTRATIFIED group comparison, so for a lineage-restricted gene the "hypermethylated" group is simply
+  # every lineage that does not express it — the delta then measures LINEAGE, not promoter silencing.
+  # Panel evidence (pan delta → pooled within-lineage, ratio): CDH1 -4.44 → -0.45 (0.10), MET -4.99 →
+  # -0.85 (0.17), FOXA1 -1.92 → -0.19 (0.10) are all lineage separation; MLH1 (0.85), MGMT (0.84),
+  # CDKN2A (1.80), SOX10 (0.88) — the validated silenced genes — all SURVIVE conditioning. The guard fires
+  # only on LARGE pan deltas because a ratio computed on a small delta is noise-dominated, which also
+  # leaves the knife-edge moderates (RASSF1 0.42, MITF 0.45) alone.
+  max_lineage_collapse_ratio: 0.35               # below this on a large pan delta → silencing_lineage_confounded
+  min_pan_delta_for_collapse_check: 1.0          # |pan-panel delta| the guard requires before it engages
+  min_per_lineage_side: 3                        # a lineage joins the within-lineage pooling only with >=3 lines a side
+  # EFFECT-SIZE floor on the broad correlation path (v1.1.0). The broad path was gated on the correlation
+  # ALONE, so a large panel turned a vanishing expression difference into silencing_coupled_moderate:
+  # AR/PRAD fired at a median hyper-vs-unmethylated delta of -0.075 log2TPM (PDGFRA/GBM -0.15) —
+  # significant, biologically vacuous, and it drove AR to a coherent_epigenetic_silencing verdict. The
+  # floor reads the methylation-QUARTILE contrast because the broad path must stay available to genes with
+  # no >0.5 hypermethylated subset at all. The broad path is also now a strict FALLBACK: when the subset
+  # contrast IS powered and fails the moderate floor, the direct test has answered and a diluted panel-wide
+  # correlation must not resurrect it.
+  min_broad_quartile_delta: -0.5                 # top-vs-bottom methylation-quartile median log2TPM delta
 
 warning_predicates:
   - warning_id: low_n_cell_lines
@@ -109,6 +141,9 @@ warning_predicates:
 caveats:
   - "Silencing is a SUBSET phenomenon: the PRIMARY test is a hypermethylated-subset-vs-rest Mann-Whitney (min_hypermethylated lines), because a minority methylated tail dilutes the pan-panel correlation. Live: MLH1 pan-panel spearman r=-0.02 (null) but subset Δ=-4.62 (p=1.5e-15) — the subset path is what makes subtype-silenced tumor-suppressors detectable. silencing_driver records which path fired."
   - "methylation_invariant_panel (no hypermethylated subset AND no broad variation) is NOT methylation_uncoupled: the silencing question is untestable in this panel (the gene is uniformly (un)methylated), not that methylation fails to silence it. GAPDH/KRAS live here (never hypermethylated)."
+  - "silencing_lineage_confounded is a MEASURED class, not a data gap: the subset contrast is large and significant but COLLAPSES within lineage (lineage_collapse_ratio < 0.35), so what was measured is lineage separation — a non-expressing lineage that is also a methylated lineage — not promoter silencing. NEUTRAL to the resolver: neither a silencing claim nor a refutation, because no within-lineage-powered silencing test was run on the gene."
+  - "lineage_collapse_ratio calibration: CDH1 (-4.44 pan → -0.45 within lineage, ratio 0.10) and MET (-4.99 → -0.85, 0.17) are confounded; the validated silenced suppressors are not (MLH1 0.85, MGMT 0.84, CDKN2A 1.80). The 0.35 floor sits in that gap, and max_lineage_collapse_ratio only applies once the pan-panel delta clears min_pan_delta_for_collapse_check."
+  - "The broad-correlation path is a strict FALLBACK, not an alternative: available ONLY when no powered hypermethylated subset exists. A powered subset contrast that fails the moderate delta floor IS the answer, and a diluted panel-wide correlation must not overturn it (AR: 164 hypermethylated lines, subset delta -0.08, yet r=-0.38 p<1e-25 drove silencing_coupled_moderate). The broad path also requires a real effect size — methylation-quartile delta <= -0.5 — not significance alone."
   - "This establishes the feature→LOW-expression (epigenetic-LoF) leg. A silenced gene is NOT a self-dependency — the cis_coherence resolver routes this to coherent_epigenetic_silencing (a synthetic-lethal / silenced-target hypothesis flag), NOT the amplification-addiction dependency cross-tab."
   - "Cell-line RRBS methylation ≈ patient methylation but differs (culture, purity). The patient promoter-methylation arm (tcga-sesame-promoter-methylation-v1 joined via the sample-id crosswalk) is the orthogonal validation leg."
   - "CCLE→DepMap join is via StrippedCellLineName (CCLE NAME_TISSUE → NAME); a small number of lines may not map and are dropped (reported via n_cell_lines_evaluated)."

@@ -5,14 +5,22 @@
 # cross-tab of two coherence legs, integrating the NEW feature->expression leg (cis-dosage) with the
 # REUSED expression->dependency evidence (no new dependency measurement):
 #
-#            leg-2 dependency-coupled (+)      leg-2 dependency-absent (neutral)
-#   leg-1  ┌──────────────────────────────┬──────────────────────────────────┐
-#   coupled│ coherent_cis_driver          │ expressed_cis_coupled_inert       │
-#   (+)    │  (oncogene-addiction chain)  │  (present + cis-driven, NOT req'd) │
-#          ├──────────────────────────────┼──────────────────────────────────┤
-#   leg-1  │ dependency_without_cis_dosage│ cis_uncoupled_no_dependency        │
-#  uncoupld│  (trans-driven dependency)   │  (no coherent cis chain)           │
-#          └──────────────────────────────┴──────────────────────────────────┘
+# Leg-1 is DIRECTIONAL as of v1.3.0 — coupled splits into an AMPLIFICATION arm and a DELETION arm,
+# because "coupled" alone put ERBB2 and CDKN2A in the same cell:
+#
+#              leg-2 dependency-coupled (+)      leg-2 dependency-absent (neutral)
+#   leg-1    ┌──────────────────────────────┬───────────────────────────────────┐
+#   coupled  │ coherent_cis_driver          │ expressed_cis_coupled_inert       │
+#   AMPLIFIED│  (oncogene-addiction chain)  │  (present + cis-driven, NOT req'd) │
+#            ├──────────────────────────────┼───────────────────────────────────┤
+#   coupled  │ dependency_without_cis_dosage│ coherent_cis_loss_of_function      │
+#   DELETED  │  (not amplification-driven)  │  (SL / re-expression hypothesis)   │
+#            ├──────────────────────────────┼───────────────────────────────────┤
+#   leg-1    │ dependency_without_cis_dosage│ cis_uncoupled_no_dependency        │
+#   uncoupled│  (trans-driven dependency)   │  (no coherent cis chain)           │
+#            └──────────────────────────────┴───────────────────────────────────┘
+#   methylation silencing leg fired  →  coherent_epigenetic_silencing (standalone; outranks the
+#                                       DELETED/absent cell, is outranked by the AMPLIFIED cells)
 #   any leg untestable / unmeasured  →  insufficient_cis_coherence (default; honest abstention)
 #
 # VERDICT-INERT for overall_recommendation: cis_coherence is a DEDICATED self-contained axis (like
@@ -29,7 +37,16 @@
 # double-counts. driving_rule is set EXPLICITLY on every rung (the interpreter's rids[-1] fallback
 # would otherwise name whichever leg happened to fire last).
 gate: cis_coherence
-version: 1.2.0  # 1.2.0 (2026-09-12): dependency_without_cis_dosage rungs (uncoupled+dependency) now
+version: 1.3.0  # 1.3.0 (2026-09-12): leg-1 is now DIRECTIONAL. The MET-class residual v1.2.0 documented
+                # inline below is CLOSED: every rung that made an amplification-driver claim now requires
+                # cis-dosage-amplification-coupled-supportive, and the expressed_cis_coupled_inert rung was
+                # lifted ABOVE the silencing rung, so an amplification-coupled gene with no dependency leg
+                # can no longer be labeled coherent_epigenetic_silencing by a minority-methylation subset
+                # (MET/LUAD). A deletion-coupled gene with no dependency leg gets the NEW terminal verdict
+                # coherent_cis_loss_of_function (APC/STK11/NF1) instead of falling to the default; CDKN2A
+                # keeps coherent_epigenetic_silencing because the silencing rung outranks the LoF rung.
+                # NOT byte-stable: any fired-set with a coupled leg-1 now also carries a direction token.
+       # 1.2.0 (2026-09-12): dependency_without_cis_dosage rungs (uncoupled+dependency) now
                 # OUTRANK the standalone coherent_epigenetic_silencing rung (a self-dependency is not a
                 # silenced-off gene). Fixes FGFR1/LUSC + NKX2-1/LUAD, which were mislabeled
                 # coherent_epigenetic_silencing by a lineage-confounded minority-methylation subset. Safe:
@@ -53,8 +70,11 @@ resolve:
   #    Two rungs (leg-2 is an OR): the conjoint amplification-addiction leg first (more mechanism-
   #    specific), then the expression-dependency correlation leg. driving_rule names leg-1 — the leg
   #    that establishes the call is CIS (amplification-driven), which is the whole point of the skill.
-  - {verdict: coherent_cis_driver, when_all_fired: [cis-dosage-coupled-supportive, cis-conjoint-dependent-supportive], driving_rule: cis-dosage-coupled-supportive, priority: 0}
-  - {verdict: coherent_cis_driver, when_all_fired: [cis-dosage-coupled-supportive, cis-expr-dependency-coupled-supportive], driving_rule: cis-dosage-coupled-supportive, priority: 1}
+  #    DIRECTIONAL (v1.3.0): both rungs additionally require the AMPLIFICATION direction token. An
+  #    oncogene-addiction chain is a GAIN story; a deletion-coupled gene that happens to carry a
+  #    dependency leg is not amplification-driven and drops to the dependency_without_cis_dosage rungs.
+  - {verdict: coherent_cis_driver, when_all_fired: [cis-dosage-coupled-supportive, cis-dosage-amplification-coupled-supportive, cis-conjoint-dependent-supportive], driving_rule: cis-dosage-coupled-supportive, priority: 0}
+  - {verdict: coherent_cis_driver, when_all_fired: [cis-dosage-coupled-supportive, cis-dosage-amplification-coupled-supportive, cis-expr-dependency-coupled-supportive], driving_rule: cis-dosage-coupled-supportive, priority: 1}
 
   # ── dependency_without_cis_dosage — leg-1 uncoupled AND leg-2 dependency-coupled ─────────────────
   #    A real expression->dependency signal, but copy-number does NOT drive the expression: the
@@ -68,6 +88,24 @@ resolve:
   #    NO coupled dependency leg (its expr-dep is no_correlation/weak), so it is untouched by this ordering.
   - {verdict: dependency_without_cis_dosage, when_all_fired: [cis-dosage-uncoupled-neutral, cis-conjoint-dependent-supportive], driving_rule: cis-dosage-uncoupled-neutral, priority: 2}
   - {verdict: dependency_without_cis_dosage, when_all_fired: [cis-dosage-uncoupled-neutral, cis-expr-dependency-coupled-supportive], driving_rule: cis-dosage-uncoupled-neutral, priority: 3}
+  #    DELETION-coupled + a dependency leg lands HERE too (v1.1.0/v1.3.0 direction pair). Leg-1 is intact
+  #    and cis, but downward: loss lowers expression. Whatever drives the dependency, it is not
+  #    amplification, so the "trans/not-amplification-driven dependency" framing is the honest one — the
+  #    verdict name reads "dependency without cis DOSAGE", and a deletion arm is not a dosage-addiction
+  #    chain. driving_rule names the DIRECTION token, so the memo says which arm was measured.
+  - {verdict: dependency_without_cis_dosage, when_all_fired: [cis-dosage-deletion-coupled-neutral, cis-conjoint-dependent-supportive], driving_rule: cis-dosage-deletion-coupled-neutral, priority: 4}
+  - {verdict: dependency_without_cis_dosage, when_all_fired: [cis-dosage-deletion-coupled-neutral, cis-expr-dependency-coupled-supportive], driving_rule: cis-dosage-deletion-coupled-neutral, priority: 5}
+
+  # ── expressed_cis_coupled_inert — AMPLIFICATION-coupled leg-1 AND leg-2 absent ────────────────────
+  #    CN drives expression, but expression does NOT track dependency: the target is present and even
+  #    cis-driven, yet more abundance does not mean more required. This is the case a bare abundance
+  #    steer would launder as "expected non-dependency"; naming it explicitly is a Rank-1 goal.
+  #    LIFTED ABOVE the silencing rung (v1.3.0) — this is the MET-class fix. A gene whose GAIN arm drives
+  #    its expression is being described by its amplicon, and a minority hypermethylated subset must not
+  #    overwrite that with a silenced-gene reading (MET/LUAD read coherent_epigenetic_silencing under
+  #    v1.2.0). Note this also requires the AMPLIFICATION direction: the deletion-coupled + dependency-
+  #    absent case is a LoF story, not an "expressed but inert" one, and gets its own rung below.
+  - {verdict: expressed_cis_coupled_inert, when_all_fired: [cis-dosage-coupled-supportive, cis-dosage-amplification-coupled-supportive, cis-expr-dependency-absent-neutral], driving_rule: cis-expr-dependency-absent-neutral, priority: 6}
 
   # ── coherent_epigenetic_silencing — LoF arm: methylation coherently explains LOW expression ─────
   #    STANDALONE (no dependency leg): a silenced gene is turned OFF, not a self-dependency. A synthetic-
@@ -76,20 +114,30 @@ resolve:
   #    dependency (both carry a dependency leg) still names its GoF/dependency verdict first; a gene
   #    silenced but with NO dependency leg lands here. Cell-line arm (CCLE RRBS); the patient
   #    promoter-methylation arm is a separate later leg.
-  #    KNOWN RESIDUAL (MET-class, deferred): a gene that is cis-dosage-COUPLED via AMPLIFICATION but has
-  #    no dependency leg + a minority-methylation subset (MET/LUAD) still lands here rather than
-  #    expressed_cis_coupled_inert — separating amplification-coupling from deletion-coupling (CDKN2A,
-  #    which SHOULD stay silencing) needs a cis_dosage_direction card field (follow-up).
-  - {verdict: coherent_epigenetic_silencing, when_fired: cis-silencing-coupled-supportive, driving_rule: cis-silencing-coupled-supportive, priority: 4}
+  #    RESIDUAL CLOSED (v1.3.0, was "MET-class, deferred"): the amplification-coupled + dependency-absent
+  #    case now has its OWN rung ABOVE this one (priority 6), so an amplicon driver can no longer be
+  #    labeled silenced by a minority-methylation subset. CDKN2A is unaffected — it is DELETION-coupled,
+  #    so it never matches that rung, and this rung still outranks the deletion-coupled LoF rung below,
+  #    which is the correct precedence: a MEASURED silencing mechanism is more specific than a bare
+  #    "the deleted arm carries the expression" statement. The lineage-collapse guard on the methylation
+  #    card (card v1.1.0) removes the confounded contrasts that produced most of these cases upstream;
+  #    this ladder ordering is the second, independent line of defence.
+  - {verdict: coherent_epigenetic_silencing, when_fired: cis-silencing-coupled-supportive, driving_rule: cis-silencing-coupled-supportive, priority: 7}
 
-  # ── expressed_cis_coupled_inert — leg-1 coupled AND leg-2 absent (abundance-laundering guard) ────
-  #    CN drives expression, but expression does NOT track dependency: the target is present and even
-  #    cis-driven, yet more abundance does not mean more required. This is the case a bare abundance
-  #    steer would launder as "expected non-dependency"; naming it explicitly is a Rank-1 goal.
-  - {verdict: expressed_cis_coupled_inert, when_all_fired: [cis-dosage-coupled-supportive, cis-expr-dependency-absent-neutral], driving_rule: cis-expr-dependency-absent-neutral, priority: 5}
+  # ── coherent_cis_loss_of_function — DELETION-coupled leg-1 AND leg-2 absent (NEW, v1.3.0) ────────
+  #    Loss lowers expression and the gene is not a self-dependency: the coherent cis chain exists but
+  #    points DOWNWARD. Read as a synthetic-lethal / re-expression / loss-biomarker hypothesis, NOT a
+  #    direct-inhibition target. APC / STK11 / NF1 live here (deletion-coupled, no dependency leg, no
+  #    methylation-silencing leg); before v1.3.0 they fell through to cis_uncoupled_no_dependency's
+  #    sibling default and lost the fact that their deleted arm DID explain their expression.
+  #    Placed BELOW the silencing rung on purpose: when a specific epigenetic mechanism is measured, name
+  #    it (CDKN2A is both deletion-coupled and silenced and must keep coherent_epigenetic_silencing).
+  #    Deliberately NOT registered in nomination_verdict_gate.yaml, mirroring coherent_epigenetic_
+  #    silencing: it is a LoF/SL hypothesis, not the expressed-but-inert contradiction class.
+  - {verdict: coherent_cis_loss_of_function, when_all_fired: [cis-dosage-deletion-coupled-neutral, cis-expr-dependency-absent-neutral], driving_rule: cis-dosage-deletion-coupled-neutral, priority: 8}
 
   # ── cis_uncoupled_no_dependency — leg-1 uncoupled AND leg-2 absent (no coherent cis chain) ───────
-  - {verdict: cis_uncoupled_no_dependency, when_all_fired: [cis-dosage-uncoupled-neutral, cis-expr-dependency-absent-neutral], driving_rule: cis-dosage-uncoupled-neutral, priority: 6}
+  - {verdict: cis_uncoupled_no_dependency, when_all_fired: [cis-dosage-uncoupled-neutral, cis-expr-dependency-absent-neutral], driving_rule: cis-dosage-uncoupled-neutral, priority: 9}
 
 # Any leg untestable (cn_invariant_panel / data_unavailable → no leg-1 token) or unmeasured →
 # no rung matches → insufficient_cis_coherence. Honest abstention, never a passenger claim from a gap.

@@ -97,6 +97,68 @@
         "null"
       ]
     },
+    "subset_within_lineage_delta_log2tpm": {
+      "type": [
+        "null"
+      ]
+    },
+    "subset_n_lineages_compared": {
+      "type": [
+        "null"
+      ]
+    },
+    "amplified_dominant_lineage_fraction": {
+      "type": [
+        "null"
+      ]
+    },
+    "n_deleted": {
+      "type": [
+        "null"
+      ]
+    },
+    "deleted_subset_delta_log2tpm": {
+      "type": [
+        "null"
+      ]
+    },
+    "deleted_within_lineage_delta_log2tpm": {
+      "type": [
+        "null"
+      ]
+    },
+    "deleted_subset_mannwhitney_p": {
+      "type": [
+        "null"
+      ]
+    },
+    "deletion_threshold_relative_cn": {
+      "type": [
+        "null"
+      ]
+    },
+    "cis_dosage_direction": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "amplification_coupled",
+        "deletion_coupled",
+        null
+      ]
+    },
+    "cis_dosage_direction_basis": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "amplified_vs_deleted_contrast",
+        "cn_distribution_asymmetry",
+        null
+      ]
+    },
     "cis_dosage_driver": {
       "type": [
         "string",

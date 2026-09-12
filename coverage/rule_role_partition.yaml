@@ -2,9 +2,9 @@ _doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referen
   (verdict-driving); display = referenced by NO resolver (annotation-only: claim-vector / key-signal /
   figure input). Regenerate with build_rule_role_partition.py; --self-check gates drift.'
 counts:
-  total: 417
-  gating: 125
-  display: 292
+  total: 421
+  gating: 127
+  display: 294
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -15,7 +15,9 @@ gating:
 - both-viable-supportive
 - broadly-dependent-neutral
 - cis-conjoint-dependent-supportive
+- cis-dosage-amplification-coupled-supportive
 - cis-dosage-coupled-supportive
+- cis-dosage-deletion-coupled-neutral
 - cis-dosage-uncoupled-neutral
 - cis-expr-dependency-absent-neutral
 - cis-expr-dependency-coupled-supportive
@@ -161,6 +163,8 @@ display:
 - chemical-synergy-no-signal-neutral
 - chemical-synergy-strong-opportunity
 - chemical-synergy-supported-opportunity
+- cis-silencing-absent-neutral
+- cis-silencing-lineage-confounded-neutral
 - clingen-dosage-sufficient-neutral
 - clinical-high-better-survival-neutral
 - clinical-high-worse-survival-supportive

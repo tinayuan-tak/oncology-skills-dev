@@ -499,6 +499,7 @@
       "enum": [
         "coherent_cis_driver",
         "coherent_epigenetic_silencing",
+        "coherent_cis_loss_of_function",
         "expressed_cis_coupled_inert",
         "dependency_without_cis_dosage",
         "cis_uncoupled_no_dependency",

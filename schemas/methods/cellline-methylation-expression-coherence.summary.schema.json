@@ -47,6 +47,26 @@
         "null"
       ]
     },
+    "subset_within_lineage_delta_log2tpm": {
+      "type": [
+        "null"
+      ]
+    },
+    "subset_n_lineages_compared": {
+      "type": [
+        "null"
+      ]
+    },
+    "hypermethylated_dominant_lineage_fraction": {
+      "type": [
+        "null"
+      ]
+    },
+    "lineage_collapse_ratio": {
+      "type": [
+        "null"
+      ]
+    },
     "methyl_expr_spearman_r": {
       "type": [
         "null"
@@ -68,6 +88,16 @@
       ]
     },
     "methyl_expr_slope_log2tpm_per_methyl": {
+      "type": [
+        "null"
+      ]
+    },
+    "broad_quartile_delta_log2tpm": {
+      "type": [
+        "null"
+      ]
+    },
+    "broad_quartile_within_lineage_delta_log2tpm": {
       "type": [
         "null"
       ]
@@ -105,6 +135,7 @@
       "enum": [
         "silencing_coupled_strong",
         "silencing_coupled_moderate",
+        "silencing_lineage_confounded",
         "methylation_uncoupled",
         "methylation_invariant_panel",
         "data_unavailable",

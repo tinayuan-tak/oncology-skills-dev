@@ -1658,8 +1658,12 @@ measurement_types:
     # the cis_coherence resolver needs to distinguish amplification-DRIVEN overexpression (ERBB2/MYC) from
     # CN-independent (trans-regulated) expression. No evidence_substrate declared (optional; would have to
     # match the CN/expression input lineage, and this correlation shares no single dominant substrate).
+    # DIRECTIONAL as of card v1.1.0 (2026-09-12): the claim covers BOTH arms of the CN distribution, so
+    # cis_dosage_direction names which one carries the coupling. "Coupled" alone put ERBB2 (gain drives
+    # expression up) and CDKN2A (loss drives expression down) in the same bin, which is why the resolver
+    # could not keep an amplicon driver out of the epigenetic-silencing rung.
     modality_relevance: [small_molecule, degrader]
-    claim: "Does the target's own copy-number predict its own expression (cis-dosage coupling / amplification-driven overexpression)?"
+    claim: "Does the target's own copy-number predict its own expression (cis-dosage coupling), and via which arm — amplification-driven over-expression or deletion-driven under-expression?"
     entity_grains: [target]
     cards: [cis-feature-expression-coherence]
     providers:
@@ -1696,6 +1700,9 @@ measurement_types:
     # own promoter methylation predict its own LOW expression (epigenetic silencing)? Subset-contrast
     # PRIMARY (hypermethylated-vs-rest MW, since silencing is a subtype phenomenon), pan-panel negative
     # correlation SECONDARY. Feeds coherent_epigenetic_silencing (a LoF/SL flag, NOT a dependency).
+    # LINEAGE-CONDITIONED as of card v1.1.0 (2026-09-12): the subset contrast is unstratified, so for a
+    # lineage-restricted gene the hypermethylated group is just the non-expressing lineages. A contrast
+    # that collapses within lineage is reported as silencing_lineage_confounded and fires no rung.
     modality_relevance: [small_molecule, degrader]
     claim: "Does the target's own promoter methylation predict its own low expression (epigenetic silencing)?"
     entity_grains: [target]
