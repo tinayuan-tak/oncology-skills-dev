@@ -103,6 +103,10 @@ thresholds:
   min_ecd_length_adc_favorable: 200               # residues; ADC epitope-accessibility floor
   max_endocytosis_motif_high_conf_tce_favorable: 2  # low turnover keeps surface stable for TCE
 
+threshold_roles:
+  min_ecd_length_adc_favorable:
+    role: method_parameter
+    consumed_by: topology-predictions-tmbed
 warning_predicates:
   - warning_id: isoform_selective_target_dominant_variant
     if: "isoform_selective_warning == true"

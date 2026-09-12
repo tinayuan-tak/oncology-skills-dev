@@ -106,6 +106,16 @@ thresholds:
   strong_effect_delta: -0.5                      # deficient median >= 0.5 lower than neutral = strong
   moderate_effect_delta: -0.2                    # >= 0.2 lower = moderate. THE RESCUE-FIRING threshold.
 
+threshold_roles:
+  moderate_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-partner-conditional
+  stratification_alpha:
+    role: method_parameter
+    consumed_by: depmap-partner-conditional
+  strong_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-partner-conditional
 warning_predicates:
   - warning_id: rare_partner_deficiency
     if: "n_partner_deficient < 10"

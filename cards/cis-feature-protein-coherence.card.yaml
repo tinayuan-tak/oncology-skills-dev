@@ -102,6 +102,13 @@ thresholds:
   min_relative_cn_p10_p90_spread: 0.2            # p90-p10 CN spread floor (tail-sensitive; focal-amp oncogenes stay testable)
   amplification_threshold: 1.5                   # FOCAL_AMP — reused from depmap_cn_distribution (relative CN; diploid ~ 1.0)
 
+threshold_roles:
+  amplification_threshold:
+    role: method_parameter
+    consumed_by: depmap-cis-protein-dosage
+  significance_alpha:
+    role: method_parameter
+    consumed_by: depmap-cis-protein-dosage
 warning_predicates:
   - warning_id: low_n_paired_models
     if: "n_paired_models_cn_protein < THRESHOLD.min_cell_lines_for_correlation"

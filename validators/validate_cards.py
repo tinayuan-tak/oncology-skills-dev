@@ -475,12 +475,47 @@ def _threshold_ref_check(spec: dict, report: ValidationReport) -> None:
     for i, wp in enumerate(spec.get("warning_predicates", []) or []):
         scan_predicate(wp.get("if", ""), f"warning_predicates[{i}].if")
 
-    # Inverse check: declared thresholds that no predicate references (warning, not error)
-    unused = declared - referenced
+    # Inverse check: declared thresholds that no predicate references. A cutoff applied by the
+    # METHOD or the READER can never be predicate-referenced, so this warned permanently for it
+    # and asked authors to delete numbers the method needs (dependency-predictability's
+    # rf_n_estimators / xgb_learning_rate are hyperparameters, not interpretation cutoffs).
+    # threshold_roles: declares that case per-name; the checks below keep it from becoming a
+    # blanket silencer, and only genuinely orphaned thresholds still warn.
+    roles = spec.get("threshold_roles") or {}
+    own_calls = set(_method_calls(spec))
+    for name in sorted(roles):
+        entry = roles[name] or {}
+        where = f"threshold_roles.{name}"
+        if name not in declared:
+            report.add_error(
+                f"DANGLING_THRESHOLD_ROLE [{where}]: no such entry in `thresholds:`. Declared: "
+                f"{sorted(declared) or '(none)'}."
+            )
+            continue
+        if name in referenced:
+            # Also the STALE ratchet: the day a predicate starts comparing against this value,
+            # the declaration says the opposite of what the card does, and must fail loudly
+            # rather than sit there suppressing a warning that is now wrong.
+            report.add_error(
+                f"MISDECLARED_THRESHOLD_ROLE [{where}]: a predicate on this card references "
+                f"`THRESHOLD.{name}`, so it is NOT applied only upstream. Remove the role entry."
+            )
+            continue
+        if entry.get("role") == "method_parameter":
+            call = entry.get("consumed_by")
+            if call not in own_calls:
+                report.add_error(
+                    f"UNKNOWN_THRESHOLD_CONSUMER [{where}]: `consumed_by: {call}` is not a "
+                    f"methods[].call on this card. This card calls: {sorted(own_calls) or '(none)'}."
+                )
+
+    unused = declared - referenced - set(roles)
     if unused:
         report.add_warning(
             f"THRESHOLD_UNUSED: thresholds {sorted(unused)} declared but never referenced "
-            f"by any predicate. Remove from thresholds: block or use them."
+            f"by any predicate. Remove from thresholds: block, use them, or — if the cutoff is "
+            f"applied by the method or the reader rather than by this card — declare it in "
+            f"`threshold_roles:` with the consumer."
         )
 
 

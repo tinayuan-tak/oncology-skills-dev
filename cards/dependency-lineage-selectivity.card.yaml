@@ -135,6 +135,13 @@ thresholds:
   lineage_selective_min_enriched: 1              # ≥1 lineage with q < α → lineage_selective
   broadly_dependent_panel_median: -0.5           # if panel median ≤ -0.5 with no enrichment → broadly_lineage_dependent
 
+threshold_roles:
+  broadly_dependent_panel_median:
+    role: method_parameter
+    consumed_by: depmap-chronos
+  enrichment_effect_size_min:
+    role: method_parameter
+    consumed_by: depmap-chronos
 warning_predicates:
   - warning_id: small_lineage_count
     if: "n_lineages_evaluated < 10"

@@ -202,6 +202,10 @@ thresholds:
   microenvironment_detected_min: 0.25          # a microenv compartment counts as "expressing"
   broadly_low_max: 0.05                        # below this everywhere == effectively undetected
 
+threshold_roles:
+  broadly_low_max:
+    role: method_parameter
+    consumed_by: sc-tumor-expression-celltype
 warning_predicates:
   - warning_id: no_malignant_compartment
     if: "malignant_compartment_available == false"

@@ -554,6 +554,74 @@
         ]
       }
     },
+    "threshold_roles": {
+      "type": "object",
+      "description": "OPTIONAL (2026-09-12). Declares, per threshold name, that the cutoff is applied SOMEWHERE OTHER THAN a card predicate, so THRESHOLD_UNUSED must not ask for it to be deleted. The `thresholds:` block holds two different kinds of number: cutoffs a predicate compares against, and parameters an upstream method or reader already applied before the card sees a field (a stratification alpha, an effect-size floor, a model hyperparameter). Only the first kind can ever be predicate-referenced, so the unused-threshold warning fired permanently for the second and told authors to remove numbers the method needs. A role entry is a CHECKED claim, not a suppression: `method_parameter` must name one of THIS card's own methods[].call, and any threshold a predicate DOES reference may not be declared here at all (MISDECLARED_THRESHOLD_ROLE), which is what makes the declaration go stale loudly if the card later starts interpreting the value itself.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "role"
+        ],
+        "properties": {
+          "role": {
+            "type": "string",
+            "description": "method_parameter: the named method applied this cutoff upstream; the card documents it for reviewability. reader_gate: the skill-side reader applies it while shaping the card's fields, so it cannot be anchored to a method call and needs a prose note instead.",
+            "enum": [
+              "method_parameter",
+              "reader_gate"
+            ]
+          },
+          "consumed_by": {
+            "type": "string",
+            "description": "REQUIRED when role is method_parameter: the methods[].call entry on this card that applies the cutoff. Checked against this card's own methods: block, the same way a resolver's driving_rule is checked against its own rung.",
+            "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$"
+          },
+          "note": {
+            "type": "string",
+            "description": "REQUIRED when role is reader_gate (nothing machine-checkable anchors that case, so the prose IS the review surface). Optional for method_parameter, where `consumed_by` is verified.",
+            "minLength": 25,
+            "maxLength": 400
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "role": {
+                  "const": "method_parameter"
+                }
+              },
+              "required": [
+                "role"
+              ]
+            },
+            "then": {
+              "required": [
+                "consumed_by"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "role": {
+                  "const": "reader_gate"
+                }
+              },
+              "required": [
+                "role"
+              ]
+            },
+            "then": {
+              "required": [
+                "note"
+              ]
+            }
+          }
+        ]
+      }
+    },
     "caveats": {
       "type": "array",
       "description": "Known limitations of the question or methods. Surfaced in the rendered card panel and in the evidence_package's per-card block.",

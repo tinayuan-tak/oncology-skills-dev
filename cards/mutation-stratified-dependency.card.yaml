@@ -129,6 +129,16 @@ thresholds:
   # Per-hotspot inclusion cutoff for figure
   min_cells_per_hotspot: 3
 
+threshold_roles:
+  moderate_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-mutation-stratified
+  stratification_alpha:
+    role: method_parameter
+    consumed_by: depmap-mutation-stratified
+  strong_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-mutation-stratified
 warning_predicates:
   - warning_id: rare_mutation
     if: "n_hotspot_mutant + n_damaging_mutant < 10"

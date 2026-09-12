@@ -80,6 +80,19 @@ thresholds:
   high_loeuf: 0.45   # gnomAD v4-recommended cutoff (raised from 0.35 with the v4.1.1 recompute)
   moderate_loeuf: 0.6
 
+threshold_roles:
+  high_loeuf:
+    role: method_parameter
+    consumed_by: gnomad-constraint-lookup
+  high_pli:
+    role: method_parameter
+    consumed_by: gnomad-constraint-lookup
+  moderate_loeuf:
+    role: method_parameter
+    consumed_by: gnomad-constraint-lookup
+  moderate_pli:
+    role: method_parameter
+    consumed_by: gnomad-constraint-lookup
 warning_predicates:
   - warning_id: high_constraint_safety_concern
     if: "constraint_class == 'highly_constrained'"

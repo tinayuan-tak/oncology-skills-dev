@@ -101,6 +101,16 @@ thresholds:
   moderate_effect_delta: -0.08
   responder_log2auc_threshold: -0.5                  # deep-responder cut for the PPV confusion matrix
 
+threshold_roles:
+  moderate_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-mutation-drug-response
+  stratification_alpha:
+    role: method_parameter
+    consumed_by: depmap-mutation-drug-response
+  strong_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-mutation-drug-response
 warning_predicates:
   - warning_id: few_on_target_compounds
     if: "n_on_target_compounds < 3"

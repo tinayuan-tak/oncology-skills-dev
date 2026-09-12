@@ -101,6 +101,16 @@ thresholds:
   strong_effect_delta: -0.5                          # fusion-positive median >= 0.5 lower than negative = strong
   moderate_effect_delta: -0.2                        # >= 0.2 lower = moderate
 
+threshold_roles:
+  moderate_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-fusion-stratified
+  stratification_alpha:
+    role: method_parameter
+    consumed_by: depmap-fusion-stratified
+  strong_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-fusion-stratified
 warning_predicates:
   - warning_id: rare_fusion
     if: "n_fusion_positive < 10"

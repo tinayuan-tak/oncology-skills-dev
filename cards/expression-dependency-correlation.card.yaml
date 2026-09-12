@@ -108,6 +108,13 @@ thresholds:
   # Pan-essential confound — when gene is broadly essential, correlation is dominated by tissue identity
   pan_essential_median_chronos: -0.5
 
+threshold_roles:
+  biomarker_chronos_threshold:
+    role: method_parameter
+    consumed_by: depmap-expression-dependency
+  significance_alpha:
+    role: method_parameter
+    consumed_by: depmap-expression-dependency
 warning_predicates:
   - warning_id: low_n_cell_lines
     if: "n_cell_lines_evaluated < THRESHOLD.min_cell_lines_for_correlation"

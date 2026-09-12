@@ -94,6 +94,16 @@ thresholds:
   strong_effect_delta: -0.5                    # amplified median >= 0.5 lower than neutral = strong
   moderate_effect_delta: -0.2                  # >= 0.2 lower = moderate
 
+threshold_roles:
+  moderate_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-cn-stratified
+  stratification_alpha:
+    role: method_parameter
+    consumed_by: depmap-cn-stratified
+  strong_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-cn-stratified
 warning_predicates:
   - warning_id: rare_amplification
     if: "n_amplified < 10"

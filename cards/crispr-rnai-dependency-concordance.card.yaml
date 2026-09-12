@@ -109,6 +109,13 @@ thresholds:
   strongly_concordant_fraction_threshold: 0.85   # ≥85% agree in BOTH → strongly_concordant
   discordant_fraction_threshold: 0.30            # ≥30% disagree → discordant
 
+threshold_roles:
+  crispr_dependent_threshold:
+    role: method_parameter
+    consumed_by: depmap-crispr-rnai-concordance
+  rnai_dependent_threshold:
+    role: method_parameter
+    consumed_by: depmap-crispr-rnai-concordance
 warning_predicates:
   - warning_id: low_overlap
     if: "n_in_both < THRESHOLD.min_overlap_for_call"

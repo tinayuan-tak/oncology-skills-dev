@@ -130,6 +130,13 @@ thresholds:
   # correlation must not resurrect it.
   min_broad_quartile_delta: -0.5                 # top-vs-bottom methylation-quartile median log2TPM delta
 
+threshold_roles:
+  hypermethylation_threshold:
+    role: method_parameter
+    consumed_by: depmap-methylation-silencing
+  significance_alpha:
+    role: method_parameter
+    consumed_by: depmap-methylation-silencing
 warning_predicates:
   - warning_id: low_n_cell_lines
     if: "n_cell_lines_evaluated < THRESHOLD.min_cell_lines_for_correlation"

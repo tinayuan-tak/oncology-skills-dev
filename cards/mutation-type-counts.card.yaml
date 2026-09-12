@@ -100,6 +100,13 @@ thresholds:
   min_mutated_cell_lines: 5                  # <5 → no_mutations call
   min_panel_coverage_threshold: 1000
 
+threshold_roles:
+  lof_dominant_fraction:
+    role: method_parameter
+    consumed_by: depmap-mutation-type-counts
+  missense_dominant_fraction:
+    role: method_parameter
+    consumed_by: depmap-mutation-type-counts
 warning_predicates:
   - warning_id: low_mutation_panel_coverage
     if: "mut_n_cell_lines_total < THRESHOLD.min_panel_coverage_threshold"

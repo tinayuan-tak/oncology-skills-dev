@@ -167,6 +167,16 @@ thresholds:
   min_deleted_for_subset: 20                     # min deleted lines to run the deletion arm (power floor, mirrors the amp arm)
   min_arm_delta_for_direction: 0.25              # |median log2TPM delta| an arm must clear to be eligible to set direction
 
+threshold_roles:
+  amplification_threshold:
+    role: method_parameter
+    consumed_by: depmap-cis-dosage
+  deletion_threshold:
+    role: method_parameter
+    consumed_by: depmap-cis-dosage
+  significance_alpha:
+    role: method_parameter
+    consumed_by: depmap-cis-dosage
 warning_predicates:
   - warning_id: low_n_cell_lines
     if: "n_cell_lines_evaluated < THRESHOLD.min_cell_lines_for_correlation"

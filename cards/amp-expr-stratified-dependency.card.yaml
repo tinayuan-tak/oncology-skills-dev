@@ -98,6 +98,16 @@ thresholds:
   strong_effect_delta: -0.5
   moderate_effect_delta: -0.2
 
+threshold_roles:
+  moderate_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-amp-expr-stratified
+  stratification_alpha:
+    role: method_parameter
+    consumed_by: depmap-amp-expr-stratified
+  strong_effect_delta:
+    role: method_parameter
+    consumed_by: depmap-amp-expr-stratified
 warning_predicates:
   - warning_id: rare_amp_expr
     if: "n_amplified_overexpressed < 10"

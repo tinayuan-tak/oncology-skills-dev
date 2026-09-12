@@ -155,6 +155,16 @@ thresholds:
   allgene_top_decile: 90.0
   allgene_bottom_decile: 10.0
 
+threshold_roles:
+  lineage_restricted_max_fraction:
+    role: method_parameter
+    consumed_by: depmap-expression-distribution
+  lineage_restricted_min_fraction:
+    role: method_parameter
+    consumed_by: depmap-expression-distribution
+  min_lineage_size:
+    role: method_parameter
+    consumed_by: depmap-expression-distribution
 warning_predicates:
   - warning_id: low_panel_expression_coverage
     if: "n_cell_lines_evaluated < 500"

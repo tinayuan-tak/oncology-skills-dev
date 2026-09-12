@@ -101,6 +101,10 @@ thresholds:
   subtype_enrich_log2_delta: 1.0
   subgroup_n_floor: 30                           # underpowered stratum → null signal, never a scoped call
 
+threshold_roles:
+  subtype_enrich_log2_delta:
+    role: method_parameter
+    consumed_by: depmap-expression-distribution
 caveats:
   - "COADREAD-only for the pattern proof (2026-08-17): depmap-subgroup-assignments-coadread-v1 (MSI_H / MSS) is the only landed DepMap cell-line assignment shard. Other indications return subtype_axis_available:false until their --data-source depmap shards land."
   - "Enrichment baseline is the WITHIN-LINEAGE pooled median (the union of all strata members), NOT the pan-cancer panel median — a stratum is enriched/depleted relative to its own indication's cell-line panel."
