@@ -19,8 +19,45 @@ from typing import Callable
 from _skills_common.paths import target_contracts_root
 
 _CT = target_contracts_root()
+# The PRESENCE ordinal. Every member is a MEASURED read of how much signal there is.
 _TIERV = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0}
+
+# ── THE ABSTENTION TOKEN ──────────────────────────────────────────────────────────────────────────
+# `unmeasured` is deliberately NOT a fifth rung of _TIERV, because it is not a quantity of signal —
+# it is the absence of a MEASUREMENT, which is off the presence axis entirely. Before this existed the
+# only home for it was `absent` (explicitly in target-intrinsic's map, implicitly via default_classify
+# everywhere else), which states "we looked and there is no signal" when the truth is "we could not
+# look". That is the same error class as reading a withheld immune denominator as effector absence.
+#
+# Giving it a NUMBER instead would have been worse than leaving it as `absent`, because the ordinal is
+# consumed as a distance as well as a rank: evidence_capsule._cross_card_conflicts flags
+# `max(tier) - min(tier) >= 2` as a DISAGREEMENT between cards, so `unmeasured = -1` would have made a
+# card that never measured "conflict" with any card reading `moderate` — fabricating contradictions out
+# of coverage gaps. So the token is off-axis and every ordinal site below decides explicitly what to do
+# with it: it never votes, it never ranks, and it never disagrees.
+UNMEASURED = "unmeasured"
+_TIERS = (*_TIERV, UNMEASURED)  # the full valid tier vocabulary: presence ordinal + the abstention
+
+# Non-measurement tokens a card may carry. Matched by default_classify so an abstention degrades to
+# UNMEASURED instead of to `absent`. Deliberately NARROW: only tokens that assert nothing was measured.
+# `indeterminate` / `insufficient` are NOT here — those are measured-but-inconclusive reads, a different
+# claim (the measurement happened and did not resolve), and collapsing them here would overstate coverage.
+_UNMEASURED_TOKENS = (
+    "data_unavailable",
+    "not_measured",
+    "unmeasured",
+    "no_data",
+    "not_assessed",
+    "not_covered",
+    "uninterpretable",
+    "_unreliable",
+)
 _POW = ["low", "moderate", "high", "very high"]
+
+
+def is_measured(tier: str) -> bool:
+    """True when `tier` is a point on the PRESENCE ordinal (i.e. something was actually measured)."""
+    return tier in _TIERV
 
 
 @functools.lru_cache(maxsize=1024)
@@ -60,8 +97,14 @@ def _card_capsule_contract(card_id: str) -> tuple:
 
 
 def default_classify(v) -> str:
-    """Ordinal presence tier from a categorical card value (token heuristic; a skill may pass its own)."""
+    """Ordinal presence tier from a categorical card value (token heuristic; a skill may pass its own).
+
+    Returns UNMEASURED for a non-measurement token, which is checked FIRST: a missing value used to fall
+    through every presence test to `absent`, so "we could not measure" and "we measured no signal" were the
+    same output. They are different claims and only one of them is evidence."""
     s = str(v or "").lower()
+    if not s or any(t in s for t in _UNMEASURED_TOKENS):
+        return UNMEASURED
     if any(t in s for t in ("broadly_high", "strong", "malignant_broadly", "top_1pct", "adequate", "__present__")):
         return "strong" if "__present__" not in s else "moderate"
     if any(t in s for t in ("broadly_moderate", "moderate", "multi", "partial", "lineage_restricted", "mid")):
@@ -78,12 +121,14 @@ def make_value_classifier(value_tiers: dict, default: Callable = default_classif
     as `absent`, i.e. flips a POSITIVE signal to a negative one. This lets a skill state the tier for its
     OWN card vocabulary explicitly (data, not code), with default_classify as the fallback for any value
     the map omits — so an unseen value degrades to the heuristic rather than silently to `absent`.
-    `tier` must be one of strong/moderate/weak/absent (unknown tiers fall through to the default)."""
+    `tier` must be one of strong/moderate/weak/absent/unmeasured (unknown tiers fall through to the
+    default). A skill maps its own non-measurement tokens to `unmeasured` (see UNMEASURED above) so the
+    abstention is stated in the skill's data rather than inferred from a token spelling."""
     norm = {str(k).lower(): v for k, v in (value_tiers or {}).items()}
 
     def classify(v) -> str:
         t = norm.get(str("" if v is None else v).lower())
-        return t if t in _TIERV else default(v)
+        return t if t in _TIERS else default(v)
 
     return classify
 
@@ -206,25 +251,40 @@ def derive_subgroups(
 
     out: dict = {}
     for sg, srcs in per.items():
-        present = [s for s in srcs if _TIERV[s["tier"]] >= 2]
-        signal = max(srcs, key=lambda s: _TIERV[s["tier"]])["tier"]
-        best_power = max((s["power"] for s in srcs), key=lambda p: _POW.index(p))
-        conflicts = [s for s in srcs if s["conflict"]]
+        # An ABSTAINING source is held out of the vote entirely — out of the numerator AND the
+        # denominator. Leaving it in the denominator would read as DISAGREEMENT ("1 of 2 sources agrees")
+        # when the second source never spoke, silently converting a coverage gap into weak evidence.
+        measured = [s for s in srcs if is_measured(s["tier"])]
+        abstained = [s for s in srcs if not is_measured(s["tier"])]
+        present = [s for s in measured if _TIERV[s["tier"]] >= 2]
+        # ...and it never ranks: the signal is the strongest MEASURED read, and only reports UNMEASURED
+        # when nothing was measured at all (in which case there is no confidence to report either).
+        signal = max(measured, key=lambda s: _TIERV[s["tier"]])["tier"] if measured else UNMEASURED
+        best_power = max((s["power"] for s in (measured or srcs)), key=lambda p: _POW.index(p))
+        conflicts = [s for s in measured if s["conflict"]]
         # confidence = agreement × sample-size, capped by conflict (NOT weakest-link)
         conf = (
-            "high"
-            if len(present) == len(srcs) and best_power in ("high", "very high")
+            "low"
+            if not measured
+            else "high"
+            if len(present) == len(measured) and best_power in ("high", "very high")
             else "moderate"
-            if len(present) >= max(1, len(srcs) // 2)
+            if len(present) >= max(1, len(measured) // 2)
             else "low"
         )
         if conflicts and conf == "high":
             conf = "moderate"
+        # A held-out source must stay VISIBLE, or the hold-out silently inflates apparent agreement
+        # (n_sources == n_agree with an unread card in the list reads as unanimity). n_sources counts
+        # only the sources that voted; n_unmeasured says how many did not, and why is on each source.
+        if abstained and conf == "high":
+            conf = "moderate"  # unanimity among 1 of 3 cards is not high confidence
         out[sg] = {
             "signal": signal,
             "confidence": conf,
-            "n_sources": len(srcs),
+            "n_sources": len(measured),
             "n_agree": len(present),
+            "n_unmeasured": len(abstained),
             "power": best_power,
             "conflict": bool(conflicts),
             "sources": [
@@ -269,7 +329,9 @@ def _stratum_tier(row: dict, classify) -> str:
     med = row.get("median_log2tpm")
     if isinstance(med, (int, float)):
         return "strong" if med >= 5 else "moderate" if med >= 3.46 else "weak" if med >= 1 else "absent"
-    return "absent"
+    # No class field and no median = nothing to read off this row. `absent` here claimed the stratum was
+    # measured and empty; it was not measured at all.
+    return UNMEASURED
 
 
 def derive_stratified(hierarchy: dict, cards: list, classify=default_classify) -> dict:
@@ -304,7 +366,18 @@ def derive_stratified(hierarchy: dict, cards: list, classify=default_classify) -
         k = len(by)
         strata = {}
         for sid, reads in by.items():
-            best = max(reads, key=lambda x: _TIERV.get(x["tier"], -1))
+            # Rank over MEASURED reads only; a stratum whose every read abstained reports UNMEASURED
+            # rather than the bottom of the presence ordinal. `_TIERV.get(..., -1)` would have sorted the
+            # abstention below a genuine `absent`, i.e. picked a non-measurement as the stratum's signal
+            # whenever it was the only read.
+            m_reads = [x for x in reads if is_measured(x["tier"])]
+            if m_reads:
+                best = max(m_reads, key=lambda x: _TIERV[x["tier"]])
+            else:
+                # Keep the stratum's own n: the cohort size is known even when nothing was read off it,
+                # and dropping it would make an unread stratum indistinguishable from an empty one.
+                n_any = next((x["n"] for x in reads if isinstance(x["n"], (int, float))), None)
+                best = {"tier": UNMEASURED, "n": n_any}
             n = best["n"]
             base = (
                 "high"

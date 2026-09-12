@@ -16,9 +16,13 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.subgroup_derivation import (  # noqa: E402
+    _TIERS,
+    _TIERV,
+    UNMEASURED,
     _heuristic_reader,
     default_classify,
     derive_subgroups,
+    is_measured,
     make_value_classifier,
     subgroup_signals_for,
 )
@@ -69,7 +73,9 @@ def test_value_classifier_falls_back_to_default_for_unmapped():
     # an unmapped value degrades to the token heuristic, NOT silently to 'absent'
     assert clf("broadly_high") == default_classify("broadly_high") == "strong"
     assert clf("sparse") == "weak"
-    assert clf(None) == "absent"  # empty degrades to default's absent
+    # A MISSING value is an abstention, not a measured absence. This asserted `absent` until the off-axis
+    # `unmeasured` tier existed, which made "no value to read" and "read as no signal" the same output.
+    assert clf(None) == "unmeasured"
 
 
 def test_value_classifier_case_insensitive_and_bad_tier_ignored():
@@ -160,3 +166,100 @@ def test_signals_for_derives_reader_spec_free():
     assert set(sg) >= {"abundance", "malignant_intrinsic", "generality"}, f"got {set(sg)}"
     assert sg["abundance"]["signal"] == "strong"
     assert any(s["card"] == "cellline-protein-abundance-procan" for s in sg["abundance"]["sources"])
+
+
+# ── THE ABSTENTION TIER: a source that did not measure must not vote, rank, or disagree ────────────
+# Before `unmeasured` existed the only home for a non-measurement was `absent`, so "we could not look"
+# and "we looked and found nothing" produced identical output. These pin each of the four consumption
+# sites that had to decide explicitly what an abstention means.
+def _hier_two():
+    return {"sub_groups": [{"id": "SG", "questions": [{"measurement_types": ["mt_a", "mt_b"]}]}]}
+
+
+def _patch_meta(monkeypatch, tiers=None):
+    import _skills_common.subgroup_derivation as SD
+
+    m = tiers or {"a": ("mt_a", None), "b": ("mt_b", None)}
+    monkeypatch.setattr(SD, "_card_meta", lambda cid: m.get(cid, (None, None)))
+
+
+def test_the_abstention_is_off_the_presence_ordinal_not_a_fifth_rung():
+    """A NUMBER for `unmeasured` would be worse than the bug it fixes: the ordinal is consumed as a
+    DISTANCE too (evidence_capsule flags a >=2 tier spread as a cross-card conflict), so any value —
+    including a below-`absent` -1 — turns every coverage gap into a fabricated contradiction."""
+    assert UNMEASURED not in _TIERV, "must not be rankable"
+    assert UNMEASURED in _TIERS, "...but must be a valid tier"
+    assert not is_measured(UNMEASURED)
+    assert all(is_measured(t) for t in _TIERV)
+
+
+def test_a_non_measurement_token_no_longer_reads_as_a_measured_negative():
+    """default_classify checked its presence substrings first and fell through to `absent`, so a coverage
+    gap was indistinguishable from a measured zero. The abstention family is checked FIRST now."""
+    for tok in ("data_unavailable", "not_measured", "no_data", "not_assessed", "lymphoid_denominator_unreliable"):
+        assert default_classify(tok) == UNMEASURED, tok
+    assert default_classify(None) == UNMEASURED
+    # ...and a MEASURED negative is still a measured negative — the distinction is the whole point.
+    assert default_classify("immune_desert") == "absent"
+    assert default_classify("no_high_confidence_interactors") == "absent"
+
+
+def test_indeterminate_is_not_swept_into_the_abstention_family():
+    """`indeterminate` / `insufficient` are MEASURED-but-inconclusive: the measurement happened and did
+    not resolve. Calling those unmeasured would overstate how much coverage is missing."""
+    assert default_classify("indeterminate") != UNMEASURED
+    assert default_classify("insufficient") != UNMEASURED
+
+
+def test_an_abstaining_source_leaves_the_agreement_denominator(monkeypatch):
+    """The bug this closes: 1 strong + 1 unread card scored "1 of 2 agree", which reads as one source
+    DISAGREEING when it never spoke — a coverage gap silently demoted to weak evidence."""
+    _patch_meta(monkeypatch)
+    cards = [
+        {"card_id": "a", "summary": {"x_class": "broadly_high", "n_samples": 500}},
+        {"card_id": "b", "summary": {"x_class": "data_unavailable"}},
+    ]
+    out = derive_subgroups(_hier_two(), cards, None)["SG"]
+    assert out["signal"] == "strong"  # the measured read is the signal
+    assert out["n_sources"] == 1 and out["n_agree"] == 1  # the abstention is out of BOTH
+    assert out["n_unmeasured"] == 1  # ...but VISIBLE, not silently dropped
+    assert len(out["sources"]) == 2  # the source list still shows the card that abstained
+
+
+def test_an_abstention_never_outranks_a_measured_absence(monkeypatch):
+    """`unmeasured` sorted below `absent` would make the non-measurement the sub-group's signal whenever
+    it was the only read; sorted above, it would mask a real negative. It does neither — it is not ranked."""
+    _patch_meta(monkeypatch)
+    cards = [
+        {"card_id": "a", "summary": {"x_class": "immune_desert"}},  # a MEASURED absence
+        {"card_id": "b", "summary": {"x_class": "data_unavailable"}},
+    ]
+    assert derive_subgroups(_hier_two(), cards, None)["SG"]["signal"] == "absent"
+
+
+def test_a_subgroup_whose_every_source_abstained_reports_unmeasured_not_absent(monkeypatch):
+    """The headline case: an axis nothing could read now SAYS so, instead of claiming a measured zero."""
+    _patch_meta(monkeypatch)
+    cards = [
+        {"card_id": "a", "summary": {"x_class": "data_unavailable"}},
+        {"card_id": "b", "summary": {"x_class": "not_measured"}},
+    ]
+    out = derive_subgroups(_hier_two(), cards, None)["SG"]
+    assert out["signal"] == UNMEASURED
+    assert out["n_sources"] == 0 and out["n_unmeasured"] == 2
+    assert out["confidence"] == "low"  # nothing measured cannot be high confidence
+
+
+def test_a_held_out_source_cannot_leave_a_lone_card_reading_high_confidence(monkeypatch):
+    """Holding abstentions out of the denominator must not INVERT into over-confidence: 1-of-3 unanimity
+    is not `high`. Without this cap, removing the unread cards would make a thin panel look unanimous."""
+    _patch_meta(monkeypatch, {"a": ("mt_a", None), "b": ("mt_b", None), "c": ("mt_c", None)})
+    hier = {"sub_groups": [{"id": "SG", "questions": [{"measurement_types": ["mt_a", "mt_b", "mt_c"]}]}]}
+    cards = [
+        {"card_id": "a", "summary": {"x_class": "broadly_high", "n_samples": 5000}},
+        {"card_id": "b", "summary": {"x_class": "data_unavailable"}},
+        {"card_id": "c", "summary": {"x_class": "data_unavailable"}},
+    ]
+    out = derive_subgroups(hier, cards, None)["SG"]
+    assert out["signal"] == "strong" and out["n_unmeasured"] == 2
+    assert out["confidence"] == "moderate", "1-of-3 measured is not high confidence"

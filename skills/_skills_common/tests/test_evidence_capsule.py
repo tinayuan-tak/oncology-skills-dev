@@ -156,6 +156,46 @@ def test_conflict_pair_across_same_measurement_type(monkeypatch):
     assert caps["hi"]["conflict_pairs"] and caps["hi"]["conflict_pairs"][0]["measurement_type"] == "mt_x"
 
 
+def test_a_card_that_did_not_measure_cannot_conflict_with_one_that_did(monkeypatch):
+    """The conflict test is a tier DISTANCE (`max - min >= 2`), so it reads the presence ordinal as a
+    number. That is exactly why `unmeasured` is off the ordinal: give the abstention any value and a card
+    outside its source's coverage manufactures a contradiction against every card reading strong/moderate.
+    Here `strongly_selective` (3) vs an unread card would be a 3-or-more spread on any numbering."""
+    import _skills_common.evidence_capsule as M
+
+    monkeypatch.setattr(
+        M, "_card_meta", lambda cid: {"hi": ("mt_x", None), "gap": ("mt_x", None)}.get(cid, (None, None))
+    )
+    cards = [
+        {"card_id": "hi", "summary": {"x_class": "strongly_selective"}},
+        {"card_id": "gap", "summary": {"x_class": "data_unavailable"}},
+    ]
+    caps = EC.emit_capsules(cards, None)["capsules"]
+    assert not caps["hi"].get("conflict_pairs"), "a coverage gap is not a disagreement"
+    assert not caps["gap"].get("conflict_pairs")
+
+
+def test_two_real_disagreements_still_conflict_when_a_third_card_abstains(monkeypatch):
+    """The non-vacuity partner: dropping abstentions must not disable the detector for the cards that DID
+    measure — otherwise this fix would silence real contradictions whenever coverage was incomplete."""
+    import _skills_common.evidence_capsule as M
+
+    monkeypatch.setattr(
+        M,
+        "_card_meta",
+        lambda cid: {"hi": ("mt_x", None), "lo": ("mt_x", None), "gap": ("mt_x", None)}.get(cid, (None, None)),
+    )
+    cards = [
+        {"card_id": "hi", "summary": {"x_class": "strongly_selective"}},
+        {"card_id": "lo", "summary": {"x_class": "no_dependency"}},
+        {"card_id": "gap", "summary": {"x_class": "data_unavailable"}},
+    ]
+    caps = EC.emit_capsules(cards, None)["capsules"]
+    assert caps["hi"]["conflict_pairs"], "the real hi/lo disagreement must survive"
+    others = {o["card"] for o in caps["hi"]["conflict_pairs"][0]["other_sources"]}
+    assert others == {"lo"}, f"the abstaining card must not be listed as a disagreeing source: {others}"
+
+
 def test_data_quality_flag_activating_vs_inactivation():
     cards = [
         {

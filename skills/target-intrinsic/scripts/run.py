@@ -105,11 +105,13 @@ _TARGET_INTRINSIC_VALUE_TIERS = {
     # interactome (ppi-interactome interactome_class); hub / connected / sparse tiered above
     "no_high_confidence_interactors": "absent",
     # EXPLICIT gap token, emitted by several readers when the gene is outside the source's coverage.
-    # `absent` is a LOSSY encoding — _TIERV (strong/moderate/weak/absent) has no "unmeasured" rung, so a
-    # coverage gap is indistinguishable from a measured negative in the panel. Mapped explicitly anyway so
-    # the vocabulary guard passes deliberately rather than by silent default; a gap≠absent distinction needs
-    # a 5th _TIERV rung in _skills_common/subgroup_derivation.py (tracked, out of scope here).
-    "data_unavailable": "absent",
+    # Now `unmeasured` (the off-axis abstention added to _skills_common/subgroup_derivation.py), which is
+    # what this entry has wanted since it was written: a coverage gap is no longer encoded as a measured
+    # negative. It does not vote in the sub-group agreement count, does not rank as the sub-group's signal,
+    # and cannot "conflict" with a card that did measure.
+    # (literal, not the UNMEASURED constant: test_declared_tiers_are_valid reads this map with
+    # ast.literal_eval straight from the source, and validates the spelling against _TIERS.)
+    "data_unavailable": "unmeasured",
 }
 
 # EXPLICIT sub-group reader spec {measurement_type: {"class", "n", "label"}} — which field of each source

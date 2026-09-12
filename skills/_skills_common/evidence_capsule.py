@@ -27,7 +27,13 @@ plus data_quality_flags — generic mis-bind / direction-inversion contradiction
 from __future__ import annotations
 
 from _skills_common.evidence_salience import indication_stratum_aliases, sig_round, spec_for
-from _skills_common.subgroup_derivation import _TIERV, _card_capsule_contract, _card_meta, default_classify
+from _skills_common.subgroup_derivation import (
+    _TIERV,
+    _card_capsule_contract,
+    _card_meta,
+    default_classify,
+    is_measured,
+)
 
 _R = 4  # float precision (hash-stability)
 _STRATUM_LABELS = ("oncotree_code", "lineage", "stratum_id", "stratum", "subgroup", "cohort", "subtype")
@@ -356,6 +362,11 @@ def _conflict_pairs(cards, classify):
         by_mt.setdefault(mt, []).append((cid, cls, classify(cls)))
     out = {}
     for mt, members in by_mt.items():
+        # A card that did not MEASURE cannot DISAGREE. Abstentions are dropped before the spread test,
+        # and two cards must still remain, or a single measured card would "conflict" with a coverage
+        # gap. (This is why `unmeasured` is off the presence ordinal rather than a 5th rung of _TIERV:
+        # any number here — including a below-`absent` -1 — makes every non-measurement a contradiction.)
+        members = [m for m in members if is_measured(m[2])]
         if len(members) < 2:
             continue
         tiers = {_TIERV[m[2]] for m in members}

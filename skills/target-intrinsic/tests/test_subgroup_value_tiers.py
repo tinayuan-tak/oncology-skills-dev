@@ -30,7 +30,14 @@ if str(SKILLS_ROOT) not in sys.path:  # so `_skills_common` resolves when run ou
     sys.path.insert(0, str(SKILLS_ROOT))
 
 from _skills_common.paths import target_contracts_root  # noqa: E402
-from _skills_common.subgroup_derivation import _TIERV, default_classify, make_value_classifier  # noqa: E402
+from _skills_common.subgroup_derivation import (  # noqa: E402
+    _TIERS,
+    _TIERV,
+    UNMEASURED,
+    default_classify,
+    is_measured,
+    make_value_classifier,
+)
 
 CONTRACTS = target_contracts_root()
 
@@ -166,9 +173,9 @@ def test_every_live_class_token_is_tiered_or_knowingly_defaulted():
 
 def test_declared_tiers_are_valid():
     """Typo guard: an unknown tier string falls through to default_classify (make_value_classifier drops
-    anything outside strong/moderate/weak/absent), i.e. a typo silently disables the entry."""
-    bad = {k: v for k, v in _run_py_literal("_TARGET_INTRINSIC_VALUE_TIERS").items() if v not in _TIERV}
-    assert not bad, f"tier values outside {sorted(_TIERV)}: {bad}"
+    anything outside strong/moderate/weak/absent/unmeasured), i.e. a typo silently disables the entry."""
+    bad = {k: v for k, v in _run_py_literal("_TARGET_INTRINSIC_VALUE_TIERS").items() if v not in _TIERS}
+    assert not bad, f"tier values outside {sorted(_TIERS)}: {bad}"
 
 
 def test_the_two_regressed_tokens_no_longer_read_absent():
@@ -179,9 +186,15 @@ def test_the_two_regressed_tokens_no_longer_read_absent():
     assert default_classify("potent_measured_ligand") == "absent"  # what it used to be
 
 
-def test_data_unavailable_is_explicitly_absent_not_defaulted():
-    """`data_unavailable` (coverage gap) is mapped EXPLICITLY, documenting the lossy encoding: _TIERV has
-    no `unmeasured` rung, so a gap is indistinguishable from a measured negative in the panel."""
+def test_data_unavailable_is_unmeasured_not_a_measured_negative():
+    """The tripwire this test used to carry (`assert "unmeasured" not in _TIERV`) has now FIRED and been
+    acted on: the shared ladder gained the off-axis abstention, so a coverage gap is no longer encoded as
+    a measured negative. `unmeasured` is deliberately NOT in _TIERV — it is not a quantity of signal — so
+    the two collections are asserted separately here."""
     tiers = {str(k).lower(): v for k, v in _run_py_literal("_TARGET_INTRINSIC_VALUE_TIERS").items()}
-    assert tiers.get("data_unavailable") == "absent"
-    assert "unmeasured" not in _TIERV, "a 5th tier rung exists now — re-tier data_unavailable to it"
+    assert tiers.get("data_unavailable") == UNMEASURED
+    assert UNMEASURED not in _TIERV, "the abstention must stay OFF the presence ordinal"
+    assert UNMEASURED in _TIERS, "...but must be a valid tier, or make_value_classifier drops the entry"
+    classify = make_value_classifier(_run_py_literal("_TARGET_INTRINSIC_VALUE_TIERS"))
+    assert classify("data_unavailable") == UNMEASURED  # the map is actually honoured, not dropped
+    assert not is_measured(UNMEASURED) and is_measured("absent")

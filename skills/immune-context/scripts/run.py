@@ -62,13 +62,14 @@ _IMMUNE_VALUE_TIERS = {
     "immune_desert": "absent",
     "caf_subset_detected": "moderate",
     "caf_dominant": "moderate",
-    # NOT mapped here, and NOT an oversight: `lymphoid_denominator_unreliable` and `data_unavailable` are
-    # ABSTENTIONS, and this ladder has only strong/moderate/weak/absent — no abstention rung (see
-    # subgroup_derivation._TIERV). Both therefore fall to default_classify's heuristic, which returns
-    # `absent` — reading "we could not measure" as "no effectors". Mapping them to a presence tier here
-    # would only choose WHICH wrong answer to give; the fix is a 5th rung in the shared ladder, which is a
-    # fleet-wide change to subgroup_derivation.py (out of this branch's scope, filed). Verdict-INERT
-    # display path, so the cost today is a mis-tiered sub-group row, not a mis-scored spine.
+    # The two ABSTENTIONS, now mapped to the off-axis `unmeasured` token the shared ladder gained. Both
+    # previously fell through default_classify to `absent`, reading "we could not measure" as "no
+    # effectors" — the same inversion the lymphoid verdict exists to prevent, reappearing one surface
+    # further down. `unmeasured` keeps them off the presence ordinal entirely: no vote, no rank, no
+    # conflict. This mapping matches _IMMUNE_SIGNAL in immune_context_claims.py, so the sub-group tier and
+    # the claim signal now agree instead of contradicting each other.
+    "lymphoid_denominator_unreliable": "unmeasured",
+    "data_unavailable": "unmeasured",
 }
 
 SKILL_NAME = "immune-context"
