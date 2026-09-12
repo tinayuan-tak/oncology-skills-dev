@@ -10,7 +10,20 @@
 # See IDAS_SUBTYPE_PIPELINE.md master design + parent plan
 # .claude/plans/deep-foraging-thompson.md Phase 1.
 
-version: 1.3.0   # 1.2.0 (2026-08-24): + efo_ids lane per indication — OncoTree/canonical -> Open
+version: 1.4.0   # 1.4.0 (2026-09-12): + `aliases` lane (sub-indication / synonym codes that resolve to a
+                 # canonical indication) and two DepMap-lineage repairs. Motivation: the analysis-methods
+                 # canonical map (depmap_chronos.cli.INDICATION_LINEAGE) knew LUAD/LUSC/COAD/READ while this
+                 # file did not, so a consumer reading THIS file (e.g. the functional-requirement skill's
+                 # _indication_lineage_map) resolved `--indication LUAD` to nothing and silently fell back to
+                 # pan-lineage scope — even though SKILL.md advertises LUAD as a worked example. These are
+                 # SUB-indications of NSCLC/COADREAD, not new canonical indications, so they land as aliases
+                 # rather than fragmenting the 35-code vocabulary. Also: UVM carried depmap_lineage: null
+                 # although DepMap 26Q1 has an `Eye` lineage (29 lines; OncotreeCode UM = 16 of them, which is
+                 # UVM's own oncotree_code), and COADREAD lacked the depmap_oncotree_codes set that its coarse
+                 # `Bowel` lineage needs (Bowel merges colorectal adenocarcinoma with anal squamous, small-
+                 # bowel and appendiceal cancers). THYM's null lineage is CORRECT and stays — DepMap 26Q1 has
+                 # no Thymus lineage at all. Additive; all prior fields unchanged.
+                 # 1.2.0 (2026-08-24): + efo_ids lane per indication — OncoTree/canonical -> Open
                  # Targets EFO/MONDO disease ids, the filter the competitor-landscape card uses to
                  # scope Open Targets drugAndClinicalCandidates rows to an indication. Ids grounded
                  # in the OT 26.06 disease vocabulary, intersected with the competitor product's
@@ -38,6 +51,15 @@ indications:
     gdc_project_ids: [TCGA-COAD, TCGA-READ]
     depmap_lineage: Bowel
     depmap_oncotree_lineage: Colorectal_Adenocarcinoma
+    # OncotreeCode SET for the sublineage-aware dependency reduction (mirrors NSCLC below). The coarse
+    # DepMap lineage "Bowel" is 133/146 colorectal adenocarcinoma but ALSO carries anal squamous carcinoma,
+    # small-bowel / small-intestinal carcinoma, appendiceal adenocarcinoma and GI neuroendocrine tumours —
+    # so an indication read at coarse grain is confounded. These are the 4 codes whose
+    # OncotreePrimaryDisease == "Colorectal Adenocarcinoma" in 26Q1.
+    depmap_oncotree_codes: [COAD, COADREAD, READ, MACR]
+    # Sub-indication codes: the two TCGA halves of COADREAD. Present in the analysis-methods canonical
+    # lineage map, so they must resolve here too (both → Bowel).
+    aliases: [COAD, READ]
     cptac_cohort: COAD
     gtex_normal_tissue: Colon
     adj_normal_manifest: coadread-dge-df06320   # FIX: was coadread-adj-normal-dge-v1 (nonexistent); df06320 is the real TCGA matched-adjacent DESeq2 product
@@ -63,6 +85,12 @@ indications:
     # the coarse DepMap lineage "Lung" merges NSCLC + SCLC, so an indication read at coarse grain is
     # confounded. NSCLC = all OncoTree codes with primary disease "Non-Small Cell Lung Cancer" (26Q1).
     depmap_oncotree_codes: [LUAD, LUSC, NSCLC, LCLC, LUAS, LUMEC, GCLC, NUTCL, NSCLCPD]
+    # Sub-indication codes: the two histologies routinely requested as indications in their own right
+    # (SKILL.md worked examples use LUAD). Both → Lung, matching the analysis-methods canonical map.
+    # NOTE these are also members of depmap_oncotree_codes above — that is the SUBLINEAGE grain (which
+    # DepMap cell lines belong to NSCLC), while `aliases` is the INPUT grain (which --indication strings
+    # resolve to this canonical code). Overlap is expected and not a duplication.
+    aliases: [LUAD, LUSC]
     cptac_cohort: LUAD  # note: LUAD only; LUSC is LSCC (separate CPTAC cohort — see LUSC-side of crosswalk if needed)
     gtex_normal_tissue: Lung
     adj_normal_manifest: null  # not yet ingested; TCGA-LUAD paired-adjacent exists
@@ -123,6 +151,7 @@ indications:
     tcga_studies: [TCGA-STAD]
     gdc_project_ids: [TCGA-STAD]
     depmap_lineage: Esophagus/Stomach  # DepMap 26Q1 has NO "Stomach" lineage — gastric + esophageal are merged into "Esophagus/Stomach"; disambiguate STAD vs ESCA via depmap_oncotree_lineage below (mirrors ESCA)
+    aliases: [GC]   # synonym — gastric cancer; present in the analysis-methods canonical lineage map
     depmap_oncotree_lineage: Stomach_Adenocarcinoma
     # OncotreeCode SET (per_oncotree_code_stats reduction): the stomach-adenocarcinoma family. Splits STAD
     # from ESCA (both roll up to primary "Esophagogastric Adenocarcinoma", so PrimaryDisease can't split
@@ -166,6 +195,7 @@ indications:
     tcga_studies: [TCGA-PAAD]
     gdc_project_ids: [TCGA-PAAD]
     depmap_lineage: Pancreas
+    aliases: [PDAC]   # synonym — the histology name used by callers; present in the analysis-methods canonical lineage map
     depmap_oncotree_lineage: Pancreatic_Adenocarcinoma
     cptac_cohort: PDAC
     gtex_normal_tissue: Pancreas
@@ -185,6 +215,7 @@ indications:
     tcga_studies: [TCGA-LAML]
     gdc_project_ids: [TCGA-LAML, BEATAML1.0-COHORT, TARGET-AML, TARGET-ALL-P2, TARGET-ALL-P3]
     depmap_lineage: Myeloid
+    aliases: [LAML]   # synonym — the TCGA study code for AML; present in the analysis-methods canonical lineage map
     depmap_oncotree_lineage: Acute_Myeloid_Leukemia
     cptac_cohort: null  # CPTAC AML studies are FLT3-inhibitor-resistance cell-line proteomes, not patient-cohort — see notes
     gtex_normal_tissue: "Whole Blood"  # functional matched-normal; NOT matched-adjacent
@@ -315,6 +346,7 @@ indications:
     tcga_studies: [TCGA-SKCM]
     gdc_project_ids: [TCGA-SKCM]
     depmap_lineage: Skin
+    aliases: [MELANOMA]   # synonym — the informal name used by callers; present in the analysis-methods canonical lineage map
     cptac_cohort: null
     gtex_normal_tissue: "Skin"
     adj_normal_manifest: null   # no TCGA adjacent-normal (n<=1); GTEx cell C used
@@ -479,8 +511,16 @@ indications:
     oncotree_code: UM
     tcga_studies: [TCGA-UVM]
     gdc_project_ids: [TCGA-UVM]
-    depmap_lineage: null
-    depmap_oncotree_lineage: null
+    # FIX 2026-09-12: was null. DepMap 26Q1 DOES screen uveal melanoma — the `Eye` lineage has 29 models,
+    # 16 of them OncotreeCode UM / OncotreePrimaryDisease "Ocular Melanoma", and UM is UVM's own
+    # oncotree_code above. The null blocked every DepMap-scoped read for this indication (a pan-lineage
+    # silent fallback), which matters: real uveal-melanoma dependencies sit in this lineage (MDM2 Eye
+    # median Chronos -1.61, CDK4 -1.10, SHOC2 -0.57 on 26Q1). `Eye` is a SHARED lineage — the other 13
+    # models are retinoblastoma (RBL) and non-cancerous immortalized retinal/corneal epithelium — so the
+    # OncotreeCode set is required to read UVM without contamination.
+    depmap_lineage: Eye
+    depmap_oncotree_lineage: Ocular_Melanoma
+    depmap_oncotree_codes: [UM]
     cptac_cohort: null
     gtex_normal_tissue: null
     adj_normal_manifest: null

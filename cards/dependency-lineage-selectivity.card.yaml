@@ -28,7 +28,8 @@
 #   - Model.csv — cell-line metadata (OncotreeLineage primary)
 
 card_id: dependency-lineage-selectivity
-version: 3.0.0                                  # major bump: indication-decoupled + pure-data shape
+version: 3.1.0                                  # 3.1.0: absolute-depth admissibility floor on enriched_lineages (AM #600)
+#         3.0.0: indication-decoupled + pure-data shape
 question: "Across all DepMap lineages, how does {target.symbol} dependency stratify? Which lineages are enriched for dependence?"
 
 applies_when:
@@ -64,8 +65,23 @@ outputs:
     - per_oncotree_code_stats                   # list of {oncotree_code, oncotree_lineage, n, median_chronos, p25, p75, fraction_strongly_dependent}
     - n_oncotree_codes_evaluated                # count of OncotreeCodes with n >= min_cell_lines_in_lineage
     # === DepMap-style enrichment test ===
-    - enriched_lineages                         # list of {lineage, n, median_chronos, delta_vs_rest, p_value, q_value, effect_size}
+    - enriched_lineages                         # list of {lineage, n, median_chronos, delta_vs_rest, p_value, q_value, effect_size, depth_cleared_at_grain, depth_cleared_sublineages?}
     - n_enriched_lineages                       # count where q_value < significance threshold
+    # === ABSOLUTE-DEPTH ADMISSIBILITY (AM #600) ===
+    #     The enrichment test is RELATIVE (lineage-vs-rest Mann-Whitney + delta_vs_rest), so on its own it
+    #     cannot separate "this lineage is genuinely dependent and the rest of the panel is not" from "this
+    #     lineage is trivially less-neutral than a neutral panel". Because lineage_selective OUTRANKS the
+    #     non_dependent veto in dependency.resolver.yaml, the second shape would license a positive verdict
+    #     on no absolute signal. So a relatively-enriched lineage now reaches `enriched_lineages` only if it
+    #     also reaches modest_dependency_chronos at its finest ADEQUATELY-POWERED grain (coarse lineage, else
+    #     a constituent OncotreeCode with n >= min_cell_lines_in_lineage). The grain matters biologically:
+    #     coarse OncotreeLineage medians DILUTE sublineage-restricted dependencies (IRF4 Lymphoid -0.455 but
+    #     PCM/myeloma -2.041; SPI1 Myeloid -0.364 but AML -0.552), so a flat coarse floor would discard real
+    #     validated targets. `depth_cleared_at_grain` records which grain carried the call.
+    #     Lineages that clear the RELATIVE test but not the absolute floor are DISCLOSED here rather than
+    #     silently dropped — verdict-inert, for audit ("was there really no signal, or was it shallow?").
+    - relative_only_enriched_lineages            # list of enrichment rows: significant vs rest but never reaching modest_dependency_chronos at any powered grain
+    - n_relative_only_enriched_lineages          # count of the above (0 when every enriched lineage cleared depth)
     # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
     - enrichment_class                          # SHAPE of lineage variation across the panel
     # === Axis-3 (contextualized interpretation): ACROSS-LINEAGE OMNIBUS effect size. DISPLAY-ONLY /
@@ -133,6 +149,7 @@ caveats:
   - "Small lineages (n < 10) excluded from the enrichment test; their stats appear in per_lineage_stats but cannot be ranked for enrichment."
   - "Lineage-specificity does not preclude expansion to adjacent lineages with similar dependency — consult per_lineage_stats for adjacency."
   - "DepMap lineage assignments are based on OncotreeLineage; some cancer types may have ambiguous lineage classification."
+  - "Enrichment is RELATIVE; admission to enriched_lineages additionally requires reaching modest_dependency_chronos at the finest adequately-powered grain (lineage, else a constituent OncotreeCode). Lineages passing the relative test alone are disclosed on relative_only_enriched_lineages and do NOT drive enrichment_class."
   - "enrichment_class is descriptive only — therapeutic interpretation (which lineage matters for which indication) lives in interpretation-rules/."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of `crispr_lof_dependency` at the lineage grain (the
