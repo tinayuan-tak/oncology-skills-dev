@@ -100,7 +100,31 @@ def stable_projection(graph: dict) -> str:
     for lv in g2.get("flow", {}).get("levels") or []:
         for vol in ("stages", "center", "schematic", "lane", "subtitle"):
             lv.pop(vol, None)
+    # Skills: the same rule as concepts, which this projection was not applying. Each entry's
+    # WIRING (cards_used, rules_scope, measurement_types_pulled, gates, fanout, synthesis, ...) is
+    # what the guard exists to protect; four fields are pure sibling churn and made --check cry wolf:
+    #   version       bumps on EVERY skills-repo landing, so the committed atlas went stale minutes
+    #                 after any regen and only a target-contracts PR could clear it. Observed live:
+    #                 two consecutive builds disagreed on immune-context 1.9.0 vs 1.9.1 because
+    #                 another session landed a skills PR in between.
+    #   status/health the live health overlay — already stripped at top level as time-varying, but
+    #                 also merged per-skill, so stripping it there only was not stripping it.
+    #   md_path       an ABSOLUTE path, so --check disagreed with itself between a /tmp worktree and
+    #                 the primary checkout. Reduced to the basename rather than dropped: a skill's
+    #                 md being renamed IS a wiring change, its checkout root is not.
+    for s in _skill_entries(g2):
+        for vol in ("version", "status", "health"):
+            s.pop(vol, None)
+        if s.get("md_path"):
+            s["md_path"] = Path(str(s["md_path"])).name
     return json.dumps(g2, sort_keys=True, separators=(",", ":"))
+
+
+def _skill_entries(graph: dict) -> list[dict]:
+    """graph['skills'] is a dict keyed by skill name; tolerate a list in case that ever changes."""
+    skills = graph.get("skills") or {}
+    seq = skills.values() if isinstance(skills, dict) else skills
+    return [s for s in seq if isinstance(s, dict)]
 
 
 def self_check(graph: dict) -> list[str]:

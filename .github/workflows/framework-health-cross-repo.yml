@@ -30,10 +30,16 @@ name: framework-health-cross-repo
 #   (Contents: Read), confirm the CROSS_REPO_TOKEN secret is exposed to THIS repo, then restore the
 #   `push`/`schedule` triggers below. You can `workflow_dispatch` this job to test the token first.
 # MEANWHILE the SAME two --check guards run token-free against the local side-by-side clones via
-# `make drift-check` (and are surfaced advisory-only by scripts/preland.sh). Committed feeds are also
-# known STALE (~22 contract commits as of 2026-09-06); regen with `make atlas` +
-# `python validators/framework_health/build_framework_health.py` before re-enabling, or this returns red
-# for the (real) drift reason.
+# `make drift-check` (and are surfaced advisory-only by scripts/preland.sh).
+#   DRIFT PRECONDITION CLEARED (2026-09-12): both committed feeds were regenerated and both --check
+#   guards now pass locally, so the second re-enable blocker (the ~22-commit staleness noted here on
+#   2026-09-06) is gone. The PAT scope above is the only remaining blocker. Note that the atlas
+#   --check was ALSO reporting STALE for a reason a regen could never fix: stable_projection compared
+#   per-skill `version`/`status`/`health`/`md_path`, which move on sibling churn alone — so the feed
+#   went stale again minutes after any regen, and `md_path` being absolute made the guard's verdict
+#   depend on which checkout it ran from. Fixed in build_living_doc.stable_projection; if you
+#   re-enable the `push` trigger and see STALE, check whether it is real wiring drift before
+#   assuming another regen will clear it.
 
 # Least-privilege token: this job only reads (checks out repos + runs the --check guards, writes
 # nothing back). The sibling-repo checkouts authenticate via CROSS_REPO_TOKEN, not this token.

@@ -1,23 +1,23 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-11T18:44:58.072065+00:00",
+  "generated_at": "2026-09-12T14:36:41.214918+00:00",
   "roots": {
-    "contracts": "/tmp/wt/tc-health-honesty",
+    "contracts": "/tmp/wt/rnd-computational-biology-oncology-target-contracts__chore-regen-health-feeds",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "aa7c8c4",
-    "skills": "79400a3",
-    "methods": "1977738",
+    "contracts": "10e38f0",
+    "skills": "c02fb1d1",
+    "methods": "dba45eb",
     "products": "b45b9b2",
-    "catalog": "7981965"
+    "catalog": "83d7136"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-09-11T18:32:26.075598+00:00",
+    "prior_generated_at": "2026-09-12T13:53:02.084936+00:00",
     "n_skills": 0,
     "n_cards": 0,
     "n_drift_flags": 0,
@@ -64,17 +64,17 @@
     "n_orphan_cards": 0,
     "n_staged_orphan_cards": 9,
     "n_cards_consumed_but_no_spec": 101,
-    "n_datasets": 519,
-    "n_datasets_in_catalog": 513,
-    "n_orphan_datasets": 332,
+    "n_datasets": 521,
+    "n_datasets_in_catalog": 515,
+    "n_orphan_datasets": 334,
     "n_broken_dataset_refs": 0,
     "n_pending_placeholder_refs": 6,
     "n_datasets_high_access_cost": 2,
     "n_datasets_missing_sort_key": 0,
     "access_cost_tally": {
-      "low": 191,
+      "low": 192,
       "moderate_unused": 24,
-      "unknown": 289,
+      "unknown": 290,
       "high_unused": 7,
       "moderate": 6,
       "high": 2
@@ -223,7 +223,7 @@
           "patient-cis-coherence",
           "cellline-isoform-expression"
         ],
-        "test_count": 8
+        "test_count": 9
       },
       "cards": [
         {
@@ -1342,7 +1342,7 @@
           "coessential-module",
           "subgroup-stratified-dependency"
         ],
-        "test_count": 23
+        "test_count": 24
       },
       "cards": [
         {
@@ -2970,7 +2970,7 @@
           "tcga-til-fraction-saltz",
           "spatial-tumor-normal-colocalization"
         ],
-        "test_count": 9
+        "test_count": 10
       },
       "cards": [
         {
@@ -3528,6 +3528,12 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "cptac-phospho-per-site-per-cohort-v1"
+            },
+            {
+              "product_id": "cptac-protein-tumor-vs-normal-per-cohort-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "cptac-protein-tumor-vs-normal-per-cohort-v1"
             },
             {
               "product_id": "cptac-pdc-snapshot-2026-07-01",
@@ -5579,7 +5585,7 @@
           "paralog-buffering",
           "normal-tissue-liability"
         ],
-        "test_count": 8
+        "test_count": 9
       },
       "cards": [
         {
@@ -6339,7 +6345,7 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [],
-        "test_count": 64
+        "test_count": 66
       },
       "cards": [
         {
@@ -13576,6 +13582,12 @@
           "resolved_id": "cptac-phospho-per-site-per-cohort-v1"
         },
         {
+          "product_id": "cptac-protein-tumor-vs-normal-per-cohort-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "cptac-protein-tumor-vs-normal-per-cohort-v1"
+        },
+        {
           "product_id": "cptac-pdc-snapshot-2026-07-01",
           "in_catalog": true,
           "matched_by": "exact",
@@ -18695,11 +18707,12 @@
       "system_of_record": null,
       "n_derived_from": 1,
       "consumed_by_cards": [
+        "phospho-pathway-activity",
         "surface-abundance-density",
         "tumor-elevation-breadth",
         "tumor-protein-abundance-cptac"
       ],
-      "n_consumers": 3,
+      "n_consumers": 4,
       "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
@@ -22521,6 +22534,26 @@
       "missing_sort_key": false
     },
     {
+      "product_id": "nsclc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 3,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "all_consumers_placeholder": false,
+      "has_sort_key": true,
+      "is_broken_ref": false,
+      "is_pending_ref": false,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
       "product_id": "nsclc-dge-tumor-vs-normal-sensitivity-v1",
       "in_catalog": true,
       "kind": "derived",
@@ -23065,6 +23098,26 @@
       "is_broken_ref": false,
       "is_pending_ref": false,
       "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
+      "product_id": "pancanatlas-driver-tools-bailey-2018",
+      "in_catalog": true,
+      "kind": "source",
+      "provider": "pancanatlas",
+      "version": "bailey-2018",
+      "size_bytes": 63699384,
+      "file_count": 14,
+      "system_of_record": true,
+      "n_derived_from": 0,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "all_consumers_placeholder": false,
+      "has_sort_key": false,
+      "is_broken_ref": false,
+      "is_pending_ref": false,
+      "access_cost": "low",
       "missing_sort_key": false
     },
     {
