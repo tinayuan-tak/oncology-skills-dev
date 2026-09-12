@@ -6,8 +6,10 @@
 #
 # Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
 # nothing here feeds a rule, resolver, or gate. immune-context is GATELESS in spirit but mode=verdict —
-# its verdict is a DIRECT READ of immune_context_class (one immune-context rule fires); the other five
-# cards are verdict-inert display context. The registry is joined onto the already-emitted
+# its verdict is a DIRECT READ of immune_context_class (one immune-context rule fires); the other six
+# cards are verdict-inert display context (two of them — tcga-til-fraction-saltz and
+# spatial-tumor-normal-colocalization — are the orthogonal platforms of the CORROBORATION ruler, so they
+# move confidence without touching the verdict). The registry is joined onto the already-emitted
 # headline.question_table (matched by `legacy_id`) — the emitted question_table itself is NOT modified
 # (byte-stable spine).
 #
@@ -30,9 +32,10 @@
 #   => IMMUNE -> [infiltration, ici_response, microenvironment]
 # (the single IMMUNE lens axis resolves to the three non-corroboration effector-context questions).
 #
-# NO subtype question: none of the six standard-run cards is tier:subtype (immune-context /
-# tcga-til-fraction-saltz are tier:indication; the myeloid/CAF/ICI display cards are tier:target), so no
-# measurement_type is shared by a subtype + non-subtype pair and there is nothing to disambiguate.
+# NO subtype question: none of the seven standard-run cards is tier:subtype (immune-context /
+# tcga-til-fraction-saltz are tier:indication; the myeloid/CAF/ICI/spatial-coloc display cards are
+# tier:target), so no measurement_type is shared by a subtype + non-subtype pair and there is nothing to
+# disambiguate.
 skill: immune-context
 axis_vocabulary:
   IMMUNE: CD8 / immune infiltration

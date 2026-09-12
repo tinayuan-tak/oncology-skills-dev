@@ -17,15 +17,22 @@ description: |
   effector axis, orthogonal to surface biology. It composes into the TCE story
   ALONGSIDE surface-modality-fit (e.g. in target-profile), not inside it.
 
-  v1 is per-indication / target-INDEPENDENT (tier: indication) — the immune
-  landscape of the indication. The antigen-CONDITIONED read (are the ANTIGEN-HIGH
-  patients also T-cell-high?) is a deferred v2 facet.
+  The VERDICT is per-indication / target-INDEPENDENT (tier: indication) — the
+  immune landscape of the indication. The antigen-CONDITIONED read (are the
+  ANTIGEN-HIGH patients also T-cell-high, or T-cell-POORER = effector escape?)
+  shipped in v1.6.1 as verdict-INERT display, alongside the v1.7.0 spatial
+  co-localization reads — the only target-DEPENDENT fields the skill carries.
+
+  The class token is a pan-cancer RANK of the CD8 SHARE of the leukocyte
+  compartment, not an absolute T-cell density; `reference_frame` states the frame
+  and confidence drops to `weak` when an orthogonal absolute-TIL or spatial
+  platform contradicts it.
 
   Use for questions like "is COADREAD immune-hot enough for a TCE?", "is this
   indication a T-cell desert?"
 
 metadata:
-  version: 1.7.0
+  version: 1.8.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -59,7 +66,7 @@ composition:
   output_shape:
     - data_package
   steps_covered: [1, 2, 3, 4, 6]
-  status: partial             # v1 per-indication; antigen-conditioned join is v2
+  status: partial             # verdict is per-indication; open = lymphoid-denominator guard + absolute desert threshold
 ---
 
 # immune-context
@@ -95,10 +102,22 @@ COADREAD / NSCLC / PAAD → immune_intermediate; NSCLC correctly pools LUAD+LUSC
 
 Runnable on indications mapping to a TCGA study in the CIBERSORT vocabulary.
 **Signals bite_tce only** — an ADC payload is T-cell-independent, so immune context
-does not gate it. **Caveats** (from the card): CIBERSORT gives RELATIVE composition,
+does not gate it, and `modality_scope._refinements.bite_tce` rides the `skill_report`
+spine (v1.8.0). **Caveats** (from the card): CIBERSORT gives RELATIVE composition,
 not absolute density; bulk deconvolution does not resolve spatial T-cell exclusion.
-The antigen-conditioned join (T-cell infiltration among antigen-HIGH patients) is
-the documented v2 next layer.
+Both are now CHECKED rather than merely conceded — the corroboration ruler demotes
+confidence to `weak` when the orthogonal absolute (Saltz H&E-DL TIL) or spatial
+(GeoMx/Xenium/CosMx co-localization) platform contradicts the CIBERSORT call.
+The antigen-conditioned join (T-cell infiltration among antigen-HIGH patients)
+SHIPPED in v1.6.1; the open layer is a lymphoid-DENOMINATOR guard (in a leukemia or
+a normal lymphoid organ CIBERSORT's leukocyte denominator IS the malignant clone) and
+an absolute-density desert threshold in the analysis-methods classifier.
+
+**Read the class token as a pan-cancer RANK.** `immune_hot`/`immune_cold` are the Q3
+(0.113) / Q1 (0.084) cuts of the 33-study distribution, so ~9 studies are hot and ~9
+cold BY CONSTRUCTION: clinically-cold PRAD (0.1312) reads `immune_hot` while
+ICI-approved LUAD (0.0876) / BLCA (0.1103) read `immune_intermediate`. The
+`reference_frame` claim scalar states that frame next to the token.
 
 ## v1.6.0 (2026-09-04) — --literature lane + the bulk-CD8-fraction annotation-INFLATION surface
 
@@ -142,3 +161,58 @@ VERDICT-INERT (the skill is gateless; `immune_context_verdict` is a direct read 
   present). Fix belongs in the data product (re-derive through the resolver) or the analysis-methods reader
   (alias-fold on read), per the resolver-in-all-ingestion invariant. Verdict-inert (display card only); the
   target-independent verdict is unaffected.
+
+## v1.7.0 (2026-09-10) — T0-4: spatial co-localization on the IMMUNE spine
+
+- **`spatial-tumor-normal-colocalization`** (GeoMx / Xenium / CosMx) wired in, projecting
+  `spatial_immune_phenotype` ∈ `inflamed` / `excluded` / `spatial_immune_indeterminate` — the spatial
+  resolution of the inflamed-vs-EXCLUDED TCE call the bulk CD8 FRACTION structurally cannot make (the
+  exact gap `spatial_localization_caveat` concedes). `data_unavailable` outside the ~6 coloc-covered
+  indication families (degrades honestly, never a false 'inflamed').
+- The spatial `bite_tce` rules are deliberately NOT in `_RULE_TO_VERDICT`, so the gateless
+  `immune_context_verdict` spine stays byte-stable.
+- **Open:** a clean three-way inflamed/excluded/DESERT split needs an ABSOLUTE-adjacency desert threshold
+  in the analysis-methods classifier — today a stroma-enriched + immune-depleted tumour can class as
+  `stromal_niche_colocalized` and the TCE liability is masked.
+
+## v1.8.0 (2026-09-12) — the CARD-DATA RULERS: a non-vacuous confidence ladder + `modality_scope` on the spine
+
+The verdict spine is **byte-stable** (still a direct read of `immune_context_class`); `confidence` and
+`modality_scope` MOVE by design.
+
+- **The confidence ruler was VACUOUS (F2).** `_immune_corr` returned the CONSTANT `moderate` for every
+  measured indication and the IMMUNE atom never carried a `conflict`, so `headline_block.confidence` and
+  `skill_report.confidence` were a constant: `strong` and `weak` were UNREACHABLE and `derive_confidence`'s
+  conflict cap + coverage floor were dead code on this single-axis skill. Measured consequence: a
+  DISCORDANT PRAD (relative-CD8-hot, absolute-TIL-LOW) read exactly as confidently as a corroborated SKCM.
+  It is now an **orthogonal-platform ruler** — `high` = an ABSOLUTE (Saltz H&E-DL TIL) or SPATIAL
+  co-localization read AGREES → `strong`; `moderate` = CIBERSORT alone (no orthogonal check for the
+  indication); `low` = an orthogonal platform CONTRADICTS → `weak` + a first-class `conflict` naming it.
+  A contradiction always beats a corroboration (weakest-link honesty).
+- **Spatial EXCLUSION is now a contradiction, not decoration (F4).** `spatial_immune_phenotype ==
+  "excluded"` on a POSITIVE bulk read (effectors in the leukocyte compartment but DEPLETED from the
+  target-positive malignant neighbourhood — a TCE has nothing to redirect in the nest) contradicts the
+  claim AND caps `bite_tce` at `conditional`. **DEMOTE-ONLY:** it never promotes a cold/intermediate read,
+  because the coloc products carry no donor floor and the immune rules are `opposing`, never `killer`.
+- **`modality_scope` on the `skill_report` SPINE (F1).** It previously rode ONLY the legacy
+  `claim_record_shadow`, so `tp_facets._modality_scope_by_axis` reached the TCE arm's one modality
+  contribution through its FALLBACK leg and a standalone `decision.json` carried no `bite_tce` read at
+  all. Now first-class, like every other modality-speaking skill. The shadow and the spine are pinned to
+  agree by test.
+- **`reference_frame` claim SCALAR (S2).** `immune_hot` READS as absolute biology but ENCODES a pan-cancer
+  PERCENTILE — the cuts ARE the 33-study Q1/Q3, so ~9 studies are hot and ~9 cold by construction. One
+  honest line now gauges the CD8 share against its own frame ("a pan-cancer RANK of the CD8 share, NOT an
+  absolute T-cell density and NOT a spatial or functional read"), riding `skill_report.claim_scalars`
+  losslessly (the `homogeneity` precedent — a STRING, so it renders verbatim in every consumer).
+- **One prose source.** Three duplicate discordance-prose builders (run.py-local `_til_discordance_text`,
+  the `key_signals` caveat, the claim conflict) collapsed onto ONE `orthogonal_discordance_text` in
+  `_skills_common/immune_context_claims.py`, so the claim `conflict`, the `key_signals` caveat and the
+  headline `top_tension` are the SAME string and cannot drift. It also now covers the SPATIAL
+  contradiction, which the TIL-only builder could not express.
+- **Tests:** `tests/test_ruler_and_spine.py` pins all four corroboration tiers as REACHABLE (the
+  anti-vacuous-pass guard asserts the ladder SPANS `{strong, moderate, weak, insufficient}` — a collapse
+  back to a constant fails there), the demote-only spatial cap, shadow↔spine agreement, and the
+  `reference_frame` scalar's honesty claims.
+- **Deferred (filed, out of branch scope):** a `reference_frame` entry in `evidence_salience.py`'s
+  `immune_context` SALIENCE_SPEC (collides with PR #1309 `feat/cohort-percentile-meters`); the S1 lymphoid
+  DENOMINATOR guard, the `n_samples` floor and the CD8:Treg / CD8:M2 ratios (analysis-methods).

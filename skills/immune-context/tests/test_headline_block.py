@@ -137,7 +137,18 @@ def test_immune_hot_discordant_with_absolute_til_is_neutral_not_positive():
     assert block["verdict"]["call"] == "immune_hot"  # token unchanged
     assert block["verdict"]["polarity"] == "neutral"  # badge demoted (was positive)
     tension = block.get("top_tension") or {}
-    assert tension.get("source") == "til_cibersort_agreement"
+    # The discordance is now a first-class `conflict` on the IMMUNE claim atom (the corroboration ruler),
+    # so rank_tension picks it up as `claim:IMMUNE` and it outranks the skill-local tension_extra
+    # (severity scales with the claim's signal: a conflict undermining a STRONG claim is the sharpest).
+    # Both candidates carry the IDENTICAL text — orthogonal_discordance_text is the single prose builder.
+    assert tension.get("source") in ("claim:IMMUNE", "til_cibersort_agreement")
     assert "disagree" in (tension.get("text") or "").lower()
     assert hl["key_signals"].get("caveat") or ""  # discordance caveat present
     assert "disagree" in hl["key_signals"]["caveat"].lower()
+    # ── the RULER (was vacuous before 2026-09-12): a contradicted read is NOT as confident as a
+    # corroborated one. Previously `_immune_corr` returned the constant "moderate" for every measured
+    # indication, so this discordant PRAD-shaped case read exactly as confidently as SKCM.
+    assert hl["claim_vector"]["IMMUNE"]["corroboration"] == "low"
+    assert hl["claim_vector"]["IMMUNE"]["conflict"]  # the contradiction is a first-class atom field
+    assert block["confidence"]["level"] == "weak"
+    assert hl["skill_report"]["confidence"]["level"] == "weak"
