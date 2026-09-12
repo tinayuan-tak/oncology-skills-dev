@@ -70,3 +70,53 @@ post_resolver_clamp:
       - [protein-strongly-up-supportive, protein-modestly-up-neutral]
       - [tumor-vs-normal-crossing-strong-supportive]
     verdict: field_effect_tumor_selective
+  # MODALITY-CONDITIONAL KILL SUPPRESSION (2026-09-12) — the precedence walk above is modulated by the
+  # OPTIONAL `--modality` lens. Three of the five arms already declare `adc: neutral` in their own
+  # interpretation-rules `signals:` block on purpose (tvn-no-full-normal-window-veto names
+  # sacituzumab/Dato-DXd; the sc-normal arm names FOLR1/mirvetuximab + ERBB2; the TPHP arm carries the
+  # same precedent). The clamp used to ignore that lens and map every fired arm straight to its verdict,
+  # so the framework KILLED validated ADC antigens in their approved indication on evidence THIS contract
+  # calls neutral for ADCs. The clamp now reads the fired rule's OWN signals — no Python-side modality
+  # table — so a new arm's lens is honoured with no code change.
+  modality_conditional:
+    signal_source: interpretation_rules.signals   # the fired rule's own per-modality declaration
+    suppressing_signals: [neutral, supportive]    # an EXPLICIT non-opposing declaration for the chosen modality
+    # `insufficient` is NOT a suppressor: it means "coverage gap, not used as opposing evidence"
+    # elsewhere in the grammar, but a veto arm only fires when the measurement EXISTS — treating it as a
+    # waiver would read a data-availability token as a safety judgement. Missing/unknown/opposing = KILL stands.
+    suppressible_verdicts:                        # ONLY the KILLs are waivable
+      - selective_but_broadly_normal
+      - selective_but_stromal_confound
+    never_suppressed_verdicts:                    # the PRESERVING outcome always stands
+      # A named normal liability blocks nothing and is informative for EVERY modality (its arms also
+      # declare `adc: neutral`), so suppressing it would DELETE safety signal rather than unblock a
+      # nomination. It is arbitrated downstream by on-target-safety-liability + surface-modality-fit.
+      - selective_with_normal_liability
+    # PRECONDITION — the clause the ADC-neutrality comment itself states: "broad-LOW normal (CLEAN VS THE
+    # ESSENTIAL SET) is ADC-tolerable". Waiving on the `adc: neutral` declaration ALONE ignored it, and the
+    # 36-target panel measured designed true negatives ESCAPING: RPL13A/COADREAD (ribosomal housekeeping
+    # decoy, tumor 641 TPM vs BONE_MARROW 617 — essential ratio 1.04) and MUC1/BRCA (182 vs LUNG 134,
+    # ratio 1.36) both rose from the housekeeping KILL to the selectivity-PRESERVING verdict. Both are
+    # `narrow_window` on the essential axis, and `narrow_window` fires NO rung in the intracellular lens
+    # (only `no_therapeutic_window` does), so the full-normal KILL was the ONLY thing holding a
+    # 600-TPM-everywhere gene down. A narrow window against a VITAL organ is not payload-buffered.
+    requires_essential_window_class:               # read from the card, not the fired set — see above
+      card_id: modality-therapeutic-window
+      field: therapeutic_window_class
+      one_of: [clean_window]                       # anything else FAILS CLOSED and the KILL stands
+    on_suppression: fall_through_to_next_arm      # NOT "verdict stands" — the next arm still gets its turn
+    # `selective_but_broadly_normal` is minted by TWO arms with OPPOSITE lens behaviour — the
+    # full-normal arm is waivable (`adc: neutral`), the no-therapeutic-window arm is not — which is why
+    # suppressibility is declared per-VERDICT here and evaluated per-ARM by the executor. Consequence:
+    # validate_resolvers.py emits MODALITY_LENS_INERT_ARM warnings (not errors) for the
+    # no-therapeutic-window and stromal-confound arms. Those warnings are EXPECTED and are the check
+    # working: they name exactly the arms no lens may waive.
+    # So an arm that is `opposing` for the chosen modality still KILLs: tvn-no-therapeutic-window-veto
+    # (tumor below a VITAL organ — not payload-buffered) and tvn-stromal-confound-veto (the antigen is not
+    # on the tumor cells) are `opposing` for all four modalities, and no lens waives them.
+    no_modality_behavior: worst_case_identical    # `--modality` absent (default, and every composed/
+    # flip-analysis path today) reproduces the pre-2026-09-12 walk byte-for-byte.
+    provenance_fields:                            # a waived KILL must be VISIBLE, never silently absent
+      - modality_suppressed_veto_arms
+      - modality_suppressed_veto_note
+      - verdict_modality_lens

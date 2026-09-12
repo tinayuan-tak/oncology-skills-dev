@@ -9,6 +9,16 @@ Checks each resolvers/<gate>.resolver.yaml:
       statically checkable, which an if-chain never could be).
   (3) DRIVING_RULE VALIDITY — any explicit `driving_rule` is one of the rung's own rule_ids.
   (4) EXPLICIT DEFAULT — present (schema-enforced; re-checked here for a clear message).
+  (5) POST-RESOLVER CLAMP ARMS — every `post_resolver_clamp.precedence[].when_fired`
+      rule_id exists (the dead-arm analogue of (2), which the clamp block previously
+      escaped entirely), and every arm verdict is listed in `clamp_verdicts`.
+  (6) MODALITY LENS SOUNDNESS — for an optional `modality_conditional` block: its
+      verdict sets are declared clamp verdicts, are disjoint, and CLASSIFY every arm
+      verdict (so "may a lens waive this?" is never left open); `insufficient` is
+      rejected as a suppressing signal (a coverage token is not a safety judgement);
+      and at least one suppressible arm actually declares a suppressing signal for
+      some modality — otherwise the whole lens is unreachable and would pass review
+      while changing nothing.
 
 The behavioral "every fireable card-class maps to a rung" completeness is proven per-gate
 by the golden-oracle equivalence test in claude-oncology-skills
@@ -60,6 +70,18 @@ def _all_rule_ids(rules_dir: Path) -> set[str]:
     return ids
 
 
+def _rule_signals(rules_dir: Path) -> dict[str, dict]:
+    """rule_id -> its declared per-modality `signals:` mapping (absent -> {})."""
+    out: dict[str, dict] = {}
+    for rp in sorted(rules_dir.glob("*.rules.yaml")):
+        data = yaml.safe_load(rp.read_text()) or {}
+        for r in data.get("rules", []):
+            rid = r.get("rule_id")
+            if rid:
+                out[rid] = r.get("signals") or {}
+    return out
+
+
 def _rung_rule_ids(rung: dict) -> list[str]:
     if "when_fired" in rung:
         return [rung["when_fired"]]
@@ -70,7 +92,111 @@ def _rung_rule_ids(rung: dict) -> list[str]:
     return []
 
 
-def validate_resolver_file(path: Path, known_rule_ids: set[str], schema: dict | None = None) -> ResolverReport:
+def _validate_post_resolver_clamp(
+    spec: dict,
+    report: ResolverReport,
+    known_rule_ids: set[str],
+    rule_signals: dict[str, dict] | None,
+) -> None:
+    """Checks (5)-(6): the post-resolver clamp declaration and its modality lens.
+
+    The clamp block exists so Python-side decision logic is PR-reviewable in the
+    contract; that only holds if the declaration is CHECKED, otherwise it drifts
+    into decoration. A clamp arm naming a renamed rule_id is exactly the dead-arm
+    class check (2) catches for rungs — and a `modality_conditional` block whose
+    arms declare no signals at all can never suppress anything, so it would pass
+    green by construction while claiming a behaviour the executor cannot deliver.
+    """
+    clamp = spec.get("post_resolver_clamp")
+    if not isinstance(clamp, dict):
+        return
+    declared_clamp_verdicts = set(spec.get("clamp_verdicts", []) or [])
+
+    arm_verdict: dict[str, str] = {}
+    for i, arm in enumerate(clamp.get("precedence", []) or []):
+        rid, verdict = arm.get("when_fired"), arm.get("verdict")
+        if rid:
+            arm_verdict[rid] = verdict
+            if rid not in known_rule_ids:
+                report.add_error(
+                    f"DANGLING_CLAMP_ARM [post_resolver_clamp.precedence[{i}] "
+                    f"verdict={verdict!r}]: rule_id `{rid}` is not declared in any "
+                    f"interpretation-rules file — a clamp arm that can never fire."
+                )
+        if verdict and verdict not in declared_clamp_verdicts:
+            report.add_error(
+                f"UNDECLARED_CLAMP_VERDICT [post_resolver_clamp.precedence[{i}]]: "
+                f"verdict `{verdict}` is not listed in `clamp_verdicts`, so the "
+                f"emitted-verdict enum for this gate is incomplete."
+            )
+
+    mc = clamp.get("modality_conditional")
+    if not isinstance(mc, dict):
+        return
+
+    suppressible = set(mc.get("suppressible_verdicts", []) or [])
+    never = set(mc.get("never_suppressed_verdicts", []) or [])
+    for label, group in (("suppressible_verdicts", suppressible), ("never_suppressed_verdicts", never)):
+        unknown = sorted(group - declared_clamp_verdicts)
+        if unknown:
+            report.add_error(
+                f"UNDECLARED_CLAMP_VERDICT [post_resolver_clamp.modality_conditional.{label}]: "
+                f"{unknown} not listed in `clamp_verdicts`."
+            )
+    both = sorted(suppressible & never)
+    if both:
+        report.add_error(
+            "CONTRADICTORY_SUPPRESSION [post_resolver_clamp.modality_conditional]: "
+            f"{both} declared BOTH suppressible and never-suppressed."
+        )
+    unclassified = sorted(v for v in arm_verdict.values() if v and v not in suppressible and v not in never)
+    if unclassified:
+        report.add_error(
+            "UNCLASSIFIED_CLAMP_VERDICT [post_resolver_clamp.modality_conditional]: "
+            f"{unclassified} is minted by a precedence arm but appears in neither "
+            "`suppressible_verdicts` nor `never_suppressed_verdicts` — whether a "
+            "modality lens may waive it is left undeclared."
+        )
+    if "insufficient" in (mc.get("suppressing_signals") or []):
+        report.add_error(
+            "COVERAGE_TOKEN_AS_WAIVER [post_resolver_clamp.modality_conditional."
+            "suppressing_signals]: `insufficient` declares a coverage gap, not a "
+            "safety judgement, and a veto arm only fires when the measurement "
+            "exists — admitting it would waive KILLs on missing data."
+        )
+
+    if rule_signals is None:
+        return
+    # VACUITY: a lens that no arm can actually trigger is a claim the executor cannot honour.
+    suppressing = set(mc.get("suppressing_signals") or [])
+    reachable = []
+    for rid, verdict in sorted(arm_verdict.items()):
+        if verdict not in suppressible:
+            continue
+        declared = rule_signals.get(rid) or {}
+        hits = sorted(m for m, s in declared.items() if s in suppressing)
+        if hits:
+            reachable.append(f"{rid}({','.join(hits)})")
+        elif rid in rule_signals:
+            report.add_warning(
+                f"MODALITY_LENS_INERT_ARM [{rid}]: verdict `{verdict}` is declared "
+                f"suppressible but the rule declares no {sorted(suppressing)} signal "
+                f"for any modality, so no lens can ever waive this arm."
+            )
+    if not reachable:
+        report.add_error(
+            "VACUOUS_MODALITY_LENS [post_resolver_clamp.modality_conditional]: NO "
+            "suppressible arm declares a suppressing signal for any modality, so the "
+            "whole block is unreachable — it would pass review while changing nothing."
+        )
+
+
+def validate_resolver_file(
+    path: Path,
+    known_rule_ids: set[str],
+    schema: dict | None = None,
+    rule_signals: dict[str, dict] | None = None,
+) -> ResolverReport:
     report = ResolverReport(path=str(path))
     try:
         spec = yaml.safe_load(path.read_text())
@@ -106,6 +232,9 @@ def validate_resolver_file(path: Path, known_rule_ids: set[str], schema: dict | 
                 f"driving_rule `{dr}` is not one of this rung's own rule_ids {rung_ids}."
             )
 
+    # (5)-(6) post-resolver clamp arms + the optional modality lens
+    _validate_post_resolver_clamp(spec, report, known_rule_ids, rule_signals)
+
     # (4) explicit default (schema already requires it; explicit message)
     if not spec.get("default"):
         report.add_error(
@@ -117,8 +246,9 @@ def validate_resolver_file(path: Path, known_rule_ids: set[str], schema: dict | 
 
 def validate_dir(resolvers_dir: Path, rules_dir: Path) -> list[ResolverReport]:
     known = _all_rule_ids(rules_dir)
+    signals = _rule_signals(rules_dir)
     schema = json.loads(SCHEMA_PATH.read_text())
-    return [validate_resolver_file(p, known, schema) for p in sorted(resolvers_dir.glob("*.resolver.yaml"))]
+    return [validate_resolver_file(p, known, schema, signals) for p in sorted(resolvers_dir.glob("*.resolver.yaml"))]
 
 
 def _main(argv=None) -> int:

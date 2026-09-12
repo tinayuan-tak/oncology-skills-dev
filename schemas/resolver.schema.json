@@ -79,6 +79,76 @@
             },
             "verdict": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"}
           }
+        },
+        "modality_conditional": {
+          "type": "object",
+          "description": "OPTIONAL. Declares that the `precedence` walk is MODULATED by the caller's optional modality lens: an arm whose OWN interpretation-rules `signals:` block declares a non-opposing signal for the chosen modality is SUPPRESSED and the walk falls through to the next arm. The signal is read from the fired rule, never from a table in the executor, so adding an arm needs no code change. Present only where a clamp is genuinely modality-conditional; absent means the clamp is modality-blind (worst-case for every modality).",
+          "additionalProperties": false,
+          "required": [
+            "signal_source",
+            "suppressing_signals",
+            "suppressible_verdicts",
+            "on_suppression",
+            "no_modality_behavior"
+          ],
+          "properties": {
+            "signal_source": {
+              "enum": ["interpretation_rules.signals"],
+              "description": "Where the per-modality declaration is read from. Only the fired rule's own `signals:` block is permitted — a modality table inside the executor would be undeclared logic, which is what this block exists to prevent."
+            },
+            "suppressing_signals": {
+              "type": "array",
+              "description": "The signal tokens that count as an EXPLICIT non-opposing declaration and therefore waive the arm. Any token NOT listed here (including a missing/unknown signal) leaves the arm in force — fail-closed. `insufficient` must NOT be listed: it is a coverage token, and a veto arm only fires when the measurement exists, so admitting it would read data availability as a safety judgement.",
+              "items": {"enum": ["supportive", "neutral", "opposing", "insufficient"]},
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "suppressible_verdicts": {
+              "type": "array",
+              "description": "The clamp verdicts a modality lens may waive — normally only the KILLs. Every entry must appear in `clamp_verdicts`.",
+              "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+              "minItems": 1,
+              "uniqueItems": true
+            },
+            "never_suppressed_verdicts": {
+              "type": "array",
+              "description": "OPTIONAL explicit complement: clamp verdicts NO lens may waive. Use for selectivity-PRESERVING outcomes, where suppression would DELETE a named liability from the record rather than unblock a nomination.",
+              "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+              "uniqueItems": true
+            },
+            "requires_essential_window_class": {
+              "type": "object",
+              "description": "OPTIONAL PRECONDITION gating every suppression on a card field rather than on the fired set — e.g. modality tolerance of broad-LOW normal expression holds only when the target is CLEAN against the essential-organ set, so a merely narrow essential window must still KILL. Read from the named card's summary; anything outside `one_of` (including a missing card or field) FAILS CLOSED.",
+              "additionalProperties": false,
+              "required": ["card_id", "field", "one_of"],
+              "properties": {
+                "card_id": {"type": "string", "description": "The card whose summary carries the precondition field."},
+                "field": {"type": "string", "description": "The summary field name to read."},
+                "one_of": {
+                  "type": "array",
+                  "description": "The ONLY field values that permit suppression.",
+                  "items": {"type": "string"},
+                  "minItems": 1,
+                  "uniqueItems": true
+                }
+              }
+            },
+            "on_suppression": {
+              "enum": ["fall_through_to_next_arm"],
+              "description": "What a suppressed arm does. `fall_through_to_next_arm`: the walk continues, so a lower-precedence arm that is `opposing` for the chosen modality still takes the verdict. NOT 'the resolver verdict stands'."
+            },
+            "no_modality_behavior": {
+              "enum": ["worst_case_identical"],
+              "description": "The guarantee when no modality lens is supplied: the walk reproduces the modality-blind precedence byte-for-byte, so every default and composed path is unaffected."
+            },
+            "provenance_fields": {
+              "type": "array",
+              "description": "Headline/decision fields the executor MUST emit so a waived arm is VISIBLE rather than silently absent.",
+              "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
         }
       }
     },
