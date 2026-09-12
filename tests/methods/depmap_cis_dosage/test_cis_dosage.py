@@ -122,6 +122,69 @@ def test_focal_amplification_tail_is_testable_not_invariant():
     assert s["cn_expr_spearman_r"] > 0.25
 
 
+def test_focal_amplification_subset_escape_promotes_diluted_correlation():
+    """REGRESSION (ERBB2 silencing-override bug 2026-09-12): a focal-amp oncogene whose amplified subset
+    strongly over-expresses, but whose PAN-PANEL Spearman is DILUTED below the 0.25 moderate gate by a
+    large lineage-noisy diploid body (ERBB2 live: r=0.23 but +2.28 log2TPM over 155 amplified lines).
+    The subset escape must PROMOTE it to coupled via the focal_amplification_subset driver — else a
+    spurious minority-methylation call overrides it to a biologically absurd epigenetic-silencing verdict."""
+    import random
+
+    rng = random.Random(11)
+    cn, tpm = {}, {}
+    i = 0
+    for _ in range(700):  # large diploid-ish body: CN 0.7..1.45, expression lineage-noisy (NOT CN-tracking)
+        m = f"ACH-{i:05d}"
+        cn[m] = rng.uniform(0.7, 1.45)
+        tpm[m] = rng.uniform(3.0, 8.0)
+        i += 1
+    for _ in range(30):  # amplified subset: high CN AND strongly over-expressed (the focal-amp tail)
+        m = f"ACH-{i:05d}"
+        cn[m] = rng.uniform(2.0, 7.0)
+        tpm[m] = 9.0 + rng.uniform(-0.5, 0.5)
+        i += 1
+    s = compute_cis_dosage(cn, tpm)
+    assert s["cn_expr_spearman_r"] < 0.25, (
+        f"body should dilute pan-panel r below the moderate gate, got {s['cn_expr_spearman_r']}"
+    )
+    assert s["cis_dosage_class"] in ("cn_dosage_coupled_strong", "cn_dosage_coupled_moderate")
+    assert s["cis_dosage_driver"] == "focal_amplification_subset"
+    assert s["subset_delta_log2tpm_amplified_vs_neutral"] >= 1.0
+    assert s["subset_mannwhitney_p"] <= 0.01
+
+
+def test_focal_amp_escape_does_not_fire_when_amplified_subset_is_not_overexpressed():
+    """The escape only PROMOTES a genuine amplification-driven over-expression. A panel where CN varies
+    (incl. an amplified subset) but expression is flat stays cn_dosage_uncoupled — the subset delta is ~0,
+    so the focal_amplification_subset driver must NOT fire (guards against over-calling)."""
+    import random
+
+    rng = random.Random(13)
+    cn, tpm = {}, {}
+    i = 0
+    for _ in range(120):
+        m = f"ACH-{i:05d}"
+        cn[m] = rng.uniform(0.7, 1.4)
+        tpm[m] = 6.0 + rng.uniform(-1.0, 1.0)
+        i += 1
+    for _ in range(40):  # amplified subset but expression flat (no dosage effect)
+        m = f"ACH-{i:05d}"
+        cn[m] = rng.uniform(2.0, 6.0)
+        tpm[m] = 6.0 + rng.uniform(-1.0, 1.0)
+        i += 1
+    s = compute_cis_dosage(cn, tpm)
+    assert s["cis_dosage_class"] == "cn_dosage_uncoupled"
+    assert s["cis_dosage_driver"] is None
+
+
+def test_pan_panel_coupled_records_driver():
+    """A cleanly coupled panel records cis_dosage_driver=pan_panel_correlation (provenance for the path)."""
+    cn, tpm = _coupled_panel(noise=0.3)
+    s = compute_cis_dosage(cn, tpm)
+    assert s["cis_dosage_class"] == "cn_dosage_coupled_strong"
+    assert s["cis_dosage_driver"] == "pan_panel_correlation"
+
+
 def test_data_unavailable_when_too_few_lines():
     """Fewer than min_cell_lines (50) jointly-measured lines → data_unavailable (wide-CI guard)."""
     cn, tpm = _coupled_panel(n=20)

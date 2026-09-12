@@ -31,7 +31,13 @@ HYPERMETHYLATION_THRESHOLD = 0.5
 # in MSI/CIMP lines) — so the PRIMARY test is a hypermethylated-subset-vs-rest expression contrast
 # (Mann-Whitney), like amp-expr's conjoint contrast, NOT a pan-panel correlation (which the minority
 # tail dilutes). The pan-panel Spearman remains the path for BROADLY-methylated genes (e.g. MGMT).
-MIN_HYPERMETHYLATED = 10  # min hypermethylated lines to run the subset contrast
+# Power floor for the subset silencing contrast. Raised 10→20 (calibration finding 2026-09-12): an
+# n=10 hypermethylated minority (ERBB2: 10/820 = 1.2% of the RRBS panel) is an underpowered Mann-Whitney
+# and, for an amplification-driven oncogene, a lineage-confounded artifact (the 10 methylated lines are
+# non-expressing lineages, not a targeted silencing) — it let ERBB2/MET-class amplicon drivers read a
+# spurious silencing_coupled_strong. n>=20 (>=2.5% of the ~800-line RRBS panel) keeps every validated
+# silenced TSG (MLH1 25, CDKN2A 52, MGMT 85) while dropping the fragile tail.
+MIN_HYPERMETHYLATED = 20  # min hypermethylated lines to run the subset contrast
 MIN_UNMETHYLATED_COMPARATOR = 30
 STRONG_SILENCING_DELTA = -1.0  # median log2TPM (hyper - unmeth); strong under-expression
 MODERATE_SILENCING_DELTA = -0.5

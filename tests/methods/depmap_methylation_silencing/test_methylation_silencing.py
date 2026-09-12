@@ -17,6 +17,7 @@ if str(REPO) not in sys.path:
 
 from methods.depmap_methylation_silencing.cli import (  # noqa: E402
     HYPERMETHYLATION_THRESHOLD,
+    MIN_HYPERMETHYLATED,
     compute_methylation_silencing,
 )
 
@@ -44,6 +45,57 @@ def test_silencing_coupled_strong():
     assert s["n_hypermethylated"] > 0
     assert s["delta_log2tpm_hyper_vs_unmethylated"] < 0  # hypermethylated lines UNDER-express
     assert s["hypermethylation_threshold"] == HYPERMETHYLATION_THRESHOLD
+
+
+def test_subset_silencing_power_floor():
+    """POWER FLOOR (calibration 2026-09-12): the subset silencing contrast requires >= MIN_HYPERMETHYLATED
+    hypermethylated lines. A tiny hypermethylated minority (below the floor), against an otherwise
+    unmethylated + expression-flat panel, must NOT fire a subset silencing call — it is an underpowered
+    Mann-Whitney and (for amplicon oncogenes like ERBB2, 10/820) a lineage-confounded artifact. With no
+    broad methylation variation the panel is methylation_invariant_panel, not silencing_coupled."""
+    import random
+
+    rng = random.Random(21)
+    meth, tpm = {}, {}
+    n_hyper = MIN_HYPERMETHYLATED - 5  # below the floor
+    i = 0
+    for _ in range(n_hyper):  # tiny hypermethylated minority, low expression
+        m = f"ACH-{i:05d}"
+        meth[m] = 0.9 + rng.uniform(-0.02, 0.02)
+        tpm[m] = 1.0 + rng.uniform(-0.3, 0.3)
+        i += 1
+    for _ in range(200):  # unmethylated majority, high expression, no methylation spread
+        m = f"ACH-{i:05d}"
+        meth[m] = 0.02 + rng.uniform(-0.01, 0.01)
+        tpm[m] = 8.0 + rng.uniform(-0.5, 0.5)
+        i += 1
+    s = compute_methylation_silencing(meth, tpm)
+    assert s["n_hypermethylated"] == n_hyper
+    assert s["methylation_silencing_class"] != "silencing_coupled_strong"
+    assert s["silencing_driver"] != "subset_hypermethylation"
+
+
+def test_subset_silencing_fires_at_the_floor():
+    """A hypermethylated subset AT the floor (>= MIN_HYPERMETHYLATED) with deep under-expression DOES fire
+    the subset silencing call (MLH1/CDKN2A archetype) — the floor keeps validated silenced TSGs."""
+    import random
+
+    rng = random.Random(22)
+    meth, tpm = {}, {}
+    i = 0
+    for _ in range(MIN_HYPERMETHYLATED + 5):  # at/above the floor
+        m = f"ACH-{i:05d}"
+        meth[m] = 0.9 + rng.uniform(-0.02, 0.02)
+        tpm[m] = 1.0 + rng.uniform(-0.3, 0.3)
+        i += 1
+    for _ in range(200):
+        m = f"ACH-{i:05d}"
+        meth[m] = 0.02 + rng.uniform(-0.01, 0.01)
+        tpm[m] = 8.0 + rng.uniform(-0.5, 0.5)
+        i += 1
+    s = compute_methylation_silencing(meth, tpm)
+    assert s["methylation_silencing_class"] == "silencing_coupled_strong"
+    assert s["silencing_driver"] == "subset_hypermethylation"
 
 
 def test_uncoupled_when_expression_independent_of_methylation():

@@ -27,9 +27,24 @@ MIN_CELL_LINES_FOR_CORRELATION = 50
 # robust to a single extreme outlier. (calibration finding 2026-08-20.)
 MIN_RELATIVE_CN_P10_P90_SPREAD = 0.2
 # Focal-amplification convention (relative CN, diploid ~ 1.0; NOT log2). 1.5 = the distribution card's
-# focal-amp bin edge (depmap_cn_distribution.FOCAL_AMP), used ONLY for the descriptive amplified-vs-
-# neutral expression contrast — NOT the class driver (the class is driven by the correlation).
+# focal-amp bin edge (depmap_cn_distribution.FOCAL_AMP), used for the descriptive amplified-vs-neutral
+# expression contrast AND (below) the focal-amplification subset ESCAPE.
 AMPLIFICATION_THRESHOLD = 1.5
+
+# --- focal-amplification SUBSET escape (calibration finding 2026-09-12) --------------------------------
+# cis-dosage is intrinsically a TAIL phenomenon for focal-amplification oncogenes: the panel is
+# bulk-diploid with an amplified TAIL, so the pan-panel Spearman is DILUTED by the ~diploid body and
+# under-calls a genuine amplification-driven dosage jump. ERBB2 is the archetype — Spearman r=0.23
+# (< the 0.25 moderate gate → cn_dosage_uncoupled) DESPITE +2.28 log2TPM in 155 amplified lines, which
+# then let a spurious minority-methylation subset override it to a (biologically absurd) epigenetic-
+# silencing verdict. Mirror the depmap_methylation_silencing subset-primary design: when the pan-panel
+# correlation is below the moderate gate BUT the amplified subset OVER-expresses strongly and
+# significantly (one-sided Mann-Whitney, amplified > neutral), classify coupled via the subset path.
+# cis_dosage_driver records which path drove the call (pan_panel_correlation | focal_amplification_subset).
+MIN_AMPLIFIED_FOR_SUBSET = 20  # min amplified (rel CN > 1.5) lines to run the focal-amp subset contrast
+MIN_NEUTRAL_COMPARATOR = 30  # min non-amplified comparator lines
+STRONG_FOCAL_AMP_DELTA = 2.0  # mean log2TPM (amplified - neutral); strong over-expression → coupled_strong
+MODERATE_FOCAL_AMP_DELTA = 1.0  # moderate over-expression → coupled_moderate
 
 
 def compute_cis_dosage(
@@ -74,6 +89,9 @@ def compute_cis_dosage(
             "mean_log2tpm_neutral": None,
             "delta_log2tpm_amplified_vs_neutral": None,
             "amplification_threshold_relative_cn": float(amplification_threshold),
+            "subset_delta_log2tpm_amplified_vs_neutral": None,  # median-based (the focal-amp subset driver)
+            "subset_mannwhitney_p": None,
+            "cis_dosage_driver": None,  # pan_panel_correlation | focal_amplification_subset
             "cis_dosage_class": cls,
         }
         out.update(extra)
@@ -124,12 +142,46 @@ def compute_cis_dosage(
     pearson_r, pearson_p = stats.pearsonr(cn, tpm)
     slope = float(np.polyfit(cn, tpm, deg=1)[0])
 
+    # === PRIMARY: pan-panel Spearman (broadly copy-varying genes) ===
+    driver = None
     if spearman_r >= strong_r and spearman_p <= significance_alpha:
-        cls = "cn_dosage_coupled_strong"
+        cls, driver = "cn_dosage_coupled_strong", "pan_panel_correlation"
     elif spearman_r >= moderate_r and spearman_p <= significance_alpha:
-        cls = "cn_dosage_coupled_moderate"
+        cls, driver = "cn_dosage_coupled_moderate", "pan_panel_correlation"
     else:
         cls = "cn_dosage_uncoupled"
+
+    # === FOCAL-AMPLIFICATION SUBSET escape (the tail the pan-panel Spearman dilutes) ===
+    # Only ever PROMOTES an otherwise-uncoupled call: a focal-amp oncogene (bulk-diploid body + amplified
+    # tail; ERBB2/MYC) whose amplified subset OVER-expresses strongly + significantly is cis-dosage-coupled
+    # even when the panel-wide rank correlation is diluted below the moderate gate. Never demotes a
+    # pan-panel-coupled call. Mirrors depmap_methylation_silencing's subset-primary design (one-sided
+    # Mann-Whitney, amplified > neutral).
+    subset_p = None
+    subset_delta_med = None
+    amp_mask = cn > amplification_threshold
+    n_amp_lines = int(amp_mask.sum())
+    n_neutral_lines = int((~amp_mask).sum())
+    if (
+        cls == "cn_dosage_uncoupled"
+        and n_amp_lines >= MIN_AMPLIFIED_FOR_SUBSET
+        and n_neutral_lines >= MIN_NEUTRAL_COMPARATOR
+    ):
+        amp_grp = tpm[amp_mask]
+        neutral_grp = tpm[~amp_mask]
+        try:
+            _u, subset_p = stats.mannwhitneyu(amp_grp, neutral_grp, alternative="greater")
+            subset_p = float(subset_p)
+        except ValueError:
+            subset_p = None
+        subset_delta_med = float(np.median(amp_grp) - np.median(neutral_grp))
+        if subset_p is not None and subset_p <= significance_alpha and subset_delta_med >= MODERATE_FOCAL_AMP_DELTA:
+            cls = (
+                "cn_dosage_coupled_strong"
+                if subset_delta_med >= STRONG_FOCAL_AMP_DELTA
+                else "cn_dosage_coupled_moderate"
+            )
+            driver = "focal_amplification_subset"
 
     return _base(
         cls,
@@ -138,5 +190,8 @@ def compute_cis_dosage(
         cn_expr_pearson_r=float(pearson_r),
         cn_expr_pearson_p=float(pearson_p),
         cn_expr_slope_log2tpm_per_cn=slope,
+        subset_delta_log2tpm_amplified_vs_neutral=subset_delta_med,
+        subset_mannwhitney_p=subset_p,
+        cis_dosage_driver=driver,
         **common,
     )
