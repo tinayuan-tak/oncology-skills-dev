@@ -16,9 +16,10 @@
 # Sibling of indication_crosswalk.yaml (indication-level code reconciliation). Source of truth for
 # stratum ids is the data-catalog subgroup-catalogs/{IND}/*.yaml; this registry MIRRORS those ids +
 # adds the cross-axis relationships they document only in prose. Keep in sync when a catalog adds a
-# stratum (the validator test asserts every id here exists in a catalog).
+# stratum — the validator asserts sync in BOTH directions: every id here exists in a catalog, AND
+# every catalog id is either registered here or named in `intentionally_excluded` below.
 
-version: 1.0.0
+version: 1.1.0
 schema_version: 1
 curation_status: iter1_authored
 
@@ -30,6 +31,76 @@ curation_status: iter1_authored
 # orthogonal       : independent axes (e.g. sidedness vs LOT) — no association claim
 # NOTE: the coherence facet treats `enriched_in` as a WEAK bridge (report "related", never "same"),
 # `mutually_exclusive` as a hard partition, and never fabricates convergence across `orthogonal`.
+
+# ---- intentionally_excluded: catalog strata that this registry DELIBERATELY does not carry ----
+#
+# WHY THIS BLOCK EXISTS (foundation audit 2026-09-13): the sync validator only ran registry -> catalog
+# ("no phantom ids"). The reverse direction was unguarded, so a stratum that EXISTS as data in
+# data-catalog/subgroup-catalogs/ but is absent here was invisible to the DEFAULT-ON, VERDICT-BEARING
+# subtype tier — the run silently proceeded whole-cohort with no gap reported anywhere. The audit found
+# 21 such orphans across 9 catalogs. Nine are deliberate (below); the other 12 were real omissions.
+#
+# The distinction is the tier's own semantics, which tp_common.default_subtypes() states: the subtype
+# tier means "a MEASURED, floor-cleared MOLECULAR SUBTYPE that is not a dependency holds the
+# nomination". Staging, anatomic site and line-of-therapy are clinical descriptors, not molecular
+# biology, so they are correctly absent from the default vocabulary. They remain fully usable via an
+# explicit `--subtypes` argument; exclusion here scopes the DEFAULT, it does not retire the data.
+#
+# An entry here is a CLAIM that needs a reason, not a suppression. Adding an id to silence the
+# reverse guard without a `reason` is the failure mode this block is meant to make visible.
+intentionally_excluded:
+  - indication: COADREAD
+    strata: [stage_I, stage_II, stage_resectable]
+    class: clinical_staging
+    reason: "AJCC stage is a clinical descriptor, not molecular biology. tp_common.default_subtypes()
+      names these explicitly as the reason the tier reads this curated registry rather than the raw
+      catalog. Reachable via --subtypes."
+  - indication: COADREAD
+    strata: [MSS_RASMut_3Lplus, MSS_RASMut_1L2L, MSS_RASWT_LeftSided_1L]
+    class: line_of_therapy_composite
+    reason: "GENIE-BPC line-of-therapy composites (composite_cohorts, not atomic_strata) — trial-design
+      cohorts crossing a molecular axis with a treatment-sequence axis. A composite is not a partition
+      of the cohort, so it cannot supply the cross-stratum contrast the subtype verdict requires."
+  - indication: HNSC
+    strata: [site_oropharyngeal, site_oral_cavity, site_larynx]
+    class: anatomic_site
+    reason: "Anatomic subsite within the head and neck. Same non-molecular class as clinical staging.
+      Note the biology that DOES matter here (HPV status) is carried as its own molecular stratum."
+
+# ---- pending_authoring: molecular strata that SHOULD be registered but are not authored YET ----
+#
+# These are the other 12 orphans the reverse guard found. Unlike `intentionally_excluded`, every entry
+# here is a real capability gap and is expected to LEAVE this list. They are separated because the two
+# claims are opposite: excluded means "never, and here is why"; pending means "yes, blocked on X".
+#
+# WHY NOT JUST AUTHOR THEM NOW: a registered stratum is VERDICT-BEARING under the default-on subtype
+# tier, and 83 of the 99 `expected_n` values in the subgroup-catalogs are ESTIMATES, not measurements —
+# only COADREAD and SCLC carry "Observed emit" provenance. AML's estimated DepMap n's are 2-5, below
+# even functional-requirement's underpower floor of 5. Authoring on a guessed denominator would ship a
+# verdict resting on a number nobody measured, so the sequence is: measure n -> declare an admissibility
+# floor -> author only what clears it. Some of these will land as cohort-restricted or stay excluded;
+# that outcome IS the measurement doing its job, and it is not knowable from here.
+#
+# The validator pins this list BY NAME. Adding an id is therefore a deliberate, reviewed act — a new
+# orphan cannot be quietly parked here to turn the reverse guard green.
+pending_authoring:
+  - indication: AML
+    strata: [FLT3_ITD, NPM1_mut, IDH1_mut, IDH2_mut, TP53_mut, adverse_cytogenetics]
+    blocked_on: measured_expected_n
+    reason: "Complete 6-stratum catalog, NO registry entry at all, so every AML profile currently runs
+      whole-cohort. Estimated DepMap n = 2-5 per stratum (below FR's floor of 5), so most of these are
+      likely TCGA/GENIE-only or excluded outright once measured. Also depends on the GENIE republish
+      (data-catalog #595 / analysis-methods #619) that covers AML."
+  - indication: HNSC
+    strata: [TP53_mut, PIK3CA_mut, NOTCH1_mut, CCND1_amp, TMB_high]
+    blocked_on: measured_expected_n
+    reason: "Driver-mutation, CN-amplification and TMB axes. Precedent exists — COADREAD, NSCLC, PAAD
+      and BRCA all carry driver_mutation — so the axis shape is settled; only the denominators are not."
+  - indication: ESCA
+    strata: [TP53_mut]
+    blocked_on: measured_expected_n
+    reason: "ESCA is registered with 3 strata but its catalog carries a 4th. Single-stratum gap; the
+      driver_mutation axis does not exist for ESCA yet, so this needs a new axis, not an append."
 
 indications:
 
