@@ -11,6 +11,16 @@ import pytest
 from methods.depmap_chronos_distribution.read import read_pan_cancer_distribution
 
 
+# requires_data is NOT redundant with the skipif below, and neither is redundant with the
+# _live_read_error guard inside the test. They cover three different conditions:
+#   - skipif        → creds are ABSENT. Says nothing when creds are present but the read degrades.
+#   - _live_read_error → the reader REPORTED a failure. A partially-successful read (dict returned,
+#                     fields missing) sets no error key, so the asserts below run and fail.
+#   - requires_data → the caller EXPLICITLY opted out of live data via SKILLS_SKIP_LIVE_DATA.
+# Without the marker that opt-out was silently ignored: this test hard-failed inside
+# scripts/preland.sh, which exports SKILLS_SKIP_LIVE_DATA=1, while the three already-marked live
+# tests (cptac_protein_deg x2, pmhc_presentation x1) skipped cleanly in the same run.
+@pytest.mark.requires_data
 @pytest.mark.skipif(
     not os.environ.get("AWS_PROFILE") and not os.environ.get("AWS_ACCESS_KEY_ID"),
     reason="needs S3 creds for the live DepMap read",
