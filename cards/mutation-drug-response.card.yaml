@@ -36,6 +36,26 @@ card_id: mutation-drug-response
 version: 1.0.0
 question: "Are cell lines carrying an alteration in {target.symbol} more SENSITIVE to a drug that targets {target.symbol} (PRISM Log2AUC) across the DepMap panel? (Genotype→drug-response biomarker hypothesis.)"
 
+# Evidence-capsule projection contract. Eight fields matched the hints and the alphabetical first four
+# were all CLASSIFIER metrics (base_rate/ppv/ppv_lift), so the two AUC arms and the delta between them
+# — the numbers the strong/moderate effect cuts are taken on — never appeared. VERDICT-INERT
+# projection.
+capsule:
+  primary_class: drug_response_stratification_class
+  categorical_fields:
+    - drug_response_stratification_class
+    - on_target_compounds
+  numeric_anchors:
+    - drug_response_effect_size
+    - delta_log2auc_mut_vs_wt      # the quantity strong/moderate_effect_delta gauge
+    - median_log2auc_mutant
+    - median_log2auc_wildtype
+    - drug_response_mannwhitney_q
+    - drug_response_ppv
+    - drug_response_base_rate      # PPV is only readable against its base rate
+    - n_mutant
+
+
 applies_when:
   - "target.depmap_screened == true"
 

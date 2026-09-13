@@ -48,6 +48,31 @@ card_id: copy-number-distribution
 version: 1.3.0    # includes patient_focal_cn_class (FOCAL gate → CN-consensus VERDICT rung, cell-line OR patient), patient CN cross-check, homdel flag
 question: "Across DepMap cell lines, what is the copy-number landscape for {target.symbol}? Is the target recurrently amplified, deleted, or broadly neutral?"
 
+# Evidence-capsule projection contract. Measured before this declaration (ABL1/CML): class read
+# `recurrently_deleted` while the capsule surfaced four alphabetical `cn_fraction_*` values and the
+# two scores that SET the class — cn_recurrent_deletion_score 0.2016 vs the recurrent_event_fraction
+# 0.2 cut, cn_recurrent_amplification_score 0.047 — were structurally unreachable, because "score"
+# is not an `_ANCHOR_HINTS` substring. 11 fields matched the hints, so the cap at 4 also dropped the
+# patient-cohort arm entirely. VERDICT-INERT projection.
+capsule:
+  primary_class: copy_number_class
+  categorical_fields:
+    - copy_number_class
+    - patient_focal_cn_class
+    - patient_copy_number_class
+    - cn_distribution_shape
+    - cn_homozygous_deletion_recurrent
+    - cn_assay_used
+  numeric_anchors:
+    - cn_recurrent_amplification_score  # vs recurrent_event_fraction 0.2 — sets copy_number_class
+    - cn_recurrent_deletion_score
+    - cn_fraction_high_amplification
+    - cn_fraction_deep_deletion
+    - patient_high_amp_fraction         # the patient-cohort arm, dropped entirely by the cap at 4
+    - patient_homdel_fraction
+    - cn_median_panel
+
+
 applies_when:
   - "context.data_sources.depmap_cn_available == true"
 

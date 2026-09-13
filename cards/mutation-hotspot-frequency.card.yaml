@@ -11,6 +11,15 @@ capsule:
     - pooled_driver_recurrence_class
     - driver_recurrence_class
     - genie_driver_recurrence_class
+  numeric_anchors:
+    - pooled_driver_recurrence_percentile   # the POOLED arm is primary_class's arm; alphabetical
+    - pooled_mutation_frequency             # ordering surfaced the TCGA-only arm first
+    - n_mutated_pooled
+    - n_covered_pooled
+    - driver_recurrence_percentile
+    - overall_mutation_frequency
+    - genie_driver_recurrence_percentile
+    - genie_mutation_frequency
 
 applies_when:
   - "indication.gdc_samples_with_maf >= THRESHOLD.min_samples_with_maf"

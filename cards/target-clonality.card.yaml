@@ -26,6 +26,19 @@ card_id: target-clonality
 version: 1.0.0
 question: "In {indication.label}, is {target.symbol}'s driver mutation CLONAL (truncal, durable) or SUBCLONAL (relapse-prone)?"
 
+# Evidence-capsule projection contract. The heuristic reached both scalars but not the sample count
+# they rest on, and could not surface the evidence tier. VERDICT-INERT projection.
+capsule:
+  primary_class: clonality_class
+  categorical_fields:
+    - clonality_class
+    - evidence_tier
+  numeric_anchors:
+    - clonal_fraction
+    - median_ccf
+    - n_mutant_samples
+
+
 tier: indication   # per-(target x indication); the clonality is target-specific but read for an indication
 
 applies_when:

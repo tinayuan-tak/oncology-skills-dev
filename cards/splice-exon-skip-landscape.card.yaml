@@ -17,6 +17,21 @@ card_id: splice-exon-skip-landscape
 version: 0.1.0
 question: "Does {target.symbol} carry a curated exon-skipping driver event (e.g. METex14) that is oncogenic in {indication.label}?"
 
+# Evidence-capsule projection contract. NO field matched the anchor hints, so `numeric_anchors` was []
+# on every run and the carrier count — the card's only quantity — was invisible. VERDICT-INERT
+# projection.
+capsule:
+  primary_class: splice_exon_skip_class
+  categorical_fields:
+    - splice_exon_skip_class
+    - driver_direction
+    - event_id
+    - splice_context
+    - oncogenic_indications
+  numeric_anchors:
+    - n_depmap_carriers
+
+
 applies_when: []   # LIVE: the reader returns no_registered_event gracefully for genes with no curated event
 
 required_inputs:

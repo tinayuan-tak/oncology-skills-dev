@@ -15,6 +15,23 @@ card_id: fusion-rearrangement-landscape
 version: 1.4.0   # 1.4.0 (2026-09-04, #983): + promiscuous_amplicon_fusion fusion_class (skill-layer copy-number-gated demotion of a moderate_promiscuous fusion at a recurrently focally-amplified locus — an amplicon passenger SV, not a competent fusion driver). # 1.3.0: includes fusion_recurrence_confidence (verdict-inert tier), modality_relevance, GENIE-SV breadth fields (genie_sv_*)
 question: "Is {target.symbol} recurrently involved in gene fusions or structural rearrangements in {indication.label}?"
 
+# Evidence-capsule projection contract. Only ONE field matched the anchor hints
+# (`genie_sv_recurrence_percentile`), so the capsule surfaced the SV-recurrence side and never the
+# fusion frequency or carrier count the class is actually read from. VERDICT-INERT projection.
+capsule:
+  primary_class: fusion_class
+  categorical_fields:
+    - fusion_class
+    - fusion_recurrence_confidence
+    - genie_sv_recurrence_class
+  numeric_anchors:
+    - fusion_frequency
+    - n_samples_with_fusion
+    - genie_sv_frequency
+    - genie_sv_recurrence_percentile
+    - n_sv_samples
+
+
 applies_when: []   # LIVE: the reader returns data_unavailable gracefully when the product/target is absent
 
 required_inputs:

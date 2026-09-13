@@ -34,6 +34,25 @@ card_id: amp-expr-stratified-dependency
 version: 1.0.0
 question: "Is dependency on {target.symbol} stratified by whether the cell line is BOTH copy-number-amplified AND high-expression for {target.symbol} across the DepMap panel? (Amplification-driven overexpression-addiction hypothesis.)"
 
+# Evidence-capsule projection contract. The heuristic reached the effect size but not the DELTA the
+# class is cut on, not the significance, and not the mutant-arm n — and it could never surface the
+# pan-lineage fallback class or the `evidence_scope` the gate reads. VERDICT-INERT projection.
+capsule:
+  primary_class: amp_expr_stratification_class
+  categorical_fields:
+    - amp_expr_stratification_class
+    - pan_lineage_amp_expr_stratification_class
+    - evidence_scope
+    - lineage_context_divergent
+  numeric_anchors:
+    - amp_expr_effect_size
+    - delta_chronos_amp_expr_vs_rest   # the quantity the strong/moderate effect cuts gauge
+    - median_chronos_amp_expr
+    - median_chronos_comparator
+    - amp_expr_mannwhitney_q
+    - n_amplified_overexpressed        # the arm's denominator (min_cell_lines gate)
+
+
 applies_when:
   - "target.depmap_screened == true"
 

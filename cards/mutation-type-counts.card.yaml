@@ -31,6 +31,13 @@ capsule:
   categorical_fields:
     - mutation_landscape_class
     - mut_dominant_mutation_class
+  numeric_anchors:
+    - mut_fraction_missense       # vs missense_dominant_fraction 0.7 — sets the landscape class
+    - mut_fraction_lof            # vs lof_dominant_fraction 0.5
+    - mut_fraction_inframe_indel
+    - mut_mutation_rate
+    - mut_n_cell_lines_mutated    # vs min_mutated_cell_lines 5
+    - mut_n_cell_lines_total
 
 applies_when:
   - "context.data_sources.depmap_somatic_mutations_available == true"

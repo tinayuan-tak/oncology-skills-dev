@@ -31,6 +31,25 @@ card_id: fusion-stratified-dependency
 version: 1.0.0
 question: "Is dependency on {target.symbol} stratified by whether the cell line carries a fusion involving {target.symbol} across the DepMap panel? (Fusion-addiction biomarker hypothesis.)"
 
+# Evidence-capsule projection contract. Four fields matched the hints, so the cap was hit exactly and
+# the class-setting delta, the significance and the arm-n were all excluded; the overlap fraction that
+# flags the confound outranked them alphabetically. VERDICT-INERT projection.
+capsule:
+  primary_class: fusion_stratification_class
+  categorical_fields:
+    - fusion_stratification_class
+    - pan_lineage_fusion_stratification_class
+    - evidence_scope
+    - fusion_stratification_confound
+  numeric_anchors:
+    - fusion_stratification_effect_size
+    - delta_chronos_fusion_positive_vs_negative
+    - median_chronos_fusion_positive
+    - median_chronos_fusion_negative
+    - fusion_stratification_mannwhitney_q
+    - n_fusion_positive
+
+
 applies_when:
   - "target.depmap_screened == true"
 

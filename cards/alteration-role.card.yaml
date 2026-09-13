@@ -22,6 +22,24 @@ card_id: alteration-role
 version: 0.1.0
 question: "Is {target.symbol} a functional cancer driver in {indication.label} — activating (GoF) driver, loss-of-function (LoF) driver, predictive biomarker, or passenger — and by what driver-annotation evidence?"
 
+# Evidence-capsule projection contract. WORST CASE on the genomic axis before this declaration: the
+# driving field `alteration_role` carries no `_class` suffix, so the emitter's alphabetical-first
+# `*_class` scan found nothing and the capsule `class` was None on EVERY run; and neither numeric
+# matches an `_ANCHOR_HINTS` substring, so `numeric_anchors` was []. Both halves were empty.
+# VERDICT-INERT projection.
+capsule:
+  primary_class: alteration_role
+  categorical_fields:
+    - alteration_role
+    - functional_direction
+    - oncokb_gene_type
+    - intogen_role
+    - intogen_scope
+  numeric_anchors:
+    - intogen_min_qvalue        # driver significance, gauged against the driver_qvalue 0.05 cut
+    - intogen_max_pct_samples   # how broadly the role is seen across IntOGen cancer types
+
+
 tier: indication   # driver role is indication-scoped (IntOGen mode-of-action is per cancer type)
 
 applies_when:

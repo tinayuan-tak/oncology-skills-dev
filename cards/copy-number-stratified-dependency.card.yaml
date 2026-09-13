@@ -29,6 +29,24 @@ card_id: copy-number-stratified-dependency
 version: 1.0.0
 question: "Is dependency on {target.symbol} stratified by {target.symbol}'s own copy-number amplification status across the DepMap panel? (Amplification-addiction biomarker hypothesis.)"
 
+# Evidence-capsule projection contract. Same shape as its amp-expr sibling: effect size reached, the
+# class-setting delta / significance / arm-n not. VERDICT-INERT projection.
+capsule:
+  primary_class: cn_stratification_class
+  categorical_fields:
+    - cn_stratification_class
+    - pan_lineage_cn_stratification_class
+    - evidence_scope
+    - lineage_context_divergent
+  numeric_anchors:
+    - cn_stratification_effect_size
+    - delta_chronos_amplified_vs_neutral   # the quantity the effect cuts gauge
+    - median_chronos_amplified
+    - median_chronos_neutral
+    - cn_stratification_mannwhitney_q
+    - n_amplified
+
+
 applies_when:
   - "target.depmap_screened == true"
 

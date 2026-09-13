@@ -880,6 +880,70 @@ def _interpretation_summary_field_check(spec: dict, report: ValidationReport) ->
                 )
 
 
+def _summary_vocabulary_names(spec: dict) -> set[str]:
+    """Every field a card declares in a `summary_fields_vocabulary` — anywhere in the spec (the block
+    appears under `outputs` and, on lens-split cards, inside per-lens output blocks). A field here has
+    an ENUMERATED value set, which is contract-grounded proof it is categorical, not numeric."""
+    names: set[str] = set()
+
+    def walk(node) -> None:
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if k == "summary_fields_vocabulary" and isinstance(v, dict):
+                    names.update(v.keys())
+                else:
+                    walk(v)
+        elif isinstance(node, list):
+            for v in node:
+                walk(v)
+
+    walk(spec)
+    return names
+
+
+def _capsule_contract_check(spec: dict, report: ValidationReport) -> None:
+    """Layer 2h (2026-09-12) — the `capsule:` projection contract must name fields the card EMITS.
+
+    A capsule declaration is the card telling evidence_capsule.emit_capsules which of its summary
+    fields to project, overriding the emitter's heuristics (alphabetical-first `*_class` for the
+    class, an `_ANCHOR_HINTS` substring scan capped at 4 for the numeric anchors). The declaration is
+    therefore only as good as its field names: a typo, or a field renamed out from under it, degrades
+    SILENTLY back to the heuristic — the capsule still renders, just with the wrong numbers, and no
+    test notices. Errors, not warnings, because the failure is invisible downstream.
+
+    Two checks:
+      · every declared field (`primary_class`, `categorical_fields[]`, `numeric_anchors[]`) is a
+        declared summary_field of THIS card;
+      · no `numeric_anchors` entry is a `summary_fields_vocabulary` key. Those fields have an
+        enumerated value set, so they are categorical by contract — a number-shaped anchor slot
+        holding a class token reads as nonsense, and the author meant `categorical_fields`.
+    """
+    capsule = spec.get("capsule")
+    if not isinstance(capsule, dict):
+        return
+    summary_fields = _summary_field_names(spec)
+    vocabulary = _summary_vocabulary_names(spec)
+    declared: list[tuple[str, str]] = []
+    if capsule.get("primary_class"):
+        declared.append(("primary_class", capsule["primary_class"]))
+    for i, f in enumerate(capsule.get("categorical_fields") or []):
+        declared.append((f"categorical_fields[{i}]", f))
+    for i, f in enumerate(capsule.get("numeric_anchors") or []):
+        declared.append((f"numeric_anchors[{i}]", f))
+    for where, name in declared:
+        if name not in summary_fields:
+            report.add_error(
+                f"CAPSULE_UNDECLARED_FIELD [capsule.{where}]: {name!r} is not a declared "
+                f"summary_field of this card — the capsule would silently fall back to the heuristic"
+            )
+    for i, name in enumerate(capsule.get("numeric_anchors") or []):
+        if name in vocabulary:
+            report.add_error(
+                f"CAPSULE_CATEGORICAL_AS_NUMERIC [capsule.numeric_anchors[{i}]]: {name!r} declares a "
+                f"summary_fields_vocabulary, so it is categorical by contract — use categorical_fields"
+            )
+
+
 def _method_calls(spec: dict) -> list[str]:
     """The `call:` names declared in the card's methods: block."""
     return [m.get("call") for m in spec.get("methods", []) if isinstance(m, dict) and m.get("call")]
@@ -1272,6 +1336,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
         _sample_context_check(spec, report)
         _modality_relevance_check(spec, report)
         _axis_binding_check(spec, report)
+        _capsule_contract_check(spec, report)
     return report
 
 

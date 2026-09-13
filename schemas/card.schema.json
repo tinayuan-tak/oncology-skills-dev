@@ -843,7 +843,7 @@
     },
     "capsule": {
       "type": "object",
-      "description": "Evidence-capsule projection contract (consumed by _skills_common/evidence_capsule.emit_capsules). OPTIONAL strangler: when present it OVERRIDES the capsule's field-selection heuristics for this card; when absent the emitter falls back to the hint heuristics. `primary_class` names the verdict-driving *_class field (fixes the alphabetical-first mis-pick on multi-class cards); `categorical_fields` names the salient non-numeric summary fields (stage labels, class enums, bool flags, short lists) a numeric-only selector would drop. VERDICT-INERT projection.",
+      "description": "Evidence-capsule projection contract (consumed by _skills_common/evidence_capsule.emit_capsules). OPTIONAL strangler: when present it OVERRIDES the capsule's field-selection heuristics for this card; when absent the emitter falls back to the hint heuristics. `primary_class` names the verdict-driving *_class field (fixes the alphabetical-first mis-pick on multi-class cards); `categorical_fields` names the salient non-numeric summary fields (stage labels, class enums, bool flags, short lists) a numeric-only selector would drop; `numeric_anchors` names the numbers that SET the class, in reading order (fixes the alphabetical-first-four substring heuristic, which cannot reach a metric whose name matches no hint and cannot rank the ones it does reach). VERDICT-INERT projection.",
       "additionalProperties": false,
       "properties": {
         "primary_class": {
@@ -856,6 +856,17 @@
             "type": "string"
           },
           "description": "Salient non-numeric summary fields to surface as categorical_anchors in the capsule DATA layer, in priority order."
+        },
+        "numeric_anchors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*[a-z0-9]$"
+          },
+          "minItems": 1,
+          "maxItems": 8,
+          "uniqueItems": true,
+          "description": "The numeric summary fields to surface as the capsule's `numeric_anchors`, in READING order (effect first, then the two arms it separates, then significance, then the denominator). Replaces the emitter's `_ANCHOR_HINTS` substring scan, which (a) is alphabetical, so the class-setting number is only surfaced by luck, (b) is capped at 4, so a card with 11 hint-matching fields shows the first four alphabetically, and (c) cannot reach a field whose name matches no hint at all (`cn_recurrent_deletion_score`, `intogen_min_qvalue`, `fusion_frequency` were all structurally unreachable). Fields MUST be numeric summary_fields of this card and MUST NOT be `summary_fields_vocabulary` keys (those are enumerated categoricals — see `categorical_fields`)."
         }
       }
     }
