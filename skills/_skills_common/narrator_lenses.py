@@ -13,6 +13,7 @@ from _skills_common.narrator_engine import LensConfig
 
 FUNCTIONAL_REQUIREMENT = LensConfig(
     name="functional-requirement",
+    claim_spec_ref="dependency_claims:DEPENDENCY_CLAIM_SPEC",
     thesis="how much the DEPENDENCY lens informs whether the target is worth pursuing — a SELECTIVE genetic "
     "dependency supports it, a pan-essential read argues AGAINST (broad tox), non-dependent is "
     "uninformative — and, critically, whether the call is CORROBORATED across the independent "
@@ -68,6 +69,7 @@ FUNCTIONAL_REQUIREMENT = LensConfig(
 
 ON_TARGET_SAFETY = LensConfig(
     name="on-target-safety-liability",
+    claim_spec_ref="safety_claims:SAFETY_CLAIM_SPEC",
     thesis="whether the target is intolerant of loss-of-function in humans — i.e. the ON-TARGET SAFETY "
     "LIABILITY of a full-KO modality (degrader / RNA / full-inhibition SM) — corroborated across the "
     "human-genetics legs (gnomAD constraint, gene-burden, ClinGen dosage, ClinVar germline "
@@ -81,7 +83,20 @@ ON_TARGET_SAFETY = LensConfig(
     "small molecule may spare WT protein), NOT applied to the scalar verdict — do not narrate "
     "the scalar concern as downgraded. Where present, foreground the specific on-target "
     "clinical toxicity CLASSES (pharmacovigilance) and mouse-KO ORGAN systems.",
-    axis_labels={"PHARMACOVIGILANCE": "on-target clinical pharmacovigilance"},
+    # The full SAFETY_CLAIM_SPEC roster. Seven of the eight claim axes were off-roster while the thesis
+    # above already enumerates every one of them (constraint, burden, dosage, ClinVar, mouse-KO,
+    # pan-essentiality) — so this was an incomplete roster, not a scoped exclusion, and the literature
+    # lane could only ever ask about pharmacovigilance. See test_lens_roster_covers_claim_axes.
+    axis_labels={
+        "CONSTRAINT": "gnomAD LoF constraint",
+        "BURDEN": "population gene-burden",
+        "DOSAGE": "ClinGen dosage sensitivity",
+        "CLINVAR": "germline pathogenicity",
+        "MOUSE_KO": "mouse-KO phenotype",
+        "PAN_ESSENTIAL": "DepMap pan-essentiality",
+        "NORMAL_TISSUE": "essential-tissue protein",
+        "PHARMACOVIGILANCE": "on-target clinical pharmacovigilance",
+    },
     scope_exclusions=("tumor presence/abundance", "efficacy", "modality choice beyond full-KO tolerability"),
     polarity_note="signal = strength of the LIABILITY. High gnomAD constraint, broad normal-tissue expression, "
     "germline pathogenicity, haploinsufficiency, and pan-essentiality are STRONG liability; a "
@@ -145,6 +160,7 @@ TUMOR_PRESENCE = LensConfig(
 
 TUMOR_SELECTIVITY = LensConfig(
     name="tumor-selectivity",
+    claim_spec_ref="selectivity_claims:SELECTIVITY_CLAIM_SPEC",
     thesis="whether the target is TUMOR-SELECTIVE enough to open a therapeutic window (tumor-enriched vs "
     "normal tissue), the decisive axis being the normal-tissue comparator — and, critically, whether "
     "that window is CORROBORATED across independent platforms (bulk-RNA comparators, tumor-vs-normal "
@@ -180,6 +196,7 @@ TUMOR_SELECTIVITY = LensConfig(
 
 GENOMIC_ALTERATION = LensConfig(
     name="genomic-alteration-profile",
+    claim_spec_ref="genomic_claims:GENOMIC_CLAIM_SPEC",
     thesis="HOW the target is genomically altered (SNV/indel, copy-number, fusion, or a mix), which "
     "alteration CLASS carries the signal (not a single 'is it a driver' call), and the variant-level "
     "clinical interpretation of the target's own alterations — oncogenicity and any CIViC-annotated "
@@ -193,6 +210,11 @@ GENOMIC_ALTERATION = LensConfig(
         "FUS": "fusion",
         "SPL": "splice exon-skip",
         "DEP": "alteration-conferred dependency",
+        # ROLE was in GENOMIC_CLAIM_SPEC but absent here, so `axis_measured_state` (which iterates
+        # axis_labels) never asked about it: 0 of 100 axis reads on the genomic-20 panel, which the
+        # concordance ledger then read as 0 contradicts — i.e. agreement. An off-roster claim axis is
+        # UNASKABLE, not agreed. See test_lens_roster_covers_claim_axes (eval CASE-034).
+        "ROLE": "curated driver role",
     },
     scope_exclusions=("therapeutic modality", "expression as presence"),
     mode="verdict",
@@ -210,6 +232,7 @@ GENOMIC_ALTERATION = LensConfig(
 
 SURFACE_MODALITY_FIT = LensConfig(
     name="surface-modality-fit",
+    claim_spec_ref="surface_claims:SURFACE_CLAIM_SPEC",
     thesis="whether the surface biology supports a BIOLOGICS modality — ADC-favorable, TCE-favorable, both, "
     "or neither — from topology, surfaceome family, density, and normal-tissue/shedding liabilities, "
     "WHILE distinguishing a CONFIRMED cell-surface protein (measured surface proteomics / IHC / flow + "
@@ -225,6 +248,10 @@ SURFACE_MODALITY_FIT = LensConfig(
         "DENSITY": "surface density",
         "SAFETY": "normal-tissue safety",
         "SHED": "shedding",
+        # PMHC was in SURFACE_CLAIM_SPEC but off-roster here — the one axis that can make an
+        # INTRACELLULAR target a TCE target, so leaving it unaskable biased the lane toward the
+        # folded-surface ladder it exists to complement. See test_lens_roster_covers_claim_axes.
+        "PMHC": "pMHC-TCE route",
     },
     scope_exclusions=(
         "small-molecule tractability (tractability-small-molecule)",
@@ -276,6 +303,7 @@ SURFACE_MODALITY_FIT = LensConfig(
 
 TRACTABILITY_SM = LensConfig(
     name="tractability-small-molecule",
+    claim_spec_ref="tractability_claims:SMALL_MOLECULE_CLAIM_SPEC",
     thesis="whether the target looks druggable by a SMALL MOLECULE — is there a compound that DIRECTLY "
     "engages it (with measured binding potency + cellular activity), does that chemical signal AGREE "
     "with the genetic dependency (chemical-genetic concordance = on-target; discordant = off-target), "
@@ -332,6 +360,7 @@ TRACTABILITY_SM = LensConfig(
 
 IMMUNE_CONTEXT = LensConfig(
     name="immune-context",
+    claim_spec_ref="immune_context_claims:IMMUNE_CONTEXT_CLAIM_SPEC",
     thesis="the immune/TME context for a T-cell-engager (TCE) effector arm — is the indication immune-HOT "
     "(a CD8 effector infiltrate to redirect) — WHILE distinguishing a SPATIALLY-CONFIRMED, functional "
     "INFLAMED infiltrate (tumor-nest CD8 — TCE-favorable) from a BULK-CIBERSORT-FRACTION-ANNOTATED CD8 "
@@ -395,6 +424,7 @@ IMMUNE_CONTEXT = LensConfig(
 
 DIFFERENTIATION_LANDSCAPE = LensConfig(
     name="differentiation-landscape",
+    claim_spec_ref="differentiation_claims:DIFFERENTIATION_CLAIM_SPEC",
     thesis="what patient-selection / combination-biology hypotheses the co-mutation, stemness, node-leverage "
     "and prognostic landscape support for this target, WHILE distinguishing a BIOLOGICALLY-ESTABLISHED "
     "co-mutation / mutual-exclusivity relationship (shared pathway, functional cooperation, a validated "
@@ -462,6 +492,7 @@ DIFFERENTIATION_LANDSCAPE = LensConfig(
 
 MECHANISM_PHARMACOLOGY = LensConfig(
     name="mechanism-and-pharmacology",
+    claim_spec_ref="mechanism_claims:MECHANISM_CLAIM_SPEC",
     thesis="the signaling-network mechanism + candidate MoA hooks + PD-marker suggestions — how well the "
     "target's mechanism is characterized and what it implies for SM/degrader/glue programs, WHILE "
     "distinguishing an INDICATION-OPERATIVE, functionally-validated mechanism from a CONTEXT-FREE "
@@ -527,6 +558,7 @@ MECHANISM_PHARMACOLOGY = LensConfig(
 
 CIS_FEATURE_COHERENCE = LensConfig(
     name="cis-feature-coherence",
+    claim_spec_ref="cis_coherence_claims:CIS_COHERENCE_CLAIM_SPEC",
     thesis="whether the locus→expression→dependency chain is COHERENT (cis copy-number dosage coupling at "
     "BOTH mRNA and PROTEIN, methylation silencing, expression↔dependency, conjoint amp∩overexpr "
     "addiction) — a data-integrity / mechanism-plausibility context, WHILE distinguishing a CAUSAL, "
@@ -619,6 +651,7 @@ CIS_FEATURE_COHERENCE = LensConfig(
 
 COMBINATION_VULNERABILITY = LensConfig(
     name="combination-and-vulnerability",
+    claim_spec_ref="combination_vulnerability_claims:COMBINATION_VULNERABILITY_CLAIM_SPEC",
     thesis="the relational (gene×gene) opportunities — synthetic-lethal partners, measured dual-KO "
     "co-dependencies, combination co-targets that become MORE essential under inhibition, chemical "
     "drug×drug synergy, and resistance mediators that RESCUE — as a RANKED PARTNER TABLE, "
@@ -671,6 +704,7 @@ COMBINATION_VULNERABILITY = LensConfig(
 
 TARGET_INTRINSIC = LensConfig(
     name="target-intrinsic",
+    claim_spec_ref="target_intrinsic_claims:TARGET_INTRINSIC_CLAIM_SPEC",
     thesis="the indication-INDEPENDENT intrinsic target dossier — protein family/class, fold + pockets + "
     "ligandability, surfaceome family, localization/biophysics, germline LoF constraint, and "
     "tractability precedent — distinguishing an EXPERIMENTALLY-CONFIRMED actionable intrinsic "
@@ -723,6 +757,7 @@ TARGET_INTRINSIC = LensConfig(
 
 TRANSLATIONAL_READINESS = LensConfig(
     name="translational-readiness",
+    claim_spec_ref="translational_readiness_claims:TRANSLATIONAL_READINESS_CLAIM_SPEC",
     thesis="how translationally READY the target is — whether PUBLIC patient-derived models can preclinically "
     "validate it: are HCMI patient-derived models AVAILABLE in the indication, does an available model "
     "carry THIS target's ALTERATION (genotype-matched), does the dependency reproduce EX-VIVO in "
@@ -848,6 +883,7 @@ TARGET_ARCHETYPE = LensConfig(
 
 LITERATURE_CONTEXT = LensConfig(
     name="literature-context",
+    claim_spec_ref="literature_context_claims:LITERATURE_CONTEXT_CLAIM_SPEC",
     thesis="what the PUBLISHED LITERATURE SAYS about the target in the indication — the co-occurrence VOLUME "
     "(how much is written), the RECENCY, the top CITED STATEMENTS, and the typed relation DIRECTION "
     "(PubTator3 BioREx associate/cause/inhibit/stimulate/…) — as a DESCRIPTIVE citation context, NOT a "

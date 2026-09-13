@@ -543,7 +543,7 @@ GENOMIC_CLAIM_SPEC = [
 _DISCLAIMER = (
     "Verdict-INERT projection of the alteration cards into orthogonal per-class claims (SNV recurrent "
     "SNV/indel driver / CN copy-number driver / FUS fusion driver / SPL splice exon-skip driver / "
-    "DEP alteration-confers-dependency), "
+    "DEP alteration-confers-dependency / ROLE curated driver role), "
     "each signal×corroboration. Claims are NOT additive; genomic-alteration is a MIX — a strong CN does "
     "not degrade a weak SNV, and the strongest class is what drives. DEP asks whether the ALTERATION "
     "confers a genetic dependency (a WT/neutral-dependent signal is `absent` here). corroboration is a "
@@ -552,8 +552,10 @@ _DISCLAIMER = (
 
 
 def genomic_claim_vector(headline: dict, cards: list) -> dict:
-    """The verdict-inert claim vector {SNV,CN,FUS,SPL,DEP: {signal, corroboration, evidence, conflict,
-    informs}, _disclaimer}. Projection over the computed headline."""
+    """The verdict-inert claim vector {SNV,CN,FUS,SPL,DEP,ROLE: {signal, corroboration, evidence,
+    conflict, informs}, _disclaimer}. Projection over the computed headline. The axis roster is
+    GENOMIC_CLAIM_SPEC — never re-enumerate it by hand (this docstring and _DISCLAIMER both omitted ROLE
+    for the whole window it existed, and so did the narrator lens, which made it unaskable)."""
     return build_claim_vector(GENOMIC_CLAIM_SPEC, headline, cards, _DISCLAIMER)
 
 

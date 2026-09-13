@@ -321,6 +321,15 @@ _LENS_MAX_TERMS = {
     # through alongside the single axis label. Surgical: every other lens keeps the default cap.
     "synthetic-lethal-partners": 7,
     "combinatorial-dependency": 7,
+    # The three lenses whose axis_labels grew to their full ClaimSpec roster (CASE-034). MEASURED
+    # crowd-out at the default cap of 5, with the completed rosters: genomic-alteration-profile 6 axes
+    # admit ZERO of its 4 curated terms, surface-modality-fit 6 axes admit ZERO of its 7, and
+    # on-target-safety-liability is the sharp one — at 8 axes a cap of 5 truncates BEFORE
+    # PHARMACOVIGILANCE, so completing the roster would have silently dropped the one axis the lens
+    # used to query on, plus all 4 curated terms. Each cap is (axes + curated) so nothing is truncated.
+    "genomic-alteration-profile": 10,
+    "on-target-safety-liability": 12,
+    "surface-modality-fit": 13,
 }
 
 

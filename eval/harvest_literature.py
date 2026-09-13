@@ -67,6 +67,28 @@ def _canonical_symbol(target: str) -> str:
     return TARGET_CANON.get(sym, sym)
 
 
+# skill_report keys the harvest record deliberately DROPS: bulky render payloads with no concordance
+# meaning. Declared as an EXCLUSION set, not an include-list, so a new decision-bearing key on the
+# spine is carried automatically — an include-list would silently omit exactly the coordinate a future
+# case needs (the CASE-034 failure re-run one level up). `_skill_report_dropped_keys` on the record
+# names what was removed on THIS run, so the omission is auditable rather than assumed.
+_SKILL_REPORT_BULK_KEYS = frozenset({"evidence_graph", "figures", "per_phase_metrics", "question_table"})
+
+
+def _skill_report_projection(facet: dict) -> "tuple[dict | None, list[str]]":
+    """(projection, dropped_keys) over `synthesis_facet['skill_report']`.
+
+    CASE-034 part B: the harvest record carried the claim_vector and the raw sub-verdict but NOT the
+    skill_report, so the panel's pre-registered predictions about `polarity` / `honest_phrase` /
+    `top_tension` were NOT MEASURABLE — the corpus simply did not record the surface they were about.
+    Verdict-inert: a projection over an already-composed projection."""
+    sr = facet.get("skill_report") if isinstance(facet, dict) else None
+    if not isinstance(sr, dict) or not sr:
+        return None, []
+    dropped = sorted(k for k in sr if k in _SKILL_REPORT_BULK_KEYS)
+    return {k: v for k, v in sr.items() if k not in _SKILL_REPORT_BULK_KEYS}, dropped
+
+
 def harvest_pair(
     target: str,
     indication: str,
@@ -103,6 +125,7 @@ def harvest_pair(
         v, rule = _normalize_verdict(res.get("verdict"))
         fired = res.get("fired") or []
         fired_ids = [f.get("rule_id") for f in fired if isinstance(f, dict)] if fired else []
+        skill_report, sr_dropped = _skill_report_projection(facet)
         records.append(
             {
                 "target": target,
@@ -119,6 +142,11 @@ def harvest_pair(
                     "fired_rule_ids": fired_ids,
                 },
                 "claim_vector": (facet.get("claim_vector") if isinstance(facet, dict) else None),
+                # CASE-034 part B: the UNIFIED-OUTPUT spine projection (call/role/polarity/honest_phrase/
+                # confidence/top_tension/claim_chips/claim_scalars/modality_scope/provenance). None when the
+                # sub-skill composes no skill_report — honest, and distinguishable from "recorded as empty".
+                "skill_report": skill_report,
+                "_skill_report_dropped_keys": sr_dropped,
                 "literature_synthesis": lit,
                 "_provenance": {"model_id": lit.get("_model_id"), "prompt_hash": lit.get("_prompt_hash")},
             }

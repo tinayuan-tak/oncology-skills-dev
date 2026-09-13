@@ -36,6 +36,14 @@ class LensConfig:
     capsule_config: dict = field(default_factory=dict)
     verdict_key: Optional[str] = None  # headline key holding the collapsed verdict token (e.g.
     # "presence_verdict"); None → the legacy <name>_verdict guess
+    claim_spec_ref: Optional[str] = None  # "<module>:<VARNAME>" under _skills_common naming the ClaimSpec
+    # roster this lens narrates, e.g. "genomic_claims:GENOMIC_CLAIM_SPEC". Declared as a STRING and
+    # resolved LAZILY (tests/tooling only) so no runtime import edge is added from every skill to every
+    # claims module. `axis_labels` MUST cover every axis_key in the referenced roster: literature_synthesis
+    # .axis_measured_state iterates axis_labels, so an off-roster claim axis is never asked about — it
+    # contributes 0 reads and therefore 0 contradicts, which every concordance instrument downstream reads
+    # as AGREEMENT. Unaskable is not agreed. None = the lens hand-builds its vector (tumor-presence,
+    # target-archetype); the coverage guard asserts those are the only two.
 
 
 _CONF_ENUM = ("well_supported", "supported_with_caveats", "weakly_supported", "insufficient_evidence")

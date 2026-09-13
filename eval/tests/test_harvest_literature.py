@@ -296,3 +296,107 @@ def test_panel_indications_resolve_in_the_crosswalk():
         "panel indications that resolve to NO DepMap lineage (each silently degrades that pair to a "
         f"pan-scope read instead of the within-indication probe the panel intends): {bad}"
     )
+
+
+# ── CASE-034 part B: the harvest record carries the skill_report projection ──────────────────────────
+# Before this, the corpus recorded claim_vector + the raw sub-verdict but NOT the spine, so every
+# pre-registered prediction about `polarity` / `honest_phrase` / `top_tension` came back NOT MEASURABLE:
+# the surface the prediction was about was never written down. The fixture below is built by calling the
+# REAL build_skill_report rather than hand-typing a dict, so it cannot drift from the shipped shape.
+
+
+def _real_skill_report() -> dict:
+    """A genuine build_skill_report output (not an invented dict), plus the bulky keys the record drops."""
+    _skills = Path(__file__).resolve().parents[2] / "skills"
+    if str(_skills) not in sys.path:
+        sys.path.insert(0, str(_skills))
+    from _skills_common.skill_report import build_skill_report
+
+    sr = build_skill_report(
+        role="gating",
+        verdict="lineage_selective",
+        driving_rule_id="lineage-selective-supportive",
+        headline_block={"verdict": {"phrase": "selectively dependent"}, "confidence": "well_supported"},
+        claim_vector={"DEP": {"signal": "strong", "corroboration": "high", "informs": "genetic dependency"}},
+        question_table=[{"question_id": "q1"}],
+        fired_rule_ids=["lineage-selective-supportive"],
+        axis_labels={"DEP": "genetic dependency"},
+    )
+    sr["evidence_graph"] = {"nodes": [1, 2, 3]}  # attached downstream by tp_fanout, and bulky
+    return sr
+
+
+def test_harvest_record_carries_the_skill_report_projection(monkeypatch):
+    sr = _real_skill_report()
+    fake = {
+        "dependency": {
+            "skill_dir": "functional-requirement",
+            "verdict": ("lineage_selective", "lineage-selective-supportive"),
+            "fired": [{"rule_id": "lineage-selective-supportive"}],
+            "synthesis_facet": {
+                "claim_vector": {"DEP": {"signal": "strong"}},
+                "skill_report": sr,
+                "literature_synthesis": {"overall_consistency": "concordant", "_prompt_hash": "h1"},
+            },
+        }
+    }
+    stub = types.ModuleType("tp_fanout")
+    stub._run_sub_skills = lambda *a, **k: fake  # noqa: E731
+    monkeypatch.setitem(sys.modules, "tp_fanout", stub)
+
+    r = hl.harvest_pair("KRAS", "COADREAD")[0]
+    proj = r["skill_report"]
+    assert proj is not None, "the skill_report was dropped from the record again (CASE-034 part B)"
+    # the decision-bearing coordinates the panel's predictions were ABOUT
+    for k in ("call", "role", "polarity", "honest_phrase", "confidence", "top_tension", "claim_chips"):
+        assert k in proj, f"skill_report.{k} missing from the harvest projection"
+    assert proj["call"] == "lineage_selective"
+    assert proj["honest_phrase"] == "selectively dependent"
+    assert proj["provenance"]["driving_rule_id"] == "lineage-selective-supportive"
+
+
+def test_the_projection_drops_only_the_declared_bulk_keys(monkeypatch):
+    """The exclusion set is DECLARED and the drop is RECORDED, so an omission is auditable. An
+    include-list would instead silently omit any key added to the spine later."""
+    sr = _real_skill_report()
+    fake = {
+        "dependency": {
+            "skill_dir": "functional-requirement",
+            "verdict": ("v", "r"),
+            "fired": [],
+            "synthesis_facet": {"skill_report": sr, "literature_synthesis": {"_prompt_hash": "h"}},
+        }
+    }
+    stub = types.ModuleType("tp_fanout")
+    stub._run_sub_skills = lambda *a, **k: fake  # noqa: E731
+    monkeypatch.setitem(sys.modules, "tp_fanout", stub)
+
+    r = hl.harvest_pair("KRAS", "COADREAD")[0]
+    proj, dropped = r["skill_report"], r["_skill_report_dropped_keys"]
+    assert set(sr) - set(proj) == set(dropped), "the record under-reports what it dropped"
+    assert set(dropped) <= hl._SKILL_REPORT_BULK_KEYS, f"dropped a non-bulk key: {dropped}"
+    assert "evidence_graph" in dropped and "question_table" in dropped
+    # ANTI-VACUITY: the exclusion must actually bite on a real spine, or this check proves nothing.
+    assert dropped, "no bulk key was present, so the exclusion set was never exercised"
+    # and every non-excluded key survives — the projection is a filter, not a whitelist
+    assert set(proj) == set(sr) - hl._SKILL_REPORT_BULK_KEYS
+
+
+def test_a_skill_with_no_skill_report_records_None_not_an_empty_dict(monkeypatch):
+    """`gap != absent`: a sub-skill that composes no spine must be distinguishable from one that
+    composed an empty one, or the corpus prices a coverage gap as a measured blank."""
+    fake = {
+        "dependency": {
+            "skill_dir": "functional-requirement",
+            "verdict": ("v", "r"),
+            "fired": [],
+            "synthesis_facet": {"claim_vector": {}, "literature_synthesis": {"_prompt_hash": "h"}},
+        }
+    }
+    stub = types.ModuleType("tp_fanout")
+    stub._run_sub_skills = lambda *a, **k: fake  # noqa: E731
+    monkeypatch.setitem(sys.modules, "tp_fanout", stub)
+
+    r = hl.harvest_pair("KRAS", "COADREAD")[0]
+    assert r["skill_report"] is None
+    assert r["_skill_report_dropped_keys"] == []

@@ -259,8 +259,74 @@ the axis the lens was supposed to compare.
   next axis split (the SPL-out-of-FUS shape) cannot open this hole again. (b) Capture the `skill_report`
   projection into the harvest record. Note (a) changes what the model is asked and therefore the prompt hash —
   it needs a fresh corpus, not a re-score.
-- **Status:** OPEN — filed. **Do not quote a role-axis concordance rate until (a) lands**; the current 0
-  contradicts on ROLE is an absence of measurement, not agreement.
+- **Status: ✅ BOTH PARTS FIXED (skills `fix/lens-roster-claim-axis-coverage`, 2026-09-13).** The role-axis
+  concordance rate is now quotable **from a fresh harvest only** — see the corpus note at the end.
+
+#### ★★The guard found the defect is THREE skills and NINE axes, not one
+
+Writing (a)'s coverage guard as *derived* rather than as a genomic-specific assertion is what surfaced the
+rest. Introspecting every `ClaimSpec` roster under `_skills_common/*claims*.py` and comparing each against
+the lens that narrates it:
+
+| skill | claim axes | on the lens roster | UNASKABLE |
+|---|---|---|---|
+| `genomic-alteration-profile` | 6 | 5 | `ROLE` |
+| **`on-target-safety-liability`** | **8** | **1** | `CONSTRAINT` `BURDEN` `DOSAGE` `CLINVAR` `MOUSE_KO` `PAN_ESSENTIAL` `NORMAL_TISSUE` — **7 of 8** |
+| `surface-modality-fit` | 6 | 5 | `PMHC` |
+
+Safety is the severe one: every safety-lane literature read ever taken compared **one axis out of eight**,
+while the lens *thesis* enumerates all of them by name (gnomAD constraint, gene-burden, ClinGen dosage,
+ClinVar, mouse-KO, pan-essentiality). So this was an incomplete roster, never a scoped exclusion — and its
+`questions.yaml` already carries all 8 `axis_id`s, i.e. everything downstream was ready and only the roster
+was short. The other 13 lenses cover their rosters exactly. **Fixing only the filed instance would have left
+7 of the 9 unaskable axes unaskable** — the same instance-vs-symmetry trap as CASE-031's deletion arm.
+
+#### ★★A roster is not one surface: `axis_labels` feeds THREE consumers, and one of them TRUNCATES
+
+`axis_labels` is read by `axis_measured_state` (the literature prompt), `render_narrator_signals` (the
+narrator rows) **and** `literature_retrieval._lens_terms`, which caps the Europe-PMC query terms at 5 by
+default. Measured, before any cap bump: completing the safety roster pushed 8 axes past that cap and
+truncated `PHARMACOVIGILANCE` — *the single axis the lens previously queried on* — plus all 4 curated
+discriminators, straight out of the query. **Declaring an axis would have NARROWED retrieval.** Fixed with
+`_LENS_MAX_TERMS` = (axes + curated) for each of the three lenses, and pinned by
+`test_every_axis_label_survives_the_literature_query_cap` over **all 16** lenses. Generalises: when one
+declaration feeds several consumers, growing it is only additive for the consumer you were thinking about.
+
+#### ★Two crosswalk gaps remain, and they are CONTRACTS-side — filed, not fixed here
+
+The evidence-graph `axis_id → question_ids` crosswalk fails **soft** (`axis_to_questions.get(axis_id, [])`),
+so an axis with no `axis_id`-tagged question yields a recorded-but-unattached literature read. Measured over
+all 16 lenses × their `questions.yaml`: only **2** such gaps, both newly exposed by this fix — genomic `ROLE`
+(no question at all) and surface `PMHC` (its `pmhc_tce_route` question is tagged `axis_id: FIT`, so the FIT
+axis absorbs a pMHC read). Both fixes belong in target-contracts `vocabularies/target_profiling_axes.yaml`,
+because `question_hierarchy.yaml` is GENERATED from it and `alteration_role` currently sits under the **SNV**
+sub-group there — retagging `questions.yaml` alone would manufacture exactly the
+[displayed-vs-scored two-files-route-the-same-axis](../skills/tests/test_question_hierarchy_drift.py) drift.
+**This does NOT block the role-axis concordance read**: `build_literature_prompt` reads `claim_vector` +
+`axis_labels` only, never `questions.yaml`, so the crosswalk leg can land later without invalidating a
+corpus harvested now.
+
+#### Part (b) — `skill_report` in the harvest record
+
+`harvest_pair` now carries a `skill_report` projection (`call`/`role`/`polarity`/`honest_phrase`/
+`confidence`/`top_tension`/`claim_chips`/`claim_scalars`/`modality_scope`/`provenance`). Declared as a
+**bulk-key EXCLUSION** set (`evidence_graph`, `figures`, `per_phase_metrics`, `question_table`) rather than
+an include-list, so a decision-bearing key added to the spine later is carried automatically — an
+include-list would silently omit precisely the coordinate the next case needs, which is this case one level
+up. `_skill_report_dropped_keys` records what was removed on each run, and a sub-skill composing no spine
+records `None`, not `{}` (gap ≠ absent).
+
+#### Falsification (round-trip writes, never `git checkout --`)
+
+Six mutations, each firing only on its own guard: drop `ROLE` from the roster → 2 red; drop the safety
+`_LENS_MAX_TERMS` bump → 2 red (the truncation guard + the pharmacovigilance pin); drop the 7 restored
+safety axes (the pre-fix trunk state) → 2 red; drop one `claim_spec_ref` → 2 red (orphan roster + the exempt
+set going silent); drop `skill_report` from the record → 3 red; capture the spine with no bulk exclusion →
+1 red. Restored: 49 + 15 green.
+
+- **★CORPUS:** (a) changes what the model is ASKED on three lenses, so the prompt hash shifts. Any panel
+  re-measure must be a **fresh harvest**, never a re-score of `eval/literature-snapshots-*`. Until that
+  harvest runs, the 0 contradicts on `ROLE` is still an absence of measurement — do not quote it.
 
 ### GENOMIC-ALTERATION 20-pair literature panel baseline (2026-09-12) — 20/20 emitted, 71 ledger rows, 6 SHARP (3 calibration + 3 verdict_rule), all on the CN axis
 
