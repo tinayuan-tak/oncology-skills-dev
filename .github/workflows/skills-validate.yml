@@ -99,6 +99,20 @@ jobs:
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         run: pixi run pytest skills/tests/ -q --import-mode=importlib
 
+      # BLOCKING: the eval/ harness (loop-health, disposition ledger, discordance ledgers,
+      # per-axis backtest, literature harvest). Until 2026-09-12 NO part of eval/ ran in CI —
+      # every pytest step above is skills/…-scoped, so eval/ was green-by-absence: six tracked
+      # test modules never executed on a PR. This recursive step covers all of them, INCLUDING
+      # eval/test_subskill_discordance.py which sits at the top of eval/ rather than under
+      # eval/tests/ (a hardcoded `pytest eval/tests` would still have missed it). Fixture/logic
+      # tests, no live S3 — green on a credential-less runner (measured: 59 passed ~0.2s, no creds).
+      # --import-mode=importlib matches every other step and avoids run.py basename collisions.
+      # The `test_ci_covers_all_test_files` guard in skills/tests/ fails if a NEW test dir ever
+      # lands outside every step's scope again, so this list can't silently rot.
+      - name: eval/ harness suite
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        run: pixi run pytest eval/ -q --import-mode=importlib
+
       # BLOCKING-BY-DEFAULT coverage of the remaining skills (promoted from non-blocking 2026-08-12:
       # every remaining per-skill suite is green locally under pixi except the denylisted skill below).
       # The three suites above are their own BLOCKING steps (_skills_common = shared harness + engine,
