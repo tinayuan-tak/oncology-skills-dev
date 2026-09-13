@@ -759,6 +759,28 @@ def _indication_lineage_map() -> dict:
         return {}
 
 
+def _shared_depmap_lineages(lineage_map: dict) -> set:
+    """The DepMap lineages that MORE THAN ONE canonical indication maps to.
+
+    Counts CANONICAL codes only. Aliases share their canonical entry's lanes, so counting raw keys
+    would read LUAD+LUSC+NSCLC as a 3-way split of `Lung` and make every aliased lineage look shared
+    on its own. `canonical_code` is carried on every entry (including alias entries, which copy it
+    from the canonical) precisely so this collapse is possible; the dict key is the fallback for a
+    hand-built fixture that omits it.
+
+    NOT cached: it is a ~40-entry pass over the already-cached `_indication_lineage_map()`, and caching
+    it would go stale under a test that monkeypatches that map — an lru_cache warmed by the real
+    crosswalk silently ignores the patch and the test measures nothing.
+    """
+    by_lineage: dict[str, set] = {}
+    for key, xw in (lineage_map or {}).items():
+        lineage = xw.get("depmap_lineage") if isinstance(xw, dict) else None
+        if not lineage:
+            continue
+        by_lineage.setdefault(str(lineage), set()).add(xw.get("canonical_code") or key)
+    return {lineage for lineage, codes in by_lineage.items() if len(codes) > 1}
+
+
 def _lineage_is_shared(xw: dict) -> bool:
     """Does the indication's coarse DepMap lineage merge more than one disease?
 
@@ -770,11 +792,36 @@ def _lineage_is_shared(xw: dict) -> bool:
     non-cancerous retinal lines. Both reported shared_lineage_caveat: false on a genuinely confounded
     coarse read.
 
-    The crosswalk already encodes the fact directly: `depmap_oncotree_codes` is present exactly when the
-    indication is a STRICT SUBSET of its coarse lineage and therefore needs a sublineage reduction. Keying
-    on its presence means wiring a new code set automatically corrects the caveat.
+    Sharedness has TWO INDEPENDENT sources of evidence in the crosswalk and needs BOTH, because
+    neither covers the other's cases:
+
+      (a) MULTIPLICITY — ≥2 canonical indications declare the same `depmap_lineage`. This is a property
+          of a lane populated 34/35 (only THYM lacks one), so it cannot decay as authoring lags. It is
+          the ONLY evidence for GBM and LGG (both `CNS/Brain`, pooled with EACH OTHER), KIRC (`Kidney`,
+          with KICH/KIRP), SKCM (`Skin`, with BCC), UCEC (`Uterus`, with UCS) and AML (`Myeloid`, with
+          CML) — six LIVE indications.
+
+      (b) STRICT-SUBSET DECLARATION — `depmap_oncotree_codes` present means a curator asserted this
+          indication is a strict subset of its coarse lineage. This is the only evidence when the OTHER
+          lineage members are not themselves crosswalk indications: `Bowel` is 133/146 colorectal
+          adenocarcinoma but also carries anal squamous, small-bowel, appendiceal and GI-neuroendocrine
+          models, and `Eye` is 16/29 uveal melanoma alongside retinoblastoma and non-cancerous retinal
+          lines. COADREAD and UVM are each the SOLE crosswalk indication on their lineage, so (a) reads
+          them as pure.
+
+    Using (b) alone was the previous implementation, on the claim that the code set "is present exactly
+    when the indication is a STRICT SUBSET of its coarse lineage." That biconditional is false — the
+    field is authored per-indication and filled on only 6 of 35 — so the check inherited the field's
+    sparseness and re-shipped, for the six indications in (a), the very bug it replaced the hardcoded
+    `{"Lung", "Esophagus/Stomach"}` set to fix. Using (a) alone would symmetrically regress the Bowel
+    and Eye cases in (b). The union is what the two lanes jointly know.
+
+    `depmap_oncotree_codes` also remains the RESOLUTION mechanism (see `_sublineage_read`): either
+    signal RAISES the caveat, a code set is what lets a run CLEAR it.
     """
-    return bool(xw.get("depmap_oncotree_codes"))
+    if xw.get("depmap_oncotree_codes"):
+        return True
+    return str(xw.get("depmap_lineage") or "") in _shared_depmap_lineages(_indication_lineage_map())
 
 
 def _sublineage_read(cards, codes: list) -> dict | None:
@@ -873,6 +920,12 @@ def _indication_lineage_read(cards, indication) -> dict:
     # the SUBLINEAGE grain (per_oncotree_code_stats aggregated over the code-set) instead of the confounded
     # coarse lineage — this RESOLVES the shared_lineage_caveat rather than merely flagging it. Falls back to
     # the coarse-lineage path when the field or code-set is unavailable (e.g. the offline fixture).
+    #
+    # The two conditions are now INDEPENDENT, which is the point of the caveat fix. They used to be the
+    # same test written twice: the caveat was itself `bool(codes)`, so `and codes` was tautological and
+    # the only way to keep a True caveat was for `_sublineage_read` to fail. Sharedness now comes from
+    # lineage multiplicity, so a shared lineage with NO authored code set (GBM/LGG, KIRC, SKCM, UCEC,
+    # AML) correctly skips this block and KEEPS its caveat instead of silently reading as unconfounded.
     codes = xw.get("depmap_oncotree_codes")
     if read["shared_lineage_caveat"] and codes:
         sub = _sublineage_read(cards, codes)

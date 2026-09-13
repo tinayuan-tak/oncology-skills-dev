@@ -256,3 +256,148 @@ def test_indication_read_falls_back_to_coarse_without_code_stats(monkeypatch):
     assert read.get("sublineage_resolved") is not True
     assert read["shared_lineage_caveat"] is True  # unresolved → still flagged (honest)
     assert read["class"] == "dependent_not_enriched"  # coarse Esophagus/Stomach median -0.6
+
+
+# --- shared_lineage_caveat: the POPULATION the caveat is derived over ------------------------------
+# These pin the fix for a caveat that was near-unreachable. It used to be `bool(depmap_oncotree_codes)`
+# — a field filled on 6 of 35 indications — so six LIVE indications whose coarse DepMap lineage merges
+# ≥2 diseases reported `shared_lineage_caveat: false`, and the only way to observe a True caveat was a
+# `_sublineage_read` failure. The old test for the caveat pinned STAD, which is IN the 6 that carry a
+# code set, so it passed on exactly the population where the check could not fail.
+#
+# Every test below reads the REAL crosswalk deliberately. A monkeypatched 1-entry map has lineage
+# multiplicity 1 by construction and would make the multiplicity half of the predicate vacuous.
+
+_MULTIPLICITY_ONLY = ["GBM", "LGG", "KIRC", "SKCM", "UCEC", "AML"]  # shared lineage, NO code set
+_SUBSET_DECL_ONLY = ["COADREAD", "UVM"]  # sole crosswalk indication on the lineage, code set present
+_PURE_LINEAGE = ["BRCA", "PRAD", "OV", "PAAD", "HNSC", "BLCA", "LIHC", "CESC", "DLBC"]
+
+
+def test_shared_lineage_without_a_code_set_still_gets_a_caveat():
+    """The regression this fix closes: GBM and LGG BOTH map to DepMap `CNS/Brain` — they are pooled with
+    each other — and neither has an authored `depmap_oncotree_codes`. Under the old `bool(codes)`
+    predicate both read `shared_lineage_caveat: false` on a demonstrably confounded coarse read."""
+    xw = M._indication_lineage_map()
+    for code in _MULTIPLICITY_ONLY:
+        entry = xw[code]
+        assert not entry.get("depmap_oncotree_codes"), f"{code} gained a code set — move it out of this list"
+        assert M._lineage_is_shared(entry) is True, f"{code} ({entry['depmap_lineage']}) lost its caveat"
+
+    read = M._indication_lineage_read(
+        _cards(indication="GBM", enriched=[{"lineage": "CNS/Brain", "n": 60, "median_chronos": -0.9, "q_value": 1e-6}]),
+        "GBM",
+    )
+    assert read["depmap_lineage"] == "CNS/Brain"
+    assert read["shared_lineage_caveat"] is True
+    assert read.get("sublineage_resolved") is not True  # no code set → nothing to resolve WITH
+
+
+def test_caveat_population_is_derived_and_nonempty_in_both_directions():
+    """Anti-vacuity + coverage. Both poles must be populated from the LIVE crosswalk, so the check can
+    fail either way, and the confounded set must not shrink silently as the vocabulary is edited."""
+    xw = M._indication_lineage_map()
+    shared = {c for c in xw if M._lineage_is_shared(xw[c])}
+    assert shared, "no indication reads as shared — the caveat would be unreachable"
+    assert set(xw) - shared, "every indication reads as shared — the caveat would be meaningless"
+    missing = [c for c in _MULTIPLICITY_ONLY + _SUBSET_DECL_ONLY if c not in shared]
+    assert not missing, f"known-confounded indications no longer flagged: {missing}"
+
+
+def test_the_two_sharedness_signals_are_a_union_neither_alone_suffices():
+    """MULTIPLICITY (≥2 canonical indications on one lineage) and the STRICT-SUBSET DECLARATION
+    (`depmap_oncotree_codes`) each cover cases the other cannot. Multiplicity alone regresses COADREAD
+    ⊂ Bowel and UVM ⊂ Eye, whose other lineage members (anal squamous, appendiceal, retinoblastoma) are
+    not themselves crosswalk indications. The declaration alone misses the six in _MULTIPLICITY_ONLY."""
+    xw = M._indication_lineage_map()
+    by_multiplicity = M._shared_depmap_lineages(xw)
+
+    for code in _SUBSET_DECL_ONLY:
+        entry = xw[code]
+        assert entry.get("depmap_oncotree_codes"), f"{code} lost its code set"
+        assert entry["depmap_lineage"] not in by_multiplicity, (
+            f"{code}'s lineage gained a second indication — it is no longer a subset-declaration-only case"
+        )
+        assert M._lineage_is_shared(entry) is True
+
+    for code in _MULTIPLICITY_ONLY:
+        assert xw[code]["depmap_lineage"] in by_multiplicity
+
+
+def test_pure_lineages_do_not_get_a_caveat():
+    """The negative pole: an indication that is the only disease on its DepMap lineage and declares no
+    subset must NOT be flagged, or the caveat degenerates into a banner on every run."""
+    xw = M._indication_lineage_map()
+    for code in _PURE_LINEAGE:
+        assert M._lineage_is_shared(xw[code]) is False, f"{code} ({xw[code]['depmap_lineage']}) falsely flagged"
+
+
+def test_aliases_do_not_inflate_lineage_multiplicity():
+    """LUAD and LUSC are ALIASES of NSCLC and inherit its `Lung`. Counting raw map keys would read Lung
+    as a 4-way split and, worse, would make any aliased lineage look shared on its own account."""
+    xw = M._indication_lineage_map()
+    assert xw["LUAD"]["canonical_code"] == "NSCLC"
+    assert xw["LUSC"]["canonical_code"] == "NSCLC"
+    lung_canonical = {xw[c]["canonical_code"] for c in xw if xw[c].get("depmap_lineage") == "Lung"}
+    assert lung_canonical == {"NSCLC", "SCLC"}, f"Lung multiplicity counted aliases: {lung_canonical}"
+
+
+def test_sublineage_still_clears_the_caveat_when_a_code_set_resolves():
+    """The resolution half is untouched: a shared lineage WITH a code set and per-code stats resolves at
+    the sublineage grain and CLEARS the caveat rather than merely flagging it."""
+    cards = [
+        {
+            "card_id": "dependency-lineage-selectivity",
+            "summary": {
+                "enriched_lineages": [],
+                "per_lineage_stats": [{"lineage": "Esophagus/Stomach", "n": 40, "median_chronos": -0.6}],
+                "per_oncotree_code_stats": [
+                    {"oncotree_code": "STAD", "n": 22, "median_chronos": -1.1},
+                    {"oncotree_code": "DSTAD", "n": 9, "median_chronos": -0.95},
+                ],
+            },
+        },
+        {"card_id": "abundance-dependency", "summary": {"indication": "STAD"}},
+    ]
+    read = M._indication_lineage_read(cards, "STAD")
+    assert read["sublineage_resolved"] is True
+    assert read["shared_lineage_caveat"] is False
+
+
+def test_the_coarse_lineage_badge_is_reachable_for_a_confounded_indication():
+    """End of the chain. `dependency_question_table` appends `⚠ coarse-lineage (shared)` to the Q3 row
+    off `by_scope.indication.shared_lineage_caveat`, so while the caveat was effectively `bool(codes)`
+    the badge was near-unreachable in a healthy run — it needed a `_sublineage_read` FAILURE. The Q3
+    block is fed from the REAL FR producer here rather than a hand-written `indication` dict: a
+    hand-set flag would render the badge under the old predicate too and measure nothing."""
+    import sys
+
+    sys.path.insert(0, str(SKILL_DIR.parents[1]))
+    from _skills_common.dependency_question_table import dependency_question_table
+
+    cards = _cards(
+        indication="GBM",
+        enriched=[{"lineage": "CNS/Brain", "n": 60, "median_chronos": -0.9, "q_value": 1e-6}],
+    )
+    by_scope = M._dependency_verdict_by_scope(cards, ("concordant_dependent", "DEP-R1"))
+    ind = by_scope["indication"]
+    assert ind["shared_lineage_caveat"] is True
+    assert ind["class"] not in (None, "data_unavailable", "not_scoped_this_run"), (
+        "Q3 falls back to the target-grain read for these classes and never reaches the badge branch"
+    )
+
+    rows = dependency_question_table({"dependency_verdict_by_scope": by_scope}, cards, claim_vector={"SEL": {}})
+    q3 = next(r for r in rows if r.get("id") == "Q3")
+    assert "⚠ coarse-lineage (shared)" in q3["primary"], q3
+
+    # ...and NOT for a pure lineage, or the badge is decoration rather than a signal.
+    pure = M._dependency_verdict_by_scope(
+        _cards(indication="BRCA", enriched=[{"lineage": "Breast", "n": 50, "median_chronos": -0.9, "q_value": 1e-6}]),
+        ("concordant_dependent", "DEP-R1"),
+    )
+    assert pure["indication"]["shared_lineage_caveat"] is False
+    assert pure["indication"]["class"] not in (None, "data_unavailable", "not_scoped_this_run"), (
+        "the negative pole must reach the SAME badge branch — otherwise it passes via the Q3 fallback"
+    )
+    rows_pure = dependency_question_table({"dependency_verdict_by_scope": pure}, cards, claim_vector={"SEL": {}})
+    q3_pure = next(r for r in rows_pure if r.get("id") == "Q3")
+    assert "coarse-lineage" not in q3_pure["primary"], q3_pure
