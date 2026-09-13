@@ -173,3 +173,77 @@ def test_dry_run_genie_bpc_lot():
     assert "prefetch genie_bpc_lot × COADREAD" in result.stderr
     assert "regimen_cancer_level_dataset.csv" in result.stderr
     assert "DRY_RUN: skipping LOT derivation" in result.stderr
+
+
+# ---------- DepMap lineage resolution (2026-09-13) --------------------------
+# This script used to hold its own ONE-entry lineage map ({"COADREAD": "Bowel"}),
+# so `--source depmap_somatic` exited 1 with "No DepMap lineage mapping" for SIX
+# indications (AML, BRCA, ESCA, HNSC, NSCLC, PAAD) — blocking their DepMap MAF
+# measurements outright. test_dry_run_depmap above could never catch it: it asks
+# for COADREAD, the one entry that resolved, and its `--dry-run` bails out of
+# _filter_samples before the lineage lookup whenever Model.csv is not already
+# cached. So the tests below (a) name a NON-COADREAD indication and (b) reach the
+# lookup without touching S3.
+
+
+_PREVIOUSLY_BLOCKED = {
+    "AML": "Myeloid",
+    "BRCA": "Breast",
+    "ESCA": "Esophagus/Stomach",
+    "HNSC": "Head and Neck",
+    "NSCLC": "Lung",
+    "PAAD": "Pancreas",
+}
+
+
+def test_all_previously_blocked_indications_resolve_a_lineage():
+    """Every indication the one-entry map rejected now resolves, with the value
+    DepMap's own Model.csv uses (verified against a live 26Q1 load: each of the
+    six prefetches emits a non-empty parquet, 95-264 distinct models)."""
+    from scripts.prefetch_source_maf import _depmap_lineage
+
+    for ind, expected in _PREVIOUSLY_BLOCKED.items():
+        assert _depmap_lineage(ind) == expected, ind
+
+    # COADREAD, the one the old map did carry, must not have regressed
+    assert _depmap_lineage("COADREAD") == "Bowel"
+
+
+def test_unmapped_indication_raises_rather_than_scoping_pan_cancer():
+    """A missing mapping must be an error, not a silent pan-lineage read."""
+    import pytest
+
+    from scripts.prefetch_source_maf import _depmap_lineage
+
+    with pytest.raises(KeyError, match="No DepMap lineage mapping"):
+        _depmap_lineage("THYM")
+
+
+def test_lineage_import_resolves_when_the_script_is_run_by_path():
+    """`python scripts/prefetch_source_maf.py` must work, not just `-m scripts...`.
+
+    In the PATH form sys.path[0] is scripts/, so the lazy
+    `methods.subgroup_common.lineage` import raises ModuleNotFoundError for every
+    DepMap indication unless the module puts the repo root on sys.path. The
+    existing dry-run test uses the `-m` form from REPO_ROOT, which masks this.
+
+    Driven through runpy from a foreign cwd with PYTHONPATH stripped so the check
+    depends on the script's own bootstrap and nothing else — and offline, so it
+    cannot degrade to a skip.
+    """
+    import os
+
+    script = REPO_ROOT / "scripts" / "prefetch_source_maf.py"
+    probe = "import runpy, sys; m = runpy.run_path(sys.argv[1], run_name='_probe'); print(m['_depmap_lineage']('HNSC'))"
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+
+    result = subprocess.run(
+        [sys.executable, "-c", probe, str(script)],
+        cwd="/tmp",
+        capture_output=True,
+        text=True,
+        timeout=120,
+        env=env,
+    )
+    assert result.returncode == 0, f"PATH-form invocation broke: {result.stderr}"
+    assert result.stdout.strip() == "Head and Neck"

@@ -45,6 +45,12 @@ from pathlib import Path
 
 import click
 
+# `methods/` importable when this file is run by PATH (`python scripts/prefetch_source_maf.py`),
+# not just by module (`python -m scripts.prefetch_source_maf`) — in the PATH form sys.path[0] is
+# scripts/, so the lazy `methods.subgroup_common.lineage` import below would raise
+# ModuleNotFoundError for every DepMap indication. Same idiom as scripts/build_msk_impact_maf.py.
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 # --- Source configuration table --------------------------------------------
 # Each source declares: S3 keys, the cache dir, the output-parquet tag, the
 # MAF column names to normalize from, and the filter strategy.
@@ -166,7 +172,22 @@ GENIE_CANCER_TYPE = {
     "PDAC": "Pancreatic Cancer",  # canonical/CPTAC-spelling dual-key (see gdc_somatic_hotspot)
     "GC": "Esophagogastric Cancer",  # BROADER than STAD (includes esophageal) — see note above
 }
-DEPMAP_LINEAGE = {"COADREAD": "Bowel"}
+
+
+# Indication → DepMap OncotreeLineage is resolved through
+# methods/subgroup_common/lineage.py, which alias-imports the ONE canonical map
+# (depmap_chronos.cli.INDICATION_LINEAGE) shared with subgroup_assigner_directly_tagged.
+# This script formerly kept its own ONE-entry copy ({"COADREAD": "Bowel"}), so every
+# other indication's DepMap prefetch exited 1 with "No DepMap lineage mapping" —
+# which blocked the ESCA/HNSC/NSCLC/PAAD depmap MAF measurements outright.
+# Resolved LAZILY: the canonical map's module imports pandas, and this script keeps
+# its heavy imports inside functions so `--help` stays fast.
+def _depmap_lineage(indication: str) -> str:
+    """Return the DepMap OncotreeLineage for `indication`; raise KeyError if absent."""
+    from methods.subgroup_common.lineage import depmap_lineage_for
+
+    return depmap_lineage_for(indication)
+
 
 # GENIE-BPC LOT derivation is a distinct mode (not a MAF filter): it derives
 # per-sample line-of-therapy from the BPC regimen + cancer-panel-test datasets.
@@ -260,9 +281,10 @@ def _filter_samples(cfg: SourceConfig, indication: str, dry_run: bool):
         if dry_run and not model.exists():
             return set()
         df = pd.read_csv(model)
-        lineage = DEPMAP_LINEAGE.get(indication)
-        if not lineage:
-            _log(f"No DepMap lineage mapping for {indication}; add to DEPMAP_LINEAGE.")
+        try:
+            lineage = _depmap_lineage(indication)
+        except KeyError as exc:
+            _log(str(exc.args[0] if exc.args else exc))
             sys.exit(1)
         samples = set(df[df["OncotreeLineage"] == lineage]["ModelID"])
         _log(f"DepMap {lineage} cell lines: {len(samples):,}")

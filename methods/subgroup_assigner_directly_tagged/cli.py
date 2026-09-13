@@ -35,6 +35,7 @@ import click
 import pandas as pd
 import yaml
 
+from methods.subgroup_common import lineage as _lineage
 from methods.subgroup_common.manifest import emit_assignment_manifest
 from methods.subgroup_common.paths import cache_root
 
@@ -236,11 +237,75 @@ def _load_tcga_marker_paper_labels(catalog_repo: Path, indication: str) -> pd.Da
     if indication == "NSCLC":
         cdr = _load_pancanatlas_clinical_histology()
         if cdr is not None and not cdr.empty:
-            df = df.merge(cdr, on="patient_id", how="outer")
+            # ★ The NSCLC marker-paper frame ALREADY carries a complete `histology`
+            # column. A bare merge on an overlapping column name makes pandas suffix
+            # BOTH sides to histology_x/histology_y, leaving NO `histology` column at
+            # all — so _extract_field_value() found nothing and every one of the 1026
+            # rows emitted is_member=null while the run exited 0 and logged it as
+            # "null (data-missing)". The merge added to FIX all-null histology was what
+            # caused it. Keep the left name and coalesce: the curated marker-paper label
+            # wins where present, CDR fills only what it does not cover.
+            #
+            # Measured 2026-09-13 on release-pin 2026-Q3: marker-paper = 1026 patients,
+            # 100% labelled (522 adenocarcinoma / 504 squamous). The CDR carries the
+            # SAME 1026 patients with the SAME labels — 0 disagreements, 0 rows added,
+            # 0 labels added. So for this pin the CDR merge contributes nothing and was
+            # the sole cause of the all-null defect. It is kept (coalescing, guarded)
+            # rather than deleted so a future pin with a sparser marker-paper file still
+            # gets the fallback; if it stays redundant across pins, drop it.
+            # Emits 522 / 504 with a 1026 evaluable denominator and 0 null.
+            df = _merge_coalescing(df, cdr, on="patient_id", coalesce=("histology",), tag="cdr")
             df["sample_id"] = df["sample_id"].fillna(df["patient_id"])
             df["source_native_id"] = df["source_native_id"].fillna(df["patient_id"])
 
+    _assert_no_merge_collision(df, indication)
     return df
+
+
+def _merge_coalescing(
+    left: pd.DataFrame,
+    right: pd.DataFrame,
+    *,
+    on: str,
+    coalesce: tuple[str, ...],
+    tag: str,
+) -> pd.DataFrame:
+    """Outer-merge `right` into `left`, coalescing overlapping columns into the BARE name.
+
+    A bare `left.merge(right, on=...)` with an overlapping column name makes pandas
+    suffix BOTH sides to <name>_x / <name>_y, leaving NO column under the bare name.
+    Rule fields are read by bare name (`_extract_field_value`), so such a column is
+    unreachable BY CONSTRUCTION and every stratum using it silently emits
+    is_member=null with a zero exit code. Here the left value wins where present and
+    `right` fills its gaps.
+    """
+    out = left.merge(right, on=on, how="outer", suffixes=("", f"_{tag}"))
+    for col in coalesce:
+        incoming = f"{col}_{tag}"
+        if incoming not in out.columns:
+            continue
+        out[col] = out[col].fillna(out[incoming]) if col in out.columns else out[incoming]
+        out = out.drop(columns=[incoming])
+    return out
+
+
+def _assert_no_merge_collision(df: pd.DataFrame, indication: str | None) -> None:
+    """Raise if any column carries pandas' default merge suffix.
+
+    Several loaders merge auxiliary frames on `patient_id`; a future overlapping
+    column name would suffix a rule's field to <name>_x/<name>_y and turn the whole
+    stratum all-null while the run exits 0 and logs it as "null (data-missing)" —
+    the exact NSCLC histology defect this guard was written for. Fail loudly instead.
+    """
+    collided = [c for c in df.columns if c.endswith(("_x", "_y"))]
+    if collided:
+        raise RuntimeError(
+            f"pandas merge-suffix collision in the {indication} source frame: {collided}. "
+            f"A rule reads its field by bare name, so a suffixed column can never be "
+            f"matched and every stratum using it would silently emit is_member=null. "
+            f"Give the merge an explicit `suffixes=` and coalesce into the bare name "
+            f"(see _merge_coalescing)."
+        )
 
 
 # TCGA-CDR histological_type → catalog histology vocabulary. The TCGA-CDR export uses the compact
@@ -678,35 +743,15 @@ def _evaluate_cn_amp_stratum(stratum: dict, cn_df: pd.DataFrame | None) -> pd.Da
     )
 
 
-# Indication → DepMap OncotreeLineage. Mirrors target-contracts
-# vocabularies/indication_crosswalk.yaml `depmap_lineage`. Without this filter a
-# DepMap assignments shard is pan-cancer (MSI_H across ALL lineages), which
-# silently corrupts any per-indication dependency/expression panorama that
-# intersects it — the cross-source-fragmentation failure the design flags.
-INDICATION_TO_DEPMAP_LINEAGE = {
-    "COADREAD": "Bowel",
-    "NSCLC": "Lung",
-    "SCLC": "Lung",
-    "HNSC": "Head and Neck",
-    # DepMap 26q1 merges esophageal + gastric into ONE lineage "Esophagus/Stomach"
-    # (there is no separate "Stomach"/"Esophagus" lineage). Both indications map to
-    # the combined lineage and are disambiguated by organ below
-    # (INDICATION_TO_DEPMAP_ORGAN); without this the `== "Stomach"`/`== "Esophagus"`
-    # filter matched ZERO rows → empty ESCA/STAD cell-line products.
-    "STAD": "Esophagus/Stomach",
-    "ESCA": "Esophagus/Stomach",
-    "PAAD": "Pancreas",
-    "AML": "Myeloid",
-}
-
-# For lineages DepMap collapses across organs, a second filter on OncotreeSubtype
-# separates the indication. "Esophagus/Stomach" holds both gastric (Stomach*) and
-# esophageal (Esophageal*) models; the substring is matched case-insensitively
-# against OncotreeSubtype. Indications absent here use the lineage filter alone.
-INDICATION_TO_DEPMAP_ORGAN = {
-    "STAD": "stomach",  # Stomach Adenocarcinoma, Tubular/Diffuse/Signet-Ring Stomach, ...
-    "ESCA": "esophageal",  # Esophageal Adenocarcinoma, Esophageal Squamous Cell Carcinoma
-}
+# Indication → DepMap OncotreeLineage / organ. RE-EXPORTED from
+# subgroup_common.lineage, which alias-imports the ONE canonical map
+# (depmap_chronos.cli.INDICATION_LINEAGE, 42 codes) rather than forking it: this module and
+# scripts/prefetch_source_maf.py both scope DepMap by lineage, and the prefetch
+# script formerly kept its own ONE-entry copy, so every non-COADREAD DepMap
+# prefetch died with "No DepMap lineage mapping". The names stay bound here for
+# the existing importers (see tests/test_dry_run.py).
+INDICATION_TO_DEPMAP_LINEAGE = _lineage.INDICATION_TO_DEPMAP_LINEAGE
+INDICATION_TO_DEPMAP_ORGAN = _lineage.INDICATION_TO_DEPMAP_ORGAN
 
 # Indication → TCGA disease codes for filtering the pan-TCGA fusion-consensus
 # product to the indication's cohorts. NSCLC = LUAD + LUSC. Without this an

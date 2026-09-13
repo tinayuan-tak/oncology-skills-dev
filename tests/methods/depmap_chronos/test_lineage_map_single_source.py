@@ -136,9 +136,17 @@ _CANONICAL_LITERAL_FILE = "methods/depmap_chronos/cli.py"
 # lineages per indication) and/or paired with an organ-disambiguation sibling map. If
 # either is ever reshaped to a plain scalar dict, fold it into the canonical instead.
 _DOCUMENTED_NONSCALAR_FORKS = {
-    "methods/subgroup_assigner_directly_tagged/cli.py",  # + INDICATION_TO_DEPMAP_ORGAN sibling
     "methods/tcga_aneuploidy_burden/read.py",  # tuple-valued (multi-lineage)
 }
+# 2026-09-13: methods/subgroup_assigner_directly_tagged/cli.py was in this allowlist
+# holding a SCALAR 8-entry fork (it was exempted for its INDICATION_TO_DEPMAP_ORGAN
+# sibling, not for being non-scalar). The fork was 8 codes against the canonical 42, and
+# scripts/prefetch_source_maf.py held a THIRD copy with a single entry
+# ({"COADREAD": "Bowel"}) that made every non-COADREAD DepMap prefetch exit 1. Both now
+# alias-import the canonical via methods/subgroup_common/lineage.py (a LEAF module: scoping
+# cannot host it — depmap_chronos.read imports subgroup_common.iteration, which imports
+# scoping, so an alias there is a circular import), so the exemption is
+# gone and this guard covers the subgroup lane too.
 
 _LINEAGE_MAP_NAMES = {"INDICATION_LINEAGE", "INDICATION_TO_DEPMAP_LINEAGE"}
 
