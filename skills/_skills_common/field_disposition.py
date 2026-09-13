@@ -74,6 +74,56 @@ NAME_ONLY_KINDS = frozenset({"metric_gloss"})
 # coverage.
 EXACT_ONLY_KINDS = frozenset({"narrative"})
 
+# ★★ THE THREE INDEPENDENT INPUTS, grouped by the input each kind is derived FROM.
+#
+# This grouping exists because a non-vacuity check calibrated on a TOTAL silently degrades into a check
+# on the LARGEST mechanism. `skill_code` alone reaches 755 pairs, so a guard asserting only
+# "reached_exact > 0" stays green after the entire contracts side stops parsing — and every field it
+# used to reach gets reported as a fresh orphan, which reads as a coverage regression rather than as
+# the broken instrument it is. That mistake matters most for the ratchet in
+# `tests/test_field_disposition.py`, which is a MERGE GATE: a census that returns nothing reports ZERO
+# candidate orphans and therefore PASSES a `<= ceiling` assertion. So liveness must be established per
+# input, not in aggregate.
+#
+# The split is by which artifact the reach is scraped from, NOT by DECLARATIVE_KINDS/CODE_KINDS —
+# `metric_gloss` is a declarative kind but comes from a python import of a skills-side table, so it
+# survives a contracts outage and dies with a skills-side one. Only `census(skills_root=...)` depends
+# on the skills tree; `declared_fields`/`rule_readers`/`capsule_readers`/`salience_readers` all take
+# `contracts_repo`; `gloss_readers()` takes neither and imports `display_gloss` directly.
+READER_SOURCES = {
+    "contracts_declarations": frozenset({"gating_rule", "display_rule", "capsule", "salience"}),
+    "skills_tree_ast": frozenset({"claim_passthrough", "question_table", "narrative", "figure", "skill_code"}),
+    "gloss_table": frozenset({"metric_gloss"}),
+}
+
+
+def reader_sources_alive(per_kind: dict) -> dict:
+    """``{source: bool}`` — did each independent census input produce ANY reach at all?
+
+    ANY rather than EVERY, on purpose: `narrative` legitimately reports 0 (see `EXACT_ONLY_KINDS`), so
+    requiring every kind in a source to be non-zero would make this permanently red for a declared
+    design decision. What is being detected here is an input that has gone entirely dark.
+
+    Takes `summarise()['per_kind']` rather than the census so callers cannot accidentally pass a
+    filtered subset and get a confident answer about the whole tree.
+    """
+    return {src: any(per_kind.get(k, 0) for k in kinds) for src, kinds in READER_SOURCES.items()}
+
+
+def exact_capable_sources() -> dict:
+    """`READER_SOURCES` restricted to kinds that can produce EXACT evidence.
+
+    Anything gating on `census()[pair]["exact"]` — the per-skill ledger reach guard does — can never
+    observe a `NAME_ONLY_KINDS` kind, so including `gloss_table` in a liveness check over exact
+    evidence would assert a condition that is false by construction. DERIVED from `READER_SOURCES` and
+    `NAME_ONLY_KINDS` rather than hand-listed, because a hand-listed copy is what silently decays when
+    a kind moves between the two (the tumor-presence guard originally carried two hardcoded sets, and
+    the reason `metric_gloss` was absent from both was undocumented).
+    """
+    out = {src: kinds - NAME_ONLY_KINDS for src, kinds in READER_SOURCES.items()}
+    return {src: kinds for src, kinds in out.items() if kinds}
+
+
 # Module-family -> reader kind. The plan enumerates these as distinct readers; deriving the kind
 # from the module that performs the read is what gives `claim_passthrough` its own slot without a
 # second parallel declaration to keep in sync.

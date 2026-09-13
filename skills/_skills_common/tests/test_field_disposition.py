@@ -1,12 +1,19 @@
 """Anti-vacuity tests for the field-disposition census (Stage 1b).
 
-WHAT IS AND IS NOT GATED HERE. These tests check the INSTRUMENT, never the fleet's coverage numbers.
-`skills/_skills_common/tests/` is inside a `pytest` step and `pytest` is a branch-protection REQUIRED
-check, so a ratchet on the measured aperture (748 unread pairs today) would turn every PR that adds a
-`summary_field` red until someone wires a reader — a merge-gate change that is the user's call, not a
-side effect of landing a measurement. So: no coverage thresholds, no orphan ratchet. The per-skill
-ratchet pattern already exists, scoped to one skill, at
-`skills/tumor-presence/tests/test_field_disposition_complete.py`.
+WHAT IS AND IS NOT GATED HERE. Most tests below check the INSTRUMENT, not the fleet's coverage numbers.
+The ONE exception is `test_fleet_aperture_does_not_grow`, a deliberate MERGE GATE added later by
+decision: `skills/_skills_common/tests/` is inside a `pytest` step and `pytest` is a branch-protection
+REQUIRED check, so that ratchet turns any PR which adds a `summary_field` red until the same PR wires a
+reader. That is its purpose, not a side effect. Everything else here still pins instrument behaviour
+only, with no coverage thresholds. A per-skill ratchet over a `field_disposition.yaml` ledger is a
+separate, narrower mechanism at `skills/tumor-presence/tests/test_field_disposition_complete.py`.
+
+★★ THE APERTURE IS NOT 748. An earlier version of this docstring called 748 "the measured aperture",
+which was a conflation of two numbers reported one line apart in #1347: the fleet aperture was
+`domain 1787 / reached_any 881 / candidate_orphans 906`, while **748 is the corpus-restricted subset** —
+unread fields observed over the 40-run `(target, indication)` corpus, of which 649 were computed and
+shipped. 748 counts FIELDS seen in runs; the aperture counts DECLARED (card, field) PAIRS across the
+whole tree. Do not use 748 as a fleet number, and do not calibrate the ratchet against it.
 
 Every test below is written so it CAN fail: each one pins a value that a plausible regression moves.
 The three that matter most are the ones that caught real defects while the instrument was being built
@@ -232,6 +239,85 @@ def test_census_reaches_some_fields_but_not_all():
     assert 0 < s["reached_exact"] < s["domain"]
     assert s["reached_exact"] <= s["reached_any_upper_bound"] <= s["domain"]
     assert s["candidate_orphans"] == s["domain"] - s["reached_any_upper_bound"]
+
+
+# ── THE FLEET RATCHET (the one merge gate in this file) ───────────────────────────────────────────
+
+# ★ Frozen 2026-09-13 on `v2-architecture` @ ee910fec: domain 1801 / reached_exact 667 /
+# reached_any 882 / candidate_orphans 919.
+#
+# WHY 919 AND NOT 906. #1347 measured 906 on a domain of 1787. The 906 -> 919 move is not drift in the
+# instrument: 14 (card, field) pairs were declared in between and 13 of them arrived with no reader, so
+# the delta is fully explained by declarations outrunning readers — which is exactly the behaviour this
+# ratchet exists to stop.
+#
+# WHY A SINGLE CONSTANT AND NOT A WAIVER LIST. The domain GROWS, so an orphan ceiling forces a new
+# declared field to arrive with its reader in the same PR. The alternative — a by-name allowlist of
+# permitted orphans — can be silently appended to, and an appended line is the cheapest thing in a diff
+# to miss. Lowering one number is a one-line diff that a reviewer cannot skim past.
+#
+# HOW TO CHANGE IT: only downward, and in the PR that earned it. Wire a reader (or delete a dead
+# declaration), re-measure, lower this number. If you are here because your PR declared a new
+# `summary_field`, the gate is working: wire it, mark it `role: context`, or waive it with a named
+# reason in that skill's `field_disposition.yaml` — do not raise this ceiling.
+APERTURE_CEILING = 919
+
+# Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
+# into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of
+# progress that was made and never banked. 20 is wide enough that a single wiring PR need not touch
+# this file, narrow enough that a batch of them must.
+APERTURE_SLACK = 20
+
+# A domain floor, so a census that discovers no cards cannot pass the ceiling by measuring nothing.
+# Trunk is 1801; 1500 leaves room for real card retirement without leaving room for an outage.
+APERTURE_DOMAIN_FLOOR = 1500
+
+
+@needs_contracts
+def test_reader_sources_partition_every_reader_kind():
+    """`reader_sources_alive` is the liveness half of the ratchet, and it can only see kinds that some
+    source claims. A kind added to `READER_KINDS` but not to any `READER_SOURCES` entry would be
+    invisible to it — so the population is derived from `READER_KINDS` and coverage asserted, rather
+    than the check trusting a hand-kept list to have been updated."""
+    claimed = [k for kinds in fd.READER_SOURCES.values() for k in kinds]
+    assert sorted(claimed) == sorted(fd.READER_KINDS), (
+        f"READER_SOURCES does not partition READER_KINDS: unclaimed={sorted(set(fd.READER_KINDS) - set(claimed))}, "
+        f"duplicated-or-unknown={sorted(k for k in claimed if claimed.count(k) > 1 or k not in fd.READER_KINDS)}"
+    )
+
+
+@needs_contracts
+def test_fleet_aperture_does_not_grow():
+    """MERGE GATE: the count of declared-but-unread (card, field) pairs may only fall.
+
+    Liveness is asserted BEFORE the ceiling, and per input rather than in aggregate, because the
+    failure mode of a ratchet is passing for the wrong reason: a census that parses nothing reports
+    zero orphans and satisfies `<= 919` comfortably. `skill_code` alone reaches 755 pairs, so a total
+    would keep this green through a complete contracts-side outage.
+    """
+    s = fd.summarise(fd.census(SKILLS_ROOT))
+    alive = fd.reader_sources_alive(s["per_kind"])
+    dark = sorted(src for src, ok in alive.items() if not ok)
+    assert not dark, (
+        f"census input(s) {dark} produced ZERO reach — the instrument is broken, not the coverage. "
+        f"per_kind={s['per_kind']}. Fix the parser; do not re-baseline the ceiling against a dark input."
+    )
+    assert s["domain"] >= APERTURE_DOMAIN_FLOOR, (
+        f"domain collapsed to {s['domain']} (floor {APERTURE_DOMAIN_FLOOR}) — cards stopped being "
+        "discovered, so an orphan count measured against it means nothing"
+    )
+
+    orphans = s["candidate_orphans"]
+    assert orphans <= APERTURE_CEILING, (
+        f"declared-but-unread pairs rose to {orphans} (ceiling {APERTURE_CEILING}). A new "
+        f"`outputs.summary_fields` entry with no reader is the usual cause: wire a reader in the same "
+        f"PR, or declare the field's role in the owning skill's field_disposition.yaml. Raising this "
+        f"ceiling is not an option — see APERTURE_CEILING."
+    )
+    assert APERTURE_CEILING - orphans <= APERTURE_SLACK, (
+        f"aperture is now {orphans}, {APERTURE_CEILING - orphans} below the ceiling — bank it: set "
+        f"APERTURE_CEILING = {orphans}. An un-tightened ceiling silently re-opens the ratchet."
+    )
 
 
 @needs_contracts

@@ -23,10 +23,18 @@ existed, so there was nothing to enforce against. `test_signal_fields_are_reader
 closes that loop: a `role: signal` field must be reached by some declared reader (measured BLIND to
 this ledger by `_skills_common.field_disposition`) or carry a `waived_because` naming what is missing.
 
-Scope note: this is a PER-SKILL ratchet, like the completeness ratchet above it, NOT the fleet-wide
-aperture gate — that one would red every PR in the repo that adds a summary_field and is a separate,
-open decision. `role: context` is deliberately NOT gated: 39 context rows are unread and whether a
-qualifier needs a code reader (vs being satisfied by the emitted card) is unsettled.
+GENERALIZED 2026-09-13 (D3). The skill-agnostic checks — role/reason/waiver/`reviewed` well-formedness
+and the signal reach ratchet — now live in `_skills_common.field_disposition_ledger` and are enforced
+over EVERY ledger in the tree by `skills/tests/test_field_disposition_ledgers.py`. What stays here is
+what only means something for this skill: that the ledger covers exactly this skill's `run.py` CARDS and
+matches its cards' emitted `summary_fields`, plus this ledger's own row-count pins. The duplicated
+bodies delegate rather than being deleted, so a red still names tumor-presence when running this skill's
+suite alone.
+
+Scope note: this is a PER-SKILL ratchet, NOT the fleet-wide aperture gate — that one is a merge gate on
+the whole domain and lives in `skills/_skills_common/tests/test_field_disposition.py`. `role: context`
+is deliberately NOT gated: 39 context rows are unread and whether a qualifier needs a code reader (vs
+being satisfied by the emitted card) is unsettled.
 """
 
 from __future__ import annotations
@@ -36,11 +44,17 @@ from pathlib import Path
 
 import pytest
 import yaml
+from _skills_common import field_disposition_ledger as fdl
 from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 LEDGER = SKILL_DIR / "field_disposition.yaml"
-VALID_ROLES = {"signal", "context", "provenance", "display"}
+VALID_ROLES = fdl.VALID_ROLES
+
+# This ledger's own signal-row count (93 on trunk 2026-09-13). Kept skill-local because the fleet sweep
+# can only assert a fleet TOTAL, and a total is satisfied by any one ledger — so once a second skill is
+# ledgered, the fleet floor would stop being able to see this one collapse.
+MIN_SIGNAL_ROWS = 60
 
 
 def _load_ledger() -> dict:
@@ -70,8 +84,14 @@ def _emitted(cid: str) -> list[str]:
     return [x for x in (((y.get("outputs") or {}).get("summary_fields")) or []) if isinstance(x, str)]
 
 
-def test_ledger_wellformed():
-    """Every entry has a valid role + non-empty reason; the ledger covers exactly run.py's CARDS."""
+def test_ledger_covers_exactly_run_py_cards():
+    """The ledger's card set == this skill's `run.py` CARDS.
+
+    Skill-specific by nature — the fleet sweep has no way to know which cards a given skill consumes,
+    so this half cannot be generalized. Row-level well-formedness is delegated (see the shared checker),
+    and asserted again here rather than assumed, because a mapping-shaped `spec` is the precondition for
+    every other check reading it.
+    """
     doc = _load_ledger()
     cards = set(_cards())
     ledger_cards = {k for k in doc if not k.startswith("_")}
@@ -83,37 +103,26 @@ def test_ledger_wellformed():
         if entry.get("_no_contract_fields"):
             continue
         for field, spec in entry.items():
+            if field.startswith("_"):
+                continue
             assert isinstance(spec, dict), f"{cid}.{field}: expected a mapping, got {type(spec).__name__}"
-            assert spec.get("role") in VALID_ROLES, f"{cid}.{field}: bad role {spec.get('role')!r}"
-            assert str(spec.get("reason") or "").strip(), f"{cid}.{field}: empty reason"
+    assert not fdl.wellformedness_problems(doc), "see test_waiver_and_review_keys_are_wellformed"
 
 
 def test_waiver_and_review_keys_are_wellformed():
     """A `waived_because` is only meaningful on a signal, and `reviewed` must be a real boolean.
 
-    Guards the two ways the new keys could be used to launder something: a waiver parked on a
+    Guards the two ways the keys could be used to launder something: a waiver parked on a
     `context`/`display` row (where nothing was ever required, so the waiver reads as a decision that
     was never made), and a `reviewed:` value that is a truthy STRING rather than a boolean — the
     latter matters because `reviewed` is what tells a reader whether a role is a human judgement or
     a name-shape draft, so a sloppy value silently over-claims review.
+
+    Delegates to the shared checker; kept as a named test in this skill's suite so a red here names
+    tumor-presence when the skill is gated on its own (CI runs each skill in its own process).
     """
-    doc = _load_ledger()
-    problems = []
-    for cid, entry in doc.items():
-        if cid.startswith("_") or not isinstance(entry, dict):
-            continue
-        for field, spec in entry.items():
-            if field.startswith("_") or not isinstance(spec, dict):
-                continue
-            waiver = spec.get("waived_because")
-            if waiver is not None:
-                if spec.get("role") != "signal":
-                    problems.append(f"{cid}.{field}: waived_because on role={spec.get('role')!r}, only legal on signal")
-                elif not str(waiver).strip():
-                    problems.append(f"{cid}.{field}: empty waived_because")
-            if "reviewed" in spec and not isinstance(spec["reviewed"], bool):
-                problems.append(f"{cid}.{field}: reviewed must be a bool, got {spec['reviewed']!r}")
-    assert not problems, "malformed waiver/review keys:\n  " + "\n  ".join(problems)
+    problems = fdl.wellformedness_problems(_load_ledger())
+    assert not problems, "malformed field-disposition rows:\n  " + "\n  ".join(problems)
 
 
 @pytest.mark.skipif(
@@ -143,15 +152,6 @@ def test_ledger_matches_emitted_fields():
 # ── the REACH tier: role:signal must be wired or explicitly waived ──────────────────────────────
 
 
-# The census draws on two INDEPENDENT halves: kinds declared in target-contracts (rules, capsules,
-# salience specs) and kinds parsed out of the skills TREE. Only the second depends on `skills_root`,
-# so a broken skills root leaves most reach intact — which is exactly how a weaker non-vacuity check
-# missed it (mutating skills_root to a nonexistent dir dropped only 11 of 93 signals, sailing past a
-# plain `reached >= 40`). Both halves are therefore asserted BY KIND, not by a total.
-_CONTRACTS_SIDE_KINDS = frozenset({"gating_rule", "display_rule", "capsule", "salience"})
-_CODE_SIDE_KINDS = frozenset({"skill_code", "claim_passthrough", "question_table", "figure", "narrative"})
-
-
 @pytest.fixture(scope="module")
 def signal_reach():
     """``{(card_id, field): {kind, ...}}`` — the EXACT-evidence reader kinds per `role: signal` row.
@@ -168,17 +168,7 @@ def signal_reach():
         pytest.skip("target-contracts not resolvable (set TARGET_CONTRACTS_ROOT) — reach check skipped")
     fd = pytest.importorskip("_skills_common.field_disposition")
     cen = fd.census(SKILL_DIR.parent, _contracts_root())
-    doc = _load_ledger()
-    out = {}
-    for cid, entry in doc.items():
-        if cid.startswith("_") or not isinstance(entry, dict):
-            continue
-        for field, spec in entry.items():
-            if field.startswith("_") or not isinstance(spec, dict) or spec.get("role") != "signal":
-                continue
-            readers = cen.get((cid, field))
-            out[(cid, field)] = set(readers["exact"]) if readers else set()
-    return out
+    return fdl.signal_reach(_load_ledger(), cen)
 
 
 def test_the_reach_measurement_is_not_vacuous(signal_reach):
@@ -190,19 +180,15 @@ def test_the_reach_measurement_is_not_vacuous(signal_reach):
     stays high and only a handful of fields flip. That is the failure a total-count threshold cannot
     see, so assert each half is independently alive.
     """
-    assert len(signal_reach) >= 60, (
+    assert len(signal_reach) >= MIN_SIGNAL_ROWS, (
         f"only {len(signal_reach)} role:signal rows found — the ledger or the census population "
         "collapsed, so the reach guard below is measuring nothing"
     )
-    kinds = set().union(*signal_reach.values()) if signal_reach else set()
-    assert kinds & _CONTRACTS_SIDE_KINDS, (
-        f"no contracts-declared reader kind reaches ANY signal field (saw {sorted(kinds)}). "
-        "field_disposition.census is not resolving target-contracts — fix the instrument, not the ledger"
-    )
-    assert kinds & _CODE_SIDE_KINDS, (
-        f"no code reader kind reaches ANY signal field (saw {sorted(kinds)}). "
-        f"field_disposition.census is not parsing the skills tree at {SKILL_DIR.parent} — "
-        "fix the instrument, not the ledger"
+    dark = fdl.dark_reach_sources(signal_reach)
+    assert not dark, (
+        f"census input(s) {dark} reach NO signal field in this ledger. field_disposition.census is not "
+        f"resolving target-contracts at {_contracts_root()} and/or not parsing the skills tree at "
+        f"{SKILL_DIR.parent} — fix the instrument, not the ledger"
     )
 
 
@@ -215,14 +201,7 @@ def test_signal_fields_are_reader_reached_or_waived(signal_reach):
     in a REVIEW QUEUE (mirroring the module SAFETY CONTRACT: unreached is a candidate orphan, never
     a delete list) rather than letting it be quietly relabelled into a verdict-inert bucket.
     """
-    doc = _load_ledger()
-    unwired = []
-    for (cid, field), reader_kinds in sorted(signal_reach.items()):
-        if reader_kinds:
-            continue
-        if str((doc[cid][field].get("waived_because") or "")).strip():
-            continue
-        unwired.append(f"{cid}.{field}")
+    unwired = fdl.unwired_signals(_load_ledger(), signal_reach)
     assert not unwired, (
         f"{len(unwired)} field(s) declare role:signal but NO declared reader reaches them, and they "
         "carry no waived_because. Either wire a reader, or change the role with a reason that says "
