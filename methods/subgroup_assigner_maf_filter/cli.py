@@ -36,11 +36,12 @@ import click
 import pandas as pd
 import yaml
 
+from methods.subgroup_common import maf_vocab
 from methods.subgroup_common.manifest import emit_assignment_manifest
 from methods.subgroup_common.paths import cache_root
 
 METHOD_DIR = Path(__file__).resolve().parent
-METHOD_VERSION = "0.2.0"  # Phase 2a.2 — first executable version
+METHOD_VERSION = "0.3.0"  # tri-valued sample aggregation + declared source capability
 
 SUPPORTED_DERIVATION_SOURCES = {"maf_filter_per_rule"}
 
@@ -76,34 +77,100 @@ def _extract_column_name(lhs: str) -> str:
     return lhs
 
 
-def _atomic_predicate(atom: str):
+class RuleContext:
+    """Per-source capability context threaded into a compiled predicate.
+
+    `unavailable_effect_tokens` maps a token the SOURCE CANNOT PRODUCE to the parent
+    token it refines (or None when there is no parent). It comes from the capability
+    sidecar the prefetch step writes next to each MAF parquet
+    (methods/subgroup_common/maf_vocab.py).
+
+    This exists because a rule that references something the source cannot supply
+    otherwise evaluates to False on every row and the pipeline emits a CONFIDENT
+    NEGATIVE. `missense_damaging` on DepMap is the live case: DepMap's MAF has no
+    PolyPhen column, so a damaging-missense variant is indistinguishable from a benign
+    one. Answering False for `TP53 && effect in [nonsense, frameshift, splice_site,
+    missense_damaging]` on a TP53-missense model claims the model is TP53-wild-type. It
+    is not; we simply cannot tell. So we abstain on exactly those rows and keep the
+    evaluable legs (a nonsense hit is still a True; no TP53 hit at all is still a False).
+    """
+
+    __slots__ = ("unavailable_effect_tokens",)
+
+    def __init__(self, unavailable_effect_tokens: dict[str, str | None] | None = None):
+        self.unavailable_effect_tokens = dict(unavailable_effect_tokens or {})
+
+    def partition(self, values: list[str]) -> tuple[list[str], set[str], list[str]]:
+        """Split a rule's target values into (producible, abstain_on_parents, orphaned).
+
+        - `producible`: values the source can actually emit → a match is a real True.
+        - `abstain_on_parents`: parent tokens whose rows have UNKNOWN refinement status
+          → return None for those rows rather than False.
+        - `orphaned`: unproducible values with no declared parent → nothing in the frame
+          can confirm or deny them, so the atom is unevaluable outright.
+        """
+        producible, parents, orphaned = [], set(), []
+        for v in values:
+            if v in self.unavailable_effect_tokens:
+                parent = self.unavailable_effect_tokens[v]
+                if parent:
+                    parents.add(parent)
+                else:
+                    orphaned.append(v)
+            else:
+                producible.append(v)
+        return producible, parents, orphaned
+
+
+_NO_CONTEXT = RuleContext()
+
+
+def _atomic_predicate(atom: str, ctx: RuleContext = _NO_CONTEXT):
     """Return a row-level callable for a single atomic predicate.
 
-    The callable returns True/False/None (None = source-value NaN → insufficient).
+    The callable returns True/False/None. None = "cannot be evaluated on this row":
+    either the source value is NaN, or the atom targets a value this source cannot
+    produce and the row might have been it (see RuleContext).
     """
     atom = atom.strip()
     m = _ATOMIC_EQ.match(atom)
     if m:
         col = _extract_column_name(m.group(1))
         target = m.group(2)
+        producible, parents, orphaned = ctx.partition([target])
 
         def _pred(row):
             v = row.get(col)
             if pd.isna(v):
                 return None
-            return v == target
+            if orphaned:
+                # The one target value is unproducible with no parent to key on: this
+                # atom can never be answered against this source.
+                return None
+            if v in producible:
+                return True
+            if v in parents:
+                return None
+            return False
 
         return _pred
     m = _ATOMIC_IN.match(atom)
     if m:
         col = _extract_column_name(m.group(1))
         values = [v.strip().strip("'\"") for v in m.group(2).split(",")]
+        producible, parents, orphaned = ctx.partition(values)
 
         def _pred(row):
             v = row.get(col)
             if pd.isna(v):
                 return None
-            return v in values
+            if v in producible:
+                return True
+            if v in parents:
+                return None
+            # An orphaned unproducible value means we cannot rule the row OUT either:
+            # abstain rather than claim a negative on a partially-answerable set.
+            return None if orphaned else False
 
         return _pred
     m = _ATOMIC_INT_EQ.match(atom)
@@ -160,17 +227,18 @@ def _split_top_level(expr: str, sep: str) -> list[str]:
     return parts
 
 
-def compile_rule(rule: str):
+def compile_rule(rule: str, ctx: RuleContext = _NO_CONTEXT):
     """Compile a MAF-filter rule string into a row-level callable predicate.
 
-    Returns a function (row) → bool | None. None represents "evaluated but
-    a required source field is NaN" — the resolver-product null semantic.
+    Returns a function (row) → bool | None. None represents "evaluated but not
+    answerable on this row" — the resolver-product null semantic. `ctx` carries the
+    source's declared capability gaps; the default context assumes nothing is missing.
     """
     rule = rule.strip()
 
     # Negation wrapper: `!(...)`
     if rule.startswith("!(") and rule.endswith(")"):
-        inner = compile_rule(rule[2:-1])
+        inner = compile_rule(rule[2:-1], ctx)
 
         def _neg(row):
             r = inner(row)
@@ -182,24 +250,36 @@ def compile_rule(rule: str):
     if "&&" in rule and not (rule.startswith("(") and rule.endswith(")")):
         parts = _split_top_level(rule, "&&")
         if len(parts) > 1:
-            compiled = [compile_rule(p) for p in parts]
+            compiled = [compile_rule(p, ctx) for p in parts]
 
+            # FULL three-valued AND: a definitive False from ANY conjunct wins over a
+            # None from another, and we only return None when nothing settled it. The
+            # earlier version returned None on the first None it met, which made the
+            # result depend on the ORDER the catalog author happened to write the
+            # conjuncts in: `gene_symbol == 'EGFR' && exon == 19` correctly answered
+            # False for a TP53 row (gene mismatch settles it) while the equivalent
+            # `exon == 19 && gene_symbol == 'EGFR'` nulled EVERY row on a source with no
+            # exon column. Same rule, same data, different answer. Order-independence is
+            # the point: False-dominance also keeps irrelevant rows from poisoning a
+            # sample — a TP53 row with a NaN protein_change must not make a KRAS_WT
+            # sample unevaluable.
             def _conj(row):
+                any_none = False
                 for p in compiled:
                     r = p(row)
                     if r is None:
-                        return None
-                    if not r:
+                        any_none = True
+                    elif not r:
                         return False
-                return True
+                return None if any_none else True
 
             return _conj
 
-    # Disjunction: `a || b`
+    # Disjunction: `a || b` — three-valued OR (True dominates, then None, else False).
     if "||" in rule:
         parts = _split_top_level(rule, "||")
         if len(parts) > 1:
-            compiled = [compile_rule(p) for p in parts]
+            compiled = [compile_rule(p, ctx) for p in parts]
 
             def _disj(row):
                 any_none = False
@@ -215,10 +295,56 @@ def compile_rule(rule: str):
             return _disj
 
     # Fallback: atomic predicate
-    return _atomic_predicate(rule)
+    return _atomic_predicate(rule, ctx)
 
 
 # ---------- Source-data loaders --------------------------------------------
+
+# The prefetched-parquet path per (data_source, indication). ONE definition, used both
+# by the loaders and by the capability-sidecar read, so the two can never disagree about
+# which file is being described.
+_PREFETCH_LAYOUT = {
+    "tcga": ("framework-gdc-pancohort-somatic", "mc3"),
+    "genie": ("framework-genie-public-v19", "genie-maf"),
+    "depmap": ("framework-depmap-26q1", "depmap-maf"),
+}
+
+
+def _prefetched_maf_path(data_source: str, indication: str) -> Path | None:
+    """Expected prefetched-parquet path, or None for an unknown data source."""
+    layout = _PREFETCH_LAYOUT.get(data_source)
+    if not layout:
+        return None
+    dir_slug, tag = layout
+    return cache_root() / dir_slug / f"{indication.lower()}-{tag}.parquet"
+
+
+def _rule_context_for(data_source: str, indication: str, maf: pd.DataFrame) -> tuple[RuleContext, dict | None]:
+    """Build the RuleContext from the capability sidecar next to the prefetched MAF.
+
+    An ABSENT sidecar means "undeclared", not "everything available": we return an empty
+    context and the caller warns. The independent `_effect_vocabulary_guard` still runs
+    on the data itself, so an undeclared source cannot silently reproduce the
+    raw-vocabulary defect — it can only under-declare the derived-token gaps.
+    """
+    path = _prefetched_maf_path(data_source, indication)
+    fields = maf_vocab.read_source_fields(path) if path else None
+    unavailable = maf_vocab.unavailable_tokens_from_fields(fields)
+    if fields is None:
+        # No sidecar (a parquet predating it). Fall back to what the FRAME shows: a
+        # derived token absent from the emitted `effect` values was not produced.
+        #
+        # Note this must key on the emitted TOKEN, not on the evidence column: the
+        # prefetch consumes PolyPhen to derive `missense_damaging` rows and does not
+        # carry PolyPhen into the output parquet, so an evidence-column check would
+        # declare the token unproducible for TCGA MC3 too and start abstaining on 181
+        # of 277 real HNSC TP53 calls — trading a false-negative defect for a
+        # false-abstention one.
+        present = set(maf["effect"].dropna().unique()) if "effect" in maf.columns else set()
+        for tok, spec in maf_vocab.DERIVED_EFFECT_TOKENS.items():
+            if tok not in present and tok not in unavailable:
+                unavailable[tok] = spec.refines
+    return RuleContext(unavailable), fields
 
 
 def _load_tcga_maf(catalog_repo: Path, indication: str) -> pd.DataFrame:
@@ -232,7 +358,7 @@ def _load_tcga_maf(catalog_repo: Path, indication: str) -> pd.DataFrame:
     Iter-1b: reads from cache fallback pending Phase 2a.4's canonical loader.
     Expected canonical source: s3://onc-compbio/data-catalog/sources/gdc-pancohort-somatic/dr45-0/
     """
-    fallback = cache_root() / "framework-gdc-pancohort-somatic" / f"{indication.lower()}-mc3.parquet"
+    fallback = _prefetched_maf_path("tcga", indication)
     if fallback.exists():
         return pd.read_parquet(fallback)
     csv_fallback = fallback.with_suffix(".csv")
@@ -267,7 +393,7 @@ def _load_genie_maf(catalog_repo: Path, indication: str) -> pd.DataFrame:
     genie-public-v19-0/data_mutations_extended.txt (1.12 GB) filtered via
     data_clinical_sample.txt to the target indication's CANCER_TYPE.
     """
-    fallback = cache_root() / "framework-genie-public-v19" / f"{indication.lower()}-genie-maf.parquet"
+    fallback = _prefetched_maf_path("genie", indication)
     if fallback.exists():
         return pd.read_parquet(fallback)
     raise FileNotFoundError(
@@ -295,7 +421,7 @@ def _load_depmap_somatic_mutations(catalog_repo: Path, indication: str | None = 
     """
     # Prefer prefetched, lineage-filtered, column-normalized parquet
     if indication:
-        prefetched = cache_root() / "framework-depmap-26q1" / f"{indication.lower()}-depmap-maf.parquet"
+        prefetched = _prefetched_maf_path("depmap", indication)
         if prefetched.exists():
             return pd.read_parquet(prefetched)
 
@@ -310,6 +436,14 @@ def _load_depmap_somatic_mutations(catalog_repo: Path, indication: str | None = 
             "ModelID": "sample_id",
         }
         df = df.rename(columns={k: v for k, v in rename.items() if k in df.columns})
+        # ★ Renaming Variant_Classification to `effect` is NOT normalizing it. This
+        # fallback path used to hand raw `Nonsense_Mutation` to rules that test
+        # `nonsense` — the same vocabulary mismatch as the prefetch path, in a second
+        # place. Map through the canonical vocabulary here too; unmapped classes
+        # lowercase so they stay recognizable tokens rather than raw MAF classes.
+        if "effect" in df.columns:
+            raw = df["effect"]
+            df["effect"] = raw.map(maf_vocab.VARIANT_CLASSIFICATION_TO_EFFECT).fillna(raw.astype(str).str.lower())
         if "sample_id" in df.columns:
             df["source_native_id"] = df["sample_id"]
         return df
@@ -330,13 +464,10 @@ def _cohort_samples_path(data_source: str, indication: str) -> Path | None:
     (a `sample_id` column, optionally source_native_id / patient_id for the full cohort
     INCLUDING fully-WT tumors), we use it as the WT/negation-stratum denominator. Convention:
     `{indication}-cohort-samples.parquet` in the same cache dir as the MAF."""
-    dir_slug = {
-        "tcga": "framework-gdc-pancohort-somatic",
-        "genie": "framework-genie-public-v19",
-        "depmap": "framework-depmap-26q1",
-    }.get(data_source)
-    if not dir_slug:
+    layout = _PREFETCH_LAYOUT.get(data_source)
+    if not layout:
         return None
+    dir_slug, _tag = layout
     p = cache_root() / dir_slug / f"{indication.lower()}-cohort-samples.parquet"
     return p if p.exists() else None
 
@@ -381,23 +512,33 @@ def _evaluate_stratum_maf(
     patient_id_col: str | None,
     native_id_col: str,
     all_samples: pd.DataFrame,
+    ctx: RuleContext = _NO_CONTEXT,
 ) -> pd.DataFrame:
-    """Evaluate a single MAF-filter stratum.
+    """Evaluate a single MAF-filter stratum with TRUE tri-valued aggregation.
 
-    A stratum is defined by a row-level predicate on MAF rows. A sample is
-    a MEMBER if it has ANY MAF row matching the predicate. The tri-valued
-    semantics require thinking at two levels:
+    A stratum is a row-level predicate on MAF rows, aggregated to the sample. Both
+    levels are three-valued:
 
-    - per-MAF-row: predicate returns None if a required source field is NaN
-      → don't count as a hit, but flag the sample as "evaluation had gaps"
-    - per-sample: sample is a member iff ≥1 row-level True; not-a-member
-      iff all rows are False (no data-gaps); insufficient iff no True and
-      any None (or if sample isn't in MAF at all — see all_samples)
+    - per-MAF-row: True / False / None, where None = "not answerable on this row"
+      (source value NaN, or the atom targets a value this source cannot produce).
+    - per-sample, three-valued OR over that sample's rows:
+        * ≥1 row True                     → True  (member; one hit is enough)
+        * else ≥1 row None                → None  (ABSTAIN; a hit cannot be excluded)
+        * else (all rows False, or the sample has no MAF rows at all
+          while being present in the assayed cohort)
+                                          → False (genuinely not a member)
 
-    Simplification for iter-1: MAF-derived strata use `is_member=false` for
-    samples with no MAF hits + no missing fields. `is_member=null` for
-    samples missing from the MAF entirely (not evaluated in cohort). Rows
-    with mixed False/None on required fields → False (any-hit wins).
+    ★ The third bullet used to be the only outcome besides True. `is_member` was
+    computed as `sid in hit_set` — a plain Python bool — so this method could NOT emit
+    null at all, and every unanswerable row was reported as a confident NEGATIVE. That
+    is how 13 effect-referencing strata came to report clean zeros over full
+    denominators on the DepMap cohort: a 0-of-95 reads as biology, and is therefore far
+    more likely to be believed than an all-null. Measured + fixed 2026-09-13.
+
+    A sample absent from the MAF but present in `all_samples` stays False on purpose:
+    the cohort file means ASSAYED, so zero mutation rows is a real negative, not a gap.
+    That distinction is what keeps this from degenerating into blanket abstention — an
+    over-broad null is a different failure, not a safer one.
 
     SAMPLE-LEVEL NEGATION (`!(...)`): a wild-type stratum like KRAS-WT means the
     SAMPLE carries no matching mutation — NOT that some row fails to match. A
@@ -405,17 +546,21 @@ def _evaluate_stratum_maf(
     "not a KRAS hotspot"), so any-hit aggregation would mark every mutated sample
     a member. We instead detect the top-level negation, evaluate the INNER
     predicate, and take the sample-level complement: member iff the sample has
-    ZERO inner-hit rows (across the assayed cohort).
+    ZERO inner-hit rows (across the assayed cohort). The complement is taken over the
+    tri-value, so an unresolved inner state stays unresolved rather than becoming WT.
     """
     rule = stratum["rule"].strip()
     is_sample_negation = rule.startswith("!(") and rule.endswith(")")
-    predicate = compile_rule(rule[2:-1]) if is_sample_negation else compile_rule(rule)
+    predicate = compile_rule(rule[2:-1], ctx) if is_sample_negation else compile_rule(rule, ctx)
 
-    # Apply the (possibly inner) per-MAF-row predicate; collect ≥1-True samples.
+    # Apply the (possibly inner) per-MAF-row predicate.
     maf_df = maf_df.copy()
     maf_df["_hit"] = maf_df.apply(predicate, axis=1)
 
-    hits = maf_df[maf_df["_hit"] == True]
+    hits = maf_df[maf_df["_hit"] == True]  # noqa: E712 — object column: `is True` won't vectorize
+    # Rows the predicate could not answer. Tracked separately so a sample with no hit
+    # but an unanswerable row abstains instead of being called a negative.
+    unresolved = maf_df[maf_df["_hit"].isna()]
     hit_samples = (
         hits.groupby(sample_id_col)
         .agg(
@@ -430,18 +575,30 @@ def _evaluate_stratum_maf(
     # For every sample in `all_samples`, produce an assignment row
     out_rows = []
     hit_set = set(hit_samples[sample_id_col]) if len(hit_samples) > 0 else set()
+    unresolved_set = set(unresolved[sample_id_col]) if len(unresolved) > 0 else set()
     hit_lookup = hit_samples.set_index(sample_id_col).to_dict("index") if len(hit_samples) > 0 else {}
 
     for _, sample_row in all_samples.iterrows():
         sid = sample_row[sample_id_col]
         pid = sample_row.get(patient_id_col) if patient_id_col else None
         native = sample_row[native_id_col]
-        has_inner_hit = sid in hit_set
-        # Sample-level negation inverts membership: WT = no inner-hit.
-        is_member = (not has_inner_hit) if is_sample_negation else has_inner_hit
+        # Three-valued OR over this sample's rows: True dominates, then None, else False.
+        if sid in hit_set:
+            inner_state = True
+        elif sid in unresolved_set:
+            inner_state = None
+        else:
+            inner_state = False
+        # Sample-level negation inverts membership: WT = no inner-hit. None stays None.
+        if is_sample_negation:
+            is_member = None if inner_state is None else (not inner_state)
+        else:
+            is_member = inner_state
         # derivation_value only carries the matched variant for positive (hit)
         # strata; a WT member has no matching variant to report.
-        deriv_value = hit_lookup.get(sid, {}).get("_first_hit", "") if (is_member and not is_sample_negation) else ""
+        deriv_value = (
+            hit_lookup.get(sid, {}).get("_first_hit", "") if (is_member is True and not is_sample_negation) else ""
+        )
         out_rows.append(
             {
                 "sample_id": sid,
@@ -454,6 +611,54 @@ def _evaluate_stratum_maf(
             }
         )
     return pd.DataFrame(out_rows)
+
+
+def _rule_capability_report(rule: str, maf_columns: set[str], ctx: RuleContext) -> list[str]:
+    """Human-readable reasons this rule is not fully evaluable against this source.
+
+    Reported per stratum so a null count is attributable to a NAMED blocker rather than
+    left looking like a data gap. Recorded for the record, not used to skip the stratum:
+    the partially-evaluable legs still produce real Trues and Falses.
+    """
+    reasons = []
+    fields = set(re.findall(r"\b([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:==|>=|<=|\bin\b)", rule))
+    # `sample.tmb` / `copy_number.X` namespaced fields resolve to their bare tail.
+    referenced = {_extract_column_name(f) for f in fields}
+    missing = sorted(f for f in referenced if f not in maf_columns)
+    if missing:
+        reasons.append(f"columns absent from source MAF: {missing}")
+    for tok, parent in sorted(ctx.unavailable_effect_tokens.items()):
+        if re.search(rf"'{re.escape(tok)}'", rule):
+            where = f"abstains on `{parent}` rows" if parent else "unevaluable outright"
+            reasons.append(f"effect token {tok!r} not producible by this source → {where}")
+    return reasons
+
+
+def _effect_vocabulary_guard(maf: pd.DataFrame, applicable: list[dict], data_source: str, indication: str) -> None:
+    """Refuse to run when the rules test the normalized effect vocabulary and the
+    source column holds RAW MAF Variant_Classification.
+
+    This is the guard that would have caught the original defect at run time, and it is
+    deliberately independent of the capability sidecar: an OLD parquet with no sidecar
+    still gets checked, because the check reads the DATA rather than a declaration about
+    it. Fires only when a rule actually references `effect`, so raw-passthrough sources
+    (GENIE, whose COADREAD strata are all protein_change-based) keep working untouched.
+    """
+    if "effect" not in maf.columns:
+        return
+    if not any(re.search(r"\beffect\b", s.get("rule", "") or "") for s in applicable):
+        return
+    raw = maf_vocab.raw_effect_tokens_present(maf["effect"].dropna().unique())
+    if not raw:
+        return
+    raise RuntimeError(
+        f"{data_source} × {indication}: catalog rules reference the NORMALIZED `effect` "
+        f"vocabulary but the source column holds RAW MAF Variant_Classification "
+        f"{sorted(raw)[:5]}. Nothing would match and every sample would be emitted as "
+        f"is_member=False — a fabricated measured negative over a full denominator. "
+        f"Re-run scripts/prefetch_source_maf.py for this source with normalize_effect=True "
+        f"(see methods/subgroup_common/maf_vocab.py)."
+    )
 
 
 # ---------- Output emission ------------------------------------------------
@@ -563,6 +768,23 @@ def main(
 
     click.echo(f"  loaded {len(maf):,} MAF rows")
 
+    # ============ Capability checks BEFORE any stratum is evaluated ============
+    # Order matters: the vocabulary guard reads the DATA and fails loudly, so a
+    # raw-vocabulary source can never proceed to emit confident zeros. The sidecar only
+    # refines WHICH derived tokens are unproducible.
+    _effect_vocabulary_guard(maf, applicable, data_source, indication)
+    ctx, source_fields = _rule_context_for(data_source, indication, maf)
+    if source_fields is None:
+        click.echo(
+            f"  WARNING: no capability sidecar beside the {data_source} MAF for {indication} "
+            f"(expected {maf_vocab.source_fields_path(_prefetched_maf_path(data_source, indication))}). "
+            f"Derived-token availability was inferred from the emitted `effect` values instead. "
+            f"Re-run scripts/prefetch_source_maf.py to write the declaration.",
+            err=True,
+        )
+    if ctx.unavailable_effect_tokens:
+        click.echo(f"  effect tokens NOT producible by {data_source}: {sorted(ctx.unavailable_effect_tokens)}")
+
     # Derive the cohort (all_samples) — the WT/negation-stratum DENOMINATOR. Prefer the FULL cohort
     # (companion cohort-samples file, which includes fully-WT tumors); else fall back to MAF-present
     # samples. The MAF-only denominator UNDER-COUNTS WT strata: a tumor with zero MAF rows (fully WT
@@ -599,16 +821,26 @@ def main(
 
     # ============ Evaluate strata ============
     per_stratum_dfs = []
+    maf_columns = set(maf.columns)
     for stratum in applicable:
         try:
-            rows = _evaluate_stratum_maf(stratum, maf, sample_id_col, patient_id_col, native_id_col, all_samples)
+            rows = _evaluate_stratum_maf(stratum, maf, sample_id_col, patient_id_col, native_id_col, all_samples, ctx)
         except ValueError as e:
             click.echo(f"  SKIP {stratum['id']}: {e}", err=True)
             continue
         per_stratum_dfs.append(rows)
-        n_hit = int((rows["is_member"] == True).sum())
-        n_neg = int((rows["is_member"] == False).sum())
-        click.echo(f"    {stratum['id']:<25} is_member=true: {n_hit:>5}, false: {n_neg:>5}")
+        n_hit = int((rows["is_member"] == True).sum())  # noqa: E712 — object column
+        n_neg = int((rows["is_member"] == False).sum())  # noqa: E712 — object column
+        n_null = int(rows["is_member"].isna().sum())
+        # The EVALUABLE DENOMINATOR is true+false. Printed alongside the null count
+        # because an expected_n measured against a denominator that silently included
+        # unevaluable samples is not a measurement — it is the defect this fix removes.
+        click.echo(
+            f"    {stratum['id']:<25} is_member=true: {n_hit:>5}, false: {n_neg:>5}, "
+            f"null: {n_null:>5}  (evaluable denominator {n_hit + n_neg:,} of {len(rows):,})"
+        )
+        for reason in _rule_capability_report(stratum.get("rule", "") or "", maf_columns, ctx):
+            click.echo(f"      ↳ partially unevaluable on {data_source}: {reason}", err=True)
 
     if not per_stratum_dfs:
         click.echo("ERROR: no strata produced rows", err=True)

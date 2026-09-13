@@ -68,18 +68,71 @@ def test_genie_bpc_lot_prefix_present():
 
 def test_tcga_mc3_opts_into_effect_exon_normalization():
     """MC3 config carries Exon_Number + PolyPhen + normalize_effect so the
-    catalogs' effect/exon rules can evaluate; GENIE/DepMap stay opt-out."""
+    catalogs' effect/exon rules can evaluate."""
     from scripts.prefetch_source_maf import SOURCE_CONFIGS
 
     mc3 = SOURCE_CONFIGS["tcga_mc3"]
     assert mc3.exon_col == "Exon_Number"
     assert mc3.polyphen_col == "PolyPhen"
     assert mc3.normalize_effect is True
-    # Other sources leave the new knobs at their backward-compatible defaults.
-    for other in ("genie_public_v19", "genie_bpc_crc", "depmap_somatic"):
+
+
+def test_depmap_normalizes_effect_but_declares_exon_polyphen_absent():
+    """DepMap must normalize `effect` even though it has no Exon_Number/PolyPhen.
+
+    ★ This test previously asserted the OPPOSITE — it pinned `normalize_effect is
+    False` for depmap_somatic as intended behaviour, under the reading that DepMap
+    "stays opt-out" because it lacks the exon/PolyPhen columns. But the three knobs are
+    independent: DepMap DOES carry Variant_Classification, and opting out of
+    normalization left its `effect` column holding raw `Nonsense_Mutation` while every
+    catalog rule tested `nonsense`. Nothing matched, and all 13 effect-referencing
+    strata reported a confident zero on the DepMap cohort (HNSC TP53_mut 0/95 against
+    181/277 for the same rule on MC3, with 86 of those 95 models carrying a TP53 hit).
+
+    So: normalize_effect is about the VOCABULARY of a column the source has; exon_col /
+    polyphen_col are about columns it does not. Conflating them is what made the defect
+    look like a deliberate choice for long enough to ship.
+    """
+    from scripts.prefetch_source_maf import SOURCE_CONFIGS
+
+    depmap = SOURCE_CONFIGS["depmap_somatic"]
+    assert depmap.effect_col == "Variant_Classification"
+    assert depmap.normalize_effect is True, "raw Variant_Classification matches no catalog rule"
+    # DepMap's MAF genuinely has neither column — these stay empty, and the resulting
+    # capability gap is DECLARED in the sidecar rather than answered False.
+    assert depmap.exon_col == ""
+    assert depmap.polyphen_col == ""
+
+
+def test_genie_sources_stay_raw_and_declare_the_whole_vocabulary_unavailable():
+    """GENIE stays raw-passthrough (no effect rule targets it today), but that must be
+    DECLARED, not assumed: every normalized token is unproducible from a raw column, so
+    a future GENIE effect-rule abstains instead of silently answering False."""
+    from scripts.prefetch_source_maf import SOURCE_CONFIGS, _unavailable_effect_tokens
+
+    for other in ("genie_public_v19", "genie_bpc_crc"):
         cfg = SOURCE_CONFIGS[other]
         assert cfg.normalize_effect is False
         assert cfg.exon_col == "" and cfg.polyphen_col == ""
+        unavailable = _unavailable_effect_tokens(cfg)
+        assert "nonsense" in unavailable and "frameshift" in unavailable
+        assert "missense_damaging" in unavailable
+
+
+def test_depmap_declares_missense_damaging_unproducible_but_not_the_rest():
+    """The declaration has to be NARROW to be useful.
+
+    DepMap can produce `nonsense`/`frameshift`/`splice_site` once normalized, so those
+    legs of the TP53 rule must stay evaluable — declaring the whole vocabulary
+    unavailable would swap a false-negative defect for a false-abstention one and lose
+    every real call."""
+    from scripts.prefetch_source_maf import SOURCE_CONFIGS, _unavailable_effect_tokens
+
+    unavailable = _unavailable_effect_tokens(SOURCE_CONFIGS["depmap_somatic"])
+    assert unavailable == {"missense_damaging"}, unavailable
+
+    # MC3 has PolyPhen, so it declares nothing unavailable at all.
+    assert _unavailable_effect_tokens(SOURCE_CONFIGS["tcga_mc3"]) == set()
 
 
 def test_variant_classification_effect_map_covers_catalog_vocab():

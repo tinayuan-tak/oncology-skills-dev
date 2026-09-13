@@ -51,6 +51,8 @@ import click
 # ModuleNotFoundError for every DepMap indication. Same idiom as scripts/build_msk_impact_maf.py.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from methods.subgroup_common import maf_vocab  # noqa: E402 — needs the sys.path bootstrap above
+
 # --- Source configuration table --------------------------------------------
 # Each source declares: S3 keys, the cache dir, the output-parquet tag, the
 # MAF column names to normalize from, and the filter strategy.
@@ -129,35 +131,32 @@ SOURCE_CONFIGS = {
         effect_col="Variant_Classification",
         sample_col="ModelID",
         filter_strategy="depmap_lineage",
+        # DepMap's OmicsSomaticMutationsMAF.maf has 18 columns and carries NEITHER
+        # Exon_Number NOR PolyPhen, so exon_col/polyphen_col stay empty. But it DOES
+        # carry Variant_Classification, so the effect vocabulary must be normalized:
+        # without this the column held raw `Nonsense_Mutation`/`Frame_Shift_Del` while
+        # every catalog rule tested `nonsense`/`frameshift`, nothing matched, and all
+        # 13 effect-referencing strata reported a CONFIDENT ZERO on the DepMap cohort
+        # (HNSC TP53_mut 0/95 vs 181/277 for the same rule on MC3, with 86 of those 95
+        # models plainly carrying a TP53 hit). Measured + fixed 2026-09-13.
+        #
+        # `missense_damaging` remains UNPRODUCIBLE here (it needs PolyPhen) and `exon`
+        # rules remain unevaluable (no Exon_Number). That is DECLARED in the capability
+        # sidecar rather than silently answered False — see maf_vocab.write_source_fields.
+        normalize_effect=True,
     ),
 }
 
 S3_BUCKET = "onc-compbio"
 
-# MAF v2.4 Variant_Classification → catalog `effect` vocabulary. The subgroup
-# catalogs (NSCLC/HNSC/ESCA/PAAD/AML) author rules against this normalized
-# lowercase vocabulary; raw MC3/GENIE MAFs carry title-case MAF classes. Map
-# both frameshift dels/ins to a single `frameshift` token (catalogs don't
-# distinguish direction). `missense_damaging` is NOT a raw class — it's derived
-# below from Missense_Mutation ∧ PolyPhen∈{probably,possibly}_damaging.
-VARIANT_CLASSIFICATION_TO_EFFECT = {
-    "In_Frame_Del": "in_frame_deletion",
-    "In_Frame_Ins": "in_frame_insertion",
-    "Splice_Site": "splice_site",
-    "Missense_Mutation": "missense",
-    "Nonsense_Mutation": "nonsense",
-    "Nonstop_Mutation": "nonstop",
-    "Frame_Shift_Del": "frameshift",
-    "Frame_Shift_Ins": "frameshift",
-    "Translation_Start_Site": "translation_start_site",
-    "Silent": "silent",
-    "Intron": "intron",
-    "RNA": "rna",
-    "3'UTR": "three_prime_utr",
-    "5'UTR": "five_prime_utr",
-    "3'Flank": "three_prime_flank",
-    "5'Flank": "five_prime_flank",
-}
+# The Variant_Classification → `effect` map is RE-EXPORTED from
+# methods/subgroup_common/maf_vocab.py, which is the ONE owner shared with the
+# CONSUMER (methods/subgroup_assigner_maf_filter). It used to be defined here, i.e.
+# only the producer knew the vocabulary — so when this script opted DepMap out of
+# normalization there was nothing on the reading side to notice, and the mismatch
+# surfaced as 13 strata reporting confident zeros. maf_vocab is deliberately
+# pandas-free so this module-scope import stays cheap (`--help` must stay fast).
+VARIANT_CLASSIFICATION_TO_EFFECT = maf_vocab.VARIANT_CLASSIFICATION_TO_EFFECT
 
 # Indication → filter parameters per strategy.
 # GENIE top-level CANCER_TYPE (OncoTree broad label) per framework indication code.
@@ -472,7 +471,50 @@ def main(source: str, indication: str) -> int:
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out.to_parquet(out_path, index=False)
     _log(f"wrote {out_path}: {len(out):,} rows, {out_path.stat().st_size / 1e6:.1f} MB")
+
+    # 6b. Declare what this MAF can and cannot answer, next to the MAF itself.
+    # The consumer (subgroup_assigner_maf_filter) reads this to decide when a rule is
+    # UNEVALUABLE and must emit is_member=null instead of False. Written on EVERY run so
+    # the declaration can never be staler than the parquet — a stale capability claim is
+    # the same class of defect as the vocabulary mismatch it exists to prevent.
+    unavailable = _unavailable_effect_tokens(cfg)
+    fields_path = maf_vocab.write_source_fields(
+        out_path,
+        source=source,
+        indication=indication,
+        columns=list(out.columns),
+        effect_vocabulary=(maf_vocab.EFFECT_VOCAB_NORMALIZED if cfg.normalize_effect else maf_vocab.EFFECT_VOCAB_RAW),
+        unavailable_effect_tokens=unavailable,
+    )
+    _log(f"wrote {fields_path}")
+    if unavailable:
+        _log(f"  declared UNPRODUCIBLE effect tokens: {sorted(unavailable)}")
+    if not cfg.normalize_effect:
+        _log(
+            f"  NOTE: effect stays RAW Variant_Classification for {source}. Any catalog rule "
+            f"referencing `effect` against this source is UNEVALUABLE and the assigner will "
+            f"refuse it rather than answer False."
+        )
     return 0
+
+
+def _unavailable_effect_tokens(cfg: SourceConfig) -> set[str]:
+    """Derived effect tokens this source cannot produce, from its missing evidence columns.
+
+    Derived from the SourceConfig rather than hardcoded per source, so adding a new
+    derived token in maf_vocab automatically makes every source that lacks its evidence
+    column declare it. `missense_damaging` needs PolyPhen — absent from DepMap's 18-column
+    MAF, so DepMap declares it unproducible and rules testing it abstain on missense rows.
+    """
+    evidence_available = {"PolyPhen": bool(cfg.polyphen_col), "Exon_Number": bool(cfg.exon_col)}
+    unavailable = set()
+    for tok, spec in maf_vocab.DERIVED_EFFECT_TOKENS.items():
+        if not evidence_available.get(spec.evidence_column, False):
+            unavailable.add(tok)
+    if not cfg.normalize_effect:
+        # Nothing in the normalized vocabulary is producible from a raw-passthrough column.
+        unavailable |= set(maf_vocab.NORMALIZED_EFFECT_TOKENS)
+    return unavailable
 
 
 if __name__ == "__main__":
