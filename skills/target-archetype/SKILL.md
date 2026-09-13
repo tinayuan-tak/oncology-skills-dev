@@ -106,9 +106,31 @@ in `atlas/atlas_freeze.json`, so a value that moves without a re-freeze is a red
 This is a different property from the staleness guard above, which checks internal consistency and so cannot
 see a self-consistent edit. **Re-freeze checklist**: rebuild → `atlas_stability.py --verify-rebuild <new.json>`
 (0 substantive differences expected; only `meta.build_date`/`build_git_sha`/`feature_corr_provenance` are
-waived) → install the new atlas → `atlas_stability.py --write` in the SAME commit → `atlas_health.py`.
-`--verify-rebuild` needs scikit-learn (a build_atlas import that is NOT in the pixi env) and the run corpus,
-so it runs by hand, not in CI.
+waived) → install the new atlas → `atlas_stability.py --write` in the SAME commit → `atlas_health.py` →
+**re-pin the producer test** (see next paragraph). `--verify-rebuild` needs the run corpus, so it runs by
+hand, not in CI; scikit-learn is declared in `pixi.toml` as of 2026-09-13, so it does run in this env.
+
+⚠️ **The PCA solver is PINNED (`build_atlas.PCA_SVD_SOLVER = "full"`), not sklearn's default `auto`.** `auto`
+selects the exact `full` solver only while `max(n_samples, n_features) <= 500` and the stochastic
+`randomized` approximation above it. The corpus is n=297, so the pin is a byte-level no-op today — but the
+authorised panel expansion (+207 targets) lands n at 504, crossing that boundary. Refitting the shipped `X`
+with `randomized` moves the loadings by 1.23e-02 (vs a 2.24e-05 rounding floor), so an unpinned re-freeze
+that crossed 500 would show a moved embedding + every moved coord and a reviewer would read that as the new
+targets rather than a solver swap. `tests/test_atlas_embedding.py` reproduces the frozen loadings from `X`
+under the pinned solver and asserts an unpinned solver measurably would not. The build stamps
+`meta.embedding_pca_svd_solver`; the shipped atlas predates the stamp, so
+`test_the_shipped_atlas_predates_the_solver_stamp` pins its ABSENCE by name — on the next re-freeze flip that
+to assert it equals `PCA_SVD_SOLVER`, and expect `--verify-rebuild` to report `meta.embedding_pca_svd_solver`
+as one EXPECTED new key.
+
+⚠️ **A native re-freeze changes `feature_corr`'s producer, and two tests read that.** `build_atlas` computes
+`feature_corr` itself and stamps `meta.feature_corr_provenance` via `native_feature_corr_provenance()` with
+`derived_post_freeze: False`; `amend_atlas_feature_corr.py` — the backfill path for artifacts frozen before
+`feature_corr` existed — stamps `True`. The currently-shipped atlas is the AMENDED one, pinned by
+`test_the_shipped_artifact_is_specifically_the_post_freeze_producer`. After a native re-freeze that pin flips
+to `False`; update it in the same commit. Do **not** reach for `amend_atlas_feature_corr.py` to make the old
+assertion pass — re-running the amend script over a natively-built artifact stamps a post-freeze derivation
+that did not happen, which is a false provenance claim in exchange for a green test.
 
 RETIRED: the former outcome-trained approval-propensity score (D2/D3, `nomination_predictive_score`) was
 removed. An ablation showed its signal was carried by advancement / study-depth features, not disease

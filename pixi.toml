@@ -41,6 +41,13 @@ plotly = ">=5"       # figure emitters — plotly figure specs
 openpyxl = ">=3.1"   # Excel parsing (CPTAC clinical XLSX + SURFY) reached by some readers
 matplotlib = ">=3.8" # figure emitters — matplotlib-based card figures (e.g. dependency-lineage-selectivity)
 numpy = ">=1.26"     # explicit (readers/emitters); previously only transitive via pandas/scipy
+# target-archetype's atlas BUILD (scripts/build_atlas.py) imports sklearn.decomposition.PCA to fit the
+# frozen linear embedding. Undeclared until 2026-09-13, which meant the freeze was not reproducible in
+# this environment AT ALL: `atlas_stability.py --verify-rebuild` — the check that makes a re-freeze diff
+# attributable — could only ever run under a system interpreter that happened to have sklearn. The import
+# is deliberately kept LOCAL to build() (not module-level) so importing build_atlas for its declarations
+# still works without it; declaring it here is what makes the rebuild half of the guard executable.
+scikit-learn = ">=1.5"
 
 # R + Bioconductor stack for the batch DGE pipeline (batch/expression_rna_*).
 # DESeq2 + apeglm shrinkage on raw integer counts is the field-standard contract

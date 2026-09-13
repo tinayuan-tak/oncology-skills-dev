@@ -185,14 +185,78 @@ def test_the_shipped_block_recomputes_exactly_from_the_frozen_X(doc, build_mod):
     assert counts == doc["feature_corr_n"]
 
 
-def test_the_derived_block_declares_its_own_provenance(doc):
+def test_the_corr_block_declares_which_producer_made_it(doc):
     """`meta.build_git_sha` / `build_date` describe the freeze that produced `X`, and still do. A block
-    derived afterwards must not ride on that stamp as if the original build emitted it."""
+    derived afterwards must not ride on that stamp as if the original build emitted it.
+
+    ★ There are TWO legitimate producers, and this asserts the block SAYS which one:
+      - `derived_post_freeze: True`  — amend_atlas_feature_corr.py re-derived it from a shipped artifact
+        (the path used for artifacts frozen before build_atlas computed feature_corr at all);
+      - `derived_post_freeze: False` — build_atlas emitted it natively, in the same pass that froze X.
+
+    Until 2026-09-13 this test asserted `is True` unconditionally, which was correct for the SHIPPED
+    artifact and wrong for the mechanism: build_atlas computes feature_corr natively but stamped no
+    provenance, so the next native re-freeze would have failed here — and the quickest way to green it
+    would have been to re-run the amend script and assert a post-freeze derivation that never happened.
+    Pinning the ARTIFACT's current state instead of the allowed set is how a gate ends up demanding a
+    false stamp, so the check now reads the declared flag and holds each branch to its own invariant.
+    """
     prov = doc["meta"].get("feature_corr_provenance")
-    assert prov, "the derived block ships with no provenance stamp"
-    assert prov.get("derived_post_freeze") is True
-    assert prov.get("basis_build_git_sha") == doc["meta"].get("build_git_sha")
+    assert prov, "the feature_corr block ships with no provenance stamp"
+    post = prov.get("derived_post_freeze")
+    assert isinstance(post, bool), (
+        f"derived_post_freeze must be an explicit bool naming the producer, got {post!r} — a missing or "
+        f"null flag is the state that let a native rebuild ship an unattributed block"
+    )
     assert "pairwise" in prov.get("method", "")
+    # Either producer describes the SAME basis it was computed against, so this holds in both branches;
+    # it is the assertion that catches a block carried over from a different freeze.
+    assert prov.get("basis_build_git_sha") == doc["meta"].get("build_git_sha"), (
+        "feature_corr_provenance.basis_build_git_sha does not match meta.build_git_sha — the block "
+        "describes a different build than the one shipping it"
+    )
+    assert prov.get("derived_from"), "provenance must name what the block was derived from"
+
+
+def test_the_shipped_artifact_is_specifically_the_post_freeze_producer(doc):
+    """The test above deliberately accepts either producer, which means it is GREEN under a swap. This
+    pins what the artifact on disk today actually is, so a re-freeze flipping it to the native producer is
+    a visible, reviewed change rather than a silent one — and so the widened check above cannot be the only
+    thing standing between a substituted stamp and a green suite."""
+    prov = doc["meta"]["feature_corr_provenance"]
+    assert prov["derived_post_freeze"] is True, (
+        "the SHIPPED atlas's feature_corr was amended post-freeze by amend_atlas_feature_corr.py. If a "
+        "re-freeze made this native (derived_post_freeze=False), that is expected — update this pin in "
+        "the same commit, and check the atlas_freeze.json meta digest was re-written too."
+    )
+
+
+def test_the_native_producer_stamps_a_valid_distinguishable_provenance(build_mod):
+    """★ Exercises the OTHER branch, which no shipped artifact currently covers. `build()` needs
+    scikit-learn plus the ~200-run corpus, so without a directly-callable stamp this branch would be
+    reachable only by a hand-run re-freeze — i.e. first exercised at the moment it has to be right."""
+    prov = build_mod.native_feature_corr_provenance("2026-01-02", "deadbeef")
+    assert prov["derived_post_freeze"] is False, "the native stamp must not claim a post-freeze derivation"
+    assert prov["basis_build_git_sha"] == "deadbeef"
+    assert prov["added_date"] == "2026-01-02"
+    assert "pairwise" in prov["method"]
+    assert prov["derived_from"] and prov["reason"]
+
+
+def test_the_two_producers_disagree_on_the_flag_and_agree_on_the_rest(build_mod):
+    """The flag is only informative if the producers actually differ on it, and only safe if everything a
+    consumer reads is present in BOTH shapes. A key that exists on one producer's stamp and not the
+    other's is a reader that works until the next re-freeze."""
+    src = AMEND.read_text()
+    assert '"derived_post_freeze": True' in src, (
+        "amend_atlas_feature_corr.py no longer stamps derived_post_freeze=True — the two producers no "
+        "longer distinguish themselves and the flag is decorative"
+    )
+    native = build_mod.native_feature_corr_provenance("2026-01-02", "deadbeef")
+    # Keys every consumer of the stamp can rely on, whichever producer ran.
+    for k in ("derived_post_freeze", "derived_from", "method", "basis_build_git_sha", "reason", "added_date"):
+        assert k in native, f"native stamp is missing the shared key {k!r}"
+        assert f'"{k}"' in src, f"amend stamp is missing the shared key {k!r}"
 
 
 def test_the_recomputation_check_can_actually_fail(doc, build_mod, tmp_path, monkeypatch):

@@ -195,6 +195,42 @@ EXCLUDED_NAMESPACES = (
 FEATURE_CORR_MIN_PAIRWISE_N = 10
 
 
+# ★ The PCA solver is PINNED, not left to sklearn's `auto`, because `auto` is a function of CORPUS SIZE.
+# sklearn's heuristic picks the exact `full` solver while `max(n_samples, n_features) <= 500` and switches to
+# the STOCHASTIC `randomized` approximation above it. The corpus is n=297 today, so `auto` resolves to `full`
+# and this pin is a byte-level no-op — but the authorised panel expansion adds 207 targets (ESCA 40, CML 38,
+# SCLC 37, STAD 24, HNSC 23, AML 23, PAAD 22), landing n at 504 and crossing that boundary. Measured on the
+# shipped X: refitting with `randomized` moves the loadings by 1.23e-02, versus a 2.24e-05 floor that is just
+# the 6-dp rounding of the frozen floats — a 550x, plainly visible change. A re-freeze that crossed 500 would
+# therefore show a moved embedding and every moved coord, and a reviewer would attribute that to the new
+# targets rather than to a solver swap nobody chose. Pinning also decouples the freeze from sklearn's own
+# heuristic, which last changed in 1.5 (the `covariance_eigh` branch). See tests/test_atlas_embedding.py.
+PCA_SVD_SOLVER = "full"
+
+
+def native_feature_corr_provenance(build_date: str, git_sha: str) -> dict:
+    """The provenance stamp for a feature_corr block emitted BY THIS BUILD, in the same pass that froze X.
+
+    `amend_atlas_feature_corr.py` is the other producer and stamps `derived_post_freeze: True`; the two
+    states are mutually exclusive and both legitimate, so the block has to say which one made it. Kept as a
+    named function, not an inline literal inside `build()`, so the native contract is assertable without a
+    full build (which needs scikit-learn plus the ~200-run corpus) — an inline dict would leave this branch
+    exercised only by a re-freeze, i.e. never in CI.
+    """
+    return {
+        "derived_post_freeze": False,
+        "derived_from": "the same X + feature_order this build froze (single pass)",
+        "method": "pairwise_complete_pearson over ::num:: non-mask columns",
+        "basis_build_git_sha": git_sha,
+        "reason": (
+            "emitted natively by build_atlas.feature_correlation during the freeze, so the block and the "
+            "basis it describes are the same build. The post-freeze path (amend_atlas_feature_corr.py) "
+            "exists only to backfill artifacts frozen before build_atlas computed feature_corr at all."
+        ),
+        "added_date": build_date,
+    }
+
+
 def feature_correlation(feature_order, X):
     """PAIRWISE-COMPLETE correlation over the metered numeric (non-`::mask`) columns.
 
@@ -410,7 +446,7 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
 
     Z = (np.where(np.isnan(Xn), mu, Xn) - mu) / sd  # missing -> mean -> z=0
     m = min(emb_dim, Z.shape[1], Z.shape[0])
-    pca = PCA(n_components=m, random_state=0).fit(Z)
+    pca = PCA(n_components=m, random_state=0, svd_solver=PCA_SVD_SOLVER).fit(Z)
     components = pca.components_  # m x d
     corpus_emb = pca.transform(Z)  # n x m
 
@@ -501,6 +537,12 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
             "n_features": len(feature_order),
             "n_features_dropped_sparse": dropped,
             "emb_dim": int(m),
+            # WHICH PCA solver produced the loadings. `full` and `randomized` are different algorithms, not
+            # the same one at different precisions, so an embedding is only reproducible against the solver
+            # that fit it. Stamped rather than assumed because the value used to be sklearn's size-dependent
+            # `auto` — see PCA_SVD_SOLVER. Absent from atlases frozen before 2026-09-13; those were all built
+            # under a corpus small enough that `auto` resolved to `full`.
+            "embedding_pca_svd_solver": PCA_SVD_SOLVER,
             "classes": sorted(set(labels)),
             "anchor_phenotypes": [a["label"] for a in anchors],
             "anchor_phenotypes_skipped": skipped_anchors,  # aspirational anchors awaiting exemplar runs
@@ -512,6 +554,16 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
             # measured-vs-unmeasured masks). A consumer that must know whether numerics are in the frozen
             # space reads this instead of counting columns.
             "feature_schema_version": "2.0.0",
+            # feature_corr is computed ABOVE, in this same build, from the same X being frozen. Stamping
+            # that here is not decoration: `amend_atlas_feature_corr.py` is the OTHER producer of this
+            # block and it hardcodes derived_post_freeze=True, so before this stamp existed a native
+            # rebuild emitted feature_corr with NO provenance at all and
+            # test_the_derived_block_declares_its_own_provenance failed on the next re-freeze. The tempting
+            # repair — re-run the amend script over the fresh artifact — would assert a post-freeze
+            # derivation that did not happen. The two states are mutually exclusive and both legitimate;
+            # `derived_post_freeze` is which one produced the block, so a reader can tell a block frozen
+            # WITH the basis from one re-derived against it.
+            "feature_corr_provenance": native_feature_corr_provenance(build_date, _git_sha()),
             "atlas_excluded_namespaces": list(EXCLUDED_NAMESPACES),
             "n_numeric_features": sum(1 for k in feature_order if "::num::" in k and not k.endswith("::mask")),
             "n_mask_features": sum(1 for k in feature_order if k.endswith("::mask")),
