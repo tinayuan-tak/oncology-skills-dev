@@ -289,7 +289,7 @@ tumor-vs-normal-protein-abundance-tphp:
   protein_median_log2_normal: 17.088436298759
   protein_median_log2_tumor: 17.334436629407712
   protein_p_value: 0.9539357102623679
-  stat_test_used: welch_unpaired_tumor_vs_adjacent_normal
+  stat_test_used: welch_unpaired_tumor_vs_body_atlas_normal_same_organism_part
   tissue: large intestine
   uniprot_ac: P06731
 tumor-vs-normal-selectivity:

@@ -302,7 +302,7 @@ tumor-vs-normal-protein-abundance-tphp:
   protein_median_log2_normal: null
   protein_median_log2_tumor: null
   protein_p_value: null
-  stat_test_used: welch_unpaired_tumor_vs_adjacent_normal
+  stat_test_used: welch_unpaired_tumor_vs_body_atlas_normal_same_organism_part
   tissue: null
   uniprot_ac: null
 tumor-vs-normal-selectivity:
