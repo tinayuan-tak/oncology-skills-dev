@@ -68,9 +68,26 @@ _SEVERITY = {
 # Axes the frozen target-archetype atlas has no anchor for (sourced from the atlas-rebuild
 # exclusion allowlist: literature_context / translational_readiness / genomic SPL /
 # safety PHARMACOVIGILANCE). A blind-spot on one of these routes to the atlas session, not a
-# card/rule fix here. Matched against the skill id and the lane assertion text (best-effort).
+# card/rule fix here.
+#
+# ★★CASE-033: this was a SUBSTRING MATCH ON PROSE — `_ATLAS_EXCLUDED_HINTS = ("pharmacovig",
+# "splice", "exon skip", "exon-skip")` tested against `f"{assertion} {axis_key}"`. For a
+# `blind_spots[]` row the assertion is `f"{signal}: {why_omics_blind}"`, and `why_omics_blind`
+# routinely ENUMERATES WHAT THE PACKAGE DOES MEASURE ("the genomic-alteration omics measure
+# DNA-level SNV/CN/fusion/splice…", "outside the SNV/CN/fusion/splice omics"). So the hint fired on
+# the NEGATED mention of the axis. Measured on the genomic-20 re-run: all 17 `staleness_gap` rows
+# matched on 'splice' and NOT ONE was about splicing (protein-IHC, 2-HG oncometabolite, non-coding
+# RNA, antigen loss, drug-resistance states) — precision 0/17. And it was simultaneously VACUOUS for
+# its purpose: a genuine SPL row carries `axis_key == "SPL"`, which contains none of the hints, so
+# the true positive was unreachable. Cost: 17 rows demoted a severity tier AND routed to the wrong
+# owner.
+#
+# Route on the DECLARED axis key instead. A `blind_spots[]` entry declares no axis, so it can no
+# longer be atlas-excluded by wording — which is correct: prose cannot establish which axis a
+# literature-only signal belongs to. Same rule as everywhere else in this repo: derive the
+# population from a declaration, never from a name or a free-text match.
 _ATLAS_EXCLUDED_SKILLS = {"literature-context", "translational-readiness"}
-_ATLAS_EXCLUDED_HINTS = ("pharmacovig", "splice", "exon skip", "exon-skip")
+_ATLAS_EXCLUDED_AXES = {"SPL"}
 
 _BLIND_AGREEMENTS = {"omics_blind", "omics_unavailable"}
 _DISCORDANT_CONSISTENCY = {"discordant", "partially_concordant"}
@@ -97,11 +114,14 @@ def _citation_support(citations: Iterable[dict]) -> tuple[int, int]:
     return n_ver, len(cits)
 
 
-def _is_atlas_excluded(skill: str, text: str) -> bool:
+def _is_atlas_excluded(skill: str, axis_key) -> bool:
+    """True iff this row belongs to the atlas session rather than to a card/rule fix here.
+
+    Keyed on the DECLARED `axis_key` (a closed vocabulary the record already carries), never on the
+    assertion prose — see the CASE-033 note above `_ATLAS_EXCLUDED_AXES`."""
     if skill in _ATLAS_EXCLUDED_SKILLS:
         return True
-    low = (text or "").lower()
-    return any(h in low for h in _ATLAS_EXCLUDED_HINTS)
+    return isinstance(axis_key, str) and axis_key in _ATLAS_EXCLUDED_AXES
 
 
 # claim-vector axis signal tiers that count as MEASURED. Per the fleet SIGNAL_ORD convention a measured
@@ -123,6 +143,21 @@ def _claim_atom(claim_vector, axis_key):
     return atom if isinstance(atom, dict) else None
 
 
+# ★CASE-031/032 DIRECTION: `calibration_gap`'s prose said "candidate false-negative" unconditionally, but
+# a literature `contradicts` against a claim the omics ASSERTS POSITIVELY is a candidate false-POSITIVE — the
+# opposite fix, and the opposite calibration assertion. All 3 sharp rows of the genomic-20 re-run are that
+# direction (a cell-line `recurrently_deleted` call literature denies), so the reviewer was being pointed at a
+# missing signal that does not exist. Direction is DERIVED from the claim atom, not restated: a measured
+# POSITIVE tier vs a measured floor/wrong-direction (`absent`/`negative` are measured, per SIGNAL_ORD).
+_POSITIVE_SIGNALS = {"weak", "moderate", "strong"}
+# The producer's OWN internal-disagreement flag. `genomic_claims._cn_corroboration` returns `low` for
+# "cell-line recurrent but patient tumour focal-neutral — disagreement" while `_cn_signal` still publishes
+# `moderate` (CASE-031: corroboration is bidirectional, signal is one-way). When the framework has already
+# flagged the disagreement, the literature contradiction is evidence about the CLAIM LAYER, not the
+# calibration set — say so in the row so the reviewer routes it to the right fix.
+_DISAGREEMENT_CORROBORATION = {"low"}
+
+
 def _axis_measured(atom) -> "bool | None":
     """True if the claim axis carries a MEASURED signal, False if positively unmeasured, None if there
     is no matching claim atom (then we cannot check → trust the lane, preserving prior behavior)."""
@@ -139,6 +174,8 @@ def _classify(
     in_calibration: bool,
     claim_measured: "bool | None",
     overall_concordant: bool = False,
+    claim_signal: "str | None" = None,
+    claim_corroboration: "str | None" = None,
 ) -> tuple[str, str]:
     """Deterministic gap-class assignment. Returns (gap_class, why).
 
@@ -188,14 +225,26 @@ def _classify(
                 "(literature and omics agree in aggregate); demoted below the "
                 "sharp/actionable set"
             )
+        direction = (
+            "candidate false-POSITIVE (the omics ASSERTS this axis; literature denies it)"
+            if claim_signal in _POSITIVE_SIGNALS
+            else "candidate false-negative (the omics reports a measured floor; literature reports a signal)"
+        )
+        flagged = (
+            " — and the producer ALREADY flagged this claim's corroboration `low` (internal "
+            "cell-line-vs-patient disagreement), so fix the CLAIM LAYER, not the calibration set"
+            if claim_corroboration in _DISAGREEMENT_CORROBORATION
+            else ""
+        )
         if in_calibration:
             return (
                 GAP_CALIBRATION,
-                "verified literature contradicts a MEASURED claim axis on a GROUND-TRUTH target — candidate false-negative; anchor a calibration assertion",
+                f"verified literature contradicts a MEASURED claim axis on a GROUND-TRUTH target — {direction}; "
+                f"anchor a calibration assertion{flagged}",
             )
         return (
             GAP_VERDICT_RULE,
-            "verified literature contradicts a MEASURED claim axis — candidate rule/card/method gap",
+            f"verified literature contradicts a MEASURED claim axis — {direction}; candidate rule/card/method gap{flagged}",
         )
     # agree / extends and not blind -> not a gap (concordant); surfaced only in summary counts.
     return "", ""
@@ -256,11 +305,13 @@ def build_rows(record: dict, calibration_targets: set[str] | None = None) -> lis
 
     def _emit(axis_key, agreement, lit_read, assertion, confidence, citations, is_blind):
         n_ver, n_tot = _citation_support(citations)
-        atlas_excluded = _is_atlas_excluded(skill, f"{assertion} {axis_key}")
+        atlas_excluded = _is_atlas_excluded(skill, axis_key)
         # CLAIM-VECTOR ALIGNMENT: join the lane axis to its claim-vector atom (the omics signal the lane
         # actually compared against), and classify on measured-ness — not on the reduced verdict.
         atom = _claim_atom(claim_vector, axis_key) if not is_blind else None
         claim_measured = _axis_measured(atom)
+        claim_signal = (atom or {}).get("signal") if isinstance(atom, dict) else None
+        claim_corrob = (atom or {}).get("corroboration") if isinstance(atom, dict) else None
         gap_class, why = _classify(
             agreement,
             n_ver,
@@ -269,6 +320,8 @@ def build_rows(record: dict, calibration_targets: set[str] | None = None) -> lis
             in_calibration,
             claim_measured,
             overall_concordant=(overall == "concordant"),
+            claim_signal=claim_signal,
+            claim_corroboration=claim_corrob,
         )
         if not gap_class:
             return
@@ -289,8 +342,8 @@ def build_rows(record: dict, calibration_targets: set[str] | None = None) -> lis
                 "key_divergence": key_div,
                 # per-AXIS claim match (the correct resolution) — the omics signal/corroboration the lane
                 # compared against; `sub_verdict` is retained as CONTEXT/priority only, not the match target.
-                "claim_signal": (atom or {}).get("signal") if isinstance(atom, dict) else None,
-                "claim_corroboration": (atom or {}).get("corroboration") if isinstance(atom, dict) else None,
+                "claim_signal": claim_signal,
+                "claim_corroboration": claim_corrob,
                 "claim_measured": claim_measured,
                 "sub_verdict": verdict,
                 "driving_rule_id": driving,

@@ -36,6 +36,193 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
 
 ## Open cases
 
+### GENOMIC-ALTERATION 20-pair literature panel RE-RUN (2026-09-13, post-land) — 20/20 emitted, 63 rows, SHARP 6 → **3**; all 3 still CN, all 3 one predicate
+
+Second run of the **same registered** `genomic-alteration-profile-20` roster, after the four-leg land chain
+(TC #739 `1387b36` → TC #742 `6c401b6` → AM #604 `612044c` → skills #1313 `7bb66c64`, resolver 1.10.0).
+Snapshots pinned to a per-panel dir (`eval/literature-snapshots-genomic20/`, per `eval/.gitignore` — six
+pairs are shared with other panels and would otherwise overwrite each other's corpora);
+`--calibration-set` supplied (omitting it silently demotes every `calibration_gap` to `verdict_rule_gap`).
+
+| | baseline 09-12 | re-run 09-13 |
+|---|---|---|
+| records / pairs | 20 / 20 | 20 / 20 |
+| ledger rows | 71 | 63 |
+| `calibration_gap` | 3 | **2** |
+| `verdict_rule_gap` | 3 | **1** |
+| `blind_spot_gap` | 51 | 43 |
+| `staleness_gap` | 14 | 17 |
+| axis reads | 100 | 100 (15 CN `agree`, **3 CN `contradicts`**, 2 CN `extends`; 0 contradicts on SNV/FUS/SPL/DEP) |
+
+**The chain worked, and it is attributable.** SHARP halved 6 → 3 and the three that cleared are exactly the
+three the chain aimed at:
+
+- **CASE-028 (IDH2/AML) is CLOSED at the verdict.** Baseline: `confirmed_driver` driven by
+  `cn-recurrently-deleted-supportive`. Now: `recurrent_snv_driver` driven by
+  `snv-recurrence-top-driver-supportive`. The passenger deletion no longer drives anything; its residual
+  `contradicts` sits on a **non-driving** axis.
+- **CASE-030 (MET/LUAD, MDM2/LGG) is CLOSED.** Both CN axes now read `agree`; neither appears in the ledger's
+  sharp set. Consistent with AM #617 mapping all 33 GISTIC cohorts.
+- **★★ CASE-029's SNV-recurrence half is CLOSED, not open — re-measure before re-filing.** The case records
+  the MC3 product as shipping "only 4 indications (COADREAD, NSCLC, GC, PAAD)" and IDH1/GBM, IDH2/AML,
+  FLT3/AML as `data_unavailable`. Measured now: **17 of 20 pairs carry a measured recurrence class**, and all
+  three named targets resolve — IDH1/GBM `top_1pct` (26/403, 99.85th pct), IDH2/AML `top_1pct` (8/140),
+  FLT3/AML `top_1pct` (7/140) — plus SKCM 468, BLCA 411, PRAD 498, OV 412, LGG 526, HNSC 509, BRCA 1026,
+  LUAD 1052. IDH1/GBM's verdict moved `mixed_pattern` → **`recurrent_snv_driver`**: the canonical R132 driver
+  the case said "the skill cannot see" is now the driving axis. Of the 3 remaining `unmeasured` SNV reads,
+  **only 1 (DLL3/SCLC) is a real coverage gap** — the other 2 are CASE-032 below.
+
+**★ And the residual 3 are ONE defect, not three.** All three sharp rows (DLL3/SCLC + FLT3/AML `calibration`,
+IDH2/AML `verdict_rule`) are CN-axis `contradicts` against the identical emitted shape: cell-line
+`copy_number_class == recurrently_deleted` on a **near-diploid** panel. See CASE-031. Every one carries ≥1
+VERIFIED citation (`confabulation_risk` False on all 63 rows).
+
+**Two pre-registered predictions came back NOT MEASURABLE — for two different structural reasons, and that
+is the finding.** Both are recorded here so the next run does not re-ask them of an instrument that cannot
+answer: (1) *does IDH1/GBM still under-call `modality_scope`?* — the harvest snapshot record carries no
+`skill_report` at all (keys: `_provenance`, `axis_short`, `claim_vector`, `indication`,
+`literature_synthesis`, `resolved_symbol`, `skill`, `sub_verdict`, `target`), so `modality_scope`,
+`alteration_role` and `subgroup_signals` — every field skills #1313 v2.18.0 just fixed — are **absent from
+the pinned corpus** and invisible to the ledger. (2) *do the surface antigens' driver-axis reads now make a
+literature `contradicts` a modality mismatch?* — `ROLE` is a `claim_vector` axis but is **not** in the lens
+axis roster, so **0 of 100 axis reads touch it**. See CASE-034. The surface antigens' verdicts *did* land as
+predicted (CD19/DLBC, DLL3/SCLC, FOLR1/OV all `missense_dominant_pattern` driven by
+`mut-missense-dominant-supportive`), confirmed from `sub_verdict` — but that is read off the verdict, not off
+the axis the lens was supposed to compare.
+
+### CASE-031 — the shallow `recurrently_deleted` CN class still publishes a MEASURED-POSITIVE claim on 6 of 20 near-diploid pairs; it is the root of all 3 sharp rows (2026-09-13)
+
+- **Surfaced by:** genomic-20 re-run, CN axis, 3 `contradicts` (DLL3/SCLC, FLT3/AML, IDH2/AML), all verified
+  citations.
+- **Determination (measured on all 20 pairs' emitted atoms).** `copy_number_class == recurrently_deleted`
+  fires on **7 of 20**. Only PTEN/PRAD is a real deletion TSG — 3.9% deep-deletion fraction *and*
+  `patient_focal_cn_class == recurrent_focal_deletion` → CN `strong`, corroboration `high`. The other **6**
+  are near-diploid cell-line reads whose patient arm **contradicts or is missing**:
+
+  | pair | `cn_median_panel` | `cn_fraction_deep_deletion` | `patient_focal_cn_class` | CN signal | CN corrob |
+  |---|---:|---:|---|---|---|
+  | CD19/DLBC | — | 0.1% | `focal_neutral` | moderate | low |
+  | DLL3/SCLC | 0.99 | 0.3% | `data_unavailable` | moderate | moderate |
+  | FGFR3/BLCA | — | 0.8% | `focal_neutral` | moderate | low |
+  | FLT3/AML | 0.95 | 2.3% | `focal_neutral` | moderate | low |
+  | IDH2/AML | 1.03 | 0.3% | `focal_neutral` | moderate | low |
+  | SMARCA4/LUAD | — | 0.8% | `focal_neutral` | moderate | low |
+
+  A panel median relative CN of ~1.0 with ≤2.3% deep deletion is not a deletion. This is TC #739's
+  60.1%-genome-wide-null shallow predicate — **retired from every driver-establishing rung, but NOT from the
+  emitted claim.** `SPECIFICITY IS NOT SCOPE` has a sibling: **retiring a predicate from the ladder does not
+  retire it from the claim.** The claim layer is what the eval harness, the literature lane and this ledger
+  all read, so the demotion is invisible to every instrument that measures it.
+- **★ The mechanism is a one-directional guard.** In `skills/_skills_common/genomic_claims.py`,
+  `_cn_corroboration:234` **already knows**: `focal_neutral` + a recurrent cell-line class returns `low`,
+  commented *"cell-line recurrent but patient tumour focal-neutral — disagreement"*. But `_cn_signal:206`
+  has only an **elevation** path — `_CN_FOCAL_POS` raises the tier when the patient arm agrees (the HER2/CCND1
+  fix) and nothing lowers it when the patient arm disagrees. So corroboration is bidirectional and signal is
+  one-way: the framework emits its own disagreement flag and publishes `moderate` anyway.
+- **Fix — FILED, own skills PR (`_skills_common/` is a fleet-shared hot file, out of this branch's `eval/`
+  scope).** Mirror the precedent 26 lines below in the same file: `_fus_signal` returns **`weak`** for
+  `promiscuous_amplicon_fusion` with the rationale *"a real SV, but a passenger"* — never `absent` (the event
+  is real), never `strong`. Same shape here: a recurrent cell-line CN class contradicted by
+  `patient_focal_cn_class == focal_neutral` reads `weak`, not `moderate`.
+  **Blast radius measured before proposing: 6 of 20 move** (the 5 `focal_neutral` deletions + EGFR/LUAD,
+  which is `recurrently_amplified` + `focal_neutral` — the amplification side has the identical asymmetry).
+  **4 protected controls stay put**: PTEN/PRAD and MYC/BRCA (both arms agree → `strong`), ERBB2/BRCA and
+  CCND1/HNSC (cell-line `broadly_neutral` + patient focal amp → the elevation path must remain intact).
+  DLL3/SCLC's `data_unavailable` patient arm is a **separate** hole — it falls through to corroboration
+  `moderate`, giving an absent arm the same weight as a partial agreement; handle it explicitly rather than
+  folding it in.
+- **Status:** OPEN — filed with its measurement and flip test. Verdict-inertness must be re-measured in that
+  PR (the gate reads the raw ladder, but the headline and `key_signals` read the claim).
+
+### CASE-032 — `A or B` short-circuits on a TRUTHY `"data_unavailable"` sentinel and discards a MEASURED floor: 2 of 20 publish `unmeasured` where the data says `absent` (2026-09-13)
+
+- **Surfaced by:** the CASE-029 re-measure above — 3 SNV reads remained `unmeasured`; only 1 is a coverage gap.
+- **Determination (measured).** CD19/DLBC and NTRK1/THCA both emit
+  `driver_recurrence_class == "bottom_decile"` with `n_samples_mutated: 0` — and
+  `_RECURRENCE_SIGNAL["bottom_decile"] == "absent"`, a **measured floor**. Yet both publish signal
+  `unmeasured`, corroboration `unmeasured`, and a rendered evidence string that reads
+  **"recurrence data_unavailable"** — contradicting the atom it cites.
+  Root cause, `genomic_claims.py:181`:
+  ```python
+  rec = h.get("pooled_driver_recurrence_class") or h.get("driver_recurrence_class") or bc.get("recurrence_class")
+  ```
+  `"data_unavailable"` is a **non-empty string**, so when the *pooled* arm is unavailable the `or` chain
+  short-circuits on the sentinel and never reaches the per-indication arm that measured the floor. Same
+  family as `±Inf is a NUMBER` (a sentinel that satisfies the guard meant to exclude it) — here the guard is
+  truthiness.
+- **Blast radius: 4 surfaces, one root.** The identical chain appears at `:181` (signal), `:192`
+  (corroboration), `:411` (the evidence atom's `read` field) and `:507` (the narrated `key_signals` text), so
+  a human reviewer reading the card sees a coverage *excuse* where the omics measured zero.
+- **★ It fails OPEN in the direction that hides false negatives.** `build_discordance_ledger._axis_measured`
+  reads the signal tier, so `unmeasured` demotes any literature `contradicts` on that axis to
+  `blind_spot_gap` — "the omics cannot measure this" — when the omics measured 0 mutated samples and said so.
+- **Fix — FILED (same skills PR as CASE-031).** Resolve the arm with an explicit unavailability predicate, not
+  truthiness: take the first arm whose class is **not** in the unavailable sentinel set. Flip test is clean:
+  CD19/DLBC + NTRK1/THCA move `unmeasured` → `absent`; **DLL3/SCLC stays `unmeasured`** (SCLC genuinely absent
+  from the product), so the fix separates mislabelled floors from real gaps rather than blanket-converting.
+- **Status:** OPEN — filed. Corrects CASE-029's residual from "3 blind" to **1 genuine coverage gap**.
+
+### CASE-033 — the ledger's atlas-exclusion hint is a SUBSTRING MATCH ON PROSE: 17 of 17 misroutes, 0 correct routes — FIXED (2026-09-13)
+
+- **Surfaced by:** the baseline→re-run comparison. `staleness_gap` went **14 → 17** while total blind spots
+  went 65 → 60 — a class that grew while its population shrank. A routing split that moves against its own
+  population is keyed on something that is not the population.
+- **Determination (measured, all 17).** `build_discordance_ledger._is_atlas_excluded` matches
+  `_ATLAS_EXCLUDED_HINTS = ("pharmacovig", "splice", "exon skip", "exon-skip")` against
+  `f"{assertion} {axis_key}"`, and for a `blind_spots[]` row the assertion is the concatenation
+  `f"{signal}: {why_omics_blind}"`. `why_omics_blind` routinely **enumerates what the package DOES
+  measure** — *"the genomic-alteration omics measure DNA-level SNV/CN/fusion/splice…"*, *"outside the
+  SNV/CN/fusion/splice omics"*. So the hint fires on the **negated mention** of the axis.
+  **All 17 `staleness_gap` rows matched on `'splice'`, and not one of them is about splicing** — they are
+  protein-IHC (BRG1, FRα, TrkA, MET, MDM2, FGFR3), oncometabolite 2-HG (IDH1, IDH2), non-coding RNA
+  (MYC, MDM2), antigen loss under therapy (CD19, DLL3), and drug-resistance states (BRAF, ERBB2). Precision
+  **0/17**.
+- **★ And the mechanism was VACUOUS for the case it was written for.** A genuine SPL-axis row carries
+  `axis_key == "SPL"`, which contains none of the hints, and the 20 SPL axis reads were 19 `agree` + 1
+  `extends` (no rows). So on this corpus the hint fired **17 times, all wrong, and 0 times right** —
+  simultaneously a false-positive generator and dead code for its purpose. Cost: 17 rows demoted a severity
+  tier (3 → 2) **and routed to the wrong owner** ("route to the atlas session" instead of "data/axis need").
+- **Fix — DONE, in this PR.** Route on the **declared axis key**, never on prose:
+  `_ATLAS_EXCLUDED_AXES = {"SPL"}` matched against `axis_key`, plus the existing skill-level allowlist. A
+  `blind_spots[]` entry declares no axis, so it can no longer be atlas-excluded by wording. Guarded both
+  directions: a genuine `SPL` gap **must** route to `staleness_gap` (the previously-unreachable true positive)
+  and a blind-spot whose `why_omics_blind` text says "splice" **must not**.
+- **Status:** ✅ FIXED. Re-scored the pinned corpus through the fixed builder with the real
+  `_load_calibration_targets`: `staleness_gap` **17 → 0**, `blind_spot_gap` 43 → **60**,
+  `n_actionable` **46 → 63** (staleness is non-actionable, so 17 real data/axis needs were being
+  filed as someone else's problem). The **sharp set is unchanged at 3** (`calibration_gap` 2,
+  `verdict_rule_gap` 1) — the fix moves only the blind-spot/staleness split, exactly as intended.
+  Falsified against the pre-fix predicate reconstructed in memory (both halves reverted — the
+  predicate body *and* the call site; never mutate a live file to test it): **3 of the 4 new guards
+  redden** — the previously-unreachable SPL true positive, the CASE-033 false positive, and the
+  structural "identical-except-prose must classify identically" pin. The fourth
+  (`test_non_excluded_axis_key_still_routes_to_blind_spot`) correctly stays green both ways; it is the
+  anti-vacuity companion. `eval/tests/` **131 passed**.
+
+### CASE-034 — the `ROLE` claim axis is in the claim_vector but NOT in the lens roster, so the alteration-role axis is UNCOMPARABLE — and `skill_report` never enters the corpus (2026-09-13)
+
+- **Surfaced by:** both pre-registered predictions of this run coming back unanswerable (above).
+- **Determination (measured).** The genomic `claim_vector` carries 6 real axes (`SNV`, `CN`, `FUS`, `SPL`,
+  `DEP`, `ROLE`, plus a `_disclaimer` key). The literature lane's axis roster comes from the fleet
+  `LensConfig`, which declares 5 — **`ROLE` is absent**. Across 20 records, `axes[].axis_key` is
+  `{SNV:20, CN:20, FUS:20, SPL:20, DEP:20}` and **ROLE: 0**. So `alteration_role` — the axis AM #604 just
+  changed for four surface antigens, retracting `direct_driver_gof` → `curated_cancer_gene` — cannot be
+  compared against literature by construction. A `contradicts` on the driver axis is not merely unfired: it
+  is **unaskable**.
+- **The second half is the record shape.** No snapshot record carries `skill_report`, so `modality_scope`,
+  `alteration_role` and `subgroup_signals` are invisible to the ledger. This is exactly the Stage-1b
+  "passthrough is its own slot" case: a field can be narrated on the dashboard and still be invisible to
+  every eval harness, the literature lane and the discordance ledger. Three of the four fields skills #1313
+  v2.18.0 repaired are in this state.
+- **Fix — FILED, two parts, both outside this branch's `eval/` scope for the first half.** (a) Add `ROLE` to
+  the genomic lens axis roster so the role axis is queried — with a guard asserting **every non-`_`-prefixed
+  `claim_vector` axis appears in the lens roster**, derived from the claim vector rather than restated, so the
+  next axis split (the SPL-out-of-FUS shape) cannot open this hole again. (b) Capture the `skill_report`
+  projection into the harvest record. Note (a) changes what the model is asked and therefore the prompt hash —
+  it needs a fresh corpus, not a re-score.
+- **Status:** OPEN — filed. **Do not quote a role-axis concordance rate until (a) lands**; the current 0
+  contradicts on ROLE is an absence of measurement, not agreement.
+
 ### GENOMIC-ALTERATION 20-pair literature panel baseline (2026-09-12) — 20/20 emitted, 71 ledger rows, 6 SHARP (3 calibration + 3 verdict_rule), all on the CN axis
 
 Ran `--panel genomic-alteration-profile-20 --literature-scope gating` (registered in

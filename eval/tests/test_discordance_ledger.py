@@ -285,3 +285,97 @@ def test_concordant_over_flag_is_non_actionable_and_non_sharp(tmp_path):
     ledger = bdl.build_ledger(p, calibration_targets={"KRAS"})
     assert ledger["n_actionable"] == 0
     assert ddl.sharp_keys(ledger) == set()
+
+
+# ── CASE-033: atlas exclusion routes on the DECLARED axis key, never on assertion prose ──────────
+# The mechanism used to be a substring match (`"splice" in f"{assertion} {axis_key}"`). On the
+# genomic-20 re-run that fired 17 times, ALL WRONG (a blind spot's `why_omics_blind` text enumerates
+# what the package DOES measure — "outside the SNV/CN/fusion/splice omics"), and 0 times right (a
+# real SPL row carries axis_key='SPL', which contains none of the hints). Both directions are pinned
+# here, because a one-directional guard is how this hole opened.
+
+
+def _blind_spot_rec(signal, why):
+    rec = _record(skill="genomic-alteration-profile")
+    rec["literature_synthesis"]["blind_spots"] = [
+        {"signal": signal, "why_omics_blind": why, "citations": [{"label": "A 2026", "verified": True}]}
+    ]
+    return rec
+
+
+def test_a_genuine_spl_axis_gap_routes_to_staleness():
+    """The TRUE POSITIVE the substring version could never reach: axis_key='SPL' contains no hint."""
+    rec = _record(skill="genomic-alteration-profile")
+    ax = _axis("omics_blind")
+    ax["axis_key"] = "SPL"
+    rec["literature_synthesis"]["axes"] = [ax]
+    rows = bdl.build_rows(rec)
+    assert rows[0]["gap_class"] == bdl.GAP_STALENESS, "a declared SPL-axis gap must route to the atlas session"
+
+
+def test_a_blind_spot_whose_prose_mentions_splice_is_NOT_atlas_excluded():
+    """CASE-033 regression, verbatim shape: the prose enumerates the measured axes, in the NEGATIVE."""
+    rec = _blind_spot_rec(
+        "MET protein overexpression by IHC",
+        "The genomic-alteration omics measure DNA-level SNV/CN/fusion/splice events, not protein abundance",
+    )
+    rows = bdl.build_rows(rec)
+    assert len(rows) == 1
+    assert rows[0]["gap_class"] == bdl.GAP_BLIND_SPOT, (
+        "a blind spot declares NO axis — prose mentioning 'splice' must not demote it to staleness"
+    )
+    assert rows[0]["severity"] == bdl._SEVERITY[bdl.GAP_BLIND_SPOT]
+
+
+def test_non_excluded_axis_key_still_routes_to_blind_spot():
+    """Anti-vacuity for the axis route: a non-excluded declared axis must NOT reach staleness."""
+    rec = _record(skill="genomic-alteration-profile")
+    ax = _axis("omics_blind")
+    ax["axis_key"] = "CN"
+    rec["literature_synthesis"]["axes"] = [ax]
+    assert bdl.build_rows(rec)[0]["gap_class"] == bdl.GAP_BLIND_SPOT
+
+
+def test_atlas_exclusion_never_reads_free_text():
+    """Structural pin: the predicate takes the axis key, so no assertion string can change the route.
+
+    Falsified by construction — two records identical except for prose that mentions EVERY hint must
+    classify identically. This is the assertion the substring version fails."""
+    plain = bdl.build_rows(_blind_spot_rec("antigen loss", "bulk cannot resolve this"))
+    loaded = bdl.build_rows(
+        _blind_spot_rec("antigen loss", "pharmacovigilance, splice, exon skip and exon-skip are all named here")
+    )
+    assert [r["gap_class"] for r in plain] == [r["gap_class"] for r in loaded]
+    assert plain[0]["gap_class"] == bdl.GAP_BLIND_SPOT
+
+
+# ── CASE-031/032: the sharp row's `why` names the DIRECTION of the discordance ────────────────────
+
+
+def test_contradicts_against_a_positive_claim_reads_false_POSITIVE():
+    """`calibration_gap`'s prose said 'candidate false-negative' unconditionally. All 3 sharp rows of
+    the genomic-20 re-run are the opposite direction (the omics asserts a deletion literature denies),
+    so the reviewer was pointed at a missing signal that does not exist."""
+    rows = bdl.build_rows(_rec_with_claim("moderate"), calibration_targets={"KRAS"})
+    assert rows[0]["gap_class"] == bdl.GAP_CALIBRATION
+    assert "false-POSITIVE" in rows[0]["why"] and "false-negative" not in rows[0]["why"]
+
+
+def test_contradicts_against_a_measured_floor_still_reads_false_negative():
+    """The other direction must survive: `absent` is a MEASURED floor, and literature reporting a
+    signal against it IS a false-negative candidate. Without this the fix would just invert the bug."""
+    rows = bdl.build_rows(_rec_with_claim("absent"), calibration_targets={"KRAS"})
+    assert "false-negative" in rows[0]["why"] and "false-POSITIVE" not in rows[0]["why"]
+
+
+def test_producer_flagged_low_corroboration_is_surfaced_in_the_why():
+    """`genomic_claims._cn_corroboration` already returns `low` for 'cell-line recurrent but patient
+    tumour focal-neutral — disagreement' while `_cn_signal` still publishes `moderate` (CASE-031:
+    corroboration is bidirectional, signal is one-way). When the producer has already flagged it, the
+    row must route the reviewer to the CLAIM LAYER rather than to the calibration set."""
+    rec = _rec_with_claim("moderate")
+    rec["claim_vector"]["A"]["corroboration"] = "low"
+    rows = bdl.build_rows(rec, calibration_targets={"KRAS"})
+    assert "CLAIM LAYER" in rows[0]["why"]
+    # anti-vacuity: a high-corroboration claim must NOT carry the clause
+    assert "CLAIM LAYER" not in bdl.build_rows(_rec_with_claim("moderate"), calibration_targets={"KRAS"})[0]["why"]
