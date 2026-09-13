@@ -240,11 +240,18 @@ def main(
 
     try:
         result = subprocess.run(cmd, check=False)
-        return result.returncode
     except FileNotFoundError:
         raise click.ClickException(
             "Rscript not found on PATH. dge-deseq2 requires R + DESeq2 (see methods/ pixi.toml)."
         )
+
+    # Click DISCARDS a command callback's return value in standalone mode — it calls ctx.exit() with
+    # no argument — so a bare `return result.returncode` exited 0 even when run_pipeline.R failed.
+    # Callers (framework runs, CI, `&&` chains) then read SUCCESS from a pipeline that wrote no
+    # result.parquet, and the R stderr was lost. Propagate the child's status explicitly.
+    if result.returncode != 0:
+        raise SystemExit(result.returncode)
+    return result.returncode
 
 
 if __name__ == "__main__":
