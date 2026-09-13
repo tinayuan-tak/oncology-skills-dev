@@ -1348,6 +1348,115 @@ def contract_threshold(card_id, key, contracts_repo: str | None = None):
         return None
 
 
+# ── SALIENCE IN BITS (Stage 1 of the retire-ranking-by-rules arc) ─────────────────────────────────────
+# How SURPRISING is this card's value, measured against the frozen known-target cohort rather than against
+# a hand-set rung? The unit is bits of self-information, so it is comparable across axes with no shared
+# scale and no tuned weights — which is the whole point: `priority:` ladders churned +373/-207 lines in 60
+# days precisely because ranking was encoded as hand-ordered rungs.
+#
+#   I_R(f) = -log2 p_hat,   p_hat = max( 2 * min(pct, 100-pct) / 100 , 1/(n+1) )
+#
+# TWO-SIDED, because a target at the 2nd percentile of a dependency column is exactly as informative as one
+# at the 98th — the direction is already carried by `direction`/_DIR_SIGN, and folding it into the surprise
+# would double-count polarity. A value at the median scores 0 bits: "unremarkable" is the correct reading of
+# a middling number, not a small positive score.
+#
+# The 1/(n+1) FLOOR is the resolution cap the plan writes as `min(-log2 p_hat, log2(n_R+1))` — identical,
+# because -log2(1/(n+1)) == log2(n+1). Stating it as a floor on p_hat rather than a ceiling on the bits
+# makes the reason legible: an n-sample empirical column cannot express a tail smaller than one target's
+# worth, so the most extreme value in a 180-target column is worth log2(181) ~= 7.5 bits and NOT infinity.
+# Without it the extremum scores inf and wins every argmax forever (the same failure mode as the +-Inf
+# log2FC rows that mis-attributed 1,564 genes: a non-finite sentinel is a number, and abs(inf) wins).
+#
+# THREE EXCLUSIONS, each measured rather than assumed:
+#   1. NO q-VALUE PASS-THROUGH. "A q-value is already a tail probability, don't re-surprise it" is true in
+#      general and wrong on this substrate: a driver q is ~0 for every gene that has one, so -log2 q is
+#      maximal for essentially the whole corpus — the axis discriminates nothing while ranking as the most
+#      surprising thing in the profile. Enforced two ways: bits ride the `cohort_percentile` frame only, so
+#      a spec's `significance_field` is structurally out of reach, AND `scale` in _UNRANKABLE_SCALES is
+#      refused in case a frame is ever authored directly over a q/p column.
+#   2. atlas_numeric: False IS HONOURED. Those axes deliberately mint no atlas numeric while keeping a
+#      display ruler, because a mutation-SHAPE fraction has no fixed polarity (high missense reads driver
+#      for an oncogene and passenger for a TSG). Scoring them scores what was excluded on purpose.
+#   3. THE REFERENCE MUST BE USABLE. reference_mask_fraction >= 0.6, read from the artifact. A column
+#      measured in 48% of the corpus ranks against half a cohort; ::mask columns are excluded outright
+#      (see cohort_reference_quality — the artifact records 1.000 for all 32 by construction).
+#
+# BITS ARE WITHHELD, NOT DEFAULTED. Every refusal above emits `bits_withheld: "<reason>"` and no `bits` key.
+# This is the frame self-drop discipline that already governs _project_frame, extended one step: an absent
+# atlas column must report NOTHING, because computing log2(n+1) against an empty column yields a confident
+# 0 that is indistinguishable from a genuinely median value. A missing number that carries its own reason
+# is auditable; a 0 that means "we could not look" is the display projection that guessed fleet-wide for
+# months and survived because it was verdict-inert, so it still rendered — just wrong.
+#
+# DISPLAY-ONLY / VERDICT-INERT: additive keys on a gauged_value no gate reads.
+_UNRANKABLE_SCALES = frozenset({"qvalue", "pvalue", "q_value", "p_value"})
+
+
+def cohort_bits(percentile, n) -> float | None:
+    """Two-sided empirical surprise in bits for a value at `percentile` within an n-sample cohort column.
+    None when the inputs cannot support a number at all. 0.0 at the median is a real answer, not a miss."""
+    if not isinstance(percentile, (int, float)) or isinstance(percentile, bool):
+        return None
+    if not isinstance(n, int) or isinstance(n, bool) or n < 1:
+        return None
+    pct = min(max(float(percentile), 0.0), 100.0)
+    p_hat = max(2.0 * min(pct, 100.0 - pct) / 100.0, 1.0 / (n + 1))
+    v = round(-math.log2(min(p_hat, 1.0)), 3)
+    # -log2(1.0) is -0.0, which round() preserves and json.dumps writes as "-0.0" — a signed zero would
+    # make an exactly-median card byte-unstable against any golden written the other way. Normalise it.
+    return 0.0 if v == 0 else v
+
+
+def _bits_for_cohort_frame(rf: dict, pct, n) -> tuple:
+    """(bits, withheld_reason) for ONE cohort_percentile frame — exactly one of the two is None."""
+    if rf.get("atlas_numeric") is False:
+        return None, "display_only_ruler"  # exclusion 2: no atlas numeric was minted on purpose
+    if str(rf.get("scale") or "").lower() in _UNRANKABLE_SCALES:
+        return None, "significance_scale_not_rankable"  # exclusion 1
+    key = rf.get("cohort_key")
+    from _skills_common.archetype_core import USABLE_REFERENCE_MASK_FRACTION, cohort_reference_quality
+
+    q = cohort_reference_quality(key)
+    if q is None:
+        return None, "reference_quality_unknown"  # exclusion 3a: absent column / pre-2.0.0 artifact / ::mask
+    if q < USABLE_REFERENCE_MASK_FRACTION:
+        return None, f"reference_undermeasured_{q:.2f}"  # exclusion 3b — the fraction is IN the reason
+    bits = cohort_bits(pct, n)
+    return (bits, None) if bits is not None else (None, "percentile_unreadable")
+
+
+# NO CROSS-FRAME AGGREGATOR SHIPS HERE, and that is a measured decision rather than an omission.
+#
+# The plan's score was S(f) = rho * c * lambda * min_R I_R(f) — a minimum over the reference frames R
+# available for a fact. Two measurements taken against the 2026-09-13 atlas (297 targets, 20 usable
+# reference columns) before writing a line of it:
+#
+#   1. min_R IS VACUOUS TODAY. Sweeping all 60 SALIENCE_SPECS, the per-spec count of cohort_percentile
+#      frames is at most ONE (histogram: 28 specs with 0, 32 with exactly 1). The fleet loop appends one
+#      cohort ruler per axis and skips any spec that already has one, so `min` over frames can never
+#      differ from `max`. A minimum that cannot discriminate is decoration.
+#   2. AGGREGATING ACROSS AXES RANKS THE NEGATIVE CONTROLS FIRST. Ranking all 297 corpus targets by the
+#      mean of their top-5 bits puts the curated controls at ranks 1, 2, 3, 4, 6, 7 — OTX2 and MYH6
+#      (control_absent), GAPDH, ACTB, PPIA, RPLP0 (control_housekeeping) — 10 of the top 20. The plan
+#      pre-registered exactly this as a kill criterion, and it fires.
+#
+# The cause is NOT the bit formula and NOT the two-sided tail. A one-sided supportive-tail variant is
+# WORSE (8 of 20, housekeeping at ranks 1-2-3). The cause is that 10 of the 20 usable columns are one
+# measurement read ten ways — cell-line RNA, tumour RNA, normal-tissue breadth, tumour-vs-adjacent,
+# tumour-vs-normal, single-cell, cell-line protein, IHC presence, elevation breadth, percentile crossing
+# are all "how much of it is there". Summing them treats ten correlated readings as ten independent
+# references, so a gene that is extreme on that ONE thing is credited ten times — which is the definition
+# of a housekeeping control. Collapsing that family to a single column drops the controls from 10-of-20
+# to 1-of-20 and turns the head of the list into KIF11, RRM1, SF3B1, MYC, EGFR.
+#
+# So the aggregation needs a correlation structure, not a tuning constant. Adding rho/c/lambda scalars
+# here would re-create by hand exactly the ranking-by-tuned-rungs treadmill this work exists to retire.
+# The atlas's `feature_corr` block was deferred at the last freeze for want of a consumer; the measurement
+# above IS the consumer, and it now has a number attached. Until it ships, this module exposes the
+# per-frame measurement only and refuses to add frames together.
+
+
 def _project_frame(rf: dict, cap: dict, summary: dict, direction, card_id, contracts_repo) -> dict | None:
     """Project ONE reference_frame dict → a single gauged_value, or None when its value is absent (so a
     frame whose metric is not measured drops out, never null-fills). Enforces 'no bare number'
@@ -1377,7 +1486,7 @@ def _project_frame(rf: dict, cap: dict, summary: dict, direction, card_id, contr
         # rather than mislabel a safety risk "stronger".
         pct, n = res["percentile"], res["n"]
         rel = "higher-liability than" if direction == "higher_is_worse" else "stronger than"
-        return {
+        gv = {
             "metric": rf.get("value_field"),
             "value": sig_round(raw),
             "scale": scale,
@@ -1387,6 +1496,15 @@ def _project_frame(rf: dict, cap: dict, summary: dict, direction, card_id, contr
             "cohort_percentile": pct,
             "cohort_n": n,
         }
+        # Stage-1 salience: two-sided empirical surprise in bits, or the REASON there is none. Reached only
+        # after `res is not None`, so bits inherit this branch's existing self-drop for free — an absent or
+        # under-powered atlas column drops the whole frame before we can report a confident 0 against it.
+        bits, withheld = _bits_for_cohort_frame(rf, pct, n)
+        if bits is not None:
+            gv["bits"] = bits
+        else:
+            gv["bits_withheld"] = withheld
+        return gv
     value = _read_num_field(rf.get("value_field"), summary, cap)
     scale = rf.get("scale")
     if value is None or not scale:  # no bare frame without a value+scale
@@ -1514,4 +1632,5 @@ __all__ = [
     "sig_round",
     "build_interpretation",
     "contract_threshold",
+    "cohort_bits",
 ]

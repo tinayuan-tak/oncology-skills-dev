@@ -187,6 +187,11 @@ class Atlas:
         # DISPLAY a meaningful analog label where the curated panel label is "?" (marked with a trailing ~).
         self.soft_labels: list = list(doc.get("soft_labels", ["?"] * len(self.targets)))
         self.rule_fingerprints: list = doc.get("rule_fingerprints", [[] for _ in self.targets])
+        # Per-column non-null fraction over the whole corpus, ALIGNED TO feature_order. Adopted into the
+        # 2026-09-13 re-freeze so the usable-reference gate reads it straight from the artifact — there is
+        # deliberately NO read-time recompute (a gate that re-derives its own basis can disagree with the
+        # build that shipped the numbers). [] on a pre-2.0.0 artifact ⇒ every quality read returns None.
+        self.reference_mask_fraction: list = list(doc.get("reference_mask_fraction", []))
         self.axis_ref: dict = doc.get("axis_ref", {})
         emb = doc.get("embedding") or {}
         self.components: list = emb.get("components", [])  # m x d PCA loadings
@@ -1096,6 +1101,41 @@ def cohort_percentile(atlas_key: str, signed_value: Optional[float], min_n: int 
     hi = bisect.bisect_right(col, signed_value)
     pct = round((lo + hi) / 2.0 / n * 100.0, 1)
     return {"percentile": pct, "n": n}
+
+
+# The fraction of the corpus a column must be measured in before it is a usable REFERENCE distribution.
+# A column measured in half the corpus still positions a value — but the "known-target cohort" it ranks
+# against is then half a cohort, silently. Measured on the 2026-09-13 re-freeze (297 targets): 20 of the
+# 32 real numerics clear this; tumor_protein_abundance::num::protein_effect_size sits at 0.481 and is
+# correctly rejected AS A REFERENCE while remaining perfectly usable as a measured VALUE. The governance
+# report over this gate lives in target-archetype/scripts/atlas_health.py (beside `numeric_covered`);
+# the constant lives here, next to the reader, so there is exactly one copy.
+USABLE_REFERENCE_MASK_FRACTION = 0.6
+
+
+@functools.lru_cache(maxsize=512)
+def cohort_reference_quality(atlas_key: str) -> Optional[float]:
+    """The frozen `reference_mask_fraction` for one metered numeric key, or None when it cannot be read.
+
+    None (not 0.0) for: no atlas, a column absent from `feature_order`, an artifact predating the field,
+    a non-numeric value — and, deliberately, for any `::mask` column.
+
+    The ::mask exclusion is the load-bearing part. A mask column records whether the paired numeric was
+    measured, so it is itself measured for EVERY corpus target and the artifact records exactly 1.000 for
+    all 32 of them. That makes this gate vacuous against masks while a rank inside a 0/1 Bernoulli column
+    would come back as a perfectly confident-looking percentile. Excluding them here means a mask can
+    never be mistaken for a usable reference no matter which caller asks."""
+    if not atlas_key or str(atlas_key).endswith("::mask"):
+        return None
+    a = _shipped_atlas_or_none()
+    if a is None or atlas_key not in a.feature_order:
+        return None
+    frac = a.reference_mask_fraction
+    j = a.feature_order.index(atlas_key)
+    if j >= len(frac):
+        return None
+    v = frac[j]
+    return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
 
 
 # ── companion → canonical skill_report (shared by the STANDALONE target-archetype run.py AND the COMPOSED
