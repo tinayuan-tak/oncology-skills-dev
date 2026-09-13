@@ -1,5 +1,7 @@
-# AUTO-DRAFTED then reviewed; edit roles by hand as needed. Completeness (not tag-
-# correctness) is CI-enforced. See _meta.roles.
+# MOSTLY AUTO-DRAFTED. A row is a HUMAN JUDGEMENT only when it carries `reviewed: true`;
+# every other role came from a name-shape heuristic over the card's summary_fields list and
+# should be read as a DRAFT. Completeness (not tag-correctness) is CI-enforced; reader-reach
+# for `role: signal` is enforced too (see _meta.reviewed / _meta.waived_because).
 _meta:
   description: "Field-disposition ledger for tumor-presence \u2014 every emitted summary_field carries\
     \ an explicit role so nothing is dropped SILENTLY. Enforced by tests/test_field_disposition_complete.py."
@@ -9,6 +11,21 @@ _meta:
     provenance: "audit / identity / method token \u2014 surfaced, never a signal"
     display: human-facing detail or large container; verdict-inert by design
   generated_from: target-contracts/cards/<card>.card.yaml outputs.summary_fields
+  # \u2500\u2500 provenance of the ROLE itself (added 2026-09-13, Stage 1b step 4) \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+  # The roles were auto-drafted from FIELD NAMES, and the draft is demonstrably not a judgement:
+  # on tumor-elevation-breadth the same quantity on the two arms landed in opposite buckets
+  # (fraction_elevated -> signal, rna_fraction_elevated -> display; median_effect_across_elevated
+  # -> display, rna_median_max_log2fc_across_elevated -> signal), because the `rna_` prefix missed
+  # the pattern. Worse, the heuristic's FALLBACK was unconditionally `display` -- every one of the
+  # 36 "unclassified by heuristic - REVIEW" rows is role:display, i.e. parked in the bucket that
+  # claims "verdict-inert BY DESIGN" without anyone having decided that. So an unreviewed row is
+  # NOT evidence about the field, and this ledger must not be quoted as a labelled set.
+  reviewed: "true == a human read the field's producers and consumers and chose this role. Absent ==
+    auto-drafted from the field NAME; treat as a draft, not a decision."
+  waived_because: "only legal on `role: signal`. Records WHY a signal no declared reader reaches is
+    being left unwired -- the review queue _meta.roles already promised (`must be wired or explicitly
+    waived`) but never had a key for. A waiver must name the missing consumer or the owning repo; it
+    is not a way to silence the guard."
 cellline-rna-distribution:
   allgene_percentile:
     role: signal
@@ -38,20 +55,28 @@ cellline-rna-distribution:
     role: display
     reason: "unclassified by heuristic \u2014 REVIEW"
   dominant_isoform_fraction:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "magnitude behind the READ isoform_expression_class (capsule); name_only credit only, because
+      tumor-splice-dysregulation declares the same field name"
+    reviewed: true
   expression_class:
     role: signal
     reason: magnitude/categorical signal
   fraction_expressed:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "within-cohort breadth magnitude behind the READ expression_class; _abundance_floor's docstring states the
+      presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
+    reviewed: true
   fraction_highly_expressed:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "within-cohort breadth magnitude behind the READ expression_class; _abundance_floor's docstring states the
+      presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
+    reviewed: true
   fraction_not_expressed:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "within-cohort breadth magnitude behind the READ expression_class; _abundance_floor's docstring states the
+      presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
+    reviewed: true
   isoform_context:
     role: provenance
     reason: provenance/audit token
@@ -89,8 +114,10 @@ cellline-rna-distribution:
     role: display
     reason: "unclassified by heuristic \u2014 REVIEW"
   p95_log2tpm_panel:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "panel dispersion around the READ median_log2tpm_panel; its p5/p25/p75 siblings were already labelled display,
+      so the auto-draft split ONE percentile ladder across two roles"
+    reviewed: true
   per_lineage_stats:
     role: display
     reason: human-facing detail / large container
@@ -161,8 +188,10 @@ tumor-rna-distribution:
     role: display
     reason: human-facing detail / large container
   detectable_fraction:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "within-cohort breadth magnitude behind the READ tumor_expression_class; _abundance_floor's docstring states
+      the presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
+    reviewed: true
   distribution_overlap_tumor_normal:
     role: context
     reason: power / statistical qualifier
@@ -180,8 +209,10 @@ tumor-rna-distribution:
     role: context
     reason: vs-normal window = SELECTIVITY axis (Gate B); context pointer to tumor-selectivity
   high_fraction:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "within-cohort breadth magnitude behind the READ tumor_expression_class; _abundance_floor's docstring states
+      the presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
+    reviewed: true
   matched_normal_tissue:
     role: provenance
     reason: identity/scope key
@@ -195,8 +226,10 @@ tumor-rna-distribution:
     role: signal
     reason: magnitude/categorical signal
   moderate_fraction:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "within-cohort breadth magnitude behind the READ tumor_expression_class; _abundance_floor's docstring states
+      the presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
+    reviewed: true
   n_normal_samples:
     role: context
     reason: power / statistical qualifier
@@ -216,8 +249,9 @@ tumor-rna-distribution:
     role: signal
     reason: magnitude/categorical signal
   p99_log2tpm:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "tail rung beyond the p95_log2tpm that claim A's evidence atom already cites"
+    reviewed: true
   splicing_context:
     role: provenance
     reason: provenance/audit token
@@ -275,11 +309,15 @@ tumor-protein-abundance-cptac:
     role: signal
     reason: magnitude/categorical signal
   protein_median_log2_normal:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "OPERAND of the READ protein_effect_size (= median_log2_tumor - median_log2_normal, documented at
+      tumor-selectivity/scripts/run.py:145); the level axis is read via allgene_percentile"
+    reviewed: true
   protein_median_log2_tumor:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "OPERAND of the READ protein_effect_size (= median_log2_tumor - median_log2_normal, documented at
+      tumor-selectivity/scripts/run.py:145); the level axis is read via allgene_percentile"
+    reviewed: true
   protein_p_value:
     role: context
     reason: power / statistical qualifier
@@ -297,8 +335,10 @@ cellline-protein-abundance:
     role: provenance
     reason: provenance/audit token
   fraction_detected:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "within-cohort breadth magnitude behind the READ protein_expression_class; _abundance_floor's docstring states
+      the presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
+    reviewed: true
   log2_abundance_iqr:
     role: context
     reason: power / statistical qualifier
@@ -321,23 +361,39 @@ cellline-protein-abundance:
     role: context
     reason: power / statistical qualifier
   p25_log2_abundance_panel:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
+      allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder"
+    reviewed: true
   p5_log2_abundance_panel:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
+      allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder"
+    reviewed: true
   p75_log2_abundance_panel:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
+      allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder"
+    reviewed: true
   p95_log2_abundance_panel:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
+      allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder"
+    reviewed: true
   per_lineage_stats:
     role: display
     reason: human-facing detail / large container
   protein_effect_size:
     role: signal
-    reason: magnitude/categorical signal
+    reason:
+      MISNAMED duplicate of median_log2_abundance_panel (no normal arm on a cell-line panel); WAIVED, see waived_because
+    reviewed: true
+    waived_because: "CONTRACT DEFECT, not a wiring gap: on this card protein_effect_size equals median_log2_abundance_panel to the
+      last digit (EPCAM fixture -0.417446428676658), i.e. a field named for a tumor-vs-normal contrast that a
+      cell-line panel does not have, carrying a verbatim copy of a field already read. display_gloss.gloss() is
+      keyed by FIELD NAME with no card_id, so METRIC_GLOSS would render 'tumor-vs-normal protein effect size' here.
+      Kept as signal-with-waiver rather than relabelled, so the defect stays in the queue instead of being laundered
+      into a tidy role. Owner: target-contracts."
   protein_expression_class:
     role: signal
     reason: magnitude/categorical signal
@@ -367,8 +423,10 @@ tumor-elevation-breadth:
     role: display
     reason: "unclassified by heuristic \u2014 REVIEW"
   rna_median_max_log2fc_across_elevated:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "magnitude behind the READ rna_tumor_elevation_breadth_class; its protein-arm twin
+      median_effect_across_elevated was already labelled display — the auto-draft split the two arms"
+    reviewed: true
   rna_most_elevated_indications:
     role: display
     reason: human-facing detail / large container
@@ -390,7 +448,10 @@ tumor-scrna-celltype-expression:
     reason: QC (ambient soup-leakage) — tempers claim-C corroboration (#984 Tier-1)
   caf_abundance_log1p_cp10k:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "CAF-compartment abundance in the same log1p CP10K units as the READ malignant_abundance_log1p_cp10k, behind
+      caf_vs_malignant_class / stromal_confound_class; WIRED onto the headline as sc_caf_abundance_log1p_cp10k — it
+      was the only one of this card's 29 declared fields left unlifted"
+    reviewed: true
   caf_compartment_available:
     role: display
     reason: "unclassified by heuristic \u2014 REVIEW"
@@ -562,8 +623,10 @@ cellline-rna-distribution-by-subtype:
     role: display
     reason: human-facing detail / large container
   pooled_lineage_median_log2tpm:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "whole-lineage baseline the per-subgroup deltas are measured against; this card's READ surface is the class +
+      axis-quality + spotlight lift at run.py::_headline"
+    reviewed: true
   spotlight_subtype:
     role: display
     reason: "unclassified by heuristic \u2014 REVIEW"
@@ -590,8 +653,10 @@ tumor-protein-distribution-by-subtype:
     role: display
     reason: human-facing detail / large container
   pooled_cohort_median_log2_ratio:
-    role: signal
-    reason: magnitude/categorical signal
+    role: display
+    reason: "SKILL.md:75 declares this card DISPLAY-ONLY / verdict-inert (CPTAC-protein subtype panorama, MSI_H/MSS
+      COADREAD); the auto-drafted role:signal contradicted the skill's own declared design"
+    reviewed: true
   subtype_axis_available:
     role: display
     reason: "unclassified by heuristic \u2014 REVIEW"
@@ -599,8 +664,10 @@ tumor-protein-distribution-by-subtype:
     role: display
     reason: "unclassified by heuristic \u2014 REVIEW"
   subtype_stratification_class:
-    role: signal
-    reason: magnitude/categorical signal
+    role: display
+    reason: "SKILL.md:75 declares this card DISPLAY-ONLY / verdict-inert; its cellline twin IS lifted onto the headline,
+      this arm is not — surfaced via the emitted card, feeds no ladder"
+    reviewed: true
 expression-purity-confound:
   cellular_source:
     role: provenance
@@ -634,8 +701,9 @@ cellline-rna-protein-concordance:
     role: context
     reason: power / statistical qualifier
   protein_detection_fraction:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "marginal detection rate qualifying the READ rna_protein_r / rna_as_biomarker (question-table Q6)"
+    reviewed: true
   release_pin:
     role: provenance
     reason: provenance/audit token
@@ -643,11 +711,18 @@ cellline-rna-protein-concordance:
     role: signal
     reason: magnitude/categorical signal
   rna_expressed_fraction:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "marginal expressed rate qualifying the READ rna_protein_r / rna_as_biomarker (question-table Q6)"
+    reviewed: true
   rna_high_protein_low_fraction:
     role: signal
-    reason: magnitude/categorical signal
+    reason:
+      RNA-high / protein-low discordant-quadrant fraction - the falsifier for the RNA-as-protein-proxy call; WAIVED, see waived_because
+    reviewed: true
+    waived_because: "the DISCORDANT quadrant (RNA-high / protein-low) is the fraction that would FALSIFY rna_as_biomarker, and it
+      is NOT derivable from the correlation r that Q6 reads — a high r can coexist with a large discordant fraction.
+      Whether the producer already folds it into rna_as_biomarker is not visible from this repo (analysis-methods).
+      No consumer authored: needs an owner decision on whether Q6 cites it."
   rna_protein_r:
     role: display
     reason: "unclassified by heuristic \u2014 REVIEW"
@@ -684,8 +759,10 @@ cellline-protein-abundance-procan:
     role: provenance
     reason: provenance/audit token
   fraction_detected:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "within-cohort breadth magnitude behind the READ protein_expression_class; _abundance_floor's docstring states
+      the presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
+    reviewed: true
   log2_abundance_iqr:
     role: context
     reason: power / statistical qualifier
@@ -708,23 +785,40 @@ cellline-protein-abundance-procan:
     role: context
     reason: power / statistical qualifier
   p25_log2_abundance_panel:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
+      allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder; card is DISPLAY-ONLY /
+      verdict-inert per SKILL.md:78"
+    reviewed: true
   p5_log2_abundance_panel:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
+      allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder; card is DISPLAY-ONLY /
+      verdict-inert per SKILL.md:78"
+    reviewed: true
   p75_log2_abundance_panel:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
+      allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder; card is DISPLAY-ONLY /
+      verdict-inert per SKILL.md:78"
+    reviewed: true
   p95_log2_abundance_panel:
-    role: signal
-    reason: magnitude/categorical signal
+    role: context
+    reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
+      allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder; card is DISPLAY-ONLY /
+      verdict-inert per SKILL.md:78"
+    reviewed: true
   per_lineage_stats:
     role: display
     reason: human-facing detail / large container
   protein_effect_size:
     role: signal
-    reason: magnitude/categorical signal
+    reason:
+      MISNAMED duplicate of median_log2_abundance_panel (no normal arm on a cell-line panel); WAIVED, see waived_because
+    reviewed: true
+    waived_because: "CONTRACT DEFECT, same as the Gygi arm: protein_effect_size equals median_log2_abundance_panel to the last
+      digit (EPCAM fixture 4.3326138624278006) on a panel with no normal arm, and the name-keyed METRIC_GLOSS would
+      mis-label it. Kept as signal-with-waiver so it stays in the queue. Owner: target-contracts."
   protein_expression_class:
     role: signal
     reason: magnitude/categorical signal

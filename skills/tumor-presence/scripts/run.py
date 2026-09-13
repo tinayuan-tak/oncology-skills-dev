@@ -1931,6 +1931,16 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         "sc_per_compartment": get_card_field(cards, "tumor-scrna-celltype-expression", "per_compartment"),
         "sc_caf_vs_malignant_class": get_card_field(cards, "tumor-scrna-celltype-expression", "caf_vs_malignant_class"),
         "sc_caf_detection_fraction": get_card_field(cards, "tumor-scrna-celltype-expression", "caf_detection_fraction"),
+        # CAF ABUNDANCE, in the same log1p CP10K units as sc_malignant_abundance_log1p_cp10k above. The
+        # detection fraction answers "are CAFs positive at all", the abundance answers "how much" — and the
+        # stromal-confound read (caf_vs_malignant_class / stromal_confound_class) is a COMPARISON of the two
+        # compartments, so surfacing only the malignant arm's abundance left the comparison half-visible.
+        # This was the ONLY one of this card's 29 declared summary_fields not lifted onto the headline
+        # (field-disposition step 4) — a missing binding, not a design choice. Verdict-inert: additive
+        # headline key, feeds no rule.
+        "sc_caf_abundance_log1p_cp10k": get_card_field(
+            cards, "tumor-scrna-celltype-expression", "caf_abundance_log1p_cp10k"
+        ),
         "sc_caf_compartment_available": get_card_field(
             cards, "tumor-scrna-celltype-expression", "caf_compartment_available"
         ),

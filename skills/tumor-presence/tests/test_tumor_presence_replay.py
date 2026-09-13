@@ -191,6 +191,20 @@ def test_replay_sc_heterogeneity_fields_wired(epcam_decision):
         }
 
 
+def test_replay_stromal_compartment_abundance_is_wired_on_both_arms(epcam_decision):
+    """The malignant/CAF comparison must surface BOTH arms' abundance, not just the malignant one.
+
+    `caf_vs_malignant_class` and `stromal_confound_class` are COMPARISONS between the two
+    compartments, so surfacing `sc_malignant_abundance_log1p_cp10k` while dropping the CAF arm left
+    the comparison half-visible: a reader could see how much the malignant compartment carries but
+    not what it was judged against. Pinned as a PAIR by name — asserting only the CAF key would go
+    green if the malignant arm were later dropped, which is the same asymmetry this test exists to
+    prevent (field-disposition Stage 1b step 4)."""
+    h = epcam_decision.get("headline") or {}
+    for k in ("sc_malignant_abundance_log1p_cp10k", "sc_caf_abundance_log1p_cp10k"):
+        assert k in h, f"{k} not surfaced into the presence headline (stromal-abundance wiring drift)"
+
+
 def test_replay_cptac_standardized_effect_wired(epcam_decision):
     """The variance-standardized CPTAC effect must reach the
     headline. EPCAM/COADREAD CPTAC is `ns` with a tiny raw effect (0.065) — the standardized class is
