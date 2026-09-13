@@ -135,3 +135,82 @@ def test_zero_bits_are_accepted_because_median_is_a_real_answer():
 
 def test_bits_must_be_a_number_not_a_stringified_one():
     assert _errors(_mutated(bits="2.308")), "a stringified rank was accepted"
+
+
+# ── cohort_scope: the cohort a percentile was drawn from ─────────────────────────────────────────
+
+
+def test_cohort_scope_is_additive_and_optional():
+    """Every pre-scoping cohort ruler in the fleet omits cohort_scope; adding the key must not make an
+    existing pan-cancer ruler retroactively invalid, and a reader treats a missing scope as pan_cancer.
+    This is the property that lets the skills reader ship cohort_scope without a lockstep re-emit of
+    every already-frozen gauge."""
+    assert not _errors(_mutated(cohort_scope=_DELETE)), _errors(_mutated(cohort_scope=_DELETE))
+    assert not _errors(_mutated(cohort_scope="pan_cancer")), _errors(_mutated(cohort_scope="pan_cancer"))
+
+
+def test_a_scored_ruler_can_name_an_indication_scope():
+    """The step-3 shape: an indication-scoped percentile still scores, now with an auditable scope, so a
+    reader can tell an indication percentile from the pan-cancer fallback wearing the same number."""
+    g = _mutated(cohort_scope="COADREAD")  # the shipped ruler already carries bits + cohort_percentile + cohort_n
+    assert not _errors(g), _errors(g)
+
+
+def test_cohort_scope_must_be_a_string():
+    """The scope names a cohort; a number is a category error. A schema that accepted it would let a
+    cohort index leak in where a code belongs."""
+    assert _errors(_mutated(cohort_scope=42)), "a numeric cohort_scope was accepted"
+
+
+# ── tier_rarity: an ordinal ladder placed as its cohort rarity ───────────────────────────────────
+
+
+def _tier_rarity_frame():
+    """A minimal ordered ladder: the tiers ride in anchors as role=tier, value=index."""
+    return {
+        "kind": "tier_rarity",
+        "anchors": [
+            {"role": "tier", "label": "none", "value": 0},
+            {"role": "tier", "label": "moderate", "value": 1},
+            {"role": "tier", "label": "strong", "value": 2},
+        ],
+    }
+
+
+def test_a_tier_rarity_gauge_validates_and_reuses_the_cohort_triplet():
+    """The step-4 shape: an ordinal-only axis (no continuous numeric to percentile) scored by cohort
+    rarity. It reuses cohort_percentile / cohort_n / bits under the new frame.kind, so the bits
+    machinery and its invariants apply unchanged — the value is the tier index, cohort_percentile the
+    fraction of the cohort at a tier at-or-beyond this one."""
+    g = _mutated(
+        frame=_tier_rarity_frame(),
+        scale="ordinal_tier",
+        value=2,
+        cohort_percentile=92,
+        cohort_n=213,
+        bits=2.1,
+        cohort_scope="pan_cancer",
+    )
+    assert not _errors(g), _errors(g)
+
+
+def test_tier_rarity_bits_still_require_the_cohort_basis():
+    """The reuse must not weaken invariant 2: a tier_rarity bits with no cohort_n is the same
+    confident-zero-against-nothing failure the continuous frame has, and the existing allOf — which is
+    frame-agnostic — must still catch it. If this passed, reusing the triplet would have opened a hole."""
+    g = _mutated(
+        frame=_tier_rarity_frame(),
+        scale="ordinal_tier",
+        value=2,
+        cohort_percentile=92,
+        cohort_n=_DELETE,
+        bits=2.1,
+    )
+    assert _errors(g), "tier_rarity bits survived a missing cohort_n — the reuse opened a confident-zero hole"
+
+
+def test_an_unknown_frame_kind_is_still_rejected():
+    """Anti-vacuity for adding tier_rarity to the enum: proves the enum is a real gate. Otherwise
+    'tier_rarity validates' would be true of any string and this PR would have declared nothing."""
+    g = _mutated(frame={"kind": "tier_scarcity_typo", "anchors": []})
+    assert _errors(g), "an off-enum frame.kind was accepted — the enum is not gating"
