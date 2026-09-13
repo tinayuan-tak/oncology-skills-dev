@@ -3,6 +3,13 @@
 For a (target, indication): OncoKB geneType (curated gene-role backbone) × IntOGen Compendium
 mode-of-action (patient-scale, indication-scoped via CANCER_TYPE) → alteration_role +
 functional_direction + a driver-tier/q-value confidence. data_unavailable-safe. No new ingestion.
+
+The two sources are DIFFERENT KINDS of evidence and the join keeps them apart (2026-09-12):
+curation says a gene is a cancer gene somewhere, statistical inference says an alteration drives a
+cohort. Membership without measurement is `curated_cancer_gene`, not a driver call
+(_classify_alteration_role); a split per-cohort vote is not a direction (_majority_role); and
+inference that contradicts curation yields `ambiguous` rather than silently outranking it
+(_resolve_direction). Each of those three docstrings records the measured defect it closes.
 """
 
 from __future__ import annotations
@@ -131,6 +138,17 @@ _ROLE_TO_DIRECTION = {"Act": "activating", "LoF": "loss_of_function", "ambiguous
 # OncoKB geneType → the direction it implies (backbone when IntOGen is silent).
 _ONCOKB_TO_DIRECTION = {"ONCOGENE": "activating", "TSG": "loss_of_function", "ONCOGENE_AND_TSG": "ambiguous"}
 
+# Minimum dominance for a per-cohort ROLE vote to establish a DIRECTION (winner >= this x loser).
+# IntOGen infers ROLE per (gene, cohort); 274 of 633 driver genes (43%) carry BOTH Act and LoF rows,
+# so a bare majority manufactures a direction out of a near-tie — ROS1 {LoF: 3, Act: 2} read
+# loss_of_function, for a canonical FUSION-driven oncogene whose SNV spectrum is uninformative.
+# Chosen for CONSISTENCY with the recurrent_event_dominant_ratio convention, NOT tuned: measured
+# directional precision against OncoKB's independent curated direction is flat across thresholds
+# (0.744 at 1:1, 0.762 at 2:1, 0.766 at 3:1) and unanimity is WORST (0.690), because the residual
+# conflicts concentrate in single-cohort genes where a lone row is unanimous by construction.
+# Contradiction is handled by _resolve_direction below, not by this threshold.
+_ROLE_DOMINANCE_RATIO = 2.0
+
 
 def read_alteration_role(target: str, indication: str) -> dict:
     """alteration_role assembler for a (target, indication). Returns the typed role + direction +
@@ -169,7 +187,7 @@ def read_alteration_role(target: str, indication: str) -> dict:
         intogen_scope = "pan_cancer"
         intogen_min_q = float(g["QVALUE_COMBINATION"].min()) if g["QVALUE_COMBINATION"].notna().any() else None
 
-    direction = _ROLE_TO_DIRECTION.get(intogen_role) or _ONCOKB_TO_DIRECTION.get(gene_type)
+    direction = _resolve_direction(intogen_role, gene_type)
     role = _classify_alteration_role(gene_type, intogen_role, intogen_scope)
 
     base.update(
@@ -187,34 +205,106 @@ def read_alteration_role(target: str, indication: str) -> dict:
     )
     if role == "data_unavailable":
         base["_data_note"] = "target not in OncoKB gene-role list nor an IntOGen driver"
+    elif role == "curated_cancer_gene":
+        base["_data_note"] = (
+            f"OncoKB curates {sym} as {gene_type}, but it has no statistically-significant IntOGen "
+            "driver call in any cohort — curated cancer gene, no patient-scale driver evidence"
+        )
     return base
 
 
 def _majority_role(df) -> str:
-    """Majority ROLE across a gene's IntOGen rows (Act/LoF/ambiguous), weighting confident calls."""
+    """DOMINANT ROLE across a gene's IntOGen rows → Act / LoF / ambiguous.
+
+    Requires a _ROLE_DOMINANCE_RATIO majority, not a bare one: a split per-cohort vote is NOT a
+    direction, it is an unresolved role. Do NOT relax this back to `act > lof` — that forced a
+    direction for 228 of the 274 genes whose per-cohort ROLE rows disagree.
+
+    Deliberately UNWEIGHTED by q-value or cohort size. That was measured and rejected: for MET/LUAD
+    the LoF rows are the MORE significant ones (q=5.7e-6 and 1.1e-2 vs Act q=9.0e-3), so a
+    significance-weighted vote flips a canonical activating oncogene HARDER than a plain count does.
+    Per-cohort ROLE inference being confident is not the same as it being right about direction, so
+    disagreement is resolved against curation in _resolve_direction, not by reweighting the vote.
+    """
     counts = df["ROLE"].value_counts()
     if counts.empty:
         return "ambiguous"
-    # Act vs LoF majority; ties or ambiguous-dominant → ambiguous.
     act = int(counts.get("Act", 0))
     lof = int(counts.get("LoF", 0))
-    if act > lof:
+    if act > lof and act >= lof * _ROLE_DOMINANCE_RATIO:
         return "Act"
-    if lof > act:
+    if lof > act and lof >= act * _ROLE_DOMINANCE_RATIO:
         return "LoF"
-    return "ambiguous"
+    return "ambiguous"  # tie, near-tie, or ambiguous-dominant
+
+
+def _resolve_direction(intogen_role, gene_type) -> str | None:
+    """functional_direction from the two sources, with the CONFLICT case made explicit.
+
+    IntOGen leads where the sources agree or only one speaks (it is functional and per-indication).
+    But where IntOGen's INFERRED direction contradicts OncoKB's CURATED direction, neither wins:
+    the answer is `ambiguous`, which is what _classify_alteration_role already reports for the same
+    input (`predictive_biomarker` = "direction not resolved").
+
+    This is the fix for a record that asserted both at once. Before 2026-09-12, 80 genes published
+    alteration_role=predictive_biomarker beside a fully definite functional_direction — 41 TSGs as
+    `activating` (CHEK2, BARD1, CDKN2C, FANCA...) and 39 oncogenes as `loss_of_function` (CDK4,
+    ABL1, CD274, ERBB4) — because the direction expression let IntOGen win unconditionally.
+
+    That defect is the ROOT CAUSE two downstream contracts were written to contain: the
+    role-agreement gate in intracellular-intrinsic.rules.yaml and
+    allele_selective_required_role_rules in wt_loss_safety_conditioning.yaml, both citing "SMARCA2:
+    oncokb_gene_type=TSG yet functional_direction=activating". SMARCA2 has exactly ONE IntOGen row
+    (Act), so it is unanimous by construction and no dominance ratio reaches it — only this
+    conflict rule does. Those co-gates stay in place as defence in depth.
+
+    Precedence, in order:
+      1. both sources definite and DISAGREEING  → ambiguous (neither wins)
+      2. IntOGen definite                       → IntOGen (functional, per-indication, leads)
+      3. otherwise                              → curation, if curation is definite
+
+    Step 3 matters as much as step 1: an `ambiguous` IntOGen vote is the ABSENCE of a direction, not
+    evidence against curation, so it must not erase a definite curated one. Letting it through
+    produced its own incoherence — ROS1/LUAD read alteration_role=direct_driver_gof (a role that
+    names a direction) beside functional_direction=ambiguous (a field that withholds one), and
+    likewise CCND1 and MYC, whose per-cohort ROLE rows are exact ties.
+    """
+    ig = _ROLE_TO_DIRECTION.get(intogen_role)
+    kb = _ONCOKB_TO_DIRECTION.get(gene_type)
+    definite = {"activating", "loss_of_function"}
+    if ig in definite and kb in definite and ig != kb:
+        return "ambiguous"  # curated direction contradicted by inferred direction → unresolved
+    if ig in definite:
+        return ig
+    return kb or ig
 
 
 def _classify_alteration_role(gene_type, intogen_role, intogen_scope) -> str:
-    """The typed 4-role primitive:
-    direct_driver_gof — OncoKB ONCOGENE or IntOGen Act (activating driver)
-    direct_driver_lof — OncoKB TSG or IntOGen LoF (loss-of-function driver)
+    """The typed role primitive:
+    direct_driver_gof — an ACTIVATING driver with patient-scale evidence (IntOGen Act, or OncoKB
+                        ONCOGENE backed by an IntOGen driver call in some cohort)
+    direct_driver_lof — likewise for loss-of-function (tumour suppressor)
+    curated_cancer_gene — OncoKB curates a directional role but the gene has ZERO rows in the
+                        IntOGen compendium: a curated cancer gene with NO statistically-significant
+                        driver call in ANY cohort. Real evidence, but not a "drives this indication"
+                        claim — see the note below.
     predictive_biomarker — a driver gene whose role is ambiguous / bidirectional (OncoKB
-                           ONCOGENE_AND_TSG, or IntOGen ambiguous) — actionable as a marker,
-                           direction not resolved
-    passenger — in neither curated list as a driver (OncoKB NEITHER/INSUFFICIENT and not an
+                           ONCOGENE_AND_TSG, IntOGen ambiguous, or an OncoKB↔IntOGen conflict) —
+                           actionable as a marker, direction not resolved
+    passenger — known to a source but with no driver role (OncoKB NEITHER/INSUFFICIENT and not an
                 IntOGen driver): no driver evidence for this target
-    data_unavailable — absent from both sources entirely."""
+    data_unavailable — absent from both sources entirely.
+
+    CURATION IS NOT MEASUREMENT (2026-09-12). `or is_oncogene` / `or is_tsg` used to make OncoKB
+    gene-list MEMBERSHIP by itself sufficient for a direct_driver_* call, so 440 of 1242 OncoKB
+    genes (283 ONCOGENE + 157 TSG) with zero IntOGen rows were reported as in-indication drivers —
+    with a rule rationale that says "in this indication". Measured examples: CD19, FOLR1 and
+    TACSTD2 are all oncokb=ONCOGENE with 0 compendium rows; their therapeutic rationale is lineage
+    EXPRESSION, not genomic driver status. Beyond the false claim, direct_driver_gof feeds
+    wt_loss_safety_conditioning.yaml's allele_selective_eligibility_rules, so gene-list membership
+    was buying an allele-selective WT-loss safety downgrade for targets with no measured selectable
+    allele. Membership now lands in curated_cancer_gene. Do NOT re-add the bare `or is_oncogene`.
+    """
     is_oncogene = gene_type in ("ONCOGENE",)
     is_tsg = gene_type in ("TSG",)
     is_dual = gene_type in ("ONCOGENE_AND_TSG",)
@@ -223,7 +313,14 @@ def _classify_alteration_role(gene_type, intogen_role, intogen_scope) -> str:
 
     if not known_gene and not intogen_driver:
         return "data_unavailable"
-    # direction from either source; IntOGen (functional, patient-scale) leads, OncoKB backs.
+    # CURATED-ONLY: a DIRECTIONAL OncoKB role with no patient-scale driver call anywhere. Checked
+    # BEFORE the direction branches, which is what stops membership alone reading as a driver.
+    # Scoped to the directional roles on purpose: ONCOGENE_AND_TSG already resolves to
+    # predictive_biomarker, which makes no direction claim and carries a neutral signal, so it was
+    # never part of this defect and is left alone.
+    if not intogen_driver and (is_oncogene or is_tsg):
+        return "curated_cancer_gene"
+    # Direction from either source; IntOGen (functional, patient-scale) leads, OncoKB backs.
     if intogen_role == "Act" or is_oncogene:
         if intogen_role == "LoF" or is_tsg:
             return "predictive_biomarker"  # conflicting directions → marker, not a clean driver call

@@ -8,7 +8,9 @@ from pathlib import Path
 
 from . import read as _read
 
-METHOD_VERSION = "0.1.0"
+# 0.2.0 (2026-09-12): curation/measurement separation — +curated_cancer_gene role, 2:1 ROLE
+# dominance, conflict-aware functional_direction. See read.py's module docstring.
+METHOD_VERSION = "0.2.0"
 DEFAULT_TARGET_CONTRACTS = os.environ.get(
     "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
 )
@@ -17,6 +19,9 @@ _ROLE_COLORS = {
     "direct_driver_gof": ("#c0603a", "#8f3f22"),  # activating driver — warm
     "direct_driver_lof": ("#4a7fa5", "#2f5670"),  # loss-of-function — cool
     "predictive_biomarker": ("#7b5ea7", "#553f7a"),  # marker / ambiguous — accent
+    # curated cancer gene, no patient-scale driver call — muted olive: distinctly NOT one of the two
+    # driver hues, and distinctly not the grey of passenger/data_unavailable (it IS real evidence).
+    "curated_cancer_gene": ("#9a9455", "#6d683a"),
     "passenger": ("#b8bcc0", "#7d8288"),  # no driver evidence — neutral
     "data_unavailable": ("#d9dbdd", "#a9adb1"),
 }
