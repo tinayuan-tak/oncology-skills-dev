@@ -35627,7 +35627,7 @@
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
@@ -35823,287 +35823,287 @@
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,cn-recurrently-deleted-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-amplified-supportive,mut-lof-dominant-supportive": [
@@ -36583,7 +36583,7 @@
     "cn-patient-focal-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-amplified-supportive": [
@@ -37067,959 +37067,959 @@
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,cn-recurrently-deleted-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-lof-dominant-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-missense-dominant-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-mixed-neutral,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mut-no-mutations-neutral,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-patient-focal-deleted-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-patient-focal-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-amplified-supportive": [
@@ -38503,483 +38503,483 @@
     "cn-recurrently-amplified-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-lof-dominant-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-lof-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,snv-clonality-subclonal-opposing": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,snv-recurrence-top-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-missense-dominant-supportive,splice-exon-skip-driver-supportive": [
-    "multi_class_driver",
+    "confirmed_driver",
     "mut-missense-dominant-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-mixed-neutral,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mut-no-mutations-neutral,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-moderately-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,mutant-strongly-dependent-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,snv-clonality-subclonal-opposing": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,snv-clonality-subclonal-opposing,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,snv-clonality-subclonal-opposing,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,snv-recurrence-top-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,snv-recurrence-top-driver-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,cn-recurrently-deleted-supportive,splice-exon-skip-driver-supportive": [
-    "confirmed_driver",
+    "mixed_pattern",
     "cn-recurrently-deleted-supportive"
    ],
    "alteration-role-gof-driver-supportive,mut-lof-dominant-supportive": [
