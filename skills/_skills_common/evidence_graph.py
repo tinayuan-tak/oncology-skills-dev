@@ -283,7 +283,7 @@ def _build_subtype_axis(summary: dict) -> Optional[dict]:
     return None
 
 
-def _build_key_evidence(cap: dict, summary: dict) -> Optional[dict]:
+def _build_key_evidence(cap: dict, summary: dict, indication: Optional[str] = None) -> Optional[dict]:
     """Promote the DECISIVE data points behind a card into a bounded, typed object, from the capsule's
     already-computed shapes (top_k_strata w/ q, n_basis, categorical_anchors, conflict_pairs) + the
     per-measurement_type salience spec's pinned significance/omnibus scalars read from the card summary.
@@ -389,7 +389,7 @@ def _build_key_evidence(cap: dict, summary: dict) -> Optional[dict]:
     # typed reference-frame ruler(s) — the per-type SALIENCE_SPEC reference_frame projected onto the summary
     # + capsule (cut single-sourced from the card thresholds:, resolved inside the salience layer so THIS
     # builder does no card.yaml read). [] when the type has no reference_frame or the value is absent.
-    interpretation = build_interpretation(cap, summary, spec, cap.get("card_id"))
+    interpretation = build_interpretation(cap, summary, spec, cap.get("card_id"), indication=indication)
 
     ke = {}
     if interpretation:
@@ -507,7 +507,7 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
             "is_driving": cid == driving_card_id,
         }
         key_fields = {a.get("metric"): a.get("value") for a in numeric if a.get("metric")}
-        key_evidence = _build_key_evidence(cap, c.get("summary") or {})
+        key_evidence = _build_key_evidence(cap, c.get("summary") or {}, g_indication)
         card_nodes.append(
             {
                 "id": cid,

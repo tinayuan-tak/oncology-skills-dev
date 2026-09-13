@@ -1408,20 +1408,44 @@ def cohort_bits(percentile, n) -> float | None:
     return 0.0 if v == 0 else v
 
 
-def _bits_for_cohort_frame(rf: dict, pct, n) -> tuple:
-    """(bits, withheld_reason) for ONE cohort_percentile frame — exactly one of the two is None."""
+def _bits_for_cohort_frame(rf: dict, pct, n, scope=None) -> tuple:
+    """(bits, withheld_reason) for ONE cohort_percentile frame — exactly one of the two is None.
+
+    ★ THE SCOPED QUALITY CHECK IS ADDITIONAL, NEVER A SUBSTITUTE, and that is what makes it safe to land.
+    The pan-cancer gate below runs unchanged and first; only then, when the percentile was drawn from a
+    NARROWED cohort, must that cohort ALSO be adequately measured. So the change is monotone — it can only
+    ever WITHHOLD bits that today's code awards, never award bits today's code withholds — and a
+    pre-2.0.0 artifact (no `reference_mask_fraction` at all) is still handled entirely by exclusion 3a.
+
+    Why it is needed: `reference_mask_fraction` is a WHOLE-CORPUS number, so on a scoped gauge it certifies
+    the wrong population. MEASURED on the 2026-09-13 atlas: of the 87 (indication x cohort_key) pairs that
+    clear min_n=20, 71 would award bits, and ZERO of those 71 sit on a scoped cohort measured below the
+    0.6 floor — so this gate changes nothing today. But the worst surviving margin is 0.622 against a
+    0.600 floor (28 of 45 COADREAD rows on measured_potency_tractability), i.e. ONE target of slack, and
+    step 5 adds 207. Same shape as the PCA solver pin: a no-op now, a landmine at the next re-freeze. The
+    branch is therefore exercised by an explicit under-measured-scope test rather than by production."""
     if rf.get("atlas_numeric") is False:
         return None, "display_only_ruler"  # exclusion 2: no atlas numeric was minted on purpose
     if str(rf.get("scale") or "").lower() in _UNRANKABLE_SCALES:
         return None, "significance_scale_not_rankable"  # exclusion 1
     key = rf.get("cohort_key")
-    from _skills_common.archetype_core import USABLE_REFERENCE_MASK_FRACTION, cohort_reference_quality
+    from _skills_common.archetype_core import (
+        PAN_CANCER_SCOPE,
+        USABLE_REFERENCE_MASK_FRACTION,
+        cohort_reference_quality,
+    )
 
     q = cohort_reference_quality(key)
     if q is None:
         return None, "reference_quality_unknown"  # exclusion 3a: absent column / pre-2.0.0 artifact / ::mask
     if q < USABLE_REFERENCE_MASK_FRACTION:
         return None, f"reference_undermeasured_{q:.2f}"  # exclusion 3b — the fraction is IN the reason
+    if scope and scope != PAN_CANCER_SCOPE:
+        qs = cohort_reference_quality(key, indication=scope)
+        if qs is None:
+            return None, "scoped_reference_quality_unknown"  # exclusion 3c
+        if qs < USABLE_REFERENCE_MASK_FRACTION:
+            return None, f"scoped_reference_undermeasured_{qs:.2f}"  # exclusion 3d — names the scoped frac
     bits = cohort_bits(pct, n)
     return (bits, None) if bits is not None else (None, "percentile_unreadable")
 
@@ -1457,10 +1481,15 @@ def _bits_for_cohort_frame(rf: dict, pct, n) -> tuple:
 # per-frame measurement only and refuses to add frames together.
 
 
-def _project_frame(rf: dict, cap: dict, summary: dict, direction, card_id, contracts_repo) -> dict | None:
+def _project_frame(
+    rf: dict, cap: dict, summary: dict, direction, card_id, contracts_repo, indication=None
+) -> dict | None:
     """Project ONE reference_frame dict → a single gauged_value, or None when its value is absent (so a
     frame whose metric is not measured drops out, never null-fills). Enforces 'no bare number'
-    (value ⇒ scale). Extracted so build_interpretation can iterate a LIST of frames on one card."""
+    (value ⇒ scale). Extracted so build_interpretation can iterate a LIST of frames on one card.
+
+    `indication` scopes the cohort_percentile frame only; every other frame kind is indication-INVARIANT
+    (they read the card's own summary/thresholds, which are already the requested indication's numbers)."""
     if not isinstance(rf, dict):
         return None
     # COHORT-PERCENTILE (Phase 2 meter): position the card value WITHIN the frozen known-target cohort read
@@ -1474,32 +1503,38 @@ def _project_frame(rf: dict, cap: dict, summary: dict, direction, card_id, contr
         scale = rf.get("scale")
         if raw is None or not scale:
             return None
-        from _skills_common.archetype_core import cohort_percentile
+        from _skills_common.archetype_core import PAN_CANCER_SCOPE, cohort_percentile
         from _skills_common.feature_vectoriser import _DIR_SIGN
 
-        res = cohort_percentile(rf.get("cohort_key"), _DIR_SIGN.get(direction, 1.0) * raw)
+        res = cohort_percentile(rf.get("cohort_key"), _DIR_SIGN.get(direction, 1.0) * raw, indication=indication)
         if res is None:
             return None
         # Direction-aware phrasing: the percentile is always "signed value exceeds X% of the cohort".
         # For a stronger-is-better axis that reads "stronger than X%"; for a higher_is_worse LIABILITY axis
         # (e.g. normal-tissue breadth) the same rank is a worse liability, so say "higher-liability than X%"
         # rather than mislabel a safety risk "stronger".
-        pct, n = res["percentile"], res["n"]
+        pct, n, scope = res["percentile"], res["n"], res["scope"]
         rel = "higher-liability than" if direction == "higher_is_worse" else "stronger than"
+        # NAME THE COHORT IN THE PROSE, not only in the machine-readable key. The pan-cancer wording stays
+        # byte-identical to the pre-scoping string, so the 21-of-25 indications that fall back — and every
+        # golden pinned against them — do not move; a SCOPED gauge appends " in <CODE>" so the reader sees
+        # which cohort the number means without having to cross-reference `cohort_scope`.
+        where = "" if scope == PAN_CANCER_SCOPE else f" in {scope}"
         gv = {
             "metric": rf.get("value_field"),
             "value": sig_round(raw),
             "scale": scale,
             "direction": direction,
             "frame": {"kind": "cohort_percentile", "anchors": []},
-            "position": f"{rel} {pct:g}% of {n} known targets",
+            "position": f"{rel} {pct:g}% of {n} known targets{where}",
             "cohort_percentile": pct,
             "cohort_n": n,
+            "cohort_scope": scope,
         }
         # Stage-1 salience: two-sided empirical surprise in bits, or the REASON there is none. Reached only
         # after `res is not None`, so bits inherit this branch's existing self-drop for free — an absent or
         # under-powered atlas column drops the whole frame before we can report a confident 0 against it.
-        bits, withheld = _bits_for_cohort_frame(rf, pct, n)
+        bits, withheld = _bits_for_cohort_frame(rf, pct, n, scope)
         if bits is not None:
             gv["bits"] = bits
         else:
@@ -1546,7 +1581,12 @@ def _project_frame(rf: dict, cap: dict, summary: dict, direction, card_id, contr
 
 
 def build_interpretation(
-    cap: dict, summary: dict, spec: dict | None = None, card_id: str | None = None, contracts_repo: str | None = None
+    cap: dict,
+    summary: dict,
+    spec: dict | None = None,
+    card_id: str | None = None,
+    contracts_repo: str | None = None,
+    indication: str | None = None,
 ) -> list:
     """Project spec['reference_frame'] → key_evidence.interpretation[] (list of gauged_value). Deterministic
     (sig_round every number; absent layer omitted, never null-filled); [] when no frame or no value present.
@@ -1554,7 +1594,11 @@ def build_interpretation(
 
     `reference_frame` is a dict OR a list of dicts — one card can carry >1 ruler (e.g. a distribution card
     gauged BOTH on its pan-cancer rank AND on its within-panel position). Frames are projected in order;
-    frames whose value is absent drop out (a partially-measured card still emits the rulers it can)."""
+    frames whose value is absent drop out (a partially-measured card still emits the rulers it can).
+
+    `indication` is the REQUEST's indication; it scopes the known-target cohort behind a cohort_percentile
+    ruler (see archetype_core.cohort_percentile). Omitting it reproduces the pre-scoping pan-cancer gauge
+    exactly, so a caller that has no indication in hand is never forced to invent one."""
     cap = cap or {}
     summary = summary or {}
     spec = spec or {}
@@ -1563,7 +1607,7 @@ def build_interpretation(
     frames = rf if isinstance(rf, list) else [rf]
     out = []
     for frame in frames:
-        gv = _project_frame(frame, cap, summary, direction, card_id, contracts_repo)
+        gv = _project_frame(frame, cap, summary, direction, card_id, contracts_repo, indication)
         if gv is not None:
             out.append(gv)
     return out

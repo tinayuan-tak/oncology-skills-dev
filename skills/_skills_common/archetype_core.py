@@ -1093,21 +1093,111 @@ def _cohort_sorted_column(atlas_key: str) -> tuple:
     return tuple(sorted(r[j] for r in a.X if j < len(r) and r[j] is not None))
 
 
-def cohort_percentile(atlas_key: str, signed_value: Optional[float], min_n: int = 20) -> Optional[dict]:
+# ── INDICATION-SCOPED cohort rulers ──────────────────────────────────────────────────────────────────
+# The token every scoped reader emits when the cohort is the WHOLE corpus. Matches the `cohort_scope`
+# vocabulary declared in target-contracts (gauged_value): an indication code, or this literal.
+PAN_CANCER_SCOPE = "pan_cancer"
+
+
+@functools.lru_cache(maxsize=1)
+def _cohort_indication_groups() -> dict:
+    """canonical indication code → tuple of corpus ROW INDICES, over the shipped atlas's `indications`.
+
+    Row labels are canonicalised through the SAME crosswalk the subtype-scope path uses, so a corpus row
+    labelled LUAD and one labelled LUSC both land in the NSCLC group. That pooling is what makes the
+    CANONICAL code as well served as its own aliases — see the note on `cohort_percentile`. Unregistered
+    or blank labels group under their own raw spelling, which simply never matches a resolved request.
+    Fail-soft: an unreadable crosswalk degrades to raw labels (i.e. pre-alias grouping), never raises."""
+    a = _shipped_atlas_or_none()
+    if a is None:
+        return {}
+    from _skills_common.indication_scope import canonical_subtype_code
+
+    groups: dict = {}
+    for i, label in enumerate(a.indications):
+        canon, _how = canonical_subtype_code(label)
+        groups.setdefault(canon or (str(label or "").strip().upper()), []).append(i)
+    return {k: tuple(v) for k, v in groups.items()}
+
+
+@functools.lru_cache(maxsize=4096)
+def _scoped_sorted_column(atlas_key: str, canon: str) -> tuple:
+    """`_cohort_sorted_column` restricted to one canonical indication group. () when either is unknown."""
+    a = _shipped_atlas_or_none()
+    if a is None or not canon or atlas_key not in a.feature_order:
+        return ()
+    idxs = _cohort_indication_groups().get(canon)
+    if not idxs:
+        return ()
+    j = a.feature_order.index(atlas_key)
+    return tuple(sorted(a.X[i][j] for i in idxs if j < len(a.X[i]) and a.X[i][j] is not None))
+
+
+def resolve_cohort_scope(indication: Optional[str]) -> Optional[str]:
+    """The canonical indication code a request should be gauged WITHIN, or None for pan-cancer.
+
+    None/blank/unregistered → None, so a caller that knows no indication (or types one the framework's
+    vocabulary does not declare) gets exactly the pre-scoping pan-cancer behaviour rather than a guess."""
+    if not indication or not str(indication).strip():
+        return None
+    from _skills_common.indication_scope import canonical_subtype_code
+
+    canon, _how = canonical_subtype_code(indication)
+    return canon or None
+
+
+def cohort_percentile(
+    atlas_key: str, signed_value: Optional[float], min_n: int = 20, indication: Optional[str] = None
+) -> Optional[dict]:
     """Empirical percentile of a POLARITY-SIGNED value within the frozen known-target cohort column for
-    `atlas_key` (higher == stronger, uniformly). Returns {'percentile','n'} or None when the value is
-    absent, the column is unknown, or the cohort is under-powered (n < min_n) — a gauge with too few known
-    targets behind it would over-claim. Percentile = midpoint of the tie block ⇒ stable for repeated values."""
+    `atlas_key` (higher == stronger, uniformly). Returns {'percentile','n','scope'} or None when the value
+    is absent, the column is unknown, or the cohort is under-powered (n < min_n) — a gauge with too few
+    known targets behind it would over-claim. Percentile = midpoint of the tie block ⇒ stable for repeats.
+
+    `scope` NAMES the cohort the percentile was actually drawn from: a canonical indication code, or
+    `PAN_CANCER_SCOPE`. It is emitted unconditionally, including on the pan-cancer path, because an
+    UNLABELLED percentile silently changes meaning between requests — that is the whole reason
+    target-contracts declared `cohort_scope` before this reader shipped.
+
+    ★ THE FALLBACK IS THE COMMON PATH, AND THAT IS THE HONEST HEADLINE. When `indication` resolves, the
+    cohort is narrowed to that indication's corpus rows and the min_n gate is re-applied to the NARROWED
+    column; failing it falls back to the whole corpus. Measured on the 2026-09-13 atlas (297 targets, 25
+    distinct indications) over the 32 `cohort_key`s the salience specs actually use: at min_n=20 only FOUR
+    indications clear the gate for any key — COADREAD (45 rows / 25 keys), BRCA (43/24), LUAD-pooled-as-
+    NSCLC (60/27), OV (21/11). The other 21 indications fall back to pan-cancer for EVERY key. So this is
+    not a rarely-taken degradation path, it is the majority behaviour, and it is only auditable because
+    the scope is named. Step 5's panel expansion is what makes the scoped path reach: it lifts ESCA, CML,
+    SCLC, STAD, HNSC, AML and PAAD to ~40 corpus rows each, deliberately above this gate.
+
+    ★ ALIAS POOLING BUYS REQUEST CONSISTENCY, NOT COVERAGE. Pooling adds ZERO (group x column) pairs — the
+    rows were already in the corpus. What it fixes is that per REQUEST it lifts LUSC 0→27 keys and NSCLC
+    0→27 while LUAD goes 25→27: without it the canonical code NSCLC would be gauged pan-cancer while its
+    own alias LUAD got a scoped gauge, i.e. the more precise spelling would be worse served.
+
+    Measurement narrowing is handled BY THIS GATE, not by a second one: `_scoped_sorted_column` drops
+    Nones, so `n` is the count actually MEASURED inside the indication. A column measured in 90% of the
+    corpus but 10% of one indication fails min_n there and falls back, rather than ranking against a
+    handful of rows. (Reference QUALITY as a fraction is a separate, additional gate on `bits` only — see
+    `cohort_reference_quality`.)"""
     if signed_value is None:
         return None
-    col = _cohort_sorted_column(atlas_key)
+    scope = resolve_cohort_scope(indication)
+    col, resolved = (), PAN_CANCER_SCOPE
+    if scope:
+        col = _scoped_sorted_column(atlas_key, scope)
+        if len(col) >= min_n:
+            resolved = scope
+        else:
+            col = ()
+    if not col:
+        col = _cohort_sorted_column(atlas_key)
     n = len(col)
     if n < min_n:
         return None
     lo = bisect.bisect_left(col, signed_value)
     hi = bisect.bisect_right(col, signed_value)
     pct = round((lo + hi) / 2.0 / n * 100.0, 1)
-    return {"percentile": pct, "n": n}
+    return {"percentile": pct, "n": n, "scope": resolved}
 
 
 # The fraction of the corpus a column must be measured in before it is a usable REFERENCE distribution.
@@ -1120,9 +1210,19 @@ def cohort_percentile(atlas_key: str, signed_value: Optional[float], min_n: int 
 USABLE_REFERENCE_MASK_FRACTION = 0.6
 
 
-@functools.lru_cache(maxsize=512)
-def cohort_reference_quality(atlas_key: str) -> Optional[float]:
+@functools.lru_cache(maxsize=4096)
+def cohort_reference_quality(atlas_key: str, indication: Optional[str] = None) -> Optional[float]:
     """The frozen `reference_mask_fraction` for one metered numeric key, or None when it cannot be read.
+
+    With `indication`, the SCOPED measured fraction for that indication's corpus rows instead — because a
+    fraction computed over the whole corpus does not describe the cohort a scoped percentile is actually
+    ranked against. This is the ONE place a read-time recompute is unavoidable: the artifact ships a single
+    pan-cancer fraction per column and no per-indication breakdown, so there is nothing to read. Verified
+    that the recompute IS the same quantity rather than a second opinion — recomputing the PAN-CANCER
+    fraction from `X` reproduces every one of the 176 shipped values to within 4.9e-05, which is exactly
+    the artifact's 4-decimal storage rounding. So the scoped number is that same measurement narrowed, not
+    a competing basis (the no-read-time-recompute rule below still governs the pan-cancer path, which is
+    left reading the artifact verbatim).
 
     None (not 0.0) for: no atlas, a column absent from `feature_order`, an artifact predating the field,
     a non-numeric value — and, deliberately, for any `::mask` column.
@@ -1137,8 +1237,15 @@ def cohort_reference_quality(atlas_key: str) -> Optional[float]:
     a = _shipped_atlas_or_none()
     if a is None or atlas_key not in a.feature_order:
         return None
-    frac = a.reference_mask_fraction
     j = a.feature_order.index(atlas_key)
+    scope = resolve_cohort_scope(indication)
+    if scope:
+        idxs = _cohort_indication_groups().get(scope)
+        if not idxs:
+            return None
+        measured = sum(1 for i in idxs if j < len(a.X[i]) and a.X[i][j] is not None)
+        return measured / len(idxs)
+    frac = a.reference_mask_fraction
     if j >= len(frac):
         return None
     v = frac[j]
