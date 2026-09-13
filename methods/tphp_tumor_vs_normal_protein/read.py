@@ -13,9 +13,8 @@ producer: for all 22 retained cohorts max(n_normal) equals that organism part's 
 tissue product EXACTLY (brain 74=74, lung 14=14, large intestine 13=13, mammary gland 4=4). So this
 facet and the TPHP normal-tissue atlas are ONE measurement read twice, NOT two independent platforms —
 `normal_arm_source` carries that per row so a consumer keys on the VALUE, not on a hardcoded product id.
-(The `stat_test_used` constant still spells "adjacent_normal": that literal is pinned in the contracts
-card vocabulary and in two skills fixtures, so renaming it belongs to the contracts-side truth-in-
-labelling change, not here. It is a KNOWN-WRONG NAME, superseded by normal_arm_source.)
+(`stat_test_used` NO LONGER spells "adjacent_normal" — see STAT_TEST below. The old literal is still a
+legal ALIAS in the contracts card until the two skills fixtures re-pin, so this flip cannot fail closed.)
 
 ★ DETECTION CENSORING IS THE DOMINANT ARTIFACT, and it is DECLARED here, not corrected. The product's
 n_tumor / n_normal are DETECTED counts; v2 adds the arm TOTALS so completeness is reconstructable.
@@ -67,12 +66,24 @@ METHOD_VERSION = "0.2.0"
 # (the product has no per-row test flag) — surfaced so a consumer can distinguish it from CPTAC's
 # MSstatsTMT limma-moderated t (the two facets use different estimators by design).
 #
-# ★ The "adjacent_normal" in this literal is WRONG (the arm is the body atlas — see the module docstring)
-# and is KEPT ANYWAY: the exact string is pinned in the contracts card's `stat_test_used` vocabulary and
-# in two skills fixtures, so a rename here reds those without fixing anything. `normal_arm_source`
-# (emitted per row, straight from the product) is the field that carries the truth; a consumer keys on
-# THAT. Renaming this constant is the contracts-side change, tracked in the W5 registry entry.
-STAT_TEST = "welch_unpaired_tumor_vs_adjacent_normal"
+# ★★ STEP 2 OF A FORWARD-RENAME ALIAS WINDOW. This literal used to spell the normal arm
+# "adjacent_normal", which is FALSE — TPHP collected no adjacent-normal series (see the module
+# docstring). The truthful name says what the comparator IS and which test produced it; the derived
+# manifest's own `comparison:` reads
+# "unpaired_tumor_vs_body_atlas_normal_same_organism_part_group_medians", and this token is that with the
+# estimator named instead of the group-medians detail.
+#
+# The window, and why the ORDER is forced:
+#   1. contracts declares BOTH tokens (target-contracts #764, 8247a22)  ← LANDED, so this flip is safe
+#   2. (this change) the emitter flips to the truthful literal
+#   3. the two skills fixtures re-pin (tumor-selectivity/tests/fixtures/{ceacam5,tacstd2}_coadread.yaml)
+#   4. the DEPRECATED ALIAS is dropped from the card vocabulary
+# Flipping BEFORE step 1 would have failed closed on the card vocabulary; dropping the alias before
+# step 3 would fail closed on every consumer still pinning the old literal. Do not reorder.
+#
+# `normal_arm_source` (emitted per row, straight from the product) remains the field a consumer should
+# key on for the normal-arm question — it is DATA, whereas this is a module constant.
+STAT_TEST = "welch_unpaired_tumor_vs_body_atlas_normal_same_organism_part"
 
 # Fallback pick bases (emitted as `cohort_pick_basis`) — say WHICH rule chose the returned cohort, so a
 # consumer can tell an indication-matched contrast from a pan-cancer extremum, and a detection-complete

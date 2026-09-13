@@ -423,17 +423,26 @@ def test_normal_arm_source_is_read_from_the_product_not_hardcoded(tmp_path):
     assert out2["normal_arm_source"] == "body_atlas_same_organism_part"
 
 
-def test_stat_test_literal_is_deliberately_left_wrong(tmp_path):
-    """`stat_test_used` says "adjacent_normal", which is FALSE — there is no adjacent-normal collection.
-    The literal is pinned in the contracts card vocabulary and in two skills fixtures, so renaming it
-    here reds those without fixing anything; the rename belongs to the contracts leg. This test exists
-    so the wrong name is a RECORDED decision rather than an oversight someone silently 'fixes'.
-    normal_arm_source is the field that carries the truth."""
-    assert read.STAT_TEST == "welch_unpaired_tumor_vs_adjacent_normal"
+def test_stat_test_literal_names_the_body_atlas_not_an_adjacent_normal(tmp_path):
+    """`stat_test_used` must NOT spell the normal arm "adjacent_normal" — TPHP collected no adjacent-
+    normal series, so that name asserted a study design that does not exist (and it said so on every row
+    of a 128,708-row product). This is STEP 2 of the forward-rename alias window: target-contracts #764
+    declared BOTH tokens first, so this emitter flip cannot fail closed on the card vocabulary; the
+    DEPRECATED alias is dropped only after the two skills fixtures re-pin (step 3).
+
+    This test replaces test_stat_test_literal_is_deliberately_left_wrong, which pinned the false literal
+    as a RECORDED decision and said in its own docstring that the rename belonged to the contracts leg.
+    That leg has landed, so the recorded decision is discharged rather than deleted — the assertion now
+    guards the rename in the other direction, against a revert to the false name."""
+    assert read.STAT_TEST == "welch_unpaired_tumor_vs_body_atlas_normal_same_organism_part"
     prod = _fixture(tmp_path)
     out = read.read_target_summary("CEACAM5", indication="COADREAD", product_path=prod)
-    assert out["stat_test_used"] == "welch_unpaired_tumor_vs_adjacent_normal"
+    assert out["stat_test_used"] == read.STAT_TEST
     assert out["normal_arm_source"] == "body_atlas_same_organism_part"
+    # the FALSE design claim must not survive anywhere in the emitted summary — not just in the one key
+    # this test pins. `adjacent` is the load-bearing substring: it is the study design that never existed.
+    leaked = {k: v for k, v in out.items() if isinstance(v, str) and "adjacent" in v}
+    assert not leaked, f"emitted values still claim an adjacent normal: {leaked}"
 
 
 def test_non_finite_effect_never_wins_the_argmax(tmp_path):
