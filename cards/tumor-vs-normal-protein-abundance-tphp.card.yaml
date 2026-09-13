@@ -46,7 +46,8 @@
 # DIA MaxLFQ abundance is a panel-relative log2 intensity, NOT absolute copies-per-cell.
 
 card_id: tumor-vs-normal-protein-abundance-tphp
-version: 1.1.0   # 1.1.0: v2 substrate — normal arm re-declared as the body atlas; censoring fields declared.
+version: 1.1.1   # 1.1.1: alias window closed — drop the deprecated stat_test_used '..._adjacent_normal' token.
+# 1.1.0: v2 substrate — normal arm re-declared as the body atlas; censoring fields declared.
 # interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
 interpretation: rules_pending
 question: "Does {target.symbol}'s tumor-vs-adjacent-normal PROTEIN differential hold at the protein layer in {indication.label} (TPHP DIA-MS) — the RNA→protein corroboration of tumor-vs-normal selectivity?"
@@ -89,7 +90,7 @@ outputs:
     - protein_expression_class                     # PRIMARY categorical — TPHP `effect` band
     - protein_effect_size                          # float — median_log2_tumor - median_log2_normal (RAW log2)
     - protein_median_log2_tumor                    # float — median log2 MaxLFQ over detected tumor samples
-    - protein_median_log2_normal                   # float — median log2 MaxLFQ over detected adjacent-normal
+    - protein_median_log2_normal                   # float — median log2 MaxLFQ over detected body-atlas normal (same organism part)
     - protein_p_value                              # float — Welch two-sample t-test p-value
     - protein_bh_q_value                           # float — BH-adjusted within cohort (CPTAC-aligned name)
     - n_tumor_samples                              # int — DETECTED tumor samples (numerator, not the cohort size)
@@ -112,8 +113,8 @@ outputs:
     - cohort                                       # the matched TPHP carcinoma cohort (free-text)
     - tissue                                       # the tumour-site organism part — and ALSO the normal arm's tissue (one part, both arms)
     - uniprot_ac                                   # UniProt accession of the protein group (DIA-NN Protein.Group)
-    - stat_test_used                               # constant — the comparison design (see vocabulary; the emitted literal
-                                                   # is mid-rename off the misleading '..._adjacent_normal' spelling)
+    - stat_test_used                               # constant — the comparison design (see vocabulary; a single
+                                                   # legal value naming the estimator + the body-atlas comparator)
     - method_version
     # NOT declarable: the reader also emits `_data_source` / `_data_note`. summary_fields forbids a
     # leading underscore (schema pattern ^[a-z][a-z0-9_]*$) — they are emitter metadata, not contract
@@ -133,15 +134,14 @@ outputs:
       # part, so there is no patient to pair to. A DIFFERENT estimator from the CPTAC MSstatsTMT
       # limma-moderated t, by design.
       #
-      # ★ FORWARD-RENAME IN PROGRESS (alias window). The v1 literal spells the normal arm
-      # "adjacent_normal", which is exactly the falsehood this card revision corrects; the truthful
-      # name is the v2 manifest's own `comparison:` value. BOTH tokens are legal for now so that
-      # readers/fixtures pinning the old literal stay valid while the emitter is flipped:
-      #   1. (this change) contracts declares both  →  2. analysis-methods emits the new literal
-      #   →  3. skills fixtures + consumers re-pin  →  4. drop the alias.
-      # The old token MUST NOT be dropped before step 3, or every consumer pinning it fails closed.
-      - welch_unpaired_tumor_vs_body_atlas_normal_same_organism_part   # truthful name (v2 manifest `comparison:`)
-      - welch_unpaired_tumor_vs_adjacent_normal                        # DEPRECATED ALIAS — misnames the normal arm; still emitted today
+      # ★ FORWARD-RENAME COMPLETE (alias window closed). The v1 literal spelled the normal arm
+      # "adjacent_normal", asserting a study design TPHP never ran; the token below names what the
+      # comparator actually is. Window: (1) contracts declared both tokens [#764] → (2) analysis-methods
+      # flipped the emitter [#623] → (3) the two skills replay fixtures re-pinned [skills#1358] →
+      # (4) THIS change drops the deprecated alias, now that it has zero consumers anywhere. The token
+      # names the estimator + the comparator; the derived manifest's own `comparison:` records the same
+      # design as `unpaired_tumor_vs_body_atlas_normal_same_organism_part_group_medians`.
+      - welch_unpaired_tumor_vs_body_atlas_normal_same_organism_part   # the only legal value (matches the reader's emitted STAT_TEST)
     normal_arm_source:
       # ★ What the normal arm IS. One value today, and that is the point: it says the normal arm of
       # this facet IS the TPHP normal-tissue atlas, so the two cards are one measurement read twice.
@@ -201,7 +201,7 @@ warning_predicates:
 
 caveats:
   - |
-    VERDICT-INERT corroboration facet. TPHP DIA-MS tumor-vs-adjacent-normal protein, complementing the
+    VERDICT-INERT corroboration facet. TPHP DIA-MS tumor-vs-normal protein, complementing the
     CPTAC TMT-MS card (tumor-protein-abundance-cptac) across 22 carcinoma cohorts, several outside CPTAC
     coverage. Fires no rule / no veto; consumed via the derived rna_protein_tvn_concordance read, and is
     absent from card_resolver_consumption.
@@ -234,7 +234,7 @@ caveats:
     authoritative for those.
 
 measurement: bulk_protein_ms
-sample_context: tumor         # patient tumor vs matched adjacent-normal (TPHP per-cohort) — the tumor arm.
+sample_context: tumor         # patient tumor vs the body-atlas normal of the same organism part (TPHP per-cohort) — the tumor arm.
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `tumor_vs_normal_protein_abundance` claim (the TUMOR-vs-
 # normal protein CONTRAST; DISTINCT from tumor_protein_abundance [CPTAC total-protein presence] and from
