@@ -71,12 +71,16 @@ it has a verdict-moving downstream (CASE-028).
   oncogene, so promoting it to `confirmed_driver` (over the blind SNV axis) is a false-positive driver. The
   LoF sibling (`:101`, `alteration-role-lof-driver-neutral → confirmed_lof_driver`) is correct — deletion
   IS the mechanism for a TSG; only the GoF pairing is wrong.
-- **Fix (verdict-MOVING, needs calibration backtest + golden regen + full suite):** gate rung `:100` so a
-  recurrent deletion does not confer `confirmed_driver` on a GoF-role gene (demote to a
-  passenger/`data_unavailable`-scoped read, or require the deletion class to agree with a LoF/neutral role).
-  Anchor IDH2/AML in the calibration set. HELD pending the fix-scope decision.
-- **Status:** CONFIRMED real verdict-rule gap. FGFR3/BLCA and MDM2/LGG (both verdict_rule_gap) are the same
-  family — CN-deletion contradicting an activation/amplification literature while SNV is unmeasured.
+- **Fix — DONE (TC #760 `7f3975cf` resolver 1.9.0 + skills golden #1342 `669b1652`):** a CN deletion is a
+  driver class only for a LoF/neutral role. Removed the 4 GoF+deletion multi_class rungs (fall to
+  single-class confirmed_driver) and redirected the 2 GoF+deletion confirmed_driver rungs → mixed_pattern.
+  Backtest replaying every panel target's live fired-set: IDH2/AML confirmed_driver→mixed_pattern,
+  FGFR3/BLCA multi_class_driver→confirmed_driver, 13 others unchanged. Ratchet
+  `test_a_deletion_never_confers_a_driver_verdict_on_a_gof_role` (falsified).
+- **Status:** ✅ DONE. FGFR3/BLCA was the same family (multi_class over-crediting the deletion → now
+  confirmed_driver). **MDM2/LGG is NOT this family** — it fired `cn-broadly-neutral` (not deleted) + missense
+  → confirmed_driver, UNCHANGED by this fix; its `contradicts` was a missed AMPLIFICATION, so it belongs
+  with CASE-030 (and is resolved there as an honest read).
 
 ### CASE-029 — SNV recurrence axis BLIND outside 4 indications → IDH1/GBM `mixed_pattern`, canonical R132 driver invisible (calibration_gap) — CONFIRMED
 
@@ -85,26 +89,48 @@ it has a verdict-moving downstream (CASE-028).
   CN/FUS/SPL/DEP all `absent`, ROLE `strong` → verdict `mixed_pattern`, driving `mut-mixed-neutral`. IDH1
   R132 is THE defining LGG/GBM driver; the skill cannot see it. Same root as CASE-028; here it produces a
   false-NEGATIVE / uninformative read rather than a false driver.
-- **Fix (DATA layer, large):** build the MC3 (and/or GENIE `genie_panel_recurrence`) hotspot aggregates for
-  the missing indications — at minimum AML, GBM, then BRCA/OV/SKCM/LGG/DLBC/BLCA/HNSC/THCA/PRAD — via
-  `gdc_somatic_hotspot/cli.py::aggregate_indication`, register in data-catalog
-  `tcga-mc3-hotspot-frequency-v1`, re-emit. A data-catalog workstream; the durable root fix that also
-  resolves CASE-029 and de-fangs CASE-028's vacuum.
-- **Status:** CONFIRMED coverage gap. `blind_spot_gap`/`staleness` counts (51/14) are the fleet-wide tail
-  of the same limitation.
+CASE-029 has TWO coverage gaps, one per genomic axis. Both are materialized-product coverage limits (the
+raw sources carry every cohort):
 
-### CASE-030 — MET/LUAD CN axis reads `absent` though MET focal amplification is a validated recurrent LUAD driver (calibration_gap) — CONFIRMED
+- **Patient-CN half — DONE (analysis-methods #617).** The CN axis (`tcga_patient_cn`) was blind for 20 of 33
+  GISTIC cohorts: `INDICATION_TO_TCGA` mapped only 13, and `patient_cn_summary_for_gene` returns
+  `data_unavailable` at the `if not codes` guard for an unmapped indication WITHOUT reaching the live-TSV
+  fallback. So EGFR/GBM (44% high-level focal amp), CDKN2A/GBM homdel, and every driver outside the 13 read
+  `data_unavailable` — a silent false-negative. Fix = map all 33 cohorts (AML→LAML the one alias); the new
+  cohorts serve via the live-TSV fallback (product `tcga-patient-cn-per-gene-v1` still covers 13, so a
+  rebuild is a speed follow-on). Verdict-moving downstream (un-blinds patient-focal CN for 20 indications);
+  skills re-emit + backtest after #617 merges.
+- **SNV-recurrence half — OPEN (data build, needs S3 publish).** `gdc_somatic_hotspot` is PRODUCT-ONLY (no
+  live-MAF fallback): the MC3 product `tcga-mc3-hotspot-frequency-v1` ships only 4 indications (COADREAD,
+  NSCLC, GC, PAAD), so IDH1/GBM, IDH2/AML, FLT3/AML etc. read `data_unavailable`. Fix = build the per-
+  indication aggregate via `python -m methods.gdc_somatic_hotspot.cli --indication X` over the 718 MB MC3
+  MAF for each missing indication, publish to the shared onc-compbio S3 bucket, register in the data-catalog
+  manifest, re-emit. This is an outward, per-indication data-build workstream (writes production products to
+  the shared bucket) — the durable root fix that un-blinds IDH1/GBM's `mixed_pattern` and de-fangs CASE-028's
+  vacuum. **Gated on a go/no-go for publishing production data products.** GENIE (`genie_panel_recurrence`)
+  is the parallel heme/panel-cohort source and would extend AML/DLBC coverage the MC3/TCGA cohorts lack.
+- **Status:** patient-CN ✅ DONE (#617 pending CI); SNV-recurrence OPEN (data build). `blind_spot_gap`/
+  `staleness` counts (51/14) are the fleet-wide tail of the SNV half.
 
-- **Surfaced by:** genomic-20 panel, CN axis, `contradicts` vs Zeng 2026 + Sheng 2025 (verified). NSCLC IS
-  one of the 4 covered indications, so unlike CASE-028/029 the SNV axis here reads `moderate` — and the SPL
-  fix works (verdict `splice_exon_skip_driver`, driving `splice-exon-skip-driver-supportive`; MET METex14 is
-  correctly the driver). But the CO-OCCURRING focal amplification (de novo + EGFR-TKI resistance) reads
-  CN `absent`.
-- **Fix (probe first):** reproduce the CN read for MET/LUAD (`copy_number_class`) to decide threshold vs
-  scope vs data — MET amp may be sub-threshold in the cell-line CN card, or the LUAD tumor-CN comparator is
-  the missing leg. Not yet probed at the card level. HELD.
-- **Status:** CONFIRMED false-negative on a co-occurring class; lower-severity than CASE-028 (the primary
-  driver call is correct via SPL).
+### CASE-030 — MET/LUAD (and MDM2/LGG) CN `absent` vs an amplification literature — RESOLVED: honest read, no fix
+
+- **Surfaced by:** genomic-20 panel, CN axis, `contradicts` vs Zeng 2026 + Sheng 2025 (MET), Yang 2022 +
+  Guo 2023 (MDM2), all verified.
+- **Determination (live-probed at the card level, `tcga_patient_cn`, TCGA GISTIC, focal bar = high-level +2
+  in ≥10% of tumours):** MET/LUAD high-level focal amp = **2.2%** → `focal_neutral`; MDM2/LGG = **0.6%** →
+  `focal_neutral`; MDM2/GBM = 8.2% → still `focal_neutral` (sub-10%). These are HONEST reads: MET amp in LUAD
+  is a ~2-4% minority (largely an EGFR-TKI-resistance subpopulation the treatment-naive TCGA cohort
+  under-represents), and MDM2 is not recurrently focally amplified in LGG. The literature "validated driver"
+  refers to an actionable SUBSET, not population recurrence — a framing discordance, not an omics miss. Per
+  the runbook, an honest low-frequency negative is documented, NOT forced.
+- **The genuinely-amplified controls confirm the instrument works:** ERBB2/BRCA (11.5% high-amp) and
+  CCND1/HNSC (23%) read `recurrent_focal_amplification`, and the claim_vector `_cn_signal` ALREADY elevates
+  on `patient_focal_cn_class == recurrent_focal_amplification` (the pre-existing HER2/CCND1 fix), so they
+  were NOT flagged by the panel. No claim-vector bug exists for CASE-030.
+- **What CASE-030 DID surface** was the patient-CN coverage gap for MDM2/LGG (`n_samples=0` → the CASE-029
+  patient-CN half, fixed in #617 — but even with coverage MDM2/LGG reads `focal_neutral` at 0.6%).
+- **Status:** ✅ RESOLVED as honest. No code change. MET/LUAD's primary driver call (`splice_exon_skip_driver`)
+  is correct; the missed amp is a real but sub-recurrence minority event.
 
 ### MECHANISM 20-pair literature panel baseline (2026-09-12) — 20/20 emitted, 73 ledger rows, **0 contradicts**
 
