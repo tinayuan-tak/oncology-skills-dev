@@ -43,7 +43,9 @@ required_inputs:
 
 methods:
   - call: cross-consortium-paralog-gi
-    module: paralog_genetic_interaction
+    # read submodule, NOT the package: __init__ re-exports only combinatorial_dependency_for_gene
+    # + lineage_breakdown_for_pair, so `getattr(package, ...)` on this reader raised AttributeError.
+    module: paralog_genetic_interaction.read
     entrypoint: cross_consortium_paralog_gi_for_gene
     args:
       target: "{target.symbol}"

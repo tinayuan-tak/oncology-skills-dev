@@ -158,6 +158,15 @@ jobs:
       - name: Shared-measurement_type vocabulary ratchet
         run: python -m pytest tests/validators/test_shared_measurement_type_vocabularies.py -q
 
+      # 2026-09-13 (foundation audit): method-WIRING ratchet — a declared `methods[].entrypoint` must
+      # name a symbol the module exports, and every card must be readable on SOME path (generic
+      # entrypoint or a *DISPATCHERS registry entry) or declare a non-live status. Both halves
+      # self-skip here (no sibling analysis-methods / skills checkout on this runner), so the hermetic
+      # behavioural tests are what CI actually gates; the live ratchets run in scripts/preland.sh.
+      # Gated explicitly — tests/validators/ is curated file-by-file, so an unwired file never runs.
+      - name: Card method-wiring ratchet
+        run: python -m pytest tests/validators/test_card_method_wiring.py -q
+
       # 2026-08-20 (CI-gap closure): the nomination-gate CURATION invariants (veto set, positive-axis
       # discipline, disjointness, provenance completeness) + the subtype-tier ADMISSIBILITY guard were
       # fully tested but gated by NO workflow — so a positive_signal graduation (cis_coherence) drifted

@@ -28,6 +28,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import ast
 import functools
 import json
 import os
@@ -130,6 +131,39 @@ _FIGURE_EMITTERS_CANDIDATES = (
     _SKILLS_SCRIPTS / "_figure_emitters" / "_registry.py",  # pre-rehome package under compose-dashboard
     _SKILLS_SCRIPTS / "_figure_emitters.py",  # legacy monolith
 )
+
+# Method-wiring check (foundation audit 2026-09-13). A card's `methods[]` block is the contract for
+# HOW the card's evidence is produced. Two halves were unguarded:
+#
+#   (1) RESOLUTION. When an entry declares `module` + `entrypoint`, the skills live-reader layer
+#       (_skills_common/_live_readers.py::_generic_dispatch) resolves it as
+#       `__import__("methods." + (module or call.replace("-","_")), fromlist=["*"])` then
+#       `getattr(mod, entrypoint)`. A declaration naming a symbol the module does not EXPORT raises
+#       AttributeError at read time — and because the generic path is only a FALLBACK behind the
+#       bespoke CARD_DISPATCHERS registry, a bespoke-routed card can carry a broken declaration
+#       indefinitely with nothing failing. The audit found exactly that on 3 `wired` cards, where the
+#       function existed in a SUBMODULE that the package `__init__` never re-exported. A pointer that
+#       never resolves looks like a working one.
+#
+#   (2) ROUTABILITY. A card is readable on the live path iff it declares an `entrypoint` (generic) OR
+#       a skills-side dispatcher registry names its card_id (bespoke / panorama / dual-grain). A card
+#       that is NEITHER produces nothing, on every run, silently. Today that set is exactly the 9
+#       KNOWN_UNROUTED_CARDS below and every one of them DECLARES a non-live status — so the
+#       invariant holds and is worth ratcheting: a NEW unroutable card must be an error, not a new
+#       exemption. See validate_card_method_routability().
+#
+# Resolution is STATIC (AST parse of the module file), not a real import: this validator runs as bare
+# python in a checkout with no analysis-methods dependencies installed, so importing for real would
+# fail on pandas/boto3 rather than on the wiring. Both halves graceful-skip when the sibling repo is
+# absent (isolated CI), mirroring the _SKILLS_REPO figure-emission pattern above.
+_ANALYSIS_METHODS_REPO = Path(
+    os.environ.get("ANALYSIS_METHODS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+)
+# The dispatcher registries live_readers exposes. Discovered BY NAME SUFFIX rather than a hardcoded
+# list of three, so a fourth registry is picked up automatically instead of turning its cards into
+# phantom "unroutable" findings (derive-the-check's-own-population).
+_LIVE_READERS_PATH = _SKILLS_REPO / "skills" / "_skills_common" / "_live_readers.py"
+_DISPATCHER_REGISTRY_SUFFIX = "DISPATCHERS"
 
 # Measurement-type check (DATA_TO_SKILL_CONTRACT.md, 2026-07-21). A card's identity is
 # (measurement_type × entity_grain) — Rule 1. During migration the field is OPTIONAL (existing
@@ -322,6 +356,108 @@ def _registered_figure_emitters() -> Optional[set[str]]:
     return set(re.findall(r'"([a-z0-9-]+)"\s*:\s*_emit', txt))
 
 
+# Sentinel for a module the AST cannot see through (a star-import re-export). Distinct from
+# "module not found" (a real defect) and from a known name set — an opaque module must SKIP, because
+# a false ERROR on wiring that actually resolves is worse than the gap it would report.
+_OPAQUE_MODULE = frozenset({"*"})
+
+
+def _method_module_path(method: dict) -> str:
+    """The importable methods-repo module path a `methods[]` entry resolves to. Mirrors
+    _generic_dispatch exactly: explicit `module`, else the `call` slug with hyphens→underscores."""
+    return str(method.get("module") or str(method.get("call") or "").replace("-", "_"))
+
+
+def _top_level_bindings(body: list[ast.stmt]) -> tuple[set[str], bool]:
+    """Names bound at a module's top level, plus whether a star-import makes it opaque.
+
+    Walks INTO if/try/with bodies: a `try: from x import y / except ImportError: def y(...)` pattern
+    binds the name at module level just as a bare def does, and treating it as absent would be a
+    false failure. Does not walk into function/class bodies (those bind locally)."""
+    names: set[str] = set()
+    opaque = False
+    for node in body:
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.add(node.name)
+        elif isinstance(node, ast.Assign):
+            for tgt in node.targets:
+                if isinstance(tgt, ast.Name):
+                    names.add(tgt.id)
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names.add(node.target.id)
+        elif isinstance(node, (ast.Import, ast.ImportFrom)):
+            for alias in node.names:
+                if alias.name == "*":
+                    opaque = True
+                else:
+                    names.add(alias.asname or alias.name.split(".")[0])
+        elif isinstance(node, (ast.If, ast.Try, ast.With, ast.For, ast.While)):
+            nested_bodies = [node.body, getattr(node, "orelse", []), getattr(node, "finalbody", [])]
+            for handler in getattr(node, "handlers", []):
+                nested_bodies.append(handler.body)
+            for nested in nested_bodies:
+                sub_names, sub_opaque = _top_level_bindings(nested)
+                names |= sub_names
+                opaque = opaque or sub_opaque
+    return names, opaque
+
+
+@functools.lru_cache(maxsize=1)
+def _analysis_methods_available() -> bool:
+    """True when the sibling analysis-methods checkout is on disk (else both wiring halves skip)."""
+    return (_ANALYSIS_METHODS_REPO / "methods").is_dir()
+
+
+@functools.lru_cache(maxsize=None)
+def _method_module_bindings(module_path: str) -> Optional[frozenset[str]]:
+    """Module-level names exported by `methods.<module_path>`, resolved statically.
+
+    Returns None when no module FILE exists for the path (a real wiring defect), and
+    _OPAQUE_MODULE when a star-import means the export set cannot be determined (→ skip)."""
+    if not module_path or not _analysis_methods_available():
+        return None
+    base = _ANALYSIS_METHODS_REPO / "methods" / Path(*module_path.split("."))
+    for candidate in (base.with_suffix(".py"), base / "__init__.py"):
+        if not candidate.is_file():
+            continue
+        try:
+            tree = ast.parse(candidate.read_text())
+        except (OSError, SyntaxError):
+            return _OPAQUE_MODULE  # unparseable → cannot judge, do not false-fail
+        names, opaque = _top_level_bindings(tree.body)
+        return _OPAQUE_MODULE if opaque else frozenset(names)
+    return None
+
+
+@functools.lru_cache(maxsize=1)
+def _dispatcher_routed_card_ids() -> Optional[frozenset[str]]:
+    """card_ids the skills live-reader layer routes via a hand-written dispatcher — the union of every
+    module-level `*DISPATCHERS` dict literal in _skills_common/_live_readers.py.
+
+    Returns None when the skills repo is unreachable OR when no registry is found at all: an empty
+    routed set would report every bespoke-routed card as unroutable, so a parse that finds nothing is
+    treated as "cannot determine" rather than as evidence of absence."""
+    try:
+        tree = ast.parse(_LIVE_READERS_PATH.read_text())
+    except (OSError, SyntaxError):
+        return None
+    routed: set[str] = set()
+    registries = 0
+    for node in tree.body:
+        if not isinstance(node, ast.Assign) or not isinstance(node.value, ast.Dict):
+            continue
+        targets = [t.id for t in node.targets if isinstance(t, ast.Name)]
+        if not any(name.endswith(_DISPATCHER_REGISTRY_SUFFIX) for name in targets):
+            continue
+        registries += 1
+        for key in node.value.keys:
+            if isinstance(key, ast.Constant) and isinstance(key.value, str):
+                routed.add(key.value)
+    if not registries or not routed:
+        return None
+    return frozenset(routed)
+
+
 # KNOWN figure debt (viz-coverage audit 2026-07-20): cards that declare a figure but
 # have NO emitter registered in CARD_FIGURE_EMITTERS yet. Enumerated so the build
 # stays green while the debt is worked down — but a NEW card cannot silently join
@@ -423,6 +559,26 @@ KNOWN_FIGURE_DEBT = {
     # attached NOTHING — the silence this waiver is designed to track. Now passes, not waived.
     "pmhc-presentation",  # figure emitter not yet registered in compose-dashboard _figure_emitters.py (pre-existing)
 }
+
+# KNOWN unroutable cards (foundation audit 2026-09-13): cards the skills live-reader layer cannot read
+# on ANY path — no `methods[].entrypoint` for the generic dispatcher AND no card_id in any
+# `*DISPATCHERS` registry. All 9 declare a non-live top-level status, so the exemption is BY
+# DECLARATION, not by silence — validate_card_method_routability() asserts that, asserts this set is
+# exactly the unroutable set (a stale waiver on a now-routable card is also an error), and errors on
+# any card that joins it. The status column is what makes the waiver reviewable.
+KNOWN_UNROUTED_CARDS = {
+    "antigen-internalization",  # placeholder_not_wired — no internalization/turnover product exists
+    "antigen-prevalence",  # placeholder_not_wired — no prevalence product exists
+    "antigen-prevalence-protein",  # placeholder_not_wired — no CPTAC protein-prevalence product
+    "functional-blockade-rationale",  # placeholder_not_wired — contract created to kill a phantom ref
+    "lineage-restriction-evidence",  # dormant_pending_data
+    "rwd-stratified-expression",  # placeholder_not_wired — no RWD cohort held
+    "sc-surface-normal-safety-solid",  # placeholder_not_wired
+    "subgroup-stratified-expression",  # dormant_pending_data — per-sample subtype expression reader
+    "temporal-setting-expression-shift",  # placeholder_not_wired — no setting-annotated cohort reader
+}
+# The statuses that make a card's unroutability a DECLARED state rather than a silent gap.
+_NON_LIVE_STATUSES = frozenset({"placeholder_not_wired", "dormant_pending_data"})
 
 
 @dataclass
@@ -1093,6 +1249,58 @@ def _figure_emission_check(spec: dict, report: ValidationReport) -> None:
     )
 
 
+def _method_entrypoint_check(spec: dict, report: ValidationReport) -> None:
+    """Method-wiring resolution (foundation audit 2026-09-13) — a declared `entrypoint` must EXIST.
+
+    For every `methods[]` entry carrying an `entrypoint`, resolve (module, entrypoint) the way the
+    skills generic dispatcher does — `module` else `call` with hyphens→underscores, then the symbol as
+    a module-level export — and ERROR when either half does not resolve. Two failure shapes:
+
+      METHOD_MODULE_MISSING   no methods/<module>.py or methods/<module>/__init__.py at all.
+      METHOD_ENTRYPOINT_MISSING  the module exists but does not EXPORT the named symbol. The common
+        cause is a function defined in a submodule that the package `__init__` never re-exported:
+        `getattr(package, fn)` then raises AttributeError even though `grep def fn` finds it.
+
+    ERROR, not warning, on every card regardless of status: an entrypoint is only ever written to be
+    called, so a broken one is a defect whether or not the card is live today. Cards with no
+    entrypoint declare nothing here and are out of this check's population (their routability is
+    validate_card_method_routability's job). Graceful-skips when analysis-methods is absent.
+    """
+    if not _analysis_methods_available():
+        return
+    card_id = spec.get("card_id", "<unknown>")
+    for i, method in enumerate(spec.get("methods") or []):
+        if not isinstance(method, dict) or not method.get("entrypoint"):
+            continue
+        module_path = _method_module_path(method)
+        entrypoint = method["entrypoint"]
+        if not module_path:
+            report.add_error(
+                f"METHOD_MODULE_MISSING [methods[{i}]]: card `{card_id}` declares "
+                f"entrypoint {entrypoint!r} with neither `module` nor `call` to resolve it against."
+            )
+            continue
+        bindings = _method_module_bindings(module_path)
+        if bindings is None:
+            report.add_error(
+                f"METHOD_MODULE_MISSING [methods[{i}]]: card `{card_id}` declares "
+                f"module {module_path!r} (entrypoint {entrypoint!r}) but analysis-methods has no "
+                f"methods/{module_path.replace('.', '/')}.py or .../__init__.py. The live reader "
+                f"imports `methods.{module_path}` — this declaration cannot resolve."
+            )
+            continue
+        if bindings is _OPAQUE_MODULE:
+            continue  # star-import re-export → export set undeterminable statically, do not judge
+        if entrypoint not in bindings:
+            report.add_error(
+                f"METHOD_ENTRYPOINT_MISSING [methods[{i}]]: card `{card_id}` declares "
+                f"entrypoint {entrypoint!r} on module {module_path!r}, but `methods.{module_path}` "
+                f"does not export that name. `getattr` on it raises AttributeError. If the function "
+                f"lives in a submodule, point `module` at the submodule (e.g. "
+                f"'{module_path}.read') or re-export it from the package __init__."
+            )
+
+
 def _measurement_type_check(spec: dict, report: ValidationReport) -> None:
     """DATA_TO_SKILL_CONTRACT.md Rule 1 (2026-07-21) — a card's identity is
     (measurement_type × entity_grain).
@@ -1332,6 +1540,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
         _grain_and_tier_check(spec, report)
         _blocked_subtype_status_check(spec, report)
         _figure_emission_check(spec, report)
+        _method_entrypoint_check(spec, report)
         _measurement_type_check(spec, report)
         _sample_context_check(spec, report)
         _modality_relevance_check(spec, report)
@@ -1656,6 +1865,88 @@ def validate_modality_module_card_refs(cards_dir: Path) -> list[str]:
     return problems
 
 
+def validate_card_method_routability(cards_dir: Path) -> list[str]:
+    """Method-wiring routability (foundation audit 2026-09-13): every card must be READABLE on the live
+    path, or DECLARE that it is not.
+
+    A card is routable iff (a) some `methods[]` entry declares an `entrypoint` — the generic dispatcher
+    handles it — or (b) its card_id appears in one of the skills `*DISPATCHERS` registries (bespoke /
+    panorama / dual-grain). A card that is neither emits nothing on every run, and nothing else in the
+    build says so: the required-cards gate reads `status`, the figure check reads emitters, and the
+    product-id check reads inputs — none of them ask whether a reader exists AT ALL.
+
+    Three assertions, deliberately in both directions (mirror-guards):
+      1. every unroutable card is on KNOWN_UNROUTED_CARDS  → a NEW unwired card is an ERROR,
+      2. every KNOWN_UNROUTED_CARDS entry is still unroutable and still a real card → a stale waiver
+         is an ERROR, so the waiver cannot outlive the gap it documents,
+      3. every waived card declares a non-live `status`  → the exemption is by DECLARATION. A card
+         that claims `wired` while being unreadable is the exact false-liveness this check exists for,
+         and adding it to the waiver must not launder that claim.
+
+    Skips with a WARNING (never a silent pass) when the skills dispatcher registries are unreachable —
+    an isolated CI cannot tell a bespoke-routed card from an orphan, and a check that quietly returns
+    nothing in that state is green for the wrong reason.
+    """
+    cards_dir = Path(cards_dir)
+    routed = _dispatcher_routed_card_ids()
+    if routed is None:
+        return [
+            "[WARNING] method routability: SKIPPED — could not read the dispatcher registries at "
+            f"{_LIVE_READERS_PATH} (sibling skills repo absent, or no `*{_DISPATCHER_REGISTRY_SUFFIX}` "
+            "dict found). Without them a bespoke-routed card is indistinguishable from an unwired one, "
+            "so this check abstains rather than reporting phantom gaps. Set CLAUDE_ONCOLOGY_SKILLS_ROOT "
+            "to run it."
+        ]
+
+    statuses: dict[str, str] = {}
+    unroutable: set[str] = set()
+    for path in sorted(cards_dir.rglob("*.card.yaml")):
+        try:
+            spec = yaml.safe_load(path.read_text()) or {}
+        except yaml.YAMLError:
+            continue
+        card_id = spec.get("card_id")
+        if not card_id:
+            continue
+        # `status` DEFAULTS to `wired` when omitted (schema) — an omitted status is a liveness CLAIM.
+        statuses[card_id] = spec.get("status") or "wired"
+        has_entrypoint = any(isinstance(m, dict) and m.get("entrypoint") for m in (spec.get("methods") or []))
+        if not has_entrypoint and card_id not in routed:
+            unroutable.add(card_id)
+
+    problems: list[str] = []
+    for card_id in sorted(unroutable - KNOWN_UNROUTED_CARDS):
+        problems.append(
+            f"[ERROR] card '{card_id}' (status: {statuses.get(card_id)}) is UNROUTABLE: it declares no "
+            f"`methods[].entrypoint` (so the generic dispatcher cannot read it) and no "
+            f"`*{_DISPATCHER_REGISTRY_SUFFIX}` registry in {_LIVE_READERS_PATH.name} names it (so no "
+            f"bespoke reader exists). The card would emit nothing on every run. Declare "
+            f"module+entrypoint, add a dispatcher, or — if it is genuinely data-blocked — set a "
+            f"non-live status and add it to KNOWN_UNROUTED_CARDS with a reason."
+        )
+    for card_id in sorted(KNOWN_UNROUTED_CARDS - unroutable):
+        if card_id not in statuses:
+            problems.append(
+                f"[ERROR] KNOWN_UNROUTED_CARDS names '{card_id}', which has no card contract in "
+                f"{cards_dir.name}/ — a waiver for a card that no longer exists. Drop the entry."
+            )
+        else:
+            problems.append(
+                f"[ERROR] KNOWN_UNROUTED_CARDS names '{card_id}', but it is now ROUTABLE (a reader was "
+                f"wired). Remove it from the waiver so the set keeps meaning what it says."
+            )
+    for card_id in sorted(KNOWN_UNROUTED_CARDS & unroutable):
+        status = statuses.get(card_id)
+        if status not in _NON_LIVE_STATUSES:
+            problems.append(
+                f"[ERROR] card '{card_id}' is on KNOWN_UNROUTED_CARDS but declares `status: {status}` — "
+                f"an unreadable card claiming liveness. Exemption is by DECLARATION: set one of "
+                f"{sorted(_NON_LIVE_STATUSES)} (the waiver documents the gap, it does not excuse the "
+                f"false liveness claim)."
+            )
+    return problems
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description="Validate iter-1 card_spec YAML files against card.schema.json + cross-reference rules."
@@ -1695,6 +1986,7 @@ def main(argv: list[str] | None = None) -> int:
             + validate_derived_from_refs(target)
             + validate_verdict_card_summary_schema_coverage(target)
             + validate_shared_measurement_type_vocabularies(target)
+            + validate_card_method_routability(target)
         )
         if target.is_dir()
         else []
@@ -1711,7 +2003,7 @@ def main(argv: list[str] | None = None) -> int:
         print()
         print(
             "Cross-card checks (required_cards<->status, modality-module refs, derived_from "
-            "reachability, shared-measurement_type vocabularies):"
+            "reachability, shared-measurement_type vocabularies, method routability):"
         )
         for p in dashboard_problems:
             print(f"  {p}")

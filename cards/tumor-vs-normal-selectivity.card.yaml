@@ -125,7 +125,9 @@ methods:
   # DESeq2 → descriptive per-stratum records + cross-stratum reducer scalars.
   # Bound as a PER_SAMPLE_STRATIFIABLE_CALL in validators/validate_cards.py.
   - call: dge-tumor-vs-normal-selectivity-by-subgroup
-    module: dge_deseq2
+    # read submodule, NOT the package: dge_deseq2/__init__ re-exports the pooled readers but not
+    # the stratified one, so the package-level getattr raised AttributeError.
+    module: dge_deseq2.read
     entrypoint: read_stratified_tumor_vs_normal_selectivity
     args:
       target: "{target.symbol}"
