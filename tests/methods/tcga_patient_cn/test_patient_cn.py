@@ -133,3 +133,71 @@ def test_gene_absent_data_unavailable(monkeypatch):
     monkeypatch.setattr(r, "_load_sample_cancer_types", lambda: {"TCGA-A1-0001": "BRCA"})
     out = r.patient_cn_summary_for_gene("MADEUPGENE", "BRCA")
     assert out["patient_copy_number_class"] == "data_unavailable"
+
+
+# --- CASE-029: indication coverage. The map is the ONLY gate; an unmapped indication returns
+#     data_unavailable at the `if not codes` guard WITHOUT reaching the live-TSV fallback, so a
+#     cohort absent from the map is a silent false-negative on the whole patient-CN axis. ------------
+_GISTIC_COHORTS = {  # every TCGA cohort in the GDC PanCanAtlas GISTIC sample map (33)
+    "ACC",
+    "BLCA",
+    "BRCA",
+    "CESC",
+    "CHOL",
+    "COAD",
+    "DLBC",
+    "ESCA",
+    "GBM",
+    "HNSC",
+    "KICH",
+    "KIRC",
+    "KIRP",
+    "LAML",
+    "LGG",
+    "LIHC",
+    "LUAD",
+    "LUSC",
+    "MESO",
+    "OV",
+    "PAAD",
+    "PCPG",
+    "PRAD",
+    "READ",
+    "SARC",
+    "SKCM",
+    "STAD",
+    "TGCT",
+    "THCA",
+    "THYM",
+    "UCEC",
+    "UCS",
+    "UVM",
+}
+
+
+def test_every_gistic_cohort_is_reachable():
+    """Coverage floor: every TCGA cohort GISTIC actually carries must be reachable through the map,
+    else that cohort is blind (returns data_unavailable at the guard, never hitting the live TSV).
+    The pre-CASE-029 map covered 13 of 33, so EGFR/GBM (44% high-level focal amp) read
+    data_unavailable — a textbook driver invisible on the patient-CN axis."""
+    mapped_tcga = {code for codes in r.INDICATION_TO_TCGA.values() for code in codes}
+    missing = _GISTIC_COHORTS - mapped_tcga
+    assert not missing, f"GISTIC cohorts unreachable through INDICATION_TO_TCGA (blind axis): {sorted(missing)}"
+
+
+def test_aml_alias_maps_to_laml():
+    """The one non-identity alias: the framework indication AML resolves to TCGA project LAML."""
+    assert r.INDICATION_TO_TCGA.get("AML") == ("LAML",)
+
+
+def test_newly_mapped_cohort_resolves_via_live_fallback(monkeypatch):
+    """The fix is reachable end-to-end: a cohort added to the map but ABSENT from the materialized
+    product must still resolve, via the live-TSV fallback — proving the `if not codes` guard no longer
+    short-circuits GBM/LGG/LAML before the fallback runs. (EGFR/GBM on live data: 44% high-level amp.)"""
+    g = {f"TCGA-06-{i:04d}-01A": (2 if i < 44 else 0) for i in range(100)}  # 44% high-level amp, GBM-like
+    cancer = {f"TCGA-06-{i:04d}": "GBM" for i in range(100)}
+    _setup(monkeypatch, g, cancer)  # _setup forces _read_from_product -> None (product miss)
+    out = r.patient_cn_summary_for_gene("EGFR", "GBM")
+    assert out["_read_path"] == "live_tsv"
+    assert out["n_samples"] == 100
+    assert out["patient_focal_cn_class"] == "recurrent_focal_amplification"

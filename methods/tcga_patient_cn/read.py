@@ -23,7 +23,17 @@ PANCAN_PREFIX = "data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27"
 GISTIC_KEY = f"{PANCAN_PREFIX}/all_thresholded.by_genes_whitelisted.tsv"
 SAMPLE_ANNOT_KEY = f"{PANCAN_PREFIX}/merged_sample_quality_annotations.tsv"
 
-# framework indication → TCGA `cancer type` code(s) (mirrors tcga_aneuploidy_burden.INDICATION_TO_TCGA).
+# framework indication → TCGA `cancer type` code(s).
+# COVERAGE = every TCGA cohort present in the GDC PanCanAtlas GISTIC sample map (33 cohorts). The map is
+# the ONLY gate on which indications resolve: patient_cn_summary_for_gene returns data_unavailable at the
+# `if not codes` guard for any UNMAPPED indication and never reaches the live-TSV fallback, so an
+# indication absent here is BLIND even though the raw GISTIC TSV carries it. Before 2026-09-13 only 13
+# cohorts were mapped, so EGFR/GBM (high-level focal amp in 44% of tumours), CDKN2A/GBM homdel, and every
+# other driver outside those 13 read `data_unavailable` — a silent false-negative on the patient-CN axis.
+# Surfaced by the genomic-20 panel (eval/CASE_LOG CASE-029). The materialized product
+# tcga-patient-cn-per-gene-v1 still covers only the original 13, so the new cohorts serve via the (slower)
+# live-TSV fallback until the product is rebuilt — correctness now, speed later.
+# AML is the one alias (framework AML → TCGA LAML); the rest are 1:1 with the TCGA code.
 INDICATION_TO_TCGA = {
     "COADREAD": ("COAD", "READ"),
     "COAD": ("COAD",),
@@ -43,6 +53,28 @@ INDICATION_TO_TCGA = {
     "PRAD": ("PRAD",),
     "SKCM": ("SKCM",),
     "UCEC": ("UCEC",),
+    # ── added 2026-09-13 (CASE-029): the remaining 20 GISTIC cohorts ──
+    "GBM": ("GBM",),
+    "LGG": ("LGG",),
+    "AML": ("LAML",),  # framework AML → TCGA LAML
+    "LAML": ("LAML",),
+    "BLCA": ("BLCA",),
+    "KIRC": ("KIRC",),
+    "KIRP": ("KIRP",),
+    "KICH": ("KICH",),
+    "LIHC": ("LIHC",),
+    "SARC": ("SARC",),
+    "MESO": ("MESO",),
+    "THCA": ("THCA",),
+    "DLBC": ("DLBC",),
+    "CESC": ("CESC",),
+    "ACC": ("ACC",),
+    "UVM": ("UVM",),
+    "PCPG": ("PCPG",),
+    "CHOL": ("CHOL",),
+    "TGCT": ("TGCT",),
+    "THYM": ("THYM",),
+    "UCS": ("UCS",),
 }
 # GISTIC discrete: +1 = low-level gain, +2 = high-level amplification; -1 = shallow loss, -2 = homdel.
 # "Amplified" = >= +1 (any gain); "deleted" = <= -1 (any loss). Cohort-recurrence bar = 20% (mirrors
