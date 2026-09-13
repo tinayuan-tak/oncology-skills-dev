@@ -4,9 +4,22 @@
 # tumor-protein-abundance-cptac. It asks whether a target's tumor-vs-normal signal holds at the
 # PROTEIN level — here from the TPHP body+cancer DIA-MS proteome (Xu et al., Nature 2026; open PRIDE
 # PXD063370), which adds 22 carcinoma cohorts (several with NO CPTAC counterpart: gallbladder,
-# laryngeal, GIST, testis, fallopian-tube, thymoma, ...) on one DIA MaxLFQ platform with matched
-# adjacent-normal. A protein-level analogue of the tumor-vs-normal-selectivity RNA contrast, and a
-# broader-cohort sibling of the CPTAC TMT-MS card.
+# laryngeal, GIST, testis, fallopian-tube, thymoma, ...) on one DIA MaxLFQ platform. A protein-level
+# analogue of the tumor-vs-normal-selectivity RNA contrast, and a broader-cohort sibling of the CPTAC
+# TMT-MS card.
+#
+# ★★ THE NORMAL ARM IS THE BODY ATLAS, NOT A MATCHED ADJACENT NORMAL. v1.0.0 of this card (and the v1
+# product) called it "matched adjacent-normal" five times. That was WRONG. TPHP collected no separate
+# adjacent-normal series: the comparator is the body-atlas NORMAL samples of the tumour's own organism
+# part — the SAME samples normal-tissue-protein-abundance-per-gene-v2 summarises. Verified in the v2
+# manifest on all 22 cohorts (a cohort's n_normal_total equals that organism part's atlas n_samples
+# EXACTLY). Two consequences, both load-bearing:
+#   · NOT PAIRED, and not pairable — there is no patient to pair to, so `unpaired` is the design, not
+#     a limitation of the deposited metadata.
+#   · ★ THIS CARD AND normal-tissue-protein-abundance-tphp ARE NOT TWO INDEPENDENT PLATFORMS. They are
+#     ONE DIA-MS measurement read twice. Any consumer that counts corroborating platforms (e.g. a
+#     protein-window quorum) MUST key on the emitted `normal_arm_source` value and collapse the two to
+#     one, or it double-counts a single measurement into apparent independent confirmation.
 #
 # VERDICT-INERT: this card fires NO rule and NO veto clamp. tumor-selectivity consumes it exactly as
 # it consumes tumor-protein-abundance-cptac — via the DERIVED, spine-inert rna_protein_tvn_concordance
@@ -16,13 +29,24 @@
 #
 # DISTINCT from normal-tissue-protein-abundance-tphp: that card is the NORMAL-tissue TPHP protein
 # baseline (sample_context=normal; its tphp_normal_protein_liability_class is verdict-BEARING via a
-# normal-breadth veto arm). THIS card is the TUMOR-vs-adjacent-normal CONTRAST (sample_context=tumor;
-# verdict-inert). Different product, different sample_context, different role.
+# normal-breadth veto arm). THIS card is the TUMOR-vs-normal CONTRAST (sample_context=tumor;
+# verdict-inert). Different product, different sample_context, different role — but, per the note
+# above, the SAME underlying normal measurement, so "different card" is not "different evidence".
+#
+# ★★ DETECTION CENSORING IS THE DOMINANT ARTIFACT, AND IT IS DECLARED, NOT CORRECTED. A protein missing
+# from an arm is missing-not-at-random (below the DIA detection limit), so an arm's median is computed
+# over DETECTED samples only and the difference of two such medians is biased toward tumour-DOWN. The
+# product over-calls down: 3.60:1 down:up over all q<0.05 rows, 1.50:1 on rows where BOTH arms are
+# fully detected. The v2 build deliberately does NOT re-centre log2_fc (a per-cohort median shift has
+# the wrong functional form for MNAR censoring and manufactured 2.09x more strong_up). Instead the row
+# carries `protein_detection_complete` + both arms' denominators and detection rates. GATE DIRECTIONAL
+# READS ON protein_detection_complete. Rows are never DROPPED for it — 58.1% of genes have no complete
+# row in any cohort, so filtering would blank the facet rather than clean it.
 #
 # DIA MaxLFQ abundance is a panel-relative log2 intensity, NOT absolute copies-per-cell.
 
 card_id: tumor-vs-normal-protein-abundance-tphp
-version: 1.0.0
+version: 1.1.0   # 1.1.0: v2 substrate — normal arm re-declared as the body atlas; censoring fields declared.
 # interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
 interpretation: rules_pending
 question: "Does {target.symbol}'s tumor-vs-adjacent-normal PROTEIN differential hold at the protein layer in {indication.label} (TPHP DIA-MS) — the RNA→protein corroboration of tumor-vs-normal selectivity?"
@@ -38,7 +62,11 @@ applies_when:
   - "context.indication in ['COAD', 'COADREAD', 'READ', 'STAD', 'ESCA', 'PAAD', 'PDAC', 'LIHC', 'HCC', 'GBC', 'GBAD', 'GIST', 'LUAD', 'LUSC', 'LSCC', 'NSCLC', 'KIRC', 'CCRCC', 'KIRP', 'KICH', 'RCC', 'GBM', 'CESC', 'UCEC', 'THYM', 'TGCT', 'DLBC', 'DLBCL']"
 
 required_inputs:
-  - product_id: tphp-tumor-vs-normal-protein-per-cohort-v1
+  # v2, matching methods/tphp_tumor_vs_normal_protein/read.py::DERIVED_MANIFEST_ID. The reader was
+  # repointed to v2 in analysis-methods e8384e6; this card still declared v1, so the resolve_cards
+  # provenance stamp named a product the run does not read. v2 adds the detection denominators /
+  # rates / detection_complete and normal_arm_source, and re-declares the normal arm (see header).
+  - product_id: tphp-tumor-vs-normal-protein-per-cohort-v2
     indication: "{indication}"
 
 methods:
@@ -64,13 +92,32 @@ outputs:
     - protein_median_log2_normal                   # float — median log2 MaxLFQ over detected adjacent-normal
     - protein_p_value                              # float — Welch two-sample t-test p-value
     - protein_bh_q_value                           # float — BH-adjusted within cohort (CPTAC-aligned name)
-    - n_tumor_samples                              # int — detected tumor samples (>= 5)
-    - n_normal_samples                             # int — detected adjacent-normal samples (>= 3; filter on power)
+    - n_tumor_samples                              # int — DETECTED tumor samples (numerator, not the cohort size)
+    - n_normal_samples                             # int — DETECTED normal-arm samples (>= 3; filter on power)
+    # ★ v2 CENSORING BLOCK — the denominators + completeness the v1 contract lacked. Without these,
+    # n_tumor_samples/n_normal_samples are indistinguishable from a small cohort vs a censored one.
+    - n_tumor_samples_total                        # int — the cohort's tumor ARM SIZE (detection denominator)
+    - n_normal_samples_total                       # int — the cohort's normal ARM SIZE; == this organism part's atlas n_samples
+    - protein_detection_rate_tumor                 # float 0-1 — n_tumor_samples / n_tumor_samples_total
+    - protein_detection_rate_normal                # float 0-1 — n_normal_samples / n_normal_samples_total
+    - protein_detection_complete                   # bool — BOTH arms fully detected. GATE DIRECTIONAL READS ON THIS.
+                                                   # false means the effect size is confounded by missingness, NOT "no effect".
+                                                   # null on the data_unavailable path (unknown, never False).
+    - normal_arm_source                            # ★ what the normal arm IS, read from the product (not hardcoded):
+                                                   # body_atlas_same_organism_part. A platform-independence check MUST key
+                                                   # on this VALUE, not on a product-id allowlist.
+    - cohort_pick_basis                            # ★ which selection produced this row — an indication-matched cohort or
+                                                   # one of the two pan-cancer extremum fallbacks. Declares the provenance
+                                                   # of the pick so a pan-cancer extremum is never read as an indication call.
     - cohort                                       # the matched TPHP carcinoma cohort (free-text)
-    - tissue                                       # the matched adjacent-normal comparator tissue (tumor site)
+    - tissue                                       # the tumour-site organism part — and ALSO the normal arm's tissue (one part, both arms)
     - uniprot_ac                                   # UniProt accession of the protein group (DIA-NN Protein.Group)
-    - stat_test_used                               # constant — 'welch_unpaired_tumor_vs_adjacent_normal'
+    - stat_test_used                               # constant — the comparison design (see vocabulary; the emitted literal
+                                                   # is mid-rename off the misleading '..._adjacent_normal' spelling)
     - method_version
+    # NOT declarable: the reader also emits `_data_source` / `_data_note`. summary_fields forbids a
+    # leading underscore (schema pattern ^[a-z][a-z0-9_]*$) — they are emitter metadata, not contract
+    # fields, and compose-dashboard's post-invocation validation does not gate on them.
 
   summary_fields_vocabulary:
     protein_expression_class:
@@ -81,10 +128,34 @@ outputs:
       - strong_down                                # q<0.05, log2fc<=-1.0, down in tumor
       - data_unavailable                           # gene absent / unmapped indication / read fault — coverage gap, NOT a flat window
     stat_test_used:
-      # Unpaired Welch two-sample t-test on the detected log2 MaxLFQ values, BH within cohort (the
-      # deposited pg_matrix + SDRF carry no stable per-patient pairing id, so this facet compares
-      # group medians — DIFFERENT estimator from the CPTAC MSstatsTMT limma-moderated t, by design).
-      - welch_unpaired_tumor_vs_adjacent_normal
+      # Unpaired Welch two-sample t-test on the DETECTED log2 MaxLFQ values, BH within cohort. The
+      # comparison is unpairED and unpairABLE: the normal arm is the body atlas of the same organism
+      # part, so there is no patient to pair to. A DIFFERENT estimator from the CPTAC MSstatsTMT
+      # limma-moderated t, by design.
+      #
+      # ★ FORWARD-RENAME IN PROGRESS (alias window). The v1 literal spells the normal arm
+      # "adjacent_normal", which is exactly the falsehood this card revision corrects; the truthful
+      # name is the v2 manifest's own `comparison:` value. BOTH tokens are legal for now so that
+      # readers/fixtures pinning the old literal stay valid while the emitter is flipped:
+      #   1. (this change) contracts declares both  →  2. analysis-methods emits the new literal
+      #   →  3. skills fixtures + consumers re-pin  →  4. drop the alias.
+      # The old token MUST NOT be dropped before step 3, or every consumer pinning it fails closed.
+      - welch_unpaired_tumor_vs_body_atlas_normal_same_organism_part   # truthful name (v2 manifest `comparison:`)
+      - welch_unpaired_tumor_vs_adjacent_normal                        # DEPRECATED ALIAS — misnames the normal arm; still emitted today
+    normal_arm_source:
+      # ★ What the normal arm IS. One value today, and that is the point: it says the normal arm of
+      # this facet IS the TPHP normal-tissue atlas, so the two cards are one measurement read twice.
+      # A consumer counting independent platforms must collapse them on this value. (null on the
+      # data_unavailable path — unknown provenance, not a new kind of arm.)
+      - body_atlas_same_organism_part
+    cohort_pick_basis:
+      # Which selection produced the returned row. Distinguishes an indication-matched cohort from a
+      # PAN-CANCER EXTREMUM fallback — argmax over |log2_fc|, which is a most-extreme-cohort readout,
+      # not this indication's answer, and is directionally skewed by censoring. Never read a row with
+      # a pan_cancer_* basis as an indication-scoped claim. (null on the data_unavailable path.)
+      - indication_mapped                                       # the indication resolved to a TPHP cohort
+      - pan_cancer_max_abs_log2fc_detection_complete            # fallback, restricted to detection-complete rows (preferred)
+      - pan_cancer_max_abs_log2fc_no_detection_complete_row     # fallback with NO complete row anywhere — censoring-confounded
 
 thresholds:
   # effect thresholds baked into the derived product (parameters.effect_*_abs_log2fc / q_cutoff).
@@ -92,10 +163,38 @@ thresholds:
   modest_up_abs_log2fc: 0.585
   significance_q: 0.05
 
+# The three effect thresholds are applied in the DERIVED BUILD (the product's
+# parameters.effect_*_abs_log2fc / q_cutoff), and the reader passes the resulting `effect` band through
+# as protein_expression_class — no card predicate compares against them, which is why THRESHOLD_UNUSED
+# fired. consumed_by names this card's own method call, the nearest checkable anchor for a cutoff that
+# was applied one step further upstream; the note records where it really lives.
+threshold_roles:
+  strong_up_abs_log2fc:
+    role: method_parameter
+    consumed_by: tphp-tumor-vs-normal-protein
+    note: "Applied in the derived build (parameters.effect_strong_abs_log2fc) when banding `effect`; the reader passes the band through as protein_expression_class. |log2fc| >= 1.0 at q<0.05 -> strong_up/strong_down."
+  modest_up_abs_log2fc:
+    role: method_parameter
+    consumed_by: tphp-tumor-vs-normal-protein
+    note: "Applied in the derived build (parameters.effect_modest_abs_log2fc) when banding `effect`; 0.585 <= |log2fc| < 1.0 at q<0.05 -> modest_up/modest_down."
+  significance_q:
+    role: method_parameter
+    consumed_by: tphp-tumor-vs-normal-protein
+    note: "BH q cutoff applied within cohort in the derived build (parameters.q_cutoff). Rows failing it band as unchanged; the reader does not re-test."
+
 warning_predicates:
   - warning_id: low_normal_arm_count
     if: "n_normal_samples < 5"
-    message: "The matched adjacent-normal arm has < 5 samples in this TPHP cohort — the tumor-vs-normal protein call is underpowered. Interpret protein_expression_class cautiously (the product retains n_normal down to 3)."
+    message: "Fewer than 5 normal-arm samples DETECTED in this TPHP cohort — the tumor-vs-normal protein call is underpowered. Interpret protein_expression_class cautiously (the product retains n_normal down to 3), and read n_normal_samples_total to tell a small arm from a censored one."
+  - warning_id: tphp_tvn_detection_incomplete
+    if: "protein_detection_complete == false"
+    message: "{target.symbol} is not detected in every sample of both arms here, so protein_effect_size is a median over DETECTED samples only — confounded by missing-not-at-random censoring, biased toward tumor-DOWN (3.60:1 down:up vs 1.50:1 on complete rows). Read the DIRECTION as unreliable, not as loss."
+  - warning_id: tphp_tvn_pan_cancer_extremum
+    if: "cohort_pick_basis != 'indication_mapped'"
+    message: "No TPHP carcinoma cohort maps to this indication, so this row is the PAN-CANCER cohort with the largest |log2 fold-change| — a most-extreme-cohort readout, NOT an indication-scoped answer. Do not attribute it to {indication.label}; the cohort field names the tissue it actually came from."
+  - warning_id: tphp_tvn_normal_arm_is_the_atlas
+    if: "normal_arm_source == 'body_atlas_same_organism_part'"
+    message: "This normal arm is the TPHP body atlas of the tumour's own organism part — the SAME samples the normal-tissue-protein-abundance-tphp card summarises, not a separate adjacent normal. ONE DIA-MS measurement read twice: do not count the two cards as independent protein platforms."
   - warning_id: tphp_tvn_data_unavailable
     if: "protein_expression_class == 'data_unavailable'"
     message: "{target.symbol} has no TPHP tumor-vs-normal protein value for this cohort (target absent, or the indication has no TPHP carcinoma cohort) — protein corroboration UNKNOWN (coverage gap), not flat. The CPTAC card (tumor-protein-abundance-cptac) + the RNA selectivity cards remain authoritative."
@@ -107,14 +206,27 @@ caveats:
     coverage. Fires no rule / no veto; consumed via the derived rna_protein_tvn_concordance read, and is
     absent from card_resolver_consumption.
   - |
-    UNPAIRED group comparison: an unpaired Welch two-sample t-test on group medians (the deposited
-    pg_matrix + SDRF carry no stable per-patient pairing), BH within cohort. A DIFFERENT estimator from
-    the CPTAC MSstatsTMT limma-moderated t — a cross-card disagreement can reflect assay/estimator
+    NOT AN INDEPENDENT PLATFORM from normal-tissue-protein-abundance-tphp. The normal arm is the TPHP
+    body atlas of the tumour's own organism part — the same samples that card summarises (a cohort's
+    n_normal_samples_total equals that part's atlas n_samples on all 22 cohorts), NOT a separately
+    collected adjacent normal. One DIA-MS measurement read twice. A consumer counting corroborating
+    protein platforms must collapse the two on normal_arm_source or it manufactures confirmation.
+  - |
+    UNPAIRED and UNPAIRABLE: a Welch two-sample t-test on group medians, BH within cohort. There is no
+    patient to pair to — the normal arm is an atlas, not the same donors. A DIFFERENT estimator from
+    the CPTAC MSstatsTMT limma-moderated t, so a cross-card disagreement can reflect assay/estimator
     (DIA MaxLFQ vs TMT; unpaired-Welch vs moderated-t), not only biology.
   - |
-    Effect magnitudes rest on small adjacent-normal arms (n_normal 3-74); treat as a corroborating
-    facet, not a standalone DEG call, and gate on n_normal_samples. DIA MaxLFQ abundance is a
-    panel-relative log2 intensity, NOT absolute copies-per-cell (surface-abundance-density owns copies/cell).
+    DETECTION CENSORING, DECLARED NOT CORRECTED: arm medians are over DETECTED samples only, so
+    missing-not-at-random dropout biases protein_effect_size toward tumor-DOWN (3.60:1 down:up over
+    q<0.05 rows; 1.50:1 where both arms are complete). log2_fc is deliberately NOT re-centred. Gate any
+    directional read on protein_detection_complete; false means CONFOUNDED, not absent. Rows are never
+    dropped for it (58.1% of genes have no complete row in any cohort).
+  - |
+    Effect magnitudes rest on small normal arms (n_normal 3-74); treat as a corroborating facet, not a
+    standalone DEG call, and gate on n_normal_samples against n_normal_samples_total. DIA MaxLFQ
+    abundance is a panel-relative log2 intensity, NOT absolute copies-per-cell (surface-abundance-density
+    owns copies/cell).
   - |
     22 of 29 TPHP carcinoma cohorts are retained (7 dropped for insufficient matched-normal). Whole-cohort
     BRCA / head&neck (HNSC) / ovarian are NOT resolvable here (breast is subtype-split; HNSC is ambiguous

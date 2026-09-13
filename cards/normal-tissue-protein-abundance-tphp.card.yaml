@@ -13,16 +13,33 @@
 # comparators at PROTEIN resolution (a target RNA-restricted in normal tissue but broadly PROTEIN-
 # expressed reads differently — the layer this card surfaces).
 #
-# Substrate: normal-tissue-protein-abundance-per-gene-v1 — a long/tidy, gene_symbol-pushdown reshape
-# of the TPHP DIA-NN MaxLFQ protein-group matrix, per (gene_symbol, tissue, tissue_class): median
-# log2 MaxLFQ abundance + detection support (n_samples / n_detected / detection_rate). Detected-only
-# rows are stored (a (gene, tissue) with n_detected==0 is absent), so a row = a tissue where the
-# protein was quantified. The reader pyarrow-column-pushdowns one gene's per-tissue rows.
+# Substrate: normal-tissue-protein-abundance-per-gene-v2 — a long/tidy, gene_symbol-pushdown reshape
+# of the TPHP DIA-NN MaxLFQ protein-group matrix, per (gene_symbol, tissue, tissue_class,
+# tissue_category): median log2 MaxLFQ abundance + detection support (n_samples / n_detected /
+# detection_rate). Detected-only rows are stored (a (gene, tissue) with n_detected==0 is absent), so a
+# row = a tissue where the protein was quantified. The reader pyarrow-column-pushdowns one gene's rows.
+#
+# ★ v2 ADDS tissue_category, AND IT MATTERS FOR THE DENOMINATOR: 10 of the 70 "adult tissues" are not
+# solid tissues (body fluids, non-tissue entries), and the 4 blood_compartment entries are ONE
+# compartment counted four times. So the ~70-tissue denominator over-counts. The reader now emits BOTH
+# denominators — all-adult (n_adult_tissues_*) and solid-only (n_solid_adult_tissues_*, /60) — and the
+# breadth/liability CLASSES still key on the ALL-ADULT count. That is deliberate and it is a SAFETY
+# direction, not laziness: the class cut is an ABSOLUTE count (>=35), so shrinking the denominator
+# while leaving the cut fixed would make the liability veto fire LESS. Measured on the full product:
+# solid-only >=35 fires on 1,446 genes vs 1,510 today, i.e. 64 FEWER liabilities. The solid-only
+# counts are therefore DISPLAY, offered so a consumer can see the over-count, never a re-gating.
+#
+# ★ MEASURABILITY IS LABELLED, NEVER GATED. Some organism parts have n_samples 1-2. A sample-support
+# gate on a SAFETY facet is fail-OPEN — a dropped organ reads downstream as the favourable "no
+# liability" class — so the vital-organ loop KEEPS every organ and labels it (`measurable`, plus
+# n_vital_organs_measurable / _unmeasurable and the threshold itself). Dropping them would have deleted
+# blood (n=1) and thyroid gland (n=2), and thyroid is the exact organ whose omission was the original
+# S1-3 false negative.
 #
 # DIA MaxLFQ abundance is a panel-relative log2 intensity, NOT absolute copies-per-cell.
 
 card_id: normal-tissue-protein-abundance-tphp
-version: 1.0.0
+version: 1.1.0   # 1.1.0: v2 substrate — tissue_category/solid-tissue counts + vital-organ MEASURABILITY labels.
 question: "Across the TPHP normal-tissue proteome (DIA MaxLFQ), how broad is {target.symbol}'s NORMAL-tissue protein footprint, and where is it highest — the quantitative normal-protein comparator for tumor-vs-normal selectivity?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
@@ -46,7 +63,10 @@ required_inputs:
   # pyarrow-column-pushdowns one gene (filters=[("gene_symbol","=",symbol)]) instead of parsing the
   # ~11MB long matrix. Declaring the derived product keeps the resolve_cards provenance stamp equal
   # to what is actually read.
-  - product_id: normal-tissue-protein-abundance-per-gene-v1
+  # v2, matching methods/tphp_normal_protein/read.py::DERIVED_MANIFEST_ID. The reader was repointed to
+  # v2 in analysis-methods e8384e6 while this card still declared v1, so the provenance stamp named a
+  # product the run does not read.
+  - product_id: normal-tissue-protein-abundance-per-gene-v2
 
 methods:
   # The GENERIC skills dispatcher (_live_readers._generic_dispatch) resolves module + entrypoint from
@@ -70,11 +90,27 @@ outputs:
     - abundance_floor_log2                        # the global per-tissue abundance floor used (log2 MaxLFQ; cached p75)
     - tphp_vital_organ_liability_class            # T0-3 SAFETY view — is the target abundant in ANY dose-limiting organ (via TPHP_CROSSWALK)
     - n_vital_organs_above_abundance_floor        # # canonical vital organs with representative-tissue median_log2_abundance >= floor
-    - tphp_vital_organ_abundance                  # list of {organ, tissue, median_log2_abundance, detected, above_abundance_floor}, abundance-sorted
+    # ★ v2 MEASURABILITY LABELS — the fail-CLOSED alternative to a sample-support GATE. Read a "clean
+    # sweep" of the vital-organ loop against n_vital_organs_unmeasurable: organs are never dropped, so
+    # absence of a liability is only informative where the organ was measurable in the first place.
+    - n_vital_organs_measurable                   # # vital organs whose arm has n_samples >= vital_organ_min_samples
+    - n_vital_organs_unmeasurable                 # # vital organs RETAINED but too thinly sampled to support a call (e.g. blood n=1, thyroid n=2)
+    - vital_organ_min_samples                     # the support threshold itself, so the consumer can re-derive the split
+    - tphp_vital_organ_abundance                  # list of {organ, tissue, median_log2_abundance, detected, above_abundance_floor,
+                                                  # n_samples, n_samples_source, n_detected, detection_rate, measurable}, abundance-sorted.
+                                                  # measurable=false => this organ CANNOT support a presence/absence call — do NOT
+                                                  # read it as "not expressed". n_samples_source names where n_samples came from
+                                                  # (the product row wins over the cached support table, which then cannot decay silently).
     - n_tissues_detected                          # distinct tissues (adult + fetal) with a quantified value
     - n_adult_tissues_detected                    # distinct ADULT tissues detected (drives the breadth class)
+    - n_adult_tissues_detected_low_support        # of those, how many rest on a thinly sampled part — a breadth count's own caveat
+    # ★ v2 SOLID-TISSUE denominators — DISPLAY ONLY. The classes still key on the all-adult counts
+    # above; re-gating on these under an unchanged absolute cut would RELAX the safety veto (see header).
+    - n_solid_adult_tissues_detected              # distinct SOLID adult tissues detected (tissue_category == solid_tissue)
+    - n_solid_adult_tissues_above_abundance_floor # of those, how many are at/above the abundance floor
+    - n_solid_adult_tissues_total                 # denominator (solid adult tissues, 60 of the 70 parts)
     - n_fetal_groups_detected                     # distinct FETAL germ-layer groups detected (0-4)
-    - n_adult_tissues_total                       # denominator (panel adult tissues, ~70) — informational
+    - n_adult_tissues_total                       # denominator (panel adult tissues, 70) — the count the CLASSES use
     - n_fetal_groups_total                        # denominator (panel fetal germ-layer groups, 4)
     - max_median_log2_abundance                   # highest per-tissue median log2 MaxLFQ abundance (panel-relative)
     - median_across_tissues_log2_abundance        # median over the per-tissue medians (typical normal level)
@@ -83,7 +119,8 @@ outputs:
     - fetal_vs_adult_flag                         # categorical — adult/fetal detection pattern
     - max_detection_rate                          # max per-tissue n_detected/n_samples (support gate)
     - uniprot_ac                                  # UniProt accession of the protein group (1:1 with the gene)
-    - per_tissue_abundance                        # list of {tissue, tissue_class, median_log2_abundance, median_intensity, n_samples, n_detected, detection_rate}, abundance-sorted
+    - per_tissue_abundance                        # list of {tissue, tissue_class, tissue_category, median_log2_abundance,
+                                                  # median_intensity, n_samples, n_detected, detection_rate}, abundance-sorted
     - method_version
 
   summary_fields_vocabulary:
@@ -114,17 +151,79 @@ outputs:
       - fetal_only                                # detected in fetal germ-layer groups only
       - none                                      # no detected tissue (paired with data_unavailable rows)
       - data_unavailable                          # gene absent / couldn't read
+    tissue_category:                              # v2 — the KIND of organism part; appears per item in
+                                                  # per_tissue_abundance (not a top-level summary field).
+                                                  # Declared here so a consumer reading the list knows the
+                                                  # closed value set and does not treat all 70 parts alike.
+      - solid_tissue                              # a solid organ/tissue — 60 of the 70 adult parts. FAILS OPEN:
+                                                  # an unrecognised new part reads solid_tissue, so it still
+                                                  # counts toward breadth rather than vanishing from the denominator.
+      - body_fluid                                # e.g. plasma/serum-like entries — not an organ at risk
+      - blood_compartment                         # ★ 4 entries, but ONE compartment counted four times
+      - non_tissue                                # not an organism part in the safety sense
+      - unassignable                              # category could not be determined from the deposited SDRF
+      - fetal_germ_layer                          # one of the 4 fetal germ-layer groups (tissue_class == fetal)
 
 thresholds:
-  # normal_protein_breadth_class bands on the ADULT-tissue detection count (absolute counts against
-  # the ~70-adult-tissue TPHP panel). Mirrored in methods/tphp_normal_protein/read.py.
+  # normal_protein_breadth_class bands on the ADULT-tissue DETECTION count (absolute counts against
+  # the 70-adult-tissue TPHP panel). Mirrored in methods/tphp_normal_protein/read.py.
   broad_adult_tissue_count: 35                    # >=50% of adult tissues → broad_normal_protein
   moderate_adult_tissue_count: 10                 # >=~15% → moderate_normal_protein
+  # ★ THE VERDICT-BEARING CUT, previously UNDECLARED on this card. tphp_normal_protein_liability_class
+  # is the only field here that fires a veto, and both numbers that decide it were absent from the
+  # contract — a reader could not tell what broad_and_abundant means without reading the module.
+  abundance_floor_log2: 15.076                    # cached p75 of per-(gene, adult-tissue) median_log2_abundance
+  broad_abundant_tissue_count: 35                 # # adult tissues at/above the floor → broad_and_abundant (FIRES the veto)
+  vital_organ_min_samples: 3                      # LABEL threshold for `measurable`, NOT a drop filter (see header)
+  # ★★ TWO THINGS A CONSUMER MUST KNOW ABOUT abundance_floor_log2, both measured on the full product:
+  #   1. IT IS PARTLY A DEPTH READOUT, not a pure biological level. Spearman(n_proteins_quantified,
+  #      fraction of a tissue's genes above the floor) = -0.886 across the 70 adult tissues: deeply
+  #      sequenced tissues push MORE proteins over a globally fixed floor. So "abundant in tissue X"
+  #      carries a per-tissue depth term. Treat cross-tissue floor comparisons as approximate.
+  #   2. THE CUT OF 35 IS A POLICY CHOICE AND THE DATA CANNOT NOMINATE A BETTER ONE. Swept every cut
+  #      20..45 on all 13,009 genes: the survivor curve is smooth and monotone with NO VALLEY anywhere
+  #      (flattest step 42->43 = 15 genes; steepest 20->21 = 42; 35->36 = 17), and only 144 genes
+  #      (1.11%) sit in [30,35]. A distribution with no gap cannot nominate a threshold. ★ The nearest
+  #      real constraint is NOT 30-vs-35: MKI67 sits at 36 above-floor tissues, ONE above the cut, so
+  #      any cut >=37 releases the framework's own proliferation decoy. Do not retune without that check.
+
+# Every number in `thresholds:` above is applied by the READER (methods/tphp_normal_protein/read.py)
+# before this card sees a field — none is compared against by a card predicate, which is why
+# THRESHOLD_UNUSED fired on all five. Declaring the role is a CHECKED claim (consumed_by is validated
+# against this card's own methods[].call), so it goes stale loudly if the card ever starts interpreting
+# one of these values itself.
+threshold_roles:
+  broad_adult_tissue_count:
+    role: method_parameter
+    consumed_by: tphp-normal-protein
+    note: "Reader band boundary for normal_protein_breadth_class (>=35 adult tissues DETECTED -> broad)."
+  moderate_adult_tissue_count:
+    role: method_parameter
+    consumed_by: tphp-normal-protein
+    note: "Reader band boundary for normal_protein_breadth_class (>=10 adult tissues detected -> moderate)."
+  abundance_floor_log2:
+    role: method_parameter
+    consumed_by: tphp-normal-protein
+    note: "Cached p75 of per-(gene, adult-tissue) median_log2_abundance; the reader compares each tissue against it and re-derivable via its --recompute-floor CLI. Partly a sequencing-depth readout (Spearman -0.886) — see thresholds note."
+  broad_abundant_tissue_count:
+    role: method_parameter
+    consumed_by: tphp-normal-protein
+    note: "The VERDICT-BEARING cut: >=35 adult tissues at/above the floor -> broad_and_abundant, which fires the normal-liability veto. A policy choice, not data-nominated (no valley over cuts 20..45)."
+  vital_organ_min_samples:
+    role: method_parameter
+    consumed_by: tphp-normal-protein
+    note: "LABEL threshold only. The reader marks each vital organ measurable/unmeasurable against it and DROPS NOTHING — gating a safety facet on sample support would read as 'no liability'."
 
 warning_predicates:
   - warning_id: broad_normal_protein_footprint
     if: "normal_protein_breadth_class == 'broad_normal_protein'"
     message: "{target.symbol} protein is detected broadly across normal tissues (TPHP DIA-MS, >=35 adult tissues) — a quantitative normal-protein footprint corroborating an on-target-off-tumor liability. The tumor-vs-normal PROTEIN window depends on the tumor-to-worst-normal differential."
+  - warning_id: tphp_vital_organs_unmeasurable
+    if: "n_vital_organs_unmeasurable > 0"
+    message: "Some vital organs are RETAINED but too thinly sampled (n_samples < vital_organ_min_samples) to support a presence/absence call, so 'no vital-organ signal' is NOT a clean sweep — absence is informative only where the organ was measurable. Check each tphp_vital_organ_abundance entry's measurable flag."
+  - warning_id: tphp_normal_arm_shared_with_tvn_facet
+    if: "normal_protein_breadth_class != 'data_unavailable'"
+    message: "These are the SAME normal samples the tumor-vs-normal-protein-abundance-tphp card uses as its normal arm (its normal_arm_source == body_atlas_same_organism_part). ONE DIA-MS measurement read twice, not two protein platforms — a consumer counting corroborating protein evidence must collapse them."
   - warning_id: tphp_normal_protein_data_unavailable
     if: "normal_protein_breadth_class == 'data_unavailable'"
     message: "{target.symbol} has no TPHP normal-tissue protein quantification (absent from the DIA-MS proteome) — normal-protein footprint UNKNOWN (coverage gap), not low. Do not read absence as a favorable window; consult the GTEx-RNA + HPA-IHC normal comparators."
@@ -145,6 +244,24 @@ caveats:
     product reads data_unavailable (coverage gap), and small tissue groups (n_samples 1-2 for rare
     organs) should be gated via max_detection_rate / per_tissue_abundance detection_rate before
     trusting a single-tissue call.
+  - |
+    MEASURABILITY IS LABELLED, NOT GATED. No organ is dropped for thin sampling: on a SAFETY facet a
+    support gate is fail-OPEN, because a missing organ reads as the favourable "no liability" class.
+    Read tphp_vital_organ_liability_class against n_vital_organs_unmeasurable — a clean sweep across
+    measurable organs is not a clean sweep. Dropping n_samples<3 would have deleted blood (n=1) and
+    thyroid gland (n=2), the organ whose omission was the original S1-3 false negative.
+  - |
+    THE ABUNDANCE FLOOR IS PARTLY A SEQUENCING-DEPTH READOUT: Spearman(n_proteins_quantified, fraction
+    above floor) = -0.886 over the 70 adult tissues, so a globally fixed floor passes more proteins in
+    deeply sequenced tissues. And the cut of 35 is a POLICY choice — the above-floor distribution is
+    featureless over 20..45 (no valley; only 1.11% of genes in [30,35]), so no threshold is data-nominated.
+    MKI67 sits at 36, one above the cut: any cut >=37 releases the framework's own proliferation decoy.
+  - |
+    THE ~70-TISSUE DENOMINATOR OVER-COUNTS: 10 adult parts are not solid tissues and the 4
+    blood_compartment entries are one compartment counted four times (v2 tissue_category). The
+    solid-only counts are emitted for visibility but the CLASSES still use the all-adult count, because
+    shrinking a denominator under an unchanged ABSOLUTE cut relaxes a safety veto — measured, solid-only
+    >=35 would fire on 1,446 genes vs 1,510 today, i.e. 64 liabilities silently dropped.
   - |
     Fetal granularity is the 4 germ-layer groups (ectoderm/endoderm/mesoderm/umbilical cord) the
     deposited SDRF exposes, NOT the paper's 22 fetal tissue types; adult subtype resolution is
