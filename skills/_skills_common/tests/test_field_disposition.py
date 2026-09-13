@@ -15,6 +15,7 @@ The three that matter most are the ones that caught real defects while the instr
 
 from __future__ import annotations
 
+import ast
 import inspect
 import json
 import re
@@ -274,6 +275,211 @@ def test_every_rule_target_names_a_real_card():
     for kind, pairs in fd.rule_readers().items():
         dangling = sorted({c for c, _ in pairs if c not in known})
         assert not dangling, f"{kind} targets cards that do not exist: {dangling}"
+
+
+# ── shape (5): the dispatch-table join ────────────────────────────────────────────────────────────
+#
+# `figure` measured ZERO exact pairs before this shape existed, which read as "no figure reads a
+# declared field" and was an instrument limitation instead: the card id is a dict key in
+# `_figure_emitters/_registry.py` and the field names live in an `_emit_*` body that receives the
+# summary as a parameter and never mentions the card. These tests drive the join from a SYNTHETIC tree
+# so each guard can be falsified by construction, then pin the live result.
+
+
+def _two_real_fields() -> tuple[str, str, str, str]:
+    """``(card_a, field_a, card_b, field_b)`` from the real contracts, chosen deterministically.
+
+    Derived rather than hardcoded: a literal card/field pair in a test decays silently through a rename
+    (see the golden-snapshot family of traps), and these tests need a field that genuinely IS declared
+    on one card and genuinely is NOT on the other.
+    """
+    declared = fd.declared_fields()
+    usable = sorted((c, sorted(f)) for c, f in declared.items() if len(set(f)) >= 2)
+    (card_a, fields_a), (card_b, fields_b) = usable[0], usable[-1]
+    field_b = next((f for f in fields_b if f not in set(fields_a)), None)
+    return card_a, fields_a[0], card_b, field_b
+
+
+def _synthetic_figure_tree(
+    tmp_path: Path,
+    *,
+    table_key: str,
+    field: str,
+    annotation: str = "dict",
+    decoy_field: str | None = None,
+) -> Path:
+    """A minimal skills tree carrying the two halves of the join in two files, like the real one."""
+    pkg = tmp_path / "skills" / "_skills_common" / "_figure_emitters"
+    pkg.mkdir(parents=True, exist_ok=True)
+    (pkg / "_registry.py").write_text(f'from ._e import _emit_x\n\nTABLE = {{"{table_key}": _emit_x}}\n')
+    (pkg / "_e.py").write_text(
+        f"def _emit_x(summary: {annotation}, out_dir, target, indication):\n    return [summary.get({field!r})]\n"
+    )
+    if decoy_field is not None:
+        (pkg / "_other.py").write_text(
+            f"def _emit_x(summary: dict, out_dir, target, indication):\n    return [summary.get({decoy_field!r})]\n"
+        )
+    return tmp_path / "skills"
+
+
+@needs_contracts
+def test_dispatch_table_join_binds_the_card_to_the_field(tmp_path):
+    """The shape's whole reason to exist: neither file alone yields a pair, the join does."""
+    card, field, _, _ = _two_real_fields()
+    exact, _ = fd.code_readers(_synthetic_figure_tree(tmp_path, table_key=card, field=field))
+    assert (card, field) in exact.get("figure", set())
+
+
+@needs_contracts
+def test_dispatch_join_goes_dark_when_the_table_key_is_not_a_card(tmp_path):
+    """MUTATION control. Break only the binding half — same emitter, same read — and the pair must
+    disappear. Without this the test above could pass off any `.get()` anywhere in the tree."""
+    card, field, _, _ = _two_real_fields()
+    exact, _ = fd.code_readers(_synthetic_figure_tree(tmp_path, table_key="not-a-real-card-id", field=field))
+    assert not exact.get("figure"), "a table keyed on a non-card still minted figure pairs"
+
+
+@needs_contracts
+def test_dispatch_join_requires_a_dict_first_parameter(tmp_path):
+    """★ The READER-vs-PRODUCER discriminator, and the reason it is not optional.
+
+    `_live_readers.CARD_DISPATCHERS` is the SAME `{card_id: function}` shape with 63 entries, but its
+    functions PRODUCE the card from `(target: str, indication: str)`. Joining those would attribute
+    reads of a gene symbol to card fields — a pure fabrication of coverage.
+    """
+    card, field, _, _ = _two_real_fields()
+    exact, _ = fd.code_readers(_synthetic_figure_tree(tmp_path, table_key=card, field=field, annotation="str"))
+    assert not exact.get("figure")
+
+
+@needs_contracts
+def test_dispatch_join_will_not_credit_a_field_the_card_never_declared(tmp_path):
+    """Second narrowing guard. Shape (5) INFERS the card binding rather than reading it at the call
+    site, so it is the one shape whose binding could be wrong; requiring the field to be declared on
+    that card means a mis-bound table contributes nothing instead of a false pair."""
+    card, _, other_card, foreign_field = _two_real_fields()
+    if foreign_field is None:
+        pytest.skip("no field unique to the comparison card — re-pin on another pair")
+    exact, _ = fd.code_readers(_synthetic_figure_tree(tmp_path, table_key=card, field=foreign_field))
+    assert (card, foreign_field) not in exact.get("figure", set())
+    assert other_card  # the field IS real, just not this card's — that is the point
+
+
+@needs_contracts
+def test_dispatch_join_resolves_a_duplicated_function_name_through_the_import(tmp_path):
+    """`_emit_card_figures`, `_emit_section` and `_emit` are each defined more than once in this tree, so
+    a bare name lookup can attribute a read to the wrong module — hence the wrong reader KIND — or to a
+    function that never saw the card. Resolution goes through the table module's own import."""
+    card, field, _, decoy = _two_real_fields()
+    if decoy is None:
+        pytest.skip("no distinct decoy field available")
+    root = _synthetic_figure_tree(tmp_path, table_key=card, field=field, decoy_field=decoy)
+    exact, _ = fd.code_readers(root)
+    figure = exact.get("figure", set())
+    assert (card, field) in figure, "import-based resolution failed on a duplicated function name"
+    assert (card, decoy) not in figure, "credited the wrong definition of a duplicated name"
+
+
+@needs_contracts
+def test_figure_emitters_reach_declared_fields_on_the_live_tree():
+    """Live pin. 32 pairs over 19 of the 37 registered emitters, measured 2026-09-13. The other 18 hand
+    the summary to `render_from_plot_data` in the analysis-methods repo — an out-of-tree reader, not a
+    scraper bug — so this floor is well below 37 on purpose."""
+    exact, _ = fd.code_readers(SKILLS_ROOT)
+    figure = exact.get("figure", set())
+    assert ("tumor-rna-distribution", "tumor_expression_class") in figure, (
+        "the figure dispatch join is not firing on the live registry"
+    )
+    assert len(figure) >= 25, f"only {len(figure)} exact figure pairs (was 32) — the registry join has regressed"
+
+
+@needs_contracts
+def test_the_producer_dispatch_table_mints_no_reader_pairs():
+    """NEGATIVE control, with its population DERIVED from the live table rather than hardcoded.
+
+    Both halves are asserted: the producers must all fail the discriminator (else the join fabricates
+    pairs) AND the registered emitters must all pass it (else a dropped annotation silently under-counts
+    the aperture and nothing says so).
+    """
+    live = SKILLS_ROOT / "_skills_common" / "_live_readers.py"
+    registry = SKILLS_ROOT / "_skills_common" / "_figure_emitters" / "_registry.py"
+    known = frozenset(fd.declared_fields())
+
+    def _classify(path: Path) -> tuple[int, int]:
+        tree = ast.parse(path.read_text())
+        imports = fd._import_sources(tree)
+        defs: dict[str, list] = {}
+        for source in sorted(path.parent.rglob("*.py")):
+            for node in ast.walk(ast.parse(source.read_text())):
+                if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                    defs.setdefault(node.name, []).append((source, node))
+        takes_dict = other = 0
+        for name in fd._card_dispatch_tables(tree, known):
+            resolved = fd._resolve_def(name, imports, defs)
+            if resolved and fd._takes_a_summary_dict(resolved[1]):
+                takes_dict += 1
+            else:
+                other += 1
+        return takes_dict, other
+
+    producers_dict, producers_other = _classify(live)
+    assert producers_dict + producers_other >= 50, "CARD_DISPATCHERS population collapsed — this control is now vacuous"
+    assert producers_dict == 0, f"{producers_dict} card PRODUCERS look like summary readers"
+
+    emitters_dict, emitters_other = _classify(registry)
+    assert emitters_dict + emitters_other >= 30, "the figure registry population collapsed"
+    assert emitters_other == 0, f"{emitters_other} registered emitters no longer resolve to a summary reader"
+
+
+# ── narrative is not an independent field reader ───────────────────────────────────────────────────
+
+
+@needs_contracts
+def test_narrative_contributes_no_name_only_credit():
+    """★ FALSE CREDIT, WITHDRAWN. The narrative modules read FIRED-RULE RECORDS and the skill-keyed lens
+    prose config, not card summaries, so their literal `.get("...")` arguments are their own data-
+    structure keys (`assertion`, `axes`, `cards`, `capsules`, `caveat`, `certainty`). Two of the 86
+    collided with declared field names — `indication` and `source` — and credited 9 pairs across 9 cards
+    with a reader they do not have. The anti-vacuity half is the second assertion: those literals must
+    still BE there, so the empty set is a deliberate withdrawal and not a parse that found nothing.
+    """
+    _, name_only = fd.code_readers(SKILLS_ROOT)
+    assert not name_only.get("narrative"), "narrative name-only credit is back"
+
+    literals = set()
+    for path in sorted(SKILLS_ROOT.rglob("*.py")):
+        if fd._module_kind(path) != "narrative" or "/tests/" in str(path):
+            continue
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "get":
+                if node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+                    literals.add(node.args[0].value)
+    assert len(literals) >= 20, (
+        f"only {len(literals)} literal .get() names found in the narrative modules — the withdrawal "
+        "above would be indistinguishable from a scraper that stopped reading them"
+    )
+
+
+def test_the_withdrawn_kind_is_declared_and_keeps_its_slot():
+    """Separate from the behaviour test above ON PURPOSE — a declaration pin placed alongside a
+    behaviour assertion reds FIRST under a mutation and masks whether the behaviour was ever checked."""
+    assert fd.EXACT_ONLY_KINDS == frozenset({"narrative"})
+    assert fd.EXACT_ONLY_KINDS <= set(fd.CODE_KINDS)
+    assert "narrative" in fd.READER_KINDS, "the slot must stay visible, so its zero is legible"
+    assert not fd.EXACT_ONLY_KINDS & fd.NAME_ONLY_KINDS, "a kind cannot be both name-only and exact-only"
+
+
+@needs_contracts
+def test_an_exact_only_kind_still_admits_exact_evidence(tmp_path):
+    """The slot is withdrawn from NAME-ONLY credit, not dead-lettered. A narrator that grows a real
+    `get_card_field(cards, "<card>", "<field>")` read must still count — otherwise this change would
+    hide the very wiring it is asking someone to add."""
+    card, field, _, _ = _two_real_fields()
+    root = tmp_path / "skills" / "_skills_common"
+    root.mkdir(parents=True)
+    (root / "narrative.py").write_text(f'def f(cards):\n    return get_card_field(cards, "{card}", "{field}")\n')
+    exact, _ = fd.code_readers(tmp_path / "skills")
+    assert (card, field) in exact.get("narrative", set())
 
 
 # ── the anti-gaming contract ──────────────────────────────────────────────────────────────────────

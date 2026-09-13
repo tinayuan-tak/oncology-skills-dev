@@ -29,7 +29,10 @@ purpose is to surface where the two disagree.
 field. ``name_only`` evidence knows the field name but not which card it came from, so it credits
 EVERY card declaring that name — an over-credit by construction. They are separate slots and
 ``reached_exact`` is the conservative number; a name-only match is a substring-on-a-population
-instrument and must not be quoted as proof (cf. the atlas-exclusion misroute: 17/17 wrong).
+instrument and must not be quoted as proof (cf. the atlas-exclusion misroute: 17/17 wrong). Two reader
+slots were pure name-only when this module was first measured, and they were pure name-only for
+OPPOSITE reasons — see ``EXACT_ONLY_KINDS`` for the ``narrative`` half (false credit, withdrawn) and
+shape (5) in ``code_readers`` for the ``figure`` half (a real reader missing its card binding).
 """
 
 from __future__ import annotations
@@ -53,6 +56,23 @@ READER_KINDS = DECLARATIVE_KINDS + CODE_KINDS
 
 # Kinds that can only ever credit a field NAME (they carry no card_id in their declaration).
 NAME_ONLY_KINDS = frozenset({"metric_gloss"})
+
+# ★ Kinds whose name-only evidence is DISCARDED, not merely down-weighted.
+#
+# The difference from every other kind is what the unbound receiver IS. In a figure emitter the
+# receiver genuinely is a card summary, so a name-only hit there is a loose but real upper bound on
+# card-field reach. In the narrative layer it is not: `narrative.py` and the `narrator_*` modules read
+# FIRED-RULE RECORDS (`card_id = (fr or {}).get("card_id")`) and the lens prose config in
+# `narrator_lenses.py` (keyed by SKILL name), so their literal `.get("...")` arguments are their own
+# data-structure keys — measured on trunk: `assertion`, `axes`, `cards`, `capsules`, `caveat`,
+# `certainty`. Any of those that happens to collide with a declared card field name credits that field
+# with a reader it does not have. So narrative is declared here as NOT AN INDEPENDENT FIELD READER: it
+# consumes the rule/capsule layer's output, and its reach is whatever the rule and capsule slots
+# already report. The slot is KEPT (rather than deleted) so that an exact `get_card_field(...)` read
+# appearing in a narrator would still be counted, and so the zero stays visible instead of vanishing.
+# NOTE this LOWERS `reached_any_upper_bound`. That is the honest direction: it removes credit, not
+# coverage.
+EXACT_ONLY_KINDS = frozenset({"narrative"})
 
 # Module-family -> reader kind. The plan enumerates these as distinct readers; deriving the kind
 # from the module that performs the read is what gives `claim_passthrough` its own slot without a
@@ -236,6 +256,107 @@ def _card_aliases(fn_node, known_cards: frozenset) -> dict:
     return out
 
 
+def _param_field_reads(fn_node, param: str) -> set:
+    """Literal field names read off ``param`` (or a local rebound from it) inside ONE function body.
+
+    Only ``.get("f")`` and ``["f"]``, matching shapes (2)/(3) — the same two forms, with the receiver
+    identified by PARAMETER rather than by a literal card id at the read site.
+    """
+    names = {param}
+    for _ in range(3):  # `s = summary or {}` then `d = s` — three passes settles any real chain
+        for node in ast.walk(fn_node):
+            if not (isinstance(node, ast.Assign) and len(node.targets) == 1):
+                continue
+            target, value = node.targets[0], node.value
+            if not isinstance(target, ast.Name):
+                continue
+            sources = []
+            if isinstance(value, ast.Name):
+                sources = [value.id]
+            elif isinstance(value, ast.BoolOp):
+                sources = [e.id for e in value.values if isinstance(e, ast.Name)]
+            if any(s in names for s in sources):
+                names.add(target.id)
+    fields = set()
+    for node in ast.walk(fn_node):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "get":
+            recv = node.func.value
+            if node.args and isinstance(recv, ast.Name) and recv.id in names:
+                field = _literal(node.args[0])
+                if field:
+                    fields.add(field)
+        elif isinstance(node, ast.Subscript) and isinstance(node.value, ast.Name) and node.value.id in names:
+            field = _literal(node.slice)
+            if field:
+                fields.add(field)
+    return fields
+
+
+def _card_dispatch_tables(tree, known_cards: frozenset) -> dict:
+    """``{function_name: {card_id, ...}}`` for module-level ``{card_id: function}`` dict literals.
+
+    Keyed on the SHAPE, like shape (4), so a second dispatch table joins the population without
+    editing this scraper. Card ids validate against the real card set, so a plain string-keyed dict of
+    callbacks is not mistaken for one.
+    """
+    out: dict[str, set] = defaultdict(set)
+    for node in tree.body:
+        value = node.value if isinstance(node, (ast.Assign, ast.AnnAssign)) else None
+        if not isinstance(value, ast.Dict):
+            continue
+        for key, val in zip(value.keys, value.values):
+            card = _literal(key)
+            if isinstance(val, ast.Name) and _is_card_id(card, known_cards):
+                out[val.id].add(card)
+    return dict(out)
+
+
+def _import_sources(tree) -> dict:
+    """``{local_name: source_module_stem}`` from this module's ``from X import y`` statements."""
+    out = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.ImportFrom) and node.module:
+            stem = node.module.rsplit(".", 1)[-1]
+            for alias in node.names:
+                out[alias.asname or alias.name] = stem
+    return out
+
+
+def _resolve_def(name: str, imports: dict, defs_by_name: dict):
+    """The ONE ``def`` a dispatch-table entry refers to, or ``None`` when it cannot be pinned.
+
+    Names like ``_emit_card_figures`` and ``_emit_section`` are defined more than once in this tree,
+    so a bare name lookup can attribute a read to the wrong module (hence the wrong reader KIND) or to
+    a function that never saw the card. Ambiguity therefore credits NOTHING — under-credit is the safe
+    direction for a metric whose failure mode is looking more open than it is.
+    """
+    candidates = defs_by_name.get(name) or []
+    if len(candidates) == 1:
+        return candidates[0]
+    stem = imports.get(name)
+    if stem:
+        same_module = [c for c in candidates if c[0].stem == stem]
+        if len(same_module) == 1:
+            return same_module[0]
+    return None
+
+
+def _takes_a_summary_dict(fn_node) -> bool:
+    """True when the first parameter is annotated ``dict`` — the READER-vs-PRODUCER discriminator.
+
+    Measured need: ``_live_readers.CARD_DISPATCHERS`` is also a ``{card_id: function}`` table of 63
+    entries, but its functions are the card PRODUCERS and take ``(target: str, indication: str)``.
+    Joining those would attribute reads of a gene symbol to card fields. The annotation is the
+    declaration that a function receives a card summary; a producer that grows a dict first argument
+    is still filtered by the requirement that every field it reads be DECLARED on that same card.
+    """
+    params = fn_node.args.args
+    if not params:
+        return False
+    annotation = params[0].annotation
+    return isinstance(annotation, ast.Name) and annotation.id == "dict"
+
+
 def code_readers(skills_root: Path, contracts_repo: Path | None = None) -> tuple[dict, dict]:
     """Scrape static field reads out of skill Python.
 
@@ -243,28 +364,58 @@ def code_readers(skills_root: Path, contracts_repo: Path | None = None) -> tuple
     ``(card_id, field)`` pairs recovered where BOTH the card and the field are statically known;
     ``name_only`` holds bare field names, where the field is a literal but the card is computed at
     runtime. AST, not regex, because a regex over Python mis-parses exactly the nested and
-    multi-line calls that matter. Four shapes are recognised:
+    multi-line calls that matter. Five shapes are recognised:
 
       ``get_card_field(cards, "card-id", "field")``      -> exact
       ``<expr>["card-id"].get("field")``                 -> exact   (inline ``cbyid`` subscript)
       ``cp = c.get("card-id") ... cp.get("field")``      -> exact   (function-scoped alias)
       ``_patom("card-id", recv, ("f1", "f2", ...), ...)`` -> exact   (evidence-atom PASSTHROUGH)
+      ``{"card-id": _emit_x}`` + ``def _emit_x(summary: dict)`` -> exact  (DISPATCH-TABLE join)
 
     The atom shape matters disproportionately: it is how a field reaches the claim_vector, the eval
     harness, the literature lane and the discordance ledger. It names its fields in a literal tuple
     rather than through a ``.get()``, so a scraper that only understands attribute calls reports the
     passthrough population as orphaned — the exact inversion of CASE-025.
+
+    ★ Shape (5) exists because the ``figure`` slot measured ZERO exact pairs, which read as "no figure
+    reads any declared field" and was an INSTRUMENT LIMITATION, not a coverage fact. The reads are
+    split across two files by design: ``_figure_emitters/_registry.py`` binds the card id as a dict
+    key, and the ``_emit_*`` function that names the fields receives the summary as a parameter and
+    never mentions the card. Neither half alone yields a pair; the join does. It is the one shape whose
+    binding is INFERRED rather than literal at the read site, so it carries two extra guards — the
+    callee must declare a ``dict`` first parameter (see ``_takes_a_summary_dict``), and every field it
+    credits must be DECLARED on that card. Both narrow, never widen: a mis-bound table contributes
+    nothing instead of a false pair. Neither makes the aperture satisfiable by writing a declaration —
+    a field still has to be read by name in code to count.
+
+    Measured limit worth recording: 18 of the 37 registered emitters read NOTHING off the summary in
+    this tree, because they hand it to ``render_from_plot_data`` in the analysis-methods repo. Those
+    reads live outside ``skills_root`` and stay invisible here — a genuine out-of-tree reader, not a
+    scraper bug. Following the callee one or two levels deep was measured and gains exactly 0 pairs.
     """
     known_cards = frozenset(declared_fields(contracts_repo))
+    declared = declared_fields(contracts_repo)
     exact: dict[str, set] = defaultdict(set)
     name_only: dict[str, set] = defaultdict(set)
+
+    # Parsed once and kept: shape (5) is a JOIN across two files, so it cannot run inside a
+    # single-file loop. A test reading a field does not make it live, so tests stay excluded.
+    parsed: list[tuple[Path, ast.Module]] = []
     for path in sorted(skills_root.rglob("*.py")):
         if "/tests/" in str(path) or path.name.startswith("test_"):
-            continue  # a test reading a field does not make it live
+            continue
         try:
-            tree = ast.parse(path.read_text())
+            parsed.append((path, ast.parse(path.read_text())))
         except SyntaxError:
             continue
+
+    defs_by_name: dict[str, list] = defaultdict(list)
+    for path, tree in parsed:
+        for node in ast.walk(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                defs_by_name[node.name].append((path, node))
+
+    for path, tree in parsed:
         kind = _module_kind(path)
         # Alias maps are per-function; walk function bodies first, then the module top level.
         scopes = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
@@ -312,6 +463,29 @@ def code_readers(skills_root: Path, contracts_repo: Path | None = None) -> tuple
                         for card in card_args:
                             for name in names:
                                 exact[kind].add((card, name))
+
+    # (5) DISPATCH-TABLE join. The reader KIND comes from the module holding the READ, not the module
+    # holding the table, so a dispatch table in one family calling into another attributes correctly.
+    for path, tree in parsed:
+        imports = _import_sources(tree)
+        for fn_name, cards in _card_dispatch_tables(tree, known_cards).items():
+            resolved = _resolve_def(fn_name, imports, defs_by_name)
+            if resolved is None:
+                continue
+            def_path, def_node = resolved
+            if not _takes_a_summary_dict(def_node):
+                continue
+            fields = _param_field_reads(def_node, def_node.args.args[0].arg)
+            kind = _module_kind(def_path)
+            for card in cards:
+                for field in fields & set(declared.get(card) or ()):
+                    exact[kind].add((card, field))
+
+    # ★ Name-only credit withdrawn for kinds that do not read card summaries at all — see
+    # EXACT_ONLY_KINDS. Applied here, at the point of attribution, rather than at the report, so no
+    # consumer can pick the un-filtered set up by accident.
+    for kind in EXACT_ONLY_KINDS:
+        name_only.pop(kind, None)
     return dict(exact), dict(name_only)
 
 
