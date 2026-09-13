@@ -1073,6 +1073,30 @@ rules:
       opposing either — the target is a real driver, just not a direct-inhibition one. The SL redirect
       is where a LoF driver's therapeutic hypothesis lives.
 
+  - rule_id: alteration-role-curated-cancer-gene-neutral
+    when:
+      card_id: alteration-role
+      field: alteration_role
+      equals: curated_cancer_gene
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Target is on a CURATED cancer-gene list (OncoKB ONCOGENE / TSG / ONCOGENE_AND_TSG) but has ZERO
+      rows in the IntOGen driver compendium — no statistically-significant driver call in ANY patient
+      cohort, let alone this indication. Curation and measurement are different evidence: OncoKB
+      membership says "this is a cancer gene somewhere", not "an alteration in it drives this tumour".
+      NEUTRAL, and deliberately NOT supportive — the direct-inhibition rationale that
+      alteration-role-gof-driver-supportive gives rests on a patient-scale driver call this target does
+      not have. Also NOT opposing: curated cancer-gene status is real evidence, and for targets whose
+      therapeutic hypothesis is LINEAGE EXPRESSION rather than genomic driver status (CD19, FOLR1,
+      TACSTD2 — all oncokb=ONCOGENE with 0 IntOGen rows) this is the CORRECT and expected read, not a
+      coverage gap. Before 2026-09-12 these targets read direct_driver_gof + functional_direction=
+      activating from gene-list membership alone, which also made them eligible for the allele-selective
+      WT-loss safety downgrade (wt_loss_safety_conditioning.yaml) despite having no measured selectable
+      allele. 440 of 1242 OncoKB genes are in this class. Neutral signals: role CONTEXT, not a
+      per-modality biology call.
+
   - rule_id: alteration-role-predictive-biomarker-neutral
     when:
       card_id: alteration-role

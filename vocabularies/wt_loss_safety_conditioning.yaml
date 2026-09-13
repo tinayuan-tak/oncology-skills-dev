@@ -82,9 +82,28 @@ allele_selective_required_role_rules:
 # safety.resolver.yaml GROUP-0 (amplification) + GROUP-0b (rarely-altered) guards keyed on, so the
 # eligibility model preserves the S1-1 amplification-guard behavior. Composition: small_molecule is
 # conditional ONLY IF (eligibility rule fired) AND NOT (any disqualifier fired).
+# THIRD DISQUALIFIER (2026-09-12): CURATED-ONLY cancer genes. The B4-1 required-role co-gate above
+# closes the TSG-with-spurious-Act hole, but it does NOT close the mirror hole on the ONCOGENE side:
+# a gene that is on the OncoKB ONCOGENE list with ZERO IntOGen driver rows fires BOTH eligibility
+# rules (activating-driver-role-safety-context from the curated direction, and formerly
+# alteration-role-gof-driver-supportive from the role) AND the required-role co-gate
+# (oncogene-role-safety-context is itself keyed on oncokb_gene_type=ONCOGENE) — so gene-list
+# MEMBERSHIP alone cleared the whole triple. Measured on the 26-target genomic review panel:
+# FOLR1/OV and TACSTD2/BRCA cleared it with NO disqualifier firing at all; CD19/DLBC was saved only
+# INCIDENTALLY by functional-gene-state-rarely-altered-neutral. All three are ADC/antibody surface
+# targets whose therapy engages WILD-TYPE protein, so the WT-loss concern is exactly the one that
+# must STAND — an under-calls-safety bug of the same class B4-1 fixed.
+# alteration_role=curated_cancer_gene (alteration-role.card.yaml >= 0.2.0) is the direct read of
+# "curated cancer gene, no patient-scale driver call in any cohort", so disqualifying on it closes
+# the hole for all 440 such OncoKB genes structurally, independent of which eligibility rule fired.
+# NOTE the asymmetry with the role fix: alteration_role moves to curated_cancer_gene but
+# functional_direction is STILL the curated `activating` (curation is honest evidence about
+# mechanism), so the direction-keyed eligibility rule keeps firing — which is precisely why this had
+# to be a disqualifier and not just a role change.
 allele_selective_disqualifier_rules:
   - copy-number-amplified-oncogene-safety-context
   - functional-gene-state-rarely-altered-neutral
+  - alteration-role-curated-cancer-gene-neutral
 
 # NOTE (curation discipline): every rule_id above must exist in interpretation-rules/*.rules.yaml.
 # tests/vocabularies/test_wt_loss_safety_conditioning.py asserts this (guards against rule renames).
