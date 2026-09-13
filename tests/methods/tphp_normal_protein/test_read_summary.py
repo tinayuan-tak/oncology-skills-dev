@@ -59,33 +59,62 @@ _BREADTH_VOCAB = {
 _LIABILITY_VOCAB = {"broad_and_abundant", "detected_not_abundant", "restricted", "data_unavailable"}
 _FETAL_VOCAB = {"adult_and_fetal", "adult_only", "fetal_only", "none", "data_unavailable"}
 
+# Fields the reader emits from the v2 substrate that the CARD DOES NOT DECLARE YET (the contracts-side
+# leg of this change adds them to outputs.summary_fields). Kept as a SEPARATE set from
+# _CARD_SUMMARY_FIELDS on purpose: merging them would hide the fact that reader and card have diverged,
+# and _CARD_SUMMARY_FIELDS is asserted as a SUBSET, so a merge would silently pass either way.
+_V2_DECLARATION_FIELDS = {
+    "n_solid_adult_tissues_detected",
+    "n_solid_adult_tissues_above_abundance_floor",
+    "n_solid_adult_tissues_total",
+    "n_adult_tissues_detected_low_support",
+    "n_vital_organs_measurable",
+    "n_vital_organs_unmeasurable",
+    "vital_organ_min_samples",
+}
+
 _COLS = [
     "gene_symbol",
     "uniprot_ac",
     "tissue",
     "tissue_class",
+    "tissue_category",
     "median_log2_abundance",
     "median_intensity",
     "n_samples",
     "n_detected",
     "detection_rate",
 ]
+# A v1-shaped product (no tissue_category) — the reader must still work, defaulting fail-OPEN to solid.
+_COLS_V1 = [c for c in _COLS if c != "tissue_category"]
 
 
-def _write_product(tmp_path, rows) -> Path:
+def _write_product(tmp_path, rows, cols=None, name="tphp_normal.parquet") -> Path:
     """rows: list of dicts (product schema). Writes a synthetic long/tidy parquet."""
-    df = pd.DataFrame(rows, columns=_COLS)
-    p = tmp_path / "tphp_normal.parquet"
+    cols = cols or _COLS
+    df = pd.DataFrame(rows, columns=cols)
+    p = tmp_path / name
     df.to_parquet(p, index=False)
     return p
 
 
-def _row(gene, tissue, tclass, log2, det_rate=1.0, n_samples=5, n_detected=5, uac="P00533"):
+def _row(
+    gene,
+    tissue,
+    tclass,
+    log2,
+    det_rate=1.0,
+    n_samples=5,
+    n_detected=5,
+    uac="P00533",
+    tissue_category="solid_tissue",
+):
     return {
         "gene_symbol": gene,
         "uniprot_ac": uac,
         "tissue": tissue,
         "tissue_class": tclass,
+        "tissue_category": tissue_category,
         "median_log2_abundance": log2,
         "median_intensity": 2.0**log2,
         "n_samples": n_samples,
@@ -209,7 +238,11 @@ def test_housekeeping_broad_and_abundant(tmp_path):
     out = read.read_target_summary("GAPDH", product_path=prod)
     assert out["tphp_normal_protein_liability_class"] == "broad_and_abundant"
     assert out["n_adult_tissues_above_abundance_floor"] == _BROAD_ABUND + 5
-    assert out["abundance_floor_log2"] == _FLOOR
+    # LITERAL, not `== read.ABUNDANCE_FLOOR_LOG2` (which compares the constant to itself and cannot
+    # fail). This is the cut of a VERDICT-BEARING class, so moving it should have to move a test that
+    # spells the number — and the emitted field is what a consumer reads the classification against.
+    assert out["abundance_floor_log2"] == 15.076
+    assert out["vital_organ_min_samples"] == 3
 
 
 def test_broadly_detected_but_not_abundant_is_detected_not_abundant(tmp_path):
@@ -322,6 +355,191 @@ def test_vital_organ_data_unavailable(tmp_path):
     assert out["tphp_vital_organ_liability_class"] == "data_unavailable"
     assert out["n_vital_organs_above_abundance_floor"] == 0
     assert out["tphp_vital_organ_abundance"] == []
+
+
+# ── v2 substrate: tissue_category + solid-tissue counts ──────────────────────────────────────────
+# 10 of the 70 adult organism-parts are not solid tissues (4 body fluids, 4 blood_compartment entries
+# that are ONE compartment counted four times, hair, plant vessel). The reader LABELS them and emits
+# solid-only companion counts; it deliberately does NOT switch the verdict-bearing numerator to
+# solid-only, because with an ABSOLUTE cut of 35 that would make the liability veto fire LESS often.
+
+
+def test_v2_declaration_fields_present_in_both_paths(tmp_path):
+    """The v2 declaration fields appear on the populated AND the data_unavailable path — a card/replay
+    consumer reading them must never hit a missing key (the shape-stability half of absence discipline)."""
+    prod = _write_product(tmp_path, [_row("EGFR", "liver", "adult_normal", 9.0)])
+    populated = read.read_target_summary("EGFR", product_path=prod)
+    empty = read.read_target_summary("GHOSTGENE", product_path=prod)
+    for out, label in ((populated, "populated"), (empty, "data_unavailable")):
+        missing = _V2_DECLARATION_FIELDS - set(out)
+        assert not missing, f"{label} summary is missing v2 declaration fields: {sorted(missing)}"
+    assert populated["n_solid_adult_tissues_total"] == 60
+    # per-tissue rows carry the category so a consumer can choose its own denominator
+    assert populated["per_tissue_abundance"][0]["tissue_category"] == "solid_tissue"
+
+
+def test_solid_counts_exclude_non_solid_but_the_verdict_class_does_not(tmp_path):
+    """★ The load-bearing NON-change. A target above the floor in exactly BROAD_ABUNDANT_TISSUE_COUNT
+    adult parts, 10 of which are the non-solid entries, must STILL read broad_and_abundant — the class
+    keys on the ALL-ADULT count. The solid-only count is emitted alongside and is 10 lower.
+
+    Swapping the class numerator to the solid-only count (the intuitive-looking "exclude the fluids"
+    fix) turns this target's veto OFF while nothing about its biology changed: with an absolute cut of
+    35, removing parts from the numerator can only ever make the liability fire LESS. This test fails
+    if anyone makes that swap without also re-deriving the cut."""
+    non_solid = [
+        ("blood plasma", "body_fluid"),
+        ("urine", "body_fluid"),
+        ("saliva", "body_fluid"),
+        ("tear", "body_fluid"),
+        ("blood", "blood_compartment"),
+        ("erythrocyte", "blood_compartment"),
+        ("leukocyte", "blood_compartment"),
+        ("blood platelet", "blood_compartment"),
+        ("hair", "non_tissue"),
+        ("plant vessel", "unassignable"),
+    ]
+    n_solid = _BROAD_ABUND - len(non_solid)
+    rows = [_row("BORDER", f"solid_{i:02d}", "adult_normal", _FLOOR + 2.0) for i in range(n_solid)]
+    rows += [_row("BORDER", t, "adult_normal", _FLOOR + 2.0, tissue_category=cat) for t, cat in non_solid]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("BORDER", product_path=prod)
+
+    assert out["n_adult_tissues_above_abundance_floor"] == _BROAD_ABUND
+    assert out["n_solid_adult_tissues_above_abundance_floor"] == n_solid
+    assert out["n_solid_adult_tissues_detected"] == n_solid
+    assert out["n_adult_tissues_detected"] == _BROAD_ABUND
+    assert out["tphp_normal_protein_liability_class"] == "broad_and_abundant"
+
+
+def test_missing_tissue_category_column_fails_open_to_solid(tmp_path):
+    """A v1-shaped product (no tissue_category column) must still classify, defaulting to solid_tissue.
+    Fail-OPEN is the safety-correct direction here: an unrecognised part counts toward breadth rather
+    than vanishing from the numerator, because vanishing makes the veto quieter."""
+    rows = [_row("ACTB", f"adult_{i:02d}", "adult_normal", _FLOOR + 2.0) for i in range(_BROAD_ABUND)]
+    prod = _write_product(tmp_path, rows, cols=_COLS_V1, name="v1_shape.parquet")
+    out = read.read_target_summary("ACTB", product_path=prod)
+    assert out["per_tissue_abundance"][0]["tissue_category"] == "solid_tissue"
+    assert out["n_solid_adult_tissues_above_abundance_floor"] == _BROAD_ABUND
+    assert out["tphp_normal_protein_liability_class"] == "broad_and_abundant"
+
+
+# ── vital-organ MEASURABILITY (the n_samples >= 3 gate that must NOT drop organs) ─────────────────
+
+
+def test_low_support_vital_organs_are_labelled_not_dropped(tmp_path):
+    """★ blood (n_samples=1) and thyroid gland (n_samples=2) are below MIN_SAMPLES_MEASURABLE, and
+    thyroid is an S1_3_REQUIRED_ORGANS member. They must stay in the panel, be marked measurable=False,
+    and — critically — an above-floor value in one must STILL count toward
+    n_vital_organs_above_abundance_floor. A support gate that DROPPED them would zero that count and
+    read as 'no liability in this organ', re-opening the endocrine safety hole by two organs of 13."""
+    rows = [
+        _row("LOWN", "thyroid gland", "adult_normal", _FLOOR + 3.0, n_samples=2, n_detected=2),
+        _row(
+            "LOWN",
+            "blood",
+            "adult_normal",
+            _FLOOR + 4.0,
+            n_samples=1,
+            n_detected=1,
+            tissue_category="blood_compartment",
+        ),
+    ]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("LOWN", product_path=prod)
+
+    va = {r["organ"]: r for r in out["tphp_vital_organ_abundance"]}
+    assert va["thyroid"]["measurable"] is False and va["thyroid"]["n_samples"] == 2
+    assert va["blood"]["measurable"] is False and va["blood"]["n_samples"] == 1
+    # NOT dropped: both still register as above-floor vital-organ presence.
+    assert va["thyroid"]["above_abundance_floor"] is True
+    assert va["blood"]["above_abundance_floor"] is True
+    assert out["n_vital_organs_above_abundance_floor"] == 2
+    assert out["tphp_vital_organ_liability_class"] == "vital_organ_abundant"
+    # 13 crosswalked organs; blood + thyroid are the two the panel cannot power.
+    assert out["n_vital_organs_unmeasurable"] == 2
+    assert out["n_vital_organs_measurable"] == 11
+    assert out["n_vital_organs_measurable"] + out["n_vital_organs_unmeasurable"] == len(
+        out["tphp_vital_organ_abundance"]
+    )
+
+
+def test_clean_sweep_is_qualified_by_unmeasurable_count(tmp_path):
+    """no_vital_organ_signal is NOT a clean sweep: it is silent about the 2 organs the panel cannot
+    power. The counts are what let a consumer say 'clean across 11 measurable organs, 2 unknown'."""
+    rows = [_row("SKINONLY", "skin", "adult_normal", _FLOOR + 5.0)]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("SKINONLY", product_path=prod)
+    assert out["tphp_vital_organ_liability_class"] == "no_vital_organ_signal"
+    assert out["n_vital_organs_unmeasurable"] == 2
+    assert out["n_vital_organs_measurable"] == 11
+
+
+def test_undetected_vital_organ_falls_back_to_cached_arm_size(tmp_path):
+    """The product stores DETECTED-only rows, so an organ where the target was not quantified has NO
+    row to read n_samples from — exactly the case where 'clean or unmeasurable?' matters. The cached
+    panel arm size answers it, and n_samples_source says the value did not come from the data."""
+    prod = _write_product(tmp_path, [_row("NOBLOOD", "skin", "adult_normal", _FLOOR + 1.0)])
+    out = read.read_target_summary("NOBLOOD", product_path=prod)
+    va = {r["organ"]: r for r in out["tphp_vital_organ_abundance"]}
+    assert va["blood"]["detected"] is False
+    assert va["blood"]["n_samples"] == 1
+    assert va["blood"]["n_samples_source"] == "cached_panel_arm_size"
+    assert va["blood"]["measurable"] is False
+    # a well-powered undetected organ is measurable — absence there IS informative
+    assert va["brain"]["n_samples"] == 74 and va["brain"]["measurable"] is True
+
+
+def test_product_row_arm_size_overrides_the_cache(tmp_path):
+    """The cached arm-size table must be SELF-FALSIFYING: when the product carries a row, the ROW wins.
+    Otherwise a refreshed product with more donors would be silently overridden by a stale constant."""
+    rows = [
+        _row(
+            "REFRESHED",
+            "blood",
+            "adult_normal",
+            _FLOOR + 1.0,
+            n_samples=40,
+            n_detected=40,
+            tissue_category="blood_compartment",
+        )
+    ]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("REFRESHED", product_path=prod)
+    va = {r["organ"]: r for r in out["tphp_vital_organ_abundance"]}
+    assert va["blood"]["n_samples"] == 40, "cached arm size overrode the live product row"
+    assert va["blood"]["n_samples_source"] == "product_row"
+    assert va["blood"]["measurable"] is True
+    assert out["n_vital_organs_unmeasurable"] == 1  # only thyroid gland remains unpowered
+
+
+def test_low_support_adult_tissue_count(tmp_path):
+    """n_adult_tissues_detected_low_support says how much of the breadth count rests on <=2 donors
+    (21 of the 70 adult parts panel-wide). Here 4 of 6 detected adult tissues are low-support."""
+    rows = [_row("MIXED", f"small_{i}", "adult_normal", _FLOOR + 1.0, n_samples=2, n_detected=2) for i in range(4)]
+    rows += [_row("MIXED", f"big_{i}", "adult_normal", _FLOOR + 1.0, n_samples=10, n_detected=10) for i in range(2)]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("MIXED", product_path=prod)
+    assert out["n_adult_tissues_detected"] == 6
+    assert out["n_adult_tissues_detected_low_support"] == 4
+
+
+def test_recompute_floor_cli_reports_drift(tmp_path, capsys):
+    """The --recompute-floor CLI is the ONLY caller of compute_abundance_floor. Before it existed the
+    derivation of a verdict-bearing safety cut was unreachable code, indistinguishable from a magic
+    number. Pins that the flag runs, reports the re-derived value against the cached constant, and
+    does NOT mutate the constant."""
+    import json
+
+    rows = [_row("G", f"t{i:03d}", "adult_normal", float(v)) for i, v in enumerate(range(1, 100))]
+    prod = _write_product(tmp_path, rows)
+    rc = read._main(["--recompute-floor", "--percentile", "50", "--product-path", str(prod)])
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["recomputed_abundance_floor_log2"] == pytest.approx(50.0, abs=1.0)
+    assert payload["cached_abundance_floor_log2"] == 15.076
+    assert payload["drift"] == pytest.approx(payload["recomputed_abundance_floor_log2"] - 15.076, abs=1e-6)
+    assert read.ABUNDANCE_FLOOR_LOG2 == 15.076, "the CLI must be read-only"
 
 
 def test_compute_abundance_floor_recalibration(tmp_path):
