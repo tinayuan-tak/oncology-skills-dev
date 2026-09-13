@@ -192,6 +192,13 @@ class Atlas:
         # deliberately NO read-time recompute (a gate that re-derives its own basis can disagree with the
         # build that shipped the numbers). [] on a pre-2.0.0 artifact ⇒ every quality read returns None.
         self.reference_mask_fraction: list = list(doc.get("reference_mask_fraction", []))
+        # Per-PAIR redundancy over the metered numerics, pairwise-complete at build. Aligned to
+        # feature_corr_order — a SUBSET of feature_order — so it must NEVER be indexed with feature_order;
+        # read it through cohort_reference_correlation(), which resolves keys by name. feature_corr_n is the
+        # co-measured row count behind each cell: a None cell means "never looked", not "independent".
+        self.feature_corr_order: list = list(doc.get("feature_corr_order", []))
+        self.feature_corr: list = doc.get("feature_corr", [])
+        self.feature_corr_n: list = doc.get("feature_corr_n", [])
         self.axis_ref: dict = doc.get("axis_ref", {})
         emb = doc.get("embedding") or {}
         self.components: list = emb.get("components", [])  # m x d PCA loadings
@@ -1136,6 +1143,58 @@ def cohort_reference_quality(atlas_key: str) -> Optional[float]:
         return None
     v = frac[j]
     return float(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else None
+
+
+# The co-measured row count a correlation cell needs before it is worth reading. Mirrors the build-side
+# FEATURE_CORR_MIN_PAIRWISE_N: the build already refuses to WRITE a cell below it, so this is the reader's
+# independent floor rather than a second policy — an older artifact built with a laxer floor still gets
+# filtered here.
+USABLE_REFERENCE_CORR_N = 10
+
+
+@functools.lru_cache(maxsize=4096)
+def cohort_reference_correlation(atlas_key_a: str, atlas_key_b: str) -> Optional[float]:
+    """Frozen pairwise-complete correlation between two metered numeric reference columns, or None.
+
+    None (never 0.0) whenever the answer is unknown: no atlas, an artifact predating `feature_corr`,
+    either key absent from `feature_corr_order`, a cell the build declined to populate (constant column,
+    or fewer than `USABLE_REFERENCE_CORR_N` co-measured targets), or a non-finite value. "We could not
+    look" and "we looked and found independence" are different claims and a redundancy discount built on
+    this must be able to tell them apart — the same distinction `bits` vs `bits_withheld` draws.
+
+    Symmetric, and 1.0 for a key against itself (when that key is in the block at all).
+
+    ★ This is an INSTRUMENT, not a ranker. It exists so a consumer can discount a reference column that
+    duplicates another instead of hand-tuning a per-axis weight. It deliberately does NOT come with a
+    cross-frame aggregator: see `_skills_common/tests/test_salience_bits.py` for the measurement showing
+    that every aggregator built on it so far either re-ranks the negative controls or buys its clean
+    control test with a study-depth confound (r = +0.294 with the number of measured families), which is
+    the confound that already killed the supervised score in #842/#857."""
+    if not atlas_key_a or not atlas_key_b:
+        return None
+    a = _shipped_atlas_or_none()
+    if a is None:
+        return None
+    order, corr, counts = a.feature_corr_order, a.feature_corr, a.feature_corr_n
+    if not order or not corr:
+        return None
+    try:
+        i, j = order.index(atlas_key_a), order.index(atlas_key_b)
+    except ValueError:
+        return None
+    if i >= len(corr) or j >= len(corr[i]):
+        return None
+    if counts:
+        try:
+            if int(counts[i][j]) < USABLE_REFERENCE_CORR_N and atlas_key_a != atlas_key_b:
+                return None
+        except (IndexError, TypeError, ValueError):
+            return None
+    v = corr[i][j]
+    if not isinstance(v, (int, float)) or isinstance(v, bool):
+        return None
+    v = float(v)
+    return v if math.isfinite(v) else None
 
 
 # ── companion → canonical skill_report (shared by the STANDALONE target-archetype run.py AND the COMPOSED

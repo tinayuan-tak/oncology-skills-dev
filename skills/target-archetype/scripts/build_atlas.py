@@ -132,6 +132,73 @@ EXCLUDED_NAMESPACES = (
 )
 
 
+FEATURE_CORR_MIN_PAIRWISE_N = 10
+
+
+def feature_correlation(feature_order, X):
+    """PAIRWISE-COMPLETE correlation over the metered numeric (non-`::mask`) columns.
+
+    Returns `(order, corr, n)`: the column keys the matrix is aligned to, the matrix itself, and the
+    number of rows actually behind each cell. Three keys rather than one, for two reasons that have each
+    already cost this repo a bug:
+
+    - **Alignment is DECLARED, not assumed.** `reference_mask_fraction` is aligned to `feature_order` and
+      a reader must know that out of band. This block is aligned to a SUBSET, so shipping the matrix
+      without its own order invites a consumer to index it with `feature_order` and silently read the
+      wrong column pair.
+    - **A correlation is a derived number, so it needs its basis** — the same reason `bits` is schema-
+      required to carry `cohort_n >= 1`. Two columns measured together in 11 targets and two measured
+      together in 250 both yield a float in [-1, 1], and only `n` distinguishes a structure from a
+      coincidence. Cells below `FEATURE_CORR_MIN_PAIRWISE_N` are `None`, not 0.0: "we could not look"
+      and "we looked and found independence" are different claims.
+
+    Why PAIRWISE-COMPLETE and not the mean-imputed `Z` that feeds the PCA: that transform sets every
+    missing cell to exactly the column mean, which drags the covariance toward zero in proportion to
+    missingness — so the columns most in need of a redundancy discount get the smallest one. Measured on
+    the 2026-09-13 freeze, imputation understates |r| on real pairs by up to 0.080 (median 0.012 over the
+    190 usable pairs); `cn_stratified_dependency::num::delta_chronos_amplified_vs_neutral` vs
+    `dependency_predictability::num::pearson_r_squared_rf` reads 0.549 pairwise-complete against 0.469
+    imputed, off 132 co-measured targets. The PCA wants the imputed basis (it needs a dense matrix and
+    z=0 is the least-committal fill); a redundancy measure wants the observed one.
+
+    Scope is the `::num::` non-mask columns because they are the population that gets RANKED. The
+    `::mask` columns are excluded from rank consumers already (every one carries
+    `reference_mask_fraction` 1.000 by construction, so the usable-reference gate is vacuous against
+    them), and a full `feature_order` block would ship ~31k cells for 176 columns with no consumer.
+
+    ★ Verdict-INERT and DESCRIPTIVE. This is an instrument, not a ranker — see the salience tests for the
+    measured reason no cross-frame aggregator is built on it yet.
+    """
+    order = [k for k in feature_order if "::num::" in k and not k.endswith("::mask")]
+    cols = [feature_order.index(k) for k in order]
+    A = np.array([[np.nan if row[j] is None else row[j] for j in cols] for row in X], dtype=float)
+    d = len(order)
+    corr = [[None] * d for _ in range(d)]
+    counts = [[0] * d for _ in range(d)]
+    for a in range(d):
+        for b in range(a, d):
+            both = ~np.isnan(A[:, a]) & ~np.isnan(A[:, b])
+            k = int(np.count_nonzero(both))
+            counts[a][b] = counts[b][a] = k
+            if a == b:
+                # the diagonal is 1.0 whenever the column exists at all — a column is perfectly
+                # redundant with itself even when only one target measured it.
+                corr[a][b] = 1.0 if k else None
+                continue
+            if k < FEATURE_CORR_MIN_PAIRWISE_N:
+                continue
+            va, vb = A[both, a], A[both, b]
+            if np.std(va) == 0 or np.std(vb) == 0:
+                # a constant column has no correlation with anything (0/0); leave it unknown rather than
+                # reporting the 0.0 that np.corrcoef emits with a RuntimeWarning.
+                continue
+            r = float(np.corrcoef(va, vb)[0, 1])
+            if not np.isfinite(r):
+                continue
+            corr[a][b] = corr[b][a] = round(r, 4)
+    return order, corr, counts
+
+
 @functools.lru_cache(maxsize=1)
 def _live_rule_ids() -> frozenset:
     """Every rule_id currently defined in target-contracts' rule files — the set a FRESH run can still emit.
@@ -272,6 +339,11 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
         for j in range(len(feature_order))
     ]
 
+    # per-column-PAIR redundancy, over the metered numerics only, on the OBSERVED rows (not the imputed
+    # ones the PCA uses). Lets a label-free consumer discount a reference column that duplicates another
+    # instead of hand-tuning a per-axis weight. See feature_correlation() for why the basis differs.
+    feature_corr_order, feature_corr, feature_corr_n = feature_correlation(feature_order, X)
+
     # LINEAR embedding: z-score vs mu/sd, mean-impute missing -> 0 (EXACT runtime transform), then PCA.
     from sklearn.decomposition import PCA
 
@@ -341,6 +413,12 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
         # per-column measured fraction (aligned to feature_order) — reference-distribution quality for
         # label-free rank/percentile/surprisal consumers to gate on (verdict-INERT).
         "reference_mask_fraction": reference_mask_fraction,
+        # per-PAIR redundancy over the metered numerics, pairwise-complete. Three keys, always together:
+        # the matrix, the column keys it is aligned to (a SUBSET of feature_order — never index it with
+        # feature_order), and the co-measured row count behind each cell (None cell = never looked).
+        "feature_corr_order": feature_corr_order,
+        "feature_corr": feature_corr,
+        "feature_corr_n": feature_corr_n,
         "mu": [round(float(x), 6) for x in mu],
         "sd": [round(float(x), 6) for x in sd],
         "X": X,
