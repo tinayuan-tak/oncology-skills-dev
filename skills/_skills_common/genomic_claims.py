@@ -54,6 +54,13 @@ _CN_SIGNAL = {
     "data_unavailable": "unmeasured",
 }
 _CN_FOCAL_POS = {"recurrent_focal_amplification", "recurrent_focal_deletion"}
+# The patient-tumour arm's EXPLICITLY MEASURED negative. Distinct from `data_unavailable`: focal_neutral
+# means GISTIC looked and found no recurrent focal event, so it CONTRADICTS a cell-line recurrent call;
+# data_unavailable means nobody looked, which contradicts nothing. Kept as a set so a future
+# `focal_low_level` style token joins the disagreement population by declaration, not by editing an `==`.
+_CN_FOCAL_NEG = {"focal_neutral"}
+# The cell-line arm's recurrent calls — the classes a measured patient-tumour negative can disagree WITH.
+_CN_CELL_LINE_RECURRENT = {"recurrently_amplified", "recurrently_deleted"}
 # fusion_class
 _FUS_SIGNAL = {
     "recurrent_fusion_driver": "strong",
@@ -172,13 +179,44 @@ def _f(v, nd=0):
     return f"{v:.{nd}f}" if isinstance(v, (int, float)) else "n/a"
 
 
+# ── recurrence-class precedence: a truthy SENTINEL is not a measurement ───────────────────────────
+# `pooled_driver_recurrence_class` carries the explicit string "data_unavailable" when the pooled read
+# found no cohort for the indication — and "data_unavailable" is a NON-EMPTY STRING, so the natural
+#     h.get("pooled_driver_recurrence_class") or h.get("driver_recurrence_class")
+# short-circuits ON the sentinel and DISCARDS a measured per-indication class behind it, including a
+# measured `bottom_decile` floor. Same family as `±Inf is a NUMBER`: a sentinel that satisfies the very
+# guard meant to exclude it. It fails OPEN in the direction that HIDES false negatives — a measured
+# "recurrence absent" is republished as "unmeasured", so a literature contradiction against it is filed
+# as a coverage gap instead of a calibration miss.
+#
+# Derived from _RECURRENCE_SIGNAL rather than restated, so a new unavailability token added to the
+# vocabulary joins this set by declaration. A class ABSENT from the map is deliberately NOT skipped: an
+# unrecognised token is an unknown band, not a declared sentinel, and skipping it would silently drop a
+# newly-added real band.
+_UNMEASURED_RECURRENCE = frozenset(k for k, v in _RECURRENCE_SIGNAL.items() if v == "unmeasured")
+
+
+def _recurrence_class(h, *fallbacks):
+    """The driver-recurrence class, preferring a MEASURED read over an explicit unavailability sentinel.
+
+    Precedence is otherwise unchanged (pooled -> per-indication -> any caller-supplied fallback). When
+    every present candidate is unmeasured, returns the first present one so evidence prose still names
+    `data_unavailable` rather than None.
+    """
+    present = [v for v in (h.get("pooled_driver_recurrence_class"), h.get("driver_recurrence_class"), *fallbacks) if v]
+    for v in present:
+        if v not in _UNMEASURED_RECURRENCE:
+            return v
+    return present[0] if present else None
+
+
 # ── the four claims (signal_fn -> (tier, evidence, conflict); corroboration_fn -> tier) ───────────
 def _snv_signal(h, c):
     bc = _by_class(h).get("snv_indel") or {}
     landscape = bc.get("verdict")  # mutation_landscape_class
     if landscape == "no_mutations":
         return "absent", "no SNV/indel mutations in cohort", None
-    rec = h.get("pooled_driver_recurrence_class") or h.get("driver_recurrence_class") or bc.get("recurrence_class")
+    rec = _recurrence_class(h, bc.get("recurrence_class"))
     sig = _RECURRENCE_SIGNAL.get(rec, "unmeasured")
     ev = f"SNV: {landscape or 'data_unavailable'}, recurrence {rec or 'data_unavailable'}" + (
         f" ({_f((h.get('pooled_mutation_frequency') or h.get('overall_mutation_frequency') or 0) * 100, 1)}% freq)"
@@ -189,7 +227,7 @@ def _snv_signal(h, c):
 
 
 def _snv_corroboration(h, c):
-    rec = h.get("pooled_driver_recurrence_class") or h.get("driver_recurrence_class")
+    rec = _recurrence_class(h)
     if _RECURRENCE_SIGNAL.get(rec, "unmeasured") == "unmeasured":
         return "unmeasured"
     cohorts = h.get("pooled_recurrence_cohorts")
@@ -208,6 +246,7 @@ def _cn_signal(h, c):
     cls = bc.get("verdict")  # copy_number_class (cell-line)
     sig = _CN_SIGNAL.get(cls, "unmeasured")
     focal = h.get("patient_focal_cn_class")
+    demoted = False
     if focal in _CN_FOCAL_POS:
         # Patient-tumour focal CN is the clinically-relevant driver event and drives the signal
         # INDEPENDENTLY of the cell-line arm. HER2/CCND1 are recurrently focally amplified in patient
@@ -217,7 +256,27 @@ def _cn_signal(h, c):
         # patient-focal alone (cell-line neutral) -> moderate. Mirrors the tumor-presence de-differentiation
         # fix (a measured tumour-tissue positive is not vetoed by a neutral cell-line proxy).
         sig = "strong" if sig_ge(sig, "moderate") else "moderate"
+    elif cls in _CN_CELL_LINE_RECURRENT and focal in _CN_FOCAL_NEG:
+        # The MIRROR of the arm above, and it was missing: corroboration is bidirectional but signal was
+        # one-way. `_cn_corroboration` already returns `low` for exactly this shape (cell-line recurrent,
+        # patient tumour explicitly focal-neutral), while `_cn_signal` had only the elevation path — so the
+        # claim kept publishing a `moderate` measured-POSITIVE CN signal for a shallow cell-line call over
+        # near-diploid patient tumours (0.1-2.3% of the cohort). TC #739 retired this predicate from every
+        # driver-establishing rung, but retiring it from the LADDER does not retire it from the CLAIM, which
+        # is what the eval harness, the literature lane and the discordance ledger read.
+        #
+        # SYMMETRIC across amplification and deletion on purpose: the mechanism is direction-agnostic and
+        # `_cn_corroboration` already treats both alike, so demoting only the deletion instance would
+        # recreate the mirror-guard DIRECTION gap this arm exists to close. `weak` (not `absent`) mirrors
+        # `_fus_signal`'s `promiscuous_amplicon_fusion` — the event is real in some lines, it just is not
+        # population recurrence. Keyed on _CN_FOCAL_NEG, never on `data_unavailable`: an UNMEASURED patient
+        # arm is not a contradiction, and demoting on it would punish coverage gaps as disagreement.
+        sig, demoted = "weak", True
     ev = f"CN: cell-line {cls or 'data_unavailable'}, patient-focal {focal or 'data_unavailable'}"
+    if demoted:
+        # Name the demotion in the evidence, not just in the tier — the literature lane and the ledger
+        # read this string, and "weak" alone reads as a weak measurement rather than as a disagreement.
+        ev += " — cell-line-recurrent but patient tumours focal-neutral: not population recurrence"
     return sig, ev, None
 
 
@@ -408,7 +467,7 @@ def _snv_atom(h, c):
             "n_samples_mutated",
         ),
         {"measurement_type": "mutation_hotspot_recurrence", "grain": "target_indication"},
-        (h.get("pooled_driver_recurrence_class") or h.get("driver_recurrence_class")),
+        _recurrence_class(h),
     )
 
 
@@ -504,7 +563,7 @@ def genomic_key_signals(headline: dict, cards: list) -> dict:
     h = headline
 
     def sup_snv(claim):
-        rec = h.get("pooled_driver_recurrence_class") or h.get("driver_recurrence_class")
+        rec = _recurrence_class(h)
         return f"Recurrent SNV/indel driver — {rec} recurrence [mutation-hotspot-frequency]"
 
     def sup_cn(claim):
@@ -533,7 +592,7 @@ def genomic_key_signals(headline: dict, cards: list) -> dict:
         )
 
     def cav_snv(claim):
-        return f"Not a recurrent SNV driver — {h.get('pooled_driver_recurrence_class') or h.get('driver_recurrence_class')} recurrence [mutation-hotspot-frequency]"
+        return f"Not a recurrent SNV driver — {_recurrence_class(h)} recurrence [mutation-hotspot-frequency]"
 
     def cav_cn(claim):
         return f"No recurrent copy-number alteration — {(_by_class(h).get('copy_number') or {}).get('verdict')} [copy-number-distribution]"

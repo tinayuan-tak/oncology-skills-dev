@@ -18,7 +18,14 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.genomic_claims import (  # noqa: E402  # noqa: E402
+    _CN_CELL_LINE_RECURRENT,
+    _CN_FOCAL_NEG,
+    _CN_FOCAL_POS,
+    _CN_SIGNAL,
+    _RECURRENCE_SIGNAL,
     _SPLICE_SIGNAL,
+    _UNMEASURED_RECURRENCE,
+    _recurrence_class,
     _spl_corroboration,
     _spl_signal,
     genomic_claim_vector,
@@ -307,3 +314,130 @@ def test_spl_common_cases_are_absent_not_unmeasured():
     # a missing/failed read stays a gap
     assert _spl_signal(_spl_h(None), None)[0] == "unmeasured"
     assert _spl_signal(_spl_h("data_unavailable"), None)[0] == "unmeasured"
+
+
+# ── CASE-031: the CN demotion mirror (cell-line recurrent vs patient-tumour focal-neutral) ────────
+def _cn_disagree_headline(cell_line_cls):
+    """The measured discordance shape from the genomic-20 panel: DepMap calls the locus recurrently
+    amplified/deleted, but GISTIC says patient tumours are focal-neutral (0.1-2.3% of the cohort)."""
+    return {
+        "genomic_alteration_by_class": _by_class(
+            snv_landscape="no_mutations", cn=cell_line_cls, fusion="no_recurrent_fusion"
+        ),
+        "patient_focal_cn_class": "focal_neutral",
+        "drug_response_stratification_class": "not_drug_response_stratified",
+    }
+
+
+def test_cellline_recurrent_over_focal_neutral_patients_is_demoted_in_BOTH_directions():
+    """CASE-031. `_cn_corroboration` already returned `low` for this shape while `_cn_signal` kept
+    publishing a measured-POSITIVE `moderate` — corroboration was bidirectional, signal was one-way.
+
+    Iterates `_CN_CELL_LINE_RECURRENT` rather than naming the two tokens, so a vocabulary that grows a
+    third recurrent cell-line class is covered by declaration; the length assert keeps that derivation
+    honest (a token RENAMED out of the set would otherwise make this test vacuously pass over 0 cases).
+    """
+    assert len(_CN_CELL_LINE_RECURRENT) >= 2, "population shrank — the symmetry claim is no longer tested"
+    for cls in _CN_CELL_LINE_RECURRENT:
+        vec = genomic_claim_vector(_cn_disagree_headline(cls), [])
+        assert vec["CN"]["signal"] == "weak", f"{cls}: measured patient focal-neutral did not demote"
+        assert vec["CN"]["corroboration"] == "low", f"{cls}: corroboration arm regressed"
+        assert "not population recurrence" in vec["CN"]["evidence"], f"{cls}: demotion unnarrated"
+
+
+def test_cn_demotion_is_keyed_on_a_MEASURED_negative_not_on_a_gap():
+    """DLL3/SCLC shape: cell-line `recurrently_deleted` with NO patient-CN read. An unmeasured patient
+    arm is not a contradiction — demoting on it would price a coverage gap as disagreement. This is the
+    both-directions companion to the test above and the reason `_CN_FOCAL_NEG` is not `!= focal event`."""
+    for gap in ("data_unavailable", None):
+        h = _cn_disagree_headline("recurrently_deleted")
+        h["patient_focal_cn_class"] = gap
+        vec = genomic_claim_vector(h, [])
+        assert vec["CN"]["signal"] == "moderate", f"patient-focal {gap!r} wrongly demoted the CN claim"
+        assert "not population recurrence" not in vec["CN"]["evidence"]
+
+
+def test_cn_elevation_and_agreement_paths_survive_the_demotion_arm():
+    """Anti-vacuity in the other direction: the four controls that must NOT move. PTEN/MYC-shaped
+    agreement stays `strong`, HER2/CCND1-shaped patient-only focal stays `moderate`, and a `mixed`
+    cell-line call over focal-neutral patients is untouched (it was never a recurrent positive)."""
+    for cls, focal in (
+        ("recurrently_deleted", "recurrent_focal_deletion"),
+        ("recurrently_amplified", "recurrent_focal_amplification"),
+    ):
+        h = _cn_disagree_headline(cls)
+        h["patient_focal_cn_class"] = focal
+        assert genomic_claim_vector(h, [])["CN"]["signal"] == "strong", f"{cls}: agreement path regressed"
+    h = _cn_disagree_headline("broadly_neutral")
+    h["patient_focal_cn_class"] = "recurrent_focal_amplification"
+    assert genomic_claim_vector(h, [])["CN"]["signal"] == "moderate", "patient-only elevation path regressed"
+    assert genomic_claim_vector(_cn_disagree_headline("mixed"), [])["CN"]["signal"] == "weak"
+
+
+def test_cn_focal_populations_are_disjoint_and_declared():
+    """Structural pin: the elevation and demotion arms are an if/elif over two sets, so an overlap would
+    make the demotion silently unreachable for the overlapping token. Also pins every recurrent cell-line
+    class as a POSITIVE tier in `_CN_SIGNAL` — the premise that makes demotion meaningful."""
+    assert not (_CN_FOCAL_POS & _CN_FOCAL_NEG)
+    for cls in _CN_CELL_LINE_RECURRENT:
+        assert _CN_SIGNAL[cls] not in ("absent", "unmeasured"), f"{cls} is not a positive CN call"
+
+
+# ── CASE-032: a truthy sentinel is not a measurement ──────────────────────────────────────────────
+def test_unmeasured_recurrence_sentinel_does_not_shadow_a_measured_class():
+    """CASE-032. `pooled or per_indication` short-circuits on the NON-EMPTY string "data_unavailable",
+    discarding a measured `bottom_decile` floor and republishing it as `unmeasured` — failing OPEN in the
+    direction that hides false negatives."""
+    assert (
+        _recurrence_class(
+            {"pooled_driver_recurrence_class": "data_unavailable", "driver_recurrence_class": "bottom_decile"}
+        )
+        == "bottom_decile"
+    )
+    # precedence among MEASURED reads is unchanged: pooled still wins
+    assert (
+        _recurrence_class({"pooled_driver_recurrence_class": "top_decile", "driver_recurrence_class": "mid"})
+        == "top_decile"
+    )
+    # a caller-supplied fallback is reached only after both named reads are unmeasured
+    assert _recurrence_class({"pooled_driver_recurrence_class": "data_unavailable"}, "mid") == "mid"
+    # all-unmeasured keeps the sentinel (evidence prose must say data_unavailable, not None)
+    assert (
+        _recurrence_class(
+            {"pooled_driver_recurrence_class": "data_unavailable", "driver_recurrence_class": "data_unavailable"}
+        )
+        == "data_unavailable"
+    )
+    assert _recurrence_class({}) is None
+    # an UNRECOGNISED token is not a declared sentinel and must NOT be skipped (it may be a new real band)
+    assert (
+        _recurrence_class({"pooled_driver_recurrence_class": "some_future_band", "driver_recurrence_class": "mid"})
+        == "some_future_band"
+    )
+
+
+def test_unmeasured_recurrence_set_is_derived_from_the_signal_map():
+    """The set is computed from `_RECURRENCE_SIGNAL`, not restated, so a new unavailability token joins by
+    declaration. Pinned BY NAME so a rename cannot leave this green over an empty set."""
+    assert _UNMEASURED_RECURRENCE == {"data_unavailable"}
+    assert all(_RECURRENCE_SIGNAL[k] == "unmeasured" for k in _UNMEASURED_RECURRENCE)
+
+
+def test_sentinel_fix_reaches_every_recurrence_surface():
+    """The fan-out that makes CASE-032 more than a helper bug: FIVE surfaces read the or-chain (signal,
+    corroboration, the SNV evidence atom, and BOTH narrator strings). A measured `bottom_decile` floor must
+    read as a measured `absent` on all of them, not as a gap."""
+    h = {
+        "genomic_alteration_by_class": _by_class(
+            snv_landscape="missense_dominant", cn="broadly_neutral", fusion="no_recurrent_fusion"
+        ),
+        "pooled_driver_recurrence_class": "data_unavailable",
+        "driver_recurrence_class": "bottom_decile",
+        "drug_response_stratification_class": "not_drug_response_stratified",
+    }
+    vec = genomic_claim_vector(h, [])
+    assert vec["SNV"]["signal"] == "absent", "signal surface still reads the sentinel"
+    assert vec["SNV"]["corroboration"] != "unmeasured", "corroboration surface still reads the sentinel"
+    assert "bottom_decile" in vec["SNV"]["evidence"] and "data_unavailable" not in vec["SNV"]["evidence"]
+    blob = repr(genomic_key_signals(h, []))
+    assert "bottom_decile" in blob, "narrator surfaces still quote the sentinel"

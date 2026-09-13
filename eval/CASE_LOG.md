@@ -131,8 +131,28 @@ the axis the lens was supposed to compare.
   DLL3/SCLC's `data_unavailable` patient arm is a **separate** hole — it falls through to corroboration
   `moderate`, giving an absent arm the same weight as a partial agreement; handle it explicitly rather than
   folding it in.
-- **Status:** OPEN — filed with its measurement and flip test. Verdict-inertness must be re-measured in that
-  PR (the gate reads the raw ladder, but the headline and `key_signals` read the claim).
+- **Status:** ✅ FIXED (root fix, `_skills_common/genomic_claims.py`). `_cn_signal` grew the mirror of its own
+  elevation arm: an `elif cls in _CN_CELL_LINE_RECURRENT and focal in _CN_FOCAL_NEG` → **`weak`**, plus an
+  evidence clause naming the disagreement (`weak` alone reads as a weak *measurement*, not as a contradiction —
+  and the literature lane reads that string). Written as an explicit `if/elif` over two declared sets so the
+  exclusivity is **structural**, with `test_cn_focal_populations_are_disjoint_and_declared` pinning
+  `_CN_FOCAL_POS ∩ _CN_FOCAL_NEG = ∅`.
+  **Made SYMMETRIC across amplification and deletion**, deliberately wider than the 5 deletion instances that
+  surfaced it: the mechanism is direction-agnostic, `_cn_corroboration` already returns `low` for both, and
+  fixing only the deletion arm would have recreated the very **mirror-guard DIRECTION gap** this case is about.
+  The one amplification that moves, EGFR/LUAD (5.1% high-level), is the same minority-subset framing CASE-030
+  already resolved as correctly `focal_neutral`.
+  Re-measured live against the CN products (not quoted from the pre-fix note): **6 of 20 move, all 4 protected
+  controls hold** — PTEN/PRAD + MYC/BRCA `strong` via the agree path, ERBB2/BRCA + CCND1/HNSC `moderate` via the
+  elevation path. DLL3/SCLC (`data_unavailable` patient arm) is **untouched**, per the case's instruction to
+  handle it explicitly: the demotion is keyed on the measured `focal_neutral` only, because an unmeasured arm is
+  not a contradiction and demoting on it would price a coverage gap as disagreement. ★The **corroboration** half
+  of the DLL3 hole (an absent arm still earning `moderate`) is NOT addressed here and stays open.
+  **Verdict-inertness re-measured, not assumed:** `run.py:911` assigns `claim_vector` *after*
+  `reconcile_genomic_verdict`, and the composed gate reads raw `resolve_verdict_for_gate`, so the spine cannot
+  observe either fix; the `headline_block` / `question_table` display projections do move, as intended.
+  Guards falsified by mutation — deleting the demotion arm reddens
+  `test_cellline_recurrent_over_focal_neutral_patients_is_demoted_in_BOTH_directions` and nothing else.
 
 ### CASE-032 — `A or B` short-circuits on a TRUTHY `"data_unavailable"` sentinel and discards a MEASURED floor: 2 of 20 publish `unmeasured` where the data says `absent` (2026-09-13)
 
@@ -160,7 +180,26 @@ the axis the lens was supposed to compare.
   truthiness: take the first arm whose class is **not** in the unavailable sentinel set. Flip test is clean:
   CD19/DLBC + NTRK1/THCA move `unmeasured` → `absent`; **DLL3/SCLC stays `unmeasured`** (SCLC genuinely absent
   from the product), so the fix separates mislabelled floors from real gaps rather than blanket-converting.
-- **Status:** OPEN — filed. Corrects CASE-029's residual from "3 blind" to **1 genuine coverage gap**.
+- **Status:** ✅ FIXED (root fix, `_skills_common/genomic_claims.py`). One shared `_recurrence_class(h, *fallbacks)`
+  resolver now takes the first candidate whose class is **not** a declared unavailability sentinel, keeping the
+  pooled → per-indication → per-class precedence otherwise intact, and returning the first *present* value when
+  every candidate is unmeasured so the evidence prose still says `data_unavailable` rather than `None`.
+- **★ Correction to the blast radius above: it is FIVE surfaces, not four.** Re-grepping the file rather than
+  trusting the filed list turned up `:536` `cav_snv` — the **caveat narrator**: *"Not a recurrent SNV driver —
+  {…} recurrence"*. That is the one surface that narrates the negative, so it sat squarely in the fail-open
+  direction the case describes, and a fix routed through only the four filed sites would have left the
+  user-visible sentence still quoting `data_unavailable` while the tier beside it read `absent`. Grep the file,
+  not the case note.
+- **★ The sentinel set is DERIVED, not restated:**
+  `_UNMEASURED_RECURRENCE = frozenset(k for k, v in _RECURRENCE_SIGNAL.items() if v == "unmeasured")`, so a new
+  unavailability token joins by declaration — the hardcoded-set failure mode from
+  `derive the check's OWN population`. A class **absent** from the map is deliberately *not* skipped: an
+  unrecognised token is an unknown band, not a declared sentinel, and skipping it would silently drop a
+  newly-added real band. Both directions are pinned
+  (`test_unmeasured_recurrence_sentinel_does_not_shadow_a_measured_class` asserts the `some_future_band` case
+  survives), and the set is additionally pinned **by name** so a rename cannot leave the guard green over ∅.
+- Corrects CASE-029's residual from "3 blind" to **1 genuine coverage gap**. Falsified by restoring the
+  or-chain: exactly the two new guards redden, including the fan-out one.
 
 ### CASE-033 — the ledger's atlas-exclusion hint is a SUBSTRING MATCH ON PROSE: 17 of 17 misroutes, 0 correct routes — FIXED (2026-09-13)
 
