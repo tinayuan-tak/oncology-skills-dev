@@ -346,6 +346,7 @@ environments:
       - conda: https://conda.anaconda.org/conda-forge/noarch/r-assertthat-0.2.1-r45hc72bb7e_6.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/r-bbmle-1.0.25.1-r45hc72bb7e_2.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/r-bh-1.90.0_1-r45hc72bb7e_0.conda
+      - conda: https://conda.anaconda.org/conda-forge/noarch/r-biocmanager-1.30.27-r45hc72bb7e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/r-blob-1.3.0-r45hc72bb7e_0.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/r-boot-1.3_32-r45hc72bb7e_1.conda
       - conda: https://conda.anaconda.org/conda-forge/noarch/r-brew-1.0_10-r45hc72bb7e_2.conda
@@ -5771,6 +5772,16 @@ packages:
   run_exports: {}
   size: 11604825
   timestamp: 1765715910473
+- conda: https://conda.anaconda.org/conda-forge/noarch/r-biocmanager-1.30.27-r45hc72bb7e_0.conda
+  sha256: 177f262fda25552b8ce3e7685220deefba1625314575a892cd4abca06ddf06a4
+  md5: f1b6b9a4e77b21df8a6949102db4f468
+  depends:
+  - r-base >=4.5,<4.6.0a0
+  license: Artistic-2.0
+  license_family: OTHER
+  run_exports: {}
+  size: 644936
+  timestamp: 1763112090227
 - conda: https://conda.anaconda.org/conda-forge/noarch/r-blob-1.3.0-r45hc72bb7e_0.conda
   sha256: c939f23050463f3f62d08eaa5bdcd567799ed8f78d5270e50884cfe5ea35048d
   md5: a5401d5f7b44aa4b805abc756ddb403a

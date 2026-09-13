@@ -65,8 +65,12 @@ provenance <- list(
     DESeq2 = dat$deseq2_version,
     apeglm = dat$apeglm_version,
     sva = dat$combat_seq_version,
-    R = paste(R.version$major, R.version$minor, sep = "."),
-    bioconductor = as.character(BiocManager::version())
+    R = paste(R.version$major, R.version$minor, sep = ".")
+    # `bioconductor` is set below via tryCatch — do NOT call BiocManager::version()
+    # eagerly here: this list is built before the tryCatch runs, so an unguarded
+    # call would abort the whole script if BiocManager were absent, and its value
+    # is overwritten below regardless. BiocManager is now a declared pixi dep
+    # (r-biocmanager), so the tryCatch records the real Bioconductor release.
   ),
   cohort = list(
     n_tumor = dat$dge_n_tumor,
@@ -80,7 +84,10 @@ provenance <- list(
   label = if (isTRUE(cfg$exploratory)) "exploratory" else "pre-specified"
 )
 
-# Defensive: if BiocManager isn't loaded yet, skip the bioconductor field.
+# Record the Bioconductor release. BiocManager is a declared pixi dep, so this
+# resolves to the real version; the tryCatch stays as a cross-environment guard
+# so a provenance write never aborts if some other R env lacks it (falls back to
+# "unknown" rather than crashing — but the pixi env must, and does, have it).
 provenance$versions$bioconductor <- tryCatch(
   as.character(BiocManager::version()),
   error = function(e) "unknown"

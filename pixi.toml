@@ -25,6 +25,7 @@ r-base = ">=4.3"
 r-tidyverse = "*"
 r-arrow = "*"                    # write parquet from R
 r-optparse = "*"                 # CLI arg parsing in R stage scripts
+r-biocmanager = "*"              # dge_deseq2: 05_provenance.R records BiocManager::version() (Bioconductor release) in provenance.yaml
 r-devtools = "*"                 # cooccurrence_fisher_pancohort: install DISCOVER from GitHub via setup.R
 r-remotes = "*"                  # cooccurrence_fisher_pancohort: devtools 2.5+ delegates install_github to remotes
 "r-data.table" = "*"             # cooccurrence_fisher_pancohort: fast MAF parse + binary matrix build
