@@ -96,7 +96,19 @@ the exemplars land correctly (ALK 97%, NTRK1 88%, RET 83%, ROS1 67%) but — bec
 of 108 and every recurrent-fusion driver is an RTK — the anchor encodes RTK-ness, bleeding spurious fusion
 mass into non-fusion RTK/surface targets (MET flipped fusion-dominant; ERBB2 35%; CLDN18, not a kinase, 31%).
 It stays deferred until the fusion signal is made SEPARABLE in the embedding (e.g. FUS-feature up-weighting),
-not merely supplied with exemplars.
+not merely supplied with exemplars. `synthetic_lethal` is deferred on the same kind of evidence but by the
+weaker mechanism of having NO exemplar set at all, so it is DECLARED in `build_atlas.UNDECLARED_ANCHORS` (with
+its separation-test numbers) and the build REFUSES to run if an exemplar set reappears — see
+`tests/test_deferred_anchors.py`.
+
+FREEZE STABILITY: `scripts/atlas_stability.py` pins a per-field + per-`meta`-key sha256 of the frozen artifact
+in `atlas/atlas_freeze.json`, so a value that moves without a re-freeze is a red test that NAMES the field.
+This is a different property from the staleness guard above, which checks internal consistency and so cannot
+see a self-consistent edit. **Re-freeze checklist**: rebuild → `atlas_stability.py --verify-rebuild <new.json>`
+(0 substantive differences expected; only `meta.build_date`/`build_git_sha`/`feature_corr_provenance` are
+waived) → install the new atlas → `atlas_stability.py --write` in the SAME commit → `atlas_health.py`.
+`--verify-rebuild` needs scikit-learn (a build_atlas import that is NOT in the pixi env) and the run corpus,
+so it runs by hand, not in CI.
 
 RETIRED: the former outcome-trained approval-propensity score (D2/D3, `nomination_predictive_score`) was
 removed. An ablation showed its signal was carried by advancement / study-depth features, not disease

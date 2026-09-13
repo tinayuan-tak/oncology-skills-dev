@@ -1,0 +1,52 @@
+{
+  "schema": "atlas_freeze/1.0.0",
+  "note": "Per-field digests of the FROZEN atlas.json. Regenerate ONLY as part of an intended re-freeze (scripts/atlas_stability.py --write), in the same commit as the new atlas.json — a manifest updated on its own converts this guard into a rubber stamp.",
+  "digest": "sha256 of json.dumps(value, sort_keys=True, separators=(',',':'), ensure_ascii=False)",
+  "identity": {
+    "corpus": "target-archetype-corpus-20260911",
+    "build_date": "2026-09-13",
+    "build_git_sha": "e184a380",
+    "feature_schema_version": "2.0.0",
+    "n_targets": 297,
+    "n_features": 176,
+    "emb_dim": 16
+  },
+  "fields": {
+    "feature_order": "78233353c1372095c0fbe4131488842cc099806f787fa7d51f9211a5838bc55f",
+    "reference_mask_fraction": "7cd93bcbee25f6d02787831f9c65b6871c549c8568337a1342126ae3c5bfb8db",
+    "feature_corr_order": "d958085cb481f15e854757077bab8feb82eb9553298474ecf1046bbb100adb19",
+    "feature_corr": "eb2a31912aaf77e76069b487165c0ef75d3386256a8f98b27095f2873cbfbf28",
+    "feature_corr_n": "69a3ef24f651aeca602ec9ce5d50c70c899ca14be297e0c8d355b709c550b2ec",
+    "mu": "d1050336feb7ad7259d7dab7504762d32bd3ec17d376acbe6049f99b374aadd1",
+    "sd": "5a035907a3b0e78d318b2c1b7af4f1cce578a4d1e98c213e84c9f943384c3068",
+    "X": "e7a764d1a1f038b608cab0b18825240e2f3351de93ba4fae2670e727b31af9a2",
+    "targets": "9c900ef5c9e831b0b4ea71c93cc8a7f469d56231f2571585af159555086d4fc4",
+    "indications": "741535fe50b2b3097db3fd7040995fe6c45004362567eb43762e0f713ea99cfd",
+    "labels": "6504eb80b1b4105705f94f895965219469d8967a618f969e4696094cc7ab47a2",
+    "rule_fingerprints": "912e9c048872f430b3de8a384c113f1335f90783d81aa67b533bba55f22e61ba",
+    "axis_ref": "52357b19cec3130ddb05045548c063d62d49975f10fc081227e8b1c762fe4f11",
+    "embedding": "1fae9c8a5791dc552300f9bbebe24df6b7dbb78e3bb7fdb41b07325a6c763eb1",
+    "anchors": "1fecd22005ae6430a12b385b25a79fa6b734e0093d3248eeffdbb0b30a5d99b6",
+    "meta": "6b572da54f60cb0c7e4a293db4d66e572db37f23f3093098eeee9e053af2a137",
+    "soft_labels": "98a9ccc311bc7287c2ada7e3ccdc4df658c4cfa70fffb988ee0d1c77b4ee04ce"
+  },
+  "meta_fields": {
+    "n_targets": "4c15f47afe7f817fd559e12ddbc276f4930c5822f2049088d6f6605bec7cea56",
+    "n_features": "cba28b89eb859497f544956d64cf2ecf29b76fe2ef7175b33ea59e64293a4461",
+    "n_features_dropped_sparse": "5feceb66ffc86f38d952786c6d696c79c2dbc239dd4e91b46729d73a27fb57e9",
+    "emb_dim": "b17ef6d19c7a5b1ee83b907c595526dcb1eb06db8227d650d5dda0a9f4ce8cd9",
+    "classes": "ed5a4ee1825c4bafc453fbe2fd6d9a0ec4d60997f65bd650eef6247abc766d6f",
+    "anchor_phenotypes": "a2b3451bb0f8cd68ea4b6a26443e6339b263efb63dbe25325093e8326ff29df8",
+    "anchor_phenotypes_skipped": "0f04cf235703aa614c27f6b13416f7ce4f04db44167d33b2d5ed356e889c33d9",
+    "corpus": "1694104a2cab2d086660e87e580c3084c7389397e603ced8d157a5a283411b08",
+    "build_date": "8b08300c884eb7980ba1b7f8557b38c618ca6d170d7b4805d7dce8ad63943637",
+    "build_git_sha": "fd3e6d18533eedeb6bf9e9f6a7a8d3f8ed373b6438047982b6912df3e928cda3",
+    "feature_schema_version": "0175d86befbe75525f132794baff42abbf4e2a659aa20f2baec341740a9573e7",
+    "atlas_excluded_namespaces": "d662db20a535ea9bda885ecca8f05450df4391489e62ec89bb888494ba2f604f",
+    "n_numeric_features": "e29c9c180c6279b0b02abd6a1801c7c04082cf486ec027aa13515e4f3884bb6b",
+    "n_mask_features": "e29c9c180c6279b0b02abd6a1801c7c04082cf486ec027aa13515e4f3884bb6b",
+    "vectoriser": "59e6b9fc2b9f038eeee84cb7d7775b58951b222950f999c94c394c3922213437",
+    "note": "4297f2d90ce5f5afa7f748105ea8a2b96b2a667a0d7fef2b78c03c07d1e9cffc",
+    "feature_corr_provenance": "11f4e1ff079f549d0ed20b89f31a482a74f19c45216995236f638e10a3a5f63f"
+  }
+}

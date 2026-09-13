@@ -68,7 +68,8 @@ ANCHOR_SETS = {
         ("HAVCR2", "STAD"),
     ],
     # synthetic-lethal / partner-conditional phenotype — ⚠️ DEFERRED 2026-09-13 (evidenced, like fusion_driver
-    # above). A separation test was run: 10 canonical SL/checkpoint exemplars (WRN/PARP1/ATR/POLQ/MAT2A/RAD51)
+    # below), declared in UNDECLARED_ANCHORS: there is deliberately NO entry here, and re-adding one fails the
+    # build. A separation test was run: 10 canonical SL/checkpoint exemplars (WRN/PARP1/ATR/POLQ/MAT2A/RAD51)
     # were regenerated + a synthetic_lethal anchor built. It DID NOT separate: the SL centroid sat WITHIN the
     # p90 NN scale (~6.30) of BOTH dependency_essential (5.94) and tsg_loss (5.37); only 3/6 exemplars
     # recovered (WRN→tsg_loss 37%, PARP1→amp_driver 36% mislanded), and DDR dependencies bled in (CHEK1 FLIPPED
@@ -112,9 +113,68 @@ ANCHOR_SETS = {
 # EVIDENCED separation failure (they bleed into a neighbouring corner), distinct from the "absent exemplars"
 # skip. fusion_driver: the 2026-09-02 activation bled RTK-ness into non-fusion RTKs; its members (RET/THCA,
 # NTRK1/THCA) re-entered the corpus with the 2026-09-13 diverse expansion, so it now needs this explicit
-# guard rather than relying on absence. synthetic_lethal is deferred too but simply carries no ANCHOR_SETS
-# entry (see the comment there). Re-activate only after a re-run separation test PASSES.
+# guard rather than relying on absence. synthetic_lethal is deferred by the OTHER mechanism (no ANCHOR_SETS
+# entry at all) and is declared in UNDECLARED_ANCHORS below. Re-activate only after a separation test PASSES.
 DEFERRED_ANCHORS = frozenset({"fusion_driver"})
+
+# Anchors deferred by the WEAKER mechanism: they carry NO `ANCHOR_SETS` entry at all, so the build skips
+# them by never iterating them. That is deferral-by-ABSENCE, and absence is invisible — nothing in the code
+# or the artifact says "this label was considered and rejected on evidence", so pasting an exemplar list back
+# into ANCHOR_SETS silently ACTIVATES a known-bleeding corner (DEFERRED_ANCHORS above would not catch it: it
+# guards labels that HAVE an entry). Declaring them here turns that absence into a checkable statement, with
+# the evidence that must be overturned to activate. Keys must NOT appear in ANCHOR_SETS —
+# _assert_deferral_declarations_consistent() fails the BUILD if one does, which is the whole point: the
+# accident this guards against is an edit to ANCHOR_SETS, so it must be caught at the producer boundary and
+# not only by the test suite (a caller that runs build_atlas.py directly skips the tests entirely).
+# `exemplars` is the curated set that WOULD be the ANCHOR_SETS value — kept so the curation survives the
+# deferral (it was otherwise only in prose), and so a test can assert the exemplars are still IN the corpus,
+# i.e. that the deferral is still load-bearing rather than a comment about a hypothetical. It is read by
+# nothing in the build; the ONLY way to activate is to move it into ANCHOR_SETS and delete the key here.
+UNDECLARED_ANCHORS = {
+    "synthetic_lethal": {
+        "exemplars": [
+            ("WRN", "COADREAD"),
+            ("PARP1", "BRCA"),
+            ("ATR", "OV"),
+            ("POLQ", "BRCA"),
+            ("MAT2A", "PAAD"),
+            ("RAD51", "OV"),
+        ],
+        "reason": (
+            "2026-09-13 separation test FAILED: the SL centroid sat WITHIN the p90 NN scale (~6.30) of BOTH "
+            "dependency_essential (5.94) and tsg_loss (5.37); only 3/6 exemplars recovered (WRN→tsg_loss 37%, "
+            "PARP1→amp_driver 36%) and DDR dependencies bled in (CHEK1 FLIPPED to synthetic_lethal 54%, WEE1 "
+            "38%). ROOT CAUSE is structural, not exemplar count: the SL claim signal is ubiquitous (129/213 "
+            "corpus rows) while dependency::COND is 2-3/213, so the frozen feature space does not encode "
+            "partner-conditionality as a distinct phenotype — an SL target's placement is driven by its "
+            "dependency/genome-instability reads, not the SL window. The exemplars ARE in the shipped corpus, "
+            "so restoring an ANCHOR_SETS entry activates this IMMEDIATELY. Activate only after a curated "
+            "SL-window feature makes the signal SEPARABLE and a re-run separation test PASSES."
+        ),
+    },
+}
+
+
+def _assert_deferral_declarations_consistent() -> None:
+    """Producer-boundary check on the two deferral mechanisms. Raises rather than warning: a violated
+    invariant here means the build is about to ship an anchor that a deferral was supposed to withhold,
+    and a WARN on stderr is exactly what a CI log swallows."""
+    both = sorted(set(UNDECLARED_ANCHORS) & set(ANCHOR_SETS))
+    if both:
+        raise SystemExit(
+            f"BUILD REFUSED: {both} are declared in UNDECLARED_ANCHORS (deferred with NO exemplar set) but "
+            f"now carry an ANCHOR_SETS entry, which would ACTIVATE them. Reasons that must be overturned "
+            f"first: " + " | ".join(f"{k}: {UNDECLARED_ANCHORS[k]['reason']}" for k in both) + " — if the separation "
+            "test now PASSES, delete the UNDECLARED_ANCHORS key in the SAME commit as the exemplar set."
+        )
+    dangling = sorted(set(DEFERRED_ANCHORS) - set(ANCHOR_SETS))
+    if dangling:
+        raise SystemExit(
+            f"BUILD REFUSED: DEFERRED_ANCHORS names {dangling}, which have no ANCHOR_SETS entry. The skip "
+            f"loop iterates ANCHOR_SETS, so those guards are DECORATIVE — the label is really deferred by "
+            f"absence. Move them to UNDECLARED_ANCHORS (with their evidence) or restore the exemplar set."
+        )
+
 
 # Claim namespaces/keys EXCLUDED from the frozen feature space BY DECISION (atlas data-package lockdown):
 # maturity/study-depth-confounded axes (literature_context, translational_readiness, safety
@@ -262,6 +322,7 @@ def _git_sha() -> str:
 
 
 def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> dict:
+    _assert_deferral_declarations_consistent()  # before any work: a violated deferral invalidates the output
     panel = _load_panel(panel_path)
     feats, targets, indications, labels, fingerprints = [], [], [], [], []
     seen = set()

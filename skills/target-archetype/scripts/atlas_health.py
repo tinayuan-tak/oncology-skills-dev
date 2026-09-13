@@ -22,6 +22,12 @@ nonzero exit so it can gate CI:
 
 WARN does not fail the gate; only FAIL does.
 
+NOT covered here — see the sibling guard `atlas_stability.py`: whether the shipped artifact's VALUES changed
+at all. Check 1 asserts INTERNAL consistency (the stored coords match what the runtime transform produces
+from the stored X), which a self-consistent mutation satisfies — recompute the embedding from an edited X and
+this script stays green while every percentile in the fleet has moved. atlas_stability pins a per-field
+sha256 of the frozen artifact and verifies that a re-freeze reproduces it.
+
 Usage:
   python3 atlas_health.py [--atlas atlas/atlas.json] [--package-dir <full-package-run>] [--tol 1e-3]
 """
