@@ -259,12 +259,28 @@ source-duplicated `CMS*_depmap` ids, which are wrong for a molecular tier). WHY 
 verdict-bearing in BOTH directions, yet while it was opt-in no published panel run ever evaluated it —
 a subtype-restricted dependency and a subtype-specific NON-dependence both read as whole-cohort
 silence. `provenance.scope_subtypes_source` records which path was taken (`auto:subtype_crosswalk`,
-`explicit:--subtypes`, `disabled:--no-subtypes`, `unavailable:<CODE>`).
+`auto:subtype_crosswalk:alias_of:<CODE>`, `explicit:--subtypes`, `disabled:--no-subtypes`,
+`unavailable:<CODE>`).
+
+**Indication ALIASES (2026-09-13).** The registry is keyed by `canonical_code`, so a sub-indication or
+synonym code used to resolve zero strata and run whole-cohort. Curated aliases from
+`indication_crosswalk.yaml` now resolve (`LUAD`/`LUSC` → NSCLC, `COAD`/`READ` → COADREAD, `GC` → STAD,
+…) and the provenance token names which indication answered. **Axes declared `partition: co_defining`
+are dropped on an alias**: NSCLC's `histology_Adeno` is (approximately) the whole LUAD cohort, so
+stratifying a LUAD run by that axis yields one degenerate stratum with no cross-stratum contrast — and
+the verdict-bearing `subtype_restricted_dependency` rung reads a single stratum's own class, so it
+cannot detect the degeneracy itself. Pure synonym aliases lose nothing (only NSCLC and ESCA declare a
+`co_defining` axis, and ESCA has no aliases). The same resolution routes the per-indication
+subgroup-assignments shard registries, so an alias run reaches the shards its canonical cohort has;
+reads served that way are labelled with the CANONICAL cohort and carry `_indication_scope`
+`{requested, resolved, how}`, because shard membership is the canonical cohort's, not the alias's.
 
 - `--no-subtypes` — skip the tier entirely (whole-cohort only); the pre-v1.3.0 default. Overrides
   `--subtypes`.
 - An indication absent from the crosswalk (e.g. MPN, AML) resolves to zero strata and stays
-  whole-cohort — the tier is a no-op there rather than an error.
+  whole-cohort — the tier is a no-op there rather than an error. AML is deliberately still
+  whole-cohort: its data-catalog strata exist but no `*-subgroup-assignments-aml-*` shard does, so
+  wiring it would request strata nothing can serve.
 - `--subtypes <ids>` — comma-separated molecular subgroup ids (e.g. `MSI_H,MSS`) to scope the tier to a
   chosen subset (or to strata outside the curated registry, including staging). It is BI-DIRECTIONAL,
   negative-precedence, over MEASURED,

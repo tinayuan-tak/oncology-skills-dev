@@ -458,6 +458,47 @@ def _dispatch_splice_exon_skip_landscape(target: str, indication: str) -> Option
 # dependency panorama the DepMap-side shard — different sample universes for the
 # "same" axis, surfaced honestly via each record's source_cohort field.
 
+
+def _shard_for_indication(registry: dict, indication: str) -> tuple:
+    """Look a per-indication assignments registry up, resolving curated indication ALIASES.
+
+    Returns `(entry | None, cohort_code | None)`, where `cohort_code` is the indication whose
+    cohort the shard actually describes — the requested code on an exact hit, the CANONICAL code
+    when a crosswalk alias resolved it.
+
+    WHY: every registry below is keyed by canonical_code, so a `--indication LUAD` run got
+    `no subgroup-assignments shard for indication='LUAD'` while the nsclc DepMap / TCGA / GENIE-BPC
+    shards sat right there, already built (57 of 60 thoracic corpus rows silently ran whole-cohort).
+    indication_crosswalk.yaml has curated `NSCLC: aliases: [LUAD, LUSC]` since v1.4.0.
+
+    The RESOLVED cohort code — not the requested one — is what callers pass downstream as the
+    panorama's `indication`. That field is a LABEL in the panorama path (membership comes entirely
+    from the shard, see subgroup_common.panorama.build_panorama), so labelling NSCLC-wide member
+    sets 'LUAD' would be a lie about scope. Callers additionally record the redirection in
+    `_indication_scope` so the widening is legible rather than silent.
+    """
+    try:
+        from _skills_common.indication_scope import registry_get
+
+        entry, key, _how = registry_get(registry, indication)
+    except Exception:  # noqa: BLE001 — alias resolution is additive; degrade to exact-match
+        entry, key = registry.get(indication), indication if indication in registry else None
+    return entry, key
+
+
+def _canonical_cohort(indication: str) -> tuple:
+    """`(cohort_code, how)` for a read whose SCOPE is keyed by the indication rather than by one of
+    the shard registries above (e.g. a `{indication}-...` product id). Unresolvable → the requested
+    code unchanged, so absence stays honest instead of becoming a different miss."""
+    try:
+        from _skills_common.indication_scope import canonical_subtype_code
+
+        code, how = canonical_subtype_code(indication)
+    except Exception:  # noqa: BLE001 — additive; degrade to the requested code
+        code, how = None, "unknown"
+    return (code or indication), how
+
+
 # indication → the assignments shard carrying the ENUMERATION AXIS for each panorama.
 # Ships COADREAD only; extends as shards land.
 #
@@ -635,7 +676,7 @@ def _dispatch_subgroup_stratified_mutation_frequency(
     # panorama is appended to `panoramas`; the final merge below re-reduces over the union (molecular +
     # LOT), so the multi-shard split is invisible downstream.
     if molecular_strata:
-        mol_shards = _MUTATION_MOLECULAR_ASSIGNMENTS_SHARDS.get(indication)
+        mol_shards, _ = _shard_for_indication(_MUTATION_MOLECULAR_ASSIGNMENTS_SHARDS, indication)
         if mol_shards:
             covered: set = set()
             for manifest, carried in mol_shards:
@@ -678,7 +719,7 @@ def _dispatch_subgroup_stratified_mutation_frequency(
             )
     # LOT axis → the GENIE-BPC shard + genie_registry MAF (different sample universe).
     if lot_strata:
-        lot_manifest = _MUTATION_LOT_ASSIGNMENTS_MANIFEST.get(indication)
+        lot_manifest, _ = _shard_for_indication(_MUTATION_LOT_ASSIGNMENTS_MANIFEST, indication)
         if lot_manifest is None:
             panoramas.append(
                 {
@@ -738,7 +779,7 @@ def _dispatch_subgroup_stratified_dependency(
     WITHIN each stratum's cell-line member-set. Descriptive — no signal.
     """
     chronos_module = _import_method("depmap_chronos")
-    shards = _DEPENDENCY_ASSIGNMENTS_SHARDS.get(indication)
+    shards, _ = _shard_for_indication(_DEPENDENCY_ASSIGNMENTS_SHARDS, indication)
     if shards:
         # Multi-shard indication (COADREAD MSI+CMS; NSCLC histology): route each stratum to the shard
         # that carries it + merge. Single-entry registries (NSCLC) route through the same path harmlessly.
@@ -1066,7 +1107,7 @@ def _dispatch_cellline_expression_distribution_subtype(target: str, indication: 
     assignment shard's strata (ModelID-keyed) and recomputes the per-ModelID RNA distribution within
     each stratum. DESCRIPTIVE / verdict-inert. No shard for the indication → subtype_axis_available:
     false (honest)."""
-    manifest = _CELLLINE_SUBTYPE_ASSIGNMENTS.get((indication or "").upper())
+    manifest, cohort = _shard_for_indication(_CELLLINE_SUBTYPE_ASSIGNMENTS, (indication or "").upper())
     if manifest is None:
         return {
             "subtype_axis_available": False,
@@ -1078,7 +1119,10 @@ def _dispatch_cellline_expression_distribution_subtype(target: str, indication: 
     read_mod = _import_method("depmap_expression_distribution.read")
     scoping = _import_method("subgroup_common.scoping")
     strata = sorted(scoping.load_assignments(manifest)["stratum_id"].unique().tolist())
-    return read_mod.build_expression_subtype_panorama(target, indication, strata, manifest)
+    out = read_mod.build_expression_subtype_panorama(target, cohort, strata, manifest)
+    if isinstance(out, dict) and cohort != (indication or "").upper():
+        out["_indication_scope"] = {"requested": indication, "resolved": cohort, "how": "alias"}
+    return out
 
 
 # Indication → CPTAC (aliquot-keyed) assignment shard for the tumor-protein subtype panorama.
@@ -1099,7 +1143,7 @@ def _dispatch_tumor_protein_distribution_subtype(target: str, indication: str) -
     CPTAC assignment shard's strata (aliquot-keyed, MSI_H/MSS) and recomputes the per-aliquot
     tumor-protein log2-ratio distribution within each stratum. DESCRIPTIVE / verdict-inert. No shard
     for the indication → subtype_axis_available:false (honest)."""
-    manifest = _TUMOR_PROTEIN_SUBTYPE_ASSIGNMENTS.get((indication or "").upper())
+    manifest, cohort = _shard_for_indication(_TUMOR_PROTEIN_SUBTYPE_ASSIGNMENTS, (indication or "").upper())
     if manifest is None:
         return {
             "subtype_axis_available": False,
@@ -1111,7 +1155,10 @@ def _dispatch_tumor_protein_distribution_subtype(target: str, indication: str) -
     read_mod = _import_method("cptac_protein_distribution.read")
     scoping = _import_method("subgroup_common.scoping")
     strata = sorted(scoping.load_assignments(manifest)["stratum_id"].unique().tolist())
-    return read_mod.build_protein_subtype_panorama(target, indication, strata, manifest)
+    out = read_mod.build_protein_subtype_panorama(target, cohort, strata, manifest)
+    if isinstance(out, dict) and cohort != (indication or "").upper():
+        out["_indication_scope"] = {"requested": indication, "resolved": cohort, "how": "alias"}
+    return out
 
 
 def _dispatch_sc_tumor_celltype_expression(target: str, indication: str) -> Optional[dict]:
@@ -1220,9 +1267,17 @@ def _dispatch_selectivity_by_subgroup(target: str, indication: str, subgroups=No
     spotlight-one), so `subgroups` is accepted for the panorama-dispatch signature but not used to
     scope the read. Returns the reader's status:'live' | 'data_unavailable' envelope verbatim (honest
     absence when no by-subgroup product for the indication). Called ONLY when subgroups are in scope
-    (read_live_summary's DUAL_GRAIN arm); the pooled read stays on the CARD_DISPATCHERS scalar path."""
+    (read_live_summary's DUAL_GRAIN arm); the pooled read stays on the CARD_DISPATCHERS scalar path.
+
+    ALIASES: the product id is built from the indication, so this arm is canonicalised too — a LUAD
+    run whose strata came from NSCLC's registry must not then look its product up under 'luad' while
+    every other arm reads the NSCLC cohort. No by-subgroup product exists for NSCLC today (COADREAD
+    and STAD only), so the honest data_unavailable envelope is unchanged in content; it now names the
+    cohort the rest of the run used. The POOLED read is untouched — it stays on the raw indication,
+    where a LUAD-specific tumor-vs-normal product is a legitimate thing to ask for."""
     mod = _import_method("dge_deseq2.read")
-    return mod.read_stratified_tumor_vs_normal_selectivity(target, indication)
+    cohort, _how = _canonical_cohort(indication)
+    return mod.read_stratified_tumor_vs_normal_selectivity(target, cohort)
 
 
 def _dispatch_normal_tissue_liability_gtex(
@@ -2207,27 +2262,32 @@ def read_live_summary(
             # admitted when subgroup_spec != null, but guard defensively).
             return {"_data_note": f"{card_id} requires resolved subgroups; none in scope"}
         dispatcher, manifest_map = panorama
-        manifest_id = manifest_map.get(indication)
+        manifest_id, _cohort = _shard_for_indication(manifest_map, indication)
+        # An ALIAS run (LUAD/LUSC → NSCLC, COAD/READ → COADREAD) is served by the canonical
+        # cohort's shard, so the panorama is labelled with the cohort that actually answered and
+        # the redirection is recorded. Exact hits are byte-identical to the previous behaviour.
+        _lot_manifest, _lot_cohort = _shard_for_indication(_MUTATION_LOT_ASSIGNMENTS_MANIFEST, indication)
+        cohort = _cohort or _lot_cohort or indication
         # The mutation-frequency panorama can ALSO serve line-of-therapy (LOT_*) strata from a
         # separate GENIE-BPC shard even when no molecular/TCGA shard exists for the indication
         # (e.g. NSCLC ships only the GENIE-BPC LOT shard). Only bail when there is NO shard of
         # EITHER kind — otherwise call the dispatcher, which partitions strata by axis and emits
         # its own per-axis data-notes for whichever arm lacks a shard.
-        _has_lot_shard = (
-            card_id == "subgroup-stratified-mutation-frequency"
-            and _MUTATION_LOT_ASSIGNMENTS_MANIFEST.get(indication) is not None
-        )
+        _has_lot_shard = card_id == "subgroup-stratified-mutation-frequency" and _lot_manifest is not None
         if manifest_id is None and not _has_lot_shard:
             return {
                 "_data_note": f"no subgroup-assignments shard for indication={indication!r} "
                 f"(iter-1b ships COADREAD only)"
             }
         try:
-            return dispatcher(
-                target=target, indication=indication, subgroups=subgroups, subgroup_assignments_manifest=manifest_id
+            out = dispatcher(
+                target=target, indication=cohort, subgroups=subgroups, subgroup_assignments_manifest=manifest_id
             )
         except Exception as e:
             return {"_live_read_error": str(e)}
+        if isinstance(out, dict) and cohort != indication:
+            out["_indication_scope"] = {"requested": indication, "resolved": cohort, "how": "alias"}
+        return out
 
     # DUAL-GRAIN path: a card with BOTH a pooled reader AND a per-subgroup panorama reader on the same
     # card_id (tumor-vs-normal-selectivity). Route to the subgroup reader ONLY when strata are in scope;

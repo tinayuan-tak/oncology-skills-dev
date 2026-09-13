@@ -41,9 +41,25 @@ def default_subtypes(indication: str) -> "tuple[list[str], str]":
 
     Returns (strata_ids, source) where source is a short machine token recorded in the
     artifact so a reader can always tell WHY the tier ran or did not:
-      auto:subtype_crosswalk  — resolved from the contracts registry (the normal path)
+      auto:subtype_crosswalk                — resolved from the contracts registry (normal path)
+      auto:subtype_crosswalk:alias_of:<CODE> — the requested code is a curated ALIAS; <CODE>'s
+                                strata answered, MINUS any `partition: co_defining` axis (below)
       unavailable:no_registry — the vocabulary could not be read
       unavailable:<CODE>      — the indication is not registered; run stays whole-cohort
+
+    ALIASES (indication_crosswalk v1.4.0, via _skills_common.indication_scope): the registry is
+    keyed by canonical_code, so `--indication LUAD` used to return ([], "unavailable:LUAD") and
+    run whole-cohort even though the crosswalk has curated `NSCLC: aliases: [LUAD, LUSC]` all
+    along. The alias now resolves, and the token names WHICH indication answered.
+
+    ★ On an alias, axes declared `partition: co_defining` are DROPPED. Those strata co-define the
+    canonical cohort (NSCLC `histology_Adeno`/`histology_SCC`), so under a LUAD request the axis
+    degenerates to ONE stratum that IS the requested cohort — no cross-stratum contrast, yet
+    tp_fanout._subtype_verdict reads a single stratum's own class and would happily let the
+    VERDICT-BEARING subtype_restricted_dependency rung fire off what is really a whole-cohort read.
+    Declaration-derived, so it is self-inerting for synonym aliases: only NSCLC and ESCA declare a
+    co_defining axis and ESCA has no aliases. Expected: LUAD/LUSC → 16 strata, NSCLC → 18,
+    COAD/READ → COADREAD's 21 (no co_defining axis, so nothing is dropped).
 
     WHY the CONTRACTS crosswalk and not the data-catalog subgroup catalog: the catalog is
     the source of truth for stratum IDS, but its list is raw — for COADREAD it carries
@@ -65,12 +81,32 @@ def default_subtypes(indication: str) -> "tuple[list[str], str]":
     except Exception:  # noqa: BLE001 — a missing vocab degrades to whole-cohort, never a crash
         return [], "unavailable:no_registry"
     code = (indication or "").strip().upper()
+    # Resolve aliases against the CURATED indication_crosswalk lane. `how == "unknown"` (including
+    # an unreadable crosswalk) leaves `lookup` as the requested code, so the exact-match behaviour
+    # below is byte-identical to the pre-alias implementation.
+    try:
+        from _skills_common.indication_scope import canonical_subtype_code
+
+        canonical, how = canonical_subtype_code(code)
+    except Exception:  # noqa: BLE001 — resolution is additive; never break the tier on it
+        canonical, how = None, "unknown"
+    lookup = (canonical or code).upper()
     for entry in doc.get("indications") or []:
-        if str(entry.get("canonical_code", "")).upper() != code:
+        if str(entry.get("canonical_code", "")).upper() != lookup:
             continue
+        axes = entry.get("axes") or []
+        if how == "alias":
+            # See the docstring: a co_defining axis degenerates to one whole-cohort stratum here.
+            axes = [ax for ax in axes if str(ax.get("partition") or "") != "co_defining"]
         # dict.fromkeys: dedupe while holding the registry's axis order (stable run ids)
-        strata = list(dict.fromkeys(s for axis in entry.get("axes") or [] for s in (axis.get("strata") or [])))
-        return strata, ("auto:subtype_crosswalk" if strata else f"unavailable:{code}")
+        strata = list(dict.fromkeys(s for axis in axes for s in (axis.get("strata") or [])))
+        if not strata:
+            return [], f"unavailable:{code}"
+        return strata, (
+            f"auto:subtype_crosswalk:alias_of:{entry.get('canonical_code')}"
+            if how == "alias"
+            else "auto:subtype_crosswalk"
+        )
     return [], f"unavailable:{code or 'no_indication'}"
 
 

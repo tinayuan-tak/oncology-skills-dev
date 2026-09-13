@@ -83,6 +83,90 @@ def test_empty_indication_is_handled():
     assert default_subtypes("")[1].startswith("unavailable:")
 
 
+# --- indication ALIASES (2026-09-13) -----------------------------------------
+# The registry is keyed by canonical_code, so `--indication LUAD` used to resolve NO strata and run
+# whole-cohort — 57 of 60 thoracic corpus rows — while indication_crosswalk.yaml v1.4.0 had curated
+# `NSCLC: aliases: [LUAD, LUSC]` all along. Resolution now goes through
+# _skills_common.indication_scope; the provenance token names WHICH indication answered.
+
+
+def test_sub_indication_alias_resolves_instead_of_running_whole_cohort():
+    strata, source = default_subtypes("LUAD")
+    assert source == "auto:subtype_crosswalk:alias_of:NSCLC"
+    assert strata, "LUAD used to return [] and silently run whole-cohort"
+    assert {"EGFR_mut_ex19del", "KRAS_G12C", "ALK_fusion"} <= set(strata)
+    assert default_subtypes("LUSC")[0] == strata, "both NSCLC aliases resolve to the same scope"
+
+
+def test_co_defining_axis_is_dropped_on_an_alias_but_kept_on_the_canonical():
+    """★ The correctness guard, asserted at BOTH poles so it cannot pass vacuously.
+
+    NSCLC's `histology` axis is declared `partition: co_defining` — `histology_Adeno` IS
+    (approximately) the whole LUAD cohort. Under a LUAD request that axis degenerates to ONE
+    stratum equal to the requested cohort, with no cross-stratum contrast; tp_fanout._subtype_verdict
+    reads a single stratum's own class, so it would let the VERDICT-BEARING
+    subtype_restricted_dependency rung fire off what is really a whole-cohort read.
+    """
+    nsclc = default_subtypes("NSCLC")[0]
+    luad = default_subtypes("LUAD")[0]
+    assert {"histology_Adeno", "histology_SCC"} <= set(nsclc), "canonical NSCLC keeps its histology axis"
+    assert not {s for s in luad if s.startswith("histology_")}, "alias must not stratify by a co-defining axis"
+    assert set(luad) == set(nsclc) - {"histology_Adeno", "histology_SCC"}, "ONLY that axis is dropped"
+
+
+def test_alias_without_a_co_defining_axis_keeps_every_stratum():
+    """Self-inerting: the drop is derived from the `partition:` declaration, so a synonym alias
+    (COAD/READ → COADREAD, GC → STAD) loses nothing. If this ever fails, the guard has started
+    over-firing and narrowing scopes it was never meant to touch."""
+    assert set(default_subtypes("COAD")[0]) == set(default_subtypes("COADREAD")[0])
+    assert default_subtypes("COAD")[1] == "auto:subtype_crosswalk:alias_of:COADREAD"
+    assert set(default_subtypes("GC")[0]) == set(default_subtypes("STAD")[0])
+
+
+def test_the_co_defining_drop_is_derived_from_the_registry_not_hardcoded():
+    """Derive the check's OWN population: assert the invariant over EVERY declared alias whose
+    canonical entry exists in subtype_crosswalk, so a new alias or a newly-declared co_defining
+    axis is covered the day it lands rather than silently escaping a pinned list."""
+    import yaml
+    from _skills_common.indication_scope import _code_index
+
+    doc = yaml.safe_load((tp_common._CONTRACTS_REPO / "vocabularies" / "subtype_crosswalk.yaml").read_text())
+    by_code = {str(e.get("canonical_code")): e for e in doc.get("indications") or []}
+    _canonical, aliases = _code_index()
+    covered = 0
+    for alias, code in aliases.items():
+        entry = by_code.get(code)
+        if entry is None:
+            continue  # not a subtype-registered indication; default_subtypes reports unavailable
+        expected = {
+            s
+            for ax in entry.get("axes") or []
+            if str(ax.get("partition") or "") != "co_defining"
+            for s in (ax.get("strata") or [])
+        }
+        assert set(default_subtypes(alias)[0]) == expected, alias
+        covered += 1
+    assert covered >= 3, f"only {covered} aliases exercised — the loop has stopped covering the vocabulary"
+    # ...and at least one of them must actually LOSE an axis, or the invariant above is trivial.
+    assert any(
+        any(str(ax.get("partition") or "") == "co_defining" for ax in (by_code.get(code, {}).get("axes") or []))
+        for code in aliases.values()
+    ), "no alias resolves to an indication with a co_defining axis — the drop branch is unreachable"
+
+
+def test_canonical_indications_keep_the_bare_provenance_token():
+    """Byte-stability for every code that already worked: the token must NOT gain an alias suffix."""
+    for code in ("COADREAD", "NSCLC", "STAD", "BRCA", "HNSC", "PAAD", "SCLC", "ESCA"):
+        assert default_subtypes(code)[1] == "auto:subtype_crosswalk", code
+
+
+def test_unavailable_token_names_the_REQUESTED_code_not_the_canonical():
+    """A reader chasing why a run went whole-cohort needs the code they typed. LAML resolves to AML,
+    which has no subtype_crosswalk entry — the token must say LAML, not AML."""
+    assert default_subtypes("LAML") == ([], "unavailable:LAML")
+    assert default_subtypes("AML") == ([], "unavailable:AML")
+
+
 # --- flag surface ------------------------------------------------------------
 
 
