@@ -109,6 +109,7 @@ def test_capsule_contract_primary_class_beats_alphabetical(monkeypatch):
         lambda cid: (
             "structural_ligandability_class",
             ("structural_ligandability_class", "has_experimental_cocrystal"),
+            (),  # declares no numeric_anchors → the hint scan still runs for this card
         ),
     )
     cards = [

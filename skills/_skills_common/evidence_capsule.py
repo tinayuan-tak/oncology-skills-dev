@@ -228,10 +228,34 @@ def _top_k_strata(summary, indication, cfg, spec=None, label_aliases=frozenset()
     return rows
 
 
-def _numeric_anchors(summary, cfg):
-    fields = (cfg or {}).get("anchor_fields")
+def _numeric_anchors(summary, cfg, contract_anchors=()):
+    """The capsule's numbers, in PRECEDENCE order: a per-card `config['anchor_fields']` runtime override
+    first, then the card contract's `capsule.numeric_anchors` declaration, then the `_ANCHOR_HINTS`
+    substring scan as the guess of last resort.
+
+    The scan is a guess in three ways a declaration fixes, and all three were live on the genomic axis:
+    it is ALPHABETICAL, so the class-setting number is surfaced only by luck; it is CAPPED AT 4, so
+    mutation-stratified-dependency's 11 hint-matching fields crowded out its own headline gauges; and it
+    cannot reach a field matching no hint at all, which made `cn_recurrent_deletion_score` — the value the
+    `copy_number_class` cut is actually taken against — structurally unreachable.
+
+    A declared list is honored VERBATIM: not re-sorted (declared order is reading order — effect, then the
+    arms it separates, then significance, then the denominator) and not capped (the card schema caps it at
+    8). A declared field that is missing or non-numeric in THIS run's summary is dropped rather than
+    back-filled from the scan, because re-entering the scan would restore the very guess the declaration
+    exists to replace — a card that declared would then show hint-picked numbers on exactly the runs where
+    its own were unavailable, which is the silent failure this whole path is fixing."""
+    fields = (cfg or {}).get("anchor_fields") or contract_anchors
     if fields:
-        picked = [f for f in fields if f in summary]  # declared → honored verbatim
+        # Declared → honored verbatim in ORDER, but a declaration is trusted for SELECTION only, so the
+        # same two floors as the scan still apply: the value must be a real number (a declaration naming a
+        # categorical would otherwise render a class token — `splice_exon_skip_class = exon_skip` — or a
+        # bool flag as a number), and `_denied` internals stay internal.
+        picked = [
+            f
+            for f in fields
+            if not _denied(f) and isinstance(summary.get(f), (int, float)) and not isinstance(summary.get(f), bool)
+        ]
     else:
         picked = sorted(
             k
@@ -386,9 +410,9 @@ def _conflict_pairs(cards, classify):
 
 def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, classify=default_classify):
     """Return {'capsules': {card_id: capsule}, 'manifest': [...]}. Field selection is CONTRACTS-FIRST: a
-    card's optional `capsule:` block (primary_class + categorical_fields, read via _card_capsule_contract)
-    drives the class-pick and categorical_anchors; the hint heuristics + `config` overrides are the fallback
-    for un-migrated cards. `config` maps card_id -> per-card selector overrides (strata_array/label/metric,
+    card's optional `capsule:` block (primary_class + categorical_fields + numeric_anchors, read via
+    _card_capsule_contract) drives the class-pick, the categorical_anchors AND the numeric_anchors; the hint
+    heuristics + `config` overrides are the fallback for un-migrated cards. `config` maps card_id -> per-card selector overrides (strata_array/label/metric,
     anchor_fields, caveat_fields, categorical_fields, dq_checks). `verdict_card_ids` (set) get FULL capsules;
     others get THIN (signal + one anchor). Deterministic + hash-stable."""
     config = config or {}
@@ -417,8 +441,9 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
         # primary_class + salient categorical_fields. `primary_class` OVERRIDES the alphabetical-first *_class
         # heuristic (which mis-picks on multi-class cards — e.g. structure-features-static's
         # alphafold_confidence_class over structural_ligandability_class); the heuristic remains the fallback
-        # for un-migrated cards. categorical_fields unions with any legacy config override (contract first).
-        primary_class, contract_cat = _card_capsule_contract(cid)
+        # for un-migrated cards. categorical_fields unions with any legacy config override (contract first),
+        # and numeric_anchors REPLACES the alphabetical, cap-of-4 `_ANCHOR_HINTS` scan (see _numeric_anchors).
+        primary_class, contract_cat, contract_anchors = _card_capsule_contract(cid)
         cls = None
         if primary_class and isinstance(summ.get(primary_class), str):
             cls = summ[primary_class]
@@ -434,7 +459,7 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
             "tier": tier,
             "evidence_state": "measured",
             "class": cls,
-            "numeric_anchors": (_numeric_anchors(summ, cfg) or None),
+            "numeric_anchors": (_numeric_anchors(summ, cfg, contract_anchors) or None),
             "categorical_anchors": _categorical_anchors(summ, cat_fields),
             "n_basis": (_n_basis(summ) or None),
             "_complete": True,

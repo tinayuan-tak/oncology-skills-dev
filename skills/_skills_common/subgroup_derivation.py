@@ -77,23 +77,34 @@ def _card_meta(card_id: str) -> tuple:
 
 @functools.lru_cache(maxsize=1024)
 def _card_capsule_contract(card_id: str) -> tuple:
-    """(primary_class, categorical_fields) from the card contract's optional `capsule:` block; (None, ())
-    when the card declares none. This is the contracts-first source the evidence-capsule emitter consumes
-    to (a) pick the verdict-driving *_class instead of the alphabetical-first heuristic and (b) surface the
-    card's salient non-numeric fields — replacing the emitter's central config / hint guessing for any card
-    that has declared. Cached; verdict-inert; never raises."""
+    """(primary_class, categorical_fields, numeric_anchors) from the card contract's optional `capsule:`
+    block; (None, (), ()) when the card declares none. This is the contracts-first source the
+    evidence-capsule emitter consumes to (a) pick the verdict-driving *_class instead of the
+    alphabetical-first heuristic, (b) surface the card's salient non-numeric fields, and (c) surface the
+    NUMBERS the class was cut against instead of the `_ANCHOR_HINTS` substring scan — replacing the
+    emitter's central config / hint guessing for any card that has declared.
+
+    `numeric_anchors` is returned in DECLARED order, which is reading order (effect first, then the arms
+    it separates, then significance, then the denominator); the emitter must not re-sort it, because the
+    scan being alphabetical is one of the three defects the declaration exists to fix. Cached;
+    verdict-inert; never raises."""
     p = _CT / "cards" / f"{card_id}.card.yaml"
     if not p.exists():
-        return (None, ())
+        return (None, (), ())
     try:
         import yaml
 
         y = yaml.safe_load(p.read_text()) or {}
     except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
-        return (None, ())
+        return (None, (), ())
     cap = y.get("capsule") or {}
     fields = cap.get("categorical_fields") or []
-    return (cap.get("primary_class"), tuple(f for f in fields if isinstance(f, str)))
+    anchors = cap.get("numeric_anchors") or []
+    return (
+        cap.get("primary_class"),
+        tuple(f for f in fields if isinstance(f, str)),
+        tuple(f for f in anchors if isinstance(f, str)),
+    )
 
 
 def default_classify(v) -> str:
