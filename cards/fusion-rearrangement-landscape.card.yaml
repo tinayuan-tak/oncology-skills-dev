@@ -12,7 +12,14 @@
 # license-clean/open. caller_count in the product encodes cross-caller agreement.
 
 card_id: fusion-rearrangement-landscape
-version: 1.4.0   # 1.4.0 (2026-09-04, #983): + promiscuous_amplicon_fusion fusion_class (skill-layer copy-number-gated demotion of a moderate_promiscuous fusion at a recurrently focally-amplified locus — an amplicon passenger SV, not a competent fusion driver). # 1.3.0: includes fusion_recurrence_confidence (verdict-inert tier), modality_relevance, GENIE-SV breadth fields (genie_sv_*)
+version: 1.5.0   # 1.5.0 (2026-09-12): fusion_recurrence_confidence PROMOTED verdict-inert → VERDICT-BEARING. It now gates the
+                 # genomic resolver's TOP fusion rung via fusion-recurrence-high-partner-context: only high_recurrent_partner
+                 # (same partner >=3 samples) pre-empts top-1% patient SNV recurrence; a moderate_promiscuous call falls to a
+                 # DEMOTED bare-fusion rung below the SNV-recurrence rungs (still rescues a fusion-only target from passenger).
+                 # Measured on the STK11/LUAD panel case: 3/632 samples (0.47%), ZERO recurrent partners, at a deleted TSG locus,
+                 # was outranking STK11's top-1% SNV recurrence and reading recurrent_fusion_driver. #983's amplicon demotion
+                 # covers only the AMPLIFIED subset of moderate_promiscuous; this covers the non-amplified remainder.
+                 # 1.4.0 (2026-09-04, #983): + promiscuous_amplicon_fusion fusion_class (skill-layer copy-number-gated demotion of a moderate_promiscuous fusion at a recurrently focally-amplified locus — an amplicon passenger SV, not a competent fusion driver). # 1.3.0: includes fusion_recurrence_confidence (verdict-inert tier), modality_relevance, GENIE-SV breadth fields (genie_sv_*)
 question: "Is {target.symbol} recurrently involved in gene fusions or structural rearrangements in {indication.label}?"
 
 # Evidence-capsule projection contract. Only ONE field matched the anchor hints
@@ -50,7 +57,7 @@ outputs:
     - fusion_frequency
     - recurrent_partners
     - fusion_class                                  # PRIMARY categorical driving rules
-    - fusion_recurrence_confidence                  # VERDICT-INERT tier on a recurrent_fusion_driver call (see vocabulary + caveat)
+    - fusion_recurrence_confidence                  # VERDICT-BEARING tier (since 1.5.0) — GATES the resolver's TOP fusion rung (see vocabulary + caveat)
     # ---- GENIE-SV breadth (pan-cohort, panel-coverage-correct) — ADDITIVE display, verdict-inert ----
     # The higher-N complement to the TCGA-consensus facts above (271k panel tumors vs 33 TCGA tissues).
     # None of these drive a resolver rung; genie_sv_recurrence_class is a DISPLAY comparator only.
@@ -67,7 +74,7 @@ outputs:
       - sporadic_fusion                             # fusions present but non-recurrent (1-2 samples)
       - no_recurrent_fusion                         # assayed in the indication, no recurrent fusion signal (measured-negative)
       - data_unavailable                            # product/target absent — NOT a measured negative
-    fusion_recurrence_confidence:                   # VERDICT-INERT tier for a recurrent_fusion_driver call.
+    fusion_recurrence_confidence:                   # VERDICT-BEARING tier for a recurrent_fusion_driver call (1.5.0).
                                                     # NULLABLE: the reader emits None (field absent) when it is NOT a
                                                     # recurrent_fusion_driver call (sporadic / no_recurrent / data_unavailable);
                                                     # only the non-null tiers are enumerated below.

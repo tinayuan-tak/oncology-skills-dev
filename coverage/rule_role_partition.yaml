@@ -2,9 +2,9 @@ _doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referen
   (verdict-driving); display = referenced by NO resolver (annotation-only: claim-vector / key-signal /
   figure input). Regenerate with build_rule_role_partition.py; --self-check gates drift.'
 counts:
-  total: 421
-  gating: 127
-  display: 294
+  total: 423
+  gating: 128
+  display: 295
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -31,8 +31,8 @@ gating:
 - cn-data-unavailable-insufficient
 - cn-patient-focal-amplified-supportive
 - cn-patient-focal-deleted-supportive
+- cn-recurrent-homozygous-deletion-supportive
 - cn-recurrently-amplified-supportive
-- cn-recurrently-deleted-supportive
 - common-essential-underpowered-insufficient
 - concordance-data-unavailable-insufficient
 - concordance-discordant-warning
@@ -54,6 +54,7 @@ gating:
 - fusion-positive-indication-scoped-context
 - fusion-positive-moderately-dependent-supportive
 - fusion-positive-strongly-dependent-supportive
+- fusion-recurrence-high-partner-context
 - gene-burden-lof-safety-warning
 - highly-constrained-safety-warning
 - hotspot-in-druggable-pocket-sm-supportive-e8
@@ -176,6 +177,7 @@ display:
 - cn-deleted-surface-neutral
 - cn-mixed-neutral
 - cn-neutral-surface-neutral
+- cn-recurrently-deleted-supportive
 - combo-constitutive-synthetic-lethal
 - combo-context-conditional-synthetic-lethal
 - combo-context-opportunity

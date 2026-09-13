@@ -688,6 +688,31 @@ rules:
       Required by the genomic resolver's cn-amplified-*-dependent biomarker rungs (when_all_fired) so
       pan-lineage-only amplification dependency falls through to the confirmed_driver /
       recurrent_amplification_driver rungs. Twin of amp-expr-indication-scoped-context.
+  # ---- Fusion recurrence CONFIDENCE gate (2026-09-12) ----
+  # Promotes fusion-rearrangement-landscape.fusion_recurrence_confidence from verdict-INERT display to a
+  # resolver GATE (card 1.5.0 records the tier change). The card's own caveat calls moderate_promiscuous a
+  # "MIXED bucket": genuine kinase fusions AND passenger rearrangements both land there. #983 already
+  # demotes the amplicon subset (moderate_promiscuous at a recurrently focally-amplified locus). This gate
+  # covers the REMAINING subset — a promiscuous fusion at a NON-amplified locus, measured on the panel as
+  # STK11/LUAD: 3/632 samples (0.47%), ZERO recurrent partners, at a deleted tumour-suppressor locus, which
+  # is a rearrangement passenger at a fragile locus, not a competent fusion driver.
+  - rule_id: fusion-recurrence-high-partner-context
+    when:
+      card_id: fusion-rearrangement-landscape
+      field: fusion_recurrence_confidence
+      equals: high_recurrent_partner
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Recurrence-confidence GATE for the fusion-landscape driver verdict. The SAME partner recurs in >=3
+      samples (EML4-ALK, TMPRSS2-ERG) — 100% precise on the card's validation panel, i.e. a reciprocal
+      partner-specific rearrangement, the signature of a competent fusion oncogene. Required by the
+      genomic resolver's TOP fusion rung (when_all_fired) so a moderate_promiscuous call (target recurs,
+      NO single recurrent partner) no longer outranks top-1% patient SNV recurrence: it falls through to
+      the demoted bare-fusion rung below the SNV-recurrence rungs, where it still rescues a fusion-only
+      target from passenger but never pre-empts stronger, partner-specific or SNV-recurrence evidence.
+      Twin of the *-indication-scoped-context scope gates. VERDICT-MOVING (precedence only, never a killer).
   - rule_id: fusion-positive-indication-scoped-context
     when:
       card_id: fusion-stratified-dependency
@@ -821,6 +846,15 @@ rules:
       signal from the ADDITIVE patient_focal_cn_class (GISTIC), not from this class.
       Note the deletion band (down to 0.92) is more permissive than the
       amplification band (>1.5) — see cn-recurrently-amplified-supportive.
+      NULL RATE (measured 2026-09-12, 1433 genes sampled from the 26Q1 WGS CN panel):
+      cn_recurrent_deletion_score >= 0.20 for 60.1% of ALL genes — the median gene
+      scores 0.228, ABOVE the cut — versus 2.9% for the focal-only amplification
+      score and 1.5% for the deep-deletion fraction. So this class does not
+      discriminate; it is DISPLAY / modality signal only. It is deliberately NOT a
+      driver-establishing conjunct in genomic_alteration.resolver.yaml — the
+      deletion rungs there key on cn-recurrent-homozygous-deletion-supportive
+      (deep/biallelic, 1.5% null) or cn-patient-focal-deleted-supportive
+      (indication-native GISTIC -2) instead.
 
   - rule_id: cn-mixed-neutral
     when:
@@ -896,6 +930,32 @@ rules:
       Recurrent FOCAL homozygous deletion (GISTIC -2) across the indication's PATIENT tumours — the
       canonical tumour-suppressor loss-of-function event, complementing cn-recurrently-deleted-supportive
       with patient-cohort evidence the cell-line panel may miss. Homdel -2 only (not shallow/arm-level loss).
+
+  # ---- DEEP (homozygous) cell-line deletion recurrence (2026-09-12) ----
+  # The SPECIFIC cell-line deletion signal. cn-recurrently-deleted-supportive folds hemizygous/shallow
+  # loss (relative CN 0.5-0.92) into its class, which is genome-wide aneuploidy BACKGROUND, not selection:
+  # measured over 1433 randomly-sampled genes of the 26Q1 WGS CN panel, cn_recurrent_deletion_score >= 0.20
+  # for 60.1% of ALL genes (median gene 0.228 — the cut sits BELOW the genomic median), versus 2.9% for the
+  # focal-only amplification score and 1.5% for the deep-deletion fraction below. So this rule is the
+  # deletion-side analogue of the amplification rule's specificity, and it is the one the genomic_alteration
+  # resolver's driver-ESTABLISHING deletion rungs key on; cn-recurrently-deleted-supportive stays a
+  # display/modality signal only. Reads the card's existing cn_homozygous_deletion_recurrent field
+  # (deep-del fraction >= the card's recurrent_threshold) — no new measurement, no re-tuned band.
+  - rule_id: cn-recurrent-homozygous-deletion-supportive
+    when:
+      card_id: copy-number-distribution
+      field: cn_homozygous_deletion_recurrent
+      equals: recurrent_homozygous_deletion
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Recurrent DEEP/homozygous deletion across the cell-line panel (relative CN < 0.5 in >=20% of lines)
+      — the canonical BIALLELIC loss-of-function event, and the deletion signal that survives an
+      aneuploidy-background null (1.5% of genes genome-wide, vs 60.1% for the shallow-inclusive
+      recurrently_deleted class). Supportive as loss-of-function CONTEXT the program might exploit
+      (synthetic-lethal partner targeting, or a degrader-not-viable read since there is no protein to
+      degrade) — never a killer on its own; the dependency cards carry the therapeutic inference.
 
   # ============================================================================
   # E4 — Mutation-type counts (Card E4: mutation-type-counts)

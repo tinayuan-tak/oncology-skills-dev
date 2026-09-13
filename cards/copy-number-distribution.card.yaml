@@ -34,6 +34,25 @@
 #   cn_homozygous_deletion_recurrent / the deep-del fraction. Do NOT re-tune these
 #   bands (see analysis-methods/methods/depmap_cn_distribution/cli.py).
 #
+#   MEASURED NULL RATE (2026-09-12) — the asymmetry's PRICE, and why the DELETION arm
+#   is no longer a driver-establishing resolver conjunct. Over 1433 gene columns sampled
+#   at random from the 26Q1 WGS CN panel (IsDefaultEntryForMC-filtered):
+#     cn_recurrent_deletion_score      >= 0.20 for 60.1% of ALL genes (mean 0.255,
+#                                      median 0.228 — the cut sits BELOW the genomic
+#                                      median; p5/p25/p50/p75/p90/p95/p99 =
+#                                      0.076/0.151/0.228/0.325/0.42/0.50/0.75)
+#     cn_recurrent_amplification_score >= 0.20 for  2.9% of all genes
+#     cn_fraction_deep_deletion        >= 0.20 for  1.5% of all genes
+#   A 20-40x specificity gap between the two arms of the same classifier: the
+#   shallow-inclusive deletion arm is measuring the aneuploid CELL-LINE BACKGROUND
+#   (hemizygous loss is the modal state of a cancer genome), not target-specific loss.
+#   The bands are NOT re-tuned (that would erase real hemizygous TSG loss, and the
+#   class is still the right DISPLAY/modality read). What changed instead is WHICH
+#   field the verdict keys on: genomic_alteration.resolver.yaml >= 1.9.0 no longer
+#   accepts `recurrently_deleted` as a driver-establishing conjunct, keying its
+#   deletion rungs on cn_homozygous_deletion_recurrent (deep/biallelic, 1.5% null) or
+#   the indication-native patient_focal_cn_class (GISTIC -2) instead.
+#
 # Data source: dmc-26q1/OmicsCNGeneMC_WES.csv. Matrix shape: cell-line-rows ×
 # gene-columns (similar to CRISPR matrix); first physical column is
 # ModelConditionID, second is IsDefaultEntryForMC. Bridge to ModelID requires
@@ -45,7 +64,10 @@
 # data_unavailable (rule: cn-data-unavailable-insufficient).
 
 card_id: copy-number-distribution
-version: 1.3.0    # includes patient_focal_cn_class (FOCAL gate → CN-consensus VERDICT rung, cell-line OR patient), patient CN cross-check, homdel flag
+version: 1.4.0    # 1.4.0 (2026-09-12): cn_homozygous_deletion_recurrent PROMOTED verdict-inert → VERDICT-BEARING
+                  # (fires cn-recurrent-homozygous-deletion-supportive on the resolver's deletion rungs, replacing the
+                  # shallow-inclusive copy_number_class whose measured genome-wide null rate is 60.1% — see header).
+                  # 1.3.0: includes patient_focal_cn_class (FOCAL gate → CN-consensus VERDICT rung, cell-line OR patient), patient CN cross-check, homdel flag
 question: "Across DepMap cell lines, what is the copy-number landscape for {target.symbol}? Is the target recurrently amplified, deleted, or broadly neutral?"
 
 # Evidence-capsule projection contract. Measured before this declaration (ABL1/CML): class read
@@ -116,11 +138,16 @@ outputs:
     - cn_recurrent_amplification_score   # combined focal + high amp fraction
     - cn_recurrent_deletion_score        # combined shallow + deep del fraction
     - copy_number_class                  # DESCRIPTIVE CATEGORICAL (drives Tier-2 rules)
-    # Recurrent HOMOZYGOUS (deep) deletion flag (2026-08-06, DISPLAY facet). copy_number_class folds
-    # deep + shallow del into recurrently_deleted; this isolates recurrent DEEP deletion (CN<0.5 in
-    # >=20% of the panel) — the degrader-relevant pattern (no protein to degrade). SEPARATE from
-    # copy_number_class ON PURPOSE (that field is verdict-driving; this is additive/verdict-inert). A
-    # degrader-not-viable rule keyed on this is a deferred follow-up.
+    # Recurrent HOMOZYGOUS (deep) deletion flag (2026-08-06; VERDICT-BEARING since 2026-09-12).
+    # copy_number_class folds deep + shallow del into recurrently_deleted; this isolates recurrent DEEP
+    # deletion (CN<0.5 in >=20% of the panel) — the canonical BIALLELIC loss-of-function event, and the
+    # degrader-relevant pattern (no protein to degrade). It is now THE cell-line deletion field the
+    # genomic resolver's driver-establishing deletion rungs key on (rule:
+    # cn-recurrent-homozygous-deletion-supportive), because it is the arm that SURVIVES an
+    # aneuploidy-background null: 1.5% of genes genome-wide vs 60.1% for the shallow-inclusive
+    # copy_number_class (header, measured 2026-09-12). The shallow-inclusive class stays a
+    # DISPLAY/modality signal. A degrader-not-viable KILLER rule keyed on this remains a deferred
+    # follow-up (this promotion is driver-ESTABLISHING only, never a veto).
     - cn_homozygous_deletion_recurrent
     - cn_top_amplified_lineages          # per-lineage stats for amplified lineages
     - cn_top_deleted_lineages            # per-lineage stats for deleted lineages
@@ -223,6 +250,8 @@ warning_predicates:
     message: "Deletion tail is essentially one-lineage-driven; pan-cancer 'recurrently_deleted' label may be misleading."
 
 caveats:
+  - "copy_number_class == recurrently_deleted does NOT establish a target-specific deletion. The score is shallow-inclusive and clears its 0.20 cut for 60.1% of ALL genes genome-wide (median gene 0.228, ABOVE the cut), vs 2.9% for the amplification arm and 1.5% for the deep-deletion fraction (measured 2026-09-12, 1433 sampled genes). It reads the aneuploid cell-line background, not target-specific loss."
+  - "Because of that 60.1% null rate, the genomic resolver (>= 1.9.0) fires NO driver-establishing rung on recurrently_deleted — treat it as a DISPLAY/modality read. A deletion DRIVER claim keys on cn_homozygous_deletion_recurrent (biallelic, 1.5% null) or patient_focal_cn_class (indication-native GISTIC -2). The amplification arm is unaffected (2.9% null, no measured defect)."
   - "Most cancer driver genes (KRAS, BRAF, EGFR, etc.) are MUTATION-driven, not CN-driven. A 'broadly_neutral' call is the correct, expected outcome for these — NOT a coverage gap."
   - "Method uses WES gene-level CN (OmicsCNGeneMC_WES.csv, n≈1954) as PRIMARY. When the target gene is absent from the WES panel (e.g. MYC, BRAF in 26Q1), method falls back to WGS gene-level CN (OmicsCNGeneWGS.csv, n≈800, full genome coverage). Card emits cn_assay_used ∈ {wes, wgs} to surface which source was used per target. Different denominators per target are honest reporting, not silent imputation."
   - "CN scale is raw relative CN (median ~1.0 = diploid), NOT log2 ratio. Thresholds: deep del < 0.5, shallow del < 0.92, neutral 0.92-1.07, shallow amp >1.07, focal amp >1.5, high amp >4."

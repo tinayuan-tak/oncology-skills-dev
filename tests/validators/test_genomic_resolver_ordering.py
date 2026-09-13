@@ -177,19 +177,45 @@ def test_snv_recurrence_alone_is_recurrent_snv_driver():
     )
 
 
-def test_variant_class_pattern_outranks_snv_recurrence():
-    # A lof/missense-dominant spectrum (tier 5) is a stronger call than bare recurrence (tier 6).
-    assert resolve("mut-lof-dominant-supportive", "snv-recurrence-top-driver-supportive")[0] == "lof_dominant_pattern"
+def test_snv_recurrence_outranks_variant_class_shape():
+    """FLIPPED in resolver 1.9.0 (was test_variant_class_pattern_outranks_snv_recurrence, which
+    asserted the opposite). Variant-class SHAPE is not driver evidence: `mut-missense-dominant`
+    fires for 62% of the 26-target genomic review panel INCLUDING both negative controls (GAPDH,
+    ACTB), because most genes' somatic spectra are missense-dominant by base-substitution
+    statistics alone. Pooled patient RECURRENCE in the top 1% is a far more specific statement, so
+    the shape rungs moved below it (p38/39 → p50/51). Falsifier: ROS1/LUAD, where the shape rung was
+    outranking real landscape recurrence."""
+    assert resolve("mut-lof-dominant-supportive", "snv-recurrence-top-driver-supportive")[0] == "recurrent_snv_driver"
+    assert (
+        resolve("mut-missense-dominant-supportive", "snv-recurrence-top-driver-supportive")[0] == "recurrent_snv_driver"
+    )
+    # shape alone is still a real characterization — it was demoted, not removed
+    assert resolve("mut-lof-dominant-supportive") == ("lof_dominant_pattern", "mut-lof-dominant-supportive")
 
 
-def test_cn_and_fusion_landscape_outrank_snv_recurrence():
-    # recurrent_snv_driver is LAST in tier 6 — a dually-altered gene keeps its CN/fusion verdict.
+def test_cn_amplification_still_outranks_snv_recurrence():
+    # UNCHANGED by 1.9.0. The amplification arm has no measured specificity defect
+    # (cn_recurrent_amplification_score clears its cut for 2.9% of genes genome-wide), so its rungs
+    # were deliberately left alone — only the DELETION arm (60.1% null rate) was re-keyed.
     assert resolve("cn-recurrently-amplified-supportive", "snv-recurrence-top-driver-supportive")[0] == (
         "recurrent_amplification_driver"
     )
+
+
+def test_bare_fusion_recurrence_no_longer_outranks_snv_recurrence():
+    """FLIPPED in 1.9.0. `fusion-landscape-recurrent-driver-supportive` alone fires on promiscuous,
+    low-prevalence rearrangement — STK11/LUAD is 3/632 tumours (0.47%) with ZERO recurrent partners,
+    yet it was outranking stronger SNV evidence. The top fusion rung now requires the new
+    fusion-recurrence-high-partner-context conjunct; bare fusion recurrence is demoted to p49."""
     assert resolve("fusion-landscape-recurrent-driver-supportive", "snv-recurrence-top-driver-supportive")[0] == (
-        "recurrent_fusion_driver"
+        "recurrent_snv_driver"
     )
+    # WITH partner corroboration the fusion call is restored — the gate discriminates, it does not veto
+    assert resolve(
+        "fusion-landscape-recurrent-driver-supportive",
+        "fusion-recurrence-high-partner-context",
+        "snv-recurrence-top-driver-supportive",
+    )[0] == ("recurrent_fusion_driver")
 
 
 def test_dependency_outranks_snv_recurrence():
