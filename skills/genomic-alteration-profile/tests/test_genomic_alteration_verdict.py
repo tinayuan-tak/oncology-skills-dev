@@ -68,7 +68,76 @@ def test_cn_amplification_driver_when_mutation_passenger():
 
 
 def test_cn_deletion_driver():
-    assert _v("cn-recurrently-deleted-supportive")[0] == "recurrent_deletion_driver"
+    # SPECIFICITY (resolver 1.9.0). The DELETION arm of copy_number_class is shallow-inclusive and
+    # clears its 0.20 cut for 60.1% of ALL genes genome-wide (median gene 0.228, ABOVE the cut) vs 2.9%
+    # for the amplification arm and 1.5% for the deep-deletion fraction — measured over 1433 randomly
+    # sampled 26Q1 WGS CN gene columns. It reads the aneuploid cell-line background, so it establishes
+    # NO driver on its own: FGFR2/STAD, a focal-AMPLIFICATION target in gastric cancer, read
+    # `confirmed_driver` driven by this rule. It remains a display/modality signal.
+    assert _v("cn-recurrently-deleted-supportive")[0] == "insufficient"
+    # The two arms that DO survive an aneuploidy-background null each still drive the verdict alone:
+    # the biallelic cell-line event (deep/homozygous, 1.5% null) ...
+    assert _v("cn-recurrent-homozygous-deletion-supportive")[0] == "recurrent_deletion_driver"
+    # ... and the indication-native patient GISTIC -2 event.
+    assert _v("cn-patient-focal-deleted-supportive")[0] == "recurrent_deletion_driver"
+    # ... and neither is weakened by the shallow-inclusive class co-firing (it is additive, never a veto).
+    assert _v("cn-recurrent-homozygous-deletion-supportive", "cn-recurrently-deleted-supportive")[0] == (
+        "recurrent_deletion_driver"
+    )
+
+
+def test_cn_deletion_driver_needs_a_specific_deletion_not_just_a_role():
+    # The confirmed_driver / multi_class deletion rungs are gated the same way: a driver ROLE plus the
+    # 60%-null shallow-inclusive class is NOT a confirmed deletion driver (that combination is what gave
+    # SMAD4/STK11/FGFR2 their `confirmed_*` calls), but a role plus a SPECIFIC deletion event is.
+    assert _v("cn-recurrently-deleted-supportive", "alteration-role-lof-driver-neutral")[0] == "insufficient"
+    assert _v("cn-patient-focal-deleted-supportive", "alteration-role-lof-driver-neutral")[0] == (
+        "confirmed_lof_driver"
+    )
+    assert _v("cn-recurrent-homozygous-deletion-supportive", "alteration-role-lof-driver-neutral")[0] == (
+        "confirmed_lof_driver"
+    )
+    # ... and the INDICATION-NATIVE patient event leads the pan-cancer cell-line one when both fire
+    # (scope honesty: it previously ranked BELOW, which also mislabelled scope_of_driving_verdict).
+    assert _v(
+        "cn-patient-focal-deleted-supportive",
+        "cn-recurrent-homozygous-deletion-supportive",
+        "alteration-role-lof-driver-neutral",
+    ) == ("confirmed_lof_driver", "cn-patient-focal-deleted-supportive")
+
+
+def test_promiscuous_fusion_does_not_outrank_snv_recurrence():
+    # SPECIFICITY (resolver 1.9.0). fusion_recurrence_confidence == moderate_promiscuous is the fusion
+    # card's OWN self-declared MIXED bucket ("genuine kinase fusions AND amplicon passenger SVs both
+    # fall here"); #983 demoted only the AMPLIFIED subset. STK11/LUAD — 3/632 samples (0.47%), ZERO
+    # recurrent partners, at a DELETED tumour-suppressor locus — was reading recurrent_fusion_driver
+    # over its real mechanism (top-1% patient SNV recurrence in a TSG).
+    assert _v("fusion-landscape-recurrent-driver-supportive", "snv-recurrence-top-driver-supportive")[0] == (
+        "recurrent_snv_driver"
+    )
+    # WITH the high-partner confidence gate (same partner >=3 samples: EML4-ALK, TMPRSS2-ERG) the fusion
+    # is partner-specific and DOES lead — the genuine-kinase-fusion case must not regress.
+    assert _v(
+        "fusion-landscape-recurrent-driver-supportive",
+        "fusion-recurrence-high-partner-context",
+        "snv-recurrence-top-driver-supportive",
+    ) == ("recurrent_fusion_driver", "fusion-landscape-recurrent-driver-supportive")
+
+
+def test_variant_class_shape_does_not_outrank_landscape_recurrence():
+    # SPECIFICITY (resolver 1.9.0). missense_dominant fires for 62% of the review panel INCLUDING both
+    # the GAPDH and ACTB negative controls — >=0.70 missense is the no-selection expectation of the
+    # genetic code — and mutation-type-counts' own caveat says "'missense_dominant' alone doesn't prove
+    # oncogene status". So a spectrum SHAPE must not pre-empt a measured patient landscape event.
+    # ROS1/LUAD, a textbook fusion-driven LUAD target, read `missense_dominant_pattern`.
+    assert _v("mut-missense-dominant-supportive", "fusion-landscape-recurrent-driver-supportive")[0] == (
+        "recurrent_fusion_driver"
+    )
+    assert _v("mut-lof-dominant-supportive", "cn-patient-focal-deleted-supportive")[0] == ("recurrent_deletion_driver")
+    # The shape rungs still rank ABOVE mixed/passenger — a driver-shaped spectrum is more informative
+    # than "no dominant class", so demoting them must not silently erase the verdicts themselves.
+    assert _v("mut-missense-dominant-supportive")[0] == "missense_dominant_pattern"
+    assert _v("mut-lof-dominant-supportive")[0] == "lof_dominant_pattern"
 
 
 def test_fusion_landscape_recurrent_driver():

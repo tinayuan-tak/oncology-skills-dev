@@ -22,16 +22,30 @@ unlisted rung, which is exactly when nobody is thinking about the oracle.
 
 DECLARED DEBT, not a silent skip. Three gates cannot simply list their missing ids: the frozen
 table is the full co-emission CROSS-PRODUCT, so each additional (card, field) dimension
-multiplies the row count. Measured 2026-09-12:
-    genomic_alteration          15 -> 28 ids   3,240 -> 7,464,960 rows  (~900 MB, unshippable)
-    tractability_small_molecule 20 -> 22 ids  24,576 ->    73,728 rows  (+17 MB)
-    surface_modality            17 -> 19 ids   8,064 ->    32,256 rows  (+7.7 MB)
-For reference the whole snapshot is 14 MB today and was 41.5 MB before the co-emission migration
-shrank it, so paying ~29 MB (and, for genomic_alteration, ~900 MB) to cover 18 rule ids is the
-wrong trade -- the fix is a cheaper ENUMERATION REGIME (e.g. freeze all co-firing sets up to
-order k plus the full set: precedence defects are pairwise, and size<=2 over 28 ids is 407 rows,
-not 7.5 M), which is a design change this guard deliberately does not smuggle in. Until then the
-gap is recorded below WITH its measured cost, and the assertions below let it only SHRINK.
+multiplies the row count. Measured 2026-09-13, at the CURRENT listing (the 2026-09-12 figures
+below it were taken before contracts resolver 1.10.0 and three ids were paid for since):
+    genomic_alteration          18 -> 30 ids  25,920 -> 29,859,840 rows  (~25 GB, unshippable)
+    tractability_small_molecule 20 -> 22 ids  24,576 ->     73,728 rows  (+17 MB)
+    surface_modality            17 -> 19 ids   8,064 ->     32,256 rows  (+7.7 MB)
+THE COST IS NOT PER-ID AND THAT IS THE WHOLE TRAP. Each genomic debt id listed ALONE costs only
+2x (25,920 -> 51,840; `cn-data-unavailable-insufficient` 34,560, it joins an existing group), so
+"just add the one you need" reads cheap twelve times in a row and multiplies to 1,152x. Read the
+marginal cost against the ids you would list TOGETHER, never one at a time.
+For reference the whole snapshot is 21.7 MB today (14 MB before the three genomic ids below were
+paid for) and was 41.5 MB before the co-emission migration shrank it, so paying ~29 MB is the
+right trade for the other two gates and ~25 GB is not -- the fix is a cheaper ENUMERATION REGIME
+(e.g. freeze all co-firing sets up to order k plus the full set: precedence defects are pairwise,
+and size<=2 over 30 ids is 466 rows, not 29.9 M), which is a design change this guard deliberately
+does not smuggle in. Until then the gap is recorded below WITH its measured cost, and the
+assertions below let it only SHRINK.
+
+WHAT THE THREE PAID-FOR IDS BOUGHT (2026-09-13, contracts resolver 1.10.0): 3,240 -> 25,920 rows,
+14 -> 21.7 MB, to list `cn-recurrent-homozygous-deletion-supportive`,
+`fusion-landscape-recurrent-driver-supportive` and `fusion-recurrence-high-partner-context`. Before
+that, `recurrent_fusion_driver` -- a SHIPPED verdict token -- was on ZERO of the 3,240 rows, so
+#739's fusion demotion was unmeasurable here. See
+test_genomic_gate_exercises_the_two_arms_resolver_1_10_0_rewrote for the reachability assertions,
+including why listing ONE clause of a two-clause guard bought a 2x row cost for zero coverage.
 
 The debt map is checked for EQUALITY, not containment, so it cannot drift in either direction:
   - add an unlisted rung to a debt gate  -> this test fails (the set no longer matches)
@@ -67,7 +81,6 @@ RULE_ID_COVERAGE_DEBT: dict[str, set[str]] = {
         "cn-amplified-moderately-dependent-supportive",
         "cn-amplified-strongly-dependent-supportive",
         "cn-data-unavailable-insufficient",
-        "fusion-landscape-recurrent-driver-supportive",
         "fusion-positive-indication-scoped-context",
         "fusion-positive-moderately-dependent-supportive",
         "fusion-positive-strongly-dependent-supportive",
@@ -157,3 +170,55 @@ def test_dependency_gate_exercises_partner_conditional_dependent():
     verdicts = {v for v, _ in _GOLDEN["dependency"]["table"].values()}
     assert "partner_conditional_dependent" in verdicts
     assert "insufficient_underpowered" in verdicts  # the other rung the 15-id list starved
+
+
+def test_genomic_gate_exercises_the_two_arms_resolver_1_10_0_rewrote():
+    """The same regression, one gate over: contracts #739/#760 rewrote the CN-deletion and fusion
+    arms, and the 15-id list made BOTH invisible to this oracle.
+
+    `recurrent_fusion_driver` is a shipped verdict token that appeared on ZERO of the 3,240 frozen
+    rows, because `fusion-landscape-recurrent-driver-supportive` was declared debt -- so #739's
+    fusion demotion (promiscuous bare-fusion rung dropped BELOW the SNV-recurrence rungs, the
+    STK11/LUAD false positive) was unmeasurable here. Listing it makes both fusion rungs reachable
+    and the demotion observable in both directions, asserted below.
+
+    Note on the partner-context gate: `fusion-recurrence-high-partner-context` co-gates the TOP
+    fusion rung and never becomes a `driving_rule_id` of its own, so listing it ALONE bought a 2x
+    row cost for zero coverage -- its partner had to be listed too. Listing one clause of a
+    two-clause guard does not make the rung reachable; that is why both went in together."""
+    gate = "genomic_alteration"
+    table = _GOLDEN[gate]["table"]
+    verdicts = {v for v, _ in table.values()}
+    assert "recurrent_fusion_driver" in verdicts, "the fusion arm is unexercised again"
+    assert "recurrent_deletion_driver" in verdicts
+
+    # The biallelic deletion predicate #739 introduced must actually DRIVE rows, not merely appear.
+    assert any(d == "cn-recurrent-homozygous-deletion-supportive" for _, d in table.values()), (
+        "cn-recurrent-homozygous-deletion-supportive drives no frozen row"
+    )
+
+    # #739's fusion demotion, both directions: with the high-partner-context gate the fusion rung
+    # wins; without it the SNV-recurrence rung does. If a future edit re-promotes the bare fusion
+    # rung above SNV recurrence, the second set gains recurrent_fusion_driver and this fails.
+    fus, hp, snv = (
+        "fusion-landscape-recurrent-driver-supportive",
+        "fusion-recurrence-high-partner-context",
+        "snv-recurrence-top-driver-supportive",
+    )
+
+    def verdicts_where(required: set[str], excluded: set[str]) -> set[str]:
+        out = set()
+        for key, (verdict, _driving) in table.items():
+            fired = {r for r in key.split(",") if r}
+            if required <= fired and not (excluded & fired):
+                out.add(verdict)
+        return out
+
+    with_hp = verdicts_where({fus, snv, hp}, set())
+    without_hp = verdicts_where({fus, snv}, {hp})
+    assert with_hp and without_hp, "the fusion x SNV co-emission rows vanished"
+    assert "recurrent_fusion_driver" in with_hp
+    assert "recurrent_fusion_driver" not in without_hp, (
+        "a promiscuous bare fusion now outranks SNV recurrence again — this is the STK11/LUAD defect"
+    )
+    assert "recurrent_snv_driver" in without_hp

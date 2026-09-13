@@ -4,6 +4,39 @@ Development history for the skill. The `SKILL.md` header describes the CURRENT
 contract only; dated design decisions and reclassification notes live here so the
 contract stays readable.
 
+## 2026-09-13 (v2.18.0)
+UNIFIED-OUTPUT completion + shadow/verdict coherence, all VERDICT-INERT, plus the companion golden
+re-baseline for contracts resolver **1.10.0** (TC #739 CN-deletion/fusion specificity composed with
+TC #760's role asymmetry).
+
+Output-completion fixes, each of which was `None` or wrong on **26/26** panel runs before:
+- `skill_report.subgroup_signals` was computed into the headline and then dropped at the
+  `build_skill_report` call site — now passed.
+- `skill_report.modality_scope` + `claim_record_shadow.modality_scope` were `None` on every run. New
+  `_ga_modality_scope`: allele-selectable GoF driver → `small_molecule: favorable`; GoF driver with no
+  selectable allele → `conditional` (the amplicon/fusion/WT-binding targets); recurrent biallelic
+  deletion → `unfavorable`; else `na`. `biologics` is **always** `na` — this is an intracellular-intrinsic
+  axis with no localization read, and asserting otherwise is exactly how CD19/TACSTD2/FOLR1 would
+  acquire a fabricated biologics favorability. Reads the SHARED
+  `wt_loss_safety_conditioning.yaml` triple rather than restating it, and additionally requires
+  POSITIVE selectable-allele evidence: the triple is a NEGATIVE screen only, and without the positive
+  conjunct TACSTD2 and FOLR1 read SM-favorable.
+- `recurrent_snv_subclonal_uncertain` and `biomarker_dependency_unconfirmed` were in no `_GA_*` bucket,
+  so they fell through `_ga_availability` to `measured_positive` — two tokens whose whole purpose is to
+  WITHHOLD a driver call were published as measured positives. Now NEUTRAL + `insufficient`.
+- `_claim_record` / `_strength_certainty` scored the RAW ladder, so TP53/COADREAD published
+  `supports` / `measured_positive` / `strong` against its own emitted
+  `biomarker_dependency_unconfirmed`. Both now score the reconciled word via
+  `reconciled_verdict_from_cards`.
+
+`scope_of_driving_verdict` — **SPECIFICITY IS NOT SCOPE.** 1.10.0's new
+`cn-recurrent-homozygous-deletion-supportive` was unmapped, so a deletion-driven verdict would have
+published `unclassified`. It is mapped to `_PAN_CANCER_RULES`, not `_INDICATION_ANCHORED_RULES`:
+#739 replaced a 60.1%-null shallow predicate with a 1.5% biallelic one on the SAME cell-line panel, so
+the call got much sharper without becoming any more indication-native. Only GISTIC per-sample
+`cn-patient-focal-deleted-supportive` is indication-anchored. Caught by
+`test_every_resolver_driving_rule_is_scoped`, which derives its population from the resolver.
+
 ## 2026-09-06 (v2.17.0)
 MIGRATED off the hand-rolled `main()` onto the shared `run_wired_skill` dispatcher — genomic-alteration-profile
 was the last hand-rolled fan-out `main()`, so every fan-out skill now shares one dispatcher path. Enabled by 3

@@ -28,7 +28,7 @@ description: |
   --modality flag. See CHANGELOG.md for development history.
 
 metadata:
-  version: 2.17.0
+  version: 2.18.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
