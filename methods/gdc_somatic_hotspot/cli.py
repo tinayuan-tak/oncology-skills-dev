@@ -30,6 +30,55 @@ import click
 MC3_S3_BUCKET = "onc-compbio"
 MC3_S3_KEY = "data-catalog/sources/synapse/tcga-mc3-public/mc3.v0.2.8.PUBLIC.maf.gz"
 
+# The authoritative barcode → TCGA `cancer type` crosswalk (merged_sample_quality_annotations.tsv) —
+# the SAME PanCanAtlas annotation tcga_patient_cn / tcga_aneuploidy_burden / functional_gene_state use
+# for their indication join. Preferred over the hardcoded TSS table below (which only covers 4
+# indications' source sites): it maps EVERY TCGA aliquot to its cohort, so the all-cohort aggregate can
+# cover all 33 projects from one source of truth. See _load_barcode_cancer_type.
+SAMPLE_ANNOT_KEY = "data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27/merged_sample_quality_annotations.tsv"
+
+# TCGA `cancer type` code (as it appears in merged_sample_quality_annotations) → framework CANONICAL
+# indication (target-contracts indication_crosswalk.yaml canonical_code), i.e. the value the
+# patient-cohort SNV product stamps in its `indication` column and the read side filters on after
+# indication_aliases.to_cohort_canonical. The three POOLED canonicals mirror to_cohort_canonical's
+# UP-pooling (COAD+READ→COADREAD, LUAD+LUSC→NSCLC, STAD→GC); LAML→AML is the one heme remap; every other
+# TCGA cohort is identity (its own canonical partition). Covers all 33 GDC PanCanAtlas cohorts.
+CANCER_TYPE_TO_INDICATION = {
+    "COAD": "COADREAD",
+    "READ": "COADREAD",
+    "LUAD": "NSCLC",
+    "LUSC": "NSCLC",
+    "STAD": "GC",
+    "PAAD": "PAAD",
+    "LAML": "AML",
+    "GBM": "GBM",
+    "LGG": "LGG",
+    "BRCA": "BRCA",
+    "HNSC": "HNSC",
+    "ESCA": "ESCA",
+    "OV": "OV",
+    "PRAD": "PRAD",
+    "SKCM": "SKCM",
+    "UCEC": "UCEC",
+    "BLCA": "BLCA",
+    "KIRC": "KIRC",
+    "KIRP": "KIRP",
+    "KICH": "KICH",
+    "LIHC": "LIHC",
+    "SARC": "SARC",
+    "MESO": "MESO",
+    "THCA": "THCA",
+    "DLBC": "DLBC",
+    "CESC": "CESC",
+    "ACC": "ACC",
+    "UVM": "UVM",
+    "PCPG": "PCPG",
+    "CHOL": "CHOL",
+    "TGCT": "TGCT",
+    "THYM": "THYM",
+    "UCS": "UCS",
+}
+
 # Indication → list of TCGA project codes that compose it (canonical OncoTree mapping).
 INDICATION_TO_TCGA_PROJECTS = {
     "COADREAD": ["TCGA-COAD", "TCGA-READ"],
@@ -400,6 +449,138 @@ def aggregate_indication(indication: str) -> "pa.Table":
     return pa.Table.from_pylist(rows, schema=_output_schema())
 
 
+def _load_barcode_cancer_type() -> dict:
+    """{patient_barcode: TCGA cancer-type code} from merged_sample_quality_annotations — the authoritative
+    PanCanAtlas crosswalk (all 33 cohorts), the same one tcga_patient_cn/tcga_aneuploidy_burden join on.
+    Raises on a transient/broken read or an empty map (absence-discipline: a silent {} would make the
+    all-cohort build emit ZERO rows and look like a successful no-op)."""
+    import io
+
+    import boto3
+    import pandas as pd
+
+    ensure_aws_profile()
+    s3 = boto3.client("s3")
+    raw = s3.get_object(Bucket=MC3_S3_BUCKET, Key=SAMPLE_ANNOT_KEY)["Body"].read()
+    df = pd.read_csv(io.BytesIO(raw), sep="\t", usecols=["patient_barcode", "cancer type"], dtype=str)
+    df = df.dropna(subset=["patient_barcode", "cancer type"])
+    out = dict(zip(df["patient_barcode"].str.strip(), df["cancer type"].str.strip()))
+    if not out:
+        raise RuntimeError(
+            f"barcode→cancer-type crosswalk s3://{MC3_S3_BUCKET}/{SAMPLE_ANNOT_KEY} produced an EMPTY map"
+        )
+    return out
+
+
+def aggregate_all_cohorts() -> "pa.Table":
+    """Single-pass all-cohort MC3 aggregate: stream the 750 MB MAF ONCE, route each aliquot to its
+    framework CANONICAL indication via the authoritative barcode→cancer-type crosswalk (all 33 TCGA
+    cohorts), and emit the same per-(indication, gene, hotspot) schema as aggregate_indication for every
+    indication in one table. Replaces 33 separate full-MAF streams. Rows sorted (indication, gene_symbol,
+    -hotspot_n_samples) for pushdown."""
+    import boto3
+    import pyarrow as pa
+
+    ensure_aws_profile()
+    annot = _load_barcode_cancer_type()
+
+    s3 = boto3.client("s3")
+    click.echo(f"Streaming MC3 from s3://{MC3_S3_BUCKET}/{MC3_S3_KEY} (all cohorts)...", err=True)
+    gz = gzip.GzipFile(fileobj=s3.get_object(Bucket=MC3_S3_BUCKET, Key=MC3_S3_KEY)["Body"])
+
+    # per indication: {samples:set, genes:{gene:{mutated:set, hotspots:{hgvs:set}}}}
+    per: dict = defaultdict(
+        lambda: {"samples": set(), "genes": defaultdict(lambda: {"mutated": set(), "hotspots": defaultdict(set)})}
+    )
+    n_lines = 0
+    rejected_unmapped = 0
+    hdr_col_idx = None
+    for raw_line in gz:
+        n_lines += 1
+        if n_lines % 500000 == 0:
+            click.echo(f"  Processed {n_lines:,} MAF lines...", err=True)
+        line = raw_line.decode("utf-8", errors="replace").rstrip("\n")
+        if not line or line.startswith("#"):
+            continue
+        if hdr_col_idx is None:
+            cols = line.split("\t")
+            try:
+                hdr_col_idx = {
+                    "Hugo_Symbol": cols.index("Hugo_Symbol"),
+                    "Variant_Classification": cols.index("Variant_Classification"),
+                    "HGVSp_Short": cols.index("HGVSp_Short"),
+                    "Tumor_Sample_Barcode": cols.index("Tumor_Sample_Barcode"),
+                }
+            except ValueError as e:
+                raise RuntimeError(f"MC3 header missing required column: {e}")
+            continue
+        parts = line.split("\t")
+        if len(parts) < max(hdr_col_idx.values()) + 1:
+            continue
+        barcode = parts[hdr_col_idx["Tumor_Sample_Barcode"]]
+        cancer_type = annot.get(_barcode_to_patient(barcode))
+        indication = CANCER_TYPE_TO_INDICATION.get(cancer_type) if cancer_type else None
+        if indication is None:
+            rejected_unmapped += 1
+            continue
+        sample = _barcode_to_sample(barcode)
+        bucket = per[indication]
+        bucket["samples"].add(sample)
+        vc = parts[hdr_col_idx["Variant_Classification"]]
+        if vc not in NON_SYNONYMOUS_CLASSES:
+            continue
+        gene = parts[hdr_col_idx["Hugo_Symbol"]]
+        if not gene or gene in (".", ""):
+            continue
+        g = bucket["genes"][gene]
+        g["mutated"].add(sample)
+        g["hotspots"][parts[hdr_col_idx["HGVSp_Short"]] or "unknown"].add(sample)
+
+    click.echo(
+        f"\nMC3 streamed: {n_lines:,} lines; {len(per)} indications; {rejected_unmapped:,} unmapped-cohort lines",
+        err=True,
+    )
+    rows = []
+    for indication in sorted(per):
+        bucket = per[indication]
+        n_total = len(bucket["samples"])
+        click.echo(f"  {indication}: {n_total} samples, {len(bucket['genes'])} mutated genes", err=True)
+        for gene in sorted(bucket["genes"]):
+            gd = bucket["genes"][gene]
+            n_mutated = len(gd["mutated"])
+            overall_freq = n_mutated / n_total if n_total > 0 else 0.0
+            rows.append(
+                {
+                    "indication": indication,
+                    "gene_symbol": gene,
+                    "n_samples_in_indication": n_total,
+                    "n_samples_mutated": n_mutated,
+                    "overall_mutation_frequency": overall_freq,
+                    "hotspot_protein_change": None,
+                    "hotspot_n_samples": None,
+                    "hotspot_frequency": None,
+                }
+            )
+            for hs, hs_samples in gd["hotspots"].items():
+                hs_n = len(hs_samples)
+                rows.append(
+                    {
+                        "indication": indication,
+                        "gene_symbol": gene,
+                        "n_samples_in_indication": n_total,
+                        "n_samples_mutated": n_mutated,
+                        "overall_mutation_frequency": overall_freq,
+                        "hotspot_protein_change": hs,
+                        "hotspot_n_samples": hs_n,
+                        "hotspot_frequency": hs_n / n_total if n_total > 0 else 0.0,
+                    }
+                )
+    # sort_key = gene_symbol (matches the product manifest + aggregate_indication): per-gene predicate
+    # pushdown prunes row-groups on gene_symbol; indication + hotspot rank are secondary.
+    rows.sort(key=lambda r: (r["gene_symbol"], r["indication"], -(r["hotspot_n_samples"] or 0)))
+    return pa.Table.from_pylist(rows, schema=_output_schema())
+
+
 def _output_schema() -> "pa.Schema":
     import pyarrow as pa
 
@@ -522,7 +703,15 @@ def per_sample_maf(indication: str) -> "pa.Table":
 
 
 @click.command()
-@click.option("--indication", required=True, help="Indication code (COADREAD, PDAC, NSCLC, GC).")
+@click.option("--indication", default=None, help="Indication code (COADREAD, PDAC, NSCLC, GC). Omit with --all.")
+@click.option(
+    "--all",
+    "all_cohorts",
+    is_flag=True,
+    default=False,
+    help="Build the ALL-COHORT aggregate in ONE MC3 pass (all 33 TCGA cohorts, framework-canonical "
+    "indications) — the full tcga-mc3-hotspot-frequency-v1 product. Ignores --indication/--per-sample.",
+)
 @click.option(
     "--out", required=True, type=click.Path(dir_okay=False, path_type=Path), help="Output Parquet path (local)."
 )
@@ -535,13 +724,20 @@ def per_sample_maf(indication: str) -> "pa.Table":
     "subgroup-stratified-mutation-frequency panorama recomputes per-stratum from; "
     "sample_id is the 3-segment PATIENT barcode so it joins the assignments shards.",
 )
-def main(indication: str, out: Path, per_sample: bool) -> int:
+def main(indication: str | None, all_cohorts: bool, out: Path, per_sample: bool) -> int:
     import pyarrow.parquet as pq
 
-    if per_sample:
+    if all_cohorts:
+        table = aggregate_all_cohorts()
+        row_group = 1024
+    elif per_sample:
+        if not indication:
+            raise click.UsageError("--per-sample requires --indication")
         table = per_sample_maf(indication)
         row_group = 8192  # narrow 4-col rows; larger groups are fine
     else:
+        if not indication:
+            raise click.UsageError("pass --indication or --all")
         table = aggregate_indication(indication)
         row_group = 1024
     out.parent.mkdir(parents=True, exist_ok=True)
