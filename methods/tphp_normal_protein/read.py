@@ -104,24 +104,47 @@ BROAD_ABUNDANT_TISSUE_COUNT = 35  # tunable: # adult tissues at/above the floor 
 # (shares the ~50%-of-panel breadth bar with BROAD_ADULT_TISSUE_COUNT)
 #
 # ★ WHY THIS COUNT IS NOT RE-DERIVED AGAINST THE 60 SOLID PARTS (a deliberate NON-change, twice over).
+# ★★ BOTH ARMS ARE NOW MEASURED ON THE WHOLE PRODUCT (2026-09-13, all 13,009 genes / 482,704 adult rows,
+#    same predicate compute_summary uses). The sweep the earlier version of this comment ASKED FOR has
+#    been run. It CONFIRMS (b), CONFIRMS (a) as stated, and FALSIFIES (a)'s parenthetical.
 #
-# (a) Switching the numerator to solid-only WITHOUT moving the cut would be a pure safety RELAXATION.
-#     Excluding the 10 non-solid parts removes ~10 from the count of a broadly-abundant target, and
+# (a) Switching the numerator to solid-only WITHOUT moving the cut is a pure safety RELAXATION.
+#     Excluding the 10 non-solid parts removes up to 10 from the count of a broadly-abundant target, and
 #     because those parts are ENRICHED above the floor it removes MORE than their share — while 35 is an
-#     ABSOLUTE cut. Fewer targets clear it, so the veto fires LESS often. Nothing about the biology got
-#     safer; the instrument just got quieter. (Pairing the exclusion with a proportional cut of 30 is the
-#     arithmetically consistent version — and (b) says we cannot justify even that here.)
+#     ABSOLUTE cut. MEASURED: solid-only >=35 classifies 1,446 genes broad_and_abundant vs 1,510 for
+#     all-adult >=35 — 64 FEWER liabilities (-4.2%). The veto fires LESS often; nothing about the biology
+#     got safer, the instrument just got quieter.
+#     ★ CORRECTION: the earlier text called "a proportional cut of 30" the arithmetically consistent
+#     pairing. THAT IS WRONG, measured: solid-only >=30 fires on 1,563 genes, +53 MORE than today's
+#     1,510 (59 genes gain the liability, 6 lose it), so 30 overshoots into a net TIGHTENING. The
+#     count-NEUTRAL pairing is solid-only >=32 (1,511 vs 1,510). Do not reach for 30 as "the obvious
+#     equivalent"; the non-solid parts are enriched enough above the floor that 60/70 does not scale the
+#     cut linearly.
 #
-# (b) The panel CANNOT DISCRIMINATE any cut between 30 and 35, so retuning it would be unfalsifiable.
-#     Every target measured on the review panel sits at <=30 or >=58 adult tissues above the floor; the
-#     30-35 interval is EMPTY. A "recalibration" that no observation can distinguish from the status quo
-#     is not a calibration, it is a number swap that spends the reviewability of a SAFETY threshold for
-#     nothing. Moving this cut needs a population that populates the interval — a full-product sweep of
-#     the per-gene above-floor distribution, not the review panel. Recorded as the open item.
+# (b) NO CUT IN THIS REGION IS DATA-LICENSED, and that now rests on the population, not on the panel.
+#     * The 30-35 interval is thin even product-wide: 144 of 13,009 genes (1.11%) have an all-adult
+#       above-floor count in [30,35]. Moving 35 -> 30 on the unchanged numerator reclassifies 127 genes
+#       (0.98% of the product).
+#     * There is NO natural cut. The survivor curve over cuts 20..45 is smooth and monotone with no
+#       valley: flattest step is 42->43 (15 genes lost), steepest is 20->21 (42 lost), and 35->36 loses
+#       17 — the region is featureless. A distribution with no gap cannot nominate a threshold; any
+#       value here is a POLICY choice, so it belongs to review, not to a refactor.
+#     * The anchor sets cannot adjudicate it either, and now we know why: between all-adult>=35 and
+#       solid-only>=30, ZERO of 10 housekeeping/proliferation controls and ZERO of 19 validated antigens
+#       present in the product change class. The panel's blindness is a property of the ANCHORS (they
+#       sit at the distribution's extremes), not merely of the panel's size.
+#     * Tightest control margin: MKI67 sits at 36 above-floor adult tissues (det=59), ONE tissue above
+#       the cut — so a cut of 37+ would release the framework's own proliferation decoy. That is the
+#       binding constraint on raising this number, and it is far closer than 35 vs 30 suggests.
 #
 # So the verdict-bearing arithmetic is UNCHANGED by this version: same floor, same cut, same all-adult
 # numerator. The v2 columns arrive as DECLARATION (n_solid_adult_tissues_*, tissue_category per row),
 # which is what a future calibration needs and what a consumer choosing its own denominator needs.
+#
+# Reproduce the sweep: read the product's gene_symbol / tissue / tissue_class / tissue_category /
+# median_log2_abundance columns, count distinct non-fetal tissues at/above ABUNDANCE_FLOOR_LOG2 per gene
+# (all-adult and solid-only), then tabulate `>= c` over c in 20..45. compute_abundance_floor() covers the
+# floor itself; this covers the CUT.
 
 
 # ── streamed pushdown read (pyarrow S3FileSystem; no whole-file download) ─────────────────────
