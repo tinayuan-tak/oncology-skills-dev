@@ -312,6 +312,8 @@
         "distance_to_cut": {"type": ["number", "integer", "null"], "description": "Signed offset from the decision cut (or a comparator baseline). PREFER surfacing the summary's own delta/distance field over computing value-anchor; compute only from two pinned sig_round'd numbers."},
         "cohort_percentile": {"type": ["number", "integer", "null"], "description": "For frame.kind=cohort_percentile: the value's empirical percentile within the known-target reference cohort (0-100, polarity-signed so higher == stronger). DISPLAY-ONLY."},
         "cohort_n": {"type": ["integer", "null"], "description": "For frame.kind=cohort_percentile: the number of known targets behind the percentile (the cohort basis; min-N gated)."},
+        "bits": {"type": ["number", "null"], "minimum": 0, "description": "For frame.kind=cohort_percentile ONLY: the two-sided empirical surprise of cohort_percentile within the cohort, in bits — min(-log2 p_hat, log2(cohort_n+1)), where the 1/(n+1) floor on p_hat IS the log2(n+1) ceiling on the bits, so an extremum is capped at the cohort's resolution instead of scoring inf. Two-sided because polarity is already carried by `direction`. 0.0 is a REAL answer (an exactly-median value is worth no bits) and must not be confused with absence — an unreadable or excluded frame carries `bits_withheld` and NO `bits` key at all. DISPLAY-ONLY, like every other layer here."},
+        "bits_withheld": {"type": ["string", "null"], "description": "Mutually exclusive with `bits` (enforced by the allOf below): the machine reason no surprise could be computed, so a missing rank is auditable rather than silent. Known reasons: display_only_ruler (the axis mints no atlas numeric on purpose — a mutation-SHAPE fraction has no fixed polarity) | significance_scale_not_rankable (a q/p-value scale: driver q ~ 0 for every gene that has one, so -log2 q is maximal for the whole corpus and discriminates nothing) | reference_undermeasured_<frac> (the atlas column's reference_mask_fraction is below the usable-reference gate; the fraction is IN the reason so the refusal reads without re-opening the atlas) | reference_quality_unknown (column absent from feature_order, an artifact predating reference_mask_fraction, or a ::mask column — masks record 1.000 BY CONSTRUCTION, so the gate is vacuous against them while a rank inside a 0/1 Bernoulli column still returns a confident-looking percentile) | percentile_unreadable."},
         "frame": {
           "type": ["object", "null"],
           "additionalProperties": false,
@@ -339,6 +341,21 @@
           "$comment": "No bare number: if value is a real number, scale must be a non-null string.",
           "if": {"required": ["value"], "properties": {"value": {"type": ["number", "integer"]}}},
           "then": {"required": ["scale"], "properties": {"scale": {"type": "string"}}}
+        },
+        {
+          "$comment": "A rank and the reason there is no rank cannot both be true. Carrying both would let a reader take the number while a second reader takes the refusal, which is how a withheld measurement silently becomes a used one.",
+          "not": {"required": ["bits", "bits_withheld"]}
+        },
+        {
+          "$comment": "Bits are a property of a DISTRIBUTION: they are only meaningful against a cohort, and only computable from a percentile and a basis. So a real `bits` number requires a real cohort_percentile AND a real cohort_n — this is what stops log2(n+1) being computed against an empty column and reported as a confident 0.",
+          "if": {"required": ["bits"], "properties": {"bits": {"type": "number"}}},
+          "then": {
+            "required": ["cohort_percentile", "cohort_n"],
+            "properties": {
+              "cohort_percentile": {"type": ["number", "integer"]},
+              "cohort_n": {"type": "integer", "minimum": 1}
+            }
+          }
         }
       ]
     },

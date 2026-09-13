@@ -649,6 +649,16 @@
                 {"role": "ceiling", "label": "pan_essential_ceiling", "value": -1.499}
               ]
             }
+          },
+          {
+            "metric": "median_chronos_panel",
+            "value": -1.05,
+            "scale": "chronos",
+            "direction": "lower_is_stronger",
+            "cohort_percentile": 89.9,
+            "cohort_n": 297,
+            "bits": 2.308,
+            "frame": {"kind": "cohort_percentile"}
           }
         ],
         "effect": {
