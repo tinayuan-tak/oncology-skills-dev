@@ -202,12 +202,17 @@ _GATING_AXIS_FAILCLOSED_ACTION: dict[str, str] = {
 
 # The complete kill_capable_verdicts registry FALLBACK (mirrors target-contracts
 # vocabularies/nomination_verdict_gate.yaml). {(sub_skill, verdict): disposition}, disposition
-# ∈ {gated, excluded_modality_scoped, contradiction}. Used to iterate the COMPLETE declared kill
-# set for the hard_gates status block; conservative-and-complete on load failure (never empty).
+# ∈ {gated, excluded_modality_scoped, contradiction, uncorroborated}. Used to iterate the COMPLETE
+# declared kill set for the hard_gates status block; conservative-and-complete on load failure
+# (never empty). MUST move in lockstep with the vocab: this mirror is what a pre-v1.20.0 (or
+# unreadable) contracts checkout falls back to, so a disposition that moves there and not here makes
+# the hard_gates block disagree with the gate depending only on which checkout CI happened to read.
 _FALLBACK_KILL_CAPABLE_VERDICTS: dict[tuple[str, str], str] = {
     ("dependency", "pan_essential_killer"): "gated",
     ("dependency", "non_dependent"): "gated",
-    ("dependency", "discordant"): "contradiction",
+    # `uncorroborated`, not `contradiction` (vocab v1.20.0): CRISPR and RNAi disagree with EACH OTHER,
+    # which is an absence of resolution, not a measurement against the target. Still blocks `strong`.
+    ("dependency", "discordant"): "uncorroborated",
     ("dependency", "broadly_dependent"): "contradiction",
     ("safety", "highly_constrained_safety_concern"): "gated",
     ("safety", "human_genetics_safety_concern"): "gated",
@@ -215,7 +220,11 @@ _FALLBACK_KILL_CAPABLE_VERDICTS: dict[tuple[str, str], str] = {
     ("safety", "normal_tissue_protein_safety_concern"): "gated",  # data-util expansion 2026-08-21
     ("subtype_fit", "subtype_specific_non_dependence"): "gated",
     ("selectivity", "not_selective"): "contradiction",
-    ("selectivity", "discordant_across_comparators"): "contradiction",
+    # `uncorroborated`, not `contradiction` (vocab v1.20.0) — the two comparator arms disagree on the
+    # tumour-vs-normal window (rung `tvn-discordant-neutral-flagged`; the resolver's own `upgrade:`
+    # block groups it with `not_informative` as rescuable). NOTE tractability_sm/discordant BELOW
+    # deliberately stays a `contradiction`: there the discordance IS the finding.
+    ("selectivity", "discordant_across_comparators"): "uncorroborated",
     ("selectivity", "selective_but_broadly_normal"): "contradiction",  # post-resolver clamp KILL (gate v1.10.0)
     ("selectivity", "selective_but_stromal_confound"): "contradiction",  # post-resolver clamp KILL (gate v1.10.0)
     ("surface_modality", "neither_viable"): "excluded_modality_scoped",
@@ -759,8 +768,10 @@ def _hard_gates_status(
       suppressed — a `gated` verdict matched but a veto suppressor lifted it (recorded).
       excluded   — an `excluded_modality_scoped` verdict matched live (a modality-local
                    foreclosure that deliberately did NOT blanket-veto).
-      opposing   — a `contradiction` verdict matched live (opposing measured evidence; blocks
-                   `strong`, not a veto).
+      opposing   — a `contradiction` OR `uncorroborated` verdict matched live (a non-veto
+                   kill-capable verdict; blocks `strong`, not a veto). This token is a LIFECYCLE
+                   event, not a polarity claim, and it deliberately does NOT fork with the
+                   disposition — see the `uncorroborated` note in the branch chain below.
       reconciled — a `contradiction` verdict matched live but a cross-axis reconciler dropped it
                    (a co-present verdict proved it is measured on the wrong basis). NON-opposing —
                    keeps this view consistent with the scorecard + positive-tier, which also
@@ -802,7 +813,26 @@ def _hard_gates_status(
             status = "blind"
         elif matched and disposition == "excluded_modality_scoped":
             status = "excluded"
-        elif matched and disposition == "contradiction":
+        elif matched and disposition in ("contradiction", "uncorroborated"):
+            # `uncorroborated` (vocab v1.20.0) shares this branch ON PURPOSE. The DISPOSITION moves —
+            # it is vocab-owned and mirrored here (`policy_source: vocab`) — but the LIFECYCLE token
+            # holds at `opposing`, and the two must not be conflated:
+            #
+            #   * `status` is the ONLY field of this block the downstream fail-closed ceiling switches
+            #     on (cross-evidence-hypothesis `hypothesis_core._gate_ceiling`), and that switch
+            #     handles exactly {fired, blind, opposing, excluded}. Every other token — `latent`
+            #     today, a hypothetical `uncorroborated` tomorrow — falls through it with NO signal.
+            #     So dropping out of this branch, or minting a new token here, would silently remove
+            #     the `advanceable_with_caveat` clamp from every uncorroborated target. The
+            #     relabelling would fail OPEN one surface further out than the one it fixes.
+            #   * `opposing` here is a lifecycle event ("a non-veto kill-capable verdict matched
+            #     live"), NOT the polarity claim the scorecard makes. The scorecard is the surface
+            #     that carries polarity, and there this verdict correctly reads `coverage_gap`.
+            #
+            # Splitting the lifecycle token therefore lands WITH the integrator change, not before
+            # it — see docs/UNIFIED_OUTPUT_CONTRACT.md § "Typed surface authority", ordered
+            # follow-up. Same LABEL-NOT-DROP discipline as the tier: change the label only on the
+            # surface whose readers you can see.
             status = "reconciled" if (short, verdict) in reconciled_pairs else "opposing"
         elif matched and disposition == "gated":
             status = "fired"  # gated + matched but not in hits (defensive; normally in hits)
@@ -1054,6 +1084,69 @@ def _load_positive_signals(
         return {}, set(), {"min_dimensions_for_strong": 2, "require_dominant_for_strong": True}, "fallback"
 
 
+# The `positive_uncorroborated` block's FALLBACK mirror (vocab v1.20.0). Verdicts whose content is
+# that the axis's own arms disagree WITH EACH OTHER, so the axis resolved nothing.
+#
+# FAIL-CLOSED, and note which direction that is here. These pairs must stay inside the `strong`-block
+# on EVERY contracts checkout: dropping them RELAXES the gate, which is fail-OPEN (measured over 56
+# target×indication pairs: 0 carrying pairs are at `strong` today, but 2 — KRAS/COADREAD selectivity
+# and CEACAM5/NSCLC — REACH `strong` if the block is lost). So an absent/unreadable
+# `positive_uncorroborated` key falls back to this mirror rather than to the empty set.
+#
+# The consequence worth stating plainly: `contradictions ∪ uncorroborated` is IDENTICAL on a
+# pre-v1.20.0 checkout (where these rows are still filed under `positive_contradictions`) and on a
+# v1.20.0+ one (where they are filed here). The tier is therefore byte-stable across the relabelling
+# BY CONSTRUCTION, on either checkout. Only the LABEL moves — see `_gate_scorecard`.
+_FALLBACK_POSITIVE_UNCORROBORATED: set[tuple[str, str]] = {
+    ("selectivity", "discordant_across_comparators"),
+    ("dependency", "discordant"),
+}
+
+
+def _load_positive_uncorroborated(contracts_repo: Path | None = None) -> tuple[set[tuple[str, str]], str]:
+    """Load the `positive_uncorroborated` classification block. Returns (pairs, source).
+
+    A SEPARATE loader rather than a 5th element on `_load_positive_signals`, deliberately: that
+    function's 4-tuple is consumed by `tp_facets.py` (the report-render-dashboard-arc's file) at two
+    call sites, and widening the tuple would force an edit there for no behavioural reason. Keeping
+    the signature means the per-axis-role label change propagates to those readers for free.
+
+    Fail-CLOSED to `_FALLBACK_POSITIVE_UNCORROBORATED` — see that constant for why the empty set is
+    the WRONG default here (it would relax the `strong` gate).
+    """
+    repo = contracts_repo or _CONTRACTS_REPO
+    path = repo / "vocabularies" / "nomination_verdict_gate.yaml"
+    try:
+        data = yaml.safe_load(path.read_text())
+        block = data.get("positive_uncorroborated")
+        if not block:
+            # Pre-v1.20.0 contracts: the rows are still filed under `positive_contradictions`. Use the
+            # mirror so the strong-block is the same set either way.
+            return set(_FALLBACK_POSITIVE_UNCORROBORATED), "fallback_pre_1_20"
+        return {(u["sub_skill"], u["verdict"]) for u in block}, "vocab"
+    except Exception as e:  # noqa: BLE001 — any failure → the MIRROR (never the empty set)
+        print(
+            f"[target-profile] WARN: could not load positive_uncorroborated "
+            f"({type(e).__name__}: {e}); using the hardcoded mirror (strong-block preserved).",
+            file=sys.stderr,
+        )
+        return set(_FALLBACK_POSITIVE_UNCORROBORATED), "fallback"
+
+
+def _split_contradictions(
+    contra: set, contracts_repo: Path | None = None
+) -> tuple[set[tuple[str, str]], set[tuple[str, str]]]:
+    """Split a loaded contradiction set into (opposing_contradictions, uncorroborated).
+
+    Subtracting `uncorroborated` from the contradiction set is what makes the LABEL follow the
+    v1.20.0 policy on a pre-v1.20.0 checkout too (where the same pairs are still listed as
+    contradictions). The UNION is unchanged, so the tier does not move; only what we CALL these rows
+    does. Callers that need the strong-block must use the union, never `contra` alone.
+    """
+    uncorr, _src = _load_positive_uncorroborated(contracts_repo)
+    return contra - uncorr, uncorr
+
+
 def _positive_tier(
     sub_results: dict, contracts_repo: Path | None = None, modality: str | None = None
 ) -> tuple[Optional[str], list[dict]]:
@@ -1065,6 +1158,11 @@ def _positive_tier(
     never emits an action. A contradiction (opposing MEASURED verdict on a
     positive-eligible axis) blocks `strong`. insufficient/data_unavailable are NOT
     contradictions (measured-vs-null).
+
+    A `positive_uncorroborated` verdict (vocab v1.20.0) ALSO blocks `strong`, on its own flag: a
+    `strong` claim requires corroboration and an axis whose own arms disagree has corroborated
+    nothing. Two flags rather than one because the two must be labelled differently downstream
+    (`opposing` vs `coverage_gap`) while having identical effect on the tier.
     """
     pos_map, contra_set, cfg, _src = _load_positive_signals(contracts_repo, modality=modality)
     if not pos_map:
@@ -1073,8 +1171,15 @@ def _positive_tier(
     # basis (e.g. selectivity selective_but_broadly_normal when genomic biomarker_stratified_dependency —
     # the bulk-RNA no-window read dilutes an amp-selected window). Fail-closed (empty → nothing dropped).
     contra_set = contra_set - _reconciled_contradiction_keys(sub_results, contracts_repo)
+    # SPLIT the loaded set: `uncorroborated` rows block `strong` exactly as a contradiction does, but
+    # are NOT opposing evidence. Deliberately AFTER the reconcile subtraction and NOT reconciled
+    # themselves — a reconciler's premise is that a contradiction was measured on the wrong basis, and
+    # an axis whose own arms disagree measured nothing to be on the wrong basis about. Reconciling one
+    # would drop it from the strong-block, which is fail-open.
+    contra_set, uncorr_set = _split_contradictions(contra_set, contracts_repo)
     hits: list[dict] = []
     contradicted = False
+    uncorroborated = False
     for short, r in sub_results.items():
         v = r.get("verdict")
         if not v:
@@ -1082,6 +1187,12 @@ def _positive_tier(
         verdict_str = v[0]
         if (short, verdict_str) in contra_set:
             contradicted = True
+            continue
+        if (short, verdict_str) in uncorr_set:
+            # Same two effects as a contradiction — blocks `strong`, and cannot itself count as a
+            # positive dimension (two channels that disagree have corroborated nothing) — under a
+            # DIFFERENT name, so the scorecard can label it `coverage_gap` instead of `opposing`.
+            uncorroborated = True
             continue
         weight = pos_map.get((short, verdict_str))
         if weight:
@@ -1108,7 +1219,9 @@ def _positive_tier(
     has_dominant = any(h["weight"] == "dominant" for h in hits)
     min_dims = cfg.get("min_dimensions_for_strong", 2)
     require_dom = cfg.get("require_dominant_for_strong", True)
-    strong_ok = n_dims >= min_dims and (has_dominant or not require_dom) and not contradicted
+    # `not uncorroborated` is the LABEL-NOT-DROP clause: it keeps the strong-block byte-identical to
+    # what `not contradicted` alone enforced before the two rows were relabelled.
+    strong_ok = n_dims >= min_dims and (has_dominant or not require_dom) and not contradicted and not uncorroborated
     tier = "strong" if strong_ok else "moderate"
     return tier, hits
 
@@ -1150,7 +1263,11 @@ def _positive_tier_nominates(
 # the scorecard can NEVER disagree with the recommendation gate. No new classification logic:
 #   opposing     = verdict in the kill tuples OR a positive_contradiction (a MEASURED negative)
 #   supportive   = verdict in positive_signals (a MEASURED positive)
-#   coverage_gap = insufficient / data_unavailable / None / gate absent this run (we didn't look)
+#   coverage_gap = insufficient / data_unavailable / None / gate absent this run (we didn't look),
+#                  OR a positive_uncorroborated verdict (v1.20.0 — we DID look, but the axis's own
+#                  arms disagreed with each other, so nothing was corroborated). The second case
+#                  still BLOCKS `strong` in the gate; it just isn't opposing evidence. "The arms
+#                  disagree" != "the measurement opposes".
 _SCORECARD_STATUS_ORDER = {"opposing": 0, "supportive": 1, "coverage_gap": 2}
 _COVERAGE_GAP_VERDICTS = {None, "insufficient", "data_unavailable", "not_implemented", "phase_not_yet_wired"}
 
@@ -1172,12 +1289,21 @@ def _gate_scorecard(
     # cross-axis reconcile (same as the recommendation gate) so the scorecard's opposing status can't
     # disagree with the deterministic call — a reconciled contradiction is no longer 'opposing'.
     contradictions = contradictions - _reconciled_contradiction_keys(sub_results, contracts_repo)
+    # Split off the `uncorroborated` rows so they are not LABELLED opposing. They remain in the
+    # recommendation gate's strong-block (see `_positive_tier`), so this changes the WORD on the
+    # scorecard, not the decision.
+    contradictions, uncorroborated = _split_contradictions(contradictions, contracts_repo)
     deciding_short = None
     if deciding_axis and deciding_axis.get("basis") == "gate_fired":
         deciding_short = (deciding_axis.get("deciding_axis") or {}).get("short")
 
     def _status(short: str, verdict: Optional[str]) -> str:
         if verdict in _COVERAGE_GAP_VERDICTS:
+            return "coverage_gap"
+        if (short, verdict) in uncorroborated:
+            # The axis's own arms disagree, so it resolved nothing — a COVERAGE gap in the corroborated
+            # sense, not opposing evidence. Checked BEFORE the kill/contradiction test so the label can
+            # never depend on which contracts version happened to be readable.
             return "coverage_gap"
         if (short, verdict) in kill_map or (short, verdict) in contradictions:
             return "opposing"
@@ -1234,6 +1360,7 @@ __all__ = [
     "_COVERAGE_RANK",
     "_FALLBACK_GATE_VERDICTS",
     "_FALLBACK_KILL_CAPABLE_VERDICTS",
+    "_FALLBACK_POSITIVE_UNCORROBORATED",
     "_GATE_ACTION_RANK",
     "_GATING_AXES",
     "_GATING_AXIS_FAILCLOSED_ACTION",
@@ -1253,9 +1380,14 @@ __all__ = [
     "_load_gate_verdicts",
     "_load_kill_capable_verdicts",
     "_load_positive_signals",
+    "_load_positive_uncorroborated",
     "_load_veto_suppressors",
+    "_split_contradictions",
     "_positive_tier",
     "_positive_tier_nominates",
+    # Exported so a test can ASSERT that no reconciler ever drops an `uncorroborated` verdict, rather
+    # than relying on today's two reconcilers both happening to target a different one.
+    "_reconciled_contradiction_keys",
     "_run_coverage_for_short",
     "_sub_result_has_signal",
     "_suppressed_gate_hits",

@@ -69,6 +69,193 @@ polarity → phrase` lookup (per skill, co-located with its claims module) maps 
 this scale and a plain-language phrase; chips carry **polarity AND strength decoupled**
 (e.g. "opposing · weak").
 
+## Typed surface authority — which surface is authoritative FOR WHICH TYPE
+
+The section above names one authoritative scale for **polarity**. Necessary, but not sufficient: a
+composed nomination emits the same axis's "how did it go" judgement on **six** surfaces, and those
+surfaces carry **four different types**. Until 2026-09-13 nothing declared which surface owned which
+type, so a reader comparing two of them was sometimes checking agreement and sometimes committing a
+category error — and the two are indistinguishable in a diff. "These two surfaces differ" is a bug
+report only *after* you establish the two are the same type.
+
+| # | Surface | Type | Vocabulary (live) | Authority |
+|---|---|---|---|---|
+| 1 | `sub_verdicts.<axis>.verdict` | verdict token | **open**, per-resolver (55 live / 66 declared) | **authoritative** |
+| 2 | `…skill_reports.<axis>.evidence_graph.verdict.id` | verdict token | same as (1) | derived — must be identical |
+| 3 | `target_call.gate_scorecard[].verdict` | verdict token | same as (1) | derived |
+| 4 | `skill_reports.<axis>.polarity` | polarity | **closed, 5**: `killer` `opposing` `neutral` `supportive` `not_scored` | **authoritative** |
+| 5 | `…evidence_graph.verdict.polarity` | polarity | closed, 3: `opposing` `neutral` `supportive` | derived — **lossy** |
+| 6 | `target_call.gate_scorecard[].status` | polarity | closed, 4: `opposing` `neutral` `supportive` `coverage_gap` | derived — different vocabulary |
+| 7 | `target_call.gate.hard_gates[].status` | gate **lifecycle** | closed, 6: `fired` `latent` `suppressed` `reconciled` `excluded` `opposing` | **authoritative** |
+| 8 | `target_call.gate.hard_gates[].disposition` | contracts **disposition** | `gated` `excluded_modality_scoped` `contradiction` `uncorroborated` | **target-contracts** owns it (`policy_source: vocab`) |
+
+All figures below are measured over `skills/target-profile/tests/fixtures/polarity_surface_projection.json`
+— 37 target×indication pairs (latest-per-pair), 629 axis rows, from live runs under
+`~/dev/framework-runs/examples`. Rebuild with `tests/build_polarity_surface_projection.py`.
+
+### Type 1 — verdict token: (1) is authoritative; (2) and (3) MUST be identical
+
+Same type, so equality is meaningful and required. Measured: **337 / 372** rows where both are present
+are identical. All **35** violations are on a single axis, `surface_modality` (35 of its 37 rows).
+
+### Type 2 — polarity: (4) is authoritative; (5) is a LOSSY projection of it
+
+On the three tokens the two vocabularies share, they agree **perfectly — 236 / 236 identical, 0
+differ**. Every apparent disagreement is one of two *named* collapses, and naming them is the point:
+
+- **refinement loss** — `killer → opposing`, 25 rows (`surface_modality` 15, `selectivity` 10). Not
+  wrong, just weaker. A reader that needs the killer distinction must read (4), never (5).
+- **off-axis collapse** — `not_scored → neutral` (181 rows) and `not_scored → supportive` (**41 rows**:
+  `expression` 35, `cis_coherence` 4, `immune_context` 2). `not_scored` is **off-axis** (roles
+  `descriptive`/`inert` — see the `role` taxonomy above); the evidence graph has no off-axis value, so
+  it places the axis *on* the measurement scale. The 41 `supportive` rows are the harmful direction:
+  an axis that was never scored renders as the favourable measured class. Same failure family as
+  scoring an unmeasured tier as a low measured one.
+
+### Type 3 — gate lifecycle: (7) is authoritative and is NOT a polarity
+
+`fired`/`latent`/`suppressed`/`reconciled`/`excluded` describe **where a declared kill-capable row sits
+in the gate's lifecycle**, not a direction of evidence. It shares exactly **one** token with the
+polarity scale — `opposing` — and that token means different things on the two surfaces: on (7) "this
+gate row is the one opposing", on (4)/(6) "this axis's evidence opposes". Do not join on it.
+
+**This vocabulary is CLOSED, and growing it is a fail-open — not a nicety.** `hard_gates[].status` is
+the only field of the block that the cross-evidence integrator's fail-closed ceiling switches on
+(`cross-evidence-hypothesis/scripts/hypothesis_core.py::_gate_ceiling`), and that switch handles
+exactly `{fired, blind, opposing, excluded}` — every other token falls through it with **no signal**,
+silently dropping the `advanceable_with_caveat` clamp. So a status token is not a label you may add to
+describe a row better; it is a key in a switch whose default case is "no constraint". Any new lifecycle
+token lands **in the same PR as the integrator that reads it**, never before.
+
+### Type 4 — disposition: owned by target-contracts, mirrored here
+
+`hard_gates[].disposition` carries `policy_source: vocab`: it is a mirror of
+`nomination_verdict_gate.yaml`'s `kill_capable_verdicts[].disposition`. **This repo may not redefine
+it**; a new disposition lands in contracts first (skills CI reads contracts `main`). Live distribution:
+`latent/contradiction` 301, `latent/excluded_modality_scoped` 233, `latent/gated` 167,
+`excluded/gated` 37, `suppressed/gated` 34, `opposing/contradiction` 28, `excluded/excluded_modality_scoped` 26,
+`fired/gated` 21, `reconciled/contradiction` 4.
+
+`uncorroborated` joins this vocabulary in `nomination_verdict_gate` **v1.20.0**, for verdicts where the
+axis's own arms disagree — `dependency/discordant` (CRISPR vs RNAi) and
+`selectivity/discordant_across_comparators` (two comparator arms). Because a disposition is vocab-owned
+but a skills-side reader must work on both contracts versions, `tp_gates._load_positive_uncorroborated`
+reads the block when present and falls back to a hardcoded **mirror** when it is not. The empty set is
+the wrong default: it would silently unblock `strong`, so the fallback is fail-CLOSED and the mirror is
+asserted equal to the declaration on every run.
+
+### Incommensurable pairs — declared as such, not as "disagreeing"
+
+Measured token-set intersections:
+
+- `sub_verdict` × `gate_scorecard[].status` = **∅** (55 open tokens vs 4 polarity tokens)
+- `sub_verdict` × `skill_report.polarity` = **∅**
+
+A test asserting these agree can only ever fail; a report calling their difference a "disagreement" is
+reporting a **type error as a data error**. This is `gap ≠ absent` one level up: "the surfaces are
+incommensurable" ≠ "the surfaces disagree".
+
+### Partially-overlapping pairs — where the real bugs hide
+
+Worse than disjoint, because a naive equality check is right most of the time:
+
+- `gate_scorecard[].status` ∩ `skill_report.polarity` = `{neutral, supportive, opposing}`; the
+  remainders are disjoint — `{coverage_gap}` vs `{killer, not_scored}`. 3 of 5 tokens shared.
+- `hard_gates[].status` ∩ `gate_scorecard[].status` = `{opposing}` — exactly one token, two meanings
+  (see Type 3).
+
+### Known violations — ratcheted, not waived
+
+1. **`surface_modality` puts a card field in `verdict.id`** (35 of 37 rows). Its
+   `evidence_graph.verdict.id` carries the `adc-tce-modality-fit` card's `summary.fit_class`
+   (`both_viable` / `TCE_preferred` / `neither_viable` / `data_unavailable`, produced in
+   `_skills_common/_live_readers.py:1722-1759`), while `sub_verdicts.surface_modality.verdict` carries
+   the resolver token (`adc_preferred_tce_unsafe` / `tce_unsafe_normal_liability` /
+   `pmhc_tce_supported` / `insufficient`). The two vocabularies overlap only on `modality_ambiguous`.
+   Note the null tokens differ too — `insufficient` vs `data_unavailable` — so the one row that looks
+   like a null-handling disagreement (MUC17/STAD) is really two vocabularies' nulls being compared.
+   Either (2) is wrong on this axis or the field is mistyped; **pinned at exactly 1 axis / 35 rows** so
+   it cannot spread, and it may not be "fixed" by relaxing the pin.
+2. **`not_scored → supportive`, 41 rows** (see Type 2). Pinned at 41 so it cannot grow.
+3. **The authoritative polarity has not caught up with the `uncorroborated` relabelling, 6 rows.** On
+   `dependency/discordant` the derived scorecard now reads `coverage_gap` while (4) — the
+   **authoritative** surface — still reads `opposing`. The derived surface is the more accurate of the
+   two here, which inverts the declared authority on exactly those rows. Two facts make this a declared
+   residual rather than a half-measure: the authority is **already inconsistent with itself** on the
+   identical situation (the same "the arms disagree" verdict reads `opposing` on `dependency` and
+   `neutral` on `selectivity` — 6 rows vs 1), and the correct value is `neutral`, an **existing**
+   polarity token, so unlike a new lifecycle token no reader can fail open on it. Net accounting for the
+   relabelling: it **removes** one pre-existing anomaly (KRAS/COADREAD selectivity, `opposing` scorecard
+   against a `neutral` authority) and **adds** these 6. Pinned at `{dependency: opposing ×6,
+   selectivity: neutral ×1}`; a fix must update this declaration in the same PR.
+
+   **Where the fix goes — traced, because the obvious answer is wrong.** Not
+   `_skills_common/skill_report.py::canonical_polarity`: that helper is correct as written, it floors a
+   3-band `negative` to `opposing` and honours an explicit override for any gating role. The asymmetry
+   between the two axes is in each skill's **own** 3-band reading, and the two axes reach their answers
+   by different routes:
+   * `tumor-selectivity` is already right **by fall-through** — `discordant_across_comparators` is in
+     neither its positive nor its negative token set, so `_headline_polarity` returns its `neutral`
+     default (`skills/tumor-selectivity/scripts/run.py`). Nothing there declares the intent, so a later
+     token sweep could sort it into the negative set and silently move the authority.
+   * `functional-requirement` is wrong **by declaration** — `discordant` is a member of
+     `_DEP_NEG` (`skills/functional-requirement/scripts/run.py:491`), and
+     `_dependency_verdict_polarity` (`:1079`, wired at `:1137`) maps that set to `negative`.
+   `_DEP_NEG` has **three readers with three different meanings**: `_dependency_strength` (`:518`) reads
+   it as a signed **magnitude**, `:648` reads it as an **evidence state** (`measured_negative` — whose
+   own comment conflates the two: "measured non-dependence / discordant"), and
+   `_dependency_verdict_polarity` reads it as a **polarity**. So the fix is *not* to remove the token
+   from the set — that would move all three at once. Only the polarity reader may move; `discordant`
+   must return `neutral` there while the set keeps its other two meanings. The set's docstring
+   currently justifies the sharing ("so the polarity can't drift from the strength helper"), which is
+   exactly the conflation: for a verdict that says *the arms disagree*, magnitude is unknown and
+   polarity is neutral — different questions with different answers. Whether `measured_negative` at
+   `:648` is also wrong is a **separate** call and must be measured, not assumed. Same family as the
+   one-token-two-meanings `display` finding, and the same LABEL-not-DROP discipline as the rest of this
+   change, one surface further out.
+
+1 and 2 are pinned by `skills/target-profile/tests/test_surface_authority.py`, 3 by
+`test_uncorroborated_not_contradiction.py`. All fail if a violation count **grows** — and equally if it
+silently shrinks without the pin being updated, so the corpus can't quietly stop covering it.
+
+### Relabelling a verdict across surfaces: LABEL, never DROP — and the merge order is measured
+
+`uncorroborated` (Type 4, v1.20.0) is the worked example, and the general rule it establishes is that a
+verdict whose *classification* moves must keep its *gate effect*. Removing a row from
+`positive_contradictions` **relaxes** the `strong` gate — the same fail-open shape as dropping an organ
+from a safety denominator. So the strong-block is preserved as `contradictions ∪ uncorroborated` and only
+the label moves, **independently per surface, each moving exactly as far as its own readers allow**:
+
+| surface | moves? | why |
+|---|---|---|
+| tier (`_positive_tier`) | no | blocked on a separate flag with identical effect; the union is unchanged |
+| `gate_scorecard[].status` | **yes** → `coverage_gap` | we DID look; the arms disagreed. No corroborated measurement, and no opposing one either |
+| `hard_gates[].disposition` | **yes** → `uncorroborated` | vocab-owned, mirrored here |
+| `hard_gates[].status` | **no**, holds at `opposing` | closed vocabulary, fail-open switch downstream (see Type 3) |
+| `skill_reports[].polarity` | not yet | out of scope; declared as known violation 3 above |
+
+**Merge order — reversed from what it looks like, and measured.** The instinct is "contracts first,
+because skills CI reads contracts `main`". For this change that is exactly backwards. Replaying a live
+37-pair corpus through the 2×2 of {code before, code after} × {contracts pre-1.20.0, v1.20.0}, three
+cells are byte-stable and the fourth is not:
+
+- `before/OLD`, `after/OLD`, `after/NEW` — **0 tier movements**;
+- `before/NEW` — contracts v1.20.0 **without** this reader promotes **KRAS/COADREAD `moderate → strong`**
+  and turns the 7 affected scorecard rows `neutral`, i.e. a measured negative becomes no signal at all.
+
+The asymmetry is the fallback mirror: it makes the skills side correct on **both** contracts versions,
+while the contracts side alone has no reader for the block it just declared. So **skills lands first, or
+both together — never contracts first.** Note also that the 2×2 is the point: comparing only along the
+contracts axis finds 0 differences *by design* (that is what the mirror is for) and proves nothing.
+
+**Ordered follow-up, not a TODO.** Splitting the `hard_gates[].status` lifecycle token (so an
+uncorroborated row is distinguishable from a contradiction on that surface too) lands **with** the
+`hypothesis_core._gate_ceiling` change that would read it, in one PR. Until then the guard that holds the
+token at `opposing` (`test_hard_gate_lifecycle_holds_at_opposing`) is **dormant on contracts `main`** —
+pre-v1.20.0 the disposition still reads `contradiction`, so the branch it protects is unreachable and a
+mutation of it reds nothing. It begins biting the moment the contracts change lands. A guard that
+protects a future state is worth having; claiming it protects the present one would not be.
+
 ## Traceability invariants (testable)
 
 From the USP8/NSCLC audit; enforced per skill (presence lands INV-1/2/3/4/6/7/8 in PR #928):
