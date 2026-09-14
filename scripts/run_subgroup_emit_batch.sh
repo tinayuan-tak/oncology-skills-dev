@@ -135,6 +135,27 @@ run_one_shard() {
     fi
 
     if [[ -n "$DRY_RUN" ]]; then
+        # A dry run that writes `ok` unconditionally CANNOT FAIL, and a check that cannot fail
+        # answers nothing. Resolve the inputs THIS driver is responsible for, so `ok` means
+        # "this shard would run" rather than "this shard was printed".
+        #
+        # The indication's catalog DIRECTORY, not the quarter file: catalog_path() in
+        # emit_subgroup_assignments.py IGNORES the shard's release_pin column and hardcodes
+        # COADREAD → 2026-Q2 / else 2026-Q3. Checking the exact file would mean either
+        # validating a path the shard will not read (if we trusted the TSV pin) or copying
+        # that quarter rule into a THIRD place. It already raises a clear FileNotFoundError,
+        # so the split is: driver checks the unambiguous directory, Python owns the quarter.
+        if [[ ! -d "$CATALOG_REPO/subgroup-catalogs/$indication" ]]; then
+            log "DRY-FAIL $source × $indication — no subgroup-catalogs/$indication/ under $CATALOG_REPO"
+            write_status "$source" "$indication" failed
+            return 1
+        fi
+        # The classifier config path IS assembled here, so a wrong one is this driver's bug.
+        if [[ "$classifier_config" != "-" && ! -f "$CLASSIFIER_CONFIG_DIR/$classifier_config" ]]; then
+            log "DRY-FAIL $source × $indication — classifier config missing: $CLASSIFIER_CONFIG_DIR/$classifier_config"
+            write_status "$source" "$indication" failed
+            return 1
+        fi
         printf '  (dry-run) %s\n' "${cmd[*]}" >&2
         write_status "$source" "$indication" ok
         return 0
@@ -162,6 +183,34 @@ else
     log "filter:        (all shards in matrix)"
 fi
 [[ -n "$DRY_RUN" ]] && log "DRY_RUN=1 — printing commands, no S3 or method invocation"
+
+# --- preflight ---------------------------------------------------------------
+
+# Fail fast on a catalog root that isn't there, in BOTH modes, and deliberately AFTER the
+# banner so the resolved root is on the record even when the preflight is what rejects it.
+# Without this a bad root surfaced as 20 parallel tracebacks — or, under DRY_RUN=1, as
+# `ok=20` and exit 0, because the dry-run branch wrote `ok` without touching an input.
+#
+# Exit 2, not 1: matches the documented "one or more shards failed" code (see header).
+#
+# Checked: the root, and the ONE directory emit_subgroup_assignments.py reads from it. Not
+# checked: the per-quarter YAML (see the note in run_one_shard's dry-run branch).
+preflight_catalog_root() {
+    if [[ ! -d "$CATALOG_REPO" ]]; then
+        log "PREFLIGHT-FAIL catalog-repo does not exist: $CATALOG_REPO"
+        log "  Set CATALOG_REPO (or DATA_CATALOG_ROOT) to your data-catalog checkout, or clone it"
+        log "  beside this repo at $(dirname "$REPO_ROOT")/rnd-computational-biology-oncology-data-catalog"
+        return 1
+    fi
+    if [[ ! -d "$CATALOG_REPO/subgroup-catalogs" ]]; then
+        log "PREFLIGHT-FAIL catalog-repo exists but is not a data-catalog checkout: $CATALOG_REPO"
+        log "  Holds no subgroup-catalogs/ — the directory every shard reads. Nothing could resolve."
+        return 1
+    fi
+    return 0
+}
+
+preflight_catalog_root || exit 2
 
 TOTAL=0
 LAUNCHED=0

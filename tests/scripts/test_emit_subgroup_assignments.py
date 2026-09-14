@@ -440,13 +440,31 @@ def test_batch_script_exists_and_executable():
     assert os.access(batch_script, os.X_OK), "run_subgroup_emit_batch.sh must be executable"
 
 
-def test_batch_script_parses_shard_matrix():
+def test_batch_script_parses_shard_matrix(tmp_path):
     """The batch bash driver iterates over subgroup_emit_shards.tsv (dry-run).
 
     Filtered to COADREAD to keep the test tight — 3 shards vs 20. The
     filter also mirrors the recommended sequencing (vertical-slice first
     per user 2026-07-15 direction).
+
+    REWRITTEN 2026-09-14: this test previously passed ``CATALOG_REPO=/tmp/data-catalog`` — a path
+    that does not exist — with the comment "dry-run doesn't read files", and still asserted
+    ``returncode == 0`` and ``ok=3``. That was not a test with a blind spot; it was the DEFECT
+    STATED AS AN INTENDED PROPERTY. A dry run that reports every shard ``ok`` without checking a
+    single input cannot fail, so it certifies nothing — and because the assertion was green, the
+    correct fix could only arrive looking like a regression. Landing the guard therefore required
+    knowingly rewriting this test, which is the whole reason the fix's scope includes this file.
+
+    Now it stages a MINIMAL VALID stub root, so the test still asks its original question (does
+    the driver iterate the TSV and apply the filter?) while the ``returncode == 0`` assertion
+    becomes a real claim: these 3 shards' inputs resolve. The bad-root case is covered separately
+    in tests/scripts/test_run_batch_drivers.py.
     """
+    catalog_repo = tmp_path / "data-catalog"
+    # Only what emit_subgroup_assignments.py reads: subgroup-catalogs/<INDICATION>/.
+    # NOT the per-quarter YAML — catalog_path() ignores the shard's release_pin and derives the
+    # quarter itself, so staging one here would encode that rule in a second place.
+    (catalog_repo / "subgroup-catalogs" / "COADREAD").mkdir(parents=True)
     result = subprocess.run(
         [str(REPO_ROOT / "scripts" / "run_subgroup_emit_batch.sh"), "COADREAD"],
         capture_output=True,
@@ -454,10 +472,10 @@ def test_batch_script_parses_shard_matrix():
         timeout=30,
         env={
             "PATH": "/opt/conda/bin:/usr/bin:/bin",
-            "HOME": "/tmp",
+            "HOME": str(tmp_path / "home"),
             "DRY_RUN": "1",
             "PARALLEL": "1",
-            "CATALOG_REPO": "/tmp/data-catalog",  # dry-run doesn't read files
+            "CATALOG_REPO": str(catalog_repo),
         },
     )
     assert result.returncode == 0, f"Batch driver failed:\n{result.stderr}"

@@ -52,10 +52,22 @@ DEFAULT_INDICATIONS=(
     OV KIRC GBM LGG BLCA LIHC CESC ESCA HNSC
 )
 
+# Derived from THIS script's location, not $HOME. Two reasons it matters here specifically:
+#   1. On a dev box $HOME and the checkout parent are the same directory, so a $HOME-anchored
+#      default cannot be falsified by a local run — it is only wrong somewhere nobody looks
+#      (CI, a second checkout, another user's box, a container).
+#   2. CATALOG_REPO is passed through as --catalog-repo on EVERY indication (see run_one), so
+#      it OVERRIDES the portable default inside methods/dge_deseq2/cli.py. Leaving it
+#      $HOME-anchored silently undoes that fix for the batch path — which is how all 19
+#      indications actually run.
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 PARALLEL="${PARALLEL:-6}"
 DRY_RUN="${DRY_RUN:-}"
 RUN_DIR="${RUN_DIR:-$HOME/dev/framework-runs/tvn-batch-$(date -u +%Y-%m-%d)}"
-CATALOG_REPO="${CATALOG_REPO:-$HOME/rnd-computational-biology-oncology-data-catalog}"
+# Precedence matches the Python side and run_subgroup_emit_batch.sh: explicit CATALOG_REPO,
+# then DATA_CATALOG_ROOT, then the data-catalog checkout sitting beside this repo.
+CATALOG_REPO="${CATALOG_REPO:-${DATA_CATALOG_ROOT:-$(dirname "$REPO_ROOT")/rnd-computational-biology-oncology-data-catalog}}"
 RELEASE_PIN="${RELEASE_PIN:-2026-Q3}"
 S3_BUCKET="onc-compbio"
 
@@ -119,7 +131,11 @@ upload_indication() {
         local local_path="$out_dir/$fname"
         if [[ ! -f "$local_path" ]]; then
             log "  $ind: $fname absent locally (expected for some sparse-cohort configurations); skipping upload"
-            ((n_missing++))
+            # Same `((n++))`-under-errexit hazard as the report block below. Harmless TODAY only
+            # by accident — errexit is suspended inside an `if` condition, and this function is
+            # only ever called as one. Left as `((n++))` it would become fatal the moment
+            # someone called upload_indication outside a condition. Fixed, not relied upon.
+            n_missing=$((n_missing+1))
             continue
         fi
         local md5
@@ -129,7 +145,7 @@ upload_indication() {
             log "  $ind: FAILED to upload $fname ($md5)"
             return 1
         fi
-        ((n_uploaded++))
+        n_uploaded=$((n_uploaded+1))
     done
     log "  $ind: uploaded $n_uploaded file(s); $n_missing not emitted by pipeline"
     return 0
@@ -151,6 +167,39 @@ log "indications: ${INDICATIONS[*]}"
 log "catalog-repo: $CATALOG_REPO"
 log "release-pin: $RELEASE_PIN"
 [[ -n "$DRY_RUN" ]] && log "DRY_RUN=1 — printing commands, no execution"
+
+# --- preflight ---------------------------------------------------------------
+
+# Fail fast on a catalog root that isn't there. Before this check, a wrong --catalog-repo was
+# discovered 19 times in parallel, an hour into 19 R pipelines — and under DRY_RUN=1 it was
+# never discovered at all, because the dry-run branch wrote `ok` without touching an input.
+# Runs in BOTH modes, and deliberately AFTER the banner so the resolved root is on the record
+# even when the preflight is what rejects it.
+#
+# Exit 2, not 1: a root that cannot serve any indication is the documented "one or more
+# indications failed" outcome, not a usage error.
+#
+# Scope of the check is only what is UNAMBIGUOUS — the root plus the two directories
+# resolve_config() actually searches (methods/dge_deseq2/cli.py). Deliberately NOT checked
+# here: RELEASE_PIN. The R stages resolve versioned inputs themselves, so re-deriving that
+# mapping in bash would put one rule in two places and let them drift.
+preflight_catalog_root() {
+    if [[ ! -d "$CATALOG_REPO" ]]; then
+        log "PREFLIGHT-FAIL catalog-repo does not exist: $CATALOG_REPO"
+        log "  Set CATALOG_REPO (or DATA_CATALOG_ROOT) to your data-catalog checkout, or clone it"
+        log "  beside this repo at $(dirname "$REPO_ROOT")/rnd-computational-biology-oncology-data-catalog"
+        return 1
+    fi
+    if [[ ! -d "$CATALOG_REPO/indication-configs" && ! -d "$CATALOG_REPO/manifests/sources" ]]; then
+        log "PREFLIGHT-FAIL catalog-repo exists but is not a data-catalog checkout: $CATALOG_REPO"
+        log "  Holds neither indication-configs/ nor manifests/sources/ — the only two locations"
+        log "  resolve_config() searches. Nothing in this batch could resolve."
+        return 1
+    fi
+    return 0
+}
+
+preflight_catalog_root || exit 2
 
 # Per-indication status is written to $RUN_DIR/{IND}/status because bash
 # associative-array writes inside a backgrounded `run_one &` don't propagate
@@ -186,6 +235,16 @@ run_one() {
         --threads 4
     )
     if [[ -n "$DRY_RUN" ]]; then
+        # A dry run that writes `ok` unconditionally CANNOT FAIL, and a check that cannot fail
+        # answers nothing — it just looks like validation. Resolve the SAME two candidates
+        # resolve_config() will (methods/dge_deseq2/cli.py), so `ok` means "this would run".
+        # Only the config is resolved: the R stages' own inputs stay their business.
+        if [[ ! -f "$CATALOG_REPO/indication-configs/$ind.yaml" \
+           && ! -f "$CATALOG_REPO/manifests/sources/$ind.yaml" ]]; then
+            log "DRY-FAIL $ind — no config at indication-configs/$ind.yaml nor manifests/sources/$ind.yaml under $CATALOG_REPO"
+            write_status "$ind" failed
+            return 1
+        fi
         printf '  (dry-run) %s\n' "${cmd[*]}"
         write_status "$ind" ok
         return 0
@@ -230,11 +289,19 @@ n_ok=0; n_skip=0; n_fail=0; n_upfail=0
 for ind in "${INDICATIONS[@]}"; do
     s="$(read_status "$ind")"
     printf '  %-8s %s\n' "$ind" "$s"
+    # `n=$((n+1))`, NOT `((n++))`. Under `set -e` these are not interchangeable: `((expr))`
+    # returns exit status 1 when the expression evaluates to 0, and POST-increment evaluates to
+    # the OLD value — so `((n_ok++))` on the first `ok` row (n_ok still 0) returned 1 and
+    # errexit killed the script mid-report. Measured on the pre-fix driver: the header and
+    # exactly ONE row printed, then exit 1 — a truncated report that reads like a finished one,
+    # and, worse, the documented `exit 2` below became UNREACHABLE, so a batch with failures
+    # could not report them. run_subgroup_emit_batch.sh already used the safe form; the
+    # "mirrors run_indication_batch.sh" relationship was partial in the one idiom that bites.
     case "$s" in
-        ok) ((n_ok++));;
-        skipped-cached) ((n_skip++));;
-        upload-failed) ((n_upfail++));;
-        failed) ((n_fail++));;
+        ok)             n_ok=$((n_ok+1));;
+        skipped-cached) n_skip=$((n_skip+1));;
+        upload-failed)  n_upfail=$((n_upfail+1));;
+        failed)         n_fail=$((n_fail+1));;
     esac
 done
 echo "----------------------------------------------------"
