@@ -119,10 +119,22 @@ Both refusals are at the PRODUCER boundary (`build()` raises), not only in tests
 by hand. See `tests/test_deferred_anchors.py`. ⚠️ **The p90 NN bar MOVES with corpus size and must be
 recomputed, never carried over**: 5.929 at n=297 vs 4.968 at n=504 — a denser corpus makes the bar STRICTER.
 
+A CORPUS REGEN **PRECEDES** A RE-FREEZE, it does not ride along in the same commit. The builder imports NONE
+of the claim modules — it reads composed PACKAGES off disk — so a claims-ladder change reaches the atlas over
+TWO hops, and freezing an unregenerated corpus silently encodes the OLD ladder while every provenance field
+looks current. Measured for #1371 (the `single_arm` split): 17530 of 32500 claim cells flip (**53.9%**), 504
+of 504 packages, and the `tier_rarity` distinct-count gate moves the WRONG way (31 → 25 reachable `::corrob`
+columns) — so "additive to the VOCABULARY" did not mean additive to the DISTRIBUTION. Run
+`regenerate_corpus.sh <dir> --panel <the panel THIS corpus was built from> --jobs 4` — **budget ~4.5 h at the `--jobs 4` cap, and budget for a STALL**: median 123 s/pair over the 504 durations the n=504 build LOGGED (so ~17.8 h serial — 4-wide is not an optimisation), and that build ran 4-wide for 2h37m, hit its memory floor at 276/504, and finished 3-wide. Do not size this off package mtimes: a wall-clock-per-package figure from a parallel run understates the pair by 3.5x. The recovery loop is exit 3 naming the gaps → re-run with `--resume`. It
+REFUSES a would-be no-op instead of printing `0 runs written, 0 failed` and exiting 0, and its completion
+line is a count RECONCILED against the panel. See `tests/test_regenerate_corpus_guards.py` — no CI job lints
+shell, so those tests are the driver's only gate.
+
 FREEZE STABILITY: `scripts/atlas_stability.py` pins a per-field + per-`meta`-key sha256 of the frozen artifact
 in `atlas/atlas_freeze.json`, so a value that moves without a re-freeze is a red test that NAMES the field.
 This is a different property from the staleness guard above, which checks internal consistency and so cannot
-see a self-consistent edit. **Re-freeze checklist**: rebuild → `atlas_stability.py --verify-rebuild <new.json>`
+see a self-consistent edit. **Re-freeze checklist**: ★**REGEN THE CORPUS FIRST** (above) → rebuild →
+`atlas_stability.py --verify-rebuild <new.json>`
 (0 substantive differences expected; only `meta.build_date`/`build_git_sha`/`feature_corr_provenance` are
 waived) → **if the corpus changed size, RE-RUN `anchor_separation_test.py` for every deferred anchor and
 update its `measured_on`** (the p90 bar moves with n, so a stored verdict is a verdict about a corpus that no

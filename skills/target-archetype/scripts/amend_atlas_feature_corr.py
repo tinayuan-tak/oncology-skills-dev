@@ -3,9 +3,9 @@
 
 Why this exists rather than a re-freeze. `feature_corr` is a pure function of `X` + `feature_order`,
 both of which are already IN the shipped artifact — so the numbers a re-freeze would produce are
-exactly the numbers computable from the frozen file. A re-freeze, by contrast, costs ~2m20s per
-(target, indication) pair against live S3 (`regenerate_corpus.sh`; ~8h serial for 213 pairs, and the
-`target-archetype-corpus-20260911` corpus directory is not on disk any more), and it would move
+exactly the numbers computable from the frozen file. A re-freeze, by contrast, costs a median 123s per
+(target, indication) pair against live S3 (`regenerate_corpus.sh`; measured over the 504 logged pair
+durations of the n=504 build, so ~17.8h serial and ~4.5h at the --jobs 4 cap), and it would move
 EVERY other column — mu, sd, the PCA basis, the embedding, the anchors — to ship one derived block.
 Re-deriving a function of the frozen basis is not the same act as re-freezing the basis.
 
