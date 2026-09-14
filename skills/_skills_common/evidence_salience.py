@@ -37,6 +37,39 @@ def sig_round(v, figs: int = 4):
     return float(f"{v:.{figs}g}")
 
 
+# ── REACH OF A `reference_frame` — read this before writing "DISPLAY-ONLY" on one ────────────────────
+# This file annotated its frames "DISPLAY-ONLY / verdict-INERT" at 12 sites with no authority named at any
+# of them. Measured 2026-09-14 against trunk, HALF of that label is backwards. A frame has FOUR consumers
+# and exactly ONE of them is inert:
+#
+#   1. DISPLAY       build_interpretation() below projects every frame into key_evidence.interpretation[].
+#   2. ATLAS  *LIVE* feature_vectoriser.numeric_feature_specs() mints `{mt}::num::{value_field}` from the
+#                    PRIMARY frame (rf[0]) ONLY — 32 columns from 77 frames on 35 axes. Those columns are
+#                    FROZEN in the target-archetype atlas, and every shipped cohort_percentile moves when
+#                    they change.
+#   3. CLAIM RECORD  claim_record.magnitude_from_interpretation() re-reads interp[0] as the record's
+#                    {value, scale, distance_to_cut}, so the PRIMARY frame IS the record's magnitude.
+#   4. GATES  *INERT* nothing: zero resolvers, zero vetoes, zero dispatcher reads. This half is TRUE.
+#
+# So "verdict-INERT" is right and "display-only" is FALSE for any primary frame on an atlas-live axis. What
+# decides it is PRIMARY vs SECONDARY, which none of those 12 comments stated:
+#   - rf[0] with no `atlas_numeric: False`  -> ATLAS-LIVE + CLAIM-LIVE. Never call it display-only.
+#   - an APPENDED / secondary frame, rf[1:] -> display-only, genuinely. Say so, and say WHY (it is secondary).
+#   - `atlas_numeric: False` on rf[0]       -> display-only, and that flag is the only honest way to say so.
+#     ADDING it to a shipped axis DELETES a frozen column at the next re-freeze, silently: atlas_health
+#     compares the artifact against itself, so a self-consistent narrowing reads as green.
+#
+# Frames are also injected by HELPERS further down, so "which frames does this axis carry" is NOT answerable
+# by reading one spec block: _BATCH_DISTANCE_TO_CUT_METERS injects the PRIMARY for 4 axes (all 4 mint frozen
+# columns), while _SECONDARY_FRAMES and the fleet cohort roll APPEND. A literal-string scan of these blocks
+# therefore undercounts the framed axes — it read 31 against a live 35.
+#
+# AUTHORITY: skills/tests/test_reference_frame_governance.py, invariant 5 — a reader-role census pinned to
+# EXACT equality (any new consumer of the key reds until it is classified), a fleet-wide display + claim-
+# record projection assertion, and an `atlas_numeric: False` ratchet with a zero-residual population check.
+# Verdict-inertness is not a safety argument by itself: see the note beside _UNRANKABLE_SCALES below, where
+# a defect "survived because it was verdict-inert, so it still rendered — just wrong."
+#
 # ── per-measurement_type salience specs (seeded from Stage-0 §3; grow as new types are audited) ──────
 SALIENCE_SPECS: dict = {
     # functional-requirement (§3.1) — the worked anchor
@@ -134,7 +167,8 @@ SALIENCE_SPECS: dict = {
         # VERBATIM (constraint_class), cut single-sourced from the card's high_loeuf threshold (0.45,
         # gnomAD v4-recommended) — no contracts round-trip needed (the named threshold already exists).
         # First SAFETY-axis reference_frame; the scalar loeuf now reads gauged ("LOEUF 0.32, past the 0.45
-        # constraint cut") instead of bare. DISPLAY-ONLY / verdict-INERT.
+        # constraint cut") instead of bare. verdict-INERT (no gate reads it) but NOT display-only: rf[0] mints
+        # the FROZEN atlas column gnomad_lof_constraint::num::loeuf_score. See REACH OF A `reference_frame`.
         "reference_frame": [
             {
                 "kind": "distance_to_cut",
@@ -264,7 +298,9 @@ SALIENCE_SPECS: dict = {
         "extra_scalars": ["selectivity_allgene_percentile", "sig_all_cells"],
         # STAGE-2 ruler: distance_to_cut on the tumor-vs-normal window (HIGHER log2FC = more selective).
         # position = selectivity_class READ VERBATIM; cut single-sourced from the card's existing
-        # modest_selectivity_log2fc threshold (0.5, the selective/not boundary). DISPLAY-ONLY / verdict-INERT.
+        # modest_selectivity_log2fc threshold (0.5, the selective/not boundary). verdict-INERT (no gate reads
+        # it) but NOT display-only: rf[0] mints the FROZEN atlas column
+        # tumor_vs_normal_selectivity::num::log2fc_cell_a. See REACH OF A `reference_frame`.
         "reference_frame": {
             "kind": "distance_to_cut",
             "value_field": "log2fc_cell_a",
@@ -307,7 +343,10 @@ SALIENCE_SPECS: dict = {
         "extra_scalars": ["normal_p95_log2tpm", "distribution_overlap_tumor_normal"],
         # STAGE-2 ruler: distance_to_cut on the population-separation fraction (HIGHER = more tumors clear the
         # normal p95). No categorical on this spec → value+cut only (still gaugeable via direction). Cut =
-        # the card's strong_frac_p95 threshold (0.5). DISPLAY-ONLY / verdict-INERT.
+        # the card's strong_frac_p95 threshold (0.5). verdict-INERT (no gate reads it) but NOT display-only:
+        # rf[0] mints the FROZEN atlas column
+        # tumor_vs_normal_percentile_crossing::num::fraction_tumor_above_normal_p95. See REACH OF A
+        # `reference_frame`.
         "reference_frame": {
             "kind": "distance_to_cut",
             "value_field": "fraction_tumor_above_normal_p95",
@@ -331,7 +370,10 @@ SALIENCE_SPECS: dict = {
         ],
         # STAGE-2 ruler: distance_to_cut on malignant-compartment detection (HIGHER = more malignant-intrinsic
         # presence). position = sc_expression_class READ VERBATIM; cut = the card's malignant_broadly_detected_min
-        # (0.5 = detected in >=50% of malignant cells). DISPLAY-ONLY / verdict-INERT.
+        # (0.5 = detected in >=50% of malignant cells). verdict-INERT (no gate reads it) but NOT display-only:
+        # rf[0] mints the FROZEN atlas column sc_tumor_celltype_expression::num::malignant_detection_fraction.
+        # (The comparator_delta appended in _SECONDARY_FRAMES is rf[1] and IS display-only.) See REACH OF A
+        # `reference_frame`.
         "reference_frame": {
             "kind": "distance_to_cut",
             "value_field": "malignant_detection_fraction",
@@ -379,7 +421,9 @@ SALIENCE_SPECS: dict = {
     # distance_to_cut ruler ("top decile — pan-cancer expression rank 96 %ile, past the 90 cut"). value +
     # position (allgene_percentile_class) are READ VERBATIM; the cut single-sources the card threshold. The
     # spec also NAMES each card's median effect_field + resolver class band so key_evidence stops guessing.
-    # DISPLAY-ONLY / verdict-INERT. (The by-subtype sibling shares tumor_expression_distribution but carries
+    # verdict-INERT (no gate reads it) but NOT display-only: rf[0] mints the FROZEN atlas column
+    # cell_line_rna_expression::num::allgene_percentile. See REACH OF A `reference_frame`.
+    # (The by-subtype sibling shares tumor_expression_distribution but carries
     # no top-level allgene_percentile → build_interpretation omits the ruler there; it is gauged via the
     # SUBTYPE_SPECS omnibus path instead.)
     "cell_line_rna_expression": {
@@ -555,7 +599,9 @@ SALIENCE_SPECS: dict = {
         "extra_scalars": ["best_measured_potency_neglog_m"],
         # STAGE-2 ruler (cross-repo): distance_to_cut on the CROSS-SOURCE max potency (best_measured_potency_neglog_m,
         # -log10 M; HIGHER = more potent), gauged against the potent_neglog_m cut (6.0 = <=1 uM) NAMED on the card
-        # (contracts #666). position = measured_bioactivity_class READ VERBATIM. DISPLAY-ONLY / verdict-INERT.
+        # (contracts #666). position = measured_bioactivity_class READ VERBATIM. verdict-INERT (no gate reads
+        # it) but NOT display-only: rf[0] mints the FROZEN atlas column
+        # measured_potency_tractability::num::best_measured_potency_neglog_m. See REACH OF A `reference_frame`.
         "reference_frame": [
             {
                 "kind": "distance_to_cut",
@@ -677,7 +723,11 @@ SALIENCE_SPECS: dict = {
         # ICI-refractory PRAD (0.1312) reads immune_hot, while ICI-approved BLCA/LUAD/LUSC sit in
         # `intermediate`. The METRIC_GLOSS label carries that framing to every renderer — a bare 0.11 next
         # to a "hot" label reads as a density claim, which is the misread this gauge exists to prevent.
-        # DISPLAY-ONLY / verdict-INERT: no rule reads the frame, and it omits when the value is absent.
+        # DISPLAY-ONLY / verdict-INERT — and here that label is ACCURATE rather than the loose one used
+        # elsewhere in this file, for a checkable reason: this frame carries `atlas_numeric: False` (the third
+        # reason is recorded just below), so it mints no atlas column and reaches display only. No rule reads
+        # the frame, and it omits when the value is absent. Held by test_reference_frame_governance
+        # invariant 5, whose opt-out ratchet reds if this axis ever starts minting.
         #
         # ★★ atlas_numeric: False — a THIRD reason for the opt-out, distinct from the two recorded on
         # numeric_feature_specs (non-monotone polarity; degenerate value). Here the value is not a property
@@ -1108,8 +1158,17 @@ SUBTYPE_SPECS: dict = {
 # already NAMES a usable cut (no target-contracts round-trip). Kept as a table + loop (not 12 inlined
 # frames) for reviewability. value_field = the spec's effect_field (already a summary_field of the same
 # card); the cut single-sources that card's named threshold; direction is already declared on each spec.
-# DISPLAY-ONLY / verdict-INERT — like every reference_frame, the ruler omits gracefully when the value is
-# absent (so data-sparse axes such as the combination legs simply carry no gauge until measured).
+# verdict-INERT (no gate reads these) but EMPHATICALLY NOT display-only — this is the highest-reach frame
+# site in the file. The table injects the PRIMARY frame for axes that had NONE, so it mints 4 of the 32
+# frozen atlas columns: crispr_rnai_concordance::num::fraction_agree,
+# normal_tissue_rna_breadth::num::highest_tissue_median, rnai_lof_dependency::num::rnai_median_dep_score and
+# tumor_protein_abundance::num::protein_effect_size. Editing a value_field or a cut here MOVES a frozen
+# column and every cohort_percentile computed from it.
+# ★ And because these frames are INJECTED rather than written in a spec block, a literal-string scan of the
+# specs reports them as absent — which is exactly how an audit concluded those 4 columns had no producing
+# frame in today's source, and predicted a re-freeze would silently drop them. It would not: they are here.
+# Like every reference_frame, the ruler omits gracefully when the value is absent (so data-sparse axes such
+# as the combination legs simply carry no gauge until measured). See REACH OF A `reference_frame`.
 # (immune_context is deliberately EXCLUDED: its cd8_high_minus_low is a DELTA, not comparable to the
 # fraction cuts on that card — a scale mismatch — and the signal is indication-level anyway.)
 # Only axes whose effect_field is a TOP-LEVEL summary_field of the card qualify (governance invariant 3):
@@ -1156,7 +1215,12 @@ for _mt, (_vf, _sc, _card, _cut) in _BATCH_DISTANCE_TO_CUT_METERS.items():
 # projects EVERY frame (feat/interp-multi-ruler). Here we append a second tumor-presence frame so the card
 # view reads BOTH gauges (interp[0] stays the headline read the narrator/single-gauge leads with; the
 # appended frame is the additional context). The append normalizes reference_frame dict→list; a frame whose
-# value is absent at runtime simply drops out. DISPLAY-ONLY / verdict-INERT.
+# value is absent at runtime simply drops out. DISPLAY-ONLY / verdict-INERT — ACCURATE here, for a reason
+# specific to this block: every frame appended below lands at rf[1:], and only rf[0] mints an atlas column.
+# ★ LATENT HAZARD, currently unreached: the `_rf is None` branch below makes the "secondary" the PRIMARY, so
+# an entry added here for an axis carrying no other frame would silently mint a NEW atlas column and stop
+# being display-only. All 6 current entries are safe (5 declare an inline frame; tumor_protein_abundance is
+# framed by the batch meter above, which runs FIRST). Held by test_reference_frame_governance invariant 5.
 #   - the 3 distribution cards: their pan-cancer allgene-percentile ruler (tranche #1) PLUS a within-panel /
 #     within-tumor position gauge (where the median sits vs the panel spread or the high-expression cut).
 #   - cptac + tumor-vs-adjacent: their call-cut ruler PLUS the pan-cancer allgene-percentile companion, so
@@ -1240,7 +1304,9 @@ _SECONDARY_FRAMES = {
     # variance-standardized Cohen's-d graded_band (sample-size-INDEPENDENT effect SIZE) whose cuts
     # single-source the card's cohens_d_small/medium/large thresholds and whose position is the
     # protein_effect_standardized_class band read verbatim. frame[0] stays protein_effect_size → the atlas
-    # numeric feature is byte-stable. DISPLAY-ONLY / verdict-INERT.
+    # numeric feature is byte-stable. DISPLAY-ONLY / verdict-INERT — ACCURATE, and this is the ONE site in the
+    # file that already said why: both appended frames are rf[1:], so neither mints. The column stays
+    # tumor_protein_abundance::num::protein_effect_size (injected by the batch meter above).
     "tumor_protein_abundance": [
         _allgene_percentile_frame("tumor-protein-abundance-cptac"),
         {
@@ -1288,7 +1354,12 @@ for _mt, _extra in _SECONDARY_FRAMES.items():
 # so build_interpretation silently drops the frame — a sparse axis carries no cohort ruler until the atlas
 # grows, and no per-axis min-N bookkeeping is needed here. Skips the pilot axes already carrying one.
 #
-# OPT-OUT (2026-09-12): a frame carrying `atlas_numeric: False` is a DISPLAY-ONLY ruler and gets no cohort
+# OPT-OUT (2026-09-12): this flag is the ONLY mechanism that makes a frame genuinely display-only, which is
+# why REACH OF A `reference_frame` at the top of this file points here. It is also a ONE-WAY DOOR with no
+# red of its own — adding it to a shipped axis deletes a frozen column at the next re-freeze, and
+# atlas_health reads a self-consistent narrowing as green — so the set of opt-outs is ratcheted in
+# test_reference_frame_governance invariant 5.
+# A frame carrying `atlas_numeric: False` is a DISPLAY-ONLY ruler and gets no cohort
 # ruler either. The registry is shared — numeric_feature_specs() mints an atlas feature from every PRIMARY
 # frame — so before this flag existed, adding a display ruler to a card whose gauged value is NOT monotone
 # with "more supportive" (a mutation-SHAPE fraction: high missense reads driver for an oncogene and
@@ -1422,7 +1493,8 @@ def contract_threshold(card_id, key, contracts_repo: str | None = None):
 # is auditable; a 0 that means "we could not look" is the display projection that guessed fleet-wide for
 # months and survived because it was verdict-inert, so it still rendered — just wrong.
 #
-# DISPLAY-ONLY / VERDICT-INERT: additive keys on a gauged_value no gate reads.
+# DISPLAY-ONLY / VERDICT-INERT: additive keys on a gauged_value no gate reads. ACCURATE — and note this is a
+# claim about the two ADDED KEYS, not about a reference_frame's reach: no atlas column is keyed off them.
 _UNRANKABLE_SCALES = frozenset({"qvalue", "pvalue", "q_value", "p_value"})
 
 
@@ -1530,7 +1602,9 @@ def _project_frame(
     # against a fixed card cut. The value is polarity-signed to match the atlas convention (higher ==
     # stronger) via the spec's `direction`, so a larger percentile always means "stronger than more known
     # targets". Under-powered/absent columns drop the frame (never a bare or over-claimed number).
-    # DISPLAY-ONLY / verdict-INERT — reads the shipped atlas artifact, feeds no gate.
+    # DISPLAY-ONLY / verdict-INERT — ACCURATE: this READS the shipped atlas artifact and feeds no gate, and
+    # the cohort frame it appends lands LAST, so it mints nothing. It is the CONSUMER of the columns rf[0]
+    # mints, which is why a re-freeze moves every value it returns.
     if rf.get("kind") == "cohort_percentile":
         raw = _read_num_field(rf.get("value_field"), summary, cap)
         scale = rf.get("scale")

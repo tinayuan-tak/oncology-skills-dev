@@ -13,8 +13,13 @@ Invariants:
      naming card (sync check — a renamed contract field can't silently break the ruler).
   4. Every reference_frame cut single-sources to a REAL numeric key in the driving card's `thresholds:`
      (never re-hardcoded; never dangling).
+  5. The frame's REACH is what evidence_salience.py's notes claim: verdict-INERT (no gate reads it) but NOT
+     display-only (it is also ATLAS-live and CLAIM-RECORD-live). Two-sided, so neither half can go vacuous.
 """
 
+import ast
+import json
+import os
 import sys
 from functools import lru_cache
 from pathlib import Path
@@ -26,7 +31,10 @@ SKILLS = Path(__file__).resolve().parents[1]
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
-from _skills_common.evidence_salience import SALIENCE_SPECS, contract_threshold
+from _skills_common.archetype_core import _SHIPPED_ATLAS
+from _skills_common.claim_record import magnitude_from_interpretation
+from _skills_common.evidence_salience import SALIENCE_SPECS, build_interpretation, contract_threshold
+from _skills_common.feature_vectoriser import numeric_feature_specs, numeric_source_cards
 from _skills_common.paths import target_contracts_root
 
 
@@ -223,3 +231,331 @@ def test_significance_field_added_for_mutation_stratified_is_real():
     if sf is None:
         pytest.skip("contracts checkout absent")
     assert "hotspot_mannwhitney_q" in sf
+
+
+# ── invariant 5: the frame's REACH — verdict-INERT, but NOT display-only ────────────────────────────────
+# WHAT THIS PINS, AND WHY IT IS NOT JUST DOCUMENTATION. evidence_salience.py annotates its reference_frame
+# blocks "DISPLAY-ONLY / verdict-INERT" at 12 sites, and NONE of them names an authority — no test, no PR,
+# no command. Measured against trunk, the label is half right and half BACKWARDS:
+#
+#   verdict-INERT   TRUE   — 3 production readers, ZERO of them a gate / resolver / veto / dispatcher.
+#   display-only    FALSE  — the same key is ATLAS-live (it mints FROZEN numeric columns) and
+#                            CLAIM-RECORD-live (the projection is re-read as the record's magnitude).
+#
+# So the reach is THREE-LIVE / ONE-INERT, and "gates" is the only inert consumer of the four. The file's own
+# history is why the distinction matters rather than being pedantry: the note beside _UNRANKABLE_SCALES
+# records a defect that "survived because it was verdict-inert, so it still rendered — just wrong."
+# Verdict-inertness is not a safety argument, so the claim has to be enforced instead of asserted in prose.
+#
+# Everything below cites evidence_salience.py by SYMBOL, never by line number — the commit that added this
+# invariant also inserted a header block into that file, so every line number in it shifted. A pointer that
+# rots in the same commit that creates it is worse than no pointer.
+#
+# PRIMARY vs SECONDARY is the discrimination no reader can recover from those comments, and it is why a
+# blanket relabel of all 12 sites would have introduced a NEW false claim in the opposite direction: only
+# rf[0] mints a column (feature_vectoriser reads the primary frame), so across 77 frames on 35 framed axes
+# there are just 32 columns. An APPENDED / secondary frame genuinely IS display-only. Relabel per SITE.
+#
+# AST, NOT GREP — a text scan is wrong in BOTH directions here, which is why _frame_key_readers() parses:
+#   false POSITIVE — immune_context_claims.py owns an unrelated `reference_frame` CLAIM SCALAR (its
+#     `_reference_frame()` helper, written onto the claim vector). It never LOADS the SALIENCE_SPECS key, so
+#     a grep would put a claims module on the readers list. Pinned by the companion test below.
+#   false NEGATIVE — frames are injected by helper loops at FOUR write sites (the _BATCH_DISTANCE_TO_CUT_METERS
+#     primary injection, the two _SECONDARY_FRAMES append branches, and the fleet-wide cohort roll), so a
+#     literal-string scan of the spec blocks cannot see them. That is exactly how an earlier audit recorded
+#     31 framed axes against a live 35.
+# Store contexts are excluded ON PURPOSE: writing the key AUTHORS a ruler, reading it CONSUMES one, and only
+# a consumer can falsify a claim about who consumes it.
+#
+# KNOWN LIMIT of the census, stated rather than left to be discovered: it matches the key as a LITERAL, so a
+# reader that goes through a variable (`spec.get(SOME_KEY)`) is invisible to it. Demonstrated — replacing the
+# literal in field_disposition with a behaviour-identical constant reds this file and nothing else. The
+# equality therefore catches a new READER FILE reliably, and in-file indirection only if the literal remains.
+#
+# claim_record.py is absent from the readers list and that is not an omission — it consumes the frame's
+# OUTPUT (a gauged_value, via magnitude_from_interpretation), not the spec key, so no census of the key can
+# see it. That reach is pinned by test_every_framed_axis_reaches_display_and_the_claim_record instead.
+#
+# WHY AN EQUALITY AND NOT "no gate reads it". A predicate over a hand-listed set of gate modules goes vacuous
+# the moment a gate lands in a file the list never heard of — precisely the hole invariant 1b above
+# documents, where a verdict-bearing type with NO SPEC AT ALL passed by not being enumerated. An exact
+# equality has no such hole: any new consumer, gate or not, reds until a human classifies it.
+#
+# ROOTED AT THE REPO, NOT AT skills/. A guard rooted where its author works is blind to a second vocabulary
+# elsewhere — `eval/` is not under `skills/` — so the walk starts at SKILLS.parent.
+_REFERENCE_FRAME_KEY_READERS = {
+    "skills/_skills_common/evidence_salience.py": (
+        "DISPLAY — build_interpretation() projects the frame(s) into key_evidence.interpretation[] as a "
+        "gauged_value. The helper loops that INJECT frames also read the key, but only to avoid overwriting "
+        "an authored one."
+    ),
+    "skills/_skills_common/feature_vectoriser.py": (
+        "ATLAS — numeric_feature_specs() mints {measurement_type}::num::{value_field} off the PRIMARY frame "
+        "only, and numeric_source_cards() reads that frame's cut card_id. This is the half that makes "
+        "'display-only' false: those columns are FROZEN, and every shipped cohort_percentile moves with them."
+    ),
+    "skills/_skills_common/field_disposition.py": (
+        "ACCOUNTING — the reach census reads the frames to attribute summary_fields to a reader, and names "
+        "the frame's cut card_id. Consumes the ruler without gauging anything."
+    ),
+}
+
+# The REAL display-only boundary, with the reason each axis opts out — all three transcribed from the
+# rationale written beside the flag in evidence_salience.py, not inferred here.
+_ATLAS_NUMERIC_OPTOUT = {
+    "alteration_role": (
+        "DEGENERATE value — every gene with a driver call has intogen_min_qvalue at or below 0.05 and most "
+        "sit orders of magnitude below, while genes without one have no value at all, so the ::mask already "
+        "carries the whole signal. Its scale is in _UNRANKABLE_SCALES for the same reason."
+    ),
+    "immune_context": (
+        "TARGET-INDEPENDENT — median_cd8_fraction is the INDICATION's immune landscape, identical for every "
+        "target in a cohort, so an atlas numeric would cluster known targets by indication and phrase an "
+        "indication property as a target property."
+    ),
+    "mutation_variant_class_spectrum": (
+        "NON-MONOTONE polarity — a high mut_fraction_missense reads DRIVER for an oncogene and PASSENGER for "
+        "a tumour suppressor, so a fixed _DIR_SIGN would be wrong for whichever half of the corpus it is not "
+        "describing."
+    ),
+}
+
+_SCAN_PRUNE = {".git", ".pixi", ".venv", "__pycache__", "node_modules", ".ruff_cache", ".pytest_cache"}
+
+_FRAMED = sorted(mt for mt, s in SALIENCE_SPECS.items() if s.get("reference_frame"))
+
+
+@lru_cache(maxsize=1)
+def _frame_key_readers():
+    """{repo-relative path: n_loads} for every PRODUCTION module that READS the `reference_frame` key.
+
+    Rooted at SKILLS.parent (the REPO) so a second vocabulary outside skills/ cannot hide from it. Tests are
+    excluded — a test reading the key is not a consumer of the ruler. Store contexts are excluded on purpose
+    (see the note above): authoring a frame cannot falsify a claim about who consumes one."""
+    found = {}
+    for dirpath, dirnames, filenames in os.walk(SKILLS.parent):
+        dirnames[:] = [d for d in dirnames if d not in _SCAN_PRUNE]
+        for filename in filenames:
+            if not filename.endswith(".py") or filename.startswith("test_"):
+                continue
+            path = Path(dirpath) / filename
+            rel = path.relative_to(SKILLS.parent).as_posix()
+            if "/tests/" in f"/{rel}":
+                continue
+            try:
+                tree = ast.parse(path.read_text())
+            except (SyntaxError, UnicodeDecodeError):  # a vendored/py2 file is not a reader
+                continue
+            n = 0
+            for node in ast.walk(tree):
+                if (
+                    isinstance(node, ast.Subscript)
+                    and isinstance(node.ctx, ast.Load)
+                    and isinstance(node.slice, ast.Constant)
+                    and node.slice.value == "reference_frame"
+                ):
+                    n += 1
+                elif (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Attribute)
+                    and node.func.attr == "get"
+                    and node.args
+                    and isinstance(node.args[0], ast.Constant)
+                    and node.args[0].value == "reference_frame"
+                ):
+                    n += 1
+            if n:
+                found[rel] = n
+    return found
+
+
+def test_the_reference_frame_key_has_exactly_the_declared_readers():
+    found = _frame_key_readers()
+    assert found, "the census found NO reader of `reference_frame` at all — the census broke, not the code"
+    unexpected = sorted(set(found) - set(_REFERENCE_FRAME_KEY_READERS))
+    vanished = sorted(set(_REFERENCE_FRAME_KEY_READERS) - set(found))
+    assert not unexpected, (
+        f"NEW consumer(s) of the `reference_frame` key: {unexpected}. Classify the role before listing it "
+        "here. If it is a GATE / resolver / veto, the 'verdict-INERT' notes in evidence_salience.py are now "
+        "FALSE and THOSE are what must change — adding the module here would launder a broken claim into a "
+        "passing test."
+    )
+    assert not vanished, (
+        f"declared reader(s) that no longer read the key: {vanished}. If the reach genuinely shrank, delete "
+        "the entry AND retire the matching claim in evidence_salience.py; a stale entry makes this test a lie."
+    )
+
+
+def test_the_immune_context_reference_frame_is_a_different_token():
+    """ONE TOKEN, TWO MEANINGS — pinned so the census above cannot be 'fixed' by listing a claims module.
+
+    immune_context_claims.py owns a `_reference_frame()` helper and WRITES a `reference_frame` key onto its
+    claim vector. That is a claim scalar (prose naming the comparison), NOT the SALIENCE_SPECS ruler — it
+    never reads the spec key. A text-matching census lists it as a reader, and then 'no gate reads the frame'
+    looks refuted by a module that has nothing to do with the frame."""
+    path = SKILLS / "_skills_common" / "immune_context_claims.py"
+    if not path.exists():
+        pytest.skip("immune_context_claims.py absent")
+    rel = path.relative_to(SKILLS.parent).as_posix()
+    assert rel not in _frame_key_readers(), f"{rel} now READS the SALIENCE_SPECS reference_frame key"
+    # anti-vacuity: if the token has left that file, this test proves nothing and should be DELETED, not kept
+    assert "reference_frame" in path.read_text(), "the two-meanings hazard is gone — drop this test instead"
+
+
+@pytest.mark.parametrize("mt", _FRAMED)
+def test_every_framed_axis_reaches_display_and_the_claim_record(mt):
+    """The other half of invariant 5, and the half the reader census structurally cannot see.
+
+    The census is a claim about CODE: it stays green if every reference_frame is DELETED, because zero frames
+    still means zero unexpected readers. This is a claim about the FRAMES — each must actually project,
+    twice: into key_evidence.interpretation[] (the DISPLAY ruler) and back out through
+    magnitude_from_interpretation (the CLAIM RECORD's magnitude). A frame that silently fails to project is
+    the self-dropping SPEC'd-frame failure that has already shipped forever-green once.
+
+    The synthetic summary feeds 0.5 to every field a frame NAMES. That is a stand-in for presence, not a
+    claim about type or side: the assertion is that the frame projects at all, so a value is supplied for
+    every named field (position fields included) and no assertion is made about the rendered label.
+
+    THE PRIMARY-IDENTITY ASSERTION, WITH ITS COVERAGE MEASURED RATHER THAN ASSERTED — AND THE FIRST
+    MEASUREMENT OF IT WAS WRONG, so the METHOD is recorded here and not only the number. This invariant
+    exists to stop unsourced reach claims, so an unsourced claim about its OWN strength would be the same
+    defect one level up. Why the assertion is right in principle: interp[0] is what
+    magnitude_from_interpretation reads, and rf[0]'s value_field is what mints the atlas column, so an
+    axis's headline gauge, its frozen coordinate and its claim record must name ONE metric.
+    The population it can EVER discriminate on is derivable from the specs rather than from any single
+    mutation: the 7 axes whose frames do not all gauge the same value_field — cell_line_protein_abundance,
+    cell_line_rna_expression, copy_number_alteration, mutation_variant_class_spectrum,
+    tumor_expression_distribution, tumor_protein_abundance, tumor_vs_adjacent_expression. On the other 28
+    every frame gauges ONE value (a distance_to_cut plus a percentile companion on that same value), so no
+    permutation whatsoever can change interp[0].metric and the assertion has nothing to discriminate.
+    Measured: rotating build_interpretation's projection by one — specs untouched, so only ONE side of the
+    comparison moves — reds 7 of 35, exactly that set.
+    ★ The trap, recorded because the number it produced was already written down once: REVERSING the
+    projection reds only 1 (mutation_variant_class_spectrum), and that 1 was first recorded here as the
+    assertion's coverage. Reversal maps position 0 to position -1, and on 6 of those 7 axes the FIRST and
+    LAST frames carry the SAME value_field, because the companion loop appends a percentile frame gauging
+    the primary's own value. A palindromic list is invariant under reversal. So the 1 measured the PROBE's
+    power, not the ASSERTION's. One permutation is not a panel, and a mutation that comes back GREEN can
+    mean the probe is too weak to move the thing it aims at.
+    The weaker sibling is bounded the same way: dropping rf[0] fleet-wide reds only the 2 single-frame axes
+    (alteration_role, immune_context), because this test re-reads the mutated spec, so both sides of the
+    comparison move together. "interp is non-empty" really is too weak on its own."""
+    summary = {}
+    frames = _frames(mt)
+    for rf in frames:
+        for key in ("value_field", "distance_field", "position_field", "total_field"):
+            if rf.get(key):
+                summary[rf[key]] = 0.5
+        for anchor in rf.get("anchors") or []:
+            if isinstance(anchor, dict) and anchor.get("field"):
+                summary[anchor["field"]] = 0.5
+    interp = build_interpretation({}, summary, SALIENCE_SPECS[mt], numeric_source_cards().get(mt), None)
+    if not interp and not (target_contracts_root() / "cards").is_dir():
+        pytest.skip("contracts checkout absent (set TARGET_CONTRACTS_ROOT)")
+    assert interp, f"{mt}: a framed axis projected NOTHING into the display ruler"
+    assert interp[0].get("metric") == frames[0].get("value_field"), (
+        f"{mt}: the FIRST projected gauge is {interp[0].get('metric')!r}, not the primary frame's "
+        f"{frames[0].get('value_field')!r} — the claim record's magnitude and the atlas column would name "
+        "different metrics for this axis"
+    )
+    magnitude = magnitude_from_interpretation(interp[0])
+    assert magnitude and magnitude.get("value") is not None and magnitude.get("scale"), (
+        f"{mt}: the display gauge does not round-trip into the claim record's magnitude: {magnitude!r}"
+    )
+
+
+def test_the_atlas_numeric_optout_is_exactly_the_declared_set():
+    """`atlas_numeric: False` is the REAL display-only boundary, and it is a one-way door with no red.
+
+    A frame carrying the flag mints no atlas numeric, so ADDING it to a shipped axis DELETES a frozen column
+    at the next re-freeze — and atlas_health compares the artifact against itself, so it reads a
+    self-consistent narrowing as green. This ratchet is the only thing that notices. It is two-sided AND
+    exhaustive (framed == minted | optout, zero residual), so a third state — framed, unminted, undeclared —
+    cannot appear without a red."""
+    framed = set(_FRAMED)
+    minted = set(numeric_feature_specs())
+    assert minted, "numeric_feature_specs() minted NOTHING — the instrument broke, not the specs"
+    assert minted <= framed, f"atlas columns minted from axes with no reference_frame: {sorted(minted - framed)}"
+    optout = set(_ATLAS_NUMERIC_OPTOUT)
+    undeclared = sorted(framed - minted - optout)
+    stale = sorted(optout & minted)
+    unframed_optout = sorted(optout - framed)
+    assert not undeclared, (
+        f"framed axes that mint no atlas column and declare no reason: {undeclared}. Either the frame is "
+        "genuinely display-only (list it above WITH the reason) or a shipped column just went missing."
+    )
+    assert not stale, f"declared opt-outs that DO mint an atlas column — remove them above: {stale}"
+    assert not unframed_optout, f"declared opt-outs for axes with no frame at all: {unframed_optout}"
+    assert framed == minted | optout, f"unclassified residual: {sorted(framed ^ (minted | optout))}"
+
+
+# ── invariant 5d: the SHIPPED atlas is the second authority, because deleting a frame deletes a TEST ─────
+# A MEASURED HOLE in the four checks above, closed here rather than argued away. Removing one axis's
+# `reference_frame` — which silently deletes a FROZEN atlas column — took this file from 148 collected to
+# 144 and reported SUCCESS. Two independent reasons, both structural:
+#   * the reach test is PARAMETRIZED over the framed set, so deleting a frame does not fail a test, it
+#     deletes four. A vanishing test is invisible in a pass count; only `collected N` moves.
+#   * `framed == minted | optout` still balances, because deleting a frame shrinks BOTH sides at once.
+# Every check above derives its population from SALIENCE_SPECS, so all of them are blind in that one
+# direction by construction. The only fix is a population the specs cannot move.
+#
+# That population is skills/target-archetype/atlas/atlas.json — the SHIPPED artifact. Each `::num::` column
+# in it was minted by a primary frame that existed when the atlas was frozen, so it is a durable record of
+# PAST reach that today's source still has to account for. This is the same instrument the aperture ratchet
+# uses: an external number the code under test cannot rewrite to agree with itself.
+#
+# EQUALITY, not containment, because the two directions are different failures and both are re-freeze terms:
+#   frozen column with no producing frame -> a silent DELETION at the next re-freeze. atlas_health compares
+#     the artifact against itself, so it reads a self-consistent narrowing as green; nothing else notices.
+#   newly minted column with no frozen twin -> a silent ADDITION that changes the feature space, moving every
+#     shipped cohort_percentile the moment someone rebuilds.
+# A RENAMED value_field is caught by the same map: the column key is `{mt}::num::{value_field}`, so renaming
+# the field renames a frozen column, which is a delete plus an add wearing one commit.
+#
+# The path single-sources from archetype_core._SHIPPED_ATLAS. Invariant 4 above refuses a re-hardcoded
+# threshold for exactly this reason, and a second copy of this path would be the same defect.
+# DELIBERATELY NOT A SKIP when the artifact is missing: it is tracked in git, so absent means broken
+# checkout, and skipping would restore the green-for-the-wrong-reason this whole invariant exists to remove.
+@lru_cache(maxsize=1)
+def _frozen_atlas_numeric_columns() -> dict:
+    """{measurement_type: value_field} for every ::num:: column in the SHIPPED atlas.
+
+    Columns are `{mt}::num::{value_field}` with a `::mask` companion alongside each one. The mask is dropped:
+    it is minted from the same frame and carries no independent frame identity, so counting it would double
+    every axis and tell us nothing the value column does not."""
+    atlas = json.loads(_SHIPPED_ATLAS.read_text())
+    frozen = {}
+    for column in atlas["feature_order"]:
+        parts = column.split("::")
+        if len(parts) < 3 or parts[1] != "num" or parts[-1] == "mask":
+            continue
+        frozen[parts[0]] = parts[2]
+    return frozen
+
+
+def test_every_frozen_atlas_numeric_column_still_has_its_producing_frame():
+    assert _SHIPPED_ATLAS.is_file(), (
+        f"the shipped atlas is missing at {_SHIPPED_ATLAS} — it is tracked in git, so this is a broken "
+        "checkout. Fix the checkout; do NOT turn this into a skip."
+    )
+    frozen = _frozen_atlas_numeric_columns()
+    assert frozen, "parsed ZERO ::num:: columns out of the shipped atlas — the parser broke, not the atlas"
+    live = {mt: spec[0] for mt, spec in numeric_feature_specs().items()}
+    assert live, "numeric_feature_specs() minted NOTHING — the instrument broke, not the specs"
+    orphaned = sorted(mt for mt in frozen if mt not in live)
+    added = sorted(mt for mt in live if mt not in frozen)
+    renamed = {mt: (frozen[mt], live[mt]) for mt in sorted(set(frozen) & set(live)) if frozen[mt] != live[mt]}
+    assert not orphaned, (
+        f"FROZEN atlas ::num:: column(s) whose producing frame is gone from SALIENCE_SPECS: {orphaned}. The "
+        "next re-freeze DROPS those columns and every cohort_percentile computed from them, with no other "
+        "red anywhere. If the removal is intended it is a re-freeze term: bundle it, do not slip it in."
+    )
+    assert not added, (
+        f"axes minting an atlas ::num:: column that the shipped atlas does not carry: {added}. Adding a "
+        "primary frame ADDS a column at the next re-freeze, which moves the whole feature space. Also a "
+        "re-freeze term — route it to the bundle rather than landing it here."
+    )
+    assert not renamed, (
+        f"primary value_field RENAMED under a frozen column ({{mt: (frozen, live)}}): {renamed}. The column "
+        "key is {mt}::num::{value_field}, so this is a delete AND an add in one commit."
+    )
