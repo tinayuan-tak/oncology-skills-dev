@@ -159,6 +159,39 @@ SALIENCE_SPECS: dict = {
         "categorical": ["liability_class", "highest_tissue", "critical_organ_argmax"],
         "extra_scalars": ["critical_organ_max", "tissue_breadth_fraction"],
     },
+    # The TPHP DIA-MS PROTEIN arm of the same normal-tissue liability question normal_tissue_rna_breadth
+    # answers on RNA, so it mirrors that spec field for field (peak level + tissue count + liability ladder)
+    # — the two arms must read in ONE vocabulary or a reader cannot tell a protein liability from an RNA one.
+    # Distinct from normal_tissue_protein_breadth below, which is the HPA antibody breadth card.
+    #
+    # VERDICT-BEARING as of target-contracts #767: the selectivity KILL ladder lives in the resolver's
+    # `post_resolver_clamp`, a keypath the rule_role_partition generator never read, so this card's rules were
+    # misfiled `display` (= verdict-inert) while resolver rungs minted verdicts from them. Un-misfiling them
+    # promoted this measurement_type into the gating set, which is what obliges a spec here.
+    #
+    # NO reference_frame, DELIBERATELY — and not for want of a cut (the card carries a clean
+    # moderate 10 / broad 35 tissue-count ladder). The fleet loop at the bottom of this module appends a
+    # `cohort_percentile` frame to EVERY spec carrying a numeric frame, and numeric_feature_specs() mints an
+    # atlas column from it, so authoring a frame here would silently register a new atlas feature that only
+    # a re-freeze can populate. That belongs to the atlas workstream. The categorical liability ladder IS
+    # the ruler meanwhile (gaugeable via `categorical`, per invariant 1).
+    "normal_tissue_protein_abundance": {
+        "effect_field": "max_median_log2_abundance",
+        "n_field": "n_adult_tissues_detected",
+        "direction": "higher_is_worse",
+        "categorical": [
+            "tphp_normal_protein_liability_class",
+            "normal_protein_breadth_class",
+            "tphp_vital_organ_liability_class",
+            "highest_abundance_tissue",
+            "highest_abundance_tissue_class",
+        ],
+        "extra_scalars": [
+            "tphp_vital_organ_abundance",
+            "n_adult_tissues_above_abundance_floor",
+            "n_vital_organs_above_abundance_floor",
+        ],
+    },
     "normal_tissue_protein_breadth": {
         "categorical": ["normal_tissue_breadth_class", "hpa_tissue_specificity"],
         "n_field": "n_essential_tissues_with_expression",

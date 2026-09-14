@@ -84,6 +84,11 @@ METRIC_GLOSS: dict = {
     "r2": ("dependency-predictability", "R2"),
     "loeuf_score": ("gnomAD LOEUF (LoF intolerance)", "LOEUF"),
     "highest_tissue_median": ("highest normal-tissue median expression", "TPM"),
+    # the PROTEIN counterparts of the two RNA normal-tissue levels above/below, kept adjacent to them so the
+    # two arms of the same liability question stay in one vocabulary. Both say "protein" explicitly: an
+    # unqualified "highest normal-tissue median" would be indistinguishable from the RNA arm in a bullet.
+    "max_median_log2_abundance": ("highest normal-tissue median protein abundance", "log2 intensity"),
+    "tphp_vital_organ_abundance": ("max protein abundance in a vital organ", "log2 intensity"),
     "log2fc_cell_a": ("tumor-vs-normal fold change", "log2FC"),
     "log2_fc": ("tumor-vs-adjacent fold change", "log2FC"),
     "protein_effect_size": ("tumor-vs-normal protein effect size", "effect size"),
@@ -287,6 +292,18 @@ METRIC_GLOSS: dict = {
     "n_lethal": ("lethal-labelled knockout phenotype rows", "count"),
     "n_cohorts_tested": ("cohorts the target was quantified in", "count"),
     "n_tissues_detectable": ("normal tissues with detectable expression", "count"),
+    # normal_tissue_protein_abundance (TPHP DIA-MS). Each label names the ARM (protein, not RNA) and the
+    # COHORT (adult normal tissues vs vital organs), because the RNA arm counts tissues too and a bare
+    # "tissues detected" cannot be told apart from it in a narrator bullet.
+    "n_adult_tissues_detected": ("adult normal tissues with detected protein (TPHP DIA-MS)", "count"),
+    "n_adult_tissues_above_abundance_floor": (
+        "adult normal tissues whose median protein abundance clears the floor",
+        "count",
+    ),
+    "n_vital_organs_above_abundance_floor": (
+        "vital organs whose median protein abundance clears the floor",
+        "count",
+    ),
     "n_essential_tissues_with_expression": ("essential normal tissues with expression", "count"),
     "n_celltypes_surface_displaying": ("normal cell types displaying the target on the surface", "count"),
     "n_synergy_partners": ("partner drugs passing the synergy threshold", "count"),
