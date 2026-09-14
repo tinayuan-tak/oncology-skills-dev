@@ -19,7 +19,10 @@
 # stratum — the validator asserts sync in BOTH directions: every id here exists in a catalog, AND
 # every catalog id is either registered here or named in `intentionally_excluded` below.
 
-version: 1.1.0
+version: 1.2.0   # 1.2.0 (2026-09-14): + admissibility_floors, authoring_rule,
+                 #   cohort_claim_reconciliation. Purely ADDITIVE at the top level -- both
+                 #   consumers (tp_common.default_subtypes, tp_facets_subtype._load_subtype_crosswalk)
+                 #   read only `indications`, so the new blocks are inert to every verdict path.
 schema_version: 1
 curation_status: iter1_authored
 
@@ -101,6 +104,208 @@ pending_authoring:
     blocked_on: measured_expected_n
     reason: "ESCA is registered with 3 strata but its catalog carries a 4th. Single-stratum gap; the
       driver_mutation axis does not exist for ESCA yet, so this needs a new axis, not an append."
+
+# ============================================================================================
+# admissibility_floors — the governed subgroup-n floors, and what they actually DO
+# ============================================================================================
+#
+# WHY THIS BLOCK EXISTS (foundation audit stage 3c, 2026-09-14): `pending_authoring` above names the
+# sequence "measure n -> declare an admissibility floor -> author only what clears it". Stages 3a/3b
+# measured all 180 expected_n declarations (data-catalog #598). This block is the middle step, which
+# had never been taken: NO repo declared a floor. Sixteen literals in two families enforced one, and
+# the ONLY thing keeping them consistent was prose comments naming each other.
+#
+# ★ THE AUDIT'S OWN PREMISE WAS WRONG AND THE MEASUREMENT CORRECTED IT. The plan said "three
+# unreconciled literals ... one number read by all three, or an explicit statement of why a cohort
+# legitimately differs". Measuring found the literals are not three but sixteen, and -- the load-
+# bearing correction -- they do not differ by COHORT or by UNIT. They govern different POPULATIONS:
+#   * family `subgroup_stratum_n` counts members of ONE STRATUM within one indication cohort;
+#   * family `lineage_n`          counts cell lines within ONE LINEAGE, for per-lineage statistics.
+# A lineage is not a stratum, so there is no number for both to share. `subgroup_stratum_n` is
+# applied to patient counts AND cell-line counts at the same value of 30 -- verified, not assumed:
+# analysis-methods methods/gdc_somatic_hotspot/read.py:543 applies it to TCGA patients and
+# methods/depmap_chronos/read.py:208 applies it to DepMap cell lines, both `n >= SUBGROUP_N_FLOOR`.
+# So "5 is cell lines, 30 is patients" -- which is what this audit believed going in -- is FALSE.
+#
+# ★★ THE FLOOR IS A LABELLING MECHANISM, NOT AN ADMISSION ONE. This is the single most important
+# thing in this block, and it is why authoring is not gated on n >= 30. `subgroup_common/panorama.py
+# ::evidence_state()` returns a TRICHOTOMY -- absent / underpowered / measured -- and an
+# `underpowered` stratum is still computed, still emitted and still RENDERED; it is inadmissible only
+# in COMPARATIVE prose (see the `powered` predicates in skills/_skills_common/subgroup_derivation.py
+# and functional-requirement/scripts/run.py, which gate cross-stratum contrast, not existence).
+# The governed authoring rule therefore already existed in code and had simply never been written
+# down: it IS the trichotomy. See `authoring_rule` below.
+#
+# ★ THIS BLOCK IS DESCRIPTIVE, NOT PRESCRIPTIVE. Every number here is the value in force on
+# 2026-09-14. CHANGING either floor is VERDICT-BEARING and deliberately out of scope: lowering
+# `subgroup_stratum_n` to 5 would flip SCLC_P (measured n=8 DepMap lines) from `underpowered` to
+# `measured`, which changes WHICH interpretation rule fires -- from
+# `subtype-restricted-dependency-underpowered-supportive` to `subtype-restricted-dependency-
+# supportive` -- and thereby lifts the "never dominant, never alone-sufficient" cap that the former
+# carries. That is a verdict change disguised as a threshold tweak, and the escape hatch below is
+# the better mechanism anyway because it gates on EFFECT SIZE rather than merely on a smaller n.
+admissibility_floors:
+
+  - family: subgroup_stratum_n
+    value: 30
+    population: "Members of ONE stratum within ONE indication cohort."
+    units_applied_to: [tcga_patients, depmap_cell_lines, cptac_patients]
+    declares: "The boundary between evidence_state `underpowered` and `measured`. NOT an
+      existence or authoring gate -- see authoring_rule."
+    canonical_definition: "analysis-methods methods/subgroup_common/panorama.py:37 SUBGROUP_N_FLOOR"
+    # ★ That file's own comment reads "SINGLE SOURCE OF TRUTH -- readers import this, never
+    # re-hardcode." Eight analysis-methods methods DO import it, correctly. Four skills modules
+    # cannot: the skills repo has no import path to analysis-methods, so each re-declares the
+    # literal. The claim is therefore false BY STRUCTURE, not by anyone's oversight, and no edit
+    # inside analysis-methods can make it true. All five values agree TODAY; nothing enforces that.
+    definition_sites:
+      importers_of_canonical:
+        - analysis-methods methods/depmap_chronos/read.py:208
+        - analysis-methods methods/depmap_expression_distribution/read.py:154
+        - analysis-methods methods/gdc_somatic_hotspot/read.py:543
+        - analysis-methods methods/dge_deseq2/read.py:1594
+        - analysis-methods methods/tcga_fusion_consensus/stratified.py:109
+        - analysis-methods methods/tcga_patient_cn/stratified.py:65
+        - analysis-methods methods/cptac_protein_distribution/read.py:75
+        - analysis-methods methods/tcga_gtex_expression_distribution/read.py:1045,1336
+      re_hardcoded_no_import_path:
+        - skills/_skills_common/subgroup_derivation.py:327      # ★ carries NO mirror comment at all
+        - skills/functional-requirement/scripts/run.py:181
+        - skills/tumor-presence/scripts/run.py:72               # ★ comment conflates BOTH families
+        - skills/render-evidence-package/scripts/render_markdown.py:687
+      in_repo_rule_literals:                                    # this repo, interpretation-rules/
+        - {rule_id: subtype-non-dependence-opposing, min_n_required: 30}
+        - {rule_id: subtype-restricted-dependency-supportive, min_n_required: 30}
+        - {rule_id: subtype-restricted-selectivity-supportive, min_n_required: 30}
+        - {rule_id: subtype-expression-enriched-context, min_n_required: 30}
+        - {rule_id: subtype-expression-restricted-context, min_n_required: 30}
+        - {rule_id: subtype-expression-depleted-context, min_n_required: 30}
+        - {rule_id: subtype-mutation-frequency-recurrent-context, min_n_required: 30}
+    documented_exception:
+      rule_id: subtype-restricted-dependency-underpowered-supportive
+      min_n_required: 3
+      # ★ NOT drift, and not a competing floor. Keyed on `evidence_state: underpowered` +
+      # `subgroup_effect_admissible: true`, so it is DISJOINT from the floor-cleared rule (which
+      # requires `measured`) and cannot double-fire. The 3 is an EFFECT-ADMISSIBILITY minimum, not a
+      # relaxed power floor: admission additionally requires an overwhelming fraction of lines in the
+      # strong-dependency band, i.e. a tight one-directional effect rather than a noisy mean on thin
+      # data. Its own rationale states a hard n>=30 floor "would silently discard a genuine, clean
+      # precision-oncology signal". Motivating case SCLC-P/POU2F3, described in-rule as ~5 tuft-cell
+      # lines; this arc MEASURED it at n=8 of 63 evaluable DepMap lines. Capped supportive-only.
+
+  - family: lineage_n
+    value: 5
+    population: "DepMap cell lines within ONE LINEAGE (or OncotreeCode), for per-lineage statistics."
+    units_applied_to: [depmap_cell_lines]
+    declares: "Whether a lineage is included in per-lineage enrichment/selectivity statistics at
+      all -- an EXCLUSION gate on a statistic, not a label on a stratum. Different population and
+      different consequence from subgroup_stratum_n; the two are not reconcilable to one number."
+    canonical_definition: "cards/dependency-lineage-selectivity.card.yaml:127 min_cell_lines_in_lineage"
+    definition_sites:
+      - cards/dependency-lineage-selectivity.card.yaml:127                    # origin ("E2")
+      - cards/prism-compound-activity.card.yaml:163                           # "mirrors E2"
+      - analysis-methods methods/depmap_prism_precompute/cli.py:155           # "E2 parity"
+      - skills/functional-requirement/scripts/run.py:716                      # _LINEAGE_UNDERPOWER_FLOOR
+
+# ---- authoring_rule: when may a stratum be REGISTERED here? ----
+#
+# The rule that governs `pending_authoring` graduation. It is deliberately NOT "n >= 30", because
+# that would confuse labelling with admission and, measured against the corpus, would retroactively
+# disqualify 36 of the 84 already-registered measured cells (43%) -- including essentially the whole
+# NSCLC actionable-driver panel (EGFR ex19del/L858R/ex20ins, ALK, ROS1, RET, MET ex14, BRAF V600E,
+# HER2_mut), PAAD BRCA1/2 and KRAS G12R/G12V, HNSC HPV_positive, ESCA HER2_amp, STAD EBV_positive,
+# and three of the four SCLC NAPY subtypes. Those are the clinically load-bearing strata of this
+# whole framework; a floor that deletes them is measuring the wrong thing.
+authoring_rule:
+  registrable_when: "evidence_state(measured_n) != 'absent' for at least one declared cohort"
+  # i.e. the stratum has >=1 measured member SOMEWHERE. `absent` means no members in the stratum
+  # intersected with the method cohort -- there is nothing to stratify, so registering it would
+  # create a stratum the subtype tier can never populate.
+  floor_sets: claim_strength_not_existence
+  states:
+    absent:       "n == 0 on an EVALUATED cohort. NOT registrable for that cohort."
+    underpowered: "1 <= n < 30. Registrable, computed, emitted and rendered; inadmissible in
+                   CROSS-STRATUM COMPARATIVE prose. 36 of 84 measured cells sit here today."
+    measured:     "n >= 30. Full comparative admissibility. 43 of 84 measured cells."
+  # ★★ `evaluable == 0` IS NOT `n == 0`. A stratum whose every row abstained has measured NOTHING
+  # and is `not_measured`, NOT `absent`. Conflating them is the exact defect analysis-methods #626
+  # fixed one level down (DepMap opting out of normalize_effect made 13 strata report 0-of-N as
+  # is_member=False rather than null). A `0` in a catalog is only an ABSENCE claim when its
+  # `_denominator_note` says `Observed emit` -- the same 0 also serves as an N/A sentinel. This is
+  # why the note is mandatory: schemas/subgroup_catalog.schema.json makes the pairing bidirectional
+  # via `dependentRequired`, so a count can no longer ship without saying which kind of 0 it is.
+  cohorts_key_semantics: "A cohort listed in an axis's `cohorts:` is a CLAIM that the stratum has
+    members there -- the header states it records 'WHICH axes can even carry a given stratum'.
+    Combined with the trichotomy this is checkable for the first time, which is what produced
+    cohort_claim_reconciliation below."
+
+# ============================================================================================
+# cohort_claim_reconciliation — the 130 `cohorts:` claims checked against measurement
+# ============================================================================================
+#
+# RECORDED, NOT FIXED. Every correction below is VERDICT-BEARING (removing a cohort from an axis
+# changes which panoramas a profile builds), so it belongs behind the composed replay diff in
+# stage 3d, not here. Pinned BY NAME so a new discrepancy is an error rather than a silent addition,
+# and so removing one requires deleting its entry -- the reverse-guard pattern from #598.
+#
+# Census of all 130 (indication, axis, stratum, cohort) claims on 2026-09-14:
+#   79 claim holds (measured, >=1 member)          10 not measurable, unresolvable
+#   34 no expected_n key exists for that cohort     5 CONTRADICTED by measurement
+#    2 CONTRADICTED by the catalog's own applicable_data_sources
+cohort_claim_reconciliation:
+
+  measured_absent:
+    # The cohort WAS evaluated on a full denominator and found ZERO members. The claim is false.
+    disposition: fix_in_stage_3d
+    claims:
+      - {indication: NSCLC, axis: driver_mutation, stratum: EGFR_mut_ex19del, cohort: depmap,
+         measured: "0 members of ~244 evaluable of 264 rows"}
+      - {indication: NSCLC, axis: driver_mutation, stratum: EGFR_mut_ex20ins, cohort: depmap,
+         measured: "0 members of 264 evaluable of 264 rows"}
+      - {indication: NSCLC, axis: driver_mutation, stratum: MET_ex14, cohort: depmap,
+         measured: "0 members of ~263 evaluable of 264 rows"}
+      - {indication: PAAD, axis: fusion, stratum: FGFR2_fusion, cohort: tcga,
+         measured: "0 members of 190 evaluable of 190 rows"}
+      - {indication: PAAD, axis: fusion, stratum: RET_fusion_PAAD, cohort: tcga,
+         measured: "0 members of 190 evaluable of 190 rows"}
+
+  source_excluded:
+    # Sharper than measured_absent and needs NO measurement: the catalog stratum's own
+    # `applicable_data_sources` EXCLUDES the cohort this registry claims. Two files, opposed
+    # declarations. #598 corrected these two from a stray `expected_n_depmap: 60`/`: 40`.
+    disposition: fix_in_stage_3d
+    claims:
+      - {indication: NSCLC, axis: histology, stratum: histology_Adeno, cohort: depmap,
+         catalog_applicable_data_sources: [tcga]}
+      - {indication: NSCLC, axis: histology, stratum: histology_SCC, cohort: depmap,
+         catalog_applicable_data_sources: [tcga]}
+
+  no_expectation_declared:
+    # Cohort claimed, but the catalog shard declares no expected_n key for it at all -- so the
+    # claim is neither confirmed nor refuted. Distinct from a note saying NOT MEASURED.
+    disposition: measure_or_drop_in_stage_3d
+    claims:
+      - {indication: BRCA, axis: driver_mutation, stratum: TP53_mut, cohort: depmap}
+      - {indication: BRCA, axis: driver_mutation, stratum: PIK3CA_mut, cohort: depmap}
+
+  pending_substrate:
+    # 19 `genie` claims (NSCLC x12, PAAD x7) where the catalog lists only [tcga, depmap]. This
+    # registry is AHEAD of the catalogs on GENIE, deliberately: data-catalog #595 /
+    # analysis-methods #619 (feat/genie-all-indications) republish 18 indications. Not curator
+    # error and not fixable here -- the substrate lands first. COADREAD is absent from this list
+    # because its catalog already declares genie/genie_bpc, which is why those 9 tokens existed in
+    # the corpus while the schema enum omitted them.
+    disposition: blocked_on_data_catalog_595_and_analysis_methods_619
+    count: 19
+    indications: [NSCLC, PAAD]
+
+  unexpressible_before_this_change:
+    # 4 `george_2015` claims (SCLC NAPY). The catalogs could not declare this cohort because
+    # `george_2015` was absent from the schema's applicable_data_sources enum -- a structural
+    # blocker, not an omission. This change adds the token, so the 4 become fixable in 3d.
+    disposition: schema_token_added_2026_09_14_catalog_edit_in_stage_3d
+    claims:
+      - {indication: SCLC, axis: napy, strata: [SCLC_A, SCLC_N, SCLC_P, SCLC_Y], cohort: george_2015}
 
 indications:
 

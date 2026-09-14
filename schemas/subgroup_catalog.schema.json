@@ -108,6 +108,23 @@
       "type": "object",
       "required": ["id", "label", "rule"],
       "unevaluatedProperties": false,
+      "$comment": "The `dependentRequired` block below is the COMPENSATING STRENGTHENING for declaring the five keys that made this corpus invalid. Declaring a key to take an error count to zero is, on its own, relaxing a gate to match the build -- it adds no checking power. This block adds the power back, and it is BIDIRECTIONAL on purpose: forward (n -> note) stops an unprovenanced count, and reverse (note -> n) stops a note for a cohort the stratum does not declare, which would be provenance with nothing behind it. Verified landable, not aspirational: all 7 cohort families pair exactly 1:1 on main as of 2026-09-13 (depmap 84/84, tcga 32/32, tcga_coadread 24/24, tcga_nsclc 18/18, tcga_pdac 12/12, tcga_sclc 5/5, tcga_gc 5/5 = 180/180), so this lands green and only constrains future edits.",
+      "dependentRequired": {
+        "expected_n_tcga": ["expected_n_tcga_denominator_note"],
+        "expected_n_tcga_denominator_note": ["expected_n_tcga"],
+        "expected_n_depmap": ["expected_n_depmap_denominator_note"],
+        "expected_n_depmap_denominator_note": ["expected_n_depmap"],
+        "expected_n_tcga_coadread": ["expected_n_tcga_coadread_denominator_note"],
+        "expected_n_tcga_coadread_denominator_note": ["expected_n_tcga_coadread"],
+        "expected_n_tcga_pdac": ["expected_n_tcga_pdac_denominator_note"],
+        "expected_n_tcga_pdac_denominator_note": ["expected_n_tcga_pdac"],
+        "expected_n_tcga_nsclc": ["expected_n_tcga_nsclc_denominator_note"],
+        "expected_n_tcga_nsclc_denominator_note": ["expected_n_tcga_nsclc"],
+        "expected_n_tcga_sclc": ["expected_n_tcga_sclc_denominator_note"],
+        "expected_n_tcga_sclc_denominator_note": ["expected_n_tcga_sclc"],
+        "expected_n_tcga_gc": ["expected_n_tcga_gc_denominator_note"],
+        "expected_n_tcga_gc_denominator_note": ["expected_n_tcga_gc"]
+      },
       "properties": {
         "id": {
           "type": "string",
@@ -144,24 +161,39 @@
           "properties": {
             "manifest_id": {"type": "string", "minLength": 1},
             "field": {"type": "string"},
-            "method": {"type": "string"}
+            "method": {"type": "string"},
+            "min_caller_count": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Caller-agreement threshold for multi-caller consensus products (tcga-fusion-consensus-per-sample-v1: TumorFusions + Gao 2018 + cBioPortal PanCancer Atlas). 1 = union / 'any caller', which is what 'any fusion partner' means. Shipped in NSCLC and PAAD fusion strata since 2026-07-22 but UNDECLARED here until 2026-09-13, so a typo in the key name would have been silently ignored by any reader defaulting it."
+            }
           }
         },
         "expected_n_tcga": {
           "type": "integer",
           "minimum": 0,
-          "description": "Approximate TCGA sample count for this stratum (informational only, helps reviewers sanity-check rules)."
+          "description": "Measured member count for this stratum on the canonical TCGA cohort. NOT an estimate: as of 2026-09-13 every declaration in every catalog is either a measured count or paired with a note saying explicitly that it is not (data-catalog #598 measured all 180). Read it together with its `_denominator_note` sibling, which `dependentRequired` makes mandatory -- the bare integer is ambiguous between a measurement, a real zero, and an N/A sentinel."
         },
         "expected_n_tcga_coadread": {"type": "integer", "minimum": 0},
         "expected_n_tcga_pdac": {"type": "integer", "minimum": 0},
         "expected_n_tcga_nsclc": {"type": "integer", "minimum": 0},
         "expected_n_tcga_sclc": {"type": "integer", "minimum": 0},
         "expected_n_tcga_gc": {"type": "integer", "minimum": 0},
-        "expected_n_tcga_coadread_denominator_note": {"type": "string"},
-        "expected_n_tcga_pdac_denominator_note": {"type": "string"},
-        "expected_n_tcga_nsclc_denominator_note": {"type": "string"},
-        "expected_n_tcga_sclc_denominator_note": {"type": "string"},
-        "expected_n_tcga_gc_denominator_note": {"type": "string"},
+        "expected_n_tcga_denominator_note": {
+          "type": "string",
+          "minLength": 20,
+          "description": "Provenance for the sibling `expected_n_tcga`, in one of four forms: `Observed emit <date> against <manifest> (n~<evaluable> evaluable of <rows> rows; <members> members).` | `NOT MEASURED as of <date> (<disposition>): <reason>` | `Not applicable ...` (the 0 is an N/A sentinel, not a measured zero) | `Corrected ...` (a stray expectation for a source the stratum excludes). ★ The denominator quoted is the EVALUABLE one, never the cohort size: HNSC HPV_negative has 279 rows but HPV is called on only 52, so `45` alone reads as 45-of-279 and misleads by 5x."
+        },
+        "expected_n_depmap_denominator_note": {
+          "type": "string",
+          "minLength": 20,
+          "description": "Provenance for the sibling `expected_n_depmap`; same four forms as `expected_n_tcga_denominator_note`."
+        },
+        "expected_n_tcga_coadread_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_tcga_pdac_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_tcga_nsclc_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_tcga_sclc_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_tcga_gc_denominator_note": {"type": "string", "minLength": 20},
         "applies_within": {
           "type": "string",
           "description": "Subset of the indication's cohort within which the stratum's rule should be evaluated. L6 fix (post-adversarial-review): mutation strata for histologically-mixed indications (NSCLC = LUAD + LUSC) declare which histology denominator the expected_n is calibrated against, AND phase-2 subgroup_assigner_maf_filter restricts iteration to that cohort before applying the predicate.",
@@ -175,8 +207,8 @@
         },
         "applicable_data_sources": {
           "type": "array",
-          "description": "Which data sources support this stratum. iter-1b: tcga and depmap; iter-2 adds tempus where pre-aggregated.",
-          "items": {"type": "string", "enum": ["tcga", "depmap", "tempus", "ccle", "gdsc"]}
+          "description": "Which data sources support this stratum. IN USE as of 2026-09-13: tcga (81), depmap (62), genie_bpc (6), genie (3). ★ genie/genie_bpc shipped in the COADREAD and NSCLC catalogs while absent from this enum, which is why the corpus was schema-invalid (9 of the 110 errors): the enum was the NARROWER of the two vocabularies routing this one axis. The other is `subtype_crosswalk.yaml`'s per-stratum `cohorts:` list. FORWARD-DECLARED with zero catalog uses, for two different reasons: `george_2015` because the crosswalk ALREADY claims it for the four SCLC NAPY strata and no catalog could express that claim while the token was missing here (so those 4 discrepancies were structurally unfixable, not curator error); `tempus`/`ccle`/`gdsc` because iter-2 is expected to need them and a widened enum cannot invalidate anything. Full reconciliation of the two vocabularies is TRACKED, NOT done here -- see `cohort_claim_reconciliation` in subtype_crosswalk.yaml.",
+          "items": {"type": "string", "enum": ["tcga", "depmap", "genie", "genie_bpc", "george_2015", "tempus", "ccle", "gdsc"]}
         },
         "literature_anchor": {
           "type": "object",
