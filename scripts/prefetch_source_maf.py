@@ -18,7 +18,11 @@ Supported sources (--source):
                         metadata in companion regimen files (not pulled here —
                         see prefetch_genie_bpc_regimens.py for LOT strata).
   depmap_somatic      — DepMap OmicsSomaticMutationsMAF.maf (190 MB).
-                        Indication-filtered via Model.csv OncotreeLineage.
+                        Filtered to the INDICATION via Model.csv: OncotreeLineage,
+                        then OncotreeCode within it. The lineage alone is one level
+                        COARSER than the indication (`Lung` = NSCLC + SCLC, `Myeloid`
+                        = AML + CML), so lineage-only slicing silently merged distinct
+                        catalogued diseases into one denominator.
 
 Output: ~/.cache/framework-<source-cache-dir>/<indication_lower>-<tag>.parquet
 with columns normalized to the resolver convention:
@@ -166,7 +170,7 @@ VARIANT_CLASSIFICATION_TO_EFFECT = maf_vocab.VARIANT_CLASSIFICATION_TO_EFFECT
 # RCC subtypes) is documented at that canonical map — deliberately NOT restated here, since a second
 # copy of the caveat is the same duplication this import exists to remove.
 # read.py is pandas-free at module scope (it defers pandas into its functions), so importing it here
-# keeps `--help` fast — the same constraint that keeps _depmap_lineage below lazy.
+# keeps `--help` fast — the same constraint that keeps _depmap_population below lazy.
 from methods.genie_panel_recurrence.read import (  # noqa: E402
     GENIE_CANCER_TYPE,
     GENIE_ONCOTREE_CODE,
@@ -182,11 +186,41 @@ from methods.genie_panel_recurrence.read import (  # noqa: E402
 # which blocked the ESCA/HNSC/NSCLC/PAAD depmap MAF measurements outright.
 # Resolved LAZILY: the canonical map's module imports pandas, and this script keeps
 # its heavy imports inside functions so `--help` stays fast.
+# The lineage is one level COARSER than the indication: `Lung` holds NSCLC and SCLC,
+# `Myeloid` holds AML and CML, `Esophagus/Stomach` holds ESCA and STAD. Filtering on
+# OncotreeLineage alone therefore produced slices that merge distinct catalogued
+# diseases — and made esca-depmap-maf.parquet and stad-depmap-maf.parquet BYTE-IDENTICAL
+# (md5 0d0562a3…), which is direct proof the narrowing map that already existed for
+# exactly that pair (lineage.INDICATION_TO_DEPMAP_ORGAN, applied by
+# subgroup_assigner_directly_tagged) was never read on this path. One map, two consuming
+# lanes, one reader. Narrowing now happens in the SHARED module so both lanes get it.
 def _depmap_lineage(indication: str) -> str:
-    """Return the DepMap OncotreeLineage for `indication`; raise KeyError if absent."""
+    """Resolve the COARSE OncotreeLineage. No longer the production filter — see
+    _depmap_population — but deliberately RETAINED, not dead code.
+
+    tests/scripts/test_prefetch_source_maf.py probes the lazy-import bootstrap through
+    this function, including a `runpy.run_path` PATH-form invocation from a foreign cwd
+    with PYTHONPATH stripped. That probe is valuable precisely because it is OFFLINE and
+    so cannot degrade to a skip; routing it through _depmap_population instead would
+    require pandas plus a Model.csv read, i.e. S3 or a skip. Keeping a lineage-only
+    entry point preserves an offline wiring test.
+    """
     from methods.subgroup_common.lineage import depmap_lineage_for
 
     return depmap_lineage_for(indication)
+
+
+def _depmap_population(indication: str, model_df):
+    """Return the narrowed DepMapPopulation for `indication`; raise KeyError if absent."""
+    from methods.subgroup_common.lineage import depmap_population_for
+
+    return depmap_population_for(indication, model_df)
+
+
+def _shared_lineage_unnarrowed() -> frozenset:
+    from methods.subgroup_common.lineage import SHARED_LINEAGE_NOT_NARROWED
+
+    return SHARED_LINEAGE_NOT_NARROWED
 
 
 # GENIE-BPC LOT derivation is a distinct mode (not a MAF filter): it derives
@@ -281,13 +315,35 @@ def _filter_samples(cfg: SourceConfig, indication: str, dry_run: bool):
             return set()
         df = pd.read_csv(model)
         try:
-            lineage = _depmap_lineage(indication)
+            pop = _depmap_population(indication, df)
         except KeyError as exc:
             _log(str(exc.args[0] if exc.args else exc))
             sys.exit(1)
-        samples = set(df[df["OncotreeLineage"] == lineage]["ModelID"])
-        _log(f"DepMap {lineage} cell lines: {len(samples):,}")
-        return samples
+        # The population line is the provenance for every expected_n measured off this
+        # slice, so it names the lineage, the kept count AND each exclusion class. It
+        # used to read only "DepMap <lineage> cell lines: N", which is why three landed
+        # cells counted members of another catalogued indication without a trace.
+        _log(f"DepMap {pop.lineage} population for {pop.indication}: {pop.kept:,} models")
+        _log(f"  {pop.note}")
+        # ★ The warning fires for EVERY un-narrowed indication, not just the ones whose
+        # lineage merges a catalogued peer. Gating it on the shared-lineage roster alone
+        # left BRCA/HNSC/PAAD silent, and silence on this line is indistinguishable from
+        # a verified-pure population — which is the state that let a 293-model `Lung`
+        # cohort be quoted for NSCLC. An un-narrowed slice is ALWAYS an unverified
+        # population; only the severity differs.
+        if not pop.narrowed:
+            severity = (
+                "MERGES another catalogued indication"
+                if pop.indication in _shared_lineage_unnarrowed()
+                else "is NOT verified pure"
+            )
+            _log(
+                f"  ⚠ {pop.indication} has NO OncotreeCode set and its lineage {pop.lineage!r} "
+                f"{severity}: any expected_n measured off this slice is a LINEAGE denominator, "
+                f"not an indication one. Declare codes in subgroup_common.lineage (sourced from "
+                f"the target-contracts depmap_oncotree_codes lane) before quoting it."
+            )
+        return set(pop.model_ids)
 
     raise ValueError(f"Unknown filter_strategy: {cfg.filter_strategy}")
 
