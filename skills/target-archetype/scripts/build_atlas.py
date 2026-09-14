@@ -295,6 +295,82 @@ def feature_correlation(feature_order, X):
     return order, corr, counts
 
 
+def class_balance(Xn, n_cols):
+    """Per-column CLASS BALANCE over the OBSERVED cells — the VARIANCE-axis companion to the COVERAGE-axis
+    `reference_mask_fraction`. Returns `(n_classes, min_class_fraction)`, both aligned to `feature_order`.
+
+    `Xn` is the nan-coerced matrix (None → nan), `n_cols` the declared column count, passed explicitly so a
+    zero-row panel returns correctly-shaped fills instead of indexing a 1-d empty array.
+
+    **Why this axis at all: the existing frozen gate rates the WORST column PERFECT.** Consumers gate usable
+    reference columns at `reference_mask_fraction >= 0.6`, which counts how many cells were MEASURED. It says
+    nothing about whether they DIFFER. The two are orthogonal, and the gap is a live defect, not a
+    hypothetical: `dependency::claim::SEL::corrob` scores `reference_mask_fraction` 1.0000 — a flawless
+    rating — while being the most z-degenerate column in the frozen space (2 `moderate` cells against 295
+    `high`). When a gate calls a known-bad column GOOD, the fix is a different METRIC AXIS, not a tighter
+    threshold.
+
+    Measured on the 2026-09-13 freeze, the affected population is **34 of 176 columns** that clear
+    `>= 0.6` while holding <= 4 classes with a smallest class under 5%: `::signal` 16, `::corrob` 12,
+    `::mask` 6. ★Two thirds of it is OUTSIDE the `::corrob` block the analysis behind this field started
+    from — and the `::mask` members matter most, because every `::mask` column reads coverage 1.000 BY
+    CONSTRUCTION (the gate is vacuous against them), so `cn_recurrent_amplification_score::mask` at 2/297
+    was gated by nothing at all before this.
+
+    **Why the MINORITY FRACTION is the right thing to freeze — it IS the z-scale of an ordinal column.** For
+    a two-valued ordinal with rung step `s` and minority fraction `p`, `sd = s*sqrt(p(1-p))`, so a one-rung
+    relabel displaces `1/sqrt(p(1-p))` sigma: a function of `p` ALONE, independent of the ladder, the
+    encoding and the insert position. Measured three separate ways on this corpus, and every time the moving
+    quantity was `p` — the closed form itself; a vintage step whose ~3% cell delta re-scaled an UNCHANGED
+    cell by 3.591 sigma; and the n=297 -> n=504 panel expansion, where homogeneous new rows diluted `p` and
+    moved an UNCHANGED cell 5.223 sigma with a vintage component of exactly ZERO.
+
+    An `sd` threshold cannot substitute, for three reasons: `sd` scales with the rung step, so it stops
+    meaning the same thing after any renumber; it is not comparable across columns; and the `sd` frozen in
+    this artifact is POST-floor (`sd = np.where(sd == 0, 1.0, sd)` in `build`), so it is not the column's
+    dispersion at all. `p` is comparable across columns AND across vintages.
+
+    **Why TWO fields.** `min_class_fraction` is NON-MONOTONE in usability and alone would repeat the very
+    failure above — a CONSTANT column has one class holding 100% of rows, so it reads 1.000, the same
+    flawless score, where a balanced two-valued column reads 0.500 and the dangerous near-degenerate one
+    reads 0.004. And a CONTINUOUS `::num::` column has ~n distinct values, so its smallest class holds 1/n,
+    which on this corpus is numerically LOWER than the degenerate column's: **23 of the 30 continuous columns
+    score below `SEL::corrob`'s 0.006734**, so a fraction-only gate would reject 23 healthy columns before it
+    rejected the worst column in the atlas. The two ranges overlap, so no threshold on the fraction alone
+    separates them. `n_classes` separates all three regimes at zero cost:
+
+        n_classes == 1                            -> constant; also EXACTLY the population the sd==0 floor
+                                                     fires for, so a reader can tell a floored sd from a real
+                                                     one (verified: the equivalence holds on all 176 columns)
+        n_classes small, min_class_fraction small -> the degeneracy to gate on
+        n_classes large                           -> continuous; a small fraction here is BY CONSTRUCTION
+
+    So the gate a consumer wants is `n_classes >= 2 and min_class_fraction >= t`, never the fraction alone.
+
+    NOTE the denominator differs from `reference_mask_fraction` ON PURPOSE: coverage divides by `n_rows` (all
+    corpus targets), balance divides by the NON-NULL count, because `nanstd` ignores NaN and the non-null
+    population is the one that actually sets the denominator in the z-transform. Same shape, different
+    population.
+
+    ★ Verdict-INERT and DESCRIPTIVE, like `feature_correlation` above: this supplies the number, it does not
+    pick `t`.
+    """
+    n_classes = [0] * n_cols
+    min_class_fraction = [0.0] * n_cols
+    if Xn.ndim != 2 or Xn.shape[0] == 0:
+        return n_classes, min_class_fraction
+    for j in range(min(n_cols, Xn.shape[1])):
+        obs = Xn[:, j][~np.isnan(Xn[:, j])]
+        if obs.size == 0:
+            # unreachable while `build` admits only columns with >=2 non-None values, but a 0-size column
+            # must not read as BALANCED — 0.0 is the least-committal fill and n_classes 0 says why.
+            continue
+        counts = np.unique(obs, return_counts=True)[1]
+        n_classes[j] = int(counts.size)
+        min_class_fraction[j] = round(float(counts.min() / obs.size), 6)
+    return n_classes, min_class_fraction
+
+
 @functools.lru_cache(maxsize=1)
 def _live_rule_ids() -> frozenset:
     """Every rule_id currently defined in target-contracts' rule files — the set a FRESH run can still emit.
@@ -436,6 +512,11 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
         for j in range(len(feature_order))
     ]
 
+    # per-column CLASS BALANCE — the VARIANCE-axis companion to the COVERAGE measure above. Read them
+    # together: they are orthogonal, and `reference_mask_fraction` alone rates the most z-degenerate column in
+    # this artifact a flawless 1.000. See class_balance() for why it takes two fields and not one.
+    n_classes, min_class_fraction = class_balance(Xn, len(feature_order))
+
     # per-column-PAIR redundancy, over the metered numerics only, on the OBSERVED rows (not the imputed
     # ones the PCA uses). Lets a label-free consumer discount a reference column that duplicates another
     # instead of hand-tuning a per-axis weight. See feature_correlation() for why the basis differs.
@@ -510,6 +591,12 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
         # per-column measured fraction (aligned to feature_order) — reference-distribution quality for
         # label-free rank/percentile/surprisal consumers to gate on (verdict-INERT).
         "reference_mask_fraction": reference_mask_fraction,
+        # per-column CLASS BALANCE (aligned to feature_order), the VARIANCE-axis companion to the coverage
+        # measure above — read the two together, and read these two as a PAIR: the gate is
+        # `n_classes >= 2 and min_class_fraction >= t`, because the fraction alone rates a CONSTANT column
+        # 1.000 and cannot tell a rare-minority column from a continuous one. Verdict-INERT.
+        "n_classes": n_classes,
+        "min_class_fraction": min_class_fraction,
         # per-PAIR redundancy over the metered numerics, pairwise-complete. Three keys, always together:
         # the matrix, the column keys it is aligned to (a SUBSET of feature_order — never index it with
         # feature_order), and the co-measured row count behind each cell (None cell = never looked).
