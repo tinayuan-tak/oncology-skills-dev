@@ -67,11 +67,22 @@ shrink over time (equality there would red the moment a producer legitimately ca
 """
 
 import ast
+import subprocess
 import sys
 from pathlib import Path
 
 _SKILLS_ROOT = Path(__file__).resolve().parents[2]
+_REPO_ROOT = _SKILLS_ROOT.parent
 sys.path.insert(0, str(_SKILLS_ROOT))
+
+# Directory prefixes holding FIRST-PARTY python. The reader sweep below is rooted at the REPO, not at
+# `skills/`: a guard whose name claims "the set of corroboration readers" must not silently mean "readers
+# under one subtree". `eval/` is a SIBLING of `skills/`, so a walk rooted at `skills/` could never reach
+# `eval/build_discordance_ledger.py` however the AST predicate were written — the population was narrowed
+# by the ROOT, one level above every filter. Asserted as a floor by
+# `test_the_reader_population_covers_every_first_party_source_dir`, so the next reorg reds rather than
+# re-narrowing in silence.
+_FIRST_PARTY_SOURCE_DIRS = ("skills/", "eval/", "batch/")
 
 from _skills_common import figure_palette, headline_core, question_table_core  # noqa: E402
 from _skills_common.archetype_core import (  # noqa: E402
@@ -301,6 +312,13 @@ def _fallbacks_at_call_sites(label: str, call_sites) -> dict:
         also ends in `CONF_DOTS` and is a DIFFERENT AXIS — its level comes from a ternary on
         `evidence_state`, never from a corroboration token. Same words, different axis; the call site is
         the discriminator, and a fleet-wide suffix sweep would silently annex it.
+
+    NOTE ON PATHS — this file carries two conventions on purpose, because they are two populations.
+    `_LIVE_CORROBORATION_PROJECTIONS` call sites are `skills/`-relative and resolve against `_SKILLS_ROOT`
+    (below): a projection is a python-importable map, so its call sites are necessarily inside `skills/`.
+    `_CORROBORATION_READERS` keys are REPO-relative, because that population is deliberately wider than
+    `skills/` — the point of the sweep root being the repo. A call site written repo-relative by analogy
+    fails LOUD here (`FileNotFoundError` on `skills/skills/...`), which is why the two can coexist.
     """
     base = label.rsplit(".", 1)[-1]
     seen = {}
@@ -322,50 +340,93 @@ def _fallbacks_at_call_sites(label: str, call_sites) -> dict:
 
 # Every non-test module that READS a `corroboration` field, with why it is safe. The population is
 # derived by AST sweep below, so a NEW reader reds `test_the_set_of_corroboration_readers_is_classified`
-# and forces this triage. Keyed by path relative to `skills/` with NO line numbers, so an unrelated edit
-# elsewhere in the module cannot red this file.
+# and forces this triage. Keyed by REPO-relative path with NO line numbers, so an unrelated edit elsewhere
+# in the module cannot red this file. (Keys were relative to `skills/` until the sweep root moved to the
+# repo; `eval/` readers have no spelling under the old root, which is the defect that forced the move.)
 _CORROBORATION_READERS = {
     # --- the numeric encoder, covered by the assertions above -------------------------------------
-    "_skills_common/archetype_core.py": "ENCODER (CLAIM_CORR_ORD)",
+    "skills/_skills_common/archetype_core.py": "ENCODER (CLAIM_CORR_ORD)",
     # --- the projections asserted in _LIVE_CORROBORATION_PROJECTIONS -------------------------------
-    "_skills_common/headline_core.py": "PROJECTION _CORR_TO_CONF; also echoes the token verbatim into the axis list",
-    "_skills_common/question_table_core.py": "PROJECTION CONF_DOTS via conf()",
-    "_skills_common/headline_hero.py": "PROJECTION figure_palette.REL_DOTS; also renders the token as prose",
-    "_skills_common/presence_claims_figure.py": "PROJECTION figure_palette.REL_DOTS; also renders it as prose",
+    "skills/_skills_common/headline_core.py": "PROJECTION _CORR_TO_CONF; also echoes the token verbatim into the axis list",
+    "skills/_skills_common/question_table_core.py": "PROJECTION CONF_DOTS via conf()",
+    "skills/_skills_common/headline_hero.py": "PROJECTION figure_palette.REL_DOTS; also renders the token as prose",
+    "skills/_skills_common/presence_claims_figure.py": "PROJECTION figure_palette.REL_DOTS; also renders it as prose",
     # --- delegate to question_table_core.conf, so covered by CONF_DOTS above -----------------------
-    "_skills_common/dependency_question_table.py": "DELEGATES to question_table_core.conf",
-    "_skills_common/differentiation_question_table.py": "DELEGATES to question_table_core.conf",
-    "_skills_common/presence_question_table.py": "DELEGATES to question_table_core.conf",
-    "_skills_common/selectivity_question_table.py": "DELEGATES to question_table_core.conf",
+    "skills/_skills_common/dependency_question_table.py": "DELEGATES to question_table_core.conf",
+    "skills/_skills_common/differentiation_question_table.py": "DELEGATES to question_table_core.conf",
+    "skills/_skills_common/presence_question_table.py": "DELEGATES to question_table_core.conf",
+    "skills/_skills_common/selectivity_question_table.py": "DELEGATES to question_table_core.conf",
     # --- PASS-THROUGH: renders or copies the token verbatim. An unrecognised rung reads as ITSELF,
     #     which is honest — no map, so nothing to keep in step. This is the safe way to consume the axis.
-    "_skills_common/literature_synthesis.py": "PASS-THROUGH (prose line)",
-    "_skills_common/report_render/backends/text.py": "PASS-THROUGH (prose line)",
-    "_skills_common/signals_first.py": "PASS-THROUGH (prose line)",
-    "_skills_common/skill_report.py": "PASS-THROUGH (copied verbatim into the report atom)",
-    "_skills_common/subgroup_derivation.py": "PASS-THROUGH (copied verbatim into the per-stratum atom)",
-    "cross-evidence-hypothesis/scripts/run.py": "PASS-THROUGH (prose; the gate reads `signal`, not this)",
-    "example-gallery/scripts/generate_example_gallery.py": "PASS-THROUGH (gallery prose)",
-    "target-profile/scripts/tp_synthesis_prompt.py": "PASS-THROUGH (prompt prose)",
-    "tumor-presence/scripts/run.py": "PASS-THROUGH (copied verbatim under a `certainty` key)",
+    "skills/_skills_common/literature_synthesis.py": "PASS-THROUGH (prose line)",
+    "skills/_skills_common/report_render/backends/text.py": "PASS-THROUGH (prose line)",
+    "skills/_skills_common/signals_first.py": "PASS-THROUGH (prose line)",
+    "skills/_skills_common/skill_report.py": "PASS-THROUGH (copied verbatim into the report atom)",
+    "skills/_skills_common/subgroup_derivation.py": "PASS-THROUGH (copied verbatim into the per-stratum atom)",
+    "skills/cross-evidence-hypothesis/scripts/run.py": "PASS-THROUGH (prose; the gate reads `signal`, not this)",
+    "skills/example-gallery/scripts/generate_example_gallery.py": "PASS-THROUGH (gallery prose)",
+    "skills/target-profile/scripts/tp_synthesis_prompt.py": "PASS-THROUGH (prompt prose)",
+    "skills/tumor-presence/scripts/run.py": "PASS-THROUGH (copied verbatim under a `certainty` key)",
+    # --- OUTSIDE `skills/`, and invisible to every guard on this axis until the sweep root moved. The
+    #     eval harness carries its OWN vocabulary — 8 literal token sets, and it imports no canonical
+    #     ladder — so nothing here is kept in step by construction. Both entries are MEMBERSHIP TESTS
+    #     against a literal set, which is the one shape that neither reds nor renders honestly: an
+    #     unrecognised rung silently fails the test and takes the `else` branch.
+    "eval/build_discordance_ledger.py": (
+        "MEMBERSHIP `_DISAGREEMENT_CORROBORATION == {'low'}`, PROSE-ONLY reach — it appends a routing "
+        "clause; the GAP_CALIBRATION/GAP_VERDICT_RULE decision is made by `in_calibration`, not by this. "
+        "`low` is reserved for arms that genuinely DISAGREED, so a rung meaning `one arm, unopposed` is "
+        "correctly a non-member — see the comment at archetype_core.py's CLAIM_CORR_ORD, which names this "
+        "very set as the reason `low < single_arm`. NOT a projection: no map, no key coverage to keep."
+    ),
+    "eval/run_known_target_panel.py": "PASS-THROUGH (copied verbatim into the panel row)",
 }
 
 
+def _tracked_python_files() -> list:
+    """Repo-relative paths of every TRACKED `.py` file, newline-safe, in git's order.
+
+    The population comes from git rather than from a filesystem walk, and that is load-bearing three
+    times over. Each of these was measured on this repo, and each fires BEFORE a walk could reach the
+    AST predicate, so none of them would present as a coverage gap:
+
+    * SCOPE — 677 `.py` files are tracked; 14,262 exist on disk. A walk rooted at the repo descends into
+      the vendored `.pixi/` environment: ~21x the work, and it admits third-party modules into a
+      population whose entire purpose is to make a FIRST-PARTY author triage a new reader.
+    * DECODABILITY — zero TRACKED files fail to decode as UTF-8; vendored ones do. `read_text()` then
+      raises `UnicodeDecodeError`, which is not a `SyntaxError` and so escapes the guard below.
+    * REPRODUCIBILITY — the vendored tree holds symlinks into OTHER worktrees under `/tmp/wt/`, which
+      parallel sessions create and delete. A walk raises `FileNotFoundError` on a dangling one, making
+      this guard's verdict depend on whether a peer session had cleaned up its worktree. That is the
+      worst property a test on a shared checkout can have, and it is silent.
+
+    Not wrapped in a try: if git cannot answer, the population is unknown, and an unknown population
+    must not be silently spelled as an empty one — see the anti-vacuity floor in the tests below.
+    """
+    out = subprocess.run(
+        ["git", "-C", str(_REPO_ROOT), "ls-files", "-z", "*.py"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    return [p for p in out.split("\0") if p]
+
+
 def _corroboration_reader_modules() -> set:
-    """Paths (relative to `skills/`) of every non-test module that reads a `corroboration` field.
+    """REPO-relative paths of every non-test module that reads a `corroboration` field.
 
     The PRECONDITION for this defect class is receiving a corroboration token — a map is only dangerous
     if something feeds it one — so that is what the sweep looks for, via AST rather than text so a
     mention in a comment or a docstring cannot enter the population.
     """
     found = set()
-    for path in sorted(_SKILLS_ROOT.rglob("*.py")):
-        rel = path.relative_to(_SKILLS_ROOT).as_posix()
+    for rel in _tracked_python_files():
         if "__pycache__" in rel or "/tests/" in rel:
             continue
+        path = _REPO_ROOT / rel
         try:
             tree = ast.parse(path.read_text())
-        except SyntaxError:  # pragma: no cover - a broken module is not this file's business
+        except (SyntaxError, UnicodeDecodeError, OSError):  # pragma: no cover - not this file's business
             continue
         for node in ast.walk(tree):
             reads = (
@@ -480,11 +541,15 @@ def test_the_set_of_corroboration_readers_is_classified():
     a fourth consumer cannot be added silently — the author is forced to say which kind it is.
     """
     found = _corroboration_reader_modules()
-    # Anti-vacuity BY NAME: a broken sweep (wrong root, changed AST shape) must not green this.
+    # Anti-vacuity BY NAME: a broken sweep (wrong root, changed AST shape) must not green this. The
+    # `eval/` member is not decoration — it is the whole point. A floor drawn only from `skills/` stays
+    # satisfied if the root is narrowed back to `skills/`, so the previous version of this guard would
+    # have gone GREEN on the very regression it now exists to catch.
     assert {
-        "_skills_common/archetype_core.py",
-        "_skills_common/headline_core.py",
-        "_skills_common/question_table_core.py",
+        "skills/_skills_common/archetype_core.py",
+        "skills/_skills_common/headline_core.py",
+        "skills/_skills_common/question_table_core.py",
+        "eval/build_discordance_ledger.py",
     } <= found, f"the reader sweep is broken — it found {len(found)} module(s): {sorted(found)}"
 
     unclassified = sorted(found - set(_CORROBORATION_READERS))
@@ -498,4 +563,44 @@ def test_the_set_of_corroboration_readers_is_classified():
     assert not stale, (
         f"_CORROBORATION_READERS names module(s) that no longer read the field: {stale}. A stale entry is "
         "a standing exemption for code that moved — delete it, or the next reader inherits its excuse."
+    )
+
+
+def test_the_reader_population_covers_every_first_party_source_dir():
+    """Guard the guard's ROOT, which is the one thing the sweep above cannot check about itself.
+
+    `test_the_set_of_corroboration_readers_is_classified` asserts completeness over "the set of
+    corroboration readers". For most of its life it meant "readers under `skills/`", because the root was
+    `skills/` and `eval/` is a SIBLING — so two readers, one of them the module that turns a rung into a
+    claimed discordance, sat outside the population while the guard read green. Nothing failed: a walk
+    that cannot reach a file does not report it missing.
+
+    The lesson generalises past this axis. A DATA-DERIVED population is only as wide as the tree it is
+    pointed at, so `declared list = FLOOR, data = SCOPE` is not sufficient on its own — the ROOT needs a
+    floor of its own, or the narrowing just moves up a level. Hence equality, not containment: a new
+    top-level directory of first-party python must RED here and force a deliberate decision about whether
+    the axis guards cover it, rather than being quietly outside them.
+    """
+    tracked = _tracked_python_files()
+    # Anti-vacuity: an unknown population must not be spelled as an empty one. `git ls-files` returning
+    # nothing (wrong cwd, not a repo, an export with no .git) would otherwise green every sweep here.
+    assert len(tracked) > 100, (
+        f"the tracked-python population is implausibly small ({len(tracked)}) — `git ls-files` is not "
+        f"answering for {_REPO_ROOT}, so every reader sweep in this file is vacuous."
+    )
+
+    top_level = {p.split("/")[0] + "/" for p in tracked if "/" in p}
+    assert top_level == set(_FIRST_PARTY_SOURCE_DIRS), (
+        f"first-party python now lives in {sorted(top_level)}, but _FIRST_PARTY_SOURCE_DIRS declares "
+        f"{sorted(_FIRST_PARTY_SOURCE_DIRS)}. Reconcile them deliberately: a directory that appears here "
+        "and is NOT swept is a reader population that silently narrowed, which is exactly the defect this "
+        "test exists to prevent. Adding the name is the fix ONLY if the sweep genuinely reaches it."
+    )
+
+    # And the sweep must actually be reaching outside `skills/` — the property that regressed before.
+    outside = {r for r in _corroboration_reader_modules() if not r.startswith("skills/")}
+    assert outside, (
+        "the reader sweep found no corroboration reader outside `skills/`. Either every eval-side reader "
+        "was deleted (then drop them from _CORROBORATION_READERS and this assertion), or the sweep root "
+        "has been narrowed back to a subtree and the completeness claim in this file is false again."
     )
