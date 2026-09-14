@@ -47,16 +47,28 @@ def _boto3_client():
     return boto3.Session(profile_name=os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)).client("s3")
 
 
+def _default_data_catalog() -> Path:
+    """Sibling-checkout root for the data-catalog repo, resolved on EVERY call.
+
+    Derived from this file's own location, not $HOME: on a dev box those are the same directory,
+    which is exactly why the previous `Path.home()` default could not be falsified by a local run.
+    Resolved per call rather than as a module constant — a constant freezes the environment at
+    import time, where no `monkeypatch.setenv` can reach it, which is half of why this default went
+    uncovered. `or` rather than a two-arg `.get()` so an EMPTY value falls back too: `.get(K, d)`
+    hands back "" and `Path("")` is the CWD, a plausible-looking wrong root.
+    """
+    return Path(
+        os.environ.get("DATA_CATALOG_ROOT")
+        or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
+    )
+
+
 def _load_manifest_files(program: str, data_catalog_repo: Optional[Path] = None) -> list[dict]:
     """Return the manifest file entries for a program's TUMOR MAFs (description names tumor).
     Manifest-driven: no barcode parsing — case_id/sample_id/project_id are pre-tagged."""
     import yaml
 
-    repo = (
-        Path(data_catalog_repo)
-        if data_catalog_repo
-        else Path.home() / "rnd-computational-biology-oncology-data-catalog"
-    )
+    repo = Path(data_catalog_repo) if data_catalog_repo else _default_data_catalog()
     mpath = repo / "manifests" / "sources" / f"{DR45_MANIFEST}.yaml"
     m = yaml.safe_load(mpath.read_text())
     out = []

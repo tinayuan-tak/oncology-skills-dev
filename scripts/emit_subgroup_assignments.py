@@ -89,6 +89,23 @@ SOURCE_TO_ASSIGNER = {
 # loader lands, rather than silently emit duplicate-identity products.
 _SOURCES_WITHOUT_DISTINCT_LOADER = frozenset({"beataml_maf", "target_aml_maf"})
 
+
+def _default_catalog_repo() -> Path:
+    """Sibling-checkout root for the data-catalog repo, resolved on EVERY run.
+
+    NOT a `@click.option(default=...)` expression: click freezes decorator defaults at import time,
+    so a baked-in path is unreachable by any test that sets the environment afterwards — which is
+    precisely how the hardcoded /home/sagemaker-user default here survived two portability sweeps.
+    Derived from this file's own location so it is indifferent to $HOME (on a dev box $HOME and the
+    checkout parent are the same directory, so a local run cannot tell the two apart). `or` rather
+    than a two-arg `.get()` so an EMPTY value falls back too: `Path("")` is the CWD.
+    """
+    return Path(
+        os.environ.get("DATA_CATALOG_ROOT")
+        or Path(__file__).resolve().parents[1].parent / "rnd-computational-biology-oncology-data-catalog"
+    )
+
+
 SourceKey = Literal[
     "tcga_marker_paper",
     "tcga_maf",
@@ -344,10 +361,10 @@ def _catalog_id_from_shard(shard: ShardSpec) -> str:
 @click.option(
     "--catalog-repo",
     type=click.Path(file_okay=False, path_type=Path),
-    default=Path(
-        os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
-    ),
-    help="Path to data-catalog repo.",
+    # Deliberately None: click evaluates decorator defaults at IMPORT time, so any path baked in
+    # here is frozen before a caller's environment exists. _default_catalog_repo() runs per-invocation.
+    default=None,
+    help="Path to data-catalog repo (default: $DATA_CATALOG_ROOT, else the sibling checkout next to this repo).",
 )
 @click.option(
     "--run-dir",
@@ -362,10 +379,16 @@ def _catalog_id_from_shard(shard: ShardSpec) -> str:
     help="Classifier config YAML — REQUIRED when --source=depmap_expression.",
 )
 def main(
-    source: str, indication: str, release_pin: str, catalog_repo: Path, run_dir: Path, classifier_config: Path | None
+    source: str,
+    indication: str,
+    release_pin: str,
+    catalog_repo: Path | None,
+    run_dir: Path,
+    classifier_config: Path | None,
 ) -> int:
     """Emit one (source × indication) shard of subgroup assignments."""
     dry_run = bool(os.environ.get("DRY_RUN"))
+    catalog_repo = catalog_repo or _default_catalog_repo()
 
     shard = ShardSpec(
         source=source,

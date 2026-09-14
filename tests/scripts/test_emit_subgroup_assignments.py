@@ -263,6 +263,174 @@ def test_cli_dry_run_prints_plan(monkeypatch, tmp_path):
     assert "subgroup_assigner_directly_tagged" in result.stderr
 
 
+# ---------- --catalog-repo default portability ----------
+#
+# The option used to bake in a literal /home/sagemaker-user path. Nothing could observe it: the
+# dry-run test below passes --catalog-repo explicitly, and a click decorator default is frozen at
+# IMPORT time, so no monkeypatch.setenv could ever have reached it either.
+
+
+DATA_CATALOG_SIBLING = REPO_ROOT.parent / "rnd-computational-biology-oncology-data-catalog"
+NOT_THE_CHECKOUT_PARENT = "/tmp/emit-subgroup-fake-home-not-the-checkout-parent"
+
+
+def test_catalog_repo_option_bakes_in_no_path():
+    """click evaluates decorator defaults once, at import. Any path baked into the option is
+    therefore frozen before a caller's environment exists — unreachable by a test and unaffected by
+    DATA_CATALOG_ROOT being exported later. The option must carry None and resolve per run."""
+    from scripts.emit_subgroup_assignments import main
+
+    param = next(p for p in main.params if p.name == "catalog_repo")
+    assert param.default is None, (
+        f"--catalog-repo has a decorator default ({param.default!r}); resolve it per run in main() instead"
+    )
+
+
+def test_default_catalog_repo_is_derived_from_the_checkout_not_home(monkeypatch):
+    """On a dev box $HOME and the checkout parent are the same directory, so only a faked $HOME can
+    tell a home-anchored root from a checkout-derived one."""
+    from scripts.emit_subgroup_assignments import _default_catalog_repo
+
+    monkeypatch.delenv("DATA_CATALOG_ROOT", raising=False)
+    monkeypatch.setenv("HOME", NOT_THE_CHECKOUT_PARENT)
+
+    resolved = _default_catalog_repo()
+
+    assert resolved == DATA_CATALOG_SIBLING
+    assert NOT_THE_CHECKOUT_PARENT not in str(resolved)
+
+
+def test_default_catalog_repo_honours_the_env_override(monkeypatch, tmp_path):
+    """POSITIVE CONTROL: a path that does not move under a faked $HOME is indistinguishable from a
+    function that was never called, so prove this resolution does move when the env names a root."""
+    from scripts.emit_subgroup_assignments import _default_catalog_repo
+
+    monkeypatch.setenv("DATA_CATALOG_ROOT", str(tmp_path))
+
+    assert _default_catalog_repo() == tmp_path
+
+
+def test_default_catalog_repo_falls_back_on_an_empty_env_value(monkeypatch):
+    """DATA_CATALOG_ROOT="" must fall back, not yield Path("") — which is the CWD."""
+    from scripts.emit_subgroup_assignments import _default_catalog_repo
+
+    monkeypatch.setenv("DATA_CATALOG_ROOT", "")
+
+    assert _default_catalog_repo() == DATA_CATALOG_SIBLING
+
+
+def test_cli_resolves_catalog_repo_per_run_when_the_flag_is_omitted(tmp_path):
+    """END-TO-END, in a real process with --catalog-repo OMITTED: the driver must resolve the root
+    at run time and hand it to ShardSpec, with $HOME faked to a directory holding no catalog.
+
+    THIS TEST PASSES AGAINST THE OLD CODE TOO, and that is worth stating so nobody mistakes it for
+    the guard on the frozen-default defect. Steering it requires DATA_CATALOG_ROOT (the derived
+    sibling is a real checkout, not this tmp_path), and a SUBPROCESS re-imports the module with that
+    variable ALREADY SET — so the old import-time os.environ.get(...) default resolved correctly
+    here. Click's freeze is only observable IN-PROCESS, where the environment changes after import.
+    The actual guard on it is test_catalog_repo_option_bakes_in_no_path, which asserts on the
+    parameter's structure rather than on behaviour. What this test does add: the resolved root
+    reaches ShardSpec through a real invocation, and no $HOME fragment leaks into it."""
+    catalog_repo = tmp_path / "data-catalog"
+    catalog_dir = catalog_repo / "subgroup-catalogs" / "COADREAD"
+    catalog_dir.mkdir(parents=True)
+    catalog_yaml = catalog_dir / "2026-Q2.yaml"
+    catalog_yaml.write_text("id: coadread-subgroups-2026-q2\nindication: COADREAD\n")
+    fake_home = tmp_path / "fake-home"
+    fake_home.mkdir()
+
+    result = subprocess.run(
+        [
+            "python",
+            "-m",
+            "scripts.emit_subgroup_assignments",
+            "--source",
+            "tcga_marker_paper",
+            "--indication",
+            "COADREAD",
+            "--release-pin",
+            "2026-Q2",
+            # no --catalog-repo: this is the branch a bare invocation takes
+            "--run-dir",
+            str(tmp_path / "run"),
+        ],
+        cwd=REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env={
+            "PATH": "/opt/conda/bin:/usr/bin:/bin",
+            "DRY_RUN": "1",
+            "HOME": str(fake_home),
+            "DATA_CATALOG_ROOT": str(catalog_repo),
+        },
+    )
+    assert result.returncode == 0, f"CLI failed:\n{result.stderr}"
+    # The resolved root reached ShardSpec: the catalog it located is the one under the named root.
+    assert str(catalog_yaml) in result.stderr
+    assert str(fake_home) not in result.stderr
+
+
+def test_batch_driver_derives_catalog_repo_when_env_is_unset():
+    """The batch driver passes --catalog-repo on EVERY shard invocation, so its own default overrides
+    the one inside emit_subgroup_assignments.py. A $HOME-anchored default here silently undoes the
+    portable default for the batch path — which is how all 20 shards actually run.
+
+    test_batch_script_parses_shard_matrix below exports CATALOG_REPO explicitly and so can never
+    observe this default, the same blindness that let the default go wrong in the first place.
+
+    The exit code is deliberately NOT asserted: whether the derived sibling checkout exists varies
+    by environment, and the claim under test is which ROOT the driver resolves, not that it is
+    populated. The banner is logged before any shard runs, so it is present either way.
+    """
+    fake_home = "/tmp/emit-batch-fake-home-not-the-checkout-parent"
+    result = subprocess.run(
+        [str(REPO_ROOT / "scripts" / "run_subgroup_emit_batch.sh"), "COADREAD"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env={
+            "PATH": "/opt/conda/bin:/usr/bin:/bin",
+            "HOME": fake_home,  # NOT the checkout parent — the runner condition
+            "DRY_RUN": "1",
+            "PARALLEL": "1",
+            # CATALOG_REPO and DATA_CATALOG_ROOT both unset on purpose: exercise the derivation.
+        },
+    )
+    combined = result.stdout + result.stderr
+    assert f"catalog-repo:  {DATA_CATALOG_SIBLING}" in combined, (
+        f"batch driver resolved an unexpected catalog root:\n{combined[:2000]}"
+    )
+    # Scoped to the catalog-repo line, NOT the whole output: RUN_DIR is $HOME-anchored on purpose
+    # (a scratch/output directory under $HOME is correct and portable — only REPO roots must derive
+    # from the checkout), so asserting the fake home is absent everywhere would fail on a correct run.
+    catalog_lines = [ln for ln in combined.splitlines() if "catalog-repo:" in ln]
+    assert len(catalog_lines) == 1, f"expected exactly one catalog-repo banner, got {catalog_lines}"
+    assert fake_home not in catalog_lines[0], f"$HOME leaked into the catalog root: {catalog_lines[0]}"
+
+
+def test_batch_driver_honours_data_catalog_root():
+    """POSITIVE CONTROL for the test above: prove the derivation is actually consulted by showing the
+    resolved root MOVES when DATA_CATALOG_ROOT names one. An invariant path is otherwise
+    indistinguishable from a driver that never reached this line."""
+    result = subprocess.run(
+        [str(REPO_ROOT / "scripts" / "run_subgroup_emit_batch.sh"), "COADREAD"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+        env={
+            "PATH": "/opt/conda/bin:/usr/bin:/bin",
+            "HOME": "/tmp",
+            "DRY_RUN": "1",
+            "PARALLEL": "1",
+            "DATA_CATALOG_ROOT": "/tmp/emit-batch-env-named-root",
+        },
+    )
+    combined = result.stdout + result.stderr
+    assert "catalog-repo:  /tmp/emit-batch-env-named-root" in combined, (
+        f"DATA_CATALOG_ROOT was not honoured:\n{combined[:2000]}"
+    )
+
+
 def test_batch_script_exists_and_executable():
     """The batch bash driver exists + is executable."""
     batch_script = REPO_ROOT / "scripts" / "run_subgroup_emit_batch.sh"

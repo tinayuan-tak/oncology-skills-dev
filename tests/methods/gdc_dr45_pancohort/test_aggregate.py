@@ -41,8 +41,13 @@ _FILE_ROWS = {
 
 
 def _patch(monkeypatch, files=None):
+    # Keyword name mirrors the real signature (data_catalog_repo). The production call site passes
+    # it positionally, so a stub with the wrong keyword name would go unnoticed until someone
+    # switched to a keyword call — at which point the stub, not the code, is what breaks.
     monkeypatch.setattr(
-        agg, "_load_manifest_files", lambda program, repo=None: files if files is not None else _fake_files()
+        agg,
+        "_load_manifest_files",
+        lambda program, data_catalog_repo=None: files if files is not None else _fake_files(),
     )
     monkeypatch.setattr(agg, "_boto3_client", lambda: object())
     monkeypatch.setattr(agg, "ensure_aws_profile", lambda: None)
@@ -117,6 +122,79 @@ def test_load_manifest_files_filters_tumor_and_program(tmp_path):
     )
     files = agg._load_manifest_files("ALCHEMIST-ALCH", data_catalog_repo=tmp_path)
     assert [f["case_id"] for f in files] == ["c1"]  # normal + off-program dropped
+
+
+# ---------- the data-catalog root DEFAULT (previously zero test reach) ----------
+#
+# Every test above either monkeypatches _load_manifest_files outright or passes
+# data_catalog_repo=tmp_path, so none of them ever evaluated the default. That is exactly how a
+# Path.home()-anchored root survived the repo-wide portability sweeps here: the value existed, but
+# nothing observed it. These four tests observe it.
+
+
+DATA_CATALOG_SIBLING = REPO.parent / "rnd-computational-biology-oncology-data-catalog"
+NOT_THE_CHECKOUT_PARENT = "/tmp/gdc-dr45-fake-home-not-the-checkout-parent"
+
+
+def test_default_data_catalog_is_derived_from_the_checkout_not_home(monkeypatch):
+    """A faked $HOME is the only falsification available: on a dev box Path.home() IS the checkout
+    parent, so the old and new resolutions agree there and a local run cannot tell them apart.
+    Under a $HOME that is NOT the checkout parent — the CI/runner condition — they diverge."""
+    monkeypatch.delenv("DATA_CATALOG_ROOT", raising=False)
+    monkeypatch.setenv("HOME", NOT_THE_CHECKOUT_PARENT)
+
+    resolved = agg._default_data_catalog()
+
+    assert resolved == DATA_CATALOG_SIBLING
+    assert NOT_THE_CHECKOUT_PARENT not in str(resolved)
+
+
+def test_default_data_catalog_honours_the_env_override(monkeypatch, tmp_path):
+    """POSITIVE CONTROL for the test above. A path that does not move under a faked $HOME is also
+    what "the function was never called" looks like, so prove the same resolution DOES move when
+    DATA_CATALOG_ROOT names a root."""
+    monkeypatch.setenv("DATA_CATALOG_ROOT", str(tmp_path))
+
+    assert agg._default_data_catalog() == tmp_path
+
+
+def test_default_data_catalog_falls_back_on_an_empty_env_value(monkeypatch):
+    """An empty-but-set variable must fall back rather than resolve to Path("") — which is ".",
+    the CWD, a wrong root that looks plausible in a log line. This is why the resolution uses `or`
+    and not a two-arg os.environ.get(K, default)."""
+    monkeypatch.setenv("DATA_CATALOG_ROOT", "")
+
+    assert agg._default_data_catalog() == DATA_CATALOG_SIBLING
+
+
+def test_load_manifest_files_opens_the_resolved_default(monkeypatch, tmp_path):
+    """WIRING: the resolved default must be the path _load_manifest_files actually opens when the
+    caller passes no repo — which is how aggregate_program() reaches it in a real run. The
+    pre-existing filter test passes data_catalog_repo=tmp_path explicitly, so it can never catch a
+    wrong default: it never lets the default be used."""
+    import yaml
+
+    mdir = tmp_path / "manifests" / "sources"
+    mdir.mkdir(parents=True)
+    (mdir / "gdc-pancohort-somatic-dr45-0.yaml").write_text(
+        yaml.safe_dump(
+            {
+                "files": [
+                    {
+                        "project_id": "ALCHEMIST-ALCH",
+                        "case_id": "c1",
+                        "path": "p/c1.maf.gz",
+                        "description": "primary tumor sample",
+                    }
+                ]
+            }
+        )
+    )
+    monkeypatch.setenv("DATA_CATALOG_ROOT", str(tmp_path))
+
+    files = agg._load_manifest_files("ALCHEMIST-ALCH")  # no data_catalog_repo → default path taken
+
+    assert [f["case_id"] for f in files] == ["c1"]
 
 
 def test_multi_disease_program_raises():

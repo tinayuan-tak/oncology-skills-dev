@@ -42,7 +42,14 @@ SHARD_FILE="$REPO_ROOT/scripts/subgroup_emit_shards.tsv"
 PARALLEL="${PARALLEL:-4}"
 DRY_RUN="${DRY_RUN:-}"
 RUN_DIR="${RUN_DIR:-$HOME/dev/framework-runs/subgroup-emit-$(date -u +%Y-%m-%d)}"
-CATALOG_REPO="${CATALOG_REPO:-$HOME/rnd-computational-biology-oncology-data-catalog}"
+# Derived from THIS script's location, not $HOME. Two reasons it matters here specifically:
+#   1. On a dev box $HOME and the checkout parent are the same directory, so a $HOME-anchored
+#      default cannot be falsified by a local run — it is only wrong somewhere nobody looks.
+#   2. This value is passed through as --catalog-repo on every shard invocation (see below), so it
+#      OVERRIDES the portable default inside emit_subgroup_assignments.py. Leaving it $HOME-anchored
+#      would silently undo that fix for the batch path, which is how all 20 shards actually run.
+# Precedence matches the Python side: explicit CATALOG_REPO, then DATA_CATALOG_ROOT, then the sibling.
+CATALOG_REPO="${CATALOG_REPO:-${DATA_CATALOG_ROOT:-$(dirname "$REPO_ROOT")/rnd-computational-biology-oncology-data-catalog}}"
 CLASSIFIER_CONFIG_DIR="${CLASSIFIER_CONFIG_DIR:-$REPO_ROOT/methods/subgroup_assigner_classifier/example-configs}"
 S3_BUCKET="onc-compbio"
 
