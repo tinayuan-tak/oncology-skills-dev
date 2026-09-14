@@ -22,6 +22,27 @@ question: "Which curated Reactome pathways is {target.symbol} a member of, and u
 
 tier: target   # pathway membership is a property of the gene, independent of indication
 
+# Evidence-capsule projection contract. Measured before this declaration (corpus-20260914, n=504):
+# present and measured in 480 of 504. Unlike the other two cards in this change, the class was ALREADY
+# picked correctly — `pathway_class` is the only `*_class` field, so the fallback found it
+# (well_annotated 315, partial 128, sparse 37, None 24). `primary_class` here therefore PINS existing
+# behaviour rather than fixing it: the value is that a rename can no longer silently re-point the pick,
+# and the validator's CAPSULE_UNDECLARED_FIELD check turns that rename into an error.
+# What WAS broken: numeric anchors were empty in 480 of 480, because `pathway_count` — the one number
+# the class is cut on (>= 20 well_annotated / 5-19 partial / 1-4 sparse) — matches no `_ANCHOR_HINTS`
+# substring; "count" is not a hint. The capsule showed the verdict and hid the count behind it.
+# Categoricals were empty by construction (no heuristic exists). `specific_pathways` is excluded as a
+# 20-row leaf list that would blow the capsule's token budget, and `uniprot_ac_resolved` as provenance
+# rather than a finding; `top_level_pathways` is a list, which the categorical layer caps at 6.
+capsule:
+  primary_class: pathway_class
+  categorical_fields:
+    - pathway_class
+    - top_level_pathways
+    - is_signaling
+  numeric_anchors:
+    - pathway_count   # >= 20 / 5-19 / 1-4 — cuts pathway_class; "count" is not an _ANCHOR_HINTS substring
+
 applies_when:
   - "context.data_sources.reactome_available == true"
 

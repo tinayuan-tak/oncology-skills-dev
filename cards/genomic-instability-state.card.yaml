@@ -27,6 +27,45 @@ question: "How chromosomally unstable is the {indication.label} cohort — highl
 
 tier: indication
 
+# Evidence-capsule projection contract. Measured before this declaration (corpus-20260914, n=504):
+# card present in 504/504, summary measured in 379. The capsule projected ONE class and FOUR numbers
+# for a card that scores SIX axes — five axes had no number at all — and ZERO categorical anchors.
+# Two distinct mechanisms, not one:
+#   · `frac_hrd_scar_high` (cuts hrd_scar_class) matches NO `_ANCHOR_HINTS` substring — the tuple
+#     carries "fraction" and "frac_dependent", not "frac" — so it is unreachable at any cap.
+#   · `wgd_fraction`, `msi_high_fraction`, `model_msi_high_fraction` and
+#     `model_mmr_signature_high_fraction` DO match "fraction" but are starved by `sorted(...)[:4]`:
+#     this card's own naming convention sorts `median_*` ahead of `model_*`/`msi_*`/`wgd_*`, so the
+#     four descriptive medians took ranks 0-3 of 11 and `wgd_fraction` sat at rank 10. An alphabetical
+#     tie-break silently turned a naming choice into a content decision.
+# Two of those four slots went to numbers that cut nothing: `median_purity` (a QC confounder) and
+# `median_hrd_scar_score` (HRD magnitude; the class is cut on `frac_hrd_scar_high`). Categoricals were
+# empty in 504/504 because `_categorical_anchors` has no heuristic at all — `if not fields: return
+# None` — so every card that has not declared projects zero categoricals by construction.
+# The slate below is one class-cutting number per axis (6) + `median_ploidy` (the WGD axis companion)
+# + `n_samples` (the denominator; measured in 379, the widest coverage of any field here, and likewise
+# unreachable to the scan since no "n_" hint exists) — spending the schema's cap of 8 exactly.
+# Deliberately NOT carried: `median_purity`, `median_hrd_scar_score`, `p25/p75_fraction_genome_altered`,
+# `model_hrd_signature_present_fraction`, and the four `n_*_high` counts. DISPLAY facet, verdict-inert.
+capsule:
+  primary_class: aneuploidy_burden_class
+  categorical_fields:
+    - aneuploidy_burden_class
+    - wgd_class
+    - msi_class
+    - model_msi_class
+    - model_mmr_signature_class
+    - hrd_scar_class
+  numeric_anchors:
+    - median_fraction_genome_altered     # vs 0.40 / 0.10 — cuts aneuploidy_burden_class
+    - wgd_fraction                       # vs 0.50 / 0.20 — cuts wgd_class; was rank 10 of 11, never surfaced
+    - median_ploidy                      # the WGD axis companion; the only median that earns a slot
+    - msi_high_fraction                  # vs 0.15 / 0.05 — cuts msi_class
+    - model_msi_high_fraction            # cuts model_msi_class
+    - model_mmr_signature_high_fraction  # cuts model_mmr_signature_class
+    - frac_hrd_scar_high                 # vs 0.20 / 0.05 — cuts hrd_scar_class; matched no hint at all
+    - n_samples                          # the denominator, last per capsule reading order
+
 applies_when:
   - "true"   # any indication with a TCGA-project mapping; data_unavailable-safe otherwise
 
