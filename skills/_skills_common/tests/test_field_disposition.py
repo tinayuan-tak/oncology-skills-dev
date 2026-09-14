@@ -338,8 +338,28 @@ def test_census_reaches_some_fields_but_not_all():
 
 # ── THE FLEET RATCHET (the one merge gate in this file) ───────────────────────────────────────────
 
-# ★ Frozen 2026-09-13 on `v2-architecture` @ ee910fec: domain 1801 / reached_exact 667 /
-# reached_any 882 / candidate_orphans 919.
+# ★ Frozen 2026-09-14 on `v2-architecture` @ 698c203e with target-contracts @ fa372c84 (TC#772):
+# domain 1801 / reached_exact 696 / reached_any_upper_bound 910 / candidate_orphans 891.
+#
+# BOTH SHAs ARE PART OF THE NUMBER, and since #1367 that is enforceable rather than aspirational: the
+# contracts checkout in .github/workflows/skills-validate.yml is a PINNED SHA, not `ref: main`. This
+# constant is a function of (skills tree, contracts tree) — measured on the same skills tree, the two
+# candidate contracts trees give 912 and 891 — so a freeze that names only its own repo records half of
+# an experiment. Re-measure against the PIN, not against whatever contracts `main` happens to be.
+#
+# WHY 891 AND NOT 919. Two separate movements, and only the second was earned here:
+#   919 -> 912  peers wired 7 pairs between the 09-13 freeze and 09-14 without re-tightening. This is
+#               the decay the slack assertion below exists to catch, and it is why that assertion is
+#               not optional: 7 banked-but-unclaimed pairs are 7 that a later regression could spend.
+#   912 -> 891  TC#772 declared `capsule:` on the three entirely-exact-dark cards
+#               (genomic-instability-state, target-safety-prioritisation, reactome-pathway-membership),
+#               wiring 22 pairs to the `capsule` reader.
+# `domain` is unchanged at 1801 across that second move, which is the load-bearing check: a `capsule:`
+# block is not an `outputs.summary_fields` entry, so it cannot enlarge the domain. The aperture closed
+# because more of a FIXED domain became read — the one direction this ratchet is trying to reward.
+# The orphan count falls by 21 while `reached_exact` rises by 22 because `genomic-instability-state::
+# n_samples` was already credited name-only (a generic field name matched by three code kinds), so it
+# moves from `reached_any` into `reached_exact` without leaving the orphan set. Quote 21, not 22.
 #
 # WHY 919 AND NOT 906. #1347 measured 906 on a domain of 1787. The 906 -> 919 move is not drift in the
 # instrument: 14 (card, field) pairs were declared in between and 13 of them arrived with no reader, so
@@ -355,7 +375,15 @@ def test_census_reaches_some_fields_but_not_all():
 # declaration), re-measure, lower this number. If you are here because your PR declared a new
 # `summary_field`, the gate is working: wire it, mark it `role: context`, or waive it with a named
 # reason in that skill's `field_disposition.yaml` — do not raise this ceiling.
-APERTURE_CEILING = 919
+#
+# IF THE READER LIVES IN CONTRACTS, MOVE THE PIN IN THE SAME COMMIT. This ratchet is two-sided, so a
+# contracts-side wiring change splits into two commits that each fail on a different assertion: bumping
+# the pin alone trips the SLACK assert (891 orphans under a 919 ceiling = gap 28), and lowering the
+# ceiling alone trips the CEILING assert (the pinned tree still measures 912 > 891). Neither half can
+# land first — this pair went in together for exactly that reason. The bump PR from #1367 cannot do it
+# either: its quarantine assumes a sibling move is neutral or BREAKING, and here the sibling move is an
+# IMPROVEMENT that a lone bump makes look like a break.
+APERTURE_CEILING = 891
 
 # Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
 # into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of
@@ -387,8 +415,9 @@ def test_fleet_aperture_does_not_grow():
 
     Liveness is asserted BEFORE the ceiling, and per input rather than in aggregate, because the
     failure mode of a ratchet is passing for the wrong reason: a census that parses nothing reports
-    zero orphans and satisfies `<= 919` comfortably. `skill_code` alone reaches 755 pairs, so a total
-    would keep this green through a complete contracts-side outage.
+    zero orphans and satisfies the ceiling comfortably. `skill_code` alone reaches 755 pairs, so a
+    total would keep this green through a complete contracts-side outage. (Stated as the ceiling, not
+    as a literal — a copy of the number in prose goes stale the first time the ratchet is banked.)
     """
     s = fd.summarise(fd.census(SKILLS_ROOT))
     alive = fd.reader_sources_alive(s["per_kind"])

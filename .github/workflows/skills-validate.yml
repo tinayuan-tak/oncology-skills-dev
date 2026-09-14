@@ -86,8 +86,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
-          # PINNED — main @ 2026-09-14T14:08:30Z. Bumped by bump-sibling-pins.yml; see SIBLING PINS above.
-          ref: a716f9238a89a9daecea9f82a5a14cc0041d31ef
+          # PINNED — main @ 2026-09-14T16:21:08Z (TC#772). Bumped by bump-sibling-pins.yml; see SIBLING PINS above.
+          #
+          # BUMPED BY HAND HERE, not by the bump PR, because this pin and APERTURE_CEILING in
+          # skills/_skills_common/tests/test_field_disposition.py are two halves of ONE fact and the
+          # aperture ratchet is TWO-SIDED. Measured over the 2x2 (skills @ 698c203e):
+          #   contracts a716f923 (pre-TC#772): 912 orphans -> ceiling 919 gap 7  GREEN | ceiling 891 RED (912 > 891)
+          #   contracts fa372c84 (post-TC#772): 891 orphans -> ceiling 919 gap 28 RED  | ceiling 891 gap 0 GREEN
+          # So the bump alone is red on the SLACK half and the ceiling alone is red on the CEILING half:
+          # each blocks the other, and only the pair is green. The pin quarantine assumes a sibling move
+          # is neutral or BREAKING; a two-sided ratchet makes a sibling IMPROVEMENT (21 pairs newly read)
+          # fail the same way, so a lone bump PR could never merge this move. Whoever lowers the ceiling
+          # must move the pin in the same commit.
+          ref: fa372c8411f9ad4d9ca65741b8bb226ce8397fea
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
