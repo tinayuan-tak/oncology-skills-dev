@@ -55,6 +55,25 @@ SPLIT_DENOMINATOR = ("genomic_alteration", "DEP")
 # pairs clear the gate). Asserting scoping against a column that FELL BACK would assert the fallback.
 SCOPED_INDICATION = "COADREAD"
 
+# ── the 2026-09-14 measurement this gate is now sized against ─────────────────────────────────────────
+# Measured by replaying all 504 corpus packages through both trunk trees around #1371 (`44ab7a2d` vs
+# `698c203e`; control 32500/32760 cells reproduced the stored string exactly and 0 signals moved). The
+# producer REROUTES populated rungs onto `single_arm` instead of adding a fourth population, so these
+# columns collapse from {distinct today} tiers to exactly 1 and fall BELOW USABLE_TIER_RARITY_DISTINCT once
+# the corpus is recomposed. This falsified the design call that shipped with this frame — see
+# `test_the_corroboration_encoding_is_an_insert_not_a_renumber`.
+CROSSES_DOWNWARD_ON_REFREEZE = {
+    ("dependency", "CHEM"): 3,
+    ("dependency", "SEL"): 2,
+    ("safety", "BURDEN"): 2,
+    ("selectivity", "DIST"): 3,
+    ("target_intrinsic", "MODALITY_ROUTING"): 2,
+}
+# ::corrob columns clearing BOTH gates (n>=20 AND distinct>=2) on the SHIPPED 297-target artifact. NOT the
+# same population as the replay figures above (26 clear pre-#1371 / 21 post over the n=504 corpus): a count
+# measured on one population is not a count on another, and mixing them is how "39 of 40" became "39 of 62".
+SHIPPED_CORROB_REACH = 27
+
 
 def _atlas():
     a = ac._shipped_atlas_or_none()
@@ -355,9 +374,101 @@ def test_the_display_annotation_never_reaches_the_spine():
     assert set(chip) == set(_chip(claim, "strong", "high")), f"the spine was mutated: {sorted(chip)}"
 
 
-def test_the_gate_is_monotone_under_a_new_rung():
-    """`single_arm` is inserted ADDITIVELY at 1.5 rather than by renumbering, so a producer minting it can
-    only ADD a distinct value to a column. The distinct-count gate can therefore admit more columns after
-    that lands, never fewer — which is why this frame does not need to be re-gated alongside it."""
+def test_the_corroboration_encoding_is_an_insert_not_a_renumber():
+    """The ENCODING is stable under `single_arm`: it sits strictly between its neighbours on a fresh value,
+    and every pre-existing rung keeps the integer it was frozen with, so the 12855 measured ::corrob cells in
+    the shipped atlas still mean what they meant and their frozen mu/sd stay valid.
+
+    ★ THIS PROVES A PROPERTY OF THE MAP AND SAYS NOTHING ABOUT THE DISTRIBUTION. An earlier version of this
+    test carried the name `test_the_gate_is_monotone_under_a_new_rung` and a docstring concluding that the
+    distinct-count gate "can admit more columns, never fewer" — with exactly the two assertions below, which
+    cannot see a distribution at all. Both assertions were and remain true; the conclusion was false, and
+    because the assertions could never fail the test stayed green while asserting it. See
+    `test_the_distinct_gate_is_not_monotone_when_the_producer_reroutes_rungs`."""
     assert CLAIM_CORR_ORD["low"] < CLAIM_CORR_ORD["single_arm"] < CLAIM_CORR_ORD["moderate"]
     assert CLAIM_CORR_ORD["single_arm"] not in {v for k, v in CLAIM_CORR_ORD.items() if k != "single_arm"}
+    # insert, NOT renumber: the persisted rungs keep their original integers
+    assert (CLAIM_CORR_ORD["low"], CLAIM_CORR_ORD["moderate"], CLAIM_CORR_ORD["high"]) == (1.0, 2.0, 3.0)
+
+
+def _one_column_atlas(key: str, values: list) -> ac.Atlas:
+    """A synthetic single-column atlas, so a distinct-count can be varied independently of the artifact."""
+    return ac.Atlas(
+        {
+            "feature_order": [key],
+            "mu": [0.0],
+            "sd": [1.0],
+            "X": [[v] for v in values],
+            "targets": [f"T{i}" for i in range(len(values))],
+            "labels": ["?"] * len(values),
+        }
+    )
+
+
+def test_the_distinct_gate_is_not_monotone_when_the_producer_reroutes_rungs():
+    """★ AN ADDITIVE CHANGE TO A VOCABULARY IS NOT AN ADDITIVE CHANGE TO A DISTRIBUTION. `single_arm` is a
+    NEW value in the map, but the producer does not hand it to a new population — `corroboration_from_arms`
+    REROUTES cells that used to read `moderate`/`high`/`low` onto it and deliberately never returns
+    `moderate`. So a column can LOSE distinct tiers when the rung lands, and this gate then silences it.
+
+    Measured 2026-09-14 over all 504 corpus packages at `44ab7a2d` vs `698c203e`: 5 of the atlas's 56
+    ::corrob columns collapse from 2-3 tiers to exactly 1 (see CROSSES_DOWNWARD_ON_REFREEZE). This test
+    reproduces that mechanism on a synthetic column so it is falsifiable WITHOUT waiting for a re-freeze."""
+    key = claim_atlas_key(*DISCRIMINATING, "corrob")
+    caches = (
+        ac._shipped_atlas_or_none,
+        ac._cohort_sorted_column,
+        ac._scoped_sorted_column,
+        ac._cohort_indication_groups,
+    )
+    orig = ac._shipped_atlas_or_none
+    try:
+        # BEFORE: three populated rungs over a powered cohort — the frame speaks.
+        before = [CLAIM_CORR_ORD["high"]] * 40 + [CLAIM_CORR_ORD["moderate"]] * 40 + [CLAIM_CORR_ORD["low"]] * 40
+        for c in caches:
+            c.cache_clear()
+        ac._shipped_atlas_or_none = lambda: _one_column_atlas(key, before)
+        spoke = ac.tier_rarity(key, CLAIM_CORR_ORD["moderate"])
+        assert spoke is not None and spoke["distinct"] == 3, spoke
+
+        # AFTER: the SAME 120 cells, same n, rerouted onto one rung. Nothing was added; a tier was taken away.
+        after = [CLAIM_CORR_ORD["single_arm"]] * 120
+        for c in caches:
+            c.cache_clear()
+        ac._shipped_atlas_or_none = lambda: _one_column_atlas(key, after)
+        assert ac.tier_rarity(key, CLAIM_CORR_ORD["single_arm"]) is None, (
+            "a rerouting producer collapsed this column to one tier, so the gate MUST silence it — "
+            "the falsified claim was that a new rung can only admit more columns, never fewer"
+        )
+        assert len(before) == len(after), "n is held constant so this isolates min_distinct from min_n"
+    finally:
+        ac._shipped_atlas_or_none = orig
+        for c in caches:
+            c.cache_clear()
+    # the real artifact is back (proves the patch, not a permanent break)
+    assert ac.tier_rarity(key, CLAIM_CORR_ORD["moderate"]) is not None
+
+
+def test_the_columns_that_cross_the_distinct_gate_on_a_refreeze_are_pinned_by_name():
+    """★ Pinned BY NAME, not by a count, because a count cannot say WHICH column changed. Each of these
+    clears the gate on the shipped artifact today and is measured to collapse to one tier once the corpus is
+    recomposed at `698c203e`; when the n=504 re-freeze lands, this test reds and each name must be
+    re-measured rather than re-asserted. A bare `reach == 27` would go green again on a different 27.
+
+    NOTE THE POPULATIONS ARE DIFFERENT AND THE NUMBERS MUST NOT BE MIXED: the shipped artifact is 297
+    targets at pre-#1371 values (27 of 56 ::corrob columns clear), while the replay measured the n=504
+    corpus (26 clear pre, 21 post). Same gate, three different populations."""
+    a = _atlas()
+    clears = {
+        k
+        for k in a.feature_order
+        if k.endswith("::corrob") and len(_raw_column(k)) >= 20 and len(set(_raw_column(k))) >= 2
+    }
+    assert len(clears) == SHIPPED_CORROB_REACH, f"reach moved: {len(clears)} != {SHIPPED_CORROB_REACH}"
+    for (short, claim), distinct_today in sorted(CROSSES_DOWNWARD_ON_REFREEZE.items()):
+        key = claim_atlas_key(short, claim, "corrob")
+        assert key in clears, f"{key} no longer clears the gate — re-measure the crossing set"
+        col = _raw_column(key)
+        assert len(set(col)) == distinct_today, f"{key}: distinct {len(set(col))} != pinned {distinct_today}"
+        # and it genuinely speaks today, which is what the re-freeze takes away
+        assert ac.tier_rarity(key, sorted(set(col))[-1]) is not None, key

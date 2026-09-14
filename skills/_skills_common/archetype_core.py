@@ -1276,9 +1276,26 @@ def cohort_percentile(
 # self-drops under `min_n` and `cohort_reference_quality` under USABLE_REFERENCE_MASK_FRACTION: a reader that
 # cannot say something discriminating says nothing.
 #
-# Stable under the pending `single_arm` insert BY DIRECTION: a new rung can only ADD a distinct value to a
-# column, so no column can fall below this gate when the producer lands — the gate can admit more columns,
-# never fewer. (CLAIM_CORR_ORD puts single_arm at 1.5, i.e. additively; see the note at the top of this file.)
+# ★ NOT STABLE UNDER `single_arm`, AND THE REASONING THAT USED TO SIT HERE WAS FALSE. It read: "a new rung
+# can only ADD a distinct value to a column, so the gate can admit more columns, never fewer." Measured
+# 2026-09-14 by replaying all 504 corpus packages through both trunk trees around #1371 (`44ab7a2d` vs
+# `698c203e`; control: 32500 of 32760 cells reproduced the stored string exactly, and 0 signals moved, so
+# the deltas are the arms frame alone). The producer REROUTES existing rungs onto `single_arm` rather than
+# adding a fourth population — `corroboration_from_arms` deliberately never returns `moderate` — so
+# populated rungs COLLAPSE INTO ONE. Of the 56 ::corrob columns this atlas carries, 5 fall from 2-3 tiers to
+# exactly 1 and drop below this gate when the corpus is recomposed, and NOTHING unlocks in this namespace:
+#
+#   dependency::CHEM 3->1 · dependency::SEL 2->1 · safety::BURDEN 2->1 · selectivity::DIST 3->1
+#   target_intrinsic::MODALITY_ROUTING 2->1        (reach 26 -> 21 over the n=504 corpus)
+#
+# ★ AN ADDITIVE CHANGE TO A VOCABULARY IS NOT AN ADDITIVE CHANGE TO A DISTRIBUTION. "Is the ENCODING
+# stable?" — insert vs renumber, a property of the MAP, and it genuinely is stable (see CLAIM_SIG_ORD's note
+# above) — and "will the DISTINCT COUNT hold?" — a property of the DATA — are independent questions. This
+# gate depends only on the second, so encoder-safety buys it nothing. ⇒ This frame MUST be re-gated when the
+# corpus is recomposed; the 5 columns are pinned BY NAME in test_tier_rarity_frame.py so a re-freeze cannot
+# narrow reach silently. Two further coordinates (translational_readiness::GENOTYPE, ::MODEL) collapse the
+# same way and one (genomic_alteration::SPL) would unlock, but none is an atlas column at today's 13-short
+# claim namespace — they become live only if that namespace widens.
 USABLE_TIER_RARITY_DISTINCT = 2
 
 
