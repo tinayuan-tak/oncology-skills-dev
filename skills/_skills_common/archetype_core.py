@@ -110,6 +110,26 @@ CLAIM_CORR_ORD = {
 DEFAULT_K = 8
 
 
+# The two ordinal ladders, spelled the way the atlas key spells them (`corrob`, not `corroboration`) —
+# and the ORDINAL MAP each one encodes with, so a reader can go token -> encoded value through the SAME
+# table the producer used instead of a second copy of it.
+CLAIM_LADDERS = {"signal": CLAIM_SIG_ORD, "corrob": CLAIM_CORR_ORD}
+
+
+def claim_atlas_key(short: str, claim: str, ladder: str) -> str:
+    """`{short}::claim::{CLAIM}::{signal|corrob}` — the atlas column holding one ladder of one claim.
+
+    THE ONE SPELLER. `claim_features` (the producer, offline atlas build AND runtime query) and every
+    cohort reader below go through this, because a vocabulary spelled in two places is already known to
+    drift in this repo — question_hierarchy.yaml vs questions.yaml diverged on 9 of 13 axes and mis-routed
+    a scored band. Raises on an unknown ladder rather than minting a key that can never match a column
+    (a silent miss here would self-drop as 'the cohort cannot say', which is indistinguishable from a
+    correctly-gated column and therefore invisible)."""
+    if ladder not in CLAIM_LADDERS:
+        raise ValueError(f"ladder must be one of {sorted(CLAIM_LADDERS)}, got {ladder!r}")
+    return f"{short}::claim::{claim}::{ladder}"
+
+
 def claim_features(subskill_claim_vectors: dict) -> dict:
     """{short: {CLAIM: {signal, corroboration, ...}}} -> {short::claim::CLAIM::signal|corrob: ordinal|None}.
 
@@ -124,8 +144,8 @@ def claim_features(subskill_claim_vectors: dict) -> dict:
                 continue
             sig = str(val.get("signal", "")).lower()
             cor = str(val.get("corroboration", "")).lower()
-            out[f"{short}::claim::{claim}::signal"] = CLAIM_SIG_ORD.get(sig)
-            out[f"{short}::claim::{claim}::corrob"] = CLAIM_CORR_ORD.get(cor)
+            out[claim_atlas_key(short, claim, "signal")] = CLAIM_SIG_ORD.get(sig)
+            out[claim_atlas_key(short, claim, "corrob")] = CLAIM_CORR_ORD.get(cor)
     return out
 
 
@@ -1239,6 +1259,119 @@ def cohort_percentile(
     hi = bisect.bisect_right(col, signed_value)
     pct = round((lo + hi) / 2.0 / n * 100.0, 1)
     return {"percentile": pct, "n": n, "scope": resolved}
+
+
+# The number of DISTINCT tiers a ladder column must show across the cohort before its rarity is worth
+# reporting at all. Measured on the 2026-09-13 atlas (297 x 176), counting distinct values where measured:
+#
+#   ::corrob (56 cols)   1 distinct: 29   2: 10   3: 17     <- 29 are CONSTANT across the whole panel
+#   ::signal (56 cols)   1 distinct:  0   2:  5   3: 36   4: 15
+#
+# So the two ladders this frame spans have OPPOSITE character, and a single gate is what keeps that from
+# being papered over. `tractability_sm::claim::STRUCT::corrob` is 2.0 for all 295 measured targets: a rarity
+# sentence there is not merely weak, it is the SAME sentence for every target in the fleet ("at the commonest
+# tier, shared with 100% of the panel") — plausible, identical, and uninformative in the one direction that
+# matters. That is the failure mode already recorded for the ::mask columns, which read 1.000 BY
+# CONSTRUCTION and made a >=0.6 quality gate vacuous. Self-drop instead, exactly as `cohort_percentile`
+# self-drops under `min_n` and `cohort_reference_quality` under USABLE_REFERENCE_MASK_FRACTION: a reader that
+# cannot say something discriminating says nothing.
+#
+# Stable under the pending `single_arm` insert BY DIRECTION: a new rung can only ADD a distinct value to a
+# column, so no column can fall below this gate when the producer lands — the gate can admit more columns,
+# never fewer. (CLAIM_CORR_ORD puts single_arm at 1.5, i.e. additively; see the note at the top of this file.)
+USABLE_TIER_RARITY_DISTINCT = 2
+
+
+def tier_rarity(
+    atlas_key: str,
+    encoded_value: Optional[float],
+    min_n: int = 20,
+    min_distinct: int = USABLE_TIER_RARITY_DISTINCT,
+    indication: Optional[str] = None,
+) -> Optional[dict]:
+    """Where one ORDINAL ladder tier sits in the frozen known-target cohort, or None when it cannot say.
+
+    Returns {'percentile','share','n','distinct','scope'}:
+      percentile  the tie-block midpoint rank of this tier, as `cohort_percentile` computes it — so a
+                  larger number always means a stronger tier, the same direction as every numeric ruler.
+      share       the percentage of the cohort sitting at EXACTLY this tier. This is the part a percentile
+                  cannot express and the part a ladder needs: on a 3-tier column, "moderate" at the 39th
+                  percentile is a different statement from "moderate, which 106 of 135 targets also carry".
+      distinct    how many tiers the cohort actually shows. Emitted so a reader can see DISCRIMINATION
+                  rather than infer it: a share of 61% means one thing on a 4-tier column and another on a
+                  2-tier one.
+
+    None when: the value is absent, the column is unknown, the cohort is under-powered (n < min_n), or the
+    column shows fewer than `min_distinct` tiers (see USABLE_TIER_RARITY_DISTINCT).
+
+    ★ TAKES THE ENCODED VALUE, AND DELIBERATELY NEVER NAMES A TIER. Both ladders are NON-INJECTIVE: in
+    CLAIM_SIG_ORD and CLAIM_CORR_ORD alike, `absent` and `negative` BOTH encode to 0.0. So there is no
+    inverse to apply, and a reverse lookup would have to pick one of two tiers that mean opposite things —
+    "we looked and found nothing" versus "we measured a negative", which convention A keeps as its own tier.
+    The caller holds the unencoded token already and supplies it for display; this function positions it.
+    Sizing the frame off the encoding rather than the token also means it keeps working unchanged when a
+    rung is minted, which is the whole point of the additive insert.
+
+    DISPLAY-ONLY, like every reader in this block: it reads the shipped artifact and returns a position
+    string's inputs. Nothing here feeds a verdict or a gate.
+
+    Indication scoping and the min_n fallback behave exactly as `cohort_percentile` — including that the
+    fallback is the COMMON path (only 4 of 25 indications clear min_n=20 for any key at n=297), which is
+    why `scope` is emitted unconditionally."""
+    if encoded_value is None:
+        return None
+    scope = resolve_cohort_scope(indication)
+    col, resolved = (), PAN_CANCER_SCOPE
+    if scope:
+        col = _scoped_sorted_column(atlas_key, scope)
+        if len(col) >= min_n:
+            resolved = scope
+        else:
+            col = ()
+    if not col:
+        col = _cohort_sorted_column(atlas_key)
+    n = len(col)
+    if n < min_n:
+        return None
+    distinct = len(set(col))
+    if distinct < min_distinct:
+        return None
+    lo = bisect.bisect_left(col, encoded_value)
+    hi = bisect.bisect_right(col, encoded_value)
+    return {
+        "percentile": round((lo + hi) / 2.0 / n * 100.0, 1),
+        "share": round((hi - lo) / n * 100.0, 1),
+        "n": n,
+        "distinct": distinct,
+        "scope": resolved,
+    }
+
+
+def claim_tier_rarity(short: str, claim: str, ladder: str, tier: Optional[str], indication=None) -> Optional[dict]:
+    """`tier_rarity` for ONE ladder of ONE claim chip, addressed the way the atlas actually keys it.
+
+    THE ENTRY POINT A RENDERER USES, and the reason it exists is that the two halves of the atlas live in
+    DISJOINT namespaces. The 64 `::num::` columns are keyed by measurement_type (32 of 32 are
+    `evidence_salience.SALIENCE_SPECS` keys — which is why the numeric cohort ruler wires into a salience
+    reference_frame), but the 112 `::claim::` columns are keyed by SUBSKILL SHORT × CLAIM, and 0 of those 13
+    shorts is a measurement_type. So an ordinal rarity frame CANNOT be reached from a salience spec: its
+    `cohort_key` would name a column that does not exist, `_cohort_sorted_column` would return (), and the
+    frame would self-drop on every card forever — vacuous by construction, with every test green, because
+    silent self-drop is this reader's CORRECT behaviour and so hides a wrong population perfectly.
+    The population that IS keyed this way is the claim chip (`skill_report.claim_chips`), whose `key` is the
+    CLAIM and whose owning `short` the renderer holds; hence a chip-grain reader.
+
+    `tier` is the UNENCODED token off the chip ('strong', 'high', 'single_arm', …); it is encoded here
+    through the very map `claim_features` encoded the frozen column with, so query and corpus cannot use
+    two different tables. None (self-drop, never a guess) when the token is absent, unmeasured, or not in
+    the ladder — `unmeasured`/`none` map to None by design, so an unmeasured tier carries no rarity."""
+    ord_map = CLAIM_LADDERS.get(ladder)
+    if ord_map is None or not short or not claim:
+        return None
+    encoded = ord_map.get(str(tier or "").lower())
+    if encoded is None:
+        return None
+    return tier_rarity(claim_atlas_key(short, claim, ladder), encoded, indication=indication)
 
 
 # The fraction of the corpus a column must be measured in before it is a usable REFERENCE distribution.

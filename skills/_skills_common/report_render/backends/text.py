@@ -646,6 +646,39 @@ def _dissent_summary(d) -> str:
     return f"{src}: {detail}{tail}".strip()
 
 
+def _chip_rarity_clause(c: dict) -> str:
+    """'(at this tier: signal 3%, corroboration 61.4% of 293 known targets)' — where each ladder tier of
+    this chip sits in the frozen known-target cohort. '' when neither ladder can discriminate.
+
+    Reads the `{signal,corroboration}_rarity` payloads the IR attached (`ir._chip_with_rarity`); the
+    backend renders, it does not compute. SHARE, not percentile, is the number shown: on an ordinal ladder
+    the share is the part a percentile cannot express — "moderate at the 39th percentile" is a different
+    statement from "moderate, which 61% of the cohort also carries" — and it is the one that answers the
+    reader's actual question, whether this tier is notable or universal. No banding into rare/common words:
+    that would mint three fresh cuts to defend, and this module exists downstream of a measurement that
+    says hand-tuned rungs are what to retire.
+
+    GROUPED BY (n, scope) rather than sharing one tail, because the two ladders of a claim do NOT always
+    have the same denominator: measured on the shipped 297-target atlas, 7 of 56 claim pairs differ, and
+    `genomic_alteration::claim::DEP` differs 265 vs 71 — a single 'of N known targets' tail would be wrong
+    for one claim in eight. One code path covers both cases; when the denominators agree (49 of 56) the
+    group collapses and the number is stated once."""
+    groups: dict = {}
+    for field_name, word in (("signal", "signal"), ("corroboration", "corroboration")):
+        r = c.get(f"{field_name}_rarity")
+        if not isinstance(r, dict) or r.get("share") is None or not r.get("n"):
+            continue
+        # scope wording is byte-identical to the numeric cohort ruler's (`_project_frame`): pan-cancer is
+        # unmarked, a scoped cohort names its code, so the two rulers never look like different cohorts.
+        scope = r.get("scope")
+        where = "" if scope in (None, "pan_cancer") else f" in {scope}"
+        groups.setdefault((r["n"], where), []).append(f"{word} {r['share']:g}%")
+    if not groups:
+        return ""
+    tails = [f"{', '.join(parts)} of {n} known targets{where}" for (n, where), parts in groups.items()]
+    return f"(at this tier: {'; '.join(tails)})"
+
+
 def _chip_summary(c) -> str:
     if not isinstance(c, dict):
         return str(c)
@@ -656,6 +689,9 @@ def _chip_summary(c) -> str:
     bits = [f"{label}: {signal}" if signal else str(label)]
     if corr:
         bits.append(f"[{corr}]")
+    rarity = _chip_rarity_clause(c)
+    if rarity:
+        bits.append(rarity)
     if ev:
         bits.append(f"— {ev}")
     return " ".join(map(str, bits))

@@ -148,12 +148,47 @@ def _deciding_short(deciding_axis: Any, shorts) -> Optional[str]:
 # --------------------------------------------------------------------------------------------------
 # per-skill block assembly
 # --------------------------------------------------------------------------------------------------
-def _chips_block(report: dict, eff_level: int) -> Optional[Block]:
+def _chip_with_rarity(chip: dict, short: Optional[str], indication: Optional[str]) -> dict:
+    """A COPY of one claim chip carrying `signal_rarity` / `corroboration_rarity` where the frozen
+    known-target cohort can discriminate, else the chip unchanged.
+
+    ORDINAL COUNTERPART OF THE NUMERIC COHORT RULER: a gauged value gets "stronger than 82% of 210 known
+    targets" from `cohort_percentile`; a ladder tier gets "61% of 293 known targets sit at this tier" from
+    `archetype_core.claim_tier_rarity`. Enriching HERE, in the IR, is what keeps the backends dumb — the
+    module contract above ("Backends walk this tree and emit syntax; they make no decisions") — and this is
+    also the only layer that holds BOTH halves of the atlas key: `_build_section` knows the owning `short`,
+    the chip knows its CLAIM. The spine's chips are NOT mutated (a copy per chip): the same skill_report is
+    read by the scorecard, the LLM replay and the drift golden, and a display annotation must not appear in
+    their inputs.
+
+    VERDICT-INERT and SELF-GATING — `claim_tier_rarity` returns None for an absent/unmeasured tier, an
+    unknown column, an under-powered cohort (n<20) or a column showing fewer tiers than
+    USABLE_TIER_RARITY_DISTINCT. Measured reach on the shipped 297-target atlas: 80 of the 112 ladder
+    columns can say something (::signal 53 of 56; ::corrob 27 of 56, since 26 corroboration columns are
+    CONSTANT across the whole panel and would otherwise emit the identical sentence to every target).
+    No exception handling: a missing/corrupt atlas is already swallowed by `_shipped_atlas_or_none`, and a
+    try/except here would hide a broken environment behind a silently un-annotated chip."""
+    if not isinstance(chip, dict) or not short or not chip.get("key"):
+        return chip
+    from ..archetype_core import claim_tier_rarity
+
+    out = dict(chip)
+    for field_name, ladder in (("signal", "signal"), ("corroboration", "corrob")):
+        rarity = claim_tier_rarity(short, chip["key"], ladder, chip.get(field_name), indication=indication)
+        if rarity:
+            out[f"{field_name}_rarity"] = rarity
+    return out
+
+
+def _chips_block(
+    report: dict, eff_level: int, short: Optional[str] = None, indication: Optional[str] = None
+) -> Optional[Block]:
     chips = report.get("claim_chips") or []
     limit = vocab.CHIP_LIMIT_BY_LEVEL.get(eff_level, None)
     if limit == 0 or not chips:
         return None
     shown = chips if limit is None else chips[:limit]
+    shown = [_chip_with_rarity(c, short, indication) for c in shown]
     return Block(vocab.CLAIM_CHIPS, {"chips": shown, "total": len(chips), "shown": len(shown)})
 
 
@@ -349,7 +384,7 @@ def _build_section(
     if eff >= vocab.TIER[vocab.TENSION] and report.get("top_tension") and not eg_rich:
         blocks.append(Block(vocab.TENSION, {"tension": report["top_tension"]}))
     if eff >= vocab.TIER[vocab.CLAIM_CHIPS] and not has_qt:
-        cb = _chips_block(report, eff)
+        cb = _chips_block(report, eff, short, indication)
         if cb is not None:
             blocks.append(cb)
 
