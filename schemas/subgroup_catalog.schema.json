@@ -108,7 +108,7 @@
       "type": "object",
       "required": ["id", "label", "rule"],
       "unevaluatedProperties": false,
-      "$comment": "The `dependentRequired` block below is the COMPENSATING STRENGTHENING for declaring the five keys that made this corpus invalid. Declaring a key to take an error count to zero is, on its own, relaxing a gate to match the build -- it adds no checking power. This block adds the power back, and it is BIDIRECTIONAL on purpose: forward (n -> note) stops an unprovenanced count, and reverse (note -> n) stops a note for a cohort the stratum does not declare, which would be provenance with nothing behind it. Verified landable, not aspirational: all 7 cohort families pair exactly 1:1 on main as of 2026-09-13 (depmap 84/84, tcga 32/32, tcga_coadread 24/24, tcga_nsclc 18/18, tcga_pdac 12/12, tcga_sclc 5/5, tcga_gc 5/5 = 180/180), so this lands green and only constrains future edits.",
+      "$comment": "The `dependentRequired` block below is the COMPENSATING STRENGTHENING for declaring the five keys that made this corpus invalid. Declaring a key to take an error count to zero is, on its own, relaxing a gate to match the build -- it adds no checking power. This block adds the power back, and it is BIDIRECTIONAL on purpose: forward (n -> note) stops an unprovenanced count, and reverse (note -> n) stops a note for a cohort the stratum does not declare, which would be provenance with nothing behind it. Verified landable, not aspirational: all 7 cohort families pair exactly 1:1 on main as of 2026-09-13 (depmap 84/84, tcga 32/32, tcga_coadread 24/24, tcga_nsclc 18/18, tcga_pdac 12/12, tcga_sclc 5/5, tcga_gc 5/5 = 180/180), so this lands green and only constrains future edits. ★ EXTENDED 2026-09-14 to close a HALF-DECLARED NAME FAMILY in SIX places. A NAME FAMILY IS TWO HALVES -- the token that DECLARES a cohort in `applicable_data_sources`, and the `expected_n_<token>` key that CARRIES that cohort's count. Declaring only the first half yields a schema that lets a stratum name a cohort and then FORBIDS it from recording that cohort's denominator, and because the corpus cannot contain a key the schema rejects, the missing half reads as forgotten rather than forbidden and nothing goes red. Three of the six (`genie`, `genie_bpc`, `george_2015`) were introduced by the 2026-09-13 closure itself -- it added them to the enum, which is what took the corpus from 110 errors to 0, without their count keys. The other three (`ccle`, `gdsc`, `tempus`) have been asymmetric since the schema was WRITTEN (f9a7c22), which is the real finding: the defect is structural, not a slip, and it recurred in 2026-09-13 precisely because nothing asserted the two halves cover the same token set. `tests/schemas/test_subgroup_catalog_contract.py::test_every_declarable_source_can_record_its_own_denominator` now DERIVES that assertion from this file, so a seventh token cannot be added to the enum alone. All six new families pair 0/0 today, so the addition lands green and only enables future writes; the data-catalog PR that follows fills 7 of the 11 (stratum, declared-cohort) pairs that were unrecordable, all 7 on `genie`/`genie_bpc`.",
       "dependentRequired": {
         "expected_n_tcga": ["expected_n_tcga_denominator_note"],
         "expected_n_tcga_denominator_note": ["expected_n_tcga"],
@@ -123,7 +123,19 @@
         "expected_n_tcga_sclc": ["expected_n_tcga_sclc_denominator_note"],
         "expected_n_tcga_sclc_denominator_note": ["expected_n_tcga_sclc"],
         "expected_n_tcga_gc": ["expected_n_tcga_gc_denominator_note"],
-        "expected_n_tcga_gc_denominator_note": ["expected_n_tcga_gc"]
+        "expected_n_tcga_gc_denominator_note": ["expected_n_tcga_gc"],
+        "expected_n_genie": ["expected_n_genie_denominator_note"],
+        "expected_n_genie_denominator_note": ["expected_n_genie"],
+        "expected_n_genie_bpc": ["expected_n_genie_bpc_denominator_note"],
+        "expected_n_genie_bpc_denominator_note": ["expected_n_genie_bpc"],
+        "expected_n_george_2015": ["expected_n_george_2015_denominator_note"],
+        "expected_n_george_2015_denominator_note": ["expected_n_george_2015"],
+        "expected_n_ccle": ["expected_n_ccle_denominator_note"],
+        "expected_n_ccle_denominator_note": ["expected_n_ccle"],
+        "expected_n_gdsc": ["expected_n_gdsc_denominator_note"],
+        "expected_n_gdsc_denominator_note": ["expected_n_gdsc"],
+        "expected_n_tempus": ["expected_n_tempus_denominator_note"],
+        "expected_n_tempus_denominator_note": ["expected_n_tempus"]
       },
       "properties": {
         "id": {
@@ -179,6 +191,36 @@
         "expected_n_tcga_nsclc": {"type": "integer", "minimum": 0},
         "expected_n_tcga_sclc": {"type": "integer", "minimum": 0},
         "expected_n_tcga_gc": {"type": "integer", "minimum": 0},
+        "expected_n_genie": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Measured member count on the GENIE registry cohort. ★ ADDED 2026-09-14 to close a HALF-DECLARED NAME FAMILY. The 2026-09-13 schema closure added `genie`/`genie_bpc` to the `applicable_data_sources` enum -- which is what took the corpus from 110 validation errors to 0 -- but did NOT add the matching `expected_n_*` names. Under `unevaluatedProperties: false` that produced a schema which lets a stratum DECLARE a cohort and then forbids it from ever recording that cohort's denominator. Declared 3 times (COADREAD KRAS_mut / KRAS_G12C / BRAF_V600E) with 0 keys, because the key was UNREPRESENTABLE, not because it was forgotten."
+        },
+        "expected_n_genie_bpc": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Measured member count on the GENIE-BPC (Biopharma Collaborative) cohort, which carries treatment-line detail the registry does not. ★ ADDED 2026-09-14, same half-declared-family defect as `expected_n_genie`. This one hid MEASURED data: the 6 line-of-therapy strata (COADREAD + NSCLC LOT_1L_only / LOT_2L / LOT_3Lplus) declare `genie_bpc` as their ONLY source, and their assignments shards have been published the whole time -- 205/203/768 of 1176 evaluable for COADREAD, 298/243/552 of 1093 for NSCLC, all six clearing the n>=30 floor. They read as unmeasured because the schema gave them nowhere to say otherwise."
+        },
+        "expected_n_george_2015": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Measured member count on the George et al. 2015 SCLC cohort. ★ ADDED 2026-09-14, third instance of the same half-declared family from the 2026-09-13 closure: the token was added to `applicable_data_sources` specifically so the SCLC NAPY claim could be RECORDED, and the key that carries its count was not, so the claim remained half-unrecordable. 0 keys today (the SCLC catalog declares only tcga/depmap on its strata) -- this makes the NAPY measurement writable when it is run."
+        },
+        "expected_n_ccle": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Measured member count on the CCLE cell-line cohort. ★ ADDED 2026-09-14. Unlike the genie/george families this one is NOT from the 2026-09-13 closure -- `ccle`, `gdsc` and `tempus` have been declarable in `applicable_data_sources` since the schema was written (f9a7c22) with no matching count key, so the asymmetry is ORIGINAL to the file rather than introduced. That is why it recurred: nothing anywhere asserted the two halves cover the same tokens, so the second half was invisible by construction. 0 keys today."
+        },
+        "expected_n_gdsc": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Measured member count on the GDSC cell-line cohort. ★ ADDED 2026-09-14; see `expected_n_ccle` for why this family was missing since f9a7c22. 0 keys today."
+        },
+        "expected_n_tempus": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Measured member count on the Tempus real-world cohort. ★ ADDED 2026-09-14; see `expected_n_ccle` for why this family was missing since f9a7c22. 0 keys today."
+        },
         "expected_n_tcga_denominator_note": {
           "type": "string",
           "minLength": 20,
@@ -194,6 +236,12 @@
         "expected_n_tcga_nsclc_denominator_note": {"type": "string", "minLength": 20},
         "expected_n_tcga_sclc_denominator_note": {"type": "string", "minLength": 20},
         "expected_n_tcga_gc_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_genie_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_genie_bpc_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_george_2015_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_ccle_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_gdsc_denominator_note": {"type": "string", "minLength": 20},
+        "expected_n_tempus_denominator_note": {"type": "string", "minLength": 20},
         "applies_within": {
           "type": "string",
           "description": "Subset of the indication's cohort within which the stratum's rule should be evaluated. L6 fix (post-adversarial-review): mutation strata for histologically-mixed indications (NSCLC = LUAD + LUSC) declare which histology denominator the expected_n is calibrated against, AND phase-2 subgroup_assigner_maf_filter restricts iteration to that cohort before applying the predicate.",

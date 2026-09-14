@@ -12,7 +12,7 @@ it: `main` x `main` was invalid in **110 places** on 2026-09-13 (101 coalesced
 five missing keys is, by itself, *relaxing a gate to match the build*: it adds zero checking
 power, and it would have converted a decorative CLOSED schema into a decorative PERMISSIVE
 one. So the same change added the constraints this file exercises -- bidirectional
-`dependentRequired` over all seven cohort families, `minLength` on the provenance notes, and
+`dependentRequired` over every cohort family, `minLength` on the provenance notes, and
 `minimum` on `min_caller_count` -- and every one of them is asserted here to be capable of
 going RED. Anything that cannot fail is not tested.
 
@@ -53,19 +53,23 @@ CATALOG_DIR = DATA_CATALOG / "subgroup-catalogs"
 STRATUM = Draft202012Validator({"$ref": "#/$defs/atomic_stratum", "$defs": SCHEMA["$defs"]})
 CATALOG = Draft202012Validator(SCHEMA)
 
-# The seven cohort families the corpus actually spells. One `--data-source tcga` run writes a
-# key under six different names across the nine catalogs, which is why this is a LIST rather
-# than a `tcga`/`depmap` pair -- see the "six spellings" note in
+_STRATUM_PROPS = SCHEMA["$defs"]["atomic_stratum"]["properties"]
+
+# ★ DERIVED, not listed. This was a hardcoded 7 until 2026-09-14, and the hardcoding is what
+# let the half-declared-family defect through: six families were added to the schema over two
+# commits and the pairing tests below silently did not cover any of them, because covering a
+# family required a human to also edit a literal here. Deriving from the schema's own
+# `properties` means a family cannot be declared without being exercised. One
+# `--data-source tcga` run writes a key under six different names across the nine catalogs,
+# which is why this was never a `tcga`/`depmap` pair -- see the "six spellings" note in
 # vocabularies/subtype_crosswalk.yaml.
-COHORT_FAMILIES = [
-    "tcga",
-    "depmap",
-    "tcga_coadread",
-    "tcga_pdac",
-    "tcga_nsclc",
-    "tcga_sclc",
-    "tcga_gc",
-]
+COHORT_FAMILIES = sorted(
+    k[len("expected_n_") :] for k in _STRATUM_PROPS if k.startswith("expected_n_") and not k.endswith("_note")
+)
+
+# The families whose absence was the defect, plus a couple of originals. An ANCHOR set, not an
+# equality pin: a new legitimate family must not have to red a literal to be added.
+_ANCHOR_FAMILIES = {"tcga", "depmap", "tcga_coadread", "tcga_gc", "genie", "genie_bpc", "george_2015", "ccle"}
 
 _NOTE = "Observed emit 2026-09-13 against FIXTURE__directly_tagged__tcga (n~100 of 100 rows; 42 members)."
 
@@ -94,6 +98,43 @@ def test_closure_still_rejects_an_undeclared_key():
     """★ The load-bearing anti-regression. Declaring five keys must NOT have opened the object
     up -- otherwise 110 -> 0 was achieved by deleting the gate."""
     assert "unevaluatedProperties" in _kinds(_stratum(some_new_field="x"))
+
+
+def test_the_cohort_family_derivation_is_alive():
+    """★ LIVENESS BEFORE THE CEILING, and it guards the three parametrized tests below rather
+    than itself. `parametrize` over an empty list generates ZERO cases and pytest reports
+    SUCCESS -- so if the derivation above ever collapsed (a rename of the `expected_n_` prefix,
+    a restructure that moves these under `$defs`), the pairing suite would quietly drop from 39
+    assertions to 0 and the run would still be green. Assert the population is non-empty and
+    still holds the families whose ABSENCE was the 2026-09-14 defect."""
+    assert COHORT_FAMILIES, "cohort-family derivation is empty — the pairing tests below are vacuous"
+    missing = _ANCHOR_FAMILIES - set(COHORT_FAMILIES)
+    assert not missing, f"cohort-family derivation lost members: {sorted(missing)}"
+
+
+def test_every_declarable_source_can_record_its_own_denominator():
+    """★★ THE GUARD THAT WOULD HAVE CAUGHT THIS. A NAME FAMILY IS TWO HALVES: the token that
+    DECLARES a cohort (`applicable_data_sources` enum) and the key that CARRIES its count
+    (`expected_n_<token>`). Declaring only the first half produces a schema where a stratum can
+    name a cohort and is then FORBIDDEN from recording that cohort's denominator -- and it
+    CANNOT go red on its own, because the corpus can never contain a key the schema rejects, so
+    the missing half looks forgotten instead of forbidden. That is why the asymmetry survived
+    from f9a7c22 (`ccle`, `gdsc`, `tempus`) and was then reproduced by #768 (`genie`,
+    `genie_bpc`, `george_2015`): nothing anywhere compared the two halves.
+
+    Direction matters, as in `test_applicable_data_sources_enum_covers_every_crosswalk_cohort_token`.
+    Asserted: enum ⊆ families -- everything declarable must be recordable. The reverse is
+    legitimately FALSE and must not be asserted: `tcga_coadread` and its four siblings are
+    per-indication SPELLINGS of the `tcga` token, not distinct sources, so they have count keys
+    with no enum member by design."""
+    enum = set(_STRATUM_PROPS["applicable_data_sources"]["items"]["enum"])
+    assert enum, "empty source enum — this check would be vacuous"
+    unrecordable = enum - set(COHORT_FAMILIES)
+    assert not unrecordable, (
+        f"sources are declarable but their denominators are unrecordable: {sorted(unrecordable)}. "
+        "Add `expected_n_<token>` + `expected_n_<token>_denominator_note` to `properties` and both "
+        "directions to `dependentRequired`."
+    )
 
 
 @pytest.mark.parametrize("cohort", COHORT_FAMILIES)
@@ -332,8 +373,26 @@ def test_every_live_catalog_validates():
 
 @pytestmark_live
 def test_every_expected_n_in_the_live_corpus_is_paired():
-    """The `dependentRequired` ratchet, measured against reality rather than fixtures: 180
-    counts and 180 notes, pairing exactly, in all seven families."""
+    """The `dependentRequired` ratchet, measured against reality rather than fixtures: every
+    count pairs with a note, in all thirteen families.
+
+    ★ WAS `counts == notes == 180` until 2026-09-14. The load-bearing invariant is `counts ==
+    notes` -- every declared count carries provenance. The `== 180` was a CORPUS-SIZE PIN riding
+    along inside it, and the two fail for opposite reasons: an unpaired count is a defect, while a
+    corpus that changed size is ordinary work in ANOTHER REPO. data-catalog #600 takes the corpus
+    to 176 (19 narrowed as unmeasurable-on-a-declared-source, 15 added as newly measured) with
+    pairing still exact at 176/176, so the equality pin reds on a PR that strengthens the corpus.
+    Worse, it reds in a place no CI job can see (Part 3 header: no workflow checks out both
+    repos), so it surfaces only when a human runs `scripts/preland.sh` -- and the cheapest way to
+    make a red like that go away is to bump the literal, which is
+    `dont_relax_a_gate_to_match_the_build` with extra steps.
+
+    The FLOOR keeps it non-vacuous in the direction that matters. `counts == notes` alone passes
+    trivially on an empty or truncated corpus, and coverage RATIOS improve identically whether a
+    hard stratum is measured or DELETED -- the #598/#600 lesson that ratio-shaped guards make
+    "100% measured" reachable by deletion. A floor only reds when provenanced declarations
+    DISAPPEAR, which no legitimate edit does silently; growth is free. Set to the post-#600 count
+    deliberately, since the floor must admit the state the very next PR in this arc creates."""
     counts, notes = 0, 0
     for doc in _live_catalogs().values():
         for s in doc.get("atomic_strata") or []:
@@ -342,7 +401,11 @@ def test_every_expected_n_in_the_live_corpus_is_paired():
                     notes += 1
                 elif k.startswith("expected_n_"):
                     counts += 1
-    assert counts == notes == 180, f"expected 180 paired declarations, got {counts} counts / {notes} notes"
+    assert counts == notes, f"unpaired declarations: {counts} counts / {notes} notes"
+    assert counts >= 176, (
+        f"provenanced declarations fell to {counts} (floor 176). A DROP means counts lost their "
+        "notes or strata were deleted; raise this floor only alongside the corpus edit that lifts it."
+    )
 
 
 @pytestmark_live
@@ -366,7 +429,14 @@ def test_declared_cohorts_that_measure_absent_are_exactly_the_pinned_set():
     }
     assert len(pinned) == 7, f"pin set changed shape: {len(pinned)}"
 
-    tcga_keys = [f"expected_n_{c}" for c in COHORT_FAMILIES if c != "depmap"]
+    # ★ SPELLINGS OF `tcga`, derived by that meaning. This read `[c for c in COHORT_FAMILIES if
+    # c != "depmap"]` until 2026-09-14, which was an adequate proxy only while COHORT_FAMILIES
+    # was a hardcoded 7 of which 6 were tcga spellings. Deriving the family list from the schema
+    # took it to 13, and `!= "depmap"` silently became "everything" -- so an `expected_n_genie_bpc`
+    # would have been counted as a measurement on the `tcga` cohort. Latent, not active (no
+    # catalog carries those keys yet, precisely because the schema forbade them until this
+    # commit), and fixed here rather than left for the PR that would have activated it.
+    tcga_keys = [f"expected_n_{c}" for c in COHORT_FAMILIES if c == "tcga" or c.startswith("tcga_")]
     catalogs = {n: {s["id"]: s for s in (d.get("atomic_strata") or [])} for n, d in _live_catalogs().items()}
 
     observed = set()
@@ -378,12 +448,18 @@ def test_declared_cohorts_that_measure_absent_are_exactly_the_pinned_set():
                 if s is None:
                     continue
                 for cohort in ax.get("cohorts") or []:
-                    if cohort == "depmap":
-                        keys = ["expected_n_depmap"]
-                    elif cohort == "tcga":
+                    if cohort == "tcga":
                         keys = [k for k in tcga_keys if k in s]
                     else:
-                        continue  # genie/genie_bpc/george_2015: no catalog declares an n
+                        # ★ WAS `continue`, with the comment "genie/genie_bpc/george_2015: no
+                        # catalog declares an n". That was true BY CONSTRUCTION -- the schema
+                        # rejected those keys -- and this commit is what makes them writable, so
+                        # the same `continue` turns into a blind spot over exactly 7 axis-cohort
+                        # claims (COADREAD driver_mutation+line_of_therapy, NSCLC
+                        # driver_mutation+fusion+line_of_therapy, PAAD driver_mutation, SCLC napy).
+                        # Handling every cohort by its own name closes it in advance instead of
+                        # leaving a stale comment to be believed later.
+                        keys = [f"expected_n_{cohort}"]
                     if not keys or keys[0] not in s:
                         continue
                     k = keys[0]
