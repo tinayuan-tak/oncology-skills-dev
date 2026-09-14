@@ -2893,9 +2893,13 @@ rules:
       arbitrated by surface density + internalization, not by this breadth read). The tumor-selectivity
       verdict downgrades a selective axis-A call to selective_with_normal_liability when this fires — the
       4th normal-breadth veto arm, selectivity-PRESERVING (a named-liability flag, not the housekeeping
-      KILL); precedence keeps the window/full-normal KILL above it when both fire. Applied by the
-      skills-side clamp (_skills_common/selectivity_veto.py); no resolver rung (a conjunction the
-      single-rung resolver cannot express) → classified `display` in rule_role_partition.
+      KILL); precedence keeps the window/full-normal KILL above it when both fire. EXECUTED by the
+      skills-side clamp (_skills_common/selectivity_veto.py) rather than by a `resolve` rung (a
+      conjunction the single-rung resolver cannot express), but DECLARED in selectivity.resolver.yaml
+      `post_resolver_clamp.precedence` → classified `gating` in rule_role_partition. It was `display`
+      until 2026-09-13: `display` had been read as "no resolver rung executes this" (true) while the
+      I1/I3 scorecard reads it as "cannot move a verdict" (false — this arm REPLACES the verdict), so
+      the arm was excluded from the safety scorecard. Where the executor lives does not change that.
 
   - rule_id: tvn-stromal-confound-veto
     when:
@@ -2923,8 +2927,10 @@ rules:
       axis-A call to selective_but_stromal_confound when this fires. Symmetric to the normal-breadth veto
       but on the INT (tumor-cell-intrinsic) axis rather than the SAFE (normal) axis; backtest-calibrated
       (RETAIN CEACAM5/EPCAM/CDH17/GUCY2C/MSLN malignant-intrinsic; DOWNGRADE FAP/POSTN/COL1A1/collagen CAF
-      genes). Applied by the skills-side clamp (_skills_common/selectivity_veto.py); no resolver rung (a
-      conjunction the single-rung resolver cannot express) → classified `display` in rule_role_partition.
+      genes). EXECUTED by the skills-side clamp (_skills_common/selectivity_veto.py) rather than by a
+      `resolve` rung (a conjunction the single-rung resolver cannot express), but DECLARED in
+      selectivity.resolver.yaml `post_resolver_clamp.precedence` → classified `gating` in
+      rule_role_partition (see the tvn-tphp arm above for why `display` was the wrong call).
 
   # ============================================================================
   # Phase D — Signaling-network-mechanism card (added 2026-07-08)

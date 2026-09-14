@@ -110,10 +110,18 @@ jobs:
         run: python validators/validate_claim_record.py --schema schemas/claim_record.schema.json --examples docs/design/examples/ --resolvers resolvers/
 
       # M5 (VERDICT_REPRESENTATION move #5): the rule-role partition (gating vs display) must match the
-      # live contracts — a rule gaining/losing resolver consumption fails until the committed snapshot
-      # (coverage/rule_role_partition.yaml) is consciously regenerated.
+      # live contracts — a rule gaining/losing verdict-moving consumption fails until the committed
+      # snapshot (coverage/rule_role_partition.yaml) is consciously regenerated.
+      #
+      # 2026-09-13: tests/validators/test_rule_role_partition.py was built with the validator and gated
+      # by NO workflow — the same drift-risk the subgroup/coverage step below calls out. It is wired here
+      # because --self-check alone cannot prove its own checks are non-vacuous: the `duplicate` check
+      # finds nothing on this repo, and the mutation tests in that module are the only thing that shows
+      # it (and the coverage/dangling/attribution checks) can fail at all.
       - name: Validate rule-role partition (gating vs display drift)
-        run: python validators/build_rule_role_partition.py --self-check
+        run: |
+          python validators/build_rule_role_partition.py --self-check
+          python -m pytest tests/validators/test_rule_role_partition.py -q
 
       # Fold M3 completion guard (VERDICT_REPRESENTATION_FOLD.md): every resolver must stay
       # match_all_reduce with unique per-rung priorities — the first_match interpreter path is retired

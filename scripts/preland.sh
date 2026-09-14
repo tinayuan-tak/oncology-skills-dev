@@ -21,6 +21,7 @@ run "validate_certainty_disjointness"    python validators/validate_certainty_di
 run "validate_card_resolver_consumption" python validators/validate_card_resolver_consumption.py
 run "validate_claim_record"              python validators/validate_claim_record.py --schema schemas/claim_record.schema.json --examples docs/design/examples/ --resolvers resolvers/
 run "rule_role_partition --self-check"   python validators/build_rule_role_partition.py --self-check
+run "pytest rule_role_partition"         python -m pytest tests/validators/test_rule_role_partition.py -q
 run "validate_fold_migration"            python validators/validate_fold_migration.py --resolvers resolvers/
 run "pytest tests/schemas"               python -m pytest tests/schemas/ -q
 run "pytest test_eval_ledger"            python -m pytest tests/validators/test_eval_ledger.py -q
@@ -32,6 +33,38 @@ run "pytest shared-mt vocabularies"      python -m pytest tests/validators/test_
 run "pytest card method-wiring"          python -m pytest tests/validators/test_card_method_wiring.py -q
 run "pytest nomination-gate+subtype-tier" python -m pytest tests/vocabularies/test_nomination_verdict_gate.py tests/validators/test_subtype_tier_rules.py -q
 run "pytest target-profiling-axes ontology" python -m pytest tests/vocabularies/test_target_profiling_axes.py tests/vocabularies/test_question_hierarchies.py -q
+# --- ruff (.github/workflows/ruff.yml) ---
+# 2026-09-13: this script mirrored contracts-validate.yml and NOTHING ELSE, so "ALL GATES PASS" was
+# reported on a branch whose ruff job then failed on the PR — format-only, but a red check either way.
+# `ruff format --check` is WHOLE-TREE (the tree is fully formatted); `ruff check` is DIFF-AWARE in CI,
+# so it is run here only on the .py files this branch changed, matching the grandfathered lint backlog.
+# ruff is pinned in the workflow: a different local version formats differently, so the version is
+# asserted rather than assumed. An ABSENT/mismatched ruff is a loud WARN, never a silent skip — a gate
+# that did not run must not read as a gate that passed.
+RUFF_PIN=0.16.6
+if ! command -v ruff >/dev/null 2>&1; then
+  echo "WARN  ruff NOT INSTALLED — the ruff job was NOT checked locally; install with 'pipx install ruff==$RUFF_PIN'"
+elif [ "$(ruff --version | awk '{print $2}')" != "$RUFF_PIN" ]; then
+  echo "WARN  ruff $(ruff --version | awk '{print $2}') != CI pin $RUFF_PIN — formatting may differ from the ruff job; NOT checked"
+else
+  run "ruff format --check (tree)"       ruff format --check .
+  # The base is the PR BASE (trunk), NOT @{upstream}: @{upstream} is the branch's own remote-tracking
+  # ref, so diffing against it yields ZERO changed files on any pushed branch — a vacuous pass.
+  base="${PRELAND_BASE:-origin/main}"
+  if git rev-parse --verify -q "$base" >/dev/null; then
+    changed=$(git diff --name-only --diff-filter=ACMR "$base"...HEAD -- '*.py' || true)
+    if [ -n "$changed" ]; then
+      echo "      (ruff check scope vs $base: $(echo "$changed" | tr '\n' ' '))"
+      # shellcheck disable=SC2086
+      run "ruff check (changed .py)"     ruff check $changed
+    else
+      echo "PASS  ruff check (changed .py) — this branch changes no .py vs $base"
+    fi
+  else
+    echo "WARN  ruff check SKIPPED — '$base' not fetched; set PRELAND_BASE or run 'git fetch origin main'"
+  fi
+fi
+
 # --- ADVISORY (non-fatal): cross-repo dashboard-feed drift. The framework-health-cross-repo CI job is
 #     PARKED (its token PAT lacks skills + data-products access); this surfaces the same framework_health
 #     --check locally. NON-FATAL because local sibling clones may lag origin. For the authoritative

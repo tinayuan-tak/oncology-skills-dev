@@ -1,10 +1,20 @@
-_doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = referenced by a resolver rung
-  (verdict-driving); display = referenced by NO resolver (annotation-only: claim-vector / key-signal /
-  figure input). Regenerate with build_rule_role_partition.py; --self-check gates drift.'
+_doc: 'M5 rule-role partition (VERDICT_REPRESENTATION move #5). gating = reachable from a verdict-moving
+  resolver keypath (a `resolve` rung, a `post_resolver_clamp` precedence arm, or a clamp `upgrade` requirement);
+  display = reachable from none of them, i.e. annotation-only (claim-vector / key-signal / figure input).
+  Regenerate with build_rule_role_partition.py; --self-check gates drift.'
+gating_keypaths:
+- post_resolver_clamp/precedence/[]/when_fired
+- post_resolver_clamp/upgrade/requires/[]/[]
+- resolve/[]/when_all_fired/[]
+- resolve/[]/when_any_fired/[]
+- resolve/[]/when_fired
+attribution_keypaths:
+- post_resolver_clamp/modality_conditional/expected_inert_arms/[]/rule_id
+- resolve/[]/driving_rule
 counts:
   total: 424
-  gating: 128
-  display: 296
+  gating: 136
+  display: 288
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -106,6 +116,8 @@ gating:
 - prism-no-compounds-found-neutral
 - prism-tool-compound-only-weak-supportive-sm
 - prism-weakly-active-weak-supportive-sm
+- protein-modestly-up-neutral
+- protein-strongly-up-supportive
 - rnai-broadly-dependent-neutral
 - rnai-common-essential-underpowered-insufficient
 - rnai-data-unavailable-insufficient
@@ -127,13 +139,19 @@ gating:
 - surface-density-below-tce-floor-measured-downgrade
 - tce-preferred-supportive
 - tolerant-safety-supportive
+- tumor-vs-normal-crossing-strong-supportive
 - tvn-data-unavailable-insufficient
 - tvn-discordant-neutral-flagged
 - tvn-field-effect-selective-supportive
 - tvn-modest-selective-supportive
+- tvn-no-full-normal-window-veto
+- tvn-no-therapeutic-window-veto
 - tvn-not-informative-neutral
 - tvn-not-selective-neutral
+- tvn-sc-normal-critical-organ-veto
+- tvn-stromal-confound-veto
 - tvn-strong-selective-supportive
+- tvn-tphp-broad-abundant-normal-protein-veto
 display:
 - abundance-dependency-data-unavailable-insufficient
 - abundance-dependency-insufficient
@@ -324,10 +342,8 @@ display:
 - protein-abundance-strong-up-surface-supportive
 - protein-data-unavailable-insufficient
 - protein-modestly-down-opposing
-- protein-modestly-up-neutral
 - protein-not-surface-opposing
 - protein-strongly-down-opposing
-- protein-strongly-up-supportive
 - protein-surface-confirmed-supportive
 - purity-confound-data-unavailable-insufficient
 - purity-confound-insufficient
@@ -424,10 +440,4 @@ display:
 - tumor-intrinsic-surface-supportive
 - tumor-vs-normal-crossing-data-unavailable-insufficient
 - tumor-vs-normal-crossing-minimal-neutral
-- tumor-vs-normal-crossing-strong-supportive
-- tvn-no-full-normal-window-veto
-- tvn-no-therapeutic-window-veto
-- tvn-sc-normal-critical-organ-veto
-- tvn-stromal-confound-veto
-- tvn-tphp-broad-abundant-normal-protein-veto
 - wt-strongly-dependent-neutral
