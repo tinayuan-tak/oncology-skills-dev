@@ -1,14 +1,39 @@
-# Example snapshot config: Dependency analysis
-title: "{gene} Dependency in {indication}"
-subtitle: "CRISPR functional dependency analysis"
-layout: "1x2"  # 1 row, 2 columns
+# snapshot config: genomic-alteraion
+title: "{gene} Genomic Alerations in {indication}"
+subtitle: "Genomic alteration analysis"
+layout: "3x3"  # 1 row, 2 columns
 
 panels:
-  - figure: "cards/pan-cancer-crispr-dependency-distribution/figure_waterfall.svg"
-    caption: "Pan-cancer CRISPR dependency waterfall"
+  - title: "{gene} Mutation Frequency in {indication} (TCGA)"
+    table: "subskills/genomic_alteration/tables/mutation-hotspot-frequency_summary_stats.csv"
+    table_max_rows: 3
+    
+  - title: "{gene} Hotspot Mutation Frequency in {indication} (TCGA)"
+    table: "subskills/genomic_alteration/tables/mutation-hotspot-frequency_hotspot_frequencies.csv"
+    
+  - figure: "cards/mutation-type-counts/figure_mutation_class_bar.svg"
+    caption: "Cell line - Pan-Cancer"
+    table: "subskills/genomic_alteration/tables/mutation-type-counts_summary_stats.csv"
+    table_max_rows: 3
+    
+  - title: "{gene} CN Alteration Frequency in {indication} (TCGA)"
+    table: "subskills/genomic_alteration/tables/copy-number-distribution_summary_stats.csv"
+    table_row_select:
+      column: "field"
+      values: ["patient_copy_number_class","patient_amplified_fraction","patient_high_amp_fraction","patient_deleted_fraction","patient_homdel_fraction"]
+    
+  - figure: "cards/copy-number-distribution/figure_density_cn.svg"
+    caption: "Cell line - Pan-Cancer"
 
-  - figure: "cards/mutation-stratified-dependency/figure_mut_vs_wt_strip.svg"
-    table: "cards/mutation-stratified-dependency/plot_data.parquet"
-    table_columns: ["cell_line_name", "chronos_score", "lineage", "is_hotspot_mutant"]
-    table_max_rows: 8
-    caption: "Mutant vs wild-type dependency"
+  - title: "{gene} Fusion Frequency in {indication} (TCGA)"
+    table: "subskills/genomic_alteration/tables/fusion-rearrangement-landscape_summary_stats.csv"
+    table_row_select:
+      column: "field"
+      values: ["n_samples_with_fusion","fusion_frequency","fusion_class"]
+      
+  - title: "{gene} Alternative Splicing Frequency in {indication} (TCGA)"
+    table: "subskills/genomic_alteration/tables/tumor-splice-dysregulation_summary_stats.csv"
+    table_row_select:
+      column: "field"
+      values: ["n_splice_events","max_event_psi_std","median_event_psi_std"]
+      
