@@ -1,9 +1,35 @@
-"""The claim tier ladders exist TWICE, and this file is the only thing holding the two copies in step.
+"""The claim tier ladders are copied and PROJECTED across the fleet; this file holds every copy in step.
 
 `claim_vector_core.SIGNAL_ORD` / `CORROBORATION_ORD` are the RUNTIME ladders — read only relationally
 (`weakest()`, `sig_ge`), so they may renumber freely. `archetype_core.CLAIM_SIG_ORD` / `CLAIM_CORR_ORD` are
 the ATLAS ENCODER, whose literal values were written into `atlas.json` and may not move without a rebuild.
 Two coordinate systems on purpose; two vocabularies by accident is the bug.
+
+★ AND THE CORROBORATION AXIS IS PROJECTED A THIRD WAY, which the first version of this file missed.
+
+Three more maps take a corroboration token and return something else entirely — a confidence tier, a dot
+count. They are consumers of this vocabulary just as much as the encoder is, and they were missed because
+the sweep that found the encoder searched for maps whose VALUES are numbers (`"(high|moderate|low)":\\s*[0-9]`).
+`_CORR_TO_CONF` maps to STRINGS. The predicate had quietly encoded "ordinal implies numeric" — a property of
+the map that happened to be under repair, not of the defect. A consumer that maps to a string is still a
+consumer. The population here is therefore derived from the PRECONDITION instead: who reads a
+`corroboration` field at all (`_corroboration_reader_modules`), classified one module at a time.
+
+Keying on the maps' own key names would be both noisier and wrong: `surface_claims._DENSITY_SIGNAL` is keyed
+`high`/`moderate`/`low`/`unmeasured` too, but it reads `surface_density_class` — a different axis wearing the
+same words. Conversely `presence_cardboard_figure._RELDOT` looks like a corroboration map and is not: its
+input is minted locally from a q-value ternary, so no new rung can ever reach it. The discriminator is the
+CALL SITE, never the key names.
+
+★ THE PROJECTIONS FAIL IN THE OPPOSITE DIRECTION FROM THE ENCODER, so the two need different assertions.
+The encoder fails OPEN: an unknown rung encodes to None and `_align_z_impute` sends it to the corpus mean,
+which IS `moderate` — the value the new rung exists to remove. The projections fail CLOSED: an unknown rung
+takes a `.get()` fallback that is the vocabulary's abstention (`insufficient`, or zero dots), so a MEASURED
+claim reports as UNMEASURED. `headline_core` makes that self-contradictory — the confidence level collapses
+to `insufficient` while the sibling `basis` string still reads "weakest-link corroboration = <the rung>".
+Over-read and under-read both violate gap != absent; closed is the safer default, so it is pinned too
+(`test_live_projections_abstain_on_an_unknown_rung_rather_than_guessing`) — the tempting repair for a
+collapse is to make the fallback a plausible middle value, which silently converts it into the encoder bug.
 
 ★ WHY THIS FILE EXISTS, and why a comment could not do its job.
 
@@ -40,11 +66,14 @@ lacks silently mis-encodes real cells; an encoder rung no producer emits is only
 shrink over time (equality there would red the moment a producer legitimately catches up).
 """
 
+import ast
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+_SKILLS_ROOT = Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(_SKILLS_ROOT))
 
+from _skills_common import figure_palette, headline_core, question_table_core  # noqa: E402
 from _skills_common.archetype_core import (  # noqa: E402
     CLAIM_CORR_ORD,
     CLAIM_SIG_ORD,
@@ -218,3 +247,255 @@ def test_single_arm_is_ordered_between_low_and_moderate():
     assert (CLAIM_CORR_ORD["low"], CLAIM_CORR_ORD["moderate"], CLAIM_CORR_ORD["high"]) == (1.0, 2.0, 3.0)
     # ...and it lands on a coordinate no frozen cell holds, so new encodings stay distinguishable from old.
     assert CLAIM_CORR_ORD["single_arm"] not in (0.0, 1.0, 2.0, 3.0)
+
+
+# ══ the NON-NUMERIC projections of the same axis ═══════════════════════════════════════════════════
+# Each entry: (label, the map, its DECLARED `.get()` fallback, a rank fn over its OWN value vocabulary,
+# the modules that call `.get()` on it, why it matters). The rank fn exists because two of the three
+# return dot COUNTS and one returns confidence TIER NAMES — the thing being asserted is the same in both
+# cases, which is the point. The declared fallback is cross-checked against the call sites below rather
+# than trusted: a literal copied into a test is a comment, and a comment is not a mirror.
+_LIVE_CORROBORATION_PROJECTIONS = (
+    (
+        "headline_core._CORR_TO_CONF",
+        headline_core._CORR_TO_CONF,
+        "insufficient",
+        lambda v: headline_core.CONFIDENCE_ORD[v],
+        ("_skills_common/headline_core.py",),
+        "weakest-link corroboration -> headline confidence.level. DECISION-FACING, and the only one of "
+        "the three that is: read as `.get(weakest_corr, 'insufficient')`, while the sibling `basis` "
+        "string on the next line still names the measured tier — so the report contradicts itself",
+    ),
+    (
+        "question_table_core.CONF_DOTS",
+        question_table_core.CONF_DOTS,
+        0,
+        lambda v: v,
+        ("_skills_common/question_table_core.py",),
+        "corroboration -> confidence dots in every per-question table, via `conf()` — reached from "
+        "cv_axis_row (the shared builder for 7 descriptive skills) plus 11 explicit `conf(corr, ...)` "
+        "call sites in the presence/selectivity/dependency/differentiation tables. Verdict-inert by its "
+        "own docstring, but zero dots is indistinguishable from `unmeasured` while the cell's label "
+        "prints the rung's name",
+    ),
+    (
+        "figure_palette.REL_DOTS",
+        figure_palette.REL_DOTS,
+        0,
+        lambda v: v,
+        ("_skills_common/headline_hero.py", "_skills_common/presence_claims_figure.py"),
+        "corroboration -> relation-dot count in the hero and presence-claims figures, both "
+        "`.get(<claim>['corroboration'], 0)`. Defined in figure_palette but never called there",
+    ),
+)
+
+
+def _fallbacks_at_call_sites(label: str, call_sites) -> dict:
+    """`{"<module>:<line>": <literal default>}` for every `<map>.get(x, DEFAULT)` in `call_sites`.
+
+    Two deliberate choices, both of which are the discrimination this whole section exists to teach:
+
+      * Matched by name SUFFIX, because both figure_palette consumers import `REL_DOTS as _REL_DOTS`.
+        An exact-name match finds nothing and greens by emptiness.
+      * Scoped to the DECLARED call-site modules, not swept fleet-wide, because `evidence_graph._CONF_DOTS`
+        also ends in `CONF_DOTS` and is a DIFFERENT AXIS — its level comes from a ternary on
+        `evidence_state`, never from a corroboration token. Same words, different axis; the call site is
+        the discriminator, and a fleet-wide suffix sweep would silently annex it.
+    """
+    base = label.rsplit(".", 1)[-1]
+    seen = {}
+    for rel in call_sites:
+        tree = ast.parse((_SKILLS_ROOT / rel).read_text())
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "get"
+                and isinstance(node.func.value, ast.Name)
+                and node.func.value.id.endswith(base)
+                and len(node.args) == 2
+                and isinstance(node.args[1], ast.Constant)
+            ):
+                seen[f"{rel}:{node.lineno}"] = node.args[1].value
+    return seen
+
+
+# Every non-test module that READS a `corroboration` field, with why it is safe. The population is
+# derived by AST sweep below, so a NEW reader reds `test_the_set_of_corroboration_readers_is_classified`
+# and forces this triage. Keyed by path relative to `skills/` with NO line numbers, so an unrelated edit
+# elsewhere in the module cannot red this file.
+_CORROBORATION_READERS = {
+    # --- the numeric encoder, covered by the assertions above -------------------------------------
+    "_skills_common/archetype_core.py": "ENCODER (CLAIM_CORR_ORD)",
+    # --- the projections asserted in _LIVE_CORROBORATION_PROJECTIONS -------------------------------
+    "_skills_common/headline_core.py": "PROJECTION _CORR_TO_CONF; also echoes the token verbatim into the axis list",
+    "_skills_common/question_table_core.py": "PROJECTION CONF_DOTS via conf()",
+    "_skills_common/headline_hero.py": "PROJECTION figure_palette.REL_DOTS; also renders the token as prose",
+    "_skills_common/presence_claims_figure.py": "PROJECTION figure_palette.REL_DOTS; also renders it as prose",
+    # --- delegate to question_table_core.conf, so covered by CONF_DOTS above -----------------------
+    "_skills_common/dependency_question_table.py": "DELEGATES to question_table_core.conf",
+    "_skills_common/differentiation_question_table.py": "DELEGATES to question_table_core.conf",
+    "_skills_common/presence_question_table.py": "DELEGATES to question_table_core.conf",
+    "_skills_common/selectivity_question_table.py": "DELEGATES to question_table_core.conf",
+    # --- PASS-THROUGH: renders or copies the token verbatim. An unrecognised rung reads as ITSELF,
+    #     which is honest — no map, so nothing to keep in step. This is the safe way to consume the axis.
+    "_skills_common/literature_synthesis.py": "PASS-THROUGH (prose line)",
+    "_skills_common/report_render/backends/text.py": "PASS-THROUGH (prose line)",
+    "_skills_common/signals_first.py": "PASS-THROUGH (prose line)",
+    "_skills_common/skill_report.py": "PASS-THROUGH (copied verbatim into the report atom)",
+    "_skills_common/subgroup_derivation.py": "PASS-THROUGH (copied verbatim into the per-stratum atom)",
+    "cross-evidence-hypothesis/scripts/run.py": "PASS-THROUGH (prose; the gate reads `signal`, not this)",
+    "example-gallery/scripts/generate_example_gallery.py": "PASS-THROUGH (gallery prose)",
+    "target-profile/scripts/tp_synthesis_prompt.py": "PASS-THROUGH (prompt prose)",
+    "tumor-presence/scripts/run.py": "PASS-THROUGH (copied verbatim under a `certainty` key)",
+}
+
+
+def _corroboration_reader_modules() -> set:
+    """Paths (relative to `skills/`) of every non-test module that reads a `corroboration` field.
+
+    The PRECONDITION for this defect class is receiving a corroboration token — a map is only dangerous
+    if something feeds it one — so that is what the sweep looks for, via AST rather than text so a
+    mention in a comment or a docstring cannot enter the population.
+    """
+    found = set()
+    for path in sorted(_SKILLS_ROOT.rglob("*.py")):
+        rel = path.relative_to(_SKILLS_ROOT).as_posix()
+        if "__pycache__" in rel or "/tests/" in rel:
+            continue
+        try:
+            tree = ast.parse(path.read_text())
+        except SyntaxError:  # pragma: no cover - a broken module is not this file's business
+            continue
+        for node in ast.walk(tree):
+            reads = (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "get"
+                and node.args
+                and isinstance(node.args[0], ast.Constant)
+                and node.args[0].value == "corroboration"
+            ) or (
+                isinstance(node, ast.Subscript)
+                and isinstance(node.slice, ast.Constant)
+                and node.slice.value == "corroboration"
+            )
+            if reads:
+                found.add(rel)
+                break
+    return found
+
+
+def test_every_corroboration_rung_survives_every_live_projection():
+    """The string-valued twin of `test_every_rankable_corroboration_rung_is_encodable`.
+
+    Inert on trunk by construction — `CORROBORATION_ORD` is exactly high/moderate/low/unmeasured today
+    and all three maps carry all four keys — and it bites the moment a producer mints a rung, which is
+    the same argument that licensed landing the encoder fix ahead of its producer.
+    """
+    required = set(CORROBORATION_ORD) - _VESTIGIAL_CORROBORATION_RUNGS
+    # Anti-vacuity BY NAME: an emptied or relocated runtime ladder must not silence this.
+    assert {"high", "moderate", "low", "unmeasured"} <= required
+    assert _LIVE_CORROBORATION_PROJECTIONS, "the projection registry is empty"
+    # Accumulated rather than asserted per projection: minting a rung leaves ALL THREE maps behind at
+    # once, and a fail-fast assert would name one, get fixed, and red again twice — three round trips for
+    # one change, each looking like a new and separate problem.
+    gaps = []
+    for label, mapping, _fallback, _rank, _sites, why in _LIVE_CORROBORATION_PROJECTIONS:
+        assert mapping, f"{label} is empty — the projection was relocated, not covered"
+        missing = sorted(required - set(mapping))
+        if missing:
+            gaps.append(f"  - {label}: no entry for {missing}\n      {why}")
+    assert not gaps, (
+        "corroboration rung(s) reach a projection that cannot render them, so each takes the map's "
+        "`.get()` fallback and reads as an ABSTENTION — a MEASURED claim reported as unmeasured. Every "
+        "one of these must be mapped in the SAME change that mints the rung:\n" + "\n".join(gaps)
+    )
+
+
+def test_each_projection_has_a_live_call_site_matching_its_declared_fallback():
+    """The registry above is only as good as its correspondence to the code.
+
+    Without this, the fallback column is a literal transcribed by hand — someone widening
+    `CONF_DOTS.get(tier, 0)` to `.get(tier, 2)` would leave the fail-direction test below asserting
+    against a value the code no longer uses, and it would stay green while the behaviour inverted.
+    """
+    for label, _mapping, declared, _rank, sites, _why in _LIVE_CORROBORATION_PROJECTIONS:
+        observed = _fallbacks_at_call_sites(label, sites)
+        assert observed, (
+            f"{label} is declared live at {list(sites)} but no `.get(x, DEFAULT)` call was found there. "
+            "The projection moved, or its consumers now index it directly — in which case an unknown "
+            "rung raises rather than abstaining, and the fail direction changed."
+        )
+        drifted = {site: got for site, got in observed.items() if got != declared}
+        assert not drifted, (
+            f"{label}'s declared fallback {declared!r} no longer matches its call site(s): {drifted}. "
+            "Update the registry AND re-check the fail-direction argument — that literal is the entire "
+            "behaviour for any rung the map does not carry."
+        )
+
+
+def test_live_projections_abstain_on_an_unknown_rung_rather_than_guessing():
+    """Pin the fail DIRECTION, not just the coverage.
+
+    Failing closed is what these maps do today and it is the safer default. It is asserted because the
+    tempting repair for the collapse above is to give the fallback a plausible MIDDLE value — which
+    converts an under-read into an over-read and reproduces the encoder's mean-imputation bug in a
+    place where nothing would flag it. Driven off the defaults READ FROM THE CALL SITES, so the check
+    survives the registry going stale.
+    """
+    for label, mapping, _declared, rank, sites, _why in _LIVE_CORROBORATION_PROJECTIONS:
+        floor = min(rank(v) for v in mapping.values())
+        for site, fallback in _fallbacks_at_call_sites(label, sites).items():
+            # Checked BEFORE ranking: `rank` is a bare subscript for the string projection, so an
+            # off-vocabulary fallback would raise here instead of reporting — the same bare-subscript
+            # hazard the confidence-ladder test below asserts about production code.
+            assert fallback in set(mapping.values()), (
+                f"{site}: {label}'s fallback {fallback!r} is not a value the map itself ever produces, "
+                "so 'abstain' is not even expressible in the vocabulary the consumer renders"
+            )
+            assert rank(fallback) == floor, (
+                f"{site}: {label}'s unknown-rung fallback {fallback!r} does not sit at its own vocabulary "
+                f"floor ({floor}). A fallback above the floor makes an unrecognised rung read as a "
+                "measured, plausible tier — silent, and in the confident direction."
+            )
+
+
+def test_the_confidence_projection_lands_on_the_confidence_ladder():
+    """`headline_core` does `CONFIDENCE_ORD[_CORR_TO_CONF.get(...)]` — a bare subscript, not a `.get()`.
+    So a projection value outside the confidence vocabulary is a KeyError at report time, not a
+    mis-read. Cheap to assert and it constrains what a new rung's mapping may say."""
+    off_ladder = sorted(set(headline_core._CORR_TO_CONF.values()) - set(headline_core.CONFIDENCE_ORD))
+    assert not off_ladder, (
+        f"_CORR_TO_CONF maps a rung onto {off_ladder}, which CONFIDENCE_ORD does not contain — "
+        "headline_core.py:104 subscripts it directly and would raise KeyError."
+    )
+
+
+def test_the_set_of_corroboration_readers_is_classified():
+    """The assertion that would have caught the omission this section exists to fix.
+
+    A registry of three hand-listed maps is exactly the narrow population that let `_CORR_TO_CONF`
+    hide. Deriving the CANDIDATE set mechanically and requiring the CLASSIFICATION to be explicit means
+    a fourth consumer cannot be added silently — the author is forced to say which kind it is.
+    """
+    found = _corroboration_reader_modules()
+    # Anti-vacuity BY NAME: a broken sweep (wrong root, changed AST shape) must not green this.
+    assert {
+        "_skills_common/archetype_core.py",
+        "_skills_common/headline_core.py",
+        "_skills_common/question_table_core.py",
+    } <= found, f"the reader sweep is broken — it found {len(found)} module(s): {sorted(found)}"
+
+    unclassified = sorted(found - set(_CORROBORATION_READERS))
+    assert not unclassified, (
+        f"module(s) newly reading a `corroboration` field and not yet triaged: {unclassified}. Classify "
+        "by the CALL SITE, never by a map's key names: if the token is rendered or copied verbatim it is "
+        "a PASS-THROUGH (an unknown rung reads as itself — honest); if it is looked up in a map, add that "
+        "map to _LIVE_CORROBORATION_PROJECTIONS so the coverage assertion above covers it."
+    )
+    stale = sorted(set(_CORROBORATION_READERS) - found)
+    assert not stale, (
+        f"_CORROBORATION_READERS names module(s) that no longer read the field: {stale}. A stale entry is "
+        "a standing exemption for code that moved — delete it, or the next reader inherits its excuse."
+    )
