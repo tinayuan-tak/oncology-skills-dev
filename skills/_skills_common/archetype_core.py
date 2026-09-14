@@ -700,8 +700,19 @@ ARCH_W = {
     },
     # fusion/rearrangement driver — genomic-driven like snv, but the actionability leans on the
     # rearrangement (a mutation-defined patient subgroup) + tractability of the fusion partner kinase.
-    # Route vocabulary is forward-ready; the matching atlas anchor activates on the next re-freeze once
-    # ALK/ROS1/NTRK-fusion exemplar runs exist (see build_atlas.ANCHOR_SETS).
+    # ★ THE ROUTE IS LIVE; THE ATLAS ANCHOR IS DEFERRED ON A MEASURED FAILURE, NOT ON MISSING RUNS, so do
+    # not schedule it behind a corpus regen or an exemplar backfill — neither can activate it. The single
+    # authority is build_atlas.DEFERRED_ANCHORS["fusion_driver"], which carries the per-leg verdicts, the
+    # corpus they were measured on, and a re-runnable script; ANCHOR_SETS merely LISTS the key, so
+    # membership there is not evidence the anchor is usable. At n=504 the separation test FAILS on leg 3
+    # (no bleed) while legs 1 and 2 — including exemplar RECOVERY — already pass, and the recorded root
+    # cause is the FEATURE SPACE: strong FUS is too sparse and its columns carry below-uniform embedding
+    # influence, so a 16-dim projection cannot preserve the corner. Measured across three membership
+    # variants, the legs move in OPPOSITE directions as membership improves, i.e. they cannot be satisfied
+    # simultaneously by curation; the listed unresolvable exemplars are spec-vocabulary rot (they also fail
+    # against the shipped n=297 atlas), not a coverage gap. The fix is a curated FUS-window feature, which
+    # is its own re-freeze arc. Figures live in DEFERRED_ANCHORS and are deliberately NOT mirrored here —
+    # a second copy of a measurement is the trap where two files route the same axis and silently drift.
     "fusion_driver": {
         "genomic_alteration": 1.3,
         "tractability_sm": 1.2,
