@@ -21,8 +21,9 @@ from typing import Optional, Union
 
 from . import emit as _emit
 
-_DEFAULT_TARGET_CONTRACTS = os.environ.get(
-    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
+_DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT") or str(
+    Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
 
 _REQUIRED_COLUMNS = ("group",)

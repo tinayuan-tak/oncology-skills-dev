@@ -48,8 +48,10 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    os.environ.get("TARGET_CONTRACTS_ROOT")
+    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
 VOCAB_RELPATH = "vocabularies/domain_modality_targets.yaml"
 

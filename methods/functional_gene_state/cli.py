@@ -25,8 +25,9 @@ _STATE_COLORS = {
 }
 
 
-DEFAULT_TARGET_CONTRACTS = os.environ.get(
-    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
+DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT") or str(
+    Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
 
 # per-sample-state → fill for the stacked composition bar (biallelic = deepest / strongest LoF).

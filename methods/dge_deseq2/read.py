@@ -26,8 +26,10 @@ import yaml
 
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 DATA_CATALOG = Path(
-    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    os.environ.get("DATA_CATALOG_ROOT")
+    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
 )
 DEFAULT_AWS_PROFILE = "cbg"
 

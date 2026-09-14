@@ -34,8 +34,10 @@ S3_BUCKET = "onc-compbio"
 SOURCE_S3_KEY = "data-catalog/sources/uniprot-sprot-human/2026_02-snapshot-2026-06-18/uniprot_sprot_human.dat.gz"
 DEFAULT_AWS_PROFILE = "cbg"
 DEFAULT_RESOLVER_RELEASE = "resolver_v1.0.0"
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 DATA_CATALOG = Path(
-    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    os.environ.get("DATA_CATALOG_ROOT")
+    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
 )
 
 # UniProt KEYWORD → compact protein_class taxonomy. A keyword is a controlled-vocab term; several map

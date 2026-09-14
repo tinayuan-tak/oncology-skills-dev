@@ -53,11 +53,14 @@ from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
 
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 DEFAULT_CATALOG_REPO = Path(
-    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    os.environ.get("DATA_CATALOG_ROOT")
+    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
 )
 DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    os.environ.get("TARGET_CONTRACTS_ROOT")
+    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
 DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
 # Resolved from the data-catalog manifest (single source of truth). DEPMAP_S3_PREFIX (s3://-form)

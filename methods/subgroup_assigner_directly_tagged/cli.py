@@ -1000,11 +1000,13 @@ def _evaluate_stratum(
     help="Which data source to assign against.",
 )
 @click.option("--release-pin", required=True, help="Catalog release_pin identifier (e.g., 2026-Q2).")
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 @click.option(
     "--catalog-repo",
     type=click.Path(file_okay=False, path_type=Path),
     default=Path(
-        os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+        os.environ.get("DATA_CATALOG_ROOT")
+        or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
     ),
     help="Path to the data-catalog repo for input-manifest resolution.",
 )

@@ -30,8 +30,10 @@ S3_BUCKET = "onc-compbio"
 SOURCE_S3_KEY = "data-catalog/sources/cspa-bausch-fluck-2015/pone.0121314.s002.xlsx"
 DEFAULT_AWS_PROFILE = "cbg"
 DEFAULT_RESOLVER_RELEASE = "resolver_v1.0.0"
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 DATA_CATALOG = Path(
-    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    os.environ.get("DATA_CATALOG_ROOT")
+    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
 )
 
 # CSPA confidence category (verbatim in Table_B) → surface_confirmation card vocab.

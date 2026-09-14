@@ -65,8 +65,10 @@ def _axis_match(sentence, tokens: list[str]) -> int:
     return sum(1 for tok in tokens if tok and tok in s)
 
 
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    os.environ.get("TARGET_CONTRACTS_ROOT")
+    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
 
 # Finer OncoTree/panel subtype codes -> the indication_crosswalk `canonical_code` that carries the

@@ -436,11 +436,13 @@ def _run_cms_classifier(expression_df: pd.DataFrame, config: dict, run_dir: Path
     help="Which data source's expression matrix to classify against.",
 )
 @click.option("--release-pin", required=True, help="Catalog release_pin identifier.")
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 @click.option(
     "--catalog-repo",
     type=click.Path(file_okay=False, path_type=Path),
     default=Path(
-        os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+        os.environ.get("DATA_CATALOG_ROOT")
+        or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
     ),
     help="Path to the data-catalog repo.",
 )

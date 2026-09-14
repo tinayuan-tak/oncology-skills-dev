@@ -11,8 +11,9 @@ from . import read as _read
 # 0.2.0 (2026-09-12): curation/measurement separation — +curated_cancer_gene role, 2:1 ROLE
 # dominance, conflict-aware functional_direction. See read.py's module docstring.
 METHOD_VERSION = "0.2.0"
-DEFAULT_TARGET_CONTRACTS = os.environ.get(
-    "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
+DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT") or str(
+    Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
 
 _ROLE_COLORS = {

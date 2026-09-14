@@ -66,8 +66,10 @@ METHOD_VERSION = "0.3.0"  # 0.3.0 (2026-09-07, CASE-008 verdict-moving): + MODAL
 # such flag and are NEVER demoted (the osimertinib guard); an entry with the flag absent, or an
 # unreadable/absent crosswalk → prior modality-blind behaviour (byte-stable). So this reader can land
 # BEFORE the vocab is flagged with zero behaviour change.
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    os.environ.get("TARGET_CONTRACTS_ROOT")
+    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
 BIOLOGICS_PRECEDENT_VOCAB_RELPATH = "vocabularies/biologics_precedent_targets.yaml"
 

@@ -160,12 +160,12 @@ def _ordered_rows(df):
     return tumor.to_dict("records"), normal.to_dict("records")
 
 
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 def emit_by_tissue_distribution(
     target: str,
     out_dir: Path,
-    target_contracts_dir=os.environ.get(
-        "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-    ),
+    target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT")
+    or str(Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"),
     *,
     presampled=None,
 ) -> Path:
@@ -272,9 +272,8 @@ def emit_plot_data(target: str, out_dir: Path) -> Path:
 def emit_plotly_specs(
     target: str,
     out_dir: Path,
-    target_contracts_dir=os.environ.get(
-        "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-    ),
+    target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT")
+    or str(Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"),
     *,
     presampled=None,
 ) -> list:

@@ -119,15 +119,20 @@ def _lean_load_manifest(path):
     return doc, sorted(cats), sorted(fmts)
 
 
-# Repo roots — env-var-overridable with the local-dev default (matches gdc_somatic_hotspot's
-# DATA_CATALOG_ROOT pattern). Overriding via env is what lets CI / a non-/home/sagemaker-user
-# checkout resolve manifests (the hardcoded default previously broke any environment — e.g. GitHub
-# Actions — where the sibling repos aren't at /home/sagemaker-user).
+# Repo roots — env-var-overridable, defaulting to the sibling checkout DERIVED from this file's own
+# location (matches gdc_somatic_hotspot's DATA_CATALOG_ROOT pattern). Overriding via env used to be
+# the only thing that let CI or any non-/home/sagemaker-user checkout resolve manifests; the derived
+# default now matches CI's own layout, so methods-validate.yml's exported roots are a pin rather than
+# a requirement. `or` rather than a two-arg .get() default so an EMPTY value falls back too:
+# .get(K, d) returns "" and Path("") is "." — the CWD, a plausible wrong root that reads as
+# "manifests missing" rather than as a resolution failure.
 DATA_CATALOG = Path(
-    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    os.environ.get("DATA_CATALOG_ROOT")
+    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
 )
 TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    os.environ.get("TARGET_CONTRACTS_ROOT")
+    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
 
 # ---------------------------------------------------------------------------

@@ -34,8 +34,10 @@ from methods.catalog_query.read import bucket_prefix_for
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
 
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    os.environ.get("TARGET_CONTRACTS_ROOT")
+    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
 DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
 # bucket + bucket-relative prefix resolved from the manifest (single source of truth);

@@ -1326,12 +1326,12 @@ _TUMOR_FILL, _TUMOR_LINE = "#1f4e79", "#0a2540"
 _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"
 
 
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 def emit_per_cohort_panel(
     target: str,
     out_dir: Path,
-    target_contracts_dir=os.environ.get(
-        "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-    ),
+    target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT")
+    or str(Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"),
     *,
     presampled=None,
 ) -> Path:
@@ -1503,9 +1503,8 @@ def emit_plot_data(target: str, out_dir: Path) -> Path:
 def emit_plotly_specs(
     target: str,
     out_dir: Path,
-    target_contracts_dir=os.environ.get(
-        "TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
-    ),
+    target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT")
+    or str(Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"),
     *,
     presampled=None,
 ) -> list:

@@ -77,8 +77,10 @@ from methods.target_id_sidecar import ensure_aws_profile
 # wins (preserves the fast path + byte-stability for already-provisioned environments),
 # else fall back to the manifest's S3 payload. Both products carry an `indication`
 # column, so a single pushdown filter on (indication[, gene_symbol]) works either way.
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 DATA_CATALOG = Path(
-    os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+    os.environ.get("DATA_CATALOG_ROOT")
+    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
 )
 
 _HOTSPOT_FREQUENCY_MANIFEST = "tcga-mc3-hotspot-frequency-v1"

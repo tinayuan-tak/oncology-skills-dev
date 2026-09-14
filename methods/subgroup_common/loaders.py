@@ -226,8 +226,10 @@ def load_assignments(manifest_id: str, data_catalog_repo: Path | None = None) ->
       derivation_source, derivation_value, evaluated_at_release.
     """
     if data_catalog_repo is None:
+        # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
         data_catalog_repo = Path(
-            os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+            os.environ.get("DATA_CATALOG_ROOT")
+            or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
         )
 
     # Resolution order mirrors the source loaders above: session cache first,

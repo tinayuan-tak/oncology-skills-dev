@@ -42,8 +42,10 @@ DRUG_TARGET_MANIFEST = "dgidb-drug-target-directional-v1"
 AACT_MANIFEST = "aact-oncology-trial-precedent-per-condition-intervention-v1"
 METHOD_VERSION = "0.1.0"
 
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    os.environ.get("TARGET_CONTRACTS_ROOT")
+    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
 
 # AACT phase string -> ordinal (for highest-stage), and ordinal -> clinical-stage class.

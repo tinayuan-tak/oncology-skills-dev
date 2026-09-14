@@ -5,8 +5,11 @@ Invocation:
     dge-deseq2 --indication COADREAD \
                --contrast tumor_vs_adjacent \
                --release-pin 2026-Q2 \
-               --catalog-repo /home/sagemaker-user/rnd-computational-biology-oncology-data-catalog \
                --out /tmp/dge_deseq2_run/
+
+--catalog-repo is omitted above because it defaults to the data-catalog sibling of THIS
+checkout, derived from this file's location (see the @click.option below). Pass it, or set
+DATA_CATALOG_ROOT, only to point at a different checkout or branch.
 
 The CLI:
   1. Resolves --indication to a config YAML path under {catalog_repo}/subgroup-catalogs/{indication}/
@@ -90,11 +93,13 @@ def compute_git_sha(repo_path: Path) -> str:
 )
 @click.option("--gtex-tissue", default=None, help="Override recount3 GTEx tissue code (four_cell_sensitivity only).")
 @click.option("--release-pin", required=True, help="Catalog release_pin (e.g., 2026-Q2).")
+# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 @click.option(
     "--catalog-repo",
     type=click.Path(file_okay=False, path_type=Path),
     default=Path(
-        os.environ.get("DATA_CATALOG_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog")
+        os.environ.get("DATA_CATALOG_ROOT")
+        or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
     ),
     help="Path to the data-catalog repo for config resolution.",
 )
