@@ -19,6 +19,10 @@ boto3 = "*"                      # S3 client for pull/prep stages
 openpyxl = "*"                   # Excel parsing (CPTAC clinical XLSX + SURFY)
 plotly = "*"                     # interactive figure specs (emit_plotly_specs → figure_*.plotly.json)
 scipy = "*"                      # gaussian_kde for density-plot emitters (expression + protein-abundance)
+duckdb = "*"                     # SQL-over-parquet in 6 methods (tcga_gtex_tpm_quantiles, tcga_tpm_precompute,
+                                 # stemness_index, progeny_pathway_activity, pair_selectivity_gate,
+                                 # sc_normal_expression). Each does a LAZY `import duckdb` inside the function
+                                 # that needs it, so the modules import fine and the omission stayed invisible.
 
 # R + bioconductor (for dge_deseq2 + cooccurrence_fisher_pancohort + any future R-driven methods)
 r-base = ">=4.3"
