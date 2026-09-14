@@ -89,24 +89,44 @@ no classification claim.
 
 STALENESS GUARD: `scripts/atlas_health.py` (+ `archetype_core.vocabulary_drift`) — a CI-wireable check that
 the frozen embedding still re-projects every corpus row onto its stored coord, that provenance is complete,
-and (given a live run) that no live claim key is silently absent from the frozen `feature_order`. The
-`fusion_driver` anchor is registered ASPIRATIONALLY (build_atlas skips-not-crashes on absent exemplars). Its
-5 exemplar runs were generated + FUS-verified, but a trial re-freeze that activated it REGRESSED the panel:
-the exemplars land correctly (ALK 97%, NTRK1 88%, RET 83%, ROS1 67%) but — because FUS is one sparse feature
-of 108 and every recurrent-fusion driver is an RTK — the anchor encodes RTK-ness, bleeding spurious fusion
-mass into non-fusion RTK/surface targets (MET flipped fusion-dominant; ERBB2 35%; CLDN18, not a kinase, 31%).
-It stays deferred until the fusion signal is made SEPARABLE in the embedding (e.g. FUS-feature up-weighting),
-not merely supplied with exemplars. `synthetic_lethal` is deferred on the same kind of evidence but by the
-weaker mechanism of having NO exemplar set at all, so it is DECLARED in `build_atlas.UNDECLARED_ANCHORS` (with
-its separation-test numbers) and the build REFUSES to run if an exemplar set reappears — see
-`tests/test_deferred_anchors.py`.
+and (given a live run) that no live claim key is silently absent from the frozen `feature_order`.
+
+ANCHOR ACTIVATION IS GATED BY A SEPARATION TEST: `scripts/anchor_separation_test.py`, three legs that must
+ALL pass — **centroid isolation** (the candidate centroid sits further from every incumbent anchor than the
+corpus's own p90 nearest-neighbour distance), **exemplar recovery** (its own members resolve to it as
+dominant), **no bleed** (no non-member target FLIPS its dominant phenotype to it). Two anchors are currently
+refused by it, by two different mechanisms:
+
+- **`fusion_driver`** has an exemplar set, so it is withheld by `build_atlas.DEFERRED_ANCHORS`, which carries
+  the measured legs (`measured_on`, `measured_by`, `separation_test`) rather than a prose reason. Re-measured
+  2026-09-14 at n=504: legs 1 and 2 PASS, leg 3 FAILS with **42 non-member targets flipping to
+  `fusion_driver`, 40 of them carrying no FUS evidence at all**, and precision against the FUS column is 7%.
+  The cause is the FEATURE SPACE, not the exemplar set: strong FUS is 6/504 rows across **2 of 176 columns**
+  holding 0.861% of embedding influence (BELOW their uniform 1.136% share), so a 16-dim PCA cannot preserve
+  it and the corner's position is set by the dense RTK/amp features that co-occur with its exemplars.
+  Measured across three membership variants, **the three legs move in OPPOSITE directions as membership
+  improves** (leg-1 margin 7.574 → 6.685, leg-3 bleed 42 → 49 flips, leg 2 breaks at 3/6), so they cannot be
+  satisfied together — activate only after a curated FUS-window feature makes rearrangement separable.
+  ⚠️ Three of its five exemplars can never resolve (`ALK/LUAD`, `ROS1/LUAD` — the corpus files both genes
+  only under `NSCLC`; `FGFR2/CHOL` — no `CHOL` rows exist), which is declared in `unresolvable_exemplars` and
+  enforced by `build_atlas._assert_anchor_exemplars_resolve`. Do NOT repair it by substituting whatever
+  indication the corpus carries: gastric `FGFR2` is amplification-driven, not fusion-driven.
+- **`synthetic_lethal`** is deferred by the WEAKER mechanism of having no exemplar set at all, so it is
+  DECLARED in `build_atlas.UNDECLARED_ANCHORS` (with its own separation-test numbers) and the build REFUSES
+  to run if an exemplar set reappears.
+
+Both refusals are at the PRODUCER boundary (`build()` raises), not only in tests, because a re-freeze is run
+by hand. See `tests/test_deferred_anchors.py`. ⚠️ **The p90 NN bar MOVES with corpus size and must be
+recomputed, never carried over**: 5.929 at n=297 vs 4.968 at n=504 — a denser corpus makes the bar STRICTER.
 
 FREEZE STABILITY: `scripts/atlas_stability.py` pins a per-field + per-`meta`-key sha256 of the frozen artifact
 in `atlas/atlas_freeze.json`, so a value that moves without a re-freeze is a red test that NAMES the field.
 This is a different property from the staleness guard above, which checks internal consistency and so cannot
 see a self-consistent edit. **Re-freeze checklist**: rebuild → `atlas_stability.py --verify-rebuild <new.json>`
 (0 substantive differences expected; only `meta.build_date`/`build_git_sha`/`feature_corr_provenance` are
-waived) → install the new atlas → `atlas_stability.py --write` in the SAME commit → `atlas_health.py` →
+waived) → **if the corpus changed size, RE-RUN `anchor_separation_test.py` for every deferred anchor and
+update its `measured_on`** (the p90 bar moves with n, so a stored verdict is a verdict about a corpus that no
+longer exists) → install the new atlas → `atlas_stability.py --write` in the SAME commit → `atlas_health.py` →
 **re-pin the producer test** (see next paragraph). `--verify-rebuild` needs the run corpus, so it runs by
 hand, not in CI; scikit-learn is declared in `pixi.toml` as of 2026-09-13, so it does run in this env.
 

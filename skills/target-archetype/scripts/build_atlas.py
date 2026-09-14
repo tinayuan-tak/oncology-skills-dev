@@ -82,15 +82,17 @@ ANCHOR_SETS = {
     "control_housekeeping": [("GAPDH", "LUAD"), ("ACTB", "COADREAD"), ("RPL13A", "OV")],
     # fusion/rearrangement-driver phenotype. Members were LIVE-verified to read `fusion:
     # recurrent_fusion_driver` (strong FUS) in their canonical fusion indication (RET/NSCLC + NTRK1/LUAD
-    # were REJECTED — sporadic/absent there). ⚠️ NOT ACTIVATED (kept aspirational; exemplar runs live under
-    # a separate tp_runs_fusion corpus, NOT the shipped --runs, so build SKIPS it). WHY DEFERRED: a
-    # 2026-09-02 re-freeze that DID activate it regressed the panel — the exemplars correctly land on the
-    # anchor (ALK 97%, NTRK1 88%, RET 83%, ROS1 67%), BUT because FUS is ONE sparse feature of 108 and every
-    # recurrent-fusion driver is an RTK, the anchor centroid encodes RTK-ness not rearrangement, bleeding
-    # spurious fusion mass into non-fusion RTK/surface targets (MET flipped fusion-DOMINANT; ERBB2 35%; EGFR
-    # 20%; CLDN18 — not even a kinase — 31%). Activating this cleanly needs the fusion signal made SEPARABLE
-    # (e.g. FUS-feature up-weighting in the embedding) first, not just adding exemplars. See
-    # project_target_archetype_augment memory.
+    # were REJECTED — sporadic/absent there). ⚠️ DEFERRED, NOT aspirational: 2 of these 5 exemplars ARE in
+    # the shipped corpus, so nothing here is skipped for absence any more and DEFERRED_ANCHORS below is the
+    # only thing withholding the anchor. It bleeds RTK-ness rather than encoding rearrangement, because
+    # strong FUS is 2 of 176 columns at 1.2% positive and every recurrent-fusion driver is an RTK.
+    # ★ THREE of these five exemplars CANNOT RESOLVE against the corpus (ALK/LUAD + ROS1/LUAD — the corpus
+    # files both genes only under NSCLC; and FGFR2/CHOL — CHOL has no rows at all), so the anchor would be
+    # built from a 2-row THCA-only subset. Do NOT "fix" that by substituting whatever indication the corpus
+    # happens to carry: FGFR2/STAD is amplification-driven, and swapping it in puts an amp row in a fusion
+    # corner. The full evidence, the failed separation-test legs and the unresolvable set live in
+    # DEFERRED_ANCHORS below — deliberately in ONE place, since evidence duplicated in prose and in a
+    # structure is evidence that will diverge. See skills #1243 + project_target_archetype_augment memory.
     "fusion_driver": [("ALK", "LUAD"), ("ROS1", "LUAD"), ("RET", "THCA"), ("FGFR2", "CHOL"), ("NTRK1", "THCA")],
     # NULL/floor corner (added at the 2026-09-11 re-freeze). The panel has carried 8 curated
     # `control_absent` targets since the first build, but with no anchor to absorb them every
@@ -111,11 +113,72 @@ ANCHOR_SETS = {
 
 # Anchors that must NOT activate even when their exemplars are present in the corpus — DEFERRED by an
 # EVIDENCED separation failure (they bleed into a neighbouring corner), distinct from the "absent exemplars"
-# skip. fusion_driver: the 2026-09-02 activation bled RTK-ness into non-fusion RTKs; its members (RET/THCA,
-# NTRK1/THCA) re-entered the corpus with the 2026-09-13 diverse expansion, so it now needs this explicit
-# guard rather than relying on absence. synthetic_lethal is deferred by the OTHER mechanism (no ANCHOR_SETS
-# entry at all) and is declared in UNDECLARED_ANCHORS below. Re-activate only after a separation test PASSES.
-DEFERRED_ANCHORS = frozenset({"fusion_driver"})
+# skip. synthetic_lethal is deferred by the OTHER mechanism (no ANCHOR_SETS entry at all) and is declared in
+# UNDECLARED_ANCHORS below. Re-activate only after a separation test PASSES.
+#
+# This was a bare `frozenset` until 2026-09-14, with its evidence in prose only. That is how the evidence
+# went STALE without anything noticing: EVERY witness the deferral cited (MET flipped fusion-dominant,
+# ERBB2 35%, EGFR 20%, CLDN18 31%) had quietly stopped reproducing, while the CONCLUSION had become far
+# better supported than the anecdote implied. A prose reason cannot be re-checked, so it decays silently and
+# the next reader overturns the deferral on the refuted half. Structured fields make the claim RE-RUNNABLE:
+# `measured_on` says which corpus the numbers came from, and `separation_test` records the legs so a later
+# session can reproduce them with scripts/anchor_separation_test.py instead of trusting them.
+# `unresolvable_exemplars` is read by _assert_anchor_exemplars_resolve() — see there for why it must exist.
+DEFERRED_ANCHORS = {
+    "fusion_driver": {
+        "measured_on": "target-archetype-corpus-20260914 (n=504, panel_504.tsv)",
+        "measured_by": "scripts/anchor_separation_test.py",
+        # Curated exemplars that CANNOT resolve against the corpus, so the anchor is built from a SUBSET.
+        # Not a corpus gap — an indication-VOCABULARY mismatch in the spec above, and the same 3 are
+        # unresolvable against the shipped n=297 atlas, so this is long-standing spec rot, not a regression.
+        "unresolvable_exemplars": [
+            # both genes exist in the corpus ONLY under `NSCLC`; the corpus's dominant lung token is `LUAD`
+            # (43 rows) with `NSCLC` a 3-row minority, so the spec sat on the wrong side of a split vocabulary
+            ("ALK", "LUAD"),
+            ("ROS1", "LUAD"),
+            # `CHOL` has ZERO rows corpus-wide, so this exemplar can never resolve. FGFR2 appears only under
+            # `STAD`, which is NOT a substitute: gastric FGFR2 is amplification-driven, not fusion-driven,
+            # so swapping it in would put an amp row inside a fusion corner.
+            ("FGFR2", "CHOL"),
+        ],
+        "separation_test": {
+            # the criterion is the codebase's own, set by the synthetic_lethal precedent below
+            "verdict": "FAIL",
+            "p90_nn_scale": 4.968,  # RECOMPUTED at n=504; do NOT reuse a stored value, it moves with n
+            "leg1_centroid_isolation": "PASS — nearest incumbent 7.574 (immune_checkpoint) vs bar 4.968",
+            "leg2_exemplar_recovery": "PASS — 2/2 resolvable members dominant (RET 95%, NTRK1 75%)",
+            "leg3_no_bleed": "FAIL — 42 non-member targets FLIP to fusion_driver; 40 of the 42 carry NO "
+            "strong FUS, and 27 read FUS explicitly ABSENT (SMO/BCC 54%, NTRK1/LUAD 57%, KIT and AXL x3-4)",
+            "precision_vs_the_fus_column": "6-8% across every membership variant (TP=3, FP=33-50, FN=3)",
+            "embedding_influence": "FUS::signal ranks 97/176 and FUS::corrob 107/176; combined 0.861% of "
+            "embedding influence vs 1.136% if uniform — BELOW its uniform share",
+        },
+        "reason": (
+            "2026-09-14 separation test FAILED at n=504, and the ROOT CAUSE IS THE FEATURE SPACE, so no "
+            "exemplar curation fixes it. Measured on three membership variants — the as-shipped spec (2 "
+            "resolvable members), a vocabulary-corrected 4-member set, and an evidence-selected set of EVERY "
+            "row reading strong FUS (6) — THE THREE LEGS MOVE IN OPPOSITE DIRECTIONS as membership improves: "
+            "the leg-1 margin SHRINKS (7.574 -> 7.115 -> 6.685) because a better-populated centroid drifts "
+            "into the dense RTK/amp mass, leg-3 bleed RISES (42 -> 49 flips), and leg 2 BREAKS at the "
+            "evidence-selected maximum (3/6). They cannot be satisfied simultaneously here. TP=3 and FN=3 are "
+            "INVARIANT across all three variants: CLDN18/STAD, DPEP1/COADREAD and EGFR/GBM each carry strong "
+            "FUS and REFUSE the corner even when declared members (24%, 22%, 42%) — a row cannot be placed by "
+            "fiat, its coordinates come from its surface/amp features. WHY: strong FUS is 6/504 rows (1.2%) "
+            "across 2 of 176 columns, and those 2 columns carry 0.861% of embedding influence (ranks 97 and "
+            "107 of 176) — BELOW uniform. A 16-dim PCA cannot preserve a below-uniform sparse pair, so the "
+            "corner's position is set by whatever DENSE features co-occur with its exemplars, i.e. RTK-ness. "
+            "This is the synthetic_lethal root cause restated: structural, not exemplar count. Activate only "
+            "after a curated FUS-WINDOW FEATURE makes rearrangement separable and a re-run separation test "
+            "PASSES — see skills #1243. "
+            "SUPERSEDES the 2026-09-02 evidence, which no longer reproduces: MET now sits at 21% and does NOT "
+            "flip (it was fusion-DOMINANT), ERBB2 0% (was 35%), EGFR at most 13% (was 20%), CLDN18 8% (was "
+            "31%). Keep the refutation next to the conclusion: CLDN18/STAD genuinely READS strong FUS "
+            "(CLDN18-ARHGAP26 is a real gastric fusion), so calling it not-even-a-kinase bleed was itself "
+            "mis-specified, and a reader who checked only that witness would wrongly conclude the anchor had "
+            "been fixed."
+        ),
+    },
+}
 
 # Anchors deferred by the WEAKER mechanism: they carry NO `ANCHOR_SETS` entry at all, so the build skips
 # them by never iterating them. That is deferral-by-ABSENCE, and absence is invisible — nothing in the code
@@ -159,6 +222,27 @@ def _assert_deferral_declarations_consistent() -> None:
     """Producer-boundary check on the two deferral mechanisms. Raises rather than warning: a violated
     invariant here means the build is about to ship an anchor that a deferral was supposed to withhold,
     and a WARN on stderr is exactly what a CI log swallows."""
+    # SHAPE FIRST, because everything below reads the declaration. DEFERRED_ANCHORS was a frozenset of bare
+    # labels until the evidence was structured, and the two hottest readers survive a revert to that shape
+    # UNCHANGED: the skip loop only asks `label in DEFERRED_ANCHORS`, and the dangling check below only does
+    # set algebra over the keys. So a revert is caught by nothing that is ABOUT the deferral, and instead
+    # surfaces as an AttributeError from _assert_anchor_exemplars_resolve's `.get()` — a traceback that blames
+    # the guard for the declaration's defect. Both halves are needed: `.values()` alone would itself raise on
+    # a frozenset, which is the very regression being named.
+    if not isinstance(DEFERRED_ANCHORS, dict):
+        raise SystemExit(
+            f"BUILD REFUSED: DEFERRED_ANCHORS is a {type(DEFERRED_ANCHORS).__name__}, not a dict. It held bare "
+            f"labels before 2026-09-14; it now maps each label to its measured evidence. A bare label records "
+            f"THAT an anchor is withheld without recording WHAT withheld it, which is how the previous "
+            f"deferral's evidence went stale unnoticed."
+        )
+    unstructured = sorted(k for k, v in DEFERRED_ANCHORS.items() if not isinstance(v, dict))
+    if unstructured:
+        raise SystemExit(
+            f"BUILD REFUSED: DEFERRED_ANCHORS entries {unstructured} are not dicts. Each deferral must carry "
+            f"its evidence as a mapping (`reason`, `measured_on`, `measured_by`, `separation_test`, and any "
+            f"`unresolvable_exemplars`), because evidence nobody can re-run is evidence that rots."
+        )
     both = sorted(set(UNDECLARED_ANCHORS) & set(ANCHOR_SETS))
     if both:
         raise SystemExit(
@@ -173,6 +257,81 @@ def _assert_deferral_declarations_consistent() -> None:
             f"BUILD REFUSED: DEFERRED_ANCHORS names {dangling}, which have no ANCHOR_SETS entry. The skip "
             f"loop iterates ANCHOR_SETS, so those guards are DECORATIVE — the label is really deferred by "
             f"absence. Move them to UNDECLARED_ANCHORS (with their evidence) or restore the exemplar set."
+        )
+
+
+def _assert_anchor_exemplars_resolve(corpus_keys: set) -> None:
+    """Producer-boundary check that each anchor's curated exemplar set RESOLVES against the corpus.
+
+    The silent failure this closes: an exemplar naming a (target, indication) the corpus does not carry is
+    dropped by the `present` filter below, so a PARTIALLY-resolving anchor still builds — out of whatever
+    subset happened to resolve. `fusion_driver` has carried 3 unresolvable exemplars of 5 since the first
+    freeze (an indication-VOCABULARY mismatch, not a corpus gap: the corpus files ALK and ROS1 only under
+    `NSCLC`, and `CHOL` has no rows at all), which would have made its centroid a 2-row THCA-only average of
+    a set curated to span four indications. Three separate things failed to notice:
+      * the ARTIFACT is self-consistent — `n_members` and `members` both describe the surviving subset, and
+        the shipped test asserts exactly that pair, i.e. artifact-vs-artifact, never artifact-vs-SPEC;
+      * no WARN fires, because the existing skip only triggers on `not present`, and 2 != 0; and
+      * for a DEFERRED anchor `present` is never even computed — the skip `continue`s first — so a deferred
+        anchor's exemplars are not ELIGIBLE to be checked by anything living inside the loop.
+    That last point is why this iterates ALL of ANCHOR_SETS from outside the loop rather than being a branch
+    within it, and why the miss survived the very re-freeze that introduced the deferral.
+
+    Deliberately NOT fatal when an anchor is FULLY absent: that is a designed state (an aspirational exemplar
+    set carries the panel forward and activates once its runs land) and it is LOUD — the label is simply
+    missing from `anchors`, which the roster tests see. Partial resolution is the state that ships something
+    subtly wrong while looking complete.
+
+    An unresolvable exemplar must therefore be DECLARED, and the only declaration site is
+    DEFERRED_ANCHORS[label]["unresolvable_exemplars"] — so an ACTIVE anchor may not have one. That is a
+    stance, not an omission: an active anchor's shipped centroid should mean what its curated set says it
+    means, so the honest repairs are to fix the indication token, drop the exemplar, or defer the anchor WITH
+    evidence. Add a declaration channel for active anchors when a real case argues for one.
+    """
+
+    def fmt(ms) -> str:
+        return ", ".join(f"{t}/{i}" for t, i in ms)
+
+    problems = []
+    for label, spec in ANCHOR_SETS.items():
+        members = [tuple(m) for m in spec]
+        declared = [tuple(x) for x in (DEFERRED_ANCHORS.get(label) or {}).get("unresolvable_exemplars", ())]
+        missing = [m for m in members if m not in corpus_keys]
+
+        # STALE — an ERROR, not a warning. The declaration is cited as EVIDENCE (the deferral's reason argues
+        # from "built from a 2-row THCA-only subset"), so a declaration the corpus has overtaken misleads the
+        # next reader in the direction of leaving a fixable anchor deferred.
+        stale = [m for m in declared if m in corpus_keys]
+        if stale:
+            problems.append(
+                f"'{label}': {fmt(stale)} declared unresolvable in DEFERRED_ANCHORS but NOW RESOLVE against "
+                f"this corpus. Delete them from `unresolvable_exemplars` and RE-RUN the separation test — the "
+                f"anchor's membership, and therefore its centroid, is not what the recorded evidence measured."
+            )
+        # DANGLING — a declaration naming a pair that is not an exemplar of this anchor guards nothing.
+        never = [m for m in declared if m not in members]
+        if never:
+            problems.append(
+                f"'{label}': `unresolvable_exemplars` lists {fmt(never)}, which are not in this anchor's "
+                f"ANCHOR_SETS entry, so those entries are decorative. Remove them or fix the pair."
+            )
+
+        if not missing or len(missing) == len(members):
+            continue  # fully resolved, or fully absent (the designed, loud, warn-only state above)
+        undeclared = [m for m in missing if m not in declared]
+        if undeclared:
+            problems.append(
+                f"'{label}': resolves PARTIALLY — {len(members) - len(missing)}/{len(members)} exemplars are "
+                f"in the corpus and {fmt(undeclared)} are missing with no declaration. The anchor still "
+                f"BUILDS, from the surviving subset, so its centroid would describe a narrower phenotype than "
+                f"the curated set names. Check the corpus indication VOCABULARY first (a gene is often filed "
+                f"under a token the spec does not use, and substituting a different indication can change the "
+                f"biology — gastric FGFR2 is amplification-driven, not fusion-driven); otherwise drop the "
+                f"exemplar, or declare it in DEFERRED_ANCHORS['{label}']['unresolvable_exemplars']."
+            )
+    if problems:
+        raise SystemExit(
+            "BUILD REFUSED: anchor exemplar sets do not resolve as declared:\n  - " + "\n  - ".join(problems)
         )
 
 
@@ -533,6 +692,9 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
 
     # anchors: each label's coord = CENTROID (mean embedding) of its present exemplar-set members
     idx_of = {(t, i): r for r, (t, i) in enumerate(zip(targets, indications))}
+    # ...but FIRST, over every label including the deferred ones, check the exemplar SPEC against the corpus.
+    # This cannot live inside the loop: the deferral `continue`s before `present` exists. See the docstring.
+    _assert_anchor_exemplars_resolve(set(idx_of))
     anchors = []
     skipped_anchors = []
     for label, members in ANCHOR_SETS.items():
@@ -548,10 +710,14 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
             continue
         present = [(t, i) for (t, i) in members if (t, i) in idx_of]
         if not present:
-            # An ASPIRATIONAL anchor (its exemplars are not yet in the corpus, e.g. fusion_driver awaiting
-            # ALK/ROS1/NTRK-fusion runs) is SKIPPED with a warning rather than aborting the whole build —
-            # so the exemplar spec can carry the target panel forward and the anchor activates once its
-            # runs land. A wrongly-typo'd exemplar surfaces the same way (empty → skipped + warned).
+            # An ASPIRATIONAL anchor (NONE of its exemplars are in the corpus yet) is SKIPPED with a warning
+            # rather than aborting the whole build — so the exemplar spec can carry the target panel forward
+            # and the anchor activates once its runs land. A wrongly-typo'd exemplar set surfaces the same
+            # way (empty → skipped + warned). No anchor is in this state today; `fusion_driver` used to be
+            # cited here as the example and no longer qualifies — 2 of its members are in the corpus, so it
+            # is withheld by DEFERRED_ANCHORS above and never reaches this branch. The PARTIAL case is the
+            # dangerous one and it is NOT handled here: see _assert_anchor_exemplars_resolve, which runs
+            # before this loop precisely because a deferred anchor `continue`s before `present` exists.
             skipped_anchors.append(label)
             print(f"WARN: anchor '{label}' skipped — no exemplar members present in corpus: {members}", file=sys.stderr)
             continue
@@ -632,7 +798,13 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
             "embedding_pca_svd_solver": PCA_SVD_SOLVER,
             "classes": sorted(set(labels)),
             "anchor_phenotypes": [a["label"] for a in anchors],
-            "anchor_phenotypes_skipped": skipped_anchors,  # aspirational anchors awaiting exemplar runs
+            # Labels the anchor loop iterated but did NOT emit. Two distinct causes share this one list: an
+            # EVIDENCED deferral (DEFERRED_ANCHORS) and mere ABSENCE of exemplars. A consumer cannot tell
+            # them apart from the artifact — deliberate, since separating them means adding a re-freeze
+            # pinning obligation; read DEFERRED_ANCHORS for the reason. Labels with no ANCHOR_SETS entry at
+            # all (UNDECLARED_ANCHORS, e.g. synthetic_lethal) never appear here, because the loop never
+            # iterates them — that invisibility is exactly why that mechanism needs its own declaration.
+            "anchor_phenotypes_skipped": skipped_anchors,
             "corpus": "+".join(os.path.basename(str(r)) for r in runs_dirs),
             "build_date": build_date,
             "build_git_sha": _git_sha(),

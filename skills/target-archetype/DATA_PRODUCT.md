@@ -46,9 +46,16 @@ The atlas is a **FROZEN artifact** (re-frozen only after a validated substrate c
   `label_is_derived: true`. Surfaced verdict-INERT via `archetype_confidence_caveat` (3-tier:
   `validated_canonical_anchor` false-demote guard · `phenotype_mixture_low_stability_or_missingness_distorted`
   · `analog_or_label_circular`).
-- **fusion_driver anchor DEFERRED:** registered aspirationally but not active in the frozen atlas — its
-  exemplars are FUS-verified, but activating it bled RTK-ness into non-fusion RTK/surface targets. It stays
-  deferred until the fusion signal is separable in the embedding.
+- **fusion_driver anchor DEFERRED:** not active in the frozen atlas, and withheld by DECLARATION rather than
+  by absent exemplars — 2 of its 5 members are in the corpus, so `build_atlas.DEFERRED_ANCHORS` is the only
+  thing keeping it out. Activating it bleeds RTK-ness: re-measured 2026-09-14 at n=504, **42 non-member
+  targets take `fusion_driver` as their DOMINANT phenotype, 40 of them with no FUS evidence at all**, and
+  precision against the FUS column is 7%. The cause is the frozen feature space (strong FUS is 2 of 176
+  columns, below its uniform share of embedding influence), not the exemplar set, so it stays deferred until
+  the fusion signal is separable — re-check with `scripts/anchor_separation_test.py`, never from memory,
+  because the p90 bar moves with corpus size. **Consumer-visible effect:** no corpus row can ever carry a
+  `fusion_driver` soft label, so a genuine fusion driver reads as `amp_driver`/`expression_surface`/
+  `immune_checkpoint` instead. That is a KNOWN blind spot, not a claim that the phenotype is absent.
 - **D1 nomination-readiness score ORIENTS, never nominates:** its per-archetype weights are ILLUSTRATIVE
   (SHOWN, not learned) — surfaced verdict-INERT via `scorecard_confidence_caveat` (citing the RETIRED,
   maturity-confounded outcome-trained D2/D3 approval-propensity score).
