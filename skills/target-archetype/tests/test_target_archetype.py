@@ -30,6 +30,17 @@ def atlas() -> Atlas:
 
 # ---- vectoriser: signal + fixed corroboration ordinal maps ---------------------------------------
 def test_claim_features_ordinal_maps():
+    """★ THESE LITERALS PIN THE COORDINATE SYSTEM `atlas.json` WAS FROZEN IN — they are not stale values.
+
+    If this test reds because the ladder in `archetype_core` moved, the correct response is NOT to update
+    the numbers to match: the shipped artifact holds these exact encodings, so changing them here without
+    rebuilding the atlas in the SAME commit silently puts the runtime vector and the frozen matrix in
+    different coordinate systems. Either revert the ladder change, or re-freeze and update both together.
+
+    This test deliberately enumerates rungs as literals and so cannot notice a NEWLY ADDED one. The
+    coverage of the ladder as a whole — every rung the runtime can rank must survive the encoder — lives in
+    `_skills_common/tests/test_claim_ladder_vocabulary_coverage.py`, derived from the live dicts.
+    """
     cv = {
         "expression": {
             "STRONG_CLAIM": {"signal": "strong", "corroboration": "high"},

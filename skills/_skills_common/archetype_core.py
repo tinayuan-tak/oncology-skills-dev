@@ -47,6 +47,19 @@ from typing import Optional
 # Ordinal encoding of the claim tiers. SIGNAL uses strong/moderate/weak/absent; CORROBORATION uses its
 # OWN low/moderate/high vocabulary — the prior single-map silently nulled low+high (the "only-moderate"
 # bug). Both encodings must match the offline atlas build (single source of truth).
+#
+# ★ THESE ARE A SECOND COPY of the ladders in claim_vector_core (SIGNAL_ORD / CORROBORATION_ORD), and the
+# two are deliberately DIFFERENT coordinate systems. The runtime pair is read only RELATIONALLY (weakest(),
+# sig_ge) so it may renumber freely; these literals were WRITTEN INTO atlas.json and may not. That is the
+# whole asymmetry: renumbering an ordinal is safe against same-process readers and unsafe against anything
+# that already persisted the old numbers to disk.
+#
+# ★ A COMMENT IS NOT A MIRROR. The "only-moderate" note above was written to stop exactly this drift and did
+# not hold it — a new corroboration rung was later minted in claim_vector_core and this map never learned it,
+# so every cell carrying it encoded to None and _align_z_impute placed it at z=0.0, the CORPUS MEAN. A rung
+# meaning "only one arm looked" therefore read as typically-corroborated: fail-open through a plausible
+# value, not through an error. The invariant is now held by tests/test_claim_ladder_vocabulary_coverage.py,
+# derived from the live dicts so it cannot narrow when a ladder grows.
 CLAIM_SIG_ORD = {
     "strong": 3.0,
     "moderate": 2.0,
@@ -56,9 +69,37 @@ CLAIM_SIG_ORD = {
     "unmeasured": None,
     "none": None,
 }
+# `single_arm` (one arm looked, unopposed) is inserted ADDITIVELY rather than by renumbering the ladder.
+# Renumbering would reinterpret all 12855 measured ::corrob cells in the shipped atlas AND invalidate their
+# frozen per-column mu/sd, forcing encoder-change and re-freeze into one atomic PR; a fractional rung leaves
+# every frozen value meaning what it meant, so this map is correct on its own. Only ORDER is load-bearing —
+# `low` is RESERVED for arms that genuinely DISAGREED (eval/build_discordance_ledger._DISAGREEMENT_CORROBORATION
+# is {"low"}, so routing single-source axes there would fabricate a sharp discordance row out of a coverage
+# gap), and a lone unopposed arm is thin, not contradicted: low < single_arm < moderate.
+#
+# The exact fraction is PROVISIONAL; the principled uniform spacing arrives with the next rebuild, which is
+# also the only moment a renumber is free. 1.5 is the midpoint because only order is required for
+# correctness, so the least-committal value is the honest one to freeze into a transient. Measured against
+# the 2026-09-13 atlas (297 x 176), demoting a cell from moderate(2.0) to 1.5 moves it a median 0.500 sigma
+# but 6.114 sigma on dependency::claim::SEL::corrob (sd=0.0818), and past 1 sigma on 16 of 56 columns — NOT
+# because 1.5 is aggressive but because the frozen corpus still encodes those peers as `moderate`. That
+# distortion is transient by construction: the re-freeze recomputes mu/sd over a corpus containing the rung.
+#
+# ★ THE SIGMA FIGURES OVERSTATE THE GEOMETRIC CONSEQUENCE, so do not size the re-freeze off them. `_embed` is
+# a LINEAR projection onto frozen components, and 29 of the 56 ::corrob columns are CONSTANT where measured,
+# hence carry PCA loading below 1e-12 — invisible to the embedding entirely. ::corrob holds 15.89% of the
+# total squared loading against a 31.8% uniform share, so the 6.114-sigma column above displaces a query only
+# 2.293 in embedding space, under the 5.929 novelty threshold (= p90 of corpus NN distance): no single-column
+# demotion can flip a flag by itself. Simulated upper bound, every currently-`moderate` ::corrob cell in the
+# corpus (8437) re-encoded as 1.5 and re-embedded against the UNCHANGED corpus: own-NN distance moves a median
+# +0.165 (max +1.758), local_density_flag turns ON for 11 of 297 targets and OFF for 1, and the NEAREST analog
+# changes for 79 of 297. Ranking churns before the flag does, because reordering needs only a differential
+# while a flag must cross an absolute percentile. Both clear at the re-freeze; neither exists before a
+# producer emits the rung, so the exposed window is producer-merge -> re-freeze, not this commit.
 CLAIM_CORR_ORD = {
     "high": 3.0,
     "moderate": 2.0,
+    "single_arm": 1.5,
     "low": 1.0,
     "absent": 0.0,
     "negative": 0.0,
