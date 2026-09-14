@@ -118,14 +118,19 @@ def test_nominate_is_not_a_gate_action():
 
 
 def test_positive_set_disjoint_from_kills_and_contradictions():
-    """A verdict cannot be simultaneously a positive AND a kill AND/OR a contradiction
-    — the three sets must be pairwise disjoint or the gate resolution is ambiguous."""
+    """A verdict cannot be simultaneously a positive AND a kill AND/OR a contradiction AND/OR
+    uncorroborated — the sets must be pairwise disjoint or the gate resolution is ambiguous."""
     v = _load()
     pos = {(p["sub_skill"], p["verdict"]) for p in v["positive_signals"]}
     kills = {(g["sub_skill"], g["verdict"]) for g in v["gates"]}
     contra = {(c["sub_skill"], c["verdict"]) for c in v["positive_contradictions"]}
+    # positive_uncorroborated (v1.20.0): blocks `strong` like a contradiction, so a verdict that is
+    # simultaneously a positive would both supply and withhold corroboration.
+    uncorr = {(u["sub_skill"], u["verdict"]) for u in v["positive_uncorroborated"]}
     assert pos.isdisjoint(kills), f"positive∩kills: {pos & kills}"
     assert pos.isdisjoint(contra), f"positive∩contradiction: {pos & contra}"
+    assert pos.isdisjoint(uncorr), f"positive∩uncorroborated: {pos & uncorr}"
+    assert contra.isdisjoint(uncorr), f"contradiction∩uncorroborated: {contra & uncorr}"
 
 
 def test_positives_only_from_cross_target_axes():

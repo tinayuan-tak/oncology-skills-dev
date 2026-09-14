@@ -26,7 +26,7 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.19.0  # 1.19.0 (2026-09-12): +3 tractability MIDDLE-ladder positives (chemically_active, measured_potent_ligand, structurally_ligandable), all SUPPORTIVE weight, sub_skill=tractability_sm (one dimension, cannot supply the dominant a `strong` tier needs). Panel-validated (fire on approved/advanced/active, declines carry no dominant so cannot flip). Verdict-moving only where a target already has a dominant positive + abstains. 1.18.0 (2026-09-11, A1): positive_tier_config.forces_nominate_at_tier: strong — the positive path may now FORCE `nominate`, closing the asymmetry in which this gate could only veto/hold and EVERY nomination was therefore LLM-authored with no auditable rule behind it (measured on the 13-target panel: 10 hold / 2 veto / 17 abstain / 0 nominate; ERBB2/BRCA hit `strong` on 3 hits, all 3 `dominant`, and still resolved to None — and with --emit being LLM-free there was no confidence to floor, so the whole positive apparatus was unobservable in exactly the mode the eval harness scores, making its specificity arm vacuous). FAIL-CLOSED: missing key => pre-1.18.0 behaviour byte-for-byte. `nominate` deliberately stays OUT of action_precedence (that map keys a max() over fired KILL hits; a positive there could tie-break against a restraint) and out of every gate's `action:`. Still else-branch-only, so it cannot mask a kill. 1.17.0 (2026-09-11, Step 2b): NEW `thesis_axis_relevance` block — routes on the governed `thesis` (target_thesis.yaml) to make a dependency `non_dependent` VETO IRRELEVANT (dropped, not just downgraded) for theses whose biology does not live on the dependency axis (antigen_driven / tme_io / neomorphic_gof / partner_conditional_sl), so the target falls to its OWN thesis axis and can reach nominate — the ANY-OF fix for the 0/14-surface defect. Generalizes biology_axis_scoped_veto_downgrade (kept as the `unresolved`-path fallback until 2c). GUARDRAILS unchanged: never drops pan_essential_killer, never touches safety, `unresolved`→today byte-for-byte, routing cannot invent a GO (dropping a veto only falls to the LLM proposal, bounded above by the kill gate + below by the abstention lower-bound clamp). Verdict-moving; verified on the hermetic skills gate-tests.
+version: 1.20.0  # 1.20.0 (2026-09-13): NEW 4th disposition `uncorroborated` + its classification block `positive_uncorroborated`, and 2 rows moved off `contradiction` onto it: selectivity/discordant_across_comparators and dependency/discordant. Both verdicts say "this axis's own arms disagree with each other", which is an absence of resolution, not a measurement against the target — each resolver says so in its own rung comment (dependency: "an absence of resolution, not a measurement against the target"; selectivity's rung is literally named tvn-discordant-neutral-flagged and its `upgrade:` block groups the verdict with `not_informative` as rescuable). Filing them as contradictions put "the comparators disagree" on the rung reserved for "the measurement opposes", the same conflation the claim-vector `single_arm` rung fixed one level down. LABEL-NOT-DROP, forced by measurement (56 pairs / 21 live axis-instances): 0 carrying pairs are at `strong` today but 2 (KRAS/COADREAD selectivity 5 hits; CEACAM5/NSCLC) would REACH `strong` if the strong-block were simply removed, so dropping the rows is fail-OPEN. The strong-block is therefore PRESERVED byte-for-byte (positive tier reads contradictions ∪ uncorroborated); only the LABEL changes (scorecard `coverage_gap` not `opposing`; no opposing per-axis role). tractability_sm/discordant deliberately STAYS a contradiction — there the discordance IS the finding (compound kills but NOT via the target = evidence against), and it is the row holding CEACAM5/NSCLC down. 1.19.0 (2026-09-12): +3 tractability MIDDLE-ladder positives (chemically_active, measured_potent_ligand, structurally_ligandable), all SUPPORTIVE weight, sub_skill=tractability_sm (one dimension, cannot supply the dominant a `strong` tier needs). Panel-validated (fire on approved/advanced/active, declines carry no dominant so cannot flip). Verdict-moving only where a target already has a dominant positive + abstains. 1.18.0 (2026-09-11, A1): positive_tier_config.forces_nominate_at_tier: strong — the positive path may now FORCE `nominate`, closing the asymmetry in which this gate could only veto/hold and EVERY nomination was therefore LLM-authored with no auditable rule behind it (measured on the 13-target panel: 10 hold / 2 veto / 17 abstain / 0 nominate; ERBB2/BRCA hit `strong` on 3 hits, all 3 `dominant`, and still resolved to None — and with --emit being LLM-free there was no confidence to floor, so the whole positive apparatus was unobservable in exactly the mode the eval harness scores, making its specificity arm vacuous). FAIL-CLOSED: missing key => pre-1.18.0 behaviour byte-for-byte. `nominate` deliberately stays OUT of action_precedence (that map keys a max() over fired KILL hits; a positive there could tie-break against a restraint) and out of every gate's `action:`. Still else-branch-only, so it cannot mask a kill. 1.17.0 (2026-09-11, Step 2b): NEW `thesis_axis_relevance` block — routes on the governed `thesis` (target_thesis.yaml) to make a dependency `non_dependent` VETO IRRELEVANT (dropped, not just downgraded) for theses whose biology does not live on the dependency axis (antigen_driven / tme_io / neomorphic_gof / partner_conditional_sl), so the target falls to its OWN thesis axis and can reach nominate — the ANY-OF fix for the 0/14-surface defect. Generalizes biology_axis_scoped_veto_downgrade (kept as the `unresolved`-path fallback until 2c). GUARDRAILS unchanged: never drops pan_essential_killer, never touches safety, `unresolved`→today byte-for-byte, routing cannot invent a GO (dropping a veto only falls to the LLM proposal, bounded above by the kill gate + below by the abstention lower-bound clamp). Verdict-moving; verified on the hermetic skills gate-tests.
   # 1.16.0 (2026-09-08): biology_axis_scoped_veto_downgrade now admits curated `extrinsic` (TME/immune/stromal) + `mixed` axes (was surface_intrinsic/unknown only) → a checkpoint (PD-L1/CD274=mixed, PD-1/CTLA4=extrinsic) with a FAVORABLE surface fit has its dependency non_dependent VETO downgraded to HOLD, same as a surface antigen (engaged by blockade/binding, not a tumor-intrinsic dependency). Fixes a CURATION PENALTY: an uncurated checkpoint (unknown, e.g. LAG3) already got the downgrade but curated CD274/PDCD1/CTLA4 were locked out. Favorable-surface co-condition + intracellular_intrinsic exclusion BOTH unchanged (only the axis list grew), so a neither_viable/shed surface or an intracellular target still VETOes. veto→hold only. Live-verified panel: CD274/LUAD VETO→HOLD via this arm; PDCD1/CTLA4/VEGFA already non-vetoing via other paths (net effect = CD274 alone). Verdict-moving; golden regen + grounded verify.
 # 1.15.0 (2026-09-08): + surface-fit contradiction_reconciler — a FAVORABLE surface_modality fit (ADC/TCE surface antigen) RECONCILES (drops) the selectivity selective_but_broadly_normal KILL, because the therapeutic window is modality-engineered (payload/DAR/avidity), NOT the bulk tumor÷normal-organ RNA ratio. Fires on default/no-modality runs (favorable fit = the surface-antigen evidence). Reconciles ERBB3/TACSTD2/MUC17; STANDS for secreted (VEGFA) + intracellular (CDK2) targets (no viable surface arm). Drops the contradiction only (no positive_signal) → safety axis remains the guardrail → lands at hold, never a manufactured strong. Same INVERTED-FALLBACK contract as (1). Verdict-moving; golden regen + grounded verify.
 # 1.14.0 (2026-09-08): + contradiction_reconcilers block — a genomic biomarker_stratified_dependency RECONCILES (drops) the selectivity selective_but_broadly_normal CONTRADICTION (the no-window KILL is bulk-RNA÷critical-organ, which dilutes an amp/biomarker-selected window — HER2/FGFR2/HER3). Surfaced by the IDAS backtest (ERBB2/STAD = T-DXd APPROVED, vetoed on no-window). Applied at positive-tier strong-block + gate scorecard + synthesis role; keeps the KILL for no-amp housekeeping (TROP2/GAPDH). Verdict-moving; golden regen + grounded verify.
@@ -217,7 +217,11 @@ excluded_modality_scoped:
 # KILL-CAPABLE VERDICT REGISTRY (2026-08-16, v1.5.0) — fail-closed, gate-complete (§6.6).
 # ============================================================================
 # The COMPLETE, per-resolver enumeration of every emitted verdict with NEGATIVE decision
-# semantics (kill / veto / hold / opposing). Its purpose is NOT to add vetoes — the active
+# semantics (kill / veto / hold / opposing / uncorroborated). "NEGATIVE decision semantics" is
+# a statement about the DECISION, not about the measurement: a verdict belongs here if it
+# constrains the recommendation, whether it does so because the measurement opposes the target
+# (`contradiction`) or because the measurement never resolved (`uncorroborated` — see below).
+# Its purpose is NOT to add vetoes — the active
 # veto set stays exactly the two cross-target killers — but to force EVERY kill verdict to
 # be EXPLICITLY classified, so a kill can never be silently ignored (the §6.6 fail-open) and
 # a rename can never silently disable one.
@@ -231,14 +235,28 @@ excluded_modality_scoped:
 #   contradiction            — opposing MEASURED evidence; in `positive_contradictions`;
 #                              blocks the `strong` confidence tier and renders as scorecard
 #                              `opposing`; deliberately NOT a blanket veto.
+#   uncorroborated           — the axis's own arms DISAGREE WITH EACH OTHER, so nothing was
+#                              resolved; in `positive_uncorroborated` (2026-09-13, v1.20.0).
+#                              Blocks the `strong` confidence tier exactly as a contradiction
+#                              does — two channels that disagree have corroborated nothing, and
+#                              LABEL-NOT-DROP is mandatory here: dropping these rows would
+#                              RELAX the strong-block, which is fail-OPEN (measured: KRAS/COADREAD
+#                              and 1 other pair reach `strong` if the block is lost). What changes
+#                              is only the LABEL: it renders as scorecard `coverage_gap`, not
+#                              `opposing`, and does not count as an opposing per-axis role.
+#                              "The arms disagree" != "the measurement opposes" — the same
+#                              measured-vs-null discipline one level up from
+#                              insufficient/data_unavailable.
 #
 # COMPLETENESS CI (tests/vocabularies/test_kill_capable_completeness.py):
 #   (1) every entry's disposition MATCHES its actual classification block (gated↔gates,
-#       excluded_modality_scoped↔excluded_modality_scoped, contradiction↔positive_contradictions);
+#       excluded_modality_scoped↔excluded_modality_scoped, contradiction↔positive_contradictions,
+#       uncorroborated↔positive_uncorroborated);
 #   (2) every resolver-backed entry is EMITTED case-exact by its resolver (a rename that
 #       orphans a kill fails CI) — reuses validators/validate_verdict_tokens.emitted_verdicts_by_gate;
 #   (3) COVERAGE: every negative-classification pair (gates ∪ excluded_modality_scoped ∪
-#       positive_contradictions) whose sub_skill has a resolver MUST appear here — so a newly
+#       positive_contradictions ∪ positive_uncorroborated) whose sub_skill has a resolver MUST
+#       appear here — so a newly
 #       classified kill (or a resolver that starts emitting a classified verdict) can never be
 #       omitted from this registry.
 # The skills-side gate loader (claude-oncology-skills target-profile/tp_gates.py) reads this
@@ -253,7 +271,12 @@ kill_capable_verdicts:
   dependency:
     - {verdict: pan_essential_killer,             disposition: gated}          # veto
     - {verdict: non_dependent,                    disposition: gated}          # veto
-    - {verdict: discordant,                       disposition: contradiction}
+    # CRISPR-vs-RNAi POOLED disagreement. `uncorroborated`, NOT `contradiction`: the dependency
+    # resolver's own rung comment says this verdict "reports that the two pooled channels do not
+    # agree, which is an absence of resolution, not a measurement against the target". It still
+    # blocks `strong` (two channels that disagree have not corroborated anything) but it is not
+    # opposing evidence, so it must not be LABELLED opposing on the scorecard or hard-gate rows.
+    - {verdict: discordant,                       disposition: uncorroborated}
     - {verdict: broadly_dependent,                disposition: contradiction}
   safety:
     - {verdict: highly_constrained_safety_concern, disposition: gated}         # hold
@@ -264,7 +287,15 @@ kill_capable_verdicts:
     - {verdict: subtype_specific_non_dependence,   disposition: gated}         # hold (no resolver; gates-checked)
   selectivity:
     - {verdict: not_selective,                    disposition: contradiction}
-    - {verdict: discordant_across_comparators,    disposition: contradiction}
+    # `uncorroborated`, NOT `contradiction`. The selectivity resolver's own rung for this verdict is
+    # named `tvn-discordant-neutral-flagged`, and the resolver's `upgrade:` block lists this verdict
+    # alongside `not_informative` as a RESCUABLE input — the resolver treats it as uninformative, not
+    # as an opposing read. Filing it as a contradiction put "the comparators disagree with each other"
+    # on the rung reserved for "the measurement opposes the target", which is the same conflation the
+    # claim-vector `single_arm` rung fixed one level down. Still blocks `strong`; no longer labelled
+    # opposing. NOTE the contrast with tractability_sm/discordant, which STAYS a contradiction: there
+    # the discordance IS the finding (a compound kills but not via the target = evidence against).
+    - {verdict: discordant_across_comparators,    disposition: uncorroborated}
     # POST-RESOLVER Python-clamp KILLs (selectivity_veto.py; declared in selectivity.resolver.yaml
     # clamp_verdicts). MEASURED opposing signals on the selectivity axis → contradictions (block `strong`):
     - {verdict: selective_but_broadly_normal,     disposition: contradiction}   # housekeeping / no normal window (GAPDH/TROP2)
@@ -738,11 +769,9 @@ positive_signals_modality_scoped:
 # of measurement is not opposing evidence (measured-vs-null discipline).
 positive_contradictions:
   - {sub_skill: selectivity,     verdict: not_selective}
-  - {sub_skill: selectivity,     verdict: discordant_across_comparators}
   # selectivity Python-clamp KILLs (measured opposing signals; see kill_capable_verdicts.selectivity):
   - {sub_skill: selectivity,     verdict: selective_but_broadly_normal}
   - {sub_skill: selectivity,     verdict: selective_but_stromal_confound}
-  - {sub_skill: dependency,      verdict: discordant}
   - {sub_skill: dependency,      verdict: broadly_dependent}
   - {sub_skill: tractability_sm, verdict: discordant}
   - {sub_skill: tractability_sm, verdict: chemically_unhit}
@@ -753,6 +782,36 @@ positive_contradictions:
   # blocks the `strong` tier. NOT a blanket veto (a target may still nominate on another axis). The only
   # genuinely NEW nomination signal cis-coherence adds — no other axis flags expressed-but-inert.
   - {sub_skill: cis_coherence,   verdict: expressed_cis_coupled_inert}
+
+# ============================================================================
+# POSITIVE UNCORROBORATED (2026-09-13, v1.20.0) — "the arms disagree" != "the measurement opposes".
+# ============================================================================
+# Verdicts whose content is that the axis's OWN arms disagree with each other, so the axis
+# resolved NOTHING. They block the `strong` confidence tier on exactly the same terms as a
+# positive_contradiction — a `strong` claim requires corroboration, and two channels that
+# disagree have corroborated nothing — but they are NOT opposing evidence, so they must not be
+# LABELLED opposing: scorecard status `coverage_gap`, not `opposing`, and no opposing per-axis
+# synthesis role.
+#
+# WHY LABEL-NOT-DROP (measured, 2026-09-13, 56 target×indication pairs / 21 live axis-instances
+# carrying these verdicts): 0 of the carrying pairs are at `strong` today, and 2 — KRAS/COADREAD
+# (selectivity, 5 hits) and CEACAM5/NSCLC (tractability_sm, held by the row that deliberately did
+# NOT move) — would REACH `strong` if the strong-block were merely removed. Deleting the rows is
+# therefore fail-OPEN. This block exists so the block survives the relabelling: the positive tier
+# reads gates ∪ excluded_modality_scoped ∪ positive_contradictions ∪ positive_uncorroborated when
+# deciding `strong`, and reads positive_contradictions alone when deciding what to call `opposing`.
+#
+# NOT in this block, deliberately: insufficient / data_unavailable / not_informative (never
+# classified negative at all — absence of measurement is not a decision constraint), and
+# tractability_sm/discordant (there the discordance IS the finding: a compound that kills but NOT
+# through the target is evidence AGAINST tractability, per that resolver's own rung comment).
+positive_uncorroborated:
+  # Two comparator arms disagree on the tumour-vs-normal window (rung tvn-discordant-neutral-flagged;
+  # the resolver's own `upgrade:` block groups this verdict with `not_informative` as RESCUABLE).
+  - {sub_skill: selectivity,     verdict: discordant_across_comparators}
+  # CRISPR and RNAi pooled channels disagree (the dependency resolver's rung comment: "an absence
+  # of resolution, not a measurement against the target").
+  - {sub_skill: dependency,      verdict: discordant}
 
 positive_tier_config:
   min_dimensions_for_strong: 2    # analog of compose-dashboard MIN_IN_SCOPE_FOR_STRONG
