@@ -1,0 +1,159 @@
+# Topic configuration for snapshot-generator
+# Each topic defines which figures to include and slide text templates.
+# Placeholders: {gene}, {indication}, {gene_full} (if available)
+
+topics:
+  dependency:
+    display_name: "Functional Dependency"
+    description: "CRISPR/RNAi dependency evidence"
+    hero: "subskills/dependency/hero.svg"
+    slides:
+      - title: "{gene} Dependency in {indication}"
+        subtitle: "CRISPR and RNAi functional dependency analysis"
+        figures:
+          - path: "cards/pan-cancer-crispr-dependency-distribution/figure_waterfall.svg"
+            caption: "Pan-cancer CRISPR dependency distribution"
+          - path: "cards/pan-cancer-crispr-dependency-distribution/figure_histogram_kde.svg"
+            caption: "CRISPR dependency score distribution"
+      - title: "{gene} Dependency Concordance"
+        subtitle: "Cross-technology validation"
+        figures:
+          - path: "cards/crispr-rnai-dependency-concordance/figure_concordance_scatter.svg"
+            caption: "CRISPR vs RNAi dependency concordance"
+          - path: "cards/crispr-rnai-dependency-concordance/figure_concordance_partition_bar.svg"
+            caption: "Dependency concordance partition"
+      - title: "{gene} Mutation-Stratified Dependency"
+        subtitle: "Dependency by mutation status"
+        figures:
+          - path: "cards/mutation-stratified-dependency/figure_mut_vs_wt_strip.svg"
+            caption: "Mutant vs wild-type dependency"
+          - path: "cards/mutation-stratified-dependency/figure_per_hotspot_chronos.svg"
+            caption: "Per-hotspot Chronos scores"
+
+  genomic_alteration:
+    display_name: "Genomic Alterations"
+    description: "SNV, copy number, and mutation profile"
+    hero: "subskills/genomic_alteration/hero.svg"
+    slides:
+      - title: "{gene} Genomic Alterations in {indication}"
+        subtitle: "Mutation and copy number landscape"
+        figures:
+          - path: "cards/mutation-type-counts/figure_mutation_class_bar.svg"
+            caption: "Mutation class distribution"
+          - path: "cards/mutation-type-counts/figure_mutation_lineage_bar.svg"
+            caption: "Mutation frequency by lineage"
+      - title: "{gene} Copy Number Profile"
+        subtitle: "Copy number alterations across cell lines"
+        figures:
+          - path: "cards/copy-number-distribution/figure_waterfall_cn.svg"
+            caption: "Copy number waterfall"
+          - path: "cards/copy-number-distribution/figure_density_cn.svg"
+            caption: "Copy number density distribution"
+      - title: "{gene} Alteration Role"
+        subtitle: "Oncogene vs tumor suppressor classification"
+        figures:
+          - path: "cards/alteration-role/figure_alteration_role.svg"
+            caption: "Alteration role assessment"
+
+  expression:
+    display_name: "Expression"
+    description: "RNA and protein expression analysis"
+    hero: "subskills/expression/hero.svg"
+    slides:
+      - title: "{gene} Expression in {indication}"
+        subtitle: "Tumor RNA expression analysis"
+        figures:
+          - path: "cards/tumor-rna-distribution/figure_expression_distribution.svg"
+            caption: "Tumor RNA expression distribution"
+          - path: "cards/tumor-elevation-breadth/figure_pan_cancer_by_tissue_distribution.svg"
+            caption: "Pan-cancer expression breadth"
+      - title: "{gene} Expression by Subtype"
+        subtitle: "Subtype-specific expression patterns"
+        figures:
+          - path: "cards/tumor-rna-distribution-by-subtype/figure_expression_distribution_subtype.svg"
+            caption: "Expression distribution by subtype"
+      - title: "{gene} Cell Line Expression"
+        subtitle: "Cell line RNA expression"
+        figures:
+          - path: "cards/cellline-rna-distribution/figure_density_expression.svg"
+            caption: "Cell line expression density"
+          - path: "cards/cellline-rna-distribution/figure_lineage_strip_expression.svg"
+            caption: "Expression by lineage"
+
+  selectivity:
+    display_name: "Tumor Selectivity"
+    description: "Tumor vs normal expression selectivity"
+    hero: "subskills/selectivity/hero.svg"
+    slides:
+      - title: "{gene} Tumor Selectivity in {indication}"
+        subtitle: "Tumor vs normal tissue comparison"
+        figures:
+          - path: "cards/tumor-vs-normal-selectivity/figure_tumor_vs_normal_selectivity_4panel.svg"
+            caption: "Tumor vs normal selectivity analysis"
+      - title: "{gene} Single-Cell Expression"
+        subtitle: "Cell type-specific expression"
+        figures:
+          - path: "cards/tumor-scrna-celltype-expression/figure_sc_compartment_detection.svg"
+            caption: "Single-cell compartment detection"
+
+  safety:
+    display_name: "Safety"
+    description: "On-target safety and liability assessment"
+    hero: "subskills/safety/hero.svg"
+    slides:
+      - title: "{gene} Safety Profile"
+        subtitle: "Normal tissue liability and genetic constraint"
+        figures:
+          - path: "cards/normal-tissue-liability-gtex/figure_normal_tissue_liability.svg"
+            caption: "Normal tissue expression liability (GTEx)"
+          - path: "cards/gnomad-lof-constraint/figure_constraint_scores_gauge_panel.svg"
+            caption: "gnomAD loss-of-function constraint"
+      - title: "{gene} Normal Tissue Expression"
+        subtitle: "Expression across normal tissues"
+        figures:
+          - path: "cards/normal-tissue-liability/figure_normal_tissue_expression_heatmap.svg"
+            caption: "Normal tissue expression heatmap"
+
+  tractability:
+    display_name: "Tractability"
+    description: "Small molecule and compound tractability"
+    hero: "subskills/tractability_sm/hero.svg"
+    slides:
+      - title: "{gene} Compound Activity"
+        subtitle: "PRISM compound sensitivity"
+        figures:
+          - path: "cards/prism-compound-activity/figure_top_compounds_bar.svg"
+            caption: "Top compound activity"
+          - path: "cards/prism-compound-activity/figure_lineage_activity_bar.svg"
+            caption: "Compound activity by lineage"
+      - title: "{gene} PRISM-CRISPR Concordance"
+        subtitle: "Compound-genetic dependency concordance"
+        figures:
+          - path: "cards/prism-crispr-concordance/figure_concordance_scatter.svg"
+            caption: "PRISM-CRISPR concordance"
+          - path: "cards/prism-crispr-concordance/figure_dual_responders_bar.svg"
+            caption: "Dual responders"
+
+  mechanism:
+    display_name: "Mechanism"
+    description: "Mechanism of action and pharmacology"
+    hero: "subskills/mechanism/hero.svg"
+    slides:
+      - title: "{gene} Mechanism in {indication}"
+        subtitle: "Functional gene state and expression-dependency correlation"
+        figures:
+          - path: "cards/functional-gene-state/figure_functional_gene_state.svg"
+            caption: "Functional gene state"
+          - path: "cards/expression-dependency-correlation/figure_scatter_with_regression.svg"
+            caption: "Expression-dependency correlation"
+
+  overview:
+    display_name: "Target Profile Overview"
+    description: "High-level target profile summary"
+    hero: "target_profile_at_a_glance.svg"
+    slides:
+      - title: "{gene} Target Profile in {indication}"
+        subtitle: "Comprehensive target assessment overview"
+        figures:
+          - path: "target_profile_at_a_glance.svg"
+            caption: "Target profile at a glance"
