@@ -93,44 +93,98 @@ def _f(v, nd=2):
 # into the WIN axis so the claim vector (which the narrator LEADS with) is quorum-aware, not RNA-only.
 _PROTEIN_CORROBORATED = "rna_protein_concordant"
 _PROTEIN_CONTRADICTED = "rna_protein_discordant"
+# LOCAL, never emitted: the token an off-indication TPHP row is relabelled to inside the quorum. It
+# matches NEITHER voting constant above, which is the whole point — the arm keeps its place in the
+# denominator while losing both votes. Not a card enum value; nothing outside this module sees it.
+_PROTEIN_OFF_INDICATION = "protein_off_indication_cohort"
 
 
-def _protein_window_quorum(h) -> dict:
+def _protein_window_quorum(h, c) -> dict:
     """Quorum over the TWO independent tumor-vs-normal PROTEIN platforms (CPTAC TMT-MS +
     TPHP DIA-MS): does the protein layer corroborate the RNA window? Returns {status, n_measured, cap,
     note}. status ∈ {corroborated, mixed, not_corroborated, contradicted, unmeasured}. `cap` is the
     corroboration ceiling a non-corroborating protein layer imposes (None = no cap). Verdict-INERT —
-    reads the two rna_protein_tvn_concordance_* projections the headline already carries."""
-    reads = [h.get("rna_protein_tvn_concordance"), h.get("rna_protein_tvn_concordance_tphp")]
-    measured = [r for r in reads if r and r != "protein_unmeasured"]
-    n = len(measured)
+    reads the two rna_protein_tvn_concordance_* projections the headline already carries, plus the TPHP
+    card's OWN two censoring fields off `c` (the same card-summary channel _field_effect_note uses).
+
+    ★ THIS QUORUM ONLY EVER PENALISES, SO DROPPING AN ARM IS THE PERMISSIVE DIRECTION. The
+    `not_corroborated` cap is `"low" if n >= 2 else "moderate"` — an ABSOLUTE count — so shrinking n
+    RELAXES it (measured on a 22-pair panel: collapsing the TPHP arm moved 5 tiers, 5/5 UPWARD). The two
+    guards below are therefore split by whether the arm is EVIDENCE AT ALL, which is the only principled
+    way to carry a censoring finding into a penalty instrument without it becoming a back-door relaxation:
+      * a PAN-CANCER-EXTREMUM row is not this indication's answer, so it loses BOTH votes — but it is
+        LABELLED, NOT DROPPED. It stays in the denominator, because "this platform was asked and did not
+        corroborate THIS indication's window" is TRUE of it. Dropping it instead was measured over the
+        225-cell input space and RELAXED 30 cells while tightening 0 — a penalty instrument that fires
+        LESS the less trustworthy its input, the same defect as a safety gate that drops an organ
+        instead of labelling it ([[feedback_safety_support_gate_must_label_not_drop]]).
+      * a CENSORED row IS evidence of non-corroboration but NOT of direction, so it keeps its place and
+        its corroboration vote and loses only its vote on the `contradicted` branch. This one DOES
+        relax, and that is the fix: a `low` cap resting only on a direction the card calls unreliable
+        was never supported. It is the card's own instruction, not a convenience.
+    Both fire only on a POSITIVE mismatch. Both fields are null only on the card's data_unavailable
+    path, where the arm is already `protein_unmeasured` and excluded anyway — so a null cannot reach
+    these guards in live data, and a fixture that omits them keeps the pre-existing behaviour."""
+    tphp = c.get("tumor-vs-normal-protein-abundance-tphp") or {}
+    cptac_read = h.get("rna_protein_tvn_concordance")
+    tphp_read = h.get("rna_protein_tvn_concordance_tphp")
+    # Guard 1 — the CARD'S OWN predicate (warning tphp_tvn_pan_cancer_extremum): a cohort_pick_basis
+    # other than `indication_mapped` means the row is the pan-cancer argmax over |log2fc|, "a
+    # most-extreme-cohort readout, NOT an indication-scoped answer ... Do not attribute it to
+    # {indication.label}". Such a row can neither corroborate nor contradict THIS indication's window.
+    basis = tphp.get("cohort_pick_basis")
+    tphp_measured = bool(tphp_read) and tphp_read != "protein_unmeasured"
+    off_indication = tphp_measured and basis is not None and basis != "indication_mapped"
+    # Guard 2 — the CARD'S OWN predicate (warning tphp_tvn_detection_incomplete): a false
+    # protein_detection_complete means protein_effect_size is a median over DETECTED samples only,
+    # "confounded by missing-not-at-random censoring, biased toward tumor-DOWN (3.60:1 down:up vs
+    # 1.50:1 on complete rows). Read the DIRECTION as unreliable, not as loss." A down-biased arm inside
+    # an instrument that can only penalise is a systematically pessimistic vote: on the 22-pair panel
+    # 8/12 measured TPHP arms were incomplete, the quorum lowered the WIN tier on 6 of those 8, and ALL
+    # 3 TPHP discordant calls sat on censored rows — one (MKI67/LUAD) contradicting CPTAC, which read
+    # `concordant` on complete data. Two reads of one measurement cannot have opposite signs.
+    censored = tphp.get("protein_detection_complete") is False
+    # (read, direction_trustworthy) per SURVIVING arm. CPTAC carries no censoring fields of its own, so
+    # its direction is taken as given — that asymmetry is in the DATA, not in how we treat the arms.
+    arms = [(cptac_read, True)] if cptac_read and cptac_read != "protein_unmeasured" else []
+    if tphp_measured:
+        # Relabelled, not removed: `_PROTEIN_OFF_INDICATION` matches neither voting constant, so the arm
+        # counts toward `n` and toward NOTHING else. `off_indication` implies `tphp_measured`, so the
+        # `n == 0` branch below can never be reached with a dropped arm — nothing goes silent there.
+        arms.append((_PROTEIN_OFF_INDICATION if off_indication else tphp_read, not (off_indication or censored)))
+    n = len(arms)
     if n == 0:
         return {"status": "unmeasured", "n_measured": 0, "cap": None, "note": None}
-    n_conc = sum(r == _PROTEIN_CORROBORATED for r in measured)
-    n_disc = sum(r == _PROTEIN_CONTRADICTED for r in measured)
+    n_conc = sum(r == _PROTEIN_CORROBORATED for r, _ in arms)
+    n_disc = sum(r == _PROTEIN_CONTRADICTED and trusted for r, trusted in arms)
+    n_discounted = sum(r == _PROTEIN_CONTRADICTED and not trusted for r, trusted in arms)
     plat = "platform" if n == 1 else "platforms"
+    # SAY it when a vote is withheld: either withholding can move the tier by two rungs, and a discount
+    # nobody can see is how a deferral becomes invisible. These two are mutually exclusive by
+    # construction (an off-indication arm is relabelled before `censored` could matter to it).
+    aside = ""
+    if n_discounted:
+        aside += (
+            f"; {n_discounted}/{n} MS {plat} read tumor-vs-normal protein DOWN on a CENSORED row "
+            "(protein_detection_complete=false) — direction discounted, NOT counted as a contradiction"
+        )
+    if off_indication:
+        aside += (
+            f"; the TPHP arm counts as NON-corroborating only — cohort_pick_basis={basis} makes it a "
+            "pan-cancer extremum, so neither its agreement nor its direction is attributable here"
+        )
     if n_disc:
-        return {
-            "status": "contradicted",
-            "n_measured": n,
-            "cap": "low",
-            "note": f"protein layer CONTRADICTS the RNA window (tumor-vs-normal protein down; {n_disc}/{n} MS {plat})",
-        }
-    if n_conc == n:  # every measured platform confirms
-        return {"status": "corroborated", "n_measured": n, "cap": None, "note": None}
+        note = f"protein layer CONTRADICTS the RNA window (tumor-vs-normal protein down; {n_disc}/{n} MS {plat})"
+        return {"status": "contradicted", "n_measured": n, "cap": "low", "note": note + aside}
+    if n_conc == n:  # every SURVIVING platform confirms
+        return {"status": "corroborated", "n_measured": n, "cap": None, "note": aside.lstrip("; ") or None}
     if n_conc:  # some confirm, some silent
-        return {
-            "status": "mixed",
-            "n_measured": n,
-            "cap": "moderate",
-            "note": f"protein corroboration MIXED — {n_conc}/{n} MS {plat} confirm the RNA window",
-        }
-    return {
-        "status": "not_corroborated",
-        "n_measured": n,  # all measured platforms non-significant
-        "cap": "low" if n >= 2 else "moderate",
-        "note": f"protein layer does NOT corroborate the RNA window (not significant on {n} MS {plat})",
-    }
+        note = f"protein corroboration MIXED — {n_conc}/{n} MS {plat} confirm the RNA window"
+        return {"status": "mixed", "n_measured": n, "cap": "moderate", "note": note + aside}
+    # all SURVIVING platforms non-significant
+    note = f"protein layer does NOT corroborate the RNA window (not significant on {n} MS {plat})"
+    cap = "low" if n >= 2 else "moderate"
+    return {"status": "not_corroborated", "n_measured": n, "cap": cap, "note": note + aside}
 
 
 def _field_effect_note(c) -> str | None:
@@ -172,7 +226,7 @@ def _win_signal(h, c):
     # PROTEIN-layer corroboration quorum (CPTAC + TPHP): an RNA window the protein layer fails to
     # corroborate (or contradicts) is a weaker window — surface it as a WIN conflict. The tier cap is
     # applied in _win_corroboration. Verdict-INERT.
-    pq = _protein_window_quorum(h)
+    pq = _protein_window_quorum(h, c)
     if pq["note"]:
         conflict = f"{conflict}; {pq['note']}" if conflict else pq["note"]
     return sig, ev, conflict
@@ -211,7 +265,7 @@ def _win_corroboration(h, c):
     # no cap (agreement is not inflated here — the RNA comparator agreement already carries the positive
     # case). This closes the gap where WIN corroboration was RNA-comparator-only and blind to the two
     # tumor-vs-normal protein cards the headline already computes. Verdict-INERT.
-    pq = _protein_window_quorum(h)
+    pq = _protein_window_quorum(h, c)
     if pq["cap"]:
         base = cap_corroboration(base, pq["cap"])
     return base

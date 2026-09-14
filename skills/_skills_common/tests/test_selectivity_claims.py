@@ -16,6 +16,7 @@ SKILLS = Path(__file__).resolve().parents[2]  # skills/
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
+from _skills_common import selectivity_claims as sel  # noqa: E402
 from _skills_common.selectivity_claims import (  # noqa: E402
     selectivity_claim_vector,
     selectivity_key_signals,
@@ -394,6 +395,176 @@ def test_win_corroboration_unaffected_when_protein_unmeasured():
     vec = selectivity_claim_vector(h, [])
     assert vec["WIN"]["corroboration"] == "high"
     assert "protein" not in (vec["WIN"]["conflict"] or "")
+
+
+# ── the TPHP arm's OWN two censoring fields gate what that arm is allowed to SAY ─────────────────────
+# Both guards are the tumor-vs-normal-protein-abundance-tphp CARD's own declared warning predicates
+# (`tphp_tvn_detection_incomplete` / `tphp_tvn_pan_cancer_extremum`), read off the card SUMMARY rather
+# than a headline projection. Each is bracketed by a POSITIVE (the guard fires), a BOUNDARY (the same
+# shape with only the field flipped, pinning the guard to the FIELD and not to the card's presence) and
+# a control on the n-scaling consequence — because this quorum only ever PENALISES, so dropping an arm
+# is the permissive direction and a censoring fix could otherwise become a back-door relaxation.
+def _tphp_cards(**summary_over):
+    """The TPHP tumor-vs-normal card summary the quorum now reads. Defaults mirror a real
+    indication-mapped, fully-detected row; pass overrides to exercise one warning predicate at a time."""
+    summary = {
+        "protein_effect_size": -0.82,
+        "protein_bh_q_value": 0.004,
+        "cohort": "LUAD",
+        "protein_detection_complete": True,
+        "cohort_pick_basis": "indication_mapped",
+    }
+    summary.update(summary_over)
+    return [{"card_id": "tumor-vs-normal-protein-abundance-tphp", "summary": summary}]
+
+
+def test_censored_tphp_arm_cannot_contradict_a_complete_data_platform():
+    """POSITIVE, guard 2 — the MKI67/LUAD shape. TPHP reads tumor-vs-normal protein DOWN on a row where
+    `protein_detection_complete` is false, so its effect size is a median over DETECTED samples only and
+    the card says to "read the DIRECTION as unreliable, not as loss". CPTAC read `concordant` on complete
+    data, and two reads of one measurement cannot have opposite signs. The censored arm keeps its place
+    in the denominator but loses its `contradicted` vote → mixed/moderate instead of a two-rung drop."""
+    h = _rna_up_concordant_win()
+    h["rna_protein_tvn_concordance"] = "rna_protein_concordant"
+    h["rna_protein_tvn_concordance_tphp"] = "rna_protein_discordant"
+    vec = selectivity_claim_vector(h, _tphp_cards(protein_detection_complete=False))
+    assert vec["WIN"]["corroboration"] == "moderate"
+    conflict = vec["WIN"]["conflict"] or ""
+    assert "CENSORED" in conflict and "NOT counted as a contradiction" in conflict
+    assert "CONTRADICTS" not in conflict  # the discount must not be reported as an active contradiction
+
+
+def test_complete_detection_tphp_arm_still_contradicts():
+    """BOUNDARY, guard 2 — the SAME shape with `protein_detection_complete` true. A fully-detected DOWN
+    read is a real cross-platform contradiction and must still cap at low, which is what pins the
+    discount to the FIELD rather than to the TPHP card merely being present in `cards`."""
+    h = _rna_up_concordant_win()
+    h["rna_protein_tvn_concordance"] = "rna_protein_concordant"
+    h["rna_protein_tvn_concordance_tphp"] = "rna_protein_discordant"
+    vec = selectivity_claim_vector(h, _tphp_cards(protein_detection_complete=True))
+    assert vec["WIN"]["corroboration"] == "low"
+    assert "CONTRADICTS" in (vec["WIN"]["conflict"] or "")
+
+
+def test_censoring_discount_does_not_rescue_a_non_corroborating_arm():
+    """NEGATIVE control, guard 2 — the discount must not turn into a relaxation. A censored row that
+    simply failed to reach significance is still evidence of NON-corroboration; only its DIRECTION was
+    unreliable. So it stays in the denominator and two silent platforms keep the n>=2 `low` cap."""
+    h = _rna_up_concordant_win()
+    h["rna_protein_tvn_concordance"] = "protein_not_significant"
+    h["rna_protein_tvn_concordance_tphp"] = "protein_not_significant"
+    vec = selectivity_claim_vector(h, _tphp_cards(protein_detection_complete=False))
+    assert vec["WIN"]["corroboration"] == "low"
+    assert "not significant on 2 MS platforms" in (vec["WIN"]["conflict"] or "")
+
+
+def test_pan_cancer_extremum_tphp_arm_is_labelled_not_dropped():
+    """POSITIVE, guard 1 — a `cohort_pick_basis` other than `indication_mapped` means the row is the
+    pan-cancer cohort with the largest |log2FC|: "a most-extreme-cohort readout, NOT an indication-scoped
+    answer". Such a row can neither corroborate nor contradict THIS indication's window, so it loses BOTH
+    votes — but it KEEPS ITS PLACE IN THE DENOMINATOR, because "this platform was asked and did not
+    corroborate THIS indication's window" is true of it. CPTAC corroborates, the TPHP arm is silent → a
+    2-platform MIXED layer capping at moderate, NOT the uncapped `high` that dropping the arm would give.
+    See `test_the_guards_never_shrink_the_denominator` for why dropping is the wrong shape."""
+    h = _rna_up_concordant_win()
+    h["rna_protein_tvn_concordance"] = "rna_protein_concordant"
+    h["rna_protein_tvn_concordance_tphp"] = "rna_protein_discordant"
+    cards = _tphp_cards(cohort_pick_basis="pan_cancer_max_abs_log2fc_detection_complete")
+    vec = selectivity_claim_vector(h, cards)
+    conflict = vec["WIN"]["conflict"] or ""
+    assert vec["WIN"]["corroboration"] == "moderate"
+    assert "NON-corroborating only" in conflict
+    assert "pan_cancer_max_abs_log2fc_detection_complete" in conflict  # name the basis, not just the act
+    assert "CONTRADICTS" not in conflict  # its DOWN direction is not attributable to this indication
+
+
+def test_pan_cancer_extremum_arm_cannot_corroborate_either():
+    """POSITIVE, guard 1, the OTHER direction — and the half a drop-based guard gets wrong silently. An
+    off-indication row that AGREES with the RNA window must not be allowed to lift the tier: the card says
+    "Do not attribute it to {indication.label}", which forbids crediting its agreement just as much as its
+    disagreement. Two concordant reads would be `corroborated`/no-cap; with the TPHP row off-indication the
+    layer is MIXED and caps at moderate."""
+    h = _rna_up_concordant_win()
+    h["rna_protein_tvn_concordance"] = "rna_protein_concordant"
+    h["rna_protein_tvn_concordance_tphp"] = "rna_protein_concordant"
+    assert selectivity_claim_vector(h, _tphp_cards())["WIN"]["corroboration"] == "high"  # both attributable
+    off = _tphp_cards(cohort_pick_basis="pan_cancer_max_abs_log2fc_no_detection_complete_row")
+    assert selectivity_claim_vector(h, off)["WIN"]["corroboration"] == "moderate"
+
+
+def test_indication_mapped_tphp_arm_is_not_excluded():
+    """BOUNDARY, guard 1 — the same DOWN read on an `indication_mapped` row IS this indication's answer,
+    so the arm stays and no exclusion is reported. `None` is not an off-indication basis either; that
+    case is covered by the data_unavailable control below."""
+    h = _rna_up_concordant_win()
+    h["rna_protein_tvn_concordance"] = "rna_protein_concordant"
+    h["rna_protein_tvn_concordance_tphp"] = "rna_protein_discordant"
+    vec = selectivity_claim_vector(h, _tphp_cards())  # defaults: indication_mapped + fully detected
+    assert vec["WIN"]["corroboration"] == "low"
+    assert "EXCLUDED" not in (vec["WIN"]["conflict"] or "")
+
+
+def test_the_off_indication_guard_does_not_relax_the_n_scaled_cap():
+    """NEGATIVE control, guard 1 — and the reason this guard LABELS instead of DROPPING. `not_corroborated`
+    caps `low if n >= 2 else moderate`, an ABSOLUTE count, so removing an arm RELAXES the penalty: an
+    earlier draft dropped the off-indication arm and, swept over the whole 5x5x3x3 input space, moved 30
+    cells PERMISSIVE and 0 restrictive — a penalty instrument that fires LESS the less trustworthy its
+    input. Same defect as a safety gate that drops an unsupported organ instead of labelling it. Keeping
+    the arm in the denominator holds the cap at low either way."""
+    h = _rna_up_concordant_win()
+    h["rna_protein_tvn_concordance"] = "protein_not_significant"
+    h["rna_protein_tvn_concordance_tphp"] = "protein_not_significant"
+    strict = selectivity_claim_vector(h, _tphp_cards())["WIN"]["corroboration"]
+    off_basis = _tphp_cards(cohort_pick_basis="pan_cancer_max_abs_log2fc_no_detection_complete_row")
+    relaxed = selectivity_claim_vector(h, off_basis)["WIN"]["corroboration"]
+    assert (strict, relaxed) == ("low", "low")
+
+
+def test_the_guards_never_shrink_the_denominator():
+    """THE STRUCTURAL INVARIANT, swept rather than sampled — this is what makes a future re-introduction
+    of "just drop the arm" red. Neither guard may reduce `n_measured` below what the pre-guard quorum
+    counted, for ANY combination of the two headline reads and the two card fields. Both guards withhold
+    VOTES; only `protein_unmeasured` (an arm that was never measured) may reduce the count. 225 cells."""
+    reads = [None, "protein_unmeasured", "protein_not_significant", "rna_protein_concordant", "rna_protein_discordant"]
+    for cptac in reads:
+        for tphp in reads:
+            h = {}
+            if cptac is not None:
+                h["rna_protein_tvn_concordance"] = cptac
+            if tphp is not None:
+                h["rna_protein_tvn_concordance_tphp"] = tphp
+            # what the quorum counts with NO card fields present == the pre-guard denominator
+            baseline = sel._protein_window_quorum(h, {})["n_measured"]
+            for complete in (None, True, False):
+                for basis in (None, "indication_mapped", "pan_cancer_max_abs_log2fc_detection_complete"):
+                    summary = {}
+                    if complete is not None:
+                        summary["protein_detection_complete"] = complete
+                    if basis is not None:
+                        summary["cohort_pick_basis"] = basis
+                    c = {"tumor-vs-normal-protein-abundance-tphp": summary} if summary else {}
+                    got = sel._protein_window_quorum(h, c)["n_measured"]
+                    assert got == baseline, (cptac, tphp, complete, basis, baseline, got)
+
+
+def test_tphp_summary_without_the_censoring_fields_keeps_prior_behaviour():
+    """Byte-stability — both fields are null only on the card's `data_unavailable` path, and an older or
+    synthetic summary omits them entirely. Either way the quorum must read exactly as it did before the
+    guards existed: a MISSING flag is not `False`, and a `None` basis is not an off-indication basis."""
+    h = _rna_up_concordant_win()
+    h["rna_protein_tvn_concordance"] = "rna_protein_concordant"
+    h["rna_protein_tvn_concordance_tphp"] = "rna_protein_discordant"
+    for label, extra in (
+        ("fields absent", {}),
+        ("fields null", {"protein_detection_complete": None, "cohort_pick_basis": None}),
+    ):
+        summary = {"protein_effect_size": -0.82, "protein_bh_q_value": 0.004, "cohort": "LUAD", **extra}
+        cards = [{"card_id": "tumor-vs-normal-protein-abundance-tphp", "summary": summary}]
+        vec = selectivity_claim_vector(h, cards)
+        assert vec["WIN"]["corroboration"] == "low", label
+        conflict = vec["WIN"]["conflict"] or ""
+        assert "CONTRADICTS" in conflict, label
+        assert "CENSORED" not in conflict and "EXCLUDED" not in conflict, label
 
 
 def test_win_evidence_surfaces_field_effect_from_per_cell_log2fc():
