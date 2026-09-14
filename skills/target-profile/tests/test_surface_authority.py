@@ -6,12 +6,12 @@ Contract: `docs/UNIFIED_OUTPUT_CONTRACT.md` § "Typed surface authority". Corpus
 
 WHAT THIS FILE IS FOR
 ---------------------
-A composed nomination emits the same axis's judgement on six surfaces carrying FOUR types. The failure
+A composed nomination emits the same axis's judgement on nine surfaces carrying FIVE types. The failure
 this guards is not "two surfaces disagree" — it is a reader **comparing two surfaces of different
 types** and reporting the type error as a data error (or, worse, resolving it by moving a value). So:
 
-  * where two surfaces are the SAME type, equality is asserted (and the one known exception is pinned
-    by axis and by row count, not waived);
+  * where two surfaces are the SAME type, equality is asserted (and the one known exception is a
+    DECLARED expected fork carrying a prose reason, pinned by row count, not waived);
   * where two surfaces are DIFFERENT types, the DISJOINTNESS of their vocabularies is asserted, so the
     incommensurability is a checked fact rather than a comment;
   * where two vocabularies PARTIALLY overlap — the dangerous case, because a naive equality check is
@@ -81,8 +81,36 @@ HARD_GATE_STATUS_TOKENS = {"fired", "latent", "suppressed", "reconciled", "exclu
 DISPOSITION_TOKENS = {"gated", "excluded_modality_scoped", "contradiction", "uncorroborated"}
 
 # ── known violations, pinned exactly (see the contract's "Known violations" section) ─────────────
-VERDICT_FORK_AXIS = "surface_modality"
-VERDICT_FORK_ROWS = 35
+# `surface_modality` is NO LONGER a violation. `evidence_graph.verdict.id` is surface (2) = the skill's
+# OWN call token, not the resolver token, so it is not the same type as `sub_verdicts.<axis>.verdict`
+# and the two are not required to be equal. The equality that DOES hold — (2) == `skill_report.call`,
+# 683/683 composed and 218/218 per-skill — is a producer property and is asserted against the LIVE
+# producers in skills/_skills_common/tests/test_evidence_graph_verdict_call_token.py, NOT here: a frozen
+# projection cannot observe a producer change, so this file pins the POPULATION and that one pins the
+# BEHAVIOUR. See docs/UNIFIED_OUTPUT_CONTRACT.md § "Type 1" for why the old 619/683 was a confound.
+# `VERDICT_FORK_AXIS` is GONE on purpose: the axis is now a key of EXPECTED_CALL_FORKS below, and a
+# second constant naming the same axis would be a second source of truth that can drift from the
+# declaration it duplicates.
+DECLARED_CALL_FORK_ROWS = 35
+
+# ── declared expected forks ───────────────────────────────────────────────────────────────────────
+# An axis whose CALL is deliberately not its resolver verdict. Shape borrowed from 47's
+# `expected_inert_arms` (target-contracts #752), because that precedent got the important part right:
+# a declaration is only load-bearing if a STALE one is an ERROR. The four checks are transcribed below
+# as three tests plus one structural guarantee — dangling, misdeclared, stale-is-an-error, duplicate —
+# with a mandatory prose reason. 47 uses a 25-character floor precisely to reject "by design", which is
+# a restatement, not a reason.
+EXPECTED_CALL_FORKS: dict = {
+    "surface_modality": (
+        "surface-modality-fit declares its call to be the composed adc-tce-modality-fit `fit_class` "
+        '(run.py:1154 `_v = hl.get("fit_class")` -> skill_report.call; run.py:258 '
+        "`verdict_token=fit_class` -> headline_block.verdict.call), deliberately keeping the resolver's "
+        "safety / density / shed DOWNGRADE out of the call and in the top tension instead, so a "
+        "one-word favourable call cannot hide it. The two vocabularies intersect only on "
+        "`modality_ambiguous`, and their null tokens differ (`insufficient` vs `data_unavailable`)."
+    ),
+}
+EXPECTED_CALL_FORK_REASON_MIN_LEN = 25
 NOT_SCORED_AS_SUPPORTIVE_ROWS = 41
 # Rows whose AUTHORITATIVE spine declares a veto. Renamed from `KILLER_TO_OPPOSING_ROWS` when the
 # collapse was fixed: the population is unchanged (25 rows, `surface_modality` 15 + `selectivity` 10,
@@ -125,28 +153,95 @@ def test_corpus_is_big_enough_to_measure_on(rows):
 # ── Type 1 — verdict token ───────────────────────────────────────────────────────────────────────
 
 
-def test_verdict_token_identical_except_the_pinned_fork(rows):
-    """`sub_verdicts.<axis>.verdict` is authoritative; `evidence_graph.verdict.id` is the same TYPE and
-    must be byte-identical. The single known violation is `surface_modality`, which carries the
-    `adc-tce-modality-fit` card's `fit_class` in `verdict.id` instead of the resolver token — pinned by
-    axis AND by row count so it can neither spread to another axis nor grow on this one."""
+def _forking_rows(rows) -> list[dict]:
     both = [r for r in rows if r["sub_verdict"] and r["evidence_graph_verdict_id"]]
     assert both, "no row carries both verdict surfaces — vacuous"
-    differ = [r for r in both if r["sub_verdict"] != r["evidence_graph_verdict_id"]]
+    return [r for r in both if r["sub_verdict"] != r["evidence_graph_verdict_id"]]
 
+
+def test_the_call_token_matches_the_resolver_only_where_no_fork_is_declared(rows):
+    """`evidence_graph.verdict.id` is surface (2) — the skill's OWN call token. For ten of the eleven
+    skills that token IS their resolver verdict, because they pass it straight into
+    `build_skill_report(verdict=…)`, so (2) == (1) on their rows. Any axis where it does NOT must be
+    DECLARED in `EXPECTED_CALL_FORKS` with a reason.
+
+    ⚠️This is deliberately no longer phrased as "the same type, must be identical". It was, and the
+    619/683 that appeared to support it was a CONFOUND: on those ten skills "(2) == (1)" and
+    "(2) == skill_report.call" are the same assertion, so their agreement could not distinguish the two.
+    An undeclared fork appearing here is still a real finding — a skill's call diverging from its
+    resolver verdict is a decision someone must make on purpose — it is just not a type error."""
+    differ = _forking_rows(rows)
     offending_axes = {r["axis"] for r in differ}
-    assert offending_axes <= {VERDICT_FORK_AXIS}, (
-        f"the verdict-token fork SPREAD to {sorted(offending_axes - {VERDICT_FORK_AXIS})} — "
-        f"`sub_verdicts.<axis>.verdict` and `evidence_graph.verdict.id` are the same type and must be "
-        f"identical on every other axis"
+    undeclared = sorted(offending_axes - set(EXPECTED_CALL_FORKS))
+    assert not undeclared, (
+        f"axes {undeclared} fork their call from their resolver verdict with NO declaration. Either the "
+        f"skill regressed, or the divergence is intended and belongs in EXPECTED_CALL_FORKS with a "
+        f"reason — do not silence this by widening a count"
     )
-    assert len(differ) == VERDICT_FORK_ROWS, (
-        f"pinned verdict-fork row count moved: {len(differ)} != {VERDICT_FORK_ROWS}. If it GREW the fork "
-        f"spread; if it SHRANK either it was fixed (update this pin and the contract) or the corpus "
-        f"stopped covering it (which would make this check pass for the wrong reason)"
+
+
+def test_declared_call_forks_carry_a_real_reason(rows):
+    """Check 1 of 4 — the reason floor. A declaration with no prose is a waiver wearing a declaration's
+    clothes; the length floor is what rejects "by design"."""
+    assert isinstance(EXPECTED_CALL_FORKS, dict), (
+        "EXPECTED_CALL_FORKS became a non-dict — the DUPLICATE check (check 4 of 4) is discharged by dict "
+        "keys being unique, so a list/tuple form needs an explicit duplicate assertion added here"
     )
-    # And the honest part: on every OTHER axis the equality actually holds, over a real population.
-    clean = [r for r in both if r["axis"] != VERDICT_FORK_AXIS]
+    assert EXPECTED_CALL_FORKS, "no declared forks — every assertion in this group is vacuous"
+    for axis, reason in EXPECTED_CALL_FORKS.items():
+        assert isinstance(reason, str) and len(reason.strip()) >= EXPECTED_CALL_FORK_REASON_MIN_LEN, (
+            f"declared fork {axis!r} has a reason of {len(str(reason).strip())} chars (floor "
+            f"{EXPECTED_CALL_FORK_REASON_MIN_LEN}) — say WHY the call is not the resolver verdict"
+        )
+
+
+def test_declared_call_fork_axes_are_neither_DANGLING_nor_MISDECLARED(rows):
+    """Checks 2 and 3 of 4. **Dangling**: a declared axis that does not exist in the corpus at all names
+    nothing and would sit here forever reading as coverage. **Misdeclared**: it must be in the population
+    the declaration is about — i.e. it must actually carry both surfaces, or the declaration is about
+    rows that cannot be compared."""
+    axes_in_corpus = {r["axis"] for r in rows}
+    comparable_axes = {r["axis"] for r in rows if r["sub_verdict"] and r["evidence_graph_verdict_id"]}
+    for axis in EXPECTED_CALL_FORKS:
+        assert axis in axes_in_corpus, (
+            f"declared fork {axis!r} is DANGLING — no such axis in the corpus, so the declaration is "
+            f"unverifiable and silently permanent"
+        )
+        assert axis in comparable_axes, (
+            f"declared fork {axis!r} is MISDECLARED — it carries no row with BOTH verdict surfaces, so "
+            f"there is nothing for the declaration to be about"
+        )
+
+
+def test_a_declared_call_fork_that_STOPPED_HAPPENING_is_an_ERROR(rows):
+    """Check 4 — the one that makes the mechanism safe to add, and an ERROR rather than a warning. If a
+    declared axis stops forking, the reason above now documents the OPPOSITE of the behaviour, and a
+    reader who trusts it will believe the call is still not the resolver verdict when it is. This also
+    catches the corpus quietly ceasing to cover the case, which otherwise looks exactly like a fix."""
+    forking_axes = {r["axis"] for r in _forking_rows(rows)}
+    stale = sorted(set(EXPECTED_CALL_FORKS) - forking_axes)
+    assert not stale, (
+        f"declared fork(s) {stale} no longer occur. Do NOT just delete the declaration: establish which "
+        f"happened — the skill's call became its resolver verdict (then remove the entry AND update "
+        f"docs/UNIFIED_OUTPUT_CONTRACT.md Known violation 1), or the corpus stopped covering the axis "
+        f"(then the projection needs rebuilding, and nothing was fixed)"
+    )
+
+
+def test_declared_call_fork_row_count_is_pinned(rows):
+    """The count survives the retyping unchanged. A DECLARED fork still may not spread or grow silently:
+    the declaration explains why `surface_modality` diverges, not why it should diverge on more rows."""
+    differ = _forking_rows(rows)
+    assert len(differ) == DECLARED_CALL_FORK_ROWS, (
+        f"declared call-fork row count moved: {len(differ)} != {DECLARED_CALL_FORK_ROWS}. If it GREW the fork "
+        f"spread; if it SHRANK either the skill changed its call (update this pin and the contract) or "
+        f"the corpus stopped covering it (which would make this check pass for the wrong reason)"
+    )
+    # And the honest part: on every axis with NO declared fork the equality actually holds, over a real
+    # population — which is what makes the declaration above a narrow exception rather than a blanket.
+    clean = [
+        r for r in rows if r["sub_verdict"] and r["evidence_graph_verdict_id"] and r["axis"] not in EXPECTED_CALL_FORKS
+    ]
     assert len(clean) > 100, f"only {len(clean)} non-forked rows — too few to call the equality tested"
     assert all(r["sub_verdict"] == r["evidence_graph_verdict_id"] for r in clean)
 

@@ -19,7 +19,11 @@ declares WHICH surface is authoritative FOR WHICH TYPE, so a reader that compare
 sometimes checking agreement and sometimes committing a category error. `sub_verdict` and
 `scorecard_status` cannot agree or disagree — their vocabularies are DISJOINT (a 66-token open
 resolver vocabulary vs a 4-token polarity), so "they differ" is type-incommensurability, not a bug.
-`sub_verdict` vs `evidence_graph.verdict.id` are the SAME type and MUST be identical.
+`sub_verdict` vs `evidence_graph.verdict.id` are DIFFERENT types and need NOT be identical: the first
+is the resolver's verdict token, the second is the skill's OWN call token, and they coincide only
+because ten of eleven skills pass their resolver verdict straight into `build_skill_report(verdict=…)`.
+Treating that coincidence as a type rule is the exact category error this docstring warns about, and it
+sat in this file for its whole life — see docs/UNIFIED_OUTPUT_CONTRACT.md § "Type 1".
 
 This script freezes that comparison over a real corpus so the authority contract is checkable
 instead of asserted. It reads only ALREADY-EMITTED artifacts (no S3, no credentials) — unlike its

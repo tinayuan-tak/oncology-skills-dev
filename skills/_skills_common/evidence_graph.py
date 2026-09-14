@@ -116,6 +116,42 @@ def _verdict_polarity(headline: dict, hb_verdict: dict):
     return base
 
 
+def _verdict_call(headline: dict, hb_verdict: dict):
+    """The graph verdict node's `id` — the skill's OWN call token, read from the authoritative spine.
+
+    Sibling of `_verdict_polarity` above, and the same shape of join for the same reason: the value
+    this layer wants already exists one key over, on `headline.skill_report`, and reading it makes an
+    invariant STRUCTURAL that was previously only true by habit.
+
+    WHAT THIS FIELD IS, because the contract got it wrong for the life of the file. `verdict.id` was
+    declared to be the *resolver* token and "must be identical" to `sub_verdicts.<axis>.verdict`.
+    It is not: it is the skill's own **call**, which for ten of eleven skills HAPPENS to be their
+    resolver verdict (they pass it straight through to `build_skill_report(verdict=…)`) and for
+    `surface-modality-fit` deliberately is not — `run.py` passes the composed `adc-tce-modality-fit`
+    `fit_class`, keeping the resolver's safety/density downgrade in the top tension on purpose. So the
+    measured "619 / 683 agree with the resolver" was a **confound**: it is a property of those ten
+    skills, not of this field. The invariant that actually holds is `id == skill_report.call`, at
+    683/683 composed rows and 218/218 per-skill rows. See docs/UNIFIED_OUTPUT_CONTRACT.md § "Type 1".
+
+    VALUE-NEUTRAL, replayed rather than argued: over all 297 live `decision.json`
+    (292 with a dict headline) the pre-join chain and this one return the identical value on
+    **292 / 292**. It could not be otherwise — `skill_report.call` and the fall-through chain are
+    **co-present or co-absent** on every row (218 both set, 74 both falsy, and NO one-sided cell), so
+    this join can neither fill a blank nor blank a value. The 74 are real and stay on the fallback:
+    60 carry a `skill_report` with no `call` (combination-and-vulnerability, literature-context,
+    translational-readiness, target-intrinsic, surface-modality-fit) and 14 carry no `skill_report`
+    at all.
+
+    The point of reading the spine anyway is that a future skill which passes a different token to
+    `build_skill_report(verdict=…)` than it puts on `headline_block.verdict.call` now cannot silently
+    fork these two surfaces — before this join, nothing joined them and nothing would have noticed.
+    """
+    sr = (headline or {}).get("skill_report")
+    if isinstance(sr, dict) and sr.get("call"):
+        return sr["call"]
+    return headline.get("presence_verdict") or hb_verdict.get("call") or headline.get("verdict")
+
+
 def _question_signal(row: dict) -> dict:
     s = row.get("signal") or {}
     return {"tier": s.get("tier"), "polarity": _canon_polarity(s.get("polarity")), "label": s.get("label")}
@@ -469,7 +505,7 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
     hb = h.get("headline_block") or {}
     hb_verdict = hb.get("verdict") or {}
     driving_rule_id = h.get("driving_rule_id") or hb_verdict.get("driving_rule_id")
-    verdict_call = h.get("presence_verdict") or hb_verdict.get("call") or h.get("verdict")
+    verdict_call = _verdict_call(h, hb_verdict)
 
     fired_by_card: dict = {}
     driving_card_id = None

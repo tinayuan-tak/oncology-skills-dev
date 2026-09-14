@@ -72,16 +72,23 @@ this scale and a plain-language phrase; chips carry **polarity AND strength deco
 ## Typed surface authority — which surface is authoritative FOR WHICH TYPE
 
 The section above names one authoritative scale for **polarity**. Necessary, but not sufficient: a
-composed nomination emits the same axis's "how did it go" judgement on **six** surfaces, and those
-surfaces carry **four different types**. Until 2026-09-13 nothing declared which surface owned which
+composed nomination emits the same axis's "how did it go" judgement on **nine** surfaces, and those
+surfaces carry **five different types**. Until 2026-09-13 nothing declared which surface owned which
 type, so a reader comparing two of them was sometimes checking agreement and sometimes committing a
 category error — and the two are indistinguishable in a diff. "These two surfaces differ" is a bug
 report only *after* you establish the two are the same type.
 
+The type count was **four** until 2026-09-14, when a resolver verdict token and a skill's own call
+token — collapsed here into one "verdict token" type — turned out to be two (see Type 1 and Known
+violation 1). That is the failure mode this table exists to prevent, committed by the table itself: the
+inventory was missing a row, so the one surface derived from the missing row was declared derived from
+the nearest present one instead.
+
 | # | Surface | Type | Vocabulary (live) | Authority |
 |---|---|---|---|---|
-| 1 | `sub_verdicts.<axis>.verdict` | verdict token | **open**, per-resolver (55 live / 66 declared) | **authoritative** |
-| 2 | `…skill_reports.<axis>.evidence_graph.verdict.id` | verdict token | same as (1) | derived — must be identical |
+| 1 | `sub_verdicts.<axis>.verdict` | **resolver** verdict token | **open**, per-resolver (55 live / 66 declared) | **authoritative** for gating |
+| 2a | `skill_reports.<axis>.call` | the skill's **own call** token | **open**, per-skill: = (1) for 10 of 11 skills; `fit_class` for `surface_modality` | **authoritative** for what the skill called it |
+| 2 | `…skill_reports.<axis>.evidence_graph.verdict.id` | the skill's **own call** token | same as (2a) | derived from **(2a)**, joined — must be identical to (2a), **not** to (1) |
 | 3 | `target_call.gate_scorecard[].verdict` | verdict token | same as (1) | derived |
 | 4 | `skill_reports.<axis>.polarity` | polarity | **closed, 5**: `killer` `opposing` `neutral` `supportive` `not_scored` | **authoritative** |
 | 5 | `…evidence_graph.verdict.polarity` | polarity | **closed, 4**: `killer` `opposing` `neutral` `supportive` (+ off-scale `not_applicable`) | derived — lossy only in the off-axis direction |
@@ -93,10 +100,43 @@ All figures below are measured over `skills/target-profile/tests/fixtures/polari
 — 37 target×indication pairs (latest-per-pair), 629 axis rows, from live runs under
 `~/dev/framework-runs/examples`. Rebuild with `tests/build_polarity_surface_projection.py`.
 
-### Type 1 — verdict token: (1) is authoritative; (2) and (3) MUST be identical
+### Type 1 — a RESOLVER token and a CALL token are two types, not one
 
-Same type, so equality is meaningful and required. Measured: **337 / 372** rows where both are present
-are identical. All **35** violations are on a single axis, `surface_modality` (35 of its 37 rows).
+The distinction this section missed for the life of the file. **(1) is the resolver's verdict token**,
+authoritative for gating. **(2a) is the skill's own `call`** — what the skill declares its headline
+judgement to be — and **(2) is derived from (2a), not from (1)**. (3) is derived from (1) and must be
+identical to it.
+
+For ten of the eleven skills (1) and (2a) coincide, because those skills pass their resolver verdict
+straight into `build_skill_report(verdict=…)`. That coincidence is why this file asserted (2) "must be
+identical to (1)". Measured on merged trunk — note the **two populations**, which are not comparable:
+
+| assertion | population | result |
+|---|---|---|
+| **(2) == (2a)** | live composed corpus (75 nominations, 1020 axis rows) | **683 / 683** — 0 exceptions, every axis |
+| **(2) == (2a)** | live per-skill artifacts (292 usable) | **218 / 218** where both present; 74 both absent |
+| (2) == (1) | the frozen projection fixture (372 both-present) | 337 / 372 — 35 differ, all `surface_modality` |
+| (2) == (1) | live composed corpus (683 both-present) | 619 / 683 — 64 differ, all `surface_modality` |
+
+⚠️**The 619/683 is a CONFOUND, not evidence for a type rule.** On the ten skills whose call *is* their
+resolver verdict, "(2) == (1)" and "(2) == (2a)" are the **same assertion**, so their agreement says
+nothing about which surface the field follows. `surface_modality` is the only axis where the two *can*
+differ, and there the fork is **64 / 64** — total, not intermittent. It looked intermittent only because
+the two vocabularies intersect in exactly one literal, `modality_ambiguous`, producing 4 accidental
+agreements.
+
+★ **An invariant measured only where two vocabularies coincide cannot distinguish a type rule from a
+shared habit.** Find the population where they *can* differ, and measure there.
+
+**(2) == (2a) is now structural, not observed.** `evidence_graph._verdict_call` reads the (2a) spine
+before the headline channel, so the equality holds by construction rather than because every `run.py`
+happens to hand the same token to both surfaces — which nothing joined and nothing would have noticed.
+Value-neutral by replay (old and new chains agree on **292 / 292** live artifacts), and it can neither
+fill nor blank a token because (2a) and the fall-through chain are **co-present or co-absent** on every
+row (218 both set, 74 both falsy, no one-sided cell). Guarded by
+`skills/_skills_common/tests/test_evidence_graph_verdict_call_token.py`, which runs the real producers
+and whose fixture deliberately holds **different** tokens on the two inputs — a fixture feeding one
+value to both would pass for a producer that read either key.
 
 ### Type 2 — polarity: (4) and (5) answer DIFFERENT questions about the same axis
 
@@ -226,16 +266,37 @@ each of which this list now guards against:
 A count pinned "both ways" still cannot see a **producer** change if the count is taken over a frozen
 snapshot. Pin the population in the projection test; assert the behaviour against live code.
 
-1. **`surface_modality` puts a card field in `verdict.id`** (35 of 37 rows). Its
-   `evidence_graph.verdict.id` carries the `adc-tce-modality-fit` card's `summary.fit_class`
-   (`both_viable` / `TCE_preferred` / `neither_viable` / `data_unavailable`, produced in
-   `_skills_common/_live_readers.py:1722-1759`), while `sub_verdicts.surface_modality.verdict` carries
-   the resolver token (`adc_preferred_tce_unsafe` / `tce_unsafe_normal_liability` /
-   `pmhc_tce_supported` / `insufficient`). The two vocabularies overlap only on `modality_ambiguous`.
-   Note the null tokens differ too — `insufficient` vs `data_unavailable` — so the one row that looks
-   like a null-handling disagreement (MUC17/STAD) is really two vocabularies' nulls being compared.
-   Either (2) is wrong on this axis or the field is mistyped; **pinned at exactly 1 axis / 35 rows** so
-   it cannot spread, and it may not be "fixed" by relaxing the pin.
+1. ~~**`surface_modality` puts a card field in `verdict.id`**~~ — **RESOLVED 2026-09-14: the FIELD was
+   mistyped, and this entry was the mistyping's last hiding place.** Retained in place rather than
+   deleted, because the shape of the error is the reusable part.
+
+   The entry ended "either (2) is wrong on this axis or the field is mistyped". It was the field. (2)
+   is the skill's own **call** token (see Type 1); `surface-modality-fit` declares its call to be the
+   composed `adc-tce-modality-fit` `fit_class` (`both_viable` / `TCE_preferred` / `neither_viable` /
+   `data_unavailable`), routed to both call surfaces on purpose — `run.py:258` `verdict_token=fit_class`
+   reaches `headline_block.verdict.call`, and `run.py:1154` `_v = hl.get("fit_class")` reaches (2a) —
+   while `sub_verdicts.surface_modality.verdict` carries the resolver token
+   (`adc_preferred_tce_unsafe` / `tce_unsafe_normal_liability` / `pmhc_tce_supported` /
+   `insufficient`). So this was never a producer defect: the two surfaces are **different types**, and
+   the contract was comparing them.
+
+   ⚠️**Why it read as a lone violator for so long.** The table had **no row for the skill's own call
+   token** — (2a) is new above — so the only candidate authority for (2) was (1), and ten of eleven
+   skills corroborated that reading for free (see the confound in Type 1). A missing row in an
+   inventory is not a neutral omission; it forces every reader to the one remaining answer.
+
+   Two details worth keeping, both still true: the two vocabularies overlap only on
+   `modality_ambiguous`, and the **null tokens differ too** — `insufficient` vs `data_unavailable` — so
+   the one row that looked like a null-handling disagreement (MUC17/STAD) was really two vocabularies'
+   nulls being compared.
+
+   **Now a DECLARED EXPECTED FORK, not a pinned violation.** `test_surface_authority.py` declares
+   `surface_modality` as an axis whose call is expected to differ from its resolver verdict, with a
+   prose `reason` and the four checks the `expected_inert_arms` precedent established (TC #752):
+   *dangling* (the declared axis exists in the corpus), *misdeclared* (it is in the population the
+   warning is about), *stale — an ERROR, not a warning* (if the fork stops occurring, the reason now
+   documents the opposite of the behaviour), and *duplicate*. The row count stays pinned so the fork
+   still cannot spread or grow silently.
 2. **`not_scored → supportive`, 41 rows** (see Type 2). Pinned at 41 so it cannot grow. Not a plumbing
    gap — the two surfaces answer different questions here — so it is pinned, not joined.
 3. **The authoritative polarity has not caught up with the `uncorroborated` relabelling, 6 rows.** On

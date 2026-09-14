@@ -9,8 +9,12 @@ same axis, and they answer different questions:
 
 So they are *supposed* to differ on off-axis roles, and this file pins that asymmetry so a future
 "make the two consistent" change cannot silently blank the direction badge on every descriptive axis
-(125 of 278 rows in the live per-skill corpus, on a field `report_render` reads for every
-`_skill_graph_header`). See docs/UNIFIED_OUTPUT_CONTRACT.md § "Type 2".
+(**127 of 278** rows in the live per-skill corpus, on a field `report_render` reads for every
+`_skill_graph_header`). And 127 is exactly **descriptive 109 + inert 18**, so "(4) != (5)" and "the role
+is off-axis" are not merely correlated on this corpus — they select the SAME rows, with no remainder in
+either direction. That is the stronger claim, and it is the one to defend: a single row where the two
+predicates came apart would mean the asymmetry has a second cause nobody has characterised.
+See docs/UNIFIED_OUTPUT_CONTRACT.md § "Type 2".
 
 WHAT WAS ACTUALLY BROKEN, and why a fixture could not see it
 ------------------------------------------------------------
@@ -185,7 +189,8 @@ def test_off_axis_roles_keep_their_read_direction_on_the_graph(role, band):
     """`descriptive`/`inert` axes are `not_scored` on the spine and still carry a DIRECTION on the
     graph. That is not the same defect as the veto above and must not be "fixed" by copying the
     spine: `not_scored` is not a member of the ordinal_view vocabulary, so writing it here would put
-    an off-scale token on the display scale and blank the direction badge on ~125 of 278 live rows.
+    an off-scale token on the display scale and blank the direction badge on **127 of 278** live rows
+    (= descriptive 109 + inert 18, exactly — see this module's docstring).
     The harmful direction — an unscored axis reading as the favourable measured class — is pinned
     separately and by count in skills/target-profile/tests/test_surface_authority.py."""
     spine, graph = _both(_decision(role=role, band=band, override=None))
