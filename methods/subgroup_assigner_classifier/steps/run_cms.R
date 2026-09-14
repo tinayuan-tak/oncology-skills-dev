@@ -5,8 +5,16 @@
 # Reads an expression matrix parquet (genes × samples; row key = Entrez id in an `entrez_id` column,
 # remaining columns = sample ids of log2(count+1) / TPM values), runs CMScaller::CMScaller (nearest-
 # template prediction of CRC Consensus Molecular Subtypes), and writes a per-sample parquet with
-# {sample_id, CMS, p_value, FDR}. Determinism: NTP is deterministic given a fixed matrix + templates;
-# no RNG seeding needed. Fails loudly (non-zero exit) so the python orchestrator surfaces R errors.
+# {sample_id, CMS, p_value, FDR}. Fails loudly (non-zero exit) so the python orchestrator surfaces R errors.
+#
+# DETERMINISM (this comment previously claimed the opposite, and it was wrong): the ASSIGNMENT step of
+# NTP is deterministic — correlate each sample to each template, take the nearest — but the p-value and
+# FDR come from a PERMUTATION null (CMScaller's default nPerm = 1000, and it prints "1000 permutation(s)"
+# on every run). CMScaller exposes `seed` precisely because of this and forwards it to ntp(); leaving it
+# NULL leaves R's RNG seeded from the clock, so samples sitting near the --fdr floor cross it in either
+# direction between runs. MEASURED on byte-identical input: 2 of 131 DepMap Bowel models changed class
+# across three runs, moving the CMS3 count 20/19/20 and CMS4 33/32/32. Any expected_n declared off an
+# unseeded run is a FLAKY FLOOR, so the seed is pinned below.
 options(error = function() { traceback(3); quit(status = 1) })
 
 suppressPackageStartupMessages({
@@ -33,8 +41,14 @@ storage.mode(emat) <- "double"
 message("[run_cms.R] emat: ", nrow(emat), " genes x ", ncol(emat), " samples")
 
 # --- NTP CMS prediction ---
+# Pinned, not exposed as a CLI flag: no caller has a reason to vary it, and an option nothing passes
+# is dead coverage. 42 matches the repo's python convention (depmap_predictability_precompute uses
+# random_state = 42). Changing this value re-rolls the FDR null and can move counts near the floor.
+CMS_NTP_SEED <- 42L
+
 # CMScaller returns a data.frame: rownames = sample ids; columns include `prediction`, `p.value`, `FDR`.
-res <- CMScaller::CMScaller(emat, RNAseq = as.logical(opt$rnaseq), doPlot = FALSE)
+res <- CMScaller::CMScaller(emat, RNAseq = as.logical(opt$rnaseq), doPlot = FALSE, seed = CMS_NTP_SEED)
+message("[run_cms.R] NTP seed: ", CMS_NTP_SEED, " (permutation FDR is RNG-driven; see header)")
 
 pred <- as.character(res$prediction)
 # apply the FDR floor: a sample above the floor is unclassified (NA CMS) — honest "unclassifiable".
