@@ -330,8 +330,15 @@ def test_every_role_the_classifier_emits_is_in_the_card_vocabulary():
 
     import yaml
 
+    # Sibling root derived from THIS file's location (REPO, line 13), matching the ~85 other call
+    # sites. It was `Path.home() / …`, which is indistinguishable from the derived path on a dev box
+    # — home IS the checkout parent there — but wrong on a runner, where home is /home/runner and the
+    # checkout is under the workspace. That divergence was invisible only because the workflow
+    # exported TARGET_CONTRACTS_ROOT; with the export gone this mirror guard would silently become
+    # `pytest.skip("target-contracts checkout not available")` on every CI run. `or` rather than a
+    # two-arg .get() default so an EMPTY value falls back too (`Path("")` is the CWD).
     root = Path(
-        os.environ.get("TARGET_CONTRACTS_ROOT", Path.home() / "rnd-computational-biology-oncology-target-contracts")
+        os.environ.get("TARGET_CONTRACTS_ROOT") or REPO.parent / "rnd-computational-biology-oncology-target-contracts"
     )
     card = root / "cards" / "alteration-role.card.yaml"
     if not card.exists():

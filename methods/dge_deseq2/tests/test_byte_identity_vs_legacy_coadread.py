@@ -56,10 +56,10 @@ METHODS_REPO = Path(__file__).resolve().parents[3]
 # Sibling repo roots are ENV-OVERRIDABLE, defaulting to the sibling checkout DERIVED from this
 # file's own location — so a worktree resolves ITS OWN siblings rather than another checkout's.
 # DATA_CATALOG_ROOT is the repo-wide convention (see methods/catalog_query/read.py and ~20 other
-# call sites) and methods-validate.yml already exports it. Overriding it is what lets the gate be
-# verified against a data-catalog BRANCH (e.g. a fixed indication-config) without editing the
-# primary checkout to make a test pass. `or` rather than a two-arg .get() default so an EMPTY
-# value falls back too: .get(K, d) returns "" and Path("") is "." — the CWD.
+# call sites); methods-validate.yml no longer exports it, so CI takes the derived branch. Overriding
+# it is what lets the gate be verified against a data-catalog BRANCH (e.g. a fixed indication-config)
+# without editing the primary checkout to make a test pass. `or` rather than a two-arg .get() default
+# so an EMPTY value falls back too: .get(K, d) returns "" and Path("") is "." — the CWD.
 CATALOG_REPO = Path(
     os.environ.get("DATA_CATALOG_ROOT")
     or Path(__file__).resolve().parents[3].parent / "rnd-computational-biology-oncology-data-catalog"

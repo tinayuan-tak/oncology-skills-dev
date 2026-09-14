@@ -122,8 +122,9 @@ def _lean_load_manifest(path):
 # Repo roots — env-var-overridable, defaulting to the sibling checkout DERIVED from this file's own
 # location (matches gdc_somatic_hotspot's DATA_CATALOG_ROOT pattern). Overriding via env used to be
 # the only thing that let CI or any non-/home/sagemaker-user checkout resolve manifests; the derived
-# default now matches CI's own layout, so methods-validate.yml's exported roots are a pin rather than
-# a requirement. `or` rather than a two-arg .get() default so an EMPTY value falls back too:
+# default now matches CI's own layout, so methods-validate.yml no longer exports these roots at all —
+# CI exercises this `or` branch exactly as a fresh checkout does, which is the point of not pinning
+# it. `or` rather than a two-arg .get() default so an EMPTY value falls back too:
 # .get(K, d) returns "" and Path("") is "." — the CWD, a plausible wrong root that reads as
 # "manifests missing" rather than as a resolution failure.
 DATA_CATALOG = Path(

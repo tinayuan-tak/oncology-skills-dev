@@ -19,9 +19,14 @@ jobs:
     runs-on: ubuntu-latest
     env:
       SKILLS_SKIP_LIVE_DATA: "1"        # no AWS creds on the runner → skip live-S3 reads (conftest)
-      ANALYSIS_METHODS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-analysis-methods
-      TARGET_CONTRACTS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-target-contracts
-      DATA_CATALOG_ROOT:     ${{ github.workspace }}/rnd-computational-biology-oncology-data-catalog
+      # ANALYSIS_METHODS_ROOT / TARGET_CONTRACTS_ROOT / DATA_CATALOG_ROOT are deliberately NOT set.
+      # AM#631/#632 made ~85 call sites derive each root from `__file__` (`os.environ.get(K) or
+      # <derived>`), and the checkout paths below place every repo at `<workspace>/<repo-name>`, which
+      # is exactly what the derivation computes — so exporting them pinned a value identical to the
+      # derived one. That made the `or` branch UNREACHABLE here: the fallback every non-CI checkout
+      # actually uses had zero coverage on the one machine that gates merges. Removing the exports is
+      # what gives it that coverage. Do NOT re-add them to "fix" a resolution failure — a red here
+      # means a site's `parents[N]` index is wrong, and pinning the env var would only re-hide it.
     steps:
       - name: Checkout analysis-methods
         uses: actions/checkout@v4
