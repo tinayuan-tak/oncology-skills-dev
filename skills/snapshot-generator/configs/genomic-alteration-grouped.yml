@@ -1,0 +1,45 @@
+# snapshot config: genomic-alteration (grouped layout)
+title: "{gene} Genomic Alterations in {indication}"
+subtitle: "Mutation, copy number, and fusion analysis"
+layout: "grouped"
+
+groups:
+  - title: "Mutation"
+    panels:
+      - title: "Mutation Frequency (TCGA)"
+        table: "subskills/genomic_alteration/tables/mutation-hotspot-frequency_summary_stats.csv"
+        table_max_rows: 3
+
+      - title: "Hotspot Frequency (TCGA)"
+        table: "subskills/genomic_alteration/tables/mutation-hotspot-frequency_hotspot_frequencies.csv"
+        table_max_rows: 5
+
+      - figure: "cards/mutation-type-counts/figure_mutation_class_bar.svg"
+        caption: "Cell line - Pan-Cancer"
+        table: "subskills/genomic_alteration/tables/mutation-type-counts_summary_stats.csv"
+        table_max_rows: 3
+
+  - title: "Copy Number"
+    panels:
+      - title: "CN Alteration Frequency (TCGA)"
+        table: "subskills/genomic_alteration/tables/copy-number-distribution_summary_stats.csv"
+        table_row_select:
+          column: "field"
+          values: ["patient_copy_number_class", "patient_amplified_fraction", "patient_high_amp_fraction", "patient_deleted_fraction", "patient_homdel_fraction"]
+
+      - figure: "cards/copy-number-distribution/figure_density_cn.svg"
+        caption: "Cell line - Pan-Cancer"
+
+  - title: "Fusion / Splice"
+    panels:
+      - title: "Fusion Frequency (TCGA)"
+        table: "subskills/genomic_alteration/tables/fusion-rearrangement-landscape_summary_stats.csv"
+        table_row_select:
+          column: "field"
+          values: ["n_samples_with_fusion", "fusion_frequency", "fusion_class"]
+
+      - title: "Alternative Splicing (TCGA)"
+        table: "subskills/genomic_alteration/tables/tumor-splice-dysregulation_summary_stats.csv"
+        table_row_select:
+          column: "field"
+          values: ["n_splice_events", "max_event_psi_std", "median_event_psi_std"]

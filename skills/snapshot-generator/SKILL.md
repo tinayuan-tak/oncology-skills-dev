@@ -115,7 +115,9 @@ panels:
 
 ### Layout Options
 
-The `layout` field defines panel arrangement as `"rows x cols"`:
+The `layout` field defines panel arrangement:
+
+**Grid Layout** (`"rows x cols"`):
 
 | Layout | Description |
 |--------|-------------|
@@ -126,20 +128,68 @@ The `layout` field defines panel arrangement as `"rows x cols"`:
 | `"2x3"` | 2 rows, 3 columns |
 | `"3x2"` | 3 rows, 2 columns |
 
+**Grouped Layout** (`"grouped"`):
+
+Organizes panels into named column groups, with panels stacked vertically within each group:
+
+```yaml
+layout: "grouped"
+
+groups:
+  - title: "Mutation"
+    panels:
+      - title: "Mutation Frequency"
+        table: "..."
+      - figure: "..."
+        table: "..."
+
+  - title: "Copy Number"
+    panels:
+      - title: "CN Alteration"
+        table: "..."
+      - figure: "..."
+
+  - title: "Fusion / Splice"
+    panels:
+      - title: "Fusion Frequency"
+        table: "..."
+```
+
+Each group becomes a column with:
+- Group title (bold header at top)
+- Panels stacked vertically below
+
 ### Panel Options
 
 Each panel can contain a figure, a table, or both.
 
 ```yaml
 panels:
-  - # Figure (optional)
+  - # Panel title (optional, displayed above content)
+    title: "Panel Title"
+    
+    # Figure (optional)
     figure: "cards/card-name/figure.svg"      # Path relative to figures/ directory
     
     # Table (optional)
     table: "cards/card-name/plot_data.parquet"  # Supports .csv and .parquet
     
-    # Caption (optional)
+    # Caption (optional, displayed below content)
     caption: "Description of this panel"
+```
+
+### Table-Only Panels
+
+For panels containing only a table (no figure), use the `title` field:
+
+```yaml
+panels:
+  - title: "Top Dependent Cell Lines"
+    table: "cards/mutation-stratified-dependency/plot_data.parquet"
+    table_columns: ["cell_line_name", "chronos_score", "lineage"]
+    table_sort_by: "chronos_score"
+    table_max_rows: 10
+    caption: "Sorted by Chronos score"
 ```
 
 ### Table Configuration

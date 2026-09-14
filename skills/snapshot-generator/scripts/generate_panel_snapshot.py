@@ -63,7 +63,8 @@ class PanelSpec:
     """A panel containing a figure and/or table."""
     figure: Optional[str] = None
     table: Optional[str] = None
-    caption: str = ""
+    title: str = ""  # Panel title (displayed above content)
+    caption: str = ""  # Panel caption (displayed below content)
     table_max_rows: int = 10
     table_columns: Optional[list[str]] = None
     table_row_select: Optional[TableRowSelect] = None
@@ -73,12 +74,44 @@ class PanelSpec:
 
 
 @dataclass
+class GroupSpec:
+    """A group of panels displayed as a column."""
+    title: str = ""
+    panels: list[PanelSpec] = field(default_factory=list)
+
+
+@dataclass
 class SnapshotSpec:
     """A single-slide snapshot specification."""
     title: str = ""
     subtitle: str = ""
-    layout: str = "1x2"  # rows x cols
+    layout: str = "1x2"  # rows x cols, or "grouped" for column groups
     panels: list[PanelSpec] = field(default_factory=list)
+    groups: list[GroupSpec] = field(default_factory=list)  # For grouped layout
+
+
+def _parse_panel(panel_cfg: dict) -> PanelSpec:
+    """Parse a single panel configuration."""
+    row_select = None
+    if "table_row_select" in panel_cfg:
+        rs = panel_cfg["table_row_select"]
+        row_select = TableRowSelect(
+            column=rs.get("column", ""),
+            values=rs.get("values", []),
+        )
+
+    return PanelSpec(
+        figure=panel_cfg.get("figure"),
+        table=panel_cfg.get("table"),
+        title=panel_cfg.get("title", ""),
+        caption=panel_cfg.get("caption", ""),
+        table_max_rows=panel_cfg.get("table_max_rows", 10),
+        table_columns=panel_cfg.get("table_columns"),
+        table_row_select=row_select,
+        table_filter=panel_cfg.get("table_filter"),
+        table_sort_by=panel_cfg.get("table_sort_by"),
+        table_sort_ascending=panel_cfg.get("table_sort_ascending", True),
+    )
 
 
 def load_snapshot_config(config_path: Path) -> SnapshotSpec:
@@ -86,27 +119,16 @@ def load_snapshot_config(config_path: Path) -> SnapshotSpec:
     with config_path.open() as f:
         data = yaml.safe_load(f)
 
-    panels = []
-    for panel_cfg in data.get("panels", []):
-        # Parse table_row_select if present
-        row_select = None
-        if "table_row_select" in panel_cfg:
-            rs = panel_cfg["table_row_select"]
-            row_select = TableRowSelect(
-                column=rs.get("column", ""),
-                values=rs.get("values", []),
-            )
+    # Parse flat panels
+    panels = [_parse_panel(p) for p in data.get("panels", [])]
 
-        panels.append(PanelSpec(
-            figure=panel_cfg.get("figure"),
-            table=panel_cfg.get("table"),
-            caption=panel_cfg.get("caption", ""),
-            table_max_rows=panel_cfg.get("table_max_rows", 10),
-            table_columns=panel_cfg.get("table_columns"),
-            table_row_select=row_select,
-            table_filter=panel_cfg.get("table_filter"),
-            table_sort_by=panel_cfg.get("table_sort_by"),
-            table_sort_ascending=panel_cfg.get("table_sort_ascending", True),
+    # Parse grouped panels
+    groups = []
+    for group_cfg in data.get("groups", []):
+        group_panels = [_parse_panel(p) for p in group_cfg.get("panels", [])]
+        groups.append(GroupSpec(
+            title=group_cfg.get("title", ""),
+            panels=group_panels,
         ))
 
     return SnapshotSpec(
@@ -114,6 +136,7 @@ def load_snapshot_config(config_path: Path) -> SnapshotSpec:
         subtitle=data.get("subtitle", ""),
         layout=data.get("layout", "1x2"),
         panels=panels,
+        groups=groups,
     )
 
 
@@ -218,17 +241,48 @@ def load_table_data(
     df = df.head(max_rows)
 
     # Format output
+    import numpy as np
+
+    def format_value(val):
+        """Format a value for display, rounding numbers to 3 significant digits."""
+        # Handle None/NaN
+        if pd.isna(val):
+            return ""
+
+        # Handle booleans (before numeric check, since bool is subclass of int)
+        if isinstance(val, (bool, np.bool_)):
+            return "Yes" if val else "No"
+
+        # Handle numeric types (including numpy types)
+        if isinstance(val, (int, float, np.integer, np.floating)):
+            num = float(val)
+            if num == 0:
+                return "0"
+            elif abs(num) >= 1000 or abs(num) < 0.001:
+                return f"{num:.2e}"
+            else:
+                return f"{num:.3g}"
+
+        # Try to parse string as number
+        if isinstance(val, str):
+            val_stripped = val.strip()
+            try:
+                num = float(val_stripped)
+                if num == 0:
+                    return "0"
+                elif abs(num) >= 1000 or abs(num) < 0.001:
+                    return f"{num:.2e}"
+                else:
+                    return f"{num:.3g}"
+            except (ValueError, TypeError):
+                pass
+
+        return str(val)
+
     headers = list(df.columns)
     rows = []
     for _, row in df.iterrows():
-        formatted_row = []
-        for val in row:
-            if isinstance(val, float):
-                formatted_row.append(f"{val:.3f}")
-            elif isinstance(val, bool):
-                formatted_row.append("Yes" if val else "No")
-            else:
-                formatted_row.append(str(val))
+        formatted_row = [format_value(val) for val in row]
         rows.append(formatted_row)
 
     return headers, rows
@@ -254,18 +308,24 @@ def add_table_to_slide(slide, table_data: tuple[list[str], list[list[str]]],
     for j, header in enumerate(headers):
         cell = table.cell(0, j)
         cell.text = str(header)
-        cell.text_frame.paragraphs[0].font.size = Pt(8)
-        cell.text_frame.paragraphs[0].font.bold = True
+        para = cell.text_frame.paragraphs[0]
+        para.font.size = Pt(8)
+        para.font.bold = True
+        para.alignment = PP_ALIGN.CENTER
+        cell.vertical_anchor = MSO_ANCHOR.MIDDLE
         cell.fill.solid()
         cell.fill.fore_color.rgb = RGBColor(0, 51, 102)
-        cell.text_frame.paragraphs[0].font.color.rgb = RGBColor(255, 255, 255)
+        para.font.color.rgb = RGBColor(255, 255, 255)
 
     # Data rows
     for i, row in enumerate(rows):
         for j, value in enumerate(row):
             cell = table.cell(i + 1, j)
             cell.text = str(value)
-            cell.text_frame.paragraphs[0].font.size = Pt(7)
+            para = cell.text_frame.paragraphs[0]
+            para.font.size = Pt(7)
+            para.alignment = PP_ALIGN.CENTER
+            cell.vertical_anchor = MSO_ANCHOR.MIDDLE
 
 
 def load_presentation_from_template(template_path: Path) -> Presentation:
@@ -339,21 +399,39 @@ def generate_panel_snapshot(
         subtitle_para.font.color.rgb = RGBColor(102, 102, 102)
         content_top = Inches(1.1)
 
-    # Parse layout
-    rows, cols = parse_layout(snapshot_config.layout)
-
-    # Calculate panel dimensions
+    # Calculate content area
     margin = Inches(0.3)
+    bottom_margin = Inches(0.7)  # Extra space for footer
     panel_gap = Inches(0.2)
-
     content_width = slide_width - (2 * margin)
-    content_height = slide_height - content_top - margin
+    content_height = slide_height - content_top - bottom_margin
 
+    # Check for grouped layout
+    if snapshot_config.layout.lower() == "grouped" and snapshot_config.groups:
+        _render_grouped_layout(
+            slide, snapshot_config.groups, figures_dir, gene, indication,
+            margin, content_top, content_width, content_height, panel_gap
+        )
+    else:
+        _render_grid_layout(
+            slide, snapshot_config.panels, snapshot_config.layout, figures_dir, gene, indication,
+            margin, content_top, content_width, content_height, panel_gap
+        )
+
+    prs.save(str(output_path))
+    click.echo(f"  Saved: {output_path}")
+
+
+def _render_grid_layout(
+    slide, panels: list, layout: str, figures_dir: Path, gene: str, indication: str,
+    margin, content_top, content_width, content_height, panel_gap
+) -> None:
+    """Render panels in a grid layout."""
+    rows, cols = parse_layout(layout)
     panel_width = (content_width - (cols - 1) * panel_gap) / cols
     panel_height = (content_height - (rows - 1) * panel_gap) / rows
 
-    # Add panels
-    for idx, panel in enumerate(snapshot_config.panels):
+    for idx, panel in enumerate(panels):
         if idx >= rows * cols:
             click.echo(f"  Warning: Too many panels for {rows}x{cols} layout, skipping panel {idx+1}", err=True)
             break
@@ -367,18 +445,38 @@ def generate_panel_snapshot(
         # Determine space allocation for figure vs table
         has_figure = panel.figure is not None
         has_table = panel.table is not None
+        has_title = bool(panel.title)
+
+        # Reserve space for panel title if present
+        title_height = Inches(0.3) if has_title else 0
+        available_height = panel_height - title_height
 
         if has_figure and has_table:
-            figure_height = panel_height * 0.6
-            table_height = panel_height * 0.35
+            figure_height = available_height * 0.6
+            table_height = available_height * 0.35
         elif has_figure:
-            figure_height = panel_height * 0.85
+            figure_height = available_height * 0.85
             table_height = 0
         else:
             figure_height = 0
-            table_height = panel_height * 0.85
+            table_height = available_height * 0.85
 
         current_top = panel_top
+
+        # Add panel title if present
+        if panel.title:
+            panel_title_text = substitute_placeholders(panel.title, gene, indication)
+            panel_title_box = slide.shapes.add_textbox(
+                int(panel_left), int(current_top), int(panel_width), int(title_height)
+            )
+            panel_title_frame = panel_title_box.text_frame
+            panel_title_para = panel_title_frame.paragraphs[0]
+            panel_title_para.text = panel_title_text
+            panel_title_para.font.size = Pt(12)
+            panel_title_para.font.bold = True
+            panel_title_para.font.color.rgb = RGBColor(0, 51, 102)
+            panel_title_para.alignment = PP_ALIGN.CENTER
+            current_top += title_height
 
         # Add figure
         if panel.figure:
@@ -462,8 +560,175 @@ def generate_panel_snapshot(
             caption_para.font.color.rgb = RGBColor(102, 102, 102)
             caption_para.alignment = PP_ALIGN.CENTER
 
-    prs.save(str(output_path))
-    click.echo(f"  Saved: {output_path}")
+
+def _render_grouped_layout(
+    slide, groups: list, figures_dir: Path, gene: str, indication: str,
+    margin, content_top, content_width, content_height, panel_gap
+) -> None:
+    """Render panels in grouped columns layout."""
+    n_groups = len(groups)
+    if n_groups == 0:
+        return
+
+    group_gap = Inches(0.3)
+    group_width = (content_width - (n_groups - 1) * group_gap) / n_groups
+    group_header_height = Inches(0.35)
+
+    for group_idx, group in enumerate(groups):
+        group_left = margin + group_idx * (group_width + group_gap)
+        group_top = content_top
+
+        # Add group header
+        if group.title:
+            group_title_text = substitute_placeholders(group.title, gene, indication)
+            header_box = slide.shapes.add_textbox(
+                int(group_left), int(group_top), int(group_width), int(group_header_height)
+            )
+            header_frame = header_box.text_frame
+            header_para = header_frame.paragraphs[0]
+            header_para.text = group_title_text
+            header_para.font.size = Pt(14)
+            header_para.font.bold = True
+            header_para.font.color.rgb = RGBColor(0, 51, 102)
+            header_para.alignment = PP_ALIGN.CENTER
+            group_top += group_header_height
+
+        # Calculate panel heights within this group
+        n_panels = len(group.panels)
+        if n_panels == 0:
+            continue
+
+        available_height = content_height - group_header_height
+        panel_height = (available_height - (n_panels - 1) * panel_gap) / n_panels
+
+        # Render each panel in this group (stacked vertically)
+        current_top = group_top
+        for panel in group.panels:
+            _render_single_panel(
+                slide, panel, figures_dir, gene, indication,
+                int(group_left), int(current_top), int(group_width), int(panel_height)
+            )
+            current_top += panel_height + panel_gap
+
+
+def _render_single_panel(
+    slide, panel: PanelSpec, figures_dir: Path, gene: str, indication: str,
+    panel_left: int, panel_top: int, panel_width: int, panel_height: int
+) -> None:
+    """Render a single panel at the specified position."""
+    has_figure = panel.figure is not None
+    has_table = panel.table is not None
+    has_title = bool(panel.title)
+
+    # Reserve space for panel title if present
+    title_height = Inches(0.25) if has_title else 0
+    available_height = panel_height - title_height
+
+    if has_figure and has_table:
+        figure_height = available_height * 0.55
+        table_height = available_height * 0.4
+    elif has_figure:
+        figure_height = available_height * 0.85
+        table_height = 0
+    else:
+        figure_height = 0
+        table_height = available_height * 0.85
+
+    current_top = panel_top
+
+    # Add panel title if present
+    if panel.title:
+        panel_title_text = substitute_placeholders(panel.title, gene, indication)
+        panel_title_box = slide.shapes.add_textbox(
+            panel_left, current_top, panel_width, int(title_height)
+        )
+        panel_title_frame = panel_title_box.text_frame
+        panel_title_para = panel_title_frame.paragraphs[0]
+        panel_title_para.text = panel_title_text
+        panel_title_para.font.size = Pt(10)
+        panel_title_para.font.bold = True
+        panel_title_para.font.color.rgb = RGBColor(0, 51, 102)
+        panel_title_para.alignment = PP_ALIGN.CENTER
+        current_top += int(title_height)
+
+    # Add figure
+    if panel.figure:
+        fig_path = figures_dir / panel.figure
+        if not fig_path.exists():
+            fig_path = figures_dir.parent / "figures" / panel.figure
+
+        if fig_path.exists():
+            try:
+                img_bytes, img_format = get_image_bytes(fig_path)
+                img_stream = io.BytesIO(img_bytes)
+
+                if HAS_PIL:
+                    with Image.open(io.BytesIO(img_bytes)) as img:
+                        img_w, img_h = img.size
+                    aspect = img_w / img_h
+                else:
+                    aspect = 1.5
+
+                # Fit figure within allocated space
+                if panel_width / figure_height > aspect:
+                    actual_height = figure_height
+                    actual_width = figure_height * aspect
+                else:
+                    actual_width = panel_width
+                    actual_height = panel_width / aspect
+
+                # Center the figure
+                fig_left = panel_left + (panel_width - actual_width) / 2
+
+                slide.shapes.add_picture(img_stream, int(fig_left), int(current_top),
+                                        width=int(actual_width), height=int(actual_height))
+                current_top += int(actual_height) + Inches(0.05)
+
+            except Exception as e:
+                click.echo(f"  Warning: Could not add figure {panel.figure}: {e}", err=True)
+        else:
+            click.echo(f"  Warning: Figure not found: {panel.figure}", err=True)
+
+    # Add table
+    if panel.table:
+        table_path = figures_dir / panel.table
+        if not table_path.exists():
+            table_path = figures_dir.parent / "tables" / panel.table
+        if not table_path.exists():
+            table_path = figures_dir.parent / panel.table
+
+        if table_path.exists():
+            try:
+                table_data = load_table_data(
+                    table_path,
+                    max_rows=panel.table_max_rows,
+                    columns=panel.table_columns,
+                    row_select=panel.table_row_select,
+                    filter_query=panel.table_filter,
+                    sort_by=panel.table_sort_by,
+                    sort_ascending=panel.table_sort_ascending,
+                )
+                if table_data[0]:  # has headers
+                    add_table_to_slide(slide, table_data,
+                                      panel_left, current_top,
+                                      panel_width, int(table_height))
+                    current_top += int(table_height) + Inches(0.05)
+            except Exception as e:
+                click.echo(f"  Warning: Could not add table {panel.table}: {e}", err=True)
+        else:
+            click.echo(f"  Warning: Table not found: {panel.table}", err=True)
+
+    # Add caption
+    if panel.caption:
+        caption_box = slide.shapes.add_textbox(
+            panel_left, current_top, panel_width, Inches(0.2)
+        )
+        caption_frame = caption_box.text_frame
+        caption_para = caption_frame.paragraphs[0]
+        caption_para.text = panel.caption
+        caption_para.font.size = Pt(8)
+        caption_para.font.color.rgb = RGBColor(102, 102, 102)
+        caption_para.alignment = PP_ALIGN.CENTER
 
 
 @click.command()
