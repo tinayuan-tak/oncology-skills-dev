@@ -167,10 +167,107 @@ thresholds:
   model_msi_high_score: 20               # MSIsensor2 MSI-H per-cell-line score cutoff (model arm)
   mmr_signature_high_model_fraction: 0.20  # per-cell-line: MMR SBS fraction >= this = MMR-sig-high
   mmr_signature_cohort_enriched: 0.15    # cohort: >= this fraction of lines MMR-sig-high → enriched
+  mmr_signature_cohort_rare: 0.05        # cohort: <= this → mmr_signature_rare
   hrd_signature_present_model_fraction: 0.10  # per-cell-line: SBS3 >= this = HRD-signature-present (weak)
   hrd_scar_high_score: 42                # PATIENT Myriad myChoice HRD-scar cutoff (HRD-LOH + LST + ntAI)
   hrd_scar_cohort_enriched_fraction: 0.20  # cohort: >= this fraction HRD-scar-high → hrd_enriched
   hrd_scar_cohort_rare_fraction: 0.05      # cohort: <= this → hrd_rare
+
+# Every number in `thresholds:` above is applied by the METHOD (methods/tcga_aneuploidy_burden/) before
+# this card sees a field, which is why THRESHOLD_UNUSED fired on all of them. That is structural here
+# rather than an oversight: this card declares NO `interpretation_hints:` and NO `warning_predicates:`
+# at all — it is `interpretation: informational` and reports classes the method already assigned — so no
+# predicate on this card can ever reference a threshold, and the un-declared state was permanent.
+#
+# VERIFIED CONSTANT-BY-CONSTANT, not by name. The method does not import these names (it hardcodes the
+# numbers), so a name-match scan finds nothing and would have concluded "no consumer". Each entry below
+# was matched to a specific module constant at a specific line, in both directions:
+#
+#   high_median_frac_altered ............ _HIGH_MEDIAN                 read.py:78
+#   low_median_frac_altered ............. _LOW_MEDIAN                  read.py:79
+#   wgd_enriched_fraction ............... _WGD_HIGH_FRACTION           read.py:52
+#   wgd_rare_fraction ................... _WGD_LOW_FRACTION            read.py:53
+#   msi_high_enriched_fraction .......... _MSI_HIGH_FRACTION           read.py:96
+#   msi_mss_dominant_fraction ........... _MSI_LOW_FRACTION            read.py:97
+#   model_msi_high_score ................ _MODEL_MSI_HIGH_SCORE        read.py:108
+#   mmr_signature_high_model_fraction ... _MMR_SIG_HIGH_FRACTION       read.py:147
+#   mmr_signature_cohort_enriched ....... _MMR_COHORT_HIGH             read.py:148
+#   mmr_signature_cohort_rare ........... _MMR_COHORT_LOW              read.py:149
+#   hrd_signature_present_model_fraction  _HRD_SIG_PRESENT_FRACTION    read.py:151
+#   hrd_scar_high_score ................. HRD_HIGH_SCORE               hrd.py:38
+#   hrd_scar_cohort_enriched_fraction ... _HRD_COHORT_HIGH             hrd.py:40
+#   hrd_scar_cohort_rare_fraction ....... _HRD_COHORT_LOW              hrd.py:41
+#
+# `mmr_signature_cohort_rare` was ADDED by that reverse pass. `_classify_mmr_signature` (read.py:667)
+# draws THREE rungs off TWO cutoffs, and the card declared only the top one — so `mmr_signature_rare`
+# was a REPORTED class value (outputs vocabulary above) whose boundary existed nowhere in the contract.
+# Four of the five cohort ladders on this card declare both edges (wgd 0.50/0.20, msi 0.15/0.05,
+# hrd_scar 0.20/0.05, median-altered 0.40/0.10); MMR declaring only its top edge was the outlier. The
+# 5% was written in a VOCABULARY COMMENT (`mmr_signature_rare  # <= 5%`) — prose a validator cannot
+# check and `threshold_roles:` cannot attest to.
+#
+# DELIBERATELY NOT DECLARED: the HRD scar-CONSTRUCTION parameters (HRD_LOH_MIN_MB 15Mb / LST_MIN_SEG_MB
+# 10Mb / LST_SMOOTH_MB 3Mb / _BOUNDARY_SLACK 3Mb, hrd.py:34-36,97). Those size the segments the scar
+# score is BUILT from; they do not bound any class this card reports. The line this block draws is
+# CLASS BOUNDARIES BELONG IN `thresholds:`, construction geometry does not — otherwise every method
+# hyperparameter becomes a contract term.
+threshold_roles:
+  high_median_frac_altered:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "Upper bin edge for aneuploidy_burden_class (_HIGH_MEDIAN, read.py:78): cohort median frac_altered >= 0.40 -> highly_aneuploid. Anchored to the Taylor 2018 pan-cancer spread, not data-nominated per indication."
+  low_median_frac_altered:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "Lower bin edge for aneuploidy_burden_class (_LOW_MEDIAN, read.py:79): cohort median frac_altered <= 0.10 -> quiet_genome."
+  wgd_enriched_fraction:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "Top edge of wgd_class (_WGD_HIGH_FRACTION, read.py:52): >= 50% of samples with >=1 ABSOLUTE genome doubling -> wgd_enriched."
+  wgd_rare_fraction:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "Bottom edge of wgd_class (_WGD_LOW_FRACTION, read.py:53): <= 20% doubled -> wgd_rare. Note this floor is HIGHER than the other ladders' — WGD is common, so 20% is the rare end here."
+  msi_high_enriched_fraction:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "Top edge of msi_class AND model_msi_class (_MSI_HIGH_FRACTION, read.py:96); the model arm reuses the same fraction cutoffs so the two arms stay comparable. >= 15% MSI-high -> msi_high_enriched."
+  msi_mss_dominant_fraction:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "Bottom edge of msi_class AND model_msi_class (_MSI_LOW_FRACTION, read.py:97): <= 5% MSI-high -> mss_dominant. Applies only where a cohort is LABELLED; unlabelled indications return data_unavailable, never a fabricated 0%."
+  model_msi_high_score:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "PER-CELL-LINE cutoff, not a cohort fraction (_MODEL_MSI_HIGH_SCORE, read.py:108): DepMap MSIsensor2 MSIScore >= 20 marks a line MSI-H. The standard MSIsensor2 clinical cutoff; it produces the fraction the cohort cutoffs above then bin."
+  mmr_signature_high_model_fraction:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "PER-CELL-LINE cutoff (_MMR_SIG_HIGH_FRACTION, read.py:147): MMR-deficiency SBS signatures (SBS6/14/15/20/21/26/44) >= 20% of a line's SBS burden marks it MMR-signature-high. Produces the cohort fraction the two cutoffs below bin."
+  mmr_signature_cohort_enriched:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "Top edge of model_mmr_signature_class (_MMR_COHORT_HIGH, read.py:148): >= 15% of lines MMR-signature-high -> mmr_signature_enriched."
+  mmr_signature_cohort_rare:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "Bottom edge of model_mmr_signature_class (_MMR_COHORT_LOW, read.py:149): <= 5% -> mmr_signature_rare. Added 2026-09-14 — the class value was declared in outputs and the boundary was not, so the ladder's bottom rung was undeclared."
+  hrd_signature_present_model_fraction:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "PER-CELL-LINE cutoff (_HRD_SIG_PRESENT_FRACTION, read.py:151): SBS3 >= 10% of burden = HRD-signature-present. Deliberately LOW because SBS3 is flat and rarely dominates a spectrum — a weak PARP proxy. Feeds a reported FRACTION, not a class, so no cohort edges pair with it."
+  hrd_scar_high_score:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "PER-PATIENT-SAMPLE cutoff (HRD_HIGH_SCORE, hrd.py:38): summed HRD-LOH + LST + ntAI >= 42, the Myriad myChoice / Telli 2016 clinical cutoff. Produces the cohort prevalence the two edges below bin."
+  hrd_scar_cohort_enriched_fraction:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "Top edge of hrd_class (_HRD_COHORT_HIGH, hrd.py:40): >= 20% of cohort samples HRD-scar-high -> hrd_enriched."
+  hrd_scar_cohort_rare_fraction:
+    role: method_parameter
+    consumed_by: tcga-aneuploidy-burden
+    note: "Bottom edge of hrd_class (_HRD_COHORT_LOW, hrd.py:41): <= 5% HRD-scar-high -> hrd_rare."
 
 caveats:
   - "INDICATION-LEVEL + target-INDEPENDENT: aneuploidy + WGD are genome-wide cohort phenotypes, not per-gene calls. The classes describe the indication's chromosomal instability / doubling prevalence, not the target — a target's own copy-number is copy-number-distribution; its two-hit state is functional-gene-state."
@@ -178,7 +275,7 @@ caveats:
   - "WGD prevalence (wgd_class / wgd_fraction) is from PanCanAtlas ABSOLUTE Genome-doublings (>=1 doubling), the sibling of the aneuploidy burden — the two axes correlate (WGD-enriched cohorts run higher frac_altered + ploidy) but are reported separately. High WGD is a copy-number-noise + prognosis caveat, NOT a target-specific amplification signal."
   - "PATIENT MSI (msi_class / msi_high_fraction) is from TCGA marker-paper labels, CRC + STAD ONLY — other indications return data_unavailable (UNLABELLED, NOT a measured 0% MSI-high). The MODEL arm (model_msi_class, DepMap MSIsensor) FILLS this gap: all-lineage, so NSCLC/PAAD get a measured model_msi_class where patient msi_class is unavailable. A genome-wide PATIENT MSIsensor score is a deferred derivation. Cohort-level, target-independent."
   - "MODEL MSI (model_msi_class / model_msi_high_fraction) is DepMap cell-line MSIsensor (MSIScore >= 20 = MSI-H), a MODEL-cohort property — NOT patient prevalence (MSI-H lines are over-represented vs tumours, so model fractions can run higher). DepMap 26q1 merges gastric with esophageal into 'Esophagus/Stomach', so GC/STAD/ESCA model MSI is broader than gastric alone (dilutes vs the patient STAD label). Where both arms exist they cross-validate; where they differ, note the cohort difference."
-  - "MODEL MMR-SIGNATURE (model_mmr_signature_class) is DepMap SBS exposures normalized per-model; MMR-deficiency signatures (SBS6/14/15/21/26/44) are an INDEPENDENT cross-validation of the MSI axis — a different signal (mutation spectrum, not microsatellite length) that tracks it closely (uterus/bowel enriched, lung rare). Reported as the FRACTION of lines MMR-sig-high (a subset phenomenon; the cohort median sits at MSS baseline)."
+  - "MODEL MMR-SIGNATURE (model_mmr_signature_class) is DepMap SBS exposures normalized per-model; MMR-deficiency signatures (SBS6/14/15/20/21/26/44) are an INDEPENDENT cross-validation of the MSI axis — a different signal (mutation spectrum, not microsatellite length) that tracks it closely (uterus/bowel enriched, lung rare). Reported as the FRACTION of lines MMR-sig-high (a subset phenomenon; the cohort median sits at MSS baseline)."
   - "model_hrd_signature_present_fraction (SBS3, defective-HR) is a WEAK PARP-sensitivity proxy ONLY: SBS3 is flat/featureless and rarely dominates a cell line's spectrum, so a low 10% presence threshold is used and near-zero fractions are expected. A real HRD / genomic-scar score (scarHRD-style, allele-specific CN) is a deferred derivation. Do NOT read a low HRD-signature fraction as HR-proficient."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `genomic_instability_state` claim.
