@@ -26,12 +26,19 @@ population is asserted non-empty before anything is asserted over it, for the sa
 from __future__ import annotations
 
 import json
+import sys
 from pathlib import Path
 
 import pytest
 
 HERE = Path(__file__).resolve().parent
 FIXTURE = HERE / "fixtures" / "polarity_surface_projection.json"
+
+# Two checks below assert against the PRODUCER's own vocabulary/behaviour rather than against the
+# frozen corpus, because a snapshot cannot observe a producer change. That needs `skills/` importable.
+SKILLS = HERE.parents[1]
+if str(SKILLS) not in sys.path:
+    sys.path.insert(0, str(SKILLS))
 
 SCHEMA = "polarity_surface_projection/v1"
 
@@ -43,7 +50,30 @@ MIN_ROWS = 500
 
 # ── the closed vocabularies, pinned BY VALUE (a split/rename of any token must land here) ─────────
 POLARITY_TOKENS = {"killer", "opposing", "neutral", "supportive", "not_scored"}  # skill_report (4)
-EG_POLARITY_TOKENS = {"opposing", "neutral", "supportive"}  # evidence_graph (5) — lossy
+# Surface (5) needs TWO sets, and conflating them is what hid a real defect for the life of this file.
+# DECLARED is the ordinal_view scale `evidence_graph.py` says it emits (asserted against the code
+# below, so the two can never drift again). OBSERVED_FROZEN is what this pre-fix SNAPSHOT happens to
+# contain. The old single `EG_POLARITY_TOKENS = {opposing, neutral, supportive}` was the observed set
+# recorded as though it were the declared one — from which it followed that `killer` was structurally
+# unreachable on (5) and its loss was therefore benign. It was neither: `killer` was in the
+# vocabulary the whole time and simply never plumbed in. See `_verdict_polarity`.
+#
+# ★ IF YOU ARE RE-FREEZING THIS FIXTURE, READ THIS. Runs produced after the veto join emit `killer`
+# on (5), so a re-freeze makes exactly two assertions here go red, both deliberately:
+#   1. `test_the_graph_polarity_vocabulary_matches_THE_CODE_not_this_corpus` — the observed set gains
+#      `killer`. Fix by adding it to EG_POLARITY_OBSERVED_FROZEN. Do NOT touch EG_POLARITY_DECLARED,
+#      which is asserted against the producer and is not a record of any corpus.
+#   2. `test_a_declared_veto_is_no_longer_flattened_by_current_code` — its bridge assertion (every
+#      frozen veto row carries `canon("negative")`) becomes false, because the rows now carry
+#      `killer`. That bridge exists only to license reconstructing a pre-fix row's headline band; on a
+#      post-fix corpus the reconstruction is unnecessary, so replace it with the direct assertion that
+#      all KILLER_SPINE_ROWS rows carry `killer` on BOTH surfaces — which is the stronger check the
+#      frozen corpus could not support.
+# Neither red means a regression, and neither should be silenced by relaxing a pin. If instead the
+# observed set gains a token that is NOT in EG_POLARITY_DECLARED, that IS a real finding: a producer
+# is emitting off-vocabulary polarity.
+EG_POLARITY_DECLARED = {"opposing", "neutral", "supportive", "killer"}  # evidence_graph (5)
+EG_POLARITY_OBSERVED_FROZEN = {"opposing", "neutral", "supportive"}  # what THIS pre-fix fixture holds
 SCORECARD_STATUS_TOKENS = {"opposing", "neutral", "supportive", "coverage_gap"}  # (6)
 HARD_GATE_STATUS_TOKENS = {"fired", "latent", "suppressed", "reconciled", "excluded", "opposing"}  # (7)
 # (8) is owned by target-contracts (`policy_source: vocab`); `uncorroborated` arrives with v1.20.0 and
@@ -54,7 +84,11 @@ DISPOSITION_TOKENS = {"gated", "excluded_modality_scoped", "contradiction", "unc
 VERDICT_FORK_AXIS = "surface_modality"
 VERDICT_FORK_ROWS = 35
 NOT_SCORED_AS_SUPPORTIVE_ROWS = 41
-KILLER_TO_OPPOSING_ROWS = 25
+# Rows whose AUTHORITATIVE spine declares a veto. Renamed from `KILLER_TO_OPPOSING_ROWS` when the
+# collapse was fixed: the population is unchanged (25 rows, `surface_modality` 15 + `selectivity` 10,
+# all role `gating`), but the name asserted the OUTCOME, which is no longer the behaviour. A pin whose
+# name states a behaviour keeps reading as a decision after that behaviour is retired.
+KILLER_SPINE_ROWS = 25
 
 
 @pytest.fixture(scope="module")
@@ -121,12 +155,20 @@ def test_verdict_token_identical_except_the_pinned_fork(rows):
 
 
 def test_polarity_agrees_perfectly_on_the_shared_vocabulary(rows):
-    """`skill_report.polarity` is authoritative. `evidence_graph.verdict.polarity` is a LOSSY
-    projection: 3 tokens instead of 5. Restricted to rows whose authoritative polarity is IN the
-    evidence graph's vocabulary, the two agree perfectly — so any raw-equality "disagreement" count is
-    entirely an artefact of the two collapses pinned below, not of a value moving."""
+    """`skill_report.polarity` is authoritative. `evidence_graph.verdict.polarity` carries 4 of its 5
+    tokens (no off-axis `not_scored`). Restricted to rows whose authoritative polarity is in the set
+    this FROZEN corpus observed, the two agree perfectly — so any raw-equality "disagreement" count is
+    entirely an artefact of the collapses pinned below, not of a value moving.
+
+    Deliberately still filtered on `EG_POLARITY_OBSERVED_FROZEN`, not on the DECLARED set: this corpus
+    predates the `killer` plumbing fix, so its 25 veto rows still carry the pre-fix `opposing` and
+    would read as 25 value moves here. Their live behaviour is asserted against current code in
+    `test_a_declared_veto_is_no_longer_flattened_by_current_code` below, and end-to-end in
+    `skills/_skills_common/tests/test_evidence_graph_verdict_polarity.py`."""
     shared = [
-        r for r in rows if r["skill_report_polarity"] in EG_POLARITY_TOKENS and r["evidence_graph_verdict_polarity"]
+        r
+        for r in rows
+        if r["skill_report_polarity"] in EG_POLARITY_OBSERVED_FROZEN and r["evidence_graph_verdict_polarity"]
     ]
     assert len(shared) > 100, f"only {len(shared)} comparable polarity rows — too few to be meaningful"
     differ = [r for r in shared if r["skill_report_polarity"] != r["evidence_graph_verdict_polarity"]]
@@ -136,21 +178,85 @@ def test_polarity_agrees_perfectly_on_the_shared_vocabulary(rows):
     )
 
 
-def test_the_two_lossy_polarity_collapses_are_named_and_pinned(rows):
-    """The evidence graph has no `killer` and no off-axis `not_scored`, so it collapses both onto its
-    3-token scale. Both collapses are pinned; the `not_scored → supportive` one is the harmful
-    direction (an axis that was never scored renders as the favourable measured class) and must not
-    grow."""
-    killer = [r for r in rows if r["skill_report_polarity"] == "killer" and r["evidence_graph_verdict_polarity"]]
-    assert killer, "no `killer` rows — the refinement-loss check is vacuous"
-    assert all(r["evidence_graph_verdict_polarity"] == "opposing" for r in killer), (
-        "a `killer` axis projected to something other than `opposing` — the collapse is supposed to be "
-        "a REFINEMENT loss, not a sign change"
+def test_the_graph_polarity_vocabulary_matches_THE_CODE_not_this_corpus(rows):
+    """The guard that would have prevented the `killer` defect, and the reason it is worth adding after
+    the fact: nothing here ever compared the vocabulary this file DECLARES against the one the producer
+    declares. `evidence_graph._CANON_POLARITY` has always mapped onto `{supportive, neutral, opposing,
+    killer}` (+ off-scale `not_applicable`), while this file asserted a 3-token set — because 3 was
+    what the corpus contained. From that mistaken premise it followed that `killer` was unreachable on
+    surface (5) and its loss was an unavoidable refinement loss, which is exactly how a plumbing gap
+    got documented as a design decision and pinned in CI for the life of the file.
+
+    So: the DECLARED set is checked against the code, and the corpus is allowed to be a subset of it.
+    An observation about a corpus may never again be recorded as a property of a field."""
+    from _skills_common.evidence_graph import _CANON_POLARITY
+
+    code_scale = set(_CANON_POLARITY.values()) - {"not_applicable"}  # off-scale by construction
+    assert code_scale == EG_POLARITY_DECLARED, (
+        f"surface (5)'s vocabulary moved in the producer: code={sorted(code_scale)} vs declared here "
+        f"{sorted(EG_POLARITY_DECLARED)}. Update this file AND docs/UNIFIED_OUTPUT_CONTRACT.md's "
+        f"surface table in the same commit — a token that exists in the map but is reachable from no "
+        f"input is the shape of the bug this test was added for"
     )
-    assert len(killer) == KILLER_TO_OPPOSING_ROWS, (
-        f"killer→opposing count moved: {len(killer)} != {KILLER_TO_OPPOSING_ROWS}"
+    observed = {r["evidence_graph_verdict_polarity"] for r in rows if r["evidence_graph_verdict_polarity"]}
+    assert observed <= EG_POLARITY_DECLARED, (
+        f"the corpus carries graph polarity token(s) the producer cannot emit: "
+        f"{sorted(observed - EG_POLARITY_DECLARED)}"
+    )
+    assert observed == EG_POLARITY_OBSERVED_FROZEN, (
+        f"this frozen corpus's observed graph polarity set moved to {sorted(observed)} — if the fixture "
+        f"was rebuilt from post-fix runs, `killer` is now expected and BOTH this pin and "
+        f"`test_a_declared_veto_is_no_longer_flattened_by_current_code` should be re-derived from it"
     )
 
+
+def test_a_declared_veto_is_no_longer_flattened_by_current_code(rows):
+    """The retired collapse, asserted against CURRENT CODE rather than against the snapshot.
+
+    A frozen corpus cannot observe a producer change — its 25 veto rows will read the pre-fix
+    `opposing` forever — so leaving the old assertion in place would have left CI green while
+    documenting behaviour that no longer exists. Instead: the fixture supplies the POPULATION (that
+    these 25 rows, on 2 real axes, exist at all) and the live helper supplies the BEHAVIOUR.
+
+    The bridge between the two is asserted, not assumed: every frozen row's graph value must be
+    exactly the canonicalization of the 3-band `negative` the reconstruction feeds in, which is what
+    makes the reconstruction faithful for these rows specifically."""
+    from _skills_common.evidence_graph import _canon_polarity, _verdict_polarity
+
+    killer = [r for r in rows if r["skill_report_polarity"] == "killer" and r["evidence_graph_verdict_polarity"]]
+    assert killer, "no veto rows in the corpus — this check is vacuous"
+    assert len(killer) == KILLER_SPINE_ROWS, (
+        f"veto-row population moved: {len(killer)} != {KILLER_SPINE_ROWS}. GROWING means more axes now "
+        f"declare vetoes (fine — re-derive the pin); SHRINKING means the corpus stopped covering the "
+        f"case, which would make this check vacuous rather than passing"
+    )
+    # A veto is a GATE call by construction — pin the mechanism, not just the count.
+    assert {r["skill_report_role"] for r in killer} == {"gating"}, (
+        "a non-gating axis declared a veto — `canonical_polarity_override` is only meaningful for a "
+        "role whose verdict can move the recommendation"
+    )
+    assert {r["axis"] for r in killer} == {"surface_modality", "selectivity"}, (
+        f"the veto-declaring axis set moved: {sorted({r['axis'] for r in killer})}"
+    )
+    # The reconstruction is faithful for these rows: pre-fix, all 25 carried canon('negative').
+    assert all(r["evidence_graph_verdict_polarity"] == _canon_polarity("negative") for r in killer), (
+        "a frozen veto row does not carry the canonicalized 3-band negative, so reconstructing its "
+        "headline band as `negative` below would be unsound — re-derive this check"
+    )
+    for r in killer:
+        got = _verdict_polarity({"skill_report": {"polarity": "killer"}}, {"polarity": "negative"})
+        assert got == "killer", (
+            f"current code still flattens a declared veto to {got!r} on {r['target']}/{r['axis']} — "
+            f"surface (5) is the one `report_render` reads, so a KILL would render as merely negative"
+        )
+
+
+def test_the_off_axis_polarity_collapse_is_named_and_pinned(rows):
+    """`not_scored` is off-axis and has no place on the measurement scale, so the graph places the axis
+    ON that scale. Unlike the veto collapse this is NOT being fixed — the graph's polarity is a read
+    DIRECTION and blanking it would empty the direction badge on hundreds of rows — but the harmful
+    direction (an axis that was never scored rendering as the favourable measured class) is pinned so
+    it cannot grow."""
     not_scored = [r for r in rows if r["skill_report_polarity"] == "not_scored"]
     assert not_scored, "no `not_scored` rows — the off-axis collapse check is vacuous"
     as_supportive = [r for r in not_scored if r["evidence_graph_verdict_polarity"] == "supportive"]

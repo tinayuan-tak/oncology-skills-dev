@@ -84,7 +84,7 @@ report only *after* you establish the two are the same type.
 | 2 | `…skill_reports.<axis>.evidence_graph.verdict.id` | verdict token | same as (1) | derived — must be identical |
 | 3 | `target_call.gate_scorecard[].verdict` | verdict token | same as (1) | derived |
 | 4 | `skill_reports.<axis>.polarity` | polarity | **closed, 5**: `killer` `opposing` `neutral` `supportive` `not_scored` | **authoritative** |
-| 5 | `…evidence_graph.verdict.polarity` | polarity | closed, 3: `opposing` `neutral` `supportive` | derived — **lossy** |
+| 5 | `…evidence_graph.verdict.polarity` | polarity | **closed, 4**: `killer` `opposing` `neutral` `supportive` (+ off-scale `not_applicable`) | derived — lossy only in the off-axis direction |
 | 6 | `target_call.gate_scorecard[].status` | polarity | closed, 4: `opposing` `neutral` `supportive` `coverage_gap` | derived — different vocabulary |
 | 7 | `target_call.gate.hard_gates[].status` | gate **lifecycle** | closed, 6: `fired` `latent` `suppressed` `reconciled` `excluded` `opposing` | **authoritative** |
 | 8 | `target_call.gate.hard_gates[].disposition` | contracts **disposition** | `gated` `excluded_modality_scoped` `contradiction` `uncorroborated` | **target-contracts** owns it (`policy_source: vocab`) |
@@ -98,19 +98,62 @@ All figures below are measured over `skills/target-profile/tests/fixtures/polari
 Same type, so equality is meaningful and required. Measured: **337 / 372** rows where both are present
 are identical. All **35** violations are on a single axis, `surface_modality` (35 of its 37 rows).
 
-### Type 2 — polarity: (4) is authoritative; (5) is a LOSSY projection of it
+### Type 2 — polarity: (4) and (5) answer DIFFERENT questions about the same axis
 
-On the three tokens the two vocabularies share, they agree **perfectly — 236 / 236 identical, 0
-differ**. Every apparent disagreement is one of two *named* collapses, and naming them is the point:
+The two are not a value and a lossy copy of it. **(4) is the axis's gate contribution** — `not_scored`
+when the role is `descriptive`/`inert`. **(5) is the axis's read direction** — always on the measurement
+scale, role-blind on purpose, because a descriptive axis still points somewhere and the renderer shows
+that. So they are *expected* to differ on off-axis roles, and forcing them equal would blank the
+direction badge on hundreds of rows. Where the axis is **`gating`**, both are answering the same
+question and must be **identical** — measured 151/151 (per-skill) and 261/261 (composed), with no
+exception list.
 
-- **refinement loss** — `killer → opposing`, 25 rows (`surface_modality` 15, `selectivity` 10). Not
-  wrong, just weaker. A reader that needs the killer distinction must read (4), never (5).
+On the tokens the two vocabularies share, they agree **perfectly — 236 / 236 identical, 0 differ**.
+That figure is measured on the frozen projection corpus, whose (5) values **predate** the veto join
+below, so it is restricted to the three tokens that corpus observed — not to the four (5) declares. The
+distinction is the whole subject of the retired violation below: read it before reusing the number.
+Every apparent disagreement is one *named* collapse — plus, formerly, one plumbing gap that had been
+documented as a second collapse:
+
+- ~~**refinement loss** — `killer → opposing`, 25 rows.~~ **FIXED. This entry was wrong about its own
+  cause, and the wrongness is the lesson.** It read "not wrong, just weaker — a reader that needs the
+  killer distinction must read (4), never (5)", justified by (5) having only 3 tokens. Both halves
+  were false. `evidence_graph._CANON_POLARITY` has always mapped onto `{supportive, neutral, opposing,
+  killer}`; the "3 tokens" figure was what the corpus *contained*, recorded as what the field *admits*.
+  And no renderer reads (4) — `report_render` reads (5) for every `_skill_graph_header` — so the
+  prescribed mitigation was unavailable to the only consumer there is.
+
+  The actual mechanism: `headline_block.verdict.polarity` is the 3-band `positive/neutral/negative`
+  field, and `skill_report._HEADLINE_TO_CANONICAL` floors every negative at `opposing` deliberately,
+  because severity needs the driving rule. A skill that knows its call is a veto declares it with
+  `build_skill_report(canonical_polarity_override="killer")` — which lands on (4), one key away in the
+  same emitted object, and (5) never read it. So a surface-axis **KILL rendered as merely negative**.
+  `evidence_graph._verdict_polarity` now performs that sibling join, **escalate-only**: `killer` is the
+  least favourable token on the scale, so honouring a declared one can only ever make the surface read
+  worse, never better, and it can never blank a badge. Measured on two independent corpora — 2 of 278
+  per-skill rows and 25 of 483 composed rows move, every other row byte-identical, and afterwards
+  **every gating row agrees exactly across (4) and (5)** (151/151 and 261/261). Guarded live in
+  `skills/_skills_common/tests/test_evidence_graph_verdict_polarity.py`; the frozen projection fixture
+  cannot observe a producer change, so the population pin stays in the projection test while the
+  behaviour is asserted against current code.
 - **off-axis collapse** — `not_scored → neutral` (181 rows) and `not_scored → supportive` (**41 rows**:
   `expression` 35, `cis_coherence` 4, `immune_context` 2). `not_scored` is **off-axis** (roles
   `descriptive`/`inert` — see the `role` taxonomy above); the evidence graph has no off-axis value, so
   it places the axis *on* the measurement scale. The 41 `supportive` rows are the harmful direction:
   an axis that was never scored renders as the favourable measured class. Same failure family as
   scoring an unmeasured tier as a low measured one.
+
+  **Deliberately NOT "fixed" alongside the veto join above, and the asymmetry between the two decisions
+  is the point.** `killer → opposing` dropped information the producer had already computed, in the
+  favourable direction, on the surface the renderer reads — strictly a defect. Writing `not_scored`
+  onto (5) would instead put an **off-scale token on the display scale** and blank the direction on
+  ~125 of 278 per-skill rows, discarding a real read to make two fields that answer different questions
+  look alike. So the 41 harmful rows stay **pinned by count** (they must not grow) while the direction
+  itself is retained, and the asymmetry is asserted rather than left to inference — see
+  `test_off_axis_roles_keep_their_read_direction_on_the_graph`. The clean fix for the harmful subset is
+  a separate `scored` / `gate_bearing` field on the verdict node, which needs a target-contracts schema
+  PR first (`$defs.verdict` is `additionalProperties: false`); the value change here needed none,
+  because `verdict.polarity` declares no `enum`.
 
 ### Type 3 — gate lifecycle: (7) is authoritative and is NOT a polarity
 
@@ -166,6 +209,23 @@ Worse than disjoint, because a naive equality check is right most of the time:
 
 ### Known violations — ratcheted, not waived
 
+**Retired, and worth reading before adding to this list: `killer → opposing` on (5), 25 rows.** It sat
+here as a *benign* refinement loss for the life of the file, and the reason it survived was not that
+anyone waived it — it was that its stated cause was wrong (see Type 2). Three habits let that happen,
+each of which this list now guards against:
+
+- an **observation about the corpus** (surface (5) held 3 tokens) was written down as a **property of
+  the field** — so the entry read as structural. `test_the_graph_polarity_vocabulary_matches_THE_CODE_not_this_corpus`
+  now asserts each surface's declared vocabulary against its **producer**, letting the corpus be a
+  strict subset;
+- the entry prescribed a mitigation — "read (4), never (5)" — **without checking that any reader could
+  follow it.** None could: nothing renders (4). Name the actual consumer when you write a mitigation;
+- the pin was named for the **outcome** (`KILLER_TO_OPPOSING_ROWS`), so it kept asserting the behaviour
+  was intended. It is now `KILLER_SPINE_ROWS` — a population, not a verdict on that population.
+
+A count pinned "both ways" still cannot see a **producer** change if the count is taken over a frozen
+snapshot. Pin the population in the projection test; assert the behaviour against live code.
+
 1. **`surface_modality` puts a card field in `verdict.id`** (35 of 37 rows). Its
    `evidence_graph.verdict.id` carries the `adc-tce-modality-fit` card's `summary.fit_class`
    (`both_viable` / `TCE_preferred` / `neither_viable` / `data_unavailable`, produced in
@@ -176,7 +236,8 @@ Worse than disjoint, because a naive equality check is right most of the time:
    like a null-handling disagreement (MUC17/STAD) is really two vocabularies' nulls being compared.
    Either (2) is wrong on this axis or the field is mistyped; **pinned at exactly 1 axis / 35 rows** so
    it cannot spread, and it may not be "fixed" by relaxing the pin.
-2. **`not_scored → supportive`, 41 rows** (see Type 2). Pinned at 41 so it cannot grow.
+2. **`not_scored → supportive`, 41 rows** (see Type 2). Pinned at 41 so it cannot grow. Not a plumbing
+   gap — the two surfaces answer different questions here — so it is pinned, not joined.
 3. **The authoritative polarity has not caught up with the `uncorroborated` relabelling, 6 rows.** On
    `dependency/discordant` the derived scorecard now reads `coverage_gap` while (4) — the
    **authoritative** surface — still reads `opposing`. The derived surface is the more accurate of the

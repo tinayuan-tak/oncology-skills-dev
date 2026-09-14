@@ -86,6 +86,36 @@ def _canon_polarity(p):
     return _CANON_POLARITY.get(str(p).lower(), p)
 
 
+def _verdict_polarity(headline: dict, hb_verdict: dict):
+    """The graph verdict node's direction, with the ONE severity the headline channel cannot carry.
+
+    Base value is the canonicalized headline verdict polarity — a READ DIRECTION, deliberately NOT
+    role-gated, so a `descriptive`/`inert` axis still renders which way its evidence points even
+    though the spine scores it `not_scored`. That asymmetry is intended and pinned (see
+    docs/UNIFIED_OUTPUT_CONTRACT.md § "Type 2"); do not "fix" it by copying the spine wholesale.
+
+    The correction here is a different fact. `killer` is a member of the ordinal_view scale above,
+    but it was UNREACHABLE from this input: `headline_block.verdict.polarity` is the 3-band
+    positive/neutral/negative field, and `skill_report._HEADLINE_TO_CANONICAL` floors every negative
+    at `opposing` precisely because severity needs the driving rule, which this layer cannot see. A
+    skill that KNOWS its call is a veto therefore declares it via
+    `build_skill_report(canonical_polarity_override="killer")` — which lands on the SIBLING
+    `headline.skill_report.polarity`, one key over in this same emitted object. The graph never read
+    it, so a surface-axis KILL rendered as merely `opposing` on the only surface any renderer reads
+    (`report_render` reads (5) for `_skill_graph_header`; nothing renders (4)).
+
+    ESCALATE-ONLY, and that is the whole safety argument: `killer` is the least favourable token on
+    the scale, so honouring a declared one can only ever make the surface read WORSE, never better,
+    and it can never blank a badge. Nothing here may lower or blank a direction. Monotone by
+    construction, so there is no state in which this join softens a call.
+    """
+    base = _canon_polarity(hb_verdict.get("polarity"))
+    sr = (headline or {}).get("skill_report")
+    if isinstance(sr, dict) and sr.get("polarity") == "killer":
+        return "killer"
+    return base
+
+
 def _question_signal(row: dict) -> dict:
     s = row.get("signal") or {}
     return {"tier": s.get("tier"), "polarity": _canon_polarity(s.get("polarity")), "label": s.get("label")}
@@ -617,7 +647,7 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
     verdict_node = {
         "id": verdict_call,
         "call": hb_verdict.get("phrase") or hb.get("headline_text") or verdict_call,
-        "polarity": _canon_polarity(hb_verdict.get("polarity")),
+        "polarity": _verdict_polarity(h, hb_verdict),
         "driving_rule_id": driving_rule_id,
         "confidence": {"level": conf.get("level"), "coverage": conf.get("coverage")},
         "top_tension": (
