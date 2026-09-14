@@ -40,12 +40,19 @@ from __future__ import annotations
 import ast
 import functools
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 
 import yaml
 
 from _skills_common.paths import target_contracts_root
+
+# An ISO calendar day. Used two ways by `corpus_vintage`, and the distinction is load-bearing:
+# `fullmatch` VALIDATES a date taken from a package's own `generated_at`, while `search` RECOVERS one
+# from a path string as a fallback. Searching a package stamp would happily accept a date buried in
+# unrelated text; full-matching a path would never fire at all.
+_ISO_DAY_RE = re.compile(r"20\d\d-\d\d-\d\d")
 
 # ── reader kinds ──────────────────────────────────────────────────────────────────────────────────
 # Each kind is its own slot because they fail independently and for different reasons. `strength`
@@ -637,14 +644,29 @@ def run_coverage(package_paths) -> dict:
     ★ CORPUS VINTAGE IS PART OF THIS RESULT, and it is the one caveat that changes how the number may
     be quoted. Stages 1 and 2 of the funnel (declared, reader-reached) are computed against the LIVE
     tree, so they describe trunk. This stage reads runs that ALREADY HAPPENED, so it describes whatever
-    code produced them. Measured 2026-09-13: of the 40 newest-per-`(target, indication)` packages on
-    disk, **39 predate 2026-09-10** — up to 18 days behind trunk. Two card ids in that corpus
-    (`cellline-isoform-dominance`, `tumor-splice-expression`) have no card file at all, which reads as
-    an alarming contract hole until you check the dates: both are renames already completed on trunk
-    (`cellline-isoform-expression`, `tumor-splice-dysregulation`), and the 2026-09-11 batches emit the
-    NEW ids. So a coverage gap found here is a HYPOTHESIS about trunk, not a measurement of it; confirm
-    against a fresh run before filing one. Use :func:`corpus_vintage` to state the window alongside any
-    number taken from this function.
+    code produced them. So a coverage gap found here is a HYPOTHESIS about trunk, not a measurement of
+    it; confirm against a fresh run before filing one. Use :func:`corpus_vintage` to state the window
+    alongside any number taken from this function.
+
+    Re-measured 2026-09-14 from package provenance: ``fd-corpus-20260913`` is 40 of 40 dated
+    2026-09-13, with **ZERO packages predating 2026-09-10**, spanning three trunk shas
+    (``7353c29`` 20, ``3b720e4`` 19, ``52a46a6`` 1).
+
+    ★★ AN EARLIER VERSION OF THIS DOCSTRING CLAIMED "of the 40 newest-per-`(target, indication)`
+    packages, 39 predate 2026-09-10 — up to 18 days behind trunk". Every part of that was wrong, and
+    the way it was wrong is the reusable lesson. The 39 NUMERATOR is real but belongs to a DIFFERENT
+    POPULATION: newest-per-pair over ``~/dev/framework-runs``, where the denominator is **62, not 40**.
+    So 63% was being quoted as 97.5% — a number carried across populations keeps its numerator and
+    silently swaps its denominator. The "18 days" span is false against either corpus. And the whole
+    claim was unfalsifiable in practice because the function that was supposed to substantiate it,
+    :func:`corpus_vintage`, was returning ``unknown`` for all 40 packages at the time it was written.
+    DO NOT re-quote a vintage from this docstring; call :func:`corpus_vintage` on the corpus in hand.
+
+    The renamed-card-id caveat still holds and is still worth knowing: two card ids seen in older
+    corpora (`cellline-isoform-dominance`, `tumor-splice-expression`) have no card file at all, which
+    reads as an alarming contract hole until you check the dates — both are renames already completed
+    on trunk (`cellline-isoform-expression`, `tumor-splice-dysregulation`), and later batches emit the
+    NEW ids.
     """
     out: dict[tuple, dict] = defaultdict(lambda: {"present": 0, "measured": 0})
     for path in package_paths:
@@ -666,28 +688,81 @@ def run_coverage(package_paths) -> dict:
 
 
 def corpus_vintage(package_paths) -> dict:
-    """``{"n": int, "oldest": date, "newest": date, "by_date": {date: n}}`` for a coverage corpus.
+    """Vintage of a coverage corpus, read from each package's OWN PROVENANCE.
+
+    ``{"n", "oldest", "newest", "by_date", "by_sha", "dated_from", "unreadable"}``.
 
     A rate needs a frame, and for runtime coverage the frame is WHEN. Without this, "84% of fields are
     measured" gets pasted next to trunk's aperture numbers as though both describe the same tree, and a
     name is the only part of a metric that survives being pasted into a slide. Returned as a sibling of
     the coverage dict rather than folded into it, so it cannot be dropped silently.
-    """
-    import re as _re
 
-    dates = []
+    ★ THE VINTAGE COMES FROM THE PACKAGE, NOT FROM ITS PATH, and that is the whole point of this
+    function's shape. It reads ``generated_at`` (an ISO stamp the writer emits) and ``generated_by``
+    (``skills/target-profile@<sha>``). The original implementation instead searched the PATH STRING for
+    ``20\\d\\d-\\d\\d-\\d\\d``, which made it LAYOUT-COUPLED: correct on ``~/dev/framework-runs``, whose
+    batch directories happen to be dash-dated, and 100% blind everywhere else. Measured 2026-09-14 on
+    the two corpora actually in use: ``fd-corpus-20260913`` returned 40 of 40 ``unknown`` and
+    ``target-archetype-corpus-20260911`` returned 298 of 298 ``unknown``. A function that answers
+    ``unknown`` for every input still returns a well-formed dict, so nothing downstream noticed.
+
+    ★★ AND WHERE THE PATH REGEX DOES MATCH IT CAN BE WRONG, which is why provenance is not merely a
+    coverage improvement. ``target-archetype-corpus-20260911`` carries ``generated_at`` 2026-09-11 for
+    10 packages and 2026-09-12 for 288. A dash-dated spelling of that same directory name would have
+    labelled all 298 as 2026-09-11 — confidently, and wrong for 288 of them. A DIRECTORY NAME IS A
+    HUMAN'S CLAIM ABOUT A CORPUS; ``generated_at`` is the writer's record of it. Prefer the record.
+
+    The path regex is KEPT as an explicit fallback for paths that do not resolve on disk (a caller may
+    hold only a manifest of names), and ``dated_from`` reports how many dates came from each source so
+    a corpus silently dated entirely by fallback is visible rather than inferred. Packages that cannot
+    be read or parsed at all are listed in ``unreadable`` instead of being folded into ``unknown``,
+    because "this file is broken" and "this file does not say when it was written" are different
+    findings with different fixes — the merged ``unknown`` bucket hid both.
+
+    ``by_sha`` exists because a date is a weaker provenance key than a commit: two packages written the
+    same day can straddle a merge, and the atlas arc repeatedly needed to know WHICH TRUNK produced a
+    corpus. ``oldest``/``newest`` ignore undated packages rather than defaulting, so an undateable
+    corpus reports ``None`` and not a fabricated window.
+    """
+    by_date: dict[str, int] = defaultdict(int)
+    by_sha: dict[str, int] = defaultdict(int)
+    dated_from: dict[str, int] = {"provenance": 0, "path": 0, "none": 0}
+    unreadable: list[str] = []
+    n = 0
+
     for path in package_paths:
-        m = _re.search(r"20\d\d-\d\d-\d\d", str(path))
-        dates.append(m.group(0) if m else "unknown")
-    counts: dict[str, int] = defaultdict(int)
-    for d in dates:
-        counts[d] += 1
-    known = sorted(d for d in dates if d != "unknown")
+        n += 1
+        doc = None
+        try:
+            doc = json.loads(Path(path).read_text())
+        except (OSError, ValueError):
+            unreadable.append(str(path))
+        if not isinstance(doc, dict):
+            doc = {}
+
+        day = str(doc.get("generated_at") or "")[:10]
+        if _ISO_DAY_RE.fullmatch(day):
+            dated_from["provenance"] += 1
+        else:
+            # Fallback: a path we could not open (or a package with no stamp) may still be dated by
+            # the convention its directory follows. Layout-coupled and therefore never the primary.
+            m = _ISO_DAY_RE.search(str(path))
+            day = m.group(0) if m else "unknown"
+            dated_from["path" if day != "unknown" else "none"] += 1
+        by_date[day] += 1
+
+        generated_by = str(doc.get("generated_by") or "")
+        by_sha[generated_by.rsplit("@", 1)[1] if "@" in generated_by else "unknown"] += 1
+
+    known = sorted(d for d in by_date if d != "unknown")
     return {
-        "n": len(dates),
+        "n": n,
         "oldest": known[0] if known else None,
         "newest": known[-1] if known else None,
-        "by_date": dict(sorted(counts.items())),
+        "by_date": dict(sorted(by_date.items())),
+        "by_sha": dict(sorted(by_sha.items())),
+        "dated_from": dated_from,
+        "unreadable": sorted(unreadable),
     }
 
 

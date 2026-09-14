@@ -185,10 +185,92 @@ def test_run_coverage_ignores_a_card_with_no_id_or_a_non_dict_summary(tmp_path):
     assert set(fd.run_coverage([p])) == {("c2", "f")}
 
 
-def test_corpus_vintage_reports_the_window_and_flags_unknowns(tmp_path):
-    """A rate needs a frame, and for runtime coverage the frame is WHEN. The corpus that produced the
-    first coverage numbers was 39-of-40 packages older than 2026-09-10, which is why two long-renamed
-    card ids showed up looking like contract holes. The window must be reportable next to the rate."""
+def _write_package(path: Path, **provenance) -> Path:
+    """A minimal `evidence_package.json` carrying whatever provenance the caller names."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"cards": [], **provenance}))
+    return path
+
+
+def test_corpus_vintage_reads_the_window_from_package_provenance(tmp_path):
+    """★ THE GUARD MUST ENTER WHERE A REAL RUN ENTERS. This is the test whose absence let the original
+    implementation ship: it derived the vintage from a `20\\d\\d-\\d\\d-\\d\\d` search over the PATH, and
+    real corpus directories are named `fd-corpus-20260913` — UNDASHED — so the regex never fired on the
+    trees actually in use. Measured 2026-09-14: `unknown` for 40 of 40 packages in `fd-corpus-20260913`
+    and 298 of 298 in `target-archetype-corpus-20260911`, while the old test passed because it fed
+    synthetic `/runs/2026-08-26-full/...` paths, a shape no real corpus emits.
+
+    Note the third package is dated 09-12 inside a directory named `...20260913`: real corpora do
+    contain that disagreement, and provenance is what resolves it.
+    """
+    corpus = tmp_path / "fd-corpus-20260913"  # undashed, exactly as the real corpora are named
+    for pair, stamp, by in (
+        ("ABL1-CML", "2026-09-13T22:18:57Z", "skills/target-profile@3b720e4"),
+        ("EGFR-LUAD", "2026-09-13T23:01:02Z", "skills/target-profile@3b720e4"),
+        ("KRAS-PAAD", "2026-09-12T08:00:00Z", "skills/target-profile@7353c29"),
+    ):
+        _write_package(corpus / pair / "evidence_package.json", generated_at=stamp, generated_by=by)
+
+    v = fd.corpus_vintage(sorted(corpus.rglob("evidence_package.json")))
+    assert v["n"] == 3
+    assert v["by_date"] == {"2026-09-12": 1, "2026-09-13": 2}
+    assert v["oldest"] == "2026-09-12"
+    assert v["newest"] == "2026-09-13"
+    assert v["by_sha"] == {"3b720e4": 2, "7353c29": 1}, "a sha is a stronger provenance key than a day"
+    assert v["dated_from"] == {"provenance": 3, "path": 0, "none": 0}, (
+        "every date must come from the PACKAGE — a corpus dated entirely by the path fallback is the "
+        "original bug wearing a passing test"
+    )
+    assert v["unreadable"] == []
+
+
+def test_provenance_beats_a_dashed_directory_name_that_disagrees(tmp_path):
+    """★★ WHERE THE PATH REGEX DOES MATCH, IT CAN BE CONFIDENTLY WRONG — so the fallback must never
+    outrank the record. `target-archetype-corpus-20260911` really carries `generated_at` 2026-09-11 for
+    10 packages and 2026-09-12 for 288; a dash-dated spelling of that same name would have labelled all
+    298 as 2026-09-11 and been wrong for 288 of them. A directory name is a HUMAN'S CLAIM about a
+    corpus; `generated_at` is the WRITER'S RECORD of it. This test is the one that reddens if anyone
+    reorders the two sources."""
+    pkg = _write_package(
+        tmp_path / "runs-2026-09-11-batch" / "ABL1-CML" / "evidence_package.json",
+        generated_at="2026-09-12T08:00:00Z",
+        generated_by="skills/target-profile@59d1452",
+    )
+    v = fd.corpus_vintage([pkg])
+    assert v["by_date"] == {"2026-09-12": 1}, "the 2026-09-11 in the PATH must not win"
+    assert v["dated_from"] == {"provenance": 1, "path": 0, "none": 0}
+
+
+def test_corpus_vintage_separates_unreadable_from_undated(tmp_path):
+    """A file we could not open and a file that never said when it was written are different
+    findings with different fixes, and the original single `unknown` bucket merged them: a corpus of
+    corrupt JSON and a corpus of stampless packages produced identical output."""
+    dated = _write_package(
+        tmp_path / "corpus-20260913" / "A-X" / "evidence_package.json",
+        generated_at="2026-09-13T00:00:00Z",
+        generated_by="skills/target-profile@3b720e4",
+    )
+    stampless = _write_package(tmp_path / "corpus-20260913" / "B-X" / "evidence_package.json")
+    corrupt = tmp_path / "corpus-20260913" / "C-X" / "evidence_package.json"
+    corrupt.parent.mkdir(parents=True, exist_ok=True)
+    corrupt.write_text("{not json")
+    missing = tmp_path / "corpus-20260913" / "D-X" / "evidence_package.json"
+
+    v = fd.corpus_vintage([dated, stampless, corrupt, missing])
+    assert v["n"] == 4
+    assert sorted(v["unreadable"]) == sorted([str(corrupt), str(missing)]), (
+        "a package that cannot be parsed must be NAMED, not folded into the undated bucket"
+    )
+    assert v["by_date"] == {"2026-09-13": 1, "unknown": 3}
+    assert v["dated_from"] == {"provenance": 1, "path": 0, "none": 3}
+    assert v["by_sha"] == {"3b720e4": 1, "unknown": 3}
+    assert v["oldest"] == v["newest"] == "2026-09-13", "undated packages must not widen the window"
+
+
+def test_corpus_vintage_falls_back_to_the_path_only_when_the_package_cannot_be_read(tmp_path):
+    """The path regex is retained DELIBERATELY, for callers holding names rather than files — but it is
+    a fallback, and `dated_from` must say so. Scoping this to unopenable paths is the point: the
+    original function applied it to EVERYTHING, which is why it was layout-coupled."""
     v = fd.corpus_vintage(
         [
             "/runs/2026-08-26-full/evidence_package.json",
@@ -202,13 +284,26 @@ def test_corpus_vintage_reports_the_window_and_flags_unknowns(tmp_path):
     assert v["newest"] == "2026-09-09"
     assert v["by_date"]["2026-09-09"] == 2
     assert v["by_date"]["unknown"] == 1, "an undateable package must be visible, not silently dropped"
+    assert v["dated_from"] == {"provenance": 0, "path": 3, "none": 1}, (
+        "these four never resolved on disk, so ALL of them are fallback dates — and a caller reading "
+        "`dated_from` can tell that this corpus was never actually opened"
+    )
+    assert len(v["unreadable"]) == 4
 
 
 def test_corpus_vintage_on_an_empty_corpus_reports_none_not_a_fake_window():
     """`oldest`/`newest` must be None rather than a default date — a fabricated window would make an
     empty corpus look like a fresh one."""
     v = fd.corpus_vintage([])
-    assert v == {"n": 0, "oldest": None, "newest": None, "by_date": {}}
+    assert v == {
+        "n": 0,
+        "oldest": None,
+        "newest": None,
+        "by_date": {},
+        "by_sha": {},
+        "dated_from": {"provenance": 0, "path": 0, "none": 0},
+        "unreadable": [],
+    }
 
 
 # ── card-id validation: the over-crediting bug ────────────────────────────────────────────────────
