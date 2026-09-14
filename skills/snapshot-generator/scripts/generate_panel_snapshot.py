@@ -140,11 +140,15 @@ def load_snapshot_config(config_path: Path) -> SnapshotSpec:
     )
 
 
-def parse_figures_dir(figures_dir: Path) -> tuple[str, str]:
-    """Extract gene and indication from figures directory path."""
+def parse_run_dir(run_dir: Path) -> tuple[str, str]:
+    """Extract gene and indication from run directory path.
+
+    Expected path: .../target-profile/{GENE}-{INDICATION}/{date}__{version}__{hash}
+    """
     run_folder_pattern = re.compile(r"^\d{4}-\d{2}-\d{2}__[\d.]+__[a-f0-9]+$")
 
-    current = figures_dir
+    current = run_dir
+    # If pointing to figures/ subdirectory, go up
     if current.name == "figures":
         current = current.parent
 
@@ -161,7 +165,7 @@ def parse_figures_dir(figures_dir: Path) -> tuple[str, str]:
         if match and len(match.group(1)) <= 10 and len(match.group(2)) <= 10:
             return match.group(1).upper(), match.group(2).upper()
 
-    raise ValueError(f"Could not parse gene-indication from path: {figures_dir}")
+    raise ValueError(f"Could not parse gene-indication from path: {run_dir}")
 
 
 def substitute_placeholders(text: str, gene: str, indication: str) -> str:
@@ -355,13 +359,13 @@ def load_presentation_from_template(template_path: Path) -> Presentation:
 
 
 def generate_panel_snapshot(
-    figures_dir: Path,
+    run_dir: Path,
     snapshot_config: SnapshotSpec,
     template_path: Path,
     output_path: Path,
 ) -> None:
     """Generate a single-slide snapshot with multiple panels."""
-    gene, indication = parse_figures_dir(figures_dir)
+    gene, indication = parse_run_dir(run_dir)
     click.echo(f"Generating panel snapshot for {gene} in {indication}")
 
     prs = load_presentation_from_template(template_path)
@@ -409,12 +413,12 @@ def generate_panel_snapshot(
     # Check for grouped layout
     if snapshot_config.layout.lower() == "grouped" and snapshot_config.groups:
         _render_grouped_layout(
-            slide, snapshot_config.groups, figures_dir, gene, indication,
+            slide, snapshot_config.groups, run_dir, gene, indication,
             margin, content_top, content_width, content_height, panel_gap
         )
     else:
         _render_grid_layout(
-            slide, snapshot_config.panels, snapshot_config.layout, figures_dir, gene, indication,
+            slide, snapshot_config.panels, snapshot_config.layout, run_dir, gene, indication,
             margin, content_top, content_width, content_height, panel_gap
         )
 
@@ -423,7 +427,7 @@ def generate_panel_snapshot(
 
 
 def _render_grid_layout(
-    slide, panels: list, layout: str, figures_dir: Path, gene: str, indication: str,
+    slide, panels: list, layout: str, run_dir: Path, gene: str, indication: str,
     margin, content_top, content_width, content_height, panel_gap
 ) -> None:
     """Render panels in a grid layout."""
@@ -480,10 +484,10 @@ def _render_grid_layout(
 
         # Add figure
         if panel.figure:
-            fig_path = figures_dir / panel.figure
+            fig_path = run_dir / panel.figure
             if not fig_path.exists():
                 # Try without 'figures/' prefix
-                fig_path = figures_dir.parent / "figures" / panel.figure
+                fig_path = run_dir.parent / "figures" / panel.figure
 
             if fig_path.exists():
                 try:
@@ -519,13 +523,13 @@ def _render_grid_layout(
 
         # Add table
         if panel.table:
-            table_path = figures_dir / panel.table
+            table_path = run_dir / panel.table
             if not table_path.exists():
                 # Try in parent's tables directory
-                table_path = figures_dir.parent / "tables" / panel.table
+                table_path = run_dir.parent / "tables" / panel.table
             if not table_path.exists():
                 # Try relative to figures dir
-                table_path = figures_dir.parent / panel.table
+                table_path = run_dir.parent / panel.table
 
             if table_path.exists():
                 try:
@@ -562,7 +566,7 @@ def _render_grid_layout(
 
 
 def _render_grouped_layout(
-    slide, groups: list, figures_dir: Path, gene: str, indication: str,
+    slide, groups: list, run_dir: Path, gene: str, indication: str,
     margin, content_top, content_width, content_height, panel_gap
 ) -> None:
     """Render panels in grouped columns layout."""
@@ -605,14 +609,14 @@ def _render_grouped_layout(
         current_top = group_top
         for panel in group.panels:
             _render_single_panel(
-                slide, panel, figures_dir, gene, indication,
+                slide, panel, run_dir, gene, indication,
                 int(group_left), int(current_top), int(group_width), int(panel_height)
             )
             current_top += panel_height + panel_gap
 
 
 def _render_single_panel(
-    slide, panel: PanelSpec, figures_dir: Path, gene: str, indication: str,
+    slide, panel: PanelSpec, run_dir: Path, gene: str, indication: str,
     panel_left: int, panel_top: int, panel_width: int, panel_height: int
 ) -> None:
     """Render a single panel at the specified position."""
@@ -653,9 +657,10 @@ def _render_single_panel(
 
     # Add figure
     if panel.figure:
-        fig_path = figures_dir / panel.figure
+        # Look in figures/ subdirectory first, then try path as-is
+        fig_path = run_dir / "figures" / panel.figure
         if not fig_path.exists():
-            fig_path = figures_dir.parent / "figures" / panel.figure
+            fig_path = run_dir / panel.figure
 
         if fig_path.exists():
             try:
@@ -691,11 +696,10 @@ def _render_single_panel(
 
     # Add table
     if panel.table:
-        table_path = figures_dir / panel.table
+        # Tables are in subskills/xxx/tables/ or figures/subskills/xxx/tables/
+        table_path = run_dir / panel.table
         if not table_path.exists():
-            table_path = figures_dir.parent / "tables" / panel.table
-        if not table_path.exists():
-            table_path = figures_dir.parent / panel.table
+            table_path = run_dir / "figures" / panel.table
 
         if table_path.exists():
             try:
@@ -733,10 +737,10 @@ def _render_single_panel(
 
 @click.command()
 @click.option(
-    "--figures-dir", "-f",
+    "--run-dir", "-r",
     type=click.Path(exists=True, file_okay=False, path_type=Path),
     required=True,
-    help="Path to figures directory (e.g., .../KRAS-COADREAD/.../figures)",
+    help="Path to run directory (e.g., .../KRAS-COADREAD/2026-09-11__2.0.0__ba95ab6)",
 )
 @click.option(
     "--snapshot-config", "-c",
@@ -757,7 +761,7 @@ def _render_single_panel(
     help="Output PPTX path (default: {gene}-{indication}-snapshot.pptx)",
 )
 def main(
-    figures_dir: Path,
+    run_dir: Path,
     snapshot_config: Path,
     template: Path,
     output: Optional[Path],
@@ -767,13 +771,13 @@ def main(
 
     if output is None:
         try:
-            gene, indication = parse_figures_dir(figures_dir)
+            gene, indication = parse_run_dir(run_dir)
             output = Path(f"{gene}-{indication}-panel-snapshot.pptx")
         except ValueError:
             output = Path("panel-snapshot.pptx")
 
     generate_panel_snapshot(
-        figures_dir=figures_dir,
+        run_dir=run_dir,
         snapshot_config=config,
         template_path=template,
         output_path=output,
