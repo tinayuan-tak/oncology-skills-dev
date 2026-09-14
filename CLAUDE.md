@@ -132,9 +132,16 @@ children first, or pass `--retarget-children` to move them onto the base.
   env red-fails the resolver golden snapshots) and never from a `/tmp` worktree
   (pixi deep-copies a multi-GB env there → ENOSPC and a wedged `/tmp`). To gate code
   living in a worktree, run from the home checkout against the worktree paths
-  (e.g. `pixi run pytest /tmp/wt/<branch>/skills/<skill>/tests/ -q`). Run
-  `scripts/preland.sh` before landing — it mirrors the CI-required gates in
-  `.github/workflows/skills-validate.yml`.
+  (e.g. `pixi run pytest /tmp/wt/<branch>/skills/<skill>/tests/ -q`).
+- **Two required status checks gate `v2-architecture`, and `scripts/preland.sh` mirrors only
+  one of them.** The required contexts are `pytest` (`.github/workflows/skills-validate.yml`)
+  and `ruff` (`.github/workflows/ruff.yml`), `strict: false`, with no rulesets on the branch.
+  `preland.sh` transcribes the `pytest` job's suite steps and runs **no** lint gate, so a green
+  `ALL GATES PASS` does not mean the PR goes green — run the two ruff gates yourself as printed
+  in that script's header. CodeQL / `Analyze (python)` also run on every PR (org-level default
+  setup) but are **not** required and do not gate. Four checks run; two gate. Re-measure rather
+  than trusting this line:
+  `gh api 'repos/{owner}/{repo}/branches/v2-architecture/protection' --jq .required_status_checks`
 - Trunk is `v2-architecture`, never `main`.
 - A resolver / verdict-contract change fans out into golden snapshots + synthetic
   fired-sets + stub fixtures across multiple skill dirs, so run the FULL skills suite

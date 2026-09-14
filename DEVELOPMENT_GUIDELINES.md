@@ -75,8 +75,12 @@ gh pr create --base v2-architecture --fill  # draft is fine
   `.claude/hooks/pre-commit`).
 - **Base branch:** `v2-architecture` (this repo's `default_base`).
 - **One workstream per branch;** draft PR on first push.
-- CI (`skills-validate.yml`) is a **required status check** on `v2-architecture`, so a
-  PR merges only when `pytest` (plus CodeQL) is green.
+- **Required status checks** on `v2-architecture` are exactly two contexts — `pytest` (from
+  `skills-validate.yml`) and `ruff` (from `ruff.yml`) — with `strict: false`, so a PR merges
+  once both are green. CodeQL / `Analyze (python)` also run on every PR (org-level default
+  setup) but are **not** required contexts and do not gate the merge. Four checks run; two
+  gate. Re-measure rather than trusting this line:
+  `gh api 'repos/{owner}/{repo}/branches/v2-architecture/protection' --jq .required_status_checks`
 
 ## Testing
 
