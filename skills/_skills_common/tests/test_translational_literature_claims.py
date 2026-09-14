@@ -39,7 +39,12 @@ def test_translational_claim_vector_maps_all_four_legs():
     }
     v = tr_cv(hl, [])
     assert [k for k in v if not k.startswith("_")] == ["MODEL", "GENOTYPE", "ORGANOID", "PDX"]
-    assert v["MODEL"]["signal"] == "strong" and v["MODEL"]["corroboration"] == "high"
+    # MODEL corroboration is `single_arm`, not `high`: the old value was a band on
+    # `n_patient_derived_models` (60 models → `high`). A model COUNT is the depth of one PDX/organoid
+    # repository read, not a second repository agreeing with the first — 60 models from one source is
+    # still one source. The count itself is not lost: `deep_model_coverage` already carries it on the
+    # signal axis, which is where a magnitude belongs.
+    assert v["MODEL"]["signal"] == "strong" and v["MODEL"]["corroboration"] == "single_arm"
     assert v["GENOTYPE"]["signal"] == "moderate"
     assert v["ORGANOID"]["signal"] == "moderate"
     assert v["PDX"]["signal"] == "strong"

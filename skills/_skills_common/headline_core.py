@@ -42,7 +42,18 @@ _CONF_BY_INDEX = {3: "strong", 2: "moderate", 1: "weak", 0: "insufficient"}
 # sidecar verbatim instead of hand-writing an adapter.
 _CERTAINTY_LEVEL_ALIAS = {"high": "strong", "medium": "moderate", "low": "weak"}
 # corroboration tier → confidence tier (a claim's support quality maps onto how much we trust the call).
-_CORR_TO_CONF = {"high": "strong", "moderate": "moderate", "low": "weak", "unmeasured": "insufficient"}
+# `single_arm` → `weak` is the CAP the measured-arm frame exists to deliver: a claim resting on one
+# measured arm cannot read as more than weakly confident, however strong that arm is. It shares the
+# `weak` slot with `low` (a conflict) because both are thin support — but the two stay DISTINCT on the
+# corroboration ladder, because only `low` means the arms were compared and disagreed, and the eval
+# discordance ledger keys its sharpness predicate on exactly that difference.
+_CORR_TO_CONF = {
+    "high": "strong",
+    "moderate": "moderate",
+    "single_arm": "weak",
+    "low": "weak",
+    "unmeasured": "insufficient",
+}
 
 
 @dataclass(frozen=True)

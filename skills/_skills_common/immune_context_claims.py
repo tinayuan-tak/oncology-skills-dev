@@ -79,10 +79,19 @@ _INFORMS = (
 # DISCORDANT PRAD (relative-CD8-hot but absolute-TIL-LOW) read exactly as confidently as a
 # corroborated SKCM. The ruler below makes the tier track the orthogonal-platform state instead.
 #
-# CORROBORATION_ORD: high > moderate > low > unmeasured; _CORR_TO_CONF maps high->strong,
-# moderate->moderate, low->weak (headline_core.py), so the three tiers are all reachable.
+# CORROBORATION_ORD: high > moderate > single_arm > low > unmeasured. THIS AXIS REACHES THREE OF THE FIVE,
+# and `moderate` is NOT one of them: with exactly two orthogonal arms you can only agree, disagree, or be
+# alone, so `moderate` needs a THIRD arm with a majority or a bespoke single-arm STRENGTH grader (cohort
+# counts, p-values) and this axis has neither. _CORR_TO_CONF (headline_core.py) then maps high->strong,
+# single_arm->weak, low->weak — so among MEASURED reads the confidence here is only TWO-valued. That 5->4
+# projection deliberately collides `single_arm` with `low`: one honest platform reads exactly as confidently
+# as two platforms that CONTRADICT each other, and the ladder has no room to separate them downward because
+# `insufficient` means UNMEASURED and a contradiction is emphatically measured. The distinction survives on
+# its own two channels — the `conflict` atom (None vs prose) and confidence's `basis` string — which is why
+# the ruler test below pins BOTH, and why its anti-vacuity guard spans the CORROBORATION tiers rather than
+# the confidence levels.
 _CORR_CORROBORATED = "high"  # an orthogonal ABSOLUTE / SPATIAL platform AGREES  -> confidence strong
-_CORR_SINGLE = "moderate"  # CIBERSORT alone; no orthogonal check for this indication -> moderate
+_CORR_SINGLE = "single_arm"  # CIBERSORT alone; no orthogonal platform for this indication -> weak conf
 _CORR_CONTRADICTED = "low"  # an orthogonal platform DISAGREES -> confidence weak + a conflict atom
 
 _POSITIVE_SIGNALS = ("strong", "moderate")  # immune_hot / immune_intermediate (effectors claimed present)
@@ -161,7 +170,8 @@ def _orthogonal_check(h, signal):
         return _CORR_CORROBORATED, None
 
     # Single-platform: CIBERSORT is the only read (no Saltz coverage / no coloc product / not
-    # directionally comparable). Honest middle tier — measured, but unconfirmed.
+    # directionally comparable). ONE arm — measured, but with nothing to confirm it. This used to be
+    # `moderate`, i.e. indistinguishable from two platforms partly agreeing.
     return _CORR_SINGLE, None
 
 

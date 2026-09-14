@@ -61,7 +61,9 @@ _CONCORDANCE_REL = {
     "strongly_concordant_non_dependent": "moderate",
     "moderately_concordant_non_dependent": "moderate",
     "discordant": "low",
-    "partially_assayed": "low",
+    # NOT `low`: `partially_assayed` means the second arm was never assayed. That is one arm, not two that
+    # disagree, and `low` would file every partially-assayed target as a framework-internal disagreement.
+    "partially_assayed": "single_arm",
     "data_unavailable": "unmeasured",
 }
 # lineage enrichment_class: lineage_selective | broadly_lineage_dependent | no_lineage_enrichment | data_unavailable
@@ -124,7 +126,7 @@ def _dep_signal(h, c):
 def _dep_corroboration(h, c):
     base = _CONCORDANCE_REL.get(h.get("concordance_call"), "unmeasured")
     if base == "unmeasured" and h.get("crispr_call") not in (None, "data_unavailable"):
-        base = "low"  # a single CRISPR arm with no concordance read is still weak evidence
+        base = "single_arm"  # a single CRISPR arm with no concordance read — thin, but not contradicted
     crispr_dep = sig_ge(_DEP_SIGNAL.get(h.get("crispr_call")), "moderate")
     rnai = h.get("rnai_call")
     # sub-additive: independent orthogonal-assay (RNAi) agreement lifts corroboration one step
@@ -145,9 +147,13 @@ def _dep_corroboration(h, c):
     # a disagreeing orthogonal assay caps corroboration
     if crispr_dep and rnai in _RNAI_NONDEP:
         base = cap_corroboration(base, "moderate")
-    # omics-predictability meta-signal: own-omics-driven is a biomarker handle → confidence
+    # omics-predictability meta-signal: own-omics-driven is a biomarker handle → confidence. `arm=False`:
+    # the predictability model is FITTED ON this same CRISPR dependency, so it is a property of that one
+    # arm (how predictable it is from the target's own omics), not an independent second read of whether
+    # the dependency is real. It may refine a tier whose arms were compared, but it must not lift a lone
+    # CRISPR arm to `high` — which is what it did before 2026-09-14.
     if h.get("predictability_class") == "own_omics_driven":
-        base = bump_corroboration(base, True)
+        base = bump_corroboration(base, True, arm=False)
     # paralog buffering (2026-09-06): a STRONG redundant paralog is a competing explanation that LOWERS
     # confidence in the dependency CALL — a present dependency may be masked/compensated (Dede 2020;
     # Parrish 2021) or need combined paralog loss to be fully realised. Independent of the CRISPR/RNAi/PRISM
@@ -171,7 +177,10 @@ def _sel_corroboration(h, c):
     n = h.get("n_lineages_evaluated")
     if not isinstance(n, (int, float)):
         return "unmeasured"
-    return "high" if n >= 20 else "moderate" if n >= 10 else "low"
+    # ONE arm (the DepMap lineage-enrichment scan). `n_lineages_evaluated` is the BREADTH of that single
+    # scan, not a count of independent arms — evaluating 20 lineages in one panel is still one panel, so
+    # the old n>=20 -> `high` reported cross-source agreement that no second source ever provided.
+    return "single_arm"
 
 
 def _cond_signal(h, c):
@@ -186,13 +195,11 @@ def _cond_signal(h, c):
 def _cond_corroboration(h, c):
     if _COND_SIGNAL.get(h.get("partner_conditional_class"), "unmeasured") == "unmeasured":
         return "unmeasured"
-    q, n = h.get("partner_stratification_q"), h.get("n_partner_deficient")
-    sig_ok = isinstance(q, (int, float)) and q < 0.1
-    if isinstance(n, (int, float)) and n >= 15 and sig_ok:
-        return "high"
-    if isinstance(n, (int, float)) and n >= 5:
-        return "moderate"
-    return "low"
+    # ONE arm (the partner-stratified dependency test). `n_partner_deficient` is that test's SAMPLE SIZE
+    # and `partner_stratification_q` its significance — both grade the single arm's strength, neither is a
+    # second opinion. Cohort size buying `high` corroboration is how a well-powered single test came to
+    # read as though independent sources concurred.
+    return "single_arm"
 
 
 def _chem_signal(h, c):
@@ -208,10 +215,8 @@ def _chem_signal(h, c):
 def _chem_corroboration(h, c):
     if _CHEM_SIGNAL.get(h.get("prism_concordance_class"), "unmeasured") == "unmeasured":
         return "unmeasured"
-    n = h.get("n_compounds_evaluated")
-    if not isinstance(n, (int, float)):
-        return "low"
-    return "high" if n >= 10 else "moderate" if n >= 3 else "low"
+    # ONE arm (the PRISM×CRISPR concordance read). `n_compounds_evaluated` is that read's breadth.
+    return "single_arm"
 
 
 # ── citable evidence atoms (claim_vector_core atom_fn) ──────────────────────────────────────────────

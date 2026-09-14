@@ -68,9 +68,11 @@ def test_patient_agreement_corroboration_bump_and_cap():
     # patient arm DISAGREES → capped low
     lo = cis_coherence_claim_vector({"patient_dosage_agrees_with_cellline": False}, cards)
     assert lo["CIS_DOSAGE"]["corroboration"] == "low"
-    # no patient arm → stays moderate (never manufactured from a gap)
+    # No patient arm → `single_arm`: the cell-line call stands alone. This used to read `moderate`, which
+    # asserted partial agreement with an arm that was never read; `low` would be the opposite error, since
+    # the eval ledger reads `low` as a sharp DISAGREEMENT and nothing here disagreed.
     mid = cis_coherence_claim_vector({}, cards)
-    assert mid["CIS_DOSAGE"]["corroboration"] == "moderate"
+    assert mid["CIS_DOSAGE"]["corroboration"] == "single_arm"
 
 
 def test_wrong_direction_is_negative_with_conflict():

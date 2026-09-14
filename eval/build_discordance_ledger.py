@@ -155,6 +155,13 @@ _POSITIVE_SIGNALS = {"weak", "moderate", "strong"}
 # `moderate` (CASE-031: corroboration is bidirectional, signal is one-way). When the framework has already
 # flagged the disagreement, the literature contradiction is evidence about the CLAIM LAYER, not the
 # calibration set — say so in the row so the reviewer routes it to the right fix.
+#
+# DELIBERATELY EXCLUDES `single_arm`. That rung means "measured by exactly ONE arm, so there was nothing
+# to compare" — a coverage gap, not an internal disagreement. It was split out of `moderate` precisely
+# because `moderate` served as the fleet-wide one-armed default (22 of 61 ClaimSpecs), and the reason it
+# is not folded into `low` instead is THIS set: routing one-armed claims to `low` would mark every
+# uncovered axis as a framework-internal disagreement and fabricate a sharp row per coverage gap. Only
+# `low` means arms were compared and disagreed. `test_single_arm_is_not_a_disagreement` pins this.
 _DISAGREEMENT_CORROBORATION = {"low"}
 
 

@@ -49,14 +49,19 @@ def test_kras_claim_vector_tiers():
     # replication + own-omics predictability → high
     assert vec["DEP"]["corroboration"] == "high"
     assert vec["DEP"]["conflict"] is None
+    # SEL and CHEM are `single_arm`, not `high`: both used to grade the BREADTH of a single scan
+    # (`n_lineages_evaluated`, compound count) on the corroboration axis. Breadth is how much ONE arm
+    # saw — 20 lineages in one DepMap panel is still one panel — so the old `high` reported cross-source
+    # agreement that no second source ever supplied. Contrast DEP above, which stays `high` because its
+    # arms (CRISPR, RNAi, cross-consortium replication) really are independent.
     assert vec["SEL"] == {
         "signal": "strong",
-        "corroboration": "high",
+        "corroboration": "single_arm",
         "evidence": vec["SEL"]["evidence"],
         "conflict": None,
         "informs": vec["SEL"]["informs"],
     }
-    assert vec["CHEM"]["signal"] == "strong" and vec["CHEM"]["corroboration"] == "high"
+    assert vec["CHEM"]["signal"] == "strong" and vec["CHEM"]["corroboration"] == "single_arm"
 
 
 def test_no_partner_mapped_is_gap_not_absent():
@@ -216,7 +221,10 @@ def test_partner_conditional_strong_signal():
     h["partner_stratification_q"] = 0.01
     vec = dependency_claim_vector(h, [])
     assert vec["COND"]["signal"] == "moderate"
-    assert vec["COND"]["corroboration"] == "high"  # q<0.1 AND n>=15
+    # `single_arm`, not `high`. A significant q AND a large n are two statistics of the SAME partner
+    # stratification test, not two independent arms agreeing — passing both means one arm is well
+    # powered, which is the arm's STRENGTH, not its corroboration.
+    assert vec["COND"]["corroboration"] == "single_arm"
 
 
 # ── citable evidence atoms (values bound to {card_id, fields} + entity) ──────────────────────────────

@@ -49,8 +49,12 @@ def test_ceacam5_claim_vector_tiers():
     # weak, discordant tumor-vs-adjacent window: comparator disagreement caps corroboration + flags conflict
     assert vec["WIN"]["signal"] == "weak" and vec["WIN"]["corroboration"] == "low"
     assert "DISAGREE" in (vec["WIN"]["conflict"] or "")
-    # strong distributional separation (low overlap → high corroboration)
-    assert vec["DIST"]["signal"] == "strong" and vec["DIST"]["corroboration"] == "high"
+    # strong distributional separation. Corroboration is `single_arm`, not `high`: the old value was read
+    # off `distribution_overlap_tumor_normal` alone, i.e. a banded overlap FRACTION. A small overlap says
+    # the one tumour-vs-normal distribution comparison separated cleanly — that is the arm's STRENGTH, and
+    # it belongs on the signal axis (where `fraction_tumor_above_normal_p95` already carries it). It is not
+    # a second source agreeing, so it cannot be evidence of corroboration.
+    assert vec["DIST"]["signal"] == "strong" and vec["DIST"]["corroboration"] == "single_arm"
     # tumor-cell-intrinsic (malignant-broad + caf_low + purity-independent → strong/high)
     assert vec["INT"]["signal"] == "strong" and vec["INT"]["corroboration"] == "high"
     # origin-tissue normal liability → weak window signal, high-confidence read
@@ -79,7 +83,12 @@ def test_strong_clean_selective():
         }
     )
     vec = selectivity_claim_vector(h, [])
-    assert vec["WIN"]["signal"] == "strong" and vec["WIN"]["corroboration"] == "high"
+    # `single_arm`, not `high`. This fixture sets no `comparator_concordance` at all, so the GTEx-vs-adjacent
+    # cross-family question was never asked — 3/3 `cells_supporting` is cells A and B voting on the SAME
+    # tumor-vs-adjacent comparison. `high` now requires an explicitly `concordant` second family, which is
+    # the only reading under which it means what it says. See
+    # test_win_corroboration_reaches_high_when_a_second_comparator_family_concurs for the earned rung.
+    assert vec["WIN"]["signal"] == "strong" and vec["WIN"]["corroboration"] == "single_arm"
     assert vec["SAFE"]["signal"] == "strong"
     ks = selectivity_key_signals(h, [])
     assert ks["headline"] == "Tumor-selective."
@@ -250,7 +259,12 @@ def test_win_corroboration_capped_by_single_comparator_family():
     """cells_supporting double-counts cells A (raw) + B (ComBat) as two votes of the same
     tumor-vs-adjacent comparison. A 3/3 support count with comparator_concordance == single_comparator
     (only the adjacent family reached significance; GTEx silent) must NOT read WIN corroboration 'high' —
-    it rests on ONE independent comparator family. Cap at 'moderate'. Verdict-inert."""
+    it rests on ONE independent comparator family. Verdict-inert.
+
+    The pin is now `single_arm` rather than `moderate`, which is what the docstring's own reason asks for:
+    ONE independent comparator family is one arm. `moderate` claimed partial agreement BETWEEN families
+    when only a single family ever reported, and it also made this case indistinguishable from a genuinely
+    conflicted two-family read that had been capped down to `moderate` from above."""
     h = _ceacam5_headline()
     h.update(
         {
@@ -261,7 +275,28 @@ def test_win_corroboration_capped_by_single_comparator_family():
             "comparator_concordance": "single_comparator",
         }
     )
-    assert selectivity_claim_vector(h, [])["WIN"]["corroboration"] == "moderate"
+    assert selectivity_claim_vector(h, [])["WIN"]["corroboration"] == "single_arm"
+
+
+def test_win_corroboration_reaches_high_when_a_second_comparator_family_concurs():
+    """ANTI-VACUITY for the two pins above: WIN `high` must still be REACHABLE, or `single_arm` there is
+    pinning a ladder whose top rung is dead code and the distinction carries no information.
+
+    Byte-isolated to the one field under test — the headline is identical to
+    test_win_corroboration_capped_by_single_comparator_family except that `comparator_concordance` reads
+    `concordant` (the GTEx family independently agreed with the adjacent family) instead of
+    `single_comparator`. That single token is the whole difference between one arm and two."""
+    h = _ceacam5_headline()
+    h.update(
+        {
+            "axis_a_selectivity_class": "strong_tumor_selective",
+            "cells_supporting": 3.0,
+            "cells_ran": 3.0,
+            "discordant": False,
+            "comparator_concordance": "concordant",
+        }
+    )
+    assert selectivity_claim_vector(h, [])["WIN"]["corroboration"] == "high"
 
 
 def test_win_corroboration_high_when_families_concordant():

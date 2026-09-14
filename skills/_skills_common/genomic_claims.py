@@ -33,6 +33,8 @@ from _skills_common.claim_vector_core import (
     build_claim_vector,
     build_key_signals,
     bump_corroboration,
+    cap_corroboration,
+    corroboration_from_arms,
     sig_ge,
 )
 
@@ -125,7 +127,9 @@ _DRUG_CORR = {
     "mutant_strongly_drug_sensitive": "high",
     "mutant_moderately_drug_sensitive": "moderate",
     "mutant_drug_resistant": "low",
-    "not_drug_response_stratified": "moderate",
+    # NOT `moderate`: the pharmacology arm ran and found no stratification, so it neither agrees nor
+    # disagrees with the genetic dependency call — the genetic arm stands alone.
+    "not_drug_response_stratified": "single_arm",
     "insufficient_mutant_or_drug_data": "unmeasured",
     "no_on_target_compound": "unmeasured",
     "data_unavailable": "unmeasured",
@@ -163,12 +167,26 @@ def _role_signal(h, c):
 
 
 def _role_corroboration(h, c):
-    # only a POSITIVE curated-driver call carries corroboration (a passenger/gap does not). A DEFINITIVE
-    # functional direction (activating / loss_of_function) is a second evidence facet that corroborates the
-    # role call; an ambiguous direction stays single-source. Mirrors _dep/_spl (corrob only when positive).
-    if _ROLE_SIGNAL.get(h.get("alteration_role"), "unmeasured") in ("unmeasured", "absent"):
+    """ROLE corroboration over the curated role-call arm and the functional-direction arm.
+
+    CONVENTION A (user decision, 2026-09-14), same change as `_spl_corroboration`: a curated `passenger`
+    is a measured negative — OncoKB/IntOGen were consulted and returned a verdict — so it keeps a
+    corroboration tier instead of collapsing to `unmeasured` with the genuine gap.
+
+    The direction arm is read RELATIVE to the role side. `functional_direction` is a closed vocabulary
+    (`alteration-role.card.yaml`: activating | loss_of_function | ambiguous | null), and only a
+    DEFINITIVE direction is a measured arm: `ambiguous` means the IntOGen rows disagreed with each other,
+    which is inconclusive rather than opposed, so it leaves the frame along with null. A definitive
+    direction AGREES with a driver call and CONTRADICTS `passenger` — a curated passenger with a
+    definitive activating/LoF direction is a real conflict and now reports `low`, where the old
+    positive-only gate reported the whole axis as unmeasured."""
+    sig = _ROLE_SIGNAL.get(h.get("alteration_role"), "unmeasured")
+    if sig == "unmeasured":
         return "unmeasured"
-    return "high" if h.get("functional_direction") in ("activating", "loss_of_function") else "moderate"
+    definitive = h.get("functional_direction") in ("activating", "loss_of_function")
+    # `ambiguous`/null -> None (the arm leaves the frame); definitive -> agrees iff the role is positive.
+    dir_arm = (sig != "absent") if definitive else None
+    return corroboration_from_arms([True, dir_arm])
 
 
 def _by_class(h):
@@ -227,18 +245,52 @@ def _snv_signal(h, c):
 
 
 def _snv_corroboration(h, c):
+    """SNV corroboration over the WES recurrence arm and the GENIE panel arm.
+
+    The fix here is the ARM frame: the one-armed base was `moderate`, so a claim with GENIE
+    `data_unavailable` and a single cohort read identically to one where two independent arms agreed.
+
+    NOT gated on a measured-`absent` signal, deliberately. A `bottom_decile` recurrence class is a
+    MEASURED floor ("we looked; this is not a recurrent driver"), and that negative is itself a claim two
+    arms can corroborate — so it keeps a measured corroboration tier. Gating it to `unmeasured` would
+    regress CASE-032, whose whole point is that a measured floor must not read as a gap on ANY of the
+    five surfaces that consume the recurrence class, the corroboration surface included
+    (`test_sentinel_fix_reaches_every_recurrence_surface` pins it).
+
+    ★ THIS IS CONVENTION A, AND IT IS NOW THE FLEET CONVENTION (user decision, 2026-09-14). Until then
+    this file held two opposing conventions, each argued in a comment citing the other: A here and on
+    CN/FUS, versus "corroboration only exists for a positive signal" on SPL/ROLE. A won on three
+    grounds: (1) collapsing a measured negative to `unmeasured` corroboration is the `gap != absent`
+    invariant (claim_vector_core:16) violated one level up — the exact conflation this whole frame
+    exists to prevent; (2) A is pinned by an eval case and B was pinned by nothing; (3) B's rationale
+    conflates "the finding is negative" with "nobody looked", and a passenger IS a finding. SPL and
+    ROLE were converted, which also forced their second arms to be read RELATIVE to the signal side —
+    the correction below is what makes a negative signal safe to keep a tier."""
     rec = _recurrence_class(h)
     if _RECURRENCE_SIGNAL.get(rec, "unmeasured") == "unmeasured":
         return "unmeasured"
     cohorts = h.get("pooled_recurrence_cohorts")
     n_cohorts = len(cohorts) if isinstance(cohorts, (list, tuple)) else (cohorts if isinstance(cohorts, int) else 0)
     genie = h.get("genie_driver_recurrence_class")
-    base = "moderate"
-    if n_cohorts and n_cohorts >= 2:
-        base = bump_corroboration(base, True)  # independent multi-cohort recurrence
-    if genie in ("bottom_decile",) and rec in ("top_1pct", "top_decile"):
-        base = "low"  # WES says driver, panel says not — disagreement
-    return base
+    # The GENIE panel arm. AGREEMENT IS RELATIVE, so it is computed by comparing the two arms' SIDES of
+    # the driver/not-a-driver split through the shared `_RECURRENCE_SIGNAL` map — never by testing the
+    # panel token on its own. `genie not in ("bottom_decile",)` reads like the same thing and is not: it
+    # calls a panel `bottom_decile` a disagreement even when the WES arm ALSO read `bottom_decile`, i.e.
+    # it files two arms CONCORDANT on a measured negative as a sharp conflict. That is strictly worse than
+    # the `moderate` default it replaced, and it is the same mistake in a second costume — an arm read in
+    # isolation cannot tell agreement from disagreement, only presence from absence.
+    #
+    # An off-roster or unmeasured panel token leaves the frame (None) rather than defaulting to a side.
+    genie_tier = _RECURRENCE_SIGNAL.get(genie) if genie is not None else None
+    if genie_tier in (None, "unmeasured"):
+        genie_arm = None
+    else:
+        # `bottom_decile` is the only NEGATIVE band; every other measured band is a positive driver call.
+        genie_arm = (genie_tier != "absent") == (_RECURRENCE_SIGNAL[rec] != "absent")
+    # Independent multi-cohort pooled recurrence is a genuine SECOND arm on the WES side. Fewer than two
+    # cohorts is not a disagreement — there was simply no second cohort — so it leaves the frame.
+    multi_cohort_arm = True if n_cohorts >= 2 else None
+    return corroboration_from_arms([True, genie_arm, multi_cohort_arm])
 
 
 def _cn_signal(h, c):
@@ -281,18 +333,45 @@ def _cn_signal(h, c):
 
 
 def _cn_corroboration(h, c):
+    """CN corroboration over the two arms — cell-line `copy_number_class` and patient-tumour
+    `patient_focal_cn_class` — under the MEASURED-ARM frame.
+
+    The unconditional trailing `return "moderate"` this replaced conflated THREE distinct states, which
+    is what made eval CASE-034's DLL3/SCLC row unreadable:
+      1. one-armed (patient focal `data_unavailable`/None) — nobody looked for a second arm;
+      2. DIRECTION CONFLICT (cell-line amplified + patient `recurrent_focal_deletion`, or the mirror) —
+         two measured arms pointing OPPOSITE ways, priced as partial agreement;
+      3. `cls == "mixed"` — a measured but directionless cell-line call, which has no direction for a
+         patient focal call to agree OR disagree with.
+
+    A measured-NEGATIVE `broadly_neutral` keeps a measured corroboration tier (`single_arm`): the
+    cell-line arm did look and did report no event, and that negative is a claim a second arm could
+    corroborate. This is convention A — see `_snv_corroboration`, which records why it became the fleet
+    convention on 2026-09-14 and which axes were converted to it.
+
+    `patient_focal_cn_class` is a CLOSED enum, so the arms below are exhaustive by construction rather
+    than by a trailing else."""
     bc = _by_class(h).get("copy_number") or {}
     cls = bc.get("verdict")
     if _CN_SIGNAL.get(cls, "unmeasured") == "unmeasured":
-        return "unmeasured"
+        return "unmeasured"  # nobody looked — a gap is neither corroborated nor contradicted
+
     focal = h.get("patient_focal_cn_class")
-    amp = cls == "recurrently_amplified"
-    deld = cls == "recurrently_deleted"
-    if (amp and focal == "recurrent_focal_amplification") or (deld and focal == "recurrent_focal_deletion"):
-        return "high"  # cell-line + patient-tumour agree on direction
-    if focal in ("focal_neutral",) and cls in ("recurrently_amplified", "recurrently_deleted"):
-        return "low"  # cell-line recurrent but patient tumour focal-neutral — disagreement
-    return "moderate"
+    # The patient arm: True/False if GISTIC looked, None if it did not. `data_unavailable` is a truthy
+    # STRING, so it is tested against the sentinel explicitly and never by truthiness.
+    if focal is None or focal == "data_unavailable":
+        patient_arm = None
+    elif cls == "recurrently_amplified":
+        patient_arm = focal == "recurrent_focal_amplification"
+    elif cls == "recurrently_deleted":
+        patient_arm = focal == "recurrent_focal_deletion"
+    else:
+        # `mixed` and `broadly_neutral`: the cell-line arm asserts no DIRECTION (mixed) or asserts a
+        # NEGATIVE (broadly_neutral), so no patient focal call can agree or disagree with it. Measured,
+        # but not comparable — which is a one-armed claim, not a conflict.
+        patient_arm = None
+    # The cell-line arm is measured and positive by the guard above, so it always agrees with itself.
+    return corroboration_from_arms([True, patient_arm])
 
 
 def _fus_signal(h, c):
@@ -334,32 +413,84 @@ def _spl_signal(h, c):
 
 
 def _spl_corroboration(h, c):
+    """SPL corroboration over the curated splice-registry arm and the live DepMap-carrier arm.
+
+    CONVENTION A (user decision, 2026-09-14): a MEASURED NEGATIVE keeps a corroboration tier. This
+    function used to collapse `absent` to `unmeasured` alongside the real gap, which is the file's own
+    `gap != absent` invariant (claim_vector_core:16) violated one level up — `no_registered_event` means
+    the registry WAS consulted, and that negative is a claim a second arm can agree or disagree with.
+    Only an unreadable axis returns `unmeasured` now. (The old gate also listed `negative`, which
+    `_SPLICE_SIGNAL` cannot emit — a dead branch, dropped with it.)
+
+    AND SO THE CARRIER ARM MUST BE READ RELATIVE TO THE SIGNAL, exactly as in `_fus_corroboration`.
+    Once a negative signal keeps a tier, "do live carriers agree" depends on which side the registry
+    arm took: carriers >= 1 CONFIRMS a driver call but CONTRADICTS `no_registered_event` (DepMap sees
+    carriers of an event the registry does not register). Testing `n >= 1` on its own would file that
+    contradiction as `high` — the same mistake `_snv_corroboration` documents, in a third costume."""
     bc = _by_class(h).get("splice") or {}
-    # Corroboration is only meaningful for a POSITIVE signal — a gap (`unmeasured`) or a measured floor
-    # (`absent`/`negative`) carries none (mirrors `_dep_corroboration`). Keying off the SHARED `_spl_tier`
-    # keeps signal and corroboration in lock-step (fixes the old signal=absent / corrob=unmeasured asymmetry
-    # that arose from `_spl_signal` and `_spl_corroboration` applying different fallbacks to the same class).
-    if _spl_tier(bc.get("verdict")) in ("unmeasured", "absent", "negative"):
+    # Keyed off the SHARED `_spl_tier` so signal and corroboration can never disagree on what counts as
+    # measured (the historical signal=absent / corrob=unmeasured asymmetry).
+    tier = _spl_tier(bc.get("verdict"))
+    if tier == "unmeasured":
         return "unmeasured"
-    # a curated oncogenic exon-skip driver with live DepMap carrier confirmation is well-corroborated
     n = bc.get("n_depmap_carriers")
-    return "high" if isinstance(n, (int, float)) and n >= 1 else "moderate"
+    # None/non-numeric = DepMap was not consulted: the arm leaves the frame rather than taking a side.
+    # `n == 0` is a MEASURED read ("we looked, no carriers"), so it counts and takes the negative side.
+    carrier_arm = None if not isinstance(n, (int, float)) else ((n >= 1) == (tier != "absent"))
+    return corroboration_from_arms([True, carrier_arm])
 
 
 def _fus_corroboration(h, c):
+    """FUS corroboration over the fusion-class arm and the GENIE-SV recurrence arm.
+
+    The old form had the defect in its LOOKUP TABLE rather than in a trailing return:
+    `_RECURRENCE_SIGNAL_TO_CORR["data_unavailable"] = "moderate"` and the `.get(..., "moderate")`
+    default meant an UNMEASURED GENIE-SV arm — and a missing key alike — yielded moderate corroboration.
+    An absent second arm was literally tabulated as partial agreement.
+
+    Like SNV/CN, this keeps a measured corroboration tier for a measured-`absent` fusion signal
+    (`no_recurrent_fusion` = "we looked, there is no recurrent fusion"), rather than collapsing the
+    negative to a gap — convention A, made fleet-wide on 2026-09-14 (see `_snv_corroboration`). SPL and
+    ROLE now derive their second arm's side the same way this function does, for the same reason.
+
+    AND THAT IS EXACTLY WHY THE PANEL ARM MUST BE READ RELATIVE TO IT. Because a measured-negative fusion
+    call keeps a corroboration tier, "does the GENIE-SV arm agree" depends on which side the fusion arm
+    took. Mapping the SV band straight to an agreement boolean got both ends backwards on the negative
+    branch: `no_recurrent_fusion` + SV `bottom_decile` (both arms say there is no population-recurrent
+    rearrangement) scored `low` as if they clashed, while `no_recurrent_fusion` + SV `top_1pct` (a real
+    contradiction — the panel sees a top-percentile recurrent SV where this arm sees none) scored `high`.
+    Deriving the side from `_FUS_SIGNAL` fixes both, and cannot drift from the signal tier."""
     bc = _by_class(h).get("fusion") or {}
-    if _FUS_SIGNAL.get(bc.get("verdict"), "unmeasured") == "unmeasured":
+    fus_tier = _FUS_SIGNAL.get(bc.get("verdict"), "unmeasured")
+    if fus_tier == "unmeasured":
         return "unmeasured"
-    return _RECURRENCE_SIGNAL_TO_CORR.get(bc.get("genie_sv_recurrence_class"), "moderate")
+    genie_sv = bc.get("genie_sv_recurrence_class")
+    sv_positive = _SV_BAND_IS_RECURRENT.get(genie_sv) if genie_sv is not None else None
+    # None = the panel arm was not measured (or is an off-roster band): it leaves the frame either way.
+    sv_arm = None if sv_positive is None else (sv_positive == (fus_tier != "absent"))
+    base = corroboration_from_arms([True, sv_arm])
+    if genie_sv == "mid":
+        # A `mid` percentile band is a measured arm that supports only thinly, and the arms frame has no
+        # "weakly agrees" rung. Capping preserves the old table's `mid -> moderate` exactly instead of
+        # promoting it to `high` just because a second arm exists — the strength of an arm and the
+        # NUMBER of arms are different questions, and this claim answers both. A cap only ever lowers, so
+        # this cannot rescue a `mid` band that DISAGREES with the fusion arm out of `low`.
+        base = cap_corroboration(base, "moderate")
+    return base
 
 
-# GENIE-SV recurrence percentile → corroboration tier (top bands corroborate; low band doesn't)
-_RECURRENCE_SIGNAL_TO_CORR = {
-    "top_1pct": "high",
-    "top_decile": "high",
-    "mid": "moderate",
-    "bottom_decile": "low",
-    "data_unavailable": "moderate",
+# GENIE-SV recurrence percentile → is this band a POSITIVE (population-recurrent) call? A SIDE, not an
+# agreement: whether it corroborates depends on which side the fusion arm took, which is why the caller
+# compares the two rather than reading a boolean straight out of here. Replaces the old
+# percentile→corroboration-tier table, whose `data_unavailable: "moderate"` row priced an unmeasured arm
+# as partial agreement. A band absent from this map resolves to None (arm not measured) rather than to a
+# default, so a NEW percentile token cannot silently inherit either a tier or a side.
+_SV_BAND_IS_RECURRENT = {
+    "top_1pct": True,
+    "top_decile": True,
+    "mid": True,
+    "bottom_decile": False,  # GENIE-SV says this rearrangement is not population-recurrent
+    "data_unavailable": None,  # explicit: the sentinel is a truthy STRING, never a band
 }
 
 
@@ -422,18 +553,30 @@ def _dep_signal(h, c):
 
 
 def _dep_corroboration(h, c):
-    # only meaningful when the alteration confers a dependency (a positive DEP signal)
+    """DEP corroboration over the PHARMACOLOGY arm (`drug_response_stratification_class`), graded for
+    strength by `_DRUG_CORR` rather than counted by the arm frame — this is one of the bespoke
+    strength-grading fns `corroboration_from_arms` defers `moderate` to.
+
+    Note it does NOT gate on the DEP signal: unlike SPL/ROLE this reads a DIFFERENT field than the
+    signal does, so there is no signal tier to be in lock-step with, and `_DRUG_CORR`'s own
+    `unmeasured` entries carry the gap. (A comment here previously claimed a positive-signal gate that
+    the code never had; removed rather than implemented, since convention A — see `_snv_corroboration`
+    — says a measured negative keeps its tier anyway.)"""
     drug = h.get("drug_response_stratification_class")
     base = _DRUG_CORR.get(drug, "unmeasured")
-    # within-indication (not a pan-cancer extrapolation) localisation raises confidence
+    # Within-indication (not a pan-cancer extrapolation) localisation raises confidence — but `arm=False`:
+    # WHERE the pharmacology arm's evidence was measured is a property OF that arm, not a second arm
+    # agreeing with it. Before 2026-09-14 this took `not_drug_response_stratified` (= `single_arm`, the
+    # pharmacology arm ran and found no stratification, so the genetic arm stands alone) straight to
+    # `high` on a scope token — one arm reading as the top corroboration rung.
     scopes = [
         h.get("stratified_evidence_scope"),
         h.get("cn_stratified_evidence_scope"),
         h.get("fusion_stratified_evidence_scope"),
         h.get("amp_expr_stratified_evidence_scope"),
     ]
-    if base in ("moderate", "low") and any(s in _INDICATION_SCOPES for s in scopes):
-        base = bump_corroboration(base, True)
+    if base in ("single_arm", "moderate", "low") and any(s in _INDICATION_SCOPES for s in scopes):
+        base = bump_corroboration(base, True, arm=False)
     return base
 
 

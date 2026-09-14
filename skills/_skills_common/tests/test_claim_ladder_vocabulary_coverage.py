@@ -98,10 +98,31 @@ from _skills_common.claim_vector_core import CORROBORATION_ORD, SIGNAL_ORD  # no
 _VESTIGIAL_CORROBORATION_RUNGS = {"absent", "negative", "none"}
 
 # Encoder keys that no producer emits, tolerated as an UPPER BOUND rather than pinned by equality. This set
-# should only ever SHRINK: the vestigial rungs above, plus `single_arm`, which is different in kind — a live
-# rung landed forward-compatibly, ahead of the branch that mints its producer. A NEW name appearing here
-# means a second copy of a vocabulary has drifted again and must be justified.
-_DOCUMENTED_ENCODER_ONLY = _VESTIGIAL_CORROBORATION_RUNGS | {"single_arm"}
+# should only ever SHRINK — and it just did. `single_arm` was listed here because the encoder rung landed
+# forward-compatibly, AHEAD of the branch that mints its producer; this IS that branch
+# (`claim_vector_core.corroboration_from_arms` returns it below `CORROBORATION_ARM_FLOOR`), so the rung is
+# mirrored on both ladders now and the tolerance is spent.
+#
+# WHAT SPENDING IT ACTUALLY BUYS, stated as measured rather than as argued — the first version of this note
+# claimed more and was wrong. Listing a key here removes it from the rank-distinctness population in
+# `test_absent_and_negative_are_deliberately_tied_on_both_sides`. For `single_arm`'s OWN value that exclusion
+# costs nothing today: `test_single_arm_is_ordered_between_low_and_moderate` already pins it strictly between
+# `low` and `moderate` AND off every integer, so it cannot tie with anything on the current ladder, and a
+# mutant moving it to 1.0 reds two other tests whether or not it is listed here. The exclusion bites on the
+# rung AFTER this one. A newly minted rung tying to 1.5 — mirrored consistently on both ladders so rank
+# CLASSES still agree, and mapped into all three projections so the coverage guard is satisfied — passes
+# EVERY assertion in this file while `single_arm` is exempt, and is caught by distinctness alone once it is
+# not. That is the two-cell result: with the exemption removed the tie reds exactly one test, and with it
+# present the whole file is green.
+#
+# So the hazard is not "a redundant re-check"; it is the NARROWED POPULATION. An exemption granted for
+# ABSENCE keeps narrowing the set it was carved out of long after the absence ends, and nothing reds at the
+# moment the justification expires — the guard simply covers one rung less than its name implies. A NEW name
+# appearing here means a second copy of a vocabulary has drifted again and must be justified.
+#
+# `set(...)` rather than a bare alias on purpose: `_DOCUMENTED_ENCODER_ONLY = _VESTIGIAL_CORROBORATION_RUNGS`
+# would bind the SAME object under two names, so a future `.add()` on either would silently move the other.
+_DOCUMENTED_ENCODER_ONLY = set(_VESTIGIAL_CORROBORATION_RUNGS)
 
 
 def _rankable(ladder: dict) -> set:
@@ -214,8 +235,9 @@ def test_vestigial_corroboration_rungs_rank_below_the_live_ladder():
     the DIRECTION: these all mean "nothing corroborated this", and `low` is reserved for arms that looked and
     genuinely disagreed (`_DISAGREEMENT_CORROBORATION == {"low"}` in the discordance ledger). So a vestigial
     rung repurposed for real data must rank at or below `low`; ranking a coverage failure ABOVE a
-    contradicted claim inverts the axis. `single_arm` is deliberately exempt and pinned separately — it is
-    the one encoder-only rung that describes evidence rather than the absence of it.
+    contradicted claim inverts the axis. `single_arm` is not in this set at all — it describes EVIDENCE
+    rather than the absence of it, it now has a producer on both ladders, and it is pinned by
+    `test_single_arm_is_ordered_between_low_and_moderate` instead.
     """
     shared = _shared_rankable(CORROBORATION_ORD, CLAIM_CORR_ORD)
     assert "low" in shared, "the two ladders no longer share a `low` rung — the floor this test needs is gone"

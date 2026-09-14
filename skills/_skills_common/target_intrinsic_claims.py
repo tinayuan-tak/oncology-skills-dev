@@ -33,7 +33,9 @@ _MODALITY_SIGNAL = {
     "data_unavailable": "unmeasured",
 }
 # modality_implication_basis → corroboration strength of the routing call
-_MODALITY_BASIS_CORR = {"curated": "high", "heuristic": "low", "none": "unmeasured"}
+# (retired) `_MODALITY_BASIS_CORR` mapped modality_implication_basis -> a corroboration tier. Removed
+# rather than re-valued: every entry answered "how good is this one arm", not "did arms agree", so both
+# non-`none` rows were wrong in opposite directions. See `_modality_corr`.
 
 # Pharos/IDG Target Development Level — tier = drug-development PRECEDENT for the target's mode.
 _TDL_SIGNAL = {
@@ -73,10 +75,14 @@ def _modality_signal(h, c):
 
 
 def _modality_corr(h, c):
+    """ONE arm: the domain-modality-relevance call. `modality_implication_basis` (curated vs heuristic)
+    grades how good THAT arm is, which is a property of the measurement, not evidence that a second
+    source agreed — so the retired `_MODALITY_BASIS_CORR` gave `curated` a `high` no second arm earned,
+    and gave `heuristic` a `low` that filed a weak basis as a disagreement in the discordance ledger."""
     s = c.get(_C_MOD) or {}
     if _MODALITY_SIGNAL.get(s.get("modality_implication_class"), "unmeasured") == "unmeasured":
         return "unmeasured"
-    return _MODALITY_BASIS_CORR.get(s.get("modality_implication_basis"), "low")
+    return "single_arm"
 
 
 def _tdl_signal(h, c):
@@ -85,8 +91,9 @@ def _tdl_signal(h, c):
 
 
 def _tdl_corr(h, c):
+    # ONE arm: the Pharos/IDG TDL tier. Nothing independent corroborates it.
     return (
-        "moderate"
+        "single_arm"
         if _TDL_SIGNAL.get((c.get(_C_TDL) or {}).get("tdl_class"), "unmeasured") != "unmeasured"
         else "unmeasured"
     )

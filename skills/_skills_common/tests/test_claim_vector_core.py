@@ -102,11 +102,32 @@ def test_sig_ge_treats_unmeasured_as_never_meeting_floor():
 
 # ── sub-additive corroboration + conflict cap ──────────────────────────────────────────────────────
 def test_bump_corroboration_is_sub_additive_and_capped():
+    """EVERY measured rung is pinned, `single_arm` included. It was the one rung this test omitted, and
+    the omission is why `single_arm -> high` sat unasserted while two call sites reached it from a
+    same-arm qualifier: a test that enumerates the rungs it already knew about cannot notice a new one
+    (same hole as `test_claim_features_ordinal_maps`). Derived from the ladder below so a future rung
+    cannot be added without either a pin or a failure."""
+    assert bump_corroboration("single_arm", True) == "high"  # n=1 -> n=2 in agreement IS `high`
     assert bump_corroboration("low", True) == "moderate"
     assert bump_corroboration("moderate", True) == "high"
     assert bump_corroboration("high", True) == "high"  # cannot exceed high
     assert bump_corroboration("low", False) == "low"  # no corroboration = no-op
     assert bump_corroboration("unmeasured", True) == "unmeasured"  # a gap can't be corroborated
+    measured = [r for r, o in CORROBORATION_ORD.items() if o is not None]
+    unpinned = set(measured) - {"single_arm", "low", "moderate", "high"}
+    assert not unpinned, f"new corroboration rung(s) {unpinned} have no bump pin"
+
+
+def test_a_same_arm_qualifier_cannot_lift_a_lone_arm_over_the_floor():
+    """`arm=False` marks a localisation / model fit / strength grade — something that makes the ONE arm
+    better, not a second arm. It must not clear CORROBORATION_ARM_FLOOR. Both directions asserted, so
+    neither the guard nor the default can be deleted silently."""
+    assert bump_corroboration("single_arm", True, arm=False) == "single_arm"
+    assert bump_corroboration("single_arm", True, arm=True) == "high", "the real-arm default must differ"
+    # A qualifier still refines a tier whose arms WERE compared — `low` already has >= 2 arms.
+    assert bump_corroboration("low", True, arm=False) == "moderate"
+    assert bump_corroboration("moderate", True, arm=False) == "high"
+    assert bump_corroboration("unmeasured", True, arm=False) == "unmeasured"
 
 
 def test_cap_corroboration_never_raises():

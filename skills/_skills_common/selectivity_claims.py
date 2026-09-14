@@ -29,10 +29,11 @@ from __future__ import annotations
 
 from _skills_common.claim_vector_core import (
     ClaimSpec,
+    arm_from_class,
     build_claim_vector,
     build_key_signals,
-    bump_corroboration,
     cap_corroboration,
+    corroboration_from_arms,
     sig_ge,
 )
 
@@ -182,7 +183,11 @@ def _win_corroboration(h, c):
     if not isinstance(cr, (int, float)) or not cr:
         return "unmeasured"
     frac = (cs or 0) / cr
-    base = "high" if frac >= 0.8 and cr >= 3 else "moderate" if frac >= 0.5 else "low"
+    # `cells_supporting/cells_ran` counts CELLS, not independent arms — and the comment below already
+    # says cells A and B are two votes of the SAME comparison. So the fraction grades one comparator
+    # family's strength; the genuine cross-arm question is `comparator_concordance`, handled just below.
+    # A fully-corroborating multi-family read is what earns `high`, via the concordance branch.
+    base = "high" if frac >= 0.8 and cr >= 3 and h.get("comparator_concordance") == "concordant" else "single_arm"
     # cells_supporting counts cells A (TCGA-adjacent raw) and B (its ComBat re-run) as TWO votes of the
     # SAME tumor-vs-adjacent comparison, so a 3/3 support count can rest on a SINGLE independent
     # comparator family with the GTEx family (cell C) silent. Cap the WIN corroboration by the GENUINE
@@ -190,10 +195,14 @@ def _win_corroboration(h, c):
     # adjacent-only call cannot read "high" as if 3 independent comparators concurred. Verdict-INERT
     # (corroboration tier only; selectivity_class + the resolver — which never key on this — untouched).
     conc = h.get("comparator_concordance")
-    if conc == "single_comparator":
-        base = cap_corroboration(base, "moderate")  # one independent comparator family; count inflated
-    elif conc == "discordant":
+    if conc == "discordant":
         base = cap_corroboration(base, "low")  # the two families disagree
+    # `single_comparator` deliberately gets NO cap of its own. It names exactly ONE independent
+    # comparator family, which is why `base` above is already `single_arm` — the `high` rung requires
+    # `concordant`. The old `cap(base, "moderate")` here read like a guard but could not bind: the
+    # one-armed rung sits BELOW `moderate` on the ladder, so the cap was a no-op on the only value it
+    # could ever see. Keeping it would leave a decorative guard whose reason no longer describes the
+    # behaviour; the arm count is now stated where it is computed, one line up.
     if h.get("discordant"):
         base = cap_corroboration(base, "low")  # disagreeing comparators cap corroboration
     # PROTEIN-layer quorum: an independent proteomic platform that FAILS to corroborate (or CONTRADICTS)
@@ -222,8 +231,12 @@ def _dist_corroboration(h, c):
         return "unmeasured"
     ov = h.get("distribution_overlap_tumor_normal")
     if not isinstance(ov, (int, float)):
-        return "moderate"
-    return "high" if ov <= 0.3 else "moderate" if ov <= 0.6 else "low"  # low overlap = clean separation
+        return "single_arm"
+    # ONE arm (the tumour-vs-normal distribution). Overlap grades that arm's SEPARATION — a signal
+    # property — so it cannot buy cross-source agreement. A wide overlap is a weak measurement, not a
+    # disagreement between arms, which is why the old `low` was wrong twice over: it both over-claimed
+    # (`high` from one arm) and mislabelled thinness as conflict.
+    return "single_arm"
 
 
 def _int_signal(h, c):
@@ -254,21 +267,37 @@ def _int_signal(h, c):
 def _int_corroboration(h, c):
     if _INT_SIGNAL.get(h.get("sc_tumor_expression_class"), "unmeasured") == "unmeasured":
         return "unmeasured"
-    caf, purity = h.get("sc_caf_vs_malignant_class"), h.get("purity_confound_class")
-    if caf == "caf_dominant" or purity == "microenvironment_confounded":
-        return "low"  # a disagreeing arm (stroma-dominant / purity-confounded) caps corroboration
-    agree = caf in ("malignant_dominant", "caf_low") and purity in ("tumor_intrinsic", "purity_independent")
-    base = "high" if agree else "moderate"
-    # QUORUM: in-situ spatial region-RNA is an INDEPENDENT, deconvolution-free arm of the same
-    # malignant-compartment attribution. An AGREEING spatial arm (tumour_enriched_rna) lifts corroboration
-    # one step (single-cell + spatial concur — no longer a single-lens read); a DISAGREEING arm
-    # (tme_enriched_rna) caps it. No-op when spatial is absent/unavailable. Verdict-INERT.
-    spatial = h.get("spatial_rna_class")
-    if spatial == "tumour_enriched_rna":
-        base = bump_corroboration(base, True)
-    elif spatial == "tme_enriched_rna":
-        base = cap_corroboration(base, "low")
-    return base
+    # Three CORROBORATING arms over the same malignant-compartment attribution, scored on the shared
+    # arm frame rather than by hand. `True` leads because the sc-tumour expression read is itself the
+    # first arm — the claim being corroborated, which trivially agrees with itself.
+    #
+    # QUORUM: in-situ spatial region-RNA is an INDEPENDENT, deconvolution-free arm, so it enters the
+    # frame as a peer rather than as a bump/cap on a base — an agreeing spatial arm and an agreeing
+    # purity arm are the same KIND of support and should not be priced differently.
+    #
+    # Every arm distinguishes ABSENT from DISAGREEING (`arm_from_class` → None vs False). The prior
+    # version conflated them: `purity in (...)` is False both when the purity read contradicts the
+    # sc call and when the field was never emitted, so an UNMEASURED confound arm was scored as a
+    # contradiction and dragged a clean two-arm agreement down to `low`. Verdict-INERT throughout.
+    arms = (
+        True,
+        arm_from_class(
+            h.get("sc_caf_vs_malignant_class"),
+            agrees={"malignant_dominant", "caf_low"},
+            disagrees={"caf_dominant"},
+        ),
+        arm_from_class(
+            h.get("purity_confound_class"),
+            agrees={"tumor_intrinsic", "purity_independent"},
+            disagrees={"microenvironment_confounded"},
+        ),
+        arm_from_class(
+            h.get("spatial_rna_class"),
+            agrees={"tumour_enriched_rna"},
+            disagrees={"tme_enriched_rna"},
+        ),
+    )
+    return corroboration_from_arms(arms)
 
 
 # The modality-therapeutic-window KILL arms: tumor BELOW the worst critical/full normal (the
@@ -330,13 +359,14 @@ def _safe_corroboration(h, c):
     ess = h.get("sc_normal_safety_essential_class")
     window_veto = _window_veto_fired(h)
     if _SAFE_SIGNAL.get(ess, "unmeasured") == "unmeasured":
-        # the sc-normal read is absent, but a fired window veto is itself a measured normal-side
-        # refutation — corroborate the negative at moderate rather than reporting it unmeasured.
-        return "moderate" if window_veto else "unmeasured"
+        # The sc-normal read is absent, but a fired window veto is itself a measured normal-side
+        # refutation — so this is MEASURED, by exactly ONE arm. It used to return `moderate`, which
+        # asserted partial agreement between the veto and an sc-normal read that was never taken.
+        return "single_arm" if window_veto else "unmeasured"
     # the two independent normal-side reads (essential-cell class + expression-liability class) agree?
     liab = ess in ("critical_organ_liability", "origin_tissue_liability")
     expr_liab = h.get("sc_normal_expression_class") in ("HIGH_LIABILITY", "MODERATE_LIABILITY")
-    base = "high" if liab == expr_liab else "moderate"
+    base = "high" if liab == expr_liab else "low"  # two measured normal-side reads that DISAGREE
     # a fired window veto + an sc-normal liability both point at a normal-tissue problem → they agree.
     if window_veto and liab:
         base = "high"

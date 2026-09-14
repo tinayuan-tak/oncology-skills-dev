@@ -125,10 +125,12 @@ def _sig(card, field, smap, neg_conflict=None):
 
 
 def _patient_corr(card, field, smap, agree_key):
-    """Corroboration from the cross-grain PATIENT agreement boolean (a real second leg): base moderate
-    when the cell-line call is measured, bumped to high when the TCGA patient arm AGREES, capped low on
-    explicit DISAGREEMENT; unmeasured when the cell-line class is a gap. Never manufactures confidence
-    from a missing patient arm (agree_key is None → stays moderate)."""
+    """Corroboration from the cross-grain PATIENT agreement boolean — a real second arm, so this axis
+    can legitimately reach the top of the ladder: `high` when the TCGA patient arm AGREES, `low` on
+    explicit DISAGREEMENT, `unmeasured` when the cell-line class is a gap, and `single_arm` when the
+    patient arm was never read (`agree_key` absent) — the cell-line call then stands alone and must not
+    be reported as corroborated. That last rung used to be `moderate`, which manufactured partial
+    agreement out of a missing arm."""
 
     def fn(h, c):
         if smap.get((c.get(card) or {}).get(field), "unmeasured") == "unmeasured":
@@ -138,7 +140,7 @@ def _patient_corr(card, field, smap, agree_key):
             return "high"
         if agree is False:
             return "low"
-        return "moderate"
+        return "single_arm"  # no patient arm read at all — the cell-line call stands alone
 
     return fn
 

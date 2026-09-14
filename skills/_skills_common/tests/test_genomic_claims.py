@@ -17,15 +17,19 @@ SKILLS = Path(__file__).resolve().parents[2]  # skills/
 if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
+from _skills_common.claim_vector_core import CORROBORATION_ORD, SIGNAL_ORD  # noqa: E402
 from _skills_common.genomic_claims import (  # noqa: E402  # noqa: E402
     _CN_CELL_LINE_RECURRENT,
     _CN_FOCAL_NEG,
     _CN_FOCAL_POS,
     _CN_SIGNAL,
     _RECURRENCE_SIGNAL,
+    _ROLE_SIGNAL,
     _SPLICE_SIGNAL,
     _UNMEASURED_RECURRENCE,
     _recurrence_class,
+    _role_corroboration,
+    _role_signal,
     _spl_corroboration,
     _spl_signal,
     genomic_claim_vector,
@@ -288,23 +292,38 @@ def test_spl_dead_class_key_removed():
 
 
 def test_spl_driver_is_corroborated():
-    # a curated driver with a live DepMap carrier → strong + high; without carriers → strong + moderate
+    # A curated driver with a live DepMap carrier is a genuine SECOND arm → strong + high. WITHOUT a
+    # carrier the curation arm stands alone: `single_arm`, not `moderate` — there is no second arm for the
+    # curation call to partly agree with, and `moderate` claimed exactly that.
     assert _spl_signal(_spl_h("recurrent_splice_driver", n=3), None)[0] == "strong"
     assert _spl_corroboration(_spl_h("recurrent_splice_driver", n=3), None) == "high"
-    assert _spl_corroboration(_spl_h("recurrent_splice_driver"), None) == "moderate"
+    assert _spl_corroboration(_spl_h("recurrent_splice_driver"), None) == "single_arm"
 
 
 def test_spl_signal_corroboration_comove_over_full_vocab():
-    """The invariant the fix guarantees: corroboration is `unmeasured` for every non-positive signal
-    (a measured floor `absent` or a gap `unmeasured`) — never a measured corroboration without a signal.
-    Only a positive (driver) signal earns a measured corroboration tier."""
+    """CO-MOVEMENT IS NOW AN EXACT IFF ON MEASUREDNESS, which is the stronger form of what this test
+    always wanted. It formerly read "corroboration is `unmeasured` for every NON-POSITIVE signal", lumping
+    the measured floor `absent` in with the gap `unmeasured` — convention B, retired fleet-wide 2026-09-14
+    (see `test_the_measured_absent_convention_is_UNIFORM_across_the_genomic_fleet`). Lumping them here was
+    the `gap != absent` invariant inverted: it made a curated "the registry reports no event" render
+    exactly like "the registry was never read".
+
+    So the axis is measured together or unmeasured together, in BOTH directions — the gap is the only
+    state that collapses corroboration, and every measured signal (including the negative floor) carries a
+    tier. Both branches are asserted, so neither half can be deleted silently.
+
+    Both MEASURED sets are derived from the shared ladders rather than listed, so adding a rung (as
+    `single_arm` was) cannot make either assertion narrow silently — the previous literal
+    `("moderate", "high")` would have rejected the new rung as a lost corroboration."""
+    measured_rungs = {r for r, o in CORROBORATION_ORD.items() if o is not None}
+    assert "single_arm" in measured_rungs and "unmeasured" not in measured_rungs
     for cls in list(_SPLICE_SIGNAL) + ["no_exon_skip", None, "some_future_class"]:
         sig = _spl_signal(_spl_h(cls), None)[0]
         corr = _spl_corroboration(_spl_h(cls), None)
-        if sig in ("absent", "unmeasured", "negative"):
-            assert corr == "unmeasured", f"{cls!r}: signal={sig} but corrob={corr} (asymmetry)"
-        else:
-            assert corr in ("moderate", "high"), f"{cls!r}: positive signal={sig} lost corroboration"
+        if SIGNAL_ORD.get(sig) is None:  # a GAP — nobody looked, so there is nothing to corroborate
+            assert corr == "unmeasured", f"{cls!r}: signal={sig} is a gap but corrob={corr}"
+        else:  # MEASURED, negative floor included — a finding a second arm could agree with
+            assert corr in measured_rungs, f"{cls!r}: measured signal={sig} lost corroboration ({corr})"
 
 
 def test_spl_common_cases_are_absent_not_unmeasured():
@@ -314,6 +333,70 @@ def test_spl_common_cases_are_absent_not_unmeasured():
     # a missing/failed read stays a gap
     assert _spl_signal(_spl_h(None), None)[0] == "unmeasured"
     assert _spl_signal(_spl_h("data_unavailable"), None)[0] == "unmeasured"
+
+
+# ── ROLE (curated alteration-role) signal/corroboration co-movement ──────────────────────────────
+# The SPL twin above, on the axis that needs it MORE. `_spl_signal`/`_spl_corroboration` both route
+# through the shared `_spl_tier`, so they physically cannot disagree about measuredness. ROLE has TWO
+# INDEPENDENT derivations of one vocabulary — `_role_signal:163` and `_role_corroboration:183` each run
+# their own `_ROLE_SIGNAL.get(cls, "unmeasured")` — and nothing makes them co-move. That is
+# `feedback_two_files_route_the_same_axis` in miniature: one axis, two readers, no guard tying them.
+def _role_h(cls, fd=None):
+    """ROLE reads the headline FLAT (`alteration_role` / `functional_direction`), not through
+    `genomic_alteration_by_class` like the per-class axes — the curated role call is class-AGNOSTIC by
+    design (`genomic_claims.py:149-151`), so it needs its own helper rather than reusing `_spl_h`."""
+    return {"alteration_role": cls, "functional_direction": fd}
+
+
+def test_role_signal_corroboration_comove_over_full_vocab():
+    """The measuredness IFF, over the full class vocabulary CROSSED with the full direction vocabulary.
+
+    Convention A is what makes this load-bearing here: `passenger` is now a MEASURED negative that keeps a
+    tier, so `absent` and `unmeasured` are no longer interchangeable on this axis and the two lookups'
+    agreement is a correctness property rather than a coincidence. An edit to either derivation alone — a
+    class added to one, a default changed on one side — desynchronises them, and before this test nothing
+    in the suite touched `_role_signal` or `_role_corroboration` at all.
+
+    `measured_rungs` is DERIVED from CORROBORATION_ORD, never listed, for the reason the SPL twin's
+    docstring records: a literal `("moderate", "high")` would have rejected `single_arm` as a lost
+    corroboration the day the rung was added."""
+    measured_rungs = {r for r, o in CORROBORATION_ORD.items() if o is not None}
+    assert "single_arm" in measured_rungs and "unmeasured" not in measured_rungs
+    # every declared class + a gap + an UNSEEN future class, × the closed direction vocabulary
+    for cls in list(_ROLE_SIGNAL) + [None, "some_future_class"]:
+        for fd in ("activating", "loss_of_function", "ambiguous", None):
+            h = _role_h(cls, fd)
+            sig = _role_signal(h, None)[0]
+            corr = _role_corroboration(h, None)
+            if SIGNAL_ORD.get(sig) is None:  # a GAP — nobody looked, so there is nothing to corroborate
+                assert corr == "unmeasured", f"{cls!r}/{fd!r}: signal={sig} is a gap but corrob={corr}"
+            else:  # MEASURED, `passenger`'s negative floor included
+                assert corr in measured_rungs, f"{cls!r}/{fd!r}: measured signal={sig} lost corrob ({corr})"
+
+
+def test_role_direction_arm_is_read_relative_to_the_signal_side():
+    """The half a measuredness IFF cannot see: the direction arm must be read RELATIVE to the role call,
+    or a contradiction files as agreement. `_role_corroboration`'s docstring claims a curated `passenger`
+    carrying a definitive direction "is a real conflict and now reports `low`" — an absolute
+    positive-direction-agrees rule would report `high` for that pair and read as a corroborated passenger.
+
+    `ambiguous` is asserted NOT to be a conflict: IntOGen rows disagreeing WITH EACH OTHER is
+    inconclusive, not opposed, so the arm leaves the frame (→ `single_arm`) rather than voting against."""
+    # driver + definitive direction: two agreeing measured arms
+    assert _role_signal(_role_h("direct_driver_gof", "activating"), None)[0] == "strong"
+    assert _role_corroboration(_role_h("direct_driver_gof", "activating"), None) == "high"
+    assert _role_corroboration(_role_h("direct_driver_lof", "loss_of_function"), None) == "high"
+    assert _role_corroboration(_role_h("predictive_biomarker", "activating"), None) == "high"
+    # measured negative + definitive direction: the arms CONTRADICT → low, not high
+    assert _role_signal(_role_h("passenger", "activating"), None)[0] == "absent"
+    assert _role_corroboration(_role_h("passenger", "activating"), None) == "low"
+    assert _role_corroboration(_role_h("passenger", "loss_of_function"), None) == "low"
+    # `ambiguous`/null leave the frame — one arm stands alone, on EITHER side of the signal
+    for cls in ("direct_driver_gof", "passenger"):
+        assert _role_corroboration(_role_h(cls, "ambiguous"), None) == "single_arm"
+        assert _role_corroboration(_role_h(cls), None) == "single_arm"
+    # the gap collapses the axis regardless of how definitive the direction is
+    assert _role_corroboration(_role_h("data_unavailable", "activating"), None) == "unmeasured"
 
 
 # ── CASE-031: the CN demotion mirror (cell-line recurrent vs patient-tumour focal-neutral) ────────

@@ -20,7 +20,13 @@ The whole vector is GATED by `cited_evidence_status`: `no_evidence` → the axes
 
 from __future__ import annotations
 
-from _skills_common.claim_vector_core import ClaimSpec, build_atom, build_claim_vector, build_key_signals
+from _skills_common.claim_vector_core import (
+    ClaimSpec,
+    build_atom,
+    build_claim_vector,
+    build_key_signals,
+    corroboration_from_arms,
+)
 
 _C_LIT = "cited-literature-evidence"
 
@@ -67,16 +73,26 @@ def _sig(count_field, cuts, ev_fn):
 
 
 def _corr(count_field, cuts):
-    """Corroboration = corpus breadth/currency: `unmeasured` on a gap; else `high` when the axis is
-    strong AND the corpus spans multiple diseases, `moderate` for a measured signal, `low` when thin."""
+    """Corroboration = corpus breadth: `unmeasured` on a coverage GAP; `high` when the axis is strong AND
+    the corpus spans >=3 diseases (a genuine SECOND arm — independent disease contexts agreeing);
+    otherwise `single_arm`, because a single corpus read has nothing to agree with.
+
+    This used to return `low` for an `absent` or `weak` tier, which made "no papers found" read as
+    CONFLICTING evidence: `eval/build_discordance_ledger._DISAGREEMENT_CORROBORATION == {"low"}` is the
+    ledger's sharpness predicate, so a thin corpus manufactured a sharp discordance row on VOLUME,
+    RECENCY and RELATION alike — on all three axes at once, for every target with a sparse corpus.
+
+    Note the `absent` tier keeps a MEASURED corroboration tier (`single_arm`) rather than reading
+    `unmeasured`: `no_evidence` means the corpus WAS searched and came back empty, which the module gates
+    to a measured `absent` precisely so it stays distinct from `data_unavailable`. Collapsing it here
+    would re-merge on the corroboration axis the two states the signal axis works to keep apart."""
 
     def fn(h, _c):
         tier = _gated_tier(h, count_field, cuts)
         if tier == "unmeasured":
-            return "unmeasured"
-        if tier == "strong" and (h.get("n_diseases") or 0) >= 3:
-            return "high"
-        return "low" if tier in ("weak", "absent") else "moderate"
+            return "unmeasured"  # nobody searched — neither corroborated nor contradicted
+        multi_disease_arm = True if (h.get("n_diseases") or 0) >= 3 and tier == "strong" else None
+        return corroboration_from_arms([True, multi_disease_arm])
 
     return fn
 

@@ -130,25 +130,23 @@ def _pdx_ev(h, cls):
     return f"{cls or 'data_unavailable'}{tail}"
 
 
-# corroboration is coverage/cohort DEPTH per leg (a descriptive support-quality tier, not a second arm)
-def _model_corr(h):
-    n = h.get("n_patient_derived_models") or 0
-    return "high" if n >= 50 else "moderate" if n >= 15 else "low"
+# Corroboration used to be coverage/cohort DEPTH per leg — and the retired comment here said so in as
+# many words: "a descriptive support-quality tier, NOT a second arm". That is the defect, stated by the
+# code itself. Depth is how good ONE leg is; corroboration is whether INDEPENDENT legs agree. So a
+# 50-model cohort read `high`, i.e. maximal cross-source agreement, from a single leg — while genuinely
+# two-armed axes elsewhere in the fleet earned the same `high` for something entirely different.
+#
+# All four legs here are one-armed, so all four sit at the cap. The depth information is NOT lost: it
+# stays on the evidence string and the citable atom (`n_patient_derived_models`, `n_models_with_alteration`,
+# `pdx_responder_fraction` are all atom values), where a reader can see the number instead of having it
+# silently re-encoded as agreement. Moving single-leg DEPTH onto the SIGNAL axis, where it belongs, is
+# deliberately left as follow-up: it would move verdict-visible signal tiers, and this change is
+# corroboration-only.
+def _one_arm(h):
+    return "single_arm"
 
 
-def _geno_corr(h):
-    n = h.get("n_models_with_alteration") or 0
-    return "high" if n >= 5 else "moderate" if n >= 1 else "low"
-
-
-def _org_corr(h):
-    # a below-floor indication-matched lineage cohort is a low-confidence reproduction read
-    return "low" if h.get("organoid_lineage_small_cohort") else "moderate"
-
-
-def _pdx_corr(h):
-    frac = h.get("pdx_responder_fraction")
-    return "moderate" if frac is not None else "low"
+_model_corr = _geno_corr = _org_corr = _pdx_corr = _one_arm
 
 
 TRANSLATIONAL_READINESS_CLAIM_SPEC = [

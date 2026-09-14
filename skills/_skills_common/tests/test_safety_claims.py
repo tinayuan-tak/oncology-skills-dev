@@ -183,7 +183,12 @@ def test_pharmacovigilance_axis_is_verdict_inert_context():
     )
     p = vec["PHARMACOVIGILANCE"]
     assert p["signal"] == "strong"
-    assert p["corroboration"] == "moderate"  # capped — the on/off-target confound
+    # `single_arm`: the reading rests on ONE source (the drug-warning label lane). The old `moderate` was a
+    # CAP applied for the on/off-target confound — but a cap expresses distrust of an arm, and the arm count
+    # is a separate fact. The confound is already carried, precisely and unambiguously, in the `conflict`
+    # slot asserted two lines down; encoding it a second time as a corroboration tier made the axis read as
+    # "partly agreed with something", which no second source ever did.
+    assert p["corroboration"] == "single_arm"
     assert "hepatotoxicity" in p["evidence"]  # the rich toxicity CLASSES the capsule carried
     assert "CONFOUNDED" in (p["conflict"] or "")  # confound flagged, not the verdict
     assert "CONTEXT" in vec["_disclaimer"]  # doubly-inert note present

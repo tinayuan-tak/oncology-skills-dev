@@ -75,8 +75,11 @@ def _headline(cards, rule):
 @pytest.mark.parametrize(
     "cards,rule,corr,conf,has_conflict",
     [
-        # CIBERSORT alone (no Saltz coverage, no coloc product) — honest middle tier.
-        pytest.param([_imm("immune_hot", 0.154)], _HOT_RULE, "moderate", "moderate", False, id="single_platform"),
+        # CIBERSORT alone (no Saltz coverage, no coloc product) — ONE arm, hence `single_arm`. This pinned
+        # `moderate` until 2026-09-14, while `moderate` still doubled as "no second arm was found" and "two
+        # arms partly agree". Confidence `weak` is the deliberate consequence; it is SHARED with the
+        # CONTRADICTED row below, and test_ruler_is_not_vacuous pins what keeps the two distinguishable.
+        pytest.param([_imm("immune_hot", 0.154)], _HOT_RULE, "single_arm", "weak", False, id="single_platform"),
         # absolute H&E-DL TIL AGREES → two orthogonal platforms → the top tier.
         pytest.param(
             [_imm("immune_hot", 0.154), _saltz("til_high", 8.0)], _HOT_RULE, "high", "strong", False, id="til_agrees"
@@ -123,15 +126,38 @@ def test_corroboration_ruler_tiers(cards, rule, corr, conf, has_conflict):
 
 def test_ruler_is_not_vacuous():
     """The anti-vacuous-pass guard: the ladder must SPAN its range, not collapse to a constant. This is
-    the assertion the pre-2026-09-12 code fails — it emitted only {"moderate"} / {"unmeasured"}."""
-    cases = [
-        ([_imm("immune_hot", 0.154), _saltz("til_high", 8.0)], _HOT_RULE),
-        ([_imm("immune_hot", 0.154)], _HOT_RULE),
-        ([_imm("immune_hot", 0.1312), _saltz("til_low", 1.5)], _HOT_RULE),
-        ([_imm("data_unavailable", None)], []),
-    ]
-    levels = {_headline(c, r)["headline_block"]["confidence"]["level"] for c, r in cases}
-    assert levels == {"strong", "moderate", "weak", "insufficient"}
+    the assertion the pre-2026-09-12 code fails — it emitted only {"moderate"} / {"unmeasured"}.
+
+    THE SPAN MOVED ONTO CORROBORATION (2026-09-14), and the move is a strengthening, not a relaxation.
+    `_CORR_TO_CONF` is now a 5→4 projection that collides `single_arm` with `low`, so these four cases
+    yield only THREE confidence levels — and no fixture can make this axis emit `moderate` at all, because
+    two orthogonal arms can only agree, disagree, or be alone (see the reachability note in
+    immune_context_claims.py). So the old 4-level equality is now UNSATISFIABLE. Relaxing it to a count
+    would have been the wrong repair: `len(levels) >= 3` passes even if `single_arm` and `low` merge into
+    one tier, which is the collapse this guard exists to catch. Asserting four DISTINCT corroboration
+    tiers has strictly more teeth — it fails on a collapse anywhere in the ladder, including one the
+    projection would hide."""
+    cases = {
+        "corroborated": ([_imm("immune_hot", 0.154), _saltz("til_high", 8.0)], _HOT_RULE),
+        "single_platform": ([_imm("immune_hot", 0.154)], _HOT_RULE),
+        "contradicted": ([_imm("immune_hot", 0.1312), _saltz("til_low", 1.5)], _HOT_RULE),
+        "unmeasured": ([_imm("data_unavailable", None)], []),
+    }
+    hls = {k: _headline(cards, rule) for k, (cards, rule) in cases.items()}
+    tiers = {k: h["claim_vector"]["IMMUNE"]["corroboration"] for k, h in hls.items()}
+    assert len(set(tiers.values())) == len(cases), f"corroboration ladder collapsed: {tiers}"
+
+    # Confidence still reaches BOTH ENDS — a constant ruler fails here even at only three levels.
+    conf = {k: h["headline_block"]["confidence"] for k, h in hls.items()}
+    assert {"strong", "weak", "insufficient"} <= {c["level"] for c in conf.values()}
+
+    # The two cases the projection collides onto `weak` must stay separable, or the collision is a real
+    # information loss: one honest platform must not read identically to two platforms that CONTRADICT each
+    # other. Both surviving channels are pinned, because either one alone could rot unnoticed.
+    assert conf["single_platform"]["level"] == conf["contradicted"]["level"] == "weak"
+    assert conf["single_platform"]["basis"] != conf["contradicted"]["basis"], f"basis collapsed too: {conf}"
+    assert hls["single_platform"]["claim_vector"]["IMMUNE"]["conflict"] is None
+    assert hls["contradicted"]["claim_vector"]["IMMUNE"]["conflict"], "the conflict atom is the other channel"
 
 
 def test_conflict_and_caveat_and_tension_share_one_prose_source():

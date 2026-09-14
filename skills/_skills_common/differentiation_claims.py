@@ -103,13 +103,13 @@ def _survival_corr(h, c):
     AND method: a same-direction PRECOG association bumps corroboration, an OPPOSITE-direction one caps it.
     Was the single-source _corr proxy (dead-constant moderate). Verdict-INERT."""
     surv = (c.get(_C_SURV) or {}).get("survival_association_class")
-    base = "moderate" if _SURVIVAL_SIGNAL.get(surv, "unmeasured") != "unmeasured" else "unmeasured"
+    base = "single_arm" if _SURVIVAL_SIGNAL.get(surv, "unmeasured") != "unmeasured" else "unmeasured"
     if base == "unmeasured":
         return "unmeasured"
     precog = h.get("precog_prognostic_class")
     if precog in (_SURV_WORSE, _SURV_BETTER) and surv in (_SURV_WORSE, _SURV_BETTER):
         return bump_corroboration(base, True) if precog == surv else cap_corroboration(base, "low")
-    return base  # PRECOG no-association / data_unavailable → single-source base
+    return base  # PRECOG no-association / data_unavailable → ONE arm, nothing to agree with
 
 
 DIFFERENTIATION_CLAIM_SPEC = [

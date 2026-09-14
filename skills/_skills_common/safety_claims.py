@@ -176,17 +176,16 @@ def _constraint_corr(h, c):
     # corroboration, a CONTRADICTING s_het (gnomAD-constrained yet LoF-tolerant) caps it. Previously this was
     # pinned 'high' on pLI+LOEUF presence ALONE — a dead-constant column; s_het makes it carry real
     # cross-source agreement. Verdict-INERT (the safety verdict is the resolver's, not this projection's).
-    base = (
-        "moderate"
-        if isinstance(h.get("pli_score"), (int, float)) and isinstance(h.get("loeuf_score"), (int, float))
-        else "low"
-    )
+    # ONE arm either way: whether pLI/LOEUF carry numbers is WITHIN-arm detail, not a second opinion,
+    # and certainly not a conflict (the old `low` fell into the ledger's disagreement set). An agreeing
+    # s_het below then makes this genuinely two-armed and lifts it to `high`.
+    base = "single_arm"
     shet = h.get("shet_class")
     if shet in _SHET_CONSTRAINED:  # independent agreeing arm → moderate→high (low→moderate)
         return bump_corroboration(base, True)
     if shet in _SHET_TOLERANT and sig_ge(_CONSTRAINT_SIGNAL.get(h.get("constraint_class")), "moderate"):
         return cap_corroboration(base, "low")  # gnomAD-constrained but s_het-tolerant → conflict caps
-    return base  # s_het indeterminate / absent → single-source base
+    return base  # s_het indeterminate / absent → ONE arm, nothing to agree with
 
 
 def _gof_germline_caveat(h, sig):
@@ -216,8 +215,11 @@ def _burden_signal(h, c):
 def _burden_corr(h, c):
     if _BURDEN_SIGNAL.get(h.get("burden_safety_class"), "unmeasured") == "unmeasured":
         return "unmeasured"
-    p = h.get("burden_min_pvalue")
-    return "high" if isinstance(p, (int, float)) and p < 1e-6 else "moderate" if isinstance(p, (int, float)) else "low"
+    # ONE arm (the burden test itself). The p-value grades how STRONG that arm is, which is a signal
+    # question, not a corroboration one — there is no second arm here to agree or disagree, so the old
+    # p<1e-6 -> `high` reported maximal cross-source agreement from a single test. See the follow-up
+    # noted in claim_vector_core: single-arm strength belongs on the SIGNAL axis.
+    return "single_arm"
 
 
 def _dosage_signal(h, c):
@@ -229,7 +231,7 @@ def _dosage_signal(h, c):
 
 def _dosage_corr(h, c):
     return (
-        "moderate"
+        "single_arm"
         if _DOSAGE_SIGNAL.get(h.get("dosage_sensitivity_class"), "unmeasured") != "unmeasured"
         else "unmeasured"
     )
@@ -250,7 +252,7 @@ def _clinvar_signal(h, c):
 
 def _clinvar_corr(h, c):
     return (
-        "moderate"
+        "single_arm"
         if _CLINVAR_SIGNAL.get(h.get("clinvar_pathogenic_class"), "unmeasured") != "unmeasured"
         else "unmeasured"
     )
@@ -288,7 +290,7 @@ def _mouseko_signal(h, c):
 
 def _mouseko_corr(h, c):
     return (
-        "moderate"
+        "single_arm"
         if _MOUSEKO_SIGNAL.get(h.get("mouse_ko_phenotype_class"), "unmeasured") != "unmeasured"
         else "unmeasured"
     )
@@ -312,7 +314,9 @@ def _paness_signal(h, c):
 
 def _paness_corr(h, c):
     return (
-        "high" if _PANESS_SIGNAL.get(h.get("dependency_class"), "unmeasured") not in ("unmeasured",) else "unmeasured"
+        "single_arm"
+        if _PANESS_SIGNAL.get(h.get("dependency_class"), "unmeasured") not in ("unmeasured",)
+        else "unmeasured"
     )
 
 
@@ -359,7 +363,7 @@ def _normaltissue_corr(h, c):
         return bump_corroboration("moderate", True) if hpa_liability else cap_corroboration("moderate", "low")
     if gtex in _GTEX_CLEAN:
         return bump_corroboration("moderate", True) if not hpa_liability else cap_corroboration("moderate", "low")
-    return "moderate"  # GTEx unavailable / indeterminate → single-source base
+    return "single_arm"  # GTEx unavailable / indeterminate → ONE arm, nothing to agree with
 
 
 _PHARMACOVIGILANCE_CAVEAT = (
@@ -399,7 +403,7 @@ def _pharmacovigilance_corr(h, c):
         h.get("onsides_has_boxed_warning")
     )
     # CAP at `moderate` — the on/off-target confound means a black-box hit is never a high-corroboration read.
-    return "moderate" if measured else "unmeasured"
+    return "single_arm" if measured else "unmeasured"
 
 
 # ── citable evidence atoms (read from the source card summaries; cite each card) ────────────────────

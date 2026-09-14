@@ -14,7 +14,21 @@ from __future__ import annotations
 # Union of the per-skill confidence dots-maps. `.get(tier, 0)` is safe for every caller: a skill
 # that never emits `standard` / `unknown` is unaffected by their presence, and the dependency
 # table (which does use `standard`) gets its superset. Kept as one map so the tiers stay consistent.
-CONF_DOTS = {"high": 3, "moderate": 2, "low": 1, "standard": 2, "unknown": 0, "unmeasured": 0}
+#
+# `.get(tier, 0)` IS NOT SAFE FOR A MISSING CORROBORATION RUNG, though, and that is why `single_arm`
+# is listed explicitly. `cv_axis_row` feeds this map the claim vector's `corroboration` verbatim, so
+# every rung of CORROBORATION_ORD reaches it; an unlisted rung falls to 0, which is what `unknown` and
+# `unmeasured` mean here. A measured single-armed claim would render as an ABSTENTION while its own
+# sibling label still read `corroboration: single_arm` — measured in text, unmeasured in dots, the
+# `gap != absent` invariant broken inside one cell.
+#
+# WHY 1 AND NOT 2: CORROBORATION_ORD places `single_arm` at 2, BETWEEN `low` 1 and `moderate` 3, so on
+# a 0-3 integer dot scale its honest coordinate is not representable. 1 is the safety-correct rounding
+# — it under-claims corroboration, where 2 would render one unopposed arm with the same dots as two
+# arms that actually agreed. The cost, accepted knowingly: `single_arm` and `low` render identically
+# and are told apart only by the label, the same 5-rung-into-4-slots collision as
+# `headline_core._CORR_TO_CONF` -> `weak`. Widening the scale would move every shipped figure.
+CONF_DOTS = {"high": 3, "moderate": 2, "single_arm": 1, "low": 1, "standard": 2, "unknown": 0, "unmeasured": 0}
 
 
 def cbyid(cards):

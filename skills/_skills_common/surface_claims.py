@@ -122,7 +122,7 @@ def _fit_corr(h, c):
     fit_tier = _FIT_SIGNAL.get((c.get(_C_FIT) or {}).get("fit_class"), "unmeasured")
     if fit_tier == "unmeasured":
         return "unmeasured"
-    base = "moderate"
+    base = "single_arm"  # the composed fit call alone — one arm
     if sig_ge(fit_tier, "moderate"):  # only a VIABLE fit call is qualified by antigen homogeneity
         escape = h.get("tce_antigen_escape_class")
         if escape in _ESCAPE_HOMOGENEOUS:
@@ -162,7 +162,7 @@ def _pmhc_corr(h, c):
     # actually presented on MHC → bumps to high; else single-source moderate.
     if _PMHC_SIGNAL.get(h.get("pmhc_epitope_evidence_class"), "unmeasured") in ("unmeasured", "absent"):
         return "unmeasured"
-    return "high" if h.get("pmhc_presentation_class") in _PMHC_PRESENTED else "moderate"
+    return "high" if h.get("pmhc_presentation_class") in _PMHC_PRESENTED else "single_arm"
 
 
 SURFACE_CLAIM_SPEC = [

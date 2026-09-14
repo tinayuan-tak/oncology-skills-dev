@@ -20,4 +20,11 @@ def esc(s) -> str:
 # signal tier -> ordinal rank (None = unmeasured); rank -> fill color; corroboration -> relation-dot count.
 SIG_TIER = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "negative": 0, "unmeasured": None}
 TIER_FILL = {3: "#184f95", 2: "#2a78d6", 1: "#f0a030", 0: "#d03b3b", None: "#c9ccd1"}
-REL_DOTS = {"high": 3, "moderate": 2, "low": 1, "insufficient": 0, "unmeasured": 0}
+# REL_DOTS is read `.get(corroboration, 0)` (headline_hero.py:187, presence_claims_figure.py:61), so it
+# must carry EVERY rung of CORROBORATION_ORD: an unlisted rung falls to 0, which here means `unmeasured`
+# / `insufficient`, and a measured claim would be drawn as an abstention. `single_arm` sits at ORD 2,
+# between `low` 1 and `moderate` 3, so a 0-3 integer dot scale cannot place it honestly; 1 under-claims
+# (safety-correct) where 2 would draw one unopposed arm as two agreeing arms. See the fuller note on the
+# same choice at `question_table_core.CONF_DOTS` — these two maps must agree or one figure and one table
+# disagree about the same claim.
+REL_DOTS = {"high": 3, "moderate": 2, "single_arm": 1, "low": 1, "insufficient": 0, "unmeasured": 0}

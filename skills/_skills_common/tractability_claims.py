@@ -116,7 +116,7 @@ def _activity_corr(h, c):
     an off-target-likely discordance caps (the measured cell-kill may not reflect ON-TARGET druggability).
     Was the single-source `_corr_present` proxy (dead-constant `moderate`). Verdict-INERT."""
     base = (
-        "moderate"
+        "single_arm"  # PRISM alone — one platform
         if _ACTIVITY_SIGNAL.get((c.get(_C_ACT) or {}).get("prism_activity_class"), "unmeasured") != "unmeasured"
         else "unmeasured"
     )

@@ -122,7 +122,13 @@ def test_narrative_by_axis_emits_the_descriptive_axis():
     assert n["movers"] == [] and n["dissenters"] == [] and n["flip_conditions"] == []
     # ...but the interpreted read IS present
     assert n["honest_phrase"], "the axis' own honest phrase did not survive"
-    assert n["confidence"]["level"] == "moderate"  # the {level, basis, coverage} object, carried whole
+    # `weak`, not `moderate`: BOTH target-intrinsic axes are one-armed by construction (`_modality_corr` /
+    # `_tdl_corr` return `single_arm` whenever measured), and `single_arm` projects to confidence `weak`.
+    # This pinned `moderate` while `moderate` still doubled as the one-armed default — the exact conflation
+    # the rung was added to end. `basis` is pinned alongside the level because it names WHAT capped it: a
+    # coverage or conflict cap arriving at `weak` by a different route would otherwise pass here unnoticed.
+    assert n["confidence"]["level"] == "weak"  # the {level, basis, coverage} object, carried whole
+    assert n["confidence"]["basis"] == "weakest-link corroboration = single_arm"
     assert n["claim_chips"], "claim chips dropped — the axis' own read did not survive"
     assert n["question_table"], "per-question table dropped"
     assert "domain-modality-relevance" in n["cards_used"]
@@ -228,7 +234,11 @@ def test_package_carries_the_skill_report_spine(tmp_path, monkeypatch):
     assert r["call"] is None  # gateless
     assert r["role"] == "descriptive"
     assert r["polarity"] == "not_scored"  # the field that says "not scored", vs a missing axis
-    assert r["confidence"]["level"] == "moderate"
+    # `weak` + its basis, for the reason recorded in test_narrative_by_axis_emits_the_descriptive_axis. The
+    # basis matters more HERE than there: this is the JSON-round-tripped copy, so pinning the whole
+    # {level, basis, coverage} shape is what proves the object survived serialization rather than a level.
+    assert r["confidence"]["level"] == "weak"
+    assert r["confidence"]["basis"] == "weakest-link corroboration = single_arm"
     assert r["claim_chips"], "the report's claim chips must survive into the package"
     assert r["question_table"], "the report's per-question table must survive into the package"
     # sub_verdicts alone is all-null for this short — which is exactly why the spine is needed
