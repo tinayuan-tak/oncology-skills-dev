@@ -507,8 +507,14 @@ def test_the_atlas_numeric_optout_is_exactly_the_declared_set():
 # EQUALITY, not containment, because the two directions are different failures and both are re-freeze terms:
 #   frozen column with no producing frame -> a silent DELETION at the next re-freeze. atlas_health compares
 #     the artifact against itself, so it reads a self-consistent narrowing as green; nothing else notices.
-#   newly minted column with no frozen twin -> a silent ADDITION that changes the feature space, moving every
-#     shipped cohort_percentile the moment someone rebuilds.
+#   column in the specs with no frozen twin -> the set does NOT carry its own cause, and TWO reach it:
+#     (a) a primary frame was ADDED since the freeze -> a silent ADDITION that changes the feature space,
+#         moving every shipped cohort_percentile the moment someone rebuilds; or
+#     (b) the specs never moved and the ARTIFACT narrowed -> `build_atlas.py:649` keeps a column only when
+#         >= 2 targets measured it, so a column whose support fell below 2 was DROPPED at build time, its
+#         `::mask` companion with it (:656). PRECEDENT, not hypothesis: that mechanism shipped an orphan
+#         mask in the 2026-09-12 freeze. Neither case leaves a trace in `feature_order`, which is why the
+#         `added` message reads `meta.n_features_dropped_sparse` rather than asserting one of the two.
 # A RENAMED value_field is caught by the same map: the column key is `{mt}::num::{value_field}`, so renaming
 # the field renames a frozen column, which is a delete plus an add wearing one commit.
 #
@@ -533,6 +539,19 @@ def _frozen_atlas_numeric_columns() -> dict:
     return frozen
 
 
+@lru_cache(maxsize=1)
+def _frozen_atlas_build_drop_count():
+    """`meta.n_features_dropped_sparse` — how many CANDIDATE columns the builder removed when it froze this
+    artifact (`build_atlas.py:657` = `len(cand) - len(feature_order)`), or None on an artifact predating it.
+
+    Read ONLY from inside a failure message, which is why it is a second parse and not folded into the map
+    above: `assert cond, msg` evaluates `msg` lazily, so the green path never pays for this and a missing
+    field can never turn a pass into an error. Nothing else in the repo asserts this value — the per-`meta`
+    key sha in atlas_freeze.json is re-written by `atlas_stability.py --write` at an intended re-freeze, so
+    it moves WITH a change instead of catching it."""
+    return json.loads(_SHIPPED_ATLAS.read_text()).get("meta", {}).get("n_features_dropped_sparse")
+
+
 def test_every_frozen_atlas_numeric_column_still_has_its_producing_frame():
     assert _SHIPPED_ATLAS.is_file(), (
         f"the shipped atlas is missing at {_SHIPPED_ATLAS} — it is tracked in git, so this is a broken "
@@ -551,9 +570,17 @@ def test_every_frozen_atlas_numeric_column_still_has_its_producing_frame():
         "red anywhere. If the removal is intended it is a re-freeze term: bundle it, do not slip it in."
     )
     assert not added, (
-        f"axes minting an atlas ::num:: column that the shipped atlas does not carry: {added}. Adding a "
-        "primary frame ADDS a column at the next re-freeze, which moves the whole feature space. Also a "
-        "re-freeze term — route it to the bundle rather than landing it here."
+        f"axes minting an atlas ::num:: column that the shipped atlas does not carry: {added}. TWO causes "
+        "reach this set and it cannot tell them apart. (a) A primary frame was ADDED since the freeze, so "
+        "the next re-freeze ADDS a column and moves the whole feature space. (b) The specs never moved and "
+        "the ARTIFACT narrowed: build_atlas.py:649 keeps a column only when >= 2 targets measured it, so a "
+        "column whose support fell below 2 was DROPPED at build time, its ::mask companion with it (:656). "
+        f"One-way test from the artifact: n_features_dropped_sparse={_frozen_atlas_build_drop_count()!r}, "
+        "and 0 means every name above is case (a). Nonzero only NARROWS — that count spans the ::claim:: "
+        "namespace too and folds in the mask-dedup, so it cannot attribute a drop to one measurement_type; "
+        "for that, count non-null values per key over the packages the way build_atlas.py:649 does. Both "
+        "cases are re-freeze terms: route (a) to the bundle, and for (b) DECLARE the loss (drop the frame, "
+        "or atlas_numeric: False) rather than letting the column go silently."
     )
     assert not renamed, (
         f"primary value_field RENAMED under a frozen column ({{mt: (frozen, live)}}): {renamed}. The column "
