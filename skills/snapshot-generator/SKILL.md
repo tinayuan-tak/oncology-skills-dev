@@ -34,26 +34,29 @@ Target-profile outputs are stored in this directory structure:
 ```
 /Users/lhl2999/Library/CloudStorage/OneDrive-Takeda/Documents/ONC_skills/target-profile/
 └── {GENE}-{INDICATION}/
-    └── {date}__{version}__{hash}/
-        └── figures/
-            ├── target_profile_at_a_glance.svg
-            ├── target_profile_at_a_glance.png
-            ├── cards/
-            │   └── {card-name}/
-            │       ├── figure_*.svg
-            │       └── plot_data.parquet
-            └── subskills/
-                └── {topic}/
-                    ├── hero.svg
-                    └── tables/
-                        └── *.csv
+    └── {date}__{version}__{hash}/          <-- Run directory (use this as --run-dir)
+        ├── figures/
+        │   ├── target_profile_at_a_glance.svg
+        │   ├── cards/
+        │   │   └── {card-name}/
+        │   │       ├── figure_*.svg
+        │   │       └── plot_data.parquet
+        │   └── subskills/
+        │       └── {topic}/
+        │           ├── hero.svg
+        │           └── tables/
+        │               └── *.csv
+        └── subskills/
+            └── {topic}/
+                └── tables/
+                    └── *.csv
 ```
 
 ### Gene and Indication
 
 The gene and indication are automatically parsed from the path. For example:
 
-- Path: `.../KRAS-COADREAD/2026-09-10__2.0.0__23ad0c5/figures`
+- Path: `.../KRAS-COADREAD/2026-09-11__2.0.0__ba95ab6`
 - Gene: `KRAS`
 - Indication: `COADREAD`
 
@@ -61,7 +64,7 @@ These values are available as placeholders `{gene}` and `{indication}` in slide 
 
 ### Available Figures
 
-Common figure paths (relative to `figures/` directory):
+Common figure paths (relative to `figures/` within run directory):
 
 **Overview:**
 - `target_profile_at_a_glance.svg`
@@ -302,7 +305,7 @@ Required Python packages:
 
 ```bash
 python skills/snapshot-generator/scripts/generate_panel_snapshot.py \
-    --figures-dir "/path/to/{GENE}-{INDICATION}/{date}__{version}__{hash}/figures" \
+    --run-dir "/path/to/{GENE}-{INDICATION}/{date}__{version}__{hash}" \
     --snapshot-config "path/to/config.yaml" \
     --template "/path/to/Oncology_Takeda_Simple_Template_EN.potx" \
     --output "output.pptx"
@@ -312,7 +315,7 @@ python skills/snapshot-generator/scripts/generate_panel_snapshot.py \
 
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `--figures-dir`, `-f` | Yes | Path to figures directory |
+| `--run-dir`, `-r` | Yes | Path to run directory (e.g., `.../KRAS-COADREAD/2026-09-11__2.0.0__ba95ab6`) |
 | `--snapshot-config`, `-c` | Yes | Path to snapshot configuration YAML |
 | `--template`, `-t` | Yes | Path to PowerPoint template (.potx or .pptx) |
 | `--output`, `-o` | No | Output path (default: `{gene}-{indication}-panel-snapshot.pptx`) |
