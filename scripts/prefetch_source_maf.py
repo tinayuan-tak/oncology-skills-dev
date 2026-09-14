@@ -159,18 +159,19 @@ S3_BUCKET = "onc-compbio"
 VARIANT_CLASSIFICATION_TO_EFFECT = maf_vocab.VARIANT_CLASSIFICATION_TO_EFFECT
 
 # Indication → filter parameters per strategy.
-# GENIE top-level CANCER_TYPE (OncoTree broad label) per framework indication code.
-# NOTE granularity mismatch: GENIE CANCER_TYPE is COARSER than TCGA projects. NSCLC maps
-# cleanly (≡ "Non-Small Cell Lung Cancer"), but GC (STAD) maps to "Esophagogastric Cancer"
-# which ALSO spans esophageal — an approximate, broader cohort than STAD alone. This is
-# documented on the derived product; a CANCER_TYPE_DETAILED refinement is a future option.
-GENIE_CANCER_TYPE = {
-    "COADREAD": "Colorectal Cancer",
-    "NSCLC": "Non-Small Cell Lung Cancer",
-    "PAAD": "Pancreatic Cancer",
-    "PDAC": "Pancreatic Cancer",  # canonical/CPTAC-spelling dual-key (see gdc_somatic_hotspot)
-    "GC": "Esophagogastric Cancer",  # BROADER than STAD (includes esophageal) — see note above
-}
+# GENIE indication selection (CANCER_TYPE coarse label + ONCOTREE_CODE leaf for AML/GBM) is the CANONICAL
+# map in methods/genie_panel_recurrence/read.py, imported here so the MAF PRODUCER and the recurrence
+# READER select the identical sample set by construction (they previously duplicated a 5-entry map).
+# The CANCER_TYPE granularity mismatch (GC and LIHC are BROADER than STAD / LIHC alone; KIRC pools the
+# RCC subtypes) is documented at that canonical map — deliberately NOT restated here, since a second
+# copy of the caveat is the same duplication this import exists to remove.
+# read.py is pandas-free at module scope (it defers pandas into its functions), so importing it here
+# keeps `--help` fast — the same constraint that keeps _depmap_lineage below lazy.
+from methods.genie_panel_recurrence.read import (  # noqa: E402
+    GENIE_CANCER_TYPE,
+    GENIE_ONCOTREE_CODE,
+    select_indication_sample_ids,
+)
 
 
 # Indication → DepMap OncotreeLineage is resolved through
@@ -262,12 +263,11 @@ def _filter_samples(cfg: SourceConfig, indication: str, dry_run: bool):
         if dry_run and not clin.exists():
             return set()
         df = pd.read_csv(clin, sep="\t", comment="#")
-        cancer_type = GENIE_CANCER_TYPE.get(indication)
-        if not cancer_type:
-            _log(f"No GENIE CANCER_TYPE mapping for {indication}; add to GENIE_CANCER_TYPE.")
+        if indication not in GENIE_CANCER_TYPE and indication not in GENIE_ONCOTREE_CODE:
+            _log(f"No GENIE mapping for {indication}; add to GENIE_CANCER_TYPE or GENIE_ONCOTREE_CODE.")
             sys.exit(1)
-        samples = set(df[df["CANCER_TYPE"] == cancer_type]["SAMPLE_ID"])
-        _log(f"GENIE {cancer_type} samples: {len(samples):,}")
+        samples = select_indication_sample_ids(df, indication)  # ONCOTREE_CODE (AML/GBM) else CANCER_TYPE
+        _log(f"GENIE {indication} samples: {len(samples):,}")
         return samples
 
     if cfg.filter_strategy == "depmap_lineage":
@@ -359,14 +359,88 @@ def prefetch_genie_bpc_lot(indication: str, dry_run: bool) -> int:
     return 0
 
 
+def build_genie_all_product(out_path: Path) -> int:
+    """Single-pass GENIE all-indication product build. Streams data_mutations_extended.txt ONCE, routes
+    every sample to its framework indication via the shared select_indication_sample_ids selector (all
+    GENIE_CANCER_TYPE solid tumours + GENIE_ONCOTREE_CODE AML/GBM), and writes the concatenated
+    per_sample_maf.parquet the recurrence reader filters by `indication`. Replaces the 4-indication product
+    (was COADREAD/NSCLC/GC/PAAD only) — CASE-029 SNV-recurrence coverage. Output schema is byte-compatible
+    with the prior product: indication, gene_symbol, effect, sample_id, protein_change, source_native_id,
+    patient_id (None for GENIE); NOT variant-class filtered (matches the shipped product)."""
+    import pandas as pd
+
+    cfg = SOURCE_CONFIGS["genie_public_v19"]
+    clin = _cache_path(cfg, "data_clinical_sample.txt")
+    _s3_download("data-catalog/sources/synapse/genie-public-v19-0/data_clinical_sample.txt", clin, False)
+    clin_df = pd.read_csv(clin, sep="\t", comment="#", dtype=str)
+
+    # sample_id -> framework indication. PDAC is a query-alias of PAAD (same "Pancreatic Cancer"
+    # CANCER_TYPE); the product stamps the canonical PAAD, so PDAC is excluded from the build set. The
+    # selectors are otherwise disjoint (one CANCER_TYPE / ONCOTREE_CODE per sample).
+    build_inds = sorted((set(GENIE_CANCER_TYPE) | set(GENIE_ONCOTREE_CODE)) - {"PDAC"})
+    sample_ind: dict[str, str] = {}
+    for ind in build_inds:
+        sids = select_indication_sample_ids(clin_df, ind)
+        for s in sids:
+            sample_ind.setdefault(s, ind)  # first-wins; sets disjoint by construction
+    _log(f"GENIE all-indication: {len(sample_ind):,} samples across {len(build_inds)} indications")
+
+    maf_local = _cache_path(cfg, cfg.maf_filename)
+    _s3_download(cfg.maf_s3_key, maf_local, False)
+    _log(f"loading GENIE MAF ({maf_local.stat().st_size / 1e6:.0f} MB)...")
+    maf = pd.read_csv(
+        maf_local,
+        sep="\t",
+        usecols=[cfg.gene_col, cfg.protein_col, cfg.effect_col, cfg.sample_col],
+        low_memory=False,
+    )
+    maf = maf[maf[cfg.sample_col].isin(sample_ind)].copy()
+    out = maf.rename(
+        columns={
+            cfg.gene_col: "gene_symbol",
+            cfg.protein_col: "protein_change",
+            cfg.effect_col: "effect",
+            cfg.sample_col: "sample_id",
+        }
+    )
+    out["indication"] = out["sample_id"].map(sample_ind)
+    out["source_native_id"] = out["sample_id"]
+    out["patient_id"] = None
+    out = out[["indication", "gene_symbol", "effect", "sample_id", "protein_change", "source_native_id", "patient_id"]]
+    out = out.sort_values(["indication", "gene_symbol", "sample_id"]).reset_index(drop=True)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out.to_parquet(out_path, index=False)
+    _log(
+        f"wrote {out_path}: {len(out):,} rows, {out['sample_id'].nunique():,} samples, "
+        f"{out['indication'].nunique()} indications ({out_path.stat().st_size / 1e6:.1f} MB)"
+    )
+    for ind, n in out.groupby("indication")["sample_id"].nunique().items():
+        _log(f"    {ind}: {n:,} mutated samples")
+    return 0
+
+
 @click.command()
 @click.option("--source", required=True, type=click.Choice(list(SOURCE_CONFIGS) + ["genie_bpc_lot"]))
-@click.option("--indication", required=True)
-def main(source: str, indication: str) -> int:
+@click.option("--indication", default=None, help="Required unless --product-out (GENIE all-indication build).")
+@click.option(
+    "--product-out",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="GENIE only: build the ALL-INDICATION per_sample_maf product (single MAF pass) to this path. "
+    "Ignores --indication.",
+)
+def main(source: str, indication: str | None, product_out: Path | None) -> int:
     """Prefetch + filter + normalize a mutation source into a per-indication MAF parquet."""
     import pandas as pd
 
     dry_run = bool(os.environ.get("DRY_RUN"))
+
+    if product_out is not None:
+        if source != "genie_public_v19":
+            raise click.UsageError("--product-out is only supported for --source genie_public_v19")
+        return build_genie_all_product(product_out)
+    if not indication:
+        raise click.UsageError("--indication is required (or pass --product-out for the GENIE all build)")
 
     # LOT derivation is a distinct, non-MAF path
     if source == "genie_bpc_lot":

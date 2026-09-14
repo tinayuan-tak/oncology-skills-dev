@@ -20,14 +20,56 @@ GENIE_MAF_LOCAL = Path.home() / ".cache" / "framework-genie-public-v19"  # {ind}
 # MAF would under-count to only-mutated samples (inflating frequency). The honest cohort is every
 # GENIE sample of the indication's CANCER_TYPE, mutated or not.
 GENIE_CLINICAL_KEY = "data-catalog/sources/synapse/genie-public-v19-0/data_clinical_sample.txt"
-# Framework indication → GENIE CANCER_TYPE (same map the MAF builder uses; coarser than TCGA).
+# Framework indication → GENIE OncoTree CANCER_TYPE (the coarse label). Canonical map, imported by the
+# MAF builder (scripts/prefetch_source_maf.py) so producer + reader agree by construction. GENIE
+# CANCER_TYPE is coarser than TCGA projects: GC→"Esophagogastric Cancer" and LIHC→"Hepatobiliary Cancer"
+# are BROADER than STAD / LIHC alone (documented on the product); KIRC→"Renal Cell Carcinoma" pools the
+# RCC subtypes. High-N complement to MC3 (2026-09-13, CASE-029: was 4 indications, now 18).
 GENIE_CANCER_TYPE = {
     "COADREAD": "Colorectal Cancer",
     "NSCLC": "Non-Small Cell Lung Cancer",
     "PAAD": "Pancreatic Cancer",
     "PDAC": "Pancreatic Cancer",
     "GC": "Esophagogastric Cancer",
+    "BRCA": "Breast Cancer",
+    "BLCA": "Bladder Cancer",
+    "KIRC": "Renal Cell Carcinoma",
+    "SKCM": "Melanoma",
+    "OV": "Ovarian Cancer",
+    "PRAD": "Prostate Cancer",
+    "UCEC": "Endometrial Cancer",
+    "LIHC": "Hepatobiliary Cancer",
+    "THCA": "Thyroid Cancer",
+    "SARC": "Soft Tissue Sarcoma",
+    "MESO": "Mesothelioma",
+    "HNSC": "Head and Neck Cancer",
 }
+# Indications needing FINER-than-CANCER_TYPE resolution use ONCOTREE_CODE: "Leukemia" pools AML+CLL+CML+ALL
+# and "Glioma" pools GBM+LGG, so AML/GBM select by the leaf OncoTree code instead (AML n=5927, GBM n=3840 in
+# GENIE v19 — where TCGA-LAML/GBM are thinnest). Checked BEFORE CANCER_TYPE in select_indication_sample_ids.
+GENIE_ONCOTREE_CODE = {
+    "AML": "AML",
+    "GBM": "GBM",
+}
+
+
+def select_indication_sample_ids(clinical_df, indication: str) -> set:
+    """The GENIE SAMPLE_IDs for a framework indication from a loaded data_clinical_sample frame. ONCOTREE_CODE
+    (leaf) takes precedence over CANCER_TYPE (coarse) so AML/GBM resolve to the leaf, not the pooled parent.
+    Single source of truth shared by the reader's denominator cohort and the MAF builder."""
+    oc = GENIE_ONCOTREE_CODE.get(indication)
+    if oc is not None and "ONCOTREE_CODE" in clinical_df.columns:
+        col = "ONCOTREE_CODE"
+        val = oc
+    else:
+        ct = GENIE_CANCER_TYPE.get(indication)
+        if ct is None or "CANCER_TYPE" not in clinical_df.columns:
+            return set()
+        col = "CANCER_TYPE"
+        val = ct
+    return set(clinical_df.loc[clinical_df[col] == val, "SAMPLE_ID"].dropna())
+
+
 # Cutoffs mirror the MC3 driver-recurrence + tumor-presence allgene percentile classes.
 DEFAULT_CUTOFFS = {"top_1pct": 99.0, "top_decile": 90.0, "bottom_decile": 10.0}
 # A gene must be covered on a MINIMUM number of samples for its frequency to be trustworthy;
@@ -96,8 +138,7 @@ def _indication_cohort(indication: str) -> tuple:
     import pandas as pd
 
     ensure_aws_profile()
-    cancer_type = GENIE_CANCER_TYPE.get(indication)
-    if cancer_type is None:
+    if indication not in GENIE_CANCER_TYPE and indication not in GENIE_ONCOTREE_CODE:
         return tuple()
     import boto3
 
@@ -107,10 +148,9 @@ def _indication_cohort(indication: str) -> tuple:
     body = s3.get_object(Bucket="onc-compbio", Key=GENIE_CLINICAL_KEY)["Body"].read()
     # cBioPortal clinical files have 4 '#'-prefixed header lines then the real header row.
     df = pd.read_csv(io.BytesIO(body), sep="\t", comment="#", dtype=str)
-    if "CANCER_TYPE" not in df.columns or "SAMPLE_ID" not in df.columns:
+    if "SAMPLE_ID" not in df.columns:
         return tuple()
-    sel = df[df["CANCER_TYPE"] == cancer_type]["SAMPLE_ID"].dropna().unique()
-    return tuple(sel)
+    return tuple(sorted(select_indication_sample_ids(df, indication)))
 
 
 def _percentile(value, null_vec, cutoffs=None):
