@@ -15,7 +15,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+# Portable repo root: was hardcoded to the author's /home/sagemaker-user checkout, so every
+# path guard below read as "data missing" on a CI runner or in a worktree.
+REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 # load the WORKTREE copy explicitly (test runs against the patched classifier)
 WT = Path(__file__).resolve().parents[3]

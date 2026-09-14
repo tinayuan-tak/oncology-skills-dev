@@ -12,6 +12,7 @@ from __future__ import annotations
 import base64
 import importlib
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path
@@ -23,7 +24,13 @@ if str(REPO) not in sys.path:
     sys.path.insert(0, str(REPO))
 
 cli = importlib.import_module("methods.depmap_protein_abundance.cli")
-CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+# Portable sibling root: was hardcoded to the author's /home/sagemaker-user checkout, so the
+# guard below reported "not available" on every CI runner -- even though the workflow checks
+# this sibling out and exports its root. `or` rather than a .get() default, so an EMPTY value
+# falls back too instead of yielding Path("") == the CWD, which reads as a plausible wrong root.
+CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT") or REPO.parent / "rnd-computational-biology-oncology-target-contracts"
+)
 
 
 def _decode(v):

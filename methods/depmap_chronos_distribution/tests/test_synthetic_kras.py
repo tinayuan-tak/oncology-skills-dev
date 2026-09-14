@@ -14,13 +14,23 @@ test (test_live_depmap_kras.py — gated on AWS creds) validates against real da
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import pandas as pd
 import yaml
 
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
-CONTRACTS_ROOT = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+# Portable repo root: was hardcoded to the author's /home/sagemaker-user checkout, so every
+# path guard below read as "data missing" on a CI runner or in a worktree.
+METHODS_REPO = Path(__file__).resolve().parents[3]
+# Portable sibling root: was hardcoded to the author's /home/sagemaker-user checkout, so the
+# guard below reported "not available" on every CI runner -- even though the workflow checks
+# this sibling out and exports its root. `or` rather than a .get() default, so an EMPTY value
+# falls back too instead of yielding Path("") == the CWD, which reads as a plausible wrong root.
+CONTRACTS_ROOT = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT")
+    or METHODS_REPO.parent / "rnd-computational-biology-oncology-target-contracts"
+)
 
 
 def _build_synthetic_depmap_dir(target_dir: Path, n_cell_lines: int = 100) -> None:

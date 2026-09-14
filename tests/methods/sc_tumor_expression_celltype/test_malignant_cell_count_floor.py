@@ -18,7 +18,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+# Portable repo root: was hardcoded to the author's /home/sagemaker-user checkout, so every
+# path guard below read as "data missing" on a CI runner or in a worktree.
+REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO))
 from methods.sc_tumor_expression_celltype import stats as S  # noqa: E402
 

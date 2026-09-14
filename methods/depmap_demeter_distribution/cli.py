@@ -57,7 +57,6 @@ RNAI_S3_PREFIX = s3_uri_for(RNAI_SOURCE_MANIFEST_ID).rstrip("/")
 CRISPR_S3_PREFIX = s3_uri_for(CRISPR_SOURCE_MANIFEST_ID).rstrip("/")
 _RNAI_KEY_PREFIX = bucket_prefix_for(RNAI_SOURCE_MANIFEST_ID)[1].rstrip("/")
 RNAI_LOCAL_FALLBACK_DIRS = [
-    Path("/home/sagemaker-user/depmap-26q1-rnai"),
     Path("/data/depmap/26q1-rnai"),
     Path.home() / "depmap-26q1-rnai",
 ]

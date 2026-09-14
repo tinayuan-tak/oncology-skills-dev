@@ -43,7 +43,6 @@ DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
 DEPMAP_S3_PREFIX = s3_uri_for(DEPMAP_SOURCE_MANIFEST_ID).rstrip("/")
 _DEPMAP_KEY_PREFIX = bucket_prefix_for(DEPMAP_SOURCE_MANIFEST_ID)[1].rstrip("/")
 DEPMAP_LOCAL_FALLBACK_DIRS = [
-    Path("/home/sagemaker-user/depmap-26q1"),
     Path("/data/depmap/26q1"),
     Path.home() / "depmap-26q1",
 ]

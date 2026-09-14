@@ -11,7 +11,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from methods.depmap_chronos_distribution.cli import (  # noqa: E402
     PAN_ESSENTIAL_MIN_PANEL_N,
     _classify_dependency,

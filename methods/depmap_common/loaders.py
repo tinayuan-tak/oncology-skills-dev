@@ -32,7 +32,6 @@ DEPMAP_S3_PREFIX_RNAI = bucket_prefix_for(DEPMAP_RNAI_MANIFEST_ID)[1].rstrip("/"
 
 # Local-cache fallback paths (checked in order)
 DEPMAP_LOCAL_FALLBACK_DIRS = [
-    Path("/home/sagemaker-user/depmap-26q1"),
     Path("/data/depmap/26q1"),
     Path.home() / "depmap-26q1",
 ]

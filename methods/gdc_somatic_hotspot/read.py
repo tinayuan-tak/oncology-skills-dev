@@ -50,7 +50,7 @@ MAF_SOURCES = {
 
 # Default cache location for aggregator outputs. Iter-2 may register these as
 # proper derived manifests in data-catalog.
-DEFAULT_CACHE_BASE = Path("/home/sagemaker-user/data-products-cache/gdc_hotspots")
+DEFAULT_CACHE_BASE = Path.home() / "data-products-cache" / "gdc_hotspots"
 
 # Indication → list of TCGA projects (same as cli.py — duplicated here to keep read.py
 # importable without dragging in cli.py's click dependency).

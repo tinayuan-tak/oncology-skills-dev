@@ -7,6 +7,7 @@ strong cutoff is still UP, never down).
 """
 
 import importlib.util
+import os
 from pathlib import Path
 
 READ = Path(__file__).resolve().parents[3] / "methods" / "dge_deseq2" / "read.py"
@@ -69,7 +70,10 @@ def test_selectivity_4panel_tolerates_none_log2cpm(tmp_path):
     import pytest
 
     pytest.importorskip("matplotlib", reason="matplotlib not installed in this env")
-    CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    CONTRACTS = Path(
+        os.environ.get("TARGET_CONTRACTS_ROOT")
+        or Path(__file__).resolve().parents[3].parent / "rnd-computational-biology-oncology-target-contracts"
+    )
     if not (CONTRACTS / "plot_styles" / "takeda_palette.py").exists():
         pytest.skip("target-contracts plot_styles not available in this env")
     E = importlib.import_module("methods.dge_deseq2.emit")  # package-context import (see test_plotly_spec)
@@ -110,7 +114,10 @@ def test_selectivity_4panel_renders_gtex_from_tpm_only(tmp_path):
     import pytest
 
     pytest.importorskip("matplotlib", reason="matplotlib not installed in this env")
-    CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+    CONTRACTS = Path(
+        os.environ.get("TARGET_CONTRACTS_ROOT")
+        or Path(__file__).resolve().parents[3].parent / "rnd-computational-biology-oncology-target-contracts"
+    )
     if not (CONTRACTS / "plot_styles" / "takeda_palette.py").exists():
         pytest.skip("target-contracts plot_styles not available in this env")
     E = importlib.import_module("methods.dge_deseq2.emit")

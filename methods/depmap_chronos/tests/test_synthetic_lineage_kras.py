@@ -21,7 +21,9 @@ from pathlib import Path
 import pandas as pd
 import yaml
 
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+# Portable repo root: was hardcoded to the author's /home/sagemaker-user checkout, so every
+# path guard below read as "data missing" on a CI runner or in a worktree.
+METHODS_REPO = Path(__file__).resolve().parents[3]
 # Portable: was hardcoded to the author's checkout, so the emitter's sys.path.insert(
 # contracts_root/"plot_styles") pointed at a missing dir in CI and `from takeda_palette import`
 # (unguarded on the SVG path) failed. target-contracts ships plot_styles/takeda_palette.py.

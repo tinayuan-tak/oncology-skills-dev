@@ -10,10 +10,21 @@ contract fields. Classifier + parser are pure; the lookup uses a tiny synthetic 
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+# Portable repo root: was hardcoded to the author's /home/sagemaker-user checkout, so every
+# path guard below read as "data missing" on a CI runner or in a worktree.
+METHODS_REPO = Path(__file__).resolve().parents[3]
+# Portable sibling root: `_load_takeda_style()` does `sys.path.insert(<root>/plot_styles)` and then an
+# UNGUARDED `import takeda_palette`, so a root that does not exist raises ModuleNotFoundError. The figure
+# test below passed on runners only because ~20 other modules resolve this root from the env var the
+# workflow exports, and one of them imports takeda_palette earlier in the session -- leaving it in
+# sys.modules for this test to hit. That is an ordering accident: run this file alone and it fails.
+TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT") or str(
+    METHODS_REPO.parent / "rnd-computational-biology-oncology-target-contracts"
+)
 sys.path.insert(0, str(METHODS_REPO))
 from methods.hpa_normal_tissue_liability import cli as hc  # noqa: E402
 from methods.hpa_normal_tissue_liability import read as hc_read  # noqa: E402
@@ -186,7 +197,7 @@ def test_emit_normal_tissue_bar_writes_svg(tmp_path):
     import pytest
 
     pytest.importorskip("matplotlib")
-    TC = "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts"
+    TC = TARGET_CONTRACTS
     summ = {
         "normal_tissue_breadth_class": "broad_normal_expression",
         "specific_tissues": [{"tissue": "lung", "intensity": 2.2e7}, {"tissue": "salivary gland", "intensity": 2.4e6}],

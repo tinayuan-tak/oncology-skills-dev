@@ -14,7 +14,9 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-METHODS_REPO = Path("/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods")
+# Portable repo root: was hardcoded to the author's /home/sagemaker-user checkout, so every
+# path guard below read as "data missing" on a CI runner or in a worktree.
+METHODS_REPO = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(METHODS_REPO))
 from methods.depmap_protein_abundance import cli as pc  # noqa: E402
 from methods.depmap_protein_abundance import read as pc_read  # noqa: E402
