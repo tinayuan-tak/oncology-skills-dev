@@ -502,8 +502,22 @@ def test_sentinel_zeros_are_not_absence_claims_and_the_falsified_pair_is_pinned(
 
     Pinned by EQUALITY against the crosswalk's `source_excluded.measured` record so that:
       * a THIRD sentinel-0 on a declared cohort is an error -- it needs measuring, not filing; and
-      * when the data-catalog correction lands, this test REDS and says to delete the pin, instead of a
+      * when the data-catalog correction lands, this test REDS and says to move the pin, instead of a
         falsification quietly outliving the claim it falsified.
+
+    ★★ THE CORRECTION LANDED (data-catalog #600, squash `1addffd`) AND THE TRIPWIRE FIRED AS DESIGNED,
+    so `measured` is now empty and the two entries live in `source_excluded.cleared`. Three things
+    that a bare deletion of the pin would have thrown away, and which are the reason this test grew
+    rather than shrank:
+
+      * `measured: []` is kept as a DECLARED EMPTY LIST. The equality still holds the "a third
+        sentinel is an error" half; deleting the key would have retired that half silently.
+      * An empty-vs-empty equality is VACUOUS, so it is now preceded by a liveness floor on the
+        number of cohort-cells actually examined. Absence only means something once you know the
+        scan read a corpus.
+      * The cleared entries became a REGRESSION guard in the opposite direction, pinning the measured
+        members as values -- because the regression this file is actually vulnerable to is 118 being
+        edited back to an estimate, which is non-zero and therefore invisible to the sentinel scan.
 
     ★ Why a sentinel and a measurement must never share an encoding: #598 reset a declared 60/40 to `0`
     BECAUSE `applicable_data_sources` excluded depmap -- so the backfill took its authority to declare
@@ -511,13 +525,20 @@ def test_sentinel_zeros_are_not_absence_claims_and_the_falsified_pair_is_pinned(
     the measured truth (118/32) than the "Correction" that replaced them.
     """
     recon = CROSSWALK["cohort_claim_reconciliation"]
-    falsified = {(e["indication"], e["stratum"], e["cohort"]) for e in recon["source_excluded"]["measured"]}
-    for e in recon["source_excluded"]["measured"]:
+    excluded = recon["source_excluded"]
+    falsified = {(e["indication"], e["stratum"], e["cohort"]) for e in excluded["measured"]}
+    for e in [*excluded["measured"], *excluded["cleared"]]:
         assert e["state"] == "measured", (
             f"{e['stratum']}: filed as falsified-by-measurement but state is {e['state']!r}"
         )
         assert e["members"] >= 30, f"{e['stratum']}: {e['members']} members does not clear the floor it is cited for"
         assert e["members"] <= e["evaluable"], f"{e['stratum']}: {e['members']} members of {e['evaluable']} evaluable"
+
+    assert excluded["cleared"], (
+        "`source_excluded.cleared` is empty. It is the only surviving record of what this pin "
+        "falsified and of the measurements that cleared it -- emptying it retires the regression "
+        "guard below without retiring the claim."
+    )
 
     # ★ SPELLINGS OF `tcga`, derived by that meaning rather than by `!= "depmap"`. The proxy was
     # adequate only while COHORT_FAMILIES was a hardcoded 7 of which 6 were tcga spellings; #770
@@ -529,6 +550,7 @@ def test_sentinel_zeros_are_not_absence_claims_and_the_falsified_pair_is_pinned(
     catalogs = {n: {s["id"]: s for s in (d.get("atomic_strata") or [])} for n, d in _live_catalogs().items()}
 
     sentinels = set()
+    examined = 0
     for ind in CROSSWALK["indications"]:
         code = ind["canonical_code"]
         for ax in ind.get("axes") or []:
@@ -548,15 +570,57 @@ def test_sentinel_zeros_are_not_absence_claims_and_the_falsified_pair_is_pinned(
                         keys = [f"expected_n_{cohort}"]
                     if not keys or keys[0] not in s:
                         continue
+                    examined += 1
                     k = keys[0]
                     note = s.get(f"{k}_denominator_note") or ""
                     if s[k] == 0 and not note.startswith("Observed emit"):
                         sentinels.add((code, sid, cohort))
 
+    # ★★ LIVENESS BEFORE THE CEILING. As of data-catalog #600 the honest answer is that there are NO
+    # sentinels left, so `sentinels` is legitimately empty -- and an empty set compares equal to an
+    # empty `falsified` no matter WHY it is empty. A glob that misses the corpus would do it (the
+    # catalogs are quarter-stamped and COADREAD alone sits on 2026-Q2, so a reader hardcoding 2026-Q3
+    # silently drops the reference indication), as would a crosswalk axis whose `strata` stopped
+    # resolving, or the corpus being deleted outright. Each of those is a BROKEN READ presenting as a
+    # clean bill of health. So assert the scan reached a real population FIRST; the emptiness above
+    # only carries information once this holds.
+    assert examined >= 100, (
+        f"the sentinel scan examined only {examined} declared cohort-cells, expected >= 100 "
+        f"(measured 121 across 84 strata and 8 indications on 2026-09-14). An empty sentinel set is "
+        f"evidence of a clean corpus only if a corpus was actually read."
+    )
+
     assert sentinels == falsified, (
         "the set of DECLARED cohorts carrying a sentinel 0 (a `0` with no measurement behind it) "
         "changed.\n"
         f"  new sentinels (measure them; do not read a 0 as an absence): {sorted(sentinels - falsified)}\n"
-        f"  no longer sentinels (the catalog was fixed -- delete the pin from source_excluded.measured): "
+        f"  no longer sentinels (the catalog was fixed -- move the pin to source_excluded.cleared): "
         f"{sorted(falsified - sentinels)}"
     )
+
+    # ★★ THE CLEARED PINS GUARD THE OTHER DIRECTION, and the equality above genuinely cannot. A
+    # returning `0` would re-enter `sentinels` and red there -- but the more likely regression is a
+    # measured 118 edited back to an ESTIMATE: non-zero, so never a sentinel, invisible to every
+    # assertion above, and indistinguishable from the 60/40 guess #598 discarded. These cells have
+    # been overwritten once already, by the very PR that was correcting provenance. So pin the
+    # recorded members as VALUES and require the provenance token to survive alongside them.
+    for e in excluded["cleared"]:
+        s = catalogs.get(e["indication"], {}).get(e["stratum"])
+        assert s is not None, (
+            f"{e['indication']}/{e['stratum']}: a cleared pin names a stratum that is no longer in the "
+            f"live corpus. The measurement that cleared it can no longer be checked -- do not delete "
+            f"the pin to make this pass."
+        )
+        key = f"expected_n_{e['cohort']}"
+        note = s.get(f"{key}_denominator_note") or ""
+        assert s.get(key) == e["members"], (
+            f"{e['stratum']}: {key} reads {s.get(key)!r} but the cleared pin records a MEASURED "
+            f"{e['members']} of {e['evaluable']} evaluable. A 0 means the N/A sentinel was restored "
+            f"over a measurement; any other value means the measurement was replaced without "
+            f"updating the record that cites it."
+        )
+        assert note.startswith("Observed emit"), (
+            f"{e['stratum']}: {key} = {e['members']} but its note does not begin with 'Observed emit' "
+            f"({note[:70]!r}). A count and its provenance token must move together -- that they can "
+            f"drift apart is the whole defect this block records."
+        )

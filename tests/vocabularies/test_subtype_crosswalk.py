@@ -477,16 +477,30 @@ def test_no_registered_stratum_is_absent_on_every_cohort_its_axis_declares():
 
 
 # The number of registered strata with NO measured cohort at all -- every declared cohort is an estimate
-# or declares nothing. A DOWNWARD ratchet, not a pin: 16 today, and the data-catalog half of stage 3d
-# lowers it. Growing it means a stratum was registered on a guess, the practice this arc exists to end.
-#   BRCA x8 (no depmap-subgroup-assignments-brca-* shard exists at all), COADREAD LOT x3 and NSCLC LOT x3
-#   (line-of-therapy strata declare no expected_n key on any cohort), NSCLC + PAAD NTRK_fusion (the
-#   fusion rule grammar is `fusion_gene in [...]` where the assigner requires `fusion_gene == '<GENE>'`,
-#   so the run is UNMEASURABLE_NO_ROWS rather than zero).
+# or declares nothing. A DOWNWARD ratchet, not a pin. Growing it means a stratum was registered on a
+# guess, the practice this arc exists to end.
+#
+# ★★ LOWERED 16 -> 8 on 2026-09-14, when data-catalog #600 landed and this ratchet reded asking for it.
+# The eight that cleared, and WHY each cleared, because a ratchet that falls for the wrong reason is a
+# gate being relaxed to match the build:
+#   * COADREAD LOT_2L / LOT_3Lplus and NSCLC LOT_2L / LOT_3Lplus now read `genie_bpc: measured`. These
+#     are the "measured but UNRECORDABLE" cells: the runs had happened, but the closed schema rejected
+#     `expected_n_genie_bpc`, so the counts had migrated into prose. #770 declared the key and #600
+#     wrote the numbers -- so this ratchet is registering a schema fix two repos away.
+#   * BRCA TP53_mut (depmap `measured`) and PIK3CA_mut (depmap `underpowered` -- still a MEASUREMENT;
+#     the floor labels, it does not admit). Both were recorded as unmeasurable and were merely unrun.
+#   VERIFIED IT FELL FOR THE RIGHT REASON: zero registered strata failed to resolve to a catalog block,
+#   so nothing was DELETED out of the census. Coverage counts improve identically whether a stratum is
+#   measured or removed, and only that check distinguishes them. Re-run it before lowering this again.
+#
+# The eight that REMAIN, all genuinely awaiting substrate:
+#   BRCA x6 -- ERBB2_amp + PAM50 x5, no depmap-subgroup-assignments-brca-* shard carries them; and
+#   NSCLC + PAAD NTRK_fusion, where the rule grammar is `fusion_gene in [...]` while the assigner
+#   requires `fusion_gene == '<GENE>'`, so the run is UNMEASURABLE_NO_ROWS rather than zero.
 # ★ Count this with _catalog_docs(), never with a `2026-Q3` glob: COADREAD -- the reference indication
 #   whose Observed-emit provenance every other catalog copies -- is the ONE on 2026-Q2, so a
 #   quarter-hardcoded reader drops it entirely and under-reports this ceiling by exactly 3.
-_UNMEASURED_REGISTERED_CEILING = 16
+_UNMEASURED_REGISTERED_CEILING = 8
 
 
 @pytest.mark.skipif(not DATA_CATALOG.exists(), reason="sibling data-catalog repo not on disk")

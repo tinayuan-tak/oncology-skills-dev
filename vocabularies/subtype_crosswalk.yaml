@@ -335,15 +335,33 @@ cohort_claim_reconciliation:
     # evaluable -- both MEASURED, both above the floor. `depmap-subgroup-assignments-nsclc-v1`'s own
     # description already stated "Strata (2): histology_Adeno (118); histology_SCC (32)".
     # ⇒ This registry's `cohorts: [tcga, depmap]` on NSCLC/histology is CORRECT and UNCHANGED.
-    #   The defect is in data-catalog and has three parts, all fixed under stage 3d:
+    #   The defect WAS in data-catalog and had three parts, all since corrected -- see the CLEARED
+    #   note below:
     #     applicable_data_sources [tcga] -> [tcga, depmap]; expected_n_depmap 0 -> 118 / 32 with a
     #     measured note; iter1b_status data_blocked -> active (it was never blocked).
-    disposition: falsified_registry_was_right_catalog_fixed_in_data_catalog
-    measured:
+    disposition: falsified_registry_was_right_catalog_corrected_and_pin_cleared
+    # ★★ CLEARED 2026-09-14 by data-catalog #600 (squash `1addffd`) -- which is exactly the state the
+    # pin below was written to DEMAND, so this is the tripwire working, not the tripwire failing. All
+    # three staleness sites are now corrected in the corpus: `applicable_data_sources` [tcga] ->
+    # [tcga, depmap], `expected_n_depmap` 0 -> 118 / 32 with `Observed emit` notes, and
+    # `iter1b_status` data_blocked -> active.
+    #
+    # `measured` STAYS as a declared key holding an EMPTY list rather than being deleted, because the
+    # guard reads it BY EQUALITY: an empty list still makes a THIRD sentinel-0 on a declared cohort an
+    # error. Deleting the key would retire that half of the guard along with the pin.
+    #
+    # The falsification MOVES to `cleared` rather than being deleted, so it keeps working in the
+    # OTHER direction. These two cells were reset to the N/A sentinel `0` once already -- by the very
+    # PR that was correcting provenance -- and the equality above cannot see the interesting form of
+    # that regression: a count edited from 118 back to an ESTIMATE (non-zero, no measured note) never
+    # re-enters `sentinels` at all. So the recorded members are pinned as VALUES, not just as
+    # non-zeroes, and this block stays the only surviving evidence of what was falsified and why.
+    measured: []
+    cleared:
       - {indication: NSCLC, axis: histology, stratum: histology_Adeno, cohort: depmap,
-         members: 118, evaluable: 150, state: measured}
+         members: 118, evaluable: 150, state: measured, cleared_by: "data-catalog#600"}
       - {indication: NSCLC, axis: histology, stratum: histology_SCC, cohort: depmap,
-         members: 32, evaluable: 150, state: measured}
+         members: 32, evaluable: 150, state: measured, cleared_by: "data-catalog#600"}
 
   catalog_over_declares:
     # ★ NEW 2026-09-14 -- the direction this block was missing. Here the CATALOG's
