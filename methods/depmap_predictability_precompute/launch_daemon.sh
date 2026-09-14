@@ -27,7 +27,16 @@ GENE_SET="${2:-medium}"
 WORKERS="${3:-6}"
 THRESHOLD="${4:-0.3}"
 
-METHODS_REPO="/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods"
+# Derived from THIS script's location (methods/<pkg>/ -> repo root), never from a literal path
+# and never from $HOME. Two reasons it matters here specifically:
+#   1. It feeds PYTHONPATH for the detached child below, so a stale value doesn't fail loudly —
+#      the daemon imports a DIFFERENT checkout than the one it was launched from and runs for
+#      days against it. A wrong tree here produces valid-looking output, not an error.
+#   2. On a dev box $HOME and the checkout parent are the same directory, so the hardcoded path
+#      and the correct answer were the same string — which is why this survived AM#631/632/634/
+#      635/637. It only diverges in a /tmp worktree or CI, where the launcher would have pointed
+#      PYTHONPATH at a checkout that need not exist at all.
+METHODS_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 mkdir -p "$OUT_DIR"
 
