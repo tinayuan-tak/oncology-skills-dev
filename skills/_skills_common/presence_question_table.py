@@ -23,6 +23,7 @@ Confidence reuses the corroboration vocabulary (high>moderate>low, unmeasured). 
 
 from __future__ import annotations
 
+import math
 from typing import Optional
 
 from _skills_common.question_table_core import _SIG_META
@@ -30,6 +31,57 @@ from _skills_common.question_table_core import cbyid as _cbyid
 from _skills_common.question_table_core import conf as _conf
 from _skills_common.question_table_core import row as _row
 from _skills_common.question_table_core import sig as _sig
+
+
+def _top_labels(rows, key: str, k: int = 3, rank_by: str | None = None) -> list:
+    """The ``k`` most important labels from a LIST-valued summary field.
+
+    A question row is the only surface that can show these at all. Every generic capsule selector
+    either skips containers outright (``_sibling_caveats`` drops ``list``/``dict``) or requires a
+    scalar (``_numeric_anchors``/``_n_basis`` need ``int``/``float``, ``_provenance_keys`` needs
+    ``str``/``int``/``float``); the one list-capable path, ``_categorical_anchors``, fires only for
+    CONTRACT-DECLARED fields. So an undeclared list-valued field is unreachable by every hint scan no
+    matter how many hints its name matches — which is why the fields carrying WHICH cohort and WHICH
+    tissue were populated on every run and shown on none.
+
+    ``rank_by`` exists because truncating a list asserts that its head is its most important part, and
+    only the PRODUCER knows whether that is true. The card contracts state the order where there is
+    one, and the split is not cosmetic:
+
+      * ``most_elevated_cohorts`` — "effect-desc, elevated-only"  ⟶ pre-ranked, pass no ``rank_by``
+      * ``rna_most_elevated_indications`` — "lfc-desc, elevated-only"  ⟶ pre-ranked, likewise
+      * ``specific_tissues`` — "parsed from the intensity field", and the card names NO order  ⟶ the
+        producer is a bare ``split(";")`` over an HPA string, so its head is an artefact of HPA's
+        formatting. Measured on the tacstd2 fixture: ``lung`` (2.2e7) precedes ``salivary gland``
+        (2.4e7). Taking ``[:3]`` of that would show the alphabetically-first tissues and hide the most
+        abundant one — substituting NAMING for CONTENT on a SAFETY row, the same defect as the
+        ``sorted(...)[:4]`` starvation this census already found in the capsule hint scan.
+
+    Rows whose ``rank_by`` value is missing, ``None``, non-numeric or NON-FINITE sort LAST, so neither
+    an unparseable intensity nor an ``inf`` can displace a measured one — ``inf`` is the case a
+    truthiness or ``isna`` guard would admit, and it wins every comparison it enters. Ordering is
+    otherwise stable, so ties keep emission order. Tolerates a list of plain strings as well as the dict-per-row shape, and de-duplicates, so a
+    card that changes its row shape degrades to fewer labels rather than to a traceback in a
+    verdict-inert display path.
+    """
+    rows = list(rows or [])
+    if rank_by:
+
+        def _rank(r):
+            v = r.get(rank_by) if isinstance(r, dict) else None
+            if isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v):
+                return (1, 0.0)
+            return (0, -float(v))
+
+        rows = sorted(rows, key=_rank)
+    out: list = []
+    for r in rows:
+        label = r.get(key) if isinstance(r, dict) else r
+        if isinstance(label, str) and label and label not in out:
+            out.append(label)
+        if len(out) >= k:
+            break
+    return out
 
 
 # Signal tier → (meter fill 0-5, polarity). Polarity: supports / opposes / neutral / none.
@@ -65,7 +117,18 @@ def _q2_generality(h, c, cv):
     if rne is not None:
         primary += f" · RNA {rne}/{rnt} indications"
     conc = h.get("breadth_layer_concordance")
-    support = f"RNA↔protein breadth {conc}" if conc else "single-layer breadth"
+    bits = [f"RNA↔protein breadth {conc}" if conc else "single-layer breadth"]
+    # The row asks "vs OTHER cancers?" and the primary line answers only HOW MANY (4/9 cohorts, 5/13
+    # indications). These name WHICH — the support clause this module's own docstring has always
+    # declared for Q2. Read off an alias so the census resolves them to THIS card, not by name.
+    teb = c.get("tumor-elevation-breadth", {})
+    prot = _top_labels(teb.get("most_elevated_cohorts"), "cohort")
+    rna = _top_labels(teb.get("rna_most_elevated_indications"), "indication")
+    if prot:
+        bits.append("top protein: " + ", ".join(prot))
+    if rna:
+        bits.append("top RNA: " + ", ".join(rna))
+    support = " · ".join(bits)
     return _row("Q2", "This indication vs other cancers?", primary, support, _sig(tier, tier), _conf("moderate"))
 
 
@@ -76,9 +139,17 @@ def _q3_vs_normal(h, c, cv):
     caveats = []
     if b.get("conflict"):
         caveats.append(b["conflict"])
-    nl = c.get("normal-tissue-liability", {}).get("normal_tissue_breadth_class")
+    # Aliased rather than chained inline so the census binds both reads to THIS card. `specific_tissues`
+    # names the normal tissues behind the breadth class — for a GI target in COADREAD that is `intestine`,
+    # the tumour's own organ of origin and the whole safety point of the row. Mirrors the `(max: ...)`
+    # shape the single-cell caveat below already uses: class, then the evidence that names it.
+    ntl = c.get("normal-tissue-liability", {})
+    nl = ntl.get("normal_tissue_breadth_class")
     if nl:
-        caveats.append(f"HPA normal: {nl}")
+        # rank_by: this list is parse-ordered, NOT intensity-ordered (see `_top_labels`), so the cap has
+        # to rank it or it would name the alphabetically-first tissues and hide the most abundant one.
+        tissues = _top_labels(ntl.get("specific_tissues"), "tissue", rank_by="intensity")
+        caveats.append(f"HPA normal: {nl}" + (f" (specific: {', '.join(tissues)})" if tissues else ""))
     scn = h.get("sc_normal_expression_class") or c.get("sc-normal-celltype-expression", {}).get(
         "sc_normal_expression_class"
     )

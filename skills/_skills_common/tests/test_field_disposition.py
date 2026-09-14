@@ -338,8 +338,23 @@ def test_census_reaches_some_fields_but_not_all():
 
 # ── THE FLEET RATCHET (the one merge gate in this file) ───────────────────────────────────────────
 
-# ★ Frozen 2026-09-14 on `v2-architecture` @ 698c203e with target-contracts @ fa372c84 (TC#772):
-# domain 1801 / reached_exact 696 / reached_any_upper_bound 910 / candidate_orphans 891.
+# ★ Frozen 2026-09-14 on `v2-architecture` @ cc7226b1 with target-contracts @ fa372c84 (the CI pin):
+# domain 1801 / reached_exact 742 / reached_any_upper_bound 912 / candidate_orphans 889.
+#   (prior freeze, same day @ 698c203e / contracts fa372c84: 1801 / 696 / 910 / 891.)
+# RE-MEASURED at cc7226b1 rather than carried over from 92f4d4a6, where this branch was cut. Trunk moved
+# one commit under it (#1373), and that commit touches skills/target-profile/scripts/tp_gates.py, which
+# IS a census input — so the base had to be re-measured, not assumed inert. It is inert: trunk @ cc7226b1
+# measures 1801 / 696 / 910 / 891, identical to 92f4d4a6, and this branch on top of cc7226b1 measures
+# 889. The reason to check at all is that this ratchet is TWO-SIDED: a trunk commit that IMPROVED the
+# aperture would push `orphans` further BELOW the ceiling and fail the SLACK half, so a moving base can
+# red this PR by making the metric BETTER. Re-measure on every rebase, not only when git reports a
+# conflict — the census reads the whole tree, so there is no textual overlap to warn you.
+# Measured against contracts `f5b475e`, one commit AHEAD of the pin, which is sound only because that
+# commit is census-inert and was checked rather than assumed: fa372c84..f5b475e touches
+# tests/schemas/test_subgroup_catalog_contract.py and vocabularies/subtype_crosswalk.yaml, and the
+# census's only contracts inputs are cards/*.card.yaml, coverage/rule_role_partition.yaml and
+# interpretation-rules/*.rules.yaml. If you re-measure against a contracts tree that does touch those
+# three, the number is a different experiment — diff the paths first.
 #
 # BOTH SHAs ARE PART OF THE NUMBER, and since #1367 that is enforceable rather than aspirational: the
 # contracts checkout in .github/workflows/skills-validate.yml is a PINNED SHA, not `ref: main`. This
@@ -383,7 +398,40 @@ def test_census_reaches_some_fields_but_not_all():
 # land first — this pair went in together for exactly that reason. The bump PR from #1367 cannot do it
 # either: its quarantine assumes a sibling move is neutral or BREAKING, and here the sibling move is an
 # IMPROVEMENT that a lone bump makes look like a break.
-APERTURE_CEILING = 891
+#
+# WHY 889 AND NOT 891, AND WHY THIS MOVE IS NET OF A RISE. First banked move that is not a pure
+# reduction, so the arithmetic is stated rather than left to be re-derived: 3 pairs were wired and 1
+# pair BECAME an orphan, for −2. Do not read "wired 3, ceiling moved 2" as an accounting error.
+#   −3  `presence_question_table` Q2/Q3 now name WHICH, not only HOW MANY: `most_elevated_cohorts`,
+#       `rna_most_elevated_indications` (Q2 printed "protein 4/9 cohorts · RNA 5/13 indications" and
+#       named no cohort — the support clause that module's own docstring has always declared for Q2)
+#       and `specific_tissues` (Q3 printed "HPA normal: broad_normal_expression" and named no tissue).
+#       All three are LISTS, and no generic capsule selector can surface a container: `_sibling_caveats`
+#       drops list/dict, `_numeric_anchors`/`_n_basis` require int|float, `_provenance_keys` requires
+#       str|int|float, and `_categorical_anchors` — the only list-capable path — fires only for
+#       contract-declared fields. A question row was the only reachable surface.
+#   +1  `_card_aliases` now resolves the local-helper idiom `cp = _summary("card-id")`, which
+#       tumor-selectivity/scripts/run.py uses for ~9 cards in one function. That resolves
+#       `spatial_rna = _summary("spatial-region-rna-expression")`, and the RNA card's exact read of
+#       `tumour_vs_tme_delta` had been spreading NAME-ONLY credit to every card declaring that name —
+#       including `spatial-surface-protein-abundance`, whose own copy no code reads. Withdrawing false
+#       credit RAISES the count, and that is the instrument getting more honest, not a regression: the
+#       protein arm's magnitude is genuinely unread while the RNA arm's is read (run.py:929).
+# So a scraper fix that improves reach CANNOT LAND ALONE under this rule — +43 exact reads arrive with
+# +1 orphan, and "only downward" then forbids the very PR that earned the improvement. It is paired
+# with the wiring above for exactly that reason. Expect this shape again: any parser fix that resolves
+# a binding withdraws name credit somewhere, so budget a wiring partner in the same PR.
+#
+# WHAT THIS NUMBER STILL OVER-COUNTS, MEASURED. `capsule_readers` credits only contract-declared
+# `capsule.numeric_anchors`/`categorical_fields`, so the four HINT SCANS in evidence_capsule.py
+# (`_numeric_anchors` fallback sorted+cap-4, `_n_basis` cap-3, `_sibling_caveats`, `_provenance_keys`
+# cap-5) are invisible here. Running the real `emit_capsules()` over the real epcam_coadread fixture:
+# 24 of the 100 fixture-covered orphans ARE displayed, among them `expression_purity_spearman_r` and
+# `n_specific_tissues`. So this count conflates "not displayed" with "displayed by an alphabetical
+# guess", and the remedy for that class is a contracts-side `capsule:` DECLARATION — which makes the
+# display deterministic and earns exact credit at once — not a second reader. Do not wire a field that
+# a hint scan already surfaces; that adds a duplicate display to move a counter.
+APERTURE_CEILING = 889
 
 # Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
 # into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of
@@ -639,6 +687,137 @@ def test_the_producer_dispatch_table_mints_no_reader_pairs():
     emitters_dict, emitters_other = _classify(registry)
     assert emitters_dict + emitters_other >= 30, "the figure registry population collapsed"
     assert emitters_other == 0, f"{emitters_other} registered emitters no longer resolve to a summary reader"
+
+
+# ── shape (6): the local-helper alias ─────────────────────────────────────────────────────────────
+#
+# `cis = _s("cis-feature-expression-coherence")` — a nested closure over the card list. Shapes (2)/(3)
+# see a RECEIVER (`c.get("card-id")`, `c["card-id"]`) and bind the card off it; a call on a bare Name
+# has no receiver to inspect, so every read off such an alias fell through to NAME-ONLY credit. That is
+# not merely weaker evidence: name-only credit is granted to every card declaring the name, so the miss
+# did not just under-count its own card, it handed false credit to that card's siblings. Two
+# `_headline()` builders use the idiom for 19 card binds between them, under two different helper names
+# (`_s`, `_summary`), so the match is on SHAPE and never on the helper's name.
+#
+# Driven from synthetic source, so each guard is falsifiable by construction; then pinned live.
+
+_ALIAS_CARDS = frozenset({"card-alpha", "card-beta"})
+
+
+def _aliases(src: str, known: frozenset = _ALIAS_CARDS) -> dict:
+    fn = next(n for n in ast.walk(ast.parse(src)) if isinstance(n, ast.FunctionDef))
+    return fd._card_aliases(fn, known)
+
+
+def test_helper_bound_alias_binds_the_card():
+    """The idiom itself. `known_cards` is supplied BY THE TEST, so unlike a hardcoded live card id this
+    cannot decay through a card rename — the shape is what is under test here, not the corpus."""
+    src = 'def _headline(cards):\n    cis = _s("card-alpha")\n    return cis.get("some_field")\n'
+    assert _aliases(src) == {"cis": "card-alpha"}
+
+
+def test_helper_alias_matches_on_shape_not_on_the_helper_name():
+    """The two live call sites use different helper names. Keying on a name would fix one skill and
+    leave the other silently name-credited, which is the harder failure to notice of the two."""
+    for helper in ("_s", "_summary", "_card", "pick"):
+        src = f'def f(cards):\n    a = {helper}("card-alpha")\n    return a\n'
+        assert _aliases(src) == {"a": "card-alpha"}, f"{helper}() did not bind"
+
+
+@pytest.mark.parametrize(
+    "call, why",
+    [
+        ('_s("card-alpha", "extra")', "two positional args — the helper is doing something unverifiable"),
+        ('_s("card-alpha", default={})', "a keyword argument, same reason"),
+        ("_s(cid)", "a variable, not a literal — the card is not knowable statically"),
+        ('_s("log2-fc")', "a kebab-shaped literal that names no real card"),
+        ("_s()", "no argument at all"),
+    ],
+)
+def test_helper_alias_is_narrow(call, why):
+    """NEGATIVE controls, one per rejected form. A wrong binding attributes a read to the WRONG card,
+    and an over-credit reads as coverage — the failure this whole census exists to detect."""
+    assert _aliases(f"def f(cards):\n    x = {call}\n    return x\n") == {}, why
+
+
+def test_a_direct_alias_outranks_a_helper_alias_for_the_same_name():
+    """Shape precedence, asserted in BOTH source orders so it is clearly not source-order last-write.
+
+    `ast.walk` is breadth-first, so source order is not available at this layer for free; the two-pass
+    split therefore prefers the shape that can SEE a receiver, in either order. That is a deliberate
+    tiebreak on a case the tree does not currently contain — see the inertness guard below — because a
+    helper's return value is only inferred, while a receiver is observed.
+    """
+    fwd = 'def f(c):\n    x = c.get("card-alpha")\n    x = _s("card-beta")\n    return x\n'
+    rev = 'def f(c):\n    x = _s("card-beta")\n    x = c.get("card-alpha")\n    return x\n'
+    assert _aliases(fwd) == {"x": "card-alpha"}
+    assert _aliases(rev) == {"x": "card-alpha"}
+
+
+@needs_contracts
+def test_no_live_function_binds_one_name_by_both_alias_shapes():
+    """Keeps the tiebreak above INERT, and says so if it ever stops being inert.
+
+    Measured 2026-09-14: 0 of 1944 functions bind one local name both ways, so the precedence rule
+    never actually decides anything on this tree. If a function starts doing it, the later helper
+    assignment would be OVERRIDDEN by the earlier direct one and the reads below it would be credited
+    to the wrong card — silently, as coverage. This test is that alarm, not a style rule.
+    """
+    known = frozenset(fd.declared_fields())
+    scanned, both = 0, []
+    for path in sorted(SKILLS_ROOT.rglob("*.py")):
+        if "/tests/" in str(path) or "/.pixi/" in str(path):
+            continue
+        try:
+            tree = ast.parse(path.read_text())
+        except SyntaxError:
+            continue
+        for fn in [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]:
+            scanned += 1
+            direct, helper = set(), set()
+            for node in ast.walk(fn):
+                if not (isinstance(node, ast.Assign) and len(node.targets) == 1):
+                    continue
+                target, value = node.targets[0], node.value
+                if not isinstance(target, ast.Name):
+                    continue
+                if isinstance(value, ast.Call) and isinstance(value.func, ast.Attribute) and value.func.attr == "get":
+                    if value.args and fd._is_card_id(fd._literal(value.args[0]), known):
+                        direct.add(target.id)
+                elif isinstance(value, ast.Subscript):
+                    if fd._is_card_id(fd._literal(value.slice), known):
+                        direct.add(target.id)
+                elif isinstance(value, ast.Call) and isinstance(value.func, ast.Name):
+                    if len(value.args) == 1 and not value.keywords:
+                        if fd._is_card_id(fd._literal(value.args[0]), known):
+                            helper.add(target.id)
+            for name in direct & helper:
+                both.append(f"{path.relative_to(SKILLS_ROOT)}:{fn.lineno} {fn.name}() name={name!r}")
+    assert scanned >= 1500, f"only {scanned} functions scanned — this guard has gone vacuous"
+    assert not both, (
+        "a local name is bound by both alias shapes; reads below the helper bind to the wrong card:\n" + "\n".join(both)
+    )
+
+
+@needs_contracts
+def test_helper_alias_reaches_declared_fields_on_the_live_tree():
+    """Live pin, and the reason this shape was worth adding.
+
+    `cis-feature-expression-coherence` measured 0 exact `skill_code` fields before this shape resolved
+    and 20 after — 31 fields declared, read off one `_s()` alias in `cis-feature/scripts/run.py`. All
+    four pins below are absent on trunk, so this test fails by construction without the shape.
+    """
+    exact, _ = fd.code_readers(SKILLS_ROOT)
+    sk = exact.get("skill_code", set())
+    for pin in (
+        ("cis-feature-expression-coherence", "cn_expr_spearman_r"),
+        ("cis-feature-expression-coherence", "cis_dosage_class"),
+        ("spatial-region-rna-expression", "spatial_rna_class"),
+        ("spatial-tumor-normal-colocalization", "spatial_coloc_class"),
+    ):
+        assert pin in sk, f"{pin} is not exact — the helper-alias shape has stopped resolving"
+    n = len({f for c, f in sk if c == "cis-feature-expression-coherence"})
+    assert n >= 15, f"only {n} exact skill_code fields on cis-feature-expression-coherence (was 20)"
 
 
 # ── narrative is not an independent field reader ───────────────────────────────────────────────────

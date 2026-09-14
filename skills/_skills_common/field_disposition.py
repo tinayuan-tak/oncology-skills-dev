@@ -294,22 +294,44 @@ def _card_aliases(fn_node, known_cards: frozenset) -> dict:
     Scoped to ONE function body, so an alias cannot leak across functions that reuse the same short
     name (``cp``, ``h``, ``bc`` are reused constantly). Reassignment wins last-write, which matches
     how the reads below it will actually resolve.
+
+    A second, STRICTLY LOWER-PRECEDENCE pass adds the local-helper idiom ``cp = _summary("card-id")``
+    — a nested closure over the card list, which tumor-selectivity/scripts/run.py uses for ~9 cards in
+    one function. The two attribute/subscript shapes above see a receiver (``c``) and so bind the card
+    directly; a call on a bare Name has no receiver to inspect, so the binding was lost and every read
+    off that alias fell through to NAME-ONLY credit. Name-only credit is not merely weaker, it is
+    credited to EVERY card declaring the name, so an unresolved helper alias does not just under-count
+    its own card — it hands false credit to that card's siblings. Resolving it therefore RAISES
+    ``candidate_orphans`` wherever the false credit was the only credit a pair had, which is the
+    correct direction: it stops crediting a read that never happened.
+
+    Deliberately narrow — exactly one positional argument, no keywords, a literal that names a real
+    card. A helper taking more arguments is doing something this cannot verify, and a wrong binding
+    would attribute a read to the wrong card, which reads as coverage.
     """
     out: dict[str, str] = {}
+    helper_bound: dict[str, str] = {}
     for node in ast.walk(fn_node):
         if not (isinstance(node, ast.Assign) and len(node.targets) == 1):
             continue
         target = node.targets[0]
         if not isinstance(target, ast.Name):
             continue
-        value, card = node.value, None
+        value, card, helper_card = node.value, None, None
         if isinstance(value, ast.Call) and isinstance(value.func, ast.Attribute) and value.func.attr == "get":
             if value.args:
                 card = _literal(value.args[0])
         elif isinstance(value, ast.Subscript):
             card = _literal(value.slice)
+        elif isinstance(value, ast.Call) and isinstance(value.func, ast.Name):
+            if len(value.args) == 1 and not value.keywords:
+                helper_card = _literal(value.args[0])
         if _is_card_id(card, known_cards):
             out[target.id] = card
+        elif _is_card_id(helper_card, known_cards):
+            helper_bound[target.id] = helper_card
+    for name, card in helper_bound.items():
+        out.setdefault(name, card)
     return out
 
 
