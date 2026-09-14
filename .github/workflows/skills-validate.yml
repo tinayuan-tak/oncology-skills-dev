@@ -15,6 +15,35 @@ name: Skills Validate
 # with contents:read on the three siblings). It falls back to the default GITHUB_TOKEN, which
 # only works if each sibling has granted this repo's Actions access (Settings → Actions →
 # Access) — otherwise the sibling-checkout steps 403 and CI cannot run.
+#
+# SIBLING PINS (2026-09-14): the three sibling checkouts below are pinned to explicit SHAs, not
+# `ref: main`. Measured reason: contracts 56 + methods 31 + catalog 15 commits per 72 h ≈ 34
+# re-baselining events/day, each silently changing what this suite tested on PRs that did not
+# cause the change. Measured live while authoring this pin: ALL THREE siblings moved within one
+# 9-minute window (methods 10f9b718→0006164e, contracts cd24888d→a716f923, catalog
+# 7fd03697→1addffdd), so a PR whose CI ran at 14:05Z and re-ran at 14:14Z was tested against
+# three different sibling trees with no diff of its own — a re-run stopped being a retry and
+# became a different experiment. `pixi install --locked` does NOT protect against this: the
+# siblings are EDITABLE PATH deps, so the lockfile pins their names, never their content.
+#
+# The property the pins buy is not "fewer reds" — it is that THE PINNED TRIPLE IS ALWAYS A
+# KNOWN-GREEN INTEGRATION STATE. Sibling breakage stops landing on an unrelated contributor's
+# PR and lands on the bump PR instead, quarantined there: a red bump PR does not merge, so the
+# pins do not advance past a break.
+#
+# The cost is real and points the other way: pins go stale SILENTLY, so the bump mechanism is
+# load-bearing rather than a convenience. `bump-sibling-pins.yml` runs daily, force-pushes the
+# single branch `chore/bump-sibling-pins`, and keeps exactly ONE open PR meaning "current
+# sibling mains vs. what we actually test against", with the per-sibling commit range in the
+# body so a red is attributable to a named sibling commit. Cadence is the knob: shorter =
+# better attribution, more PR noise. To bump by hand: Actions → Bump sibling CI pins → Run
+# workflow.
+#
+# Do NOT revert a pin to `ref: main` to "get the latest". That re-opens the ~34/day churn and
+# removes the last signal telling target-contracts it broke skills — contracts-validate never
+# checks out skills and graceful-skips its figure-emission check, and the only job that sees
+# both repos (framework-health-cross-repo.yml, in TARGET-CONTRACTS) is parked to
+# workflow_dispatch. Bump the pin instead; that is what the bump PR is for.
 
 # NOTE (2026-08-12): the pull_request trigger runs on ALL PRs — no `paths:` filter — because the
 # `pytest` check is a REQUIRED status check on v2-architecture (branch protection). A required check
@@ -48,7 +77,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-analysis-methods
-          ref: main
+          # PINNED — main @ 2026-09-14T14:13:10Z. Bumped by bump-sibling-pins.yml; see SIBLING PINS above.
+          ref: 0006164e2bbc84d5c515b2c22a3088a83389bc00
           path: rnd-computational-biology-oncology-analysis-methods
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
@@ -56,7 +86,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
-          ref: main
+          # PINNED — main @ 2026-09-14T14:08:30Z. Bumped by bump-sibling-pins.yml; see SIBLING PINS above.
+          ref: a716f9238a89a9daecea9f82a5a14cc0041d31ef
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
@@ -64,7 +95,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
-          ref: main
+          # PINNED — main @ 2026-09-14T14:10:35Z. Bumped by bump-sibling-pins.yml; see SIBLING PINS above.
+          ref: 1addffdd1f061bce6c817eb67e4cdd2290958e75
           path: rnd-computational-biology-oncology-data-catalog
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

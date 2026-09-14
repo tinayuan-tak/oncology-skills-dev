@@ -1,0 +1,217 @@
+name: Bump sibling CI pins
+
+# Companion to the SIBLING PINS block in skills-validate.yml. That file pins the three sibling
+# checkouts to explicit SHAs so the suite tests a reproducible triple; this file is what stops
+# those pins going stale silently, and it is therefore load-bearing rather than housekeeping.
+#
+# WHAT IT DOES: reads each sibling's main HEAD, compares against the SHA currently pinned in
+# skills-validate.yml, and on drift force-pushes the single branch `chore/bump-sibling-pins`
+# and opens (or updates) exactly ONE PR meaning "current sibling mains vs. what we test
+# against". Because skills-validate.yml has no `paths:` filter, that PR runs the FULL suite
+# against the proposed triple, so the bump PR IS the cross-repo integration test — and a red
+# one simply does not merge, which is what keeps the pinned triple a known-green state.
+#
+# ★ WHY CROSS_REPO_TOKEN IS MANDATORY HERE, unlike in skills-validate.yml where it falls back
+# to github.token: a pull request opened by a workflow authenticating as GITHUB_TOKEN does NOT
+# trigger other workflows (GitHub's recursion guard). The bump PR would then have `pytest` and
+# `ruff` permanently "Expected — waiting for status": unvalidated AND unmergeable, since both
+# are required checks on v2-architecture. That is the same required-check deadlock the header of
+# skills-validate.yml warns about, re-entered through a side door. So this workflow refuses to
+# run without a non-default token rather than opening a PR nobody can merge.
+#
+# ★ AND IT MUST FAIL LOUDLY, NOT QUIETLY. The failure mode that would defeat the whole design is
+# a bump job that exits 0 having done nothing — "no drift" and "I could not find the pins" are
+# indistinguishable from the outside unless they are separated deliberately. So the script
+# hard-fails when it cannot parse all three pins, and again if a rewrite it believed it made did
+# not change the file. Do not soften either check into a warning.
+
+on:
+  schedule:
+    # Daily. Cadence is the knob: shorter = better attribution of a red to a named sibling
+    # commit, more PR noise. At ~34 sibling commits/day, daily keeps one bump PR reviewable.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read # everything that writes uses CROSS_REPO_TOKEN, not the default token
+
+concurrency:
+  group: bump-sibling-pins
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BUMP_BRANCH: chore/bump-sibling-pins
+      WORKFLOW_FILE: .github/workflows/skills-validate.yml
+      BASE_BRANCH: v2-architecture
+    steps:
+      - name: Refuse to run without a non-default token
+        env:
+          CROSS_REPO_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CROSS_REPO_TOKEN}" ]; then
+            echo "::error::CROSS_REPO_TOKEN is not set. A PR opened with GITHUB_TOKEN does not trigger the required pytest/ruff checks, so this job would produce an unvalidated, unmergeable PR. Set the secret (contents:write + pull-requests:write on this repo, contents:read on the three siblings) or run the bump by hand."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.CROSS_REPO_TOKEN }}
+
+      - name: Compare pinned SHAs against sibling mains
+        id: compare
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json, os, re, subprocess, sys, pathlib
+
+          ORG = "oneTakeda"
+          PREFIX = "rnd-computational-biology-oncology-"
+          SIBLINGS = ["analysis-methods", "target-contracts", "data-catalog"]
+
+          wf = pathlib.Path(os.environ["WORKFLOW_FILE"])
+          original = wf.read_text()
+          lines = original.split("\n")
+
+          def gh_json(*args):
+              r = subprocess.run(["gh", "api", *args], capture_output=True, text=True)
+              if r.returncode != 0:
+                  print(f"::error::gh api {' '.join(args)} failed: {r.stderr.strip()}")
+                  sys.exit(1)
+              return json.loads(r.stdout)
+
+          # --- locate the pin for each sibling -------------------------------------------------
+          # Anchored on the `repository:` line, which is unique per sibling, then the first
+          # `ref:` line beneath it. Positional/line-number matching would rot on any reformat.
+          pins = {}
+          for name in SIBLINGS:
+              want = f"repository: {ORG}/{PREFIX}{name}"
+              idx = [i for i, ln in enumerate(lines) if ln.strip() == want]
+              if len(idx) != 1:
+                  print(f"::error::expected exactly 1 `{want}` line in {wf}, found {len(idx)}. The pins cannot be located, so this job refuses to report `no drift`.")
+                  sys.exit(1)
+              i = idx[0]
+              ref_at = None
+              for j in range(i + 1, min(i + 6, len(lines))):
+                  if lines[j].strip().startswith("ref:"):
+                      ref_at = j
+                      break
+              if ref_at is None:
+                  print(f"::error::no `ref:` line within 5 lines of `{want}` in {wf}.")
+                  sys.exit(1)
+              sha = lines[ref_at].strip().split(":", 1)[1].strip()
+              if not re.fullmatch(r"[0-9a-f]{40}", sha):
+                  print(f"::error::{name} is pinned to `{sha}`, which is not a 40-hex SHA. If it was reverted to a branch name, see the SIBLING PINS note in {wf}.")
+                  sys.exit(1)
+              pins[name] = {"line": ref_at, "old": sha}
+
+          # --- read sibling mains --------------------------------------------------------------
+          drifted = []
+          for name in SIBLINGS:
+              head = gh_json(f"repos/{ORG}/{PREFIX}{name}/commits/main")
+              pins[name]["new"] = head["sha"]
+              pins[name]["date"] = head["commit"]["committer"]["date"]
+              if pins[name]["new"] != pins[name]["old"]:
+                  drifted.append(name)
+              print(f"{name}: pinned {pins[name]['old'][:8]} -> main {pins[name]['new'][:8]}"
+                    + ("  DRIFT" if name in drifted else "  (current)"))
+
+          out = pathlib.Path(os.environ["GITHUB_OUTPUT"])
+          if not drifted:
+              print("No drift: every pin already matches its sibling's main HEAD.")
+              out.write_text("drift=false\n", encoding="utf-8")
+              sys.exit(0)
+
+          # --- rewrite, then PROVE the rewrite landed ------------------------------------------
+          for name in drifted:
+              p = pins[name]
+              indent = " " * (len(lines[p["line"]]) - len(lines[p["line"]].lstrip()))
+              lines[p["line"]] = f"{indent}ref: {p['new']}"
+              prev = p["line"] - 1
+              if lines[prev].strip().startswith("# PINNED"):
+                  lines[prev] = (f"{indent}# PINNED — main @ {p['date']}. "
+                                 f"Bumped by bump-sibling-pins.yml; see SIBLING PINS above.")
+          updated = "\n".join(lines)
+          if updated == original:
+              print("::error::computed drift but the rewrite produced a byte-identical file. Refusing to open an empty PR.")
+              sys.exit(1)
+          for name in drifted:
+              if pins[name]["new"] not in updated:
+                  print(f"::error::rewrote {name} but its new SHA is absent from the result.")
+                  sys.exit(1)
+          wf.write_text(updated, encoding="utf-8")
+
+          # --- PR body: the per-sibling commit range is what makes a red attributable ----------
+          body = [
+              "Automated bump of the sibling SHA pins in `.github/workflows/skills-validate.yml`.",
+              "",
+              "**This PR is the cross-repo integration test.** Its `pytest` run is the full skills",
+              "suite against the proposed sibling triple, so a green here means the triple is a safe",
+              "baseline and a red here names a real sibling incompatibility. If it is red, do NOT",
+              "merge it to make it go away — the pins stay where they are, which is the point.",
+              "",
+              "| sibling | from | to | commits |",
+              "|---|---|---|---|",
+          ]
+          details = []
+          for name in SIBLINGS:
+              p = pins[name]
+              if name not in drifted:
+                  body.append(f"| `{name}` | `{p['old'][:8]}` | _unchanged_ | 0 |")
+                  continue
+              cmp_ = gh_json(f"repos/{ORG}/{PREFIX}{name}/compare/{p['old']}...{p['new']}")
+              n = cmp_.get("total_commits", 0)
+              body.append(f"| `{name}` | `{p['old'][:8]}` | `{p['new'][:8]}` | {n} |")
+              details.append(f"\n<details><summary><code>{name}</code> — {n} commit(s)</summary>\n")
+              for c in cmp_.get("commits", []):
+                  subject = c["commit"]["message"].split("\n")[0]
+                  details.append(f"- `{c['sha'][:8]}` {subject}")
+              details.append("\n</details>")
+          body += details
+          body += [
+              "",
+              "Suspect a red? Bisect by editing a single `ref:` back to its `from` SHA and pushing;",
+              "each sibling is independent.",
+              "",
+              "\U0001F916 Generated with [Claude Code](https://claude.com/claude-code)",
+          ]
+          pathlib.Path("/tmp/bump_pr_body.md").write_text("\n".join(body), encoding="utf-8")
+
+          title = "chore(ci): bump sibling CI pins (" + ", ".join(
+              f"{n} {pins[n]['old'][:8]}→{pins[n]['new'][:8]}" for n in drifted) + ")"
+          pathlib.Path("/tmp/bump_pr_title.txt").write_text(title, encoding="utf-8")
+          out.write_text("drift=true\n", encoding="utf-8")
+          print(f"Drift in {len(drifted)} sibling(s): {', '.join(drifted)}")
+          PY
+
+      - name: Push the bump branch and open or update its PR
+        if: steps.compare.outputs.drift == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.CROSS_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          title="$(cat /tmp/bump_pr_title.txt)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B "$BUMP_BRANCH"
+          git add -- "$WORKFLOW_FILE"
+          git commit -m "$title" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+          # Force-push is deliberate: exactly ONE bump branch, always meaning "sibling mains as
+          # of the last run", so a stale bump PR can never be mistaken for a current one.
+          git push --force origin "$BUMP_BRANCH"
+          existing="$(gh pr list --head "$BUMP_BRANCH" --state open --json number --jq '.[0].number // empty')"
+          if [ -n "$existing" ]; then
+            gh pr edit "$existing" --title "$title" --body-file /tmp/bump_pr_body.md
+            echo "Updated PR #$existing"
+          else
+            # Draft-first per CLAUDE.md; land-pr marks it ready when it is time to land.
+            gh pr create --draft --base "$BASE_BRANCH" --head "$BUMP_BRANCH" \
+              --title "$title" --body-file /tmp/bump_pr_body.md
+          fi
