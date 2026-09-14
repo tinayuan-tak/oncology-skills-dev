@@ -402,9 +402,28 @@ def test_every_expected_n_in_the_live_corpus_is_paired():
                 elif k.startswith("expected_n_"):
                     counts += 1
     assert counts == notes, f"unpaired declarations: {counts} counts / {notes} notes"
-    assert counts >= 176, (
-        f"provenanced declarations fell to {counts} (floor 176). A DROP means counts lost their "
-        "notes or strata were deleted; raise this floor only alongside the corpus edit that lifts it."
+    # ★★ 176 -> 174, AND THE PARAGRAPH ABOVE NEEDED A CAVEAT TO SAY SO. It asserted that a DROP
+    # means "counts lost their notes or strata were deleted", i.e. that no legitimate edit removes a
+    # provenanced declaration. data-catalog #601 is a counterexample and a third cause: RETRACTING a
+    # declaration that was never a measurement. Two NSCLC `expected_n_depmap` cells named `exon`, a
+    # column DepMap does not carry, so every candidate abstained and the recorded 0 stood over a
+    # denominator emptied of candidates. Deleting each cell and narrowing `depmap` out of
+    # `applicable_data_sources` is the honest repair, and it costs exactly 2 provenanced
+    # declarations.
+    #
+    # WHICH MEANS THE FLOOR IS NOT A COVERAGE METRIC AND MUST NOT BE READ AS ONE. It is a
+    # tripwire against SILENT loss, and the discipline that keeps it honest is that lowering it
+    # requires naming the PR and the cells -- as here. A drop that arrives with no such note is
+    # still the failure this guard was built for. What the floor cannot distinguish on its own is a
+    # retraction from a deletion; that distinction is carried by
+    # `cohort_claim_reconciliation.measured_absent.cleared` and by data-catalog's own
+    # `NARROWED_2026_09_14` roster, which pins both cells BY NAME so re-adding a `depmap` cell reds
+    # there rather than quietly restoring the count here.
+    assert counts >= 174, (
+        f"provenanced declarations fell to {counts} (floor 174, lowered from 176 by data-catalog "
+        "#601 which RETRACTED 2 cells that were never measurements). A DROP means counts lost "
+        "their notes, strata were deleted, or a cell was retracted; lower this floor only "
+        "alongside the corpus edit that forces it, and name the cells."
     )
 
 
@@ -437,7 +456,13 @@ def test_declared_cohorts_that_measure_absent_are_exactly_the_pinned_set():
     """
     recon = CROSSWALK["cohort_claim_reconciliation"]
     pinned = {(c["indication"], c["stratum"], c["cohort"]) for c in recon["measured_absent"]["claims"]}
-    assert len(pinned) == 5, f"pin set changed shape: {len(pinned)}"
+    # ★ 5 -> 3 (data-catalog #601). Two NSCLC pins were retracted rather than resolved: their 0s
+    # were recorded against a rule naming `exon`, which the DepMap MAF does not carry, so every
+    # candidate abstained and the pin was filing a NON-measurement under `measured_absent`. They
+    # move to `.cleared` and are asserted genuinely absent by the test below -- because THIS test
+    # `continue`s on a missing key, so a retraction is invisible here and would otherwise read as
+    # a clean resolution.
+    assert len(pinned) == 3, f"pin set changed shape: {len(pinned)}"
 
     # ★ SPELLINGS OF `tcga`, derived by that meaning. This read `[c for c in COHORT_FAMILIES if
     # c != "depmap"]` until 2026-09-14, which was an adequate proxy only while COHORT_FAMILIES
@@ -485,8 +510,63 @@ def test_declared_cohorts_that_measure_absent_are_exactly_the_pinned_set():
     assert observed == pinned, (
         "crosswalk cohort claims contradicted by the measured catalogs changed.\n"
         f"  newly contradicted (add to cohort_claim_reconciliation, or fix the claim): {sorted(observed - pinned)}\n"
-        f"  no longer contradicted (delete the pin): {sorted(pinned - observed)}"
+        f"  no longer contradicted (move the pin to `.cleared` with a state and a reason, or fix "
+        f"the claim -- do NOT simply delete it, see the test below): {sorted(pinned - observed)}"
     )
+
+
+@pytestmark_live
+def test_field_absent_pins_are_narrowed_out_not_silently_dropped():
+    """★ THE COMPANION TO THE TEST ABOVE, AND THE REASON A RETRACTED PIN IS MOVED RATHER THAN DELETED.
+
+    The test above `continue`s on a missing `expected_n_<cohort>` key, which is right for its own
+    question -- an absent cell makes no absence CLAIM. But it means retracting a cell removes the
+    stratum from that test's population entirely, so the guard reports "no longer contradicted" for
+    a cell nobody is looking at any more. Passing by shrinking the population is the failure mode
+    this whole arc is about; here it would have been the guard doing it to itself.
+
+    So every `measured_absent.cleared` entry must prove the retraction actually happened, in BOTH
+    halves -- the cell gone AND the cohort gone from `applicable_data_sources`. One without the
+    other is the state that produced the original defect: a cohort declared applicable while the
+    rule cannot be answered on it is exactly what licenses the next false zero.
+
+    This mirrors data-catalog's `test_narrowed_cell_stays_narrowed`, deliberately. Two repos assert
+    the same two halves from opposite sides, because the corpus lives in one and the claim in the
+    other, and neither repo's CI can see both.
+    """
+    recon = CROSSWALK["cohort_claim_reconciliation"]
+    cleared = [
+        c for c in (recon["measured_absent"].get("cleared") or []) if c.get("state") == "unmeasurable_field_absent"
+    ]
+    # LIVENESS FIRST. An empty list makes every assertion below unreachable, and this test would
+    # then pass most loudly at the moment the declarations it polices were removed.
+    assert len(cleared) == 2, (
+        f"expected the 2 field-absent retractions from data-catalog #601, found {len(cleared)}. "
+        f"Adding one? It needs a `why` naming the absent column and whether the rule is broadenable "
+        f"count-preservingly. Removing one? Then the cell is measurable again -- re-measure it."
+    )
+    catalogs = {n: {s["id"]: s for s in (d.get("atomic_strata") or [])} for n, d in _live_catalogs().items()}
+    for c in cleared:
+        ind, sid, cohort = c["indication"], c["stratum"], c["cohort"]
+        for field in ("was", "why", "cleared_by"):
+            assert c.get(field), f"{ind}/{sid}.{cohort} cleared with no `{field}` -- an undocumented retraction"
+        s = catalogs.get(ind, {}).get(sid)
+        assert s is not None, (
+            f"{ind}/{sid} is pinned as a field-absent retraction but no longer exists in the "
+            f"catalog. A DELETED stratum is not a retracted cell -- if the stratum went away, this "
+            f"pin should too, and the {c['cleared_by']} rationale needs restating."
+        )
+        assert f"expected_n_{cohort}" not in s, (
+            f"{ind}/{sid} re-declares `expected_n_{cohort}` = {s.get(f'expected_n_{cohort}')} after "
+            f"being retracted by {c['cleared_by']}. {c['why']} If the source gained the column, "
+            f"delete this pin and re-measure; do not restore the old value."
+        )
+        sources = s.get("applicable_data_sources") or []
+        assert cohort not in sources, (
+            f"{ind}/{sid} still lists `{cohort}` in applicable_data_sources ({sources}) while "
+            f"declaring the cell retracted. That is the licensing half of the original defect: the "
+            f"claim says answerable, the rule is not."
+        )
 
 
 @pytestmark_live

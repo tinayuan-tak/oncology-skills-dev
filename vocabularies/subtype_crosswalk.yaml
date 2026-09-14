@@ -309,21 +309,66 @@ cohort_claim_reconciliation:
     # ★ DISPOSITION CORRECTED 2026-09-14: this does NOT falsify the axis's cohort claim (see note 3
     # above). Every axis below retains at least one stratum with measured members on the same
     # cohort, so no `cohorts:` list was edited. These stay as recorded per-stratum absences.
+    #
+    # ★★ AND THE CATEGORY'S OWN PREMISE WAS FALSE FOR THREE OF THE ORIGINAL FIVE (2026-09-14,
+    # data-catalog #601). "The cohort WAS evaluated on a full denominator" is the load-bearing
+    # clause, and for the three NSCLC entries it was not true. Their rules named `exon`, a column
+    # the DepMap somatic MAF does not carry; the assigner correctly returned None per row and every
+    # candidate ABSTAINED, so the surviving denominator held only samples with no relevant
+    # mutation. `evaluable == 0` is not `n == 0` -- and this is that same defect one level in, at
+    # the grain of the CANDIDATE SET rather than the cohort. The denominator was full of the wrong
+    # samples, which is why the arithmetic looked healthy.
+    #
+    # This is a THIRD direction, distinct from both neighbours below: `source_excluded` was
+    # falsified because the measurement DID exist (the pin demanded a correction and got one), and
+    # `catalog_over_declares` is a declaration the catalog should narrow. Here the pin was recording
+    # a NON-MEASUREMENT as a measurement -- the registry claim and the catalog were both defensible;
+    # the EVIDENCE was not.
     disposition: recorded_not_a_cohorts_edit_stratum_grain_vs_axis_grain
     axis_claim_still_true_because:
       - {indication: NSCLC, axis: driver_mutation, cohort: depmap, counterexample: "KRAS_G12C = 15"}
       - {indication: PAAD, axis: fusion, cohort: tcga, counterexample: "NTRK_fusion = 2 (underpowered, not absent)"}
     claims:
-      - {indication: NSCLC, axis: driver_mutation, stratum: EGFR_mut_ex19del, cohort: depmap,
-         measured: "0 members of ~244 evaluable of 264 rows"}
+      # ★ RE-DERIVED, NOT RE-USED. The old 0 here rested on `&& exon == 20` and was therefore no
+      # more evidence than the two cleared below -- it was correct BY LUCK, and the luck is not
+      # transferable: with 0 members and 0 abstentions it was indistinguishable, by value,
+      # denominator, abstention count and note class alike, from AML/NPM1_mut, whose identical
+      # signature was a false negative over two canonical NPM1c models. data-catalog #601 dropped
+      # the exon leg after verifying the broadening is COUNT-PRESERVING on the source that had
+      # already measured this stratum (TCGA: 2 members under either rule), so the 0 below is now
+      # earned rather than inherited. The two cleared entries could NOT be repaired that way --
+      # broadening moves TCGA 10 -> 12 and 2 -> 7, trading a landed fact for an estimate.
       - {indication: NSCLC, axis: driver_mutation, stratum: EGFR_mut_ex20ins, cohort: depmap,
-         measured: "0 members of 264 evaluable of 264 rows"}
-      - {indication: NSCLC, axis: driver_mutation, stratum: MET_ex14, cohort: depmap,
-         measured: "0 members of ~263 evaluable of 264 rows"}
+         measured: "0 members of 264 evaluable of 264 rows (re-derived data-catalog#601 under the
+           exon-free rule; the pre-#601 0 was not evidence)"}
       - {indication: PAAD, axis: fusion, stratum: FGFR2_fusion, cohort: tcga,
          measured: "0 members of 190 evaluable of 190 rows"}
       - {indication: PAAD, axis: fusion, stratum: RET_fusion_PAAD, cohort: tcga,
          measured: "0 members of 190 evaluable of 190 rows"}
+    # ★★ MOVED, NOT DELETED -- the #771 precedent, and here it is load-bearing rather than tidy.
+    # `test_declared_cohorts_that_measure_absent_are_exactly_the_pinned_set` skips any stratum whose
+    # `expected_n_<cohort>` key is absent, so narrowing a cell out of `applicable_data_sources`
+    # makes it INVISIBLE to that guard rather than resolved by it. Deleting these two would have
+    # recorded "no longer contradicted" when the truth is "no longer looked at" -- the same
+    # disappear-from-the-population move the guards in this arc exist to prevent. Kept here so the
+    # absence is DECLARED, and asserted absent by
+    # `test_field_absent_pins_are_narrowed_out_not_silently_dropped`.
+    cleared:
+      - {indication: NSCLC, axis: driver_mutation, stratum: EGFR_mut_ex19del, cohort: depmap,
+         state: unmeasurable_field_absent,
+         was: "0 members of ~244 evaluable of 264 rows",
+         why: "rule names `exon`, absent from the DepMap somatic MAF's 6 columns; all 20 EGFR
+           in-frame-deletion candidates abstained, so the 244 were the models with no relevant
+           mutation. Not broadenable: dropping the exon leg moves the LANDED TCGA count 10 -> 12.",
+         cleared_by: "data-catalog#601"}
+      - {indication: NSCLC, axis: driver_mutation, stratum: MET_ex14, cohort: depmap,
+         state: unmeasurable_field_absent,
+         was: "0 members of ~263 evaluable of 264 rows",
+         why: "same absent `exon` column; the single MET splice-site candidate abstained. Weakest
+           proxy case in the corpus -- the one candidate model's rows carry a NULL protein_change,
+           so the source cannot confirm the exon even circumstantially. Not broadenable: MET has
+           21 exons and dropping the leg moves the LANDED TCGA count 2 -> 7.",
+         cleared_by: "data-catalog#601"}
 
   source_excluded:
     # ★★ FALSIFIED 2026-09-14, AND IN THE OPPOSITE DIRECTION FROM WHAT THIS ENTRY CLAIMED.
