@@ -73,4 +73,12 @@ jobs:
 
       - name: methods + tests suite (offline; live-S3 tests self-skip)
         working-directory: rnd-computational-biology-oncology-analysis-methods
-        run: pixi run pytest methods/ tests/ -q --import-mode=importlib
+        # -rs prints the short summary for SKIPPED tests (file:line + reason). Without it `-q` reports
+        # only a COUNT — "3327 passed, 10 skipped" — which cannot distinguish a test that self-skipped
+        # because it needs live S3 (expected, and what this step's name claims) from a load-bearing gate
+        # that skipped because its environment guard silently stopped resolving. That is not
+        # hypothetical: methods/dge_deseq2/tests/test_byte_identity_vs_legacy_coadread.py has never once
+        # executed on a runner — it needs a claude-oncology-skills sibling, which no job here checks out
+        # — and the skip was invisible for its whole lifetime. A skip is "the check did not run", so it
+        # must be NAMED in the log rather than summed into the green.
+        run: pixi run pytest methods/ tests/ -q -rs --import-mode=importlib
