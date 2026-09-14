@@ -19,7 +19,14 @@
 # stratum — the validator asserts sync in BOTH directions: every id here exists in a catalog, AND
 # every catalog id is either registered here or named in `intentionally_excluded` below.
 
-version: 1.2.0   # 1.2.0 (2026-09-14): + admissibility_floors, authoring_rule,
+version: 1.3.0   # 1.3.0 (2026-09-14, stage 3d): AUTHORED the HNSC (driver_mutation,
+                 #   cn_amplification, tmb) and ESCA (driver_mutation) axes off MEASURED n, clearing
+                 #   6 of the 12 pending_authoring entries; + reader_routing; corrected the stale
+                 #   hpv_status "no held source" comment; re-measured cohort_claim_reconciliation in
+                 #   BOTH directions and falsified 3 of its own dispositions. THIS ONE IS NOT INERT
+                 #   to `indications`: default_subtypes() grows HNSC 6 -> 11 and ESCA 3 -> 4. It is
+                 #   nonetheless byte-inert to every skills ARTIFACT today -- see reader_routing.
+                 # 1.2.0 (2026-09-14): + admissibility_floors, authoring_rule,
                  #   cohort_claim_reconciliation. Purely ADDITIVE at the top level -- both
                  #   consumers (tp_common.default_subtypes, tp_facets_subtype._load_subtype_crosswalk)
                  #   read only `indications`, so the new blocks are inert to every verdict path.
@@ -86,24 +93,32 @@ intentionally_excluded:
 #
 # The validator pins this list BY NAME. Adding an id is therefore a deliberate, reviewed act — a new
 # orphan cannot be quietly parked here to turn the reverse guard green.
+#
+# ★ 2026-09-14 (stage 3d): HNSC x5 and ESCA x1 LEFT this list and are now registered axes. What
+# cleared them was the measurement (data-catalog #598) plus the floor declared above -- exactly the
+# sequence this block described. AML remains, and its blockers got SHARPER rather than closer, so
+# the `blocked_on` token below is no longer `measured_expected_n`: measurement was ATTEMPTED and
+# three independent blockers were found. See the reason.
 pending_authoring:
   - indication: AML
     strata: [FLT3_ITD, NPM1_mut, IDH1_mut, IDH2_mut, TP53_mut, adverse_cytogenetics]
-    blocked_on: measured_expected_n
+    blocked_on: three_independent_blockers_see_reason
     reason: "Complete 6-stratum catalog, NO registry entry at all, so every AML profile currently runs
-      whole-cohort. Estimated DepMap n = 2-5 per stratum (below FR's floor of 5), so most of these are
-      likely TCGA/GENIE-only or excluded outright once measured. Also depends on the GENIE republish
-      (data-catalog #595 / analysis-methods #619) that covers AML."
-  - indication: HNSC
-    strata: [TP53_mut, PIK3CA_mut, NOTCH1_mut, CCND1_amp, TMB_high]
-    blocked_on: measured_expected_n
-    reason: "Driver-mutation, CN-amplification and TMB axes. Precedent exists — COADREAD, NSCLC, PAAD
-      and BRCA all carry driver_mutation — so the axis shape is settled; only the denominators are not."
-  - indication: ESCA
-    strata: [TP53_mut]
-    blocked_on: measured_expected_n
-    reason: "ESCA is registered with 3 strata but its catalog carries a 4th. Single-stratum gap; the
-      driver_mutation axis does not exist for ESCA yet, so this needs a new axis, not an append."
+      whole-cohort. Measurement was ATTEMPTED in stage 3a/3d and is blocked THREE ways, each
+      sufficient on its own. (1) NO TCGA ARM EXISTS TO MEASURE: there is no aml-mc3 parquet
+      prefetched, so every tcga cell raises FileNotFoundError rather than returning a number; AML
+      additionally needs BeatAML ingestion. (2) THE DEPMAP ARM IS MOSTLY ABSENT, NOT MERELY THIN:
+      measured FLT3_ITD 0, NPM1_mut 0, IDH1_mut 0, IDH2_mut 1, TP53_mut 26, and
+      adverse_cytogenetics UNMEASURABLE (all 109 rows null). Per `authoring_rule` an n of 0 on an
+      EVALUATED cohort is `absent` and therefore NOT registrable, so 3 of 6 strata fail the rule
+      outright and a 4th sits at n=1. There is also no depmap-subgroup-assignments-aml-* shard, so
+      even the measurable strata are unservable. (3) A CROSS-REPO TEST PINS AML AS UNREGISTERED:
+      claude-oncology-skills skills/target-profile/tests/test_subtype_tier_default.py asserts
+      default_subtypes('AML') == ([], 'unavailable:AML') and default_subtypes('LAML') ==
+      ([], 'unavailable:LAML'). That file is collected directory-wide by skills-validate.yml, so
+      authoring AML HERE reds the SKILLS suite from a repo that did not change -- the merge order is
+      FORCED skills-first. Still also depends on the GENIE republish (data-catalog #595 /
+      analysis-methods #619) that covers AML; both were OPEN on 2026-09-14."
 
 # ============================================================================================
 # admissibility_floors — the governed subgroup-n floors, and what they actually DO
@@ -254,9 +269,50 @@ authoring_rule:
 #    2 CONTRADICTED by the catalog's own applicable_data_sources
 cohort_claim_reconciliation:
 
+  # ============================================================================================
+  # ★★ STAGE 3D RE-MEASURED THIS BLOCK AGAINST THE SHARDS AND FOUND IT WRONG IN TWO WAYS.
+  # Read this before acting on any `disposition: fix_in_stage_3d` below -- three of them are
+  # now known to have pointed at the wrong file.
+  #
+  # (1) THE BLOCK CHECKED ONE DIRECTION. It recorded only claims this registry makes that the
+  #     catalogs deny (OVER-claims). Re-running the comparison in BOTH directions found 12 axis-level
+  #     disagreements, not 5: 5 over-claims and 7 UNDER-claims, where a catalog stratum's
+  #     `applicable_data_sources` allows a cohort this registry omits. Every guard has a DIRECTION and
+  #     this one had one -- the identical defect the reverse subtype guard was built to fix, committed
+  #     one file away from it. The 7 under-claims are recorded in `catalog_over_declares` below.
+  #
+  # (2) `applicable_data_sources` IS NOT EVIDENCE, AND NEITHER IS `expected_n_<cohort>: 0`. Both were
+  #     treated as authoritative here. Measuring the published shards directly falsified that:
+  #       * NSCLC histology_Adeno / histology_SCC were filed under `source_excluded` on the strength
+  #         of `applicable_data_sources: [tcga]` plus `expected_n_depmap: 0`. The DepMap shard
+  #         MEASURES 118 and 32 members of 150 evaluable -- BOTH clear the floor. The registry was
+  #         RIGHT and the catalog is stale.
+  #       * That `0` was written by #598 itself, which reset a previously-declared 60/40 to the N/A
+  #         SENTINEL 0 *because* `applicable_data_sources` excluded depmap -- so the backfill drew its
+  #         authority to declare N/A from the very declaration that was wrong, and the discarded
+  #         ESTIMATES (60/40) were closer to the measured truth (118/32) than the "Correction". A
+  #         sentinel that shares an encoding with a measurement will eventually be read as one.
+  #   ⇒ ADJUDICATE COHORT CLAIMS AGAINST THE SHARD, which is the only artifact that carries members.
+  #     Of the 12 disagreements, 9 are the CATALOG being wrong and 3 are this registry running ahead
+  #     of the GENIE substrate on purpose. NONE required an edit to a `cohorts:` list.
+  #
+  # (3) THE GRAIN NEVER MATCHED. `cohorts:` is declared on the AXIS; membership is measured per
+  #     STRATUM. So "3 of 8 strata measured 0 on depmap" does NOT falsify NSCLC driver_mutation's
+  #     depmap claim -- KRAS_G12C measures 15 there. An axis-level cohort claim can only mean "at
+  #     least one stratum on this axis has members on this cohort", and under that reading every
+  #     `measured_absent` entry below is a STRATUM-grain fact filed against an AXIS-grain claim.
+  #     They are retained as measurements, with the disposition corrected.
+  # ============================================================================================
+
   measured_absent:
-    # The cohort WAS evaluated on a full denominator and found ZERO members. The claim is false.
-    disposition: fix_in_stage_3d
+    # The cohort WAS evaluated on a full denominator and found ZERO members for THIS STRATUM.
+    # ★ DISPOSITION CORRECTED 2026-09-14: this does NOT falsify the axis's cohort claim (see note 3
+    # above). Every axis below retains at least one stratum with measured members on the same
+    # cohort, so no `cohorts:` list was edited. These stay as recorded per-stratum absences.
+    disposition: recorded_not_a_cohorts_edit_stratum_grain_vs_axis_grain
+    axis_claim_still_true_because:
+      - {indication: NSCLC, axis: driver_mutation, cohort: depmap, counterexample: "KRAS_G12C = 15"}
+      - {indication: PAAD, axis: fusion, cohort: tcga, counterexample: "NTRK_fusion = 2 (underpowered, not absent)"}
     claims:
       - {indication: NSCLC, axis: driver_mutation, stratum: EGFR_mut_ex19del, cohort: depmap,
          measured: "0 members of ~244 evaluable of 264 rows"}
@@ -270,23 +326,66 @@ cohort_claim_reconciliation:
          measured: "0 members of 190 evaluable of 190 rows"}
 
   source_excluded:
-    # Sharper than measured_absent and needs NO measurement: the catalog stratum's own
-    # `applicable_data_sources` EXCLUDES the cohort this registry claims. Two files, opposed
-    # declarations. #598 corrected these two from a stray `expected_n_depmap: 60`/`: 40`.
-    disposition: fix_in_stage_3d
-    claims:
+    # ★★ FALSIFIED 2026-09-14, AND IN THE OPPOSITE DIRECTION FROM WHAT THIS ENTRY CLAIMED.
+    # It read: "Sharper than measured_absent and needs NO measurement: the catalog stratum's own
+    # `applicable_data_sources` EXCLUDES the cohort this registry claims." The phrase "needs NO
+    # measurement" is the whole error -- it promoted a DECLARATION to EVIDENCE. Measuring
+    # s3://onc-compbio/data-catalog/derived/subgroup-assignments/NSCLC/depmap/2026-Q3/assignments.parquet
+    # (586 rows, 293 samples) gives histology_Adeno 118 members and histology_SCC 32 of 150
+    # evaluable -- both MEASURED, both above the floor. `depmap-subgroup-assignments-nsclc-v1`'s own
+    # description already stated "Strata (2): histology_Adeno (118); histology_SCC (32)".
+    # ⇒ This registry's `cohorts: [tcga, depmap]` on NSCLC/histology is CORRECT and UNCHANGED.
+    #   The defect is in data-catalog and has three parts, all fixed under stage 3d:
+    #     applicable_data_sources [tcga] -> [tcga, depmap]; expected_n_depmap 0 -> 118 / 32 with a
+    #     measured note; iter1b_status data_blocked -> active (it was never blocked).
+    disposition: falsified_registry_was_right_catalog_fixed_in_data_catalog
+    measured:
       - {indication: NSCLC, axis: histology, stratum: histology_Adeno, cohort: depmap,
-         catalog_applicable_data_sources: [tcga]}
+         members: 118, evaluable: 150, state: measured}
       - {indication: NSCLC, axis: histology, stratum: histology_SCC, cohort: depmap,
-         catalog_applicable_data_sources: [tcga]}
+         members: 32, evaluable: 150, state: measured}
+
+  catalog_over_declares:
+    # ★ NEW 2026-09-14 -- the direction this block was missing. Here the CATALOG's
+    # `applicable_data_sources` allows a cohort that this registry omits, and the registry is right:
+    # measured against the published DepMap shards, every stratum below is either all-null
+    # (0 evaluable -> unmeasurable, so `absent` per authoring_rule) or ABSENT FROM THE SHARD
+    # ENTIRELY. Adding these cohorts to `cohorts:` would manufacture 7 unreadable claims.
+    # ⇒ NO registry edit. The catalogs should narrow `applicable_data_sources` instead.
+    disposition: registry_correct_catalog_should_narrow
+    claims:
+      - {indication: HNSC, axis: bass_subtype, cohort: depmap,
+         measured: "all 4 Bass strata 0 members of 0 evaluable (96 rows, all null)"}
+      - {indication: STAD, axis: tcga_molecular_class, cohort: depmap,
+         measured: "all 4 strata 0 members of 0 evaluable (91 rows, all null)"}
+      - {indication: PAAD, axis: moffitt_subtype, cohort: depmap,
+         measured: "both strata 0 members of 0 evaluable (126 rows, all null)"}
+      - {indication: PAAD, axis: fusion, cohort: depmap,
+         measured: "no fusion stratum present in depmap-subgroup-assignments-paad-v1 at all"}
+      - {indication: NSCLC, axis: fusion, cohort: depmap,
+         measured: "no fusion stratum present in depmap-subgroup-assignments-nsclc-v1 (histology only)"}
+      - {indication: STAD, axis: cn_amplification, cohort: depmap,
+         measured: "HER2_amp absent from depmap-subgroup-assignments-stad-v1"}
+      - {indication: ESCA, axis: cn_amplification, cohort: depmap,
+         measured: "HER2_amp absent from depmap-subgroup-assignments-esca-v1 (histology only)"}
 
   no_expectation_declared:
     # Cohort claimed, but the catalog shard declares no expected_n key for it at all -- so the
     # claim is neither confirmed nor refuted. Distinct from a note saying NOT MEASURED.
-    disposition: measure_or_drop_in_stage_3d
-    claims:
-      - {indication: BRCA, axis: driver_mutation, stratum: TP53_mut, cohort: depmap}
-      - {indication: BRCA, axis: driver_mutation, stratum: PIK3CA_mut, cohort: depmap}
+    # ★ RESOLVED 2026-09-14 by MEASURE, not by DROP. AM#624 ran the assigner against DepMap source
+    # data and BRCA TP53_mut has 32 members of 66 evaluable (of 114 rows) -- so the claim is TRUE and
+    # stays. There is no depmap-subgroup-assignments-brca-* shard at all (checked: the 9 published
+    # DepMap shards cover COADREAD x2, ESCA, HNSC, NSCLC, PAAD, SCLC, STAD), which is the same
+    # measured-but-not-servable state as the HNSC/ESCA drivers authored above and is tracked in
+    # `reader_routing`. Dropping the cohort would have narrowed a vocabulary to match a missing
+    # shard -- the failure this whole block exists to prevent.
+    disposition: resolved_measured_claim_true_catalog_gains_the_key
+    measured:
+      - {indication: BRCA, axis: driver_mutation, stratum: TP53_mut, cohort: depmap,
+         members: 32, evaluable: 66, state: measured, needs: expected_n_depmap key in the BRCA catalog}
+      - {indication: BRCA, axis: driver_mutation, stratum: PIK3CA_mut, cohort: depmap,
+         members: null, evaluable: null, state: not_yet_measured,
+         needs: "an assigner run; PIK3CA_mut was not among AM#624's 13 effect-referencing cells"}
 
   pending_substrate:
     # 19 `genie` claims (NSCLC x12, PAAD x7) where the catalog lists only [tcga, depmap]. This
@@ -306,6 +405,54 @@ cohort_claim_reconciliation:
     disposition: schema_token_added_2026_09_14_catalog_edit_in_stage_3d
     claims:
       - {indication: SCLC, axis: napy, strata: [SCLC_A, SCLC_N, SCLC_P, SCLC_Y], cohort: george_2015}
+
+# ============================================================================================
+# reader_routing — REGISTERING A STRATUM HERE DOES NOT CONNECT ITS DATA
+# ============================================================================================
+#
+# WHY THIS BLOCK EXISTS (stage 3d, 2026-09-14): stage 3d authored the HNSC and ESCA axes above and
+# then measured what a consumer actually gets. The answer was NOTHING, for a reason no file recorded.
+#
+# Serving a subgroup stratum takes THREE links and this registry is only the second:
+#   1. data-catalog PUBLISHES an assignments shard        -- present for HNSC and ESCA
+#   2. this registry REGISTERS the stratum                -- done above, stage 3d
+#   3. skills _live_readers.py ROUTES the indication to the shard -- ★ MISSING for HNSC and ESCA
+#
+# Link 3 is a set of per-indication dicts in claude-oncology-skills
+# skills/_skills_common/_live_readers.py. MEASURED by calling `_shard_for_indication` directly:
+# ALL SEVEN registries return (None, None) for both HNSC and ESCA --
+# _MUTATION_ASSIGNMENTS_MANIFEST, _MUTATION_LOT_ASSIGNMENTS_MANIFEST,
+# _DEPENDENCY_ASSIGNMENTS_MANIFEST, _DEPENDENCY_ASSIGNMENTS_SHARDS,
+# _MUTATION_MOLECULAR_ASSIGNMENTS_SHARDS, _CELLLINE_SUBTYPE_ASSIGNMENTS and
+# _TUMOR_PROTEIN_SUBTYPE_ASSIGNMENTS. The file does not contain the string "HNSC" or "ESCA" at all.
+# Coverage is COADREAD-only in five of the seven and COADREAD+NSCLC in the other two.
+#
+# ★★ CONSEQUENCE FOR ANYONE READING A REPLAY DIFF: the dispatchers short-circuit on
+# `manifest is None` and return an honest typed-empty (`subtype_axis_available: false`) BEFORE they
+# look at which strata were requested. So authoring these six strata is BYTE-INERT to every skills
+# artifact except `provenance.scope_subtypes`, which grows HNSC 6 -> 11 and ESCA 3 -> 4. A composed
+# replay diff over HNSC/ESCA therefore reads ZERO -- and that zero is a CAPABILITY zero, not the
+# safety zero a replay gate is normally looking for. Do not read it as evidence that the new strata
+# are harmless in a wired state; the gate cannot distinguish those two cases here.
+#
+# ★ WHY AUTHORING WAS STILL THE RIGHT MOVE: link 3 cannot be built without link 2. `default_subtypes`
+# only requests strata this registry lists, so wiring HNSC into _live_readers while the strata were
+# parked in `pending_authoring` would route a shard nothing ever asks for. Registration is the
+# PREREQUISITE, and it also makes the gap visible where it was previously silent -- which is the
+# whole premise of the reverse subtype guard.
+#
+# NOT DONE HERE, DELIBERATELY: skills/_skills_common/_live_readers.py carries an active `planned`
+# claim in ~/.claude/wip-registry.md (entry fix-evidence-graph-verdict-node-type-faithfulness), and
+# the foundation-audit plan of record scopes stage 1 explicitly OUT of _skills_common. Wiring link 3
+# needs that owner's coordination, so it is filed as the follow-up rather than taken.
+reader_routing:
+  registration_is_not_routing: true
+  measured_on: 2026-09-14
+  link_3_file: claude-oncology-skills/skills/_skills_common/_live_readers.py
+  unrouted_indications: [HNSC, ESCA]
+  registries_returning_none: 7
+  observable_change_from_authoring: provenance.scope_subtypes only (HNSC 6->11, ESCA 3->4)
+  blocked_on: peer_claim_on_live_readers_plus_shard_per_axis_wiring
 
 indications:
 
@@ -481,7 +628,18 @@ indications:
         partition: co_defining
       - axis: cn_amplification
         strata: [HER2_amp]
-        cohorts: [tcga]
+        cohorts: [tcga]                  # measured 28 of 169 evaluable -> UNDERPOWERED (n<30)
+      # Authored 2026-09-14 (stage 3d) off MEASURED n. New axis, not an append: ESCA had no
+      # driver_mutation axis, which is why its catalog's 4th stratum was an orphan.
+      - axis: driver_mutation
+        strata: [TP53_mut]
+        cohorts: [tcga, depmap]          # tcga-subgroup-assignments-esca-maf-v1: 131 members of
+                                         # 169 evaluable of 169 rows -> MEASURED (n>=30).
+                                         # depmap: 51 of 83 evaluable -> MEASURED (AM#624, run
+                                         # against DepMap source; depmap-subgroup-assignments-
+                                         # esca-v1 carries histology ONLY, so this cohort is
+                                         # measured-but-not-yet-SERVABLE -- see `reader_routing`.
+                                         # `cohorts:` records members-exist, not shard coverage.
     associations: []
 
   - canonical_code: HNSC
@@ -492,13 +650,66 @@ indications:
         partition: mutually_exclusive
       - axis: hpv_status
         strata: [HPV_positive, HPV_negative]
-        cohorts: [tcga]                  # data_blocked — HPV in no held source (see repoint runbook)
+        cohorts: [tcga]                  # ★ COMMENT CORRECTED 2026-09-14 (stage 3d). It previously
+                                         # read "data_blocked — HPV in no held source (see repoint
+                                         # runbook)". MEASURED FALSE: tcga-subgroup-assignments-
+                                         # hnsc-v1 emits HPV_negative 45 and HPV_positive 7 of 52
+                                         # EVALUABLE (227 of 279 samples abstain). The source is
+                                         # held; the DENOMINATOR is thin. Both strata stay
+                                         # registered per `authoring_rule` -- underpowered is not
+                                         # absent -- with HPV_positive (n=7) UNDERPOWERED and
+                                         # therefore inadmissible in comparative prose.
         partition: mutually_exclusive
+      # ---- authored 2026-09-14 (stage 3d) off MEASURED n; see `authoring_rule` above ----
+      # ★ `cohorts:` HERE MEANS "members exist on this cohort" (this file's header: "the COHORTS that
+      # actually carry members for it"), NOT "a published shard serves this cohort". The two differ
+      # for the drivers below and the distinction is deliberate: AM#624 measured DepMap membership by
+      # running the assigner against DepMap source data (TP53_mut 42 of 54 evaluable, PIK3CA_mut 8 of
+      # 95, NOTCH1_mut 7 of 95), but depmap-subgroup-assignments-hnsc-v1 carries HPV (all-null),
+      # site_* and the Bass subtypes ONLY. Narrowing `cohorts:` to what a shard happens to serve
+      # today would DELETE a measured biological fact to match the current substrate -- and
+      # _live_readers.py:559 already states the shard is "the authoritative what's-servable, MORE
+      # PRECISE than the crosswalk cohort", so the consumer expects this lane to be the broader one.
+      # The servability gap is recorded in `reader_routing` below, which is where a substrate fact
+      # belongs. Same reading as the landed NSCLC/PAAD/BRCA driver_mutation depmap claims.
+      - axis: driver_mutation
+        strata: [TP53_mut, PIK3CA_mut, NOTCH1_mut]
+        cohorts: [tcga, depmap]          # tcga-subgroup-assignments-hnsc-maf-v1, 277 evaluable:
+                                         # TP53_mut 181 MEASURED / PIK3CA_mut 38 MEASURED /
+                                         # NOTCH1_mut 20 UNDERPOWERED. depmap (AM#624, live source,
+                                         # no shard): 42 MEASURED / 8 / 7 UNDERPOWERED.
+                                         # NOTCH1_mut is registered BECAUSE underpowered != absent;
+                                         # it is labelled, not dropped (see admissibility_floors).
+      - axis: cn_amplification
+        strata: [CCND1_amp]
+        cohorts: [tcga]                  # tcga-subgroup-assignments-hnsc-v1: 69 of 276 evaluable
+                                         # -> MEASURED. depmap NOT claimed, and note the reason is
+                                         # NOT the catalog's `expected_n_depmap: 0` (that is an N/A
+                                         # sentinel, which the NSCLC case below proves is no
+                                         # evidence): CCND1_amp is simply UNMEASURED on DepMap in
+                                         # either direction. No members-exist fact => no claim.
+                                         # Absence of a measurement is not a measurement of absence.
+      - axis: tmb
+        strata: [TMB_high]
+        cohorts: [tcga]                  # tcga-subgroup-assignments-hnsc-v1: 27 of 277 evaluable
+                                         # -> UNDERPOWERED (n<30). Registered and labelled.
+                                         # Mirrors the NSCLC `tmb` axis shape exactly (also [tcga]).
     associations:
       - from: HPV_positive
         to: subtype_atypical
         relationship: enriched_in
         note: "HPV+ HNSC concentrated in the Atypical Bass subtype + oropharyngeal site."
+      # ★ NO ASSOCIATIONS AUTHORED FOR THE FOUR NEW STRATA, AND THE REASON IS THIS FILE'S OWN RULE.
+      # The co-occurrence was measured on the samples evaluable for BOTH axes and it reproduces the
+      # textbook HNSC picture: TP53_mut 34/44 (77.3%) of HPV-negative vs 0/7 (0.0%) of HPV-positive;
+      # CCND1_amp 12/45 (26.7%) vs 0/7; NOTCH1_mut 3/44 vs 0/7; and PIK3CA_mut INVERTED at 5/44
+      # (11.4%) vs 2/7 (28.6%), consistent with PIK3CA being the dominant HPV+ driver.
+      # BUT the HPV-positive arm is n=7 -- UNDERPOWERED -- and `authoring_rule` states that an
+      # underpowered stratum is inadmissible in CROSS-STRATUM COMPARATIVE prose. An `enriched_in`
+      # edge is exactly such a comparison, and the coherence facet treats it as a real (if weak)
+      # bridge. Strong literature support does not substitute for a powered denominator, so these
+      # edges are deliberately NOT authored. Revisit when the HPV denominator grows past 30
+      # evaluable HPV-positive samples (today: 7 of 279).
 
   # ============================================================================
   # BRCA — PAM50 intrinsic subtypes (added 2026-08-09 with the new BRCA/PAM50 catalog, DC#311)

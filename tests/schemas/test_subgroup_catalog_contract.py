@@ -416,18 +416,28 @@ def test_declared_cohorts_that_measure_absent_are_exactly_the_pinned_set():
     and `tp_fanout.py` uses it to restrict each card's stratum scope -- so a false claim sends
     the fan-out to build a panorama on a cohort with zero members.
 
-    Seven claims are contradicted today. They are NOT fixed here: removing a cohort changes
+    Five claims are contradicted today. They are NOT fixed here: removing a cohort changes
     which panoramas a profile builds, so it is verdict-bearing and belongs behind stage 3d's
-    composed replay diff. They are PINNED BY NAME, the #598 pattern -- an eighth is an error,
+    composed replay diff. They are PINNED BY NAME, the #598 pattern -- a sixth is an error,
     and fixing one requires deleting its entry, so this cannot rot into a permanent allowlist.
+
+    ★★ CORRECTED 2026-09-14 (stage 3d), in TWO ways, and both were defects in THIS test:
+
+    (1) THE PIN WAS 7 AND THE TRUTH IS 5. Two of the seven were NSCLC histology_Adeno / histology_SCC
+        on depmap, drawn from `source_excluded`, whose disposition was `needs NO measurement`. Measuring
+        the published shard gives 118 and 32 members of 150 evaluable -- both above the floor. Those two
+        moved to `source_excluded.measured` in the crosswalk as a FALSIFICATION, so this test now reads
+        its pin from `measured_absent.claims` alone.
+    (2) THE CONDITION READ A SENTINEL AS EVIDENCE. It admitted `note.startswith("Corrected")`, and the
+        note it thereby admitted says, in full, "Reset to the N/A sentinel 0". So a value the catalog
+        explicitly labels NOT-A-MEASUREMENT was counted as a measured absence -- the same overloaded-`0`
+        defect the crosswalk records at axis level, reproduced in the guard meant to enforce it. Only
+        `Observed emit` makes a 0 an absence claim now. That tightening is what takes 7 -> 5, and the
+        two it drops are exactly the two the shard falsified: the arithmetic agrees from both ends.
     """
     recon = CROSSWALK["cohort_claim_reconciliation"]
-    pinned = {
-        (c["indication"], c["stratum"], c["cohort"])
-        for cls in ("measured_absent", "source_excluded")
-        for c in recon[cls]["claims"]
-    }
-    assert len(pinned) == 7, f"pin set changed shape: {len(pinned)}"
+    pinned = {(c["indication"], c["stratum"], c["cohort"]) for c in recon["measured_absent"]["claims"]}
+    assert len(pinned) == 5, f"pin set changed shape: {len(pinned)}"
 
     # ★ SPELLINGS OF `tcga`, derived by that meaning. This read `[c for c in COHORT_FAMILIES if
     # c != "depmap"]` until 2026-09-14, which was an adequate proxy only while COHORT_FAMILIES
@@ -464,14 +474,89 @@ def test_declared_cohorts_that_measure_absent_are_exactly_the_pinned_set():
                         continue
                     k = keys[0]
                     note = s.get(f"{k}_denominator_note") or ""
-                    # ★ Only an `Observed emit` 0 is an ABSENCE claim. The same 0 also serves as
-                    # an N/A sentinel, and `evaluable == 0` is not `n == 0` -- conflating them is
-                    # the defect analysis-methods #626 fixed one level down.
-                    if s[k] == 0 and (note.startswith("Observed emit") or note.startswith("Corrected")):
+                    # ★ ONLY an `Observed emit` 0 is an ABSENCE claim. The same 0 also serves as an N/A
+                    # sentinel, and `evaluable == 0` is not `n == 0` -- conflating them is the defect
+                    # analysis-methods #626 fixed one level down. `Corrected ...` is DELIBERATELY not
+                    # accepted: #598 wrote those notes to say "Reset to the N/A sentinel 0", so admitting
+                    # them counts a declared non-measurement as a measurement.
+                    if s[k] == 0 and note.startswith("Observed emit"):
                         observed.add((code, sid, cohort))
 
     assert observed == pinned, (
         "crosswalk cohort claims contradicted by the measured catalogs changed.\n"
         f"  newly contradicted (add to cohort_claim_reconciliation, or fix the claim): {sorted(observed - pinned)}\n"
         f"  no longer contradicted (delete the pin): {sorted(pinned - observed)}"
+    )
+
+
+@pytestmark_live
+def test_sentinel_zeros_are_not_absence_claims_and_the_falsified_pair_is_pinned():
+    """The other half of the tightening above: the sentinel `0`s the old condition mistook for absences.
+
+    A `Corrected ... Reset to the N/A sentinel 0` note DECLARES that no run ever evaluated this cohort.
+    It is not evidence of zero members -- and for these two strata it is not even true that no run can:
+    `depmap-subgroup-assignments-nsclc-v1` measures histology_Adeno at 118 and histology_SCC at 32 of 150
+    evaluable, and the manifest's own description already said so. The registry's `cohorts:
+    [tcga, depmap]` claim was RIGHT; the catalog is stale in three places at once
+    (`applicable_data_sources`, the sentinel count, and `iter1b_status: data_blocked`).
+
+    Pinned by EQUALITY against the crosswalk's `source_excluded.measured` record so that:
+      * a THIRD sentinel-0 on a declared cohort is an error -- it needs measuring, not filing; and
+      * when the data-catalog correction lands, this test REDS and says to delete the pin, instead of a
+        falsification quietly outliving the claim it falsified.
+
+    ★ Why a sentinel and a measurement must never share an encoding: #598 reset a declared 60/40 to `0`
+    BECAUSE `applicable_data_sources` excluded depmap -- so the backfill took its authority to declare
+    N/A from the very declaration that was wrong, and the estimates it discarded (60/40) were closer to
+    the measured truth (118/32) than the "Correction" that replaced them.
+    """
+    recon = CROSSWALK["cohort_claim_reconciliation"]
+    falsified = {(e["indication"], e["stratum"], e["cohort"]) for e in recon["source_excluded"]["measured"]}
+    for e in recon["source_excluded"]["measured"]:
+        assert e["state"] == "measured", (
+            f"{e['stratum']}: filed as falsified-by-measurement but state is {e['state']!r}"
+        )
+        assert e["members"] >= 30, f"{e['stratum']}: {e['members']} members does not clear the floor it is cited for"
+        assert e["members"] <= e["evaluable"], f"{e['stratum']}: {e['members']} members of {e['evaluable']} evaluable"
+
+    # ★ SPELLINGS OF `tcga`, derived by that meaning rather than by `!= "depmap"`. The proxy was
+    # adequate only while COHORT_FAMILIES was a hardcoded 7 of which 6 were tcga spellings; #770
+    # derives that list from the schema and takes it to 13, at which point `!= "depmap"` silently
+    # means "everything" and an `expected_n_genie_bpc` would be read as a measurement on the
+    # `tcga` cohort. Written in this form here so the two PRs cannot interact: at 7 families both
+    # spellings yield the identical 6 keys, so this is inert on THIS branch and correct after #770.
+    tcga_keys = [f"expected_n_{c}" for c in COHORT_FAMILIES if c == "tcga" or c.startswith("tcga_")]
+    catalogs = {n: {s["id"]: s for s in (d.get("atomic_strata") or [])} for n, d in _live_catalogs().items()}
+
+    sentinels = set()
+    for ind in CROSSWALK["indications"]:
+        code = ind["canonical_code"]
+        for ax in ind.get("axes") or []:
+            for sid in ax.get("strata") or []:
+                s = catalogs.get(code, {}).get(sid)
+                if s is None:
+                    continue
+                for cohort in ax.get("cohorts") or []:
+                    if cohort == "tcga":
+                        keys = [k for k in tcga_keys if k in s]
+                    else:
+                        # ★ WAS a bare `continue`. That skipped genie/genie_bpc/george_2015, which
+                        # was correct BY CONSTRUCTION (the schema rejected those keys) and becomes a
+                        # blind spot the moment #770 makes them writable -- over the same 7
+                        # axis-cohort claims named there. Handling each cohort by its own key name
+                        # closes it in advance; the `depmap` special case folds into this.
+                        keys = [f"expected_n_{cohort}"]
+                    if not keys or keys[0] not in s:
+                        continue
+                    k = keys[0]
+                    note = s.get(f"{k}_denominator_note") or ""
+                    if s[k] == 0 and not note.startswith("Observed emit"):
+                        sentinels.add((code, sid, cohort))
+
+    assert sentinels == falsified, (
+        "the set of DECLARED cohorts carrying a sentinel 0 (a `0` with no measurement behind it) "
+        "changed.\n"
+        f"  new sentinels (measure them; do not read a 0 as an absence): {sorted(sentinels - falsified)}\n"
+        f"  no longer sentinels (the catalog was fixed -- delete the pin from source_excluded.measured): "
+        f"{sorted(falsified - sentinels)}"
     )
