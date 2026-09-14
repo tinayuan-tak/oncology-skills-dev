@@ -6,12 +6,15 @@
 # CMScaller NTP (Eide 2017) — the whole-transcriptome nearest-template classifier built to extend CMS
 # (Guinney 2015) beyond tumor tissue to cell lines. DepMap-ONLY: TCGA CMS already ships via
 # directly_tagged (guinney-2015-crc-cms-consortium). DepMap CMS is HYPOTHESIS-GENERATING — cell lines
-# lack the stromal/immune compartments defining CMS1/CMS4; expect unclassifiable (NA) Bowel lines.
+# lack the stromal/immune compartments defining CMS1/CMS4; expect unclassifiable (NA) lines.
 
 id: coadread-cms-classifier-2026-q2
 version: 1.0.0
 classifier_method: cms_classifier
-reference_cohort: depmap_bowel        # OncotreeLineage == "Bowel" (~146 DepMap lines)
+# The LINEAGE the cohort is drawn from, not the population. The method narrows within it to the
+# catalog's indication (COADREAD) by OncotreeCode via subgroup_common.lineage, and cross-checks that
+# this token's lineage matches the one the indication maps to. Bowel is 146 models; COADREAD is 133.
+reference_cohort: depmap_bowel
 
 # NTP FDR floor: a sample above this is UNCLASSIFIABLE (NA CMS), not force-called.
 fdr_threshold: 0.05

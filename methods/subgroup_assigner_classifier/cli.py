@@ -44,6 +44,7 @@ import click
 import pandas as pd
 import yaml
 
+from methods.subgroup_common import lineage as _lineage
 from methods.subgroup_common.manifest import emit_assignment_manifest
 from methods.subgroup_common.paths import cache_root
 
@@ -288,8 +289,29 @@ def _run_single_gene_threshold(expression_df: pd.DataFrame, config: dict) -> pd.
 
 # ---------- CMS (Consensus Molecular Subtypes) — NTP via CMScaller (Phase 2) ----------
 
-# CMS is filtered by OncotreeLINEAGE (Bowel), not OncotreeCode — a coarser grouping than the
-# marker-classifier cohorts above (CMS spans the whole colorectal lineage).
+# The `reference_cohort` token in a cms_classifier config names the DepMap OncotreeLINEAGE the cohort
+# is DRAWN FROM. It is not the population, and this map is no longer the filter (it used to be).
+# `Bowel` is 146 DepMap models; COADREAD is 133 of them. The other 13 are 11 models of a DIFFERENT
+# catalogued disease (anal squamous, appendiceal, duodenal/small-bowel, one colorectal high-grade
+# neuroendocrine, and three BENIGN adenomas) plus 2 with a null OncotreeCode.
+#
+# MEASURED consequence of the coarse filter (seed 42, DepMap 26Q1, six-seed envelope in parens):
+#
+#            coarse Bowel n=131   COADREAD n=119
+#     CMS1        16 (16-17)          16 (15-16)
+#     CMS2        40 (40-41)          39 (38-39)   <- range-disjoint
+#     CMS3        19 (19-20)          17 (16-17)   <- range-disjoint
+#     CMS4        32 (32-33)          28 (28)      <- range-disjoint
+#
+# ★ The 10 classified off-indication models did NOT distribute evenly: CMS4 x5, CMS3 x4, CMS1 x1,
+# CMS2 x0. So the coarse filter does not inflate the cohort by a scale factor that a single ratio
+# could correct — each stratum's error is its own number, and CMS2's is ~zero while CMS4's is 5/32.
+#
+# The population now comes from the catalog's `indication` via subgroup_common.lineage; this map
+# survives ONLY as the cross-check that the config's declared lineage and the indication's governed
+# lineage agree. Two tokens routing the same axis is a drift hazard unless one asserts against the
+# other: a catalog retargeted to STAD with `reference_cohort: depmap_bowel` left behind would
+# otherwise emit a bowel cohort under a gastric label.
 _REFERENCE_COHORT_ONCOTREE_LINEAGE = {"depmap_bowel": "Bowel"}
 
 
@@ -301,12 +323,22 @@ def _parse_entrez(gene_col: str):
     return m.group(1) if m else None
 
 
-def _load_depmap_expression_full(reference_cohort_lineage: str | None = None) -> pd.DataFrame:
-    """Full DepMap protein-coding TPM matrix for CMS NTP — ModelID index × 'SYMBOL (Entrez)' gene
-    columns (log2(TPM+1)), optionally restricted to an OncotreeLineage cohort (Bowel for CMS).
+def _load_depmap_expression_full(indication: str | None, reference_cohort: str | None = None) -> pd.DataFrame:
+    """Full DepMap protein-coding TPM matrix for CMS NTP, narrowed to `indication`'s model set.
 
-    Unlike the marker loaders above, CMS needs the WHOLE transcriptome (NTP correlates each sample to
-    787-gene templates), so this reads all gene columns (heavier — one-time classifier run)."""
+    Returns a ModelID index × 'SYMBOL (Entrez)' gene column frame of log2(TPM+1). Unlike the marker
+    loaders above, CMS needs the WHOLE transcriptome (NTP correlates each sample to the 529-row CMS
+    template set — 482 distinct Entrez probes, 126/82/84/237 per class), so this reads every gene
+    column (heavier — a one-time classifier run).
+
+    FAILS CLOSED on every branch that previously fell through to an unfiltered matrix. CMScaller
+    quantile-normalizes across the samples PRESENT and BH-adjusts the permutation p across those same
+    samples, so the population is an INPUT to every per-sample verdict rather than something you can
+    filter afterwards. A silently pan-cancer matrix therefore returns wrong FDRs for every model at
+    exit 0, with counts that still look like plausible CMS proportions — the most expensive kind of
+    green. Measured here: dropping 12 of 131 models re-called 4 of the 119 survivors (3 of them
+    NA -> classified, because BH adjusts across fewer tests), on top of the 10 removals themselves.
+    """
     cache = cache_root() / "framework-depmap-26q1"
     fallback = cache / "OmicsExpressionProteinCodingGenesTPMLogp1.csv"
     if not fallback.exists():
@@ -323,21 +355,59 @@ def _load_depmap_expression_full(reference_cohort_lineage: str | None = None) ->
     gene_cols = [c for c in df.columns if _parse_entrez(c) is not None]
     df = df[gene_cols]
 
-    lineage = _REFERENCE_COHORT_ONCOTREE_LINEAGE.get(reference_cohort_lineage) if reference_cohort_lineage else None
-    if lineage:
-        model_path = cache / "Model.csv"
-        if model_path.exists():
-            model = pd.read_csv(model_path, usecols=["ModelID", "OncotreeLineage"])
-            cohort_ids = set(model[model["OncotreeLineage"] == lineage]["ModelID"])
-            df = df[df.index.isin(cohort_ids)]
-            if df.empty:
-                raise ValueError(f"No models for OncotreeLineage={lineage!r} after cohort filtering. Check Model.csv.")
-        else:
-            click.echo(
-                f"  WARNING: Model.csv not found at {model_path}; lineage filter "
-                f"({reference_cohort_lineage!r}) skipped",
-                err=True,
-            )
+    if not reference_cohort:
+        raise ValueError(
+            "cms_classifier config must declare `reference_cohort` (e.g. depmap_bowel). Absent, this "
+            "used to normalize and FDR-adjust across the WHOLE DepMap panel and report success."
+        )
+    declared_lineage = _REFERENCE_COHORT_ONCOTREE_LINEAGE.get(reference_cohort)
+    if declared_lineage is None:
+        raise KeyError(
+            f"Unknown reference_cohort {reference_cohort!r} (known: "
+            f"{sorted(_REFERENCE_COHORT_ONCOTREE_LINEAGE)}). Add the OncotreeLineage mapping rather "
+            f"than running unscoped."
+        )
+    if not indication:
+        raise ValueError(
+            f"Subgroup catalog declares no `indication`, so the CMS population for reference_cohort "
+            f"{reference_cohort!r} cannot be narrowed within OncotreeLineage {declared_lineage!r}."
+        )
+
+    model_path = cache / "Model.csv"
+    if not model_path.exists():
+        raise FileNotFoundError(
+            f"Model.csv not found at {model_path}. It is REQUIRED to scope the CMS cohort "
+            f"(indication={indication!r}, reference_cohort={reference_cohort!r}), not optional "
+            f"metadata: without it the NTP population is the whole DepMap panel."
+        )
+    model = pd.read_csv(model_path, usecols=["ModelID", "OncotreeLineage", "OncotreeCode", "OncotreeSubtype"])
+    population = _lineage.depmap_population_for(indication, model)
+    if population.lineage != declared_lineage:
+        raise ValueError(
+            f"reference_cohort {reference_cohort!r} declares OncotreeLineage {declared_lineage!r}, but "
+            f"indication {indication!r} maps to {population.lineage!r}. One of the two is stale — "
+            f"reconcile the classifier config against the subgroup catalog before running."
+        )
+    click.echo(f"  cohort: {population.note}")
+    if not population.narrowed:
+        click.echo(
+            f"  WARNING: CMS population is the WHOLE {population.lineage!r} lineage "
+            f"({population.lineage_total} models) — {indication} declares no OncotreeCode set, so any "
+            f"expected_n measured from this run inherits the lineage's off-indication members",
+            err=True,
+        )
+
+    df = df[df.index.isin(population.model_ids)]
+    if df.empty:
+        raise ValueError(
+            f"No expression rows for any of the {population.kept} {indication} models within "
+            f"OncotreeLineage {population.lineage!r}. Check Model.csv against the expression matrix."
+        )
+    no_expression = population.kept - len(df)
+    click.echo(
+        f"  cohort with expression: {len(df)} of {population.kept} {indication} models"
+        + (f" ({no_expression} have no expression row)" if no_expression else "")
+    )
     return df
 
 
@@ -515,7 +585,7 @@ def main(
         if data_source != "depmap":
             click.echo("cms_classifier is DepMap-only in iter-1 (TCGA CMS ships via directly_tagged)", err=True)
             return 0
-        expression = _load_depmap_expression_full(reference_cohort_lineage=config.get("reference_cohort"))
+        expression = _load_depmap_expression_full(indication, reference_cohort=config.get("reference_cohort"))
     else:
         if config["classifier_method"] == "napy_zscore_classifier":
             gene_symbols = list(config["marker_genes"].values())
