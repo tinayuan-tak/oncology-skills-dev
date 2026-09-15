@@ -478,6 +478,16 @@ def test_census_reaches_some_fields_but_not_all():
 # guess", and the remedy for that class is a contracts-side `capsule:` DECLARATION — which makes the
 # display deterministic and earns exact credit at once — not a second reader. Do not wire a field that
 # a hint scan already surfaces; that adds a duplicate display to move a counter.
+#
+# ⚠️ AND THAT WARNING IS LIVE RATHER THAN THEORETICAL, because the override is PER-SLOT, not per-card —
+# measured by session 1972e09f, correcting card.schema.json:846 ("when present it OVERRIDES the capsule's
+# field-selection heuristics for this card"), which is false as written. With a `capsule:` block present on
+# tumor-vs-normal-selectivity, the `_ANCHOR_HINTS` scan STILL RAN and returned
+# `cross_subgroup_delta_log2fc` + `log2fc_cell_a/b/c`; and `_sibling_caveats(summary, cfg)` / `_n_basis(summary)`
+# take no capsule-contract parameter at all, so no declaration can reach them. Of the four scans the block
+# governs exactly one. ⇒ declaring a field never switches the other slots off, so a declaration CAN
+# coexist with a hint-scan hit on a different slot and render the field twice. Check the field name
+# against the hint tables, not against the presence of a `capsule:` block.
 APERTURE_CEILING = 887
 
 # Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
@@ -489,6 +499,36 @@ APERTURE_SLACK = 20
 # A domain floor, so a census that discovers no cards cannot pass the ceiling by measuring nothing.
 # Trunk is 1801; 1500 leaves room for real card retirement without leaving room for an outage.
 APERTURE_DOMAIN_FLOOR = 1500
+
+# ★★ A MERGE GATE THAT NAMES A REMEDY MUST BE TESTED AGAINST ITS OWN REMEDY — credited to session
+# 1972e09f, who measured it. This message used to advise "declare the field's role in the owning skill's
+# field_disposition.yaml", which is the ONE remedy `census()` is deliberately built to ignore:
+# field_disposition.py's module docstring says so outright ("THE APERTURE METRIC IS BLIND TO
+# DECLARATIONS ... the metric would measure our own paperwork") and `census()`'s own docstring repeats it.
+# PROVEN BY EXISTENCE rather than by reading the docstring: of the 891 orphans measured against contracts
+# main, 105 ALREADY carry a declared role in tumor-presence/field_disposition.yaml — 55 `context`, 26
+# `display`, 23 `provenance`, and 1 `signal`. Declared, and still counted.
+#
+# Why the wrong string is worse than a stale comment: an untested remedy string reds nothing and breaks
+# no test, so it is fail-open in the READER's direction. Whoever obeys it spends a PR, moves the counter
+# by exactly zero, and is invited to conclude the ratchet is broken when it is the ADVICE that is. The
+# ledger-blindness is CORRECT anti-gaming design; the defect was entirely in this message.
+#
+# ⚠️ And note what the corrected string must NOT say either: a `numeric_anchors` declaration naming a
+# BOOL earns aperture credit and renders nothing, because evidence_capsule.py's declared path filters
+# `not isinstance(v, bool)` while `capsule_readers` credits the pair regardless. That is a counter-move
+# reachable by obeying the contract — strictly worse than this string was, since it banks a false
+# improvement rather than wasting a PR. Bool flags belong in `categorical_fields`, which the card schema
+# says explicitly and which has no type filter.
+_APERTURE_REMEDY = (
+    "wire a declared reader in the same PR (a rule, a capsule projection, a salience ruler, or a "
+    "code reader), or — for a display-only field — add it to the owning card's contracts-side "
+    "`capsule:` block, which makes the display deterministic and earns exact credit at once. Put "
+    "bool flags in `categorical_fields`, never `numeric_anchors` (the renderer type-filters bools out "
+    "while the census still credits them, so that combination moves this counter and displays "
+    "nothing). Declaring a role in field_disposition.yaml does NOT help: `census()` never reads the "
+    "ledger, by design"
+)
 
 
 @needs_contracts
@@ -529,9 +569,8 @@ def test_fleet_aperture_does_not_grow():
     orphans = s["candidate_orphans"]
     assert orphans <= APERTURE_CEILING, (
         f"declared-but-unread pairs rose to {orphans} (ceiling {APERTURE_CEILING}). A new "
-        f"`outputs.summary_fields` entry with no reader is the usual cause: wire a reader in the same "
-        f"PR, or declare the field's role in the owning skill's field_disposition.yaml. Raising this "
-        f"ceiling is not an option — see APERTURE_CEILING."
+        f"`outputs.summary_fields` entry with no reader is the usual cause: {_APERTURE_REMEDY}. "
+        f"Raising this ceiling is not an option — see APERTURE_CEILING."
     )
     assert APERTURE_CEILING - orphans <= APERTURE_SLACK, (
         f"aperture is now {orphans}, {APERTURE_CEILING - orphans} below the ceiling — bank it: set "
@@ -964,6 +1003,65 @@ def test_confusion_is_the_function_that_does_read_the_ledger():
     assert "field_disposition.yaml" in inspect.getsource(fd.confusion) or "ledger_path" in (
         inspect.signature(fd.confusion).parameters
     )
+
+
+# Instruments the aperture failure message is allowed to send a reader to, mapped to the census kind
+# that would actually credit the resulting edit. The mapping is the point: it makes the MESSAGE and
+# `READER_KINDS` co-vary, so retiring or renaming a kind reds this test and forces the prose to be
+# rewritten instead of quietly becoming advice for an instrument that no longer exists.
+_REMEDY_INSTRUMENTS = {
+    "rule": ("gating_rule", "display_rule"),
+    "capsule": ("capsule",),
+    "salience": ("salience",),
+    "code reader": ("skill_code",),
+}
+
+
+def test_aperture_failure_message_advises_only_instruments_the_census_can_credit():
+    """★★ A MERGE GATE THAT NAMES A REMEDY MUST BE TESTED AGAINST ITS OWN REMEDY.
+    Found and measured by session `1972e09f`, 2026-09-15.
+
+    The three tests above make the CODE blind to the ledger, strip prose so a comment cannot pass for a
+    read, and prove the allowlist is not vacuous — a genuinely well-guarded anti-gaming contract. None
+    of them looks at what the gate TELLS a reader to do, and for as long as that was true the failure
+    message advised the one remedy the code is built to ignore ("declare the field's role in the owning
+    skill's field_disposition.yaml").
+
+    ★ A wrong instruction is fail-open in the READER's direction. It reds nothing and breaks no test, so
+    the suite cannot notice it; the cost lands entirely on whoever obeys it, who spends a PR, moves the
+    counter by exactly zero, and is then invited to conclude the ratchet is broken when it is the ADVICE
+    that is. Measured witness at the time of the fix: of 891 candidate orphans, **105 already carried a
+    declared role** in `tumor-presence/field_disposition.yaml` — 55 `context`, 26 `display`, 23
+    `provenance`, 1 `signal`. `confusion()` is the supported way to re-derive that (its `unreached`
+    buckets), and it is deliberately not re-derived here: this test guards the PROSE, and paying for a
+    full census to restate a property three other tests already assert would be duplicated cost.
+
+    The ledger may still be NAMED — the corrected message names it precisely to warn the reader off —
+    so a bare substring check would fire on the fix. That is the same trap as a comment documenting an
+    absent key grep-matching as a declaration, which `_code_only` exists to handle one layer down; here
+    the mention is only legal inside an explicit disclaimer.
+    """
+    for kinds in _REMEDY_INSTRUMENTS.values():
+        for kind in kinds:
+            assert kind in fd.READER_KINDS, (
+                f"the aperture remedy points readers at {kind!r}, which is no longer a census reader "
+                f"kind — rewrite _APERTURE_REMEDY rather than leaving prose for a retired instrument"
+            )
+
+    named = [phrase for phrase in _REMEDY_INSTRUMENTS if phrase in _APERTURE_REMEDY]
+    assert named, (
+        "_APERTURE_REMEDY names no creditable instrument at all; a failure message that does not say "
+        f"what would actually work is the defect this test exists for. Expected one of "
+        f"{sorted(_REMEDY_INSTRUMENTS)}"
+    )
+
+    if "field_disposition.yaml" in _APERTURE_REMEDY:
+        assert re.search(r"field_disposition\.yaml[^.]*does NOT help", _APERTURE_REMEDY), (
+            "_APERTURE_REMEDY offers the per-skill ledger as a remedy, but `census()` never reads it "
+            "(see test_aperture_measurement_never_reads_a_disposition_declaration) — 105 of the 891 "
+            "orphans measured 2026-09-15 already carried a declared role. The ledger may only be "
+            "mentioned to disclaim it."
+        )
 
 
 def test_name_only_kinds_are_declared_and_disjoint_from_exact_reasoning():

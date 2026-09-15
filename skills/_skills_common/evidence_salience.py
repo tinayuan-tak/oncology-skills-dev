@@ -294,7 +294,21 @@ SALIENCE_SPECS: dict = {
         "effect_field": "log2fc_cell_a",
         "significance_field": "q_value_cell_a",
         "direction": "higher_is_stronger",
-        "categorical": ["selectivity_class", "comparator_concordance"],
+        # TC#780's two VOCABULARY-BEARING selectivity fields, gauged as categoricals. The 2-vs-4 split
+        # of that contract's six new fields is DECLARED, not judged: exactly these two carry an
+        # `outputs.summary_fields_vocabulary` entry (4 and 3 members respectively), and a field with no
+        # vocabulary has nothing to be salient over — so a ruler is the right reader here and the wrong
+        # one for the other four. Those four are display-only and their remedy is a contracts-side
+        # `capsule:` declaration, NOT a second reader; see test_field_disposition.py's aperture block.
+        # ★ Added as SCORING design, not to move the aperture counter. Both are also creditable by a
+        # capsule declaration, so this earns no counter movement once that lands — which is the point:
+        # wiring a ruler to move a number is the failure this file's own :479 warning names.
+        "categorical": [
+            "selectivity_class",
+            "comparator_concordance",
+            "selectivity_evidence_independence",
+            "selectivity_substrate_basis",
+        ],
         "extra_scalars": ["selectivity_allgene_percentile", "sig_all_cells"],
         # STAGE-2 ruler: distance_to_cut on the tumor-vs-normal window (HIGHER log2FC = more selective).
         # position = selectivity_class READ VERBATIM; cut single-sourced from the card's existing
