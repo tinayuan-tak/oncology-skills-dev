@@ -62,6 +62,13 @@ SCOPED_INDICATION = "COADREAD"
 # columns collapse from {distinct today} tiers to exactly 1 and fall BELOW USABLE_TIER_RARITY_DISTINCT once
 # the corpus is recomposed. This falsified the design call that shipped with this frame — see
 # `test_the_corroboration_encoding_is_an_insert_not_a_renumber`.
+#
+# ⚠️ 2026-09-15: THE RE-FREEZE LANDED AND THIS PREDICTION IS NOW A MEASUREMENT. All five columns
+# below collapsed to exactly 1 tier on the shipped n=504 artifact, so they no longer clear the gate.
+# The dict is kept — with its `distinct today` values, which are now historical n=297 readings — because
+# the whole point of pinning BY NAME was to make the crossing checkable after the fact, and deleting it
+# would destroy the record of what was predicted. `test_..._are_pinned_by_name` now asserts the
+# collapse HAPPENED rather than that it is pending.
 CROSSES_DOWNWARD_ON_REFREEZE = {
     ("dependency", "CHEM"): 3,
     ("dependency", "SEL"): 2,
@@ -69,10 +76,54 @@ CROSSES_DOWNWARD_ON_REFREEZE = {
     ("selectivity", "DIST"): 3,
     ("target_intrinsic", "MODALITY_ROUTING"): 2,
 }
-# ::corrob columns clearing BOTH gates (n>=20 AND distinct>=2) on the SHIPPED 297-target artifact. NOT the
-# same population as the replay figures above (26 clear pre-#1371 / 21 post over the n=504 corpus): a count
-# measured on one population is not a count on another, and mixing them is how "39 of 40" became "39 of 62".
-SHIPPED_CORROB_REACH = 27
+# ::corrob columns clearing BOTH gates (n>=20 AND distinct>=2) on the SHIPPED artifact.
+#
+# 27 -> 21 when the n=504 re-freeze landed 2026-09-15. The two causes compose EXACTLY, with nothing
+# unexplained and zero columns gained:
+#     27  n=297 artifact, pre-#1371
+#    -1   `expression::claim::D::corrob` — the presence-ladder fix (#1386) retired its ONE minority
+#         cell (`{3.0:296, 1.0:1}` -> `{3.0:472, None:32}`), so the column is now constant. This is a
+#         DIFFERENT cause from the five below and was never part of their prediction set.
+#    -5   the #1371 `single_arm` reroute — exactly CROSSES_DOWNWARD_ON_REFREEZE, all five confirmed.
+#    ---
+#     21  measured on the n=504 artifact, matching the replay's predicted 21 exactly.
+# ★ The replay's intermediate figure was 26 (n=504, pre-#1371) = 27 - 1: that tree already carried the
+# ladder fix. Three populations, three numbers, and they only reconcile because each was recorded WITH
+# its population. A bare count would have shown "27 -> 21" with no way to separate one 6-column drop
+# from two overlapping causes. Still do not mix them.
+SHIPPED_CORROB_REACH = 21
+# The 27 that cleared on the n=297 artifact, BY NAME. Pinned as a set rather than a count so the
+# "nothing gained on a re-freeze" direction assertion has something to be a subset OF — a reroute can
+# only remove reach, so the post-re-freeze set must be a SUBSET of this one. A count cannot express that.
+_CORROB_REACH_N297 = {
+    "cis_coherence::claim::CIS_DOSAGE::corrob",
+    "cis_coherence::claim::SILENCING::corrob",
+    "dependency::claim::CHEM::corrob",
+    "dependency::claim::DEP::corrob",
+    "dependency::claim::SEL::corrob",
+    "differentiation::claim::SURVIVAL::corrob",
+    "expression::claim::A::corrob",
+    "expression::claim::B::corrob",
+    "expression::claim::C::corrob",
+    "expression::claim::D::corrob",
+    "genomic_alteration::claim::CN::corrob",
+    "genomic_alteration::claim::DEP::corrob",
+    "genomic_alteration::claim::FUS::corrob",
+    "genomic_alteration::claim::ROLE::corrob",
+    "genomic_alteration::claim::SNV::corrob",
+    "immune_context::claim::IMMUNE::corrob",
+    "safety::claim::BURDEN::corrob",
+    "safety::claim::CONSTRAINT::corrob",
+    "safety::claim::NORMAL_TISSUE::corrob",
+    "selectivity::claim::DIST::corrob",
+    "selectivity::claim::INT::corrob",
+    "selectivity::claim::SAFE::corrob",
+    "selectivity::claim::WIN::corrob",
+    "surface_modality::claim::FIT::corrob",
+    "surface_modality::claim::PMHC::corrob",
+    "target_intrinsic::claim::MODALITY_ROUTING::corrob",
+    "tractability_sm::claim::ACTIVITY::corrob",
+}
 
 
 def _atlas():
@@ -450,14 +501,29 @@ def test_the_distinct_gate_is_not_monotone_when_the_producer_reroutes_rungs():
 
 
 def test_the_columns_that_cross_the_distinct_gate_on_a_refreeze_are_pinned_by_name():
-    """★ Pinned BY NAME, not by a count, because a count cannot say WHICH column changed. Each of these
-    clears the gate on the shipped artifact today and is measured to collapse to one tier once the corpus is
-    recomposed at `698c203e`; when the n=504 re-freeze lands, this test reds and each name must be
-    re-measured rather than re-asserted. A bare `reach == 27` would go green again on a different 27.
+    """★ Pinned BY NAME, not by a count, because a count cannot say WHICH column changed.
 
-    NOTE THE POPULATIONS ARE DIFFERENT AND THE NUMBERS MUST NOT BE MIXED: the shipped artifact is 297
-    targets at pre-#1371 values (27 of 56 ::corrob columns clear), while the replay measured the n=504
-    corpus (26 clear pre, 21 post). Same gate, three different populations."""
+    ⚠️ REWRITTEN 2026-09-15: THE PREDICTION CAME TRUE AND THIS TEST NOW VERIFIES IT, not awaits it.
+    Its previous form asserted these five columns still CLEAR the gate and were measured to collapse once
+    the corpus was recomposed at `698c203e`. The n=504 re-freeze landed, the test went red exactly as its
+    own docstring said it would, and each name was re-measured rather than re-asserted:
+
+        all five predicted columns collapsed to exactly 1 tier    -> confirmed, 5 of 5
+        columns that lost reach but were NOT predicted            -> exactly 1, and for a DIFFERENT
+                                                                    cause: expression::claim::D::corrob,
+                                                                    retired by the #1386 presence ladder
+        columns that GAINED reach                                 -> 0
+        reach 27 -> 21                                            -> matches the replay's predicted 21
+
+    ★ Direction matters more than the count. The falsified design call was that adding a rung can only
+    ADMIT more columns; the producer REROUTES populated rungs onto `single_arm` instead of adding a fourth
+    population, so recomposing the corpus SHRANK this frame's reach by 6 of 27. See
+    `test_the_corroboration_encoding_is_an_insert_not_a_renumber`.
+
+    NOTE THE POPULATIONS ARE DIFFERENT AND THE NUMBERS MUST NOT BE MIXED: 27 on the n=297 artifact
+    pre-#1371, 26 on the n=504 corpus pre-#1371 (the ladder fix already in that tree), 21 on the n=504
+    artifact now shipped. Same gate, three populations. Mixing them is how "39 of 40" became "39 of 62".
+    If THIS reds, the corpus moved again — re-measure all three groups below, do not adjust the count."""
     a = _atlas()
     clears = {
         k
@@ -465,10 +531,33 @@ def test_the_columns_that_cross_the_distinct_gate_on_a_refreeze_are_pinned_by_na
         if k.endswith("::corrob") and len(_raw_column(k)) >= 20 and len(set(_raw_column(k))) >= 2
     }
     assert len(clears) == SHIPPED_CORROB_REACH, f"reach moved: {len(clears)} != {SHIPPED_CORROB_REACH}"
-    for (short, claim), distinct_today in sorted(CROSSES_DOWNWARD_ON_REFREEZE.items()):
+
+    # GROUP 1 — the five predicted collapses. Each must now be SILENT: one tier, below the distinct gate,
+    # and `tier_rarity` refusing to speak. `distinct_before` is the historical n=297 reading, kept so the
+    # size of the collapse stays on the record rather than just its fact.
+    for (short, claim), distinct_before in sorted(CROSSES_DOWNWARD_ON_REFREEZE.items()):
         key = claim_atlas_key(short, claim, "corrob")
-        assert key in clears, f"{key} no longer clears the gate — re-measure the crossing set"
         col = _raw_column(key)
-        assert len(set(col)) == distinct_today, f"{key}: distinct {len(set(col))} != pinned {distinct_today}"
-        # and it genuinely speaks today, which is what the re-freeze takes away
-        assert ac.tier_rarity(key, sorted(set(col))[-1]) is not None, key
+        assert key not in clears, (
+            f"{key} STILL clears the distinct gate. The `single_arm` reroute was measured to collapse it "
+            f"to 1 tier (from {distinct_before} at n=297) and the shipped artifact says otherwise — "
+            f"re-measure the reroute, do not delete this name"
+        )
+        assert len(set(col)) == 1, f"{key}: expected 1 tier after the reroute, got {len(set(col))}"
+        assert ac.tier_rarity(key, col[0]) is None, (
+            f"{key} collapsed to one tier but tier_rarity still speaks — the gate that is supposed to "
+            f"silence a non-discriminating column is not firing"
+        )
+
+    # GROUP 2 — the ONE unpredicted loss, and it has a different cause. Asserted by name so a future
+    # reader cannot mistake it for a sixth `single_arm` casualty.
+    ladder = claim_atlas_key("expression", "D", "corrob")
+    assert ladder not in clears, f"{ladder} clears the gate again — the #1386 presence-ladder fix regressed"
+    assert len(set(_raw_column(ladder))) == 1, "expression::D::corrob should be constant post-#1386"
+
+    # GROUP 3 — nothing was GAINED. This is the direction assertion: a rerouting producer can only take
+    # reach away, so any gain means the encoding stopped being an insert.
+    assert clears <= _CORROB_REACH_N297, (
+        f"columns GAINED reach on the re-freeze: {sorted(clears - _CORROB_REACH_N297)}. A reroute cannot "
+        f"add a tier, so this contradicts `test_the_corroboration_encoding_is_an_insert_not_a_renumber`"
+    )

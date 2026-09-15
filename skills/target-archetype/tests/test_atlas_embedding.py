@@ -44,6 +44,10 @@ BUILD = Path(__file__).resolve().parents[1] / "scripts" / "build_atlas.py"
 # the pinned solver lands at 2.24e-05 and `randomized` at 1.23e-02, so this tolerance sits ~550x below the
 # difference it has to reject and ~4x above the difference it has to accept.
 ROUNDING_TOLERANCE = 1e-4
+# sklearn's `auto` svd_solver switches to `randomized` once n_samples exceeds this. Named rather than
+# inlined so the solver-flip guard straddles the boundary by CONSTRUCTION at any corpus size — the corpus
+# itself crossed it at the n=504 re-freeze, which silently turned a hard-coded 504 into a no-op pad.
+BOUNDARY = 500
 
 
 def _load(path):
@@ -136,19 +140,32 @@ def test_the_pin_holds_at_the_post_expansion_corpus_size_where_auto_flips(build_
     (`covariance_eigh`), and `pixi.toml` declares only `>=1.5`, so the exact heuristic is not pinned — the
     solver is.
     """
+    # ⚠️ 2026-09-15: BOTH arms are now derived from the BOUNDARY, not from a hard-coded corpus size.
+    # This test used to build its large arm as `504 - Z.shape[0]` resampled rows, chosen when the corpus was
+    # 297. The n=504 re-freeze made that expression ZERO, so `padded` became `Z` itself and the assertion
+    # below compared a matrix to itself — it red-failed with 'randomized' != 'randomized'. Its own sanity
+    # check still PASSED (`padded.shape[0] == 504 > 500` is true) because it only ever validated the LARGE
+    # arm and never asserted that the small arm was small. ★A test that synthesises a future corpus size by
+    # hard-coding it inverts silently the moment the real corpus reaches that size; derive from the property
+    # under test (sklearn's 500-row branch) so the guard survives any n.
     rng = np.random.default_rng(0)
-    padded = np.vstack([Z, Z[rng.integers(0, Z.shape[0], 504 - Z.shape[0])]])
-    assert padded.shape[0] == 504 > 500, "the padded corpus must actually cross sklearn's 500-row boundary"
+    small = Z[: BOUNDARY - 100]
+    large = np.vstack([Z, Z[rng.integers(0, Z.shape[0], max(0, (BOUNDARY + 100) - Z.shape[0]))]])
+    assert small.shape[0] < BOUNDARY < large.shape[0], (
+        f"the two arms must straddle sklearn's {BOUNDARY}-row boundary, got "
+        f"{small.shape[0]} and {large.shape[0]} at corpus n={Z.shape[0]}"
+    )
+    assert small.shape[0] > 16, "the small arm must still support 16 components"
 
-    auto_small = PCA(n_components=16, random_state=0).fit(Z)
-    auto_large = PCA(n_components=16, random_state=0).fit(padded)
+    auto_small = PCA(n_components=16, random_state=0).fit(small)
+    auto_large = PCA(n_components=16, random_state=0).fit(large)
     assert auto_small._fit_svd_solver != auto_large._fit_svd_solver, (
         "sklearn's `auto` no longer changes solver across the 500-row boundary. The hazard may be gone, but "
         "verify that before relaxing the pin — this assertion is what documents that the hazard was real"
     )
 
-    pinned_small = PCA(n_components=16, random_state=0, svd_solver=build_mod.PCA_SVD_SOLVER).fit(Z)
-    pinned_large = PCA(n_components=16, random_state=0, svd_solver=build_mod.PCA_SVD_SOLVER).fit(padded)
+    pinned_small = PCA(n_components=16, random_state=0, svd_solver=build_mod.PCA_SVD_SOLVER).fit(small)
+    pinned_large = PCA(n_components=16, random_state=0, svd_solver=build_mod.PCA_SVD_SOLVER).fit(large)
     assert pinned_small._fit_svd_solver == pinned_large._fit_svd_solver == build_mod.PCA_SVD_SOLVER, (
         f"the pin is not honoured across corpus sizes: {pinned_small._fit_svd_solver} vs {pinned_large._fit_svd_solver}"
     )

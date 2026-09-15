@@ -186,14 +186,36 @@ def test_the_builder_emits_both_fields_and_calls_the_helper():
         assert f'"{field}": {field},' in src, f"{field} is computed but not emitted into the atlas doc"
 
 
-def test_the_next_refreeze_must_pin_the_new_fields(doc):
-    """States the coupling rather than asserting the future. `test_atlas_stability.py` compares
-    `set(pinned['fields']) == set(doc)` by EXACT equality against the shipped artifact, so today's atlas
-    (which lacks these fields) stays green — and the next re-freeze RED-FAILS until `atlas_stability.py
-    --write` re-pins in the same commit. That red is the forcing function working, not a regression."""
-    assert "n_classes" not in doc, (
-        "the atlas now ships n_classes ⇒ atlas_freeze.json must be re-pinned in the same commit "
-        "(atlas_stability.py --write) and this test should be replaced by a real artifact assertion"
+def test_the_shipped_artifact_carries_both_fields_and_they_agree_with_a_recompute(build_mod, doc):
+    """The real artifact assertion that replaces `test_the_next_refreeze_must_pin_the_new_fields`.
+
+    ⚠️ 2026-09-15: that predecessor asserted `"n_classes" not in doc` — it stated the COUPLING (a re-freeze
+    must re-pin `atlas_freeze.json` in the same commit) by red-failing the moment the fields appeared, and
+    told its replacement what to be. The n=504 re-freeze landed the fields, the forcing function fired as
+    designed, `atlas_stability.py --write` re-pinned 19 fields + 18 meta keys in this same commit, and the
+    placeholder is now a real assertion against the shipped bytes.
+
+    ★ Recomputing from the frozen `X` rather than only shape-checking is the load-bearing part: a field can
+    be present, correctly shaped, pinned, and still be a stale copy from a previous build. Shape agreement
+    would not catch that; value agreement does. This is the same defect class the whole re-freeze exists to
+    close — an artifact that is internally plausible but no longer describes its own corpus."""
+    order = doc["feature_order"]
+    for field in ("n_classes", "min_class_fraction"):
+        assert field in doc, f"the shipped atlas no longer carries {field}"
+        assert len(doc[field]) == len(order), f"{field} is not aligned to feature_order"
+
+    Xn = np.array([[np.nan if v is None else v for v in row] for row in doc["X"]], dtype=float)
+    n_classes, frac = build_mod.class_balance(Xn, len(order))
+    assert doc["n_classes"] == n_classes, "shipped n_classes disagrees with a recompute from the frozen X"
+    assert doc["min_class_fraction"] == frac, "shipped min_class_fraction disagrees with a recompute"
+
+    # and the invariant that lets a reader tell a FLOORED sd from a real one: `sd == 1.0` is written by
+    # `sd = np.where(sd == 0, 1.0, sd)` in the builder, so it must coincide exactly with the constant columns.
+    constant = {k for j, k in enumerate(order) if doc["n_classes"][j] == 1}
+    floored = {k for j, k in enumerate(order) if doc["sd"][j] == 1.0}
+    assert constant == floored, (
+        f"the sd==0 floor and n_classes==1 no longer coincide — a reader can no longer distinguish a floored "
+        f"sd from a real one. only-constant={sorted(constant - floored)} only-floored={sorted(floored - constant)}"
     )
 
 
@@ -225,25 +247,50 @@ def test_the_coverage_gate_passes_a_column_this_axis_rejects(build_mod, doc):
         "orthogonality this field was added for is no longer demonstrable in the artifact"
     )
     # ★ and the population is NOT confined to `::corrob`, which is the only block the analysis behind this
-    # field examined. Measured at the 2026-09-13 freeze: 34 columns, `::signal` 16 + `::corrob` 12 + `::mask` 6.
-    # A guard written only for `::corrob` would leave two thirds of it uncovered.
+    # field examined. 2026-09-13 / n=297 freeze: 34 columns (`::signal` 16 + `::corrob` 12 + `::mask` 6).
+    # 2026-09-15 / n=504 freeze: 33 columns (claim 27 + `::mask` 6). Nearly stable in SIZE while its
+    # MEMBERSHIP churns. A guard written only for `::corrob` would leave two thirds of it uncovered.
     assert len({k.rsplit("::", 1)[-1] for k in hits}) >= 2, (
         f"the degenerate population collapsed to one column family: {sorted(hits)}"
     )
 
-    # the specific column the whole analysis was built on, if it is still frozen
+    # ★★ The specific column the whole analysis was built on — and it INVERTED at the n=504 re-freeze, which
+    # is a STRONGER demonstration of the same defect rather than a loss of one.
+    #   n=297: coverage 1.0000, n_classes 2, min_class_fraction 0.006734 (2 `moderate` vs 295 `high`)
+    #   n=504: coverage 1.0000, n_classes 1, min_class_fraction 1.000000  <- the MAXIMUM, on a DEAD column
+    # The #1371 `single_arm` reroute collapsed it to one tier. So the column travelled from "worst fraction
+    # in its block" to "perfect fraction" WITHOUT becoming usable: degeneracy pushes the fraction the WRONG
+    # WAY. That is precisely why the gate must be the CONJUNCTION — a fraction-only gate scores this column
+    # flawless at ANY threshold, while `n_classes >= 2` rejects it outright.
     if "dependency::claim::SEL::corrob" in order:
         j = order.index("dependency::claim::SEL::corrob")
         assert cov[j] == 1.0, "SEL::corrob no longer scores a perfect coverage fraction"
-        assert n_classes[j] == 2 and frac[j] == round(2 / 297, 6)
+        assert n_classes[j] == 1 and frac[j] == 1.0, (
+            f"SEL::corrob is no longer the constant column measured at the n=504 freeze "
+            f"(n_classes={n_classes[j]}, frac={frac[j]}) — re-derive the motivating example rather than "
+            f"re-asserting it; a superlative must be re-measured whenever the corpus is recomposed"
+        )
+
+    # ★ The inversion generalises, and THIS is the assertion that would catch a regression to a
+    # fraction-only gate: every constant column that clears the coverage gate reads a PERFECT 1.000.
+    perfect_but_dead = [k for j, k in enumerate(order) if cov[j] >= 0.6 and n_classes[j] == 1 and frac[j] == 1.0]
+    assert len(perfect_but_dead) >= 20, (
+        f"only {len(perfect_but_dead)} constant columns clear the coverage gate with a perfect fraction "
+        f"(29 at the n=504 freeze) — if this population emptied, re-measure before concluding the "
+        f"single-field gate is now safe"
+    )
 
 
 def test_the_shipped_artifact_INTERLEAVES_healthy_and_degenerate_by_fraction_alone(build_mod, doc):
     """★★ The two-field design argument, measured on the real artifact instead of a synthetic panel. The
     continuous block's `min_class_fraction` range OVERLAPS the degenerate ordinal block's, so NO threshold on
-    the fraction alone separates them: at the 2026-09-13 freeze 23 of 30 continuous columns score BELOW
-    `dependency::claim::SEL::corrob`. A fraction-only gate would reject 23 healthy columns before it rejected
-    the worst one in the atlas. `n_classes` is what makes the two populations distinguishable at all."""
+    the fraction alone separates them: at the 2026-09-13 / n=297 freeze **23 of the 32** `::num::` non-mask
+    columns scored BELOW `dependency::claim::SEL::corrob` (an earlier revision of this docstring said 23 of
+    30 — the numerator held, the denominator was wrong; the space carries 32 `::num::` non-mask, 32 `::mask`
+    and 112 claim columns). A fraction-only gate would have rejected 23 healthy columns before it rejected
+    the worst one in the atlas. At the 2026-09-15 / n=504 freeze it is 32 of 32, because SEL::corrob
+    collapsed to one class and its fraction ROSE to 1.000. `n_classes` is what makes the two populations
+    distinguishable at all, in both vintages."""
     order = doc["feature_order"]
     Xn = np.array([[np.nan if v is None else v for v in row] for row in doc["X"]], dtype=float)
     n_classes, frac = build_mod.class_balance(Xn, len(order))

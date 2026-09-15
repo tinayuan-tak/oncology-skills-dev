@@ -218,17 +218,31 @@ def test_the_corr_block_declares_which_producer_made_it(doc):
     assert prov.get("derived_from"), "provenance must name what the block was derived from"
 
 
-def test_the_shipped_artifact_is_specifically_the_post_freeze_producer(doc):
+def test_the_shipped_artifact_is_specifically_the_native_producer(doc):
     """The test above deliberately accepts either producer, which means it is GREEN under a swap. This
-    pins what the artifact on disk today actually is, so a re-freeze flipping it to the native producer is
-    a visible, reviewed change rather than a silent one — and so the widened check above cannot be the only
-    thing standing between a substituted stamp and a green suite."""
+    pins what the artifact on disk today actually is, so a change of producer is a visible, reviewed change
+    rather than a silent one — and so the widened check above cannot be the only thing standing between a
+    substituted stamp and a green suite.
+
+    ⚠️ FLIPPED 2026-09-15, exactly as its predecessor's failure message instructed. The n=504 re-freeze
+    computes `feature_corr` inside `build_atlas.feature_correlation` during the freeze itself, so the block
+    and the basis it describes are now the SAME build (`basis_build_git_sha` 746f7452 == `meta.build_git_sha`)
+    and `derived_post_freeze` is False. The post-freeze path (`amend_atlas_feature_corr.py`) now exists only
+    to backfill artifacts frozen before the builder computed `feature_corr` at all. `atlas_freeze.json`'s
+    meta digest was re-written in this same commit via `atlas_stability.py --write`, which the predecessor
+    also asked to be checked; `--check` passes.
+
+    ★ The direction of this flip is worth keeping: native is STRICTLY better provenance than amended,
+    because an amended block can only ever assert that it matches a basis it was computed against later,
+    while a native one cannot be carried over from a different freeze at all."""
     prov = doc["meta"]["feature_corr_provenance"]
-    assert prov["derived_post_freeze"] is True, (
-        "the SHIPPED atlas's feature_corr was amended post-freeze by amend_atlas_feature_corr.py. If a "
-        "re-freeze made this native (derived_post_freeze=False), that is expected — update this pin in "
-        "the same commit, and check the atlas_freeze.json meta digest was re-written too."
+    assert prov["derived_post_freeze"] is False, (
+        "the SHIPPED atlas's feature_corr is back to a post-freeze amendment (derived_post_freeze=True). "
+        "That is a REGRESSION in provenance, not a neutral swap: it means the block was computed against a "
+        "basis it did not ship with. Re-run the freeze so the builder emits it natively."
     )
+    # native means same-build by construction, so assert the property rather than trusting the flag alone
+    assert prov["basis_build_git_sha"] == doc["meta"]["build_git_sha"]
 
 
 def test_the_native_producer_stamps_a_valid_distinguishable_provenance(build_mod):

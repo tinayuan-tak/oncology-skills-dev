@@ -461,20 +461,58 @@ def class_balance(Xn, n_cols):
     `Xn` is the nan-coerced matrix (None → nan), `n_cols` the declared column count, passed explicitly so a
     zero-row panel returns correctly-shaped fills instead of indexing a 1-d empty array.
 
-    **Why this axis at all: the existing frozen gate rates the WORST column PERFECT.** Consumers gate usable
+    **Why this axis at all: the coverage gate rates a badly degenerate column PERFECT.** Consumers gate usable
     reference columns at `reference_mask_fraction >= 0.6`, which counts how many cells were MEASURED. It says
     nothing about whether they DIFFER. The two are orthogonal, and the gap is a live defect, not a
-    hypothetical: `dependency::claim::SEL::corrob` scores `reference_mask_fraction` 1.0000 — a flawless
-    rating — while being the most z-degenerate column in the frozen space (2 `moderate` cells against 295
-    `high`). When a gate calls a known-bad column GOOD, the fix is a different METRIC AXIS, not a tighter
-    threshold.
+    hypothetical. On the **2026-09-13 / n=297** freeze `dependency::claim::SEL::corrob` scored
+    `reference_mask_fraction` 1.0000 — a flawless rating — on 2 `moderate` cells against 295 `high`. On the
+    **2026-09-15 / n=504** freeze it is WORSE: that column is now CONSTANT (`n_classes` 1 across all 504 rows)
+    and still scores coverage 1.0000. When a gate calls a known-bad column GOOD, the fix is a different METRIC
+    AXIS, not a tighter threshold.
 
-    Measured on the 2026-09-13 freeze, the affected population is **34 of 176 columns** that clear
-    `>= 0.6` while holding <= 4 classes with a smallest class under 5%: `::signal` 16, `::corrob` 12,
-    `::mask` 6. ★Two thirds of it is OUTSIDE the `::corrob` block the analysis behind this field started
-    from — and the `::mask` members matter most, because every `::mask` column reads coverage 1.000 BY
-    CONSTRUCTION (the gate is vacuous against them), so `cn_recurrent_amplification_score::mask` at 2/297
-    was gated by nothing at all before this.
+    ⚠️ EVERY NUMBER BELOW NAMES ITS VINTAGE, and that is not pedantry. The first revision of this block said
+    "re-measured on the shipped `X`" — and the next re-freeze, hours later, made the sentence false. A rate
+    needs a frame; a comment that names no frame becomes a lie the moment the corpus is recomposed. (Both
+    re-measurements are legitimate reads of a frozen matrix: z-scoring is a per-column monotone affine map, so
+    distinct-value counts and class fractions are invariant under it.)
+
+    ⚠️ CORRECTION 1, on the **2026-09-13 / n=297** freeze. An earlier revision called `SEL::corrob` "the most
+    z-degenerate column in the frozen space." It was not, and the superlative was doing argumentative work it
+    had not earned. At `min_class_fraction` 0.006734 it ranked **6th of the 56 `::corrob` columns, 9th of all
+    112 claim columns, and 33rd of the full 176**; 31 columns sat strictly below it. False in every frame
+    measured, not merely narrow — ★A RATE NEEDS A FRAME, and no frame rescued it. That freeze's actual floor
+    was `expression::claim::D::corrob` at 0.003367 — a SINGLE minority cell in 297 — tied with four continuous
+    `::num::` columns whose 1/n is degenerate BY CONSTRUCTION, exactly the overlap that makes the fraction
+    unusable alone (see **Why TWO fields** below).
+
+    ⚠️ CORRECTION 2, on the **2026-09-15 / n=504** freeze — the one this builder now emits. The motivating
+    example INVERTED, and the inversion is the strongest available argument for shipping two fields.
+    `SEL::corrob` no longer sits near the floor: it is CONSTANT (`n_classes` 1, `n_obs` 504) and therefore
+    reads `min_class_fraction` **1.000, the MAXIMUM** — 31st of 56 `::corrob`, 87th of 112 claim, 149th of
+    176, with 137 columns strictly BELOW it. The old floor moved the same way: `expression::claim::D::corrob`
+    is also constant now (`n_classes` 1, `n_obs` 472, rank 153). So the column this field was invented to
+    catch travelled from "worst fraction in its block" to "perfect fraction" WITHOUT becoming usable —
+    ★degeneracy pushes the fraction the WRONG WAY. The new floor is a continuous column,
+    `cell_line_rna_expression::num::allgene_percentile` at 0.001984 over 249 classes; its 22.473 sigma
+    one-rung step reflects a HEAVY TAIL in an unlogged column, not rarity, which is why sigma alone is not a
+    degeneracy test either.
+
+    ★ Two structural lessons, both paid for. The presence-ladder fix MOVED the floor, and the #1371
+    `single_arm` reroute COLLAPSED five `::corrob` columns from 2-3 populated tiers to exactly 1
+    (`dependency::CHEM`, `dependency::SEL`, `safety::BURDEN`, `selectivity::DIST`,
+    `target_intrinsic::MODALITY_ROUTING`) — a producer that REROUTES onto a new rung rather than appending one
+    can SHRINK a benchmark's usable column count. So (1) a motivating example chosen for being "the worst"
+    must be re-derived whenever the corpus is recomposed, and (2) no claim of the form "a new rung can only ADD
+    information" holds for this space.
+
+    On the **2026-09-13 / n=297** freeze the affected population was **34 of 176 columns** clearing `>= 0.6`
+    while holding <= 4 classes with a smallest class under 5%: `::signal` 16, `::corrob` 12, `::mask` 6. On the
+    **2026-09-15 / n=504** freeze it is **33 of 176**: claim 27, `::mask` 6. ★Two thirds of it is OUTSIDE the
+    `::corrob` block the analysis behind this field started from — and the `::mask` members matter most,
+    because every `::mask` column reads coverage 1.000 BY CONSTRUCTION (the gate is vacuous against them), so
+    `cn_recurrent_amplification_score::mask` (2/297, and still degenerate at n=504) was gated by nothing at
+    all before this. ★The population is nearly STABLE IN SIZE while its MEMBERSHIP churns across the two
+    vintages, which is the case for freezing the field into the artifact rather than recomputing it ad hoc.
 
     **Why the MINORITY FRACTION is the right thing to freeze — it IS the z-scale of an ordinal column.** For
     a two-valued ordinal with rung step `s` and minority fraction `p`, `sd = s*sqrt(p(1-p))`, so a one-rung
@@ -490,17 +528,24 @@ def class_balance(Xn, n_cols):
     dispersion at all. `p` is comparable across columns AND across vintages.
 
     **Why TWO fields.** `min_class_fraction` is NON-MONOTONE in usability and alone would repeat the very
-    failure above — a CONSTANT column has one class holding 100% of rows, so it reads 1.000, the same
-    flawless score, where a balanced two-valued column reads 0.500 and the dangerous near-degenerate one
-    reads 0.004. And a CONTINUOUS `::num::` column has ~n distinct values, so its smallest class holds 1/n,
-    which on this corpus is numerically LOWER than the degenerate column's: **23 of the 30 continuous columns
-    score below `SEL::corrob`'s 0.006734**, so a fraction-only gate would reject 23 healthy columns before it
-    rejected the worst column in the atlas. The two ranges overlap, so no threshold on the fraction alone
+    failure above. On the **n=504** freeze this stopped being a hypothetical: **29 columns are CONSTANT AND
+    clear coverage `>= 0.6`, and all 29 read `min_class_fraction` exactly 1.000** — a score a perfectly
+    balanced column can never reach, since a balanced two-valued column reads 0.500 and the dangerous
+    near-degenerate one reads 0.004. A fraction-only gate therefore admits all 29 at ANY threshold, while the
+    conjunction rejects all 29 on `n_classes` alone. And a CONTINUOUS `::num::` column has ~n distinct values,
+    so its smallest class holds 1/n, numerically LOWER than a degenerate ordinal's: on the **n=297** freeze
+    **23 of the 32 `::num::` non-mask columns scored below `SEL::corrob`'s 0.006734** (an earlier revision said
+    23 of 30; the numerator held, the denominator was wrong — the space carries 32 `::num::` non-mask, 32
+    `::mask` and 112 claim columns), so a fraction-only gate would have rejected 23 healthy columns before it
+    rejected a badly degenerate one; at **n=504** it is 32 of 32, because the degenerate column rose to 1.000.
+    The two ranges overlap in BOTH vintages, so no threshold on the fraction alone
     separates them. `n_classes` separates all three regimes at zero cost:
 
         n_classes == 1                            -> constant; also EXACTLY the population the sd==0 floor
                                                      fires for, so a reader can tell a floored sd from a real
-                                                     one (verified: the equivalence holds on all 176 columns)
+                                                     one (equivalence re-verified on all 176 columns in BOTH
+                                                     vintages: 33 such columns at n=297, 39 at n=504 — the
+                                                     re-freeze made SIX more columns constant, net)
         n_classes small, min_class_fraction small -> the degeneracy to gate on
         n_classes large                           -> continuous; a small fraction here is BY CONSTRUCTION
 
@@ -672,8 +717,8 @@ def build(runs_dirs, panel_path: Path, build_date: str, emb_dim: int = 16) -> di
     ]
 
     # per-column CLASS BALANCE — the VARIANCE-axis companion to the COVERAGE measure above. Read them
-    # together: they are orthogonal, and `reference_mask_fraction` alone rates the most z-degenerate column in
-    # this artifact a flawless 1.000. See class_balance() for why it takes two fields and not one.
+    # together: they are orthogonal, and `reference_mask_fraction` alone rates 29 CONSTANT columns of this
+    # artifact a flawless 1.000. See class_balance() for why it takes two fields and not one.
     n_classes, min_class_fraction = class_balance(Xn, len(feature_order))
 
     # per-column-PAIR redundancy, over the metered numerics only, on the OBSERVED rows (not the imputed

@@ -255,13 +255,38 @@ def test_scoped_quality_is_the_fraction_measured_inside_that_indication(atlas):
 _RF = {"cohort_key": KEY, "scale": "loeuf", "atlas_numeric": True}
 
 
-def test_the_scoped_quality_gate_is_a_no_op_on_todays_atlas(atlas):
-    """MEASURED: no real (indication x key) pair loses its bits to the scoped gate on this artifact.
+def test_the_scoped_quality_gate_withholds_exactly_the_measured_pairs(atlas):
+    """The scoped gate WAS a no-op; on the n=504 artifact it fires on exactly four (indication x key) pairs.
 
-    So landing the gate cannot change a shipped number today. If this reds, an indication's cohort has
-    become under-measured for a key it is scoped on — that is a real finding about the new corpus and the
-    fix is to look at the corpus, never to widen the floor ([[dont_relax_a_gate_to_match_the_build]]).
-    """
+    ⚠️ RENAMED AND RE-PINNED 2026-09-15. Its previous form asserted `not changed` — "no real
+    (indication x key) pair loses its bits to the scoped gate" — and said that if it reds, an indication's
+    cohort has become under-measured for a key it is scoped on, "that is a real finding about the new corpus
+    and the fix is to look at the corpus, never to widen the floor". The n=504 re-freeze made it red. The
+    corpus was looked at, the floor was NOT widened, and the finding is recorded here instead:
+
+    Two columns crossed the PAN-CANCER usability threshold at n=504 and entered the metered set for the
+    first time — `amp_expr_stratified_dependency::num::delta_chronos_amp_expr_vs_rest` and
+    `combinatorial_ko_dependency::num::strongest_partner_mean_gi` (they were 2 of the 3 columns that took
+    the usable ::num:: count from 20 to 23). Their SCOPED coverage inside individual indications is
+    0.55-0.58 — below `USABLE_REFERENCE_MASK_FRACTION`, just. So the gate now correctly withholds bits for
+    them in BRCA / NSCLC / COADREAD while the pan-cancer read is fine.
+
+    ★ THIS IS THE GATE WORKING, NOT A REGRESSION, and the distinction is the whole point of the axis: a
+    column can be adequately measured across the corpus and under-measured inside one indication, because
+    coverage is not a property of a column alone but of a column WITHIN a cohort. A pan-cancer fraction
+    cannot describe the cohort a scoped percentile is actually ranked against. The bits stop; the percentile
+    still renders (see the sibling assertion that "the percentile must still render — only bits stop").
+
+    ★ Pinned as an exact SET, not a count. `len(changed) == 4` would go green on four different pairs, which
+    is the failure mode this file keeps re-learning: a count cannot say WHICH thing moved. If this reds,
+    re-measure the scoped fractions for the named keys — do NOT lower the floor to make it pass
+    ([[dont_relax_a_gate_to_match_the_build]])."""
+    expected = {
+        ("BRCA", "amp_expr_stratified_dependency::num::delta_chronos_amp_expr_vs_rest"),
+        ("NSCLC", "amp_expr_stratified_dependency::num::delta_chronos_amp_expr_vs_rest"),
+        ("COADREAD", "combinatorial_ko_dependency::num::strongest_partner_mean_gi"),
+        ("NSCLC", "combinatorial_ko_dependency::num::strongest_partner_mean_gi"),
+    }
     groups = _cohort_indication_groups()
     changed = []
     for key in _spec_cohort_keys():
@@ -274,7 +299,18 @@ def test_the_scoped_quality_gate_is_a_no_op_on_todays_atlas(atlas):
             scoped = _bits_for_cohort_frame(rf, res["percentile"], res["n"], res["scope"])
             if unscoped != scoped:
                 changed.append((g, key, unscoped, scoped))
-    assert not changed, f"the scoped gate changed {len(changed)} live pairs: {changed[:4]}"
+    assert {(g, k) for g, k, _, _ in changed} == expected, (
+        f"the scoped gate fires on a different set than measured. got "
+        f"{sorted({(g, k) for g, k, _, _ in changed})}, expected {sorted(expected)}"
+    )
+    # and it only ever WITHHOLDS: the scoped read must never award bits the unscoped read did not.
+    for g, k, unscoped, scoped in changed:
+        assert scoped[0] is None and unscoped[0] is not None, (
+            f"{g}/{k}: the scoped gate changed a value instead of withholding it — {unscoped} -> {scoped}"
+        )
+        assert "scoped_reference_undermeasured" in (scoped[1] or ""), (
+            f"{g}/{k}: withheld for an unexpected reason {scoped[1]!r}"
+        )
 
 
 def test_the_bits_gate_is_monotone_scoped_can_only_ever_withhold(atlas, monkeypatch):
