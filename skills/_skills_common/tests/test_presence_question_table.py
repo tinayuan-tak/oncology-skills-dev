@@ -17,6 +17,8 @@ COMMON = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(COMMON.parent))  # skills/
 
 from _skills_common.presence_question_table import (
+    _fmt_r,  # noqa: E402
+    _proxy_class,  # noqa: E402
     _top_labels,  # noqa: E402
     presence_question_table,  # noqa: E402
 )
@@ -294,3 +296,186 @@ def test_top_labels_rank_by_tolerates_the_shapes_that_have_no_rank_at_all():
     rows = [{"t": "no-rank-key"}, "bare-string", {"t": "ranked", "i": 5.0}]
     assert _top_labels(rows, "t", rank_by="i")[0] == "ranked"
     assert _top_labels([], "t", rank_by="i") == [] and _top_labels(None, "t", rank_by="i") == []
+
+
+# ── Q4: WHICH subtype, when `spotlight_subtype` is a query echo ────────────────────────────────────
+#
+# `spotlight_subtype` on the tumour card is the `--subtype` CLI value copied verbatim, so it is None on
+# every whole-cohort run — measured None in 937 of 937 packages across four corpora, while 32 of 504
+# runs had 1-4 ENRICHED strata whose identities Q4 withheld. The same field name on the SIBLING
+# cell-line card is a genuine argmax over enriched strata: one token, two meanings, which is why these
+# tests pin the two sources APART instead of just pinning "a name appears".
+
+# CDKN2A/HNSC shape, deliberately NOT median-ordered and with a non-enriched stratum mixed in, so an
+# accidental `[0]` on emission order (or a filter that forgets `subtype_signal`) cannot pass.
+_HNSC_STRATA = [
+    {
+        "stratum_id": "PIK3CA_mut",
+        "subtype_signal": "subtype_enriched",
+        "evidence_state": "measured",
+        "median_log2tpm": 5.1,
+        "n_tumor_samples": 48,
+    },
+    {
+        "stratum_id": "site_oropharyngeal",
+        "subtype_signal": "subtype_enriched",
+        "evidence_state": "measured",
+        "median_log2tpm": 7.4,
+        "n_tumor_samples": 79,
+    },
+    {
+        "stratum_id": "subtype_atypical",
+        "subtype_signal": "subtype_restricted",
+        "evidence_state": "measured",
+        "median_log2tpm": 6.2,
+        "n_tumor_samples": 31,
+    },
+    {
+        "stratum_id": "HPV_negative",
+        "subtype_signal": "not_enriched",
+        "evidence_state": "measured",
+        "median_log2tpm": 3.0,
+        "n_tumor_samples": 120,
+    },
+]
+
+
+def _enriched_fixture(strata=None, *, spotlight=None, n_enriched=4, n_measured=11):
+    """The base fixture with its uniform subtype card swapped for an ENRICHED one.
+
+    The subtype claim vector is NOT injected: `presence_question_table` derives it from these same
+    cards, so the test enters where a real run enters. Injecting it would leave the wiring untested.
+    """
+    h, cards, cv = _fixture()
+    cards = [c for c in cards if c["card_id"] != "tumor-rna-distribution-by-subtype"]
+    summary = {
+        "subtype_axis_available": True,
+        "subtype_axis_quality": "powered",
+        "subtype_stratification_class": "subtype_enriched",
+        "n_subtypes_measured": n_measured,
+        "n_subtypes_enriched": n_enriched,
+        "per_subgroup_metrics": _HNSC_STRATA if strata is None else strata,
+    }
+    if spotlight is not None:
+        summary["spotlight_subtype"] = spotlight
+    return h, cards + [{"card_id": "tumor-rna-distribution-by-subtype", "summary": summary}], cv
+
+
+def test_q4_names_the_data_driven_stratum_when_the_query_echo_is_absent():
+    """The count alone was the whole row before this: "4/11 enriched" cannot tell a reader whether the
+    axis is a usable selection handle, and in CDKN2A/HNSC the withheld identity is `site_oropharyngeal`
+    — the HPV-associated site, i.e. precisely the fact the row exists to deliver."""
+    r = _by_id(presence_question_table(*_enriched_fixture()))["Q4"]
+    assert "(top site_oropharyngeal)" in r["primary"], r["primary"]
+    assert "4/11 enriched" in r["primary"], r["primary"]
+    assert "spotlight" not in r["primary"], "a data-driven pick must not claim the caller asked for it"
+    assert r["signal"]["tier"] == "moderate" and r["signal"]["polarity"] != "neutral"
+
+
+def test_q4_query_echo_still_wins_and_is_labelled_as_the_callers_pick():
+    """When `--subtype` WAS passed, the caller's stratum is the subject of the run and outranks the
+    data-driven pick — but it is labelled `spotlight`, never `top`. Collapsing the two labels would make
+    the row unable to say whether a human chose the stratum or the data did."""
+    r = _by_id(presence_question_table(*_enriched_fixture(spotlight="HPV_positive")))["Q4"]
+    assert "(spotlight HPV_positive)" in r["primary"], r["primary"]
+    assert "top " not in r["primary"], "the echo must not be relabelled as a data-driven pick"
+
+
+def test_q4_support_ranks_the_enriched_set_by_median_not_emission_order():
+    """`primary` names one stratum; the support line carries the rest, ranked by stratum median so the
+    strongest is first. `site_oropharyngeal` is SECOND in emission order and highest by median, so an
+    unranked read would report `PIK3CA_mut` as the leader — the alphabetical/emission-order starvation
+    this census already found once elsewhere."""
+    r = _by_id(presence_question_table(*_enriched_fixture()))["Q4"]
+    assert "enriched: site_oropharyngeal, subtype_atypical, PIK3CA_mut" in r["support"], r["support"]
+    assert "HPV_negative" not in r["support"], "a not_enriched stratum must not enter the enriched set"
+
+
+def test_q4_single_enriched_stratum_is_not_repeated_in_support():
+    """CCND1/ESCA shape (1/3 enriched). The support clause exists to answer "one stratum or four?", so
+    with exactly one it would only echo `primary` — a duplicated name reads as two findings."""
+    only = [_HNSC_STRATA[1], _HNSC_STRATA[3]]  # one enriched + one not_enriched
+    r = _by_id(presence_question_table(*_enriched_fixture(only, n_enriched=1, n_measured=3)))["Q4"]
+    assert "(top site_oropharyngeal)" in r["primary"], r["primary"]
+    assert "enriched:" not in r["support"], r["support"]
+
+
+# ── Q6: show the correlation that actually classified ──────────────────────────────────────────────
+
+
+def _concordance_fixture(tumor_summary):
+    h, cards, cv = _fixture()
+    cards = [c for c in cards if c["card_id"] != "rna-protein-concordance-tumor"]
+    return h, cards + [{"card_id": "rna-protein-concordance-tumor", "summary": tumor_summary}], cv
+
+
+def test_q6_shows_the_spearman_that_classified_not_the_pearson_beside_it():
+    """ALK/NSCLC, real values. The producer classifies on SPEARMAN (its G10 note: the relation is
+    monotonic-but-nonlinear and outlier-prone) and keeps `rna_protein_r` as Pearson. Printing the
+    Pearson beside a Spearman-derived verdict made the number's own class contradict the label next to
+    it in 113 of 375 cell-line rows and 31 of 195 tumor rows."""
+    r = _by_id(
+        presence_question_table(
+            *_concordance_fixture(
+                {
+                    "rna_as_biomarker": "poor_proxy",
+                    "rna_protein_spearman": 0.14,
+                    "rna_protein_r": 0.86,
+                    "n_paired_tumors": 90,
+                }
+            )
+        )
+    )["Q6"]
+    assert "poor_proxy (ρ=0.14)" in r["primary"], r["primary"]
+    assert "0.86" not in r["primary"], "the classifying metric is the one that belongs beside the class"
+    assert "Pearson r=0.86 would read adequate_proxy" in r["support"], r["support"]
+
+
+def test_q6_pearson_renders_unlabelled_when_it_is_what_classified():
+    """No Spearman means the producer fell back to Pearson (`rna_proxy_classified_on`), and then Pearson
+    IS the deciding metric — so it renders as a plain `r=` with no divergence caveat. The label tracks
+    WHAT DECIDED, not a fixed metric name."""
+    r = _by_id(presence_question_table(*_fixture()))["Q6"]  # base fixture has Pearson only
+    assert "(r=0.41)" in r["primary"] and "ρ" not in r["primary"], r["primary"]
+    assert "would read" not in r["support"], r["support"]
+
+
+def test_q6_widens_precision_when_two_dp_would_misstate_the_class():
+    """CCND1 shape: a Spearman of 0.6972 prints "0.70" at 2 dp — the `adequate_proxy` cut — directly
+    beside a `partial_proxy` verdict. 15 of 570 displayable rows in the n=504 corpus round across a cut,
+    so this is a routine row, not a corner."""
+    r = _by_id(
+        presence_question_table(
+            *_concordance_fixture(
+                {"rna_as_biomarker": "partial_proxy", "rna_protein_spearman": 0.6972, "n_paired_tumors": 90}
+            )
+        )
+    )["Q6"]
+    assert "partial_proxy (ρ=0.697)" in r["primary"], r["primary"]
+    assert "0.70)" not in r["primary"], "2 dp would print the cut of the class ABOVE this one"
+
+
+@pytest.mark.parametrize(
+    "v, why",
+    [
+        (0.6972, "measured CCND1 cell-line value: rounds UP across the adequate cut at 2 dp"),
+        (0.3954, "measured AKT1/HNSC value: rounds UP across the partial cut at 2 dp"),
+        (0.6996, "3 dp is NOT enough here — it prints 0.700, so a fixed 3 dp would still misstate"),
+        (0.7, "exactly on a cut: the class must be the producer's >= reading, not a rounding artifact"),
+        (0.4, "the lower cut, same reason"),
+        (-0.0334, "a negative correlation still has to render at all"),
+        (0.0, "zero is a real value, not a missing one"),
+    ],
+)
+def test_fmt_r_never_prints_a_number_of_a_different_class(v, why):
+    """The ladder is exact rather than lucky BECAUSE of the producer's precision: `read.py` emits
+    `round(spear, 4)` / `round(pear, 4)` at both call sites, so the 4 dp rung is the identity on
+    anything it can emit and the loop always terminates on a faithful class."""
+    assert _proxy_class(float(_fmt_r(v))) == _proxy_class(v), why
+    assert len(_fmt_r(v).split(".")[1]) <= 4, "never print more precision than the producer computed"
+
+
+def test_fmt_r_keeps_the_common_case_at_two_dp():
+    """The widening must be the exception. A number rendered at 3 dp is a signal to the reader that it
+    sits near a class cut, so widening everything would destroy that signal."""
+    assert _fmt_r(0.41) == "0.41" and _fmt_r(0.14) == "0.14" and _fmt_r(0.86) == "0.86"

@@ -569,7 +569,14 @@ tumor-rna-distribution-by-subtype:
     reason: provenance/audit token
   spotlight_subtype:
     role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    reason: "QUERY ECHO of the CLI --subtype, NOT a data-driven highlight: tcga_gtex_expression_distribution/read.py
+      assigns the requested subtype verbatim, so it is null on every whole-cohort run and no invocation path in this
+      repo passes --subtype. MEASURED BLIND AXIS (0 of 504 packages carry a value while the field IS reader-reached):
+      the rule never fires, which is NOT the same defect as missing data - so nothing to populate here. Beware ONE
+      TOKEN TWO MEANINGS: the sibling cellline-rna-distribution-by-subtype field of the same name is an argmax over
+      enriched strata, i.e. the opposite disposition. The data-driven highlight for THIS card is the claim vector's
+      top_enriched_subtype, which the question table reads for Q4 and labels 'top' rather than 'spotlight'."
+    reviewed: true
   subtype_axis_available:
     role: display
     reason: "unclassified by heuristic \u2014 REVIEW"
@@ -629,7 +636,14 @@ cellline-rna-distribution-by-subtype:
     reviewed: true
   spotlight_subtype:
     role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    reason: "DATA-DRIVEN argmax, unlike the identically named field on the tumour sibling card:
+      depmap_expression_distribution/read.py::_subtype_rollup takes max(enriched, key=median_log2tpm)['stratum'], so it
+      is null exactly when no stratum clears the enrichment bar. MEASURED BLIND AXIS explained by MISSING DATA, not by
+      a dead rule: of 504 packages, 459 have no cell-line subtype shard at all and the remaining 45 are underpowered
+      with 0 enriched strata; there is NOT ONE package with enriched strata and a null spotlight, so the producer is
+      self-consistent and this row needs no fix. Correct as-is; it will populate when a shard with an enriched stratum
+      lands. Verdict-inert on purpose - the class and axis quality carry the claim, this only names the leader."
+    reviewed: true
   subtype_axis_available:
     role: display
     reason: "unclassified by heuristic \u2014 REVIEW"
@@ -717,12 +731,22 @@ cellline-rna-protein-concordance:
   rna_high_protein_low_fraction:
     role: signal
     reason:
-      RNA-high / protein-low discordant-quadrant fraction - the falsifier for the RNA-as-protein-proxy call; WAIVED, see waived_because
+      RNA-high / protein-low discordant-quadrant fraction, cell-line arm only; SELF-NORMALIZED, null pinned at 0.10 by
+      construction; WAIVED, see waived_because
     reviewed: true
-    waived_because: "the DISCORDANT quadrant (RNA-high / protein-low) is the fraction that would FALSIFY rna_as_biomarker, and it
-      is NOT derivable from the correlation r that Q6 reads — a high r can coexist with a large discordant fraction.
-      Whether the producer already folds it into rna_as_biomarker is not visible from this repo (analysis-methods).
-      No consumer authored: needs an owner decision on whether Q6 cites it."
+    waived_because: "ORTHOGONAL TO THE CLASS BUT UNUSABLE AS A RATE. Both questions the previous waiver could not answer
+      are now measured against analysis-methods and the n=504 corpus (375 cell-line cards). (1) The producer does NOT
+      fold it into rna_as_biomarker: _classify_rna_biomarker takes (correlation, n) only, and rna_proxy_classified_on is
+      'spearman' in 375/375. (2) It is genuinely NOT derivable from the correlation - at one fixed class, partial_proxy,
+      it spans the full range (AR 0.0000 vs CCNE1-CML 0.1042). So the field does carry independent information. WHAT
+      KILLS IT AS A CONSUMER IS THE FRAME: eligibility is 'protein <= the 10th percentile OF THE SAME protein vector',
+      so 0.10 is the NO-INFORMATION value by construction - measured median is exactly 0.1000, 228 of 374 non-null
+      values sit within +/-0.005 of it, and the whole range is 0.0000-0.1333 (values above 0.10 come from ties at the
+      decile cut, not from headroom). A raw '13% discordant' therefore reads as alarming when 10% is what independence
+      alone gives, and the statistic has almost no room to RISE, so it cannot falsify a positive proxy call at all - the
+      opposite of what this waiver previously assumed. The owner decision is now SCOPED, not open: cite it only as a
+      one-sided DOWNWARD departure from the 0.10 construction null (i.e. as concordance evidence, as at AR 0.0000),
+      labelled with that null, and never as a bare rate. Q6 deliberately does not cite it in this PR."
   rna_protein_r:
     role: display
     reason: "unclassified by heuristic \u2014 REVIEW"

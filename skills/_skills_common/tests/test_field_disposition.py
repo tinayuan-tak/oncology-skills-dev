@@ -422,6 +422,21 @@ def test_census_reaches_some_fields_but_not_all():
 # with the wiring above for exactly that reason. Expect this shape again: any parser fix that resolves
 # a binding withdraws name credit somewhere, so budget a wiring partner in the same PR.
 #
+# WHY 887 AND NOT 889. Two pairs wired, nothing newly orphaned — asserted as a SET DIFFERENCE, not as a
+# count, because a net −2 is also what "3 wired, 1 lost" looks like, and that is precisely what the 889
+# move above was.
+#   −2  `rna_protein_spearman` on BOTH concordance cards (`rna-protein-concordance-tumor` and
+#       `cellline-rna-protein-concordance`). The producer classifies `rna_as_biomarker` on SPEARMAN —
+#       `depmap_rna_protein_concordance/read.py` does `_classify_r = spear if spear is not None else
+#       pear` and records which per row in `rna_proxy_classified_on` — and emitted the Spearman on both
+#       arms, but nothing in the fleet read it. Q6 printed the PEARSON beside that Spearman-derived
+#       class, so the displayed number's own class contradicted the label next to it in 113 of 375
+#       cell-line rows and 31 of 195 tumor rows of the n=504 corpus. Declared-but-unread was not
+#       cosmetic here: the metric on the row was never the one that decided.
+# MEASURED ACROSS THE PIN, so no pin move is entangled in this one: contracts @ fa372c84 (the tree CI
+# actually reads) and contracts @ main 39f04a9 (post-TC#774, the local checkout) BOTH measure 889 → 887
+# on domain 1801. TC#774 was aperture-neutral, so unlike the 889 move this bank is skills-only.
+#
 # WHAT THIS NUMBER STILL OVER-COUNTS, MEASURED. `capsule_readers` credits only contract-declared
 # `capsule.numeric_anchors`/`categorical_fields`, so the four HINT SCANS in evidence_capsule.py
 # (`_numeric_anchors` fallback sorted+cap-4, `_n_basis` cap-3, `_sibling_caveats`, `_provenance_keys`
@@ -431,7 +446,7 @@ def test_census_reaches_some_fields_but_not_all():
 # guess", and the remedy for that class is a contracts-side `capsule:` DECLARATION — which makes the
 # display deterministic and earns exact credit at once — not a second reader. Do not wire a field that
 # a hint scan already surfaces; that adds a duplicate display to move a counter.
-APERTURE_CEILING = 889
+APERTURE_CEILING = 887
 
 # Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
 # into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of

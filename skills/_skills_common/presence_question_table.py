@@ -164,12 +164,28 @@ def _q3_vs_normal(h, c, cv):
     return _row("Q3", "Elevated vs normals (adjacent + GTEx)?", primary, support, _sig(tier, label), _conf(corr))
 
 
-def _q4_subtype(h, c, cv):
+def _q4_subtype(h, c, cv, sv=None):
     s = c.get("tumor-rna-distribution-by-subtype", {})
     cls = s.get("subtype_stratification_class") or h.get("subtype_stratification_class")
     nmeas = s.get("n_subtypes_measured") or h.get("n_subtypes_measured")
     nenr = s.get("n_subtypes_enriched") or h.get("n_subtypes_enriched")
+    # WHICH stratum. `spotlight_subtype` on THIS card is a `--subtype` QUERY ECHO — the methods reader
+    # assigns the caller's requested stratum verbatim (`base["spotlight_subtype"] = subtype`), so it is
+    # None on every whole-cohort run. Measured None in 937 of 937 corpus packages across four corpora
+    # (2026-08-26 .. 2026-09-14), and no batch driver passes `--subtype`, so gating the identity on it
+    # alone made this naming branch DEAD IN EVERY PRODUCTION RUN: of 504 runs, 32 had 1-4 ENRICHED
+    # strata and Q4 printed the COUNT while withholding every identity (CDKN2A/HNSC: "4/11 enriched",
+    # the top stratum being `site_oropharyngeal` — the HPV-associated site, i.e. exactly the fact the
+    # row exists to deliver). The by-subtype claim vector already ranks the enriched identities, so
+    # fall back to its data-driven pick.
+    #
+    # The two are LABELLED APART on purpose and must never collapse into one word: a SPOTLIGHT is what
+    # the CALLER asked to foreground, a TOP is what the DATA says. The same field name already means
+    # the other thing on the sibling cell-line card (a genuine argmax over enriched strata), which is
+    # how one token came to carry two meanings across two cards in the first place.
     spot = s.get("spotlight_subtype") or h.get("spotlight_subtype")
+    sv = sv or {}
+    named, named_kind = (spot, "spotlight") if spot else (sv.get("top_enriched_subtype"), "top")
     # HONEST capability grade first: an underpowered/empty axis must NOT read as a differential, even
     # when a single stratum happens to clear the enrichment delta (NSCLC KRAS_G12C / DepMap STAD-PAAD).
     quality = s.get("subtype_axis_quality") or h.get("subtype_axis_quality")
@@ -183,14 +199,21 @@ def _q4_subtype(h, c, cv):
         sig = _sig("unmeasured", f"axis {quality}")
         primary = f"subtype axis present but {quality} ({detail}); not a usable selection axis"
     elif cls in ("subtype_enriched", "subtype_restricted", "subtype_differential"):
-        sig = _sig("moderate", f"enriched: {spot}" if spot else "subtype-differential")
-        primary = f"{cls}" + (f" (spotlight {spot})" if spot else "") + f"; {nenr}/{nmeas} enriched"
+        sig = _sig("moderate", f"enriched: {named}" if named else "subtype-differential")
+        primary = f"{cls}" + (f" ({named_kind} {named})" if named else "") + f"; {nenr}/{nmeas} enriched"
     else:  # pan_subtype_uniform (on a powered axis)
         sig = _sig("uniform", "uniform across subtypes")
         primary = f"pan-subtype uniform ({nenr or 0}/{nmeas} enriched)"
     clsub = c.get("cellline-rna-distribution-by-subtype", {}).get("subtype_stratification_class")
     hom = h.get("sc_tce_homogeneity_class")
     support_bits = []
+    # The full RANKED enriched set, when there is more than one. `primary` names the single best pick;
+    # a bare count ("4/11 enriched") cannot tell a reader whether that is one stratum or four, and the
+    # identities are what decides whether the axis is a usable selection handle. Already ranked by
+    # stratum median in the claim vector, so pass no `rank_by`.
+    enriched_names = _top_labels(sv.get("enriched_subtypes"), "stratum", k=3)
+    if len(enriched_names) > 1:
+        support_bits.append("enriched: " + ", ".join(enriched_names))
     if quality == "powered":
         support_bits.append("axis powered")
     if clsub:
@@ -248,16 +271,96 @@ def _q5_absolute(h, c, cv):
     return _row("Q5", "Absolute abundance vs all genes?", primary, support, _sig(lvl_tier, lvl_tier), _conf(conf))
 
 
+# `rna_as_biomarker`'s class cuts, mirrored from the producer for ONE read-only purpose: saying when
+# the other correlation would have landed in a different class. Nothing here re-classifies anything —
+# the verdict shown is always the producer's own.
+_PROXY_R_CUTS = ((0.7, "adequate_proxy"), (0.4, "partial_proxy"))
+
+
+def _proxy_class(r) -> Optional[str]:
+    """Which `rna_as_biomarker` class a correlation falls in; ``None`` when it is not a real number."""
+    if isinstance(r, bool) or not isinstance(r, (int, float)) or r != r:
+        return None
+    for cut, name in _PROXY_R_CUTS:
+        if r >= cut:
+            return name
+    return "poor_proxy"
+
+
+def _fmt_r(r) -> str:
+    """A correlation at 2 dp, widened only as far as it takes to stop MISSTATING ITS OWN CLASS.
+
+    Rounding is a second way for this row to argue with itself: a Spearman of 0.6972 prints as "0.70",
+    which is the `adequate_proxy` cut, directly beside a `partial_proxy` verdict — and 0.3954 prints as
+    "0.40" beside `poor_proxy`. Measured on the n=504 corpus: of 1140 emitted correlations, 36 round
+    across a class cut at 2 dp; 15 of those are the number a row actually SHOWS (15/570 = 2.6%) and 5
+    more are the Pearson printed in the divergence caveat. Precision widens only for those, so the
+    common case stays 2 dp and the boundary case stops contradicting the label beside it.
+
+    WHY A LADDER RATHER THAN A FIXED 3 dp. 3 dp happens to suffice for all 36 (measured), but that is
+    luck, not a property: any value in [0.6995, 0.7) still rounds up to "0.700". The producer emits
+    `round(spear, 4)` / `round(pear, 4)` at both call sites (`depmap_rna_protein_concordance/read.py`),
+    so 4 dp is a STRUCTURAL bound, not an observed one — trying 2 → 3 → 4 makes the last rung the
+    identity on anything the producer can emit, so the ladder terminates on a faithful class by
+    construction rather than by luck.
+    """
+    for dp in (2, 3, 4):
+        if _proxy_class(round(r, dp)) == _proxy_class(r):
+            return f"{r:.{dp}f}"
+    return f"{r:.4f}"
+
+
+def _proxy_corr(spearman, pearson) -> tuple:
+    """``(rendered_text, divergence_note)`` for the correlation behind an `rna_as_biomarker` class.
+
+    SHOW THE CORRELATION THAT ACTUALLY CLASSIFIED. The producer classifies on SPEARMAN — its G10 note
+    records why: the mRNA↔protein relation is monotonic-but-nonlinear and outlier-prone, so the rank
+    correlation is the consensus proteogenomics metric and is less flip-prone at the same n — and it
+    deliberately keeps `rna_protein_r` as PEARSON. This row printed the Pearson r beside the
+    Spearman-derived verdict, so the displayed number's OWN class contradicted the label next to it in
+    113 of 375 cell-line rows (30.1%) and 31 of 195 tumor rows (15.9%) of the n=504 corpus. Worst case
+    ALK/NSCLC rendered "poor_proxy (r=0.86)" against a Spearman of 0.14, which reads as a row arguing
+    with itself. All 570 of those rows carried `rna_proxy_classified_on == "spearman"`, so the shown
+    metric was never once the deciding one.
+
+    The divergence is surfaced, not hidden: a wide Pearson↔Spearman gap IS the outlier-driven linearity
+    the rank metric was chosen to resist, so it belongs on the caveat line as evidence about the
+    correlation rather than being dropped as disagreement.
+
+    When Spearman is absent the producer fell back to Pearson, and then Pearson IS the classifier — so
+    it renders unlabelled. The label tracks WHAT DECIDED, never a fixed metric name.
+    """
+    if isinstance(spearman, (int, float)) and not isinstance(spearman, bool) and spearman == spearman:
+        pear_class = _proxy_class(pearson)
+        note = None
+        if pear_class and pear_class != _proxy_class(spearman):
+            note = f"Pearson r={_fmt_r(pearson)} would read {pear_class} — outlier-driven linearity"
+        return f" (ρ={_fmt_r(spearman)})", note
+    if isinstance(pearson, (int, float)) and not isinstance(pearson, bool) and pearson == pearson:
+        return f" (r={_fmt_r(pearson)})", None
+    return "", None
+
+
 def _q6_concordance(h, c, cv):
     tum = c.get("rna-protein-concordance-tumor", {})
     clc = c.get("cellline-rna-protein-concordance", {})
     bio = tum.get("rna_as_biomarker") or h.get("rna_as_biomarker_tumor")
-    r = tum.get("rna_protein_r") or h.get("rna_protein_r_tumor")
     n = tum.get("n_paired_tumors") or h.get("rna_protein_n_paired_tumors")
+    # Both correlations are fetched HERE, at the card-aliased `.get()`, and passed to the renderer as
+    # VALUES. The field-disposition census recovers an exact (card, field) pair only from a statically
+    # bound read site (`cp = c.get("card-id") ... cp.get("field")`), so a field pulled through a
+    # helper's parameter is a real read the instrument cannot see. Fetching here keeps both
+    # `rna_protein_spearman` pairs visibly REACHED rather than silently counted as orphans.
+    tum_spear, tum_pear = tum.get("rna_protein_spearman"), tum.get("rna_protein_r")
+    cl_spear, cl_pear = clc.get("rna_protein_spearman"), clc.get("rna_protein_r")
     tier = {"adequate_proxy": "strong", "partial_proxy": "moderate", "poor_proxy": "weak"}.get(bio, "unmeasured")
-    primary = f"tumor: {bio or 'n/a'}" + (f" (r={r:.2f})" if isinstance(r, (int, float)) else "")
-    clbio, clr = clc.get("rna_as_biomarker"), clc.get("rna_protein_r")
-    support = f"cell-line: {clbio}" + (f" (r={clr:.2f})" if isinstance(clr, (int, float)) else "") if clbio else "—"
+    rtxt, rnote = _proxy_corr(tum_spear, tum_pear if tum_pear is not None else h.get("rna_protein_r_tumor"))
+    primary = f"tumor: {bio or 'n/a'}" + rtxt
+    clbio = clc.get("rna_as_biomarker")
+    cltxt, clnote = _proxy_corr(cl_spear, cl_pear)
+    bits = [f"cell-line: {clbio}{cltxt}"] if clbio else []
+    bits += [f"⚠ {arm} {note}" for note, arm in ((rnote, "tumor"), (clnote, "cell-line")) if note]
+    support = " · ".join(bits) if bits else "—"
     conf = "high" if isinstance(n, int) and n >= 50 else "moderate" if n else "unmeasured"
     return _row("Q6", "Do RNA and protein agree?", primary, support, _sig(tier, tier), _conf(conf))
 
@@ -280,15 +383,21 @@ def _q7_intrinsic(h, c, cv):
 def presence_question_table(headline: dict, cards: list, claim_vector: Optional[dict] = None) -> list:
     """The 7 question rows (each: id, question, primary read, supporting/caveat line, signal, confidence).
     Verdict-inert. `claim_vector` defaults to the one on the headline (`headline['claim_vector']`)."""
-    from _skills_common.presence_claims import presence_claim_vector
+    from _skills_common.presence_claims import presence_claim_vector, presence_claim_vector_by_subtype
 
     cv = claim_vector or headline.get("claim_vector") or presence_claim_vector(headline, cards)
     c = _cbyid(cards)
+    # The BY-SUBTYPE vector is resolved separately because the pooled `cv` is letter-keyed (A..D) and
+    # carries no stratum identities; the enriched-stratum names live only here. Composed rather than
+    # re-derived so the ranking stays in ONE place — a second copy of "which stratum is most enriched"
+    # is the two-files-route-the-same-axis drift trap. `None` (no by-subtype card) degrades to `{}`,
+    # and every consumer below treats an absent identity as "not named", never as "none enriched".
+    sv = presence_claim_vector_by_subtype(cards) or {}
     return [
         _q1_abundance(headline, c, cv),
         _q2_generality(headline, c, cv),
         _q3_vs_normal(headline, c, cv),
-        _q4_subtype(headline, c, cv),
+        _q4_subtype(headline, c, cv, sv),
         _q5_absolute(headline, c, cv),
         _q6_concordance(headline, c, cv),
         _q7_intrinsic(headline, c, cv),
