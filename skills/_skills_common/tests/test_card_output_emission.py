@@ -8,6 +8,62 @@ one representative fixture target and asserts, per card:
   1. every declared (non-conditional) `summary_fields` key is present in the emitted dict, and
   2. every emitted value for a field carrying a declared vocabulary is IN that vocabulary.
 
+TWO THIRD DIRECTIONS WERE BUILT, MEASURED AND REFUTED on 2026-09-14. Both are recorded here with their
+numbers so they are not re-proposed, because both look fail-safe and neither is.
+
+(A) THE REVERSE OF (1), i.e.
+"every EMITTED key must be DECLARED". It was measured (135 wired cards, live, 0 skips) and REFUTED as a
+gate. `target-contracts/validators/gen_summary_schemas.py` sets `additionalProperties: true` as
+MANDATORY v1 with the written reason that real summaries carry undeclared internal keys, retired-but-
+emitted fields and computed extras, and that a strict schema "would break every wired card" — measured,
+that is 97 of 135 cards, 141 distinct keys, 292 instances, of which 127 are one framework-level echo
+envelope (`method_version` 50 cards, `target` 40, `indication` 37) that the card schema never modelled.
+So an emitted-but-undeclared summary key is LEGAL BY CONTRACT and a hard assert here would put this
+test in direct conflict with a documented sibling-repo ruling. The narrow slice that IS a genuine
+defect is static and needs no credentials, so it belongs in target-contracts rather than here, and it
+LANDED there as contracts #776 (validator layer 2i, `_summary_vocabulary_declaration_check`). MIND THE
+COUNT, because the number measured here was one too high: 5 cards declare a `summary_fields_vocabulary`
+key that is absent from `summary_fields`, but only 4 are defects (functional-gene-state `sample_state`,
+normal-tissue-protein-abundance-tphp `tissue_category`, prism-compound-activity `metric_source`,
+variant-level-interpretation `resistance_class`). The 5th is CORRECT and must not be re-filed:
+tumor-vs-normal-percentile-crossing-by-subtype declares `percentile_crossing_class` as a key of its own
+`per_subgroup_metrics` RECORD SCHEMA, and a per-record class needs a vocabulary too. So the legal
+targets are `summary_fields` OR a declared record-schema key, and the one-sided invariant this file
+originally measured would have shipped a 20% false-positive rate. It composes with (B), because the
+degenerate predicate iterates the VOCABULARY keys, so an undeclared field's abstain value can switch
+off the presence check for a card's declared ones.
+
+(B) PINNING THE REACH OF THE DEGENERATE OFF-SWITCH BY NAME. `_emission_problems` relaxes the
+missing-field check for the WHOLE card when any vocab field emits a documented no-data marker
+(`on_degenerate_branch`, via `_degenerate_vocab_fields`). The relaxation is correct per contract — 128
+of the 133 cards carrying a list-valued vocabulary DECLARE a data-unavailable marker as a legal enum
+value (207 of 283 vocab fields), so "this field may be unavailable" is something cards actually say.
+What no card says is "…and therefore my OTHER fields may vanish too", which is what a whole-card
+relaxation grants. Measured reach, live S3, all 135 wired cards, 0 skips: 11 cards land on the
+degenerate branch, 6 are forgiven a declared field, 21 fields total, and ZERO non-degenerate cards have
+a missing declared field — so every gap direction (1) could find today sits behind this switch, and
+`KNOWN_EMISSION_DEBT` is empty partly for that reason rather than because the debt was paid.
+
+An exact by-name pin of the forgiven set was built and then REFUTED by re-measuring WITHOUT S3
+credentials, which is the environment CI actually has. The two populations are DISJOINT, not nested:
+credless, `adc-tce-modality-fit` errors outright (so `skip_if_no_data` skips it) and the other 5 pinned
+cards forgive exactly their pinned fields, but 5 ENTIRELY DIFFERENT cards degrade instead and are
+forgiven 35 further fields (alteration-clinical-association 10, subtype-survival-association 8,
+surface-abundance-density 8, cellline-protein-abundance-procan 5, cellline-rna-protein-concordance 4).
+Membership is decided by which data source answers in this environment, so the pin reds in CI in the
+"newly forgiven" direction and reds on a well-credentialed laptop in the "stale waiver" direction; the
+forgiven set is monotone in data availability, so NEITHER one-sided half is safe either. The shape of
+the read does not separate the populations and cannot rescue the pin: unpinned
+`cellline-protein-abundance-procan` arrives with 13 of 18 required fields present while pinned
+`ici-response-imvigor210` arrives with 2 of 16. A LOCAL DISK CACHE is part of the environment too
+(`~/.cache/framework-depmap-26q1`, the cached TCGA subgroup assignments), so even a credless run here
+is not cold CI.
+
+The real remedy is therefore NOT a test-side waiver list and NOT tightening the relaxation (which would
+red on the same data-dependent set): it is for a card to declare WHICH fields depend on WHICH
+degradable source, so the relaxation can be scoped to them. That is a card-schema design question,
+owned by target-contracts, and is filed as a finding rather than fixed here.
+
 It doubles as a per-card COVERAGE REPORT: run `-v` and each card_id shows PASS / FAIL /
 SKIP; a FAIL's assertion message names the exact missing field(s) or out-of-vocab value(s).
 
@@ -17,8 +73,10 @@ routed by `_generic_dispatch`. We SKIP cleanly:
   - the subgroup PANORAMA cards (they need a resolved-strata scope, not a scalar target);
   - any card whose live read is unavailable in this environment — an S3 access/credential
     failure, a structured `_live_read_error`, or a degenerate no-data `_data_note`
-    (via `conftest.skip_if_no_data`). So this NEVER false-fails in credless CI: with no S3
-    creds every card read degrades and the test skips with a clear message.
+    (via `conftest.skip_if_no_data`). This never false-FAILS in credless CI, but do not read that
+    as "credless CI exercises nothing": measured 2026-09-14 with no cbg profile, the file is
+    28 passed / 108 skipped, because some readers answer from a local disk cache or a non-S3
+    source. 5 of those 28 pass with direction (1) switched off — see (B) above.
 
 EXEMPTIONS (so a FAIL is always a genuine card-contract gap, not a fixture artifact):
   - DEGENERATE PATH: if the card emits a documented data-unavailable / abstain value for a
@@ -122,7 +180,12 @@ TARGET_OVERRIDES: dict[str, tuple[str, str]] = {
 #   - ddr median_mutsig3: AM #546 carried it through the multi-cohort _combine_rows (not a product gap);
 #   - cptac 'ns' + pooled_sd: data-catalog cptac per-cohort rebuild to v1.2.0 ('ns' -> not_significant,
 #     + protein_effect_size_se) and target-contracts #600 (trim the legacy pooled_sd field).
-# The guard now asserts full emission with NO tracked debt — any new gap FAILS.
+# The guard asserts full emission with NO tracked debt — any new gap FAILS, EXCEPT on a card whose
+# read lands on the degenerate branch, where the presence check is relaxed WHOLESALE. That carve-out is
+# not hypothetical, and this dict is empty partly BECAUSE of it: measured live, all 21 currently-
+# unchecked declared fields (6 cards) sit behind that switch and no non-degenerate card has a missing
+# declared field. So an empty ledger here means "nothing is owed among the cards still being CHECKED",
+# not "nothing is owed". Docstring §(B) records why the switch's reach cannot be pinned by name.
 KNOWN_EMISSION_DEBT: dict[str, set[str]] = {}
 
 
@@ -193,6 +256,15 @@ def _target_for(card_id: str) -> tuple[str, str]:
     return TARGET_OVERRIDES.get(card_id, DEFAULT_TARGET)
 
 
+def _degenerate_vocab_fields(vocab: dict, result: dict) -> list[str]:
+    """The vocab fields whose emitted value is a documented no-data/abstain marker. Non-empty == this
+    read is on the DEGENERATE branch. NB it iterates the VOCABULARY keys, not the declared field names,
+    so a card declaring a vocabulary for a field it never declares in `summary_fields` can trip the
+    relaxation from an UNDECLARED field (5 cards carry such a key; 4 are genuine contract defects,
+    the 5th declares it in a record schema — see the module docstring and contracts #776)."""
+    return sorted(f for f in vocab if isinstance(result.get(f), str) and result[f].lower() in DATA_UNAVAILABLE_MARKERS)
+
+
 def _emission_problems(card_id: str, target: str, indication: str, result: dict) -> list[str]:
     """Compute the (missing-field, out-of-vocab) findings for one live read. Empty list == clean."""
     spec = _load_card(card_id)
@@ -201,10 +273,12 @@ def _emission_problems(card_id: str, target: str, indication: str, result: dict)
     vocab = {k: v for k, v in (out.get("summary_fields_vocabulary") or {}).items() if isinstance(v, list)}
 
     # DEGENERATE / ABSTAIN branch: a vocab field emitting a documented no-data/abstain value means the
-    # reader legitimately emits fewer fields — relax the presence check for this read (task §3).
-    on_degenerate_branch = any(
-        isinstance(result.get(f), str) and result[f].lower() in DATA_UNAVAILABLE_MARKERS for f in vocab
-    )
+    # reader legitimately emits fewer fields — relax the presence check for this read (task §3). The
+    # predicate lives in ONE named place (`_degenerate_vocab_fields`) rather than inline here, because
+    # this switch is what the docstring's §(B) measurement is ABOUT: an inline copy would let the thing
+    # that fires and the thing that was measured drift apart silently, and the reach of a relaxation is
+    # exactly the property nothing else in this file records.
+    on_degenerate_branch = bool(_degenerate_vocab_fields(vocab, result))
     conditional = CONDITIONAL_FIELDS.get(card_id, set())
 
     problems: list[str] = []
@@ -252,6 +326,7 @@ def test_card_emits_declared_summary_fields(card_id):
     assert isinstance(result, dict), f"{card_id}: reader returned {type(result).__name__}, expected dict"
 
     problems = _emission_problems(card_id, target, indication, result)
+
     known = KNOWN_EMISSION_DEBT.get(card_id, set())
     novel = [p for p in problems if p not in known]
     # A resolved-but-still-listed debt entry (card now clean) should be pruned from the allowlist.
