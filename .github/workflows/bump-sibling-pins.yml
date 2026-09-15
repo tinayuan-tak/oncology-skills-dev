@@ -28,10 +28,31 @@ name: Bump sibling CI pins
 # particular replaced a silent skip that let the SHA move while the date stood still.
 
 on:
-  schedule:
-    # Daily. Cadence is the knob: shorter = better attribution of a red to a named sibling
-    # commit, more PR noise. At ~34 sibling commits/day, daily keeps one bump PR reviewable.
-    - cron: "17 6 * * *"
+  # ⚠️ CRON PARKED 2026-09-15 — re-enable together with the CROSS_REPO_TOKEN secret.
+  #
+  # MEASURED: this schedule has never fired. Not once, for any event type. GitHub registers
+  # `schedule:` triggers ONLY from the repository's DEFAULT branch, and the default branch is
+  # `main` — which does not contain this file at all (it lives only on v2-architecture, and
+  # `main` is ~1329 commits behind). So the daily bump has been silently inert since it was
+  # written. Note the failure shape: a schedule on a non-default branch produces no run, no
+  # red, and no annotation, which is indistinguishable from "the cron has not come around yet".
+  #
+  # WHY PARK IT RATHER THAN JUST LEAVE IT: the moment the default branch moves to
+  # v2-architecture this cron becomes live, and the very first step (correctly) hard-fails
+  # when CROSS_REPO_TOKEN is unset — turning the switch into a red run every morning at 06:17.
+  # A standing red trains people to ignore reds, so the cron waits for the secret it needs.
+  #
+  # This does NOT soften the loud failure the header above insists on: the token check is
+  # unchanged and `workflow_dispatch` is retained, so a deliberate manual run still fails
+  # loudly and visibly when the token is missing.
+  #
+  # TO RE-ENABLE: provision CROSS_REPO_TOKEN (contents:write + pull-requests:write here,
+  # contents:read on the three siblings), then uncomment the two lines below.
+  #
+  # schedule:
+  #   # Daily. Cadence is the knob: shorter = better attribution of a red to a named sibling
+  #   # commit, more PR noise. At ~34 sibling commits/day, daily keeps one bump PR reviewable.
+  #   - cron: "17 6 * * *"
   workflow_dispatch:
 
 permissions:
