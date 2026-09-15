@@ -412,3 +412,201 @@ def test_oncogene_addiction_and_unresolved_have_no_thesis_entry():
     routed = {blk["thesis"] for blk in _load()["thesis_axis_relevance"]}
     assert "unresolved" not in routed, "unresolved must be today's gate — no thesis routing"
     assert "oncogene_addiction" not in routed, "oncogene_addiction decides on dependency — not irrelevant"
+
+
+# ── Thesis DECIDING axes (Step 3, v1.18.0) ─────────────────────────────────────────────────────────
+# The first block in this vocabulary that can produce `nominate`. Every test below guards one of the
+# four fail-closed paths that keep "routing must never invent a GO" a STRUCTURAL property rather than
+# a policy note: (1) abstention-only, (2) measured-only, (3) registered-thesis-only, (4) an inverted
+# (fail-EMPTY) loader on the skills side.
+
+
+def _resolver_verdicts(name: str) -> set[str]:
+    """Every verdict this axis can PUBLISH — the `resolve:` rungs PLUS anything a declared
+    `post_resolver_clamp` stage can mint. Selectivity's `selective_with_normal_liability` (the
+    selectivity-PRESERVING clamp arm that FOLR1/DLL3/MSLN all read) exists ONLY in the clamp's
+    precedence table, so a rungs-only reader would wrongly call it a dead entry."""
+    p = REPO / "resolvers" / f"{name}.resolver.yaml"
+    doc = yaml.safe_load(p.read_text())
+    out = {r["verdict"] for r in (doc.get("resolve") or []) if isinstance(r, dict) and r.get("verdict")}
+    clamp = doc.get("post_resolver_clamp") or {}
+    out |= {c["verdict"] for c in (clamp.get("precedence") or []) if isinstance(c, dict) and c.get("verdict")}
+    if isinstance(clamp.get("upgrade"), dict) and clamp["upgrade"].get("verdict"):
+        out.add(clamp["upgrade"]["verdict"])
+    return out
+
+
+def test_action_precedence_still_has_no_nominate():
+    """SAFETY-CRITICAL, the load-bearing assertion of Step 3's design: the deterministic kill gate stays
+    one-directional-up. `nominate` is minted by a SEPARATE stage that only runs in the else-branch of the
+    kill gate (structurally unreachable while any veto/hold survives) — exactly the reachability argument
+    the positive tier already relies on. Adding `nominate` here instead would demote 'kills resolve first'
+    from a structural property to a precedence-ordering policy, and would perturb every fail-closed path."""
+    v = _load()
+    assert set(v["action_precedence"]) == {"veto", "hold"}
+    assert not any(g.get("action") == "nominate" for g in v["gates"])
+
+
+def test_thesis_deciding_axes_well_formed():
+    tda = _load().get("thesis_deciding_axes")
+    assert isinstance(tda, list) and tda, "thesis_deciding_axes must be a non-empty list"
+    enum = _thesis_enum()
+    for blk in tda:
+        assert blk["thesis"], "each block names a thesis"
+        if enum is not None:
+            assert blk["thesis"] in enum, f"{blk['thesis']} not in target_thesis.yaml enum"
+        assert blk["action"] == "nominate", "a deciding-axis block exists only to mint `nominate`"
+        assert blk["rationale"].strip(), "a human-reviewable rationale is mandatory"
+        dec = blk["deciding"]
+        assert dec["sub_skill"], "the deciding axis names its sub_skill"
+        assert dec["favorable_verdicts"], "a decider with no favorable verdict set can never fire"
+
+
+def test_every_deciding_block_carries_corroboration_and_a_measured_conjunct():
+    """NEVER-INVENT-A-GO, structural form. A favorable decider verdict alone must never be sufficient:
+    every block must also require (a) >=1 corroborating measured verdict on an INDEPENDENT axis and
+    (b) >=1 MEASURED card field. (b) is what stops a nomination whose own deciding axis is blind — the
+    surface cohort's ground-truth deciding axis (E2 antigen density) is `blind` for all 7 surface
+    reference targets, so without it the block would nominate on an unmeasured decider."""
+    for blk in _load()["thesis_deciding_axes"]:
+        reqs = blk.get("requires") or []
+        assert len(reqs) >= 1, f"{blk['thesis']}: a deciding axis must be corroborated, never sufficient alone"
+        for r in reqs:
+            assert r["sub_skill"] != blk["deciding"]["sub_skill"], (
+                f"{blk['thesis']}: corroboration must come from an axis OTHER than the decider"
+            )
+            assert r["verdict_in"], "an empty verdict_in would be vacuously satisfiable"
+            assert r["rationale"].strip()
+        measured = blk.get("requires_measured_card_field") or []
+        assert len(measured) >= 1, f"{blk['thesis']}: needs >=1 measured-card-field conjunct (anti-blind bound)"
+        for m in measured:
+            assert m["card_id"] and m["field"] and m["value_in"]
+            assert m["rationale"].strip()
+
+
+def test_deciding_favorable_verdicts_are_emitted_by_their_resolver():
+    """Dead-entry / casing guard (same failure mode test_modality_scoped_positive_verdicts_match_resolver_casing
+    exists for): a favorable verdict the resolver never emits is a silently dead admissibility condition."""
+    for blk in _load()["thesis_deciding_axes"]:
+        sub = blk["deciding"]["sub_skill"]
+        emitted = _resolver_verdicts(sub)
+        assert emitted, f"could not parse {sub} resolver verdicts"
+        for verdict in blk["deciding"]["favorable_verdicts"]:
+            assert verdict in emitted, (
+                f"{blk['thesis']} favorable verdict {verdict!r} is not emitted by the {sub} resolver "
+                f"{sorted(emitted)} — name/casing drift makes the decider dead"
+            )
+            assert verdict == verdict.lower(), f"{verdict!r} is mis-cased"
+
+
+def test_deciding_requires_verdicts_are_emitted_where_a_resolver_exists():
+    """Same dead-entry guard for the corroboration conjuncts, for the axes that HAVE a contracts resolver
+    (expression verdicts are emitted by the tumor-presence skill, not a resolver here — skipped)."""
+    for blk in _load()["thesis_deciding_axes"]:
+        for r in blk.get("requires") or []:
+            path = REPO / "resolvers" / f"{r['sub_skill']}.resolver.yaml"
+            if not path.exists():
+                continue
+            emitted = _resolver_verdicts(r["sub_skill"])
+            for verdict in r["verdict_in"]:
+                assert verdict in emitted, (
+                    f"{blk['thesis']} requires {r['sub_skill']}={verdict!r} which that resolver never "
+                    f"emits {sorted(emitted)} — the conjunction could never be satisfied"
+                )
+
+
+def test_deciding_verdicts_never_overlap_a_kill_or_a_contradiction():
+    """A verdict that elsewhere in this vocabulary KILLS or CONTRADICTS a target must never also be
+    admissible as a positive decider or as corroboration. Guards the incoherence that would let one
+    measured verdict simultaneously veto and nominate."""
+    v = _load()
+    kills = {(g["sub_skill"], g["verdict"]) for g in v["gates"]}
+    contras = {(c["sub_skill"], c["verdict"]) for c in (v.get("positive_contradictions") or [])}
+    forbidden = kills | contras
+    for blk in v["thesis_deciding_axes"]:
+        sub = blk["deciding"]["sub_skill"]
+        for verdict in blk["deciding"]["favorable_verdicts"]:
+            assert (sub, verdict) not in forbidden, f"{sub}={verdict} both decides positively and kills/contradicts"
+        for r in blk.get("requires") or []:
+            for verdict in r["verdict_in"]:
+                assert (r["sub_skill"], verdict) not in forbidden, (
+                    f"{r['sub_skill']}={verdict} is required as corroboration yet also kills/contradicts"
+                )
+
+
+def test_measured_conjunct_never_admits_the_abstention_token():
+    """The anti-blind conjunct must exclude the card's own 'no calibrated measurement' token — admitting
+    it would reinstate exactly the blindness it exists to block (absence of measurement is never evidence:
+    the honest-negative discipline). Also pins the field name against the card's summary_fields so a
+    rename cannot silently make the conjunct unreadable (a missing field must fail closed, not pass)."""
+    _ABSTENTION_TOKENS = {"unmeasured", "unknown", "not_assessed", "data_unavailable", "not_informative"}
+    for blk in _load()["thesis_deciding_axes"]:
+        for m in blk.get("requires_measured_card_field") or []:
+            assert not (_ABSTENTION_TOKENS & set(m["value_in"])), (
+                f"{m['card_id']}.{m['field']} value_in admits an abstention token: {sorted(m['value_in'])}"
+            )
+            card = REPO / "cards" / f"{m['card_id']}.card.yaml"
+            assert card.exists(), f"deciding block references a non-existent card {m['card_id']}"
+            fields = (yaml.safe_load(card.read_text()).get("outputs") or {}).get("summary_fields") or []
+            assert m["field"] in fields, (
+                f"{m['field']!r} is not in {m['card_id']}'s outputs.summary_fields {fields} — "
+                f"the conjunct would read a missing key on every run"
+            )
+
+
+def test_only_the_graduated_theses_can_mint_a_nominate():
+    """Blast-radius pin. Step 3 graduates the SURFACE axis under `antigen_driven` only; every other
+    thesis — including `unresolved` (which must reproduce today's gate byte-for-byte) and
+    `oncogene_addiction` (the KRAS golden) — keeps a deterministic gate that can only veto/hold, so their
+    behaviour is unchanged. Widening this set is a reviewed decision, not a drive-by edit."""
+    routed = {blk["thesis"] for blk in _load()["thesis_deciding_axes"]}
+    assert routed == {"antigen_driven"}, f"unreviewed widening of the nominate-capable thesis set: {sorted(routed)}"
+
+
+def test_surface_verdicts_with_no_viable_arm_are_not_favorable():
+    """The favorable set is the ADMISSIBILITY half of the 2d bound ('admissibility of surface-as-decider is
+    co-conditioned on a FAVORABLE measured verdict'). Verdicts that foreclose every delivery arm, or that
+    assert only an unconfirmed annotation, must never be favorable — that is where a routing change would
+    invent a GO. Pinned by name so a resolver that later renames them fails this test loudly."""
+    never_favorable = {
+        "neither_viable",  # no viable arm at all
+        "shed_dominant_opposed",  # shedding opposes every arm
+        "tce_unsafe_normal_liability",  # TCE foreclosed, no ADC arm asserted
+        "tce_escape_risk",  # ditto
+        "surface_annotation_only_unconfirmed",  # ANNOTATION, not a measurement — the decoys' shape
+        "pmhc_tce_supported",  # single-axis IEDB support; only ever `supportive`
+    }
+    emitted = _resolver_verdicts("surface_modality")
+    for blk in _load()["thesis_deciding_axes"]:
+        if blk["deciding"]["sub_skill"] != "surface_modality":
+            continue
+        favorable = set(blk["deciding"]["favorable_verdicts"])
+        assert not (favorable & never_favorable), (
+            f"{blk['thesis']} admits a no-viable-arm surface verdict: {sorted(favorable & never_favorable)}"
+        )
+        # the exclusion list must stay LIVE: every name still has to be a verdict the resolver emits
+        assert never_favorable <= emitted, (
+            f"exclusion list has drifted from the surface_modality resolver: {sorted(never_favorable - emitted)}"
+        )
+
+
+def test_irrelevant_contradiction_axes_is_a_narrow_whitelist_of_irrelevance():
+    """`irrelevant_contradiction_axes` stops a positive_contradiction on a named axis from blocking a
+    nomination. Three bounds keep it from becoming a permission list:
+      (a) it may NEVER name a KILL-capable axis — a kill resolves in the gate, and naming it here would
+          read as "this thesis ignores that axis" even though the code cannot honour that;
+      (b) it may NEVER name an axis the thesis's OWN deciding/requires conjunction depends on (that
+          would let a verdict be simultaneously required-favorable and ignored-when-opposing);
+      (c) every entry needs a rationale, and the named axis must actually HAVE a contradiction to be
+          irrelevant about — otherwise the entry is decoration that hides its own deadness."""
+    v = _load()
+    kill_axes = {g["sub_skill"] for g in v["gates"]}
+    contra_axes = {c["sub_skill"] for c in (v.get("positive_contradictions") or [])}
+    for blk in v["thesis_deciding_axes"]:
+        own = {blk["deciding"]["sub_skill"]} | {r["sub_skill"] for r in (blk.get("requires") or [])}
+        for e in blk.get("irrelevant_contradiction_axes") or []:
+            ax = e["sub_skill"]
+            assert e.get("rationale", "").strip(), f"{ax}: a human-reviewable rationale is mandatory"
+            assert ax not in kill_axes, f"{blk['thesis']}: {ax} is kill-capable — not declarable irrelevant here"
+            assert ax not in own, f"{blk['thesis']}: {ax} is part of its own conjunction — cannot also be ignored"
+            assert ax in contra_axes, f"{blk['thesis']}: {ax} carries no positive_contradiction — dead entry"

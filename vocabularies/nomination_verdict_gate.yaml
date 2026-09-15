@@ -26,7 +26,8 @@
 # Adding a modality-scoped killer here would regress that golden.
 
 enum_id: nomination_verdict_gate
-version: 1.20.0  # 1.20.0 (2026-09-13): NEW 4th disposition `uncorroborated` + its classification block `positive_uncorroborated`, and 2 rows moved off `contradiction` onto it: selectivity/discordant_across_comparators and dependency/discordant. Both verdicts say "this axis's own arms disagree with each other", which is an absence of resolution, not a measurement against the target — each resolver says so in its own rung comment (dependency: "an absence of resolution, not a measurement against the target"; selectivity's rung is literally named tvn-discordant-neutral-flagged and its `upgrade:` block groups the verdict with `not_informative` as rescuable). Filing them as contradictions put "the comparators disagree" on the rung reserved for "the measurement opposes", the same conflation the claim-vector `single_arm` rung fixed one level down. LABEL-NOT-DROP, forced by measurement (56 pairs / 21 live axis-instances): 0 carrying pairs are at `strong` today but 2 (KRAS/COADREAD selectivity 5 hits; CEACAM5/NSCLC) would REACH `strong` if the strong-block were simply removed, so dropping the rows is fail-OPEN. The strong-block is therefore PRESERVED byte-for-byte (positive tier reads contradictions ∪ uncorroborated); only the LABEL changes (scorecard `coverage_gap` not `opposing`; no opposing per-axis role). tractability_sm/discordant deliberately STAYS a contradiction — there the discordance IS the finding (compound kills but NOT via the target = evidence against), and it is the row holding CEACAM5/NSCLC down. 1.19.0 (2026-09-12): +3 tractability MIDDLE-ladder positives (chemically_active, measured_potent_ligand, structurally_ligandable), all SUPPORTIVE weight, sub_skill=tractability_sm (one dimension, cannot supply the dominant a `strong` tier needs). Panel-validated (fire on approved/advanced/active, declines carry no dominant so cannot flip). Verdict-moving only where a target already has a dominant positive + abstains. 1.18.0 (2026-09-11, A1): positive_tier_config.forces_nominate_at_tier: strong — the positive path may now FORCE `nominate`, closing the asymmetry in which this gate could only veto/hold and EVERY nomination was therefore LLM-authored with no auditable rule behind it (measured on the 13-target panel: 10 hold / 2 veto / 17 abstain / 0 nominate; ERBB2/BRCA hit `strong` on 3 hits, all 3 `dominant`, and still resolved to None — and with --emit being LLM-free there was no confidence to floor, so the whole positive apparatus was unobservable in exactly the mode the eval harness scores, making its specificity arm vacuous). FAIL-CLOSED: missing key => pre-1.18.0 behaviour byte-for-byte. `nominate` deliberately stays OUT of action_precedence (that map keys a max() over fired KILL hits; a positive there could tie-break against a restraint) and out of every gate's `action:`. Still else-branch-only, so it cannot mask a kill. 1.17.0 (2026-09-11, Step 2b): NEW `thesis_axis_relevance` block — routes on the governed `thesis` (target_thesis.yaml) to make a dependency `non_dependent` VETO IRRELEVANT (dropped, not just downgraded) for theses whose biology does not live on the dependency axis (antigen_driven / tme_io / neomorphic_gof / partner_conditional_sl), so the target falls to its OWN thesis axis and can reach nominate — the ANY-OF fix for the 0/14-surface defect. Generalizes biology_axis_scoped_veto_downgrade (kept as the `unresolved`-path fallback until 2c). GUARDRAILS unchanged: never drops pan_essential_killer, never touches safety, `unresolved`→today byte-for-byte, routing cannot invent a GO (dropping a veto only falls to the LLM proposal, bounded above by the kill gate + below by the abstention lower-bound clamp). Verdict-moving; verified on the hermetic skills gate-tests.
+version: 1.21.0  # 1.21.0 (2026-09-15, Step 3, RELANDED): NEW `thesis_deciding_axes` block — the FIRST deterministic producer of `nominate`. Until now the gate could only VETO or HOLD (`action_precedence` has no `nominate`; `forced = max(hits)` ∈ {veto, hold, None}), so every `nominate` in every published run was LLM-authored and the positive tier's only observable effect was a confidence `floored_to`. This block graduates a thesis's BUILT-BUT-GATELESS deciding axis (Step 3 = surface_modality under antigen_driven) to a positive decider: on gate ABSTENTION, when the thesis's full necessity conjunction reads MEASURED-FAVOURABLE, the recommendation is floored `insufficient_evidence` → `nominate`. STRUCTURALLY F1-SAFE — it lives in the else-branch of the kill gate (unreachable when any veto/hold survives), exactly like the positive tier, so it can never mask or subordinate a kill. Routing STILL cannot invent a GO: every conjunct is a measured verdict/card field, an absent or `insufficient`/`data_unavailable`/`unmeasured` read FAILS the conjunction (→ insufficient_evidence, never nominate), and INVERTED FALLBACK means a missing/malformed block yields NO deciding axes → `nominate` becomes unreachable again. Only `antigen_driven` is graduated here; every other thesis (incl. `unresolved`) is byte-for-byte unchanged. SECOND deterministic producer, COMPLEMENTARY to 1.18.0's positive tier and DISJOINT from it: the favorable surface verdicts live in `positive_signals_modality_scoped` (explicit --modality only), so the 1.18.0 `strong` tier can never nominate an antigen; and `oncogene_addiction` has no `thesis_deciding_axes` entry, so this block can never nominate EGFR/ERBB2. Different BASIS too — 1.18.0 counts evidence QUANTITY (>=2 dims + a dominant), this one tests a thesis-SPECIFIC necessity CONJUNCTION on one named axis plus an anti-blind measuredness conjunct. Verdict-moving; verified on hermetic gate-tests + grounded structural and full-LLM runs. RELAND NOTE (2026-09-15): authored against main at 1.18.0 and relanded onto 1.20.0, so the DISJOINTNESS argument above is re-derived here against what landed in between. vs 1.19.0 (+3 tractability middle-ladder positives): disjoint by AXIS and by INSUFFICIENCY -- those positives are sub_skill tractability_sm, while this block conjoins only surface_modality under antigen_driven, and main's own entry records that they carry SUPPORTIVE weight on one dimension and so cannot supply the dominant a strong tier needs. vs 1.20.0 (4th disposition uncorroborated, 2 verdicts moved off contradiction): NOT disjoint by construction and DELIBERATELY LEFT OPEN -- this block fires on gate ABSTENTION, and moving a verdict off contradiction can change which pairs abstain, so 1.20.0 may have ENLARGED the population this block can nominate over. That is a property of the gate CODE (skills tp_gates.py), not of this vocabulary, and the 40 tests shipped here were authored before 1.20.0 existed and therefore cannot testify about it. It is measured on the SKILLS side of this landing, where the gate runs; if the abstaining population grew, the fix belongs there and not in this file.
+  # 1.20.0 (2026-09-13): NEW 4th disposition `uncorroborated` + its classification block `positive_uncorroborated`, and 2 rows moved off `contradiction` onto it: selectivity/discordant_across_comparators and dependency/discordant. Both verdicts say "this axis's own arms disagree with each other", which is an absence of resolution, not a measurement against the target — each resolver says so in its own rung comment (dependency: "an absence of resolution, not a measurement against the target"; selectivity's rung is literally named tvn-discordant-neutral-flagged and its `upgrade:` block groups the verdict with `not_informative` as rescuable). Filing them as contradictions put "the comparators disagree" on the rung reserved for "the measurement opposes", the same conflation the claim-vector `single_arm` rung fixed one level down. LABEL-NOT-DROP, forced by measurement (56 pairs / 21 live axis-instances): 0 carrying pairs are at `strong` today but 2 (KRAS/COADREAD selectivity 5 hits; CEACAM5/NSCLC) would REACH `strong` if the strong-block were simply removed, so dropping the rows is fail-OPEN. The strong-block is therefore PRESERVED byte-for-byte (positive tier reads contradictions ∪ uncorroborated); only the LABEL changes (scorecard `coverage_gap` not `opposing`; no opposing per-axis role). tractability_sm/discordant deliberately STAYS a contradiction — there the discordance IS the finding (compound kills but NOT via the target = evidence against), and it is the row holding CEACAM5/NSCLC down. 1.19.0 (2026-09-12): +3 tractability MIDDLE-ladder positives (chemically_active, measured_potent_ligand, structurally_ligandable), all SUPPORTIVE weight, sub_skill=tractability_sm (one dimension, cannot supply the dominant a `strong` tier needs). Panel-validated (fire on approved/advanced/active, declines carry no dominant so cannot flip). Verdict-moving only where a target already has a dominant positive + abstains. 1.18.0 (2026-09-11, A1): positive_tier_config.forces_nominate_at_tier: strong — the positive path may now FORCE `nominate`, closing the asymmetry in which this gate could only veto/hold and EVERY nomination was therefore LLM-authored with no auditable rule behind it (measured on the 13-target panel: 10 hold / 2 veto / 17 abstain / 0 nominate; ERBB2/BRCA hit `strong` on 3 hits, all 3 `dominant`, and still resolved to None — and with --emit being LLM-free there was no confidence to floor, so the whole positive apparatus was unobservable in exactly the mode the eval harness scores, making its specificity arm vacuous). FAIL-CLOSED: missing key => pre-1.18.0 behaviour byte-for-byte. `nominate` deliberately stays OUT of action_precedence (that map keys a max() over fired KILL hits; a positive there could tie-break against a restraint) and out of every gate's `action:`. Still else-branch-only, so it cannot mask a kill. 1.17.0 (2026-09-11, Step 2b): NEW `thesis_axis_relevance` block — routes on the governed `thesis` (target_thesis.yaml) to make a dependency `non_dependent` VETO IRRELEVANT (dropped, not just downgraded) for theses whose biology does not live on the dependency axis (antigen_driven / tme_io / neomorphic_gof / partner_conditional_sl), so the target falls to its OWN thesis axis and can reach nominate — the ANY-OF fix for the 0/14-surface defect. Generalizes biology_axis_scoped_veto_downgrade (kept as the `unresolved`-path fallback until 2c). GUARDRAILS unchanged: never drops pan_essential_killer, never touches safety, `unresolved`→today byte-for-byte, routing cannot invent a GO (dropping a veto only falls to the LLM proposal, bounded above by the kill gate + below by the abstention lower-bound clamp). Verdict-moving; verified on the hermetic skills gate-tests.
   # 1.16.0 (2026-09-08): biology_axis_scoped_veto_downgrade now admits curated `extrinsic` (TME/immune/stromal) + `mixed` axes (was surface_intrinsic/unknown only) → a checkpoint (PD-L1/CD274=mixed, PD-1/CTLA4=extrinsic) with a FAVORABLE surface fit has its dependency non_dependent VETO downgraded to HOLD, same as a surface antigen (engaged by blockade/binding, not a tumor-intrinsic dependency). Fixes a CURATION PENALTY: an uncurated checkpoint (unknown, e.g. LAG3) already got the downgrade but curated CD274/PDCD1/CTLA4 were locked out. Favorable-surface co-condition + intracellular_intrinsic exclusion BOTH unchanged (only the axis list grew), so a neither_viable/shed surface or an intracellular target still VETOes. veto→hold only. Live-verified panel: CD274/LUAD VETO→HOLD via this arm; PDCD1/CTLA4/VEGFA already non-vetoing via other paths (net effect = CD274 alone). Verdict-moving; golden regen + grounded verify.
 # 1.15.0 (2026-09-08): + surface-fit contradiction_reconciler — a FAVORABLE surface_modality fit (ADC/TCE surface antigen) RECONCILES (drops) the selectivity selective_but_broadly_normal KILL, because the therapeutic window is modality-engineered (payload/DAR/avidity), NOT the bulk tumor÷normal-organ RNA ratio. Fires on default/no-modality runs (favorable fit = the surface-antigen evidence). Reconciles ERBB3/TACSTD2/MUC17; STANDS for secreted (VEGFA) + intracellular (CDK2) targets (no viable surface arm). Drops the contradiction only (no positive_signal) → safety axis remains the guardrail → lands at hold, never a manufactured strong. Same INVERTED-FALLBACK contract as (1). Verdict-moving; golden regen + grounded verify.
 # 1.14.0 (2026-09-08): + contradiction_reconcilers block — a genomic biomarker_stratified_dependency RECONCILES (drops) the selectivity selective_but_broadly_normal CONTRADICTION (the no-window KILL is bulk-RNA÷critical-organ, which dilutes an amp/biomarker-selected window — HER2/FGFR2/HER3). Surfaced by the IDAS backtest (ERBB2/STAD = T-DXd APPROVED, vetoed on no-window). Applied at positive-tier strong-block + gate scorecard + synthesis role; keeps the KILL for no-amp housekeeping (TROP2/GAPDH). Verdict-moving; golden regen + grounded verify.
@@ -570,6 +571,171 @@ thesis_axis_relevance:
   # oncogene_addiction, pan_essential_buffered, unresolved: NO entry — dependency stays a live veto
   # (today's behaviour). oncogene_addiction is the thesis where the dependency axis legitimately decides;
   # pan_essential_buffered keeps pan_essential_killer and is routed by its SAFETY window (a later 2b arm).
+
+# ============================================================================
+# THESIS DECIDING AXES (2026-09-11, v1.18.0, Step 3) — the FIRST deterministic
+# producer of `nominate`. Read the block comment on `version` above first.
+# ============================================================================
+# WHY THIS EXISTS. Step 2b stopped surface antigens being force-declined on the wrong
+# (dependency) axis, but a grounded full-LLM run then showed FOLR1/OV, DLL3/SCLC and
+# MSLN/OV all landing at `insufficient_evidence`, NOT `nominate`: removing a false veto
+# creates an ABSTENTION, not a nomination. With no positive DECIDER on the surface axis
+# the LLM stayed negative and the abstention lower-bound clamp floored it. This block is
+# the missing half — it lets a thesis's own axis CARRY the call.
+#
+# THE BOUND THAT MAKES IT SAFE (the plan's 2d constraint, restated operationally):
+# routing must never invent a GO. A thesis does NOT license a nomination; it names which
+# axis is ADMISSIBLE as the decider, and admissibility is CO-CONDITIONED on that axis (and
+# every other conjunct) returning a FAVORABLE MEASURED read. Four independent ways this
+# block fails CLOSED to `insufficient_evidence`:
+#   1. ABSTENTION-ONLY (structural, enforced in code, not policy): the decider runs in the
+#      else-branch of the kill gate, so it is UNREACHABLE while any veto/hold survives. It
+#      cannot mask, outrank or subordinate a kill — the same structural argument that makes
+#      the positive tier F1-safe, not a precedence entry in `action_precedence` (which is
+#      deliberately left as {veto: 2, hold: 1}, with NO `nominate`).
+#   2. MEASURED-ONLY: every conjunct must match a live verdict / card field. An ABSENT verdict,
+#      or an `insufficient` / `data_unavailable` / `unmeasured` token, FAILS the conjunction.
+#      Absence of measurement can never satisfy a requirement (the honest-negative discipline).
+#   3. REGISTERED-THESIS-ONLY: `unresolved`, `None`, and any thesis without an entry here get
+#      NO deciding axis → today's behaviour byte-for-byte.
+#   4. INVERTED FALLBACK: a missing/malformed block loads EMPTY → no thesis can nominate at
+#      all. Symmetric to the positive loader (a broken file must never mint a positive) and
+#      OPPOSITE to the kill `gates` loader (whose fallback is conservative-and-complete).
+# Additionally the code requires: no un-reconciled `positive_contradictions` present, and no
+# `_fail_closed` hit anywhere in the gate history.
+#
+# ONE THESIS IS GRADUATED HERE. Step 3 is deliberately incremental (per the plan's
+# `blind_axis_load_bearingness` order: 13 surface / 7 SL / 6 cell-state). `antigen_driven`
+# only. `partner_conditional_sl` (combination-and-vulnerability SL/CODEP) and `tme_io`
+# (immune-context) are the next two graduations and get NO entry until their own cycle —
+# each is one block entry plus a grounded verify, no big-bang.
+thesis_deciding_axes:
+  - thesis: antigen_driven
+    # THE DECIDING AXIS. `surface_modality` is the axis an antigen program actually lives on,
+    # and it has been BUILT-BUT-GATELESS in the default (biology-first) path since inception:
+    # `excluded_positive_modality_scoped` excludes the surface positives unless an explicit
+    # --modality is passed. That exclusion rests on the F-symmetry argument ("a biologics-
+    # favorable surface does not make the TARGET strong"), which is correct when the thesis is
+    # UNKNOWN — but a DERIVED `antigen_driven` thesis IS the modality declaration. For this
+    # thesis, surface fit is not modality-adjacent trivia; it is the necessity biology. So the
+    # thesis replaces the --modality flag as the condition, and the F-symmetry is preserved
+    # everywhere else (no other thesis reads a surface positive in default mode).
+    deciding:
+      sub_skill: surface_modality
+      # The fit_class tokens that mean a surface therapeutic ARM IS VIABLE. Kept in sync with
+      # tp_gates._SURFACE_FAVORABLE_VERDICTS + the escape/patient-variable arms already
+      # registered as modality-scoped positives. DELIBERATELY EXCLUDED: `neither_viable` and
+      # `shed_dominant_opposed` (no viable arm at all); `tce_unsafe_normal_liability` and
+      # `tce_escape_risk` (the TCE arm is foreclosed and NO ADC arm is asserted — contrast
+      # `adc_preferred_tce_unsafe`, which preserves the ADC arm explicitly); `pmhc_tce_supported`
+      # (a folded-surface-DEAD intracellular oncoprotein rescued by an IEDB pMHC signal — a
+      # single-axis, tumor-context-agnostic, necessary-not-sufficient read that the vocab already
+      # calls `supportive`, never `dominant`; it must not carry a nomination alone);
+      # `surface_annotation_only_unconfirmed` (annotation, not measurement).
+      favorable_verdicts:
+        - both_viable
+        - adc_preferred
+        - tce_preferred
+        - adc_preferred_tce_unsafe
+        - adc_preferred_tce_escape_risk
+        - adc_preferred_tce_patient_variable
+        - tce_patient_variable
+        - surface_viable_density_caveated
+    # THE NECESSITY CONJUNCTION. ALL of these must ALSO read measured-favorable. This is the
+    # ontology's ANY-OF band made concrete for ONE thesis: an antigen-driven target satisfies
+    # necessity via presence + selectivity + surface fit (never via a recurrent alteration or a
+    # pooled dependency), so those are the axes that must all be affirmatively evidenced.
+    requires:
+      # (A) A TUMOR-vs-NORMAL WINDOW that survived the post-resolver Python clamp
+      #     (selectivity_veto.py, declared as a `post_resolver_clamp` stage in
+      #     selectivity.resolver.yaml). `selective_with_normal_liability` IS admitted: per that
+      #     declaration it is the SELECTIVITY-PRESERVING clamp arm (a named-organ / abundant-
+      #     normal-protein FLAG that keeps the selective call), whereas
+      #     `selective_but_broadly_normal` and `selective_but_stromal_confound` are the clamp's
+      #     KILL arms and are excluded here AND listed in `positive_contradictions` below.
+      #     `field_effect_tumor_selective` is excluded (a field effect is not tumor specificity);
+      #     `not_selective` / `discordant_across_comparators` / `not_informative` /
+      #     `data_unavailable` are excluded as non-favorable or unmeasured.
+      - sub_skill: selectivity
+        verdict_in: [strong_tumor_selective, modest_tumor_selective, selective_with_normal_liability]
+        rationale: "An antigen with no measured tumor-vs-normal window is not a nomination at any density."
+      # (B) MEASURED COHORT PRESENCE — the antigen is actually there in the queried cohort.
+      #     The three tumor-expression tokens; `broadly_high_expression` is EXCLUDED on purpose
+      #     (it is the modality-adjacent token `excluded_positive_modality_scoped` already
+      #     documents — high panel expression favors biologics, it is not target-presence
+      #     evidence, and admitting it would let a housekeeping gene satisfy this conjunct).
+      - sub_skill: expression
+        verdict_in: [strongly_upregulated_in_tumor, tumor_broadly_expressed, tumor_moderately_expressed]
+        rationale: "Presence in the queried tumor cohort is a necessity conjunct for an antigen thesis."
+    # (C) THE ANTI-BLIND CONJUNCT — the deciding axis's own necessity SUB-QUESTION must have been
+    #     MEASURED. This is what stops Step 3 nominating on a blind decider, and it is the reason
+    #     the surface cohort's 0/14 axis-attribution can be fixed HONESTLY rather than by fiat.
+    #     Every surface target in the calibration set carries `deciding_axis_coverage: blind`, and
+    #     in all 7 cases the ground-truth deciding axis is E2 antigen DENSITY/topology. The
+    #     `surface-abundance-density` card computes exactly that and is explicitly VERDICT-INERT
+    #     ("feeds NO resolver rung" — cards/surface-abundance-density.card.yaml): the canonical
+    #     built-but-gateless evidence Step 3 is chartered to graduate.
+    #
+    #     IT IS A MEASUREDNESS TEST, NOT A THRESHOLD. Per the card's own governed vocabulary,
+    #     `density_floor_verdict` is derived "from the MEASURED Tier-1 absolute value ONLY
+    #     (grade A/B)" and is `unmeasured` at grade E, where "absence is NOT low density (the
+    #     honest-negative discipline)". So requiring != unmeasured is exactly "the E2 axis was
+    #     measured". `below_tce_floor` IS admitted because the card documents it as "a MODALITY
+    #     caveat, NOT a target killer (CD19 = 110/cell yet a validated CAR-T/TCE antigen)" —
+    #     DLL3 reads 608 copies/cell at grade B and tarlatamab is approved, so gating on the
+    #     floor VALUE would have the framework overrule an approved drug on a floor its own
+    #     card flags as grade-gated at source. The value stays a narrative caveat.
+    requires_measured_card_field:
+      - card_id: surface-abundance-density
+        field: density_floor_verdict
+        value_in: [above_adc_high_payload_floor, above_tce_floor_below_adc, below_tce_floor]
+        rationale: |
+          The E2 antigen-density sub-question must be MEASURED (Tier-1 absolute, grade A/B), not a
+          grade-D/E estimate. Blocks a nomination whose deciding axis is blind — the honest form of
+          the never-invent-a-GO bound. Its standing vs the modality floor is a caveat, not a gate.
+    # A nomination is also blocked by any MEASURED `positive_contradictions` verdict (an opposing read
+    # anywhere; same set + same reconcilers the positive tier uses). This names the axes whose
+    # contradictions do NOT oppose THIS thesis. It is deliberately narrow and it is a WHITELIST OF
+    # IRRELEVANCE, not of permission: it can only stop a contradiction on a named axis from blocking,
+    # it can never make a KILL suppressible (kills resolve in the gate, before this stage runs) and it
+    # may not name an axis this thesis's own `deciding`/`requires` conjunction depends on.
+    irrelevant_contradiction_axes:
+      - sub_skill: tractability_sm
+        rationale: |
+          FOUND BY A GROUNDED RUN, not by inspection: FOLR1/OV (APPROVED — mirvetuximab) reads
+          `tractability_sm: discordant`, which is a positive_contradiction, so the opposing-verdict
+          bound blocked the nomination of an approved ADC target on a SMALL-MOLECULE-CHEMISTRY
+          disagreement. That is the SAME ontology defect this remediation exists to remove (a
+          cross-thesis axis read as an AND-conjunct): an ADC/TCE needs a surface epitope, not a
+          binding pocket, so `discordant` / `chemically_unhit` on the small-molecule tractability
+          axis says nothing about an antigen thesis either way.
+          NOT AN OVERFIT: `tractability_sm: discordant` covers FOLR1 + NECTIN4 + TACSTD2 (all
+          APPROVED) and CEACAM5 (the known FP) — it is a surface-antigen-GENERAL artifact, so
+          excluding it does not selectively rescue the FP. Every other contradiction axis still
+          blocks, and both of the ones the decoys carry are among them (GAPDH reads
+          `cis_coherence: expressed_cis_coupled_inert`).
+    action: nominate
+    rationale: |
+      An antigen-driven target with (i) a viable measured surface arm, (ii) a measured tumor-vs-normal
+      window, (iii) measured cohort presence, and (iv) a MEASURED antigen density, reached on gate
+      ABSTENTION with no opposing measured verdict, has satisfied its thesis's necessity conjunction on
+      its own axis. That is a nomination, and saying `insufficient_evidence` instead is the
+      unaccountable HOLD this remediation exists to remove (0/14 surface antigens were adjudicated on
+      surface biology). FOLR1/OV + DLL3/SCLC + MSLN/OV all satisfy it; MUC13/CRC + GRIN2D/GI +
+      NECTIN4/BLCA + STEAP1/PRAD do NOT (grade-E density and/or no surviving window), so the panel's
+      `framework_abstains_correctly` cases stay correct.
+
+      ★KNOWN LIMITATION, RECORDED NOT HIDDEN: CEACAM5/LUAD satisfies this conjunction and is a
+      phase-3 FAILURE (see known_target_calibration_set.yaml, reclassified from honest_blind to
+      framework_false_positive by this change). On every WIRED axis CEACAM5 reads BETTER than FOLR1
+      (strong_tumor_selective vs selective_with_normal_liability; strongly_upregulated_in_tumor vs
+      tumor_broadly_expressed; tolerant_reduced_safety_risk safety; 76k copies/cell at grade B). Its
+      real discriminator is that the antigen-positive ESSENTIAL NORMAL TISSUE IS THE INDICATION'S OWN
+      ORGAN (lung / LUAD) — the "~558x-window-yet-lung-positive" pattern that surface_modality.resolver
+      .yaml names CEACAM5 for by name. That same-organ conjunction is NOT wired (it needs normal-tissue
+      identity crossed with the indication's organ) and is the next substrate build. No non-overfit
+      rule over the currently wired signals separates CEACAM5 from FOLR1, so this block ships the
+      false positive KNOWINGLY rather than tightening the conjunction until it nominates nothing.
 
 # GoF-DRIVER-SCOPED dependency-veto DOWNGRADE (2026-08-25, round-2 gap: neomorphic GoF, e.g. IDH1).
 # Symmetric to biology_axis_scoped_veto_downgrade but keyed on the GENOMIC sub-verdict instead of the

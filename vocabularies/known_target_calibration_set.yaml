@@ -134,6 +134,35 @@ positive_controls:
 # ---------------------------------------------------------------------------
 known_gap_watchlist:
 
+  # ADDED 2026-09-11 by Step 3 (nomination_verdict_gate v1.18.0 thesis_deciding_axes). The single
+  # substrate build that would repair the ONE false positive Step 3 knowingly creates.
+  same_organ_normal_liability:
+    indication: LUAD                    # the archetype; general to every surface antigen thesis
+    modality: adc
+    outcome: declined_ph3               # CEACAM5 / tusamitamab ravtansine
+    assertion_type: known_gap_expected_fail
+    measured: false                     # the CROSS is unwired; both inputs exist separately
+    exemplar_target: CEACAM5
+    blocks_correct_call_for: [CEACAM5]
+    inputs_that_already_exist:
+      - "surface_modality: the antigen-positive ESSENTIAL normal tissue identity (HPA IHC anchor /
+         sc-surface-normal-safety / the modality-window-essential-liability rung that fires for CEACAM5)"
+      - "the query's own indication -> organ (the OncoTree code is already in Context.indication)"
+    missing: |
+      The CROSS: no card or resolver rung asks "is the antigen-positive essential normal tissue the SAME
+      ORGAN as the indication?". Until it does, a large tumor-vs-normal window RATIO reads as a clean
+      therapeutic window even when tumor and critical normal tissue are the same tissue — the
+      "~558x-window-yet-lung-positive" pattern surface_modality.resolver.yaml names CEACAM5 for by name.
+    expected_after_wiring: |
+      CEACAM5/LUAD leaves the antigen_driven nominate set (its surface arm should downgrade, or the
+      thesis_deciding_axes conjunction should gain a same-organ negative conjunct), returning it to a
+      correctly-declined control WITHOUT touching FOLR1/OV, DLL3/SCLC or MSLN/OV (whose antigen-positive
+      normal tissues are NOT the indication organ). Flip CEACAM5's `agreement` back from
+      framework_false_positive at that point.
+    note: "This is the price Step 3 pays for the framework's first non-zero nominate count, recorded as a
+      build item rather than absorbed silently. See the ★KNOWN LIMITATION note on
+      nomination_verdict_gate.yaml::thesis_deciding_axes and the CEACAM5 reference_profiles entry."
+
   SMARCA2:
     indication: LUAD
     modality: small_molecule
@@ -483,7 +512,7 @@ reference_profiles:
   NECTIN4: {indication: urothelial, modality: adc, outcome: approved_class, deciding_axis: E2_internalization_F_skin, deciding_axis_coverage: blind, agreement: framework_abstains, severity: honest_blind}
   BCMA:    {indication: MM, modality: bite_tce, outcome: approved_class, deciding_axis: A2_shed_E2_density_B2, deciding_axis_coverage: blind, agreement: framework_abstains, severity: honest_blind}
   CD20:    {indication: lymphoma, modality: antibody, outcome: approved_class, deciding_axis: E2_noninternalizing_density, deciding_axis_coverage: blind, agreement: framework_abstains, severity: honest_blind}
-  CEACAM5: {indication: NSCLC, modality: adc, outcome: declined_ph3, deciding_axis: E2_density_threshold, deciding_axis_coverage: blind, agreement: framework_abstains, severity: honest_blind, note: "Ph3 fail control — even to fail it correctly needs the E2 axis."}
+  CEACAM5: {indication: NSCLC, modality: adc, outcome: declined_ph3, deciding_axis: E2_density_threshold_same_organ_normal, deciding_axis_coverage: blind, agreement: framework_false_positive, severity: dangerous_false_positive, note: "RECLASSIFIED 2026-09-11 by Step 3 (was framework_abstains / honest_blind): the thesis_deciding_axes block (nomination_verdict_gate v1.18.0) graduates surface_modality to a positive decider under the antigen_driven thesis, and CEACAM5/LUAD SATISFIES the whole conjunction — surface adc_preferred_tce_unsafe + selectivity strong_tumor_selective + expression strongly_upregulated_in_tumor + density grade B (76k copies/cell, above_adc_high_payload_floor) + safety tolerant_reduced_safety_risk — so it moves abstain -> NOMINATE on a PHASE-3 FAILURE. This is a KNOWINGLY-SHIPPED false positive, not an oversight: on every WIRED axis CEACAM5 reads BETTER than the approved FOLR1/OV (which reads only selective_with_normal_liability + tumor_broadly_expressed), so no non-overfit rule over wired signals separates them, and tightening the conjunction until CEACAM5 fails also blocks FOLR1/DLL3/MSLN (i.e. nominates nothing). THE REAL DISCRIMINATOR is SAME-ORGAN normal liability: the antigen-positive ESSENTIAL normal tissue IS the indication's own organ (lung / LUAD) — the '~558x-window-yet-lung-positive' pattern surface_modality.resolver.yaml names CEACAM5 for by name. Wiring it needs normal-tissue identity crossed with the indication organ = a SUBSTRATE build (see known_gap_watchlist: same_organ_normal_liability), not a gate edit. Ph3 fail control retained — it is now a FAILING control, and that is the honest reading."}
   MUC13:   {indication: CRC, modality: adc, outcome: declined, deciding_axis: E2_glycan_shed_F, deciding_axis_coverage: blind, agreement: framework_abstains_correctly, severity: honest_blind}
   GRIN2D:  {indication: GI, modality: adc, outcome: declined, deciding_axis: E2_ion_channel_topology, deciding_axis_coverage: blind, agreement: framework_abstains_correctly, severity: honest_blind, note: "topology-killer (HTR1D analog) — highest-value buildable E2 fix."}
   NOX1:    {indication: CRC, modality: bite_tce, outcome: advanced, deciding_axis: F_restricted_GI_window, deciding_axis_coverage: blind, agreement: framework_abstains_incorrectly, severity: honest_blind, note: "advanced on restricted-normal window; framework can't distinguish from losers."}

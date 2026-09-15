@@ -41,7 +41,19 @@ def test_headline_metrics_pinned(metrics):
     # 4 → 3 (2026-08-30): RBM39 corrected dangerous_false_positive → validated_lane — the pan-essential
     # axis is now captured (dependency pan_essential_killer VETO + pan-essential-broad-tox safety),
     # verified by a live run, so the framework declines it for the real window liability (matches outcome).
-    assert len(metrics["dangerous_false_positives"]) == 3
+    # 3 → 4 (2026-09-11, Step 3): CEACAM5/LUAD reclassified honest_blind → dangerous_false_positive. This
+    # is the FIRST bump in the WRONG direction and it is deliberate + priced: nomination_verdict_gate
+    # v1.18.0's `thesis_deciding_axes` makes surface_modality a POSITIVE decider under the antigen_driven
+    # thesis (the framework's first deterministically-minted `nominate`; previously every nominate was
+    # LLM-authored and the gate could only veto/hold). CEACAM5 satisfies the conjunction and is a phase-3
+    # FAILURE. It is not separable from the 3 approved antigens it recovers (FOLR1/DLL3/MSLN) by any rule
+    # over CURRENTLY WIRED signals — CEACAM5 reads BETTER than FOLR1 on every one of them — so the
+    # trade is +3 recovered approved-drug antigens (blind → nominated on their own axis) for +1 known FP,
+    # recorded here and in known_gap_watchlist.same_organ_normal_liability rather than hidden. This
+    # CONSUMES the last headroom under _FLOORS["max_dangerous_false_positives"] = 4: the next dangerous-FP
+    # is a hard regression, and wiring the same-organ-normal-liability discriminator (the real CEACAM5
+    # separator) must ratchet this back to 3.
+    assert len(metrics["dangerous_false_positives"]) == 4
     # 12 → 11 (2026-09-02): CNDP2 reclassified silent_false_negative → honest_blind (out_of_scope). It
     # was mislabeled neomorphic_gain_of_function; CNDP2 is WT (no somatic driver) and its actionability
     # is a NON-CELL-AUTONOMOUS secreted-enzyme metabolic dependency conditioned on trans KEAP1-LoF/NRF2-GoF
