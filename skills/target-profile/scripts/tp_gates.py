@@ -876,14 +876,41 @@ def thesis_nomination(
     # NOTHING blocks `strong` without ever being labelled opposing evidence. The 1.20.0 relabel
     # therefore introduced no decider/scorecard divergence.
     #
-    # ⚠️ BUT THE GENERAL INVARIANT IS FALSE, and an earlier draft of this comment asserted it: "the
-    # decider can never nominate what the gate scorecard reads as `opposing`" is REFUTED by
-    # `dependency: non_dependent` under `antigen_driven` — the decider NOMINATES while the scorecard
-    # says `opposing`. The cause is not 1.20.0; it is v1.17.0/Step-2b `thesis_axis_relevance`, which
-    # drops the `non_dependent` veto for this thesis by design (the 0/14-surface fix above). The gate
-    # applies that thesis scoping; `_gate_scorecard` CANNOT — it takes `modality` but no `thesis`
-    # (see its signature), so it classifies `non_dependent` via `kill_map` and reads `opposing`. Per
-    # the 0/14 rationale a surface antigen measuring `non_dependent` is the TYPICAL case, not an edge.
+    # ⚠️ THE GENERAL INVARIANT WAS FALSE WHEN STEP 3 LANDED, AND IS NOW TRUE BY CONSTRUCTION. The
+    # claim "the decider can never nominate what the gate scorecard reads as `opposing`" was REFUTED
+    # by `dependency: non_dependent` under `antigen_driven` — the decider NOMINATED while the
+    # scorecard said `opposing`. The cause was not 1.20.0; it is v1.17.0/Step-2b
+    # `thesis_axis_relevance`, which drops the `non_dependent` veto for that thesis by design (the
+    # 0/14-surface fix above). The gate applied that thesis scoping and `_gate_scorecard` did not —
+    # it took `modality` but no `thesis`, so it classified `non_dependent` via `kill_map` and read
+    # `opposing`. Per the 0/14 rationale a surface antigen measuring `non_dependent` is the TYPICAL
+    # case, not an edge.
+    #   CLOSED 2026-09-15 by threading `thesis` into `_gate_scorecard` (see its docstring): the
+    #   scorecard now performs the SAME `_load_thesis_axis_relevance(...).get(thesis, set())` lookup
+    #   this function's `_suppressed_gate_hits` performs, and labels a thesis-dropped row `neutral`
+    #   instead of `opposing`. The invariant now holds for a caller that passes `thesis`, and
+    #   `run.py` does. It STILL does not hold for `thesis=None`, and that is deliberate: the default
+    #   drops nothing, so every caller that never had a thesis keeps its exact previous output.
+    #   MEASURED REACH — and it is TWO different numbers, because the mislabel contradicts TWO
+    #   different surfaces and each has its own denominator. Canonical thesis vocabulary = 5
+    #   (`target_thesis.yaml`: antigen_driven, tme_io, neomorphic_gof, partner_conditional_sl,
+    #   oncogene_addiction).
+    #     · `thesis_axis_relevance` carries 4 of those 5 and ALL FOUR drop
+    #       (`dependency`, `non_dependent`) — `oncogene_addiction` is simply ABSENT from the map, so
+    #       it keeps the veto and `forced` stays `veto`. Under all four, `hard_gates[].status` reads
+    #       `suppressed` while the unthreaded scorecard read `opposing`: an artifact contradicting
+    #       ITSELF, reach 4/5.
+    #     · `thesis_deciding_axes` carries 1 of the 5 (`antigen_driven` only), so a thesis that is
+    #       not registered there hits GUARD 3 above and the decider returns `None` — it cannot
+    #       nominate, and there is nothing for a scorecard label to contradict. THE DECIDER-side
+    #       divergence this comment is about therefore had reach 1/5, not 4/5.
+    #   Stated separately because collapsing them is a real error and I made it: the first draft of
+    #   this paragraph claimed the original note "under-stated the divergence 4×", which silently
+    #   promoted the artifact-self-contradiction count into the decider claim. Both numbers are
+    #   defects worth closing; they are not the same defect. WHEN A COUNT LOOKS LIKE IT GREW, CHECK
+    #   WHETHER THE DENOMINATOR MOVED WITH IT — a defect quantified on the example that surfaced it
+    #   looks like an edge case and gets deferred, but a count borrowed from a neighbouring surface
+    #   over-states it in the other direction, and both mis-price the fix.
     #   WHICH SURFACE CARRIES IT, measured rather than assumed -- and an earlier draft of this comment
     #   said "rendered reports", which names the one consumer that provably does NOT read it:
     #   `report_render/DATA_CONTRACT.md` records `.target_call.gate_scorecard` as "carried, not
@@ -901,8 +928,19 @@ def thesis_nomination(
     #   where this file now measures `coverage_gap`, because it is a PRE-1.20.0 vintage. A fixture
     #   disagreeing with a live read is usually stale rather than wrong, but only its VINTAGE can say
     #   which, and here the delta is exactly the relabel this comment describes.
-    # Pinned by `test_decider_and_scorecard_agree_except_where_thesis_scoping_is_invisible_to_the_scorecard`;
-    # threading `thesis` into the scorecard is a display fix and deliberately NOT in this diff.
+    #   AND THAT FIXTURE IS NOW STALE FOR A SECOND, INDEPENDENT REASON — worth stating because the
+    #   two look identical from inside the file. It is pre-1.20.0 (the relabel, paragraph above) AND
+    #   pre-2026-09-15 (this fix). Its 24 (`non_dependent`, `opposing`) rows are what a run WITHOUT a
+    #   threaded thesis produced; a fresh run of the same pairs would read `neutral` wherever the
+    #   target's thesis is one of the four. It is deliberately NOT regenerated here: the fixture's job
+    #   is to record what the surfaces DID emit, and re-freezing it would erase the only durable
+    #   evidence that the divergence was real and populous rather than constructed.
+    # Pinned by `test_decider_and_scorecard_agree_where_the_thesis_is_threaded`, which replaced
+    # `..._except_where_thesis_scoping_is_invisible_to_the_scorecard`. That earlier pin asserted
+    # `"thesis" not in signature(_gate_scorecard).parameters` — i.e. it pinned the DEFECT open, on
+    # purpose, so that closing it could not be done silently. This diff falsifies it by design, which
+    # is the pin working rather than the pin failing: a guard that reds when the thing it describes
+    # gets fixed is the only kind that cannot be quietly out-lived.
     #
     # MINUS the thesis's declared `irrelevant_contradiction_axes`. This is not a loophole: it can only
     # stop a CONTRADICTION on a named axis from blocking, never make a kill suppressible (kills resolve
@@ -1663,15 +1701,34 @@ def _gate_scorecard(
     deciding_axis: Optional[dict] = None,
     contracts_repo: Path | None = None,
     modality: str | None = None,
+    thesis: str | None = None,
 ) -> list[dict]:
     """Build the 8-gate scorecard rows. Rows come from the gate_coverage REGISTRY (not from
     iterating sub_results), so gates we're blind on this run still render as greyed rows. Status
     reuses the nomination-gate policy so it cannot diverge from the deterministic verdict.
     `modality` is threaded so a modality-scoped surface positive classifies as `supportive`
-    (not `coverage_gap`) under an explicit biologics modality — consistent with the gate."""
+    (not `coverage_gap`) under an explicit biologics modality — consistent with the gate.
+
+    `thesis` is threaded for the SAME reason and closes a divergence that was measured, not
+    supposed: without it this function classifies an axis the target's thesis has declared
+    IRRELEVANT (`thesis_axis_relevance`) as `opposing`, while `_hard_gates_status` — reading the
+    same run's suppression records — reports that veto as `suppressed` with the provenance
+    `{kind: thesis_irrelevant_axis, thesis: <t>}`. Both blocks are emitted into ONE
+    `nomination.json`, so the artifact asserted "this veto was lifted because the thesis makes the
+    axis irrelevant" and "this axis is opposing evidence" simultaneously, of the same axis and the
+    same live verdict. NOT verdict-moving (see `_SCORECARD_STATUS_ORDER`: nothing switches on
+    scorecard status to force a call); it is the LABEL the two views disagreed on.
+
+    Defaults to None, which reproduces the pre-2026-09-15 output BY CONSTRUCTION: an absent thesis
+    drops nothing, so every caller that does not pass one is byte-identical."""
     baseline, _ = _load_gate_coverage(contracts_repo)
     kill_map, _ = _load_gate_verdicts(contracts_repo)  # {(short,verdict): action}
     positive_map, contradictions, _, _ = _load_positive_signals(contracts_repo, modality=modality)
+    # Step-2b thesis scoping, the SAME load and the same `.get(thesis, set())` shape
+    # `_suppressed_gate_hits` uses, so the two views cannot drift apart on which keys are dropped.
+    # CONSERVATIVE by inheritance: `_load_thesis_axis_relevance` returns {} on any failure, and an
+    # absent/garbled block can only leave a row labelled `opposing` — never mint a favourable label.
+    thesis_drop = _load_thesis_axis_relevance(contracts_repo).get(thesis, set()) if thesis else set()
     # cross-axis reconcile (same as the recommendation gate) so the scorecard's opposing status can't
     # disagree with the deterministic call — a reconciled contradiction is no longer 'opposing'.
     contradictions = contradictions - _reconciled_contradiction_keys(sub_results, contracts_repo)
@@ -1691,6 +1748,20 @@ def _gate_scorecard(
             # sense, not opposing evidence. Checked BEFORE the kill/contradiction test so the label can
             # never depend on which contracts version happened to be readable.
             return "coverage_gap"
+        if (short, verdict) in thesis_drop:
+            # The thesis declares this axis IRRELEVANT, so `_suppressed_gate_hits` already lifted the
+            # veto and `hard_gates[].status` reads `suppressed`. Calling the same row `opposing` here
+            # would make ONE artifact contradict itself. `neutral`, not `coverage_gap`: we DID measure
+            # the axis and got a verdict — it is the THESIS that makes the verdict non-dispositive, not
+            # a gap in evidence, and the row still carries its true `verdict` for anyone who disagrees
+            # with the scoping. Placement is measured, not stylistic: `('dependency','non_dependent')`
+            # is in `kill_map` (True) and NOT in `contradictions` (False), so the ONLY test that would
+            # otherwise claim it is the combined one directly below — while the two `coverage_gap`
+            # tests above must keep precedence, since an unmeasured or self-disagreeing axis is a gap
+            # whatever the thesis says. Reuses EXISTING vocabulary, so no consumer needs to learn a
+            # word (see the `additionalProperties: false` hazard: a new FIELD would red 9/14 skills
+            # until contracts declared it; a new VALUE in an existing field reds nothing).
+            return "neutral"
         if (short, verdict) in kill_map or (short, verdict) in contradictions:
             return "opposing"
         if (short, verdict) in positive_map:

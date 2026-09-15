@@ -1231,7 +1231,11 @@ def main() -> int:
 
     # Gate scorecard (deterministic, top-of-report): 8-gate rows from the gate registry, 4-state
     # status reusing the nomination-gate policy. Also emitted in nomination.json.
-    scorecard = _gate_scorecard(sub_results, deciding_axis, modality=args.modality)
+    # `thesis` is threaded for the same reason `modality` is: without it the scorecard labelled an
+    # axis this run's thesis declares IRRELEVANT as `opposing`, while `hard_gates` (line ~1214, same
+    # dict, same artifact) reported the very same veto as `suppressed`. Same expression as the two
+    # sibling consumers above (:1040, :1125) so the three views cannot be given different theses.
+    scorecard = _gate_scorecard(sub_results, deciding_axis, modality=args.modality, thesis=thesis.get("thesis"))
     # target_call.v1 (target_report consolidation, Wave 1 — ADDITIVE): a unified DECISION view composed
     # over the spine objects just built (recommendation_gate/confidence_tier/deciding_axis/scorecard) +
     # target_rollup.block, adding the authoritative recommendation value + a dissent block. Verdict-inert;

@@ -1371,9 +1371,11 @@ def test_a_measured_contradiction_on_any_other_axis_blocks_nominate():
     since the tier blocks `strong` on the union with `positive_uncorroborated` and the decider on
     contradictions alone. Both verdicts below are LISTED contradictions, so for THESE the decider
     blocks and the scorecard reads `opposing` — the two surfaces agree. Scoped deliberately: the
-    general claim ("the decider can never nominate what the scorecard reads as `opposing`") is FALSE,
-    refuted by `dependency: non_dependent`; see
-    `test_decider_and_scorecard_agree_except_where_thesis_scoping_is_invisible_to_the_scorecard`."""
+    general claim ("the decider can never nominate what the scorecard reads as `opposing`") was FALSE
+    when this test was written, refuted by `dependency: non_dependent` under a thesis that declares
+    the axis irrelevant. It now holds FOR A CALLER THAT THREADS `thesis` — and still not for
+    `thesis=None`, which is why the scoping stays explicit here rather than being assumed; see
+    `test_decider_and_scorecard_agree_where_the_thesis_is_threaded`."""
     for short, verdict in (("cis_coherence", "expressed_cis_coupled_inert"), ("dependency", "broadly_dependent")):
         action, rec = _nominate(_antigen(extra=_sub(short, verdict)))
         assert action is None, f"{short}:{verdict} is a MEASURED opposing read — must block"
@@ -1443,8 +1445,15 @@ def test_v1200_uncorroborated_relabelling_moved_exactly_one_key_on_this_thesis()
 
 
 @_decider_skip
-def test_decider_and_scorecard_agree_except_where_thesis_scoping_is_invisible_to_the_scorecard():
-    """PINS the full decider x scorecard table on `dependency`, including the ONE disagreement.
+def test_decider_and_scorecard_agree_where_the_thesis_is_threaded():
+    """PINS the decider x scorecard table on `dependency`, and the CLOSURE of its one disagreement.
+
+    REPLACES `test_decider_and_scorecard_agree_except_where_thesis_scoping_is_invisible_to_the_scorecard`,
+    which pinned the defect OPEN on purpose — its last assertion was
+    `"thesis" not in signature(_gate_scorecard).parameters`, so closing the hole could not be done
+    silently. This change falsifies that assertion by design; the guard did its job and is retired
+    rather than relaxed. (A pin whose subject gets FIXED must be rewritten, not deleted: deleting it
+    loses the record that the state was once real, and relaxing it is how a pin goes vacuous.)
 
     Two surfaces read the same 7-key `positive_contradictions` block and must not drift apart
     silently: `thesis_nomination` GUARD 4 decides block-vs-nominate, `_gate_scorecard._status`
@@ -1453,70 +1462,155 @@ def test_decider_and_scorecard_agree_except_where_thesis_scoping_is_invisible_to
     masquerade as a surface disagreement (it already did once during this change: a hand-rolled
     `_density` stand-in that omitted the density CARD made every row read `block`).
 
-    ⚠️ THE TIDY INVARIANT IS FALSE AND THAT IS THE POINT. "The decider can never nominate what the
-    scorecard reads as `opposing`" was asserted by an earlier draft of the GUARD 4 comment and is
-    refuted by row 2 below: `non_dependent` NOMINATES while the scorecard says `opposing`. The cause
-    is v1.17.0/Step-2b `thesis_axis_relevance`, which drops the `non_dependent` veto for
-    `antigen_driven` by design (0 of 14 surface antigens had ever been adjudicated on surface biology
-    before it). The gate applies that thesis scoping; the scorecard takes no `thesis` argument and so
-    cannot. Per that same 0/14 rationale a surface antigen measuring `non_dependent` is the TYPICAL
-    case, so this shows on rendered reports today — it is a DISPLAY defect, recorded rather than
-    fixed here because threading `thesis` into `_gate_scorecard` changes rendered output and belongs
-    in its own diff.
+    WHAT WAS WRONG: `thesis_axis_relevance` (v1.17.0 / Step-2b) drops the `non_dependent` veto for
+    `antigen_driven` by design — 0 of 14 surface antigens had ever been adjudicated on surface
+    biology before it. `_gate_recommendation` and `_hard_gates_status` applied that scoping;
+    `_gate_scorecard` took `modality` but no `thesis`, so it classified `non_dependent` through
+    `kill_map` and said `opposing`. Per the same 0/14 rationale a surface antigen measuring
+    `non_dependent` is the TYPICAL case, so a single `nomination.json` asserted both "veto
+    suppressed because the thesis makes this axis irrelevant" and "this axis is opposing evidence".
+
+    TWO REACHES, MEASURED, because the mislabel contradicted two surfaces with two denominators
+    (asserted below rather than narrated): `thesis_axis_relevance` holds 4 of the 5 canonical theses
+    and all four drop this key, so the ARTIFACT self-contradiction (hard_gates `suppressed` vs
+    scorecard `opposing`) had reach 4/5; `thesis_deciding_axes` holds 1 (`antigen_driven`), and an
+    unregistered thesis hits GUARD 3 and cannot nominate at all, so the DECIDER-side divergence had
+    reach 1/5. Both are closed here.
 
     Note what this does NOT say: the v1.20.0 `uncorroborated` relabel introduced NO divergence. On
     both relabelled keys the surfaces agree (`coverage_gap`), because `_status` tests
     `uncorroborated` before the kill/contradiction test.
     """
-    # (verdict, decider action, scorecard status) — MEASURED, not derived: vocab 1.21.0 as read from
-    # contracts c88c6e04, the tree skills-validate.yml actually pins.
+    import inspect
+
+    # The fix's own preconditions, asserted first so a signature drift reads as a signature failure
+    # rather than as a mysterious table failure twenty lines down.
+    params = inspect.signature(tp._gate_scorecard).parameters
+    assert "thesis" in params, "_gate_scorecard no longer takes a thesis — the divergence below reopens"
+    assert params["thesis"].default is None, (
+        "the `thesis` default is no longer None; a non-None default would change output for every "
+        "existing caller that passes no thesis"
+    )
+
+    # (verdict, decider action, scorecard status WITH the thesis threaded, scorecard status WITHOUT)
+    # MEASURED, not derived: vocab 1.21.0 as read from contracts c88c6e04, the tree
+    # skills-validate.yml actually pins.
     EXPECTED = [
-        ("pan_essential_killer", "veto", "opposing"),  # kill: decider never reached
-        ("non_dependent", "nominate", "opposing"),  # ⚠️ THE DISAGREEMENT (thesis-scoped veto drop)
-        ("broadly_dependent", None, "opposing"),  # listed contradiction: both surfaces block
-        ("discordant", "nominate", "coverage_gap"),  # v1.20.0 uncorroborated: both surfaces agree
+        ("pan_essential_killer", "veto", "opposing", "opposing"),  # kill: decider never reached
+        ("non_dependent", "nominate", "neutral", "opposing"),  # ⚠️ THE FIX: was `opposing` both ways
+        ("broadly_dependent", None, "opposing", "opposing"),  # listed contradiction: both block
+        ("discordant", "nominate", "coverage_gap", "coverage_gap"),  # v1.20.0: surfaces already agreed
     ]
-    for verdict, want_action, want_status in EXPECTED:
+    for verdict, want_action, want_status, want_unthreaded in EXPECTED:
         subs = _antigen(extra=_sub("dependency", verdict))
         action, _rec = _nominate(subs)
-        rows = tp._gate_scorecard(subs, contracts_repo=_CONTRACTS_ENV)
+        rows = tp._gate_scorecard(subs, contracts_repo=_CONTRACTS_ENV, thesis="antigen_driven")
         status = next(r["status"] for r in rows if r["short"] == "dependency")
         assert action == want_action, f"dependency:{verdict} decider: want {want_action}, got {action}"
         assert status == want_status, f"dependency:{verdict} scorecard: want {want_status}, got {status}"
+        # THE INVARIANT ITSELF, stated as the implication it actually is rather than as a table
+        # coincidence: a nomination must never sit beside an `opposing` label for the same axis.
+        assert not (action == "nominate" and status == "opposing"), (
+            f"dependency:{verdict} — decider nominates while the scorecard calls the same axis "
+            "opposing; that is the self-contradiction this test exists to prevent"
+        )
+        # BACKWARD COMPATIBILITY, asserted per row: with no thesis the OLD label stands. This is the
+        # half that makes `thesis=None` safe for every caller that has not been updated, and it is
+        # asserted rather than assumed because "the default is None" does not by itself prove the
+        # None path is unchanged.
+        unthreaded = next(
+            r["status"] for r in tp._gate_scorecard(subs, contracts_repo=_CONTRACTS_ENV) if r["short"] == "dependency"
+        )
+        assert unthreaded == want_unthreaded, (
+            f"dependency:{verdict} unthreaded scorecard: want {want_unthreaded}, got {unthreaded}"
+        )
 
-    # The MECHANISM behind row 2, asserted so the explanation cannot rot while the symptom survives.
-    # A future change that stops dropping this veto would leave the table above self-consistent and
-    # this comment silently wrong; asserting the cause makes that red instead.
+    # ── the two denominators, asserted (they are what makes the reach claim above checkable) ──────
     relevance = tp._load_thesis_axis_relevance(_CONTRACTS_ENV)
-    assert ("dependency", "non_dependent") in relevance.get("antigen_driven", set()), (
-        "antigen_driven no longer drops the non_dependent veto — row 2's disagreement had a "
-        "different cause than this test documents"
+    decider_theses = {b.get("thesis") for b in tp._load_thesis_deciding_axes(_CONTRACTS_ENV)[0]}
+    DROPPING = ("antigen_driven", "tme_io", "neomorphic_gof", "partner_conditional_sl")
+    for t in DROPPING:
+        assert ("dependency", "non_dependent") in relevance.get(t, set()), (
+            f"{t} no longer drops the non_dependent veto — the divergence this test closes had a "
+            "different cause than it documents; re-derive rather than re-pinning"
+        )
+    # `oncogene_addiction` is the CONTROL, and it is the assertion that makes the fix two-sided: it
+    # is ABSENT from the relevance map, so the veto stands, `forced` stays `veto`, and the scorecard
+    # must STILL read `opposing`. A blanket `if verdict == "non_dependent": return "neutral"` would
+    # pass every assertion above and red here.
+    assert ("dependency", "non_dependent") not in relevance.get("oncogene_addiction", set()), (
+        "oncogene_addiction now drops the non_dependent veto; this test's control is no longer a control"
     )
-    # And that the scorecard STILL cannot see a thesis, which is why it cannot apply that drop.
-    import inspect
+    subs = _antigen(extra=_sub("dependency", "non_dependent"))
+    forced, hits, sup = tp._gate_recommendation(subs, thesis="oncogene_addiction")
+    assert forced == "veto", f"oncogene_addiction must keep the non_dependent veto, got {forced}"
+    control = next(
+        r["status"]
+        for r in tp._gate_scorecard(subs, contracts_repo=_CONTRACTS_ENV, thesis="oncogene_addiction")
+        if r["short"] == "dependency"
+    )
+    assert control == "opposing", (
+        f"a thesis that does NOT declare the axis irrelevant must still read opposing, got {control} — "
+        "the guard is relabelling on the verdict alone instead of on the thesis's declared scope"
+    )
 
-    assert "thesis" not in inspect.signature(tp._gate_scorecard).parameters, (
-        "_gate_scorecard now takes a thesis — the display defect this test records may be fixable; "
-        "re-derive the table rather than re-pinning it"
-    )
+    # ── FAIL-CLOSED on an unknown thesis: an unregistered name must drop NOTHING ───────────────────
+    # Mirrors `thesis_nomination`'s GUARD 3. Compared as whole row LISTS, not one status, so a future
+    # change that quietly moves some other row under an unknown thesis also reds.
+    assert tp._gate_scorecard(subs, contracts_repo=_CONTRACTS_ENV, thesis="not_a_registered_thesis") == (
+        tp._gate_scorecard(subs, contracts_repo=_CONTRACTS_ENV)
+    ), "an unregistered thesis changed the scorecard; unknown scoping must be inert, not permissive"
+
+    # ── PAIR A: the ARTIFACT self-contradiction, across all four dropping theses ───────────────────
+    # This is the 4/5 reach. `hard_gates[].status` and `gate_scorecard[].status` are emitted into the
+    # SAME nomination.json, so they are read side by side by definition; asserting them from one
+    # `sub_results` is what makes the comparison meaningful.
+    for t in DROPPING:
+        forced, hits, sup = tp._gate_recommendation(subs, thesis=t)
+        assert forced is None, f"{t} should drop the non_dependent veto, got forced={forced}"
+        hg = tp._hard_gates_status(subs, hits, sup)
+        hg_status = next(
+            e["status"] for e in hg if (e.get("short"), e.get("verdict")) == ("dependency", "non_dependent")
+        )
+        sc_status = next(
+            r["status"]
+            for r in tp._gate_scorecard(subs, contracts_repo=_CONTRACTS_ENV, thesis=t)
+            if r["short"] == "dependency"
+        )
+        assert hg_status == "suppressed", f"{t}: hard_gates should read suppressed, got {hg_status}"
+        assert not (hg_status == "suppressed" and sc_status == "opposing"), (
+            f"{t}: hard_gates says the veto was SUPPRESSED because the thesis makes this axis "
+            f"irrelevant, while the scorecard calls the same axis opposing ({sc_status}) — one "
+            "artifact contradicting itself"
+        )
+        # PAIR B is vacuous for three of the four (GUARD 3 → the decider cannot nominate), and that
+        # is asserted rather than skipped so the 1/5-vs-4/5 distinction cannot rot into "4/5" twice.
+        if t not in decider_theses:
+            action, rec = tp.thesis_nomination(subs, t, hits, contracts_repo=_CONTRACTS_ENV)
+            assert action is None, f"{t} is not in thesis_deciding_axes; GUARD 3 must return None, got {action}"
 
     # The AGREEING half, on the other relabelled axis: selectivity's uncorroborated verdict blocks on
     # a `requires` conjunct (not on the opposing bound) and reads `coverage_gap`, not `opposing`.
     subs = _antigen(selectivity="discordant_across_comparators")
     action, rec = _nominate(subs)
-    rows = tp._gate_scorecard(subs, contracts_repo=_CONTRACTS_ENV)
+    rows = tp._gate_scorecard(subs, contracts_repo=_CONTRACTS_ENV, thesis="antigen_driven")
     assert action is None
     assert next(r["status"] for r in rows if r["short"] == "selectivity") == "coverage_gap"
     assert not any("opposing_measured_verdict" in u for u in rec["unsatisfied"])
 
-    # AND THE DISAGREEING STATE OCCURS IN REAL DATA, so this is not a constructed edge case: the frozen
-    # 629-row polarity projection (37 pairs run 2026-09-08/09) carries (`non_dependent`, `opposing`) on
-    # 24 of its 37 dependency rows -- the DOMINANT dependency state. Those runs predate step 3, so the
-    # decider vetoed them at freeze time; step 3 removes the veto and leaves the `opposing` standing.
-    # PINNED AS A PROPERTY (>= 1), NOT AS THE COUNT: 24 is this vintage's measurement of a fixture this
-    # test does not own, so `== 24` would red on any legitimate re-freeze and get re-pinned, which is
-    # how a count-pin goes vacuous. `>= 1` reds only if the phenomenon DISAPPEARS -- precisely when the
-    # comment in `tp_gates.py` GUARD 4 needs re-reading.
+    # AND THE FIXED STATE OCCURRED IN REAL DATA, so this was not a constructed edge case: the frozen
+    # 629-row polarity projection (37 pairs run 2026-09-08/09) carries (`non_dependent`, `opposing`)
+    # on 24 of its 37 dependency rows -- the DOMINANT dependency state.
+    # ⚠️ THE FIXTURE IS DELIBERATELY NOT REGENERATED, and it is now stale for TWO independent reasons
+    # that look identical from inside this file: it is pre-1.20.0 (the `uncorroborated` relabel) AND
+    # pre-2026-09-15 (this fix). Its 24 rows are what a run WITHOUT a threaded thesis produced. Left
+    # frozen because the fixture's job is to record what the surfaces DID emit: re-freezing it would
+    # erase the only durable evidence that the divergence was real and POPULOUS rather than
+    # constructed, which is exactly the evidence a future reader needs to judge whether this guard
+    # still earns its place.
+    # PINNED AS A PROPERTY (>= 1), NOT AS THE COUNT: 24 is this vintage's measurement of a fixture
+    # this test does not own, so `== 24` would red on any legitimate re-freeze and get re-pinned,
+    # which is how a count-pin goes vacuous.
     projection = Path(__file__).resolve().parent / "fixtures" / "polarity_surface_projection.json"
     if projection.is_file():  # fail-soft: this test's subject is the gate, not the fixture's presence
         proj_rows = json.loads(projection.read_text())["rows"]
@@ -1527,7 +1621,8 @@ def test_decider_and_scorecard_agree_except_where_thesis_scoping_is_invisible_to
         ]
         assert live, (
             f"0 of {len(dep_rows)} frozen dependency rows read (non_dependent, opposing); measured 24 of 37 on "
-            "2026-09-15 -- if the corpus no longer shows it, re-derive the GUARD 4 comment rather than deleting this"
+            "2026-09-15 -- the fixture may have been regenerated post-fix, which DELETES the evidence that this "
+            "divergence was real; recover the vintage rather than deleting this assertion"
         )
 
 
