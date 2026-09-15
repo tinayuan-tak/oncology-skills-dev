@@ -28,7 +28,7 @@ from _skills_common import card_summary, get_card_field
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.headline_core import HeadlineSpec, build_headline
-from _skills_common.headline_hero import emit_headline_hero
+from _skills_common.headline_hero import _ARM_LABEL, emit_headline_hero
 from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common.literature_synthesis import make_literature_fn
 from _skills_common.narrator_engine import make_synthesize_fn
@@ -117,6 +117,13 @@ _SURFACE_DOWNGRADE_REASON = {
     "tce_unsafe_normal_liability": "a normal-tissue on-target-off-tumor liability makes the TCE arm unsafe",
     "surface_viable_density_caveated": "measured antigen surface density reads below the TCE payload floor",
     "shed_dominant_opposed": "a clinically-shed ectodomain acts as a circulating antigen sink / decoy",
+    # 2026-09-15: the escape_risk pair was MISSING from this map for its whole life (added 1.3.0,
+    # 2026-08-24, resolver rungs (1c) priority 11/12). Both are verdict-MOVING downgrades, so the rows
+    # rendered a favourable phrase with severity=None / text=None — no downgrade note ANYWHERE. Prose
+    # follows the resolver's own (1c) rung comment: an EFFICACY foreclosure, distinct from the SAFETY
+    # killers above, with ADC preserved because a bystander payload tolerates heterogeneity.
+    "adc_preferred_tce_escape_risk": "a within-tumor antigen-low escape reservoir forecloses the TCE arm on EFFICACY (antigen-low malignant cells survive redirected killing) — ADC preserved (heterogeneity-tolerant bystander payload)",
+    "tce_escape_risk": "a within-tumor antigen-low escape reservoir forecloses the TCE arm on EFFICACY (antigen-low malignant cells survive redirected killing)",
     # #979: the MIDDLE antigen-escape band — coverage adequate but inconsistent across donors. Surface it as
     # an explicit patient-selection escape flag (the issue's "raise an explicit escape-risk flag" ask).
     "adc_preferred_tce_patient_variable": "within-tumor antigen detection is inconsistent across donors (patient-variable escape) — a TCE/CAR patient-selection risk (ADC unaffected)",
@@ -239,17 +246,88 @@ _ARMS_DEFAULT = {"adc": "insufficient", "bite_tce": "insufficient", "antibody": 
 
 def _surface_verdict_by_modality(verdict_token) -> dict:
     """Project the RESOLVED surface_modality_verdict onto explicit per-modality-arm calls. Every resolver
-    token is mapped (pinned by test_verdict_by_modality_covers_all_tokens); an unmapped/None token falls
+    token is mapped (pinned by test_verdict_by_modality.py::test_every_resolver_token_is_mapped — the old
+    name in this docstring, `test_verdict_by_modality_covers_all_tokens`, never existed); an unmapped/None token falls
     back to all-insufficient (honest — never fabricates a viable arm). Returns a fresh dict per call."""
     return dict(_VERDICT_ARMS.get(verdict_token, _ARMS_DEFAULT))
+
+
+# ── The DISPLAY PHRASE when the resolver has EXCLUDED an arm the fit_class still asserts ──────────
+# Measured 2026-09-15 over the whole n=504 corpus-20260915: 108 rows (21.4%) render a FAVOURABLE phrase
+# for a resolver token whose OWN arm projection carries a foreclosed or caveated arm — 87 read
+# "ADC & TCE viable" while bite_tce is `unsafe`; 18 read "TCE-favorable" while bite_tce is `unsafe` and
+# NO arm is viable at all; 2 + 1 more from the escape_risk / density-caveat rungs. (Do not reconcile the
+# two 87s: 87 is BOTH the largest cell corpus-wide AND the affected count in the 451-row post-#1379
+# partition. That partition was checked and is IMMATERIAL here — this measurement reads
+# sub_verdicts.<axis>.verdict and evidence_graph.verdict.id, and the latter is a fit_class token on
+# 504/504 rows in BOTH partitions, so the whole corpus is one population for it.) _FIT_CLASS_PHRASE
+# cannot fix this: it is keyed on fit_class, and fit_class is BLIND to the downgrade (which lives in
+# surface_modality_verdict, per the module note above). So when an arm is downgraded the phrase is
+# rebuilt FROM THE ARM PROJECTION — itself a pure projection of the resolved token, hence unable to
+# disagree with it. The spine is untouched: verdict.call stays the fit_class token (#1384's invariant),
+# the gate keeps the resolver vocabulary, polarity still comes from _fit_class_polarity.
+#
+# The trigger is derived from _VERDICT_ARMS, NOT from _SURFACE_DOWNGRADE_REASON. The arm map covers all
+# 16 resolver tokens and is PINNED (test_verdict_by_modality.py::test_every_resolver_token_is_mapped); the reason map is
+# hand-maintained and was 2 rows short — exactly the rows that rendered with no tension note at all. A
+# trigger read off a hand-maintained inventory inherits its gaps; read off the pinned one it cannot.
+#
+# `not_preferred` / `not_viable` are deliberately EXCLUDED here: those are the FIT'S OWN ranking of the
+# arms it did not pick, which the fit_class phrase already reports faithfully. Only a SAFETY / ESCAPE /
+# DENSITY / SHED state — the resolver OVERRIDING the fit — makes a favourable phrase a false assertion.
+# So adc_preferred, tce_preferred and a clean both_viable stay byte-identical.
+_ARM_DOWNGRADED = frozenset({"unsafe", "escape_risk", "patient_variable_escape", "caveated", "opposed"})
+
+
+def _join_arm_labels(labels: list) -> str:
+    """The arm list sharing one state: "TCE" / "ADC & mAb" / "ADC, TCE & mAb"."""
+    if len(labels) < 2:
+        return "".join(labels)
+    return f"{', '.join(labels[:-1])} & {labels[-1]}"
+
+
+def _downgraded_arm_phrase(fit_class, arms) -> str | None:
+    """The honest display phrase when the resolver downgraded an arm the fit_class still asserts, else
+    None — which build_headline reads as "use spec.verdict_label", so every unaffected row is byte-stable.
+
+    Groups arms by shared state and puts the DOWNGRADED states FIRST: headline_hero truncates the phrase
+    at 38 chars for the badge, so leading with the exclusion makes the correction survive truncation by
+    construction rather than by luck. Arm LABELS are headline_hero's `_ARM_LABEL` — the one existing arm
+    vocabulary, imported rather than copied (a second copy is how two files come to route one axis) — and
+    the state word is DERIVED (`replace("_", " ")`) rather than mapped, so a newly-added arm state cannot
+    be missing a row here. That is the same failure this function exists to fix, so it must not reappear
+    in the fix.
+
+    e.g. adc_preferred_tce_unsafe → "TCE unsafe; ADC & mAb viable"  (was "ADC & TCE viable")
+         tce_unsafe_normal_liability → "TCE unsafe; ADC & mAb not preferred"  (was "TCE-favorable")
+         surface_viable_density_caveated → "ADC, TCE & mAb caveated"  (was "ADC & TCE viable")"""
+    if fit_class not in _FIT_CLASS_POSITIVE or not isinstance(arms, dict):
+        return None
+    if not any(state in _ARM_DOWNGRADED for state in arms.values()):
+        return None
+    groups: dict = {}
+    for arm in _ARM_ORDER + tuple(a for a in arms if a not in _ARM_ORDER):
+        state = arms.get(arm)
+        if state is None:
+            continue
+        groups.setdefault(state, []).append(_ARM_LABEL.get(arm, arm))
+    parts = list(groups.items())  # first-appearance order over the canonical arm order
+    parts.sort(key=lambda kv: kv[0] not in _ARM_DOWNGRADED)  # stable sort → the downgraded arms lead
+    return "; ".join(f"{_join_arm_labels(labels)} {str(state).replace('_', ' ')}" for state, labels in parts)
 
 
 def _build_headline_block(headline: dict) -> dict:
     """Build the canonical Headline block from the already-computed surface headline. The canonical `call`
     is the composed fit_class; the resolver's safety/density/shed downgrade rides as the top tension.
     The per-modality-arm decomposition (surface_modality_verdict_by_modality) rides in the hero payload so
-    the ADC/TCE/mAb arms are legible without string-parsing the token. Verdict-inert; never moves the spine."""
+    the ADC/TCE/mAb arms are legible without string-parsing the token. Verdict-inert; never moves the spine.
+
+    The arms are resolved ONCE and feed both the hero chips and the display phrase, so the phrase can never
+    name a state the chips beside it contradict."""
     fit_class = headline.get("fit_class")
+    arms = headline.get("surface_modality_verdict_by_modality") or _surface_verdict_by_modality(
+        headline.get("surface_modality_verdict")
+    )
     return build_headline(
         headline,
         headline.get("claim_vector"),
@@ -258,15 +336,13 @@ def _build_headline_block(headline: dict) -> dict:
         verdict_token=fit_class,
         driving_rule_id=headline.get("driving_rule_id"),
         verdict_polarity=_fit_class_polarity(fit_class),
-        modality_arms=(
-            headline.get("surface_modality_verdict_by_modality")
-            or _surface_verdict_by_modality(headline.get("surface_modality_verdict"))
-        ),
+        phrase_override=_downgraded_arm_phrase(fit_class, arms),
+        modality_arms=arms,
     )
 
 
 SKILL_NAME = "surface-modality-fit"
-SKILL_VERSION = "1.10.0"  # 1.10.0 (2026-09-07, CASE-012) VERDICT-INERT: pmhc_presentation_caveat — a pmhc_tce_supported call whose epitope is presented on an INTERMEDIATE breadth of normal tissues (Q1–Q3, below the broadly_presented_normal veto) is flagged (NOX1/CRC: colon+small-intestine+marrow). Presentation-axis (modality-appropriate), not expression; names the on-target/off-tumor liability the binary veto misses, without foreclosing the route (NY-ESO-1/MAGE-A4 restricted → no caveat). Spine/resolver/replay byte-stable.   # 1.9.0 (2026-09-04) Phase-6 VERDICT-MOVING: consume the TC surface_annotation_only_unconfirmed verdict (resolver v1.7.0). Cross-card surface_confirmation_state derived by the NEW surface_modality card preprocessor (registered + run_wired_skill preprocess_gate); _compose_adc_tce_fit emits biologics_precedented (widened ADC/TCE/CAR crosswalk). A positive fit_class resting on family/predicted-topology annotation w/o confirmed protein or clinical precedent → NON-NOMINATING caveat. DLL3/CEACAM5 spared (clinically_precedented). Depends TC #631.   # 1.8.0 (2026-09-04): --literature lane + VERDICT-INERT surfacing (surface_confirmation_caveat = surfaceome-family/RNA/predicted-topology annotation-INFLATION flag when a positive fit_class lacks confirmed cell-surface protein; endocytosis-unmeasured ADC sub-note; shed_caveat soluble-antigen-sink arm; SURFACE_MODALITY_FIT thesis + polarity_note). Spine byte-stable (resolver keys only on fit_class + safety/density/shed rungs).   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
+SKILL_VERSION = "1.11.0"  # 1.11.0 (2026-09-15) DISPLAY-ONLY: the headline PHRASE no longer asserts an arm the resolver excluded. Measured 108 of 504 corpus rows (21.4%) rendering "ADC & TCE viable" / "TCE-favorable" for a token whose own arm projection carries an `unsafe` / `escape_risk` / `caveated` arm (fit_class is blind to the downgrade — it lives in surface_modality_verdict). When an arm is downgraded the phrase is rebuilt from the PINNED arm projection via headline_core's phrase_override (`TCE unsafe; ADC & mAb viable`); trigger derived from _VERDICT_ARMS, not the hand-maintained reason map. Also adds the 2 _SURFACE_DOWNGRADE_REASON rows missing since 1.3.0 (adc_preferred_tce_escape_risk / tce_escape_risk rendered with NO tension note). verdict.call / gate / polarity / claim_vector / resolver all byte-stable.   # 1.10.0 (2026-09-07, CASE-012) VERDICT-INERT: pmhc_presentation_caveat — a pmhc_tce_supported call whose epitope is presented on an INTERMEDIATE breadth of normal tissues (Q1–Q3, below the broadly_presented_normal veto) is flagged (NOX1/CRC: colon+small-intestine+marrow). Presentation-axis (modality-appropriate), not expression; names the on-target/off-tumor liability the binary veto misses, without foreclosing the route (NY-ESO-1/MAGE-A4 restricted → no caveat). Spine/resolver/replay byte-stable.   # 1.9.0 (2026-09-04) Phase-6 VERDICT-MOVING: consume the TC surface_annotation_only_unconfirmed verdict (resolver v1.7.0). Cross-card surface_confirmation_state derived by the NEW surface_modality card preprocessor (registered + run_wired_skill preprocess_gate); _compose_adc_tce_fit emits biologics_precedented (widened ADC/TCE/CAR crosswalk). A positive fit_class resting on family/predicted-topology annotation w/o confirmed protein or clinical precedent → NON-NOMINATING caveat. DLL3/CEACAM5 spared (clinically_precedented). Depends TC #631.   # 1.8.0 (2026-09-04): --literature lane + VERDICT-INERT surfacing (surface_confirmation_caveat = surfaceome-family/RNA/predicted-topology annotation-INFLATION flag when a positive fit_class lacks confirmed cell-surface protein; endocytosis-unmeasured ADC sub-note; shed_caveat soluble-antigen-sink arm; SURFACE_MODALITY_FIT thesis + polarity_note). Spine byte-stable (resolver keys only on fit_class + safety/density/shed rungs).   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
 # 1.4.0 (2026-08-21): emit existing per-question question_table into the headline; 1.3.0 +sc-surface-normal-safety +sc-surface-rna-protein-concordance
 
 # VERDICT-RELEVANT vs ENRICHMENT: the surface_modality resolver (v1.1.0, 2026-08-09) keys on the
