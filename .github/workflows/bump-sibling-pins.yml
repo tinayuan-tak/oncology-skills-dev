@@ -22,8 +22,10 @@ name: Bump sibling CI pins
 # ★ AND IT MUST FAIL LOUDLY, NOT QUIETLY. The failure mode that would defeat the whole design is
 # a bump job that exits 0 having done nothing — "no drift" and "I could not find the pins" are
 # indistinguishable from the outside unless they are separated deliberately. So the script
-# hard-fails when it cannot parse all three pins, and again if a rewrite it believed it made did
-# not change the file. Do not soften either check into a warning.
+# hard-fails when it cannot parse all three pins, when it cannot find the `# PINNED` vintage
+# comment it would have to update alongside a SHA, and again if a rewrite it believed it made did
+# not change the file. Do not soften any of the three into a warning — the vintage check in
+# particular replaced a silent skip that let the SHA move while the date stood still.
 
 on:
   schedule:
@@ -88,8 +90,27 @@ jobs:
               return json.loads(r.stdout)
 
           # --- locate the pin for each sibling -------------------------------------------------
-          # Anchored on the `repository:` line, which is unique per sibling, then the first
-          # `ref:` line beneath it. Positional/line-number matching would rot on any reformat.
+          # Anchored on the `repository:` line, which is unique per sibling. Positional/line-number
+          # matching would rot on any reformat.
+          #
+          # ★ BOTH SEARCHES ARE BOUNDED BY THE STEP, NOT BY A LINE COUNT. A pin carries
+          # hand-written rationale of unbounded length: #1368 inserted an 11-line note between the
+          # target-contracts `# PINNED` comment and its `ref:`, putting that `ref:` 13 lines below
+          # its anchor. The former 5-line window therefore hard-failed this job on every run, and
+          # that went unnoticed only because this workflow is absent from the repo's default branch,
+          # so GitHub has never registered its schedule and it has never run at all. A fixed window
+          # encodes a guess about how much prose a human will write next to a pin; the step boundary
+          # encodes the structure that is actually there.
+          def step_end(anchor):
+              """One past the last line of the step `anchor` lives in: the next line that opens a
+              list item at a shallower indent, else EOF."""
+              depth = len(lines[anchor]) - len(lines[anchor].lstrip())
+              for j in range(anchor + 1, len(lines)):
+                  stripped = lines[j].lstrip()
+                  if stripped.startswith("- ") and len(lines[j]) - len(stripped) < depth:
+                      return j
+              return len(lines)
+
           pins = {}
           for name in SIBLINGS:
               want = f"repository: {ORG}/{PREFIX}{name}"
@@ -98,19 +119,31 @@ jobs:
                   print(f"::error::expected exactly 1 `{want}` line in {wf}, found {len(idx)}. The pins cannot be located, so this job refuses to report `no drift`.")
                   sys.exit(1)
               i = idx[0]
-              ref_at = None
-              for j in range(i + 1, min(i + 6, len(lines))):
-                  if lines[j].strip().startswith("ref:"):
-                      ref_at = j
-                      break
+              end = step_end(i)
+              ref_at = next((j for j in range(i + 1, end) if lines[j].strip().startswith("ref:")), None)
               if ref_at is None:
-                  print(f"::error::no `ref:` line within 5 lines of `{want}` in {wf}.")
+                  print(f"::error::no `ref:` line between `{want}` (line {i + 1}) and the end of its step (line {end}) in {wf}.")
                   sys.exit(1)
               sha = lines[ref_at].strip().split(":", 1)[1].strip()
               if not re.fullmatch(r"[0-9a-f]{40}", sha):
                   print(f"::error::{name} is pinned to `{sha}`, which is not a 40-hex SHA. If it was reverted to a branch name, see the SIBLING PINS note in {wf}.")
                   sys.exit(1)
-              pins[name] = {"line": ref_at, "old": sha}
+              # The vintage comment: searched UPWARD from `ref:` and floored at this sibling's own
+              # `repository:` anchor, so a missing comment can never elect the PREVIOUS sibling's and
+              # rewrite the wrong pin's date.
+              #
+              # ★ THIS ASSERTION IS THE POINT OF THE STEP. Updating the comment only when it sat
+              # immediately above `ref:`, and otherwise skipping in silence, failed OPEN: the SHA
+              # moved while `# PINNED — main @ <date>` kept the date of an earlier bump. That is
+              # worse than carrying no comment at all, because a stale provenance line still reads
+              # as a measured one. A COMMENT IS NOT A MIRROR — so if the bumper cannot name the
+              # vintage it is about to write, it must refuse to write the SHA either.
+              pinned_at = next((j for j in range(ref_at - 1, i, -1)
+                                if lines[j].strip().startswith("# PINNED")), None)
+              if pinned_at is None:
+                  print(f"::error::no `# PINNED` comment between `{want}` (line {i + 1}) and its `ref:` (line {ref_at + 1}) in {wf}. Refusing to move a SHA whose vintage comment cannot be updated, because the old date would survive as a false provenance record. Add a `# PINNED — main @ <date>.` line inside that step.")
+                  sys.exit(1)
+              pins[name] = {"line": ref_at, "comment": pinned_at, "old": sha}
 
           # --- read sibling mains --------------------------------------------------------------
           drifted = []
@@ -134,10 +167,13 @@ jobs:
               p = pins[name]
               indent = " " * (len(lines[p["line"]]) - len(lines[p["line"]].lstrip()))
               lines[p["line"]] = f"{indent}ref: {p['new']}"
-              prev = p["line"] - 1
-              if lines[prev].strip().startswith("# PINNED"):
-                  lines[prev] = (f"{indent}# PINNED — main @ {p['date']}. "
-                                 f"Bumped by bump-sibling-pins.yml; see SIBLING PINS above.")
+              # Unconditional: the locator above already proved this index is a `# PINNED` line, so
+              # there is no branch here that can skip the vintage while still moving the SHA. Indent
+              # is read from the comment's own line rather than the `ref:` line, since the two need
+              # not agree.
+              c_indent = " " * (len(lines[p["comment"]]) - len(lines[p["comment"]].lstrip()))
+              lines[p["comment"]] = (f"{c_indent}# PINNED — main @ {p['date']}. "
+                                     f"Bumped by bump-sibling-pins.yml; see SIBLING PINS above.")
           updated = "\n".join(lines)
           if updated == original:
               print("::error::computed drift but the rewrite produced a byte-identical file. Refusing to open an empty PR.")
@@ -145,6 +181,11 @@ jobs:
           for name in drifted:
               if pins[name]["new"] not in updated:
                   print(f"::error::rewrote {name} but its new SHA is absent from the result.")
+                  sys.exit(1)
+              # Independent of the locator: a SHA that moved without its vintage moving is the exact
+              # fail-open state this job used to ship, so it is checked twice, from both ends.
+              if pins[name]["date"] not in updated:
+                  print(f"::error::rewrote {name}'s SHA but its new vintage {pins[name]['date']} is absent from the result, so the `# PINNED` comment would ship a stale date.")
                   sys.exit(1)
           wf.write_text(updated, encoding="utf-8")
 
