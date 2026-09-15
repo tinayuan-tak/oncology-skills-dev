@@ -127,6 +127,126 @@ def _sensitivity_cell_null(manifest_id: str, s3_uri: str, column: str) -> tuple:
         return tuple()
 
 
+# ── SUBSTRATE / METHOD provenance (2026-09-15) ────────────────────────────────────────────────────
+# A sensitivity product's trustworthiness turns on TWO INDEPENDENT things, and only the first was
+# exposed downstream:
+#   1. how many comparator FAMILIES ran   → selectivity_evidence_independence (_independence_fields)
+#   2. whether the ONE substrate is internally COMPARABLE → this block
+# They are genuinely orthogonal, and conflating them hid a real distinction: MEASURED over the 29
+# shipped plain `*-dge-tumor-vs-normal-sensitivity-v1` manifests (32 counting the 3 `-by-subgroup-v1`
+# siblings the stratified reader consumes), `population_normal_only` is returned for
+# ACC/LGG/OV/TGCT/UCS *and* for SCLC — but the first five are DESeq2 NB-GLM on raw integer counts
+# from the SINGLE recount3-tcga-gtex-2023-01-04 substrate (tumor and normal uniformly reprocessed by
+# one Monorail pipeline on one gene model), whereas SCLC is a Welch t-test on log2(TPM+1) across TWO
+# parents on DIFFERENT genome builds and gene models (George-2015 hg19/FPKM via cBioPortal tumors vs
+# GTEx hg38/recount3 GENCODE-v26 normals). Same independence label, materially different rigor.
+#
+# WHY DERIVED FROM THE MANIFEST rather than an indication set hard-coded here: the product manifest
+# ALREADY records every fact this needs (parameters.statistical_test, parameters.derived_from,
+# parameters.cross_cohort_batch_confound, parameters.measured_global_offset). Reading them means the
+# basis cannot drift from the product it describes, and a FUTURE non-DESeq2 or multi-parent product
+# is flagged the day it lands rather than the day someone remembers to add it to a list. The
+# `_SUBSTRATE_UNKNOWN` default is deliberate: an unrecognised shape must NOT silently inherit the
+# reassuring within-pipeline label.
+_SUBSTRATE_WITHIN_PIPELINE = "within_pipeline_deseq2_counts"
+_SUBSTRATE_CROSS_COHORT = "cross_cohort_non_deseq2"
+_SUBSTRATE_UNKNOWN = "unknown_substrate"
+
+
+@lru_cache(maxsize=64)
+def _substrate_provenance(manifest_id: str) -> tuple:
+    """(basis, caveat) for a sensitivity product, derived from its OWN data-catalog manifest.
+
+    basis  — one of the _SUBSTRATE_* vocabulary above.
+    caveat — None when the substrate is internally comparable; otherwise a one-line string naming
+             the confound AND the measured size of it, so a consumer never has to open the manifest
+             to learn that the absolute log2FC is not on a trustworthy scale.
+
+    `load_manifest` is uncached and re-parses the YAML, so this is a SECOND parse of a file the
+    caller already read for `s3_uri_for` — but only once per manifest_id per process, which is why
+    the lru_cache is here and not a per-gene concern.
+
+    Fail-soft to (_SUBSTRATE_UNKNOWN, None) on any manifest-read failure — an unresolvable manifest
+    must not be reported as a clean substrate, but it also must not break a working data read.
+
+    ⚠️ CROSS_COHORT is asserted only on POSITIVE evidence for BOTH of its conjuncts, and every
+    unmatched shape falls through to UNKNOWN. The first cut of this function instead used
+    `len(derived_from) == 1` as a proxy for "one substrate" and let unmatched shapes fall through to
+    CROSS_COHORT. MEASURED over the 32 shipped sensitivity manifests, that mislabelled 3 of the 4 it
+    fired on: coadread/nsclc/stad `-by-subgroup-v1` are DESeq2 NB GLM on the SINGLE
+    recount3-tcga-gtex-2023-01-04 substrate, and their extra `derived_from` entries are
+    `tcga-subgroup-assignments-*` LABEL sidecars, not second expression cohorts. They were handed a
+    caveat reading "the contrast is DESeq2 NB GLM + Wald test, not DESeq2 on raw counts" — a sentence
+    that contradicts itself — plus a false claim that tumour and normal came from different
+    pipelines. `derived_from` is a HETEROGENEOUS list (expression parents + annotation sidecars), so
+    its arity can never stand in for the number of expression substrates, and no manifest key
+    distinguishes the two (`type:` is only source-release/derived). It is therefore used below to
+    NAME the parents inside the caveat, never to decide the basis.
+    """
+    from methods.catalog_query.read import load_manifest
+
+    try:
+        doc = load_manifest(manifest_id) or {}
+        params = doc.get("parameters") or {}
+        derived_from = doc.get("derived_from") or []
+    except Exception:  # absence-discipline: exempt -- provenance annotation only; an unresolvable
+        # manifest yields the conservative UNKNOWN label and never blocks the data read it describes.
+        return _SUBSTRATE_UNKNOWN, None
+
+    test = str(params.get("statistical_test") or "")
+    cross = bool(params.get("cross_cohort_batch_confound"))
+    is_deseq2 = test.strip().upper().startswith("DESEQ2")
+
+    if not cross and is_deseq2:
+        return _SUBSTRATE_WITHIN_PIPELINE, None
+    if not (cross and not is_deseq2):
+        # Unrecognised shape: a non-DESeq2 kernel with no declared confound, a DESeq2 kernel that
+        # DOES declare one (only half of what `_SUBSTRATE_CROSS_COHORT` asserts), or no kernel
+        # recorded at all. None of these may inherit the reassuring within-pipeline label, and none
+        # may be handed a caveat asserting a conjunct the manifest does not support.
+        return _SUBSTRATE_UNKNOWN, None
+
+    # Cross-cohort: build the caveat from the manifest's OWN measured numbers so the string can
+    # never overstate or understate a confound the producer already quantified.
+    offset = params.get("measured_global_offset") or {}
+    bits = []
+    median = offset.get("median_log2fc_c")
+    frac_up = offset.get("frac_genes_up")
+    if median is not None:
+        bits.append(f"median log2FC offset {float(median):+.2f}")
+    if frac_up is not None:
+        bits.append(f"{float(frac_up) * 100:.1f}% of genes read up")
+    measured = "; ".join(bits) or "offset not quantified in manifest"
+    kernel = test.split("(")[0].strip() or "non-DESeq2 kernel"
+    return (
+        _SUBSTRATE_CROSS_COHORT,
+        (
+            f"Cross-cohort substrate ({' + '.join(derived_from) or 'multi-parent'}): tumor and normal "
+            f"come from DIFFERENT pipelines/gene models, and the contrast is {kernel}, not DESeq2 on raw "
+            f"counts. Measured platform offset: {measured}. Absolute log2FC is NOT comparable to the "
+            f"DESeq2 siblings and NOT a trustworthy magnitude — read "
+            f"selectivity_allgene_percentile_cell_c (the rank), which separates biology from the offset."
+        ),
+    )
+
+
+def _substrate_fields(manifest_id: Optional[str]) -> dict:
+    """The two summary_fields that make a product's substrate/method basis VISIBLE downstream.
+
+    Emitted by every reader that emits `selectivity_class`, for the same reason
+    `_independence_fields` is: the class string alone cannot be audited — `modest_tumor_selective`
+    computed by DESeq2 within one pipeline and the same string computed by a Welch test across two
+    genome builds are indistinguishable without this.
+    """
+    if not manifest_id:
+        return {
+            "selectivity_substrate_basis": _SUBSTRATE_UNKNOWN,
+            "selectivity_substrate_caveat": None,
+        }
+    basis, caveat = _substrate_provenance(manifest_id)
+    return {"selectivity_substrate_basis": basis, "selectivity_substrate_caveat": caveat}
+
+
 def _dge_sensitivity_cell_percentile(manifest_id: str, s3_uri: str, column: str, log2fc, cutoffs: dict = None):
     """Percentile + class of one cell's log2FC among all genes in the SAME sensitivity product,
     keyed to the SAME comparator column (never pooled across cells)."""
@@ -543,7 +663,13 @@ def read_tumor_vs_normal_selectivity(
     comparison (see `_classify_selectivity_from_sensitivity`, FIX 4). The
     denominator actually used is emitted as comparator_families_ran /
     comparator_families_supporting / adjacent_arm_measured /
-    selectivity_evidence_independence. Never returns None — always a
+    selectivity_evidence_independence.
+
+    Independence is only HALF the audit, and the other half used to be missing: it says how many
+    comparator families ran, never whether the one substrate is internally comparable. SCLC and
+    ACC/LGG/OV/TGCT/UCS all read `population_normal_only`, but only SCLC is a Welch test across two
+    genome builds — see `_substrate_provenance`. `selectivity_substrate_basis` +
+    `selectivity_substrate_caveat` carry that second axis. Never returns None — always a
     dict with `selectivity_class` set (data_unavailable when the product is
     inaccessible). Live-mode dispatcher for compose-dashboard.
 
@@ -588,6 +714,10 @@ def read_tumor_vs_normal_selectivity(
             # Recomputed from `row`'s per-cell fields rather than forwarded, so this composite can
             # never publish a class whose stated evidence base came from a different computation.
             **_independence_fields(row),
+            # Forwarded (not recomputed) — the gene_row reader derived these from the manifest of the
+            # product it actually read, which is the only thing that can describe that substrate.
+            "selectivity_substrate_basis": row.get("selectivity_substrate_basis"),
+            "selectivity_substrate_caveat": row.get("selectivity_substrate_caveat"),
             "_data_source": row.get("_data_source"),
             "_schema": "v3_four_cell",
         }
@@ -690,6 +820,14 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
         # denominator is the honest one here and `adjacent_only` / `population_normal_only` correctly
         # marks which of the two legacy products actually landed for this indication.
         **_independence_fields(row),
+        # The v2 fallback stitches cells A and C from TWO SEPARATE legacy products, so its substrate is
+        # cross-product by construction and there is no single manifest to characterise it from. Emit
+        # UNKNOWN with the reason rather than a reassuring within-pipeline label the path cannot earn.
+        "selectivity_substrate_basis": _SUBSTRATE_UNKNOWN,
+        "selectivity_substrate_caveat": (
+            "v2_fallback: cells A and C were read from two SEPARATE legacy products, not one "
+            "sensitivity product, so substrate comparability is unestablished."
+        ),
         "_data_source": "v2_fallback",
         "_schema": "v2_two_product_fallback",
     }
@@ -830,6 +968,9 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
     # Comparator-independence provenance: computed from the per-cell fields just mapped above, so it
     # cannot drift from what the classifier reads.
     out.update(_independence_fields(out))
+    # Substrate/method provenance: the ORTHOGONAL axis independence cannot express (see
+    # _substrate_provenance). Derived from THIS product's manifest, so it describes the bytes just read.
+    out.update(_substrate_fields(manifest_id))
     return out
 
 
@@ -1093,8 +1234,15 @@ def _independence_fields(row: dict) -> dict:
 
     Emitted by every reader that emits `selectivity_class`, because the class alone cannot be
     audited: `strong` on two agreeing comparators and `strong` on the adjacent arm alone are the
-    same string. Declared in cards/tumor-vs-normal-selectivity.card.yaml — emitting without
-    declaring leaves them inert (the declares→emits mirror-guard is blind in that direction).
+    same string.
+
+    ⚠️ MEASURED 2026-09-15: these four are emitted but declared in NO card and carry NO
+    display_gloss entry, so they are inert downstream — the exact failure this docstring previously
+    asserted was avoided ("Declared in cards/tumor-vs-normal-selectivity.card.yaml") while being an
+    instance of it. A pointer that never resolves reads like a working one. The companion
+    target-contracts branch feat/declare-selectivity-substrate-provenance declares all four
+    (+ the two `_substrate_fields`); until it lands, treat these as computed-but-unread and do not
+    infer from their presence here that a consumer can see them.
     """
     if not row:
         return {
@@ -1654,6 +1802,9 @@ def read_stratified_tumor_vs_normal_selectivity(
             "selectivity_class_by_subgroup": {},
             "cross_subgroup_selectivity_divergence": None,
             "any_subgroup_strong_selective": None,
+            # Present on the empty envelope too, so a consumer never has to branch on whether the
+            # field exists — an absent key and a known-unknown basis are different statements.
+            **_substrate_fields(manifest_id),
             "_data_source": manifest_id,
         }
 
@@ -1693,6 +1844,11 @@ def read_stratified_tumor_vs_normal_selectivity(
         "subgroup_axis": resolved_axis,
         "status": "live",
         "per_subgroup_metrics": records,
+        # Substrate/method basis of the ONE product all these strata came from. Emitted at the
+        # ENVELOPE level, not inside each per_subgroup_metrics record: every stratum is read from the
+        # same manifest, so a per-record copy would be a provenance field that never varies within the
+        # list it sits in — invisible where it matters and noisy where it doesn't.
+        **_substrate_fields(manifest_id),
         "_data_source": manifest_id,
         "_data_s3_uri": s3_uri,
     }
