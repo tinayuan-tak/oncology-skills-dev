@@ -302,6 +302,18 @@ def test_family_collapse_buys_the_control_test_with_a_study_depth_confound():
     well-measured. A RATE NEEDS A FRAME — including when the rate is one of your own diagnostics. Use the
     shipped instrument (`_cohort_sorted_column`, `cohort_bits`, the panel labels) and stratify.
 
+    ⚠️ THIRD FRAME ERROR IN THE SAME DIAGNOSTIC, found 2026-09-15 by the per-target cohort-ruler fix.
+    `rows` is built by iterating `a.targets`, which is one entry per (target, indication) CORPUS ROW — at
+    n=504 a target holds up to nine — so the global top 20 ranked ROWS. Measured: 5 of the 20 slots under
+    family-sum and 8 under family-mean were duplicate rows of a target already in the list, i.e. the "top
+    20" was 12–15 distinct targets. When the ruler became per-target, assertion 1 read 1 control instead
+    of 3 — the SAME number as the debunked earlier pass, reached by a new route. Deduping the ranking to
+    one best row per target puts it at 2, so most of that drop was replication, not merit. Assertion 1 is
+    now ranked per target and pinned at 2. THE CONCLUSION DID NOT MOVE: the confound STRENGTHENED
+    (r(family-sum) +0.327 -> +0.352) and the stratified ranks are identical (top control at the 100th
+    percentile of the 12–13-family stratum under BOTH variants, n=79, 6 controls). Assertion 1 is the
+    weakest of the three and it is the one that keeps needing a frame; do not read it alone.
+
     Asserts the BROKEN state. Any of these three going red would genuinely reopen the aggregator
     question — re-measure all three together before believing it."""
     a = _shipped_atlas_or_none()
@@ -369,14 +381,23 @@ def test_family_collapse_buys_the_control_test_with_a_study_depth_confound():
         den = math.sqrt(sum((x - xb) ** 2 for x in xs) * sum((y - yb) ** 2 for y in ys))
         return num / den if den else 0.0
 
-    # 1. family collapse does NOT clear the control test (3 of the top 20 at |r| >= 0.5, both variants)
+    # 1. family collapse does NOT clear the control test (2 of the top 20 TARGETS at |r| >= 0.5, both
+    #    variants). ★ RANKED PER TARGET, NOT PER CORPUS ROW — see the third method note in the docstring:
+    #    `rows` holds one entry per (target, indication) pair, so a target with nine rows can occupy nine
+    #    of the twenty slots and displace controls without anything having changed on merit.
     for mode in ("sum", "mean"):
-        top20 = sorted(rows, key=lambda r: -r[mode])[:20]
+        best_per_target: dict = {}
+        for r in rows:
+            if r["t"] not in best_per_target or r[mode] > best_per_target[r["t"]][mode]:
+                best_per_target[r["t"]] = r
+        top20 = sorted(best_per_target.values(), key=lambda r: -r[mode])[:20]
         n_ctrl = sum(1 for r in top20 if r["ctrl"])
-        assert n_ctrl >= 3, (
-            f"family-{mode} now leaves only {n_ctrl} controls in the top 20 (was 3 at |r| >= 0.5 on "
-            "2026-09-13). Collapsing correlated references may finally be enough — re-measure the confound "
-            "and the stratified ranks below before shipping an aggregator."
+        assert n_ctrl >= 2, (
+            f"family-{mode} now leaves only {n_ctrl} controls in the top 20 targets (was 2 at |r| >= 0.5 "
+            "on 2026-09-15). This is the WEAKEST of the three assertions — 18 controls among "
+            f"{len(best_per_target)} ranked targets put ~1.4 in a top 20 by chance alone — so treat it as "
+            "corroboration, not evidence: the load-bearing falsifications are the study-depth confound "
+            "below and the stratified ranks after it. Re-measure all three before shipping an aggregator."
         )
 
     # 2. the breadth-rewarding variant tracks measuredness; normalising it away is what family-mean does

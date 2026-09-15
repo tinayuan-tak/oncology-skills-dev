@@ -8,9 +8,19 @@ inspects the payload. A dict-shape assertion is GREEN under the bug. So every be
 in through `render_report`, the same entry a real run uses.
 
 WHY THE EXPECTED NUMBERS ARE RE-DERIVED HERE: each expectation is computed by counting cells in the
-shipped atlas column (`_share_pct` — a plain equality count over the raw column), never by calling
+shipped atlas column (`_share_pct` — a plain equality count over `_ruler_column`), never by calling
 `tier_rarity`, whose implementation sorts and bisects. Deriving the expectation from the code under test
 would make the test restate the implementation instead of checking it.
+
+★ THE INDEPENDENT READ IS PER-TARGET, BECAUSE THE RULER IS. Corpus rows are `(target, indication)` pairs
+and a target may hold up to nine of them, so a read that counted ROWS would derive a different denominator
+than the reader reports and every share assertion here would be off by the replication. `_ruler_column`
+therefore contributes each target's DISTINCT measured values once — recomputed here from `X`/`targets`
+rather than borrowed from `archetype_core`, so it is still an independent read of the same quantity. The
+`len(set(...))` premises are unaffected either way (per-target dedup changes multiplicities, never the SET
+of values present), but the `n >= 20` premises are NOT: a column with 32 rows over 18 targets is
+under-powered for the reader while a row-wise read would call it powered, and the anti-vacuity test below
+exists precisely to catch that kind of drift rather than let it empty the tests it guards.
 
 WHY POPULATION PREMISES ARE ASSERTED SEPARATELY: several tests below say "this column says nothing".
 Every one of those is vacuously green if the column stopped existing, so
@@ -40,19 +50,59 @@ from _skills_common.archetype_core import (
 )
 from _skills_common.report_render import render_report
 
-# ── the columns these tests pin, BY NAME, one per population (measured on the shipped 297-target atlas) ──
-# discriminating: 3 tiers over 293 measured targets, on BOTH ladders, with the SAME denominator.
+# ── the columns these tests pin, BY NAME, one per population ──────────────────────────────────────────
+# ★ EVERY FIGURE BELOW RE-MEASURED 2026-09-15 ON THE SHIPPED n=504 ARTIFACT, IN THE RULER'S PER-TARGET
+# UNIT. Where the two units differ both are given, because they answer different questions: corpus rows say
+# how much the build wrote, ruler-n says what the reader ranks against and therefore what min_n sees. The
+# figures these lines replaced were n=297 row-wise readings and had drifted twice over — once when the
+# re-freeze landed, once when this file's independent read became per-target.
+#
+# discriminating: 3 tiers on BOTH ladders. 500 corpus rows on each ladder, which are 258 per-target signal
+# values against 327 corroboration ones — and that ASYMMETRY is exactly why this pin can no longer serve the
+# shared-denominator render it used to; see SHARED_DENOMINATOR.
 DISCRIMINATING = ("cis_coherence", "CIS_DOSAGE")
-# constant CORROBORATION, discriminating SIGNAL — the pair that proves the drop is PER-LADDER: 297 targets
-# all read `moderate` corroboration, so a rarity sentence there is the same sentence for the whole fleet.
+# constant CORROBORATION, discriminating SIGNAL — the pair that proves the drop is PER-LADDER: all 262
+# per-target corroboration values read the SAME tier, so a rarity sentence there is the same sentence for the
+# whole fleet, while the same claim's signal still spans 4 tiers and speaks.
+# ⚠️ THAT CONSTANT TIER IS NOW `single_arm`, NOT `moderate` — #1371's reroute moved it. The pin is on the
+# claim PAIR and the tests read `len(set(...))`, never the tier NAME, which is the only reason the rename
+# did not red them. Do not re-derive the tier name from an older copy of this comment.
 CONSTANT_CORROB = ("cis_coherence", "EXPR_DEP")
-# under-powered on both ladders (n=5) although 2 tiers ARE present, so it isolates min_n from min_distinct.
+# under-powered on both ladders although 2 tiers ARE present, so it isolates min_n from min_distinct.
+# ⚠️ 17 CORPUS ROWS THAT ARE ONLY 2 TARGETS — ruler-n=2, the widest row-to-target gap any pinned column
+# shows. The pin survives under either unit (17 < 20 and 2 < 20), but the `distinct >= 2` half now has ZERO
+# slack: two entries carrying two tiers. If either target's tier moves, the anti-vacuity premise in
+# test_the_shipped_atlas_still_holds_all_three_populations reds — re-pin it to another under-powered
+# 2-tier column, never widen the premise to keep it green.
 UNDER_POWERED = ("combination_vulnerability", "COMBO")
-# the measured DENOMINATOR ASYMMETRY: signal n=265, corroboration n=71 on the same claim (7 of 56 claim
-# pairs differ this way) — one shared "of N known targets" tail would be wrong here.
+# the measured DENOMINATOR ASYMMETRY: signal ruler-n=245, corroboration ruler-n=53 on the same claim —
+# one shared "of N known targets" tail would be wrong here.
+#
+# ⚠️ 2026-09-15, THE PER-TARGET RULER MADE THIS THE COMMON CASE. Row-wise, 52 of 56 signal+corrob pairs
+# shared a denominator and only 4 split. Per-target, 32 share and 24 split: two ladders of one claim have
+# the same number of measured ROWS far more often than the same number of per-target values, because
+# corroboration varies across a target's indications where signal frequently does not. The two-tail render
+# went from a 4-of-56 edge case to a 24-of-56 normal one, which raises its importance rather than lowering
+# it — the single-tail branch is still reachable on 32 pairs and is pinned by SHARED_DENOMINATOR below.
 SPLIT_DENOMINATOR = ("genomic_alteration", "DEP")
-# a scoped cohort that genuinely clears min_n=20 (COADREAD holds 45 corpus rows; 242 (column, indication)
-# pairs clear the gate). Asserting scoping against a column that FELL BACK would assert the fallback.
+# a claim whose two ladders SHARE a per-target denominator (ruler-n=262 both, 3 tiers each), so the clause
+# renders as ONE "of N known targets" tail. Pinned separately from DISCRIMINATING because CIS_DOSAGE no
+# longer qualifies: its 500 corpus rows are 258 per-target signal values against 327 corroboration ones.
+# Without this pin the single-tail branch of `_chip_summary`'s (n, scope) grouping loses its only test.
+SHARED_DENOMINATOR = ("tractability_sm", "ACTIVITY")
+# a scoped cohort that genuinely clears min_n=20: the COADREAD group holds 45 corpus rows over 45 DISTINCT
+# targets, so it is powered in either unit and this pin needs no re-measurement when the ruler's unit
+# changes. Asserting scoping against a column that FELL BACK would assert the fallback, not the feature.
+# ⚠️ the "242 (column, indication) pairs clear the gate" figure this line used to carry is RETIRED, not
+# updated: it named neither a population nor a unit, so it could not be reproduced — 176x24 gives 1523,
+# ::claim:: only gives 931, ::num:: only 592, and none of them is 242 at any vintage I can reconstruct.
+# Re-measured 2026-09-15 on the shipped artifact over the 24 canonical groups: 1523 of the 176x24
+# (column, group) pairs clear min_n, of which 931 are ::claim:: and 592 ::num::.
+# ★ AND THAT COUNT IS IDENTICAL IN BOTH UNITS. Per-target dedup can only SHRINK an n (verified: 0 of the
+# 4224 pairs has per-target n above its row n), so equal clearing counts prove NO pair crossed min_n —
+# directly confirmed, 0 straddling pairs. That is why per-target dedup moved no scoped branch decision on
+# this artifact even though it does change what the scoped ruler CONTAINS (NSCLC: KEAP1 carries two of the
+# pooled alias spellings, so its loeuf n falls 59 -> 58).
 SCOPED_INDICATION = "COADREAD"
 
 # ── the 2026-09-14 measurement this gate is now sized against ─────────────────────────────────────────
@@ -133,16 +183,27 @@ def _atlas():
     return a
 
 
-def _raw_column(key: str) -> list:
-    """The measured cells of one atlas column, UNSORTED — the independent read."""
+def _ruler_column(key: str) -> list:
+    """One atlas column in the RULER'S UNIT, UNSORTED — the independent read.
+
+    Each target contributes its distinct measured values exactly once, which is what the reader ranks
+    against; see the per-target note in the module docstring. Written out here from `X` and `targets`
+    instead of calling `archetype_core._cohort_sorted_column`, so the expectation is still derived
+    independently of the code under test."""
     a = _atlas()
     j = a.feature_order.index(key)
-    return [r[j] for r in a.X if j < len(r) and r[j] is not None]
+    if not a.targets or len(a.targets) != len(a.X):  # matches the reader's fail-soft row-wise degradation
+        return [r[j] for r in a.X if j < len(r) and r[j] is not None]
+    per_target: dict = {}
+    for i, t in enumerate(a.targets):
+        if j < len(a.X[i]) and a.X[i][j] is not None:
+            per_target.setdefault(t, set()).add(a.X[i][j])
+    return [v for vals in per_target.values() for v in vals]
 
 
 def _share_pct(key: str, encoded: float) -> float:
     """The percentage of the measured cohort sitting at EXACTLY this tier, by counting (not bisecting)."""
-    col = _raw_column(key)
+    col = _ruler_column(key)
     return round(100.0 * sum(1 for v in col if v == encoded) / len(col), 1)
 
 
@@ -208,33 +269,47 @@ def test_the_shipped_atlas_still_holds_all_three_populations():
     claim_keys = [k for k in a.feature_order if "::claim::" in k]
     assert len(claim_keys) > 50, f"the ladder half of the atlas collapsed: {len(claim_keys)} columns"
 
-    disc = _raw_column(claim_atlas_key(*DISCRIMINATING, "corrob"))
+    disc = _ruler_column(claim_atlas_key(*DISCRIMINATING, "corrob"))
     assert len(disc) >= 20 and len(set(disc)) >= USABLE_TIER_RARITY_DISTINCT, (
         f"{DISCRIMINATING} corroboration is no longer discriminating: n={len(disc)} distinct={len(set(disc))}"
     )
-    const = _raw_column(claim_atlas_key(*CONSTANT_CORROB, "corrob"))
+    const = _ruler_column(claim_atlas_key(*CONSTANT_CORROB, "corrob"))
     assert len(const) >= 20 and len(set(const)) < USABLE_TIER_RARITY_DISTINCT, (
         f"{CONSTANT_CORROB} corroboration is no longer constant: distinct={sorted(set(const))}"
     )
-    assert len(set(_raw_column(claim_atlas_key(*CONSTANT_CORROB, "signal")))) >= USABLE_TIER_RARITY_DISTINCT, (
+    assert len(set(_ruler_column(claim_atlas_key(*CONSTANT_CORROB, "signal")))) >= USABLE_TIER_RARITY_DISTINCT, (
         "the per-ladder test needs this claim's SIGNAL to still discriminate while its corroboration does not"
     )
-    under = _raw_column(claim_atlas_key(*UNDER_POWERED, "signal"))
+    under = _ruler_column(claim_atlas_key(*UNDER_POWERED, "signal"))
     assert len(under) < 20, f"{UNDER_POWERED} is no longer under-powered: n={len(under)}"
     assert len(set(under)) >= USABLE_TIER_RARITY_DISTINCT, (
         "this column must still hold >=2 tiers, or it stops isolating min_n from min_distinct"
     )
-    sig = _raw_column(claim_atlas_key(*SPLIT_DENOMINATOR, "signal"))
-    cor = _raw_column(claim_atlas_key(*SPLIT_DENOMINATOR, "corrob"))
+    sig = _ruler_column(claim_atlas_key(*SPLIT_DENOMINATOR, "signal"))
+    cor = _ruler_column(claim_atlas_key(*SPLIT_DENOMINATOR, "corrob"))
     assert len(sig) != len(cor), f"{SPLIT_DENOMINATOR} denominators converged: {len(sig)} == {len(cor)}"
     assert min(len(set(sig)), len(set(cor))) >= USABLE_TIER_RARITY_DISTINCT and min(len(sig), len(cor)) >= 20, (
         "both ladders must still SPEAK, or the two-tail render is unreachable"
+    )
+    # and its mirror: the SINGLE-tail render needs a claim whose ladders AGREE on n in the ruler's unit.
+    # Asserted here because per-target dedup split 24 of 56 pairs that agreed row-wise, so this population
+    # is the one at risk of emptying on a future re-freeze — and the single-tail test would then red with a
+    # string mismatch rather than with the reason.
+    ssig = _ruler_column(claim_atlas_key(*SHARED_DENOMINATOR, "signal"))
+    scor = _ruler_column(claim_atlas_key(*SHARED_DENOMINATOR, "corrob"))
+    assert len(ssig) == len(scor), (
+        f"{SHARED_DENOMINATOR} ladders no longer share a per-target denominator: {len(ssig)} != {len(scor)}. "
+        "Re-pin SHARED_DENOMINATOR to another claim whose ladders agree, or the single-tail branch of the "
+        "(n, scope) grouping has no test at all."
+    )
+    assert min(len(set(ssig)), len(set(scor))) >= USABLE_TIER_RARITY_DISTINCT and len(ssig) >= 20, (
+        f"{SHARED_DENOMINATOR} no longer speaks on both ladders — the single-tail render is unreachable"
     )
 
     # and the fleet-wide shape: both a discriminating and a non-discriminating population exist.
     shapes = {}
     for k in claim_keys:
-        col = _raw_column(k)
+        col = _ruler_column(k)
         shapes.setdefault("speaks" if (len(col) >= 20 and len(set(col)) >= 2) else "silent", []).append(k)
     assert shapes.get("speaks") and shapes.get("silent"), (
         f"one population is empty: { {k: len(v) for k, v in shapes.items()} }"
@@ -245,18 +320,23 @@ def test_the_shipped_atlas_still_holds_all_three_populations():
 def test_the_rendered_chip_names_the_cohort_share_for_both_ladders():
     """THE LOAD-BEARING RENDER TEST. Delete the clause from `_chip_summary` (or stop enriching the chip in
     the IR) and this reds — which is the point: without it the chip renders a plausible, unchanged sentence
-    and the whole frame is silently discarded."""
-    short, claim = DISCRIMINATING
+    and the whole frame is silently discarded.
+
+    Pinned on SHARED_DENOMINATOR rather than DISCRIMINATING since 2026-09-15: this is the SINGLE-TAIL
+    form, so it needs a claim whose two ladders agree on `n` in the RULER's unit, and per-target dedup
+    split CIS_DOSAGE's two ladders (258 vs 327) even though their corpus-row counts are both 500."""
+    short, claim = SHARED_DENOMINATOR
     sig_tok, cor_tok = "strong", "high"
     out = _render(short, [_chip(claim, sig_tok, cor_tok)])
 
-    n = len(_raw_column(claim_atlas_key(short, claim, "signal")))
-    assert n == len(_raw_column(claim_atlas_key(short, claim, "corrob"))), "this pin assumes one denominator"
+    n = len(_ruler_column(claim_atlas_key(short, claim, "signal")))
+    assert n == len(_ruler_column(claim_atlas_key(short, claim, "corrob"))), "this pin assumes one denominator"
     s_share = _share_pct(claim_atlas_key(short, claim, "signal"), CLAIM_SIG_ORD[sig_tok])
     c_share = _share_pct(claim_atlas_key(short, claim, "corrob"), CLAIM_CORR_ORD[cor_tok])
 
     expected = f"(at this tier: signal {s_share:g}%, corroboration {c_share:g}% of {n} known targets)"
     assert expected in out, f"cohort share not rendered.\nexpected: {expected}\ngot:\n{out}"
+    assert out.count("known targets") == 1, f"a shared denominator must render ONE tail:\n{out}"
     # the tier itself still reads as it did — the clause ADDS a frame, it does not replace the reading.
     assert f"{claim.lower()}: {sig_tok}" in out and f"[{cor_tok}]" in out
 
@@ -272,7 +352,7 @@ def test_every_chip_rendering_backend_shows_the_clause():
 
     short, claim = DISCRIMINATING
     chips = [_chip(claim, "strong", "high")]
-    n = len(_raw_column(claim_atlas_key(short, claim, "corrob")))
+    n = len(_ruler_column(claim_atlas_key(short, claim, "corrob")))
     needle = f"corroboration {_share_pct(claim_atlas_key(short, claim, 'corrob'), CLAIM_CORR_ORD['high']):g}% of {n}"
     for backend in ("text", "md"):
         assert needle in _render(short, chips, backend=backend), f"{backend}: cohort share missing"
@@ -290,7 +370,7 @@ def test_two_ladders_with_different_denominators_render_two_tails():
     sig_col, cor_col = claim_atlas_key(short, claim, "signal"), claim_atlas_key(short, claim, "corrob")
     sig_tok, cor_tok = "strong", "moderate"
     out = _render(short, [_chip(claim, sig_tok, cor_tok)])
-    n_sig, n_cor = len(_raw_column(sig_col)), len(_raw_column(cor_col))
+    n_sig, n_cor = len(_ruler_column(sig_col)), len(_ruler_column(cor_col))
     assert f"signal {_share_pct(sig_col, CLAIM_SIG_ORD[sig_tok]):g}% of {n_sig} known targets" in out, out
     assert f"corroboration {_share_pct(cor_col, CLAIM_CORR_ORD[cor_tok]):g}% of {n_cor} known targets" in out, out
     assert out.count("known targets") == 2, f"expected one tail per denominator:\n{out}"
@@ -310,7 +390,7 @@ def test_the_indication_scoped_cohort_names_itself():
     # and the pan-cancer render of the SAME chip is a DIFFERENT, unmarked cohort — otherwise the scoping
     # argument is being dropped somewhere between build_ir and the reader and this test proves nothing.
     pan = _render(short, [_chip(claim, None, "high")])
-    assert SCOPED_INDICATION not in pan and f"of {len(_raw_column(key))} known targets)" in pan, pan
+    assert SCOPED_INDICATION not in pan and f"of {len(_ruler_column(key))} known targets)" in pan, pan
     assert pan != out
 
 
@@ -528,7 +608,7 @@ def test_the_columns_that_cross_the_distinct_gate_on_a_refreeze_are_pinned_by_na
     clears = {
         k
         for k in a.feature_order
-        if k.endswith("::corrob") and len(_raw_column(k)) >= 20 and len(set(_raw_column(k))) >= 2
+        if k.endswith("::corrob") and len(_ruler_column(k)) >= 20 and len(set(_ruler_column(k))) >= 2
     }
     assert len(clears) == SHIPPED_CORROB_REACH, f"reach moved: {len(clears)} != {SHIPPED_CORROB_REACH}"
 
@@ -537,7 +617,7 @@ def test_the_columns_that_cross_the_distinct_gate_on_a_refreeze_are_pinned_by_na
     # size of the collapse stays on the record rather than just its fact.
     for (short, claim), distinct_before in sorted(CROSSES_DOWNWARD_ON_REFREEZE.items()):
         key = claim_atlas_key(short, claim, "corrob")
-        col = _raw_column(key)
+        col = _ruler_column(key)
         assert key not in clears, (
             f"{key} STILL clears the distinct gate. The `single_arm` reroute was measured to collapse it "
             f"to 1 tier (from {distinct_before} at n=297) and the shipped artifact says otherwise — "
@@ -553,7 +633,7 @@ def test_the_columns_that_cross_the_distinct_gate_on_a_refreeze_are_pinned_by_na
     # reader cannot mistake it for a sixth `single_arm` casualty.
     ladder = claim_atlas_key("expression", "D", "corrob")
     assert ladder not in clears, f"{ladder} clears the gate again — the #1386 presence-ladder fix regressed"
-    assert len(set(_raw_column(ladder))) == 1, "expression::D::corrob should be constant post-#1386"
+    assert len(set(_ruler_column(ladder))) == 1, "expression::D::corrob should be constant post-#1386"
 
     # GROUP 3 — nothing was GAINED. This is the direction assertion: a rerouting producer can only take
     # reach away, so any gain means the encoding stopped being an insert.

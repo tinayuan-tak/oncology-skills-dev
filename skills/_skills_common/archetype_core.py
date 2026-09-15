@@ -1155,14 +1155,79 @@ def _shipped_atlas_or_none() -> Optional["Atlas"]:
         return None
 
 
+# ── THE RULER'S UNIT IS THE TARGET, NOT THE CORPUS ROW ───────────────────────────────────────────────
+# Atlas rows are (target, indication) PAIRS, and a target replicated across indications occupies one row
+# per indication: at n=504 the corpus holds 504 rows over 262 DISTINCT targets, 50 of them replicated,
+# and BRAF / CCND1 / CDK4 / CTNNB1 / EZH2 / FGFR3 / IDH1 / KEAP1 each occupy 9. Building a ruler one entry
+# per row therefore lets a replicated target vote up to nine times, while every sentence these readers
+# produce is about TARGETS ("stronger LoF-constraint than 82% of known targets"). That mismatch is not
+# hypothetical rounding: 116 of the 176 columns — and 39 of the 64 `::num::` columns — are entirely
+# target-INTRINSIC, identical across all of a target's rows, so on those columns the extra votes are pure
+# duplication of one measurement.
+#
+# ★ THE RULE IS PER-TARGET DISTINCT VALUES, NOT "ONE ROW PER TARGET", and the difference is the whole
+# design. Picking one representative row would discard real data on the 60 columns that genuinely VARY
+# within a target (`tumor_vs_adjacent_expression::num::log2_fc` moves across indications for 42 targets,
+# and obviously should), while averaging would invent a value no row holds. Contributing each target's
+# SET of measured values instead needs no per-column classification and no hand-maintained list:
+#   * target-intrinsic column → one distinct value → ONE entry. The duplication is gone.
+#   * genuinely varying column → k distinct values → k entries. Every real observation survives.
+#   * same value twice for one target → ONE entry, because two identical readings of one target are not
+#     two pieces of evidence. (The corpus pools COAD+READ, so identical repeats are frequently the SAME
+#     underlying measurement seen twice rather than independent corroboration.)
+#
+# ★ `distinct` IS EXACTLY INVARIANT UNDER THIS CHANGE, verified per column over all 176: the SET of values
+# present in a column is untouched — only their multiplicities change — so `len(set(col))`,
+# USABLE_TIER_RARITY_DISTINCT and the five columns pinned by name in test_tier_rarity_frame.py cannot
+# move. What does move is `n`, `percentile` and `share`.
+#
+# ★ ONE COLUMN GOES SILENT, and that is the gate working rather than a regression:
+# `surface_density::num::absolute_copies_per_cell` falls n=32 → 18 and now fails `min_n=20`. Its 32 rows
+# were only ever 18 targets, so the pan-cancer gauge it used to emit was ranking against a cohort it did
+# not have — exactly what min_n exists to refuse. No other column crosses the gate in either direction.
+def _target_row_groups(a: "Atlas") -> tuple:
+    """`a`'s row indices grouped by TARGET, in first-appearance order: ((target, (i, ...)), ...).
+
+    () when the artifact cannot support the grouping — a `targets` list absent or not parallel to `X` (an
+    older or hand-edited artifact). Both readers below then degrade to their pre-dedup row-wise behaviour
+    rather than raising, because a display-only ruler must never break a render.
+
+    ★ DELIBERATELY NOT `lru_cache`d, even though it is recomputed once per column. It is a pure function
+    of the atlas PASSED IN, so it cannot disagree with its caller about which artifact is in play. A
+    module-level cache keyed on nothing would have to be cleared by every test that swaps in a synthetic
+    atlas — and `test_tier_rarity_frame.py` swaps in a one-column atlas whose cache-clear list would not
+    have known to include it, silently indexing the real corpus's 504 row numbers into a synthetic X. The
+    columns these feed are themselves cached, so the recomputation is paid once per column and the saving
+    would have bought nothing but that trap."""
+    if a is None or not a.targets or len(a.targets) != len(a.X):
+        return ()
+    groups: dict = {}
+    for i, t in enumerate(a.targets):
+        groups.setdefault(t, []).append(i)
+    return tuple((t, tuple(idxs)) for t, idxs in groups.items())
+
+
+def _distinct_per_group(X: list, j: int, row_groups) -> list:
+    """Column `j` over `row_groups`, contributing each group's DISTINCT measured values exactly once."""
+    out: list = []
+    for idxs in row_groups:
+        out.extend({X[i][j] for i in idxs if j < len(X[i]) and X[i][j] is not None})
+    return out
+
+
 @functools.lru_cache(maxsize=512)
 def _cohort_sorted_column(atlas_key: str) -> tuple:
-    """The frozen corpus column for one metered numeric key, sorted, Nones dropped. () when absent."""
+    """The frozen corpus column for one metered numeric key, sorted, Nones dropped, each TARGET
+    contributing its distinct values once. () when absent. See the note above on why the unit is the
+    target and not the corpus row."""
     a = _shipped_atlas_or_none()
     if a is None or atlas_key not in a.feature_order:
         return ()
     j = a.feature_order.index(atlas_key)
-    return tuple(sorted(r[j] for r in a.X if j < len(r) and r[j] is not None))
+    groups = _target_row_groups(a)
+    if not groups:  # unusable `targets` — fall back to the row-wise column rather than fail
+        return tuple(sorted(r[j] for r in a.X if j < len(r) and r[j] is not None))
+    return tuple(sorted(_distinct_per_group(a.X, j, (idxs for _t, idxs in groups))))
 
 
 # ── INDICATION-SCOPED cohort rulers ──────────────────────────────────────────────────────────────────
@@ -1194,7 +1259,16 @@ def _cohort_indication_groups() -> dict:
 
 @functools.lru_cache(maxsize=4096)
 def _scoped_sorted_column(atlas_key: str, canon: str) -> tuple:
-    """`_cohort_sorted_column` restricted to one canonical indication group. () when either is unknown."""
+    """`_cohort_sorted_column` restricted to one canonical indication group. () when either is unknown.
+
+    ★ THE SCOPED PATH IS NOT IMMUNE BY CONSTRUCTION, WHICH IS EASY TO GET WRONG. `(target, indication)` is
+    unique 504/504, so it is tempting to argue that one indication group can only ever hold one row per
+    target and needs no dedup. ALIAS POOLING BREAKS THAT ARGUMENT: `_cohort_indication_groups` maps rows
+    through `canonical_subtype_code`, so LUAD, LUSC and NSCLC all land in one 60-row NSCLC group, and a
+    target carrying two of those spellings appears TWICE in it. Measured on the n=504 atlas: 1 of 24
+    canonical groups (NSCLC) contains a duplicated target, one target, twice. Small today and structural
+    forever — the same dedup is applied here so the guarantee comes from the code rather than from a
+    property of the current corpus that the next alias registration could quietly revoke."""
     a = _shipped_atlas_or_none()
     if a is None or not canon or atlas_key not in a.feature_order:
         return ()
@@ -1202,7 +1276,12 @@ def _scoped_sorted_column(atlas_key: str, canon: str) -> tuple:
     if not idxs:
         return ()
     j = a.feature_order.index(atlas_key)
-    return tuple(sorted(a.X[i][j] for i in idxs if j < len(a.X[i]) and a.X[i][j] is not None))
+    if not _target_row_groups(a):  # unusable `targets` — degrade to the row-wise column
+        return tuple(sorted(a.X[i][j] for i in idxs if j < len(a.X[i]) and a.X[i][j] is not None))
+    by_target: dict = {}
+    for i in idxs:
+        by_target.setdefault(a.targets[i], []).append(i)
+    return tuple(sorted(_distinct_per_group(a.X, j, by_target.values())))
 
 
 def resolve_cohort_scope(indication: Optional[str]) -> Optional[str]:
@@ -1250,7 +1329,13 @@ def cohort_percentile(
     Nones, so `n` is the count actually MEASURED inside the indication. A column measured in 90% of the
     corpus but 10% of one indication fails min_n there and falls back, rather than ranking against a
     handful of rows. (Reference QUALITY as a fraction is a separate, additional gate on `bits` only — see
-    `cohort_reference_quality`.)"""
+    `cohort_reference_quality`.)
+
+    ★ `n` COUNTS TARGETS, NOT CORPUS ROWS — it is the number of distinct per-target values behind the
+    ruler, so it means the same thing as the "known targets" the percentile sentence claims to rank
+    against. On a target-intrinsic column at n=504 that is 262 rather than 504. See the note above
+    `_target_row_groups`; `min_n` is therefore now applied to a count that cannot be inflated by
+    replicating one target across indications."""
     if signed_value is None:
         return None
     scope = resolve_cohort_scope(indication)
@@ -1433,7 +1518,17 @@ def cohort_reference_quality(atlas_key: str, indication: Optional[str] = None) -
     measured, so it is itself measured for EVERY corpus target and the artifact records exactly 1.000 for
     all 32 of them. That makes this gate vacuous against masks while a rank inside a 0/1 Bernoulli column
     would come back as a perfectly confident-looking percentile. Excluding them here means a mask can
-    never be mistaken for a usable reference no matter which caller asks."""
+    never be mistaken for a usable reference no matter which caller asks.
+
+    ⚠️ KNOWN RESIDUAL, DELIBERATELY NOT FIXED HERE: the scoped branch below is still ROW-weighted
+    (`measured / len(idxs)` counts corpus rows), so it does not match the per-target unit the cohort
+    rulers now use. It is left that way ON PURPOSE. The pan-cancer branch reads `reference_mask_fraction`
+    VERBATIM from the artifact, where it was computed row-wise at build time; making only the scoped
+    branch per-target would replace a uniform bias with a scoped/pan-cancer INCONSISTENCY, which is worse
+    for a gate that compares the two. Bounded by measurement: only the pooled NSCLC group contains a
+    duplicated target at n=504 (one target, twice, in 60 rows), so the distortion is at most ~1.7% in one
+    group of 24 and zero in the rest. The clean fix is to make the BUILD emit a per-target fraction and
+    read it verbatim here, which belongs with the next re-freeze rather than with a reader change."""
     if not atlas_key or str(atlas_key).endswith("::mask"):
         return None
     a = _shipped_atlas_or_none()

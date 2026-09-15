@@ -28,10 +28,35 @@ Two conclusions drive this file:
   2. ALIAS POOLING BUYS REQUEST CONSISTENCY, NOT COVERAGE — it adds ZERO (group x column) pairs, but
      without it the canonical code NSCLC would fall back while its own alias LUAD got a scoped gauge.
 
+⚠️ RE-MEASURED 2026-09-15 ON THE SHIPPED n=504 ARTIFACT (26 raw labels -> 24 canonical groups). The table
+above is kept as the n=297 reading it was, because its own prediction became checkable and CAME TRUE —
+"step 5's panel expansion deliberately lifts seven more indications above the gate" is now exactly seven:
+AML, CML, ESCA, HNSC, PAAD, SCLC and STAD arrived at 40 corpus rows each. The six original entries did not
+move (COADREAD 45, BRCA 43, LUAD 43, LUSC 14, NSCLC 3, OV 21). What DID change in the conclusions:
+
+  1. STILL THE COMMON PATH, BUT NO LONGER OVERWHELMING — 13 of the 24 canonical groups have zero scoped
+     keys, and 528 of the 768 (group x spec key) pairs fall back: 69%, where the n=297 reading was 84%.
+     The tests' shape is unaffected (both branches are exercised and both anti-vacuity assertions hold),
+     but "the fallback is the rare case" is now the direction this file must NOT drift toward assuming.
+  2. CONCLUSION 2's "ZERO" IS REFUTED, AND WAS ALREADY REFUTED BY THE TABLE IT SAT NEXT TO. Pooling adds
+     +2 (group x key) pairs: LUAD's own 25 scoped keys become 27 for the pooled NSCLC group, which the
+     table's `LUAD 43 25 | NSCLC 60 27` row states outright. Pooling also moves LUSC and NSCLC requests
+     from 0 scoped keys to 27, which is the consistency argument and is the real reason it ships. The
+     coverage claim was simply wrong; the consistency claim stands unchanged.
+  3. THE PER-TARGET RULER MOVED NO BRANCH HERE, THOUGH IT DID MOVE THE RULER. Scoped/fell-back is 240/528
+     under BOTH units and every per-group key count is identical, because dedup can only shrink an n and
+     no (column, group) pair straddles min_n=20 (verified over all 4224 pairs). The one measurable
+     difference is inside the pooled group: KEAP1 carries two of the NSCLC alias spellings, so NSCLC's
+     loeuf ruler falls n=59 -> 58. So a report that the scoped path was "unchanged" would be true of every
+     branch decision and false of the cohort a percentile is computed against — see
+     test_cohort_ruler_unit.py, which asserts the scoped dedup structurally rather than on that count.
+
 Neither the roster of scoped-capable groups nor the key counts are frozen here. Step 5's panel expansion
 deliberately lifts seven more indications above the gate, so a frozen roster would red on arrival and get
 "fixed" by editing the number. Instead the tests DERIVE the expectation from the artifact and assert the
-INVARIANT (scoped iff >= min_n measured rows), plus anti-vacuity on both branches — at least one group
+INVARIANT (scoped iff the group's RULER n clears min_n — per-target distinct values, NOT corpus rows; the
+two agree on every group today but the reader ranks against the former), plus anti-vacuity on both
+branches — at least one group
 must be scoped-capable and at least one must not, so neither branch can rot into unreachability.
 
 ★ The scoped reference-QUALITY gate on `bits` is tested against a synthetic cohort on purpose. Measured on
@@ -91,11 +116,34 @@ def _spec_cohort_keys():
     return sorted(keys)
 
 
-def _measured_in_group(atlas, key, idxs):
+def _measured_rows_in_group(atlas, key, idxs):
+    """Corpus ROWS measured in a group — the unit `cohort_reference_quality` still divides by.
+
+    ⚠️ NOT the unit of the RULER. Kept distinct from `_ruler_n_in_group` on purpose: the two readers
+    disagree today, deliberately (see the residual note on `cohort_reference_quality`), and a single
+    helper serving both would silently assert whichever one it happened to match."""
     if key not in atlas.feature_order:
         return 0
     j = atlas.feature_order.index(key)
     return sum(1 for i in idxs if j < len(atlas.X[i]) and atlas.X[i][j] is not None)
+
+
+def _ruler_n_in_group(atlas, key, idxs):
+    """The `n` a SCOPED ruler reports for a group: distinct measured values per target, summed.
+
+    Rows are `(target, indication)` pairs, and `_cohort_indication_groups` POOLS aliases through
+    `canonical_subtype_code`, so LUAD/LUSC/NSCLC land in one group and a target carrying two of those
+    spellings holds two rows in it. The ruler counts that target once per distinct value; a row count
+    would over-report. Recomputed here rather than read from `_scoped_sorted_column`, so the expectation
+    stays independent of the code under test."""
+    if key not in atlas.feature_order:
+        return 0
+    j = atlas.feature_order.index(key)
+    per_target: dict = {}
+    for i in idxs:
+        if j < len(atlas.X[i]) and atlas.X[i][j] is not None:
+            per_target.setdefault(atlas.targets[i], set()).add(atlas.X[i][j])
+    return sum(len(v) for v in per_target.values())
 
 
 # ── the default path must not move ────────────────────────────────────────────────────────────────────
@@ -127,22 +175,27 @@ def test_an_unregistered_indication_degrades_to_pan_cancer_never_a_guess():
 # ── the scoped path, with its expectation DERIVED from the artifact ───────────────────────────────────
 def test_a_scoped_request_is_gauged_within_its_own_indication(atlas):
     groups = _cohort_indication_groups()
-    scoped = [g for g, idxs in groups.items() if _measured_in_group(atlas, KEY, idxs) >= MIN_N]
+    scoped = [g for g, idxs in groups.items() if _ruler_n_in_group(atlas, KEY, idxs) >= MIN_N]
     assert scoped, f"no indication clears min_n={MIN_N} for {KEY} — the scoped branch is unreachable"
     pan = cohort_percentile(KEY, -0.12)
     for g in scoped:
         res = cohort_percentile(KEY, -0.12, indication=g)
         assert res["scope"] == g, f"{g}: gauged against {res['scope']}"
-        assert res["n"] == _measured_in_group(atlas, KEY, groups[g]), g
+        assert res["n"] == _ruler_n_in_group(atlas, KEY, groups[g]), g
         assert res["n"] <= pan["n"], f"{g}: a scoped cohort cannot exceed the corpus"
 
 
-def test_scoped_iff_enough_measured_rows_and_both_branches_are_reachable(atlas):
+def test_scoped_iff_the_group_ruler_clears_min_n_and_both_branches_are_reachable(atlas):
     """The INVARIANT, not a frozen roster: a request is scoped exactly when its own cohort clears min_n.
 
     Asserted over every (group x spec key) pair so it stays true as the panel grows, with anti-vacuity on
-    BOTH branches — step 5 will move many groups from the fallback side to the scoped side and this test
-    should survive that untouched.
+    BOTH branches — step 5 moved seven groups from the fallback side to the scoped side and this test
+    survived that untouched, which is the property it was shaped for.
+
+    ⚠️ RENAMED 2026-09-15 from `test_scoped_iff_enough_measured_rows_and_both_branches_are_reachable`.
+    The old name named the wrong UNIT: the gate reads the group's per-target ruler n, not its corpus rows,
+    and the two are the same number on every group in today's artifact — so a name asserting `rows` would
+    have gone on reading as correct for exactly as long as the coincidence lasted.
     """
     groups = _cohort_indication_groups()
     keys = _spec_cohort_keys()
@@ -153,7 +206,7 @@ def test_scoped_iff_enough_measured_rows_and_both_branches_are_reachable(atlas):
             res = cohort_percentile(key, 0.0, indication=g)
             if res is None:
                 continue  # column absent, or the corpus itself is under-powered for it
-            enough = _measured_in_group(atlas, key, idxs) >= MIN_N
+            enough = _ruler_n_in_group(atlas, key, idxs) >= MIN_N
             if enough:
                 assert res["scope"] == g, f"{g}/{key}: enough rows but fell back to {res['scope']}"
                 n_scoped += 1
@@ -174,7 +227,7 @@ def test_the_fallback_is_the_majority_path_and_that_is_why_scope_is_emitted(atla
     """
     groups = _cohort_indication_groups()
     keys = _spec_cohort_keys()
-    capable = [g for g, idxs in groups.items() if any(_measured_in_group(atlas, key, idxs) >= MIN_N for key in keys)]
+    capable = [g for g, idxs in groups.items() if any(_ruler_n_in_group(atlas, key, idxs) >= MIN_N for key in keys)]
     assert 0 < len(capable) < len(groups), (
         f"{len(capable)} of {len(groups)} indication groups are scoped-capable — "
         "if this is now all of them the fallback prose in cohort_percentile is stale"
@@ -245,7 +298,7 @@ def test_the_scoped_recompute_reproduces_the_shipped_pan_cancer_fractions(atlas)
 def test_scoped_quality_is_the_fraction_measured_inside_that_indication(atlas):
     groups = _cohort_indication_groups()
     g = max(groups, key=lambda k: len(groups[k]))
-    expected = _measured_in_group(atlas, KEY, groups[g]) / len(groups[g])
+    expected = _measured_rows_in_group(atlas, KEY, groups[g]) / len(groups[g])
     assert cohort_reference_quality(KEY, indication=g) == pytest.approx(expected)
     # an unregistered scope is not a scope, so it reads the pan-cancer number rather than 0.0
     assert cohort_reference_quality(KEY, indication="NOT_A_REAL_CODE") == cohort_reference_quality(KEY)
@@ -370,7 +423,7 @@ def test_the_projected_gauge_carries_cohort_scope_and_names_it_in_the_prose():
 
     groups = _cohort_indication_groups()
     atlas = Atlas.load(_SHIPPED_ATLAS)
-    scoped_group = next((g for g, i in groups.items() if _measured_in_group(atlas, KEY, i) >= MIN_N), None)
+    scoped_group = next((g for g, i in groups.items() if _ruler_n_in_group(atlas, KEY, i) >= MIN_N), None)
     assert scoped_group, "no scoped-capable group — cannot test the scoped prose"
     sc = _cohort_gv(indication=scoped_group)
     assert sc["cohort_scope"] == scoped_group
@@ -383,7 +436,7 @@ def test_an_undermeasured_indication_projects_the_pan_cancer_gauge_verbatim():
     """The 21-of-25 case: identical to the pre-scoping output except for the explicit scope key."""
     groups = _cohort_indication_groups()
     atlas = Atlas.load(_SHIPPED_ATLAS)
-    small = next((g for g, i in groups.items() if 0 < _measured_in_group(atlas, KEY, i) < MIN_N), None)
+    small = next((g for g, i in groups.items() if 0 < _ruler_n_in_group(atlas, KEY, i) < MIN_N), None)
     assert small, "every group clears min_n — the fallback prose is stale"
     pan, fell = _cohort_gv(), _cohort_gv(indication=small)
     assert fell == pan, f"{small}: the fallback gauge diverged from the pan-cancer gauge"
@@ -444,7 +497,7 @@ def test_the_evidence_graph_threads_the_request_indication_into_the_ruler():
     """
     groups = _cohort_indication_groups()
     atlas = Atlas.load(_SHIPPED_ATLAS)
-    scoped_group = next((g for g, i in groups.items() if _measured_in_group(atlas, KEY, i) >= MIN_N), None)
+    scoped_group = next((g for g, i in groups.items() if _ruler_n_in_group(atlas, KEY, i) >= MIN_N), None)
     assert scoped_group, "no scoped-capable group — cannot prove the indication reaches the reader"
     assert _graph_cohort_scope(None) == PAN_CANCER_SCOPE
     assert _graph_cohort_scope(scoped_group) == scoped_group, (
