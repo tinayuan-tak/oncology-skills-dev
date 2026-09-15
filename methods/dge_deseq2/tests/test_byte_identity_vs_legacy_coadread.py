@@ -6,7 +6,24 @@ This is the LOAD-BEARING TEST for the R4 carve-out step. Per A1's refactor seque
 R4 cannot be declared complete (and the legacy batch/expression_rna_COADREAD/ cannot
 be deleted in R7) until this test passes.
 
-REQUIRES: R + DESeq2 + bioconductor (heavy env). Skipped if no Rscript can be found.
+REQUIRES, and all three are load-bearing:
+  1. R + DESeq2 + bioconductor (heavy env) — skipped if no Rscript can be found;
+  2. a claude-oncology-skills sibling checkout, for the legacy arm's `run_pipeline.R`;
+  3. CREDENTIALED live S3. `00_load_counts.R:203` pulls every cohort file with
+     `system2("aws", c("s3","cp", ...))` from the manifest's `s3_uri`. For COADREAD that is 675
+     objects / ~2.9 GB out of `s3://onc-compbio/data-catalog/sources/gdc/...` (701 manifest entries
+     carry the two project_ids; the loader filters by sample_type and keeps one aliquot per case,
+     leaving 624 tumor + 51 normal). There is no fixture path and no offline switch in that loader,
+     so with no credentials the R arm calls `stop()` and this test fails on
+     `legacy_result.returncode == 0` — verified by running it against a stubbed `aws`.
+
+Requirement 3 is why this file carries `@pytest.mark.requires_data`. Its failure mode is an
+AssertionError on a SUBPROCESS exit code, and the root conftest.py converts live-data failures to
+skips by matching botocore exception TYPE names — which can never match, because the credential
+error happens in an R grandchild and no botocore exception exists anywhere in the Python chain.
+So the marker (checked in `pytest_runtest_setup`, before the test starts) is the only mechanism
+that keeps a credential-less runner green. Do NOT remove it to "let the gate run in CI"; run it
+in the `byte-identity-live-s3` job, which has the role and does not set SKILLS_SKIP_LIVE_DATA.
 
 Test discipline:
   1. Run legacy: Rscript batch/expression_rna_COADREAD/run_pipeline.R --config configs/COADREAD.yaml ...
@@ -64,8 +81,9 @@ CATALOG_REPO = Path(
     os.environ.get("DATA_CATALOG_ROOT")
     or Path(__file__).resolve().parents[3].parent / "rnd-computational-biology-oncology-data-catalog"
 )
-# No CI job clones claude-oncology-skills, so the skipif below fires on every runner and this
-# gate is LOCAL-ONLY by construction. Kept env-overridable anyway so it is not machine-locked.
+# The `byte-identity-live-s3` job in methods-validate.yml clones claude-oncology-skills; the offline
+# `pytest` job deliberately does NOT (adding it there would un-skip this gate on a credential-less
+# runner and red the suite). Kept env-overridable so it is not machine-locked.
 SKILLS_REPO = Path(
     os.environ.get("CLAUDE_ONCOLOGY_SKILLS_ROOT")
     or Path(__file__).resolve().parents[3].parent / "rnd-computational-biology-oncology-claude-oncology-skills"
@@ -116,10 +134,20 @@ RSCRIPT = _resolve_rscript()
     RSCRIPT is None,
     reason="No Rscript in the repo pixi env or on PATH; cannot run R4 byte-identity gate without R env",
 )
+# State what was literally TESTED, not what it might imply. The previous reason read "R7 may already
+# have deleted it", which invites a reader to conclude the carve-out is finished and this gate is dead
+# weight — while the real cause was almost always a runner with no claude-oncology-skills checkout.
 @pytest.mark.skipif(
     not (SKILLS_REPO / "batch" / "expression_rna_COADREAD" / "run_pipeline.R").exists(),
-    reason="Legacy pipeline not present (R7 may already have deleted it)",
+    reason=(
+        f"legacy run_pipeline.R not found under {SKILLS_REPO} — no claude-oncology-skills checkout "
+        f"here (set CLAUDE_ONCOLOGY_SKILLS_ROOT), or R7 has deleted the legacy pipeline"
+    ),
 )
+# Requirement 3 in the module docstring: 2.96 GB of credentialed S3. Skipped wherever
+# SKILLS_SKIP_LIVE_DATA is set (the offline CI job sets it); runs in byte-identity-live-s3, which
+# assumes the read-only role and leaves that flag unset.
+@pytest.mark.requires_data
 def test_dge_deseq2_byte_identity_vs_legacy_coadread(tmp_path):
     """The carved-out dge_deseq2 must produce byte-identical deterministic-field output
     to the legacy batch/expression_rna_COADREAD/ pipeline."""
