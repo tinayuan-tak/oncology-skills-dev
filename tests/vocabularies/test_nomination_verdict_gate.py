@@ -610,3 +610,87 @@ def test_irrelevant_contradiction_axes_is_a_narrow_whitelist_of_irrelevance():
             assert ax not in kill_axes, f"{blk['thesis']}: {ax} is kill-capable — not declarable irrelevant here"
             assert ax not in own, f"{blk['thesis']}: {ax} is part of its own conjunction — cannot also be ignored"
             assert ax in contra_axes, f"{blk['thesis']}: {ax} carries no positive_contradiction — dead entry"
+
+
+# Pre-clamp verdicts a `downgrade_only` clamp can re-label INTO an arm this conjunction admits, without
+# the loader being able to see where they came from. Keyed by axis, pinned BY NAME (not by count) so the
+# guard below fires in BOTH directions: if the hole WIDENS, and if it is CLOSED. Closing it is a reviewed
+# edit that updates this table — never a silent green. The default for an unlisted axis is the empty set,
+# i.e. "a newly clamped axis showing this shape is an unreviewed fail-open hole".
+_ACCEPTED_PRE_CLAMP_LEAKS = {
+    "selectivity": {"field_effect_tumor_selective"},
+}
+
+
+def test_admitted_clamp_arms_cannot_launder_an_excluded_pre_clamp_verdict():
+    """FAIL-OPEN NON-MONOTONICITY GUARD, and the pin the `⚠ THAT LAST EXCLUSION IS NOT ENFORCEABLE
+    THROUGH THE CLAMP` comment in the vocabulary points at.
+
+    A `post_resolver_clamp` publishes ONE token. When a corroboration conjunct admits a clamp OUTPUT
+    while excluding one of that clamp's declared `applies_to_input_verdicts`, the excluded input becomes
+    reachable through the admitted output — and the loader cannot tell the two apart, because it reads
+    only the post-clamp verdict and the clamp exports no pre-clamp provenance field. The direction is
+    fail-OPEN, which is the part that makes it a safety bug rather than an inelegance:
+
+        clean normal profile           -> <excluded pre-clamp verdict>  -> conjunction UNSATISFIED
+        critical-organ liability FIRED -> <admitted clamp arm>          -> conjunction SATISFIED
+
+    i.e. DETECTING a liability flips a block into a GO. This test does not pretend the hole is closed —
+    closing it needs a skills-side change that publishes the pre-clamp verdict. It bounds the hole to a
+    named set, keeps that set LIVE against resolver renames, and refuses to go vacuous if the shape that
+    makes it reachable ever disappears (a guard that silently stops applying is worse than no guard)."""
+    axes_checked: set[str] = set()
+    for blk in _load()["thesis_deciding_axes"]:
+        for r in blk.get("requires") or []:
+            axis = r["sub_skill"]
+            path = REPO / "resolvers" / f"{axis}.resolver.yaml"
+            if not path.exists():
+                continue  # advisory axis, resolved skills-side — no contracts clamp to reason about
+            doc = yaml.safe_load(path.read_text())
+            clamp = doc.get("post_resolver_clamp") or {}
+            if clamp.get("direction") != "downgrade_only":
+                continue
+            admitted = set(r["verdict_in"])
+            outputs = set(doc.get("clamp_verdicts") or [])
+            outputs |= {
+                c["verdict"] for c in (clamp.get("precedence") or []) if isinstance(c, dict) and c.get("verdict")
+            }
+            if not (admitted & outputs):
+                continue  # no clamp arm admitted => nothing can be laundered through this conjunct
+            axes_checked.add(axis)
+            leak = set(clamp.get("applies_to_input_verdicts") or []) - admitted
+            expected = _ACCEPTED_PRE_CLAMP_LEAKS.get(axis, set())
+            assert leak == expected, (
+                f"{blk['thesis']} requires {axis} in {sorted(admitted)}, which admits the clamp arm(s) "
+                f"{sorted(admitted & outputs)} while excluding the pre-clamp verdict(s) {sorted(leak)}. "
+                f"Recorded/accepted leak for {axis} is {sorted(expected)}. Every name in the difference is a "
+                f"target that CANNOT satisfy this conjunction while its normal profile is clean, but CAN once "
+                f"a normal-organ liability fires — a fail-open flip from block to nominate. If this change is "
+                f"intended, update _ACCEPTED_PRE_CLAMP_LEAKS and say why in the vocabulary comment."
+            )
+            if leak:
+                emitted = _resolver_verdicts(axis)
+                assert leak <= emitted, (
+                    f"accepted-leak entry for {axis} names {sorted(leak - emitted)}, which the resolver no "
+                    f"longer emits — the pin has gone stale and would no longer detect a widening"
+                )
+                # Reachability, pinned: the leaked token is not a corner case reached by some other skill —
+                # this clamp's OWN `upgrade` arm mints it (from not_informative / discordant_across_comparators),
+                # so a target can be promoted INTO the excluded state and then re-labelled out of it by a veto
+                # fire. If that arm goes away the hazard narrows, which is worth noticing rather than assuming.
+                assert (clamp.get("upgrade") or {}).get("verdict") in leak, (
+                    f"the reachability argument recorded in nomination_verdict_gate.yaml no longer holds for "
+                    f"{axis}: its clamp upgrade arm now mints "
+                    f"{(clamp.get('upgrade') or {}).get('verdict')!r}, not one of {sorted(leak)} — re-derive the "
+                    f"hazard before relaxing anything that cites it"
+                )
+
+    assert axes_checked, (
+        "no requires conjunct admits a post-clamp arm any longer, so this guard exercised nothing — it has "
+        f"gone vacuous. Re-derive the hazard and update _ACCEPTED_PRE_CLAMP_LEAKS "
+        f"({sorted(_ACCEPTED_PRE_CLAMP_LEAKS)})"
+    )
+    assert set(_ACCEPTED_PRE_CLAMP_LEAKS) <= axes_checked, (
+        f"stale accepted-leak entries: {sorted(set(_ACCEPTED_PRE_CLAMP_LEAKS) - axes_checked)} — the hole they "
+        f"record is no longer reachable, so the entry is now a false record of a live risk"
+    )
