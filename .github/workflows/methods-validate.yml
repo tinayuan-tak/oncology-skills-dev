@@ -4,10 +4,13 @@ name: Methods Validate
 # ~1,500 offline-deterministic tests credential-less. Live-S3 tests self-skip via the root
 # conftest.py (SKILLS_SKIP_LIVE_DATA) — by exception type, so genuine assertion failures stay RED.
 #
-# STATUS: report-only (NOT yet a branch-protection required check). `main` carries a handful of
-# pre-existing REAL offline failures (config-drift + a stale test) that zero-CI let accumulate;
-# this workflow SURFACES them. Promote to a required check once those are triaged (fixed or
-# tracked). --import-mode=importlib is required: several method test files share a basename
+# STATUS (re-measured 2026-09-15): `pytest` and `ruff` ARE now branch-protection REQUIRED checks on
+# main (`strict: true`, `enforce_admins: true`) and the offline suite is GREEN on trunk — the
+# "report-only, main carries pre-existing real failures" note this header used to carry was stale and
+# has been removed rather than softened, because a header claiming a gate is advisory invites the next
+# reader to land past a red. `byte-identity-live-s3` below is deliberately NOT required (it needs
+# credentials that do not exist yet; see its own header).
+# --import-mode=importlib is required: several method test files share a basename
 # (test_plotly_spec.py, …) and collide under the default import mode.
 #
 # TWO JOBS, and the split is load-bearing:
@@ -125,7 +128,14 @@ jobs:
   # PR. The test's `requires_data` marker is what makes the offline job's skip declarative instead of an
   # accident of which repos happen to be checked out.
   #
-  # ┌── EXTERNAL DEPENDENCY: the AWS_ROLE_TO_ASSUME secret does not exist yet (absent from this repo's
+  # ┌── EXTERNAL DEPENDENCY 2 of 2, found by the first trunk run: CROSS_REPO_TOKEN has NO grant on
+  # │   claude-oncology-skills. The checkout failed `remote: Write access to repository not granted`
+  # │   (it reads as a write error, but a `fetch` fails that way when the PAT simply cannot see the
+  # │   repo). The other two sibling checkouts use the same secret and succeed, so the token is valid —
+  # │   it is scoped to target-contracts + data-catalog only. This gate stays skipped until the token
+  # │   is re-scoped to include claude-oncology-skills (read is enough), INDEPENDENT of the role below.
+  # └──
+  # ┌── EXTERNAL DEPENDENCY 1 of 2: the AWS_ROLE_TO_ASSUME secret does not exist yet (absent from this repo's
   # │   secrets AND from the org secrets visible to it, verified 2026-09-15). Until it is set, the
   # │   credentialed steps below SKIP and this job is green-and-explicit rather than red — the same
   # │   HAVE_AWS pattern the skills repo uses. The role needs, in account 557690623046 / us-east-1:
@@ -159,12 +169,21 @@ jobs:
       # equal what `Path(__file__).parents[N].parent` derives, so exporting them would pin an identical
       # value and leave the `or` fallback — the branch every developer checkout uses — with no coverage.
     steps:
+      # ★★EVERY step in this job is gated on HAVE_AWS, not just the ones that touch AWS — including the
+      # plain checkouts. That is the fix for a real red: as first landed only the credentialed steps were
+      # gated, so with no role wired the job still ran four checkouts, and the skills one FAILED
+      # (`remote: Write access to repository not granted` — CROSS_REPO_TOKEN has no grant on that repo).
+      # The job I had described as "green-and-explicit when the role is absent" was RED on every push to
+      # main. A step that cannot contribute to a no-op job must not be able to fail it: when HAVE_AWS is
+      # false the only step that runs is the notice below.
       - name: Checkout analysis-methods
+        if: env.HAVE_AWS == 'true'
         uses: actions/checkout@v4
         with:
           path: rnd-computational-biology-oncology-analysis-methods
 
       - name: Checkout target-contracts (sibling — resolver / catalog_query)
+        if: env.HAVE_AWS == 'true'
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
@@ -173,6 +192,7 @@ jobs:
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
       - name: Checkout data-catalog (sibling — the tcga-gdc-dr45-0 source manifest this gate resolves)
+        if: env.HAVE_AWS == 'true'
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
@@ -180,11 +200,19 @@ jobs:
           path: rnd-computational-biology-oncology-data-catalog
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
+      # ★ `ref: v2-architecture`, NOT `main`. claude-oncology-skills develops on v2-architecture — every
+      # PR there targets it (#1380-#1385 all `base=v2-architecture`) and `origin/main` is 1329 commits
+      # behind. `batch/expression_rna_COADREAD/` does not exist on `main` AT ALL (0 files, and
+      # configs/COADREAD.yaml is absent too), so `ref: main` could never have run this gate: the skipif
+      # would fire forever and the job would report a permanent, plausible-looking skip. The house
+      # convention is already v2-architecture — see target-contracts'
+      # framework-health-cross-repo.yml. Do NOT "fix" this back to main because main is the default branch.
       - name: Checkout claude-oncology-skills (sibling — the LEGACY arm, batch/expression_rna_COADREAD)
+        if: env.HAVE_AWS == 'true'
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills
-          ref: main
+          ref: v2-architecture
           path: rnd-computational-biology-oncology-claude-oncology-skills
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
@@ -192,6 +220,7 @@ jobs:
       # below the threshold where the indirection pays, and the rationale comment there is the canonical
       # copy. If a third job needs it, extract then.
       - name: Install pixi binary (retried — hardens the transient download flake)
+        if: env.HAVE_AWS == 'true'
         run: |
           set -euo pipefail
           export PIXI_VERSION=v0.70.2
