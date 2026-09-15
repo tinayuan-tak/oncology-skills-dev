@@ -103,6 +103,60 @@ def test_homogeneity_unmeasured_not_null_without_scrna():
     assert vec2["homogeneity"] == "homogeneous"
 
 
+def test_claim_d_corroboration_inherits_an_unmeasured_signal():
+    # `breadth_class: data_unavailable` is not in claim D's signal map, so the signal is "unmeasured" —
+    # and the corroboration must follow it. The two ladders read DIFFERENT card fields (signal <- the
+    # breadth CLASS, corroboration <- the n-tested COUNT) and nothing coupled them, so a declined claim
+    # used to ship a top-rung tier: measured on the n=504 corpus, 30 pairs emitted (unmeasured, high)
+    # off `n_tested = 26`, which is the card's cohort ROSTER size (26 on 502 of 504 pairs), not a
+    # per-target measurement. "Tested over 26 cohorts, answer withheld" is not a coverage statement.
+    hl = {**_headline(), "tumor_elevation_breadth_class": "data_unavailable", "tumor_elevation_n_cohorts_tested": 26}
+    d = presence_claim_vector(hl, [])["D"]
+    assert d["signal"] == "unmeasured"
+    assert d["corroboration"] == "unmeasured", "a tier for a claim never stated is attached to nothing"
+    # the same holds when the count is small enough to have laddered to a LOWER rung — this is the one
+    # frozen-atlas row (n_tested=3) that became the lone minority class of an otherwise-constant column
+    # and drew a 17.2-sigma one-rung displacement on a claim that was never made.
+    hl3 = {**hl, "tumor_elevation_n_cohorts_tested": 3}
+    assert presence_claim_vector(hl3, [])["D"]["corroboration"] == "unmeasured"
+    # a missing breadth class (key absent entirely) takes the same path
+    hl_missing = {k: v for k, v in _headline().items() if k != "tumor_elevation_breadth_class"}
+    assert presence_claim_vector(hl_missing, [])["D"]["corroboration"] == "unmeasured"
+
+
+def test_claim_d_corroboration_still_ladders_when_the_claim_is_stated():
+    # NEGATIVE CONTROL — passes before AND after the coupling above. A STATED claim keeps the full
+    # n_tested ladder verbatim, so the fix cannot be mistaken for "claim D stopped corroborating":
+    # 472 of the 504 corpus pairs sit here and must be byte-identical across the change.
+    for n, want in (
+        (26, "high"),
+        (10, "high"),
+        (9, "moderate"),
+        (5, "moderate"),
+        (4, "low"),
+        (1, "low"),
+        (0, "unmeasured"),
+    ):
+        hl = {
+            **_headline(),
+            "tumor_elevation_breadth_class": "multi_tumor_elevated",
+            "tumor_elevation_n_cohorts_tested": n,
+        }
+        d = presence_claim_vector(hl, [])["D"]
+        assert d["signal"] == "moderate", "a stated breadth class must still state its signal"
+        assert d["corroboration"] == want, f"n_tested={n} must ladder to {want}, not {d['corroboration']}"
+    # and every non-unmeasured signal rung reaches the ladder, not just the one above
+    for br, sig in (
+        ("broadly_tumor_elevated", "strong"),
+        ("multi_tumor_elevated", "moderate"),
+        ("single_tumor_elevated", "weak"),
+        ("not_tumor_elevated", "absent"),
+    ):
+        hl = {**_headline(), "tumor_elevation_breadth_class": br, "tumor_elevation_n_cohorts_tested": 26}
+        d = presence_claim_vector(hl, [])["D"]
+        assert (d["signal"], d["corroboration"]) == (sig, "high"), f"{br} must keep its laddered tier"
+
+
 def _by_subtype_cards():
     """A tumor-rna-distribution-by-subtype card mirroring CD274/COADREAD: MSI_H/CMS1/CIMP_High enriched,
     MSS uniform — the per-stratum subtype_signal is set, the rollup carries n_subtypes_enriched=3."""

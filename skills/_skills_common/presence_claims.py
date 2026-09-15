@@ -369,7 +369,30 @@ def _claim_D(h, c):
     n_tested = max(
         h.get("tumor_elevation_n_cohorts_tested") or 0, h.get("rna_tumor_elevation_n_indications_tested") or 0
     )
-    rel = "high" if n_tested >= 10 else "moderate" if n_tested >= 5 else "low" if n_tested >= 1 else "unmeasured"
+    # A corroboration tier for a claim we DECLINED TO STATE is not a coverage statement, it is a tier
+    # attached to nothing — so the tier INHERITS the signal's unmeasured state. `n_tested` is a property of
+    # the breadth card's cohort ROSTER, not of this target's measurement: it read 26 on 502 of 504 corpus
+    # pairs, including 30 whose breadth was `data_unavailable`, which emitted the self-contradictory pair
+    # (signal `unmeasured`, corroboration `high`) = "tested over 26 cohorts, answer withheld". The atlas
+    # encodes `unmeasured` -> None (CLAIM_CORR_ORD) and already carries nulls in the sibling ::signal
+    # column, so nulling here is representable and is what the sd/z machinery expects for an unmade claim.
+    # Measured consequence of NOT doing this: the 1 corpus row whose roster was small (n_tested=3) became
+    # the lone minority class of an otherwise-constant column, min_class_fraction 1/297, and a one-rung
+    # displacement of 1/sqrt(p(1-p)) = 17.2 sigma -- 61% of that row's entire squared z-norm across 122
+    # measured features, on a claim never made. Post-fix the column is honestly CONSTANT (n_classes 1,
+    # every target's breadth genuinely tested over the same roster) instead of deceptively near-constant.
+    # `_homogeneity` below normalises the identical `data_unavailable` sentinel; this is the same move.
+    rel = (
+        "unmeasured"
+        if sig == "unmeasured"
+        else "high"
+        if n_tested >= 10
+        else "moderate"
+        if n_tested >= 5
+        else "low"
+        if n_tested >= 1
+        else "unmeasured"
+    )
     return {
         "signal": sig,
         "corroboration": rel,
