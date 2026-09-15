@@ -30,6 +30,7 @@ run "pytest subgroup+coverage"           python -m pytest tests/validators/test_
 run "pytest framework_discrimination"    python -m pytest tests/calibration/test_framework_discrimination.py -q
 run "pytest card_concept_discipline"     python -m pytest tests/validators/test_card_concept_discipline.py -q
 run "pytest shared-mt vocabularies"      python -m pytest tests/validators/test_shared_measurement_type_vocabularies.py -q
+run "pytest card vocab-declaration"      python -m pytest tests/validators/test_card_vocabulary_declaration.py -q
 run "pytest card method-wiring"          python -m pytest tests/validators/test_card_method_wiring.py -q
 run "pytest nomination-gate+subtype-tier" python -m pytest tests/vocabularies/test_nomination_verdict_gate.py tests/validators/test_subtype_tier_rules.py -q
 run "pytest target-profiling-axes ontology" python -m pytest tests/vocabularies/test_target_profiling_axes.py tests/vocabularies/test_question_hierarchies.py -q

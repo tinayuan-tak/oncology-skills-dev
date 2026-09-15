@@ -580,6 +580,39 @@ KNOWN_UNROUTED_CARDS = {
 # The statuses that make a card's unroutability a DECLARED state rather than a silent gap.
 _NON_LIVE_STATUSES = frozenset({"placeholder_not_wired", "dormant_pending_data"})
 
+# KNOWN vocabulary orphans (2026-09-14): a card declares a `summary_fields_vocabulary` for a field it
+# never declares -- not in `outputs.summary_fields`, and not a key of any declared
+# `summary_fields_record_schemas` record -- so the enumerated value set is attached to nothing and is
+# dropped downstream. See _summary_vocabulary_declaration_check() for the mechanism and the proof.
+# Measured over every card: 4 orphans out of 289 vocabulary keys across 148 cards. Enumerated so the
+# build stays green while the debt is worked down; the check is TWO-SIDED, so a new orphan fails AND an
+# entry that stops being an orphan fails, which is what stops this set outliving the debt.
+#
+# NONE of the four declares any `summary_fields_record_schemas` at all, and three of the four declare a
+# collection-shaped summary field alongside the orphan vocabulary. So the likely remedy is to DECLARE
+# the record schema the vocabulary belongs to -- exactly what
+# tumor-vs-normal-percentile-crossing-by-subtype does correctly, which is why it is not on this list --
+# rather than to delete the enum. Confirmed per card, not inferred from the pattern.
+KNOWN_VOCABULARY_ORPHANS: dict[str, set[str]] = {
+    # 6-value zygosity/epigenetic axis (wt .. biallelic+epigenetic). The card declares only
+    # functional_state_class, patient, model, vocabulary_phase -- no per-sample record anywhere.
+    # LATENT: no generated summary schema yet.
+    "functional-gene-state": {"sample_state"},
+    # 6-value tissue taxonomy (solid_tissue, body_fluid, ...). The card declares the collection field
+    # `per_tissue_abundance` but no record schema for it, so a per-tissue key has nowhere legal to sit.
+    # LATENT: no generated summary schema yet.
+    "normal-tissue-protein-abundance-tphp": {"tissue_category"},
+    # SHIPPED LOSS, not latent: schemas/methods/prism-compound-activity.summary.schema.json carries 7
+    # properties and `metric_source` is not among them, so this 3-value enum is already absent from a
+    # committed artifact. The card declares the collection fields `top_compounds` /
+    # `per_lineage_activity` but no record schema.
+    "prism-compound-activity": {"metric_source"},
+    # 3-value per-variant resistance annotation. The card declares the collection fields
+    # `resistance_variants` / `oncogenic_variants` but no record schema.
+    # LATENT: no generated summary schema yet.
+    "variant-level-interpretation": {"resistance_class"},
+}
+
 
 @dataclass
 class ValidationReport:
@@ -1055,6 +1088,80 @@ def _summary_vocabulary_names(spec: dict) -> set[str]:
 
     walk(spec)
     return names
+
+
+def _vocabulary_orphans(spec: dict) -> set[str]:
+    """The `summary_fields_vocabulary` keys this card declares no field for.
+
+    Legal targets are `outputs.summary_fields` (the card's own scalar surface) OR a key of a declared
+    `summary_fields_record_schemas` record — a per-record class needs a vocabulary too, and every one of
+    the 17 record schemas in this repo is a plain field map, so the record's keys ARE its field names.
+    Kept as one named function because the layer test asserts the waiver list equals this set: two copies
+    of the rule would let the check and its own test drift apart.
+    """
+    vocabulary = _summary_vocabulary_names(spec)
+    if not vocabulary:
+        return set()
+    record_fields: set[str] = set()
+    for schema in (spec.get("outputs", {}).get("summary_fields_record_schemas") or {}).values():
+        if isinstance(schema, dict):
+            record_fields |= set(schema.keys())
+    return vocabulary - _summary_field_names(spec) - record_fields
+
+
+def _summary_vocabulary_declaration_check(spec: dict, report: ValidationReport) -> None:
+    """Layer 2i (2026-09-14) — a `summary_fields_vocabulary` key must name a field the card DECLARES.
+
+    A vocabulary entry is the card's enumerated value set for one summary field. If the field it keys is
+    declared nowhere — absent from `outputs.summary_fields` AND not a key of any declared
+    `summary_fields_record_schemas` record — the enum is attached to nothing and is silently DROPPED:
+    `gen_summary_schemas.py` builds `properties` from `summary_fields` unioned with observed keys, so an
+    orphan key gets no property and its enum never reaches the generated schema. Nothing downstream can
+    notice, because `additionalProperties: true` is mandatory in v1 by that generator's own ruling.
+
+    PROVEN on a committed artifact, not argued: `prism-compound-activity` declares a 3-value enum for
+    `metric_source`, and `schemas/methods/prism-compound-activity.summary.schema.json` has 7 properties,
+    none of them `metric_source`. The other three orphans have no generated schema yet — the
+    summary-schema rollout is opt-in — so their loss is armed rather than shipped.
+
+    Errors, not warnings, for the same reason `_capsule_contract_check` errors: the degradation is
+    invisible at every layer downstream of the card, so a warning would never be actioned.
+
+    ★ The RECORD-SCHEMA arm is not a nicety — it is the difference between 4 findings and a 20%
+    false-positive rate. The naive invariant (`vocabulary ⊆ summary_fields`) flags 5 cards, but
+    `tumor-vs-normal-percentile-crossing-by-subtype.percentile_crossing_class` IS a declared key of that
+    card's `per_subgroup_metrics` record, so a per-record class vocabulary is correct there. Validate on
+    the whole panel, never on the motivating example: 289 vocabulary keys over 148 cards, 5 naive, 4 real.
+
+    ★ It also closes a composition hole on the skills side. The live emission guard
+    (`skills/_skills_common/tests/test_card_output_emission.py`) relaxes its missing-field check for a
+    WHOLE card when any vocabulary field emits a data-unavailable marker, and that predicate iterates
+    VOCABULARY keys rather than declared field names — so today an ORPHAN key's abstain value can switch
+    off the presence check for a card's genuinely declared fields. Once every vocabulary key is a
+    declared field, that path cannot be entered from an undeclared one.
+    """
+    card_id = spec.get("card_id") or ""
+    orphans = _vocabulary_orphans(spec)
+    waived = KNOWN_VOCABULARY_ORPHANS.get(card_id, set())
+    if not orphans and not waived:
+        return
+
+    for name in sorted(orphans - waived):
+        report.add_error(
+            f"VOCABULARY_ORPHAN_FIELD [outputs.summary_fields_vocabulary.{name}]: {name!r} declares an "
+            f"enumerated value set but is not a declared summary_field of this card, and is not a key of "
+            f"any declared summary_fields_record_schemas record. The enum is attached to nothing — "
+            f"gen_summary_schemas builds `properties` from summary_fields + observed keys, so it never "
+            f"reaches the generated schema and no consumer can enforce it. Declare the field in "
+            f"outputs.summary_fields, declare the record schema it belongs to, or drop the vocabulary "
+            f"entry."
+        )
+    for name in sorted(waived - orphans):
+        report.add_error(
+            f"VOCABULARY_ORPHAN_FIELD [KNOWN_VOCABULARY_ORPHANS]: the waiver names {name!r} for card "
+            f"{card_id!r}, but it is no longer an orphan — the field is now declared (or the vocabulary "
+            f"entry is gone). Delete the waiver entry so the set keeps meaning what it says."
+        )
 
 
 def _capsule_contract_check(spec: dict, report: ValidationReport) -> None:
@@ -1546,6 +1653,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
         _modality_relevance_check(spec, report)
         _axis_binding_check(spec, report)
         _capsule_contract_check(spec, report)
+        _summary_vocabulary_declaration_check(spec, report)
     return report
 
 

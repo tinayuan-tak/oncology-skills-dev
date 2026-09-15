@@ -166,6 +166,17 @@ jobs:
       - name: Shared-measurement_type vocabulary ratchet
         run: python -m pytest tests/validators/test_shared_measurement_type_vocabularies.py -q
 
+      # 2026-09-15 (CI-gap closure): summary-field VOCABULARY-DECLARATION ratchet — a card that spells an
+      # enumerated value set in `outputs.summary_fields_vocabulary` must also DECLARE that field as a
+      # summary_field, or the vocabulary becomes the only evidence the field exists and a rule author's
+      # `equals:` compiles against a field the card never emits. The FLEET arm rides validate_cards.py, so
+      # every card is already gated by the validate-cards step above; this file carries the synthetic-spec,
+      # waiver-staleness and record-schema RESCUE-ARM coverage, which nothing else executes.
+      # Gated explicitly — tests/validators/ is curated file-by-file (measured 2026-09-15: 43 of 68 files
+      # under tests/ are named by NO workflow), so an unnamed test file runs in zero CI.
+      - name: Card summary-field vocabulary-declaration ratchet
+        run: python -m pytest tests/validators/test_card_vocabulary_declaration.py -q
+
       # 2026-09-13 (foundation audit): method-WIRING ratchet — a declared `methods[].entrypoint` must
       # name a symbol the module exports, and every card must be readable on SOME path (generic
       # entrypoint or a *DISPATCHERS registry entry) or declare a non-live status. Both halves
