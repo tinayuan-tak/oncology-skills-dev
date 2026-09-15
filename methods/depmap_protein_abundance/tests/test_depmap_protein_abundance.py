@@ -1,8 +1,10 @@
 """Synthetic-data tests for depmap_protein_abundance (no S3).
 
 Validates: (1) the distribution classifier at each band (broadly_low keyed off
-detection fraction — the MS-sparse axis; lineage_restricted mid-band; broadly_high
-needs detection AND panel-relative high abundance); (2) accession resolution via the
+detection fraction — the MS-sparse axis; the mid-band lineage split, where a lineage
+token requires a non-empty per_lineage and an absent breakdown yields the claim-free
+sub_broad_detection; broadly_high needs detection AND panel-relative high abundance);
+(2) accession resolution via the
 sidecar, incl. isoform-suffixed matrix columns; (3) the data_unavailable path
 (target not resolved / absent from matrix) vs graceful read failure; (4) card-contract
 fields; (5) fraction_detected uses the true panel size (denominator = total MS lines),
@@ -29,8 +31,56 @@ def test_broadly_low_when_detection_sparse():
     assert pc.classify_protein_abundance(0.20, 0.5, [], high_cutoff=0.4) == "broadly_low"
 
 
-def test_lineage_restricted_mid_band():
-    assert pc.classify_protein_abundance(0.35, 0.1, [], high_cutoff=0.2) == "lineage_restricted"
+# Middle band [LOW_DETECTION_FRACTION, LINEAGE_RESTRICTED_MAX]. The lineage tokens are claims ABOUT
+# lineage, so all three cases below are keyed on what per_lineage actually contains. This block used to
+# be a single test asserting `classify(0.35, 0.1, [], ...) == "lineage_restricted"` — i.e. it pinned the
+# defect: an empty breakdown returned the mechanistic label, and `broadly_moderate` was unreachable in
+# this band for any caller without a lineage map (all 343 ProCan corpus cards).
+_CONCENTRATED = [{"lineage": "LUNG", "n": 8}, {"lineage": "SKIN", "n": 6}]  # <= MAX_LINEAGES → concentrated
+_SPREAD = [{"lineage": lg, "n": 5} for lg in ("LUNG", "SKIN", "BREAST", "COLON")]  # 4 lineages, top share 0.25
+
+
+def test_mid_band_with_no_lineage_breakdown_makes_no_lineage_claim():
+    """The regression this branch exists for: absent stratification must not mint a lineage claim."""
+    assert pc.classify_protein_abundance(0.35, 0.1, [], high_cutoff=0.2) == "sub_broad_detection"
+    assert pc.classify_protein_abundance(0.6512, 0.1, [], high_cutoff=0.2) == "sub_broad_detection"
+
+
+def test_mid_band_lineage_restricted_needs_real_concentration():
+    """lineage_restricted is still reachable — but now only on positive evidence."""
+    assert pc.classify_protein_abundance(0.35, 0.1, _CONCENTRATED, high_cutoff=0.2) == "lineage_restricted"
+
+
+def test_mid_band_broadly_moderate_is_reachable_on_measured_spread():
+    """Falsifier for the vacuity: with a REAL spread breakdown the middle band reaches broadly_moderate.
+
+    Before the fix no input could produce this token in this band, so the concentration predicate
+    contributed zero bits and the band and the label were the same set.
+    """
+    assert pc.classify_protein_abundance(0.35, 0.1, _SPREAD, high_cutoff=0.2) == "broadly_moderate"
+
+
+def test_lineage_claim_never_rests_on_an_empty_breakdown():
+    """GUARD: sweep the whole detection range — no lineage token may be emitted with no lineage evidence.
+
+    Fails loudly if the empty-per_lineage fallback is ever reintroduced anywhere in the band structure,
+    including via _is_lineage_concentrated returning True for a falsy/zero-total breakdown. Swept rather
+    than spot-checked because the original defect lived in ONE sub-band of a multi-band ladder.
+    """
+    lineage_tokens = {"lineage_restricted"}
+    for i in range(0, 101):
+        f = i / 100.0
+        for empty in ([], [{"lineage": "LUNG", "n": 0}]):
+            got = pc.classify_protein_abundance(f, 0.1, empty, high_cutoff=0.2)
+            assert got not in lineage_tokens, f"lineage claim from empty breakdown at fraction_detected={f}: {got}"
+
+
+def test_empty_breakdown_is_not_evidence_of_concentration():
+    """The root-cause predicate itself: absence must not read as a positive."""
+    assert pc._is_lineage_concentrated([]) is False
+    assert pc._is_lineage_concentrated([{"lineage": "LUNG", "n": 0}]) is False
+    assert pc._is_lineage_concentrated(_CONCENTRATED) is True
+    assert pc._is_lineage_concentrated(_SPREAD) is False
 
 
 def test_broadly_high_needs_detection_and_high_abundance():
@@ -41,6 +91,26 @@ def test_broadly_high_needs_detection_and_high_abundance():
 def test_broadly_moderate_when_detected_but_not_high():
     # detected broadly but median below the high cutoff (the centered-TMT common case)
     assert pc.classify_protein_abundance(0.90, 0.05, [], high_cutoff=0.5) == "broadly_moderate"
+
+
+def test_every_distribution_class_has_a_takeaway_phrase():
+    """A new class token must not silently lose its one-line takeaway.
+
+    _protein_take does a .get() on _PROTEIN_PHRASE, so a missing entry returns None and the sentence
+    just disappears from the output — a fail-open display gap rather than an error. The expected set is
+    DERIVED by sweeping the classifier instead of hand-listed, so it tracks the vocabulary by itself.
+    data_unavailable is deliberately phrase-less: there is no distribution to describe.
+    """
+    emitted = {
+        pc.classify_protein_abundance(f, m, pl, high_cutoff=0.5)
+        for f in (0.05, 0.20, 0.35, 0.50, 0.69, 0.90)
+        for m in (0.1, 1.5)
+        for pl in ([], _CONCENTRATED, _SPREAD)
+    }
+    unphrased = emitted - {"data_unavailable"} - set(pc._PROTEIN_PHRASE)
+    assert not unphrased, f"class tokens the classifier can emit with no takeaway phrase: {sorted(unphrased)}"
+    # Non-vacuity: the sweep must actually reach the new band, or this guard proves nothing about it.
+    assert "sub_broad_detection" in emitted, "sweep no longer reaches the lineage-untested band"
 
 
 # --- accession resolution (synthetic sidecar) -----------------------------

@@ -7,9 +7,17 @@ the per-target abundance distribution across cell lines + a per-lineage breakdow
 
 Emits the `cellline-protein-abundance` card contract fields, primary categorical
 `protein_expression_class` ∈ {broadly_high | broadly_moderate | lineage_restricted
-| broadly_low | data_unavailable} — the SAME distribution vocab as
-cellline-rna-distribution (NOT the tumor-vs-normal contrast vocab of
-tumor-protein-abundance-cptac).
+| sub_broad_detection | broadly_low | data_unavailable} — the cellline-rna-distribution
+distribution vocab PLUS `sub_broad_detection` (NOT the tumor-vs-normal contrast vocab
+of tumor-protein-abundance-cptac).
+
+`sub_broad_detection` is the one token this vocab has that the RNA sibling's does not,
+and the asymmetry is load-bearing rather than drift: the RNA axis always has a lineage
+stratification, so its middle band can fall through to broadly_moderate on a MEASURED
+zero (depmap_expression_distribution:352-362). This classifier is shared with the ProCan
+reader, whose Sanger SIDM ids have no OncotreeLineage crosswalk, so its stratification is
+structurally ABSENT — a case the RNA axis cannot reach and therefore never needed a token
+for. See classify_protein_abundance.
 
 Two resolution jobs (both via already-landed catalog artifacts):
   1. target symbol → UniProt accession (the matrix COLUMN) via the source's
@@ -351,13 +359,21 @@ def classify_protein_abundance(
                           to call restriction) regardless of concentration
     - broadly_high:       detected in > BROADLY_DETECTED_FRACTION AND median >= panel high cutoff
     - broadly_moderate:   detected broadly (> BROADLY_DETECTED_FRACTION and not high), OR
-                          detected in the middle band but spread across many lineages
+                          detected in the middle band and MEASURED to be spread across many lineages
     - lineage_restricted: detection in [LINEAGE_RESTRICTED_MIN, LINEAGE_RESTRICTED_MAX] CONCENTRATED
                           in a minority of lineages (consulting per_lineage) — INCLUDING the
                           low-detection sub-band [MIN, LOW_DETECTION_FRACTION): a protein detected
                           in a minority of the pan-cancer panel but clustered in a few lineages is
                           lineage-restricted (a therapeutic-window antigen, e.g. CLDN18), NOT absent
+    - sub_broad_detection: detection in [LOW_DETECTION_FRACTION, LINEAGE_RESTRICTED_MAX] with NO
+                          per-lineage breakdown available. A DETECTION-BAND statement only, making no
+                          lineage claim in either direction — the honest label when the evidence that
+                          would separate lineage_restricted from broadly_moderate was never measured
     - data_unavailable:   handled upstream (protein absent from matrix)
+
+    The lineage tokens are claims about lineage; they require per_lineage to be non-empty. Absence of
+    the stratification routes to sub_broad_detection (middle band) or broadly_low (low sub-band),
+    never to a lineage claim.
     """
     f = fraction_detected
     if f > BROADLY_DETECTED_FRACTION:
@@ -373,15 +389,32 @@ def classify_protein_abundance(
     # spurious degrader-killer on exactly those antigens. Below LINEAGE_RESTRICTED_MIN the panel is too
     # sparse to assert restriction, so those fall through to broadly_low regardless of concentration.
     if LINEAGE_RESTRICTED_MIN <= f <= LINEAGE_RESTRICTED_MAX:
-        # In the LOW-detection sub-band [MIN, LOW_DETECTION_FRACTION) require REAL per-lineage evidence
-        # of concentration — we cannot assert restriction from a low fraction with no lineage breakdown
-        # (unit tests / no model table stay broadly_low, unchanged). In the MIDDLE band the historical
-        # empty-per_lineage → lineage_restricted fallback is preserved (broadly_moderate needs positive
-        # evidence of pan-lineage spread).
+        # Both sub-bands require REAL per-lineage evidence before ANY lineage claim: we cannot assert
+        # restriction from a detection fraction with no lineage breakdown. Below LOW_DETECTION_FRACTION
+        # the fall-through is broadly_low (too sparse to assert anything); in the MIDDLE band it is the
+        # lineage-UNTESTED band (see below).
         if f < LOW_DETECTION_FRACTION:
             if per_lineage and _is_lineage_concentrated(per_lineage):
                 return "lineage_restricted"
             return "broadly_low"
+        if not per_lineage:
+            # LINEAGE UNTESTED — not lineage-restricted, and not broadly-moderate either.
+            #
+            # This branch previously fell to lineage_restricted via _is_lineage_concentrated([]) → True,
+            # i.e. it asserted a mechanistic lineage claim from ZERO lineage evidence. ProCan reaches it
+            # for every target (Sanger SIDM ids have no OncotreeLineage crosswalk, so the lineage map is
+            # always {}), which made the claim vacuous rather than merely optimistic: measured across the
+            # 504-package corpus, all 85 of 343 ProCan cards labelled lineage_restricted were EXACTLY the
+            # 85 whose fraction_detected fell in this band (set identity, 0 in either difference), so the
+            # concentration predicate contributed zero bits and broadly_moderate was unreachable.
+            #
+            # broadly_moderate is NOT the honest fall-through here: it asserts pan-lineage SPREAD, which
+            # is equally unevidenced when the stratification is absent. (The RNA sibling
+            # depmap_expression_distribution:352-362 does fall through to broadly_moderate, correctly —
+            # there n_lineage_restricted == 0 is a MEASURED zero, not an absent measurement.) So emit the
+            # detection band itself and make no lineage claim at all. Gygi carries a real lineage map, so
+            # its labels are unchanged (0 of 419 corpus cards reach this branch).
+            return "sub_broad_detection"
         if _is_lineage_concentrated(per_lineage):
             return "lineage_restricted"
         return "broadly_moderate"
@@ -394,15 +427,23 @@ def _is_lineage_concentrated(per_lineage: list) -> bool:
 
     per_lineage entries carry {'lineage', 'n', ...} where n = detected lines in that lineage
     (lineages below MIN_LINEAGE_SIZE detected lines are already dropped upstream). Concentrated
-    iff detection spans few lineages OR one lineage dominates the detected lines. With no
-    per-lineage breakdown (unit tests / no model table) fall back to the historical
-    middle-band label (lineage_restricted) so existing behavior is preserved.
+    iff detection spans few lineages OR one lineage dominates the detected lines.
+
+    An EMPTY breakdown (or one with no detected lines attributed) returns False, because the absence
+    of a lineage stratification is not evidence of lineage concentration. This USED to return True —
+    "fall back to the historical middle-band label so existing behavior is preserved" — which made the
+    predicate unfalsifiable for every caller that never has a lineage map.
+
+    False here means "not established as concentrated", NOT "established as spread". Callers must not
+    read it as positive evidence of pan-lineage spread: that is why classify_protein_abundance tests
+    `per_lineage` itself and emits the lineage-untested band rather than routing an unmeasured input
+    to broadly_moderate.
     """
     if not per_lineage:
-        return True
+        return False
     total = sum(d.get("n", 0) for d in per_lineage)
     if total <= 0:
-        return True
+        return False
     if len(per_lineage) <= LINEAGE_CONCENTRATION_MAX_LINEAGES:
         return True
     top_share = max(d.get("n", 0) for d in per_lineage) / total
@@ -635,10 +676,17 @@ def _panel_high_cutoff(vals: list) -> Optional[float]:
 
 
 # protein_expression_class → one-line takeaway. {T} = target.
+# EVERY distribution class needs an entry: _protein_take .get()s this map, so a missing token loses its
+# takeaway SILENTLY rather than raising. Only data_unavailable is deliberately absent — there is no
+# distribution to describe. Guarded by test_every_distribution_class_has_a_takeaway_phrase.
 _PROTEIN_PHRASE = {
     "broadly_high": "{T} protein is highly abundant across cancer cell lines.",
     "broadly_moderate": "{T} protein is broadly detected at moderate abundance across cell lines.",
     "lineage_restricted": "{T} protein detection is concentrated in a few lineages.",
+    "sub_broad_detection": (
+        "{T} protein is detected in a sizeable minority of cell lines; no per-lineage breakdown was "
+        "available, so lineage restriction was not tested."
+    ),
     "broadly_low": "{T} protein is detected in few cell lines.",
 }
 

@@ -49,7 +49,20 @@ _CARD_SUMMARY_FIELDS = {
     "allgene_percentile_class",
     "allgene_percentile_context",
 }
-_CLASS_VOCAB = {"broadly_high", "broadly_moderate", "lineage_restricted", "broadly_low", "data_unavailable"}
+# Local mirror of cellline-protein-abundance-procan.card.yaml
+# summary_fields_vocabulary.protein_expression_class, which the shared classifier in
+# methods/depmap_protein_abundance/cli.py emits. sub_broad_detection is the middle-band label THIS
+# reader actually produces — SIDM model ids have no OncotreeLineage crosswalk, so per_lineage_stats is
+# always empty (asserted below) and no lineage token is reachable here. lineage_restricted is retained
+# only because the vocabulary is shared with the Gygi sibling, where it IS reachable.
+_CLASS_VOCAB = {
+    "broadly_high",
+    "broadly_moderate",
+    "lineage_restricted",
+    "sub_broad_detection",
+    "broadly_low",
+    "data_unavailable",
+}
 
 
 def _write_product(tmp_path, rows) -> Path:
