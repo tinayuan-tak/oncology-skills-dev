@@ -377,26 +377,53 @@ def _load_thesis_axis_relevance(contracts_repo: Path | None = None) -> dict[str,
         return {}
 
 
+def _card_field_value(sub_results: dict, card_id: str, field: str):
+    """The live value of `sub_results[*].cards[*].summary[field]` for the card `card_id`, or None if
+    the card did not compose this run or carries no such key. A local scan (NOT
+    tp_facets._find_card_summary) avoids a tp_gates→tp_facets import cycle (tp_facets already imports
+    tp_gates). ABSENCE and an explicit null are indistinguishable here ON PURPOSE — both mean "not
+    measured", and every caller must treat that as UNSATISFIED (the honest-negative discipline)."""
+    for r in sub_results.values():
+        if not isinstance(r, dict):
+            continue
+        for c in r.get("cards") or []:
+            if isinstance(c, dict) and c.get("card_id") == card_id:
+                got = (c.get("summary") or {}).get(field)
+                if got is not None:
+                    return got
+    return None
+
+
 def _trigger_label(w: dict, present: set, sub_results: dict) -> Optional[str]:
     """Return a provenance label if the veto-suppressor `when_present` trigger `w` is satisfied,
-    else None. Two trigger forms:
+    else None. Trigger forms:
       - VERDICT-tuple  {sub_skill, verdict}      → matched against the live sub-verdict `present` set.
       - CARD-FIELD     {card_id, field, value}   → matched against a composed card's summary field
         (2026-08-21). Lets a suppressor key on a signal carried by a card under a GATELESS sub-skill
         (verdict=None) — e.g. synthetic-lethal-partners.sl_partner_class after the SL short was
-        consolidated into combination_vulnerability. A local card scan (NOT tp_facets._find_card_summary)
-        avoids a tp_gates→tp_facets import cycle (tp_facets already imports tp_gates).
+        consolidated into combination_vulnerability.
+      - CARD-FIELD SET {card_id, field, value_in: [...]}  → the same, satisfied by ANY value in the
+        list (Step 3, 2026-09-11). The single-`value` form forced one policy entry per admissible
+        token, which for a graded enum (density_floor_verdict has 3 measured values vs 1 abstention
+        token) meant the policy said "these 3 specific values" three times instead of once. `value`
+        and `value_in` are mutually exclusive; if both appear, BOTH must match (fail-closed).
     Defensive: an unrecognized/garbled trigger shape returns None (never matches, never raises)."""
     if not isinstance(w, dict):
         return None
     if "card_id" in w:
-        cid, field, value = w.get("card_id"), w.get("field"), w.get("value")
-        for r in sub_results.values():
-            for c in r.get("cards") or []:
-                if isinstance(c, dict) and c.get("card_id") == cid:
-                    if (c.get("summary") or {}).get(field) == value:
-                        return f"{cid}.{field}={value}"
-        return None
+        cid, field = w.get("card_id"), w.get("field")
+        got = _card_field_value(sub_results, cid, field)
+        if got is None:
+            return None
+        if "value" in w and got != w.get("value"):
+            return None
+        if "value_in" in w:
+            allowed = w.get("value_in")
+            if not isinstance(allowed, (list, tuple, set)) or got not in allowed:
+                return None
+        if "value" not in w and "value_in" not in w:
+            return None  # a card-field trigger with no expected value is vacuous → never matches
+        return f"{cid}.{field}={got}"
     if "sub_skill" in w and "verdict" in w:
         return f"{w['sub_skill']}:{w['verdict']}" if (w["sub_skill"], w["verdict"]) in present else None
     return None
@@ -747,6 +774,207 @@ def abstention_lower_bound_clamp(llm_recommendation: Optional[str]) -> tuple[Opt
             "reason": "gate abstained (no veto/hold rule fired); an LLM-authored negative is unbacked by the audit spine",
         }
     return None, None
+
+
+# --- Thesis DECIDING axis → the first deterministic `nominate` (Step 3, 2026-09-11) ----------------
+#
+# WHY THIS EXISTS. `_gate_recommendation` is one-directional-UP: `action_precedence` is
+# {veto: 2, hold: 1} and the forced action is a max() over those, so the deterministic gate could only
+# ever VETO or HOLD. `nominate` was an LLM enum value only — every published nomination was
+# LLM-authored, and the eval panel's `must_not_nominate` arm was VACUOUS (green by construction,
+# because no deterministic path to `nominate` existed to be wrong). Meanwhile Step 2b removed the
+# false pooled-`non_dependent` veto on surface antigens but did not make surface a POSITIVE decider,
+# so FOLR1/DLL3/MSLN landed at `insufficient_evidence` and the abstention lower-bound clamp floored
+# them there: 0 of 14 surface antigens had ever been adjudicated on surface biology.
+#
+# WHY IT IS A SEPARATE STAGE AND NOT A NEW `action_precedence` RANK. `nominate` is minted HERE, in a
+# stage the caller reaches only in the else-branch of the kill gate — structurally unreachable while
+# ANY veto/hold hit survives. That is the identical reachability argument the existing positive tier
+# already rests on, and it means F1 safety is a property of the CONTROL FLOW rather than of a
+# precedence number. Adding `nominate` to `action_precedence` would instead demote "kills resolve
+# first" to a policy ordering in an editable vocab, and would perturb every fail-closed path
+# (`max()` over an action set that now contains a positive).
+#
+# FOUR FAIL-CLOSED PATHS. Routing must never invent a GO:
+#   1. abstention-only  — `hits` non-empty (incl. any `_fail_closed` clamp) → refuse outright.
+#   2. measured-only    — every conjunct needs a MEASURED value present in `sub_results`; an absent
+#                         card, a null field, or an abstention token is UNSATISFIED, never neutral.
+#   3. registered-only  — no `thesis_deciding_axes` entry for this thesis → today's gate verbatim
+#                         (so `unresolved` and the oncogene_addiction/KRAS golden are untouched).
+#   4. inverted loader  — a missing or malformed vocab yields an EMPTY decider set, never a
+#                         permissive one (mirrors _load_positive_signals / _load_veto_suppressors).
+
+
+def _load_thesis_deciding_axes(contracts_repo: Path | None = None) -> tuple[list[dict], str]:
+    """Load the Step-3 `thesis_deciding_axes` blocks → (blocks, source).
+
+    INVERTED FALLBACK (the suppressor/positive convention, and the one that matters most here):
+    ANY failure — unreadable file, malformed YAML, absent block — returns an EMPTY list, i.e. NO
+    deterministic nomination is possible. For a kill loader "fail closed" means conservative-and-
+    complete; for a loader that can mint a GO it means EMPTY. A broken policy file must never
+    nominate anything."""
+    repo = contracts_repo or _CONTRACTS_REPO
+    path = repo / "vocabularies" / "nomination_verdict_gate.yaml"
+    try:
+        blocks = yaml.safe_load(path.read_text()).get("thesis_deciding_axes", []) or []
+        return [b for b in blocks if isinstance(b, dict) and b.get("thesis")], "vocab"
+    except Exception as e:  # noqa: BLE001 — any failure → EMPTY (no deterministic nomination)
+        print(
+            f"[target-profile] WARN: could not load thesis_deciding_axes "
+            f"({type(e).__name__}: {e}); deterministic nomination DISABLED.",
+            file=sys.stderr,
+        )
+        return [], "fallback"
+
+
+def thesis_nomination(
+    sub_results: dict,
+    thesis: Optional[str],
+    hits: Optional[list[dict]] = None,
+    contracts_repo: Path | None = None,
+) -> tuple[Optional[str], Optional[dict]]:
+    """The deterministic POSITIVE decider. Returns (action | None, record | None).
+
+    Called ONLY on gate abstention (the caller's else-branch), AFTER
+    `abstention_lower_bound_clamp` — so the order of authority is: kill gate > lower-bound clamp >
+    this stage. `action` is `"nominate"` or None; a None action with a non-None record means the
+    thesis WAS registered and the stage RAN but the conjunction was not satisfied — that negative is
+    recorded too, so "the framework declined to nominate, and here is the conjunct that failed" is in
+    the audit spine rather than being an invisible default.
+
+    A block fires only when ALL of the following hold, every one of them on a MEASURED value:
+      * the thesis's DECIDING axis carries one of its `favorable_verdicts`;
+      * every `requires` conjunct (an INDEPENDENT axis) carries a verdict in its `verdict_in`;
+      * every `requires_measured_card_field` conjunct reads a value in its `value_in` — this is the
+        ANTI-BLIND bound: the thesis's own ground-truth deciding sub-question must have been
+        measured, not estimated (all 7 surface reference targets are `blind` on E2 antigen density,
+        so without it the stage would nominate on an unmeasured decider);
+      * no live sub-verdict is an un-reconciled `positive_contradictions` entry (a MEASURED opposing
+        read anywhere blocks the nomination, using the same reconcilers `_positive_tier` uses -- but
+        contradictions ALONE, a strict SUBSET of the union that blocks `strong` there; see GUARD 4).
+    """
+    if hits:  # GUARD 1 — abstention-only. Any surviving veto/hold (or fail-closed clamp) → refuse.
+        return None, None
+    if not thesis:
+        return None, None
+    blocks, src = _load_thesis_deciding_axes(contracts_repo)
+    blk = next((b for b in blocks if b.get("thesis") == thesis), None)
+    if blk is None:  # GUARD 3 — unregistered thesis → today's gate, byte-for-byte.
+        return None, None
+
+    live = {short: _verdict_token(r.get("verdict")) for short, r in sub_results.items() if isinstance(r, dict)}
+    unsatisfied: list[str] = []
+
+    # GUARD 4 — a MEASURED opposing verdict anywhere blocks a nomination outright. Same
+    # `positive_contradictions` load and the same reconcilers `_positive_tier` uses -- but deliberately
+    # NOT the same set the tier blocks `strong` on. `_split_contradictions` subtracts only on the
+    # contradiction side and returns the uncorroborated set WHOLE, so the tier's strong-block is the
+    # UNION (9 keys on vocab-1.21.0) while this conjunct reads contradictions ALONE (7). The 2-key gap
+    # is exactly (dependency, discordant) and (selectivity, discordant_across_comparators), the rows
+    # 1.20.0 relabelled. ON THOSE TWO KEYS THE SURFACES AGREE: `_gate_scorecard._status` tests
+    # `uncorroborated` FIRST and returns `coverage_gap`, so an axis whose verdict says it resolved
+    # NOTHING blocks `strong` without ever being labelled opposing evidence. The 1.20.0 relabel
+    # therefore introduced no decider/scorecard divergence.
+    #
+    # ⚠️ BUT THE GENERAL INVARIANT IS FALSE, and an earlier draft of this comment asserted it: "the
+    # decider can never nominate what the gate scorecard reads as `opposing`" is REFUTED by
+    # `dependency: non_dependent` under `antigen_driven` — the decider NOMINATES while the scorecard
+    # says `opposing`. The cause is not 1.20.0; it is v1.17.0/Step-2b `thesis_axis_relevance`, which
+    # drops the `non_dependent` veto for this thesis by design (the 0/14-surface fix above). The gate
+    # applies that thesis scoping; `_gate_scorecard` CANNOT — it takes `modality` but no `thesis`
+    # (see its signature), so it classifies `non_dependent` via `kill_map` and reads `opposing`. Per
+    # the 0/14 rationale a surface antigen measuring `non_dependent` is the TYPICAL case, not an edge.
+    #   WHICH SURFACE CARRIES IT, measured rather than assumed -- and an earlier draft of this comment
+    #   said "rendered reports", which names the one consumer that provably does NOT read it:
+    #   `report_render/DATA_CONTRACT.md` records `.target_call.gate_scorecard` as "carried, not
+    #   destructured", so the text backend never prints a per-row status. The surfaces that DO read
+    #   `gate_scorecard[].status` are `nomination.json` (emitted at run.py's `_gate_scorecard` call) and
+    #   the projection `build_polarity_surface_projection.py` labels "dashboard polarity". Being EMITTED
+    #   into an artifact and being RENDERED to a human are different reach claims; ask what the
+    #   consumer reads.
+    #   ALREADY PRESENT IN A REAL CORPUS, not merely reachable: the frozen 629-row projection
+    #   (`tests/fixtures/polarity_surface_projection.json`, 37 pairs run 2026-09-08/09) carries
+    #   (`non_dependent`, `opposing`) on 24 of its 37 dependency rows -- the DOMINANT state, not a
+    #   constructed one. Those runs predate step 3, so the decider vetoed them at freeze time; step 3
+    #   is what stops the veto and leaves the scorecard's `opposing` standing beside a nomination.
+    #   THE SAME FIXTURE CROSS-VALIDATES THE PARAGRAPH ABOVE: it shows (`discordant`, `opposing`) 6x
+    #   where this file now measures `coverage_gap`, because it is a PRE-1.20.0 vintage. A fixture
+    #   disagreeing with a live read is usually stale rather than wrong, but only its VINTAGE can say
+    #   which, and here the delta is exactly the relabel this comment describes.
+    # Pinned by `test_decider_and_scorecard_agree_except_where_thesis_scoping_is_invisible_to_the_scorecard`;
+    # threading `thesis` into the scorecard is a display fix and deliberately NOT in this diff.
+    #
+    # MINUS the thesis's declared `irrelevant_contradiction_axes`. This is not a loophole: it can only
+    # stop a CONTRADICTION on a named axis from blocking, never make a kill suppressible (kills resolve
+    # in `_gate_recommendation`, before this stage is reachable). It exists because the unrestricted
+    # form reproduced the very defect this remediation removes — a grounded FOLR1/OV run declined the
+    # nomination of an APPROVED ADC target on `tractability_sm: discordant`, i.e. a SMALL-MOLECULE
+    # chemistry disagreement read as an AND-conjunct of an antibody thesis.
+    _pos_map, contra_set, _cfg, _s = _load_positive_signals(contracts_repo)
+    contra_set = contra_set - _reconciled_contradiction_keys(sub_results, contracts_repo)
+    _irrelevant_axes = {
+        e["sub_skill"]
+        for e in (blk.get("irrelevant_contradiction_axes") or [])
+        if isinstance(e, dict) and e.get("sub_skill")
+    }
+    contra_set = {(s, v) for (s, v) in contra_set if s not in _irrelevant_axes}
+    opposing = sorted(f"{k}:{v}" for k, v in live.items() if v and (k, v) in contra_set)
+    if opposing:
+        unsatisfied.append(f"opposing_measured_verdict({','.join(opposing)})")
+
+    # The deciding axis itself.
+    dec = blk.get("deciding") or {}
+    dec_short, favorable = dec.get("sub_skill"), set(dec.get("favorable_verdicts") or [])
+    dec_verdict = live.get(dec_short)
+    if not favorable or dec_verdict not in favorable:
+        unsatisfied.append(f"deciding({dec_short}={dec_verdict})")
+
+    # Corroboration on independent axes.
+    corroborating: list[dict] = []
+    for req in blk.get("requires") or []:
+        short, allowed = req.get("sub_skill"), set(req.get("verdict_in") or [])
+        got = live.get(short)
+        if not allowed or got not in allowed:
+            unsatisfied.append(f"requires({short}={got})")
+        else:
+            corroborating.append({"short": short, "verdict": got})
+
+    # The anti-blind MEASURED-card-field conjuncts.
+    measured: list[dict] = []
+    for m in blk.get("requires_measured_card_field") or []:
+        cid, field = m.get("card_id"), m.get("field")
+        got = _card_field_value(sub_results, cid, field)
+        allowed = m.get("value_in") or []
+        if got is None or got not in allowed:
+            unsatisfied.append(f"unmeasured({cid}.{field}={got})")
+        else:
+            measured.append({"card_id": cid, "field": field, "value": got})
+    if not (blk.get("requires") and blk.get("requires_measured_card_field")):
+        # A block with no corroboration or no measured conjunct would make the decider SUFFICIENT on
+        # its own. The contracts tests forbid authoring one; refuse here too rather than trust them.
+        unsatisfied.append("malformed_block(missing requires / requires_measured_card_field)")
+
+    record = {
+        "stage": "thesis_decider",
+        "thesis": thesis,
+        "policy_source": src,
+        "deciding": {"short": dec_short, "verdict": dec_verdict},
+        "corroborating": corroborating,
+        "measured_conjuncts": measured,
+    }
+    if unsatisfied:
+        return None, {**record, "applied": False, "unsatisfied": unsatisfied}
+    return "nominate", {
+        **record,
+        "applied": True,
+        "action": "nominate",
+        "reason": (
+            f"thesis '{thesis}' deciding axis {dec_short}={dec_verdict} is favorable and MEASURED, "
+            f"corroborated on {len(corroborating)} independent axis/axes with "
+            f"{len(measured)} measured card conjunct(s), on gate abstention (no veto/hold fired)"
+        ),
+        "rationale": (blk.get("rationale") or "").strip() or None,
+    }
 
 
 def _hard_gates_status(
@@ -1251,6 +1479,164 @@ def _positive_tier_nominates(
     return bool(cfg.get("forces_nominate_at_tier")) and cfg["forces_nominate_at_tier"] == tier
 
 
+# --- Reconciling the TWO deterministic nominate paths -----------------------
+#
+# A1 was fixed twice, independently, by two different mechanisms that both live in run.py's
+# abstention else-branch:
+#
+#   * the POSITIVE TIER (vocab 1.18.0, `positive_tier_config.forces_nominate_at_tier: strong`) —
+#     thesis-AGNOSTIC evidence QUANTITY: >= min_dimensions independent dims, one of them `dominant`,
+#     no unreconciled measured contradiction.
+#   * the THESIS DECIDER (vocab 1.21.0, `thesis_deciding_axes`) — thesis-SPECIFIC necessity
+#     CONJUNCTION on one named deciding axis, plus an anti-blind measuredness conjunct.
+#     (Authored against vocab 1.19.0; RENUMBERED to 1.21.0 on reland, because 1.19.0 and
+#     1.20.0 both landed on contracts main while this branch sat unmerged — 1.19.0 now names
+#     the +3 tractability middle-ladder positives, an unrelated feature. Cite 1.21.0.)
+#
+# They are COMPLEMENTARY, not redundant: their firing sets are disjoint and neither can reach the
+# other's targets (the favorable surface verdicts sit in `positive_signals_modality_scoped`, so the
+# tier can never nominate an antigen in default biology-first mode; and `oncogene_addiction` has no
+# `thesis_deciding_axes` entry, so the decider can never nominate EGFR/ERBB2).
+#
+# Landing them as two independent writers produced three real defects, which is why the decision is
+# hoisted into ONE pure function here instead of living inline at two call sites:
+#
+#   1. WRITE COLLISION — both wrote `recommendation_gate["forced_recommendation"]`; whichever ran
+#      last silently relabelled the attribution.
+#   2. `fired` — one path set `recommendation_gate["fired"] = True`. That is WRONG and this function
+#      never does it: consumers read `fired` as "a RESTRAINT gate fired". tp_facets silences the
+#      DISSENT record when an evidence-band block co-occurs with `fired` (suppressing the
+#      disagreement most worth surfacing), and cross-evidence-hypothesis maps fired+no-suppression
+#      to `declined`, INVERTING a nomination into a kill.
+#   3. INTERLOCK DIVERGENCE — they answered "may we nominate over an LLM-authored negative?"
+#      differently, which would make the framework's most consequential output depend on which path
+#      happened to fire.
+_NOMINATE_PATH_PRECEDENCE = ("thesis_decider", "positive_tier")
+
+
+def reconcile_positive_nomination(
+    *,
+    thesis_action: Optional[str],
+    thesis_record: Optional[dict],
+    tier: Optional[str],
+    tier_nominates: bool,
+    pos_hits: list,
+    clamped: bool,
+    llm_value: Optional[str],
+    allow_over_llm_authored_negative: bool = True,
+) -> tuple[Optional[str], dict]:
+    """The SINGLE decision point + SINGLE writer for both deterministic `nominate` paths.
+
+    Returns `(value, patch)`: `value` is the recommendation to force (None = force nothing), and
+    `patch` holds the `recommendation_gate` keys to merge. Pure — it mutates nothing, so the policy
+    is testable without running a profile.
+
+    PRECEDENCE (`_NOMINATE_PATH_PRECEDENCE`): the thesis decider wins the attribution. Both mint the
+    identical VALUE, so precedence is purely about what the audit spine says decided it — and the
+    decider is the strictly more specific claim (a named axis + a necessity conjunction + a
+    measuredness conjunct, versus a thesis-agnostic count of dimensions). Agreement between the two
+    is recorded as `also_reached_by` corroboration rather than overwriting.
+
+    THE INTERLOCK, asked ONCE for both paths (`allow_over_llm_authored_negative`), so they can never
+    diverge again: may a fired deterministic conjunction nominate over an LLM-authored negative?
+
+    ANSWER = YES (default True). The #1291 abstention lower-bound clamp exists precisely to floor an
+    LLM negative that has NO RULE behind it; a fired conjunction is exactly the auditable rule it was
+    waiting for, so deferring to the LLM here would invert the whole point of the clamp. MEASURED, not
+    assumed: on the grounded full-LLM FOLR1/OV run (APPROVED — mirvetuximab) the LLM authored `hold`,
+    the clamp demoted it to insufficient_evidence, and the thesis conjunction was fully satisfied. The
+    withhold reading would therefore have suppressed the nomination of an approved drug on the strength
+    of a rule-less LLM opinion — the exact failure mode #1291 was built to stop.
+
+    THE COST, recorded not hidden: the published report then carries a positive VALUE beside prose
+    arguing the negative. That disagreement is the most decision-relevant thing on the page, so it is
+    emitted explicitly as `nominated_over_llm_negative` rather than left for a reader to notice. Note
+    `fired` is never set (see defect 2), which is also what keeps tp_facets' DISSENT record alive on
+    exactly these runs.
+
+    Setting the flag False restores the withhold reading for BOTH paths in one place.
+
+    FAIL-CLOSED shape: nothing here can mint a GO on its own. It only forwards a decision a caller
+    already made (`thesis_action` from the vocab-driven conjunction, `tier_nominates` from the
+    vocab-driven threshold), and every unrecognized combination returns `(None, {})`.
+    """
+    fired: dict[str, dict] = {}
+    if thesis_action and thesis_record is not None:
+        fired["thesis_decider"] = {
+            "value": thesis_action,
+            "detail": (
+                f"thesis '{thesis_record.get('thesis')}' decided on "
+                f"{(thesis_record.get('deciding') or {}).get('short')}="
+                f"{(thesis_record.get('deciding') or {}).get('verdict')}"
+            ),
+            "hits": list(thesis_record.get("corroborating") or []),
+        }
+    if tier_nominates and tier:
+        fired["positive_tier"] = {
+            "value": "nominate",
+            "detail": f"positive tier reached `{tier}` on {sorted({h['short'] for h in pos_hits})}",
+            "hits": [{**h, "action": "nominate", "policy_source": "positive_tier"} for h in pos_hits],
+        }
+    if not fired:
+        return None, {}
+
+    order = [p for p in _NOMINATE_PATH_PRECEDENCE if p in fired]
+    winner = order[0]
+
+    if clamped and not allow_over_llm_authored_negative:
+        return None, {
+            "nominate_withheld": {
+                "tier": tier,
+                "path": winner,
+                "also_reached_by": order[1:],
+                "reason": "llm_authored_negative",
+                "llm_recommendation": llm_value,
+                "detail": (
+                    "a deterministic positive path reached its nominating bar, but the LLM authored a "
+                    "rule-less negative (clamped by the abstention lower bound) — refusing to publish "
+                    "a positive call beside a narrative arguing against it. " + fired[winner]["detail"]
+                ),
+            }
+        }
+
+    value = fired[winner]["value"]
+    # `fired` is deliberately ABSENT from this patch — see defect 2 in the block comment above.
+    patch = {
+        "forced_recommendation": value,
+        "forced_by": winner,
+        "positive_gate_fired": True,
+        "llm_recommendation": llm_value,
+        "overridden": llm_value != value,
+        "triggered_by": fired[winner]["hits"],
+    }
+    if clamped:
+        # The interlock allowed this, but the published call now DISAGREES with the narrative beside
+        # it. Emit the disagreement as a first-class record: a reader must not have to infer it by
+        # noticing that the prose argues the opposite of the recommendation.
+        patch["nominated_over_llm_negative"] = {
+            "path": winner,
+            "llm_recommendation": llm_value,
+            "forced": value,
+            "detail": (
+                f"the LLM authored `{llm_value}`, which the abstention lower-bound clamp demoted to "
+                f"insufficient_evidence for having no rule behind it; {fired[winner]['detail']}, which "
+                f"IS a rule, so the deterministic path forced `{value}`. The narrative still argues the "
+                f"negative — read it as the standing dissent against this call, not as agreement."
+            ),
+        }
+    if order[1:]:
+        patch["also_reached_by"] = {
+            "paths": order[1:],
+            "tier": tier,
+            "detail": (
+                f"{winner} forced this `{value}`; "
+                + "; ".join(fired[p]["detail"] for p in order[1:])
+                + ". Recorded as corroboration — the more specific path keeps the attribution."
+            ),
+        }
+    return value, patch
+
+
 # --- Gate scorecard (deterministic; category × status × finding) ------------
 #
 # The top-of-report glanceable grid: one row per QUESTION-GATE (A Present … H Translational),
@@ -1309,10 +1695,16 @@ def _gate_scorecard(
             return "opposing"
         if (short, verdict) in positive_map:
             return "supportive"
-        # A measured verdict that is neither a gate kill nor a curated positive/contradiction
-        # (e.g. a neutral 'broadly_dependent') — report it as measured-but-neutral, still on-scale,
-        # NOT a coverage gap (we DID look). Treated as supportive-family for chip purposes only if
-        # it's a positive; otherwise 'neutral'.
+        # A measured verdict that is neither a gate kill nor a curated positive/contradiction —
+        # report it as measured-but-neutral, still on-scale, NOT a coverage gap (we DID look).
+        # Treated as supportive-family for chip purposes only if it's a positive; otherwise 'neutral'.
+        # MEASURED POPULATION (vocab 1.21.0, no modality): exactly the 7 `excluded_modality_scoped`
+        # rows — 6 `surface_modality` verdicts (`neither_viable`, `adc_preferred_tce_unsafe`,
+        # `tce_unsafe_normal_liability`, `adc_preferred_tce_escape_risk`, `tce_escape_risk`,
+        # `shed_dominant_opposed`) plus `tractability_sm: structurally_intractable`. This replaces an
+        # example that was simply wrong: `broadly_dependent` is a `positive_contradictions` entry and
+        # measures `opposing`, never `neutral`. A named population beats an example, because an
+        # example cannot be re-checked against the vocabulary and a population can.
         return "neutral"
 
     rows = []
@@ -1372,6 +1764,10 @@ __all__ = [
     "derive_thesis",
     "_load_target_thesis",
     "_load_thesis_axis_relevance",
+    "_load_thesis_deciding_axes",
+    "thesis_nomination",
+    "reconcile_positive_nomination",
+    "_card_field_value",
     "_flatten_gate_coverage",
     "_gate_recommendation",
     "_gate_scorecard",

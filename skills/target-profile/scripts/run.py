@@ -106,6 +106,8 @@ from tp_gates import (  # names main() calls directly
     _positive_tier_nominates,
     abstention_lower_bound_clamp,
     derive_thesis,
+    reconcile_positive_nomination,
+    thesis_nomination,
 )
 from tp_manifest import *  # noqa: F401,F403
 from tp_manifest import write_full_package, write_subskill_package
@@ -1038,6 +1040,9 @@ def main() -> int:
         sub_results, modality=args.modality, biology_axis=axis_info.get("biology_axis"), thesis=thesis.get("thesis")
     )
     recommendation_gate = {"fired": bool(gate_action), "suppressed_vetoes": gate_suppressions}
+    # Step 3: set only in the abstention branch below (the thesis decider is unreachable when a kill
+    # fired). Initialized here so the deciding-axis router can read it unconditionally.
+    thesis_record: dict | None = None
     if gate_suppressions:
         print(
             f"[target-profile] recommendation gate SUPPRESSED "
@@ -1108,6 +1113,25 @@ def main() -> int:
                 f"'{clamped_to}' (gate abstained — no veto/hold rule fired)",
                 file=sys.stderr,
             )
+        # (a2) THESIS DECIDER (Step 3) — evaluate the thesis's necessity conjunction. This only
+        #     COMPUTES and RECORDS; the single writer at (c) decides what, if anything, is forced.
+        #     F1-SAFE BY CONTROL FLOW, not by policy: this is the else-branch of the kill gate, so it
+        #     is unreachable while any veto/hold (or fail-closed clamp) survives — the same argument
+        #     the positive tier rests on. `thesis_nomination` re-asserts that guard on its own `hits`
+        #     argument anyway. It is satisfiable only by a FAVORABLE MEASURED verdict on the thesis's
+        #     deciding axis, corroborated on independent axes AND by a measured value of the thesis's
+        #     ground-truth deciding-axis card field — so routing alone can never invent a GO. An
+        #     unregistered thesis (incl. `unresolved` and oncogene_addiction) is a no-op.
+        thesis_action, thesis_record = thesis_nomination(sub_results, thesis.get("thesis"), gate_hits)
+        if thesis_record is not None:
+            recommendation_gate["thesis_decider"] = thesis_record
+        if thesis_record is not None and not thesis_action:
+            print(
+                f"[target-profile] thesis decider DECLINED for thesis "
+                f"'{thesis_record['thesis']}': unsatisfied {thesis_record['unsatisfied']}",
+                file=sys.stderr,
+            )
+
         # (b) the positive tier (computed above, before the branch) raises a deterministic confidence
         #     FLOOR and, at the tier the vocab names, FORCES `nominate` (see (c)). F1-safe: this branch
         #     is unreachable when a kill fired. The tier/hits are already on confidence_tier; only the
@@ -1131,66 +1155,58 @@ def main() -> int:
                 f"confidence floor {floor}",
                 file=sys.stderr,
             )
-        # (c) POSITIVE NOMINATION (A1, 2026-09-11). At the tier the vocab names
-        #     (positive_tier_config.forces_nominate_at_tier = `strong`), the positive path FORCES
-        #     `nominate` — the mirror of what a kill gate does, and the half of the gate that was
-        #     missing. Until now this gate could only veto/hold, so every nomination was LLM-authored
-        #     with no rule to attribute it to (measured on the known panel: 10 hold / 2 veto / 17
-        #     abstain / 0 nominate — ERBB2/BRCA hit `strong` on 3 hits, ALL 3 `dominant`, and still
-        #     resolved to None). `strong` is the right bar because it already means: >= min_dimensions
-        #     INDEPENDENT lines, a `dominant` hit, and no unreconciled MEASURED contradiction.
+        # (c) POSITIVE NOMINATION — the SINGLE writer for both deterministic nominate paths (the
+        #     positive tier from A1/vocab 1.18.0 and the thesis decider from Step 3/vocab 1.21.0).
+        #     All policy — precedence, the LLM-authored-negative interlock, and the refusal to touch
+        #     `recommendation_gate["fired"]` — lives in `reconcile_positive_nomination`, which is pure
+        #     and unit-tested. Landing the two paths as independent writers produced a write collision,
+        #     an attribution relabel, and a `fired` value that INVERTS a nomination into a kill in two
+        #     downstream consumers; one writer is what prevents all three.
         #
         #     Structurally F1-safe for the same reason the floor above is: unreachable when a kill
         #     fired, so a nomination can never mask or outrank a veto/hold. Fail-closed on the vocab
-        #     (missing key => no nomination; a broken vocab cannot mint a GO).
-        #
-        #     ONE INTERLOCK — we do NOT nominate over an LLM-authored negative. If clamp (a) fired, the
-        #     narrative argues veto/hold while having no rule behind it; the clamp already demoted the
-        #     VALUE to insufficient_evidence, but the prose is still printed beside the call. Forcing
-        #     `nominate` on top of it would publish a positive call next to a narrative arguing against
-        #     it — worse than abstaining. Record the withholding instead of doing it silently.
-        if _positive_tier_nominates(tier, modality=args.modality):
-            if clamped_to is not None:
-                recommendation_gate["nominate_withheld"] = {
-                    "tier": tier,
-                    "reason": "llm_authored_negative",
-                    "llm_recommendation": llm_value,
-                    "detail": (
-                        "positive tier reached the nominating tier, but the LLM authored a "
-                        "rule-less negative (clamped by the abstention lower bound) — refusing to "
-                        "publish a positive call beside a narrative arguing against it"
-                    ),
-                }
-                print(
-                    f"[target-profile] positive tier {tier} reached the nominating tier but "
-                    f"nominate WITHHELD: LLM authored a rule-less negative ('{llm_value}')",
-                    file=sys.stderr,
-                )
+        #     (a missing/broken key yields no nomination; a broken vocab cannot mint a GO).
+        prior_value = rec.get("value") if isinstance(rec, dict) else rec
+        forced_positive, positive_patch = reconcile_positive_nomination(
+            thesis_action=thesis_action,
+            thesis_record=thesis_record,
+            tier=tier,
+            tier_nominates=_positive_tier_nominates(tier, modality=args.modality),
+            pos_hits=pos_hits,
+            clamped=clamped_to is not None,
+            llm_value=llm_value,
+        )
+        recommendation_gate.update(positive_patch)
+        if forced_positive:
+            if isinstance(rec, dict):
+                rec["value"] = forced_positive
+                rec["_gated"] = True  # rule-forced, not LLM-chosen
+                if positive_patch.get("forced_by") == "thesis_decider":
+                    rec["_thesis_decided"] = True
             else:
-                recommendation_gate["forced_recommendation"] = "nominate"
-                # `forced_by` disambiguates the two ways this key can now be written. `fired` is left
-                # alone ON PURPOSE: consumers read it as "a RESTRAINT gate fired" (e.g.
-                # cross-evidence-hypothesis maps fired+no-suppression to `declined`), so setting it
-                # here would invert a nomination into a kill. `positive_gate_fired` is the additive
-                # positive-side signal.
-                recommendation_gate["forced_by"] = "positive_tier"
-                recommendation_gate["positive_gate_fired"] = True
-                recommendation_gate["llm_recommendation"] = llm_value
-                recommendation_gate["overridden"] = llm_value != "nominate"
-                recommendation_gate["triggered_by"] = [
-                    {**h, "action": "nominate", "policy_source": "positive_tier"} for h in pos_hits
-                ]
-                if isinstance(rec, dict):
-                    rec["value"] = "nominate"
-                    rec["_gated"] = True  # rule-forced, not LLM-chosen
-                else:
-                    llm_output["overall_recommendation"] = {"value": "nominate", "_source": "positive_tier"}
+                llm_output["overall_recommendation"] = {
+                    "value": forced_positive,
+                    "_source": positive_patch.get("forced_by"),
+                }
+            print(
+                f"[target-profile] POSITIVE gate FIRED [{positive_patch.get('forced_by')}]: "
+                f"'{prior_value}' → '{forced_positive}' (LLM said '{llm_value}') via "
+                f"{[h['short'] + ':' + h['verdict'] for h in positive_patch.get('triggered_by') or []]}",
+                file=sys.stderr,
+            )
+            if positive_patch.get("also_reached_by"):
                 print(
-                    f"[target-profile] positive gate FIRED: forced 'nominate' at tier {tier} "
-                    f"(LLM said '{llm_value}') via "
-                    f"{[h['short'] + ':' + h['verdict'] for h in pos_hits]}",
+                    f"[target-profile] both nominate paths agree: "
+                    f"{positive_patch['also_reached_by']['paths']} also reached it "
+                    f"(attribution stays {positive_patch.get('forced_by')})",
                     file=sys.stderr,
                 )
+        elif positive_patch.get("nominate_withheld"):
+            w = positive_patch["nominate_withheld"]
+            print(
+                f"[target-profile] nominate WITHHELD [{w['path']}]: LLM authored a rule-less negative ('{llm_value}')",
+                file=sys.stderr,
+            )
 
     # Gate-complete ceiling: attach the COMPLETE declared hard-gate set with per-gate
     # fired/suppressed/excluded/blind status. Additive — reads the resolved gate state, forces
@@ -1206,6 +1222,7 @@ def main() -> int:
         gate_action,
         gate_hits,
         positive_hits=confidence_tier.get("hits", []) or [],
+        thesis_record=thesis_record,
     )
     print(
         f"[target-profile] deciding axis [{deciding_axis['basis']}]: {deciding_axis.get('routing', '')}",

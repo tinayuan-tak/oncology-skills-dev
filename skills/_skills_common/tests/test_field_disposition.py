@@ -437,6 +437,38 @@ def test_census_reaches_some_fields_but_not_all():
 # actually reads) and contracts @ main 39f04a9 (post-TC#774, the local checkout) BOTH measure 889 → 887
 # on domain 1801. TC#774 was aperture-neutral, so unlike the 889 move this bank is skills-only.
 #
+# ── RE-MEASURED 2026-09-15, when the CI pin moved fa372c84 → c88c6e04 (TC#777 step 3 + TC#779) ─────
+# 885 orphans on domain 1801 (reached_exact 744, reached_any 916): gap 2. BOTH halves stay green
+# (885 ≤ 887; 887 − 885 = 2 ≤ APERTURE_SLACK 20), SO THE CEILING DOES NOT MOVE — this note records a
+# new VINTAGE, not a new number. Trunk had already improved 887 → 885 under this ceiling before the
+# pin moved, which is why the gap is 2 rather than 0.
+#   ⚠️ A NUMBER THAT DID NOT MOVE STILL HAS A NEW VINTAGE. Leaving "measured at fa372c84" here while
+#   the workflow reads c88c6e04 is the same fail-open #1388 closed on the bump-sibling-pins side: the
+#   `ref:` advances, the vintage comment keeps its stale date, and nothing reds. An unchanged number
+#   is the easiest case to forget, because there is no diff to prompt the edit.
+# ATTRIBUTED AS A 2x2, not a before/after pair — the pin move contributes 0 AND the step-3 skills diff
+# contributes 0, and a single pair cannot separate those. ROWS vary the skills tree and COLUMNS vary
+# the contracts tree, so the pin move is read ACROSS a row and the step-3 diff DOWN a column:
+#                              contracts fa372c84    contracts 6d6a14b
+#     skills trunk 8117c56a           885                  885
+#     skills branch (step 3)          885                  885
+# Then re-measured against the sha the workflow ACTUALLY pins — c88c6e04, which is 6d6a14b plus
+# TC#779's retraction — on the committed branch: 885, its fa372c84 pair also 885. Those two cells are a
+# SEPARATE run on a different skills tree, not two columns of the grid above, and they were run rather
+# than inherited: the two contracts shas differ only by a changelog retraction, but "differs only by a
+# comment" is an argument about the census's inputs and 885 is a measurement of its output.
+# NOT census-inert by path, so it had to be measured rather than argued: the pinned range contains
+# TC#774, which edits cards/genomic-instability-state.card.yaml — a census input.
+# ★ POSITIVE CONTROL, because four equal numbers are ALSO what a collapsed comparison looks like:
+# contracts a716f923 (pre-TC#772) measures 906 on the same skills tree, Δ21 — reproducing exactly the
+# 21 pairs TC#772 was banked as wiring, on a DIFFERENT skills base than that bank was taken on. So the
+# census demonstrably responds to the contracts axis, and 885 == 885 is a result, not a tautology.
+# ★ AND THE FIRST RUN OF THIS 2x2 WAS VACUOUS: the cells were labelled with `git rev-parse HEAD`, but
+# the step-3 diff was uncommitted at the time, so the branch cell's HEAD *was* trunk's sha and all four
+# cells self-reported identically. A label that cannot distinguish the trees being compared turns an
+# attribution into four copies of one measurement. The cells are now keyed on HEAD + a digest of
+# `git diff HEAD`, and the script asserts no two cells share an identity.
+#
 # WHAT THIS NUMBER STILL OVER-COUNTS, MEASURED. `capsule_readers` credits only contract-declared
 # `capsule.numeric_anchors`/`categorical_fields`, so the four HINT SCANS in evidence_capsule.py
 # (`_numeric_anchors` fallback sorted+cap-4, `_n_basis` cap-3, `_sibling_caveats`, `_provenance_keys`

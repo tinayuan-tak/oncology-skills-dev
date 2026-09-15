@@ -11,6 +11,8 @@ veto — KRAS hits those yet is a correct `nominate` via small molecule.
 
 from __future__ import annotations
 
+import json
+import os
 from pathlib import Path
 
 import pytest
@@ -652,17 +654,32 @@ def test_f1_forced_nominate_unreachable_when_a_kill_fired():
     assert not nominated, "a vetoed target was nominated by the positive tier"
 
 
-def test_nominate_withheld_when_the_llm_authored_a_rule_less_negative():
-    """THE INTERLOCK: on abstention an LLM-authored veto/hold has no rule behind it, so the
-    lower-bound clamp demotes the VALUE to insufficient_evidence — but the narrative still argues
-    against the target. Forcing `nominate` on top of that would publish a positive call beside prose
-    arguing the opposite. Mirrors main()'s abstention branch: clamp fired ⇒ withhold."""
-    clamped_to, _rec = tp.abstention_lower_bound_clamp("veto")
+def test_the_llm_authored_negative_interlock_is_wired_to_the_real_decision():
+    """THE INTERLOCK, tested against the code that implements it.
+
+    This test was previously VACUOUS: it computed `withheld = clamped_to is not None` and then
+    asserted that local variable, so it passed identically under EITHER policy and could never fail.
+    It re-derived main()'s branch instead of calling it — which is why the two nominate paths could
+    diverge on this exact question without a single test going red. Now it calls the one decision
+    point, so the assertion is falsifiable.
+
+    Policy as settled 2026-09-11: a fired deterministic conjunction DOES nominate over a rule-less
+    LLM negative (the clamp exists to floor exactly such a negative; a fired conjunction is the rule
+    it was waiting for), and the resulting value/narrative disagreement is recorded explicitly."""
+    clamped_to, _clamp_rec = tp.abstention_lower_bound_clamp("veto")
     assert clamped_to == "insufficient_evidence", "clamp precondition (a) must fire on an LLM veto"
-    # ...and with the clamp fired, the nomination is withheld even at the nominating tier.
-    withheld = clamped_to is not None
-    assert withheld, "an LLM-authored negative must block the forced nominate"
-    # Control: a non-negative LLM value does NOT clamp, so the nomination is free to fire.
+    value, patch = tp.reconcile_positive_nomination(
+        thesis_action=None,
+        thesis_record=None,
+        tier="strong",
+        tier_nominates=True,
+        pos_hits=[{"short": "dependency", "verdict": "selectively_dependent", "weight": "dominant"}],
+        clamped=clamped_to is not None,
+        llm_value="veto",
+    )
+    assert value == "nominate", "a rule-bearing conjunction must outrank a rule-less LLM negative"
+    assert patch["nominated_over_llm_negative"]["llm_recommendation"] == "veto"
+    # Control: a non-negative LLM value does NOT clamp, and then there is no disagreement to record.
     assert tp.abstention_lower_bound_clamp("nominate")[0] is None
 
 
@@ -1236,3 +1253,622 @@ def test_tme_io_and_partner_conditional_and_neomorphic_drop_nondependent():
     for th in ("tme_io", "neomorphic_gof", "partner_conditional_sl"):
         subs = _sub("dependency", "non_dependent", "non-dependent-killer")
         assert tp._gate_recommendation(subs, thesis=th)[0] is None, f"{th}: non_dependent should be irrelevant"
+
+
+# ---------------------------------------------------------------------------
+# Thesis DECIDING axis (Step 3, vocab 1.21.0) — the framework's FIRST deterministic `nominate`.
+#
+# Verified HERMETICALLY on purpose. The eval scorecard panel reads COMMITTED packages (dated
+# 2026-09-02), so it cannot show a verdict MOVE made today; a verdict-move claim has to be proven
+# against the live policy + the live sub-verdict shapes, which is what these do. Each target's
+# sub-verdicts + density card values below are the MEASURED values from a fresh Step-2 re-emit, not
+# invented fixtures — so a test that says "FOLR1 nominates" is a claim about the real signal set.
+# ---------------------------------------------------------------------------
+_CONTRACTS_ENV = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
+_HAS_DECIDERS = bool(tp._load_thesis_deciding_axes(_CONTRACTS_ENV)[0])
+_decider_skip = pytest.mark.skipif(
+    not _HAS_DECIDERS, reason="contracts thesis_deciding_axes absent (land Step-3 contracts first)"
+)
+
+
+def _density(value):
+    """A surface-abundance-density card carrying a `density_floor_verdict`, hung off the selectivity
+    sub-result (where the tumor-selectivity skill actually composes it)."""
+    return {"cards": [{"card_id": "surface-abundance-density", "summary": {"density_floor_verdict": value}}]}
+
+
+def _antigen(
+    surface="adc_preferred_tce_unsafe",
+    selectivity="selective_with_normal_liability",
+    expression="tumor_broadly_expressed",
+    density="above_adc_high_payload_floor",
+    extra=None,
+):
+    subs = _merge(
+        _sub("surface_modality", surface),
+        _sub("selectivity", selectivity),
+        _sub("expression", expression),
+        extra or {},
+    )
+    if density is not None:
+        subs["selectivity"].update(_density(density))
+    return subs
+
+
+def _nominate(subs, thesis="antigen_driven"):
+    """Run the gate then the decider exactly as run.py's abstention branch does."""
+    action, hits, _sup = tp._gate_recommendation(subs, thesis=thesis)
+    if action:  # a kill fired → the decider is unreachable
+        return action, None
+    dec_action, rec = tp.thesis_nomination(subs, thesis, hits, contracts_repo=_CONTRACTS_ENV)
+    return dec_action, rec
+
+
+@_decider_skip
+def test_folr1_dll3_msln_reach_nominate():
+    """THE HEADLINE: the framework's first non-zero nominate count. All three are APPROVED-drug surface
+    antigens (mirvetuximab / tarlatamab / the MSLN class) that previously landed at
+    insufficient_evidence — the gate abstained (Step 2b dropped the false non_dependent veto) and the
+    lower-bound clamp floored them, because nothing made surface a POSITIVE decider."""
+    folr1 = _antigen(density="above_adc_high_payload_floor")
+    msln = _antigen(density="above_adc_high_payload_floor")  # 50k copies/cell, grade B
+    # DLL3 is the load-bearing case: 608 copies/cell = BELOW the soluble-TCE floor, yet tarlatamab is
+    # APPROVED. The conjunct is MEASUREDNESS, not a floor value — the card itself documents
+    # below_tce_floor as "a MODALITY caveat, NOT a target killer (CD19 = 110/cell...)", so gating on
+    # the value would have the framework overrule an approved drug.
+    dll3 = _antigen(density="below_tce_floor")
+    for name, subs in (("FOLR1", folr1), ("MSLN", msln), ("DLL3", dll3)):
+        action, rec = _nominate(subs)
+        assert action == "nominate", f"{name} must reach nominate, got {action} ({rec})"
+        assert rec["applied"] is True
+        assert rec["deciding"]["short"] == "surface_modality"
+        assert {c["short"] for c in rec["corroborating"]} == {"selectivity", "expression"}
+        assert rec["measured_conjuncts"][0]["field"] == "density_floor_verdict"
+
+
+@_decider_skip
+def test_unmeasured_density_blocks_nominate_the_anti_blind_bound():
+    """MUC13/CRC — favorable surface AND a surviving selectivity window, but density grade E
+    (`unmeasured`). It must stay insufficient: the thesis's own ground-truth deciding sub-question was
+    never measured, so nominating would be a GO invented by routing. This is the conjunct that keeps
+    the panel's `framework_abstains_correctly` cases correct once the gate can mint a positive."""
+    action, rec = _nominate(_antigen(density="unmeasured"))
+    assert action is None
+    assert any(u.startswith("unmeasured(surface-abundance-density.density_floor_verdict") for u in rec["unsatisfied"])
+
+
+@_decider_skip
+def test_absent_density_card_blocks_nominate():
+    """Stronger form of the same bound: the card did not compose AT ALL. Absence of measurement is
+    never evidence — a missing card must be UNSATISFIED, never neutral-and-therefore-passed."""
+    action, rec = _nominate(_antigen(density=None))
+    assert action is None
+    assert any("unmeasured(" in u for u in rec["unsatisfied"])
+
+
+@_decider_skip
+def test_no_selectivity_window_blocks_nominate():
+    """TACSTD2/BRCA (not_informative) and NECTIN4/BLCA (selective_but_broadly_normal): an antigen with
+    no measured tumor-vs-normal window is not a nomination at any density. NECTIN4 is doubly blocked —
+    selective_but_broadly_normal is also a positive_contradiction (a MEASURED opposing read)."""
+    a, rec_a = _nominate(_antigen(selectivity="not_informative"))
+    assert a is None and any(u.startswith("requires(selectivity=") for u in rec_a["unsatisfied"])
+    b, rec_b = _nominate(_antigen(selectivity="selective_but_broadly_normal"))
+    assert b is None
+    # NOTE it is the `requires` conjunct that blocks it, NOT the opposing-verdict check: a favorable
+    # surface verdict RECONCILES the selectivity contradiction (pre-existing contradiction_reconcilers
+    # — the bulk-RNA no-window read is measured on the wrong basis for an antigen). Two independent
+    # bounds is the point; asserting the reconciled one would encode a false mechanism.
+    assert any(u.startswith("requires(selectivity=") for u in rec_b["unsatisfied"])
+
+
+@_decider_skip
+def test_a_measured_contradiction_on_any_other_axis_blocks_nominate():
+    """The opposing-verdict bound, exercised on axes a favorable surface verdict does NOT reconcile.
+    Same `positive_contradictions` load and same reconcilers `_positive_tier` uses — not the same set,
+    since the tier blocks `strong` on the union with `positive_uncorroborated` and the decider on
+    contradictions alone. Both verdicts below are LISTED contradictions, so for THESE the decider
+    blocks and the scorecard reads `opposing` — the two surfaces agree. Scoped deliberately: the
+    general claim ("the decider can never nominate what the scorecard reads as `opposing`") is FALSE,
+    refuted by `dependency: non_dependent`; see
+    `test_decider_and_scorecard_agree_except_where_thesis_scoping_is_invisible_to_the_scorecard`."""
+    for short, verdict in (("cis_coherence", "expressed_cis_coupled_inert"), ("dependency", "broadly_dependent")):
+        action, rec = _nominate(_antigen(extra=_sub(short, verdict)))
+        assert action is None, f"{short}:{verdict} is a MEASURED opposing read — must block"
+        assert any(f"opposing_measured_verdict({short}:{verdict})" in u for u in rec["unsatisfied"])
+
+
+@_decider_skip
+def test_v1200_uncorroborated_relabelling_moved_exactly_one_key_on_this_thesis():
+    """PINS the vocab-1.20.0 interaction the 1.21.0 reland note records as CORRECT-BY-INTENT.
+
+    GUARD 4 reads `positive_contradictions` ALONE (`_load_positive_signals`) and never unions in
+    `positive_uncorroborated` — while tp_gates.py's own splitter warns in-source that "Callers that
+    need the strong-block must use the union, never `contra` alone." This block is such a caller. So
+    when v1.20.0 moved (dependency, discordant) and (selectivity, discordant_across_comparators) OUT
+    of `positive_contradictions`, the set that blocks a nomination shrank by exactly those two keys.
+
+    Measured PER THESIS, because set membership is not yet a behaviour:
+      * (selectivity, discordant_across_comparators) is INERT — but the complete reason is three
+        branches, not the one first recorded here ("`verdict_in` excludes it"). The selectivity
+        resolver's `post_resolver_clamp` can rewrite this verdict before the gate ever sees it, so
+        the reachable branches are: (i) the evidence-gated UPGRADE fires and the gate sees
+        `field_effect_tumor_selective`; (ii) a downgrade veto fires and it sees
+        `selective_with_normal_liability`; (iii) no clamp fires and the `requires` conjunct's
+        `verdict_in` refuses it. In every branch the key is either clamped away or excluded, so the
+        conclusion holds — but only branch (iii) is the one `verdict_in` explains;
+      * (dependency, discordant) is LIVE — `dependency` appears NOWHERE in the antigen_driven block
+        (not `deciding`, not in `requires`), so nothing else catches it.
+
+    Pinned as correct-by-intent rather than fixed: `discordant` means THE AXIS'S OWN ARMS DISAGREED,
+    i.e. the axis resolved nothing, and declining to block on an unresolved axis is the same
+    correction this block already makes BY HAND via `irrelevant_contradiction_axes` for
+    tractability_sm (the FOLR1/OV case), reached from the other direction. If a future change unions
+    `positive_uncorroborated` into GUARD 4, the first assertion reds and forces that decision to be
+    taken deliberately instead of arriving silently.
+    """
+    # LIVE — the one key whose blocking behaviour v1.20.0 actually changed.
+    action, rec = _nominate(_antigen(extra=_sub("dependency", "discordant")))
+    assert action == "nominate", f"dependency:discordant must not block after v1.20.0, got {action} ({rec})"
+
+    # INERT — also out of the contradiction set, but the `requires` conjunct still refuses it. Assert
+    # WHICH bound blocks: asserting the opposing one would encode the mechanism this pin denies.
+    action, rec = _nominate(_antigen(selectivity="discordant_across_comparators"))
+    assert action is None
+    assert any(u.startswith("requires(selectivity=") for u in rec["unsatisfied"])
+    assert not any("opposing_measured_verdict" in u for u in rec["unsatisfied"])
+
+    # The set-membership facts both behaviours rest on, asserted directly so that a vocabulary move
+    # is diagnosed as a vocabulary move and not as a mysterious behaviour change.
+    _pos, contra, _cfg, _s = tp._load_positive_signals(_CONTRACTS_ENV)
+    uncorr, _s2 = tp._load_positive_uncorroborated(_CONTRACTS_ENV)
+    for key in (("dependency", "discordant"), ("selectivity", "discordant_across_comparators")):
+        assert key not in contra, f"{key} is back in positive_contradictions — v1.20.0 regressed"
+        assert key in uncorr, f"{key} is missing from positive_uncorroborated"
+
+    # The guardrails that DO survive, measured on THIS thesis rather than inferred from the general
+    # `gated`-disposition rule — which is what falsified the note's first draft. v1.17.0's
+    # thesis_axis_relevance drops the non_dependent veto for antigen_driven by design (the
+    # 0/14-surface fix), so `non_dependent` reaches the decider and nominates; the surviving refusals
+    # are pan_essential_killer (the veto v1.17.0 never drops) and broadly_dependent (still listed).
+    action, rec = _nominate(_antigen(extra=_sub("dependency", "pan_essential_killer")))
+    assert action == "veto" and rec is None, "pan_essential_killer must keep the decider unreachable"
+    action, rec = _nominate(_antigen(extra=_sub("dependency", "broadly_dependent")))
+    assert action is None
+    assert any("opposing_measured_verdict(dependency:broadly_dependent)" in u for u in rec["unsatisfied"])
+    action, _rec = _nominate(_antigen(extra=_sub("dependency", "non_dependent")))
+    assert action == "nominate", "v1.17.0 makes non_dependent irrelevant HERE; this is not v1.20.0's doing"
+
+
+@_decider_skip
+def test_decider_and_scorecard_agree_except_where_thesis_scoping_is_invisible_to_the_scorecard():
+    """PINS the full decider x scorecard table on `dependency`, including the ONE disagreement.
+
+    Two surfaces read the same 7-key `positive_contradictions` block and must not drift apart
+    silently: `thesis_nomination` GUARD 4 decides block-vs-nominate, `_gate_scorecard._status`
+    decides the WORD a reader sees on that axis's row. Both are asserted here from ONE
+    `sub_results`, because reading them from two fixtures would let a fixture difference
+    masquerade as a surface disagreement (it already did once during this change: a hand-rolled
+    `_density` stand-in that omitted the density CARD made every row read `block`).
+
+    ⚠️ THE TIDY INVARIANT IS FALSE AND THAT IS THE POINT. "The decider can never nominate what the
+    scorecard reads as `opposing`" was asserted by an earlier draft of the GUARD 4 comment and is
+    refuted by row 2 below: `non_dependent` NOMINATES while the scorecard says `opposing`. The cause
+    is v1.17.0/Step-2b `thesis_axis_relevance`, which drops the `non_dependent` veto for
+    `antigen_driven` by design (0 of 14 surface antigens had ever been adjudicated on surface biology
+    before it). The gate applies that thesis scoping; the scorecard takes no `thesis` argument and so
+    cannot. Per that same 0/14 rationale a surface antigen measuring `non_dependent` is the TYPICAL
+    case, so this shows on rendered reports today — it is a DISPLAY defect, recorded rather than
+    fixed here because threading `thesis` into `_gate_scorecard` changes rendered output and belongs
+    in its own diff.
+
+    Note what this does NOT say: the v1.20.0 `uncorroborated` relabel introduced NO divergence. On
+    both relabelled keys the surfaces agree (`coverage_gap`), because `_status` tests
+    `uncorroborated` before the kill/contradiction test.
+    """
+    # (verdict, decider action, scorecard status) — MEASURED, not derived: vocab 1.21.0 as read from
+    # contracts c88c6e04, the tree skills-validate.yml actually pins.
+    EXPECTED = [
+        ("pan_essential_killer", "veto", "opposing"),  # kill: decider never reached
+        ("non_dependent", "nominate", "opposing"),  # ⚠️ THE DISAGREEMENT (thesis-scoped veto drop)
+        ("broadly_dependent", None, "opposing"),  # listed contradiction: both surfaces block
+        ("discordant", "nominate", "coverage_gap"),  # v1.20.0 uncorroborated: both surfaces agree
+    ]
+    for verdict, want_action, want_status in EXPECTED:
+        subs = _antigen(extra=_sub("dependency", verdict))
+        action, _rec = _nominate(subs)
+        rows = tp._gate_scorecard(subs, contracts_repo=_CONTRACTS_ENV)
+        status = next(r["status"] for r in rows if r["short"] == "dependency")
+        assert action == want_action, f"dependency:{verdict} decider: want {want_action}, got {action}"
+        assert status == want_status, f"dependency:{verdict} scorecard: want {want_status}, got {status}"
+
+    # The MECHANISM behind row 2, asserted so the explanation cannot rot while the symptom survives.
+    # A future change that stops dropping this veto would leave the table above self-consistent and
+    # this comment silently wrong; asserting the cause makes that red instead.
+    relevance = tp._load_thesis_axis_relevance(_CONTRACTS_ENV)
+    assert ("dependency", "non_dependent") in relevance.get("antigen_driven", set()), (
+        "antigen_driven no longer drops the non_dependent veto — row 2's disagreement had a "
+        "different cause than this test documents"
+    )
+    # And that the scorecard STILL cannot see a thesis, which is why it cannot apply that drop.
+    import inspect
+
+    assert "thesis" not in inspect.signature(tp._gate_scorecard).parameters, (
+        "_gate_scorecard now takes a thesis — the display defect this test records may be fixable; "
+        "re-derive the table rather than re-pinning it"
+    )
+
+    # The AGREEING half, on the other relabelled axis: selectivity's uncorroborated verdict blocks on
+    # a `requires` conjunct (not on the opposing bound) and reads `coverage_gap`, not `opposing`.
+    subs = _antigen(selectivity="discordant_across_comparators")
+    action, rec = _nominate(subs)
+    rows = tp._gate_scorecard(subs, contracts_repo=_CONTRACTS_ENV)
+    assert action is None
+    assert next(r["status"] for r in rows if r["short"] == "selectivity") == "coverage_gap"
+    assert not any("opposing_measured_verdict" in u for u in rec["unsatisfied"])
+
+    # AND THE DISAGREEING STATE OCCURS IN REAL DATA, so this is not a constructed edge case: the frozen
+    # 629-row polarity projection (37 pairs run 2026-09-08/09) carries (`non_dependent`, `opposing`) on
+    # 24 of its 37 dependency rows -- the DOMINANT dependency state. Those runs predate step 3, so the
+    # decider vetoed them at freeze time; step 3 removes the veto and leaves the `opposing` standing.
+    # PINNED AS A PROPERTY (>= 1), NOT AS THE COUNT: 24 is this vintage's measurement of a fixture this
+    # test does not own, so `== 24` would red on any legitimate re-freeze and get re-pinned, which is
+    # how a count-pin goes vacuous. `>= 1` reds only if the phenomenon DISAPPEARS -- precisely when the
+    # comment in `tp_gates.py` GUARD 4 needs re-reading.
+    projection = Path(__file__).resolve().parent / "fixtures" / "polarity_surface_projection.json"
+    if projection.is_file():  # fail-soft: this test's subject is the gate, not the fixture's presence
+        proj_rows = json.loads(projection.read_text())["rows"]
+        dep_rows = [r for r in proj_rows if r.get("axis") == "dependency"]
+        assert dep_rows, "projection carries no dependency rows -- the corpus claim cannot be checked"
+        live = [
+            r for r in dep_rows if (r.get("sub_verdict"), r.get("scorecard_status")) == ("non_dependent", "opposing")
+        ]
+        assert live, (
+            f"0 of {len(dep_rows)} frozen dependency rows read (non_dependent, opposing); measured 24 of 37 on "
+            "2026-09-15 -- if the corpus no longer shows it, re-derive the GUARD 4 comment rather than deleting this"
+        )
+
+
+@_decider_skip
+def test_annotation_only_and_no_viable_arm_surface_verdicts_block_nominate():
+    """The 2d bound, admissibility half: 'routing must never invent a GO — admissibility of
+    surface-as-decider is co-conditioned on a FAVORABLE MEASURED verdict.' An annotation-only or
+    no-viable-arm surface read is not a favorable measured verdict. `surface_annotation_only_unconfirmed`
+    is the DECOY shape (a gene called a surface protein by annotation alone)."""
+    for verdict in (
+        "neither_viable",
+        "shed_dominant_opposed",
+        "tce_unsafe_normal_liability",
+        "surface_annotation_only_unconfirmed",
+        "pmhc_tce_supported",  # STEAP1/PRAD — single-axis IEDB support, only ever `supportive`
+    ):
+        action, rec = _nominate(_antigen(surface=verdict))
+        assert action is None, f"surface={verdict} must not decide a nomination"
+        assert any(u.startswith("deciding(surface_modality=") for u in rec["unsatisfied"])
+
+
+@_decider_skip
+def test_a_surviving_kill_makes_the_decider_unreachable():
+    """F1 SAFETY BY CONTROL FLOW, the load-bearing design property. The decider lives in the
+    else-branch of the kill gate, so any surviving veto/hold means it never runs. Asserted BOTH ways:
+    via the caller pattern (a fired action short-circuits) AND by calling thesis_nomination directly
+    with non-empty `hits` (its own GUARD 1), so the safety does not depend on caller discipline."""
+    # pan_essential_killer survives thesis routing (it is broad-tox, real regardless of thesis)
+    killed = _antigen(extra=_sub("dependency", "pan_essential_killer", "pan-essential-killer"))
+    action, rec = _nominate(killed)
+    assert action == "veto" and rec is None
+    # a surviving HOLD also short-circuits. subtype_fit is used rather than a safety hold on purpose —
+    # see test_safety_holds_on_an_adc_viable_antigen_are_lifted_by_exists_safe_modality below.
+    held = _antigen(extra=_sub("subtype_fit", "subtype_specific_non_dependence", "subtype-non-dependence"))
+    assert _nominate(held)[0] == "hold"
+    # GUARD 1 directly: even handed a perfectly satisfying signal set, a non-empty hits list refuses
+    assert tp.thesis_nomination(_antigen(), "antigen_driven", [{"short": "safety", "action": "hold"}]) == (None, None)
+
+
+@_decider_skip
+def test_safety_holds_on_an_adc_viable_antigen_are_lifted_by_exists_safe_modality():
+    """★PINNED CONSEQUENCE, measured not assumed. All FOUR safety holds are members of
+    `_SAFETY_WT_LOSS_CONCERNS`, and the pre-existing `exists_safe_modality` suppressor lifts a WT-loss
+    hold when a biologics arm is viable ("an ADC/TCE does not deplete WT protein"). Before Step 3 that
+    suppression could only ever yield ABSTENTION; now it yields a GO — so the consequence is pinned
+    here rather than discovered in production.
+
+    It is NOT tightened, because the measured cohort says tightening costs more than it saves:
+    FOLR1/OV (APPROVED, mirvetuximab) fires `normal_tissue_protein_safety_concern` and DLL3/SCLC
+    (APPROVED, tarlatamab) fires `human_genetics_safety_concern`, whereas the phase-3 FAILURE CEACAM5
+    fires NO safety hold at all (`tolerant_reduced_safety_risk`). Making these non-suppressible would
+    block both approved drugs and still nominate CEACAM5 — strictly worse. The honest reading is that
+    the safety axis over-calls on this cohort; the RESIDUAL RISK is that
+    `normal_tissue_protein_safety_concern` is not really a WT-loss liability at all (an ADC against a
+    normal-tissue-expressed antigen is the on-target/off-tumor risk, which a biologic makes WORSE, not
+    n/a) — tracked with the same-organ-normal-liability gap, not fixed here."""
+    for verdict in (
+        "highly_constrained_safety_concern",
+        "human_genetics_safety_concern",
+        "pan_essential_broad_tox_concern",
+        "normal_tissue_protein_safety_concern",
+    ):
+        subs = _antigen(extra=_sub("safety", verdict, "some-safety-rule"))
+        gate_action, _hits, supps = tp._gate_recommendation(subs, thesis="antigen_driven")
+        assert gate_action is None, f"{verdict}: expected the WT-loss suppressor to lift the hold"
+        assert any(s["suppressed_by"].get("kind") == "exists_safe_modality" for s in supps), (
+            f"{verdict}: the hold must be RECORDED as suppressed, never silently absent"
+        )
+        assert _nominate(subs)[0] == "nominate"
+    # THE GUARDRAIL that keeps this from being a blanket defeat: the suppressor needs a VIABLE
+    # biologics arm. With an UNFAVORABLE surface verdict (the decoy / GRIN2D shape) the hold STANDS.
+    unfavorable = _antigen(surface="tce_unsafe_normal_liability", selectivity="not_informative")
+    unfavorable.update(_sub("safety", "highly_constrained_safety_concern", "hc"))
+    assert tp._gate_recommendation(unfavorable, thesis="antigen_driven")[0] == "hold"
+
+
+@_decider_skip
+def test_decoys_never_reach_the_decider():
+    """ACTB / GAPDH housekeeping decoys. Two independent blocks: the gate fires a HOLD on them
+    (broadly_high_expression normal-tissue liability / no window), so the stage is unreachable; and
+    even with the gate forced to abstain their surface read is annotation-only and their density
+    unmeasured. `broadly_high_expression` is deliberately EXCLUDED from the expression requirement so
+    a housekeeping gene can never satisfy the presence conjunct."""
+    decoy = _antigen(
+        surface="surface_annotation_only_unconfirmed",
+        selectivity="not_selective",
+        expression="broadly_high_expression",
+        density="unmeasured",
+    )
+    action, rec = _nominate(decoy)
+    assert action != "nominate"
+    if rec is not None:  # gate abstained → every conjunct must independently fail
+        assert len(rec["unsatisfied"]) >= 3, rec["unsatisfied"]
+
+
+@_decider_skip
+def test_adar1_the_pinned_false_positive_stays_blocked():
+    """ADAR1 — a pinned dangerous_false_positive (declined). Blocked on FOUR conjuncts at once
+    (surface insufficient, selectivity data_unavailable, no measured density, and no favorable
+    decider), which is why it is robust rather than luckily-excluded."""
+    action, rec = _nominate(
+        _antigen(surface="insufficient", selectivity="data_unavailable", expression="insufficient", density=None)
+    )
+    assert action is None
+    assert len(rec["unsatisfied"]) >= 3
+
+
+@_decider_skip
+def test_only_the_antigen_driven_thesis_can_nominate():
+    """BLAST-RADIUS pin, and the KRAS/oncogene_addiction golden. An unregistered thesis reproduces the
+    previous behaviour EXACTLY: no record at all, so nothing downstream can change. Handing the same
+    perfect antigen signal set to every other thesis must nominate NOTHING."""
+    subs = _antigen()
+    for th in ("oncogene_addiction", "unresolved", "tme_io", "neomorphic_gof", "partner_conditional_sl", None):
+        assert tp.thesis_nomination(subs, th, [], contracts_repo=_CONTRACTS_ENV) == (None, None), th
+
+
+@_decider_skip
+def test_inverted_fallback_a_broken_policy_nominates_nothing(tmp_path):
+    """The 4th fail-closed path. For a KILL loader 'fail closed' means conservative-and-complete; for a
+    loader that can mint a GO it must mean EMPTY. An absent or malformed vocab must nominate NOTHING —
+    the opposite of the kill-gate convention, and the reason this loader is separate."""
+    # (i) the whole vocab file is MISSING → fallback, empty
+    assert tp._load_thesis_deciding_axes(tmp_path) == ([], "fallback")
+    assert tp.thesis_nomination(_antigen(), "antigen_driven", [], contracts_repo=tmp_path) == (None, None)
+    vocab = tmp_path / "vocabularies"
+    vocab.mkdir()
+    # (ii) the file parses but the BLOCK is absent (a pre-Step-3 contracts checkout) → empty, and
+    # reported as `vocab` rather than `fallback` because nothing failed: there is simply no policy.
+    gate = vocab / "nomination_verdict_gate.yaml"
+    gate.write_text("enum_id: nomination_verdict_gate\ngates: []\n")
+    assert tp._load_thesis_deciding_axes(tmp_path) == ([], "vocab")
+    assert tp.thesis_nomination(_antigen(), "antigen_driven", [], contracts_repo=tmp_path) == (None, None)
+    # (iii) the file is MALFORMED → fallback, empty (never permissive)
+    gate.write_text("{[not: valid: yaml")
+    assert tp._load_thesis_deciding_axes(tmp_path) == ([], "fallback")
+    assert tp.thesis_nomination(_antigen(), "antigen_driven", [], contracts_repo=tmp_path) == (None, None)
+    # (iv) a block that OMITS its corroboration/measured conjuncts must not become a bare
+    # decider-is-sufficient rule even though the contracts tests forbid authoring one.
+    gate.write_text(
+        "enum_id: nomination_verdict_gate\nthesis_deciding_axes:\n"
+        "  - thesis: antigen_driven\n    action: nominate\n    rationale: x\n"
+        "    deciding: {sub_skill: surface_modality, favorable_verdicts: [adc_preferred_tce_unsafe]}\n"
+    )
+    action, rec = tp.thesis_nomination(_antigen(), "antigen_driven", [], contracts_repo=tmp_path)
+    assert action is None
+    assert any(u.startswith("malformed_block") for u in rec["unsatisfied"])
+
+
+@_decider_skip
+def test_ceacam5_is_the_known_false_positive_this_ships_with():
+    """★KNOWN LIMITATION, asserted rather than hidden. CEACAM5/LUAD is a phase-3 FAILURE that SATISFIES
+    the conjunction — and reads BETTER than the approved FOLR1 on every wired axis
+    (strong_tumor_selective vs selective_with_normal_liability; strongly_upregulated_in_tumor vs
+    tumor_broadly_expressed; 76k copies/cell at grade B). Pinned as a test so the FP is a tracked,
+    visible cost with a named owner (known_gap_watchlist.same_organ_normal_liability), and so that
+    wiring the same-organ-normal-liability discriminator has a test to flip."""
+    action, rec = _nominate(_antigen(selectivity="strong_tumor_selective", expression="strongly_upregulated_in_tumor"))
+    assert action == "nominate", "if this stops nominating, flip CEACAM5 back to validated_lane in contracts"
+    assert rec["applied"] is True
+
+
+@_decider_skip
+def test_deciding_axis_router_attributes_the_nomination_to_surface():
+    """The axis-attribution metric this arc exists to move: the surface cohort measured 0.0 because
+    every surface target attributed to `abstention_coverage_gaps` (in default biology-first mode DLL3
+    carries ZERO positive hits — surface positives are excluded_positive_modality_scoped unless a
+    --modality is declared, so the positive tier could not carry the attribution either)."""
+    subs = _antigen()
+    action, rec = _nominate(subs)
+    assert action == "nominate"
+    da = tp._deciding_axis(subs, None, [], positive_hits=[], thesis_record=rec)
+    assert da["basis"] == "thesis_decider"
+    assert da["deciding_axis"]["short"] == "surface_modality"
+    assert da["deciding_axis"]["framework_can_evidence"] == "captured"
+    # a DECLINED record must NOT claim an attribution — the framework did not decide
+    _a, declined = _nominate(_antigen(density="unmeasured"))
+    assert tp._deciding_axis(subs, None, [], positive_hits=[], thesis_record=declined)["basis"] != "thesis_decider"
+
+
+@_decider_skip
+def test_value_in_card_field_trigger_form():
+    """The `value_in` trigger form Step 3 added to _trigger_label (a graded enum needed one policy
+    entry, not one per admissible token). Fail-closed on the shapes that must never match."""
+    subs = _antigen(density="above_tce_floor_below_adc")
+    card, field = "surface-abundance-density", "density_floor_verdict"
+    assert tp._trigger_label({"card_id": card, "field": field, "value_in": ["above_tce_floor_below_adc"]}, set(), subs)
+    assert tp._trigger_label({"card_id": card, "field": field, "value_in": ["below_tce_floor"]}, set(), subs) is None
+    assert tp._trigger_label({"card_id": card, "field": field}, set(), subs) is None  # vacuous → never matches
+    assert tp._trigger_label({"card_id": card, "field": field, "value_in": "notalist"}, set(), subs) is None
+    assert tp._trigger_label({"card_id": card, "field": field, "value": "above_tce_floor_below_adc"}, set(), subs)
+
+
+@_decider_skip
+def test_small_molecule_chemistry_discord_does_not_block_an_antibody_thesis():
+    """FOUND BY A GROUNDED RUN, not by inspection. The real FOLR1/OV profile reads
+    `tractability_sm: discordant` — a positive_contradiction — and the opposing-verdict bound was
+    therefore blocking the nomination of an APPROVED ADC target on a SMALL-MOLECULE-CHEMISTRY
+    disagreement. That is the ontology defect this whole remediation removes (ANY-OF axis read as a
+    dependency-AND), reappearing inside my own new guard.
+
+    The fix is GOVERNED, not a code special-case: `irrelevant_contradiction_axes` in the thesis's
+    vocab block, bounded by contracts tests (may not name a kill-capable axis, may not name an axis
+    in the thesis's own conjunction, must actually carry a contradiction). Scope check, so this is
+    not an overfit: `tractability_sm: discordant` is the measured read on FOLR1, NECTIN4 and TACSTD2
+    (all APPROVED) plus CEACAM5 — it is the cohort-wide read for antibody targets, not a FOLR1
+    quirk. A contradiction on an axis NOT whitelisted still blocks (asserted below)."""
+    action, rec = _nominate(_antigen(extra=_sub("tractability_sm", "discordant")))
+    assert action == "nominate", f"an antibody thesis must not be blocked by SM chemistry: {rec}"
+    # the whitelist is per-axis, not a blanket amnesty: another axis's contradiction still blocks,
+    # and it blocks even when co-present with the whitelisted one.
+    action, rec = _nominate(
+        _antigen(
+            extra=_merge(_sub("tractability_sm", "discordant"), _sub("cis_coherence", "expressed_cis_coupled_inert"))
+        )
+    )
+    assert action is None
+    assert any("cis_coherence:expressed_cis_coupled_inert" in u for u in rec["unsatisfied"])
+    assert not any("tractability_sm" in u for u in rec["unsatisfied"])
+
+
+# ---------------------------------------------------------------------------
+# Reconciling the TWO deterministic nominate paths (positive tier + thesis decider).
+# These were only assertable once the decision was hoisted out of run.py's main() into a pure
+# function — inline, the two writers could only be checked by re-implementing them in the test,
+# which is how the divergences below survived being written twice.
+# ---------------------------------------------------------------------------
+
+_TR = {"thesis": "antigen_driven", "deciding": {"short": "surface_modality", "verdict": "adc_preferred_tce_unsafe"}}
+_HIT = {"short": "dependency", "verdict": "selectively_dependent", "weight": "dominant"}
+
+
+def _rec(**kw):
+    base = dict(
+        thesis_action=None,
+        thesis_record=None,
+        tier=None,
+        tier_nominates=False,
+        pos_hits=[],
+        clamped=False,
+        llm_value="insufficient_evidence",
+    )
+    base.update(kw)
+    return tp.reconcile_positive_nomination(**base)
+
+
+def test_reconciler_never_writes_fired():
+    """THE defect worth a dedicated test. `recommendation_gate["fired"]` means "a RESTRAINT gate
+    fired" to two consumers: tp_facets silences the DISSENT record when an evidence-band block
+    co-occurs with `fired` (hiding the disagreement most worth surfacing), and cross-evidence-
+    hypothesis maps fired+no-suppression to `declined` — INVERTING a nomination into a kill. One of
+    the two independently-written nominate paths set it. No combination may."""
+    for kw in (
+        dict(thesis_action="nominate", thesis_record=_TR),
+        dict(tier="strong", tier_nominates=True, pos_hits=[_HIT]),
+        dict(thesis_action="nominate", thesis_record=_TR, tier="strong", tier_nominates=True, pos_hits=[_HIT]),
+        dict(thesis_action="nominate", thesis_record=_TR, clamped=True),
+    ):
+        _v, patch = _rec(**kw)
+        assert "fired" not in patch, f"{kw} wrote `fired` — inverts a nomination into a kill"
+
+
+def test_reconciler_is_a_no_op_when_neither_path_fires():
+    assert _rec() == (None, {})
+    # a tier that exists but does not reach the nominating bar is NOT a nomination
+    assert _rec(tier="moderate", tier_nominates=False, pos_hits=[_HIT]) == (None, {})
+
+
+def test_thesis_decider_wins_the_attribution_when_both_paths_fire():
+    """The write collision: both paths minted the same VALUE but the later writer relabelled WHICH
+    axis carried the target. Precedence goes to the thesis decider because it is the strictly more
+    specific claim (a named deciding axis + a necessity conjunction + a measuredness conjunct, versus
+    a thesis-agnostic count of independent dimensions). Agreement is recorded, not discarded."""
+    value, patch = _rec(
+        thesis_action="nominate", thesis_record=_TR, tier="strong", tier_nominates=True, pos_hits=[_HIT]
+    )
+    assert value == "nominate"
+    assert patch["forced_by"] == "thesis_decider"
+    assert patch["also_reached_by"]["paths"] == ["positive_tier"]
+    assert "positive tier reached `strong`" in patch["also_reached_by"]["detail"]
+    # the losing path's agreement must not be silently dropped, and must not overwrite triggered_by
+    assert patch["triggered_by"] == []  # the thesis record's corroborators, not the tier's hits
+
+
+def test_either_path_alone_still_forces_and_names_itself():
+    value, patch = _rec(thesis_action="nominate", thesis_record=_TR)
+    assert (value, patch["forced_by"]) == ("nominate", "thesis_decider")
+    assert "also_reached_by" not in patch
+    value, patch = _rec(tier="strong", tier_nominates=True, pos_hits=[_HIT])
+    assert (value, patch["forced_by"]) == ("nominate", "positive_tier")
+    assert patch["triggered_by"][0]["policy_source"] == "positive_tier"
+    assert patch["triggered_by"][0]["action"] == "nominate"
+
+
+_INTERLOCK_CASES = (
+    dict(thesis_action="nominate", thesis_record=_TR),
+    dict(tier="strong", tier_nominates=True, pos_hits=[_HIT]),
+    dict(thesis_action="nominate", thesis_record=_TR, tier="strong", tier_nominates=True, pos_hits=[_HIT]),
+)
+
+
+def test_a_fired_conjunction_nominates_over_an_llm_authored_negative():
+    """The SETTLED policy (2026-09-11), and it is ONE answer for BOTH paths — the third divergence was
+    that they answered differently, so the framework's most consequential output depended on which path
+    happened to fire.
+
+    Why override: the #1291 clamp exists to floor an LLM negative with NO RULE behind it. A fired
+    conjunction is the rule it was waiting for, so deferring to the LLM here inverts the clamp's own
+    purpose. MEASURED on the grounded full-LLM FOLR1/OV run (APPROVED — mirvetuximab): the LLM authored
+    `hold`, the clamp demoted it, and the conjunction was fully satisfied. Withholding would have
+    suppressed an approved drug on a rule-less opinion."""
+    for kw in _INTERLOCK_CASES:
+        value, patch = _rec(clamped=True, llm_value="hold", **kw)
+        assert value == "nominate", f"{kw} deferred to a rule-less LLM negative"
+        assert "nominate_withheld" not in patch
+        assert patch["overridden"] is True  # the LLM said hold; the rule overrode it
+
+
+def test_nominating_over_a_negative_narrative_records_the_disagreement():
+    """The PRICE of the override, made explicit. The report now carries a positive VALUE beside prose
+    arguing the negative; that disagreement is the most decision-relevant thing on the page, so it is
+    emitted as a first-class record rather than left for a reader to infer. Absent when no clamp
+    fired — it must not decorate the ordinary agreeing case."""
+    for kw in _INTERLOCK_CASES:
+        _v, patch = _rec(clamped=True, llm_value="hold", **kw)
+        rec = patch["nominated_over_llm_negative"]
+        assert rec["llm_recommendation"] == "hold"
+        assert rec["forced"] == "nominate"
+        assert rec["path"] in {"thesis_decider", "positive_tier"}
+        assert "standing dissent" in rec["detail"]
+        _v2, patch2 = _rec(**kw)  # no clamp
+        assert "nominated_over_llm_negative" not in patch2
+
+
+def test_the_interlock_can_be_restored_to_withhold_for_both_paths_at_once():
+    """Whichever way the policy lands it must land for BOTH paths — the point of the single flag. Pins
+    that the withhold reading is still reachable in one place, and that it RECORDS the near-miss."""
+    for kw in _INTERLOCK_CASES:
+        value, patch = _rec(clamped=True, llm_value="hold", allow_over_llm_authored_negative=False, **kw)
+        assert value is None
+        assert patch["nominate_withheld"]["reason"] == "llm_authored_negative"
+        assert patch["nominate_withheld"]["llm_recommendation"] == "hold"
+        assert "forced_recommendation" not in patch
+        assert patch["nominate_withheld"]["path"] in {"thesis_decider", "positive_tier"}

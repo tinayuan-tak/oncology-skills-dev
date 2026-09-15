@@ -86,7 +86,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
-          # PINNED — main @ 2026-09-14T16:21:08Z (TC#772). Bumped by bump-sibling-pins.yml; see SIBLING PINS above.
+          # PINNED — main @ 2026-09-15T13:55:39Z (TC#777 + TC#779). Bumped by bump-sibling-pins.yml; see SIBLING PINS above.
           #
           # BUMPED BY HAND HERE, not by the bump PR, because this pin and APERTURE_CEILING in
           # skills/_skills_common/tests/test_field_disposition.py are two halves of ONE fact and the
@@ -98,7 +98,20 @@ jobs:
           # is neutral or BREAKING; a two-sided ratchet makes a sibling IMPROVEMENT (21 pairs newly read)
           # fail the same way, so a lone bump PR could never merge this move. Whoever lowers the ceiling
           # must move the pin in the same commit.
-          ref: fa372c8411f9ad4d9ca65741b8bb226ce8397fea
+          #
+          # THIS BUMP (TC#777 step 3 + TC#779 retraction) needs NO ceiling move, and that is MEASURED:
+          #   contracts c88c6e04 (post-TC#779), skills @ this branch: 885 orphans -> ceiling 887 gap 2
+          # 885 <= 887 clears the CEILING half and 887 - 885 = 2 <= APERTURE_SLACK 20 clears the SLACK
+          # half, so the ceiling stays 887 and this pin moves ALONE -- the one case the paragraph above
+          # does not forbid, since nothing here lowers the ceiling. The number is the pin's OWN and not
+          # an equivalent tree's: it was measured against a contracts tree whose hash is 86d083e1, which
+          # `git rev-parse <sha>^{tree}` shows is BIT-IDENTICAL to what this ref checks out.
+          #
+          # The pin is TC#779 and deliberately NOT the step-3 squash 6d6a14b4: contracts squash-merges
+          # with COMMIT_MESSAGES, so 6d6a14b4's body is trunk's permanent record of a mechanism that
+          # was measured FALSE and retracted in TC#779. Pinning the earlier sha would run this CI
+          # against a contracts tree that still states it.
+          ref: c88c6e0473c365c24580f931c695c56bf60f5ba1
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

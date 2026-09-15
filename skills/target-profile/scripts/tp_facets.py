@@ -125,14 +125,24 @@ def _deciding_axis(
     gate_hits: list[dict],
     positive_hits: list[dict],
     contracts_repo: Path | None = None,
+    thesis_record: Optional[dict] = None,
 ) -> dict:
     """Build the deciding_axis block (see module comment above). Deterministic; never predicts.
 
-    Every decided basis (gate_fired / positive_signal) also reports `admissible_but_silent` (the
-    other axes the framework could evidence this run but that did not carry the call) and
-    `attribution_mismatch` (did a non-necessity axis carry the call while a necessity axis was
-    admissible-but-mute?) — so the attribution is auditable, not just "which axis won" but "which
-    axes were in play and mute, and does the winner rest on the target's thesis biology"."""
+    Every decided basis (gate_fired / thesis_decider / positive_signal) also reports
+    `admissible_but_silent` (the other axes the framework could evidence this run but that did not
+    carry the call) and `attribution_mismatch` (did a non-necessity axis carry the call while a
+    necessity axis was admissible-but-mute?) — so the attribution is auditable, not just "which axis
+    won" but "which axes were in play and mute, and does the winner rest on the target's thesis
+    biology".
+
+    `thesis_record` is the Step-3 `thesis_nomination` provenance record. When it APPLIED, the
+    thesis's deciding axis IS the decision's attribution — which is the whole point of Step 3: the
+    7 surface reference targets previously attributed to `abstention_coverage_gaps` (DLL3 carries
+    ZERO positive hits in default biology-first mode, since surface positives are
+    excluded_positive_modality_scoped unless --modality is declared), so surface-antigen attribution
+    measured 0.0 even for the approved drugs. A declined-but-registered record does NOT change the
+    basis — the framework did not decide, and saying otherwise would overstate the attribution."""
     baseline, source = _load_gate_coverage(contracts_repo)
 
     def _row(short: str) -> dict:
@@ -173,6 +183,33 @@ def _deciding_axis(
             "admissible_but_silent": silent,
             "attribution_mismatch": _attribution_mismatch([row], silent),
             "routing": f"decided by {_gate_label}: {top} forced '{gate_action}'.",
+        }
+
+    # (1b) The THESIS DECIDER minted a `nominate` (Step 3) → the deciding axis is the thesis's
+    # declared deciding axis, and the framework evidenced it by construction (the stage requires a
+    # MEASURED favorable verdict there). Ranked above the positive tier because this basis carries the
+    # RECOMMENDATION, whereas a positive tier only floors confidence.
+    if thesis_record and thesis_record.get("applied"):
+        top = (thesis_record.get("deciding") or {}).get("short")
+        row = _row(top)
+        row["framework_can_evidence"] = "captured"  # the conjunction required a measured verdict here
+        corr = [h["short"] for h in thesis_record.get("corroborating") or []]
+        rows = [row] + [_row(s) for s in corr]
+        silent = _admissible_but_silent(sub_results, baseline, {top, *corr})
+        return {
+            "basis": "thesis_decider",
+            "coverage_source": source,
+            "deciding_axis": row,
+            "deciding_axes": rows,
+            "thesis": thesis_record.get("thesis"),
+            "admissible_but_silent": silent,
+            "attribution_mismatch": _attribution_mismatch(rows, silent),
+            "routing": (
+                f"decided by the '{thesis_record.get('thesis')}' thesis deciding axis: "
+                f"{top}={(thesis_record.get('deciding') or {}).get('verdict')} forced 'nominate' "
+                f"(corroborated by {', '.join(corr) or 'none'}; measured "
+                f"{', '.join(m['field'] for m in thesis_record.get('measured_conjuncts') or []) or 'none'})."
+            ),
         }
 
     # (2) A positive tier exists → the load-bearing axis is the strongest positive dimension.
