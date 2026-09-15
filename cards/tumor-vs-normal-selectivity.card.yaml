@@ -43,7 +43,7 @@
 #   `data_unavailable`        → sensitivity product not accessible
 
 card_id: tumor-vs-normal-selectivity
-version: 3.8.0    # 2026-09-11 subtype grain is now VERDICT-AFFECTING in the composed target-profile --subtypes tier: +summary_fields_record_schemas.per_subgroup_metrics (unblocks the in_record rule) — a MEASURED, floor-cleared (n>=30) strong_tumor_selective stratum fires subtype-restricted-selectivity-supportive → subtype_restricted_selectivity (SUPPORTIVE positive; NOT a veto-suppressor). Closes the population-definition asymmetry where cell-line dependency subtyping is data-blocked (STAD/ESCA). Opt-in-by-scope; pooled spine byte-stable.  # 2026-08-18 extend subgroup coverage: +cms (COADREAD) +STAD tcga_molecular_subtype
+version: 3.9.0    # 2026-09-15 EVIDENCE AUDIT, display-only, verdict spine byte-stable: declare the 4 comparator-INDEPENDENCE fields read.py has emitted since FIX 4 (2026-09-12) with no card entry (computed-but-unread), + 2 new SUBSTRATE-BASIS fields for the orthogonal axis independence cannot express — `population_normal_only` covers both ACC/LGG/OV/TGCT/UCS (DESeq2 on raw counts, one recount3 release) and SCLC (Welch on log2(TPM+1) across two genome builds; George-2015 reads are EGA-controlled), so the label alone could not tell a uniform substrate from a cross-cohort join. Derived per-product from its OWN manifest, so the basis cannot drift from the product.  # 2026-09-11 subtype grain is now VERDICT-AFFECTING in the composed target-profile --subtypes tier: +summary_fields_record_schemas.per_subgroup_metrics (unblocks the in_record rule) — a MEASURED, floor-cleared (n>=30) strong_tumor_selective stratum fires subtype-restricted-selectivity-supportive → subtype_restricted_selectivity (SUPPORTIVE positive; NOT a veto-suppressor). Closes the population-definition asymmetry where cell-line dependency subtyping is data-blocked (STAD/ESCA). Opt-in-by-scope; pooled spine byte-stable.  # 2026-08-18 extend subgroup coverage: +cms (COADREAD) +STAD tcga_molecular_subtype
 question: "How selectively is {target.symbol} expressed in {indication.label} tumor tissue, and how robust is that selectivity across the three independent tumor-vs-normal comparators (TCGA-adjacent raw + ComBat, GTEx-population raw)?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
@@ -167,6 +167,46 @@ outputs:
     - selectivity_allgene_percentile_cell_b    # float — cell-B (TCGA-adjacent ComBat) corroborating rank
     - selectivity_allgene_percentile_cell_c    # float — cell-C (GTEx population) corroborating rank
 
+    # --- EVIDENCE AUDIT (2026-09-15) — the two ORTHOGONAL questions a `selectivity_class` string
+    # cannot answer on its own: how many INDEPENDENT comparators voted, and whether the ONE substrate
+    # they voted on is internally comparable. Both DISPLAY-ONLY; no rule is wired against either and
+    # the selectivity_class verdict spine stays byte-stable.
+    #
+    # (a) COMPARATOR INDEPENDENCE (FIX 4, 2026-09-12). Cells A and B are ONE comparison run twice (B
+    # is A re-run through ComBat-seq with preserve_group=TRUE), so the classifier counts comparator
+    # FAMILIES, not cells. These four were emitted by read.py from that date but declared in NO card
+    # until now — computed-but-unread, the dominant orphan mode in this framework.
+    - comparator_families_ran               # int 0-2 — TCGA-adjacent family (A/B) + GTEx family (C)
+    - comparator_families_supporting        # int, <= comparator_families_ran
+    - adjacent_arm_measured                 # bool — did the TCGA-adjacent family actually MEASURE this
+                                            #   gene? A VALUE check, not a schema check: SCLC ships
+                                            #   log2fc_cell_a/b COLUMNS that are 100% null. `strong`
+                                            #   now requires this true (FIX 4b demoted 32,784 rows).
+    - selectivity_evidence_independence     # categorical — see vocabulary
+    #
+    # (b) SUBSTRATE / METHOD BASIS (2026-09-15). Independence counts comparators; it says nothing
+    # about whether tumour and normal are on the same measurement footing. MEASURED over the 32
+    # shipped sensitivity products, `population_normal_only` is returned for ACC/LGG/OV/TGCT/UCS AND
+    # for SCLC — but the first five are DESeq2 NB GLM on raw integer counts from the SINGLE
+    # recount3-tcga-gtex-2023-01-04 release (tumour + normal uniformly reprocessed by one Monorail
+    # pipeline on one gene model), whereas SCLC is a Welch t-test on log2(TPM+1) joining TWO parents
+    # on DIFFERENT genome builds and gene models (George-2015 hg19/FPKM tumours via cBioPortal vs
+    # GTEx hg38/recount3 GENCODE-v26 normals) — the George raw reads are EGA-controlled
+    # (EGAS00001000925), never mirrored to SRA, so no uniform reprocessor can reach them. Same
+    # independence label, materially different rigor. DERIVED from each product's OWN manifest
+    # (parameters.statistical_test / .cross_cohort_batch_confound / .measured_global_offset), so the
+    # basis cannot drift from the product it describes.
+    - selectivity_substrate_basis           # categorical — see vocabulary
+    - selectivity_substrate_caveat          # string or null — free text (NOT enumerable, so no
+                                            #   vocabulary entry). Non-null EXACTLY when the basis is
+                                            #   cross_cohort_non_deseq2. Names the joined parents, the
+                                            #   kernel, and the manifest's MEASURED platform offset
+                                            #   (SCLC: median log2FC +0.27, 63.6% of genes read up),
+                                            #   then points the reader at
+                                            #   selectivity_allgene_percentile_cell_c — the RANK, which
+                                            #   separates biology from the offset — because the absolute
+                                            #   log2FC is not comparable to the DESeq2 siblings.
+
     # --- SUBTYPE GRAIN (2026-08-18) — per-subgroup panorama, emitted only when a
     # per-subgroup sensitivity product exists for the indication (else absent).
     # Produced by read_stratified_tumor_vs_normal_selectivity. DESCRIPTIVE in the focused skill;
@@ -195,6 +235,25 @@ outputs:
       - concordant                          # both families sig, SAME direction (robust to "which normal?")
       - discordant                          # both families sig, OPPOSITE directions (field-effect failure mode; or a family self-disagrees)
       - single_comparator                   # only one family ran/reached significance — cross-comparator agreement UNTESTED
+    selectivity_evidence_independence:
+      - two_independent_comparators         # TCGA-adjacent family AND GTEx family both measured this gene
+      - adjacent_only                       # only cells A/B — one comparison, and B is A re-run through ComBat
+      - population_normal_only              # only cell C — no adjacent normals exist (ACC/LGG/OV/SCLC/SKCM/TGCT/UCS)
+      - none                                # gene measured by no comparator family
+    selectivity_substrate_basis:
+      - within_pipeline_deseq2_counts        # DESeq2 NB GLM on raw integer counts, tumour + normal from ONE
+                                             # uniformly reprocessed release. 31 of 32 shipped products,
+                                             # including the 3 -by-subgroup-v1 siblings (their extra
+                                             # derived_from entries are subgroup-LABEL sidecars, not second
+                                             # expression cohorts). Absolute log2FC comparable across these.
+      - cross_cohort_non_deseq2              # substrate joins TWO cohorts AND the kernel is not DESeq2-on-counts,
+                                             # both declared by the product manifest. SCLC only. Absolute log2FC
+                                             # carries a platform offset — read the percentile, not the fold-change.
+      - unknown_substrate                    # the conservative default, never a silent pass: manifest unresolvable,
+                                             # no kernel recorded, or only ONE of the two cross-cohort conjuncts
+                                             # holds (e.g. a DESeq2 kernel that DOES declare a batch confound).
+                                             # Also emitted by the v2 two-product fallback reader, which has no
+                                             # single manifest that could describe the substrate it read.
     selectivity_class:
       - strong_tumor_selective              # all cells that ran support, up, RAW max|log2FC|>=1.5 (cell A/C, not ComBat B)
       - modest_tumor_selective              # supporting_frac>=2/3, up, RAW max|log2FC|>=0.5
