@@ -635,10 +635,25 @@ def test_admitted_clamp_arms_cannot_launder_an_excluded_pre_clamp_verdict():
         clean normal profile           -> <excluded pre-clamp verdict>  -> conjunction UNSATISFIED
         critical-organ liability FIRED -> <admitted clamp arm>          -> conjunction SATISFIED
 
-    i.e. DETECTING a liability flips a block into a GO. This test does not pretend the hole is closed —
-    closing it needs a skills-side change that publishes the pre-clamp verdict. It bounds the hole to a
-    named set, keeps that set LIVE against resolver renames, and refuses to go vacuous if the shape that
-    makes it reachable ever disappears (a guard that silently stops applying is worse than no guard)."""
+    i.e. DETECTING a liability flips a block into a GO. This test does not pretend the hole is closed. It
+    bounds the hole to a named set, keeps that set LIVE against resolver renames, and refuses to go
+    vacuous if the shape that makes it reachable ever disappears (a guard that silently stops applying is
+    worse than no guard).
+
+    ⚠ WHAT WOULD ACTUALLY CLOSE IT — corrected 2026-09-15 (session d50d3d59), immediately after the
+    guard itself landed as 232f4ca8 / #778, because this docstring as merged says "publishes the
+    pre-clamp verdict" and that is INSUFFICIENT for the selectivity
+    clamp, the only clamp this guard currently has anything to compare. That clamp's `upgrade:` arm runs
+    BEFORE its downgrade precedence and MINTS the excluded token out of {not_informative,
+    discordant_across_comparators}, so the chain is THREE tokens and the excluded one is an INTERMEDIATE
+    that exists only inside the clamp. A field named for what ENTERS the clamp publishes
+    `not_informative`, the exclusion compares against a token that is not it, and the leak survives.
+    Publish the immediate input to the PRECEDENCE WALK (post-upgrade) instead.
+    THIS MATTERS TO THIS TEST SPECIFICALLY: arm 2 fires when the hole is CLOSED, by design — so it
+    CANNOT distinguish a real fix from one that covers only the direct-rung arm. A partial fix would red
+    this guard, get reviewed as a closure, and take the ⚠ vocabulary comment with it. The full
+    three-token derivation is in `nomination_verdict_gate.yaml` under THE PRESCRIPTION IS NARROWER THAN
+    IT LOOKS."""
     axes_checked: set[str] = set()
     for blk in _load()["thesis_deciding_axes"]:
         for r in blk.get("requires") or []:
