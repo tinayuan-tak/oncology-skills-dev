@@ -88,7 +88,15 @@ outputs:
     protein_expression_class:
       - broadly_high                              # detected in >70% of panel AND high median abundance (panel-relative)
       - broadly_moderate                          # detected in >70% but not high abundance
-      - lineage_restricted                        # detected in 10-70%; sub-broad band
+      - lineage_restricted                        # detected in 10-70% AND measured to cluster in a minority of
+                                                  # lineages. NOT REACHABLE on this card: it requires a non-empty
+                                                  # per_lineage_stats, and the ProCan axis has no SIDM->OncotreeLineage
+                                                  # crosswalk, so the breakdown is always empty. Retained in the vocab
+                                                  # because the classifier is shared with the Gygi sibling (where it IS
+                                                  # reachable) and a SIDM->ACH map is a v2 item
+      - sub_broad_detection                       # detected in 30-70% with no per-lineage breakdown: a detection-band
+                                                  # statement only, asserting neither lineage restriction nor
+                                                  # pan-lineage spread. THIS is the middle-band label on this card
       - broadly_low                               # detected in <30% of panel (DIA-absent across most lines)
       - data_unavailable                          # protein not in the ProCan panel / symbol unresolvable / couldn't read
     allgene_percentile_class:
@@ -137,9 +145,10 @@ caveats:
   - |
     Per-lineage stratification is UNAVAILABLE: the ProCan axis is Sanger SIDM ids with no
     DepMap-ModelID/OncotreeLineage crosswalk yet, so per_lineage_stats is empty and
-    n_lineages_evaluated is 0 (SIDM->ACH map is a v2). Because per_lineage is empty, a middle-band
-    detection fraction falls to lineage_restricted via the sibling classifier's no-lineage fallback —
-    read protein_expression_class here as a coarse distribution band, not a lineage claim.
+    n_lineages_evaluated is 0 (SIDM->ACH map is a v2). No lineage token is reachable here: a
+    middle-band (30-70%) detection fraction emits sub_broad_detection, stating the band and making no
+    lineage claim. Read it as a coarse distribution band; it is also this card's
+    capsule.primary_class, so it reaches interpretation_call.
   - |
     protein_expression_class is descriptive. VERDICT-INERT display in tumor-presence (feeds no
     interpretation rule, no resolver rung); therapeutic interpretation lives with the Gygi sibling's

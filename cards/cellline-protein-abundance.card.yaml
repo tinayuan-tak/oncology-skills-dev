@@ -84,7 +84,16 @@ outputs:
     protein_expression_class:
       - broadly_high                              # detected in >70% of panel AND high median abundance
       - broadly_moderate                          # detected in >70% but not high abundance
-      - lineage_restricted                        # detected in 10-70%; lineage-stratified
+      - lineage_restricted                        # detected in 10-70% AND measured to cluster in a minority of lineages
+      - sub_broad_detection                       # detected in 30-70% with NO per-lineage breakdown available: a
+                                                  # detection-band statement only, asserting neither lineage
+                                                  # restriction nor pan-lineage spread. Unreachable on this card in
+                                                  # practice (Gygi resolves ModelID -> OncotreeLineage, so 0 of 419
+                                                  # corpus cards lack a breakdown) — declared because the classifier
+                                                  # is SHARED with the ProCan sibling and because load_model_lineage()
+                                                  # returns {} if Model.csv ever loses its OncotreeLineage column, in
+                                                  # which case this band must degrade to a claim-free label rather
+                                                  # than to lineage_restricted (which fires a supportive rule)
       - broadly_low                               # detected in <30% of panel (MS-absent across most lines)
       - data_unavailable                          # protein not in the MS matrix / couldn't read
     allgene_percentile_class:
