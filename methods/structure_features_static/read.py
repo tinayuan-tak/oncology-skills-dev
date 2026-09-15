@@ -97,11 +97,79 @@ def _ensure_derived_cached() -> Optional[Path]:
     return None
 
 
+def _none_for_missing(rec: dict) -> dict:
+    """Every MISSING parquet cell as None, so no float('nan') escapes this frame boundary.
+
+    A missing value in a float64 pandas column IS `float('nan')` — there is no other in-band marker —
+    and `row.to_dict()` carries that float straight into the card summary, where json.dumps writes the
+    bare token `NaN` (invalid JSON, and Python's own parser accepts it by default, which is why nothing
+    downstream complained). Measured over the 504-package archetype corpus before this fix: 78 packages
+    / 48 targets emitted a non-finite structural feature — alphafold_plddt_min_domain 57,
+    pdb_best_resolution_angstrom 29, and alphafold_plddt_mean / _min / disordered_fraction 10 each.
+
+    ⚠️⚠️ Those five are all float64 — but do NOT read that as "only numeric columns leak." That WAS this
+    docstring's claim and CI refuted it. How a missing cell round-trips is decided by the INSTALLED
+    PANDAS, and `pixi.toml` pins `pandas = "*"`, so the lockfile chooses the regime:
+
+        pandas 2.3.3 / numpy 1.26  missing str cell -> None   (the regime the 78-package figure was measured in)
+        pandas 3.0.3 / numpy 2.5.1 missing str cell -> nan    (default string dtype is `str`; its sentinel is NaN)
+
+    So on pandas >= 3 every string column with a null cell leaks too, and the corpus figure above is a
+    per-interpreter measurement rather than a property of this code. That is not academic: it costs 50
+    product rows through `_classify_pdb_coverage`, which tests `alphafold_prediction_id` by TRUTHINESS —
+    and a NaN is truthy. 94 of 20,329 rows carry a null prediction id and 50 of those have zero PDB IDs,
+    so on pandas 3 they answer `af_only`, asserting an AlphaFold model that does not exist.
+
+    ★ This function is nevertheless correct under BOTH regimes by construction, and the reason is the part
+    worth keeping: it branches on the RUNTIME TYPE OF THE VALUE, never on the column's dtype. A NaN in a
+    string column is a float with no `__len__`, so it falls through to the `pd.isna` arm and becomes None.
+
+    ★ The target is None, not 0.0 and not a literal default, because the consumer already declares its
+    own absence handling and None ACTIVATES it. `_classify_alphafold_confidence` opens with
+    `if mean is None: return "unavailable"` — a guard NaN walks straight through (`nan is None` is
+    False, `float(nan)` does NOT raise, and every `>=` comparison against NaN is False), so control
+    fell through to the terminal `return "low"` and the card published a MEASURED structural negative
+    for a value it never measured.
+
+    ★★ That guard was not merely weak, it was UNREACHABLE: `alphafold_confidence_class` was
+    "unavailable" in 0 of 20,329 product rows and 0 of 504 corpus packages. The 4 corpus packages that
+    do emit "unavailable" reach it through `_empty_result` instead — they carry
+    `_data_note="target_not_in_structure_features"` and their target has no row in the product at all,
+    an absent ROW rather than a null CELL. This fix makes the null-cell branch reachable for the first
+    time, so the two absence routes finally agree.
+
+    ⚠️ MUST stay list-safe, and the failure mode is length-dependent so a fixture can miss it.
+    `pdb_ids_available` round-trips from parquet as a numpy ndarray; `pd.isna(ndarray)` returns an
+    ARRAY, and `bool()` of an array is well-defined only at len 1 — len > 1 raises in every version, and
+    len 0 raises under numpy >= 2 (numpy 1.26 returned False with a DeprecationWarning, which an earlier
+    draft here mistook for the permanent behaviour). So a naive scalar-only conversion breaks on the
+    well-studied targets AND on the empty ones, and passes only in the middle. Non-scalars are therefore
+    passed through untouched (same reason `_coerce_id_list` below refuses to use truthiness on that
+    column).
+
+    ⚠️ `pd.isna` here means MISSING, not non-finite. That is deliberate: a ±Inf in a numeric column
+    is a value, not a gap, and nulling it would destroy data. If one ever appears it must be refused
+    at the writer (`allow_nan=False`), never laundered here.
+    """
+    import pandas as pd
+
+    out = {}
+    for k, v in rec.items():
+        if isinstance(v, (str, bytes)) or hasattr(v, "__len__"):
+            out[k] = v  # str / ndarray / list cell — never a scalar gap, and isna() would not be a bool
+        else:
+            out[k] = None if pd.isna(v) else v
+    return out
+
+
 def _index_by_symbol_and_ac(path, ac_col: str) -> dict:
     """Load a per-protein parquet and index each row by BOTH its gene_symbol (UPPER) and its accession
     column (`ac_col`), for O(1) per-target lookup. {} if the product is unavailable/empty. RAISES on a
     broken env (missing pandas/pyarrow) — never masks that as an empty index. Shared by the structure
-    + ligandability loaders (was two copy-pasted parse-and-index blocks)."""
+    + ligandability loaders (was two copy-pasted parse-and-index blocks).
+
+    Rows go through _none_for_missing() so a missing cell reaches the card as None rather than
+    float('nan') — see that docstring for why None specifically, and for the list-column hazard."""
     if path is None:
         return {}
     try:
@@ -121,7 +189,7 @@ def _index_by_symbol_and_ac(path, ac_col: str) -> dict:
         return {}
     idx: dict[str, dict] = {}
     for _, row in df.iterrows():
-        rec = row.to_dict()
+        rec = _none_for_missing(row.to_dict())
         sym = str(rec.get("gene_symbol", "") or "").strip().upper()
         ac = str(rec.get(ac_col, "") or "").strip()
         if sym:
@@ -196,8 +264,12 @@ def _ligandability_fields(target: str) -> dict:
     row = idx.get(target.upper().strip()) or idx.get(target.strip())
     if row is None:
         return _empty_ligandability("target_not_in_ligandability")
+    # `or`, not `.get(k, default)` — see _hotspot_summary's docstring for why a .get default cannot fire
+    # on a present key. Defensive here too: measured on the shipped product, structural_ligandability_class
+    # has 0 null cells and all six axis flags are true `bool` dtype, which cannot represent a missing value
+    # — so bool(nan) is not reachable on this leg and these wrappers are already correct.
     return {
-        "structural_ligandability_class": row.get("structural_ligandability_class", "insufficient_evidence"),
+        "structural_ligandability_class": row.get("structural_ligandability_class") or "insufficient_evidence",
         "n_ligandability_axes": int(row.get("n_ligandability_axes") or 0),
         "has_experimental_cocrystal": bool(row.get("experimental_cocrystal", False)),
         "has_druggable_pocket": bool(row.get("druggable_pocket", False)),
@@ -258,19 +330,33 @@ def read_target_summary(target: str, indication: str = None) -> dict:
 
 
 def _hotspot_summary(row) -> dict:
-    """The hotspot-adjacency summary fields from a hotspot-product row."""
+    """The hotspot-adjacency summary fields from a hotspot-product row.
+
+    The declared fallbacks below are spelled `or`, NOT `.get(key, default)`, because a `.get` default
+    fires on an ABSENT KEY and never on a present-but-empty VALUE. Every one of these keys is PRESENT in
+    every product row, so a `.get` default could not fire whatever the value was: not before
+    _none_for_missing() (the value would be float('nan')) and not after it (the value is None).
+    Converting the sentinel fixes a truthiness guard for free; it does NOT fix a `.get` default.
+
+    ⚠️ These three rewrites are DEFENSIVE, not bug fixes — measured on the shipped product, the columns
+    they guard have no missing cells at all (hotspot_pocket_adjacency_call and pdb_best_method are
+    object/0 null, n_domains_low_plddt is int64 so it cannot hold one). They are here so the declared
+    default is the value that actually ships if that ever changes, which is the property the old
+    spelling only appeared to have. The genuine defect this function had is in the two classifiers
+    below, which read the float64 columns.
+    """
     return {
-        "hotspot_pocket_adjacency_call": row.get("hotspot_pocket_adjacency_call", "no_structure"),
+        "hotspot_pocket_adjacency_call": row.get("hotspot_pocket_adjacency_call") or "no_structure",
         "mutation_hotspot_in_druggable_pocket": bool(row.get("mutation_hotspot_in_druggable_pocket", False)),
         "pdb_coverage_class": _classify_pdb_coverage(row),
         "alphafold_confidence_class": _classify_alphafold_confidence(row),
         "pdb_ids_available": _coerce_id_list(row.get("pdb_ids_available")),
         "pdb_best_resolution_angstrom": row.get("pdb_best_resolution_angstrom"),
-        "pdb_best_method": row.get("pdb_best_method", "none"),
+        "pdb_best_method": row.get("pdb_best_method") or "none",
         "alphafold_plddt_mean": row.get("alphafold_plddt_mean"),
         "alphafold_plddt_min": row.get("alphafold_plddt_min"),
         "alphafold_plddt_min_domain": row.get("alphafold_plddt_min_domain"),
-        "n_domains_low_plddt": row.get("n_domains_low_plddt", 0),
+        "n_domains_low_plddt": row.get("n_domains_low_plddt") or 0,
         "disordered_fraction": row.get("disordered_fraction"),
         "method_version": METHOD_VERSION,
         "_data_source": DERIVED_MANIFEST_ID,
