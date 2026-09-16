@@ -41,16 +41,38 @@
 set -uo pipefail
 export PATH="$HOME/.pixi/bin:$HOME/.local/bin:$PATH"
 cd "$(cd "$(dirname "$0")/.." && pwd)" || exit 2
+
+# ── PARALLELISM (2026-09-16) ────────────────────────────────────────────────────────────────
+# The gate is CPU-bound and was fully serial (~27 min); this host has 32 cores. pytest-xdist
+# fans each BIG suite across worker processes, and the trailing per-skill loop runs several
+# suites at once. Defaults are deliberately MODEST (not `-n auto`) for a SHARED, NO-SWAP host
+# where peer sessions may run concurrently. Override per-run; PRELAND_JOBS=0 restores the old
+# fully-serial behaviour for debugging.
+#   PRELAND_JOBS       xdist workers for the 4 big suites (0 = no xdist / serial)   default 8
+#   PRELAND_LOOP_POOL  concurrent per-skill suites in the trailing loop             default 4
+# SKILLS_READ_POOL=thread is EXPORTED so the card readers use a thread pool, NOT the default
+# process fork-pool: a handful of suites spawn a fresh single-threaded `python run.py` whose
+# fork-pool would otherwise fork up to 8 pandas readers × each concurrent suite — enough to
+# spike RAM and reboot this no-swap host. Thread pool is byte-identical in test output. An
+# explicit caller value is respected (`:-thread` only supplies the default).
+PRELAND_JOBS="${PRELAND_JOBS:-8}"
+PRELAND_LOOP_POOL="${PRELAND_LOOP_POOL:-4}"
+export SKILLS_READ_POOL="${SKILLS_READ_POOL:-thread}"
+xdist=()
+if [ "$PRELAND_JOBS" != "0" ]; then xdist=(-n "$PRELAND_JOBS"); fi
+
 fail=0
 run() { local label="$1"; shift; local out
   if out=$("$@" 2>&1); then echo "PASS  $label"
   else echo "FAIL  $label"; echo "$out" | tail -n 30 | sed 's/^/      /'; fail=1; fi; }
 
 # --- blocking gates (transcribed from skills-validate.yml, in CI order) ---
-run "_skills_common"           pixi run pytest skills/_skills_common/tests/ -q
-run "target-profile"           pixi run pytest skills/target-profile/tests/ -q
-run "skills/tests guards"      pixi run pytest skills/tests/ -q --import-mode=importlib
-run "eval/ harness suite"      pixi run pytest eval/ -q --import-mode=importlib
+# The four BIG suites each run under xdist (`"${xdist[@]}"` = -n $PRELAND_JOBS, or nothing when
+# PRELAND_JOBS=0). Kept sequential + in CI order so the fail-fast and the CI-mirror hold.
+run "_skills_common"           pixi run pytest skills/_skills_common/tests/ -q "${xdist[@]}"
+run "target-profile"           pixi run pytest skills/target-profile/tests/ -q "${xdist[@]}"
+run "skills/tests guards"      pixi run pytest skills/tests/ -q --import-mode=importlib "${xdist[@]}"
+run "eval/ harness suite"      pixi run pytest eval/ -q --import-mode=importlib "${xdist[@]}"
 
 # --- remaining per-skill suites (CI: blocking-by-default loop with an empty NON_BLOCKING_SKILLS denylist) ---
 # Each skill runs in its OWN pytest process (--import-mode=importlib) so `import run` binds to the
@@ -60,18 +82,46 @@ NON_BLOCKING_SKILLS=(
   # (none — add a skill here only with a WHY when it is knowingly red for a reason outside a PR's control)
 )
 is_nonblocking() { local s="$1" n; for n in "${NON_BLOCKING_SKILLS[@]}"; do [ "$s" = "$n" ] && return 0; done; return 1; }
+
+# Collect the eligible per-skill suites. Each still runs in its OWN pytest process with
+# --import-mode=importlib (so `import run` binds to that skill's scripts/run.py, not whichever
+# loaded first). Left SERIAL within each suite — they are small and would lose time to xdist
+# worker spawn; the loop's parallelism lives in the OUTER pool below.
+loop_dirs=()
 for d in skills/*/tests; do
   skill=$(basename "$(dirname "$d")")
   case "$skill" in _skills_common|target-profile) continue ;; esac   # own blocking steps above
   ls "$d"/test_*.py >/dev/null 2>&1 || continue
-  if out=$(pixi run pytest "$d" -q --import-mode=importlib 2>&1); then
+  loop_dirs+=("$d")
+done
+
+# Run the suites at PRELAND_LOOP_POOL-wide concurrency. Each background job writes
+# "<rc>\n<output>" to its own file; the main shell then reports in a STABLE (sorted) order, so
+# parallel output never interleaves and `fail` is set in the main shell (not a subshell).
+resdir=$(mktemp -d)
+run_one() {
+  local d="$1" skill="$2" out rc
+  if out=$(pixi run pytest "$d" -q --import-mode=importlib 2>&1); then rc=0; else rc=$?; fi
+  { printf '%s\n' "$rc"; printf '%s\n' "$out"; } > "$resdir/$skill"
+}
+for d in "${loop_dirs[@]}"; do
+  skill=$(basename "$(dirname "$d")")
+  run_one "$d" "$skill" &
+  while [ "$(jobs -r -p | wc -l)" -ge "$PRELAND_LOOP_POOL" ]; do wait -n; done
+done
+wait
+
+for skill in $(ls "$resdir" | sort); do
+  rc=$(head -n1 "$resdir/$skill")
+  if [ "$rc" = "0" ]; then
     echo "PASS  $skill"
   elif is_nonblocking "$skill"; then
     echo "WARN  $skill (non-blocking / denylisted)"
   else
-    echo "FAIL  $skill"; echo "$out" | tail -n 30 | sed 's/^/      /'; fail=1
+    echo "FAIL  $skill"; tail -n +2 "$resdir/$skill" | tail -n 30 | sed 's/^/      /'; fail=1
   fi
 done
+rm -rf "$resdir"
 
 [ $fail -eq 0 ] && echo "ALL GATES PASS" || echo "GATES FAILED"
 exit $fail
