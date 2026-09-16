@@ -330,11 +330,11 @@ SALIENCE_SPECS: dict = {
     "surface_density": {
         "effect_field": "absolute_copies_per_cell",
         "direction": "higher_is_stronger",
+        # is_tce_viable / is_adc_high_payload_viable dropped: contract #783 types them `boolean`; a *_class
+        # (string) read yields None, so they were never in the categorical projection anyway.
         "categorical": [
             "surface_density_class",
             "density_floor_verdict",
-            "is_tce_viable",
-            "is_adc_high_payload_viable",
         ],
         # STAGE-2 ruler: distance_to_cut on absolute surface density (HIGHER copies/cell = more modality-viable).
         # position = surface_density_class READ VERBATIM; cut = the card's tce_viability_copies_per_cell floor
@@ -1026,7 +1026,8 @@ SALIENCE_SPECS: dict = {
         "strata_array": "resistance_variants",
         "label_field": "variant",
         "n_field": "n_interpreted_variants",
-        "categorical": ["civic_variant_class", "has_oncogenic_variant"],
+        # has_oncogenic_variant dropped: contract #783 types it `boolean` (a flag, not a *_class string).
+        "categorical": ["civic_variant_class"],
     },
     # differentiation-landscape (survival: no monotone effect — drive on class + logrank_p + medians)
     "expression_clinical_association": {
@@ -1055,14 +1056,16 @@ SALIENCE_SPECS: dict = {
         "strata_array": "top_partners",
         "label_field": "partner",
         "n_field": "sl_partner_count",
-        "categorical": ["sl_partner_class", "has_experimental_partner", "best_evidence_tier"],
+        # has_experimental_partner dropped: contract #783 types it `boolean` (a flag, not a *_class string).
+        "categorical": ["sl_partner_class", "best_evidence_tier"],
     },
     "chemical_combination_synergy": {
         "effect_field": "strongest_synergy_delta_emax",
         "n_field": "n_synergy_partners",
         "direction": "higher_is_stronger",
         "categorical": ["synergy_opportunity_class"],
-        "extra_scalars": ["strongest_synergy_partner_drug", "strongest_synergy_partner_target"],
+        # extra_scalars dropped: strongest_synergy_partner_drug/_target are NAME strings (contract #783),
+        # not numeric scalars — the numeric read yielded None, so they contributed no bits.
     },
     # cis-feature-coherence
     "methylation_silencing_coupling": {
@@ -1129,7 +1132,8 @@ SALIENCE_SPECS: dict = {
         "n_field": "media_n_lines_detected",
         "direction": "higher_is_worse",
         "categorical": ["shed_liability_class", "shed_evidence_tier", "shed_product", "shedding_protease"],
-        "extra_scalars": ["serum_marker", "media_panel_high_npx"],
+        # serum_marker dropped: contract #783 types it `string` (an assay NAME), not a numeric scalar.
+        "extra_scalars": ["media_panel_high_npx"],
     },
 }
 
