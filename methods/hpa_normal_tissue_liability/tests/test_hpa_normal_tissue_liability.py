@@ -64,6 +64,37 @@ def test_parse_empty_and_malformed():
     assert [p["tissue"] for p in parsed] == ["liver"]
 
 
+# --- the missing-cell contract (polars pilot, 2026-09-16) ------------------
+# A missing HPA cell arrives as `None` from polars but arrived as float `nan` from pandas, whose
+# str() is "nan". BOTH must read as absent, because compute_summary is public: the live reader now
+# hands it None, while fixtures and any pandas-built frame still hand it nan. These tests exist so
+# neither half can be deleted as "dead code" without a RED — under the live polars path alone the
+# nan half is unreachable, which is exactly what makes it look deletable.
+
+
+def test_missing_cell_absent_for_both_null_shapes():
+    for blank in (None, float("nan"), "nan"):
+        assert hc._is_absent(blank) is True, f"{blank!r} must read as absent"
+        assert hc.classify_breadth(blank) == "data_unavailable", f"{blank!r}"
+        assert hc.parse_specific_tissues(blank) == [], f"{blank!r}"
+    # a PRESENT value must not be swallowed by the absence guard
+    assert hc._is_absent("Detected in all") is False
+    assert hc._is_absent("liver: 500") is False
+
+
+def test_summary_identical_across_null_shapes():
+    """polars-None and pandas-nan rows must produce byte-identical card summaries — this is the
+    property that lets the reader swap libraries without moving a single card field."""
+    from_polars = hc.compute_summary("X", _row(None, None, spec=None))
+    from_pandas = hc.compute_summary("X", _row(float("nan"), float("nan"), spec=float("nan")))
+    assert from_polars == from_pandas
+    # and the absent row must degrade to the coverage-gap answer, never a reassuring one
+    assert from_polars["normal_tissue_breadth_class"] == "data_unavailable"
+    assert from_polars["essential_tissue_flag"] == "unknown"
+    assert from_polars["hpa_tissue_distribution"] is None
+    assert from_polars["hpa_tissue_specificity"] is None
+
+
 # --- essential-tissue flagging (synthetic row) ----------------------------
 
 

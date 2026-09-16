@@ -88,40 +88,112 @@ def _ensure_hpa_cached() -> Path:
     return HPA_CACHE_ZIP
 
 
+HPA_COLS = [HPA_GENE_COL, HPA_DIST_COL, HPA_SPEC_COL, HPA_INTENSITY_COL]
+
+# polars rather than pandas for this reader (pilot, 2026-09-16). Three reasons, measured at HPA
+# scale (20.4k rows x 4 string cols) rather than assumed:
+#   1. parse is ~9.5x faster (21.8ms -> 2.3ms) and the frame holds ~40% less (1.7MB -> 1.0MB);
+#   2. polars frames are IMMUTABLE, so the defensive .copy() the lru path used to pay on every
+#      call is structurally unnecessary — a caller cannot corrupt the cached frame;
+#   3. leaving the frame is cheap. `rows(named=True)` yields plain dicts, where pandas charges a
+#      Series construction per `.iloc[i].to_dict()`. That is what makes _gene_index below viable.
+# NOT a reason: polars' `filter` is NOT faster than pandas' boolean mask for a single-row lookup
+# (1.30ms vs 1.25ms per lookup — measured). The lookup win here comes from the INDEX, not the
+# library; polars only makes the index cheap to build. Do not cite "polars is faster at filtering"
+# to justify copying this pattern elsewhere.
+#
+# THE NULL SEMANTICS CHANGED — the one thing to know when reading the classifiers below. Under
+# pandas `dtype=str` a missing TSV cell arrived as float `nan`: TRUTHY, so `if not value` did NOT
+# catch it, and every guard needed an explicit `str(value) == "nan"`. polars yields a real `None`
+# instead. Both shapes are still handled (see _is_absent) because compute_summary is public and
+# callers/fixtures hand it hand-built dicts — but the branch that fires has changed, so the
+# `== "nan"` half is now unreachable from the live read alone. See #644 for the same divergence
+# biting the DepMap reader from the other direction.
+
+
 def _read_zip_cols(zip_path, cols):
-    import pandas as pd
+    import polars as pl
 
     z = zipfile.ZipFile(zip_path)
     with z.open(z.namelist()[0]) as f:
-        return pd.read_csv(f, sep="\t", usecols=cols, dtype=str)
+        # infer_schema_length=0 == the old dtype=str: every column stays Utf8, no type inference.
+        return pl.read_csv(f, separator="\t", columns=cols, infer_schema_length=0)
 
 
 @lru_cache(maxsize=1)
 def _read_hpa_cached_default():
     """The default (S3-backed) HPA read — parsed ONCE per process (lru) off the disk cache.
     Only used when no explicit hpa_path override is passed (the live path)."""
-    cols = [HPA_GENE_COL, HPA_DIST_COL, HPA_SPEC_COL, HPA_INTENSITY_COL]
-    return _read_zip_cols(_ensure_hpa_cached(), cols)
+    return _read_zip_cols(_ensure_hpa_cached(), HPA_COLS)
 
 
 def _read_hpa(hpa_path=None):
-    import pandas as pd
+    import polars as pl
 
-    cols = [HPA_GENE_COL, HPA_DIST_COL, HPA_SPEC_COL, HPA_INTENSITY_COL]
     if hpa_path is not None:
         # explicit override (tests / local file) — NOT cached (callers may vary the path)
         p = str(hpa_path)
         if p.endswith(".zip"):
-            return _read_zip_cols(p, cols)
-        return pd.read_csv(p, sep="\t", usecols=cols, dtype=str)
-    # live path: disk-cache the zip + lru-cache the parse (return a copy so callers can't mutate
-    # the shared cached frame).
-    return _read_hpa_cached_default().copy()
+            return _read_zip_cols(p, HPA_COLS)
+        return pl.read_csv(p, separator="\t", columns=HPA_COLS, infer_schema_length=0)
+    # live path: disk-cache the zip + lru-cache the parse. Returned WITHOUT a copy — polars frames
+    # are immutable, so callers cannot corrupt the shared cached frame (the pandas reader copied
+    # the whole ~20k-row frame on every call purely to buy this guarantee).
+    return _read_hpa_cached_default()
+
+
+def _gene_index(df) -> dict:
+    """Build {GENE (upper) -> row dict} from an HPA frame. The frame EXITS here — everything
+    downstream is plain Python, which is why no polars type reaches compute_summary or the card.
+
+    FIRST row wins on a duplicate symbol, preserving the previous `hit.iloc[0]` semantics exactly
+    (HPA is one row per gene, so this is defensive rather than load-bearing)."""
+    index: dict = {}
+    for row in df.rows(named=True):
+        gene = row.get(HPA_GENE_COL)
+        if gene is None:
+            continue
+        key = str(gene).strip().upper()
+        if key and key not in index:
+            index[key] = row
+    return index
+
+
+@lru_cache(maxsize=1)
+def _gene_index_default():
+    """The live path's gene index — built ONCE per process off the lru-cached frame. Turns each
+    lookup from a full-column scan (~1.25ms at HPA scale) into a dict hit (~0.3us)."""
+    return _gene_index(_read_hpa_cached_default())
+
+
+def clear_hpa_caches() -> None:
+    """Clear BOTH process caches together.
+
+    There are now TWO: the parsed frame and the gene index DERIVED from it. Clearing only the
+    frame leaves the index holding rows from the previous source, so a test that repoints
+    _ensure_hpa_cached at a new zip would still resolve genes from the old one — a stale read
+    that looks like a passing test. Always go through here rather than calling .cache_clear()
+    on either cache alone."""
+    _read_hpa_cached_default.cache_clear()
+    _gene_index_default.cache_clear()
+
+
+def _is_absent(value) -> bool:
+    """True when an HPA cell carries no call.
+
+    TWO shapes reach here and both must be treated as absent:
+      - `None`   — polars' missing cell (the live read, since the polars pilot);
+      - `"nan"`  — what `str()` gives for pandas' float nan, still produced by any pandas-built
+                   frame or hand-built fixture dict passed to the public compute_summary.
+    Deliberately NOT widened to `""` or case-folded: that would newly map an empty-but-present
+    cell to absent, which is a behaviour change this pilot is not making."""
+    return value is None or str(value) == "nan"
 
 
 def parse_specific_tissues(intensity_value: Optional[str]) -> list:
     """Parse 'intestine: 2.3e5;lymphoid tissue: 1.1e4' → [{tissue, intensity}]."""
-    if not intensity_value or str(intensity_value) == "nan":
+    # `not intensity_value` also catches "" ; _is_absent catches None (polars) and "nan" (pandas).
+    if not intensity_value or _is_absent(intensity_value):
         return []
     out = []
     for part in str(intensity_value).split(";"):
@@ -140,7 +212,7 @@ def parse_specific_tissues(intensity_value: Optional[str]) -> list:
 
 def classify_breadth(dist_value: Optional[str]) -> str:
     """Protein tissue distribution → normal_tissue_breadth_class."""
-    if dist_value is None or str(dist_value) == "nan":
+    if _is_absent(dist_value):
         return "data_unavailable"
     return _DIST_TO_CLASS.get(str(dist_value).strip().lower(), "data_unavailable")
 
@@ -161,9 +233,9 @@ def compute_summary(gene: str, row: Optional[dict]) -> dict:
             "method_version": METHOD_VERSION,
         }
     dist = row.get(HPA_DIST_COL)
-    dist = None if (dist is None or str(dist) == "nan") else str(dist)
+    dist = None if _is_absent(dist) else str(dist)
     spec = row.get(HPA_SPEC_COL)
-    spec = None if (spec is None or str(spec) == "nan") else str(spec)
+    spec = None if _is_absent(spec) else str(spec)
     breadth = classify_breadth(dist)
     specific = parse_specific_tissues(row.get(HPA_INTENSITY_COL))
     names = {t["tissue"] for t in specific}
@@ -219,11 +291,12 @@ def compute_summary(gene: str, row: Optional[dict]) -> dict:
 
 def load_and_classify(gene: str, hpa_path=None) -> dict:
     """Full pipeline: look up the gene's HPA row → normal-tissue-liability summary."""
-    df = _read_hpa(hpa_path)
-    hit = df[df[HPA_GENE_COL].astype(str).str.upper() == gene.strip().upper()]
-    if not len(hit):
-        return compute_summary(gene, None)
-    return compute_summary(gene, hit.iloc[0].to_dict())
+    if hpa_path is None:
+        index = _gene_index_default()  # built once per process off the lru-cached frame
+    else:
+        index = _gene_index(_read_hpa(hpa_path))  # override: not cached, callers vary the path
+    # miss → compute_summary(row=None) → data_unavailable (a coverage gap, NOT a safety window)
+    return compute_summary(gene, index.get(gene.strip().upper()))
 
 
 def _load_takeda_style(target_contracts_dir):
@@ -290,7 +363,9 @@ def emit_normal_tissue_bar(summary: dict, target_symbol: str, out_dir, target_co
     specific = summary.get("specific_tissues") or []
     essential_set = set(summary.get("essential_tissues_flagged") or [])
     gi_set = {"intestine", "stomach"}
-    flags = summary.get("safety_tissue_flags") or []
+    # (no `flags = summary["safety_tissue_flags"]` here: the figure colours essential/GI tissues
+    # from essential_set / gi_set directly, so the read was vestigial — F841. Removed because CI's
+    # ruff check is diff-aware by FILE, so touching this module newly surfaces it.)
 
     rows = sorted(
         [(t.get("tissue"), t.get("intensity")) for t in specific if t.get("intensity") is not None],

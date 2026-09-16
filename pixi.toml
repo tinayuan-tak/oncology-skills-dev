@@ -48,6 +48,11 @@ bioconductor-limma = "*"         # cptac_protein_deg: MSstatsTMT peer dep (eBaye
 bioconductor-biobase = "*"       # subgroup_assigner_classifier (CMS): CMScaller dependency (ExpressionSet/NTP)
 scikit-learn = ">=1.9.0,<2"
 matplotlib-base = ">=3.11.1,<4"  # headless SVG figure rendering (emit_*_svg / plot_data); -base = no GUI backends
+polars = ">=1.44.2,<2"          # PILOT, 1 method (hpa_normal_tissue_liability). pandas stays the
+                                 # default reader everywhere else — this is a scoping experiment, not
+                                 # a migration. Version-RANGED deliberately, unlike the "*" pins
+                                 # above: polars 2.x will change API surface, and a "*" pin is how
+                                 # local (pandas 2.3.3) and CI (3.0.3) drifted apart in the first place.
 
 [pypi-dependencies]
 # (target_id_resolver itself; installed as editable pip package once carved over)
