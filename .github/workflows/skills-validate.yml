@@ -8,9 +8,12 @@ name: Skills Validate
 # credential-less CI runner.
 #
 # PARALLELISM (2026-09-16): the pytest work is split across parallel matrix SHARDS to cut CI
-# wall-clock (was ~23 min median, serial, grazing the 25 min timeout). shard=core runs the four
-# big suites under `-n auto` (pytest-xdist, ~nproc workers on the runner); shard=0..3 each run a
-# deterministic round-robin slice of the remaining per-skill suites. A fan-in job named `pytest`
+# wall-clock (was ~23 min median, serial, grazing the 25 min timeout). The 4 big suites are split
+# THREE ways (measured, not guessed): shard=core-common = _skills_common; shard=core-guards =
+# skills/tests + eval/ (skills/tests, with its cross-skill guards + the end-to-end test_graduated
+# run, was the heaviest under -n auto); shard=core-profile = target-profile — each under `-n auto`
+# (pytest-xdist, ~nproc workers). shard=0..3 each run a deterministic round-robin slice of the
+# remaining per-skill suites. A fan-in job named `pytest`
 # (the branch-protection required status check) aggregates all shards — see the `pytest` job at
 # the bottom. The matrix jobs report as `pytest-shards (…)` and are NOT the required check; the
 # required name `pytest` MUST stay attached to the fan-in job or the required check would deadlock
@@ -77,7 +80,7 @@ jobs:
       # the count of numeric shards here.
       fail-fast: false
       matrix:
-        shard: [core, 0, 1, 2, 3]
+        shard: [core-common, core-guards, core-profile, 0, 1, 2, 3]
     env:
       # The skill readers resolve sibling code via these env vars (sys.path), in addition to the
       # editable pixi installs. Point them at the CI checkouts, not the local-dev default path.
@@ -207,17 +210,27 @@ jobs:
             fi
           }
 
-          if [ "$SHARD" = "core" ]; then
-            # The four BIG suites, each parallelized within via xdist `-n auto` (~nproc workers).
-            # Called as LITERAL `pytest <path>` invocations (NOT via run_suite) on purpose: they are
-            # the coverage anchors test_ci_covers_all_test_files parses for skills/tests/ + eval/,
-            # which the skills/*/tests glob does not match. A path hidden behind run_suite's $2 reads
-            # as `pytest $2` to that guard and would fail it — so keep these literal.
-            echo "::group::_skills_common"; pixi run pytest skills/_skills_common/tests/ -q -n auto; r1=$?; echo "::endgroup::"
-            echo "::group::target-profile"; pixi run pytest skills/target-profile/tests/ -q -n auto; r2=$?; echo "::endgroup::"
-            echo "::group::skills-guards"; pixi run pytest skills/tests/ -q --import-mode=importlib -n auto; r3=$?; echo "::endgroup::"
-            echo "::group::eval"; pixi run pytest eval/ -q --import-mode=importlib -n auto; r4=$?; echo "::endgroup::"
-            for r in "$r1" "$r2" "$r3" "$r4"; do [ "$r" -ne 0 ] && gate_fail=1; done
+          if [ "$SHARD" = "core-common" ]; then
+            # _skills_common ISOLATED on its own shard — the heaviest single suite (150 files,
+            # including the un-splittable 68k-row golden-snapshot test), so it sets the wall-clock
+            # floor. Split off from the other three big suites so it no longer runs behind them.
+            # LITERAL path: the coverage anchor test_ci_covers_all_test_files parses (also matched by
+            # the skills/*/tests glob below, but kept explicit as its own blocking gate).
+            echo "::group::_skills_common"; pixi run pytest skills/_skills_common/tests/ -q -n auto; r=$?; echo "::endgroup::"
+            [ "$r" -ne 0 ] && gate_fail=1
+          elif [ "$SHARD" = "core-guards" ]; then
+            # skills/tests cross-skill guards + eval/ — MEASURED to be the heaviest remaining group
+            # (skills/tests, with its cross-skill guards + the end-to-end test_graduated run, was the
+            # core-rest long pole at ~4m24s). LITERAL `pytest <path>` invocations (NOT via run_suite):
+            # coverage anchors for skills/tests/ + eval/, which the skills/*/tests glob does not match.
+            echo "::group::skills-guards"; pixi run pytest skills/tests/ -q --import-mode=importlib -n auto; r1=$?; echo "::endgroup::"
+            echo "::group::eval"; pixi run pytest eval/ -q --import-mode=importlib -n auto; r2=$?; echo "::endgroup::"
+            for r in "$r1" "$r2"; do [ "$r" -ne 0 ] && gate_fail=1; done
+          elif [ "$SHARD" = "core-profile" ]; then
+            # target-profile (the composed nomination skill) on its own shard. LITERAL path — also
+            # matched by the skills/*/tests glob, kept explicit as its own blocking gate.
+            echo "::group::target-profile"; pixi run pytest skills/target-profile/tests/ -q -n auto; r=$?; echo "::endgroup::"
+            [ "$r" -ne 0 ] && gate_fail=1
           else
             # Remaining per-skill suites, round-robin across the numeric shards. The `for d in
             # skills/*/tests` glob is the coverage anchor for every per-skill dir.
