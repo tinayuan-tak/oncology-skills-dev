@@ -1557,6 +1557,16 @@ class HtmlBackend:
                     + _esc(", ".join(str(b) for b in bs))
                     + "</div>"
                 )
+            # Step 2d: the COMPUTED coverage for THIS run, right under the (framework-level) literals —
+            # a HIGH bin driven by 2 badly-measured axes and one driven by 4 unlooked-at axes are opposite
+            # actions, and the bin above cannot tell them apart.
+            cov = d.get("evidence_coverage_phrase")
+            if cov:
+                body += (
+                    "<div class='dimlit' title='computed from the per-field descriptor: what this run "
+                    "actually measured on the axes feeding this dimension (verdict-inert)'>◔ evidence "
+                    f"coverage this run: {_esc(str(cov))}</div>"
+                )
             if d.get("mitigation"):
                 body += f"<div class='dimlit'>↪ reconciliation: {_esc(str(d.get('mitigation')))}</div>"
             # dimension-level literature grounded_findings (e.g. the MACRO prognostic study on the

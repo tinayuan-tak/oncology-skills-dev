@@ -701,6 +701,42 @@ _CONTEXT_DIM = {
 }
 
 
+def coverage_phrase(ec: Any) -> Optional[str]:
+    """The computed per-dim evidence coverage (`risk_projection.evidence_coverage_by_dim`) in one line, or
+    None when there is nothing to say. ONE formatter for BOTH backends — text and html must not drift into
+    two readings of the same numbers.
+
+    Says only what was computed. The hand-authored `blind_spots` literals answer "what can the omics never
+    see?"; this answers "what did THIS RUN see?" — and it keeps the projection's three gap kinds apart: an
+    axis that measured nothing (evidence gap), an axis whose cards all failed to resolve (never looked),
+    and an axis the descriptor cannot read (an INSTRUMENT gap, not a claim about the data)."""
+    if not isinstance(ec, dict) or not ec:
+        return None
+    if ec.get("error"):
+        return f"coverage unavailable ({ec['error']})"
+    reported = ec.get("axes_reported") or []
+    if not reported:
+        # declared axes that never report = the card-fed pseudo-dims (clinical / commercial). Saying
+        # "0 axes measured" here would read as blindness; the dim is simply fed by cards, not by an axis.
+        return "card-fed dim — no subskill axis reports into it" if (ec.get("axes_declared") or []) else None
+    axes = ec.get("axes") or {}
+    n_meas = sum(1 for a in reported if (axes.get(a) or {}).get("state") == "measured")
+    parts = [f"{n_meas}/{len(reported)} axes measured"]
+    resolved, missing = ec.get("n_cards_resolved") or 0, ec.get("n_cards_missing") or 0
+    if missing:
+        parts.append(f"{resolved} cards resolved, {missing} declared cards did not")
+    else:
+        parts.append(f"{resolved} cards resolved")
+    if ec.get("unmeasured_axes"):
+        parts.append("measured nothing: " + ", ".join(ec["unmeasured_axes"]))
+    if ec.get("unresolved_axes"):
+        parts.append("no card resolved: " + ", ".join(ec["unresolved_axes"]))
+    if ec.get("undescribed_axes"):
+        # NOT phrased as a data gap — this is the descriptor's own coverage queue.
+        parts.append("not descriptor-covered: " + ", ".join(ec["undescribed_axes"]))
+    return " · ".join(parts)
+
+
 def _sentences(text: str, n: int) -> str:
     """First `n` sentences of a prose rationale, split on sentence-final punctuation followed by a
     space + capital (so decimals like `0.23` and `q=1e-10` don't split). Fail-soft: returns the whole
@@ -858,6 +894,13 @@ def _risk_6dim_block(
                 "engine_literature_discordance": bool(v.get("engine_literature_discordance")),
                 "blind_spots": blind_spots,
                 "mitigation": mitigation,
+                # Step 2d: the COMPUTED coverage the deterministic projection attached — what THIS RUN
+                # measured per axis, beside the hand-authored blind_spots literals. `phrase` is the one
+                # shared reading both backends render; the structured payload rides along for machines.
+                "evidence_coverage": (v.get("evidence_coverage") or None) if isinstance(v, dict) else None,
+                "evidence_coverage_phrase": coverage_phrase(
+                    v.get("evidence_coverage") if isinstance(v, dict) else None
+                ),
             }
         )
 

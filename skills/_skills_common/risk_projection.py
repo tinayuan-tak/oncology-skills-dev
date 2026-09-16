@@ -94,15 +94,31 @@ def assemble_risk_package(sub_results: dict) -> dict:
     Byte-parity contract: this mirrors `tp_evidence_package._write_evidence_package`'s card union
     (union-by-card_id, first-wins, present-only) and sub_verdict extraction, and normalizes each present
     card through the SAME `_envelope_card_present` used for the on-disk `evidence_package.json`. So the
-    bins computed in-memory are identical to the bins computed from the serialized package. Only the two
-    fields the projection reads are needed: `synthesis.sub_verdicts[short].verdict` and the flat `cards`
-    list (`card_id` / `summary` / `interpretation_call`)."""
+    bins computed in-memory are identical to the bins computed from the serialized package. Three fields
+    the projection reads are needed: `synthesis.sub_verdicts[short].verdict`, the flat `cards` list
+    (`card_id` / `summary` / `interpretation_call` / `measurement_type`), and each axis's card provenance
+    at `synthesis.skill_reports[short].provenance` (`cards_used` / `cards_missing`) — the join key for the
+    computed evidence coverage below. That provenance is COPIED off the very same `skill_report` object
+    that `tp_evidence_package` writes to disk as `synthesis.skill_reports[short]`, so the in-memory and
+    on-disk coverage are one derivation, not two."""
     from .dispatcher import _envelope_card_present  # lazy: avoid an import cycle / import-time cost
 
     sub_verdicts: dict = {}
+    skill_reports: dict = {}
     for short, r in sub_results.items():
         v = r.get("verdict")
         sub_verdicts[short] = {"verdict": v[0] if v else None}
+        # the axis's own card provenance, off the emitted skill_report spine (never re-derived here: a
+        # second `_missing` scan would be a copy that can disagree with the written package).
+        rep = ((r or {}).get("synthesis_facet") or {}).get("skill_report")
+        prov = rep.get("provenance") if isinstance(rep, dict) else None
+        if isinstance(prov, dict):
+            skill_reports[short] = {
+                "provenance": {
+                    "cards_used": list(prov.get("cards_used") or []),
+                    "cards_missing": list(prov.get("cards_missing") or []),
+                }
+            }
 
     cards: list = []
     seen: set = set()
@@ -113,7 +129,183 @@ def assemble_risk_package(sub_results: dict) -> dict:
                 continue
             seen.add(cid)
             cards.append(_envelope_card_present(c))
-    return {"synthesis": {"sub_verdicts": sub_verdicts}, "cards": cards}
+    return {"synthesis": {"sub_verdicts": sub_verdicts, "skill_reports": skill_reports}, "cards": cards}
+
+
+# ── computed evidence coverage per dim (substrate Step 2d) ───────────────────────────────────────
+# A bin says HOW BAD it looks. It cannot say WHETHER WE LOOKED. "SAFETY: HIGH because 2 axes measured
+# badly" and "SAFETY: HIGH because 4 axes were never looked at" are OPPOSITE actions — de-risk the
+# liability vs acquire the data — and the ordinal is IDENTICAL in both. This block computes the second
+# half from the Step-1 per-field descriptor: for each axis AXIS_TO_DIM routes into a dim, how many of
+# that axis's own declared cards resolved, and how many descriptor-covered fields THIS RUN measured.
+#
+# ADDITIVE + VERDICT-INERT: it lands on a new `evidence_coverage` key and touches no bin, chain,
+# mitigation or hand-authored `blind_spots` literal (verified as a null diff: a 2520-row digest over the
+# 504-target corpus x 5 modalities is byte-identical before/after). It does not REPLACE the literals
+# either — those say what the omics CANNOT SEE AT ALL (a property of the framework); this says what THIS
+# RUN saw (a property of the data). Both belong on the dim.
+#
+# FOUR states, not two, and the third one is the whole point. Measured over the 504-package corpus
+# (4536 axis-runs): 4505 measured / 11 unmeasured / 20 undescribed / 0 absent. A binary measured-vs-not
+# flag would therefore have reported 31 "blind spots" of which 20 (65%) are SALIENCE_SPECS coverage gaps
+# — an INSTRUMENT gap shipped as an EVIDENCE gap, i.e. "nobody looked" asserted about an axis that looked
+# and reported. `undescribed` keeps those in their own bucket, where they read as the descriptor work
+# queue (`field_descriptor.coverage_report`) rather than as a data gap.
+STATE_MEASURED = "measured"  # >=1 descriptor-covered field carried a measured value
+STATE_UNMEASURED = "unmeasured"  # descriptor-covered fields exist; NONE measured -> a real evidence gap
+STATE_UNDESCRIBED = "undescribed"  # cards resolved but no descriptor-covered field -> an INSTRUMENT gap
+STATE_ABSENT = "absent"  # not one of the axis's declared cards resolved -> genuinely never looked at
+COVERAGE_STATES: frozenset = frozenset({STATE_MEASURED, STATE_UNMEASURED, STATE_UNDESCRIBED, STATE_ABSENT})
+
+# The descriptor roles that carry a MEASUREMENT. Held as literals (not imported) so this module stays
+# stdlib-pure at import time — `deterministic_bins` is offline-safe and the descriptor join pulls in the
+# gloss + salience registries. `test_measurement_roles_partition_descriptor_roles` asserts this set plus
+# the four non-measurement roles EXACTLY partitions `field_descriptor.ROLES`, so a new role reds until
+# it is classified here rather than being silently swallowed.
+MEASUREMENT_ROLES: frozenset = frozenset(
+    {"effect", "significance", "omnibus", "n", "categorical", "extra_scalar", "frame_value"}
+)
+# label = a stratum's name, strata = the array container, envelope = framework plumbing, unclassified =
+# the descriptor could not read the field. None of the four is evidence that an axis measured anything.
+NON_MEASUREMENT_ROLES: frozenset = frozenset({"label", "strata", "envelope", "unclassified"})
+
+
+def _axis_card_provenance(pkg: dict) -> dict:
+    """`{axis: (cards_used, cards_missing)}` off the emitted skill_report spine — the axis→cards join key.
+
+    `synthesis.skill_reports[short].provenance` is written by `skill_report.build_skill_report` and is the
+    SAME object on both routes (the on-disk evidence_package, and the in-memory view
+    `assemble_risk_package` copies out of `sub_results[short].synthesis_facet.skill_report`). Axes with no
+    report (clinical / commercial are card-fed pseudo-dims, never fan-out subskills) are simply absent."""
+    reports = ((pkg.get("synthesis") or {}).get("skill_reports")) or {}
+    out: dict = {}
+    for short, rep in reports.items():
+        if not isinstance(rep, dict):
+            continue
+        prov = rep.get("provenance")
+        if not isinstance(prov, dict):
+            continue
+        out[short] = (list(prov.get("cards_used") or []), list(prov.get("cards_missing") or []))
+    return out
+
+
+def evidence_coverage_by_axis(pkg: dict) -> dict:
+    """`{axis: {state, n_cards_resolved, n_cards_missing, n_fields_described, n_fields_measured}}`.
+
+    One entry per axis that emitted a skill_report this run. `n_fields_described` counts the fields the
+    Step-1 descriptor classified into a MEASUREMENT role across the axis's RESOLVED cards;
+    `n_fields_measured` is how many of those carried a measured value under the shared
+    `field_disposition.is_measured` rule (0/0.0/False are measured; None/sentinel/non-finite/empty are
+    not) — this module invents no second measuredness rule.
+
+    A card whose measurement_type resolves to no salience spec contributes 0 described fields, which is
+    why the `undescribed` state exists: it is a statement about the DESCRIPTOR, not about the data.
+
+    Covers EVERY axis that reported, not only the verdict-bearing AXIS_TO_DIM ones, so the gateless
+    context companions can be read too — but `evidence_coverage_by_dim` deliberately surfaces only the
+    AXIS_TO_DIM axes. Measured reason (504-package corpus): `translational_readiness` and
+    `literature_context` are `undescribed` on 504 of 504 runs and `immune_context` on 86 — none of those
+    measurement_types carries a SALIENCE_SPEC yet, so displaying their state per-run would ship a CONSTANT
+    dressed as a per-run signal. They belong in the descriptor work queue until the specs land."""
+    from .field_descriptor import descriptors_for  # lazy: keep this module stdlib-pure at import time
+    from .field_disposition import is_measured
+    from .measurement_types import card_measurement_type
+
+    cards: dict = {}
+    for c in pkg.get("cards") or []:
+        cid = c.get("card_id")
+        if cid and cid not in cards:
+            cards[cid] = c
+
+    out: dict = {}
+    for axis, (used, missing) in _axis_card_provenance(pkg).items():
+        resolved = [cards[cid] for cid in used if cid in cards]
+        n_described = n_measured = 0
+        for card in resolved:
+            # the stamped measurement_type when the writer stamped it, else the SAME registry back-ref
+            # the stamp itself is resolved from (envelope._stamp_evidence_substrate) — one derivation.
+            mt = card.get("measurement_type") or card_measurement_type(card.get("card_id") or "")
+            if not mt:
+                continue
+            descriptors = descriptors_for(mt)
+            for field, value in (card.get("summary") or {}).items():
+                d = descriptors.get(field)
+                if not d or d.get("role") not in MEASUREMENT_ROLES:
+                    continue
+                n_described += 1
+                if is_measured(value):
+                    n_measured += 1
+        if not resolved:
+            state = STATE_ABSENT
+        elif n_described == 0:
+            state = STATE_UNDESCRIBED
+        elif n_measured == 0:
+            state = STATE_UNMEASURED
+        else:
+            state = STATE_MEASURED
+        out[axis] = {
+            "state": state,
+            "n_cards_resolved": len(resolved),
+            # declared by the axis and NOT resolved this run. 15.6% of all declared cards corpus-wide
+            # (selectivity 38%, differentiation 27%) — the coverage number a bin cannot show even when
+            # the axis is `measured`: 1-of-11 cards resolving still reads `measured`.
+            "n_cards_missing": len(missing),
+            "n_fields_described": n_described,
+            "n_fields_measured": n_measured,
+        }
+    return out
+
+
+def evidence_coverage_by_dim(pkg: dict) -> dict:
+    """`{dim: {axes_declared, axes_reported, axes, unmeasured_axes, unresolved_axes, undescribed_axes,
+    n_cards_resolved, n_cards_missing}}` — the per-dim roll-up of `evidence_coverage_by_axis`.
+
+    `axes_declared` is every axis AXIS_TO_DIM routes into the dim; `axes_reported` those that actually
+    emitted a report. Both are surfaced because they DIFFER meaningfully: clinical / commercial declare an
+    axis that is never a fan-out subskill (their bin comes from the clinical-precedent /
+    competitor-landscape CARDS), so `axes_declared` non-empty with `axes_reported` empty is the honest
+    reading "this dim is card-fed, not axis-fed" — not "this dim is blind".
+
+    The three named lists are kept SEPARATE rather than summed into one blind-spot count: an evidence gap
+    (`unmeasured`), a never-resolved axis (`unresolved`) and a descriptor gap (`undescribed`) call for
+    three different actions, and collapsing them is exactly the lossiness the substrate pivot removes."""
+    per_axis = evidence_coverage_by_axis(pkg)
+    out: dict = {}
+    for dim in dict.fromkeys(AXIS_TO_DIM.values()):
+        declared = [a for a, d in AXIS_TO_DIM.items() if d == dim]
+        reported = [a for a in declared if a in per_axis]
+        axes = {a: per_axis[a] for a in reported}
+        out[dim] = {
+            "axes_declared": declared,
+            "axes_reported": reported,
+            "axes": axes,
+            "unmeasured_axes": [a for a in reported if axes[a]["state"] == STATE_UNMEASURED],
+            "unresolved_axes": [a for a in reported if axes[a]["state"] == STATE_ABSENT],
+            "undescribed_axes": [a for a in reported if axes[a]["state"] == STATE_UNDESCRIBED],
+            "n_cards_resolved": sum(axes[a]["n_cards_resolved"] for a in reported),
+            "n_cards_missing": sum(axes[a]["n_cards_missing"] for a in reported),
+        }
+    return out
+
+
+def _attach_evidence_coverage(dims: dict, pkg: dict) -> None:
+    """Attach the computed per-dim coverage to `dims` IN PLACE, additively.
+
+    FAIL-SOFT but never SILENT: the descriptor join reads the gloss + salience + measurement-type
+    registries, and a skills-only checkout cannot reach the last of those. On any failure every dim gets
+    `evidence_coverage = {"error": ...}` — the bins stay untouched (this is display-only), and the reason
+    is on the artifact rather than swallowed. Deliberately NOT raised: `build_risk_6dim` wraps the whole
+    projection in one try/except, so letting this propagate would drop the entire 6-dim roll-up over an
+    additive display key."""
+    try:
+        coverage = evidence_coverage_by_dim(pkg)
+    except Exception as e:  # noqa: BLE001 — display-only enrichment; must never cost a bin
+        coverage = None
+        err = {"error": f"{type(e).__name__}: {e}"}
+    for dim, d in dims.items():
+        if not isinstance(d, dict):
+            continue
+        d["evidence_coverage"] = coverage.get(dim, {}) if coverage is not None else dict(err)
 
 
 def deterministic_bins(pkg: dict, modality: str) -> dict:
@@ -371,6 +563,8 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
             "mitigation": None,
             "blind_spots": ["entire dim — literature-only"],
         }
+    # Step 2d: the COMPUTED coverage beside the hand-authored literals — additive, last, bins untouched.
+    _attach_evidence_coverage(dims, pkg)
     return dims
 
 
@@ -416,6 +610,15 @@ __all__ = [
     "_q",
     "assemble_risk_package",
     "deterministic_bins",
+    "COVERAGE_STATES",
+    "MEASUREMENT_ROLES",
+    "NON_MEASUREMENT_ROLES",
+    "STATE_ABSENT",
+    "STATE_MEASURED",
+    "STATE_UNDESCRIBED",
+    "STATE_UNMEASURED",
+    "evidence_coverage_by_axis",
+    "evidence_coverage_by_dim",
     "_risk_rows_from_rollup",
     "_RISK_DIM_ORDER",
     "_ROLLUP_BIN_TO_MD_LEVEL",

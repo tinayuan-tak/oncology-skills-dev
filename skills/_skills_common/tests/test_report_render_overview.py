@@ -141,6 +141,84 @@ def test_risk_6dim_no_discordance_badge_when_absent_992():
     assert "litdisc" not in h  # byte-stable — no badge when not discordant
 
 
+def test_risk_6dim_evidence_coverage_reaches_both_backends_identically():
+    """Step 2d reader side. The hand-authored `blind_spots` literal says what omics CANNOT see (a constant
+    of the dimension); `evidence_coverage` says what THIS RUN measured. Both must be visible together —
+    "HIGH because 2 axes measured badly" and "HIGH because 4 were never looked at" are opposite actions and
+    the bin cannot tell them apart. ONE formatter (`ir.coverage_phrase`) feeds both backends on the SAME
+    predicate, so the assertion is that text and html carry the SAME phrase for the SAME dims — a per-backend
+    format would let the two drift into two readings of one set of numbers."""
+    from _skills_common.report_render.backends.html import HtmlBackend
+    from _skills_common.report_render.backends.text import TextBackend
+    from _skills_common.report_render.ir import _risk_6dim_block
+
+    r6 = {
+        "safety": {
+            "bin": "HIGH",
+            "chain": [["on-target-safety", "constrained", "HIGH"]],
+            "blind_spots": ["off-target / secondary pharmacology"],
+            "evidence_coverage": {
+                "axes_declared": ["selectivity", "safety"],
+                "axes_reported": ["selectivity", "safety"],
+                "axes": {
+                    "selectivity": {"state": "measured", "n_cards_resolved": 3, "n_cards_missing": 9},
+                    "safety": {"state": "unmeasured", "n_cards_resolved": 1, "n_cards_missing": 0},
+                },
+                "unmeasured_axes": ["safety"],
+                "unresolved_axes": [],
+                "undescribed_axes": [],
+                "n_cards_resolved": 4,
+                "n_cards_missing": 9,
+            },
+        },
+        "biological": {"bin": "LOW", "chain": [["dependency", "x", "LOW"]]},  # no coverage payload at all
+    }
+    blk = _risk_6dim_block(r6)
+    dims = {d["dim"]: d for d in blk.payload["dims"]}
+    phrase = dims["safety"]["evidence_coverage_phrase"]
+    assert "1/2 axes measured" in phrase
+    assert "9 declared cards did not" in phrase  # the resolution gap a bin cannot express
+    assert "measured nothing: safety" in phrase
+    # the hand-authored literal is UNTOUCHED beside it (additive, not a replacement)
+    assert dims["safety"]["blind_spots"] == ["off-target / secondary pharmacology"]
+    # a dim with no coverage payload gets None, not an invented empty reading
+    assert dims["biological"]["evidence_coverage_phrase"] is None
+    assert dims["biological"]["evidence_coverage"] is None
+
+    h = "".join(HtmlBackend()._risk_6dim(blk.payload))
+    t = "\n".join(TextBackend()._risk_6dim(blk.payload))
+    assert phrase in h and phrase in t  # SAME phrase, both backends
+    assert "evidence coverage" in h and "evidence coverage" in t
+    # and the run-silent dim contributes NO coverage line to either backend
+    assert t.count("evidence coverage") == 1
+
+
+def test_risk_6dim_evidence_coverage_absent_is_byte_stable():
+    """No coverage payload anywhere → NOT ONE new byte in either backend. This is what makes the change safe
+    to land ahead of the producers: every artifact written before this key existed renders exactly as before."""
+    from _skills_common.report_render.backends.html import HtmlBackend
+    from _skills_common.report_render.backends.text import TextBackend
+    from _skills_common.report_render.ir import _risk_6dim_block
+
+    blk = _risk_6dim_block({"biological": {"bin": "LOW", "chain": [["dependency", "x", "LOW"]]}})
+    h = "".join(HtmlBackend()._risk_6dim(blk.payload))
+    t = "\n".join(TextBackend()._risk_6dim(blk.payload))
+    assert "evidence coverage" not in h and "evidence coverage" not in t
+    assert "◔" not in h
+
+
+def test_risk_6dim_coverage_error_is_shown_not_swallowed():
+    """`_attach_evidence_coverage` is fail-SOFT (build_risk_6dim wraps the whole projection, so raising would
+    drop the entire 6-dim rollup over a display key) but must not be fail-SILENT: a coverage payload that is
+    only an `error` renders as unavailable-with-reason, never as "0 axes measured" — which would read as a
+    measured claim of blindness."""
+    from _skills_common.report_render.ir import _risk_6dim_block, coverage_phrase
+
+    assert coverage_phrase({"error": "KeyError: 'cards'"}) == "coverage unavailable (KeyError: 'cards')"
+    blk = _risk_6dim_block({"safety": {"bin": "HIGH", "chain": [], "evidence_coverage": {"error": "Boom: x"}}})
+    assert blk.payload["dims"][0]["evidence_coverage_phrase"] == "coverage unavailable (Boom: x)"
+
+
 def test_level_gates_overview():
     # signals_overview is L0 (the lead); risk_6dim is L1+
     l0 = _overview_kinds(build_ir(make_nomination(), resolve_spec(level="L0")))

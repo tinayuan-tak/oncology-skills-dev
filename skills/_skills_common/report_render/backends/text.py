@@ -307,7 +307,20 @@ class TextBackend:
         if not dims:
             return []
         rows = [[d.get("dim"), (d.get("bin") or "not evidenced")] for d in dims]
-        return self._h2("Risk by dimension") + self._table(["dimension", "risk"], rows)
+        out = self._h2("Risk by dimension") + self._table(["dimension", "risk"], rows)
+        # Step 2d: the computed per-dim evidence coverage. Listed below the table rather than as a third
+        # column (the phrases are sentence-length) — the bin says how bad it looks, this says whether we
+        # looked. Renders the SAME `ir.coverage_phrase` on the SAME predicate (phrase is not None) as the
+        # html backend, so the two backends cannot come to differ about which dims have a coverage story.
+        cov_lines = [
+            (d.get("dim"), d.get("evidence_coverage_phrase")) for d in dims if d.get("evidence_coverage_phrase")
+        ]
+        if cov_lines:
+            out.append("")
+            out.append("evidence coverage this run (computed; verdict-inert):")
+            for dim, phrase in cov_lines:
+                out.append(self._bullet(f"{dim}: {phrase}"))
+        return out
 
     def _synthesis(self, p: dict) -> list:
         out = self._h2("Synthesis (AI-generated)")
