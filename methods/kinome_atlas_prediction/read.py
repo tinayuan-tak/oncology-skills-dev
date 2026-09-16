@@ -17,7 +17,12 @@ Runtime discipline (v2, 2026-07-10 perf fix):
     signal that governance readers actually consume.
   - Column-iteration (NOT df.to_dict) to build the substrate/kinase indices.
     to_dict(orient='records') on 2.9M rows was the profile bottleneck
-    (32s out of 46s cold). Column-array iteration is ~5x faster.
+    (32s out of 46s cold). Column-array iteration is ~5x faster — but only
+    over a PLAIN OBJECT array. Iterating the Arrow-backed string array that
+    pandas 3 restores from the parquet boxes a new python str per access and
+    costs 12.96s where pandas 2 costs 2.78s, so _load_atlas_indexed converts
+    each key column ONCE via to_numpy(dtype=object, na_value=None) (2.02s,
+    and pd.NA-safe — see the comment there).
   - Lazy per-target row materialization: keep the DataFrame in memory,
     materialize only the rows for a specific target at read_target_summary
     time. BRAF (~5,000 relevant rows) materializes in ~150ms instead of
@@ -130,13 +135,36 @@ def _load_atlas_indexed():
     if df.empty:
         return df, {}, {}
 
-    # Build indices via column-array iteration (NOT df.to_dict). Uses .values
-    # for direct numpy access — ~5x faster than the previous to_dict path.
+    # Build indices via column-array iteration (NOT df.to_dict) — ~5x faster than the previous
+    # to_dict path.
     kinase_index: dict[str, list[int]] = {}
     substrate_index: dict[str, list[int]] = {}
 
-    kinase_col = df["kinase_symbol"].values
-    substrate_col = df["substrate_gene"].values
+    # ONE vectorized conversion per key column, replacing the former `.values`. Two INDEPENDENT
+    # reasons, both measured under pandas 3.0.3/pyarrow 25 and 2.3.3/pyarrow 21:
+    #
+    # 1. CORRECTNESS. derive.py writes these two columns via astype("string"), and parquet
+    #    round-trips that dtype (pyarrow stores it in the file metadata and restores it on read), so
+    #    a null cell arrives as pd.NA — on which the `not k` guard below does not evaluate False, it
+    #    RAISES TypeError("boolean value of NA is ambiguous"). read_target_summary wraps this call in
+    #    `except Exception` and converts that into "atlas_load_failed", so one null kinase_symbol
+    #    blacks out the atlas for EVERY target, not just its own row; and because @lru_cache does not
+    #    cache exceptions, every subsequent call re-streams the whole parquet and fails again. Only
+    #    substrate_gene is notna-filtered upstream (derive.py:195) — kinase_symbol is not.
+    #    `na_value=None` makes the EXISTING guard correct by construction rather than fatal, and it
+    #    does so for every null shape at once: pd.NA, None and float nan all become falsy None
+    #    (verified across string/str/object/float64/Int64 dtypes on both majors). That is
+    #    cell_absence's boundary normalisation, applied vectorized because this loop cannot afford a
+    #    per-cell python call.
+    #
+    # 2. SPEED, and this is the larger effect. Indexing an ArrowStringArray boxes a fresh python str
+    #    out of Arrow memory on EVERY access, so the loop below costs 12.96s on pandas 3.0.3 against
+    #    2.78s on 2.3.3 — pandas 3's Arrow-backed string dtype had quietly eaten the optimization
+    #    this docstring advertises. Converting once (280ms) drops the whole build to 2.02s: 6.4x
+    #    faster on CI's pandas, 1.5x on local's. A notna() mask fixes reason 1 alone and leaves the
+    #    loop at 12.83s, which is why this is the conversion and not a guard.
+    kinase_col = df["kinase_symbol"].to_numpy(dtype=object, na_value=None)
+    substrate_col = df["substrate_gene"].to_numpy(dtype=object, na_value=None)
     n_rows = len(df)
     for idx in range(n_rows):
         k = kinase_col[idx]
