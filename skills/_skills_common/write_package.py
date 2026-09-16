@@ -39,15 +39,26 @@ from typing import Optional
 
 import yaml
 
+from _skills_common import field_descriptor as _fd
+
+# Widened summary_stats.csv columns. `field` + `value` are UNCHANGED (first two columns, same values as
+# before) so any positional reader keeps working; the rest are the descriptor join (Step 1) — every scalar
+# now carries what it means (label/units), which way is stronger (direction), what it IS (role: effect /
+# significance / n / categorical / envelope / unclassified), where its q lives (significance_field), and
+# whether THIS run measured it (measured, 1/0 via the shared is_measured rule).
+_SUMMARY_STATS_COLUMNS = ["field", "value", "label", "units", "direction", "role", "significance_field", "measured"]
+
 
 def write_card_tables(tables_dir: Path, card_outputs: list[dict]) -> list[Path]:
-    """Emit the slide-droppable per-card CSVs into `tables_dir` → the paths written.
+    """Emit the slide-droppable per-card CSVs + a per-package descriptor sidecar into `tables_dir` → the
+    paths written.
 
     Factored out of write_package so BOTH output paths share one implementation: the
     standalone data-package path (dispatcher.run_wired_skill → write_package) and the
     COMPOSED target-profile fan-out (tp_manifest.write_full_package), which assembles
     its packages itself and so never reached write_package — leaving every composed run
-    with no tables/ at all. Two emitters would drift; one cannot.
+    with no tables/ at all. Two emitters would drift; one cannot. The descriptor columns and the
+    field_descriptors.json sidecar are emitted here for the same reason — so both paths carry them.
 
     Depends on nothing but `[{card_id, summary}, ...]`, so any caller holding resolved
     cards (or a persisted package.json) can emit the identical tables.
@@ -56,10 +67,18 @@ def write_card_tables(tables_dir: Path, card_outputs: list[dict]) -> list[Path]:
     tables_dir.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
 
-    # {card_id}_summary_stats.csv — scalar fields as k,v CSV
+    # ONE descriptor source for both the widened CSV and the sidecar, so they cannot drift. Per card,
+    # describe_summary stamps every field with its role + measured (and, for salience-spec fields,
+    # label/units/direction/significance_field). Non-spec fields resolve to envelope / unclassified.
+    descriptors_by_card: dict = {
+        cid: _fd.describe_summary(summ) for cid, summ in ((c["card_id"], c.get("summary") or {}) for c in card_outputs)
+    }
+
+    # {card_id}_summary_stats.csv — scalar fields, now widened with the descriptor columns
     for card in card_outputs:
         cid = card["card_id"]
         s = card.get("summary") or {}
+        desc = descriptors_by_card.get(cid, {})
         scalars = {
             k: v for k, v in s.items() if not k.startswith("_") and isinstance(v, (int, float, str, bool, type(None)))
         }
@@ -68,9 +87,21 @@ def write_card_tables(tables_dir: Path, card_outputs: list[dict]) -> list[Path]:
         csv_path = tables_dir / f"{cid}_summary_stats.csv"
         with csv_path.open("w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["field", "value"])
+            w.writerow(_SUMMARY_STATS_COLUMNS)
             for k, v in scalars.items():
-                w.writerow([k, "" if v is None else v])
+                d = desc.get(k) or {}
+                w.writerow(
+                    [
+                        k,
+                        "" if v is None else v,
+                        d.get("label", ""),
+                        d.get("units") or "",
+                        d.get("direction") or "",
+                        d.get("role", ""),
+                        d.get("significance_field") or "",
+                        int(bool(d.get("measured"))),
+                    ]
+                )
         written.append(csv_path)
 
     # {card_id}_{field}.csv — list-of-dict fields (e.g. per_hotspot_stats)
@@ -89,6 +120,16 @@ def write_card_tables(tables_dir: Path, card_outputs: list[dict]) -> list[Path]:
                     for row in val:
                         w.writerow({k: row.get(k) for k in keys})
                 written.append(csv_path)
+
+    # field_descriptors.json — one machine-readable sidecar per package, keyed {card_id: {field:
+    # descriptor}}, from the SAME describe_summary source as the CSV above. This is the programmatic
+    # read path: a stable join key, no CSV parsing, and — the reason it is not redundant with the widened
+    # CSV — it carries a descriptor for EVERY field including the nested list-of-dict fields the flat CSV
+    # structurally cannot hold (e.g. top_cooccurring[].bh_q_value). Deterministic (sort_keys) so it is
+    # byte-stable across runs.
+    sidecar = tables_dir / "field_descriptors.json"
+    sidecar.write_text(json.dumps(descriptors_by_card, indent=2, sort_keys=True, default=str) + "\n")
+    written.append(sidecar)
 
     return written
 
