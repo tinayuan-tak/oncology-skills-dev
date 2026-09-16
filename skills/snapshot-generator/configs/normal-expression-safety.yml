@@ -1,0 +1,35 @@
+# snapshot config
+title: "{gene} Safety Assessment - Normal Expression"
+subtitle: "Target expression in normal and essential compartments"
+layout: "grouped"
+
+groups:
+  - title: "Bulk RNA expression in GTEx"
+    panels:
+      - figure: "figures/cards/normal-tissue-liability-gtex/figure_normal_tissue_liability.svg"
+        caption: "GTEx Normal - RNA"
+      - title: "Median {gene} expression in {indication}"
+        table: "subskills/expression/tables/tumor-rna-distribution_summary_stats.csv"
+        table_row_select:
+          column: "field"
+          values: ["n_tumor_samples", "median_log2tpm"]
+
+  - title: "scRNA and protein (IHC) in normal cells"
+    panels:
+      - title: "High expressing safety-essential cell-types (scRNA)"
+        table: "subskills/expression/tables/sc-normal-celltype-expression_per_cell_type_top.csv"
+        table_filter: "is_safety_essential == True"
+        table_columns: ["cell_type", "tissue", "median_detection_fraction"]
+
+      - title: "Protein expression in normal cells (IHC)"
+        figure: "figures/cards/normal-tissue-liability/figure_normal_tissue_expression_heatmap.svg"
+        caption: "HPA Normal - Protein (IHC)"
+
+  - title: "Mouse Knockout Phenotype"
+    panels:
+      - title: "Mouse knockout phenotype"
+        table: "subskills/safety/tables/mouse-ko-phenotype_summary_stats.csv"
+        table_row_select:
+          column: "field"
+          values: ["ko_phenotype_class", "top_lethal_label", "impc_ko_phenotype_class"]
+        caption: "Open Targets"

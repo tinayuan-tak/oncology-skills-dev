@@ -673,16 +673,41 @@ def _render_grouped_layout(
             continue
 
         available_height = content_height - group_header_height
-        panel_height = (available_height - (n_panels - 1) * panel_gap) / n_panels
+
+        # Smart height allocation: table-only panels get fixed height, figures expand
+        panel_heights = []
+        table_only_height = Inches(1.2)  # Fixed height for table-only panels
+
+        figure_panels = []
+        for idx, panel in enumerate(group.panels):
+            has_figure = panel.figure is not None
+            has_table = panel.table is not None
+
+            if has_figure:
+                figure_panels.append(idx)
+                panel_heights.append(None)  # Will calculate later
+            else:
+                # Table-only panel gets fixed height
+                panel_heights.append(table_only_height)
+
+        # Calculate remaining height for figure panels
+        fixed_height_total = sum(h for h in panel_heights if h is not None)
+        gaps_total = (n_panels - 1) * panel_gap
+        remaining_height = available_height - fixed_height_total - gaps_total
+
+        if figure_panels:
+            figure_panel_height = remaining_height / len(figure_panels)
+            for idx in figure_panels:
+                panel_heights[idx] = figure_panel_height
 
         # Render each panel in this group (stacked vertically)
         current_top = group_top
-        for panel in group.panels:
+        for idx, panel in enumerate(group.panels):
             _render_single_panel(
                 slide, panel, run_dir, gene, indication,
-                int(group_left), int(current_top), int(group_width), int(panel_height)
+                int(group_left), int(current_top), int(group_width), int(panel_heights[idx])
             )
-            current_top += panel_height + panel_gap
+            current_top += panel_heights[idx] + panel_gap
 
 
 def _render_single_panel(
@@ -693,20 +718,29 @@ def _render_single_panel(
     has_figure = panel.figure is not None
     has_table = panel.table is not None
     has_title = bool(panel.title)
+    has_caption = bool(panel.caption)
 
-    # Reserve space for panel title if present
+    # Reserve space for panel title and caption
     title_height = Inches(0.25) if has_title else 0
-    available_height = panel_height - title_height
+    caption_height = Inches(0.2) if has_caption else 0
+    available_height = panel_height - title_height - caption_height
 
+    # Calculate fixed table height based on expected rows (tables stay constant size)
+    # Row height ~0.18", header + data rows + small margin
+    table_row_height = Inches(0.18)
+    estimated_table_rows = min(panel.table_max_rows + 1, 8)  # +1 for header, cap at 8
+    fixed_table_height = table_row_height * estimated_table_rows + Inches(0.1) if has_table else 0
+
+    # Figures expand to fill remaining space
     if has_figure and has_table:
-        figure_height = available_height * 0.7
-        table_height = available_height * 0.25
+        table_height = fixed_table_height
+        figure_height = available_height - table_height - Inches(0.1)  # gap between
     elif has_figure:
-        figure_height = available_height * 0.9
+        figure_height = available_height * 0.95  # use most of the space
         table_height = 0
     else:
         figure_height = 0
-        table_height = available_height * 0.7
+        table_height = min(fixed_table_height, available_height * 0.8)
 
     current_top = panel_top
 
