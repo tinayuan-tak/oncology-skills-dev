@@ -159,6 +159,7 @@ def _pooled_from_product(target: str, indication: str, cutoffs: dict = None):
             ),
             "pooled_driver_recurrence_class": str(row["pooled_driver_recurrence_class"]),
             "cohorts_contributing": cohorts,
+            "n_ranked_genes": n_ranked,
             "pooled_recurrence_context": (
                 f"pooled {'+'.join(cohorts)} — {target} ranks among {n_ranked} "
                 f"panel-covered genes in {indication} (summed-counts/summed-coverage)"
@@ -175,7 +176,20 @@ def _pooled_from_product(target: str, indication: str, cutoffs: dict = None):
 def pooled_recurrence_for_gene(target: str, indication: str, cutoffs: dict = None) -> dict:
     """Pooled multi-cohort recurrence for one (target, indication). Returns pooled_mutation_frequency
     (Σn_mut/Σn_cov), n_covered_pooled, n_mutated_pooled, pooled_driver_recurrence_percentile + _class,
-    cohorts_contributing, and a context string. data_unavailable when no cohort covers the gene.
+    cohorts_contributing, n_ranked_genes, and a context string. data_unavailable when no cohort covers
+    the gene.
+
+    n_ranked_genes is the SIZE OF THE REFERENCE SET the percentile is ranked against, and it is not a
+    detail: it varies by more than an order of magnitude across indications because the contributing
+    cohorts do. MEASURED in framework-run 2026-09-11-verdict-only-tables — PIK3CA/BRCA ranked at the
+    99.68th percentile among 469 genes (MSK-CHORD panel only), KRAS/COADREAD at the 99.97th among
+    18495 (GENIE + MSK-CHORD + whole-exome TCGA-MC3). Both render as "top_1pct", but a top-1% rank
+    among 469 PANEL genes is a much weaker statement than among 18495 exome-wide genes, since panels
+    are deliberately enriched for recurrently-mutated drivers — the reference set is pre-selected for
+    the very property being ranked. Until now that count existed only inside the English
+    pooled_recurrence_context string, so a consumer comparing two indications' percentiles had to
+    regex prose to discover they were not comparable. Every return path now carries it as a field
+    (None where no ranking was attempted).
 
     Prefers the precomputed per-(indication, gene) product (pushdown; avoids rebuilding the pooled null
     LIVE — the MSK-CHORD + GENIE panel-coverage loads). Falls back to the live computation when the
@@ -193,6 +207,7 @@ def pooled_recurrence_for_gene(target: str, indication: str, cutoffs: dict = Non
             "n_covered_pooled": None,
             "n_mutated_pooled": None,
             "cohorts_contributing": [],
+            "n_ranked_genes": None,  # no cohort ⇒ no reference set was built
             "pooled_recurrence_context": f"no pooled SNV recurrence cohort for {indication}",
         }
     entry = pooled.get(target)
@@ -204,6 +219,7 @@ def pooled_recurrence_for_gene(target: str, indication: str, cutoffs: dict = Non
             "n_covered_pooled": 0,
             "n_mutated_pooled": 0,
             "cohorts_contributing": [],
+            "n_ranked_genes": None,  # gene uncovered ⇒ it was never placed against the reference set
             "pooled_recurrence_context": f"{target} covered by no pooled cohort in {indication}",
         }
     freq = entry["n_mut"] / entry["n_cov"]
@@ -227,6 +243,10 @@ def pooled_recurrence_for_gene(target: str, indication: str, cutoffs: dict = Non
         "pooled_driver_recurrence_percentile": pct,
         "pooled_driver_recurrence_class": cls,
         "cohorts_contributing": entry["cohorts"],
+        # The reference-set size behind `pct`. Reported even on the too-thin branch (where pct is
+        # None): the null WAS built there, the gene just could not be placed in it, and saying how
+        # big the frame is remains informative. 0 when no rankable gene existed at all.
+        "n_ranked_genes": len(null_vec),
         "pooled_recurrence_context": note,
     }
 

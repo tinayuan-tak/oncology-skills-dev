@@ -145,6 +145,83 @@ def _resolve_aggregate_path(indication: str, cache_base: Path = DEFAULT_CACHE_BA
     return cache_base / f"{indication.lower()}_mc3_hotspots.parquet"
 
 
+def _product_source_kind(local_path: Path, manifest_id: str = _HOTSPOT_FREQUENCY_MANIFEST) -> str:
+    """Which source _read_product_table actually reaches for `local_path`: "local_cache",
+    "registered_product" or "unresolvable".
+
+    This exists because `_data_source` LIES BY CONSTRUCTION. Every return path sets it to
+    str(aggregate_path), which is always _resolve_aggregate_path()'s LOCAL cache path — the S3 key is
+    computed inside _read_product_table and never escapes it. So a card read entirely from S3 still
+    names a local *_mc3_hotspots.parquet as its source, and that filename cannot be distinguished from
+    one that was genuinely read.
+
+    Not a cosmetic complaint: it cost a real misdiagnosis. The first investigation of the PIK3CA/BRCA
+    zero (see the _indication_coverage note above) concluded from this very field that a stale local
+    cache had shadowed the S3 product, and designed a fix around that. No *_mc3_hotspots.parquet
+    existed anywhere on the host; the read had gone to S3 all along. A provenance field whose value is
+    fixed by construction reads as evidence while carrying none.
+
+    Deliberately mirrors _read_product_table's local-first/S3-fallback ORDER rather than reporting
+    whichever source happened to answer, so the two cannot drift: if that order ever changes, this
+    must change with it.
+    """
+    if local_path.exists():
+        return "local_cache"
+    return "registered_product" if _manifest_s3_path(manifest_id) is not None else "unresolvable"
+
+
+# --- Indication coverage: "no rows" is TWO different facts ---------------------
+# A pushdown on (indication, gene_symbol) returning zero rows is ambiguous, and the
+# ambiguity is not academic. MEASURED 2026-09-16 against framework-run
+# 2026-09-11-verdict-only-tables: the card reported PIK3CA in BRCA at
+# overall_mutation_frequency=0.0, n_samples_mutated=0 — the most frequently mutated gene
+# in breast cancer, reported as never mutated. The registered product carried exactly FOUR
+# indications at that run (COADREAD, GC, NSCLC, PAAD; 700,775 rows — still readable as the
+# `hotspot_frequency.parquet.bak-4ind` sibling object) and was expanded to 31 indications /
+# 2,370,357 rows on 2026-09-13. BRCA was simply not in it, so the gene-level filter matched
+# nothing and the zero branch published a biological claim about a coverage gap.
+#
+# The two facts a zero-row result can mean:
+#   COVERED   — the indication IS in the product, the gene is not. The gene genuinely has no
+#               non-synonymous mutation in this cohort: a real 0.0, worth reporting.
+#   UNCOVERED — the indication is absent from the product entirely. Nothing was measured, so
+#               0.0 is a fabrication and the honest answer is data_unavailable.
+# Distinguishing them costs one indication-only read of a single int column, cached per
+# (path, indication). JAK2/MPN reproduces the UNCOVERED case against today's product.
+#
+# `n_samples_in_indication` is CONSTANT within an indication (measured: exactly 1 distinct
+# value for BRCA=1026 and COADREAD=556), so any row of the indication yields the cohort size.
+# That is what lets this one helper also fill the zero branch's denominator, which previously
+# emitted None alongside a 0.0 frequency — a pair that is not interpretable in either
+# direction (0 of nothing? 0 of 1026?).
+
+
+@lru_cache(maxsize=32)
+def _indication_coverage(aggregate_path_str: str, indication: str) -> tuple:
+    """Is `indication` present in the hotspot aggregate at all, and how big is its cohort?
+
+    Returns (status, n_samples_in_indication) where status is:
+      "covered"   → the indication has rows; n_samples is an int (the cohort denominator)
+      "uncovered" → the source resolved and genuinely has no rows for this indication; None
+      "unknown"   → the source itself could not be resolved (no local file, no manifest/S3);
+                    the caller must NOT read this as either a zero or a coverage gap
+    A transient/auth failure PROPAGATES out of _read_product_table by design — masking a
+    broken environment as a coverage gap is the bug class this whole helper exists to close.
+    """
+    table = _read_product_table(
+        Path(aggregate_path_str),
+        _HOTSPOT_FREQUENCY_MANIFEST,
+        filters=[("indication", "=", indication)],
+        columns=["n_samples_in_indication"],
+    )
+    if table is None:
+        return ("unknown", None)
+    if table.num_rows == 0:
+        return ("uncovered", None)
+    first = table.column("n_samples_in_indication")[0].as_py()
+    return ("covered", int(first) if first is not None else None)
+
+
 # --- Driver-recurrence percentile ---------------------------------------------
 # The all-gene contextualization axis for genomic alteration, mirroring what
 # tumor-presence's allgene_percentile does for expression: turn the ABSOLUTE
@@ -244,6 +321,11 @@ def _pooled_recurrence_fields(target: str, indication: str) -> dict:
         "n_covered_pooled",
         "n_mutated_pooled",
         "cohorts_contributing",
+        # The percentile's reference-set size. This key tuple is a WHITELIST, so a field added
+        # upstream is dropped here unless it is named — which is why the count that made
+        # pooled_driver_recurrence_percentile interpretable stayed prose-only for so long. See
+        # pooled_recurrence_for_gene's docstring for the 469-vs-18495 measurement.
+        "n_ranked_genes",
         "pooled_recurrence_context",
     )
     try:
@@ -259,6 +341,7 @@ def _pooled_recurrence_fields(target: str, indication: str) -> dict:
             "n_covered_pooled": None,
             "n_mutated_pooled": None,
             "cohorts_contributing": [],
+            "n_ranked_genes": None,
             "pooled_recurrence_context": None,
         }
 
@@ -313,6 +396,23 @@ def read_hotspot_summary(
     )
 
     if table is None:
+        # WHICH source was reached decides the operator's remedy, and the note below used to assert
+        # BOTH halves ("neither local cache nor the manifest/S3") unconditionally. That is untrue in
+        # the common case where the manifest resolved perfectly well and only its S3 OBJECT was absent
+        # — a conjunctive claim on evidence for one conjunct. Name the half that actually failed.
+        # ("local_cache" is unreachable here: an existing local file either reads or raises.)
+        source_kind = _product_source_kind(aggregate_path)
+        why = (
+            (
+                f"the {_HOTSPOT_FREQUENCY_MANIFEST} manifest resolved but its S3 object is definitively "
+                f"absent, and local cache {aggregate_path} does not exist"
+            )
+            if source_kind == "registered_product"
+            else (
+                f"neither local cache {aggregate_path} nor the {_HOTSPOT_FREQUENCY_MANIFEST} "
+                f"manifest/S3 resolved at all"
+            )
+        )
         return {
             "overall_mutation_frequency": None,
             "n_samples_in_indication": None,
@@ -327,15 +427,65 @@ def read_hotspot_summary(
             "hotspot_frequencies": [],
             "top_cooccurring_genes": [],
             "top_mutually_exclusive_genes": [],
+            # Same key on EVERY return path — see the note at the populated return. Nothing was
+            # readable here, so the coverage question was never answerable.
+            "_mc3_coverage": "unknown",
+            # _data_source was MISSING on this path alone while the other three emitted it (pre-existing
+            # on trunk) — the same key-set asymmetry _mc3_coverage was just given. Both are stated here.
+            "_data_source": str(aggregate_path),
+            "_data_source_kind": source_kind,
             "_data_note": (
-                f"No MC3 hotspot aggregate resolvable for {indication} (neither local cache "
-                f"{aggregate_path} nor the {_HOTSPOT_FREQUENCY_MANIFEST} manifest/S3). "
+                f"No MC3 hotspot aggregate resolvable for {indication}: {why}. "
                 f"Run `python -m methods.gdc_somatic_hotspot.cli --indication {indication} "
                 f"--out {aggregate_path}` to produce it, or check the data-catalog manifest."
             ),
         }
 
     if table.num_rows == 0:
+        # Zero rows is AMBIGUOUS — see the _indication_coverage note above for the measured
+        # PIK3CA/BRCA case this guard exists to prevent. Establish which of the two facts we
+        # are looking at BEFORE making any biological claim.
+        coverage, n_in_indication = _indication_coverage(aggregate_path, indication)
+        if coverage != "covered":
+            # The indication is absent from the product (or the product is unresolvable), so
+            # NOTHING about this gene was measured. Reporting 0.0 here would state a negative
+            # biological finding on the strength of a missing file.
+            reason = (
+                f"indication {indication} is not present in the {_HOTSPOT_FREQUENCY_MANIFEST} "
+                f"aggregate at all, so this target's mutation status in {indication} was never "
+                f"measured (NOT a mutation frequency of zero)"
+                if coverage == "uncovered"
+                # Scoped to the PROBE deliberately. The gene-level read DID return a table to get
+                # here, so a blanket "nothing is resolvable" would contradict the line above it;
+                # what is true is that the coverage probe's own read resolved nothing.
+                else (
+                    f"no MC3 hotspot aggregate resolvable for {indication} when probing coverage "
+                    f"(neither local cache {aggregate_path} nor the {_HOTSPOT_FREQUENCY_MANIFEST} "
+                    f"manifest/S3 answered the probe), so coverage is UNKNOWN — not zero"
+                )
+            )
+            return {
+                "overall_mutation_frequency": None,
+                "n_samples_in_indication": None,
+                "n_samples_mutated": None,
+                "driver_recurrence_percentile": None,
+                "driver_recurrence_class": "data_unavailable",
+                "driver_recurrence_context": None,
+                # GENIE/pooled are INDEPENDENT cohorts — a target with no MC3 coverage may be
+                # well covered there, and that is the whole point of keeping them separate.
+                **_recurrence_fields(),
+                "hotspot_frequencies": [],
+                "top_cooccurring_genes": [],
+                "top_mutually_exclusive_genes": [],
+                "_data_source": str(aggregate_path),
+                # str(aggregate_path) alone cannot say whether that file was read or merely the path
+                # we would have read — see _product_source_kind. This branch is exactly where the
+                # distinction was needed and absent.
+                "_data_source_kind": _product_source_kind(aggregate_path),
+                "_mc3_coverage": coverage,
+                "_data_note": f"target {target!r}: {reason}",
+            }
+
         # Target has NO non-synonymous mutation in this indication — a real biological
         # zero, so it sits at the very bottom of the recurrence distribution. Rank the
         # 0.0 against the (mutated-gene) null: it lands below every mutated gene, which
@@ -344,7 +494,10 @@ def read_hotspot_summary(
         rec_pct, rec_class = _driver_recurrence_percentile(aggregate_path, indication, 0.0)
         return {
             "overall_mutation_frequency": 0.0,
-            "n_samples_in_indication": None,
+            # The DENOMINATOR of that 0.0. Previously None, which left the card asserting
+            # "0% mutated" with no statement of what it was 0 of — the reader could not tell
+            # a well-powered negative in 1026 samples from a coverage gap.
+            "n_samples_in_indication": n_in_indication,
             "n_samples_mutated": 0,
             "driver_recurrence_percentile": rec_pct,
             "driver_recurrence_class": rec_class,
@@ -359,7 +512,13 @@ def read_hotspot_summary(
             "top_cooccurring_genes": [],
             "top_mutually_exclusive_genes": [],
             "_data_source": str(aggregate_path),
-            "_data_note": f"target {target!r} has no rows in {indication} MC3 aggregate (no non-synonymous mutations)",
+            "_data_source_kind": _product_source_kind(aggregate_path),
+            "_mc3_coverage": coverage,
+            "_data_note": (
+                f"target {target!r} has no rows in {indication} MC3 aggregate (no non-synonymous "
+                f"mutations); {indication} IS covered by the aggregate (n={n_in_indication}), so this "
+                f"is a measured zero rather than a coverage gap"
+            ),
         }
 
     # Convert to pandas for easier processing
@@ -405,7 +564,13 @@ def read_hotspot_summary(
         "top_cooccurring_genes": [],
         "top_mutually_exclusive_genes": [],
         "_data_source": str(aggregate_path),
+        "_data_source_kind": _product_source_kind(aggregate_path),
         "_aggregate_path": str(aggregate_path),
+        # _mc3_coverage is emitted on EVERY return path, including this one where it is trivially
+        # "covered" (we are holding the gene's rows). A provenance key that appears on some paths and
+        # not others is worse than no key: a consumer that reads it cannot tell "not covered" from
+        # "this branch forgot to say", which is the same conflation this whole change removes.
+        "_mc3_coverage": "covered",
         "_co_occurrence_note": "co-occurrence + mutual-exclusivity analysis is iter-2 work",
     }
 
