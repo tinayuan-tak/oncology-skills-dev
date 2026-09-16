@@ -108,6 +108,9 @@ outputs:
     - media_panel_high_npx                          # float|null; self-calibrated panel p75 mean-NPX (the "high" bar)
     - media_uniprot                                 # str|null; UniProt accession resolved for the media lookup
 
+  summary_fields_scalar_types:
+    serum_marker: string    # clinical assay anchor NAME (e.g. "CEA …"), str|null — read as a label
+
   summary_fields_vocabulary:
     shed_liability_class:
       - clinically_shed

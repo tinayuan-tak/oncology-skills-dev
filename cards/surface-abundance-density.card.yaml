@@ -82,6 +82,10 @@ outputs:
     - density_floor_verdict                          # standing vs the cited modality floors (see vocab)
     - method_version
 
+  summary_fields_scalar_types:
+    is_tce_viable: boolean               # flag, not a categorical string
+    is_adc_high_payload_viable: boolean  # flag, not a categorical string
+
   summary_fields_vocabulary:
     surface_density_class:
       - high

@@ -51,6 +51,9 @@ outputs:
     - oncogenic_variants                 # [{variant, oncogenicity_class, n_evidence}] strongest-first
     - resistance_variants                # [{variant, resistance_class, therapies}] count-desc
     - civic_interpretation_context       # human-readable summary
+  summary_fields_scalar_types:
+    has_oncogenic_variant: boolean   # flag, not a categorical string
+
   summary_fields_vocabulary:
     civic_variant_class:
       - oncogenic                        # >=1 variant graded Oncogenic (AMP/ASCO/CAP assertion)

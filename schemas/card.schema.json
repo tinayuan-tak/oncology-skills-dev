@@ -345,6 +345,52 @@
             "maxItems": 30
           }
         },
+        "summary_fields_scalar_types": {
+          "type": "object",
+          "description": "Declare the value type of TOP-LEVEL scalar summary_fields — the third field shape alongside summary_fields_vocabulary (categorical enums) and summary_fields_record_schemas (list/record fields). Map of field_name (must appear in summary_fields) -> the SAME value-spec grammar as record_schemas: a JSON-schema type string ('integer','boolean','string','number'), an enum array, or an object with 'enum'/'type'. null is always permitted in emission (a null scalar = unmeasured / not-applicable). Consumed by field-conformance checks to confirm the salience layer reads each scalar field as the type the producer emits.",
+          "additionalProperties": {
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "integer",
+                  "boolean",
+                  "string",
+                  "number"
+                ]
+              },
+              {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "minItems": 1
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "enum": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "minItems": 1
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "integer",
+                      "boolean",
+                      "string",
+                      "number"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            ]
+          }
+        },
         "summary_fields_record_schemas": {
           "type": "object",
           "description": "Phase 4 (2026-07-15) \u2014 Declare record shapes for list-typed summary_fields (e.g. per_subgroup_metrics: [{stratum, class, subgroup_n, ...}]). Rules matching these fields use `when.in_record` (interpretation_rules.schema.json). Map of field_name \u2192 object describing the record's key names + expected value types. Per key, value spec is either `enum: [...]` (categorical), a JSON-schema type string ('integer', 'boolean', 'string'), or an object with an `enum` key. See target-contracts/docs/design/IDAS_SUBTYPE_PIPELINE.md for the list-typed card convention.",

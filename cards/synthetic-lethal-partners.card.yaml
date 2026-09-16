@@ -60,6 +60,9 @@ outputs:
     - top_partners                                  # list<struct> {partner, evidence_tier, pubmed_id, cell_line}
     - method_version
 
+  summary_fields_scalar_types:
+    has_experimental_partner: boolean   # the gate-suppressor flag, not a categorical string
+
   summary_fields_vocabulary:
     sl_partner_class:
       - has_experimental_sl_partner

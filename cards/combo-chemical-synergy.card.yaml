@@ -37,6 +37,10 @@ outputs:
     - top_synergy_partners               # list<struct> — ranked partners w/ delta, n_lines, class, role
     - synergy_context                    # narrative summary (measured-vs-null honest)
 
+  summary_fields_scalar_types:
+    strongest_synergy_partner_drug: string    # partner compound NAME (not a scalar metric) — read as a label
+    strongest_synergy_partner_target: string  # its gene target(s), e.g. "AKT1;AKT2"
+
   summary_fields_vocabulary:
     synergy_opportunity_class:
       - strong_synergy_opportunity       # >=1 robust_synergy partner (frac>=0.5 & mean ΔEmax>=0.10)

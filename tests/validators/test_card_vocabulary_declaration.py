@@ -171,3 +171,37 @@ def test_each_waived_orphan_is_absent_from_any_generated_summary_schema():
         "no waived orphan has a generated summary schema, so this test asserted nothing — if the "
         "summary-schema rollout has moved on, that is fine; if the waiver list is empty, delete this test."
     )
+
+
+# ── outputs.summary_fields_scalar_types (top-level scalar type declarations, added 2026-09-16) ──────────
+# The card.schema.json `oneOf` already validates the type VALUE ('string'/'boolean'/… or enum). These pin
+# the KEY: a scalar-type declaration must name a real declared field, mirroring the vocabulary-orphan arm.
+def _scalar_type_orphans(spec: dict) -> list[str]:
+    outputs = spec.get("outputs") or {}
+    scalar_types = outputs.get("summary_fields_scalar_types") or {}
+    if not scalar_types:
+        return []
+    declared = {f for f in (outputs.get("summary_fields") or []) if isinstance(f, str)}
+    for record in (outputs.get("summary_fields_record_schemas") or {}).values():
+        if isinstance(record, dict):
+            declared |= set(record.keys())  # a per-record key is a legal target, same as vocabulary
+    return sorted(k for k in scalar_types if k not in declared)
+
+
+def test_no_card_declares_a_scalar_type_for_an_undeclared_field():
+    """Fleet-level: every summary_fields_scalar_types key names a declared summary_field (or record key)."""
+    offenders = {cid: orphans for cid, spec in _specs().items() if (orphans := _scalar_type_orphans(spec))}
+    assert not offenders, "scalar-type keys naming no declared summary_field:\n" + "\n".join(
+        f"  {cid}: {orphans}" for cid, orphans in sorted(offenders.items())
+    )
+
+
+def test_scalar_type_orphan_check_actually_fires():
+    """The arm must be live — a scalar-type key naming no declared field is reported, a declared one is not."""
+    spec = {
+        "outputs": {
+            "summary_fields": ["real_flag"],
+            "summary_fields_scalar_types": {"real_flag": "boolean", "ghost_flag": "boolean"},
+        }
+    }
+    assert _scalar_type_orphans(spec) == ["ghost_flag"]
