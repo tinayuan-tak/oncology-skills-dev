@@ -7,6 +7,15 @@ name: Skills Validate
 # skills/_skills_common/tests/conftest.py::skip_if_no_data), so the suite is green on a
 # credential-less CI runner.
 #
+# PARALLELISM (2026-09-16): the pytest work is split across parallel matrix SHARDS to cut CI
+# wall-clock (was ~23 min median, serial, grazing the 25 min timeout). shard=core runs the four
+# big suites under `-n auto` (pytest-xdist, ~nproc workers on the runner); shard=0..3 each run a
+# deterministic round-robin slice of the remaining per-skill suites. A fan-in job named `pytest`
+# (the branch-protection required status check) aggregates all shards — see the `pytest` job at
+# the bottom. The matrix jobs report as `pytest-shards (…)` and are NOT the required check; the
+# required name `pytest` MUST stay attached to the fan-in job or the required check would deadlock
+# (a bare matrix reports only `pytest-shards (N)` and `pytest` would never post).
+#
 # CROSS-REPO LAYOUT: this repo's pixi.toml editable-depends on THREE sibling repos via `../`
 # paths (analysis-methods, target-contracts, data-catalog/libs/target_id_resolver). CI must
 # lay them out adjacent under $GITHUB_WORKSPACE so `pixi install --locked` resolves them and
@@ -58,15 +67,27 @@ on:
     branches: [v2-architecture, dev, main]
 
 jobs:
-  pytest:
+  pytest-shards:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      # fail-fast: false — one red shard must NOT cancel the others, so a PR sees EVERY failure in
+      # one run (and the fan-in still fails). shard=core = the 4 big suites under -n auto; 0..3 =
+      # round-robin slices of the per-skill loop. Keep NUM_LOOP_SHARDS (in the run step) equal to
+      # the count of numeric shards here.
+      fail-fast: false
+      matrix:
+        shard: [core, 0, 1, 2, 3]
     env:
       # The skill readers resolve sibling code via these env vars (sys.path), in addition to the
       # editable pixi installs. Point them at the CI checkouts, not the local-dev default path.
       ANALYSIS_METHODS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-analysis-methods
       TARGET_CONTRACTS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-target-contracts
       DATA_CATALOG_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-data-catalog
+      # Thread the card readers (not the default process fork-pool). Harmless on credential-less CI
+      # (forked readers hit no-data instantly) but defensive under `-n auto` if creds are ever added.
+      # Byte-identical test output either way.
+      SKILLS_READ_POOL: thread
     steps:
       - name: Checkout skills
         uses: actions/checkout@v4
@@ -131,96 +152,105 @@ jobs:
           cache: true
           manifest-path: rnd-computational-biology-oncology-claude-oncology-skills/pixi.toml
 
-      # compose-dashboard was RETIRED 2026-08-21 — its shared engine (live-readers + figure registry)
-      # moved into _skills_common (covered by the step below) and its orchestrator was deleted.
-      - name: _skills_common shared harness suite
-        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
-        run: pixi run pytest skills/_skills_common/tests/ -q
-
-      # BLOCKING: target-profile is the composed nomination skill — the highest-value gate after the
-      # orchestration spine. Its 179 tests are fixture/logic-based (no live S3), so they run green on a
-      # credential-less runner. Promoted to blocking 2026-08-11 (was in the non-blocking bucket only
-      # because of noisier peripheral skills, not its own health).
-      - name: target-profile suite
-        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
-        run: pixi run pytest skills/target-profile/tests/ -q
-
-      # BLOCKING: the shared cross-skill invariant guards live in the top-level skills/tests/ dir —
-      # Guard B (CARDS ⊆ cards_used), composition-declarations, resolver-verdict-consumers,
-      # reference-drift, scope, reviewer-driven-upgrades. The `skills/*/tests` glob below matches
-      # skills/<skill>/tests, NOT skills/tests/, so before this step these guards never ran in CI and
-      # silently rotted (e.g. test_tmbed_license_attestation drifted to a renamed manifest). They are
-      # AST/YAML/text checks (no live S3) — green on a credential-less runner.
-      - name: shared cross-skill invariant guards (skills/tests/)
-        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
-        run: pixi run pytest skills/tests/ -q --import-mode=importlib
-
-      # BLOCKING: the eval/ harness (loop-health, disposition ledger, discordance ledgers,
-      # per-axis backtest, literature harvest). Until 2026-09-12 NO part of eval/ ran in CI —
-      # every pytest step above is skills/…-scoped, so eval/ was green-by-absence: six tracked
-      # test modules never executed on a PR. This recursive step covers all of them, INCLUDING
-      # eval/test_subskill_discordance.py which sits at the top of eval/ rather than under
-      # eval/tests/ (a hardcoded `pytest eval/tests` would still have missed it). Fixture/logic
-      # tests, no live S3 — green on a credential-less runner (measured: 59 passed ~0.2s, no creds).
-      # --import-mode=importlib matches every other step and avoids run.py basename collisions.
-      # The `test_ci_covers_all_test_files` guard in skills/tests/ fails if a NEW test dir ever
-      # lands outside every step's scope again, so this list can't silently rot.
-      - name: eval/ harness suite
-        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
-        run: pixi run pytest eval/ -q --import-mode=importlib
-
-      # BLOCKING-BY-DEFAULT coverage of the remaining skills (promoted from non-blocking 2026-08-12:
-      # every remaining per-skill suite is green locally under pixi except the denylisted skill below).
-      # The three suites above are their own BLOCKING steps (_skills_common = shared harness + engine,
-      # target-profile = composed nomination skill, skills/tests = cross-skill invariant guards); this
-      # loop covers everything else. Each remaining skill runs in
-      # its OWN pytest process — the Fix-1 isolation: many skills ship scripts/run.py, and batching them
-      # into a single `pytest skills/` process made `import run` bind to whichever skill loaded FIRST
-      # (sys.modules cache), so a later skill's test got the wrong run.py (`cannot import name
-      # _resistance_verdict/_snapshot from 'run'`). Per-skill --import-mode=importlib isolates each `run`
-      # (exactly like the blocking suites) and removes that order-dependent fragility.
+      # SHARDED EXECUTION. shard=core runs the four big suites under `-n auto`; shard=0..3 each run a
+      # deterministic round-robin slice of the remaining per-skill suites. Every shard runs the SAME
+      # script and branches on $SHARD; the fan-in `pytest` job aggregates them.
       #
-      # BLOCKING SEMANTICS: a non-zero rc from any skill NOT in NON_BLOCKING_SKILLS FAILS the job (no
-      # `continue-on-error` on the step). Blocking-by-default is the right polarity because CI runs on
-      # the PR that ADDS or CHANGES a skill, so a newly-red skill is caught before merge — the opposite
-      # of an allowlist, which would silently ignore any brand-new skill's suite. Denylisted skills are
-      # knowingly red for a reason OUTSIDE this PR's control; their failure only emits a ::warning::.
-      # Live-S3 tests self-skip on the credential-less CI runner (conftest skip_if_no_data), so a skill
-      # that is green-or-skipped on CI stays green here.
-      - name: remaining skill suites (per-skill, blocking-by-default with denylist)
+      # COVERAGE-GUARD CONTRACT (test_ci_covers_all_test_files): that guard parses THIS file for
+      # `pytest <path>` literals + `for d in skills/*/tests` globs and asserts every collectable test
+      # file is covered. It reads COVERAGE, not execution, so it is satisfied by the literals + glob
+      # below regardless of which shard executes what — and every collectable file IS still run,
+      # exactly once, by one shard (the union of shards = the whole suite). The four big-suite paths
+      # are called as LITERALS (skills/tests/ and eval/ are NOT matched by the skills/*/tests glob, so
+      # their literals are load-bearing for coverage), and the per-skill loop keeps the glob.
+      #
+      # compose-dashboard was RETIRED 2026-08-21 — its shared engine (live-readers + figure registry)
+      # moved into _skills_common (covered by the core shard) and its orchestrator was deleted.
+      #
+      # Each per-skill suite runs in its OWN pytest process (--import-mode=importlib) so `import run`
+      # binds to the right skill's scripts/run.py instead of whichever loaded first (sys.modules-cache
+      # order-dependence). BLOCKING-BY-DEFAULT: a non-zero rc from any non-denylisted suite fails its
+      # shard, and the fan-in then fails the required `pytest` check. Denylisted skills only ::warning::.
+      # Live-S3 tests self-skip on the credential-less runner (conftest skip_if_no_data).
+      - name: run shard (${{ matrix.shard }})
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         shell: bash
+        env:
+          SHARD: ${{ matrix.shard }}
+          NUM_LOOP_SHARDS: "4"
         run: |
-          set +e   # a failing skill must NOT stop the loop — every remaining skill still runs
+          set +e   # a failing suite must NOT stop the shard — every remaining suite still runs
+          gate_fail=0
           # Skills knowingly red for a reason outside this PR's control. Each MUST carry a WHY.
           # A denylisted skill's failure is downgraded to ::warning:: (does NOT gate the job).
           NON_BLOCKING_SKILLS=(
-            # (none — workflow-target-evaluation-onc retired 2026-08-14; add a skill here only
-            #  with a WHY when it is knowingly red for a reason outside a PR's control)
+            # (none — add a skill here only with a WHY when it is knowingly red for a reason
+            #  outside a PR's control; target-archetype is DEFERRED via *.deferred renames, not here)
           )
           is_nonblocking() {
             local s="$1" n
             for n in "${NON_BLOCKING_SKILLS[@]}"; do [ "$s" = "$n" ] && return 0; done
             return 1
           }
-          gate_fail=0
-          for d in skills/*/tests; do
-            skill=$(basename "$(dirname "$d")")
-            # the two suites above are their own BLOCKING steps — don't double-run them here
-            case "$skill" in _skills_common|target-profile) continue ;; esac
-            ls "$d"/test_*.py >/dev/null 2>&1 || continue   # skip dirs with no test files
-            echo "::group::$skill"
-            pixi run pytest "$d" -q --import-mode=importlib
-            rc=$?
+          run_suite() {  # $1=label  $2=pytest args (intentionally word-split)
+            echo "::group::$1"
+            pixi run pytest $2
+            local rc=$?
             echo "::endgroup::"
             if [ "$rc" -ne 0 ]; then
-              if is_nonblocking "$skill"; then
-                echo "::warning title=skills-validate::$skill suite failed (rc=$rc) — non-blocking (denylisted, see NON_BLOCKING_SKILLS)"
+              if is_nonblocking "$1"; then
+                echo "::warning title=skills-validate::$1 failed (rc=$rc) — non-blocking (denylisted, see NON_BLOCKING_SKILLS)"
               else
-                echo "::error title=skills-validate::$skill suite failed (rc=$rc) — BLOCKING (green-by-default; fix it or add to NON_BLOCKING_SKILLS with a reason)"
+                echo "::error title=skills-validate::$1 failed (rc=$rc) — BLOCKING (fix it or add to NON_BLOCKING_SKILLS with a reason)"
                 gate_fail=1
               fi
             fi
-          done
-          [ "$gate_fail" -ne 0 ] && echo "One or more BLOCKING skill suites failed (see ::error:: above)"
-          exit "$gate_fail"   # blocking-by-default: green suites gate, denylisted ones only warn
+          }
+
+          if [ "$SHARD" = "core" ]; then
+            # The four BIG suites, each parallelized within via xdist `-n auto` (~nproc workers).
+            # Called as LITERAL `pytest <path>` invocations (NOT via run_suite) on purpose: they are
+            # the coverage anchors test_ci_covers_all_test_files parses for skills/tests/ + eval/,
+            # which the skills/*/tests glob does not match. A path hidden behind run_suite's $2 reads
+            # as `pytest $2` to that guard and would fail it — so keep these literal.
+            echo "::group::_skills_common"; pixi run pytest skills/_skills_common/tests/ -q -n auto; r1=$?; echo "::endgroup::"
+            echo "::group::target-profile"; pixi run pytest skills/target-profile/tests/ -q -n auto; r2=$?; echo "::endgroup::"
+            echo "::group::skills-guards"; pixi run pytest skills/tests/ -q --import-mode=importlib -n auto; r3=$?; echo "::endgroup::"
+            echo "::group::eval"; pixi run pytest eval/ -q --import-mode=importlib -n auto; r4=$?; echo "::endgroup::"
+            for r in "$r1" "$r2" "$r3" "$r4"; do [ "$r" -ne 0 ] && gate_fail=1; done
+          else
+            # Remaining per-skill suites, round-robin across the numeric shards. The `for d in
+            # skills/*/tests` glob is the coverage anchor for every per-skill dir.
+            i=0
+            for d in skills/*/tests; do
+              skill=$(basename "$(dirname "$d")")
+              # the two suites above are their own core-shard steps — don't double-run them here
+              case "$skill" in _skills_common|target-profile) continue ;; esac
+              ls "$d"/test_*.py >/dev/null 2>&1 || continue   # skip dirs with no test files (e.g. deferred skills)
+              if [ "$((i % NUM_LOOP_SHARDS))" = "$SHARD" ]; then
+                run_suite "$skill" "$d -q --import-mode=importlib"
+              fi
+              i=$((i + 1))
+            done
+          fi
+          [ "$gate_fail" -ne 0 ] && echo "shard $SHARD: one or more BLOCKING suites failed (see ::error:: above)"
+          exit "$gate_fail"
+
+  # FAN-IN — this job carries the branch-protection required status check name `pytest`. It runs
+  # after every shard (if: always()) and fails unless ALL shards succeeded, so the required check
+  # reflects the whole matrix. Renaming this job, or letting a bare matrix expose `pytest-shards (N)`
+  # as the required name instead, would deadlock merges — keep the required check pointed here.
+  pytest:
+    needs: [pytest-shards]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aggregate shard results
+        run: |
+          result="${{ needs.pytest-shards.result }}"
+          echo "pytest-shards matrix result: $result"
+          if [ "$result" != "success" ]; then
+            echo "::error title=pytest::one or more pytest shards did not succeed (result=$result)"
+            exit 1
+          fi
+          echo "all pytest shards passed"
