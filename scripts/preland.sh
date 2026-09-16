@@ -3,18 +3,18 @@
 # .github/workflows/skills-validate.yml (the `pytest` job). Terse per-step PASS/FAIL;
 # nonzero exit on any BLOCKING failure.
 #
-# ⚠️  THIS MIRRORS ONE OF THE TWO REQUIRED CHECKS. Branch protection on v2-architecture requires
+# ⚠️  THIS MIRRORS ONE OF THE TWO REQUIRED CHECKS. Branch protection on main requires
 #     `pytest` AND `ruff`; nothing below runs ruff, so "ALL GATES PASS" here does NOT mean the PR
 #     will go green. Run the ruff gate yourself (ruff 0.16.6 is the CI pin, already on the PATH
 #     exported below):
 #       ruff format --check .        # tree-wide — identical to CI
-#       git diff --name-only --diff-filter=ACMR origin/v2-architecture...HEAD -- '*.py' \
+#       git diff --name-only --diff-filter=ACMR origin/main...HEAD -- '*.py' \
 #         | xargs -r ruff check      # diff-aware — CI lints only the PR's changed .py files
 #     Deliberately NOT folded into the gates below: CI's `ruff check` is diff-aware against the
 #     PR base, while this script runs from the home checkout with no PR context, so a tree-wide
 #     `ruff check .` would be STRICTER than CI and red on the grandfathered legacy backlog.
 #     If you RECORD the format result anywhere, echo the base SHA beside it
-#     (`git rev-parse --short origin/v2-architecture`): the "N files already formatted" count is a
+#     (`git rev-parse --short origin/main`): the "N files already formatted" count is a
 #     function of the BASE plus whatever .py files your branch ADDS (--diff-filter=ACMR includes A),
 #     so a bare count cannot be reconciled against a later run and reads as if the tree moved.
 #

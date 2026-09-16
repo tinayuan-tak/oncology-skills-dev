@@ -1,15 +1,20 @@
-# oncology-skills — v2 compositional framework (`v2-architecture` branch)
+# oncology-skills — v2 compositional framework
 
-> **You are on the `v2-architecture` branch.** This is the redesigned target-evaluation
-> platform: a **compositional skill framework** where each biological question is answered
+> **This is `main`, the trunk.** The redesigned target-evaluation platform: a
+> **compositional skill framework** where each biological question is answered
 > by an independent, retrieval-only skill that composes *evidence cards* over pre-computed
 > derived products. Skills never recompute on invocation; heavy compute happens out-of-band
 > and is published as versioned, gene-sorted artifacts.
 >
+> New here and want to write a skill? Start with
+> **[docs/AUTHORING_A_SKILL.md](docs/AUTHORING_A_SKILL.md)**, then
+> [DEVELOPMENT_GUIDELINES.md](DEVELOPMENT_GUIDELINES.md) for the branch/test/data-access
+> conventions.
+>
 > **For the v1 plugin** — the seven `analysis-*` / `workflow-*` indication × modality skills
-> currently installable via Claude Code's marketplace (validating targets like SCD1, PCDH7,
-> WEE1 in day-to-day work) — see the [`main` branch README](https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills/blob/main/README.md).
-> v1 remains the production install path until v2 reaches feature parity.
+> (used to validate targets like SCD1, PCDH7, WEE1) — see **[v1 is archived](#v1-is-archived)**
+> below. v1 was the production install path until v2 was promoted to the trunk on 2026-09-16;
+> it is preserved, still installable, and no longer developed.
 
 ---
 
@@ -319,9 +324,13 @@ export AWS_PROFILE=cbg     # default for data work
 ```bash
 git clone https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills.git
 cd rnd-computational-biology-oncology-claude-oncology-skills
-git checkout v2-architecture
 pixi install
 ```
+
+A fresh clone lands on `main`, which is the framework — no `git checkout` step. The three
+sibling repos (`analysis-methods`, `target-contracts`, `data-catalog`) are editable path
+dependencies and must be cloned **side by side** with this one; `pixi install` resolves them
+from `../rnd-computational-biology-oncology-*`.
 
 Run a focused question skill against live S3 (example — dependency call for KRAS in CRC):
 
@@ -451,12 +460,33 @@ green on a credential-less runner.
 
 | Branch | Purpose |
 |--------|---------|
-| `main` | v1 — plugin-installable production system (`analysis-*`, `workflow-*` skills) |
-| **`v2-architecture`** | **You are here.** Long-lived architectural branch for the compositional framework; feature branches cut off it and PR back into it |
-| `feat/*`, `fix/*`, `chore/*` | Short-lived work branches off `v2-architecture` (draft PR on first push) |
+| **`main`** | **You are here.** The trunk: the v2 compositional framework. Feature branches cut off it and PR back into it |
+| `feat/*`, `fix/*`, `chore/*` | Short-lived work branches off `main` (draft PR on first push) |
+| `legacy/v1` | Archived v1 plugin (`analysis-*`, `workflow-*` skills). Frozen — no development |
 
-When v2 reaches parity with v1's analytical capabilities it merges to `main`; v1 becomes a
-documented legacy install path.
+## v1 is archived
+
+v2 was promoted to the trunk on **2026-09-16**. Before the promotion, `main` held v1 and the
+framework lived on a long-lived `v2-architecture` branch — which meant a fresh clone landed on
+v1, and GitHub registered this repo's `schedule:` workflows from a branch that did not contain
+them (three crons had never fired once). Promoting v2 to `main` fixed both.
+
+v1 is preserved two independent ways and nothing was deleted:
+
+| Ref | What it is |
+|---|---|
+| tag `v1-final` | Immutable snapshot of v1's final commit |
+| branch `legacy/v1` | Browsable, still-installable v1 |
+
+It remains installable via the `oncology-skills-v1` entry in
+`.claude-plugin/marketplace.json`, which pins `ref: legacy/v1`. If you need it as a standalone
+checkout:
+
+```bash
+git clone https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills.git oncology-skills-v1
+cd oncology-skills-v1 && git checkout legacy/v1
+claude plugin marketplace add .
+```
 
 ---
 

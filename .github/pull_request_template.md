@@ -4,7 +4,7 @@
 
 
 ## Definition of Done
-- [ ] Own worktree off `v2-architecture`; scoped `.claude/branch-scope`; registry entry if non-trivial
+- [ ] Own worktree off `main`; scoped `.claude/branch-scope`; registry entry if non-trivial
 - [ ] `pixi run pytest` green from a clean checkout (blocking suites)
 
 **If verdict-bearing** (resolvers / rule consumers / gate maps / card-field reads):

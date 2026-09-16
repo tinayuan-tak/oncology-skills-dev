@@ -9,7 +9,7 @@
     {
       "name": "oncology-skills",
       "description": "Claude Code plugin bundling oncology target-evaluation and profiling skills",
-      "version": "1.7.6",
+      "version": "2.0.0",
       "source": "./",
       "author": {
         "name": "Ming-Ju Tsai",
@@ -39,6 +39,20 @@
         "./skills/tumor-presence",
         "./skills/tumor-selectivity"
       ]
+    },
+    {
+      "name": "oncology-skills-v1",
+      "description": "ARCHIVED v1 plugin — the seven analysis-* / workflow-* indication x modality skills (bulk RNA, single-cell RNA, protein/HPA, ScholarEval scoring, CRC + NSCLC PDF reports). Frozen at the state before v2 was promoted to the trunk on 2026-09-16. No longer developed; install only if you need v1 behaviour reproduced.",
+      "version": "1.7.8",
+      "source": {
+        "source": "git-subdir",
+        "url": "https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills.git",
+        "path": ".",
+        "ref": "legacy/v1"
+      },
+      "author": {
+        "name": "computational biology - oncology"
+      }
     }
   ]
 }

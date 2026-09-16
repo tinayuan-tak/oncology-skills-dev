@@ -1,17 +1,51 @@
-# CODEOWNERS — INERT SCAFFOLD.
+# CODEOWNERS — ACTIVE since 2026-09-16 (was an all-commented PLACEHOLDER scaffold).
 #
-# Every line is commented out on purpose: an active CODEOWNERS with a non-existent team/user would
-# make PRs require review from an owner that can't approve, wedging merges. Uncomment + replace the
-# placeholder handles with real GitHub team/user handles to activate per-area review ownership.
+# WHAT THIS DOES AND, IMPORTANTLY, WHAT IT DOES NOT. CODEOWNERS by itself only AUTO-REQUESTS a
+# reviewer when a PR touches a matching path. It does not block anything. Requiring the review is a
+# separate branch-protection setting, `require_code_owner_reviews`, and it is deliberately OFF here:
+# `main` requires no approving reviews, and `~/.claude/git-hooks/land-pr` enables GitHub auto-merge,
+# so turning it on would wedge every solo PR waiting for an approval that never comes. Auto-request
+# = a nudge; required review = a gate. We want the nudge. If you ever do want the gate, read
+# land-pr first and expect to change how work lands.
 #
 # Syntax: <path-glob>  @org/team  @user
 #
-# Suggested ownership map for this repo (fill in real handles, then uncomment):
+# ★ NO `*` LINE, ON PURPOSE. A catch-all owner requests the whole team on every PR, including
+# single-skill changes that have a named owner two lines below — the notifications then mean nothing
+# and people mute them, which is strictly worse than no CODEOWNERS at all. Only the areas whose
+# blast radius genuinely exceeds one skill are listed. Uncovered paths (a single `skills/<skill>/`)
+# are the normal case, not an oversight.
 #
-# *                                   @oneTakeda/PLACEHOLDER-comp-bio-onc
-# /skills/_skills_common/             @oneTakeda/PLACEHOLDER-framework-eng   # shared engine — highest blast radius
-# /skills/compose-dashboard/          @oneTakeda/PLACEHOLDER-framework-eng
-# /skills/target-profile/             @oneTakeda/PLACEHOLDER-framework-eng
-# /skills/tests/                      @oneTakeda/PLACEHOLDER-framework-eng   # cross-skill conformance guards
-# /.github/                           @oneTakeda/PLACEHOLDER-framework-eng
-# /docs/DEFINITION_OF_DONE.md         @oneTakeda/PLACEHOLDER-framework-eng
+# ★ LAST MATCH WINS, not most-specific. GitHub applies the FINAL matching line, so ordering here is
+# load-bearing: broad areas first, narrower carve-outs after. Append new rules below, and if you add
+# a broad pattern put it ABOVE the narrow ones it would otherwise swallow.
+#
+# The team is @oneTakeda/rnd-computational-biology-oncology (permission: maintain). A collaborator
+# must be a MEMBER of it to be auto-requested — adding a handle to this file is not enough, and a
+# non-member owner silently matches nothing.
+
+# Shared engine — every skill imports it; a resolver or dispatcher change fans out into golden
+# snapshots across all 22 skill dirs.
+/skills/_skills_common/             @oneTakeda/rnd-computational-biology-oncology
+
+# The orchestrator that composes every gate's verdict into a target profile.
+/skills/target-profile/             @oneTakeda/rnd-computational-biology-oncology
+
+# Cross-skill conformance guards. These are the tests that stop one skill diverging from the
+# framework's contracts, so they should not be relaxed by the PR they are inconveniencing.
+/skills/tests/                      @oneTakeda/rnd-computational-biology-oncology
+
+# CI, required checks, and this file.
+/.github/                           @oneTakeda/rnd-computational-biology-oncology
+
+# The framework's contract surface: what "done" means, what a skill must emit, and how to become
+# a skill author.
+/docs/DEFINITION_OF_DONE.md         @oneTakeda/rnd-computational-biology-oncology
+/docs/UNIFIED_OUTPUT_CONTRACT.md    @oneTakeda/rnd-computational-biology-oncology
+/docs/AUTHORING_A_SKILL.md          @oneTakeda/rnd-computational-biology-oncology
+
+# Trunk-wide instructions and the plugin manifests (a bad edit here misroutes every session or
+# breaks every install).
+/CLAUDE.md                          @oneTakeda/rnd-computational-biology-oncology
+/DEVELOPMENT_GUIDELINES.md          @oneTakeda/rnd-computational-biology-oncology
+/.claude-plugin/                    @oneTakeda/rnd-computational-biology-oncology

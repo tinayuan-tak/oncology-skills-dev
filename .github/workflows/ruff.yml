@@ -4,10 +4,10 @@ name: ruff
 # ONLY on the PR's changed .py files, so the legacy lint backlog is grandfathered while new
 # / edited code must be clean.
 #
-# THIS IS A REQUIRED STATUS CHECK on v2-architecture. Branch protection requires exactly two
+# THIS IS A REQUIRED STATUS CHECK on main. Branch protection requires exactly two
 # contexts — `pytest` (skills-validate.yml) and `ruff` (this workflow's job) — with strict: false,
 # and the branch carries no rulesets. Re-measure rather than trust this line:
-#   gh api 'repos/{owner}/{repo}/branches/v2-architecture/protection' --jq .required_status_checks
+#   gh api 'repos/{owner}/{repo}/branches/main/protection' --jq .required_status_checks
 # ⇒ Do NOT add a `paths:` filter here. A required context that never runs on a PR leaves that PR
 # permanently "Expected — waiting for status" and unmergeable (the required-check deadlock;
 # skills-validate.yml's header carries the long-form warning for the same reason). Path-filtering

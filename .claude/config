@@ -8,8 +8,9 @@
 prefixes: feat/ fix/ chore/ feature/
 
 # Default base branch for new-worktree / land-pr (override with --base).
-# This repo's active integration branch is the long-lived v2-architecture.
-default_base: v2-architecture
+# The trunk is `main` (v2 framework). It was `v2-architecture` until 2026-09-16, when v2
+# was promoted to main and v1 archived to the `legacy/v1` branch + `v1-final` tag.
+default_base: main
 
 # Human-readable top-level scope roots.
 scope_roots: skills/ libs/ notebooks/ tests/ eval/

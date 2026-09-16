@@ -3,12 +3,16 @@
 ## Overview
 
 This repository is the active development home for the oncology **target-evaluation
-and profiling** Claude Code skills. The long-lived integration branch is
-`v2-architecture` (not `main`); all feature work branches off it and merges back via
-PR. This document describes the current (v2) layout, skill anatomy, and the
-branch / test / data-access conventions. It supersedes the earlier v1 guidelines,
-which described an `ai-sci-claude-skills` sync flow and a per-skill `pixi.toml`
-layout that no longer exist.
+and profiling** Claude Code skills. The trunk is `main`; all feature work branches off
+it and merges back via PR. (Until 2026-09-16 the trunk was `v2-architecture` and `main`
+held the v1 plugin — see [README](README.md#v1-is-archived).)
+
+**Writing your first skill?** Start with
+[docs/AUTHORING_A_SKILL.md](docs/AUTHORING_A_SKILL.md), which walks the end-to-end path
+from evidence card to landed PR. This document is the reference behind it: the current
+(v2) layout, skill anatomy, and the branch / test / data-access conventions. It supersedes
+the earlier v1 guidelines, which described an `ai-sci-claude-skills` sync flow and a
+per-skill `pixi.toml` layout that no longer exist.
 
 ## Repository layout
 
@@ -54,7 +58,7 @@ single-sourced there. Verdict logic is expressed as a **declarative resolver spe
 
 ## Branch & PR discipline
 
-Work in a **per-workstream git worktree** cut off `v2-architecture`. Do not develop
+Work in a **per-workstream git worktree** cut off `main`. Do not develop
 directly in the primary checkout (parallel sessions share one index — worktrees give
 structural isolation).
 
@@ -65,7 +69,7 @@ structural isolation).
 # ... edit in the printed /tmp/wt/... directory, then:
 git add -A && git commit -m "..."
 git push -u origin <prefix>/<name>          # pre-push nudges you to open a PR
-gh pr create --base v2-architecture --fill  # draft is fine
+gh pr create --base main --fill             # draft is fine
 
 # land when CI is green (enables auto-merge; prunes worktree + branch after merge):
 ~/.claude/git-hooks/land-pr <pr#> --repo claude-oncology-skills
@@ -73,14 +77,14 @@ gh pr create --base v2-architecture --fill  # draft is fine
 
 - **Approved branch prefixes:** `feat/`, `fix/`, `chore/`, `feature/` (enforced by
   `.claude/hooks/pre-commit`).
-- **Base branch:** `v2-architecture` (this repo's `default_base`).
+- **Base branch:** `main` (this repo's `default_base`).
 - **One workstream per branch;** draft PR on first push.
-- **Required status checks** on `v2-architecture` are exactly two contexts — `pytest` (from
+- **Required status checks** on `main` are exactly two contexts — `pytest` (from
   `skills-validate.yml`) and `ruff` (from `ruff.yml`) — with `strict: false`, so a PR merges
   once both are green. CodeQL / `Analyze (python)` also run on every PR (org-level default
   setup) but are **not** required contexts and do not gate the merge. Four checks run; two
   gate. Re-measure rather than trusting this line:
-  `gh api 'repos/{owner}/{repo}/branches/v2-architecture/protection' --jq .required_status_checks`
+  `gh api 'repos/{owner}/{repo}/branches/main/protection' --jq .required_status_checks`
 
 ## Testing
 

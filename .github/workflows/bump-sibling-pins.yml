@@ -15,7 +15,7 @@ name: Bump sibling CI pins
 # to github.token: a pull request opened by a workflow authenticating as GITHUB_TOKEN does NOT
 # trigger other workflows (GitHub's recursion guard). The bump PR would then have `pytest` and
 # `ruff` permanently "Expected — waiting for status": unvalidated AND unmergeable, since both
-# are required checks on v2-architecture. That is the same required-check deadlock the header of
+# are required checks on main. That is the same required-check deadlock the header of
 # skills-validate.yml warns about, re-entered through a side door. So this workflow refuses to
 # run without a non-default token rather than opening a PR nobody can merge.
 #
@@ -28,26 +28,43 @@ name: Bump sibling CI pins
 # particular replaced a silent skip that let the SHA move while the date stood still.
 
 on:
-  # ⚠️ CRON PARKED 2026-09-15 — re-enable together with the CROSS_REPO_TOKEN secret.
+  # ⚠️ CRON STAYS PARKED (parked 2026-09-15; rationale CORRECTED 2026-09-16 — read on before
+  # re-enabling, because the original reason given here was WRONG).
   #
-  # MEASURED: this schedule has never fired. Not once, for any event type. GitHub registers
-  # `schedule:` triggers ONLY from the repository's DEFAULT branch, and the default branch is
-  # `main` — which does not contain this file at all (it lives only on v2-architecture, and
-  # `main` is ~1329 commits behind). So the daily bump has been silently inert since it was
-  # written. Note the failure shape: a schedule on a non-default branch produces no run, no
-  # red, and no annotation, which is indistinguishable from "the cron has not come around yet".
+  # HISTORY: from when it was written until 2026-09-16 this schedule never fired. Not once, for
+  # any event type. GitHub registers `schedule:` triggers ONLY from the repository's DEFAULT
+  # branch, and the default branch was `main`, which held the v1 plugin and did not contain this
+  # file at all. Note the failure shape, because it is the quietest one there is: a schedule on a
+  # non-default branch produces no run, no red, and no annotation — indistinguishable from "the
+  # cron has not come around yet". That blocker is now GONE: v2 was promoted to `main` on
+  # 2026-09-16, so this file lives on the default branch and the cron WOULD fire if uncommented.
   #
-  # WHY PARK IT RATHER THAN JUST LEAVE IT: the moment the default branch moves to
-  # v2-architecture this cron becomes live, and the very first step (correctly) hard-fails
-  # when CROSS_REPO_TOKEN is unset — turning the switch into a red run every morning at 06:17.
-  # A standing red trains people to ignore reds, so the cron waits for the secret it needs.
+  # ★ WHY IT IS STILL PARKED — AND WHY THE ORIGINAL REASON WAS WRONG. This header used to say the
+  # cron waits "for the secret it needs", i.e. that CROSS_REPO_TOKEN was unset. That is FALSE and
+  # was false when written: `gh secret list` shows CROSS_REPO_TOKEN present on this repo since
+  # 2026-08-11. The real blocker is the token's SCOPE, not its existence. Per the header of
+  # target-contracts' framework-health-cross-repo.yml, the `skills-reposet` fine-grained PAT
+  # backing CROSS_REPO_TOKEN is scoped to only THREE siblings (data-catalog / analysis-methods /
+  # target-contracts) and is MISSING claude-oncology-skills — which is exactly the repo this job
+  # must push a branch to and open a PR on.
+  #
+  # ★★ THE TRAP THAT MATTERS: this job's first step only checks the secret is NON-EMPTY. A
+  # presence check is not a capability check. So with the secret set but under-scoped, the guard
+  # PASSES, the job proceeds, and it dies later at the push/PR step — a red every morning at
+  # 06:17, one step further in than the guard suggests. Do not read "the secret exists" as "the
+  # job can run". A standing red trains people to ignore reds.
   #
   # This does NOT soften the loud failure the header above insists on: the token check is
   # unchanged and `workflow_dispatch` is retained, so a deliberate manual run still fails
-  # loudly and visibly when the token is missing.
+  # loudly and visibly.
   #
-  # TO RE-ENABLE: provision CROSS_REPO_TOKEN (contents:write + pull-requests:write here,
-  # contents:read on the three siblings), then uncomment the two lines below.
+  # TO RE-ENABLE (in this order — do not skip step 2):
+  #   1. Widen the skills-reposet PAT to include claude-oncology-skills with Contents: Write +
+  #      Pull requests: Write (it already has Contents: Read on the three siblings).
+  #   2. PROVE it with a manual `workflow_dispatch` run that gets as far as opening/updating the
+  #      bump PR. Until a dispatch run has actually succeeded, you have not tested the scope —
+  #      the presence check above cannot tell you.
+  #   3. Only then uncomment the two lines below.
   #
   # schedule:
   #   # Daily. Cadence is the knob: shorter = better attribution of a red to a named sibling
@@ -69,7 +86,7 @@ jobs:
     env:
       BUMP_BRANCH: chore/bump-sibling-pins
       WORKFLOW_FILE: .github/workflows/skills-validate.yml
-      BASE_BRANCH: v2-architecture
+      BASE_BRANCH: main
     steps:
       - name: Refuse to run without a non-default token
         env:

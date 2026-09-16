@@ -10,7 +10,7 @@ writes narrative + a high-level recommendation. Every LLM field is tagged
 (`_source: llm_synthesized`, `_model_id`, `_prompt_hash`) and stored in schema slots distinct
 from the sub-verdicts, so the audit spine is invariant even if the narrative drifts between runs.
 
-> This is the `v2-architecture` compositional framework. See the [repo README](../../README.md)
+> This is the v2 compositional framework, on the trunk `main`. See the [repo README](../../README.md)
 > for the four-repo ecosystem, phase model, and the shared resolver spine.
 
 ---
@@ -76,7 +76,6 @@ for r in claude-oncology-skills target-contracts analysis-methods data-catalog; 
     rnd-computational-biology-oncology-$r
 done
 cd rnd-computational-biology-oncology-claude-oncology-skills
-git checkout v2-architecture   # the compositional framework lives here
 pixi install                   # build the data-card runtime env
 ```
 
@@ -126,10 +125,10 @@ plugin marketplace:
 - `claude-oncology-skills` is the marketplace name (`.claude-plugin/marketplace.json`).
 - Verify with `/plugin` → *Manage plugins*.
 
-> **Local path vs GitHub.** Adding the marketplace from a local path is recommended for v2, because
-> a run needs the sibling repos on disk anyway and v2 lives on the `v2-architecture` branch. You can
-> instead `add oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills`, but that pulls
-> the default branch — keep your working clone on `v2-architecture`.
+> **Local path vs GitHub.** Either works: the framework is now the repo's default branch, so
+> `add oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills` pulls v2. A local path
+> is still recommended, because a run needs the sibling repos on disk anyway and a local
+> marketplace tracks your working tree rather than a fetched snapshot.
 
 > **Restart** Claude Code (or run `/skills`) after either method so the new skill is picked up.
 

@@ -58,7 +58,7 @@ name: Skills Validate
 # workflow_dispatch. Bump the pin instead; that is what the bump PR is for.
 
 # NOTE (2026-08-12): the pull_request trigger runs on ALL PRs — no `paths:` filter — because the
-# `pytest` check is a REQUIRED status check on v2-architecture (branch protection). A required check
+# `pytest` check is a REQUIRED status check on main (branch protection). A required check
 # that is path-filtered would never report on a PR touching only non-matching paths (libs/, notebooks/,
 # tests/, docs), leaving that PR permanently "Expected — waiting for status" and unmergeable (the
 # required-check deadlock). Running the (fast, self-skipping-when-credential-less) suite on every PR
@@ -67,7 +67,7 @@ name: Skills Validate
 on:
   pull_request:
   push:
-    branches: [v2-architecture, dev, main]
+    branches: [main]
 
 jobs:
   pytest-shards:

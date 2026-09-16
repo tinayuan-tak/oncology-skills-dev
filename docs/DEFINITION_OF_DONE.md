@@ -4,7 +4,7 @@ A change is "done" when it satisfies the checks below. These encode the invarian
 guards already enforce in CI; the list makes the contract explicit for authors and reviewers.
 
 ## Every change
-- [ ] Runs in its **own worktree** off `v2-architecture`; landed via `land-pr` (auto-merge on green).
+- [ ] Runs in its **own worktree** off `main`; landed via `land-pr` (auto-merge on green).
 - [ ] `.claude/branch-scope` declares exactly the paths touched (grab-bag prevention).
 - [ ] Registry entry in `~/.claude/wip-registry.md` for non-trivial work (`depends_on` set).
 - [ ] `pixi run pytest` green from a clean checkout (blocking suites: `_skills_common`,

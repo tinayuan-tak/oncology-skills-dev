@@ -1,9 +1,9 @@
 {
   "name": "oncology-skills",
-  "description": "Claude Code plugin bundling skills for oncology target evaluation and RNA-seq analysis (bulk and single-cell) across cancer types",
-  "version": "1.7.5",
+  "description": "Claude Code plugin bundling the compositional oncology target-evaluation skills: evidence-card-backed gates, declarative verdict resolvers, and the target-profile orchestrator.",
+  "version": "2.0.0",
   "author": {
     "name": "computational biology - oncology"
   },
-  "keywords": ["oncology", "rna-seq", "gene-expression", "crc", "nsclc", "target-evaluation"]
+  "keywords": ["oncology", "target-evaluation", "target-profile", "evidence-cards", "verdict-resolver", "compositional-skills"]
 }

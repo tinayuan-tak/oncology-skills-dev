@@ -32,7 +32,7 @@ within an active registry entry.
 
 Every non-trivial workstream runs in its OWN git worktree — not in this
 primary checkout — so parallel sessions cannot clobber each other's files
-or branch refs. The primary checkout stays parked on `v2-architecture`.
+or branch refs. The primary checkout stays parked on `main`.
 
 Start a workstream:
 
@@ -40,7 +40,7 @@ Start a workstream:
         --scope skills/tumor-presence/
 
 This creates `/tmp/wt/<repo>__<branch>/` on a fresh branch off the
-`default_base` in `.claude/config` (here: `v2-architecture`), writes
+`default_base` in `.claude/config` (here: `main`), writes
 `.claude/branch-scope`, and prints a registry stub to paste into
 `~/.claude/wip-registry.md`. The committed hook symlinks resolve inside the
 worktree, so pre-commit/pre-push enforcement travels with it. Do all work
@@ -48,7 +48,7 @@ in that directory. Trivial in-scope edits may use the primary checkout.
 
 ## Branch & PR discipline
 
-Feature work branches off the long-lived `v2-architecture` integration branch
+Feature work branches off the trunk `main`
 via a per-workstream worktree and merges back by PR (see
 [DEVELOPMENT_GUIDELINES.md](DEVELOPMENT_GUIDELINES.md) for the full flow). This
 composes with the coordination ritual above.
@@ -80,13 +80,16 @@ Before extending a skill's `cards_used`, check registry for active
 card-refactor work in target-contracts. Before wiring a skill to a
 new method, check for active method work in analysis-methods.
 
-## Long-lived branches (exception to one-workstream-per-branch)
+## The trunk (exception to one-workstream-per-branch)
 
-`v2-architecture` is a long-lived architectural branch tracking the
-compositional-skill design. It legitimately accumulates many commits
-across many workstreams — the one-workstream-per-branch rule does not
-apply here. Workstreams should cut short-lived feature branches OFF
-of `v2-architecture` and PR back into it.
+`main` is the trunk. It legitimately accumulates many commits across many
+workstreams — the one-workstream-per-branch rule does not apply to it.
+Workstreams cut short-lived feature branches OFF of `main` and PR back into it.
+
+Until 2026-09-16 the trunk was a long-lived `v2-architecture` branch and `main`
+held the v1 plugin; v2 was then promoted to `main` and v1 archived to the
+`legacy/v1` branch + `v1-final` tag. `legacy/v1` is frozen — never branch off it
+or PR into it.
 
 ## Landing a PR (merge discipline)
 
@@ -95,7 +98,7 @@ The lifecycle does NOT end at "PR open." Land it with:
     ~/.claude/git-hooks/land-pr <pr-number>
 
 Merge policy = **auto-merge when CI passes**. Open the PR draft-first
-(`gh pr create --draft --base v2-architecture` for arch-branch work);
+(`gh pr create --draft --base main`);
 land-pr then marks it ready and:
   - checks pending → enables GitHub auto-merge (lands itself when green)
   - checks failing → refuses
@@ -105,7 +108,7 @@ Always `--squash --delete-branch`.
 It NEVER deletes a branch/worktree until it re-reads the PR and confirms
 `state == MERGED` — deleting a head branch before merge closes the PR
 UNMERGED (silent work loss). After a confirmed merge it prunes the
-worktree, deletes the local branch, and fast-forwards `v2-architecture`
+worktree, deletes the local branch, and fast-forwards `main`
 in the primary checkout.
 
 **Stacked PRs**: if other open PRs use your branch as their base, land-pr
@@ -133,7 +136,7 @@ children first, or pass `--retarget-children` to move them onto the base.
   (pixi deep-copies a multi-GB env there → ENOSPC and a wedged `/tmp`). To gate code
   living in a worktree, run from the home checkout against the worktree paths
   (e.g. `pixi run pytest /tmp/wt/<branch>/skills/<skill>/tests/ -q`).
-- **Two required status checks gate `v2-architecture`, and `scripts/preland.sh` mirrors only
+- **Two required status checks gate `main`, and `scripts/preland.sh` mirrors only
   one of them.** The required contexts are `pytest` (`.github/workflows/skills-validate.yml`)
   and `ruff` (`.github/workflows/ruff.yml`), `strict: false`, with no rulesets on the branch.
   `preland.sh` transcribes the `pytest` job's suite steps and runs **no** lint gate, so a green
@@ -141,8 +144,9 @@ children first, or pass `--retarget-children` to move them onto the base.
   in that script's header. CodeQL / `Analyze (python)` also run on every PR (org-level default
   setup) but are **not** required and do not gate. Four checks run; two gate. Re-measure rather
   than trusting this line:
-  `gh api 'repos/{owner}/{repo}/branches/v2-architecture/protection' --jq .required_status_checks`
-- Trunk is `v2-architecture`, never `main`.
+  `gh api 'repos/{owner}/{repo}/branches/main/protection' --jq .required_status_checks`
+- Trunk is `main`. (It was `v2-architecture` until 2026-09-16; anything still saying
+  "never `main`" predates the promotion and is wrong.)
 - A resolver / verdict-contract change fans out into golden snapshots + synthetic
   fired-sets + stub fixtures across multiple skill dirs, so run the FULL skills suite
   (`skills/_skills_common/`, `skills/target-profile/`,
@@ -150,8 +154,7 @@ children first, or pass `--retarget-children` to move them onto the base.
   `-k` subset silently misses the fan-out. Regenerate the golden via
   `skills/_skills_common/tests/regenerate_resolver_golden.py` (manually append any NEW
   `rule_id` to the relevant `<gate>.rule_ids` first).
-- Stale skills PR branches share no merge-base with the rewritten `v2-architecture`
-  trunk, so reland via `gh pr diff <n> > /tmp/pr.patch` then `git apply --3way`
+- Stale skills PR branches share no merge-base with the rewritten trunk, so reland via `gh pr diff <n> > /tmp/pr.patch` then `git apply --3way`
   (NOT a rebase), and push with `git push --force-with-lease`.
 - `--synthesize` needs system python + `BEDROCK_AWS_PROFILE=cmp-dev`. (The `compose-dashboard`
   orchestrator was RETIRED 2026-08-20, #654 — its engine rehomed to `_skills_common`; disregard any
