@@ -134,7 +134,11 @@ def _load_card_anchors(pkg_path):
         out["clinical"] = (
             f"clinical-precedent: highest_clinical_stage={cp.get('highest_clinical_stage')}, "
             f"notable_failures={bool(cp.get('notable_failures'))}, "
-            f"n_agents_engaging_target={cp.get('n_agents_engaging_target')}"
+            # n_active_trials is the field the clinical-precedent card actually declares + emits
+            # (KRAS fixture: 33); the prior key `n_agents_engaging_target` is emitted nowhere, so this
+            # anchor silently carried None for every target. See differentiation-landscape/run.py +
+            # report_render/ir.py (n_active) for the two other consumers reading the same field.
+            f"n_active_trials={cp.get('n_active_trials')}"
         )
     cl = cards.get("competitor-landscape")
     if cl:

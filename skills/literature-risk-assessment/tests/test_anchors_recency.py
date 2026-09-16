@@ -35,7 +35,7 @@ def test_load_card_anchors_from_clinical_and_competitor_cards(tmp_path):
                 "summary": {
                     "highest_clinical_stage": "phase_2",
                     "notable_failures": ["drugX"],
-                    "n_agents_engaging_target": 4,
+                    "n_active_trials": 4,
                 },
             },
             {
@@ -46,6 +46,9 @@ def test_load_card_anchors_from_clinical_and_competitor_cards(tmp_path):
     )
     a = rc._load_card_anchors(pkg)
     assert "phase_2" in a["clinical"] and "notable_failures=True" in a["clinical"]
+    # the clinical anchor must carry the REAL declared field, not the phantom `n_agents_engaging_target`
+    # (emitted nowhere) that made this anchor read None for every target.
+    assert "n_active_trials=4" in a["clinical"]
     assert "approved_competitor" in a["commercial"] and "n_competitor_programs=5" in a["commercial"]
 
 
@@ -75,7 +78,7 @@ def test_run_wires_card_anchor_and_recency(monkeypatch, tmp_path):
         [
             {
                 "card_id": "clinical-precedent",
-                "summary": {"highest_clinical_stage": "approved", "n_agents_engaging_target": 3},
+                "summary": {"highest_clinical_stage": "approved", "n_active_trials": 3},
             }
         ],
     )
