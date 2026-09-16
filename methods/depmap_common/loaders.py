@@ -151,12 +151,17 @@ def model_metadata_by_id(model_df, model_id_col: str | None = None) -> dict:
     caller keep deciding. (Same family as the recorded `pd.isna(inf) is False` trap: the sentinel is a
     value with ordinary value semantics, so a guard written for absence never sees it.)
 
-    ⚠️ `pd.isna` here means MISSING, not non-finite, and that is the correct predicate: a ±Inf in a
+    ⚠️ The predicate here means MISSING, not non-finite, and that is the correct choice: a ±Inf in a
     numeric metadata column is a value, not a gap, and silently nulling it would destroy data. If one ever
-    appears it must be refused at the writer (`allow_nan=False`), not laundered here.
+    appears it must be refused at the writer (`allow_nan=False`), not laundered here. That distinction is
+    now structural rather than a comment: `cell_absence` keeps `missing` and `non_finite` as separate
+    states, and `plain_row()` normalises only the former, leaving ±Inf strictly alone.
 
-    Assumes scalar columns, which Model.csv/ModelCondition.csv/sample_info.csv all are — `pd.isna` on a
-    list-valued cell returns an array and would raise on the `if`.
+    Assumes scalar columns, which Model.csv/ModelCondition.csv/sample_info.csv all are. This used to be a
+    caveat — `pd.isna` on a list-valued cell returns an ARRAY, so `if pd.isna(v)` raises on the truth-value
+    test — and it is now enforced: `plain_row()` rejects a non-scalar cell with a TypeError naming the
+    column, rather than depending on `bool()` happening to raise. A length-1 container was the dangerous
+    case, because its self-comparison bools cleanly and would have answered "present".
 
     ★ Rows whose KEY is missing are DROPPED, not kept under a None key. The key column is a primary key,
     and an entry under a missing key is unreachable by construction: callers only ever reach this dict via
@@ -169,14 +174,14 @@ def model_metadata_by_id(model_df, model_id_col: str | None = None) -> dict:
         model_id_col: key column. Defaults to "ModelID" when present, else the first column —
             the same resolution every caller open-coded.
     """
-    import pandas as pd
+    from methods import cell_absence as ca
 
     if model_id_col is None:
         model_id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
     return {
-        row[model_id_col]: {k: (None if pd.isna(v) else v) for k, v in row.to_dict().items()}
+        row[model_id_col]: ca.plain_row(row.to_dict())
         for _, row in model_df.iterrows()
-        if not pd.isna(row[model_id_col])
+        if not ca.is_missing(row[model_id_col])
     }
 
 

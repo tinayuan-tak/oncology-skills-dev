@@ -162,6 +162,19 @@ def classify(value: Any, *, stringified: bool = False) -> str:
     Use this wherever the three cases need DIFFERENT handling — which, for anything feeding a
     verdict, is most places: `missing` is an honest coverage gap, while `non_finite` is corrupt
     input that must be labelled rather than quietly binned with the gaps.
+
+    ⚠️ `classify(x) == PRESENT` IS NOT A "IS THIS A USABLE NUMBER?" TEST, and must not be
+    substituted for one. PRESENT means only *not missing and not non-finite*; it says nothing about
+    whether the cell is numeric. It answers PRESENT for 'Detected in all', '', '   ', '-' and b'x'.
+    #650's description tabled `x is not None and not pd.isna(x) and math.isfinite(float(x))` →
+    `classify(x) == PRESENT`; that mapping is WRONG — measured over 43 input shapes it diverges on
+    17 of them, every one admitting a non-numeric cell into a numeric path, which is the fail-open
+    direction for a guard whose job is to reject garbage. For that question use:
+
+        as_float(x, non_finite="missing") is not None      # MEASURED equivalent, both pandas majors
+
+    Kept here rather than only in the PR thread because the wrong version reads perfectly plausibly
+    at a call site, and a reviewer reaching for the shared helper will reach for this function first.
     """
     if is_missing(value, stringified=stringified):
         return MISSING

@@ -31,6 +31,19 @@ _STD_NORMAL = NormalDist()
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+# ⚠️ THE REPO ROOT IS NOT ON sys.path WHEN THIS FILE RUNS FOR REAL.
+# derive.py::stage_03 launches this file as a SUBPROCESS — `pixi run python <this file>` — with no
+# PYTHONPATH and no cwd, so sys.path[0] is this steps/ directory and `from methods import ...` raises
+# ModuleNotFoundError. The unit tests do NOT reproduce that: they load this file via
+# spec_from_file_location AFTER inserting the repo root on sys.path, so a bare import is green in CI
+# and broken at PRODUCT-BUILD time — and byte-identity-live-s3, the only job that runs the real
+# pipeline, is skipped on pull requests. Hence the explicit bootstrap, and hence
+# tests/methods/cptac_protein_deg/test_step_production_import_path.py, which invokes every step in
+# this directory the way derive.py does and asserts it imports.
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
+from methods import cell_absence as ca  # noqa: E402
+
 CPTAC_COHORTS = ["BRCA", "CCRCC", "COAD", "GBM", "HNSCC", "LSCC", "LUAD", "OV", "PDAC", "UCEC"]
 
 METHOD_VERSION = "1.3.0"  # 2026-09-12: unestimable contrast (log2FC=+/-Inf) → data_unavailable, not not_significant
@@ -44,11 +57,21 @@ NEGLIGIBLE_COHENS_D = 0.2
 
 def _is_finite(x) -> bool:
     """True only for a real, computable number. `pd.isna` rejects NaN/None but ADMITS +/-Inf, which is
-    exactly how MSstatsTMT reports an unestimable contrast — see the note in classify()."""
-    try:
-        return x is not None and not pd.isna(x) and math.isfinite(float(x))
-    except (TypeError, ValueError):
-        return False
+    exactly how MSstatsTMT reports an unestimable contrast — see the note in classify().
+
+    Delegates to the shared three-state predicate rather than open-coding the guard a fourth time.
+    `non_finite="missing"` is the policy this site needs: an unestimable contrast and an absent
+    measurement get the same treatment here (neither may reach a `q >= 0.05` arm), which is exactly
+    what the `missing` policy means — and `as_float` returns None for a nan, a ±Inf, and an
+    unparseable cell alike, so the composed answer is "there is no usable number".
+
+    MEASURED equivalent to the previous body over 43 input shapes under BOTH pandas 2.3.3/numpy 1.26.4
+    and pandas 3.0.3/numpy 2.5.1 — pinned in tests/test_cell_absence_adoption.py so the equivalence
+    cannot silently rot. Note `classify(x) == PRESENT` is NOT the right substitution here and would be
+    a real regression: it answers PRESENT for 'Detected in all', '' and b'x', admitting text into a
+    numeric path. (#650's description tabled that mapping; it is wrong, and the correction now lives in
+    cell_absence's own docstring.)"""
+    return ca.as_float(x, non_finite="missing") is not None
 
 
 def _cohens_d(logfc, se, n_tumor, n_normal, p_value=None):
