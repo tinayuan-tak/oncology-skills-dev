@@ -66,8 +66,32 @@ AXIS_TO_DIM = {
 # justifies it. The written rationales for these axes all concern `_SHORT_TO_GATE` (tp_fanout), the
 # kill/hold NOMINATION gate; risk_6dim is a PROJECTION, a different consumer. "Must never drive the
 # nomination spine" therefore justifies exclusion from the gate and says nothing about this map.
-# Resolving an OPEN entry MOVES BINS (it adds a conjunction member), so it is not additive: it needs a
-# per-verdict-value direction judgement, golden snapshots, and a corpus re-measure.
+#
+# ★ RETRACTED 2026-09-16, THE SAME DAY IT WAS WRITTEN. This comment used to end: "Resolving an OPEN
+# entry MOVES BINS (it adds a conjunction member), so it is not additive: it needs a per-verdict-value
+# direction judgement, golden snapshots, and a corpus re-measure." THAT IS FALSE, and it was refuted by
+# the obvious measurement nobody had run: `deterministic_bins` NEVER READS THIS MAP. It reads the
+# sub-verdicts it wants directly (`sv.get("dependency")`, `sv.get("safety")`, …) and hardcodes each
+# dim's contribution table inline. Adding all three OPEN axes to AXIS_TO_DIM and re-projecting the
+# 504-target corpus x 5 modalities moved 0 of 2520 bins, while 2520 of 2520 `evidence_coverage`
+# payloads changed — a PAIRED control, so the null result is not a silent no-op.
+#
+# AXIS_TO_DIM has exactly three readers and NOT ONE of them sets a bin:
+#   1. `evidence_coverage_by_dim` below — which axes COUNT as evidence for a dim (Step 2d);
+#   2. `report_render.ir._dim_members` — which subskills are DISPLAYED under a dim;
+#   3. `risk_rollup.project` — routes grounded literature onto a dim as an ESCALATE-ONLY annotation,
+#      and its own docstring locks that "Grounding NEVER moves a bin" (2026-09-03).
+# So mapping an axis is a VISIBILITY change, not a governance change. To make an axis actually
+# contribute to a bin you must edit `deterministic_bins`' inline tables — a separate, larger decision.
+#
+# ★ AND THERE IS A SECOND MAP, which this file failed to mention: `report_render.ir._CONTEXT_DIM`
+# already routes 6 of the 7 axes declared below onto a dim, displayed as `context` companions —
+# cis_coherence + combination_vulnerability -> biological, target_intrinsic + immune_context ->
+# druggability, translational_readiness -> translational, literature_context -> commercial. The two
+# maps are DISJOINT and that is deliberate (verdict-bearing members vs descriptive companions), but it
+# means "absent from AXIS_TO_DIM" != "reaches no dim": only `subtype_fit` is in NEITHER map. Keep them
+# disjoint — `_dim_members` appends from both WITHOUT DEDUPE, so an axis in both is displayed TWICE.
+# `test_axis_dim_mapping_completeness.py` now pins both facts.
 DECLARED_DESCRIPTIVE = "declared_descriptive"  # verdict=None BY DESIGN — mapping it would be inert
 OPEN_PENDING_REVIEW = "open_pending_review"  # verdict-bearing + live, absence UNJUSTIFIED in writing
 AXIS_DIM_EXCLUSION_STATES: frozenset = frozenset({DECLARED_DESCRIPTIVE, OPEN_PENDING_REVIEW})
@@ -112,18 +136,29 @@ AXIS_DIM_EXCLUSIONS = {
         "cis_uncoupled_no_dependency 105, dependency_without_cis_dosage 60, "
         "coherent_epigenetic_silencing 32, insufficient_cis_coherence 4). It is DELIBERATELY out of "
         "_SHORT_TO_GATE (it moves CONFIDENCE, not Go/No-Go) and graduated to a confidence-tier axis at "
-        "gate v1.6.0 — but that rationale is about the NOMINATION GATE. Whether locus->expression->"
-        "dependency coherence should contribute to the BIOLOGICAL risk view is UNDECIDED and needs a "
-        "per-verdict-value direction call (is coherent_cis_driver lower or higher biological risk?).",
+        "gate v1.6.0 — but that rationale is about the NOMINATION GATE. ITS DIM IS ALREADY DECIDED: "
+        "ir._CONTEXT_DIM routes it to `biological`, so the report DISPLAYS it there today; the open "
+        "question is narrower than first written — should the dim's evidence-COVERAGE line also COUNT "
+        "it? Measured: state=measured on 504/504 with 3733 resolved cards, so counting it takes "
+        "biological from '4/4 axes measured' to '6/6' (+~14 cards/target) with no new caveat. It "
+        "discriminates without being redundant: coherent_cis_driver is 53 LOW / 3 MED / 20 HIGH against "
+        "the biological bin, while coherent_epigenetic_silencing is 32/32 HIGH. NOTE the direction "
+        "question is NOT blocking, because this map cannot move a bin (see the retraction above).",
     },
     "immune_context": {
         "state": OPEN_PENDING_REVIEW,
         "reason": "Verdict-BEARING and LIVE: 504/504 corpus targets, 5 distinct verdicts "
         "(immune_intermediate 314, insufficient 86, lymphoid_denominator_unreliable 47, immune_cold 31, "
         "immune_hot 26). Documented as GATELESS/ADDITIVE and 'kept off the gate pending calibration' — "
-        "again a statement about _SHORT_TO_GATE. It is the TCE EFFECTOR axis, so if it were mapped the "
-        "candidate dim is modality-conditioned (it should not bind small_molecule), which this map "
-        "cannot express: AXIS_TO_DIM is a flat axis->dim dict. UNDECIDED.",
+        "again a statement about _SHORT_TO_GATE. ★ CORRECTED: this entry used to call the dim UNDECIDED "
+        "and blame a flat axis->dim dict for not expressing modality-conditioning. The dim was ALREADY "
+        "DECIDED — ir._CONTEXT_DIM routes it to `druggability` with a written rationale (the TCE "
+        "effector-arm companion to surface-modality-fit, NOT the clinical-precedent bin) matching an "
+        "approved mockup. Modality-conditioning was never needed for a map that cannot move a bin. What "
+        "the corpus DOES say is that its verdict is weak: 88.7% of targets are non-directional "
+        "(immune_intermediate 314 + insufficient 86 + lymphoid_denominator_unreliable 47), only 57/504 "
+        "are hot/cold, and hot vs cold show near-identical safety-bin splits => it does not discriminate "
+        "risk. As COVERAGE it is real (1773 resolved cards) but undescribed on 86/504.",
     },
     "subtype_fit": {
         "state": OPEN_PENDING_REVIEW,
@@ -132,7 +167,11 @@ AXIS_DIM_EXCLUSIONS = {
         "27, subtype_restricted_dependency 5) and 0/504 emit a skill_report, so it has NO cards_used "
         "provenance at all — the evidence-coverage join below cannot see it even if it were mapped. It "
         "is also not a SUB_SKILLS roster member (tp_fanout.SUBTYPE_SHORT). UNDECIDED, and blocked on "
-        "the provenance gap first.",
+        "the provenance gap first. ★ IT IS THE ONLY ROSTERED AXIS IN NEITHER MAP: every other axis "
+        "declared here reaches a dim via ir._CONTEXT_DIM, so subtype_fit alone is invisible in the "
+        "report AND uncountable in the coverage join. That makes it the strongest of the three claims "
+        "of a real gap — and also the one that cannot be fixed by a mapping, because with no "
+        "skill_report there is nothing for either consumer to read. Fix the emission first.",
     },
 }
 
@@ -238,6 +277,50 @@ def assemble_risk_package(sub_results: dict) -> dict:
 # — an INSTRUMENT gap shipped as an EVIDENCE gap, i.e. "nobody looked" asserted about an axis that looked
 # and reported. `undescribed` keeps those in their own bucket, where they read as the descriptor work
 # queue (`field_descriptor.coverage_report`) rather than as a data gap.
+#
+# ── which axes COUNT as evidence for a dim (vs which are merely DISPLAYED under it) ───────────────
+# MEASURED DEFECT this closes (2026-09-16): the report DISPLAYS 6 axes under `biological` while this
+# coverage line COUNTED 4, because `_dim_members` unions AXIS_TO_DIM with `ir._CONTEXT_DIM` and the
+# roll-up below read AXIS_TO_DIM alone. Corpus-wide that hid 14291 resolved cards under a dim whose own
+# coverage line did not count them — e.g. `biological` reading "4/4 axes measured · 43 cards resolved"
+# on a target where 6 axes reported and 56 cards resolved. A dim understating its OWN evidence is the
+# same lossiness this whole block exists to remove.
+#
+# WHY A THIRD MAP INSTEAD OF WIDENING AXIS_TO_DIM. The two questions are genuinely different:
+#   AXIS_TO_DIM       = is this axis a VERDICT-bearing member of the dim?   (nothing here sets a bin,
+#                       but it is also read by `_dim_members` and `risk_rollup`)
+#   COVERAGE_ONLY_AXES = does this axis's EVIDENCE count toward the dim's coverage line?
+# Coverage counts CARDS, not verdicts, so `verdict_fn=None` is simply the wrong gate on it:
+# `combination_vulnerability` has no verdict and 3024 resolved cards corpus-wide. Widening AXIS_TO_DIM
+# instead would (a) make it non-disjoint from `_CONTEXT_DIM` and so render each axis TWICE under its dim
+# (`_dim_members` does not dedupe — see `test_axis_to_dim_and_context_dim_are_disjoint`), and (b) hand
+# `risk_rollup` new literature-annotation targets as a side effect of a display decision.
+#
+# THE INCLUSION RULE, and it is the one `evidence_coverage_by_axis` below already states: do not surface
+# a CONSTANT dressed as a per-run signal. An axis that is `undescribed` on every run contributes only a
+# caveat that always fires ("not descriptor-covered: X" on 504/504) — noise, and properly the descriptor
+# work queue. So the discriminator is whether the axis's state VARIES / is descriptor-covered at all:
+#   COUNTED   cis_coherence             measured 504/504, 3733 cards   -> biological 4/4 -> 6/6
+#             combination_vulnerability  measured 504/504, 3024 cards
+#             target_intrinsic           measured 428 / UNMEASURED 76   -> a real evidence gap, the exact
+#                                                                          thing this block exists to say
+#             immune_context             measured 418 / undescribed 86  -> caveat fires on 86, not 504
+#   NOT       translational_readiness    undescribed 504/504            -> permanent caveat, no signal
+#             literature_context         undescribed 504/504            -> and it is the ONLY axis in
+#                                        `commercial`, so counting it would replace that dim's honest
+#                                        "card-fed dim — no subskill axis reports into it" with
+#                                        "0/1 axes measured", which reads as a MEASURED CLAIM OF
+#                                        BLINDNESS. Measured on 504/504 targets; that guard is why the
+#                                        naive "just union the two maps" fix is wrong.
+# The earlier version of this module applied that rule to ALL SIX context axes when it only justified the
+# bottom two. VERDICT-INERT: no bin reads this map (see the retraction above AXIS_DIM_EXCLUSIONS).
+COVERAGE_ONLY_AXES = {
+    "cis_coherence": "biological",
+    "combination_vulnerability": "biological",
+    "target_intrinsic": "druggability",
+    "immune_context": "druggability",
+}
+
 STATE_MEASURED = "measured"  # >=1 descriptor-covered field carried a measured value
 STATE_UNMEASURED = "unmeasured"  # descriptor-covered fields exist; NONE measured -> a real evidence gap
 STATE_UNDESCRIBED = "undescribed"  # cards resolved but no descriptor-covered field -> an INSTRUMENT gap
@@ -289,11 +372,11 @@ def evidence_coverage_by_axis(pkg: dict) -> dict:
     why the `undescribed` state exists: it is a statement about the DESCRIPTOR, not about the data.
 
     Covers EVERY axis that reported, not only the verdict-bearing AXIS_TO_DIM ones, so the gateless
-    context companions can be read too — but `evidence_coverage_by_dim` deliberately surfaces only the
-    AXIS_TO_DIM axes. Measured reason (504-package corpus): `translational_readiness` and
-    `literature_context` are `undescribed` on 504 of 504 runs and `immune_context` on 86 — none of those
-    measurement_types carries a SALIENCE_SPEC yet, so displaying their state per-run would ship a CONSTANT
-    dressed as a per-run signal. They belong in the descriptor work queue until the specs land."""
+    context companions can be read too. `evidence_coverage_by_dim` surfaces the AXIS_TO_DIM axes PLUS the
+    `COVERAGE_ONLY_AXES` context companions, and deliberately still omits `translational_readiness` /
+    `literature_context`: their measurement_types carry no SALIENCE_SPEC, so they are `undescribed` on 504
+    of 504 runs and surfacing them per-run would ship a CONSTANT dressed as a per-run signal. They belong
+    in the descriptor work queue until the specs land — see the inclusion rule above COVERAGE_ONLY_AXES."""
     from .field_descriptor import descriptors_for  # lazy: keep this module stdlib-pure at import time
     from .field_disposition import is_measured
     from .measurement_types import card_measurement_type
@@ -347,19 +430,26 @@ def evidence_coverage_by_dim(pkg: dict) -> dict:
     """`{dim: {axes_declared, axes_reported, axes, unmeasured_axes, unresolved_axes, undescribed_axes,
     n_cards_resolved, n_cards_missing}}` — the per-dim roll-up of `evidence_coverage_by_axis`.
 
-    `axes_declared` is every axis AXIS_TO_DIM routes into the dim; `axes_reported` those that actually
-    emitted a report. Both are surfaced because they DIFFER meaningfully: clinical / commercial declare an
-    axis that is never a fan-out subskill (their bin comes from the clinical-precedent /
+    `axes_declared` is every axis that COUNTS as evidence for the dim — AXIS_TO_DIM's verdict-bearing
+    members plus the `COVERAGE_ONLY_AXES` context companions, so the count matches what the report
+    DISPLAYS under the dim (`ir._dim_members` unions the same two kinds). `axes_reported` are those that
+    actually emitted a report. Both are surfaced because they DIFFER meaningfully: clinical / commercial
+    declare an axis that is never a fan-out subskill (their bin comes from the clinical-precedent /
     competitor-landscape CARDS), so `axes_declared` non-empty with `axes_reported` empty is the honest
     reading "this dim is card-fed, not axis-fed" — not "this dim is blind".
+
+    The dim SET stays AXIS_TO_DIM's, not the union's: COVERAGE_ONLY_AXES may only annotate a dim that
+    already exists here (pinned by `test_coverage_only_axes_add_no_new_dim`), so this cannot invent a dim.
 
     The three named lists are kept SEPARATE rather than summed into one blind-spot count: an evidence gap
     (`unmeasured`), a never-resolved axis (`unresolved`) and a descriptor gap (`undescribed`) call for
     three different actions, and collapsing them is exactly the lossiness the substrate pivot removes."""
     per_axis = evidence_coverage_by_axis(pkg)
+    # verdict-bearing members first, then the coverage-only companions — canonical, stable order.
+    counted = {**AXIS_TO_DIM, **COVERAGE_ONLY_AXES}
     out: dict = {}
     for dim in dict.fromkeys(AXIS_TO_DIM.values()):
-        declared = [a for a, d in AXIS_TO_DIM.items() if d == dim]
+        declared = [a for a, d in counted.items() if d == dim]
         reported = [a for a in declared if a in per_axis]
         axes = {a: per_axis[a] for a in reported}
         out[dim] = {
@@ -692,6 +782,7 @@ __all__ = [
     "AXIS_TO_DIM",
     "AXIS_DIM_EXCLUSIONS",
     "AXIS_DIM_EXCLUSION_STATES",
+    "COVERAGE_ONLY_AXES",
     "DECLARED_DESCRIPTIVE",
     "OPEN_PENDING_REVIEW",
     "_mod",

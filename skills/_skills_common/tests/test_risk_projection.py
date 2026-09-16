@@ -342,6 +342,67 @@ def test_card_fed_dim_is_not_reported_blind():
     assert "card-fed" in coverage_phrase(cov)
 
 
+def test_coverage_counts_the_context_companions_the_dim_displays():
+    """THE COUNTED-vs-DISPLAYED JOIN. `ir._dim_members` lists a dim's AXIS_TO_DIM members PLUS its
+    `_CONTEXT_DIM` companions, so a coverage line that counted only the former UNDERSTATED the dim's own
+    evidence — measured 2026-09-16 at 14291 resolved cards corpus-wide, e.g. `biological` reading "4/4 axes
+    measured · 43 cards resolved" on a target where 6 axes reported and 56 cards resolved.
+
+    Why this test exists at all: the only pre-existing `axes_declared` pins were on `safety` and `clinical`,
+    neither of which has a context companion, so NOTHING in this suite could observe the undercount or a
+    regression of the fix. A guard whose fixture cannot express the failure is not a guard.
+    """
+    from _skills_common.risk_projection import COVERAGE_ONLY_AXES, evidence_coverage_by_dim
+
+    assert COVERAGE_ONLY_AXES.get("cis_coherence") == "biological", "fixture assumes this routing"
+    card = {
+        "card_id": "gnomad-lof-constraint",
+        "measurement_type": "gnomad_lof_constraint",
+        "summary": {"loeuf_score": 0.21},
+    }
+    pkg = {
+        "synthesis": {
+            "sub_verdicts": {},
+            "skill_reports": {
+                # one verdict-bearing member of `biological` + one coverage-only context companion
+                "dependency": {"provenance": {"cards_used": ["gnomad-lof-constraint"], "cards_missing": []}},
+                "cis_coherence": {"provenance": {"cards_used": ["gnomad-lof-constraint"], "cards_missing": ["x"]}},
+            },
+        },
+        "cards": [card],
+    }
+    cov = evidence_coverage_by_dim(pkg)["biological"]
+    assert "cis_coherence" in cov["axes_declared"], (
+        "a _CONTEXT_DIM companion the report DISPLAYS under biological is missing from the dim's counted "
+        "set — the coverage line would understate the dim's own evidence"
+    )
+    assert "cis_coherence" in cov["axes_reported"]
+    # its cards must actually reach the totals, not merely appear in the declared list
+    assert cov["n_cards_resolved"] == 2 and cov["n_cards_missing"] == 1
+    # verdict-bearing members are still counted first, and no axis is counted twice
+    assert cov["axes_declared"].index("dependency") < cov["axes_declared"].index("cis_coherence")
+    assert len(cov["axes_declared"]) == len(set(cov["axes_declared"]))
+
+
+def test_permanently_undescribed_companions_stay_out_of_the_coverage_count():
+    """The inclusion rule's other half: `literature_context` is `commercial`'s ONLY context companion and is
+    `undescribed` on 504/504 corpus runs, so counting it would replace that dim's honest "card-fed dim — no
+    subskill axis reports into it" with "0/1 axes measured" — a MEASURED CLAIM OF BLINDNESS about a dim that
+    is card-fed by design. This pins the guard that makes the naive "union the two maps" fix wrong.
+    """
+    from _skills_common.report_render.ir import _CONTEXT_DIM, coverage_phrase
+    from _skills_common.risk_projection import COVERAGE_ONLY_AXES, evidence_coverage_by_dim
+
+    assert _CONTEXT_DIM["literature_context"] == "commercial", "fixture assumes this routing"
+    assert "literature_context" not in COVERAGE_ONLY_AXES
+
+    pkg = _cov_pkg("literature_context", ["lit-card"], cards=[{"card_id": "lit-card", "summary": {"n": 1}}])
+    cov = evidence_coverage_by_dim(pkg)["commercial"]
+    assert cov["axes_reported"] == [], "literature_context must not be counted into commercial"
+    assert "card-fed" in coverage_phrase(cov)
+    assert "0/1 axes measured" not in coverage_phrase(cov)
+
+
 def test_missing_cards_are_counted_even_when_the_axis_is_measured():
     """The number a bin cannot show: an axis can be `measured` off 1 card while 9 declared cards never
     resolved (seen live — ABL1-CML selectivity: 3 resolved, 9 missing, state `measured`). Corpus-wide 15.6%
