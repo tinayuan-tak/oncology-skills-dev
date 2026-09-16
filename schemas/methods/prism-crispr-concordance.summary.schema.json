@@ -25,31 +25,41 @@
     },
     "n_compounds_evaluated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "best_spearman_r_crispr": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "best_spearman_r_rnai": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "per_compound_concordance": {
       "type": [
+        "array",
         "null"
       ]
     },
     "n_dual_responders": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "dual_responders": {
       "type": [
+        "array",
         "null"
       ]
     }

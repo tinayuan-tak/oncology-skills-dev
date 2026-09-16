@@ -24,47 +24,60 @@
     },
     "n_rows": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_lethal": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_adult_lethal": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_developmental_lethal": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "lethal_stages": {
       "type": [
+        "array",
         "null"
       ]
     },
     "top_lethal_label": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "organ_classes": {
       "type": [
+        "array",
         "null"
       ]
     },
     "evidence_tier": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "impc_ko_phenotype_class": {
@@ -97,12 +110,33 @@
     },
     "impc_top_level_systems": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "impc_orthology_confidence": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "target": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "ensembl_gene_id": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "source": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

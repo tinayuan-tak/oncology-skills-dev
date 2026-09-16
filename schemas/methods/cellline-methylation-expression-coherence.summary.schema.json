@@ -9,122 +9,170 @@
   "properties": {
     "n_cell_lines_evaluated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_hypermethylated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_unmethylated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "subset_median_delta_log2tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "subset_mannwhitney_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mean_log2tpm_hypermethylated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mean_log2tpm_unmethylated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "delta_log2tpm_hyper_vs_unmethylated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "subset_within_lineage_delta_log2tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "subset_n_lineages_compared": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "hypermethylated_dominant_lineage_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "lineage_collapse_ratio": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "methyl_expr_spearman_r": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "methyl_expr_spearman_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "methyl_expr_pearson_r": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "methyl_expr_pearson_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "methyl_expr_slope_log2tpm_per_methyl": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "broad_quartile_delta_log2tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "broad_quartile_within_lineage_delta_log2tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "methylation_p10_p90_spread": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "log2tpm_iqr": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_methylation": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_log2tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "hypermethylation_threshold": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "methylation_silencing_class": {

@@ -9,7 +9,9 @@
   "properties": {
     "cn_n_cell_lines_evaluated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_assay_used": {
@@ -26,62 +28,86 @@
     },
     "cn_median_panel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_p25_panel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_p75_panel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_p5_panel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_p95_panel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_iqr": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_fraction_deep_deletion": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_fraction_shallow_deletion": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_fraction_neutral": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_fraction_shallow_amplification": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_fraction_focal_amplification": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_fraction_high_amplification": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_distribution_shape": {
@@ -101,12 +127,16 @@
     },
     "cn_recurrent_amplification_score": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_recurrent_deletion_score": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "copy_number_class": {
@@ -137,11 +167,13 @@
     },
     "cn_top_amplified_lineages": {
       "type": [
+        "array",
         "null"
       ]
     },
     "cn_top_deleted_lineages": {
       "type": [
+        "array",
         "null"
       ]
     },
@@ -174,27 +206,36 @@
     },
     "patient_amplified_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "patient_high_amp_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "patient_deleted_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "patient_homdel_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "patient_cn_context": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     }
   }

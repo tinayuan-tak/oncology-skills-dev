@@ -22,16 +22,21 @@
     },
     "sl_partner_count": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_experimental_partners": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "has_experimental_partner": {
       "type": [
+        "boolean",
         "null"
       ]
     },
@@ -49,17 +54,20 @@
     },
     "sl_partner_symbols": {
       "type": [
+        "array",
         "null"
       ]
     },
     "top_partners": {
       "type": [
+        "array",
         "null"
       ]
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     }
   }

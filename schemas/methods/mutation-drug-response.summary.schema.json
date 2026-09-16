@@ -9,82 +9,113 @@
   "properties": {
     "n_on_target_compounds": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "on_target_compounds": {
       "type": [
+        "array",
         "null"
       ]
     },
     "n_mutant": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_wildtype": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_log2auc_mutant": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_log2auc_wildtype": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "delta_log2auc_mut_vs_wt": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "drug_response_mannwhitney_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "drug_response_mannwhitney_q": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "drug_response_mannwhitney_q_reverse": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "drug_response_effect_size": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "drug_response_ppv": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "drug_response_ppv_lift": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "drug_response_sensitivity": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "drug_response_specificity": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "drug_response_base_rate": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "drug_response_stratification_class": {
@@ -101,6 +132,12 @@
         "no_on_target_compound",
         "data_unavailable",
         null
+      ]
+    },
+    "aggregate_metric": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

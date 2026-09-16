@@ -36,27 +36,35 @@
     },
     "max_detection_cell_type": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "max_detection_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "expressing_donor_fraction_max": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "safety_essential_flags": {
       "type": [
-        "null"
+        "null",
+        "object"
       ]
     },
     "n_cell_types_above_20pct": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "sc_normal_abundance_class": {
@@ -74,62 +82,93 @@
     },
     "sc_normal_peak_median_abund": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "sc_normal_essential_max_cell_type": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "sc_normal_essential_max_tissue": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "sc_normal_essential_max_detection_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "sc_normal_essential_donor_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "sc_normal_essential_n_datasets_reliable": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "sc_normal_essential_median_abund": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "sc_normal_ceiling_detection_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_reliable_cell_types": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "per_cell_type_top": {
       "type": [
+        "array",
         "null"
       ]
     },
     "tissues_queried": {
       "type": [
+        "array",
         "null"
       ]
     },
     "method_version": {
       "type": [
+        "null",
+        "string"
+      ]
+    },
+    "origin_tissues": {
+      "type": [
+        "array",
         "null"
+      ]
+    },
+    "indication": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

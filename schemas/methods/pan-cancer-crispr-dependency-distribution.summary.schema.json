@@ -9,52 +9,72 @@
   "properties": {
     "n_cell_lines_evaluated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_chronos_panel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "p25_chronos_panel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "p75_chronos_panel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "p5_chronos_panel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "p95_chronos_panel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "chronos_iqr": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "fraction_strongly_dependent": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "fraction_moderately_dependent": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "fraction_non_essential": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "distribution_shape": {
@@ -73,12 +93,16 @@
     },
     "pan_essential_score": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "selectivity_index": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "dependency_class": {
@@ -99,6 +123,7 @@
     },
     "depmap_curated_common_essential": {
       "type": [
+        "boolean",
         "null"
       ]
     },
@@ -120,6 +145,7 @@
     },
     "top_dependent_lineages": {
       "type": [
+        "array",
         "null"
       ]
     },
@@ -138,37 +164,60 @@
     },
     "dep_control_position": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "dep_control_target_chronos": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "dep_control_positives": {
       "type": [
-        "null"
+        "null",
+        "object"
       ]
     },
     "dep_control_negatives": {
       "type": [
-        "null"
+        "null",
+        "object"
       ]
     },
     "dep_control_pan_essential_ceiling": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "dep_control_non_essential_floor": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "dep_control_position_context": {
       "type": [
-        "null"
+        "null",
+        "string"
+      ]
+    },
+    "bimodality_coefficient": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "dep_control_method_version": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

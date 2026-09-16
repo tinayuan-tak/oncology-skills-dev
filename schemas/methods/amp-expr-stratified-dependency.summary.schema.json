@@ -9,57 +9,79 @@
   "properties": {
     "n_cell_lines_evaluated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_amplified_overexpressed": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_comparator": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_chronos_amp_expr": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_chronos_comparator": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "delta_chronos_amp_expr_vs_rest": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "amp_expr_mannwhitney_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "amp_expr_mannwhitney_q": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "amp_expr_effect_size": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "amplification_threshold_relative_cn": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "high_expression_log2tpm_threshold": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "amp_expr_stratification_class": {
@@ -92,12 +114,33 @@
     },
     "lineage_context_divergent": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "pan_lineage_amp_expr_stratification_class": {
       "type": [
-        "null"
+        "null",
+        "string"
+      ]
+    },
+    "amp_expr_mannwhitney_q_reverse": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "lineage_evidence_scope_reason": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "pan_lineage_raw_amp_expr_stratification_class": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

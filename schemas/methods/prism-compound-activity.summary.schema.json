@@ -24,7 +24,9 @@
     },
     "n_compounds_targeting": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "highest_clinical_phase": {
@@ -42,16 +44,20 @@
     },
     "median_log2auc_across_compounds": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "top_compounds": {
       "type": [
+        "array",
         "null"
       ]
     },
     "per_lineage_activity": {
       "type": [
+        "array",
         "null"
       ]
     },

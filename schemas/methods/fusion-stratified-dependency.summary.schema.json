@@ -9,47 +9,92 @@
   "properties": {
     "n_cell_lines_evaluated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_fusion_positive": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_fusion_negative": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_chronos_fusion_positive": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_chronos_fusion_negative": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "delta_chronos_fusion_positive_vs_negative": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "fusion_stratification_mannwhitney_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "fusion_stratification_mannwhitney_q": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "fusion_stratification_effect_size": {
       "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "fusion_stratification_confound": {
+      "type": [
+        "string",
         "null"
+      ],
+      "enum": [
+        "alteration_confounded",
+        "alteration_independent",
+        "not_applicable",
+        "unassessed",
+        null
+      ]
+    },
+    "fusion_positive_altered_overlap_fraction": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "n_fusion_positive_altered": {
+      "type": [
+        "integer",
+        "null",
+        "number"
       ]
     },
     "fusion_stratification_class": {
@@ -82,12 +127,33 @@
     },
     "lineage_context_divergent": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "pan_lineage_fusion_stratification_class": {
       "type": [
-        "null"
+        "null",
+        "string"
+      ]
+    },
+    "fusion_stratification_mannwhitney_q_reverse": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "lineage_evidence_scope_reason": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "pan_lineage_raw_fusion_stratification_class": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

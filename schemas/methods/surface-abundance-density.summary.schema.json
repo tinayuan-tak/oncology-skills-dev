@@ -23,22 +23,29 @@
     },
     "estimated_copies_per_cell_median": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "estimated_copies_per_cell_lower": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "estimated_copies_per_cell_upper": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "hpa_ihc_anchor_used": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "hpa_ihc_intensity_class": {
@@ -57,57 +64,71 @@
     },
     "is_tce_viable": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "is_adc_high_payload_viable": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "absolute_density_class": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "absolute_copies_per_cell": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "absolute_density_grade": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "absolute_measurement_semantics": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "absolute_n_measurements": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "absolute_abundance_proxy_class": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "absolute_abundance_proxy_percentile": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "absolute_abundance_proxy_source": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "absolute_abundance_proxy_note": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "density_floor_verdict": {
@@ -125,7 +146,65 @@
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
+      ]
+    },
+    "density_evidence_level": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "surface_density_admissibility": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "surface_accessibility_note": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "absolute_value_best": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "absolute_reported_unit": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "absolute_value_qualifier": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "absolute_record_partition": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "absolute_n_patient": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "absolute_n_cell_line": {
+      "type": [
+        "integer",
+        "null",
+        "number"
       ]
     }
   }

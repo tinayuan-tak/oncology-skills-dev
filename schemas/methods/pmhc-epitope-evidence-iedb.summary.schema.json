@@ -23,42 +23,60 @@
     },
     "n_epitopes": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_mhc_class_i_epitopes": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_mhc_class_ii_epitopes": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_hla_alleles": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "has_tcell_positive": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "has_cancer_context": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "example_hla_alleles": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "uniprot_ac": {
       "type": [
-        "null"
+        "null",
+        "string"
+      ]
+    },
+    "method_version": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

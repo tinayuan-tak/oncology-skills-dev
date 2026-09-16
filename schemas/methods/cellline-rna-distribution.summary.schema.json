@@ -113,7 +113,9 @@
     },
     "allgene_percentile": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "allgene_percentile_class": {
@@ -132,7 +134,8 @@
     },
     "allgene_percentile_context": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "control_position_class": {
@@ -151,22 +154,26 @@
     },
     "control_position": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "control_positives": {
       "type": [
-        "null"
+        "null",
+        "object"
       ]
     },
     "control_negatives": {
       "type": [
-        "null"
+        "null",
+        "object"
       ]
     },
     "control_position_context": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "isoform_expression_class": {
@@ -184,27 +191,79 @@
     },
     "dominant_isoform_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_expressed_isoforms": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "dominant_isoform": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "isoform_n_models": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "isoform_context": {
       "type": [
+        "null",
+        "string"
+      ]
+    },
+    "coefficient_of_variation": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "distribution_pattern": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "control_target_percentile": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "control_target_class": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "control_negatives_excluded_lineage_conflict": {
+      "type": [
+        "array",
         "null"
+      ]
+    },
+    "control_percentile_source": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "control_position_method_version": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

@@ -23,22 +23,29 @@
     },
     "clonal_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_ccf": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_mutant_samples": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "evidence_tier": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     }
   }

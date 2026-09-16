@@ -9,72 +9,100 @@
   "properties": {
     "n_in_both": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_crispr_only": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_rnai_only": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_total": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_agree_dependent": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_agree_non_dependent": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_disagree_crispr_dependent": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_disagree_rnai_dependent": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "fraction_agree": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "fraction_dependent_in_both": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_crispr_only_dependent": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_crispr_only_non_dependent": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_rnai_only_dependent": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_rnai_only_non_dependent": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "concordance_class": {
@@ -95,6 +123,7 @@
     },
     "per_line_concordance": {
       "type": [
+        "array",
         "null"
       ]
     }

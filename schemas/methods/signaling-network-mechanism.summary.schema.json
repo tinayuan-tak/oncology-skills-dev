@@ -22,21 +22,27 @@
     },
     "n_upstream_regulators": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_downstream_effectors": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "upstream_regulators": {
       "type": [
+        "array",
         "null"
       ]
     },
     "downstream_effectors": {
       "type": [
+        "array",
         "null"
       ]
     },
@@ -91,6 +97,7 @@
     },
     "has_actionable_moa": {
       "type": [
+        "boolean",
         "null"
       ]
     },
@@ -107,37 +114,52 @@
     },
     "moa_ontology_version": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "moa_ontology_unmapped_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "high_confidence_edges_count": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "source_counts": {
       "type": [
-        "null"
+        "null",
+        "object"
       ]
     },
     "sources_wired": {
       "type": [
+        "array",
         "null"
       ]
     },
     "kinome_atlas_predictions": {
       "type": [
-        "null"
+        "null",
+        "object"
       ]
     },
     "coessentiality_context": {
       "type": [
-        "null"
+        "null",
+        "object"
+      ]
+    },
+    "reactome_pathway_context": {
+      "type": [
+        "null",
+        "object"
       ]
     }
   }

@@ -9,72 +9,100 @@
   "properties": {
     "mut_n_cell_lines_total": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_n_cell_lines_mutated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_mutation_rate": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_total_mutations": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_n_missense": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_n_nonsense": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_n_frameshift": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_n_splice": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_n_inframe_indel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_n_synonymous": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_n_other": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_fraction_missense": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_fraction_lof": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_fraction_inframe_indel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mut_dominant_mutation_class": {
@@ -107,11 +135,13 @@
     },
     "mut_top_mutated_lineages": {
       "type": [
+        "array",
         "null"
       ]
     },
     "mut_per_class_counts": {
       "type": [
+        "array",
         "null"
       ]
     }

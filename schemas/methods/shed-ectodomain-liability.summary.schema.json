@@ -36,32 +36,38 @@
     },
     "serum_marker": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "shed_product": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "shedding_protease": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "hpa_secretome_location": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "source_citation": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "measured_shed_class": {
@@ -79,22 +85,29 @@
     },
     "media_mean_npx": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "media_n_lines_detected": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "media_panel_high_npx": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "media_uniprot": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     }
   }

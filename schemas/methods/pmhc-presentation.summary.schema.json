@@ -23,37 +23,54 @@
     },
     "n_presented_peptides": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_normal_tissues_presented": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "normal_tissues_presented": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "hla_class": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "n_strong_binder_peptides": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_weak_binder_peptides": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "uniprot_ac": {
       "type": [
-        "null"
+        "null",
+        "string"
+      ]
+    },
+    "method_version": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

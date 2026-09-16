@@ -9,16 +9,21 @@
   "properties": {
     "n_samples_with_fusion": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "fusion_frequency": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "recurrent_partners": {
       "type": [
+        "array",
         "null"
       ]
     },
@@ -63,27 +68,55 @@
     },
     "genie_sv_recurrence_percentile": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "genie_sv_frequency": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_sv_samples": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_sv_covered": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "genie_sv_recurrent_partners": {
       "type": [
+        "array",
         "null"
+      ]
+    },
+    "method_version": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "genie_sv_context": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "n_assayed_in_tissue": {
+      "type": [
+        "integer",
+        "null",
+        "number"
       ]
     }
   }

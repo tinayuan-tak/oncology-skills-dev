@@ -9,12 +9,16 @@
   "properties": {
     "cells_ran": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cells_supporting": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "dominant_direction": {
@@ -31,52 +35,70 @@
     },
     "sig_all_cells": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "discordant": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "max_abs_log2fc": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "log2fc_cell_a": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "q_value_cell_a": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "log2fc_cell_b": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "q_value_cell_b": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "log2fc_cell_c": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "q_value_cell_c": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_tumor": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_adjacent": {
@@ -86,7 +108,9 @@
     },
     "n_gtex_normal": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "selectivity_class": {
@@ -122,7 +146,9 @@
     },
     "selectivity_allgene_percentile": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "selectivity_allgene_percentile_class": {
@@ -141,23 +167,223 @@
     },
     "selectivity_allgene_percentile_context": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "selectivity_allgene_percentile_cell_b": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "selectivity_allgene_percentile_cell_c": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "comparator_families_ran": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "comparator_families_supporting": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "adjacent_arm_measured": {
+      "type": [
+        "boolean",
+        "null"
+      ]
+    },
+    "selectivity_evidence_independence": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "two_independent_comparators",
+        "adjacent_only",
+        "population_normal_only",
+        "none",
+        null
+      ]
+    },
+    "selectivity_substrate_basis": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "within_pipeline_deseq2_counts",
+        "cross_cohort_non_deseq2",
+        "unknown_substrate",
+        null
+      ]
+    },
+    "selectivity_substrate_caveat": {
       "type": [
         "null"
       ]
     },
     "per_subgroup_metrics": {
-      "type": [
-        "null"
-      ]
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stratum": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "selectivity_class": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "strong_tumor_selective",
+              "modest_tumor_selective",
+              "field_effect_tumor_selective",
+              "discordant_across_comparators",
+              "not_selective",
+              "not_informative",
+              "data_unavailable",
+              null
+            ]
+          },
+          "comparator_concordance": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "concordant",
+              "discordant",
+              "single_comparator",
+              null
+            ]
+          },
+          "evidence_state": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "measured",
+              "underpowered",
+              "absent",
+              null
+            ]
+          },
+          "dominant_direction": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "up",
+              "down",
+              "none",
+              null
+            ]
+          },
+          "subgroup_n": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "subgroup_n_floor_met": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "max_abs_log2fc": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "cells_supporting": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cells_ran": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "sig_all_cells": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "discordant": {
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "log2fc_cell_a": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "log2fc_cell_b": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "log2fc_cell_c": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "q_value_cell_a": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "q_value_cell_b": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "q_value_cell_c": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "source_cohort": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      }
     },
     "subgroup_axis": {
       "type": [
@@ -195,6 +421,16 @@
       ]
     },
     "any_subgroup_strong_selective": {
+      "type": [
+        "null"
+      ]
+    },
+    "log2fc_cell_d": {
+      "type": [
+        "null"
+      ]
+    },
+    "q_value_cell_d": {
       "type": [
         "null"
       ]

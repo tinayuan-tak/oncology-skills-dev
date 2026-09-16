@@ -25,37 +25,48 @@
     },
     "cooccurrence_class_prefloor": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "top_cooccurring": {
       "type": [
+        "array",
         "null"
       ]
     },
     "top_mutually_exclusive": {
       "type": [
+        "array",
         "null"
       ]
     },
     "n_significant_cooccurring": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_significant_mutually_exclusive": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_pairs_panel_intersect_eligible": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_pairs_per_source_only": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "has_cooccurring_driver": {
@@ -71,11 +82,25 @@
     },
     "has_mutually_exclusive_driver": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "method_version": {
       "type": [
+        "null",
+        "string"
+      ]
+    },
+    "cooccurrence_scope": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "scoped_cohorts": {
+      "type": [
+        "array",
         "null"
       ]
     }

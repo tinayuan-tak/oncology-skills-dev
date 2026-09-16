@@ -22,22 +22,30 @@
     },
     "best_measured_potency_neglog_m": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "chembl_best_pchembl": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "chembl_n_potent_ligands": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "chembl_max_clinical_phase": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "chembl_clinical_phase_class": {
@@ -67,27 +75,35 @@
     },
     "n_direct_interactions": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "bindingdb_best_p_affinity": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "bindingdb_n_potent_ligands": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "measured_potency_context": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     }
   }

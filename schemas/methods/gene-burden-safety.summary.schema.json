@@ -23,52 +23,98 @@
     },
     "n_significant": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_total_rows": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "min_pvalue": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_risk": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_protect": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "directions": {
       "type": [
+        "array",
         "null"
       ]
     },
     "top_disease": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "top_ancestry": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "direction_on_target": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
+      ]
+    },
+    "target": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "ensembl_gene_id": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "source": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "pvalue_cutoff": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "top_statistical_method": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

@@ -9,52 +9,72 @@
   "properties": {
     "rnai_n_cell_lines_evaluated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "rnai_median_dep_score": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "rnai_p25_dep_score": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "rnai_p75_dep_score": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "rnai_p5_dep_score": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "rnai_p95_dep_score": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "rnai_dep_score_iqr": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "rnai_fraction_strongly_dependent": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "rnai_fraction_moderately_dependent": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "rnai_fraction_non_dependent": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "rnai_distribution_shape": {
@@ -73,12 +93,16 @@
     },
     "rnai_pan_essential_score": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "rnai_selectivity_index": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "rnai_dependency_class": {
@@ -98,12 +122,21 @@
     },
     "rnai_top_dependent_lineages": {
       "type": [
+        "array",
         "null"
       ]
     },
     "rnai_screens_contributing": {
       "type": [
+        "array",
         "null"
+      ]
+    },
+    "rnai_bimodality_coefficient": {
+      "type": [
+        "integer",
+        "null",
+        "number"
       ]
     }
   }

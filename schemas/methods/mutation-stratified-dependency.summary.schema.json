@@ -9,111 +9,154 @@
   "properties": {
     "n_cell_lines_evaluated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_hotspot_mutant": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_hotspot_wildtype": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_chronos_hotspot_mutant": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_chronos_hotspot_wildtype": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "delta_chronos_hotspot_mut_vs_wt": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "hotspot_mannwhitney_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "hotspot_mannwhitney_q": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "hotspot_effect_size": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_damaging_mutant": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_damaging_wildtype": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_chronos_damaging_mutant": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_chronos_damaging_wildtype": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "delta_chronos_damaging_mut_vs_wt": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "damaging_mannwhitney_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "damaging_mannwhitney_q": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "damaging_effect_size": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_any_mutant": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_any_wildtype": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "delta_chronos_any_mut_vs_wt": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "any_mannwhitney_q": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "per_hotspot_stats": {
       "type": [
+        "array",
         "null"
       ]
     },
@@ -147,17 +190,20 @@
     },
     "lineage_context_divergent": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "pan_lineage_mutation_stratification_class": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "indication_lineage": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "pan_fallback_strong_capped_to_moderate": {
@@ -167,27 +213,82 @@
     },
     "hotspot_dependency_ppv": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "hotspot_dependency_sensitivity": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "hotspot_dependency_specificity": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "hotspot_dependency_base_rate": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "hotspot_dependency_ppv_lift": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "hotspot_mannwhitney_q_reverse": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "damaging_mannwhitney_q_reverse": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "any_mannwhitney_q_reverse": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "stratification_direction": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "hotspot_gate_note": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "lineage_evidence_scope_reason": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "pan_lineage_raw_mutation_stratification_class": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

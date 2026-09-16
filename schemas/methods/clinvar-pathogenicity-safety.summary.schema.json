@@ -24,32 +24,60 @@
     },
     "n_rows": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_pathogenic_germline": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_pathogenic_germline_confident": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_pathogenic_somatic": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "top_disease": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
+      ]
+    },
+    "target": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "ensembl_gene_id": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "source": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

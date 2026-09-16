@@ -21,7 +21,8 @@
     },
     "event_id": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "driver_direction": {
@@ -37,22 +38,45 @@
     },
     "n_depmap_carriers": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "depmap_carrier_samples": {
       "type": [
+        "array",
         "null"
       ]
     },
     "oncogenic_indications": {
       "type": [
+        "array",
         "null"
       ]
     },
     "splice_context": {
       "type": [
-        "null"
+        "null",
+        "string"
+      ]
+    },
+    "gene": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "indication": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "method_version": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

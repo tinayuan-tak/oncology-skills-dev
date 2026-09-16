@@ -9,132 +9,184 @@
   "properties": {
     "n_cell_lines_evaluated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_expr_spearman_r": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_expr_spearman_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_expr_pearson_r": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_expr_pearson_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cn_expr_slope_log2tpm_per_cn": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "relative_cn_p10_p90_spread": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "relative_cn_iqr": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "log2tpm_iqr": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_relative_cn": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_log2tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_amplified": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mean_log2tpm_amplified": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mean_log2tpm_neutral": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "delta_log2tpm_amplified_vs_neutral": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "amplification_threshold_relative_cn": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "subset_delta_log2tpm_amplified_vs_neutral": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "subset_mannwhitney_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "subset_within_lineage_delta_log2tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "subset_n_lineages_compared": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "amplified_dominant_lineage_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_deleted": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "deleted_subset_delta_log2tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "deleted_within_lineage_delta_log2tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "deleted_subset_mannwhitney_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "deletion_threshold_relative_cn": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cis_dosage_direction": {

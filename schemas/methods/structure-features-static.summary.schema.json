@@ -59,42 +59,56 @@
     },
     "pdb_ids_available": {
       "type": [
+        "array",
         "null"
       ]
     },
     "pdb_best_resolution_angstrom": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "pdb_best_method": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "alphafold_plddt_mean": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "alphafold_plddt_min": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "alphafold_plddt_min_domain": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_domains_low_plddt": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "disordered_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "structural_ligandability_class": {
@@ -114,47 +128,57 @@
     },
     "n_ligandability_axes": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "has_experimental_cocrystal": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "has_druggable_pocket": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "has_virtual_screen_hit": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "has_cryptic_site": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "has_annotated_binding_site": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "is_foldable": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "ligandability_disorder_class": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     }
   }

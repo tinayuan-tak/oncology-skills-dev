@@ -22,12 +22,16 @@
     },
     "n_paralogs_annotated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_paralogs_functionally_buffering": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "functional_paralogs": {
@@ -83,7 +87,8 @@
     },
     "strongest_paralog_symbol": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "strongest_paralog_ohnolog": {
@@ -105,12 +110,15 @@
     },
     "strongest_paralog_delta": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     }
   }

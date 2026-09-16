@@ -35,42 +35,52 @@
     },
     "hpa_tissue_distribution": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "hpa_tissue_specificity": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "n_essential_tissues_with_expression": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "essential_tissues_flagged": {
       "type": [
+        "array",
         "null"
       ]
     },
     "n_specific_tissues": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "specific_tissues": {
       "type": [
+        "array",
         "null"
       ]
     },
     "safety_tissue_flags": {
       "type": [
+        "array",
         "null"
       ]
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     }
   }

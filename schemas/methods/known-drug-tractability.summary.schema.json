@@ -24,47 +24,60 @@
     },
     "druggability_tier": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "is_druggable_genome": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "is_clinically_actionable": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "has_approved_drug": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "n_drug_interactions": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_approved_drug_interactions": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_antineoplastic_interactions": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "gene_categories": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "n_direct_interactions": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "direct_engagement_class": {
@@ -86,25 +99,53 @@
         "null"
       ],
       "enum": [
+        "approved_biologic_only",
         "approved_direct",
         "approved_indirect_only",
         "not_approved",
         null
       ]
     },
+    "approved_drug_modality": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "enum": [
+        "biologic",
+        "small_molecule_or_unknown",
+        "not_applicable",
+        null
+      ]
+    },
+    "approved_drug_modality_tag": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
     "known_drug_context": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "directness_context": {
       "type": [
-        "null"
+        "null",
+        "string"
+      ]
+    },
+    "modality_context": {
+      "type": [
+        "null",
+        "string"
       ]
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     }
   }

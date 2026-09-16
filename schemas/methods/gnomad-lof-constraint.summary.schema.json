@@ -22,32 +22,44 @@
     },
     "pli_score": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "loeuf_score": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mis_z_score": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "syn_z_score": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "obs_lof_count": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "exp_lof_count": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "gene_length_bp": {
@@ -70,22 +82,28 @@
     },
     "obs_hom_lof_count": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "exp_hom_lof_count": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "human_ko_context": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     }
   }

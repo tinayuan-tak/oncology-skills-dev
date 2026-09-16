@@ -9,66 +9,91 @@
   "properties": {
     "pearson_r": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "pearson_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "spearman_r": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "spearman_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_cell_lines_evaluated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mean_chronos": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "mean_tpm_logp1": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "tpm_iqr": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "chronos_iqr": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "chronos_at_high_expression": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "chronos_at_low_expression": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "delta_chronos_top_vs_bottom_quartile": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "top_lineages_by_dependence_high_expression": {
       "type": [
+        "array",
         "null"
       ]
     },

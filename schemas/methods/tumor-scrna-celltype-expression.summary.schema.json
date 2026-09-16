@@ -36,61 +36,81 @@
     },
     "malignant_detection_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "malignant_abundance_log1p_cp10k": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "malignant_compartment_available": {
       "type": [
+        "boolean",
         "null"
       ]
     },
     "malignant_n_donors": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "malignant_n_cells": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "top_microenvironment_compartment": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "top_microenvironment_detection_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_compartments_measured": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_donor_groups": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_datasets": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "compartment_detection": {
       "type": [
-        "null"
+        "null",
+        "object"
       ]
     },
     "per_compartment": {
       "type": [
+        "array",
         "null"
       ]
     },
@@ -110,16 +130,21 @@
     },
     "caf_detection_fraction": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "caf_abundance_log1p_cp10k": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "caf_compartment_available": {
       "type": [
+        "boolean",
         "null"
       ]
     },
@@ -180,12 +205,16 @@
     },
     "malignant_detection_donor_iqr": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "fraction_donors_broadly_detecting": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "ambient_contamination_risk": {
@@ -227,12 +256,20 @@
     },
     "indication": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "product_id": {
       "type": [
-        "null"
+        "null",
+        "string"
+      ]
+    },
+    "method_version": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

@@ -24,52 +24,87 @@
     },
     "n_exons": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "best_exon_id": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "best_exon_tumor_tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "best_exon_max_essential_tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "best_exon_window_ratio": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "exon_heterogeneity_log2": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_exon_tumor_log2tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "modality_tier_threshold_tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "tumor_studies": {
       "type": [
+        "array",
         "null"
       ]
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
+      ]
+    },
+    "modality": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "target": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "indication": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

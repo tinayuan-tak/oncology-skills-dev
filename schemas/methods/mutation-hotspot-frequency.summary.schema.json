@@ -9,22 +9,30 @@
   "properties": {
     "overall_mutation_frequency": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_samples_in_indication": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_samples_mutated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "driver_recurrence_percentile": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "driver_recurrence_class": {
@@ -43,12 +51,15 @@
     },
     "driver_recurrence_context": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "genie_driver_recurrence_percentile": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "genie_driver_recurrence_class": {
@@ -67,12 +78,15 @@
     },
     "genie_mutation_frequency": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "genie_recurrence_context": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "pooled_driver_recurrence_class": {
@@ -91,46 +105,59 @@
     },
     "pooled_driver_recurrence_percentile": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "pooled_mutation_frequency": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_covered_pooled": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_mutated_pooled": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "cohorts_contributing": {
       "type": [
+        "array",
         "null"
       ]
     },
     "pooled_recurrence_context": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "hotspot_frequencies": {
       "type": [
+        "array",
         "null"
       ]
     },
     "top_cooccurring_genes": {
       "type": [
+        "array",
         "null"
       ]
     },
     "top_mutually_exclusive_genes": {
       "type": [
+        "array",
         "null"
       ]
     }

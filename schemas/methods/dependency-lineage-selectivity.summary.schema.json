@@ -9,42 +9,68 @@
   "properties": {
     "n_cell_lines_panel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "median_chronos_panel": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "per_lineage_stats": {
       "type": [
+        "array",
         "null"
       ]
     },
     "n_lineages_evaluated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "per_oncotree_code_stats": {
       "type": [
+        "array",
         "null"
       ]
     },
     "n_oncotree_codes_evaluated": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "enriched_lineages": {
       "type": [
+        "array",
         "null"
       ]
     },
     "n_enriched_lineages": {
       "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "relative_only_enriched_lineages": {
+      "type": [
+        "array",
         "null"
+      ]
+    },
+    "n_relative_only_enriched_lineages": {
+      "type": [
+        "integer",
+        "null",
+        "number"
       ]
     },
     "enrichment_class": {
@@ -75,27 +101,36 @@
     },
     "lineage_variance_explained": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "lineage_omnibus_kruskal_h": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "lineage_omnibus_p": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "which_lineages_separate": {
       "type": [
-        "null"
+        "null",
+        "object"
       ]
     },
     "n_lineages_omnibus_tested": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     }
   }

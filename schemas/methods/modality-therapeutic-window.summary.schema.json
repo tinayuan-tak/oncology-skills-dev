@@ -51,57 +51,164 @@
     },
     "tumor_tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "max_essential_normal_tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "max_essential_normal_organ": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "max_full_normal_tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "max_full_normal_organ": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "window_ratio_essential": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "window_ratio_full_normal": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "modality_tier_threshold_tpm": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "tumor_studies": {
       "type": [
+        "array",
         "null"
       ]
     },
     "modality": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "method_version": {
       "type": [
+        "null",
+        "string"
+      ]
+    },
+    "n_gtex_tissues": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "excluded_cell_line_groups": {
+      "type": [
+        "array",
         "null"
+      ]
+    },
+    "marrow_tpm": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "marrow_substrate": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "marrow_substrate_id": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "marrow_platform_offset_median": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "n_essential_organs": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "privileged_normal_sites_excluded": {
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "privileged_normal_tpm": {
+      "type": [
+        "null",
+        "object"
+      ]
+    },
+    "max_full_normal_tpm_incl_privileged": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "max_full_normal_organ_incl_privileged": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "window_ratio_full_normal_incl_privileged": {
+      "type": [
+        "integer",
+        "null",
+        "number"
+      ]
+    },
+    "target": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "indication": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }

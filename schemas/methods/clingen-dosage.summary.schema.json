@@ -23,37 +23,48 @@
     },
     "n_high_confidence": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_total_rows": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_autosomal_dominant": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "n_autosomal_recessive": {
       "type": [
-        "null"
+        "integer",
+        "null",
+        "number"
       ]
     },
     "allelic_requirements": {
       "type": [
+        "array",
         "null"
       ]
     },
     "top_disease": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "top_confidence": {
       "type": [
-        "null"
+        "null",
+        "string"
       ]
     },
     "germline_inheritance_mode": {
@@ -73,12 +84,32 @@
     },
     "inheritance_allelic_requirements": {
       "type": [
+        "array",
         "null"
       ]
     },
     "method_version": {
       "type": [
-        "null"
+        "null",
+        "string"
+      ]
+    },
+    "target": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "ensembl_gene_id": {
+      "type": [
+        "null",
+        "string"
+      ]
+    },
+    "source": {
+      "type": [
+        "null",
+        "string"
       ]
     }
   }
