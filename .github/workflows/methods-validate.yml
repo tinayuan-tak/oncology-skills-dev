@@ -200,19 +200,23 @@ jobs:
           path: rnd-computational-biology-oncology-data-catalog
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
-      # ★ `ref: v2-architecture`, NOT `main`. claude-oncology-skills develops on v2-architecture — every
-      # PR there targets it (#1380-#1385 all `base=v2-architecture`) and `origin/main` is 1329 commits
-      # behind. `batch/expression_rna_COADREAD/` does not exist on `main` AT ALL (0 files, and
-      # configs/COADREAD.yaml is absent too), so `ref: main` could never have run this gate: the skipif
-      # would fire forever and the job would report a permanent, plausible-looking skip. The house
-      # convention is already v2-architecture — see target-contracts'
-      # framework-health-cross-repo.yml. Do NOT "fix" this back to main because main is the default branch.
+      # ★ `ref: main` since 2026-09-16. This said `v2-architecture` for good reason at the time: the skills
+      # repo developed on a long-lived `v2-architecture` branch while its `main` held the dormant v1
+      # plugin, and `batch/expression_rna_COADREAD/` did not exist on that v1 `main` AT ALL (0 files,
+      # configs/COADREAD.yaml absent), so `ref: main` would have skipped this gate forever. The cutover
+      # promoted v2 to `main` and archived v1 at tag `v1-final` + branch `legacy/v1`, which INVERTED that
+      # premise: measured on the new trunk, `batch/expression_rna_COADREAD/` = 9 files and
+      # configs/COADREAD.yaml is PRESENT (on `legacy/v1`: 0 files, absent).
+      # ★★Do NOT put `v2-architecture` back — the ref was NOT preserved, so `actions/checkout` would
+      # HARD-FAIL (`couldn't find remote ref`). That hard failure is the good case: had the rename left the
+      # old name resolving as a redirect, this step would have silently pinned a frozen tree and drifted,
+      # green, forever. A pin that dies loudly beats a pin that goes stale quietly.
       - name: Checkout claude-oncology-skills (sibling — the LEGACY arm, batch/expression_rna_COADREAD)
         if: env.HAVE_AWS == 'true'
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills
-          ref: v2-architecture
+          ref: main
           path: rnd-computational-biology-oncology-claude-oncology-skills
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
