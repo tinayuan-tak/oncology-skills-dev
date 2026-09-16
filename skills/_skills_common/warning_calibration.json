@@ -106,15 +106,30 @@
       "fired": 0,
       "rate": 0.0
     },
+    "combinatorial-dependency::context_conditional_needs_stratification": {
+      "evaluable": 504,
+      "fired": 187,
+      "rate": 0.371
+    },
     "combinatorial-dependency::single_partner_only": {
       "evaluable": 504,
       "fired": 212,
       "rate": 0.4206
     },
+    "combo-chemical-synergy::narrow_synergy_coverage": {
+      "evaluable": 504,
+      "fired": 404,
+      "rate": 0.8016
+    },
     "combo-chemical-synergy::narrow_tissue_coverage": {
       "evaluable": 504,
       "fired": 100,
       "rate": 0.1984
+    },
+    "combo-crispr-screen::narrow_anchor_coverage": {
+      "evaluable": 504,
+      "fired": 487,
+      "rate": 0.9663
     },
     "copy-number-distribution::low_cn_panel_coverage": {
       "evaluable": 504,
@@ -291,6 +306,11 @@
       "fired": 1,
       "rate": 0.0022
     },
+    "modality-therapeutic-window::window_full_normal_diverges_from_essential": {
+      "evaluable": 366,
+      "fired": 2,
+      "rate": 0.0055
+    },
     "modality-therapeutic-window::window_not_expressed_in_this_cohort": {
       "evaluable": 366,
       "fired": 31,
@@ -315,6 +335,11 @@
       "evaluable": 156,
       "fired": 2,
       "rate": 0.0128
+    },
+    "mutation-stratified-dependency::hotspot_damaging_disagreement": {
+      "evaluable": 119,
+      "fired": 23,
+      "rate": 0.1933
     },
     "mutation-stratified-dependency::rare_mutation": {
       "evaluable": 500,
@@ -530,6 +555,11 @@
       "evaluable": 480,
       "fired": 37,
       "rate": 0.0771
+    },
+    "resistance-emergence-signature::narrow_anchor_coverage": {
+      "evaluable": 504,
+      "fired": 487,
+      "rate": 0.9663
     },
     "sc-normal-celltype-expression::sc_normal_broad_expression": {
       "evaluable": 504,
@@ -784,6 +814,10 @@
       "strong_mutex_no_cooccurring"
     ],
     [
+      "combo-crispr-screen",
+      "narrow_anchor_coverage"
+    ],
+    [
       "copy-number-distribution",
       "low_cn_panel_coverage"
     ],
@@ -838,6 +872,10 @@
     [
       "modality-exon-window",
       "exon_heterogeneity_followup_candidate"
+    ],
+    [
+      "modality-therapeutic-window",
+      "window_full_normal_diverges_from_essential"
     ],
     [
       "mutation-stratified-surface",
@@ -934,6 +972,10 @@
     [
       "reactome-pathway-membership",
       "not_in_reactome"
+    ],
+    [
+      "resistance-emergence-signature",
+      "narrow_anchor_coverage"
     ],
     [
       "sc-normal-celltype-expression",

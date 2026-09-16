@@ -125,7 +125,7 @@ jobs:
           # reconcile: #784 (TC#780 display capsule) + #785 (reconcile scalars -> capsule display) de-orphaned
           # exactly the fields this branch stops reading in evidence_salience, so that removal is aperture-
           # neutral ONLY against a contracts tree carrying those capsule declarations -- i.e. this pin.
-          ref: 24fc37135510637a3e438de851442fb9e8b1e725
+          ref: e1f1144022e364dfb84ec7269f5f5e6f53336b0c
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
