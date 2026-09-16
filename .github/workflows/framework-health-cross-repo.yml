@@ -75,7 +75,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills
-          ref: v2-architecture
+          ref: main
           path: rnd-computational-biology-oncology-claude-oncology-skills
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
