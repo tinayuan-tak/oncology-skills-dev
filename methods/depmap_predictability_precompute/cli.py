@@ -92,6 +92,29 @@ LINEAGE_MIN_LINES = 30  # per-lineage refit min-n
 SELECT_K_BEST = 1000
 MIN_CELL_LINES_PER_GENE = 100  # exclusion floor
 
+# Floor for the lineage-conditional refit's SelectKBest budget. The per-lineage fit caps k at the
+# TRAINING-FOLD size (see _lineage_fit) rather than reusing SELECT_K_BEST, because a lineage fold
+# holds ~20-111 samples where the global fit holds ~1000+: ranking 1000 features by f_regression on
+# 20 samples is dominated by sampling noise, and the winner of that ranking is then handed to a
+# reader as "the top feature within this lineage". This floor keeps the smallest lineages from
+# degenerating to a handful of features.
+#
+# The CAP is measured, not argued. A 12-seed paired synthetic sweep (n=88, p=9000 correlated
+# features, one true biomarker at beta=-0.7) was run in three arms so the cap could be separated
+# from the denominator fix in the same function: trunk; trunk's k with the fixed denominator; and
+# both. The middle arm's r2 is bit-identical to trunk's in all 12 seeds -- necessarily so, since the
+# denominator touches only the importance vector and r2 comes from the out-of-fold predictions --
+# which is what makes the third arm's r2 delta attributable to the cap alone. Isolated, the cap
+# raised r2 in 11 of 12 seeds (mean +0.024, sign test p=0.0032) and moved true-biomarker wins from
+# 9/12 to 10/12 (+2 seeds, -1). The denominator fix independently moved wins from 7/12 to 9/12 at
+# exactly zero r2 change.
+#
+# Two honest caveats. Every ranking flip in that sweep occurred at r2 < 0.07, i.e. BELOW
+# R2_DEPMAP_HIGH_CONF, so under the reporting gate added in _fit_lineage_conditional those rows are
+# withheld anyway; the cap's user-visible benefit is the r2 improvement, not the ranking. And the
+# value 25 is a heuristic -- the sweep validates capping at fold size, not this particular floor.
+LINEAGE_SELECT_K_FLOOR = 25
+
 
 # ---------------------------------------------------------------------------
 # QuantileKFold — quantile-stratified CV matching DepMap's cds-daintree
@@ -176,11 +199,18 @@ def _train_dual_model_cv(X: np.ndarray, y: np.ndarray, feature_names: list, rand
 
     # Per-feature aggregators — shape (n_features,)
     rf_importances_sum = np.zeros(X.shape[1], dtype=np.float64)
-    rf_importances_count = np.zeros(X.shape[1], dtype=np.int32)
     shap_rf_abs_sum = np.zeros(X.shape[1], dtype=np.float64)
-    shap_rf_count = np.zeros(X.shape[1], dtype=np.int32)
     shap_xgb_abs_sum = np.zeros(X.shape[1], dtype=np.float64)
-    shap_xgb_count = np.zeros(X.shape[1], dtype=np.int32)
+    xgb_importances_sum = np.zeros(X.shape[1], dtype=np.float64)
+
+    # Per-FOLD attempt counters (scalars), NOT per-feature selection counts. See the reduction at the
+    # end of this function for why the distinction is the whole point: a fold in which a feature was
+    # not selected still MEASURED that feature — as zero — whereas a fold in which SHAP or XGB raised
+    # measured nothing at all. Only the second kind may shrink a denominator.
+    n_folds = 0
+    n_folds_shap_rf = 0
+    n_folds_xgb = 0
+    n_folds_shap_xgb = 0
 
     k = min(SELECT_K_BEST, X.shape[1])
 
@@ -217,11 +247,12 @@ def _train_dual_model_cv(X: np.ndarray, y: np.ndarray, feature_names: list, rand
         )
         rf.fit(X_tr, y[train_idx])
         y_oof_rf[test_idx] = rf.predict(X_te)
+        n_folds += 1
 
-        # Accumulate RF importances (aligned back to full feature space)
+        # Accumulate RF importances (aligned back to full feature space). Unselected features
+        # contribute nothing to the sum, which IS their importance in this fold: zero.
         for i, src_idx in enumerate(selected_idx):
             rf_importances_sum[src_idx] += rf.feature_importances_[i]
-            rf_importances_count[src_idx] += 1
 
         # SHAP for RF (mean(|SHAP|) across fold's test set)
         if _has_shap:
@@ -231,7 +262,7 @@ def _train_dual_model_cv(X: np.ndarray, y: np.ndarray, feature_names: list, rand
                 mean_abs = np.abs(shap_vals).mean(axis=0)
                 for i, src_idx in enumerate(selected_idx):
                     shap_rf_abs_sum[src_idx] += mean_abs[i]
-                    shap_rf_count[src_idx] += 1
+                n_folds_shap_rf += 1
             except Exception:
                 pass
 
@@ -249,6 +280,13 @@ def _train_dual_model_cv(X: np.ndarray, y: np.ndarray, feature_names: list, rand
                 )
                 xgb.fit(X_tr, y[train_idx])
                 y_oof_xgb[test_idx] = xgb.predict(X_te)
+                n_folds_xgb += 1
+                # XGBoost's OWN gain-based importances. Accumulated so that the xgb-ranked feature
+                # table has an xgb-derived ranking to fall back on when SHAP is unavailable, instead
+                # of silently borrowing RF's (see train_gene).
+                xgb_imp = np.asarray(xgb.feature_importances_, dtype=np.float64)
+                for i, src_idx in enumerate(selected_idx):
+                    xgb_importances_sum[src_idx] += xgb_imp[i]
                 if _has_shap:
                     try:
                         expl_xgb = shap.TreeExplainer(xgb)
@@ -256,29 +294,47 @@ def _train_dual_model_cv(X: np.ndarray, y: np.ndarray, feature_names: list, rand
                         mean_abs = np.abs(shap_vals).mean(axis=0)
                         for i, src_idx in enumerate(selected_idx):
                             shap_xgb_abs_sum[src_idx] += mean_abs[i]
-                            shap_xgb_count[src_idx] += 1
+                        n_folds_shap_xgb += 1
                     except Exception:
                         pass
             except Exception:
                 pass
 
-    # Reduce accumulators → per-feature means (0 where the feature never made it through KBest)
-    rf_importances_mean = np.where(
-        rf_importances_count > 0,
-        rf_importances_sum / np.maximum(rf_importances_count, 1),
-        0.0,
-    )
-    shap_rf_mean = np.where(shap_rf_count > 0, shap_rf_abs_sum / np.maximum(shap_rf_count, 1), 0.0)
-    shap_xgb_mean = np.where(shap_xgb_count > 0, shap_xgb_abs_sum / np.maximum(shap_xgb_count, 1), 0.0)
+    # Reduce accumulators → per-feature means over the folds that MEASURED each quantity.
+    #
+    # The denominator is a per-fold ATTEMPT count, not a per-feature SELECTION count. The former
+    # divided by the latter, which systematically inflated inconsistently-selected features: a
+    # feature that survived KBest in 1 of 3 folds with importance 0.30 scored 0.30 and outranked one
+    # selected in all 3 folds at 0.25. Not being selected in a fold is a MEASUREMENT OF ZERO for that
+    # fold, not a missing observation, and the old comment here ("0 where the feature never made it
+    # through KBest") shows zero-fill was the intent — it just only covered the NEVER-selected case
+    # and never the PARTIALLY-selected one. The effect is invisible in the global fit (n~1000+ makes
+    # selection stable) and dominant in the lineage-conditional refit, which is where it surfaced as
+    # a consumer-visible defect: noise features beating a biomarker with p=1e-10 within its lineage.
+    #
+    # SHAP and XGB keep their OWN denominators because a fold in which shap/xgboost RAISED genuinely
+    # measured nothing — that is an absent observation, and shrinking the denominator is correct.
+    def _mean_over_folds(total: np.ndarray, n: int) -> np.ndarray:
+        return total / n if n > 0 else np.zeros_like(total)
+
+    rf_importances_mean = _mean_over_folds(rf_importances_sum, n_folds)
+    shap_rf_mean = _mean_over_folds(shap_rf_abs_sum, n_folds_shap_rf)
+    shap_xgb_mean = _mean_over_folds(shap_xgb_abs_sum, n_folds_shap_xgb)
+    xgb_importances_mean = _mean_over_folds(xgb_importances_sum, n_folds_xgb)
 
     return {
         "y_oof_rf": y_oof_rf,
         "y_oof_xgb": y_oof_xgb,
         "rf_importances_mean": rf_importances_mean,
+        "xgb_importances_mean": xgb_importances_mean,
         "shap_rf_mean_abs": shap_rf_mean,
         "shap_xgb_mean_abs": shap_xgb_mean,
         "has_xgb": _has_xgb,
         "has_shap": _has_shap,
+        "n_folds": n_folds,
+        "n_folds_shap_rf": n_folds_shap_rf,
+        "n_folds_xgb": n_folds_xgb,
+        "n_folds_shap_xgb": n_folds_shap_xgb,
     }
 
 
@@ -328,8 +384,16 @@ def _classify(r2_rf: float, r2_rf_ci_lo: float, top_feature_class: str) -> tuple
 def _fit_lineage_conditional(
     X: np.ndarray, y: np.ndarray, model_ids: list, model_df: pd.DataFrame, feature_names: list
 ) -> list:
-    """For each large-enough lineage, refit RF within-lineage and report r² +
-    top-3 features by RF importance. RF-only (no XGB / SHAP) to keep cost down.
+    """For each large-enough lineage, refit RF within-lineage and report r² + the single top feature
+    by RF importance. RF-only (no XGB / SHAP) to keep cost down.
+
+    A lineage whose r² falls below R2_DEPMAP_HIGH_CONF is still returned — the r² itself is a real
+    read-out, and dropping the row would misrepresent coverage — but its top_feature is WITHHELD
+    (None) and marked, because argmax over a near-flat importance vector from an unpredictive model
+    names a feature at random. The global fit already refuses to interpret a feature class below this
+    same floor (_classify returns "unpredictable"); the per-lineage table did not, so it published
+    exactly the kind of claim the global path declines to make. top_feature_status carries the reason
+    as a machine-readable field rather than leaving a consumer to infer it from a bare null.
     """
     lineage_map = dict(zip(model_df["ModelID"], model_df["OncotreeLineage"]))
     lineages = np.array([lineage_map.get(m) or "unknown" for m in model_ids])
@@ -344,12 +408,14 @@ def _fit_lineage_conditional(
             r2, top = _lineage_fit(X[idx], y[idx], feature_names)
         except Exception:
             continue
+        reportable = float(r2) >= R2_DEPMAP_HIGH_CONF
         results.append(
             {
                 "lineage": lin,
                 "n_cell_lines": int(len(idx)),
                 "r2": float(r2),
-                "top_feature": top,
+                "top_feature": top if reportable else None,
+                "top_feature_status": "reported" if reportable else "withheld_r2_below_high_conf_floor",
             }
         )
     results.sort(key=lambda r: -r["r2"])
@@ -357,15 +423,23 @@ def _fit_lineage_conditional(
 
 
 def _lineage_fit(X: np.ndarray, y: np.ndarray, feature_names: list) -> tuple[float, str]:
-    """RF-only 3-fold on a lineage subset. Return (r², top feature name)."""
+    """RF-only 3-fold on a lineage subset. Return (r², top feature name).
+
+    The returned feature is only meaningful if the r² is; the caller
+    (_fit_lineage_conditional) is what decides whether it is fit to report.
+    """
     from sklearn.ensemble import RandomForestRegressor
     from sklearn.feature_selection import SelectKBest, f_regression
 
     y_oof = np.full(len(y), np.nan, dtype=np.float32)
     imp_sum = np.zeros(X.shape[1], dtype=np.float64)
-    imp_count = np.zeros(X.shape[1], dtype=np.int32)
-    k = min(SELECT_K_BEST, X.shape[1])
+    n_folds = 0
     for tr, te in QuantileKFold(n_splits=CV_N_SPLITS, random_state=42).split(X, y):
+        # k is capped at the TRAINING-FOLD size, not at SELECT_K_BEST. Within a lineage a fold holds
+        # tens of samples, and f_regression's ranking of 1000 features over ~20 observations is mostly
+        # sampling noise — the classic p<=n guard. Without this cap a real biomarker competes against
+        # ~999 spurious features for impurity importance and routinely loses.
+        k = min(SELECT_K_BEST, X.shape[1], max(LINEAGE_SELECT_K_FLOOR, len(tr)))
         kbest = SelectKBest(f_regression, k=k)
         kbest.fit(X[tr], y[tr])
         sel = np.where(kbest.get_support())[0]
@@ -374,9 +448,11 @@ def _lineage_fit(X: np.ndarray, y: np.ndarray, feature_names: list) -> tuple[flo
         y_oof[te] = rf.predict(X[te][:, sel])
         for i, src in enumerate(sel):
             imp_sum[src] += rf.feature_importances_[i]
-            imp_count[src] += 1
+        n_folds += 1
     r = _pearson_r(y_oof, y)
-    imp = np.where(imp_count > 0, imp_sum / np.maximum(imp_count, 1), 0.0)
+    # Denominator is the fold count, not the per-feature selection count — see the reduction in
+    # _train_dual_model_cv for the full argument. This is the site where the difference mattered.
+    imp = imp_sum / n_folds if n_folds else imp_sum
     top_idx = int(np.argmax(imp))
     return r * r, feature_names[top_idx]
 
@@ -409,20 +485,32 @@ def train_gene(gene: str, omics: dict) -> Optional[dict]:
         r2_xgb = float("nan")
         r2_xgb_ci = (float("nan"), float("nan"))
 
-    # SHAP-ranked top features for RF (fall back to RF importances if SHAP absent)
+    # SHAP-ranked top features for RF (fall back to RF's own importances if SHAP absent)
     rf_rank = trained["shap_rf_mean_abs"] if trained["has_shap"] else trained["rf_importances_mean"]
     top_rf = _top_features(names, rf_rank, k=10)
     if trained["has_xgb"]:
-        xgb_rank = trained["shap_xgb_mean_abs"] if trained["has_shap"] else trained["rf_importances_mean"]
-        top_xgb = _top_features(names, xgb_rank, k=10)
+        # Fall back to XGBOOST's own gain importances, not RF's. The former fallback ranked the
+        # "xgb" table by trained["rf_importances_mean"], so with SHAP unavailable this column was
+        # RF's ranking wearing an XGB label — byte-identical to top_features_rf_shap, and the
+        # rf_importance=0.0 fill below hid the one signal that would have exposed it. A fallback
+        # that silently changes what a field MEANS has to change what the field CONTAINS.
+        xgb_rank = trained["shap_xgb_mean_abs"] if trained["has_shap"] else trained["xgb_importances_mean"]
+        # An all-zero ranking means NO fold ever produced one: has_xgb records that the `xgboost`
+        # IMPORT succeeded, not that any fit did, and every per-fold fit is wrapped in `except
+        # Exception: pass`. Ranking an all-zero vector would emit the 10 alphabetically-first
+        # features at importance 0.0 — a table with no measurement behind it, which is the same
+        # defect the r² gate in _fit_lineage_conditional exists to prevent. Emit nothing instead;
+        # `top_features_xgb_shap == []` is already the has_xgb=False shape, so consumers handle it.
+        # (The previous fallback could not hit this, because RF's importances are never all zero.)
+        top_xgb = _top_features(names, xgb_rank, k=10) if float(np.abs(xgb_rank).sum()) > 0 else []
     else:
         top_xgb = []
 
-    # Also attach the RF importance beside SHAP for parity/comparison
-    for entry in top_rf:
+    # Also attach the RF importance beside SHAP for parity/comparison. For the xgb table this is the
+    # REAL RF mean for the same feature, which makes the two tables comparable; it was previously
+    # hard-coded to 0.0.
+    for entry in top_rf + top_xgb:
         entry["rf_importance"] = float(trained["rf_importances_mean"][names.index(entry["feature"])])
-    for entry in top_xgb:
-        entry["rf_importance"] = 0.0  # XGBoost has its own importances; we skip
 
     top_class = top_rf[0]["feature_class"] if top_rf else "unpredictable"
     pred_class, dom_class = _classify(r2_rf, r2_rf_ci[0], top_class)
@@ -483,7 +571,11 @@ def write_parquet(records: list, out_path: Path) -> Path:
             pa.field("lineage", pa.string()),
             pa.field("n_cell_lines", pa.int32()),
             pa.field("r2", pa.float32()),
+            # NULL when the fit was too weak to name a feature; top_feature_status says which of
+            # "reported" / "withheld_r2_below_high_conf_floor" applies, so a consumer never has to
+            # guess whether a null means "withheld" or "never computed".
             pa.field("top_feature", pa.string()),
+            pa.field("top_feature_status", pa.string()),
         ]
     )
     schema = pa.schema(

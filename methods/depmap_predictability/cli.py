@@ -19,7 +19,20 @@ v2 schema exposes:
     when shap was absent at runtime; see the derived-manifest provenance note). Human-
     facing figure labels say "feature importance" accordingly. Re-run with `shap`
     installed for true TreeExplainer attributions.
-  - per_lineage_predictability (RF-only lineage-conditional table)
+    ⚠ VINTAGE CAVEAT: products materialized BEFORE 2026-09-16 do not match the
+    "XGB gain importances" half of that sentence. The precompute's no-SHAP fallback
+    ranked the xgb table by RF's importances, so in those vintages
+    top_features_xgb_shap is top_features_rf_shap under another name (identical
+    features AND identical scores), and its per-entry rf_importance was hard-coded
+    to 0.0, which concealed the duplication. Fixed in the precompute on 2026-09-16;
+    the claim above becomes true only for products re-materialized after that date.
+    Compare the two lists before treating them as independent models.
+  - per_lineage_predictability (RF-only lineage-conditional table). top_feature is
+    NULL where the within-lineage r² fell below the DepMap high-confidence floor
+    (0.16); top_feature_status distinguishes "reported" from
+    "withheld_r2_below_high_conf_floor". Products materialized before 2026-09-16
+    lack top_feature_status entirely and name a top_feature at every r², including
+    fits far below the floor, where the name is not distinguishable from noise.
   - predictability_class (own_omics_driven / context_or_driver_dependent /
     weakly_predictable / unpredictable / data_unavailable)
 """
@@ -73,6 +86,14 @@ FEATURE_CLASS_COLORS = {
     "unpredictable": "#bbbbbb",
     "data_unavailable": "#bbbbbb",
 }
+
+
+# DepMap high-confidence r² floor (Pearson r >= 0.4). Mirrors
+# depmap_predictability_precompute.cli.R2_DEPMAP_HIGH_CONF, which is the authoritative copy — this
+# is a thin reader and must not import the precompute (heavy sklearn/xgboost dependency chain), so
+# the value is duplicated deliberately. The lineage figure both DRAWS this line and now gates its
+# top-feature labels on it, so the two uses cannot drift apart.
+R2_LINEAGE_LABEL_FLOOR = 0.16
 
 
 def _parse_s3_uri(uri: str) -> tuple[str, str]:
@@ -263,6 +284,12 @@ def emit_lineage_conditional_panel(
     Ordered by r² descending; annotated with top-feature name. Highlights
     context-specific biomarker signals — e.g. WRN in MSI lineages, KRAS in
     Bowel/Pancreas.
+
+    The parenthetical after each r² is the top feature of a SEPARATE within-lineage RF refit — it is
+    NOT the global SHAP ranking and NOT pred_dominant_feature, and the two routinely disagree. The
+    figure previously printed it with no legend, axis note or caption, so a reader had no way to tell
+    which of the three it was; a consumer reported exactly that confusion on 2026-09-16. It is
+    labelled here, and suppressed where the refit is too weak to support it (see R2_LINEAGE_LABEL_FLOOR).
     """
     import matplotlib
 
@@ -285,18 +312,45 @@ def emit_lineage_conditional_panel(
     lineage = sorted(lineage, key=lambda l: -(l.get("r2") or 0))[:12]
     names = [f"{l['lineage']} (n={l['n_cell_lines']})" for l in lineage]
     r2s = [l["r2"] for l in lineage]
-    top_feats = [l.get("top_feature") or "" for l in lineage]
+    # Label the within-lineage top feature ONLY where the refit clears the high-confidence floor.
+    # The r² test is applied here rather than trusting top_feature_status alone, so that products
+    # materialized BEFORE the precompute gained that field (every vintage up to 2026-09-16, which
+    # names a feature at every r²) are also rendered honestly without waiting for a re-materialize.
+    top_feats = []
+    for l in lineage:
+        tf = l.get("top_feature") or ""
+        r2 = l.get("r2") or 0.0
+        top_feats.append(tf if (tf and r2 >= R2_LINEAGE_LABEL_FLOOR) else "")
     fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
     ax.barh(range(len(names)), r2s, color="#0a2540", edgecolor="white")
     for i, (r2, tf) in enumerate(zip(r2s, top_feats)):
-        ax.text(r2 + max(max(r2s), 0.01) * 0.02, i, f"{r2:.2f}  ({tf})", va="center", fontsize=7, color="#333")
+        label = f"{r2:.2f}  ({tf})" if tf else f"{r2:.2f}  (—)"
+        ax.text(r2 + max(max(r2s), 0.01) * 0.02, i, label, va="center", fontsize=7, color="#333")
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=8)
     ax.invert_yaxis()
     ax.set_xlabel("Lineage-conditional r² (RF)")
     ax.set_title(f"{target} — lineage-conditional predictability")
-    ax.axvline(0.16, color="#888", linestyle="--", linewidth=0.7)  # DepMap high-conf floor
-    fig.tight_layout()
+    ax.axvline(
+        R2_LINEAGE_LABEL_FLOOR,
+        color="#888",
+        linestyle="--",
+        linewidth=0.7,
+        label=f"DepMap high-confidence floor (r²={R2_LINEAGE_LABEL_FLOOR:g})",
+    )
+    ax.legend(loc="lower right", fontsize=6, frameon=False)
+    # Name the parenthetical. Without this the reader cannot tell a within-lineage refit's top
+    # feature from the global dominant feature, and "(—)" from missing data.
+    fig.text(
+        0.01,
+        0.01,
+        "(  ) = top feature of a within-lineage RF refit, NOT the global dominant feature.  "
+        f"(—) = withheld: r² below the {R2_LINEAGE_LABEL_FLOOR:g} floor, where the refit does not "
+        "distinguish features from noise.",
+        fontsize=5.5,
+        color="#666",
+    )
+    fig.tight_layout(rect=(0, 0.03, 1, 1))
     fig.savefig(out_path)
     plt.close(fig)
     return out_path
