@@ -264,3 +264,26 @@ def test_live_read_error_with_class_fires_data_unavailable_rung_but_stays_read_e
     assert "rnai-data-unavailable-insufficient" not in fired_ids
     # availability_state distinction is preserved: read_error, NOT insufficient
     assert _availability_state_for(read_error)[0] == "read_error"
+
+
+def test_data_absence_live_read_error_is_insufficient_not_read_error():
+    """A live_read_error naming a DATA-ABSENCE (reader looked; target genuinely not in the dataset) is a
+    MEASURED gap → `insufficient`, not `read_error` (could not look). Companion boundary to the test above:
+    a genuine failure (S3 timeout / deadlock) and a wiring error must STILL be read_error — the reason
+    string decides, and the data-absence markers are specific enough not to catch them."""
+    from _skills_common.dispatcher import _availability_state_for
+
+    def av(reason):
+        return _availability_state_for(
+            {"card_id": "c", "_missing": True, "_missing_reason": reason, "_data_unavailable": False}
+        )[0]
+
+    # data-absence → insufficient (looked, genuinely absent)
+    assert av("live_read_error: target_not_in_derived_product") == "insufficient"
+    assert av("live_read_error: gene_not_in_ccle_rrbs") == "insufficient"
+    assert av("live_read_error: target_absent_from_gygi_ms") == "insufficient"
+    # genuine failures → read_error (could not look) — the distinction the fix must preserve
+    assert av("live_read_error: S3 timeout") == "read_error"
+    assert av("live_read_error: deadlock detected by _ModuleLock('methods.x.read')") == "read_error"
+    # a wiring error carries 'not_found' but NOT a data-absence marker → stays read_error
+    assert av("live_read_error: resolver_not_found") == "read_error"

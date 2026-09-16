@@ -218,12 +218,25 @@ def _consolidation_fidelity(fired: list, driving_rule_id: "Optional[str]") -> di
     }
 
 
+# A live_read_error reason that names a DATA-ABSENCE — the reader LOOKED and the target/gene is genuinely
+# not in this dataset (`target_not_in_derived_product`, `gene_not_in_ccle_rrbs`, `target_absent_from_gygi_ms`).
+# Per availability_state.enum this is `insufficient` (a MEASURED gap: looked, genuinely absent), NOT
+# `read_error` (a framework-coverage gap: could not look). Both count against coverage, so this is
+# label-only/verdict-inert — but it stops a plain data-absence reading as an infra BUG. Markers are
+# deliberately specific ("not_in"/"absent_from") so they never match resolver_not_found or a genuine
+# failure string (S3 timeout, deadlock, exception); an unrecognized live_read_error stays read_error (the
+# safe, visible default). The clean-clean fix is method-side (emit an honest data_unavailable summary
+# rather than the error sentinel), which routes through the `_data_unavailable` branch above; until then
+# this classifies at the one canonical reason→state mapper.
+_DATA_ABSENCE_MARKERS = ("not_in", "absent_from")
+
+
 def _availability_state_for(card: dict) -> "tuple[str, str]":
     """Map a resolve_cards `_missing` card to a schema-valid (availability_state, reason).
 
     Mirrors the card_unavailable enum: an honest data_unavailable answer is `insufficient`
-    (looked, genuinely absent); dispatcher-None is `not_wired`; a live_read_error is
-    `read_error`; anything else is a `data_blocked` coverage gap.
+    (looked, genuinely absent); dispatcher-None is `not_wired`; a live_read_error is `read_error`
+    UNLESS its reason names a data-absence (also `insufficient`); anything else is `data_blocked`.
     """
     reason = str(card.get("_missing_reason", "unavailable"))
     if card.get("_data_unavailable"):
@@ -231,7 +244,12 @@ def _availability_state_for(card: dict) -> "tuple[str, str]":
     if reason == "dispatcher_returned_none":
         return "not_wired", reason
     if reason.startswith("live_read_error"):
-        return "read_error", reason
+        if any(m in reason for m in _DATA_ABSENCE_MARKERS):
+            return (
+                "insufficient",
+                reason,
+            )  # looked, target genuinely absent from the dataset — a coverage gap, not a bug
+        return "read_error", reason  # genuine read failure (timeout / deadlock / exception) — could not look
     return "data_blocked", reason
 
 
