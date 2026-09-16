@@ -293,3 +293,49 @@ def test_bystander_map_regrains_and_dedups():
 
 def test_bystander_map_empty_hits():
     assert bystander_map(pd.DataFrame(columns=SCAN_COLUMNS)).empty
+
+
+def test_a_nan_twohit_freq_yields_no_data_labels_and_NOT_a_nan_ranking_score():
+    """A nan `twohit_loss_freq` must be absent EVERYWHERE, not just in the concordance label.
+
+    `twohit_loss_freq` is a public parameter, so a nan is caller-reachable. The two guards on `tw`
+    inside sl_arm_scan used to disagree about it: `_concordance` tested `tw is None or (isinstance(tw,
+    float) and pd.isna(tw))` and correctly returned "no_twohit_data", while the focality branch tested
+    only `tw is not None` and so computed `nan / arm_loss_freq`. One row therefore claimed to have NO
+    two-hit data and carried a nan focality_ratio at the same time.
+
+    The nan did not stop there, which is why this asserts on discovery_value: `_discovery_value` takes
+    `min(float(focality), _FOCALITY_CAP)`, and `min(nan, 5.0)` is nan, so the composite RANKING score
+    went nan too — and every `>` / `<` comparison a consumer makes against a nan score is silently
+    False, i.e. the row is unrankable rather than visibly broken. Both guards now share one predicate.
+    """
+    hits = sl_arm_scan(
+        _sl_pairs(),
+        _arm_ind_freq(),
+        _baseline(),
+        _gene_to_arm(),
+        twohit_loss_freq={("P1", "KIRC"): float("nan")},
+        min_loss_freq=0.5,
+        fdr_alpha=0.05,
+    )
+    row = hits.iloc[0]
+    assert row["coloss_concordance"] == "no_twohit_data"
+    assert row["focality_ratio"] is None, (
+        f"a nan two-hit frequency leaked into focality_ratio: {row['focality_ratio']!r}"
+    )
+    assert not pd.isna(row["discovery_value"]), "the composite RANKING score went nan — the row is unrankable"
+    # the same score the {} case produces: absent and nan must be treated identically, since the
+    # neutral focality_component (1.0) is what "no two-hit data" means for ranking.
+    absent = sl_arm_scan(
+        _sl_pairs(),
+        _arm_ind_freq(),
+        _baseline(),
+        _gene_to_arm(),
+        twohit_loss_freq={},
+        min_loss_freq=0.5,
+        fdr_alpha=0.05,
+    ).iloc[0]
+    assert row["discovery_value"] == absent["discovery_value"]
+    # The raw input column is a PASS-THROUGH and still carries the caller's nan: the fix is in the
+    # DERIVED columns, not in scrubbing the input, so provenance of what the caller supplied survives.
+    assert pd.isna(row["partner_twohit_loss_freq"])

@@ -13,6 +13,7 @@ import os
 from functools import lru_cache
 from typing import Optional
 
+from methods import cell_absence as ca
 from methods.catalog_query.read import s3_uri_for
 
 # Precomputed per-indication HRD-scar product (tcga-hrd-scar-per-indication-v1): materializes exactly
@@ -271,7 +272,6 @@ def _hrd_from_product(indication: str):
     except Exception:  # noqa: BLE001  # absence-discipline: exempt -- LOCAL catalog manifest lookup, not an S3 read; a raise means the derived manifest is not registered → fall back to the live segtabs computation
         return None
     try:
-        import pandas as pd
         import pyarrow.fs as fs
         import pyarrow.parquet as pq
 
@@ -284,20 +284,23 @@ def _hrd_from_product(indication: str):
         row = df.iloc[0]
 
         def _num(v, cast):
-            return None if pd.isna(v) else cast(v)
+            return None if ca.is_missing(v) else cast(v)
 
         # Reconstruct the EXACT python types _hrd_score_for_indication_live returns (parquet round-trips
-        # numpy types) so the emitted card summary is byte-identical to the live path.
+        # numpy types) so the emitted card summary is byte-identical to the live path. ca.is_missing
+        # replaces pd.isna WITHOUT touching that: both branches are unchanged, so the returned types are
+        # still None-or-cast(v). The swap is type-preserving by construction, which is why it is safe in
+        # a function under a byte-identity constraint.
         return {
-            "hrd_class": None if pd.isna(row["hrd_class"]) else str(row["hrd_class"]),
+            "hrd_class": None if ca.is_missing(row["hrd_class"]) else str(row["hrd_class"]),
             "hrd_high_fraction": _num(row["hrd_high_fraction"], float),
             "n_hrd_high": int(row["n_hrd_high"]),
             "median_hrd_score": _num(row["median_hrd_score"], float),
             "p75_hrd_score": _num(row["p75_hrd_score"], float),
             "n_samples": int(row["n_samples"]),
-            "hrd_context": None if pd.isna(row["hrd_context"]) else str(row["hrd_context"]),
+            "hrd_context": None if ca.is_missing(row["hrd_context"]) else str(row["hrd_context"]),
             "method_version": str(row["method_version"]),
-            "_data_source": None if pd.isna(row["_data_source"]) else str(row["_data_source"]),
+            "_data_source": None if ca.is_missing(row["_data_source"]) else str(row["_data_source"]),
         }
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent

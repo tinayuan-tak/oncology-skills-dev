@@ -52,6 +52,7 @@ from pathlib import Path
 import click
 import pandas as pd
 
+from methods import cell_absence as ca
 from methods.tcga_fusion_consensus.read import (
     cbioportal_assayed_samples,
     gao_2018_assayed_samples,
@@ -74,10 +75,18 @@ def _majority_tissue(tissues: list) -> str | None:
 
 
 def _distinct_non_null(vs) -> list:
-    """Ordered, distinct, non-null values (for partners / frame_preds lists)."""
+    """Ordered, distinct, non-null values (for partners / frame_preds lists).
+
+    The `isinstance(v, float)` term the old guard needed was carrying real weight: these values come
+    from a groupby-agg `list` over partner_gene / frame_pred, whose missing cell is `None` on pandas 2
+    (object dtype) but float `nan` on pandas 3 (the `str` dtype's sentinel), so BOTH terms had to be
+    present and the guard was version-dependent by construction. ca.is_missing covers both spellings
+    plus pd.NA/pd.NaT, so this list can no longer leak a stringified null into the emitted JSON
+    regardless of which pandas the lockfile resolves.
+    """
     seen: dict = {}
     for v in vs:
-        if v is None or (isinstance(v, float) and pd.isna(v)):
+        if ca.is_missing(v):
             continue
         if v not in seen:
             seen[v] = None

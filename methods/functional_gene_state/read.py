@@ -22,6 +22,7 @@ import io
 from functools import lru_cache
 from typing import Optional
 
+from methods import cell_absence as ca
 from methods.catalog_query.read import bucket_key_for, bucket_prefix_for, s3_uri_for
 
 from .classify import SampleEvidence, classify_functional_state, summarize_states
@@ -227,16 +228,18 @@ def _read_gistic_gene(target: str) -> dict:
 def _loh_homdel_at_locus(segs, sample: str, chrom: float, pos: float):
     """Point-in-interval lookup: for a mutation at (chrom, pos) in `sample`, return the covering
     ABSOLUTE segment's (loh_bool, homdel_bool). (None, None) if no covering segment."""
-    import pandas as pd
-
     if segs is None or chrom is None or pos is None:
         return (None, None)
     m = segs[(segs["Sample"] == sample) & (segs["Chromosome"] == chrom) & (segs["Start"] <= pos) & (segs["End"] >= pos)]
     if m.empty:
         return (None, None)
     r = m.iloc[0]
-    loh = None if pd.isna(r["LOH"]) else bool(r["LOH"] >= 0.5)
-    homdel = None if pd.isna(r["Homozygous_deletion"]) else bool(r["Homozygous_deletion"] >= 0.5)
+    # ca.is_missing rather than pd.isna: identical on every shape these two float64 ABSOLUTE columns
+    # can hold, and it drops this function's ONLY pandas dependency (the lazy `import pandas as pd`
+    # is gone) — the frame is now touched purely through indexing, so the reader's library stops
+    # leaking into the per-cell guards.
+    loh = None if ca.is_missing(r["LOH"]) else bool(r["LOH"] >= 0.5)
+    homdel = None if ca.is_missing(r["Homozygous_deletion"]) else bool(r["Homozygous_deletion"] >= 0.5)
     return (loh, homdel)
 
 

@@ -48,6 +48,8 @@ from typing import Optional
 
 import pandas as pd
 
+from methods import cell_absence as ca
+
 METHOD_VERSION = "scan-0.2.0"
 
 _FOCALITY_CAP = 5.0  # cap focality_ratio so a rare-but-deep partner homdel cannot dominate ranking
@@ -182,7 +184,14 @@ def sl_arm_scan(
             bys = arm_bystander.get((arm, ind))
             base = float(baseline) or 1e-9
             selectivity = round(loss_freq / base, 3)
-            focality = round(float(tw) / loss_freq, 3) if (tw is not None and loss_freq > 0) else None
+            # ONE absence predicate for `tw`, shared with _concordance below. These two guards used to
+            # disagree — a bare `tw is not None` here against a 2-term nan-aware test there — on the same
+            # variable in the same function. Today that is inert (the sole producer, cli.py's
+            # `_load_twohit_universe_and_loss`, guards `if denom:` over an int nunique() numerator, so a
+            # value is either an absent key -> None or a finite float), but the weaker guard is the one
+            # that would ship a nan: float(nan)/loss_freq rounds to nan and lands straight in
+            # focality_ratio, where every downstream threshold comparison against it is silently False.
+            focality = round(float(tw) / loss_freq, 3) if (not ca.is_missing(tw) and loss_freq > 0) else None
             candidates.append(
                 {
                     "target": target,
@@ -213,7 +222,7 @@ def sl_arm_scan(
 
     def _concordance(row):
         tw = row["partner_twohit_loss_freq"]
-        if tw is None or (isinstance(tw, float) and pd.isna(tw)):
+        if ca.is_missing(tw):
             return "no_twohit_data"
         # partner gene-level loss confirms the arm-level inference when it also clears the floor.
         return "confirmed" if float(tw) >= min_loss_freq else "arm_only"

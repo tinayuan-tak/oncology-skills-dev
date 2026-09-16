@@ -186,3 +186,85 @@ def test_indication_unavailable_empty_segtabs(monkeypatch):
     monkeypatch.setattr(r, "_load_sample_cancer_types", lambda: {"TCGA-A6-0001": "COAD"})
     out = r.hrd_score_for_indication("COADREAD")
     assert out["hrd_class"] == "data_unavailable"
+
+
+# ---------------- the PRODUCT path's type reconstruction ----------------
+#
+# Every test above stubs _hrd_from_product out to force the LIVE path, so the product path's own
+# contract was untested. That contract is a byte-identity claim: hrd_score_for_indication promises the
+# summary is "byte-identical either way", and the product path can only honour it by rebuilding the
+# EXACT python types the live path returns — parquet round-trips numpy scalars (np.float64, np.int64),
+# and a numpy scalar serialises differently from a python float in the emitted card.
+
+
+def _fake_product_table(rows):
+    """A REAL pyarrow Table, so .to_pandas() yields genuine numpy scalars rather than python ones.
+    Building this from a dict would defeat the test: the construction path IS the test here."""
+    import pyarrow as pa
+
+    return pa.Table.from_pandas(pd.DataFrame(rows), preserve_index=False)
+
+
+def _mock_product(monkeypatch, rows):
+    import pyarrow.fs
+    import pyarrow.parquet
+
+    monkeypatch.setattr(r, "s3_uri_for", lambda _pid: "s3://bucket/key.parquet")
+    # S3FileSystem() is constructed inside the function and can try to resolve a region; neuter it.
+    monkeypatch.setattr(pyarrow.fs, "S3FileSystem", lambda *a, **k: None)
+    monkeypatch.setattr(pyarrow.parquet, "read_table", lambda *a, **k: _fake_product_table(rows))
+
+
+_PRODUCT_ROW = {
+    "indication": "BRCA",
+    "hrd_class": "hrd_enriched",
+    "hrd_high_fraction": 0.42,
+    "n_hrd_high": 42,
+    "median_hrd_score": 21.5,
+    "p75_hrd_score": 33.0,
+    "n_samples": 100,
+    "hrd_context": "high scar burden",
+    "method_version": "hrd-0.1.0",
+    "_data_source": "gdc-pancanatlas-cnv-2018",
+}
+
+
+def test_product_path_returns_PLAIN_python_types_not_numpy_scalars(monkeypatch):
+    """The property the byte-identity claim rests on, asserted on types rather than on values.
+
+    A value test would pass against a summary full of np.float64: `np.float64(0.42) == 0.42` is True.
+    So this checks `type(v) is float`, not equality — the numpy scalar is the failure mode that a
+    value-based assertion cannot see.
+    """
+    _mock_product(monkeypatch, [_PRODUCT_ROW])
+    out = r.hrd_score_for_indication("BRCA")
+    assert out is not None and out["hrd_class"] == "hrd_enriched"
+    expected = {
+        "hrd_class": str,
+        "hrd_high_fraction": float,
+        "n_hrd_high": int,
+        "median_hrd_score": float,
+        "p75_hrd_score": float,
+        "n_samples": int,
+        "hrd_context": str,
+        "method_version": str,
+        "_data_source": str,
+    }
+    wrong = {k: type(out[k]).__name__ for k, t in expected.items() if type(out[k]) is not t}
+    assert not wrong, f"product path leaked non-python types (numpy scalars serialise differently): {wrong}"
+
+
+def test_product_path_nulls_the_nullable_numerics_instead_of_emitting_nan(monkeypatch):
+    """A null median/p75/fraction in the product must come back None, never float nan.
+
+    This is the absence guard the cell_absence adoption replaced (`pd.isna` -> `ca.is_missing`). It is
+    asserted here on the REAL parquet round-trip rather than on the predicate alone, because the
+    sentinel a missing cell arrives as is a property of the construction path, not of the guard.
+    """
+    row = dict(_PRODUCT_ROW, hrd_high_fraction=None, median_hrd_score=None, p75_hrd_score=None, hrd_context=None)
+    _mock_product(monkeypatch, [row])
+    out = r.hrd_score_for_indication("BRCA")
+    for k in ("hrd_high_fraction", "median_hrd_score", "p75_hrd_score", "hrd_context"):
+        assert out[k] is None, f"{k} came back {out[k]!r} ({type(out[k]).__name__}) rather than None"
+    # the non-nullable counts are still real ints — absence there is NOT expected and not guarded
+    assert type(out["n_samples"]) is int and type(out["n_hrd_high"]) is int
