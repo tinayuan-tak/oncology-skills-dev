@@ -1,0 +1,333 @@
+{
+  "_note": "Pre-state baseline for the emission invariants. ONE-SIDED ratchet on `red_list` only: a (invariant, card_id, field) triple absent from this list is a regression; a triple here that no longer fires is progress and prints a note. Counts are for human diffing and are NOT asserted \u2014 see regenerate_emission_invariants_baseline.py for why.",
+  "by_invariant": {
+    "interval_containment": {
+      "card_field_pairs": 2,
+      "packages": 111,
+      "rows": 115
+    },
+    "non_finite": {
+      "card_field_pairs": 14,
+      "packages": 501,
+      "rows": 1357
+    },
+    "non_finite_envelope": {
+      "card_field_pairs": 36,
+      "packages": 163,
+      "rows": 1220
+    },
+    "strict_json": {
+      "card_field_pairs": 1,
+      "packages": 501,
+      "rows": 501
+    }
+  },
+  "corpus": "target-archetype-corpus-20260915",
+  "fatal_invariants": [
+    "non_finite",
+    "non_finite_envelope",
+    "strict_json"
+  ],
+  "gloss_available": true,
+  "heuristics": false,
+  "invariants": [
+    "non_finite",
+    "non_finite_envelope",
+    "domain_declared",
+    "domain_unglossed",
+    "interval_containment",
+    "interval_order",
+    "class_from_unmeasured",
+    "abstention_incoherent",
+    "strict_json"
+  ],
+  "n_packages": 504,
+  "red_list": [
+    [
+      "interval_containment",
+      "cellline-rna-protein-concordance",
+      "rna_protein_r"
+    ],
+    [
+      "interval_containment",
+      "rna-protein-concordance-tumor",
+      "rna_protein_r"
+    ],
+    [
+      "non_finite",
+      "adc-tce-modality-fit",
+      "structure_epitope_context.disordered_fraction"
+    ],
+    [
+      "non_finite",
+      "crispr-rnai-dependency-concordance",
+      "per_line_concordance[].ccle_name"
+    ],
+    [
+      "non_finite",
+      "crispr-rnai-dependency-concordance",
+      "per_line_concordance[].lineage"
+    ],
+    [
+      "non_finite",
+      "measured-potency-tractability",
+      "chembl_best_pchembl"
+    ],
+    [
+      "non_finite",
+      "measured-potency-tractability",
+      "chembl_max_clinical_phase"
+    ],
+    [
+      "non_finite",
+      "structure-features-static",
+      "alphafold_plddt_mean"
+    ],
+    [
+      "non_finite",
+      "structure-features-static",
+      "alphafold_plddt_min"
+    ],
+    [
+      "non_finite",
+      "structure-features-static",
+      "alphafold_plddt_min_domain"
+    ],
+    [
+      "non_finite",
+      "structure-features-static",
+      "disordered_fraction"
+    ],
+    [
+      "non_finite",
+      "structure-features-static",
+      "pdb_best_resolution_angstrom"
+    ],
+    [
+      "non_finite",
+      "tumor-vs-normal-selectivity",
+      "log2fc_cell_a"
+    ],
+    [
+      "non_finite",
+      "tumor-vs-normal-selectivity",
+      "log2fc_cell_b"
+    ],
+    [
+      "non_finite",
+      "tumor-vs-normal-selectivity",
+      "q_value_cell_a"
+    ],
+    [
+      "non_finite",
+      "tumor-vs-normal-selectivity",
+      "q_value_cell_b"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.claim_vectors.tractability_sm.claim_vector.POTENCY.evidence_atom.values.chembl_best_pchembl"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.claim_vectors.tractability_sm.claim_vector.POTENCY.evidence_atom.values.chembl_max_clinical_phase"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.claim_vectors.tractability_sm.claim_vector.STRUCT.evidence_atom.values.alphafold_plddt_mean"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.claim_vectors.tractability_sm.claim_vector.STRUCT.evidence_atom.values.pdb_best_resolution_angstrom"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.evidence_capsules.selectivity.capsules.tumor-vs-normal-selectivity.numeric_anchors[].value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.evidence_capsules.surface_modality.capsules.structure-features-static.n_basis.alphafold_plddt_min_domain"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.evidence_capsules.surface_modality.capsules.structure-features-static.numeric_anchors[].value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.evidence_capsules.target_intrinsic.capsules.measured-potency-tractability.numeric_anchors[].value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.evidence_capsules.tractability_sm.capsules.measured-potency-tractability.numeric_anchors[].value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.evidence_capsules.tractability_sm.capsules.structure-features-static.n_basis.alphafold_plddt_min_domain"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.evidence_capsules.tractability_sm.capsules.structure-features-static.numeric_anchors[].value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.expression.evidence_graph.cards[].key_evidence.effect.value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.expression.evidence_graph.cards[].key_evidence.interpretation[].value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.expression.evidence_graph.cards[].key_evidence.significance.value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.selectivity.evidence_graph.cards[].chain.data[].value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.selectivity.evidence_graph.cards[].key_evidence.effect.value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.selectivity.evidence_graph.cards[].key_evidence.interpretation[].value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.selectivity.evidence_graph.cards[].key_evidence.significance.value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.selectivity.evidence_graph.cards[].key_fields.log2fc_cell_a"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.selectivity.evidence_graph.cards[].key_fields.log2fc_cell_b"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.surface_modality.evidence_graph.cards[].chain.data[].value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.surface_modality.evidence_graph.cards[].key_evidence.effect.value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.surface_modality.evidence_graph.cards[].key_evidence.n_basis.alphafold_plddt_min_domain"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.surface_modality.evidence_graph.cards[].key_fields.disordered_fraction"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.target_intrinsic.evidence_graph.cards[].chain.data[].value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.target_intrinsic.evidence_graph.cards[].key_evidence.effect.value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.target_intrinsic.evidence_graph.cards[].key_fields.chembl_best_pchembl"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.tractability_sm.evidence_graph.cards[].chain.data[].value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.tractability_sm.evidence_graph.cards[].key_evidence.effect.value"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.tractability_sm.evidence_graph.cards[].key_evidence.n_basis.alphafold_plddt_min_domain"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.tractability_sm.evidence_graph.cards[].key_fields.chembl_best_pchembl"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.tractability_sm.evidence_graph.cards[].key_fields.disordered_fraction"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.tractability_sm.subgroup_signals.POTENCY.claims[].evidence_atom.values.chembl_best_pchembl"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.tractability_sm.subgroup_signals.POTENCY.claims[].evidence_atom.values.chembl_max_clinical_phase"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.tractability_sm.subgroup_signals.STRUCT.claims[].evidence_atom.values.alphafold_plddt_mean"
+    ],
+    [
+      "non_finite_envelope",
+      "",
+      "synthesis.skill_reports.tractability_sm.subgroup_signals.STRUCT.claims[].evidence_atom.values.pdb_best_resolution_angstrom"
+    ],
+    [
+      "strict_json",
+      "",
+      ""
+    ]
+  ],
+  "total_rows": 3193,
+  "vintage": {
+    "by_date": {
+      "2026-09-14": 400,
+      "2026-09-15": 104
+    },
+    "by_sha": {
+      "9bc5f66": 43,
+      "b7881c0": 10,
+      "fb66ace": 451
+    },
+    "dated_from": {
+      "none": 0,
+      "path": 0,
+      "provenance": 504
+    },
+    "n": 504,
+    "newest": "2026-09-15",
+    "oldest": "2026-09-14",
+    "unreadable": []
+  }
+}

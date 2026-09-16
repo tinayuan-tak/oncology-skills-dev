@@ -1,0 +1,16 @@
+{
+  "_fixture": "SYNTHETIC — and the fact that it is synthetic is the point. class_from_unmeasured returns ZERO findings over all 504 corpus packages, so without this file its green means only that the invariant never ran. No real package has this shape: the producer guards NaN explicitly at dge_deseq2/read.py:919 (row.get(k) == row.get(k) before max), and the favourable-looking SCLC class that motivated the invariant is FIX 4b's documented backtest-driven DEMOTION, not a band-cascade fall-through. Do NOT read this file as evidence the bug exists in the fleet — it exists to prove the DETECTOR works, which is the only thing an unexercised invariant lacks.",
+  "target": {"symbol": "SYNTHETIC_PROBE"},
+  "indication": "SCLC",
+  "cards": [
+    {
+      "card_id": "tumor-vs-normal-selectivity",
+      "validation_state": "pass",
+      "summary": {
+        "log2fc_cell_a": NaN,
+        "log2fc_cell_a_class": "modest_tumor_selective",
+        "adjacent_arm_measured": false
+      }
+    }
+  ]
+}

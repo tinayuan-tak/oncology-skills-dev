@@ -1,0 +1,19 @@
+{
+  "_fixture": "PRODUCER BUG — a SPEARMAN interval published under the PEARSON field's prefix. depmap_rna_protein_concordance/read.py:126 emits Pearson as rna_protein_r; :139 sets _classify_r = spear; :141 returns that Spearman interval as rna_protein_r_ci95_low/_high. The numbers below are the real ALK-NSCLC values from the 2026-09-15 corpus. This is a PROOF, not a heuristic: the interval is built as tanh(atanh(r) +/- 1.96*se), tanh is monotone and se > 0, so lo < r < hi is mathematically guaranteed for ANY r and ANY se — a violation therefore proves two DIFFERENT numbers are in play. Deliberately valid strict JSON so the interval invariant is measured in isolation.",
+  "target": {"symbol": "ALK"},
+  "indication": "NSCLC",
+  "cards": [
+    {
+      "card_id": "cellline-rna-protein-concordance",
+      "validation_state": "pass",
+      "summary": {
+        "rna_protein_r": 0.8598,
+        "rna_protein_r_ci95_low": -0.1726,
+        "rna_protein_r_ci95_high": 0.4246,
+        "n_paired_models": 12,
+        "rna_proxy_class": "strong_proxy",
+        "rna_proxy_class_boundary_fragile": true
+      }
+    }
+  ]
+}

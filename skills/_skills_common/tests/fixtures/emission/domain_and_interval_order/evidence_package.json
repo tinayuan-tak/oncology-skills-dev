@@ -1,0 +1,28 @@
+{
+  "_fixture": "SYNTHETIC positive fixture for domain_declared, domain_unglossed and interval_order — all three have ZERO corpus findings, so all three are unexercised without this file. It also carries three NEGATIVE controls inside the same card (delta_chronos, median_ccf, a real zero) so the fixture proves the domain table is narrow as well as live. Deliberately valid strict JSON.",
+  "target": {"symbol": "PROBE"},
+  "indication": "PANCAN",
+  "cards": [
+    {
+      "card_id": "synthetic-domain-probe",
+      "validation_state": "pass",
+      "summary": {
+        "pearson_r": 1.42,
+        "logrank_p": -0.03,
+        "cohort_fdr": 1.7,
+        "delta_chronos": -9.7,
+        "median_ccf": 1.5,
+        "fraction_agree": 0.0
+      }
+    },
+    {
+      "card_id": "synthetic-interval-probe",
+      "validation_state": "pass",
+      "summary": {
+        "effect_median": 0.4,
+        "effect_low": 0.9,
+        "effect_high": 0.2
+      }
+    }
+  ]
+}

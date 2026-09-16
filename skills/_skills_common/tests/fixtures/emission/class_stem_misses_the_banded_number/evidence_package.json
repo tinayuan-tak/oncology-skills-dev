@@ -1,0 +1,19 @@
+{
+  "_fixture": "REAL SHAPE, and it pins a BLIND SPOT rather than a catch. Derived from APC-COADREAD, one of the 10 corpus packages (3 targets: APC, KMT2A, MGA) that published alphafold_confidence_class='low' banded from a NaN pLDDT. class_from_unmeasured is SILENT on this file BY CONSTRUCTION: it pairs a *_class to its number by name stem, so alphafold_confidence_class searches alphafold_confidence / _value / _score, and the number it actually bands is alphafold_plddt_mean. non_finite catches it; the semantic invariant cannot. If class_from_unmeasured ever starts firing here, the pairing rule was widened \u2014 that is GOOD NEWS, and the fix is to update this test and the docstring's measured blind spot, not to silence it. Producer-side fix: analysis-methods PR #646.",
+  "target": {
+    "symbol": "APC"
+  },
+  "indication": "COADREAD",
+  "cards": [
+    {
+      "card_id": "structure-features-static",
+      "validation_state": "pass",
+      "summary": {
+        "alphafold_plddt_mean": NaN,
+        "alphafold_plddt_min": NaN,
+        "alphafold_confidence_class": "low",
+        "n_domains_low_plddt": 0
+      }
+    }
+  ]
+}

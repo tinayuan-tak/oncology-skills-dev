@@ -1,0 +1,20 @@
+{
+  "_fixture": "PRODUCER BUG A — the pandas label leak. A missing string in an object-dtype column IS float('nan'), and DataFrame.to_dict(orient='records') carries it into JSON untouched. Measured in the 2026-09-15 corpus at 119,536 leaves across 496 of 504 packages = 98.2% of every non-finite value. The fix is fillna at the frame boundary, NOT an abstain token. This file carries LITERAL NaN tokens on purpose: it is the artifact under test, not a description of it.",
+  "target": {"symbol": "MET", "ensembl_gene_id": "ENSG00000105976"},
+  "indication": "LUAD",
+  "cards": [
+    {
+      "card_id": "crispr-rnai-dependency-concordance",
+      "validation_state": "pass",
+      "summary": {
+        "n_lines_paired": 3,
+        "crispr_rnai_concordance_class": "concordant_dependency",
+        "per_line_concordance": [
+          {"ccle_name": "NCIH1975_LUNG", "lineage": "lung", "crispr_chronos": -0.42, "rnai_score": -0.31},
+          {"ccle_name": NaN, "lineage": NaN, "crispr_chronos": -0.11, "rnai_score": -0.08},
+          {"ccle_name": NaN, "lineage": "lung", "crispr_chronos": -0.05, "rnai_score": 0.02}
+        ]
+      }
+    }
+  ]
+}

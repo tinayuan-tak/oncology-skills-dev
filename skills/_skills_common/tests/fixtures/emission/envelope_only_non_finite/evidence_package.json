@@ -1,0 +1,21 @@
+{
+  "_fixture": "SYNTHETIC — the shape the corpus has ZERO instances of, which is exactly why it needs a fixture. Measured 2026-09-15: 0 of 504 packages carry an envelope non-finite WITHOUT a card non-finite, i.e. synthesis.* is purely derivative today and fixing the cards fixes everything downstream. That is a fact about the current producers, not a property of the artifact, so non_finite_envelope must be able to fire on its own or the 'route the writer last' ordering rests on an untested check. The magnitude below sits in synthesis.claim_vectors specifically because that is what build_atlas reads: verdict-inert is NOT atlas-inert, and a NaN entering a hashed canonical form reports as ordinary digest DRIFT rather than as an invalid artifact.",
+  "target": {"symbol": "PROBE"},
+  "indication": "PANCAN",
+  "cards": [
+    {
+      "card_id": "clean-card",
+      "validation_state": "pass",
+      "summary": {
+        "fraction_agree": 0.5,
+        "n_paired_models": 8
+      }
+    }
+  ],
+  "synthesis": {
+    "claim_vectors": [
+      {"axis": "dependency", "claim": "selective_dependency", "magnitude": -0.61},
+      {"axis": "selectivity", "claim": "modest_tumor_selective", "magnitude": NaN}
+    ]
+  }
+}

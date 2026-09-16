@@ -1,0 +1,16 @@
+{
+  "_fixture": "SYNTHETIC — +/-Inf, not NaN, because the two fail DIFFERENT guards. pd.isna(float('inf')) is False, so every isna-based guard in the fleet admits an infinity, and an infinity is the WORSE of the two for ranking: abs(inf) wins every argmax, so an unmeasured value outranks every measured one. _non_finite must therefore test math.isfinite and not pd.isna. Carries literal Infinity / -Infinity tokens, which json.loads accepts by default and no conforming JSON reader elsewhere will.",
+  "target": {"symbol": "PROBE"},
+  "indication": "PANCAN",
+  "cards": [
+    {
+      "card_id": "synthetic-infinity-probe",
+      "validation_state": "pass",
+      "summary": {
+        "selectivity_index": Infinity,
+        "delta_chronos": -Infinity,
+        "n_paired_models": 4
+      }
+    }
+  ]
+}

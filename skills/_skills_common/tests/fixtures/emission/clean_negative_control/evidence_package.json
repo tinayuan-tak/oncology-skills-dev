@@ -1,0 +1,52 @@
+{
+  "_fixture": "THE NEGATIVE CONTROL, and it is deliberately loaded with NEAR-MISSES rather than being trivially empty. An invariant suite that fires on nothing clean is only half-tested; a suite whose clean case contains nothing interesting has not been tested at all. Every value here sits at or just inside a boundary the suite checks:  median_ccf = 1.5 exactly (see below) · allgene_percentile = 100.0 exactly (an inclusive ceiling) · fraction_agree = 0.0 (a REAL zero, which is_measured admits and a truthiness test would not) · delta_chronos and log2fc_cell_a at values a plausible-looking bound would reject · a fully-populated per_line_concordance list, so the list traversal is proven not to false-positive · a valid CI triple whose containment holds · and one card that abstains in a field whose source is missing while answering in a field whose source is present.  ** median_ccf = 1.5 IS A GUARD ON A REFUTATION. ** Entering CCF in _UNIT_DOMAINS as an 'obvious' [0, 1] fraction produced 10 corpus findings of which all 10 were false: CCF is INFERRED as VAF*2/purity, and pancan_mutation_ccf/cli.py:39 clamps it at CCF_CAP = 1.5 because purity and copy-number noise routinely push an unbiased estimate of a boundary-adjacent true value past 1. A mathematical domain constrains the QUANTITY, not a noisy ESTIMATOR of it. If someone re-adds CCF to the domain table, this control goes red instead of the mistake shipping. Deliberately valid strict JSON, and it must stay that way.",
+  "target": {"symbol": "PROBE", "ensembl_gene_id": "ENSG00000000000"},
+  "indication": "PANCAN",
+  "cards": [
+    {
+      "card_id": "cellline-rna-protein-concordance",
+      "validation_state": "pass",
+      "summary": {
+        "rna_protein_r": 0.62,
+        "rna_protein_r_ci95_low": 0.11,
+        "rna_protein_r_ci95_high": 0.86,
+        "n_paired_models": 12,
+        "rna_proxy_class": "moderate_proxy"
+      }
+    },
+    {
+      "card_id": "crispr-rnai-dependency-concordance",
+      "validation_state": "pass",
+      "summary": {
+        "n_lines_paired": 4,
+        "delta_chronos": -12.4,
+        "per_line_concordance": [
+          {"ccle_name": "NCIH1975_LUNG", "lineage": "lung", "crispr_chronos": -0.42},
+          {"ccle_name": "A549_LUNG", "lineage": "lung", "crispr_chronos": -0.11}
+        ]
+      }
+    },
+    {
+      "card_id": "target-clonality",
+      "validation_state": "pass",
+      "summary": {
+        "median_ccf": 1.5,
+        "clonality_class": "predominantly_clonal",
+        "allgene_percentile": 100.0,
+        "alphafold_plddt_mean": 92.4
+      }
+    },
+    {
+      "card_id": "tumor-vs-normal-selectivity",
+      "validation_state": "pass",
+      "summary": {
+        "log2fc_cell_a": 5.02,
+        "fraction_agree": 0.0,
+        "adjacent_arm_measured": false,
+        "selectivity_evidence_independence": "population_normal_only",
+        "selectivity_allgene_percentile_class": "data_unavailable",
+        "selectivity_class": "modest_tumor_selective"
+      }
+    }
+  ]
+}
