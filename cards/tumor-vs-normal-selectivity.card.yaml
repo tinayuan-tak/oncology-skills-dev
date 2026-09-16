@@ -51,11 +51,23 @@ question: "How selectively is {target.symbol} expressed in {indication.label} tu
 # VERDICT-INERT projection (see capsule contract migration).
 capsule:
   primary_class: selectivity_class
+  # TC#780 display fix (2026-09-16): declare the substrate-basis + comparator-independence fields so the
+  # capsule surfaces them deterministically instead of the alphabetical-luck anchor scan. Also credits
+  # them in the field-disposition census (aperture 889 -> 886, slack 1). VERDICT-INERT projection.
   categorical_fields:
     - selectivity_class
     - comparator_concordance
     - dominant_direction
     - selectivity_allgene_percentile_class
+    - selectivity_evidence_independence      # 4-value enum, has a vocabulary
+    - selectivity_substrate_basis            # 3-value enum, has a vocabulary
+    - adjacent_arm_measured                  # bool flag (schema names bool flags explicitly)
+  numeric_anchors:                           # replaces the _ANCHOR_HINTS alphabetical cap-of-4 guess
+    - max_abs_log2fc                         # headline effect
+    - selectivity_allgene_percentile         # the value selectivity_allgene_percentile_class is cut against
+    - q_value_cell_a                         # significance
+    - comparator_families_supporting         # denominator
+    - comparator_families_ran
 
 tier: indication   # indication-scoped whole-cohort call is the PRIMARY grain; subtype grain now LIVE for
                    # indications with a per-subgroup sensitivity product (COADREAD/msi_status as of 2026-08-18).
