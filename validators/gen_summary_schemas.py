@@ -11,8 +11,11 @@ Design (per the T5 investigation):
     different artifact and are NOT reused).
   - For each card_spec, the schema's field SET comes from outputs.summary_fields (declared contract,
     present on all cards); enums from outputs.summary_fields_vocabulary; list-record shapes from
-    outputs.summary_fields_record_schemas when present. Value TYPES are widened using observed
-    values harvested from the stub fixtures (skills/compose-dashboard/tests/fixtures/stubs/*.yaml).
+    outputs.summary_fields_record_schemas when present. Value TYPES are widened from OBSERVED values:
+    prefer `--corpus` (the emitted-package corpus — the real, current source) over the legacy stub
+    fixtures (skills/compose-dashboard/tests/fixtures/stubs/*.yaml, from a retired skill, which collapsed
+    real fields to {'type': ['null']}). On the 504-package corpus 2008 (card,field) pairs get a real
+    non-null type vs 18 null-only — the repair the retired-fixture source had regressed.
   - `additionalProperties: true` (MANDATORY v1): real emitted summaries carry undeclared internal
     `_`-prefixed keys, retired-but-emitted fields, and computed extras — a strict schema would break
     every wired card.
@@ -24,7 +27,7 @@ schemas/methods/<card_id>.summary.schema.json exists, so partial coverage never 
 
 Usage:
   python validators/gen_summary_schemas.py --cards cards/ --out schemas/methods/ \\
-      [--fixtures <skills>/skills/compose-dashboard/tests/fixtures/stubs/] \\
+      --corpus ~/dev/target-archetype-corpus-<vintage>/ \\
       [--only card-id-1 --only card-id-2]   # default: all cards
 """
 
@@ -108,6 +111,39 @@ def _harvest_observed(fixtures_dir: Path, allow_missing: bool = False) -> dict[s
             for field, value in summary.items():
                 if field.startswith("_"):
                     continue  # internal keys are not part of the declared contract
+                per_field.setdefault(field, set()).add(_json_type(value))
+    return observed
+
+
+def _harvest_corpus(corpus_dir: Path) -> dict[str, dict[str, set]]:
+    """{card_id -> {field -> set(observed json-type tokens)}} across a corpus of emitted packages.
+
+    The REAL widening source: each `<corpus>/<target-indication>/evidence_package.json` carries
+    `cards[]` of actually-emitted `summary` dicts, so a field that ships an integer is observed as
+    `integer`, not the `null` a retired stub fixture (compose-dashboard) collapsed it to. Union across
+    all packages, so a field that is int on one target and null (unmeasured) on another is typed
+    `["integer","null"]` — the honest union, not a false single type. Same `_`-prefix exclusion as the
+    fixture harvest (internal keys are not the declared contract). Absent/unreadable packages contribute
+    nothing (never crash a corpus with one truncated file)."""
+    observed: dict[str, dict[str, set]] = {}
+    if not corpus_dir or not corpus_dir.is_dir():
+        raise SystemExit(f"gen_summary_schemas: --corpus dir not found: {corpus_dir}")
+    for pkg in sorted(corpus_dir.glob("*/evidence_package.json")):
+        try:
+            doc = json.loads(pkg.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+        for card in doc.get("cards") or []:
+            if not isinstance(card, dict):
+                continue
+            card_id = card.get("card_id")
+            summary = card.get("summary")
+            if not card_id or not isinstance(summary, dict):
+                continue
+            per_field = observed.setdefault(card_id, {})
+            for field, value in summary.items():
+                if field.startswith("_"):
+                    continue
                 per_field.setdefault(field, set()).add(_json_type(value))
     return observed
 
@@ -235,6 +271,15 @@ def main() -> int:
     ap.add_argument("--out", type=Path, default=DEFAULT_OUT)
     ap.add_argument("--fixtures", type=Path, default=DEFAULT_FIXTURES)
     ap.add_argument(
+        "--corpus",
+        type=Path,
+        default=None,
+        help="Directory of emitted packages (<corpus>/<target-indication>/evidence_package.json). The "
+        "REAL observed-type source: types are widened from actually-emitted summaries, replacing the "
+        "retired compose-dashboard stub fixtures that collapsed real fields to {'type': ['null']}. When "
+        "given, missing fixtures are tolerated (the corpus is the source).",
+    )
+    ap.add_argument(
         "--only",
         action="append",
         default=None,
@@ -254,7 +299,15 @@ def main() -> int:
     )
     args = ap.parse_args()
 
-    observed_all = _harvest_observed(args.fixtures, allow_missing=args.allow_missing_fixtures)
+    # The corpus (emitted packages) is the authoritative widening source; the stub fixtures are legacy.
+    # When --corpus is given it is primary and any fixtures merge in (union of observed types); missing
+    # fixtures are then tolerated because the corpus supplies the types.
+    observed_all: dict[str, dict[str, set]] = _harvest_corpus(args.corpus) if args.corpus else {}
+    fixture_obs = _harvest_observed(args.fixtures, allow_missing=args.allow_missing_fixtures or bool(args.corpus))
+    for cid, fields in fixture_obs.items():
+        dst = observed_all.setdefault(cid, {})
+        for field, types in fields.items():
+            dst.setdefault(field, set()).update(types)
     args.out.mkdir(parents=True, exist_ok=True)
 
     card_files = sorted(args.cards.glob("*.card.yaml"))
