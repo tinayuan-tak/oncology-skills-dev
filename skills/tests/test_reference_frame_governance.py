@@ -298,6 +298,13 @@ _REFERENCE_FRAME_KEY_READERS = {
         "ACCOUNTING — the reach census reads the frames to attribute summary_fields to a reader, and names "
         "the frame's cut card_id. Consumes the ruler without gauging anything."
     ),
+    "skills/_skills_common/field_descriptor.py": (
+        "DISPLAY — _spec_frame_value_fields() reads the key ONLY to enumerate each frame's value_field so "
+        "the derived per-field descriptor can FLAG it atlas_live=True (a PRIMARY value_field mints frozen "
+        "atlas columns, so the descriptor DESCRIBES it and must never reshape it). Gauges nothing, gates "
+        "nothing, resolves nothing — verdict-INERT + additive, and nothing consumes the descriptor yet. So "
+        "the 'verdict-INERT' notes in evidence_salience.py stay TRUE; this is a fourth inert reader, not a gate."
+    ),
 }
 
 # The REAL display-only boundary, with the reason each axis opts out — all three transcribed from the
