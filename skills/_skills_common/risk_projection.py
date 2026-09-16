@@ -30,9 +30,15 @@ SURFACE = {"adc", "bite_tce", "tce", "antibody"}
 # (5R-style decomposition): the target-biology axes (dependency + mechanism/genomic/SL/combinatorial/
 # expression) all escalate the BIOLOGICAL (Right Target) dim; safety/selectivity escalate SAFETY; the
 # two tractability axes escalate DRUGGABILITY; `differentiation` (patient-selection) escalates the
-# TRANSLATIONAL dim; clinical/commercial are the engine-blind pseudo-card dims. This completes the
-# 6-dim map (biological/druggability/safety/translational/clinical/commercial) — every grounded axis
-# now reaches a risk dim in [3A] (parity with [3B], which is axis-agnostic).
+# TRANSLATIONAL dim; clinical/commercial are the engine-blind pseudo-card dims.
+#
+# CORRECTED 2026-09-16: this comment used to end "every grounded axis now reaches a risk dim". That was
+# FALSE BY MEASUREMENT — 7 of the 16 rostered subskill axes reach no dim (504-target corpus). The claim
+# is not repaired by widening the map; it is repaired by DECLARING each absence, because the absences
+# are not all the same kind. See AXIS_DIM_EXCLUSIONS below: an axis is now required to be in exactly
+# one of {AXIS_TO_DIM, AXIS_DIM_EXCLUSIONS}, so a NEW axis can no longer reach no dim SILENTLY — which
+# is exactly how this drifted (the 2026-08-21 consolidation dropped two mapped axes and the comment
+# asserting completeness outlived them).
 AXIS_TO_DIM = {
     "safety": "safety",
     "dependency": "biological",
@@ -48,6 +54,87 @@ AXIS_TO_DIM = {
     "clinical": "clinical",
     "commercial": "commercial",
 }  # translational + clinical/commercial = engine-blind
+
+# ── declared absences from AXIS_TO_DIM (substrate Step 2d follow-on) ─────────────────────────────
+# Why this map exists: an axis missing from AXIS_TO_DIM is INVISIBLE. Nothing distinguished "this axis
+# must never reach a risk dim" from "nobody wired it yet", so both read as an absence — and an absence
+# cannot be reviewed. The two are opposite actions, which is the same argument the per-dim evidence
+# coverage below makes about bins.
+#
+# DECLARED_DESCRIPTIVE is settled and correct. OPEN_PENDING_REVIEW is NOT a decision — it records that
+# a verdict-BEARING axis with live corpus values is absent from the risk VIEW and that no document
+# justifies it. The written rationales for these axes all concern `_SHORT_TO_GATE` (tp_fanout), the
+# kill/hold NOMINATION gate; risk_6dim is a PROJECTION, a different consumer. "Must never drive the
+# nomination spine" therefore justifies exclusion from the gate and says nothing about this map.
+# Resolving an OPEN entry MOVES BINS (it adds a conjunction member), so it is not additive: it needs a
+# per-verdict-value direction judgement, golden snapshots, and a corpus re-measure.
+DECLARED_DESCRIPTIVE = "declared_descriptive"  # verdict=None BY DESIGN — mapping it would be inert
+OPEN_PENDING_REVIEW = "open_pending_review"  # verdict-bearing + live, absence UNJUSTIFIED in writing
+AXIS_DIM_EXCLUSION_STATES: frozenset = frozenset({DECLARED_DESCRIPTIVE, OPEN_PENDING_REVIEW})
+
+AXIS_DIM_EXCLUSIONS = {
+    # --- settled: run.py passes verdict_fn=None, so there is no verdict to project (measured null on
+    # 504/504 corpus targets). These satisfy must-not-gate STRUCTURALLY (verdict=None + gate=None).
+    "target_intrinsic": {
+        "state": DECLARED_DESCRIPTIVE,
+        "reason": "GATELESS DESCRIPTIVE peer (2026-08-17): target-intrinsic/run.py has synthesis:none "
+        "=> verdict_fn is None => verdict=None. The indication-INDEPENDENT biology dossier informs the "
+        "LLM synthesis, never a bin. 504/504 corpus verdicts null, so a mapping would be inert.",
+    },
+    "combination_vulnerability": {
+        "state": DECLARED_DESCRIPTIVE,
+        "reason": "CONSOLIDATED relational (gene x gene) annex, verdict=None: its payload is a RANKED "
+        "PARTNER TABLE + relational claim_vector, NOT a scalar verdict, so there is nothing to bin. "
+        "NOTE its two predecessors (synthetic_lethal_partners / combinatorial_dependency) DID map to "
+        "`biological` before the 2026-08-21 consolidation; dropping them was CORRECT, not a regression, "
+        "because the replacement is deliberately verdict=None. 504/504 corpus verdicts null.",
+    },
+    "translational_readiness": {
+        "state": DECLARED_DESCRIPTIVE,
+        "reason": "GATELESS DESCRIPTIVE peer (2026-08-31), exact target-intrinsic precedent: "
+        "verdict_fn=None => verdict=None. Model availability / PDX / organoid context informs "
+        "CONFIDENCE, not a nomination gate. 504/504 corpus verdicts null.",
+    },
+    "literature_context": {
+        "state": DECLARED_DESCRIPTIVE,
+        "reason": "GATELESS DESCRIPTIVE peer (2026-09-02) AND the module contract: verdict_fn=None per "
+        "RISK_ASSESSMENT_INTEGRATION.md S4 (cited-literature co-occurrence is CONTEXT/CONFIDENCE), plus "
+        "this module's own rule that THE LLM/LITERATURE NEVER SETS A BIN. Doubly justified. Its "
+        "literature reaches the bins only via the lit-risk ESCALATE-ONLY overlay in risk_rollup."
+        "project(), never through this map. Measured: 1489 pmid-bearing cited_statements live under "
+        "synthesis.evidence_capsules.literature_context and reach no dim BY CONTRACT, not by omission.",
+    },
+    # --- OPEN: verdict-bearing, live corpus values, no written rationale for absence from THIS map.
+    "cis_coherence": {
+        "state": OPEN_PENDING_REVIEW,
+        "reason": "Verdict-BEARING and LIVE: 504/504 corpus targets, 7 distinct verdicts "
+        "(coherent_cis_driver 76, coherent_cis_loss_of_function 116, expressed_cis_coupled_inert 111, "
+        "cis_uncoupled_no_dependency 105, dependency_without_cis_dosage 60, "
+        "coherent_epigenetic_silencing 32, insufficient_cis_coherence 4). It is DELIBERATELY out of "
+        "_SHORT_TO_GATE (it moves CONFIDENCE, not Go/No-Go) and graduated to a confidence-tier axis at "
+        "gate v1.6.0 — but that rationale is about the NOMINATION GATE. Whether locus->expression->"
+        "dependency coherence should contribute to the BIOLOGICAL risk view is UNDECIDED and needs a "
+        "per-verdict-value direction call (is coherent_cis_driver lower or higher biological risk?).",
+    },
+    "immune_context": {
+        "state": OPEN_PENDING_REVIEW,
+        "reason": "Verdict-BEARING and LIVE: 504/504 corpus targets, 5 distinct verdicts "
+        "(immune_intermediate 314, insufficient 86, lymphoid_denominator_unreliable 47, immune_cold 31, "
+        "immune_hot 26). Documented as GATELESS/ADDITIVE and 'kept off the gate pending calibration' — "
+        "again a statement about _SHORT_TO_GATE. It is the TCE EFFECTOR axis, so if it were mapped the "
+        "candidate dim is modality-conditioned (it should not bind small_molecule), which this map "
+        "cannot express: AXIS_TO_DIM is a flat axis->dim dict. UNDECIDED.",
+    },
+    "subtype_fit": {
+        "state": OPEN_PENDING_REVIEW,
+        "reason": "Verdict-bearing but SPARSE and SHAPED DIFFERENTLY: 348/504 targets emit a "
+        "sub_verdict (71 non-null: subtype_specific_non_dependence 39, subtype_restricted_selectivity "
+        "27, subtype_restricted_dependency 5) and 0/504 emit a skill_report, so it has NO cards_used "
+        "provenance at all — the evidence-coverage join below cannot see it even if it were mapped. It "
+        "is also not a SUB_SKILLS roster member (tp_fanout.SUBTYPE_SHORT). UNDECIDED, and blocked on "
+        "the provenance gap first.",
+    },
+}
 
 
 def _mod(m: str) -> str:
@@ -603,6 +690,10 @@ __all__ = [
     "INV",
     "SURFACE",
     "AXIS_TO_DIM",
+    "AXIS_DIM_EXCLUSIONS",
+    "AXIS_DIM_EXCLUSION_STATES",
+    "DECLARED_DESCRIPTIVE",
+    "OPEN_PENDING_REVIEW",
     "_mod",
     "_sv",
     "_calls",
