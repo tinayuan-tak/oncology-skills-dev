@@ -1,0 +1,32 @@
+# snapshot config: genomic-alteration (grouped layout)
+title: "Predictability of {gene} Dependency in {indication}"
+subtitle: "Biomarkers for patient stratification"
+layout: "grouped"
+
+groups:
+  - title: "Omics Predictability"
+    panels:
+      - figure: "figures/cards/dependency-predictability/figure_feature_importance_bar.svg"
+        caption: "All cell lines - Random Forest + XGB"
+
+      - figure: "figures/cards/dependency-predictability/figure_lineage_predictability.svg"
+        caption: "Cell lines by lineage"
+
+  - title: "Lineage Predictability"
+    panels:
+      - figure: "figures/cards/dependency-lineage-selectivity/figure_forest_plot.svg"
+        caption: "Cell Line - Pan-Cancer"
+
+      - title: "Dependency by Oncotree Code"
+        table: "subskills/dependency/tables/dependency-lineage-selectivity_per_oncotree_code_stats.csv"
+        table_sort_by: "fraction_strongly_dependent"
+        table_sort_ascending: false
+        table_columns: ["oncotree_code","n", "median_chronos", "fraction_strongly_dependent"]
+
+  - title: "{gene} Expression Predictability"
+    panels:
+      - figure: "figures/cards/expression-dependency-correlation/figure_scatter_with_regression.svg"
+        caption: "Cell Line - {indication} highlighted"
+        
+      - figure: "figures/cards/expression-dependency-correlation/figure_lineage_stratified_scatter.svg"
+        caption: "Cell Line - Select indications highlighted"
