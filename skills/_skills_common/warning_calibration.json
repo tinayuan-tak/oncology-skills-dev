@@ -1,0 +1,1004 @@
+{
+  "_note": "E2 calibration register \u2014 non-discriminating (card_id, warning_id) NOT emitted per-run.",
+  "firing_rates": {
+    "adc-tce-modality-fit::isoform_selective_grades_suppressed": {
+      "evaluable": 503,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "adc-tce-modality-fit::modality_ambiguous_needs_biology_context": {
+      "evaluable": 503,
+      "fired": 11,
+      "rate": 0.0219
+    },
+    "amp-expr-stratified-dependency::rare_amp_expr": {
+      "evaluable": 502,
+      "fired": 302,
+      "rate": 0.6016
+    },
+    "amp-expr-stratified-dependency::significant_but_small_effect": {
+      "evaluable": 305,
+      "fired": 44,
+      "rate": 0.1443
+    },
+    "caf-compartment-expression-luo::caf_stromal_target_context": {
+      "evaluable": 502,
+      "fired": 207,
+      "rate": 0.4124
+    },
+    "cd-antigen-backbone::cd_established_io_backbone": {
+      "evaluable": 504,
+      "fired": 4,
+      "rate": 0.0079
+    },
+    "cellline-methylation-expression-coherence::low_n_cell_lines": {
+      "evaluable": 433,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "cellline-methylation-expression-coherence::no_testable_methylation": {
+      "evaluable": 433,
+      "fired": 220,
+      "rate": 0.5081
+    },
+    "cellline-protein-abundance-procan::protein_absent_data_unavailable": {
+      "evaluable": 343,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "cellline-protein-abundance-procan::sparse_dia_detection": {
+      "evaluable": 343,
+      "fired": 94,
+      "rate": 0.2741
+    },
+    "cellline-protein-abundance::protein_absent_data_unavailable": {
+      "evaluable": 419,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "cellline-protein-abundance::sparse_ms_detection": {
+      "evaluable": 419,
+      "fired": 47,
+      "rate": 0.1122
+    },
+    "cellline-rna-distribution::low_panel_expression_coverage": {
+      "evaluable": 504,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "cis-feature-expression-coherence::low_n_cell_lines": {
+      "evaluable": 502,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "cis-feature-expression-coherence::near_diploid_panel": {
+      "evaluable": 502,
+      "fired": 2,
+      "rate": 0.004
+    },
+    "cis-feature-protein-coherence::low_n_paired_models": {
+      "evaluable": 373,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "cis-feature-protein-coherence::near_diploid_panel": {
+      "evaluable": 373,
+      "fired": 2,
+      "rate": 0.0054
+    },
+    "clingen-dosage::clingen_dominant_loss_safety_concern": {
+      "evaluable": 504,
+      "fired": 210,
+      "rate": 0.4167
+    },
+    "clinvar-pathogenicity-safety::clinvar_germline_pathogenic_safety_concern": {
+      "evaluable": 504,
+      "fired": 339,
+      "rate": 0.6726
+    },
+    "co-mutation-and-mutual-exclusivity::many_pairs_panel_ineligible": {
+      "evaluable": 195,
+      "fired": 145,
+      "rate": 0.7436
+    },
+    "co-mutation-and-mutual-exclusivity::strong_mutex_no_cooccurring": {
+      "evaluable": 195,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "combinatorial-dependency::single_partner_only": {
+      "evaluable": 504,
+      "fired": 212,
+      "rate": 0.4206
+    },
+    "combo-chemical-synergy::narrow_tissue_coverage": {
+      "evaluable": 504,
+      "fired": 100,
+      "rate": 0.1984
+    },
+    "copy-number-distribution::low_cn_panel_coverage": {
+      "evaluable": 504,
+      "fired": 2,
+      "rate": 0.004
+    },
+    "copy-number-stratified-dependency::rare_amplification": {
+      "evaluable": 502,
+      "fired": 281,
+      "rate": 0.5598
+    },
+    "copy-number-stratified-dependency::significant_but_small_effect": {
+      "evaluable": 331,
+      "fired": 50,
+      "rate": 0.1511
+    },
+    "crispr-rnai-dependency-concordance::low_overlap": {
+      "evaluable": 496,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "crispr-rnai-dependency-concordance::significant_discordance": {
+      "evaluable": 496,
+      "fired": 62,
+      "rate": 0.125
+    },
+    "degradation-feasibility::degradability_data_unavailable": {
+      "evaluable": 504,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "degradation-feasibility::degrader_unfavorable_location": {
+      "evaluable": 504,
+      "fired": 181,
+      "rate": 0.3591
+    },
+    "dependency-lineage-selectivity::multiple_enriched_lineages": {
+      "evaluable": 504,
+      "fired": 30,
+      "rate": 0.0595
+    },
+    "dependency-lineage-selectivity::small_lineage_count": {
+      "evaluable": 504,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "dependency-predictability::predictability_lineage_collapsed": {
+      "evaluable": 384,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "dependency-predictability::predictability_low_cell_line_count": {
+      "evaluable": 384,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "dependency-predictability::predictability_model_divergent": {
+      "evaluable": 384,
+      "fired": 1,
+      "rate": 0.0026
+    },
+    "dependency-predictability::predictability_wide_ci": {
+      "evaluable": 384,
+      "fired": 5,
+      "rate": 0.013
+    },
+    "domain-modality-relevance::domain_modality_data_unavailable": {
+      "evaluable": 494,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "domain-modality-relevance::scaffolding_inhibitor_insufficient": {
+      "evaluable": 494,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "expression-dependency-correlation::low_n_cell_lines": {
+      "evaluable": 504,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "expression-dependency-correlation::narrow_expression_range": {
+      "evaluable": 504,
+      "fired": 192,
+      "rate": 0.381
+    },
+    "expression-dependency-correlation::pan_essential_confound": {
+      "evaluable": 504,
+      "fired": 113,
+      "rate": 0.2242
+    },
+    "fusion-stratified-dependency::rare_fusion": {
+      "evaluable": 504,
+      "fired": 356,
+      "rate": 0.7063
+    },
+    "fusion-stratified-dependency::significant_but_small_effect": {
+      "evaluable": 295,
+      "fired": 26,
+      "rate": 0.0881
+    },
+    "gdsc-drug-activity::gdsc_no_compounds": {
+      "evaluable": 504,
+      "fired": 326,
+      "rate": 0.6468
+    },
+    "gdsc-drug-activity::gdsc_putative_target_free_text": {
+      "evaluable": 504,
+      "fired": 29,
+      "rate": 0.0575
+    },
+    "gene-burden-safety::gene_burden_lof_risk_safety_concern": {
+      "evaluable": 504,
+      "fired": 66,
+      "rate": 0.131
+    },
+    "gene-burden-safety::gene_burden_protective_favorable": {
+      "evaluable": 504,
+      "fired": 15,
+      "rate": 0.0298
+    },
+    "gene-ontology-annotation::mostly_electronic_evidence": {
+      "evaluable": 502,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "gene-ontology-annotation::not_in_goa": {
+      "evaluable": 502,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "gnomad-lof-constraint::high_constraint_safety_concern": {
+      "evaluable": 504,
+      "fired": 300,
+      "rate": 0.5952
+    },
+    "gnomad-lof-constraint::indeterminate_common_target": {
+      "evaluable": 504,
+      "fired": 5,
+      "rate": 0.0099
+    },
+    "gnomad-lof-constraint::syn_z_outlier": {
+      "evaluable": 503,
+      "fired": 18,
+      "rate": 0.0358
+    },
+    "ici-response-association::ici_per_gene_not_significant": {
+      "evaluable": 5,
+      "fired": 5,
+      "rate": 1.0
+    },
+    "immune-context::immune_cold_tce_efficacy_risk": {
+      "evaluable": 418,
+      "fired": 31,
+      "rate": 0.0742
+    },
+    "known-drug-tractability::no_known_drug_evidence": {
+      "evaluable": 504,
+      "fired": 10,
+      "rate": 0.0198
+    },
+    "measured-potency-tractability::measured_potency_data_unavailable": {
+      "evaluable": 504,
+      "fired": 76,
+      "rate": 0.1508
+    },
+    "modality-exon-window::exon_essential_liability": {
+      "evaluable": 454,
+      "fired": 114,
+      "rate": 0.2511
+    },
+    "modality-exon-window::exon_heterogeneity_followup_candidate": {
+      "evaluable": 454,
+      "fired": 1,
+      "rate": 0.0022
+    },
+    "modality-therapeutic-window::window_not_expressed_in_this_cohort": {
+      "evaluable": 366,
+      "fired": 31,
+      "rate": 0.0847
+    },
+    "mouse-ko-phenotype::mouse_ko_developmental_only_caveat": {
+      "evaluable": 504,
+      "fired": 199,
+      "rate": 0.3948
+    },
+    "mouse-ko-phenotype::mouse_ko_lethal_safety_concern": {
+      "evaluable": 504,
+      "fired": 157,
+      "rate": 0.3115
+    },
+    "mutation-drug-response::few_on_target_compounds": {
+      "evaluable": 503,
+      "fired": 354,
+      "rate": 0.7038
+    },
+    "mutation-drug-response::significant_but_small_effect": {
+      "evaluable": 156,
+      "fired": 2,
+      "rate": 0.0128
+    },
+    "mutation-stratified-dependency::rare_mutation": {
+      "evaluable": 500,
+      "fired": 251,
+      "rate": 0.502
+    },
+    "mutation-stratified-surface::mutant_up_surface_handle": {
+      "evaluable": 504,
+      "fired": 1,
+      "rate": 0.002
+    },
+    "mutation-stratified-surface::mutation_stratified_not_in_product": {
+      "evaluable": 504,
+      "fired": 502,
+      "rate": 0.996
+    },
+    "mutation-type-counts::low_mutation_panel_coverage": {
+      "evaluable": 504,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "mutation-type-counts::very_rare_mutation": {
+      "evaluable": 504,
+      "fired": 3,
+      "rate": 0.006
+    },
+    "myeloid-compartment-expression-cheng::myeloid_target_antigen": {
+      "evaluable": 460,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "normal-tissue-liability::broad_normal_footprint": {
+      "evaluable": 504,
+      "fired": 262,
+      "rate": 0.5198
+    },
+    "normal-tissue-liability::essential_tissue_expression": {
+      "evaluable": 504,
+      "fired": 180,
+      "rate": 0.3571
+    },
+    "normal-tissue-liability::normal_tissue_data_unavailable": {
+      "evaluable": 504,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "normal-tissue-protein-abundance-tphp::broad_normal_protein_footprint": {
+      "evaluable": 448,
+      "fired": 273,
+      "rate": 0.6094
+    },
+    "normal-tissue-protein-abundance-tphp::tphp_normal_arm_shared_with_tvn_facet": {
+      "evaluable": 448,
+      "fired": 448,
+      "rate": 1.0
+    },
+    "normal-tissue-protein-abundance-tphp::tphp_normal_protein_data_unavailable": {
+      "evaluable": 448,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "normal-tissue-protein-abundance-tphp::tphp_vital_organs_unmeasurable": {
+      "evaluable": 448,
+      "fired": 448,
+      "rate": 1.0
+    },
+    "organoid-crispr-dependency::organoid_data_unavailable": {
+      "evaluable": 504,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "organoid-crispr-dependency::small_organoid_cohort": {
+      "evaluable": 504,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "pan-cancer-crispr-dependency-distribution::low_panel_coverage": {
+      "evaluable": 504,
+      "fired": 1,
+      "rate": 0.002
+    },
+    "pan-cancer-rnai-dependency-distribution::low_rnai_panel_coverage": {
+      "evaluable": 496,
+      "fired": 10,
+      "rate": 0.0202
+    },
+    "paralog-buffering::data_unavailable_common_target": {
+      "evaluable": 357,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "paralog-buffering::ohnolog_unknown": {
+      "evaluable": 357,
+      "fired": 84,
+      "rate": 0.2353
+    },
+    "paralog-buffering::paralog_absence_indistinguishable_from_coverage_gap": {
+      "evaluable": 357,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "paralog-buffering::strong_ohnolog_paralog": {
+      "evaluable": 357,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "partner-conditional-dependency::rare_partner_deficiency": {
+      "evaluable": 13,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "partner-conditional-dependency::significant_but_small_effect": {
+      "evaluable": 13,
+      "fired": 1,
+      "rate": 0.0769
+    },
+    "pathway-node-leverage::no_node_set_only_noisy_lens": {
+      "evaluable": 504,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "pathway-node-leverage::pan_lineage_fallback": {
+      "evaluable": 504,
+      "fired": 9,
+      "rate": 0.0179
+    },
+    "pathway-stratified-surface::pathway_high_up_surface_handle": {
+      "evaluable": 504,
+      "fired": 1,
+      "rate": 0.002
+    },
+    "pathway-stratified-surface::pathway_stratified_not_in_product": {
+      "evaluable": 504,
+      "fired": 502,
+      "rate": 0.996
+    },
+    "pmhc-presentation::pmhc_broad_normal_presentation_liability": {
+      "evaluable": 488,
+      "fired": 205,
+      "rate": 0.4201
+    },
+    "pmhc-presentation::pmhc_not_observed_is_weak_negative": {
+      "evaluable": 488,
+      "fired": 5,
+      "rate": 0.0102
+    },
+    "ppi-interactome::hub_promiscuity_caveat": {
+      "evaluable": 504,
+      "fired": 390,
+      "rate": 0.7738
+    },
+    "ppi-interactome::not_in_string_or_corum": {
+      "evaluable": 504,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "prism-compound-activity::prism_annotation_only_no_oncref_activity": {
+      "evaluable": 504,
+      "fired": 128,
+      "rate": 0.254
+    },
+    "prism-compound-activity::prism_lineage_signal_but_flat_pan_cancer": {
+      "evaluable": 217,
+      "fired": 49,
+      "rate": 0.2258
+    },
+    "prism-compound-activity::prism_no_clinical_anchor": {
+      "evaluable": 504,
+      "fired": 46,
+      "rate": 0.0913
+    },
+    "prism-compound-activity::prism_responder_tail_below_median": {
+      "evaluable": 504,
+      "fired": 44,
+      "rate": 0.0873
+    },
+    "prism-crispr-concordance::e7_crispr_only_paralog_risk": {
+      "evaluable": 345,
+      "fired": 1,
+      "rate": 0.0029
+    },
+    "prism-crispr-concordance::e7_data_unavailable": {
+      "evaluable": 345,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "prism-crispr-concordance::e7_no_dual_responders_despite_engagement": {
+      "evaluable": 345,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "prism-crispr-concordance::e7_off_target_flag": {
+      "evaluable": 345,
+      "fired": 70,
+      "rate": 0.2029
+    },
+    "protein-domains-class::keyword_class_no_domain": {
+      "evaluable": 454,
+      "fired": 103,
+      "rate": 0.2269
+    },
+    "protein-domains-class::no_uniprot_features": {
+      "evaluable": 454,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "reactome-pathway-membership::not_in_reactome": {
+      "evaluable": 480,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "reactome-pathway-membership::sparse_pathway_annotation": {
+      "evaluable": 480,
+      "fired": 37,
+      "rate": 0.0771
+    },
+    "sc-normal-celltype-expression::sc_normal_broad_expression": {
+      "evaluable": 504,
+      "fired": 484,
+      "rate": 0.9603
+    },
+    "sc-normal-celltype-expression::sc_normal_data_unavailable": {
+      "evaluable": 504,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "shed-ectodomain-liability::clinically_shed_antigen_sink": {
+      "evaluable": 504,
+      "fired": 7,
+      "rate": 0.0139
+    },
+    "shed-ectodomain-liability::measured_media_shed_confirmed": {
+      "evaluable": 504,
+      "fired": 17,
+      "rate": 0.0337
+    },
+    "shed-ectodomain-liability::secretome_proxy_shed_liability": {
+      "evaluable": 504,
+      "fired": 42,
+      "rate": 0.0833
+    },
+    "shed-ectodomain-liability::shed_indeterminate": {
+      "evaluable": 504,
+      "fired": 19,
+      "rate": 0.0377
+    },
+    "signaling-network-mechanism::moa_ontology_unmapped_high": {
+      "evaluable": 488,
+      "fired": 30,
+      "rate": 0.0615
+    },
+    "signaling-network-mechanism::signor_only_one_direction": {
+      "evaluable": 488,
+      "fired": 103,
+      "rate": 0.2111
+    },
+    "structure-features-static::alphafold_low_confidence_domain": {
+      "evaluable": 500,
+      "fired": 298,
+      "rate": 0.596
+    },
+    "structure-features-static::high_disordered_fraction": {
+      "evaluable": 500,
+      "fired": 48,
+      "rate": 0.096
+    },
+    "structure-features-static::no_structure_coverage": {
+      "evaluable": 504,
+      "fired": 14,
+      "rate": 0.0278
+    },
+    "surface-abundance-density::below_tce_threshold": {
+      "evaluable": 408,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "surface-abundance-density::no_ihc_anchor": {
+      "evaluable": 504,
+      "fired": 96,
+      "rate": 0.1905
+    },
+    "surface-abundance-density::wide_uncertainty_band": {
+      "evaluable": 408,
+      "fired": 408,
+      "rate": 1.0
+    },
+    "surface-topology-and-ptm::isoform_selective_target_dominant_variant": {
+      "evaluable": 500,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "surface-topology-and-ptm::multi_tm_low_epitope_area": {
+      "evaluable": 500,
+      "fired": 11,
+      "rate": 0.022
+    },
+    "surfaceome-cohort-ranking::low_cells_supporting": {
+      "evaluable": 65,
+      "fired": 65,
+      "rate": 1.0
+    },
+    "surfaceome-cohort-ranking::protein_only_agreement": {
+      "evaluable": 31,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "surfaceome-cohort-ranking::rna_protein_disagreement": {
+      "evaluable": 65,
+      "fired": 1,
+      "rate": 0.0154
+    },
+    "surfaceome-family-classification::low_confidence_family_call": {
+      "evaluable": 503,
+      "fired": 2,
+      "rate": 0.004
+    },
+    "surfaceome-family-classification::source_disagreement_surface_status": {
+      "evaluable": 503,
+      "fired": 122,
+      "rate": 0.2425
+    },
+    "synthetic-lethal-partners::computational_only_sl_partner": {
+      "evaluable": 504,
+      "fired": 88,
+      "rate": 0.1746
+    },
+    "synthetic-lethal-partners::experimental_sl_partner_context_conditional": {
+      "evaluable": 504,
+      "fired": 354,
+      "rate": 0.7024
+    },
+    "target-pdx-drug-response::pdx_target_is_drug_rollup": {
+      "evaluable": 69,
+      "fired": 69,
+      "rate": 1.0
+    },
+    "tumor-elevation-breadth::breadth_data_unavailable": {
+      "evaluable": 504,
+      "fired": 32,
+      "rate": 0.0635
+    },
+    "tumor-elevation-breadth::breadth_layer_discordant": {
+      "evaluable": 504,
+      "fired": 240,
+      "rate": 0.4762
+    },
+    "tumor-elevation-breadth::narrow_cptac_coverage": {
+      "evaluable": 504,
+      "fired": 73,
+      "rate": 0.1448
+    },
+    "tumor-elevation-breadth::single_cohort_breadth": {
+      "evaluable": 504,
+      "fired": 123,
+      "rate": 0.244
+    },
+    "tumor-protein-abundance-cptac::low_normal_arm_count": {
+      "evaluable": 178,
+      "fired": 3,
+      "rate": 0.0169
+    },
+    "tumor-rna-distribution::low_tumor_sample_count": {
+      "evaluable": 440,
+      "fired": 32,
+      "rate": 0.0727
+    },
+    "tumor-rna-distribution::no_matched_normal": {
+      "evaluable": 440,
+      "fired": 112,
+      "rate": 0.2545
+    },
+    "tumor-scrna-celltype-expression::microenvironment_dominant_signal": {
+      "evaluable": 303,
+      "fired": 7,
+      "rate": 0.0231
+    },
+    "tumor-scrna-celltype-expression::no_malignant_compartment": {
+      "evaluable": 303,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "tumor-vs-normal-protein-abundance-tphp::low_normal_arm_count": {
+      "evaluable": 141,
+      "fired": 18,
+      "rate": 0.1277
+    },
+    "tumor-vs-normal-protein-abundance-tphp::tphp_tvn_data_unavailable": {
+      "evaluable": 141,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "tumor-vs-normal-protein-abundance-tphp::tphp_tvn_detection_incomplete": {
+      "evaluable": 141,
+      "fired": 83,
+      "rate": 0.5887
+    },
+    "tumor-vs-normal-protein-abundance-tphp::tphp_tvn_normal_arm_is_the_atlas": {
+      "evaluable": 141,
+      "fired": 141,
+      "rate": 1.0
+    },
+    "tumor-vs-normal-protein-abundance-tphp::tphp_tvn_pan_cancer_extremum": {
+      "evaluable": 141,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "tumor-vs-normal-selectivity::tvn_adjacent_only": {
+      "evaluable": 408,
+      "fired": 0,
+      "rate": 0.0
+    },
+    "tumor-vs-normal-selectivity::tvn_field_effect_discordant": {
+      "evaluable": 408,
+      "fired": 29,
+      "rate": 0.0711
+    },
+    "tumor-vs-normal-selectivity::tvn_gtex_only": {
+      "evaluable": 408,
+      "fired": 0,
+      "rate": 0.0
+    }
+  },
+  "n_packages": 504,
+  "suppressed": [
+    [
+      "adc-tce-modality-fit",
+      "isoform_selective_grades_suppressed"
+    ],
+    [
+      "cd-antigen-backbone",
+      "cd_established_io_backbone"
+    ],
+    [
+      "cellline-methylation-expression-coherence",
+      "low_n_cell_lines"
+    ],
+    [
+      "cellline-protein-abundance",
+      "protein_absent_data_unavailable"
+    ],
+    [
+      "cellline-protein-abundance-procan",
+      "protein_absent_data_unavailable"
+    ],
+    [
+      "cellline-rna-distribution",
+      "low_panel_expression_coverage"
+    ],
+    [
+      "cis-feature-expression-coherence",
+      "low_n_cell_lines"
+    ],
+    [
+      "cis-feature-expression-coherence",
+      "near_diploid_panel"
+    ],
+    [
+      "cis-feature-protein-coherence",
+      "low_n_paired_models"
+    ],
+    [
+      "cis-feature-protein-coherence",
+      "near_diploid_panel"
+    ],
+    [
+      "co-mutation-and-mutual-exclusivity",
+      "strong_mutex_no_cooccurring"
+    ],
+    [
+      "copy-number-distribution",
+      "low_cn_panel_coverage"
+    ],
+    [
+      "crispr-rnai-dependency-concordance",
+      "low_overlap"
+    ],
+    [
+      "degradation-feasibility",
+      "degradability_data_unavailable"
+    ],
+    [
+      "dependency-lineage-selectivity",
+      "small_lineage_count"
+    ],
+    [
+      "dependency-predictability",
+      "predictability_lineage_collapsed"
+    ],
+    [
+      "dependency-predictability",
+      "predictability_low_cell_line_count"
+    ],
+    [
+      "dependency-predictability",
+      "predictability_model_divergent"
+    ],
+    [
+      "domain-modality-relevance",
+      "domain_modality_data_unavailable"
+    ],
+    [
+      "domain-modality-relevance",
+      "scaffolding_inhibitor_insufficient"
+    ],
+    [
+      "expression-dependency-correlation",
+      "low_n_cell_lines"
+    ],
+    [
+      "gene-ontology-annotation",
+      "mostly_electronic_evidence"
+    ],
+    [
+      "gene-ontology-annotation",
+      "not_in_goa"
+    ],
+    [
+      "gnomad-lof-constraint",
+      "indeterminate_common_target"
+    ],
+    [
+      "modality-exon-window",
+      "exon_heterogeneity_followup_candidate"
+    ],
+    [
+      "mutation-stratified-surface",
+      "mutant_up_surface_handle"
+    ],
+    [
+      "mutation-stratified-surface",
+      "mutation_stratified_not_in_product"
+    ],
+    [
+      "mutation-type-counts",
+      "low_mutation_panel_coverage"
+    ],
+    [
+      "mutation-type-counts",
+      "very_rare_mutation"
+    ],
+    [
+      "myeloid-compartment-expression-cheng",
+      "myeloid_target_antigen"
+    ],
+    [
+      "normal-tissue-liability",
+      "normal_tissue_data_unavailable"
+    ],
+    [
+      "normal-tissue-protein-abundance-tphp",
+      "tphp_normal_arm_shared_with_tvn_facet"
+    ],
+    [
+      "normal-tissue-protein-abundance-tphp",
+      "tphp_normal_protein_data_unavailable"
+    ],
+    [
+      "normal-tissue-protein-abundance-tphp",
+      "tphp_vital_organs_unmeasurable"
+    ],
+    [
+      "organoid-crispr-dependency",
+      "organoid_data_unavailable"
+    ],
+    [
+      "organoid-crispr-dependency",
+      "small_organoid_cohort"
+    ],
+    [
+      "pan-cancer-crispr-dependency-distribution",
+      "low_panel_coverage"
+    ],
+    [
+      "paralog-buffering",
+      "data_unavailable_common_target"
+    ],
+    [
+      "paralog-buffering",
+      "paralog_absence_indistinguishable_from_coverage_gap"
+    ],
+    [
+      "paralog-buffering",
+      "strong_ohnolog_paralog"
+    ],
+    [
+      "pathway-node-leverage",
+      "no_node_set_only_noisy_lens"
+    ],
+    [
+      "pathway-stratified-surface",
+      "pathway_high_up_surface_handle"
+    ],
+    [
+      "pathway-stratified-surface",
+      "pathway_stratified_not_in_product"
+    ],
+    [
+      "ppi-interactome",
+      "not_in_string_or_corum"
+    ],
+    [
+      "prism-crispr-concordance",
+      "e7_crispr_only_paralog_risk"
+    ],
+    [
+      "prism-crispr-concordance",
+      "e7_data_unavailable"
+    ],
+    [
+      "prism-crispr-concordance",
+      "e7_no_dual_responders_despite_engagement"
+    ],
+    [
+      "protein-domains-class",
+      "no_uniprot_features"
+    ],
+    [
+      "reactome-pathway-membership",
+      "not_in_reactome"
+    ],
+    [
+      "sc-normal-celltype-expression",
+      "sc_normal_broad_expression"
+    ],
+    [
+      "sc-normal-celltype-expression",
+      "sc_normal_data_unavailable"
+    ],
+    [
+      "surface-abundance-density",
+      "below_tce_threshold"
+    ],
+    [
+      "surface-abundance-density",
+      "wide_uncertainty_band"
+    ],
+    [
+      "surface-topology-and-ptm",
+      "isoform_selective_target_dominant_variant"
+    ],
+    [
+      "surfaceome-cohort-ranking",
+      "low_cells_supporting"
+    ],
+    [
+      "surfaceome-cohort-ranking",
+      "protein_only_agreement"
+    ],
+    [
+      "surfaceome-family-classification",
+      "low_confidence_family_call"
+    ],
+    [
+      "target-pdx-drug-response",
+      "pdx_target_is_drug_rollup"
+    ],
+    [
+      "tumor-scrna-celltype-expression",
+      "no_malignant_compartment"
+    ],
+    [
+      "tumor-vs-normal-protein-abundance-tphp",
+      "tphp_tvn_data_unavailable"
+    ],
+    [
+      "tumor-vs-normal-protein-abundance-tphp",
+      "tphp_tvn_normal_arm_is_the_atlas"
+    ],
+    [
+      "tumor-vs-normal-protein-abundance-tphp",
+      "tphp_tvn_pan_cancer_extremum"
+    ],
+    [
+      "tumor-vs-normal-selectivity",
+      "tvn_adjacent_only"
+    ],
+    [
+      "tumor-vs-normal-selectivity",
+      "tvn_gtex_only"
+    ]
+  ],
+  "thresholds": {
+    "high": 0.9,
+    "low": 0.01,
+    "min_evaluable": 20
+  }
+}

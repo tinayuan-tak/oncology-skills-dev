@@ -51,6 +51,7 @@ from pathlib import Path
 from typing import Callable, Optional
 
 from . import (
+    card_warnings,
     fired_rules,
     make_decision_json,
     modality_lens,
@@ -260,11 +261,18 @@ def _envelope_card_present(card: dict) -> dict:
     schema's card_present requires validation_state + provenance and forbids extra keys
     (unevaluatedProperties: false), so we build a fresh, schema-shaped dict.
     """
-    return {
+    summary = card.get("summary", {}) or {}
+    # Stage-4 warnings: evaluate the card's authored warning_predicates against this summary. A fired,
+    # discriminating (non-E2-suppressed) predicate flips validation_state to passed_with_warnings and lists
+    # its warning_id. Best-effort + verdict-inert: it annotates run_health, never a verdict; the schema's
+    # card_present already permits both (validation_state enum + warning_ids). A predicate that cannot be
+    # decided (unknown field) never fires.
+    warning_ids = card_warnings.fired_warnings(card["card_id"], summary)
+    entry = {
         "card_id": card["card_id"],
         "card_version": card.get("card_version", "1.0.0"),
-        "validation_state": "pass",
-        "summary": card.get("summary", {}) or {},
+        "validation_state": "passed_with_warnings" if warning_ids else "pass",
+        "summary": summary,
         "interpretation_call": card.get("interpretation_call") or "uninterpreted",
         "caveats": card.get("caveats", []),
         # Merge the schema-required keys into whatever provenance the card carries — a subskill
@@ -273,6 +281,9 @@ def _envelope_card_present(card: dict) -> dict:
         # --emit evidence-package). Defaults first, card values override.
         "provenance": {**{"method_calls": [], "input_manifest_ids": []}, **(card.get("provenance") or {})},
     }
+    if warning_ids:
+        entry["warning_ids"] = warning_ids
+    return entry
 
 
 def _emit_subskill_envelope(
@@ -360,10 +371,11 @@ def _emit_subskill_envelope(
         "data_mode": _GOVERNANCE_DATA_MODE.get(args.data_mode, "exploratory"),
         "release_pin": args.release_pin,
     }
+    _n_with_warnings = sum(1 for c in env_present if c.get("validation_state") == "passed_with_warnings")
     validation_summary = {
         "n_cards_attempted": len(emitted_cards),
         "n_cards_passed": len(env_present),
-        "n_cards_passed_with_warnings": 0,
+        "n_cards_passed_with_warnings": _n_with_warnings,
         "n_cards_failed": len(env_unavailable),
         "n_cards_excluded_by_applies_when": 0,
     }

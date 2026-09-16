@@ -28,9 +28,21 @@ run_health (validation_state → passed_with_warnings + warning_ids) is a separa
 from __future__ import annotations
 
 import ast
+import json
 import operator
 import re
+from functools import lru_cache
+from pathlib import Path
 from typing import Optional
+
+import yaml
+
+# The E2 calibration register: (card_id, warning_id) pairs whose predicate is NON-DISCRIMINATING (fires on
+# >90% or <1% of runs, measured over the corpus) — such a predicate carries ~no per-run information, so it
+# is reported to calibration, NOT emitted as a per-run warning (else the warning channel inherits the exact
+# non-discrimination problem the emission arc diagnoses). Absent file → no suppression (fail-open to
+# emitting, which is safe: a missing register just means warnings are un-calibrated, never wrong).
+_CALIBRATION_PATH = Path(__file__).resolve().parent / "warning_calibration.json"
 
 _CMP = {
     ast.Eq: operator.eq,
@@ -179,4 +191,54 @@ def triage_predicate(predicate: str, known_fields: set) -> tuple[bool, str]:
     return (True, "fireable")
 
 
-__all__ = ["evaluate", "triage_predicate"]
+@lru_cache(maxsize=None)
+def _card_warning_spec(card_id: str, contracts_root_str: str) -> tuple:
+    """`((warning_id, if_expr), ...), thresholds` for a card — loaded from its contract. `((), {})` when
+    the card yaml is absent or unreadable (best-effort; never raises into the emission path)."""
+    cf = Path(contracts_root_str) / "cards" / f"{card_id}.card.yaml"
+    if not cf.is_file():
+        return ((), {})
+    try:
+        spec = yaml.safe_load(cf.read_text()) or {}
+    except yaml.YAMLError:
+        return ((), {})
+    preds = tuple(
+        (w.get("warning_id"), w.get("if", ""))
+        for w in (spec.get("warning_predicates") or [])
+        if isinstance(w, dict) and w.get("warning_id")
+    )
+    return (preds, spec.get("thresholds") or {})
+
+
+@lru_cache(maxsize=1)
+def _load_calibration() -> frozenset:
+    """The E2 register as `{(card_id, warning_id)}` to suppress. Empty when the file is absent."""
+    if not _CALIBRATION_PATH.is_file():
+        return frozenset()
+    try:
+        d = json.loads(_CALIBRATION_PATH.read_text())
+    except (json.JSONDecodeError, OSError):
+        return frozenset()
+    return frozenset((c, w) for c, w in d.get("suppressed", []))
+
+
+def fired_warnings(card_id: str, summary: dict, contracts_root=None, apply_calibration: bool = True) -> list:
+    """The `warning_id`s whose predicate fires True on this card `summary`.
+
+    Loads the card's `warning_predicates` + `thresholds` from its contract and evaluates each. A predicate
+    that cannot be decided (`evaluate()` is None — unknown field, etc.) never fires. When
+    `apply_calibration`, E2 non-discriminating (card_id, warning_id) pairs are skipped. Best-effort:
+    absent card / no predicates → []."""
+    from _skills_common.paths import target_contracts_root
+
+    root = contracts_root or target_contracts_root()
+    preds, thresholds = _card_warning_spec(card_id, str(root))
+    if not preds:
+        return []
+    suppressed = _load_calibration() if apply_calibration else frozenset()
+    return [
+        wid for wid, expr in preds if (card_id, wid) not in suppressed and evaluate(expr, summary, thresholds) is True
+    ]
+
+
+__all__ = ["evaluate", "triage_predicate", "fired_warnings"]

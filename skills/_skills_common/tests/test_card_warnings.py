@@ -73,3 +73,45 @@ def test_triage_classifies():
     assert fire is False and "unsupported construct" in reason
     fire, reason = cw.triage_predicate("arr.0.v >= 1", kf)
     assert fire is False and "does not parse" in reason
+
+
+# ── Stage-4 inc-2: fired_warnings (loader + calibration) + the dispatcher wiring ──────────────────────
+
+_CID = "adc-tce-modality-fit"
+
+
+def test_fired_warnings_loads_predicates_and_evaluates():
+    # the card's `modality_ambiguous_needs_biology_context` predicate is `fit_class == 'modality_ambiguous'`
+    fired = cw.fired_warnings(_CID, {"fit_class": "modality_ambiguous"}, apply_calibration=False)
+    assert "modality_ambiguous_needs_biology_context" in fired
+    assert cw.fired_warnings(_CID, {"fit_class": "adc_favored"}, apply_calibration=False) == []
+    assert cw.fired_warnings("no-such-card", {"x": 1}) == []  # absent card, best-effort
+
+
+def test_calibration_register_loads_the_committed_suppressed_set():
+    reg = cw._load_calibration()
+    assert len(reg) >= 50  # the committed register suppresses ~64 non-discriminating pairs
+    assert (_CID, "isoform_selective_grades_suppressed") in reg  # a measured 0%-firing pair
+
+
+def test_calibration_suppresses_a_fired_but_nondiscriminating_warning(monkeypatch):
+    cw._load_calibration.cache_clear()
+    monkeypatch.setattr(
+        cw, "_load_calibration", lambda: frozenset({(_CID, "modality_ambiguous_needs_biology_context")})
+    )
+    s = {"fit_class": "modality_ambiguous"}
+    assert cw.fired_warnings(_CID, s, apply_calibration=True) == []  # suppressed
+    assert "modality_ambiguous_needs_biology_context" in cw.fired_warnings(
+        _CID, s, apply_calibration=False
+    )  # still fires uncalibrated
+
+
+def test_dispatcher_envelope_wires_validation_state_and_warning_ids():
+    from _skills_common.dispatcher import _envelope_card_present
+
+    fired = _envelope_card_present({"card_id": _CID, "summary": {"fit_class": "modality_ambiguous"}})
+    assert fired["validation_state"] == "passed_with_warnings"
+    assert "modality_ambiguous_needs_biology_context" in fired["warning_ids"]
+    clean = _envelope_card_present({"card_id": _CID, "summary": {"fit_class": "adc_favored"}})
+    assert clean["validation_state"] == "pass"
+    assert "warning_ids" not in clean  # no key when none fire (schema stays clean)
