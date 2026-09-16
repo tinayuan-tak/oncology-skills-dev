@@ -121,3 +121,21 @@ def test_coverage_report_surfaces_a_nonempty_work_queue():
 
 def test_catalog_is_deterministic():
     assert fd.descriptor_catalog() == fd.descriptor_catalog()
+
+
+def test_every_descriptor_carries_a_source_class_and_all_are_instrument_today():
+    """Epistemic provenance is a first-class descriptor field. Every salience measurement_type is
+    instrument-derived (the LLM-lit skills emit grounded_findings, not salience effect fields), so all
+    descriptors are `instrument` today — a MEASURED fact, guarded here so a future non-instrument type is
+    a deliberate, reviewed addition rather than a silent reclassification."""
+    for fields in fd.descriptor_catalog().values():
+        for d in fields.values():
+            assert d["source_class"] in fd.SOURCE_CLASSES
+            assert d["source_class"] == fd.SOURCE_INSTRUMENT
+    rep = fd.coverage_report()
+    assert rep["source_class_counts"] == {fd.SOURCE_INSTRUMENT: rep["n_descriptor_fields"]}
+
+
+def test_source_class_for_defaults_to_instrument():
+    assert fd.source_class_for("a_type_with_no_override") == fd.SOURCE_INSTRUMENT
+    assert fd.source_class_for(None) == fd.SOURCE_INSTRUMENT

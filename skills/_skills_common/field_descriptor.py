@@ -113,10 +113,33 @@ def _spec_frame_value_fields(spec: dict) -> list:
     return out
 
 
+# epistemic provenance — HOW a datum is known, not just what it is (see the plan's "Epistemic provenance"
+# section). A measured instrument reading, an LLM-extracted literature claim, and an LLM narrative are three
+# different classes with different integrity rules (byte-determinism vs a resolving citation vs pinned-to-
+# inputs). It is a property of a measurement_type's DATA SOURCE, not of a field name.
+SOURCE_INSTRUMENT = "instrument"  # deterministic pipeline reading (DepMap/HPA/expression/…): the default
+SOURCE_LITERATURE_LLM = "literature_llm"  # an LLM lit-search claim — evidence, but citation-checkable, tagged
+SOURCE_NARRATIVE_LLM = "narrative_llm"  # LLM interpretation (synthesis) — asserts no datum; never in a descriptor
+SOURCE_CLASSES: frozenset = frozenset({SOURCE_INSTRUMENT, SOURCE_LITERATURE_LLM, SOURCE_NARRATIVE_LLM})
+
+# reviewed measurement_type → source_class overrides. EMPTY today, and that is a MEASURED fact, not a stub:
+# all 61 SALIENCE_SPECS measurement types are instrument-derived — the LLM-lit skills
+# (literature-context / literature-risk-assessment) produce grounded_findings + citations, NOT
+# salience-spec effect fields, so no descriptor here is literature_llm. Extend per reviewed type; a blanket
+# classification must never be shipped.
+_SOURCE_CLASS_BY_MEASUREMENT_TYPE: dict = {}
+
+
+def source_class_for(measurement_type: Optional[str]) -> str:
+    """The epistemic source class of a measurement_type's data — reviewed override, else `instrument`."""
+    return _SOURCE_CLASS_BY_MEASUREMENT_TYPE.get(measurement_type, SOURCE_INSTRUMENT)
+
+
 def _descriptor(field: str, measurement_type: str, role: str, spec: dict) -> dict:
     """One field's descriptor: structure (role + where its q/omnibus/n live) joined to semantics
-    (label/units/direction from the gloss). The effect field carries the pointers to its own
-    significance/omnibus/n so a reader gets the whole tuple from the one record."""
+    (label/units/direction from the gloss) + epistemic provenance (source_class). The effect field
+    carries the pointers to its own significance/omnibus/n so a reader gets the whole tuple from the
+    one record."""
     label, units = display_gloss.gloss(field)
     # direction is a property of the effect axis (and the frame it is gauged on), not of a q or a count.
     direction = spec.get("direction") if role in (ROLE_EFFECT, ROLE_FRAME_VALUE) else None
@@ -129,6 +152,7 @@ def _descriptor(field: str, measurement_type: str, role: str, spec: dict) -> dic
         "direction": direction,
         "direction_phrase": display_gloss.direction_phrase(direction) if direction else None,
         "atlas_live": role == ROLE_FRAME_VALUE,
+        "source_class": source_class_for(measurement_type),  # how it is known (default instrument)
     }
     if role == ROLE_EFFECT:
         # the pointers that turn a bare effect into a signal: where its significance/omnibus/n live.
@@ -238,10 +262,12 @@ def coverage_report(summaries: Optional[list] = None) -> dict:
     fabricating roles, not that coverage is complete."""
     catalog = descriptor_catalog()
     role_counts: Counter = Counter()
+    source_counts: Counter = Counter()
     numeric_ungloss: list = []  # NUMERIC-role fields with no curated (label, units) — the real semantic gap
     for mt, fields in catalog.items():
         for field, d in fields.items():
             role_counts[d["role"]] += 1
+            source_counts[d["source_class"]] += 1
             # a numeric field wants a curated METRIC_GLOSS entry; its absence (gloss fell back to the
             # snake->space default) is a real gap. Categorical/label/strata fields read fine from the
             # fallback and are excluded.
@@ -251,6 +277,7 @@ def coverage_report(summaries: Optional[list] = None) -> dict:
         "n_measurement_types": len(catalog),
         "n_descriptor_fields": sum(len(v) for v in catalog.values()),
         "role_counts": dict(role_counts),
+        "source_class_counts": dict(source_counts),  # epistemic provenance mix (all instrument today)
         "n_atlas_live": role_counts.get(ROLE_FRAME_VALUE, 0),
         "numeric_fields_without_gloss": sorted(set(numeric_ungloss)),
     }
@@ -272,6 +299,11 @@ def coverage_report(summaries: Optional[list] = None) -> dict:
 __all__ = [
     "ROLES",
     "ENVELOPE_FIELDS",
+    "SOURCE_CLASSES",
+    "SOURCE_INSTRUMENT",
+    "SOURCE_LITERATURE_LLM",
+    "SOURCE_NARRATIVE_LLM",
+    "source_class_for",
     "descriptors_for",
     "descriptor_catalog",
     "describe_field",
