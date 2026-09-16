@@ -32,7 +32,54 @@ _MIN_COVERED = 20  # pooled n_cov floor to rank a gene (mirrors the GENIE per-co
 # instead of rebuilding the pooled null LIVE — which loads the MSK-CHORD + GENIE panel-coverage maps
 # and scans every cohort's MAF (~8-10s, the dominant cost of the mutation-hotspot-frequency card's
 # pooled arm). Resolved lazily so import never breaks before the manifest is registered.
-_POOLED_PRODUCT_ID = "pooled-snv-recurrence-v1"
+#
+# v2 (2026-09-16) rebuilds the same schema against today's upstreams. v1 was materialized 2026-08-19
+# against a FOUR-indication tcga-mc3-hotspot-frequency-v1, so BRCA and PRAD pooled the MSK-CHORD arm
+# ALONE — 469 and 464 genes. That upstream now carries 31 indications including both, and GENIE serves
+# both independently, so the same code pools all three arms: BRCA 469→16785 genes, PRAD 464→10711.
+# Nothing in the producer hardcodes an indication→cohort map; availability is discovered per reader.
+_POOLED_PRODUCT_ID = "pooled-snv-recurrence-v2"
+
+# Assay breadth per cohort, for the context string's noun phrase. A percentile among PANEL genes and
+# a percentile among EXOME-WIDE genes are materially different claims — panels are deliberately
+# enriched for recurrently-mutated drivers, so their reference set is pre-selected for the very
+# property being ranked, making a top-1% rank there much weaker. Naming the breadth in the prose is
+# the human-readable half of what n_ranked_genes exposes to machines; getting it wrong (as the
+# hardcoded "panel-covered genes" did for every pool containing whole-exome TCGA-MC3) overstates or
+# understates the evidence at exactly the point a reader is deciding how much to believe it.
+_COHORT_ASSAY_BREADTH = {"TCGA-MC3": "exome", "GENIE": "panel", "MSK-CHORD": "panel"}
+
+
+def _frame_noun_phrase(frame_cohorts) -> str:
+    """Noun phrase for WHAT the percentile's reference set contains, derived from the cohorts that
+    built that reference set.
+
+    Single source of the wording: the live path and the product path both call it, so the two context
+    strings cannot drift apart (they are asserted byte-identical). Note the argument is the cohorts of
+    the FRAME — the union over every ranked gene in the indication — NOT the cohorts of the one gene
+    being reported. A GENIE-only gene can sit in an exome-wide frame, and it is the frame that the
+    percentile is measured against.
+
+    An UNRECOGNIZED cohort falls through to the breadth-neutral phrase rather than to either claim: a
+    new arm whose assay we cannot classify must not silently inherit "exome-wide" (which would
+    overstate) or "panel-covered" (which would understate)."""
+    cohorts = [c for c in (frame_cohorts or []) if c]
+    breadths = {_COHORT_ASSAY_BREADTH.get(c) for c in cohorts}
+    if not cohorts or None in breadths:
+        return "pooled-covered genes"
+    if breadths == {"panel"}:
+        return "panel-covered genes"
+    return "pooled-covered genes (exome-wide, not panel-preselected)"
+
+
+def ranked_frame_cohorts(ranked_entries) -> list:
+    """Sorted union of the cohorts behind the ranked reference set — the frame's composition, as
+    opposed to one gene's. Shared by the live path and the product builder so the value stored in the
+    product is the same one the live path would compute."""
+    out: set[str] = set()
+    for e in ranked_entries:
+        out.update(e["cohorts"])
+    return sorted(out)
 
 
 # ── pure pooling core (unit-testable, no I/O) ─────────────────────────────────────────────────────
@@ -148,6 +195,14 @@ def _pooled_from_product(target: str, indication: str, cutoffs: dict = None):
         row = df.iloc[0]
         cohorts = str(row["cohorts_contributing"]).split(",") if row["cohorts_contributing"] else []
         n_ranked = int(row["n_ranked_genes"])
+        # Frame composition is an INDICATION-level property, so it cannot be derived from this one
+        # pushed-down row's own cohorts — v2 records it as a column. A pre-v2 vintage lacks the column
+        # entirely (row.get → None) and its breadth is then genuinely unknown, so _frame_noun_phrase's
+        # neutral fall-through is the honest answer rather than a re-guess.
+        raw_frame = row.get("ranked_frame_cohorts")
+        if raw_frame is None or (isinstance(raw_frame, float) and pd.isna(raw_frame)):
+            raw_frame = ""
+        frame_cohorts = str(raw_frame).split(",") if raw_frame else []
         return {
             "pooled_mutation_frequency": float(row["pooled_mutation_frequency"]),
             "n_covered_pooled": int(row["n_covered_pooled"]),
@@ -162,7 +217,7 @@ def _pooled_from_product(target: str, indication: str, cutoffs: dict = None):
             "n_ranked_genes": n_ranked,
             "pooled_recurrence_context": (
                 f"pooled {'+'.join(cohorts)} — {target} ranks among {n_ranked} "
-                f"panel-covered genes in {indication} (summed-counts/summed-coverage)"
+                f"{_frame_noun_phrase(frame_cohorts)} in {indication} (summed-counts/summed-coverage)"
             ),
         }
     except Exception as e:  # noqa: BLE001
@@ -223,7 +278,8 @@ def pooled_recurrence_for_gene(target: str, indication: str, cutoffs: dict = Non
             "pooled_recurrence_context": f"{target} covered by no pooled cohort in {indication}",
         }
     freq = entry["n_mut"] / entry["n_cov"]
-    null_vec = tuple(e["n_mut"] / e["n_cov"] for e in pooled.values() if e["n_cov"] >= _MIN_COVERED)
+    ranked = [e for e in pooled.values() if e["n_cov"] >= _MIN_COVERED]
+    null_vec = tuple(e["n_mut"] / e["n_cov"] for e in ranked)
     if entry["n_cov"] < _MIN_COVERED or not null_vec:
         pct, cls = None, "data_unavailable"
         note = f"{target} pooled coverage {entry['n_cov']} < {_MIN_COVERED} (too thin to rank)"
@@ -234,7 +290,8 @@ def pooled_recurrence_for_gene(target: str, indication: str, cutoffs: dict = Non
         cls = classify_percentile(pct, cutoffs or DEFAULT_CUTOFFS)
         note = (
             f"pooled {'+'.join(entry['cohorts'])} — {target} ranks among {len(null_vec)} "
-            f"panel-covered genes in {indication} (summed-counts/summed-coverage)"
+            f"{_frame_noun_phrase(ranked_frame_cohorts(ranked))} in {indication} "
+            f"(summed-counts/summed-coverage)"
         )
     return {
         "pooled_mutation_frequency": freq,
@@ -265,6 +322,10 @@ def build_pooled_recurrence_table(indication: str):
     null_vec = tuple(e["n_mut"] / e["n_cov"] for e in rankable.values())
     n_ranked = len(null_vec)  # == len(null_vec) in pooled_recurrence_for_gene → lets the product-read
     # reader reconstruct the context string byte-identically (see _pooled_from_product).
+    # Same reason, for the other half of that string: the frame's noun phrase depends on the cohorts
+    # behind the WHOLE reference set, which a single pushed-down row cannot recover from its own
+    # cohorts_contributing. Denormalized onto every row so the pushdown stays one-row.
+    frame_cohorts = ",".join(ranked_frame_cohorts(rankable.values()))
     rows = []
     for gene, e in rankable.items():
         freq = e["n_mut"] / e["n_cov"]
@@ -280,6 +341,7 @@ def build_pooled_recurrence_table(indication: str):
                 "pooled_driver_recurrence_class": classify_percentile(pct, DEFAULT_CUTOFFS),
                 "cohorts_contributing": ",".join(e["cohorts"]),
                 "n_ranked_genes": n_ranked,
+                "ranked_frame_cohorts": frame_cohorts,
             }
         )
     rows.sort(key=lambda r: r["gene_symbol"])
@@ -300,5 +362,9 @@ def _schema():
             pa.field("pooled_driver_recurrence_class", pa.string()),
             pa.field("cohorts_contributing", pa.string()),
             pa.field("n_ranked_genes", pa.int64()),
+            # Cohorts behind the INDICATION's whole ranked reference set (this row's own cohorts are
+            # cohorts_contributing, and the two differ whenever the arms cover different genes). New
+            # in v2; absent in v1, which the reader tolerates.
+            pa.field("ranked_frame_cohorts", pa.string()),
         ]
     )

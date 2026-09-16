@@ -33,7 +33,7 @@ def test_pool_ignores_zero_coverage():
 def _install(monkeypatch, mc3=None, genie=None, msk=None):
     # Force the LIVE pooled computation over the monkeypatched cohorts: pooled_recurrence_for_gene tries
     # the precomputed product first, so stub it absent (else this offline test would attempt a real S3
-    # read of pooled-snv-recurrence-v1).
+    # read of pooled-snv-recurrence-v2).
     monkeypatch.setattr(pr, "_pooled_from_product", lambda *a, **k: None)
     monkeypatch.setattr(pr, "_mc3_gene_counts", lambda ind: mc3 or {})
     monkeypatch.setattr(pr, "_genie_gene_counts", lambda ind: genie or {})

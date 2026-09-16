@@ -54,16 +54,25 @@ def test_a_ranked_gene_reports_the_size_of_the_set_it_was_ranked_against(monkeyp
 
 def test_the_field_agrees_with_the_number_in_the_prose_it_replaces(monkeypatch):
     """The field and the sentence must not be able to drift apart — they are the same quantity, and
-    the prose is what consumers have been reading until now."""
+    the prose is what consumers have been reading until now.
+
+    Deliberately anchored on the COUNT only. This regex originally read "ranks among (\\d+)
+    panel-covered genes" and so failed when the noun phrase was corrected to reflect the pool's actual
+    assay breadth — a hardcoded phrase turns a test of the NUMBER into a test of the WORDING. The
+    wording is pinned separately, against _frame_noun_phrase, in test_frame_composition.py."""
     mc3 = {"KRAS": (250, 500)}
     mc3.update({f"G{i}": (1, 500) for i in range(120)})
     _install(monkeypatch, mc3=mc3)
 
     r = pr.pooled_recurrence_for_gene("KRAS", "COADREAD")
 
-    in_prose = re.search(r"ranks among (\d+) panel-covered genes", r["pooled_recurrence_context"])
+    in_prose = re.search(r"ranks among (\d+) ", r["pooled_recurrence_context"])
     assert in_prose, f"context string changed shape: {r['pooled_recurrence_context']!r}"
     assert int(in_prose.group(1)) == r["n_ranked_genes"]
+    # ... and the noun phrase after the count is the one the frame's composition warrants. This is a
+    # single-cohort fixture, so the gene's cohorts and the frame's coincide and either may be passed.
+    expected = f"{r['n_ranked_genes']} {pr._frame_noun_phrase(r['cohorts_contributing'])}"
+    assert expected in r["pooled_recurrence_context"]
 
 
 def test_two_indications_with_different_reference_sets_are_now_distinguishable(monkeypatch):
