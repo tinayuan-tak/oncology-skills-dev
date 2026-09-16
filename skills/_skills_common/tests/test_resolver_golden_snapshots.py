@@ -17,10 +17,19 @@ card field holds one value, so rules keying on different values of that field ar
 exclusive and can never co-fire (the trap behind the T1.1 dead-`discordant` finding). The table now
 enumerates only the fired-sets that are genuinely co-emission-reachable, derived from the
 interpretation-rules' (card_id, field) bindings (see _skills_common/tests/coemission.py). This:
-  - SHRINKS the file (~105k -> ~4k rows across 9 gates; 41.5 MB -> <1 MB) so EVERY gate freezes
-    its FULL rule set (retiring tractability's core-16 subset + the separate 2**18 100 MB-workaround
-    oracle — the power set couldn't be stored past ~17 rungs under GitHub's 100 MB limit), and
-  - is HONEST — every frozen combo is a physically-possible card state.
+  - SHRINKS the file vs the full power set so EVERY gate freezes its FULL rule set (retiring
+    tractability's core-16 subset + the separate 2**18 100 MB-workaround oracle — the power set
+    couldn't be stored past ~17 rungs under GitHub's 100 MB limit). SIZE (re-measured 2026-09-16):
+    68,630 rows / ~21.7 MB across 9 gates vs ~5.64M power-set combos (~82x smaller). The original D5
+    figure of "~4k rows / <1 MB" was the 2026-08-09 rule set; the count has grown WITH the rules
+    (genomic + tractability each added CN/fusion/splice/structure/chembl rungs) — expected, since the
+    reachable count is prod(group_size + 1) * 2**n_free and both terms grow as rungs land.
+  - is HONEST for same-(card, field) exclusivity — every frozen combo is reachable under the model
+    that rules keying on different values of ONE card field are mutually exclusive. KNOWN LIMIT: it
+    does NOT model CROSS-field exclusivity, so a bounded number of frozen combos may be physically
+    incoherent (e.g. a low-confidence structure co-firing with a druggable-pocket call on different
+    fields of one card). Harmless — extra impossible INPUTS get verified, never a wrong verdict — but
+    the table is an UPPER bound on truly-reachable states, not exact.
 
 COVERAGE PRESERVED (test_coemission_is_reachable_subset below proves it): every co-emission fired-set
 is a subset of the old power set (nothing invented), and every co-emission-reachable power-set combo is

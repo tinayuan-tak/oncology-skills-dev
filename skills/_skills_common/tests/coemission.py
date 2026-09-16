@@ -29,8 +29,10 @@ unique (or that use a non-value condition) are INDEPENDENT and toggle on/off fre
 Enumeration = cartesian product over [ each group: (none) + one-per-member ] x [ each free rule: off/on ].
   co-emission-reachable count = prod(group_size + 1 for each group) * 2**(n_free)
 
-vs the power set's 2**n. For the 9 shipped gates this is ~5,000 combos total vs ~105,000 (21x smaller),
-and every gate now fits a single frozen table over its FULL rule set (no core-N subset, no 100 MB wall).
+vs the power set's 2**n. For the 9 shipped gates this is 68,630 combos total vs ~5.64M (~82x smaller,
+re-measured 2026-09-16; the original D5 note said ~5k vs ~105k for the 2026-08-09 rule set — both terms
+of prod(group_size + 1) * 2**n_free grow as rungs are added), and every gate fits a single frozen table
+over its FULL rule set (no core-N subset, no 100 MB wall).
 
 ## Coverage-preservation invariant (the safety proof)
 
