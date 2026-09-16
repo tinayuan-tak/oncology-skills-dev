@@ -85,7 +85,10 @@ _GRADUATION_RUN_EXEMPT = {
     "catalog-query": "read-only data-catalog QUERY capability — no --target/--indication data-package tree.",
     "cross-evidence-hypothesis": "LLM reasoning skill (Bedrock) over a prebuilt evidence_package — not a card-dispatch data-package run.",
     "literature-risk-assessment": "LLM + PubMed retrieval skill (Bedrock/network) — non-reproducible, different CLI/shape.",
-    "target-archetype": "atlas/scoring skill (frozen model over an evidence package) — different entrypoint, not a per-target card dispatch.",
+    # target-archetype DEFERRED as WIP 2026-09-16: SKILL.md renamed to SKILL.md.deferred, so it is no
+    # longer wired/partial and MUST leave this dict (a stale exempt entry reds
+    # test_every_wired_skill_is_gated_or_exempt). The skill + frozen atlas stay on disk as WIP; re-add
+    # this entry if/when it graduates back to wired/partial.
     # bispecific-pair-scan RETIRED 2026-09-11 (with surfaceome-cohort-ranking): the two standalone
     # SCAN-HOOK skills. Both hand-rolled main() outside the card/resolver spine, so every harness
     # needed a bespoke exemption for them (this dict, _SKIP_DIRS in framework_health_smoke) and

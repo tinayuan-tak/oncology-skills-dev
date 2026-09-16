@@ -32,7 +32,6 @@
         "./skills/query-target-evidence",
         "./skills/render-evidence-package",
         "./skills/surface-modality-fit",
-        "./skills/target-archetype",
         "./skills/target-intrinsic",
         "./skills/target-profile",
         "./skills/tractability-small-molecule",
