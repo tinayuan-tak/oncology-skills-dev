@@ -745,6 +745,7 @@ class HtmlBackend:
             vocab.UNMEASURED: self._unmeasured,
             vocab.ABOUT: self._about,
             vocab.SIGNALS_OVERVIEW: self._signals_overview,
+            vocab.EVIDENCE_SIGNALS: self._evidence_signals,
             vocab.RISK_6DIM: self._risk_6dim,
             vocab.SYNTHESIS: self._synthesis,
             vocab.COHERENCE: self._coherence,
@@ -1449,6 +1450,35 @@ class HtmlBackend:
             foot += " &nbsp;·&nbsp; descriptive context: " + _esc(", ".join(desc))
         foot += "</p>"
         return [f"<h2>Signals across subskills</h2>{lede}<div class='signal-strip'>{svg}</div>{foot}"]
+
+    def _evidence_signals(self, p: dict) -> list:
+        """The salient measured fields as a table, grouped implicitly by subskill — the evidence deep-dive.
+        Each row is one card's decisive datum (or reference-frame ruler) read verbatim from the spine; no
+        ranking, no per-skill pick — relevance is the field's salience role."""
+        rows = p.get("rows") or []
+        if not rows:
+            return []
+        out = [
+            "<h2>Measured evidence</h2>",
+            "<p class='lede'>The salient measured field per evidence card — the decisive datum "
+            "(effect · significance · n) read from the evidence graph, grouped by subskill. Relevance is "
+            "the field's salience role, not a ranking.</p>",
+            "<table class='evsig'><thead><tr><th>subskill</th><th>measurement</th><th>reading</th>"
+            "<th>n</th></tr></thead><tbody>",
+        ]
+        for r in rows:
+            datum = r.get("reading") or r.get("gauge") or ""
+            n = r.get("n")
+            out.append(
+                "<tr><td>{}</td><td>{}</td><td>{}</td><td>{}</td></tr>".format(
+                    _esc(r.get("title") or ""),
+                    _esc(r.get("measurement_type") or r.get("card_id") or ""),
+                    _esc(datum),
+                    _esc("" if n is None else str(n)),
+                )
+            )
+        out.append("</tbody></table>")
+        return out
 
     _DIM_CLASS = {3: "risk-high", 2: "risk-med", 1: "risk-low"}
     _DIM_LEVEL = {3: "HIGH", 2: "MED", 1: "LOW"}

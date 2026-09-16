@@ -29,6 +29,7 @@ class TextBackend:
             vocab.UNMEASURED: self._unmeasured,
             vocab.ABOUT: self._about,
             vocab.SIGNALS_OVERVIEW: self._signals_overview,
+            vocab.EVIDENCE_SIGNALS: self._evidence_signals,
             vocab.RISK_6DIM: self._risk_6dim,
             vocab.SYNTHESIS: self._synthesis,
             vocab.COHERENCE: self._coherence,
@@ -272,6 +273,27 @@ class TextBackend:
         desc = p.get("descriptive") or []
         if desc:
             out.append(f"descriptive (context): {', '.join(desc)}")
+        return out
+
+    def _evidence_signals(self, p: dict) -> list:
+        """The salient measured fields, grouped by skill — the evidence deep-dive. Each line is one card's
+        decisive datum (or its reference-frame ruler), read verbatim from the spine; no ranking."""
+        rows = p.get("rows") or []
+        if not rows:
+            return []
+        out = self._h2("Measured evidence")
+        cur = None
+        for r in rows:
+            if r.get("title") != cur:
+                cur = r.get("title")
+                out.append(f"{cur}:")
+            datum = r.get("reading") or r.get("gauge") or ""
+            label = r.get("measurement_type") or r.get("card_id") or ""
+            line = f"{label} — {datum}" if datum else label
+            n = r.get("n")
+            if n is not None:
+                line += f" (n={n})"
+            out.append(self._bullet(line))
         return out
 
     def _risk_6dim(self, p: dict) -> list:

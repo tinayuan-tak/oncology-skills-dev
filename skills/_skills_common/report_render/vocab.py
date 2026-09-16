@@ -139,6 +139,9 @@ UNMEASURED = "unmeasured"  # fail-soft placeholder: an expected slot was empty (
 ABOUT = "about"  # the honesty legend / disclaimer
 # report-level overview blocks (absorbed from the tp_dashboard v2 design, spine-sourced):
 SIGNALS_OVERVIEW = "signals_overview"  # one row per scored skill: diverging signal strip (the lead)
+EVIDENCE_SIGNALS = "evidence_signals"  # salient MEASURED fields across scored skills (effect · units ·
+# direction · significance · measured), read as descriptor tuples — the evidence itself, NOT a ranked
+# verdict. Relevance is the per-field salience role, so every card's salient datum shows; nothing is picked.
 RISK_6DIM = "risk_6dim"  # the 6-category deterministic risk rollup (tiles)
 # parity blocks (bring report_render to content-parity with the legacy target_profile.html/.md):
 SYNTHESIS = "synthesis"  # LLM narrative (executive summary / tensions / arguments)
@@ -182,6 +185,7 @@ BLOCK_KINDS: frozenset = frozenset(
         UNMEASURED,
         ABOUT,
         SIGNALS_OVERVIEW,
+        EVIDENCE_SIGNALS,
         RISK_6DIM,
         SYNTHESIS,
         COHERENCE,
@@ -207,6 +211,7 @@ BLOCK_KINDS: frozenset = frozenset(
 TIER: dict[str, int] = {
     REPORT_HEADER: 0,
     SIGNALS_OVERVIEW: 0,  # the lead — a one-glance read across all scored skills
+    EVIDENCE_SIGNALS: 2,  # the salient measured fields — evidence depth (the deep dive; additive at L2+)
     RISK_6DIM: 1,  # governance risk rollup — summary depth up
     SYNTHESIS: 1,  # LLM narrative — summary depth up (suppressed by --no-synthesis upstream)
     COHERENCE: 1,
@@ -273,6 +278,7 @@ LENS_TITLE: dict[str, str] = {
 # lens=None). A block kind absent from this map is un-lensed and renders in the flat fallback path.
 BLOCK_LENS: dict[str, str] = {
     SIGNALS_OVERVIEW: LENS_SIGNALS,
+    EVIDENCE_SIGNALS: LENS_SIGNALS,  # salient measured fields — the evidence deep-dive in the Signals lens
     SIGNALS_SCATTER: LENS_SIGNALS,  # the report-level 15-skill scatter
     CROSS_CUTTING_QUESTIONS: LENS_SIGNALS,
     COMPOSED_FINGERPRINT: LENS_DECISION,  # the composed at-a-glance grid leads the Decision lens
@@ -454,6 +460,7 @@ __all__ = [
     "UNMEASURED",
     "ABOUT",
     "SIGNALS_OVERVIEW",
+    "EVIDENCE_SIGNALS",
     "RISK_6DIM",
     "SYNTHESIS",
     "COHERENCE",

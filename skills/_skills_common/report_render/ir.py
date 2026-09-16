@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any, Optional
 
 from .. import display_gloss as _dg  # plain-language readings (metric gloss + direction + card description)
+from .. import field_descriptor as _fd  # per-field descriptor join (role/units/direction) for the evidence view
 from ..risk_projection import AXIS_TO_DIM  # verdict-bearing subskill → risk dim crosswalk (the 6-dim spine)
 from . import vocab
 from .spec import SCOPE_ALL, SCOPE_GATING, ReportSpec, resolve_spec
@@ -550,6 +551,54 @@ def _axis_not_applicable_note(short, polarity, axis_not_applicable) -> Optional[
     if rank is None or rank >= 0:  # only a measured-negative (opposing / killer) is de-escalated
         return None
     return _AXIS_NOT_APPLICABLE_NOTE
+
+
+def _evidence_signals_block(selected) -> Optional[Block]:
+    """The salient MEASURED fields across the scored skills — the evidence itself, not a ranked verdict.
+
+    One row per evidence card that carries a decisive reading. Relevance is the per-field salience role
+    (SALIENCE_SPECS, surfaced via the Step-1 descriptor), so EVERY card's salient datum shows — nothing is
+    picked, nothing is ranked into a single per-skill signal. Reuses the already-assembled readings on the
+    spine's `evidence_graph.cards[]`: `_format_key_evidence` (the decisive datum: indication-stratum effect
+    + q + omnibus + driving categorical) and the reference-frame ruler in words (`_dg.gauge_string`). The
+    machine view additionally carries the structured descriptor for the measurement_type's effect field, so
+    a programmatic reader gets (label, units, direction, role, significance_field) without prose-parsing.
+    Verdict-inert + additive (○): this block adds the evidence view; it does not touch the verdict strip."""
+    rows: list = []
+    for short, report, _role in selected:
+        eg = report.get("evidence_graph")
+        if not isinstance(eg, dict):
+            continue
+        title = vocab.skill_title(short)
+        for c in eg.get("cards") or []:
+            ke = c.get("key_evidence")
+            reading = _format_key_evidence(ke)
+            interp = (ke or {}).get("interpretation") if isinstance(ke, dict) else None
+            gauge = _dg.gauge_string(interp[0]) if interp else None
+            if not (reading or gauge):
+                continue  # no decisive measured datum on this card → not a salient signal
+            mt = c.get("measurement_type")
+            # the structured descriptor for this measurement_type's EFFECT field (Step-1 join) — machine-side
+            effect_desc = None
+            if mt:
+                effect_desc = next(
+                    (d for d in _fd.descriptors_for(mt).values() if d.get("role") == _fd.ROLE_EFFECT), None
+                )
+            rows.append(
+                {
+                    "short": short,
+                    "title": title,
+                    "card_id": c.get("id"),
+                    "measurement_type": mt,
+                    "role": c.get("role"),
+                    "reading": reading,  # the decisive datum in words (effect · q · omnibus · categorical)
+                    "gauge": gauge,  # the lead reference-frame ruler in words (gauged value vs cut/cohort)
+                    "n": (c.get("confidence") or {}).get("n"),
+                    "measured": bool(reading or gauge),
+                    "descriptor": effect_desc,  # structured (label/units/direction/role/significance_field) or None
+                }
+            )
+    return Block(vocab.EVIDENCE_SIGNALS, {"rows": rows}) if rows else None
 
 
 def _signals_overview_block(
@@ -2381,6 +2430,9 @@ def build_ir(
         vocab.SIGNALS_OVERVIEW,
         _signals_overview_block(selected, deciding_short, _thesis_primary, reconciled_shorts, axis_not_applicable),
     )
+    # the salient measured-fields evidence view (L2+) — the deep dive that carries the evidence itself,
+    # additive alongside the verdict strip above (see 2b: relevance is the per-field salience role).
+    _add(vocab.EVIDENCE_SIGNALS, _evidence_signals_block(selected))
     _add(vocab.CROSS_CUTTING_QUESTIONS, _cross_cutting_block(nomination, skill_reports))
     _add(vocab.COHERENCE, _coherence_block(tr, nomination))
     _add(vocab.SYNTHESIS, _synthesis_block(nomination, _lit_comention))
