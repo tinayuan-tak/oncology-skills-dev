@@ -1,6 +1,7 @@
 # Dashboard Rendering Contract
 
-`schema_version: 1.0.0` · derived 2026-09-10 from the reader source of truth
+`schema_version: 2.0.0` · derived 2026-09-10 from the reader source of truth (major: the 2026-09-16
+substrate-pivot ★/○ inversion — evidence is load-bearing, the verdict is optional; see the spine section)
 `skills/_skills_common/report_render/ir.py` (verified line-by-line) + producers
 `target-profile/scripts/{tp_facets,tp_fanout,tp_manifest}.py`, `_skills_common/{skill_report,evidence_graph}.py`.
 
@@ -36,15 +37,32 @@ Therefore requiredness here is about **content, not crashes**:
 
 ## The load-bearing spine (the ★ set at a glance)
 
-If any of these change name or shape, the dashboard loses the *decision itself*, not just a block:
+**★/○ INVERSION, 2026-09-16 (substrate pivot).** The load-bearing spine is now the **evidence**, not the
+verdict. A report must carry the measured evidence and, per its `lead` preset, a non-empty headline — the
+verdict fields still compute and still render, but they are no longer the interface whose absence guts the
+report. Relevance is the per-field salience role (`field_descriptor`), so the evidence carrier shows every
+salient datum, ranked by nothing.
 
-- `target_report.target_call.{recommendation, confidence, deciding_axis.deciding_axes[].short,
-  gate, dissent}`
-- `target_report.skill_reports[<short>].{call, polarity, role, evidence_graph}`
-- `target_report.risk_6dim[<dim>].bin`
-- composed index `target_report.evidence_graph.verdict.{recommendation, confidence.level,
-  deciding_shorts}` + `.skills[]`
-- per-subskill `evidence_graph.verdict.{call, polarity}` + `.questions[]` + `.cards[]`
+**★ LOAD-BEARING (the evidence):**
+- the salient measured fields — `skill_reports[<short>].evidence_graph.cards[].key_evidence` projected by
+  `_evidence_signals_block` into the `EVIDENCE_SIGNALS` block (rows + `rollup`); the block renders in every
+  backend and, when present, as the composed dashboard's "Measured evidence" view.
+- `target_report.skill_reports[<short>].{role, evidence_graph}` — the evidence graph itself (cards +
+  questions) and the role that scopes it.
+- per-subskill `evidence_graph.{questions[], cards[]}`.
+
+**★ LEAD (per preset, so a demoted headline cannot silently empty):**
+- `lead == "recommendation"` ⇒ `target_call.recommendation` present in the rendered report.
+- `lead == "deciding_axis"` ⇒ `target_call.deciding_axis.deciding_axes[].short` present.
+- `lead == "none"` ⇒ neither required.
+
+**○ optional — still computed + rendered, no longer the guaranteed spine (the demotion):**
+- `target_call.{recommendation, confidence, deciding_axis, gate, dissent}` — a legitimate summary, and the
+  Decision-lens view still shows the verdict strip; but a report may lead with evidence instead.
+- `skill_reports[<short>].{call, polarity}` — the per-skill verdict tokens.
+- `risk_6dim[<dim>].bin` — the governance roll-up bin.
+- composed index `evidence_graph.verdict.{recommendation, confidence.level, deciding_shorts}`.
+- per-subskill `evidence_graph.verdict.{call, polarity}`.
 
 ## Renderer-green gate (run after every backend structural change)
 

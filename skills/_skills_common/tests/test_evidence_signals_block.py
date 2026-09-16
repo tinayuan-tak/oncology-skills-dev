@@ -6,6 +6,7 @@ nothing is picked. The block reuses the spine's already-assembled readings + joi
 from __future__ import annotations
 
 from _skills_common.report_render import build_ir, vocab
+from _skills_common.report_render._fixtures import make_nomination
 from _skills_common.report_render.backends import render as be_render
 from _skills_common.report_render.ir import _evidence_signals_block
 from _skills_common.report_render.spec import resolve_spec
@@ -54,6 +55,17 @@ def test_every_card_shows_no_ranking_no_pick():
     assert ids == {"card-a", "card-b"}
 
 
+def test_rollup_counts_measured_vs_looked_at_but_unmeasured():
+    # one card with a decisive datum + one consulted card that surfaced none → 1 measured, 1 unmeasured.
+    # This is the roll-up over EVIDENCE (counts), not a polarity ranking.
+    blk = _evidence_signals_block(_selected([_card(id="has-datum"), _card(id="empty", key_evidence=None)]))
+    ru = blk.payload["rollup"]
+    assert ru["n_measured"] == 1
+    assert ru["n_unmeasured"] == 1
+    assert ru["n_skills"] == 1
+    assert ru["by_skill"]["dependency"] == {"title": "Functional dependency", "measured": 1, "unmeasured": 1}
+
+
 def test_fail_soft_when_no_evidence():
     assert _evidence_signals_block([("dependency", {}, "gating")]) is None  # no evidence_graph
     assert _evidence_signals_block(_selected([{"id": "x", "key_evidence": None}])) is None  # no datum
@@ -86,6 +98,45 @@ def test_tier_gated_to_evidence_depth_l2():
     ]
     assert len(at_l2) == 1  # present at evidence depth
     assert len(at_l1) == 0  # not at summary depth (TIER == 2)
+
+
+def _lead_present(ir, spec) -> bool:
+    """The lead-preset guard invariant: a demoted verdict must not leave a preset's headline empty."""
+    if spec.lead == "recommendation":
+        return bool(ir.header.payload.get("recommendation"))
+    if spec.lead == "deciding_axis":
+        return bool(ir.header.payload.get("deciding_short"))
+    return True
+
+
+def test_lead_preset_guard_headline_never_silently_empty():
+    """After the ★/○ inversion the verdict is optional — but a preset that LEADS with the recommendation
+    or the deciding axis must still render it. Guards the demotion: exec-brief/deck lead with the
+    recommendation, reviewer-dossier/full with the deciding axis."""
+    nom = make_nomination()
+    for preset in ("exec-brief", "deck", "reviewer-dossier", "full"):
+        spec = resolve_spec(preset=preset)
+        assert _lead_present(build_ir(nom, spec), spec), f"{preset}: lead field ({spec.lead}) missing"
+
+
+def test_lead_guard_can_fail_when_the_lead_is_stripped():
+    """The guard is not vacuous: strip the recommendation and a recommendation-led preset fails it."""
+    import copy
+
+    nom = copy.deepcopy(make_nomination())
+    nom["target_report"]["target_call"].pop("recommendation", None)
+    nom["target_report"]["target_call"].pop("nomination_verdict", None)
+    spec = resolve_spec(preset="exec-brief")  # leads with recommendation
+    assert not _lead_present(build_ir(nom, spec), spec)
+
+
+def test_composed_html_surfaces_the_evidence_view_as_a_fourth_tab():
+    from _skills_common.report_render import render_report
+
+    h = render_report(_nomination_with_eg(), preset="full", backend="html")
+    assert "data-v='evidence'" in h and "id='v-evidence'" in h and "Measured evidence" in h
+    # fail-soft: a nomination with no evidence graph adds no evidence tab (no empty view)
+    assert "data-v='evidence'" not in render_report(make_nomination(), preset="full", backend="html")
 
 
 def test_reaches_the_machine_and_linearized_views():

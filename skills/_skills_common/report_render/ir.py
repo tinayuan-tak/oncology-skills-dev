@@ -565,6 +565,10 @@ def _evidence_signals_block(selected) -> Optional[Block]:
     a programmatic reader gets (label, units, direction, role, significance_field) without prose-parsing.
     Verdict-inert + additive (○): this block adds the evidence view; it does not touch the verdict strip."""
     rows: list = []
+    # roll-up over EVIDENCE, not verdicts (2c): how many cards carried a salient measured datum vs how many
+    # were looked at but surfaced none — the count-based summary that replaces a polarity ranking. Per skill
+    # and total, computed while iterating so it can never disagree with the rows.
+    by_skill: dict = {}
     for short, report, _role in selected:
         eg = report.get("evidence_graph")
         if not isinstance(eg, dict):
@@ -575,8 +579,11 @@ def _evidence_signals_block(selected) -> Optional[Block]:
             reading = _format_key_evidence(ke)
             interp = (ke or {}).get("interpretation") if isinstance(ke, dict) else None
             gauge = _dg.gauge_string(interp[0]) if interp else None
+            tally = by_skill.setdefault(short, {"title": title, "measured": 0, "unmeasured": 0})
             if not (reading or gauge):
-                continue  # no decisive measured datum on this card → not a salient signal
+                tally["unmeasured"] += 1  # a card that was consulted but surfaced no decisive datum
+                continue
+            tally["measured"] += 1
             mt = c.get("measurement_type")
             # the structured descriptor for this measurement_type's EFFECT field (Step-1 join) — machine-side
             effect_desc = None
@@ -598,7 +605,15 @@ def _evidence_signals_block(selected) -> Optional[Block]:
                     "descriptor": effect_desc,  # structured (label/units/direction/role/significance_field) or None
                 }
             )
-    return Block(vocab.EVIDENCE_SIGNALS, {"rows": rows}) if rows else None
+    if not rows:
+        return None
+    rollup = {
+        "n_measured": sum(t["measured"] for t in by_skill.values()),
+        "n_unmeasured": sum(t["unmeasured"] for t in by_skill.values()),
+        "n_skills": len(by_skill),
+        "by_skill": by_skill,
+    }
+    return Block(vocab.EVIDENCE_SIGNALS, {"rows": rows, "rollup": rollup})
 
 
 def _signals_overview_block(

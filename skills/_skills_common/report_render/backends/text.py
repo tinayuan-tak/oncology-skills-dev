@@ -282,6 +282,12 @@ class TextBackend:
         if not rows:
             return []
         out = self._h2("Measured evidence")
+        ru = p.get("rollup") or {}
+        if ru:
+            out.append(
+                f"{ru.get('n_measured', 0)} measured · {ru.get('n_unmeasured', 0)} looked-at-but-unmeasured "
+                f"across {ru.get('n_skills', 0)} skills"
+            )
         cur = None
         for r in rows:
             if r.get("title") != cur:

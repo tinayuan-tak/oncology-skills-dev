@@ -844,7 +844,7 @@ class HtmlBackend:
             "var vb=document.querySelector('.views');if(vb){"
             "vb.addEventListener('click',function(e){var bt=e.target.closest('button');if(!bt)return;"
             "[].forEach.call(vb.children,function(x){x.classList.toggle('on',x===bt);});"
-            "['assess','modality','coherence'].forEach(function(v){var el=document.getElementById('v-'+v);"
+            "['assess','modality','coherence','evidence'].forEach(function(v){var el=document.getElementById('v-'+v);"
             "if(el)el.classList.toggle('on',bt.getAttribute('data-v')===v);});});"
             "[].forEach.call(document.querySelectorAll('.anchor'),function(a){a.addEventListener('click',function(){"
             "var ab=vb.querySelector('[data-v=assess]');if(ab)ab.click();});});}"
@@ -894,12 +894,16 @@ class HtmlBackend:
                     "<span class='fx'>— cross-evidence causal chain · LLM synthesis · cited literature</span>"
                     f"</summary><div class='foldbody'><div class='card'>{conv}</div></div></details>"
                 )
-        # 5) the 3-view switch.
+        # 5) the view switch. The "Measured evidence" tab appears only when the salient-evidence block is
+        # present (fail-soft — no empty tab), so it is a peer view alongside the spine, not a replacement.
+        _es = by_kind.get(vocab.EVIDENCE_SIGNALS)
+        _ev_btn = "<button data-v='evidence'>Measured evidence</button>" if _es is not None else ""
         parts.append(
             "<div class='views'>"
             "<button data-v='assess' class='on'>6-Dimension assessment</button>"
             "<button data-v='modality'>Modality</button>"
-            "<button data-v='coherence'>Literature × omics</button></div>"
+            "<button data-v='coherence'>Literature × omics</button>"
+            f"{_ev_btn}</div>"
         )
         # 6) VIEW: 6-dimension spine (risk_6dim rendered as .dim/.dbar/.dmembers).
         r6 = by_kind.get(vocab.RISK_6DIM)
@@ -918,6 +922,11 @@ class HtmlBackend:
         lr = by_kind.get(vocab.LITERATURE_RISK)
         coh = "".join(self._emit(lr)) if lr is not None else ""
         parts.append(f"<section class='view' id='v-coherence'>{coh}</section>")
+        # 9) VIEW: measured evidence — the salient measured fields across subskills (the substrate pivot's
+        # evidence view: relevance is the per-field salience role, not a ranking). Present only when the
+        # spine carried evidence_graph cards with decisive readings.
+        if _es is not None:
+            parts.append(f"<section class='view' id='v-evidence'>{''.join(self._emit(_es))}</section>")
         # NOTE (2026-09-10 reviewer refine): the composed HTML no longer emits the "Decision detail" fold
         # (at-a-glance grid · deciding axis · flip conditions · biomarker · subtype · coherence · signals
         # overview/strip) NOR the "Per-subskill evidence" section (the 15 inlined dashboards). Those blocks
@@ -1458,11 +1467,20 @@ class HtmlBackend:
         rows = p.get("rows") or []
         if not rows:
             return []
+        ru = p.get("rollup") or {}
+        rollup_html = (
+            f"<p class='evsig-rollup'><b>{ru.get('n_measured', 0)}</b> measured · "
+            f"<b>{ru.get('n_unmeasured', 0)}</b> looked-at-but-unmeasured across "
+            f"<b>{ru.get('n_skills', 0)}</b> skills</p>"
+            if ru
+            else ""
+        )
         out = [
             "<h2>Measured evidence</h2>",
             "<p class='lede'>The salient measured field per evidence card — the decisive datum "
             "(effect · significance · n) read from the evidence graph, grouped by subskill. Relevance is "
             "the field's salience role, not a ranking.</p>",
+            rollup_html,
             "<table class='evsig'><thead><tr><th>subskill</th><th>measurement</th><th>reading</th>"
             "<th>n</th></tr></thead><tbody>",
         ]
