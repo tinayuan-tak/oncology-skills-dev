@@ -79,7 +79,7 @@ warning_predicates:
     if: "top_partners.0.n_lines < 20"
     message: "Strongest partner's GI rests on <20 cell lines — treat the mean GI cautiously; read the per-line / lineage breakdown."
   - warning_id: context_conditional_needs_stratification
-    if: "combinatorial_dependency_class == context_synthetic_lethal"
+    if: "combinatorial_dependency_class == 'context_synthetic_lethal'"
     message: "Interaction is CONTEXT-dependent (a minority of lines). The verdict is conditional — the therapeutically relevant question is WHICH lineage/genotype; read lineage_breakdown_for_pair and, where the partner is a tumor suppressor, condition on partner LOSS status."
 
 caveats:

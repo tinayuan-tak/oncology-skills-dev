@@ -109,7 +109,7 @@ thresholds:
 
 warning_predicates:
   - warning_id: window_full_normal_diverges_from_essential
-    if: "window_ratio_full_normal < 1.0 && window_ratio_essential >= clean_window_ratio"
+    if: "window_ratio_full_normal < 1.0 && window_ratio_essential >= THRESHOLD.clean_window_ratio"
     message: "Essential-only window looks clean, but a NON-ESSENTIAL normal tissue ({max_full_normal_organ}, {max_full_normal_tpm} TPM) exceeds tumor — the essential-only blind spot (TACSTD2/TROP2, high in skin/salivary). An ADC may tolerate this; a strict TCE typically cannot."
   - warning_id: window_not_expressed_in_this_cohort
     if: "window_class == 'not_expressed_in_cohort'"

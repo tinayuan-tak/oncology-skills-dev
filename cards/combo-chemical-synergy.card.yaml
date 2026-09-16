@@ -67,7 +67,7 @@ thresholds:
 
 warning_predicates:
   - warning_id: narrow_synergy_coverage
-    if: "synergy_opportunity_class == no_synergy_screen"
+    if: "synergy_opportunity_class == 'no_synergy_screen'"
     message: "No chemical drug-combination screen for {target.symbol} (the Sanger 2022 panel covers ~86 targeted-drug genes). This is a coverage gap — absence of a synergy signal here is NOT evidence against combination opportunities."
   - warning_id: narrow_tissue_coverage
     if: "n_synergy_partners > 0"

@@ -112,7 +112,7 @@ warning_predicates:
     if: "top_resistance_mediators.0.n_models <= 1"
     message: "The anchor drug for {target.symbol} was screened in <=1 model — resistance calls rest on a single context; treat as hypothesis-generating."
   - warning_id: narrow_anchor_coverage
-    if: "resistance_emergence_class == no_anchor_screen"
+    if: "resistance_emergence_class == 'no_anchor_screen'"
     message: "No drug-anchor CRISPR screen for {target.symbol} (the panel covers KRAS/KIT/XPO1 only). This is a coverage gap — absence of a resistance signal here is NOT evidence against resistance mechanisms."
 
 caveats:

@@ -166,7 +166,7 @@ warning_predicates:
     if: "n_hotspot_mutant + n_damaging_mutant < 10"
     message: "Total mutant cell lines is <10; mutation-stratification estimates have wide CI. Read alongside per_hotspot_stats."
   - warning_id: hotspot_damaging_disagreement
-    if: "hotspot_mannwhitney_q < 0.05 && damaging_mannwhitney_q >= 0.05 && abs(delta_chronos_hotspot_mut_vs_wt - delta_chronos_damaging_mut_vs_wt) >= 0.3"
+    if: "hotspot_mannwhitney_q < 0.05 && damaging_mannwhitney_q >= 0.05 && (delta_chronos_hotspot_mut_vs_wt - delta_chronos_damaging_mut_vs_wt >= 0.3 || delta_chronos_hotspot_mut_vs_wt - delta_chronos_damaging_mut_vs_wt <= -0.3)"
     message: "Hotspot mutations show stratification but damaging (broader) mutations do not — suggests oncogene-addiction pattern (specific gain-of-function), not generic LOF dependency."
 
 caveats:
