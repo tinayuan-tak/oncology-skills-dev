@@ -292,9 +292,32 @@ def load_table_data(
     return headers, rows
 
 
+# Color palette for consistent styling (ice blue theme)
+COLORS = {
+    'primary': RGBColor(30, 80, 130),       # Dark steel blue
+    'primary_dark': RGBColor(20, 60, 100),  # Darker blue
+    'header_bg': RGBColor(45, 100, 150),    # Table header background (darker steel blue)
+    'header_text': RGBColor(255, 255, 255), # Table header text (white)
+    'row_alt': RGBColor(235, 245, 252),     # Alternating row (light ice blue)
+    'row_normal': RGBColor(255, 255, 255),  # Normal row (white)
+    'border': RGBColor(150, 180, 210),      # Table border (medium steel blue)
+    'border_outer': RGBColor(45, 100, 150), # Outer table border (darker)
+    'text_dark': RGBColor(51, 51, 51),      # Dark text
+    'text_muted': RGBColor(102, 102, 102),  # Muted/caption text
+    'group_header': RGBColor(51, 51, 51),   # Group header text (dark)
+    'panel_title': RGBColor(80, 80, 80),    # Panel title text
+}
+
+# Table sizing
+TABLE_WIDTH_RATIO = 0.85  # Table width as ratio of panel width
+
+
 def add_table_to_slide(slide, table_data: tuple[list[str], list[list[str]]],
-                       left: int, top: int, width: int, height: int) -> None:
-    """Add a table to the slide."""
+                       left: int, top: int, width: int, height: int,
+                       width_ratio: float = TABLE_WIDTH_RATIO) -> None:
+    """Add a styled table to the slide (narrower, centered, with borders)."""
+    from lxml import etree
+
     headers, rows = table_data
     if not headers:
         return
@@ -302,34 +325,63 @@ def add_table_to_slide(slide, table_data: tuple[list[str], list[list[str]]],
     n_rows = len(rows) + 1  # +1 for header
     n_cols = len(headers)
 
-    col_width = width // n_cols
-    row_height = min(height // n_rows, Inches(0.3))
+    row_height = min(height // n_rows, Inches(0.18))
 
-    table_shape = slide.shapes.add_table(n_rows, n_cols, left, top, width, int(row_height * n_rows))
+    # Make table narrower and centered
+    actual_width = int(width * width_ratio)
+    table_left = left + int((width - actual_width) / 2)
+
+    table_shape = slide.shapes.add_table(n_rows, n_cols, table_left, top, actual_width, int(row_height * n_rows))
     table = table_shape.table
+
+    # Clear table style to use simple borders
+    graphic_frame = table_shape._element
+    tbl = graphic_frame.find('.//{http://schemas.openxmlformats.org/drawingml/2006/main}tbl')
+    tblPr = tbl.find('{http://schemas.openxmlformats.org/drawingml/2006/main}tblPr')
+    if tblPr is not None:
+        for styleId in tblPr.findall('{http://schemas.openxmlformats.org/drawingml/2006/main}tableStyleId'):
+            tblPr.remove(styleId)
 
     # Style header row
     for j, header in enumerate(headers):
         cell = table.cell(0, j)
         cell.text = str(header)
         para = cell.text_frame.paragraphs[0]
-        para.font.size = Pt(8)
+        para.font.size = Pt(7)
         para.font.bold = True
+        para.font.name = "Arial"
         para.alignment = PP_ALIGN.CENTER
         cell.vertical_anchor = MSO_ANCHOR.MIDDLE
         cell.fill.solid()
-        cell.fill.fore_color.rgb = RGBColor(0, 51, 102)
-        para.font.color.rgb = RGBColor(255, 255, 255)
+        cell.fill.fore_color.rgb = COLORS['header_bg']
+        para.font.color.rgb = COLORS['header_text']
+        # Set margins directly on cell (not text_frame)
+        cell.margin_left = Inches(0.02)
+        cell.margin_right = Inches(0.02)
+        cell.margin_top = Inches(0.02)
+        cell.margin_bottom = Inches(0.02)
 
-    # Data rows
+    # Data rows with alternating colors and borders
     for i, row in enumerate(rows):
         for j, value in enumerate(row):
             cell = table.cell(i + 1, j)
             cell.text = str(value)
             para = cell.text_frame.paragraphs[0]
-            para.font.size = Pt(7)
+            para.font.size = Pt(6)
+            para.font.name = "Arial"
             para.alignment = PP_ALIGN.CENTER
+            para.font.color.rgb = COLORS['text_dark']
             cell.vertical_anchor = MSO_ANCHOR.MIDDLE
+            cell.fill.solid()
+            if i % 2 == 0:
+                cell.fill.fore_color.rgb = COLORS['row_normal']
+            else:
+                cell.fill.fore_color.rgb = COLORS['row_alt']
+            # Set margins directly on cell
+            cell.margin_left = Inches(0.02)
+            cell.margin_right = Inches(0.02)
+            cell.margin_top = Inches(0.02)
+            cell.margin_bottom = Inches(0.02)
 
 
 def load_presentation_from_template(template_path: Path) -> Presentation:
@@ -370,8 +422,8 @@ def generate_panel_snapshot(
 
     prs = load_presentation_from_template(template_path)
 
-    # Use layout 8 for content slide
-    slide_layout = prs.slide_layouts[8]
+    # Use layout 9 for content slide
+    slide_layout = prs.slide_layouts[9]
     slide = prs.slides.add_slide(slide_layout)
 
     slide_width = prs.slide_width
@@ -456,14 +508,14 @@ def _render_grid_layout(
         available_height = panel_height - title_height
 
         if has_figure and has_table:
-            figure_height = available_height * 0.6
-            table_height = available_height * 0.35
+            figure_height = available_height * 0.7
+            table_height = available_height * 0.25
         elif has_figure:
-            figure_height = available_height * 0.85
+            figure_height = available_height * 0.9
             table_height = 0
         else:
             figure_height = 0
-            table_height = available_height * 0.85
+            table_height = available_height * 0.7
 
         current_top = panel_top
 
@@ -554,14 +606,17 @@ def _render_grid_layout(
 
         # Add caption
         if panel.caption:
+            caption_text = substitute_placeholders(panel.caption, gene, indication)
             caption_box = slide.shapes.add_textbox(
                 int(panel_left), int(current_top), int(panel_width), Inches(0.25)
             )
             caption_frame = caption_box.text_frame
             caption_para = caption_frame.paragraphs[0]
-            caption_para.text = panel.caption
-            caption_para.font.size = Pt(9)
-            caption_para.font.color.rgb = RGBColor(102, 102, 102)
+            caption_para.text = caption_text
+            caption_para.font.size = Pt(8)
+            caption_para.font.name = "Arial"
+            caption_para.font.italic = True
+            caption_para.font.color.rgb = COLORS['text_muted']
             caption_para.alignment = PP_ALIGN.CENTER
 
 
@@ -591,10 +646,25 @@ def _render_grouped_layout(
             header_frame = header_box.text_frame
             header_para = header_frame.paragraphs[0]
             header_para.text = group_title_text
-            header_para.font.size = Pt(14)
+            header_para.font.size = Pt(12)
             header_para.font.bold = True
-            header_para.font.color.rgb = RGBColor(0, 51, 102)
+            header_para.font.name = "Arial"
+            header_para.font.color.rgb = COLORS['group_header']
             header_para.alignment = PP_ALIGN.CENTER
+
+            # Add underline accent below group header
+            from pptx.shapes.autoshape import Shape
+            line = slide.shapes.add_shape(
+                1,  # MSO_SHAPE.RECTANGLE
+                int(group_left + group_width * 0.1),
+                int(group_top + group_header_height - Inches(0.05)),
+                int(group_width * 0.8),
+                Inches(0.02)
+            )
+            line.fill.solid()
+            line.fill.fore_color.rgb = COLORS['primary']
+            line.line.fill.background()
+
             group_top += group_header_height
 
         # Calculate panel heights within this group
@@ -629,14 +699,14 @@ def _render_single_panel(
     available_height = panel_height - title_height
 
     if has_figure and has_table:
-        figure_height = available_height * 0.55
-        table_height = available_height * 0.4
+        figure_height = available_height * 0.7
+        table_height = available_height * 0.25
     elif has_figure:
-        figure_height = available_height * 0.85
+        figure_height = available_height * 0.9
         table_height = 0
     else:
         figure_height = 0
-        table_height = available_height * 0.85
+        table_height = available_height * 0.7
 
     current_top = panel_top
 
@@ -649,9 +719,10 @@ def _render_single_panel(
         panel_title_frame = panel_title_box.text_frame
         panel_title_para = panel_title_frame.paragraphs[0]
         panel_title_para.text = panel_title_text
-        panel_title_para.font.size = Pt(10)
+        panel_title_para.font.size = Pt(9)
         panel_title_para.font.bold = True
-        panel_title_para.font.color.rgb = RGBColor(0, 51, 102)
+        panel_title_para.font.name = "Arial"
+        panel_title_para.font.color.rgb = COLORS['panel_title']
         panel_title_para.alignment = PP_ALIGN.CENTER
         current_top += int(title_height)
 
@@ -724,14 +795,17 @@ def _render_single_panel(
 
     # Add caption
     if panel.caption:
+        caption_text = substitute_placeholders(panel.caption, gene, indication)
         caption_box = slide.shapes.add_textbox(
             panel_left, current_top, panel_width, Inches(0.2)
         )
         caption_frame = caption_box.text_frame
         caption_para = caption_frame.paragraphs[0]
-        caption_para.text = panel.caption
+        caption_para.text = caption_text
         caption_para.font.size = Pt(8)
-        caption_para.font.color.rgb = RGBColor(102, 102, 102)
+        caption_para.font.name = "Arial"
+        caption_para.font.italic = True
+        caption_para.font.color.rgb = COLORS['text_muted']
         caption_para.alignment = PP_ALIGN.CENTER
 
 

@@ -1,0 +1,55 @@
+# snapshot config: genomic-alteration (grouped layout)
+title: "{gene} Dependency in {indication}"
+subtitle: "Chronos scores and PRISM sensitivities"
+layout: "grouped"
+
+groups:
+  - title: "Chronos: CRISPR KO"
+    panels:
+      - figure: "figures/cards/pan-cancer-crispr-dependency-distribution/figure_histogram_kde.svg"
+        caption: "Cell line - Pan-Cancer"
+
+      - figure: "figures/cards/dependency-lineage-selectivity/figure_lineage_strip.svg"
+        caption: "Cell line - By Lineage"
+
+      - figure: "figures/cards/organoid-crispr-dependency/figure_organoid_lineage_dependency.svg"
+        caption: "Organoids - By Lineage"
+        
+      - title: "Top dependent lineages"
+        table: "subskills/dependency/tables/pan-cancer-crispr-dependency-distribution_top_dependent_lineages.csv"
+        table_columns: ["lineage", "n_in_lineage", "fraction_strongly_dependent", "median_chronos"]
+
+  - title: "Subtype Dependencies"
+    panels:
+      - figure: "figures/cards/mutation-stratified-dependency/figure_mut_vs_wt_strip.svg"
+        caption: "Cell Line - Pan-Cancer - Hotspot Mutation Dependency"
+
+      - title: "Mutation-stratified {gene} dependency in {indication}"
+        table: "subskills/genomic_alteration/tables/mutation-stratified-dependency_summary_stats.csv"
+        table_row_select:
+          column: "field"
+          values: ["n_hotspot_mutant", "n_hotspot_wildtype", "median_chronos_hotspot_mutant", "median_chronos_hotspot_wildtype", "hotspot_mannwhitney_q"]
+
+      - title: "CN-stratified {gene} dependency across pan-cancers"
+        table: "subskills/genomic_alteration/tables/copy-number-stratified-dependency_summary_stats.csv"
+        table_row_select:
+          column: "field"
+          values: ["n_amplified", "n_neutral", "median_chronos_amplified", "median_chronos_neutral", "cn_stratification_mannwhitney_q"]
+
+      - title: "Fusion-stratified {gene} dependency across pan-cancers"
+        table: "subskills/genomic_alteration/tables/fusion-stratified-dependency_summary_stats.csv"
+        table_row_select:
+          column: "field"
+          values: ["n_fusion_positive", "n_fusion_negative", "median_chronos_fusion_positive", "median_chronos_fusion_negative", "fusion_stratification_mannwhitney_q"]
+
+  - title: "PRISM: Drug Dependency"
+    panels:
+      - figure: "figures/cards/prism-crispr-concordance/figure_concordance_scatter.svg"
+        caption: "Cell Line - Pan-Cancer"
+        
+      - title: "Drugs that correlate with CRISPR dependency"
+        table: "subskills/dependency/tables/prism-crispr-concordance_per_compound_concordance.csv"
+        table_sort_by: "spearman_r_crispr"
+        table_sort_ascending: false
+        table_columns: ["drug_name","spearman_r_crispr"]
+        table_max_rows: 5

@@ -1,0 +1,40 @@
+# snapshot config
+title: "{gene} Expression"
+subtitle: "Target expression and selectivity in tumor vs. normal"
+layout: "grouped"
+
+groups:
+  - title: "Expression in {indication}"
+    panels:
+      - figure: "figures/cards/tumor-rna-distribution/figure_expression_distribution.svg"
+
+      - title: "Differential expression between tumor and normal"
+        table: "subskills/selectivity/tables/tumor-vs-normal-selectivity_summary_stats.csv"
+        table_row_select:
+          column: "field"
+          values: ["max_abs_log2fc", "selectivity_allgene_percentile", "selectivity_allgene_percentile_class"]
+        figure: "figures/cards/tumor-vs-normal-selectivity/figure_tumor_vs_normal_selectivity_4panel.svg"
+        
+  - title: "Expression across tissues"
+    panels:
+      - figure: "figures/cards/tumor-elevation-breadth/figure_pan_cancer_by_tissue_distribution.svg"
+        caption: "Bulk RNA"
+
+      - figure: "figures/cards/tumor-protein-abundance-cptac/figure_protein_per_cohort_tumor_vs_normal.svg"
+        caption: "Protein"
+        
+      - figure: "figures/cards/tumor-scrna-celltype-expression/figure_sc_compartment_detection.svg"
+        caption: "Single Cell RNA"
+
+  - title: "Safety"
+    panels:
+      - figure: "figures/cards/normal-tissue-liability-gtex/figure_normal_tissue_liability.svg"
+        caption: "GTEx Normal - RNA"
+        
+      - title: "High expressing safety-essential cell-types (scRNA)"
+        table: "subskills/expression/tables/sc-normal-celltype-expression_per_cell_type_top.csv"
+        table_filter: "is_safety_essential == True"
+        table_columns: ["cell_type","tissue","median_detection_fraction"]
+        
+      - figure: "figures/cards/normal-tissue-liability/figure_normal_tissue_expression_heatmap.svg"
+        caption: "HPA Normal - Protein (IHC)"
