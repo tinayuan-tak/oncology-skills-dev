@@ -120,8 +120,14 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
       1. Check local fallback paths first (DEPMAP_LOCAL_FALLBACK_DIRS).
       2. If not found, attempt S3 read via boto3 (requires AWS creds).
       3. If S3 fails, return load_errors with structured reason.
+
+    Both Model.csv reads below (local pd.read_csv, shared load_model_csv) leave float('nan') in every
+    missing object-dtype cell, so both are funnelled through model_metadata_by_id() — see its docstring
+    for why the target is None and not a literal default.
     """
     import pandas as pd
+
+    from methods.depmap_common import model_metadata_by_id
 
     crispr_path = None
     model_path = None
@@ -175,9 +181,7 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
                         val = row[target_col]
                         if pd.notna(val):
                             chronos_by_model_id[row["ModelID"]] = float(val)
-                    model_id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
-                    model_metadata_by_id = {row[model_id_col]: row.to_dict() for _, row in model_df.iterrows()}
-                    return chronos_by_model_id, model_metadata_by_id, load_errors
+                    return chronos_by_model_id, model_metadata_by_id(model_df), load_errors
             # target absent from parquet → fall through to CSV path (or emit error below)
         except (FileNotFoundError, ImportError):
             # Parquet not available (not precomputed, or pyarrow not installed) → CSV fallback
@@ -237,10 +241,7 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
         if pd.notna(row[target_col]):
             chronos_by_model_id[row[cell_line_col]] = float(row[target_col])
 
-    model_id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
-    model_metadata_by_id = {row[model_id_col]: row.to_dict() for _, row in model_df.iterrows()}
-
-    return chronos_by_model_id, model_metadata_by_id, load_errors
+    return chronos_by_model_id, model_metadata_by_id(model_df), load_errors
 
 
 def _bimodality_coefficient(scores) -> Optional[float]:
@@ -806,7 +807,11 @@ def emit_plotly_specs(
 
         tail = [lg for _, c, lg in rows if c <= STRONG]
         top_lineages = [n for n, _ in Counter(tail).most_common(5)]
-        names = [model_metadata.get(mid, {}).get("CellLineName", mid) for mid, _, _ in rows]
+        # `.get("CellLineName", mid)` never reached `mid`: the key is PRESENT, holding a missing value.
+        # A .get default fires on an absent KEY, not on an empty VALUE — so use `or`, like the lineage
+        # chain above. (Before the loader fix that missing value was a truthy float('nan'), so neither
+        # form worked; None makes `or` correct and leaves the .get default just as inert.)
+        names = [model_metadata.get(mid, {}).get("CellLineName") or mid for mid, _, _ in rows]
         vals = [c for _, c, _ in rows]
         colors = [get_lineage_color(lg) if lg in top_lineages else "#CCCCCC" for _, _, lg in rows]
         lineages = [lg for _, _, lg in rows]
@@ -888,7 +893,8 @@ def emit_plot_data(chronos_by_model: dict, model_metadata: dict, strong_threshol
         rows.append(
             {
                 "cell_line_id": mid,
-                "cell_line_name": meta.get("CellLineName", meta.get("ModelID", mid)),
+                # `or`, not a .get default — the key is present-but-empty, which a default never sees.
+                "cell_line_name": meta.get("CellLineName") or meta.get("ModelID") or mid,
                 "chronos_score": float(c),
                 "lineage": (
                     meta.get("OncotreeLineage") or meta.get("lineage") or meta.get("PrimaryDisease") or "unknown"

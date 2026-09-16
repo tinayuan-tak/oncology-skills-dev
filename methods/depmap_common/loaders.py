@@ -127,6 +127,59 @@ def load_model_csv(release_pin: str = "26q1"):
     return _fetch_csv(key, "Model.csv", release_pin)
 
 
+def model_metadata_by_id(model_df, model_id_col: str | None = None) -> dict:
+    """{model_id -> metadata dict} from a Model.csv frame, with every MISSING value as None.
+
+    The frame boundary. Use this instead of `{row[id]: row.to_dict() for _, row in df.iterrows()}`,
+    which is what every caller used to write and which ships `float('nan')` into JSON:
+
+        a missing value in an OBJECT-dtype (string) column IS float('nan'), not None or "".
+
+    So `row.to_dict()` puts a float NaN under a key like "CCLEName" — a cell-line *name* — and json.dumps
+    emits the bare token `NaN`, which is not valid JSON. Measured over the 504-package corpus: 119,536
+    leaves in 496 packages, 98.2% of every non-finite value emitted by the framework, all of it from
+    `per_line_concordance[].ccle_name` + `.lineage` in the crispr-rnai concordance card.
+
+    ★ The target is None, deliberately NOT "" or "unknown", because the consumers already declare their
+    own fallbacks and None ACTIVATES them rather than pre-empting them:
+
+        lineage = meta.get("OncotreeLineage") or meta.get("lineage") or ... or "unknown"
+
+    That chain reads as a working guard and cannot fire, because **NaN is truthy in Python** — the first
+    term wins and `lineage` becomes nan. Substituting a literal default here would fix the JSON while
+    permanently hiding which card wanted "unknown" and which wanted null; substituting None lets each
+    caller keep deciding. (Same family as the recorded `pd.isna(inf) is False` trap: the sentinel is a
+    value with ordinary value semantics, so a guard written for absence never sees it.)
+
+    ⚠️ `pd.isna` here means MISSING, not non-finite, and that is the correct predicate: a ±Inf in a
+    numeric metadata column is a value, not a gap, and silently nulling it would destroy data. If one ever
+    appears it must be refused at the writer (`allow_nan=False`), not laundered here.
+
+    Assumes scalar columns, which Model.csv/ModelCondition.csv/sample_info.csv all are — `pd.isna` on a
+    list-valued cell returns an array and would raise on the `if`.
+
+    ★ Rows whose KEY is missing are DROPPED, not kept under a None key. The key column is a primary key,
+    and an entry under a missing key is unreachable by construction: callers only ever reach this dict via
+    `metadata.get(model_id)` with an ID that came from a data matrix, so nothing can ever match it. Keeping
+    it would carry a row that no lookup returns and that json.dumps would coerce to a *fabricated* string
+    ID ("NaN" / "None"). Dropping an unreachable entry loses no information; keeping one invents an ID.
+
+    Args:
+        model_df: a DataFrame from load_model_csv() (or any flat metadata CSV).
+        model_id_col: key column. Defaults to "ModelID" when present, else the first column —
+            the same resolution every caller open-coded.
+    """
+    import pandas as pd
+
+    if model_id_col is None:
+        model_id_col = "ModelID" if "ModelID" in model_df.columns else model_df.columns[0]
+    return {
+        row[model_id_col]: {k: (None if pd.isna(v) else v) for k, v in row.to_dict().items()}
+        for _, row in model_df.iterrows()
+        if not pd.isna(row[model_id_col])
+    }
+
+
 @lru_cache(maxsize=8)
 def load_model_condition_csv(release_pin: str = "26q1"):
     """Load DepMap ModelCondition.csv (ModelConditionID → ModelID bridge).

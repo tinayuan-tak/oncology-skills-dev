@@ -28,11 +28,13 @@ from .loaders import (
     load_model_condition_csv,
     load_model_csv,
     load_rnai_sample_info,
+    model_metadata_by_id,
 )
 
 __all__ = [
     "load_model_csv",
     "load_model_condition_csv",
     "load_rnai_sample_info",
+    "model_metadata_by_id",
     "clear_all_caches",
 ]
