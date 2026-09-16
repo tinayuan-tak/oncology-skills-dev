@@ -204,8 +204,11 @@ fans out into golden snapshots across skill dirs, so run the **full** suite, nev
 the `skills:` array of the entry whose `source` is `"./"`.
 `skills/tests/test_marketplace_registry_sync.py` asserts *exact set equality* between that array and
 the on-disk dirs carrying a `SKILL.md`, so a new skill without a registry line reds the gate —
-by design. (Do not add a `skills:` array to the archived `oncology-skills-v1` entry; it resolves its
-own from the `legacy/v1` ref.)
+by design. (Do not add a `skills:` array to the archived `oncology-skills-v1` entry; that entry is a
+`"source": "url"` pin to the immutable commit `b46c8baf` and resolves its own skills from that
+commit's manifest. If you ever add another remote-pinned entry, note that `git-subdir` with
+`path: "."` installs an **empty** plugin while still reporting `outcome: ok` — a whole-repo plugin
+wants `"source": "url"` with no `path` key, and the shape guard in the same test file enforces that.)
 
 **7 — Gate, then land** (§7).
 

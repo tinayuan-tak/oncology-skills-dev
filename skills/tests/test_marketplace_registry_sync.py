@@ -7,24 +7,33 @@ compose-dashboard (#654) was still listed. Nothing failed on that drift; the fra
 probe only reported it as an advisory `registry_drift` metric. This test makes the drift a HARD
 failure: the registry's skill list must EXACTLY equal the set of on-disk skill dirs that carry a
 SKILL.md (add a new skill / retire an old one → update marketplace.json in the same PR).
+
+Since 2026-09-16 this file also guards the SHAPE of non-local entries. Nothing else in the repo
+validates this manifest — no workflow, no script, no schema check — so a structurally valid JSON
+document with a semantically broken `source` block passed every gate and shipped a plugin that
+installed successfully with an empty payload. See
+test_remote_entries_pin_an_immutable_commit_and_avoid_the_empty_subdir_shape.
 """
 
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent  # .../skills
 REPO_ROOT = SKILLS_DIR.parent
 MARKETPLACE = REPO_ROOT / ".claude-plugin" / "marketplace.json"
+SHA40_RE = re.compile(r"[0-9a-f]{40}")
 
 
 def _registered_skills() -> set[str]:
     m = json.loads(MARKETPLACE.read_text())
     plugins = m["plugins"]
     # Two entries since 2026-09-16: the live `oncology-skills` (source `./`, carries `skills:`)
-    # and the archived `oncology-skills-v1` (a `git-subdir` source pinned to `legacy/v1`, which
-    # resolves its own skills from that ref's manifest and therefore carries NO `skills:` key).
+    # and the archived `oncology-skills-v1` (a `url` source pinned to the immutable commit
+    # b46c8baf, which resolves its own skills from that commit's manifest and therefore carries
+    # NO `skills:` key).
     # The union is over entries that declare one, so only the live entry contributes here — that
     # is what keeps this equality against the on-disk tree meaningful. See
     # test_only_the_local_plugin_entry_declares_skills below, which pins that asymmetry.
@@ -79,7 +88,7 @@ def test_only_the_local_plugin_entry_declares_skills():
     """A remote-pinned entry must not enumerate skills from THIS tree.
 
     `_registered_skills()` unions `skills:` across every entry and asserts set equality with the
-    on-disk dirs. So a `skills:` array on the `legacy/v1` entry would inject v1's retired skill
+    on-disk dirs. So a `skills:` array on the archived v1 entry would inject v1's retired skill
     names (analysis-bulk-rna-crc, workflow-target-evaluation-onc, ...) into that union and red the
     sync test with a misleading "lists skills with no on-disk dir" message — the real fault being
     the array's existence, not the filesystem. Fail here first, with the actual reason.
@@ -92,6 +101,59 @@ def test_only_the_local_plugin_entry_declares_skills():
             f"marketplace entry {p['name']!r} is not sourced from this tree (source="
             f"{p.get('source')!r}) but declares a `skills:` array. Remote/pinned sources resolve "
             "skills from their own ref's manifest — remove the array."
+        )
+
+
+def test_remote_entries_pin_an_immutable_commit_and_avoid_the_empty_subdir_shape():
+    """A non-local entry must pin a 40-hex `sha`, and must not spell "the repo root" as a subdir.
+
+    Both halves exist because the archived v1 entry shipped BROKEN on 2026-09-16 and every cheap
+    signal was green. It declared `{"source": "git-subdir", "path": ".", "ref": "legacy/v1"}`, and
+    `claude plugin install` returned `outcome: ok` reporting `Version: 1.7.8` while materialising an
+    EMPTY payload — no `.claude-plugin/`, no `skills/`, 4 of the commit's 89 files.
+
+    - `git-subdir` is for a plugin that lives in a SUBDIRECTORY. `path: "."` produces the
+      sparse-checkout pattern pair `/*` then `!/*/` — "take root files, exclude every directory" —
+      so the skills and the manifest were in the commit and simply never checked out. `path` is
+      REQUIRED for that source type (omitting it fails validation with `source.path: Invalid
+      input`), so there is no way to spell the repo root with it: a whole-repo plugin wants
+      `"source": "url"` and no `path` key at all.
+    - The reported `Version` came from THIS file's own `version` field, not from the fetched
+      `plugin.json` — which never materialised. So the version echo is independent of whether any
+      payload arrived and cannot be used as evidence that one did.
+    - The `sha` requirement is about reproducibility: an archive pinned to a mutable branch `ref`
+      silently changes meaning if anyone ever pushes to that branch, which defeats the point of
+      archiving. `legacy/v1` is frozen via branch protection, but a pin that does not DEPEND on
+      that protection is strictly better.
+
+    LIMIT, stated deliberately rather than left implicit: this is a STATIC shape check. It cannot
+    prove a payload materialises — only a real `claude plugin marketplace add` + `install` can, by
+    comparing `git -C <cache-dir> ls-files | wc -l` against that commit's own
+    `git ls-tree -r --name-only <sha> | wc -l`. Equal counts mean the payload arrived; a shortfall
+    is a sparse checkout lying to you. Do that once by hand whenever a `source` block changes. This
+    guard only closes the two shapes now known to fail silently.
+    """
+    m = json.loads(MARKETPLACE.read_text())
+    for p in m["plugins"]:
+        if p.get("source") == "./":
+            continue
+        name = p.get("name")
+        src = p.get("source")
+        assert isinstance(src, dict), (
+            f"marketplace entry {name!r} has a non-local source that is not an object: {src!r} — "
+            "a remote entry must be an object carrying an immutable `sha`."
+        )
+        if src.get("source") == "git-subdir":
+            assert src.get("path") not in (".", "./", "", None), (
+                f"marketplace entry {name!r} uses source `git-subdir` with path={src.get('path')!r}, "
+                "which sparse-checks-out root files ONLY and installs an EMPTY plugin while still "
+                'reporting `outcome: ok`. For a whole-repo plugin use `"source": "url"` with no '
+                "`path` key; reserve `git-subdir` for a plugin in a real subdirectory."
+            )
+        sha = src.get("sha")
+        assert isinstance(sha, str) and SHA40_RE.fullmatch(sha), (
+            f"marketplace entry {name!r} must pin an immutable 40-hex `sha` (got {sha!r}). A branch "
+            "or tag `ref` alone can move, which silently changes what an 'archived' plugin means."
         )
 
 

@@ -42,13 +42,12 @@
     },
     {
       "name": "oncology-skills-v1",
-      "description": "ARCHIVED v1 plugin — the seven analysis-* / workflow-* indication x modality skills (bulk RNA, single-cell RNA, protein/HPA, ScholarEval scoring, CRC + NSCLC PDF reports). Frozen at the state before v2 was promoted to the trunk on 2026-09-16. No longer developed; install only if you need v1 behaviour reproduced.",
+      "description": "ARCHIVED v1 plugin — the seven analysis-* / workflow-* indication x modality skills (bulk RNA, single-cell RNA, protein/HPA, ScholarEval scoring, CRC + NSCLC PDF reports). Pinned to the immutable commit b46c8baf, the state before v2 was promoted to the trunk on 2026-09-16 (same commit as the v1-final tag and the legacy/v1 branch). No longer developed; install only if you need v1 behaviour reproduced.",
       "version": "1.7.8",
       "source": {
-        "source": "git-subdir",
+        "source": "url",
         "url": "https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills.git",
-        "path": ".",
-        "ref": "legacy/v1"
+        "sha": "b46c8baf5dbfb0306dbbf3cb99f4fa7c993bf964"
       },
       "author": {
         "name": "computational biology - oncology"
