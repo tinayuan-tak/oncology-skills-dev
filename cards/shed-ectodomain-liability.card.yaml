@@ -61,6 +61,7 @@ capsule:
     - shed_liability_class
     - shed_evidence_tier
     - measured_shed_class
+    - serum_marker    # assay-anchor NAME (display); declared so salience stops misreading it as numeric (reconcile 2026-09-16)
 
 tier: target   # scope-invariant: ectodomain shedding is a property of the protein, not of any tumor subgroup. Never stratifies.
 

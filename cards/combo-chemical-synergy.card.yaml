@@ -14,6 +14,16 @@ card_id: combo-chemical-synergy
 version: 1.0.0
 question: "Which partner drugs synergize with a drug hitting {target.symbol} (chemical drug×drug synergy), and how robustly across cell lines?"
 
+# Display projection (VERDICT-INERT). Declares the partner NAME labels as display so they are consumed
+# here rather than misread as numeric salience scalars (salience reconcile 2026-09-16). Numeric anchors
+# fall back to the emitter heuristic (unspecified here on purpose).
+capsule:
+  primary_class: synergy_opportunity_class
+  categorical_fields:
+    - synergy_opportunity_class
+    - strongest_synergy_partner_drug
+    - strongest_synergy_partner_target
+
 applies_when:
   - "context.data_sources.sanger_drug_combinations_available == true"
 

@@ -35,6 +35,15 @@ card_id: synthetic-lethal-partners
 version: 1.0.0
 question: "Does {target.symbol} have a curated synthetic-lethal partner (SynLethDB v3), and is the evidence experimental — such that a pooled non-dependent CRISPR read may be a context-conditional false negative?"
 
+# Display projection (VERDICT-INERT). Declares has_experimental_partner as a display flag so it is consumed
+# here rather than misread as a *_class categorical by salience (salience reconcile 2026-09-16).
+capsule:
+  primary_class: sl_partner_class
+  categorical_fields:
+    - sl_partner_class
+    - has_experimental_partner
+    - best_evidence_tier
+
 tier: target   # SL pairs are gene-gene relations; a property of the gene, not a tumor subgroup. Never stratifies.
 
 applies_when: []
