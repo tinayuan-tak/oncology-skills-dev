@@ -54,6 +54,23 @@ polars = ">=1.44.2,<2"          # PILOT, 1 method (hpa_normal_tissue_liability).
                                  # above: polars 2.x will change API surface, and a "*" pin is how
                                  # local (pandas 2.3.3) and CI (3.0.3) drifted apart in the first place.
 
+# depmap_predictability_precompute's second model + its attribution backend. Both were UNDECLARED
+# until 2026-09-17 for the same reason duckdb was (above): the precompute LAZY-imports them inside
+# train_gene() behind `try: ... except ImportError`, and each guard has a silent FALLBACK, so the
+# modules import fine, the suite is green, and the omission stayed invisible. It is not a cosmetic
+# gap — the shipped depmap-predictability-26q1-v3 product ran with `shap` absent and therefore
+# emitted RF impurity importances in BOTH top-feature columns, while its manifest advertised XGB
+# gain importances (retracted in data-catalog, same date). A dependency whose absence silently
+# CHANGES WHAT A COLUMN MEANS has to be declared, or the artifact is not reconstructible from the
+# producing commit. Declaring them here also makes the v4 re-materialization reproducible.
+# Version-RANGED like polars/scikit-learn above. NOTE these are NEWER than the versions v3 ran with
+# (xgboost 2.1, shap absent), so v4 will not reproduce v3's numbers bit-for-bit by construction.
+# NOT added to pyproject.toml's `compute` extra, deliberately: scikit-learn — the precompute's other
+# hard dependency — is pixi-only too, because this is a heavy batch precompute, not a read path.
+# (methods/depmap_predictability/read.py is the framework-runtime reader and imports neither.)
+xgboost = ">=3.4.2,<4"
+shap = ">=0.52.0,<0.53"
+
 [pypi-dependencies]
 # (target_id_resolver itself; installed as editable pip package once carved over)
 
