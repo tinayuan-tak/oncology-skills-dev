@@ -391,6 +391,12 @@ def build_health(roots: dict[str, Path]) -> dict:
     # Two INDEPENDENT siblings, so either can be absent — hence two separate `available` flags.
     field_read_census = probe.field_read_health(roots["skills"])
     field_emission = probe.summary_field_emission(roots["products"])
+    # AXIS-MEASURABILITY lens (CAPABILITY, not outcome): the skills repo's committed static
+    # per-dim census ({} if absent), joined HERE to the governed card->measurement_type registry
+    # (None if the vocab is unreadable). Two independent inputs from two repos, so the census and
+    # the reconcile carry SEPARATE `available` flags — one can be measured while the other is not.
+    axis_measurability_census = probe.measured_axes_per_dim(roots["skills"])
+    type_card_views = probe.measurement_type_card_views(roots["contracts"])
 
     # probe_card is called from BOTH the per-skill loop and the card-universe loop,
     # with identical constant args (roots + the precomputed index sets) for the whole
@@ -575,6 +581,11 @@ def build_health(roots: dict[str, Path]) -> dict:
     frh = build_field_read_health(field_read_census, field_emission)
     fsum = frh.get("summary") or {}
     ftally = frh.get("emission_outcome_tally") or {}
+    mapd = build_measured_axes_per_dim(axis_measurability_census, type_card_views)
+    msum = mapd.get("summary") or {}
+    mrec = mapd.get("reconcile") or {}
+    mrtally = mrec.get("outcome_tally") or {}
+    mrorph = mrec.get("unpulled_type_tally") or {}
 
     # Verdict tallies + drift roll-up for the summary header.
     tally: dict[str, int] = {}
@@ -650,10 +661,35 @@ def build_health(roots: dict[str, Path]) -> dict:
             "n_field_reads_emitted_but_undeclared": ftally.get("emitted_but_undeclared"),
             "n_field_reads_of_none": ftally.get("read_of_None"),
             "n_field_reads_emission_unobserved": ftally.get("emission_unobserved"),
+            # AXIS-MEASURABILITY lens (trending, NEVER a gate). CAPABILITY, not outcome: whether an
+            # instrument EXISTS for a dim's axes, which no per-run coverage number can answer. Same
+            # null discipline — unavailable means "not measured", so every count is None, never 0.
+            "axis_measurability_available": bool(mapd.get("available")),
+            # The HEADLINE is per TYPE, not per axis. One covered type earns an axis
+            # `descriptor_covered`, so the per-axis flag saturates (14 of 15) and measures the
+            # direction already finished; it is carried for completeness, second.
+            "n_measurement_types_without_descriptor": msum.get("n_types_without_measurement_descriptor"),
+            "n_measurement_types_declared_by_axes": msum.get("n_declared_types_distinct"),
+            "n_axes_descriptor_covered": msum.get("n_axes_descriptor_covered"),
+            "n_axes_descriptor_blind": msum.get("n_axes_descriptor_blind"),
+            # The reconcile this repo adds — null when the governed vocab is unreadable. `agree`
+            # is NOT published in the header: it is the saturated direction (165 of 166 today) and
+            # a header number that can only go up is decoration.
+            "axis_type_reconcile_available": bool(mrec.get("available")),
+            "n_axis_types_declared_not_derived": mrtally.get("declared_not_derived"),
+            "n_axis_types_derived_nowhere_declared": mrtally.get("derived_nowhere_declared"),
+            "n_axis_types_derived_declared_elsewhere": mrtally.get("derived_declared_elsewhere"),
+            # Registry-side, and the least saturated number in this dimension: a governed type no
+            # axis pulls. Split by OWNER — a type with providers but no card view is this repo's
+            # to fix; a card no skill pulls is the skills side's.
+            "n_governed_types_without_card_view": mrorph.get("no_card_view"),
+            "n_governed_types_card_exists_unpulled": mrorph.get("card_exists_unpulled"),
+            "n_skill_cards_without_registered_type": mrec.get("n_cards_without_registered_type"),
         },
         "registry_drift": reg,
         "descriptor_coverage": dcov,
         "field_read_health": frh,
+        "measured_axes_per_dim": mapd,
         "skills": skill_nodes,
         "cards": card_nodes,
         "datasets": dataset_nodes,
@@ -893,6 +929,269 @@ def build_field_read_health(census: dict, emission: dict) -> dict:
             "skills-side `classification` is left untouched — it describes the field NAME's shape, "
             "while `emission_outcome` describes what the producer was OBSERVED to do. A row can be "
             "meta_key AND emitted_but_undeclared, and one live row is."
+        ),
+    }
+
+
+_MAPD_SOURCE = "skills:_skills_common/measured_axes_per_dim.json"
+_MAPD_VOCAB_SOURCE = "contracts:vocabularies/measurement_types.yaml"
+
+#: Per (axis, measurement_type) outcomes of the DERIVED-vs-DECLARED reconcile.
+#:
+#: `derived` = the types the axis's declared CARDS resolve to through the governed registry.
+#: `declared` = the types the axis's SKILL.md front matter says it pulls. The declaration has
+#: drifted from the cards before (4 skills in the 2026-08-14 sweep), which is why it is
+#: reconciled rather than trusted as a join key.
+#:
+#: The two "derived but not declared" outcomes are SPLIT because collapsing them would assert
+#: something false. `derived_declared_elsewhere` means the type IS declared — by a different
+#: axis — so the framework knows about it and the only defect is the attribution; today's single
+#: instance is exactly that (`structure_druggability`, whose card sits under `surface_modality`
+#: while `target_intrinsic` and `tractability_sm` declare the type). `derived_nowhere_declared`
+#: would mean no axis anywhere claims a type its own cards provide. Calling the first one
+#: "undeclared drift" would be a conjunctive label firing on half its evidence.
+_RECONCILE_OUTCOMES = (
+    "agree",
+    "declared_not_derived",
+    "derived_declared_elsewhere",
+    "derived_nowhere_declared",
+)
+
+#: Registry-side states for a governed type NO axis declares. Split by OWNER, because the
+#: remedies live in different repos: `no_card_view` is a type with providers and no card (this
+#: repo owes a view of data that already exists), `card_exists_unpulled` is a card no skill
+#: pulls (the skills side owes a pull, or the card is deliberately out of scope), and
+#: `card_declared_type_undeclared` is a card a skill DOES pull whose type it never declares —
+#: the registry-side face of `derived_nowhere_declared`, with no live instance today.
+_UNPULLED_TYPE_STATES = ("no_card_view", "card_exists_unpulled", "card_declared_type_undeclared")
+
+
+def reconcile_axis_types(census: dict, type_cards: dict | None) -> dict:
+    """Join the skills axis census to the governed card->measurement_type registry.
+
+    THE HALF THE CENSUS CANNOT MEASURE, which is the only reason this dimension is more than a
+    transcription. `vocabularies/measurement_types.yaml` lives in THIS repo, so the resolution
+    belongs here: computing it on the skills side would let a card edit here red an unrelated
+    skills PR — the cross-repo PR gate the framework-health split exists to prevent.
+
+    A card that resolves to NO registered type is published as its OWN list and is deliberately
+    absent from `outcome_tally`. It is neither agreement nor disagreement: the type simply is not
+    decidable for it. Today's single instance (`surfaceome-cohort-ranking`) is a documented Rule
+    non-goal — a population-relative ranking rather than a per-target claim — but that exclusion
+    lives in a YAML COMMENT, not in a machine-readable field, so nothing here may score it as
+    intentional. If it ever becomes machine-readable this list should shrink by construction.
+
+    `available: False` means the vocab was unreadable, and every count is then None. A 0 against
+    "governed types with no card view" would read as a fully-viewed registry.
+    """
+    if not type_cards:
+        return {
+            "available": False,
+            "source": _MAPD_VOCAB_SOURCE,
+            "reason": "governed measurement_types vocabulary unreadable — reconcile NOT measured",
+            "outcomes": list(_RECONCILE_OUTCOMES),
+            "outcome_tally": dict.fromkeys(_RECONCILE_OUTCOMES),
+            "unpulled_type_states": list(_UNPULLED_TYPE_STATES),
+            "unpulled_type_tally": dict.fromkeys(_UNPULLED_TYPE_STATES),
+            "n_cards_without_registered_type": None,
+            "note": (
+                "UNMEASURED, not clean. Do not plot a zero here — the card->measurement_type "
+                "registry could not be read, so no axis was reconciled at all."
+            ),
+        }
+
+    rosters = census.get("rosters") or {}
+    cards_by_axis = rosters.get("cards_by_axis") or {}
+    declared_by_axis = rosters.get("declared_types_by_axis") or {}
+
+    card_to_types: dict[str, set[str]] = {}
+    for tname, entry in type_cards.items():
+        for cid in (entry or {}).get("cards") or []:
+            card_to_types.setdefault(cid, set()).add(tname)
+
+    declared_anywhere = {t for ts in declared_by_axis.values() for t in ts}
+    pulled_cards = {c for cs in cards_by_axis.values() for c in cs}
+
+    by_axis: dict[str, dict] = {}
+    queue: list[dict] = []
+    tally = dict.fromkeys(_RECONCILE_OUTCOMES, 0)
+    cards_no_type: set[str] = set()
+
+    for axis in sorted(cards_by_axis):
+        cards = cards_by_axis.get(axis) or []
+        declared = set(declared_by_axis.get(axis) or ())
+        derived: set[str] = set()
+        unregistered: list[str] = []
+        for cid in cards:
+            hits = card_to_types.get(cid)
+            if hits:
+                derived |= hits
+            else:
+                unregistered.append(cid)
+                cards_no_type.add(cid)
+
+        agree = sorted(derived & declared)
+        declared_only = sorted(declared - derived)
+        derived_only = sorted(derived - declared)
+        elsewhere = [t for t in derived_only if t in declared_anywhere]
+        nowhere = [t for t in derived_only if t not in declared_anywhere]
+
+        tally["agree"] += len(agree)
+        tally["declared_not_derived"] += len(declared_only)
+        tally["derived_declared_elsewhere"] += len(elsewhere)
+        tally["derived_nowhere_declared"] += len(nowhere)
+
+        for t in declared_only:
+            queue.append(
+                {
+                    "axis": axis,
+                    "measurement_type": t,
+                    "outcome": "declared_not_derived",
+                    "evidence": (
+                        "the skill declares this type but none of its declared cards resolves to "
+                        "it — the composition claims an instrument its own roster does not provide"
+                    ),
+                }
+            )
+        for t in elsewhere:
+            queue.append(
+                {
+                    "axis": axis,
+                    "measurement_type": t,
+                    "outcome": "derived_declared_elsewhere",
+                    "declared_by": sorted(a for a, ts in declared_by_axis.items() if t in ts),
+                    "evidence": (
+                        "a card in THIS axis's roster provides the type, and a DIFFERENT axis "
+                        "declares it — the framework knows the type; the attribution is what drifted"
+                    ),
+                }
+            )
+        for t in nowhere:
+            queue.append(
+                {
+                    "axis": axis,
+                    "measurement_type": t,
+                    "outcome": "derived_nowhere_declared",
+                    "evidence": (
+                        "a card in this axis's roster provides the type and NO axis anywhere "
+                        "declares it — the framework measures something it does not claim to"
+                    ),
+                }
+            )
+
+        by_axis[axis] = {
+            "n_declared_cards": len(cards),
+            "n_declared_types": len(declared),
+            "n_derived_types": len(derived),
+            "n_agree": len(agree),
+            "declared_not_derived": declared_only,
+            "derived_declared_elsewhere": elsewhere,
+            "derived_nowhere_declared": nowhere,
+            "cards_without_registered_type": sorted(unregistered),
+        }
+
+    unpulled: list[dict] = []
+    for tname in sorted(set(type_cards) - declared_anywhere):
+        entry = type_cards.get(tname) or {}
+        cards = list(entry.get("cards") or ())
+        if not cards:
+            state = "no_card_view"
+        elif any(c in pulled_cards for c in cards):
+            state = "card_declared_type_undeclared"
+        else:
+            state = "card_exists_unpulled"
+        unpulled.append(
+            {
+                "measurement_type": tname,
+                "state": state,
+                "n_cards": len(cards),
+                "cards": sorted(cards),
+                "n_providers": entry.get("n_providers"),
+            }
+        )
+
+    return {
+        "available": True,
+        "source": _MAPD_VOCAB_SOURCE,
+        "outcomes": list(_RECONCILE_OUTCOMES),
+        "outcome_tally": tally,
+        "by_axis": by_axis,
+        "queue": queue,
+        "n_governed_types": len(type_cards),
+        "n_governed_types_declared_by_an_axis": len(set(type_cards) & declared_anywhere),
+        "n_axis_types_absent_from_the_registry": len(declared_anywhere - set(type_cards)),
+        "axis_types_absent_from_the_registry": sorted(declared_anywhere - set(type_cards)),
+        "unpulled_type_states": list(_UNPULLED_TYPE_STATES),
+        "unpulled_type_tally": {s: sum(1 for u in unpulled if u["state"] == s) for s in _UNPULLED_TYPE_STATES},
+        "unpulled_types": unpulled,
+        "n_cards_without_registered_type": len(cards_no_type),
+        "cards_without_registered_type": sorted(cards_no_type),
+        "note": (
+            "READ THE UNPULLED-TYPE SPLIT FIRST, not `agree`. Agreement is the saturated "
+            "direction and a number that can only go up; the informative queues are the governed "
+            "types no axis pulls, split by owner. Every unpulled type today carries at least one "
+            "PROVIDER, so `no_card_view` means a missing card view of data that already exists — "
+            "not an empty declaration. Cards that resolve to no registered type are listed "
+            "separately and counted in NO outcome: undecidable is not disagreement."
+        ),
+    }
+
+
+def build_measured_axes_per_dim(census: dict, type_cards: dict | None) -> dict:
+    """Wrap the skills axis-measurability census in the dimension envelope, plus the reconcile.
+
+    Transcription plus ONE added axis, the same shape as build_field_read_health for the same
+    reason: a second SHAPE for the same facts is the cheapest way to acquire drift between two
+    repos no CI job can compare. The added axis here is the derived-vs-declared reconcile against
+    the governed registry — the half the census could not compute, because the vocabulary is in
+    this repo.
+
+    CAPABILITY IS NOT OUTCOME, and the envelope must not blur it. The census's static states are
+    disjoint from the per-run `risk_projection.COVERAGE_STATES` by construction, so nothing here
+    joins a static state onto a coverage state, and no field of this dimension is named
+    `measured`. A dim can be fully instrumented and still have measured nothing today.
+
+    TWO NAMED PROJECTIONS, so they cannot be mistaken for measurements: `rosters.cards_by_axis`
+    (139 cards) and `rosters.declared_types_by_axis` (123 types) are INPUTS to the reconcile, not
+    findings, and are ~11 KB of the census's 39 KB. They are not copied through; `roster_pin`
+    keeps their counts so the pin stays identifiable, the reconcile queue NAMES every type and
+    card it flags, and the full rosters remain in the skills artifact, which is their ONE
+    producer.
+
+    `available: False` is NOT a health verdict — it means this checkout could not see the skills
+    sibling. A consumer must render it as "not measured", never as "every axis instrumented".
+    """
+    if not census:
+        return {
+            "available": False,
+            "source": _MAPD_SOURCE,
+            "reason": "census absent — the skills sibling is unreadable, or does not publish it yet",
+        }
+
+    rosters = census.get("rosters") or {}
+    cards_by_axis = rosters.get("cards_by_axis") or {}
+    declared_by_axis = rosters.get("declared_types_by_axis") or {}
+    body = {k: v for k, v in census.items() if k not in ("schema_version", "rosters")}
+
+    return {
+        "available": True,
+        "source": _MAPD_SOURCE,
+        "schema_version": census.get("schema_version"),
+        **body,
+        "rosters": {k: v for k, v in rosters.items() if k not in ("cards_by_axis", "declared_types_by_axis")},
+        "roster_pin": {
+            "n_axes_with_cards": len(cards_by_axis),
+            "n_cards_distinct": len({c for cs in cards_by_axis.values() for c in cs}),
+            "n_types_distinct": len({t for ts in declared_by_axis.values() for t in ts}),
+            "note": "the two input rosters themselves are NOT copied here — see build_measured_axes_per_dim",
+        },
+        "reconcile": reconcile_axis_types(census, type_cards),
+        "reading_note": (
+            "CAPABILITY, NOT OUTCOME: this dimension says whether an INSTRUMENT EXISTS for a "
+            "dim's axes, never whether a run measured one. It is allowed to disagree with the "
+            "per-run coverage lens and today one axis does. The per-axis flag is the saturated "
+            "half — read `n_types_without_measurement_descriptor` and the reconcile's "
+            "unpulled-type split, which are not."
         ),
     }
 

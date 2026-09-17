@@ -2290,3 +2290,541 @@ def test_gate_short_is_populated_for_fanout_skills_in_the_artifact():
     report = json.loads(committed.read_text())
     shorts = [s.get("gate_short") for s in report.get("skills") or []]
     assert any(s is not None for s in shorts), "gate_short is None on every skill (stale SUB_SKILLS path?)"
+
+
+# ===========================================================================
+# 9. AXIS MEASURABILITY (framework-health dimension 3 of 3)
+#
+# The dimension answers CAPABILITY — does an instrument EXIST for a dim's axes — which no
+# per-run coverage number can answer about itself. Two inputs from two repos: the skills
+# census (a committed sidecar) and this repo's governed card->measurement_type registry.
+# These guard the failures specific to that shape:
+#   * the two halves must be independently absent-able, and absence must be NULL, never 0;
+#   * a card that resolves to no registered type is UNDECIDABLE, not disagreement;
+#   * "derived but not declared" must not be one label: a type declared by ANOTHER axis is a
+#     misattribution, while a type declared nowhere is the framework measuring something it
+#     never claims. The second has no live instance, so it is a regression watch and is
+#     constructed here rather than assumed unreachable;
+#   * the static vocabulary must never converge on the per-RUN coverage vocabulary.
+# ===========================================================================
+def _mapd_census(**over):
+    """A synthetic axis-measurability census, shaped like the committed sidecar.
+
+    Deliberately NOT a copy of the real one: three axes exercising covered / blind /
+    non-fan-out, and a card roster wired so every reconcile outcome is reachable from these
+    bytes alone.
+    """
+    census = {
+        "schema_version": "1.0.0",
+        "producer": "measured_axes_per_dim_sidecar.py",
+        "summary": {
+            "n_axes": 3,
+            "n_dims": 2,
+            "n_declared_types_distinct": 3,
+            "n_declared_cards_distinct": 3,
+            "n_types_with_measurement_descriptor": 2,
+            "n_types_without_measurement_descriptor": 1,
+            "n_axes_descriptor_covered": 1,
+            "n_axes_descriptor_blind": 1,
+            "n_axes_no_declared_types": 0,
+            "n_axes_not_a_fanout_axis": 1,
+        },
+        "axes": {
+            "alpha": {
+                "static_state": "descriptor_covered",
+                "types_without_measurement_descriptor": [],
+                "gate_short": "alpha",
+                "verdict_bearing": True,
+            },
+            "beta": {
+                "static_state": "descriptor_blind",
+                "types_without_measurement_descriptor": ["type_blind"],
+                "gate_short": None,
+                "verdict_bearing": False,
+            },
+            "clinical": {
+                "static_state": "not_a_fanout_axis",
+                "types_without_measurement_descriptor": [],
+                "gate_short": None,
+                "verdict_bearing": None,
+            },
+        },
+        "dims": {
+            "biological": {
+                "n_axes_counted": 2,
+                "n_axes_descriptor_covered": 1,
+                "descriptor_blind_axes": ["beta"],
+                "not_a_fanout_axes": [],
+            },
+            "clinical": {
+                "n_axes_counted": 1,
+                "n_axes_descriptor_covered": 0,
+                "descriptor_blind_axes": [],
+                "not_a_fanout_axes": ["clinical"],
+            },
+        },
+        "types_without_measurement_descriptor": ["type_blind"],
+        "note": "CAPABILITY, NOT OUTCOME. DO NOT HEADLINE the per-axis flag.",
+        "rosters": {
+            "static_states": [
+                "descriptor_covered",
+                "descriptor_blind",
+                "no_declared_types",
+                "not_a_fanout_axis",
+            ],
+            "cards_by_axis": {"alpha": ["card-a", "card-x"], "beta": ["card-b"]},
+            "declared_types_by_axis": {"alpha": ["type_a"], "beta": ["type_b", "type_declared_only"]},
+        },
+    }
+    census.update(over)
+    return census
+
+
+def _type_cards(**over):
+    """The governed registry, inverted by the reconcile into card -> type.
+
+    `type_a` is provided by card-a AND declared by alpha (agree). `type_b` likewise for beta.
+    `type_declared_only` is declared by beta with no card. `type_elsewhere` is provided by
+    card-b (in beta's roster) while alpha declares it. `type_no_view` has providers and no
+    card. `type_unpulled` has a card nobody pulls. `card-x` is in a roster and in no type.
+    """
+    reg = {
+        "type_a": {"cards": ["card-a"], "n_providers": 1},
+        "type_b": {"cards": ["card-b"], "n_providers": 2},
+        "type_no_view": {"cards": [], "n_providers": 1},
+        "type_unpulled": {"cards": ["card-nobody-pulls"], "n_providers": 1},
+    }
+    reg.update(over)
+    return reg
+
+
+def _report_with_mapd(census=None, type_cards=None):
+    rep = _minimal_report()
+    mapd = rollup.build_measured_axes_per_dim(
+        _mapd_census() if census is None else census,
+        _type_cards() if type_cards is None else type_cards,
+    )
+    rep["measured_axes_per_dim"] = mapd
+    msum = mapd.get("summary") or {}
+    rec = mapd.get("reconcile") or {}
+    tally = rec.get("outcome_tally") or {}
+    utally = rec.get("unpulled_type_tally") or {}
+    rep["summary"].update(
+        {
+            "axis_measurability_available": bool(mapd.get("available")),
+            "n_measurement_types_without_descriptor": msum.get("n_types_without_measurement_descriptor"),
+            "n_measurement_types_declared_by_axes": msum.get("n_declared_types_distinct"),
+            "n_axes_descriptor_covered": msum.get("n_axes_descriptor_covered"),
+            "n_axes_descriptor_blind": msum.get("n_axes_descriptor_blind"),
+            "axis_type_reconcile_available": bool(rec.get("available")),
+            "n_axis_types_declared_not_derived": tally.get("declared_not_derived"),
+            "n_axis_types_derived_nowhere_declared": tally.get("derived_nowhere_declared"),
+            "n_axis_types_derived_declared_elsewhere": tally.get("derived_declared_elsewhere"),
+            "n_governed_types_without_card_view": utally.get("no_card_view"),
+            "n_governed_types_card_exists_unpulled": utally.get("card_exists_unpulled"),
+            "n_skill_cards_without_registered_type": rec.get("n_cards_without_registered_type"),
+        }
+    )
+    return rep
+
+
+# --- the two probes: independent absence contracts ------------------------------------
+def test_axis_measurability_probe_degrades_to_empty_without_the_sidecar(tmp_path):
+    assert probe.measured_axes_per_dim(tmp_path) == {}
+
+
+def test_axis_measurability_probe_ignores_a_corrupt_sidecar(tmp_path):
+    d = tmp_path / "skills" / "_skills_common"
+    d.mkdir(parents=True)
+    (d / "measured_axes_per_dim.json").write_text("{not json")
+    assert probe.measured_axes_per_dim(tmp_path) == {}
+
+
+def test_axis_measurability_probe_reads_a_committed_sidecar(tmp_path):
+    d = tmp_path / "skills" / "_skills_common"
+    d.mkdir(parents=True)
+    (d / "measured_axes_per_dim.json").write_text(json.dumps(_mapd_census()))
+    assert probe.measured_axes_per_dim(tmp_path)["summary"]["n_axes"] == 3
+
+
+def test_type_card_views_returns_none_not_empty_without_the_vocab(tmp_path):
+    """None and {} must not be the same answer here: {} would mean 'a registry with no types',
+    which the reconcile would happily join against and report every axis type as unregistered.
+    None routes to `available: False` instead."""
+    assert probe.measurement_type_card_views(tmp_path) is None
+
+
+def test_type_card_views_returns_none_on_a_vocab_without_the_registry(tmp_path):
+    d = tmp_path / "vocabularies"
+    d.mkdir(parents=True)
+    (d / "measurement_types.yaml").write_text("something_else: 1\n")
+    assert probe.measurement_type_card_views(tmp_path) is None
+
+
+def test_type_card_views_reads_cards_and_provider_counts(tmp_path):
+    d = tmp_path / "vocabularies"
+    d.mkdir(parents=True)
+    (d / "measurement_types.yaml").write_text(
+        "measurement_types:\n"
+        "  t_one:\n"
+        "    cards: [card-a, card-b]\n"
+        "    providers: [{source: s1}, {source: s2}]\n"
+        "  t_two:\n"
+        "    cards: []\n"
+        "    providers: [{source: s3}]\n"
+    )
+    got = probe.measurement_type_card_views(tmp_path)
+    assert got["t_one"] == {"cards": ["card-a", "card-b"], "n_providers": 2}
+    assert got["t_two"] == {"cards": [], "n_providers": 1}
+
+
+def test_type_card_views_is_populated_against_the_real_vocab():
+    """Live tripwire (skips nowhere — the vocab is IN this repo). A floor plus a named member,
+    so a silently narrowed read cannot pass vacuously."""
+    got = probe.measurement_type_card_views(probe.CONTRACTS_REPO)
+    assert got is not None and len(got) >= 100, f"expected the full governed registry, got {got and len(got)}"
+    assert got["structure_druggability"]["cards"] == ["structure-features-static"]
+
+
+# --- the reconcile: four outcomes, and the one non-outcome ----------------------------
+def test_a_declared_type_its_own_cards_provide_agrees():
+    rec = rollup.reconcile_axis_types(_mapd_census(), _type_cards())
+    assert rec["available"] is True
+    assert rec["by_axis"]["alpha"]["n_agree"] == 1
+    assert rec["outcome_tally"]["agree"] >= 1
+
+
+def test_a_type_declared_with_no_providing_card_is_declared_not_derived():
+    """beta declares `type_declared_only`, which no card in its roster resolves to — the
+    composition claims an instrument its own roster does not provide."""
+    rec = rollup.reconcile_axis_types(_mapd_census(), _type_cards())
+    assert rec["by_axis"]["beta"]["declared_not_derived"] == ["type_declared_only"]
+    assert rec["outcome_tally"]["declared_not_derived"] == 1
+    row = next(r for r in rec["queue"] if r["outcome"] == "declared_not_derived")
+    assert row["axis"] == "beta" and row["measurement_type"] == "type_declared_only"
+
+
+def test_a_type_another_axis_declares_is_not_called_undeclared_drift():
+    """THE CONJUNCTIVE-LABEL GUARD. `type_elsewhere` is provided by a card in beta's roster and
+    declared by alpha. Calling that "undeclared" would assert something false — the framework
+    knows the type; only the attribution drifted — so it gets its own outcome AND must name the
+    declaring axis, or the label fires on half its evidence."""
+    census = _mapd_census()
+    census["rosters"]["declared_types_by_axis"]["alpha"] = ["type_a", "type_elsewhere"]
+    reg = _type_cards(type_elsewhere={"cards": ["card-b"], "n_providers": 1})
+    rec = rollup.reconcile_axis_types(census, reg)
+    assert rec["by_axis"]["beta"]["derived_declared_elsewhere"] == ["type_elsewhere"]
+    assert rec["by_axis"]["beta"]["derived_nowhere_declared"] == []
+    row = next(r for r in rec["queue"] if r["outcome"] == "derived_declared_elsewhere")
+    assert row["declared_by"] == ["alpha"]
+
+
+def test_a_type_no_axis_declares_is_derived_nowhere_declared():
+    """THE REGRESSION WATCH. No live instance today, which is exactly why it is constructed
+    here: an outcome that cannot be produced by any input is indistinguishable from an outcome
+    that never fires, and the dashboard would look clean either way."""
+    reg = _type_cards(type_orphan={"cards": ["card-a"], "n_providers": 1})
+    rec = rollup.reconcile_axis_types(_mapd_census(), reg)
+    assert rec["by_axis"]["alpha"]["derived_nowhere_declared"] == ["type_orphan"]
+    assert rec["outcome_tally"]["derived_nowhere_declared"] == 1
+    assert rec["by_axis"]["alpha"]["derived_declared_elsewhere"] == []
+
+
+def test_a_card_with_no_registered_type_is_counted_in_no_outcome():
+    """UNDECIDABLE IS NOT DISAGREEMENT. `card-x` is in alpha's roster and in no type's card
+    list. It must appear in its own list and contribute to no outcome — folding it into either
+    `declared_not_derived` or `derived_nowhere_declared` would manufacture a finding."""
+    rec = rollup.reconcile_axis_types(_mapd_census(), _type_cards())
+    assert rec["cards_without_registered_type"] == ["card-x"]
+    assert rec["n_cards_without_registered_type"] == 1
+    assert rec["by_axis"]["alpha"]["cards_without_registered_type"] == ["card-x"]
+    for outcome in ("declared_not_derived", "derived_declared_elsewhere", "derived_nowhere_declared"):
+        assert not any(r.get("measurement_type") == "card-x" for r in rec["queue"])
+        assert "card-x" not in rec["by_axis"]["alpha"][outcome]
+
+
+def test_unpulled_governed_types_are_split_by_owner():
+    """A type no axis declares is one of three different findings with three different owners.
+    A single "orphan types" count would send all of them to the wrong queue."""
+    reg = _type_cards(type_pulled_undeclared={"cards": ["card-a"], "n_providers": 1})
+    rec = rollup.reconcile_axis_types(_mapd_census(), reg)
+    states = {u["measurement_type"]: u["state"] for u in rec["unpulled_types"]}
+    assert states["type_no_view"] == "no_card_view"
+    assert states["type_unpulled"] == "card_exists_unpulled"
+    # card-a IS pulled (alpha's roster) while nothing declares this type — the registry-side
+    # face of derived_nowhere_declared, and NOT an unpulled card.
+    assert states["type_pulled_undeclared"] == "card_declared_type_undeclared"
+    assert rec["unpulled_type_tally"]["no_card_view"] == 1
+    assert rec["n_governed_types"] - rec["n_governed_types_declared_by_an_axis"] == len(rec["unpulled_types"])
+
+
+def test_provider_counts_travel_with_an_unviewed_type():
+    """`no_card_view` with providers is a MISSING VIEW of data that exists; with none it would
+    be an empty declaration. The remedies differ, so the number has to be carried."""
+    rec = rollup.reconcile_axis_types(_mapd_census(), _type_cards())
+    row = next(u for u in rec["unpulled_types"] if u["measurement_type"] == "type_no_view")
+    assert row["n_providers"] == 1 and row["cards"] == []
+
+
+def test_an_unreadable_vocab_yields_nulls_not_zeros():
+    """The reconcile can be unavailable while the census is fine — two repos, two inputs. Every
+    count must then be None: a 0 against "governed types with no card view" would read as a
+    fully-viewed registry."""
+    for empty in (None, {}):
+        rec = rollup.reconcile_axis_types(_mapd_census(), empty)
+        assert rec["available"] is False
+        assert set(rec["outcome_tally"].values()) == {None}
+        assert set(rec["unpulled_type_tally"].values()) == {None}
+        assert rec["n_cards_without_registered_type"] is None
+        assert "UNMEASURED" in rec["note"]
+
+
+# --- the envelope: projections, absence, and the vocabulary boundary ------------------
+def test_the_dimension_is_unavailable_without_the_skills_census():
+    mapd = rollup.build_measured_axes_per_dim({}, _type_cards())
+    assert mapd["available"] is False
+    assert "unreadable" in mapd["reason"]
+    assert "summary" not in mapd
+
+
+def test_the_two_input_rosters_are_projected_out_and_pinned():
+    """`cards_by_axis` and `declared_types_by_axis` are INPUTS to the reconcile, not findings,
+    and ~11 KB of the census. The queue names every type and card it flags, so dropping them
+    loses no finding — but the pin must still identify what was joined."""
+    mapd = rollup.build_measured_axes_per_dim(_mapd_census(), _type_cards())
+    assert "cards_by_axis" not in mapd["rosters"]
+    assert "declared_types_by_axis" not in mapd["rosters"]
+    assert "static_states" in mapd["rosters"], "the SEMANTIC rosters must survive the projection"
+    assert mapd["roster_pin"]["n_cards_distinct"] == 3
+    assert mapd["roster_pin"]["n_types_distinct"] == 3
+
+
+def test_the_dimension_never_names_a_per_run_coverage_state():
+    """CAPABILITY IS NOT OUTCOME, enforced on the emitted bytes. The static vocabulary and the
+    per-run one (`measured` / `unmeasured` / `undescribed` / `absent`) are disjoint on the
+    producing side; if this envelope ever republished a per-run state name, a consumer could
+    join a declaration onto a measurement and neither reading would survive."""
+    mapd = rollup.build_measured_axes_per_dim(_mapd_census(), _type_cards())
+    assert not (set(mapd["rosters"]["static_states"]) & {"measured", "unmeasured", "undescribed", "absent"})
+    assert "CAPABILITY, NOT OUTCOME" in mapd["reading_note"]
+
+
+# --- self-check: every claim above, with a control that proves it can fail ------------
+def test_self_check_passes_on_a_consistent_axis_measurability_section(tmp_path):
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(_report_with_mapd()))
+    ok, errs = self_check(p)
+    assert ok, errs
+
+
+def test_self_check_catches_a_summary_mirror_that_drifted(tmp_path):
+    rep = _report_with_mapd()
+    rep["summary"]["n_governed_types_without_card_view"] += 1
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok
+    assert any("unpulled_type_tally[no_card_view]" in e for e in errs)
+
+
+def test_self_check_catches_counts_published_while_unavailable(tmp_path):
+    """The null-discipline guard, from the direction that actually happens: a section flipped to
+    unavailable while the header keeps yesterday's numbers."""
+    rep = _report_with_mapd()
+    rep["measured_axes_per_dim"]["available"] = False
+    rep["summary"]["axis_measurability_available"] = False
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok
+    assert any("must be null, not a number" in e for e in errs)
+
+
+def test_self_check_catches_a_queue_row_with_no_axis_record(tmp_path):
+    rep = _report_with_mapd()
+    rep["measured_axes_per_dim"]["reconcile"]["queue"].append(
+        {"axis": "nonexistent", "measurement_type": "t", "outcome": "declared_not_derived"}
+    )
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok
+    assert any("no record" in e or "disagrees with the queue" in e for e in errs)
+
+
+def test_self_check_catches_a_declared_elsewhere_row_naming_no_axis(tmp_path):
+    """The conjunctive label, guarded on the bytes: a row asserting "another axis declares it"
+    with no axis named is the label firing on half its evidence."""
+    census = _mapd_census()
+    census["rosters"]["declared_types_by_axis"]["alpha"] = ["type_a", "type_elsewhere"]
+    reg = _type_cards(type_elsewhere={"cards": ["card-b"], "n_providers": 1})
+    rep = _report_with_mapd(census=census, type_cards=reg)
+    for row in rep["measured_axes_per_dim"]["reconcile"]["queue"]:
+        if row["outcome"] == "derived_declared_elsewhere":
+            row["declared_by"] = []
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok
+    assert any("names no declaring axis" in e for e in errs)
+
+
+def test_self_check_catches_a_no_card_view_row_that_lists_cards(tmp_path):
+    rep = _report_with_mapd()
+    for u in rep["measured_axes_per_dim"]["reconcile"]["unpulled_types"]:
+        if u["state"] == "no_card_view":
+            u["cards"] = ["some-card"]
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok
+    assert any("is no_card_view" in e for e in errs)
+
+
+def test_self_check_catches_a_stripped_do_not_headline_warning(tmp_path):
+    """The producer's note is the only thing carrying the reading order across the repo
+    boundary, and this consumer is in the other repo. Losing it would let a dashboard plot the
+    saturated per-axis flag as near-done."""
+    rep = _report_with_mapd()
+    rep["measured_axes_per_dim"]["note"] = "nothing to see here"
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok
+    assert any("headlining" in e for e in errs)
+
+
+def test_self_check_catches_a_static_state_colliding_with_a_coverage_state(tmp_path):
+    rep = _report_with_mapd()
+    rep["measured_axes_per_dim"]["rosters"]["static_states"].append("measured")
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok
+    assert any("collide with the per-run" in e for e in errs)
+
+
+def test_self_check_catches_a_card_fed_dim_that_stops_being_distinguishable(tmp_path):
+    """A dim reading 0-of-1 axes covered is card-fed, not blind, and `not_a_fanout_axes` is the
+    ONLY thing that says so. Empty it and the artifact would render an instrument gap that does
+    not exist."""
+    rep = _report_with_mapd()
+    rep["measured_axes_per_dim"]["dims"]["clinical"]["not_a_fanout_axes"] = []
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok
+    assert any("would render as blindness" in e for e in errs)
+
+
+def test_self_check_catches_a_projected_roster_copied_back_in(tmp_path):
+    rep = _report_with_mapd()
+    rep["measured_axes_per_dim"]["rosters"]["cards_by_axis"] = {"alpha": ["card-a"]}
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok
+    assert any("projection is not applied" in e for e in errs)
+
+
+def test_self_check_ignores_the_section_when_it_is_absent(tmp_path):
+    """The dimension is optional by construction: an artifact built in an isolated checkout has
+    no section at all, and the self-check must not manufacture errors for it."""
+    rep = _minimal_report()
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert ok, errs
+
+
+# --- the committed artifact: non-vacuity against the real repos -----------------------
+def test_the_committed_artifact_carries_a_populated_axis_measurability_section():
+    """Against the real artifact: the only check that reds if the dimension ships empty. A
+    floor plus named members, because an unavailable section would satisfy every softer
+    assertion vacuously."""
+    committed = probe.CONTRACTS_REPO / "health" / "framework_health.json"
+    if not committed.exists():
+        pytest.skip("no committed artifact")
+    mapd = json.loads(committed.read_text()).get("measured_axes_per_dim")
+    assert mapd and mapd["available"] is True, "the dimension shipped unavailable"
+    assert mapd["reconcile"]["available"] is True, "the reconcile shipped unmeasured"
+    assert mapd["summary"]["n_types_without_measurement_descriptor"] >= 1
+    assert mapd["reconcile"]["n_governed_types"] >= 100
+
+
+def test_the_committed_unpulled_split_is_non_vacuous():
+    """Both live states must be non-empty, and named. A tally of all-zeros would pass a
+    "counts agree with their lists" check perfectly while measuring nothing."""
+    committed = probe.CONTRACTS_REPO / "health" / "framework_health.json"
+    if not committed.exists():
+        pytest.skip("no committed artifact")
+    rec = json.loads(committed.read_text())["measured_axes_per_dim"]["reconcile"]
+    tally = rec["unpulled_type_tally"]
+    assert tally["no_card_view"] > 0 and tally["card_exists_unpulled"] > 0
+    types = {u["measurement_type"] for u in rec["unpulled_types"]}
+    assert "mutation_status" in types and "antigen_internalization" in types
+    # Every unviewed type today has data behind it — the finding is the missing VIEW.
+    assert all(u["n_providers"] >= 1 for u in rec["unpulled_types"])
+
+
+def test_the_saturated_agreement_count_is_not_in_the_summary_header():
+    """`agree` is 165 of 166 and can only go up. A header slot for it would be decoration
+    competing with the numbers that move; it stays in the section."""
+    committed = probe.CONTRACTS_REPO / "health" / "framework_health.json"
+    if not committed.exists():
+        pytest.skip("no committed artifact")
+    rep = json.loads(committed.read_text())
+    assert not [k for k in rep["summary"] if "agree" in k]
+    assert rep["measured_axes_per_dim"]["reconcile"]["outcome_tally"]["agree"] > 0
+
+
+def test_self_check_catches_a_global_blind_list_no_axis_owns(tmp_path):
+    """The tightened direction. The producer builds the global list as the UNION over axes, so a
+    global-only entry means the headline type-queue grew while no axis became actionable — the
+    number a reader would act on, attached to no owner."""
+    census = _mapd_census()
+    census["types_without_measurement_descriptor"] = ["type_blind", "type_owned_by_nobody"]
+    census["summary"]["n_types_without_measurement_descriptor"] = 2
+    rep = _report_with_mapd(census=census)
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert not ok
+    assert any("global-only=['type_owned_by_nobody']" in e for e in errs)
+
+
+def test_a_descriptor_covered_axis_is_allowed_to_carry_undescribed_types(tmp_path):
+    """`descriptor_covered` is EXISTENTIAL — >=1 declared type carries a descriptor — so an axis
+    can be covered and still have gaps. That is not a tolerated inconsistency but the whole
+    reason the flag must not be headlined: a consumer that read covered as "no gaps" would have
+    to call the real artifact corrupt on 14 of its 15 fan-out axes."""
+    census = _mapd_census()
+    census["axes"]["alpha"]["types_without_measurement_descriptor"] = ["type_blind"]
+    rep = _report_with_mapd(census=census)
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    ok, errs = self_check(p)
+    assert ok, errs
+    assert rep["measured_axes_per_dim"]["summary"]["n_axes_descriptor_covered"] == 1
+
+
+def test_the_axis_flag_and_the_type_queue_are_decoupled_in_the_artifact():
+    """The saturation fact, asserted so that BOTH worlds are checked rather than one being
+    vacuously green: while undescribed types exist, at least one axis must be covered AND still
+    carrying them (else the flag really were a coverage proxy and headlining it would be fair);
+    once the queue empties, every axis list must be empty too."""
+    committed = probe.CONTRACTS_REPO / "health" / "framework_health.json"
+    if not committed.exists():
+        pytest.skip("no committed artifact")
+    m = json.loads(committed.read_text())["measured_axes_per_dim"]
+    covered_with_gaps = [
+        a
+        for a, r in m["axes"].items()
+        if r["static_state"] == "descriptor_covered" and (r.get("types_without_measurement_descriptor") or [])
+    ]
+    if m["summary"]["n_types_without_measurement_descriptor"]:
+        assert covered_with_gaps, "no covered axis carries a gap — the flag has become a coverage proxy"
+        assert m["summary"]["n_axes_descriptor_covered"] > len(covered_with_gaps) - 1
+    else:
+        assert not covered_with_gaps
+        assert all(not (r.get("types_without_measurement_descriptor") or []) for r in m["axes"].values())

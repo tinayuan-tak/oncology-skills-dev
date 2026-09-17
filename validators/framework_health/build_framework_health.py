@@ -583,6 +583,278 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
                         "NOT a clean bill of health — regenerate from the skills producer"
                     )
 
+    # 8. Axis-measurability section (if present): the skills static CAPABILITY census plus the
+    #    derived-vs-declared reconcile this repo adds. Re-derived from the section's OWN bytes for
+    #    the same reason as (6) and (7) — the CI runner sees neither the skills sibling nor the
+    #    governed vocab, so a check that needs them would degrade to "skipping" in the only
+    #    environment that runs it.
+    mapd = rep.get("measured_axes_per_dim")
+    if mapd is not None:
+        summary = rep.get("summary", {})
+        if summary.get("axis_measurability_available") != bool(mapd.get("available")):
+            errs.append("summary.axis_measurability_available disagrees with the section — regenerate")
+
+        _MAPD_COUNTS = (
+            "n_measurement_types_without_descriptor",
+            "n_measurement_types_declared_by_axes",
+            "n_axes_descriptor_covered",
+            "n_axes_descriptor_blind",
+        )
+        _RECONCILE_COUNTS = (
+            "n_axis_types_declared_not_derived",
+            "n_axis_types_derived_nowhere_declared",
+            "n_axis_types_derived_declared_elsewhere",
+            "n_governed_types_without_card_view",
+            "n_governed_types_card_exists_unpulled",
+            "n_skill_cards_without_registered_type",
+        )
+        if not mapd.get("available"):
+            for key in _MAPD_COUNTS + _RECONCILE_COUNTS:
+                if summary.get(key) is not None:
+                    errs.append(
+                        f"summary.{key} is {summary.get(key)!r} but axis measurability is "
+                        f"UNAVAILABLE — an unmeasured dimension must be null, not a number"
+                    )
+        else:
+            msum = mapd.get("summary") or {}
+            axes = mapd.get("axes")
+            dims = mapd.get("dims")
+            rec = mapd.get("reconcile") or {}
+            if not isinstance(axes, dict) or not isinstance(dims, dict):
+                errs.append("[measured_axes_per_dim] available but missing axes/dims")
+            else:
+                # Static states re-derive from the per-axis records, not from the recorded counts.
+                states = Counter(a.get("static_state") for a in axes.values())
+                declared_states = set(((mapd.get("rosters") or {}).get("static_states")) or ())
+                unknown_states = sorted(str(s) for s in states if s not in declared_states)
+                if declared_states and unknown_states:
+                    errs.append(
+                        f"[measured_axes_per_dim] static_state(s) outside the published vocabulary: "
+                        f"{unknown_states} — the producer's vocabulary changed"
+                    )
+                # CAPABILITY vs OUTCOME, enforced on the bytes: the static vocabulary must not
+                # acquire a per-run coverage state name. If the two ever converge, a consumer can
+                # join a declaration onto a measurement and neither reading survives.
+                collided = sorted(declared_states & {"measured", "unmeasured", "undescribed", "absent"})
+                if collided:
+                    errs.append(
+                        f"[measured_axes_per_dim] static state(s) {collided} collide with the per-run "
+                        f"coverage vocabulary — capability and outcome must stay nameable apart"
+                    )
+                for key, want in (
+                    ("n_axes", len(axes)),
+                    ("n_dims", len(dims)),
+                    ("n_axes_descriptor_covered", states["descriptor_covered"]),
+                    ("n_axes_descriptor_blind", states["descriptor_blind"]),
+                    ("n_axes_not_a_fanout_axis", states["not_a_fanout_axis"]),
+                ):
+                    if msum.get(key) != want:
+                        errs.append(
+                            f"[measured_axes_per_dim] summary.{key} disagrees with the axes/dims ({want}) — regenerate"
+                        )
+                # The per-TYPE queue is the headline number, so it must equal its own list.
+                blind_types = mapd.get("types_without_measurement_descriptor")
+                if not isinstance(blind_types, list):
+                    errs.append("[measured_axes_per_dim] types_without_measurement_descriptor is missing")
+                elif msum.get("n_types_without_measurement_descriptor") != len(blind_types):
+                    errs.append(
+                        "[measured_axes_per_dim] n_types_without_measurement_descriptor disagrees with its list"
+                    )
+                # Descriptor coverage is a property of the TYPE, not of the axis: a type may not be
+                # blind under one axis and covered under another, or every union over axes is
+                # ambiguous and the per-dim roll-ups mean nothing.
+                per_axis_blind = {
+                    t for a in axes.values() for t in (a.get("types_without_measurement_descriptor") or [])
+                }
+                # EQUALITY, not containment: the producer builds the global list AS the union over
+                # declared axes, so a global entry no axis owns is just as much a defect as an axis
+                # entry missing from the global list — and it is the direction that would let the
+                # headline type-queue grow without any axis becoming actionable. Measured equal
+                # (62 == 62) at the time this was written.
+                if isinstance(blind_types, list) and per_axis_blind != set(blind_types):
+                    errs.append(
+                        "[measured_axes_per_dim] the global undescribed-type list is not the union "
+                        f"over axes (global-only={sorted(set(blind_types) - per_axis_blind)}, "
+                        f"axis-only={sorted(per_axis_blind - set(blind_types))}) — regenerate"
+                    )
+                # A card-fed pseudo-dim reads 0-of-1 axes covered and is NOT blind. Only
+                # `not_a_fanout_axes` distinguishes the two, so a dim with no covered axes and no
+                # named non-fan-out axis would be rendered as an instrument gap it is not.
+                for dname, d in dims.items():
+                    if d.get("n_axes_descriptor_covered") == 0 and not (
+                        (d.get("not_a_fanout_axes") or []) or (d.get("descriptor_blind_axes") or [])
+                    ):
+                        errs.append(
+                            f"[measured_axes_per_dim] dim '{dname}' reports no covered axis and names "
+                            f"neither a blind nor a non-fan-out axis — 0 would render as blindness"
+                        )
+                # The projection: the two input rosters are deliberately not copied through, so the
+                # pin is the only trace left and must still match the census it came from.
+                pin = mapd.get("roster_pin") or {}
+                if pin.get("n_cards_distinct") != msum.get("n_declared_cards_distinct") or pin.get(
+                    "n_types_distinct"
+                ) != msum.get("n_declared_types_distinct"):
+                    errs.append("[measured_axes_per_dim] roster_pin disagrees with the census summary — regenerate")
+                for dropped in ("cards_by_axis", "declared_types_by_axis"):
+                    if dropped in (mapd.get("rosters") or {}):
+                        errs.append(
+                            f"[measured_axes_per_dim] rosters.{dropped} was copied through — the projection is not applied"
+                        )
+                # The producer's note carries the one warning this repo cannot re-derive: that the
+                # per-axis flag is the saturated half and must not be headlined. Checked for
+                # PRESENCE, because losing it would let a dashboard plot 14-of-15 as near-done.
+                if "DO NOT HEADLINE" not in (mapd.get("note") or ""):
+                    errs.append(
+                        "[measured_axes_per_dim] the census note no longer warns against headlining "
+                        "the per-axis flag — regenerate from the skills producer"
+                    )
+
+                # The reconcile half, which can be unavailable on its own (a readable skills
+                # sibling with an unreadable vocab is a real state, not a contradiction).
+                if summary.get("axis_type_reconcile_available") != bool(rec.get("available")):
+                    errs.append("summary.axis_type_reconcile_available disagrees with the reconcile — regenerate")
+                if not rec.get("available"):
+                    for key in _RECONCILE_COUNTS:
+                        if summary.get(key) is not None:
+                            errs.append(
+                                f"summary.{key} is {summary.get(key)!r} but the reconcile is "
+                                f"UNAVAILABLE — an unmeasured join must be null, not a number"
+                            )
+                    for outcome, n in (rec.get("outcome_tally") or {}).items():
+                        if n is not None:
+                            errs.append(
+                                f"[measured_axes_per_dim] outcome_tally[{outcome}] is {n!r} with the "
+                                f"vocab unreadable — must be null"
+                            )
+                else:
+                    queue = rec.get("queue")
+                    by_axis = rec.get("by_axis")
+                    tally = rec.get("outcome_tally") or {}
+                    if not isinstance(queue, list) or not isinstance(by_axis, dict):
+                        errs.append("[measured_axes_per_dim] reconcile available but missing queue/by_axis")
+                    else:
+                        unknown_out = sorted(
+                            str(r.get("outcome")) for r in queue if r.get("outcome") not in rollup._RECONCILE_OUTCOMES
+                        )
+                        if unknown_out:
+                            errs.append(
+                                f"[measured_axes_per_dim] reconcile outcome(s) outside the vocabulary: {unknown_out}"
+                            )
+                        # `agree` is a count only; every OTHER outcome must have one queue row each,
+                        # so a tally and a queue cannot silently disagree.
+                        for outcome in rollup._RECONCILE_OUTCOMES:
+                            if outcome == "agree":
+                                continue
+                            want = sum(1 for r in queue if r.get("outcome") == outcome)
+                            if tally.get(outcome) != want:
+                                errs.append(
+                                    f"[measured_axes_per_dim] outcome_tally[{outcome}] disagrees with the queue ({want}) — regenerate"
+                                )
+                        # Each row must trace back to its own axis record.
+                        for row in queue:
+                            rec_axis = by_axis.get(row.get("axis"))
+                            if rec_axis is None:
+                                errs.append(
+                                    f"[measured_axes_per_dim] queue row names axis '{row.get('axis')}' with no record"
+                                )
+                                continue
+                            bucket = rec_axis.get(row.get("outcome")) or []
+                            if row.get("measurement_type") not in bucket:
+                                errs.append(
+                                    f"[measured_axes_per_dim] queue row {row.get('axis')}/"
+                                    f"{row.get('measurement_type')} is not in that axis's "
+                                    f"{row.get('outcome')} list — regenerate"
+                                )
+                        # `derived_declared_elsewhere` asserts a SECOND fact — that another axis
+                        # declares the type — so the row has to name that axis or the label is
+                        # firing on half its evidence.
+                        for row in queue:
+                            if row.get("outcome") == "derived_declared_elsewhere" and not row.get("declared_by"):
+                                errs.append(
+                                    f"[measured_axes_per_dim] {row.get('measurement_type')} is called "
+                                    f"declared_elsewhere but names no declaring axis"
+                                )
+                        # A card with no registered type is undecidable, NOT disagreement: it must
+                        # not appear in any outcome bucket.
+                        no_type = set(rec.get("cards_without_registered_type") or ())
+                        if rec.get("n_cards_without_registered_type") != len(no_type):
+                            errs.append(
+                                "[measured_axes_per_dim] n_cards_without_registered_type disagrees with its list"
+                            )
+                        unpulled = rec.get("unpulled_types") or []
+                        u_tally = rec.get("unpulled_type_tally") or {}
+                        unknown_states = sorted(
+                            str(u.get("state")) for u in unpulled if u.get("state") not in rollup._UNPULLED_TYPE_STATES
+                        )
+                        if unknown_states:
+                            errs.append(
+                                f"[measured_axes_per_dim] unpulled-type state(s) outside the vocabulary: {unknown_states}"
+                            )
+                        for state in rollup._UNPULLED_TYPE_STATES:
+                            want = sum(1 for u in unpulled if u.get("state") == state)
+                            if u_tally.get(state) != want:
+                                errs.append(
+                                    f"[measured_axes_per_dim] unpulled_type_tally[{state}] disagrees with the rows ({want}) — regenerate"
+                                )
+                        # `no_card_view` asserts the absence of a card view, so a row in that state
+                        # listing cards is self-contradictory.
+                        for u in unpulled:
+                            if u.get("state") == "no_card_view" and (u.get("cards") or []):
+                                errs.append(
+                                    f"[measured_axes_per_dim] {u.get('measurement_type')} is no_card_view "
+                                    f"but lists cards {u.get('cards')}"
+                                )
+                        n_gov, n_pulled = rec.get("n_governed_types"), rec.get("n_governed_types_declared_by_an_axis")
+                        if isinstance(n_gov, int) and isinstance(n_pulled, int):
+                            if n_pulled > n_gov:
+                                errs.append(
+                                    "[measured_axes_per_dim] more governed types pulled than exist — impossible"
+                                )
+                            if n_gov - n_pulled != len(unpulled):
+                                errs.append(
+                                    f"[measured_axes_per_dim] {n_gov} governed types minus {n_pulled} pulled "
+                                    f"does not equal the {len(unpulled)} unpulled row(s) — regenerate"
+                                )
+                        # Summary mirrors must agree with the section they summarize.
+                        for top, inner in (
+                            ("n_axis_types_declared_not_derived", "declared_not_derived"),
+                            ("n_axis_types_derived_nowhere_declared", "derived_nowhere_declared"),
+                            ("n_axis_types_derived_declared_elsewhere", "derived_declared_elsewhere"),
+                        ):
+                            if summary.get(top) != tally.get(inner):
+                                errs.append(
+                                    f"summary.{top} disagrees with reconcile.outcome_tally[{inner}] — regenerate"
+                                )
+                        for top, inner in (
+                            ("n_governed_types_without_card_view", "no_card_view"),
+                            ("n_governed_types_card_exists_unpulled", "card_exists_unpulled"),
+                        ):
+                            if summary.get(top) != u_tally.get(inner):
+                                errs.append(
+                                    f"summary.{top} disagrees with reconcile.unpulled_type_tally[{inner}] — regenerate"
+                                )
+                        if summary.get("n_skill_cards_without_registered_type") != rec.get(
+                            "n_cards_without_registered_type"
+                        ):
+                            errs.append(
+                                "summary.n_skill_cards_without_registered_type disagrees with the reconcile — regenerate"
+                            )
+                        # The reconcile's own note carries the reading order a consumer cannot
+                        # re-derive: agreement is saturated, the unpulled split is not.
+                        if "READ THE UNPULLED-TYPE SPLIT FIRST" not in (rec.get("note") or ""):
+                            errs.append(
+                                "[measured_axes_per_dim] the reconcile note no longer states the reading "
+                                "order — a dashboard would headline the saturated `agree` count"
+                            )
+                for top, inner in (
+                    ("n_measurement_types_without_descriptor", "n_types_without_measurement_descriptor"),
+                    ("n_measurement_types_declared_by_axes", "n_declared_types_distinct"),
+                    ("n_axes_descriptor_covered", "n_axes_descriptor_covered"),
+                    ("n_axes_descriptor_blind", "n_axes_descriptor_blind"),
+                ):
+                    if summary.get(top) != msum.get(inner):
+                        errs.append(f"summary.{top} disagrees with measured_axes_per_dim.summary.{inner} — regenerate")
+
     return (not errs), errs
 
 

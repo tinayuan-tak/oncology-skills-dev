@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-17T15:38:46.313997+00:00",
+  "generated_at": "2026-09-17T17:44:10.645496+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,15 +9,15 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "12cbe86",
-    "skills": "32d5009e",
-    "methods": "33d66f3",
+    "contracts": "ec231d7",
+    "skills": "515cab04",
+    "methods": "975f7bd",
     "products": "b45b9b2",
     "catalog": "d6b2ef8"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-09-17T14:22:52.192858+00:00",
+    "prior_generated_at": "2026-09-17T15:38:46.313997+00:00",
     "n_skills": 0,
     "n_cards": 0,
     "n_drift_flags": 0,
@@ -92,7 +92,19 @@
     "n_undeclared_field_reads": 2,
     "n_field_reads_emitted_but_undeclared": 1,
     "n_field_reads_of_none": 0,
-    "n_field_reads_emission_unobserved": 1
+    "n_field_reads_emission_unobserved": 1,
+    "axis_measurability_available": true,
+    "n_measurement_types_without_descriptor": 62,
+    "n_measurement_types_declared_by_axes": 123,
+    "n_axes_descriptor_covered": 14,
+    "n_axes_descriptor_blind": 1,
+    "axis_type_reconcile_available": true,
+    "n_axis_types_declared_not_derived": 0,
+    "n_axis_types_derived_nowhere_declared": 0,
+    "n_axis_types_derived_declared_elsewhere": 1,
+    "n_governed_types_without_card_view": 12,
+    "n_governed_types_card_exists_unpulled": 5,
+    "n_skill_cards_without_registered_type": 1
   },
   "registry_drift": {
     "marketplace_exists": true,
@@ -1636,6 +1648,1037 @@
       "note": "PUBLISHED BECAUSE IT IS NARROW. Every outcome below is conditional on these packages; a card outside them yields emission_unobserved, which is a statement about the aperture and NOT about the producer. Widening the aperture can only move rows OUT of emission_unobserved, never into it."
     },
     "resolution_note": "The skills census cannot split emission_undetermined (no observed packages it can trust); this side can, and does it per row against the data-products root. The skills-side `classification` is left untouched \u2014 it describes the field NAME's shape, while `emission_outcome` describes what the producer was OBSERVED to do. A row can be meta_key AND emitted_but_undeclared, and one live row is."
+  },
+  "measured_axes_per_dim": {
+    "available": true,
+    "source": "skills:_skills_common/measured_axes_per_dim.json",
+    "schema_version": "1.0.0",
+    "axes": {
+      "cis_coherence": {
+        "declared_absence_state": "declared_context_tier",
+        "dim_coverage_only": "biological",
+        "dim_displayed_context": "biological",
+        "dim_verdict_member": null,
+        "gate_short": null,
+        "n_declared_cards": 8,
+        "n_declared_types": 8,
+        "n_measurement_descriptor_fields": 44,
+        "n_types_with_measurement_descriptor": 6,
+        "skill_dir": "cis-feature-coherence",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "cellline_isoform_expression",
+          "cis_dosage_coupling"
+        ],
+        "verdict_bearing": true
+      },
+      "clinical": {
+        "declared_absence_state": null,
+        "dim_coverage_only": null,
+        "dim_displayed_context": null,
+        "dim_verdict_member": "clinical",
+        "gate_short": null,
+        "n_declared_cards": 0,
+        "n_declared_types": 0,
+        "n_measurement_descriptor_fields": 0,
+        "n_types_with_measurement_descriptor": 0,
+        "skill_dir": null,
+        "static_state": "not_a_fanout_axis",
+        "types_without_measurement_descriptor": [],
+        "verdict_bearing": null
+      },
+      "combination_vulnerability": {
+        "declared_absence_state": "declared_descriptive",
+        "dim_coverage_only": "biological",
+        "dim_displayed_context": "biological",
+        "dim_verdict_member": null,
+        "gate_short": null,
+        "n_declared_cards": 6,
+        "n_declared_types": 6,
+        "n_measurement_descriptor_fields": 18,
+        "n_types_with_measurement_descriptor": 5,
+        "skill_dir": "combination-and-vulnerability",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "cross_consortium_paralog_gi"
+        ],
+        "verdict_bearing": false
+      },
+      "commercial": {
+        "declared_absence_state": null,
+        "dim_coverage_only": null,
+        "dim_displayed_context": null,
+        "dim_verdict_member": "commercial",
+        "gate_short": null,
+        "n_declared_cards": 0,
+        "n_declared_types": 0,
+        "n_measurement_descriptor_fields": 0,
+        "n_types_with_measurement_descriptor": 0,
+        "skill_dir": null,
+        "static_state": "not_a_fanout_axis",
+        "types_without_measurement_descriptor": [],
+        "verdict_bearing": null
+      },
+      "dependency": {
+        "declared_absence_state": null,
+        "dim_coverage_only": null,
+        "dim_displayed_context": null,
+        "dim_verdict_member": "biological",
+        "gate_short": "dependency",
+        "n_declared_cards": 16,
+        "n_declared_types": 13,
+        "n_measurement_descriptor_fields": 31,
+        "n_types_with_measurement_descriptor": 7,
+        "skill_dir": "functional-requirement",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "coessential_module",
+          "cross_consortium_dependency",
+          "genomic_event_model_match",
+          "paralog_buffering",
+          "partner_conditional_dependency",
+          "patient_model_correspondence"
+        ],
+        "verdict_bearing": true
+      },
+      "differentiation": {
+        "declared_absence_state": null,
+        "dim_coverage_only": null,
+        "dim_displayed_context": null,
+        "dim_verdict_member": "translational",
+        "gate_short": "differentiation",
+        "n_declared_cards": 9,
+        "n_declared_types": 9,
+        "n_measurement_descriptor_fields": 22,
+        "n_types_with_measurement_descriptor": 4,
+        "skill_dir": "differentiation-landscape",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "clinical_precedent",
+          "competitor_landscape",
+          "pathway_node_leverage",
+          "precog_prognostic_association",
+          "stemness_context"
+        ],
+        "verdict_bearing": true
+      },
+      "expression": {
+        "declared_absence_state": null,
+        "dim_coverage_only": null,
+        "dim_displayed_context": null,
+        "dim_verdict_member": "biological",
+        "gate_short": null,
+        "n_declared_cards": 17,
+        "n_declared_types": 12,
+        "n_measurement_descriptor_fields": 48,
+        "n_types_with_measurement_descriptor": 11,
+        "skill_dir": "tumor-presence",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "sc_normal_celltype_expression"
+        ],
+        "verdict_bearing": true
+      },
+      "genomic_alteration": {
+        "declared_absence_state": null,
+        "dim_coverage_only": null,
+        "dim_displayed_context": null,
+        "dim_verdict_member": "biological",
+        "gate_short": "genomic_alteration",
+        "n_declared_cards": 26,
+        "n_declared_types": 23,
+        "n_measurement_descriptor_fields": 92,
+        "n_types_with_measurement_descriptor": 14,
+        "skill_dir": "genomic-alteration-profile",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "cross_consortium_dependency",
+          "ddr_deficiency_context",
+          "functional_gene_state",
+          "genomic_event_model_match",
+          "genomic_instability_state",
+          "mutational_signature_context",
+          "oncogenic_pathway_alteration",
+          "tumor_splice_dysregulation",
+          "variant_functional_effect_mave"
+        ],
+        "verdict_bearing": true
+      },
+      "immune_context": {
+        "declared_absence_state": "declared_context_tier",
+        "dim_coverage_only": "druggability",
+        "dim_displayed_context": "druggability",
+        "dim_verdict_member": null,
+        "gate_short": null,
+        "n_declared_cards": 7,
+        "n_declared_types": 6,
+        "n_measurement_descriptor_fields": 6,
+        "n_types_with_measurement_descriptor": 1,
+        "skill_dir": "immune-context",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "ici_response_expression",
+          "sc_tumor_caf_state_expression",
+          "sc_tumor_myeloid_state_expression",
+          "spatial_colocalization",
+          "spatial_til_fraction"
+        ],
+        "verdict_bearing": true
+      },
+      "literature_context": {
+        "declared_absence_state": "declared_descriptive",
+        "dim_coverage_only": null,
+        "dim_displayed_context": "commercial",
+        "dim_verdict_member": null,
+        "gate_short": null,
+        "n_declared_cards": 1,
+        "n_declared_types": 1,
+        "n_measurement_descriptor_fields": 0,
+        "n_types_with_measurement_descriptor": 0,
+        "skill_dir": "literature-context",
+        "static_state": "descriptor_blind",
+        "types_without_measurement_descriptor": [
+          "cited_literature_evidence"
+        ],
+        "verdict_bearing": false
+      },
+      "mechanism": {
+        "declared_absence_state": null,
+        "dim_coverage_only": null,
+        "dim_displayed_context": null,
+        "dim_verdict_member": "biological",
+        "gate_short": "mechanism",
+        "n_declared_cards": 5,
+        "n_declared_types": 5,
+        "n_measurement_descriptor_fields": 9,
+        "n_types_with_measurement_descriptor": 3,
+        "skill_dir": "mechanism-and-pharmacology",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "phospho_pathway_activity",
+          "tahoe_drug_perturbation"
+        ],
+        "verdict_bearing": true
+      },
+      "safety": {
+        "declared_absence_state": null,
+        "dim_coverage_only": null,
+        "dim_displayed_context": null,
+        "dim_verdict_member": "safety",
+        "gate_short": "safety",
+        "n_declared_cards": 16,
+        "n_declared_types": 16,
+        "n_measurement_descriptor_fields": 55,
+        "n_types_with_measurement_descriptor": 9,
+        "skill_dir": "on-target-safety-liability",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "dosage_sensitivity_safety",
+          "drug_warning_safety",
+          "functional_gene_state",
+          "human_genetic_safety",
+          "onsides_adverse_event_safety",
+          "shet_lof_selection",
+          "target_safety_prioritisation"
+        ],
+        "verdict_bearing": true
+      },
+      "selectivity": {
+        "declared_absence_state": null,
+        "dim_coverage_only": null,
+        "dim_displayed_context": null,
+        "dim_verdict_member": "safety",
+        "gate_short": "selectivity",
+        "n_declared_cards": 14,
+        "n_declared_types": 13,
+        "n_measurement_descriptor_fields": 45,
+        "n_types_with_measurement_descriptor": 8,
+        "skill_dir": "tumor-selectivity",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "sc_normal_celltype_expression",
+          "spatial_colocalization",
+          "spatial_region_rna",
+          "spatial_surface_protein",
+          "tumor_vs_normal_protein_abundance"
+        ],
+        "verdict_bearing": true
+      },
+      "subtype_fit": {
+        "declared_absence_state": "open_pending_review",
+        "dim_coverage_only": null,
+        "dim_displayed_context": null,
+        "dim_verdict_member": null,
+        "gate_short": null,
+        "n_declared_cards": 0,
+        "n_declared_types": 0,
+        "n_measurement_descriptor_fields": 0,
+        "n_types_with_measurement_descriptor": 0,
+        "skill_dir": null,
+        "static_state": "not_a_fanout_axis",
+        "types_without_measurement_descriptor": [],
+        "verdict_bearing": null
+      },
+      "surface_modality": {
+        "declared_absence_state": null,
+        "dim_coverage_only": null,
+        "dim_displayed_context": null,
+        "dim_verdict_member": "druggability",
+        "gate_short": "surface_modality",
+        "n_declared_cards": 24,
+        "n_declared_types": 21,
+        "n_measurement_descriptor_fields": 48,
+        "n_types_with_measurement_descriptor": 9,
+        "skill_dir": "surface-modality-fit",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "antigen_pair_coexpression",
+          "antigen_pair_selectivity",
+          "cd_antigen_backbone",
+          "exon_window",
+          "mutation_stratified_surface",
+          "pathway_stratified_surface",
+          "pmhc_epitope_evidence",
+          "pmhc_presentation",
+          "sc_normal_celltype_expression",
+          "surface_confirmation",
+          "surface_topology",
+          "surfaceome_family"
+        ],
+        "verdict_bearing": true
+      },
+      "target_intrinsic": {
+        "declared_absence_state": "declared_descriptive",
+        "dim_coverage_only": "druggability",
+        "dim_displayed_context": "druggability",
+        "dim_verdict_member": null,
+        "gate_short": null,
+        "n_declared_cards": 20,
+        "n_declared_types": 20,
+        "n_measurement_descriptor_fields": 31,
+        "n_types_with_measurement_descriptor": 8,
+        "skill_dir": "target-intrinsic",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "domain_modality_relevance",
+          "dosage_sensitivity_safety",
+          "gene_ontology_annotation",
+          "human_genetic_safety",
+          "paralog_buffering",
+          "ppi_interactome",
+          "protein_domains_class",
+          "reactome_pathway_membership",
+          "surfaceome_family",
+          "target_development_level",
+          "target_identity",
+          "target_safety_prioritisation"
+        ],
+        "verdict_bearing": false
+      },
+      "tractability_sm": {
+        "declared_absence_state": null,
+        "dim_coverage_only": null,
+        "dim_displayed_context": null,
+        "dim_verdict_member": "druggability",
+        "gate_short": "tractability_small_molecule",
+        "n_declared_cards": 9,
+        "n_declared_types": 8,
+        "n_measurement_descriptor_fields": 27,
+        "n_types_with_measurement_descriptor": 6,
+        "skill_dir": "tractability-small-molecule",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "degradation_feasibility",
+          "known_drug_tractability"
+        ],
+        "verdict_bearing": true
+      },
+      "translational_readiness": {
+        "declared_absence_state": "declared_descriptive",
+        "dim_coverage_only": null,
+        "dim_displayed_context": "translational",
+        "dim_verdict_member": null,
+        "gate_short": null,
+        "n_declared_cards": 4,
+        "n_declared_types": 4,
+        "n_measurement_descriptor_fields": 7,
+        "n_types_with_measurement_descriptor": 1,
+        "skill_dir": "translational-readiness",
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [
+          "genotype_matched_model",
+          "model_availability",
+          "pdx_drug_response"
+        ],
+        "verdict_bearing": false
+      }
+    },
+    "dims": {
+      "biological": {
+        "coverage_only_axes": [
+          "cis_coherence",
+          "combination_vulnerability"
+        ],
+        "descriptor_blind_axes": [],
+        "displayed_context_axes": [
+          "cis_coherence",
+          "combination_vulnerability"
+        ],
+        "n_axes_counted": 6,
+        "n_axes_descriptor_covered": 6,
+        "n_declared_types": 60,
+        "n_types_without_measurement_descriptor": 19,
+        "not_a_fanout_axes": [],
+        "types_without_measurement_descriptor": [
+          "cellline_isoform_expression",
+          "cis_dosage_coupling",
+          "coessential_module",
+          "cross_consortium_dependency",
+          "cross_consortium_paralog_gi",
+          "ddr_deficiency_context",
+          "functional_gene_state",
+          "genomic_event_model_match",
+          "genomic_instability_state",
+          "mutational_signature_context",
+          "oncogenic_pathway_alteration",
+          "paralog_buffering",
+          "partner_conditional_dependency",
+          "patient_model_correspondence",
+          "phospho_pathway_activity",
+          "sc_normal_celltype_expression",
+          "tahoe_drug_perturbation",
+          "tumor_splice_dysregulation",
+          "variant_functional_effect_mave"
+        ],
+        "verdict_member_axes": [
+          "dependency",
+          "expression",
+          "genomic_alteration",
+          "mechanism"
+        ]
+      },
+      "clinical": {
+        "coverage_only_axes": [],
+        "descriptor_blind_axes": [],
+        "displayed_context_axes": [],
+        "n_axes_counted": 1,
+        "n_axes_descriptor_covered": 0,
+        "n_declared_types": 0,
+        "n_types_without_measurement_descriptor": 0,
+        "not_a_fanout_axes": [
+          "clinical"
+        ],
+        "types_without_measurement_descriptor": [],
+        "verdict_member_axes": [
+          "clinical"
+        ]
+      },
+      "commercial": {
+        "coverage_only_axes": [],
+        "descriptor_blind_axes": [],
+        "displayed_context_axes": [
+          "literature_context"
+        ],
+        "n_axes_counted": 1,
+        "n_axes_descriptor_covered": 0,
+        "n_declared_types": 0,
+        "n_types_without_measurement_descriptor": 0,
+        "not_a_fanout_axes": [
+          "commercial"
+        ],
+        "types_without_measurement_descriptor": [],
+        "verdict_member_axes": [
+          "commercial"
+        ]
+      },
+      "druggability": {
+        "coverage_only_axes": [
+          "immune_context",
+          "target_intrinsic"
+        ],
+        "descriptor_blind_axes": [],
+        "displayed_context_axes": [
+          "immune_context",
+          "target_intrinsic"
+        ],
+        "n_axes_counted": 4,
+        "n_axes_descriptor_covered": 4,
+        "n_declared_types": 50,
+        "n_types_without_measurement_descriptor": 30,
+        "not_a_fanout_axes": [],
+        "types_without_measurement_descriptor": [
+          "antigen_pair_coexpression",
+          "antigen_pair_selectivity",
+          "cd_antigen_backbone",
+          "degradation_feasibility",
+          "domain_modality_relevance",
+          "dosage_sensitivity_safety",
+          "exon_window",
+          "gene_ontology_annotation",
+          "human_genetic_safety",
+          "ici_response_expression",
+          "known_drug_tractability",
+          "mutation_stratified_surface",
+          "paralog_buffering",
+          "pathway_stratified_surface",
+          "pmhc_epitope_evidence",
+          "pmhc_presentation",
+          "ppi_interactome",
+          "protein_domains_class",
+          "reactome_pathway_membership",
+          "sc_normal_celltype_expression",
+          "sc_tumor_caf_state_expression",
+          "sc_tumor_myeloid_state_expression",
+          "spatial_colocalization",
+          "spatial_til_fraction",
+          "surface_confirmation",
+          "surface_topology",
+          "surfaceome_family",
+          "target_development_level",
+          "target_identity",
+          "target_safety_prioritisation"
+        ],
+        "verdict_member_axes": [
+          "surface_modality",
+          "tractability_sm"
+        ]
+      },
+      "safety": {
+        "coverage_only_axes": [],
+        "descriptor_blind_axes": [],
+        "displayed_context_axes": [],
+        "n_axes_counted": 2,
+        "n_axes_descriptor_covered": 2,
+        "n_declared_types": 28,
+        "n_types_without_measurement_descriptor": 12,
+        "not_a_fanout_axes": [],
+        "types_without_measurement_descriptor": [
+          "dosage_sensitivity_safety",
+          "drug_warning_safety",
+          "functional_gene_state",
+          "human_genetic_safety",
+          "onsides_adverse_event_safety",
+          "sc_normal_celltype_expression",
+          "shet_lof_selection",
+          "spatial_colocalization",
+          "spatial_region_rna",
+          "spatial_surface_protein",
+          "target_safety_prioritisation",
+          "tumor_vs_normal_protein_abundance"
+        ],
+        "verdict_member_axes": [
+          "safety",
+          "selectivity"
+        ]
+      },
+      "translational": {
+        "coverage_only_axes": [],
+        "descriptor_blind_axes": [],
+        "displayed_context_axes": [
+          "translational_readiness"
+        ],
+        "n_axes_counted": 1,
+        "n_axes_descriptor_covered": 1,
+        "n_declared_types": 9,
+        "n_types_without_measurement_descriptor": 5,
+        "not_a_fanout_axes": [],
+        "types_without_measurement_descriptor": [
+          "clinical_precedent",
+          "competitor_landscape",
+          "pathway_node_leverage",
+          "precog_prognostic_association",
+          "stemness_context"
+        ],
+        "verdict_member_axes": [
+          "differentiation"
+        ]
+      }
+    },
+    "note": "STATIC per-axis / per-dim measurability for the target-contracts framework-health dashboard (dimension 3 of 3). A TRENDING signal, never a gate. Pure function of committed source (risk_projection + ir._CONTEXT_DIM constants, tp_fanout's SUB_SKILLS and _SHORT_TO_GATE literals, narrator_lenses, and 15 SKILL.md frontmatters) with no clock and no I/O beyond reading those files => --check compares the whole document and this artifact must never acquire a timestamp. READING NOTES, each one a mistake this artifact makes easy: (1) CAPABILITY, NOT OUTCOME. `static_state` says whether an instrument EXISTS for an axis; risk_projection.evidence_coverage_by_axis says whether a RUN measured anything. The state vocabularies are deliberately disjoint so the wrong pair cannot be reconciled. They DO disagree: translational_readiness is descriptor_covered here and was `undescribed` on 504/504 corpus runs, and both readings are correct. (2) DO NOT HEADLINE `n_axes_descriptor_covered`: one covered type is enough to earn it, so it reads 14/15 and measures the direction already finished. The live queue is per TYPE -- 62 of 123 declared measurement_types carry no measurement descriptor. (3) `gate_short: null` is a DECISION, not a gap: under RISK_CATEGORY_DASHBOARD_SPINE Decision 3 a gateless axis can never be a verdict member of its dim, so a well-instrumented axis with no gate is correctly excluded. Being a gate is necessary, not sufficient (2 of 8 gates are unread by deterministic_bins) -- do not invert this field. (4) `descriptor_blind` is currently identical to `absent from SALIENCE_SPECS` because all 61 spec'd types happen to carry a measurement-role field; the role test is still computed, so a label-only spec would classify as blind rather than covered. (5) The axis->type edge is DECLARED (composition.measurement_types_pulled), a self-declaration that has drifted from cards_used before. The card->measurement_type back-ref lives in target-contracts, so the derived-vs-declared reconcile is the CONSUMER's half of this dimension and is deliberately NOT computed here -- doing so would make a sibling repo's card edit red an unrelated skills PR. `declared_types_by_axis` + `cards_by_axis` are published to make that reconcile pure set membership. (6) AXIS_DIM_EXCLUSIONS rationales are NOT copied here, only their `state`: each is a paragraph of reviewed reasoning and a copy in a second repo is a copy that drifts. Read them in risk_projection. (7) `clinical` and `commercial` read 0 of 1 axes covered, and that is NOT blindness -- their bins come from the clinical-precedent / competitor-landscape CARDS, so their single declared axis is never a fan-out subskill and is named in `not_a_fanout_axes`. A consumer must branch on that list before rendering a ratio, exactly as evidence_coverage_by_dim's docstring requires: rendering 0/1 as a measured claim of blindness is the same defect on the static side that guard prevents on the per-run side. Same reason `literature_context` and `translational_readiness` are DISPLAYED under a dim but not COUNTED toward it.",
+    "producer": "measured_axes_per_dim_sidecar",
+    "spec_types_pulled_by_no_axis": [],
+    "summary": {
+      "n_axes": 18,
+      "n_axes_descriptor_blind": 1,
+      "n_axes_descriptor_covered": 14,
+      "n_axes_no_declared_types": 0,
+      "n_axes_not_a_fanout_axis": 3,
+      "n_declared_cards_distinct": 139,
+      "n_declared_types_distinct": 123,
+      "n_dims": 6,
+      "n_fanout_axes": 15,
+      "n_gated_axes": 8,
+      "n_salience_spec_types": 61,
+      "n_spec_types_pulled_by_no_axis": 0,
+      "n_types_with_measurement_descriptor": 61,
+      "n_types_without_measurement_descriptor": 62
+    },
+    "types_without_measurement_descriptor": [
+      "antigen_pair_coexpression",
+      "antigen_pair_selectivity",
+      "cd_antigen_backbone",
+      "cellline_isoform_expression",
+      "cis_dosage_coupling",
+      "cited_literature_evidence",
+      "clinical_precedent",
+      "coessential_module",
+      "competitor_landscape",
+      "cross_consortium_dependency",
+      "cross_consortium_paralog_gi",
+      "ddr_deficiency_context",
+      "degradation_feasibility",
+      "domain_modality_relevance",
+      "dosage_sensitivity_safety",
+      "drug_warning_safety",
+      "exon_window",
+      "functional_gene_state",
+      "gene_ontology_annotation",
+      "genomic_event_model_match",
+      "genomic_instability_state",
+      "genotype_matched_model",
+      "human_genetic_safety",
+      "ici_response_expression",
+      "known_drug_tractability",
+      "model_availability",
+      "mutation_stratified_surface",
+      "mutational_signature_context",
+      "oncogenic_pathway_alteration",
+      "onsides_adverse_event_safety",
+      "paralog_buffering",
+      "partner_conditional_dependency",
+      "pathway_node_leverage",
+      "pathway_stratified_surface",
+      "patient_model_correspondence",
+      "pdx_drug_response",
+      "phospho_pathway_activity",
+      "pmhc_epitope_evidence",
+      "pmhc_presentation",
+      "ppi_interactome",
+      "precog_prognostic_association",
+      "protein_domains_class",
+      "reactome_pathway_membership",
+      "sc_normal_celltype_expression",
+      "sc_tumor_caf_state_expression",
+      "sc_tumor_myeloid_state_expression",
+      "shet_lof_selection",
+      "spatial_colocalization",
+      "spatial_region_rna",
+      "spatial_surface_protein",
+      "spatial_til_fraction",
+      "stemness_context",
+      "surface_confirmation",
+      "surface_topology",
+      "surfaceome_family",
+      "tahoe_drug_perturbation",
+      "target_development_level",
+      "target_identity",
+      "target_safety_prioritisation",
+      "tumor_splice_dysregulation",
+      "tumor_vs_normal_protein_abundance",
+      "variant_functional_effect_mave"
+    ],
+    "rosters": {
+      "axis_to_dim": {
+        "clinical": "clinical",
+        "commercial": "commercial",
+        "dependency": "biological",
+        "differentiation": "translational",
+        "expression": "biological",
+        "genomic_alteration": "biological",
+        "mechanism": "biological",
+        "safety": "safety",
+        "selectivity": "safety",
+        "surface_modality": "druggability",
+        "tractability_sm": "druggability"
+      },
+      "context_dim": {
+        "cis_coherence": "biological",
+        "combination_vulnerability": "biological",
+        "immune_context": "druggability",
+        "literature_context": "commercial",
+        "target_intrinsic": "druggability",
+        "translational_readiness": "translational"
+      },
+      "coverage_only_axes": {
+        "cis_coherence": "biological",
+        "combination_vulnerability": "biological",
+        "immune_context": "druggability",
+        "target_intrinsic": "druggability"
+      },
+      "declared_absence_states": {
+        "cis_coherence": "declared_context_tier",
+        "combination_vulnerability": "declared_descriptive",
+        "immune_context": "declared_context_tier",
+        "literature_context": "declared_descriptive",
+        "subtype_fit": "open_pending_review",
+        "target_intrinsic": "declared_descriptive",
+        "translational_readiness": "declared_descriptive"
+      },
+      "measurement_roles": [
+        "categorical",
+        "effect",
+        "extra_scalar",
+        "frame_value",
+        "n",
+        "omnibus",
+        "significance"
+      ],
+      "non_measurement_roles": [
+        "envelope",
+        "label",
+        "strata",
+        "unclassified"
+      ],
+      "reconcile_rule": "For each axis, resolve every `cards_by_axis[axis]` entry through target-contracts vocabularies/measurement_types.yaml to its measurement_type, then compare that DERIVED set against `declared_types_by_axis[axis]`. A derived type missing from the declared set is the drift class test_measurement_types_resolver guards; a card that resolves to NO registered type is a third outcome and must not be collapsed into either -- unresolvable is not undeclared.",
+      "static_states": [
+        "descriptor_blind",
+        "descriptor_covered",
+        "no_declared_types",
+        "not_a_fanout_axis"
+      ]
+    },
+    "roster_pin": {
+      "n_axes_with_cards": 15,
+      "n_cards_distinct": 139,
+      "n_types_distinct": 123,
+      "note": "the two input rosters themselves are NOT copied here \u2014 see build_measured_axes_per_dim"
+    },
+    "reconcile": {
+      "available": true,
+      "source": "contracts:vocabularies/measurement_types.yaml",
+      "outcomes": [
+        "agree",
+        "declared_not_derived",
+        "derived_declared_elsewhere",
+        "derived_nowhere_declared"
+      ],
+      "outcome_tally": {
+        "agree": 165,
+        "declared_not_derived": 0,
+        "derived_declared_elsewhere": 1,
+        "derived_nowhere_declared": 0
+      },
+      "by_axis": {
+        "cis_coherence": {
+          "n_declared_cards": 8,
+          "n_declared_types": 8,
+          "n_derived_types": 8,
+          "n_agree": 8,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        },
+        "combination_vulnerability": {
+          "n_declared_cards": 6,
+          "n_declared_types": 6,
+          "n_derived_types": 6,
+          "n_agree": 6,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        },
+        "dependency": {
+          "n_declared_cards": 16,
+          "n_declared_types": 13,
+          "n_derived_types": 13,
+          "n_agree": 13,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        },
+        "differentiation": {
+          "n_declared_cards": 9,
+          "n_declared_types": 9,
+          "n_derived_types": 9,
+          "n_agree": 9,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        },
+        "expression": {
+          "n_declared_cards": 17,
+          "n_declared_types": 12,
+          "n_derived_types": 12,
+          "n_agree": 12,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        },
+        "genomic_alteration": {
+          "n_declared_cards": 26,
+          "n_declared_types": 23,
+          "n_derived_types": 23,
+          "n_agree": 23,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        },
+        "immune_context": {
+          "n_declared_cards": 7,
+          "n_declared_types": 6,
+          "n_derived_types": 6,
+          "n_agree": 6,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        },
+        "literature_context": {
+          "n_declared_cards": 1,
+          "n_declared_types": 1,
+          "n_derived_types": 1,
+          "n_agree": 1,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        },
+        "mechanism": {
+          "n_declared_cards": 5,
+          "n_declared_types": 5,
+          "n_derived_types": 5,
+          "n_agree": 5,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        },
+        "safety": {
+          "n_declared_cards": 16,
+          "n_declared_types": 16,
+          "n_derived_types": 16,
+          "n_agree": 16,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        },
+        "selectivity": {
+          "n_declared_cards": 14,
+          "n_declared_types": 13,
+          "n_derived_types": 13,
+          "n_agree": 13,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        },
+        "surface_modality": {
+          "n_declared_cards": 24,
+          "n_declared_types": 21,
+          "n_derived_types": 22,
+          "n_agree": 21,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [
+            "structure_druggability"
+          ],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": [
+            "surfaceome-cohort-ranking"
+          ]
+        },
+        "target_intrinsic": {
+          "n_declared_cards": 20,
+          "n_declared_types": 20,
+          "n_derived_types": 20,
+          "n_agree": 20,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        },
+        "tractability_sm": {
+          "n_declared_cards": 9,
+          "n_declared_types": 8,
+          "n_derived_types": 8,
+          "n_agree": 8,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        },
+        "translational_readiness": {
+          "n_declared_cards": 4,
+          "n_declared_types": 4,
+          "n_derived_types": 4,
+          "n_agree": 4,
+          "declared_not_derived": [],
+          "derived_declared_elsewhere": [],
+          "derived_nowhere_declared": [],
+          "cards_without_registered_type": []
+        }
+      },
+      "queue": [
+        {
+          "axis": "surface_modality",
+          "measurement_type": "structure_druggability",
+          "outcome": "derived_declared_elsewhere",
+          "declared_by": [
+            "target_intrinsic",
+            "tractability_sm"
+          ],
+          "evidence": "a card in THIS axis's roster provides the type, and a DIFFERENT axis declares it \u2014 the framework knows the type; the attribution is what drifted"
+        }
+      ],
+      "n_governed_types": 140,
+      "n_governed_types_declared_by_an_axis": 123,
+      "n_axis_types_absent_from_the_registry": 0,
+      "axis_types_absent_from_the_registry": [],
+      "unpulled_type_states": [
+        "no_card_view",
+        "card_exists_unpulled",
+        "card_declared_type_undeclared"
+      ],
+      "unpulled_type_tally": {
+        "no_card_view": 12,
+        "card_exists_unpulled": 5,
+        "card_declared_type_undeclared": 0
+      },
+      "unpulled_types": [
+        {
+          "measurement_type": "antigen_expressing_prevalence",
+          "state": "card_exists_unpulled",
+          "n_cards": 2,
+          "cards": [
+            "antigen-prevalence",
+            "antigen-prevalence-protein"
+          ],
+          "n_providers": 2
+        },
+        {
+          "measurement_type": "antigen_internalization",
+          "state": "card_exists_unpulled",
+          "n_cards": 1,
+          "cards": [
+            "antigen-internalization"
+          ],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "ddr_footprint_score",
+          "state": "no_card_view",
+          "n_cards": 0,
+          "cards": [],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "functional_blockade_rationale",
+          "state": "card_exists_unpulled",
+          "n_cards": 1,
+          "cards": [
+            "functional-blockade-rationale"
+          ],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "fusion_status",
+          "state": "no_card_view",
+          "n_cards": 0,
+          "cards": [],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "mutation_status",
+          "state": "no_card_view",
+          "n_cards": 0,
+          "cards": [],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "oncogenic_pathway_alteration_call",
+          "state": "no_card_view",
+          "n_cards": 0,
+          "cards": [],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "partner_deficiency_status",
+          "state": "no_card_view",
+          "n_cards": 0,
+          "cards": [],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "pathway_activity_footprint",
+          "state": "no_card_view",
+          "n_cards": 0,
+          "cards": [],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "patient_molecular_subtype",
+          "state": "no_card_view",
+          "n_cards": 0,
+          "cards": [],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "patient_somatic_mutation_status",
+          "state": "no_card_view",
+          "n_cards": 0,
+          "cards": [],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "patient_survival_cdr",
+          "state": "no_card_view",
+          "n_cards": 0,
+          "cards": [],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "promoter_methylation",
+          "state": "no_card_view",
+          "n_cards": 0,
+          "cards": [],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "rwd_stratified_expression",
+          "state": "card_exists_unpulled",
+          "n_cards": 1,
+          "cards": [
+            "rwd-stratified-expression"
+          ],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "stemness_mrnasi_signature",
+          "state": "no_card_view",
+          "n_cards": 0,
+          "cards": [],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "temporal_expression_shift",
+          "state": "card_exists_unpulled",
+          "n_cards": 1,
+          "cards": [
+            "temporal-setting-expression-shift"
+          ],
+          "n_providers": 1
+        },
+        {
+          "measurement_type": "tumor_purity_absolute",
+          "state": "no_card_view",
+          "n_cards": 0,
+          "cards": [],
+          "n_providers": 1
+        }
+      ],
+      "n_cards_without_registered_type": 1,
+      "cards_without_registered_type": [
+        "surfaceome-cohort-ranking"
+      ],
+      "note": "READ THE UNPULLED-TYPE SPLIT FIRST, not `agree`. Agreement is the saturated direction and a number that can only go up; the informative queues are the governed types no axis pulls, split by owner. Every unpulled type today carries at least one PROVIDER, so `no_card_view` means a missing card view of data that already exists \u2014 not an empty declaration. Cards that resolve to no registered type are listed separately and counted in NO outcome: undecidable is not disagreement."
+    },
+    "reading_note": "CAPABILITY, NOT OUTCOME: this dimension says whether an INSTRUMENT EXISTS for a dim's axes, never whether a run measured one. It is allowed to disagree with the per-run coverage lens and today one axis does. The per-axis flag is the saturated half \u2014 read `n_types_without_measurement_descriptor` and the reconcile's unpulled-type split, which are not."
   },
   "skills": [
     {

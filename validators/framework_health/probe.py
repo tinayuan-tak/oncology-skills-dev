@@ -858,6 +858,50 @@ def field_read_health(skills_root: Path) -> dict:
 
 
 # ===========================================================================
+# skills — the static per-dim axis MEASURABILITY census (does an instrument exist)
+# ===========================================================================
+def measured_axes_per_dim(skills_root: Path) -> dict:
+    """The skills repo's committed per-dim axis-measurability census, or {} when absent.
+
+    CAPABILITY, not outcome. Every other coverage lens in this dashboard answers "what did a
+    run measure"; this one answers the prior question no run can answer about itself — does an
+    INSTRUMENT exist for this axis at all. A dim whose axis has no measurement descriptor
+    anywhere is silent for a structural reason, and that is a different finding, with a
+    different owner, from a dim that had no data today.
+
+    The two vocabularies are deliberately DISJOINT on the producing side: the static states
+    (`descriptor_covered` / `descriptor_blind` / `no_declared_types` / `not_a_fanout_axis`)
+    share no member with the per-run `risk_projection.COVERAGE_STATES` (`measured` /
+    `unmeasured` / `undescribed` / `absent`), and a skills-side test pins the disjointness. So
+    a consumer here must never join a capability onto an outcome: they are allowed to disagree,
+    and today one axis does (`translational_readiness` is descriptor_covered while the
+    504-target corpus read it `undescribed` on 504/504 runs — 1 of its 4 declared types carries
+    descriptors, and no field its RESOLVED cards emitted matched one; both are correct).
+
+    Read as DATA for the same reason as descriptor_coverage() and field_read_health(): the
+    census is an AST scrape of the SKILLS tree plus its SKILL.md front matter, which this probe
+    cannot see in CI and must never re-implement — a second copy in a second repo that no CI
+    job could ever compare against the first. One producer.
+
+    DO NOT HEADLINE the per-axis flag. One covered type earns `descriptor_covered`, so the flag
+    reads covered on 14 of 15 fan-out axes and measures the direction already finished. The live
+    queue is per TYPE (62 of 123 declared measurement_types carry no measurement descriptor),
+    and the artifact's own `note` says so.
+
+    Same absence contract as every sibling probe: {} when unreadable, so an isolated checkout
+    omits the dimension rather than fabricating a fully-instrumented framework.
+    """
+    p = skills_root / "skills" / "_skills_common" / "measured_axes_per_dim.json"
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+# ===========================================================================
 # data-products — which cards actually fired in a real emitted package
 # ===========================================================================
 def fired_card_ids(products_root: Path) -> set[str]:
@@ -1106,6 +1150,51 @@ def modality_relevant_types(contracts_root: Path) -> Optional[dict[str, list[str
         if isinstance(entry, dict) and entry.get("modality_relevance"):
             mr = entry["modality_relevance"]
             out[name] = list(mr) if isinstance(mr, list) else [mr]
+    return out
+
+
+def measurement_type_card_views(contracts_root: Path) -> Optional[dict[str, dict]]:
+    """measurement_type -> {cards, n_providers} for EVERY governed type, or None if absent.
+
+    The half of the axis-measurability reconcile that only THIS repo can compute. A card's
+    identity is (measurement_type x entity_grain) and `vocabularies/measurement_types.yaml` is
+    the single governed registry of that mapping — it lives here, so the card -> type resolution
+    belongs here. Computing it on the skills side would let a card edit in this repo red an
+    unrelated skills PR, which is exactly the cross-repo PR gate the framework-health split
+    forbids. Skills publishes what IT owns (cards_used, descriptor-role coverage); this side
+    joins it to the registry.
+
+    `n_providers` travels with each type because it separates two findings that otherwise look
+    identical: a type with providers but no card view is a MISSING VIEW of data that exists,
+    while a type with neither would be an empty declaration. Today all 17 unpulled types carry
+    at least one provider, so every one of them is the first kind — a statement worth being able
+    to make, and worth being able to see change.
+
+    Returns None (not {}) when the vocab is unreadable, so the reconcile can report
+    `available: False` and publish NULL counts. A 0 against "types with no card view" in an
+    isolated checkout would read as a fully-viewed registry, which is the most misleading thing
+    this lens could say.
+    """
+    p = contracts_root / "vocabularies" / "measurement_types.yaml"
+    if not p.exists():
+        return None
+    try:
+        data = yaml.safe_load(p.read_text()) or {}
+    except yaml.YAMLError:
+        return None
+    types = data.get("measurement_types")
+    if not isinstance(types, dict):
+        return None
+    out: dict[str, dict] = {}
+    for name, entry in types.items():
+        if not isinstance(entry, dict):
+            continue
+        cards = entry.get("cards")
+        provs = entry.get("providers")
+        out[str(name)] = {
+            "cards": [str(c) for c in cards] if isinstance(cards, list) else [],
+            "n_providers": len(provs) if isinstance(provs, list) else 0,
+        }
     return out
 
 
