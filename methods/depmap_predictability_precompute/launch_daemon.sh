@@ -38,6 +38,37 @@ THRESHOLD="${4:-0.3}"
 #      PYTHONPATH at a checkout that need not exist at all.
 METHODS_REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
+# The INTERPRETER is as load-bearing as the tree above, and was the half left unpinned.
+# PYTHONPATH decides WHICH CODE runs; the interpreter decides WHICH DEPENDENCIES EXIST —
+# and this pipeline probes `import shap` at RUNTIME inside the worker (cli.py `_has_shap`,
+# guarded by a bare `except ImportError`) and DEGRADES to a non-SHAP ranking when it fails.
+#
+# Measured 2026-09-17: a bare `python` here resolved to /opt/conda/bin/python3.12, which has
+# NO `shap` and `xgboost 2.1.4`. That is the exact runtime which made the v3 vintage ship RF
+# importances under an XGB label for all 9,240 genes. The daemon ran normally for its whole
+# duration and emitted valid-looking parquet — nothing failed. It is reason #2 above one
+# layer down: pinning the tree without pinning the interpreter leaves the guarantee half
+# built, because the tree cannot supply a dependency.
+#
+# Overridable so the launcher stays testable against a stub, but it NEVER falls back to a
+# PATH lookup: an unusable interpreter is a hard stop, not a silent downgrade.
+PYBIN="${DEPMAP_PRECOMPUTE_PYTHON:-$METHODS_REPO/.pixi/envs/default/bin/python}"
+if [[ ! -x "$PYBIN" ]]; then
+  echo "[launch_daemon] FATAL: no executable interpreter at $PYBIN" >&2
+  echo "  Run \`pixi install\` in $METHODS_REPO, or set DEPMAP_PRECOMPUTE_PYTHON." >&2
+  exit 2
+fi
+
+# Refuse to start unless the ATTRIBUTION dependencies import in THAT interpreter. This is the
+# only place the absence can be made loud: downstream `_has_shap` swallows the ImportError by
+# design, so the run succeeds and the wrong columns ship. Distinct exit codes (2/3) keep this
+# refusal distinguishable from the 2-second liveness failure below, which also exits 1.
+if ! "$PYBIN" -c 'import shap, xgboost' >/dev/null 2>&1; then
+  echo "[launch_daemon] FATAL: $PYBIN cannot import both shap and xgboost." >&2
+  echo "  The run would emit non-SHAP attributions and still look successful." >&2
+  exit 3
+fi
+
 mkdir -p "$OUT_DIR"
 
 # Guard: refuse if an existing daemon is already alive for this out-dir.
@@ -63,7 +94,7 @@ fi
 setsid nohup env \
     PYTHONPATH="$METHODS_REPO" \
     AWS_PROFILE="cbg" \
-  python -u -m methods.depmap_predictability_precompute.cli \
+  "$PYBIN" -u -m methods.depmap_predictability_precompute.cli \
     --gene-set "$GENE_SET" \
     --threshold "$THRESHOLD" \
     --workers "$WORKERS" \
@@ -83,6 +114,9 @@ sleep 2  # give the child a moment to actually start
 if kill -0 "$DAEMON_PID" 2>/dev/null; then
   echo "[launch_daemon] Started daemon PID=$DAEMON_PID → $OUT_DIR/daemon.log"
   echo "[launch_daemon]   gene_set=$GENE_SET threshold=$THRESHOLD workers=$WORKERS resume=${RESUME_FLAG:-no}"
+  # Echo the interpreter, not just the tree: an operator reading this log is the last line of
+  # defence against a run whose attribution columns are silently wrong.
+  echo "[launch_daemon]   interpreter=$PYBIN"
   echo "[launch_daemon]   Monitor: tail -f $OUT_DIR/daemon.log"
 else
   echo "[launch_daemon] ERROR: daemon died within 2s. Check $OUT_DIR/daemon.log"
