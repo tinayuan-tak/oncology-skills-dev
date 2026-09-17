@@ -1047,9 +1047,29 @@ def registry_drift(skills_root: Path, skill_names: list[str]) -> dict:
 # short <-> skill_dir mapping (from target-profile SUB_SKILLS) + gate_coverage
 # ===========================================================================
 def sub_skill_map(skills_root: Path) -> dict[str, str]:
-    """skill_dir -> short (gate key), parsed from target-profile's SUB_SKILLS."""
-    run_py = skills_root / "skills" / "target-profile" / "scripts" / "run.py"
-    tree = _module_ast(run_py)
+    """skill_dir -> short (gate key), parsed from target-profile's SUB_SKILLS.
+
+    THE LITERAL LIVES IN `tp_fanout.py`, NOT `run.py`. It moved there in the skills repo's
+    `8b6b2af4` (#461, the 5,138-LOC run.py god-module split) and this probe was never updated,
+    so it returned {}. Nothing caught it because both failure modes are silent AND
+    INDISTINGUISHABLE from a legitimate result: `_module_ast` returns None for a missing file,
+    `_find_assign_literal` returns None for a present file that lacks the symbol, and an
+    unmapped skill legitimately has no short. So `gate_short` / `risk_category` /
+    `framework_can_evidence` read None on 22 of 22 skill nodes in the committed artifact and
+    looked like data rather than like a broken probe.
+
+    DELIBERATELY NO run.py FALLBACK. A two-file search would buy nothing today (exactly one
+    module in the skills tree assigns SUB_SKILLS) and would make the NEXT relocation silent all
+    over again. What keeps this honest is the guard, not a wider aperture:
+    `test_sub_skill_map_reads_the_fanout_module` and
+    `test_sub_skill_map_does_not_fall_back_to_run_py` gate it hermetically in CI, and
+    `test_sub_skill_map_is_populated_against_the_real_repo` reds against a live sibling when the
+    literal moves.
+
+    Still non-raising: a probe reports, it never fails the build, so absence stays {}.
+    """
+    fanout_py = skills_root / "skills" / "target-profile" / "scripts" / "tp_fanout.py"
+    tree = _module_ast(fanout_py)
     if tree is None:
         return {}
     subs = _find_assign_literal(tree, "SUB_SKILLS")

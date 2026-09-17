@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-17T14:22:52.192858+00:00",
+  "generated_at": "2026-09-17T15:38:46.313997+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,7 +9,7 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "d71a8b3",
+    "contracts": "12cbe86",
     "skills": "32d5009e",
     "methods": "33d66f3",
     "products": "b45b9b2",
@@ -17,7 +17,7 @@
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-09-17T04:32:18.381102+00:00",
+    "prior_generated_at": "2026-09-17T14:22:52.192858+00:00",
     "n_skills": 0,
     "n_cards": 0,
     "n_drift_flags": 0,
@@ -2022,7 +2022,7 @@
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
-      "gate_short": null,
+      "gate_short": "cis_coherence",
       "risk_category": null,
       "framework_can_evidence": null,
       "runs_clean": "clean",
@@ -2291,7 +2291,7 @@
       "health_verdict": "partial",
       "health_reason": "skill-partial-declared",
       "reason_text": "declared partial and no stronger signal overrides it",
-      "gate_short": null,
+      "gate_short": "combination_vulnerability",
       "risk_category": null,
       "framework_can_evidence": null,
       "runs_clean": "clean",
@@ -2724,9 +2724,9 @@
       "health_verdict": "partial",
       "health_reason": "skill-partial-declared",
       "reason_text": "declared partial and no stronger signal overrides it",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
+      "gate_short": "differentiation",
+      "risk_category": "commercial",
+      "framework_can_evidence": "partial",
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
@@ -3400,9 +3400,9 @@
       "health_verdict": "production_ready",
       "health_reason": "skill-production-ready",
       "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
+      "gate_short": "dependency",
+      "risk_category": "biological",
+      "framework_can_evidence": "partial",
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
@@ -4416,9 +4416,9 @@
       "health_verdict": "production_ready",
       "health_reason": "skill-production-ready",
       "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
+      "gate_short": "genomic_alteration",
+      "risk_category": "biological",
+      "framework_can_evidence": "captured",
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
@@ -4753,7 +4753,7 @@
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
-      "gate_short": null,
+      "gate_short": "immune_context",
       "risk_category": null,
       "framework_can_evidence": null,
       "runs_clean": "clean",
@@ -4850,7 +4850,7 @@
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
-      "gate_short": null,
+      "gate_short": "literature_context",
       "risk_category": null,
       "framework_can_evidence": null,
       "runs_clean": "clean",
@@ -5128,9 +5128,9 @@
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
+      "gate_short": "mechanism",
+      "risk_category": "biological",
+      "framework_can_evidence": "partial",
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
@@ -5767,9 +5767,9 @@
       "health_verdict": "partial",
       "health_reason": "skill-partial-declared",
       "reason_text": "declared partial and no stronger signal overrides it",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
+      "gate_short": "safety",
+      "risk_category": "safety",
+      "framework_can_evidence": "partial",
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
@@ -6962,9 +6962,9 @@
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
+      "gate_short": "surface_modality",
+      "risk_category": "druggability",
+      "framework_can_evidence": "partial",
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
@@ -7719,7 +7719,7 @@
       "health_verdict": "production_ready",
       "health_reason": "skill-production-ready",
       "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
-      "gate_short": null,
+      "gate_short": "target_intrinsic",
       "risk_category": null,
       "framework_can_evidence": null,
       "runs_clean": "clean",
@@ -9450,9 +9450,9 @@
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
+      "gate_short": "tractability_sm",
+      "risk_category": "druggability",
+      "framework_can_evidence": "partial",
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
@@ -9641,7 +9641,7 @@
       "health_verdict": "partial",
       "health_reason": "skill-partial-core-gap",
       "reason_text": "a verdict-driving (core) card is placeholder/blocked/broken",
-      "gate_short": null,
+      "gate_short": "translational_readiness",
       "risk_category": null,
       "framework_can_evidence": null,
       "runs_clean": "clean",
@@ -10506,9 +10506,9 @@
       "health_verdict": "production_ready",
       "health_reason": "skill-production-ready",
       "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
+      "gate_short": "expression",
+      "risk_category": "biological",
+      "framework_can_evidence": "captured",
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
@@ -11342,9 +11342,9 @@
       "health_verdict": "production_ready",
       "health_reason": "skill-production-ready",
       "reason_text": "wired + tested, and \u22651 core card has fired in a real package (proven end-to-end)",
-      "gate_short": null,
-      "risk_category": null,
-      "framework_can_evidence": null,
+      "gate_short": "selectivity",
+      "risk_category": "biological",
+      "framework_can_evidence": "captured",
       "runs_clean": "clean",
       "run_health": {
         "status": "ok",
@@ -29458,7 +29458,7 @@
         "label": "differentiation-landscape",
         "health": "partial",
         "kind": "FOCUSED",
-        "risk_category": null
+        "risk_category": "commercial"
       },
       {
         "id": "skill:example-gallery",
@@ -29474,7 +29474,7 @@
         "label": "functional-requirement",
         "health": "production_ready",
         "kind": "FOCUSED",
-        "risk_category": null
+        "risk_category": "biological"
       },
       {
         "id": "skill:genomic-alteration-profile",
@@ -29482,7 +29482,7 @@
         "label": "genomic-alteration-profile",
         "health": "production_ready",
         "kind": "FOCUSED",
-        "risk_category": null
+        "risk_category": "biological"
       },
       {
         "id": "skill:immune-context",
@@ -29514,7 +29514,7 @@
         "label": "mechanism-and-pharmacology",
         "health": "partial",
         "kind": "FOCUSED",
-        "risk_category": null
+        "risk_category": "biological"
       },
       {
         "id": "skill:on-target-safety-liability",
@@ -29522,7 +29522,7 @@
         "label": "on-target-safety-liability",
         "health": "partial",
         "kind": "FOCUSED",
-        "risk_category": null
+        "risk_category": "safety"
       },
       {
         "id": "skill:query-target-evidence",
@@ -29546,7 +29546,7 @@
         "label": "surface-modality-fit",
         "health": "partial",
         "kind": "FOCUSED",
-        "risk_category": null
+        "risk_category": "druggability"
       },
       {
         "id": "skill:target-intrinsic",
@@ -29570,7 +29570,7 @@
         "label": "tractability-small-molecule",
         "health": "partial",
         "kind": "FOCUSED",
-        "risk_category": null
+        "risk_category": "druggability"
       },
       {
         "id": "skill:translational-readiness",
@@ -29586,7 +29586,7 @@
         "label": "tumor-presence",
         "health": "production_ready",
         "kind": "FOCUSED",
-        "risk_category": null
+        "risk_category": "biological"
       },
       {
         "id": "skill:tumor-selectivity",
@@ -29594,7 +29594,7 @@
         "label": "tumor-selectivity",
         "health": "production_ready",
         "kind": "FOCUSED",
-        "risk_category": null
+        "risk_category": "biological"
       },
       {
         "id": "card:abundance-dependency",

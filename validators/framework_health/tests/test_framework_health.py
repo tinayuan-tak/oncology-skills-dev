@@ -2225,3 +2225,68 @@ def test_older_artifacts_without_the_field_read_section_still_pass(tmp_path):
     assert "field_read_health" not in rep
     ok, errs = _check(tmp_path, rep)
     assert ok, errs
+
+
+# ---------------------------------------------------------------------------
+# 14. short <-> skill_dir mapping — the join behind gate_short / risk_category
+#
+# WHY THIS SECTION EXISTS: `sub_skill_map` had NO test at all, and read the SUB_SKILLS
+# literal out of `run.py` after it moved to `tp_fanout.py` (skills `8b6b2af4`, #461). It
+# returned {} for months, so `gate_short` / `risk_category` / `framework_can_evidence` were
+# None on 22 of 22 skill nodes in the committed artifact and read as measured data.
+#
+# THE TWO TESTS ARE DELIBERATELY SPLIT, and the split is the whole point. The live one
+# SKIPS when the skills sibling is absent — which is the framework-health CI environment —
+# so on its own it would be a guard that never runs where it matters (SKIP IS NOT PASS).
+# The hermetic one runs everywhere and pins the parse target plus the no-fallback choice,
+# so CI actually gates the behaviour.
+# ---------------------------------------------------------------------------
+def _fake_skills_tree(root, module_name, literal):
+    scripts = root / "skills" / "target-profile" / "scripts"
+    scripts.mkdir(parents=True, exist_ok=True)
+    (scripts / module_name).write_text(f"SUB_SKILLS = {literal}\n")
+    return root
+
+
+def test_sub_skill_map_reads_the_fanout_module(tmp_path):
+    """The literal is parsed from tp_fanout.py — hermetic, so this gates CI too."""
+    root = _fake_skills_tree(tmp_path, "tp_fanout.py", '[("tumor-presence", "expression")]')
+    assert probe.sub_skill_map(root) == {"tumor-presence": "expression"}
+
+
+def test_sub_skill_map_does_not_fall_back_to_run_py(tmp_path):
+    """A literal in run.py ONLY must yield {} — pinning the deliberate absence of a
+    two-file search. Without this, adding a run.py fallback later would look harmless
+    while making the next relocation silent all over again."""
+    root = _fake_skills_tree(tmp_path, "run.py", '[("tumor-presence", "expression")]')
+    assert probe.sub_skill_map(root) == {}
+
+
+def test_sub_skill_map_is_populated_against_the_real_repo():
+    """Against the real sibling: the ONLY check that reds when the literal moves again.
+
+    SKIPS in framework-health CI (no skills sibling), so it is a real-world tripwire and
+    NOT the CI gate — the two hermetic tests above are. Pins a floor plus known members,
+    the same non-vacuity shape as test_live_reader_ids_real_repo_excludes_known_traps:
+    a stale path returns {} and every downstream assertion would pass vacuously."""
+    roots = probe.default_roots()
+    if not (roots["skills"] / "skills").exists():
+        pytest.skip("skills repo not present")
+    m = probe.sub_skill_map(roots["skills"])
+    assert len(m) >= 10, f"expected the full fan-out roster, got {len(m)} (stale SUB_SKILLS path?)"
+    # One gated axis and one deliberately GATELESS axis, so this cannot be satisfied by a
+    # partial parse of only the verdict-bearing head of the literal.
+    assert m.get("on-target-safety-liability") == "safety"
+    assert m.get("cis-feature-coherence") == "cis_coherence"
+
+
+def test_gate_short_is_populated_for_fanout_skills_in_the_artifact():
+    """The consumer-side reading of the same join. `gate_short` None on EVERY skill is the
+    signature of the stale-path bug; None on a non-fan-out skill is correct, so the
+    assertion is on the fan-out members only."""
+    committed = probe.CONTRACTS_REPO / "health" / "framework_health.json"
+    if not committed.exists():
+        pytest.skip("no committed artifact")
+    report = json.loads(committed.read_text())
+    shorts = [s.get("gate_short") for s in report.get("skills") or []]
+    assert any(s is not None for s in shorts), "gate_short is None on every skill (stale SUB_SKILLS path?)"
