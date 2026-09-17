@@ -37,6 +37,35 @@ def sig_round(v, figs: int = 4):
     return float(f"{v:.{figs}g}")
 
 
+def round_keep_tiny(v, decimals: int = 4, figs: int = 4):
+    """Fixed-decimal round that never ANNIHILATES a tiny-but-nonzero value.
+
+    `round(v, 4)` is the right display rounding for effects, medians and counts, but it maps every
+    |v| < 5e-5 to 0.0 — and a p/q-value is exactly that shape. Measured on 944 real decisions before this
+    existed: **980 capsule `numeric_anchors` values across 10 measurement_types were sitting at 0.0 with a
+    nonzero source field** (`intogen_min_qvalue` 8.33e-49 → 0.0, `min_pvalue` 1.77e-25 → 0.0,
+    `hotspot_mannwhitney_q` 2.03e-07 → 0.0), so the number displayed as the card's decisive datum asserted
+    "no effect / not significant" about the most significant results in the corpus.
+
+    The obvious repair — swap in `sig_round` — is wrong in the OTHER direction, and that was measured too:
+    `sig_round(12345.678, 4)` is 12350.0, which would have degraded 172 `surface_density`
+    `estimated_copies_per_cell_*` anchors. Significant-figure rounding is only better for small magnitudes.
+
+    So: take the fixed-decimal result, and fall back to significant figures ONLY where fixed-decimal
+    destroyed the value. Consequences worth stating, because they are what makes this safe to land:
+      * a GENUINE zero stays 0.0 (675 anchors in that corpus are correctly 0.0 — a real
+        `patient_homdel_fraction` of 0 must not become a tiny float);
+      * every value that already round-trips is returned BYTE-IDENTICALLY, so this is not a re-rounding of
+        the corpus — it only repairs annihilated values;
+      * still deterministic, so `_prompt_hash` stays reproducible for identical inputs (its contract is
+        determinism, not any particular constant).
+    """
+    if not isinstance(v, float) or v == 0 or not math.isfinite(v):
+        return v
+    r = round(v, decimals)
+    return sig_round(v, figs) if r == 0 else r
+
+
 # ── REACH OF A `reference_frame` — read this before writing "DISPLAY-ONLY" on one ────────────────────
 # This file annotated its frames "DISPLAY-ONLY / verdict-INERT" at 12 sites with no authority named at any
 # of them. Measured 2026-09-14 against trunk, HALF of that label is backwards. A frame has FOUR consumers

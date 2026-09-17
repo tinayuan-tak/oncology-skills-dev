@@ -162,9 +162,22 @@ _N_KEY = re.compile(
 )
 # FEATURE / QUALITY counts that superficially match _N_KEY but are NOT a sample size — binding them as
 # `n` mis-reads power (n_domains_low_plddt=6 as PDB coverage; n_admissible_strata=14 as patient count).
+#
+# The second line denies a NORMALISED quantity — a percent, fraction, proportion, ratio or rate. These are
+# a distinct failure from the counts above: a count in the `n` slot is merely the WRONG count, whereas a
+# fraction there is not a sample size AT ALL, and it reaches a shipped report. Measured live:
+# `intogen_max_pct_samples` matched `_samples$` and bound as the alteration-role card's n, so the report's
+# "Measured evidence" view rendered **n=0.447** — 0.447 patients. Measured across 944 real decisions, this
+# addition denies EXACTLY ONE field (that one, in 281 runs, always in [0.037, 0.7778]); every other field
+# currently binding as `n` is a genuine integer count, so the narrowing has no collateral.
+#
+# It cannot move power, confidence or any signal: `_nbucket` returns "low" for everything below 20, so a
+# fraction and the resulting None BOTH bucket "low" — for all 281 runs, not just the observed one. The card
+# simply has no sample size in its summary, and `n: None` says that honestly where 0.447 asserted a count.
 _N_DENY = re.compile(
     r"(_low_plddt$|_axes$|_strata$|_domains$|_classes$|_flags$|_bins$|_categories$|"
-    r"_features$|_complexes$|_paralogs.*$|_partners$|_interactors$)"
+    r"_features$|_complexes$|_paralogs.*$|_partners$|_interactors$|"
+    r"_pct_|^pct_|_pct$|_percent|_fraction|_frac$|_proportion|_ratio$|_rate$)"
 )
 # Prefer a genuine SAMPLE-SIZE field over any other n-match (the reader takes the FIRST present n, so
 # ordering decides): patients/samples/lines/cells/donors/models/ligands rank ahead of generic counts.

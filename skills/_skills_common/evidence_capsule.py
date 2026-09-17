@@ -26,7 +26,12 @@ plus data_quality_flags — generic mis-bind / direction-inversion contradiction
 
 from __future__ import annotations
 
-from _skills_common.evidence_salience import indication_stratum_aliases, sig_round, spec_for
+from _skills_common.evidence_salience import (
+    indication_stratum_aliases,
+    round_keep_tiny,
+    sig_round,
+    spec_for,
+)
 from _skills_common.subgroup_derivation import (
     _TIERV,
     _card_capsule_contract,
@@ -135,7 +140,11 @@ def _denied(k):
 
 
 def _num(v):
-    return round(v, _R) if isinstance(v, float) else v
+    # `round(v, _R)` alone ANNIHILATED every p/q-value the capsule surfaces (round(2.25e-51, 4) == 0.0),
+    # so the number shown as a card's decisive datum read "0" for its most significant results. Delegated
+    # to ONE helper shared with the evidence_graph's key_evidence rounding rather than reimplemented here:
+    # two roundings of the same numbers WILL drift, and they are compared side by side in the report.
+    return round_keep_tiny(v, _R) if isinstance(v, float) else v
 
 
 def _first_stratum_array(summary):

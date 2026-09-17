@@ -268,6 +268,7 @@ from _skills_common.display_gloss import fill_placeholders  # noqa: E402
 from _skills_common.evidence_salience import (  # noqa: E402
     SUBTYPE_SPECS,
     build_interpretation,
+    round_keep_tiny,
     sig_round,
     spec_for,
 )
@@ -277,7 +278,12 @@ _KE_ROLE = {"INDICATION": "indication", "extreme_strongest": "strongest", "extre
 
 
 def _kenum(v):
-    return round(v, _KE_R) if isinstance(v, float) else v
+    # Same shared helper as the capsule's `_num`. This site destroys nothing TODAY — measured on 944 real
+    # decisions, all 564 annihilated `key_evidence.effect` values reached it through the numeric_anchors
+    # fallback (both implicated axes declare `effect_field: None`), so repairing the capsule repairs them.
+    # It is hardened anyway because it is the identical one-line bug on the SAME numbers, and it goes live
+    # the moment any axis pins an `effect_field` whose value can be tiny — a q-value used as the effect.
+    return round_keep_tiny(v, _KE_R) if isinstance(v, float) else v
 
 
 def _is_num(v):
