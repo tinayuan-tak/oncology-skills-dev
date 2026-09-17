@@ -85,7 +85,7 @@ def _build_card_index(cards_dir: Path) -> dict[str, dict]:
     for card_path in sorted(cards_dir.rglob("*.card.yaml")):  # recursive — parity with validate_cards.py (C2)
         try:
             spec = _load_yaml(card_path)
-        except Exception as e:
+        except Exception:
             # Caller surfaces this — return the loadable subset, skip the broken one.
             continue
         card_id = spec.get("card_id")
@@ -115,6 +115,18 @@ def _values_equal(producible, operand) -> bool:
     if isinstance(operand, bool) and isinstance(producible, str):
         return producible.strip().lower() == _bool_as_str(operand)
     return False
+
+
+# RULE ELIGIBILITY (2026-09-17): the numeric scalar types a card may declare for a field. A rule may
+# never equality-match a field of one of these types — see Check 3a.5.
+_NUMERIC_SCALAR_TYPES: frozenset = frozenset({"number", "integer", "float"})
+
+
+def _declared_scalar_type(card_spec: dict, field_name: str) -> Optional[str]:
+    """The scalar type a card declares for `field_name` in outputs.summary_fields_scalar_types, or
+    None if it declares none. Used only by the rule-eligibility check; never fabricates a type."""
+    types = (card_spec.get("outputs", {}) or {}).get("summary_fields_scalar_types", {}) or {}
+    return types.get(field_name)
 
 
 def _producible_values_for_field(card_spec: dict, field_name: str) -> Optional[set[str]]:
@@ -275,6 +287,25 @@ def validate_rules_file(rules_path: Path, cards_dir: Path) -> ValidationReport:
                 f"[{rule_id}] references field={field_name!r} on card={card_id!r} "
                 f"but card's outputs.summary_fields does not include it. "
                 f"Card emits: {(card_spec.get('outputs', {}) or {}).get('summary_fields', [])}"
+            )
+            continue
+
+        # Check 3a.5 (RULE ELIGIBILITY, 2026-09-17): a rule may only equality-match a DERIVED CLASS
+        # token, never a raw number. The resolver is Turing-incomplete — it pattern-matches class
+        # tokens a card's Python already computed; a cut on a numeric field is applied UPSTREAM (by a
+        # method or the skill-side reader, declared in threshold_roles) and the card emits the binned
+        # `_class`. So an equals/in operand against a field the card declares NUMERIC in
+        # summary_fields_scalar_types is a category error: a class token compared against a float
+        # silently never fires. 0 of 128 rule-read fields are declared numeric today, so this is a
+        # NULL DIFF; it CI-enforces the narrow waist going forward. (in_record matches record KEYS in a
+        # list field, not a scalar operand, so it is out of scope of this check.)
+        _numeric_type = _declared_scalar_type(card_spec, field_name)
+        if values and _numeric_type in _NUMERIC_SCALAR_TYPES:
+            report.errors.append(
+                f"RULE_INELIGIBLE_FIELD [{rule_id}] equality-matches field={field_name!r} on "
+                f"card={card_id!r}, which the card declares as a numeric scalar ({_numeric_type!r}). "
+                f"Rules match derived class tokens, not raw numbers — bin it to a `_class` field (the "
+                f"cut applied upstream and declared in threshold_roles) and key the rule on that token."
             )
             continue
 
