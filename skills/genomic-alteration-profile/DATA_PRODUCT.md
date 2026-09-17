@@ -30,7 +30,7 @@ has no `CARD_CONTEXT` map. Full card→manifest→S3 table is in the wiring trac
 
 **Verdict-driving, by alteration class (`genomic_alteration_by_class`):**
 - **snv_indel** — `mutation-type-counts` (primary, `mutation_landscape_class`) + `mutation-hotspot-frequency`
-  (recurrence; pooled `pooled-snv-recurrence-v1` = MC3⊕GENIE⊕MSK-CHORD) + `mutation-stratified-dependency`.
+  (recurrence; pooled `pooled-snv-recurrence-v2` = MC3⊕GENIE⊕MSK-CHORD) + `mutation-stratified-dependency`.
 - **copy_number** — `copy-number-distribution` (cell-line + patient GISTIC `tcga-patient-cn-per-gene-v1`) +
   `copy-number-stratified-dependency` + `amp-expr-stratified-dependency`.
 - **fusion** — `fusion-rearrangement-landscape` (`tcga-fusion-consensus-v1`, 3-caller consensus; GENIE-SV
