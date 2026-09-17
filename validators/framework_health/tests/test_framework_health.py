@@ -1805,3 +1805,423 @@ def test_older_artifacts_without_the_section_still_pass(tmp_path):
     assert "descriptor_coverage" not in rep
     ok, errs = _check(tmp_path, rep)
     assert ok, errs
+
+
+# ---------------------------------------------------------------------------
+# 13. Field-read health — reads MINUS declarations (a TRENDING dimension), and the
+#     EMISSION half that only this repo can measure.
+#
+# The skills census is read as DATA for the same reason as descriptor coverage (ONE
+# producer of an AST scrape this probe cannot run). What is NEW here is that resolving
+# the census's `emission_undetermined` rows needs the data-products root, so this side
+# adds an axis rather than transcribing one — and every honesty guard below exists
+# because the wrong answer is the reassuring one:
+#
+#   * an EMPTY APERTURE must leave rows UNRESOLVED, never call them `emission_unobserved`
+#     (that label asserts "we looked at N>0 packages"), and must publish NULLS not zeros;
+#   * a card the packages never contained must NOT be called `read_of_None`, which would
+#     manufacture a finding out of an aperture limit;
+#   * `no_reads_detected` must stay legible as instrument silence, not health.
+# ---------------------------------------------------------------------------
+def _frh_census(**over):
+    """A tiny but INTERNALLY CONSISTENT census: 3 units, one per disposition, and a 2-row
+    queue whose rows are BOTH classifications the producer can emit."""
+    census = {
+        "schema_version": "1.0.0",
+        "note": ("... no_reads_detected means the scraper's shapes matched nothing, NOT that the unit is clean."),
+        "summary": {
+            "n_units": 3,
+            "n_clean": 1,
+            "n_units_with_undeclared_reads": 1,
+            "n_no_reads_detected": 1,
+            "n_reads_detected": 7,
+            "n_undeclared_pairs": 2,
+            "n_meta_key": 1,
+            "n_emission_undetermined": 1,
+            "attribution_reconciled": True,
+            "n_roster_cards": 2,
+            "n_roster_fields": 3,
+        },
+        "units": {
+            "clean-skill": {"kind": "skill", "disposition": "clean", "n_reads": 5, "undeclared": []},
+            "quiet-skill": {"kind": "skill", "disposition": "no_reads_detected", "n_reads": 0, "undeclared": []},
+            "loud-skill": {
+                "kind": "skill",
+                "disposition": "undeclared_reads",
+                "n_reads": 2,
+                "undeclared": [
+                    {
+                        "card": "observed-card",
+                        "field": "_envelope",
+                        "reader_kinds": ["skill_code"],
+                        "classification": "meta_key",
+                    },
+                    {
+                        "card": "unseen-card",
+                        "field": "n_thing",
+                        "reader_kinds": ["skill_code"],
+                        "classification": "emission_undetermined",
+                    },
+                ],
+            },
+        },
+        "undeclared_queue": [
+            {
+                "unit": "loud-skill",
+                "card": "observed-card",
+                "field": "_envelope",
+                "reader_kinds": ["skill_code"],
+                "classification": "meta_key",
+            },
+            {
+                "unit": "loud-skill",
+                "card": "unseen-card",
+                "field": "n_thing",
+                "reader_kinds": ["skill_code"],
+                "classification": "emission_undetermined",
+            },
+        ],
+        "attribution": {
+            "reconciled": True,
+            "whole_tree_pairs": 7,
+            "per_unit_union_pairs": 7,
+            "per_unit_read_credits": 7,
+            "unattributed": [],
+        },
+        "rosters": {
+            "declared_fields": {"observed-card": ["declared_a", "declared_b"], "unseen-card": ["declared_c"]},
+            "reader_kinds": ["skill_code"],
+            "classification_rule": "...",
+            "disposition_rule": "...",
+        },
+    }
+    census.update(over)
+    return census
+
+
+def _emission(**over):
+    """Emission evidence for ONE observed card: one key emitted, one present-but-always-null."""
+    em = {
+        "n_packages": 2,
+        "n_card_rows": 2,
+        "n_card_rows_with_summary": 2,
+        "cards": {"observed-card": {"n_rows": 2, "emitted": ["_envelope", "declared_a"], "null_only": ["declared_b"]}},
+    }
+    em.update(over)
+    return em
+
+
+def _report_with_frh(census=None, emission=None):
+    rep = _minimal_report()
+    frh = rollup.build_field_read_health(
+        _frh_census() if census is None else census,
+        _emission() if emission is None else emission,
+    )
+    rep["field_read_health"] = frh
+    fsum = frh.get("summary") or {}
+    tally = frh.get("emission_outcome_tally") or {}
+    rep["summary"].update(
+        {
+            "field_read_health_available": bool(frh.get("available")),
+            "n_field_read_units": fsum.get("n_units"),
+            "n_field_read_units_clean": fsum.get("n_clean"),
+            "n_field_read_units_no_reads_detected": fsum.get("n_no_reads_detected"),
+            "n_undeclared_field_reads": fsum.get("n_undeclared_pairs"),
+            "n_field_reads_emitted_but_undeclared": tally.get("emitted_but_undeclared"),
+            "n_field_reads_of_none": tally.get("read_of_None"),
+            "n_field_reads_emission_unobserved": tally.get("emission_unobserved"),
+        }
+    )
+    return rep
+
+
+def _package(tmp_path, name, cards):
+    d = tmp_path / name
+    d.mkdir(parents=True)
+    (d / "evidence_package.json").write_text(json.dumps({"cards": cards}))
+
+
+# --- the sidecar probe: same absence contract as every other sibling read -------------
+def test_field_read_probe_degrades_to_empty_without_the_sidecar(tmp_path):
+    assert probe.field_read_health(tmp_path) == {}
+
+
+def test_field_read_probe_ignores_a_corrupt_sidecar(tmp_path):
+    d = tmp_path / "skills" / "_skills_common"
+    d.mkdir(parents=True)
+    (d / "field_read_health.json").write_text("{not json")
+    assert probe.field_read_health(tmp_path) == {}
+
+
+def test_field_read_probe_reads_a_committed_sidecar(tmp_path):
+    d = tmp_path / "skills" / "_skills_common"
+    d.mkdir(parents=True)
+    (d / "field_read_health.json").write_text(json.dumps(_frh_census()))
+    assert probe.field_read_health(tmp_path)["summary"]["n_undeclared_pairs"] == 2
+
+
+# --- the emission scan ----------------------------------------------------------------
+def test_emission_scan_returns_empty_when_no_package_exists(tmp_path):
+    """An empty aperture is NOT a measurement of zero — it must be indistinguishable from
+    'not measured', because the caller's outcome vocabulary keys off exactly that."""
+    assert probe.summary_field_emission(tmp_path) == {}
+    assert probe.summary_field_emission(tmp_path / "nope") == {}
+
+
+def test_emission_scan_separates_emitted_from_present_but_null(tmp_path):
+    """`null_only` is its own bucket: the reader gets None either way, but a producer that
+    knows the key and emits nothing is a different defect from a field nobody has heard of."""
+    _package(tmp_path, "a", [{"card_id": "c", "summary": {"has_value": 1, "always_null": None}}])
+    _package(tmp_path, "b", [{"card_id": "c", "summary": {"has_value": 2, "always_null": None}}])
+    got = probe.summary_field_emission(tmp_path)
+    assert got["n_packages"] == 2 and got["cards"]["c"]["n_rows"] == 2
+    assert got["cards"]["c"]["emitted"] == ["has_value"]
+    assert got["cards"]["c"]["null_only"] == ["always_null"]
+
+
+def test_emission_scan_credits_a_row_with_no_passing_validation_state(tmp_path):
+    """DELIBERATELY unlike fired_card_ids(), which filters to pass/passed_with_warnings.
+    Emission evidence ARGUES AGAINST the alarming label, so widening it makes `read_of_None`
+    harder to earn. Filtering here would let a field emitted only by a non-passing row read
+    as never emitted — a manufactured finding. This test fails if a pass-filter is added."""
+    _package(tmp_path, "a", [{"card_id": "c", "validation_state": "fail", "summary": {"f": 1}}])
+    assert probe.summary_field_emission(tmp_path)["cards"]["c"]["emitted"] == ["f"]
+
+
+def test_emission_scan_skips_invalid_packages(tmp_path):
+    d = tmp_path / "a"
+    d.mkdir()
+    (d / "evidence_package.invalid.json").write_text(json.dumps({"cards": [{"card_id": "c", "summary": {"f": 1}}]}))
+    assert probe.summary_field_emission(tmp_path) == {}
+
+
+# --- resolution: the three outcomes, and the one non-outcome --------------------------
+def test_an_emitted_field_resolves_to_emitted_but_undeclared():
+    got = rollup.resolve_emission("observed-card", "declared_a", _emission())
+    assert got["emission_outcome"] == "emitted_but_undeclared"
+
+
+def test_a_field_absent_from_an_observed_card_is_a_read_of_none():
+    got = rollup.resolve_emission("observed-card", "nobody_emits_me", _emission())
+    assert got["emission_outcome"] == "read_of_None"
+    assert got["key_present_but_null"] is False
+
+
+def test_a_present_but_null_field_is_a_read_of_none_that_says_so():
+    got = rollup.resolve_emission("observed-card", "declared_b", _emission())
+    assert got["emission_outcome"] == "read_of_None"
+    assert got["key_present_but_null"] is True
+    assert "PRESENT but null" in got["emission_evidence"]
+
+
+def test_an_unobserved_card_is_never_called_a_read_of_none():
+    """THE honesty guard. `read_of_None` asserts the model was handed None; a card the
+    packages never contained supports no such claim, and calling it that would manufacture
+    a finding out of an aperture limit (measured: 46 of the 148 roster cards are outside
+    the committed packages, so this is the common case, not a corner)."""
+    got = rollup.resolve_emission("unseen-card", "n_thing", _emission())
+    assert got["emission_outcome"] == "emission_unobserved"
+    assert got["n_rows_observed"] == 0
+    assert "UNDECIDABLE" in got["emission_evidence"]
+
+
+def test_an_empty_aperture_leaves_a_row_unresolved_rather_than_unobserved():
+    """`emission_unobserved` says "we looked at N>0 packages and this card was in none".
+    With nothing scanned, nobody looked — the row must stay unresolved."""
+    got = rollup.resolve_emission("any-card", "any_field", {})
+    assert got["emission_outcome"] is None
+    assert "NOT MEASURED" in got["emission_evidence"]
+
+
+def test_a_meta_key_row_is_not_told_to_declare_the_field():
+    """The REMEDY depends on the other axis. No card declares any underscore-led key — that
+    is the premise the producer's meta_key rule rests on — so 'the declaration is missing' is
+    the wrong advice for an emitted envelope key. Same outcome, different owner."""
+    meta = rollup.resolve_emission("observed-card", "_envelope", _emission(), "meta_key")
+    plain = rollup.resolve_emission("observed-card", "declared_a", _emission(), "emission_undetermined")
+    assert meta["emission_outcome"] == plain["emission_outcome"] == "emitted_but_undeclared"
+    assert "ENVELOPE key" in meta["emission_evidence"]
+    assert "DECLARATION is what is missing" not in meta["emission_evidence"]
+    assert "DECLARATION is what is missing" in plain["emission_evidence"]
+
+
+# --- the section envelope ------------------------------------------------------------
+def test_field_read_unavailable_is_not_a_verdict():
+    frh = rollup.build_field_read_health({}, _emission())
+    assert frh["available"] is False
+    assert "summary" not in frh  # absence is a null, never a measured zero
+    assert frh["reason"]
+
+
+def test_the_classification_axis_is_left_untouched_by_resolution():
+    """Two independent axes: `classification` describes the field NAME's shape,
+    `emission_outcome` what the producer was OBSERVED to do. Collapsing them would have to
+    call an emitted meta_key row either 'not a real key' or 'an undeclared field' — both false."""
+    frh = rollup.build_field_read_health(_frh_census(), _emission())
+    row = next(r for r in frh["undeclared_queue"] if r["field"] == "_envelope")
+    assert row["classification"] == "meta_key"
+    assert row["emission_outcome"] == "emitted_but_undeclared"
+
+
+def test_an_empty_aperture_publishes_nulls_not_zeros():
+    """A 0 against `read_of_None` plots as 'no field ever handed the model None' — the single
+    most misleading thing this dimension could say."""
+    frh = rollup.build_field_read_health(_frh_census(), {})
+    assert frh["emission_aperture"]["available"] is False
+    assert set(frh["emission_outcome_tally"].values()) == {None}
+    assert frh["n_emission_unresolved"] == 2
+
+
+def test_the_pinned_roster_is_projected_out_but_still_identified():
+    """The 148-card roster is an INPUT to the census, not a finding, and ~90 KB of it. Its two
+    counts stay so the pin is identifiable; the roster itself lives in its one producer."""
+    frh = rollup.build_field_read_health(_frh_census(), _emission())
+    assert "declared_fields" not in frh["rosters"]
+    assert frh["roster_pin"]["n_cards"] == 2 and frh["roster_pin"]["n_fields"] == 3
+    assert "reader_kinds" in frh["rosters"]  # the small rosters DO carry through
+
+
+def test_the_aperture_is_published_with_the_outcomes():
+    frh = rollup.build_field_read_health(_frh_census(), _emission())
+    ap = frh["emission_aperture"]
+    assert ap["available"] is True and ap["n_packages"] == 2
+    assert ap["n_cards_observed"] == 1 and ap["n_roster_cards"] == 2 and ap["n_roster_cards_observed"] == 1
+
+
+# --- self_check: every invariant re-derived from the artifact's own bytes -------------
+def test_frh_self_check_accepts_a_consistent_section(tmp_path):
+    ok, errs = _check(tmp_path, _report_with_frh())
+    assert ok, errs
+
+
+def test_frh_self_check_accepts_an_unavailable_section(tmp_path):
+    """The pre-landing state (skills sidecar not yet on trunk) must be self-consistent."""
+    ok, errs = _check(tmp_path, _report_with_frh(census={}))
+    assert ok, errs
+
+
+def test_frh_self_check_accepts_an_empty_aperture(tmp_path):
+    """Census readable, products root not: legal, and every count null."""
+    ok, errs = _check(tmp_path, _report_with_frh(emission={}))
+    assert ok, errs
+
+
+def test_frh_unmeasured_dimension_may_not_publish_counts(tmp_path):
+    rep = _report_with_frh(census={})
+    rep["summary"]["n_field_reads_of_none"] = 0  # the exact misreading this guard exists for
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("must be null, not a number" in e for e in errs)
+
+
+def test_frh_self_check_catches_a_zero_where_the_aperture_is_empty(tmp_path):
+    rep = _report_with_frh(emission={})
+    rep["field_read_health"]["emission_outcome_tally"]["read_of_None"] = 0
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("empty aperture" in e and "must be null" in e for e in errs)
+
+
+def test_frh_self_check_catches_a_resolved_row_with_no_packages_scanned(tmp_path):
+    rep = _report_with_frh(emission={})
+    rep["field_read_health"]["undeclared_queue"][0]["emission_outcome"] = "read_of_None"
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("an unscanned row cannot be resolved" in e for e in errs)
+
+
+def test_frh_self_check_catches_an_unresolved_row_with_packages_in_hand(tmp_path):
+    """The opposite failure, and it gets its own message: with packages scanned every row is
+    decidable, so an unresolved one means the resolution silently skipped it."""
+    rep = _report_with_frh()
+    rep["field_read_health"]["undeclared_queue"][0]["emission_outcome"] = None
+    rep["field_read_health"]["n_emission_unresolved"] = 1
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("every row is decidable" in e for e in errs)
+
+
+def test_frh_self_check_catches_dispositions_that_do_not_re_derive(tmp_path):
+    rep = _report_with_frh()
+    rep["field_read_health"]["summary"]["n_clean"] = 99
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("summary.n_clean disagrees" in e for e in errs)
+
+
+def test_frh_self_check_catches_a_queue_row_missing_from_its_unit(tmp_path):
+    """The flat queue and the per-unit map are two shapes for the same facts — exactly the
+    arrangement that acquires silent drift. This re-derives one from the other."""
+    rep = _report_with_frh()
+    rep["field_read_health"]["units"]["loud-skill"]["undeclared"] = []
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("is not in unit" in e for e in errs)
+
+
+def test_frh_self_check_catches_tally_drift(tmp_path):
+    rep = _report_with_frh()
+    rep["field_read_health"]["emission_outcome_tally"]["emitted_but_undeclared"] = 99
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("emission_outcome_tally[emitted_but_undeclared] disagrees" in e for e in errs)
+
+
+def test_frh_self_check_catches_an_outcome_outside_the_vocabulary(tmp_path):
+    rep = _report_with_frh()
+    rep["field_read_health"]["undeclared_queue"][0]["emission_outcome"] = "probably_fine"
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("outside the vocabulary" in e for e in errs)
+
+
+def test_frh_self_check_catches_a_leaked_roster(tmp_path):
+    rep = _report_with_frh()
+    rep["field_read_health"]["rosters"]["declared_fields"] = {"x": ["y"]}
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("the projection is not applied" in e for e in errs)
+
+
+def test_frh_self_check_catches_a_reconciled_flag_that_contradicts_its_numbers(tmp_path):
+    rep = _report_with_frh()
+    rep["field_read_health"]["attribution"]["per_unit_union_pairs"] = 6  # vs whole_tree 7
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("attribution.reconciled disagrees" in e for e in errs)
+
+
+def test_frh_self_check_requires_the_no_reads_warning_to_survive(tmp_path):
+    """Losing this one line would let a dashboard render N unmeasured units as N healthy ones.
+    Checked for PRESENCE of the warning, never for absence of a retracted phrase."""
+    rep = _report_with_frh()
+    rep["field_read_health"]["note"] = "a cheerful summary with no caveat"
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("NOT a clean bill of health" in e for e in errs)
+
+
+def test_frh_self_check_catches_an_impossible_aperture(tmp_path):
+    rep = _report_with_frh()
+    rep["field_read_health"]["emission_aperture"]["n_roster_cards_observed"] = 99
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("impossible" in e for e in errs)
+
+
+def test_frh_section_is_carried_in_the_drift_basis():
+    """A pure function of sibling BYTES with no clock, so a new package or a scraper fix must
+    register as staleness rather than being projected away as volatile."""
+    rep = _report_with_frh()
+    rep["generated_at"] = "2026-01-01T00:00:00Z"
+    projected = stable_projection(rep)
+    assert "field_read_health" in projected
+    assert "unseen-card" in projected  # the queue itself is part of the basis
+    assert "2026-01-01T00:00:00Z" not in projected
+
+
+def test_older_artifacts_without_the_field_read_section_still_pass(tmp_path):
+    rep = _minimal_report()
+    assert "field_read_health" not in rep
+    ok, errs = _check(tmp_path, rep)
+    assert ok, errs

@@ -386,6 +386,11 @@ def build_health(roots: dict[str, Path]) -> dict:
     run_health = probe.subskill_run_health(roots["skills"])  # skill_name -> "runs clean?" record ({} if absent)
     # FIELD-VOCABULARY lens: the skills repo's committed descriptor-coverage census ({} if absent).
     descriptor_census = probe.descriptor_coverage(roots["skills"])
+    # FIELD-READ lens: the skills repo's committed reads-MINUS-declarations census ({} if absent),
+    # resolved against field-level emission evidence from the products root ({} if unreadable).
+    # Two INDEPENDENT siblings, so either can be absent — hence two separate `available` flags.
+    field_read_census = probe.field_read_health(roots["skills"])
+    field_emission = probe.summary_field_emission(roots["products"])
 
     # probe_card is called from BOTH the per-skill loop and the card-universe loop,
     # with identical constant args (roots + the precomputed index sets) for the whole
@@ -567,6 +572,9 @@ def build_health(roots: dict[str, Path]) -> dict:
     graph = build_graph(skill_nodes, card_nodes)
     dcov = build_descriptor_coverage(descriptor_census)
     dsum = dcov.get("summary") or {}
+    frh = build_field_read_health(field_read_census, field_emission)
+    fsum = frh.get("summary") or {}
+    ftally = frh.get("emission_outcome_tally") or {}
 
     # Verdict tallies + drift roll-up for the summary header.
     tally: dict[str, int] = {}
@@ -627,9 +635,25 @@ def build_health(roots: dict[str, Path]) -> dict:
             # regression ratchet rather than a trend; both are carried, named apart.
             "n_gloss_without_descriptor": dsum.get("n_gloss_without_descriptor"),
             "n_numeric_fields_without_gloss": dsum.get("n_numeric_fields_without_gloss"),
+            # FIELD-READ lens (trending, NEVER a gate). The COMPLEMENT of descriptor coverage
+            # and of the skills-side aperture census: reads MINUS declarations. Same null
+            # discipline — unavailable means "not measured", so every count is None, never 0.
+            "field_read_health_available": bool(frh.get("available")),
+            "n_field_read_units": fsum.get("n_units"),
+            "n_field_read_units_clean": fsum.get("n_clean"),
+            # NOT a flavour of clean: the scrape recognises a fixed set of call shapes and a unit
+            # it cannot see scrapes to zero reads. Carried in the header precisely so the
+            # instrument's blind spot is as visible as its findings.
+            "n_field_read_units_no_reads_detected": fsum.get("n_no_reads_detected"),
+            "n_undeclared_field_reads": fsum.get("n_undeclared_pairs"),
+            # The resolved split this repo adds — null when no package was readable.
+            "n_field_reads_emitted_but_undeclared": ftally.get("emitted_but_undeclared"),
+            "n_field_reads_of_none": ftally.get("read_of_None"),
+            "n_field_reads_emission_unobserved": ftally.get("emission_unobserved"),
         },
         "registry_drift": reg,
         "descriptor_coverage": dcov,
+        "field_read_health": frh,
         "skills": skill_nodes,
         "cards": card_nodes,
         "datasets": dataset_nodes,
@@ -670,6 +694,206 @@ def build_descriptor_coverage(census: dict) -> dict:
         "source": "skills:_skills_common/descriptor_coverage.json",
         "schema_version": census.get("schema_version"),
         **{k: v for k, v in census.items() if k != "schema_version"},
+    }
+
+
+# ---------------------------------------------------------------------------
+# Field-read-health section — reads MINUS declarations, per unit, PLUS the emission
+# half that only this repo can measure.
+#
+# The skills census deliberately stops short: it classifies every undeclared read it
+# cannot explain as `emission_undetermined`, because deciding between "the producer
+# emits this and no card declares it" and "nothing emits it, so the model was handed
+# None" needs OBSERVED PACKAGES, and the skills repo has none it can trust (its own
+# fixtures are partly synthetic — crediting a field as emitted because a fixture names
+# it would make the metric measure our own paperwork). This side has the data-products
+# root, so this is where that split gets made.
+#
+# Trending, never a gate — same contract as descriptor_coverage.
+# ---------------------------------------------------------------------------
+#: The three answers the emission scan can give. `emission_unobserved` is NOT a hedge: it is
+#: the only honest answer when the card never appeared in an observed package, and without it
+#: `read_of_None` would be asserted from zero evidence. Measured against the committed products
+#: root it is also the BEST-witnessed of the three — the outcome for the census's one
+#: emission_undetermined row.
+#:
+#: `read_of_None` currently has NO live witness, and that is the point rather than a gap: the
+#: one instance that ever existed (clinical-precedent.n_agents_engaging_target, a field nothing
+#: emitted and nothing declared that a skill read anyway) was FIXED in skills #1405, which is
+#: what motivated this whole dimension. So this outcome is a REGRESSION WATCH, and a
+#: non-zero count here is the finding the dashboard exists to surface.
+_EMISSION_OUTCOMES = ("emitted_but_undeclared", "read_of_None", "emission_unobserved")
+
+_FRH_SOURCE = "skills:_skills_common/field_read_health.json"
+
+
+def resolve_emission(card: str, field: str, emission: dict, classification: str | None = None) -> dict:
+    """Resolve one undeclared (card, field) read against the observed-package evidence.
+
+    Outcome, and the evidence for it, as a dict to merge into the queue row. Never mutates
+    the skills-side `classification`: that axis records the FIELD NAME's shape (a leading
+    underscore cannot be a declared field) while this one records what the producer was
+    OBSERVED to do. They are independent, and the live artifact proves it — `_schema` is
+    classified `meta_key` and is nevertheless emitted in every observed package, so
+    collapsing the two axes would have to call that row either "not a real key" or "an
+    undeclared field", and both are false.
+
+    An EMPTY APERTURE yields outcome None, not `emission_unobserved`. The difference is the
+    whole point: `emission_unobserved` says "we looked at N>0 packages and this card was in
+    none of them"; a missing products root means nobody looked, and an unmeasured row must
+    stay unresolved rather than acquire the most reassuring-sounding label available.
+    """
+    cards = (emission or {}).get("cards") or {}
+    if not cards:
+        return {
+            "emission_outcome": None,
+            "emission_evidence": (
+                "NOT MEASURED — no evidence package was readable under the data-products root, so "
+                "this read stays emission_undetermined rather than being called unobserved"
+            ),
+        }
+    n_pkg = emission.get("n_packages")
+    rec = cards.get(card)
+    if rec is None:
+        return {
+            "emission_outcome": "emission_unobserved",
+            "n_rows_observed": 0,
+            "emission_evidence": (
+                f"card absent from all {n_pkg} observed package(s) — whether the producer emits "
+                f"'{field}' is UNDECIDABLE at this aperture, NOT evidence that it does not"
+            ),
+        }
+    if field in (rec.get("emitted") or ()):
+        # THE REMEDY DEPENDS ON THE OTHER AXIS, and stating it unconditionally was a defect: for a
+        # meta_key row "declare it" is the WRONG advice. No card declares any underscore-led key —
+        # that is precisely the premise the producer's meta_key rule rests on — so an emitted
+        # `_`-led key is an ENVELOPE key travelling on an undeclared producer→reader channel, not a
+        # missing card field. Same outcome, different owner.
+        return {
+            "emission_outcome": "emitted_but_undeclared",
+            "n_rows_observed": rec.get("n_rows"),
+            "emission_evidence": (
+                f"'{field}' carried a non-null value in an observed package, so the producer emits it. "
+                + (
+                    "It is an ENVELOPE key (underscore-led; no card declares any), so the read is "
+                    "satisfied today but travels on a channel outside the declared contract — the gap "
+                    "is documentation/coupling, NOT a missing card field."
+                    if classification == "meta_key"
+                    else "The DECLARATION is what is missing — a contracts-side fix."
+                )
+            ),
+        }
+    null_only = field in (rec.get("null_only") or ())
+    return {
+        "emission_outcome": "read_of_None",
+        "n_rows_observed": rec.get("n_rows"),
+        "key_present_but_null": null_only,
+        "emission_evidence": (
+            f"card observed in {rec.get('n_rows')} row(s) and '{field}' was "
+            + (
+                "PRESENT but null in every one — the producer knows the key and emits nothing for it"
+                if null_only
+                else "absent from every one — the reader is handed None"
+            )
+        ),
+    }
+
+
+def build_field_read_health(census: dict, emission: dict) -> dict:
+    """Wrap the skills census in the dimension envelope, with each undeclared read resolved.
+
+    Transcription plus ONE added axis, for the reason build_descriptor_coverage gives: a second
+    SHAPE for the same facts is the cheapest way to acquire drift between two repos no CI job can
+    compare. The added axis is `emission_outcome` per queue row (and its tally), which is not a
+    reshaping of the census — it is the half the census could not measure.
+
+    ONE PROJECTION, named so it cannot be mistaken for a measurement: `rosters.declared_fields`
+    (the pinned 148-card / 1807-field roster, ~90 KB) is NOT copied through. It is an input to the
+    census, not a finding, and no consumer of this dashboard reads it; `roster_pin` keeps its two
+    counts so the pin stays identifiable. The roster is still fully available in the skills
+    artifact, which is the ONE producer of it.
+
+    `available: False` is NOT a health verdict — it means this checkout could not see the skills
+    sibling. A consumer must render it as "not measured", never as "no undeclared reads".
+    """
+    if not census:
+        return {
+            "available": False,
+            "source": _FRH_SOURCE,
+            # Two ways to get here and the artifact should not pretend to know which: the sibling
+            # is unreadable (isolated checkout, another branch), or it is readable and simply does
+            # not publish the census yet. The second is the state this dimension SHIPS in, until
+            # the skills-side producer lands on trunk.
+            "reason": "census absent — the skills sibling is unreadable, or does not publish it yet",
+        }
+
+    roster = ((census.get("rosters") or {}).get("declared_fields")) or {}
+    observed = (emission or {}).get("cards") or {}
+
+    queue = [
+        {**row, **resolve_emission(row.get("card"), row.get("field"), emission, row.get("classification"))}
+        for row in (census.get("undeclared_queue") or [])
+    ]
+    # NULLS, not zeros, when nothing was scanned: a 0 against `read_of_None` plots as "no field
+    # ever handed the model None", which is the single most misleading thing this dimension could
+    # say. An empty aperture measures nothing, and the counts have to admit it.
+    tally = (
+        {o: sum(1 for r in queue if r.get("emission_outcome") == o) for o in _EMISSION_OUTCOMES}
+        if observed
+        else dict.fromkeys(_EMISSION_OUTCOMES)
+    )
+
+    if not observed:
+        aperture = {
+            "available": False,
+            "n_packages": 0,
+            "reason": "no evidence package readable under the data-products root",
+            "note": (
+                "UNMEASURED, not clean: every undeclared read stays emission_undetermined. Do not "
+                "plot a zero here — nothing was scanned."
+            ),
+        }
+    else:
+        aperture = {
+            "available": True,
+            "n_packages": emission.get("n_packages"),
+            "n_card_rows": emission.get("n_card_rows"),
+            "n_card_rows_with_summary": emission.get("n_card_rows_with_summary"),
+            "n_cards_observed": len(observed),
+            "n_roster_cards": len(roster) or None,
+            "n_roster_cards_observed": sum(1 for c in roster if c in observed) if roster else None,
+            "note": (
+                "PUBLISHED BECAUSE IT IS NARROW. Every outcome below is conditional on these "
+                "packages; a card outside them yields emission_unobserved, which is a statement "
+                "about the aperture and NOT about the producer. Widening the aperture can only "
+                "move rows OUT of emission_unobserved, never into it."
+            ),
+        }
+
+    body = {k: v for k, v in census.items() if k not in ("schema_version", "rosters", "undeclared_queue")}
+    return {
+        "available": True,
+        "source": _FRH_SOURCE,
+        "schema_version": census.get("schema_version"),
+        **body,
+        "rosters": {k: v for k, v in (census.get("rosters") or {}).items() if k != "declared_fields"},
+        "roster_pin": {
+            "n_cards": len(roster),
+            "n_fields": sum(len(v) for v in roster.values()),
+            "note": "the pinned roster itself is NOT copied here — see build_field_read_health",
+        },
+        "undeclared_queue": queue,
+        "emission_outcomes": list(_EMISSION_OUTCOMES),
+        "emission_outcome_tally": tally,
+        "n_emission_unresolved": sum(1 for r in queue if r.get("emission_outcome") is None),
+        "emission_aperture": aperture,
+        "resolution_note": (
+            "The skills census cannot split emission_undetermined (no observed packages it can "
+            "trust); this side can, and does it per row against the data-products root. The "
+            "skills-side `classification` is left untouched — it describes the field NAME's shape, "
+            "while `emission_outcome` describes what the producer was OBSERVED to do. A row can be "
+            "meta_key AND emitted_but_undeclared, and one live row is."
+        ),
     }
 
 

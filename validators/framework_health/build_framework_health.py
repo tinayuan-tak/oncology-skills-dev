@@ -26,6 +26,7 @@ import argparse
 import json
 import subprocess
 import sys
+from collections import Counter
 from pathlib import Path
 
 # Support both `python -m validators.framework_health.build_framework_health`
@@ -422,6 +423,164 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
                         "[descriptor_coverage] the census note no longer warns that a zero "
                         "unclassified count means fabricated roles — a consumer would read zero "
                         "as success; regenerate from the skills producer"
+                    )
+
+    # 7. Field-read-health section (if present): reads MINUS declarations, plus the emission
+    #    split this repo adds. Re-derived from the section's OWN bytes for the same reason as
+    #    (6): the runner sees neither the skills sibling nor the products root, and a check that
+    #    degrades to "skipping" in the only environment that runs it is vacuous.
+    frh = rep.get("field_read_health")
+    if frh is not None:
+        summary = rep.get("summary", {})
+        if summary.get("field_read_health_available") != bool(frh.get("available")):
+            errs.append("summary.field_read_health_available disagrees with the section — regenerate")
+
+        _FRH_COUNTS = (
+            "n_field_read_units",
+            "n_field_read_units_clean",
+            "n_field_read_units_no_reads_detected",
+            "n_undeclared_field_reads",
+            "n_field_reads_emitted_but_undeclared",
+            "n_field_reads_of_none",
+            "n_field_reads_emission_unobserved",
+        )
+        if not frh.get("available"):
+            for key in _FRH_COUNTS:
+                if summary.get(key) is not None:
+                    errs.append(
+                        f"summary.{key} is {summary.get(key)!r} but field-read health is "
+                        f"UNAVAILABLE — an unmeasured dimension must be null, not a number"
+                    )
+        else:
+            fsum = frh.get("summary") or {}
+            units = frh.get("units")
+            queue = frh.get("undeclared_queue")
+            if not isinstance(units, dict) or not isinstance(queue, list):
+                errs.append("[field_read_health] available but missing units/undeclared_queue")
+            else:
+                # Dispositions re-derive from the per-unit records, not from the recorded tally.
+                disp = Counter(u.get("disposition") for u in units.values())
+                for key, want in (
+                    ("n_units", len(units)),
+                    ("n_clean", disp["clean"]),
+                    ("n_units_with_undeclared_reads", disp["undeclared_reads"]),
+                    ("n_no_reads_detected", disp["no_reads_detected"]),
+                    ("n_undeclared_pairs", len(queue)),
+                ):
+                    if fsum.get(key) != want:
+                        errs.append(
+                            f"[field_read_health] summary.{key} disagrees with the units/queue ({want}) — regenerate"
+                        )
+                unknown_disp = sorted(d for d in disp if d not in ("clean", "undeclared_reads", "no_reads_detected"))
+                if unknown_disp:
+                    errs.append(
+                        f"[field_read_health] unknown disposition(s) {unknown_disp} — the producer's vocabulary changed"
+                    )
+
+                # Every queue row must trace back to its own unit's `undeclared` list. This is the
+                # check that a flat queue and a per-unit map cannot silently disagree — the exact
+                # drift that transcribing the same facts in two shapes invites.
+                for row in queue:
+                    u = units.get(row.get("unit"))
+                    if u is None:
+                        errs.append(f"[field_read_health] queue row names unit '{row.get('unit')}' that has no record")
+                        continue
+                    if not any(
+                        d.get("card") == row.get("card") and d.get("field") == row.get("field")
+                        for d in u.get("undeclared") or []
+                    ):
+                        errs.append(
+                            f"[field_read_health] queue row {row.get('card')}.{row.get('field')} is not in "
+                            f"unit '{row.get('unit')}'.undeclared — regenerate"
+                        )
+                    if row.get("classification") not in ("meta_key", "emission_undetermined"):
+                        errs.append(
+                            f"[field_read_health] row {row.get('card')}.{row.get('field')} carries "
+                            f"classification {row.get('classification')!r}, outside the producer's vocabulary"
+                        )
+
+                # The emission axis: vocabulary, and the aperture/outcome agreement in BOTH
+                # directions. Resolving a row with nothing scanned, or leaving one unresolved with
+                # packages in hand, are opposite failures and each gets its own message.
+                aperture = frh.get("emission_aperture") or {}
+                outcomes = [r.get("emission_outcome") for r in queue]
+                unknown_out = sorted(
+                    str(o) for o in set(outcomes) if o is not None and o not in rollup._EMISSION_OUTCOMES
+                )
+                if unknown_out:
+                    errs.append(f"[field_read_health] emission_outcome(s) outside the vocabulary: {unknown_out}")
+                if frh.get("n_emission_unresolved") != sum(1 for o in outcomes if o is None):
+                    errs.append("[field_read_health] n_emission_unresolved disagrees with the rows — regenerate")
+                if aperture.get("available"):
+                    if any(o is None for o in outcomes):
+                        errs.append(
+                            "[field_read_health] a row is UNRESOLVED while the emission aperture reports "
+                            f"{aperture.get('n_packages')} package(s) — every row is decidable when packages were scanned"
+                        )
+                    tally = frh.get("emission_outcome_tally") or {}
+                    for outcome in rollup._EMISSION_OUTCOMES:
+                        want = sum(1 for o in outcomes if o == outcome)
+                        if tally.get(outcome) != want:
+                            errs.append(
+                                f"[field_read_health] emission_outcome_tally[{outcome}] disagrees with the rows ({want}) — regenerate"
+                            )
+                    for key, mirror in (
+                        ("n_field_reads_emitted_but_undeclared", "emitted_but_undeclared"),
+                        ("n_field_reads_of_none", "read_of_None"),
+                        ("n_field_reads_emission_unobserved", "emission_unobserved"),
+                    ):
+                        if summary.get(key) != tally.get(mirror):
+                            errs.append(f"summary.{key} disagrees with emission_outcome_tally[{mirror}] — regenerate")
+                    n_obs, n_roster = aperture.get("n_cards_observed"), aperture.get("n_roster_cards")
+                    n_roster_obs = aperture.get("n_roster_cards_observed")
+                    if isinstance(n_roster_obs, int) and isinstance(n_obs, int) and n_roster_obs > n_obs:
+                        errs.append("[field_read_health] n_roster_cards_observed exceeds n_cards_observed — impossible")
+                    if isinstance(n_roster_obs, int) and isinstance(n_roster, int) and n_roster_obs > n_roster:
+                        errs.append("[field_read_health] n_roster_cards_observed exceeds n_roster_cards — impossible")
+                else:
+                    # Nothing scanned: every outcome AND every count must be null. A zero here would
+                    # be read as "no field ever handed the model None", the worst available lie.
+                    if any(o is not None for o in outcomes):
+                        errs.append(
+                            "[field_read_health] a row carries an emission_outcome while the aperture is "
+                            "UNAVAILABLE — an unscanned row cannot be resolved"
+                        )
+                    for outcome, n in (frh.get("emission_outcome_tally") or {}).items():
+                        if n is not None:
+                            errs.append(
+                                f"[field_read_health] emission_outcome_tally[{outcome}] is {n!r} with an empty aperture — must be null"
+                            )
+
+                # The projection: the roster is deliberately NOT copied through, so its two counts
+                # are the only trace left and must still match the census summary they came from.
+                pin = frh.get("roster_pin") or {}
+                if pin.get("n_cards") != fsum.get("n_roster_cards") or pin.get("n_fields") != fsum.get(
+                    "n_roster_fields"
+                ):
+                    errs.append("[field_read_health] roster_pin disagrees with the census summary — regenerate")
+                if "declared_fields" in (frh.get("rosters") or {}):
+                    errs.append(
+                        "[field_read_health] rosters.declared_fields was copied through — the projection is not applied"
+                    )
+
+                # Attribution: the census publishes whether per-unit scrapes reproduce the whole-tree
+                # scrape. A `reconciled` flag that disagrees with its own numbers is worse than absent.
+                att = frh.get("attribution") or {}
+                if att:
+                    agrees = att.get("whole_tree_pairs") == att.get("per_unit_union_pairs")
+                    if bool(att.get("reconciled")) != agrees:
+                        errs.append("[field_read_health] attribution.reconciled disagrees with its own pair counts")
+                    if not agrees and not att.get("unattributed"):
+                        errs.append("[field_read_health] attribution is unreconciled but lists no unattributed reads")
+
+                # The producer's note carries the one warning a consumer in this repo cannot
+                # re-derive: that no_reads_detected is instrument silence, not health. Checked for
+                # PRESENCE (never absence of a retracted phrase), because losing it would let a
+                # dashboard render 7 unmeasured units as 7 healthy ones.
+                if "NOT that the unit is clean" not in (frh.get("note") or ""):
+                    errs.append(
+                        "[field_read_health] the census note no longer warns that no_reads_detected is "
+                        "NOT a clean bill of health — regenerate from the skills producer"
                     )
 
     return (not errs), errs

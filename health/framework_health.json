@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-17T04:32:18.381102+00:00",
+  "generated_at": "2026-09-17T14:22:52.192858+00:00",
   "roots": {
     "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
@@ -9,27 +9,23 @@
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "fa3b03d",
-    "skills": "8820b12a",
+    "contracts": "d71a8b3",
+    "skills": "32d5009e",
     "methods": "33d66f3",
     "products": "b45b9b2",
     "catalog": "d6b2ef8"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-09-12T17:11:41.524304+00:00",
-    "n_skills": -1,
+    "prior_generated_at": "2026-09-17T04:32:18.381102+00:00",
+    "n_skills": 0,
     "n_cards": 0,
     "n_drift_flags": 0,
     "n_error_drift": 0,
-    "verdict_tally": {
-      "partial": -1
-    },
+    "verdict_tally": {},
     "card_health_tally": {},
     "skills_added": [],
-    "skills_removed": [
-      "target-archetype"
-    ],
+    "skills_removed": [],
     "cards_added": [],
     "cards_removed": []
   },
@@ -88,7 +84,15 @@
     "n_descriptor_cells": 337,
     "n_distinct_descriptor_fields": 310,
     "n_gloss_without_descriptor": 5,
-    "n_numeric_fields_without_gloss": 0
+    "n_numeric_fields_without_gloss": 0,
+    "field_read_health_available": true,
+    "n_field_read_units": 23,
+    "n_field_read_units_clean": 14,
+    "n_field_read_units_no_reads_detected": 7,
+    "n_undeclared_field_reads": 2,
+    "n_field_reads_emitted_but_undeclared": 1,
+    "n_field_reads_of_none": 0,
+    "n_field_reads_emission_unobserved": 1
   },
   "registry_drift": {
     "marketplace_exists": true,
@@ -1321,6 +1325,317 @@
       "n_numeric_fields_with_gloss": 181,
       "n_numeric_fields_without_gloss": 0
     }
+  },
+  "field_read_health": {
+    "available": true,
+    "source": "skills:_skills_common/field_read_health.json",
+    "schema_version": "1.0.0",
+    "attribution": {
+      "per_unit_read_credits": 550,
+      "per_unit_union_pairs": 503,
+      "reconciled": true,
+      "unattributed": [],
+      "whole_tree_pairs": 503
+    },
+    "note": "Reads MINUS declarations, per unit, for the target-contracts framework-health dashboard. TRENDING, never a gate: a populated queue is a review queue and this tool returns 0 however long it is. The queue is NOT split into read_of_None vs emitted_but_undeclared here \u2014 that needs observed-package evidence this producer cannot see, so the contracts side resolves emission_undetermined against the data-products root. no_reads_detected means the scraper's five shapes matched nothing, NOT that the unit is clean.",
+    "summary": {
+      "attribution_reconciled": true,
+      "n_clean": 14,
+      "n_emission_undetermined": 1,
+      "n_meta_key": 1,
+      "n_no_reads_detected": 7,
+      "n_reads_detected": 503,
+      "n_roster_cards": 148,
+      "n_roster_fields": 1807,
+      "n_undeclared_pairs": 2,
+      "n_units": 23,
+      "n_units_with_undeclared_reads": 2
+    },
+    "units": {
+      "_skills_common": {
+        "disposition": "clean",
+        "kind": "shared_library",
+        "n_reads": 103,
+        "reads_by_kind": {
+          "claim_passthrough": 40,
+          "figure": 32,
+          "question_table": 26,
+          "skill_code": 5
+        },
+        "undeclared": []
+      },
+      "catalog-query": {
+        "disposition": "no_reads_detected",
+        "kind": "skill",
+        "n_reads": 0,
+        "reads_by_kind": {},
+        "undeclared": []
+      },
+      "cis-feature-coherence": {
+        "disposition": "clean",
+        "kind": "skill",
+        "n_reads": 44,
+        "reads_by_kind": {
+          "skill_code": 44
+        },
+        "undeclared": []
+      },
+      "combination-and-vulnerability": {
+        "disposition": "clean",
+        "kind": "skill",
+        "n_reads": 9,
+        "reads_by_kind": {
+          "skill_code": 9
+        },
+        "undeclared": []
+      },
+      "cross-evidence-hypothesis": {
+        "disposition": "no_reads_detected",
+        "kind": "skill",
+        "n_reads": 0,
+        "reads_by_kind": {},
+        "undeclared": []
+      },
+      "differentiation-landscape": {
+        "disposition": "clean",
+        "kind": "skill",
+        "n_reads": 30,
+        "reads_by_kind": {
+          "skill_code": 30
+        },
+        "undeclared": []
+      },
+      "example-gallery": {
+        "disposition": "no_reads_detected",
+        "kind": "skill",
+        "n_reads": 0,
+        "reads_by_kind": {},
+        "undeclared": []
+      },
+      "functional-requirement": {
+        "disposition": "clean",
+        "kind": "skill",
+        "n_reads": 28,
+        "reads_by_kind": {
+          "skill_code": 28
+        },
+        "undeclared": []
+      },
+      "genomic-alteration-profile": {
+        "disposition": "no_reads_detected",
+        "kind": "skill",
+        "n_reads": 0,
+        "reads_by_kind": {},
+        "undeclared": []
+      },
+      "immune-context": {
+        "disposition": "clean",
+        "kind": "skill",
+        "n_reads": 8,
+        "reads_by_kind": {
+          "skill_code": 8
+        },
+        "undeclared": []
+      },
+      "literature-context": {
+        "disposition": "clean",
+        "kind": "skill",
+        "n_reads": 10,
+        "reads_by_kind": {
+          "skill_code": 10
+        },
+        "undeclared": []
+      },
+      "literature-risk-assessment": {
+        "disposition": "undeclared_reads",
+        "kind": "skill",
+        "n_reads": 6,
+        "reads_by_kind": {
+          "skill_code": 6
+        },
+        "undeclared": [
+          {
+            "card": "competitor-landscape",
+            "classification": "emission_undetermined",
+            "field": "n_approved",
+            "reader_kinds": [
+              "skill_code"
+            ]
+          }
+        ]
+      },
+      "mechanism-and-pharmacology": {
+        "disposition": "clean",
+        "kind": "skill",
+        "n_reads": 26,
+        "reads_by_kind": {
+          "skill_code": 26
+        },
+        "undeclared": []
+      },
+      "on-target-safety-liability": {
+        "disposition": "clean",
+        "kind": "skill",
+        "n_reads": 38,
+        "reads_by_kind": {
+          "skill_code": 38
+        },
+        "undeclared": []
+      },
+      "query-target-evidence": {
+        "disposition": "no_reads_detected",
+        "kind": "skill",
+        "n_reads": 0,
+        "reads_by_kind": {},
+        "undeclared": []
+      },
+      "render-evidence-package": {
+        "disposition": "no_reads_detected",
+        "kind": "skill",
+        "n_reads": 0,
+        "reads_by_kind": {},
+        "undeclared": []
+      },
+      "surface-modality-fit": {
+        "disposition": "clean",
+        "kind": "skill",
+        "n_reads": 76,
+        "reads_by_kind": {
+          "skill_code": 76
+        },
+        "undeclared": []
+      },
+      "target-intrinsic": {
+        "disposition": "clean",
+        "kind": "skill",
+        "n_reads": 2,
+        "reads_by_kind": {
+          "skill_code": 2
+        },
+        "undeclared": []
+      },
+      "target-profile": {
+        "disposition": "no_reads_detected",
+        "kind": "skill",
+        "n_reads": 0,
+        "reads_by_kind": {},
+        "undeclared": []
+      },
+      "tractability-small-molecule": {
+        "disposition": "clean",
+        "kind": "skill",
+        "n_reads": 22,
+        "reads_by_kind": {
+          "skill_code": 22
+        },
+        "undeclared": []
+      },
+      "translational-readiness": {
+        "disposition": "clean",
+        "kind": "skill",
+        "n_reads": 9,
+        "reads_by_kind": {
+          "skill_code": 9
+        },
+        "undeclared": []
+      },
+      "tumor-presence": {
+        "disposition": "clean",
+        "kind": "skill",
+        "n_reads": 83,
+        "reads_by_kind": {
+          "skill_code": 83
+        },
+        "undeclared": []
+      },
+      "tumor-selectivity": {
+        "disposition": "undeclared_reads",
+        "kind": "skill",
+        "n_reads": 56,
+        "reads_by_kind": {
+          "skill_code": 56
+        },
+        "undeclared": [
+          {
+            "card": "tumor-vs-normal-selectivity",
+            "classification": "meta_key",
+            "field": "_schema",
+            "reader_kinds": [
+              "skill_code"
+            ]
+          }
+        ]
+      }
+    },
+    "rosters": {
+      "classification_rule": "meta_key: field name starts with '_' (no declared field in the pinned roster does, so such a read cannot be a field read). emission_undetermined: everything else \u2014 read_of_None vs emitted_but_undeclared needs observed-package evidence this producer cannot see.",
+      "disposition_rule": "clean: reads were detected and every one names a declared field. undeclared_reads: at least one read names a field the card does not declare. no_reads_detected: the scraper found no read at all \u2014 instrument silence, NOT a clean bill of health.",
+      "reader_kinds": [
+        "capsule",
+        "claim_passthrough",
+        "display_rule",
+        "figure",
+        "gating_rule",
+        "metric_gloss",
+        "narrative",
+        "question_table",
+        "salience",
+        "skill_code"
+      ]
+    },
+    "roster_pin": {
+      "n_cards": 148,
+      "n_fields": 1807,
+      "note": "the pinned roster itself is NOT copied here \u2014 see build_field_read_health"
+    },
+    "undeclared_queue": [
+      {
+        "card": "competitor-landscape",
+        "classification": "emission_undetermined",
+        "field": "n_approved",
+        "reader_kinds": [
+          "skill_code"
+        ],
+        "unit": "literature-risk-assessment",
+        "emission_outcome": "emission_unobserved",
+        "n_rows_observed": 0,
+        "emission_evidence": "card absent from all 4 observed package(s) \u2014 whether the producer emits 'n_approved' is UNDECIDABLE at this aperture, NOT evidence that it does not"
+      },
+      {
+        "card": "tumor-vs-normal-selectivity",
+        "classification": "meta_key",
+        "field": "_schema",
+        "reader_kinds": [
+          "skill_code"
+        ],
+        "unit": "tumor-selectivity",
+        "emission_outcome": "emitted_but_undeclared",
+        "n_rows_observed": 4,
+        "emission_evidence": "'_schema' carried a non-null value in an observed package, so the producer emits it. It is an ENVELOPE key (underscore-led; no card declares any), so the read is satisfied today but travels on a channel outside the declared contract \u2014 the gap is documentation/coupling, NOT a missing card field."
+      }
+    ],
+    "emission_outcomes": [
+      "emitted_but_undeclared",
+      "read_of_None",
+      "emission_unobserved"
+    ],
+    "emission_outcome_tally": {
+      "emitted_but_undeclared": 1,
+      "read_of_None": 0,
+      "emission_unobserved": 1
+    },
+    "n_emission_unresolved": 0,
+    "emission_aperture": {
+      "available": true,
+      "n_packages": 4,
+      "n_card_rows": 408,
+      "n_card_rows_with_summary": 380,
+      "n_cards_observed": 102,
+      "n_roster_cards": 148,
+      "n_roster_cards_observed": 102,
+      "note": "PUBLISHED BECAUSE IT IS NARROW. Every outcome below is conditional on these packages; a card outside them yields emission_unobserved, which is a statement about the aperture and NOT about the producer. Widening the aperture can only move rows OUT of emission_unobserved, never into it."
+    },
+    "resolution_note": "The skills census cannot split emission_undetermined (no observed packages it can trust); this side can, and does it per row against the data-products root. The skills-side `classification` is left untouched \u2014 it describes the field NAME's shape, while `emission_outcome` describes what the producer was OBSERVED to do. A row can be meta_key AND emitted_but_undeclared, and one live row is."
   },
   "skills": [
     {

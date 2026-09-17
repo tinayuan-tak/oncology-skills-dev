@@ -821,6 +821,43 @@ def descriptor_coverage(skills_root: Path) -> dict:
 
 
 # ===========================================================================
+# skills — the field-read-health census (reads MINUS declarations, per unit)
+# ===========================================================================
+def field_read_health(skills_root: Path) -> dict:
+    """The skills repo's committed field-read-health census, or {} when absent.
+
+    The COMPLEMENT of the skills-side `field_disposition.census`, which measures only
+    declared-minus-read: its domain IS `declared_fields`, so a read of an UNDECLARED field is
+    dropped before it can be counted. This census measures reads MINUS declarations and
+    attributes each read to the unit whose code makes it.
+
+    Read as DATA for the same reason as descriptor_coverage(): the producer is an AST scrape of
+    the SKILLS tree, which this probe cannot see in CI and must never re-implement (a second
+    copy in a second repo that no CI job could ever compare against the first). One producer.
+
+    Two properties of that census matter to every consumer here and are NOT re-derived:
+      * `n_no_reads_detected` is a THIRD disposition, not a flavour of `clean` — the scrape
+        recognises a fixed set of call shapes, and a unit it cannot see scrapes to zero. Silence
+        is not health.
+      * the card roster is PINNED INTO the artifact (`rosters.declared_fields`), so the census is
+        reproducible from skills bytes alone and a contracts-side card edit cannot red skills CI.
+        The pinned roster is also what makes `emission_unobserved` below decidable: it names the
+        cards the census was built against, independent of what this repo's cards/ says today.
+
+    Same absence contract as every other sibling probe: {} when unreadable, so an isolated
+    checkout omits the dimension instead of fabricating a clean bill of health.
+    """
+    p = skills_root / "skills" / "_skills_common" / "field_read_health.json"
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+# ===========================================================================
 # data-products — which cards actually fired in a real emitted package
 # ===========================================================================
 def fired_card_ids(products_root: Path) -> set[str]:
@@ -889,6 +926,93 @@ def fired_card_ids_any(products_root: Path) -> set[str]:
     if cf and cf.get("fired_card_ids_any") is not None:
         return set(cf["fired_card_ids_any"])
     return fired_card_ids(products_root)
+
+
+# ---------------------------------------------------------------------------
+# FIELD-level emission evidence — the half of field-read health that only this repo
+# can measure, because only this side has the data-products root.
+#
+# fired_card_ids() answers "did this CARD fire?"; this answers "did that card's summary
+# ever carry this FIELD, with a value?". A card-level firing cannot substitute: a card
+# can fire in every package and still never emit a given key.
+# ---------------------------------------------------------------------------
+def summary_field_emission(products_root: Path) -> dict:
+    """Per-card, per-field emission evidence harvested from the committed evidence packages.
+
+    Returns {} when nothing was scanned — an EMPTY APERTURE, which callers must render as "not
+    measured" and never as "nothing is emitted". Otherwise::
+
+        {"n_packages": int, "n_card_rows": int, "n_card_rows_with_summary": int,
+         "cards": {card_id: {"n_rows": int, "emitted": [field], "null_only": [field]}}}
+
+    `emitted` = the key carried a non-None value in at least one row. `null_only` = the key was
+    PRESENT in some row but never non-None; the reader gets None either way, but the producer
+    plainly knows the key, which is a different bug from a field nothing has heard of.
+
+    APERTURE, MEASURED, and small enough that the caller must publish it: the committed products
+    root holds 4 evidence packages covering 102 distinct cards of the census's 148-card roster.
+    Every conclusion drawn from this scan is conditional on those 4 packages, which is exactly
+    why `emission_unobserved` exists as an outcome on the consuming side rather than being
+    collapsed into "not emitted".
+
+    EVERY card row is harvested, INCLUDING rows without a passing validation_state — unlike
+    fired_card_ids(), which filters to pass/passed_with_warnings. That is deliberate and it is the
+    conservative direction: emission evidence is what ARGUES AGAINST the alarming label
+    (`read_of_None`, i.e. the model was handed None), so widening the evidence makes that label
+    harder to earn. Filtering here would let a field emitted only by a non-passing row read as
+    never emitted at all. Both row counts are returned so the exclusion that is NOT being made
+    stays visible. (Measured on the committed packages: 380 of 408 rows are `pass` and the other
+    28 carry no summary dict at all, so the choice is inert today — it is the direction that
+    matters when it stops being inert.)
+
+    Local files only, no network, so --self-check stays deterministic.
+    """
+    proot = Path(products_root)
+    if not proot.exists():
+        return {}
+
+    cards: dict[str, dict] = {}
+    n_packages = n_rows = n_rows_with_summary = 0
+    for ep in sorted(proot.rglob("evidence_package.json")):
+        if ".invalid" in ep.name:
+            continue
+        try:
+            pkg = json.loads(ep.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        n_packages += 1
+        for card in pkg.get("cards", []) or []:
+            cid = card.get("card_id")
+            if not cid:
+                continue
+            n_rows += 1
+            rec = cards.setdefault(cid, {"n_rows": 0, "_emitted": set(), "_present": set()})
+            rec["n_rows"] += 1
+            summary = card.get("summary")
+            if not isinstance(summary, dict):
+                continue
+            n_rows_with_summary += 1
+            for key, val in summary.items():
+                rec["_present"].add(key)
+                if val is not None:
+                    rec["_emitted"].add(key)
+
+    if not n_packages:
+        return {}  # nothing scanned — an empty aperture is NOT a measurement of zero
+
+    return {
+        "n_packages": n_packages,
+        "n_card_rows": n_rows,
+        "n_card_rows_with_summary": n_rows_with_summary,
+        "cards": {
+            cid: {
+                "n_rows": rec["n_rows"],
+                "emitted": sorted(rec["_emitted"]),
+                "null_only": sorted(rec["_present"] - rec["_emitted"]),
+            }
+            for cid, rec in sorted(cards.items())
+        },
+    }
 
 
 # ===========================================================================
