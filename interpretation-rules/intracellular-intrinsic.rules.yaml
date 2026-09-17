@@ -565,7 +565,7 @@ rules:
     rationale: |
       The target is among the MOST RECURRENTLY MUTATED genes in the indication's patients (top 1% by
       pooled multi-cohort frequency: TCGA-MC3 whole-exome + GENIE + MSK-CHORD panels, coverage-corrected,
-      pooled by summed-counts/summed-coverage; pooled-snv-recurrence-v1). This is the SNV analog of the
+      pooled by summed-counts/summed-coverage; pooled-snv-recurrence-v2). This is the SNV analog of the
       recurrent focal-amplification / recurrent-fusion landscape drivers — a PATIENT-recurrence signal
       that fires the recurrent_snv_driver resolver rung (scope-coherence Phase 2). It rescues genuinely
       indication-recurrent SNV drivers that are line-poor / absent from DepMap and carry no cell-line

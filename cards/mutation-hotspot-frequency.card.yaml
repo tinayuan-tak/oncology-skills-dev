@@ -30,7 +30,11 @@ required_inputs:
     release_pin: "{release_pin}"
   # Pooled multi-cohort recurrence (scope-coherence Phase 2) — the VERDICT-DRIVING pooled_driver_
   # recurrence_class (fires the recurrent_snv_driver rung). TCGA-MC3 + GENIE + MSK-CHORD.
-  - product_id: pooled-snv-recurrence-v1
+  # v2, not v1: the catalog manifest declares `supersedes: pooled-snv-recurrence-v1` and
+  # methods/pooled_snv_recurrence/read.py is what actually reads it. This id is not documentation —
+  # _skills_common.card_input_manifest_ids() reads it to STAMP emitted provenance, so a stale value
+  # here misreports every run's inputs, silently (that lookup is fail-open).
+  - product_id: pooled-snv-recurrence-v2
     indication: "{indication}"
     release_pin: "{release_pin}"
 
@@ -67,7 +71,7 @@ outputs:
     - genie_recurrence_context                   # string — n covered genes + coverage-corrected-denominator note
     # POOLED multi-cohort recurrence (scope-coherence Phase 2, VERDICT-DRIVING). Pools TCGA-MC3 (WES) +
     # GENIE (panel) + MSK-CHORD (panel) by summed-counts/summed-coverage; the pooled_driver_recurrence_
-    # class fires the recurrent_snv_driver resolver rung (top_1pct). Backed by pooled-snv-recurrence-v1.
+    # class fires the recurrent_snv_driver resolver rung (top_1pct). Backed by pooled-snv-recurrence-v2.
     - pooled_driver_recurrence_class             # categorical (VERDICT-DRIVING: top_1pct → recurrent_snv_driver)
     - pooled_driver_recurrence_percentile        # float 0-100 (or null) — pooled recurrence rank in-indication
     - pooled_mutation_frequency                  # float — Σn_mut / Σn_cov across contributing cohorts
