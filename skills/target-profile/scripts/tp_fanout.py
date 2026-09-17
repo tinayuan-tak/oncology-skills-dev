@@ -25,6 +25,7 @@ from _skills_common.literature_retrieval import default_retrieve, verify_citatio
 from _skills_common.literature_synthesis import make_literature_fn
 from _skills_common.narrator_engine import LensConfig as _LensConfig
 from _skills_common.narrator_engine import make_synthesize_fn
+from _skills_common.skill_report import ROLE_GATING, build_skill_report
 from _skills_common.subgroup_derivation import subgroup_signals_for
 from tp_common import SKILLS_DIR
 
@@ -1136,6 +1137,160 @@ def _subtype_verdict(fired: list[dict]) -> tuple[str, str | None] | None:
     return None
 
 
+# --- Subtype tier skill_report SPINE (2026-09-17) -----------------------------------------------
+#
+# The inline subtype tier was the ONE axis in the fan-out with NO `synthesis_facet`, so
+# `tp_facets._skill_reports_by_short` (which requires `r['synthesis_facet']['skill_report']`) skipped it
+# and `synthesis.skill_reports` carried NO `subtype_fit` entry on ANY run. With no report there is no
+# `provenance`, so the axis was invisible to every provenance reader — `risk_projection.
+# _axis_card_provenance`, `evidence_coverage_by_axis`, `report_render.ir._dim_members`. That absence, not
+# any mapping, is why `subtype_fit` could not be decided in the #1418/#1420 axis→dim settlement: an axis
+# with no measurable provenance cannot be argued about. This emits the report; it does NOT map the axis
+# into a risk dim (still `open_pending_review` in `risk_projection.AXIS_DIM_EXCLUSIONS`).
+#
+# ★ WHAT THIS DELIBERATELY DOES NOT DO — the scope-foreclosure invariant is PRESERVED BY PLACEMENT.
+# The report is built INSIDE the `if subtypes:` block, so a default (no `--subtypes`) run still has NO
+# `subtype_fit` key in `sub_results` at all. `tp_gates._SCOPE_OPTIN_GATING_AXES` depends on exactly that
+# distinction: absent → `excluded` (scope-foreclosed), present-but-dormant → `latent`, and NEITHER is
+# `blind` (a blind gated axis would make the cross-evidence fail-closed ceiling DECLINE every target on
+# the default path). So the target is NOT "0/504 → 504/504 reports"; it is "0/N → N/N on the subtype-
+# scoped runs", and manufacturing a report on the no-subtypes path would be the exact failure
+# `_SCOPE_OPTIN_GATING_AXES` exists to prevent.
+#
+# ★ ROLE = GATING, AND WHY THAT CONTRADICTS A COMMENT ABOVE. `_SHORT_TO_GATE`'s comment calls itself
+# "the kill/hold gating axes, ROLE_GATING + polarity scored", and `subtype_fit` is ABSENT from it — yet
+# `subtype_fit` IS in `tp_gates._GATING_AXES` and `tp_gates` maps
+# ("subtype_fit", "subtype_specific_non_dependence") → "hold". FOUR rosters answer "is this axis
+# gating?" and they do NOT agree (measured 2026-09-17):
+#   * `_SHORT_TO_GATE` (skills, resolver map)                    → ABSENT
+#   * `tp_gates._GATING_AXES` (skills, recommendation-forcing)   → PRESENT
+#   * contracts `gate_coverage.yaml` biomarker_facets            → PRESENT (grain: sub_skill ⇒ scorecard row)
+#   * contracts `coverage/rule_role_partition.yaml`              → all 12 subtype rules are `display`
+# The last is not drift but STRUCTURAL BLINDNESS: that partition defines gating as "reachable from a
+# verdict-moving RESOLVER keypath", and `subtype_fit` has no resolver — its verdict comes from
+# `_subtype_verdict` over panorama rows, and the hold is applied by a hardcoded skills-side action map
+# the partition cannot see. `role` describes how the COMPOSER treats the axis (the contract's own words),
+# and the composer treats it as hold-capable ⇒ ROLE_GATING. This is therefore the ONE axis where
+# role=gating does NOT imply membership in `_SHORT_TO_GATE`.
+#
+# ★ POLARITY IS ALWAYS EXPLICIT — NEVER THE FALL-THROUGH. `canonical_polarity` for a gating role reads
+# `headline_block.verdict.polarity`, and the fan-out NEVER builds a headline, so the default path is
+# `_HEADLINE_TO_CANONICAL.get(None) → "neutral"`: a NEUTRAL polarity for an axis whose verdict can force
+# a hold. That is the wrong direction on a fall-through (a favorable label reachable by the LEAST
+# evidence), and it is not merely cosmetic — `build_skill_report_rollup` computes
+# `peak_gating_rank = max(rank)` over the gating polarities, so a DORMANT axis emitting `neutral` (rank 0)
+# would RAISE the peak gating signal of a target whose every other gating axis reads `opposing` (rank -1).
+# A target must not read better because an axis said nothing. So every case is mapped explicitly and the
+# dormant case is `not_scored`, which `_SKILL_REPORT_POLARITY_RANK` does not contain ⇒ it is visible in
+# `gating_polarities` but contributes NO rank (label, do not drop).
+_SUBTYPE_VERDICT_POLARITY = {
+    # the HOLD (negative, precedence-winning). `opposing` and NOT `killer`: a hold is not a veto, and
+    # `killer` is the token `build_skill_report_rollup` collects into `killer_axes` / the INV-6
+    # `recommendation_exceeds_signals` flag and that `report_render.ir` de-escalates. Claiming a veto
+    # here would overstate a hold on a display surface with real readers.
+    "subtype_specific_non_dependence": "opposing",
+    "subtype_restricted_dependency": "supportive",  # KO-proven efficacy + non_dependent veto-suppressor
+    "subtype_restricted_selectivity": "supportive",  # tumor-tissue analogue; NOT a veto-suppressor
+    # recognized by tp_gates but NON-gating ("falls through as a permissive pass, never forces hold") and
+    # it asserts nothing was measurable ⇒ unranked, exactly like the dormant case. Listed EXPLICITLY, not
+    # left to a default, so that adding a verdict to the vocab forces a decision here (a guard test pins
+    # this map against tp_gates._RECOGNIZED_GATING_VERDICTS['subtype_fit']).
+    "insufficient": "not_scored",
+}
+
+# ★ TWO fall-throughs, pointing OPPOSITE ways — do not collapse them into one default.
+#   verdict is None  → the tier RAN and no stratum fired: `latent`/dormant, the designed OK state
+#                      (_SCOPE_OPTIN_GATING_AXES). Nothing was measured ⇒ `not_scored` (UNRANKED).
+#   verdict is a non-empty token NOT in the map → UNRECOGNIZED/RENAMED. `tp_gates` fail-closes exactly
+#                      this case to its least-permissive action (_GATING_AXIS_FAILCLOSED_ACTION
+#                      ['subtype_fit'] == 'hold'), so the spine must fail the SAME direction: `opposing`.
+#                      Defaulting it to `not_scored` would let a renamed hold verdict read as "nothing
+#                      measured" on the display spine while the gate was holding on it.
+_SUBTYPE_UNRECOGNIZED_POLARITY = "opposing"  # mirrors _GATING_AXIS_FAILCLOSED_ACTION['subtype_fit']
+
+
+def _subtype_spine_skill_report(
+    verdict_pair: "tuple[str, str | None] | None",
+    sub_cards: list,
+    sub_fired: list,
+) -> dict:
+    """The subtype tier's `skill_report`, for `synthesis_facet.skill_report`. Pure projection over the
+    already-decided `verdict_pair` + the tier's own cards/fired — it NEVER recomputes a verdict.
+
+    `fired_rule_ids` is derived as the rule_ids of THIS run's `sub_fired`, which is what
+    `archetype_core.fired_rule_ids_from_sub_results` would otherwise reach via its legacy `fired`
+    fallback — the two must stay the same SET, or supplying a report would silently change the atlas
+    rule-fingerprint (a report is not automatically atlas-inert; that reader takes the spine leg the
+    moment `provenance.fired_rule_ids` is non-empty).
+
+    `modality_scope=None` is DELIBERATE, for the same reason: `_modality_scope_by_axis` reads the spine
+    first and falls back to `claim_record_shadow`, and the subtype tier emits NEITHER today, so that
+    reader has no `subtype_fit` entry at all. Emitting a scope here would invent a per-channel
+    FOR-WHAT claim the tier never computed. `claim_vector` is likewise omitted from the facet, so
+    `archetype_core.vector_from_sub_results` (chips → legacy claim_vector fallback) and
+    `feature_vectoriser.numeric_values_from_sub_results` (claim_vector guard) are unchanged.
+    """
+    verdict = verdict_pair[0] if verdict_pair else None
+    driving_rule_id = verdict_pair[1] if verdict_pair and len(verdict_pair) > 1 else None
+    if not verdict:  # dormant/`latent`: the tier ran, no stratum fired → unranked, never favorable
+        polarity = "not_scored"
+    else:  # a token we do not recognize fails CONSERVATIVE, the same direction tp_gates fails
+        polarity = _SUBTYPE_VERDICT_POLARITY.get(verdict, _SUBTYPE_UNRECOGNIZED_POLARITY)
+
+    # cards_used / cards_missing follow the SAME convention every wired skill uses (the resolver's
+    # `_missing` flag, e.g. tumor-selectivity/run.py, dispatcher.py:993) — `used` is the NOT-missing set,
+    # not every requested card, or a fully data-blocked tier would report itself as covered. Order is the
+    # tier's resolve order (deterministic: SUBTYPE_CARDS × servable strata), deduped defensively.
+    def _ids(missing: bool) -> list:
+        out: list = []
+        for c in sub_cards or []:
+            if not isinstance(c, dict) or not c.get("card_id"):
+                continue
+            if bool(c.get("_missing")) is missing and c["card_id"] not in out:
+                out.append(c["card_id"])
+        return out
+
+    used, missing = _ids(missing=False), _ids(missing=True)
+    return build_skill_report(
+        role=ROLE_GATING,
+        verdict=verdict,
+        driving_rule_id=driving_rule_id,
+        fired_rule_ids=[f.get("rule_id") for f in (sub_fired or []) if isinstance(f, dict) and f.get("rule_id")],
+        cards_used=used,
+        cards_missing=missing,
+        modality_scope=None,  # see docstring — keeps _modality_scope_by_axis byte-stable
+        canonical_polarity_override=polarity,
+    )
+
+
+def _subtype_spine_facet(
+    verdict_pair: "tuple[str, str | None] | None",
+    sub_cards: list,
+    sub_fired: list,
+) -> Optional[dict]:
+    """`synthesis_facet` for the subtype tier: the skill_report and NOTHING else.
+
+    ★ THE NAME IS `_subtype_spine_facet`, NOT `_subtype_facet`, AND THAT IS LOAD-BEARING.
+    `tp_facets_subtype._subtype_facet` already exists (the cross-axis subtype CONVERGENCE blob, a
+    different thing), `tp_facets` re-exports it, and `run.py` imports it BY NAME at line ~70 and THEN does
+    `from tp_fanout import *` at line ~94. Because this module's `__all__` lists its underscore names
+    (16 of 20 — `__all__` OVERRIDES the "star-import skips `_names`" rule), a same-named helper here
+    silently REBINDS `run._subtype_facet` to this function: later star-import wins. Measured, not
+    theorised — it red-lined 18 previously-green tests with `TypeError: missing 2 required positional
+    arguments`. A guard test pins the two `__all__` sets disjoint.
+
+    BEST-EFFORT by the same discipline every other spine projection in this repo follows (see
+    tumor-selectivity/run.py's `_enrichment_errors` guard): a DISPLAY/provenance projection must never be
+    able to break the fan-out, whose `verdict` is already decided above. On failure this returns None,
+    which is byte-identical to the pre-2026-09-17 behaviour (no facet ⇒ `_skill_reports_by_short` skips
+    the tier) — the degrade path is the OLD path, not a new one.
+    """
+    try:
+        return {"skill_report": _subtype_spine_skill_report(verdict_pair, sub_cards, sub_fired)}
+    except Exception:  # noqa: BLE001 — provenance projection; degrades to the pre-existing no-facet state
+        return None
+
+
 def _skipped_synthesis_output() -> dict:
     """Stub llm_output for --verdict-only/--no-synthesis (no Bedrock call).
 
@@ -1523,6 +1678,12 @@ def _run_sub_skills(
             "fired": sub_fired,
             "verdict": subtype_verdict_pair,
             "scope_subtypes": list(subtypes),
+            # skill_report SPINE for the inline tier (see _subtype_spine_skill_report). Carries ONLY
+            # `skill_report` — no `claim_vector` — so the claim-vector readers (archetype_core.
+            # vector_from_sub_results, feature_vectoriser.numeric_values_from_sub_results) keep taking
+            # exactly the leg they take today. Best-effort + verdict-INERT: the tier's `verdict` above is
+            # already decided and a projection must never be able to break the fan-out.
+            "synthesis_facet": _subtype_spine_facet(subtype_verdict_pair, sub_cards, sub_fired),
             # typed sub-verdict carrier (see _one_sub_skill). ADDITIVE.
             "composition": subskill_composition(
                 card_outputs=sub_cards,
@@ -1542,6 +1703,8 @@ __all__ = [
     "_FANOUT_MAX_WORKERS",
     "_SHORT_TO_GATE",
     "_SUBSKILL_FN_CACHE",
+    "_SUBTYPE_UNRECOGNIZED_POLARITY",
+    "_SUBTYPE_VERDICT_POLARITY",
     "_gateless_absent_resolver",
     "_load_sub_skill_verdict_fn",
     "_load_sub_skill_facet_fn",
@@ -1550,5 +1713,7 @@ __all__ = [
     "_prewarm_sub_skill_imports",
     "_run_sub_skills",
     "_skipped_synthesis_output",
+    "_subtype_spine_facet",
+    "_subtype_spine_skill_report",
     "_subtype_verdict",
 ]
