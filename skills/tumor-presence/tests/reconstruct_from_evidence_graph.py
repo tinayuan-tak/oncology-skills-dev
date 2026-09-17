@@ -2,8 +2,10 @@
 """§7 acceptance demo: reconstruct the tumor-presence dashboard for a target·indication FROM THE
 evidence_graph ALONE — zero .card.yaml reads, zero free-text parsing, zero positional guessing.
 
-Reads a decision.json, uses its `headline.evidence_graph` if present, else builds one on the fly
-(build_evidence_graph + the skill's questions.yaml). Then prints: the verdict header, the 7 questions
+Reads a decision.json and BUILDS the graph from it (build_evidence_graph + the skill's questions.yaml).
+A committed `headline.evidence_graph` is never used in preference to that rebuild — it is a snapshot
+nothing regenerates, so trusting it would demo a stale dashboard as current. Then prints: the verdict
+header, the 7 questions
 with signal+confidence + their cards + their literature (incl. axis B → elevated_vs_normal), and each
 card's dataset→data→rule→verdict chain — touching only the graph's own id-keyed nodes/edges.
 
@@ -70,9 +72,20 @@ def reconstruct(graph: dict) -> str:
 def main(argv):
     path = Path(argv[1]) if len(argv) > 1 else SKILL_DIR / "tests" / "fixtures" / "epcam_coadread_decision.json"
     decision = json.loads(Path(path).read_text())
-    graph = decision.get("headline", {}).get("evidence_graph") or build_evidence_graph(
-        decision, questions=load_questions(SKILL_DIR)
-    )
+    # Always REBUILD. This was `decision[...].get("evidence_graph") or build_evidence_graph(...)`, which
+    # PREFERRED a committed block — a snapshot nothing regenerates when the builder changes, so the demo
+    # would reconstruct a dashboard from stale bytes and present it as what the skill emits today. It was
+    # correct only by the accident that this default fixture carries no block; 5 of the 6 fixtures that do
+    # carry one had drifted by 16-72 leaves. Warn rather than silently discard, so an unexpected block is
+    # visible here too and not only in the guard.
+    committed = decision.get("headline", {}).get("evidence_graph")
+    graph = build_evidence_graph(decision, questions=load_questions(SKILL_DIR))
+    if committed is not None and committed != json.loads(json.dumps(graph)):
+        print(
+            f"WARNING: {path}'s committed headline.evidence_graph differs from a rebuild; reconstructing "
+            "from the REBUILD. See skills/tests/test_committed_evidence_graph_not_stale.py",
+            file=sys.stderr,
+        )
     print(reconstruct(graph))
 
 
