@@ -12,11 +12,25 @@ name: framework-health
 # the invariants verifiable from this repo. Full cross-repo staleness stays a
 # local/manual guard (`--check` with siblings present).
 #
-# SCOPE NOTE / follow-up: this intentionally does NOT yet run the whole repo test
-# suite. As of this workflow's addition, tests/validators/test_measurement_types_vocab.py
-# ::test_real_vocabulary_is_clean fails on main (pre-existing fusion measurement_type
-# DAG gap, unrelated to framework_health). Broadening this job to `pytest` repo-wide
-# should happen once that is resolved, so CI starts — and stays — green.
+# SCOPE NOTE — RETRACTED, and the follow-up it asked for has moved. It read: "this
+# intentionally does NOT yet run the whole repo test suite ...
+# test_measurement_types_vocab.py::test_real_vocabulary_is_clean fails on main
+# (pre-existing fusion measurement_type DAG gap) ... broadening THIS job to `pytest`
+# repo-wide should happen once that is resolved."
+#
+# Both halves are false now:
+#   * The premise: that test PASSES on trunk (14/14, no skips) — and it never ran in
+#     CI at all, so its state was never what gated anything.
+#   * The remedy: this job must NEVER host the repo-wide suite, because its
+#     `pull_request:` trigger is PATH-FILTERED to validators/framework_health/** and
+#     health/**. A repo-wide suite here would silently not run on a card-only or
+#     resolver-only PR — a green that means "not attempted". The suite belongs in
+#     contracts-validate, whose `pull_request:` has NO paths filter for exactly this
+#     reason (see its own header: a path-filtered REQUIRED check sits
+#     "Expected — waiting" forever and deadlocks the PR).
+#
+# This job stays deliberately narrow: the framework_health unit tests plus the CI-safe
+# artifact self-check. Repo-wide coverage is contracts-validate's job.
 
 on:
   pull_request:

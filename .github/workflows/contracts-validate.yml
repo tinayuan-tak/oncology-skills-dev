@@ -54,8 +54,15 @@ jobs:
         with:
           python-version: "3.12"
 
+      # matplotlib is here ONLY for plot_styles/tests/test_figure_frame_contract.py, whose
+      # module-level `pytest.importorskip("matplotlib")` otherwise skips the file AT COLLECTION
+      # — and a collection-time module skip is near-invisible: bare `pytest -q` reports it as
+      # "no tests collected" for that file, not as a skip line. Measured 2026-09-17 on a
+      # sibling-free clone with this exact pip set: 1214 tests collected WITHOUT matplotlib vs
+      # 1224 WITH it, and those 10 are the entire difference. So without this dependency the
+      # whole-repo step below would be green while 10 rendering-contract tests never ran.
       - name: Install dependencies
-        run: python -m pip install --upgrade pip pyyaml jsonschema pytest
+        run: python -m pip install --upgrade pip pyyaml jsonschema pytest matplotlib
 
       - name: Validate card specs
         run: python validators/validate_cards.py cards/
@@ -213,3 +220,54 @@ jobs:
         run: |
           python validators/architecture_dashboard/living/build_living_doc.py --self-check
           python -m pytest validators/architecture_dashboard/living/tests/ -q
+
+      # ── SAFETY NET (2026-09-17) ─────────────────────────────────────────────────────────
+      # Every pytest step above names one file or directory, because tests/ is curated
+      # file-by-file (see the "gated explicitly" comments above). That curation has never kept
+      # pace with the repo. Measured immediately before this step was added: 48 of 81 test
+      # files — 43 of 69 under tests/ — were reachable from NO workflow pytest target at all.
+      # A test that runs in zero CI cannot fail, so it decays into documentation. Two cases
+      # this actually bit:
+      #   * tests/validators/test_measurement_types_vocab.py — framework-health.yml carried a
+      #     SCOPE NOTE asserting this file was RED on main and therefore blocking a repo-wide
+      #     suite. It is green (14/14) and it had never run in CI, so its state was never what
+      #     gated anything. That note is retracted in the same change as this step.
+      #   * validators/output_registry/tests/ — three files, named by nothing.
+      #
+      # ADDITIVE ON PURPOSE — this does not replace the enumerated steps:
+      #   * a named step fails fast WITH ATTRIBUTION: its red says which contract broke, where
+      #     a red here only says something did.
+      #   * the `python validators/validate_*.py` steps are not pytest and are not covered by
+      #     this step at all.
+      #   * the price is re-running the ~33 files already gated above. Paid knowingly.
+      # What this buys: a NEW test file is gated the day it lands, with nobody having to
+      # remember to add a `run:` line for it.
+      #
+      # MEASURED IN CI, on the PR that added this step (#797) — not extrapolated from a local
+      # run: 1198 passed / 26 skipped in 3m44s. That is 1224 collected, which equals a local
+      # full-suite collection exactly, so nothing is silently uncollected on the runner. The 26
+      # skips are the sibling-gated `skipif` families (analysis-methods / data-catalog /
+      # claude-oncology-skills absent) — the intended checkout-only behaviour, not breakage.
+      #
+      # TRAP, if you re-measure locally and get 1209 passed / 15 skipped instead: sibling
+      # presence is resolved TWO different ways in this repo, and moving the checkout only
+      # defeats one of them.
+      #   (a) relative to the checkout — a clone outside ~/ hides these. 15 skips.
+      #   (b) via the DATA_CATALOG_ROOT / CLAUDE_ONCOLOGY_SKILLS_ROOT / ANALYSIS_METHODS_ROOT
+      #       env vars, whose DEFAULTS are hardcoded /home/sagemaker-user/... ABSOLUTE paths
+      #       (validate_cards.py, validate_questions.py, validate_subgroup_assignments.py).
+      #       On a dev box these resolve to the REAL siblings no matter where the clone lives,
+      #       so 11 more tests run locally that cannot run on a runner.
+      # Relocating the clone is therefore NOT a faithful CI simulation, and neither is
+      # redirecting HOME (measured: both still give 1209/15 — the paths are absolute, not
+      # HOME-relative). Point the roots at nothing instead. Measured 1198 passed / 26 skipped
+      # in 3m52s, matching CI's 1198/26 exactly:
+      #     env DATA_CATALOG_ROOT=/nonexistent CLAUDE_ONCOLOGY_SKILLS_ROOT=/nonexistent \
+      #         ANALYSIS_METHODS_ROOT=/nonexistent python -m pytest -q
+      #
+      # TIMING: this job was ~2m51s before this step and 6m42s with it, on EVERY PR, since the
+      # pull_request trigger is deliberately unfiltered (see header). If that becomes the
+      # bottleneck the remedy is to drop the now-redundant enumerated pytest steps — NOT to
+      # path-filter this workflow, which would re-open the required-check deadlock.
+      - name: Whole-repo test suite (safety net for files no step above names)
+        run: python -m pytest -q
