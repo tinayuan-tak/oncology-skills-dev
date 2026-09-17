@@ -889,6 +889,97 @@ def _registered_product_ids() -> set[str]:
     return {p["id"] for p in products if isinstance(p, dict) and "id" in p}
 
 
+@functools.lru_cache(maxsize=1)
+def _manifest_supersession_map() -> dict[str, tuple[str, ...]]:
+    """Map a SUPERSEDED manifest id -> the manifest id(s) declaring it superseded (2026-09-17).
+
+    Why a separate map instead of another entry in `known`: supersession is orthogonal to
+    resolvability. A superseded id resolves perfectly well — its manifest is still on disk — so
+    PRODUCT_ID_UNRESOLVED can never see it. That blind spot is what let
+    `mutation-hotspot-frequency` declare `pooled-snv-recurrence-v1` for the whole life of v2 while
+    every gate stayed green (fixed by hand in #791; this map is the check that would have caught it).
+
+    THREE CHANNELS, all read, because they were found by measuring the corpus rather than by reading
+    the schema:
+      a. top-level `supersedes:` — the only one data-catalog's manifest schema declares
+         (`schema/manifest.schema.json`: type string, pattern `^[a-z0-9][a-z0-9-]*$`).
+      b. `cohort.supersedes` — undeclared, but read by data-catalog's OWN
+         `validate_catalog.py::_superseded_ids`, so it is load-bearing there.
+      c. `parameters.supersedes` — read by NOBODY, yet used by two live manifests
+         (`tphp-tumor-vs-normal-protein-per-cohort-v2`, `normal-tissue-protein-abundance-per-gene-v2`),
+         each next to `v1_columns_unchanged: true`, i.e. genuine drop-in replacements.
+    No card names a channel-(c) id today, so reading it changes nothing measurable *now*. It is read
+    anyway: inert-by-corpus is not safe-by-contract, and being blind because the PRODUCER misfiled
+    the field is the same fail-open posture that produced the bug this check exists to catch. Reading
+    (a) as well means the check stays correct once those two are moved to their schema-declared home.
+
+    CHEAP PREFILTER + EXACT PARSE, because both naive approaches are wrong:
+      * `yaml.safe_load` of all 532 manifests costs **53s** — this is called once per run (cached),
+        but 53s is not a tax a per-card validator can carry.
+      * a bare line scan costs 0.2s and OVER-collects: it lifts prose out of block scalars
+        (`normal-tissue-protein-abundance-per-gene-v1.yaml` contains the sentence "…(supersedes the
+        primary NORMAL-tissue PROTEIN baseline…"), which would invent a superseded id and warn on
+        cards that are correct — the precise false-positive mode that made 12 of this check's first
+        17 warnings wrong.
+    So: line-scan for the literal `supersedes:` to narrow 532 files to ~10 candidates, then
+    `yaml.safe_load` only those. Exact structure, 0.2s total. Prose is dropped for free, because the
+    parse simply finds no such key.
+
+    Returns {} when the sibling data-catalog is absent — the caller graceful-skips before reaching
+    this, but an empty map is also the correct no-op answer.
+    """
+    manifests = _DATA_CATALOG_REPO / "manifests"
+    if not manifests.is_dir():
+        return {}
+    out: dict[str, set[str]] = {}
+    for p in manifests.glob("*/*.yaml"):
+        try:
+            text = p.read_text()
+        except OSError:
+            continue
+        if "supersedes:" not in text:  # prefilter: skip the ~98% that cannot contribute
+            continue
+        try:
+            doc = yaml.safe_load(text) or {}
+        except yaml.YAMLError:
+            continue
+        if not isinstance(doc, dict):
+            continue
+        for holder in (doc, doc.get("cohort"), doc.get("parameters")):
+            if not isinstance(holder, dict):
+                continue
+            old = holder.get("supersedes")
+            if isinstance(old, str) and old and old != p.stem:
+                out.setdefault(old, set()).add(p.stem)
+    return {k: tuple(sorted(v)) for k, v in out.items()}
+
+
+def _supersession_head(pid: str, sup: dict[str, tuple[str, ...]]) -> tuple[str, list[str]]:
+    """Walk `pid` to the HEAD of its supersession chain. Returns (head, full_chain).
+
+    Transitive on purpose: `depmap-predictability-26q1-v1 -> -v2 -> -v3` is a real 2-hop chain in the
+    catalog today, so naming only the immediate successor would hand out advice that is *itself*
+    superseded — a fix that still leaves the card one vintage behind.
+
+    Cycle-guarded. A malformed catalog can express `a supersedes b` and `b supersedes a`; without the
+    `seen` set this walk would hang the validator, turning a data typo into a build hang. When
+    several manifests supersede the same id (never true today) the lexicographically first is
+    followed, and the caller reports all of them, so the ambiguity is visible rather than resolved
+    silently.
+    """
+    chain = [pid]
+    seen = {pid}
+    cur = pid
+    while cur in sup:
+        nxt = sup[cur][0]
+        if nxt in seen:  # cycle in the catalog's own declarations — stop, report what we have
+            break
+        chain.append(nxt)
+        seen.add(nxt)
+        cur = nxt
+    return cur, chain
+
+
 def _required_inputs_product_id_check(spec: dict, report: ValidationReport) -> None:
     """Referential integrity for required_inputs[].product_id (2026-09-06).
 
@@ -906,6 +997,14 @@ def _required_inputs_product_id_check(spec: dict, report: ValidationReport) -> N
     manifest, every card requiring the subgroup catalog, and every card correctly naming a logical
     dataset with the release supplied separately. What remains flagged is real — un-materialized
     products with no catalog record anywhere.
+
+    SECOND, ORTHOGONAL CHECK — PRODUCT_ID_SUPERSEDED (2026-09-17). Resolving is not the same as being
+    current. A superseded id resolves against namespace 1 like any other, so the check above is blind
+    to supersession BY CONSTRUCTION, not by oversight. `_manifest_supersession_map()` supplies the
+    missing predicate, and it is evaluated FIRST so a superseded entry yields exactly one warning.
+    Note the limitation this leaves: the map keys on the id as declared, so a card naming a
+    release-stripped STEM (namespace 5) whose pinned manifest is superseded will not fire — catching
+    that needs the stem→manifest direction, which is a different lookup.
 
     WARNING (not error): a typo'd / renamed / truncated manifest ref or a reference to an
     un-materialized product is otherwise silently undetectable in-repo.
@@ -925,12 +1024,32 @@ def _required_inputs_product_id_check(spec: dict, report: ValidationReport) -> N
     if manifest_ids is None:
         return  # data-catalog sibling absent → cannot resolve manifest ids; skip (never false-fail)
     known = manifest_ids | _manifest_declared_product_ids() | _registered_product_ids() | _catalog_class_input_ids()
+    superseded = _manifest_supersession_map()
     for i, ri in enumerate(spec.get("required_inputs", []) or []):
         if not isinstance(ri, dict):
             continue
         pid = ri.get("product_id")
         if not isinstance(pid, str) or not pid or "{" in pid:
             continue  # missing/templated product_ids are handled by structural + compose-time checks
+        if pid in superseded:
+            # Checked BEFORE resolvability, and `continue`s, so an entry yields at most one warning.
+            # A superseded id normally resolves (its manifest is still on disk) and would otherwise
+            # fall through as clean; when it does NOT resolve, this message is still the more useful
+            # of the two because it names the replacement instead of only reporting a dead end.
+            head, chain = _supersession_head(pid, superseded)
+            by = ", ".join(superseded[pid])
+            hops = f" via {' → '.join(chain[1:-1])}" if len(chain) > 2 else ""
+            report.add_warning(
+                f"PRODUCT_ID_SUPERSEDED [required_inputs[{i}]]: product_id {pid!r} is superseded by "
+                f"{by} — the head of that family is {head!r}{hops}. The id still resolves, so this is "
+                f"invisible to PRODUCT_ID_UNRESOLVED, and the card still fires; the cost is that "
+                f"card_input_manifest_ids() stamps the superseded vintage into every run's "
+                f"provenance.input_manifest_ids, and the envelope's is_stale flag compares the "
+                f"CATALOG head against this CONTRACT value, so a regenerated package reports "
+                f"is_stale on the run rather than pointing at this line. Repoint to {head!r} once the "
+                f"reader is confirmed to read it, or state here why this vintage is pinned."
+            )
+            continue
         if pid in known:
             continue
         # Namespace 5, gated on the entry pinning its own release (see _manifest_id_release_stems).
