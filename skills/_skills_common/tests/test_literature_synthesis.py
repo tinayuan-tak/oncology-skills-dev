@@ -370,3 +370,244 @@ def test_conditional_block_omitted_when_absent_or_negative():
 def test_conditional_signal_lines_helper():
     assert lit._conditional_signal_lines({}) == []
     assert lit._conditional_signal_lines({"partner_conditional_class": "partner_conditional_strongly_dependent"})
+
+
+# ── MEASURED EVIDENCE grounding ─────────────────────────────────────────────────────────────────────
+# The axis block is the resolver's COLLAPSED tier; these pins cover the per-card readings it was collapsed
+# FROM. The fixture below is distilled from a real genomic-alteration-profile run (KRAS/COADREAD) rather
+# than invented, because the gauge string is produced by the measurement_type's SALIENCE_SPEC
+# reference_frame against the card summary — a shape that cannot be guessed.
+_MSD = "mutation-stratified-dependency"
+_HOTSPOT = "mutation-hotspot-frequency"
+
+
+def _msd_summary() -> dict:
+    return {
+        "median_chronos_hotspot_mutant": -1.7287,
+        "median_chronos_hotspot_wildtype": -0.5864,
+        "delta_chronos_hotspot_mut_vs_wt": -1.1423,
+        "hotspot_mannwhitney_q": 1.25e-10,
+        "n_hotspot_mutant": 43,
+        "mutation_stratification_class": "mutant_strongly_dependent",
+        "stratification_direction": "forward_mutant_dependent",
+    }
+
+
+def _decision_with_evidence(fire_rule: bool = True) -> dict:
+    """A decision carrying what the literature lane could previously not see: emitted cards + their
+    capsules. Two measured cards (one verdict-bearing, one display-only) + one consulted-but-silent."""
+    d = _decision()
+    d["cards"] = [
+        {"card_id": _MSD, "summary": _msd_summary(), "input_manifest_ids": ["depmap-26q1"]},
+        {
+            "card_id": _HOTSPOT,
+            "summary": {"overall_mutation_frequency": 0.4204, "hotspot_recurrence_class": "top_1pct"},
+            "input_manifest_ids": ["cbioportal-pancancer"],
+        },
+        {"card_id": "consulted-but-silent", "summary": {}, "input_manifest_ids": []},
+    ]
+    d["fired_rules"] = (
+        [{"card_id": _MSD, "rule_id": "R-mut-dep", "field": "mutation_stratification_class", "value": "mutant"}]
+        if fire_rule
+        else []
+    )
+    d["headline"]["evidence_capsules"] = {
+        "capsules": {
+            _MSD: {
+                "card_id": _MSD,
+                "measurement_type": "mutation_stratified_dependency",
+                "evidence_state": "measured",
+                "class": "mutant_strongly_dependent",
+                "numeric_anchors": [
+                    {"metric": "delta_chronos_hotspot_mut_vs_wt", "value": -1.1423},
+                    {"metric": "median_chronos_hotspot_mutant", "value": -1.7287},
+                ],
+                "categorical_anchors": [
+                    {"field": "mutation_stratification_class", "value": "mutant_strongly_dependent"}
+                ],
+            },
+            _HOTSPOT: {
+                "card_id": _HOTSPOT,
+                "measurement_type": "mutation_hotspot_frequency",
+                "evidence_state": "measured",
+                "class": "top_1pct",
+                "numeric_anchors": [{"metric": "overall_mutation_frequency", "value": 0.4204}],
+                "categorical_anchors": [{"field": "hotspot_recurrence_class", "value": "top_1pct"}],
+            },
+            "consulted-but-silent": {
+                "card_id": "consulted-but-silent",
+                "measurement_type": "rna_expression",
+                "evidence_state": "measured",
+            },
+        }
+    }
+    d["headline"]["headline_block"] = {"verdict": {"driving_rule_id": "R-mut-dep"}}
+    d["headline"]["subgroup_signals"] = {"SNV": {"sources": [{"card": _MSD, "tier": "strong", "n": 43}]}}
+    return d
+
+
+def test_prompt_carries_the_per_card_measured_datum_behind_the_axis_tiers():
+    """POSITIVE CONTROL for a section that fails SOFT (an exception yields no lines at all). Asserts the
+    readings actually REACH the prompt: card_id anchor, the decisive datum in words, the reference-frame
+    ruler naming the cut, and n. Without this pin, a broken builder is indistinguishable from a skill that
+    simply measured nothing."""
+    p = lit.build_literature_prompt(_decision_with_evidence(), LENS)
+    assert "MEASURED EVIDENCE" in p
+    assert f"card {_MSD}" in p  # the citable anchor
+    assert "CHRONOS" in p  # the glossed units — the datum is in WORDS, not a bare float
+    assert "-1.7287" in p or "-1.729" in p  # the decisive value itself
+    assert "vs reference:" in p and "cut" in p  # the reference frame + the threshold it was judged against
+    assert "n=43" in p
+
+
+def test_the_reference_frame_separates_the_measurement_from_the_threshold():
+    """The whole point of carrying the gauge: `contradicts the value` and `contradicts the cut` are
+    different claims, and the axis tier expresses neither. The gauge must name BOTH sides."""
+    lines = lit._measured_evidence_lines(_decision_with_evidence(), LENS)
+    gauge_line = next(ln for ln in lines if ln.startswith(f"  · card {_MSD}"))
+    assert "vs reference:" in gauge_line
+    assert "-0.5864" in gauge_line or "-0.5" in gauge_line  # the comparator/cut side, not just the effect
+    assert "MEASUREMENT vs THRESHOLD" in "\n".join(lines)
+
+
+def test_verdict_bearing_and_display_only_cards_are_distinguished():
+    """A measured card that fired NO rule did not move the verdict, so contradicting it does not challenge
+    the call. The axis-level claim vector cannot express this at all."""
+    p = lit.build_literature_prompt(_decision_with_evidence(), LENS)
+    msd = next(ln for ln in p.splitlines() if f"card {_MSD}" in ln)
+    hot = next(ln for ln in p.splitlines() if f"card {_HOTSPOT}" in ln)
+    assert "[verdict-bearing]" in msd
+    assert "display-only" in hot and "fired no rule" in hot
+    # and it tracks the FIRED SET, not the card identity: with no rule fired, nothing is verdict-bearing
+    p2 = lit.build_literature_prompt(_decision_with_evidence(fire_rule=False), LENS)
+    assert "[verdict-bearing]" not in p2 and "display-only" in p2
+
+
+def test_the_evidence_graph_is_derived_on_demand_because_it_does_not_exist_yet():
+    """ORDERING PIN. `headline.evidence_graph` is attached at dispatcher step 8d, AFTER this lane at 8a, and
+    8d PROJECTS literature_synthesis into the graph — so the dependency is inverted by design and the graph
+    cannot be moved earlier. Deriving it here is therefore the PRODUCTION path, not a fallback. This also
+    pins the equivalence: a fresh projection renders the same rows as a pre-existing graph."""
+    d = _decision_with_evidence()
+    assert "evidence_graph" not in d["headline"]  # the live shape at prompt-build time
+    derived = lit._measured_evidence_lines(d, LENS)
+    assert any(ln.startswith("  · card ") for ln in derived)
+
+    from _skills_common.evidence_graph import build_evidence_graph
+
+    d2 = _decision_with_evidence()
+    d2["headline"]["evidence_graph"] = build_evidence_graph(_decision_with_evidence())
+    assert lit._measured_evidence_lines(d2, LENS) == derived
+
+
+def test_a_pre_existing_graph_is_read_rather_than_rebuilt():
+    """The rarer path (a re-run over a saved decision.json): an already-attached graph is used as-is. Pinned
+    with a card present ONLY in the graph, so a silent rebuild would drop it."""
+    d = _decision_with_evidence()
+    d["headline"]["evidence_graph"] = {
+        "cards": [
+            {
+                "id": "graph-only-card",
+                "measurement_type": "crispr_lof_dependency",
+                "role": "verdict_bearing",
+                "confidence": {"n": 7},
+                "key_evidence": {
+                    "effect": {"metric": "median_chronos", "value": -0.9, "direction": "lower_is_stronger"}
+                },
+            }
+        ]
+    }
+    lines = lit._measured_evidence_lines(d, LENS)
+    assert any("graph-only-card" in ln for ln in lines)
+    assert not any(_MSD in ln for ln in lines)  # NOT rebuilt from decision.cards
+
+
+def test_the_questions_registry_does_not_change_the_rendered_rows():
+    """Why the prompt builder needs no skill_dir: the five card fields the row builder reads (id,
+    measurement_type, role, key_evidence, confidence) are independent of the questions registry, which only
+    feeds question_ids/axis_id. Pinned so a future registry-dependent field cannot silently change the
+    prompt without failing here."""
+    from pathlib import Path
+
+    from _skills_common.evidence_graph import build_evidence_graph, load_questions
+
+    # load_questions fail-softs to [] on a missing path, so a cwd-relative path would make this test
+    # compare no-questions against no-questions — VACUOUSLY green. Resolve from __file__ and assert the
+    # registry actually loaded before comparing.
+    skills_root = Path(__file__).resolve().parents[2]
+    questions = load_questions(skills_root / "genomic-alteration-profile")
+    assert questions, "questions registry did not load — the comparison below would be vacuous"
+
+    base = _decision_with_evidence()
+    without = build_evidence_graph(base)
+    with_qs = build_evidence_graph(_decision_with_evidence(), questions)
+    assert any(c.get("question_ids") for c in with_qs["cards"]), "questions had no effect — nothing to control for"
+    read = ("id", "measurement_type", "role", "key_evidence", "confidence")
+    assert [{k: c.get(k) for k in read} for c in without["cards"]] == [
+        {k: c.get(k) for k in read} for c in with_qs["cards"]
+    ]
+
+
+def test_consulted_but_unmeasured_cards_are_counted_not_renamed_a_coverage_gap():
+    """A card that surfaced no decisive datum is neither measured evidence nor a declared coverage gap —
+    the axis tags remain the sole authority on omics_blind. Surfaced as a COUNT: the row builder keeps only
+    a rollup tally for these, and naming them would require a second reader of evidence_graph.cards[]."""
+    lines = lit._measured_evidence_lines(_decision_with_evidence(), LENS)
+    tail = next(ln for ln in lines if "further card" in ln)
+    assert "1 further card" in tail and "NO decisive measured datum" in tail
+    assert "authoritative" in tail
+    # the silent card is COUNTED, never rendered as a row (a row asserts a measurement)
+    assert not any(ln.startswith("  · card consulted-but-silent") for ln in lines)
+
+
+def test_the_readings_never_override_the_axis_measured_tags():
+    """ANTI-DRIFT: the readings are grounding DETAIL. Adding them must not create a second measured-ness
+    vocabulary competing with axis_measured_state — a NO-OMICS-DATA axis stays a gap even when sibling
+    cards carry rich readings."""
+    d = _decision_with_evidence()
+    d["headline"]["claim_vector"]["D"] = {"signal": "unmeasured", "corroboration": "unmeasured", "evidence": ""}
+    assert lit.axis_measured_state(d, LENS)["D"]["measured"] is False
+    p = lit.build_literature_prompt(d, LENS)
+    assert "[NO-OMICS-DATA]:" in p  # the axis tag survives the presence of measured siblings
+    assert "ONLY authority" in p  # and the model is told the tags outrank the readings
+
+
+def test_the_section_is_omitted_when_the_skill_emitted_no_decisive_datum():
+    """Byte-stable for a decision carrying no cards/capsules (same discipline as _conditional_signal_lines),
+    so every existing lens and every --literature-only replay is unaffected."""
+    assert lit._measured_evidence_lines(_decision(), LENS) == []
+    p = lit.build_literature_prompt(_decision(), LENS)
+    # NO DANGLING POINTER: the TASK clause referencing the section must vanish with the section, or the
+    # model is told to consult readings it was never shown — and may supply them from imagination.
+    assert "MEASURED EVIDENCE" not in p
+    assert "engage that reading" not in p
+    d = _decision()
+    d["cards"] = [{"card_id": "silent", "summary": {}}]
+    d["headline"]["evidence_capsules"] = {"capsules": {"silent": {"measurement_type": "rna_expression"}}}
+    assert lit._measured_evidence_lines(d, LENS) == []  # consulted but nothing decisive → no section
+
+
+def test_building_the_prompt_does_not_mutate_the_decision():
+    """The lane is verdict-INERT and decision.json must stay byte-identical: deriving the graph here is a
+    projection, so it must not write anything back onto the decision it read."""
+    import copy
+
+    d = _decision_with_evidence()
+    before = copy.deepcopy(d)
+    lit.build_literature_prompt(d, LENS)
+    assert d == before
+
+
+def test_a_malformed_decision_degrades_to_no_section_and_never_raises():
+    """Fail-soft: the dispatcher turns ANY raise in this lane into a `_literature_error` stub for the whole
+    synthesis, so a fault in a prompt-enrichment section must cost only that section."""
+    for bad in ({"headline": {"evidence_graph": {"cards": "not-a-list"}}}, {"cards": "nope"}, {}):
+        assert lit._measured_evidence_lines(bad, LENS) == []
+        assert isinstance(lit.build_literature_prompt(bad, LENS), str)
+
+
+def test_system_prompt_directs_grounding_in_the_measurement_not_only_the_tier():
+    s = lit._system(LENS)
+    assert "MEASURED EVIDENCE" in s
+    assert "threshold" in s.lower() and "magnitude" in s.lower()
+    assert "verdict-bearing" in s and "display-only" in s

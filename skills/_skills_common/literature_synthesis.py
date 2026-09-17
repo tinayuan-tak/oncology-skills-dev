@@ -22,6 +22,15 @@ GROUNDING: each axis is tagged ``[MEASURED]`` / ``[NO-OMICS-DATA]`` in the promp
 MEASURED), the system prompt reserves ``omics_unavailable`` / ``omics_blind`` for ``[NO-OMICS-DATA]`` axes,
 and a deterministic post-pass (``_reground_agreement``) rewrites any measured axis the model still tagged
 unavailable/blind to ``extends`` — so a MEASURED axis can NEVER be reported as unmeasured.
+The axis tiers are a VERDICT SUMMARY, so the prompt also carries a ``MEASURED EVIDENCE`` section
+(``_measured_evidence_lines``): the per-card decisive datum the skill actually EMITTED — reading, the
+reference-frame ruler it was gauged against, and whether the card is verdict-bearing or display-only.
+This lets a literature read engage the MEASUREMENT and not only the call: agreeing with an observed value
+while disputing the cut applied to it, or agreeing on direction while contradicting the magnitude, are
+distinguishable claims that an axis tier alone erases. Rows come from the report layer's OWN builder
+(``report_render.ir._evidence_signals_block``) so this never becomes a second reader of
+``evidence_graph.cards[]``. It is grounding DETAIL only: the ``[MEASURED]`` tags stay the sole authority
+on whether ``omics_blind`` / ``omics_unavailable`` is permissible.
 A live retrieval + PMID-verification backend (Europe PMC / NCBI) is a documented FOLLOW-ON, wired via the
 optional ``retrieve_fn`` hook: when provided, its abstracts are injected to GROUND the synthesis (and only
 then may citations be marked verified); without it, the model uses internal knowledge and every citation
@@ -151,6 +160,13 @@ def _system(lens: LensConfig) -> str:
         "agree / extends / contradicts, NEVER unavailable/blind.",
         "Flag signals the OMICS CANNOT measure (protein localization, invasive-front antigen loss, "
         "clinical / functional outcome) under `blind_spots`.",
+        "You are shown the axis-level signal tiers AND, where available, the per-card MEASURED EVIDENCE "
+        "they were collapsed from (the decisive reading + the reference frame it was judged against). "
+        "Judge against the EVIDENCE, not only the tier: a literature read can agree with an observed value "
+        "while disagreeing with the threshold applied to it, or agree on direction while contradicting the "
+        "effect MAGNITUDE — report those as `extends` / `contradicts` and say which one you mean. "
+        "Contradicting a verdict-bearing card challenges the call; contradicting a display-only card does "
+        "not. The readings never redefine measured-ness — the axis tags remain the only authority there.",
     ]
     if lens.polarity_note:
         s.append(f"POLARITY: {lens.polarity_note}")
@@ -231,6 +247,101 @@ def _conditional_signal_lines(h: dict) -> list:
     return out
 
 
+# ── MEASURED EVIDENCE grounding ─────────────────────────────────────────────────────────────────────
+# The axis block is a VERDICT SUMMARY: `signal`/`corroboration` are tiers the resolver already COLLAPSED
+# out of the underlying measurements. A literature read judged only against that can agree or contradict
+# a CALL without ever engaging the number that produced it, and it cannot see two things the tier erases:
+# that a card was measured but DISPLAY-ONLY (fired no rule), and the reference frame the value was judged
+# against (so "literature disagrees with the measurement" and "literature disagrees with the threshold"
+# collapse into one undifferentiated `contradicts`). So we also show the per-card decisive datum the skill
+# actually EMITTED — the same rows the report's "Measured evidence" view renders.
+#
+# SINGLE READER, deliberately: rows come from `report_render.ir._evidence_signals_block`. Re-deriving them
+# from `evidence_graph.cards[]` here would make this a SECOND independent reader of that shape, and each
+# such pair in this codebase has drifted. The import is LAZY (as the dispatcher's own evidence_graph import
+# is) so no module-load edge is added from every literature-bearing skill into the render layer.
+#
+# ORDERING — measured, not assumed: `headline.evidence_graph` does NOT exist yet when this runs. The
+# dispatcher attaches this lane at step 8a (dispatcher.py:1066) and the graph at step 8d (:1106), and 8d
+# PROJECTS `literature_synthesis` INTO the graph, so the dependency is inverted BY DESIGN and the graph
+# cannot simply be built earlier. tp_fanout is the same shape (lane :1485, graph :1578). We therefore build
+# the projection ON DEMAND; reading a pre-existing graph is the rarer path (a re-run over a saved
+# decision.json). Safe because the cycle is only at WHOLE-GRAPH granularity — `cards[]` reads only
+# capsules/cards/fired_rules/subgroup_signals, and only `_build_literature` reads this lane. A
+# questions-less build suffices: the five card fields the block reads are identical with and without the
+# registry (pinned by test), so no skill_dir is needed here.
+_ROLE_GLOSS = {
+    "verdict_bearing": "verdict-bearing",
+    "display_only": "display-only, measured but fired no rule",
+}
+
+
+def _evidence_rows(decision: dict, lens: LensConfig) -> tuple:
+    """(rows, n_unmeasured) from the report layer's own builder. ([], 0) on ANY fault: this is a
+    prompt-enrichment section, and degrading it must not degrade the whole lane (the dispatcher would
+    turn a raise here into a `_literature_error` stub for the entire synthesis). Silence is therefore
+    invisible by construction, so a POSITIVE-CONTROL test asserts the section IS emitted for a realistic
+    decision — never infer from a passing suite that these rows are reaching the model."""
+    try:
+        from _skills_common.evidence_graph import build_evidence_graph
+        from _skills_common.report_render.ir import _evidence_signals_block
+
+        eg = (decision.get("headline") or {}).get("evidence_graph")
+        if not (isinstance(eg, dict) and eg.get("cards")):
+            eg = build_evidence_graph(decision)
+        # `lens.name` is the skill kebab id; the block also derives a display title from it, which we do
+        # not render (this prompt is single-lens, so the skill label carries no information here).
+        blk = _evidence_signals_block([(lens.name, {"evidence_graph": eg}, "gating")])
+        if blk is None:
+            return [], 0
+        rollup = blk.payload.get("rollup") or {}
+        return list(blk.payload.get("rows") or []), int(rollup.get("n_unmeasured") or 0)
+    except Exception:  # noqa: BLE001 — prompt enrichment; a fault must cost this section only
+        return [], 0
+
+
+def _measured_evidence_lines(decision: dict, lens: LensConfig) -> list:
+    """Render the `MEASURED EVIDENCE` prompt section. [] when the skill emitted no decisive datum
+    (byte-stable, same discipline as `_conditional_signal_lines`)."""
+    rows, n_unmeasured = _evidence_rows(decision, lens)
+    if not rows:
+        return []
+    out = [
+        "",
+        "MEASURED EVIDENCE — the per-card decisive datum BEHIND those axis signals. The axis block above",
+        "shows the tier the resolver collapsed to; these are the readings it was collapsed FROM, each with",
+        "its reference-frame ruler (the gauged value vs the cut / cohort it was judged against). Ground your",
+        "assertions in THESE, and name the card_id when a literature read speaks to one. Three distinctions",
+        "the axis tiers cannot express:",
+        "  (1) MEASUREMENT vs THRESHOLD — literature can agree with the observed value and still disagree",
+        "      with the cut applied to it, or the reverse. Say which you disagree with; different claims.",
+        "  (2) verdict-bearing vs display-only — contradicting a verdict-bearing card challenges the call;",
+        "      contradicting a display-only card does not, because it fired no rule.",
+        "  (3) EFFECT SIZE and n — a literature read agreeing on direction can still contradict the",
+        "      MAGNITUDE. That is `extends` or `contradicts`, not `agree`.",
+        "These readings do NOT redefine which axes are measured: the [MEASURED] / [NO-OMICS-DATA] tags above",
+        "remain the ONLY authority on whether omics_blind / omics_unavailable is permissible.",
+    ]
+    for r in rows:
+        role = _ROLE_GLOSS.get(r.get("role")) or (r.get("role") or "role unstated")
+        seg = f"  · card {r.get('card_id')} [{role}]"
+        if r.get("measurement_type"):
+            seg += f" ({r['measurement_type']})"
+        # a row is present when it has a reading OR a gauge, so join whichever it carries
+        bits = [b for b in (r.get("reading"), f"vs reference: {r['gauge']}" if r.get("gauge") else None) if b]
+        seg += ": " + " | ".join(bits)
+        if r.get("n") is not None:
+            seg += f" | n={r['n']}"
+        out.append(seg)
+    if n_unmeasured:
+        out.append(
+            f"  ({n_unmeasured} further card(s) were consulted and surfaced NO decisive measured datum. Do "
+            "not count them as measured, and do not read a coverage gap into them either — the axis tags "
+            "above are authoritative.)"
+        )
+    return out
+
+
 def build_literature_prompt(decision: dict, lens: LensConfig) -> str:
     h = decision.get("headline", {}) or {}
     target, indication = decision.get("target"), decision.get("indication")
@@ -281,12 +392,25 @@ def build_literature_prompt(decision: dict, lens: LensConfig) -> str:
     # GENERIC conditional/stratified signals (partner-conditional, mutation-stratified, …) that live
     # outside the pooled axes — the WRN×MSI-H class (see _conditional_signal_lines).
     lines += _conditional_signal_lines(h)
+    # Bound once: the TASK below may only POINT AT the MEASURED EVIDENCE section when it actually rendered.
+    # An unconditional reference would tell the model to consult a section that is not in its context —
+    # a dangling pointer, and an invitation to supply the missing readings from imagination.
+    measured_evidence = _measured_evidence_lines(decision, lens)
+    lines += measured_evidence
     lines += [
         "",
         "TASK: using the tool, for EACH axis above report the published-literature read + an assertion "
         "with citation(s) (verified=false unless certain) + agreement_vs_omics (agree/extends/contradicts/"
-        "omics_blind/omics_unavailable). Set axis_key = the LETTER above. Add blind_spots for literature "
-        "signals the omics cannot measure, then an overall_consistency + key_divergence.",
+        "omics_blind/omics_unavailable). Set axis_key = the LETTER above."
+        + (
+            " Where MEASURED EVIDENCE shows a reading for a card bearing on your axis, your assertion must "
+            "engage that reading — the value and the reference frame it was judged against — not the axis "
+            "tier alone."
+            if measured_evidence
+            else ""
+        )
+        + " Add blind_spots for literature signals the omics cannot measure, then an overall_consistency "
+        "+ key_divergence.",
     ]
     return "\n".join(lines)
 
