@@ -231,6 +231,11 @@ def capsule_readers(contracts_repo: Path | None = None) -> set:
     return pairs
 
 
+#: The card envelope key holding the summary_fields. A read of it off a card alias is a CONTAINER HOP,
+#: not a field read — see `_summary_hop_source`. Guarded by declaration everywhere it is consulted, so
+#: if a card ever declares a real field of this name the credit resumes instead of staying suppressed.
+_SUMMARY_KEY = "summary"
+
 _SALIENCE_SCALAR_SLOTS = ("effect_field", "significance_field", "n_field", "omnibus_field", "strata_array")
 _SALIENCE_LIST_SLOTS = ("categorical", "extra_scalars")
 
@@ -332,7 +337,75 @@ def _card_aliases(fn_node, known_cards: frozenset) -> dict:
             helper_bound[target.id] = helper_card
     for name, card in helper_bound.items():
         out.setdefault(name, card)
+
+    # THIRD pass — follow the SUMMARY CONTAINER HOP. Two indexing idioms coexist in this tree and the
+    # scraper cannot tell them apart from the read site: `{cid: c.get("summary")}` maps a card id to
+    # the SUMMARY (so `cp.get("f")` is a field read, credited correctly), while `{cid: c}` maps it to
+    # the CARD (so the field read is one hop further, off `adc = adc_card.get("summary")`). Under the
+    # second idiom every read was attributed to the wrong level: `summary` itself was credited as a
+    # FIELD, and the real reads on the rebound name fell through to name-only — false credit spread
+    # across every card declaring the name. The hop is its own tell-tale: nothing but a card dict has
+    # a `summary` key, so seeing that read PROVES the alias is a card and the fields are one level in.
+    for _ in range(3):  # `adc = card.get("summary")` then `s = adc or {}` — settles any real chain
+        for node in ast.walk(fn_node):
+            if not (isinstance(node, ast.Assign) and len(node.targets) == 1):
+                continue
+            target = node.targets[0]
+            if not isinstance(target, ast.Name) or target.id in out:
+                continue
+            src = _summary_hop_source(node.value)
+            if src in out:
+                out[target.id] = out[src]
     return out
+
+
+def _module_top_level(tree):
+    """The module with every `def`/`async def` REMOVED, for use as the module-level scope.
+
+    ★ `ast.walk` IS NOT SCOPE-AWARE, and `_card_aliases` promises above that an alias "cannot leak
+    across functions that reuse the same short name". That promise holds for the per-function scopes
+    and was broken by the module scope walking the same tree: `_card_aliases(tree)` unioned EVERY
+    function-local binding in the file into one map, and the read walk then saw every read in the
+    file, so any file that bound a card to `s` in one function and read `s.get("fill")` in another
+    got a fabricated pair. Measured on trunk that credited 5 pairs, 3 of them false
+    (`presence_question_table._q4_subtype` binds `s` to tumor-rna-distribution-by-subtype; the `s`
+    in `render_question_table_html` is an unrelated `_sig` dict from a tuple unpack).
+
+    Removing the function bodies fixes the alias map AND the read walk, which matters more than it
+    looks: the module scope re-visited every read site the per-function scopes had already covered,
+    so emptying only its alias map would have sent ~93 already-resolved field names into NAME-ONLY
+    credit — and name-only is credited to EVERY card declaring the name, which spreads false credit
+    rather than removing it. Both halves have to shrink together.
+
+    Nested `def`s are dropped with their parents, which is correct for a MODULE scope (module code
+    cannot see function locals) and does not affect closures: a nested function reads its enclosing
+    function's locals, and the enclosing FunctionDef scope still walks into it.
+    """
+    return ast.Module(
+        body=[s for s in tree.body if not isinstance(s, (ast.FunctionDef, ast.AsyncFunctionDef))],
+        type_ignores=[],
+    )
+
+
+def _summary_hop_source(value) -> str | None:
+    """The local name a ``<x>.get("summary")`` / ``<x>["summary"]`` hops off, else None.
+
+    Tolerates the ``or {}`` guard the tree writes almost everywhere. Deliberately requires the
+    receiver to be a bare Name: a hop off a compound expression has no alias to inherit the binding.
+    """
+    if isinstance(value, ast.BoolOp):
+        for v in value.values:
+            src = _summary_hop_source(v)
+            if src:
+                return src
+        return None
+    if isinstance(value, ast.Call) and isinstance(value.func, ast.Attribute) and value.func.attr == "get":
+        if value.args and _literal(value.args[0]) == _SUMMARY_KEY and isinstance(value.func.value, ast.Name):
+            return value.func.value.id
+        return None
+    if isinstance(value, ast.Subscript) and _literal(value.slice) == _SUMMARY_KEY:
+        return value.value.id if isinstance(value.value, ast.Name) else None
+    return None
 
 
 def _param_field_reads(fn_node, param: str) -> set:
@@ -436,7 +509,9 @@ def _takes_a_summary_dict(fn_node) -> bool:
     return isinstance(annotation, ast.Name) and annotation.id == "dict"
 
 
-def code_readers(skills_root: Path, contracts_repo: Path | None = None) -> tuple[dict, dict]:
+def code_readers(
+    skills_root: Path, contracts_repo: Path | None = None, declared: dict | None = None
+) -> tuple[dict, dict]:
     """Scrape static field reads out of skill Python.
 
     Returns ``(exact, name_only)``, each ``{reader_kind: set(...)}`` — ``exact`` holds
@@ -471,9 +546,16 @@ def code_readers(skills_root: Path, contracts_repo: Path | None = None) -> tuple
     this tree, because they hand it to ``render_from_plot_data`` in the analysis-methods repo. Those
     reads live outside ``skills_root`` and stay invisible here — a genuine out-of-tree reader, not a
     scraper bug. Following the callee one or two levels deep was measured and gains exactly 0 pairs.
+
+    ★ ``declared`` INJECTS the card roster instead of reading the contracts sibling. Both uses of the
+    roster here — card-id recognition and shape (5)'s narrowing filter — are the ONLY reason this
+    scrape touches another repo, so passing a roster makes the result a pure function of
+    ``skills_root`` plus that argument. ``field_read_health_sidecar`` needs exactly that: it commits
+    the roster it used, so its freshness test rebuilds against a PINNED roster and a contracts-only
+    card edit can never red an unrelated skills PR. Omit it and behaviour is unchanged.
     """
-    known_cards = frozenset(declared_fields(contracts_repo))
-    declared = declared_fields(contracts_repo)
+    declared = declared_fields(contracts_repo) if declared is None else dict(declared)
+    known_cards = frozenset(declared)
     exact: dict[str, set] = defaultdict(set)
     name_only: dict[str, set] = defaultdict(set)
 
@@ -498,7 +580,7 @@ def code_readers(skills_root: Path, contracts_repo: Path | None = None) -> tuple
         kind = _module_kind(path)
         # Alias maps are per-function; walk function bodies first, then the module top level.
         scopes = [n for n in ast.walk(tree) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
-        scopes.append(tree)
+        scopes.append(_module_top_level(tree))
         for scope in scopes:
             aliases = _card_aliases(scope, known_cards)
             for node in ast.walk(scope):
@@ -523,6 +605,12 @@ def code_readers(skills_root: Path, contracts_repo: Path | None = None) -> tuple
                         card = _literal(recv.slice)
                     elif isinstance(recv, ast.Name):
                         card = aliases.get(recv.id)
+                    # The CONTAINER HOP is not a read. Crediting it named `summary` as a field, and
+                    # name-only credit is worse than useless here — it would credit every card
+                    # declaring `summary`. Guarded by declaration, not hardcoded: a card that really
+                    # declares this name gets its credit back with no edit here.
+                    if field == _SUMMARY_KEY and field not in (declared.get(card) or ()):
+                        continue
                     if _is_card_id(card, known_cards):
                         exact[kind].add((card, field))
                     else:

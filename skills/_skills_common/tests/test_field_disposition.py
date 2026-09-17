@@ -610,6 +610,150 @@ def test_alias_bound_reads_are_exact_not_name_only():
     )
 
 
+# ── the alias SCOPE boundary ───────────────────────────────────────────────────────────────────────
+#
+# `_card_aliases` promises an alias "cannot leak across functions that reuse the same short name",
+# and `ast.walk` is not scope-aware, so the promise is only as good as what each scope is handed.
+# The module-level scope used to be the raw tree, which unioned every function-local binding in a
+# file into one map and then walked every read in that file: on trunk that fabricated 5 (card, field)
+# pairs, 3 of them plainly false. These drive both directions from a SYNTHETIC tree so each can be
+# falsified by construction — a leak test that cannot see a real read proves nothing.
+
+
+def _alias_tree(tmp_path: Path, sub: str, body: str) -> Path:
+    """A one-file skills tree whose module lands in the default `skill_code` kind."""
+    d = tmp_path / sub / "skills" / "some-skill" / "scripts"
+    d.mkdir(parents=True)
+    (d / "run.py").write_text(body)
+    return tmp_path / sub / "skills"
+
+
+@needs_contracts
+def test_an_alias_does_not_leak_from_one_function_to_another(tmp_path):
+    """THE LEAK. Two functions, one reused short name: the binder names a card, the reader's `s` is an
+    unrelated tuple-unpacked local. Crediting the pair invents a read that does not exist, and an
+    invented read reads as COVERAGE — the census stops calling the field an orphan."""
+    card, field, _, _ = _two_real_fields()
+    leaked = fd.code_readers(
+        _alias_tree(
+            tmp_path,
+            "leak",
+            f'def binder(c):\n    s = c.get("{card}")\n    return s\n\n\n'
+            f'def reader(rows):\n    for r in rows:\n        s, cf = r["signal"], r["confidence"]\n'
+            f'        return s.get("{field}"), cf\n',
+        )
+    )[0]
+    # `.get` because a fully-fixed scraper credits NOTHING here, and `code_readers` omits the key
+    # entirely rather than mapping it to an empty set.
+    assert (card, field) not in leaked.get("skill_code", set()), (
+        "an alias bound in one function credited a read in another — the module-level scope is "
+        "unioning function locals again"
+    )
+    # POSITIVE CONTROL: the identical read, moved INSIDE the binder, must be credited. Without this
+    # the test above passes just as well when the scraper has gone blind to the shape entirely.
+    honest = fd.code_readers(
+        _alias_tree(tmp_path, "honest", f'def binder(c):\n    s = c.get("{card}")\n    return s.get("{field}")\n')
+    )[0]
+    assert (card, field) in honest["skill_code"], "fixture is not a valid shape (2/3) read at all"
+
+
+@needs_contracts
+def test_an_alias_bound_in_an_enclosing_function_still_reaches_a_nested_closure(tmp_path):
+    """THE OTHER DIRECTION, and the reason the fix drops function bodies from the MODULE scope only.
+    A nested function really does see its enclosing function's locals, so walking into nested defs is
+    correct for a FunctionDef scope. Blanket-scoping every scope loses this, and a lost binding does
+    not fail quietly: the read falls through to NAME-ONLY credit, which is credited to every card
+    declaring the name and so spreads false credit instead of removing it."""
+    card, field, _, _ = _two_real_fields()
+    exact, _ = fd.code_readers(
+        _alias_tree(
+            tmp_path,
+            "closure",
+            "def outer(cards):\n"
+            "    def _summary(cid):\n"
+            '        return next((c for c in cards if c["card_id"] == cid), {}).get("summary") or {}\n\n'
+            f'    cp = _summary("{card}")\n\n'
+            "    def _render():\n"
+            f'        return cp.get("{field}")\n\n'
+            "    return _render()\n",
+        )
+    )
+    assert (card, field) in exact["skill_code"], (
+        "a closure over an enclosing function's card alias lost its binding — this is the ~9-card "
+        "idiom in tumor-selectivity/scripts/run.py and it degrades to name-only credit"
+    )
+
+
+@needs_contracts
+def test_a_genuine_module_level_alias_read_is_still_credited(tmp_path):
+    """The module scope is narrowed, not deleted. Measured on trunk it contributed ZERO correct pairs
+    of its own, so this shape has no live witness — which is exactly why it needs a synthetic one: an
+    over-narrowed module scope would otherwise go dark with nothing to notice it."""
+    card, field, _, _ = _two_real_fields()
+    exact, _ = fd.code_readers(
+        _alias_tree(
+            tmp_path,
+            "modlevel",
+            f'CARDS = {{}}\nS = CARDS.get("{card}")\nVALUE = S.get("{field}")\n',
+        )
+    )
+    assert (card, field) in exact["skill_code"], "the module-level scope no longer reads anything"
+
+
+# ── the summary CONTAINER HOP ──────────────────────────────────────────────────────────────────────
+#
+# Two indexing idioms coexist in the tree and the read site cannot tell them apart:
+# `{cid: c.get("summary")}` maps a card id to the SUMMARY, so `cp.get("f")` is a field read, while
+# `{cid: c}` maps it to the CARD, so the field read is one hop further in. Under the second idiom
+# every read was attributed one level too high: `summary` itself got credited as a FIELD, and the real
+# reads off the rebound name fell through to name-only.
+
+
+@needs_contracts
+def test_the_summary_hop_credits_the_field_and_not_the_container(tmp_path):
+    card, field, _, _ = _two_real_fields()
+    assert "summary" not in set(fd.declared_fields().get(card) or ()), (
+        "fixture assumption: this card declares no field called 'summary', which is what makes the "
+        "container-hop guard observable — the guard is by DECLARATION, so a card that really declared "
+        "it would get the credit back"
+    )
+    exact, name_only = fd.code_readers(
+        _alias_tree(
+            tmp_path,
+            "hop",
+            "def render(cards):\n"
+            f'    adc_card = cards.get("{card}")\n'
+            '    adc = adc_card.get("summary") or {}\n'
+            f'    return adc.get("{field}")\n',
+        )
+    )
+    assert (card, field) in exact.get("skill_code", set()), (
+        "the hop was not followed, so the real field read is invisible and falls to name-only credit"
+    )
+    assert (card, "summary") not in exact.get("skill_code", set()), (
+        "the CONTAINER ACCESS was credited as a field read — that is a fabricated (card, field) pair"
+    )
+    assert "summary" not in name_only.get("skill_code", set()), (
+        "name-only credit for 'summary' is worse than useless: it credits every card declaring the name"
+    )
+
+
+@needs_contracts
+def test_the_summary_hop_will_not_invent_a_binding_from_an_unbound_receiver(tmp_path):
+    """FALSIFIABILITY. The hop must inherit a binding, never manufacture one: a `.get("summary")` off
+    a name that is not a known card alias has nothing to inherit, so the reads below it stay
+    unresolved. Otherwise the rule would bind any local that happens to touch a `summary` key."""
+    card, field, _, _ = _two_real_fields()
+    exact, _ = fd.code_readers(
+        _alias_tree(
+            tmp_path,
+            "nohop",
+            f'def render(payload):\n    adc = payload.get("summary") or {{}}\n    return adc.get("{field}")\n',
+        )
+    )
+    assert (card, field) not in exact.get("skill_code", set()), "the hop invented a card binding out of nothing"
+
+
 @needs_contracts
 def test_every_rule_target_names_a_real_card():
     """Zero dangling rule targets was true when the census was built. A rule pointing at a renamed card
