@@ -142,8 +142,9 @@ def test_composed_html_surfaces_the_evidence_view_as_a_fourth_tab():
 def test_reaches_the_machine_and_linearized_views():
     """Increment 1 surfaces the block in the views that emit every block: json (the programmatic
     consumer — kind + structured descriptor) and the linearized text/markdown reports. The COMPOSED html
-    view is a curated 'v6 spine + convergence' surface, so wiring the evidence block into it (and into the
-    standalone path) is increment 2's presentation work, when the block becomes load-bearing."""
+    view is a curated 'v6 spine + convergence' surface, so wiring the evidence block into it is increment
+    2's presentation work, when the block becomes load-bearing. (The STANDALONE subskill path is now
+    wired — see test_standalone_skill_run_surfaces_the_evidence_view below.)"""
     ir = build_ir(_nomination_with_eg(), resolve_spec(level="L2", scope="all"))
     js = be_render(ir, "json")
     assert "evidence_signals" in js and "median_chronos" in js  # machine view carries kind + descriptor field
@@ -151,3 +152,50 @@ def test_reaches_the_machine_and_linearized_views():
         assert "Measured evidence" in be_render(ir, backend)
     # html must still render without error (the block is simply not surfaced in the curated composed view yet)
     assert be_render(ir, "html").startswith("<!doctype html>")
+
+
+def _standalone_decision_with_eg():
+    """A standalone decision.json shape: headline.skill_report + a SIBLING headline.evidence_graph
+    (as the dispatcher emits). _extract_skill merges the graph onto the skill_report, so the single-skill
+    render path can draw the salient-measured-fields view."""
+    return {
+        "skill": "tumor-presence",
+        "headline": {
+            "skill_report": {"call": "present", "polarity": "supports", "role": "descriptive", "claim_chips": []},
+            "evidence_graph": {"cards": [_card()]},
+        },
+    }
+
+
+def test_standalone_skill_run_surfaces_the_evidence_view():
+    """Increment-2 (#1410): a STANDALONE subskill run (e.g. tumor-presence, no full target_report) now
+    surfaces EVIDENCE_SIGNALS in its own dashboard, scoped to that one skill (rollup n_skills=1). The
+    data was always present in decision.headline.evidence_graph; this wires build_ir_for_skill to add
+    the block, TIER-gated exactly as the composed path."""
+    from _skills_common.report_render import build_ir_auto, render_skill_report
+
+    src = _standalone_decision_with_eg()
+    ir = build_ir_auto(src, resolve_spec(preset="full"))
+    es = [b for b in ir.overview if b.kind == vocab.EVIDENCE_SIGNALS]
+    assert len(es) == 1
+    assert es[0].payload["rollup"]["n_skills"] == 1
+    assert es[0].lens is None  # standalone convention: un-lensed → renders INLINE, not as composed tab chrome
+    # the block renders INLINE in the standalone layout (header/card-view preserved, not flipped to composed)
+    html = render_skill_report(src, backend="html", preset="full")
+    assert "Measured evidence" in html
+    assert 'class="titlerow"' in html  # standalone single-skill layout survives (not composed lens-tab chrome)
+    assert "data-v='evidence'" not in html  # not the composed view-switch tab
+    assert "Measured evidence" in render_skill_report(src, backend="text", preset="full")
+
+
+def test_standalone_evidence_view_is_tier_gated_and_fail_soft():
+    """TIER-gated exactly as the composed path (absent at summary depth L1), and absent when the
+    standalone decision carries no evidence_graph (fail-soft — no empty view)."""
+    from _skills_common.report_render import build_ir_auto
+
+    src = _standalone_decision_with_eg()
+    at_l1 = build_ir_auto(src, resolve_spec(level="L1", scope="all")).overview
+    assert [b for b in at_l1 if b.kind == vocab.EVIDENCE_SIGNALS] == []  # TIER == 2, not summary depth
+    bare = {"skill": "tumor-presence", "headline": {"skill_report": {"role": "descriptive", "claim_chips": []}}}
+    at_full = build_ir_auto(bare, resolve_spec(preset="full")).overview
+    assert [b for b in at_full if b.kind == vocab.EVIDENCE_SIGNALS] == []  # no evidence_graph → no block

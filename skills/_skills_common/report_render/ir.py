@@ -2592,6 +2592,21 @@ def build_ir_for_skill(
         },
     )
     section = _build_section(short, skill_report, spec, is_deciding=False, target=target, indication=indication)
+    # Report-level blocks for the standalone view. EVIDENCE_SIGNALS (the "Measured evidence" deep-dive,
+    # substrate Step 2b #1410) iterates this skill's OWN evidence_graph.cards[] — _extract_skill has
+    # already merged headline.evidence_graph onto skill_report, so the standalone render draws the same
+    # salient-measured-fields view the composed report does, scoped to this one skill (rollup n_skills=1).
+    # #1410 deferred standalone surfacing to a later increment; this wires it. Additive / verdict-inert,
+    # TIER-gated exactly as the composed path. Left lens=None (the standalone convention): the backends
+    # key composed-vs-standalone layout off lens presence (text render / html `standalone`), so an
+    # un-lensed overview block renders INLINE in the standalone section rather than flipping the page to
+    # the composed lens-tab chrome — the block is surfaced without disturbing the single-skill layout.
+    overview: list = []
+    if spec.level_int >= vocab.TIER[vocab.EVIDENCE_SIGNALS]:
+        role = skill_report.get("role") or ("gating" if short in vocab.GATING_SHORTS else "descriptive")
+        es = _evidence_signals_block([(short, skill_report, role)])
+        if es is not None:
+            overview.append(es)
     return ReportIR(
         target=target,
         indication=indication,
@@ -2600,6 +2615,7 @@ def build_ir_for_skill(
         sections=[section],
         about=_about_block(spec),
         deciding_short=None,
+        overview=overview,
     )
 
 

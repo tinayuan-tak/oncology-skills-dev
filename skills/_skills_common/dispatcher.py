@@ -550,6 +550,19 @@ def _build_run_parser() -> argparse.ArgumentParser:
     return ap
 
 
+def _merge_panorama_cards(card_outputs: list, panorama_cards: list) -> list:
+    """Append the --subtypes panorama cards to the whole-cohort cards, DROPPING any whose card_id already
+    appears in card_outputs. A skill may list the same card in BOTH its whole-cohort set AND
+    _SUBTYPE_PANORAMA_CARDS (tumor-presence lists tumor-rna-distribution-by-subtype in both, because the
+    headline reads its subtype_* fields); a naive concat then double-lists it under --subtypes, inflating
+    decision["cards"]/evidence_graph.cards and double-counting the EVIDENCE_SIGNALS rollup. The panorama
+    BLOCK is merged into the headline separately and the headline card-reads resolve the whole-cohort copy
+    either way, so dropping the redundant append is behavior-preserving. Order-preserving; verdict-inert
+    (panorama cards fire no rung). Distinct panorama cards (not in the whole-cohort set) are still appended."""
+    seen = {c.get("card_id") for c in card_outputs}
+    return card_outputs + [c for c in panorama_cards if c.get("card_id") not in seen]
+
+
 def _attach_literature_lane(decision: dict, args, literature_fn) -> None:
     """OPT-IN --literature lane (extracted from run_wired_skill; byte-identical). Attaches the verdict-INERT decision['literature_synthesis'] AFTER the spine; honest-skip when no literature_fn is declared; a Bedrock/network fault degrades to a note and never breaks the deterministic run."""
     if getattr(args, "literature", False):
@@ -953,7 +966,14 @@ def run_wired_skill(
 
     # The whole-cohort cards drive the verdict; the subtype panorama cards (if any) are appended for
     # the emitted package + LLM only — they are NOT in `fired`, so they touch no rung (spine stable).
-    emitted_cards = card_outputs + (subtype_result.get("cards", []) if subtype_result else [])
+    # DEDUP by card_id (order-preserving): a skill may list the same card in BOTH its whole-cohort set
+    # AND _SUBTYPE_PANORAMA_CARDS — tumor-presence lists tumor-rna-distribution-by-subtype in both (the
+    # headline reads its subtype_* fields), so a naive concat double-lists it under --subtypes, inflating
+    # decision["cards"]/evidence_graph.cards and double-counting the EVIDENCE_SIGNALS rollup. The panorama
+    # BLOCK is merged into the headline separately (above), and the headline card-reads resolve the
+    # whole-cohort copy either way, so dropping the redundant append is behavior-preserving + verdict-inert.
+    _panorama_cards = subtype_result.get("cards", []) if subtype_result else []
+    emitted_cards = _merge_panorama_cards(card_outputs, _panorama_cards)
     if subtype_result is not None:
         invoked_lenses["subtypes"] = subtype_result.get("scope_subtypes")
 
