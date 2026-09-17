@@ -384,6 +384,8 @@ def build_health(roots: dict[str, Path]) -> dict:
     # feeds any drift flag — see the RETIRED note in DRIFT_SEVERITY.
     spec_cards = probe.dashboard_spec_card_ids(roots["contracts"])
     run_health = probe.subskill_run_health(roots["skills"])  # skill_name -> "runs clean?" record ({} if absent)
+    # FIELD-VOCABULARY lens: the skills repo's committed descriptor-coverage census ({} if absent).
+    descriptor_census = probe.descriptor_coverage(roots["skills"])
 
     # probe_card is called from BOTH the per-skill loop and the card-universe loop,
     # with identical constant args (roots + the precomputed index sets) for the whole
@@ -563,6 +565,8 @@ def build_health(roots: dict[str, Path]) -> dict:
         dataset_nodes.append(node)
 
     graph = build_graph(skill_nodes, card_nodes)
+    dcov = build_descriptor_coverage(descriptor_census)
+    dsum = dcov.get("summary") or {}
 
     # Verdict tallies + drift roll-up for the summary header.
     tally: dict[str, int] = {}
@@ -608,13 +612,64 @@ def build_health(roots: dict[str, Path]) -> dict:
             "n_datasets_high_access_cost": sum(1 for d in dataset_nodes if d.get("access_cost") == "high"),
             "n_datasets_missing_sort_key": sum(1 for d in dataset_nodes if d.get("missing_sort_key")),
             "access_cost_tally": _tally(dataset_nodes, "access_cost"),
+            # FIELD-VOCABULARY lens (trending, NEVER a gate — starts partial by design).
+            # `descriptor_coverage_available: False` means this checkout could not read the
+            # skills sibling; it is "not measured", NOT "no gaps". Every count below is None
+            # in that case rather than 0, so an unmeasured dimension can never be plotted as
+            # a clean one.
+            "descriptor_coverage_available": bool(dcov.get("available")),
+            "n_measurement_types_with_descriptors": dsum.get("n_measurement_types"),
+            "n_descriptor_cells": dsum.get("n_descriptor_cells"),
+            "n_distinct_descriptor_fields": dsum.get("n_distinct_fields"),
+            # The LIVE queue: a curated METRIC_GLOSS entry that no spec declares (display
+            # semantics exist, the salience layer cannot see the field). The opposite
+            # direction — a numeric field with no gloss — is currently complete, so it is a
+            # regression ratchet rather than a trend; both are carried, named apart.
+            "n_gloss_without_descriptor": dsum.get("n_gloss_without_descriptor"),
+            "n_numeric_fields_without_gloss": dsum.get("n_numeric_fields_without_gloss"),
         },
         "registry_drift": reg,
+        "descriptor_coverage": dcov,
         "skills": skill_nodes,
         "cards": card_nodes,
         "datasets": dataset_nodes,
         "graph": graph,
         "drift_index": all_drift,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Descriptor-coverage section — the FIELD-VOCABULARY lens.
+#
+# A TRENDING dimension, never a gate: it starts partial by design and its whole
+# purpose is to make the pivot's progress visible (invisibility, not code, was the
+# churn root-cause). A pure transcription of the skills repo's committed census —
+# NO logic of its own — so `self_check` can re-derive every count from the section
+# itself. See probe.descriptor_coverage for why this is read as DATA rather than
+# re-derived here.
+# ---------------------------------------------------------------------------
+def build_descriptor_coverage(census: dict) -> dict:
+    """Wrap the skills census in the dimension envelope the dashboard consumes.
+
+    Deliberately transcription, not reshaping: a second SHAPE for the same facts is the
+    cheapest way to acquire drift between two repos that no CI job can compare. The only
+    added fields are `available` (so absence is explicit rather than an empty tally that
+    reads like a measured zero) and `source`.
+
+    `available: False` is NOT a health verdict — it means this checkout could not see the
+    skills sibling. A consumer must render it as "not measured", never as "no gaps".
+    """
+    if not census:
+        return {
+            "available": False,
+            "source": "skills:_skills_common/descriptor_coverage.json",
+            "reason": "sidecar absent — skills sibling not readable from this checkout",
+        }
+    return {
+        "available": True,
+        "source": "skills:_skills_common/descriptor_coverage.json",
+        "schema_version": census.get("schema_version"),
+        **{k: v for k, v in census.items() if k != "schema_version"},
     }
 
 

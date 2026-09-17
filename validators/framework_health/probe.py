@@ -789,6 +789,38 @@ def subskill_run_health(skills_root: Path) -> dict[str, dict]:
 
 
 # ===========================================================================
+# skills — the descriptor-coverage census (the field-vocabulary lens)
+# ===========================================================================
+def descriptor_coverage(skills_root: Path) -> dict:
+    """The skills repo's committed descriptor-coverage census, or {} when absent.
+
+    Read as DATA on purpose. The census is the join of `evidence_salience.SALIENCE_SPECS`
+    (structure) with `display_gloss` (semantics), and the skills module that computes it
+    (`_skills_common/field_descriptor.py`) is deliberately DERIVED — it holds no independent
+    content, because "a third hand-authored copy is exactly what we are avoiding". This probe
+    is pure static analysis and never imports sibling code, so re-deriving that join HERE, in
+    AST, would create exactly that third copy — in a second repo, where NO CI job sees both
+    trees and therefore nothing could ever compare them. Shipping it as a committed artifact
+    keeps ONE producer.
+
+    Same contract as subskill_run_health(): degrades to {} when the artifact is absent (a
+    sibling on another branch, an isolated checkout), so absence omits the lens rather than
+    fabricating a false negative.
+
+    The census is a pure function of two module constants on the skills side — no clock, no
+    I/O — so unlike the run-health feed it carries no volatile field and needs no projection.
+    """
+    p = skills_root / "skills" / "_skills_common" / "descriptor_coverage.json"
+    if not p.exists():
+        return {}
+    try:
+        data = json.loads(p.read_text())
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+# ===========================================================================
 # data-products — which cards actually fired in a real emitted package
 # ===========================================================================
 def fired_card_ids(products_root: Path) -> set[str]:

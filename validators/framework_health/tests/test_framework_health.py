@@ -1578,3 +1578,230 @@ def test_dormant_pending_data_card_is_placeholder_not_broken(tmp_path):
     assert sig["placeholder_reason"] == "status:dormant_pending_data"
     rolled = rollup.roll_up_card(sig, rollup.load_rules())
     assert rolled["card_health"] == "placeholder", rolled["card_health"]
+
+
+# ---------------------------------------------------------------------------
+# 12. Descriptor coverage — the field-vocabulary lens (a TRENDING dimension)
+#
+# The census is read as DATA from the skills repo's committed sidecar rather than
+# re-derived here: field_descriptor is deliberately the DERIVED join of SALIENCE_SPECS
+# and display_gloss, and this probe is pure static analysis that never imports sibling
+# code, so an AST re-derivation would be a third hand-authored copy of the same
+# vocabulary — in a second repo, where NO CI job sees both trees and so nothing could
+# ever compare them.
+#
+# Every self_check invariant below is re-derived from the artifact's OWN recorded data.
+# That is the point: a cross-repo check that degrades to "sibling absent, skipping" in
+# the only environment that runs it is VACUOUS, and would look like coverage forever.
+# ---------------------------------------------------------------------------
+def _census(**over):
+    """A tiny but INTERNALLY CONSISTENT census: 2 measurement_types, 3 cells, 2 distinct
+    fields (one shared across both types → the cell/field distinction is live)."""
+    census = {
+        "schema_version": "1.0.0",
+        "producer": "descriptor_coverage_sidecar",
+        "note": "... a zero unclassified count would mean the classifier is FABRICATING roles ...",
+        "summary": {
+            "n_measurement_types": 2,
+            "n_descriptor_cells": 3,
+            "n_distinct_fields": 2,
+            "n_multi_type_fields": 1,
+            "n_gloss_without_descriptor": 1,
+            "n_numeric_fields_without_gloss": 0,
+        },
+        "role_counts": {"effect": 2, "label": 1},
+        "source_class_counts": {"instrument": 3},
+        "numeric_fields_without_gloss": [],
+        "gloss_without_descriptor": ["orphan_gloss_field"],
+        "multi_type_fields": ["shared_field"],
+        "rosters": {
+            "declared_fields": ["shared_field", "solo_field"],
+            "envelope_fields": ["target"],
+            "roles": ["effect", "label", "envelope", "unclassified"],
+            "numeric_roles": ["effect"],
+            "role_by_field": {"shared_field": "effect", "solo_field": "label"},
+        },
+        "fields_by_measurement_type": {
+            "type_a": ["shared_field", "solo_field"],
+            "type_b": ["shared_field"],
+        },
+    }
+    census.update(over)
+    return census
+
+
+def _report_with_census(census=None):
+    rep = _minimal_report()
+    dcov = rollup.build_descriptor_coverage(census if census is not None else _census())
+    rep["descriptor_coverage"] = dcov
+    dsum = dcov.get("summary") or {}
+    rep["summary"].update(
+        {
+            "descriptor_coverage_available": bool(dcov.get("available")),
+            "n_measurement_types_with_descriptors": dsum.get("n_measurement_types"),
+            "n_descriptor_cells": dsum.get("n_descriptor_cells"),
+            "n_distinct_descriptor_fields": dsum.get("n_distinct_fields"),
+            "n_gloss_without_descriptor": dsum.get("n_gloss_without_descriptor"),
+            "n_numeric_fields_without_gloss": dsum.get("n_numeric_fields_without_gloss"),
+        }
+    )
+    return rep
+
+
+def _check(tmp_path, rep):
+    p = tmp_path / "framework_health.json"
+    p.write_text(json.dumps(rep))
+    return self_check(p)
+
+
+def test_descriptor_probe_degrades_to_empty_without_the_sidecar(tmp_path):
+    """Same contract as every other sibling probe: absence omits the lens, never fabricates."""
+    assert probe.descriptor_coverage(tmp_path) == {}
+
+
+def test_descriptor_probe_ignores_a_corrupt_sidecar(tmp_path):
+    d = tmp_path / "skills" / "_skills_common"
+    d.mkdir(parents=True)
+    (d / "descriptor_coverage.json").write_text("{not json")
+    assert probe.descriptor_coverage(tmp_path) == {}
+
+
+def test_descriptor_probe_reads_a_committed_sidecar(tmp_path):
+    d = tmp_path / "skills" / "_skills_common"
+    d.mkdir(parents=True)
+    (d / "descriptor_coverage.json").write_text(json.dumps(_census()))
+    got = probe.descriptor_coverage(tmp_path)
+    assert got["summary"]["n_descriptor_cells"] == 3
+
+
+def test_unavailable_is_not_a_verdict():
+    """`available: False` means this checkout could not read the sibling. It must NOT
+    look like a measured zero, or a dashboard plots 'nobody looked' as 'no gaps'."""
+    dcov = rollup.build_descriptor_coverage({})
+    assert dcov["available"] is False
+    assert "summary" not in dcov  # no counts at all — absence is a null, not a 0
+    assert dcov["reason"]
+
+
+def test_self_check_accepts_a_consistent_census(tmp_path):
+    ok, errs = _check(tmp_path, _report_with_census())
+    assert ok, errs
+
+
+def test_self_check_accepts_an_unavailable_census(tmp_path):
+    """The pre-landing / isolated-checkout state must be self-consistent, not red."""
+    ok, errs = _check(tmp_path, _report_with_census({}))
+    assert ok, errs
+
+
+def test_unmeasured_dimension_may_not_publish_counts(tmp_path):
+    rep = _report_with_census({})
+    rep["summary"]["n_descriptor_cells"] = 0  # the exact misreading this guard exists for
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("must be null, not a number" in e for e in errs)
+
+
+def test_self_check_catches_cell_count_drift(tmp_path):
+    """`n_descriptor_cells` counts (type, field) PAIRS and is re-derived from the per-type
+    map — not merely restated from the summary."""
+    census = _census()
+    census["summary"]["n_descriptor_cells"] = 99
+    rep = _report_with_census(census)
+    rep["summary"]["n_descriptor_cells"] = 99  # keep the mirror consistent to isolate the check
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("disagrees with fields_by_measurement_type" in e for e in errs)
+
+
+def test_cells_and_distinct_fields_are_different_numbers(tmp_path):
+    """The skills census exposes the CELL count under the field-shaped name
+    `n_descriptor_fields`; a consumer reconciling the wrong one over-counts the roster.
+    On the real vocabulary these differ (337 cells vs 310 distinct)."""
+    ok, errs = _check(tmp_path, _report_with_census())
+    assert ok, errs
+    dsum = _census()["summary"]
+    assert dsum["n_descriptor_cells"] > dsum["n_distinct_fields"]
+
+
+def test_self_check_re_derives_multi_type_fields(tmp_path):
+    census = _census()
+    census["multi_type_fields"] = []  # claim nothing is shared; the per-type map says otherwise
+    census["summary"]["n_multi_type_fields"] = 0
+    ok, errs = _check(tmp_path, _report_with_census(census))
+    assert not ok
+    assert any("multi_type_fields does not re-derive" in e for e in errs)
+
+
+def test_self_check_catches_resolved_work_reported_as_open(tmp_path):
+    """A field in `gloss_without_descriptor` that IS declared means the queue is reporting
+    finished work as outstanding — the coverage dimension would trend the wrong way."""
+    census = _census()
+    census["gloss_without_descriptor"] = ["shared_field"]
+    ok, errs = _check(tmp_path, _report_with_census(census))
+    assert not ok
+    assert any("ARE declared" in e for e in errs)
+
+
+def test_self_check_catches_a_role_outside_the_vocabulary(tmp_path):
+    census = _census()
+    census["rosters"]["role_by_field"]["solo_field"] = "invented_role"
+    ok, errs = _check(tmp_path, _report_with_census(census))
+    assert not ok
+    assert any("outside the vocabulary" in e for e in errs)
+
+
+def test_self_check_catches_roster_drift_from_the_per_type_map(tmp_path):
+    census = _census()
+    census["rosters"]["declared_fields"] = ["shared_field"]  # drops solo_field
+    census["summary"]["n_distinct_fields"] = 1
+    ok, errs = _check(tmp_path, _report_with_census(census))
+    assert not ok
+    assert any("disagrees with the per-type map" in e for e in errs)
+
+
+def test_self_check_requires_the_fabrication_warning_to_survive(tmp_path):
+    """field_descriptor says twice that an empty `unclassified` set means the classifier is
+    fabricating roles, not that coverage is complete. The consumer of this dimension is in
+    another repo and will only ever read the note that travels with the data."""
+    census = _census()
+    census["note"] = "descriptor coverage census"
+    ok, errs = _check(tmp_path, _report_with_census(census))
+    assert not ok
+    assert any("no longer warns" in e for e in errs)
+
+
+def test_summary_mirror_must_track_the_section(tmp_path):
+    rep = _report_with_census()
+    rep["summary"]["n_gloss_without_descriptor"] = 0  # the queue emptied only in the summary
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("summary.n_gloss_without_descriptor disagrees" in e for e in errs)
+
+
+def test_availability_flag_must_track_the_section(tmp_path):
+    rep = _report_with_census()
+    rep["summary"]["descriptor_coverage_available"] = False
+    ok, errs = _check(tmp_path, rep)
+    assert not ok
+    assert any("descriptor_coverage_available disagrees" in e for e in errs)
+
+
+def test_descriptor_section_is_carried_in_the_drift_basis():
+    """The census is a pure function of two skills-side constants — no clock, no I/O — so it
+    must NOT be projected out of --check the way volatile fields are. If it were dropped, a
+    vocabulary change in skills would never register as staleness here."""
+    rep = _report_with_census()
+    rep["generated_at"] = "2026-01-01T00:00:00Z"
+    projected = stable_projection(rep)
+    assert "descriptor_coverage" in projected
+    assert "orphan_gloss_field" in projected  # the queue itself is part of the basis
+    assert "2026-01-01T00:00:00Z" not in projected  # ...while the clock still is not
+
+
+def test_older_artifacts_without_the_section_still_pass(tmp_path):
+    """Guarded `if present`: an artifact generated before this dimension existed must not red."""
+    rep = _minimal_report()
+    assert "descriptor_coverage" not in rep
+    ok, errs = _check(tmp_path, rep)
+    assert ok, errs

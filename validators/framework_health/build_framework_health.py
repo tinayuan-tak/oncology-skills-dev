@@ -307,6 +307,123 @@ def self_check(report_path: Path) -> tuple[bool, list[str]]:
         if graph.get("n_edges") != len(graph.get("edges", [])):
             errs.append("[graph] n_edges disagrees with edge list — regenerate")
 
+    # 6. Descriptor-coverage section (if present): the FIELD-VOCABULARY lens.
+    #
+    # Every invariant here is re-derived from the section's OWN recorded data — never by
+    # re-reading the skills sibling, which this runner cannot see. That is deliberate: a
+    # cross-repo check that degrades to "sibling absent, skipping" in the only environment
+    # that ever runs it is VACUOUS, and would sit here looking like coverage forever. These
+    # checks fire on the committed bytes alone, so they can actually fail in CI.
+    dcov = rep.get("descriptor_coverage")
+    if dcov is not None:
+        summary = rep.get("summary", {})
+        if summary.get("descriptor_coverage_available") != bool(dcov.get("available")):
+            errs.append("summary.descriptor_coverage_available disagrees with the section — regenerate")
+
+        if not dcov.get("available"):
+            # An UNMEASURED dimension must not publish counts: a 0 in the summary would be
+            # plotted as "no gaps" when the truth is "nobody looked". Absence is a null.
+            for key in (
+                "n_descriptor_cells",
+                "n_distinct_descriptor_fields",
+                "n_gloss_without_descriptor",
+                "n_numeric_fields_without_gloss",
+            ):
+                if summary.get(key) is not None:
+                    errs.append(
+                        f"summary.{key} is {summary.get(key)!r} but descriptor coverage is "
+                        f"UNAVAILABLE — an unmeasured dimension must be null, not a number"
+                    )
+        else:
+            dsum = dcov.get("summary") or {}
+            rosters = dcov.get("rosters") or {}
+            declared = rosters.get("declared_fields")
+            by_type = dcov.get("fields_by_measurement_type")
+            if not isinstance(declared, list) or not isinstance(by_type, dict):
+                errs.append("[descriptor_coverage] available but missing rosters/fields_by_measurement_type")
+            else:
+                # Cell count vs DISTINCT field count. These are different numbers (some fields
+                # are declared by several measurement_types) and the skills-side census exposes
+                # the cell count under the field-shaped name `n_descriptor_fields`, so a
+                # consumer that reconciles the wrong one over-counts the roster. Pin both.
+                cells = sum(len(v) for v in by_type.values())
+                if dsum.get("n_descriptor_cells") != cells:
+                    errs.append(
+                        f"[descriptor_coverage] n_descriptor_cells {dsum.get('n_descriptor_cells')} "
+                        f"disagrees with fields_by_measurement_type ({cells}) — regenerate"
+                    )
+                if dsum.get("n_distinct_fields") != len(set(declared)):
+                    errs.append("[descriptor_coverage] n_distinct_fields disagrees with declared_fields — regenerate")
+                if len(declared) != len(set(declared)):
+                    errs.append("[descriptor_coverage] declared_fields contains duplicates")
+                if dsum.get("n_measurement_types") != len(by_type):
+                    errs.append("[descriptor_coverage] n_measurement_types disagrees with the per-type map")
+
+                # multi_type_fields must be exactly the fields the per-type map shows more than
+                # once — a real re-derivation, not a restatement of a recorded number.
+                seen: dict[str, int] = {}
+                for fields in by_type.values():
+                    for f in fields:
+                        seen[f] = seen.get(f, 0) + 1
+                expect_multi = sorted(f for f, n in seen.items() if n > 1)
+                if sorted(dcov.get("multi_type_fields") or []) != expect_multi:
+                    errs.append(
+                        "[descriptor_coverage] multi_type_fields does not re-derive from "
+                        "fields_by_measurement_type — regenerate"
+                    )
+                if sorted(seen) != sorted(set(declared)):
+                    errs.append("[descriptor_coverage] declared_fields disagrees with the per-type map — regenerate")
+
+                # The gloss queue: every entry must genuinely lack a descriptor. If one of these
+                # ever appears in declared_fields the queue is reporting resolved work as open.
+                leaked = [f for f in (dcov.get("gloss_without_descriptor") or []) if f in set(declared)]
+                if leaked:
+                    errs.append(
+                        f"[descriptor_coverage] gloss_without_descriptor lists field(s) that ARE "
+                        f"declared: {leaked[:5]} — regenerate"
+                    )
+
+                # Roles must come from the published vocabulary, or a consumer's set membership
+                # test silently routes a field to `unclassified`.
+                roles = set(rosters.get("roles") or [])
+                unknown = sorted(set((rosters.get("role_by_field") or {}).values()) - roles)
+                if roles and unknown:
+                    errs.append(f"[descriptor_coverage] role_by_field uses roles outside the vocabulary: {unknown}")
+                if set(rosters.get("numeric_roles") or []) - roles:
+                    errs.append("[descriptor_coverage] numeric_roles is not a subset of roles")
+
+                # Summary mirrors must agree with the section they summarize.
+                for top, inner in (
+                    ("n_descriptor_cells", "n_descriptor_cells"),
+                    ("n_distinct_descriptor_fields", "n_distinct_fields"),
+                    ("n_gloss_without_descriptor", "n_gloss_without_descriptor"),
+                    ("n_numeric_fields_without_gloss", "n_numeric_fields_without_gloss"),
+                    ("n_measurement_types_with_descriptors", "n_measurement_types"),
+                ):
+                    if summary.get(top) != dsum.get(inner):
+                        errs.append(f"summary.{top} disagrees with descriptor_coverage.summary.{inner} — regenerate")
+
+                # Counts vs their own lists.
+                for count_key, list_key in (
+                    ("n_gloss_without_descriptor", "gloss_without_descriptor"),
+                    ("n_multi_type_fields", "multi_type_fields"),
+                    ("n_numeric_fields_without_gloss", "numeric_fields_without_gloss"),
+                ):
+                    if dsum.get(count_key) != len(dcov.get(list_key) or []):
+                        errs.append(f"[descriptor_coverage] {count_key} disagrees with {list_key} — regenerate")
+
+                # The census warns, in the artifact itself, that an empty `unclassified` set
+                # means the classifier is FABRICATING roles rather than that coverage is
+                # complete. The consumer of this dimension lives in another repo and will only
+                # ever read that note, so its absence is a defect in the feed.
+                note = dcov.get("note") or ""
+                if "FABRICATING" not in note:
+                    errs.append(
+                        "[descriptor_coverage] the census note no longer warns that a zero "
+                        "unclassified count means fabricated roles — a consumer would read zero "
+                        "as success; regenerate from the skills producer"
+                    )
+
     return (not errs), errs
 
 
