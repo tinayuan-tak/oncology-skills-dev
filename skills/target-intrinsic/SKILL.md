@@ -155,3 +155,11 @@ reuse remains a tracked future optimization.
 ## Invocation
 
     python skills/target-intrinsic/scripts/run.py --target EGFR --out <dir>
+
+Optional OPT-IN lanes, both verdict-INERT sibling keys (the spine is byte-identical without them):
+`--synthesize` → `decision["llm_synthesis"]`, and `--literature` → `decision["literature_synthesis"]`
+(published-literature read per axis + agreement-vs-omics + omics-blind signals, through this skill's
+target-intrinsic lens; `--literature-model <id>` overrides the Bedrock model). The two are
+INDEPENDENT — `--literature` alone gives the key with no narration; with both, the literature lane is
+attached first and fed to the narrator as a corroboration/contradiction input. If you did not pass
+`--literature`, `literature_synthesis` is simply ABSENT: the flag was not passed, the lane did not fail.

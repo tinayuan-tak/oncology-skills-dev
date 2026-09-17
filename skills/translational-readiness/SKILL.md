@@ -130,5 +130,13 @@ When invoked, it emits `decision.json` with:
    python3 /home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills/skills/translational-readiness/scripts/run.py \
      --target <TARGET> --indication <INDICATION> --out <OUT_DIR>
    ```
+   Optional OPT-IN lanes, both verdict-INERT sibling keys (the spine is byte-identical without them):
+   `--synthesize` → `decision["llm_synthesis"]`, and `--literature` → `decision["literature_synthesis"]`
+   (published-literature read per axis + agreement-vs-omics + omics-blind signals, through this
+   skill's translational-readiness lens; `--literature-model <id>` overrides the Bedrock model). The two
+   are INDEPENDENT — `--literature` alone gives the key with no narration; with both, the literature
+   lane is attached first and fed to the narrator as a corroboration/contradiction input. If you did
+   not pass `--literature`, `literature_synthesis` is simply ABSENT: the flag was not passed, the lane
+   did not fail.
 4. Read `<OUT_DIR>/decision.json`; present `model_availability_class` +
    `n_patient_derived_models` inline, and surface `partial_status_note` for the un-wired legs.

@@ -304,6 +304,31 @@ reads served that way are labelled with the CANONICAL cohort and carry `_indicat
 - `--profile-timers` — emit per-sub-skill READ vs FIGURE-EMIT wall-clock timings to stderr
   (instrumentation only; zero effect on artifacts).
 
+## The literature lane here is `--subskill-literature`, NOT `--literature`
+
+⚠️ **This skill does NOT accept `--literature`.** That flag belongs to the sub-skill dispatcher
+(`_skills_common/dispatcher.py`), which the orchestrator does not route through — passing it exits
+**rc 2, `unrecognized arguments`**. There is also **no top-level `nomination["literature_synthesis"]`**;
+looking for one and finding nothing is the expected shape, not a failed lane.
+
+- **It is already DEFAULT ON.** The master switch is `--rich-embedded` (default **True**), which runs
+  each sub-skill's narrative *and* literature lane in the fan-out. So a plain run already produces the
+  literature read — you do not need to opt in.
+- **Where the block actually lands**: per sub-skill, inside that sub-skill's embedded
+  `evidence_graph` decision (`tp_fanout.py:1578`) and on its `synthesis_facet["literature_synthesis"]`
+  (`:1487`) — *not* at the top level. Read it per axis, not once for the nomination.
+- `--subskill-literature` / `--no-subskill-literature` overrides `--rich-embedded` for the literature
+  lane only; `--synthesize-subskills` does the same for the narrative only.
+- `--subskill-literature-scope all|gating` — `all` (default) or the 8 gating axes only (cheaper).
+- **AUTO-OFF** whenever top-level synthesis is suppressed: `--no-synthesis`, `--verdict-only`, and
+  `--emit evidence-package` (that value only — `--emit nomination`, the default, does NOT suppress it;
+  `--verdict-only` and `--emit evidence-package` both work by forcing `no_synthesis`, `run.py:560-569`).
+  If a run produced no literature at all, check those first — the fast modes are Bedrock-free by design.
+- Cost is the reason it is worth knowing about: up to 14× (EuropePMC/PubTator retrieval + Bedrock
+  literature synthesis). `--no-rich-embedded` gives an omics-rich, Bedrock-lean run.
+
+Verdict-INERT and display-only in every combination — the deterministic spine stays byte-identical.
+
 ## Fast modes (deterministic spine, no LLM)
 
 The deterministic verdict spine — sub-verdicts, the recommendation gate, the positive tier, the

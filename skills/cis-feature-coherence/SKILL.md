@@ -165,3 +165,11 @@ it never blocks a nomination.
 `/cis-feature-coherence --target ERBB2 [--indication BRCA]`. Reads the emitted `decision.json`;
 `cis_coherence_verdict` + `driving_rule_id` are the audit spine; the headline carries each leg's class
 + the cis-dosage metrics (`cn_expr_spearman_r`, `delta_log2tpm_amplified_vs_neutral`).
+
+Optional OPT-IN lanes, both verdict-INERT sibling keys (the spine is byte-identical without them):
+`--synthesize` → `decision["llm_synthesis"]`, and `--literature` → `decision["literature_synthesis"]`
+(published-literature read per axis + agreement-vs-omics + omics-blind signals, through this skill's
+cis-coherence lens; `--literature-model <id>` overrides the Bedrock model). The two are INDEPENDENT —
+`--literature` alone gives the key with no narration; with both, the literature lane is attached first
+and fed to the narrator as a corroboration/contradiction input. If you did not pass `--literature`,
+`literature_synthesis` is simply ABSENT: the flag was not passed, the lane did not fail.

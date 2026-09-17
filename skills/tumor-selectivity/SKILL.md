@@ -211,6 +211,11 @@ composition:
   - `fired_rules`: which rules matched
   - `modality_lenses`: optional SM+degrader tally for callers who want it
   - `llm_synthesis` (only with --synthesize): a two-slot selectivity-lens narration.
+  - `literature_synthesis` (only with --literature): a verdict-INERT published-literature read per
+    axis + agreement-vs-omics + omics-blind signals, through this skill's selectivity lens.
+    INDEPENDENT of `--synthesize` (pass `--literature` alone for the key with no narration); with
+    both, it is attached first and fed to the narrator. Optionally `--literature-model <id>`.
+    Without the flag the key is ABSENT — that is the flag not being passed, not a failed lane.
 
 ## What this skill does NOT do
 
@@ -261,7 +266,8 @@ When called as `/tumor-selectivity`, Claude should:
    user's prompt. Ask if either is missing or ambiguous.
 2. Pick an `out` directory. Default: `/tmp/tumor-selectivity/{target}-{indication}`
    unless the user specifies one.
-3. Run (add `--synthesize` for the optional LLM narration). The run defaults to the fastest
+3. Run (add `--synthesize` for the optional LLM narration; add `--literature` for the verdict-inert
+   published-literature lane under `decision["literature_synthesis"]`). The run defaults to the fastest
    (forked process pool) read path; no read-pool env var is needed (see the Performance note below):
    ```
    export AWS_PROFILE=cbg && \

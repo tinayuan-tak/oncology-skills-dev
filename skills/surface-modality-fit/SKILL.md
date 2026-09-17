@@ -323,3 +323,16 @@ firing card.
 4. Read `<OUT_DIR>/decision.json`; present `surface_modality_verdict` +
    `driving_rule_id`. If `insufficient` due to `data_unavailable`, say so
    plainly (surface data not yet landed).
+
+Optional OPT-IN lanes, both verdict-INERT sibling keys (the spine is byte-identical without them):
+`--synthesize` → `decision["llm_synthesis"]`, and `--literature` → `decision["literature_synthesis"]`
+(published-literature read per axis + agreement-vs-omics + omics-blind signals, through this skill's
+surface/biologics lens — Europe PMC retrieval over `cell surface protein` / `cell surface proteomics` /
+`antibody-drug conjugate` / `receptor internalization` / `shed antigen` / `bispecific T-cell engager` /
+`antigen escape`, then a PMID verification pass; `--literature-model <id>` overrides the Bedrock model).
+The two are INDEPENDENT — `--literature` alone gives the key with no narration; with both, the
+literature lane is attached first and fed to the narrator as a corroboration/contradiction input. If you
+did not pass `--literature`, `literature_synthesis` is simply ABSENT: the flag was not passed, the lane
+did not fail. The lane grounds on the per-axis claim vector plus the SAFETY/SHED liability caveat; it
+does NOT read `surface_confirmation_caveat`, so it does not by itself adjudicate the
+family/RNA-annotation-vs-confirmed-protein question the CSPA note above raises.
