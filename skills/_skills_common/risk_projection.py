@@ -61,11 +61,21 @@ AXIS_TO_DIM = {
 # cannot be reviewed. The two are opposite actions, which is the same argument the per-dim evidence
 # coverage below makes about bins.
 #
-# DECLARED_DESCRIPTIVE is settled and correct. OPEN_PENDING_REVIEW is NOT a decision — it records that
-# a verdict-BEARING axis with live corpus values is absent from the risk VIEW and that no document
-# justifies it. The written rationales for these axes all concern `_SHORT_TO_GATE` (tp_fanout), the
-# kill/hold NOMINATION gate; risk_6dim is a PROJECTION, a different consumer. "Must never drive the
-# nomination spine" therefore justifies exclusion from the gate and says nothing about this map.
+# The three states are three DIFFERENT reasons for the same absence, and only one of them is a TODO:
+#   DECLARED_DESCRIPTIVE   settled — verdict=None, so there is nothing to project (4 axes).
+#   DECLARED_CONTEXT_TIER  settled 2026-09-16 — verdict-BEARING but gate-less BY DESIGN, so Decision 3
+#                          (below) forbids the bin; already displayed AND counted on its dim (2 axes).
+#   OPEN_PENDING_REVIEW    NOT a decision — a verdict-bearing, live axis absent from the risk VIEW with
+#                          nothing in writing justifying it (now 1 axis: subtype_fit).
+#
+# WHY OPEN_PENDING_REVIEW EXISTED AT ALL, and why two of its three tenants have now left it: the written
+# rationales for those axes all concern `_SHORT_TO_GATE` (tp_fanout), the kill/hold NOMINATION gate, while
+# risk_6dim is a PROJECTION — a different consumer. "Must never drive the nomination spine" justifies
+# exclusion from the gate and, ON ITS OWN, says nothing about this map. What closed the question was not
+# that argument but Decision 3, which makes the gate roster the ORACLE for bin membership: under it,
+# gate-less is not merely uninformative about the dim, it is DISQUALIFYING. Note the asymmetry that makes
+# the oracle safe to lean on — being a gate is NECESSARY, not SUFFICIENT (2 of the 8 gates are unread by
+# `deterministic_bins`), so no test here may infer the converse.
 #
 # ★ RETRACTED 2026-09-16, THE SAME DAY IT WAS WRITTEN. This comment used to end: "Resolving an OPEN
 # entry MOVES BINS (it adds a conjunction member), so it is not additive: it needs a per-verdict-value
@@ -93,8 +103,49 @@ AXIS_TO_DIM = {
 # disjoint — `_dim_members` appends from both WITHOUT DEDUPE, so an axis in both is displayed TWICE.
 # `test_axis_dim_mapping_completeness.py` now pins both facts.
 DECLARED_DESCRIPTIVE = "declared_descriptive"  # verdict=None BY DESIGN — mapping it would be inert
+# ★ NEW 2026-09-16: verdict-BEARING, but deliberately NOT a scorecard gate, so it must never feed a bin.
+# This state exists because `declared_descriptive` could not hold these two: that state asserts "no verdict
+# to project" and is CHECKED against narrator_lenses, so parking a live verdict-bearing axis there would
+# (correctly) red `test_declared_descriptive_axes_are_genuinely_verdictless`. The absence needed its own
+# reason, not the nearest available one. See THE GOVERNING PRINCIPLE below.
+DECLARED_CONTEXT_TIER = "declared_context_tier"
 OPEN_PENDING_REVIEW = "open_pending_review"  # verdict-bearing + live, absence UNJUSTIFIED in writing
-AXIS_DIM_EXCLUSION_STATES: frozenset = frozenset({DECLARED_DESCRIPTIVE, OPEN_PENDING_REVIEW})
+AXIS_DIM_EXCLUSION_STATES: frozenset = frozenset({DECLARED_DESCRIPTIVE, DECLARED_CONTEXT_TIER, OPEN_PENDING_REVIEW})
+
+# ── THE GOVERNING PRINCIPLE: a dim's bin rolls up its GATES, so a gateless axis cannot be a member ──
+#
+# target-contracts `docs/design/RISK_CATEGORY_DASHBOARD_SPINE.md` Decision 3 (approved): "a category's
+# risk level is a ROLL-UP of its gates' statuses, computed not authored … derives from the member GATES'
+# scorecard statuses … so the category rollup can NEVER DISAGREE with the per-gate verdicts."
+#
+# MEASURED 2026-09-16 (AST scan of every `sv.get("…")` inside `deterministic_bins`, not by eye) —
+# it implements Decision 3 with ZERO exceptions. Every sub_verdict axis it reads is a scorecard gate in
+# tp_fanout._SHORT_TO_GATE, and no gateless axis is read:
+#
+#   reads + gated   dependency · mechanism · safety · selectivity · surface_modality · tractability_sm  6/6
+#   gated, unread   genomic_alteration · differentiation      (gate ⇒ NECESSARY, not SUFFICIENT — 2 of 8)
+#   gateless, read  — none —
+#
+# (Count corrected in the writing: `selectivity` IS read, by the safety dim's normal-breadth conjunction.
+# The conclusion does not depend on the tally, but a wrong tally in a rationale invites a wrong edit.)
+# Note the bins ALSO read card `interpretation_call`s directly (normal-tissue-liability-gtex, sc-normal,
+# modality-therapeutic-window, shed-ectodomain). Decision 3 constrains AXIS membership, so those are out
+# of its scope and out of the guard's — do not read the guard as "bins read nothing but gates".
+#
+# ⇒ THE DECISION ON `cis_coherence` / `immune_context` IS THEREFORE **NO**: they must not become verdict
+# members of their dim. Both are DELIBERATELY absent from `_SHORT_TO_GATE`, so under Decision 3 they have
+# no gate status for a bin to roll up. This is now pinned by
+# `test_deterministic_bins_reads_only_scorecard_gate_axes` — the machine-checkable form of Decision 3,
+# which had been approved but never enforced.
+#
+# ★ AND NOTE WHAT "PROMOTE" WOULD ACTUALLY DO, because it is NOT what the map name suggests: AXIS_TO_DIM
+# does not make an axis verdict-bearing — `deterministic_bins`'s hardcoded contribution tables do (that is
+# the same fact the retraction above establishes). Editing AXIS_TO_DIM alone would make the HTML DROP the
+# `context` tag it renders per member (`backends/html.py` `_mem_row`) while the engine still ignored the
+# axis entirely: a member DISPLAYED as verdict-bearing whose verdict reaches no bin. That is the exact
+# MIRROR of the coverage undercount fixed in #1419 — there the report displayed more than it counted, here
+# it would claim more than it computes. Both are the same defect class: a display claim the computation
+# does not honour. The `context` tag is currently TRUE, and keeping it true is the point.
 
 AXIS_DIM_EXCLUSIONS = {
     # --- settled: run.py passes verdict_fn=None, so there is no verdict to project (measured null on
@@ -128,50 +179,87 @@ AXIS_DIM_EXCLUSIONS = {
         "project(), never through this map. Measured: 1489 pmid-bearing cited_statements live under "
         "synthesis.evidence_capsules.literature_context and reach no dim BY CONTRACT, not by omission.",
     },
-    # --- OPEN: verdict-bearing, live corpus values, no written rationale for absence from THIS map.
+    # --- SETTLED 2026-09-16: verdict-bearing, but gate-less BY DESIGN, so Decision 3 excludes them from
+    # a bin. Both are already DISPLAYED on their dim as `context` companions and (since #1419) COUNTED in
+    # its evidence coverage. Context-tier is their terminal state, not a waypoint — the remaining
+    # difference from a verdict member is exactly the difference Decision 3 requires.
     "cis_coherence": {
-        "state": OPEN_PENDING_REVIEW,
-        "reason": "Verdict-BEARING and LIVE: 504/504 corpus targets, 7 distinct verdicts "
+        "state": DECLARED_CONTEXT_TIER,
+        "reason": "NOT A VERDICT MEMBER, DECIDED (was OPEN_PENDING_REVIEW; the open question is now "
+        "answered NO). It has a DECIDED role one tier down: it GRADUATED at nomination-gate v1.6.0 "
+        "(2026-08-20) to a CONFIDENCE-tier axis in nomination_verdict_gate.yaml — positive_signal "
+        "`coherent_cis_driver`, positive_contradiction `expressed_cis_coupled_inert` blocking `strong`, "
+        "correlated_dimension group [genomic_alteration, cis_coherence] — with NO `gates` action, so it "
+        "can never cross the kill boundary: it moves CONFIDENCE, not Go/No-Go. Promoting it to a "
+        "risk_6dim bin member would UPGRADE that tier, because risk_6dim IS `citable_in_nominations` "
+        "(UNIFIED_OUTPUT_CONTRACT Decision 2, 2026-09-03: 'may be governance-load-bearing'), so a bin is "
+        "a citable governance claim while `target_call` stays the sole go/hold/kill gate. Under Decision "
+        "3 it has no gate status for `biological` to roll up. Verdict-BEARING and LIVE: 504/504 corpus "
+        "targets, 7 distinct verdicts "
         "(coherent_cis_driver 76, coherent_cis_loss_of_function 116, expressed_cis_coupled_inert 111, "
         "cis_uncoupled_no_dependency 105, dependency_without_cis_dosage 60, "
-        "coherent_epigenetic_silencing 32, insufficient_cis_coherence 4). It is DELIBERATELY out of "
-        "_SHORT_TO_GATE (it moves CONFIDENCE, not Go/No-Go) and graduated to a confidence-tier axis at "
-        "gate v1.6.0 — but that rationale is about the NOMINATION GATE. ITS DIM IS ALREADY DECIDED: "
-        "ir._CONTEXT_DIM routes it to `biological`, so the report DISPLAYS it there today; the open "
-        "question is narrower than first written — should the dim's evidence-COVERAGE line also COUNT "
-        "it? Measured: state=measured on 504/504 with 3733 resolved cards, so counting it takes "
-        "biological from '4/4 axes measured' to '6/6' (+~14 cards/target) with no new caveat. It "
-        "discriminates without being redundant: coherent_cis_driver is 53 LOW / 3 MED / 20 HIGH against "
-        "the biological bin, while coherent_epigenetic_silencing is 32/32 HIGH. NOTE the direction "
-        "question is NOT blocking, because this map cannot move a bin (see the retraction above).",
+        "coherent_epigenetic_silencing 32, insufficient_cis_coherence 4) — so its absence here is a "
+        "CHOICE, not an oversight, which is why it needed a state of its own rather than "
+        "declared_descriptive. BOTH REACHABLE CONSUMERS ALREADY SEE IT: ir._CONTEXT_DIM DISPLAYS it "
+        "under `biological`, and COVERAGE_ONLY_AXES (#1419) COUNTS its 3733 resolved cards toward that "
+        "dim's evidence line (measured state=measured on 504/504). The only remaining difference from a "
+        "verdict member is the bin itself — exactly the difference Decision 3 requires. It does "
+        "discriminate (coherent_cis_driver 53 LOW / 3 MED / 20 HIGH against the biological bin vs "
+        "coherent_epigenetic_silencing 32/32 HIGH), and that is NOT an argument for promotion: a "
+        "confidence-tier axis is supposed to be informative. Note also that `biological` is "
+        "max(dependency, mechanism), so any added leg could only ESCALATE.",
     },
     "immune_context": {
-        "state": OPEN_PENDING_REVIEW,
-        "reason": "Verdict-BEARING and LIVE: 504/504 corpus targets, 5 distinct verdicts "
-        "(immune_intermediate 314, insufficient 86, lymphoid_denominator_unreliable 47, immune_cold 31, "
-        "immune_hot 26). Documented as GATELESS/ADDITIVE and 'kept off the gate pending calibration' — "
-        "again a statement about _SHORT_TO_GATE. ★ CORRECTED: this entry used to call the dim UNDECIDED "
-        "and blame a flat axis->dim dict for not expressing modality-conditioning. The dim was ALREADY "
-        "DECIDED — ir._CONTEXT_DIM routes it to `druggability` with a written rationale (the TCE "
+        "state": DECLARED_CONTEXT_TIER,
+        "reason": "NOT A VERDICT MEMBER, DECIDED (was OPEN_PENDING_REVIEW; answered NO on TWO "
+        "independent grounds). (1) DECISION 3: it is deliberately out of _SHORT_TO_GATE, documented as "
+        "GATELESS/ADDITIVE and 'kept off the gate pending calibration', so `druggability` has no gate "
+        "status of its own to roll up. (2) IT WOULD NOT EARN THE BIN EVEN IF THE RULE ALLOWED IT: 88.7% of "
+        "targets are non-directional (immune_intermediate 314 + insufficient 86 + "
+        "lymphoid_denominator_unreliable 47 of 504), only 57/504 are hot/cold, and hot vs cold show "
+        "near-identical safety-bin splits => it does not discriminate risk. AND the change would be "
+        "STRUCTURAL, not additive: `druggability` is the one SINGLE-LEG dim (deterministic_bins sets "
+        "dims['druggability']['bin'] = INV[r] with its `sig` left dead), so adding a leg means "
+        "converting a citable bin to a max-conjunction — a weak, undescribed-on-86/504 axis is the worst "
+        "possible reason to do that. ★ EARLIER FRAMING CORRECTED: this entry used to call the dim "
+        "UNDECIDED and blame a flat axis->dim dict for not expressing modality-conditioning. The dim was "
+        "ALREADY DECIDED — ir._CONTEXT_DIM routes it to `druggability` with a written rationale (the TCE "
         "effector-arm companion to surface-modality-fit, NOT the clinical-precedent bin) matching an "
-        "approved mockup. Modality-conditioning was never needed for a map that cannot move a bin. What "
-        "the corpus DOES say is that its verdict is weak: 88.7% of targets are non-directional "
-        "(immune_intermediate 314 + insufficient 86 + lymphoid_denominator_unreliable 47), only 57/504 "
-        "are hot/cold, and hot vs cold show near-identical safety-bin splits => it does not discriminate "
-        "risk. As COVERAGE it is real (1773 resolved cards) but undescribed on 86/504.",
+        "approved mockup — and modality-conditioning was never needed for a map that cannot move a bin. "
+        "As COVERAGE it is real (1773 resolved cards) and is COUNTED via COVERAGE_ONLY_AXES since #1419.",
     },
+    # --- STILL OPEN, and the ONE entry Decision 3 does NOT settle. Kept OPEN deliberately: the blocker
+    # is upstream of this file, in `skills/target-profile/`, so this branch cannot close it.
     "subtype_fit": {
         "state": OPEN_PENDING_REVIEW,
-        "reason": "Verdict-bearing but SPARSE and SHAPED DIFFERENTLY: 348/504 targets emit a "
-        "sub_verdict (71 non-null: subtype_specific_non_dependence 39, subtype_restricted_selectivity "
-        "27, subtype_restricted_dependency 5) and 0/504 emit a skill_report, so it has NO cards_used "
-        "provenance at all — the evidence-coverage join below cannot see it even if it were mapped. It "
-        "is also not a SUB_SKILLS roster member (tp_fanout.SUBTYPE_SHORT). UNDECIDED, and blocked on "
-        "the provenance gap first. ★ IT IS THE ONLY ROSTERED AXIS IN NEITHER MAP: every other axis "
-        "declared here reaches a dim via ir._CONTEXT_DIM, so subtype_fit alone is invisible in the "
-        "report AND uncountable in the coverage join. That makes it the strongest of the three claims "
-        "of a real gap — and also the one that cannot be fixed by a mapping, because with no "
-        "skill_report there is nothing for either consumer to read. Fix the emission first.",
+        "reason": "THE GENUINELY OPEN ONE, and the ONLY rostered axis in NEITHER map (every other axis "
+        "declared here reaches a dim via ir._CONTEXT_DIM), so it is invisible in the report AND "
+        "uncountable in the coverage join. ★ TWO EARLIER CLAIMS IN THIS ENTRY CORRECTED 2026-09-16, "
+        "because they pointed at the wrong fix. (1) IT IS NOT GATELESS — it is one of only THREE "
+        "recommendation-forcing axes (tp_gates._GATING_AXES = {dependency, safety, subtype_fit}), and "
+        "('subtype_fit','subtype_specific_non_dependence') FORCES overall_recommendation to `hold`. So "
+        "the Decision-3 argument that settles cis_coherence / immune_context above does NOT apply here: "
+        "of the three axes once parked in this state, this is the one WITH a governance claim, not the "
+        "weakest. (2) THE SPARSITY IS NOT A COVERAGE GAP — 433/504 nulls are SCOPE FORECLOSURE BY "
+        "DESIGN. It is in _SCOPE_OPTIN_GATING_AXES, whose own comment states its SILENCE IS THE "
+        "DORMANT/OK STATE, because treating it as a gap 'would wrongly DECLINE every target on the "
+        "(default) no-subtypes path'. Reading 348/504-emitting + 71 non-null as thin evidence inverts "
+        "that. ★ AND THE ROOT CAUSE IS NOT AN EMISSION BUG (the prior 'fix the emission first' was "
+        "wrong): it is the FACET-LESS INLINE TIER. tp_fanout builds results[SUBTYPE_SHORT] with "
+        "skill_dir=None ('not a directory sub-skill; composed inline') and no `synthesis_facet`, so "
+        "tp_facets._skill_reports_by_short — which requires r['synthesis_facet']['skill_report'] — skips "
+        "it, hence 0/504 synthesis.skill_reports entries, hence no `provenance`, hence invisible to "
+        "_axis_card_provenance, evidence_coverage_by_axis, and _dim_members (which appends only `if "
+        "short in skill_reports`). NOTE 0/504 is the count for `synthesis.skill_reports`; a probe of a "
+        "TOP-LEVEL `skill_reports` key returns None for all 504 and measures nothing. So NO MAPPING IN "
+        "THIS FILE CAN FIX IT — correct conclusion, different reason: not because emission is broken, "
+        "but because this axis is not a directory sub-skill and the report spine is keyed on facets. "
+        "The residual is real and BOUNDED: even on the 71 ACTIVE targets a `hold`-forcing axis carries "
+        "no provenance the report can show. Closing it means wiring a build_skill_report call in "
+        "tp_fanout (feasible — build_skill_report requires only role+verdict, cards_used/cards_missing "
+        "optional), which is OUT OF SCOPE for this branch and carries a REGRESSION RISK worth stating: "
+        "_modality_scope_by_axis currently falls back to _claim_record_shadow_by_axis BECAUSE the report "
+        "is absent, so emitting a report without `modality_scope` could regress modality_fit.",
     },
 }
 

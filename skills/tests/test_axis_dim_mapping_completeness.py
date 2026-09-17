@@ -39,10 +39,21 @@ lines did not count them. Note the asymmetry these guards encode — coverage co
 `verdict_fn=None` can legitimately be counted (`combination_vulnerability`: no verdict, 3024 cards) while
 a permanently-`undescribed` axis must NOT be, because its caveat would fire on every run.
 
-Oracles (both in-repo, neither hand-maintained here):
+★ SETTLEMENT 2026-09-16 — the OPEN set went from 3 axes to 1, and this file gained the rule that closed
+them. `cis_coherence` / `immune_context` are NOT verdict members, decided NO, because a dim's bin is a
+ROLL-UP of its member GATES (target-contracts RISK_CATEGORY_DASHBOARD_SPINE Decision 3) and both are
+gate-less by design. `test_deterministic_bins_reads_only_scorecard_gate_axes` is that decision made
+enforceable — it had been APPROVED but never tested, so it held only by luck. `subtype_fit` stays OPEN and
+is the odd one out: it is in `tp_gates._GATING_AXES`, so the gate-less argument does not reach it.
+
+Oracles (all in-repo, none hand-maintained here):
   - the roster        = target-profile's SUB_SKILLS literal (+ SUBTYPE_SHORT), parsed via ast like
                         test_data_product_lock_coverage.py, so no heavy tp_fanout import;
-  - verdict-bearing   = `_skills_common.narrator_lenses.LENSES[<skill dir>].verdict_key is not None`.
+  - verdict-bearing   = `_skills_common.narrator_lenses.LENSES[<skill dir>].verdict_key is not None`;
+  - the GATE ROSTER   = tp_fanout's `_SHORT_TO_GATE` literal (ast) — the oracle for "is this axis a
+                        scorecard gate", i.e. for whether Decision 3 lets it feed a bin;
+  - what BINS read    = an ast scan of `deterministic_bins` for `sv.get("<axis>")`, because a guard over
+                        the implementation must take its input FROM the implementation.
 """
 
 from __future__ import annotations
@@ -57,12 +68,15 @@ from _skills_common.risk_projection import (
     AXIS_DIM_EXCLUSIONS,
     AXIS_TO_DIM,
     COVERAGE_ONLY_AXES,
+    DECLARED_CONTEXT_TIER,
     DECLARED_DESCRIPTIVE,
     OPEN_PENDING_REVIEW,
 )
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent
+RISK_PROJECTION = SKILLS_DIR / "_skills_common" / "risk_projection.py"
 TP_FANOUT = SKILLS_DIR / "target-profile" / "scripts" / "tp_fanout.py"
+TP_GATES = SKILLS_DIR / "target-profile" / "scripts" / "tp_gates.py"
 
 # The 6 governance dims. `clinical` / `commercial` are fed by engine-blind pseudo-cards, not by any
 # subskill axis, so they legitimately appear in AXIS_TO_DIM without being rostered shorts.
@@ -87,6 +101,62 @@ def _roster() -> dict[str, str]:
     assert subtype, "SUBTYPE_SHORT literal not found in tp_fanout.py"
     shorts[subtype] = ""  # rostered but NOT a fan-out member and NOT lens-backed (no skill dir here)
     return shorts
+
+
+def _short_to_gate() -> dict[str, str]:
+    """tp_fanout's `_SHORT_TO_GATE` literal: axis short -> scorecard gate name. The GATE ROSTER ORACLE.
+
+    Read via ast for the same reason `_roster()` is: importing tp_fanout drags in the whole fan-out.
+    """
+    tree = ast.parse(TP_FANOUT.read_text())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign) and "_SHORT_TO_GATE" in {getattr(t, "id", None) for t in node.targets}:
+            return {k.value: v.value for k, v in zip(node.value.keys, node.value.values)}
+    raise AssertionError("_SHORT_TO_GATE literal not found in tp_fanout.py")
+
+
+def _frozenset_literal(path: Path, name: str) -> set[str]:
+    """The string members of a module-level `name: frozenset[str] = frozenset({...})` annotated assign."""
+    tree = ast.parse(path.read_text())
+    for node in ast.walk(tree):
+        if isinstance(node, ast.AnnAssign) and getattr(node.target, "id", None) == name:
+            call = node.value
+            assert isinstance(call, ast.Call) and call.args, f"{name} is not frozenset({{...}})"
+            return {e.value for e in call.args[0].elts}
+    raise AssertionError(f"{name} literal not found in {path.name}")
+
+
+def _bin_read_axes() -> set[str]:
+    """Every sub_verdict axis `deterministic_bins` actually reads, by AST — `sv.get("<axis>")`.
+
+    Deliberately NOT a grep and NOT a hand-maintained list: the point of the Decision-3 guard below is to
+    measure the implementation, so its input must come from the implementation. `sv` is the local built by
+    `_sv(pkg)`, so an `sv[...]` subscript would read an axis too — scanned as well (none today), otherwise
+    switching one access style would silently empty this set and the guard would pass vacuously.
+    """
+    tree = ast.parse(RISK_PROJECTION.read_text())
+    fn = next(n for n in ast.walk(tree) if isinstance(n, ast.FunctionDef) and n.name == "deterministic_bins")
+    axes: set[str] = set()
+    for node in ast.walk(fn):
+        if (
+            isinstance(node, ast.Call)
+            and isinstance(node.func, ast.Attribute)
+            and node.func.attr == "get"
+            and isinstance(node.func.value, ast.Name)
+            and node.func.value.id == "sv"
+            and node.args
+            and isinstance(node.args[0], ast.Constant)
+        ):
+            axes.add(node.args[0].value)
+        if (
+            isinstance(node, ast.Subscript)
+            and isinstance(node.value, ast.Name)
+            and node.value.id == "sv"
+            and isinstance(node.slice, ast.Constant)
+        ):
+            axes.add(node.slice.value)
+    assert axes, "found no sub_verdict reads in deterministic_bins — the AST scan has stopped measuring"
+    return axes
 
 
 def _verdict_bearing(skill_dir: str) -> bool | None:
@@ -152,6 +222,87 @@ def test_declared_descriptive_axes_are_genuinely_verdictless():
     )
 
 
+def test_deterministic_bins_reads_only_scorecard_gate_axes():
+    """DECISION 3, MADE ENFORCEABLE. This is the guard the whole settlement rests on.
+
+    target-contracts `docs/design/RISK_CATEGORY_DASHBOARD_SPINE.md` Decision 3 (approved): a category's
+    risk level is a ROLL-UP of its GATES' statuses, "computed not authored … so the category rollup can
+    never disagree with the per-gate verdicts". An axis with no scorecard gate has no status to roll up,
+    which is precisely why `cis_coherence` / `immune_context` are `declared_context_tier` rather than
+    verdict members — so this file must be able to state Decision 3 as a fact about the code.
+
+    IT WAS APPROVED BUT NEVER ENFORCED. Measured 2026-09-16 it already held with ZERO exceptions; nothing
+    tested it, so the next person adding a gate-less leg to a bin would have met no resistance and the
+    settlement above would have quietly become false. An unenforced approved decision is indistinguishable
+    from a convention, and this is the third recorded instance of that class in this file's history.
+
+    THE ASYMMETRY MATTERS, and this test is deliberately ONE-DIRECTIONAL: being a gate is NECESSARY, not
+    SUFFICIENT. Measured, `genomic_alteration` and `differentiation` are gates that `deterministic_bins`
+    does NOT read (2 of the 8), and that is fine — a gate need not feed a bin. Asserting the converse would
+    force every gate into the bins, which Decision 3 never claimed.
+
+    SCOPE: sub_verdict AXES only. The bins also read card `interpretation_call`s directly (sc-normal,
+    normal-tissue-liability-gtex, modality-therapeutic-window, shed-ectodomain); Decision 3 is about
+    member axes, so those are out of scope here and this test says nothing about them.
+    """
+    gates = _short_to_gate()
+    read = _bin_read_axes()
+    gateless_read = sorted(read - set(gates))
+    assert not gateless_read, (
+        f"deterministic_bins reads sub_verdict axes with NO scorecard gate: {gateless_read}. This violates "
+        "RISK_CATEGORY_DASHBOARD_SPINE Decision 3 — a dim's bin is a ROLL-UP of its member gates' statuses, "
+        "so a gate-less axis has no status to roll up and its bin contribution can never be reconciled with "
+        "the per-gate scorecard. It also silently upgrades that axis's governance tier, because risk_6dim IS "
+        "citable_in_nominations (UNIFIED_OUTPUT_CONTRACT Decision 2). If the axis SHOULD gate, add it to "
+        f"tp_fanout._SHORT_TO_GATE first and take that decision explicitly. Gates today: {sorted(gates)}"
+    )
+    # GUARD THE GUARD — and note what would NOT work: `assert read & set(gates)` is UNKILLABLE here, since
+    # a `read` disjoint from `gates` makes `gateless_read` non-empty and fires the assert above first. The
+    # real way this decays is a NARROWING scan: refactor `sv.get("dependency")` into a helper and the AST
+    # stops seeing that axis, so the guard keeps passing over a shrinking set. Pin the two axes whose bin
+    # contribution is architecturally certain (biological's dependency leg, the safety dim's own verdict).
+    missing = sorted({"dependency", "safety"} - read)
+    assert not missing, (
+        f"the AST scan no longer sees {missing} being read by deterministic_bins, but the bins certainly "
+        "still use them — the scan has stopped measuring what it claims to (a sub_verdict access was "
+        "probably moved behind a helper). Widen _bin_read_axes(); do NOT delete this assertion."
+    )
+
+
+def test_declared_context_tier_axes_are_verdict_bearing_AND_gateless():
+    """THE ANTI-RUG TEST for the new state, mirroring `test_declared_descriptive_axes_are_genuinely_
+    verdictless`. `declared_context_tier` makes TWO factual claims, and BOTH are checked here against
+    oracles outside this map, so the state cannot be used as a parking space:
+
+        verdict-BEARING   (else it is `declared_descriptive` — nothing to decide)   <- narrator_lenses
+        gate-LESS         (else Decision 3 does not excuse it from a bin)           <- _SHORT_TO_GATE
+
+    The second half is the load-bearing one. Without it, a future change could add an axis to
+    `_SHORT_TO_GATE` — making it a scorecard gate, with a status a dim COULD roll up — while its entry here
+    went on citing "gate-less by design" as the reason it is not a member. The rationale would be stale and
+    nothing would say so. That is the exact failure mode this file exists for: a declaration outliving the
+    fact it asserts (cf. the AXIS_TO_DIM comment that survived the 2026-08-21 consolidation by weeks).
+    """
+    roster = _roster()
+    gates = _short_to_gate()
+    tier = sorted(s for s, e in AXIS_DIM_EXCLUSIONS.items() if e["state"] == DECLARED_CONTEXT_TIER)
+    assert tier, "no declared_context_tier axes left — if the state is now unused, delete it and its docs"
+
+    for short in tier:
+        bearing = _verdict_bearing(roster[short])
+        assert bearing is not False, (
+            f"{short} is {DECLARED_CONTEXT_TIER!r} but its lens declares verdict_key=None. That state means "
+            f"'has a verdict, deliberately does not bin'; a verdictless axis belongs in {DECLARED_DESCRIPTIVE!r}"
+        )
+        assert short not in gates, (
+            f"{short} is now a SCORECARD GATE ({gates.get(short)!r}) but is still declared "
+            f"{DECLARED_CONTEXT_TIER!r}, whose whole rationale is that it is gate-less so Decision 3 gives "
+            "its dim no status to roll up. That rationale is now FALSE. Re-decide: either make it a verdict "
+            "member of its dim (AXIS_TO_DIM + deterministic_bins, and remove it from ir._CONTEXT_DIM), or "
+            "record why a gated axis still must not reach its dim's bin."
+        )
+
+
 def test_open_pending_review_axes_are_verdict_bearing_or_lensless():
     """The converse: an OPEN entry must have something to project, else it belongs in the settled half."""
     roster = _roster()
@@ -179,13 +330,52 @@ def test_open_pending_review_set_is_pinned():
     RE-MEASURED 2026-09-16 on the 504-target corpus (corpus-20260915). Live verdict counts at the time:
     cis_coherence 504/504 non-null over 7 states; immune_context 504/504 over 5; subtype_fit 71/504
     non-null over 3 (and 0/504 skill_reports, so no cards_used provenance at all).
+
+    ★ NARROWED 2026-09-16: this set was {cis_coherence, immune_context, subtype_fit} and is now
+    {subtype_fit}. The other two were ANSWERED **NO** and moved to `declared_context_tier` — see
+    THE GOVERNING PRINCIPLE in risk_projection.py: a dim's bin rolls up its GATES (target-contracts
+    RISK_CATEGORY_DASHBOARD_SPINE Decision 3), both are deliberately gate-less, so they cannot be verdict
+    members. `test_deterministic_bins_reads_only_scorecard_gate_axes` is the enforceable form of that.
+    Their departure is NOT an "answered because implemented": they gained nothing here, they were
+    RECLASSIFIED, and both were already displayed AND counted on their dim before this change.
     """
     open_axes = {s for s, e in AXIS_DIM_EXCLUSIONS.items() if e["state"] == OPEN_PENDING_REVIEW}
-    assert open_axes == {"cis_coherence", "immune_context", "subtype_fit"}, (
+    assert open_axes == {"subtype_fit"}, (
         f"the set of undecided axes changed: {sorted(open_axes)}. If an axis was MAPPED, drop it from "
         "AXIS_DIM_EXCLUSIONS here too. Mapping does NOT move bins (measured: 0/2520), but it DOES change "
-        "the dim's coverage line and its displayed member list => expect report goldens to move. If a "
-        "NEW axis appeared, it needs a decision, not a quiet exclusion."
+        "the dim's coverage line and its displayed member list => expect report goldens to move. If an "
+        "axis was DECIDED-AGAINST, move it to DECLARED_CONTEXT_TIER with the rationale. If a NEW axis "
+        "appeared, it needs a decision, not a quiet exclusion."
+    )
+
+
+def test_subtype_fit_is_the_open_one_because_it_is_a_GATING_axis():
+    """WHY `subtype_fit` STAYS OPEN while its two former co-tenants were settled — and the guard against
+    the specific wrong edit this settlement invites.
+
+    Decision 3 settles cis_coherence / immune_context because they are gate-less. That argument DOES NOT
+    REACH subtype_fit, and the tempting generalisation ("the leftover excluded axes are all gate-less
+    context") is FALSE: subtype_fit is in `tp_gates._GATING_AXES` — one of only THREE axes that can force
+    `overall_recommendation` (('subtype_fit','subtype_specific_non_dependence') -> `hold`). So of the
+    three axes once parked in OPEN_PENDING_REVIEW it is the one WITH a governance claim, not the weakest.
+
+    This test reads tp_gates' own literal so the claim cannot rot: if subtype_fit is ever removed from
+    _GATING_AXES, the rationale in its exclusion entry needs rewriting, and this reds instead of the
+    entry quietly becoming wrong.
+
+    NOT restated here (see the entry itself): its 433/504 nulls are SCOPE FORECLOSURE by design
+    (_SCOPE_OPTIN_GATING_AXES), and the real blocker is the facet-less inline tier emitting no
+    skill_report — a `skills/target-profile/` change, out of this file's reach.
+    """
+    gating = _frozenset_literal(TP_GATES, "_GATING_AXES")
+    assert "subtype_fit" in gating, (
+        "subtype_fit is no longer in tp_gates._GATING_AXES. Its AXIS_DIM_EXCLUSIONS reason argues it is "
+        f"OPEN *because* it is recommendation-forcing; that argument is now stale. Current set: {sorted(gating)}"
+    )
+    assert AXIS_DIM_EXCLUSIONS["subtype_fit"]["state"] == OPEN_PENDING_REVIEW, (
+        "subtype_fit's state changed without this test being updated. It must NOT be moved to "
+        "DECLARED_CONTEXT_TIER — that state means gate-less, and subtype_fit gates. Closing it means "
+        "emitting a skill_report from tp_fanout, then mapping it."
     )
 
 
@@ -261,22 +451,43 @@ def test_coverage_only_axes_add_no_new_dim():
     )
 
 
-def test_coverage_only_axes_are_declared_and_verdictless():
+def test_coverage_only_axes_are_declared_and_never_verdict_members():
     """Being COUNTED for coverage must not smuggle an axis out of the declaration partition. Coverage
     counts CARDS and AXIS_TO_DIM records VERDICT membership, so an axis can legitimately be counted while
-    staying declared-excluded — but it must still carry a reason, and it must not be a verdict-bearing axis
-    that is being quietly satisfied here INSTEAD of having its `open_pending_review` question answered.
+    staying declared-excluded — but it must still carry a reason, and being counted must never be mistaken
+    for having become a member.
+
+    ★ WHAT THIS TEST USED TO SAY, and why the replacement is not a relaxation. It pinned
+    `still_open == ["cis_coherence", "immune_context"]` so the #1419 coverage change could not be misread
+    as having answered their VERDICT-membership question. That question has since been answered — NO, on
+    Decision 3 — and both axes moved to `declared_context_tier`, which would leave the old assertion
+    trivially satisfiable and its intent lost. The intent is preserved by pinning the STRONGER property
+    that now holds: every counted-but-excluded axis is excluded for a SETTLED reason, and none is OPEN.
+    An OPEN axis appearing in COVERAGE_ONLY_AXES is exactly the confusion the old assert guarded against —
+    it would mean an unanswered verdict question had been made to LOOK answered by counting its cards.
     """
     undeclared = sorted(set(COVERAGE_ONLY_AXES) - set(AXIS_DIM_EXCLUSIONS))
     assert not undeclared, f"COVERAGE_ONLY_AXES entries with no AXIS_DIM_EXCLUSIONS reason: {undeclared}"
 
-    # `immune_context` / `cis_coherence` are still OPEN as VERDICT members; counting their evidence does
-    # not resolve that, and this test exists so nobody reads the coverage change as having resolved it.
-    still_open = sorted(a for a in COVERAGE_ONLY_AXES if AXIS_DIM_EXCLUSIONS[a]["state"] == OPEN_PENDING_REVIEW)
-    assert still_open == ["cis_coherence", "immune_context"], (
-        f"the counted-but-still-OPEN set changed: {still_open}. Counting an axis's EVIDENCE is not the same "
-        "decision as making it a VERDICT member of the dim; if that verdict question was answered, move "
-        "the axis into AXIS_TO_DIM (and out of _CONTEXT_DIM and this map) rather than editing this list."
+    counted_but_open = sorted(a for a in COVERAGE_ONLY_AXES if AXIS_DIM_EXCLUSIONS[a]["state"] == OPEN_PENDING_REVIEW)
+    assert not counted_but_open, (
+        f"axes are COUNTED for coverage while their verdict-membership question is still OPEN: "
+        f"{counted_but_open}. Counting an axis's EVIDENCE is not the same decision as making it a VERDICT "
+        "member of the dim, and counting it here makes the open question look closed. Either settle the "
+        "axis (DECLARED_CONTEXT_TIER with a rationale, or map it into AXIS_TO_DIM and out of _CONTEXT_DIM) "
+        "or leave it uncounted."
+    )
+
+    states = {a: AXIS_DIM_EXCLUSIONS[a]["state"] for a in sorted(COVERAGE_ONLY_AXES)}
+    assert states == {
+        "cis_coherence": DECLARED_CONTEXT_TIER,
+        "combination_vulnerability": DECLARED_DESCRIPTIVE,
+        "immune_context": DECLARED_CONTEXT_TIER,
+        "target_intrinsic": DECLARED_DESCRIPTIVE,
+    }, (
+        f"the counted-axis roster or its declared reasons changed: {states}. Both kinds are legitimate "
+        "(descriptive = no verdict at all; context-tier = a verdict that deliberately never reaches a "
+        "bin), but each entry is a measured decision — see risk_projection.AXIS_DIM_EXCLUSIONS."
     )
 
 
