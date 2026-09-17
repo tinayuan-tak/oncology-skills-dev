@@ -186,3 +186,10 @@ sample_context: tumor         # patient tumor per-sample (TCGA), stratified by m
 measurement_type: tumor_expression_distribution
 entity_grains: [target_subtype]
 schema_version: 1
+threshold_roles:
+  subtype_effect_large:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_expression_distribution reference frame over `subtype_variance_explained` (variance_explained), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  subtype_effect_moderate:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_expression_distribution reference frame over `subtype_variance_explained` (variance_explained), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

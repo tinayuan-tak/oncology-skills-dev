@@ -198,3 +198,10 @@ sample_context: tumor         # patient tumor per-sample (TCGA) — orthogonal t
 measurement_type: tumor_expression_distribution
 entity_grains: [target_indication]
 schema_version: 1
+threshold_roles:
+  allgene_top_decile:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_expression_distribution reference frame over `allgene_percentile` (percentile), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  high_log2tpm:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_expression_distribution reference frame over `median_log2tpm` (log2tpm), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

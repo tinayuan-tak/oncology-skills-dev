@@ -185,3 +185,10 @@ measurement_type: chemical_genetic_concordance
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1
+threshold_roles:
+  concordance_strong_spearman:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the chemical_genetic_concordance reference frame over `best_spearman_r_crispr` (spearman_r), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  concordance_weak_spearman:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the chemical_genetic_concordance reference frame over `best_spearman_r_crispr` (spearman_r), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

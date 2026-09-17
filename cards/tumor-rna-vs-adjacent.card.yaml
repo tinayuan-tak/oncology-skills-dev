@@ -128,3 +128,13 @@ sample_context: tumor         # patient tumor vs adjacent normal (TCGA) — orth
 measurement_type: tumor_vs_adjacent_expression
 entity_grains: [target_indication]
 schema_version: 1
+threshold_roles:
+  allgene_top_decile:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_vs_adjacent_expression reference frame over `allgene_percentile` (percentile), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  modest_upregulation_log2fc:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_vs_adjacent_expression reference frame over `log2_fc` (log2FC), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  strong_upregulation_log2fc:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_vs_adjacent_expression reference frame over `log2_fc` (log2FC), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

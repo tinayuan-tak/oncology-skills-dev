@@ -180,3 +180,7 @@ measurement_type: crispr_lof_dependency
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target, target_lineage, target_subtype]
 schema_version: 1
+threshold_roles:
+  moderately_dependent_threshold_chronos:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the crispr_lof_dependency reference frame over `median_chronos_panel` (chronos), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

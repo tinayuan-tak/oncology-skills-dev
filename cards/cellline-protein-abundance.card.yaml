@@ -173,3 +173,7 @@ measurement_type: cell_line_protein_abundance
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target, target_lineage]
 schema_version: 1
+threshold_roles:
+  allgene_top_decile:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the cell_line_protein_abundance reference frame over `allgene_percentile` (percentile), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

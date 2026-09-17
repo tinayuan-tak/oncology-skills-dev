@@ -163,3 +163,7 @@ measurement_type: surface_density
 modality_relevance: [adc, bite_tce]
 entity_grains: [target_indication]
 schema_version: 1
+threshold_roles:
+  tce_viability_copies_per_cell:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the surface_density reference frame over `absolute_copies_per_cell` (copies_per_cell), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

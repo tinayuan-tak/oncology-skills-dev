@@ -132,3 +132,7 @@ caveats:
 measurement_type: mutation_hotspot_frequency
 entity_grains: [target_indication]
 schema_version: 1
+threshold_roles:
+  driver_recurrence_top_1pct:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the mutation_hotspot_frequency reference frame over `pooled_driver_recurrence_percentile` (percentile), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

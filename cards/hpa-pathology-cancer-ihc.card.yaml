@@ -87,3 +87,7 @@ sample_context: tumor
 modality_relevance: [antibody, adc, bite_tce, small_molecule, degrader]
 entity_grains: [target_indication]
 schema_version: 1
+threshold_roles:
+  ihc_detected_moderate_max_fraction:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_protein_ihc_presence reference frame over `fraction_moderate_strong` (fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

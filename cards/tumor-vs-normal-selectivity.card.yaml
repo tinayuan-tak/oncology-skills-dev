@@ -433,3 +433,7 @@ modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
 # the whole-cohort target_indication grain remains the primary read.
 entity_grains: [target_indication, target_subtype]
 schema_version: 1
+threshold_roles:
+  modest_selectivity_log2fc:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_vs_normal_selectivity reference frame over `log2fc_cell_a` (log2FC), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

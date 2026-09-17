@@ -178,3 +178,7 @@ sample_context: tumor         # pan-cancer tumor protein (CPTAC) rolled up over 
 measurement_type: tumor_elevation_breadth
 entity_grains: [target]
 schema_version: 1
+threshold_roles:
+  broadly_elevated_min_cohorts:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_elevation_breadth reference frame over `n_cohorts_elevated` (cohorts), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

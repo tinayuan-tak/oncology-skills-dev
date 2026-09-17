@@ -99,3 +99,10 @@ measurement_type: drug_anchored_combination
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1
+threshold_roles:
+  strong_shift:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the drug_anchored_combination reference frame over `strongest_co_target_shift` (effect_shift), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  supported_shift:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the drug_anchored_combination reference frame over `strongest_co_target_shift` (effect_shift), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

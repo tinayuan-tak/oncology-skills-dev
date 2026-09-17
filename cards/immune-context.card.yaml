@@ -177,3 +177,10 @@ measurement_type: immune_context
 modality_relevance: [bite_tce]
 entity_grains: [target_indication]
 schema_version: 1
+threshold_roles:
+  cd8_fraction_cold_max:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the immune_context reference frame over `median_cd8_fraction` (fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  cd8_fraction_hot_min:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the immune_context reference frame over `median_cd8_fraction` (fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

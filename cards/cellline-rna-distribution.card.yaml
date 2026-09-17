@@ -165,6 +165,12 @@ threshold_roles:
   min_lineage_size:
     role: method_parameter
     consumed_by: depmap-expression-distribution
+  allgene_top_decile:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the cell_line_rna_expression reference frame over `allgene_percentile` (percentile), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  highly_expressed_threshold_log2tpm:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the cell_line_rna_expression reference frame over `median_log2tpm_panel` (log2tpm), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
 warning_predicates:
   - warning_id: low_panel_expression_coverage
     if: "n_cell_lines_evaluated < 500"

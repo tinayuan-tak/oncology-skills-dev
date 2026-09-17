@@ -228,3 +228,7 @@ measurement_type: prism_compound_activity
 modality_relevance: [small_molecule]
 entity_grains: [target, target_lineage]
 schema_version: 1
+threshold_roles:
+  clinically_active_log2auc:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the prism_compound_activity reference frame over `median_log2auc_across_compounds` (log2auc), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

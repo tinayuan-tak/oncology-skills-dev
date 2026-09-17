@@ -267,3 +267,7 @@ measurement_type: copy_number_alteration
 modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
 entity_grains: [target, target_lineage]
 schema_version: 1
+threshold_roles:
+  recurrent_event_fraction:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the copy_number_alteration reference frame over `cn_recurrent_amplification_score` (event_fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

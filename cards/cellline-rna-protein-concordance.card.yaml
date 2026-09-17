@@ -77,3 +77,10 @@ measurement_type: rna_protein_concordance
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1
+threshold_roles:
+  moderate_concordance_r:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the rna_protein_concordance reference frame over `rna_protein_r` (pearson_r), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  strong_concordance_r:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the rna_protein_concordance reference frame over `rna_protein_r` (pearson_r), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

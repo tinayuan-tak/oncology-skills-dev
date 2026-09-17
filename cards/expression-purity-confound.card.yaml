@@ -79,3 +79,7 @@ measurement_type: expression_purity_confound
 modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
 entity_grains: [target_indication]
 schema_version: 1
+threshold_roles:
+  intrinsic_r:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the expression_purity_confound reference frame over `expression_purity_pearson_r` (pearson_r), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

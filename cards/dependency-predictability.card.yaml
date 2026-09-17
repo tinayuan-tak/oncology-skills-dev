@@ -183,3 +183,7 @@ caveats:
 measurement_type: dependency_predictability
 entity_grains: [target, target_lineage]
 schema_version: 1
+threshold_roles:
+  r2_depmap_high_conf:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the dependency_predictability reference frame over `pearson_r_squared_rf` (r2), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

@@ -64,3 +64,7 @@ measurement: bulk_rna
 measurement_type: normal_tissue_rna_breadth
 entity_grains: [target]
 schema_version: 1
+threshold_roles:
+  high_log2tpm:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the normal_tissue_rna_breadth reference frame over `highest_tissue_median` (log2tpm), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

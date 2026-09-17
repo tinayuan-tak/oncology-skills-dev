@@ -206,6 +206,9 @@ threshold_roles:
   broadly_low_max:
     role: method_parameter
     consumed_by: sc-tumor-expression-celltype
+  malignant_broadly_detected_min:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the sc_tumor_celltype_expression reference frame over `malignant_detection_fraction` (detection_fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
 warning_predicates:
   - warning_id: no_malignant_compartment
     if: "malignant_compartment_available == false"

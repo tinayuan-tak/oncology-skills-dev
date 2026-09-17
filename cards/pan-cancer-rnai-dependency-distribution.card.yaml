@@ -121,3 +121,7 @@ measurement_type: rnai_lof_dependency
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target, target_lineage]
 schema_version: 1
+threshold_roles:
+  moderately_dependent_threshold_demeter:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the rnai_lof_dependency reference frame over `rnai_median_dep_score` (demeter2), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

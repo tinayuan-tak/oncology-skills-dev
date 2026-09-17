@@ -98,3 +98,7 @@ measurement_type: combinatorial_ko_dependency
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target, target_pair]
 schema_version: 1
+threshold_roles:
+  constitutive_mean_gi:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the combinatorial_ko_dependency reference frame over `strongest_partner_mean_gi` (gi_chronos), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

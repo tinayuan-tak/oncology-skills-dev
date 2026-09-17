@@ -122,3 +122,7 @@ measurement_type: measured_potency_tractability
 modality_relevance: [small_molecule]
 entity_grains: [target]
 schema_version: 1
+threshold_roles:
+  potent_neglog_m:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the measured_potency_tractability reference frame over `best_measured_potency_neglog_m` (neglog_M), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

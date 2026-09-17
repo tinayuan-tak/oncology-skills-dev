@@ -80,3 +80,7 @@ sample_context: tumor          # tumor per-sample, contrasted against matched no
 measurement_type: tumor_vs_normal_percentile_crossing
 entity_grains: [target_indication]
 schema_version: 1
+threshold_roles:
+  strong_frac_p95:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_vs_normal_percentile_crossing reference frame over `fraction_tumor_above_normal_p95` (fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
