@@ -107,9 +107,23 @@ outputs:
       stratum: string
       class: string                              # broadly_high | broadly_detected | broadly_low | insufficient
       subtype_signal: {enum: [enriched, depleted, uniform], type: string}
+      # The enrichment cutoff ACTUALLY APPLIED to produce `subtype_signal` on this row, in log2 units.
+      # Declared 2026-09-18 to close a cross-arm comparability defect: "enriched" means a 2x linear
+      # shift here (1.0) and a 1.5x shift on tumor-rna-distribution-by-subtype (0.585), and the number
+      # lived only as a constant inside each method (_SUBTYPE_ENRICH_LOG2_DELTA) and was emitted
+      # NOWHERE, so a consumer joining the two arms per stratum could not tell that the two "enriched"
+      # calls are not the same claim. Emitting the applied delta makes them normalisable WITHOUT moving
+      # either cut — preferred over aligning the constants, because lowering this one would silently
+      # change the live subtype_signal of every DepMap stratum between 0.585 and 1.0.
+      subtype_enrich_log2_delta: number
       # WIDENED 2026-09-18 for AM #659. Unlike summary_fields_vocabulary above, THIS enum is the
       # restrictive half — it is what an emitted row is validated against, so a reader that opts into
       # the exploratory band before this widening emits a row its own card rejects.
+      # REACHABILITY, verified 2026-09-18 (AM #662, merge 48f20a1): BOTH new tokens are live on this
+      # arm — depmap_expression_distribution/read.py:173 passes `exploratory_floor=` AND `evaluated=`
+      # in one evidence_state() call. This arm can pass `evaluated=` precisely because it is handed
+      # `subgroups` by the CALLER, so it can be asked about a stratum nobody was assigned to (the
+      # MEASURED DepMap STAD/PAAD all-null shape). The tumor arm cannot and must not — see that card.
       evidence_state: {enum: [measured, exploratory, underpowered, unevaluable, absent], type: string}
       subgroup_n: integer
       subgroup_n_floor_met: boolean
@@ -124,9 +138,27 @@ thresholds:
   # Mirrors _SUBTYPE_ENRICH_LOG2_DELTA in the method (declared here so it is reviewable).
   subtype_enrich_log2_delta: 1.0
   subgroup_n_floor: 30                           # underpowered stratum → null signal, never a scoped call
+  # SECOND, LOWER band — NOT a relaxation of subgroup_n_floor, which keeps its one meaning (>=30) on
+  # every substrate. INCLUSIVE (`subgroup_n >= exploratory_floor`), mirroring
+  # subgroup_common.SUBGROUP_EXPLORATORY_FLOOR. This is the arm where the band does the most work:
+  # DepMap panels are n≈20-130 per indication BEFORE the stratum split, so a floor calibrated on
+  # patient cohorts rejects nearly everything. MEASURED 2026-09-18 on the landed shards, the band
+  # captures coadread-cms CMS3 19 / CMS1 17, hnsc larynx 10 and sclc SCLC_N 15 — real cell lines that
+  # were previously discarded to a null with no trace that they existed.
+  subgroup_exploratory_floor: 10
 
 threshold_roles:
+  # `role: method_parameter` asserts the cutoff is applied UPSTREAM by the named method.
+  # validate_cards.py:693 only checks `consumed_by` names a methods[].call on this card — it does NOT
+  # check the method reads the value, so this entry is only honest if verified by hand. Verified
+  # 2026-09-18 against AM trunk b95a8b6: depmap_expression_distribution/read.py:173.
   subtype_enrich_log2_delta:
+    role: method_parameter
+    consumed_by: depmap-expression-distribution
+  subgroup_n_floor:
+    role: method_parameter
+    consumed_by: depmap-expression-distribution
+  subgroup_exploratory_floor:
     role: method_parameter
     consumed_by: depmap-expression-distribution
 caveats:
