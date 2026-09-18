@@ -1963,30 +1963,129 @@ rules:
   - rule_id: sc-normal-high-liability-bite-killer
     when:
       card_id: sc-normal-celltype-expression
-      field: sc_normal_safety_essential_class
-      equals: critical_organ_liability
+      field: sc_normal_essential_veto_grade
+      in: [accessible_high_severity, accessible_ungraded]
     signals:
       bite_tce: killer
     dominant: true
+    # killer_message has a HARD schema cap of 500 chars and the message it replaced already sat at
+    # 482 — so the compartment/severity detail lives in the rationale (uncapped), not here. 482/500.
     killer_message: |
-      Single-cell RNA profiling shows HIGH expression in an ESSENTIAL cell type of a
-      NON-origin critical organ (heart/liver/kidney/marrow/neuron). BiTE/TCE have no
-      payload buffer and no binding-consequence gating — essential-cell expression in a
-      non-origin critical organ is a first-order on-target-off-tumor safety liability.
-      Not viable for BiTE/TCE without a mitigation strategy (conditional activation,
-      dual-antigen gating, restricted delivery). Check the named essential-cell driver.
+      Single-cell RNA shows HIGH, cross-donor-consistent, multi-atlas expression in an ESSENTIAL
+      cell type of a NON-origin critical organ a systemically dosed biologic REACHES
+      (heart/liver/kidney/marrow/lung/pancreas/adrenal). BiTE/TCE have no payload buffer and no
+      binding-consequence gating, making this a first-order on-target-off-tumor liability. Not
+      viable without mitigation (conditional activation, dual-antigen gating, restricted
+      delivery). Check the named essential-cell driver.
     rationale: |
       The strict-modality no-buffer safety killer (cell-type-resolved RNA layer, mirrors
-      the HPA-essential-tissue killer in F4). Keys on the ORGAN-AWARE
-      sc_normal_safety_essential_class == critical_organ_liability (essential cell type,
-      NON-origin critical organ) — NOT the blunt sc_normal_expression_class == HIGH_LIABILITY,
-      which the method author flags as "too blunt to veto a validated ADC target" (it fires
-      on ANY high normal cell type incl. tissue-of-origin epithelium + non-essential cells).
-      Repointed 2026-09-07 to match the refined field the sibling tumor-selectivity gate
-      (tvn-sc-normal-critical-organ-veto) already consumes — closing a cross-skill desync that
-      false-TCE-vetoed origin-tissue / non-essential-only antigens. origin_tissue_liability is
-      window-arbitrated (NOT a hard veto), per the method's design intent. Same BiTE/TCE-only
-      killer logic as F4: ADC + antibody receive opposing (not killer) on the same signal.
+      the HPA-essential-tissue killer in F4). BiTE/TCE-only: ADC + antibody receive opposing
+      (not killer) via sc-normal-high-liability-adc-antibody-opposing.
+
+      HISTORY OF THIS PREDICATE — it has been sharpened twice, each time because the field it
+      keyed on could not discriminate:
+        - originally sc_normal_expression_class == HIGH_LIABILITY, which the method author
+          flags as "too blunt to veto a validated ADC target" (fires on ANY high normal cell
+          type incl. tissue-of-origin epithelium + non-essential cells);
+        - repointed 2026-09-07 to the ORGAN-AWARE sc_normal_safety_essential_class ==
+          critical_organ_liability, matching the field the sibling tumor-selectivity gate
+          (tvn-sc-normal-critical-organ-veto) consumes — closing a cross-skill desync that
+          false-TCE-vetoed origin-tissue / non-essential-only antigens;
+        - repointed 2026-09-16 (HERE) to sc_normal_essential_veto_grade, because
+          critical_organ_liability is a BOOLEAN that fires on 468/504 corpus-20260914 targets
+          (92.9%). A dominant killer that fires on 93% of a corpus is not a discriminator, it
+          is a constant. DLL3-SCLC is vetoed by it today — and tarlatamab is an APPROVED TCE.
+
+      WHY A NEW FIELD AND NOT A NEW THRESHOLD. The detection axis is saturated, so no line on
+      it helps: sweeping the off-origin floor 0.20/0.30/0.40/0.50/0.60/0.70/0.80/0.90 gives
+      92.9/89.3/87.5/81.0/73.2/67.5/55.8/42.9%, the observed minimum is 0.219 (nothing sits
+      near the current floor), and corpus detection medians 0.871 / p75 0.970. What was missing
+      was a SECOND axis. sc_normal_essential_veto_grade supplies two — COMPARTMENT (can a
+      systemically dosed biologic reach the organ at all?) x SEVERITY (magnitude x cross-donor
+      consistency x independent-atlas replication) — precomputed method-side because this rule
+      grammar is single-predicate and cannot express the conjunction.
+
+      EFFECT, MEASURED LIVE over all 504 pairs (not estimated from the stored top-15 footprint,
+      which is truncated in a way that CORRELATES with breadth): this killer's base rate falls
+      92.9% -> 44.2%. Of the 48.6 points of relief, the SEVERITY/replication rung is 88% (216
+      targets) and the compartment rung only 12% (29). The compartment axis is nonetheless
+      load-bearing as a CORRECTNESS GUARD: it is decided over the WHOLE above-floor off-origin
+      pool rather than the argmax organ, because 230 of the 259 brain-argmax critical calls
+      (88.8%) ALSO carry an accessible-organ hit, so an argmax-based call would fail OPEN on
+      230 real lung/liver/marrow liabilities.
+
+      FAIL-CLOSED PREDICATE. `in` deliberately includes accessible_ungraded — an accessible hit
+      whose grading inputs are ABSENT. Thinner data must never buy a better safety verdict, so
+      the ungraded rung keeps the hard veto rather than dropping to a lower rung. It occurs 0x
+      on corpus-20260914; inert by corpus is not safe by contract.
+
+      WHAT NO LONGER FIRES THIS KILLER, and where it goes instead: accessible_moderate_severity
+      / accessible_low_confidence / bbb_protected now take bite_tce OPPOSING via the three
+      graded rules below (a therapeutic-window justification is required, not an automatic
+      veto). origin_tissue is window-arbitrated and fires nothing, as origin_tissue_liability
+      did. not_applicable / data_unavailable fire nothing here — the coverage gap is surfaced
+      by the card's sc_normal_data_unavailable warning_predicate, and a gap must not read as
+      either a veto or a pass.
+
+  # --- graded companions to the killer above (2026-09-16) -------------------------------
+  # These three cover the rungs that USED to take the dominant killer. They are OPPOSING, not
+  # killers, and they are NOT wired into any resolver gate — so they are annotation-only
+  # (rule_role_partition: display): they make the retained liability visible in the narrative
+  # and per-modality signal tally without minting new verdict rungs. That restraint is
+  # deliberate; adding verdict rungs is a separate architectural decision, not a side effect
+  # of grading a veto.
+
+  - rule_id: sc-normal-graded-accessible-moderate-bite-opposing
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_essential_veto_grade
+      equals: accessible_moderate_severity
+    signals:
+      bite_tce: opposing
+    rationale: |
+      REPLICATED essential-cell expression in a systemically accessible non-origin critical
+      organ, but below the HIGH bar (det >= 0.50 AND donor >= 0.70 AND >= 2 atlases). A real
+      on-target-off-tumor liability that requires a therapeutic-window justification — not an
+      automatic veto. 14.1% of corpus-20260914 (71 targets), and the rung that relieves
+      DLL3-SCLC. CAVEAT worth carrying: the HIGH bar is a CONJUNCTION, so a heavily replicated
+      hit can land here on the det conjunct alone — MSLN-PAAD grades moderate at det 0.413 /
+      donor 0.881 / 26 independent atlases. Read the named sc_normal_essential_max_* driver
+      fields before treating this rung as reassuring.
+
+  - rule_id: sc-normal-graded-accessible-low-confidence-bite-opposing
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_essential_veto_grade
+      equals: accessible_low_confidence
+    signals:
+      bite_tce: opposing
+    rationale: |
+      Essential-cell expression in a systemically accessible non-origin critical organ, but
+      resting on THIN evidence: det < 0.30 OR a single atlas. The EPCAM/FOLR1 shape — a det
+      0.99 detection carried by exactly ONE atlas. Opposing, because the liability may well be
+      real; not a killer, because one atlas cannot support a dominant modality veto. 28.8% of
+      corpus-20260914 (145 targets), the single largest relieved group. NOTE THE ASYMMETRY WITH
+      accessible_ungraded, which keeps the hard veto: low_confidence means the replication was
+      MEASURED and came back thin, whereas ungraded means it was not measurable at all. A
+      measured weakness may lower a rung; missing data may not.
+
+  - rule_id: sc-normal-graded-bbb-protected-bite-opposing
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_essential_veto_grade
+      equals: bbb_protected
+    signals:
+      bite_tce: opposing
+    rationale: |
+      EVERY above-floor off-origin essential hit is brain parenchyma. Opposing rather than
+      killer on the compartment argument alone: a systemically dosed T-cell engager is the
+      modality least able to reach parenchyma behind an intact blood-brain barrier. This is a
+      RELEASE OF THE HARD VETO ONLY, not a safety pass — GD2 and B7-H3 are proof that brain is
+      not a free pass, and a BBB-crossing modality (small_molecule / degrader) would warrant a
+      veto here; this card emits nothing on those channels and this change does not widen it.
+      Rare: 5.8% of corpus-20260914 (29 targets). It is rare BECAUSE the rung requires the
+      whole pool to be brain — brain wins the ARGMAX on 55.3% of firings, and reading the
+      argmax instead would have mislabelled 230 accessible-organ liabilities as protected.
 
   - rule_id: sc-normal-high-liability-adc-antibody-opposing
     when:

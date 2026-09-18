@@ -109,6 +109,18 @@ outputs:
     - sc_normal_essential_donor_fraction  # cross-donor consistency at that essential cell
     - sc_normal_essential_n_datasets_reliable      # independent-atlas replication at that essential cell
     - sc_normal_essential_median_abund    # median_abund (log1p_cp10k) at that essential cell
+    # GRADED companion to sc_normal_safety_essential_class (2026-09-16). The class is a BOOLEAN that
+    # fires on 468/504 corpus targets (92.9%) and drives a dominant BiTE/TCE killer — a boolean firing
+    # on 93% of a corpus cannot discriminate, and DLL3-SCLC is vetoed today while tarlatamab is an
+    # APPROVED TCE. This field carries the compartment x severity the killer actually needs, taking it
+    # to 44.2%. MEASURED LIVE over all 504 pairs, not estimated from the stored top-15 footprint:
+    # accessible_high_severity 44.2% / accessible_low_confidence 28.8% / accessible_moderate_severity
+    # 14.1% / bbb_protected 5.8% / not_applicable 5.8% / origin_tissue 1.4% / accessible_ungraded 0.
+    # NOTE WHICH RUNG DOES THE WORK: the SEVERITY/replication axis is 88% of the relief (216 targets);
+    # the compartment axis is only 12% (29). Brain wins the ARGMAX on 55.3% of firings, but only 6.2%
+    # are brain-ONLY — so the compartment axis is a CORRECTNESS GUARD, not the base-rate repair.
+    # VERDICT-DRIVING (the BiTE/TCE killer keys on it) — unlike the sc_normal_essential_max_* fields.
+    - sc_normal_essential_veto_grade      # compartment x severity of the veto's OWN off-origin pool
     - sc_normal_ceiling_detection_fraction  # global max median_det across reliable cell types — the
                                           # single-cell tumor-vs-normal WINDOW denominator (positive atlas use)
     - n_reliable_cell_types               # count of cell types passing the min-donor reliability gate
@@ -138,6 +150,38 @@ outputs:
                                    # arbitrated, NOT a hard veto (a validated ADC target must survive).
       - none                       # no safety-essential expression above the 0.05 floor
       - data_unavailable           # no product for queried tissue(s) OR insufficient donor coverage
+    sc_normal_essential_veto_grade:        # GRADED veto instrument (2026-09-16). Same essential-cell hits
+                                           # sc_normal_safety_essential_class finds, partitioned by
+                                           # COMPARTMENT (can a systemically dosed biologic reach the organ?)
+                                           # x SEVERITY (magnitude x cross-donor consistency x independent-atlas
+                                           # replication). The partition runs over the WHOLE above-floor
+                                           # off-origin pool, NOT the argmax organ: measured live,
+                                           # 230 of 259 brain-argmax critical calls (88.8%) ALSO carry an
+                                           # accessible-organ hit, so an argmax-based compartment call
+                                           # would FAIL OPEN on 230 real lung/liver/marrow liabilities.
+      - accessible_high_severity   # off-origin essential hit in a SYSTEMICALLY ACCESSIBLE critical organ
+                                   # (heart/liver/kidney/marrow/lung/pancreas/adrenal), det >= 0.50 AND
+                                   # donor >= 0.70 AND >= 2 independent atlases. The BiTE/TCE hard-veto rung.
+      - accessible_ungraded        # accessible hit whose GRADING INPUTS are absent (no n_datasets_reliable /
+                                   # expressing_donor_fraction column). Deliberately VETO-ELIGIBLE and NOT a
+                                   # low rung — thinner data must never buy a better safety verdict.
+      - accessible_moderate_severity  # accessible + replicated, below the HIGH bar. Opposing, not a killer.
+      - accessible_low_confidence  # accessible but det < 0.30 OR single-atlas (the EPCAM/FOLR1 shape: a
+                                   # det 0.99 / 0.71 hit resting on ONE atlas). Opposing, not a killer.
+      - bbb_protected              # EVERY above-floor off-origin hit is brain parenchyma. Still a real
+                                   # liability — GD2 and B7-H3 prove brain is not a free pass — so this stays
+                                   # OPPOSING for bite_tce; it only releases the HARD veto, on the ground that
+                                   # a systemically dosed TCE is the modality least able to reach parenchyma.
+                                   # NOT a free pass for a BBB-CROSSING modality: small_molecule / degrader
+                                   # would warrant a veto here, but this card emits NOTHING on those channels
+                                   # (modality_relevance: adc/bite_tce/antibody) and this change does not
+                                   # widen it — that is a separate, out-of-scope decision. Live: 5.8%.
+      - origin_tissue              # essential hits exist but ALL in the tumor's tissue-of-origin —
+                                   # window-arbitrated, mirrors origin_tissue_liability on the class.
+      - not_applicable             # no safety-essential hit at all (the pool is EMPTY, not merely exempted).
+      - data_unavailable           # no product for queried tissue(s) OR insufficient donor coverage. A
+                                   # COVERAGE GAP, deliberately spelled differently from not_applicable
+                                   # (a measured absence) so a gap can never read as a clean safety result.
     sc_normal_abundance_class:             # normal-tissue abundance at the liability-anchor cell type (#984 Tier-2).
                                            # Fixed bands = p25/p75 of the detected-abundance distribution, validated
                                            # tissue-invariant across colon/lung/kidney/liver/brain/pancreas.
