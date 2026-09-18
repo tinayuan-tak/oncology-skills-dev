@@ -335,13 +335,33 @@ VITAL_ORGAN_N_SAMPLES = {
     "adrenal gland": 8,
     "kidney": 10,
     "skeletal muscle": 10,
+    "small intestine": 10,  # + 2026-09-18 with the `small_intestine` promotion (see below)
     "liver": 12,
+    "large intestine": 13,  # + 2026-09-18 with the `gut` promotion (see below)
     "lung": 14,
     "heart": 18,
     "artery": 18,
     "nerve": 51,
     "brain": 74,
 }
+# `large intestine` (the `gut` anchor, promoted into CANONICAL_VITAL_ORGANS 2026-09-18) was measured
+# the same way as the original 13: a 3-column projection of the adult panel with NO gene filter, since
+# an arm size is a property of the PANEL and a gene-pushdown read would only see the arms that gene was
+# quantified in. Adult arm = 13 samples, comfortably above MIN_SAMPLES_MEASURABLE.
+#   The `else` branch in _vital_organ_summary already handled a crosswalk entry missing from this table
+# (unknown arm size => measurable=False, fail-closed), so omitting it would NOT have been a safety
+# fail-open — `above_abundance_floor` and n_above are computed independently of `measurable`. But every
+# gene undetected in large intestine would have reported measurable=False, taking the corpus-wide
+# unmeasurable count from 2 to 3 and understating the panel's real power. That is what this table is
+# for: distinguishing "clean here" from "cannot say here".
+#   `small intestine` (the second gut organ, promoted the same day — see the `small_intestine` note in
+# essential_organs.CANONICAL_VITAL_ORGANS for why it is not a redundant duplicate of `gut`) was measured
+# identically: adult arm = 10 samples, also above the floor. For the record, the full GI arm sizes are
+# stomach 16, large intestine 13, small intestine 10, esophagus 8, vermiform appendix 2 — the appendix
+# is the only GI part BELOW MIN_SAMPLES_MEASURABLE, and it is a non-anchor in TPHP_CROSSWALK anyway.
+#   All pre-existing values were RE-VERIFIED against the live product on 2026-09-18 (a full-panel,
+# no-gene-filter projection) and every one still matches, so this cache has not drifted since it was
+# measured. The two organs BELOW the floor are still exactly `blood` (1) and `thyroid gland` (2).
 
 
 def _vital_organ_summary(per_tissue: list[dict]) -> tuple[list[dict], str, int, int, int]:
@@ -356,13 +376,15 @@ def _vital_organ_summary(per_tissue: list[dict]) -> tuple[list[dict], str, int, 
       * vital_organ_low        — detected in >=1 vital organ but NONE at/above the floor (trace only)
       * no_vital_organ_signal  — not detected in any vital organ (in the TPHP panel)
 
-    ★ MEASURABILITY IS LABELLED, NEVER GATED — and that is the load-bearing decision here. Two of the 13
+    ★ MEASURABILITY IS LABELLED, NEVER GATED — and that is the load-bearing decision here. Two of the 15
     crosswalked organs are below MIN_SAMPLES_MEASURABLE: `blood` (n_samples=1) and `thyroid gland`
-    (n_samples=2). `thyroid` is an S1_3_REQUIRED_ORGANS member, i.e. one of the five organs whose
+    (n_samples=2). (15, not 13, since the 2026-09-18 gut promotions added `large intestine` at n_samples
+    =13 and `small intestine` at 10 — both measurable, so the two-unmeasurable count is unchanged by
+    either.) `thyroid` is an S1_3_REQUIRED_ORGANS member, i.e. one of the five organs whose
     ABSENCE from an essential set WAS the original safety false-negative. So a `n_samples >= 3` filter on
     this loop — the obvious-looking support gate — would DROP thyroid and blood from the panel, and
     dropping an organ makes it contribute nothing to n_above, which reads as "not a liability here". The
-    gate would silently restore two thirteenths of the exact hole `essential_organs.py` exists to close,
+    gate would silently restore two fifteenths of the exact hole `essential_organs.py` exists to close,
     and it would do it while looking like added rigour. (`bone marrow`, n_samples=3, sits EXACTLY on that
     bar — a third organ one donor away from disappearing.)
 

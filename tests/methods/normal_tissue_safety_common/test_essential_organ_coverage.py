@@ -157,13 +157,74 @@ def test_tphp_names_are_real_tphp_tissues():
 
 
 def test_gtex_names_are_real_gtex_tissues():
-    # window.py's ESSENTIAL_GTEX_TISSUES is the known-good 15-name GTEx set; every name we emit must
+    # window.py's ESSENTIAL_GTEX_TISSUES is the known-good GTEx set (17 names since the 2026-09-18 gut
+    # promotions added COLON + SMALL_INTESTINE); every name we emit must
     # be one of them (proves real recount3/GTEx labels AND that stats.py now aligns with the window
     # card — modulo SPLEEN, which the window card keeps and canonical holds).
     from methods.tcga_gtex_tpm_quantiles.window import ESSENTIAL_GTEX_TISSUES as WINDOW_SET
 
     assert set(eo.GTEX_ESSENTIAL_TISSUES) <= set(WINDOW_SET)
     assert "ARTERY" not in eo.GTEX_ESSENTIAL_TISSUES  # dead entry removed
+
+
+def test_every_hardcoded_gtex_copy_covers_the_canonical_set():
+    """THREE modules hold their own literal `ESSENTIAL_GTEX_TISSUES` instead of importing the derived
+    set, and until 2026-09-18 only ONE of them (`tcga_gtex_tpm_quantiles.window`, above) was pinned.
+    The other two — `exon_window.classify` and `pair_selectivity_gate.gates` — were guarded by
+    NOTHING, so an organ promotion could leave them behind and they would silently stop treating the
+    new organ as essential: divergence in the PERMISSIVE direction, which is the exact failure the
+    single-source module exists to prevent. Found while landing the `gut` promotion, whose own
+    comment asserted all three were pinned when only one was.
+
+    DISCOVERY, not a hardcoded roster, so a FOURTH copy added later is guarded on arrival — the
+    failure mode of a literal list is that it does not know what it is missing. Walks `tree.body`
+    (module-level assignments) and NOT `ast.walk`, which is not scope-aware and would also match a
+    function-local of the same name in some unrelated helper.
+    """
+    import ast
+    import importlib
+    from pathlib import Path
+
+    methods_root = Path(eo.__file__).resolve().parents[1]  # .../methods
+    copies: dict[str, Path] = {}
+    for py in sorted(methods_root.rglob("*.py")):
+        if "/tests/" in py.as_posix():
+            continue
+        for node in ast.parse(py.read_text()).body:
+            if isinstance(node, ast.Assign):
+                targets = node.targets
+            elif isinstance(node, ast.AnnAssign):
+                targets = [node.target]
+            else:
+                continue
+            if any(isinstance(t, ast.Name) and t.id == "ESSENTIAL_GTEX_TISSUES" for t in targets):
+                copies[py.relative_to(methods_root.parent).with_suffix("").as_posix().replace("/", ".")] = py
+
+    # ANTI-VACUITY: if discovery finds nothing (a renamed constant, a moved tree) every assertion
+    # below is skipped silently and this test becomes a green that cannot fail.
+    for known in (
+        "methods.tcga_gtex_tpm_quantiles.window",
+        "methods.exon_window.classify",
+        "methods.pair_selectivity_gate.gates",
+    ):
+        assert known in copies, (
+            f"{known} no longer defines a module-level ESSENTIAL_GTEX_TISSUES; discovery found "
+            f"{sorted(copies)}. If the copy was replaced by an import of the shared set that is GOOD "
+            f"— delete it from this roster. If it was renamed, this guard just went blind."
+        )
+
+    canonical = set(eo.GTEX_ESSENTIAL_TISSUES)
+    assert canonical, "derived GTEX_ESSENTIAL_TISSUES is empty — every coverage assert below is vacuous"
+
+    for mod in sorted(copies):
+        got = set(getattr(importlib.import_module(mod), "ESSENTIAL_GTEX_TISSUES"))
+        missing = canonical - got
+        assert not missing, (
+            f"{mod}.ESSENTIAL_GTEX_TISSUES is MISSING {sorted(missing)} — it is a HARDCODED COPY of "
+            f"the set derived from essential_organs.GTEX_CROSSWALK and has drifted. Add the names "
+            f"there; do not relax this guard. Extras are allowed (the window card keeps SPLEEN), so "
+            f"this is coverage, not equality."
+        )
 
 
 def test_sc_normal_names_have_shards():

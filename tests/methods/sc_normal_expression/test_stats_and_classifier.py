@@ -479,6 +479,7 @@ def test_read_target_summary_unknown_indication_still_reads_safety_essential(mon
         "adrenal_gland",
         "lung",
         "pancreas",
+        "colon",  # + 2026-09-18: the `gut` promotion made colon always-on (8 shards -> 9)
     ]
     assert "_data_note" in out
 
@@ -523,6 +524,8 @@ def test_tissues_for_indication_unions_matched_and_safety_essential():
         "brain",
         "adrenal_gland",
         "pancreas",
+        "colon",  # + 2026-09-18 gut promotion. NSCLC is non-GI, so colon is a genuine OFF-target
+        # query here — this is the line that shows the promotion buys cross-indication reach.
     ]
     # 3CA-backed indications added 2026-08-12
     assert R.tissues_for_indication("PAAD") == [
@@ -534,6 +537,7 @@ def test_tissues_for_indication_unions_matched_and_safety_essential():
         "brain",
         "adrenal_gland",
         "lung",
+        "colon",  # + 2026-09-18 gut promotion
     ]
     assert R.tissues_for_indication("HNSC") == [
         "esophagus",
@@ -545,7 +549,11 @@ def test_tissues_for_indication_unions_matched_and_safety_essential():
         "adrenal_gland",
         "lung",
         "pancreas",
+        "colon",  # + 2026-09-18 gut promotion
     ]
+    # STAD is GI but its matched tissue is STOMACH, which is a documented NON-ANCHOR for the canonical
+    # `gut` organ — so colon is appended as an OFF-target query rather than de-duped to the front the
+    # way COADREAD's is. That asymmetry is the SCALAR ANCHOR convention showing through, not a bug.
     assert R.tissues_for_indication("STAD") == [
         "stomach",
         "heart",
@@ -556,6 +564,7 @@ def test_tissues_for_indication_unions_matched_and_safety_essential():
         "adrenal_gland",
         "lung",
         "pancreas",
+        "colon",
     ]
     # Unknown indication → safety-essential only (never empty)
     assert R.tissues_for_indication("UNKNOWN") == [
@@ -567,6 +576,7 @@ def test_tissues_for_indication_unions_matched_and_safety_essential():
         "adrenal_gland",
         "lung",
         "pancreas",
+        "colon",  # + 2026-09-18 gut promotion
     ]
 
 
@@ -588,6 +598,7 @@ def test_indication_coverage_wires_orphaned_shards_and_origin_correctness():
         "adrenal_gland",
         "lung",
         "pancreas",
+        "colon",  # + 2026-09-18 gut promotion
     ]
     assert R.tissues_for_indication("GBM") == [
         "brain",
@@ -598,6 +609,7 @@ def test_indication_coverage_wires_orphaned_shards_and_origin_correctness():
         "adrenal_gland",
         "lung",
         "pancreas",
+        "colon",  # + 2026-09-18 gut promotion
     ]
 
 

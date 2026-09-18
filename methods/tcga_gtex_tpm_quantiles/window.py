@@ -108,6 +108,11 @@ ESSENTIAL_GTEX_TISSUES = frozenset(
         "BLOOD_VESSEL",
         "BONE_MARROW",
         "BRAIN",
+        # COLON — added 2026-09-18 with the `gut` promotion in CANONICAL_VITAL_ORGANS. This literal
+        # must track `essential_organs.GTEX_ESSENTIAL_TISSUES`: the CI guard asserts
+        # `GTEX_ESSENTIAL_TISSUES <= WINDOW_SET`, so the shared set gaining an organ REDS this file
+        # until the organ is added here. SPLEEN remains the one legitimate extra (canonical holds it).
+        "COLON",
         "HEART",
         "KIDNEY",
         "LIVER",
@@ -116,6 +121,14 @@ ESSENTIAL_GTEX_TISSUES = frozenset(
         "NERVE",
         "PANCREAS",
         "PITUITARY",
+        # SMALL_INTESTINE — added 2026-09-18 with `small_intestine` in CANONICAL_VITAL_ORGANS. THIS is
+        # the arm the second gut organ exists FOR: GTEx COLON pools Sigmoid (muscularis) + Transverse
+        # (mucosa) into one n=822 group, and THIS function reduces on the MEDIAN, which for a mucosal
+        # antigen lands in the trough between the two modes. Measured live over the 504-pair corpus:
+        # COLON alone moves `window_class` for 0 pairs; adding SMALL_INTESTINE moves 2
+        # (GUCY2C-COADREAD, MUC17-STAD: clean_window -> essential_tissue_liability) and
+        # `therapeutic_window_class` 3 (+ CDH17-COADREAD clean -> narrow).
+        "SMALL_INTESTINE",
         "SPLEEN",
         "THYROID",
     }
@@ -127,7 +140,7 @@ ESSENTIAL_GTEX_TISSUES = frozenset(
 # repointed via marrow.primary_marrow_tpm, not deleted.
 #
 # ★KNOWN WIDER SCOPE (this branch does not reach it): three OTHER methods carry their own copy of the
-# 15-name essential set and still read the K-562 rows as marrow —
+# 17-name essential set and still read the K-562 rows as marrow —
 # `exon_window.classify.ESSENTIAL_GTEX_TISSUES`, `pair_selectivity_gate.gates.ESSENTIAL_GTEX_TISSUES`,
 # and everything keyed on `normal_tissue_safety_common.essential_organs.GTEX_CROSSWALK["bone_marrow"]`
 # (notably tcga_gtex_expression_distribution.stats). They need the same exclusion + repoint.

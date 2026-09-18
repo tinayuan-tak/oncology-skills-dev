@@ -44,15 +44,52 @@ def _rows(tumor: dict, normal: dict):
 
 # ── the CEACAM5 archetype: huge window, still a strict-TCE liability ──────────
 def test_ceacam5_like_strict_liability_but_adc_clean():
-    rows = _rows({"COAD": 1878.0}, {"LUNG": 3.3, "COLON": 7.4, "SKIN": 1.0})
+    """The MODALITY-TIER discriminator, which is this test's actual subject: one normal organ sitting
+    BETWEEN the two tiers separates a strict-TCE liability from a clean ADC.
+
+    The fixture no longer carries COLON. It used to (7.4 TPM, placed there as a NON-essential tissue),
+    and the 2026-09-18 `gut` promotion made COLON essential — at 7.4 it clears the ADC tier (5.0) too,
+    so BOTH arms flagged and the discriminator this test exists to prove became untestable here. The
+    gut behaviour is not lost: it is pinned as its own case below, which is the honest split, because
+    the tier discriminator and the gut-organ semantics are independent claims and a fixture that
+    conflates them can only test one."""
+    rows = _rows({"COAD": 1878.0}, {"LUNG": 3.3, "SKIN": 1.0})
     strict = compute_window_from_rows(rows, "COADREAD", MODALITY_TIER_THRESHOLD["bite_tce"])
     adc = compute_window_from_rows(rows, "COADREAD", MODALITY_TIER_THRESHOLD["adc"])
     # strict (1.0): lung 3.3 >= 1.0 → essential-tissue liability, despite the enormous ratio
     assert strict["window_class"] == "essential_tissue_liability"
-    assert strict["window_ratio_essential"] > 100  # ~440x — the ratio is huge
+    assert strict["window_ratio_essential"] > 100  # ~569x — the ratio is huge
     assert strict["max_essential_normal_organ"] == "LUNG"
     # moderate/ADC (5.0): lung 3.3 < 5.0 → clean at the ADC tier (the ADC-vs-TCE discriminator)
     assert adc["window_class"] == "clean_window"
+
+
+def test_normal_colon_is_an_essential_liability_at_both_tiers_for_a_gi_indication():
+    """The gut half of the archetype above, pinned separately (2026-09-18 `gut` promotion).
+
+    Normal colonic CEACAM5 at 7.4 TPM clears BOTH the strict (1.0) and the ADC (5.0) tier, so a
+    CEACAM5-like antigen is an essential-tissue liability for a colorectal indication at every
+    modality tier — which is the biologically correct answer, and the reason CEACAM5 ADCs carry GI
+    toxicity rather than being spared by the tier.
+
+    Note COLON here is the tumour's OWN ORIGIN organ, and it still counts. That is deliberate and
+    documented at `window.py`'s ESSENTIAL_GTEX_TISSUES: the set is indication-INDEPENDENT and includes
+    the origin (LUNG for LUAD, LIVER for LIHC), because you cannot spare the origin organ, and the
+    sc-normal veto arm defers the origin call to exactly here. So this is the same rule that already
+    governed LUNG-for-LUAD, now reaching the gut — not a new exception for it."""
+    rows = _rows({"COAD": 1878.0}, {"LUNG": 3.3, "COLON": 7.4, "SKIN": 1.0})
+    for tier in ("bite_tce", "adc"):
+        r = compute_window_from_rows(rows, "COADREAD", MODALITY_TIER_THRESHOLD[tier])
+        assert r["window_class"] == "essential_tissue_liability", tier
+        # COLON (7.4), not LUNG (3.3), is the named driver — the max over the essential set moved.
+        assert r["max_essential_normal_organ"] == "COLON", tier
+        assert r["max_essential_normal_tpm"] == pytest.approx(7.4, abs=0.01), tier
+    # CONTROL: the SAME fixture without the gut organ is clean at the ADC tier, so the flag above is
+    # attributable to COLON specifically and not to the tumour value or the tier.
+    no_gut = compute_window_from_rows(
+        _rows({"COAD": 1878.0}, {"LUNG": 3.3, "SKIN": 1.0}), "COADREAD", MODALITY_TIER_THRESHOLD["adc"]
+    )
+    assert no_gut["window_class"] == "clean_window"
 
 
 # ── CLDN6 oncofetal: clean across all tiers ──────────────────────────────────

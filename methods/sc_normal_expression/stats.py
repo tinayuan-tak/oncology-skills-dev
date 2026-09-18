@@ -212,8 +212,55 @@ SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES = (
     # 3 AT1/AT2 labels; the conjunction picks up the 2 generic epithelial parents.
     "pulmonary alveolar type",
     ("alveolar", "epithelial cell"),
+    # --- GUT / INTESTINAL EPITHELIUM (2026-09-18, backtest-gated). `enterocyte` + `colonocyte`
+    # covered only the DIFFERENTIATED ABSORPTIVE lineage. Measured against the real 670-label shard
+    # vocabulary, that left every compartment that actually drives dose-limiting GI toxicity
+    # unflagged: the CRYPT is the proliferative compartment an antimitotic ADC payload or a TCE
+    # depletes, and the resulting mucositis / diarrhoea — not loss of mature enterocytes — is the
+    # classic dose-limiting event. Added together with `gut -> "colon"` in SC_NORMAL_CROSSWALK,
+    # because promoting the organ WITHOUT extending this list would ship an always-on shard whose
+    # most drug-exposed cell type no entry matches: coverage that reads as coverage and is not (the
+    # same fail-open the renal block above closes, in the same file, for the same reason).
     "enterocyte",
     "colonocyte",
+    # CRYPT stem cell — 4 labels (bare + `of colon` / `of large intestine` / `of small intestine`),
+    # all previously unflagged. The bare run "crypt" is used rather than the full
+    # "intestinal crypt stem cell": MEASURED, every label in the vocabulary containing "crypt" IS an
+    # intestinal crypt stem cell, so the two select identically today, and the shorter run also
+    # catches a future crypt-base-columnar / crypt-progenitor label. Known theoretical over-reach:
+    # Cell Ontology also has tonsillar-crypt epithelium, which NO landed shard contains — and
+    # over-flagging is the fail-CLOSED direction, with the (tissue, cell_type) pair visible in the
+    # named driver rather than hidden.
+    "crypt",
+    # TRANSIT AMPLIFYING cells — 3 labels. The rapidly dividing crypt daughters; the compartment an
+    # antiproliferative payload depletes first, and the reason GI tox is dose-limiting rather than
+    # cumulative.
+    "transit amplifying cell",
+    # PANETH cells — 3 labels. Antimicrobial secretory; Paneth-cell loss is a recognised readout of
+    # gut injury (GVHD, ADC enteropathy).
+    "paneth cell",
+    # GOBLET / mucin barrier, restricted to the GI labels by CONJUNCTION. A bare "goblet cell" was
+    # measured to match 11 labels, FIVE of them AIRWAY (bronchial / lung / nasal mucosa / respiratory
+    # tract / tracheobronchial). Flagging those would change the LUNG arm's semantics — not this
+    # change's subject, and it would make this change's backtest unattributable. The bare
+    # `goblet cell` label is additionally shard-promiscuous (present in adrenal_gland and liver,
+    # i.e. Census annotation leakage). `ileal goblet cell` is small_intestine-ONLY, hence
+    # on-origin-only, and is left out for the same attribution reason.
+    ("goblet", "intestine"),
+    ("goblet", "colon"),
+    # GENERIC EPITHELIAL PARENTS — the terms Census uses when an atlas did not resolve the lineage,
+    # exactly the class the nephron block above covers. Each matches exactly ONE label:
+    # "intestinal epithelial cell", "colon epithelial cell", "epithelial cell of small intestine",
+    # "gut absorptive cell". Without them an atlas that annotated only to the parent contributes
+    # NOTHING to the veto while looking like it was examined.
+    ("intestinal", "epithelial cell"),
+    ("colon", "epithelial cell"),
+    ("intestine", "epithelial cell"),
+    "gut absorptive cell",
+    # DELIBERATELY EXCLUDED, measured, so the next reader does not read the omission as an oversight:
+    # "tuft cell" (4 labels) and "enteroendocrine" (12) are not the dose-limiting GI compartment, and
+    # a bare "enteroendocrine" reaches PANCREAS / lung / liver / spleen labels — it would silently
+    # re-grade those arms rather than the gut's.
     "hematopoietic stem cell",
     "erythroid progenitor",
     # S1-3 (cards review 2026-08-17): CNS glia + adrenal endocrine cells, so the newly always-on

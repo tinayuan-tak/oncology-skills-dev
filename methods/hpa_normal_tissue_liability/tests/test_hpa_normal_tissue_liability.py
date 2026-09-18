@@ -130,9 +130,27 @@ def test_essential_tissue_flag_trichotomy_2026_08_24():
 
 
 def test_gi_flag_separate_from_essential():
-    s = hc.compute_summary("X", _row("Detected in some", "intestine: 5e5;stomach: 2e5"))
-    assert "gi_tract" in s["safety_tissue_flags"]
-    assert s["n_essential_tissues_with_expression"] == 0  # GI not in essential set
+    """`gi_tract` is a NARRATIVE LABEL over GI_TISSUES = {intestine, stomach}; the essential set is the
+    canonical vital-organ crosswalk. They are DIFFERENT CONCEPTS that now OVERLAP — before 2026-09-18
+    this test asserted the essential count was 0 "GI not in essential set", which the `gut` promotion
+    made false: `intestine` is the HPA anchor for the canonical `gut` organ, so it is in BOTH.
+
+    The overlap is deliberate, so the separation claim is re-stated on the member that shows it
+    WITHOUT depending on the overlap: `stomach` is in GI_TISSUES and is NOT an essential organ (the
+    SCALAR ANCHOR for `gut` is the intestinal part; stomach/esophagus/appendix are documented
+    non-anchors). A stomach-only gene therefore gets the label and a ZERO essential count — which is
+    the thing the original test meant to prove, now provable rather than incidental."""
+    both = hc.compute_summary("X", _row("Detected in some", "intestine: 5e5;stomach: 2e5"))
+    assert "gi_tract" in both["safety_tissue_flags"]
+    # OVERLAP, pinned: intestine IS essential since the gut promotion. Not 0 any more, and not a bug.
+    assert both["n_essential_tissues_with_expression"] == 1
+
+    # SEPARATION, on a GI tissue that is deliberately NOT an anchor: label fires, essential does not.
+    stomach_only = hc.compute_summary("X", _row("Detected in some", "stomach: 2e5"))
+    assert "gi_tract" in stomach_only["safety_tissue_flags"]
+    assert stomach_only["n_essential_tissues_with_expression"] == 0
+    # Anti-vacuity: the two arms must actually DIFFER, or this proves nothing about separation.
+    assert both["n_essential_tissues_with_expression"] != stomach_only["n_essential_tissues_with_expression"]
 
 
 def test_broad_gene_empty_specific_list_still_broad():

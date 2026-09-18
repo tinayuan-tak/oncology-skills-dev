@@ -68,6 +68,17 @@ _DIST_TO_CLASS = {
 # DATA-SUBSTRATE gap (not a list omission) — the GTEx-RNA + single-cell normal cards cover those.
 ESSENTIAL_TISSUES = HPA_ESSENTIAL_TISSUES
 # GI epithelium — modality-dependent (ADC non-cleavable may tolerate; BiTE not).
+#
+# ⚠️ `intestine` NOW OVERLAPS `ESSENTIAL_TISSUES` (2026-09-18: `gut` promoted to a canonical vital
+# organ, HPA anchor `intestine`). The overlap is INTENTIONAL and this set is deliberately NOT
+# narrowed to {"stomach"}: the two flags answer different questions, and dropping one to remove the
+# redundancy would delete information rather than duplicate it.
+#   * `essential_tissue`  — is a dose-limiting organ hit? (drives the strict-modality killer)
+#   * `gi_tract`          — WHICH organ class, i.e. the modality-dependent read a reviewer needs to
+#                           judge whether a non-cleavable ADC may tolerate what a BiTE will not.
+# An intestine-enriched antigen therefore now carries BOTH flags, which is the intended reading:
+# label, do not drop. `stomach` remains GI-only — it is a real GI tissue but deliberately NOT the
+# canonical anchor for `gut` (see the SCALAR ANCHOR convention in essential_organs.py).
 GI_TISSUES = {"intestine", "stomach"}
 
 

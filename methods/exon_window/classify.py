@@ -71,6 +71,7 @@ ESSENTIAL_GTEX_TISSUES = frozenset(
         "BLOOD_VESSEL",
         "BONE_MARROW",
         "BRAIN",
+        "COLON",  # + 2026-09-18 with the `gut` promotion; see the note below the set
         "HEART",
         "KIDNEY",
         "LIVER",
@@ -79,10 +80,24 @@ ESSENTIAL_GTEX_TISSUES = frozenset(
         "NERVE",
         "PANCREAS",
         "PITUITARY",
+        # + 2026-09-18 with `small_intestine` in CANONICAL_VITAL_ORGANS. GTEx COLON pools mucosa with
+        # muscularis, so it is the LESS sensitive intestinal-epithelium detector; see window.py.
+        "SMALL_INTESTINE",
         "SPLEEN",
         "THYROID",
     }
 )
+# ⚠️ THIS IS A COPY, NOT THE SOURCE OF TRUTH. Three modules hold a literal `ESSENTIAL_GTEX_TISSUES`
+# (here, `tcga_gtex_tpm_quantiles.window`, `pair_selectivity_gate.gates`) and a fourth set is DERIVED
+# from `essential_organs.GTEX_CROSSWALK`. Until 2026-09-18 all four agreed by coincidence, so the
+# duplication was invisible; promoting `gut` was the first organ promotion since, and a copy left
+# un-updated would have silently stopped treating the colon as essential — divergence in the
+# PERMISSIVE direction, which is exactly the S1-3 failure this module set exists to prevent.
+# `test_essential_organ_coverage.py::test_every_hardcoded_gtex_copy_covers_the_canonical_set` now
+# pins all three copies against the derived set, so the next promotion reds instead of drifting. It
+# DISCOVERS copies by walking module-level `ESSENTIAL_GTEX_TISSUES` assignments rather than reading a
+# roster, so a fourth copy is guarded on arrival. Before it existed only `window`'s copy was pinned
+# (by `test_gtex_names_are_real_gtex_tissues`) and this one was pinned by nothing.
 MODALITY_TIER_THRESHOLD = {"bite_tce": 1.0, "cell_therapy": 1.0, "adc": 5.0, "antibody": 10.0}
 TUMOR_EXPRESSION_FLOOR_TPM = 1.0
 CLEAN_WINDOW_RATIO = 4.0

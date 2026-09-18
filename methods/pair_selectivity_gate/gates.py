@@ -34,7 +34,9 @@ AND_GATE_MIN_COFRACTION = 0.30  # AND/NOT pairs below this tumor coverage are lo
 ESSENTIAL_FRACTION_RESOLUTION_FLOOR = 0.01  # 1/n_min statistical-resolution floor → caps selectivity ~100x
 
 # Essential normal GTEx tissues (life-critical). Shared intent with the window arc's essential set;
-# GTEx `tissue` labels in the long product.
+# GTEx `tissue` labels in the long product. ⚠️ A COPY, not the source of truth — it must track
+# `essential_organs.GTEX_CROSSWALK`, and the essential-organ coverage guard now pins it there (see
+# the longer note in exon_window/classify.py for why the duplication was invisible until 2026-09-18).
 ESSENTIAL_GTEX_TISSUES = frozenset(
     {
         "ADRENAL_GLAND",
@@ -42,6 +44,7 @@ ESSENTIAL_GTEX_TISSUES = frozenset(
         "BLOOD_VESSEL",
         "BONE_MARROW",
         "BRAIN",
+        "COLON",  # + 2026-09-18 with the `gut` promotion in CANONICAL_VITAL_ORGANS
         "HEART",
         "KIDNEY",
         "LIVER",
@@ -50,6 +53,9 @@ ESSENTIAL_GTEX_TISSUES = frozenset(
         "NERVE",
         "PANCREAS",
         "PITUITARY",
+        # + 2026-09-18 with `small_intestine` in CANONICAL_VITAL_ORGANS. GTEx COLON pools mucosa with
+        # muscularis, so it is the LESS sensitive intestinal-epithelium detector; see window.py.
+        "SMALL_INTESTINE",
         "SPLEEN",
         "THYROID",
     }

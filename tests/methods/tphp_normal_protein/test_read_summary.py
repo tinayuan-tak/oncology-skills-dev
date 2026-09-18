@@ -456,9 +456,10 @@ def test_low_support_vital_organs_are_labelled_not_dropped(tmp_path):
     assert va["blood"]["above_abundance_floor"] is True
     assert out["n_vital_organs_above_abundance_floor"] == 2
     assert out["tphp_vital_organ_liability_class"] == "vital_organ_abundant"
-    # 13 crosswalked organs; blood + thyroid are the two the panel cannot power.
+    # 15 crosswalked organs (+ large intestine, small intestine 2026-09-18); blood + thyroid are still
+    # the two the panel cannot power — both gut arms are ABOVE MIN_SAMPLES_MEASURABLE (13 and 10).
     assert out["n_vital_organs_unmeasurable"] == 2
-    assert out["n_vital_organs_measurable"] == 11
+    assert out["n_vital_organs_measurable"] == 13  # 11 -> 13 with the two gut arms
     assert out["n_vital_organs_measurable"] + out["n_vital_organs_unmeasurable"] == len(
         out["tphp_vital_organ_abundance"]
     )
@@ -466,13 +467,16 @@ def test_low_support_vital_organs_are_labelled_not_dropped(tmp_path):
 
 def test_clean_sweep_is_qualified_by_unmeasurable_count(tmp_path):
     """no_vital_organ_signal is NOT a clean sweep: it is silent about the 2 organs the panel cannot
-    power. The counts are what let a consumer say 'clean across 11 measurable organs, 2 unknown'."""
+    power. The counts are what let a consumer say 'clean across 13 measurable organs, 2 unknown'
+    (11 -> 13 on 2026-09-18: the gut promotion added large intestine n=13 and small intestine n=10,
+    both above MIN_SAMPLES_MEASURABLE, so a wider sweep is now claimable — the unmeasurable pair is
+    still exactly blood n=1 and thyroid gland n=2)."""
     rows = [_row("SKINONLY", "skin", "adult_normal", _FLOOR + 5.0)]
     prod = _write_product(tmp_path, rows)
     out = read.read_target_summary("SKINONLY", product_path=prod)
     assert out["tphp_vital_organ_liability_class"] == "no_vital_organ_signal"
     assert out["n_vital_organs_unmeasurable"] == 2
-    assert out["n_vital_organs_measurable"] == 11
+    assert out["n_vital_organs_measurable"] == 13
 
 
 def test_undetected_vital_organ_falls_back_to_cached_arm_size(tmp_path):
