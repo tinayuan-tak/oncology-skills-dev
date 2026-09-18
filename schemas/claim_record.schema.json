@@ -165,6 +165,89 @@
           "pattern": "^[a-z][a-z0-9_]*$"
         }
       }
+    },
+    "context": {
+      "type": "object",
+      "description": "OPTIONAL (2026-09-18, decision #1 L2 layer). The claim's join key — WHAT it is a claim ABOUT, at RECORD grain (the package-grain envelope.context is coarser). Additive + optional: only tumor-presence populates it this arc; every other skill omits it and stays valid. A `required` ratchet is a LATER arc. Each dimension carries an explicit scope so 'pan-X' (scope: ALL) and 'this specific X' (scope: SPECIFIC) — and, for subtype, 'not stratified at all' (NOT_STRATIFIED) — are DIFFERENT claims that join differently, the fix for the silent empty-join the indication sentinel precedent (tests/schemas/test_indication_sentinel.py) records. The SPECIFIC<->specifier-field coupling (scope: SPECIFIC requires the id field; scope: ALL/NOT_STRATIFIED forbids it) is a validator invariant, not schema, to keep this block additive.",
+      "additionalProperties": false,
+      "required": ["target", "indication", "subtype", "modality"],
+      "properties": {
+        "target": {
+          "type": "object",
+          "description": "Reused verbatim from evidence_package.schema.json context.target (symbol + hgnc_id required; ensembl/uniprot optional).",
+          "required": ["symbol", "hgnc_id"],
+          "additionalProperties": false,
+          "properties": {
+            "symbol": {"type": "string", "minLength": 1},
+            "hgnc_id": {"type": "integer", "minimum": 1},
+            "ensembl": {"type": "string", "pattern": "^ENSG[0-9]+(\\.[0-9]+)?$"},
+            "uniprot": {"type": "string", "pattern": "^[A-Z][0-9][A-Z0-9]{3}[0-9]$"}
+          }
+        },
+        "indication": {
+          "type": "object",
+          "description": "SPECIFIC (one OncoTree code) vs ALL (pan-cancer). oncotree_code is required iff scope == SPECIFIC (validator invariant INDICATION_SCOPE_FIELD).",
+          "required": ["scope"],
+          "additionalProperties": false,
+          "properties": {
+            "scope": {"enum": ["SPECIFIC", "ALL"]},
+            "oncotree_code": {"type": "string", "minLength": 1}
+          }
+        },
+        "subtype": {
+          "type": "object",
+          "description": "THREE states, because 'pan-subtype' (ALL) and 'the target was not stratified at all' (NOT_STRATIFIED) are different claims — the emitted corpus has subtype_fit absent in 156/504 packages (measured), which is NOT_STRATIFIED, not ALL. subgroup_ids is required iff scope == SPECIFIC (validator invariant SUBTYPE_SCOPE_FIELD).",
+          "required": ["scope"],
+          "additionalProperties": false,
+          "properties": {
+            "scope": {"enum": ["SPECIFIC", "ALL", "NOT_STRATIFIED"]},
+            "subgroup_ids": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1, "uniqueItems": true}
+          }
+        },
+        "modality": {
+          "type": "object",
+          "description": "SPECIFIC (one channel, from the 5 active modality.enum.yaml values) vs ALL (modality-independent claim). channel is required iff scope == SPECIFIC (validator invariant MODALITY_SCOPE_FIELD).",
+          "required": ["scope"],
+          "additionalProperties": false,
+          "properties": {
+            "scope": {"enum": ["SPECIFIC", "ALL"]},
+            "channel": {"enum": ["small_molecule", "degrader", "adc", "bite_tce", "antibody"]}
+          }
+        }
+      }
+    },
+    "identity": {
+      "type": "object",
+      "description": "OPTIONAL (2026-09-18), DERIVED — never authored by hand; every field is a function of `context`, `axis`, and the run's data/version fingerprints, and the validator RECOMPUTES each rather than trusting it. Present only when `context` is (validator invariant IDENTITY_WITHOUT_CONTEXT). context_id makes records joinable/comparable; logical_key is the stable per-(context,axis) key across releases; record_revision_id changes when the data or the rules/methods behind the record change. Filed under the ROOT, not provenance, because provenance is composition-INERT (never gates) while identity DOES gate joins.",
+      "additionalProperties": false,
+      "required": ["context_id", "logical_key", "l0_digest", "ruleset_version", "record_revision_id"],
+      "properties": {
+        "context_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$",
+          "description": "sha256(canonical(context))[:16], where canonical = json.dumps(context, sort_keys=True, separators=(',',':')). Recomputed by the validator (CONTEXT_ID_MISMATCH)."
+        },
+        "logical_key": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}::[a-z][a-z0-9_]*$",
+          "description": "'<context_id>::<axis>' — the stable identity of this (context, axis) claim across releases. Recomputed (LOGICAL_KEY_MISMATCH)."
+        },
+        "l0_digest": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$",
+          "description": "The evidence_package.governance.resolved_release_digest (sha256(sorted input_manifest_ids)[:16]) this record was computed against — the L0 component of record_revision_id, carried so the record is self-recomputable. Emission-side R6 invariant (out of scope for this standalone-record validator): l0_digest MUST equal the enclosing package's resolved_release_digest for the same run."
+        },
+        "ruleset_version": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The interpretation-rules file `version` in force for this axis — the ruleset component of record_revision_id."
+        },
+        "record_revision_id": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{16}$",
+          "description": "sha256(logical_key + '|' + l0_digest + '|' + ruleset_version + '|' + canonical(provenance.versions))[:16] — changes when the data (l0_digest), the rules (ruleset_version), or the method versions (provenance.versions) behind the record change, but NOT when only the release_pin label changes. Recomputed (RECORD_REVISION_ID_MISMATCH)."
+        }
+      }
     }
   }
 }

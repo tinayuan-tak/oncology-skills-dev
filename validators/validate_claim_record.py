@@ -36,6 +36,7 @@ CLI:
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from dataclasses import dataclass, field
@@ -49,6 +50,17 @@ from validate_verdict_tokens import emitted_verdicts_by_gate  # noqa: E402
 OPEN_WORLD = frozenset({"not_wired", "data_blocked", "read_error"})
 _CERT_ORD = {"low": 0, "medium": 1, "high": 2}
 _UNKNOWN_STATE = "unknown"
+
+
+def _canonical_json(obj) -> str:
+    """The single pinned canonical serialization for identity hashing. Any drift here silently
+    changes every context_id / record_revision_id, so it is defined ONCE and reused by both the
+    example authoring and the recompute checks."""
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def _canonical_sha16(obj) -> str:
+    return hashlib.sha256(_canonical_json(obj).encode("utf-8")).hexdigest()[:16]
 
 
 @dataclass
@@ -135,6 +147,90 @@ def _invariants(rec: dict, where: str, emitted: dict[str, set[str]], report: Cla
                 f"{where}: CERTAINTY_LEVEL — level={level!r} EXCEEDS min(coverage={coverage!r}, "
                 f"corroboration={corrob!r})={ceiling!r} (certainty is downgrade-only; a strong level "
                 f"cannot outrank its weakest measured component)."
+            )
+
+    # F/G/H. Optional record-grain context + identity (recompute, never trust).
+    _context_identity_invariants(rec, where, report)
+
+
+def _context_identity_invariants(rec: dict, where: str, report: ClaimRecordReport) -> None:
+    """H/F/G: the optional record-grain context + identity model (2026-09-18).
+
+    H — the scope<->specifier-field coupling that keeps a pan-X claim from silently joining to a
+        specific-X one (SPECIFIC requires the id field; ALL / NOT_STRATIFIED forbid it).
+    F — context_id RECOMPUTES from canonical(context); logical_key RECOMPUTES from context_id+axis.
+    G — record_revision_id RECOMPUTES from logical_key + l0_digest + ruleset_version + versions.
+
+    Everything is recomputed, never trusted. All checks are no-ops on a record that omits both
+    blocks, so the model is additive/forward-compatible.
+    """
+    context = rec.get("context")
+    identity = rec.get("identity")
+
+    if context is not None:
+        ind = context.get("indication") or {}
+        if ind.get("scope") == "SPECIFIC" and "oncotree_code" not in ind:
+            report.add_error(f"{where}: INDICATION_SCOPE_FIELD — indication.scope=SPECIFIC requires oncotree_code.")
+        if ind.get("scope") == "ALL" and "oncotree_code" in ind:
+            report.add_error(
+                f"{where}: INDICATION_SCOPE_FIELD — indication.scope=ALL (pan-cancer) must NOT carry "
+                f"oncotree_code (got {ind.get('oncotree_code')!r}); a specifier on an ALL scope is the "
+                f"silent-empty-join hazard."
+            )
+        sub = context.get("subtype") or {}
+        if sub.get("scope") == "SPECIFIC" and not sub.get("subgroup_ids"):
+            report.add_error(
+                f"{where}: SUBTYPE_SCOPE_FIELD — subtype.scope=SPECIFIC requires a non-empty subgroup_ids."
+            )
+        if sub.get("scope") in {"ALL", "NOT_STRATIFIED"} and "subgroup_ids" in sub:
+            report.add_error(
+                f"{where}: SUBTYPE_SCOPE_FIELD — subtype.scope={sub.get('scope')} must NOT carry "
+                f"subgroup_ids ('pan-subtype' and 'not stratified' are not a specific subgroup)."
+            )
+        mod = context.get("modality") or {}
+        if mod.get("scope") == "SPECIFIC" and "channel" not in mod:
+            report.add_error(f"{where}: MODALITY_SCOPE_FIELD — modality.scope=SPECIFIC requires a channel.")
+        if mod.get("scope") == "ALL" and "channel" in mod:
+            report.add_error(
+                f"{where}: MODALITY_SCOPE_FIELD — modality.scope=ALL must NOT carry a channel "
+                f"(got {mod.get('channel')!r})."
+            )
+
+    if identity is not None:
+        if context is None:
+            report.add_error(
+                f"{where}: IDENTITY_WITHOUT_CONTEXT — identity is derived from context, so it may not "
+                f"appear without a context block."
+            )
+            return
+        axis = rec.get("axis")
+        expected_cid = _canonical_sha16(context)
+        if identity.get("context_id") != expected_cid:
+            report.add_error(
+                f"{where}: CONTEXT_ID_MISMATCH — context_id={identity.get('context_id')!r} but "
+                f"sha256(canonical(context))[:16]={expected_cid!r} (identity is derived, never authored)."
+            )
+        expected_lk = f"{expected_cid}::{axis}"
+        if identity.get("logical_key") != expected_lk:
+            report.add_error(
+                f"{where}: LOGICAL_KEY_MISMATCH — logical_key={identity.get('logical_key')!r} but "
+                f"'<context_id>::<axis>'={expected_lk!r}."
+            )
+        versions = (rec.get("provenance") or {}).get("versions") or {}
+        payload = "|".join(
+            [
+                expected_lk,
+                identity.get("l0_digest", ""),
+                identity.get("ruleset_version", ""),
+                _canonical_json(versions),
+            ]
+        )
+        expected_rrid = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+        if identity.get("record_revision_id") != expected_rrid:
+            report.add_error(
+                f"{where}: RECORD_REVISION_ID_MISMATCH — record_revision_id="
+                f"{identity.get('record_revision_id')!r} but recompute from "
+                f"logical_key|l0_digest|ruleset_version|canonical(versions)={expected_rrid!r}."
             )
 
 

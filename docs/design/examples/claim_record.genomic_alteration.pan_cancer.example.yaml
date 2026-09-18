@@ -1,0 +1,47 @@
+# Factored claim record — WORKED EXAMPLE (genomic_alteration, PAN-CANCER, scope: ALL arm).
+# Illustrative only; ZERO runtime consumers at M0. Validated by validators/validate_claim_record.py.
+# Demonstrates the optional record-grain context + identity model (2026-09-18) on the scope: ALL arm:
+#   - indication.scope=ALL  => NO oncotree_code   (INDICATION_SCOPE_FIELD)
+#   - subtype.scope=NOT_STRATIFIED => NO subgroup_ids (SUBTYPE_SCOPE_FIELD; distinct from pan-subtype ALL)
+#   - modality.scope=ALL    => NO channel         (MODALITY_SCOPE_FIELD)
+# identity is DERIVED — every field recomputes (CONTEXT_ID / LOGICAL_KEY / RECORD_REVISION_ID). The
+# claim: "TP53 is a multi-class driver across cancers" — a genuinely pan-cancer statement.
+axis: genomic_alteration
+finding:
+  state: multi_class_driver
+  direction: supports
+  magnitude:
+    level: strong
+    value: 0.34
+    scale: mutation_frequency
+    distance_to_cut: 0.24
+  availability: measured_positive
+mechanism:
+  classes: [activating_mutation, focal_amplification]
+  role: GoF
+modality_scope:
+  small_molecule: favorable
+  biologics: favorable
+certainty:
+  level: high
+  coverage: high
+  corroboration: high
+  unknown_mass: 0.0
+  strength: multi_class_driver
+provenance:
+  fired_rule_ids: [recurrent-snv-driver, focal-amplification-driver, oncogene-role-driver]
+  cards: [variant-level-interpretation, copy-number-alteration, alteration-role]
+  source_product_ids: [mc3-mutation-frequency-per-gene-v1]
+  versions: {resolver: 1.4.0}
+  legacy_verdict: multi_class_driver
+context:
+  target: {symbol: TP53, hgnc_id: 11998}
+  indication: {scope: ALL}            # pan-cancer — no oncotree_code
+  subtype: {scope: NOT_STRATIFIED}    # not stratified at all — no subgroup_ids (!= pan-subtype ALL)
+  modality: {scope: ALL}              # modality-independent — no channel
+identity:                             # DERIVED — recomputed by the validator, never authored by hand
+  context_id: 2439bb840a3677a5        # sha256(canonical(context))[:16]
+  logical_key: 2439bb840a3677a5::genomic_alteration
+  l0_digest: a1b2c3d4e5f60718         # = evidence_package.governance.resolved_release_digest (illustrative)
+  ruleset_version: 1.4.0
+  record_revision_id: d9fe3e6a9ce1e758  # sha256(logical_key|l0_digest|ruleset_version|canonical(versions))[:16]

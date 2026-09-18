@@ -34,7 +34,8 @@ def test_schema_is_valid_draft202012():
 def test_shipped_examples_pass_end_to_end():
     report = vcr.validate(SCHEMA_PATH, EXAMPLES, RESOLVERS)
     assert report.ok, f"shipped examples failed: {report.errors}"
-    assert report.checked_count >= 3, "expected the 3 worked examples to be validated"
+    # 3 original worked examples + the pan-cancer (scope: ALL) context/identity example.
+    assert report.checked_count >= 4, "expected the 4 worked examples to be validated"
 
 
 def _load(name):
@@ -144,3 +145,117 @@ def test_downgrade_below_min_is_allowed():
     ok["certainty"]["level"] = "low"  # downgrade — allowed
     r = _run_one(ok)
     assert r.ok, f"a downgrade below the ordinal min must be allowed, got: {r.errors}"
+
+
+# ---------- record-grain context + identity (F/G/H, 2026-09-18) ----------
+
+PAN = "claim_record.genomic_alteration.pan_cancer.example.yaml"
+
+
+def test_pan_cancer_example_valid():
+    """The scope: ALL example is schema-valid AND satisfies every context/identity invariant."""
+    r = _run_one(_load(PAN))
+    assert r.ok, f"pan-cancer example failed: {r.errors}"
+
+
+def _reidentify(rec):
+    """Recompute a record's identity from its (possibly mutated) context, so an H-arm test is not
+    masked by a stale context_id firing CONTEXT_ID_MISMATCH first."""
+    ctx = rec["context"]
+    cid = vcr._canonical_sha16(ctx)
+    lk = f"{cid}::{rec['axis']}"
+    versions = (rec.get("provenance") or {}).get("versions") or {}
+    ident = rec["identity"]
+    payload = "|".join([lk, ident["l0_digest"], ident["ruleset_version"], vcr._canonical_json(versions)])
+    import hashlib
+
+    ident["context_id"] = cid
+    ident["logical_key"] = lk
+    ident["record_revision_id"] = hashlib.sha256(payload.encode()).hexdigest()[:16]
+    return rec
+
+
+# F/G: identity is DERIVED — every field recomputes, never trusted.
+
+
+def test_context_id_recomputed():
+    bad = copy.deepcopy(_load(PAN))
+    bad["identity"]["context_id"] = "0000000000000000"
+    bad["identity"]["logical_key"] = "0000000000000000::genomic_alteration"
+    r = _run_one(bad)
+    assert not r.ok and any("CONTEXT_ID_MISMATCH" in e for e in r.errors), r.errors
+
+
+def test_logical_key_recomputed():
+    bad = copy.deepcopy(_load(PAN))
+    bad["identity"]["logical_key"] = bad["identity"]["context_id"] + "::wrong_axis"
+    r = _run_one(bad)
+    assert not r.ok and any("LOGICAL_KEY_MISMATCH" in e for e in r.errors), r.errors
+
+
+def test_record_revision_id_recomputed():
+    bad = copy.deepcopy(_load(PAN))
+    bad["identity"]["record_revision_id"] = "ffffffffffffffff"
+    r = _run_one(bad)
+    assert not r.ok and any("RECORD_REVISION_ID_MISMATCH" in e for e in r.errors), r.errors
+
+
+def test_record_revision_id_moves_with_l0_digest():
+    """The data fingerprint really feeds the revision id: change l0_digest and the OLD rrid is stale."""
+    bad = copy.deepcopy(_load(PAN))
+    bad["identity"]["l0_digest"] = "1111111111111111"  # a different release; rrid not recomputed
+    r = _run_one(bad)
+    assert not r.ok and any("RECORD_REVISION_ID_MISMATCH" in e for e in r.errors), r.errors
+
+
+def test_identity_requires_context():
+    bad = copy.deepcopy(_load(PAN))
+    del bad["context"]
+    r = _run_one(bad)
+    assert not r.ok and any("IDENTITY_WITHOUT_CONTEXT" in e for e in r.errors), r.errors
+
+
+# H: the scope <-> specifier-field coupling (the ALL arm is tested here — R7).
+
+
+def test_all_indication_scope_forbids_oncotree_code():
+    """R7: mutating the scope: ALL arm (adding a specifier) must RED — the arm is not decoration."""
+    bad = copy.deepcopy(_load(PAN))
+    bad["context"]["indication"]["oncotree_code"] = "COAD"  # illegal on an ALL scope
+    _reidentify(bad)  # keep identity consistent so INDICATION_SCOPE_FIELD is the isolated failure
+    r = _run_one(bad)
+    assert not r.ok and any("INDICATION_SCOPE_FIELD" in e for e in r.errors), r.errors
+
+
+def test_specific_indication_scope_requires_oncotree_code():
+    bad = copy.deepcopy(_load(PAN))
+    bad["context"]["indication"]["scope"] = "SPECIFIC"  # now demands oncotree_code, which is absent
+    _reidentify(bad)
+    r = _run_one(bad)
+    assert not r.ok and any("INDICATION_SCOPE_FIELD" in e for e in r.errors), r.errors
+
+
+def test_not_stratified_subtype_forbids_subgroup_ids():
+    bad = copy.deepcopy(_load(PAN))
+    bad["context"]["subtype"]["subgroup_ids"] = ["CMS1"]  # illegal on NOT_STRATIFIED
+    _reidentify(bad)
+    r = _run_one(bad)
+    assert not r.ok and any("SUBTYPE_SCOPE_FIELD" in e for e in r.errors), r.errors
+
+
+def test_all_modality_scope_forbids_channel():
+    bad = copy.deepcopy(_load(PAN))
+    bad["context"]["modality"]["channel"] = "small_molecule"  # illegal on an ALL scope
+    _reidentify(bad)
+    r = _run_one(bad)
+    assert not r.ok and any("MODALITY_SCOPE_FIELD" in e for e in r.errors), r.errors
+
+
+def test_specific_modality_scope_recomputes_and_passes():
+    """A well-formed SPECIFIC record (channel present, ids recomputed) is clean — proves the coupling
+    is a real biconditional, not a blanket 'ALL good / SPECIFIC bad'."""
+    ok = copy.deepcopy(_load(PAN))
+    ok["context"]["modality"] = {"scope": "SPECIFIC", "channel": "degrader"}
+    _reidentify(ok)
+    r = _run_one(ok)
+    assert r.ok, f"a valid SPECIFIC-modality record must pass, got: {r.errors}"
