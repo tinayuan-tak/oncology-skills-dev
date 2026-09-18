@@ -36,6 +36,95 @@ Dangerous false-positives to keep pinned: ADAR1, CLDN18.2_LRRC15, EGFR_cMET_VEGF
 
 ## Open cases
 
+### CASE-035 — DLL3-SCLC reads `bite_tce: unsafe`: an **approved TCE** target killed by an ENTERIC-NEURON veto that the gut-organ promotion opened — ACCEPTED AS REAL (2026-09-18)
+
+- **Surfaced by:** the tumor-selectivity content audit's end-to-end control set. DLL3-SCLC is on that
+  list precisely as the target that **must not be killed** (tarlatamab is an approved DLL3×CD3 TCE), so
+  the run was a pass/fail control, not exploration.
+- **Measured end-to-end, live** (`surface-modality-fit`, `--target DLL3 --indication SCLC`):
+  `surface_modality_verdict: adc_preferred_tce_unsafe`,
+  `surface_modality_verdict_by_modality: {adc: viable, bite_tce: unsafe, antibody: viable}`,
+  `driving_rule_id: sc-normal-high-liability-bite-killer`, confirmed present among the **13** fired rules
+  with `dominant=True`. The internal contradiction is the tell: the `adc-tce-modality-fit` card
+  **itself** fired `both-viable-supportive` (also dominant) — the modality card says both modalities are
+  viable and the sc-normal killer overrides it.
+- **★★ Cause: a DATA/GRADE change with NO rule edit.** AM #663 (`b6536b8`) moved DLL3-SCLC's
+  `sc_normal_essential_veto_grade` from `accessible_moderate_severity` to `accessible_high_severity`,
+  which is in the killer's `when … in: [accessible_high_severity, accessible_ungraded]` set. No
+  interpretation rule was touched, so no rules diff, no golden diff and no verdict-level test could have
+  flagged it. **A verdict can move because the gate's INPUT moved.**
+- **★★ Mechanism — the gut promotion silently defeated BBB protection for a whole LINEAGE.** DLL3 is a
+  Notch ligand restricted to neural/neuroendocrine lineage, so **all 14** of its essential normal hits
+  are neurons or OPCs. Nine sit in `brain` and are correctly `bbb_protected` — a systemically dosed TCE
+  does not cross the BBB. But the **`colon` shard is the only systemically-accessible tissue that
+  contains neurons** (the enteric nervous system), so promoting `gut → "colon"` into
+  `SC_NORMAL_CROSSWALK` converted a BBB-protected neural liability into an accessible one. Driver:
+  `inhibitory motor neuron` / `colon`, det **0.747** / donor **1.000** / **6 atlases** — reached through
+  the *plain* high rung (`det ≥ 0.50 ∧ donor ≥ 0.70 ∧ n_ds ≥ 2`), **not** the replication rung #660
+  added. Its only non-gut accessible hit is a weak `neuron` / `lung` (det 0.345 / donor 0.500 / 4
+  atlases → `moderate_severity`), which is why the kill rests entirely on the gut.
+- **Attributed against the shipped ladder, not estimated.** `accessible_high_severity` over all 504
+  corpus-20260914 pairs: **223 (44.2%)** pre-#660 → **284 (56.3%)** #660 → **292 (57.9%)** #661 →
+  **330 (65.5%)** #663. So the gut promotion contributes **+38**. Gut-*driven* high is **50**, and
+  50 − 38 = **12** pairs that were already high via a non-gut driver and merely re-named their driver.
+- **★★ The obvious remedy was MEASURED AND REFUTED.** Excluding gut hits from the pool the severity is
+  read from moves 330 → 292, **38 relieved / 0 newly killed** (strictly one-directional, as removing
+  hits must be) — but it **breaks the grade-refines-class invariant on 6 pairs**, because the selector's
+  empty-pool arm returns *class*-level tokens: CDH17-ESCA/CML/SCLC fall to `not_applicable` and
+  MUC17-STAD / STEAP1-PAAD / TNFSF13-STAD to `origin_tissue`, while the class upstream stays
+  `critical_organ_liability`. It also re-opens the CDH17-ESCA organ-panel fail-open this arc had just
+  closed. Narrowing to gut *neurons* only relieves **11** (DLL3-SCLC, APC×6, RARA-AML, RET-THCA,
+  SLC7A11-PAAD, SOX2-LUSC) and does preserve CDH17-ESCA (driver `enterocyte`, not a neuron) and leave
+  MSLN-PAAD / FOLR1-OV / DPEP1-COADREAD untouched — but enteric neurons genuinely **are** outside the
+  BBB, so excluding them is a real fail-open rather than a neutral correction.
+- **Disposition: ACCEPTED AS REAL — no code, rule or panel change.** The substrate audit (below) shows
+  the evidence is sound, and the framework flagging a well-replicated enteric-neuron liability is
+  defensible on its own terms. The cost is recorded here rather than engineered away.
+- **Substrate audit — the colon shard is clean where it matters.** Read the full product
+  (`sc-normal-celltype-expression-colon-v1`, **1,565,555** rows): the `tissue` column is uniformly
+  `['colon']`, so there is **no shard-construction leak**; 15 of its 156 cell types are neural and they
+  form a *coherent* ENS panel at real depth — `enteroglial cell` 7 atlases / 110 reliable donors,
+  `inhibitory motor neuron` 6 / 53, `motor neuron` 6 / 64, `enteric neuron` 5 / 68.
+- **★★ NEW OPEN FINDING (a) — the safety-essential neural panel is INCOHERENT BY BIOLOGY.** The bare
+  whole-token `"neuron"` entry (`methods/sc_normal_expression/stats.py:176`) is **pre-existing** — #663
+  added `gut → "colon"` plus the *epithelial* prefixes, and its own comment justifies the pairing in
+  epithelial terms only; the ENS sweep was an unintended interaction. Essential: `inhibitory motor
+  neuron`, `motor neuron`, `enteric neuron`, `afferent neuron`, `Schwann cell`, `peripheral nervous
+  system neuron`. **Not** essential: `enteroglial cell` — the **most deeply sampled** colon neural type
+  in the shard and functionally essential to gut motility — plus `interneuron`, `glial cell`,
+  `neural cell`, `neural crest cell`. Membership is decided by **label morphology**, not by the biology
+  the panel claims to encode: the same defect class as the `"kidney proximal tubule"` prefix that
+  matched 0 of 670 labels. Not fixed here — it is a panel change outside this case's remit.
+- **★ NEW OPEN FINDING (b) — two 1-atlas labels are ONE ATLAS from being killer-eligible.** The colon
+  shard carries `primary sensory neuron (sensu Teleostei)` — a **teleost-qualified** CL term in a human
+  gut product, reaching **184** pairs (13 donors / 7 reliable / **1** atlas) — and
+  `oligodendrocyte precursor cell`, **141** pairs (15 / 12 / **1** atlas) against the brain shard's OPC
+  at **170** atlases, which is the control: a CNS-restricted lineage appearing *once* in gut is a
+  curation artifact, not a population. Both return `essential=True` and sit in the veto pool today.
+  They are inert **only** because 1 atlas forces `low_confidence`, and no killer-eligible pair is driven
+  by either — but inert by corpus is not safe by contract: a second atlas would make them eligible.
+- **★★ The 2026-09-07 triage row is now FALSE OF ITS OWN GROUND — forward-pointed, NOT retro-edited.**
+  `loop_dispositions.yaml` carries `tumor-selectivity|DLL3|SCLC|SAFE|calibration_gap` as
+  `dismissed_concordant` on the stated basis *"literature cites DLL3 low normal expr = good therapeutic
+  index — concordant with selective"*. That basis no longer holds. The row is **deliberately left on its
+  original token**: it is a dated snapshot (`snapshot: discordance_full_sweep_2026-09-07`) of what was
+  triaged then, and a triage record rewritten to match today's code stops being usable as history.
+  Two pins also forbid it, and both edit shapes were **measured, not assumed**:
+  `test_loop_health.py:69` and `test_dispositions.py:851` pin `len == 32` / `n_sharp == 29` /
+  `n_auto_demoted == 3` / `precision_strict == 0.483`; flipping the token yields **0.517** and adding a
+  row yields **33**. A `note:` forward pointer is pin-safe because `load_dispositions` reads **only** the
+  `disposition` key. Note also that `test_dispositions.py:849`'s own docstring says *"This feature adds,
+  never moves."*
+- **★ `discordance_baseline.json` is deliberately UNTOUCHED.** `diff_discordance_ledger.diff` computes
+  `appeared = sharp_keys(ledger) − baseline_keys`, so `surface-modality-fit|DLL3|SCLC|…` will surface as
+  a `new_sharp_gap` on the next sweep on its own. Adding the key to the baseline would **suppress** the
+  finding rather than record it — the instrument is the diff, not the ledger.
+- **Relation to CASE-003.** Same pair, **opposite direction**: CASE-003 recorded the framework
+  *under*-reading DLL3 (`hold` via `dependency:non_dependent` despite an approved TCE). It now
+  *over*-reads it. A pair that has been wrong in both directions is a calibration probe worth keeping.
+- **Status:** OPEN — accepted as real; findings (a) and (b) filed for the normal-tissue safety panel,
+  neither fixed here. Refs: AM #660, #661, #663 (`b6536b8`), skills #1447 (`3afa12df`), TC #786.
+
 ### GENOMIC-ALTERATION 20-pair literature panel RE-RUN (2026-09-13, post-land) — 20/20 emitted, 63 rows, SHARP 6 → **3**; all 3 still CN, all 3 one predicate
 
 Second run of the **same registered** `genomic-alteration-profile-20` roster, after the four-leg land chain

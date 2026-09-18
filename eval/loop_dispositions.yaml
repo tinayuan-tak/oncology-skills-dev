@@ -53,4 +53,17 @@ dispositions:
   "tractability-small-molecule|KIF11|COADREAD|ACTIVITY|calibration_gap":  {disposition: dismissed_concordant, case: CASE-008, note: "discordant_off_target verdict is honest"}
   "tractability-small-molecule|NLRP3|heme|ACTIVITY|calibration_gap":      {disposition: dismissed_data_absent, case: CASE-008, note: "heme-indication measured floor no_compounds_found; SM inhibitors exist pan-indication"}
   "tractability-small-molecule|XPO1|MM|DEGRADER|concordant_over_flag":    {disposition: auto_demoted_concordant, case: CASE-013, note: "overall_consistency==concordant; DEGRADER axis minor, selinexor is an occupancy inhibitor"}
-  "tumor-selectivity|DLL3|SCLC|SAFE|calibration_gap":                   {disposition: dismissed_concordant, case: CASE-010, note: "literature cites DLL3 low normal expr = good therapeutic index — concordant with selective"}
+  # ⚠️ FORWARD POINTER (2026-09-18, CASE-035) — this row's STATED GROUND no longer holds of today's
+  # code. `disposition` and `case` are LEFT AS TRIAGED on 2026-09-07 on purpose: this file is a dated
+  # snapshot (see `snapshot:` above), and a triage record rewritten to match today's code stops being
+  # usable as history. Measured: flipping this token moves precision_strict 0.483 -> 0.517 and adding a
+  # row moves len 32 -> 33, so either edit reddens test_loop_health.py:69 and test_dispositions.py:851.
+  # A `note:` is pin-safe because `load_dispositions` reads ONLY the `disposition` key.
+  # WHAT CHANGED: AM #663 (`b6536b8`) promoted `gut -> "colon"` into the always-on safety-essential
+  # organ panel. DLL3 is neural-lineage, so all 14 of its essential normal hits are neurons; 9 are brain
+  # and correctly `bbb_protected`, but the colon shard is the ONLY systemically-accessible tissue holding
+  # neurons (the ENS). DLL3-SCLC's grade therefore moved accessible_moderate -> accessible_high_severity
+  # (driver `inhibitory motor neuron`/colon, det 0.747 / donor 1.000 / 6 atlases) and now fires the
+  # `dominant: true` sc-normal BiTE/TCE killer: surface-modality-fit reads `bite_tce: unsafe` for an
+  # APPROVED TCE target (tarlatamab). No rule was edited — the gate's INPUT moved.
+  "tumor-selectivity|DLL3|SCLC|SAFE|calibration_gap":                   {disposition: dismissed_concordant, case: CASE-010, note: "literature cites DLL3 low normal expr = good therapeutic index — concordant with selective. SUPERSEDED BY EVENTS 2026-09-18, see CASE-035: DLL3-SCLC now reads bite_tce=unsafe via the sc-normal ENS veto opened by AM #663; this dismissal's ground is false of today's code. Row left on its original token deliberately — dated snapshot, and both edit shapes break pinned metrics."}
