@@ -262,6 +262,22 @@ INDICATION_LINEAGE = {
     "BCC": "Skin",
     "NBL": "Peripheral Nervous System",
     "UVM": "Eye",  # crosswalk repaired from null in target-contracts #737 (26Q1 Eye: UM=16, RBL=6)
+    # ONCOTREE-CODE ALIASES (2026-09-18). Each is the `oncotree_code` the crosswalk already declares on
+    # its own entry — DLBCL on DLBC, UM on UVM — so the vocabulary was PUBLISHING a code that resolved
+    # nowhere, here or there. Callers pass these forms: measured over the 504-pair atlas run population,
+    # DLBCL appears on 7 target-indication pairs and UM on 2, and every one of those 9 resolved to
+    # nothing and took the skill's "not in the framework indication vocabulary" branch — no
+    # indication-scoped read at all. Same class as the MELANOMA/GC/PDAC/LAML aliases above.
+    #
+    # ORDERING (measured as a 2x2 over {this map} x {crosswalk}, not assumed): this half must land
+    # FIRST. analysis-methods CI checks out target-contracts at `ref: main` — a live read, NOT a SHA
+    # pin — and the coverage guard folds the crosswalk's `aliases` into its supported set. So if the
+    # crosswalk half landed first, `test_every_framework_indication_resolves_to_a_real_lineage` would
+    # red on ['DLBCL', 'UM'] for every push until this landed. The reverse exposure does not exist:
+    # contracts-validate.yml checks out no siblings, so the contracts-side agreement guard SKIPS in its
+    # own CI and only bites locally. Only (this map NEW, crosswalk NEW) is green on both sides.
+    "DLBCL": "Lymphoid",  # oncotree_code of crosswalk canonical DLBC
+    "UM": "Eye",  # oncotree_code of crosswalk canonical UVM; also its depmap_oncotree_codes member
 }
 
 
