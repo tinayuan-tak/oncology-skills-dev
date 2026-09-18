@@ -34,7 +34,37 @@ FIXTURES = REPO / "vocabularies" / "known_target_calibration_set.yaml"
 SNAP_DIR = Path(__file__).resolve().parent / "snapshots"
 
 # Dependency verdicts the nomination gate converts to a VETO (nomination_verdict_gate.yaml).
-VETO_VERDICTS = {"non_dependent", "pan_essential_killer"}
+#
+# WIDENED 2026-09-18 (Stage 2b) with `not_dependent_in_indication`, the third veto arm. This one was
+# NOT found by running the suite — it stayed GREEN, because the token is unreachable until a producer
+# populates `indication_dependency_class` at Stage 5, so no snapshot can carry it. A green pin that
+# names 2 of 3 veto arms is the exact shape of a FALSE ABSENCE: at Stage 5 a positive control could
+# read a veto verdict and this suite would have reported PASS. Reachability is why it cannot fail
+# today, which is also why nothing but reading finds it.
+#
+# It is a HARDCODED MIRROR of vocabularies/nomination_verdict_gate.yaml `gates`, so it can drift.
+# test_veto_verdicts_mirror_matches_the_vocabulary below makes the drift fail instead of going quiet.
+VETO_VERDICTS = {"non_dependent", "not_dependent_in_indication", "pan_essential_killer"}
+
+GATE_VOCAB = REPO / "vocabularies" / "nomination_verdict_gate.yaml"
+
+
+def test_veto_verdicts_mirror_matches_the_vocabulary():
+    """VETO_VERDICTS is a hardcoded copy of the gate's dependency veto arms; assert it is not stale.
+
+    Without this, the mirror drifts SILENTLY IN THE FAIL-OPEN DIRECTION: a veto arm added to the
+    vocabulary and not here means `must_not_veto` stops noticing that arm, and the suite keeps
+    reporting PASS — the failure mode is a green calibration run, not a red one. Exactly what
+    happened to the `not_dependent_in_indication` arm between #812 and this commit.
+    """
+    gates = yaml.safe_load(GATE_VOCAB.read_text())["gates"]
+    vocab_vetoes = {g["verdict"] for g in gates if g["sub_skill"] == "dependency" and g["action"] == "veto"}
+    assert vocab_vetoes, "no dependency vetoes parsed — the assertion below would be vacuous"
+    assert VETO_VERDICTS == vocab_vetoes, (
+        f"VETO_VERDICTS {sorted(VETO_VERDICTS)} is stale against nomination_verdict_gate.yaml "
+        f"{sorted(vocab_vetoes)}. A missing arm makes every must_not_veto assertion blind to it."
+    )
+
 
 # The tumor-selectivity normal-breadth veto downgrade class.
 SELECTIVITY_VETO_VERDICT = "selective_but_broadly_normal"

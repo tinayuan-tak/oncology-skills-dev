@@ -17,7 +17,7 @@
 # consumed by NOTHING yet — no gate block reads it until Step 2b. So this file + the derivation move
 # no verdict. `unresolved` reproduces today's gate exactly, by construction.
 
-version: 1.0.0
+version: 1.1.0  # 1.1.0 (2026-09-18, Stage 2b parity): each `step_2b_refinement` lane's `when_verdicts.dependency` list gains `not_dependent_in_indication` alongside `non_dependent`. Widens the ROUTING CONDITION (no lane, thesis, or `admissible_deciding_axes` added or removed), forced by `subsumes:` being a CLAIM rather than a cross-reference — the veto_suppressors / gof_driver_scoped_veto_downgrade blocks each gained a twin for the new token, so a lane naming only the pooled arm would make its own subsumption assertion false and Step 2c would retire the epicycle out from under the new arm. Each rationale is re-argued rather than copied, because all three turned on the word POOLED: lane 1 escapes by ORTHOGONALITY (a KO is the wrong assay for a neomorphic activity at ANY grain), lanes 2-3 by DILUTION (an indication's models are overwhelmingly biomarker-WT, and a subtype is strictly narrower than an indication). NO verdict moves until the skills side populates `indication_dependency_class` (Stage 5); the token is unreachable today.
 schema_version: 1
 
 # ── The thesis enum ──────────────────────────────────────────────────────────────────────────────
@@ -109,7 +109,14 @@ step_2b_refinement:
     from: [oncogene_addiction, unresolved]
     when_verdicts:
       genomic_alteration: [confirmed_driver, multi_class_driver]   # a confirmed GoF/activating driver
-      dependency: [non_dependent]                                  # whose pooled whole-gene KO is non_dependent
+      # …whose whole-gene KO reads non-dependent at EITHER grain. `not_dependent_in_indication` added
+      # 2026-09-18 (Stage 2b) because `subsumes:` is a CLAIM, not a cross-reference: the epicycle it
+      # names now has a twin entry for the new token, so a lane listing only the pooled arm would make
+      # the subsumption FALSE — and Step 2c retiring the epicycle on the strength of that claim would
+      # silently delete the new arm's escape. For THIS thesis the grain is doubly irrelevant: a KO is
+      # the wrong ASSAY for a neomorphic activity, so conditioning it on the queried indication cannot
+      # make it relevant (ORTHOGONALITY, not dilution).
+      dependency: [non_dependent, not_dependent_in_indication]
     subsumes: gof_driver_scoped_veto_downgrade
     rationale: |
       Neomorphic GoF (IDH1 R132): a confirmed GoF/activating oncogenic driver whose POOLED pan-cancer
@@ -127,30 +134,45 @@ step_2b_refinement:
   # both nominate-eligible; the ANNOTATION-only SL arm (sl_partner_class=has_experimental_sl_partner →
   # insufficient, NOT nominate) is DELIBERATELY NOT mapped here — a plain thesis drop would over-permit
   # annotation, so that arm stays in veto_suppressors until a routing form that preserves the
-  # insufficient-cap is designed. Both require dependency=non_dependent (the veto being escaped) so a
-  # target that IS a pooled dependency stays oncogene_addiction.
+  # insufficient-cap is designed. Both require a dependency NON-DEPENDENCE verdict (the veto being
+  # escaped) so a target that IS a measured dependency stays oncogene_addiction. As of 2026-09-18 that
+  # means either arm — pooled `non_dependent` or `not_dependent_in_indication` — and the 3-suppressors-
+  # to-2-lanes ratio is UNCHANGED by the addition: the indication-grain twin of the annotation-only SL
+  # arm is likewise not mapped, for the same over-permissiveness reason, so the `subsumes:` claims below
+  # stay exactly as complete (and as incomplete) as they were.
   - to: partner_conditional_sl
     from: [oncogene_addiction, unresolved]
     when_verdicts:
       genomic_alteration: [biomarker_stratified_dependency, moderate_biomarker_dependency]
-      dependency: [non_dependent]
-    subsumes: "veto_suppressors (biomarker-stratified arm)"
+      dependency: [non_dependent, not_dependent_in_indication]
+    subsumes: "veto_suppressors (biomarker-stratified arm, BOTH non-dependence verdicts)"
     rationale: |
       A MEASURED biomarker-stratified dependency (EGFR-mut, IDH1-R132, FLT3-ITD) means the pooled
       pan-cancer non_dependent is a dilution artifact — the target is required in its mutant-selected
       stratum. The stratified read is the favorable measured co-condition; the partner/biomarker axis
       decides. Exactly the veto_suppressors biomarker-stratified arm's trigger → routing subsumes it.
+      `not_dependent_in_indication` (2026-09-18) escapes for the SAME reason but the argument has to be
+      re-made rather than inherited, because the sentence above turns on the word POOLED and that word
+      is false of it: the dilution is SMALLER at indication grain and never zero, since an indication's
+      models are overwhelmingly biomarker-WT (EGFR-mut is a minority of LUAD lines, FLT3-ITD of AML).
+      A narrower denominator that is still the wrong denominator is still the wrong estimator.
   - to: partner_conditional_sl
     from: [oncogene_addiction, unresolved]
     when_verdicts:
       subtype_fit: [subtype_restricted_dependency]
-      dependency: [non_dependent]
-    subsumes: "veto_suppressors (subtype_restricted_dependency arm)"
+      dependency: [non_dependent, not_dependent_in_indication]
+    subsumes: "veto_suppressors (subtype_restricted_dependency arm, BOTH non-dependence verdicts)"
     rationale: |
       A MEASURED, floor-cleared strong dependency confined to a molecular subtype (POU2F3/SCLC-P;
       CMS4/CRC) — the pooled non_dependent is a dilution artifact and the subtype is the patient-
       selection population. The measured subtype-restricted read is the co-condition; the subtype axis
       decides. Exactly the veto_suppressors subtype_restricted_dependency arm's trigger → subsumed.
+      `not_dependent_in_indication` (2026-09-18) is the arm where the escape is STRUCTURALLY clearest,
+      not merely analogous: a subtype is strictly NARROWER than an indication (SCLC-P ⊂ SCLC), so an
+      indication-level negative is a pooled read OVER the subtypes it contains and a subtype-restricted
+      positive is exactly what it averages away. This is also why the dependency resolver leaves
+      `subtype_specific_non_dependence` a HOLD while making this token a VETO: that verdict forecloses
+      a scope narrower than the question, this one forecloses the question.
   # pan_essential_buffered: STILL RESERVED. It must soften a pan_essential_killer VETO when a therapeutic
   # window exists (recovers BCL2/XPO1/PSMB5/CDK4-6) — which collides with the 2b guardrail "never drop
   # pan_essential_killer" and needs the exists-safe-modality-window computation (safety_verdict_by_modality)

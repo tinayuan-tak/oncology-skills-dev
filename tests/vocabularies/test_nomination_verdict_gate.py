@@ -35,11 +35,72 @@ def test_every_gate_well_formed():
 
 
 def test_conservative_veto_set():
-    """The veto set must be exactly the two cross-target killers (guards against
-    scope creep that would over-veto)."""
+    """The veto set must be exactly the three cross-target killers (guards against scope creep
+    that would over-veto).
+
+    WIDENED 2026-09-18 (Stage 2b) from two arms to three: `not_dependent_in_indication` joins the
+    pooled `non_dependent`. This pin was written to stop exactly this kind of addition, so the
+    widening is deliberate and the reason is stated here rather than in a commit nobody re-reads:
+    the new arm is the SAME claim as the pooled one measured at the grain the run actually asked
+    about (dependency.resolver v1.5.0, priority 9 vs the pooled arm's 22), not a new KIND of veto.
+    It forecloses EXACTLY the queried scope — which is why `subtype_specific_non_dependence`
+    remains a HOLD, foreclosing a scope narrower than the question.
+
+    An exact-set assert is KEPT rather than relaxed to a predicate, because the ratchet is the
+    point: a fourth arm must again be a deliberate edit here. The PROPERTY the pin protects is
+    asserted separately below, so that widening the set cannot quietly also widen the kind.
+    """
     v = _load()
     veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
-    assert veto == {("dependency", "pan_essential_killer"), ("dependency", "non_dependent")}
+    assert veto == {
+        ("dependency", "pan_essential_killer"),
+        ("dependency", "non_dependent"),
+        ("dependency", "not_dependent_in_indication"),
+    }
+
+
+def test_veto_kind_is_never_widened_by_adding_an_arm():
+    """The PROPERTY test_conservative_veto_set's exact set used to carry implicitly.
+
+    Enumerating three tuples says nothing about what KIND of thing may veto, so adding an arm
+    could silently widen the kind while the set assert still looked deliberate. Three structural
+    invariants, none of which mentions a specific arm:
+
+      1. Only `dependency` may veto. Every other axis is hold-or-nothing (safety escalates, it
+         does not foreclose; surface/selectivity are modality calls).
+      2. A veto is either a broad-tox SAFETY liability or a MEASURED NON-DEPENDENCE. Never an
+         `insufficient*` verdict — "we could not look" is the one state that must never
+         foreclose a target, and the resolver routes all three could-not-look states to their
+         own rungs precisely so a coverage gap cannot reach the killer.
+      3. Never `discordant`. That verdict means the axis's own arms disagree, i.e. an ABSENCE of
+         resolution rather than a measurement against the target (vocab 1.20.0 moved it off
+         `contradiction` for the same reason).
+    """
+    v = _load()
+    vetoes = [g for g in v["gates"] if g["action"] == "veto"]
+    assert vetoes, "an empty veto set would make every assertion below vacuous"
+
+    off_axis = [(g["sub_skill"], g["verdict"]) for g in vetoes if g["sub_skill"] != "dependency"]
+    assert not off_axis, f"only the dependency axis may veto; found {off_axis}"
+
+    underpowered = [g["verdict"] for g in vetoes if g["verdict"].startswith("insufficient")]
+    assert not underpowered, (
+        f"'we could not look' must never veto: {underpowered}. A veto on an underpowered read "
+        f"forecloses a target for a coverage gap, which is fail-CLOSED on absence."
+    )
+
+    assert "discordant" not in {g["verdict"] for g in vetoes}, (
+        "discordant is an absence of resolution, not a measurement against the target"
+    )
+
+    # Anti-vacuity: the two arms below must genuinely DIFFER in kind, or invariant 2 is testing
+    # nothing. One veto must be the safety liability and at least one a non-dependence claim.
+    verdicts = {g["verdict"] for g in vetoes}
+    assert "pan_essential_killer" in verdicts, "the safety-liability arm must be present"
+    assert verdicts - {"pan_essential_killer"}, "at least one non-dependence arm must be present"
+    assert all("non_dependent" in v_ or "not_dependent" in v_ for v_ in verdicts - {"pan_essential_killer"}), (
+        f"every non-safety veto arm must be a non-dependence claim: {verdicts}"
+    )
 
 
 def test_safety_is_hold_not_veto():
@@ -214,15 +275,30 @@ def test_positives_only_from_cross_target_axes():
 
 
 def test_veto_suppressors_well_formed_and_conservative():
-    """Context-escape suppressors must (a) be well-formed, (b) only suppress
-    `non_dependent` (the dilution artifact) — NEVER pan_essential_killer, which is
-    a distinct too-essential failure a stratified signal cannot rescue."""
+    """Context-escape suppressors must (a) be well-formed, (b) only suppress a NON-DEPENDENCE
+    verdict — NEVER pan_essential_killer, which is a distinct too-essential failure a stratified
+    signal cannot rescue.
+
+    WIDENED 2026-09-18 (Stage 2b): the suppressible set was the single token `non_dependent`; it is
+    now the two non-dependence arms. The exclusion this pin exists for is UNCHANGED and is now
+    asserted directly as a negative rather than implied by an equality — which is strictly stronger,
+    because the old form would also have been satisfied by a typo'd token that happened not to be
+    `pan_essential_killer`.
+    """
     v = _load()
     supps = v["veto_suppressors"]
     assert isinstance(supps, list) and supps
+    _SUPPRESSIBLE = {"non_dependent", "not_dependent_in_indication"}
     for s in supps:
         assert set(s["suppresses"]) == {"sub_skill", "verdict"}
-        assert s["suppresses"]["verdict"] == "non_dependent", "context-escape must not suppress pan_essential_killer"
+        assert s["suppresses"]["verdict"] != "pan_essential_killer", (
+            "context-escape must not suppress pan_essential_killer: a broad-tox liability is real "
+            "regardless of which stratum the dependency lives in"
+        )
+        assert s["suppresses"]["verdict"] in _SUPPRESSIBLE, (
+            f"only a non-dependence verdict is suppressible by a context escape, got {s['suppresses']['verdict']!r}"
+        )
+        assert s["suppresses"]["sub_skill"] == "dependency"
         assert s["when_present"] and s["rationale"].strip()
         # Each when_present trigger is EITHER a verdict-tuple form ({sub_skill, verdict}) OR a
         # CARD-FIELD form ({card_id, field, value} — 2026-08-21, for a signal on a card under a
@@ -257,6 +333,19 @@ def test_veto_suppressors_well_formed_and_conservative():
         "the retired synthetic_lethal_partners verdict-tuple trigger must be gone (it can never match "
         "a gateless sub-skill's verdict)"
     )
+    # (2), second member (2026-09-18, A4i): strong paralog buffering is also rescue-to-insufficient.
+    # It says which MODALITY could work (degrader-preferred), not that the target is required, so it
+    # must never be a positive_signal — the same reason curated SL annotation is not one. This arm
+    # exists only for the indication grain: at pooled grain resolver rung 19 relabels the verdict to
+    # `non_dependent_paralog_buffered` before the gate sees it, and no such rung outranks the
+    # indication killer at priority 9.
+    assert ("paralog-buffering", "paralog_buffering_class", "strong") in cardfield_triggers, (
+        "the paralog-buffering veto-suppressor trigger must be present as a card-field trigger"
+    )
+    assert not any("paralog" in p["verdict"] for p in v["positive_signals"]), (
+        "paralog buffering must never be a positive_signal: it is a modality preference, not "
+        "evidence that the target is required"
+    )
 
 
 def test_modality_scoped_veto_suppression_biologics_only():
@@ -274,8 +363,32 @@ def test_modality_scoped_veto_suppression_biologics_only():
         assert set(m["when_modality_in"]) <= biologics, (
             "dependency veto must NOT be suppressed for SM/degrader modalities"
         )
-    # both dependency veto arms are suppressed for biologics
-    assert suppressed_verdicts == {"non_dependent", "pan_essential_killer"}
+    # ALL dependency veto arms are suppressed for biologics. WIDENED 2026-09-18 to three: the
+    # escape here is ORTHOGONALITY, not dilution — an ADC/TCE/mAb engages a surface antigen, so
+    # genetic essentiality is the wrong question at EVERY grain (CD19/TROP2/DLL3 are approved and
+    # none is a dependency in any indication). That makes the indication-conditioned arm's inclusion
+    # forced rather than analogical: an argument that does not depend on panel size cannot become
+    # invalid when the panel narrows. Note this block DOES suppress pan_essential_killer, unlike
+    # veto_suppressors — a surface-directed modality need not spare the gene in normal tissue.
+    assert suppressed_verdicts == {
+        "non_dependent",
+        "not_dependent_in_indication",
+        "pan_essential_killer",
+    }
+
+
+# The dependency veto set has ONE declared home for the two HISTORICAL inertness controls below.
+# Those tests do not assert what the veto set contains — each asserts that ITS OWN version's change
+# (v1.2.0 suppression, v1.4.0 contested_threshold) left the set alone. Re-stating the literal in
+# each made every later deliberate widening red in three places, which is noise, not signal: a
+# reviewer then cannot tell an accidental change from a declared one. test_conservative_veto_set
+# keeps its own inline literal, so the RATCHET is intact — widening this constant without widening
+# that literal still fails.
+_DEPENDENCY_VETO_SET = {
+    ("dependency", "pan_essential_killer"),
+    ("dependency", "non_dependent"),
+    ("dependency", "not_dependent_in_indication"),
+}
 
 
 def test_gates_still_unchanged_by_v1_2_0():
@@ -283,7 +396,7 @@ def test_gates_still_unchanged_by_v1_2_0():
     stable (suppression is applied by the loader, not by removing a gate)."""
     v = _load()
     veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
-    assert veto == {("dependency", "pan_essential_killer"), ("dependency", "non_dependent")}
+    assert veto == _DEPENDENCY_VETO_SET
 
 
 # ---------------------------------------------------------------------------
@@ -306,7 +419,7 @@ def test_contested_threshold_well_formed_and_inert():
 
     # v1.4.0 adds ONLY this stanza; the kill veto set stays byte-stable (regression guard).
     veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
-    assert veto == {("dependency", "pan_essential_killer"), ("dependency", "non_dependent")}
+    assert veto == _DEPENDENCY_VETO_SET
 
 
 # ---------------------------------------------------------------------------

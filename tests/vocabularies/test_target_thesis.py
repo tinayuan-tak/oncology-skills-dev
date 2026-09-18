@@ -88,25 +88,35 @@ def test_step_2b_refinement_well_formed(spec):
         assert rule["rationale"].strip()
 
 
+# The non-dependence arms a step_2b_refinement lane may escape. WIDENED 2026-09-18 (Stage 2b) from
+# the single pooled token: `subsumes:` is a CLAIM about covering an epicycle block, and each of those
+# blocks gained a twin for `not_dependent_in_indication`, so a lane naming only the pooled arm would
+# make its own subsumption assertion FALSE — and Step 2c is scheduled to retire the epicycles on the
+# strength of exactly that claim, which would delete the new arm's escape with it.
+_NON_DEPENDENCE_ARMS = ["non_dependent", "not_dependent_in_indication"]
+
+
 def test_neomorphic_refinement_matches_the_epicycle_it_subsumes(spec):
     """neomorphic_gof must fire on exactly the gof_driver_scoped_veto_downgrade trigger (confirmed_driver
-    /multi_class_driver + non_dependent) so thesis routing subsumes it, and must refine only from
-    oncogene_addiction/unresolved (never from antigen_driven/tme_io)."""
+    /multi_class_driver + a non-dependence verdict) so thesis routing subsumes it, and must refine only
+    from oncogene_addiction/unresolved (never from antigen_driven/tme_io)."""
     rule = next(r for r in spec["step_2b_refinement"] if r["to"] == "neomorphic_gof")
     assert set(rule["when_verdicts"]["genomic_alteration"]) == {"confirmed_driver", "multi_class_driver"}
-    assert rule["when_verdicts"]["dependency"] == ["non_dependent"]
+    assert rule["when_verdicts"]["dependency"] == _NON_DEPENDENCE_ARMS
     assert "antigen_driven" not in rule["from"] and "tme_io" not in rule["from"]
     assert rule.get("subsumes") == "gof_driver_scoped_veto_downgrade"
 
 
 def test_partner_conditional_sl_maps_only_the_measured_arms(spec):
     """partner_conditional_sl refines on the two MEASURED veto_suppressors arms (biomarker-stratified /
-    subtype-restricted dependency), both requiring dependency=non_dependent. The ANNOTATION-only SL arm
-    (has_experimental_sl_partner) must NOT be mapped here (a plain drop would over-permit annotation)."""
+    subtype-restricted dependency), both requiring a NON-DEPENDENCE dependency verdict. The
+    ANNOTATION-only SL arm (has_experimental_sl_partner) must NOT be mapped here (a plain drop would
+    over-permit annotation) — and that stays true at indication grain, so the count is still 2 even
+    though veto_suppressors now has twice as many arms."""
     rules = [r for r in spec["step_2b_refinement"] if r["to"] == "partner_conditional_sl"]
     assert len(rules) == 2, "expected the biomarker-stratified + subtype-restricted arms"
     for r in rules:
-        assert r["when_verdicts"].get("dependency") == ["non_dependent"]
+        assert r["when_verdicts"].get("dependency") == _NON_DEPENDENCE_ARMS
         assert "antigen_driven" not in r["from"] and "tme_io" not in r["from"]
     triggers = {frozenset(k for k in r["when_verdicts"] if k != "dependency") for r in rules}
     assert triggers == {frozenset({"genomic_alteration"}), frozenset({"subtype_fit"})}

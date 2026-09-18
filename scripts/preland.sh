@@ -40,6 +40,14 @@ run "pytest target-profiling-axes ontology" python -m pytest tests/vocabularies/
 # step already collects it, but THIS script has no such net — every pytest gate above names one file
 # — so without this line the guard would be absent from the pre-land gate that peers actually run.
 run "pytest dependency indication spine" python -m pytest tests/vocabularies/test_indication_dependency_class_partition.py -q
+# 2026-09-18 (Stage 2b): the RESOLVER -> GATE parity guard, plus the three files whose closed-set veto
+# pins it widens. Same no-net argument as the line above, with a sharper edge: the pins live in files
+# this script NEVER collected (only test_nomination_verdict_gate.py was gated), so the widening of
+# test_kill_capable_completeness / test_target_thesis / test_known_target_calibration would have been
+# invisible to every pre-land run and first observed in CI. test_known_target_calibration also carries
+# the VETO_VERDICTS mirror, whose staleness fails OPEN — a `must_not_veto` assertion blind to a veto
+# arm reports PASS — so it is the last file that should be gated only by the safety net.
+run "pytest indication gate parity"      python -m pytest tests/vocabularies/test_indication_verdict_gate_parity.py tests/vocabularies/test_kill_capable_completeness.py tests/vocabularies/test_target_thesis.py tests/calibration/test_known_target_calibration.py -q
 # --- ruff (.github/workflows/ruff.yml) ---
 # 2026-09-13: this script mirrored contracts-validate.yml and NOTHING ELSE, so "ALL GATES PASS" was
 # reported on a branch whose ruff job then failed on the PR — format-only, but a red check either way.

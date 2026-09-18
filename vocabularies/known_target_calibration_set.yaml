@@ -40,8 +40,33 @@
 #     no snapshot yet (the test skips its hard assertion, reports as pending).
 #   - Extending is cheap — add an entry + (for measured ones) a snapshot; bump version.
 
-version: 1.3.0
+version: 1.4.0
 snapshot_date: "2026-07-19"
+# v1.4.0 (2026-09-18, Stage 2b parity): every `expected_verdict_not_in` list (10 entries, 8 of them
+# live — BRAF/SKCM and EGFR/LUAD are `measured: false`, so their lists are declarations the
+# parametrize never evaluates) gains `not_dependent_in_indication`, the third dependency veto arm
+# minted by #812. INERT TODAY BY REACHABILITY, not by weak assertion: no producer populates
+# `indication_dependency_class` until Stage 5, so no snapshot can carry the token and the suite is
+# byte-for-byte green. The addition is a FORWARD-DATED REQUIREMENT — "an approved target must not
+# read a veto verdict" was always the assertion; naming only the pooled arm made it incomplete the
+# moment a second arm existed. `known_gap_watchlist.MET.expected_verdict_current: non_dependent` is
+# DELIBERATELY NOT touched: it is a positive claim about today's behaviour, not an absence set, and
+# blind parity there would assert a verdict MET cannot reach. It flips at Stage 5 (MET/LUAD would
+# resolve `not_dependent_in_indication` at priority 9, outranking pooled `non_dependent` at 22), and
+# the test that reads it is the forcing function for that refresh.
+#
+# ⚠ STAGE-5 BLOCKER THIS VERSION MAKES VISIBLE (measured, not predicted). WWTR1/MESO, MARK2/PAAD and
+# MARK3/PAAD — 3 of the 8 live controls, MARK2/3 being ADVANCED programs — resolve
+# `non_dependent_paralog_buffered`, whose resolver rung is 19. `not_dependent_in_indication` is
+# priority 9 and therefore OUTRANKS it, because v1.5.0 added compound twins pairing the indication
+# killer with partner-conditional (6,7) and chemical-genetic (8) but NOT with
+# `strong-paralog-buffering-degrader-preferred`. So at Stage 5 these three flip to a veto verdict and
+# THIS SUITE GOES RED. That red is correct and must be fixed in the RESOLVER (a 4th compound twin
+# above priority 9), never by deleting the token from these lists — a reciprocal paralog SL is
+# invisible to a single-gene KO at every panel size, so the escape is real. The gate-layer half is
+# already closed by veto_suppressors A4i (the veto will not fire); what remains is the LABEL, which
+# is what this file asserts against. tests/vocabularies/test_indication_verdict_gate_parity.py pins
+# both the obligation and the exact shape of the missing rung.
 # v1.3.0 (2026-08-30): added MET/LUAD to known_gap_watchlist (known_gap_expected_fail) — the
 # METex14-skipping biomarker-conditional dependency false-negative (approved TKI/ADC target reads
 # pan-line non_dependent). Snapshot met_luad.functional-requirement.json captured against
@@ -66,7 +91,7 @@ positive_controls:
     assertion_type: must_not_veto
     measured: true
     snapshot: kras_coadread.functional-requirement.json
-    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
     note: "Golden control. Measured lineage_selective / lineage-selective-supportive (not a veto)."
 
   # Reasoned (no snapshot yet) approved-drug positives — pending live capture.
@@ -77,7 +102,7 @@ positive_controls:
     dependency_mode: oncogene_addiction
     assertion_type: must_not_veto
     measured: false
-    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
 
   EGFR:
     indication: LUAD
@@ -86,7 +111,7 @@ positive_controls:
     dependency_mode: mutation_addiction
     assertion_type: must_not_veto
     measured: false
-    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
     note: "The canonical false-negative risk: mutant lines under-sampled → pooled non_dependent. Biomarker-rescue (v1.2.0) is the intended guard."
 
   # ── Conditional-dependency discovery sweep (2026-09-07, analysis-methods #584) — positive controls.
@@ -102,7 +127,7 @@ positive_controls:
     assertion_type: must_not_veto
     measured: true
     snapshot: ctnnb1_coadread.functional-requirement.json
-    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
     note: "Genuine selective dependency (crispr+rnai strongly_selective → lineage_selective). APC-conditional partner-conditional lane (partner_conditional_strongly_dependent, delta -0.881/q 3.2e-37/n=100) corroborates, does not drive."
   TEAD1:
     indication: MESO
@@ -113,7 +138,7 @@ positive_controls:
     assertion_type: must_not_veto
     measured: true
     snapshot: tead1_meso.functional-requirement.json
-    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
     note: "Pooled crispr/rnai non_dependent → rescued to lineage_selective (mesothelioma). NF2-conditional partner-conditional lane (partner_conditional_moderately_dependent, delta -0.247/q 2.3e-4/n=36) corroborates, does not drive."
   WWTR1:
     indication: MESO
@@ -124,7 +149,7 @@ positive_controls:
     assertion_type: must_not_veto
     measured: true
     snapshot: wwtr1_meso.functional-requirement.json
-    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
     note: "Pooled crispr/rnai non_dependent → rescued to non_dependent_paralog_buffered (YAP1 buffers TAZ; degrader-preferred, non-veto). NF2-conditional partner-conditional lane (partner_conditional_moderately_dependent, delta -0.251/q 4.4e-4/n=36) corroborates."
 
 # ---------------------------------------------------------------------------
@@ -172,7 +197,7 @@ known_gap_watchlist:
     assertion_type: must_not_veto      # FLIPPED from known_gap_expected_fail — RESCUED (Takeda ONC backtest 2026-09-08)
     measured: true
     snapshot: smarca2_luad.functional-requirement.json
-    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
     resolved_verdict: partner_conditional_dependent            # realized (was non_dependent); the anticipated expected_after_context_sl flip
     resolved_driving_rule: partner-conditional-moderately-dependent-supportive
     note: "RESCUED: the SMARCA2×SMARCA4 partner-conditional lane (partner_map) now reads partner_conditional_dependent — the flip the entry anticipated (expected_after_context_sl: conditional_dependent). Surfaced by the Takeda ONC dependency-FN backtest (2026-09-08); snapshot refreshed from the stale non_dependent capture."
@@ -204,7 +229,7 @@ known_gap_watchlist:
     assertion_type: must_not_veto      # FLIPPED from known_gap_expected_fail — CASE-014 fix landed (AM #582)
     measured: true
     snapshot: epas1_rcc.functional-requirement.json
-    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
     resolved_verdict: partner_conditional_dependent            # realized (was non_dependent)
     resolved_driving_rule: partner-conditional-moderately-dependent-supportive
     note: "RESOLVED CASE-014 (skills eval/CASE_LOG.md). Was a biomarker-conditional false-negative (analogue of MET/LUAD + SMARCA2/LUAD): pooled pan-line CRISPR/RNAi read non_dependent because EPAS1/HIF-2α dependency is CONDITIONAL on VHL loss (ccRCC near-uniformly VHL-null → no in-RCC-panel contrast; the conditional signal is only visible pan-cancer). FIXED by curating EPAS1×VHL (lof_mutation) in analysis-methods partner_map (PR #582): live DepMap 26q1 EPAS1×VHL-LoF stratum = delta -0.066 Chronos, mann-whitney q 2.1e-3, rank-biserial 0.32, n=28 VHL-LoF / 1510 neutral → partner_conditional_moderately_dependent, which the dependency resolver rescues above the non_dependent rung. Live FR re-run 2026-09-07 confirms the flip non_dependent → partner_conditional_dependent (snapshot epas1_rcc.functional-requirement.json). belzutifan-validated, so must_not_veto now holds. DISTINCT from the reference_profiles HIF2A/RCC licensing-blind anchor (Cortellis wall)."
@@ -218,7 +243,7 @@ known_gap_watchlist:
     assertion_type: must_not_veto      # FLIPPED (Takeda ONC backtest 2026-09-08) — paralog suppressor rescues
     measured: true
     snapshot: mark2_paad.functional-requirement.json
-    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
     resolved_verdict: non_dependent_paralog_buffered           # realized (was non_dependent); degrader-preferred
     resolved_driving_rule: strong-paralog-buffering-degrader-preferred
     note: "RESCUED: paralog-buffering suppressor reads non_dependent_paralog_buffered (non-veto, degrader-preferred), correctly capturing the reciprocal MARK2<->MARK3 SL. Realized verdict differs from the old expected_after_context_sl prediction (paralog_buffered, not conditional_dependent). Snapshot refreshed from stale non_dependent."
@@ -232,7 +257,7 @@ known_gap_watchlist:
     assertion_type: must_not_veto      # FLIPPED (Takeda ONC backtest 2026-09-08) — paralog suppressor rescues
     measured: true
     snapshot: mark3_paad.functional-requirement.json
-    expected_verdict_not_in: [non_dependent, pan_essential_killer]
+    expected_verdict_not_in: [non_dependent, not_dependent_in_indication, pan_essential_killer]
     resolved_verdict: non_dependent_paralog_buffered           # realized (was non_dependent); degrader-preferred
     resolved_driving_rule: strong-paralog-buffering-degrader-preferred
     note: "RESCUED: paralog-buffering suppressor reads non_dependent_paralog_buffered (non-veto, degrader-preferred), correctly capturing the reciprocal MARK3<->MARK2 SL. Snapshot refreshed from stale non_dependent."
