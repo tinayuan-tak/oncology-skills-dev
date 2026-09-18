@@ -29,10 +29,31 @@ def test_protein_class_bands():
 
 
 def test_subtype_signal_vs_pooled():
-    assert _classify_subtype_signal(1.0, 0.0) == "enriched"
-    assert _classify_subtype_signal(-1.0, 0.0) == "depleted"
-    assert _classify_subtype_signal(0.1, 0.0) == "uniform"
+    # PREFIXED tokens as of TC#816 (squash 98a7990): all three tier:subtype arms spell this field one way.
+    # This arm's None (no comparison ran) is UNCHANGED — the stronger contract; only the spelling moved.
+    assert _classify_subtype_signal(1.0, 0.0) == "subtype_enriched"
+    assert _classify_subtype_signal(-1.0, 0.0) == "subtype_depleted"
+    assert _classify_subtype_signal(0.1, 0.0) == "subtype_uniform"
     assert _classify_subtype_signal(None, 0.0) is None
+
+
+def test_no_bare_vocabulary_survives_anywhere_in_this_arm():
+    """The bare tokens must be GONE from the module source, not merely unused by the classifier.
+
+    Asserting only return values would leave a stray comparison (`== "enriched"`) silently
+    unmatchable — it would never raise, just never be true, and a count would read 0 forever. So this
+    greps the module SOURCE. Scoped to `subtype_signal`'s vocabulary: the identically-spelled
+    `{process}_class` literals in tcga_mc3_signatures are a DIFFERENT field and out of scope.
+    """
+    import re
+
+    import methods.cptac_protein_distribution.read as R
+
+    src = Path(R.__file__).read_text()
+    bare = re.findall(r'"(enriched|depleted|uniform)"', src)
+    assert bare == [], f"bare subtype_signal tokens still present in read.py: {sorted(set(bare))}"
+    # ...and the prefixed ones ARE present, so the assertion above cannot pass by the field vanishing.
+    assert re.findall(r'"subtype_(?:enriched|depleted|uniform)"', src), "no prefixed tokens found — vacuous"
 
 
 def test_rollup_axis_quality_and_stratification():
@@ -193,7 +214,7 @@ def test_projection_declares_both_post_pass_keys(monkeypatch):
     `_subtype_rollup` writes `subtype_signal` and `subtype_enrich_log2_delta` onto `measured` rows
     only, so before these defaults an unmeasured stratum came back with the keys ABSENT while a
     measured one had them present. That is worse than a null: `rec["subtype_signal"]` KeyErrors on
-    the first empty stratum, and `rec.get("subtype_signal", "uniform")` silently returns its default
+    the first empty stratum, and `rec.get("subtype_signal", "subtype_uniform")` silently returns its default
     for exactly the rows that were never compared. Asserting `in` (not just the value) is the point —
     an `is None` check alone passes on an absent key via `.get`.
     """
@@ -226,12 +247,12 @@ def test_applied_delta_emitted_only_where_the_cut_actually_ran():
     ]
     _subtype_rollup(records, pooled_median=0.1)
     by_id = {r["stratum"]: r for r in records}
-    assert by_id["MSI_H"]["subtype_signal"] == "enriched"
+    assert by_id["MSI_H"]["subtype_signal"] == "subtype_enriched"
     assert by_id["MSI_H"]["subtype_enrich_log2_delta"] == 0.25
-    # a `uniform` call is still a call the cut produced -> the delta IS attested
-    assert by_id["MSS"]["subtype_signal"] == "uniform"
+    # a `subtype_uniform` call is still a call the cut produced -> the delta IS attested
+    assert by_id["MSS"]["subtype_signal"] == "subtype_uniform"
     assert by_id["MSS"]["subtype_enrich_log2_delta"] == 0.25
-    # no median -> no comparison ran -> null, and the signal is null too (no "uniform" laundering)
+    # no median -> no comparison ran -> null, and the signal is null too (no "subtype_uniform" laundering)
     assert by_id["unknown"]["subtype_signal"] is None
     assert by_id["unknown"]["subtype_enrich_log2_delta"] is None
     # …and with no pooled baseline, NOTHING was compared on any row
@@ -252,8 +273,8 @@ def test_emitted_delta_is_the_constant_the_classifier_reads(monkeypatch):
 
     monkeypatch.setattr(R, "_SUBTYPE_ENRICH_LOG2_DELTA", 1.0)
     # 0.9 above pooled cleared the real 0.25 cut; under a 1.0 cut it must not
-    assert R._classify_subtype_signal(1.0, 0.1) == "uniform"
-    assert R._classify_subtype_signal(1.2, 0.1) == "enriched"
+    assert R._classify_subtype_signal(1.0, 0.1) == "subtype_uniform"
+    assert R._classify_subtype_signal(1.2, 0.1) == "subtype_enriched"
     recs = [_projected_row("MSI_H", "measured", 1.2)]
     R._subtype_rollup(recs, pooled_median=0.1)
     assert recs[0]["subtype_enrich_log2_delta"] == 1.0

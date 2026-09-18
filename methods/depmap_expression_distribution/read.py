@@ -197,15 +197,31 @@ def _expression_projection(stratum_id: str, rec: dict) -> dict:
 
 
 def _classify_subtype_signal(stratum_median: Optional[float], pooled_median: Optional[float]) -> str:
-    """enriched / depleted / uniform for one stratum vs the within-lineage pooled median."""
+    """subtype_enriched / subtype_depleted / subtype_uniform for one stratum vs the within-lineage
+    pooled median.
+
+    VOCABULARY: the `subtype_`-PREFIXED tokens, which is what this card's record schema declares
+    (target-contracts TC#816, squash 98a7990) and what the tumour RNA arm has always emitted. This arm
+    and the CPTAC protein arm used to return the BARE forms (`enriched` / `depleted` / `uniform`), so
+    the three `tier: subtype` arms spelled one field two ways: equal strings did not mean equal things,
+    and a cross-arm consumer would have silently failed to match two of the three. Step 2 of
+    add -> consume -> remove; the bare half of both enums is removed in a later contracts PR.
+
+    THE FALL-THROUGH IS AN ABSTENTION, NOT A MEASUREMENT. A missing median returns `subtype_uniform`
+    here, exactly as before, so `subtype_uniform` on this arm means EITHER "compared, no shift" OR "not
+    compared". The CPTAC arm returns None instead. Renaming the token does not fix that asymmetry and is
+    not meant to: the discriminator is `subtype_enrich_log2_delta`, which is left None when no cut ran
+    (see the post-pass below). A consumer joining arms on the token ALONE would score two failed
+    comparisons as agreement.
+    """
     if stratum_median is None or pooled_median is None:
-        return "uniform"
+        return "subtype_uniform"
     delta = stratum_median - pooled_median
     if delta >= _SUBTYPE_ENRICH_LOG2_DELTA:
-        return "enriched"
+        return "subtype_enriched"
     if delta <= -_SUBTYPE_ENRICH_LOG2_DELTA:
-        return "depleted"
-    return "uniform"
+        return "subtype_depleted"
+    return "subtype_uniform"
 
 
 def _pooled_lineage_median(
@@ -237,17 +253,25 @@ def _subtype_rollup(records: list, pooled_median: Optional[float]) -> dict:
         r["subtype_signal"] = _classify_subtype_signal(r.get("median_log2tpm"), pooled_median)
         # The cutoff ACTUALLY APPLIED to produce that call, declared per-record by the card
         # (cellline-rna-distribution-by-subtype, TC#811). The point is CROSS-ARM comparability:
-        # `enriched` means a 1.0 log2(TPM+1) shift here, 0.585 on the tumor RNA arm, and 0.25 of a
-        # tumor-vs-reference log2 RATIO on the CPTAC protein arm — three cuts differing in value AND
+        # `subtype_enriched` means a 1.0 log2(TPM+1) shift here, 0.585 on the tumor RNA arm, and 0.25 of
+        # a tumor-vs-reference log2 RATIO on the CPTAC protein arm — three cuts differing in value AND
         # in units, previously discoverable nowhere in the emitted record. Emitting the applied value
-        # lets a consumer normalise (or decline to join) WITHOUT moving any cut.
-        # Left None when no comparison ran: _classify_subtype_signal falls through to "uniform" if
-        # EITHER median is None, and that fall-through is an ABSTENTION, not a measured uniformity —
-        # so a `uniform` row with a null delta is readable as "not compared".
+        # lets a consumer normalise (or decline to join) WITHOUT moving any cut. NOTE that the three arms
+        # now AGREE ON THE TOKEN while still disagreeing on the CUT: aligning the vocabulary (TC#816)
+        # deliberately did NOT align the constants, which are not commensurable in units. So the token
+        # is now safe to join on and the delta is what makes the join MEANINGFUL.
+        # Left None when no comparison ran: _classify_subtype_signal falls through to "subtype_uniform"
+        # if EITHER median is None, and that fall-through is an ABSTENTION, not a measured uniformity —
+        # so a `subtype_uniform` row with a null delta is readable as "not compared".
         if r.get("median_log2tpm") is not None and pooled_median is not None:
             r["subtype_enrich_log2_delta"] = _SUBTYPE_ENRICH_LOG2_DELTA
-    n_enriched = sum(1 for r in measured if r["subtype_signal"] == "enriched")
-    n_depleted = sum(1 for r in measured if r["subtype_signal"] == "depleted")
+    # ⚠️ TWO VOCABULARIES NOW SHARE SPELLINGS. As of TC#816 the per-stratum `subtype_signal` tokens are
+    # prefixed, so `subtype_enriched` below appears BOTH as a per-row signal value (the comparisons) and
+    # as a whole-axis `subtype_stratification_class` value (the `strat` assignments). They are different
+    # fields at different grains — per-stratum vs per-axis — and the strings are now identical. Read the
+    # left-hand side, not the literal, before changing either.
+    n_enriched = sum(1 for r in measured if r["subtype_signal"] == "subtype_enriched")
+    n_depleted = sum(1 for r in measured if r["subtype_signal"] == "subtype_depleted")
     if n_enriched and n_depleted:
         strat = "subtype_variable"
     elif n_enriched:
@@ -257,7 +281,9 @@ def _subtype_rollup(records: list, pooled_median: Optional[float]) -> dict:
     else:
         strat = "pan_subtype_uniform"
     spotlight = None
-    enriched = [r for r in measured if r["subtype_signal"] == "enriched" and r.get("median_log2tpm") is not None]
+    enriched = [
+        r for r in measured if r["subtype_signal"] == "subtype_enriched" and r.get("median_log2tpm") is not None
+    ]
     if enriched:
         spotlight = max(enriched, key=lambda r: r["median_log2tpm"])["stratum"]
     return {

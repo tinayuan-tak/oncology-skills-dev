@@ -10,13 +10,35 @@ from methods.depmap_expression_distribution import read as R
 
 
 def test_classify_subtype_signal_vs_pooled():
-    # >= +1.0 log2 over pooled → enriched; <= -1.0 → depleted; within → uniform
-    assert R._classify_subtype_signal(6.5, 5.0) == "enriched"
-    assert R._classify_subtype_signal(3.5, 5.0) == "depleted"
-    assert R._classify_subtype_signal(5.4, 5.0) == "uniform"
-    # null-safe
-    assert R._classify_subtype_signal(None, 5.0) == "uniform"
-    assert R._classify_subtype_signal(6.0, None) == "uniform"
+    # >= +1.0 log2 over pooled → subtype_enriched; <= -1.0 → subtype_depleted; within → subtype_uniform.
+    # PREFIXED tokens as of TC#816 (squash 98a7990): all three tier:subtype arms now spell this field one
+    # way. The bare forms this arm used to return are asserted dead in the companion test below.
+    assert R._classify_subtype_signal(6.5, 5.0) == "subtype_enriched"
+    assert R._classify_subtype_signal(3.5, 5.0) == "subtype_depleted"
+    assert R._classify_subtype_signal(5.4, 5.0) == "subtype_uniform"
+    # null-safe — and note this is a FALL-THROUGH, not a measurement: the same token a real
+    # no-shift comparison produces. `subtype_enrich_log2_delta` is the discriminator (tested below).
+    assert R._classify_subtype_signal(None, 5.0) == "subtype_uniform"
+    assert R._classify_subtype_signal(6.0, None) == "subtype_uniform"
+
+
+def test_no_bare_vocabulary_survives_anywhere_in_this_arm():
+    """The bare tokens must be GONE, not merely unused by the classifier.
+
+    Asserting only the classifier's return value would leave a comparison elsewhere in the module
+    (`== "enriched"`) silently unmatchable — it would not raise, it would just never be true, and a
+    rollup count would read 0 forever. So this greps the module SOURCE for the bare literals rather
+    than exercising one function. Scoped to `subtype_signal`'s vocabulary: the identically-spelled
+    `{process}_class == "enriched"` in tcga_mc3_signatures is a DIFFERENT field and is out of scope.
+    """
+    import re
+    from pathlib import Path
+
+    src = Path(R.__file__).read_text()
+    bare = re.findall(r'"(enriched|depleted|uniform)"', src)
+    assert bare == [], f"bare subtype_signal tokens still present in read.py: {sorted(set(bare))}"
+    # ...and the prefixed ones ARE present, so the assertion above cannot pass by the field vanishing.
+    assert re.findall(r'"subtype_(?:enriched|depleted|uniform)"', src), "no prefixed tokens found — vacuous"
 
 
 def test_expression_class_thresholds():
@@ -46,8 +68,8 @@ def test_rollup_enriched_and_uniform():
     assert out["subtype_stratification_class"] == "subtype_enriched"
     assert out["spotlight_subtype"] == "KRAS_G12C"
     # the measured records got their signal filled
-    assert recs[0]["subtype_signal"] == "enriched"
-    assert recs[1]["subtype_signal"] == "uniform"
+    assert recs[0]["subtype_signal"] == "subtype_enriched"
+    assert recs[1]["subtype_signal"] == "subtype_uniform"
 
 
 def test_rollup_variable_when_both_enriched_and_depleted():
@@ -194,16 +216,16 @@ def test_projection_declares_both_post_pass_keys():
 def test_applied_delta_separates_a_measured_uniform_from_an_abstention():
     """On THIS arm the signal alone cannot gate the delta, and that is the whole subtlety.
 
-    `_classify_subtype_signal` falls THROUGH to "uniform" when either median is None (unlike the
+    `_classify_subtype_signal` falls THROUGH to "subtype_uniform" when either median is None (unlike the
     CPTAC arm, which returns None) — so a stratum that was never compared carries a token that looks
     like a measured finding. The delta is therefore gated on the MEDIANS, and a null delta on a
-    `uniform` row is the reader's only signal that no comparison ran. Asserting both rows is
+    `subtype_uniform` row is the reader's only signal that no comparison ran. Asserting both rows is
     essential: they carry the same `subtype_signal` and differ ONLY in the new field.
     """
-    compared = _projected("EGFR_mut", 5.4)  # within the band -> a real `uniform` call
-    abstained = _projected("unknown", None)  # no median -> fall-through `uniform`
+    compared = _projected("EGFR_mut", 5.4)  # within the band -> a real `subtype_uniform` call
+    abstained = _projected("unknown", None)  # no median -> fall-through `subtype_uniform`
     R._subtype_rollup([compared, abstained], pooled_median=5.0)
-    assert compared["subtype_signal"] == "uniform" and abstained["subtype_signal"] == "uniform"
+    assert compared["subtype_signal"] == "subtype_uniform" and abstained["subtype_signal"] == "subtype_uniform"
     assert compared["subtype_enrich_log2_delta"] == 1.0
     assert abstained["subtype_enrich_log2_delta"] is None
     # no pooled baseline -> nothing was compared on ANY row
@@ -215,7 +237,7 @@ def test_applied_delta_separates_a_measured_uniform_from_an_abstention():
 def test_emitted_delta_is_the_cut_this_arm_actually_applies():
     """The emitted value must be 1.0 HERE and 0.585 on the tumour RNA arm — the cross-arm point.
 
-    Same word (`enriched`), a 2x linear shift on cell lines vs a 1.5x shift in tumours. The two
+    Same token (`subtype_enriched`), a 2x linear shift on cell lines vs a 1.5x shift in tumours. The two
     constants are deliberately NOT aligned (moving the cell-line cut would silently reclassify live
     strata); emitting the applied value is what makes the arms joinable instead. Pinning the number
     against the module constant AND against the sibling's would let a single edit satisfy both, so
@@ -223,7 +245,7 @@ def test_emitted_delta_is_the_cut_this_arm_actually_applies():
     """
     enriched = _projected("KRAS_G12C", 6.5)
     R._subtype_rollup([enriched], pooled_median=5.0)
-    assert enriched["subtype_signal"] == "enriched"
+    assert enriched["subtype_signal"] == "subtype_enriched"
     assert enriched["subtype_enrich_log2_delta"] == R._SUBTYPE_ENRICH_LOG2_DELTA == 1.0
 
 
