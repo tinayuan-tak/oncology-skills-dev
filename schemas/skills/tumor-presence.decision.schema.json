@@ -529,7 +529,8 @@
         "absent",
         "not_informative",
         "data_unavailable",
-        "insufficient"
+        "insufficient",
+        "tumor_subset_high_expression"
       ]
     }
   },

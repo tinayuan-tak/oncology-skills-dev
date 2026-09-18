@@ -1,5 +1,5 @@
 {
-  "$comment": "PER-SKILL PINS (source) for tumor-presence — the THIN, skill-specific constraints the generator merges onto the shared spine+envelope to produce schemas/skills/tumor-presence.decision.schema.json. VARIANT = descriptive/inert-scalar: pins role + polarity consts (a GATING skill's pins would pin role only, leaving polarity to the shared dynamic enum; a GATELESS skill would pin call:null and require no headline verdict field). `$defs` here is merged into the monolith's `$defs`. Everything outside `$defs` is an allOf constraint branch. Enum sourced from skills/tumor-presence/scripts/run.py (ladders + collapse + Phase-3 reconciliation tokens); append-only within contract major version.",
+  "$comment": "PER-SKILL PINS (source) for tumor-presence — the THIN, skill-specific constraints the generator merges onto the shared spine+envelope to produce schemas/skills/tumor-presence.decision.schema.json. VARIANT = descriptive/inert-scalar: pins role + polarity consts (a GATING skill's pins would pin role only, leaving polarity to the shared dynamic enum; a GATELESS skill would pin call:null and require no headline verdict field). `$defs` here is merged into the monolith's `$defs`. Everything outside `$defs` is an allOf constraint branch. Enum sourced from skills/tumor-presence/scripts/run.py (ladders + collapse + Phase-3 reconciliation tokens); append-only within contract major version. ORDER CARRIES NO MEANING — it is a SET (JSON Schema enum validation is order-insensitive, and the sole consumer, skills tests/test_ladder_invariants.py guard 4, reads it as a set). The leading run happens to read positives -> protein -> single-cell -> negatives -> gaps because the file was authored whole; do NOT infer rank from position. RANK lives in run.py's _EXPRESSION_RANK / _PROTEIN_RANK / _SC_RNA_RANK. Consequence of append-only: tumor_subset_high_expression (added 2026-09-18, phase 3a of the subset_high split) sits AFTER the gap tokens although it is a measured POSITIVE at tier 2 — that is the convention working as intended, not a misfiling.",
   "skill": "tumor-presence",
   "role_variant": "descriptive_inert_scalar",
   "$defs": {
@@ -38,7 +38,8 @@
         "absent",
         "not_informative",
         "data_unavailable",
-        "insufficient"
+        "insufficient",
+        "tumor_subset_high_expression"
       ]
     }
   },
