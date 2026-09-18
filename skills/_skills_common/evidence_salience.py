@@ -575,6 +575,74 @@ SALIENCE_SPECS: dict = {
             "cspa_category",
         ],
     },
+    # ── descriptor-coverage sweep, surface-modality-fit batch (2026-09-18) ──────────────────────────
+    # pmhc_presentation: GRADED on a COUNT — more normal tissues presenting the peptide = broader
+    # on-target/off-tumor SAFETY liability for a pMHC TCE (higher_is_worse). cuts bin
+    # n_normal_tissues_presented into pmhc_presentation_class (restricted <=3 .. broad >=19).
+    # DEBT-CLEARING (removed from _UNSPECCED_VERDICT_BEARING_DEBT).
+    "pmhc_presentation": {
+        "effect_field": "n_normal_tissues_presented",
+        "direction": "higher_is_worse",
+        "categorical": ["pmhc_presentation_class"],
+        "n_field": "n_presented_peptides",
+        "reference_frame": {
+            "kind": "graded_band",
+            "atlas_numeric": False,
+            "value_field": "n_normal_tissues_presented",
+            "scale": "normal_tissue_count",
+            "position_field": "pmhc_presentation_class",
+            "cuts": [
+                {
+                    "card_id": "pmhc-presentation",
+                    "threshold": "restricted_max_tissues",
+                    "label": "restricted_presentation",
+                },
+                {"card_id": "pmhc-presentation", "threshold": "broad_min_tissues", "label": "broadly_presented_normal"},
+            ],
+        },
+    },
+    # categorical-only (the CLASS is the ruler; no single-sourced numeric cut) — surface family:
+    "pmhc_epitope_evidence": {  # DEBT-CLEARING
+        "n_field": "n_epitopes",
+        "categorical": ["epitope_evidence_class"],
+    },
+    "exon_window": {  # DEBT-CLEARING (thresholds live method-side; no card cut to single-source)
+        "n_field": "n_exons",
+        "categorical": ["exon_window_class"],
+    },
+    "antigen_pair_coexpression": {
+        "n_field": "n_partners_tested",
+        "categorical": ["samecell_avidity_class", "window_verdict"],
+    },
+    "antigen_pair_selectivity": {
+        "n_field": "n_partners_scanned",
+        "categorical": ["best_and_call_class"],
+    },
+    "cd_antigen_backbone": {
+        "categorical": ["cd_antigen_backbone_class"],
+    },
+    "surface_topology": {
+        "n_field": "tm_pass_count",
+        "categorical": [
+            "topology_class",
+            "ecd_engineerability_class",
+            "ecd_orientation",
+            "isoform_selective_warning",
+        ],
+    },
+    "surfaceome_family": {
+        "categorical": ["family_class", "surface_protein_family"],
+    },
+    "mutation_stratified_surface": {
+        "significance_field": "q_value",
+        "n_field": "n_mutant",
+        "categorical": ["mutant_stratified_surface_class"],
+    },
+    "pathway_stratified_surface": {
+        "significance_field": "q_value",
+        "n_field": "n_high",
+        "categorical": ["pathway_stratified_surface_class"],
+    },
     "tumor_vs_adjacent_expression": {
         "effect_field": "log2_fc",
         "significance_field": "q_value",

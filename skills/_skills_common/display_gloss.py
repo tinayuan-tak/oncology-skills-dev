@@ -89,6 +89,15 @@ METRIC_GLOSS: dict = {
     "shet_upper_95": ("s_het 95% CI upper bound", "s_het"),
     "obs_lof_count": ("observed LoF variant count", "count"),
     "exp_lof_count": ("expected LoF variant count", "count"),
+    # descriptor-coverage sweep, surface-modality-fit batch.
+    "n_normal_tissues_presented": ("normal tissues presenting the peptide", "count"),
+    "n_presented_peptides": ("presented peptides", "count"),
+    "n_epitopes": ("catalogued epitopes", "count"),
+    "n_exons": ("exons evaluated", "count"),
+    "n_partners_tested": ("partner antigens tested", "count"),
+    "n_partners_scanned": ("partner antigens scanned", "count"),
+    "tm_pass_count": ("predicted transmembrane passes", "count"),
+    "n_high": ("samples in the high stratum", "count"),
     # ClinGen dosage-sensitivity (dominant-loss dosage safety) + Open Targets gene-burden safety counts.
     "n_high_confidence": ("high-confidence ClinGen dosage rows", "count"),
     "n_total_rows": ("total curated rows for the gene", "count"),

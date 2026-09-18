@@ -86,12 +86,11 @@ _UNSPECCED_VERDICT_BEARING_DEBT = {
     "cis_dosage_coupling",  # cis-feature-expression-coherence — cis-feature-coherence review
     # dosage_sensitivity_safety + human_genetic_safety SPECCED 2026-09-18 (descriptor-coverage mint) —
     # removed from the debt; test_the_unspecced_debt_list_has_no_stale_entries enforces they stay out.
-    "exon_window",  # modality-exon-window — modality-fit review
     "known_drug_tractability",  # known-drug-tractability — tractability review
     "paralog_buffering",  # paralog-buffering — functional-requirement review
     "partner_conditional_dependency",  # partner-conditional-dependency — combination review
-    "pmhc_epitope_evidence",  # pmhc-epitope-evidence-iedb — pMHC review
-    "pmhc_presentation",  # pmhc-presentation — pMHC review
+    # exon_window, pmhc_epitope_evidence, pmhc_presentation SPECCED 2026-09-18 (surface-modality-fit
+    # descriptor-coverage batch) — removed from the debt.
 }
 
 
@@ -342,6 +341,12 @@ _ATLAS_NUMERIC_OPTOUT = {
         "identical for every target in a cohort, so a target atlas numeric would cluster known targets by "
         "indication and phrase an indication property as a target property (same reasoning as immune_context). "
         "The graded_band stays a display ruler (atlas_numeric: False)."
+    ),
+    "pmhc_presentation": (
+        "ATLAS DEFERRED — the normal-tissue-count graded_band is a display-only ruler (atlas_numeric: False) "
+        "because the target-archetype atlas is deferred out of go-live; minting a new frozen column now is a "
+        "one-way door. The descriptor + safety-liability cut-line need no atlas feature. Flip when the atlas "
+        "returns."
     ),
 }
 
@@ -653,3 +658,12 @@ def test_surface_confirmation_is_categorical_only():
     spec = SALIENCE_SPECS["surface_confirmation"]
     assert "reference_frame" not in spec
     assert spec["categorical"] and "surface_confirmation_class" in spec["categorical"]
+
+
+def test_pmhc_presentation_direction_sign():
+    """Sign guard: more normal tissues presenting the peptide = broader on-target/off-tumor liability
+    for a pMHC TCE (higher_is_worse). Cuts ascend restricted(3) -> broad(19)."""
+    spec = SALIENCE_SPECS["pmhc_presentation"]
+    assert spec["direction"] == "higher_is_worse"
+    labels = [c["label"] for c in spec["reference_frame"]["cuts"]]
+    assert labels == ["restricted_presentation", "broadly_presented_normal"]
