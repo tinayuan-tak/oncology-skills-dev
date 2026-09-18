@@ -488,7 +488,17 @@ def test_census_reaches_some_fields_but_not_all():
 # governs exactly one. ⇒ declaring a field never switches the other slots off, so a declaration CAN
 # coexist with a hint-scan hit on a different slot and render the field twice. Check the field name
 # against the hint tables, not against the presence of a `capsule:` block.
-APERTURE_CEILING = 887
+# ── BANKED 2026-09-18 887 → 862, measured against contracts c3eec129 (the SHA skills-validate.yml
+# pins for target-contracts at :251, == this session's home checkout HEAD, so the local census equals
+# CI's). SKILLS-ONLY, no pin move: the -23 is entirely THIS BRANCH newly reading fields via the
+# descriptor-coverage SALIENCE_SPECS mints for 7 dependency/combination measurement_types
+# (paralog_buffering, partner_conditional_dependency, cross_consortium_paralog_gi, coessential_module,
+# cross_consortium_dependency, patient_model_correspondence, pathway_node_leverage) — their card fields
+# were genuinely unread before, so classifying them is real coverage, and the SLACK half requires the
+# improvement be banked or the ratchet re-opens by 25. The reader lives in _skills_common (salience), NOT
+# contracts, so no pin bump is entangled (cf. the skills-only 889 / TC#774 banks above). Prior vintage:
+# 885 @ c88c6e04 (2026-09-15).
+APERTURE_CEILING = 862
 
 # Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
 # into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of

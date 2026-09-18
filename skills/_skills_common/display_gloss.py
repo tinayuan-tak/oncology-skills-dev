@@ -89,6 +89,16 @@ METRIC_GLOSS: dict = {
     "shet_upper_95": ("s_het 95% CI upper bound", "s_het"),
     "obs_lof_count": ("observed LoF variant count", "count"),
     "exp_lof_count": ("expected LoF variant count", "count"),
+    # descriptor-coverage sweep, dependency/combination batch.
+    "strongest_paralog_delta": ("strongest paralog dual-vs-single-KO buffering delta", "chronos delta"),
+    "n_paralogs_annotated": ("annotated paralogs", "count"),
+    "delta_chronos_deficient_vs_neutral": ("partner-deficient minus neutral CHRONOS", "chronos delta"),
+    "partner_stratification_mannwhitney_q": ("partner-stratification Mann-Whitney q", "q-value"),
+    "n_partner_deficient": ("partner-deficient cell lines", "count"),
+    "n_consortia_corroborating": ("corroborating consortia", "count"),
+    "n_partners": ("co-essential partners", "count"),
+    "broad_n_lines": ("Broad DepMap cell lines", "count"),
+    "n_positive_models": ("models expressing the target", "count"),
     # descriptor-coverage sweep, surface-modality-fit batch.
     "n_normal_tissues_presented": ("normal tissues presenting the peptide", "count"),
     "n_presented_peptides": ("presented peptides", "count"),

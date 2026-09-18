@@ -87,10 +87,8 @@ _UNSPECCED_VERDICT_BEARING_DEBT = {
     # dosage_sensitivity_safety + human_genetic_safety SPECCED 2026-09-18 (descriptor-coverage mint) —
     # removed from the debt; test_the_unspecced_debt_list_has_no_stale_entries enforces they stay out.
     "known_drug_tractability",  # known-drug-tractability — tractability review
-    "paralog_buffering",  # paralog-buffering — functional-requirement review
-    "partner_conditional_dependency",  # partner-conditional-dependency — combination review
-    # exon_window, pmhc_epitope_evidence, pmhc_presentation SPECCED 2026-09-18 (surface-modality-fit
-    # descriptor-coverage batch) — removed from the debt.
+    # exon_window, pmhc_epitope_evidence, pmhc_presentation (surface batch) and paralog_buffering +
+    # partner_conditional_dependency (dependency batch) SPECCED 2026-09-18 — removed from the debt.
 }
 
 
@@ -347,6 +345,14 @@ _ATLAS_NUMERIC_OPTOUT = {
         "because the target-archetype atlas is deferred out of go-live; minting a new frozen column now is a "
         "one-way door. The descriptor + safety-liability cut-line need no atlas feature. Flip when the atlas "
         "returns."
+    ),
+    "paralog_buffering": (
+        "ATLAS DEFERRED — the buffering-delta graded_band is a display-only ruler (atlas_numeric: False) "
+        "because the target-archetype atlas is deferred out of go-live. Flip when the atlas returns."
+    ),
+    "partner_conditional_dependency": (
+        "ATLAS DEFERRED — the CHRONOS-delta graded_band is a display-only ruler (atlas_numeric: False) "
+        "because the target-archetype atlas is deferred out of go-live. Flip when the atlas returns."
     ),
 }
 
@@ -667,3 +673,19 @@ def test_pmhc_presentation_direction_sign():
     assert spec["direction"] == "higher_is_worse"
     labels = [c["label"] for c in spec["reference_frame"]["cuts"]]
     assert labels == ["restricted_presentation", "broadly_presented_normal"]
+
+
+def test_paralog_buffering_direction_sign():
+    """Sign guard: larger dual-vs-single buffering delta = more compensation = single-KO understated /
+    escape risk (higher_is_worse). Cuts ascend partial(0.2) -> strong(0.5)."""
+    spec = SALIENCE_SPECS["paralog_buffering"]
+    assert spec["direction"] == "higher_is_worse"
+    assert [c["label"] for c in spec["reference_frame"]["cuts"]] == ["partial", "strong"]
+
+
+def test_partner_conditional_dependency_direction_sign():
+    """Sign guard: more-negative deficient-vs-neutral delta = partner-deficient cells more dependent =
+    stronger synthetic lethality (lower_is_stronger), mirroring the cn/fusion/amp_expr siblings."""
+    spec = SALIENCE_SPECS["partner_conditional_dependency"]
+    assert spec["direction"] == "lower_is_stronger"
+    assert [c["label"] for c in spec["reference_frame"]["cuts"]] == ["moderate", "strong"]

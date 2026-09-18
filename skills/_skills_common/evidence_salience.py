@@ -643,6 +643,78 @@ SALIENCE_SPECS: dict = {
         "n_field": "n_high",
         "categorical": ["pathway_stratified_surface_class"],
     },
+    # ── descriptor-coverage sweep, dependency/combination batch (2026-09-18) ────────────────────────
+    # paralog_buffering: GRADED, higher_is_worse — a larger dual-vs-single-KO buffering delta means more
+    # paralog compensation, so the single-KO dependency is UNDERSTATED and single-agent inhibition risks
+    # paralog-mediated escape (the card's own warning). Sign is load-bearing (veto-suppressor on the
+    # dependency call). DEBT-CLEARING.
+    "paralog_buffering": {
+        "effect_field": "strongest_paralog_delta",
+        "direction": "higher_is_worse",
+        "categorical": ["paralog_buffering_class"],
+        "n_field": "n_paralogs_annotated",
+        "reference_frame": {
+            "kind": "graded_band",
+            "atlas_numeric": False,
+            "value_field": "strongest_paralog_delta",
+            "scale": "chronos_delta",
+            "position_field": "paralog_buffering_class",
+            "cuts": [
+                {"card_id": "paralog-buffering", "threshold": "partial_buffering_delta", "label": "partial"},
+                {"card_id": "paralog-buffering", "threshold": "strong_buffering_delta", "label": "strong"},
+            ],
+        },
+    },
+    # partner_conditional_dependency: GRADED, lower_is_stronger — more-negative delta means partner-deficient
+    # cells are MORE dependent = stronger synthetic-lethal signal. Mirrors the cn/fusion/amp_expr
+    # stratified-dependency siblings exactly (same moderate -0.2 / strong -0.5 cut names + labels). DEBT-CLEARING.
+    "partner_conditional_dependency": {
+        "effect_field": "delta_chronos_deficient_vs_neutral",
+        "significance_field": "partner_stratification_mannwhitney_q",
+        "direction": "lower_is_stronger",
+        "categorical": ["partner_stratification_class"],
+        "n_field": "n_partner_deficient",
+        "reference_frame": {
+            "kind": "graded_band",
+            "atlas_numeric": False,
+            "value_field": "delta_chronos_deficient_vs_neutral",
+            "scale": "chronos_delta",
+            "position_field": "partner_stratification_class",
+            "cuts": [
+                {
+                    "card_id": "partner-conditional-dependency",
+                    "threshold": "moderate_effect_delta",
+                    "label": "moderate",
+                },
+                {"card_id": "partner-conditional-dependency", "threshold": "strong_effect_delta", "label": "strong"},
+            ],
+        },
+    },
+    # categorical-only (the class is the ruler) — dependency-corroboration + model-correspondence:
+    "cross_consortium_paralog_gi": {
+        "n_field": "n_consortia_corroborating",
+        "categorical": ["cross_consortium_paralog_class", "dede_class", "in4mer_class"],
+    },
+    "coessential_module": {
+        "n_field": "n_partners",
+        "categorical": ["coessential_module_class"],
+    },
+    "cross_consortium_dependency": {
+        "n_field": "broad_n_lines",
+        "categorical": ["cross_consortium_class"],
+    },
+    "patient_model_correspondence": {
+        "n_field": "n_positive_models",
+        "categorical": ["correspondence_class"],
+    },
+    "pathway_node_leverage": {
+        "categorical": [
+            "node_leverage_class",
+            "evidence_scope",
+            "single_ko_leverage_understated",
+            "paralog_buffering_class",
+        ],
+    },
     "tumor_vs_adjacent_expression": {
         "effect_field": "log2_fc",
         "significance_field": "q_value",
