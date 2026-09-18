@@ -1412,8 +1412,21 @@ rules:
   # broadly_low (target expressed in NO cell line → a defensible degrader killer) — a tumor
   # broadly_low is INDICATION-SCOPED: the target may be highly expressed in other indications.
   # So NO killer here; per-indication tumor absence is neutral context, never a target-wide kill
-  # (same reasoning that keeps the subtype rules non-opposing). Signals feed the LLM/matrix; these
-  # do NOT enter the tumor-presence rank ladder (that stays byte-stable — additive signal only).
+  # (same reasoning that keeps the subtype rules non-opposing).
+  #
+  # CORRECTED 2026-09-18: this comment previously ended "Signals feed the LLM/matrix; these do NOT
+  # enter the tumor-presence rank ladder (that stays byte-stable — additive signal only)." That was
+  # measurably FALSE and had been for some time — `tumor-expression-broadly-high-supportive` sits in
+  # tumor-presence's verdict-bearing `_EXPRESSION_RANK` (skills/tumor-presence/scripts/run.py:414),
+  # and the whole point of the v1.7.0 re-anchor is that the tumor-tissue rungs OUTRANK the cell-line
+  # proxy. All four rungs below are verdict-bearing. Edit them as verdict surface, not as annotation.
+  #
+  # CONCRETELY, what "verdict surface" costs you here: _EXPRESSION_RANK is a CLOSED (rule_id ->
+  # verdict) list and _rank_verdict returns the first FIRED entry, so moving an enum value onto a
+  # rule_id the ladder does not list does not demote that value — it ERASES its verdict, and the
+  # collapse then reports a coverage-gap class. Route a value to a NEW rule_id only additively
+  # (both rules firing) until the skills ladder lists it; see the 3-phase note on
+  # tumor-expression-broadly-high-supportive.
   - rule_id: tumor-expression-broadly-high-supportive
     when:
       card_id: tumor-rna-distribution
@@ -1423,11 +1436,72 @@ rules:
       small_molecule: supportive
       degrader: supportive
     rationale: |
-      Target RNA is present across (or in a real high subset of) this indication's tumors —
-      measurable target expression in patient tumor tissue (not just cell lines). Supportive for
-      small-molecule (context-of-action present) and degrader (target must be expressed to be
-      degraded). subset_high additionally flags a target-high patient population for selection.
-      Presence, not selectivity (that is the percentile-crossing card) — interpret alongside Q2.
+      Target RNA is present across this indication's tumors — measurable target expression in
+      patient tumor tissue (not just cell lines). Supportive for small-molecule (context-of-action
+      present) and degrader (target must be expressed to be degraded). Presence, not selectivity
+      (that is the percentile-crossing card) — interpret alongside Q2.
+
+      SCOPE NARROWING PENDING — PHASE 1 OF 3, do not "tidy" this list. `subset_high` is a population
+      over-claim here and is being split onto `tumor-expression-subset-high-supportive` below. It
+      fires at high_fraction >= 0.1 (given a bimodal/long_tail shape), so a target high in 10% of
+      patients currently produces the identical rule_id, verdict rung and headline phrase ("Broadly
+      expressed in tumor") as one high in 60% — a 6x difference in eligible population. The ladder
+      keys on rule_id, not on which enum member matched, so a prose caveat about a "real high subset"
+      is invisible to every downstream consumer.
+
+      `subset_high` DELIBERATELY STAYS in this list for now, and the two rules deliberately OVERLAP
+      on it, because tumor-presence loads these rules LIVE from this repo's default branch
+      (_skills_common/rules_loader.py) and ranks fired rules against a CLOSED ladder,
+      _EXPRESSION_RANK (skills/tumor-presence/scripts/run.py). A rule_id the ladder does not list is
+      not ranked low — it is INVISIBLE. Removing `subset_high` here before that ladder learns the new
+      rung was MEASURED to collapse a subset_high target from `tumor_broadly_expressed` to
+      `insufficient`: a coverage-gap class, i.e. a FALSE ABSENCE reported for a target measured high
+      in 12% of patients, which is strictly worse than the over-claim being fixed. It would also have
+      landed GREEN — no skills test pins this mapping. Sequence: (1) THIS change adds the rung, both
+      rules fire on subset_high, broad still wins, byte-identical verdicts; (2) skills adds
+      `tumor_subset_high_expression` to _EXPRESSION_RANK *below* the broad rung, still inert because
+      broad out-ranks it; (3) `subset_high` is removed from THIS list, which is the single deliberate
+      flip point, landed with a measured flip matrix. Step 3 is the ONLY behaviour change.
+
+  - rule_id: tumor-expression-subset-high-supportive
+    when:
+      card_id: tumor-rna-distribution
+      field: tumor_expression_class
+      in: [subset_high]
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target RNA is high in a MINORITY SUBSET of this indication's tumors. The class is CONJUNCTIVE
+      (verified against methods/tcga_gtex_expression_distribution/read.py:840): it needs a bimodal
+      OR long_tail distribution shape AND high_fraction >= 0.1 — so it can fire on as few as 10% of
+      patients, making it a patient-SELECTION hypothesis rather than a population claim. Both
+      conjuncts matter: a unimodal indication with 15% of tumors high does NOT land here, so this
+      rung asserts a genuinely SEPARABLE high subpopulation, not merely a small one. Still
+      `supportive`, and deliberately so: a minority-high subset is measured presence in real patient
+      tumor tissue, just narrower, so it stays a positive rung (this also keeps the
+      positives-above-negatives ladder invariant intact).
+
+      WHY IT IS ITS OWN RUNG rather than sharing tumor-expression-broadly-high-supportive: consumers
+      key on rule_id, so sharing a rule made a 10%-of-patients antigen and a 60%-of-patients antigen
+      indistinguishable in the presence verdict and its headline phrase. Acting on this rung
+      requires a prevalence read and a selection biomarker; acting on the broad rung does not.
+
+      DECLARED BUT NOT YET CONSUMED (phase 1 of 3). `subset_high` currently fires BOTH this rule and
+      tumor-expression-broadly-high-supportive, which still lists it; that overlap is intentional and
+      transient. tumor-presence's _EXPRESSION_RANK does not list this rule_id yet, so today this rung
+      contributes its `signals` to the matrix/LLM lens only and the broad rung still drives the
+      verdict — verdicts are byte-identical to before this rule existed. Do not read a per-rule
+      signal here as evidence the verdict has been split; that lands in phase 3. The full sequence
+      and the reason it cannot be done in one step are on the broad rule above.
+
+      NOTE THE CLASSIFIER PRECEDENCE, because it changes what this rung means: the branch order is
+      broadly_high (high_fraction >= 0.5) -> subset_high -> broadly_detected, so `subset_high` is
+      tested BEFORE `broadly_detected`. A target detectable in 90% of tumors, long-tailed, with
+      high_fraction just over 0.1 lands HERE and never reaches the broad rung. This rung therefore
+      says "high in a subset", NOT "detected only in a subset" — detection can be near-universal
+      while the HIGH tail is narrow. Read it alongside the card's detection fraction, and do not
+      infer low prevalence of the target from this rung alone.
 
   - rule_id: tumor-expression-broadly-moderate-neutral
     when:

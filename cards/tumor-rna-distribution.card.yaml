@@ -123,9 +123,15 @@ outputs:
 
   summary_fields_vocabulary:
     tumor_expression_class:
+      # BRANCH ORDER IS PART OF THE MEANING (methods/tcga_gtex_expression_distribution/read.py:836-850).
+      # Tested top-to-bottom in exactly this order, first match wins — so each class below is implicitly
+      # "…and none of the classes above it matched". The consequential case is subset_high BEFORE
+      # broadly_detected: a target detectable in 90% of tumors whose HIGH tail is narrow (high_fraction
+      # just over 0.1) and whose shape is bimodal/long_tail lands on subset_high and NEVER reaches
+      # broadly_detected. Do not read these as independent predicates.
       - broadly_high                            # high_fraction >= 0.5 — most tumors highly express
-      - broadly_detected                        # detectable_fraction >= 0.7 (not high) — present in most tumors
-      - subset_high                             # bimodal/long_tail with a real high minority (high_fraction >= 0.1) — target-high/-low populations
+      - broadly_detected                        # detectable_fraction >= 0.7 AND moderate_fraction >= broadly_detected_min_moderate_fraction (not high) — present AND at a real level in most tumors
+      - subset_high                             # CONJUNCTIVE: distribution_pattern in (bimodal, long_tail) AND high_fraction >= subset_high_min_high_fraction (0.1) — a SEPARABLE target-high minority, i.e. a patient-selection population. Both conjuncts are load-bearing: a unimodal indication with 15% of tumors high does NOT land here.
       - broadly_moderate                        # detectable in a middling fraction
       - broadly_low                             # detectable_fraction < 0.3 — present in a minority
       - data_unavailable                        # target absent from TCGA long product for this indication (coverage gap, NOT a measured negative)
@@ -151,6 +157,29 @@ outputs:
       - stable                                  # no variable/shifted event — splicing is flat across the cohort
       - data_unavailable                        # gene/indication absent from the SpliceSeq product (coverage gap)
 
+  # DERIVATION EDGE (added 2026-09-18, mechanism from #803). Declares the hop from the numeric
+  # summary_fields to the categorical class tokens — the binning the METHOD performs in
+  # _classify_tumor_expression (read.py:822-850), which until now lived only in that Python and in
+  # the vocabulary comments above. Without it the emitted package is not RE-BINNABLE: a consumer
+  # could read `tumor_expression_class: subset_high` but not the high_fraction cut that produced it,
+  # so it could not tell a 10%-of-patients target from a 60% one. That distinction is the whole
+  # point of the subset_high rung split, so it has to be machine-readable, not prose.
+  # `derives_from` names the metrics a consumer must route through; note it includes the CATEGORICAL
+  # distribution_pattern, because subset_high is genuinely CONJUNCTIVE (shape AND high tail) and that
+  # conjunct has no numeric cutpoint to declare — omitting it would understate the derivation.
+  # NOT listed as cutpoints, deliberately: detectable_log2tpm / moderate_log2tpm / high_log2tpm are
+  # per-SAMPLE level cuts that CONSTRUCT the *_fraction fields; they are not compared against any
+  # summary_field, so they stay method_parameter (see threshold_roles). And broadly_moderate has NO
+  # entry boundary at all — it is the FALL-THROUGH of three separate branches, so no cutpoint admits
+  # it and none may claim to.
+  derivations:
+    tumor_expression_class:
+      derives_from: [high_fraction, detectable_fraction, moderate_fraction, distribution_pattern]
+      cutpoints: [broadly_high_min_high_fraction, subset_high_min_high_fraction, broadly_detected_min_fraction, broadly_detected_min_moderate_fraction, broadly_low_max_fraction]
+    allgene_percentile_class:
+      derives_from: [allgene_percentile]
+      cutpoints: [allgene_top_1_percentile, allgene_top_decile, allgene_bottom_decile]
+
   figures:
     - id: expression_distribution_per_sample
       type: per_sample_tumor_normal_distribution
@@ -168,6 +197,10 @@ thresholds:
   broadly_high_min_high_fraction: 0.5
   broadly_detected_min_fraction: 0.7
   broadly_low_max_fraction: 0.3
+  # Added 2026-09-18 — both of these were APPLIED by the classifier while being declared NOWHERE, so
+  # the card understated the conditions of two verdict-bearing classes. See threshold_roles below.
+  broadly_detected_min_moderate_fraction: 0.5   # the 4th conjunct of broadly_detected: fraction of tumors at >= moderate_log2tpm. Without it, TPM~1 background detection in most tumors would read as "broadly expressed"; below it the class degrades to broadly_moderate.
+  subset_high_min_high_fraction: 0.1            # the high-tail floor of subset_high (the OTHER conjunct is distribution_pattern in (bimodal, long_tail))
   # ENRICHMENT cutoff (normal-relative) — the Q2 headline metric percentile.
   normal_enrichment_percentile: 95
   # all-gene percentile-class cutoffs (method bins allgene_percentile → allgene_percentile_class)
@@ -187,6 +220,7 @@ caveats:
   - "Per-sample log2(TPM+1) from recount3/GENCODE-v26 (same pipeline as GTEx normal → directly comparable)."
   - "distribution_pattern uses a dependency-light gap heuristic (not a KDE/dip test), robust on small panels; a `bimodal` call is a patient-selection hypothesis, not a statistical guarantee."
   - "RNA distribution does not imply protein; pair with the CPTAC protein cards for ADC/TCE decisions."
+  - "tumor_expression_class == subset_high is a PATIENT-SELECTION hypothesis, not a population claim: it can fire on as few as 10% of patients (high_fraction >= 0.1 with a bimodal/long_tail shape). Acting on it requires a prevalence read and a selection biomarker. It ALSO fires its own rule (tumor-expression-subset-high-supportive), but that rung is not yet in the presence ladder, so a 10%-high and a 60%-high target STILL share one verdict and headline phrase — read high_fraction, not the class."
   - "The fraction_tumor_above_normal_p95 fields are a matched-normal OVERLAY for context; the tumor-vs-normal selectivity VERDICT lives on tumor-vs-normal-selectivity (Gate B), kept separate from this presence/distribution card."
   - "The splicing_* fields are from TCGA SpliceSeq per-event PSI (patient tumours), a SEPARATE substrate from the recount3 expression above; they measure alternative-splicing dysregulation, not expression level, and never move tumor_expression_class."
   - "splicing_dysregulation_class is a bulk-cohort POPULATION view: a low-frequency/context-specific cancer isoform (e.g. AR-V7 in castration-resistant disease, largely absent from treatment-naive TCGA) reads 'stable' because it does not move cohort PSI variance. This is orthogonal to the curated isoform_selective_targets guardrail, by design; absence of a shift is not absence of a clinically-relevant isoform."
@@ -199,9 +233,103 @@ measurement_type: tumor_expression_distribution
 entity_grains: [target_indication]
 schema_version: 1
 threshold_roles:
+  # ROLE ASSIGNMENT (2026-09-18). All 12 cutoffs in `thresholds:` above are declared here — 8 were
+  # firing THRESHOLD_UNUSED, and the role is not decoration: it says WHERE the number is applied, and
+  # the three answers have different consequences for a consumer.
+  #   class_cutpoint   — compared against a numeric summary_field to admit a value of `bins`. The
+  #                      RE-BINNABLE kind; round-tripped against outputs.derivations by the validator.
+  #   method_parameter — applied by the named method BEFORE the card sees any summary_field (a
+  #                      per-SAMPLE level cut, an overlay percentile). Nothing here can be re-binned.
+  #   reader_gate      — applied skill-side while shaping this card fields (a display cut).
+  # The ratchet this buys: MISDECLARED_THRESHOLD_ROLE becomes a hard ERROR the day a card predicate
+  # starts referencing one of these, so the declarations cannot rot into lies quietly.
+
+  # --- class cutpoints -> tumor_expression_class -----------------------------------------------
+  # Branch order in _classify_tumor_expression (read.py:822-850) is part of the meaning (see the
+  # vocabulary comment above). `boundary` names the class each cut ADMITS, never the one it excludes.
+  broadly_high_min_high_fraction:
+    role: class_cutpoint
+    bins: tumor_expression_class
+    of: high_fraction
+    boundary: broadly_high
+    scale: fraction
+    note: 'First branch of _classify_tumor_expression (read.py:838). Applied as a BARE LITERAL 0.5 in the method rather than a named constant, so nothing ties the method to this declaration except this entry.'
+  subset_high_min_high_fraction:
+    role: class_cutpoint
+    bins: tumor_expression_class
+    of: high_fraction
+    boundary: subset_high
+    scale: fraction
+    note: 'The high-tail floor of subset_high (read.py:840), a bare literal 0.1, undeclared until now. Only ONE of two conjuncts — the other is distribution_pattern in (bimodal, long_tail), a SHAPE condition with no numeric cut, so it is declared in derives_from instead. 0.1 against broadly_high 0.5 is the patient-selection-versus-population edge.'
+  broadly_detected_min_fraction:
+    role: class_cutpoint
+    bins: tumor_expression_class
+    of: detectable_fraction
+    boundary: broadly_detected
+    scale: fraction
+    note: 'The detectable_fraction >= 0.7 conjunct of broadly_detected (read.py:842). Also a bare literal in the method rather than a named constant.'
+  broadly_detected_min_moderate_fraction:
+    role: class_cutpoint
+    bins: tumor_expression_class
+    of: moderate_fraction
+    boundary: broadly_detected
+    scale: fraction
+    note: 'The SECOND conjunct of broadly_detected — method constant BROADLY_DETECTED_MODERATE_FRACTION_MIN = 0.5 (read.py:819). Failing it does NOT skip past broadly_detected, it routes to broadly_moderate, so this cut is the detected-versus-EXPRESSED discriminator. Verdict-bearing, yet declared NOWHERE on this card until 2026-09-18.'
+  broadly_low_max_fraction:
+    role: class_cutpoint
+    bins: tumor_expression_class
+    of: detectable_fraction
+    boundary: broadly_low
+    scale: fraction
+    note: 'The detectable_fraction < 0.3 branch admitting broadly_low (read.py:848), a bare literal. An UPPER bound: `boundary` records which class the cut admits, not its direction. NOTE it is a per-INDICATION read, so this class is never a target-wide kill.'
+
+  # --- class cutpoints -> allgene_percentile_class ----------------------------------------------
+  # Same three names as the tumor-rna-vs-adjacent exemplar (#803): the all-gene percentile frame is
+  # SHARED between the two cards, so these declarations must not drift apart.
+  allgene_top_1_percentile:
+    role: class_cutpoint
+    bins: allgene_percentile_class
+    of: allgene_percentile
+    boundary: top_1pct
+    scale: percentile
   allgene_top_decile:
-    role: reader_gate
-    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_expression_distribution reference frame over `allgene_percentile` (percentile), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+    role: class_cutpoint
+    bins: allgene_percentile_class
+    of: allgene_percentile
+    boundary: top_decile
+    scale: percentile
+    note: 'ALSO read live skill-side (evidence_salience.contract_threshold) as the tumor_expression_distribution reference frame, single-sourcing the display cut and claim_record.magnitude.distance_to_cut — which is why it was declared reader_gate until #803. class_cutpoint subsumes that; the reader is unaffected because contract_threshold reads thresholds[key] by NAME and no code keys on the role token.'
+  allgene_bottom_decile:
+    role: class_cutpoint
+    bins: allgene_percentile_class
+    of: allgene_percentile
+    boundary: bottom_decile
+    scale: percentile
+
+  # --- method parameters: applied upstream of every summary_field ------------------------------
+  # ROUNDING DIVERGENCE (measured 2026-09-18), applies to detectable/moderate/high_log2tpm below.
+  # This card declares 3.46 / 5.67; the method uses MODERATE_LOG2TPM = 3.4594 and HIGH_LOG2TPM =
+  # 5.6724 (methods/tcga_gtex_expression_distribution/stats.py:23-24). The card values are ROUNDED
+  # restatements, not independent cuts, but the rounding is live in one place: the reader takes the
+  # CARD value for the display cut and distance_to_cut while the method classifies on its own
+  # constant. A target with median_log2tpm in [5.6700, 5.6724) therefore DISPLAYS as at or above the
+  # cut while being CLASSIFIED below it. Left as-is deliberately — changing either number moves a
+  # live cut and needs its own PR with a re-measured panel — but recorded so the divergence is not
+  # rediscovered as a bug. Do NOT "fix" this by editing one side only.
+  detectable_log2tpm:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The TPM~1 per-SAMPLE detection floor that CONSTRUCTS detectable_fraction, and hence feeds the broadly_detected / broadly_low cutpoints above. Not itself a class_cutpoint: it is compared against the per-sample log2tpm vector, which is not a summary_field. Method constant DETECTABLE_LOG2TPM = 1.0 (stats.py:22) — matches this declaration exactly.'
+  moderate_log2tpm:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The TPM~10 per-SAMPLE level floor that CONSTRUCTS moderate_fraction, which gates broadly_detected against background-only detection. Per-sample, so not a class_cutpoint. Method constant MODERATE_LOG2TPM = 3.4594 (stats.py:23) against 3.46 declared here — see the ROUNDING DIVERGENCE comment above.'
+  normal_enrichment_percentile:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The GTEx matched-normal percentile behind the fraction_tumor_above_normal_p95 overlay fields. Bins no class on this card and is verdict-inert here by design — the selectivity VERDICT lives on tumor-vs-normal-selectivity. See the caveat above.'
+
+  # --- reader gate ------------------------------------------------------------------------------
   high_log2tpm:
     role: reader_gate
     note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_expression_distribution reference frame over `median_log2tpm` (log2tpm), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'

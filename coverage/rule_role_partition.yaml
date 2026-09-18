@@ -12,9 +12,9 @@ attribution_keypaths:
 - post_resolver_clamp/modality_conditional/expected_inert_arms/[]/rule_id
 - resolve/[]/driving_rule
 counts:
-  total: 427
+  total: 428
   gating: 136
-  display: 291
+  display: 292
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -440,6 +440,7 @@ display:
 - tumor-expression-broadly-low-neutral
 - tumor-expression-broadly-moderate-neutral
 - tumor-expression-data-unavailable-insufficient
+- tumor-expression-subset-high-supportive
 - tumor-intrinsic-surface-supportive
 - tumor-vs-normal-crossing-data-unavailable-insufficient
 - tumor-vs-normal-crossing-minimal-neutral
