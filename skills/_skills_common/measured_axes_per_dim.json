@@ -156,16 +156,15 @@
       "gate_short": null,
       "n_declared_cards": 7,
       "n_declared_types": 6,
-      "n_measurement_descriptor_fields": 6,
-      "n_types_with_measurement_descriptor": 1,
+      "n_measurement_descriptor_fields": 10,
+      "n_types_with_measurement_descriptor": 2,
       "skill_dir": "immune-context",
       "static_state": "descriptor_covered",
       "types_without_measurement_descriptor": [
         "ici_response_expression",
         "sc_tumor_caf_state_expression",
         "sc_tumor_myeloid_state_expression",
-        "spatial_colocalization",
-        "spatial_til_fraction"
+        "spatial_colocalization"
       ],
       "verdict_bearing": true
     },
@@ -269,8 +268,8 @@
       "gate_short": "surface_modality",
       "n_declared_cards": 24,
       "n_declared_types": 21,
-      "n_measurement_descriptor_fields": 54,
-      "n_types_with_measurement_descriptor": 10,
+      "n_measurement_descriptor_fields": 59,
+      "n_types_with_measurement_descriptor": 11,
       "skill_dir": "surface-modality-fit",
       "static_state": "descriptor_covered",
       "types_without_measurement_descriptor": [
@@ -282,7 +281,6 @@
         "pathway_stratified_surface",
         "pmhc_epitope_evidence",
         "pmhc_presentation",
-        "surface_confirmation",
         "surface_topology",
         "surfaceome_family"
       ],
@@ -444,7 +442,7 @@
       "n_axes_counted": 4,
       "n_axes_descriptor_covered": 4,
       "n_declared_types": 50,
-      "n_types_without_measurement_descriptor": 29,
+      "n_types_without_measurement_descriptor": 27,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
         "antigen_pair_coexpression",
@@ -469,8 +467,6 @@
         "sc_tumor_caf_state_expression",
         "sc_tumor_myeloid_state_expression",
         "spatial_colocalization",
-        "spatial_til_fraction",
-        "surface_confirmation",
         "surface_topology",
         "surfaceome_family",
         "target_development_level",
@@ -1017,10 +1013,10 @@
     "n_dims": 6,
     "n_fanout_axes": 15,
     "n_gated_axes": 8,
-    "n_salience_spec_types": 63,
+    "n_salience_spec_types": 65,
     "n_spec_types_pulled_by_no_axis": 0,
-    "n_types_with_measurement_descriptor": 63,
-    "n_types_without_measurement_descriptor": 60
+    "n_types_with_measurement_descriptor": 65,
+    "n_types_without_measurement_descriptor": 58
   },
   "types_without_measurement_descriptor": [
     "antigen_pair_coexpression",
@@ -1071,9 +1067,7 @@
     "spatial_colocalization",
     "spatial_region_rna",
     "spatial_surface_protein",
-    "spatial_til_fraction",
     "stemness_context",
-    "surface_confirmation",
     "surface_topology",
     "surfaceome_family",
     "tahoe_drug_perturbation",

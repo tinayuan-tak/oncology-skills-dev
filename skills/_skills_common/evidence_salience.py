@@ -513,6 +513,50 @@ SALIENCE_SPECS: dict = {
             ],
         },
     },
+    # immune-context TIL card (descriptor-coverage mint, 2026-09-18): tcga-til-fraction-saltz emits
+    # til_fraction_class + a continuous median_til_percentage (Saltz DL H&E TIL maps) with no spec, so the
+    # fraction + its companions landed unclassified. DIRECTION higher_is_stronger (more infiltration = a
+    # stronger immune/TCE-effector signal; the card calls til_high "strongly infiltrated") — carries a sign
+    # test. graded_band: position = til_fraction_class READ VERBATIM; two ascending cuts (intermediate 2.0 <
+    # high 5.0) single-sourced from the card's thresholds. atlas_numeric False AND an _ATLAS_NUMERIC_OPTOUT
+    # entry because median_til_percentage is an INDICATION property (identical for every target in a cohort,
+    # like immune_context) — a target atlas column would phrase an indication property as a target one.
+    # verdict-INERT (no gating rule keys on it). See REACH OF A `reference_frame`.
+    "spatial_til_fraction": {
+        "effect_field": "median_til_percentage",
+        "direction": "higher_is_stronger",
+        "categorical": ["til_fraction_class"],
+        "extra_scalars": ["median_number_of_clusters", "n_samples"],
+        "reference_frame": {
+            "kind": "graded_band",
+            "atlas_numeric": False,
+            "value_field": "median_til_percentage",
+            "scale": "til_percentage",
+            "position_field": "til_fraction_class",
+            "cuts": [
+                {
+                    "card_id": "tcga-til-fraction-saltz",
+                    "threshold": "til_intermediate_percentage",
+                    "label": "til_intermediate",
+                },
+                {"card_id": "tcga-til-fraction-saltz", "threshold": "til_high_percentage", "label": "til_high"},
+            ],
+        },
+    },
+    # surface-confirmation card (descriptor-coverage mint, 2026-09-18): protein-surface-evidence emits
+    # surface_confirmation_class + HPA/CSPA companion classes + a detection count, all unclassified. No
+    # numeric value field carries a single-sourced cut (no thresholds:), so the CLASS is the ruler — a
+    # categorical + n_field spec (no reference_frame, no atlas column), mirroring normal_tissue_protein_breadth.
+    # verdict-INERT (no gating rule keys on it; the surface-intrinsic rules that read the class are context).
+    "surface_confirmation": {
+        "n_field": "n_celllines_detected",
+        "categorical": [
+            "surface_confirmation_class",
+            "hpa_if_surface_class",
+            "surface_multimodal_support",
+            "cspa_category",
+        ],
+    },
     "tumor_vs_adjacent_expression": {
         "effect_field": "log2_fc",
         "significance_field": "q_value",

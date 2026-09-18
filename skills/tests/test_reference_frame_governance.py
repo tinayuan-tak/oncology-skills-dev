@@ -337,6 +337,12 @@ _ATLAS_NUMERIC_OPTOUT = {
         "+ units + a cut-line for the previously-unclassified shet_score) needs no atlas feature. Flip when "
         "the atlas returns."
     ),
+    "spatial_til_fraction": (
+        "TARGET-INDEPENDENT — median_til_percentage is the INDICATION's H&E TIL landscape (Saltz DL maps), "
+        "identical for every target in a cohort, so a target atlas numeric would cluster known targets by "
+        "indication and phrase an indication property as a target property (same reasoning as immune_context). "
+        "The graded_band stays a display ruler (atlas_numeric: False)."
+    ),
 }
 
 _SCAN_PRUNE = {".git", ".pixi", ".venv", "__pycache__", "node_modules", ".ruff_cache", ".pytest_cache"}
@@ -627,3 +633,23 @@ def test_shet_lof_selection_direction_sign():
     frame = spec["reference_frame"]
     assert frame["kind"] == "graded_band" and frame.get("atlas_numeric") is False
     assert [c["label"] for c in frame["cuts"]] == ["moderate_intolerance", "high_intolerance"]
+
+
+def test_spatial_til_fraction_direction_sign():
+    """Sign guard: higher TIL fraction = MORE immune infiltration = a STRONGER immune/TCE-effector
+    signal (the card calls til_high 'strongly infiltrated'). This is a display value, not a liability,
+    so higher_is_stronger (NOT higher_is_worse). Cuts ascend intermediate(2.0) -> high(5.0)."""
+    spec = SALIENCE_SPECS["spatial_til_fraction"]
+    assert spec["direction"] == "higher_is_stronger"
+    frame = spec["reference_frame"]
+    assert frame["kind"] == "graded_band" and frame.get("atlas_numeric") is False
+    assert [c["label"] for c in frame["cuts"]] == ["til_intermediate", "til_high"]
+
+
+def test_surface_confirmation_is_categorical_only():
+    """surface_confirmation has no single-sourced numeric cut, so the CLASS is the ruler: a categorical +
+    n_field spec with NO reference_frame (mirrors normal_tissue_protein_breadth) — invariant 1 is satisfied
+    by the non-empty categorical, and it mints no atlas column."""
+    spec = SALIENCE_SPECS["surface_confirmation"]
+    assert "reference_frame" not in spec
+    assert spec["categorical"] and "surface_confirmation_class" in spec["categorical"]

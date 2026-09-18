@@ -89,6 +89,11 @@ METRIC_GLOSS: dict = {
     "shet_upper_95": ("s_het 95% CI upper bound", "s_het"),
     "obs_lof_count": ("observed LoF variant count", "count"),
     "exp_lof_count": ("expected LoF variant count", "count"),
+    # immune-context TIL (Saltz DL H&E) + surface-confirmation detection count.
+    "median_til_percentage": ("median tumor-infiltrating-lymphocyte fraction", "%"),
+    "median_number_of_clusters": ("median TIL spatial-cluster count", "count"),
+    "n_samples": ("number of samples scored", "count"),
+    "n_celllines_detected": ("cell lines with CSPA surface detection", "count"),
     "highest_tissue_median": ("highest normal-tissue median expression", "TPM"),
     # the PROTEIN counterparts of the two RNA normal-tissue levels above/below, kept adjacent to them so the
     # two arms of the same liability question stay in one vocabulary. Both say "protein" explicitly: an
