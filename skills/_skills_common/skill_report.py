@@ -91,7 +91,16 @@ def canonical_polarity(role: str, headline_block: Optional[dict], explicit: Opti
         return "not_scored"
     if explicit:
         return explicit
-    hb_pol = ((headline_block or {}).get("verdict") or {}).get("polarity")
+    verdict = (headline_block or {}).get("verdict") or {}
+    # D-1 (2026-09-18): a `data_unavailable` gating axis could NOT be assessed, so it is OFF-SCALE — it
+    # carries NO polarity, reusing the existing off-scale token `not_scored`. Rendering it on-scale
+    # `neutral` made "we couldn't look" read as a benign MEASURED finding (the differentiation case:
+    # one unavailable sub-axis drove the whole-axis call while 8 of 9 cards were measured), violating
+    # the ordinal_view law that absence draws no polarity. Scoped to `data_unavailable` ONLY — a
+    # measured-but-directionally-neutral call (well_characterized, partial, ...) stays `neutral`.
+    if verdict.get("call") == "data_unavailable":
+        return "not_scored"
+    hb_pol = verdict.get("polarity")
     return _HEADLINE_TO_CANONICAL.get(hb_pol, "neutral")
 
 
