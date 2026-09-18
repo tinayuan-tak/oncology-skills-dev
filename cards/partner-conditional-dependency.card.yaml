@@ -116,6 +116,16 @@ threshold_roles:
   strong_effect_delta:
     role: method_parameter
     consumed_by: depmap-partner-conditional
+  # The two Mann-Whitney sample-size floors are applied by the method, not by a card predicate (the
+  # rare_partner_deficiency warning compares a DIFFERENT hardcoded literal, n_partner_deficient < 10).
+  # Verified consumed in depmap_partner_conditional_dependency/cli.py:51-52
+  # (MIN_PARTNER_DEFICIENT_CELLS=5 / MIN_NEUTRAL_CELLS=30), applied at :168-169.
+  min_partner_deficient_cells:
+    role: method_parameter
+    consumed_by: depmap-partner-conditional
+  min_neutral_cells:
+    role: method_parameter
+    consumed_by: depmap-partner-conditional
 warning_predicates:
   - warning_id: rare_partner_deficiency
     if: "n_partner_deficient < 10"

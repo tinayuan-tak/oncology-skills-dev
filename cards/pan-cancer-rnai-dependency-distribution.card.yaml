@@ -125,3 +125,24 @@ threshold_roles:
   moderately_dependent_threshold_demeter:
     role: reader_gate
     note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the rnai_lof_dependency reference frame over `rnai_median_dep_score` (demeter2), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  # Applied by the method, never by a card predicate (min_panel_coverage_threshold and
+  # lineage_dominance_threshold ARE predicate-referenced by the warnings above, so they stay
+  # undeclared here). strongly_dependent_threshold_demeter is passed straight through as the method
+  # arg strong_dependency_threshold; the fraction bands bin rnai_dependency_class in
+  # depmap_demeter_distribution._classify_rnai_dependency (cli.py:249 pan_essential_fraction=0.85,
+  # scores <= strong_threshold applied at :276, classifier at :415).
+  strongly_dependent_threshold_demeter:
+    role: method_parameter
+    consumed_by: depmap-demeter-distribution
+  pan_essential_fraction_threshold:
+    role: method_parameter
+    consumed_by: depmap-demeter-distribution
+  selective_fraction_min:
+    role: method_parameter
+    consumed_by: depmap-demeter-distribution
+  selective_fraction_max:
+    role: method_parameter
+    consumed_by: depmap-demeter-distribution
+  shifted_median_threshold:
+    role: method_parameter
+    consumed_by: depmap-demeter-distribution

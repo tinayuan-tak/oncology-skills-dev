@@ -95,6 +95,32 @@ thresholds:
   # Sample-size discipline — below this the organoid fraction is underpowered.
   min_organoid_models: 20
 
+# min_organoid_models is compared by a warning predicate on this card, so it is NOT declared here.
+# The remaining cutoffs are applied by the method, never by a card predicate: the fraction bands bin
+# organoid_dependency_class in the method's classify_dependency (organoid_dependency_precompute/
+# lookup.py:71-77, called at :293), and the Chronos cutoffs define a screened organoid as "dependent"
+# / "strongly dependent" upstream in the per-lineage build (build_by_lineage.py:39 DEPENDENT_CUTOFF,
+# applied at :114) that the lookup consumes.
+threshold_roles:
+  pan_organoid_essential_frac:
+    role: method_parameter
+    consumed_by: organoid-crispr-dependency
+  broad_organoid_dependency_frac:
+    role: method_parameter
+    consumed_by: organoid-crispr-dependency
+  selective_organoid_dependency_frac:
+    role: method_parameter
+    consumed_by: organoid-crispr-dependency
+  rare_organoid_dependency_frac:
+    role: method_parameter
+    consumed_by: organoid-crispr-dependency
+  dependent_chronos:
+    role: method_parameter
+    consumed_by: organoid-crispr-dependency
+  strong_dependency_chronos:
+    role: method_parameter
+    consumed_by: organoid-crispr-dependency
+
 warning_predicates:
   - warning_id: small_organoid_cohort
     if: "n_models_screened < THRESHOLD.min_organoid_models"

@@ -109,6 +109,17 @@ thresholds:
   strong_buffering_delta: 0.5
   partial_buffering_delta: 0.2
 
+# These are the buffering-delta boundaries the method applies to bin each partner into
+# paralog_buffering_class; the card never compares them in a predicate. Verified consumed in
+# depmap_paralog_aggregator/cli.py:243 (_classify_buffering(delta) -> 'strong'|'partial'|'none').
+threshold_roles:
+  strong_buffering_delta:
+    role: method_parameter
+    consumed_by: depmap-paralog-aggregator
+  partial_buffering_delta:
+    role: method_parameter
+    consumed_by: depmap-paralog-aggregator
+
 warning_predicates:
   - warning_id: strong_ohnolog_paralog
     if: "paralog_buffering_class == 'strong' && strongest_paralog_ohnolog == true"

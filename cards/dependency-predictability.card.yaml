@@ -187,3 +187,48 @@ threshold_roles:
   r2_depmap_high_conf:
     role: reader_gate
     note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the dependency_predictability reference frame over `pearson_r_squared_rf` (r2), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  # UPSTREAM precompute parameters. read_predictability reads a FROZEN parquet (26q1-v3); it computes
+  # nothing. Both the classification cutpoint (r2_high_ci_lo) and every ML hyperparameter are applied
+  # in the training build depmap_predictability_precompute/cli.py — the bands at :85 (R2_HIGH_CI_LO=0.35)
+  # applied in _classify at :365-376 and baked into the parquet's predictability_class at :543; the
+  # CV/model constants at :88+ (CV_N_SPLITS, SELECT_K_BEST, BOOTSTRAP_N, MIN_CELL_LINES_PER_GENE,
+  # LINEAGE_MIN_LINES, RF n_estimators=100/max_depth=8/min_samples_leaf=5, XGB n_estimators=100/
+  # max_depth=6/learning_rate=0.1) applied in the per-fold pipeline (:231-275) and echoed into the
+  # derived manifest (:998+). Declared method_parameter/consumed_by the card's own read call so
+  # THRESHOLD_UNUSED stops asking for numbers that live in the frozen substrate the method consumes.
+  r2_high_ci_lo:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  min_cell_lines_per_gene:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  cv_n_splits:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  select_k_best:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  bootstrap_n:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  lineage_min_lines:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  rf_n_estimators:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  rf_max_depth:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  rf_min_samples_leaf:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  xgb_n_estimators:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  xgb_max_depth:
+    role: method_parameter
+    consumed_by: depmap-predictability
+  xgb_learning_rate:
+    role: method_parameter
+    consumed_by: depmap-predictability

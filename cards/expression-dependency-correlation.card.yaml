@@ -115,6 +115,26 @@ threshold_roles:
   significance_alpha:
     role: method_parameter
     consumed_by: depmap-expression-dependency
+  # The correlation-strength bands + the min-Chronos-IQR range floor are applied by the method to bin
+  # correlation_class; no card predicate compares them (min_cell_lines_for_correlation, min_tpm_iqr and
+  # pan_essential_median_chronos ARE predicate-referenced by the warnings below, so they stay undeclared
+  # here). Verified consumed in depmap_expression_dependency/cli.py:275-278 (strong/moderate/weak/
+  # positive_anomaly r cutoffs), applied at :352-353, and the chronos-IQR floor at :372.
+  strong_correlation_r:
+    role: method_parameter
+    consumed_by: depmap-expression-dependency
+  moderate_correlation_r:
+    role: method_parameter
+    consumed_by: depmap-expression-dependency
+  weak_correlation_r:
+    role: method_parameter
+    consumed_by: depmap-expression-dependency
+  positive_anomaly_r:
+    role: method_parameter
+    consumed_by: depmap-expression-dependency
+  min_chronos_iqr:
+    role: method_parameter
+    consumed_by: depmap-expression-dependency
 warning_predicates:
   - warning_id: low_n_cell_lines
     if: "n_cell_lines_evaluated < THRESHOLD.min_cell_lines_for_correlation"

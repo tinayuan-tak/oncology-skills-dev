@@ -96,6 +96,20 @@ thresholds:
   dependent_chronos: -0.5             # model DEPENDENT on target (positive_model gate)
   not_dependent_chronos: -0.2         # model NOT dependent (resistance_model gate)
 
+# No card predicate compares these: the method emits the already-derived event_correspondence_class,
+# applying each cutoff itself. Verified consumed in genomic_event_model_match/read.py:35-38
+# (DEPENDENT_CHRONOS / NOT_DEPENDENT_CHRONOS and the dominant-event fraction gate).
+threshold_roles:
+  dominant_event_min_fraction:
+    role: method_parameter
+    consumed_by: genomic-event-model-match
+  dependent_chronos:
+    role: method_parameter
+    consumed_by: genomic-event-model-match
+  not_dependent_chronos:
+    role: method_parameter
+    consumed_by: genomic-event-model-match
+
 caveats:
   - "GENOTYPE-identity correspondence, NOT expression-similarity (recommended-models) and NOT full-transcriptome Celligner. The two patient↔model joins are complementary — a model can match on one axis and mismatch on the other; that disagreement is the signal (expression-matched but genotype-mismatched = poor model for a LoF-driven dependency)."
   - "The tumor EVENT matched is the dominant ALTERED state (biallelic-genetic preferred over monoallelic; ≥10% of tumors). When tumors are rarely altered there is no recurrent genotype to match → event_correspondence_class = no_target_event (an honest 'no target event', not forced to wild-type)."

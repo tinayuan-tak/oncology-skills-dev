@@ -181,6 +181,26 @@ threshold_roles:
   enrichment_effect_size_min:
     role: method_parameter
     consumed_by: depmap-chronos
+  # No card predicate compares any of the following (the card emits enrichment_class /
+  # per_lineage_stats already reduced); the method applies each cutoff. Verified consumed in
+  # depmap_chronos: read.py:58-59 (strong/modest dependency Chronos bins, read.py:132 returns the
+  # class), cli.py:335 (enrichment_alpha=0.05) applied at :495 (q_value < alpha), the >=1-enriched
+  # count that keys lineage_selective, and the n>=5 per-lineage admissibility floor at :748-750.
+  strong_dependency_chronos:
+    role: method_parameter
+    consumed_by: depmap-chronos
+  modest_dependency_chronos:
+    role: method_parameter
+    consumed_by: depmap-chronos
+  enrichment_significance_alpha:
+    role: method_parameter
+    consumed_by: depmap-chronos
+  lineage_selective_min_enriched:
+    role: method_parameter
+    consumed_by: depmap-chronos
+  min_cell_lines_in_lineage:
+    role: method_parameter
+    consumed_by: depmap-chronos
 warning_predicates:
   - warning_id: small_lineage_count
     if: "n_lineages_evaluated < 10"

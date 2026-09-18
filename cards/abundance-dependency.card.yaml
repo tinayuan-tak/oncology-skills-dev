@@ -61,6 +61,25 @@ thresholds:
   min_paired_models: 20       # below → insufficient_paired_models
   significance_alpha: 0.05    # Pearson p at/below → the strong call is confident
 
+# None of the above is compared by a card predicate: the method emits the already-derived
+# abundance_dependency_class, applying every cutoff itself. Declared as method_parameter so
+# THRESHOLD_UNUSED stops asking for numbers the method needs. Verified consumed in
+# abundance_dependency/read.py:16-19 (STRONG_R / WEAK_R / MIN_PAIRED_MODELS / SIGNIFICANCE_ALPHA),
+# applied in the class derivation at read.py:33-40.
+threshold_roles:
+  strong_r:
+    role: method_parameter
+    consumed_by: abundance-dependency
+  weak_r:
+    role: method_parameter
+    consumed_by: abundance-dependency
+  min_paired_models:
+    role: method_parameter
+    consumed_by: abundance-dependency
+  significance_alpha:
+    role: method_parameter
+    consumed_by: abundance-dependency
+
 caveats:
   - "PROTEIN arm of the expression-as-biomarker-of-dependency question; the RNA arm is the sibling card expression-dependency-correlation. Report side-by-side, NEVER averaged — their disagreement picks the preferred dependency-biomarker assay (RNA vs protein) in synthesis."
   - "A WEAK abundance→dependency link is NOT a target negative: for oncogene-addiction targets (e.g. KRAS) dependency is driven by MUTATION status, not protein abundance, so the abundance biomarker is correctly weak and synthesis should prefer the genomic stratifier (mutation-stratified-dependency). Interpret alongside that card."

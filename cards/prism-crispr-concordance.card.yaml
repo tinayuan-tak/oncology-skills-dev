@@ -192,3 +192,21 @@ threshold_roles:
   concordance_weak_spearman:
     role: reader_gate
     note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the chemical_genetic_concordance reference frame over `best_spearman_r_crispr` (spearman_r), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  # UPSTREAM precompute parameters. read_prism_crispr_concordance reads one gene row from the FROZEN
+  # v4 parquet (depmap-prism-activity-v4); no card predicate compares these. Verified consumed in the
+  # sister precompute depmap_prism_precompute/cli.py: MIN_LINES_FOR_CONCORDANCE=20 (:102, applied :889),
+  # DUAL_RESPONDER_CHRONOS=-0.5 (:115) + DUAL_RESPONDER_LFC=-1.0 (:116) applied in the dual-responder
+  # builder (:1042-1043), and the top-K cap max_entries=20 (:1044, applied :1082 dual.head(max_entries)).
+  # min_lines_for_concordance is also echoed into the derived manifest at :1376.
+  min_lines_for_concordance:
+    role: method_parameter
+    consumed_by: depmap-prism-crispr-concordance
+  dual_responder_chronos:
+    role: method_parameter
+    consumed_by: depmap-prism-crispr-concordance
+  dual_responder_lfc:
+    role: method_parameter
+    consumed_by: depmap-prism-crispr-concordance
+  dual_responders_max_entries:
+    role: method_parameter
+    consumed_by: depmap-prism-crispr-concordance

@@ -184,3 +184,25 @@ threshold_roles:
   moderately_dependent_threshold_chronos:
     role: reader_gate
     note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the crispr_lof_dependency reference frame over `median_chronos_panel` (chronos), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  # Applied by the method, never by a card predicate (min_panel_coverage_threshold and
+  # lineage_dominance_threshold ARE predicate-referenced by the warnings above, so they stay
+  # undeclared here). strongly_dependent_threshold_chronos is passed straight through as the
+  # method arg strong_dependency_threshold; the fraction bands bin dependency_class in
+  # depmap_chronos_distribution._classify_dependency (cli.py:276 pan_essential_fraction=0.85,
+  # applied at :329). THRESHOLD_UNUSED counts only predicate references, not method args, so the
+  # arg-passed cutoff needs a declaration too.
+  strongly_dependent_threshold_chronos:
+    role: method_parameter
+    consumed_by: depmap-chronos-distribution
+  pan_essential_fraction_threshold:
+    role: method_parameter
+    consumed_by: depmap-chronos-distribution
+  selective_fraction_min:
+    role: method_parameter
+    consumed_by: depmap-chronos-distribution
+  selective_fraction_max:
+    role: method_parameter
+    consumed_by: depmap-chronos-distribution
+  shifted_median_threshold:
+    role: method_parameter
+    consumed_by: depmap-chronos-distribution

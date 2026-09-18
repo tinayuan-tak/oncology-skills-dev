@@ -81,6 +81,20 @@ thresholds:
   not_dependent_chronos: -0.2       # model NOT dependent (resistance_model gate)
   detectable_log2tpm: 1.0           # model "expresses" target (below → negative_control)
 
+# No card predicate compares these: the method emits the already-derived model_correspondence_class,
+# applying each cutoff itself. Verified consumed in patient_model_expression_correspondence/read.py:19-23
+# (DEPENDENT_CHRONOS / NOT_DEPENDENT_CHRONOS / DETECTABLE_LOG2TPM).
+threshold_roles:
+  dependent_chronos:
+    role: method_parameter
+    consumed_by: patient-model-expression-correspondence
+  not_dependent_chronos:
+    role: method_parameter
+    consumed_by: patient-model-expression-correspondence
+  detectable_log2tpm:
+    role: method_parameter
+    consumed_by: patient-model-expression-correspondence
+
 caveats:
   - "EXPRESSION-similarity correspondence, NOT the genomic same-functional-event join (canonical P3/M11) and NOT full-transcriptome Celligner — both deferred. A model can match on target expression yet carry a different driver context; genomic-event matching is the genomic-alteration plan's job."
   - "Representativeness is TARGET-focused (model target TPM within the patient target IQR), not whole-transcriptome similarity — a model representative for this target may be unrepresentative overall."

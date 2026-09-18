@@ -119,6 +119,13 @@ threshold_roles:
   strongly_concordant_fraction_threshold:
     role: reader_gate
     note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the crispr_rnai_concordance reference frame over `fraction_agree` (fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  # discordant_fraction_threshold is applied by the method, not by a card predicate (min_overlap_for_call
+  # IS predicate-referenced by low_overlap below, so it is deliberately absent here). Verified consumed in
+  # depmap_crispr_rnai_concordance/cli.py:117 (discordant_fraction: float = 0.30), applied at :193
+  # (elif (1.0 - fraction_agree) >= discordant_fraction -> concordance_class = 'discordant').
+  discordant_fraction_threshold:
+    role: method_parameter
+    consumed_by: depmap-crispr-rnai-concordance
 warning_predicates:
   - warning_id: low_overlap
     if: "n_in_both < THRESHOLD.min_overlap_for_call"
