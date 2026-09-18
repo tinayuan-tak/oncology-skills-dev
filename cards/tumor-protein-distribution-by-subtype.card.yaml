@@ -92,18 +92,18 @@ outputs:
     per_subgroup_metrics:
       stratum: string
       class: {enum: [protein_elevated, protein_neutral, protein_reduced, insufficient], type: string}
-      # VOCABULARY ALIGNMENT, 2026-09-18 — TRANSITIONAL UNION. Same change, same reasoning and the
+      # VOCABULARY ALIGNMENT, 2026-09-18 — MIGRATION COMPLETE. Same change, same reasoning and the
       # same three-step migration as cellline-rna-distribution-by-subtype (which carries the full
       # rationale); the target is the PREFIXED form because three interpretation rules key on it and
       # ZERO key on the bare form, and because this card's own summary_fields_vocabulary
       # .subtype_stratification_class is ALREADY prefixed ([subtype_enriched, subtype_depleted,
       # subtype_variable, pan_subtype_uniform, subtype_axis_unavailable]) — the bare per-stratum
-      # tokens were the odd ones out within this card too. Both spellings are legal until
-      # cptac_protein_distribution/read.py:144 returns the prefixed ones (its two internal
-      # comparisons at :171 and :172 move with it); the bare half is removed in a later PR. The union
-      # is required and not merely cautious: this enum is the half an emitted row is validated
-      # against, so declaring only the prefixed form would make the method emit rows its own card
-      # rejects.
+      # tokens were the odd ones out within this card too. The union was transitional: both spellings
+      # were legal from TC#816 (98a7990) until cptac_protein_distribution/read.py returned the prefixed
+      # ones in AM#667 (45eb5d2, its two internal comparisons moving with it); this PR REMOVES the bare
+      # half. The union was required and not merely cautious: this enum is the half an emitted row is
+      # validated against, so declaring only the prefixed form before the method migrated would have
+      # made it emit rows its own card rejects.
       #
       # `subtype_restricted` is deliberately ABSENT here, exactly as on the cell-line arm: it is a
       # DETECTABILITY claim and this arm's classifier takes two medians with no detectability input,
@@ -116,8 +116,9 @@ outputs:
       # tokens alone would therefore score two failed comparisons as AGREEMENT; the discriminator is
       # `subtype_enrich_log2_delta`, which all three arms null when no cut was applied.
       subtype_signal:
-        enum: [subtype_enriched, subtype_depleted, subtype_uniform,   # target vocabulary
-               enriched, depleted, uniform]                           # TRANSITIONAL, removed later
+        # prefixed-only; the transitional bare half was removed 2026-09-18 once AM#667 (45eb5d2)
+        # stopped the method emitting it — step 3 (REMOVE) of the migration described above.
+        enum: [subtype_enriched, subtype_depleted, subtype_uniform]
         type: string
       # The enrichment cutoff ACTUALLY APPLIED to produce `subtype_signal` on this row, in log2 units.
       # Declared 2026-09-18 alongside the same field on the two RNA arms, and this arm is the reason the
@@ -137,14 +138,13 @@ outputs:
       # mode of a LINE citation — :125 still exists and still contains plausible code, so a reader who
       # follows it lands on something real and gets no signal they are on the wrong line. A SYMBOL is a
       # strictly stronger anchor than a number, which is exactly why naming the constant was worth doing.
-      # So `enriched` on this row is still a WEAKER claim than `enriched` on either RNA arm, and until
-      # AM #666 there was no symbol in the method to grep for and no number on this card to review.
-      # Worse for a cross-layer
-      # concordance read: the RNA cuts are deltas of a log2(TPM+1) MEDIAN while this is a delta of a
-      # tumor-vs-reference log2 RATIO, so the three are not commensurable in UNITS either — "align the
-      # constants" is not a coherent option here and emitting the applied delta is the only honest one.
-      # Emitting it moves no cut: a consumer can normalise, or can decline to join arms whose deltas
-      # differ, which today it cannot even detect.
+      # BOTTOM LINE for a cross-layer read: `enriched` on this row is a WEAKER claim than `enriched` on
+      # either RNA arm — this arm cuts at 0.25 while the RNA arms cut at 0.585 and 1.0 — and worse, the
+      # RNA cuts are deltas of a log2(TPM+1) MEDIAN while this is a delta of a tumor-vs-reference log2
+      # RATIO, so the three are not commensurable in UNITS either. "Align the constants" is not a
+      # coherent option here; emitting the applied delta is the only honest one. Emitting it moves no
+      # cut: a consumer can normalise, or can decline to join arms whose deltas differ, which today it
+      # cannot even detect.
       subtype_enrich_log2_delta: number
       # WIDENED 2026-09-18 for AM #659 — the restrictive half of the two declarations, i.e. what an
       # emitted row is actually validated against (summary_fields_vocabulary above is permissive).

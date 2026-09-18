@@ -16,13 +16,15 @@ WHY THE PREFIXED FORM IS THE TARGET — measured, not preferred:
     per-stratum tokens were the odd ones out WITHIN their own cards;
   * `subtype_restricted` has no bare counterpart to de-prefix onto.
 
-WHAT THESE TESTS DO AND DO NOT PIN. They pin the TARGET vocabulary (every arm declares the three
-prefixed tokens) and the COVERAGE statement (`subtype_restricted` is tumour-only). They deliberately do
-NOT require the bare tokens to be gone, because the migration is add -> consume -> remove and the
-emitters still produce them: this enum is the half an emitted row is validated against, so removing a
-token before its producer stops emitting it would make a method emit rows its own card rejects. Every
-test here therefore passes BEFORE and AFTER the removal step — the file does not have to be edited to
-complete the migration, it just stops having anything transitional to report.
+WHAT THESE TESTS PIN. They pin the TARGET vocabulary (every arm declares the three prefixed tokens),
+the COVERAGE statement (`subtype_restricted` is tumour-only), and — since the removal step landed
+2026-09-18 — the END STATE (no arm declares a bare token). The bare tokens were a TRANSITIONAL union
+while the emitters still produced them (removing a token before its producer stops emitting it would
+make a method emit rows its own card rejects); that producer migration landed in AM#667 (45eb5d2), so
+the bare half was then removed from both enums. `test_the_bare_vocabulary_is_fully_removed` pins that
+end state, because the moment the bare half is gone
+`test_any_bare_token_is_a_transitional_superset_never_a_swap` goes VACUOUS (its guard body never runs)
+— without the end-state pin a regression that re-added a bare token would pass silently.
 """
 
 from __future__ import annotations
@@ -165,4 +167,22 @@ def test_no_rule_keys_on_the_bare_vocabulary():
     assert not offenders, (
         f"{[r['rule_id'] for r in offenders]} key on bare subtype_signal tokens — the alignment "
         "direction assumed zero rules do, so removing the bare half would erase these rules' match"
+    )
+
+
+def test_the_bare_vocabulary_is_fully_removed():
+    """END STATE, added when the removal step landed 2026-09-18. The producer stopped emitting the bare
+    tokens in AM#667 (45eb5d2), so no arm may declare them any longer. This is the assertion that
+    `test_any_bare_token_is_a_transitional_superset_never_a_swap` can no longer make: its guard body
+    stops running once the bare half is gone, so without this pin a re-introduced bare token would slip
+    through green."""
+    offenders = {
+        label: sorted(_declared(card_id) & BARE_VOCABULARY)
+        for label, card_id in BY_SUBTYPE_ARMS.items()
+        if _declared(card_id) & BARE_VOCABULARY
+    }
+    assert not offenders, (
+        f"{offenders} still declare bare subtype_signal tokens — the migration removed them once the "
+        "producer (AM#667) stopped emitting them, so a bare token here is now a regression, not a "
+        "transitional union"
     )

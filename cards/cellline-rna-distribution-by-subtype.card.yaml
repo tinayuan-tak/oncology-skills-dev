@@ -106,7 +106,7 @@ outputs:
     per_subgroup_metrics:
       stratum: string
       class: string                              # broadly_high | broadly_detected | broadly_low | insufficient
-      # VOCABULARY ALIGNMENT, 2026-09-18 — TRANSITIONAL UNION, see the migration note below.
+      # VOCABULARY ALIGNMENT, 2026-09-18 — MIGRATION COMPLETE (add -> consume -> remove); see below.
       # The three by-subtype arms spelled this field's values TWO different ways: this arm and
       # tumor-protein-distribution-by-subtype used the BARE tokens, while tumor-rna-distribution-by-
       # subtype used PREFIXED ones. Equal strings therefore did not mean equal things, which is fine
@@ -124,17 +124,17 @@ outputs:
       #   3. `subtype_restricted` has no bare counterpart to de-prefix onto, so the other direction
       #      would have to invent one.
       #
-      # WHY A UNION AND NOT JUST THE PREFIXED FORM: this enum is the RESTRICTIVE half (see the
-      # widening note further down — it is what an emitted row is validated against), and the method
-      # still emits the bare tokens today. Declaring only the prefixed form here would make
-      # depmap_expression_distribution emit rows its own card REJECTS. The migration is therefore
-      # add -> consume -> remove, and this PR is the ADD:
-      #   1. (this change)      both spellings legal; nothing breaks, nothing yet changes
-      #   2. analysis-methods   _classify_subtype_signal returns the prefixed tokens; the four
-      #                         internal `== "enriched"` / `== "depleted"` comparisons in
-      #                         depmap_expression_distribution/read.py (:249, :250, :260) and
-      #                         cptac_protein_distribution/read.py (:171, :172) move with it
-      #   3. (a later PR)       the bare tokens are REMOVED from this enum
+      # WHY A UNION AND NOT A STRAIGHT RENAME: this enum is the RESTRICTIVE half (see the widening
+      # note further down — it is what an emitted row is validated against). While the method still
+      # emitted the bare tokens, declaring only the prefixed form here would have made
+      # depmap_expression_distribution emit rows its own card REJECTS. So the union was carried
+      # transitionally across three PRs, add -> consume -> remove:
+      #   1. TC#816 98a7990    both spellings legal; nothing breaks, nothing yet changes (the ADD)
+      #   2. AM#667 45eb5d2    _classify_subtype_signal returns the prefixed tokens; the internal
+      #                        `== "enriched"` / `== "depleted"` comparisons in
+      #                        depmap_expression_distribution/read.py and cptac_protein_distribution/
+      #                        read.py moved with it (the CONSUME)
+      #   3. (this change)     the bare tokens are REMOVED from this enum (the REMOVE)
       # Skipping step 1 or 3 is the documented failure: a consumer that has never seen a token does
       # not report it as unknown, it silently fails to match, and a fall-through is not an error.
       #
@@ -146,8 +146,9 @@ outputs:
       # token however the enum were written. Declaring it here would declare a value the producer
       # emits 0x BY CONSTRUCTION — an absence a consumer would be entitled to read as measured.
       subtype_signal:
-        enum: [subtype_enriched, subtype_depleted, subtype_uniform,   # target vocabulary
-               enriched, depleted, uniform]                           # TRANSITIONAL, removed in step 3
+        # prefixed-only; the transitional bare half was removed 2026-09-18 once AM#667 (45eb5d2)
+        # stopped the method emitting it — step 3 (REMOVE) of the migration described above.
+        enum: [subtype_enriched, subtype_depleted, subtype_uniform]
         type: string
       # The enrichment cutoff ACTUALLY APPLIED to produce `subtype_signal` on this row, in log2 units.
       # Declared 2026-09-18 to close a cross-arm comparability defect: "enriched" means a 2x linear
