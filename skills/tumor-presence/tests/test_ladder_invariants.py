@@ -243,17 +243,29 @@ def _live_rules():
     return rules
 
 
-def _narrow_broad_rule(rules):
-    """Simulate the phase-3 one-liner: drop subset_high from the broad rule's `in:` list, in memory."""
+def _restore_broad_overlap(rules):
+    """Re-ADD subset_high to the broad rule's `in:` list, in memory — the PRE-3b shape.
+
+    INVERTED at phase 3b (contracts c3eec12). Until 3b this helper SUBTRACTED subset_high to simulate a
+    narrowing that had not happened yet; now the narrowing is live in contracts, so the counterfactual
+    runs the other way and the helper reconstructs the overlap. The direction had to flip with the pin:
+    the old body asserted `stripped == 1`, and against a narrowed tree there is nothing left to strip, so
+    it failed with `narrowed 0` — a control that had quietly stopped being a control. Keep an
+    exact-count assert on THIS side too, for the same reason.
+    """
     out = copy.deepcopy(rules)
-    stripped = 0
+    restored = 0
     for r in out:
         if r.get("rule_id") == _BROAD_RID:
             vals = (r.get("when") or {}).get("in") or []
-            if "subset_high" in vals:
-                r["when"]["in"] = [v for v in vals if v != "subset_high"]
-                stripped += 1
-    assert stripped == 1, f"narrowed {stripped} rules, expected 1 — this arm would not be a control"
+            assert "subset_high" not in vals, (
+                "the broad rule still lists subset_high — the contracts tree in use predates 3b "
+                "(c3eec12), so this helper would be a no-op and every arm built on it vacuous. Bump the "
+                "`ref:` in .github/workflows/skills-validate.yml / fetch the sibling checkout."
+            )
+            r["when"]["in"] = [*vals, "subset_high"]
+            restored += 1
+    assert restored == 1, f"restored {restored} rules, expected 1 — this arm would not be a control"
     return out
 
 
@@ -312,14 +324,18 @@ def test_subset_high_phrase_names_the_population_not_breadth():
     assert phrase != tp._PRESENCE_VERDICT_PHRASE["tumor_broadly_expressed"]
 
 
-def test_subset_high_is_still_inert_against_the_live_rules():
-    """PHASE 2 INERTNESS, measured against the rules the skill actually loads: contracts still lists
-    subset_high on BOTH rules, so both fire and the broad rung — ranked above — must still drive. If
-    this ever fails without a contracts change, the ladder order was edited.
+def test_subset_high_drives_the_verdict_against_the_live_rules():
+    """PHASE 3B LIVE, measured against the rules the skill actually loads. Contracts c3eec12 (TC#809)
+    removed subset_high from the broad rule, so a subset_high card now fires ONLY the subset rule and the
+    new rung drives the verdict. If this fails without a contracts change, the ladder order was edited.
+
+    INVERTED FROM ITS PRE-3b FORM. Until 3b this arm asserted the OPPOSITE — that the deliberate phase-1/2
+    overlap was still present and the broad rung still won (`test_subset_high_is_still_inert_...`). Both
+    forms cannot hold at once, which is exactly why the pin bump and this rewrite are forced-atomic.
 
     PIN-SENSITIVE. This arm reads the sibling contracts CHECKOUT, which in CI is a hand-bumped fixed SHA,
-    so it can only pass against a tree at or after TC#805 (6ff21f8). Measured against the previous pin
-    (2c322f8): 2 failed, 272 passed. See the `ref:` comment in .github/workflows/skills-validate.yml."""
+    so it can only pass against a tree at or after TC#809 (c3eec12). Against the previous pin (26eee89) it
+    fails with `broad rule still fires`. See the `ref:` comment in .github/workflows/skills-validate.yml."""
     rules = _live_rules()
     if rules is None:
         pytest.skip("target-contracts checkout absent — live-rules arm not applicable")
@@ -330,29 +346,38 @@ def test_subset_high_is_still_inert_against_the_live_rules():
         f"is behind; locally it means the sibling checkout is stale. Bump/fetch rather than weakening this "
         f"assert, and do NOT convert it to a skip: a skip here reads as a pass for the wrong reason."
     )
-    assert _BROAD_RID in fired, "the deliberate phase-1 overlap is gone — this is phase 3, update these tests"
-    assert v == "tumor_broadly_expressed" and drv == _BROAD_RID, f"phase 2 is not inert: {v} via {drv}"
+    assert fired == [_SUBSET_RID], (
+        f"a subset_high card fired {fired}. {_BROAD_RID} still firing means the contracts tree in use "
+        f"predates TC#809 (c3eec12) — the pre-3b overlap. Bump the pin; do not relax this to a membership "
+        f"check, because the whole point of 3b is that the broad rung no longer claims this population."
+    )
+    assert v == _SUBSET_VERDICT and drv == _SUBSET_RID, f"3b is not live: {v} via {drv}"
+    assert tp._PRESENCE_VERDICT_PHRASE[v] == "High in a tumor subset (patient selection required)"
 
 
-def test_subset_high_becomes_the_verdict_once_the_overlap_is_removed():
-    """PHASE 3 REACHABILITY. Same code, same card, rules narrowed in memory exactly as phase 3b will
-    narrow them. This is the arm that proves the new rung is reachable rather than dead code — on trunk
-    WITHOUT the rung this same input collapses to `insufficient`.
+def test_restoring_the_broad_overlap_collapses_the_subset_verdict():
+    """TWO-DIRECTIONAL CONTROL for the arm above, and the arm that keeps the LADDER ORDER under test.
 
-    PIN-SENSITIVE for the same reason as the arm above: `_narrow_broad_rule` removes subset_high from the
-    broad rule and expects the SUBSET rule to be there to catch it, which is only true at/after 6ff21f8."""
+    Same code, same card, the pre-3b overlap reconstructed in memory: both rules fire and the broad rung —
+    ranked above — takes the verdict back to `tumor_broadly_expressed`. So the arm above is not passing
+    because the subset rung is the only thing that could ever win; it passes because contracts stopped
+    routing this population to the broad rule. That distinction is the whole content of 3b.
+
+    This also preserves, as an executable record, the exact over-claim the split removed: a target high in
+    12% of patients reported as "Broadly expressed in tumor".
+
+    PIN-SENSITIVE in the mirror direction: `_restore_broad_overlap` asserts the overlap is ABSENT before
+    re-adding it, so it fails loudly against a pre-3b tree instead of silently no-op'ing."""
     rules = _live_rules()
     if rules is None:
         pytest.skip("target-contracts checkout absent — live-rules arm not applicable")
-    v, drv, fired = _verdict_for(_subset_high_card(), _narrow_broad_rule(rules))
-    assert fired == [_SUBSET_RID], (
-        f"narrowed arm fired {fired}. An EMPTY list means the subset rule is absent from the contracts tree "
-        f"in use (pre-TC#805) — the narrowed broad rule dropped the card and nothing caught it, which is "
-        f"exactly the false-absence this rung exists to prevent. See the pin note above."
+    v, drv, fired = _verdict_for(_subset_high_card(), _restore_broad_overlap(rules))
+    assert fired == sorted([_BROAD_RID, _SUBSET_RID]), f"restored arm fired {fired}, expected both rules"
+    assert v == "tumor_broadly_expressed" and drv == _BROAD_RID, (
+        f"with the overlap restored the broad rung must win by ladder order, got {v} via {drv} — "
+        f"_EXPRESSION_RANK was reordered"
     )
-    assert v == _SUBSET_VERDICT, f"the new rung is unreachable — collapsed to {v!r} (a FALSE ABSENCE if a gap)"
-    assert drv == _SUBSET_RID
-    assert tp._PRESENCE_VERDICT_PHRASE[v] == "High in a tumor subset (patient selection required)"
+    assert _idx(_BROAD_RID, tp._EXPRESSION_RANK) < _idx(_SUBSET_RID, tp._EXPRESSION_RANK)
 
 
 def _values_reaching_a_rung(vocab, rules, ladder):
@@ -408,14 +433,20 @@ def test_the_vocabulary_reach_guard_can_actually_fail():
     configuration is indistinguishable from one that cannot fail, and the all-pass result above is
     exactly what a broken instrument reports. So: hold the rules narrowed (phase-3 shape) and delete the
     subset rung from a COPY of the ladder — the phase-1-draft configuration — and require the guard to
-    name subset_high. Uses a synthetic ladder, so it cannot go vacuous by the fix being reverted."""
+    name subset_high. Uses a synthetic ladder, so it cannot go vacuous by the fix being reverted.
+
+    At 3b this stopped needing a helper: the LIVE rules are now the narrowed shape, so the only synthetic
+    part left is the ladder. Before 3b it had to call `_narrow_broad_rule(rules)` to reach the same
+    configuration, and that call is why this test — not just the two obviously-paired guards — went red
+    the moment contracts landed 3b. A shared helper makes the blast radius of a contracts change larger
+    than the guards that name it: count the CALLERS, not the helper."""
     rules = _live_rules()
     vocab = _declared_class_vocabulary() if rules is not None else None
     if rules is None or not vocab:
         pytest.skip("target-contracts checkout absent — cross-repo vocabulary reach guard not applicable")
     ladder_without_rung = [(rid, v) for rid, v in tp._EXPRESSION_RANK if rid != _SUBSET_RID]
     assert len(ladder_without_rung) == len(tp._EXPRESSION_RANK) - 1, "the synthetic ladder was not narrowed"
-    reach = _values_reaching_a_rung(vocab, _narrow_broad_rule(rules), ladder_without_rung)
+    reach = _values_reaching_a_rung(vocab, rules, ladder_without_rung)
     assert reach.get("subset_high") is False, "the guard cannot see an unreachable value — it is vacuous"
     assert reach.get("broadly_high") is True, "the guard flags everything — it is not discriminating"
 

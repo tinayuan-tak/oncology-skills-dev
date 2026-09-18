@@ -194,7 +194,61 @@ jobs:
           # ENUM VALUES and added `required_inputs` shards, and the census counts (card, field) PAIRS, which
           # enum widening cannot create. A future contracts PR adding an `outputs.summary_fields` entry WILL
           # move this axis — re-measure, do not cite this line.
-          ref: 26eee8996d6756a96b040d88f3111f8007bf6b10
+          #
+          # ============================================================================================
+          # BUMP 26eee89 -> c3eec12, "main @ 2026-09-18T15:23Z (#809)". FOURTH hand bump in this arc, and
+          # the FOURTH distinct direction. The running list, because "the pin lags" is not one failure mode:
+          #   (2c322f8): CI GREEN / trunk RED   — a ledger row had to move WITH the pin
+          #   (6ff21f8): trunk GREEN / CI RED   — a rule-reading guard had to move WITH the pin
+          #   (26eee89): local GREEN / CI RED   — an ALLOWLIST DELETION had to move WITH the pin
+          #   (c3eec12): local RED / CI GREEN   — a BEHAVIOUR CHANGE landed in contracts first, so the
+          #                                       guards asserting the OLD routing broke locally while CI,
+          #                                       reading the old pinned SHA, stayed green
+          # That fourth direction is the dangerous one: CI is green, `main` is green, and the only signal is
+          # a local red. Nothing in either repo's CI can see it, because the gating workflow reads a pinned
+          # SHA and so is structurally blind to a contracts landing.
+          #
+          # WHY IT IS FORCED-ATOMIC. TC#809 (c3eec12) is phase 3b: it removes `subset_high` from
+          # `tumor-expression-broadly-high-supportive`'s `in:` list — the arc's ONLY behaviour change. Three
+          # tests in skills/tumor-presence/tests/test_ladder_invariants.py assert the PRE-3b routing and are
+          # rewritten in this commit:
+          #   - test_subset_high_is_still_inert_against_the_live_rules  (asserted the broad rule still fires)
+          #       -> test_subset_high_drives_the_verdict_against_the_live_rules
+          #   - test_subset_high_becomes_the_verdict_once_the_overlap_is_removed
+          #       -> test_restoring_the_broad_overlap_collapses_the_subset_verdict  (control, now inverted)
+          #   - test_the_vocabulary_reach_guard_can_actually_fail  (collateral — see below)
+          # and the helper `_narrow_broad_rule` is inverted to `_restore_broad_overlap`: it SUBTRACTED
+          # subset_high to simulate a narrowing that had not happened, and now ADDS it back to reconstruct
+          # the pre-3b shape. Its `stripped == 1` control failed with `narrowed 0` against the new tree — a
+          # control that had quietly stopped controlling. The new body asserts the overlap is ABSENT before
+          # re-adding it, so it fails loudly against a pre-3b tree rather than silently no-op'ing.
+          #
+          # COUNT THE CALLERS, NOT THE HELPER. The 3b PR body predicted TWO guards would break. Measured:
+          # THREE tests failed, because `_narrow_broad_rule` had two callers and the third
+          # (test_the_vocabulary_reach_guard_can_actually_fail) never names subset_high in its own asserts.
+          # The mechanism count was right and the test count was wrong. A shared helper makes the blast
+          # radius of a contracts change wider than the guards that mention it by name.
+          #
+          # MEASURED AS A 2x2 over the EXACT refs, skills trunk 9e29d208 vs this branch,
+          # `pytest skills/tumor-presence/tests/test_ladder_invariants.py -q`:
+          #                              contracts 26eee89 (old pin)   contracts c3eec12 (this pin)
+          #   skills trunk (9e29d208)     19 passed                     3 failed, 16 passed
+          #   skills this branch          3 failed, 16 passed           19 passed
+          # COLLECTED is 19 in all four cells, so no cell is green by having dropped a test. ANTI-DIAGONAL,
+          # which is the point: read either axis alone and you conclude the other side is fine. Stronger than
+          # the counts: the two red cells fail DIFFERENTLY-NAMED tests — trunk/c_new fails the pre-3b names
+          # (..._is_still_inert_..., ..._becomes_the_verdict_once_the_overlap_is_removed) and branch/c_old
+          # fails the post-3b ones (..._drives_the_verdict_..., ..._restoring_the_broad_overlap_...). Equal
+          # counts for OPPOSITE reasons, which is what makes this a real 2x2 rather than one bug seen twice.
+          #
+          # HOW TO RE-MEASURE (the invocation is itself a trap). `git archive <ref> | tar -x` both contracts
+          # trees, then run the suite FROM THE HOME CHECKOUT with
+          #   TARGET_CONTRACTS_ROOT=<tree> PYTHONPATH=<side>/skills pixi run pytest <side>/<test path> -q
+          # Never `cd` into a /tmp worktree to run pixi (it deep-copies a multi-GB env -> ENOSPC), and the
+          # PYTHONPATH is not optional: pointing pytest at a worktree path from the home checkout fails
+          # COLLECTION with `ModuleNotFoundError: No module named '_test_support'`, which prints no pass
+          # count at all. Both branch cells first measured that way and read as blank, not as red.
+          ref: c3eec129a460df41075f7c539261013258a1c9da
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
