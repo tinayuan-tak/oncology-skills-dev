@@ -127,11 +127,162 @@ def stable_projection(report: dict) -> str:
     transition's teeth and drops the rest: 12→13 no longer reports STALE, 1→0 still
     does. The raw count stays in the committed artifact for display (render_html,
     the atlas dashboard) — this narrows the drift BASIS, not the artifact.
+
+    The DESCRIPTOR-ROSTER census obeys the same rule for the same reason, one level up.
+    `descriptor_coverage` and `field_read_health` are verbatim transcriptions of
+    `skills:_skills_common/*.json` (they say so in their own `source` field), and
+    build_field_read_health states the contract outright: "Trending, never a gate."
+    But --check IS a gate, and asserting equality on a transcription makes every
+    descriptor mint in the SKILLS repo turn a TARGET-CONTRACTS check red — a gate that
+    invalidates itself on a sibling's merge, with no target-contracts change to review.
+
+    MEASURED on the 2026-09-18 red (committed vs fresh, all five roots passed explicitly):
+    1033 of 26321 raw leaves differed, 1027 of 26304 under the OLD drift basis, and EVERY
+    verdict-bearing field was identical (`verdict_tally`, `card_health_tally`,
+    `runs_clean_tally`, `n_drift_flags` 1, `n_error_drift` 0, `n_cards` 148, `drift_index`,
+    `graph`). `health_rules.yaml` consumes none of the moved counters. Under THIS projection
+    the same pair differs in 111 leaves, and all 111 are the one genuine target-contracts
+    drift below — so the narrowing removed 916 noise leaves and retained the finding.
+
+    `measured_axes_per_dim` is NOT dropped wholesale, because its source is MIXED: the
+    descriptor counts come from the skills sibling, but `reconcile`,
+    `spec_types_pulled_by_no_axis` and the per-axis `dim_verdict_member` / `gate_short` /
+    `verdict_bearing` / `declared_absence_state` fields are decided by
+    `contracts:vocabularies/measurement_types.yaml` and this repo's own cards. Those are
+    exactly the fields that carry the "a gateless axis can never be a verdict member"
+    invariant, so they keep their teeth; only the descriptor-roster counts leave the basis.
+
+    What deliberately STAYS in the basis: `cards[].datasets` and the top-level `datasets`
+    orphan flags. Those move when a CARD IN THIS REPO changes its declared `product_id`s,
+    which is precisely the drift --check exists to catch — on 2026-09-18 that was 10
+    product_ids `tumor-rna-distribution-by-subtype` declares on main but the committed
+    dashboard still showed as 3 — 111 leaves across `cards[].datasets`, the `skills` mirror of
+    them, the top-level `datasets` roster, and `summary.n_orphan_datasets` (355 → 345). --check
+    therefore stays RED after this change until the dashboard is regenerated, CORRECTLY, and
+    that regen is deliberately a separate commit: this one must not be able to hide drift.
+
+    DETERMINISM IS NOT LOCALITY — the correction that reverses two 2026-09-17 guards.
+    `probe.descriptor_coverage` argues these sections need no projection because the census
+    is "a pure function of two module constants on the skills side — no clock, no I/O", and
+    two tests asserted they must therefore stay in the basis, reasoning that otherwise "a
+    vocabulary change in skills would never register as staleness here." Both halves are
+    true; the inference is not. Reproducibility is not the criterion — WHICH REPO DECIDES
+    THE VALUE is. `build_descriptor_coverage(census)` takes one argument and
+    `build_field_read_health(census, emission)` takes two, all of them sibling-sourced
+    (skills, data-products); no target-contracts input reaches either. So no change in this
+    repo can ever move them, and an equality assertion on them here cannot produce a
+    finding — only noise. `build_measured_axes_per_dim(census, type_cards)` is the contrast
+    that proves the rule: `type_cards` comes from THIS repo, which is why it gets surgery
+    instead of a drop. The skills-side vocabulary change still registers — on the skills
+    side, where the producer and its review live, and here through the contracts-side JOIN
+    (`reconcile`, `spec_types_pulled_by_no_axis`), which keeps its teeth.
+
+    The same incoherence shows up one level down: `root_shas` is ALREADY volatile. The
+    projection had been dropping the pointer to the sibling tree while asserting equality on
+    a transcription of its contents. Consistent with `build_living_doc.stable_projection`,
+    which dropped per-skill `version`/`status`/`health`/`md_path` because they "move on
+    sibling churn alone, so the feed went stale again minutes after any regen."
+
+    TWO RESIDUALS KEPT ON PURPOSE, so the narrowing is not oversold. `n_axes_descriptor_covered`
+    / `n_axes_descriptor_blind` and the per-axis `static_state` are genuinely MIXED: the axis
+    roster is contracts-side, the descriptor coverage of its types is skills-side. They stay in
+    the basis, so a mint that flips an AXIS from `descriptor_blind` to `descriptor_covered` can
+    still report STALE. That is the conservative direction on purpose — over-narrowing removes
+    teeth silently and presents as a permanently green gate, whereas a red that one regen clears
+    is recoverable. The common mint (more descriptor cells / fields / gloss, which is what the
+    2026-09-18 red was) no longer reports STALE; an axis-level coverage flip still does.
+
+    CONSEQUENCE WORTH THE REVIEW: this is a precondition for un-parking
+    `.github/workflows/framework-health-cross-repo.yml`. That job checks every sibling out at
+    `main`, so with the transcriptions in the basis a skills-side descriptor mint turns a
+    target-contracts `push` red — the "stops firing RED on every merge" failure its own header
+    warns about. It stays `workflow_dispatch`-only for an unrelated PAT-scope reason; this
+    removes the drift-basis half of the blocker, it does not by itself re-enable the trigger.
     """
     volatile = {"generated_at", "roots", "root_shas", "delta"}
-    projected = {k: v for k, v in report.items() if k not in volatile}
+    projected = {k: v for k, v in report.items() if k not in volatile and k not in _SIBLING_TRANSCRIPTIONS}
     projected["skills"] = [_project_skill(s) for s in projected.get("skills", [])]
+    projected["summary"] = {k: v for k, v in projected.get("summary", {}).items() if k not in _SIBLING_SUMMARY_COUNTERS}
+    if isinstance(projected.get("measured_axes_per_dim"), dict):
+        projected["measured_axes_per_dim"] = _project_measured_axes(projected["measured_axes_per_dim"])
     return json.dumps(projected, indent=2, sort_keys=True, default=str)
+
+
+# Sub-objects that are verbatim transcriptions of a SKILLS-repo artifact (see their own
+# `source` field). Display/trending only — never a gate — so they are not a drift basis.
+_SIBLING_TRANSCRIPTIONS = {"descriptor_coverage", "field_read_health"}
+
+# Top-level `summary` MIRRORS of the two dropped sections — magnitudes decided entirely in a
+# sibling repo. The `*_available` booleans are deliberately NOT here: keep the availability
+# flag, drop the magnitude, exactly as `test_count` → `has_tests` one level down. A sidecar
+# that VANISHES is a wiring break worth a red; 337 vs 459 descriptor cells is not.
+#
+# Enumerated by PROVENANCE, not by observed movement. An earlier revision listed only the five
+# counters that happened to move in the 2026-09-18 red, which is corpus-inertness masquerading
+# as contract-safety — `n_field_read_units` is just as sibling-sourced and simply had not moved
+# that day. The reversed tests below caught it.
+#
+# NAMED LOSS: `n_field_reads_of_none` was documented as a regression watch (its one historical
+# instance was fixed in skills #1405). It leaves this basis on purpose — a skills-side defect
+# should red the SKILLS gate, not a target-contracts staleness check. It stays in the artifact.
+_SIBLING_SUMMARY_COUNTERS = {
+    # descriptor_coverage mirrors
+    "n_descriptor_cells",
+    "n_distinct_descriptor_fields",
+    "n_gloss_without_descriptor",
+    "n_measurement_types_with_descriptors",
+    "n_measurement_types_without_descriptor",
+    "n_numeric_fields_without_gloss",
+    # field_read_health mirrors
+    "n_field_read_units",
+    "n_field_read_units_clean",
+    "n_field_read_units_no_reads_detected",
+    "n_field_reads_emission_unobserved",
+    "n_field_reads_emitted_but_undeclared",
+    "n_field_reads_of_none",
+    "n_undeclared_field_reads",
+}
+
+# The descriptor-roster-derived keys INSIDE measured_axes_per_dim. Everything not named
+# here — notably `reconcile` and `spec_types_pulled_by_no_axis` — is contracts-decidable
+# and stays in the basis.
+_MAPD_DESCRIPTOR_KEYS = {"types_without_measurement_descriptor"}
+_MAPD_AXIS_DESCRIPTOR_FIELDS = {
+    "n_measurement_descriptor_fields",
+    "n_types_with_measurement_descriptor",
+    "types_without_measurement_descriptor",
+}
+_MAPD_DIM_DESCRIPTOR_FIELDS = {
+    "n_types_without_measurement_descriptor",
+    "types_without_measurement_descriptor",
+}
+_MAPD_SUMMARY_DESCRIPTOR_FIELDS = {
+    "n_salience_spec_types",
+    "n_types_with_measurement_descriptor",
+    "n_types_without_measurement_descriptor",
+}
+
+
+def _project_measured_axes(mapd: dict) -> dict:
+    """Drop the descriptor-roster counts from measured_axes_per_dim, keep the
+    contracts-decidable structure. Copy-on-write — the caller's report is untouched."""
+
+    def _strip(obj: object, drop: set[str]) -> object:
+        if not isinstance(obj, dict):
+            return obj
+        return {k: {f: w for f, w in v.items() if f not in drop} if isinstance(v, dict) else v for k, v in obj.items()}
+
+    out = {k: v for k, v in mapd.items() if k not in _MAPD_DESCRIPTOR_KEYS}
+    # Only rewrite keys that are actually PRESENT: an unavailable section carries neither
+    # `axes` nor `dims`, and injecting `"axes": null` would make the projection assert on a
+    # key the artifact never had.
+    if "axes" in out:
+        out["axes"] = _strip(out["axes"], _MAPD_AXIS_DESCRIPTOR_FIELDS)
+    if "dims" in out:
+        out["dims"] = _strip(out["dims"], _MAPD_DIM_DESCRIPTOR_FIELDS)
+    if isinstance(out.get("summary"), dict):
+        out["summary"] = {k: v for k, v in out["summary"].items() if k not in _MAPD_SUMMARY_DESCRIPTOR_FIELDS}
+    return out
 
 
 def _project_skill(skill: dict) -> dict:

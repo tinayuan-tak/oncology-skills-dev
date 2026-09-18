@@ -1787,16 +1787,36 @@ def test_availability_flag_must_track_the_section(tmp_path):
     assert any("descriptor_coverage_available disagrees" in e for e in errs)
 
 
-def test_descriptor_section_is_carried_in_the_drift_basis():
-    """The census is a pure function of two skills-side constants — no clock, no I/O — so it
-    must NOT be projected out of --check the way volatile fields are. If it were dropped, a
-    vocabulary change in skills would never register as staleness here."""
+def test_descriptor_section_is_projected_out_of_the_drift_basis():
+    """REVERSES a 2026-09-17 guard, whose argument is recorded here because it is half right.
+
+    It said: the census is a pure function of two skills-side constants — no clock, no I/O —
+    so it must not be projected out the way volatile fields are, else "a vocabulary change in
+    skills would never register as staleness here."
+
+    Determinism is not locality. `rollup.build_descriptor_coverage(census)` takes ONE argument
+    and it is sibling-sourced, so no target-contracts change can move this section: an equality
+    assertion on it in a TARGET-CONTRACTS staleness gate cannot produce a finding, only noise,
+    and it made every skills-side descriptor mint turn this repo's --check red (1027 differing
+    leaves on 2026-09-18 under the old basis, zero of them verdict-bearing). The skills-side change still registers
+    on the skills side, and here through the contracts-side join — see
+    `test_the_contracts_side_join_keeps_its_teeth`, which is what stops this from being a
+    blanket weakening.
+
+    The section stays in the ARTIFACT; only the basis is narrowed.
+    """
     rep = _report_with_census()
     rep["generated_at"] = "2026-01-01T00:00:00Z"
-    projected = stable_projection(rep)
-    assert "descriptor_coverage" in projected
-    assert "orphan_gloss_field" in projected  # the queue itself is part of the basis
-    assert "2026-01-01T00:00:00Z" not in projected  # ...while the clock still is not
+    # non-vacuity: the section must actually BE there to be projected away
+    assert "descriptor_coverage" in rep and rep["descriptor_coverage"]
+    text = stable_projection(rep)
+    projected = json.loads(text)
+    assert "descriptor_coverage" not in projected
+    assert "orphan_gloss_field" not in text  # the queue went with it
+    assert "2026-01-01T00:00:00Z" not in text  # ...and the clock still is not
+    # ...but the availability BOOLEAN survives: a sidecar that vanishes is a wiring break.
+    assert projected["summary"]["descriptor_coverage_available"] is True
+    assert "n_descriptor_cells" not in projected["summary"]  # while the magnitude does not
 
 
 def test_older_artifacts_without_the_section_still_pass(tmp_path):
@@ -2209,15 +2229,27 @@ def test_frh_self_check_catches_an_impossible_aperture(tmp_path):
     assert any("impossible" in e for e in errs)
 
 
-def test_frh_section_is_carried_in_the_drift_basis():
-    """A pure function of sibling BYTES with no clock, so a new package or a scraper fix must
-    register as staleness rather than being projected away as volatile."""
+def test_frh_section_is_projected_out_of_the_drift_basis():
+    """REVERSES a 2026-09-17 guard for the same reason as the descriptor census, with one extra
+    nail: `build_field_read_health(census, emission)` takes TWO inputs and BOTH are siblings —
+    the skills census and a scan of the data-products packages. Nothing in target-contracts
+    reaches it. Its own producer already states the contract ("Trending, never a gate"), and
+    --check IS a gate, so the section was the one place that contract was violated.
+
+    The old docstring's worry — "a new package or a scraper fix must register as staleness" —
+    is answered by WHERE: in the repo that owns the scraper and the packages. A target-contracts
+    reviewer handed this red can do nothing with it but regenerate.
+    """
     rep = _report_with_frh()
     rep["generated_at"] = "2026-01-01T00:00:00Z"
-    projected = stable_projection(rep)
-    assert "field_read_health" in projected
-    assert "unseen-card" in projected  # the queue itself is part of the basis
-    assert "2026-01-01T00:00:00Z" not in projected
+    assert "field_read_health" in rep and rep["field_read_health"]  # non-vacuity
+    text = stable_projection(rep)
+    projected = json.loads(text)
+    assert "field_read_health" not in projected
+    assert "unseen-card" not in text  # the queue went with it
+    assert "2026-01-01T00:00:00Z" not in text
+    assert projected["summary"]["field_read_health_available"] is True  # the 1<->0 teeth stay
+    assert "n_undeclared_field_reads" not in projected["summary"]  # the magnitudes do not
 
 
 def test_older_artifacts_without_the_field_read_section_still_pass(tmp_path):
@@ -2828,3 +2860,192 @@ def test_the_axis_flag_and_the_type_queue_are_decoupled_in_the_artifact():
     else:
         assert not covered_with_gaps
         assert all(not (r.get("types_without_measurement_descriptor") or []) for r in m["axes"].values())
+
+
+# ---------------------------------------------------------------------------
+# 6d. ANTI-VACUITY for the sibling-transcription narrowing.
+#
+# Dropping three sub-objects from the --check basis is only safe if the basis still reports
+# STALE on every direction that carries health information. A narrowing that quietly removed
+# the teeth would present as a PERMANENTLY GREEN gate, which is indistinguishable from a
+# working one until the day it matters. So each verdict-bearing direction gets an explicit
+# "still bites" test, and the noise direction gets one "no longer bites" test — both halves,
+# because only the pair distinguishes "narrowed correctly" from "narrowed into a no-op".
+# ---------------------------------------------------------------------------
+def test_the_narrowed_basis_still_sees_a_verdict_tally_change():
+    """The headline rollup. If a skill's health verdict moves, the committed feed IS stale."""
+    a = _minimal_report(verdict="production_ready")
+    b = _minimal_report(verdict="partial")
+    assert stable_projection(a) != stable_projection(b)
+
+
+def test_the_narrowed_basis_still_sees_a_card_health_change():
+    """Per-card health is the finest-grained verdict in the artifact and must keep its teeth —
+    a card going `live` → `broken` is exactly the drift --check exists for."""
+    a = _minimal_report(card_health="live")
+    b = _minimal_report(card_health="placeholder")
+    assert stable_projection(a) != stable_projection(b)
+
+
+def test_the_narrowed_basis_still_sees_a_drift_index_change():
+    a = _minimal_report()
+    b = _minimal_report()
+    b["drift_index"] = [{"kind": "orphan_card", "card_id": "c"}]
+    assert stable_projection(a) != stable_projection(b)
+
+
+def test_the_narrowed_basis_still_sees_a_card_product_id_change():
+    """The drift that was ACTUALLY live on 2026-09-18 and the reason --check stays red until a
+    regen: `tumor-rna-distribution-by-subtype` declares 13 product_ids on main while the
+    committed dashboard shows 3. That is a card in THIS repo changing, so per-card `datasets`
+    stays in the basis — the one sub-object most tempting to drop alongside the transcriptions,
+    because it is large and dataset-shaped."""
+    a = _minimal_report()
+    a["skills"][0]["cards"][0]["datasets"] = [{"product_id": "p1", "is_orphan": False}]
+    b = json.loads(json.dumps(a))
+    b["skills"][0]["cards"][0]["datasets"].append({"product_id": "p2", "is_orphan": True})
+    assert stable_projection(a) != stable_projection(b)
+
+
+def test_the_contracts_side_join_keeps_its_teeth():
+    """`measured_axes_per_dim` is NOT dropped wholesale, and this is why: `reconcile` joins the
+    skills axis census against THIS repo's `vocabularies/measurement_types.yaml`, so it moves on
+    target-contracts changes and is the mechanism by which a vocabulary change still registers
+    as staleness here. This is the direct answer to the reversed 2026-09-17 guards."""
+    rep = _report_with_mapd()
+    mapd = rep["measured_axes_per_dim"]
+    assert mapd.get("reconcile"), "fixture must actually carry a reconcile, or this proves nothing"
+
+    moved = json.loads(json.dumps(rep))
+    moved["measured_axes_per_dim"]["reconcile"]["outcome_tally"]["declared_not_derived"] = 99
+    assert stable_projection(rep) != stable_projection(moved)
+
+
+def test_the_contracts_local_axis_fields_survive_the_surgery():
+    """The surgery must keep the fields that carry "a gateless axis can never be a verdict
+    member" — those are decided by this repo's vocabulary, not by the descriptor roster."""
+    rep = _report_with_mapd()
+    projected = stable_projection(rep)
+    for field in ("static_state", "gate_short", "verdict_bearing"):
+        assert f'"{field}"' in projected, f"{field} must stay in the drift basis"
+    # ...and a change to one of them must still red the check
+    moved = json.loads(json.dumps(rep))
+    axis = sorted(moved["measured_axes_per_dim"]["axes"])[0]
+    moved["measured_axes_per_dim"]["axes"][axis]["verdict_bearing"] = "flipped"
+    assert stable_projection(rep) != stable_projection(moved)
+
+
+def test_the_descriptor_counts_inside_mapd_are_projected_out():
+    """The other half of the surgery: the descriptor-roster counts leave, so a mint that only
+    moves them cannot red the check."""
+    rep = _report_with_mapd()
+    axes = rep["measured_axes_per_dim"]["axes"]
+    assert any("types_without_measurement_descriptor" in r for r in axes.values()), "non-vacuity"
+    projected = json.loads(stable_projection(rep))
+    for row in projected["measured_axes_per_dim"]["axes"].values():
+        assert "types_without_measurement_descriptor" not in row
+        assert "n_types_with_measurement_descriptor" not in row
+
+
+def test_a_skills_side_descriptor_mint_no_longer_reports_stale():
+    """THE POINT OF THE CHANGE, end to end. Simulate what a `_skills_common` salience-mint batch
+    does to this artifact — it moves the three sibling-sourced sections and the five derived
+    summary counters they feed — and assert the projection does not budge, while the raw reports
+    differ (else the equality below would be vacuous).
+
+    Measured against the real 2026-09-18 red before it was written: 1027 of 26304 leaves differed
+    under the old basis, every verdict-bearing field was identical, and under this projection the
+    same pair differs in 111 leaves -- all 111 the genuine card drift, none of them noise."""
+    a = _report_with_mapd()
+    a["descriptor_coverage"] = {"source": "skills:_skills_common/descriptor_coverage.json", "n_cells": 337}
+    a["field_read_health"] = {"source": "skills:_skills_common/field_read_health.json", "n_credits": 550}
+    a["summary"].update(
+        {
+            "descriptor_coverage_available": True,
+            "field_read_health_available": True,
+            "n_descriptor_cells": 337,
+            "n_distinct_descriptor_fields": 310,
+            "n_gloss_without_descriptor": 5,
+            "n_measurement_types_with_descriptors": 61,
+            "n_measurement_types_without_descriptor": 62,
+            "n_numeric_fields_without_gloss": 0,
+            "n_field_read_units": 22,
+            "n_field_read_units_clean": 13,
+            "n_field_read_units_no_reads_detected": 7,
+            "n_field_reads_emission_unobserved": 1,
+            "n_field_reads_emitted_but_undeclared": 1,
+            "n_field_reads_of_none": 0,
+            "n_undeclared_field_reads": 2,
+        }
+    )
+
+    b = json.loads(json.dumps(a))
+    b["descriptor_coverage"]["n_cells"] = 459
+    b["field_read_health"]["n_credits"] = 552
+    b["summary"].update(
+        {
+            "n_descriptor_cells": 459,
+            "n_distinct_descriptor_fields": 421,
+            "n_gloss_without_descriptor": 6,
+            "n_measurement_types_with_descriptors": 97,
+            "n_measurement_types_without_descriptor": 26,
+            "n_numeric_fields_without_gloss": 3,
+            "n_field_read_units": 23,
+            "n_field_read_units_clean": 14,
+            "n_field_read_units_no_reads_detected": 6,
+            "n_field_reads_emission_unobserved": 2,
+            "n_field_reads_emitted_but_undeclared": 0,
+            "n_field_reads_of_none": 1,
+            "n_undeclared_field_reads": 3,
+        }
+    )
+    axis = sorted(b["measured_axes_per_dim"]["axes"])[0]
+    b["measured_axes_per_dim"]["axes"][axis]["types_without_measurement_descriptor"] = ["freshly_minted"]
+
+    assert json.dumps(a, sort_keys=True) != json.dumps(b, sort_keys=True), "non-vacuity"
+    assert stable_projection(a) == stable_projection(b)
+
+
+def test_an_unavailable_mapd_section_is_not_given_fabricated_keys():
+    """An unavailable section carries neither `axes` nor `dims`. The surgery must not inject
+    them as nulls — a projection that invents a key is asserting on something the artifact
+    never had, and would compare unequal against an older artifact that predates the section."""
+    rep = _minimal_report()
+    rep["measured_axes_per_dim"] = {"available": False, "reason": "sidecar unreadable"}
+    projected = json.loads(stable_projection(rep))
+    assert projected["measured_axes_per_dim"] == {"available": False, "reason": "sidecar unreadable"}
+
+
+def test_older_artifacts_without_any_of_the_three_sections_still_project():
+    """Guarded access, same contract as the self-check: an artifact generated before these
+    dimensions existed must project without raising."""
+    rep = _minimal_report()
+    for k in ("descriptor_coverage", "field_read_health", "measured_axes_per_dim"):
+        assert k not in rep
+    assert stable_projection(rep)  # no KeyError, no TypeError
+
+
+def test_a_sidecar_that_vanishes_still_reports_stale():
+    """The kept half of the availability rule. Magnitudes leave the basis; the `*_available`
+    booleans stay, so a sibling sidecar DISAPPEARING — a real wiring break, not churn — still
+    reds the check. Directly parallel to `has_tests` keeping only the 1<->0 transition, and the
+    reason the narrowing is not simply "stop looking at the siblings"."""
+    for flag in ("descriptor_coverage_available", "field_read_health_available", "axis_measurability_available"):
+        present = _minimal_report()
+        present["summary"][flag] = True
+        gone = _minimal_report()
+        gone["summary"][flag] = False
+        assert stable_projection(present) != stable_projection(gone), f"{flag} lost its teeth"
+
+
+def test_the_mixed_axis_coverage_counters_are_a_documented_residual():
+    """Asserted so the residual is a DECISION rather than an oversight: the axis roster is
+    contracts-side while its descriptor coverage is skills-side, so these two counters are
+    genuinely mixed and stay in the basis. Consequence, pinned here: a mint that flips an axis
+    blind->covered CAN still report STALE. If that ever becomes the dominant noise source, this
+    test is the place that records the trade being revisited."""
+    a = _minimal_report()
+    a["summary"]["n_axes_descriptor_covered"] = 14
+    b = _minimal_report()
+    b["summary"]["n_axes_descriptor_covered"] = 15
+    assert stable_projection(a) != stable_projection(b)

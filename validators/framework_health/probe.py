@@ -808,7 +808,15 @@ def descriptor_coverage(skills_root: Path) -> dict:
     fabricating a false negative.
 
     The census is a pure function of two module constants on the skills side — no clock, no
-    I/O — so unlike the run-health feed it carries no volatile field and needs no projection.
+    I/O — so unlike the run-health feed it carries no volatile field of its own.
+
+    That is NOT a reason to keep it in the --check drift basis, and an earlier revision of
+    this paragraph concluded that it "needs no projection", which is how it ended up there.
+    Determinism is not locality: every input to this section is decided in the SKILLS repo, so
+    no target-contracts change can move it and an equality assertion on it here can only ever
+    fire on sibling churn. `stable_projection` drops it for that reason — see its docstring.
+    The artifact still CARRIES the section (render_html, the atlas dashboard); only the
+    staleness basis is narrowed.
     """
     p = skills_root / "skills" / "_skills_common" / "descriptor_coverage.json"
     if not p.exists():
