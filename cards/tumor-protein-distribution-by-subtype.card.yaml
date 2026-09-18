@@ -63,10 +63,20 @@ outputs:
                                                 # One-directional CONTEXT — NEVER moves presence_verdict.
     - pooled_cohort_median_log2_ratio           # the enrichment baseline (all tumor aliquots)
   summary_fields_vocabulary:
+    # Ordered most→least usable, mirroring subgroup_common.panorama.axis_quality. `exploratory` and
+    # `unevaluable` are AM #659's two additive grades, opt-in per reader; the method's contract is that
+    # a reader opts in only after its card declares the wider enum. `unevaluable` is load-bearing on
+    # THIS arm specifically: ~43% of CPTAC aliquots are is_member=null because MMR-IHC was never run on
+    # them, and a null is an abstention, not a measured negative — grading it `empty` would launder
+    # "we never tested" into "we tested and nobody qualified".
     subtype_axis_quality:
       - powered                                  # >=2 strata clear the n-floor -> cross-subtype contrast supportable
+      - exploratory                              # <2 measured but >=2 measured-OR-exploratory (10-29 aliquots):
+                                                 # hypothesis-grade contrast only. NOT a relaxation of the n-floor.
       - underpowered                             # axis has aliquots but <2 measured strata -> context only
-      - empty                                    # axis defined but every stratum absent
+      - unevaluable                              # nothing on the axis was classified. Ranked ABOVE `empty`: `empty`
+                                                 # asserts a measured absence and there is no such measurement here.
+      - empty                                    # every stratum EVALUATED and none has members
       - unavailable                              # no CPTAC assignment shard for this indication
     subtype_stratification_class:
       - subtype_enriched
@@ -79,7 +89,9 @@ outputs:
       stratum: string
       class: {enum: [protein_elevated, protein_neutral, protein_reduced, insufficient], type: string}
       subtype_signal: {enum: [enriched, depleted, uniform], type: string}
-      evidence_state: {enum: [measured, underpowered, absent], type: string}
+      # WIDENED 2026-09-18 for AM #659 — the restrictive half of the two declarations, i.e. what an
+      # emitted row is actually validated against (summary_fields_vocabulary above is permissive).
+      evidence_state: {enum: [measured, exploratory, underpowered, unevaluable, absent], type: string}
       median_log2_ratio: number
       detectable_fraction: number
       subgroup_n: integer

@@ -31,11 +31,17 @@ subgroup_stratification:
   rationale: "Cell-line RNA can vary by driver/molecular stratum (e.g. lineage-marker antigens tracking with a driver context). Backed by depmap-expression-distribution, which recomputes the per-ModelID distribution within each stratum's member-set of the DepMap-side assignment shard — not an emit-time aggregate."
 
 applies_when:
-  # COADREAD-only for the pattern proof: the DepMap assignment shard depmap-subgroup-assignments-
-  # coadread-v1 is the only landed cell-line shard today (MSI_H / MSS strata). Additional indications
-  # (NSCLC driver strata, etc.) follow as their --data-source depmap assignment shards land — extend
-  # this allowlist in lockstep with _CELLLINE_ASSIGNMENTS_MANIFEST in the skills dispatcher. An
-  # indication not listed → subtype_axis_available:false (honest).
+  # COADREAD-only, and the REASON has changed (2026-09-18). This allowlist used to say
+  # depmap-subgroup-assignments-coadread-v1 was "the only landed cell-line shard today". That is
+  # MEASURABLY FALSE: EIGHT DepMap assignment shards are landed in the data catalog —
+  # coadread, coadread-cms, esca, hnsc, nsclc, paad, sclc, stad. The binding constraint is not the
+  # catalog, it is the SKILL: _CELLLINE_SUBTYPE_ASSIGNMENTS in skills/_skills_common/_live_readers.py
+  # still maps 3 indication codes to the 1 coadread shard, so the other 7 are unreachable from a run.
+  # Widening this list before that map is extended would make the card eligible for indications whose
+  # axis can only answer `unavailable` — a declaration the substrate supports but the reader cannot
+  # honour. So the widening rides WITH the reader extension, not ahead of it, and the two stay in
+  # lockstep exactly as this comment always said. An indication not listed → subtype_axis_available:
+  # false (honest).
   - "context.indication in ['COADREAD', 'COAD', 'READ']"
   - "indication.subgroup_catalog_available == true"
 
@@ -53,9 +59,11 @@ outputs:
   summary_fields:
     - per_subgroup_metrics                      # the per-stratum panorama (record schema below)
     - subtype_axis_available                    # is a DepMap shard landed for this indication?
-    - subtype_axis_quality                      # powered | underpowered | empty | unavailable — HONEST capability
-                                                # grade. Catches the DepMap STAD/PAAD case where the axis is defined
-                                                # in the catalog but every stratum has 0 cell lines (empty). Verdict-inert.
+    - subtype_axis_quality                      # HONEST capability grade (vocabulary below). Catches the DepMap
+                                                # STAD/PAAD case where the axis is defined in the catalog but no cell
+                                                # line carries a stratum call. MEASURED 2026-09-18: those two shards are
+                                                # ALL-NULL, i.e. `unevaluable`, NOT `empty` — nobody was ever classified,
+                                                # so there is no absence to assert. Verdict-inert.
     - n_subtypes_measured                       # strata clearing the n-floor (>=30 cell lines)
     - n_subtypes_enriched                       # strata whose median is >= delta above the pooled median
     - n_subtypes_depleted                       # strata whose median is >= delta below the pooled median
@@ -69,10 +77,23 @@ outputs:
     - min_subgroup_expression
     - cross_subgroup_delta_expression
   summary_fields_vocabulary:
+    # Ordered most→least usable, mirroring subgroup_common.panorama.axis_quality. `exploratory` and
+    # `unevaluable` are AM #659's two additive grades; both are OPT-IN per reader, and the method's
+    # contract is that a reader opts in only after its card declares the wider enum. This arm is where
+    # `exploratory` matters MOST: the DepMap panels are an order of magnitude smaller than the patient
+    # cohorts the floor of 30 was calibrated on (n≈20-130 per indication BEFORE the stratum split), so
+    # a floor of 30 rejects nearly every stratum. Measured 2026-09-18 on the landed shards, the 10-29
+    # band is where the real information sits: coadread-cms CMS3 19 / CMS1 17, hnsc larynx 10,
+    # sclc SCLC_N 15. Those are hypothesis-grade, not claim-grade — which is what a distinct grade says.
     subtype_axis_quality:
       - powered                                  # >=2 strata clear the n-floor → cross-subtype contrast supportable
+      - exploratory                              # <2 measured but >=2 measured-OR-exploratory (10-29 members):
+                                                 # contrastable as a HYPOTHESIS only. NOT a relaxation of the n-floor.
       - underpowered                             # axis has cell lines but <2 measured strata → context only
-      - empty                                    # axis defined but every stratum absent (0 cell lines — DepMap STAD/PAAD)
+      - unevaluable                              # nothing on the axis was classified (the MEASURED DepMap STAD/PAAD
+                                                 # shape). Ranked ABOVE `empty` on purpose: `empty` asserts a measured
+                                                 # absence and there is no such measurement here.
+      - empty                                    # every stratum EVALUATED and none has members (0 cell lines)
       - unavailable                              # no DepMap assignment shard for this indication
     subtype_stratification_class:
       - subtype_enriched                         # >=1 stratum enriched, none depleted
@@ -86,7 +107,10 @@ outputs:
       stratum: string
       class: string                              # broadly_high | broadly_detected | broadly_low | insufficient
       subtype_signal: {enum: [enriched, depleted, uniform], type: string}
-      evidence_state: {enum: [measured, underpowered, absent], type: string}
+      # WIDENED 2026-09-18 for AM #659. Unlike summary_fields_vocabulary above, THIS enum is the
+      # restrictive half — it is what an emitted row is validated against, so a reader that opts into
+      # the exploratory band before this widening emits a row its own card rejects.
+      evidence_state: {enum: [measured, exploratory, underpowered, unevaluable, absent], type: string}
       subgroup_n: integer
       subgroup_n_floor_met: boolean
       median_log2tpm: number
@@ -106,11 +130,11 @@ threshold_roles:
     role: method_parameter
     consumed_by: depmap-expression-distribution
 caveats:
-  - "COADREAD-only for the pattern proof (2026-08-17): depmap-subgroup-assignments-coadread-v1 (MSI_H / MSS) is the only landed DepMap cell-line assignment shard. Other indications return subtype_axis_available:false until their --data-source depmap shards land."
+  - "CORRECTED 2026-09-18 — the previous caveat here claimed depmap-subgroup-assignments-coadread-v1 was the ONLY landed DepMap cell-line assignment shard. It is not: EIGHT are landed (coadread, coadread-cms, esca, hnsc, nsclc, paad, sclc, stad). The card stays COADREAD-only because the SKILL-side indication→shard map reaches just the one, not because the substrate is missing. Reaching the other seven is a skills change, tracked with the widening of applies_when."
   - "Enrichment baseline is the WITHIN-LINEAGE pooled median (the union of all strata members), NOT the pan-cancer panel median — a stratum is enriched/depleted relative to its own indication's cell-line panel."
   - "A stratum below subgroup_n_floor (n<30 cell lines) carries distribution stats for context but a NULL subtype_signal — never a scoped call on underpowered data."
   - "Subtype is confidence/context for patient selection, NOT a new veto — the pooled cellline-rna-distribution card carries the presence read; this card enriches it."
-  - "DepMap cell-line panels are small per stratum; most indication×stratum cells will be underpowered. This is an honest capability ceiling, not an absence of signal."
+  - "DepMap cell-line panels are small per stratum; most indication×stratum cells will be underpowered. This is an honest capability ceiling, not an absence of signal. Measured 2026-09-18 across the landed shards: coadread MSS 106 / MSI_H 30 and coadread-cms CMS2 41 / CMS4 33 clear the floor of 30, while CMS3 19, CMS1 17, hnsc larynx 10 and sclc SCLC_N 15 sit in the 10-29 exploratory band — real cell lines, too few for a scoped call."
 
 # Two orthogonal axes (Slice A1): measurement LAYER + biological SAMPLE. Same as the pooled sibling —
 # differs only in GRAIN (target_subtype), not measurement/sample_context.

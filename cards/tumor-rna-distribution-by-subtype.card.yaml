@@ -43,15 +43,50 @@ applies_when:
   # a landed tumor assignment shard is required. Extended 2026-08-04 from COADREAD-only to the 6
   # indications whose shards have landed AND been VERIFIED to emit real, powered strata (>=30
   # members): COADREAD (7 strata), HNSC (9), STAD (4), NSCLC/LUAD/LUSC (3), ESCA (2), PAAD/PDAC (2).
-  # Must stay in lockstep with INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST in the tcga_gtex_expression_
-  # distribution reader (analysis-methods). An indication not listed → subtype_axis_available:False.
+  # SCLC was added alongside them but is NON-TCGA (George 2015) — see required_inputs.
+  # Must stay in lockstep with BOTH reader maps in tcga_gtex_expression_distribution
+  # (analysis-methods): INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST (base strata) and
+  # INDICATION_TO_TUMOR_MAF_MANIFEST (the orthogonal driver-mutation strata, unioned on). Between them
+  # they resolve 16 indication codes to 11 shards, all declared below as of 2026-09-18. An indication
+  # not listed here → subtype_axis_available:False.
   - "context.indication in ['COADREAD', 'COAD', 'READ', 'HNSC', 'HNSCC', 'STAD', 'GC', 'NSCLC', 'LUAD', 'LUSC', 'ESCA', 'PAAD', 'PDAC', 'SCLC']"
   - "indication.subgroup_catalog_available == true"
 
 required_inputs:
   - product_id: tcga-tumor-tpm-recount3-long-v1        # per-sample tumor TPM (the distribution substrate)
   - product_id: tcga-tumor-tpm-per-sample-v1           # the UUID↔barcode sidecar (the bridge)
+  # ASSIGNMENT SHARDS — the UNION the reader can resolve, not just the COADREAD one (2026-09-18).
+  # Until now this block declared coadread ALONE while applies_when admitted 14 indication codes and
+  # the reader resolved 16 codes to 11 shards: HNSC/STAD/NSCLC/ESCA/PAAD/SCLC subtype coverage was
+  # LIVE but UNDECLARED. That is not a missing citation. `required_inputs[].product_id` is copied into
+  # (a) governance.resolved_releases staleness auditing and (b) card_present[].provenance.
+  # required_product_ids, which the cross-evidence INDEPENDENCE invariant reads to avoid
+  # double-counting correlated evidence toward certainty — so an undeclared substrate is a
+  # certainty-INFLATION channel. Declaring the union errs the safe way (more apparent sharing =>
+  # LESS independence credit); the per-run narrowing is the reader's own `assignment_manifest` stamp,
+  # which this card already declares as a summary_field.
+  # Must stay in lockstep with INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST + INDICATION_TO_TUMOR_MAF_
+  # MANIFEST in the tcga_gtex_expression_distribution reader (analysis-methods). Verified 2026-09-18:
+  # every id below resolves to a landed data-catalog manifest and none is superseded.
+  #
+  # base (directly-tagged molecular / histology strata) — one shard per indication family:
   - product_id: tcga-subgroup-assignments-coadread-v1  # the molecular-subtype assignment shard (barcode-keyed)
+  - product_id: tcga-subgroup-assignments-hnsc-v1      # HPV status + anatomic site
+  - product_id: tcga-subgroup-assignments-stad-v1      # Bass/TCGA molecular subtypes
+  - product_id: tcga-subgroup-assignments-nsclc-v1     # histology split (Adeno / SCC) — serves LUAD + LUSC
+  - product_id: tcga-subgroup-assignments-esca-v1      # EAC / ESCC
+  - product_id: tcga-subgroup-assignments-paad-v1      # Moffitt subtypes
+  # ORTHOGONAL genomic (driver-mutation) strata, UNIONED onto the base strata per indication. Partial
+  # by design — only the 4 indications with a landed -maf shard; absence = base strata only (honest).
+  - product_id: tcga-subgroup-assignments-hnsc-maf-v1  # TP53_mut / PIK3CA_mut
+  - product_id: tcga-subgroup-assignments-nsclc-maf-v1 # KRAS_G12C
+  - product_id: tcga-subgroup-assignments-esca-maf-v1  # TP53_mut
+  - product_id: tcga-subgroup-assignments-paad-maf-v1  # TP53_mut / KRAS_G12D / KRAS_WT
+  # NON-TCGA. SCLC sits in applies_when but was backed by NO declared input at all: the NAPY strata
+  # (SCLC-A/N/P/Y) come from the George 2015 cohort, and the per-sample source is the George product
+  # routed via INDICATION_TO_NONTCGA_SOURCE — NOT a TCGA study. Declaring it here is what lets the
+  # staleness auditor and the independence guard see that this arm changes substrate for SCLC.
+  - product_id: sclc-subgroup-assignments-v1           # George 2015 NAPY strata (ASCL1/NEUROD1/POU2F3/YAP1 argmax)
 
 methods:
   - call: tcga-gtex-expression-distribution
@@ -100,10 +135,28 @@ outputs:
     - purity_source                              # pancanatlas_absolute | unavailable
     - subtype_purity_spread                      # {max_median_purity, min_median_purity, delta} over measured strata (or null)
   summary_fields_vocabulary:
+    # Ordered most→least usable, mirroring subgroup_common.panorama.axis_quality. `exploratory` and
+    # `unevaluable` are the two grades AM #659 added (2026-09-18); both are OPT-IN per reader, and the
+    # method's own contract is that "a reader opts in only after its card declares the wider enum" —
+    # which is what this block does. Until the tcga_gtex_expression_distribution reader passes
+    # `exploratory_floor=` / `evaluated=` into evidence_state(), neither token is emitted and this
+    # declaration is inert; it is permissive (a wider allowed set), so it is green on both sides.
     subtype_axis_quality:
       - powered                                  # >=2 strata clear the n-floor → cross-subtype contrast supportable
+      - exploratory                              # <2 measured but >=2 strata measured-OR-exploratory (the 10-29 band,
+                                                 # subgroup_common.SUBGROUP_EXPLORATORY_FLOOR): contrastable as a
+                                                 # HYPOTHESIS only. NOT a relaxation of the n-floor — `powered` keeps its
+                                                 # one meaning across every substrate; this is a SECOND, LOWER band so a
+                                                 # 10-29-member stratum stops being invisible. Such a stratum reports its
+                                                 # distribution stats with a NULL subtype_signal, can never carry a scoped
+                                                 # call, and is excluded from every cross-stratum reducer exactly as
+                                                 # `underpowered` is.
       - underpowered                             # axis has samples but <2 measured strata → context only
-      - empty                                    # axis defined but every stratum absent (0 members ∩ cohort)
+      - unevaluable                              # NOTHING on the axis was classified. Ranked deliberately ABOVE `empty`:
+                                                 # `empty` asserts a MEASURED absence ("we looked, nobody qualifies") and
+                                                 # here there is no such measurement, so there is no absence to assert.
+                                                 # Conflating the two is how an abstention gets laundered into a negative.
+      - empty                                    # every stratum was EVALUATED and none has members (0 ∩ cohort)
       - unavailable                              # no assignment shard / indication has no subtype axis
     subtype_effect_size_class:
       - large                                    # ε² >= subtype_effect_large (subtype a strong patient-selection axis)
@@ -117,7 +170,11 @@ outputs:
     per_subgroup_metrics:
       stratum_id: string
       subtype_signal: {enum: [subtype_enriched, subtype_restricted, subtype_depleted, subtype_uniform], type: string}
-      evidence_state: {enum: [measured, underpowered, absent], type: string}
+      # WIDENED 2026-09-18 for AM #659. Unlike summary_fields_vocabulary above, THIS enum is the
+      # restrictive half: it is what an emitted row is validated against, so a reader that opts into
+      # the exploratory band before this widening emits a row its own card rejects. Both new states
+      # are unreachable until the reader passes `exploratory_floor=` / `evaluated=`.
+      evidence_state: {enum: [measured, exploratory, underpowered, unevaluable, absent], type: string}
       subgroup_n_floor_met: boolean
       n_tumor_samples: integer
       # absolute distribution depth (parity with the pooled card — Option 1, 2026-08-04)
@@ -170,9 +227,9 @@ thresholds:
   subtype_effect_moderate: 0.06
 
 caveats:
-  - "Landed tumor assignment shards (2026-08-04): COADREAD, HNSC, STAD, NSCLC, ESCA, PAAD. Other indications return subtype_axis_available:false (honest) until their shards land (the subgroup-assignment-shards workstream)."
+  - "Consumed tumor assignment shards, verified 2026-09-18 (11, every one now declared in required_inputs): 6 base TCGA (COADREAD, HNSC, STAD, NSCLC serving LUAD+LUSC, ESCA, PAAD) + 4 orthogonal TCGA MAF driver-strata shards (HNSC, NSCLC, ESCA, PAAD) unioned onto the base strata + the NON-TCGA sclc-subgroup-assignments-v1 (George 2015 NAPY). An indication outside applies_when returns subtype_axis_available:false (honest) until its shard lands."
   - "normal_comparator_type distinguishes matched (true GTEx tissue-of-origin) from proxy (histological analogue, e.g. HNSC→esophagus/skin/salivary — GTEx has no head-and-neck track). A PROXY window is WEAKER evidence: proxy fields live in proxy_normal_windows, NEVER in the matched fraction_tumor_above_normal_* fields. The panel is multi-proxy because a target's window can be strong vs one proxy but weak vs another (EGFR/HNSC: ~86% vs esophagus/salivary but ~33% vs skin)."
-  - "A stratum below subgroup_n_floor (n<30) carries distribution stats for context but a NULL subtype_signal — never a scoped call on underpowered data."
+  - "A stratum below subgroup_n_floor (n<30) carries distribution stats for context but a NULL subtype_signal — never a scoped call on underpowered data. Once the reader opts into the exploratory band, a 10-29-member stratum grades `exploratory` rather than being invisible: still a null signal, still excluded from every cross-stratum reducer, but labelled hypothesis-grade instead of discarded."
   - "The UUID→barcode→stratum bridge drops the ~8% of recount3 samples with no sidecar barcode or no stratum label; a <5% match rate raises the id-convention guard rather than masquerading as empty strata."
   - "MSI-H / CIMP-High stratum biology is dominated by mismatch-repair hypermutation; subtype-specific calls may partly reflect global expression dysregulation, not target-specific signal."
   - "Subtype is confidence/context for patient selection, NOT a new veto — the pooled tumor-rna-distribution card carries the presence verdict; this card enriches it."
