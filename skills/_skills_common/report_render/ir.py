@@ -19,6 +19,7 @@ from typing import Any, Optional
 
 from .. import display_gloss as _dg  # plain-language readings (metric gloss + direction + card description)
 from .. import field_descriptor as _fd  # per-field descriptor join (role/units/direction) for the evidence view
+from ..ordering import ordered_bucket_keys  # shared deterministic bucket-key ordering (lenses + substrate)
 from ..risk_projection import AXIS_TO_DIM  # verdict-bearing subskill → risk dim crosswalk (the 6-dim spine)
 from . import vocab
 from .spec import SCOPE_ALL, SCOPE_GATING, ReportSpec, resolve_spec
@@ -84,14 +85,13 @@ class ReportIR:
             lg = getattr(sec, "lens", None)
             if lg:
                 buckets.setdefault(lg, []).append(("section", sec))
-        ordered = []
-        for lens_id in vocab.LENS_ORDER:
-            if buckets.get(lens_id):
-                ordered.append((lens_id, vocab.LENS_TITLE.get(lens_id, lens_id), buckets[lens_id]))
-        for lens_id, items in buckets.items():  # any future lens not in LENS_ORDER, stably last
-            if lens_id not in vocab.LENS_ORDER:
-                ordered.append((lens_id, vocab.LENS_TITLE.get(lens_id, lens_id), items))
-        return ordered
+        # LENS_ORDER first (skipping absent), then any future lens not in LENS_ORDER stably last —
+        # the shared, tested ordering kernel (ordering.ordered_bucket_keys). No residual bucket here:
+        # lens=None blocks/sections were never bucketed (report chrome / standalone path).
+        return [
+            (lens_id, vocab.LENS_TITLE.get(lens_id, lens_id), buckets[lens_id])
+            for lens_id in ordered_bucket_keys(buckets, known_order=vocab.LENS_ORDER)
+        ]
 
 
 # --------------------------------------------------------------------------------------------------

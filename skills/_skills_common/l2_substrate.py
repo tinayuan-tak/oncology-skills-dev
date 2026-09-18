@@ -35,6 +35,7 @@ from typing import Iterable
 # own docstring: "Defined ONCE and reused ... so a context_id and its record_revision_id can never
 # disagree on serialization").
 from .claim_record import _l2_canonical_json
+from .ordering import ordered_bucket_keys
 
 # The closed set of context dimensions, in the schema's declared order. A query may select any
 # non-empty subset; an unknown name is a programming error (raise), not a silent empty view.
@@ -109,10 +110,6 @@ def group_records_by_context(
             slot = buckets[key] = {"context": group_context, "records": []}
         slot["records"].append(rec)
 
-    def _order(item: tuple[str, dict]) -> tuple[int, str]:
-        # UNKEYED (leading NUL) would sort first lexicographically; force it last instead so a
-        # reader scanning a view meets real contexts before the residual bucket.
-        k = item[0]
-        return (1, "") if k == UNKEYED else (0, k)
-
-    return {k: v for k, v in sorted(buckets.items(), key=_order)}
+    # Keys sorted, with the UNKEYED residual bucket always last (its leading NUL would otherwise sort
+    # first). The ordering policy is the shared, tested kernel — see ordering.ordered_bucket_keys.
+    return {k: buckets[k] for k in ordered_bucket_keys(buckets, residual_key=UNKEYED)}
