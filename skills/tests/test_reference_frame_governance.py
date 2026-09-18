@@ -92,7 +92,6 @@ _UNSPECCED_VERDICT_BEARING_DEBT = {
     "partner_conditional_dependency",  # partner-conditional-dependency — combination review
     "pmhc_epitope_evidence",  # pmhc-epitope-evidence-iedb — pMHC review
     "pmhc_presentation",  # pmhc-presentation — pMHC review
-    "sc_normal_celltype_expression",  # sc-normal-celltype-expression — tumor-selectivity review
 }
 
 
@@ -324,6 +323,12 @@ _ATLAS_NUMERIC_OPTOUT = {
         "NON-MONOTONE polarity — a high mut_fraction_missense reads DRIVER for an oncogene and PASSENGER for "
         "a tumour suppressor, so a fixed _DIR_SIGN would be wrong for whichever half of the corpus it is not "
         "describing."
+    ),
+    "sc_normal_celltype_expression": (
+        "ATLAS DEFERRED — the graded_band ruler is display-only (atlas_numeric: False) because the "
+        "target-archetype atlas is deferred out of go-live; minting a new frozen column now is a one-way "
+        "door. The descriptor + display cut-line (the Gap-A goal) need no atlas feature. Flip when the atlas "
+        "returns."
     ),
 }
 

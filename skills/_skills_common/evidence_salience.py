@@ -429,6 +429,50 @@ SALIENCE_SPECS: dict = {
             },
         },
     },
+    # tumor-presence NORMAL-SAFETY sc card (Gap-A mint, 2026-09-18): sc-normal-celltype-expression drove
+    # the ONLY modality-varying edge in the whole run (sc_normal_safety_essential_class) yet had NO spec,
+    # so its liability class + expression band shipped with no descriptor/label/direction. Mint one here.
+    # DIRECTION higher_is_worse (mirrors sibling sc_normal_surface_protein): a NORMAL-tissue detection
+    # fraction — higher normal-cell detection = MORE safety liability, the inverse of the tumor sibling
+    # sc_tumor_celltype_expression (higher_is_stronger). Getting this sign wrong inverts the ruler on a
+    # SAFETY axis, so it carries a sign test. graded_band: position = sc_normal_safety_essential_class READ
+    # VERBATIM; the three ascending cuts (not_expressed 0.01 < moderate 0.2 < high 0.5) ARE the card's own
+    # liability cutpoints, single-sourced from its thresholds — declaring this frame is simultaneously how
+    # the derivation obligation is satisfied for this card, in a vocabulary (graded_band) that already
+    # exists. verdict-INERT (no gate reads salience). See REACH OF A `reference_frame`.
+    "sc_normal_celltype_expression": {
+        "effect_field": "sc_normal_essential_max_detection_fraction",
+        "direction": "higher_is_worse",
+        "categorical": [
+            "sc_normal_safety_essential_class",
+            "sc_normal_expression_class",
+            "sc_normal_abundance_class",
+        ],
+        "reference_frame": {
+            "kind": "graded_band",
+            # DISPLAY-ONLY: the atlas is deferred out of go-live, and a numeric PRIMARY frame otherwise
+            # mints a frozen atlas column (a one-way door ratcheted in test_reference_frame_governance
+            # invariant 5) + a cohort_percentile append. The Gap-A goal is a descriptor + a display ruler,
+            # both delivered without an atlas feature. Flip this to omit the flag if/when the atlas returns.
+            "atlas_numeric": False,
+            "value_field": "sc_normal_essential_max_detection_fraction",
+            "scale": "detection_fraction",
+            "position_field": "sc_normal_safety_essential_class",
+            "cuts": [
+                {
+                    "card_id": "sc-normal-celltype-expression",
+                    "threshold": "not_expressed_ceiling",
+                    "label": "not_expressed",
+                },
+                {
+                    "card_id": "sc-normal-celltype-expression",
+                    "threshold": "moderate_liability_median_det",
+                    "label": "moderate",
+                },
+                {"card_id": "sc-normal-celltype-expression", "threshold": "high_liability_median_det", "label": "high"},
+            ],
+        },
+    },
     "tumor_vs_adjacent_expression": {
         "effect_field": "log2_fc",
         "significance_field": "q_value",

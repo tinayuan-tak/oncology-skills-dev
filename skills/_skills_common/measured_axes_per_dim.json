@@ -116,13 +116,11 @@
       "gate_short": null,
       "n_declared_cards": 17,
       "n_declared_types": 12,
-      "n_measurement_descriptor_fields": 48,
-      "n_types_with_measurement_descriptor": 11,
+      "n_measurement_descriptor_fields": 52,
+      "n_types_with_measurement_descriptor": 12,
       "skill_dir": "tumor-presence",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [
-        "sc_normal_celltype_expression"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_bearing": true
     },
     "genomic_alteration": {
@@ -237,12 +235,11 @@
       "gate_short": "selectivity",
       "n_declared_cards": 14,
       "n_declared_types": 13,
-      "n_measurement_descriptor_fields": 45,
-      "n_types_with_measurement_descriptor": 8,
+      "n_measurement_descriptor_fields": 49,
+      "n_types_with_measurement_descriptor": 9,
       "skill_dir": "tumor-selectivity",
       "static_state": "descriptor_covered",
       "types_without_measurement_descriptor": [
-        "sc_normal_celltype_expression",
         "spatial_colocalization",
         "spatial_region_rna",
         "spatial_surface_protein",
@@ -273,8 +270,8 @@
       "gate_short": "surface_modality",
       "n_declared_cards": 24,
       "n_declared_types": 21,
-      "n_measurement_descriptor_fields": 48,
-      "n_types_with_measurement_descriptor": 9,
+      "n_measurement_descriptor_fields": 52,
+      "n_types_with_measurement_descriptor": 10,
       "skill_dir": "surface-modality-fit",
       "static_state": "descriptor_covered",
       "types_without_measurement_descriptor": [
@@ -286,7 +283,6 @@
         "pathway_stratified_surface",
         "pmhc_epitope_evidence",
         "pmhc_presentation",
-        "sc_normal_celltype_expression",
         "surface_confirmation",
         "surface_topology",
         "surfaceome_family"
@@ -373,7 +369,7 @@
       "n_axes_counted": 6,
       "n_axes_descriptor_covered": 6,
       "n_declared_types": 60,
-      "n_types_without_measurement_descriptor": 19,
+      "n_types_without_measurement_descriptor": 18,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
         "cellline_isoform_expression",
@@ -391,7 +387,6 @@
         "partner_conditional_dependency",
         "patient_model_correspondence",
         "phospho_pathway_activity",
-        "sc_normal_celltype_expression",
         "tahoe_drug_perturbation",
         "tumor_splice_dysregulation",
         "variant_functional_effect_mave"
@@ -450,7 +445,7 @@
       "n_axes_counted": 4,
       "n_axes_descriptor_covered": 4,
       "n_declared_types": 50,
-      "n_types_without_measurement_descriptor": 30,
+      "n_types_without_measurement_descriptor": 29,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
         "antigen_pair_coexpression",
@@ -472,7 +467,6 @@
         "ppi_interactome",
         "protein_domains_class",
         "reactome_pathway_membership",
-        "sc_normal_celltype_expression",
         "sc_tumor_caf_state_expression",
         "sc_tumor_myeloid_state_expression",
         "spatial_colocalization",
@@ -496,7 +490,7 @@
       "n_axes_counted": 2,
       "n_axes_descriptor_covered": 2,
       "n_declared_types": 28,
-      "n_types_without_measurement_descriptor": 12,
+      "n_types_without_measurement_descriptor": 11,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
         "dosage_sensitivity_safety",
@@ -504,7 +498,6 @@
         "functional_gene_state",
         "human_genetic_safety",
         "onsides_adverse_event_safety",
-        "sc_normal_celltype_expression",
         "shet_lof_selection",
         "spatial_colocalization",
         "spatial_region_rna",
@@ -1026,10 +1019,10 @@
     "n_dims": 6,
     "n_fanout_axes": 15,
     "n_gated_axes": 8,
-    "n_salience_spec_types": 61,
+    "n_salience_spec_types": 62,
     "n_spec_types_pulled_by_no_axis": 0,
-    "n_types_with_measurement_descriptor": 61,
-    "n_types_without_measurement_descriptor": 62
+    "n_types_with_measurement_descriptor": 62,
+    "n_types_without_measurement_descriptor": 61
   },
   "types_without_measurement_descriptor": [
     "antigen_pair_coexpression",
@@ -1075,7 +1068,6 @@
     "precog_prognostic_association",
     "protein_domains_class",
     "reactome_pathway_membership",
-    "sc_normal_celltype_expression",
     "sc_tumor_caf_state_expression",
     "sc_tumor_myeloid_state_expression",
     "shet_lof_selection",

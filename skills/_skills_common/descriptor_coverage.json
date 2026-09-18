@@ -344,6 +344,12 @@
       "rnai_dependency_class",
       "rnai_median_dep_score"
     ],
+    "sc_normal_celltype_expression": [
+      "sc_normal_abundance_class",
+      "sc_normal_essential_max_detection_fraction",
+      "sc_normal_expression_class",
+      "sc_normal_safety_essential_class"
+    ],
     "sc_normal_surface_protein": [
       "max_mean_clr",
       "n_celltypes_surface_displaying",
@@ -487,8 +493,8 @@
   "numeric_fields_without_gloss": [],
   "producer": "descriptor_coverage_sidecar",
   "role_counts": {
-    "categorical": 118,
-    "effect": 48,
+    "categorical": 121,
+    "effect": 49,
     "extra_scalar": 71,
     "frame_value": 16,
     "label": 10,
@@ -761,6 +767,10 @@
       "rnai_dependency_class",
       "rnai_median_dep_score",
       "sc_expression_class",
+      "sc_normal_abundance_class",
+      "sc_normal_essential_max_detection_fraction",
+      "sc_normal_expression_class",
+      "sc_normal_safety_essential_class",
       "sc_surface_normal_class",
       "selectivity_allgene_percentile",
       "selectivity_class",
@@ -1094,6 +1104,10 @@
       "rnai_dependency_class": "categorical",
       "rnai_median_dep_score": "effect",
       "sc_expression_class": "categorical",
+      "sc_normal_abundance_class": "categorical",
+      "sc_normal_essential_max_detection_fraction": "effect",
+      "sc_normal_expression_class": "categorical",
+      "sc_normal_safety_essential_class": "categorical",
       "sc_surface_normal_class": "categorical",
       "selectivity_allgene_percentile": "extra_scalar",
       "selectivity_class": "categorical",
@@ -1160,19 +1174,19 @@
   },
   "schema_version": "1.0.0",
   "source_class_counts": {
-    "instrument": 337
+    "instrument": 341
   },
   "summary": {
     "n_atlas_live": 16,
-    "n_descriptor_cells": 337,
-    "n_distinct_fields": 310,
+    "n_descriptor_cells": 341,
+    "n_distinct_fields": 314,
     "n_envelope_fields": 11,
     "n_gloss_without_descriptor": 5,
-    "n_measurement_types": 61,
-    "n_metric_gloss_entries": 186,
+    "n_measurement_types": 62,
+    "n_metric_gloss_entries": 187,
     "n_multi_type_fields": 14,
-    "n_numeric_fields": 181,
-    "n_numeric_fields_with_gloss": 181,
+    "n_numeric_fields": 182,
+    "n_numeric_fields_with_gloss": 182,
     "n_numeric_fields_without_gloss": 0
   }
 }
