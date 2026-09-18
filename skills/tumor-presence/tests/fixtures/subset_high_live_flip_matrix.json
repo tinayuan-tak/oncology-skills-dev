@@ -1,0 +1,1086 @@
+{
+ "_meta": {
+  "what": "Live-panel flip counterfactual for the 2026-09-18 subset_high split (target-contracts #809 phase 3b, c3eec12). Each pair is ranked twice: arm A = the PRE-3b overlap rules (the broad rung also claims subset_high), arm B = the narrowed rules. The movers are the targets whose presence headline the split actually changed; the rest must be byte-identical.",
+  "ground_truth": "Only cls/high/det/pat are MEASURED (live S3 reads of the tumor RNA distribution card, AWS_PROFILE=cbg). A/B/drvA/drvB/firedA/firedB are DERIVED, and the test re-derives them through the real rules loader rather than trusting them -- a fixture that stored only derived values would be asserting a computation against a copy of its own output.",
+  "first_generated": "2026-09-18, out-of-tree, from skills trunk 56e91b8d against TWO real contracts checkouts: A = main 8d0fb9c (broad rule still listed subset_high), B = #809 head a9c5cad (narrowed). That B worktree was pruned when the PR landed; the arms are now one tree plus a one-field in-process mutation, verified to reproduce BOTH stored columns for all 58 pairs (0 mismatches) against contracts c475e69.",
+  "panel": "The 60 (target, indication) pairs scanned for candidate subset_high reads. 2 returned data_unavailable and are listed under the excluded key rather than dropped silently -- an unexplained shrink in the row count is indistinguishable from a coverage loss.",
+  "excluded": [
+   {
+    "target": "MS4A1",
+    "code": "DLBC",
+    "reason": "data_unavailable"
+   },
+   {
+    "target": "TNFRSF17",
+    "code": "DLBC",
+    "reason": "data_unavailable"
+   }
+  ],
+  "regenerated_by": "skills/tumor-presence/tests/regenerate_live_flip_matrix.py",
+  "skills_sha": "1b0b7c10",
+  "contracts_sha": "c475e69",
+  "arm_a": "synthesized in-process from contracts c475e69 by re-adding subset_high to tumor-expression-broadly-high-supportive",
+  "arm_b": "contracts c475e69 as checked out",
+  "measured": {
+   "pairs_ranked": 58,
+   "movers": 2,
+   "byte_identical": 56,
+   "targets": 56,
+   "indications": 12,
+   "non_mover_classes": {
+    "broadly_detected": 19,
+    "broadly_high": 21,
+    "broadly_low": 3,
+    "broadly_moderate": 13
+   }
+  }
+ },
+ "pairs": [
+  {
+   "target": "ADAR",
+   "code": "COADREAD",
+   "cls": "broadly_high",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "AURKA",
+   "code": "SCLC",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "BRAF",
+   "code": "SKCM",
+   "cls": "broadly_moderate",
+   "high": null,
+   "det": 0.9320388349514563,
+   "pat": "continuous",
+   "A": "tumor_moderately_expressed",
+   "B": "tumor_moderately_expressed",
+   "drvA": "tumor-expression-broadly-moderate-neutral",
+   "drvB": "tumor-expression-broadly-moderate-neutral",
+   "firedA": [
+    "tumor-expression-broadly-moderate-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-moderate-neutral"
+   ]
+  },
+  {
+   "target": "CDS2",
+   "code": "COADREAD",
+   "cls": "broadly_moderate",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_moderately_expressed",
+   "B": "tumor_moderately_expressed",
+   "drvA": "tumor-expression-broadly-moderate-neutral",
+   "drvB": "tumor-expression-broadly-moderate-neutral",
+   "firedA": [
+    "tumor-expression-broadly-moderate-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-moderate-neutral"
+   ]
+  },
+  {
+   "target": "CEACAM5",
+   "code": "LUAD",
+   "cls": "broadly_high",
+   "high": null,
+   "det": 0.9666666666666667,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "CHEK1",
+   "code": "COADREAD",
+   "cls": "broadly_moderate",
+   "high": null,
+   "det": 0.9970104633781763,
+   "pat": "continuous",
+   "A": "tumor_moderately_expressed",
+   "B": "tumor_moderately_expressed",
+   "drvA": "tumor-expression-broadly-moderate-neutral",
+   "drvB": "tumor-expression-broadly-moderate-neutral",
+   "firedA": [
+    "tumor-expression-broadly-moderate-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-moderate-neutral"
+   ]
+  },
+  {
+   "target": "CNDP2",
+   "code": "COADREAD",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "DLL3",
+   "code": "SCLC",
+   "cls": "broadly_high",
+   "high": null,
+   "det": 0.9135802469135802,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "EGFR",
+   "code": "LUAD",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 0.9888888888888889,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "EPAS1",
+   "code": "COADREAD",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "ERBB2",
+   "code": "BRCA",
+   "cls": "broadly_high",
+   "high": null,
+   "det": 0.9991126885536823,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "FOLR1",
+   "code": "OV",
+   "cls": "broadly_high",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "GRIN2D",
+   "code": "STAD",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 0.9302884615384616,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "IDO1",
+   "code": "SKCM",
+   "cls": "broadly_moderate",
+   "high": null,
+   "det": 0.5533980582524272,
+   "pat": "continuous",
+   "A": "tumor_moderately_expressed",
+   "B": "tumor_moderately_expressed",
+   "drvA": "tumor-expression-broadly-moderate-neutral",
+   "drvB": "tumor-expression-broadly-moderate-neutral",
+   "firedA": [
+    "tumor-expression-broadly-moderate-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-moderate-neutral"
+   ]
+  },
+  {
+   "target": "KAT7",
+   "code": "COADREAD",
+   "cls": "broadly_moderate",
+   "high": null,
+   "det": 0.9985052316890882,
+   "pat": "continuous",
+   "A": "tumor_moderately_expressed",
+   "B": "tumor_moderately_expressed",
+   "drvA": "tumor-expression-broadly-moderate-neutral",
+   "drvB": "tumor-expression-broadly-moderate-neutral",
+   "firedA": [
+    "tumor-expression-broadly-moderate-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-moderate-neutral"
+   ]
+  },
+  {
+   "target": "KIF11",
+   "code": "COADREAD",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 0.9985052316890882,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "KRAS",
+   "code": "COADREAD",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "MCL1",
+   "code": "SCLC",
+   "cls": "broadly_high",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "MMP9",
+   "code": "COADREAD",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 0.9940209267563528,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "MUC13",
+   "code": "COADREAD",
+   "cls": "broadly_high",
+   "high": null,
+   "det": 0.9985052316890882,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "NECTIN4",
+   "code": "BLCA",
+   "cls": "broadly_high",
+   "high": null,
+   "det": 0.9830917874396136,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "NOX1",
+   "code": "COADREAD",
+   "cls": "broadly_high",
+   "high": null,
+   "det": 0.9880418535127056,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "PARP1",
+   "code": "OV",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "PELO",
+   "code": "COADREAD",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "PLK1",
+   "code": "COADREAD",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "RBM39",
+   "code": "COADREAD",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "RIPK1",
+   "code": "COADREAD",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "SCD",
+   "code": "COADREAD",
+   "cls": "broadly_high",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "SKP2",
+   "code": "SCLC",
+   "cls": "broadly_detected",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "SMARCA2",
+   "code": "LUAD",
+   "cls": "broadly_moderate",
+   "high": null,
+   "det": 0.9944444444444445,
+   "pat": "continuous",
+   "A": "tumor_moderately_expressed",
+   "B": "tumor_moderately_expressed",
+   "drvA": "tumor-expression-broadly-moderate-neutral",
+   "drvB": "tumor-expression-broadly-moderate-neutral",
+   "firedA": [
+    "tumor-expression-broadly-moderate-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-moderate-neutral"
+   ]
+  },
+  {
+   "target": "STEAP1",
+   "code": "PRAD",
+   "cls": "broadly_high",
+   "high": null,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "TACSTD2",
+   "code": "BRCA",
+   "cls": "broadly_high",
+   "high": null,
+   "det": 0.9946761313220941,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "WEE1",
+   "code": "OV",
+   "cls": "broadly_moderate",
+   "high": null,
+   "det": 0.9976303317535545,
+   "pat": "continuous",
+   "A": "tumor_moderately_expressed",
+   "B": "tumor_moderately_expressed",
+   "drvA": "tumor-expression-broadly-moderate-neutral",
+   "drvB": "tumor-expression-broadly-moderate-neutral",
+   "firedA": [
+    "tumor-expression-broadly-moderate-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-moderate-neutral"
+   ]
+  },
+  {
+   "target": "WRN",
+   "code": "COADREAD",
+   "cls": "broadly_moderate",
+   "high": null,
+   "det": 0.9820627802690582,
+   "pat": "continuous",
+   "A": "tumor_moderately_expressed",
+   "B": "tumor_moderately_expressed",
+   "drvA": "tumor-expression-broadly-moderate-neutral",
+   "drvB": "tumor-expression-broadly-moderate-neutral",
+   "firedA": [
+    "tumor-expression-broadly-moderate-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-moderate-neutral"
+   ]
+  },
+  {
+   "target": "CTAG1B",
+   "code": "SKCM",
+   "cls": "broadly_low",
+   "high": 0.05825242718446602,
+   "det": 0.22330097087378642,
+   "pat": "long_tail",
+   "A": "tumor_sparsely_expressed",
+   "B": "tumor_sparsely_expressed",
+   "drvA": "tumor-expression-broadly-low-neutral",
+   "drvB": "tumor-expression-broadly-low-neutral",
+   "firedA": [
+    "tumor-expression-broadly-low-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-low-neutral"
+   ]
+  },
+  {
+   "target": "MAGEA4",
+   "code": "LUSC",
+   "cls": "subset_high",
+   "high": 0.3253968253968254,
+   "det": 0.623015873015873,
+   "pat": "bimodal",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_subset_high_expression",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-subset-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive",
+    "tumor-expression-subset-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-subset-high-supportive"
+   ]
+  },
+  {
+   "target": "MAGEA3",
+   "code": "SKCM",
+   "cls": "subset_high",
+   "high": 0.36893203883495146,
+   "det": 0.6893203883495146,
+   "pat": "bimodal",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_subset_high_expression",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-subset-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive",
+    "tumor-expression-subset-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-subset-high-supportive"
+   ]
+  },
+  {
+   "target": "PRAME",
+   "code": "SKCM",
+   "cls": "broadly_high",
+   "high": 0.8737864077669902,
+   "det": 0.970873786407767,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "CLDN18",
+   "code": "STAD",
+   "cls": "broadly_high",
+   "high": 0.6298076923076923,
+   "det": 0.9110576923076923,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "CLDN6",
+   "code": "OV",
+   "cls": "broadly_detected",
+   "high": 0.44786729857819907,
+   "det": 0.9241706161137441,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "GPC3",
+   "code": "LIHC",
+   "cls": "broadly_high",
+   "high": 0.7008086253369272,
+   "det": 0.9757412398921833,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "MSLN",
+   "code": "PAAD",
+   "cls": "broadly_high",
+   "high": 0.8089887640449438,
+   "det": 0.9438202247191011,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "MSLN",
+   "code": "OV",
+   "cls": "broadly_high",
+   "high": 0.9644549763033176,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "MUC16",
+   "code": "OV",
+   "cls": "broadly_detected",
+   "high": 0.26540284360189575,
+   "det": 0.9715639810426541,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "KLK3",
+   "code": "PRAD",
+   "cls": "broadly_high",
+   "high": 1.0,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "DLK1",
+   "code": "LIHC",
+   "cls": "broadly_low",
+   "high": 0.09703504043126684,
+   "det": 0.18867924528301888,
+   "pat": "long_tail",
+   "A": "tumor_sparsely_expressed",
+   "B": "tumor_sparsely_expressed",
+   "drvA": "tumor-expression-broadly-low-neutral",
+   "drvB": "tumor-expression-broadly-low-neutral",
+   "firedA": [
+    "tumor-expression-broadly-low-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-low-neutral"
+   ]
+  },
+  {
+   "target": "ROR1",
+   "code": "LUAD",
+   "cls": "broadly_moderate",
+   "high": 0.0,
+   "det": 0.7703703703703704,
+   "pat": "continuous",
+   "A": "tumor_moderately_expressed",
+   "B": "tumor_moderately_expressed",
+   "drvA": "tumor-expression-broadly-moderate-neutral",
+   "drvB": "tumor-expression-broadly-moderate-neutral",
+   "firedA": [
+    "tumor-expression-broadly-moderate-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-moderate-neutral"
+   ]
+  },
+  {
+   "target": "CEACAM6",
+   "code": "PAAD",
+   "cls": "broadly_high",
+   "high": 0.8932584269662921,
+   "det": 0.9775280898876404,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "SLC34A2",
+   "code": "LUAD",
+   "cls": "broadly_high",
+   "high": 0.9074074074074074,
+   "det": 0.9944444444444445,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "LY6K",
+   "code": "LUSC",
+   "cls": "broadly_moderate",
+   "high": 0.057539682539682536,
+   "det": 0.9345238095238095,
+   "pat": "continuous",
+   "A": "tumor_moderately_expressed",
+   "B": "tumor_moderately_expressed",
+   "drvA": "tumor-expression-broadly-moderate-neutral",
+   "drvB": "tumor-expression-broadly-moderate-neutral",
+   "firedA": [
+    "tumor-expression-broadly-moderate-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-moderate-neutral"
+   ]
+  },
+  {
+   "target": "FGFR2",
+   "code": "STAD",
+   "cls": "broadly_moderate",
+   "high": 0.028846153846153848,
+   "det": 0.9278846153846154,
+   "pat": "continuous",
+   "A": "tumor_moderately_expressed",
+   "B": "tumor_moderately_expressed",
+   "drvA": "tumor-expression-broadly-moderate-neutral",
+   "drvB": "tumor-expression-broadly-moderate-neutral",
+   "firedA": [
+    "tumor-expression-broadly-moderate-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-moderate-neutral"
+   ]
+  },
+  {
+   "target": "MET",
+   "code": "STAD",
+   "cls": "broadly_detected",
+   "high": 0.2091346153846154,
+   "det": 0.9975961538461539,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "ERBB2",
+   "code": "STAD",
+   "cls": "broadly_detected",
+   "high": 0.3317307692307692,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "TERT",
+   "code": "SKCM",
+   "cls": "broadly_low",
+   "high": 0.0,
+   "det": 0.11650485436893204,
+   "pat": "continuous",
+   "A": "tumor_sparsely_expressed",
+   "B": "tumor_sparsely_expressed",
+   "drvA": "tumor-expression-broadly-low-neutral",
+   "drvB": "tumor-expression-broadly-low-neutral",
+   "firedA": [
+    "tumor-expression-broadly-low-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-low-neutral"
+   ]
+  },
+  {
+   "target": "AFP",
+   "code": "LIHC",
+   "cls": "broadly_moderate",
+   "high": 0.22371967654986524,
+   "det": 0.8247978436657682,
+   "pat": "continuous",
+   "A": "tumor_moderately_expressed",
+   "B": "tumor_moderately_expressed",
+   "drvA": "tumor-expression-broadly-moderate-neutral",
+   "drvB": "tumor-expression-broadly-moderate-neutral",
+   "firedA": [
+    "tumor-expression-broadly-moderate-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-moderate-neutral"
+   ]
+  },
+  {
+   "target": "SSTR2",
+   "code": "SCLC",
+   "cls": "broadly_moderate",
+   "high": 0.08641975308641975,
+   "det": 0.9135802469135802,
+   "pat": "continuous",
+   "A": "tumor_moderately_expressed",
+   "B": "tumor_moderately_expressed",
+   "drvA": "tumor-expression-broadly-moderate-neutral",
+   "drvB": "tumor-expression-broadly-moderate-neutral",
+   "firedA": [
+    "tumor-expression-broadly-moderate-neutral"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-moderate-neutral"
+   ]
+  },
+  {
+   "target": "CD276",
+   "code": "PAAD",
+   "cls": "broadly_detected",
+   "high": 0.47191011235955055,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "FOLH1",
+   "code": "PRAD",
+   "cls": "broadly_high",
+   "high": 0.8891089108910891,
+   "det": 1.0,
+   "pat": "continuous",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_broadly_expressed",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-broadly-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-broadly-high-supportive"
+   ]
+  }
+ ]
+}
