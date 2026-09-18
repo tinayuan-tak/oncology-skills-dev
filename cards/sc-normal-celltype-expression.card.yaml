@@ -26,11 +26,32 @@ question: "In which normal tissue cell types is {target.symbol} expressed by scR
 
 # Evidence-capsule projection. Without this block the projector falls back to the alphabetical-first
 # *_class field, which here is the DISPLAY-only sc_normal_expression_class (e < s) — NOT the
-# verdict-driving sc_normal_safety_essential_class. Pin the primary class explicitly so the capsule /
-# LLM narrator / nomination.json project the field that actually drives the tumor-selectivity clamp.
+# verdict-driving class. Pin the primary class explicitly so the capsule / LLM narrator /
+# nomination.json project the field that actually drives the gates.
+#
+# REPOINTED 2026-09-18, and the previous wording is RETRACTED, not edited away. It read: "NOT the
+# verdict-driving sc_normal_safety_essential_class ... project the field that actually drives the
+# tumor-selectivity clamp." Both halves were true when written and are now false. Neither gating
+# rule that keys on this card reads the boolean any more:
+#   · sc-normal-high-liability-bite-killer   (surface, dominant) — repointed to the grade by TC #786
+#   · tvn-sc-normal-critical-organ-veto      (selectivity clamp) — repointed to the grade in THIS PR
+# so sc_normal_safety_essential_class is now a DISPLAY class and the grade is what drives both gates.
+#
+# HOW THIS WAS CAUGHT, because the mechanism generalises: after #786 the clamp arm was the LAST
+# gating reader of the boolean, so tests/validators/test_card_capsule_contract.py's mirror-guard
+# (`test_declared_primary_class_is_a_field_the_gating_rules_read`) stayed green ONLY because the
+# cross-gate desync #786 opened was still there. Closing the desync removed the final gating reader
+# and the guard fired — a green that was being propped up by the very defect this PR fixes. It reds
+# in CI's whole-repo step, which scripts/preland.sh does NOT run (all 24 preland steps are
+# file-scoped), so preland EXIT=0 is not a superset of contracts-validate.
+#
+# The boolean STAYS in categorical_fields: the grade is a strict refinement of it (see
+# test_veto_grade_is_a_STRICT_REFINEMENT_of_the_safety_essential_class), so showing both lets a
+# reader see the coarse class AND which rung of it the target landed on.
 capsule:
-  primary_class: sc_normal_safety_essential_class
+  primary_class: sc_normal_essential_veto_grade
   categorical_fields:
+    - sc_normal_essential_veto_grade
     - sc_normal_safety_essential_class
     - sc_normal_expression_class
     - sc_normal_abundance_class

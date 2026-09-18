@@ -1993,8 +1993,26 @@ rules:
           false-TCE-vetoed origin-tissue / non-essential-only antigens;
         - repointed 2026-09-16 (HERE) to sc_normal_essential_veto_grade, because
           critical_organ_liability is a BOOLEAN that fires on 468/504 corpus-20260914 targets
-          (92.9%). A dominant killer that fires on 93% of a corpus is not a discriminator, it
-          is a constant. DLL3-SCLC is vetoed by it today — and tarlatamab is an APPROVED TCE.
+          (92.9% as measured then; 474/504 = 94.0% on 2026-09-18 after AM #660/#661/#663).
+          A dominant killer that fires on 93% of a corpus is not a discriminator, it is a
+          constant. ⚠️ RETRACTION, 2026-09-18 (skills CASE-035): this bullet originally
+          continued "DLL3-SCLC is vetoed by it today — and tarlatamab is an APPROVED TCE",
+          offering DLL3-SCLC as the motivating example of a false veto the repoint relieves.
+          That is NO LONGER TRUE. AM #663 promoted `gut -> "colon"` into SC_NORMAL_CROSSWALK,
+          and colon is the only systemically-accessible tissue containing neurons (the enteric
+          nervous system), so DLL3's BBB-protected neural liability became an ACCESSIBLE one:
+          DLL3-SCLC now grades accessible_high_severity (driver `inhibitory motor neuron` /
+          colon, det 0.747 / donor 1.000 / 6 atlases) and this killer fires on it again, giving
+          bite_tce: unsafe for an approved-TCE target. The predicate change stands on the
+          saturation argument alone — a 94% boolean is still a constant — but it is no longer
+          the fix for DLL3-SCLC. The bullet is corrected in place rather than deleted, because
+          the false claim reached trunk and squash-merge makes commit text permanent.
+          Disposition of the DLL3 finding: ACCEPTED AS REAL, not engineered away — the two
+          candidate remedies (excluding gut hits from the severity pool; narrowing to gut
+          neurons) were measured and REFUTED, the first because it breaks the
+          grade-refines-class invariant on 6 pairs and re-opens the CDH17-ESCA organ-panel
+          fail-open, the second because enteric neurons genuinely ARE outside the BBB. See
+          skills eval/CASE_LOG.md CASE-035 for the substrate audit and two filed OPEN findings.
 
       WHY A NEW FIELD AND NOT A NEW THRESHOLD. The detection axis is saturated, so no line on
       it helps: sweeping the off-origin floor 0.20/0.30/0.40/0.50/0.60/0.70/0.80/0.90 gives
@@ -2006,13 +2024,25 @@ rules:
       grammar is single-predicate and cannot express the conjunction.
 
       EFFECT, MEASURED LIVE over all 504 pairs (not estimated from the stored top-15 footprint,
-      which is truncated in a way that CORRELATES with breadth): this killer's base rate falls
-      92.9% -> 44.2%. Of the 48.6 points of relief, the SEVERITY/replication rung is 88% (216
-      targets) and the compartment rung only 12% (29). The compartment axis is nonetheless
-      load-bearing as a CORRECTNESS GUARD: it is decided over the WHOLE above-floor off-origin
-      pool rather than the argmax organ, because 230 of the 259 brain-argmax critical calls
-      (88.8%) ALSO carry an accessible-organ hit, so an argmax-based call would fail OPEN on
-      230 real lung/liver/marrow liabilities.
+      which is truncated in a way that CORRELATES with breadth). Two vintages, kept separate
+      because the ladder moved under this rule without a rules edit:
+        - as measured at #786 (2026-09-16): base rate 92.9% -> 44.2%; of the 48.6 points of
+          relief the SEVERITY/replication rung was 88% (216 targets), the compartment rung 12%
+          (29).
+        - RE-MEASURED 2026-09-18 after AM #660 (replication rung) / #661 / #663 (gut promotion):
+          94.0% (474/504) -> 65.5% (330/504). The grade ladder now reads
+          accessible_high_severity 330 / accessible_moderate_severity 86 /
+          accessible_low_confidence 35 / not_applicable 26 / bbb_protected 23 /
+          origin_tissue 4. Of the 144 pairs relieved relative to the boolean, the
+          SEVERITY/replication rung is 84% (121 = 86 moderate + 35 low_confidence) and the
+          compartment rung 16% (23 bbb_protected). The drop from 216 to 121 relieved is the
+          three AM PRs promoting targets INTO high_severity, not a change to this predicate.
+          Anyone citing a rate here should re-measure: this rule's population is a function of
+          a field it does not own.
+      The compartment axis is nonetheless load-bearing as a CORRECTNESS GUARD: it is decided
+      over the WHOLE above-floor off-origin pool rather than the argmax organ, because (measured
+      at #786) 230 of the 259 brain-argmax critical calls (88.8%) ALSO carry an accessible-organ
+      hit, so an argmax-based call would fail OPEN on 230 real lung/liver/marrow liabilities.
 
       FAIL-CLOSED PREDICATE. `in` deliberately includes accessible_ungraded — an accessible hit
       whose grading inputs are ABSENT. Thinner data must never buy a better safety verdict, so
@@ -2046,11 +2076,15 @@ rules:
       REPLICATED essential-cell expression in a systemically accessible non-origin critical
       organ, but below the HIGH bar (det >= 0.50 AND donor >= 0.70 AND >= 2 atlases). A real
       on-target-off-tumor liability that requires a therapeutic-window justification — not an
-      automatic veto. 14.1% of corpus-20260914 (71 targets), and the rung that relieves
-      DLL3-SCLC. CAVEAT worth carrying: the HIGH bar is a CONJUNCTION, so a heavily replicated
-      hit can land here on the det conjunct alone — MSLN-PAAD grades moderate at det 0.413 /
-      donor 0.881 / 26 independent atlases. Read the named sc_normal_essential_max_* driver
-      fields before treating this rung as reassuring.
+      automatic veto. 14.1% of corpus-20260914 (71 targets) at #786; RE-MEASURED 2026-09-18
+      after AM #660/#661/#663: 17.1% (86 targets). ⚠️ RETRACTION, 2026-09-18: this rationale
+      also called itself "the rung that relieves DLL3-SCLC". FALSE today — #663's gut promotion
+      moved DLL3-SCLC to accessible_high_severity, so it takes the dominant killer, not this
+      rung. See the killer's HISTORY bullet above and skills CASE-035. CAVEAT worth carrying:
+      the HIGH bar is a CONJUNCTION, so a heavily replicated hit can land here on the det
+      conjunct alone — MSLN-PAAD grades moderate at det 0.413 / donor 0.881 / 26 independent
+      atlases. Read the named sc_normal_essential_max_* driver fields before treating this rung
+      as reassuring.
 
   - rule_id: sc-normal-graded-accessible-low-confidence-bite-opposing
     when:
@@ -2064,7 +2098,11 @@ rules:
       resting on THIN evidence: det < 0.30 OR a single atlas. The EPCAM/FOLR1 shape — a det
       0.99 detection carried by exactly ONE atlas. Opposing, because the liability may well be
       real; not a killer, because one atlas cannot support a dominant modality veto. 28.8% of
-      corpus-20260914 (145 targets), the single largest relieved group. NOTE THE ASYMMETRY WITH
+      corpus-20260914 (145 targets) at #786 and the single largest relieved group THEN;
+      RE-MEASURED 2026-09-18 after AM #660/#661/#663: 6.9% (35 targets), and no longer the
+      largest — accessible_moderate_severity is, at 86. The collapse is #660's replication rung
+      promoting thin-but-heavily-replicated hits up out of this bucket, which is the intended
+      direction. NOTE THE ASYMMETRY WITH
       accessible_ungraded, which keeps the hard veto: low_confidence means the replication was
       MEASURED and came back thin, whereas ungraded means it was not measurable at all. A
       measured weakness may lower a rung; missing data may not.
@@ -2083,7 +2121,12 @@ rules:
       RELEASE OF THE HARD VETO ONLY, not a safety pass — GD2 and B7-H3 are proof that brain is
       not a free pass, and a BBB-crossing modality (small_molecule / degrader) would warrant a
       veto here; this card emits nothing on those channels and this change does not widen it.
-      Rare: 5.8% of corpus-20260914 (29 targets). It is rare BECAUSE the rung requires the
+      Rare: 5.8% of corpus-20260914 (29 targets) at #786; RE-MEASURED 2026-09-18 after AM
+      #660/#661/#663: 4.6% (23 targets). #663's gut promotion is the main reason this rung
+      SHRANK — colon is the only systemically-accessible tissue carrying neurons, so a
+      neural-lineage target whose pool was formerly all-brain can now carry an accessible
+      enteric hit and leave this rung (DLL3-SCLC is exactly that transition). It is otherwise
+      rare BECAUSE the rung requires the
       whole pool to be brain — brain wins the ARGMAX on 55.3% of firings, and reading the
       argmax instead would have mislabelled 230 accessible-organ liabilities as protected.
 

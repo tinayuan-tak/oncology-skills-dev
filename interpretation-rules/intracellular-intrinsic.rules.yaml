@@ -3053,8 +3053,8 @@ rules:
   - rule_id: tvn-sc-normal-critical-organ-veto
     when:
       card_id: sc-normal-celltype-expression
-      field: sc_normal_safety_essential_class
-      equals: critical_organ_liability
+      field: sc_normal_essential_veto_grade
+      in: [accessible_high_severity, accessible_ungraded]
     signals:
       small_molecule: opposing
       degrader: opposing
@@ -3068,15 +3068,94 @@ rules:
       CELL-TYPE-RESOLVED normal veto (INC-3, axis-D, 2026-08-08). Bulk tumor-vs-normal + the
       atlas-window vetoes can miss a target expressed in a SAFETY-ESSENTIAL CELL TYPE within a
       non-origin critical organ (cardiomyocyte / hepatocyte / renal-tubule / HSC / neuron), which
-      bulk tissue medians dilute. sc_normal_safety_essential_class == critical_organ_liability means
-      the target is highly detected in an essential cell type of a NON-tissue-of-origin critical organ
-      (the AM #237 organ-aware instrument, threaded with origin_tissues; origin_tissue_liability is
-      DELIBERATELY NOT a veto — origin-tissue essential expression is expected and modality-arbitrated).
-      The tumor-selectivity verdict downgrades a selective axis-A call to selective_but_broadly_normal
-      when this fires — the third normal-breadth veto arm (worst-case conjunction). Design note: this
-      INCLUDES FOLR1 (real kidney tubule) → correctly downgraded (real target + real off-origin organ
-      liability; window/modality then arbitrate — NOT a rejection). MSLN reads origin_tissue_liability
-      (pleural/lung) → correctly does NOT fire. Modality-lensed (systemic SM/degrader worst).
+      bulk tissue medians dilute. The arm is a post-resolver CLAMP, not a rung: it only downgrades an
+      already-selective axis-A call, and per selectivity.resolver.yaml `precedence` it mints
+      selective_with_normal_liability — a selectivity-PRESERVING named-organ flag, NOT a kill.
+      origin_tissue / origin_tissue_liability is DELIBERATELY NOT vetoed: origin-tissue essential
+      expression is expected and modality-arbitrated. Modality-lensed (systemic SM/degrader worst).
+
+      REPOINTED 2026-09-18 onto sc_normal_essential_veto_grade, closing the desync TC #786 re-opened
+      in the opposite direction. #786 repointed the SIBLING gate
+      (sc-normal-high-liability-bite-killer, surface lens) off the boolean class onto the graded field
+      and left this one behind, so the two gates that were deliberately aligned on 2026-09-07 keyed on
+      different fields for two days. The boolean sc_normal_safety_essential_class is saturated: it
+      fires on 474/504 corpus-20260914 pairs (94.0%). A gate that fires on 94% of a corpus is a
+      constant, not a discriminator. The graded field supplies the second axis the boolean lacks —
+      COMPARTMENT (can a systemically dosed agent reach the organ at all?) x SEVERITY (magnitude x
+      cross-donor consistency x independent-atlas replication).
+
+      PREDICATE EFFECT, MEASURED LIVE over all 504 pairs on 2026-09-18 — recomputed from the full
+      per-cell-type pull, never from the stored packages, whose per_cell_type_top is truncated to 15
+      rows sorted by detection DESCENDING (the truncation CORRELATES with the measurand, so a stored
+      read is biased fail-open, not merely noisy). 474 (94.0%) -> 330 (65.5%). The 2x2 is strictly
+      one-directional: 330 fire under both, 144 relieved, 0 NEWLY clamped — the new firing set is a
+      strict SUBSET of the old one, which is what licenses calling this a narrowing and what lets the
+      resolver's precedence reasoning carry over unchanged. Relief decomposes exactly:
+      86 accessible_moderate_severity + 35 accessible_low_confidence + 23 bbb_protected = 144. The
+      30 pairs that fire under neither are 26 not_applicable + 4 origin_tissue.
+
+      THE PREDICATE IS NOT THE VERDICT — measure through the CONSUMER's aperture. Quoting the 94%
+      predicate rate as the verdict's incidence overstates it ~7x, because two gates sit downstream:
+      (1) `applies_to_input_verdicts` (_AXIS_A_SELECTIVE) — only 168 of 504 pairs carry an axis-A
+      selective input and enter the clamp at all; and (2) `precedence` is FIRST-FIRING-ARM-WINS and
+      this arm is 4th of 5 — tvn-no-full-normal-window-veto fires on 291/504 and
+      tvn-no-therapeutic-window-veto on 263/504, both outranking it with selective_but_broadly_normal.
+      So the arm fires 468x on the shipped corpus but DRIVES the verdict only 69x:
+      selective_with_normal_liability is minted on 69/504 = 13.7%, not 93%.
+
+      VERDICT EFFECT, measured by walking the shipped precedence over all 504 packages: 23 verdicts
+      change (13.7% of the 168 eligible, 4.6% of the corpus), all in one direction — the clamp stops
+      applying and the pair reverts to its axis-A selective verdict. 0 newly clamped at the verdict
+      level too. 44 pairs stay clamped by this arm; 0 of the 23 relieved are re-caught by the 5th-place
+      TPHP arm. The 23 split 10 bbb_protected / 8 accessible_moderate_severity /
+      5 accessible_low_confidence. CONTROL: the same walk under the OLD predicate reproduced the
+      shipped verdict and driving_rule_id for 168/168 eligible pairs, so the counterfactual is
+      measured against a baseline that demonstrably reproduces the present.
+
+      FAIL-CLOSED PREDICATE. `in` deliberately includes accessible_ungraded — an accessible hit whose
+      grading inputs are ABSENT. Thinner data must never buy a better safety verdict, so the ungraded
+      rung keeps the clamp rather than dropping out of it. It occurs 0x on corpus-20260914; inert by
+      corpus is not safe by contract, which is why it is declared rather than trimmed.
+
+      WHAT NO LONGER CLAMPS, AND WHERE IT GOES. accessible_moderate_severity /
+      accessible_low_confidence / bbb_protected no longer reach this clamp. They are NOT silent here:
+      interpretation rules are selected by card_id, not by file, and sc-normal-celltype-expression is
+      in tumor-selectivity's cards_used — so the three graded companions added in #786
+      (sc-normal-graded-accessible-{moderate,low-confidence}-bite-opposing,
+      sc-normal-graded-bbb-protected-bite-opposing, all display-partition) already fire in THIS gate's
+      fired_rule_ids and carry the retained liability into the narrative and per-modality tally.
+      No selectivity-side duplicates are minted: doing so would double-count the same signal and
+      drift coverage/rule_role_partition.yaml for no gain. NOTE THE RESIDUAL FAIL-OPEN, recorded
+      rather than engineered away: 5 of the 23 relieved pairs are relieved on
+      accessible_low_confidence, which means "we could barely look" (det < 0.30 OR a single atlas),
+      not "we looked and it is safe". The companions are what keep those visible.
+
+      DESIGN NOTES, re-measured live 2026-09-18 rather than carried forward — two claims this
+      rationale previously made are FALSE today and are retracted here:
+        - FOLR1 still correctly clamps (accessible_high_severity), so the design intent holds: a real
+          target with a real off-origin organ liability is flagged, not rejected, and window/modality
+          then arbitrate. But the instrument's named driver for the corpus's FOLR1-OV pair is
+          `pulmonary alveolar type 2 cell` / lung, NOT the kidney tubule this note used to name. The
+          kidney-tubule/mirvetuximab biology (see the adc:neutral comment above) is real FOLR1
+          pharmacology; it is not what the argmax driver field reports for OV. Read the named
+          sc_normal_essential_max_* fields, do not assume the organ.
+        - "MSLN reads origin_tissue_liability (pleural/lung) -> correctly does NOT fire" is WRONG.
+          MSLN-PAAD — the only MSLN pair in corpus-20260914 — reads critical_organ_liability /
+          accessible_high_severity and DOES clamp, driver `pulmonary alveolar type 1 cell` / lung.
+          The old claim was indication-conditional reasoning stated unconditionally: lung is
+          off-origin for a PANCREAS-origin indication, so the veto is correct. MSLN also grades
+          moderate on the severity conjunction at det 0.413 / donor 0.881 / 26 independent atlases,
+          which is the replication under-grading tracked separately.
+
+      ORACLE CAVEAT for anyone verifying a change to this arm: the 21 MB resolver golden lists 8
+      selectivity rule_ids and this arm is NOT among them (0 occurrences in the selectivity blob),
+      because tests/test_resolver_golden_rule_id_coverage.py's _referenced_rule_ids() walks only
+      spec["resolve"] and never post_resolver_clamp.precedence[].when_fired. A clean golden diff on
+      a change to this arm is therefore EVIDENCE OF NOTHING. The live corpus backtest above is the
+      instrument. The correct aperture already exists in-repo as committed data —
+      coverage/rule_role_partition.yaml's `gating_keypaths` walks
+      post_resolver_clamp/precedence/[]/when_fired and post_resolver_clamp/upgrade/requires/[]/[],
+      which is why THIS arm is correctly in that snapshot's `gating` partition.
 
   - rule_id: tvn-tphp-broad-abundant-normal-protein-veto
     when:
