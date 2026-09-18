@@ -938,3 +938,44 @@ def test_evidence_state_measured_never_pairs_with_data_unavailable_verdict():
         for key, b in tp._per_modality_verdicts(fired).items():
             if b.get("evidence_state") == "measured":
                 assert b.get("verdict") != "data_unavailable", (key, b)
+
+
+# --- 2026-09-18 subset_high split (phase 2 of 3): the per-modality spine for the new rung ---
+
+
+def _subset_split_spine(tumor_rna_rule_id):
+    """The golden spine above, minus the tumor-vs-adjacent rung (which feeds the SAME bulk_rna/tumor
+    bucket and out-ranks both tumor-expression rungs, so leaving it in would mask the bucket under test),
+    parameterised on which tumor-expression rung fires. Returns the (bucket -> (verdict, state)) map plus
+    the collapsed verdict."""
+    fired = [
+        _fr("expression-broadly-high-supportive", "cellline-rna-distribution"),
+        _fr(tumor_rna_rule_id, "tumor-rna-distribution"),
+        _fr("protein-abundance-broadly-high-supportive", "cellline-protein-abundance"),
+        _fr("protein-strongly-up-supportive", "tumor-protein-abundance-cptac"),
+        _fr("sc-expression-malignant-broadly-detected-supportive", "tumor-scrna-celltype-expression"),
+    ]
+    pm = tp._per_modality_verdicts(fired, [])
+    return {k: (v["verdict"], v["evidence_state"]) for k, v in pm.items()}, tp._verdict(fired)[0]
+
+
+def test_subset_high_rung_resolves_the_bulk_rna_tumor_bucket_not_insufficient():
+    """GOLDEN, PAIRED. The new rung must populate `bulk_rna/tumor` as a MEASURED positive. Asserted as a
+    DIFF against the broad rung on an otherwise byte-identical fired-set, so the only thing that moves is
+    the one bucket — a single-sided snapshot would pass just as well against a bucket that had silently
+    gone `insufficient`/`data_unavailable`, which is exactly the false-absence failure this rung exists to
+    prevent (an unlisted rung is invisible, not low-ranked)."""
+    broad_map, broad_collapsed = _subset_split_spine("tumor-expression-broadly-high-supportive")
+    subset_map, subset_collapsed = _subset_split_spine("tumor-expression-subset-high-supportive")
+
+    assert broad_map["bulk_rna/tumor"] == ("tumor_broadly_expressed", "measured")
+    assert subset_map["bulk_rna/tumor"] == ("tumor_subset_high_expression", "measured")
+
+    moved = {k for k in broad_map if broad_map[k] != subset_map.get(k)}
+    assert moved == {"bulk_rna/tumor"}, f"exactly one bucket may move; these moved: {sorted(moved)}"
+    assert broad_map.keys() == subset_map.keys(), "the bucket TAXONOMY must not change"
+
+    # The collapsed spine is anchored by the cell-line rung in BOTH cases (rung 1, both-lenses-high), so
+    # the headline word is byte-stable here — the subset information rides in the per-modality bucket.
+    # `test_reanchor_flip_matrix.py` covers the compensating discordance flag for this same shape.
+    assert broad_collapsed == subset_collapsed == "broadly_high_expression"

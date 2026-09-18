@@ -283,10 +283,114 @@ only negatives/gaps) — a structural property over the whole ladder that supers
 now-unreproducible ("run out-of-tree, ephemeral") 43-pair re-anchor backtest, whose per-pair data was
 never committed. The synthetic flip-class assertions in `test_reanchor_flip_matrix.py` are retained.
 
+## Why the `subset_high` rung exists (the population-vs-abundance split)
+
+`tumor-rna-distribution` emits `tumor_expression_class`, and two of its values had shared one rung,
+one verdict and one headline phrase:
+
+| class value | fires at | population reading |
+|---|---|---|
+| `broadly_high` | `high_fraction >= 0.5` | a majority of patients express the target highly |
+| `subset_high` | `high_fraction >= 0.1` **and** a bimodal / long-tail shape | as few as **10%** of patients do |
+
+Both matched `tumor-expression-broadly-high-supportive` (`in: [broadly_high, broadly_detected,
+subset_high]`), collapsed to `tumor_broadly_expressed`, and rendered as *"Broadly expressed in tumor"*.
+For an ADC or T-cell-engager nomination that conflation is the difference between a **population
+hypothesis** and a **patient-selection hypothesis** — and nothing downstream could recover it:
+`presence_signal_strength` keys on the rule-id suffix, and both rungs are legitimately `-supportive`,
+so that channel cannot separate them either (see § three strength channels below).
+
+`tumor-expression-subset-high-supportive` → `tumor_subset_high_expression` splits them.
+
+**Ordering.** The rung sits BELOW `tumor_broadly_expressed` and ABOVE the moderate rungs. A minority-high
+subset is a *narrower population* than broad tumor expression, but a *stronger abundance read* than
+broadly-moderate — those are two different axes, and the ladder ranks presence strength, so the rung
+takes the position its abundance justifies while the verdict WORD carries the population caveat.
+
+**Tier 2, deliberately.** `_PRESENCE_TIER` puts it at 2, not 3, which has two consequences and both are
+intended: (a) the INV-1 tier cap (`_TIER3_TO_TIER2`) does not apply, because there is nothing to demote —
+it is already tier 2; and (b) `cell_line_vs_tumor_discordant` becomes reachable in the
+`cell_line_overstates_tumor` direction when a cell-line `broadly_high` (tier 3) sits beside it. That
+`True` is a **legitimate reading**, not a regression: *the panel reads uniformly high, the tumor is high
+in a subset.* It is the compensating channel where the collapsed word cannot carry the distinction,
+because the cell-line rung still anchors the headline. Prose in SKILL.md/README.md that called any
+`True` a ladder regression was corrected with this change.
+
+**`_TIER3_TO_TIER2` deliberately does NOT map `tumor_broadly_expressed` → `tumor_subset_high_expression`.**
+That would fabricate a prevalence claim (10%-of-patients) out of an abundance signal. Two different axes
+wearing the same word "demote". The absence is documented at the map so a completeness sweep does not
+"finish" it.
+
+**Collapse invariant, restated.** The rung is a presence-POSITIVE (`-supportive` suffix; not in
+`_MEASURED_NEGATIVE_VERDICTS` or `_COLLAPSE_GAP_VERDICTS`), so it sorts inside the positive tier and the
+no-dangerous-flip proof in `test_ladder_invariants.py` is untouched: no fired-set of negatives and gaps
+can reach it.
+
+**Why the ladder must list it at all — the false-absence trap.** `_EXPRESSION_RANK` is a CLOSED
+`(rule_id -> verdict)` list and `_rank_verdict` returns the first *fired* entry. A fired `rule_id` the
+ladder does not list is therefore **invisible, not demoted** — the collapse falls through to
+`insufficient`, a coverage-gap class *below* measured negatives. Re-routing `subset_high` to a new rule
+without adding the rung would have reported "no data" for a target measured high in 10–50% of patients.
+Guard 3 in `test_ladder_invariants.py` now checks the producer's whole declared vocabulary reaches a rung.
+
+**Phase ordering (this is a 3-phase change across a live-read repo boundary).**
+
+| phase | repo | edit | effect |
+|---|---|---|---|
+| 1 | target-contracts | ADD `tumor-expression-subset-high-supportive` (TC#805, `6ff21f8`) — `subset_high` still ALSO on the broad rule | none: both rules fire |
+| 2 | claude-oncology-skills | this change — rung, phrase, facets, headline keys | none: broad rung still out-ranks |
+| 3a | target-contracts | declare `tumor_subset_high_expression` in `$defs.presence_verdict_enum` (`schemas/_skill_output/pins/tumor-presence.pins.json`, append-only) + regenerate | none: additive |
+| 3b | target-contracts | REMOVE `subset_high` from the broad rule's `in:` list | **the flip** |
+
+Phase 2 is verdict-inert **by measurement**, not by intent — verified as a 2×2 (trunk vs this branch) ×
+(overlap retained vs narrowed): identical on today's contracts, and `insufficient` on trunk under
+narrowed rules, which is the false absence this rung prevents.
+
+**3a is not optional and must precede 3b.** The verdict token is declared in a *second, separate* place
+from the rule: the pinned `presence_verdict_enum` (33 values as of 2026-09-18) baked into
+`schemas/skills/tumor-presence.decision.schema.json`. It did not contain `tumor_subset_high_expression`,
+and injecting the token into the frozen EPCAM decision fails validation with the same *"is not one of
+[…]"* error as a garbage string. Landing 3b first would make every `subset_high` run emit a
+`decision.json` that fails its own data-product contract. Nothing in either repo compared the ladder's
+tokens to that enum, which is how the gap survived a green suite; `test_ladder_invariants.py` guard 4
+now does, holding the open gap as a **named** allowlist so it reds the moment 3a lands.
+
+**Why the flip COUNT is a phase-3 measurement.** A live-panel flip matrix run at phase 2 is all-zeros by
+construction, and the committed corpus contains **zero** `subset_high` exemplars (both frozen decision
+fixtures read `broadly_high`), so re-scoring what is in the tree cannot move a row either. What phase 2
+commits instead is the deterministic flip *semantics* — which fired-set shapes move, which must not, and
+what compensates — in `tests/test_reanchor_flip_matrix.py`, mutated in both directions.
+
+## The three strength channels (and what each one can and cannot separate)
+
+"Strength" is not one thing in this skill. There are **three** independent channels, and a change that
+sharpens one does not sharpen the others. Documented here because the distinction was nearly mis-stated
+in the 1.22.0 review: an in-code comment initially claimed the new rung "delivers the split" in
+`presence_signal_strength`, which it does not and cannot.
+
+| channel | keyed on | what it separates | on the `subset_high` split |
+|---|---|---|---|
+| `presence_strength_from_state(presence_state, claim_vector)` | the claim vector — the PRIMARY basis | measured evidence weight | separates the two rungs, because the verdict token differs |
+| `_presence_strength(verdict)` via the `_PRES_*_POS` sets | the verdict token — the LEGACY FALLBACK for 3-arg callers; also backs `_pres_direction` | verdict tier | `tumor_subset_high_expression` is in `_PRES_MOD_POS`, so it reads **moderate** where `tumor_broadly_expressed` reads strong |
+| `presence_signal_strength` = `_presence_signal_strength(driving_rule_id, verdict)` | the rule-id **SUFFIX** | supportive vs neutral-only vs negative vs nothing | **cannot** separate them — BY DESIGN |
+
+**The `presence_signal_strength` limitation, stated plainly.** Both rungs end in `-supportive`, so this
+channel reports `supportive` for a 10%-of-patients target and for a 60%-of-patients target alike. That is
+correct behaviour, not a gap to close: the facet's question is *"was the driving evidence supportive, or
+merely neutral?"* — a minority-high subset **is** supportive evidence of presence. Renaming the rung to
+break the suffix convention would corrupt the facet's own invariant
+(`test_collapse_tier_legibility.py::test_signal_strength_sets_partition_the_positive_tier` asserts every
+positive rung is `supportive` or `neutral`) to smuggle in a different axis.
+
+Consumers that need the population distinction must read **`presence_verdict`** (the token and its
+phrase) or **`tumor_high_fraction`** (the raw prevalence, newly lifted into the headline in 1.22.0) —
+not `presence_signal_strength`.
+
 ## Version history
 
 | version | date | change |
 |---|---|---|
+| 1.22.0 | 2026-09-18 | **`subset_high` split, phase 2 of 3** (see § above): new `_EXPRESSION_RANK` rung `tumor-expression-subset-high-supportive` → `tumor_subset_high_expression` (tier 2) so a target high in as few as 10% of patients is no longer reported with the same word and phrase as a broadly-expressed one; prevalence-naming phrase; `tumor_expression_class` + `tumor_high_fraction` lifted into the headline and synthesis facet (that card's class/fraction had never been surfaced). New ladder guards: producer-vocabulary REACH (guard 3) and output-vocabulary DECLARATION against the pinned `presence_verdict_enum` (guard 4). **Verdict-inert by measurement** on today's contracts (2×2 verified); verdict-MOVING at phase 3, which needs 3a (declare the token in the enum) BEFORE 3b (narrow the broad rule). Also corrects stale prose in `run.py`/`SKILL.md`/`README.md` that called any `cell_line_vs_tumor_discordant: True` a ladder regression. |
 | 1.21.0 | 2026-09-10 | `--literature` retriever routed through the shared `default_retrieve` (EPMC → PubTator3 fallback) so the optional literature lane no longer hard-depends on a single source (#1263). Verdict-inert (literature is a sibling key). |
 | 1.20.0 | 2026-09-04 | Consolidated `presence_confirmation_caveat` (the RNA-only / protein-only / stromal-confound reconciliation caveat) + `thesis` / `polarity_note` surfaces + `--literature` refinement (#1033). Verdict-inert. |
 | 1.19.0 | 2026-09-04 | Surface-class abundance anchor: for a surface/secreted-class target the abundance read prefers ProCan DIA / HPA-IHC over the Gygi TMT card (#980 / #1008). Verdict-inert. |

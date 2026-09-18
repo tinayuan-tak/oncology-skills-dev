@@ -203,6 +203,10 @@ _PRESENCE_VERDICT_PHRASE = {
     # positives
     "broadly_high_expression": "Broadly, highly expressed",
     "tumor_broadly_expressed": "Broadly expressed in tumor",
+    # The phrase names the POPULATION, not just the abundance: this rung fires at high_fraction >= 0.1, so
+    # the reader must not carry away "broadly". `high_fraction` is carried onto the same facet
+    # (presence_verdict_prevalence_fraction) so the actual number is one key away from the phrase.
+    "tumor_subset_high_expression": "High in a tumor subset (patient selection required)",
     "strongly_upregulated_in_tumor": "Strongly up-regulated in tumor",
     "broadly_moderate_expression": "Broadly, moderately expressed",
     "tumor_moderately_expressed": "Moderately expressed in tumor",
@@ -289,7 +293,7 @@ def _presence_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "tumor-presence"
-SKILL_VERSION = "1.21.0"  # 1.21.0 (2026-09-10, #1003): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain) so a transient single-source outage no longer collapses grounding to unverified — aligns with the rest of the fleet (tumor-selectivity 1.20.0). VERDICT-INERT (opt-in --literature; spine + goldens byte-stable).   # 1.20.0 (2026-09-04): CONSOLIDATED presence_confirmation_caveat (folds the already-computed protein_confirmation_state / abundance_floor_flag / sc_expression_class + caf / cell_line_vs_tumor / HPA-IHC signals into ONE consumer-facing malignant-cell-PROTEIN-confirmed-vs-bulk-RNA/cell-line/stromal-annotated call; tiers malignant_compartment_unconfirmed [FAP/stromal driver] / rna_or_cellline_present_protein_unconfirmed [RNA-proxy] / protein_confirmed_malignant_present + clinically_precedented_antigen_present [false-demote guard, EPCAM/FOLR1 spared]) + presence_provenance quorum + compartment_note + TUMOR_PRESENCE thesis/polarity_note (was NONE) + refined --literature _LENS_QUERY_TERMS. VERDICT-INERT (reads only headline fields, feeds no rule → presence_verdict + presence_verdict_by_modality + goldens byte-stable).   # 1.19.0 (2026-09-04, #980): surface-class abundance anchor — for a curated surface/secreted antigen, prefer ProCan/IHC over the systematically-under-reading Gygi TMT panel as the absolute-abundance LEVEL anchor (re-anchor a lone ProCan-recovered Gygi bottom-decile to adequate; keep the honest floor for ProCan-low DLL3/FOLR1). VERDICT-INERT (abundance_floor_flag → narrator/synthesis).   # 1.18.0 (2026-09-03): Tier-2 sc-normal ABUNDANCE (#984) — surface sc_normal_abundance_class + abundance-aware window breadcrumb (verdict-INERT).   # 1.17.0 (2026-09-03): Tier-1 sc-utilization (#984) — claim-C consumes ambient_contamination_risk QC + malignant-annotation provenance + entity_purity to temper corroboration (verdict-INERT).   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
+SKILL_VERSION = "1.22.0"  # 1.22.0 (2026-09-18): subset_high SPLIT, phase 2 of 3 — new _EXPRESSION_RANK rung tumor-expression-subset-high-supportive -> tumor_subset_high_expression (tier 2), its prevalence-naming phrase, and the tumor_expression_class / tumor_high_fraction headline keys (tumor-rna-distribution's class + fraction had never been lifted to the headline at all). VERDICT-INERT TODAY BY MEASUREMENT, not by intent: contracts main still lists subset_high on tumor-expression-broadly-high-supportive, so both rungs fire and the broad rung wins — the collapsed verdict is byte-identical (2x2 measured: trunk-vs-branch x overlap-retained-vs-narrowed). It becomes VERDICT-MOVING at phase 3, which needs TWO contracts edits in order: (3a) declare tumor_subset_high_expression in the pinned presence_verdict_enum, then (3b) narrow the broad rule. Doing 3b first would emit a verdict the data-product schema rejects. See _EXPRESSION_RANK's PHASE 3 comment + test_ladder_invariants.py guard 4.   # 1.21.0 (2026-09-10, #1003): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain) so a transient single-source outage no longer collapses grounding to unverified — aligns with the rest of the fleet (tumor-selectivity 1.20.0). VERDICT-INERT (opt-in --literature; spine + goldens byte-stable).   # 1.20.0 (2026-09-04): CONSOLIDATED presence_confirmation_caveat (folds the already-computed protein_confirmation_state / abundance_floor_flag / sc_expression_class + caf / cell_line_vs_tumor / HPA-IHC signals into ONE consumer-facing malignant-cell-PROTEIN-confirmed-vs-bulk-RNA/cell-line/stromal-annotated call; tiers malignant_compartment_unconfirmed [FAP/stromal driver] / rna_or_cellline_present_protein_unconfirmed [RNA-proxy] / protein_confirmed_malignant_present + clinically_precedented_antigen_present [false-demote guard, EPCAM/FOLR1 spared]) + presence_provenance quorum + compartment_note + TUMOR_PRESENCE thesis/polarity_note (was NONE) + refined --literature _LENS_QUERY_TERMS. VERDICT-INERT (reads only headline fields, feeds no rule → presence_verdict + presence_verdict_by_modality + goldens byte-stable).   # 1.19.0 (2026-09-04, #980): surface-class abundance anchor — for a curated surface/secreted antigen, prefer ProCan/IHC over the systematically-under-reading Gygi TMT panel as the absolute-abundance LEVEL anchor (re-anchor a lone ProCan-recovered Gygi bottom-decile to adequate; keep the honest floor for ProCan-low DLL3/FOLR1). VERDICT-INERT (abundance_floor_flag → narrator/synthesis).   # 1.18.0 (2026-09-03): Tier-2 sc-normal ABUNDANCE (#984) — surface sc_normal_abundance_class + abundance-aware window breadcrumb (verdict-INERT).   # 1.17.0 (2026-09-03): Tier-1 sc-utilization (#984) — claim-C consumes ambient_contamination_risk QC + malignant-annotation provenance + entity_purity to temper corroboration (verdict-INERT).   # 1.16.0 (2026-09-03): OPTIONAL verdict-INERT LLM literature lane (--literature; decision['literature_synthesis'], fed to the --synthesize narrator) + claim-vector signal enrichment — abundance-floor QUORUM (a lone protein bottom-decile orthogonally contradicted by IHC/2nd-platform is demoted, not a hard floor), HPA-IHC folded into claim A, claim B two-comparator (adjacent+GTEx), single-cell antigen-escape/consistency into claim C, tumor-selectivity window hand-off breadcrumb. Spine byte-stable.   # 1.15.0 (2026-08-28): HPA Pathology antibody IHC protein-in-tumor (protein_ihc/tumor bucket; MS-independent, measured-unruled → collapsed verdict byte-stable).   # 1.14.0: capsule-driven narrator via generic engine.
 
 # The 17 cards, grouped by role (see CONTRACT.md § "Card roster"). The verdict is driven
 # only by the three ladders + the collapse; every other card is verdict-inert (surfaced in
@@ -414,6 +418,29 @@ _EXPRESSION_RANK: list[tuple[str, str]] = [
         "tumor-expression-broadly-high-supportive",
         "tumor_broadly_expressed",
     ),  # tumor tissue (> cell-line moderate/restricted)
+    # PHASE 2 OF 3 — INERT TODAY, and that is deliberate. `tumor_expression_class: subset_high` fires at
+    # high_fraction >= 0.1 (a target high in as few as 10% of patients, given a bimodal/long_tail shape),
+    # and on contracts main it is STILL in tumor-expression-broadly-high-supportive's `in:` list as well
+    # (TC#805, phase 1). Both rule_ids therefore fire on a subset_high card, and the rung ABOVE wins, so
+    # adding this line changes no verdict yet.
+    # PHASE 3 NEEDS **TWO** CONTRACTS EDITS, NOT ONE — and the ORDER between them matters (measured
+    # 2026-09-18; an earlier draft of this comment said "one-line", which was wrong):
+    #   (3a) DECLARE THE OUTPUT TOKEN. `tumor_subset_high_expression` is absent from the pinned
+    #        `$defs.presence_verdict_enum` in target-contracts
+    #        schemas/_skill_output/pins/tumor-presence.pins.json (33 values), which the generator bakes
+    #        into schemas/skills/tumor-presence.decision.schema.json. Verified load-bearing: injecting the
+    #        token into the EPCAM golden fails validation with the same "is not one of [...]" error as a
+    #        garbage string, while tumor_broadly_expressed validates. TC#805 declared the RULE (the INPUT
+    #        vocabulary) but not the VERDICT (the OUTPUT vocabulary) — two vocabularies, two sites.
+    #   (3b) NARROW THE RULE. Remove subset_high from tumor-expression-broadly-high-supportive's `in:`.
+    # 3a is purely ADDITIVE and green on both sides (nothing emits the token yet), so it can land first
+    # or alone. Doing 3b FIRST would ship a skill that emits a verdict its own data-product schema
+    # rejects on every subset_high target. See test_ladder_invariants.py's enum-declaration guard, which
+    # holds the gap as a NAMED allowlist so it reds the moment 3a lands and the allowlist goes stale.
+    # Ordered BELOW tumor_broadly_expressed and ABOVE the moderate rungs: a minority-high subset is a
+    # narrower population than broad tumor expression but a STRONGER abundance read than broadly-moderate.
+    # Do NOT reorder to "fix" the apparent redundancy — the overlap is the phase-1 safety property.
+    ("tumor-expression-subset-high-supportive", "tumor_subset_high_expression"),  # tumor tissue, minority-high
     ("expression-modest-upregulation-neutral", "modestly_upregulated_in_tumor"),  # tumor-vs-adjacent
     ("tumor-expression-broadly-moderate-neutral", "tumor_moderately_expressed"),  # tumor tissue
     ("expression-lineage-restricted-supportive", "lineage_restricted"),  # cell-line proxy
@@ -599,6 +626,12 @@ _TIER3_TO_TIER2 = {  # within-lens-family tier-3 → tier-2 demotion
     "broadly_high_expression": "broadly_moderate_expression",  # cell-line RNA panel
     "strongly_upregulated_in_tumor": "modestly_upregulated_in_tumor",  # tumor-vs-adjacent contrast
     "tumor_broadly_expressed": "tumor_moderately_expressed",  # tumor-tissue distribution
+    # DELIBERATELY ABSENT: tumor_subset_high_expression. This map is an ABUNDANCE-disagreement demotion
+    # (claim A read weaker than the emitted word), whereas subset_high is a POPULATION-BREADTH statement.
+    # Mapping tumor_broadly_expressed → tumor_subset_high_expression would fabricate a prevalence claim out
+    # of an abundance signal: nothing in claim A measures high_fraction. And the token itself is tier 2, so
+    # the tier-3 cap below never reaches it — see _PRESENCE_TIER. Two different axes wearing the same word
+    # "demote"; keep them apart.
 }
 
 
@@ -641,6 +674,18 @@ _PRES_STRONG_POS = {
     "sc_malignant_detected",
 }
 _PRES_MOD_POS = {
+    # MODERATE, not STRONG. High expression in 12% of patients is STRONG ABUNDANCE over a NARROW
+    # POPULATION; classing it strong_positive would carry the over-claim one layer below the verdict.
+    # SCOPE, stated precisely because three different things here are called "strength": this set is the
+    # VERDICT-KEYED basis (_presence_strength / _pres_direction), which _strength_certainty uses only as
+    # the LEGACY FALLBACK for callers that pass no claim_vector — the primary basis is
+    # presence_strength_from_state(presence_state, claim_vector). And the headline's
+    # `presence_signal_strength` is a THIRD channel, keyed on the driving rule-id SUFFIX; both rungs end
+    # in `-supportive`, so it cannot separate them and is not meant to (a minority-high subset IS
+    # supportive evidence). What separates them is the verdict token plus tumor_high_fraction.
+    # Membership in one of the three _PRES_*_POS sets is MANDATORY for any positive rung, not decorative:
+    # _pres_direction() returns "neutral" and _presence_strength() returns "none" for an unlisted token.
+    "tumor_subset_high_expression",
     "modestly_upregulated_in_tumor",
     "tumor_moderately_expressed",
     "lineage_restricted",
@@ -1008,6 +1053,10 @@ _RNA_PRESENCE_POSITIVE = frozenset(
         "modestly_upregulated_in_tumor",
         "broadly_moderate_expression",
         "tumor_broadly_expressed",
+        # A minority-high subset is still a MEASURED-POSITIVE bulk-RNA read, so it must be listed here or
+        # _bulk_rna_proxy_quality() silently returns not_applicable and the protein-proxy qualifier
+        # disappears for exactly the targets whose prevalence claim most needs a protein cross-check.
+        "tumor_subset_high_expression",
         "tumor_moderately_expressed",
     }
 )
@@ -1045,6 +1094,13 @@ _PRESENCE_TIER = {
     "tumor_broadly_expressed": 3,
     "broadly_moderate_expression": 2,
     "modestly_upregulated_in_tumor": 2,
+    # 2, NOT 3, on both consumers of this map. (a) reconcile_presence_verdict caps a tier-3 word down via
+    # _TIER3_TO_TIER2.get(raw, raw) — a `.get` whose default is the raw value, so a tier-3 token MISSING
+    # from that map silently escapes the INV-1 cap; tier 2 makes the cap inapplicable by DESIGN (the guard
+    # tests == 3) instead of by omission. (b) At _headline_lens_discordance below, tier 2 is what makes
+    # `cell_line_overstates_tumor` reachable for the case that matters — a cell-line panel reading
+    # uniformly high (3) while the tumor reads high in only a subset. Tier 3 would call that concordant.
+    "tumor_subset_high_expression": 2,
     "tumor_moderately_expressed": 2,
     "lineage_restricted": 1,
     "broadly_low_expression": 1,
@@ -1750,8 +1806,11 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         "driving_rule_id": drv,
         # Per-(measurement, sample_context) sub-verdicts — always read this, not just the collapsed word.
         "presence_verdict_by_modality": per_modality,
-        # Lens-discordance facet (verdict-inert). cell_line_vs_tumor_discordant is a standing invariant
-        # guard: it should be False for every target (see CONTRACT.md § "Headline lens").
+        # Lens-discordance facet (verdict-inert). cell_line_vs_tumor_discordant fires on a TIER
+        # INEQUALITY between the two RNA lenses when the cell-line lens anchored the headline; True is a
+        # legitimate reading in BOTH directions, not a regression signal (the always-False framing was
+        # retired by test_collapse_tier_legibility.py's bidirectional total; the stale prose in SKILL.md
+        # / README.md was corrected 2026-09-18). See CONTRACT.md § "Headline lens".
         "headline_lens": _headline_lens,
         "cell_line_vs_tumor_discordant": _cl_tumor_discordant,
         "cell_line_vs_tumor_direction": _cl_tumor_direction,
@@ -1787,6 +1846,14 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         "tva_log2_fc": get_card_field(cards, "tumor-rna-vs-adjacent", "log2_fc"),
         "tva_q_value": get_card_field(cards, "tumor-rna-vs-adjacent", "q_value"),
         "tva_expression_call": get_card_field(cards, "tumor-rna-vs-adjacent", "expression_call_class"),
+        # PREVALENCE behind the tumor-RNA word. The collapsed verdict is a CLASS, and one class value
+        # (`subset_high`, high_fraction >= 0.1) spans a 10%-of-patients antigen and a 49%-of-patients one —
+        # so the class alone cannot answer "in how many patients?", which is the whole ADC/TCE question.
+        # Surfaced side-by-side and verdict-inert: the ladder still reads the class, never this number.
+        # Useful ALREADY in phase 2 — while `subset_high` still collapses to `tumor_broadly_expressed`,
+        # these two keys are what let a reader see that "Broadly expressed in tumor" rests on 12%.
+        "tumor_expression_class": get_card_field(cards, "tumor-rna-distribution", "tumor_expression_class"),
+        "tumor_high_fraction": get_card_field(cards, "tumor-rna-distribution", "high_fraction"),
         # ── Bulk protein (whole-cell-lysate MS) ───────────────────────────────
         "protein_expression_class": get_card_field(cards, "tumor-protein-abundance-cptac", "protein_expression_class"),
         "protein_effect_size": get_card_field(cards, "tumor-protein-abundance-cptac", "protein_effect_size"),
@@ -2106,6 +2173,11 @@ _SYNTHESIS_FACET_KEYS = (
     "cell_line_vs_tumor_discordant",
     "cell_line_vs_tumor_direction",
     "presence_interpretation_note",
+    # The tumor-RNA class + the PREVALENCE behind it. Carried into the facet because this is the one
+    # question the collapsed word cannot answer: `subset_high` fires from 10% of patients upward, so a
+    # composed reasoner weighing an ADC/TCE nomination needs the fraction, not just the class.
+    "tumor_expression_class",
+    "tumor_high_fraction",
     # Robustness guards — a buried measured-negative and a bottom-decile-abundance present call are
     # exactly the cross-modal tensions the composed reasoner must weigh.
     "presence_headline_conflict",

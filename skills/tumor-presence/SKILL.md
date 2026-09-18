@@ -52,7 +52,7 @@ description: |
   POST-HOC lens exposed via the optional --modality flag.
 
 metadata:
-  version: 1.21.0
+  version: 1.22.0
   owner: ryan.abo@takeda.com
   requires_preflight: true
   environment:
@@ -220,9 +220,17 @@ out-of-tree and its per-pair data was not committed. Its conclusion is preserved
 (the structural guard that supersedes the unreproducible per-pair matrix).
 
 Verdict-inert lens fields (they feed no rule):
-- **`cell_line_vs_tumor_discordant`** — a STANDING INVARIANT GUARD: it should be `False` for every
-  target (the tumor lens now wins the headline whenever it out-tiers cell-line). A `True` value would
-  signal the ladder regressed.
+- **`cell_line_vs_tumor_discordant`** — fires when the CELL-LINE lens anchored the headline, both RNA
+  lenses are measured, and they read DIFFERENT presence tiers; `cell_line_vs_tumor_direction` names
+  which way. **`True` is not a regression signal.** (Corrected 2026-09-18: this entry used to read "a
+  STANDING INVARIANT GUARD: it should be `False` for every target … a `True` value would signal the
+  ladder regressed". That described the ORIGINAL understatement-only guard and was already contradicted
+  by `test_collapse_tier_legibility.py::test_cell_line_vs_tumor_discordant_is_tier_inequality_total`,
+  which retired the always-False invariant in favour of the BIDIRECTIONAL reading — an
+  over-stating cell-line lens, e.g. USP8, is exactly what the old framing could not see.)
+  A newly reachable and entirely legitimate `True`: cell-line `broadly_high` (tier 3) beside tumor
+  `tumor_subset_high_expression` (tier 2) reports `cell_line_overstates_tumor` — the panel reads
+  uniformly high while the tumor is high in only a subset of patients. That is the signal working.
 - **`headline_lens`** — the `measurement/sample_context` bucket whose `driving_rule_id` won the
   collapsed verdict (e.g. `bulk_rna/tumor` for a de-differentiating antigen).
 - **`presence_interpretation_note`** — a human/LLM-facing sentence, populated only in the (now

@@ -56,8 +56,10 @@ The run writes a data-package tree under `--out`:
     (`bulk_rna/cell_line`, `bulk_rna/tumor`, `bulk_protein_ms/tumor`, `sc_rna/tumor`, …).
     **Always read this** — the collapsed headline is a roll-up; the per-lens buckets carry
     distinct evidence.
-  - `cell_line_vs_tumor_discordant` — an invariant guard; should be `False`. If `True`,
-    read `presence_interpretation_note` and the `bulk_rna/tumor` bucket.
+  - `cell_line_vs_tumor_discordant` — the two RNA lenses read different presence tiers while the
+    cell-line lens anchored the headline. `True` is a legitimate reading, NOT a regression signal
+    (corrected 2026-09-18 — see SKILL.md); read `cell_line_vs_tumor_direction`,
+    `presence_interpretation_note` and the `bulk_rna/tumor` bucket.
 - **`summary.yaml`** — per-card summary dicts.
 - **`tables/`** — per-card summary-stat CSVs.
 - **`figures/`** — per-card figures where a card emitter is wired.

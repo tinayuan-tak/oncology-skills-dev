@@ -105,11 +105,28 @@ _CELL_LINE_RNA = [
 ]
 _TUMOR_RNA = [
     ("tumor-expression-broadly-high-supportive", "tumor-rna-distribution"),
+    ("tumor-expression-subset-high-supportive", "tumor-rna-distribution"),
     ("tumor-expression-broadly-moderate-neutral", "tumor-rna-distribution"),
     ("tumor-expression-broadly-low-neutral", "tumor-rna-distribution"),
     ("expression-strong-upregulation-supportive", "tumor-rna-vs-adjacent"),
     ("expression-modest-upregulation-neutral", "tumor-rna-vs-adjacent"),
 ]
+
+
+def test_tumor_rna_rung_list_covers_every_tumor_expression_rung():
+    """The test below calls itself TOTAL over every (cell-line rung x tumor rung) pair, but `_TUMOR_RNA`
+    is HAND-MAINTAINED — so a rung added to `_EXPRESSION_RANK` silently escapes the totality claim while
+    the suite stays green. (It escaped exactly once: the 2026-09-18 subset_high rung.) Pin the coverage
+    so the next rung has to be added here too. The data-unavailable gap rung is excluded: it is not a
+    measured tier, so it has no tier to compare."""
+    listed = {rid for rid, _card in _TUMOR_RNA}
+    in_ladder = {
+        rid
+        for rid, _v in tp._EXPRESSION_RANK
+        if rid.startswith("tumor-expression-") and not rid.endswith("-data-unavailable-insufficient")
+    }
+    missing = sorted(in_ladder - listed)
+    assert not missing, f"tumor-expression rungs absent from _TUMOR_RNA, so untested for tier legibility: {missing}"
 
 
 def test_cell_line_vs_tumor_discordant_is_tier_inequality_total():

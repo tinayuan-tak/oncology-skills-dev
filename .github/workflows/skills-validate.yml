@@ -110,7 +110,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
-          # PINNED — main @ 2026-09-18T03:59:38Z (#801). Bumped BY HAND; see SIBLING PINS above.
+          # PINNED — main @ 2026-09-18T05:57:44Z (#805). Bumped BY HAND; see SIBLING PINS above.
           #
           # BUMPED BY HAND HERE, not by the bump PR, because this pin and APERTURE_CEILING in
           # skills/_skills_common/tests/test_field_disposition.py are two halves of ONE fact and the
@@ -118,27 +118,39 @@ jobs:
           # CEILING half, so each can block the other, and whoever LOWERS the ceiling must move the pin in
           # the same commit. (The full 2x2 derivation lives in this file's git history at the c88c6e04 pin.)
           #
-          # THIS BUMP needs NO ceiling move, and that is MEASURED against the EXACT ref below (2c322f8),
-          # not against a moving main — so CI reproduces the number rather than re-deriving it:
-          #   contracts 2c322f8: candidate_orphans 886, domain 1808  ->  ceiling 887, gap 1
-          # 886 <= 887 clears the CEILING half and 887 - 886 = 1 <= APERTURE_SLACK 20 clears the SLACK half,
-          # so the ceiling stays 887 and this pin moves ALONE. Full aperture suite: 69 passed.
+          # THIS BUMP needs NO ceiling move, and that is MEASURED as a 2x2 over BOTH axes against the EXACT
+          # refs, not against a moving main — because a one-axis measurement cannot tell "the bump is inert"
+          # from "the bump and the branch cancelled out":
+          #                              contracts 2c322f8      contracts 6ff21f8 (this pin)
+          #   skills trunk (548a6a84)     orphans 886, gap 1     orphans 886, gap 1
+          #   skills this branch          orphans 885, gap 2     orphans 885, gap 2
+          # domain is 1808 in all four cells. Read the table by axis: the CONTRACTS axis moves NOTHING (886->886,
+          # 885->885), so this pin is aperture-inert; the -1 is entirely THIS BRANCH newly reading a
+          # declared-but-unread field (tumor-rna-distribution `high_fraction`, lifted onto the headline in
+          # tumor-presence 1.22.0). 885 <= 887 clears the CEILING half and 887 - 885 = 2 <= APERTURE_SLACK 20
+          # clears the SLACK half, so the ceiling stays 887 and this pin moves ALONE. Aperture suite: 69 passed.
+          # (The trunk x 2c322f8 cell reproducing the previous bump's 886 exactly is the instrument control —
+          # without it a changed number could be a broken census rather than a real movement.)
           #
-          # WHY THIS BUMP IS NOT OPTIONAL — it is one half of an ATOMIC fix, and this is the rule it
-          # illustrates: TC#786 (b92956e) declared `sc_normal_essential_veto_grade` on
-          # sc-normal-celltype-expression, which tumor-presence resolves. Its field-disposition ratchet
-          # (skills/tumor-presence/tests/test_field_disposition_complete.py::test_ledger_matches_emitted_fields)
-          # asserts drift in BOTH directions — `orphans = emitted - ledger` AND `stale = ledger - emitted` —
-          # so the new ledger row lands green against a contracts tree that declares the field and RED against
-          # one that does not. There is therefore NO forward-compatible ledger shape: the row and this pin must
-          # move in ONE commit. Until this bump, `pytest` was GREEN in CI and RED on a clean trunk checkout,
-          # because CI was resolving contracts at e1f1144 (2026-09-16, pre-#786) where the field does not exist.
+          # WHY THIS BUMP IS NOT OPTIONAL — same ATOMIC-fix rule as the prior bump, in the OPPOSITE direction.
+          # TC#805 (6ff21f8) declared the rule `tumor-expression-subset-high-supportive`, and this branch adds
+          # the matching rung to run.py's `_EXPRESSION_RANK`. Two guards in
+          # skills/tumor-presence/tests/test_ladder_invariants.py evaluate that rule against the LIVE contracts
+          # rules file, so they pass against a tree that declares it and FAIL against one that does not.
+          # MEASURED, by substituting the tree CI actually checks out (`git archive <pin>` + TARGET_CONTRACTS_ROOT):
+          #   contracts 2c322f8: 2 failed, 272 passed   <- what CI would have reported
+          #   contracts 6ff21f8: 274 passed             <- what a clean trunk checkout reports
+          # So the RULE-READING GUARD AND THIS PIN MUST MOVE IN ONE COMMIT. Note the direction: the prior bump
+          # was GREEN in CI and RED on trunk; this one is GREEN on trunk and RED in CI. A local suite run reads
+          # whatever SHA the sibling checkout happens to sit on, so it CANNOT detect either direction — the pin
+          # is the declaration boundary that matters, NOT contracts `main`.
           #
-          # PRIOR PIN, for the record: e1f1144022e364dfb84ec7269f5f5e6f53336b0c. Its comment described itself as
-          # "main @ 2026-09-15T23:46:45Z (#785)", but e1f1144 is #790 dated 2026-09-16T14:41:12-0400 — the ref
-          # was moved without its comment. Stating the date/PR that actually matches the ref, since the next
-          # person's bump reasoning starts from this comment.
-          ref: 2c322f89dbe8cbb38e3cfe3143eb8140e3a89868
+          # PRIOR PIN, for the record: 2c322f89dbe8cbb38e3cfe3143eb8140e3a89868, "main @ 2026-09-18T03:59:38Z
+          # (#801)" — accurate as written. Its rationale was the mirror-image case: TC#786 (b92956e) declared
+          # `sc_normal_essential_veto_grade`, whose field-disposition ledger row asserts drift in BOTH
+          # directions (`orphans = emitted - ledger` AND `stale = ledger - emitted`), so no forward-compatible
+          # ledger shape exists and the row had to move with the pin. Full derivation in this file's git history.
+          ref: 6ff21f8abc5e2936036f5563ac23c97cc65fee95
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

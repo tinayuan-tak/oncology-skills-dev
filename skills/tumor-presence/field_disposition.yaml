@@ -210,8 +210,12 @@ tumor-rna-distribution:
     reason: vs-normal window = SELECTIVITY axis (Gate B); context pointer to tumor-selectivity
   high_fraction:
     role: context
-    reason: "within-cohort breadth magnitude behind the READ tumor_expression_class; _abundance_floor's docstring states
-      the presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
+    reason: "PREVALENCE qualifier, now reader-reached: carried onto the headline + _synthesis_facet as
+      tumor_high_fraction. Stays `context` (it qualifies a signal; no rule reads it) but the PREVIOUS reason
+      here -- 'the class is where the framework reads breadth' -- is MEASURED FALSE for one class value:
+      tumor_expression_class == subset_high fires at high_fraction >= 0.1, so the class spans a 10%-of-patients
+      antigen and a 49%-of-patients one. The class is where the framework reads breadth for every value EXCEPT
+      subset_high, which is why that value is being split onto its own rung (TC#805 phase 1 of 3)."
     reviewed: true
   matched_normal_tissue:
     role: provenance
@@ -264,7 +268,17 @@ tumor-rna-distribution:
     reason: identity/scope key
   tumor_expression_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "VERDICT-BEARING, and the most load-bearing field on this card: its value is what
+      interpretation-rules matches to fire a tumor-expression-* rule_id, which _EXPRESSION_RANK maps to
+      the collapsed presence_verdict. Reviewed 2026-09-18 during the subset_high split: the declared
+      vocabulary is 6 values and EVERY one must reach a ladder rung, because the ladder is a closed
+      (rule_id -> verdict) list -- a value whose only rule the ladder omits is INVISIBLE rather than
+      low-ranked, collapsing to `insufficient` (a coverage-gap class below measured negatives) and
+      reporting a FALSE ABSENCE for a measured target. That reach property is now asserted by
+      tests/test_ladder_invariants.py guard 3 rather than left to review. Also carried onto the headline
+      + _synthesis_facet as tumor_expression_class in 1.22.0 so a consumer can see WHICH class produced
+      the verdict word, alongside tumor_high_fraction for the prevalence behind it."
+    reviewed: true
 tumor-protein-abundance-cptac:
   allgene_percentile:
     role: signal
