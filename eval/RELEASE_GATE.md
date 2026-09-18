@@ -23,8 +23,11 @@ Criteria 1–5 are machine-checked by **`python eval/run_scorecard.py`** (exit n
 - **Not** "every axis captured." The framework has HONEST CEILINGS — e.g. surface-antigen density is
   `partial` (proxies, not the clinical CDx-threshold), IO/TME context is blind, non-cell-autonomous
   metabolic dependencies (CNDP2/KEAP1-NRF2) are out of scope. `run_known_target_panel`'s per-family
-  capture map (`capture_by_family`) reports these honestly; a low capture on a family is a *known gap*,
-  not a gate failure. Done = the gaps are MEASURED and TRIAGED, not that they are all closed.
+  coverage map (`capture_by_family`) reports these honestly — the hand-curated coverage distribution
+  per deciding-axis family; a family whose distribution skews `blind` is a *known gap*, not a gate
+  failure. (It is deliberately NOT joined to the live capture vector: those bands are keyed by
+  framework axis shorts, an incommensurable vocabulary from the curated deciding axis.) Done = the
+  gaps are MEASURED and TRIAGED, not that they are all closed.
 - **Not** "the LLM narrative is perfect." The deterministic spine (verdicts, gate, signal vector) is
   the audited product; the LLM narrative rides in separate slots and is best-effort.
 

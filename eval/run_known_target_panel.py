@@ -441,6 +441,42 @@ def _drift(row: dict) -> str | None:
     return None
 
 
+# Curated-coverage bands we roll up as "the framework is (curated-)blind on this family's deciding
+# axis" — the gap the fidelity cadence exists to close. Named once so the rollup and its sort agree.
+_CURATED_BLIND_BANDS = frozenset({"blind", "license_blocked", "out_of_scope"})
+
+
+def _capture_by_family(rows: list) -> dict:
+    """Per CURATED deciding-axis family, the distribution of the CURATED coverage band.
+
+    Deliberately a curated-truth view, NOT a live-capture one. An earlier version also tried to
+    credit "the live run now evidences this family" by OR-ing the emitted ``deciding_axis_capture``
+    bands into the family. But those bands are keyed by FRAMEWORK axis shorts (``surface_modality``,
+    ``genomic_alteration``, …) — a different vocabulary from the curated deciding axis
+    (``E2_density_threshold_same_organ_normal``, …) with no sound crosswalk — so the OR credited
+    captures from axes UNRELATED to the family (a captured ``genomic_alteration`` counted as
+    "surface-antigen biology captured"). The number did not measure what its header claimed. We now
+    report only what the data supports: how the hand-curated set bands each family's deciding axis.
+    See eval/RELEASE_GATE.md. Only rows that produced a signal vector are counted, so ``n`` matches
+    the live-scored denominator elsewhere in the report.
+    """
+    by_family: dict = {}
+    for r in rows:
+        if not r.get("signal_vector"):
+            continue
+        fam = r.get("deciding_axis_family") or "unclassified"
+        band = r.get("curated_coverage") or "unknown"
+        f = by_family.setdefault(fam, {"n": 0, "curated_coverage": {}})
+        f["n"] += 1
+        f["curated_coverage"][band] = f["curated_coverage"].get(band, 0) + 1
+
+    def _blind(entry: dict) -> int:
+        return sum(c for b, c in entry["curated_coverage"].items() if b in _CURATED_BLIND_BANDS)
+
+    # most curated-blind families first — the fidelity-gap ordering the printed map wants
+    return dict(sorted(by_family.items(), key=lambda kv: -_blind(kv[1])))
+
+
 def score_all(profiles: dict, pkg_dir: Path) -> dict:
     rows = []
     for name, prof in sorted(profiles.items()):
@@ -490,28 +526,12 @@ def score_all(profiles: dict, pkg_dir: Path) -> dict:
             "deciding_axis_capture_tally": deciding_bands,
         }
 
-    # DECIDING-AXIS CAPTURE BY FAMILY (A1) — the substrate-fidelity north-star, broken out of the flat
-    # capture-rate into a ratchetable per-family map. For each known target's CURATED deciding-axis
-    # family: how many is the framework curated-blind on, and how many does the LIVE run now evidence
-    # (any 'captured'/'partial' band in the emitted deciding_axis)? A family moving blind→captured is
-    # the measurable improvement each fidelity build should produce.
-    capture_by_family: dict = {}
-    for r in rows:
-        if not r.get("signal_vector"):
-            continue
-        fam = r.get("deciding_axis_family") or "unclassified"
-        bands = set((r["signal_vector"].get("deciding_axis_capture") or {}).values())
-        f = capture_by_family.setdefault(
-            fam, {"n": 0, "curated_blind": 0, "live_any_captured": 0, "live_any_partial_or_captured": 0}
-        )
-        f["n"] += 1
-        if r.get("curated_coverage") in ("blind", "license_blocked", "out_of_scope"):
-            f["curated_blind"] += 1
-        if "captured" in bands:
-            f["live_any_captured"] += 1
-        if bands & {"captured", "partial"}:
-            f["live_any_partial_or_captured"] += 1
-    capture_by_family = dict(sorted(capture_by_family.items(), key=lambda kv: -kv[1]["curated_blind"]))
+    # DECIDING-AXIS COVERAGE BY FAMILY (A1) — the substrate-fidelity north-star, broken out of the flat
+    # coverage rate into a ratchetable per-family map. For each known target's CURATED deciding-axis
+    # family, the distribution of the hand-curated coverage band {blind, partial, captured, …}. A
+    # family whose distribution shifts blind→captured across curation is the measurable improvement the
+    # fidelity cadence produces. See _capture_by_family for why this is NOT joined to the live vector.
+    capture_by_family = _capture_by_family(rows)
 
     # Positive/negative signal-ledger rollup across the panel — the substrate-fidelity headline.
     ledgers = [r["signal_ledger"] for r in rows if r.get("signal_ledger")]
@@ -655,12 +675,10 @@ def main(argv=None) -> int:
         print(f"    deciding-axis capture: {sub['deciding_axis_capture_tally']}")
     cbf = report.get("capture_by_family")
     if cbf:
-        print("  deciding-axis capture BY FAMILY (curated-blind → live-captured; the fidelity gap map):")
+        print("  deciding-axis coverage BY FAMILY (curated coverage distribution; the fidelity-gap map):")
         for fam, f in cbf.items():
-            print(
-                f"    {f['live_any_captured']:>2}/{f['curated_blind']:<2} curated-blind captured live"
-                f"  ({f['n']} targets)  {fam}"
-            )
+            dist = ", ".join(f"{band}:{n}" for band, n in sorted(f["curated_coverage"].items(), key=lambda kv: -kv[1]))
+            print(f"    {f['n']:>2} targets  {fam}  [{dist}]")
     lr = report.get("signal_ledger_rollup")
     if lr:
         print(
