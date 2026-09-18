@@ -300,6 +300,7 @@
       "tphp_vital_organ_liability_class"
     ],
     "normal_tissue_protein_breadth": [
+      "essential_tissue_flag",
       "hpa_tissue_specificity",
       "n_essential_tissues_with_expression",
       "normal_tissue_breadth_class"
@@ -338,6 +339,7 @@
     ],
     "rna_protein_concordance": [
       "n_paired_tumors",
+      "rna_as_biomarker",
       "rna_protein_r"
     ],
     "rnai_lof_dependency": [
@@ -493,7 +495,7 @@
   "numeric_fields_without_gloss": [],
   "producer": "descriptor_coverage_sidecar",
   "role_counts": {
-    "categorical": 121,
+    "categorical": 123,
     "effect": 49,
     "extra_scalar": 71,
     "frame_value": 16,
@@ -584,6 +586,7 @@
       "drug_response_stratification_class",
       "endocytosis_confidence",
       "enriched_lineages",
+      "essential_tissue_flag",
       "evidence_scope",
       "evidence_tier",
       "expression_call_class",
@@ -762,6 +765,7 @@
       "rescuer_gene",
       "resistance_emergence_class",
       "resistance_variants",
+      "rna_as_biomarker",
       "rna_protein_r",
       "rna_tumor_elevation_breadth_class",
       "rnai_dependency_class",
@@ -921,6 +925,7 @@
       "drug_response_stratification_class": "categorical",
       "endocytosis_confidence": "categorical",
       "enriched_lineages": "strata",
+      "essential_tissue_flag": "categorical",
       "evidence_scope": "categorical",
       "evidence_tier": "categorical",
       "expression_call_class": "categorical",
@@ -1099,6 +1104,7 @@
       "rescuer_gene": "label",
       "resistance_emergence_class": "categorical",
       "resistance_variants": "strata",
+      "rna_as_biomarker": "categorical",
       "rna_protein_r": "effect",
       "rna_tumor_elevation_breadth_class": "categorical",
       "rnai_dependency_class": "categorical",
@@ -1174,12 +1180,12 @@
   },
   "schema_version": "1.0.0",
   "source_class_counts": {
-    "instrument": 341
+    "instrument": 343
   },
   "summary": {
     "n_atlas_live": 16,
-    "n_descriptor_cells": 341,
-    "n_distinct_fields": 314,
+    "n_descriptor_cells": 343,
+    "n_distinct_fields": 316,
     "n_envelope_fields": 11,
     "n_gloss_without_descriptor": 5,
     "n_measurement_types": 62,

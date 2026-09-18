@@ -256,7 +256,9 @@ SALIENCE_SPECS: dict = {
         ],
     },
     "normal_tissue_protein_breadth": {
-        "categorical": ["normal_tissue_breadth_class", "hpa_tissue_specificity"],
+        # essential_tissue_flag (Gap-A): rule-read by normal-tissue-essential-{bite-killer,adc-antibody-opposing}
+        # + the safety warning — a {present, unknown, absent} class with no descriptor. Categorical.
+        "categorical": ["normal_tissue_breadth_class", "hpa_tissue_specificity", "essential_tissue_flag"],
         "n_field": "n_essential_tissues_with_expression",
     },
     "clinvar_germline_pathogenicity_safety": {
@@ -639,6 +641,10 @@ SALIENCE_SPECS: dict = {
         "effect_field": "rna_protein_r",
         "n_field": "n_paired_tumors",
         "direction": "higher_is_stronger",
+        # rna_as_biomarker (Gap-A): rule-read by the rna-*-proxy rules (adequate/partial/poor proxy) on
+        # BOTH concordance cards (they share this mt) — an {adequate/partial/poor_proxy, ...} class with
+        # no descriptor. Categorical. One spec entry describes it for both cards (union, not sum).
+        "categorical": ["rna_as_biomarker"],
         # RNA↔protein correlation on a GRADED BAND: the card names two concordance cuts (moderate 0.4,
         # strong 0.7), so "strongly concordant — r 0.74, past the 0.7 strong cut" reads the ladder rather
         # than a single 0.4 boundary. Replaces the former single distance_to_cut batch meter (value_field
