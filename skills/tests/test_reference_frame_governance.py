@@ -82,14 +82,14 @@ def test_every_verdict_bearing_type_is_gaugeable():
 # of its own subskill (this ratchet is scoped to genomic-alteration-profile, whose three —
 # copy_number_alteration, mutation_variant_class_spectrum, mutation_clonality — were filled 2026-09-12).
 # A NEW gating card must either ship a spec or be added here DELIBERATELY, with the owning review named.
-_UNSPECCED_VERDICT_BEARING_DEBT = {
-    "cis_dosage_coupling",  # cis-feature-expression-coherence — cis-feature-coherence review
-    # dosage_sensitivity_safety + human_genetic_safety SPECCED 2026-09-18 (descriptor-coverage mint) —
-    # removed from the debt; test_the_unspecced_debt_list_has_no_stale_entries enforces they stay out.
-    "known_drug_tractability",  # known-drug-tractability — tractability review
-    # exon_window, pmhc_epitope_evidence, pmhc_presentation (surface batch) and paralog_buffering +
-    # partner_conditional_dependency (dependency batch) SPECCED 2026-09-18 — removed from the debt.
-}
+# EMPTY as of 2026-09-18: the descriptor-coverage sweep specced every verdict-bearing measurement_type
+# that previously lacked a SALIENCE_SPEC (dosage_sensitivity_safety, human_genetic_safety, exon_window,
+# pmhc_epitope_evidence, pmhc_presentation, paralog_buffering, partner_conditional_dependency,
+# cis_dosage_coupling, known_drug_tractability). The ratchet is now a pure floor: any NEW gating card with
+# no spec reds test_every_contract_declared_verdict_bearing_type_has_a_spec, and a re-added debt entry that
+# is already specced reds test_the_unspecced_debt_list_has_no_stale_entries. (set(), not {} — an empty
+# brace literal is a DICT, which breaks the set-difference below.)
+_UNSPECCED_VERDICT_BEARING_DEBT: set[str] = set()
 
 
 @lru_cache(maxsize=1)
@@ -352,6 +352,10 @@ _ATLAS_NUMERIC_OPTOUT = {
     ),
     "partner_conditional_dependency": (
         "ATLAS DEFERRED — the CHRONOS-delta graded_band is a display-only ruler (atlas_numeric: False) "
+        "because the target-archetype atlas is deferred out of go-live. Flip when the atlas returns."
+    ),
+    "cis_dosage_coupling": (
+        "ATLAS DEFERRED — the Spearman-r graded_band is a display-only ruler (atlas_numeric: False) "
         "because the target-archetype atlas is deferred out of go-live. Flip when the atlas returns."
     ),
 }
@@ -688,4 +692,13 @@ def test_partner_conditional_dependency_direction_sign():
     stronger synthetic lethality (lower_is_stronger), mirroring the cn/fusion/amp_expr siblings."""
     spec = SALIENCE_SPECS["partner_conditional_dependency"]
     assert spec["direction"] == "lower_is_stronger"
+    assert [c["label"] for c in spec["reference_frame"]["cuts"]] == ["moderate", "strong"]
+
+
+def test_cis_dosage_coupling_direction_sign():
+    """Sign guard: a stronger positive CN<->own-expression Spearman = tighter cis-dosage coupling, a
+    favorable locus-coherence signal (higher_is_stronger), mirroring patient_cis_coherence. Cuts ascend
+    moderate(0.25) -> strong(0.4)."""
+    spec = SALIENCE_SPECS["cis_dosage_coupling"]
+    assert spec["direction"] == "higher_is_stronger"
     assert [c["label"] for c in spec["reference_frame"]["cuts"]] == ["moderate", "strong"]

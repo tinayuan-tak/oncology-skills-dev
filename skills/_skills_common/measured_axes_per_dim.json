@@ -8,14 +8,11 @@
       "gate_short": null,
       "n_declared_cards": 8,
       "n_declared_types": 8,
-      "n_measurement_descriptor_fields": 44,
-      "n_types_with_measurement_descriptor": 6,
+      "n_measurement_descriptor_fields": 52,
+      "n_types_with_measurement_descriptor": 8,
       "skill_dir": "cis-feature-coherence",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [
-        "cellline_isoform_expression",
-        "cis_dosage_coupling"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_bearing": true
     },
     "clinical": {
@@ -184,13 +181,12 @@
       "gate_short": "mechanism",
       "n_declared_cards": 5,
       "n_declared_types": 5,
-      "n_measurement_descriptor_fields": 9,
-      "n_types_with_measurement_descriptor": 3,
+      "n_measurement_descriptor_fields": 11,
+      "n_types_with_measurement_descriptor": 4,
       "skill_dir": "mechanism-and-pharmacology",
       "static_state": "descriptor_covered",
       "types_without_measurement_descriptor": [
-        "phospho_pathway_activity",
-        "tahoe_drug_perturbation"
+        "phospho_pathway_activity"
       ],
       "verdict_bearing": true
     },
@@ -272,12 +268,11 @@
       "gate_short": null,
       "n_declared_cards": 20,
       "n_declared_types": 20,
-      "n_measurement_descriptor_fields": 50,
-      "n_types_with_measurement_descriptor": 12,
+      "n_measurement_descriptor_fields": 53,
+      "n_types_with_measurement_descriptor": 13,
       "skill_dir": "target-intrinsic",
       "static_state": "descriptor_covered",
       "types_without_measurement_descriptor": [
-        "domain_modality_relevance",
         "gene_ontology_annotation",
         "ppi_interactome",
         "protein_domains_class",
@@ -296,14 +291,11 @@
       "gate_short": "tractability_small_molecule",
       "n_declared_cards": 9,
       "n_declared_types": 8,
-      "n_measurement_descriptor_fields": 27,
-      "n_types_with_measurement_descriptor": 6,
+      "n_measurement_descriptor_fields": 37,
+      "n_types_with_measurement_descriptor": 8,
       "skill_dir": "tractability-small-molecule",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [
-        "degradation_feasibility",
-        "known_drug_tractability"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_bearing": true
     },
     "translational_readiness": {
@@ -340,11 +332,9 @@
       "n_axes_counted": 6,
       "n_axes_descriptor_covered": 6,
       "n_declared_types": 60,
-      "n_types_without_measurement_descriptor": 12,
+      "n_types_without_measurement_descriptor": 9,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
-        "cellline_isoform_expression",
-        "cis_dosage_coupling",
         "ddr_deficiency_context",
         "functional_gene_state",
         "genomic_event_model_match",
@@ -352,7 +342,6 @@
         "mutational_signature_context",
         "oncogenic_pathway_alteration",
         "phospho_pathway_activity",
-        "tahoe_drug_perturbation",
         "tumor_splice_dysregulation",
         "variant_functional_effect_mave"
       ],
@@ -410,14 +399,11 @@
       "n_axes_counted": 4,
       "n_axes_descriptor_covered": 4,
       "n_declared_types": 50,
-      "n_types_without_measurement_descriptor": 14,
+      "n_types_without_measurement_descriptor": 11,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
-        "degradation_feasibility",
-        "domain_modality_relevance",
         "gene_ontology_annotation",
         "ici_response_expression",
-        "known_drug_tractability",
         "ppi_interactome",
         "protein_domains_class",
         "reactome_pathway_membership",
@@ -965,20 +951,16 @@
     "n_dims": 6,
     "n_fanout_axes": 15,
     "n_gated_axes": 8,
-    "n_salience_spec_types": 84,
+    "n_salience_spec_types": 90,
     "n_spec_types_pulled_by_no_axis": 0,
-    "n_types_with_measurement_descriptor": 84,
-    "n_types_without_measurement_descriptor": 39
+    "n_types_with_measurement_descriptor": 90,
+    "n_types_without_measurement_descriptor": 33
   },
   "types_without_measurement_descriptor": [
-    "cellline_isoform_expression",
-    "cis_dosage_coupling",
     "cited_literature_evidence",
     "clinical_precedent",
     "competitor_landscape",
     "ddr_deficiency_context",
-    "degradation_feasibility",
-    "domain_modality_relevance",
     "drug_warning_safety",
     "functional_gene_state",
     "gene_ontology_annotation",
@@ -986,7 +968,6 @@
     "genomic_instability_state",
     "genotype_matched_model",
     "ici_response_expression",
-    "known_drug_tractability",
     "model_availability",
     "mutational_signature_context",
     "oncogenic_pathway_alteration",
@@ -1003,7 +984,6 @@
     "spatial_region_rna",
     "spatial_surface_protein",
     "stemness_context",
-    "tahoe_drug_perturbation",
     "target_development_level",
     "target_identity",
     "target_safety_prioritisation",

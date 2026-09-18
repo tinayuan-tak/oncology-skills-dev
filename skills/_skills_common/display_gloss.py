@@ -89,6 +89,12 @@ METRIC_GLOSS: dict = {
     "shet_upper_95": ("s_het 95% CI upper bound", "s_het"),
     "obs_lof_count": ("observed LoF variant count", "count"),
     "exp_lof_count": ("expected LoF variant count", "count"),
+    # descriptor-coverage sweep, cis + tractability batch.
+    "n_drug_interactions": ("catalogued drug-gene interactions", "count"),
+    "n_e3_ligases_literature": ("literature-reported E3 ligases", "count"),
+    "n_models": ("cell-line models", "count"),
+    "n_domains": ("annotated protein domains", "count"),
+    "n_perturbing_drugs": ("perturbing drugs", "count"),
     # descriptor-coverage sweep, dependency/combination batch.
     "strongest_paralog_delta": ("strongest paralog dual-vs-single-KO buffering delta", "chronos delta"),
     "n_paralogs_annotated": ("annotated paralogs", "count"),

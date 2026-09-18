@@ -715,6 +715,67 @@ SALIENCE_SPECS: dict = {
             "paralog_buffering_class",
         ],
     },
+    # ── descriptor-coverage sweep, cis + tractability batch (2026-09-18) ────────────────────────────
+    # cis_dosage_coupling: GRADED, higher_is_stronger — a stronger positive CN<->own-expression Spearman
+    # is tighter cis-dosage coupling (a favorable locus-coherence signal; mirrors the specced
+    # patient_cis_coherence + cis_protein_dosage_coupling siblings). DEBT-CLEARING.
+    "cis_dosage_coupling": {
+        "effect_field": "cn_expr_spearman_r",
+        "significance_field": "cn_expr_spearman_p",
+        "direction": "higher_is_stronger",
+        "categorical": ["cis_dosage_class", "cis_dosage_driver", "cis_dosage_direction"],
+        "n_field": "n_cell_lines_evaluated",
+        "reference_frame": {
+            "kind": "graded_band",
+            "atlas_numeric": False,
+            "value_field": "cn_expr_spearman_r",
+            "scale": "spearman_r",
+            "position_field": "cis_dosage_class",
+            "cuts": [
+                {
+                    "card_id": "cis-feature-expression-coherence",
+                    "threshold": "moderate_dosage_spearman_r",
+                    "label": "moderate",
+                },
+                {
+                    "card_id": "cis-feature-expression-coherence",
+                    "threshold": "strong_dosage_spearman_r",
+                    "label": "strong",
+                },
+            ],
+        },
+    },
+    # categorical-only (the class is the ruler) — tractability / mechanism:
+    "known_drug_tractability": {  # DEBT-CLEARING
+        "n_field": "n_drug_interactions",
+        "categorical": [
+            "known_drug_tractability_class",
+            "direct_engagement_class",
+            "approved_drug_engagement_class",
+            "approved_drug_modality",
+        ],
+    },
+    "degradation_feasibility": {
+        "n_field": "n_e3_ligases_literature",
+        "categorical": [
+            "degradability_feasibility_class",
+            "e3_substrate_evidence",
+            "degrader_precedent_modality",
+            "degrader_recruited_e3",
+        ],
+    },
+    "cellline_isoform_expression": {
+        "n_field": "n_models",
+        "categorical": ["isoform_expression_class"],
+    },
+    "domain_modality_relevance": {
+        "n_field": "n_domains",
+        "categorical": ["modality_implication_class", "modality_implication_basis"],
+    },
+    "tahoe_drug_perturbation": {
+        "n_field": "n_perturbing_drugs",
+        "categorical": ["tahoe_perturbation_class"],
+    },
     "tumor_vs_adjacent_expression": {
         "effect_field": "log2_fc",
         "significance_field": "q_value",
