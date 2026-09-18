@@ -72,6 +72,17 @@ _NEIGHBOR_COMPARTMENT = {
 _COORDINATED_MIN = 1.15  # per-compartment enrichment >= => spatially co-localized
 _SEGREGATED_MAX = 0.85  # <= => spatially segregated
 _COMPARTMENT_ORDER = ["immune", "stromal", "endothelial", "epithelial_normal", "other"]
+# Power floor (F5): a neighbourhood class computed off fewer than this many donors is graded
+# `underpowered` ("we could barely look") rather than minting a measured-looking class that F5 warns
+# is "indistinguishable from one off forty donors". Set to 2 — a class off a SINGLE donor is a case
+# report, not the cross-donor agreement this reader claims; that is exactly the 1-donor failure F5
+# names. Deliberately minimal: the real per-pilot donor distributions are unmeasured here, so the
+# floor rejects only the indefensible n=1 case rather than tuning to a power target that would risk
+# making the arm inert. A data-sufficiency floor, kept code-side like SUBGROUP_N_FLOOR
+# (subgroup_common/panorama.py) rather than as a card class-cutpoint; the `underpowered` token is
+# card-declared (spatial-tumor-normal-colocalization.card.yaml). Gates on n_donors — this is a
+# COADREAD pilot with n_datasets == 1, so a dataset floor would never fire.
+_MIN_DONORS = 2
 
 # TOKEN-based fallback vocabularies (matched against WHOLE tokens of the label, never substrings — a
 # substring fallback misroutes 'Basal'/'Tuft'/'Tumor' to immune via a bare 'T'/'B'. Tokens are the
@@ -281,6 +292,13 @@ def classify_spatial_coloc(nsum: dict, rows) -> dict:
         cls = "immune_excluded"
     else:
         cls = "no_spatial_preference"
+    n_donors = len({str(r["donor_id"]) for r in rows})
+    if cls != "data_unavailable" and n_donors < _MIN_DONORS:
+        # Measured a class, but off too few donors to trust the cross-donor neighbourhood. Ranks
+        # BELOW data_unavailable (absence outranks thin measurement — "could not look" beats "could
+        # barely look") and ABOVE every measured class, so the gate sits after the data_unavailable
+        # branch (cls == "data_unavailable" when top_v is None).
+        cls = "underpowered"
     per_neighbor = sorted(
         [{"neighbor_cell_type": ct, **d} for ct, d in nsum.items()],
         key=lambda x: (x["median_enrichment"] is None, -(x["median_enrichment"] or 0.0)),
@@ -294,6 +312,6 @@ def classify_spatial_coloc(nsum: dict, rows) -> dict:
         "immune_adjacency_fraction": per_compartment.get("immune", {}).get("adjacency_fraction"),
         "stromal_adjacency_fraction": per_compartment.get("stromal", {}).get("adjacency_fraction"),
         "normal_epithelium_adjacency_fraction": per_compartment.get("epithelial_normal", {}).get("adjacency_fraction"),
-        "n_donors": len({str(r["donor_id"]) for r in rows}),
+        "n_donors": n_donors,
         "n_datasets": len({str(r["dataset_id"]) for r in rows}),
     }

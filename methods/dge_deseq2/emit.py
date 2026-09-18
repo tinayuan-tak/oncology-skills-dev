@@ -209,7 +209,6 @@ def emit_tumor_vs_normal_selectivity_3panel(
 
     if contrasts:
         y_pos = list(range(len(contrasts)))[::-1]
-        lfcs = [c["log2_fc"] for c in contrasts]
         for y, c in zip(y_pos, contrasts):
             color = "#0a2540" if c["log2_fc"] > 0 else "#cf2828"
             ax_forest.plot([0, c["log2_fc"]], [y, y], color=color, linewidth=2, alpha=0.7)
@@ -466,8 +465,10 @@ def emit_tumor_vs_normal_selectivity_4panel(
             return "*"
         return "ns"
 
-    # Cell D (GTEx, ComBat(source)) was RETIRED — the reader no longer emits log2fc_cell_d;
-    # the forest draws the three live cells A/B/C. See card + 06_four_cell_driver.R:227-244.
+    # Cell D (GTEx, ComBat(source)) was RETIRED from the FOREST — this plot draws only the three live
+    # cells A/B/C. The reader STILL emits log2fc_cell_d / q_value_cell_d (read.py:963, kept declared
+    # for forward-compat per DESIGN_v2_four_cell_consolidation.md:81); they are simply not drawn here.
+    # See card + 06_four_cell_driver.R:227-244.
     cells = [
         ("A", "TCGA adj-normal\n(raw)", "log2fc_cell_a", "q_value_cell_a"),
         ("B", "TCGA adj-normal\n(ComBat)", "log2fc_cell_b", "q_value_cell_b"),
@@ -831,7 +832,6 @@ def emit_plotly_specs(
     (renderer embeds via Plotly.newPlot; NO kaleido). Best-effort — the SVGs are the guaranteed
     artifact; if Plotly is unavailable or there are no samples, returns []."""
     try:
-        import numpy as np
         import plotly.graph_objects as go
     except Exception as e:  # noqa: BLE001 — Plotly optional; never block the SVG artifacts
         print(f"[dge_deseq2] plotly spec emission skipped: {e}", file=sys.stderr)
@@ -851,7 +851,6 @@ def emit_plotly_specs(
     # Fall back to log2_cpm only when TPM is entirely absent (GTEx then legitimately absent).
     try:
         fig = go.Figure()
-        rng = np.random.default_rng(seed=42)  # deterministic jitter (matches the SVG's seed)
         _tpm_avail = any(s.get("log2_tpm") is not None for key, _l, _c in present for s in per_sample_data[key])
         unit_key = "log2_tpm" if _tpm_avail else "log2_cpm"
         unit_txt = "log2(TPM+1)" if _tpm_avail else "log2(CPM+1)"

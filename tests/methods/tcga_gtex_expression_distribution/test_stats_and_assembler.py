@@ -107,6 +107,23 @@ def test_q2_minimally_enriched_and_data_gap(monkeypatch):
     assert gap["selectivity_class"] == "data_unavailable"
 
 
+def test_classify_percentile_crossing_abstains_when_separation_unmeasurable():
+    # DEFECT #5/6: when frac_p95 clears the strong bar but distribution separation is unmeasurable
+    # (overlap is None), the OLD code fell through to `enriched_subset` — a measured-looking class
+    # minted on an unmeasurable input. It must now abstain to `data_unavailable`. Anti-vacuity: the
+    # SAME strong frac with a MEASURED low overlap grades strongly_tumor_enriched, so overlap's
+    # presence (not frac_p95) is what flips the verdict.
+    assert R._classify_percentile_crossing(0.9, None) == "data_unavailable"
+    assert R._classify_percentile_crossing(0.9, 0.2) == "strongly_tumor_enriched"
+    # overlap=None below the strong frac bar is unaffected (overlap is only read for the strong tier)
+    assert R._classify_percentile_crossing(0.3, None) == "enriched_subset"
+    assert R._classify_percentile_crossing(0.02, None) == "not_enriched"
+    assert R._classify_percentile_crossing(0.1, None) == "minimally_enriched"
+    assert R._classify_percentile_crossing(None, 0.2) == "data_unavailable"
+    # a high overlap (poor separation) at strong frac is NOT abstention — it is a real enriched_subset
+    assert R._classify_percentile_crossing(0.9, 0.7) == "enriched_subset"
+
+
 def test_q3_liability_assembler(monkeypatch):
     monkeypatch.setattr(R, "read_all_normal_tissues", lambda t: {"BRAIN": [8.0] * 20, "SKIN": [0.1] * 20})
     out = R.read_normal_tissue_liability("GFAP")

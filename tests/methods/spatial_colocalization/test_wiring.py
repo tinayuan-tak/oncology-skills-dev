@@ -178,33 +178,88 @@ def _rows(spec):
 
 
 def test_classify_immune_niche_colocalized():
-    rows = _rows([("d1", "s1", "Macro", 1.4, 0.20), ("d1", "s1", "TCD8", 1.3, 0.10), ("d1", "s1", "Fibro", 0.9, 0.10)])
+    # two donors (mirrored) so it clears the _MIN_DONORS power floor and grades the measured class
+    rows = _rows(
+        [
+            ("d1", "s1", "Macro", 1.4, 0.20),
+            ("d1", "s1", "TCD8", 1.3, 0.10),
+            ("d1", "s1", "Fibro", 0.9, 0.10),
+            ("d2", "s1", "Macro", 1.4, 0.20),
+            ("d2", "s1", "TCD8", 1.3, 0.10),
+            ("d2", "s1", "Fibro", 0.9, 0.10),
+        ]
+    )
     c = ST.classify_spatial_coloc(ST.neighbor_summary(rows), rows)
     assert c["spatial_coloc_class"] == "immune_niche_colocalized"
     assert c["top_enriched_compartment"] == "immune"
-    assert c["n_donors"] == 1 and c["n_datasets"] == 1
+    assert c["n_donors"] == 2 and c["n_datasets"] == 1
 
 
 def test_classify_normal_epithelium_adjacent_is_safety_margin_flag():
     # target-positive malignant cells enriched next to NORMAL epithelium = bystander-risk geometry
-    rows = _rows([("d1", "s1", "Epi", 1.5, 0.30), ("d1", "s1", "Macro", 1.0, 0.05)])
+    # (two donors so it clears the _MIN_DONORS power floor)
+    rows = _rows(
+        [
+            ("d1", "s1", "Epi", 1.5, 0.30),
+            ("d1", "s1", "Macro", 1.0, 0.05),
+            ("d2", "s1", "Epi", 1.5, 0.30),
+            ("d2", "s1", "Macro", 1.0, 0.05),
+        ]
+    )
     c = ST.classify_spatial_coloc(ST.neighbor_summary(rows), rows)
     assert c["spatial_coloc_class"] == "normal_epithelium_adjacent"
 
 
 def test_classify_no_spatial_preference():
-    rows = _rows([("d1", "s1", "Macro", 1.02, 0.1), ("d1", "s1", "Fibro", 0.98, 0.1)])
+    rows = _rows(
+        [
+            ("d1", "s1", "Macro", 1.02, 0.1),
+            ("d1", "s1", "Fibro", 0.98, 0.1),
+            ("d2", "s1", "Macro", 1.02, 0.1),
+            ("d2", "s1", "Fibro", 0.98, 0.1),
+        ]
+    )
     assert ST.classify_spatial_coloc(ST.neighbor_summary(rows), rows)["spatial_coloc_class"] == "no_spatial_preference"
 
 
 def test_classify_immune_excluded():
     # immune neighbours DEPLETED (enrichment <= 0.85), no compartment enriched → immune-cold tumour region
-    rows = _rows([("d1", "s1", "Macro", 0.7, 0.03), ("d1", "s1", "TCD8", 0.8, 0.02), ("d1", "s1", "Epi", 1.05, 0.4)])
+    # (two donors so it clears the _MIN_DONORS power floor)
+    rows = _rows(
+        [
+            ("d1", "s1", "Macro", 0.7, 0.03),
+            ("d1", "s1", "TCD8", 0.8, 0.02),
+            ("d1", "s1", "Epi", 1.05, 0.4),
+            ("d2", "s1", "Macro", 0.7, 0.03),
+            ("d2", "s1", "TCD8", 0.8, 0.02),
+            ("d2", "s1", "Epi", 1.05, 0.4),
+        ]
+    )
     assert ST.classify_spatial_coloc(ST.neighbor_summary(rows), rows)["spatial_coloc_class"] == "immune_excluded"
 
 
 def test_classify_empty_is_data_unavailable():
     assert ST.classify_spatial_coloc({}, [])["spatial_coloc_class"] == "data_unavailable"
+
+
+def test_underpowered_single_donor_is_not_minted_as_measured():
+    # SAME immune-niche enrichment, one donor vs two. The power floor (_MIN_DONORS = 2) grades the
+    # single-donor case `underpowered` ("we could barely look") while two donors grade the real
+    # immune_niche_colocalized. Anti-vacuity: the two arms MUST differ, so the floor (not the values)
+    # drives the verdict; the empty case above is the THIRD, distinct data_unavailable.
+    one = _rows([("d1", "s1", "Macro", 1.4, 0.20), ("d1", "s1", "TCD8", 1.3, 0.10)])
+    two = _rows(
+        [
+            ("d1", "s1", "Macro", 1.4, 0.20),
+            ("d1", "s1", "TCD8", 1.3, 0.10),
+            ("d2", "s1", "Macro", 1.4, 0.20),
+            ("d2", "s1", "TCD8", 1.3, 0.10),
+        ]
+    )
+    c1 = ST.classify_spatial_coloc(ST.neighbor_summary(one), one)
+    c2 = ST.classify_spatial_coloc(ST.neighbor_summary(two), two)
+    assert c1["spatial_coloc_class"] == "underpowered" and c1["n_donors"] == 1
+    assert c2["spatial_coloc_class"] == "immune_niche_colocalized" and c2["n_donors"] == 2
 
 
 def test_other_compartment_excluded_from_headline():

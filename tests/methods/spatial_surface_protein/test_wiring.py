@@ -67,11 +67,27 @@ def test_classify_tme_enriched():
 
 
 def test_classify_no_compartment_preference():
-    rows = _rows([("d1", "TUMOUR", 10.27), ("d1", "TME", 10.10)])  # EGFR-like small delta
+    # EGFR-like small delta; two donors so it clears the _MIN_DONORS power floor and grades the
+    # measured class rather than `underpowered`.
+    rows = _rows([("d1", "TUMOUR", 10.27), ("d1", "TME", 10.10), ("d2", "TUMOUR", 10.27), ("d2", "TME", 10.10)])
     assert (
         ST.classify_surface_protein(ST.summarize_protein(rows), rows)["spatial_protein_class"]
         == "tumour_present_no_compartment_preference"
     )
+
+
+def test_underpowered_single_donor_is_not_minted_as_measured():
+    # SAME tumour-enriched values, one donor vs two. The power floor (_MIN_DONORS = 2) grades the
+    # single-donor case `underpowered` ("we could barely look") while two donors grade the real
+    # tumour_enriched_protein. Anti-vacuity: the two arms MUST differ, so the floor (not the values)
+    # drives the verdict; a no-rows case is the THIRD, distinct data_unavailable ("could not look").
+    one = _rows([("d1", "TUMOUR", 10.5), ("d1", "TME", 9.6)])
+    two = _rows([("d1", "TUMOUR", 10.5), ("d1", "TME", 9.6), ("d2", "TUMOUR", 10.2), ("d2", "TME", 9.5)])
+    c1 = ST.classify_surface_protein(ST.summarize_protein(one), one)
+    c2 = ST.classify_surface_protein(ST.summarize_protein(two), two)
+    assert c1["spatial_protein_class"] == "underpowered" and c1["n_donors"] == 1
+    assert c2["spatial_protein_class"] == "tumour_enriched_protein" and c2["n_donors"] == 2
+    assert ST.classify_surface_protein({}, [])["spatial_protein_class"] == "data_unavailable"
 
 
 def test_empty_is_data_unavailable():

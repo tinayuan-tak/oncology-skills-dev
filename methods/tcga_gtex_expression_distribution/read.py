@@ -642,7 +642,6 @@ def read_tumor_vs_normal_percentile_crossing(
     out["distribution_overlap_tumor_normal"] = _stats.distribution_overlap(tumor, normal)
     out["selectivity_class"] = _classify_percentile_crossing(
         out["fraction_tumor_above_normal_p95"],
-        out["fraction_tumor_above_normal_p99"],
         out["distribution_overlap_tumor_normal"],
     )
     if plot_data_out is not None:
@@ -655,21 +654,44 @@ def read_tumor_vs_normal_percentile_crossing(
     return out
 
 
-def _classify_percentile_crossing(frac_p95, frac_p99, overlap) -> str:
+# Percentile-crossing cutoffs — the single code-side home of the four values the
+# tumor-vs-normal-percentile-crossing{,-by-subtype} cards declare under `thresholds:` and link back
+# here via `threshold_roles` (strong_frac_p95, strong_max_overlap, enriched_subset_frac_p95,
+# not_enriched_frac_p95). Named, not bare literals, so the declared value and the applied value each
+# have one reviewable home and cannot silently drift by copy (defect-class #3).
+_STRONG_FRAC_P95 = 0.5  # >= half the tumors clear the matched-normal p95 ...
+_STRONG_MAX_OVERLAP = 0.4  # ... AND the distributions separate → strongly_tumor_enriched
+_ENRICHED_SUBSET_FRAC_P95 = 0.25  # a real tumor-high subset above normal p95
+_NOT_ENRICHED_FRAC_P95 = 0.05  # essentially no separation
+
+
+def _classify_percentile_crossing(frac_p95, overlap) -> str:
     """Categorical for the Q2 selectivity card/rules (per-sample percentile-crossing vocab):
     strongly_tumor_enriched — most tumors clear the normal p95 AND distributions separate
-                              (frac_p95 >= 0.5 and overlap <= 0.4)
-    enriched_subset         — a real tumor-high subset above normal p95 (frac_p95 >= 0.25)
-    minimally_enriched      — few tumors exceed normal (frac_p95 < 0.25)
-    not_enriched            — essentially no separation (frac_p95 < 0.05)
-    data_unavailable        — handled by the caller."""
+                              (frac_p95 >= _STRONG_FRAC_P95 and overlap <= _STRONG_MAX_OVERLAP)
+    enriched_subset         — a real tumor-high subset above normal p95 (frac_p95 >= _ENRICHED_SUBSET_FRAC_P95)
+    minimally_enriched      — few tumors exceed normal (frac_p95 < _ENRICHED_SUBSET_FRAC_P95)
+    not_enriched            — essentially no separation (frac_p95 < _NOT_ENRICHED_FRAC_P95)
+    data_unavailable        — no p95 fraction, OR the strong-frac bar is cleared but distribution
+                              separation is unmeasurable (overlap is None): abstain rather than mint a
+                              measured-looking weaker class (decision 2026-09-18).
+
+    fraction_tumor_above_normal_p99 is emitted by the caller for the card but is NOT a classifier
+    input — the crossing vocabulary is defined on the p95 fraction + overlap only, so the parameter
+    was dropped rather than left dangling (defect-class #5/6)."""
     if frac_p95 is None:
         return "data_unavailable"
-    if frac_p95 >= 0.5 and (overlap is not None and overlap <= 0.4):
+    if frac_p95 >= _STRONG_FRAC_P95 and overlap is None:
+        # Clears the strong frac_p95 bar, but we cannot measure whether the distributions actually
+        # separate (overlap is None). The old code fell through to enriched_subset here — a
+        # measured-looking class minted on an unmeasurable input. Abstain instead: "we could not
+        # measure separation" is data_unavailable, not a weaker positive.
+        return "data_unavailable"
+    if frac_p95 >= _STRONG_FRAC_P95 and overlap <= _STRONG_MAX_OVERLAP:
         return "strongly_tumor_enriched"
-    if frac_p95 >= 0.25:
+    if frac_p95 >= _ENRICHED_SUBSET_FRAC_P95:
         return "enriched_subset"
-    if frac_p95 < 0.05:
+    if frac_p95 < _NOT_ENRICHED_FRAC_P95:
         return "not_enriched"
     return "minimally_enriched"
 

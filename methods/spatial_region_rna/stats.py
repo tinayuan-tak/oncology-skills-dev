@@ -12,6 +12,16 @@ from __future__ import annotations
 _TUMOUR = "TUMOUR"
 _TME = "TME"
 _ENRICHED_DELTA = 0.5  # log-scale margin: |tumour - TME| >= => compartment-enriched
+# Power floor (F5): a class computed off fewer than this many donors is graded `underpowered`
+# ("we could barely look") rather than minting a measured-looking class that F5 warns is
+# "indistinguishable from one off forty donors". Set to 2 — a class off a SINGLE donor is a case
+# report, not the cross-donor agreement this reader claims; that is exactly the 1-donor failure F5
+# names. Deliberately minimal: the real per-pilot donor distributions are unmeasured here, so the
+# floor rejects only the indefensible n=1 case rather than tuning to a power target that would risk
+# making the arm inert. A data-sufficiency floor, kept code-side like SUBGROUP_N_FLOOR
+# (subgroup_common/panorama.py) rather than as a card class-cutpoint; the `underpowered` token is
+# card-declared (spatial-region-rna-expression.card.yaml). Gates on n_donors only — n_datasets is 1.
+_MIN_DONORS = 2
 
 
 def _median(xs):
@@ -69,12 +79,18 @@ def classify_region_rna(summ: dict, rows) -> dict:
         cls = "tme_enriched_rna"  # RNA concentrated in the microenvironment (specificity caveat)
     else:
         cls = "tumour_present_no_compartment_preference"
+    n_donors = summ.get("n_donors", 0)
+    if cls != "data_unavailable" and n_donors < _MIN_DONORS:
+        # Measured a class, but off too few donors to trust the cross-donor median. Ranks BELOW
+        # data_unavailable (absence outranks thin measurement — "could not look" beats "could barely
+        # look") and ABOVE every measured class, so the gate sits after the data_unavailable branch.
+        cls = "underpowered"
     return {
         "spatial_rna_class": cls,
         "tumour_abundance_lcpm": round(tum, 4) if tum is not None else None,
         "tme_abundance_lcpm": round(tme, 4) if tme is not None else None,
         "tumour_vs_tme_delta": delta,
         "detected_tumour": bool(summ.get("detected")),
-        "n_donors": summ.get("n_donors", 0),
+        "n_donors": n_donors,
         "n_datasets": 1 if rows else 0,  # single GeoMx WTA dataset per indication (region-RNA)
     }

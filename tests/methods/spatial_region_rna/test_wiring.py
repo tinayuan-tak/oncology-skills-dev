@@ -70,11 +70,28 @@ def test_classify_tme_enriched():
 
 
 def test_classify_no_compartment_preference():
-    rows = _rows([("d1", "TUMOUR", 5.16), ("d1", "TME", 4.93)])  # EPCAM-like small delta in HNSC
+    # EPCAM-like small delta in HNSC; two donors so it clears the _MIN_DONORS power floor and grades
+    # the measured class rather than `underpowered`.
+    rows = _rows([("d1", "TUMOUR", 5.16), ("d1", "TME", 4.93), ("d2", "TUMOUR", 5.16), ("d2", "TME", 4.93)])
     assert (
         ST.classify_region_rna(ST.summarize_rna(rows), rows)["spatial_rna_class"]
         == "tumour_present_no_compartment_preference"
     )
+
+
+def test_underpowered_single_donor_is_not_minted_as_measured():
+    # SAME strongly tumour-enriched values, one donor vs two. The power floor (_MIN_DONORS = 2) must
+    # grade the single-donor case `underpowered` — the "we could barely look" band — while two donors
+    # grade the real tumour_enriched_rna. Anti-vacuity: the two arms MUST differ, so the floor (not
+    # the values) is what drives the underpowered verdict; a data_unavailable case (no rows) is a
+    # THIRD, distinct outcome ("we could not look").
+    one = _rows([("d1", "TUMOUR", 11.8), ("d1", "TME", 8.2)])
+    two = _rows([("d1", "TUMOUR", 11.8), ("d1", "TME", 8.2), ("d2", "TUMOUR", 11.0), ("d2", "TME", 7.5)])
+    c1 = ST.classify_region_rna(ST.summarize_rna(one), one)
+    c2 = ST.classify_region_rna(ST.summarize_rna(two), two)
+    assert c1["spatial_rna_class"] == "underpowered" and c1["n_donors"] == 1
+    assert c2["spatial_rna_class"] == "tumour_enriched_rna" and c2["n_donors"] == 2
+    assert ST.classify_region_rna({}, [])["spatial_rna_class"] == "data_unavailable"
 
 
 def test_empty_is_data_unavailable():

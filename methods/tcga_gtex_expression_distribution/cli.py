@@ -178,9 +178,7 @@ def build_selectivity_crossing_subtype_panorama(target: str, indication: str) ->
     for rec in strata:
         frac95 = rec.get("fraction_tumor_above_normal_p95")
         crossing_class = (
-            _read._classify_percentile_crossing(
-                frac95, rec.get("fraction_tumor_above_normal_p99"), rec.get("distribution_overlap_tumor_normal")
-            )
+            _read._classify_percentile_crossing(frac95, rec.get("distribution_overlap_tumor_normal"))
             if rec.get("evidence_state") == "measured" and frac95 is not None
             else "data_unavailable"
         )
