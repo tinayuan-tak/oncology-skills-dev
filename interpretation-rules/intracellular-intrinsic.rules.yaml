@@ -1690,20 +1690,54 @@ rules:
   # cell-intrinsic — a presence-axis nuance, not an absence; the ADC/TCE modality-gate reading of
   # this signal is a deferred P4 facet). Signals feed the LLM/matrix; whether they enter the
   # tumor-presence sc_rna ladder is the skill's call (additive, verdict byte-stable for existing targets).
+  # SPLIT 2026-09-18 — this rule used to fire on `in: [malignant_broadly_detected,
+  # malignant_subset_detected]`, which are the card's 0.50 and 0.10 malignant-detected-fraction rungs
+  # (`malignant_broadly_detected_min: 0.5`, `malignant_subset_detected_min: 0.1`): a FIVE-FOLD span
+  # carried under a label that says "broadly detected". The rule_id is KEPT on the strong rung — no
+  # reader keys on it (measured: 0 references outside this file and the rule_role_partition snapshot),
+  # so the rename cost is zero and the weaker rung is minted as its own rule below. Measured over
+  # corpus-20260914: 43 pairs are malignant_broadly_detected, 146 are malignant_subset_detected — so
+  # 77% of the old rule's fires were the WEAK rung wearing the strong rung's word. VERDICT-INERT by
+  # construction (neither rung enters any resolver ladder or clamp; both are `display` in
+  # coverage/rule_role_partition.yaml), but NOT consumer-inert: the rationale text below is what
+  # reaches the LLM narrator and the signal matrix, which is where the false "broadly" was read.
   - rule_id: sc-expression-malignant-broadly-detected-supportive
     when:
       card_id: tumor-scrna-celltype-expression
       field: sc_expression_class
-      in: [malignant_broadly_detected, malignant_subset_detected]
+      equals: malignant_broadly_detected
     signals:
       small_molecule: supportive
       degrader: supportive
     rationale: |
-      Target is detected in malignant (tumor) cells at single-cell resolution — measurable tumor-cell-
-      INTRINSIC expression, the sharpest presence signal single-cell provides (bulk cannot separate
-      malignant from microenvironment). Supportive for small-molecule (context-of-action present in the
-      tumor cell) and degrader (target must be present in the tumor cell to be degraded).
-      malignant_subset_detected additionally flags a target-high tumor-cell subpopulation for selection.
+      Target is detected in a MAJORITY of malignant (tumor) cells at single-cell resolution — the card's
+      malignant_broadly_detected rung, detected fraction >= 0.50. Measurable tumor-cell-INTRINSIC
+      expression, the sharpest presence signal single-cell provides (bulk cannot separate malignant from
+      microenvironment). Supportive for small-molecule (context-of-action present in the tumor cell) and
+      degrader (target must be present in the tumor cell to be degraded). The homogeneity this rung
+      implies is what an intracellular program wants: the modality reaches most of the tumor compartment,
+      not a subpopulation that can repopulate it.
+
+  - rule_id: sc-expression-malignant-subset-detected-supportive
+    when:
+      card_id: tumor-scrna-celltype-expression
+      field: sc_expression_class
+      equals: malignant_subset_detected
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      Target is detected in a SUBSET of malignant cells — the card's malignant_subset_detected rung,
+      detected fraction >= 0.10 but below the 0.50 majority line. Still tumor-cell-INTRINSIC presence, so
+      still supportive for small-molecule and degrader: the context of action exists in malignant cells
+      and a degrader has something to degrade. What it is NOT is the broad, homogeneous expression the
+      strong rung asserts — a target present in a tenth of malignant cells flags a target-high
+      subpopulation (useful for patient/subpopulation selection) while leaving the untargeted majority
+      as a standing escape reservoir. Split out of sc-expression-malignant-broadly-detected-supportive
+      on 2026-09-18 so the rationale a reader sees matches the fraction actually measured; the signal
+      values are deliberately IDENTICAL to the strong rung, because the split corrects a CLAIM, not a
+      direction, and silently downgrading 146 of 189 fires to `neutral` would delete measured presence
+      evidence under cover of a wording fix.
 
   - rule_id: sc-expression-microenvironment-dominant-neutral
     when:
@@ -1752,39 +1786,151 @@ rules:
   # TUMOR-VS-NORMAL PERCENTILE-CROSSING (Q2, per-sample selectivity) — SELECTIVITY signals
   # ============================================================================
   # Per-sample corroboration of the aggregate tumor-vs-normal-selectivity card. Emits SM/degrader
-  # supportive on real tumor-enrichment; does NOT enter the selectivity RESOLVER ladder (that stays
-  # keyed to the aggregate card's classes — byte-stable), so this is additive signal/rationale that
-  # reaches the LLM + matrix without changing the selectivity verdict. (Cross-routing the per-sample
-  # separation into the SURFACE modality gate — the ADC antigen-selectivity argument — is master-plan
-  # P4 modality-vector work, wired through adc-tce-modality-fit's fit_class, not a direct rule here.)
+  # supportive on real tumor-enrichment.
+  #
+  # RETRACTED IN PLACE 2026-09-18 — this header used to continue, verbatim:
+  #     "does NOT enter the selectivity RESOLVER ladder (that stays keyed to the aggregate card's
+  #      classes — byte-stable), so this is additive signal/rationale that reaches the LLM + matrix
+  #      WITHOUT CHANGING THE SELECTIVITY VERDICT."
+  # The first clause is TRUE and stays: no rule in this block appears in
+  # resolvers/selectivity.resolver.yaml's `resolve` ladder. The INFERENCE is FALSE.
+  # tumor-vs-normal-crossing-strong-supportive is a conjunct of that resolver's
+  # `post_resolver_clamp.upgrade.requires` (the #978 RESCUE), which mints
+  # `field_effect_tumor_selective` — so this rule CAN change the selectivity verdict, just not via a
+  # rung. The claim is an instance of exactly the blind spot the golden oracle has:
+  # test_resolver_golden_rule_id_coverage.py::_referenced_rule_ids() also walks only `spec["resolve"]`
+  # and therefore also cannot see this rule (0 occurrences in the 21 MB selectivity blob). Two
+  # independent readers made the same aperture error; this comment was the human-readable copy of it.
+  # ASK OF ANY RULE IN THIS FILE: not "is it in the ladder?" but "does ANY keypath of the resolver
+  # name it?" — `coverage/rule_role_partition.yaml`'s `gating_keypaths` is the in-repo answer, and it
+  # correctly files this rule under `gating` while the golden cannot see it at all.
+  # (Cross-routing the per-sample separation into the SURFACE modality gate — the ADC
+  # antigen-selectivity argument — is master-plan P4 modality-vector work, wired through
+  # adc-tce-modality-fit's fit_class, not a direct rule here.)
+  #
+  # SPLIT 2026-09-18 — see the rationale below for the measured effect. The rule_id is KEPT so it
+  # stays the `upgrade.requires` conjunct and skills-side `_POP_NORMAL_UP_RULES` needs no change.
   - rule_id: tumor-vs-normal-crossing-strong-supportive
     when:
       card_id: tumor-vs-normal-percentile-crossing
       field: selectivity_class
-      in: [strongly_tumor_enriched, enriched_subset]
+      equals: strongly_tumor_enriched
     signals:
       small_molecule: supportive
       degrader: supportive
     rationale: |
       A real fraction of this indication's tumors express the target above the 95th percentile of
-      matched normal tissue (per-sample, on the directly-comparable recount3 axis) — the headline
-      therapeutic-window enrichment signal. strongly_tumor_enriched additionally means the tumor and
-      normal distributions separate (low overlap): the clean-separation pattern surface antigens need.
-      Corroborates the aggregate selectivity card at per-sample resolution.
+      matched normal tissue (per-sample, on the directly-comparable recount3 axis) AND the tumor and
+      normal distributions SEPARATE (low overlap) — the card's strongly_tumor_enriched rung,
+      `strong_frac_p95 >= 0.50` AND `strong_max_overlap <= 0.40`. The clean-separation pattern surface
+      antigens need, and the headline therapeutic-window enrichment signal. Corroborates the aggregate
+      selectivity card at per-sample resolution.
 
+      WHY THIS RUNG ALONE, AND WHY THE rule_id IS KEPT. Until 2026-09-18 this rule fired on
+      `in: [strongly_tumor_enriched, enriched_subset]`. Those are not two shades of one claim: the weak
+      rung is `enriched_subset_frac_p95 >= 0.25` with NO overlap condition at all, so the old predicate
+      spanned a TWO-FOLD difference in crossing fraction AND silently dropped the separation criterion
+      that is the whole content of the word "strongly". That mattered beyond wording because THIS
+      rule_id is a conjunct of `post_resolver_clamp.upgrade.requires` (#978): a 25%-crossing target with
+      heavily overlapping distributions drove the same `not_informative -> field_effect_tumor_selective`
+      upgrade as a cleanly separated 50%-crossing one. Keeping the rule_id keeps the conjunct — now
+      honestly — and leaves the skills-side `_POP_NORMAL_UP_RULES` frozenset untouched. The weak rung is
+      minted below as tumor-vs-normal-crossing-enriched-subset-supportive and is deliberately NOT an
+      upgrade conjunct.
+
+      MEASURED EFFECT over all 504 corpus-20260914 pairs (2026-09-18). The old predicate fired on 170
+      pairs (33.7%); the split puts 94 on this rung and 76 on the weak one, so 45% of the old fires were
+      the weak class. VERDICT DELTA: 0 of 504, measured under TWO apertures, and the zero is a
+      population fact rather than a blind spot — the REACHABILITY control passes, with the #978 rescue
+      firing on 1 pair (PTEN-PAAD: not_informative + CPTAC modest_up + strongly_tumor_enriched), which
+      keeps its upgrade under the narrowed predicate. The reason no verdict moves is that the rescue's
+      two OTHER conditions co-occur on only 4 of 504 pairs (171 are rescue-eligible, 23 have CPTAC
+      protein up), and 0 of those 4 carry the weak class.
+
+      THE EXPOSURE IS REAL AND SIZED, WHICH IS WHY THIS IS NOT A NO-OP: 31 of the 171 rescue-eligible
+      pairs DO carry the weak crossing class, held back only by absent CPTAC protein coverage
+      (data_unavailable on 326/504). Inert by corpus is not safe by contract — the day CPTAC coverage
+      lands, those 31 become upgrade candidates on a predicate that never measured separation. This is a
+      pre-emptive correction of a guard BEFORE it fires, not a backfilled fix for observed damage, and
+      it is deliberately made while the change is verdict-inert and therefore cheap to review.
+
+  - rule_id: tumor-vs-normal-crossing-enriched-subset-supportive
+    when:
+      card_id: tumor-vs-normal-percentile-crossing
+      field: selectivity_class
+      equals: enriched_subset
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      A SUBSET of this indication's tumors express the target above the 95th percentile of matched normal
+      tissue — the card's enriched_subset rung, `enriched_subset_frac_p95 >= 0.25` and below the 0.50
+      strong line. Supportive: a quarter of tumors clearing the matched-normal 95th percentile is real
+      per-sample enrichment and a genuine therapeutic-window argument for the patients in that fraction.
+
+      WHAT THIS RUNG DELIBERATELY DOES NOT DO. It carries NO separation requirement — unlike the strong
+      rung it says nothing about `max_overlap`, so the tumor and normal distributions may overlap
+      heavily while a subset of tumors still crosses. That is why this rule_id is deliberately ABSENT
+      from `resolvers/selectivity.resolver.yaml`'s `post_resolver_clamp.upgrade.requires`: the #978
+      rescue mints `field_effect_tumor_selective`, an affirmative claim that the target IS tumor-
+      selective, and a quarter-of-tumors-cross-with-heavy-overlap measurement does not support it. Split
+      out of tumor-vs-normal-crossing-strong-supportive on 2026-09-18, which had conflated the two rungs
+      in one `in:` list and so lent this evidence the strong rung's upgrade power.
+
+      IF THIS RUNG IS EVER ADDED TO AN UPGRADE OR A LADDER, that is a design change, not a wiring
+      change, and the argument above has to be answered first. Signals are deliberately identical to
+      the strong rung: the split corrects which MECHANISMS may read this evidence, not the direction of
+      the evidence itself.
+
+  # SPLIT 2026-09-18 — this rule used to fire on `in: [minimally_enriched, not_enriched]`, merging a
+  # WEAK POSITIVE with a MEASURED NEGATIVE under one `neutral` signal and one rationale. Both halves
+  # stay `neutral`, so the split is SIGNAL-INERT by construction (no verdict, no matrix cell, and no
+  # modality signal moves on any of the 158 corpus pairs it covers — 77 minimally_enriched + 81
+  # not_enriched of 504). What it corrects is the RATIONALE, which is not decoration here: it is the
+  # text the LLM narrator and the signal matrix read, and the merged version had to describe both
+  # "a few tumors do cross" and "essentially none do" in one paragraph, so it did neither.
   - rule_id: tumor-vs-normal-crossing-minimal-neutral
     when:
       card_id: tumor-vs-normal-percentile-crossing
       field: selectivity_class
-      in: [minimally_enriched, not_enriched]
+      equals: minimally_enriched
     signals:
       small_molecule: neutral
       degrader: neutral
     rationale: |
-      Few tumors exceed the matched-normal percentile / distributions overlap heavily — no per-sample
-      tumor-vs-normal enrichment. Neutral (a broadly-present but non-selective target, e.g. a
-      housekeeping gene, lands here) — not opposing, since presence itself may still support an
-      intracellular modality; it simply isn't a selectivity argument.
+      A FEW tumors exceed the 95th percentile of matched normal tissue, but too few to be a
+      therapeutic-window argument — the card's minimally_enriched rung, `frac_p95` above the 0.05
+      not-enriched floor but below the 0.25 enriched_subset line. This is a WEAK POSITIVE, not a
+      negative: the crossing fraction is non-zero and measured, so the honest reading is "some
+      per-sample enrichment exists, below the level that would carry a selectivity claim".
+
+      Neutral rather than opposing, for two independent reasons: presence itself may still support an
+      intracellular modality (a broadly-present but non-selective target, e.g. a housekeeping gene,
+      lands at the rung below), and a small crossing fraction is exactly the regime where the matched
+      normal panel's own coverage limits dominate the estimate.
+
+  - rule_id: tumor-vs-normal-crossing-not-enriched-neutral
+    when:
+      card_id: tumor-vs-normal-percentile-crossing
+      field: selectivity_class
+      equals: not_enriched
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Essentially NO tumors exceed the 95th percentile of matched normal tissue — the card's
+      not_enriched rung, `frac_p95 <= 0.05`. This is a MEASURED NEGATIVE, distinct from the
+      minimally_enriched rung above it (a weak positive) and from
+      tumor-vs-normal-crossing-data-unavailable-insufficient below it (no measurement at all). The
+      three-way distinction is the point: "we looked and there is no enrichment" is evidence, and it
+      must not read as either faint encouragement or a coverage gap.
+
+      Still neutral, not opposing, on the intracellular modalities: a target uniformly expressed in
+      tumor and normal is a poor SELECTIVITY argument but not an argument against an intracellular
+      modality, whose therapeutic window is set by target biology and dependency rather than by
+      differential abundance. Split out of tumor-vs-normal-crossing-minimal-neutral on 2026-09-18;
+      signals are deliberately unchanged, so no verdict, matrix cell or modality signal moves.
+      Opposing signal on this rung would be a design change and is deliberately NOT made here.
 
   - rule_id: tumor-vs-normal-crossing-data-unavailable-insufficient
     when:

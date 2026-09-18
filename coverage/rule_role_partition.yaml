@@ -12,9 +12,9 @@ attribution_keypaths:
 - post_resolver_clamp/modality_conditional/expected_inert_arms/[]/rule_id
 - resolve/[]/driving_rule
 counts:
-  total: 432
+  total: 435
   gating: 140
-  display: 292
+  display: 295
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -383,6 +383,7 @@ display:
 - sc-expression-broadly-low-neutral
 - sc-expression-data-unavailable-insufficient
 - sc-expression-malignant-broadly-detected-supportive
+- sc-expression-malignant-subset-detected-supportive
 - sc-expression-microenvironment-dominant-neutral
 - sc-normal-data-unavailable-insufficient
 - sc-normal-graded-accessible-low-confidence-bite-opposing
@@ -447,5 +448,7 @@ display:
 - tumor-expression-subset-high-supportive
 - tumor-intrinsic-surface-supportive
 - tumor-vs-normal-crossing-data-unavailable-insufficient
+- tumor-vs-normal-crossing-enriched-subset-supportive
 - tumor-vs-normal-crossing-minimal-neutral
+- tumor-vs-normal-crossing-not-enriched-neutral
 - wt-strongly-dependent-neutral
