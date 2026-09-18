@@ -99,6 +99,40 @@ ENVELOPE_FIELDS: frozenset = frozenset(
 )
 
 
+# SHARED stratification-arm fields (2026-09-18, emission PR 5): the subtype-panorama fields common to
+# EVERY by-subtype card — they carry the SAME meaning across cell_line_rna_expression /
+# tumor_protein_abundance / tumor_expression_distribution, so a per-spec declaration would count them
+# once PER measurement_type (the SUM). Described ONCE here instead — a shared vocabulary keyed by NAME
+# (mirroring ENVELOPE_FIELDS) — so the descriptor delta is the UNION (7), not the sum. Each carries a
+# fixed structural role; describe_field builds the descriptor from the gloss. Verdict-INERT (display).
+_SHARED_FIELD_ROLES: dict = {
+    "subtype_stratification_class": ROLE_CATEGORICAL,
+    "subtype_axis_quality": ROLE_CATEGORICAL,
+    "subtype_axis_available": ROLE_CATEGORICAL,
+    "n_subtypes_measured": ROLE_N,
+    "n_subtypes_enriched": ROLE_N,
+    "n_subtypes_depleted": ROLE_N,
+    "per_subgroup_metrics": ROLE_STRATA,
+}
+
+
+def _shared_descriptor(field: str, measurement_type, role: str) -> dict:
+    """A descriptor for a SHARED stratification-arm field (no per-mt spec). Units only for numeric roles."""
+    label, units = display_gloss.gloss(field)
+    return {
+        "field": field,
+        "measurement_type": measurement_type,
+        "role": role,
+        "label": label,
+        "units": units if role in _NUMERIC_ROLES else None,
+        "direction": None,
+        "direction_phrase": None,
+        "atlas_live": False,
+        "source_class": source_class_for(measurement_type),
+        "shared_stratification": True,
+    }
+
+
 def _spec_frame_value_fields(spec: dict) -> list:
     """The `value_field`(s) a spec's reference_frame gauges. ONE dict or a LIST of dicts; each may carry
     `value_field`. These are atlas-live — enumerated so they can be DESCRIBED (and flagged), never reshaped."""
@@ -220,9 +254,12 @@ def describe_field(field: str, measurement_type: Optional[str] = None) -> Option
     None when the field is in no spec (use `classify_field` to get its role incl. envelope/unclassified)."""
     if not field:
         return None
-    if measurement_type:
-        return descriptors_for(measurement_type).get(field)
-    return _flat_index().get(field)
+    d = descriptors_for(measurement_type).get(field) if measurement_type else _flat_index().get(field)
+    if d is not None:
+        return d
+    # a SHARED stratification-arm field carries a fixed role regardless of measurement_type (union, not sum)
+    role = _SHARED_FIELD_ROLES.get(field)
+    return _shared_descriptor(field, measurement_type, role) if role is not None else None
 
 
 def classify_field(field: str, measurement_type: Optional[str] = None) -> str:
