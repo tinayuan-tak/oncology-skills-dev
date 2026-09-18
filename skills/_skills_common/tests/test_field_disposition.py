@@ -504,7 +504,18 @@ def test_census_reaches_some_fields_but_not_all():
 # spatial_region_rna, spatial_surface_protein, sc_tumor_caf_state_expression,
 # sc_tumor_myeloid_state_expression, phospho_pathway_activity) — genuinely-unread card fields now
 # classified. Reader is skills-side salience, no pin move.
-APERTURE_CEILING = 836
+# ── BANKED AGAIN 2026-09-18 836 → 781, same method, measured against contracts c3eec129 (the CI pin,
+# skills-validate.yml:251). SKILLS-ONLY, no pin move: the -40 is THIS BRANCH's L2 record-grain identity
+# pilot (target-contracts #804/decision #4) newly reading each emitted card's `summary.method_version`
+# in _skills_common/dispatcher.py `_l2_method_versions` — that dict becomes claim_record.provenance.versions
+# and is hashed into identity.record_revision_id, so a method bump revises the L2 record. Measured: the
+# cleared set is EXACTLY 40 pairs, ALL field `method_version` (census diff main 18b0e8d2 → this branch,
+# both against c3eec129), and 0 pairs newly orphaned. It is a NAME-ONLY reader (a generic
+# `summary["method_version"]` access binds to no single card_id statically), so per the summarise()
+# docstring it credits every card declaring the name — the accepted mechanism the salience banks above
+# also used; the runtime read is correctly scoped to emitted_cards. Prior vintage: 821 @ 18b0e8d2 was
+# 15 below the 836 ceiling (within slack), so trunk was green before this branch.
+APERTURE_CEILING = 781
 
 # Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
 # into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of

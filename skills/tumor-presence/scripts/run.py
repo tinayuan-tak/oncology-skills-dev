@@ -2321,5 +2321,10 @@ if __name__ == "__main__":
             # negative-selection-only scoped read. Verdict-INERT — the pooled presence_verdict is
             # byte-stable with or without --subtypes (no ladder rung is touched).
             subtype_panorama_fn=_resolve_presence_subtype_panorama,
+            # M1 factored-record shadow + L2 identity PILOT (contracts #804, decision #4): _claim_record
+            # feeds decision.json.claim_record_shadow (as genomic-alteration-profile already does), and
+            # under --emit-envelope the dispatcher additionally serializes it into evidence_package.json
+            # with the context+identity JOIN KEY populated — the arc's queryable-substrate payoff.
+            claim_record_fn=_claim_record,
         )
     )

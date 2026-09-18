@@ -32,6 +32,8 @@ level <= ordinal-min(...) (downgrade-only). At M1 this is moot — the record is
 
 from __future__ import annotations
 
+import hashlib
+import json
 from typing import Optional
 
 OPEN_WORLD_AVAILABILITY = frozenset({"not_wired", "data_blocked", "read_error"})
@@ -208,3 +210,91 @@ def render_verdict(record: dict) -> str:
     if state and state != "unknown":
         return state
     return (record.get("provenance") or {}).get("legacy_verdict")
+
+
+# ---------------------------------------------------------------------------
+# L2 record-grain identity (target-contracts #804 context+identity; decision #4 —
+# PILOT on tumor-presence). These are the SKILL-side populators of the OPTIONAL
+# claim_record.context + identity blocks that shipped DORMANT (zero populators) on
+# claim_record.schema.json. They MIRROR the pinned canonical serialization in
+# target-contracts/validators/validate_claim_record.py (_canonical_json + the
+# F/G/H `_context_identity_invariants`), which is the SINGLE SOURCE OF TRUTH and
+# RECOMPUTES every id — so ANY drift here (separators, sort_keys, ensure_ascii, or
+# the record_revision_id payload join order) makes every emitted id mismatch its
+# recompute. test_l2_context_identity.py cross-checks these against the contracts
+# validator's own recipe so the two cannot silently diverge.
+# ---------------------------------------------------------------------------
+
+# The pan-cancer indication sentinels the framework uses on the (target, indication)
+# path (dispatcher: `args.indication or "PANCANCER"`). A pan-cancer claim is scope ALL.
+_L2_INDICATION_ALL = frozenset({"PANCANCER", "PAN_CANCER", "PAN-CANCER"})
+
+
+def _l2_canonical_json(obj) -> str:
+    """The pinned canonical serialization for identity hashing — byte-identical to
+    validate_claim_record._canonical_json. Defined ONCE and reused by both helpers so a
+    context_id and its record_revision_id can never disagree on serialization."""
+    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
+
+
+def build_l2_context(*, target: dict, indication: str, subgroup_spec, modality_scope: str = "ALL") -> dict:
+    """Build the claim_record.context L2 join key from a run's binding. Each dimension carries an
+    explicit scope so a pan-X claim (ALL / NOT_STRATIFIED) never silently joins to a specific-X one —
+    the empty-join the indication-sentinel precedent records. Shapes + the SPECIFIC<->specifier
+    coupling match claim_record.schema.json and the validator's H invariant exactly:
+
+      target      — {symbol, hgnc_id} (+ensembl/uniprot when present), reused from the package's
+                    already-resolved context.target (real hgnc_id).
+      indication  — SPECIFIC(+oncotree_code) unless the run is pan-cancer (ALL, no specifier).
+      subtype     — SPECIFIC(+subgroup_ids) for a strata list; ALL for the "all" sentinel;
+                    NOT_STRATIFIED when subgroup_spec is null/empty (the honest 3rd state — 'not
+                    stratified at all' is a DIFFERENT claim from 'pan-subtype').
+      modality    — presence-grade axes are modality-INDEPENDENT (ALL). A channel-specific claim
+                    passes modality_scope='SPECIFIC' with a channel (generalized in a later arc).
+    """
+    tgt = {"symbol": target["symbol"], "hgnc_id": int(target["hgnc_id"])}
+    if target.get("ensembl"):
+        tgt["ensembl"] = target["ensembl"]
+    if target.get("uniprot"):
+        tgt["uniprot"] = target["uniprot"]
+
+    if indication and str(indication).upper() in _L2_INDICATION_ALL:
+        ind = {"scope": "ALL"}
+    else:
+        ind = {"scope": "SPECIFIC", "oncotree_code": indication}
+
+    if isinstance(subgroup_spec, str) and subgroup_spec.lower() == "all":
+        sub = {"scope": "ALL"}
+    elif subgroup_spec:  # a truthy strata list => subtype-scoped
+        sub = {"scope": "SPECIFIC", "subgroup_ids": sorted({str(s) for s in subgroup_spec})}
+    else:  # None / empty => the target was not stratified at all
+        sub = {"scope": "NOT_STRATIFIED"}
+
+    if modality_scope == "SPECIFIC":  # pragma: no cover — pilot is modality-independent
+        raise ValueError("build_l2_context: SPECIFIC modality needs a channel (later arc); pilot is ALL")
+    mod = {"scope": modality_scope}
+    return {"target": tgt, "indication": ind, "subtype": sub, "modality": mod}
+
+
+def derive_l2_identity(*, context: dict, axis: str, l0_digest: str, ruleset_version: str, versions: dict) -> dict:
+    """Derive the claim_record.identity block — NEVER authored; every field recomputes from these
+    inputs (the validator's F/G invariants recompute and reject a mismatch).
+
+      context_id         = sha256(canonical(context))[:16]
+      logical_key        = '<context_id>::<axis>'
+      record_revision_id = sha256(logical_key|l0_digest|ruleset_version|canonical(versions))[:16]
+
+    `l0_digest` MUST be the enclosing package's governance.resolved_release_digest so the emission-side
+    R6 invariant holds by construction. `versions` MUST be the SAME dict stored at provenance.versions
+    (the validator recomputes the rrid from provenance.versions, not from this block)."""
+    cid = hashlib.sha256(_l2_canonical_json(context).encode("utf-8")).hexdigest()[:16]
+    lk = f"{cid}::{axis}"
+    payload = "|".join([lk, l0_digest, ruleset_version, _l2_canonical_json(versions or {})])
+    rrid = hashlib.sha256(payload.encode("utf-8")).hexdigest()[:16]
+    return {
+        "context_id": cid,
+        "logical_key": lk,
+        "l0_digest": l0_digest,
+        "ruleset_version": ruleset_version,
+        "record_revision_id": rrid,
+    }

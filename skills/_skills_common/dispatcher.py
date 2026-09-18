@@ -286,6 +286,71 @@ def _envelope_card_present(card: dict) -> dict:
     return entry
 
 
+def _l2_method_versions(emitted_cards: list[dict]) -> dict:
+    """{card_id: method_version} from the emitted cards — the method-fingerprint half of the L2
+    record_revision_id (so a method bump changes the record identity even at a fixed data release).
+    Deterministic (dict of str->str; canonicalized when hashed)."""
+    out: dict = {}
+    for c in emitted_cards or []:
+        if c.get("_missing"):
+            continue
+        mv = (c.get("summary") or {}).get("method_version")
+        cid = c.get("card_id")
+        if cid and mv:
+            out[cid] = mv
+    return out
+
+
+def _attach_l2_claim_record(
+    *,
+    ep: dict,
+    claim_record_fn: "Callable[[list, list, Optional[tuple]], dict]",
+    emitted_cards: list[dict],
+    fired: list[dict],
+    verdict_pair: "Optional[tuple[str, Optional[str]]]",
+    indication: str,
+    subgroup_spec,
+    ruleset_version: str,
+) -> dict:
+    """Build the L2-populated claim_record for the assembled package `ep`. The axis-specific finding /
+    certainty / provenance come from the skill's own `claim_record_fn` (the SAME builder that feeds the
+    M1 decision.json shadow); this function adds ONLY the join key: context (built from the run binding
+    + the package's already-resolved context.target) and identity (recomputed, R6 by construction).
+
+    Raises (caller degrades to no-op) when the record is unusable — an unresolved hgnc_id (< 1) would
+    make context.target schema-invalid, or a missing resolved_release_digest would make l0_digest empty.
+    """
+    from .claim_record import build_l2_context, derive_l2_identity
+
+    rec = claim_record_fn(emitted_cards, fired, verdict_pair)
+    if not isinstance(rec, dict) or rec.get("_shadow_error"):
+        raise ValueError("claim_record_fn returned no usable record")
+
+    target = (ep.get("context") or {}).get("target") or {}
+    if int(target.get("hgnc_id", -1)) < 1:
+        raise ValueError("unresolved target hgnc_id (< 1); L2 context.target would be schema-invalid")
+    l0_digest = (ep.get("governance") or {}).get("resolved_release_digest")
+    if not l0_digest:
+        raise ValueError("no governance.resolved_release_digest for identity.l0_digest")
+
+    versions = _l2_method_versions(emitted_cards)
+    # Store the SAME versions dict the identity hashes over — the validator recomputes the
+    # record_revision_id from provenance.versions, so these must be byte-identical.
+    rec.setdefault("provenance", {})["versions"] = versions
+
+    context = build_l2_context(target=target, indication=indication, subgroup_spec=subgroup_spec, modality_scope="ALL")
+    identity = derive_l2_identity(
+        context=context,
+        axis=rec.get("axis") or "tumor_presence",
+        l0_digest=l0_digest,
+        ruleset_version=ruleset_version,
+        versions=versions,
+    )
+    rec["context"] = context
+    rec["identity"] = identity
+    return rec
+
+
 def _emit_subskill_envelope(
     *,
     args,
@@ -295,12 +360,17 @@ def _emit_subskill_envelope(
     headline: dict,
     verdict_pair: "Optional[tuple[str, Optional[str]]]",
     fired: list[dict],
+    claim_record_fn: "Optional[Callable[[list, list, Optional[tuple]], dict]]" = None,
 ) -> Path:
     """Assemble + write evidence_package.json around a subskill's resolver verdict (opt-in).
 
     PURELY ADDITIVE: consumes the already-computed decision outputs (emitted_cards, headline,
     verdict_pair, fired) and writes a sibling evidence_package.json in args.out. Never touches
     decision.json — the verdict spine is byte-identical whether or not --emit-envelope is set.
+
+    When `claim_record_fn` is supplied AND this is the tumor-presence L2 pilot, the assembled package
+    also carries a `claim_record` with the DORMANT #804 context+identity join key populated (see
+    `_attach_l2_claim_record`).
     """
     from .envelope import assemble_evidence_package
     from .gitmeta import skills_repo_sha
@@ -392,6 +462,32 @@ def _emit_subskill_envelope(
         framework_version=_fv,
         generated_by=f"skills/{skill_name}@{skills_repo_sha()}",
     )
+
+    # L2 identity pilot (contracts #804, decision #4): populate + serialize the DORMANT
+    # claim_record.context+identity JOIN KEY into the emitted package. Gated to tumor-presence — the
+    # pilot axis — because context.modality is axis-specific (presence is modality-INDEPENDENT) and the
+    # per-axis modality-scope generalization is a later ratchet arc. R6 (identity.l0_digest ==
+    # governance.resolved_release_digest) holds BY CONSTRUCTION: we read the digest from the very
+    # package we attach to. Best-effort — a fault leaves the additive envelope otherwise intact.
+    if claim_record_fn is not None and skill_name == "tumor-presence":
+        try:
+            ep["claim_record"] = _attach_l2_claim_record(
+                ep=ep,
+                claim_record_fn=claim_record_fn,
+                emitted_cards=emitted_cards,
+                fired=fired,
+                verdict_pair=verdict_pair,
+                indication=_indication,
+                subgroup_spec=input_context.get("subgroup_spec"),
+                ruleset_version=skill_version,
+            )
+        except Exception as e:  # noqa: BLE001 — the L2 record is additive; never break the envelope
+            print(
+                f"[dispatcher] --emit-envelope: L2 claim_record attach skipped "
+                f"({type(e).__name__}: {e}); evidence_package.json emitted without it.",
+                file=sys.stderr,
+            )
+
     out_path = Path(args.out) / "evidence_package.json"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(ep, indent=2, default=str))
@@ -1180,6 +1276,7 @@ def run_wired_skill(
                 headline=headline,
                 verdict_pair=verdict_pair,
                 fired=fired,
+                claim_record_fn=claim_record_fn,
             )
             print(f"  emitted evidence_package.json → {_ep_path}")
         except Exception as e:  # noqa: BLE001 — envelope is additive; never break the spine
