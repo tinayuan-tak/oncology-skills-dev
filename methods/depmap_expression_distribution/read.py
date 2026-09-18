@@ -12,6 +12,7 @@ from typing import Optional
 # exactly as depmap_chronos.build_dependency_panorama does for dependency. DESCRIPTIVE / verdict-inert.
 from methods.subgroup_common.iteration import subgroup_iterable
 from methods.subgroup_common.panorama import (
+    SUBGROUP_EXPLORATORY_FLOOR,
     SUBGROUP_N_FLOOR,
     axis_quality,
     build_panorama,
@@ -118,7 +119,12 @@ def _expression_class(median: Optional[float]) -> str:
 
 @subgroup_iterable
 def read_stratified_expression(
-    target: str, indication: str, *, _sample_id_filter=None, release_pin: str = "26q1"
+    target: str,
+    indication: str,
+    *,
+    _sample_id_filter=None,
+    _stratum_evaluated: bool | None = None,
+    release_pin: str = "26q1",
 ) -> dict:
     """Per-subgroup cell-line RNA distribution of `target` across DepMap cell lines.
 
@@ -159,7 +165,13 @@ def read_stratified_expression(
         "median_log2tpm": (round(median, 4) if median is not None else None),
         "fraction_expressed": (round(frac_expr, 4) if frac_expr is not None else None),
         "subgroup_n_floor_met": floor_met,
-        "evidence_state": evidence_state(n, floor_met),
+        # BOTH opt-ins are live on this path: unlike the CPTAC arm there is no `n == 0` early
+        # return, so a stratum with no member ModelIDs reaches here and `evaluated=` decides
+        # absent-vs-unevaluable. This is the DepMap STAD/PAAD case — axis defined in the catalog,
+        # every stratum unclassified — which `absent` would have laundered into a measured negative.
+        "evidence_state": evidence_state(
+            n, floor_met, evaluated=_stratum_evaluated, exploratory_floor=SUBGROUP_EXPLORATORY_FLOOR
+        ),
         "expression_class": _expression_class(median),
         "source_cohort": f"DepMap-{release_pin}",
     }

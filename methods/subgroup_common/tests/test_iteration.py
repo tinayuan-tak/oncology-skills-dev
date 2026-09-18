@@ -176,3 +176,99 @@ def test_coverage_guard_no_false_alarm_without_subgroup_n(tmp_path, monkeypatch,
         subgroup_catalog_repo=fake_catalog,
     )
     assert not [w for w in recwarn if "sample-id-convention" in str(w.message)]
+
+
+# ── Stratum-evaluability opt-in (absent-vs-unevaluable plumbing) ───────────────────────────────
+
+
+def _seed_assignments_with_abstentions(tmp_path, monkeypatch) -> Path:
+    """Shard with THREE strata, the third of which is the point.
+
+    MSI_H / MSS each have classified members. `CIMP_High` has rows but its `is_member` column is
+    ALL NULL — the assigner reached no verdict for anybody. That is the ONLY shape that makes
+    `evaluated is False` reachable, and it is the shape of the live DepMap STAD/PAAD shards, where
+    the axis exists in the catalog but nothing was ever assigned. Without such a stratum every
+    evaluability assertion below would pass vacuously on a shard that cannot express abstention.
+    """
+    monkeypatch.setattr(loaders, "CACHE_ASSIGNMENTS", tmp_path / "cache" / "assignments")
+    fake_catalog = tmp_path / "data-catalog"
+    manifest_dir = fake_catalog / "manifests" / "derived"
+    manifest_dir.mkdir(parents=True)
+    (manifest_dir / "tcga-subgroup-assignments-coadread-v1.yaml").write_text(
+        "manifest_kind: subgroup_assignment\nschema_version: 1\n"
+        "id: tcga-subgroup-assignments-coadread-v1\nindication: COADREAD\n"
+    )
+    parquet_dir = tmp_path / "cache" / "assignments" / "tcga-subgroup-assignments-coadread-v1"
+    parquet_dir.mkdir(parents=True)
+    df = pd.DataFrame(
+        {
+            "sample_id": ["S1", "S2", "S3", "S4"] * 3,
+            "stratum_id": ["MSI_H"] * 4 + ["MSS"] * 4 + ["CIMP_High"] * 4,
+            "is_member": [True, True, False, False] + [False, False, True, True] + [None] * 4,
+        }
+    )
+    df.to_parquet(parquet_dir / "assignments.parquet", index=False)
+    return fake_catalog
+
+
+def test_evaluability_flag_injected_only_when_reader_declares_it(tmp_path, monkeypatch):
+    """The flag is OPT-IN by signature probe.
+
+    A reader that declares `_stratum_evaluated` receives it; one that does not is called exactly as
+    before and must NOT raise TypeError. This is the whole reason the injection is probed rather
+    than unconditional: four other @subgroup_iterable readers feed cards that still declare the
+    narrow {measured, underpowered, absent} enum, and an unconditional inject would break them.
+    """
+    fake_catalog = _seed_assignments_with_abstentions(tmp_path, monkeypatch)
+    seen: dict = {}
+
+    @iteration.subgroup_iterable
+    def opted_in(target: str, _sample_id_filter=None, _stratum_evaluated=None) -> dict:
+        seen["flag"] = _stratum_evaluated
+        return {"target": target, "subgroup_n": len(_sample_id_filter or [])}
+
+    @iteration.subgroup_iterable
+    def not_opted_in(target: str, _sample_id_filter=None, **kwargs) -> dict:
+        seen["kwargs"] = dict(kwargs)
+        return {"target": target, "subgroup_n": len(_sample_id_filter or [])}
+
+    common = {
+        "subgroups": ["MSI_H"],
+        "subgroup_assignments_manifest": "tcga-subgroup-assignments-coadread-v1",
+        "subgroup_catalog_repo": fake_catalog,
+    }
+    opted_in(target="KRAS", **common)
+    assert seen["flag"] is True  # MSI_H has classified rows
+
+    # A reader with **kwargs but no explicit declaration is NOT opted in — the probe looks for the
+    # named parameter, so a catch-all cannot silently start receiving (and ignoring) the flag.
+    not_opted_in(target="KRAS", **common)
+    assert seen["kwargs"] == {}
+
+
+def test_evaluability_flag_separates_empty_from_unclassified(tmp_path, monkeypatch):
+    """`evaluated` is False ONLY for the all-null stratum — the absent-vs-unevaluable discriminator.
+
+    Both MSS (classified, but S1/S2 are non-members) and CIMP_High (nobody classified) resolve to a
+    member set that EXCLUDES S1/S2, so `_sample_id_filter` alone cannot tell them apart. The flag
+    can: that is the fact `evidence_state(0, False, evaluated=...)` needs to avoid laundering an
+    abstention into the measured negative `absent`.
+    """
+    fake_catalog = _seed_assignments_with_abstentions(tmp_path, monkeypatch)
+    flags: dict = {}
+
+    @iteration.subgroup_iterable
+    def probe(target: str, _sample_id_filter=None, _stratum_evaluated=None) -> dict:
+        flags[len(flags)] = _stratum_evaluated
+        return {"target": target, "subgroup_n": len(_sample_id_filter or [])}
+
+    out = probe(
+        target="KRAS",
+        subgroups=["MSI_H", "MSS", "CIMP_High"],
+        subgroup_assignments_manifest="tcga-subgroup-assignments-coadread-v1",
+        subgroup_catalog_repo=fake_catalog,
+    )
+    assert [flags[i] for i in range(3)] == [True, True, False]
+    # CIMP_High resolves to ZERO members, so the count alone is indistinguishable from a genuinely
+    # empty-but-evaluated stratum — the control that proves the flag is carrying new information.
+    assert out["CIMP_High"]["subgroup_n"] == 0

@@ -7,7 +7,13 @@ from typing import Optional
 import numpy as np
 
 from methods.subgroup_common.iteration import subgroup_iterable
-from methods.subgroup_common.panorama import SUBGROUP_N_FLOOR, axis_quality, build_panorama, evidence_state
+from methods.subgroup_common.panorama import (
+    SUBGROUP_EXPLORATORY_FLOOR,
+    SUBGROUP_N_FLOOR,
+    axis_quality,
+    build_panorama,
+    evidence_state,
+)
 
 # indication -> the landed CPTAC subgroup-assignment shard. COADREAD only today (MSI_H/MSS from
 # MMR-IHC). Absent -> subtype_axis_available:false (honest), mirroring the RNA-subtype allowlist.
@@ -37,7 +43,12 @@ def _protein_class(median: Optional[float]) -> str:
 
 @subgroup_iterable
 def read_stratified_protein(
-    target: str, indication: str, *, _sample_id_filter=None, cohort: Optional[str] = None
+    target: str,
+    indication: str,
+    *,
+    _sample_id_filter=None,
+    _stratum_evaluated: Optional[bool] = None,
+    cohort: Optional[str] = None,
 ) -> dict:
     """Per-subgroup CPTAC tumor-protein distribution of `target` across the stratum's member aliquots.
 
@@ -56,7 +67,11 @@ def read_stratified_protein(
         "median_log2_ratio": None,
         "detectable_fraction": None,
         "subgroup_n_floor_met": False,
-        "evidence_state": "absent",
+        # Graded, not hardcoded: this template is returned BOTH when the stratum has no member
+        # aliquots and when the CPTAC product/cohort is missing. In either case a stratum the
+        # assigner never classified is an ABSTENTION, not the measured absence `absent` asserts.
+        # Historical value preserved exactly when `_stratum_evaluated is None` (unstratified call).
+        "evidence_state": evidence_state(0, False, evaluated=_stratum_evaluated),
         "protein_class": "insufficient",
         "source_cohort": f"CPTAC-{cohort}",
     }
@@ -80,7 +95,10 @@ def read_stratified_protein(
         "median_log2_ratio": round(median, 4),
         "detectable_fraction": round(float(np.isfinite(vals).mean()), 4),
         "subgroup_n_floor_met": floor_met,
-        "evidence_state": evidence_state(n, floor_met),
+        # `evaluated=` is deliberately omitted: evidence_state consults it only at subgroup_n == 0
+        # and the `n == 0` early return above makes n > 0 unreachable-otherwise here, so passing it
+        # would be an inert argument. `exploratory_floor` is the live opt-in on this path.
+        "evidence_state": evidence_state(n, floor_met, exploratory_floor=SUBGROUP_EXPLORATORY_FLOOR),
         "protein_class": _protein_class(median),
         "source_cohort": f"CPTAC-{cohort}",
     }

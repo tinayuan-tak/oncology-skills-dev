@@ -941,6 +941,9 @@ def read_tumor_expression_subtype_landscape(
     from statistics import median as _median
 
     from methods.subgroup_common.panorama import (
+        SUBGROUP_EXPLORATORY_FLOOR as _SUBGROUP_EXPLORATORY_FLOOR,
+    )
+    from methods.subgroup_common.panorama import (
         SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR,
     )
     from methods.subgroup_common.panorama import (
@@ -1048,7 +1051,13 @@ def read_tumor_expression_subtype_landscape(
             # bridge-matched member cases (the samples that actually contribute to the
             # omnibus vector), so the per-axis disjointness guard drops composite arms.
             powered_member_sets[stratum_id] = set(sub["case"].tolist())
-        state = _evstate(n, floor_met)
+        # `evaluated=` is deliberately NOT passed on this arm, and that is a structural fact rather
+        # than an oversight: `strata` above is derived from `is_member == True` rows, so every
+        # stratum in this loop has >=1 CLASSIFIED member by construction => stratum_evaluability()
+        # .evaluated is necessarily True and `unevaluable` is unreachable. Passing it would be a
+        # field that never varies. The DepMap/CPTAC arms differ because they are handed `subgroups`
+        # by the CALLER and can therefore be asked about a stratum nobody was ever assigned to.
+        state = _evstate(n, floor_met, exploratory_floor=_SUBGROUP_EXPLORATORY_FLOOR)
         # join-coverage guard: warns on the <5% id-convention-mismatch signature.
         cov = compute_join_coverage(bridged, "case", stratum_id, manifest, warn=True)
         rec = {
@@ -1294,6 +1303,7 @@ def read_tumor_subtype_values(target: str, indication: str) -> dict:
        strata: [ {stratum_id, values: [..], subtype_signal, evidence_state,
                   subgroup_n_floor_met, n} ordered by median ], _note?: str}
     data_unavailable-safe (no shard / target absent → available False)."""
+    from methods.subgroup_common.panorama import SUBGROUP_EXPLORATORY_FLOOR as _SUBGROUP_EXPLORATORY_FLOOR
     from methods.subgroup_common.panorama import SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR
     from methods.subgroup_common.panorama import evidence_state as _evstate
 
@@ -1345,7 +1355,11 @@ def read_tumor_subtype_values(target: str, indication: str) -> dict:
                 "stratum_id": sid,
                 "values": vals,
                 "subtype_signal": signal,
-                "evidence_state": _evstate(n, floor_met),
+                # Same opt-in as the landscape reader above — REQUIRED here, not optional: this
+                # function's docstring promises it "Shares the SAME bridge + shard ... (no drift)",
+                # so grading the two differently would break a stated invariant. `evaluated=` is
+                # omitted for the same structural reason (strata come from is_member == True rows).
+                "evidence_state": _evstate(n, floor_met, exploratory_floor=_SUBGROUP_EXPLORATORY_FLOOR),
                 "subgroup_n_floor_met": floor_met,
                 "n": n,
                 "median": (_st.median(vals) if vals else None),

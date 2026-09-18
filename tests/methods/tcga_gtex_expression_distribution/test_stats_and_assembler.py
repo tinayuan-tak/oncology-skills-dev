@@ -305,22 +305,39 @@ def test_omnibus_data_unavailable_when_one_powered_stratum(monkeypatch):
     assert res["subtype_variance_explained"] is None
 
 
-def test_subtype_underpowered_gets_null_signal_not_scoped_call(monkeypatch):
-    # a stratum below the n=30 floor must carry stats for context but a NULL signal + underpowered.
-    small = [(f"s{i}", 6.0) for i in range(10)]  # n=10 < 30
+def test_subtype_below_floor_gets_null_signal_not_scoped_call(monkeypatch):
+    """A stratum below the n=30 floor carries stats for context but NEVER a signal — at BOTH
+    sub-floor grades.
+
+    Since AM#659 the sub-floor range is split: n in [10,30) grades `exploratory` and n<10 stays
+    `underpowered`. The split is presentational only, and that is exactly what this test pins —
+    `subgroup_n_floor_met` is False and `subtype_signal` is None on BOTH, so neither can carry a
+    scoped call. RARE sits 4.0 log2 units above the pooled median (far past the 0.585 enrichment
+    delta), so a null signal here is the gate doing work rather than an absent contrast.
+
+    Both grades are asserted in one pass: a test that checked only the `exploratory` half would
+    leave `underpowered` with no coverage at all on the landscape reader, which is where the
+    historical meaning of the word still lives.
+    """
+    small = [(f"s{i}", 6.0) for i in range(10)]  # n=10 → exploratory (inclusive floor)
+    tiny = [(f"t{i}", 6.0) for i in range(5)]  # n=5  → still underpowered
     big = [(f"b{i}", 2.0) for i in range(50)]
     _wire_subtype(
         monkeypatch,
-        pooled_vals=[6.0] * 10 + [2.0] * 50,
-        bridged_rows=small + big,
-        assignment_rows=[(f"s{i}", "RARE", True) for i in range(10)] + [(f"b{i}", "COMMON", True) for i in range(50)],
+        pooled_vals=[6.0] * 15 + [2.0] * 50,
+        bridged_rows=small + tiny + big,
+        assignment_rows=[(f"s{i}", "RARE", True) for i in range(10)]
+        + [(f"t{i}", "ULTRARARE", True) for i in range(5)]
+        + [(f"b{i}", "COMMON", True) for i in range(50)],
     )
     res = R.read_tumor_expression_subtype_landscape("X", "COADREAD")
     rec = {r["stratum_id"]: r for r in res["subtype_landscape"]}
-    assert rec["RARE"]["evidence_state"] == "underpowered"
-    assert rec["RARE"]["subgroup_n_floor_met"] is False
-    assert rec["RARE"]["subtype_signal"] is None  # never a scoped call when underpowered
-    assert rec["RARE"]["median_log2tpm"] is not None  # but stats survive for context
+    assert rec["RARE"]["evidence_state"] == "exploratory"
+    assert rec["ULTRARARE"]["evidence_state"] == "underpowered"
+    for stratum in ("RARE", "ULTRARARE"):
+        assert rec[stratum]["subgroup_n_floor_met"] is False
+        assert rec[stratum]["subtype_signal"] is None  # never a scoped call below the floor
+        assert rec[stratum]["median_log2tpm"] is not None  # but stats survive for context
     assert rec["COMMON"]["evidence_state"] == "measured"
 
 
