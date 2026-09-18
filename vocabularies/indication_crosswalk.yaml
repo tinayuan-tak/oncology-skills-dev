@@ -10,7 +10,27 @@
 # See IDAS_SUBTYPE_PIPELINE.md master design + parent plan
 # .claude/plans/deep-foraging-thompson.md Phase 1.
 
-version: 1.4.0   # 1.4.0 (2026-09-12): + `aliases` lane (sub-indication / synonym codes that resolve to a
+version: 1.5.0   # 1.5.0 (2026-09-18): HNSC `depmap_lineage` REPAIRED `Head_and_Neck` -> `Head and Neck`, and
+                 # DLBCL/UM added as aliases. NOT purely additive: the HNSC line CHANGES a value.
+                 # The underscored spelling matched ZERO of the 96 models in DepMap 26Q1's real
+                 # `Head and Neck` lineage, so every consumer reading this lane for HNSC got a silent
+                 # miss. In the functional-requirement skill that miss is not merely a fallback: because
+                 # HNSC *is* curated here, `_indication_lineage_read` passes the "not in the vocabulary"
+                 # branch and lands on `not_in_panel`, emitting the measured-absence claim
+                 # "Head_and_Neck not among screened lineages" for a lineage with 96 screened models.
+                 # Measured on the 504-pair atlas run population: 40 HNSC pairs carried that false
+                 # absence, and it hid a real enrichment on EGFR/HNSC.
+                 # It was the ONLY underscored value of 34 — `Soft Tissue`, `Adrenal Gland`,
+                 # `Bladder/Urinary Tract`, `Ovary/Fallopian Tube`, `Esophagus/Stomach` and 6 more
+                 # multi-word lineages already used the literal Model.csv spelling, and the
+                 # analysis-methods canonical map (depmap_chronos.read.INDICATION_TO_DEPMAP_LINEAGE) has
+                 # zero underscored values. So this is a one-member typo, NOT a token convention; the
+                 # guards that called it one now compare EXACTLY (see tests/vocabularies/).
+                 # DLBCL and UM are each the `oncotree_code` this file ALREADY declares on its own entry
+                 # (DLBC and UVM respectively), so a caller passing one is passing a string this
+                 # vocabulary itself publishes; neither resolved, so both fell to the no-indication-read
+                 # branch (9 atlas pairs). A new guard makes every declared oncotree_code resolvable.
+                 # 1.4.0 (2026-09-12): + `aliases` lane (sub-indication / synonym codes that resolve to a
                  # canonical indication) and two DepMap-lineage repairs. Motivation: the analysis-methods
                  # canonical map (depmap_chronos.cli.INDICATION_LINEAGE) knew LUAD/LUSC/COAD/READ while this
                  # file did not, so a consumer reading THIS file (e.g. the functional-requirement skill's
@@ -130,8 +150,8 @@ indications:
     oncotree_code: HNSC
     tcga_studies: [TCGA-HNSC]
     gdc_project_ids: [TCGA-HNSC]
-    depmap_lineage: Head_and_Neck
-    depmap_oncotree_lineage: Head_and_Neck_Squamous_Cell_Carcinoma
+    depmap_lineage: Head and Neck  # FIX v1.5.0: was `Head_and_Neck`, which matched ZERO of the 96 models in DepMap 26Q1's real `Head and Neck` OncotreeLineage — verbatim Model.csv spelling, no underscore
+    depmap_oncotree_lineage: Head_and_Neck_Squamous_Cell_Carcinoma  # underscored ON PURPOSE and left alone: this lane is an OncotreeSubtype-style token, is never compared to an OncotreeLineage value, and 10 of its 35 values are underscored
     cptac_cohort: HNSCC
     gtex_normal_tissue: null  # No exact GTEx match; Skin - Sun Exposed / Minor Salivary Gland are best-available; verify at Phase 2 wire-in
     adj_normal_manifest: null
@@ -448,6 +468,12 @@ indications:
     tcga_studies: [TCGA-DLBC]
     gdc_project_ids: [TCGA-DLBC]
     depmap_lineage: Lymphoid
+    # v1.5.0: DLBCL is this entry's OWN oncotree_code (above) and the code callers actually pass — the
+    # atlas run population uses it for 7 target-indication pairs. It resolved to nothing, so those runs
+    # took the "not in the framework indication vocabulary" branch and got NO indication-scoped read.
+    # NOTE unlike the v1.4.0 aliases, DLBCL is NOT in the analysis-methods canonical map (which keys
+    # DLBC); the justification here is this file's own oncotree_code lane, not cross-repo parity.
+    aliases: [DLBCL]
     cptac_cohort: null
     gtex_normal_tissue: "Whole Blood"
     adj_normal_manifest: null   # heme — no adjacent-normal concept; no DGE product
@@ -521,6 +547,13 @@ indications:
     depmap_lineage: Eye
     depmap_oncotree_lineage: Ocular_Melanoma
     depmap_oncotree_codes: [UM]
+    # v1.5.0: UM is this entry's OWN oncotree_code (above) and the code callers pass — 2 atlas pairs.
+    # It resolved to nothing, so those runs got no indication-scoped read at all. As with NSCLC's
+    # LUAD/LUSC, a code may appear in BOTH lanes without duplication: `depmap_oncotree_codes` is the
+    # SUBLINEAGE grain (which DepMap models are UVM within the shared `Eye` lineage), while `aliases`
+    # is the INPUT grain (which --indication strings resolve to this canonical code).
+    # NOT in the analysis-methods canonical map (which keys UVM); justified by this file's own lane.
+    aliases: [UM]
     cptac_cohort: null
     gtex_normal_tissue: null
     adj_normal_manifest: null

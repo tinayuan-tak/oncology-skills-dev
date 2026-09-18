@@ -9,10 +9,30 @@ These guards keep every `depmap_lineage` a REAL DepMap 26Q1 lineage and pin STAD
 the correct merged value.
 
 NOTE: this repo has no pixi env; run with `python -m pytest tests/vocabularies/ -q`.
-The crosswalk's `depmap_lineage` column uses an underscored token convention for some
-multi-word lineages (e.g. `Head_and_Neck` for the real Model.csv "Head and Neck"), so
-the membership check normalizes "_"→" " before comparing — the bogus "Stomach" fails
-either way (there is no "Stomach" in the set even after normalization).
+
+RETRACTED 2026-09-18 (v1.5.0) — this docstring previously claimed:
+
+    "The crosswalk's `depmap_lineage` column uses an underscored token convention for some
+     multi-word lineages (e.g. `Head_and_Neck` for the real Model.csv "Head and Neck"), so
+     the membership check normalizes "_"→" " before comparing"
+
+That claim was FALSE, and stating it as a convention is what kept the defect alive. The
+"convention" had exactly ONE member (HNSC) out of 34 filled values, while `Soft Tissue`,
+`Adrenal Gland`, `Bladder/Urinary Tract`, `Ovary/Fallopian Tube`, `Esophagus/Stomach` and 6
+more multi-word lineages already used the literal Model.csv spelling — and the sibling
+analysis-methods canonical map has zero underscored values. It was a typo with a docstring.
+
+The cost of normalizing was that these guards validated a WEAKER property than their
+consumers require. No consumer normalizes: the functional-requirement skill reads
+`depmap_lineage` raw and compares it to Model.csv's `OncotreeLineage`, so the underscored
+value matched ZERO of 96 HNSC models, silently — and `methods/subgroup_common/lineage.py`
+documented the crosswalk as "NOT safe to read directly" for exactly this reason, working
+around it instead of fixing it. A guard that normalizes away the difference its consumer
+trips on cannot fail on the bug it exists to catch.
+
+So the lineage comparisons here are now EXACT (no normalization). `_norm` survives only for
+the "Stomach" guard, where it is a strictly-widening belt-and-braces check: "Stomach" is
+absent from the lineage set with or without normalization.
 """
 
 from __future__ import annotations
@@ -95,13 +115,78 @@ def test_no_indication_maps_to_the_bogus_stomach_lineage():
 
 
 def test_every_depmap_lineage_is_a_real_model_csv_lineage():
+    """EXACT membership — no normalization. See the module docstring's retraction.
+
+    Consumers compare this value to Model.csv's `OncotreeLineage` verbatim, so "equal after
+    replacing underscores with spaces" is not the property that keeps them working. This
+    assertion is strictly stronger than the normalizing form it replaced, and it FAILED on
+    HNSC `Head_and_Neck` before v1.5.0 repaired it — that red is this guard's anti-vacuity
+    proof, and `test_the_lineage_lane_has_no_underscored_values` below states the same
+    property in the form that names the failure mode directly.
+    """
     doc = _load()
     bad = {
         i["canonical_code"]: i["depmap_lineage"]
         for i in doc["indications"]
-        if i.get("depmap_lineage") and _norm(i["depmap_lineage"]) not in MODEL_CSV_26Q1_LINEAGES
+        if i.get("depmap_lineage") and i["depmap_lineage"] not in MODEL_CSV_26Q1_LINEAGES
     }
-    assert not bad, f"depmap_lineage values absent from DepMap 26Q1 Model.csv: {bad}"
+    assert not bad, (
+        f"depmap_lineage values absent from DepMap 26Q1 Model.csv: {bad}. Compare EXACTLY — "
+        "Model.csv spells multi-word lineages with spaces and slashes ('Head and Neck', "
+        "'Bladder/Urinary Tract'), and an underscored token matches zero models silently."
+    )
+
+
+def test_the_lineage_lane_has_no_underscored_values():
+    """The v1.5.0 regression guard, stated as the failure mode rather than as membership.
+
+    `test_every_depmap_lineage_is_a_real_model_csv_lineage` already subsumes this while
+    MODEL_CSV_26Q1_LINEAGES is pinned to 26Q1. This one survives a release bump: if a future
+    curator widens that roster from a live load, an underscored value could re-enter through a
+    lineage DepMap really does spell with an underscore, and the membership check would accept
+    it. No DepMap 26Q1 OncotreeLineage contains an underscore, so the lane should not either.
+
+    Deliberately NOT applied to `depmap_oncotree_lineage`: 10 of its values are underscored on
+    purpose (it is an OncotreeSubtype-style token) and nothing compares it to an OncotreeLineage.
+    """
+    doc = _load()
+    assert not any("_" in v for v in MODEL_CSV_26Q1_LINEAGES), (
+        "premise broken: the pinned Model.csv roster now contains an underscored lineage, so "
+        "this guard's reasoning no longer holds — re-derive it against the new release"
+    )
+    offenders = {
+        i["canonical_code"]: i["depmap_lineage"]
+        for i in doc["indications"]
+        if isinstance(i.get("depmap_lineage"), str) and "_" in i["depmap_lineage"]
+    }
+    assert not offenders, f"underscored depmap_lineage values (consumers compare verbatim to Model.csv): {offenders}"
+
+
+def test_every_declared_oncotree_code_resolves_through_the_crosswalk():
+    """If this file publishes a code in `oncotree_code`, a caller passing it must resolve.
+
+    v1.5.0. This was violated by exactly 2 of 35 entries — DLBC (`oncotree_code: DLBCL`) and
+    UVM (`oncotree_code: UM`) — and those two codes are precisely the ones the atlas run
+    population passes and the framework could not resolve (9 target-indication pairs), each
+    falling to the "not in the framework indication vocabulary" branch with no
+    indication-scoped read. The file was publishing a code it would not accept.
+
+    Note this property is FILE-LOCAL: it needs no sibling repo and no atlas read, yet it
+    covered the whole measured gap. Both codes are absent from the analysis-methods canonical
+    map, so `test_crosswalk_agrees_with_analysis_methods_canonical_map` could never have
+    caught them.
+    """
+    doc = _load()
+    resolvable = set(_resolvable_lineages(doc))
+    unresolvable = {
+        i["canonical_code"]: i["oncotree_code"]
+        for i in doc["indications"]
+        if isinstance(i.get("oncotree_code"), str) and i["oncotree_code"] not in resolvable
+    }
+    assert not unresolvable, (
+        "entries publish an `oncotree_code` that does not resolve as a canonical_code or an "
+        f"alias, so a caller passing it gets no indication read (canonical: oncotree_code): {unresolvable}"
+    )
 
 
 def test_every_indication_has_mesh_ids_well_formed():
@@ -212,13 +297,21 @@ def test_crosswalk_agrees_with_analysis_methods_canonical_map():
     resolvable = _resolvable_lineages(doc)
 
     # Direction 1: agree on every shared code (null included — a null here vs a real lineage there IS
-    # a disagreement, which is exactly how the UVM defect hid).
+    # a disagreement, which is exactly how the UVM defect hid). EXACT since v1.5.0: this comparison
+    # used to normalize "_"→" " on BOTH sides, which is how HNSC (`Head_and_Neck` here vs
+    # `Head and Neck` there) survived a guard whose whole purpose is catching cross-repo divergence.
+    # The two sources feed DIFFERENT consumers that both compare verbatim to Model.csv, so textual
+    # equality is the property that matters; normalizing made this leg blind to the one live defect.
     mism = {
         code: (resolvable[code], canon[code])
         for code in set(canon) & set(resolvable)
-        if _norm(resolvable[code] or "") != _norm(canon[code])
+        if (resolvable[code] or "") != canon[code]
     }
-    assert not mism, f"crosswalk vs analysis-methods canonical map disagree (code: (crosswalk, methods)): {mism}"
+    assert not mism, (
+        "crosswalk vs analysis-methods canonical map disagree TEXTUALLY (code: (crosswalk, methods)): "
+        f"{mism}. Both sides are compared verbatim to Model.csv by their consumers, so a "
+        "whitespace/underscore difference is a real divergence, not a formatting one."
+    )
 
     # Direction 2: the crosswalk must cover the methods map.
     uncovered = sorted(set(canon) - set(resolvable))
