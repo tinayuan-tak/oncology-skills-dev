@@ -240,3 +240,13 @@ measurement_type: sc_normal_celltype_expression
 modality_relevance: [adc, bite_tce, antibody]
 entity_grains: [target]
 schema_version: 1
+threshold_roles:
+  not_expressed_ceiling:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (claude-oncology-skills evidence_salience.contract_threshold), not by a card predicate: it anchors the sc_normal_celltype_expression graded_band ruler over the essential normal-cell detection fraction (the sc_normal_safety_essential_class liability cutpoints), single-sourcing the display cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  moderate_liability_median_det:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (claude-oncology-skills evidence_salience.contract_threshold), not by a card predicate: it anchors the sc_normal_celltype_expression graded_band ruler over the essential normal-cell detection fraction (the sc_normal_safety_essential_class liability cutpoints), single-sourcing the display cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  high_liability_median_det:
+    role: reader_gate
+    note: 'Applied by the skill-side reader (claude-oncology-skills evidence_salience.contract_threshold), not by a card predicate: it anchors the sc_normal_celltype_expression graded_band ruler over the essential normal-cell detection fraction (the sc_normal_safety_essential_class liability cutpoints), single-sourcing the display cut. THRESHOLD_UNUSED here is a false positive on a live read.'
