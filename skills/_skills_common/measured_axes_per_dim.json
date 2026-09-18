@@ -68,13 +68,11 @@
       "gate_short": "dependency",
       "n_declared_cards": 16,
       "n_declared_types": 13,
-      "n_measurement_descriptor_fields": 44,
-      "n_types_with_measurement_descriptor": 12,
+      "n_measurement_descriptor_fields": 47,
+      "n_types_with_measurement_descriptor": 13,
       "skill_dir": "functional-requirement",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [
-        "genomic_event_model_match"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_bearing": true
     },
     "differentiation": {
@@ -120,19 +118,12 @@
       "gate_short": "genomic_alteration",
       "n_declared_cards": 26,
       "n_declared_types": 23,
-      "n_measurement_descriptor_fields": 94,
-      "n_types_with_measurement_descriptor": 15,
+      "n_measurement_descriptor_fields": 112,
+      "n_types_with_measurement_descriptor": 22,
       "skill_dir": "genomic-alteration-profile",
       "static_state": "descriptor_covered",
       "types_without_measurement_descriptor": [
-        "ddr_deficiency_context",
-        "functional_gene_state",
-        "genomic_event_model_match",
-        "genomic_instability_state",
-        "mutational_signature_context",
-        "oncogenic_pathway_alteration",
-        "tumor_splice_dysregulation",
-        "variant_functional_effect_mave"
+        "ddr_deficiency_context"
       ],
       "verdict_bearing": true
     },
@@ -198,13 +189,12 @@
       "gate_short": "safety",
       "n_declared_cards": 16,
       "n_declared_types": 16,
-      "n_measurement_descriptor_fields": 75,
-      "n_types_with_measurement_descriptor": 12,
+      "n_measurement_descriptor_fields": 76,
+      "n_types_with_measurement_descriptor": 13,
       "skill_dir": "on-target-safety-liability",
       "static_state": "descriptor_covered",
       "types_without_measurement_descriptor": [
         "drug_warning_safety",
-        "functional_gene_state",
         "onsides_adverse_event_safety",
         "target_safety_prioritisation"
       ],
@@ -332,18 +322,11 @@
       "n_axes_counted": 6,
       "n_axes_descriptor_covered": 6,
       "n_declared_types": 60,
-      "n_types_without_measurement_descriptor": 9,
+      "n_types_without_measurement_descriptor": 2,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
         "ddr_deficiency_context",
-        "functional_gene_state",
-        "genomic_event_model_match",
-        "genomic_instability_state",
-        "mutational_signature_context",
-        "oncogenic_pathway_alteration",
-        "phospho_pathway_activity",
-        "tumor_splice_dysregulation",
-        "variant_functional_effect_mave"
+        "phospho_pathway_activity"
       ],
       "verdict_member_axes": [
         "dependency",
@@ -426,11 +409,10 @@
       "n_axes_counted": 2,
       "n_axes_descriptor_covered": 2,
       "n_declared_types": 28,
-      "n_types_without_measurement_descriptor": 8,
+      "n_types_without_measurement_descriptor": 7,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
         "drug_warning_safety",
-        "functional_gene_state",
         "onsides_adverse_event_safety",
         "spatial_colocalization",
         "spatial_region_rna",
@@ -951,10 +933,10 @@
     "n_dims": 6,
     "n_fanout_axes": 15,
     "n_gated_axes": 8,
-    "n_salience_spec_types": 90,
+    "n_salience_spec_types": 97,
     "n_spec_types_pulled_by_no_axis": 0,
-    "n_types_with_measurement_descriptor": 90,
-    "n_types_without_measurement_descriptor": 33
+    "n_types_with_measurement_descriptor": 97,
+    "n_types_without_measurement_descriptor": 26
   },
   "types_without_measurement_descriptor": [
     "cited_literature_evidence",
@@ -962,15 +944,10 @@
     "competitor_landscape",
     "ddr_deficiency_context",
     "drug_warning_safety",
-    "functional_gene_state",
     "gene_ontology_annotation",
-    "genomic_event_model_match",
-    "genomic_instability_state",
     "genotype_matched_model",
     "ici_response_expression",
     "model_availability",
-    "mutational_signature_context",
-    "oncogenic_pathway_alteration",
     "onsides_adverse_event_safety",
     "pdx_drug_response",
     "phospho_pathway_activity",
@@ -987,8 +964,6 @@
     "target_development_level",
     "target_identity",
     "target_safety_prioritisation",
-    "tumor_splice_dysregulation",
-    "tumor_vs_normal_protein_abundance",
-    "variant_functional_effect_mave"
+    "tumor_vs_normal_protein_abundance"
   ]
 }

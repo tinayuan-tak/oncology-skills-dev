@@ -776,6 +776,60 @@ SALIENCE_SPECS: dict = {
         "n_field": "n_perturbing_drugs",
         "categorical": ["tahoe_perturbation_class"],
     },
+    # ── descriptor-coverage sweep, genomic-alteration-profile batch (2026-09-18) ────────────────────
+    # genomic_instability_state: GRADED, higher_is_worse (more CIN = a genomic-noise / aggressiveness
+    # caveat; orientation-only). ATLAS-OPTOUT: median_fraction_genome_altered is an INDICATION property
+    # (identical across targets in a cohort), so a target atlas column would mislabel it (like
+    # immune_context / spatial_til_fraction). verdict-INERT cohort context.
+    "genomic_instability_state": {
+        "effect_field": "median_fraction_genome_altered",
+        "direction": "higher_is_worse",
+        "categorical": ["aneuploidy_burden_class"],
+        "n_field": "n_samples",
+        "reference_frame": {
+            "kind": "graded_band",
+            "atlas_numeric": False,
+            "value_field": "median_fraction_genome_altered",
+            "scale": "fraction_genome_altered",
+            "position_field": "aneuploidy_burden_class",
+            "cuts": [
+                {
+                    "card_id": "genomic-instability-state",
+                    "threshold": "low_median_frac_altered",
+                    "label": "quiet_genome",
+                },
+                {
+                    "card_id": "genomic-instability-state",
+                    "threshold": "high_median_frac_altered",
+                    "label": "highly_aneuploid",
+                },
+            ],
+        },
+    },
+    # categorical-only (the class is the ruler):
+    "functional_gene_state": {
+        "categorical": ["functional_state_class"],
+    },
+    "genomic_event_model_match": {
+        "n_field": "n_models_considered",
+        "categorical": ["event_correspondence_class", "patient_event_state"],
+    },
+    "mutational_signature_context": {
+        "n_field": "n_samples",
+        "categorical": ["dominant_process", "apobec_class", "mmr_deficiency_class", "hrd_class"],
+    },
+    "oncogenic_pathway_alteration": {
+        "n_field": "n_pathways_profiled",
+        "categorical": ["oncogenic_pathway_class"],
+    },
+    "variant_functional_effect_mave": {
+        "n_field": "n_score_sets",
+        "categorical": ["mave_evidence_class"],
+    },
+    "tumor_splice_dysregulation": {
+        "n_field": "n_splice_events",
+        "categorical": ["splicing_dysregulation_class"],
+    },
     "tumor_vs_adjacent_expression": {
         "effect_field": "log2_fc",
         "significance_field": "q_value",

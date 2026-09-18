@@ -234,6 +234,9 @@
       "n_paired_samples",
       "purity_confound_class"
     ],
+    "functional_gene_state": [
+      "functional_state_class"
+    ],
     "fusion_rearrangement": [
       "fusion_class",
       "fusion_frequency",
@@ -252,6 +255,16 @@
       "median_chronos_fusion_negative",
       "median_chronos_fusion_positive",
       "n_fusion_positive"
+    ],
+    "genomic_event_model_match": [
+      "event_correspondence_class",
+      "n_models_considered",
+      "patient_event_state"
+    ],
+    "genomic_instability_state": [
+      "aneuploidy_burden_class",
+      "median_fraction_genome_altered",
+      "n_samples"
     ],
     "gnomad_lof_constraint": [
       "constraint_class",
@@ -370,6 +383,13 @@
       "mut_total_mutations",
       "mutation_landscape_class"
     ],
+    "mutational_signature_context": [
+      "apobec_class",
+      "dominant_process",
+      "hrd_class",
+      "mmr_deficiency_class",
+      "n_samples"
+    ],
     "normal_tissue_protein_abundance": [
       "highest_abundance_tissue",
       "highest_abundance_tissue_class",
@@ -396,6 +416,10 @@
       "liability_class",
       "n_tissues_detectable",
       "tissue_breadth_fraction"
+    ],
+    "oncogenic_pathway_alteration": [
+      "n_pathways_profiled",
+      "oncogenic_pathway_class"
     ],
     "paralog_buffering": [
       "n_paralogs_annotated",
@@ -594,6 +618,10 @@
       "n_patients_total",
       "protein_presence_class"
     ],
+    "tumor_splice_dysregulation": [
+      "n_splice_events",
+      "splicing_dysregulation_class"
+    ],
     "tumor_vs_adjacent_expression": [
       "allgene_percentile",
       "expression_call_class",
@@ -615,6 +643,10 @@
       "selectivity_substrate_basis",
       "sig_all_cells"
     ],
+    "variant_functional_effect_mave": [
+      "mave_evidence_class",
+      "n_score_sets"
+    ],
     "variant_level_interpretation": [
       "civic_variant_class",
       "n_interpreted_variants",
@@ -625,6 +657,7 @@
   "gloss_without_descriptor": [
     "delta_chronos_hotspot_mut_vs_wt",
     "max_detection_fraction",
+    "n_variants_assayed",
     "serum_marker",
     "strongest_synergy_partner_drug",
     "strongest_synergy_partner_target"
@@ -644,6 +677,7 @@
     "n_cell_lines_evaluated",
     "n_mutant",
     "n_patients",
+    "n_samples",
     "n_total_rows",
     "paralog_buffering_class",
     "partner_gene",
@@ -654,12 +688,12 @@
   "numeric_fields_without_gloss": [],
   "producer": "descriptor_coverage_sidecar",
   "role_counts": {
-    "categorical": 175,
-    "effect": 55,
+    "categorical": 186,
+    "effect": 56,
     "extra_scalar": 83,
     "frame_value": 16,
     "label": 10,
-    "n": 61,
+    "n": 67,
     "omnibus": 1,
     "significance": 28,
     "strata": 12
@@ -679,8 +713,10 @@
       "amp_expr_effect_size",
       "amp_expr_mannwhitney_q",
       "amp_expr_stratification_class",
+      "aneuploidy_burden_class",
       "antigen_conditioned_call",
       "antigen_high_immune_context_class",
+      "apobec_class",
       "approved_drug_engagement_class",
       "approved_drug_modality",
       "best_and_call_class",
@@ -756,6 +792,7 @@
       "dep_control_position_class",
       "direct_engagement_class",
       "distribution_overlap_tumor_normal",
+      "dominant_process",
       "dosage_sensitivity_class",
       "driver_direction",
       "driver_recurrence_class",
@@ -771,6 +808,7 @@
       "enriched_lineages",
       "epitope_evidence_class",
       "essential_tissue_flag",
+      "event_correspondence_class",
       "evidence_scope",
       "evidence_tier",
       "exon_window_class",
@@ -786,6 +824,7 @@
       "fraction_moderate_strong",
       "fraction_tumor_above_normal_p95",
       "functional_direction",
+      "functional_state_class",
       "fusion_class",
       "fusion_frequency",
       "fusion_recurrence_confidence",
@@ -808,6 +847,7 @@
       "hotspot_pocket_adjacency_call",
       "hpa_if_surface_class",
       "hpa_tissue_specificity",
+      "hrd_class",
       "immune_context_class",
       "impc_ko_phenotype_class",
       "in4mer_class",
@@ -827,6 +867,7 @@
       "logrank_df",
       "logrank_p",
       "malignant_detection_fraction",
+      "mave_evidence_class",
       "max_essential_normal_organ",
       "max_essential_normal_tpm",
       "max_full_normal_tpm",
@@ -850,6 +891,7 @@
       "median_chronos_hotspot_wildtype",
       "median_chronos_neutral",
       "median_chronos_panel",
+      "median_fraction_genome_altered",
       "median_log2_abundance_panel",
       "median_log2auc",
       "median_log2auc_across_compounds",
@@ -869,6 +911,7 @@
       "methylation_silencing_class",
       "min_pvalue",
       "mis_z_score",
+      "mmr_deficiency_class",
       "modality",
       "modality_implication_basis",
       "modality_implication_class",
@@ -913,6 +956,7 @@
       "n_interpreted_variants",
       "n_lethal",
       "n_models",
+      "n_models_considered",
       "n_mutant",
       "n_mutant_samples",
       "n_mutated_pooled",
@@ -927,6 +971,7 @@
       "n_partners_scanned",
       "n_partners_tested",
       "n_pathogenic_germline",
+      "n_pathways_profiled",
       "n_patients",
       "n_patients_cn_expr",
       "n_patients_joined",
@@ -938,7 +983,9 @@
       "n_risk",
       "n_samples",
       "n_samples_with_fusion",
+      "n_score_sets",
       "n_significant",
+      "n_splice_events",
       "n_synergy_partners",
       "n_tissues_detectable",
       "n_total_rows",
@@ -951,6 +998,7 @@
       "normal_protein_breadth_class",
       "normal_tissue_breadth_class",
       "obs_lof_count",
+      "oncogenic_pathway_class",
       "oncokb_gene_type",
       "overall_mutation_frequency",
       "paralog_buffering_class",
@@ -963,6 +1011,7 @@
       "pathway_stratified_surface_class",
       "patient_cis_dosage_class",
       "patient_copy_number_class",
+      "patient_event_state",
       "patient_focal_cn_class",
       "patient_high_amp_fraction",
       "patient_homdel_fraction",
@@ -1029,6 +1078,7 @@
       "sl_partner_count",
       "spearman_r_crispr",
       "splice_exon_skip_class",
+      "splicing_dysregulation_class",
       "stratification_direction",
       "stratum",
       "stromal_confound_class",
@@ -1107,8 +1157,10 @@
       "amp_expr_effect_size": "extra_scalar",
       "amp_expr_mannwhitney_q": "significance",
       "amp_expr_stratification_class": "categorical",
+      "aneuploidy_burden_class": "categorical",
       "antigen_conditioned_call": "categorical",
       "antigen_high_immune_context_class": "categorical",
+      "apobec_class": "categorical",
       "approved_drug_engagement_class": "categorical",
       "approved_drug_modality": "categorical",
       "best_and_call_class": "categorical",
@@ -1184,6 +1236,7 @@
       "dep_control_position_class": "categorical",
       "direct_engagement_class": "categorical",
       "distribution_overlap_tumor_normal": "extra_scalar",
+      "dominant_process": "categorical",
       "dosage_sensitivity_class": "categorical",
       "driver_direction": "categorical",
       "driver_recurrence_class": "categorical",
@@ -1199,6 +1252,7 @@
       "enriched_lineages": "strata",
       "epitope_evidence_class": "categorical",
       "essential_tissue_flag": "categorical",
+      "event_correspondence_class": "categorical",
       "evidence_scope": "categorical",
       "evidence_tier": "categorical",
       "exon_window_class": "categorical",
@@ -1214,6 +1268,7 @@
       "fraction_moderate_strong": "effect",
       "fraction_tumor_above_normal_p95": "effect",
       "functional_direction": "categorical",
+      "functional_state_class": "categorical",
       "fusion_class": "categorical",
       "fusion_frequency": "effect",
       "fusion_recurrence_confidence": "categorical",
@@ -1236,6 +1291,7 @@
       "hotspot_pocket_adjacency_call": "categorical",
       "hpa_if_surface_class": "categorical",
       "hpa_tissue_specificity": "categorical",
+      "hrd_class": "categorical",
       "immune_context_class": "categorical",
       "impc_ko_phenotype_class": "categorical",
       "in4mer_class": "categorical",
@@ -1255,6 +1311,7 @@
       "logrank_df": "extra_scalar",
       "logrank_p": "significance",
       "malignant_detection_fraction": "effect",
+      "mave_evidence_class": "categorical",
       "max_essential_normal_organ": "categorical",
       "max_essential_normal_tpm": "extra_scalar",
       "max_full_normal_tpm": "extra_scalar",
@@ -1278,6 +1335,7 @@
       "median_chronos_hotspot_wildtype": "extra_scalar",
       "median_chronos_neutral": "extra_scalar",
       "median_chronos_panel": "frame_value",
+      "median_fraction_genome_altered": "effect",
       "median_log2_abundance_panel": "effect",
       "median_log2auc": "effect",
       "median_log2auc_across_compounds": "frame_value",
@@ -1297,6 +1355,7 @@
       "methylation_silencing_class": "categorical",
       "min_pvalue": "significance",
       "mis_z_score": "extra_scalar",
+      "mmr_deficiency_class": "categorical",
       "modality": "categorical",
       "modality_implication_basis": "categorical",
       "modality_implication_class": "categorical",
@@ -1341,6 +1400,7 @@
       "n_interpreted_variants": "n",
       "n_lethal": "n",
       "n_models": "n",
+      "n_models_considered": "n",
       "n_mutant": "n",
       "n_mutant_samples": "n",
       "n_mutated_pooled": "extra_scalar",
@@ -1355,6 +1415,7 @@
       "n_partners_scanned": "n",
       "n_partners_tested": "n",
       "n_pathogenic_germline": "n",
+      "n_pathways_profiled": "n",
       "n_patients": "n",
       "n_patients_cn_expr": "n",
       "n_patients_joined": "n",
@@ -1366,7 +1427,9 @@
       "n_risk": "extra_scalar",
       "n_samples": "extra_scalar",
       "n_samples_with_fusion": "n",
+      "n_score_sets": "n",
       "n_significant": "n",
+      "n_splice_events": "n",
       "n_synergy_partners": "n",
       "n_tissues_detectable": "n",
       "n_total_rows": "extra_scalar",
@@ -1379,6 +1442,7 @@
       "normal_protein_breadth_class": "categorical",
       "normal_tissue_breadth_class": "categorical",
       "obs_lof_count": "extra_scalar",
+      "oncogenic_pathway_class": "categorical",
       "oncokb_gene_type": "categorical",
       "overall_mutation_frequency": "effect",
       "paralog_buffering_class": "categorical",
@@ -1391,6 +1455,7 @@
       "pathway_stratified_surface_class": "categorical",
       "patient_cis_dosage_class": "categorical",
       "patient_copy_number_class": "categorical",
+      "patient_event_state": "categorical",
       "patient_focal_cn_class": "categorical",
       "patient_high_amp_fraction": "extra_scalar",
       "patient_homdel_fraction": "extra_scalar",
@@ -1457,6 +1522,7 @@
       "sl_partner_count": "n",
       "spearman_r_crispr": "effect",
       "splice_exon_skip_class": "categorical",
+      "splicing_dysregulation_class": "categorical",
       "stratification_direction": "categorical",
       "stratum": "label",
       "stromal_confound_class": "categorical",
@@ -1517,19 +1583,19 @@
   },
   "schema_version": "1.0.0",
   "source_class_counts": {
-    "instrument": 441
+    "instrument": 459
   },
   "summary": {
     "n_atlas_live": 16,
-    "n_descriptor_cells": 441,
-    "n_distinct_fields": 405,
+    "n_descriptor_cells": 459,
+    "n_distinct_fields": 421,
     "n_envelope_fields": 11,
-    "n_gloss_without_descriptor": 5,
-    "n_measurement_types": 90,
-    "n_metric_gloss_entries": 226,
-    "n_multi_type_fields": 19,
-    "n_numeric_fields": 221,
-    "n_numeric_fields_with_gloss": 221,
+    "n_gloss_without_descriptor": 6,
+    "n_measurement_types": 97,
+    "n_metric_gloss_entries": 232,
+    "n_multi_type_fields": 20,
+    "n_numeric_fields": 226,
+    "n_numeric_fields_with_gloss": 226,
     "n_numeric_fields_without_gloss": 0
   }
 }

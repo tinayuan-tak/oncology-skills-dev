@@ -89,6 +89,13 @@ METRIC_GLOSS: dict = {
     "shet_upper_95": ("s_het 95% CI upper bound", "s_het"),
     "obs_lof_count": ("observed LoF variant count", "count"),
     "exp_lof_count": ("expected LoF variant count", "count"),
+    # descriptor-coverage sweep, genomic-alteration-profile batch.
+    "median_fraction_genome_altered": ("median fraction of genome altered (CIN)", "fraction"),
+    "n_models_considered": ("models considered", "count"),
+    "n_pathways_profiled": ("oncogenic pathways profiled", "count"),
+    "n_score_sets": ("MAVE score sets", "count"),
+    "n_variants_assayed": ("variants assayed", "count"),
+    "n_splice_events": ("splice events", "count"),
     # descriptor-coverage sweep, cis + tractability batch.
     "n_drug_interactions": ("catalogued drug-gene interactions", "count"),
     "n_e3_ligases_literature": ("literature-reported E3 ligases", "count"),

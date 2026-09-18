@@ -358,6 +358,11 @@ _ATLAS_NUMERIC_OPTOUT = {
         "ATLAS DEFERRED — the Spearman-r graded_band is a display-only ruler (atlas_numeric: False) "
         "because the target-archetype atlas is deferred out of go-live. Flip when the atlas returns."
     ),
+    "genomic_instability_state": (
+        "TARGET-INDEPENDENT — median_fraction_genome_altered is the INDICATION's aneuploidy burden, "
+        "identical for every target in a cohort, so a target atlas numeric would phrase an indication "
+        "property as a target one (same reasoning as immune_context). Display-only (atlas_numeric: False)."
+    ),
 }
 
 _SCAN_PRUNE = {".git", ".pixi", ".venv", "__pycache__", "node_modules", ".ruff_cache", ".pytest_cache"}
@@ -702,3 +707,12 @@ def test_cis_dosage_coupling_direction_sign():
     spec = SALIENCE_SPECS["cis_dosage_coupling"]
     assert spec["direction"] == "higher_is_stronger"
     assert [c["label"] for c in spec["reference_frame"]["cuts"]] == ["moderate", "strong"]
+
+
+def test_genomic_instability_state_direction_sign():
+    """Sign guard: higher median fraction-genome-altered = more chromosomal instability = a
+    genomic-noise/aggressiveness caveat (higher_is_worse; orientation-only, cohort context). Cuts ascend
+    quiet(0.10) -> aneuploid(0.40)."""
+    spec = SALIENCE_SPECS["genomic_instability_state"]
+    assert spec["direction"] == "higher_is_worse"
+    assert [c["label"] for c in spec["reference_frame"]["cuts"]] == ["quiet_genome", "highly_aneuploid"]
