@@ -447,11 +447,19 @@ def assemble_evidence_package(
         # missing target identity is not a valid governance-grade artifact.
         target_block = {"symbol": target, "hgnc_id": -1}
 
+    # scope must reflect the actual request, not a constant. It was hardcoded "cancer_type" even for
+    # subtype-scoped runs (which set subgroup_spec to a strata list), so context.scope never told a
+    # consumer whether the package was indication-level or subtype-level. Derive it from subgroup_spec,
+    # the single input that carries that distinction (truthy = a strata list or "all" => subtype-scoped;
+    # null/empty => indication-level). Mirrors the truthy reads downstream already use (render_markdown,
+    # cross-evidence-hypothesis). pancancer is a target-intrinsic scope not emitted on this
+    # (target, indication) path, so it is not derivable here and is intentionally not produced.
+    _subgroup_spec = ctx.get("subgroup_spec")
     context_block = {
         "target": target_block,
         "indication": {"oncotree_code": indication},
-        "subgroup_spec": ctx.get("subgroup_spec"),
-        "scope": "cancer_type",
+        "subgroup_spec": _subgroup_spec,
+        "scope": "cancer_subtype" if _subgroup_spec else "cancer_type",
     }
 
     # Build cards array — normalize each card_output into the evidence_package schema shape
