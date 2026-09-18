@@ -48,6 +48,13 @@ run "pytest dependency indication spine" python -m pytest tests/vocabularies/tes
 # the VETO_VERDICTS mirror, whose staleness fails OPEN — a `must_not_veto` assertion blind to a veto
 # arm reports PASS — so it is the last file that should be gated only by the safety net.
 run "pytest indication gate parity"      python -m pytest tests/vocabularies/test_indication_verdict_gate_parity.py tests/vocabularies/test_kill_capable_completeness.py tests/vocabularies/test_target_thesis.py tests/calibration/test_known_target_calibration.py -q
+# 2026-09-18: the three by-subtype arms' `subtype_signal` vocabulary, which they spelled TWO ways
+# (tumour RNA prefixed, cell-line RNA and tumour protein bare). Same no-net argument as the two lines
+# above. The reason this file in particular must be gated here rather than left to CI's safety net is
+# that it guards a MIGRATION: it is the assertion that lets the later bare-token REMOVAL be attempted
+# safely, by reding when a rule keys on a token its own card no longer declares. A migration guard
+# first observed in CI is a guard that was absent exactly when the removal commit was written.
+run "pytest subtype_signal vocabulary"   python -m pytest tests/validators/test_subtype_signal_vocabulary_alignment.py -q
 # --- ruff (.github/workflows/ruff.yml) ---
 # 2026-09-13: this script mirrored contracts-validate.yml and NOTHING ELSE, so "ALL GATES PASS" was
 # reported on a branch whose ruff job then failed on the PR — format-only, but a red check either way.

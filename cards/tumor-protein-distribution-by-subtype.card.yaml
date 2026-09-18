@@ -92,17 +92,54 @@ outputs:
     per_subgroup_metrics:
       stratum: string
       class: {enum: [protein_elevated, protein_neutral, protein_reduced, insufficient], type: string}
-      subtype_signal: {enum: [enriched, depleted, uniform], type: string}
+      # VOCABULARY ALIGNMENT, 2026-09-18 — TRANSITIONAL UNION. Same change, same reasoning and the
+      # same three-step migration as cellline-rna-distribution-by-subtype (which carries the full
+      # rationale); the target is the PREFIXED form because three interpretation rules key on it and
+      # ZERO key on the bare form, and because this card's own summary_fields_vocabulary
+      # .subtype_stratification_class is ALREADY prefixed ([subtype_enriched, subtype_depleted,
+      # subtype_variable, pan_subtype_uniform, subtype_axis_unavailable]) — the bare per-stratum
+      # tokens were the odd ones out within this card too. Both spellings are legal until
+      # cptac_protein_distribution/read.py:144 returns the prefixed ones (its two internal
+      # comparisons at :171 and :172 move with it); the bare half is removed in a later PR. The union
+      # is required and not merely cautious: this enum is the half an emitted row is validated
+      # against, so declaring only the prefixed form would make the method emit rows its own card
+      # rejects.
+      #
+      # `subtype_restricted` is deliberately ABSENT here, exactly as on the cell-line arm: it is a
+      # DETECTABILITY claim and this arm's classifier takes two medians with no detectability input,
+      # so the token could not be emitted however the enum were written.
+      #
+      # ARM-SPECIFIC, and load-bearing for any consumer that joins the arms: this classifier returns
+      # None when either median is missing, so `uniform` on THIS card always means a comparison ran
+      # and found no shift. Both RNA arms instead FALL THROUGH to their uniform token on a missing
+      # median, where it is an abstention wearing a measured token. A concordance read that compares
+      # tokens alone would therefore score two failed comparisons as AGREEMENT; the discriminator is
+      # `subtype_enrich_log2_delta`, which all three arms null when no cut was applied.
+      subtype_signal:
+        enum: [subtype_enriched, subtype_depleted, subtype_uniform,   # target vocabulary
+               enriched, depleted, uniform]                           # TRANSITIONAL, removed later
+        type: string
       # The enrichment cutoff ACTUALLY APPLIED to produce `subtype_signal` on this row, in log2 units.
       # Declared 2026-09-18 alongside the same field on the two RNA arms, and this arm is the reason the
-      # field is necessary rather than merely tidy. MEASURED on AM trunk b95a8b6, the three arms apply
-      # THREE different cuts, and the protein one is the least visible:
-      #   tumor RNA      0.585  _SUBTYPE_ENRICH_LOG2_DELTA  (tcga_gtex_expression_distribution/read.py:865)
+      # field is necessary rather than merely tidy. RE-MEASURED 2026-09-18 against AM trunk 3b05f2c (the
+      # b95a8b6 reading below had gone stale in ONE row — see the correction). The three arms apply THREE
+      # different cuts, and the protein one was the least visible:
+      #   tumor RNA      0.585  SUBTYPE_ENRICH_LOG2_DELTA   (tcga_gtex_expression_distribution/read.py:865)
+      #                         ^ PUBLIC name, no leading underscore — this card said `_SUBTYPE_...` and a
+      #                           literal grep for that string does NOT match this definition.
       #   cell-line RNA  1.0    _SUBTYPE_ENRICH_LOG2_DELTA  (depmap_expression_distribution/read.py:31)
-      #   tumor protein  0.25   NO NAMED CONSTANT — an inline literal, twice, at
-      #                         cptac_protein_distribution/read.py:125 (>= 0.25) and :127 (<= -0.25)
-      # So `enriched` on this row is a WEAKER claim than `enriched` on either RNA arm, and there was no
-      # symbol in the method to grep for and no number on this card to review. Worse for a cross-layer
+      #   tumor protein  0.25   _SUBTYPE_ENRICH_LOG2_DELTA  (cptac_protein_distribution/read.py:141,
+      #                         applied at :148 and :150)
+      # CORRECTED 2026-09-18: this block used to say the protein cut was "NO NAMED CONSTANT — an inline
+      # literal, twice, at read.py:125 (>= 0.25) and :127 (<= -0.25)". AM #666 NAMED it (behaviour-neutral,
+      # value unchanged) and the card was not updated. Both halves of the old claim were false: the symbol
+      # exists, and :125/:127 now hold `source_cohort` and a blank line. That is the self-masking failure
+      # mode of a LINE citation — :125 still exists and still contains plausible code, so a reader who
+      # follows it lands on something real and gets no signal they are on the wrong line. A SYMBOL is a
+      # strictly stronger anchor than a number, which is exactly why naming the constant was worth doing.
+      # So `enriched` on this row is still a WEAKER claim than `enriched` on either RNA arm, and until
+      # AM #666 there was no symbol in the method to grep for and no number on this card to review.
+      # Worse for a cross-layer
       # concordance read: the RNA cuts are deltas of a log2(TPM+1) MEDIAN while this is a delta of a
       # tumor-vs-reference log2 RATIO, so the three are not commensurable in UNITS either — "align the
       # constants" is not a coherent option here and emitting the applied delta is the only honest one.
@@ -136,11 +173,13 @@ outputs:
 thresholds:
   # Per-stratum enrichment cutoff vs the pooled-cohort median, in log2 tumor-vs-reference RATIO units
   # (NOT the log2(TPM+1) median units the two RNA arms cut on — see the per-record note above).
-  # ⚠️ Unlike the RNA arms this has NO named constant in the method: it is an inline literal at
-  # cptac_protein_distribution/read.py:125 / :127. Declaring it here does not create a constant; it
-  # makes the applied value reviewable. If the method's literal ever changes, this declaration goes
-  # stale SILENTLY — validate_cards.py checks that `consumed_by` names a method call on this card, it
-  # does NOT check the method reads this value.
+  # CORRECTED 2026-09-18 (re-measured against AM trunk 3b05f2c): this used to say the cut had NO named
+  # constant and was an inline literal at read.py:125 / :127. AM #666 named it —
+  # `_SUBTYPE_ENRICH_LOG2_DELTA = 0.25` at cptac_protein_distribution/read.py:141, applied at :148 and
+  # :150 — so all three arms now carry a greppable symbol. Declaring the value here still does not
+  # create it; it makes the applied value reviewable. And the staleness risk is UNCHANGED by the naming:
+  # if the constant's value ever moves, this declaration goes stale SILENTLY — validate_cards.py checks
+  # that `consumed_by` names a method call on this card, it does NOT check the method reads this value.
   subtype_enrich_log2_delta: 0.25
   subgroup_n_floor: 30                           # underpowered stratum -> null signal, never a scoped call
   # SECOND, LOWER band — NOT a relaxation of subgroup_n_floor, which keeps its one meaning (>=30) on
@@ -155,9 +194,9 @@ thresholds:
 
 threshold_roles:
   # `role: method_parameter` asserts the cutoff is applied UPSTREAM by the named method, so the card
-  # documents rather than governs it. Verified BY HAND 2026-09-18 against AM trunk b95a8b6 — each
-  # entry below names the line that applies the value:
-  #   subtype_enrich_log2_delta -> read.py:125 / :127 (inline literal, no symbol)
+  # documents rather than governs it. RE-VERIFIED BY HAND 2026-09-18 against AM trunk 3b05f2c — every
+  # line below was read, not carried over; the first entry had drifted and is corrected:
+  #   subtype_enrich_log2_delta -> read.py:148 / :150 (`_SUBTYPE_ENRICH_LOG2_DELTA`, defined :141)
   #   subgroup_n_floor          -> read.py:90  (`n >= SUBGROUP_N_FLOOR`)
   #   subgroup_exploratory_floor-> read.py:101 (`exploratory_floor=SUBGROUP_EXPLORATORY_FLOOR`)
   subtype_enrich_log2_delta:

@@ -106,7 +106,49 @@ outputs:
     per_subgroup_metrics:
       stratum: string
       class: string                              # broadly_high | broadly_detected | broadly_low | insufficient
-      subtype_signal: {enum: [enriched, depleted, uniform], type: string}
+      # VOCABULARY ALIGNMENT, 2026-09-18 — TRANSITIONAL UNION, see the migration note below.
+      # The three by-subtype arms spelled this field's values TWO different ways: this arm and
+      # tumor-protein-distribution-by-subtype used the BARE tokens, while tumor-rna-distribution-by-
+      # subtype used PREFIXED ones. Equal strings therefore did not mean equal things, which is fine
+      # while nothing joins the arms and fatal the moment something does — a cross-layer concordance
+      # read is exactly the consumer that compares these tokens across cards.
+      #
+      # THE TARGET IS THE PREFIXED FORM, and that direction was measured rather than chosen on taste:
+      #   1. THREE interpretation rules key on the prefixed tokens (subtype-expression-{enriched,
+      #      restricted,depleted}-context, intracellular-intrinsic.rules.yaml ~3918-3975) and
+      #      ZERO rules key on the bare form. Prefixing the bare arms touches no rule at all;
+      #      de-prefixing the tumour arm would rewrite three fired-signal-bearing rules.
+      #   2. THIS CARD ALREADY SPEAKS PREFIXED for its own rollup: summary_fields_vocabulary
+      #      .subtype_stratification_class is [subtype_enriched, subtype_depleted, subtype_variable,
+      #      pan_subtype_uniform]. The bare per-stratum tokens were the odd ones out WITHIN this card.
+      #   3. `subtype_restricted` has no bare counterpart to de-prefix onto, so the other direction
+      #      would have to invent one.
+      #
+      # WHY A UNION AND NOT JUST THE PREFIXED FORM: this enum is the RESTRICTIVE half (see the
+      # widening note further down — it is what an emitted row is validated against), and the method
+      # still emits the bare tokens today. Declaring only the prefixed form here would make
+      # depmap_expression_distribution emit rows its own card REJECTS. The migration is therefore
+      # add -> consume -> remove, and this PR is the ADD:
+      #   1. (this change)      both spellings legal; nothing breaks, nothing yet changes
+      #   2. analysis-methods   _classify_subtype_signal returns the prefixed tokens; the four
+      #                         internal `== "enriched"` / `== "depleted"` comparisons in
+      #                         depmap_expression_distribution/read.py (:249, :250, :260) and
+      #                         cptac_protein_distribution/read.py (:171, :172) move with it
+      #   3. (a later PR)       the bare tokens are REMOVED from this enum
+      # Skipping step 1 or 3 is the documented failure: a consumer that has never seen a token does
+      # not report it as unknown, it silently fails to match, and a fall-through is not an error.
+      #
+      # `subtype_restricted` IS DELIBERATELY ABSENT from this arm, and that is a coverage statement,
+      # not an oversight. It means "detectable in this stratum while broadly absent pooled", which is
+      # a DETECTABILITY claim: the tumour arm's classifier takes four arguments
+      # (stratum_median, pooled_median, detectable_fraction, pooled_detectable) to compute it. This
+      # arm's classifier takes TWO medians and has no detectability input, so it could not emit the
+      # token however the enum were written. Declaring it here would declare a value the producer
+      # emits 0x BY CONSTRUCTION — an absence a consumer would be entitled to read as measured.
+      subtype_signal:
+        enum: [subtype_enriched, subtype_depleted, subtype_uniform,   # target vocabulary
+               enriched, depleted, uniform]                           # TRANSITIONAL, removed in step 3
+        type: string
       # The enrichment cutoff ACTUALLY APPLIED to produce `subtype_signal` on this row, in log2 units.
       # Declared 2026-09-18 to close a cross-arm comparability defect: "enriched" means a 2x linear
       # shift here (1.0) and a 1.5x shift on tumor-rna-distribution-by-subtype (0.585), and the number
