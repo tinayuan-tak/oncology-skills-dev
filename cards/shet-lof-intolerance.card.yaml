@@ -58,9 +58,37 @@ outputs:
       - tolerant                                    # s_het < 0.01 — LoF tolerated; less safety concern
       - indeterminate                               # gene absent from the s_het table
 
+  # The numeric -> class hop, declared. shet_class is binned from shet_score alone
+  # (shet_selection/cli.py: `"shet_class": classify_shet(shet), "shet_score": shet` — the
+  # classified value and the emitted field are the SAME number, so the edge is exact).
+  # tolerant is the fall-through and indeterminate is the gene-absent availability state;
+  # neither is cutpoint-reachable.
+  derivations:
+    shet_class:
+      derives_from: [shet_score]
+      cutpoints: [high_intolerance_shet, moderate_intolerance_shet]
+
 thresholds:
   high_intolerance_shet: 0.1                        # Cassa 2017 / Zeng 2024 strong-constraint threshold
   moderate_intolerance_shet: 0.01
+
+threshold_roles:
+  # Verified against the producer, not the threshold name: classify_shet() tests
+  # `shet >= HIGH_INTOLERANCE` then `shet >= MODERATE_INTOLERANCE`, so each threshold is the
+  # LOWER edge of the class it names. The 95% CI bounds (shet_lower_95/upper_95) are NOT cut —
+  # the class reads the posterior mean only.
+  high_intolerance_shet:
+    role: class_cutpoint
+    bins: shet_class
+    of: shet_score
+    boundary: high_intolerance
+    scale: shet
+  moderate_intolerance_shet:
+    role: class_cutpoint
+    bins: shet_class
+    of: shet_score
+    boundary: moderate_intolerance
+    scale: shet
 
 caveats:
   - "VERDICT-INERT (Phase 1): fires no interpretation rule and drives no safety resolver rung, so the safety verdict is byte-stable. It is a continuous CORROBORATION of the binary gnomad-lof-constraint call (agreement/disagreement). A verdict-bearing s_het rung is a deferred, backtest-gated follow-up."

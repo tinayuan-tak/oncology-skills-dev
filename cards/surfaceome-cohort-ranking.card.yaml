@@ -66,10 +66,44 @@ outputs:
 
   figure: cohort_ranking_waterfall_with_target_highlight
 
+  # The numeric -> class hop, declared. cohort_rank_class is binned from
+  # tissue_percentile_rna ALONE (derive.py:190
+  # `df["cohort_rank_class"] = df["tissue_percentile_rna"].map(_cohort_rank_class)`) --
+  # NOT from tissue_percentile_protein and NOT from ranking_score, both of which the card
+  # also emits. The two residual class values are not cutpoint-reachable: below_25_percent
+  # is the fall-through and not_in_surfaceome / data_unavailable are availability states.
+  derivations:
+    cohort_rank_class:
+      derives_from: [tissue_percentile_rna]
+      cutpoints: [top_1_percentile, top_5_percentile, top_25_percentile]
+
 thresholds:
   top_1_percentile: 99.0
   top_5_percentile: 95.0
   top_25_percentile: 75.0
+
+threshold_roles:
+  # Verified against the producer, not against the threshold name: derive.py::_cohort_rank_class
+  # tests `percentile >= 99.0 / >= 95.0 / >= 75.0` in that order, so each threshold is the
+  # LOWER edge of the class it names.
+  top_1_percentile:
+    role: class_cutpoint
+    bins: cohort_rank_class
+    of: tissue_percentile_rna
+    boundary: top_1_percent
+    scale: percentile
+  top_5_percentile:
+    role: class_cutpoint
+    bins: cohort_rank_class
+    of: tissue_percentile_rna
+    boundary: top_5                                  # derive.py emits top_5, not top_5_percent
+    scale: percentile
+  top_25_percentile:
+    role: class_cutpoint
+    bins: cohort_rank_class
+    of: tissue_percentile_rna
+    boundary: top_25                                 # derive.py emits top_25, not top_25_percent
+    scale: percentile
 
 warning_predicates:
   - warning_id: rna_protein_disagreement
