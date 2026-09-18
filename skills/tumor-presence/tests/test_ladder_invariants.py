@@ -440,23 +440,24 @@ def test_the_vocabulary_reach_guard_can_actually_fail():
 _DECISION_SCHEMA_REL = ("schemas", "skills", "tumor-presence.decision.schema.json")
 _GOLDEN_REL = ("fixtures", "epcam_coadread_decision.json")
 
-# KNOWN-UNDECLARED, held as a NAMED SET, deliberately not a count. A count would be a ratchet that a
-# future edit could satisfy by declaring one token and adding another; naming them means the guard stays
-# live for every OTHER token in the ladder while this one gap is open. Emptying this set is step 3a of
-# the subset_high split (see the PHASE 3 comment in run.py's _EXPRESSION_RANK) and the test below FAILS
-# when 3a lands, which is the point: it forces the allowlist to be deleted rather than quietly outliving
-# the gap it documents.
+# THE ALLOWLIST IS GONE, AND ITS ABSENCE IS THE ASSERTION. There used to be a named
+# `_UNDECLARED_LADDER_VERDICTS = {"tumor_subset_high_expression"}` here, held open while phase 3a of the
+# subset_high split was unlanded. 3a landed (target-contracts #807, 26eee89, which appended the token to
+# `$defs.presence_verdict_enum`), the paired "GOOD NEWS, ACTION REQUIRED" assert red exactly as designed,
+# and the set was deleted rather than emptied. Deleted, not emptied, on purpose: an empty set left in place
+# is a re-entry point — the next undeclared token can be excused by adding one word, with no reviewer
+# noticing that a gap-documenting allowlist has become a gap-hiding one. With no set, the guard below is a
+# plain universal over the ladder and the only way to satisfy it is to declare the token.
 #
-# WHERE "PINNED" POINTS, AND WHY IT MATTERS FOR *WHEN* THIS GUARD FIRES. `target_contracts_root()` resolves
-# a sibling CHECKOUT, and in CI that checkout is a FIXED SHA (`ref:` in .github/workflows/skills-validate.yml,
-# bumped by hand) — NOT contracts `main`. Only two non-gating monitors (card-behavior-matrix-nightly,
-# discordance-monitor) read `main`. So once 3a lands in contracts, this guard reds on a clean LOCAL checkout
-# immediately and stays GREEN in CI until the pin is bumped. That lag is a feature, not a bug: local is where
-# the allowlist gets deleted. Do NOT "fix" a local red by re-adding a token to the allowlist.
-# Measured today: the enum is 33 values at BOTH the pin and contracts main, so this guard is currently
-# pin-INSENSITIVE and the allowlist is correct against either tree. Its ladder-RULE siblings below are not —
-# see the pin comment in the workflow for the 2-failed/272-passed measurement that forced this branch's bump.
-_UNDECLARED_LADDER_VERDICTS = {"tumor_subset_high_expression"}
+# WHY THE PIN BUMP IS IN THIS SAME COMMIT (do not split it out). `target_contracts_root()` resolves a
+# sibling CHECKOUT, and in CI that checkout is a FIXED SHA (`ref:` in
+# .github/workflows/skills-validate.yml, bumped by hand) — NOT contracts `main`; only two non-gating
+# monitors (card-behavior-matrix-nightly, discordance-monitor) read `main`. So deleting the allowlist while
+# the pin still names a pre-3a tree is GREEN LOCALLY and RED IN CI: locally the sibling tree declares the
+# token so the ladder has no undeclared members, while the pinned tree does not and the first assert fires.
+# That is the same forced-atomic pairing as the previous bump but in the opposite direction, and a local
+# suite run cannot detect either direction, because it reads whatever SHA the sibling checkout happens to
+# sit on. Measured as a 2x2 over both axes at the EXACT refs — see the pin comment in the workflow.
 
 
 def _pinned_presence_verdict_enum():
@@ -479,29 +480,26 @@ def _pinned_presence_verdict_enum():
 def test_every_ladder_verdict_token_is_declared_in_the_pinned_enum():
     """A rung whose verdict token is absent from presence_verdict_enum makes the skill emit a
     decision.json that fails its own data-product schema — on every target that reaches the rung.
-    Asserted as a SET EQUALITY on the gap so it bites in both directions."""
+    Now a plain UNIVERSAL over the ladder: every rung's token must be declared, no exceptions. The
+    allowlist that used to carve out `tumor_subset_high_expression` is gone (see the comment above
+    `_pinned_presence_verdict_enum`), so there is nowhere left to park a new gap."""
     declared = _pinned_presence_verdict_enum()
     if declared is None:
         pytest.skip("target-contracts checkout absent — output-vocabulary declaration guard not applicable")
 
     ladder_tokens = {v for _rid, v in tp._VERDICT_RANK}
     assert len(ladder_tokens) > 20, f"anti-vacuity: only {len(ladder_tokens)} ladder tokens — ladder not loaded"
-    undeclared = ladder_tokens - declared
 
-    unexpected = sorted(undeclared - _UNDECLARED_LADDER_VERDICTS)
-    assert not unexpected, (
-        f"ladder verdict token(s) not declared in target-contracts presence_verdict_enum: {unexpected}. "
+    undeclared = sorted(ladder_tokens - declared)
+    assert not undeclared, (
+        f"ladder verdict token(s) not declared in target-contracts presence_verdict_enum: {undeclared}. "
         f"Any target reaching that rung emits a decision.json that fails "
         f"schemas/skills/tumor-presence.decision.schema.json. Declare them in "
         f"schemas/_skill_output/pins/tumor-presence.pins.json ($defs.presence_verdict_enum, append-only) "
-        f"and regenerate, BEFORE the rung becomes reachable."
-    )
-    now_declared = sorted(_UNDECLARED_LADDER_VERDICTS - undeclared)
-    assert not now_declared, (
-        f"GOOD NEWS, ACTION REQUIRED: {now_declared} is now declared in presence_verdict_enum, so step 3a "
-        f"of the subset_high split has landed. Remove it from _UNDECLARED_LADDER_VERDICTS here (and when "
-        f"that set is empty, delete the set and this branch of the assert) so the allowlist cannot "
-        f"outlive the gap and silently excuse a FUTURE undeclared token."
+        f"and regenerate, BEFORE the rung becomes reachable. If CI reds here while a local run is green, "
+        f"the declaration has landed in contracts main but the `ref:` pin in "
+        f".github/workflows/skills-validate.yml still names a tree that predates it — bump the pin, do "
+        f"NOT re-introduce an allowlist."
     )
 
 
@@ -538,8 +536,16 @@ def test_the_pinned_enum_actually_rejects_an_undeclared_verdict():
         "the decision schema accepted a garbage presence_verdict — presence_verdict_enum is NOT "
         "load-bearing, so the declaration guard above proves nothing. Fix the schema, not this test."
     )
-    for token in sorted(_UNDECLARED_LADDER_VERDICTS):
-        assert not validates(token), (
-            f"{token} validates against the schema, so it is effectively declared — the allowlist entry "
-            f"is stale; see the paired assert in the declaration guard."
-        )
+    # The subset_high rung specifically, asserted POSITIVELY now that phase 3a has landed. This replaces a
+    # loop over the retired `_UNDECLARED_LADDER_VERDICTS` that asserted the opposite — that the token was
+    # REJECTED — while the gap was open. Keeping the token named in both eras matters: it is the one rung
+    # whose declaration and whose emission landed in different repos and different PRs, so this is the
+    # single assertion that the two halves actually met. A golden-fixture conformance test cannot cover it,
+    # because the frozen golden carries `tumor_broadly_expressed` and can only ever exercise tokens the
+    # fixture already contains.
+    assert validates("tumor_subset_high_expression"), (
+        "tumor_subset_high_expression does NOT validate, so the rung in run.py's _EXPRESSION_RANK can emit "
+        "a decision.json that fails its own data-product schema. Either the contracts pin in "
+        ".github/workflows/skills-validate.yml predates target-contracts #807 (26eee89), or the pins enum "
+        "was regenerated without it."
+    )

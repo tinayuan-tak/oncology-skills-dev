@@ -110,7 +110,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
-          # PINNED — main @ 2026-09-18T05:57:44Z (#805). Bumped BY HAND; see SIBLING PINS above.
+          # PINNED — main @ 2026-09-18T11:36:00Z (#807). Bumped BY HAND; see SIBLING PINS above.
           #
           # BUMPED BY HAND HERE, not by the bump PR, because this pin and APERTURE_CEILING in
           # skills/_skills_common/tests/test_field_disposition.py are two halves of ONE fact and the
@@ -150,7 +150,51 @@ jobs:
           # `sc_normal_essential_veto_grade`, whose field-disposition ledger row asserts drift in BOTH
           # directions (`orphans = emitted - ledger` AND `stale = ledger - emitted`), so no forward-compatible
           # ledger shape exists and the row had to move with the pin. Full derivation in this file's git history.
-          ref: 6ff21f8abc5e2936036f5563ac23c97cc65fee95
+          #
+          # ============================================================================================
+          # BUMP 6ff21f8 -> 26eee89, "main @ 2026-09-18T11:35Z (#807)". THIRD hand bump in this arc, and the
+          # THIRD distinct direction — record it as such, because "the pin lags" is not one failure mode:
+          #   prior-prior (2c322f8): CI GREEN / trunk RED   — a ledger row had to move WITH the pin
+          #   prior      (6ff21f8): trunk GREEN / CI RED    — a rule-reading guard had to move WITH the pin
+          #   this one   (26eee89): local GREEN / CI RED    — an ALLOWLIST DELETION has to move WITH the pin
+          #
+          # WHY IT IS FORCED-ATOMIC. TC#807 (26eee89) appended `tumor_subset_high_expression` to
+          # `$defs.presence_verdict_enum` (33 -> 34 values, append-only, nothing else in that file changed).
+          # That is phase 3a of the subset_high split, and it is what finally DECLARES the verdict that skills
+          # #1441 already made emittable. `skills/tumor-presence/tests/test_ladder_invariants.py` held the gap
+          # open as a named `_UNDECLARED_LADDER_VERDICTS` allowlist whose paired assert fires when 3a lands;
+          # this commit deletes that allowlist. Deleting it against the OLD pin is red, keeping it against the
+          # NEW tree is red, so the two edits cannot be separated.
+          #
+          # MEASURED AS A 2x2 over the EXACT refs (`git archive <ref>` + TARGET_CONTRACTS_ROOT), skills
+          # trunk 22b89319 vs this branch, `pytest skills/tumor-presence/tests/ -q`:
+          #                              contracts 6ff21f8 (old pin)   contracts 26eee89 (this pin)
+          #   skills trunk (22b89319)     274 passed                    2 failed, 272 passed
+          #   skills this branch          2 failed, 272 passed          274 passed
+          # (First measured at trunk 08284392, then RE-MEASURED after a rebase onto 22b89319 moved trunk under
+          # it. Re-measuring rather than relabelling is the point: a 2x2 cell is a claim about a NAMED tree, so
+          # a rebase silently converts an accurate cell into a false one unless the label and the number move
+          # together. All four cells reproduced identically, so the argument survives the rebase intact.)
+          # COLLECTED is 274 in all four cells, so no cell is green by having dropped a test. The table is
+          # ANTI-DIAGONAL, which is the whole point: read either axis alone and you conclude the other side is
+          # fine. The same two tests fail in both red cells but for OPPOSITE reasons — token-not-declared on
+          # the branch/old-pin cell, token-declared-but-still-allowlisted on the trunk/new-pin cell.
+          #
+          # THIS BUMP ALSO CROSSES TC#806 (e21a8e8, three by-subtype cards), so the aperture ratchet was
+          # re-measured across the contracts axis rather than assumed: orphans 885, domain 1808 and ALL TEN
+          # per_kind reach counts are BYTE-IDENTICAL at 6ff21f8 and 26eee89 — ALONG THE CONTRACTS AXIS ONLY,
+          # which is the axis this pin moves. Those per_kind counts are NOT absolutes: rebasing this branch onto
+          # 22b89319 (peer #1444, minting a SALIENCE_SPEC) moved `salience` reach 327 -> 333 while
+          # candidate_orphans stayed 885, because orphans is a UNION over kinds and those 6 newly-reached fields
+          # already had reach from another kind. So a union total can absorb a movement its own component cannot,
+          # and a changed per_kind count is NOT by itself evidence of a broken census. Compare per_kind only
+          # within one base. So the bump is aperture-inert,
+          # APERTURE_CEILING stays 887, and 887 - 885 = 2 <= APERTURE_SLACK 20 clears the slack half — the pin
+          # moves without a ceiling move. That inertness is STRUCTURAL, not luck: #806 widened `evidence_state`
+          # ENUM VALUES and added `required_inputs` shards, and the census counts (card, field) PAIRS, which
+          # enum widening cannot create. A future contracts PR adding an `outputs.summary_fields` entry WILL
+          # move this axis — re-measure, do not cite this line.
+          ref: 26eee8996d6756a96b040d88f3111f8007bf6b10
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
