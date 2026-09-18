@@ -956,10 +956,246 @@ def test_veto_grade_brain_argmax_must_not_mask_an_accessible_organ_hit():
         ignore_index=True,
     )
     r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
-    assert r["sc_normal_essential_max_tissue"] == "brain", "the named driver is still the global argmax"
     assert r["sc_normal_essential_veto_grade"] == "accessible_high_severity", (
         "the LUNG hit must govern the grade even though BRAIN wins the argmax"
     )
+    # ⚠️ THIS ASSERTION WAS INVERTED ON 2026-09-18, and the old one is worth reading: it said
+    #   assert r["sc_normal_essential_max_tissue"] == "brain"  # "the named driver is still the global argmax"
+    # i.e. this test PINNED the incoherence it had just finished demonstrating — grade says the lung hit
+    # governs, name says brain. A reader shown "accessible_high_severity, driver = brain" concludes the
+    # BBB-sheltered hit is the high-severity one, which is the opposite of what the grade means. The
+    # named driver is now read out of the same selection that produces the grade, so the two cannot part.
+    assert r["sc_normal_essential_max_tissue"] == "lung", (
+        "the named driver must be the cell the GRADE keyed on, not the detection argmax"
+    )
+    assert r["sc_normal_essential_max_cell_type"] == "cycling pulmonary alveolar type 2 cell"
+    # ANTI-VACUITY: this proves COMPARTMENT-BEFORE-EVERYTHING only if brain really does win on
+    # detection AND is not merely graded lower. Both hits carry n_datasets_reliable = 8 (40 // 5) and
+    # donor fraction >= 0.90, so both grade high_severity; brain loses purely on the compartment
+    # partition, and it loses while holding the larger detection fraction (0.97 > 0.62).
+    assert 0.97 > 0.62, "fixture no longer has brain as the detection argmax — the test proves nothing"
+    assert r["sc_normal_essential_max_detection_fraction"] == 0.62, (
+        "the reported detection must be the NAMED cell's, not the pool maximum — the field's `max` in "
+        "its name is legacy (the card declares it as 'median_det at that essential cell')"
+    )
+
+
+def _pool_rec(tissue, cell, det, frac, n_ds):
+    """One `essential_records`-shaped dict, for unit-level tests of the shared selector.
+
+    Keys mirror `classify_sc_normal_expression`'s own construction exactly (stats.py `essential_records`)
+    — built as a literal rather than via `iterrows()`, because an `iterrows()` float64 `n_datasets_reliable`
+    fails `_essential_severity`'s `isinstance(n_ds, int)` check and grades `ungraded`, which would make
+    every pool below silently veto-eligible and the tests meaningless."""
+    return {
+        "cell_type": cell,
+        "tissue": tissue,
+        "median_detection_fraction": det,
+        "expressing_donor_fraction": frac,
+        "n_datasets_reliable": n_ds,
+        "median_abund": det * 3.0,
+        "is_off_origin": True,
+    }
+
+
+def test_veto_grade_is_unchanged_by_the_shared_selector():
+    """THE ALGEBRAIC PROPERTY the 2026-09-18 selector change rests on, pinned rather than trusted.
+
+    The old body took `max(severity(e) for e in accessible)` — the worst grade PRESENT. The new one takes
+    `severity(max(accessible, key=rank-first))` — the grade OF the worst-ranked record. These are equal
+    for every pool because the sort key's FIRST component is the severity rank, so the selected record
+    attains the maximum rank and its own grade IS that maximum. That is why the change can only move
+    which cell is NAMED and can never move a verdict, and why no rule needed re-backtesting.
+
+    Pinned over randomized pools rather than argued, because the property is the whole risk argument. The
+    oracle re-implements only the OLD SELECTION and calls the REAL `_essential_severity` — deliberately,
+    since a harness that reimplements the grader produces numbers that reconcile against nothing (that
+    error shipped once in a draft of #660's own docstring)."""
+    import random
+
+    rng = random.Random(20260918)
+    tissues = ["lung", "liver", "heart", "brain"]  # brain is the only BBB one
+    seen_grades = set()
+    for _ in range(400):
+        pool = [
+            _pool_rec(
+                rng.choice(tissues),
+                f"cell_{i}",
+                round(rng.uniform(0.21, 0.99), 3),
+                round(rng.uniform(0.40, 1.0), 3),
+                rng.choice([1, 2, 3, 8, 15, 26]),
+            )
+            for i in range(rng.randint(1, 6))
+        ]
+        grade, driver = S._essential_veto_selection(pool, essential_origin_only=False)
+
+        accessible = [e for e in pool if S._essential_compartment(e.get("tissue")) == "systemically_accessible"]
+        if not accessible:
+            expected = "bbb_protected"
+        else:
+            expected = "accessible_" + max(
+                (S._essential_severity(e) for e in accessible),
+                key=S._ESSENTIAL_SEVERITY_RANK.__getitem__,
+            )
+        assert grade == expected, f"grade moved: {grade} != {expected} on pool {pool}"
+        seen_grades.add(grade)
+        assert driver is not None, "a non-empty pool must always name a record"
+
+    # ANTI-VACUITY: equality is trivially true if every pool landed on one grade. The randomization has
+    # to have actually exercised the mixed-grade and all-BBB branches, or this test proves nothing.
+    assert "bbb_protected" in seen_grades, "no all-brain pool generated — the bbb branch went untested"
+    assert len({g for g in seen_grades if g.startswith("accessible_")}) >= 3, (
+        f"only {seen_grades} exercised; the mixed-severity ranking is the case at risk"
+    )
+
+
+def test_named_driver_is_always_the_cell_the_grade_keyed_on():
+    """THE COHERENCE INVARIANT, which is what the 2026-09-18 change actually buys.
+
+    Whenever the grade is `accessible_<sev>`, the NAMED driver must (a) be systemically accessible and
+    (b) itself grade exactly `<sev>`. Before the fix both could fail at once: the grade came from the
+    worst accessible hit while the name came from a detection argmax over the same pool, so a summary
+    could read `accessible_high_severity` beside a `low_confidence` brain cell. Nothing downstream could
+    detect that, because no rule reads the driver fields — the incoherence was visible only to a human,
+    which is exactly the kind of defect a test has to carry.
+
+    THE `bbb_protected` ARM IS PINNED TOO, and it is the mirror obligation. On that grade the pool has
+    NO accessible hit, so the driver must come from the protected compartment — naming an accessible
+    cell there would assert a systemic liability the grade explicitly denies. Verified live on
+    corpus-20260914: the set of pairs naming a brain driver and the set graded `bbb_protected` are
+    IDENTICAL, 23 and 23, with both set differences empty (before the fix, 250 of 474 named brain).
+    Checked as SET equality, not equal counts — two equal counts can be disjoint sets."""
+    import random
+
+    seen_accessible = 0
+    seen_bbb = 0
+    rng = random.Random(414243)
+    for _ in range(400):
+        pool = [
+            _pool_rec(
+                rng.choice(["lung", "liver", "heart", "brain"]),
+                f"cell_{i}",
+                round(rng.uniform(0.21, 0.99), 3),
+                round(rng.uniform(0.40, 1.0), 3),
+                rng.choice([1, 2, 3, 8, 15, 26]),
+            )
+            for i in range(rng.randint(1, 6))
+        ]
+        grade, driver = S._essential_veto_selection(pool, essential_origin_only=False)
+        if grade.startswith("accessible_"):
+            seen_accessible += 1
+            assert S._essential_compartment(driver["tissue"]) == "systemically_accessible", (
+                f"named a BBB-protected cell for an accessible grade: {driver} / {grade}"
+            )
+            assert S._essential_severity(driver) == grade[len("accessible_") :], (
+                f"named cell grades {S._essential_severity(driver)} but the reported grade is {grade}"
+            )
+        elif grade == "bbb_protected":
+            seen_bbb += 1
+            assert S._essential_compartment(driver["tissue"]) == "bbb_protected", (
+                f"named an ACCESSIBLE cell for a bbb_protected grade: {driver} / {grade} — that asserts "
+                "a systemic liability the grade denies"
+            )
+        else:  # pragma: no cover - a non-empty pool grades accessible_* or bbb_protected, nothing else
+            raise AssertionError(f"unexpected grade {grade!r} for a non-empty pool: {pool}")
+
+    # ANTI-VACUITY: both arms must actually have been exercised. A seed or a fixture-range change that
+    # stopped generating brain-only pools would leave the bbb assertion above running ZERO times and the
+    # test would still report a reassuring PASS.
+    assert seen_accessible > 0, "no accessible grade generated — the primary assertion never ran"
+    assert seen_bbb > 0, "no bbb_protected grade generated — the mirror assertion never ran"
+
+
+def test_named_driver_prefers_replication_over_an_unshrunk_single_atlas_hit():
+    """THE FOLR1-OV SHAPE, end-to-end: a 1-atlas hit at det 0.71 must not out-name a 30-atlas hit at
+    det 0.63. Measured live on corpus-20260914, a single-atlas kidney hit at det 0.708 shadowed pulmonary
+    alveolar type 2 at det 0.626 / donor 0.884 across 30 atlases. Detection argmax picks the noisy one;
+    `_essential_severity` sends `n_ds <= 1` to `low_confidence`, so the selection criterion was
+    ANTI-CORRELATED with the grading criterion. Severity-first inverts that by construction."""
+    # FIXTURE VALIDITY FIRST. A cell-type name that no essential prefix matches is silently absent from
+    # the pool, which collapses this two-hit test into a one-hit test that passes for the wrong reason —
+    # the first draft used "alveolar type 2 fibroblast cell", which matches NOTHING, so the pool held only
+    # the kidney hit and the assertion below failed while the code was correct. Assert membership, do not
+    # eyeball the name against the prefix tuple.
+    for ct in ("kidney loop of Henle epithelial cell", "pulmonary alveolar type 2 cell"):
+        assert S._is_safety_essential(ct), f"{ct!r} is not an essential cell type — fixture is inert"
+    rows = pd.concat(
+        [
+            _tier1_rows([("kidney loop of Henle epithelial cell", 5, 0.71, 0.95)], tissue="kidney"),
+            _tier1_rows([("pulmonary alveolar type 2 cell", 150, 0.63, 0.884)], tissue="lung"),
+        ],
+        ignore_index=True,
+    )
+    # _tier1_rows sets n_datasets_reliable = max(1, n_donors // 5) → kidney 1, lung 30.
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["ovary"])
+    assert r["sc_normal_essential_n_datasets_reliable"] == 30, (
+        "the well-replicated hit must be named; a 1-atlas hit at higher detection grades low_confidence"
+    )
+    assert r["sc_normal_essential_max_tissue"] == "lung"
+    assert r["sc_normal_essential_veto_grade"] == "accessible_high_severity"
+    # ANTI-VACUITY: the kidney hit must really hold the higher detection, or severity-first is untested.
+    assert 0.71 > 0.63
+
+
+def test_named_driver_breaks_within_grade_ties_on_replication_not_detection():
+    """Replication is the SECOND key, and it only ever acts inside one grade — which is the whole reason
+    the refuted 'rank by replication' variant is safe here. Two accessible hits that both grade
+    high_severity: the better-replicated one is named even though the other wins on detection. If
+    replication were the PRIMARY key this test would still pass, so it is paired with the compartment
+    test above (brain oligodendrocyte at n_datasets 177 is the case that variant got wrong)."""
+    rows = pd.concat(
+        [
+            _tier1_rows([("hepatocyte", 10, 0.95, 0.99)], tissue="liver"),  # n_datasets 2
+            _tier1_rows([("cardiac muscle cell", 100, 0.80, 0.99)], tissue="heart"),  # n_datasets 20
+        ],
+        ignore_index=True,
+    )
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert r["sc_normal_essential_veto_grade"] == "accessible_high_severity"
+    assert r["sc_normal_essential_max_cell_type"] == "cardiac muscle cell", (
+        "within one grade the better-replicated hit is the more credible thing to name"
+    )
+    assert r["sc_normal_essential_n_datasets_reliable"] == 20
+    assert 0.95 > 0.80, "fixture no longer has the LOW-replication hit winning detection"
+
+
+def test_bbb_protected_names_the_WORST_brain_cell_not_the_weakest():
+    """THE `bbb_protected` ARM ORDERS ITS DRIVER TOO, and the reason is the CONSUMER, not symmetry.
+
+    Added after mutation testing: replacing `max(veto_pool, ...)` with `min(...)` on the bbb arm left
+    every other test in this file GREEN, so the choice of WHICH brain cell to name was unpinned. A
+    surviving mutant is not automatically a hole, so the consumer was checked rather than assumed —
+    `tumor-selectivity/scripts/run.py::_sc_normal_essential_severity` gates on
+    `sc_normal_safety_essential_class in (critical_organ_liability, origin_tissue_liability)`, and
+    bbb_protected pairs ARE `critical_organ_liability` (measured live on b6536b8: 330 + 86 + 35 + 23 =
+    474, the 23 being exactly the bbb set). So the skill grades the NAMED cell's magnitude fields and
+    displays a severity from them; naming the weakest brain cell would understate a real liability on
+    those 23 pairs, on a compartment we discount but do not ignore."""
+    rows = pd.concat(
+        [
+            # Both brain, so `accessible` is empty and the grade is bbb_protected. The WEAKER hit wins
+            # detection, so a detection argmax OR a min() would name it.
+            _tier1_rows([("medium spiny neuron", 5, 0.99, 0.40)], tissue="brain"),  # n_datasets 1
+            _tier1_rows([("astrocyte", 100, 0.72, 0.95)], tissue="brain"),  # n_datasets 20
+        ],
+        ignore_index=True,
+    )
+    for ct in ("medium spiny neuron", "astrocyte"):
+        assert S._is_safety_essential(ct), f"{ct!r} is not essential — fixture is inert"
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert r["sc_normal_essential_veto_grade"] == "bbb_protected", (
+        "fixture must reach the bbb arm, or this test is about a different branch"
+    )
+    assert r["sc_normal_essential_max_cell_type"] == "astrocyte"
+    assert r["sc_normal_essential_n_datasets_reliable"] == 20
+    # ANTI-VACUITY: the cell we expect NOT to be named must really win detection, and the two must
+    # really differ in severity — otherwise `max` and `min` would agree and the mutant would survive.
+    assert 0.99 > 0.72, "fixture no longer has the weak hit winning detection"
+    assert S._essential_severity(
+        {"median_detection_fraction": 0.99, "expressing_donor_fraction": 0.40, "n_datasets_reliable": 1}
+    ) != S._essential_severity(
+        {"median_detection_fraction": 0.72, "expressing_donor_fraction": 0.95, "n_datasets_reliable": 20}
+    ), "the two fixture hits grade the same — severity-first is untested by this fixture"
 
 
 def test_veto_grade_ignores_a_sub_floor_accessible_hit():

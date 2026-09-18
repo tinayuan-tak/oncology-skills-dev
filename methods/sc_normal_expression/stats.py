@@ -68,7 +68,9 @@ REPLICATION_DOMINANT_N_DATASETS = 15
 
 # --- COMPARTMENT split of the always-on safety-essential organs (veto-grade instrument) ---
 # WHY THIS EXISTS. sc_normal_safety_essential_class == critical_organ_liability fires on 468 of the 504
-# (target, indication) pairs in corpus-20260914 — a 92.9% base rate — and its single largest driver is
+# (target, indication) pairs in corpus-20260914 — a 92.9% base rate (474, 94.0%, re-measured live on
+# b6536b8 after #661 and #663 widened the vocabulary and the organ panel; every figure in this block is
+# stamped with the tree it was measured on, because the population itself moves) — and its largest driver is
 # the BRAIN shard (259 of 468, 55.3%; cortical/forebrain neurons, medium spiny neurons and astrocytes
 # together ~45% of all firings). Two mechanisms compound: neurons carry the broadest transcriptome of
 # any cell type, so median_det > 0.20 in a cortical neuron is close to the null expectation for any
@@ -123,11 +125,22 @@ REPLICATION_DOMINANT_N_DATASETS = 15
 #     FROM: low_confidence collapses 145 -> 41 while moderate RISES 71 -> 114, because grading the
 #     worst hit lifts a low_confidence pool to whatever its worst member actually is, which is usually
 #     moderate rather than high.
-#   CURRENT (the above, plus this PR's essential-VOCABULARY fix): accessible_high_severity 292 (57.9%)
+#   POST-#661 (the above, plus the essential-VOCABULARY fix): accessible_high_severity 292 (57.9%)
 #     / accessible_moderate_severity 111 / accessible_low_confidence 40 / bbb_protected 25 /
 #     not_applicable 29 / origin_tissue 7 / accessible_ungraded 0. bbb_protected falls 29 -> 25
 #     because 4 pairs whose only above-floor off-origin hits were brain parenchyma turn out to have a
 #     renal-tubule hit that no entry could match.
+#   CURRENT, measured live on b6536b8 (adds #663's gut promotion): accessible_high_severity 330 (65.5%)
+#     / accessible_moderate_severity 86 / accessible_low_confidence 35 / not_applicable 26 /
+#     bbb_protected 23 / origin_tissue 4 / accessible_ungraded 0.
+#     ⚠️ The 2026-09-18 NAMED-DRIVER fix (the selection at the `_veto_pool` call site) moves NOTHING in
+#     this table, and that is a property of the algebra rather than a lucky measurement — see
+#     `_essential_veto_selection`. What it moves is WHICH CELL the pairs are attributed to: the driver
+#     is re-attributed for 381 of 504 pairs (75.6%), single-atlas drivers fall 71 -> 9, and the named
+#     organ stops being brain in 227 of them — brain-named drops from 250 of 474 (52.7%) to 23 (4.9%),
+#     where 23 is EXACTLY the bbb_protected set (verified as set equality, not equal counts). Consequence
+#     for consequence #2 below: the compartment axis was worth 29 targets to the GRADE and is worth
+#     227 re-attributions to the DISPLAYED ORGAN, which is the half a reviewer actually reads.
 #
 # ⚠️ A DRAFT of the POST-#660 line above read "95 / 60" for the moderate/low_confidence split. That was
 # never measured by this code: it came from a harness that REIMPLEMENTED _essential_severity rather than
@@ -404,7 +417,7 @@ def _essential_compartment(tissue) -> str:
 
 
 # Severity ordering used to take the WORST grade over a pool of accessible essential hits.
-# Ordered by VETO CONSEQUENCE first, then by measurement strength — see _essential_veto_grade. Keyed
+# Ordered by VETO CONSEQUENCE first, then by measurement strength — see _essential_veto_selection. Keyed
 # exhaustively on _essential_severity's return values so an added rung fails loudly (KeyError) rather
 # than sorting silently as "lowest", which would be the fail-open direction.
 _ESSENTIAL_SEVERITY_RANK = {
@@ -458,8 +471,48 @@ def _essential_severity(rec: dict) -> str:
     return "moderate_severity"
 
 
-def _essential_veto_grade(veto_pool: list[dict], essential_origin_only: bool) -> str:
-    """Compose compartment x severity into the single categorical a rule can key on.
+def _essential_driver_sort_key(rec: dict):
+    """Rank ONE essential hit for SELECTION — worst grade first, then measurement strength.
+
+    This is the ordering the named-driver field and the veto grade SHARE, and sharing it is the whole
+    point: before 2026-09-18 the grade was chosen by worst severity while the NAME was chosen by a
+    detection argmax over the same pool, so the summary could report `accessible_high_severity` and name
+    a cell that is only `low_confidence`. Two selectors over one pool is the defect; one selector with
+    two readers is the fix.
+
+    ORDER, and why each axis sits where it does:
+      1. SEVERITY RANK — first, because it is the axis the grade is derived from. Putting anything above
+         it would let the name disagree with the grade again, which is the bug.
+      2. REPLICATION (n_datasets_reliable) — the tie-break WITHIN a grade. This is the axis whose naive
+         use as a PRIMARY key is refuted in-repo: ranking by replication alone names brain
+         `oligodendrocyte` (n_datasets_reliable = 177) for most brain-containing pools, i.e. it
+         confidently names the one compartment a systemically dosed modality cannot reach. Demoting it
+         below severity — and, at the call site, below the accessible/BBB partition — confines it to
+         choosing among hits that already share a grade, where it cannot reach across compartments.
+      3. DETECTION — last, as a total-order stabiliser, so the selection is deterministic rather than
+         dependent on the pool's incoming row order. It was the OLD primary key; it is kept only as the
+         weakest of three, because a single-atlas detection fraction is unshrunk and therefore wins a
+         maximum over detection while `_essential_severity` sends `n_ds <= 1` to `low_confidence` — the
+         selection criterion was ANTI-CORRELATED with the grading criterion (measured: the argmax hit
+         was single-atlas in 104 of 110 under-graded pairs, 94.5%).
+
+    `or 0` / `or 0.0` rather than a bare `.get`: an ABSENT field must sort LOWEST, and `None` is not
+    comparable to `int` in py3. A record missing `n_datasets_reliable` still grades `ungraded` via
+    `_essential_severity`, which ranks ABOVE moderate, so it is not silently discarded — the fail-closed
+    contract is in the rank table, not here."""
+    return (
+        _ESSENTIAL_SEVERITY_RANK[_essential_severity(rec)],
+        rec.get("n_datasets_reliable") or 0,
+        rec.get("median_detection_fraction") or 0.0,
+    )
+
+
+def _essential_veto_selection(veto_pool: list[dict], essential_origin_only: bool) -> tuple[str, dict | None]:
+    """Compose compartment x severity into `(grade, driver_record)` — the SINGLE selection site.
+
+    Was `_essential_veto_grade`, returning the grade alone. It now also returns the RECORD it graded,
+    because the named-driver field used to re-derive its own choice from the same pool by a different
+    rule; see the call site in `classify_sc_normal_expression`. One selector, two readers.
 
     `veto_pool` is the ABOVE-FLOOR OFF-ORIGIN essential hits — exactly the set that fired
     critical_organ_liability, so this grades the veto's own basis and cannot disagree with it.
@@ -505,14 +558,32 @@ def _essential_veto_grade(veto_pool: list[dict], essential_origin_only: bool) ->
     `ungraded` therefore outranks `moderate_severity` (it is killer-eligible and moderate is not, so
     ranking it lower would let a missing column RELAX the killer — the fail-open direction), while
     `high_severity` outranks `ungraded` (both are killer-eligible, so the veto consequence is
-    identical and the MEASURED statement is the more informative label to carry downstream)."""
+    identical and the MEASURED statement is the more informative label to carry downstream).
+
+    ★ THE GRADE IS UNCHANGED BY CONSTRUCTION, not merely unchanged in measurement. The previous body
+    computed `max(severity(e) for e in accessible)` — the worst grade PRESENT. This computes
+    `severity(max(accessible, key=rank-first))` — the grade OF the worst-RANKED record. Those are equal
+    for every pool, because the first component of `_essential_driver_sort_key` IS the severity rank, so
+    the argmax record attains the maximum rank and its own grade is that maximum. This change can
+    therefore only move WHICH CELL IS NAMED, never what the grade says — a property of the algebra, not
+    a hope about the corpus, which is why the live backtest below is a CONFIRMATION and not the
+    instrument. (`test_veto_grade_is_unchanged_by_the_shared_selector` pins it on random pools.)
+
+    The driver on the `bbb_protected` arm is the worst-ranked hit in the WHOLE pool, which on that arm is
+    all-BBB by definition — there are no accessible hits, that is what the arm means. The CLASS is still
+    `critical_organ_liability` there, so a human must still be told which brain cell fired; returning no
+    record would make the grade's own basis anonymous, which is the defect
+    `essential_records` was built to close.
+
+    On the empty-pool arms (`origin_tissue` / `not_applicable`) there is no off-origin hit to name, so the
+    record is None and the caller selects an ON-ORIGIN driver instead."""
     if not veto_pool:
-        return "origin_tissue" if essential_origin_only else "not_applicable"
+        return ("origin_tissue" if essential_origin_only else "not_applicable"), None
     accessible = [e for e in veto_pool if _essential_compartment(e.get("tissue")) == "systemically_accessible"]
     if not accessible:
-        return "bbb_protected"
-    worst = max((_essential_severity(e) for e in accessible), key=_ESSENTIAL_SEVERITY_RANK.__getitem__)
-    return f"accessible_{worst}"
+        return "bbb_protected", max(veto_pool, key=_essential_driver_sort_key)
+    driver = max(accessible, key=_essential_driver_sort_key)
+    return f"accessible_{_essential_severity(driver)}", driver
 
 
 def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> dict:
@@ -642,20 +713,65 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
     n_above_20 = int((reliable[det_col] > 0.20).sum())
 
     # NAMED essential-cell driver: the worst essential cell the veto actually keyed on. When an
-    # off-origin critical-organ hit fired (→ critical_organ_liability), name the argmax-detection cell
-    # AMONG the ABOVE-FLOOR off-origin essential hits (the veto driver, not a sub-floor ambient hit); when
-    # only origin-tissue essential hits fired, name the origin cell; when NO liability class fired (only
-    # sub-floor off-origin hits), name nothing. This lets the verdict/headline name an organ and cell type
-    # instead of an anonymous flag — and never names a sub-floor hit that did not move the class.
+    # off-origin critical-organ hit fired (→ critical_organ_liability), name the cell the VETO SELECTION
+    # graded — worst grade first, ties to replication — among the ABOVE-FLOOR off-origin essential hits
+    # (never a sub-floor ambient hit); when only origin-tissue essential hits fired, name the origin cell
+    # by the same ordering; when NO liability class fired (only sub-floor off-origin hits), name nothing.
+    # This lets the verdict/headline name an organ and cell type instead of an anonymous flag.
+    #
+    # ⚠️ THIS FIRST SENTENCE WAS AN INTENT, NOT A DESCRIPTION, UNTIL 2026-09-18. "The worst essential cell
+    # the veto actually keyed on" is what the field is FOR, but the code below picked by DETECTION ARGMAX
+    # and the veto graded by WORST SEVERITY, so the two disagreed. The same shape as #660 one layer down,
+    # where the prose said "never from the global argmax" directly above an argmax: when a comment states
+    # a selection rule, check that the selector implements it rather than reading the comment as evidence.
     # (This comment used to illustrate the output as "kidney proximal tubule, 3 atlases". No shard
-    # contains that label — Census writes "epithelial cell of proximal tubule" — and until this PR no
-    # entry matched any proximal-tubule label at all, so the example was doubly unreachable.)
+    # contains that label — Census writes "epithelial cell of proximal tubule" — and until #661 no entry
+    # matched any proximal-tubule label at all, so the example was doubly unreachable.)
+    #
+    # The veto's OWN basis: the above-floor OFF-ORIGIN essential hits, i.e. exactly the set whose
+    # non-emptiness IS `essential_off_origin`. Computed BEFORE the named driver (it used to sit after)
+    # because the off-origin driver is now READ OUT OF the veto selection rather than re-derived from an
+    # identical pool by a different rule — see below.
+    _veto_pool = [
+        e
+        for e in essential_records
+        if e["is_off_origin"] and e["median_detection_fraction"] > CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR
+    ]
+    veto_grade, _veto_driver = _essential_veto_selection(_veto_pool, essential_origin_only)
+
     if essential_off_origin:
-        _driver_pool = [
-            e
-            for e in essential_records
-            if e["is_off_origin"] and e["median_detection_fraction"] > CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR
-        ]
+        # ✅ CLOSED 2026-09-18: the named driver IS the record the veto graded. This branch used to build
+        # its own pool — TEXTUALLY IDENTICAL to `_veto_pool` above — and pick from it by DETECTION
+        # ARGMAX, while the grade picked from the same pool by WORST SEVERITY. One pool, two selectors,
+        # so the summary could report `accessible_high_severity` and name a cell that is only
+        # `low_confidence`.
+        #
+        # RE-MEASURED LIVE ON b6536b8 over the 474 pairs with an OFF-ORIGIN driver. This branch then
+        # rebased onto 45bdada (#664), whose ENTIRE diff is methods/depmap_chronos/cli.py — nothing on
+        # the sc-normal read or classify path — so the figures carry to the landing tree by
+        # REACHABILITY rather than by assumption. (An earlier draft of this line said "b6536b8, the
+        # tree this commit lands on"; the rebase falsified the second clause, which is why the base is
+        # now named separately from the measurement.)
+        # An earlier draft of this comment cited 468 / 74 / 411 (87.8%); all three
+        # were measured on bd20d641, BEFORE #663 grew the essential organ panel, so the denominator
+        # itself had moved and two of the three were wrong in OPPOSITE directions. Re-derived:
+        #   129 (27.2%)  named a cell whose OWN severity CONTRADICTS the grade displayed beside it.
+        #                This is the defect, and it had never been measured directly — the earlier
+        #                numbers were both PROXIES for it.
+        #    71 (15.0%)  named a SINGLE-ATLAS cell type; an unshrunk detection fraction is exactly the
+        #                few-atlas/high-detection shape that wins an argmax.  → 9 after this fix.
+        #   427 (90.1%)  the pool held a hit BOTH better replicated AND at least as severe as the one
+        #                named — a strictly better thing to show a reviewer, on both axes at once.
+        # The fix re-attributes 381 of 504 pairs (75.6%) while moving ZERO grades and ZERO classes;
+        # the 381 minus 129 are within-grade swaps toward replication, an honesty gain, not a bug fix.
+        #
+        # The earlier refutation still stands and is what shapes the fix: ranking by REPLICATION as a
+        # primary key names brain `oligodendrocyte` (n_datasets_reliable = 177), the compartment
+        # `bbb_protected` exists to distrust. The resolution was not to weigh three axes freely but to
+        # notice the ordering was already DETERMINED — the grade fixes the compartment first and the
+        # severity second, so the driver must be the record that grade keyed on, leaving replication to
+        # break ties only within a single grade. `_essential_driver_sort_key` documents each axis.
+        essential_driver = _veto_driver
     elif essential_origin_only:
         # ON-ORIGIN records ONLY. This branch used to pool ALL essential_records, so an argmax over the
         # sub-floor OFF-ORIGIN hits (the 0.05–0.20 ambient band that deliberately did NOT flip the class)
@@ -664,42 +780,19 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
         # projecting glutamatergic cortical neuron (det 0.140)" as the driver of a LUNG-origin liability,
         # and UPK1B/BLCA named the same brain neuron (0.167) for bladder urothelium. Contradicted this
         # block's own comment ("name the origin cell") and the whole point of the named-driver field.
-        _driver_pool = [e for e in essential_records if not e["is_off_origin"]]
+        # Same ordering as the off-origin arm, for the same reason: the skill that renders this field
+        # grades the driver it is given (`_sc_normal_essential_severity` in tumor-selectivity keys on
+        # `origin_tissue_liability` as well as `critical_organ_liability`), so an argmax-chosen origin
+        # driver would put a displayed severity on a cell that is not the worst one. `_veto_driver` is
+        # None on this arm — the veto pool is empty by definition here — so the on-origin pool is
+        # selected explicitly rather than read out of the veto selection.
+        essential_driver = max(
+            (e for e in essential_records if not e["is_off_origin"]),
+            key=_essential_driver_sort_key,
+            default=None,
+        )
     else:
-        _driver_pool = []
-    # ⚠️ KNOWN DEFECT, MEASURED 2026-09-18, deliberately NOT fixed here. This is a DETECTION ARGMAX —
-    # the same selection rule #660 removed from `_essential_veto_grade` one layer down, still live in the
-    # field that tells a human WHICH organ is implicated. A single-atlas detection fraction is unshrunk
-    # and therefore high, so it wins a max over detection; measured on trunk over 468 pairs with an
-    # off-origin driver: 65 (13.9%) name a SINGLE-ATLAS cell type, and in 411 (87.8%) the pool contains a
-    # hit that is both better replicated AND at least as severe.
-    #
-    # Why the obvious fix is REFUTED and must not be applied casually: ranking by replication instead
-    # names `oligodendrocyte` (n_datasets_reliable = 177) for most brain-containing pools. Brain
-    # parenchyma is exactly what `bbb_protected` exists to DISCOUNT for a systemically dosed modality, so
-    # a replication-ranked driver would confidently name the one compartment the grade deliberately
-    # distrusts. Selection needs all three axes (compartment, severity, replication) and a decision about
-    # their order — a design question, not a one-line change, and out of scope for a vocabulary PR.
-    #
-    # What THIS PR does to it, measured: 25 of 504 pairs are re-attributed (3 to a better-replicated
-    # driver, 21 to a worse one, 1 unchanged), and single-atlas drivers rise 65 -> 74. That is a real cost
-    # and it is accepted knowingly: the same change closes a detection fail-open worth 8 killer-eligible
-    # pairs and un-protects 4 falsely brain-only pairs, and it moves ZERO verdict classes. The generic
-    # Cell Ontology parents this PR adds ("nephron tubule epithelial cell") are precisely the
-    # few-atlas/high-detection shape that wins an argmax, so the two defects interact — which is the
-    # argument for fixing the selector next, not for narrowing the vocabulary back.
-    essential_driver = max(_driver_pool, key=lambda e: e["median_detection_fraction"]) if _driver_pool else None
-
-    # The veto's OWN basis: the above-floor OFF-ORIGIN essential hits, i.e. exactly the set whose
-    # non-emptiness IS `essential_off_origin`. Recomputed unconditionally (rather than reusing
-    # _driver_pool) because _driver_pool switches to ORIGIN records on the origin-only branch, and
-    # grading the critical-organ veto off origin hits would describe a different question.
-    _veto_pool = [
-        e
-        for e in essential_records
-        if e["is_off_origin"] and e["median_detection_fraction"] > CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR
-    ]
-    veto_grade = _essential_veto_grade(_veto_pool, essential_origin_only)
+        essential_driver = None
 
     # Normal cell-type DETECTION CEILING across ALL reliable cell types — the honest denominator for a
     # single-cell tumor-vs-normal WINDOW (the positive use of the atlas, not only the safety veto). This
@@ -779,7 +872,8 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
         # the interpretation-rule grammar admits exactly one (card_id, field) predicate per rule and so
         # cannot conjoin the two dimensions itself. Purpose: give the `dominant: true` BiTE/TCE killer a
         # discriminating rung instead of a 92.9%-base-rate boolean. See BBB_PROTECTED_TISSUES for the
-        # measurement, _essential_veto_grade for the fail-closed partition.
+        # measurement, _essential_veto_selection for the fail-closed partition (and for the named driver,
+        # which since 2026-09-18 is the very record that selection graded rather than a separate argmax).
         #   accessible_high_severity / accessible_ungraded  → veto-eligible (ungraded = fields ABSENT,
         #       which must not relieve the veto: missing replication data is not a safety argument)
         #   accessible_moderate_severity / accessible_low_confidence → real but not maximal
