@@ -336,9 +336,12 @@ def test_veto_suppressors_well_formed_and_conservative():
     # (2), second member (2026-09-18, A4i): strong paralog buffering is also rescue-to-insufficient.
     # It says which MODALITY could work (degrader-preferred), not that the target is required, so it
     # must never be a positive_signal — the same reason curated SL annotation is not one. This arm
-    # exists only for the indication grain: at pooled grain resolver rung 19 relabels the verdict to
-    # `non_dependent_paralog_buffered` before the gate sees it, and no such rung outranks the
-    # indication killer at priority 9.
+    # exists only for the indication grain: at pooled grain the resolver's paralog rung relabels the
+    # verdict to `non_dependent_paralog_buffered` before the gate sees it, so a pooled suppressor
+    # would be unreachable. (An earlier version of this comment added "and no such rung outranks the
+    # indication killer" — true of resolver v1.5.0, made FALSE by v1.6.0, which added the indication
+    # twin. A4i is kept as pin-lag defence-in-depth; see
+    # test_a4i_is_kept_as_defence_in_depth_not_as_redundancy.)
     assert ("paralog-buffering", "paralog_buffering_class", "strong") in cardfield_triggers, (
         "the paralog-buffering veto-suppressor trigger must be present as a card-field trigger"
     )

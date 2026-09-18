@@ -55,6 +55,19 @@ snapshot_date: "2026-07-19"
 # resolve `not_dependent_in_indication` at priority 9, outranking pooled `non_dependent` at 22), and
 # the test that reads it is the forcing function for that refresh.
 #
+# ✅ RESOLVED 2026-09-18 by dependency.resolver v1.6.0 — the blocker below is CLOSED. The 4th compound
+#    twin it asks for landed at priority 9, above the indication killer (now 10), so WWTR1/MESO,
+#    MARK2/PAAD and MARK3/PAAD keep resolving `non_dependent_paralog_buffered` at Stage 5 and this
+#    suite stays green. The paragraph is left as written rather than edited away: it is the record of
+#    a measured hazard and of the assertion that forced the fix, and `expected_verdict_not_in` is
+#    STILL the forcing function if the rung is ever removed.
+#    NOT a blanket rescue, and this matters for reading the MET note above: rung 9 requires
+#    `strong-paralog-buffering-degrader-preferred` to have fired, so it rescues exactly the
+#    paralog-buffered subset. MET/LUAD carries no strong buffer (it resolves pooled `non_dependent`
+#    today, which the pooled paralog rung would already have relabelled), so MET still flips to
+#    `not_dependent_in_indication` at Stage 5 exactly as described.
+#    No version bump: the `expected_verdict_not_in` lists are byte-unchanged and this is a comment.
+#
 # ⚠ STAGE-5 BLOCKER THIS VERSION MAKES VISIBLE (measured, not predicted). WWTR1/MESO, MARK2/PAAD and
 # MARK3/PAAD — 3 of the 8 live controls, MARK2/3 being ADVANCED programs — resolve
 # `non_dependent_paralog_buffered`, whose resolver rung is 19. `not_dependent_in_indication` is

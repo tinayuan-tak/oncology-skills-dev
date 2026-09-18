@@ -452,59 +452,100 @@ def test_cross_repo_obligations_cover_every_minted_token(indication_only_verdict
 
 
 # ---------------------------------------------------------------------------
-# (4) The Stage-5 blocker found while building this parity
+# (4) The Stage-5 blocker found while building this parity — CLOSED by resolver v1.6.0
 # ---------------------------------------------------------------------------
+#
+# This section previously held `test_resolver_has_no_paralog_twin_for_the_indication_killer`, a
+# known-gap anchor that PASSED while the gap existed and failed with a 4-step instruction when it
+# closed. The twin landed (resolver v1.6.0, rung 9), the anchor fired as designed, and per its own
+# step (4) it is deleted rather than inverted: an anchor kept past its subject becomes a test whose
+# name asserts the opposite of the truth.
+#
+# Its three surviving obligations, discharged:
+#   (1) the twin outranks the bare killer  -> asserted below, and structurally in
+#       test_indication_dependency_class_partition.py, which now also asserts the GENERAL invariant
+#       (every pooled veto escape has an indication twin) that the gap slipped through.
+#   (2) re-capture wwtr1_meso / mark2_paad / mark3_paad -> NOT a v1.6.0 obligation. The rung is inert
+#       by REACHABILITY: no producer populates `indication_dependency_class`, so the killer cannot
+#       fire, so the rung cannot match and no snapshot verdict moves. It is a STAGE-5 obligation,
+#       recorded in the calibration set's v1.5.0 changelog.
+#   (3) reconsider A4i -> KEPT, with a corrected rationale. See the test below.
 
 
-def test_resolver_has_no_paralog_twin_for_the_indication_killer(resolver, indication_rule_ids):
-    """KNOWN-GAP ANCHOR. Asserts the gap's exact shape so it cannot be silently satisfied or forgotten.
+def test_the_indication_paralog_twin_exists_and_outranks_the_bare_killer(resolver):
+    """Closure guard for the v1.5.0 regression: the paralog rescue must outrank the indication veto.
 
-    MEASURED: #812 added compound rungs pairing `not-dependent-in-indication-killer` with
-    partner-conditional and chemical-genetic positives (priorities 6-8), so those rescues outrank the
-    bare indication killer at 9. It added no such twin for
-    `strong-paralog-buffering-degrader-preferred`, whose pooled compound rung sits at 19 — and 9
-    outranks 19. So at Stage 5 a paralog-buffered target measured non-dependent in its own indication
-    resolves `not_dependent_in_indication` where it resolves `non_dependent_paralog_buffered` today.
-    Blast radius on the calibration set: WWTR1/MESO, MARK2/PAAD, MARK3/PAAD — 3 of the 8 live
-    `must_not_veto` controls, MARK2/3 being ADVANCED programs.
-
-    veto_suppressors A4i already stops the VETO. What remains is the LABEL, and
-    `expected_verdict_not_in` is asserted against the RESOLVER verdict, so the calibration suite goes
-    red at Stage 5 until the twin lands.
-
-    THIS TEST PASSES WHILE THE GAP EXISTS, following the repo's `known_gap_expected_fail` idiom. When
-    someone adds the twin it FAILS, and the message says what to do: delete this test and refresh the
-    three snapshots. It fails equally if the gap deepens (the pooled rung losing its compound form),
-    because either direction invalidates the reasoning above.
-    """
+    Stated as an ORDERING over derived priorities, never as literals, so a renumber cannot rot it —
+    the same discipline the anchor it replaces used."""
     paralog_rule = "strong-paralog-buffering-degrader-preferred"
     killer = "not-dependent-in-indication-killer"
 
-    by_priority = {r["priority"]: r for r in resolver["resolve"]}
-    indication_killer_priority = next(p for p, r in by_priority.items() if _rung_rule_ids(r) == {killer})
+    twin = [r for r in resolver["resolve"] if _rung_rule_ids(r) == {killer, paralog_rule}]
+    assert len(twin) == 1, f"expected exactly one indication paralog twin, found {len(twin)}"
+    assert twin[0]["verdict"] == "non_dependent_paralog_buffered", (
+        f"the twin must emit the same relabel as its pooled counterpart, not {twin[0]['verdict']!r}: "
+        f"a different verdict would change the GATE ROLE of the escape, and this one is gate-INERT"
+    )
+    assert twin[0].get("driving_rule") == paralog_rule, "the twin must anchor provenance to the buffer rule"
 
-    pooled_paralog = [
-        r for r in resolver["resolve"] if paralog_rule in _rung_rule_ids(r) and len(_rung_rule_ids(r)) > 1
-    ]
-    assert pooled_paralog, (
-        "the pooled paralog rescue is no longer a COMPOUND rung — the asymmetry this test documents "
-        "rests on it, so re-derive before editing"
+    bare_killer = [r for r in resolver["resolve"] if _rung_rule_ids(r) == {killer}]
+    assert len(bare_killer) == 1
+    assert twin[0]["priority"] < bare_killer[0]["priority"], (
+        f"the paralog twin @{twin[0]['priority']} must outrank the bare indication killer "
+        f"@{bare_killer[0]['priority']}, or the veto wins and the twin is dead code"
     )
 
-    indication_paralog = [
-        r for r in resolver["resolve"] if paralog_rule in _rung_rule_ids(r) and killer in _rung_rule_ids(r)
-    ]
-    assert not indication_paralog, (
-        f"GOOD NEWS, ACTION REQUIRED: a paralog twin for the indication killer now exists at "
-        f"priority {[r['priority'] for r in indication_paralog]}. (1) Confirm it outranks "
-        f"{indication_killer_priority} (the bare killer). (2) Re-capture "
-        f"wwtr1_meso / mark2_paad / mark3_paad snapshots. (3) Reconsider veto_suppressors A4i, whose "
-        f"asymmetry was justified by this gap. (4) Delete this test — it has done its job."
-    )
 
-    # The gap is only a problem because of the ORDERING; assert that rather than trusting the numbers
-    # quoted in the docstring, which would rot after any renumber.
-    assert all(r["priority"] > indication_killer_priority for r in pooled_paralog), (
-        "the pooled paralog rescue now OUTRANKS the indication killer, which would mean the gap "
-        "closed by renumbering rather than by adding a twin — re-derive the blast radius"
+def test_a4i_is_kept_as_defence_in_depth_not_as_redundancy(gate, resolver):
+    """A4i (gate-side suppressor) and resolver rung 9 (resolver-side relabel) now BOTH cover the
+    paralog case. That looks redundant and is not — deleting either one opens a real window.
+
+    The two repos are PIN-DECOUPLED: claude-oncology-skills pins a target-contracts SHA. So there is a
+    window in which skills runs an OLD resolver (no rung 9, indication killer wins) against a NEW gate
+    vocabulary (A4i present) — during which A4i is the ONLY thing standing between the three ADVANCED
+    controls and a false veto. The reverse window exists too: a new resolver with an old gate vocab
+    relabels the verdict before any gate reads it, so the rung covers A4i's absence.
+
+    A4i's ORIGINAL rationale said the asymmetry was justified by the absence of this rung. That
+    justification is now false, and a stale justification is what makes a correct guard look deletable.
+    This test pins the CORRECTED reason in place: the rationale must ground A4i in the pin lag, not in
+    a resolver gap, and must not claim the gap still exists."""
+    a4i = [
+        s
+        for s in gate["veto_suppressors"]
+        if s.get("suppresses", {}).get("verdict") == "not_dependent_in_indication"
+        and any(t.get("field") == "paralog_buffering_class" for t in s.get("when_present", []))
+    ]
+    assert len(a4i) == 1, f"expected exactly one paralog suppressor for the indication veto, found {len(a4i)}"
+    rationale = a4i[0]["rationale"]
+
+    # The resolver rung it used to be justified by the ABSENCE of must now exist...
+    assert any(
+        _rung_rule_ids(r) == {"not-dependent-in-indication-killer", "strong-paralog-buffering-degrader-preferred"}
+        for r in resolver["resolve"]
+    ), "this test's premise is that the rung exists; if it does not, A4i's original rationale applies again"
+
+    # ...so the rationale must no longer claim there is no such rung.
+    stale = "there is no such rung for the indication killer"
+    assert stale not in rationale, (
+        f"A4i's rationale still asserts {stale!r}, which resolver v1.6.0 made FALSE. Ground it in the "
+        f"pin lag between the two repos instead — that is what still makes A4i load-bearing."
+    )
+    # Two INDEPENDENT content requirements, not a byte-pin of the current prose: the pin-lag argument
+    # is unstatable without naming (a) the decoupling and (b) WHICH repo's pin creates the lag. A
+    # reworded-but-correct paragraph keeps both; a paragraph that drops the argument loses both.
+    #
+    # Deliberately NOT `"pin" in rationale.lower()`, which is what this assert said first and which a
+    # mutant SURVIVED: the rationale also ends with "Pinned by <this test>", so a bare "pin" substring
+    # was satisfied by a sentence about test coverage while the actual argument had been deleted. A
+    # common word is not a claim.
+    low = rationale.lower()
+    assert "pin-decoupled" in low or "pin decoupled" in low, (
+        "A4i's rationale must name the DECOUPLING explicitly — it is the whole reason two layers "
+        "cover one hazard, and without it the overlap reads as duplication to be cleaned up"
+    )
+    assert "claude-oncology-skills" in low, (
+        "A4i's rationale must name the repo whose SHA pin creates the lag window. 'The repos are "
+        "decoupled' without a direction does not tell the reader which side runs stale code, which "
+        "is the fact that makes THIS layer (the gate one) the load-bearing half during the window."
     )

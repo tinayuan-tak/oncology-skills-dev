@@ -47,6 +47,23 @@ misread as coverage) and drove this file RED:
 The precedence mutants are deliberately priority SWAPS, not reassignments, so they leave the dense-
 unique-integer invariant intact and prove the ordering assert fires on its own rather than riding on
 test_priorities_stay_dense_unique_integers.
+  [priorities in the list above are AS OF resolver v1.5.0, when the mutants were run. v1.6.0 inserted
+   a rung at 9 and shifted 9-24 to 10-25, so mutant 4 is now 6 <-> 10 and mutant 7 is 12 <-> 5. The
+   mutants are recorded as they were EXECUTED rather than silently re-numbered, because a mutation
+   record that is edited without being re-run is a claim about a test that never ran.]
+
+RE-VERIFIED BY MUTATION 2026-09-18 for resolver v1.6.0 -- 18 pass on the clean tree, and 6 further
+mutants (same applied-proof discipline, harness covering this file plus
+test_indication_verdict_gate_parity.py; 9/9 killed across both files, 0 survivors) drove it RED:
+  1. delete the indication paralog twin rung entirely       -> 5 failed  (the v1.5.0 regression itself)
+  2. swap the veto ABOVE the paralog twin (9 <-> 10)         -> 3 failed  (rung present but dead code)
+  3. twin emits `not_dependent_in_indication`                -> 2 failed  (escape emits what it escapes)
+  4. twin emits `partner_conditional_dependent`              -> 2 failed  (gate-INERT becomes gate-POSITIVE)
+  5. twin's `driving_rule` points at the killer              -> 2 failed
+  6. POOLED paralog rung loses its compound form             -> 1 failed  (the subset invariant's far side)
+Mutant 6 is the one worth keeping: it does not touch the indication grain at all, and it proves
+test_the_indication_only_escapes_are_ones_the_pooled_ladder_gets_for_free is a real anti-vacuity
+check on the subset direction rather than decoration.
 """
 
 import json
@@ -270,25 +287,122 @@ def test_indication_rungs_yield_to_pan_essential_and_concordant():
         assert _priority_of(above) < min(ind), f"{above} must outrank the indication block"
 
 
-def test_measured_positives_still_escape_the_indication_veto():
-    """The v1.4.0 precedence principle, machine-enforced at indication grain: a significant
-    stratified or chemical-genetic measurement must outrank the indication-pooled negative, via the
-    framework's compound veto-suppressor idiom. Without this, a bare negative above these rungs
-    re-creates the exact defect v1.4.0 fixed (PRMT5 in MTAP-deleted MESO)."""
-    neg = _priority_of("not_dependent_in_indication")
-    rescues = [
+def _compound_escapes(killer):
+    """Rungs implementing the compound veto-suppressor idiom for `killer`: the veto's own rule fired
+    AND something else did, so the rung re-labels the verdict. Returns (rungs, rescuing_rule_ids)."""
+    rungs = [
         rung
         for rung in RESOLVER["resolve"]
-        if isinstance(rung.get("when_all_fired"), list)
-        and "not-dependent-in-indication-killer" in rung["when_all_fired"]
+        if isinstance(rung.get("when_all_fired"), list) and killer in rung["when_all_fired"]
     ]
-    assert len(rescues) == 3, f"expected 3 compound rescue rungs, found {len(rescues)}"
+    return rungs, {rid for r in rungs for rid in r["when_all_fired"] if rid != killer}
+
+
+def test_every_escape_from_the_indication_veto_outranks_it():
+    """The v1.4.0 precedence principle, machine-enforced at indication grain: a reason the
+    indication-pooled negative is not a verdict about the target must outrank that negative, via the
+    framework's compound veto-suppressor idiom. Without this, a bare negative above these rungs
+    re-creates the exact defect v1.4.0 fixed (PRMT5 in MTAP-deleted MESO).
+
+    TWO MECHANISMS, asserted as a non-empty partition so neither class can silently empty out:
+      * CONTRADICTION — a measured stratified / chemical-genetic positive says the target IS required
+        in a subset the indication median averaged away, so the rung emits a POSITIVE verdict.
+      * DISQUALIFICATION (v1.6.0) — a redundant paralog means the knockout the negative rests on is
+        the wrong INSTRUMENT. Nothing measured the target as required, so the rung emits neither a
+        positive nor a kill; `non_dependent_paralog_buffered` is declared gate-inert.
+    The earlier name for this test said "measured positives", which was true of the three rungs that
+    existed then and is NOT true of the paralog rung — the escape hatch is wider than a positive."""
+    neg = _priority_of("not_dependent_in_indication")
+    rescues, _ = _compound_escapes("not-dependent-in-indication-killer")
+    assert len(rescues) == 4, f"expected 4 compound rescue rungs, found {len(rescues)}"
+
+    contradiction = {"partner_conditional_dependent", "chemical_genetic_confirmed_dependent"}
+    disqualification = {"non_dependent_paralog_buffered"}
+    by_verdict = {r["verdict"] for r in rescues}
+    assert by_verdict & contradiction, "anti-vacuity: no CONTRADICTION-mechanism escape survives"
+    assert by_verdict & disqualification, "anti-vacuity: no DISQUALIFICATION-mechanism escape survives"
+    assert not (by_verdict - contradiction - disqualification), (
+        f"escape rungs with an unclassified mechanism: {sorted(by_verdict - contradiction - disqualification)}. "
+        f"Every escape must be either a measurement that CONTRADICTS the negative or an argument that "
+        f"DISQUALIFIES it — a third kind needs its own gate-role argument, because the two differ in "
+        f"whether the resulting verdict is gate-positive or gate-inert."
+    )
+
     for rung in rescues:
         assert rung["priority"] < neg, f"rescue {rung['verdict']}@{rung['priority']} must outrank the veto @{neg}"
         assert rung["verdict"] != "not_dependent_in_indication"
-        # each rescue must name the POSITIVE as its provenance anchor, matching rungs 15-16
+        # each rescue must name the RESCUING rule as its provenance anchor, matching rungs 16-17
         assert rung["driving_rule"] != "not-dependent-in-indication-killer"
         assert rung["driving_rule"] in rung["when_all_fired"]
+
+    # The DISQUALIFICATION escape must be the LAST of the four: a measurement that contradicts the
+    # negative beats an argument that the negative was never admissible. Mirrors the pooled ladder,
+    # where partner-conditional (16-19) outranks non_dependent_paralog_buffered (20).
+    disq = [r["priority"] for r in rescues if r["verdict"] in disqualification]
+    contra = [r["priority"] for r in rescues if r["verdict"] in contradiction]
+    assert max(contra) < min(disq), (
+        f"contradiction escapes {sorted(contra)} must outrank disqualification escapes {sorted(disq)}"
+    )
+
+
+def test_every_pooled_veto_escape_has_an_indication_twin():
+    """THE INVARIANT #812 LACKED, and the reason its regression was shippable.
+
+    v1.5.0 mirrored `non_dependent`'s ladder into indication grain by mirroring the VETO and three of
+    its escapes, missing the fourth (`strong-paralog-buffering-degrader-preferred`). Nothing was blind
+    to the new token — #814 gave it full gate parity — but nothing compared the two ESCAPE SETS, so
+    the indication killer outranked a rescue the pooled killer loses to, and 3 of the 8 live
+    `must_not_veto` calibration controls (WWTR1/MESO, MARK2/PAAD, MARK3/PAAD) were headed for a false
+    veto the moment the token became reachable.
+
+    Generalized so the next grain-conditioned veto cannot repeat it: MIRRORING A VETO MEANS MIRRORING
+    EVERY RUNG THAT ESCAPES IT. A rule that disqualifies or contradicts the POOLED negative also does
+    so for the indication negative — an indication still pools genotypes and subtypes, so every
+    argument available to the wider cohort is available to the narrower one."""
+    pooled_rungs, pooled = _compound_escapes("non-dependent-killer")
+    ind_rungs, ind = _compound_escapes("not-dependent-in-indication-killer")
+    assert pooled and ind, "anti-vacuity: both killers must have compound escapes"
+    assert pooled_rungs and ind_rungs
+
+    missing = pooled - ind
+    assert not missing, (
+        f"these rules rescue the POOLED veto but not the indication veto: {sorted(missing)}. The "
+        f"indication killer therefore outranks a rescue its pooled twin loses to, so an indication-"
+        f"scoped run vetoes a target a pan-cancer run does not. Add a compound rung pairing "
+        f"`not-dependent-in-indication-killer` with each, ABOVE the indication veto."
+    )
+
+
+def test_the_indication_only_escapes_are_ones_the_pooled_ladder_gets_for_free():
+    """Anti-vacuity for the subset direction above: a SUPERSET would also satisfy it, so prove each
+    extra indication escape is a grain artefact rather than an unexplained asymmetry.
+
+    `e7-triangulated-target-engaged-supportive` rescues the indication veto (rung 8) but has no
+    pooled compound rung — because it does not need one: its BARE rung already outranks the pooled
+    veto. At indication grain that same bare rung sits BELOW the indication veto (the indication block
+    is hoisted above the whole pooled block), so the escape has to be made explicit. If a future
+    renumber moves a bare rung above the indication veto, this test says so instead of leaving a
+    redundant compound rung to rot."""
+    _, pooled = _compound_escapes("non-dependent-killer")
+    _, ind = _compound_escapes("not-dependent-in-indication-killer")
+    extra = ind - pooled
+    assert extra, "anti-vacuity: expected at least one indication-only escape (e7 triangulation)"
+
+    pooled_veto = _priority_of("non_dependent")
+    ind_veto = _priority_of("not_dependent_in_indication")
+    assert pooled_veto > ind_veto, "the indication block must sit above the pooled block"
+
+    for rid in sorted(extra):
+        bare = [r["priority"] for r in RESOLVER["resolve"] if r.get("when_fired") == rid]
+        assert bare, f"{rid} rescues only the indication veto and has NO bare rung — unexplained asymmetry"
+        assert min(bare) < pooled_veto, (
+            f"{rid}'s bare rung @{min(bare)} does not outrank the pooled veto @{pooled_veto}, so the "
+            f"pooled ladder does NOT get this escape for free and owes a compound rung too"
+        )
+        assert min(bare) > ind_veto, (
+            f"{rid}'s bare rung @{min(bare)} already outranks the indication veto @{ind_veto}, so its "
+            f"compound rung is redundant — delete the compound rung rather than keeping both"
+        )
 
 
 def test_priorities_stay_dense_unique_integers():

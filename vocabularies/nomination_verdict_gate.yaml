@@ -564,25 +564,31 @@ veto_suppressors:
       subtype being the narrower scope.
 
   # A4i — DELIBERATELY WITHOUT A POOLED TWIN. The three arms above mirror a pooled arm each;
-  # this one has none, and the asymmetry is the whole reason it exists. At POOLED grain the
-  # paralog rescue is handled one layer DOWN, in the resolver: rung 19
-  # (`non_dependent_paralog_buffered`) fires on `non-dependent-killer` AND
-  # `strong-paralog-buffering-degrader-preferred` and re-LABELS the verdict, so the pooled veto
-  # never reaches this gate and needs no suppressor. dependency.resolver v1.5.0 has NO such twin
-  # for the indication killer — measured: compound twins were added pairing
-  # `not-dependent-in-indication-killer` with partner-conditional (priorities 6,7) and
-  # chemical-genetic (8), but NOT with paralog buffering — and `not_dependent_in_indication`
-  # (priority 9) OUTRANKS rung 19. So at indication grain the veto DOES reach this gate.
+  # this one has none. At POOLED grain the paralog rescue is handled one layer DOWN, in the
+  # resolver: a compound rung fires on `non-dependent-killer` AND
+  # `strong-paralog-buffering-degrader-preferred` and re-LABELS the verdict to
+  # `non_dependent_paralog_buffered`, so the pooled veto never reaches this gate and a pooled
+  # suppressor here would be unreachable.
+  #
+  # HISTORY, kept because it is the reason this arm's shape looks odd (updated 2026-09-18):
+  # when this arm was written, dependency.resolver v1.5.0 had NO such rung at indication grain —
+  # it had added compound twins pairing `not-dependent-in-indication-killer` with
+  # partner-conditional and chemical-genetic evidence but not with paralog buffering, so the
+  # indication killer outranked the pooled paralog relabel and the veto DID reach this gate.
+  # Resolver v1.6.0 CLOSED that gap by adding the indication paralog twin. This arm is kept
+  # anyway — see the rationale below: the repos are pin-decoupled, so the gate layer and the
+  # resolver layer protect at DIFFERENT MOMENTS, and the overlap is defence-in-depth rather than
+  # duplication. The general invariant the v1.5.0 gap slipped through (every rung that escapes the
+  # pooled veto needs an indication twin) is now asserted by
+  # tests/vocabularies/test_indication_dependency_class_partition.py.
   #
   # This arm is correct on its own merits, not merely as a patch: a single-gene knockout cannot
   # reveal a dependency masked by a redundant paralog, and that blindness is a property of the
   # ASSAY, so it is grain-INDEPENDENT (ORTHOGONALITY, like the neomorphic-GoF escape — not
   # dilution). Narrowing the panel to one indication does not make a single-gene KO able to see a
-  # reciprocal paralog SL. Suppresses the veto only; it does NOT relabel the verdict, so the
-  # reader still sees `not_dependent_in_indication` where `non_dependent_paralog_buffered` is the
-  # honest read. Closing THAT half needs the resolver twin and is declared as a Stage-5 blocking
-  # obligation in tests/vocabularies/test_indication_verdict_gate_parity.py, which pins the gap's
-  # exact shape so it cannot be silently satisfied or silently forgotten.
+  # reciprocal paralog SL. Suppresses the veto only; it does NOT relabel the verdict — the
+  # resolver rung is what makes the reader see `non_dependent_paralog_buffered` rather than
+  # `not_dependent_in_indication`, which is precisely why both layers are wanted.
   #
   # Blast radius, MEASURED against the calibration set (not inferred): 3 of the 8 live
   # `must_not_veto` controls resolve `non_dependent_paralog_buffered` today — WWTR1/MESO,
@@ -602,8 +608,18 @@ veto_suppressors:
       it is the same escape the neomorphic-GoF route uses. Suppress the veto → the target routes
       to `insufficient` and a degrader/dual-targeting hypothesis stays reachable, NOT nominate:
       buffering says which modality could work, never that the target is required. Deliberately
-      has NO pooled twin — at pooled grain resolver rung 19 relabels the verdict before the gate
-      sees it, and there is no such rung for the indication killer (see the A4i comment above).
+      has NO pooled twin — at pooled grain the resolver's paralog rung relabels the verdict before
+      the gate ever sees it, so a pooled suppressor would be unreachable.
+      KEPT ALONGSIDE THE RESOLVER RUNG (corrected 2026-09-18, resolver v1.6.0). This arm was first
+      written when the indication grain had no such rung, and its original wording justified itself
+      by that gap. The gap is now closed, and the arm is still load-bearing — because the two repos
+      are PIN-DECOUPLED. claude-oncology-skills pins a target-contracts SHA, so there is a window in
+      which skills runs an OLD resolver (indication killer still wins) against a NEW gate vocabulary,
+      and in that window this arm is the only thing between the three ADVANCED controls above and a
+      false veto. The reverse window is covered by the rung. Two layers, two different moments — not
+      redundancy, and deleting either one re-opens a real window. Pinned by
+      test_a4i_is_kept_as_defence_in_depth_not_as_redundancy, which fails if this paragraph reverts
+      to claiming the resolver gap still exists.
       Does NOT touch pan_essential_killer: a buffered paralog does not undo broad-tox liability.
 
 # (B) Modality-scoped: for a BIOLOGICS query (ADC / TCE / naked antibody) the target
