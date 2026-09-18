@@ -830,6 +830,60 @@ SALIENCE_SPECS: dict = {
         "n_field": "n_splice_events",
         "categorical": ["splicing_dysregulation_class"],
     },
+    # ── descriptor-coverage sweep, presence/selectivity/spatial batch (2026-09-18) ──────────────────
+    # tumor_vs_normal_protein_abundance: GRADED, higher_is_stronger — higher tumor-vs-body-atlas-normal
+    # protein log2FC = stronger tumor presence (mirrors the CPTAC sibling tumor_protein_abundance).
+    "tumor_vs_normal_protein_abundance": {
+        "effect_field": "protein_effect_size",
+        "significance_field": "protein_bh_q_value",
+        "direction": "higher_is_stronger",
+        "categorical": ["protein_expression_class"],
+        "n_field": "n_tumor_samples",
+        "reference_frame": {
+            "kind": "graded_band",
+            "atlas_numeric": False,
+            "value_field": "protein_effect_size",
+            "scale": "log2FC",
+            "position_field": "protein_expression_class",
+            "cuts": [
+                {
+                    "card_id": "tumor-vs-normal-protein-abundance-tphp",
+                    "threshold": "modest_up_abs_log2fc",
+                    "label": "modest_up",
+                },
+                {
+                    "card_id": "tumor-vs-normal-protein-abundance-tphp",
+                    "threshold": "strong_up_abs_log2fc",
+                    "label": "strong_up",
+                },
+            ],
+        },
+    },
+    # categorical-only (the class is the ruler) — spatial + sc-tumor compartment presence:
+    "spatial_colocalization": {
+        "n_field": "n_donors",
+        "categorical": ["spatial_coloc_class"],
+    },
+    "spatial_region_rna": {
+        "n_field": "n_donors",
+        "categorical": ["spatial_rna_class"],
+    },
+    "spatial_surface_protein": {
+        "n_field": "n_donors",
+        "categorical": ["spatial_protein_class"],
+    },
+    "sc_tumor_caf_state_expression": {
+        "n_field": "n_caf_subtypes_expressing",
+        "categorical": ["caf_expression_class"],
+    },
+    "sc_tumor_myeloid_state_expression": {
+        "n_field": "n_myeloid_subtypes_expressing",
+        "categorical": ["myeloid_expression_class"],
+    },
+    "phospho_pathway_activity": {
+        "n_field": "n_phosphosites",
+        "categorical": ["phospho_activity_class"],
+    },
     "tumor_vs_adjacent_expression": {
         "effect_field": "log2_fc",
         "significance_field": "q_value",

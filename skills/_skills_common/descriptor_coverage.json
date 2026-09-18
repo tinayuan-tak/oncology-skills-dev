@@ -463,6 +463,10 @@
       "correspondence_class",
       "n_positive_models"
     ],
+    "phospho_pathway_activity": [
+      "n_phosphosites",
+      "phospho_activity_class"
+    ],
     "pmhc_epitope_evidence": [
       "epitope_evidence_class",
       "n_epitopes"
@@ -499,12 +503,20 @@
       "n_celltypes_surface_displaying",
       "sc_surface_normal_class"
     ],
+    "sc_tumor_caf_state_expression": [
+      "caf_expression_class",
+      "n_caf_subtypes_expressing"
+    ],
     "sc_tumor_celltype_expression": [
       "caf_vs_malignant_class",
       "malignant_detection_fraction",
       "sc_expression_class",
       "stromal_confound_class",
       "tce_antigen_escape_class"
+    ],
+    "sc_tumor_myeloid_state_expression": [
+      "myeloid_expression_class",
+      "n_myeloid_subtypes_expressing"
     ],
     "shed_ectodomain_liability": [
       "media_mean_npx",
@@ -527,6 +539,18 @@
       "n_downstream_effectors",
       "n_upstream_regulators",
       "network_class"
+    ],
+    "spatial_colocalization": [
+      "n_donors",
+      "spatial_coloc_class"
+    ],
+    "spatial_region_rna": [
+      "n_donors",
+      "spatial_rna_class"
+    ],
+    "spatial_surface_protein": [
+      "n_donors",
+      "spatial_protein_class"
     ],
     "spatial_til_fraction": [
       "median_number_of_clusters",
@@ -633,6 +657,12 @@
       "fraction_tumor_above_normal_p95",
       "normal_p95_log2tpm"
     ],
+    "tumor_vs_normal_protein_abundance": [
+      "n_tumor_samples",
+      "protein_bh_q_value",
+      "protein_effect_size",
+      "protein_expression_class"
+    ],
     "tumor_vs_normal_selectivity": [
       "comparator_concordance",
       "log2fc_cell_a",
@@ -675,12 +705,16 @@
     "logrank_p",
     "mean_effect_shift",
     "n_cell_lines_evaluated",
+    "n_donors",
     "n_mutant",
     "n_patients",
     "n_samples",
     "n_total_rows",
+    "n_tumor_samples",
     "paralog_buffering_class",
     "partner_gene",
+    "protein_bh_q_value",
+    "protein_effect_size",
     "protein_expression_class",
     "q_value"
   ],
@@ -688,14 +722,14 @@
   "numeric_fields_without_gloss": [],
   "producer": "descriptor_coverage_sidecar",
   "role_counts": {
-    "categorical": 186,
-    "effect": 56,
+    "categorical": 193,
+    "effect": 57,
     "extra_scalar": 83,
     "frame_value": 16,
     "label": 10,
-    "n": 67,
+    "n": 74,
     "omnibus": 1,
-    "significance": 28,
+    "significance": 29,
     "strata": 12
   },
   "rosters": {
@@ -727,6 +761,7 @@
       "bh_q_value",
       "broad_n_lines",
       "burden_safety_class",
+      "caf_expression_class",
       "caf_vs_malignant_class",
       "cd8_high_minus_low",
       "cd_antigen_backbone_class",
@@ -925,6 +960,7 @@
       "mutant_stratified_surface_class",
       "mutation_landscape_class",
       "mutation_stratification_class",
+      "myeloid_expression_class",
       "n_admissible_strata",
       "n_adult_tissues_above_abundance_floor",
       "n_adult_tissues_detected",
@@ -932,6 +968,7 @@
       "n_amplified_overexpressed",
       "n_autosomal_dominant",
       "n_autosomal_recessive",
+      "n_caf_subtypes_expressing",
       "n_cell_lines_evaluated",
       "n_cell_lines_panel",
       "n_celllines_detected",
@@ -943,6 +980,7 @@
       "n_dependent_models",
       "n_depmap_carriers",
       "n_domains",
+      "n_donors",
       "n_downstream_effectors",
       "n_drug_interactions",
       "n_e3_ligases_literature",
@@ -960,6 +998,7 @@
       "n_mutant",
       "n_mutant_samples",
       "n_mutated_pooled",
+      "n_myeloid_subtypes_expressing",
       "n_normal_tissues_presented",
       "n_paired_models",
       "n_paired_models_cn_protein",
@@ -977,6 +1016,7 @@
       "n_patients_joined",
       "n_patients_total",
       "n_perturbing_drugs",
+      "n_phosphosites",
       "n_positive_models",
       "n_presented_peptides",
       "n_protect",
@@ -1023,6 +1063,7 @@
       "per_lineage_predictability",
       "per_pathway",
       "per_stratum",
+      "phospho_activity_class",
       "pli_score",
       "pmhc_presentation_class",
       "pooled_driver_recurrence_class",
@@ -1076,6 +1117,9 @@
       "single_ko_leverage_understated",
       "sl_partner_class",
       "sl_partner_count",
+      "spatial_coloc_class",
+      "spatial_protein_class",
+      "spatial_rna_class",
       "spearman_r_crispr",
       "splice_exon_skip_class",
       "splicing_dysregulation_class",
@@ -1171,6 +1215,7 @@
       "bh_q_value": "significance",
       "broad_n_lines": "n",
       "burden_safety_class": "categorical",
+      "caf_expression_class": "categorical",
       "caf_vs_malignant_class": "categorical",
       "cd8_high_minus_low": "effect",
       "cd_antigen_backbone_class": "categorical",
@@ -1369,6 +1414,7 @@
       "mutant_stratified_surface_class": "categorical",
       "mutation_landscape_class": "categorical",
       "mutation_stratification_class": "categorical",
+      "myeloid_expression_class": "categorical",
       "n_admissible_strata": "extra_scalar",
       "n_adult_tissues_above_abundance_floor": "extra_scalar",
       "n_adult_tissues_detected": "n",
@@ -1376,6 +1422,7 @@
       "n_amplified_overexpressed": "n",
       "n_autosomal_dominant": "extra_scalar",
       "n_autosomal_recessive": "extra_scalar",
+      "n_caf_subtypes_expressing": "n",
       "n_cell_lines_evaluated": "n",
       "n_cell_lines_panel": "n",
       "n_celllines_detected": "n",
@@ -1387,6 +1434,7 @@
       "n_dependent_models": "extra_scalar",
       "n_depmap_carriers": "n",
       "n_domains": "n",
+      "n_donors": "n",
       "n_downstream_effectors": "extra_scalar",
       "n_drug_interactions": "n",
       "n_e3_ligases_literature": "n",
@@ -1404,6 +1452,7 @@
       "n_mutant": "n",
       "n_mutant_samples": "n",
       "n_mutated_pooled": "extra_scalar",
+      "n_myeloid_subtypes_expressing": "n",
       "n_normal_tissues_presented": "effect",
       "n_paired_models": "n",
       "n_paired_models_cn_protein": "n",
@@ -1421,6 +1470,7 @@
       "n_patients_joined": "n",
       "n_patients_total": "n",
       "n_perturbing_drugs": "n",
+      "n_phosphosites": "n",
       "n_positive_models": "n",
       "n_presented_peptides": "n",
       "n_protect": "extra_scalar",
@@ -1467,6 +1517,7 @@
       "per_lineage_predictability": "strata",
       "per_pathway": "strata",
       "per_stratum": "strata",
+      "phospho_activity_class": "categorical",
       "pli_score": "significance",
       "pmhc_presentation_class": "categorical",
       "pooled_driver_recurrence_class": "categorical",
@@ -1520,6 +1571,9 @@
       "single_ko_leverage_understated": "categorical",
       "sl_partner_class": "categorical",
       "sl_partner_count": "n",
+      "spatial_coloc_class": "categorical",
+      "spatial_protein_class": "categorical",
+      "spatial_rna_class": "categorical",
       "spearman_r_crispr": "effect",
       "splice_exon_skip_class": "categorical",
       "splicing_dysregulation_class": "categorical",
@@ -1583,19 +1637,19 @@
   },
   "schema_version": "1.0.0",
   "source_class_counts": {
-    "instrument": 459
+    "instrument": 475
   },
   "summary": {
     "n_atlas_live": 16,
-    "n_descriptor_cells": 459,
-    "n_distinct_fields": 421,
+    "n_descriptor_cells": 475,
+    "n_distinct_fields": 431,
     "n_envelope_fields": 11,
     "n_gloss_without_descriptor": 6,
-    "n_measurement_types": 97,
-    "n_metric_gloss_entries": 232,
-    "n_multi_type_fields": 20,
-    "n_numeric_fields": 226,
-    "n_numeric_fields_with_gloss": 226,
+    "n_measurement_types": 104,
+    "n_metric_gloss_entries": 236,
+    "n_multi_type_fields": 24,
+    "n_numeric_fields": 230,
+    "n_numeric_fields_with_gloss": 230,
     "n_numeric_fields_without_gloss": 0
   }
 }

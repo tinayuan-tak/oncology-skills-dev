@@ -363,6 +363,10 @@ _ATLAS_NUMERIC_OPTOUT = {
         "identical for every target in a cohort, so a target atlas numeric would phrase an indication "
         "property as a target one (same reasoning as immune_context). Display-only (atlas_numeric: False)."
     ),
+    "tumor_vs_normal_protein_abundance": (
+        "ATLAS DEFERRED — the log2FC graded_band is a display-only ruler (atlas_numeric: False) because the "
+        "target-archetype atlas is deferred out of go-live. Flip when the atlas returns."
+    ),
 }
 
 _SCAN_PRUNE = {".git", ".pixi", ".venv", "__pycache__", "node_modules", ".ruff_cache", ".pytest_cache"}
@@ -716,3 +720,12 @@ def test_genomic_instability_state_direction_sign():
     spec = SALIENCE_SPECS["genomic_instability_state"]
     assert spec["direction"] == "higher_is_worse"
     assert [c["label"] for c in spec["reference_frame"]["cuts"]] == ["quiet_genome", "highly_aneuploid"]
+
+
+def test_tumor_vs_normal_protein_abundance_direction_sign():
+    """Sign guard: higher tumor-vs-body-atlas-normal protein log2FC = stronger tumor presence
+    (higher_is_stronger), mirroring the CPTAC sibling tumor_protein_abundance. Cuts ascend
+    modest(0.585) -> strong(1.0)."""
+    spec = SALIENCE_SPECS["tumor_vs_normal_protein_abundance"]
+    assert spec["direction"] == "higher_is_stronger"
+    assert [c["label"] for c in spec["reference_frame"]["cuts"]] == ["modest_up", "strong_up"]

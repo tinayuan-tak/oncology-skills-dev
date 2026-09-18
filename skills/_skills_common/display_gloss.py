@@ -89,6 +89,11 @@ METRIC_GLOSS: dict = {
     "shet_upper_95": ("s_het 95% CI upper bound", "s_het"),
     "obs_lof_count": ("observed LoF variant count", "count"),
     "exp_lof_count": ("expected LoF variant count", "count"),
+    # descriptor-coverage sweep, presence/spatial batch.
+    "n_donors": ("spatial donors", "count"),
+    "n_caf_subtypes_expressing": ("CAF subtypes expressing the target", "count"),
+    "n_myeloid_subtypes_expressing": ("myeloid subtypes expressing the target", "count"),
+    "n_phosphosites": ("phosphosites", "count"),
     # descriptor-coverage sweep, genomic-alteration-profile batch.
     "median_fraction_genome_altered": ("median fraction of genome altered (CIN)", "fraction"),
     "n_models_considered": ("models considered", "count"),

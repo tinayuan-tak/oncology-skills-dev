@@ -498,7 +498,13 @@ def test_census_reaches_some_fields_but_not_all():
 # improvement be banked or the ratchet re-opens by 25. The reader lives in _skills_common (salience), NOT
 # contracts, so no pin bump is entangled (cf. the skills-only 889 / TC#774 banks above). Prior vintage:
 # 885 @ c88c6e04 (2026-09-15).
-APERTURE_CEILING = 862
+# ── BANKED AGAIN 2026-09-18 862 → 836, same method, measured against contracts c3eec129 (the CI pin).
+# SKILLS-ONLY: the -26 is THIS BRANCH newly reading fields via the presence/selectivity/spatial
+# descriptor-coverage mints (tumor_vs_normal_protein_abundance, spatial_colocalization,
+# spatial_region_rna, spatial_surface_protein, sc_tumor_caf_state_expression,
+# sc_tumor_myeloid_state_expression, phospho_pathway_activity) — genuinely-unread card fields now
+# classified. Reader is skills-side salience, no pin move.
+APERTURE_CEILING = 836
 
 # Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
 # into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of

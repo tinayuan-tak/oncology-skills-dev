@@ -135,15 +135,12 @@
       "gate_short": null,
       "n_declared_cards": 7,
       "n_declared_types": 6,
-      "n_measurement_descriptor_fields": 10,
-      "n_types_with_measurement_descriptor": 2,
+      "n_measurement_descriptor_fields": 16,
+      "n_types_with_measurement_descriptor": 5,
       "skill_dir": "immune-context",
       "static_state": "descriptor_covered",
       "types_without_measurement_descriptor": [
-        "ici_response_expression",
-        "sc_tumor_caf_state_expression",
-        "sc_tumor_myeloid_state_expression",
-        "spatial_colocalization"
+        "ici_response_expression"
       ],
       "verdict_bearing": true
     },
@@ -172,13 +169,11 @@
       "gate_short": "mechanism",
       "n_declared_cards": 5,
       "n_declared_types": 5,
-      "n_measurement_descriptor_fields": 11,
-      "n_types_with_measurement_descriptor": 4,
+      "n_measurement_descriptor_fields": 13,
+      "n_types_with_measurement_descriptor": 5,
       "skill_dir": "mechanism-and-pharmacology",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [
-        "phospho_pathway_activity"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_bearing": true
     },
     "safety": {
@@ -208,16 +203,11 @@
       "gate_short": "selectivity",
       "n_declared_cards": 14,
       "n_declared_types": 13,
-      "n_measurement_descriptor_fields": 49,
-      "n_types_with_measurement_descriptor": 9,
+      "n_measurement_descriptor_fields": 59,
+      "n_types_with_measurement_descriptor": 13,
       "skill_dir": "tumor-selectivity",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [
-        "spatial_colocalization",
-        "spatial_region_rna",
-        "spatial_surface_protein",
-        "tumor_vs_normal_protein_abundance"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_bearing": true
     },
     "subtype_fit": {
@@ -322,11 +312,10 @@
       "n_axes_counted": 6,
       "n_axes_descriptor_covered": 6,
       "n_declared_types": 60,
-      "n_types_without_measurement_descriptor": 2,
+      "n_types_without_measurement_descriptor": 1,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
-        "ddr_deficiency_context",
-        "phospho_pathway_activity"
+        "ddr_deficiency_context"
       ],
       "verdict_member_axes": [
         "dependency",
@@ -382,7 +371,7 @@
       "n_axes_counted": 4,
       "n_axes_descriptor_covered": 4,
       "n_declared_types": 50,
-      "n_types_without_measurement_descriptor": 11,
+      "n_types_without_measurement_descriptor": 8,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
         "gene_ontology_annotation",
@@ -390,9 +379,6 @@
         "ppi_interactome",
         "protein_domains_class",
         "reactome_pathway_membership",
-        "sc_tumor_caf_state_expression",
-        "sc_tumor_myeloid_state_expression",
-        "spatial_colocalization",
         "target_development_level",
         "target_identity",
         "target_safety_prioritisation"
@@ -409,16 +395,12 @@
       "n_axes_counted": 2,
       "n_axes_descriptor_covered": 2,
       "n_declared_types": 28,
-      "n_types_without_measurement_descriptor": 7,
+      "n_types_without_measurement_descriptor": 3,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
         "drug_warning_safety",
         "onsides_adverse_event_safety",
-        "spatial_colocalization",
-        "spatial_region_rna",
-        "spatial_surface_protein",
-        "target_safety_prioritisation",
-        "tumor_vs_normal_protein_abundance"
+        "target_safety_prioritisation"
       ],
       "verdict_member_axes": [
         "safety",
@@ -933,10 +915,10 @@
     "n_dims": 6,
     "n_fanout_axes": 15,
     "n_gated_axes": 8,
-    "n_salience_spec_types": 97,
+    "n_salience_spec_types": 104,
     "n_spec_types_pulled_by_no_axis": 0,
-    "n_types_with_measurement_descriptor": 97,
-    "n_types_without_measurement_descriptor": 26
+    "n_types_with_measurement_descriptor": 104,
+    "n_types_without_measurement_descriptor": 19
   },
   "types_without_measurement_descriptor": [
     "cited_literature_evidence",
@@ -950,20 +932,13 @@
     "model_availability",
     "onsides_adverse_event_safety",
     "pdx_drug_response",
-    "phospho_pathway_activity",
     "ppi_interactome",
     "precog_prognostic_association",
     "protein_domains_class",
     "reactome_pathway_membership",
-    "sc_tumor_caf_state_expression",
-    "sc_tumor_myeloid_state_expression",
-    "spatial_colocalization",
-    "spatial_region_rna",
-    "spatial_surface_protein",
     "stemness_context",
     "target_development_level",
     "target_identity",
-    "target_safety_prioritisation",
-    "tumor_vs_normal_protein_abundance"
+    "target_safety_prioritisation"
   ]
 }
