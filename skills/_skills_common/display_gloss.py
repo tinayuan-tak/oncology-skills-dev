@@ -89,6 +89,10 @@ METRIC_GLOSS: dict = {
     "shet_upper_95": ("s_het 95% CI upper bound", "s_het"),
     "obs_lof_count": ("observed LoF variant count", "count"),
     "exp_lof_count": ("expected LoF variant count", "count"),
+    # descriptor-coverage sweep, translational-readiness batch.
+    "n_patient_derived_models": ("patient-derived models", "count"),
+    "n_models_with_alteration": ("models carrying the alteration", "count"),
+    "n_treatments": ("PDX treatments tested", "count"),
     # descriptor-coverage sweep, safety/translational/context + reference/annotation batch.
     "n_targeted_drugs": ("drugs targeting the gene", "count"),
     "n_drugs_mapped": ("drugs mapped to adverse-event data", "count"),

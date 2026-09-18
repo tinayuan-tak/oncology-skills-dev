@@ -895,6 +895,12 @@
           "key_fields": {},
           "key_evidence": {
             "n": 209,
+            "categorical": [
+              {
+                "field": "model_availability_class",
+                "value": "deep_model_coverage"
+              }
+            ],
             "n_basis": {
               "n_patient_derived_models": 209
             }
@@ -941,7 +947,13 @@
           },
           "key_fields": {},
           "key_evidence": {
-            "n": 209,
+            "n": 51,
+            "categorical": [
+              {
+                "field": "genotype_matched_class",
+                "value": "matched_deep"
+              }
+            ],
             "n_basis": {
               "n_models_in_indication": 209,
               "n_models_with_alteration": 51,
@@ -989,7 +1001,14 @@
             "is_driving": false
           },
           "key_fields": {},
-          "key_evidence": null
+          "key_evidence": {
+            "categorical": [
+              {
+                "field": "pdx_drug_response_class",
+                "value": "data_unavailable"
+              }
+            ]
+          }
         },
         {
           "id": "organoid-crispr-dependency",

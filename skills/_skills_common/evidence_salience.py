@@ -927,6 +927,13 @@ SALIENCE_SPECS: dict = {
         "n_field": "n_active_trials",
         "categorical": ["highest_clinical_stage", "modality_precedent"],
     },
+    # ── descriptor-coverage sweep, translational-readiness batch (2026-09-18) — the last 3 mintable
+    # types. Covering these takes translational_readiness from 1/4 to 4/4 descriptor-covered, which
+    # moves the worked-example ratchet in test_measured_axes_per_dim_sidecar and the committed
+    # translational evidence-graph snapshot (both updated in this PR). All categorical-only, verdict-inert.
+    "model_availability": {"n_field": "n_patient_derived_models", "categorical": ["model_availability_class"]},
+    "genotype_matched_model": {"n_field": "n_models_with_alteration", "categorical": ["genotype_matched_class"]},
+    "pdx_drug_response": {"n_field": "n_treatments", "categorical": ["pdx_drug_response_class"]},
     "tumor_vs_adjacent_expression": {
         "effect_field": "log2_fc",
         "significance_field": "q_value",

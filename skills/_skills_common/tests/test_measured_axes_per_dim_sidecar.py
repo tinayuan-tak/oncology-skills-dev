@@ -90,20 +90,19 @@ def test_static_capability_and_per_run_outcome_are_allowed_to_disagree():
     """`translational_readiness` is descriptor_covered here while the 504-target corpus measured it
     `undescribed` on 504/504 runs — the measured disagreement, encoded rather than smoothed over.
 
-    Capability holds because ONE of its four declared types carries measurement descriptors; the
-    per-run outcome held because no field emitted by its RESOLVED cards matched one. Both correct.
-    If the counts below change, the note's worked example is stale and must be rewritten — do NOT
-    just update the numbers.
+    Capability holds because its declared types carry measurement descriptors; the per-run outcome
+    held because no field emitted by its RESOLVED cards matched one. Both correct — and the
+    disagreement is now the STRONGEST possible: as of 2026-09-18 the descriptor-coverage sweep specced
+    ALL FOUR declared types (model_availability, genotype_matched_model, pdx_drug_response were the
+    last three), so static capability is full (4/4) yet the corpus still measured undescribed 504/504.
+    If the counts below change, the note's worked example is stale and must be rewritten — do NOT just
+    update the numbers.
     """
     axis = S.build()["axes"]["translational_readiness"]
     assert axis["static_state"] == S.STATE_DESCRIPTOR_COVERED
-    assert axis["n_types_with_measurement_descriptor"] == 1, "the example rests on exactly one covered type"
+    assert axis["n_types_with_measurement_descriptor"] == 4, "all four declared types are now covered"
     assert axis["n_declared_types"] == 4
-    assert sorted(axis["types_without_measurement_descriptor"]) == [
-        "genotype_matched_model",
-        "model_availability",
-        "pdx_drug_response",
-    ]
+    assert sorted(axis["types_without_measurement_descriptor"]) == []
     note = S.build()["note"]
     assert "CAPABILITY, NOT OUTCOME" in note
     assert "504/504" in note

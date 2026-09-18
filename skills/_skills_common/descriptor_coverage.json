@@ -293,6 +293,10 @@
       "median_fraction_genome_altered",
       "n_samples"
     ],
+    "genotype_matched_model": [
+      "genotype_matched_class",
+      "n_models_with_alteration"
+    ],
     "gnomad_lof_constraint": [
       "constraint_class",
       "loeuf_score",
@@ -352,6 +356,10 @@
       "window_class",
       "window_ratio_essential",
       "window_ratio_full_normal"
+    ],
+    "model_availability": [
+      "model_availability_class",
+      "n_patient_derived_models"
     ],
     "mouse_ko_phenotype_safety": [
       "evidence_tier",
@@ -498,6 +506,10 @@
     "patient_model_correspondence": [
       "correspondence_class",
       "n_positive_models"
+    ],
+    "pdx_drug_response": [
+      "n_treatments",
+      "pdx_drug_response_class"
     ],
     "phospho_pathway_activity": [
       "n_phosphosites",
@@ -792,12 +804,12 @@
   "numeric_fields_without_gloss": [],
   "producer": "descriptor_coverage_sidecar",
   "role_counts": {
-    "categorical": 218,
+    "categorical": 221,
     "effect": 57,
     "extra_scalar": 83,
     "frame_value": 16,
     "label": 10,
-    "n": 87,
+    "n": 90,
     "omnibus": 1,
     "significance": 29,
     "strata": 12
@@ -949,6 +961,7 @@
       "genie_sv_frequency",
       "genie_sv_recurrence_class",
       "genie_sv_recurrence_percentile",
+      "genotype_matched_class",
       "germline_inheritance_mode",
       "gi_ttest_pvalue",
       "has_safety_event_band",
@@ -1034,6 +1047,7 @@
       "modality_implication_basis",
       "modality_implication_class",
       "modality_precedent",
+      "model_availability_class",
       "mut_dominant_mutation_class",
       "mut_fraction_lof",
       "mut_fraction_missense",
@@ -1086,6 +1100,7 @@
       "n_lethal",
       "n_models",
       "n_models_considered",
+      "n_models_with_alteration",
       "n_mutant",
       "n_mutant_samples",
       "n_mutated_pooled",
@@ -1102,6 +1117,7 @@
       "n_partners_tested",
       "n_pathogenic_germline",
       "n_pathways_profiled",
+      "n_patient_derived_models",
       "n_patients",
       "n_patients_cn_expr",
       "n_patients_joined",
@@ -1122,6 +1138,7 @@
       "n_targeted_drugs",
       "n_tissues_detectable",
       "n_total_rows",
+      "n_treatments",
       "n_tumor_samples",
       "n_upstream_regulators",
       "n_vital_organs_above_abundance_floor",
@@ -1153,6 +1170,7 @@
       "patient_high_amp_fraction",
       "patient_homdel_fraction",
       "patient_methylation_silencing_class",
+      "pdx_drug_response_class",
       "pearson_p",
       "pearson_r",
       "pearson_r_squared_rf",
@@ -1437,6 +1455,7 @@
       "genie_sv_frequency": "extra_scalar",
       "genie_sv_recurrence_class": "categorical",
       "genie_sv_recurrence_percentile": "extra_scalar",
+      "genotype_matched_class": "categorical",
       "germline_inheritance_mode": "categorical",
       "gi_ttest_pvalue": "significance",
       "has_safety_event_band": "categorical",
@@ -1522,6 +1541,7 @@
       "modality_implication_basis": "categorical",
       "modality_implication_class": "categorical",
       "modality_precedent": "categorical",
+      "model_availability_class": "categorical",
       "mut_dominant_mutation_class": "categorical",
       "mut_fraction_lof": "frame_value",
       "mut_fraction_missense": "frame_value",
@@ -1574,6 +1594,7 @@
       "n_lethal": "n",
       "n_models": "n",
       "n_models_considered": "n",
+      "n_models_with_alteration": "n",
       "n_mutant": "n",
       "n_mutant_samples": "n",
       "n_mutated_pooled": "extra_scalar",
@@ -1590,6 +1611,7 @@
       "n_partners_tested": "n",
       "n_pathogenic_germline": "n",
       "n_pathways_profiled": "n",
+      "n_patient_derived_models": "n",
       "n_patients": "n",
       "n_patients_cn_expr": "n",
       "n_patients_joined": "n",
@@ -1610,6 +1632,7 @@
       "n_targeted_drugs": "n",
       "n_tissues_detectable": "n",
       "n_total_rows": "extra_scalar",
+      "n_treatments": "n",
       "n_tumor_samples": "n",
       "n_upstream_regulators": "extra_scalar",
       "n_vital_organs_above_abundance_floor": "extra_scalar",
@@ -1641,6 +1664,7 @@
       "patient_high_amp_fraction": "extra_scalar",
       "patient_homdel_fraction": "extra_scalar",
       "patient_methylation_silencing_class": "categorical",
+      "pdx_drug_response_class": "categorical",
       "pearson_p": "significance",
       "pearson_r": "effect",
       "pearson_r_squared_rf": "extra_scalar",
@@ -1775,19 +1799,19 @@
   },
   "schema_version": "1.0.0",
   "source_class_counts": {
-    "instrument": 513
+    "instrument": 519
   },
   "summary": {
     "n_atlas_live": 16,
-    "n_descriptor_cells": 513,
-    "n_distinct_fields": 465,
+    "n_descriptor_cells": 519,
+    "n_distinct_fields": 471,
     "n_envelope_fields": 11,
     "n_gloss_without_descriptor": 6,
-    "n_measurement_types": 119,
-    "n_metric_gloss_entries": 246,
+    "n_measurement_types": 122,
+    "n_metric_gloss_entries": 249,
     "n_multi_type_fields": 26,
-    "n_numeric_fields": 240,
-    "n_numeric_fields_with_gloss": 240,
+    "n_numeric_fields": 243,
+    "n_numeric_fields_with_gloss": 243,
     "n_numeric_fields_without_gloss": 0
   }
 }

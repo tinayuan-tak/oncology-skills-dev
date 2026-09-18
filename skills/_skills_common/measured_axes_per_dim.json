@@ -265,15 +265,11 @@
       "gate_short": null,
       "n_declared_cards": 4,
       "n_declared_types": 4,
-      "n_measurement_descriptor_fields": 7,
-      "n_types_with_measurement_descriptor": 1,
+      "n_measurement_descriptor_fields": 13,
+      "n_types_with_measurement_descriptor": 4,
       "skill_dir": "translational-readiness",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [
-        "genotype_matched_model",
-        "model_availability",
-        "pdx_drug_response"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_bearing": false
     }
   },
@@ -876,15 +872,12 @@
     "n_dims": 6,
     "n_fanout_axes": 15,
     "n_gated_axes": 8,
-    "n_salience_spec_types": 119,
+    "n_salience_spec_types": 122,
     "n_spec_types_pulled_by_no_axis": 0,
-    "n_types_with_measurement_descriptor": 119,
-    "n_types_without_measurement_descriptor": 4
+    "n_types_with_measurement_descriptor": 122,
+    "n_types_without_measurement_descriptor": 1
   },
   "types_without_measurement_descriptor": [
-    "genotype_matched_model",
-    "model_availability",
-    "pdx_drug_response",
     "target_identity"
   ]
 }
