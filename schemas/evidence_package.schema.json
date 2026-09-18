@@ -43,9 +43,30 @@
     },
     "context": {
       "type": "object",
-      "description": "The (target, indication, scope, subgroup_spec) binding this package was emitted for.",
+      "description": "The (target, indication, scope, subgroup_spec) binding this package was emitted for. scope and subgroup_spec must AGREE (allOf below, 2026-09-18): a subtype-scoped package (scope=cancer_subtype) carries a subgroup_spec (a strata list or the 'all' sentinel), and an indication- or pan-cancer-level package (scope=cancer_type|pancancer) carries no subgroup (subgroup_spec null or absent). Before this, scope was hardcoded 'cancer_type' regardless of subgroup_spec (skills envelope.py), so the two silently disagreed on every subtype run; the emitter now derives scope from subgroup_spec and this invariant pins that agreement in the contract.",
       "required": ["target", "indication", "scope"],
       "unevaluatedProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {"scope": {"const": "cancer_subtype"}},
+            "required": ["scope"]
+          },
+          "then": {
+            "required": ["subgroup_spec"],
+            "properties": {"subgroup_spec": {"not": {"type": "null"}}}
+          }
+        },
+        {
+          "if": {
+            "properties": {"scope": {"enum": ["cancer_type", "pancancer"]}},
+            "required": ["scope"]
+          },
+          "then": {
+            "properties": {"subgroup_spec": {"type": "null"}}
+          }
+        }
+      ],
       "properties": {
         "target": {
           "type": "object",

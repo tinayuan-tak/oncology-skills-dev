@@ -137,6 +137,7 @@ def test_top_level_rejects_unknown_key_but_accepts_subtype_resolved():
 def test_populated_block_validates_with_strata_subgroup_spec():
     ep = _base_ep(subtype_resolved=_populated_subtype_resolved())
     ep["context"]["subgroup_spec"] = ["MSI_H", "MSS"]  # no longer hardcoded null
+    ep["context"]["scope"] = "cancer_subtype"  # scope must AGREE with subgroup_spec (2026-09-18 invariant)
     assert _errors(ep) == []
 
 
@@ -170,3 +171,56 @@ def test_stratum_record_requires_stratum_and_axes():
     block2 = _populated_subtype_resolved()
     block2["per_stratum"].append({"stratum": "CMS1"})  # missing `axes`
     assert _errors(_base_ep(subtype_resolved=block2)) != []
+
+
+# ---------- scope <-> subgroup_spec consistency invariant (2026-09-18) ----------
+# scope was hardcoded "cancer_type" in the skills emitter regardless of subgroup_spec, so a subtype
+# run silently emitted cancer_type + a strata list. The emitter now derives scope from subgroup_spec;
+# this schema invariant pins that agreement so the two can never disagree again. Both directions are
+# tested by MUTATION so the guard is real, not decoration.
+
+
+def test_cancer_subtype_requires_nonnull_subgroup_spec():
+    ep = _base_ep()
+    ep["context"]["scope"] = "cancer_subtype"
+    ep["context"]["subgroup_spec"] = None  # a subtype scope with no subgroup is contradictory
+    assert any("subgroup_spec" in e or "context" in e for e in _errors(ep)), _errors(ep)
+
+
+def test_cancer_subtype_requires_present_subgroup_spec():
+    ep = _base_ep()
+    ep["context"]["scope"] = "cancer_subtype"
+    del ep["context"]["subgroup_spec"]  # absent is also contradictory for a subtype scope
+    assert _errors(ep) != []
+
+
+def test_cancer_type_forbids_a_subgroup_spec():
+    ep = _base_ep()  # scope stays cancer_type
+    ep["context"]["subgroup_spec"] = ["MSI_H", "MSS"]  # a strata list on an indication scope
+    assert _errors(ep) != []
+
+
+def test_pancancer_forbids_a_subgroup_spec():
+    ep = _base_ep()
+    ep["context"]["scope"] = "pancancer"
+    ep["context"]["subgroup_spec"] = "all"
+    assert _errors(ep) != []
+
+
+def test_consistent_scope_subgroup_pairs_validate():
+    # cancer_type + null (the byte-stable default)
+    assert _errors(_base_ep()) == []
+    # cancer_subtype + strata list
+    ep = _base_ep()
+    ep["context"]["scope"] = "cancer_subtype"
+    ep["context"]["subgroup_spec"] = ["MSI_H", "MSS"]
+    assert _errors(ep) == []
+    # cancer_subtype + the "all" sentinel
+    ep = _base_ep()
+    ep["context"]["scope"] = "cancer_subtype"
+    ep["context"]["subgroup_spec"] = "all"
+    assert _errors(ep) == []
+    # cancer_type + absent subgroup_spec
+    ep = _base_ep()
+    del ep["context"]["subgroup_spec"]
+    assert _errors(ep) == []
