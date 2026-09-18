@@ -1431,7 +1431,7 @@ rules:
     when:
       card_id: tumor-rna-distribution
       field: tumor_expression_class
-      in: [broadly_high, broadly_detected, subset_high]
+      in: [broadly_high, broadly_detected]
     signals:
       small_molecule: supportive
       degrader: supportive
@@ -1441,27 +1441,42 @@ rules:
       present) and degrader (target must be expressed to be degraded). Presence, not selectivity
       (that is the percentile-crossing card) — interpret alongside Q2.
 
-      SCOPE NARROWING PENDING — PHASE 1 OF 3, do not "tidy" this list. `subset_high` is a population
-      over-claim here and is being split onto `tumor-expression-subset-high-supportive` below. It
-      fires at high_fraction >= 0.1 (given a bimodal/long_tail shape), so a target high in 10% of
-      patients currently produces the identical rule_id, verdict rung and headline phrase ("Broadly
-      expressed in tumor") as one high in 60% — a 6x difference in eligible population. The ladder
-      keys on rule_id, not on which enum member matched, so a prose caveat about a "real high subset"
-      is invisible to every downstream consumer.
+      SCOPE NARROWED — PHASE 3B, LANDED. `subset_high` has been REMOVED from this list; it now
+      routes only to `tumor-expression-subset-high-supportive` below. This rung means what it says
+      again: broad tumor expression, i.e. high in >= 50% of this indication's tumors
+      (`broadly_high`) or detectable across them (`broadly_detected`). It no longer absorbs a
+      minority-high subset.
 
-      `subset_high` DELIBERATELY STAYS in this list for now, and the two rules deliberately OVERLAP
-      on it, because tumor-presence loads these rules LIVE from this repo's default branch
+      WHAT WAS WRONG, kept because it is the reason the rung is narrow: `subset_high` fires at
+      high_fraction >= 0.1 given a bimodal/long_tail shape, so a target high in 10% of patients used
+      to produce the identical rule_id, verdict rung and headline phrase ("Broadly expressed in
+      tumor") as one high in 60% — a 6x difference in eligible population. Consumers key on
+      rule_id, not on which enum member matched, so a prose caveat about a "real high subset" was
+      invisible to every one of them.
+
+      WHY THIS TOOK THREE PRs, and the rule to reuse: tumor-presence loads these rules LIVE
       (_skills_common/rules_loader.py) and ranks fired rules against a CLOSED ladder,
       _EXPRESSION_RANK (skills/tumor-presence/scripts/run.py). A rule_id the ladder does not list is
-      not ranked low — it is INVISIBLE. Removing `subset_high` here before that ladder learns the new
-      rung was MEASURED to collapse a subset_high target from `tumor_broadly_expressed` to
-      `insufficient`: a coverage-gap class, i.e. a FALSE ABSENCE reported for a target measured high
-      in 12% of patients, which is strictly worse than the over-claim being fixed. It would also have
-      landed GREEN — no skills test pins this mapping. Sequence: (1) THIS change adds the rung, both
-      rules fire on subset_high, broad still wins, byte-identical verdicts; (2) skills adds
-      `tumor_subset_high_expression` to _EXPRESSION_RANK *below* the broad rung, still inert because
-      broad out-ranks it; (3) `subset_high` is removed from THIS list, which is the single deliberate
-      flip point, landed with a measured flip matrix. Step 3 is the ONLY behaviour change.
+      not ranked low — it is INVISIBLE. So re-routing an enum value to a new rule_id in ONE step does
+      not demote it, it ERASES its verdict: doing exactly this edit first was MEASURED to collapse a
+      subset_high target from `tumor_broadly_expressed` to `insufficient` — a coverage-gap class,
+      i.e. a FALSE ABSENCE for a target measured high in 12% of patients, strictly worse than the
+      over-claim being fixed. It would also have landed GREEN, because no skills test pinned the
+      mapping. The safe order is ADD -> CONSUME -> REMOVE, and each step must be its own PR because
+      the consumer lives in another repo:
+        (1) TC#805 (6ff21f8) added tumor-expression-subset-high-supportive with the overlap retained;
+        (2) skills #1441 (48f20a1 in AM / f5b3298d in skills) taught _EXPRESSION_RANK the new rung
+            BELOW the broad one — still inert, because broad out-ranked it;
+        (3a) TC#807 (26eee89) DECLARED `tumor_subset_high_expression` in the pinned
+            presence_verdict_enum. Declaring the RULE (step 1) does not declare the VERDICT: the
+            read side is this file, the write side is schemas/_skill_output/pins/. Narrowing before
+            3a would have emitted a decision.json that fails its own data-product schema;
+        (3b) THIS change removes the overlap. It is the ONLY behaviour change in the arc.
+      A skills PR must now bump the contracts pin in .github/workflows/skills-validate.yml past this
+      commit, together with the two guards in skills/tumor-presence/tests/test_ladder_invariants.py
+      that assert the pre-3b routing (`test_subset_high_is_still_inert_against_the_live_rules` and
+      the `_narrow_broad_rule` simulation, whose `stripped == 1` control is satisfied only while
+      subset_high is still listed here). Those are forced-atomic with the bump, in that order.
 
   - rule_id: tumor-expression-subset-high-supportive
     when:
@@ -1487,13 +1502,21 @@ rules:
       indistinguishable in the presence verdict and its headline phrase. Acting on this rung
       requires a prevalence read and a selection biomarker; acting on the broad rung does not.
 
-      DECLARED BUT NOT YET CONSUMED (phase 1 of 3). `subset_high` currently fires BOTH this rule and
-      tumor-expression-broadly-high-supportive, which still lists it; that overlap is intentional and
-      transient. tumor-presence's _EXPRESSION_RANK does not list this rule_id yet, so today this rung
-      contributes its `signals` to the matrix/LLM lens only and the broad rung still drives the
-      verdict — verdicts are byte-identical to before this rule existed. Do not read a per-rule
-      signal here as evidence the verdict has been split; that lands in phase 3. The full sequence
-      and the reason it cannot be done in one step are on the broad rule above.
+      LIVE AND VERDICT-BEARING as of phase 3b. `subset_high` now fires THIS rule ALONE — the
+      transient overlap with tumor-expression-broadly-high-supportive has been removed from that
+      rule's `in:` list, and tumor-presence's _EXPRESSION_RANK lists this rule_id (skills #1441),
+      mapping it to the `tumor_subset_high_expression` verdict declared in the pinned
+      presence_verdict_enum (TC#807). So a subset_high target's verdict and headline phrase now
+      differ from a broadly_high one, which is the entire point of the split.
+
+      TWO CONSEQUENCES WORTH STATING, because they are what a reader of this rung will get wrong.
+      First, this rung is verdict surface: editing its `in:` list, or its rule_id, moves a published
+      verdict, not an annotation. Second, the verdict it drives is a MODERATE positive at tier 2, not
+      a strong one — `presence_signal_strength` was the other channel that could not separate a
+      10%-high target from a 60%-high one, so classing this token strong would have preserved the
+      over-claim one layer below the verdict. The full three-PR sequence, and the reason a one-step
+      re-route would have erased this value's verdict rather than demoting it, are on the broad rule
+      above; read them before re-routing any enum value in this file.
 
       NOTE THE CLASSIFIER PRECEDENCE, because it changes what this rung means: the branch order is
       broadly_high (high_fraction >= 0.5) -> subset_high -> broadly_detected, so `subset_high` is
