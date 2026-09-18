@@ -98,7 +98,7 @@ from _skills_common.selectivity_veto import (  # noqa: F401
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.24.0"  # 1.24.0 (2026-09-12): MODALITY-CONDITIONAL normal-breadth KILL suppression (verdict-MOVING, --modality runs ONLY). The veto rules in target-contracts have always declared per-modality signals and three of the five arms declare `adc: neutral` on purpose — tvn-no-full-normal-window-veto names sacituzumab/Dato-DXd — but apply_normal_breadth_veto took no modality argument and mapped every fired arm straight to its verdict, so validated ADC antigens were downgraded to the housekeeping KILL on evidence the contract itself calls neutral for ADCs. The clamp now reads the FIRED RULE'S OWN signals[modality] (contract-driven, no Python modality table): a KILL arm declared neutral/supportive for the chosen modality is SKIPPED and precedence falls through, so an arm that is `opposing` for that modality (the essential-organ window veto, ALL modalities) still KILLs. Selectivity-PRESERVING arms are never suppressed and modality=None is worst-case, so every run without --modality is byte-identical. Threaded via dispatcher verdict_modality_aware + the existing signature-gated headline kwargs; new headline fields verdict_modality_lens / modality_suppressed_veto_arms / modality_suppressed_veto_note keep a waived arm VISIBLE.   # 1.23.0 (2026-09-04, W3c): VERDICT-INERT sc-normal essential-liability SEVERITY grade (det x consistency x n_datasets, derived from the already-emitted per-driver fields — no new card field) surfaced in sc_normal_liability_detail + a new headline/synthesis facet; + an explicit "single-cell critical-organ safety UNASSESSED" tension when sc_normal_safety_essential_class == data_unavailable on a clean axis-A selective call (the blind arm already feeds _sel_unknown_mass numerically — this names it so a coverage gap is not read as a clean pass). Resolver/veto spine byte-stable; CEACAM5/TACSTD2 replay verdicts unchanged.   # 1.22.0 (2026-09-04, #978): protein+population RESCUE clamp — a flat/discordant matched-ADJACENT RNA arm (CEA/EpCAM class: adjacent normal also expresses the antigen) does NOT sink a selectivity call the INDEPENDENT CPTAC-protein + population-normal arms support; one-directional UPGRADE of a not_informative/discordant RNA verdict to field_effect_tumor_selective, applied BEFORE the normal-breadth veto (stromal/no-window safety nets preserved) + a verdict-inert selectivity_comparator_note. Byte-stable DEFENSIVE guard: inert on the current panel (CEACAM5 already field_effect via classifier FIX2; EPCAM's CPTAC not up — a separate mixed-adjacent classifier fix). # 1.21.0 (2026-09-03): VERDICT-INERT measurement_caveat — a coverage-gap class token (not_informative/insufficient/data_unavailable) that actually rests on a decisive MEASURED signal (e.g. FAP/PDAC stroma-driven false window) is named so the composed profile need not treat it as an unmeasured gap. Additive headline field + synthesis-facet key; resolver/veto spine byte-stable.   # 1.20.0 (2026-09-03): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain; lens-specific query variations) so a transient single-source outage no longer collapses grounding to unverified. Shared _skills_common change.   # 1.19.0 (2026-09-03): OPTIONAL verdict-INERT LLM --literature lane (Europe-PMC-grounded + PMID-verified; decision['literature_synthesis'] fed to the --synthesize narrator), scoped to the WIN/DIST/INT/SAFE axes; reuses the shared _skills_common literature lane. Spine byte-stable.   # 1.18.0 (2026-09-03): multi-platform corroboration folded into the claim vector (VERDICT-INERT): WIN protein quorum (CPTAC+TPHP caps an un-corroborated RNA window) + INT in-situ-spatial quorum + WIN field-effect signature; LensConfig thesis + narrator rule lead with cross-platform corroboration.   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
+SKILL_VERSION = "1.25.0"  # 1.25.0 (2026-09-18): sc-normal essential SEVERITY ladder realigned with analysis-methods (VERDICT-INERT). `_sc_normal_essential_severity` was a hand-copy of stats.py::_essential_severity whose thresholds were "ported verbatim"; a 616-cell differential grid measured it disagreeing on 394 cells via FOUR independent causes. Adds the REPLICATION_DOMINANT rung (det >= 0.40 AND donor >= 0.70 AND n_datasets >= 15 -> high_severity, the MSLN-PAAD 26-atlas shape), stops defaulting an absent donor fraction to 0.0 / an absent atlas count to 0 (a FIRED-but-ungradeable hit now reads `ungraded`, which the method deliberately ranks ABOVE moderate so thin data can never RELAX a veto), and renames `low_severity` -> `low_confidence` because a det-0.85/donor-0.90 single-atlas hit is UNREPLICATED, not SMALL. The read-out is now an explicit map: the old f"{sev.split('_')[0]}-severity" printed "low-severity" for `low_confidence`, so the rename alone would not have reached the name a reviewer reads. Live over all 504 corpus-20260914 pairs, agreement with the method goes 391/451 -> 451/451 by severity rank AND 356/451 -> 451/451 by string equality. No rule, card, ledger, schema or golden reads this field.  # 1.24.0 (2026-09-12): MODALITY-CONDITIONAL normal-breadth KILL suppression (verdict-MOVING, --modality runs ONLY). The veto rules in target-contracts have always declared per-modality signals and three of the five arms declare `adc: neutral` on purpose — tvn-no-full-normal-window-veto names sacituzumab/Dato-DXd — but apply_normal_breadth_veto took no modality argument and mapped every fired arm straight to its verdict, so validated ADC antigens were downgraded to the housekeeping KILL on evidence the contract itself calls neutral for ADCs. The clamp now reads the FIRED RULE'S OWN signals[modality] (contract-driven, no Python modality table): a KILL arm declared neutral/supportive for the chosen modality is SKIPPED and precedence falls through, so an arm that is `opposing` for that modality (the essential-organ window veto, ALL modalities) still KILLs. Selectivity-PRESERVING arms are never suppressed and modality=None is worst-case, so every run without --modality is byte-identical. Threaded via dispatcher verdict_modality_aware + the existing signature-gated headline kwargs; new headline fields verdict_modality_lens / modality_suppressed_veto_arms / modality_suppressed_veto_note keep a waived arm VISIBLE.   # 1.23.0 (2026-09-04, W3c): VERDICT-INERT sc-normal essential-liability SEVERITY grade (det x consistency x n_datasets, derived from the already-emitted per-driver fields — no new card field) surfaced in sc_normal_liability_detail + a new headline/synthesis facet; + an explicit "single-cell critical-organ safety UNASSESSED" tension when sc_normal_safety_essential_class == data_unavailable on a clean axis-A selective call (the blind arm already feeds _sel_unknown_mass numerically — this names it so a coverage gap is not read as a clean pass). Resolver/veto spine byte-stable; CEACAM5/TACSTD2 replay verdicts unchanged.   # 1.22.0 (2026-09-04, #978): protein+population RESCUE clamp — a flat/discordant matched-ADJACENT RNA arm (CEA/EpCAM class: adjacent normal also expresses the antigen) does NOT sink a selectivity call the INDEPENDENT CPTAC-protein + population-normal arms support; one-directional UPGRADE of a not_informative/discordant RNA verdict to field_effect_tumor_selective, applied BEFORE the normal-breadth veto (stromal/no-window safety nets preserved) + a verdict-inert selectivity_comparator_note. Byte-stable DEFENSIVE guard: inert on the current panel (CEACAM5 already field_effect via classifier FIX2; EPCAM's CPTAC not up — a separate mixed-adjacent classifier fix). # 1.21.0 (2026-09-03): VERDICT-INERT measurement_caveat — a coverage-gap class token (not_informative/insufficient/data_unavailable) that actually rests on a decisive MEASURED signal (e.g. FAP/PDAC stroma-driven false window) is named so the composed profile need not treat it as an unmeasured gap. Additive headline field + synthesis-facet key; resolver/veto spine byte-stable.   # 1.20.0 (2026-09-03): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain; lens-specific query variations) so a transient single-source outage no longer collapses grounding to unverified. Shared _skills_common change.   # 1.19.0 (2026-09-03): OPTIONAL verdict-INERT LLM --literature lane (Europe-PMC-grounded + PMID-verified; decision['literature_synthesis'] fed to the --synthesize narrator), scoped to the WIN/DIST/INT/SAFE axes; reuses the shared _skills_common literature lane. Spine byte-stable.   # 1.18.0 (2026-09-03): multi-platform corroboration folded into the claim vector (VERDICT-INERT): WIN protein quorum (CPTAC+TPHP caps an un-corroborated RNA window) + INT in-situ-spatial quorum + WIN field-effect signature; LensConfig thesis + narrator rule lead with cross-platform corroboration.   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -371,31 +371,101 @@ def _selectivity_verdict_polarity(v) -> str:
 _SELECTIVITY_KILLER_VERDICTS = frozenset({"selective_but_broadly_normal", "selective_but_stromal_confound"})
 
 
+# ── The essential-cell severity ladder, DUPLICATED FROM analysis-methods ON PURPOSE ────────────────
+# These five cutoffs are the same ladder as `_essential_severity` in analysis-methods
+# `methods/sc_normal_expression/stats.py`, and the two MUST NOT disagree about the same hit: the method
+# promotes its grade into `sc_normal_essential_veto_grade`, which a `dominant: true` BiTE/TCE killer
+# reads, while this function grades the SAME driver record for the human-facing severity annotation.
+# The names deliberately match the method's (modulo the module-private underscore) so that ONE grep
+# finds every home of a cutoff.
+#
+# WHY THIS IS A COPY AND NOT AN IMPORT — do not "clean this up". Skills CI checks analysis-methods out
+# at a PINNED SHA (`.github/workflows/skills-validate.yml`; 0006164e, 2026-09-14) and
+# `_essential_severity` was introduced LATER, by AM #647 (fe65660). `stats.py` exists at that pin (424
+# lines) but the symbol does NOT, so `from methods.sc_normal_expression.stats import _essential_severity`
+# would raise ImportError in CI while passing locally, because pixi editable path deps resolve the
+# sibling WORKING TREE. Cross-repo imports from `methods.*` are established practice elsewhere in this
+# repo (`_skills_common/envelope.py`, three figure emitters), which is exactly what makes this trap easy
+# to walk into.
+#
+# THE SAME PIN IS WHY THE COPY DRIFTED IN THE FIRST PLACE. A CI test comparing the two ladders compares
+# against a tree where one of them is absent, so this duplication has never had a gate — and by
+# 2026-09-18 it had accumulated FOUR divergences, measured exhaustively by a 616-cell differential grid
+# (det x donor x atlases, `None` on every axis): 394 of 616 cells disagreed. Hence
+# `test_severity_ladder_agrees_with_the_method_cell_for_cell`, which runs live LOCALLY and skips in CI
+# with an explicit reason, plus the unconditional literal-value guard beside it.
+_HIGH_LIABILITY_DET_THRESHOLD = 0.50
+_HIGH_LIABILITY_DONOR_FRACTION = 0.70
+_LOW_CONFIDENCE_DET = 0.30
+# Replication-dominant rung (AM #660). The high rung above is a pure CONJUNCTION, so replication can
+# never compensate for a detection miss however overwhelming: MSLN-PAAD's alveolar type 1 hit agrees
+# across 26 independent atlases at donor fraction 0.881 and still graded `moderate_severity` at det
+# 0.413 — relieving a dominant killer that a 2-atlas hit at det 0.51 fires. This rung repairs that ONE
+# asymmetry under a bounded relaxation of the DETECTION line only: the donor floor still applies (
+# replication tells you a signal is REAL, not that it is CONSISTENT ACROSS DONORS — different claims),
+# and det < 0.30 stays unrescuable (replication makes a weak signal CREDIBLE, not LARGE).
+_REPLICATION_DOMINANT_DET_FLOOR = 0.40
+_REPLICATION_DOMINANT_N_DATASETS = 15
+
+# Read-out wording for the four severity tokens. An explicit map, NOT a string transform: the previous
+# f"{sev.split('_')[0]}-severity" printed "low-severity" for what is really a LOW-CONFIDENCE claim, so
+# renaming the token alone would have left the half a reviewer actually reads unchanged and still wrong
+# — the exact shape of AM #665, where a fixed grade did not reach the name displayed beside it. The
+# KeyError on an unknown token is deliberate: a new rung must choose its own wording rather than inherit
+# a plausible-looking one.
+_ESSENTIAL_SEVERITY_READOUT = {
+    "high_severity": "high-severity",
+    "moderate_severity": "moderate-severity",
+    "low_confidence": "low-confidence",
+    "ungraded": "severity ungraded",
+}
+
+
 def _sc_normal_essential_severity(sc_normal: dict):
     """W3c: GRADE a fired sc-normal essential liability by magnitude x consistency x replication —
     all three already emitted per-driver (analysis-methods #572): detection, donor fraction, and the
     independent-atlas count. A well-replicated high-detection hit (INS β-cell 1.0 / 11 atlases) is a
-    HIGH-severity critical-organ liability; a marginal single-atlas hit just above the 0.20 off-origin
-    floor is LOW-severity. VERDICT-INERT confidence grade — the veto binary
+    HIGH-severity critical-organ liability; a hit seen in a single atlas is LOW-CONFIDENCE however
+    strong it looks. VERDICT-INERT confidence grade — the veto binary
     (sc_normal_safety_essential_class) is unchanged; this only annotates HOW STRONG a fired liability
-    is. Returns high_severity | moderate_severity | low_severity, or None when no essential hit fired
-    (or the driver magnitude fields are absent — older summaries)."""
+    is.
+
+    Returns high_severity | moderate_severity | low_confidence | ungraded, or None when NO essential hit
+    fired. The `None` / `ungraded` split is load-bearing and used to be conflated: `None` now means
+    "there is nothing to grade", while `ungraded` means "a liability FIRED and the fields needed to
+    grade it are absent" (an older summary with no n_datasets_reliable / donor-fraction column). Those
+    are different claims and the second is the alarming one, so it must not be silent — the previous
+    code returned `None` for it, which dropped the severity annotation entirely and read LESS alarming
+    than a graded hit.
+
+    `low_confidence` is NOT a claim that the liability is SMALL. A det-0.85 / donor-0.90 hit seen in one
+    atlas is a strong signal from thin evidence; calling it `low_severity` (as this function did until
+    2026-09-18) asserted a magnitude the data does not license. Magnitude and confidence are different
+    axes and only the second is measurable here.
+
+    Absent fields grade `ungraded` rather than being DEFAULTED TO ZERO and graded. The old code set a
+    missing donor fraction to 0.0 and a missing atlas count to 0, then ran the ladder over them, which
+    manufactured `low_severity` — a measured-sounding claim — out of a missing column. Unmeasured means
+    NULL, not 0. `ungraded` also matches the method, which deliberately ranks it ABOVE `moderate` so
+    that thinner data can never RELAX a veto."""
     cls = (sc_normal or {}).get("sc_normal_safety_essential_class")
     if cls not in ("critical_organ_liability", "origin_tissue_liability"):
-        return None
+        return None  # no essential hit fired — there is nothing to grade
     det = sc_normal.get("sc_normal_essential_max_detection_fraction")
-    if not isinstance(det, (int, float)):
-        return None  # no magnitude → cannot grade (do not guess)
     frac = sc_normal.get("sc_normal_essential_donor_fraction")
-    frac = frac if isinstance(frac, (int, float)) else 0.0
     n_ds = sc_normal.get("sc_normal_essential_n_datasets_reliable")
-    n_ds = n_ds if isinstance(n_ds, int) else 0
-    # Thresholds mirror the card's HIGH_LIABILITY ladder (det>=0.50 AND donor>=0.70) plus a >=2-atlas
-    # replication floor; a single-atlas OR sub-0.30 detection hit is low-confidence.
-    if det >= 0.50 and frac >= 0.70 and n_ds >= 2:
+    if not isinstance(det, (int, float)) or not isinstance(n_ds, int) or not isinstance(frac, (int, float)):
+        return "ungraded"  # a hit FIRED but cannot be graded — do not guess, and do not go quiet
+    if det >= _HIGH_LIABILITY_DET_THRESHOLD and frac >= _HIGH_LIABILITY_DONOR_FRACTION and n_ds >= 2:
         return "high_severity"
-    if det < 0.30 or n_ds <= 1:
-        return "low_severity"
+    if (
+        det >= _REPLICATION_DOMINANT_DET_FLOOR
+        and frac >= _HIGH_LIABILITY_DONOR_FRACTION
+        and n_ds >= _REPLICATION_DOMINANT_N_DATASETS
+    ):
+        return "high_severity"
+    if det < _LOW_CONFIDENCE_DET or n_ds <= 1:
+        return "low_confidence"
     return "moderate_severity"
 
 
@@ -421,7 +491,7 @@ def _sc_normal_liability_detail(sc_normal: dict):
         parts.append(f"{n_atlas} atlas{'es' if n_atlas != 1 else ''}")
     sev = _sc_normal_essential_severity(sc_normal)
     if sev:
-        parts.append(f"{sev.split('_')[0]}-severity")  # "high-severity"
+        parts.append(_ESSENTIAL_SEVERITY_READOUT[sev])  # "high-severity" / "low-confidence"
     return f"{where} ({', '.join(parts)})" if parts else where
 
 
@@ -889,7 +959,8 @@ def _headline(cards, fired, verdict_pair, modality=None):
         "sc_normal_essential_n_datasets_reliable": sc_normal.get("sc_normal_essential_n_datasets_reliable"),
         # W3c: verdict-INERT severity grade of the fired essential liability (magnitude x consistency x
         # replication) — distinguishes a robust critical-organ hit (INS β-cell 1.0/11 atlases) from a
-        # marginal single-atlas one just above the 0.20 off-origin floor. None when no essential hit.
+        # single-atlas one just above the 0.20 off-origin floor. `None` ONLY when no essential hit fired;
+        # a hit whose grading fields are absent reads `ungraded`, which is a claim, not a silence.
         "sc_normal_essential_severity": _sc_normal_essential_severity(sc_normal),
         # Abundance at the liability-anchor cell (merged #571) — previously emitted+declared but consumed
         # by NO skill; surface it so a low-abundance normal footprint (FOLR1-class) is visible next to the

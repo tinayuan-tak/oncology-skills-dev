@@ -4,6 +4,49 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.25.0
+- **The sc-normal essential SEVERITY ladder is realigned with analysis-methods (VERDICT-INERT).**
+  `_sc_normal_essential_severity` is a hand-copy of `_essential_severity` in analysis-methods
+  `methods/sc_normal_expression/stats.py`, and 1.23.0 described its thresholds as "ported verbatim".
+  A **616-cell differential grid** — every cutoff in either ladder bracketed on both sides, `None` on
+  all three axes, so it is exhaustive over the input's equivalence classes rather than a sample of
+  them — measured the copy **disagreeing on 394 of 616 cells via four independent causes**, with an
+  empty unexplained bucket. All four are closed here:
+  - **The `REPLICATION_DOMINANT` rung was missing.** `det >= 0.40 ∧ donor >= 0.70 ∧ n_datasets >= 15`
+    now reaches `high_severity` without clearing the 0.50 detection line. This is the **MSLN-PAAD**
+    shape from the audit's OPEN defect #2: detection 0.413, donor fraction 0.881, **26 independent
+    atlases**. Magnitude and confidence are different axes, and 26 atlases agreeing is not a marginal
+    result. Live, this rung alone promotes 60 pairs from `moderate_severity`, and all 60 have
+    detection in `[0.405, 0.497]` — i.e. every one was unreachable by the plain high rung.
+  - **Absent grading fields were defaulted to `0.0` / `0`** and then run through the ladder,
+    manufacturing `low_severity` — a measured-sounding claim — out of a missing column. A hit that
+    FIRED but cannot be graded now reads **`ungraded`**, which the method deliberately ranks *above*
+    `moderate` precisely so that thinner data can never RELAX a veto. `None` is now reserved for its
+    one honest meaning: no essential hit fired, so there is nothing to grade.
+  - **`low_severity` → `low_confidence`.** A detection-0.85 / donor-0.90 hit seen in **one** atlas is
+    UNREPLICATED, not SMALL; `low_severity` asserted a magnitude claim the evidence does not license.
+  - **The read-out is now an explicit map, not a string transform.** The old
+    `f"{sev.split('_')[0]}-severity"` prints **"low-severity" for `low_confidence`**, so renaming the
+    token alone would have changed nothing a human sees — the same shape as the named-driver defect
+    fixed in analysis-methods #665, where a corrected grade never reached the name printed beside it.
+    An unknown token now raises `KeyError` rather than inheriting a plausible-looking wording.
+- **This is a copy on purpose and must not be "fixed" into an import.** Skills CI checks
+  analysis-methods out at a **pinned SHA** (`skills-validate.yml`, `0006164e`) that *predates*
+  `_essential_severity` (AM #647, `fe65660`), so an import would pass locally off the editable path
+  dep and raise `ImportError` in CI. That same pin is why the copy rotted unnoticed: any CI test
+  comparing the two ladders compares against a tree where one of them is absent. The guard is
+  therefore split — an **unconditional** test pins the five cutoffs as literals and runs in CI, while
+  the cell-for-cell agreement test reads the method and **skips in CI with the pin named in the skip
+  reason**. The reasoning is recorded in-code above the constants block.
+- **Verdict-inert, and measured as such.** No rule, card, field-disposition ledger, schema or golden
+  reads `sc_normal_essential_severity`. Backtested live over all **504 corpus-20260914 pairs** (the
+  full unfiltered per-cell-type pull from S3, never the stored packages — `per_cell_type_top` is
+  `head(15)` sorted by detection descending, so its truncation correlates with the measurand):
+  agreement with the method goes **391/451 → 451/451** by severity rank *and* **356/451 → 451/451**
+  by string equality, closing the threshold and vocabulary halves together. The only user-visible
+  change is the wording inside `sc_normal_liability_detail` and the `headline.sc_normal_essential_
+  severity` token.
+
 ## 1.24.0
 - **Modality-conditional normal-breadth KILL suppression (VERDICT-MOVING, `--modality` runs only).**
   The five selectivity veto rules in target-contracts have always declared per-modality `signals:`, and
@@ -59,6 +102,12 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
   `preprocess_provenance`), so no other `headline_fn` changes behavior.
 
 ## 1.23.0
+
+> Superseded in part by 1.25.0, which renamed `low_severity` → `low_confidence` and added the
+> replication rung. This entry is left as the record of what 1.23.0 actually shipped and is
+> deliberately NOT retro-edited — a changelog that describes today's code under yesterday's version
+> number stops being usable as history.
+
 - **sc-normal essential-liability SEVERITY grade (W3c, VERDICT-INERT).** A fired critical-organ /
   origin-tissue liability is now graded `high_severity | moderate_severity | low_severity` from the
   driver's magnitude × donor consistency × independent-atlas replication — the three fields
