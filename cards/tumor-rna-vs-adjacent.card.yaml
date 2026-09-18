@@ -87,6 +87,22 @@ outputs:
       - bottom_decile
       - data_unavailable
 
+  # The derivation edge (2026-09-18) — the hop the DESeq2 reader's Python performs to bin the
+  # numeric fields into the categorical class tokens. Previously this lived only in the
+  # summary_fields_vocabulary comments above (lines 77-88) and a code comment, so the package was
+  # not re-binnable: a consumer could see `expression_call_class: strong_upregulation` but not the
+  # log2_fc cut that produced it. `cutpoints` names the threshold_roles (role: class_cutpoint) that
+  # supply the boundaries; `derives_from` names the numeric fields — the metrics a re-binning
+  # consumer must route through (NEVER the headline *_class token, which may be gauged on a
+  # different value). Banding is UNCHANGED; this only exposes the same cuts declaratively.
+  derivations:
+    expression_call_class:
+      derives_from: [log2_fc, q_value]
+      cutpoints: [modest_upregulation_log2fc, strong_upregulation_log2fc, call_significance_q]
+    allgene_percentile_class:
+      derives_from: [allgene_percentile]
+      cutpoints: [allgene_top_1_percentile, allgene_top_decile, allgene_bottom_decile]
+
   # Field semantics (aligned to actual data v2.1.0):
   # - log2tpm fields: length-normalized (Gencode v26 union-of-exons), library-normalized.
   #   Cross-tissue comparable. Preferred unit for absolute-expression comparisons.
@@ -129,12 +145,48 @@ measurement_type: tumor_vs_adjacent_expression
 entity_grains: [target_indication]
 schema_version: 1
 threshold_roles:
-  allgene_top_decile:
-    role: reader_gate
-    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_vs_adjacent_expression reference frame over `allgene_percentile` (percentile), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  # class_cutpoint (2026-09-18): each of these is the boundary the method uses to bin a numeric
+  # field into a class token, AND the cut the skill-side reader (evidence_salience.contract_threshold)
+  # re-uses to anchor the display ruler + claim_record.magnitude.distance_to_cut over `of`. The
+  # derivation edge is now declared in outputs.derivations above; these entries supply its cutpoints.
+  # None is predicate-referenced, so THRESHOLD_UNUSED was a false positive on a live derivation cut.
+  #
+  # expression_call_class = f(log2_fc, q_value):
   modest_upregulation_log2fc:
-    role: reader_gate
-    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_vs_adjacent_expression reference frame over `log2_fc` (log2FC), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+    role: class_cutpoint
+    bins: expression_call_class
+    of: log2_fc
+    boundary: modest_upregulation
+    scale: log2FC
   strong_upregulation_log2fc:
-    role: reader_gate
-    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_vs_adjacent_expression reference frame over `log2_fc` (log2FC), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+    role: class_cutpoint
+    bins: expression_call_class
+    of: log2_fc
+    boundary: strong_upregulation
+    scale: log2FC
+  call_significance_q:
+    role: class_cutpoint
+    bins: expression_call_class
+    of: q_value
+    scale: q_value
+    # No `boundary`: this is the conjunctive significance gate (q < 0.05) that qualifies EVERY
+    # directional call rather than admitting one class — the same shape as an in_record power guard.
+  # allgene_percentile_class = f(allgene_percentile):
+  allgene_top_1_percentile:
+    role: class_cutpoint
+    bins: allgene_percentile_class
+    of: allgene_percentile
+    boundary: top_1pct
+    scale: percentile
+  allgene_top_decile:
+    role: class_cutpoint
+    bins: allgene_percentile_class
+    of: allgene_percentile
+    boundary: top_decile
+    scale: percentile
+  allgene_bottom_decile:
+    role: class_cutpoint
+    bins: allgene_percentile_class
+    of: allgene_percentile
+    boundary: bottom_decile
+    scale: percentile

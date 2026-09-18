@@ -708,6 +708,101 @@ def _threshold_ref_check(spec: dict, report: ValidationReport) -> None:
         )
 
 
+def _class_cutpoint_check(spec: dict, report: ValidationReport) -> None:
+    """Layer 2c (2026-09-18): the derivation edge — `threshold_roles.role: class_cutpoint`
+    and `outputs.derivations` must round-trip against each other and against the card's
+    declared `summary_fields` / `summary_fields_vocabulary`.
+
+    A class_cutpoint says "this named threshold is a boundary that bins a numeric field
+    (`of`) into a categorical class field (`bins`)"; `outputs.derivations` is the per-class
+    summary of that edge (`derives_from` + `cutpoints`). Neither declaration existed before
+    this date, so the hop log2_fc -> expression_call_class was recorded nowhere and the
+    emitted package was not re-binnable. These checks keep the two declarations honest once
+    a card adopts them. They fire ONLY on cards that use the feature, so the addition is
+    forward-compatible: a card that declares neither is unaffected.
+    """
+    roles = spec.get("threshold_roles") or {}
+    outputs = spec.get("outputs") or {}
+    vocab = outputs.get("summary_fields_vocabulary") or {}
+    derivations = outputs.get("derivations") or {}
+    summary_fields = _summary_field_names(spec)
+
+    # class_cutpoint entries -> forward references + derivations round-trip
+    for name in sorted(roles):
+        entry = roles[name] or {}
+        if entry.get("role") != "class_cutpoint":
+            continue
+        where = f"threshold_roles.{name}"
+        bins = entry.get("bins")
+        of = entry.get("of")
+        boundary = entry.get("boundary")
+        # (1) bins must be a categorical summary_field (a summary_fields_vocabulary key)
+        if bins not in vocab:
+            report.add_error(
+                f"CLASS_CUTPOINT_UNKNOWN_CLASS [{where}]: bins `{bins}` is not a key of "
+                f"outputs.summary_fields_vocabulary (a categorical class). Declared classes: "
+                f"{sorted(vocab) or '(none)'}."
+            )
+        # (2) of must be a declared summary_field; boundary (when present) a value of bins
+        if of not in summary_fields:
+            report.add_error(
+                f"CLASS_CUTPOINT_UNKNOWN_FIELD [{where}]: of `{of}` is not a declared "
+                f"outputs.summary_fields entry. Declared fields: {sorted(summary_fields) or '(none)'}."
+            )
+        if boundary is not None and boundary not in set(vocab.get(bins, [])):
+            report.add_error(
+                f"CLASS_CUTPOINT_UNKNOWN_BOUNDARY [{where}]: boundary `{boundary}` is not a value of "
+                f"`{bins}` in summary_fields_vocabulary ({sorted(vocab.get(bins, [])) or '(none)'})."
+            )
+        # (3) derivations round-trip: bins entry exists, name is a cutpoint of it, of in derives_from
+        deriv = derivations.get(bins)
+        if deriv is None:
+            report.add_error(
+                f"CLASS_CUTPOINT_DERIVATION_MISMATCH [{where}]: no outputs.derivations entry for the "
+                f"class `{bins}` this cutpoint bins. Every class_cutpoint must be summarised there."
+            )
+        else:
+            if name not in (deriv.get("cutpoints") or []):
+                report.add_error(
+                    f"CLASS_CUTPOINT_DERIVATION_MISMATCH [{where}]: `{name}` is declared class_cutpoint "
+                    f"but is absent from outputs.derivations.{bins}.cutpoints "
+                    f"({sorted(deriv.get('cutpoints') or [])})."
+                )
+            if of is not None and of not in (deriv.get("derives_from") or []):
+                report.add_error(
+                    f"CLASS_CUTPOINT_DERIVATION_MISMATCH [{where}]: of `{of}` is absent from "
+                    f"outputs.derivations.{bins}.derives_from "
+                    f"({sorted(deriv.get('derives_from') or [])})."
+                )
+
+    # derivations entries -> reverse references (unknown class, numeric field the card does not
+    # emit, or a cutpoint name with no backing class_cutpoint on this class)
+    cutpoint_names_by_class: dict[str, set[str]] = {}
+    for nm, e in roles.items():
+        if (e or {}).get("role") == "class_cutpoint":
+            cutpoint_names_by_class.setdefault((e or {}).get("bins"), set()).add(nm)
+    for cls in sorted(derivations):
+        deriv = derivations[cls] or {}
+        where = f"outputs.derivations.{cls}"
+        if cls not in vocab:
+            report.add_error(
+                f"DERIVATION_UNKNOWN_CLASS [{where}]: `{cls}` is not a key of "
+                f"outputs.summary_fields_vocabulary. Declared classes: {sorted(vocab) or '(none)'}."
+            )
+        for num_field in deriv.get("derives_from") or []:
+            if num_field not in summary_fields:
+                report.add_error(
+                    f"DERIVATION_UNKNOWN_FIELD [{where}]: derives_from `{num_field}` is not a declared "
+                    f"outputs.summary_fields entry."
+                )
+        for cutpoint in deriv.get("cutpoints") or []:
+            if cutpoint not in cutpoint_names_by_class.get(cls, set()):
+                report.add_error(
+                    f"DERIVATION_UNKNOWN_CUTPOINT [{where}]: cutpoint `{cutpoint}` is not a "
+                    f"threshold_roles entry with role: class_cutpoint and bins: {cls}."
+                )
+
+
 def _shallow_predicate_check(spec: dict, report: ValidationReport) -> None:
     """Layer 2b: predicates have balanced parens and only recognized operators.
 
@@ -1758,6 +1853,7 @@ def validate_card_file(path: str | Path, schema: dict | None = None) -> Validati
     _structural_check(spec, report, schema)
     if report.ok:  # only run downstream checks if structural is clean
         _threshold_ref_check(spec, report)
+        _class_cutpoint_check(spec, report)
         _shallow_predicate_check(spec, report)
         _interpretation_summary_field_check(spec, report)
         _interpretation_declaration_check(spec, report)

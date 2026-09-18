@@ -497,6 +497,40 @@
             "minProperties": 1
           }
         },
+        "derivations": {
+          "type": "object",
+          "description": "OPTIONAL (2026-09-18). Declares the derivation edge from numeric summary_fields to categorical class summary_fields — the hop the method's Python performs (e.g. bins log2_fc + q_value into expression_call_class) that no contract previously recorded, which is why the emitted package was not re-binnable. Map of class-field name (must be a key of summary_fields_vocabulary) -> {derives_from: the numeric summary_fields the class is computed from; cutpoints: the threshold_roles names (each role: class_cutpoint) that supply the boundaries}. Round-tripped against threshold_roles by validate_cards.py: every listed cutpoint must be a class_cutpoint whose `bins` is this class and whose `of` is in derives_from, and every class_cutpoint must appear here. Additive and forward-compatible; declaring it removes no capability.",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "derives_from",
+              "cutpoints"
+            ],
+            "properties": {
+              "derives_from": {
+                "type": "array",
+                "description": "The numeric summary_fields this class is derived from (each must appear in summary_fields).",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]*$"
+                },
+                "minItems": 1,
+                "maxItems": 10
+              },
+              "cutpoints": {
+                "type": "array",
+                "description": "The threshold_roles names (each declared role: class_cutpoint, bins == this class) that supply the boundaries of this derivation.",
+                "items": {
+                  "type": "string",
+                  "pattern": "^[a-z][a-z0-9_]*$"
+                },
+                "minItems": 1,
+                "maxItems": 20
+              }
+            }
+          }
+        },
         "figure": {
           "type": "string",
           "description": "Iter-1b single-figure declaration. Identifier for the canonical figure type emitted by this card. Backward-compatible with cards that emit one figure; for multi-figure cards (iter-2+), use the `figures` array instead.",
@@ -612,10 +646,11 @@
         "properties": {
           "role": {
             "type": "string",
-            "description": "method_parameter: the named method applied this cutoff upstream; the card documents it for reviewability. reader_gate: the skill-side reader applies it while shaping the card's fields, so it cannot be anchored to a method call and needs a prose note instead.",
+            "description": "method_parameter: the named method applied this cutoff upstream; the card documents it for reviewability. reader_gate: the skill-side reader applies it while shaping the card's fields, so it cannot be anchored to a method call and needs a prose note instead. class_cutpoint (2026-09-18): the cutoff is the boundary that BINS a numeric summary_field into a categorical class summary_field (e.g. log2_fc -> expression_call_class) — the derivation edge that was previously declared nowhere. It names `bins` (the class field), `of` (the numeric field it cuts, which is the metric a re-binning consumer must route through — the class token and the number may be gauged on DIFFERENT values, so re-binning is safe only through this metric, never the headline *_class), `scale`, and OPTIONALLY `boundary` (the class value this cut is the entry boundary of; omitted for a conjunctive gate like a significance floor that qualifies every directional call rather than admitting one class). Every class_cutpoint must round-trip against `outputs.derivations`: its name appears in derivations[bins].cutpoints and its `of` in derivations[bins].derives_from.",
             "enum": [
               "method_parameter",
-              "reader_gate"
+              "reader_gate",
+              "class_cutpoint"
             ]
           },
           "consumed_by": {
@@ -628,6 +663,28 @@
             "description": "REQUIRED when role is reader_gate (nothing machine-checkable anchors that case, so the prose IS the review surface). Optional for method_parameter, where `consumed_by` is verified.",
             "minLength": 25,
             "maxLength": 400
+          },
+          "bins": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "description": "REQUIRED when role is class_cutpoint: the categorical summary_field this cutoff helps derive (must be a key of outputs.summary_fields_vocabulary). Checked referentially by validate_cards.py (CLASS_CUTPOINT_UNKNOWN_CLASS)."
+          },
+          "of": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]*$",
+            "description": "REQUIRED when role is class_cutpoint: the numeric summary_field this cutoff is compared against (must appear in outputs.summary_fields). This is the metric a consumer re-bins through — never the headline *_class token, which may be gauged on a different value. Checked referentially (CLASS_CUTPOINT_UNKNOWN_FIELD)."
+          },
+          "boundary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "OPTIONAL for class_cutpoint: the value of `bins` (a member of summary_fields_vocabulary[bins]) that this cutoff is the entry boundary of (e.g. `strong_upregulation`). Omit for a conjunctive gate that qualifies every directional call rather than admitting a single class (e.g. a significance floor). When present it is checked against the field's vocabulary (CLASS_CUTPOINT_UNKNOWN_BOUNDARY)."
+          },
+          "scale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60,
+            "description": "REQUIRED when role is class_cutpoint: the metric scale/unit label of `of` (e.g. `log2FC`, `percentile`, `q_value`). Mirrors the gauge scale a display ruler stamps so a re-binning consumer knows the axis the cut lives on."
           }
         },
         "allOf": [
@@ -662,6 +719,25 @@
             "then": {
               "required": [
                 "note"
+              ]
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "role": {
+                  "const": "class_cutpoint"
+                }
+              },
+              "required": [
+                "role"
+              ]
+            },
+            "then": {
+              "required": [
+                "bins",
+                "of",
+                "scale"
               ]
             }
           }
