@@ -83,6 +83,74 @@ class JoinCoverage:
 _MATCH_RATE_FLOOR = 0.05
 
 
+@dataclass(frozen=True)
+class StratumEvaluability:
+    """The EVALUABILITY DENOMINATOR of a stratum — what `is_member == True` discards.
+
+    Every filter in this module keeps `is_member == True` and drops the rest, which
+    collapses the tri-valued assignment into a binary and makes two very different
+    facts indistinguishable downstream:
+
+      * "we classified these samples and NONE is a member"   → a measured absence
+      * "we never classified these samples"                  → an ABSTENTION
+
+    Both arrive at the panorama as `subgroup_n == 0`, and `panorama.evidence_state`
+    then labels both `absent`, which `axis_quality` rolls up to `empty` — "the axis is
+    defined but every stratum has 0 members". For an all-null shard that grade is a
+    FALSE ABSENCE ASSERTION. Measured 2026-09-18: the DepMap paad and stad assignment
+    shards are 100% `is_member = None`, i.e. no cell line was ever classified; they were
+    being reported as empty axes. The assigner already emits the honest tri-value (the
+    unevaluable-rule convention: a predicate whose source cannot answer must abstain,
+    not answer False) — it was being thrown away two layers later.
+
+    This dataclass carries the denominator forward so `evidence_state(..., evaluated=)`
+    can separate the two. It is DESCRIPTIVE: it changes no filter and no member set.
+
+    Fields:
+      subgroup_id:      the stratum described
+      n_member:         rows with is_member is True  (the member set; == len(cohort))
+      n_non_member:     rows with is_member is False (EVALUATED, not a member)
+      n_abstained:      rows with is_member null     (NOT evaluated — the abstentions)
+      n_unrecognized:   rows whose is_member is neither a recognised boolean nor null
+                        (e.g. the string "false" from a mis-typed parquet column).
+                        Folded into the abstention side of `evaluated` — an
+                        uninterpretable value is not evidence of evaluation — and
+                        surfaced separately so the cause stays legible instead of
+                        silently inflating n_abstained.
+      n_rows:           total assignment rows for this stratum (the partition closes:
+                        n_member + n_non_member + n_abstained + n_unrecognized)
+    """
+
+    subgroup_id: str
+    n_member: int
+    n_non_member: int
+    n_abstained: int
+    n_unrecognized: int
+    n_rows: int
+
+    @property
+    def n_evaluated(self) -> int:
+        """Rows the assigner actually reached a verdict on (member OR non-member)."""
+        return self.n_member + self.n_non_member
+
+    @property
+    def evaluated(self) -> bool:
+        """True when at least one sample was CLASSIFIED for this stratum.
+
+        The load-bearing flag: `evaluated == False` with `n_member == 0` means the
+        stratum is UNEVALUABLE, not empty. Pass it to
+        `panorama.evidence_state(..., evaluated=...)`.
+        """
+        return self.n_evaluated > 0
+
+    @property
+    def abstention_rate(self) -> float | None:
+        """Fraction of rows the assigner abstained on (None when no rows)."""
+        if not self.n_rows:
+            return None
+        return (self.n_abstained + self.n_unrecognized) / self.n_rows
+
+
 def compute_join_coverage(
     df: pd.DataFrame,
     sample_id_col: str,
@@ -159,8 +227,15 @@ def filter_samples_by_subgroup(
       - is_member=True → sample INCLUDED
       - is_member=False → sample EXCLUDED (evaluated, not a member)
       - is_member=null OR row-absent in assignments → sample EXCLUDED
-        (tri-value insufficient → downstream synthesis handles this;
-        method-level filter conservatively excludes)
+        (method-level filter conservatively excludes)
+
+    The False and null cases are indistinguishable in the RESULT, and that erasure is
+    not recoverable downstream — an all-null stratum and a genuinely 0-member stratum
+    both arrive as an empty frame, and the panorama then grades the whole axis `empty`,
+    which asserts a measured absence that was never measured. Callers that report a
+    per-stratum evidence grade must therefore ALSO read `stratum_evaluability()` and
+    pass `.evaluated` into `panorama.evidence_state(..., evaluated=...)`. The filter
+    stays binary on purpose; only the REPORTING needs the third value.
 
     Emits a JoinCoverage diagnostic (via compute_join_coverage) so a near-zero
     match rate from a sample-id-convention mismatch surfaces as a warning rather
@@ -193,6 +268,71 @@ def resolve_subgroup_cohort(
         "sample_id",
     ]
     return set(members)
+
+
+def stratum_evaluability(
+    assignments_manifest_id: str,
+    subgroup_id: str,
+    data_catalog_repo: Path | None = None,
+    *,
+    warn: bool = True,
+) -> StratumEvaluability:
+    """Partition a stratum's assignment rows into member / non-member / ABSTAINED.
+
+    The companion to `resolve_subgroup_cohort`, which answers "who is a member" and
+    cannot distinguish an empty stratum from an unclassified one. See
+    `StratumEvaluability` for why that distinction is load-bearing.
+
+    Read this ONCE per stratum alongside the cohort and pass `.evaluated` into
+    `panorama.evidence_state(subgroup_n, floor_met, evaluated=...)`. `load_assignments`
+    is lru_cached, so this adds no I/O to a reader that already resolved the cohort.
+
+    The partition is EXHAUSTIVE by construction: rows are bucketed by
+    `is_member is True` / `is_member is False` / null / everything-else, and the four
+    counts are asserted to sum to the row count. The residual bucket exists because the
+    column is object-dtype in the shipped parquet — a value stored as the STRING
+    "false" satisfies neither `== False` nor `isna()`, so a three-way split would drop
+    it silently and under-report the denominator. Verified 2026-09-18 against the live
+    tcga / depmap / cptac COADREAD shards: all three close exactly with 0 unrecognized.
+
+    Args:
+      assignments_manifest_id: the derived subgroup-assignments manifest id.
+      subgroup_id: the stratum id (e.g. "MSI_H", "CMS4").
+      data_catalog_repo: path to the data-catalog repo (None → canonical path).
+      warn: emit a UserWarning when unrecognised `is_member` values are present.
+
+    Returns:
+      StratumEvaluability for `subgroup_id` (all-zero when the stratum id is absent
+      from the shard — which is itself `evaluated == False`, i.e. unevaluable).
+    """
+    assignments = load_assignments(assignments_manifest_id, data_catalog_repo=data_catalog_repo)
+    rows = assignments.loc[assignments["stratum_id"] == subgroup_id, "is_member"]
+    n_rows = len(rows)
+    # `is` comparisons on the object column: identity-safe for Python True/False and
+    # unaffected by pandas' `== True` coercion of truthy non-booleans (e.g. 1, "yes").
+    n_member = int(sum(1 for v in rows if v is True))
+    n_non_member = int(sum(1 for v in rows if v is False))
+    n_abstained = int(rows.isna().sum())
+    n_unrecognized = n_rows - n_member - n_non_member - n_abstained
+    if n_unrecognized and warn:
+        offenders = sorted({repr(v) for v in rows if v is not True and v is not False and not pd.isna(v)})[:5]
+        warnings.warn(
+            f"subgroup '{subgroup_id}' in '{assignments_manifest_id}': {n_unrecognized} of "
+            f"{n_rows} `is_member` values are neither a boolean nor null (e.g. {', '.join(offenders)}). "
+            f"They are counted as NOT evaluated (an uninterpretable value is not evidence of "
+            f"evaluation), so the stratum may grade `unevaluable` rather than `absent`. This is the "
+            f"signature of a mis-typed assignments column — fix the shard, do not widen the parser.",
+            UserWarning,
+            stacklevel=2,
+        )
+    return StratumEvaluability(
+        subgroup_id=subgroup_id,
+        n_member=n_member,
+        n_non_member=n_non_member,
+        n_abstained=n_abstained,
+        n_unrecognized=n_unrecognized,
+        n_rows=n_rows,
+    )
 
 
 def cohort_size(

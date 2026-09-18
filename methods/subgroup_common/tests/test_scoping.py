@@ -15,8 +15,13 @@ def clear_caches():
     loaders.clear_all_caches()
 
 
-def _seed_assignments(tmp_path, monkeypatch) -> Path:
-    """Fabricate a data-catalog repo + assignments parquet in tmp cache."""
+def _seed_assignments(tmp_path, monkeypatch, df: pd.DataFrame | None = None) -> Path:
+    """Fabricate a data-catalog repo + assignments parquet in tmp cache.
+
+    `df` overrides the default 2-stratum frame for tests that need a different
+    is_member composition (e.g. an all-null stratum). The default is unchanged, so
+    passing nothing reproduces the historical fixture exactly.
+    """
     monkeypatch.setattr(loaders, "CACHE_ASSIGNMENTS", tmp_path / "cache" / "assignments")
 
     fake_catalog = tmp_path / "data-catalog"
@@ -33,13 +38,14 @@ def _seed_assignments(tmp_path, monkeypatch) -> Path:
     # 4 samples across 2 strata; note null (insufficient) case
     parquet_dir = tmp_path / "cache" / "assignments" / "tcga-subgroup-assignments-coadread-v1"
     parquet_dir.mkdir(parents=True)
-    df = pd.DataFrame(
-        {
-            "sample_id": ["S1", "S2", "S3", "S4", "S1", "S2", "S3", "S4"],
-            "stratum_id": ["MSI_H"] * 4 + ["MSS"] * 4,
-            "is_member": [True, True, False, None, False, False, True, True],
-        }
-    )
+    if df is None:
+        df = pd.DataFrame(
+            {
+                "sample_id": ["S1", "S2", "S3", "S4", "S1", "S2", "S3", "S4"],
+                "stratum_id": ["MSI_H"] * 4 + ["MSS"] * 4,
+                "is_member": [True, True, False, None, False, False, True, True],
+            }
+        )
     df.to_parquet(parquet_dir / "assignments.parquet", index=False)
     return fake_catalog
 
@@ -200,6 +206,132 @@ def test_join_coverage_suppress_warning(tmp_path, monkeypatch):
         )
     assert cov.id_convention_warning is True  # still flagged in the struct
     assert len(w) == 0  # but no warning emitted
+
+
+# ---- stratum_evaluability: the denominator `is_member == True` discards -----------
+#
+# The defect these guard (measured 2026-09-18): the DepMap paad + stad assignment shards
+# are 100% is_member=None — no cell line was ever classified — yet every consumer saw
+# `subgroup_n == 0` and reported the axis as `empty`, i.e. a MEASURED ABSENCE. The
+# assigner emits the honest tri-value; the reporting layer was flattening it.
+
+
+def _all_null_frame() -> pd.DataFrame:
+    """3 strata: one normal, one ALL-NULL (the paad/stad shape), one absent-but-evaluated."""
+    return pd.DataFrame(
+        {
+            "sample_id": ["S1", "S2", "S3"] * 3,
+            "stratum_id": ["MSI_H"] * 3 + ["NEVER_CLASSIFIED"] * 3 + ["EVALUATED_EMPTY"] * 3,
+            "is_member": [True, False, None, None, None, None, False, False, False],
+        }
+    )
+
+
+def test_stratum_evaluability_partitions_tri_value(tmp_path, monkeypatch):
+    """The three is_member values are counted SEPARATELY and the partition closes."""
+    fake_catalog = _seed_assignments(tmp_path, monkeypatch, _all_null_frame())
+    ev = scoping.stratum_evaluability("tcga-subgroup-assignments-coadread-v1", "MSI_H", data_catalog_repo=fake_catalog)
+    assert (ev.n_member, ev.n_non_member, ev.n_abstained, ev.n_unrecognized) == (1, 1, 1, 0)
+    assert ev.n_rows == 3
+    assert ev.n_member + ev.n_non_member + ev.n_abstained + ev.n_unrecognized == ev.n_rows
+    assert ev.n_evaluated == 2
+    assert ev.evaluated is True
+    assert ev.abstention_rate == pytest.approx(1 / 3)
+
+
+def test_stratum_evaluability_distinguishes_unevaluable_from_empty(tmp_path, monkeypatch):
+    """THE POINT. Two strata, both with 0 members, MUST NOT report the same evaluability.
+
+    Anti-vacuity: the two arms are asserted to DIFFER, so a regression that re-flattens
+    the tri-value fails here rather than passing with both arms equal.
+    """
+    fake_catalog = _seed_assignments(tmp_path, monkeypatch, _all_null_frame())
+    never = scoping.stratum_evaluability(
+        "tcga-subgroup-assignments-coadread-v1", "NEVER_CLASSIFIED", data_catalog_repo=fake_catalog
+    )
+    empty = scoping.stratum_evaluability(
+        "tcga-subgroup-assignments-coadread-v1", "EVALUATED_EMPTY", data_catalog_repo=fake_catalog
+    )
+    # Indistinguishable through the member set alone — this is the erasure being fixed.
+    assert never.n_member == empty.n_member == 0
+    assert scoping.cohort_size(
+        "tcga-subgroup-assignments-coadread-v1", "NEVER_CLASSIFIED", fake_catalog
+    ) == scoping.cohort_size("tcga-subgroup-assignments-coadread-v1", "EVALUATED_EMPTY", fake_catalog)
+    # …but separable through the evaluability denominator.
+    assert never.evaluated is False and never.n_abstained == 3
+    assert empty.evaluated is True and empty.n_non_member == 3
+    assert never.evaluated != empty.evaluated
+
+
+def test_stratum_evaluability_absent_stratum_id_is_unevaluable(tmp_path, monkeypatch):
+    """A stratum id absent from the shard has nothing to assert an absence ABOUT."""
+    fake_catalog = _seed_assignments(tmp_path, monkeypatch, _all_null_frame())
+    ev = scoping.stratum_evaluability(
+        "tcga-subgroup-assignments-coadread-v1", "NOT_IN_SHARD", data_catalog_repo=fake_catalog
+    )
+    assert ev.n_rows == 0 and ev.evaluated is False
+    assert ev.abstention_rate is None
+
+
+def test_stratum_evaluability_flags_unrecognized_is_member_values(tmp_path, monkeypatch):
+    """A mis-typed column (string "false") must not silently vanish from the denominator.
+
+    The object-dtype residual case: `"false"` satisfies neither `is False` nor `isna()`,
+    so a three-way split would drop it and OVER-report evaluation. It is counted on the
+    not-evaluated side (an uninterpretable value is not evidence of evaluation) and warns.
+    """
+    import warnings
+
+    df = pd.DataFrame(
+        {
+            "sample_id": ["S1", "S2", "S3"],
+            "stratum_id": ["MISTYPED"] * 3,
+            "is_member": ["false", "false", "true"],
+        }
+    )
+    fake_catalog = _seed_assignments(tmp_path, monkeypatch, df)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        ev = scoping.stratum_evaluability(
+            "tcga-subgroup-assignments-coadread-v1", "MISTYPED", data_catalog_repo=fake_catalog
+        )
+    assert ev.n_unrecognized == 3
+    assert ev.n_member == ev.n_non_member == ev.n_abstained == 0
+    assert ev.n_member + ev.n_non_member + ev.n_abstained + ev.n_unrecognized == ev.n_rows == 3
+    assert ev.evaluated is False  # abstains rather than claiming an absence
+    assert len(w) == 1 and "neither a boolean nor null" in str(w[0].message)
+
+
+def test_stratum_evaluability_warn_false_is_silent(tmp_path, monkeypatch):
+    """warn=False computes the diagnostic without raising (batch/coverage-matrix use)."""
+    import warnings
+
+    df = pd.DataFrame({"sample_id": ["S1"], "stratum_id": ["MISTYPED"], "is_member": ["false"]})
+    fake_catalog = _seed_assignments(tmp_path, monkeypatch, df)
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        ev = scoping.stratum_evaluability(
+            "tcga-subgroup-assignments-coadread-v1", "MISTYPED", data_catalog_repo=fake_catalog, warn=False
+        )
+    assert ev.n_unrecognized == 1  # still flagged in the struct
+    assert len(w) == 0
+
+
+def test_stratum_evaluability_member_count_agrees_with_cohort(tmp_path, monkeypatch):
+    """CONSISTENCY: n_member must equal the member set the filters actually use.
+
+    Guards against the two paths drifting — if they disagree, an `evaluated` flag could
+    contradict the `subgroup_n` it is paired with in evidence_state().
+    """
+    fake_catalog = _seed_assignments(tmp_path, monkeypatch)
+    for stratum in ("MSI_H", "MSS"):
+        ev = scoping.stratum_evaluability(
+            "tcga-subgroup-assignments-coadread-v1", stratum, data_catalog_repo=fake_catalog
+        )
+        cohort = scoping.resolve_subgroup_cohort(
+            "tcga-subgroup-assignments-coadread-v1", stratum, data_catalog_repo=fake_catalog
+        )
+        assert ev.n_member == len(cohort), stratum
 
 
 def test_path_b_amortization_across_multiple_subgroups(tmp_path, monkeypatch):
