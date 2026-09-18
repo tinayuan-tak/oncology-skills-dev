@@ -212,6 +212,56 @@ def _forced_reco(pkg: dict):
     return ((pkg.get("synthesis") or {}).get("recommendation_gate") or {}).get("forced_recommendation")
 
 
+def _forced_by(pkg: dict):
+    """WHICH deterministic path minted the call — `thesis_decider` (carries the anti-blind density
+    conjunct) vs `positive_tier` (evidence-quantity, no density conjunct) vs None. Without this column a
+    dangerous positive_tier nominate is indistinguishable in the report from a thesis_decider one."""
+    return ((pkg.get("synthesis") or {}).get("recommendation_gate") or {}).get("forced_by")
+
+
+def _thesis_decider_record(pkg: dict) -> dict:
+    return ((pkg.get("synthesis") or {}).get("recommendation_gate") or {}).get("thesis_decider") or {}
+
+
+def _nominate_thesis(pkg: dict):
+    """The thesis the deterministic decider evaluated (`antigen_driven`, …), or None for an
+    unregistered thesis (oncogene_addiction — no thesis block)."""
+    return _thesis_decider_record(pkg).get("thesis")
+
+
+def _deciding_density(pkg: dict):
+    """The surface-antigen deciding-axis ground-truth field (`density_floor_verdict`), read from the
+    thesis decider's own conjunct record: the measured floor verdict when the anti-blind conjunct was
+    satisfied, `unmeasured` when it refused for blindness, None when the thesis carries no density
+    conjunct (non-antigen). This is the axis the framework is documented-blind on for surface antigens."""
+    td = _thesis_decider_record(pkg)
+    for m in td.get("measured_conjuncts") or []:
+        if m.get("field") == "density_floor_verdict":
+            return m.get("value")
+    for u in td.get("unsatisfied") or []:
+        if isinstance(u, str) and u.startswith("unmeasured(") and "density_floor_verdict" in u:
+            return "unmeasured"
+    return None
+
+
+def _anti_blind_refused(pkg: dict) -> list:
+    """The thesis decider's anti-blind conjunct markers. A non-empty list means the decider REFUSED to
+    nominate because the deciding-axis ground-truth field is unmeasured (blindness)."""
+    return [
+        u
+        for u in (_thesis_decider_record(pkg).get("unsatisfied") or [])
+        if isinstance(u, str) and u.startswith("unmeasured(")
+    ]
+
+
+def _nominated_while_blind(pkg: dict) -> bool:
+    """The shape the anti-blind CROSS-PATH invariant forbids: a live `nominate` standing while the
+    thesis decider refused for blindness on the deciding axis. This is the positive_tier leak (MUC13).
+    After the tp_gates fix the tier's nominate is withheld, so a True here is a live regression — which
+    is exactly why the panel must attribute it, not just the collapsed word."""
+    return _forced_reco(pkg) == "nominate" and bool(_anti_blind_refused(pkg))
+
+
 def _dep_verdict(pkg: dict):
     return (((pkg.get("synthesis") or {}).get("sub_verdicts") or {}).get("dependency") or {}).get("verdict")
 
@@ -395,6 +445,14 @@ def score_profile(name: str, prof: dict, pkg) -> dict:
     reco = sv["recommendation"]
     row["reco"] = reco
     row["dependency_verdict"] = sv["gate_verdicts"].get("dependency")
+    # WHICH deterministic path decided, the thesis it rested on, the surface-antigen deciding density,
+    # and whether a nominate stands while the framework is blind on that axis. Threaded here — BEFORE
+    # the `_SCORED_SEV` early-return — so it populates for reported_unscored (honest_blind) rows too;
+    # MUC13, the live positive_tier leak, is exactly such a row.
+    row["forced_by"] = _forced_by(pkg)
+    row["nominate_thesis"] = _nominate_thesis(pkg)
+    row["deciding_density"] = _deciding_density(pkg)
+    row["nominated_while_blind"] = _nominated_while_blind(pkg)
 
     sev, outcome = prof.get("severity"), prof.get("outcome")
     # Only the two actionable error classes + the positive control are pass/fail scored.
@@ -501,6 +559,18 @@ def score_all(profiles: dict, pkg_dir: Path) -> dict:
         if r.get("fresh_error")
     ]
     drifts = [f"{r['target']}/{r.get('code')}: {d}" for r in rows if (d := _drift(r))]
+    # NOMINATE-WHILE-BLIND — the release-scope precondition made measurable ("holds rather than
+    # nominates when blind"). Any target with a live `nominate` whose thesis decider refused for
+    # blindness on the deciding axis is the positive_tier anti-blind leak. Reported across ALL rows
+    # (incl. reported_unscored, since honest_blind surface antigens are exactly where it bites), not
+    # gated on curated severity — the panel's `_SCORED_SEV` deliberately does NOT judge honest_blind
+    # targets, so this signal is the only place the leak is catchable.
+    nominated_while_blind = [
+        f"{r['target']}/{r.get('code')} [{r.get('modality')}] "
+        f"via {r.get('forced_by')} (thesis={r.get('nominate_thesis')}, density={r.get('deciding_density')})"
+        for r in rows
+        if r.get("nominated_while_blind")
+    ]
     by_status: dict = {}
     for r in rows:
         by_status[r["status"]] = by_status.get(r["status"], 0) + 1
@@ -572,6 +642,7 @@ def score_all(profiles: dict, pkg_dir: Path) -> dict:
         "capture_by_family": capture_by_family,
         "subtype_rollup": subtype_rollup,
         "fresh_errors": fresh_errors,
+        "nominated_while_blind": nominated_while_blind,
         "drift_vs_curated": drifts,
         "rows": rows,
     }
@@ -700,6 +771,13 @@ def main(argv=None) -> int:
         )
     for e in report["fresh_errors"]:
         print(f"    FRESH-ERROR {e}")
+    nwb = report.get("nominated_while_blind") or []
+    if nwb:
+        print(f"  nominate-while-blind ({len(nwb)}) — the anti-blind cross-path leak (release precondition):")
+        for b in nwb:
+            print(f"    NOMINATE-WHILE-BLIND {b}")
+    else:
+        print("  nominate-while-blind: 0 (anti-blind bound held across both nominate paths)")
     for d in report["drift_vs_curated"]:
         print(f"    DRIFT {d}")
     print(f"  wrote {OUT_PATH}")

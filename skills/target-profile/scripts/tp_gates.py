@@ -1621,6 +1621,44 @@ def reconcile_positive_nomination(
     order = [p for p in _NOMINATE_PATH_PRECEDENCE if p in fired]
     winner = order[0]
 
+    # ANTI-BLIND CROSS-PATH INVARIANT. The thesis decider carries a `requires_measured_card_field`
+    # conjunct — the anti-blind bound — that REFUSES to nominate a surface antigen whose deciding-axis
+    # ground-truth card field (e.g. `surface-abundance-density.density_floor_verdict`) is `unmeasured`.
+    # The positive tier has NO such conjunct: it nominates on evidence QUANTITY across independent axes.
+    # Under `--modality` the favorable surface verdicts become tier-eligible (the disjointness note above
+    # holds only in default biology-first mode), so a surface antigen the decider just refused FOR
+    # BLINDNESS can still nominate via the tier — defeating the anti-blind bound and minting a GO on a
+    # target whose deciding axis the framework cannot see. That is the "nominate while blind" the release
+    # scope forbids. The tier therefore may not OVERRIDE an anti-blind refusal the thesis path already
+    # made. `winner == "positive_tier"` means the decider did NOT fire an action (else it would win the
+    # precedence). Keyed on the thesis record's own `unmeasured(...)` marker, so it fires ONLY when the
+    # deciding-axis field is genuinely unmeasured — a failed corroboration `requires(...)` alongside a
+    # MEASURED density does not trigger it (that is a quantity judgment the tier is entitled to make).
+    # oncogene_addiction has no thesis block (thesis_record is None), so EGFR/ERBB2 — which nominate via
+    # the tier on MEASURED density — are structurally clear of this key.
+    if winner == "positive_tier" and thesis_record is not None:
+        anti_blind = [
+            u for u in (thesis_record.get("unsatisfied") or []) if isinstance(u, str) and u.startswith("unmeasured(")
+        ]
+        if anti_blind:
+            return None, {
+                "nominate_withheld": {
+                    "tier": tier,
+                    "path": "positive_tier",
+                    "reason": "blind_deciding_axis",
+                    "thesis": thesis_record.get("thesis"),
+                    "anti_blind_conjuncts": anti_blind,
+                    "llm_recommendation": llm_value,
+                    "detail": (
+                        "the positive tier reached its nominating bar on evidence quantity, but the thesis "
+                        "decider refused because the deciding-axis ground-truth field is unmeasured "
+                        f"({'; '.join(anti_blind)}). The anti-blind bound is a CROSS-PATH invariant: the "
+                        "tier may not mint a GO on a target the framework is blind on the deciding axis of. "
+                        + fired[winner]["detail"]
+                    ),
+                }
+            }
+
     if clamped and not allow_over_llm_authored_negative:
         return None, {
             "nominate_withheld": {

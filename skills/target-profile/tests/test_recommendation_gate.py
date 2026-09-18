@@ -1967,3 +1967,89 @@ def test_the_interlock_can_be_restored_to_withhold_for_both_paths_at_once():
         assert patch["nominate_withheld"]["llm_recommendation"] == "hold"
         assert "forced_recommendation" not in patch
         assert patch["nominate_withheld"]["path"] in {"thesis_decider", "positive_tier"}
+
+
+# ---------------------------------------------------------------------------
+# The anti-blind bound is a CROSS-PATH invariant, not a thesis-path-only one.
+# The thesis decider carries `requires_measured_card_field` and REFUSES to nominate a surface antigen
+# whose deciding-axis ground-truth field (surface-abundance-density.density_floor_verdict) is
+# `unmeasured`. The positive tier has no such conjunct. Under `--modality` the favorable surface
+# verdicts become tier-eligible, so a surface antigen the decider refused FOR BLINDNESS could still
+# nominate via the tier — the framework minting a GO on a target it cannot see the deciding axis of
+# (the "nominate while blind" the release scope forbids). MUC13/COADREAD is the live case:
+# `forced=nominate by=positive_tier density=unmeasured` while the decider's unsatisfied list carried
+# `unmeasured(surface-abundance-density.density_floor_verdict=unmeasured)`. The existing anti-blind
+# test only asserts the THESIS path returns None; it never asserted the COMPOSED outcome, so the leak
+# survived green.
+# ---------------------------------------------------------------------------
+
+# A thesis record shaped exactly as `thesis_nomination` emits one when the anti-blind conjunct fails:
+# an action-less decline whose `unsatisfied` names the unmeasured deciding-axis field (MUC13's shape).
+_BLIND_TR = {
+    "thesis": "antigen_driven",
+    "deciding": {"short": "surface_modality", "verdict": "adc_preferred_tce_unsafe"},
+    "unsatisfied": [
+        "requires(selectivity=field_effect_tumor_selective)",
+        "unmeasured(surface-abundance-density.density_floor_verdict=unmeasured)",
+    ],
+}
+# A decline for a reason OTHER than blindness — a corroboration axis missed, but the deciding-axis
+# card field WAS measured (no `unmeasured(...)` entry). The tier's quantity judgment stands here.
+_MEASURED_MISS_TR = {
+    "thesis": "antigen_driven",
+    "deciding": {"short": "surface_modality", "verdict": "adc_preferred_tce_unsafe"},
+    "unsatisfied": ["requires(selectivity=field_effect_tumor_selective)"],
+}
+
+
+def test_positive_tier_may_not_override_the_thesis_anti_blind_refusal():
+    """THE leak this change closes (MUC13/COADREAD, live on trunk). The tier reaches its nominating
+    bar on evidence quantity, but the thesis decider already REFUSED because the deciding-axis
+    ground-truth field is unmeasured. The tier may not override that refusal — the anti-blind bound is
+    a cross-path invariant. `winner == "positive_tier"` here because the decider fired no action."""
+    value, patch = _rec(
+        thesis_action=None, thesis_record=_BLIND_TR, tier="strong", tier_nominates=True, pos_hits=[_HIT]
+    )
+    assert value is None, "the tier nominated a target the framework is blind on the deciding axis of"
+    assert "forced_recommendation" not in patch
+    assert "fired" not in patch  # never — see test_reconciler_never_writes_fired
+    wh = patch["nominate_withheld"]
+    assert wh["reason"] == "blind_deciding_axis"
+    assert wh["path"] == "positive_tier"
+    assert wh["thesis"] == "antigen_driven"
+    assert any("density_floor_verdict=unmeasured" in c for c in wh["anti_blind_conjuncts"])
+
+
+def test_positive_tier_still_nominates_when_the_thesis_declined_on_a_MEASURED_axis():
+    """The over-block guard. A thesis decline whose `unsatisfied` names only a corroboration miss — the
+    deciding-axis card field WAS measured (no `unmeasured(...)` marker) — is NOT blindness. The tier's
+    independent evidence-quantity judgment is entitled to stand. Without this the fix would convert
+    correct tier nominations into abstentions whenever the thesis happened to want a different verdict."""
+    value, patch = _rec(
+        thesis_action=None, thesis_record=_MEASURED_MISS_TR, tier="strong", tier_nominates=True, pos_hits=[_HIT]
+    )
+    assert value == "nominate"
+    assert patch["forced_by"] == "positive_tier"
+    assert "nominate_withheld" not in patch
+
+
+def test_positive_tier_unaffected_when_there_is_no_thesis_block():
+    """EGFR/ERBB2 safety. oncogene_addiction is an unregistered thesis, so `thesis_nomination` returns
+    thesis_record=None. These nominate via the tier on MEASURED density and must be structurally clear
+    of the anti-blind key — the guard requires a thesis record to inspect."""
+    value, patch = _rec(thesis_action=None, thesis_record=None, tier="strong", tier_nominates=True, pos_hits=[_HIT])
+    assert value == "nominate"
+    assert patch["forced_by"] == "positive_tier"
+    assert "nominate_withheld" not in patch
+
+
+def test_anti_blind_refusal_does_not_touch_a_thesis_decider_win():
+    """When the decider itself fires (density WAS measured), it wins the precedence and the anti-blind
+    guard is inert — the guard only fires when `positive_tier` is the sole winner. A decider win with a
+    corroborating tier is the ordinary agreeing case and must nominate."""
+    value, patch = _rec(
+        thesis_action="nominate", thesis_record=_TR, tier="strong", tier_nominates=True, pos_hits=[_HIT]
+    )
+    assert value == "nominate"
+    assert patch["forced_by"] == "thesis_decider"
+    assert "nominate_withheld" not in patch
