@@ -697,7 +697,16 @@ def _channel_value(modality_scope: dict, channel: str):
 # Scale-aware (the band is in the measure's own units). VERDICT-INERT — a fragility signal for the
 # reader, never the spine. Empty until an axis populates magnitude.value + distance_to_cut (selectivity
 # is the first: max|log2FC| vs the strong>=1.5 / modest>=0.5 cutpoints).
-_BORDERLINE_BAND = {"log2fc": 0.25}  # within this many units of the cutpoint = borderline
+_BORDERLINE_BAND = {"log2fc": 0.25}  # within this many units of the cutpoint = borderline; keyed LOWERCASE
+
+
+def _borderline_band(scale):
+    """The borderline band for a scale, CASE-INSENSITIVELY. The band was keyed 'log2fc' but a
+    spec-derived magnitude carries the SALIENCE_SPECS scale 'log2FC' (capital) — so the day
+    tumor-selectivity's hand-written magnitude becomes spec-derived, a case-sensitive lookup would
+    silently return None and empty the borderline list. Presence stays 0 either way: its magnitude is
+    level-only (scale=None), so it can never match any band."""
+    return _BORDERLINE_BAND.get(scale.lower()) if isinstance(scale, str) else None
 
 
 def _magnitude_borderline(sub_results: dict) -> list[dict]:
@@ -706,7 +715,7 @@ def _magnitude_borderline(sub_results: dict) -> list[dict]:
     for short in sorted(shadow):
         mag = ((shadow[short] or {}).get("finding") or {}).get("magnitude") or {}
         value, scale, dist = mag.get("value"), mag.get("scale"), mag.get("distance_to_cut")
-        band = _BORDERLINE_BAND.get(scale)
+        band = _borderline_band(scale)
         if value is None or dist is None or band is None:
             continue  # axis has no continuous value / cutpoint to be borderline on
         if abs(dist) <= band:

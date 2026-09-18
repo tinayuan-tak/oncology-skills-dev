@@ -13,7 +13,7 @@ for _p in (str(SKILLS), str(SCRIPTS)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from tp_facets import _magnitude_borderline  # noqa: E402
+from tp_facets import _borderline_band, _magnitude_borderline  # noqa: E402
 
 
 def _rec(value, dist, scale="log2fc", level="moderate"):
@@ -54,3 +54,20 @@ def test_categorical_axis_without_value_is_skipped():
         }
     }
     assert _magnitude_borderline(sr) == []
+
+
+def test_spec_derived_capital_log2FC_scale_still_matches():
+    # THE GUARD: tumor-selectivity hand-writes scale 'log2fc' today, but SALIENCE_SPECS writes 'log2FC'
+    # (capital). The day its magnitude becomes spec-derived, a case-SENSITIVE lookup returned None and
+    # silently emptied the borderline list. Case-insensitive: the capital scale is flagged just the same.
+    sr = {"selectivity": _rec(0.6, 0.1, scale="log2FC")}  # 0.1 <= 0.25 band
+    out = _magnitude_borderline(sr)
+    assert len(out) == 1 and out[0]["axis"] == "selectivity"
+    assert out[0]["band"] == 0.25
+
+
+def test_borderline_band_is_case_insensitive():
+    assert _borderline_band("log2FC") == _borderline_band("log2fc") == 0.25
+    assert _borderline_band("Log2FC") == 0.25
+    assert _borderline_band("ceres") is None  # a genuinely unbanded scale stays None
+    assert _borderline_band(None) is None  # level-only magnitude (e.g. presence) never matches
