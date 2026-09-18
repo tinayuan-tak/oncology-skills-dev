@@ -69,6 +69,9 @@ def render_evidence_package(ep: dict) -> str:
     # call + confidence + sharpest tension before the detail. Verdict-inert; absent for un-migrated skills.
     sections.extend(_render_skill_headlines(syn))
 
+    # ===== Evidence axes grouped by ROLE (gating spine · context · inert) — the hierarchy =====
+    sections.extend(_render_axis_hierarchy(syn))
+
     # ===== PRIMARY resolver gate-verdict (Stage 2) =====
     # The declarative resolver's gate verdict is the headline row; the per-modality
     # fit_level below is a demoted secondary LENS. A verdict-only synthesis block (no
@@ -136,6 +139,53 @@ def _render_skill_headlines(syn: dict) -> list[str]:
     for short, verdict, conf, tension in rows:
         out.append(f"| {short} | {verdict} | {conf} | {tension or '—'} |")
     out.append("")
+    return out
+
+
+def _render_axis_hierarchy(syn: dict) -> list[str]:
+    """The evidence axes grouped by their ROLE in the recommendation: the GATING axes that carry the
+    verdict, then the CONTEXT axes that are measured but do not gate, then any INERT axis. This is the
+    "forest, not a tree" — a gateless axis finally has a place to render, at the SAME visible depth
+    (grouping, not new levels). Reads synthesis.skill_report_rollup.by_role, already grouped upstream —
+    NO new classification here (the rollup reuses the gate policy, so this can never disagree with the
+    per-gate verdicts). Verdict-INERT; returns [] for un-migrated packages carrying no rollup."""
+    by_role = (syn.get("skill_report_rollup") or {}).get("by_role") or {}
+    gating = by_role.get("gating") or []
+    descriptive = by_role.get("descriptive") or []
+    inert = by_role.get("inert") or []
+    if not (gating or descriptive or inert):
+        return []
+
+    def _rows(items, with_polarity):
+        r = []
+        for it in items:
+            short = it.get("short", "—")
+            call = str(it.get("call") or "—").replace("|", "\\|")
+            if with_polarity:
+                r.append(f"| {short} | {call} | {it.get('polarity', '—')} |")
+            else:
+                r.append(f"| {short} | {call} |")
+        return r
+
+    out = [
+        "## Evidence Axes by Role",
+        "",
+        "_The gating axes carry the recommendation; context axes are measured but do not gate. "
+        "Grouping (not new depth) gives every axis a place to render._",
+        "",
+    ]
+    if gating:
+        out += [f"### Gating ({len(gating)}) — the verdict spine", "", "| Axis | Call | Polarity |", "|---|---|---|"]
+        out += _rows(gating, True)
+        out += [""]
+    if descriptive:
+        out += [f"### Context ({len(descriptive)}) — measured, does not gate", "", "| Axis | Call |", "|---|---|"]
+        out += _rows(descriptive, False)
+        out += [""]
+    if inert:
+        out += [f"### Inert ({len(inert)})", "", "| Axis | Call |", "|---|---|"]
+        out += _rows(inert, False)
+        out += [""]
     return out
 
 
