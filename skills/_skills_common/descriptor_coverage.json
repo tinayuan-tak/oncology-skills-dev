@@ -373,6 +373,14 @@
       "shed_product",
       "shedding_protease"
     ],
+    "shet_lof_selection": [
+      "exp_lof_count",
+      "obs_lof_count",
+      "shet_class",
+      "shet_lower_95",
+      "shet_score",
+      "shet_upper_95"
+    ],
     "signaling_network_mechanism": [
       "n_downstream_effectors",
       "n_upstream_regulators",
@@ -495,9 +503,9 @@
   "numeric_fields_without_gloss": [],
   "producer": "descriptor_coverage_sidecar",
   "role_counts": {
-    "categorical": 123,
-    "effect": 49,
-    "extra_scalar": 71,
+    "categorical": 124,
+    "effect": 50,
+    "extra_scalar": 75,
     "frame_value": 16,
     "label": 10,
     "n": 38,
@@ -589,6 +597,7 @@
       "essential_tissue_flag",
       "evidence_scope",
       "evidence_tier",
+      "exp_lof_count",
       "expression_call_class",
       "expression_class",
       "expression_purity_pearson_r",
@@ -724,6 +733,7 @@
       "normal_p95_log2tpm",
       "normal_protein_breadth_class",
       "normal_tissue_breadth_class",
+      "obs_lof_count",
       "oncokb_gene_type",
       "overall_mutation_frequency",
       "partner",
@@ -785,6 +795,10 @@
       "shed_liability_class",
       "shed_product",
       "shedding_protease",
+      "shet_class",
+      "shet_lower_95",
+      "shet_score",
+      "shet_upper_95",
       "sig_all_cells",
       "silencing_driver",
       "sl_partner_class",
@@ -928,6 +942,7 @@
       "essential_tissue_flag": "categorical",
       "evidence_scope": "categorical",
       "evidence_tier": "categorical",
+      "exp_lof_count": "extra_scalar",
       "expression_call_class": "categorical",
       "expression_class": "categorical",
       "expression_purity_pearson_r": "effect",
@@ -1063,6 +1078,7 @@
       "normal_p95_log2tpm": "extra_scalar",
       "normal_protein_breadth_class": "categorical",
       "normal_tissue_breadth_class": "categorical",
+      "obs_lof_count": "extra_scalar",
       "oncokb_gene_type": "categorical",
       "overall_mutation_frequency": "effect",
       "partner": "label",
@@ -1124,6 +1140,10 @@
       "shed_liability_class": "categorical",
       "shed_product": "categorical",
       "shedding_protease": "categorical",
+      "shet_class": "categorical",
+      "shet_lower_95": "extra_scalar",
+      "shet_score": "effect",
+      "shet_upper_95": "extra_scalar",
       "sig_all_cells": "extra_scalar",
       "silencing_driver": "categorical",
       "sl_partner_class": "categorical",
@@ -1180,19 +1200,19 @@
   },
   "schema_version": "1.0.0",
   "source_class_counts": {
-    "instrument": 343
+    "instrument": 349
   },
   "summary": {
     "n_atlas_live": 16,
-    "n_descriptor_cells": 343,
-    "n_distinct_fields": 316,
+    "n_descriptor_cells": 349,
+    "n_distinct_fields": 322,
     "n_envelope_fields": 11,
     "n_gloss_without_descriptor": 5,
-    "n_measurement_types": 62,
-    "n_metric_gloss_entries": 187,
+    "n_measurement_types": 63,
+    "n_metric_gloss_entries": 192,
     "n_multi_type_fields": 14,
-    "n_numeric_fields": 182,
-    "n_numeric_fields_with_gloss": 182,
+    "n_numeric_fields": 187,
+    "n_numeric_fields_with_gloss": 187,
     "n_numeric_fields_without_gloss": 0
   }
 }

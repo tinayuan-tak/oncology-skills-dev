@@ -212,8 +212,8 @@
       "gate_short": "safety",
       "n_declared_cards": 16,
       "n_declared_types": 16,
-      "n_measurement_descriptor_fields": 56,
-      "n_types_with_measurement_descriptor": 9,
+      "n_measurement_descriptor_fields": 62,
+      "n_types_with_measurement_descriptor": 10,
       "skill_dir": "on-target-safety-liability",
       "static_state": "descriptor_covered",
       "types_without_measurement_descriptor": [
@@ -222,7 +222,6 @@
         "functional_gene_state",
         "human_genetic_safety",
         "onsides_adverse_event_safety",
-        "shet_lof_selection",
         "target_safety_prioritisation"
       ],
       "verdict_bearing": true
@@ -490,7 +489,7 @@
       "n_axes_counted": 2,
       "n_axes_descriptor_covered": 2,
       "n_declared_types": 28,
-      "n_types_without_measurement_descriptor": 11,
+      "n_types_without_measurement_descriptor": 10,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
         "dosage_sensitivity_safety",
@@ -498,7 +497,6 @@
         "functional_gene_state",
         "human_genetic_safety",
         "onsides_adverse_event_safety",
-        "shet_lof_selection",
         "spatial_colocalization",
         "spatial_region_rna",
         "spatial_surface_protein",
@@ -1019,10 +1017,10 @@
     "n_dims": 6,
     "n_fanout_axes": 15,
     "n_gated_axes": 8,
-    "n_salience_spec_types": 62,
+    "n_salience_spec_types": 63,
     "n_spec_types_pulled_by_no_axis": 0,
-    "n_types_with_measurement_descriptor": 62,
-    "n_types_without_measurement_descriptor": 61
+    "n_types_with_measurement_descriptor": 63,
+    "n_types_without_measurement_descriptor": 60
   },
   "types_without_measurement_descriptor": [
     "antigen_pair_coexpression",
@@ -1070,7 +1068,6 @@
     "reactome_pathway_membership",
     "sc_tumor_caf_state_expression",
     "sc_tumor_myeloid_state_expression",
-    "shet_lof_selection",
     "spatial_colocalization",
     "spatial_region_rna",
     "spatial_surface_protein",

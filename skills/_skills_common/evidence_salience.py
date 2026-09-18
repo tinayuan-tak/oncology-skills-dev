@@ -475,6 +475,44 @@ SALIENCE_SPECS: dict = {
             ],
         },
     },
+    # on-target-safety NORMAL-genetics s_het card (descriptor-coverage mint, 2026-09-18):
+    # shet-lof-intolerance emits shet_class + a continuous s_het (GeneBayes, Zeng 2024) — the CONTINUOUS
+    # complement to gnomad_lof_constraint's binary LOEUF/pLI — but had NO spec, so shet_score + its CI +
+    # LoF counts landed unclassified with no label/units/direction. Mint one here.
+    # DIRECTION higher_is_worse (mirrors gnomad_lof_constraint's liability framing + sc_normal): a HIGHER
+    # s_het = MORE dominant-LoF-constrained = a full-KO (degrader / RNA-therapeutic) safety concern. The
+    # card's own note says "Higher = more intolerant." Getting this sign wrong inverts a SAFETY ruler, so
+    # it carries a sign test. graded_band: position = shet_class READ VERBATIM; the two ascending cuts
+    # (moderate 0.01 < high 0.1) ARE the card's own intolerance cutpoints, single-sourced from its
+    # thresholds. verdict-INERT (Phase 1: fires no rule, drives no safety rung — a corroboration of the
+    # constraint call), so the resolver golden is byte-stable. See REACH OF A `reference_frame`.
+    "shet_lof_selection": {
+        "effect_field": "shet_score",
+        "direction": "higher_is_worse",
+        "categorical": ["shet_class"],
+        "extra_scalars": ["shet_lower_95", "shet_upper_95", "obs_lof_count", "exp_lof_count"],
+        "reference_frame": {
+            "kind": "graded_band",
+            # DISPLAY-ONLY: atlas deferred out of go-live (see sc_normal above); a numeric PRIMARY frame
+            # otherwise mints a frozen atlas column. Descriptor + display ruler delivered without one.
+            "atlas_numeric": False,
+            "value_field": "shet_score",
+            "scale": "shet",
+            "position_field": "shet_class",
+            "cuts": [
+                {
+                    "card_id": "shet-lof-intolerance",
+                    "threshold": "moderate_intolerance_shet",
+                    "label": "moderate_intolerance",
+                },
+                {
+                    "card_id": "shet-lof-intolerance",
+                    "threshold": "high_intolerance_shet",
+                    "label": "high_intolerance",
+                },
+            ],
+        },
+    },
     "tumor_vs_adjacent_expression": {
         "effect_field": "log2_fc",
         "significance_field": "q_value",

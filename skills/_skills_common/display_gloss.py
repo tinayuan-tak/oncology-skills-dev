@@ -83,6 +83,12 @@ METRIC_GLOSS: dict = {
     "spearman_r_crispr": ("CRISPR-PRISM concordance", "Spearman r"),
     "r2": ("dependency-predictability", "R2"),
     "loeuf_score": ("gnomAD LOEUF (LoF intolerance)", "LOEUF"),
+    # s_het dominant-LoF selection (GeneBayes, Zeng 2024) — the continuous complement to LOEUF above.
+    "shet_score": ("s_het dominant-LoF selection coefficient", "s_het"),
+    "shet_lower_95": ("s_het 95% CI lower bound", "s_het"),
+    "shet_upper_95": ("s_het 95% CI upper bound", "s_het"),
+    "obs_lof_count": ("observed LoF variant count", "count"),
+    "exp_lof_count": ("expected LoF variant count", "count"),
     "highest_tissue_median": ("highest normal-tissue median expression", "TPM"),
     # the PROTEIN counterparts of the two RNA normal-tissue levels above/below, kept adjacent to them so the
     # two arms of the same liability question stay in one vocabulary. Both say "protein" explicitly: an

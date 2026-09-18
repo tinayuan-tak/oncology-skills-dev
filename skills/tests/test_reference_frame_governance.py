@@ -330,6 +330,13 @@ _ATLAS_NUMERIC_OPTOUT = {
         "door. The descriptor + display cut-line (the Gap-A goal) need no atlas feature. Flip when the atlas "
         "returns."
     ),
+    "shet_lof_selection": (
+        "ATLAS DEFERRED — same reason as sc_normal_celltype_expression: the s_het graded_band is a "
+        "display-only ruler (atlas_numeric: False) because the target-archetype atlas is deferred out of "
+        "go-live, and minting a new frozen column now is a one-way door. The descriptor-coverage goal (label "
+        "+ units + a cut-line for the previously-unclassified shet_score) needs no atlas feature. Flip when "
+        "the atlas returns."
+    ),
 }
 
 _SCAN_PRUNE = {".git", ".pixi", ".venv", "__pycache__", "node_modules", ".ruff_cache", ".pytest_cache"}
@@ -609,3 +616,14 @@ def test_every_frozen_atlas_numeric_column_still_has_its_producing_frame():
         f"primary value_field RENAMED under a frozen column ({{mt: (frozen, live)}}): {renamed}. The column "
         "key is {mt}::num::{value_field}, so this is a delete AND an add in one commit."
     )
+
+
+def test_shet_lof_selection_direction_sign():
+    """Sign guard for the descriptor-coverage mint (DIRECTION is the highest-consequence token — an
+    inverted sign would read a dominant-LoF-CONSTRAINED gene as SAFE for a full-KO modality). Higher
+    s_het = more intolerant = WORSE, and the graded_band cuts must ascend moderate(0.01) -> high(0.1)."""
+    spec = SALIENCE_SPECS["shet_lof_selection"]
+    assert spec["direction"] == "higher_is_worse"
+    frame = spec["reference_frame"]
+    assert frame["kind"] == "graded_band" and frame.get("atlas_numeric") is False
+    assert [c["label"] for c in frame["cuts"]] == ["moderate_intolerance", "high_intolerance"]
