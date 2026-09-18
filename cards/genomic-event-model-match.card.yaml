@@ -25,7 +25,8 @@
 # genotype-backed dependency basis stronger than expression-match alone.
 
 card_id: genomic-event-model-match
-version: 0.1.0
+version: 0.2.0   # 0.2.0 (2026-09-18): DECLARE the already-emitted `indication` echo (see summary_fields).
+                #        Additive + already-true; no method change, no grain change (already target_indication).
 # interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
 interpretation: rules_pending
 question: "Which DepMap models carry the same functional genomic event in {target.symbol} as {indication.label} tumors, and which of those genotype-matched models are dependent (positive screen lines)?"
@@ -62,6 +63,15 @@ outputs:
     - n_matched_dependent
     - n_matched_dependent_in_lineage
     - n_patient_samples
+    # `indication` DECLARES A FIELD THE PRODUCER ALREADY EMITS (v0.2.0) — genomic_event_model_match/
+    # read.py:107 has always echoed the queried indication CODE into the summary, and FR's
+    # run.py::_infer_indication has always read it as an UNDECLARED key. Declared here as the SECOND
+    # supplier for the dependency card preprocessor: it is not redundant with recommended-models,
+    # because the two cards' `applies_when` indication sets DIFFER (this one adds NSCLC/GC/UCEC), so a
+    # run scoped to one of those three has this card and NOT the expression sibling. See the fuller
+    # note in cards/recommended-models.card.yaml for why the code — not depmap_lineage — is the field
+    # the preprocessor needs, and why no new `queried_indication` field was minted.
+    - indication                              # queried indication CODE, echoed by the method (see above)
     - depmap_lineage
     - dependency_available
     - release_pin

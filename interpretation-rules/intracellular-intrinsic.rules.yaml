@@ -300,10 +300,21 @@ rules:
   # E2 — Lineage selectivity (Card 2: dependency-lineage-selectivity)
   # ============================================================================
 
-  # Card 2 (E2) refactored to v3.0.0 — target-only, indication-decoupled. Emits
-  # `enrichment_class` describing the SHAPE of lineage variation across the panel.
-  # Per-indication interpretation ("which lineage matters for THIS dashboard?") is
-  # a synthesis-layer concern that consults the per_lineage_stats table directly.
+  # Card 2 (E2) emits TWO classes, read by TWO rule families below. Do not merge them.
+  #   - `enrichment_class` (target grain): the SHAPE of lineage variation across the panel.
+  #     "Is dependency lineage-stratified AT ALL?" — says nothing about WHICH lineage.
+  #   - `indication_dependency_class` (target_indication grain, card v3.2.0): the queried
+  #     indication's OWN read. "Is the target required HERE?"
+  #
+  # RETRACTED 2026-09-18 — the previous version of this comment said: "Per-indication
+  # interpretation ('which lineage matters for THIS dashboard?') is a synthesis-layer concern
+  # that consults the per_lineage_stats table directly." That is no longer true, and leaving it
+  # would misdirect the next editor. The reduction now happens BEFORE rule evaluation (the
+  # `dependency` card preprocessor), because a rule can fire only on a card field and
+  # resolve_verdict sees nothing but fired rule_ids — so a synthesis-layer lens can never reach
+  # a VERDICT. Keeping it there is what let `lineage_selective` headline a dependency on a
+  # lineage the run never asked about: over the atlas's 504 target x indication pairs the verdict
+  # fires on 113 (22.4%), and the QUERIED lineage is the enriched one in only 14 of those (12.4%).
 
   - rule_id: lineage-selective-supportive
     when:
@@ -316,9 +327,16 @@ rules:
     dominant: true
     rationale: |
       ≥1 lineage is significantly more dependent on the target than the rest of the
-      panel (BH-adjusted q < α). Indication-selection driver: a clear "use it for THIS
-      cancer type" signal. Which specific lineage matters for the dashboard's resolved
-      indication is a synthesis-layer lookup over per_lineage_stats.
+      panel (BH-adjusted q < α). A TARGET-GRAIN shape claim: dependency IS lineage-
+      stratified somewhere in the panel, which makes the target an indication-SELECTION
+      candidate. It does NOT assert the queried indication is the enriched one.
+      RETRACTED 2026-09-18: this rationale previously ended "Which specific lineage matters
+      for the dashboard's resolved indication is a synthesis-layer lookup over
+      per_lineage_stats." A synthesis-layer lookup cannot reach a verdict, so that sentence
+      described a reduction nothing performed. The queried indication's own read now has its
+      own field + rules below, and their resolver rungs OUTRANK this one — so on an
+      indication-scoped run this rung is reached only when the indication class is
+      `indication_not_supplied`, i.e. a genuine target-grain query.
 
   - rule_id: broadly-lineage-dependent-neutral
     when:
@@ -361,6 +379,102 @@ rules:
       Lineage selectivity data unreachable or panel too small. Coverage gap; not
       used as opposing evidence. Other dependency evidence threads (E1 CRISPR/RNAi)
       carry the therapeutic-window story.
+
+  # ----------------------------------------------------------------------------
+  # E2b — INDICATION-CONDITIONED dependency (Card 2's `indication_dependency_class`)
+  # ----------------------------------------------------------------------------
+  # These four rules answer the question the RUN asked — "is the target required in the
+  # indication I queried?" — where the four above answer only "does dependency stratify by
+  # lineage at all?". Their resolver rungs (priorities 4-7) OUTRANK the shape rungs, so when
+  # an indication was supplied the indication read is the verdict.
+  #
+  # FIELD SUPPLY, and why this is not a rule keyed on an absent field: the class is written
+  # onto the card by the `dependency` card preprocessor BEFORE rule evaluation, in every
+  # resolution path that uses the registry. It is ALWAYS written — `indication_not_supplied`
+  # on a target-grain run. That token deliberately has NO rule here and NO rung in the
+  # resolver, which is what keeps `lineage_selective` reachable on a genuine target-grain
+  # query; the absence is asserted by tests/vocabularies/, because an unasserted absence is
+  # invisible and a later rule keyed on that token would silently make these rungs fire on
+  # runs that asked no indication.
+  #
+  # 6 measured tokens -> 4 rules: the three could-not-look tokens share one rung via `in:`
+  # (underpowered / not_in_panel / data_unavailable). They are deliberately NOT merged with
+  # the measured negative: `not_dependent_in_indication` is a MEASURED negative and vetoes,
+  # while the other three are COVERAGE GAPS and must not (measured-vs-null discipline, the
+  # same rule non-dependent-underpowered-insufficient follows on the pooled arm).
+
+  - rule_id: dependency-in-indication-selective-supportive
+    when:
+      card_id: dependency-lineage-selectivity
+      field: indication_dependency_class
+      equals: selective_in_indication
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    dominant: true
+    rationale: |
+      The QUERIED indication's lineage is itself among the significantly enriched lineages
+      (BH-adjusted q < α, and clearing the absolute-depth floor at its finest adequately-
+      powered grain). This is the honest form of the claim `lineage_selective` used to make
+      on its own: a therapeutic window that exists IN THE INDICATION BEING ASKED ABOUT, not
+      merely somewhere in the panel. Dominant, for the same reason the shape rule is: it is
+      the canonical "use it for THIS cancer type" signal — and now it means it.
+
+  - rule_id: dependency-in-indication-supportive
+    when:
+      card_id: dependency-lineage-selectivity
+      field: indication_dependency_class
+      equals: dependent_not_enriched
+    signals:
+      small_molecule: supportive
+      degrader: supportive
+    rationale: |
+      The target IS required in the queried indication (the indication's models reach the
+      modest-dependency floor) but the indication is NOT significantly enriched relative to
+      the rest of the panel. Supportive and deliberately NOT dominant: the dependency is
+      real here, so this is materially stronger than the pooled-shape `neutral` rungs, but
+      there is no differentiated therapeutic window — the dependency may be just as strong
+      in many other lineages, which is a selectivity/safety question the pan-essential and
+      tumor-selectivity axes own, not this one.
+
+  - rule_id: not-dependent-in-indication-killer
+    when:
+      card_id: dependency-lineage-selectivity
+      field: indication_dependency_class
+      equals: not_dependent_in_indication
+    signals:
+      small_molecule: killer
+      degrader: killer
+    killer_message: |
+      The target is not functionally required in this indication: its models were screened
+      at adequate sample size and do not reach the dependency floor. A dependency measured
+      in other lineages does not transfer to the indication under consideration.
+    rationale: |
+      A MEASURED negative at the grain the run asked about, and the reason this whole family
+      exists. Requires adequate power in the indication's own models — the three
+      could-not-look states route to the insufficient rung below instead, so this rule can
+      never fire on an under-sampled indication (measured-vs-null discipline). It is
+      deliberately narrower than the pooled `non-dependent-killer`: that one asks whether
+      dependency exists ANYWHERE, this one whether it exists HERE, and a target can fail
+      this while passing that.
+
+  - rule_id: dependency-in-indication-underpowered-insufficient
+    when:
+      card_id: dependency-lineage-selectivity
+      field: indication_dependency_class
+      in: [underpowered, not_in_panel, data_unavailable]
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      COULD NOT LOOK, or could barely look — not a measured negative. Three distinct causes
+      share this rung because they share the consequence: `underpowered` (the indication's
+      lineage is in the panel but below min_cell_lines_in_lineage), `not_in_panel` (no DepMap
+      model maps to the indication's lineage / OncotreeCode set), `data_unavailable` (the
+      lineage read produced no per-lineage table at all). The CAUSE is preserved on the card
+      field for the reader even though the rung collapses them. Critically this must NOT
+      veto: absence of power in one indication's models is not evidence the target is
+      dispensable there, and the pooled pan-cancer arm still carries its own read.
 
   # ============================================================================
   # Card 3 — mutation-stratified-dependency (oncogene-addiction biomarker)

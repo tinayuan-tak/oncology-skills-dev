@@ -5,13 +5,23 @@
 # sample size, plus a single categorical `enrichment_class` describing the SHAPE
 # of lineage variation across the panel.
 #
-# DECOUPLED FROM INDICATION (Decision 2A per warm-rolling-bunny plan):
-#   - The method returns per-lineage stats for ALL lineages (target-only data product).
-#   - The indication-context "which lineage matters for this target?" question becomes
-#     a synthesis-layer / renderer concern that consults per_lineage_stats[] and
-#     surfaces the appropriate row for the dashboard's resolved indication.
-#   - One evidence package per target answers all indication + modality questions
-#     without recomputation. Same RAM/wire footprint as before; better cacheability.
+# DECOUPLED FROM INDICATION (Decision 2A per warm-rolling-bunny plan) — AMENDED 2026-09-18 (v3.2.0):
+#   - The method returns per-lineage stats for ALL lineages (target-only data product). UNCHANGED:
+#     the method still takes NO indication argument, so one DepMap read serves every indication and
+#     the cacheability property Decision 2A exists to protect is intact.
+#   - WHAT CHANGED, stated plainly rather than glossed: the indication reduction is no longer left to
+#     the synthesis layer. `indication_dependency_class` (below) is written onto this card by the
+#     `dependency` CARD PREPROCESSOR (_skills_common/card_preprocessors.py) from fields this card
+#     ALREADY emits (enriched_lineages / per_lineage_stats / per_oncotree_code_stats + the indication
+#     crosswalk). Nothing is recomputed and no method input is added — but the field's VALUE varies
+#     with the queried indication, so the card now makes a target_indication-grain claim and
+#     `entity_grains` says so. Claiming it "stays target-only" would be false.
+#   - WHY the reduction moved here: interpretation rules can fire ONLY on a card field
+#     (resolve_verdict reads fired rule_ids alone), so an indication-conditioned VERDICT is
+#     impossible unless the class exists as a card field before rule evaluation. Leaving it at the
+#     synthesis layer is what allowed `lineage_selective` to headline a dependency on a lineage the
+#     run never asked about: measured over the atlas's 504 target×indication pairs, that verdict
+#     fires on 113 (22.4%) and the QUERIED lineage is the enriched one in only 14 of them (12.4%).
 #
 # NORMATIVE INTERPRETATION → MOVED TO TIER 2 RULES:
 #   - Today's "strong lineage-selective dependency" (dominant POSITIVE) call lives in
@@ -28,7 +38,9 @@
 #   - Model.csv — cell-line metadata (OncotreeLineage primary)
 
 card_id: dependency-lineage-selectivity
-version: 3.1.0                                  # 3.1.0: absolute-depth admissibility floor on enriched_lineages (AM #600)
+version: 3.2.0                                  # 3.2.0: + indication_dependency_class (the indication-conditioned verdict
+#                spine) + target_indication grain. See the amended Decision-2A block in the header.
+#         3.1.0: absolute-depth admissibility floor on enriched_lineages (AM #600)
 #         3.0.0: indication-decoupled + pure-data shape
 question: "Across all DepMap lineages, how does {target.symbol} dependency stratify? Which lineages are enriched for dependence?"
 
@@ -84,6 +96,16 @@ outputs:
     - n_relative_only_enriched_lineages          # count of the above (0 when every enriched lineage cleared depth)
     # === Categorical (Tier-2 vocabulary; drives interpretation-rules) ===
     - enrichment_class                          # SHAPE of lineage variation across the panel
+    # === INDICATION-CONDITIONED read (target_indication grain, v3.2.0) ===
+    #     enrichment_class answers "does dependency stratify by lineage AT ALL?" — a target-grain
+    #     SHAPE question. This field answers the question a run actually asks: "is the target required
+    #     in THE LINEAGE I QUERIED?" They are NOT redundant and one does not imply the other: a
+    #     `lineage_selective` target can be `not_dependent_in_indication` (some other lineage carried
+    #     the enrichment) and a `no_lineage_enrichment` target can be `dependent_not_enriched`
+    #     (uniformly dependent, including here). Written by the `dependency` card preprocessor from
+    #     fields above + indication_crosswalk; the method is untouched. Drives the four
+    #     indication rungs (priorities 4-7) in resolvers/dependency.resolver.yaml.
+    - indication_dependency_class               # dependency read REDUCED to the queried indication's lineage
     # === Axis-3 (contextualized interpretation): ACROSS-LINEAGE OMNIBUS effect size. DISPLAY-ONLY /
     #     verdict-inert — NO rule reads these; the dependency resolver is untouched. COMPLEMENTARY to
     #     enrichment_class: that is a per-lineage one-vs-rest THRESHOLD test, this is the GLOBAL
@@ -104,6 +126,23 @@ outputs:
       - broadly_lineage_dependent               # multiple lineages show dependency but none significantly enriched
       - no_lineage_enrichment                   # no lineage shows significant dependency vs the rest
       - data_unavailable
+    indication_dependency_class:                # target_indication grain — the queried lineage's own read
+      # SIX MEASURED tokens + ONE not-asked token. Four interpretation rules consume this:
+      # dependency-in-indication-selective-supportive, dependency-in-indication-supportive,
+      # not-dependent-in-indication-killer, dependency-in-indication-underpowered-insufficient
+      # (the last takes all three could-not-look tokens). `indication_not_supplied` DELIBERATELY has
+      # no rule and no rung, so a target-grain run falls through to the pooled/shape ladder exactly as
+      # it does today and `lineage_selective` stays reachable. That absence is asserted by
+      # tests/vocabularies/test_indication_dependency_class_partition.py — without the assert the
+      # absence is invisible, and a later rule keyed on it would silently make the indication rungs
+      # fire on runs that asked no indication.
+      - selective_in_indication                 # the QUERIED lineage is among enriched_lineages — today's lineage_selective claim, made honest
+      - dependent_not_enriched                  # queried lineage reaches modest_dependency_chronos but is not significantly enriched vs the rest
+      - not_dependent_in_indication             # queried lineage measured at adequate n and does NOT reach the dependency floor
+      - underpowered                            # queried lineage present in the panel but n < min_cell_lines_in_lineage — COULD BARELY LOOK
+      - not_in_panel                            # no DepMap model maps to the indication's lineage/OncotreeCode set — COULD NOT LOOK
+      - data_unavailable                        # the lineage read itself failed (no per_lineage_stats at all)
+      - indication_not_supplied                 # a TARGET-GRAIN run asked no indication — NOT a measurement, and NOT a gap
     lineage_omnibus_effect_size_class:          # Axis-3 (display-only); bins on ε² (variance explained)
       - large                                   # ε² ≥ 0.14 — lineage explains a large share of dependency variance
       - moderate                                # ε² ≥ 0.06
@@ -157,7 +196,8 @@ caveats:
   - "Lineage-specificity does not preclude expansion to adjacent lineages with similar dependency — consult per_lineage_stats for adjacency."
   - "DepMap lineage assignments are based on OncotreeLineage; some cancer types may have ambiguous lineage classification."
   - "Enrichment is RELATIVE; admission to enriched_lineages additionally requires reaching modest_dependency_chronos at the finest adequately-powered grain (lineage, else a constituent OncotreeCode). Lineages passing the relative test alone are disclosed on relative_only_enriched_lineages and do NOT drive enrichment_class."
-  - "enrichment_class is descriptive only — therapeutic interpretation (which lineage matters for which indication) lives in interpretation-rules/."
+  - "enrichment_class is a PANEL-SHAPE label and is NOT indication-conditioned: it says a lineage somewhere is enriched, never that the queried one is. Read indication_dependency_class for the queried indication. Therapeutic interpretation of both lives in interpretation-rules/."
+  - "indication_dependency_class is a READ-SIDE reduction of the fields above over the indication's depmap_oncotree_codes (indication_crosswalk), not a new measurement — the method takes no indication argument. It is written by the dependency card preprocessor; on a target-grain run it is indication_not_supplied, which means the question was not asked and is NOT a data gap."
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of `crispr_lof_dependency` at the lineage grain (the
 # lineage-selectivity slice of the same Chronos-LOF claim; concordance test folds it in, not a new
@@ -165,5 +205,10 @@ caveats:
 measurement_type: crispr_lof_dependency
 # P4 Tier-2/3 (2026-07-24): lineage-restricted CRISPR dependency → SM/degrader efficacy selectivity (intracellular rule pre-exists). Completes the crispr_lof_dependency type so Tier-3 can enforce it. Matching rule pre-exists in interpretation-rules/intracellular-intrinsic.rules.yaml.
 modality_relevance: [small_molecule, degrader]
-entity_grains: [target, target_lineage]
+# target_indication ADDED with v3.2.0: `indication_dependency_class` is an indication-grain claim
+# (its VALUE varies with the queried indication), so the grain must be declared even though every
+# other field on this card is target/target_lineage and the METHOD still takes no indication argument.
+# Admitted by the crispr_lof_dependency entity_grains ceiling raise in vocabularies/measurement_types.yaml
+# (validate_cards.py::_measurement_type_entity_grains is a subset test, so the raise is monotone).
+entity_grains: [target, target_lineage, target_indication]
 schema_version: 1

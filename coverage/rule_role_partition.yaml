@@ -12,8 +12,8 @@ attribution_keypaths:
 - post_resolver_clamp/modality_conditional/expected_inert_arms/[]/rule_id
 - resolve/[]/driving_rule
 counts:
-  total: 428
-  gating: 136
+  total: 432
+  gating: 140
   display: 292
 gating:
 - adc-preferred-supportive
@@ -56,6 +56,9 @@ gating:
 - cooccurrence-ns-neutral
 - cooccurrence-strong-supportive
 - data-unavailable-insufficient
+- dependency-in-indication-selective-supportive
+- dependency-in-indication-supportive
+- dependency-in-indication-underpowered-insufficient
 - e7-crispr-confirmed-supportive-sm
 - e7-discordant-off-target-warning
 - e7-triangulated-target-engaged-supportive
@@ -104,6 +107,7 @@ gating:
 - non-dependent-underpowered-insufficient
 - normal-tissue-essential-bite-killer
 - normal-tissue-protein-liability-safety-warning
+- not-dependent-in-indication-killer
 - pan-essential-broad-tox-safety-warning
 - pan-essential-killer
 - partner-conditional-moderately-dependent-supportive

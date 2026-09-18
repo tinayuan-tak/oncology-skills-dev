@@ -320,7 +320,18 @@ measurement_types:
     modality_relevance: [small_molecule, degrader]
     claim: "What is the shape of CRISPR (Chronos) LOF dependency on target, incl. lineage and molecular-subgroup slices?"
     evidence_substrate: depmap_crispr_chronos   # the base genome-wide Chronos screen — the substrate the derived dependency cluster inherits
-    entity_grains: [target, target_lineage, target_subtype]   # target_subtype LIVE (subgroup-stratified-dependency binds a per-sample reader)
+    # target_indication ADDED 2026-09-18: the ceiling was UNDER-declared, not correctly restrictive.
+    # An indication-conditioned Chronos read is the SAME measurement aggregated over the indication's
+    # OncotreeCode set (indication_crosswalk.depmap_oncotree_codes) — read-side groupby, exactly the
+    # kind of thing target_lineage's own vocabulary note describes, and `partition_required: false`
+    # for target_indication so it needs no subgroup-catalog/assignment product. The framework already
+    # makes indication-grain dependency statements: genomic-event-model-match emits n_matched_dependent
+    # and n_matched_dependent_in_lineage at target_indication grain, merely filed under a different
+    # measurement_type. Raising it is MONOTONE — validate_cards checks card.entity_grains ⊆ this set,
+    # so the other three cards of this type remain valid unchanged. Consumed by
+    # dependency-lineage-selectivity's indication_dependency_class (the indication-conditioned
+    # verdict spine); the METHOD still takes no indication argument, so one read serves every indication.
+    entity_grains: [target, target_lineage, target_subtype, target_indication]   # target_subtype LIVE (subgroup-stratified-dependency binds a per-sample reader)
     cards: [pan-cancer-crispr-dependency-distribution, dependency-lineage-selectivity, subgroup-stratified-dependency, organoid-crispr-dependency]
     providers:
       - {kind: dataset, source: depmap-consortium-26q1, evidence_tier: measured}

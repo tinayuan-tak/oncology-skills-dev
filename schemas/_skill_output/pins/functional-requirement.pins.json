@@ -9,15 +9,19 @@
         "broadly_dependent",
         "selective_dependent",
         "lineage_selective",
+        "lineage_selective_in_indication",
+        "dependent_in_indication",
         "concordant_dependent",
         "chemical_genetic_confirmed_dependent",
         "partner_conditional_dependent",
         "pan_essential_killer",
         "non_dependent",
+        "not_dependent_in_indication",
         "non_dependent_paralog_buffered",
         "discordant",
         "insufficient",
         "insufficient_underpowered",
+        "insufficient_underpowered_in_indication",
         "insufficient_underpowered_pan_essential"
       ]
     }

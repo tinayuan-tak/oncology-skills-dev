@@ -17,7 +17,8 @@
 # model-backed dependency basis. modality_relevance metadata is a follow-up (schema field TBD).
 
 card_id: recommended-models
-version: 0.1.0
+version: 0.2.0   # 0.2.0 (2026-09-18): DECLARE the already-emitted `indication` echo (see summary_fields).
+                #        Additive + already-true; no method change, no grain change (already target_indication).
 question: "Which DepMap models represent {indication.label} tumors for {target.symbol} (expression-matched), and which are the positive / negative-control / resistance models for a screen?"
 
 tier: indication
@@ -46,6 +47,19 @@ outputs:
     - n_lineage_models
     - patient_median_log2tpm
     - patient_iqr
+    # `indication` DECLARES A FIELD THE PRODUCER ALREADY EMITS (v0.2.0). It is NOT new output:
+    # patient_model_expression_correspondence/read.py:86 has always put the queried indication CODE in
+    # the summary, and functional-requirement's run.py::_infer_indication has always READ it — as an
+    # UNDECLARED key. Declaring it is the point: the card preprocessor that writes
+    # dependency-lineage-selectivity's `indication_dependency_class` recovers the indication from here,
+    # and a preprocessor is handed ONLY the card list (preprocess_cards_for_gate(cards, gate)), so a
+    # card field is the only channel that exists. The CODE is required, not `depmap_lineage`: the code
+    # keys indication_crosswalk.depmap_oncotree_codes, which is what de-confounds the coarse lineages
+    # that merge >1 indication (Lung -> LUAD/SCLC, Esophagus/Stomach -> STAD/ESCA/ESCC).
+    # Deliberately NOT minted as a new `queried_indication` field: that would put the same fact in two
+    # places, which is the defect class this audit is closing, and a newly-named field would be
+    # undeclared-by-the-producer until a methods release — false on landing.
+    - indication                                 # queried indication CODE, echoed by the method (see above)
     - depmap_lineage
     - release_pin
   summary_fields_record_schemas:

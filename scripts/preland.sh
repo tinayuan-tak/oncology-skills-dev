@@ -34,6 +34,12 @@ run "pytest card vocab-declaration"      python -m pytest tests/validators/test_
 run "pytest card method-wiring"          python -m pytest tests/validators/test_card_method_wiring.py -q
 run "pytest nomination-gate+subtype-tier" python -m pytest tests/vocabularies/test_nomination_verdict_gate.py tests/validators/test_subtype_tier_rules.py -q
 run "pytest target-profiling-axes ontology" python -m pytest tests/vocabularies/test_target_profiling_axes.py tests/vocabularies/test_question_hierarchies.py -q
+# 2026-09-18: the indication-conditioned dependency spine (card field -> 4 rules -> 4 rungs, plus the
+# two-site dependency_verdict_enum parity and the DELIBERATE `indication_not_supplied` absence).
+# Gated HERE and not in contracts-validate.yml on purpose: CI's "Whole-repo test suite (safety net)"
+# step already collects it, but THIS script has no such net — every pytest gate above names one file
+# — so without this line the guard would be absent from the pre-land gate that peers actually run.
+run "pytest dependency indication spine" python -m pytest tests/vocabularies/test_indication_dependency_class_partition.py -q
 # --- ruff (.github/workflows/ruff.yml) ---
 # 2026-09-13: this script mirrored contracts-validate.yml and NOTHING ELSE, so "ALL GATES PASS" was
 # reported on a branch whose ruff job then failed on the PR — format-only, but a red check either way.
