@@ -89,6 +89,15 @@ METRIC_GLOSS: dict = {
     "shet_upper_95": ("s_het 95% CI upper bound", "s_het"),
     "obs_lof_count": ("observed LoF variant count", "count"),
     "exp_lof_count": ("expected LoF variant count", "count"),
+    # ClinGen dosage-sensitivity (dominant-loss dosage safety) + Open Targets gene-burden safety counts.
+    "n_high_confidence": ("high-confidence ClinGen dosage rows", "count"),
+    "n_total_rows": ("total curated rows for the gene", "count"),
+    "n_autosomal_dominant": ("high-confidence autosomal-dominant rows", "count"),
+    "n_autosomal_recessive": ("high-confidence autosomal-recessive rows", "count"),
+    "min_pvalue": ("strongest gene-burden association p-value", "p-value"),
+    "n_significant": ("significant gene-burden rows", "count"),
+    "n_risk": ("significant risk-direction rows", "count"),
+    "n_protect": ("significant protective-direction rows", "count"),
     # immune-context TIL (Saltz DL H&E) + surface-confirmation detection count.
     "median_til_percentage": ("median tumor-infiltrating-lymphocyte fraction", "%"),
     "median_number_of_clusters": ("median TIL spatial-cluster count", "count"),

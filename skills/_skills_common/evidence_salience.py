@@ -269,6 +269,24 @@ SALIENCE_SPECS: dict = {
         "n_field": "n_lethal",
         "categorical": ["ko_phenotype_class", "impc_ko_phenotype_class", "evidence_tier"],
     },
+    # human-genetics HOLD-axis safety cards (descriptor-coverage mint, 2026-09-18). Both were on the
+    # _UNSPECCED_VERDICT_BEARING_DEBT allowlist in test_reference_frame_governance (gating cards whose
+    # numbers reached no descriptor); this mint gives them one and REMOVES them from the debt (the ratchet
+    # shrinks 9 -> 7). Neither has a `thresholds:` block, so there is no single-sourced numeric cut and the
+    # CLASS is the ruler — categorical + n_field (+ significance for burden), no reference_frame / no atlas
+    # column, mirroring clinvar_germline_pathogenicity_safety + mouse_ko_phenotype_safety above. Adding a
+    # SALIENCE_SPEC is verdict-INERT (no gate reads salience), so the resolver golden stays byte-stable.
+    "dosage_sensitivity_safety": {
+        "n_field": "n_high_confidence",
+        "categorical": ["dosage_sensitivity_class", "germline_inheritance_mode", "top_confidence"],
+        "extra_scalars": ["n_total_rows", "n_autosomal_dominant", "n_autosomal_recessive"],
+    },
+    "human_genetic_safety": {
+        "significance_field": "min_pvalue",
+        "n_field": "n_significant",
+        "categorical": ["burden_safety_class"],
+        "extra_scalars": ["n_total_rows", "n_risk", "n_protect"],
+    },
     # alteration-role had NO numeric anchor at all: no effect_field, no n_field, and its one number sat in
     # `significance_field`, which the capsule's numeric selectors do not promote — measured as class=None +
     # ZERO anchors on 26 of 26 genomic review-panel runs, for the card that supplies the driver ROLE the

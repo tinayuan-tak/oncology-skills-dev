@@ -84,9 +84,9 @@ def test_every_verdict_bearing_type_is_gaugeable():
 # A NEW gating card must either ship a spec or be added here DELIBERATELY, with the owning review named.
 _UNSPECCED_VERDICT_BEARING_DEBT = {
     "cis_dosage_coupling",  # cis-feature-expression-coherence — cis-feature-coherence review
-    "dosage_sensitivity_safety",  # clingen-dosage — on-target-safety review
+    # dosage_sensitivity_safety + human_genetic_safety SPECCED 2026-09-18 (descriptor-coverage mint) —
+    # removed from the debt; test_the_unspecced_debt_list_has_no_stale_entries enforces they stay out.
     "exon_window",  # modality-exon-window — modality-fit review
-    "human_genetic_safety",  # gene-burden-safety — on-target-safety review
     "known_drug_tractability",  # known-drug-tractability — tractability review
     "paralog_buffering",  # paralog-buffering — functional-requirement review
     "partner_conditional_dependency",  # partner-conditional-dependency — combination review
