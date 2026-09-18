@@ -41,6 +41,61 @@ MIN_RELIABLE_DONORS = 5
 NORMAL_ABUND_HIGH = 0.64
 NORMAL_ABUND_MODERATE = 0.24
 
+# --- COMPARTMENT split of the always-on safety-essential organs (veto-grade instrument) ---
+# WHY THIS EXISTS. sc_normal_safety_essential_class == critical_organ_liability fires on 468 of the 504
+# (target, indication) pairs in corpus-20260914 — a 92.9% base rate — and its single largest driver is
+# the BRAIN shard (259 of 468, 55.3%; cortical/forebrain neurons, medium spiny neurons and astrocytes
+# together ~45% of all firings). Two mechanisms compound: neurons carry the broadest transcriptome of
+# any cell type, so median_det > 0.20 in a cortical neuron is close to the null expectation for any
+# expressed gene; and brain is the largest shard in the always-on set (36M cells / 172 cell types), so
+# the ANY-quantifier runs over more candidates there than anywhere else (median 150 cell types clear
+# the floor across the corpus, max 831).
+#
+# The consumer is what makes that a defect rather than a curiosity: the class drives
+# `sc-normal-high-liability-bite-killer`, which is `dominant: true` and signals bite_tce ONLY. A
+# systemically dosed T-cell engager is the modality LEAST able to reach brain parenchyma, so the
+# dominant driver of a BiTE-specific killer is its least relevant compartment. The framework's own
+# validated case proves the cost: DLL3/SCLC — tarlatamab's target, an APPROVED TCE — is vetoed today
+# with `brain` as its named driver organ.
+#
+# ★ BUT THE ARGMAX ORGAN IS NOT THE COMPARTMENT, AND MEASURING IT LIVE MOVED THE ANSWER BY 6x.
+# The 55.3% brain figure above is the share of firings whose NAMED DRIVER (the argmax over the pool) is
+# brain. It is NOT the share that is brain-ONLY. Re-measured by running this method live against S3 for
+# all 504 corpus pairs — exact, no truncation — **230 of those 259 brain-argmax calls (88.8%) ALSO carry
+# an above-floor essential hit in a systemically accessible organ**, so only 29 of 468 (6.2%) are truly
+# brain-only. (An earlier estimate of 37.1% was computed from the stored top-15 `per_cell_type_top`
+# footprint, which truncates exactly the broad targets that drive the base rate — some carry 80-143 cell
+# types above 0.20. It was a floor, and a very loose one.)
+#
+# TWO CONSEQUENCES, both load-bearing:
+#   1. The fail-closed partition below is MORE necessary than the estimate suggested: an argmax-based
+#      compartment call would have mislabelled 230 targets `bbb_protected`, i.e. relieved a dominant
+#      safety killer on real lung/liver/marrow liabilities. The pool scan is not belt-and-braces.
+#   2. The COMPARTMENT axis is NOT what repairs the base rate — it is worth only 29 targets (5.8 pts of
+#      the 48.6-pt total relief, 12%). The SEVERITY rung does 88% of the work (216 targets), and it works
+#      better here than a naive read predicts precisely BECAUSE it grades the worst ACCESSIBLE hit rather
+#      than the argmax: the brain hits are often the best-replicated ones in the pool (CD276 sits at 22
+#      atlases), so argmax-based severity systematically OVER-graded. Keep the compartment for its
+#      correctness role (and because brain-only genuinely should not take a systemic-TCE killer), but do
+#      not credit it with the base-rate repair.
+# LIVE, EXACT, all 504 pairs: accessible_high_severity 223 (44.2%) / accessible_low_confidence 145
+# (28.8%) / accessible_moderate_severity 71 (14.1%) / bbb_protected 29 (5.8%) / not_applicable 29 (5.8%)
+# / origin_tissue 7 (1.4%) / accessible_ungraded 0. The grade is a strict REFINEMENT of the class: every
+# non-critical arm maps 1:1 (none→not_applicable, origin_tissue_liability→origin_tissue), so the
+# LABEL-not-DROP property is verified on live data, not just asserted.
+#
+# RAISING THE DETECTION FLOOR CANNOT FIX THIS, and that is measured exactly (the named driver is the
+# argmax over above-floor off-origin hits, so the counterfactual is computable rather than simulated):
+# floors of 0.30/0.50/0.70/0.90 leave base rates of 89.3/81.0/67.5/42.9%. Even 0.90 leaves a coin flip,
+# and the observed minimum is 0.219 — nothing sits near the current floor. Detection fraction is a
+# SATURATING statistic (corpus median 0.871, p75 0.970): it has run out of headroom, which is the same
+# axis-not-threshold failure recorded for the abundance bands above.
+#
+# So the compartment is graded as a separate dimension and composed into
+# `sc_normal_essential_veto_grade` (below), leaving sc_normal_safety_essential_class BYTE-IDENTICAL.
+# Nothing is reclassified to the favourable `none`: this LABELS the veto's basis, it does not DROP it.
+BBB_PROTECTED_TISSUES = frozenset({"brain"})
+
 # Safety-essential normal cell types: any detection in these types forces a dedicated flag.
 # These map to Census Cell Ontology labels (raw, no synonymy). WHOLE-TOKEN matching is used so a
 # lineage token matches its subtypes wherever the token appears as a standalone word (e.g. "neuron"
@@ -165,6 +220,72 @@ def _norm_tissue(tissue) -> str:
     uroplakin was previously invisible because the origin comparison failed and the hit then fell into
     the off-origin ambient band."""
     return re.sub(r"[\s_-]+", " ", str(tissue).lower()).strip()
+
+
+def _essential_compartment(tissue) -> str:
+    """`bbb_protected` | `systemically_accessible` for one essential-cell hit's organ.
+
+    UNKNOWN TISSUE IS ACCESSIBLE, not protected. A None/blank tissue (older Tier-1 callers with no
+    `tissue` column) must never earn the modality-relieving compartment — that would make a coverage
+    gap look like a safety argument. Mirrors the existing origin split, which treats unknown tissue as
+    off-origin for the same reason."""
+    if tissue is None or not str(tissue).strip():
+        return "systemically_accessible"
+    return "bbb_protected" if _norm_tissue(tissue) in BBB_PROTECTED_TISSUES else "systemically_accessible"
+
+
+def _essential_severity(rec: dict) -> str:
+    """Grade ONE essential-cell hit by magnitude x consistency x replication.
+
+    Thresholds are PORTED VERBATIM from the existing W3c grader at
+    claude-oncology-skills skills/tumor-selectivity/scripts/run.py `_sc_normal_essential_severity`
+    (det >= 0.50 AND donor >= 0.70 AND >= 2 atlases → high; det < 0.30 OR <= 1 atlas → low), so the
+    method and that skill cannot disagree about the same hit. The skill computes this locally and
+    VERDICT-INERTLY; promoting it here is what lets a rule read it, since the rule grammar admits only
+    one (card_id, field) predicate and therefore cannot conjoin severity with compartment itself.
+
+    `ungraded` is NOT a low rung. It means the fields needed to grade are ABSENT (an older product with
+    no n_datasets_reliable / expressing_donor_fraction column), and it must stay veto-eligible: grading
+    a missing replication column as `low_confidence` would let thinner data RELAX the killer, which is
+    the fail-open direction. Confirmed absent by a LIVE run over all 504 corpus pairs (0 occurrences of
+    `accessible_ungraded`) — inert by corpus, but INERT BY CORPUS IS NOT SAFE BY CONTRACT, and the
+    contract has to hold anyway."""
+    det = rec.get("median_detection_fraction")
+    n_ds = rec.get("n_datasets_reliable")
+    if not isinstance(det, (int, float)) or not isinstance(n_ds, int):
+        return "ungraded"
+    frac = rec.get("expressing_donor_fraction")
+    if not isinstance(frac, (int, float)):
+        return "ungraded"
+    if det >= 0.50 and frac >= 0.70 and n_ds >= 2:
+        return "high_severity"
+    if det < 0.30 or n_ds <= 1:
+        return "low_confidence"
+    return "moderate_severity"
+
+
+def _essential_veto_grade(veto_pool: list[dict], essential_origin_only: bool) -> str:
+    """Compose compartment x severity into the single categorical a rule can key on.
+
+    `veto_pool` is the ABOVE-FLOOR OFF-ORIGIN essential hits — exactly the set that fired
+    critical_organ_liability, so this grades the veto's own basis and cannot disagree with it.
+
+    FAIL-CLOSED ON THE PARTITION, NOT THE ARGMAX. The compartment is decided over the WHOLE pool: if ANY
+    above-floor off-origin hit sits in a systemically accessible organ, the grade is `accessible_*`, and
+    severity is taken from the worst ACCESSIBLE hit — never from the global argmax. Grading on the argmax
+    instead would be a LARGE fail-open, measured live against S3 over all 504 corpus pairs: **230 of the
+    259 brain-argmax critical calls (88.8%)** ALSO carry an accessible-organ essential hit above 0.20, so
+    an argmax rule would stamp `bbb_protected` on 230 real lung/liver/marrow liabilities and relieve a
+    dominant safety killer on every one of them. AKT1 is the clean example — brain wins the argmax while
+    cycling pulmonary AT2 sits at det 0.615. Only 29 of 468 (6.2%) are genuinely brain-only.
+    Only when EVERY above-floor off-origin hit is BBB-protected does the grade become `bbb_protected`."""
+    if not veto_pool:
+        return "origin_tissue" if essential_origin_only else "not_applicable"
+    accessible = [e for e in veto_pool if _essential_compartment(e.get("tissue")) == "systemically_accessible"]
+    if not accessible:
+        return "bbb_protected"
+    worst = max(accessible, key=lambda e: e.get("median_detection_fraction") or 0.0)
+    return f"accessible_{_essential_severity(worst)}"
 
 
 def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> dict:
@@ -318,6 +439,17 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
         _driver_pool = []
     essential_driver = max(_driver_pool, key=lambda e: e["median_detection_fraction"]) if _driver_pool else None
 
+    # The veto's OWN basis: the above-floor OFF-ORIGIN essential hits, i.e. exactly the set whose
+    # non-emptiness IS `essential_off_origin`. Recomputed unconditionally (rather than reusing
+    # _driver_pool) because _driver_pool switches to ORIGIN records on the origin-only branch, and
+    # grading the critical-organ veto off origin hits would describe a different question.
+    _veto_pool = [
+        e
+        for e in essential_records
+        if e["is_off_origin"] and e["median_detection_fraction"] > CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR
+    ]
+    veto_grade = _essential_veto_grade(_veto_pool, essential_origin_only)
+
     # Normal cell-type DETECTION CEILING across ALL reliable cell types — the honest denominator for a
     # single-cell tumor-vs-normal WINDOW (the positive use of the atlas, not only the safety veto). This
     # is the true global max, distinct from max_detection_fraction (the liability-anchor cell, which for
@@ -391,6 +523,20 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
         if essential_driver
         else None,
         "sc_normal_essential_median_abund": essential_driver["median_abund"] if essential_driver else None,
+        # GRADED veto instrument: compartment x severity over the SAME above-floor off-origin pool that
+        # sets sc_normal_safety_essential_class, collapsed into one rule-addressable categorical because
+        # the interpretation-rule grammar admits exactly one (card_id, field) predicate per rule and so
+        # cannot conjoin the two dimensions itself. Purpose: give the `dominant: true` BiTE/TCE killer a
+        # discriminating rung instead of a 92.9%-base-rate boolean. See BBB_PROTECTED_TISSUES for the
+        # measurement, _essential_veto_grade for the fail-closed partition.
+        #   accessible_high_severity / accessible_ungraded  → veto-eligible (ungraded = fields ABSENT,
+        #       which must not relieve the veto: missing replication data is not a safety argument)
+        #   accessible_moderate_severity / accessible_low_confidence → real but not maximal
+        #   bbb_protected  → EVERY above-floor off-origin hit is brain parenchyma; still a liability for
+        #       BBB-crossing modalities (small molecule / degrader), weak for a systemically dosed TCE
+        #   origin_tissue  → origin-only essential hits (window-arbitrated, unchanged)
+        #   not_applicable → no essential hit above floor
+        "sc_normal_essential_veto_grade": veto_grade,
         # Normal cell-type detection ceiling across all reliable cell types (single-cell window denominator).
         "sc_normal_ceiling_detection_fraction": ceiling_det,
         "safety_essential_flags": safety_flags,
@@ -415,6 +561,9 @@ def _data_unavailable_class(note: str = "") -> dict:
         "sc_normal_essential_donor_fraction": None,
         "sc_normal_essential_n_datasets_reliable": None,
         "sc_normal_essential_median_abund": None,
+        # `data_unavailable`, NOT `not_applicable`: no product / no reliable donors is a coverage gap,
+        # and a gap must not be spelled the same way as a measured absence of liability.
+        "sc_normal_essential_veto_grade": "data_unavailable",
         "sc_normal_ceiling_detection_fraction": None,
         "safety_essential_flags": {},
         "n_cell_types_above_20pct": 0,

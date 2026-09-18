@@ -186,12 +186,26 @@ def test_safety_essential_class_critical_organ_vs_origin_tissue():
     rows_lung = _tier1_rows([("pulmonary alveolar type 1 cell", 10, 0.60, 0.70)], tissue="lung")
     r2 = S.classify_sc_normal_expression(rows_lung, origin_tissues=["lung"])
     assert r2["sc_normal_safety_essential_class"] == "origin_tissue_liability"
-    # off_origin dominates: a gene hitting BOTH lung(origin) AND heart(critical) → critical
-    rows_both = _tier1_rows([("pulmonary alveolar type 1 cell", 10, 0.60, 0.70)], tissue="lung") + _tier1_rows(
-        [("cardiac muscle cell", 10, 0.90, 0.90)], tissue="heart"
+    # off_origin dominates: a gene hitting BOTH lung(origin) AND heart(critical) → critical.
+    # pd.concat, NOT `+`: DataFrame addition is ELEMENT-WISE, so the two 1-row frames used to collapse
+    # into a SINGLE mangled row (cell_type "pulmonary alveolar type 1 cellcardiac muscle cell", tissue
+    # "lungheart", median_det 0.60+0.90 = 1.5 — an impossible detection FRACTION). That row is trivially
+    # off-origin because "lungheart" is in no origin set, so this assertion passed without ever building
+    # the two-organ case it names and could not fail if off-origin-dominates regressed.
+    rows_both = pd.concat(
+        [
+            _tier1_rows([("pulmonary alveolar type 1 cell", 10, 0.60, 0.70)], tissue="lung"),
+            _tier1_rows([("cardiac muscle cell", 10, 0.90, 0.90)], tissue="heart"),
+        ],
+        ignore_index=True,
     )
+    assert len(rows_both) == 2, "the both-organs frame must actually carry two rows"
+    assert set(rows_both["tissue"]) == {"lung", "heart"}
     r3 = S.classify_sc_normal_expression(rows_both, origin_tissues=["lung"])
     assert r3["sc_normal_safety_essential_class"] == "critical_organ_liability"
+    assert r3["sc_normal_essential_max_tissue"] == "heart", (
+        "the named driver must be the OFF-ORIGIN heart hit, not the origin lung one"
+    )
 
 
 def test_norm_tissue_folds_shard_key_and_census_separators():
@@ -863,3 +877,246 @@ def test_new_fields_present_in_data_unavailable_branch():
         "sc_normal_ceiling_detection_fraction",
     ):
         assert k in r and r[k] is None
+
+
+# --- sc_normal_essential_veto_grade: compartment x severity ------------------
+#
+# The graded veto instrument. sc_normal_safety_essential_class is a 92.9%-base-rate boolean on
+# corpus-20260914 whose single largest driver is the brain shard (55.3%), and it feeds a `dominant: true`
+# BiTE/TCE killer — the modality least able to reach brain parenchyma. These tests pin the two properties
+# that make the grade safe to key a killer on: it never relieves the veto on THIN data, and it never lets
+# the argmax organ hide an accessible-organ liability.
+
+
+def _grade(rows, origin):
+    return S.classify_sc_normal_expression(rows, origin_tissues=origin)["sc_normal_essential_veto_grade"]
+
+
+def test_veto_grade_accessible_high_severity_when_well_replicated():
+    """A well-replicated, high-detection hit in an ACCESSIBLE critical organ is the maximal rung —
+    the one a dominant killer may key on."""
+    # NB: label chosen because it VERIFIABLY matches SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES. The obvious
+    # pick, "kidney proximal convoluted tubule epithelial cell", does NOT match — see
+    # test_kidney_proximal_tubule_prefix_misses_the_real_census_labels below.
+    rows = _tier1_rows([("kidney loop of Henle thick ascending limb epithelial cell", 40, 0.90, 0.95)], tissue="kidney")
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert r["sc_normal_safety_essential_class"] == "critical_organ_liability"
+    assert r["sc_normal_essential_veto_grade"] == "accessible_high_severity"
+
+
+def test_veto_grade_single_atlas_is_low_confidence_not_high():
+    """n_datasets_reliable <= 1 caps the grade at low_confidence however high the detection.
+    This is the EPCAM/FOLR1 shape: det ~0.99/0.71 on ONE atlas."""
+    rows = _tier1_rows([("cardiac muscle cell", 40, 0.99, 1.0)], tissue="heart")
+    rows["n_datasets_reliable"] = 1
+    assert _grade(rows, ["colon"]) == "accessible_low_confidence"
+
+
+def test_veto_grade_bbb_protected_only_when_every_hit_is_brain():
+    """A brain-parenchyma-only liability grades bbb_protected — still a liability (the class is
+    unchanged), but not the rung a systemically dosed TCE killer keys on."""
+    rows = _tier1_rows(
+        [("L5 extratelencephalic projecting glutamatergic cortical neuron", 40, 0.97, 1.0)], tissue="brain"
+    )
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["lung"])
+    assert r["sc_normal_safety_essential_class"] == "critical_organ_liability", (
+        "the CLASS must be untouched — this grades the veto, it does not drop it"
+    )
+    assert r["sc_normal_essential_veto_grade"] == "bbb_protected"
+
+
+def test_veto_grade_brain_argmax_must_not_mask_an_accessible_organ_hit():
+    """THE FAIL-OPEN THIS DESIGN EXISTS TO DEFEAT. Grading the compartment on the ARGMAX organ would
+    call this bbb_protected, because the brain hit (0.97) outranks the lung hit (0.62) on detection.
+    Measured on corpus-20260914, at least 96 of 259 brain-argmax critical calls (37.1%) carry exactly
+    this shape — AKT1 is the clean case (brain argmax, cycling pulmonary AT2 at det 0.615). The
+    partition is over the WHOLE above-floor off-origin pool, so ANY accessible hit governs, and severity
+    comes from the worst ACCESSIBLE hit rather than the global argmax."""
+    rows = pd.concat(
+        [
+            _tier1_rows(
+                [("L5 extratelencephalic projecting glutamatergic cortical neuron", 40, 0.97, 1.0)], tissue="brain"
+            ),
+            _tier1_rows([("cycling pulmonary alveolar type 2 cell", 40, 0.62, 0.90)], tissue="lung"),
+        ],
+        ignore_index=True,
+    )
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert r["sc_normal_essential_max_tissue"] == "brain", "the named driver is still the global argmax"
+    assert r["sc_normal_essential_veto_grade"] == "accessible_high_severity", (
+        "the LUNG hit must govern the grade even though BRAIN wins the argmax"
+    )
+
+
+def test_veto_grade_ignores_a_sub_floor_accessible_hit():
+    """Only ABOVE-floor off-origin hits are in the pool. A sub-0.20 accessible hit did not fire the
+    class and must not upgrade the grade off bbb_protected either — otherwise the grade would disagree
+    with the very class it describes."""
+    rows = pd.concat(
+        [
+            _tier1_rows([("neuron of the forebrain", 40, 0.97, 1.0)], tissue="brain"),
+            _tier1_rows([("cardiac muscle cell", 40, 0.12, 0.30)], tissue="heart"),
+        ],
+        ignore_index=True,
+    )
+    assert _grade(rows, ["colon"]) == "bbb_protected"
+
+
+def test_veto_grade_unknown_tissue_is_accessible_not_protected():
+    """A missing `tissue` column must not earn the modality-relieving compartment: a coverage gap is
+    not a safety argument. Mirrors the origin split, which treats unknown tissue as off-origin."""
+    rows = _tier1_rows([("cardiac muscle cell", 40, 0.90, 0.95)], tissue="heart").drop(columns=["tissue"])
+    assert _grade(rows, ["colon"]) == "accessible_high_severity"
+
+
+def test_veto_grade_ungraded_when_replication_is_absent_and_it_is_not_a_low_rung():
+    """DIRECTION TEST ON THE FIX ITSELF. If the fields needed to grade are ABSENT, the grade must stay
+    veto-eligible (`accessible_ungraded`), never `accessible_low_confidence` — otherwise removing a
+    column would RELAX a killer, i.e. thinner data would buy a better safety verdict."""
+    rows = _tier1_rows([("cardiac muscle cell", 40, 0.90, 0.95)], tissue="heart").drop(columns=["n_datasets_reliable"])
+    g = _grade(rows, ["colon"])
+    assert g == "accessible_ungraded", g
+    assert g != "accessible_low_confidence"
+
+
+def test_veto_grade_origin_only_and_not_applicable_are_distinct():
+    """origin_tissue (window-arbitrated by design) must not be spelled the same as not_applicable
+    (no essential hit at all), and neither may be spelled data_unavailable (a coverage gap)."""
+    origin_only = _tier1_rows([("cardiac muscle cell", 40, 0.90, 0.95)], tissue="heart")
+    assert _grade(origin_only, ["heart"]) == "origin_tissue"
+    # `fibroblast`, not an enterocyte: GI enterocytes/colonocytes ARE in the essential vocabulary, so a
+    # colon epithelial hit grades origin_tissue, not not_applicable. not_applicable means NO essential
+    # hit exists anywhere — the pool is empty, not merely exempted.
+    none_at_all = _tier1_rows([("fibroblast", 40, 0.90, 0.95)], tissue="colon")
+    assert _grade(none_at_all, ["colon"]) == "not_applicable"
+    assert S._data_unavailable_class()["sc_normal_essential_veto_grade"] == "data_unavailable"
+
+
+def test_veto_grade_severity_matches_the_skills_w3c_grader_thresholds():
+    """The rungs are ported VERBATIM from tumor-selectivity's `_sc_normal_essential_severity`
+    (det >= 0.50 AND donor >= 0.70 AND >= 2 atlases → high; det < 0.30 OR <= 1 atlas → low). Pinned
+    here so the method and that skill cannot drift into disagreeing about the same hit."""
+    base = {"median_detection_fraction": 0.60, "expressing_donor_fraction": 0.80, "n_datasets_reliable": 4}
+    assert S._essential_severity(base) == "high_severity"
+    assert S._essential_severity({**base, "n_datasets_reliable": 1}) == "low_confidence"
+    assert S._essential_severity({**base, "median_detection_fraction": 0.25}) == "low_confidence"
+    # det >= 0.50 but donor consistency below the HIGH bar, still replicated → moderate
+    assert S._essential_severity({**base, "expressing_donor_fraction": 0.50}) == "moderate_severity"
+    # det in [0.30, 0.50) with replication → moderate, not low
+    assert S._essential_severity({**base, "median_detection_fraction": 0.40}) == "moderate_severity"
+
+
+def test_veto_grade_never_reclassifies_the_class_itself():
+    """LABEL, NOT DROP: for every shape below the grade changes while
+    sc_normal_safety_essential_class stays exactly what it was before this field existed."""
+    cases = [
+        (_tier1_rows([("cardiac muscle cell", 40, 0.90, 0.95)], tissue="heart"), ["colon"], "critical_organ_liability"),
+        (
+            _tier1_rows([("neuron of the forebrain", 40, 0.97, 1.0)], tissue="brain"),
+            ["colon"],
+            "critical_organ_liability",
+        ),
+        (_tier1_rows([("cardiac muscle cell", 40, 0.90, 0.95)], tissue="heart"), ["heart"], "origin_tissue_liability"),
+    ]
+    for rows, origin, expected_class in cases:
+        r = S.classify_sc_normal_expression(rows, origin_tissues=origin)
+        assert r["sc_normal_safety_essential_class"] == expected_class
+        assert r["sc_normal_essential_veto_grade"] != "none", "the grade is a separate vocabulary"
+
+
+@pytest.mark.xfail(
+    strict=True,
+    reason="KNOWN GAP, deliberately not fixed in the veto-grade change: the "
+    "`kidney proximal tubule` prefix matches no real Census label. Tightening the essential "
+    "vocabulary moves the CLASS on an unmeasured set of targets and needs its own backtest.",
+)
+def test_kidney_proximal_tubule_prefix_misses_the_real_census_labels():
+    """FAIL-OPEN IN THE ESSENTIAL VOCABULARY — found while picking a fixture label for the veto-grade
+    tests, and pinned here so it cannot be forgotten.
+
+    `SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES` contains the CONTIGUOUS multi-word prefix
+    `"kidney proximal tubule"`. The Cell Ontology labels Census actually uses are
+    `epithelial cell of proximal tubule[ segment N]` (reversed word order, no "kidney") and
+    `kidney proximal convoluted tubule epithelial cell` ("convoluted" interposed). Neither matches,
+    so the prefix as written appears to cover a label that does not occur in the data while missing
+    the two that do — and the proximal tubule is THE canonical kidney-toxicity compartment.
+
+    MEASURED on corpus-20260914, DPEP1-COADREAD (a kidney brush-border dipeptidase):
+      - `epithelial cell of proximal tubule`  det 0.479, **22 independent atlases** → NOT flagged
+      - `epithelial cell of proximal tubule segment 1`  det 0.710 → NOT flagged
+      - the only kidney label that DID flag: `kidney loop of Henle descending limb epithelial cell`
+        at det 0.115, i.e. below even the 0.20 off-origin floor
+    Its `critical_organ_liability` therefore names **pancreas / pancreatic acinar cell**, and the
+    most heavily replicated kidney signal in the package is invisible to the safety-essential class.
+    Only 10 of 513 corpus packages mention a proximal-tubule label at all, and the stored
+    `per_cell_type_top` is truncated to 15 rows, so 10 is a FLOOR on the blast radius, not a count.
+
+    Direction note: unlike the veto-grade change this test sits beside, closing this gap makes the
+    veto fire MORE, so it cannot be justified by the same "92.9% is too blunt" argument and must be
+    argued on its own evidence.
+    """
+    assert S._is_safety_essential("epithelial cell of proximal tubule")
+    assert S._is_safety_essential("epithelial cell of proximal tubule segment 1")
+    assert S._is_safety_essential("kidney proximal convoluted tubule epithelial cell")
+
+
+def test_veto_grade_is_a_STRICT_REFINEMENT_of_the_safety_essential_class():
+    """THE CONTRACT BETWEEN THE TWO FIELDS, pinned. The grade must partition the class, never cross it:
+
+        accessible_* / bbb_protected  <=>  critical_organ_liability
+        origin_tissue                 <=>  origin_tissue_liability
+        not_applicable                <=>  none
+
+    Verified on live data before being pinned here: a run of this method against S3 over all 504
+    corpus-20260914 (target, indication) pairs produced ZERO crossings — the cross-tab of class x grade
+    has exactly 6 populated cells, one per arm, with the 468 critical calls splitting
+    223 accessible_high_severity / 145 accessible_low_confidence / 71 accessible_moderate_severity /
+    29 bbb_protected. A crossing would mean the veto and its own grade disagree about whether there IS a
+    liability, which is the one thing a graded companion may never do."""
+    ARMS = {
+        "critical_organ_liability": {
+            "accessible_high_severity",
+            "accessible_moderate_severity",
+            "accessible_low_confidence",
+            "accessible_ungraded",
+            "bbb_protected",
+        },
+        "origin_tissue_liability": {"origin_tissue"},
+        "none": {"not_applicable"},
+    }
+    cases = [
+        # (rows, origin_tissues) spanning every arm, incl. the mixed and sub-floor shapes
+        (_tier1_rows([("cardiac muscle cell", 40, 0.90, 0.95)], tissue="heart"), ["colon"]),
+        (_tier1_rows([("neuron of the forebrain", 40, 0.97, 1.0)], tissue="brain"), ["colon"]),
+        (_tier1_rows([("cardiac muscle cell", 40, 0.90, 0.95)], tissue="heart"), ["heart"]),
+        (_tier1_rows([("fibroblast", 40, 0.90, 0.95)], tissue="colon"), ["colon"]),
+        (_tier1_rows([("hepatocyte", 40, 0.03, 0.10)], tissue="liver"), ["colon"]),  # below the flag floor
+        (
+            pd.concat(
+                [
+                    _tier1_rows([("neuron of the forebrain", 40, 0.97, 1.0)], tissue="brain"),
+                    _tier1_rows([("hepatocyte", 40, 0.55, 0.80)], tissue="liver"),
+                ],
+                ignore_index=True,
+            ),
+            ["colon"],
+        ),
+        (
+            pd.concat(
+                [
+                    _tier1_rows([("cardiac muscle cell", 40, 0.90, 0.95)], tissue="heart"),
+                    _tier1_rows([("enterocyte", 40, 0.80, 0.90)], tissue="colon"),
+                ],
+                ignore_index=True,
+            ),
+            ["colon"],  # origin hit AND off-origin hit → off_origin dominates on BOTH fields
+        ),
+    ]
+    for rows, origin in cases:
+        r = S.classify_sc_normal_expression(rows, origin_tissues=origin)
+        cls, grade = r["sc_normal_safety_essential_class"], r["sc_normal_essential_veto_grade"]
+        assert grade in ARMS[cls], f"grade {grade!r} crosses class arm {cls!r} (origin={origin})"
+    # and the coverage-gap branch keeps its own spelling on BOTH fields
+    du = S._data_unavailable_class()
+    assert du["sc_normal_safety_essential_class"] == "data_unavailable"
+    assert du["sc_normal_essential_veto_grade"] == "data_unavailable"
