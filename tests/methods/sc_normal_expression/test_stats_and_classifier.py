@@ -9,6 +9,8 @@ Mirrors tests/methods/sc_tumor_expression_celltype/test_stats_and_assembler.py s
 
 from __future__ import annotations
 
+import itertools
+
 import pandas as pd
 import pytest
 
@@ -992,18 +994,194 @@ def test_veto_grade_origin_only_and_not_applicable_are_distinct():
     assert S._data_unavailable_class()["sc_normal_essential_veto_grade"] == "data_unavailable"
 
 
+def test_veto_grade_takes_the_worst_GRADE_not_the_detection_argmax():
+    """THE SECOND-LAYER FAIL-OPEN. The compartment was already partitioned over the whole pool, but
+    SEVERITY was still read off the DETECTION ARGMAX — so the pool's worst-graded hit could be
+    shadowed by a higher-detection hit that grades lower. Detection is not a monotone proxy for the
+    grade, because `_essential_severity` is a CONJUNCTION over det x donor x atlas count.
+
+    POSITIVE CONTROL, constructed to FAIL on the argmax implementation:
+      A  det 0.80, donor 0.50, 5 atlases  -> moderate_severity  (wins the detection argmax)
+      B  det 0.75, donor 0.95, 10 atlases -> high_severity      (the hit that should govern)
+    The argmax picks A and grades the target `accessible_moderate_severity`, relieving the dominant
+    killer; taking the worst GRADE picks B. Live blast radius over all 504 corpus-20260914 pairs:
+    110 of the 439 pairs with an accessible hit (25.1%) were under-graded, 59 of them out of the
+    killer entirely."""
+    hit_a = {"median_detection_fraction": 0.80, "expressing_donor_fraction": 0.50, "n_datasets_reliable": 5}
+    hit_b = {"median_detection_fraction": 0.75, "expressing_donor_fraction": 0.95, "n_datasets_reliable": 10}
+    # ANTI-VACUITY: the construction only tests anything if A really is the detection argmax AND the
+    # two hits really grade differently. Assert both, so a fixture edit cannot quietly neuter it.
+    assert hit_a["median_detection_fraction"] > hit_b["median_detection_fraction"], "A must win the argmax"
+    assert S._essential_severity(hit_a) == "moderate_severity"
+    assert S._essential_severity(hit_b) == "high_severity"
+
+    rows = pd.concat(
+        [
+            _tier1_rows([("cardiac muscle cell", 40, 0.80, 0.50)], tissue="heart"),
+            _tier1_rows([("hepatocyte", 40, 0.75, 0.95)], tissue="liver"),
+        ],
+        ignore_index=True,
+    )
+    rows["n_datasets_reliable"] = [5, 10]
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert r["sc_normal_essential_veto_grade"] == "accessible_high_severity", (
+        "the LIVER hit must govern the grade even though HEART wins the detection argmax"
+    )
+    assert r["sc_normal_safety_essential_class"] == "critical_organ_liability", "LABEL, not DROP"
+
+
+def test_veto_grade_single_atlas_argmax_must_not_shadow_a_replicated_hit():
+    """THE MECHANISM, not just the symptom. The under-grading is systematic rather than incidental:
+    a single-dataset detection fraction is unshrunk and noisy, so it WINS a maximum over detection —
+    while `_essential_severity` sends `n_ds <= 1` straight to `low_confidence`. So the selection
+    criterion is ANTI-CORRELATED with the grading criterion. Measured live: the argmax hit was
+    measured in exactly ONE atlas in 104 of the 110 under-graded pairs (94.5%), against 8.2% of the
+    pairs the argmax grades correctly.
+
+    This is FOLR1-OV's real shape, read live from S3: a 1-atlas kidney hit at det 0.708 shadowed
+    pulmonary alveolar type 2 at det 0.626 / donor 0.884 across 30 atlases, so a heavily replicated
+    lung AND kidney liability graded `accessible_low_confidence` and fired nothing at all."""
+    rows = pd.concat(
+        [
+            _tier1_rows([("kidney collecting duct principal cell", 40, 0.708, 1.0)], tissue="kidney"),
+            _tier1_rows([("pulmonary alveolar type 2 cell", 40, 0.626, 0.884)], tissue="lung"),
+        ],
+        ignore_index=True,
+    )
+    rows["n_datasets_reliable"] = [1, 30]
+    assert _grade(rows, ["ovary"]) == "accessible_high_severity"
+    # ANTI-VACUITY: strip the replicated hit and the SAME pool must fall back to low_confidence, which
+    # proves the assertion above is carried by the lung hit and not by the kidney hit's detection.
+    kidney_only = rows.iloc[[0]].copy()
+    assert _grade(kidney_only, ["ovary"]) == "accessible_low_confidence"
+
+
+def test_essential_severity_rank_is_ordered_by_veto_consequence_then_measurement():
+    """The rank map that picks the worst grade must order by VETO CONSEQUENCE first. `ungraded` is
+    killer-eligible and `moderate_severity` is not, so ranking ungraded lower would mean that
+    DROPPING a column relaxes the killer — thinner data buying a better safety verdict, which is the
+    fail-open direction this whole instrument exists to close. Between `high_severity` and `ungraded`
+    the veto consequence is identical, so the MEASURED label wins as the more informative one."""
+    rank = S._ESSENTIAL_SEVERITY_RANK
+    assert rank["ungraded"] > rank["moderate_severity"] > rank["low_confidence"]
+    assert rank["high_severity"] > rank["ungraded"]
+    # EXHAUSTIVE over what _essential_severity can actually return, so a new rung cannot sort
+    # silently as "lowest" — the map is keyed, so an unmapped rung raises KeyError instead.
+    returnable = {
+        S._essential_severity(rec)
+        for rec in [
+            {"median_detection_fraction": 0.9, "expressing_donor_fraction": 0.9, "n_datasets_reliable": 4},
+            {"median_detection_fraction": 0.4, "expressing_donor_fraction": 0.9, "n_datasets_reliable": 4},
+            {"median_detection_fraction": 0.1, "expressing_donor_fraction": 0.9, "n_datasets_reliable": 4},
+            {"median_detection_fraction": 0.9, "expressing_donor_fraction": 0.9},
+        ]
+    }
+    assert returnable == {"high_severity", "moderate_severity", "low_confidence", "ungraded"}
+    assert returnable <= set(rank), f"unranked severity rung(s): {returnable - set(rank)}"
+
+
+def test_veto_grade_worst_hit_selection_is_MONOTONE_fail_closed():
+    """THE DIRECTION INVARIANT, and the property that makes this change safe to land: adding a hit to
+    an accessible pool may only hold the grade or RAISE it, never lower it. Verified live across all
+    504 corpus-20260914 pairs — 0 pairs graded lower than before, and none crossed out of
+    bbb_protected / not_applicable / origin_tissue — so this is a contract, not a measurement.
+
+    Scoped to ACCESSIBLE hits: adding the first accessible hit to a brain-only pool legitimately
+    moves the grade off `bbb_protected`, which is a different axis (the compartment partition)."""
+    shapes = [
+        ("cardiac muscle cell", "heart", 0.80, 0.50, 5),  # moderate
+        ("hepatocyte", "liver", 0.75, 0.95, 10),  # high
+        ("pulmonary alveolar type 2 cell", "lung", 0.62, 1.00, 1),  # low_confidence (single atlas)
+        ("kidney collecting duct principal cell", "kidney", 0.35, 0.90, 20),  # high via replication
+    ]
+
+    def grade_of(subset):
+        rows = pd.concat(
+            [_tier1_rows([(ct, 40, det, frac)], tissue=tis) for ct, tis, det, frac, _n in subset],
+            ignore_index=True,
+        )
+        rows["n_datasets_reliable"] = [n for *_rest, n in subset]
+        g = _grade(rows, ["colon"])
+        return S._ESSENTIAL_SEVERITY_RANK[g.removeprefix("accessible_")]
+
+    seen = set()
+    for i, extra in enumerate(shapes):
+        for r in range(1, len(shapes) + 1):
+            for combo in itertools.combinations(shapes, r):
+                if extra in combo:
+                    continue
+                before, after = grade_of(list(combo)), grade_of([*combo, extra])
+                assert after >= before, f"adding {extra[0]} LOWERED the grade of {[c[0] for c in combo]}"
+                seen.add((before, after))
+    # ANTI-VACUITY: the loop must actually observe a STRICT increase somewhere, otherwise `after >= before`
+    # would hold trivially on a set of shapes that all grade the same.
+    assert any(a > b for b, a in seen), "no strict increase observed — the shapes cannot detect a regression"
+
+
 def test_veto_grade_severity_matches_the_skills_w3c_grader_thresholds():
-    """The rungs are ported VERBATIM from tumor-selectivity's `_sc_normal_essential_severity`
+    """The rungs are ported from tumor-selectivity's `_sc_normal_essential_severity`
     (det >= 0.50 AND donor >= 0.70 AND >= 2 atlases → high; det < 0.30 OR <= 1 atlas → low). Pinned
-    here so the method and that skill cannot drift into disagreeing about the same hit."""
+    here so the method and that skill cannot drift into disagreeing about the same hit.
+
+    ⚠️ ONE DELIBERATE DIVERGENCE NOW EXISTS — see the companion test below. The replication-dominant
+    path is NOT yet in the skill's copy, so for det in [0.40, 0.50) with donor >= 0.70 and >= 15
+    atlases the two graders DISAGREE, method = high vs skill = moderate. That divergence is pinned
+    explicitly rather than left to be discovered, and the skills-side port is tracked as follow-up.
+    This test previously claimed to prevent exactly that drift while its fixture used
+    n_datasets_reliable = 4 — below the replication floor — so it would have stayed green through the
+    divergence. The bound is now exercised on BOTH sides."""
     base = {"median_detection_fraction": 0.60, "expressing_donor_fraction": 0.80, "n_datasets_reliable": 4}
     assert S._essential_severity(base) == "high_severity"
     assert S._essential_severity({**base, "n_datasets_reliable": 1}) == "low_confidence"
     assert S._essential_severity({**base, "median_detection_fraction": 0.25}) == "low_confidence"
     # det >= 0.50 but donor consistency below the HIGH bar, still replicated → moderate
     assert S._essential_severity({**base, "expressing_donor_fraction": 0.50}) == "moderate_severity"
-    # det in [0.30, 0.50) with replication → moderate, not low
+    # det in [0.30, 0.50) with ORDINARY replication → moderate, not low. Still shared with the skill:
+    # n_datasets_reliable = 4 is far below REPLICATION_DOMINANT_N_DATASETS, so the new path is not
+    # reachable here and this rung means the same thing on both sides.
     assert S._essential_severity({**base, "median_detection_fraction": 0.40}) == "moderate_severity"
+    assert S._essential_severity({**base, "median_detection_fraction": 0.40, "n_datasets_reliable": 14}) == (
+        "moderate_severity"
+    ), "one atlas below the floor must still be the SHARED verdict — the divergence starts at the floor"
+
+
+def test_replication_dominant_path_is_the_only_divergence_from_the_skills_grader():
+    """DIRECTION + BOUNDS on the replication-dominant rung, and an explicit map of where the method
+    now disagrees with tumor-selectivity's ported copy.
+
+    THE DEFECT IT REPAIRS, measured live over all 504 corpus-20260914 pairs: MSLN-PAAD carries a
+    pulmonary alveolar type 1 hit at det 0.413 / donor 0.881 across 26 INDEPENDENT ATLASES — the
+    strongest replication anywhere in the corpus — and graded `moderate_severity`, relieving the
+    dominant BiTE/TCE killer, while a 2-atlas hit at det 0.51 fires it. Overwhelming independent
+    replication cannot lose to a single-threshold detection miss.
+
+    Only the DETECTION line is tradeable. Donor consistency is not (replication says a signal is
+    REAL, not that it is CONSISTENT ACROSS DONORS), and the low band is not rescuable (replication
+    makes a weak signal credible, not large)."""
+    msln = {"median_detection_fraction": 0.413, "expressing_donor_fraction": 0.881, "n_datasets_reliable": 26}
+    assert S._essential_severity(msln) == "high_severity", "the named live defect must now grade high"
+
+    # --- the three bounds, each probed from BOTH sides so none of them is vacuous ---
+    at_det_floor = {**msln, "median_detection_fraction": S.REPLICATION_DOMINANT_DET_FLOOR}
+    below_det_floor = {**msln, "median_detection_fraction": S.REPLICATION_DOMINANT_DET_FLOOR - 0.01}
+    assert S._essential_severity(at_det_floor) == "high_severity"
+    assert S._essential_severity(below_det_floor) == "moderate_severity", (
+        "the relaxation is BOUNDED — an open-ended path gated at the moderate floor promotes 350/504"
+    )
+    at_nds_floor = {**msln, "n_datasets_reliable": S.REPLICATION_DOMINANT_N_DATASETS}
+    below_nds_floor = {**msln, "n_datasets_reliable": S.REPLICATION_DOMINANT_N_DATASETS - 1}
+    assert S._essential_severity(at_nds_floor) == "high_severity"
+    assert S._essential_severity(below_nds_floor) == "moderate_severity", (
+        "the atlas floor is the corpus p90, not the median — a floor of 5 would promote 364/504"
+    )
+    # donor consistency is NOT tradeable, however extreme the replication
+    assert S._essential_severity({**msln, "expressing_donor_fraction": 0.69, "n_datasets_reliable": 30}) == (
+        "moderate_severity"
+    ), "replication must not buy its way past HIGH_LIABILITY_DONOR_FRACTION"
+    # the low band is NOT rescuable, however extreme the replication
+    assert S._essential_severity({**msln, "median_detection_fraction": 0.29, "n_datasets_reliable": 30}) == (
+        "low_confidence"
+    ), "replication makes a weak signal credible, not large"
 
 
 def test_veto_grade_never_reclassifies_the_class_itself():

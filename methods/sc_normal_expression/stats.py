@@ -41,6 +41,31 @@ MIN_RELIABLE_DONORS = 5
 NORMAL_ABUND_HIGH = 0.64
 NORMAL_ABUND_MODERATE = 0.24
 
+# --- REPLICATION-DOMINANT severity path (see _essential_severity) ---
+# The severity ladder's high rung is a CONJUNCTION over det x donor-fraction x atlas count, so a hit
+# that misses the single detection line grades `moderate_severity` no matter how many independent
+# atlases agree. Measured live over all 504 corpus-20260914 pairs, MSLN-PAAD is the clean case: a
+# pulmonary alveolar type 1 cell at det 0.413 / donor 0.881 across **26 atlases** — the strongest
+# replication in the corpus — graded `moderate_severity` and therefore relieved the dominant BiTE/TCE
+# killer, while a 2-atlas hit at det 0.51 fires it.
+#
+# The relaxation is deliberately BOUNDED, and only the DETECTION line is tradeable:
+#   * det >= 0.40 — within 0.10 of HIGH_LIABILITY_DET_THRESHOLD. An open-ended path gated only at the
+#     moderate floor (0.30) promotes 350/504 (69.4%); bounding it at 0.40 promotes 284 (56.3%), i.e.
+#     the bound is doing the work, not the atlas count.
+#   * >= 15 atlases — the corpus p90 of n_datasets_reliable over accessible essential hits
+#     (measured min 1 / p25 2 / median 6 / p75 10 / p90 15 / p95 17 / max 30). A floor of 5 would sit
+#     BELOW the median, so "heavy replication" would describe a TYPICAL hit: that variant promotes
+#     364/504 (72.2%).
+#   * donor consistency is NOT tradeable — HIGH_LIABILITY_DONOR_FRACTION still applies. Replication
+#     tells you a signal is REAL; it does not tell you it is CONSISTENT ACROSS DONORS, and those are
+#     different claims.
+#   * the low band (det < 0.30) is NOT rescuable. Replication makes a weak signal credible, not large.
+# Live effect of this path ALONE, on top of the worst-hit fix: +2 pairs (MSLN-PAAD, NOTCH2-HNSC). It is
+# a scalpel, not a broadening — which is the point.
+REPLICATION_DOMINANT_DET_FLOOR = 0.40
+REPLICATION_DOMINANT_N_DATASETS = 15
+
 # --- COMPARTMENT split of the always-on safety-essential organs (veto-grade instrument) ---
 # WHY THIS EXISTS. sc_normal_safety_essential_class == critical_organ_liability fires on 468 of the 504
 # (target, indication) pairs in corpus-20260914 — a 92.9% base rate — and its single largest driver is
@@ -234,6 +259,18 @@ def _essential_compartment(tissue) -> str:
     return "bbb_protected" if _norm_tissue(tissue) in BBB_PROTECTED_TISSUES else "systemically_accessible"
 
 
+# Severity ordering used to take the WORST grade over a pool of accessible essential hits.
+# Ordered by VETO CONSEQUENCE first, then by measurement strength — see _essential_veto_grade. Keyed
+# exhaustively on _essential_severity's return values so an added rung fails loudly (KeyError) rather
+# than sorting silently as "lowest", which would be the fail-open direction.
+_ESSENTIAL_SEVERITY_RANK = {
+    "low_confidence": 0,
+    "moderate_severity": 1,
+    "ungraded": 2,  # killer-eligible: MUST outrank moderate, or a missing column relaxes the killer
+    "high_severity": 3,  # same veto consequence as ungraded, but a MEASURED claim — prefer it as the label
+}
+
+
 def _essential_severity(rec: dict) -> str:
     """Grade ONE essential-cell hit by magnitude x consistency x replication.
 
@@ -249,7 +286,14 @@ def _essential_severity(rec: dict) -> str:
     a missing replication column as `low_confidence` would let thinner data RELAX the killer, which is
     the fail-open direction. Confirmed absent by a LIVE run over all 504 corpus pairs (0 occurrences of
     `accessible_ungraded`) — inert by corpus, but INERT BY CORPUS IS NOT SAFE BY CONTRACT, and the
-    contract has to hold anyway."""
+    contract has to hold anyway.
+
+    REPLICATION-DOMINANT PATH. The high rung above is a pure conjunction, so REPLICATION cannot
+    compensate for a detection miss however overwhelming it is: MSLN-PAAD's alveolar type 1 hit agrees
+    across 26 independent atlases at donor fraction 0.881 and still graded `moderate_severity` at det
+    0.413, relieving a dominant killer that a 2-atlas hit at det 0.51 fires. The second rung repairs
+    that ONE asymmetry under a bounded relaxation of the detection line only — see
+    REPLICATION_DOMINANT_DET_FLOOR for why each bound sits where it does, all measured live."""
     det = rec.get("median_detection_fraction")
     n_ds = rec.get("n_datasets_reliable")
     if not isinstance(det, (int, float)) or not isinstance(n_ds, int):
@@ -257,7 +301,13 @@ def _essential_severity(rec: dict) -> str:
     frac = rec.get("expressing_donor_fraction")
     if not isinstance(frac, (int, float)):
         return "ungraded"
-    if det >= 0.50 and frac >= 0.70 and n_ds >= 2:
+    if det >= HIGH_LIABILITY_DET_THRESHOLD and frac >= HIGH_LIABILITY_DONOR_FRACTION and n_ds >= 2:
+        return "high_severity"
+    if (
+        det >= REPLICATION_DOMINANT_DET_FLOOR
+        and frac >= HIGH_LIABILITY_DONOR_FRACTION
+        and n_ds >= REPLICATION_DOMINANT_N_DATASETS
+    ):
         return "high_severity"
     if det < 0.30 or n_ds <= 1:
         return "low_confidence"
@@ -278,14 +328,44 @@ def _essential_veto_grade(veto_pool: list[dict], essential_origin_only: bool) ->
     an argmax rule would stamp `bbb_protected` on 230 real lung/liver/marrow liabilities and relieve a
     dominant safety killer on every one of them. AKT1 is the clean example — brain wins the argmax while
     cycling pulmonary AT2 sits at det 0.615. Only 29 of 468 (6.2%) are genuinely brain-only.
-    Only when EVERY above-floor off-origin hit is BBB-protected does the grade become `bbb_protected`."""
+    Only when EVERY above-floor off-origin hit is BBB-protected does the grade become `bbb_protected`.
+
+    ★ AND THE SAME APPLIES TO SEVERITY: GRADE EVERY ACCESSIBLE HIT, THEN TAKE THE WORST GRADE.
+    This function used to pick the accessible hit by DETECTION ARGMAX and grade only that one — the
+    very trap the paragraph above warns about, one layer down. It is not a near-equivalence, because
+    `_essential_severity` is a CONJUNCTION over det x donor-fraction x atlas count, so detection is not
+    a monotone proxy for the grade.
+    Measured live over all 504 corpus-20260914 pairs: **110 of the 439 pairs with an accessible hit
+    (25.1%) had their pool UNDER-GRADED by the argmax, and 59 of those were relieved of the dominant
+    BiTE/TCE killer entirely.**
+    The mechanism is sharper than "argmax != worst", and it is systematic rather than incidental:
+    **the argmax hit was measured in exactly ONE atlas in 104 of those 110 pairs (94.5%), against
+    8.2% in the pairs the argmax grades correctly.** A single-dataset detection fraction is unshrunk
+    and noisy, so it WINS a maximum over detection — while `_essential_severity` sends `n_ds <= 1`
+    straight to `low_confidence`. The selection criterion is ANTI-CORRELATED with the grading
+    criterion: choosing by detection preferentially chooses the hit the grader is about to distrust.
+    FOLR1-OV is the case that makes it concrete: a 1-atlas kidney hit at det 0.708 shadowed pulmonary
+    alveolar type 2 at det 0.626 / donor 0.884 across **30 atlases** plus a kidney collecting duct
+    principal cell at det 0.610 / donor 0.799 across 8, so a real, heavily replicated lung AND kidney
+    liability graded `accessible_low_confidence` and fired nothing. EPCAM-COADREAD is the same shape
+    (lung det 0.990 in 1 atlas shadowing liver det 0.693 / donor 0.943 in 10).
+    Fixing it moves the killer's base rate 223 -> 282 of 504 (44.2% -> 56.0%), and the direction is
+    strictly one-way: over all 504 pairs, **0 pairs grade LOWER** than before, and none crosses out of
+    `bbb_protected` / `not_applicable` / `origin_tissue`, so the compartment partition and the
+    class x grade strict-refinement invariant are untouched.
+
+    Ranking, when a pool mixes grades: rank by VETO CONSEQUENCE FIRST, then by measurement strength.
+    `ungraded` therefore outranks `moderate_severity` (it is killer-eligible and moderate is not, so
+    ranking it lower would let a missing column RELAX the killer — the fail-open direction), while
+    `high_severity` outranks `ungraded` (both are killer-eligible, so the veto consequence is
+    identical and the MEASURED statement is the more informative label to carry downstream)."""
     if not veto_pool:
         return "origin_tissue" if essential_origin_only else "not_applicable"
     accessible = [e for e in veto_pool if _essential_compartment(e.get("tissue")) == "systemically_accessible"]
     if not accessible:
         return "bbb_protected"
-    worst = max(accessible, key=lambda e: e.get("median_detection_fraction") or 0.0)
-    return f"accessible_{_essential_severity(worst)}"
+    worst = max((_essential_severity(e) for e in accessible), key=_ESSENTIAL_SEVERITY_RANK.__getitem__)
+    return f"accessible_{worst}"
 
 
 def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> dict:
