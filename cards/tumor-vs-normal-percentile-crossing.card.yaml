@@ -23,11 +23,13 @@ tier: indication
 
 subgroup_stratification:
   eligible: true
-  status: out_of_scope   # the per-sample reader supports target_subtype (proven on Q1), but this
-                         # slice ships the pooled indication grain first; the subtype panorama for
-                         # selectivity is a fast-follow (same fan-out pattern as the Q1 subtype card).
+  status: out_of_scope   # this POOLED card deliberately ships the indication grain only. The subtype
+                         # fan-out is NOT deferred -- it SHIPPED as the sibling card
+                         # tumor-vs-normal-percentile-crossing-by-subtype (subgroup_stratification.status:
+                         # live, backed by build_selectivity_crossing_subtype_panorama). Corrected
+                         # 2026-09-18: the prior "fast-follow deferred" prose contradicted the live sibling.
   axes: [molecular_subtype]
-  rationale: "Percentile-crossing selectivity can vary by subtype (a target may separate from normal only in one subtype); the per-sample reader supports the fan-out, deferred to a fast-follow to ship the pooled grain first."
+  rationale: "Percentile-crossing selectivity can vary by subtype (a target may separate from normal only in one subtype). This pooled card is deliberately not stratified; the per-subtype panorama SHIPPED as the sibling card tumor-vs-normal-percentile-crossing-by-subtype (subgroup_stratification.status: live), not a deferred fast-follow."
 
 applies_when:
   # Rare-cohort coverage added 2026-08-19 (A3): ACC/KICH/KIRP/PCPG/TGCT/THCA/UCS/UCEC — the recount3
@@ -84,3 +86,15 @@ threshold_roles:
   strong_frac_p95:
     role: reader_gate
     note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_vs_normal_percentile_crossing reference frame over `fraction_tumor_above_normal_p95` (fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  strong_max_overlap:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies overlap <= 0.4 alongside frac_p95 >= 0.5 in _classify_percentile_crossing (tcga_gtex_expression_distribution/read.py:668) to gate strongly_tumor_enriched. Applied upstream, never by a card predicate.'
+  enriched_subset_frac_p95:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies frac_p95 >= 0.25 in _classify_percentile_crossing (read.py:670) to gate enriched_subset. Applied upstream, never by a card predicate.'
+  not_enriched_frac_p95:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies frac_p95 < 0.05 in _classify_percentile_crossing (read.py:672) to gate not_tumor_enriched. Applied upstream, never by a card predicate.'

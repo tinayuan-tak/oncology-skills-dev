@@ -45,7 +45,14 @@ outputs:
     - detected_tumour
     - n_donors
   summary_fields_vocabulary:
-    spatial_rna_class: [tumour_enriched_rna, tme_enriched_rna, tumour_present_no_compartment_preference, data_unavailable]
+    # `underpowered` (2026-09-18, F5): declared ahead of PR F, which adds an n_donors power floor to
+    # classify_region_rna so a class computed off too few donors emits `underpowered` — the "we could
+    # barely look" band, DISTINCT from data_unavailable ("we could not look"). No emitter yet; forward
+    # declaration so the classifier fix in PR F needs no card change.
+    spatial_rna_class: [tumour_enriched_rna, tme_enriched_rna, tumour_present_no_compartment_preference, underpowered, data_unavailable]
+
+thresholds:
+  enriched_delta: 0.5   # |tumour - TME| log-scale margin for compartment enrichment (method-applied)
 
 caveats:
   - "MEASURED in-situ RNA (NanoString GeoMx DSP Whole Transcriptome Atlas), region-level (ROI = segmented TUMOUR vs TME region), NOT single-cell and NOT protein. RNA enrichment is a PRESENCE/localization argument, NOT a surface-protein-display claim — it corroborates, but does not substitute for, the region-PROTEIN (spatial-surface-protein-abundance) and Axis-3 (surface-abundance-density) surface readouts."
@@ -62,3 +69,8 @@ measurement_type: spatial_region_rna
 modality_relevance: [adc, bite_tce, antibody]
 entity_grains: [target_indication]
 schema_version: 1
+threshold_roles:
+  enriched_delta:
+    role: method_parameter
+    consumed_by: spatial-region-rna-expression
+    note: 'The method calls tumour_enriched_rna / tme_enriched_rna when |tumour_vs_tme_delta| >= 0.5 log-scale in spatial_region_rna/stats.py:14 (_ENRICHED_DELTA), applied at classify_region_rna L66/L68. Applied upstream, never by a card predicate.'

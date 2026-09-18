@@ -271,3 +271,15 @@ threshold_roles:
   high_liability_median_det:
     role: reader_gate
     note: 'Applied by the skill-side reader (claude-oncology-skills evidence_salience.contract_threshold), not by a card predicate: it anchors the sc_normal_celltype_expression graded_band ruler over the essential normal-cell detection fraction (the sc_normal_safety_essential_class liability cutpoints), single-sourcing the display cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  high_liability_donor_fraction:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'The method applies the 0.70 cross-donor fraction cut in sc_normal_expression/stats.py:28 (HIGH_LIABILITY_DONOR_FRACTION), at L461/L465 (grade) and L677 (classify). Applied upstream, never by a card predicate.'
+  moderate_liability_donor_fraction:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'The method applies the 0.30 cross-donor fraction cut in stats.py:30 (MODERATE_DONOR_FRACTION), at L686. Applied upstream, never by a card predicate.'
+  min_reliable_donors:
+    role: method_parameter
+    consumed_by: sc-normal-celltype-expression
+    note: 'The method requires n_donors_reliable >= 5 in stats.py:32 (MIN_RELIABLE_DONORS), at L604/L607. Applied upstream, never by a card predicate.'

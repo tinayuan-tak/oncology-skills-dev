@@ -203,7 +203,7 @@
     },
     "required_inputs": {
       "type": "array",
-      "description": "Catalog refs the card consumes. Each entry resolves at compose time against the active data_mode (latest_approved | pinned | exploratory). May be empty ONLY for COMPOSED cards (cards that declare `derived_from:` upstream card_ids); leaf cards must declare at least one product_id. Composed-card empty-array eligibility is checked by the cross-reference validator, not the JSON Schema.",
+      "description": "Catalog refs the card consumes. Each entry resolves at compose time against the active data_mode (latest_approved | pinned | exploratory). May be empty ONLY for COMPOSED cards (cards that declare `derived_from:` upstream card_ids); leaf cards must declare at least one product_id. Composed-card empty-array eligibility is checked by the cross-reference validator, not the JSON Schema. maxItems is 40 (raised from 20 on 2026-09-18): a pooled-spine card that serves N indications must enumerate every per-indication manifest the reader can resolve, because card_input_manifest_ids() is card-keyed + indication-agnostic and copies product_id verbatim into provenance -- tumor-vs-normal-selectivity spans 29 indications + 3 by-subgroup products.",
       "items": {
         "type": "object",
         "required": [
@@ -235,7 +235,7 @@
         }
       },
       "minItems": 0,
-      "maxItems": 20
+      "maxItems": 40
     },
     "methods": {
       "type": "array",

@@ -226,3 +226,19 @@ threshold_roles:
   modest_up_effect:
     role: reader_gate
     note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_protein_abundance reference frame over `protein_effect_size` (protein_effect), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  strong_up_effect:
+    role: method_parameter
+    consumed_by: cptac-protein-deg
+    note: 'The method returns strong_up when logfc > 1.5 in cptac_protein_deg/steps/03_pool_and_write.py:158-159 (classify). Applied upstream, never by a card predicate.'
+  significance_q:
+    role: method_parameter
+    consumed_by: cptac-protein-deg
+    note: 'The method gates directional protein calls on q < 0.05 in steps/03_pool_and_write.py:150 (classify). Applied upstream, never by a card predicate.'
+  allgene_top_1_percentile:
+    role: method_parameter
+    consumed_by: cptac-protein-deg
+    note: 'The method bins allgene_percentile -> allgene_percentile_class via the shared percentile_null helper (methods/percentile_null/__init__.py DEFAULT_CUTOFFS L22 -> classify_percentile L69), reached from cptac_protein_deg/read.py:492. Applied upstream, never by a card predicate.'
+  allgene_bottom_decile:
+    role: method_parameter
+    consumed_by: cptac-protein-deg
+    note: 'Shared percentile_null helper (DEFAULT_CUTOFFS L22 -> classify_percentile L73-74), reached from cptac_protein_deg/read.py:492. Applied upstream, never by a card predicate.'

@@ -83,3 +83,15 @@ threshold_roles:
   intrinsic_r:
     role: reader_gate
     note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the expression_purity_confound reference frame over `expression_purity_pearson_r` (pearson_r), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  confound_r:
+    role: method_parameter
+    consumed_by: expression-purity-confound
+    note: 'The method gates microenvironment_confounded on pearson_r <= -0.3 when significant, in expression_purity_confound/read.py:23 (CONFOUND_R), applied at L86. Applied upstream, never by a card predicate.'
+  significance_alpha:
+    role: method_parameter
+    consumed_by: expression-purity-confound
+    note: 'The method requires pearson_p <= 0.05 in read.py:25 (SIGNIFICANCE_ALPHA), applied at L83. Applied upstream, never by a card predicate.'
+  min_paired_samples:
+    role: method_parameter
+    consumed_by: expression-purity-confound
+    note: 'The method requires n_paired >= 30 in read.py:24 (MIN_PAIRED_SAMPLES), applied at L79/L156. Applied upstream, never by a card predicate.'

@@ -43,7 +43,15 @@ outputs:
     - detected_tumour
     - n_donors
   summary_fields_vocabulary:
-    spatial_protein_class: [tumour_enriched_protein, tme_enriched_protein, tumour_present_no_compartment_preference, data_unavailable]
+    # `underpowered` (2026-09-18, F5): declared ahead of PR F, which adds an n_donors power floor to
+    # classify_surface_protein so a class computed off too few donors emits `underpowered` — the "we
+    # could barely look" band, DISTINCT from data_unavailable ("we could not look"). Note the method
+    # currently hardcodes n_datasets: 1 (stats.py:79), so a dataset floor alone would never fire; the
+    # PR F floor gates on n_donors. No emitter yet; forward declaration.
+    spatial_protein_class: [tumour_enriched_protein, tme_enriched_protein, tumour_present_no_compartment_preference, underpowered, data_unavailable]
+
+thresholds:
+  enriched_delta: 0.5   # |tumour - TME| log-CPM margin for compartment enrichment (method-applied)
 
 caveats:
   - "MEASURED in-situ protein (NanoString GeoMx DSP), region-level (ROI = segmented TUMOUR vs TME region), NOT absolute copies/cell — a distinct claim from the Axis-3 bulk-CPTAC×HPA copies/cell estimate. Complements, does not replace, surface-abundance-density."
@@ -60,3 +68,8 @@ measurement_type: spatial_surface_protein
 modality_relevance: [adc, bite_tce, antibody]
 entity_grains: [target_indication]
 schema_version: 1
+threshold_roles:
+  enriched_delta:
+    role: method_parameter
+    consumed_by: spatial-surface-protein-abundance
+    note: 'The method calls tumour_enriched_protein / tme_enriched_protein when |tumour_vs_tme_delta| >= 0.5 log-CPM in spatial_surface_protein/stats.py:14 (_ENRICHED_DELTA), applied at classify_surface_protein L66/L68. Applied upstream, never by a card predicate.'

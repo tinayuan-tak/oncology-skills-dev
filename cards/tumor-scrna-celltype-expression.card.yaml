@@ -209,6 +209,14 @@ threshold_roles:
   malignant_broadly_detected_min:
     role: reader_gate
     note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the sc_tumor_celltype_expression reference frame over `malignant_detection_fraction` (detection_fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  malignant_subset_detected_min:
+    role: method_parameter
+    consumed_by: sc-tumor-expression-celltype
+    note: 'The method gates malignant_subset_detected on malignant detection fraction >= 0.10 in sc_tumor_expression_celltype/stats.py:24 (MALIGNANT_SUBSET_DETECTED_MIN), applied at L219/L495. Applied upstream, never by a card predicate.'
+  microenvironment_detected_min:
+    role: method_parameter
+    consumed_by: sc-tumor-expression-celltype
+    note: 'The method gates microenvironment detection on fraction >= 0.25 in stats.py:25 (MICROENV_DETECTED_MIN), applied at L214/L219 and class logic L258-259. Applied upstream, never by a card predicate.'
 warning_predicates:
   - warning_id: no_malignant_compartment
     if: "malignant_compartment_available == false"

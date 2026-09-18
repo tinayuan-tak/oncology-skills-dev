@@ -60,7 +60,16 @@ outputs:
     - n_donors
     - n_datasets
   summary_fields_vocabulary:
-    spatial_coloc_class: [immune_niche_colocalized, stromal_niche_colocalized, endothelial_niche_colocalized, normal_epithelium_adjacent, immune_excluded, no_spatial_preference, other_niche_colocalized, data_unavailable]
+    # `underpowered` (2026-09-18, F5): declared ahead of PR F, which adds an n_donors/n_datasets power
+    # floor to classify_spatial_coloc so a class computed off too few donors/datasets emits
+    # `underpowered` — the "we could barely look" band, DISTINCT from data_unavailable ("we could not
+    # look"). This card is a COADREAD pilot (n_datasets = 1 today), so the floor gates on n_donors. No
+    # emitter yet; forward declaration so the PR F classifier fix needs no card change.
+    spatial_coloc_class: [immune_niche_colocalized, stromal_niche_colocalized, endothelial_niche_colocalized, normal_epithelium_adjacent, immune_excluded, no_spatial_preference, other_niche_colocalized, underpowered, data_unavailable]
+
+thresholds:
+  coordinated_min: 1.15   # per-compartment neighbourhood enrichment >= => niche_colocalized (method-applied)
+  segregated_max: 0.85    # immune enrichment <= => immune_excluded (method-applied)
 
 caveats:
   - "In-situ SPATIAL neighbourhood (imaging single-cell; CosMx CRC atlas GSE303070) — the tissue-architecture axis dissociated scRNA is blind to. Detection-based (count>0), normalization-invariant. Reported as a modality-context lens, not a monospecific presence signal."
@@ -78,3 +87,12 @@ measurement_type: spatial_colocalization
 modality_relevance: [adc, bite_tce, antibody]
 entity_grains: [target_indication]
 schema_version: 1
+threshold_roles:
+  coordinated_min:
+    role: method_parameter
+    consumed_by: spatial-tumor-normal-colocalization
+    note: 'The method calls a *_niche_colocalized class when the top compartment enrichment >= 1.15x baseline in spatial_colocalization/stats.py:72 (_COORDINATED_MIN), applied at classify_spatial_coloc L276. Applied upstream, never by a card predicate.'
+  segregated_max:
+    role: method_parameter
+    consumed_by: spatial-tumor-normal-colocalization
+    note: 'The method calls immune_excluded when immune-neighbour enrichment <= 0.85x baseline in spatial_colocalization/stats.py:73 (_SEGREGATED_MAX), applied at classify_spatial_coloc L278. Applied upstream, never by a card predicate.'

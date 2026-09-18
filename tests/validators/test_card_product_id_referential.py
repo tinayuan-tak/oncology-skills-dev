@@ -407,11 +407,15 @@ def test_real_supersession_loader_does_not_lift_prose_from_block_scalars():
 
 
 def test_real_catalog_fire_set_over_all_cards_is_small_and_named():
-    """The blast radius, asserted rather than remembered. Measured before the check was written: it
-    fires on exactly 2 of 148 cards, both naming `tcga-tumor-tpm-per-sample-v1`. The point is NOT the
-    count — a count is a ratchet, and a ratchet is not a baseline. The point is the NULL DIFF over the
-    other 146: a check that fired broadly would be unlandable, and one that fired nowhere would be
-    vacuous. Named, so that when a third card appears this test says WHICH."""
+    """The blast radius, asserted rather than remembered. Originally measured at 2 of 148 cards, both
+    naming `tcga-tumor-tpm-per-sample-v1`. As of 2026-09-18 the fire set is DELIBERATELY narrowed to 1:
+    the F4 provenance fix dropped the superseded `tcga-tumor-tpm-per-sample-v1` from
+    `tumor-vs-normal-percentile-crossing-by-subtype.card.yaml` (it enumerated the real recount3-long +
+    assignment-shard ids in its place), clearing that card's PRODUCT_ID_SUPERSEDED warning.
+    `tumor-rna-distribution-by-subtype.card.yaml` still names it and remains the sole firing card.
+    The point is NOT the count — a count is a ratchet, and a ratchet is not a baseline. The point is
+    the NULL DIFF over the other 146: a check that fired broadly would be unlandable, and one that
+    fired nowhere would be vacuous. Named, so that when the set changes this test says WHICH."""
     if VC._data_catalog_manifest_ids() is None:
         return  # sibling absent
     firing = {}
@@ -422,7 +426,6 @@ def test_real_catalog_fire_set_over_all_cards_is_small_and_named():
             firing[card.name] = hits
     assert set(firing) == {
         "tumor-rna-distribution-by-subtype.card.yaml",
-        "tumor-vs-normal-percentile-crossing-by-subtype.card.yaml",
     }, f"supersession fire set changed: {sorted(firing)}"
     for name, hits in firing.items():
         assert len(hits) == 1, f"{name}: expected one superseded input, got {hits}"

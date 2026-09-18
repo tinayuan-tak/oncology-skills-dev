@@ -167,3 +167,7 @@ threshold_roles:
   tce_viability_copies_per_cell:
     role: reader_gate
     note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the surface_density reference frame over `absolute_copies_per_cell` (copies_per_cell), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  adc_high_payload_copies_per_cell:
+    role: method_parameter
+    consumed_by: surface-abundance-density
+    note: 'The method gates the ADC high-payload-viable band on copies/cell > 10000 in surface_antigen_density_ladder/read.py:468 (_classify). Applied upstream, never by a card predicate.'

@@ -145,3 +145,20 @@ measurement_type: modality_window
 modality_relevance: [adc, bite_tce, antibody]
 entity_grains: [target_indication]
 schema_version: 1
+threshold_roles:
+  tumor_expression_floor_tpm:
+    role: method_parameter
+    consumed_by: modality-therapeutic-window
+    note: 'The method treats tumor_tpm below 1.0 as not-expressed in tcga_gtex_tpm_quantiles/window.py:164 (TUMOR_EXPRESSION_FLOOR_TPM), applied at L296/L315/L326. Applied upstream, never by a card predicate.'
+  strict_tier_threshold_tpm:
+    role: method_parameter
+    consumed_by: modality-therapeutic-window
+    note: 'The BiTE/TCE + cell-therapy essential-liability tier cut (1.0 TPM), MODALITY_TIER_THRESHOLD in window.py:159-160, applied at L329. Applied upstream, never by a card predicate.'
+  moderate_tier_threshold_tpm:
+    role: method_parameter
+    consumed_by: modality-therapeutic-window
+    note: 'The ADC essential-liability tier cut (5.0 TPM, bystander-payload buffer), MODALITY_TIER_THRESHOLD["adc"] in window.py:161, applied at L329. Applied upstream, never by a card predicate.'
+  pathway_dependent_tier_threshold_tpm:
+    role: method_parameter
+    consumed_by: modality-therapeutic-window
+    note: 'The antibody essential-liability tier cut (10.0 TPM), MODALITY_TIER_THRESHOLD["antibody"] in window.py:162, applied at L329. Applied upstream, never by a card predicate.'

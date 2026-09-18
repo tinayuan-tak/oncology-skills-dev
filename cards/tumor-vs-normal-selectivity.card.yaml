@@ -120,11 +120,52 @@ applies_when:
   - "context.data_sources.recount3_tcga_gtex_available == true"
 
 required_inputs:
+  # PROVENANCE-CORRECTNESS (2026-09-18, F4). The reader resolves the sensitivity product
+  # per-run as f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1" (dge_deseq2/read.py:911),
+  # but card_input_manifest_ids() (skills _skills_common) copies required_inputs[].product_id
+  # VERBATIM — it is card-keyed and indication-agnostic, so it neither substitutes {indication}
+  # nor resolves release. Declaring ONLY coadread- stamped a WRONG id into
+  # provenance.input_manifest_ids for all 28 non-COADREAD indications. We therefore enumerate the
+  # FULL set of resolvable sensitivity manifests measured on disk (29 indications) so the correct
+  # id is present for every run. This necessarily over-claims for any single run (only one is read),
+  # which is the CONSERVATIVE direction for the cross-evidence independence invariant: a shared id
+  # lowers cross-line independence, never inflates it. Do NOT use a {indication}-templated id — the
+  # validator skips templates but card_input_manifest_ids() copies the literal template, worse.
+  - product_id: acc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: blca-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: brca-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: cesc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: coad-dge-tumor-vs-normal-sensitivity-v1
   - product_id: coadread-dge-tumor-vs-normal-sensitivity-v1
-  # Per-subgroup sensitivity product (subtype grain). Present only for
-  # indications with a landed (indication × axis) product; the reader returns
-  # status=data_unavailable where it is absent, so this is a soft dependency.
+  - product_id: esca-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: gbm-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: hnsc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: kich-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: kirc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: kirp-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: lgg-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: lihc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: luad-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: lusc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: nsclc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: ov-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: paad-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: pcpg-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: prad-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: read-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: sclc-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: skcm-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: stad-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: tgct-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: thca-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: ucec-dge-tumor-vs-normal-sensitivity-v1
+  - product_id: ucs-dge-tumor-vs-normal-sensitivity-v1
+  # Per-subgroup sensitivity products (subtype grain). Present only for indications with a landed
+  # (indication × axis) product (COADREAD, NSCLC, STAD); the reader returns status=data_unavailable
+  # where absent, so these are soft dependencies. Enumerated for the same provenance reason as above.
   - product_id: coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+  - product_id: nsclc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+  - product_id: stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
 
 methods:
   - call: dge-tumor-vs-normal-selectivity
@@ -363,11 +404,12 @@ outputs:
 thresholds:
   strong_selectivity_log2fc: 1.5
   modest_selectivity_log2fc: 0.5
-  # cells_supporting is judged as a FRACTION of cells_ran (≤3), not against a fixed count —
-  # a 3/3 is strong, a 2/3 is modest. See read.py:606-611 (supporting_frac >= 1.0 / >= 2/3).
+  # cells_supporting is judged as a FRACTION of cells_ran (≤3). The former `>= 2/3` (modest) tier
+  # was collapsed into "every independent family that ran agrees" (unanimous == families_ran), so
+  # only the strong=1.0 cutoff is live — applied in _classify_selectivity_from_sensitivity
+  # (dge_deseq2/read.py:1094-1106). The retired `min_supporting_frac_modest: 0.667` and the never-
+  # applied `min_expressed_log2cpm: 1.0` were removed 2026-09-18 (orphaned, no live consumer).
   min_supporting_frac_strong: 1.0
-  min_supporting_frac_modest: 0.667
-  min_expressed_log2cpm: 1.0     # log2(CPM+1) baseline for "detected in tumor"
   # selectivity all-gene percentile-class cutoffs (method bins selectivity_allgene_percentile →
   # selectivity_allgene_percentile_class). Same cutoff shape as the presence allgene cutoffs.
   selectivity_allgene_top_1pct: 99.0
@@ -437,3 +479,23 @@ threshold_roles:
   modest_selectivity_log2fc:
     role: reader_gate
     note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_vs_normal_selectivity reference frame over `log2fc_cell_a` (log2FC), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+  strong_selectivity_log2fc:
+    role: method_parameter
+    consumed_by: dge-tumor-vs-normal-selectivity
+    note: 'The method applies this 1.5 log2FC cut in _classify_selectivity_from_sensitivity (dge_deseq2/read.py:1107) to gate strong_tumor_selective, and in _classify_expression_call (read.py:361). Applied upstream, never by a card predicate.'
+  min_supporting_frac_strong:
+    role: method_parameter
+    consumed_by: dge-tumor-vs-normal-selectivity
+    note: 'The method applies the frac==1.0 (unanimous == families_ran) cut in _classify_selectivity_from_sensitivity (dge_deseq2/read.py:1094-1106); the former 2/3 modest tier was collapsed into unanimous, so only this strong cutoff is live.'
+  selectivity_allgene_top_1pct:
+    role: method_parameter
+    consumed_by: dge-tumor-vs-normal-selectivity
+    note: 'The method bins selectivity_allgene_percentile -> selectivity_allgene_percentile_class via the shared percentile_null helper (methods/percentile_null/__init__.py DEFAULT_CUTOFFS L22 -> classify_percentile L69), reached from dge_deseq2/read.py:108/261. Applied upstream, never by a card predicate.'
+  selectivity_allgene_top_decile:
+    role: method_parameter
+    consumed_by: dge-tumor-vs-normal-selectivity
+    note: 'Shared percentile_null helper (DEFAULT_CUTOFFS L22 -> classify_percentile L71-72), reached from dge_deseq2/read.py:108/261. Applied upstream, never by a card predicate.'
+  selectivity_allgene_bottom_decile:
+    role: method_parameter
+    consumed_by: dge-tumor-vs-normal-selectivity
+    note: 'Shared percentile_null helper (DEFAULT_CUTOFFS L22 -> classify_percentile L73-74), reached from dge_deseq2/read.py:108/261. Applied upstream, never by a card predicate.'

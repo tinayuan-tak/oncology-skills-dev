@@ -43,10 +43,36 @@ applies_when:
   - "indication.subgroup_catalog_available == true"
 
 required_inputs:
+  # PER-SAMPLE TUMOR + NORMAL substrates (recount3 axis).
   - product_id: tcga-tumor-tpm-recount3-long-v1        # per-sample tumor TPM (the crossing substrate)
   - product_id: gtex-tpm-recount3-long-v1              # matched-normal per-sample TPM (same recount3 axis)
-  - product_id: tcga-tumor-tpm-per-sample-v1           # the UUID↔barcode sidecar (the bridge to strata)
-  - product_id: tcga-subgroup-assignments-coadread-v1  # the molecular-subtype assignment shard (barcode-keyed)
+  # SCLC has no TCGA study; its per-sample tumor TPM comes from the George cohort harmonized onto the
+  # same recount3 gene axis + long-product schema (read.py:64-69, SCLC_LONG_KEY). Declared so a SCLC
+  # --subtypes run stamps its true substrate, not a TCGA id it never read.
+  - product_id: sclc-george-tpm-long-v1
+  # DROPPED (2026-09-18, F4): tcga-tumor-tpm-per-sample-v1 was superseded by
+  # tcga-tumor-tpm-recount3-long-v1 (the head, declared above). The reader touches per-sample-v1 only
+  # as the tcga_sample_study.parquet UUID<->barcode bridge — a COMPANION FILE under that product's
+  # derived dir, "NOT resolver-migrated" (read.py:75-78), not the product itself — so dropping the
+  # product_id loses no substrate provenance while clearing PRODUCT_ID_SUPERSEDED and stopping the
+  # superseded vintage from polluting provenance.input_manifest_ids / mis-pointing the is_stale flag.
+  # MOLECULAR-SUBTYPE ASSIGNMENT SHARDS — the reader resolves one per indication from two maps
+  # (tcga_gtex_expression_distribution/read.py: base INDICATION_TO_ASSIGNMENT_SHARD + the partial
+  # INDICATION_TO_TUMOR_MAF_MANIFEST). card_input_manifest_ids() is card-keyed + indication-agnostic
+  # (copies verbatim), so the card must enumerate EVERY resolvable shard or provenance is wrong for
+  # the indications it omits. 7 base shards (COADREAD/HNSC/STAD/NSCLC/ESCA/PAAD + SCLC's own) + the 4
+  # landed MAF/genomic-strata shards (HNSC/NSCLC/ESCA/PAAD; COADREAD/STAD have no -maf shard yet).
+  - product_id: tcga-subgroup-assignments-coadread-v1  # base: COADREAD/COAD/READ
+  - product_id: tcga-subgroup-assignments-hnsc-v1      # base: HNSC/HNSCC
+  - product_id: tcga-subgroup-assignments-stad-v1      # base: STAD/GC
+  - product_id: tcga-subgroup-assignments-nsclc-v1     # base: NSCLC/LUAD/LUSC (histology split)
+  - product_id: tcga-subgroup-assignments-esca-v1      # base: ESCA
+  - product_id: tcga-subgroup-assignments-paad-v1      # base: PAAD/PDAC
+  - product_id: sclc-subgroup-assignments-v1           # base: SCLC (NAPY argmax, non-TCGA)
+  - product_id: tcga-subgroup-assignments-hnsc-maf-v1  # MAF: HNSC/HNSCC genomic strata
+  - product_id: tcga-subgroup-assignments-nsclc-maf-v1 # MAF: NSCLC/LUAD/LUSC (KRAS_G12C)
+  - product_id: tcga-subgroup-assignments-esca-maf-v1  # MAF: ESCA genomic strata
+  - product_id: tcga-subgroup-assignments-paad-maf-v1  # MAF: PAAD/PDAC (TP53/KRAS strata)
 
 methods:
   - call: tcga-gtex-expression-distribution
@@ -115,3 +141,28 @@ sample_context: tumor         # patient tumor per-sample (TCGA), stratified by m
 measurement_type: tumor_vs_normal_percentile_crossing
 entity_grains: [target_subtype]
 schema_version: 1
+threshold_roles:
+  strong_frac_p95:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies frac_p95 >= 0.5 in _classify_percentile_crossing (tcga_gtex_expression_distribution/read.py:661/668), per stratum. Applied upstream, never by a card predicate.'
+  strong_max_overlap:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies overlap <= 0.4 alongside frac_p95 >= 0.5 in _classify_percentile_crossing (read.py:668). Applied upstream, never by a card predicate.'
+  enriched_subset_frac_p95:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies frac_p95 >= 0.25 in _classify_percentile_crossing (read.py:670). Applied upstream, never by a card predicate.'
+  not_enriched_frac_p95:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method applies frac_p95 < 0.05 in _classify_percentile_crossing (read.py:672). Applied upstream, never by a card predicate.'
+  crossing_varies_delta:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method flags crossing_varies_by_subtype when (max(fracs) - min(fracs)) >= 0.25 across strata in build_selectivity_crossing_subtype_panorama (tcga_gtex_expression_distribution/cli.py:219). Applied upstream, never by a card predicate.'
+  subgroup_n_floor:
+    role: method_parameter
+    consumed_by: tcga-gtex-expression-distribution
+    note: 'The method gates a stratum as powered when n >= 30 (methods/subgroup_common/panorama.py:44 SUBGROUP_N_FLOOR), applied in read.py:1048/1370. Applied upstream, never by a card predicate.'
