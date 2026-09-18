@@ -2600,9 +2600,14 @@ rules:
     dominant: true
     rationale: |
       Both CRISPR-KO Chronos AND RNAi-KD DEMETER2 dependency scores correlate
-      positively with PRISM compound kill activity across the cell-line panel
-      (best rho ≥ 0.30 in each assay). Cross-modality (chemical vs genetic)
-      cross-perturbation (full-KO vs partial-KD) triangulated evidence that the
+      positively with PRISM compound kill activity across the cell-line panel.
+      Triangulated fires only when EACH assay independently clears an
+      FDR-significant strong correlation — best Spearman rho ≥ 0.30 AND
+      BH-FDR q < 0.05 (multiplicity corrected across all of that assay's
+      evaluated compounds, so more annotated compounds tighten, not loosen,
+      the bar) — computed over ≥ 20 intersected cell lines. Cross-modality
+      (chemical vs genetic) cross-perturbation (full-KO vs partial-KD)
+      triangulated evidence that the
       annotated compounds engage the target on-target. Highest-confidence
       supportive signal for BOTH small_molecule (compound scaffold validated)
       AND degrader (target biology validated; degrader-scaffold to be
