@@ -1775,6 +1775,16 @@ def _project_frame(
         if cv is not None:
             anchors.append({"role": "cut", "label": cut.get("label") or cut.get("threshold"), "value": sig_round(cv)})
     gv["frame"]["anchors"] = anchors
+    # STAGE-3 convergence (2026-09-18): surface distance_to_cut on the DISPLAY gauged_value too — value − cut,
+    # computed byte-for-byte the way claim_record.magnitude_from_interpretation does it (first `cut` anchor,
+    # the sig_round'd gv value, round(,4)), so the display ruler and the factored record carry ONE coordinate
+    # (claim_record reads it straight from here when present). PREFER an already-surfaced delta (distance_field,
+    # set above) — only compute when absent. A frame with NO cut anchor (e.g. cohort_percentile) keeps
+    # distance_to_cut ABSENT/NULL, never 0. A graded_band takes its FIRST cut, matching claim_record.
+    if "distance_to_cut" not in gv:
+        _cut = next((a["value"] for a in anchors if a.get("role") == "cut"), None)
+        if isinstance(_cut, (int, float)) and not isinstance(_cut, bool):
+            gv["distance_to_cut"] = round(gv["value"] - _cut, 4)
     return gv
 
 
