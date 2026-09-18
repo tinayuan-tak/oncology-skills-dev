@@ -1202,40 +1202,42 @@ def test_veto_grade_never_reclassifies_the_class_itself():
         assert r["sc_normal_essential_veto_grade"] != "none", "the grade is a separate vocabulary"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="KNOWN GAP, deliberately not fixed in the veto-grade change: the "
-    "`kidney proximal tubule` prefix matches no real Census label. Tightening the essential "
-    "vocabulary moves the CLASS on an unmeasured set of targets and needs its own backtest.",
-)
-def test_kidney_proximal_tubule_prefix_misses_the_real_census_labels():
-    """FAIL-OPEN IN THE ESSENTIAL VOCABULARY — found while picking a fixture label for the veto-grade
-    tests, and pinned here so it cannot be forgotten.
+def test_proximal_tubule_is_flagged_under_every_label_form_census_uses():
+    """WAS A STRICT XFAIL, CLOSED 2026-09-18. Kept as a normal test — this is the regression guard for
+    the fail-open, so it must stay red-able if the vocabulary regresses.
 
-    `SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES` contains the CONTIGUOUS multi-word prefix
-    `"kidney proximal tubule"`. The Cell Ontology labels Census actually uses are
-    `epithelial cell of proximal tubule[ segment N]` (reversed word order, no "kidney") and
-    `kidney proximal convoluted tubule epithelial cell` ("convoluted" interposed). Neither matches,
-    so the prefix as written appears to cover a label that does not occur in the data while missing
-    the two that do — and the proximal tubule is THE canonical kidney-toxicity compartment.
+    The original gap: `SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES` contained the CONTIGUOUS multi-word entry
+    `"kidney proximal tubule"`, which matches **0 of the 670 labels** present across the 19 landed
+    shards. The Cell Ontology labels Census actually uses are `epithelial cell of proximal
+    tubule[ segment N]` (of-INVERSION: reversed order, no "kidney") and `kidney proximal convoluted
+    tubule epithelial cell` (INTERPOSED qualifier). Neither matches a contiguous run, so the entry
+    appeared to cover a label that does not occur while missing all 4 that do — and the proximal tubule
+    is THE canonical kidney-toxicity compartment.
 
     MEASURED on corpus-20260914, DPEP1-COADREAD (a kidney brush-border dipeptidase):
       - `epithelial cell of proximal tubule`  det 0.479, **22 independent atlases** → NOT flagged
       - `epithelial cell of proximal tubule segment 1`  det 0.710 → NOT flagged
       - the only kidney label that DID flag: `kidney loop of Henle descending limb epithelial cell`
         at det 0.115, i.e. below even the 0.20 off-origin floor
-    Its `critical_organ_liability` therefore names **pancreas / pancreatic acinar cell**, and the
-    most heavily replicated kidney signal in the package is invisible to the safety-essential class.
+    Its `critical_organ_liability` therefore named **pancreas / pancreatic acinar cell**, and the most
+    heavily replicated kidney signal in the package was invisible to the safety-essential class.
     Only 10 of 513 corpus packages mention a proximal-tubule label at all, and the stored
-    `per_cell_type_top` is truncated to 15 rows, so 10 is a FLOOR on the blast radius, not a count.
+    `per_cell_type_top` is truncated to 15 rows, so 10 is a FLOOR on the blast radius, not a count —
+    which is why the fix was backtested LIVE against the shards, never against stored packages.
 
-    Direction note: unlike the veto-grade change this test sits beside, closing this gap makes the
-    veto fire MORE, so it cannot be justified by the same "92.9% is too blunt" argument and must be
-    argued on its own evidence.
-    """
+    Direction note, preserved from the xfail: closing this makes the veto fire MORE, so it could not be
+    justified by the same "92.9% is too blunt" argument as the veto-grade change and was argued on its
+    own evidence (see the PR B1 both-directions label diff: 148 -> 164 flagged, +17 / -1).
+
+    The third assertion is the one that forced the CONJUNCTIVE entry form rather than simply loosening
+    the entry to the head noun `"proximal tubule"`: "convoluted" sits between the two words, so no
+    single contiguous run can cover all three label forms."""
     assert S._is_safety_essential("epithelial cell of proximal tubule")
     assert S._is_safety_essential("epithelial cell of proximal tubule segment 1")
     assert S._is_safety_essential("kidney proximal convoluted tubule epithelial cell")
+    # ANTI-VACUITY: the matcher must still be capable of saying no, or the three asserts above pass
+    # for the trivial reason. A plain fibroblast is not safety-essential under any entry.
+    assert not S._is_safety_essential("fibroblast")
 
 
 def test_veto_grade_is_a_STRICT_REFINEMENT_of_the_safety_essential_class():
@@ -1247,10 +1249,15 @@ def test_veto_grade_is_a_STRICT_REFINEMENT_of_the_safety_essential_class():
 
     Verified on live data before being pinned here: a run of this method against S3 over all 504
     corpus-20260914 (target, indication) pairs produced ZERO crossings — the cross-tab of class x grade
-    has exactly 6 populated cells, one per arm, with the 468 critical calls splitting
-    223 accessible_high_severity / 145 accessible_low_confidence / 71 accessible_moderate_severity /
-    29 bbb_protected. A crossing would mean the veto and its own grade disagree about whether there IS a
-    liability, which is the one thing a graded companion may never do."""
+    has exactly 6 populated cells, one per arm.
+
+    ⚠️ The per-cell SPLIT this docstring used to quote (223 accessible_high_severity / 145
+    low_confidence / 71 moderate_severity / 29 bbb_protected) is the PRE-#660 distribution and is no
+    longer live; #660 re-measured it to 284 / 95 / 60 / 29. It is retracted rather than deleted because
+    it was written as a verified live measurement and a silent edit would leave no trace. Note what did
+    NOT move: the 468 critical / 29 bbb / 7 origin CLASS totals are byte-identical across #660 — which
+    is the invariant this test actually asserts. The grade split is not, and a future grading change
+    will move it again, so DO NOT re-pin a split here: assert the partition, not the histogram."""
     ARMS = {
         "critical_organ_liability": {
             "accessible_high_severity",

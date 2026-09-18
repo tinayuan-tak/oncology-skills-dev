@@ -96,17 +96,46 @@ REPLICATION_DOMINANT_N_DATASETS = 15
 #   1. The fail-closed partition below is MORE necessary than the estimate suggested: an argmax-based
 #      compartment call would have mislabelled 230 targets `bbb_protected`, i.e. relieved a dominant
 #      safety killer on real lung/liver/marrow liabilities. The pool scan is not belt-and-braces.
-#   2. The COMPARTMENT axis is NOT what repairs the base rate — it is worth only 29 targets (5.8 pts of
-#      the 48.6-pt total relief, 12%). The SEVERITY rung does 88% of the work (216 targets), and it works
-#      better here than a naive read predicts precisely BECAUSE it grades the worst ACCESSIBLE hit rather
-#      than the argmax: the brain hits are often the best-replicated ones in the pool (CD276 sits at 22
-#      atlases), so argmax-based severity systematically OVER-graded. Keep the compartment for its
-#      correctness role (and because brain-only genuinely should not take a systemic-TCE killer), but do
-#      not credit it with the base-rate repair.
-# LIVE, EXACT, all 504 pairs: accessible_high_severity 223 (44.2%) / accessible_low_confidence 145
-# (28.8%) / accessible_moderate_severity 71 (14.1%) / bbb_protected 29 (5.8%) / not_applicable 29 (5.8%)
-# / origin_tissue 7 (1.4%) / accessible_ungraded 0. The grade is a strict REFINEMENT of the class: every
-# non-critical arm maps 1:1 (none→not_applicable, origin_tissue_liability→origin_tissue), so the
+#   2. The COMPARTMENT axis is NOT what repairs the base rate — it is worth only 29 targets. Keep it for
+#      its correctness role (and because brain-only genuinely should not take a systemic-TCE killer), but
+#      do not credit it with the base-rate repair; the SEVERITY rung does the bulk of the work.
+#
+# ⚠️ RETRACTED 2026-09-18 (#660): this block previously claimed the severity rung "works better here
+# than a naive read predicts precisely BECAUSE it grades the worst ACCESSIBLE hit rather than the
+# argmax ... so argmax-based severity systematically OVER-graded". BOTH halves were wrong.
+#   * The code did NOT grade the worst accessible hit — it took a detection ARGMAX and graded that
+#     (the prose described the intent, the code did something else). #660 made them agree.
+#   * The argmax did not OVER-grade, it systematically UNDER-graded, and the direction is measured:
+#     110 of 439 pairs with an accessible hit (25.1%) graded BELOW their worst accessible hit, 59 of
+#     them escaping the dominant killer entirely; ZERO pairs graded higher. The mechanism is that a
+#     single-atlas detection fraction is unshrunk and therefore wins a max over detection, while
+#     _essential_severity sends n_ds <= 1 to low_confidence — the selection criterion was
+#     ANTI-CORRELATED with the grading criterion (argmax hit was single-atlas in 104 of the 110
+#     under-graded pairs, 94.5%, vs 8.2% of correctly-graded pairs).
+#
+# LIVE, EXACT, all 504 pairs. Two distributions — do not conflate them:
+#   PRE-#660 (detection argmax): accessible_high_severity 223 (44.2%) / accessible_low_confidence 145
+#     (28.8%) / accessible_moderate_severity 71 (14.1%) / bbb_protected 29 / not_applicable 29 /
+#     origin_tissue 7 / accessible_ungraded 0.
+#   POST-#660 (worst-grade + the replication path above): accessible_high_severity 284 (56.3%) /
+#     accessible_moderate_severity 114 / accessible_low_confidence 41 / bbb_protected 29 /
+#     not_applicable 29 / origin_tissue 7 / accessible_ungraded 0. Note where the 61 promotions came
+#     FROM: low_confidence collapses 145 -> 41 while moderate RISES 71 -> 114, because grading the
+#     worst hit lifts a low_confidence pool to whatever its worst member actually is, which is usually
+#     moderate rather than high.
+#   CURRENT (the above, plus this PR's essential-VOCABULARY fix): accessible_high_severity 292 (57.9%)
+#     / accessible_moderate_severity 111 / accessible_low_confidence 40 / bbb_protected 25 /
+#     not_applicable 29 / origin_tissue 7 / accessible_ungraded 0. bbb_protected falls 29 -> 25
+#     because 4 pairs whose only above-floor off-origin hits were brain parenchyma turn out to have a
+#     renal-tubule hit that no entry could match.
+#
+# ⚠️ A DRAFT of the POST-#660 line above read "95 / 60" for the moderate/low_confidence split. That was
+# never measured by this code: it came from a harness that REIMPLEMENTED _essential_severity rather than
+# calling it. The totals happened to reconcile (95+60 == 114+41 == 155), which is exactly why it was not
+# obvious. Numbers in this block must come from calling classify_sc_normal_expression itself.
+# `sc_normal_safety_essential_class` is BYTE-IDENTICAL across the two (468 critical / 29 bbb / 7
+# origin): #660 moved only the grade, and only upward. The grade is a strict REFINEMENT of the class:
+# every non-critical arm maps 1:1 (none→not_applicable, origin_tissue_liability→origin_tissue), so the
 # LABEL-not-DROP property is verified on live data, not just asserted.
 #
 # RAISING THE DETECTION FLOOR CANNOT FIX THIS, and that is measured exactly (the named driver is the
@@ -132,11 +161,57 @@ SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES = (
     "cardiac muscle cell",
     "hepatocyte",
     "neuron",
-    "kidney proximal tubule",
-    "kidney collecting duct",
+    # --- RENAL TUBULE (2026-09-18). Three entries here were measured against the real 670-label
+    # shard vocabulary and two of them were silently under-calling. See the CONJUNCTIVE entry form
+    # documented at _SAFETY_ESSENTIAL_PATTERNS: a tuple means "all of these runs, in any order".
+    #
+    # `"kidney proximal tubule"` matched ZERO of 670 labels: Census names this compartment with an
+    # of-INVERSION ("epithelial cell of proximal tubule"), so the contiguous phrase could never fire
+    # and the nephron's most drug-exposed segment was UNFLAGGED. A conjunction rather than the head
+    # noun "proximal tubule", because one real label ALSO interposes a word
+    # ("kidney proximal CONVOLUTED tubule epithelial cell"). Measured: ("proximal","tubule") matches
+    # exactly the 4 proximal labels and nothing else — every label in the vocabulary containing
+    # "proximal" is a proximal-tubule label, so the conjunction cannot over-reach.
+    ("proximal", "tubule"),
+    # DISTAL nephron, previously unflagged in its entirety. The list already covered loop of Henle and
+    # (partially) collecting duct, so omitting the distal convoluted and connecting tubules was an
+    # inconsistency rather than a decision: they are segments of the same functional unit and the same
+    # nephrotoxicity compartment. Measured 3 + 2 labels. One of the 3 ("epithelial cell of distal
+    # tubule") is present ONLY in the LUNG shard, which is Census annotation leakage rather than a
+    # real ectopic nephron — see the note on "nephron" below for why flagging it is the safe side.
+    ("distal", "tubule"),
+    ("connecting", "tubule"),
+    # `"kidney collecting duct"` matched only 4 of the 7 kidney collecting-duct labels. The other 3
+    # INTERPOSE an anatomical qualifier ("kidney CORTEX collecting duct epithelial cell", "kidney
+    # INNER MEDULLA ...", "kidney OUTER MEDULLA ..."), breaking contiguity. Loosening to a bare
+    # "collecting duct" would have been wrong in the other direction — it flags the lung's
+    # "airway submucosal gland collecting duct epithelial cell", which is not renal. The conjunction
+    # drops the ADJACENCY requirement while keeping the KIDNEY restriction: 7 of 7, no lung hit.
+    ("kidney", "collecting duct"),
     "kidney loop of henle",
-    "pneumocyte",  # alveolar type I/II
-    "alveolar type",
+    # NEPHRON generic parents — the terms Census uses when the atlas did not resolve the segment
+    # ("epithelial cell of nephron", "nephron tubule epithelial cell", "mesonephric nephron tubule
+    # epithelial cell"). All 3 were unflagged. NB two of them also appear in the liver and skin
+    # shards, which is Census annotation leakage rather than real ectopic nephron; flagging them
+    # there is fail-CLOSED and the veto reports the (tissue, cell_type) pair, so the oddity is
+    # visible in the named driver rather than hidden.
+    "nephron",
+    # `"pneumocyte"` matches ZERO of 670 labels (measured 2026-09-18) — Census uses
+    # "pulmonary alveolar type 1/2 cell", never "pneumocyte". Its former comment ("# alveolar type
+    # I/II") asserted coverage it did not provide: AT1/AT2 were in fact caught by the NEXT entry, so
+    # the arm worked by accident. KEPT deliberately (a disjunct that matches nothing is inert, and
+    # "type I pneumocyte" is a live CL synonym that a future Census release could adopt) but now
+    # DECLARES its own inertness so the next reader does not re-derive the same false assurance.
+    "pneumocyte",  # MEASURED INERT today — AT1/AT2 coverage comes from the two entries below
+    # `"alveolar type"` was wrong in BOTH directions:
+    #   * FALSE POSITIVE — it matched "alveolar type 1 FIBROBLAST cell", putting a stromal
+    #     fibroblast into a vital-organ veto (it reaches shipped fixtures: erbb2_coadread carries it).
+    #   * FALSE NEGATIVE — it missed the generic epithelial parents "pulmonary alveolar epithelial
+    #     cell" and "fetal pre-type II pulmonary alveolar epithelial cell".
+    # Requiring "pulmonary" excludes the fibroblast (which carries no such token) while keeping all
+    # 3 AT1/AT2 labels; the conjunction picks up the 2 generic epithelial parents.
+    "pulmonary alveolar type",
+    ("alveolar", "epithelial cell"),
     "enterocyte",
     "colonocyte",
     "hematopoietic stem cell",
@@ -202,20 +277,42 @@ SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES = (
 )
 
 
-# Precompiled whole-token matchers, one per prefix. `\b...\b` requires a word boundary on BOTH
-# sides, so a token matches its subtypes ("neuron" → "dopaminergic neuron") but NOT a longer word
-# that merely embeds it ("neuron" ∉ "neuronal-restricted precursor" — the trailing \b fails because
-# "neuron" is followed by "al"). Multi-word prefixes ("kidney loop of henle", "type b pancreatic
-# cell") match as a contiguous token run. This replaces the former `pfx in ct` substring test, whose
-# mid-word matches produced false essential flags; it can only REMOVE false positives, never add.
+# Precompiled whole-token matchers, one per entry. `\b...\b` requires a word boundary on BOTH sides,
+# so a token matches its subtypes ("neuron" → "dopaminergic neuron") but NOT a longer word that merely
+# embeds it ("neuron" ∉ "neuronal-restricted precursor" — the trailing \b fails because "neuron" is
+# followed by "al"). This replaces a former `pfx in ct` substring test, whose mid-word matches
+# produced false essential flags.
+#
+# TWO ENTRY FORMS (the tuple form added 2026-09-18):
+#   * str   — one CONTIGUOUS whole-token run ("kidney loop of henle", "type b pancreatic cell").
+#   * tuple — a CONJUNCTION: every run must appear somewhere in the label, in ANY order or position.
+#
+# Why the tuple form exists. The str form can only say "these words, ADJACENT", and the two defects
+# it could not express are both cases where the required words are present but NOT adjacent:
+#   * of-INVERSION      Census "epithelial cell OF proximal tubule" vs a "kidney proximal tubule" entry
+#   * INTERPOSED word   Census "kidney CORTEX collecting duct ..." vs a "kidney collecting duct" entry
+# Both read as a clean no-match, i.e. a SILENT FAIL-OPEN in a safety veto — an inert disjunct looks
+# exactly like a cell type that is genuinely absent from every shard. The conjunction relaxes only
+# ADJACENCY while keeping every required word, which is strictly more precise than the tempting
+# alternative of loosening to a bare head noun: a bare "collecting duct" would flag the lung's
+# "airway submucosal gland collecting duct epithelial cell", which is not renal at all.
+#
+# MAINTENANCE CONTRACT: an entry that matches nothing is INDISTINGUISHABLE from an absent cell type,
+# so every entry's live match count is asserted by
+# tests/methods/sc_normal_expression/test_essential_prefix_vocabulary.py against a pinned snapshot of
+# the real shard vocabulary, and any entry that is inert must say so IN ITS COMMENT (see
+# "pneumocyte" / "corneal epithelial cell"). Do not add an entry without measuring it.
 _SAFETY_ESSENTIAL_PATTERNS = tuple(
-    re.compile(r"\b" + re.escape(pfx) + r"\b") for pfx in SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES
+    tuple(re.compile(r"\b" + re.escape(run) + r"\b") for run in ((entry,) if isinstance(entry, str) else entry))
+    for entry in SAFETY_ESSENTIAL_CELL_TYPE_PREFIXES
 )
 
 
 def _is_safety_essential(cell_type: str) -> bool:
     ct = cell_type.lower()
-    return any(pat.search(ct) for pat in _SAFETY_ESSENTIAL_PATTERNS)
+    # any ENTRY matches, and an entry matches only when ALL of its runs are present (a 1-run entry is
+    # the old contiguous-phrase behaviour, unchanged).
+    return any(all(pat.search(ct) for pat in runs) for runs in _SAFETY_ESSENTIAL_PATTERNS)
 
 
 def _norm_tissue(tissue) -> str:
@@ -349,7 +446,10 @@ def _essential_veto_grade(veto_pool: list[dict], essential_origin_only: bool) ->
     principal cell at det 0.610 / donor 0.799 across 8, so a real, heavily replicated lung AND kidney
     liability graded `accessible_low_confidence` and fired nothing. EPCAM-COADREAD is the same shape
     (lung det 0.990 in 1 atlas shadowing liver det 0.693 / donor 0.943 in 10).
-    Fixing it moves the killer's base rate 223 -> 282 of 504 (44.2% -> 56.0%), and the direction is
+    Fixing THIS function alone moves the killer's base rate 223 -> 282 of 504 (44.2% -> 56.0%). Do not
+    read 282 as the shipped rate: #660 also added the replication-dominant rung to `_essential_severity`
+    (2 further pairs), so the rate actually shipped by #660 is **284 (56.3%)** and 282 is the isolated
+    contribution of the worst-grade change. The direction of this change is
     strictly one-way: over all 504 pairs, **0 pairs grade LOWER** than before, and none crosses out of
     `bbb_protected` / `not_applicable` / `origin_tissue`, so the compartment partition and the
     class x grade strict-refinement invariant are untouched.
@@ -498,8 +598,11 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
     # off-origin critical-organ hit fired (→ critical_organ_liability), name the argmax-detection cell
     # AMONG the ABOVE-FLOOR off-origin essential hits (the veto driver, not a sub-floor ambient hit); when
     # only origin-tissue essential hits fired, name the origin cell; when NO liability class fired (only
-    # sub-floor off-origin hits), name nothing. This lets the verdict/headline say "kidney proximal tubule,
-    # 3 atlases" instead of an anonymous flag — and never names a sub-floor hit that did not move the class.
+    # sub-floor off-origin hits), name nothing. This lets the verdict/headline name an organ and cell type
+    # instead of an anonymous flag — and never names a sub-floor hit that did not move the class.
+    # (This comment used to illustrate the output as "kidney proximal tubule, 3 atlases". No shard
+    # contains that label — Census writes "epithelial cell of proximal tubule" — and until this PR no
+    # entry matched any proximal-tubule label at all, so the example was doubly unreachable.)
     if essential_off_origin:
         _driver_pool = [
             e
@@ -517,6 +620,27 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
         _driver_pool = [e for e in essential_records if not e["is_off_origin"]]
     else:
         _driver_pool = []
+    # ⚠️ KNOWN DEFECT, MEASURED 2026-09-18, deliberately NOT fixed here. This is a DETECTION ARGMAX —
+    # the same selection rule #660 removed from `_essential_veto_grade` one layer down, still live in the
+    # field that tells a human WHICH organ is implicated. A single-atlas detection fraction is unshrunk
+    # and therefore high, so it wins a max over detection; measured on trunk over 468 pairs with an
+    # off-origin driver: 65 (13.9%) name a SINGLE-ATLAS cell type, and in 411 (87.8%) the pool contains a
+    # hit that is both better replicated AND at least as severe.
+    #
+    # Why the obvious fix is REFUTED and must not be applied casually: ranking by replication instead
+    # names `oligodendrocyte` (n_datasets_reliable = 177) for most brain-containing pools. Brain
+    # parenchyma is exactly what `bbb_protected` exists to DISCOUNT for a systemically dosed modality, so
+    # a replication-ranked driver would confidently name the one compartment the grade deliberately
+    # distrusts. Selection needs all three axes (compartment, severity, replication) and a decision about
+    # their order — a design question, not a one-line change, and out of scope for a vocabulary PR.
+    #
+    # What THIS PR does to it, measured: 25 of 504 pairs are re-attributed (3 to a better-replicated
+    # driver, 21 to a worse one, 1 unchanged), and single-atlas drivers rise 65 -> 74. That is a real cost
+    # and it is accepted knowingly: the same change closes a detection fail-open worth 8 killer-eligible
+    # pairs and un-protects 4 falsely brain-only pairs, and it moves ZERO verdict classes. The generic
+    # Cell Ontology parents this PR adds ("nephron tubule epithelial cell") are precisely the
+    # few-atlas/high-detection shape that wins an argmax, so the two defects interact — which is the
+    # argument for fixing the selector next, not for narrowing the vocabulary back.
     essential_driver = max(_driver_pool, key=lambda e: e["median_detection_fraction"]) if _driver_pool else None
 
     # The veto's OWN basis: the above-floor OFF-ORIGIN essential hits, i.e. exactly the set whose
