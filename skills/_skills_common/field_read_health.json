@@ -1463,6 +1463,7 @@
         "sc_normal_essential_max_tissue",
         "sc_normal_essential_median_abund",
         "sc_normal_essential_n_datasets_reliable",
+        "sc_normal_essential_veto_grade",
         "sc_normal_expression_class",
         "sc_normal_peak_median_abund",
         "sc_normal_safety_essential_class",
@@ -2137,7 +2138,7 @@
     "n_no_reads_detected": 7,
     "n_reads_detected": 503,
     "n_roster_cards": 148,
-    "n_roster_fields": 1807,
+    "n_roster_fields": 1808,
     "n_undeclared_pairs": 2,
     "n_units": 23,
     "n_units_with_undeclared_reads": 2

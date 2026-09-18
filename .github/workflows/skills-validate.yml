@@ -110,7 +110,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
-          # PINNED — main @ 2026-09-15T23:46:45Z (#785; salience-reconcile chain). Bumped BY HAND; see SIBLING PINS above.
+          # PINNED — main @ 2026-09-18T03:59:38Z (#801). Bumped BY HAND; see SIBLING PINS above.
           #
           # BUMPED BY HAND HERE, not by the bump PR, because this pin and APERTURE_CEILING in
           # skills/_skills_common/tests/test_field_disposition.py are two halves of ONE fact and the
@@ -118,14 +118,27 @@ jobs:
           # CEILING half, so each can block the other, and whoever LOWERS the ceiling must move the pin in
           # the same commit. (The full 2x2 derivation lives in this file's git history at the c88c6e04 pin.)
           #
-          # THIS BUMP needs NO ceiling move, and that is MEASURED (skills @ this branch, salience reconcile):
-          #   contracts 24fc3713 (incl. #780 fields + #783 scalar-types + #784/#785 capsule): 886 orphans -> ceiling 887, gap 1
+          # THIS BUMP needs NO ceiling move, and that is MEASURED against the EXACT ref below (2c322f8),
+          # not against a moving main — so CI reproduces the number rather than re-deriving it:
+          #   contracts 2c322f8: candidate_orphans 886, domain 1808  ->  ceiling 887, gap 1
           # 886 <= 887 clears the CEILING half and 887 - 886 = 1 <= APERTURE_SLACK 20 clears the SLACK half,
-          # so the ceiling stays 887 and this pin moves ALONE. The move is the ENABLER for this branch's
-          # reconcile: #784 (TC#780 display capsule) + #785 (reconcile scalars -> capsule display) de-orphaned
-          # exactly the fields this branch stops reading in evidence_salience, so that removal is aperture-
-          # neutral ONLY against a contracts tree carrying those capsule declarations -- i.e. this pin.
-          ref: e1f1144022e364dfb84ec7269f5f5e6f53336b0c
+          # so the ceiling stays 887 and this pin moves ALONE. Full aperture suite: 69 passed.
+          #
+          # WHY THIS BUMP IS NOT OPTIONAL — it is one half of an ATOMIC fix, and this is the rule it
+          # illustrates: TC#786 (b92956e) declared `sc_normal_essential_veto_grade` on
+          # sc-normal-celltype-expression, which tumor-presence resolves. Its field-disposition ratchet
+          # (skills/tumor-presence/tests/test_field_disposition_complete.py::test_ledger_matches_emitted_fields)
+          # asserts drift in BOTH directions — `orphans = emitted - ledger` AND `stale = ledger - emitted` —
+          # so the new ledger row lands green against a contracts tree that declares the field and RED against
+          # one that does not. There is therefore NO forward-compatible ledger shape: the row and this pin must
+          # move in ONE commit. Until this bump, `pytest` was GREEN in CI and RED on a clean trunk checkout,
+          # because CI was resolving contracts at e1f1144 (2026-09-16, pre-#786) where the field does not exist.
+          #
+          # PRIOR PIN, for the record: e1f1144022e364dfb84ec7269f5f5e6f53336b0c. Its comment described itself as
+          # "main @ 2026-09-15T23:46:45Z (#785)", but e1f1144 is #790 dated 2026-09-16T14:41:12-0400 — the ref
+          # was moved without its comment. Stating the date/PR that actually matches the ref, since the next
+          # person's bump reasoning starts from this comment.
+          ref: 2c322f89dbe8cbb38e3cfe3143eb8140e3a89868
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

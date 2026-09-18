@@ -952,6 +952,26 @@ sc-normal-celltype-expression:
   sc_normal_safety_essential_class:
     role: signal
     reason: magnitude/categorical signal
+  # The GRADED successor to sc_normal_safety_essential_class (analysis-methods #647 + target-contracts
+  # #786, both merged 2026-09-18). `signal` is the honest role by this file's own definition — it feeds a
+  # verdict: surface-intrinsic.rules.yaml gates the `dominant: true` BiTE/TCE killer on it, and the regrade
+  # moved that killer from 92.9% to 44.2% of corpus-20260914. No `waived_because`, because the field IS
+  # reader-reached and a waiver is only for a signal nothing reaches.
+  #
+  # BUT NOTE THE DIVERGENCE, which this row records rather than hides: measured 2026-09-18 by
+  # _skills_common.field_disposition.census (which is blind to this ledger), this field's reach is
+  # {gating_rule, display_rule} — the RULES layer only — while its binary predecessor above reaches
+  # {gating_rule, capsule, salience, skill_code}. tumor-presence reads the PREDECESSOR at
+  # scripts/run.py:1960 and lists it as salient at :2153, and has ZERO references to this field
+  # (grep over all of skills/). So the framework's verdict is now graded while this skill's headline,
+  # salience ranking and capsule still narrate the binary class. That is a display-vs-verdict gap to
+  # close in the skills projection layer, NOT a reason to under-declare the role here.
+  sc_normal_essential_veto_grade:
+    role: signal
+    reason: "graded essential-cell veto (compartment x severity) — gates the dominant BiTE/TCE killer via
+      surface-intrinsic.rules.yaml; supersedes sc_normal_safety_essential_class, which tumor-presence still
+      reads at run.py:1960 while this field is unread by any skill code (see comment above)"
+    reviewed: true
   tissues_queried:
     role: provenance
     reason: identity/scope key
