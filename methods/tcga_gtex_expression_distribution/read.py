@@ -1141,6 +1141,28 @@ def read_tumor_expression_subtype_landscape(
                 if floor_met
                 else None
             )
+            # The cutoff ACTUALLY APPLIED to produce the call on THIS row — the card's exact wording
+            # (tumor-rna-distribution-by-subtype, TC#811), and it is narrower than "the cut in force".
+            # Cross-arm comparability is the point: `subtype_enriched` means 0.585 of a log2(TPM+1)
+            # median shift here, 1.0 on the cell-line RNA arm, and 0.25 of a tumour-vs-reference log2
+            # RATIO on the CPTAC protein arm — three cuts differing in value AND units, emitted nowhere
+            # until now, so a consumer joining the arms per stratum could not tell that two
+            # `enriched` tokens are not the same claim. Emitting it normalises WITHOUT moving any cut.
+            # THREE ways this row can carry a signal no delta comparison produced — all must be null:
+            #   1. not floor_met            -> signal is None outright (exploratory strata included)
+            #   2. "subtype_restricted"     -> the DETECTABILITY branch short-circuits BEFORE either
+            #                                  delta comparison, so the cut never ran on this row
+            #   3. a missing median         -> _classify_subtype_signal FALLS THROUGH to
+            #                                  "subtype_uniform", which is an abstention wearing a
+            #                                  measured token, so the signal alone cannot be the test
+            # Only (2) is unique to this arm; the RNA/protein siblings need (3) and their own floor.
+            rec["subtype_enrich_log2_delta"] = (
+                SUBTYPE_ENRICH_LOG2_DELTA
+                if rec["subtype_signal"] not in (None, "subtype_restricted")
+                and summary["median_log2tpm"] is not None
+                and pooled_median is not None
+                else None
+            )
         else:
             rec.update(
                 {
@@ -1162,6 +1184,8 @@ def read_tumor_expression_subtype_landscape(
                     "distribution_overlap_tumor_normal": None,
                     "proxy_normal_windows": [],
                     "subtype_signal": None,
+                    # no values in this stratum -> no comparison ran, so no applied cut to attest
+                    "subtype_enrich_log2_delta": None,
                 }
             )
         landscape.append(rec)
@@ -1355,6 +1379,13 @@ def read_tumor_subtype_values(target: str, indication: str) -> dict:
                 "stratum_id": sid,
                 "values": vals,
                 "subtype_signal": signal,
+                # `subtype_enrich_log2_delta` is DELIBERATELY not emitted here, and the omission is
+                # declared so it does not read as a miss: these rows feed the box/strip FIGURE panel,
+                # not the card. The card's per_subgroup_metrics comes from the landscape reader
+                # (cli.py:145 passes `subtype_landscape` through verbatim) and these rows carry
+                # `values`/`n`/`median`, which that record schema's additionalProperties:false rejects.
+                # The applied cut exists to make the three arms JOINABLE per stratum; a plot has no
+                # such consumer. Add it here only if some reader starts joining on these rows.
                 # Same opt-in as the landscape reader above — REQUIRED here, not optional: this
                 # function's docstring promises it "Shares the SAME bridge + shard ... (no drift)",
                 # so grading the two differently would break a stated invariant. `evaluated=` is

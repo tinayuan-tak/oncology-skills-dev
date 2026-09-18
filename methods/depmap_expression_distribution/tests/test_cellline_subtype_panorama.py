@@ -159,3 +159,88 @@ def test_all_unclassified_axis_grades_unevaluable_not_empty(monkeypatch):
         for s in ("stratum_a", "stratum_b")
     ]
     assert R._subtype_rollup(evaluated_empty, pooled_median=None)["subtype_axis_quality"] == "empty"
+
+
+# ── The APPLIED enrichment cut + the resolved-shard stamp (AM follow-on to contracts #811) ────────
+
+
+def _projected(stratum: str, median, state: str = "measured") -> dict:
+    """A per_subgroup_metrics row built through the PRODUCTION projection.
+
+    The two post-pass fields get their null defaults in `_expression_projection`, not in
+    `_subtype_rollup` (which visits `measured` rows only), so a hand-built dict like `_rec` above
+    tests a shape the module never emits and KeyErrors on exactly the null cases under test.
+    """
+    return R._expression_projection(
+        stratum,
+        {
+            "expression_class": "broadly_detected",
+            "evidence_state": state,
+            "median_log2tpm": median,
+            "fraction_expressed": 0.9,
+            "subgroup_n": 40,
+            "subgroup_n_floor_met": True,
+            "source_cohort": "DepMap-26q1",
+        },
+    )
+
+
+def test_projection_declares_both_post_pass_keys():
+    proj = _projected("KRAS_G12C", None, state="underpowered")
+    assert "subtype_signal" in proj and proj["subtype_signal"] is None
+    assert "subtype_enrich_log2_delta" in proj and proj["subtype_enrich_log2_delta"] is None
+
+
+def test_applied_delta_separates_a_measured_uniform_from_an_abstention():
+    """On THIS arm the signal alone cannot gate the delta, and that is the whole subtlety.
+
+    `_classify_subtype_signal` falls THROUGH to "uniform" when either median is None (unlike the
+    CPTAC arm, which returns None) — so a stratum that was never compared carries a token that looks
+    like a measured finding. The delta is therefore gated on the MEDIANS, and a null delta on a
+    `uniform` row is the reader's only signal that no comparison ran. Asserting both rows is
+    essential: they carry the same `subtype_signal` and differ ONLY in the new field.
+    """
+    compared = _projected("EGFR_mut", 5.4)  # within the band -> a real `uniform` call
+    abstained = _projected("unknown", None)  # no median -> fall-through `uniform`
+    R._subtype_rollup([compared, abstained], pooled_median=5.0)
+    assert compared["subtype_signal"] == "uniform" and abstained["subtype_signal"] == "uniform"
+    assert compared["subtype_enrich_log2_delta"] == 1.0
+    assert abstained["subtype_enrich_log2_delta"] is None
+    # no pooled baseline -> nothing was compared on ANY row
+    fresh = [_projected("EGFR_mut", 5.4)]
+    R._subtype_rollup(fresh, pooled_median=None)
+    assert fresh[0]["subtype_enrich_log2_delta"] is None
+
+
+def test_emitted_delta_is_the_cut_this_arm_actually_applies():
+    """The emitted value must be 1.0 HERE and 0.585 on the tumour RNA arm — the cross-arm point.
+
+    Same word (`enriched`), a 2x linear shift on cell lines vs a 1.5x shift in tumours. The two
+    constants are deliberately NOT aligned (moving the cell-line cut would silently reclassify live
+    strata); emitting the applied value is what makes the arms joinable instead. Pinning the number
+    against the module constant AND against the sibling's would let a single edit satisfy both, so
+    this asserts the literal.
+    """
+    enriched = _projected("KRAS_G12C", 6.5)
+    R._subtype_rollup([enriched], pooled_median=5.0)
+    assert enriched["subtype_signal"] == "enriched"
+    assert enriched["subtype_enrich_log2_delta"] == R._SUBTYPE_ENRICH_LOG2_DELTA == 1.0
+
+
+def test_assignment_manifest_stamps_the_shard_the_run_read(monkeypatch):
+    """A reader-side stamp of the resolved shard, which is what makes staleness auditable.
+
+    `envelope.py::_refine_product_id_staleness` calls staleness INDETERMINATE for want of exactly
+    this: a card may pin several candidate shards, so without the stamp the envelope cannot tell
+    WHICH one a run read. This arm previously emitted nothing, while its tumour-RNA sibling always
+    has. The composer is faked because the assertion is about the stamp, not the read.
+    """
+    monkeypatch.setattr(R, "build_panorama", lambda *a, **k: {"per_subgroup_metrics": []})
+    monkeypatch.setattr(R, "_pooled_lineage_median", lambda *a, **k: None)
+    pan = R.build_expression_subtype_panorama(
+        "EPCAM",
+        "COADREAD",
+        subgroups=["MSI_H"],
+        subgroup_assignments_manifest="depmap-subgroup-assignments-coadread-v1",
+    )
+    assert pan["assignment_manifest"] == "depmap-subgroup-assignments-coadread-v1"

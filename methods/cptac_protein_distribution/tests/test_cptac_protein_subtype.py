@@ -159,3 +159,129 @@ def test_unevaluable_only_when_the_assigner_abstained(monkeypatch):
     assert call(False) == "unevaluable"
     assert call(True) == "absent"
     assert call(None) == "absent"  # historical default preserved
+
+
+# ── The APPLIED enrichment cut + the resolved-shard stamp (AM follow-on to contracts #811) ────────
+
+
+def _projected_row(stratum: str, evidence_state: str, median) -> dict:
+    """A per_subgroup_metrics row built the way PRODUCTION builds it — through the projection.
+
+    Not a convenience: the key-presence guarantee for the two post-pass fields lives in
+    `_protein_projection`, NOT in `_subtype_rollup` (which writes them onto `measured` rows only and
+    never visits the others). A hand-built dict therefore tests a record shape the module never
+    emits, and it fails on the null cases for a reason that has nothing to do with the behaviour
+    under test. `build_panorama(..., record_projection=_protein_projection)` is the single producer.
+    """
+    return _protein_projection(
+        stratum,
+        {
+            "protein_class": "protein_neutral",
+            "evidence_state": evidence_state,
+            "median_log2_ratio": median,
+            "detectable_fraction": 1.0,
+            "subgroup_n": 40,
+            "subgroup_n_floor_met": True,
+            "source_cohort": "CPTAC-COAD",
+        },
+    )
+
+
+def test_projection_declares_both_post_pass_keys(monkeypatch):
+    """The record SHAPE must not encode whether the row was measured.
+
+    `_subtype_rollup` writes `subtype_signal` and `subtype_enrich_log2_delta` onto `measured` rows
+    only, so before these defaults an unmeasured stratum came back with the keys ABSENT while a
+    measured one had them present. That is worse than a null: `rec["subtype_signal"]` KeyErrors on
+    the first empty stratum, and `rec.get("subtype_signal", "uniform")` silently returns its default
+    for exactly the rows that were never compared. Asserting `in` (not just the value) is the point —
+    an `is None` check alone passes on an absent key via `.get`.
+    """
+    import methods.cptac_protein_deg.read as cpr
+
+    monkeypatch.setattr(cpr, "read_per_sample", lambda t: _fake_per_sample())
+    # an EMPTY stratum: 0 members -> the `empty` template, i.e. exactly the unmeasured row whose
+    # shape used to differ from a measured one.
+    rec = read_stratified_protein("EPCAM", "COADREAD", cohort="COAD", _sample_id_filter=set())
+    assert rec["evidence_state"] != "measured"
+    proj = _protein_projection("MSI_H", rec)
+    assert "subtype_signal" in proj and proj["subtype_signal"] is None
+    assert "subtype_enrich_log2_delta" in proj and proj["subtype_enrich_log2_delta"] is None
+
+
+def test_applied_delta_emitted_only_where_the_cut_actually_ran():
+    """Emit the cut that PRODUCED the call, not the cut that was in force.
+
+    The card (tumor-protein-distribution-by-subtype) declares this field as "the enrichment cutoff
+    ACTUALLY APPLIED to produce `subtype_signal` on this row", which makes the null cases load-
+    bearing rather than cosmetic. Here the gate is the signal itself, and that is exact rather than
+    convenient: this arm's classifier returns None precisely when a median is missing. Both
+    directions are asserted, because a test that only checks the populated case cannot distinguish
+    "emitted where the cut ran" from "emitted unconditionally".
+    """
+    records = [
+        _projected_row("MSI_H", "measured", 0.9),
+        _projected_row("MSS", "measured", 0.1),
+        _projected_row("unknown", "measured", None),
+    ]
+    _subtype_rollup(records, pooled_median=0.1)
+    by_id = {r["stratum"]: r for r in records}
+    assert by_id["MSI_H"]["subtype_signal"] == "enriched"
+    assert by_id["MSI_H"]["subtype_enrich_log2_delta"] == 0.25
+    # a `uniform` call is still a call the cut produced -> the delta IS attested
+    assert by_id["MSS"]["subtype_signal"] == "uniform"
+    assert by_id["MSS"]["subtype_enrich_log2_delta"] == 0.25
+    # no median -> no comparison ran -> null, and the signal is null too (no "uniform" laundering)
+    assert by_id["unknown"]["subtype_signal"] is None
+    assert by_id["unknown"]["subtype_enrich_log2_delta"] is None
+    # …and with no pooled baseline, NOTHING was compared on any row
+    fresh = [_projected_row("MSI_H", "measured", 0.9)]
+    _subtype_rollup(fresh, pooled_median=None)
+    assert fresh[0]["subtype_enrich_log2_delta"] is None
+
+
+def test_emitted_delta_is_the_constant_the_classifier_reads(monkeypatch):
+    """The emitted number must be the one the comparison used — not a coincidentally equal literal.
+
+    Naming `_SUBTYPE_ENRICH_LOG2_DELTA` (behaviour-neutral: 0.25 both before and after) is only worth
+    anything if the constant is load-bearing on BOTH sides. Moving it must move the classification
+    boundary AND the emitted value together; a copy of the old inline literal left behind at either
+    comparison site survives every assertion above but fails here.
+    """
+    import methods.cptac_protein_distribution.read as R
+
+    monkeypatch.setattr(R, "_SUBTYPE_ENRICH_LOG2_DELTA", 1.0)
+    # 0.9 above pooled cleared the real 0.25 cut; under a 1.0 cut it must not
+    assert R._classify_subtype_signal(1.0, 0.1) == "uniform"
+    assert R._classify_subtype_signal(1.2, 0.1) == "enriched"
+    recs = [_projected_row("MSI_H", "measured", 1.2)]
+    R._subtype_rollup(recs, pooled_median=0.1)
+    assert recs[0]["subtype_enrich_log2_delta"] == 1.0
+
+
+def test_assignment_manifest_stamps_the_shard_the_run_resolved(monkeypatch):
+    """A reader-side stamp of the RESOLVED shard, which is what makes staleness auditable.
+
+    `envelope.py::_refine_product_id_staleness` reports staleness as INDETERMINATE for want of
+    exactly this: a card may pin several candidate shards, so without the stamp the envelope cannot
+    tell WHICH one a given run read. The caller override is asserted separately from the fallback
+    because a stamp that always re-derives from INDICATION_TO_CPTAC_ASSIGNMENT_MANIFEST would attest
+    the wrong shard on every explicit-manifest call while looking correct on the default path.
+    """
+    import methods.cptac_protein_distribution.read as R
+
+    monkeypatch.setattr(R, "build_panorama", lambda *a, **k: {"per_subgroup_metrics": []})
+    monkeypatch.setattr(R, "read_stratified_protein", lambda *a, **k: {"median_log2_ratio": 0.1})
+
+    default = R.build_protein_subtype_panorama("EPCAM", "COADREAD", subgroups=["MSI_H"])
+    assert default["assignment_manifest"] == "cptac-subgroup-assignments-coadread-v1"
+
+    override = R.build_protein_subtype_panorama(
+        "EPCAM", "COADREAD", subgroups=["MSI_H"], subgroup_assignments_manifest="cptac-shard-under-test"
+    )
+    assert override["assignment_manifest"] == "cptac-shard-under-test"
+
+    # the no-shard path carries the key as an explicit null: nothing was resolved, so there is
+    # nothing to attest — but the record shape must not vary by which path produced it.
+    none_path = R.build_protein_subtype_panorama("EPCAM", "GBM", subgroups=["x"])
+    assert "assignment_manifest" in none_path and none_path["assignment_manifest"] is None

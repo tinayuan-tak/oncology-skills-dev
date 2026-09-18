@@ -190,6 +190,8 @@ def _expression_projection(stratum_id: str, rec: dict) -> dict:
         "subgroup_n_floor_met": rec["subgroup_n_floor_met"],
         "subtype_defining_data": "genomic",
         "subtype_signal": None,
+        # Filled by the post-pass alongside subtype_signal; None means no cut was applied to this row.
+        "subtype_enrich_log2_delta": None,
         "source_cohort": rec["source_cohort"],
     }
 
@@ -233,6 +235,17 @@ def _subtype_rollup(records: list, pooled_median: Optional[float]) -> dict:
     measured = [r for r in records if r.get("evidence_state") == "measured"]
     for r in measured:
         r["subtype_signal"] = _classify_subtype_signal(r.get("median_log2tpm"), pooled_median)
+        # The cutoff ACTUALLY APPLIED to produce that call, declared per-record by the card
+        # (cellline-rna-distribution-by-subtype, TC#811). The point is CROSS-ARM comparability:
+        # `enriched` means a 1.0 log2(TPM+1) shift here, 0.585 on the tumor RNA arm, and 0.25 of a
+        # tumor-vs-reference log2 RATIO on the CPTAC protein arm — three cuts differing in value AND
+        # in units, previously discoverable nowhere in the emitted record. Emitting the applied value
+        # lets a consumer normalise (or decline to join) WITHOUT moving any cut.
+        # Left None when no comparison ran: _classify_subtype_signal falls through to "uniform" if
+        # EITHER median is None, and that fall-through is an ABSTENTION, not a measured uniformity —
+        # so a `uniform` row with a null delta is readable as "not compared".
+        if r.get("median_log2tpm") is not None and pooled_median is not None:
+            r["subtype_enrich_log2_delta"] = _SUBTYPE_ENRICH_LOG2_DELTA
     n_enriched = sum(1 for r in measured if r["subtype_signal"] == "enriched")
     n_depleted = sum(1 for r in measured if r["subtype_signal"] == "depleted")
     if n_enriched and n_depleted:
@@ -290,5 +303,13 @@ def build_expression_subtype_panorama(
         target, subgroups, subgroup_assignments_manifest, subgroup_catalog_repo, release_pin
     )
     panorama.update(_subtype_rollup(panorama["per_subgroup_metrics"], pooled))
+    # Reader-side stamp of the RESOLVED assignment shard, mirroring the tumor RNA arm
+    # (tcga_gtex_expression_distribution/read.py:1251, :1375) which has always emitted it.
+    # WHY it matters beyond provenance tidiness: envelope.py::_refine_product_id_staleness reports
+    # staleness as INDETERMINATE precisely because it lacks "a reader-side stamp of the resolved
+    # manifest id" — a card can pin several candidate shards, so the envelope cannot tell WHICH one a
+    # given run actually read. Stamping it turns indeterminate staleness into a real audit for this
+    # arm. The value is already resolved in this scope, so nothing is re-resolved here.
+    panorama["assignment_manifest"] = subgroup_assignments_manifest
     panorama["_data_source"] = f"DepMap-{release_pin} expression (subgroup-stratified)"
     return panorama

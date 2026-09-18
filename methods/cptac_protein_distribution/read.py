@@ -114,17 +114,40 @@ def _protein_projection(stratum_id: str, rec: dict) -> dict:
         "detectable_fraction": rec["detectable_fraction"],
         "subgroup_n": rec["subgroup_n"],
         "subgroup_n_floor_met": rec["subgroup_n_floor_met"],
+        # Declared here, not only in the post-pass: the rollup writes these two onto `measured` rows
+        # ONLY, so before this default an unmeasured stratum came back with the keys ABSENT while a
+        # measured one had them present. A consumer reading `rec["subtype_signal"]` KeyErrors on the
+        # first empty stratum, and `rec.get("subtype_signal", "uniform")` returns its default only
+        # for the absent case — i.e. the record shape itself encoded whether the row was measured.
+        # Defaulting both to None makes the shape uniform and the null mean "no cut applied".
+        "subtype_signal": None,
+        "subtype_enrich_log2_delta": None,
         "source_cohort": rec["source_cohort"],
     }
+
+
+# Per-stratum enrichment cutoff vs the pooled-cohort median, in log2 tumor-vs-reference RATIO units.
+# NAMED 2026-09-18 (behaviour-neutral — the value is unchanged): this cut used to be an inline literal
+# repeated at both comparison sites below, so it was the one arm of the three whose `enriched` threshold
+# had NO symbol to grep for. tumor-protein-distribution-by-subtype.card.yaml now declares it in
+# `thresholds:` with a `threshold_roles` entry naming this method as the consumer (TC#811), and that
+# declaration is only auditable if the value is named here.
+# ⚠️ Do NOT confuse this with _ELEVATED / _REDUCED above: those are the DISPLAY class bands
+# (protein_elevated / protein_neutral / protein_reduced), NOT the enrichment cut. They differ (0.5 vs
+# 0.25), so a name-based search for "the protein threshold" that lands on _ELEVATED is wrong by 2x.
+# ⚠️ NOT comparable to the RNA arms' cut: 0.585 (tumor) and 1.0 (cell line) are deltas of a
+# log2(TPM+1) MEDIAN, while this is a delta of a tumor-vs-reference log2 RATIO — different measurand,
+# so the three values must never be "aligned" to each other.
+_SUBTYPE_ENRICH_LOG2_DELTA = 0.25
 
 
 def _classify_subtype_signal(median: Optional[float], pooled_median: Optional[float]) -> Optional[str]:
     if median is None or pooled_median is None:
         return None
     delta = median - pooled_median
-    if delta >= 0.25:
+    if delta >= _SUBTYPE_ENRICH_LOG2_DELTA:
         return "enriched"
-    if delta <= -0.25:
+    if delta <= -_SUBTYPE_ENRICH_LOG2_DELTA:
         return "depleted"
     return "uniform"
 
@@ -133,6 +156,18 @@ def _subtype_rollup(records: list, pooled_median: Optional[float]) -> dict:
     measured = [r for r in records if r.get("evidence_state") == "measured"]
     for r in measured:
         r["subtype_signal"] = _classify_subtype_signal(r.get("median_log2_ratio"), pooled_median)
+        # The cutoff ACTUALLY APPLIED to produce that call (card: tumor-protein-distribution-by-
+        # subtype, TC#811). Cross-arm comparability is the whole point: `enriched` means 0.25 of a
+        # tumor-vs-reference log2 RATIO here, 0.585 of a log2(TPM+1) median shift on the tumour RNA
+        # arm and 1.0 on the cell-line RNA arm — three cuts differing in value AND in units, and
+        # previously discoverable nowhere in the emitted record. Emitting the applied value lets a
+        # consumer normalise (or decline to join) WITHOUT moving any cut.
+        # The gate is the SIGNAL, not the medians, and that is exact rather than a convenience:
+        # _classify_subtype_signal returns None precisely when a median is missing, so `is not None`
+        # means "a comparison ran". NOTE the asymmetry with the two RNA arms, whose classifiers fall
+        # THROUGH to "uniform" on a missing median and therefore have to re-test the medians here.
+        if r["subtype_signal"] is not None:
+            r["subtype_enrich_log2_delta"] = _SUBTYPE_ENRICH_LOG2_DELTA
     n_enr = sum(1 for r in measured if r.get("subtype_signal") == "enriched")
     n_dep = sum(1 for r in measured if r.get("subtype_signal") == "depleted")
     if n_enr and n_dep:
@@ -178,6 +213,9 @@ def build_protein_subtype_panorama(
             "n_subtypes_enriched": 0,
             "n_subtypes_depleted": 0,
             "subtype_stratification_class": "subtype_axis_unavailable",
+            # Explicit null, NOT the stamp: no shard was resolved on this path, so there is nothing
+            # to attest. The key is still present so the record shape does not vary by path.
+            "assignment_manifest": None,
             "_subtype_note": "no landed CPTAC subgroup-assignment shard for this indication",
         }
     # pooled cohort median (the enrichment baseline) — all tumor aliquots, no stratum filter
@@ -195,4 +233,11 @@ def build_protein_subtype_panorama(
         reader_kwargs={"cohort": cohort},
     )
     panorama.update(_subtype_rollup(panorama["per_subgroup_metrics"], pooled_median))
+    # Reader-side stamp of the RESOLVED shard, mirroring the tumour RNA arm (which has always emitted
+    # it) and the cell-line arm (stamped in this same change). `manifest` is the value the read
+    # actually used — either the caller's override or the INDICATION_TO_* fallback — so this attests
+    # the substrate rather than re-resolving it. envelope.py::_refine_product_id_staleness reports
+    # staleness as INDETERMINATE for want of exactly this stamp: a card may pin several candidate
+    # shards, so without it the envelope cannot tell WHICH one a given run read.
+    panorama["assignment_manifest"] = manifest
     return panorama
