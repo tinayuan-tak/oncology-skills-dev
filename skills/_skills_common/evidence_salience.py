@@ -884,6 +884,49 @@ SALIENCE_SPECS: dict = {
         "n_field": "n_phosphosites",
         "categorical": ["phospho_activity_class"],
     },
+    # ── descriptor-coverage sweep, safety/translational/context + reference/annotation batch
+    # (2026-09-18) — the last mintable measurement_types. All verdict-inert, all categorical-only
+    # (no card declares a single-sourced numeric cut binding a value into the class), so the CLASS is
+    # the ruler: categorical + n_field, no reference_frame / no atlas column. Several are cohort-level
+    # (ddr_deficiency_context, model_availability, stemness_context) but categorical-only mints their
+    # class without a frame, so no atlas opt-out is needed.
+    "drug_warning_safety": {"n_field": "n_targeted_drugs", "categorical": ["drug_warning_class"]},
+    "onsides_adverse_event_safety": {"n_field": "n_drugs_mapped", "categorical": ["onsides_ade_class"]},
+    "target_safety_prioritisation": {
+        "categorical": ["prioritisation_status", "has_safety_event_band", "genetic_constraint_band"],
+    },
+    "ddr_deficiency_context": {"n_field": "n_samples", "categorical": ["ddr_context_class"]},
+    "stemness_context": {"n_field": "n_samples", "categorical": ["stemness_class"]},
+    "gene_ontology_annotation": {"n_field": "n_go_terms_total", "categorical": ["annotation_class"]},
+    "ppi_interactome": {
+        "n_field": "n_high_confidence_interactors",
+        "categorical": ["interactome_class", "physical_interactome_class"],
+    },
+    "protein_domains_class": {
+        "n_field": "n_domains",
+        "categorical": ["protein_features_class", "domain_evidence", "protein_class"],
+    },
+    "reactome_pathway_membership": {"n_field": "pathway_count", "categorical": ["pathway_class"]},
+    "target_development_level": {"categorical": ["tdl_class"]},
+    "cited_literature_evidence": {"n_field": "n_diseases", "categorical": ["cited_evidence_status"]},
+    "competitor_landscape": {
+        "n_field": "n_competitor_programs",
+        "categorical": ["competitor_class", "indication_scope", "highest_clinical_stage"],
+    },
+    # precog_prognostic_association: survival has NO monotone direction (a hazard can be worse-or-better),
+    # so categorical-only — no numeric direction (mirrors expression_clinical_association).
+    "precog_prognostic_association": {
+        "n_field": "n_precog_datasets",
+        "categorical": ["prognostic_class", "pan_cancer_prognostic_class"],
+    },
+    "ici_response_expression": {
+        "n_field": "n_cohorts",
+        "categorical": ["ici_response_class", "direction_higher_in"],
+    },
+    "clinical_precedent": {
+        "n_field": "n_active_trials",
+        "categorical": ["highest_clinical_stage", "modality_precedent"],
+    },
     "tumor_vs_adjacent_expression": {
         "effect_field": "log2_fc",
         "significance_field": "q_value",

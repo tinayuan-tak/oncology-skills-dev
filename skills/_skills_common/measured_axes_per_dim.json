@@ -83,16 +83,11 @@
       "gate_short": "differentiation",
       "n_declared_cards": 9,
       "n_declared_types": 9,
-      "n_measurement_descriptor_fields": 26,
-      "n_types_with_measurement_descriptor": 5,
+      "n_measurement_descriptor_fields": 38,
+      "n_types_with_measurement_descriptor": 9,
       "skill_dir": "differentiation-landscape",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [
-        "clinical_precedent",
-        "competitor_landscape",
-        "precog_prognostic_association",
-        "stemness_context"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_bearing": true
     },
     "expression": {
@@ -118,13 +113,11 @@
       "gate_short": "genomic_alteration",
       "n_declared_cards": 26,
       "n_declared_types": 23,
-      "n_measurement_descriptor_fields": 112,
-      "n_types_with_measurement_descriptor": 22,
+      "n_measurement_descriptor_fields": 114,
+      "n_types_with_measurement_descriptor": 23,
       "skill_dir": "genomic-alteration-profile",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [
-        "ddr_deficiency_context"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_bearing": true
     },
     "immune_context": {
@@ -135,13 +128,11 @@
       "gate_short": null,
       "n_declared_cards": 7,
       "n_declared_types": 6,
-      "n_measurement_descriptor_fields": 16,
-      "n_types_with_measurement_descriptor": 5,
+      "n_measurement_descriptor_fields": 19,
+      "n_types_with_measurement_descriptor": 6,
       "skill_dir": "immune-context",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [
-        "ici_response_expression"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_bearing": true
     },
     "literature_context": {
@@ -152,13 +143,11 @@
       "gate_short": null,
       "n_declared_cards": 1,
       "n_declared_types": 1,
-      "n_measurement_descriptor_fields": 0,
-      "n_types_with_measurement_descriptor": 0,
+      "n_measurement_descriptor_fields": 2,
+      "n_types_with_measurement_descriptor": 1,
       "skill_dir": "literature-context",
-      "static_state": "descriptor_blind",
-      "types_without_measurement_descriptor": [
-        "cited_literature_evidence"
-      ],
+      "static_state": "descriptor_covered",
+      "types_without_measurement_descriptor": [],
       "verdict_bearing": false
     },
     "mechanism": {
@@ -184,15 +173,11 @@
       "gate_short": "safety",
       "n_declared_cards": 16,
       "n_declared_types": 16,
-      "n_measurement_descriptor_fields": 76,
-      "n_types_with_measurement_descriptor": 13,
+      "n_measurement_descriptor_fields": 83,
+      "n_types_with_measurement_descriptor": 16,
       "skill_dir": "on-target-safety-liability",
       "static_state": "descriptor_covered",
-      "types_without_measurement_descriptor": [
-        "drug_warning_safety",
-        "onsides_adverse_event_safety",
-        "target_safety_prioritisation"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_bearing": true
     },
     "selectivity": {
@@ -248,18 +233,12 @@
       "gate_short": null,
       "n_declared_cards": 20,
       "n_declared_types": 20,
-      "n_measurement_descriptor_fields": 53,
-      "n_types_with_measurement_descriptor": 13,
+      "n_measurement_descriptor_fields": 68,
+      "n_types_with_measurement_descriptor": 19,
       "skill_dir": "target-intrinsic",
       "static_state": "descriptor_covered",
       "types_without_measurement_descriptor": [
-        "gene_ontology_annotation",
-        "ppi_interactome",
-        "protein_domains_class",
-        "reactome_pathway_membership",
-        "target_development_level",
-        "target_identity",
-        "target_safety_prioritisation"
+        "target_identity"
       ],
       "verdict_bearing": false
     },
@@ -312,11 +291,9 @@
       "n_axes_counted": 6,
       "n_axes_descriptor_covered": 6,
       "n_declared_types": 60,
-      "n_types_without_measurement_descriptor": 1,
+      "n_types_without_measurement_descriptor": 0,
       "not_a_fanout_axes": [],
-      "types_without_measurement_descriptor": [
-        "ddr_deficiency_context"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_member_axes": [
         "dependency",
         "expression",
@@ -371,17 +348,10 @@
       "n_axes_counted": 4,
       "n_axes_descriptor_covered": 4,
       "n_declared_types": 50,
-      "n_types_without_measurement_descriptor": 8,
+      "n_types_without_measurement_descriptor": 1,
       "not_a_fanout_axes": [],
       "types_without_measurement_descriptor": [
-        "gene_ontology_annotation",
-        "ici_response_expression",
-        "ppi_interactome",
-        "protein_domains_class",
-        "reactome_pathway_membership",
-        "target_development_level",
-        "target_identity",
-        "target_safety_prioritisation"
+        "target_identity"
       ],
       "verdict_member_axes": [
         "surface_modality",
@@ -395,13 +365,9 @@
       "n_axes_counted": 2,
       "n_axes_descriptor_covered": 2,
       "n_declared_types": 28,
-      "n_types_without_measurement_descriptor": 3,
+      "n_types_without_measurement_descriptor": 0,
       "not_a_fanout_axes": [],
-      "types_without_measurement_descriptor": [
-        "drug_warning_safety",
-        "onsides_adverse_event_safety",
-        "target_safety_prioritisation"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_member_axes": [
         "safety",
         "selectivity"
@@ -416,14 +382,9 @@
       "n_axes_counted": 1,
       "n_axes_descriptor_covered": 1,
       "n_declared_types": 9,
-      "n_types_without_measurement_descriptor": 4,
+      "n_types_without_measurement_descriptor": 0,
       "not_a_fanout_axes": [],
-      "types_without_measurement_descriptor": [
-        "clinical_precedent",
-        "competitor_landscape",
-        "precog_prognostic_association",
-        "stemness_context"
-      ],
+      "types_without_measurement_descriptor": [],
       "verdict_member_axes": [
         "differentiation"
       ]
@@ -906,8 +867,8 @@
   "spec_types_pulled_by_no_axis": [],
   "summary": {
     "n_axes": 18,
-    "n_axes_descriptor_blind": 1,
-    "n_axes_descriptor_covered": 14,
+    "n_axes_descriptor_blind": 0,
+    "n_axes_descriptor_covered": 15,
     "n_axes_no_declared_types": 0,
     "n_axes_not_a_fanout_axis": 3,
     "n_declared_cards_distinct": 139,
@@ -915,30 +876,15 @@
     "n_dims": 6,
     "n_fanout_axes": 15,
     "n_gated_axes": 8,
-    "n_salience_spec_types": 104,
+    "n_salience_spec_types": 119,
     "n_spec_types_pulled_by_no_axis": 0,
-    "n_types_with_measurement_descriptor": 104,
-    "n_types_without_measurement_descriptor": 19
+    "n_types_with_measurement_descriptor": 119,
+    "n_types_without_measurement_descriptor": 4
   },
   "types_without_measurement_descriptor": [
-    "cited_literature_evidence",
-    "clinical_precedent",
-    "competitor_landscape",
-    "ddr_deficiency_context",
-    "drug_warning_safety",
-    "gene_ontology_annotation",
     "genotype_matched_model",
-    "ici_response_expression",
     "model_availability",
-    "onsides_adverse_event_safety",
     "pdx_drug_response",
-    "ppi_interactome",
-    "precog_prognostic_association",
-    "protein_domains_class",
-    "reactome_pathway_membership",
-    "stemness_context",
-    "target_development_level",
-    "target_identity",
-    "target_safety_prioritisation"
+    "target_identity"
   ]
 }

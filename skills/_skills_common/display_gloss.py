@@ -89,6 +89,17 @@ METRIC_GLOSS: dict = {
     "shet_upper_95": ("s_het 95% CI upper bound", "s_het"),
     "obs_lof_count": ("observed LoF variant count", "count"),
     "exp_lof_count": ("expected LoF variant count", "count"),
+    # descriptor-coverage sweep, safety/translational/context + reference/annotation batch.
+    "n_targeted_drugs": ("drugs targeting the gene", "count"),
+    "n_drugs_mapped": ("drugs mapped to adverse-event data", "count"),
+    "n_go_terms_total": ("Gene Ontology terms", "count"),
+    "n_high_confidence_interactors": ("high-confidence protein interactors", "count"),
+    "pathway_count": ("Reactome pathways", "count"),
+    "n_diseases": ("cited disease associations", "count"),
+    "n_competitor_programs": ("competitor programs", "count"),
+    "n_precog_datasets": ("PRECOG prognostic datasets", "count"),
+    "n_cohorts": ("ICI-response cohorts", "count"),
+    "n_active_trials": ("active clinical trials", "count"),
     # descriptor-coverage sweep, presence/spatial batch.
     "n_donors": ("spatial donors", "count"),
     "n_caf_subtypes_expressing": ("CAF subtypes expressing the target", "count"),
