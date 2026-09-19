@@ -1,0 +1,6 @@
+# Regenerated bulk — the committed argument lives in README.md + outputs/*.json, not these.
+outputs/plots/
+outputs/**/*.png
+outputs/*.png
+outputs/**/*.parquet
+outputs/*.parquet

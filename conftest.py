@@ -21,6 +21,13 @@ import os
 
 import pytest
 
+# Exploratory method-development scripts (methods/<pkg>/method_development/<YYYY-MM>_<slug>/...) are
+# NOT unit tests: they invoke R and read live S3, and run on demand (see a package's method_development
+# README). Never let pytest collect anything beneath a method_development/ tree — a helper that happens
+# to match a test name pattern, or a module-level S3 call at import, would otherwise break collection.
+# fnmatch semantics: '*' expands to '.*' and crosses '/', so this ignores the whole subtree.
+collect_ignore_glob = ["*/method_development/*"]
+
 # Exception TYPE names that indicate "couldn't reach the data", not "the code is wrong".
 _LIVE_DATA_EXC_NAMES = frozenset(
     {

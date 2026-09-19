@@ -1,0 +1,193 @@
+{
+  "brca": {
+    "desc": "both n=1127/114/482",
+    "n_rows": 31120,
+    "columns": [
+      "gene_symbol",
+      "cells_ran",
+      "cells_supporting",
+      "dominant_direction",
+      "sig_all_cells",
+      "discordant",
+      "log2fc_A",
+      "padj_A",
+      "log2fc_B",
+      "padj_B",
+      "log2fc_C",
+      "padj_C",
+      "max_abs_log2fc"
+    ],
+    "cells": {
+      "A: tumor-vs-adjacent": {
+        "lfc_col": "log2fc_A",
+        "sig_padj": 0.7325835475578406,
+        "median_abs_lfc": 0.5818842684942537,
+        "raw_p_frac_lt05": null
+      },
+      "B: tumor-vs-adjacent(2)": {
+        "lfc_col": "log2fc_B",
+        "sig_padj": 0.7084832904884318,
+        "median_abs_lfc": 0.5827506365960256,
+        "raw_p_frac_lt05": null
+      },
+      "C: tumor-vs-GTEx": {
+        "lfc_col": "log2fc_C",
+        "sig_padj": 0.8938303341902314,
+        "median_abs_lfc": 0.8720107582043344,
+        "raw_p_frac_lt05": null
+      }
+    }
+  },
+  "paad": {
+    "desc": "both n_adj=4/n_gtex=360",
+    "n_rows": 31062,
+    "columns": [
+      "gene_symbol",
+      "cells_ran",
+      "cells_supporting",
+      "dominant_direction",
+      "sig_all_cells",
+      "discordant",
+      "log2fc_A",
+      "padj_A",
+      "log2fc_B",
+      "padj_B",
+      "log2fc_C",
+      "padj_C",
+      "max_abs_log2fc"
+    ],
+    "cells": {
+      "A: tumor-vs-adjacent": {
+        "lfc_col": "log2fc_A",
+        "sig_padj": 0.022342411950292962,
+        "median_abs_lfc": 0.031343716232335714,
+        "raw_p_frac_lt05": null
+      },
+      "B: tumor-vs-adjacent(2)": {
+        "lfc_col": "log2fc_B",
+        "sig_padj": 0.06953834266949971,
+        "median_abs_lfc": 0.10381405780535512,
+        "raw_p_frac_lt05": null
+      },
+      "C: tumor-vs-GTEx": {
+        "lfc_col": "log2fc_C",
+        "sig_padj": 0.8441182151825382,
+        "median_abs_lfc": 0.8689922291962077,
+        "raw_p_frac_lt05": null
+      }
+    }
+  },
+  "sclc": {
+    "desc": "George-vs-GTEx, A/B all-NaN",
+    "n_rows": 16876,
+    "columns": [
+      "gene_symbol",
+      "ensembl_gene_id",
+      "cells_ran",
+      "cells_supporting",
+      "dominant_direction",
+      "sig_all_cells",
+      "discordant",
+      "log2fc_A",
+      "padj_A",
+      "log2fc_B",
+      "padj_B",
+      "log2fc_C",
+      "padj_C",
+      "max_abs_log2fc"
+    ],
+    "cells": {
+      "C: tumor-vs-GTEx": {
+        "lfc_col": "log2fc_C",
+        "sig_padj": 0.8566603460535672,
+        "median_abs_lfc": 0.8042922243084112,
+        "raw_p_frac_lt05": null
+      }
+    }
+  },
+  "tgct": {
+    "desc": "gtex-only n_gtex=410",
+    "n_rows": 35772,
+    "columns": [
+      "gene_symbol",
+      "cells_ran",
+      "cells_supporting",
+      "dominant_direction",
+      "sig_all_cells",
+      "discordant",
+      "log2fc_C",
+      "padj_C",
+      "max_abs_log2fc"
+    ],
+    "cells": {
+      "C: tumor-vs-GTEx": {
+        "lfc_col": "log2fc_C",
+        "sig_padj": 0.9237112825673711,
+        "median_abs_lfc": 1.4587194650806374,
+        "raw_p_frac_lt05": null
+      }
+    }
+  },
+  "coadread_welch": {
+    "desc": "Welch-t log2CPM",
+    "n_rows": 45584,
+    "columns": [
+      "gene_symbol",
+      "gene_id_ensembl",
+      "log2_fc",
+      "p_value",
+      "q_value",
+      "n_tumor",
+      "n_gtex_normal",
+      "mean_log2cpm_tumor",
+      "mean_log2cpm_gtex_normal",
+      "is_significant",
+      "is_upregulated_provider_call"
+    ],
+    "cells": {
+      "tumor-vs-GTEx (Welch)": {
+        "lfc_col": "log2_fc",
+        "sig_padj": 0.7118945243945244,
+        "median_abs_lfc": 0.07666781544685364,
+        "raw_p_frac_lt05": 0.7240917865917866
+      }
+    }
+  },
+  "coadread_gdc": {
+    "desc": "DESeq2 GDC, tumor-vs-adjacent only",
+    "n_rows": 34531,
+    "columns": [
+      "gene_symbol",
+      "baseMean",
+      "log2FoldChange",
+      "lfcSE",
+      "pvalue",
+      "padj",
+      "is_significant",
+      "is_actionable",
+      "is_upregulated",
+      "n_tumor",
+      "n_normal"
+    ],
+    "cells": {
+      "tumor-vs-adjacent (DESeq2)": {
+        "lfc_col": "log2FoldChange",
+        "sig_padj": 0.6995742955605109,
+        "median_abs_lfc": 0.7150675362382138,
+        "raw_p_frac_lt05": 0.7192088268512351
+      }
+    }
+  },
+  "concordance": {
+    "brca": {
+      "pearson_A_C": 0.7097024210329446,
+      "sig_A": 0.7325835475578406,
+      "sig_C": 0.8938303341902314
+    },
+    "paad": {
+      "pearson_A_C": 0.13727135453452907,
+      "sig_A": 0.022342411950292962,
+      "sig_C": 0.8441182151825382
+    }
+  }
+}
