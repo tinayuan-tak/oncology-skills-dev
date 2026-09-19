@@ -1,29 +1,32 @@
 {
   "schema_version": "1.0.0",
-  "generated_at": "2026-09-17T17:44:10.645496+00:00",
+  "generated_at": "2026-09-19T12:15:37.862665+00:00",
   "roots": {
-    "contracts": "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts",
+    "contracts": "/tmp/wt/rnd-computational-biology-oncology-target-contracts__chore-framework-health-regen-predictability-v4",
     "skills": "/home/sagemaker-user/rnd-computational-biology-oncology-claude-oncology-skills",
     "methods": "/home/sagemaker-user/rnd-computational-biology-oncology-analysis-methods",
     "products": "/home/sagemaker-user/rnd-computational-biology-oncology-data-products",
     "catalog": "/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog"
   },
   "root_shas": {
-    "contracts": "ec231d7",
-    "skills": "515cab04",
-    "methods": "975f7bd",
+    "contracts": "f462704",
+    "skills": "7a7793cb",
+    "methods": "22dff19",
     "products": "b45b9b2",
-    "catalog": "d6b2ef8"
+    "catalog": "fb70b50"
   },
   "delta": {
     "has_prior": true,
-    "prior_generated_at": "2026-09-17T15:38:46.313997+00:00",
+    "prior_generated_at": "2026-09-17T17:44:10.645496+00:00",
     "n_skills": 0,
     "n_cards": 0,
     "n_drift_flags": 0,
     "n_error_drift": 0,
     "verdict_tally": {},
-    "card_health_tally": {},
+    "card_health_tally": {
+      "placeholder": -1,
+      "wired": 1
+    },
     "skills_added": [],
     "skills_removed": [],
     "cards_added": [],
@@ -50,8 +53,8 @@
     "n_cards": 148,
     "card_health_tally": {
       "live": 101,
-      "placeholder": 10,
-      "wired": 37
+      "placeholder": 9,
+      "wired": 38
     },
     "modality_routing_tally": {
       "not_required": 68,
@@ -61,12 +64,12 @@
     "n_p4_declared_cards": 80,
     "n_p4_missing_cards": 0,
     "n_p4_drift_cards": 0,
-    "n_orphan_cards": 0,
-    "n_staged_orphan_cards": 9,
+    "n_orphan_cards": 1,
+    "n_staged_orphan_cards": 8,
     "n_cards_consumed_but_no_spec": 101,
-    "n_datasets": 542,
-    "n_datasets_in_catalog": 536,
-    "n_orphan_datasets": 355,
+    "n_datasets": 543,
+    "n_datasets_in_catalog": 537,
+    "n_orphan_datasets": 308,
     "n_broken_dataset_refs": 0,
     "n_pending_placeholder_refs": 6,
     "n_datasets_high_access_cost": 2,
@@ -74,16 +77,16 @@
     "access_cost_tally": {
       "low": 208,
       "moderate_unused": 26,
-      "unknown": 293,
+      "unknown": 294,
       "high_unused": 7,
       "moderate": 6,
       "high": 2
     },
     "descriptor_coverage_available": true,
-    "n_measurement_types_with_descriptors": 61,
-    "n_descriptor_cells": 337,
-    "n_distinct_descriptor_fields": 310,
-    "n_gloss_without_descriptor": 5,
+    "n_measurement_types_with_descriptors": 122,
+    "n_descriptor_cells": 519,
+    "n_distinct_descriptor_fields": 471,
+    "n_gloss_without_descriptor": 6,
     "n_numeric_fields_without_gloss": 0,
     "field_read_health_available": true,
     "n_field_read_units": 23,
@@ -94,10 +97,10 @@
     "n_field_reads_of_none": 0,
     "n_field_reads_emission_unobserved": 1,
     "axis_measurability_available": true,
-    "n_measurement_types_without_descriptor": 62,
+    "n_measurement_types_without_descriptor": 1,
     "n_measurement_types_declared_by_axes": 123,
-    "n_axes_descriptor_covered": 14,
-    "n_axes_descriptor_blind": 1,
+    "n_axes_descriptor_covered": 15,
+    "n_axes_descriptor_blind": 0,
     "axis_type_reconcile_available": true,
     "n_axis_types_declared_not_derived": 0,
     "n_axis_types_derived_nowhere_declared": 0,
@@ -202,6 +205,18 @@
         "median_chronos_comparator",
         "n_amplified_overexpressed"
       ],
+      "antigen_pair_coexpression": [
+        "n_partners_tested",
+        "samecell_avidity_class",
+        "window_verdict"
+      ],
+      "antigen_pair_selectivity": [
+        "best_and_call_class",
+        "n_partners_scanned"
+      ],
+      "cd_antigen_backbone": [
+        "cd_antigen_backbone_class"
+      ],
       "cell_line_protein_abundance": [
         "allgene_percentile",
         "allgene_percentile_class",
@@ -217,6 +232,10 @@
         "median_log2tpm_panel",
         "n_cell_lines_evaluated"
       ],
+      "cellline_isoform_expression": [
+        "isoform_expression_class",
+        "n_models"
+      ],
       "chemical_combination_synergy": [
         "n_synergy_partners",
         "strongest_synergy_delta_emax",
@@ -230,6 +249,14 @@
         "per_compound_concordance",
         "spearman_r_crispr"
       ],
+      "cis_dosage_coupling": [
+        "cis_dosage_class",
+        "cis_dosage_direction",
+        "cis_dosage_driver",
+        "cn_expr_spearman_p",
+        "cn_expr_spearman_r",
+        "n_cell_lines_evaluated"
+      ],
       "cis_protein_dosage_coupling": [
         "cis_protein_dosage_class",
         "cn_prot_slope_log2abundance_per_cn",
@@ -238,6 +265,15 @@
         "delta_log2abundance_amplified_vs_neutral",
         "evidence_scope",
         "n_paired_models_cn_protein"
+      ],
+      "cited_literature_evidence": [
+        "cited_evidence_status",
+        "n_diseases"
+      ],
+      "clinical_precedent": [
+        "highest_clinical_stage",
+        "modality_precedent",
+        "n_active_trials"
       ],
       "clinvar_germline_pathogenicity_safety": [
         "clinvar_pathogenicity_class",
@@ -253,6 +289,10 @@
         "median_chronos_neutral",
         "n_amplified"
       ],
+      "coessential_module": [
+        "coessential_module_class",
+        "n_partners"
+      ],
       "combinatorial_ko_dependency": [
         "combinatorial_dependency_class",
         "gi_ttest_pvalue",
@@ -260,6 +300,12 @@
         "partner_gene",
         "ranked_partner_table",
         "strongest_partner_mean_gi"
+      ],
+      "competitor_landscape": [
+        "competitor_class",
+        "highest_clinical_stage",
+        "indication_scope",
+        "n_competitor_programs"
       ],
       "copy_number_alteration": [
         "cn_distribution_shape",
@@ -289,12 +335,47 @@
       "crispr_rnai_concordance": [
         "fraction_agree"
       ],
+      "cross_consortium_dependency": [
+        "broad_n_lines",
+        "cross_consortium_class"
+      ],
+      "cross_consortium_paralog_gi": [
+        "cross_consortium_paralog_class",
+        "dede_class",
+        "in4mer_class",
+        "n_consortia_corroborating"
+      ],
+      "ddr_deficiency_context": [
+        "ddr_context_class",
+        "n_samples"
+      ],
+      "degradation_feasibility": [
+        "degradability_feasibility_class",
+        "degrader_precedent_modality",
+        "degrader_recruited_e3",
+        "e3_substrate_evidence",
+        "n_e3_ligases_literature"
+      ],
       "dependency_predictability": [
         "pearson_r_squared_rf",
         "per_lineage_predictability",
         "pred_dominant_feature_class",
         "predictability_class",
         "r2"
+      ],
+      "domain_modality_relevance": [
+        "modality_implication_basis",
+        "modality_implication_class",
+        "n_domains"
+      ],
+      "dosage_sensitivity_safety": [
+        "dosage_sensitivity_class",
+        "germline_inheritance_mode",
+        "n_autosomal_dominant",
+        "n_autosomal_recessive",
+        "n_high_confidence",
+        "n_total_rows",
+        "top_confidence"
       ],
       "drug_anchored_combination": [
         "co_target_gene",
@@ -311,6 +392,14 @@
         "resistance_emergence_class",
         "strongest_mediator_shift",
         "top_resistance_mediators"
+      ],
+      "drug_warning_safety": [
+        "drug_warning_class",
+        "n_targeted_drugs"
+      ],
+      "exon_window": [
+        "exon_window_class",
+        "n_exons"
       ],
       "expression_clinical_association": [
         "logrank_chi2",
@@ -334,6 +423,9 @@
         "n_paired_samples",
         "purity_confound_class"
       ],
+      "functional_gene_state": [
+        "functional_state_class"
+      ],
       "fusion_rearrangement": [
         "fusion_class",
         "fusion_frequency",
@@ -353,11 +445,42 @@
         "median_chronos_fusion_positive",
         "n_fusion_positive"
       ],
+      "gene_ontology_annotation": [
+        "annotation_class",
+        "n_go_terms_total"
+      ],
+      "genomic_event_model_match": [
+        "event_correspondence_class",
+        "n_models_considered",
+        "patient_event_state"
+      ],
+      "genomic_instability_state": [
+        "aneuploidy_burden_class",
+        "median_fraction_genome_altered",
+        "n_samples"
+      ],
+      "genotype_matched_model": [
+        "genotype_matched_class",
+        "n_models_with_alteration"
+      ],
       "gnomad_lof_constraint": [
         "constraint_class",
         "loeuf_score",
         "mis_z_score",
         "pli_score"
+      ],
+      "human_genetic_safety": [
+        "burden_safety_class",
+        "min_pvalue",
+        "n_protect",
+        "n_risk",
+        "n_significant",
+        "n_total_rows"
+      ],
+      "ici_response_expression": [
+        "direction_higher_in",
+        "ici_response_class",
+        "n_cohorts"
       ],
       "immune_context": [
         "antigen_conditioned_call",
@@ -366,6 +489,13 @@
         "immune_context_class",
         "median_cd8_fraction",
         "n_patients_joined"
+      ],
+      "known_drug_tractability": [
+        "approved_drug_engagement_class",
+        "approved_drug_modality",
+        "direct_engagement_class",
+        "known_drug_tractability_class",
+        "n_drug_interactions"
       ],
       "measured_potency_tractability": [
         "best_measured_potency_neglog_m",
@@ -392,6 +522,10 @@
         "window_class",
         "window_ratio_essential",
         "window_ratio_full_normal"
+      ],
+      "model_availability": [
+        "model_availability_class",
+        "n_patient_derived_models"
       ],
       "mouse_ko_phenotype_safety": [
         "evidence_tier",
@@ -440,6 +574,11 @@
         "n_hotspot_mutant",
         "stratification_direction"
       ],
+      "mutation_stratified_surface": [
+        "mutant_stratified_surface_class",
+        "n_mutant",
+        "q_value"
+      ],
       "mutation_variant_class_spectrum": [
         "mut_dominant_mutation_class",
         "mut_fraction_lof",
@@ -449,6 +588,13 @@
         "mut_n_cell_lines_total",
         "mut_total_mutations",
         "mutation_landscape_class"
+      ],
+      "mutational_signature_context": [
+        "apobec_class",
+        "dominant_process",
+        "hrd_class",
+        "mmr_deficiency_class",
+        "n_samples"
       ],
       "normal_tissue_protein_abundance": [
         "highest_abundance_tissue",
@@ -463,6 +609,7 @@
         "tphp_vital_organ_liability_class"
       ],
       "normal_tissue_protein_breadth": [
+        "essential_tissue_flag",
         "hpa_tissue_specificity",
         "n_essential_tissues_with_expression",
         "normal_tissue_breadth_class"
@@ -476,11 +623,41 @@
         "n_tissues_detectable",
         "tissue_breadth_fraction"
       ],
+      "oncogenic_pathway_alteration": [
+        "n_pathways_profiled",
+        "oncogenic_pathway_class"
+      ],
+      "onsides_adverse_event_safety": [
+        "n_drugs_mapped",
+        "onsides_ade_class"
+      ],
+      "paralog_buffering": [
+        "n_paralogs_annotated",
+        "paralog_buffering_class",
+        "strongest_paralog_delta"
+      ],
+      "partner_conditional_dependency": [
+        "delta_chronos_deficient_vs_neutral",
+        "n_partner_deficient",
+        "partner_stratification_class",
+        "partner_stratification_mannwhitney_q"
+      ],
       "pathway_activity_context": [
         "activity_z",
         "pathway",
         "pathway_activity_class",
         "per_pathway"
+      ],
+      "pathway_node_leverage": [
+        "evidence_scope",
+        "node_leverage_class",
+        "paralog_buffering_class",
+        "single_ko_leverage_understated"
+      ],
+      "pathway_stratified_surface": [
+        "n_high",
+        "pathway_stratified_surface_class",
+        "q_value"
       ],
       "patient_cis_coherence": [
         "cn_expr_spearman_p",
@@ -492,6 +669,37 @@
         "patient_cis_dosage_class",
         "patient_methylation_silencing_class"
       ],
+      "patient_model_correspondence": [
+        "correspondence_class",
+        "n_positive_models"
+      ],
+      "pdx_drug_response": [
+        "n_treatments",
+        "pdx_drug_response_class"
+      ],
+      "phospho_pathway_activity": [
+        "n_phosphosites",
+        "phospho_activity_class"
+      ],
+      "pmhc_epitope_evidence": [
+        "epitope_evidence_class",
+        "n_epitopes"
+      ],
+      "pmhc_presentation": [
+        "n_normal_tissues_presented",
+        "n_presented_peptides",
+        "pmhc_presentation_class"
+      ],
+      "ppi_interactome": [
+        "interactome_class",
+        "n_high_confidence_interactors",
+        "physical_interactome_class"
+      ],
+      "precog_prognostic_association": [
+        "n_precog_datasets",
+        "pan_cancer_prognostic_class",
+        "prognostic_class"
+      ],
       "prism_compound_activity": [
         "drug_name",
         "median_log2auc",
@@ -499,18 +707,39 @@
         "prism_activity_class",
         "top_compounds"
       ],
+      "protein_domains_class": [
+        "domain_evidence",
+        "n_domains",
+        "protein_class",
+        "protein_features_class"
+      ],
+      "reactome_pathway_membership": [
+        "pathway_class",
+        "pathway_count"
+      ],
       "rna_protein_concordance": [
         "n_paired_tumors",
+        "rna_as_biomarker",
         "rna_protein_r"
       ],
       "rnai_lof_dependency": [
         "rnai_dependency_class",
         "rnai_median_dep_score"
       ],
+      "sc_normal_celltype_expression": [
+        "sc_normal_abundance_class",
+        "sc_normal_essential_max_detection_fraction",
+        "sc_normal_expression_class",
+        "sc_normal_safety_essential_class"
+      ],
       "sc_normal_surface_protein": [
         "max_mean_clr",
         "n_celltypes_surface_displaying",
         "sc_surface_normal_class"
+      ],
+      "sc_tumor_caf_state_expression": [
+        "caf_expression_class",
+        "n_caf_subtypes_expressing"
       ],
       "sc_tumor_celltype_expression": [
         "caf_vs_malignant_class",
@@ -518,6 +747,10 @@
         "sc_expression_class",
         "stromal_confound_class",
         "tce_antigen_escape_class"
+      ],
+      "sc_tumor_myeloid_state_expression": [
+        "myeloid_expression_class",
+        "n_myeloid_subtypes_expressing"
       ],
       "shed_ectodomain_liability": [
         "media_mean_npx",
@@ -528,15 +761,45 @@
         "shed_product",
         "shedding_protease"
       ],
+      "shet_lof_selection": [
+        "exp_lof_count",
+        "obs_lof_count",
+        "shet_class",
+        "shet_lower_95",
+        "shet_score",
+        "shet_upper_95"
+      ],
       "signaling_network_mechanism": [
         "n_downstream_effectors",
         "n_upstream_regulators",
         "network_class"
       ],
+      "spatial_colocalization": [
+        "n_donors",
+        "spatial_coloc_class"
+      ],
+      "spatial_region_rna": [
+        "n_donors",
+        "spatial_rna_class"
+      ],
+      "spatial_surface_protein": [
+        "n_donors",
+        "spatial_protein_class"
+      ],
+      "spatial_til_fraction": [
+        "median_number_of_clusters",
+        "median_til_percentage",
+        "n_samples",
+        "til_fraction_class"
+      ],
       "splice_exon_skip": [
         "driver_direction",
         "n_depmap_carriers",
         "splice_exon_skip_class"
+      ],
+      "stemness_context": [
+        "n_samples",
+        "stemness_class"
       ],
       "structure_druggability": [
         "alphafold_confidence_class",
@@ -555,10 +818,28 @@
         "stratum",
         "subtype_survival_association_class"
       ],
+      "surface_confirmation": [
+        "cspa_category",
+        "hpa_if_surface_class",
+        "n_celllines_detected",
+        "surface_confirmation_class",
+        "surface_multimodal_support"
+      ],
       "surface_density": [
         "absolute_copies_per_cell",
         "density_floor_verdict",
         "surface_density_class"
+      ],
+      "surface_topology": [
+        "ecd_engineerability_class",
+        "ecd_orientation",
+        "isoform_selective_warning",
+        "tm_pass_count",
+        "topology_class"
+      ],
+      "surfaceome_family": [
+        "family_class",
+        "surface_protein_family"
       ],
       "synthetic_lethal_partner": [
         "best_evidence_tier",
@@ -566,6 +847,18 @@
         "sl_partner_class",
         "sl_partner_count",
         "top_partners"
+      ],
+      "tahoe_drug_perturbation": [
+        "n_perturbing_drugs",
+        "tahoe_perturbation_class"
+      ],
+      "target_development_level": [
+        "tdl_class"
+      ],
+      "target_safety_prioritisation": [
+        "genetic_constraint_band",
+        "has_safety_event_band",
+        "prioritisation_status"
       ],
       "tumor_elevation_breadth": [
         "fraction_elevated",
@@ -595,6 +888,10 @@
         "n_patients_total",
         "protein_presence_class"
       ],
+      "tumor_splice_dysregulation": [
+        "n_splice_events",
+        "splicing_dysregulation_class"
+      ],
       "tumor_vs_adjacent_expression": [
         "allgene_percentile",
         "expression_call_class",
@@ -606,6 +903,12 @@
         "fraction_tumor_above_normal_p95",
         "normal_p95_log2tpm"
       ],
+      "tumor_vs_normal_protein_abundance": [
+        "n_tumor_samples",
+        "protein_bh_q_value",
+        "protein_effect_size",
+        "protein_expression_class"
+      ],
       "tumor_vs_normal_selectivity": [
         "comparator_concordance",
         "log2fc_cell_a",
@@ -615,6 +918,10 @@
         "selectivity_evidence_independence",
         "selectivity_substrate_basis",
         "sig_all_cells"
+      ],
+      "variant_functional_effect_mave": [
+        "mave_evidence_class",
+        "n_score_sets"
       ],
       "variant_level_interpretation": [
         "civic_variant_class",
@@ -626,6 +933,7 @@
     "gloss_without_descriptor": [
       "delta_chronos_hotspot_mut_vs_wt",
       "max_detection_fraction",
+      "n_variants_assayed",
       "serum_marker",
       "strongest_synergy_partner_drug",
       "strongest_synergy_partner_target"
@@ -633,16 +941,28 @@
     "multi_type_fields": [
       "allgene_percentile",
       "allgene_percentile_class",
+      "cn_expr_spearman_p",
+      "cn_expr_spearman_r",
       "control_position_class",
       "drug_name",
       "evidence_scope",
       "frac_models_significant",
+      "highest_clinical_stage",
       "logrank_chi2",
       "logrank_p",
       "mean_effect_shift",
       "n_cell_lines_evaluated",
+      "n_domains",
+      "n_donors",
+      "n_mutant",
       "n_patients",
+      "n_samples",
+      "n_total_rows",
+      "n_tumor_samples",
+      "paralog_buffering_class",
       "partner_gene",
+      "protein_bh_q_value",
+      "protein_effect_size",
       "protein_expression_class",
       "q_value"
     ],
@@ -650,14 +970,14 @@
     "numeric_fields_without_gloss": [],
     "producer": "descriptor_coverage_sidecar",
     "role_counts": {
-      "categorical": 118,
-      "effect": 48,
-      "extra_scalar": 71,
+      "categorical": 221,
+      "effect": 57,
+      "extra_scalar": 83,
       "frame_value": 16,
       "label": 10,
-      "n": 38,
+      "n": 90,
       "omnibus": 1,
-      "significance": 23,
+      "significance": 29,
       "strata": 12
     },
     "rosters": {
@@ -675,20 +995,34 @@
         "amp_expr_effect_size",
         "amp_expr_mannwhitney_q",
         "amp_expr_stratification_class",
+        "aneuploidy_burden_class",
+        "annotation_class",
         "antigen_conditioned_call",
         "antigen_high_immune_context_class",
+        "apobec_class",
+        "approved_drug_engagement_class",
+        "approved_drug_modality",
+        "best_and_call_class",
         "best_evidence_tier",
         "best_measured_potency_neglog_m",
         "best_spearman_r_crispr",
         "best_spearman_r_rnai",
         "bh_q_value",
+        "broad_n_lines",
+        "burden_safety_class",
+        "caf_expression_class",
         "caf_vs_malignant_class",
         "cd8_high_minus_low",
+        "cd_antigen_backbone_class",
         "chembl_best_pchembl",
         "chembl_clinical_phase_class",
         "chronos_at_high_expression",
         "chronos_at_low_expression",
+        "cis_dosage_class",
+        "cis_dosage_direction",
+        "cis_dosage_driver",
         "cis_protein_dosage_class",
+        "cited_evidence_status",
         "civic_variant_class",
         "clinvar_pathogenicity_class",
         "clonal_fraction",
@@ -710,19 +1044,31 @@
         "cn_stratification_effect_size",
         "cn_stratification_mannwhitney_q",
         "co_target_gene",
+        "coessential_module_class",
         "combination_opportunity_class",
         "combinatorial_dependency_class",
         "comparator_concordance",
+        "competitor_class",
         "constraint_class",
         "control_position_class",
         "cooccurrence_class",
         "copy_number_class",
         "correlation_class",
+        "correspondence_class",
         "crispr_prism_concordance_class",
         "critical_organ_argmax",
         "critical_organ_max",
+        "cross_consortium_class",
+        "cross_consortium_paralog_class",
+        "cspa_category",
+        "ddr_context_class",
+        "dede_class",
+        "degradability_feasibility_class",
+        "degrader_precedent_modality",
+        "degrader_recruited_e3",
         "delta_chronos_amp_expr_vs_rest",
         "delta_chronos_amplified_vs_neutral",
+        "delta_chronos_deficient_vs_neutral",
         "delta_chronos_fusion_positive_vs_negative",
         "delta_chronos_top_vs_bottom_quartile",
         "delta_log2abundance_amplified_vs_neutral",
@@ -731,7 +1077,12 @@
         "delta_log2tpm_methylated_vs_unmethylated",
         "density_floor_verdict",
         "dep_control_position_class",
+        "direct_engagement_class",
+        "direction_higher_in",
         "distribution_overlap_tumor_normal",
+        "domain_evidence",
+        "dominant_process",
+        "dosage_sensitivity_class",
         "driver_direction",
         "driver_recurrence_class",
         "drug_name",
@@ -739,13 +1090,23 @@
         "drug_response_mannwhitney_q",
         "drug_response_ppv",
         "drug_response_stratification_class",
+        "drug_warning_class",
+        "e3_substrate_evidence",
+        "ecd_engineerability_class",
+        "ecd_orientation",
         "endocytosis_confidence",
         "enriched_lineages",
+        "epitope_evidence_class",
+        "essential_tissue_flag",
+        "event_correspondence_class",
         "evidence_scope",
         "evidence_tier",
+        "exon_window_class",
+        "exp_lof_count",
         "expression_call_class",
         "expression_class",
         "expression_purity_pearson_r",
+        "family_class",
         "fit_class",
         "frac_models_significant",
         "fraction_agree",
@@ -753,30 +1114,45 @@
         "fraction_moderate_strong",
         "fraction_tumor_above_normal_p95",
         "functional_direction",
+        "functional_state_class",
         "fusion_class",
         "fusion_frequency",
         "fusion_recurrence_confidence",
         "fusion_stratification_class",
         "fusion_stratification_confound",
         "fusion_stratification_mannwhitney_q",
+        "genetic_constraint_band",
         "genie_driver_recurrence_class",
         "genie_mutation_frequency",
         "genie_sv_frequency",
         "genie_sv_recurrence_class",
         "genie_sv_recurrence_percentile",
+        "genotype_matched_class",
+        "germline_inheritance_mode",
         "gi_ttest_pvalue",
+        "has_safety_event_band",
         "highest_abundance_tissue",
         "highest_abundance_tissue_class",
+        "highest_clinical_stage",
         "highest_tissue",
         "highest_tissue_median",
         "hotspot_dependency_base_rate",
         "hotspot_mannwhitney_q",
         "hotspot_pocket_adjacency_call",
+        "hpa_if_surface_class",
         "hpa_tissue_specificity",
+        "hrd_class",
+        "ici_response_class",
         "immune_context_class",
         "impc_ko_phenotype_class",
+        "in4mer_class",
+        "indication_scope",
+        "interactome_class",
         "intogen_max_pct_samples",
         "intogen_min_qvalue",
+        "isoform_expression_class",
+        "isoform_selective_warning",
+        "known_drug_tractability_class",
         "ko_phenotype_class",
         "liability_class",
         "lineage_omnibus_p",
@@ -788,6 +1164,7 @@
         "logrank_df",
         "logrank_p",
         "malignant_detection_fraction",
+        "mave_evidence_class",
         "max_essential_normal_organ",
         "max_essential_normal_tpm",
         "max_full_normal_tpm",
@@ -811,23 +1188,32 @@
         "median_chronos_hotspot_wildtype",
         "median_chronos_neutral",
         "median_chronos_panel",
+        "median_fraction_genome_altered",
         "median_log2_abundance_panel",
         "median_log2auc",
         "median_log2auc_across_compounds",
         "median_log2auc_mutant",
         "median_log2tpm",
         "median_log2tpm_panel",
+        "median_number_of_clusters",
         "median_ostime_days",
         "median_ostime_high_days",
         "median_ostime_low_days",
         "median_ostime_mutated_days",
         "median_ostime_wildtype_days",
+        "median_til_percentage",
         "methyl_expr_slope_log2tpm_per_methyl",
         "methyl_expr_spearman_p",
         "methyl_expr_spearman_r",
         "methylation_silencing_class",
+        "min_pvalue",
         "mis_z_score",
+        "mmr_deficiency_class",
         "modality",
+        "modality_implication_basis",
+        "modality_implication_class",
+        "modality_precedent",
+        "model_availability_class",
         "mut_dominant_mutation_class",
         "mut_fraction_lof",
         "mut_fraction_missense",
@@ -835,61 +1221,122 @@
         "mut_n_cell_lines_mutated",
         "mut_n_cell_lines_total",
         "mut_total_mutations",
+        "mutant_stratified_surface_class",
         "mutation_landscape_class",
         "mutation_stratification_class",
+        "myeloid_expression_class",
+        "n_active_trials",
         "n_admissible_strata",
         "n_adult_tissues_above_abundance_floor",
         "n_adult_tissues_detected",
         "n_amplified",
         "n_amplified_overexpressed",
+        "n_autosomal_dominant",
+        "n_autosomal_recessive",
+        "n_caf_subtypes_expressing",
         "n_cell_lines_evaluated",
         "n_cell_lines_panel",
+        "n_celllines_detected",
         "n_celltypes_surface_displaying",
+        "n_cohorts",
         "n_cohorts_elevated",
         "n_cohorts_tested",
+        "n_competitor_programs",
+        "n_consortia_corroborating",
         "n_covered_pooled",
         "n_dependent_models",
         "n_depmap_carriers",
+        "n_diseases",
+        "n_domains",
+        "n_donors",
         "n_downstream_effectors",
+        "n_drug_interactions",
+        "n_drugs_mapped",
+        "n_e3_ligases_literature",
+        "n_epitopes",
         "n_essential_tissues_with_expression",
+        "n_exons",
         "n_fusion_positive",
+        "n_go_terms_total",
+        "n_high",
+        "n_high_confidence",
+        "n_high_confidence_interactors",
         "n_hotspot_mutant",
         "n_interpreted_variants",
         "n_lethal",
+        "n_models",
+        "n_models_considered",
+        "n_models_with_alteration",
         "n_mutant",
         "n_mutant_samples",
         "n_mutated_pooled",
+        "n_myeloid_subtypes_expressing",
+        "n_normal_tissues_presented",
         "n_paired_models",
         "n_paired_models_cn_protein",
         "n_paired_samples",
         "n_paired_tumors",
+        "n_paralogs_annotated",
+        "n_partner_deficient",
+        "n_partners",
+        "n_partners_scanned",
+        "n_partners_tested",
         "n_pathogenic_germline",
+        "n_pathways_profiled",
+        "n_patient_derived_models",
         "n_patients",
         "n_patients_cn_expr",
         "n_patients_joined",
         "n_patients_total",
+        "n_perturbing_drugs",
+        "n_phosphosites",
+        "n_positive_models",
+        "n_precog_datasets",
+        "n_presented_peptides",
+        "n_protect",
+        "n_risk",
+        "n_samples",
         "n_samples_with_fusion",
+        "n_score_sets",
+        "n_significant",
+        "n_splice_events",
         "n_synergy_partners",
+        "n_targeted_drugs",
         "n_tissues_detectable",
+        "n_total_rows",
+        "n_treatments",
         "n_tumor_samples",
         "n_upstream_regulators",
         "n_vital_organs_above_abundance_floor",
         "network_class",
+        "node_leverage_class",
         "normal_p95_log2tpm",
         "normal_protein_breadth_class",
         "normal_tissue_breadth_class",
+        "obs_lof_count",
+        "oncogenic_pathway_class",
         "oncokb_gene_type",
+        "onsides_ade_class",
         "overall_mutation_frequency",
+        "pan_cancer_prognostic_class",
+        "paralog_buffering_class",
         "partner",
         "partner_gene",
+        "partner_stratification_class",
+        "partner_stratification_mannwhitney_q",
         "pathway",
         "pathway_activity_class",
+        "pathway_class",
+        "pathway_count",
+        "pathway_stratified_surface_class",
         "patient_cis_dosage_class",
         "patient_copy_number_class",
+        "patient_event_state",
         "patient_focal_cn_class",
         "patient_high_amp_fraction",
         "patient_homdel_fraction",
         "patient_methylation_silencing_class",
+        "pdx_drug_response_class",
         "pearson_p",
         "pearson_r",
         "pearson_r_squared_rf",
@@ -897,19 +1344,26 @@
         "per_lineage_predictability",
         "per_pathway",
         "per_stratum",
+        "phospho_activity_class",
+        "physical_interactome_class",
         "pli_score",
+        "pmhc_presentation_class",
         "pooled_driver_recurrence_class",
         "pooled_driver_recurrence_percentile",
         "pred_dominant_feature_class",
         "predictability_class",
+        "prioritisation_status",
         "prism_activity_class",
+        "prognostic_class",
         "protein_bh_q_value",
+        "protein_class",
         "protein_dependency_pearson_p",
         "protein_dependency_pearson_r",
         "protein_dependency_spearman_r",
         "protein_effect_cohens_d",
         "protein_effect_size",
         "protein_expression_class",
+        "protein_features_class",
         "protein_presence_class",
         "purity_confound_class",
         "q_value",
@@ -919,11 +1373,17 @@
         "rescuer_gene",
         "resistance_emergence_class",
         "resistance_variants",
+        "rna_as_biomarker",
         "rna_protein_r",
         "rna_tumor_elevation_breadth_class",
         "rnai_dependency_class",
         "rnai_median_dep_score",
+        "samecell_avidity_class",
         "sc_expression_class",
+        "sc_normal_abundance_class",
+        "sc_normal_essential_max_detection_fraction",
+        "sc_normal_expression_class",
+        "sc_normal_safety_essential_class",
         "sc_surface_normal_class",
         "selectivity_allgene_percentile",
         "selectivity_class",
@@ -934,36 +1394,56 @@
         "shed_liability_class",
         "shed_product",
         "shedding_protease",
+        "shet_class",
+        "shet_lower_95",
+        "shet_score",
+        "shet_upper_95",
         "sig_all_cells",
         "silencing_driver",
+        "single_ko_leverage_understated",
         "sl_partner_class",
         "sl_partner_count",
+        "spatial_coloc_class",
+        "spatial_protein_class",
+        "spatial_rna_class",
         "spearman_r_crispr",
         "splice_exon_skip_class",
+        "splicing_dysregulation_class",
+        "stemness_class",
         "stratification_direction",
         "stratum",
         "stromal_confound_class",
         "strongest_co_target_shift",
         "strongest_mediator_shift",
+        "strongest_paralog_delta",
         "strongest_partner_mean_gi",
         "strongest_synergy_delta_emax",
         "structural_ligandability_class",
         "subset_median_delta_log2tpm",
         "subtype_survival_association_class",
         "subtype_variance_explained",
+        "surface_confirmation_class",
         "surface_confirmation_state",
         "surface_density_class",
         "surface_family_class",
+        "surface_multimodal_support",
+        "surface_protein_family",
         "survival_association_class",
         "synergy_opportunity_class",
+        "tahoe_perturbation_class",
         "tce_antigen_escape_class",
+        "tdl_class",
         "therapeutic_window_class",
+        "til_fraction_class",
         "tissue_breadth_fraction",
+        "tm_pass_count",
         "top_co_targets",
         "top_compounds",
+        "top_confidence",
         "top_cooccurring",
         "top_partners",
         "top_resistance_mediators",
+        "topology_class",
         "tphp_normal_protein_liability_class",
         "tphp_vital_organ_abundance",
         "tphp_vital_organ_liability_class",
@@ -972,7 +1452,8 @@
         "variant",
         "window_class",
         "window_ratio_essential",
-        "window_ratio_full_normal"
+        "window_ratio_full_normal",
+        "window_verdict"
       ],
       "envelope_fields": [
         "as_of",
@@ -1008,20 +1489,34 @@
         "amp_expr_effect_size": "extra_scalar",
         "amp_expr_mannwhitney_q": "significance",
         "amp_expr_stratification_class": "categorical",
+        "aneuploidy_burden_class": "categorical",
+        "annotation_class": "categorical",
         "antigen_conditioned_call": "categorical",
         "antigen_high_immune_context_class": "categorical",
+        "apobec_class": "categorical",
+        "approved_drug_engagement_class": "categorical",
+        "approved_drug_modality": "categorical",
+        "best_and_call_class": "categorical",
         "best_evidence_tier": "categorical",
         "best_measured_potency_neglog_m": "extra_scalar",
         "best_spearman_r_crispr": "extra_scalar",
         "best_spearman_r_rnai": "extra_scalar",
         "bh_q_value": "significance",
+        "broad_n_lines": "n",
+        "burden_safety_class": "categorical",
+        "caf_expression_class": "categorical",
         "caf_vs_malignant_class": "categorical",
         "cd8_high_minus_low": "effect",
+        "cd_antigen_backbone_class": "categorical",
         "chembl_best_pchembl": "effect",
         "chembl_clinical_phase_class": "categorical",
         "chronos_at_high_expression": "extra_scalar",
         "chronos_at_low_expression": "extra_scalar",
+        "cis_dosage_class": "categorical",
+        "cis_dosage_direction": "categorical",
+        "cis_dosage_driver": "categorical",
         "cis_protein_dosage_class": "categorical",
+        "cited_evidence_status": "categorical",
         "civic_variant_class": "categorical",
         "clinvar_pathogenicity_class": "categorical",
         "clonal_fraction": "effect",
@@ -1043,19 +1538,31 @@
         "cn_stratification_effect_size": "extra_scalar",
         "cn_stratification_mannwhitney_q": "significance",
         "co_target_gene": "label",
+        "coessential_module_class": "categorical",
         "combination_opportunity_class": "categorical",
         "combinatorial_dependency_class": "categorical",
         "comparator_concordance": "categorical",
+        "competitor_class": "categorical",
         "constraint_class": "categorical",
         "control_position_class": "categorical",
         "cooccurrence_class": "categorical",
         "copy_number_class": "categorical",
         "correlation_class": "categorical",
+        "correspondence_class": "categorical",
         "crispr_prism_concordance_class": "categorical",
         "critical_organ_argmax": "categorical",
         "critical_organ_max": "extra_scalar",
+        "cross_consortium_class": "categorical",
+        "cross_consortium_paralog_class": "categorical",
+        "cspa_category": "categorical",
+        "ddr_context_class": "categorical",
+        "dede_class": "categorical",
+        "degradability_feasibility_class": "categorical",
+        "degrader_precedent_modality": "categorical",
+        "degrader_recruited_e3": "categorical",
         "delta_chronos_amp_expr_vs_rest": "effect",
         "delta_chronos_amplified_vs_neutral": "effect",
+        "delta_chronos_deficient_vs_neutral": "effect",
         "delta_chronos_fusion_positive_vs_negative": "effect",
         "delta_chronos_top_vs_bottom_quartile": "extra_scalar",
         "delta_log2abundance_amplified_vs_neutral": "extra_scalar",
@@ -1064,7 +1571,12 @@
         "delta_log2tpm_methylated_vs_unmethylated": "extra_scalar",
         "density_floor_verdict": "categorical",
         "dep_control_position_class": "categorical",
+        "direct_engagement_class": "categorical",
+        "direction_higher_in": "categorical",
         "distribution_overlap_tumor_normal": "extra_scalar",
+        "domain_evidence": "categorical",
+        "dominant_process": "categorical",
+        "dosage_sensitivity_class": "categorical",
         "driver_direction": "categorical",
         "driver_recurrence_class": "categorical",
         "drug_name": "label",
@@ -1072,13 +1584,23 @@
         "drug_response_mannwhitney_q": "significance",
         "drug_response_ppv": "extra_scalar",
         "drug_response_stratification_class": "categorical",
+        "drug_warning_class": "categorical",
+        "e3_substrate_evidence": "categorical",
+        "ecd_engineerability_class": "categorical",
+        "ecd_orientation": "categorical",
         "endocytosis_confidence": "categorical",
         "enriched_lineages": "strata",
+        "epitope_evidence_class": "categorical",
+        "essential_tissue_flag": "categorical",
+        "event_correspondence_class": "categorical",
         "evidence_scope": "categorical",
         "evidence_tier": "categorical",
+        "exon_window_class": "categorical",
+        "exp_lof_count": "extra_scalar",
         "expression_call_class": "categorical",
         "expression_class": "categorical",
         "expression_purity_pearson_r": "effect",
+        "family_class": "categorical",
         "fit_class": "categorical",
         "frac_models_significant": "significance",
         "fraction_agree": "effect",
@@ -1086,30 +1608,45 @@
         "fraction_moderate_strong": "effect",
         "fraction_tumor_above_normal_p95": "effect",
         "functional_direction": "categorical",
+        "functional_state_class": "categorical",
         "fusion_class": "categorical",
         "fusion_frequency": "effect",
         "fusion_recurrence_confidence": "categorical",
         "fusion_stratification_class": "categorical",
         "fusion_stratification_confound": "categorical",
         "fusion_stratification_mannwhitney_q": "significance",
+        "genetic_constraint_band": "categorical",
         "genie_driver_recurrence_class": "categorical",
         "genie_mutation_frequency": "extra_scalar",
         "genie_sv_frequency": "extra_scalar",
         "genie_sv_recurrence_class": "categorical",
         "genie_sv_recurrence_percentile": "extra_scalar",
+        "genotype_matched_class": "categorical",
+        "germline_inheritance_mode": "categorical",
         "gi_ttest_pvalue": "significance",
+        "has_safety_event_band": "categorical",
         "highest_abundance_tissue": "categorical",
         "highest_abundance_tissue_class": "categorical",
+        "highest_clinical_stage": "categorical",
         "highest_tissue": "categorical",
         "highest_tissue_median": "effect",
         "hotspot_dependency_base_rate": "extra_scalar",
         "hotspot_mannwhitney_q": "significance",
         "hotspot_pocket_adjacency_call": "categorical",
+        "hpa_if_surface_class": "categorical",
         "hpa_tissue_specificity": "categorical",
+        "hrd_class": "categorical",
+        "ici_response_class": "categorical",
         "immune_context_class": "categorical",
         "impc_ko_phenotype_class": "categorical",
+        "in4mer_class": "categorical",
+        "indication_scope": "categorical",
+        "interactome_class": "categorical",
         "intogen_max_pct_samples": "extra_scalar",
         "intogen_min_qvalue": "significance",
+        "isoform_expression_class": "categorical",
+        "isoform_selective_warning": "categorical",
+        "known_drug_tractability_class": "categorical",
         "ko_phenotype_class": "categorical",
         "liability_class": "categorical",
         "lineage_omnibus_p": "omnibus",
@@ -1121,6 +1658,7 @@
         "logrank_df": "extra_scalar",
         "logrank_p": "significance",
         "malignant_detection_fraction": "effect",
+        "mave_evidence_class": "categorical",
         "max_essential_normal_organ": "categorical",
         "max_essential_normal_tpm": "extra_scalar",
         "max_full_normal_tpm": "extra_scalar",
@@ -1144,23 +1682,32 @@
         "median_chronos_hotspot_wildtype": "extra_scalar",
         "median_chronos_neutral": "extra_scalar",
         "median_chronos_panel": "frame_value",
+        "median_fraction_genome_altered": "effect",
         "median_log2_abundance_panel": "effect",
         "median_log2auc": "effect",
         "median_log2auc_across_compounds": "frame_value",
         "median_log2auc_mutant": "extra_scalar",
         "median_log2tpm": "effect",
         "median_log2tpm_panel": "effect",
+        "median_number_of_clusters": "extra_scalar",
         "median_ostime_days": "effect",
         "median_ostime_high_days": "extra_scalar",
         "median_ostime_low_days": "extra_scalar",
         "median_ostime_mutated_days": "extra_scalar",
         "median_ostime_wildtype_days": "extra_scalar",
+        "median_til_percentage": "effect",
         "methyl_expr_slope_log2tpm_per_methyl": "extra_scalar",
         "methyl_expr_spearman_p": "significance",
         "methyl_expr_spearman_r": "effect",
         "methylation_silencing_class": "categorical",
+        "min_pvalue": "significance",
         "mis_z_score": "extra_scalar",
+        "mmr_deficiency_class": "categorical",
         "modality": "categorical",
+        "modality_implication_basis": "categorical",
+        "modality_implication_class": "categorical",
+        "modality_precedent": "categorical",
+        "model_availability_class": "categorical",
         "mut_dominant_mutation_class": "categorical",
         "mut_fraction_lof": "frame_value",
         "mut_fraction_missense": "frame_value",
@@ -1168,61 +1715,122 @@
         "mut_n_cell_lines_mutated": "n",
         "mut_n_cell_lines_total": "extra_scalar",
         "mut_total_mutations": "extra_scalar",
+        "mutant_stratified_surface_class": "categorical",
         "mutation_landscape_class": "categorical",
         "mutation_stratification_class": "categorical",
+        "myeloid_expression_class": "categorical",
+        "n_active_trials": "n",
         "n_admissible_strata": "extra_scalar",
         "n_adult_tissues_above_abundance_floor": "extra_scalar",
         "n_adult_tissues_detected": "n",
         "n_amplified": "n",
         "n_amplified_overexpressed": "n",
+        "n_autosomal_dominant": "extra_scalar",
+        "n_autosomal_recessive": "extra_scalar",
+        "n_caf_subtypes_expressing": "n",
         "n_cell_lines_evaluated": "n",
         "n_cell_lines_panel": "n",
+        "n_celllines_detected": "n",
         "n_celltypes_surface_displaying": "n",
+        "n_cohorts": "n",
         "n_cohorts_elevated": "frame_value",
         "n_cohorts_tested": "n",
+        "n_competitor_programs": "n",
+        "n_consortia_corroborating": "n",
         "n_covered_pooled": "n",
         "n_dependent_models": "extra_scalar",
         "n_depmap_carriers": "n",
+        "n_diseases": "n",
+        "n_domains": "n",
+        "n_donors": "n",
         "n_downstream_effectors": "extra_scalar",
+        "n_drug_interactions": "n",
+        "n_drugs_mapped": "n",
+        "n_e3_ligases_literature": "n",
+        "n_epitopes": "n",
         "n_essential_tissues_with_expression": "n",
+        "n_exons": "n",
         "n_fusion_positive": "n",
+        "n_go_terms_total": "n",
+        "n_high": "n",
+        "n_high_confidence": "n",
+        "n_high_confidence_interactors": "n",
         "n_hotspot_mutant": "n",
         "n_interpreted_variants": "n",
         "n_lethal": "n",
+        "n_models": "n",
+        "n_models_considered": "n",
+        "n_models_with_alteration": "n",
         "n_mutant": "n",
         "n_mutant_samples": "n",
         "n_mutated_pooled": "extra_scalar",
+        "n_myeloid_subtypes_expressing": "n",
+        "n_normal_tissues_presented": "effect",
         "n_paired_models": "n",
         "n_paired_models_cn_protein": "n",
         "n_paired_samples": "n",
         "n_paired_tumors": "n",
+        "n_paralogs_annotated": "n",
+        "n_partner_deficient": "n",
+        "n_partners": "n",
+        "n_partners_scanned": "n",
+        "n_partners_tested": "n",
         "n_pathogenic_germline": "n",
+        "n_pathways_profiled": "n",
+        "n_patient_derived_models": "n",
         "n_patients": "n",
         "n_patients_cn_expr": "n",
         "n_patients_joined": "n",
         "n_patients_total": "n",
+        "n_perturbing_drugs": "n",
+        "n_phosphosites": "n",
+        "n_positive_models": "n",
+        "n_precog_datasets": "n",
+        "n_presented_peptides": "n",
+        "n_protect": "extra_scalar",
+        "n_risk": "extra_scalar",
+        "n_samples": "extra_scalar",
         "n_samples_with_fusion": "n",
+        "n_score_sets": "n",
+        "n_significant": "n",
+        "n_splice_events": "n",
         "n_synergy_partners": "n",
+        "n_targeted_drugs": "n",
         "n_tissues_detectable": "n",
+        "n_total_rows": "extra_scalar",
+        "n_treatments": "n",
         "n_tumor_samples": "n",
         "n_upstream_regulators": "extra_scalar",
         "n_vital_organs_above_abundance_floor": "extra_scalar",
         "network_class": "categorical",
+        "node_leverage_class": "categorical",
         "normal_p95_log2tpm": "extra_scalar",
         "normal_protein_breadth_class": "categorical",
         "normal_tissue_breadth_class": "categorical",
+        "obs_lof_count": "extra_scalar",
+        "oncogenic_pathway_class": "categorical",
         "oncokb_gene_type": "categorical",
+        "onsides_ade_class": "categorical",
         "overall_mutation_frequency": "effect",
+        "pan_cancer_prognostic_class": "categorical",
+        "paralog_buffering_class": "categorical",
         "partner": "label",
         "partner_gene": "label",
+        "partner_stratification_class": "categorical",
+        "partner_stratification_mannwhitney_q": "significance",
         "pathway": "label",
         "pathway_activity_class": "categorical",
+        "pathway_class": "categorical",
+        "pathway_count": "n",
+        "pathway_stratified_surface_class": "categorical",
         "patient_cis_dosage_class": "categorical",
         "patient_copy_number_class": "categorical",
+        "patient_event_state": "categorical",
         "patient_focal_cn_class": "categorical",
         "patient_high_amp_fraction": "extra_scalar",
         "patient_homdel_fraction": "extra_scalar",
         "patient_methylation_silencing_class": "categorical",
+        "pdx_drug_response_class": "categorical",
         "pearson_p": "significance",
         "pearson_r": "effect",
         "pearson_r_squared_rf": "extra_scalar",
@@ -1230,19 +1838,26 @@
         "per_lineage_predictability": "strata",
         "per_pathway": "strata",
         "per_stratum": "strata",
+        "phospho_activity_class": "categorical",
+        "physical_interactome_class": "categorical",
         "pli_score": "significance",
+        "pmhc_presentation_class": "categorical",
         "pooled_driver_recurrence_class": "categorical",
         "pooled_driver_recurrence_percentile": "extra_scalar",
         "pred_dominant_feature_class": "categorical",
         "predictability_class": "categorical",
+        "prioritisation_status": "categorical",
         "prism_activity_class": "categorical",
+        "prognostic_class": "categorical",
         "protein_bh_q_value": "significance",
+        "protein_class": "categorical",
         "protein_dependency_pearson_p": "significance",
         "protein_dependency_pearson_r": "effect",
         "protein_dependency_spearman_r": "extra_scalar",
         "protein_effect_cohens_d": "frame_value",
         "protein_effect_size": "effect",
         "protein_expression_class": "categorical",
+        "protein_features_class": "categorical",
         "protein_presence_class": "categorical",
         "purity_confound_class": "categorical",
         "q_value": "significance",
@@ -1252,11 +1867,17 @@
         "rescuer_gene": "label",
         "resistance_emergence_class": "categorical",
         "resistance_variants": "strata",
+        "rna_as_biomarker": "categorical",
         "rna_protein_r": "effect",
         "rna_tumor_elevation_breadth_class": "categorical",
         "rnai_dependency_class": "categorical",
         "rnai_median_dep_score": "effect",
+        "samecell_avidity_class": "categorical",
         "sc_expression_class": "categorical",
+        "sc_normal_abundance_class": "categorical",
+        "sc_normal_essential_max_detection_fraction": "effect",
+        "sc_normal_expression_class": "categorical",
+        "sc_normal_safety_essential_class": "categorical",
         "sc_surface_normal_class": "categorical",
         "selectivity_allgene_percentile": "extra_scalar",
         "selectivity_class": "categorical",
@@ -1267,36 +1888,56 @@
         "shed_liability_class": "categorical",
         "shed_product": "categorical",
         "shedding_protease": "categorical",
+        "shet_class": "categorical",
+        "shet_lower_95": "extra_scalar",
+        "shet_score": "effect",
+        "shet_upper_95": "extra_scalar",
         "sig_all_cells": "extra_scalar",
         "silencing_driver": "categorical",
+        "single_ko_leverage_understated": "categorical",
         "sl_partner_class": "categorical",
         "sl_partner_count": "n",
+        "spatial_coloc_class": "categorical",
+        "spatial_protein_class": "categorical",
+        "spatial_rna_class": "categorical",
         "spearman_r_crispr": "effect",
         "splice_exon_skip_class": "categorical",
+        "splicing_dysregulation_class": "categorical",
+        "stemness_class": "categorical",
         "stratification_direction": "categorical",
         "stratum": "label",
         "stromal_confound_class": "categorical",
         "strongest_co_target_shift": "frame_value",
         "strongest_mediator_shift": "frame_value",
+        "strongest_paralog_delta": "effect",
         "strongest_partner_mean_gi": "frame_value",
         "strongest_synergy_delta_emax": "effect",
         "structural_ligandability_class": "categorical",
         "subset_median_delta_log2tpm": "extra_scalar",
         "subtype_survival_association_class": "categorical",
         "subtype_variance_explained": "frame_value",
+        "surface_confirmation_class": "categorical",
         "surface_confirmation_state": "categorical",
         "surface_density_class": "categorical",
         "surface_family_class": "categorical",
+        "surface_multimodal_support": "categorical",
+        "surface_protein_family": "categorical",
         "survival_association_class": "categorical",
         "synergy_opportunity_class": "categorical",
+        "tahoe_perturbation_class": "categorical",
         "tce_antigen_escape_class": "categorical",
+        "tdl_class": "categorical",
         "therapeutic_window_class": "categorical",
+        "til_fraction_class": "categorical",
         "tissue_breadth_fraction": "extra_scalar",
+        "tm_pass_count": "n",
         "top_co_targets": "strata",
         "top_compounds": "strata",
+        "top_confidence": "categorical",
         "top_cooccurring": "strata",
         "top_partners": "strata",
         "top_resistance_mediators": "strata",
+        "topology_class": "categorical",
         "tphp_normal_protein_liability_class": "categorical",
         "tphp_vital_organ_abundance": "extra_scalar",
         "tphp_vital_organ_liability_class": "categorical",
@@ -1305,7 +1946,8 @@
         "variant": "label",
         "window_class": "categorical",
         "window_ratio_essential": "effect",
-        "window_ratio_full_normal": "extra_scalar"
+        "window_ratio_full_normal": "extra_scalar",
+        "window_verdict": "categorical"
       },
       "roles": [
         "categorical",
@@ -1322,19 +1964,19 @@
       ]
     },
     "source_class_counts": {
-      "instrument": 337
+      "instrument": 519
     },
     "summary": {
       "n_atlas_live": 16,
-      "n_descriptor_cells": 337,
-      "n_distinct_fields": 310,
+      "n_descriptor_cells": 519,
+      "n_distinct_fields": 471,
       "n_envelope_fields": 11,
-      "n_gloss_without_descriptor": 5,
-      "n_measurement_types": 61,
-      "n_metric_gloss_entries": 186,
-      "n_multi_type_fields": 14,
-      "n_numeric_fields": 181,
-      "n_numeric_fields_with_gloss": 181,
+      "n_gloss_without_descriptor": 6,
+      "n_measurement_types": 122,
+      "n_metric_gloss_entries": 249,
+      "n_multi_type_fields": 26,
+      "n_numeric_fields": 243,
+      "n_numeric_fields_with_gloss": 243,
       "n_numeric_fields_without_gloss": 0
     }
   },
@@ -1343,11 +1985,11 @@
     "source": "skills:_skills_common/field_read_health.json",
     "schema_version": "1.0.0",
     "attribution": {
-      "per_unit_read_credits": 550,
-      "per_unit_union_pairs": 503,
+      "per_unit_read_credits": 562,
+      "per_unit_union_pairs": 515,
       "reconciled": true,
       "unattributed": [],
-      "whole_tree_pairs": 503
+      "whole_tree_pairs": 515
     },
     "note": "Reads MINUS declarations, per unit, for the target-contracts framework-health dashboard. TRENDING, never a gate: a populated queue is a review queue and this tool returns 0 however long it is. The queue is NOT split into read_of_None vs emitted_but_undeclared here \u2014 that needs observed-package evidence this producer cannot see, so the contracts side resolves emission_undetermined against the data-products root. no_reads_detected means the scraper's five shapes matched nothing, NOT that the unit is clean.",
     "summary": {
@@ -1356,9 +1998,9 @@
       "n_emission_undetermined": 1,
       "n_meta_key": 1,
       "n_no_reads_detected": 7,
-      "n_reads_detected": 503,
+      "n_reads_detected": 515,
       "n_roster_cards": 148,
-      "n_roster_fields": 1807,
+      "n_roster_fields": 1811,
       "n_undeclared_pairs": 2,
       "n_units": 23,
       "n_units_with_undeclared_reads": 2
@@ -1367,9 +2009,9 @@
       "_skills_common": {
         "disposition": "clean",
         "kind": "shared_library",
-        "n_reads": 103,
+        "n_reads": 104,
         "reads_by_kind": {
-          "claim_passthrough": 40,
+          "claim_passthrough": 41,
           "figure": 32,
           "question_table": 26,
           "skill_code": 5
@@ -1554,18 +2196,18 @@
       "tumor-presence": {
         "disposition": "clean",
         "kind": "skill",
-        "n_reads": 83,
+        "n_reads": 89,
         "reads_by_kind": {
-          "skill_code": 83
+          "skill_code": 89
         },
         "undeclared": []
       },
       "tumor-selectivity": {
         "disposition": "undeclared_reads",
         "kind": "skill",
-        "n_reads": 56,
+        "n_reads": 61,
         "reads_by_kind": {
-          "skill_code": 56
+          "skill_code": 61
         },
         "undeclared": [
           {
@@ -1597,7 +2239,7 @@
     },
     "roster_pin": {
       "n_cards": 148,
-      "n_fields": 1807,
+      "n_fields": 1811,
       "note": "the pinned roster itself is NOT copied here \u2014 see build_field_read_health"
     },
     "undeclared_queue": [
@@ -1662,14 +2304,11 @@
         "gate_short": null,
         "n_declared_cards": 8,
         "n_declared_types": 8,
-        "n_measurement_descriptor_fields": 44,
-        "n_types_with_measurement_descriptor": 6,
+        "n_measurement_descriptor_fields": 52,
+        "n_types_with_measurement_descriptor": 8,
         "skill_dir": "cis-feature-coherence",
         "static_state": "descriptor_covered",
-        "types_without_measurement_descriptor": [
-          "cellline_isoform_expression",
-          "cis_dosage_coupling"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": true
       },
       "clinical": {
@@ -1695,13 +2334,11 @@
         "gate_short": null,
         "n_declared_cards": 6,
         "n_declared_types": 6,
-        "n_measurement_descriptor_fields": 18,
-        "n_types_with_measurement_descriptor": 5,
+        "n_measurement_descriptor_fields": 22,
+        "n_types_with_measurement_descriptor": 6,
         "skill_dir": "combination-and-vulnerability",
         "static_state": "descriptor_covered",
-        "types_without_measurement_descriptor": [
-          "cross_consortium_paralog_gi"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": false
       },
       "commercial": {
@@ -1727,18 +2364,11 @@
         "gate_short": "dependency",
         "n_declared_cards": 16,
         "n_declared_types": 13,
-        "n_measurement_descriptor_fields": 31,
-        "n_types_with_measurement_descriptor": 7,
+        "n_measurement_descriptor_fields": 47,
+        "n_types_with_measurement_descriptor": 13,
         "skill_dir": "functional-requirement",
         "static_state": "descriptor_covered",
-        "types_without_measurement_descriptor": [
-          "coessential_module",
-          "cross_consortium_dependency",
-          "genomic_event_model_match",
-          "paralog_buffering",
-          "partner_conditional_dependency",
-          "patient_model_correspondence"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": true
       },
       "differentiation": {
@@ -1749,17 +2379,11 @@
         "gate_short": "differentiation",
         "n_declared_cards": 9,
         "n_declared_types": 9,
-        "n_measurement_descriptor_fields": 22,
-        "n_types_with_measurement_descriptor": 4,
+        "n_measurement_descriptor_fields": 38,
+        "n_types_with_measurement_descriptor": 9,
         "skill_dir": "differentiation-landscape",
         "static_state": "descriptor_covered",
-        "types_without_measurement_descriptor": [
-          "clinical_precedent",
-          "competitor_landscape",
-          "pathway_node_leverage",
-          "precog_prognostic_association",
-          "stemness_context"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": true
       },
       "expression": {
@@ -1770,13 +2394,11 @@
         "gate_short": null,
         "n_declared_cards": 17,
         "n_declared_types": 12,
-        "n_measurement_descriptor_fields": 48,
-        "n_types_with_measurement_descriptor": 11,
+        "n_measurement_descriptor_fields": 54,
+        "n_types_with_measurement_descriptor": 12,
         "skill_dir": "tumor-presence",
         "static_state": "descriptor_covered",
-        "types_without_measurement_descriptor": [
-          "sc_normal_celltype_expression"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": true
       },
       "genomic_alteration": {
@@ -1787,21 +2409,11 @@
         "gate_short": "genomic_alteration",
         "n_declared_cards": 26,
         "n_declared_types": 23,
-        "n_measurement_descriptor_fields": 92,
-        "n_types_with_measurement_descriptor": 14,
+        "n_measurement_descriptor_fields": 114,
+        "n_types_with_measurement_descriptor": 23,
         "skill_dir": "genomic-alteration-profile",
         "static_state": "descriptor_covered",
-        "types_without_measurement_descriptor": [
-          "cross_consortium_dependency",
-          "ddr_deficiency_context",
-          "functional_gene_state",
-          "genomic_event_model_match",
-          "genomic_instability_state",
-          "mutational_signature_context",
-          "oncogenic_pathway_alteration",
-          "tumor_splice_dysregulation",
-          "variant_functional_effect_mave"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": true
       },
       "immune_context": {
@@ -1812,17 +2424,11 @@
         "gate_short": null,
         "n_declared_cards": 7,
         "n_declared_types": 6,
-        "n_measurement_descriptor_fields": 6,
-        "n_types_with_measurement_descriptor": 1,
+        "n_measurement_descriptor_fields": 19,
+        "n_types_with_measurement_descriptor": 6,
         "skill_dir": "immune-context",
         "static_state": "descriptor_covered",
-        "types_without_measurement_descriptor": [
-          "ici_response_expression",
-          "sc_tumor_caf_state_expression",
-          "sc_tumor_myeloid_state_expression",
-          "spatial_colocalization",
-          "spatial_til_fraction"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": true
       },
       "literature_context": {
@@ -1833,13 +2439,11 @@
         "gate_short": null,
         "n_declared_cards": 1,
         "n_declared_types": 1,
-        "n_measurement_descriptor_fields": 0,
-        "n_types_with_measurement_descriptor": 0,
+        "n_measurement_descriptor_fields": 2,
+        "n_types_with_measurement_descriptor": 1,
         "skill_dir": "literature-context",
-        "static_state": "descriptor_blind",
-        "types_without_measurement_descriptor": [
-          "cited_literature_evidence"
-        ],
+        "static_state": "descriptor_covered",
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": false
       },
       "mechanism": {
@@ -1850,14 +2454,11 @@
         "gate_short": "mechanism",
         "n_declared_cards": 5,
         "n_declared_types": 5,
-        "n_measurement_descriptor_fields": 9,
-        "n_types_with_measurement_descriptor": 3,
+        "n_measurement_descriptor_fields": 13,
+        "n_types_with_measurement_descriptor": 5,
         "skill_dir": "mechanism-and-pharmacology",
         "static_state": "descriptor_covered",
-        "types_without_measurement_descriptor": [
-          "phospho_pathway_activity",
-          "tahoe_drug_perturbation"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": true
       },
       "safety": {
@@ -1868,19 +2469,11 @@
         "gate_short": "safety",
         "n_declared_cards": 16,
         "n_declared_types": 16,
-        "n_measurement_descriptor_fields": 55,
-        "n_types_with_measurement_descriptor": 9,
+        "n_measurement_descriptor_fields": 83,
+        "n_types_with_measurement_descriptor": 16,
         "skill_dir": "on-target-safety-liability",
         "static_state": "descriptor_covered",
-        "types_without_measurement_descriptor": [
-          "dosage_sensitivity_safety",
-          "drug_warning_safety",
-          "functional_gene_state",
-          "human_genetic_safety",
-          "onsides_adverse_event_safety",
-          "shet_lof_selection",
-          "target_safety_prioritisation"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": true
       },
       "selectivity": {
@@ -1891,17 +2484,11 @@
         "gate_short": "selectivity",
         "n_declared_cards": 14,
         "n_declared_types": 13,
-        "n_measurement_descriptor_fields": 45,
-        "n_types_with_measurement_descriptor": 8,
+        "n_measurement_descriptor_fields": 59,
+        "n_types_with_measurement_descriptor": 13,
         "skill_dir": "tumor-selectivity",
         "static_state": "descriptor_covered",
-        "types_without_measurement_descriptor": [
-          "sc_normal_celltype_expression",
-          "spatial_colocalization",
-          "spatial_region_rna",
-          "spatial_surface_protein",
-          "tumor_vs_normal_protein_abundance"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": true
       },
       "subtype_fit": {
@@ -1927,24 +2514,11 @@
         "gate_short": "surface_modality",
         "n_declared_cards": 24,
         "n_declared_types": 21,
-        "n_measurement_descriptor_fields": 48,
-        "n_types_with_measurement_descriptor": 9,
+        "n_measurement_descriptor_fields": 85,
+        "n_types_with_measurement_descriptor": 21,
         "skill_dir": "surface-modality-fit",
         "static_state": "descriptor_covered",
-        "types_without_measurement_descriptor": [
-          "antigen_pair_coexpression",
-          "antigen_pair_selectivity",
-          "cd_antigen_backbone",
-          "exon_window",
-          "mutation_stratified_surface",
-          "pathway_stratified_surface",
-          "pmhc_epitope_evidence",
-          "pmhc_presentation",
-          "sc_normal_celltype_expression",
-          "surface_confirmation",
-          "surface_topology",
-          "surfaceome_family"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": true
       },
       "target_intrinsic": {
@@ -1955,23 +2529,12 @@
         "gate_short": null,
         "n_declared_cards": 20,
         "n_declared_types": 20,
-        "n_measurement_descriptor_fields": 31,
-        "n_types_with_measurement_descriptor": 8,
+        "n_measurement_descriptor_fields": 68,
+        "n_types_with_measurement_descriptor": 19,
         "skill_dir": "target-intrinsic",
         "static_state": "descriptor_covered",
         "types_without_measurement_descriptor": [
-          "domain_modality_relevance",
-          "dosage_sensitivity_safety",
-          "gene_ontology_annotation",
-          "human_genetic_safety",
-          "paralog_buffering",
-          "ppi_interactome",
-          "protein_domains_class",
-          "reactome_pathway_membership",
-          "surfaceome_family",
-          "target_development_level",
-          "target_identity",
-          "target_safety_prioritisation"
+          "target_identity"
         ],
         "verdict_bearing": false
       },
@@ -1983,14 +2546,11 @@
         "gate_short": "tractability_small_molecule",
         "n_declared_cards": 9,
         "n_declared_types": 8,
-        "n_measurement_descriptor_fields": 27,
-        "n_types_with_measurement_descriptor": 6,
+        "n_measurement_descriptor_fields": 37,
+        "n_types_with_measurement_descriptor": 8,
         "skill_dir": "tractability-small-molecule",
         "static_state": "descriptor_covered",
-        "types_without_measurement_descriptor": [
-          "degradation_feasibility",
-          "known_drug_tractability"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": true
       },
       "translational_readiness": {
@@ -2001,15 +2561,11 @@
         "gate_short": null,
         "n_declared_cards": 4,
         "n_declared_types": 4,
-        "n_measurement_descriptor_fields": 7,
-        "n_types_with_measurement_descriptor": 1,
+        "n_measurement_descriptor_fields": 13,
+        "n_types_with_measurement_descriptor": 4,
         "skill_dir": "translational-readiness",
         "static_state": "descriptor_covered",
-        "types_without_measurement_descriptor": [
-          "genotype_matched_model",
-          "model_availability",
-          "pdx_drug_response"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_bearing": false
       }
     },
@@ -2027,29 +2583,9 @@
         "n_axes_counted": 6,
         "n_axes_descriptor_covered": 6,
         "n_declared_types": 60,
-        "n_types_without_measurement_descriptor": 19,
+        "n_types_without_measurement_descriptor": 0,
         "not_a_fanout_axes": [],
-        "types_without_measurement_descriptor": [
-          "cellline_isoform_expression",
-          "cis_dosage_coupling",
-          "coessential_module",
-          "cross_consortium_dependency",
-          "cross_consortium_paralog_gi",
-          "ddr_deficiency_context",
-          "functional_gene_state",
-          "genomic_event_model_match",
-          "genomic_instability_state",
-          "mutational_signature_context",
-          "oncogenic_pathway_alteration",
-          "paralog_buffering",
-          "partner_conditional_dependency",
-          "patient_model_correspondence",
-          "phospho_pathway_activity",
-          "sc_normal_celltype_expression",
-          "tahoe_drug_perturbation",
-          "tumor_splice_dysregulation",
-          "variant_functional_effect_mave"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_member_axes": [
           "dependency",
           "expression",
@@ -2104,39 +2640,10 @@
         "n_axes_counted": 4,
         "n_axes_descriptor_covered": 4,
         "n_declared_types": 50,
-        "n_types_without_measurement_descriptor": 30,
+        "n_types_without_measurement_descriptor": 1,
         "not_a_fanout_axes": [],
         "types_without_measurement_descriptor": [
-          "antigen_pair_coexpression",
-          "antigen_pair_selectivity",
-          "cd_antigen_backbone",
-          "degradation_feasibility",
-          "domain_modality_relevance",
-          "dosage_sensitivity_safety",
-          "exon_window",
-          "gene_ontology_annotation",
-          "human_genetic_safety",
-          "ici_response_expression",
-          "known_drug_tractability",
-          "mutation_stratified_surface",
-          "paralog_buffering",
-          "pathway_stratified_surface",
-          "pmhc_epitope_evidence",
-          "pmhc_presentation",
-          "ppi_interactome",
-          "protein_domains_class",
-          "reactome_pathway_membership",
-          "sc_normal_celltype_expression",
-          "sc_tumor_caf_state_expression",
-          "sc_tumor_myeloid_state_expression",
-          "spatial_colocalization",
-          "spatial_til_fraction",
-          "surface_confirmation",
-          "surface_topology",
-          "surfaceome_family",
-          "target_development_level",
-          "target_identity",
-          "target_safety_prioritisation"
+          "target_identity"
         ],
         "verdict_member_axes": [
           "surface_modality",
@@ -2150,22 +2657,9 @@
         "n_axes_counted": 2,
         "n_axes_descriptor_covered": 2,
         "n_declared_types": 28,
-        "n_types_without_measurement_descriptor": 12,
+        "n_types_without_measurement_descriptor": 0,
         "not_a_fanout_axes": [],
-        "types_without_measurement_descriptor": [
-          "dosage_sensitivity_safety",
-          "drug_warning_safety",
-          "functional_gene_state",
-          "human_genetic_safety",
-          "onsides_adverse_event_safety",
-          "sc_normal_celltype_expression",
-          "shet_lof_selection",
-          "spatial_colocalization",
-          "spatial_region_rna",
-          "spatial_surface_protein",
-          "target_safety_prioritisation",
-          "tumor_vs_normal_protein_abundance"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_member_axes": [
           "safety",
           "selectivity"
@@ -2180,15 +2674,9 @@
         "n_axes_counted": 1,
         "n_axes_descriptor_covered": 1,
         "n_declared_types": 9,
-        "n_types_without_measurement_descriptor": 5,
+        "n_types_without_measurement_descriptor": 0,
         "not_a_fanout_axes": [],
-        "types_without_measurement_descriptor": [
-          "clinical_precedent",
-          "competitor_landscape",
-          "pathway_node_leverage",
-          "precog_prognostic_association",
-          "stemness_context"
-        ],
+        "types_without_measurement_descriptor": [],
         "verdict_member_axes": [
           "differentiation"
         ]
@@ -2199,8 +2687,8 @@
     "spec_types_pulled_by_no_axis": [],
     "summary": {
       "n_axes": 18,
-      "n_axes_descriptor_blind": 1,
-      "n_axes_descriptor_covered": 14,
+      "n_axes_descriptor_blind": 0,
+      "n_axes_descriptor_covered": 15,
       "n_axes_no_declared_types": 0,
       "n_axes_not_a_fanout_axis": 3,
       "n_declared_cards_distinct": 139,
@@ -2208,74 +2696,13 @@
       "n_dims": 6,
       "n_fanout_axes": 15,
       "n_gated_axes": 8,
-      "n_salience_spec_types": 61,
+      "n_salience_spec_types": 122,
       "n_spec_types_pulled_by_no_axis": 0,
-      "n_types_with_measurement_descriptor": 61,
-      "n_types_without_measurement_descriptor": 62
+      "n_types_with_measurement_descriptor": 122,
+      "n_types_without_measurement_descriptor": 1
     },
     "types_without_measurement_descriptor": [
-      "antigen_pair_coexpression",
-      "antigen_pair_selectivity",
-      "cd_antigen_backbone",
-      "cellline_isoform_expression",
-      "cis_dosage_coupling",
-      "cited_literature_evidence",
-      "clinical_precedent",
-      "coessential_module",
-      "competitor_landscape",
-      "cross_consortium_dependency",
-      "cross_consortium_paralog_gi",
-      "ddr_deficiency_context",
-      "degradation_feasibility",
-      "domain_modality_relevance",
-      "dosage_sensitivity_safety",
-      "drug_warning_safety",
-      "exon_window",
-      "functional_gene_state",
-      "gene_ontology_annotation",
-      "genomic_event_model_match",
-      "genomic_instability_state",
-      "genotype_matched_model",
-      "human_genetic_safety",
-      "ici_response_expression",
-      "known_drug_tractability",
-      "model_availability",
-      "mutation_stratified_surface",
-      "mutational_signature_context",
-      "oncogenic_pathway_alteration",
-      "onsides_adverse_event_safety",
-      "paralog_buffering",
-      "partner_conditional_dependency",
-      "pathway_node_leverage",
-      "pathway_stratified_surface",
-      "patient_model_correspondence",
-      "pdx_drug_response",
-      "phospho_pathway_activity",
-      "pmhc_epitope_evidence",
-      "pmhc_presentation",
-      "ppi_interactome",
-      "precog_prognostic_association",
-      "protein_domains_class",
-      "reactome_pathway_membership",
-      "sc_normal_celltype_expression",
-      "sc_tumor_caf_state_expression",
-      "sc_tumor_myeloid_state_expression",
-      "shet_lof_selection",
-      "spatial_colocalization",
-      "spatial_region_rna",
-      "spatial_surface_protein",
-      "spatial_til_fraction",
-      "stemness_context",
-      "surface_confirmation",
-      "surface_topology",
-      "surfaceome_family",
-      "tahoe_drug_perturbation",
-      "target_development_level",
-      "target_identity",
-      "target_safety_prioritisation",
-      "tumor_splice_dysregulation",
-      "tumor_vs_normal_protein_abundance",
-      "variant_functional_effect_mave"
+      "target_identity"
     ],
     "rosters": {
       "axis_to_dim": {
@@ -3888,7 +4315,7 @@
           "coessential-module",
           "subgroup-stratified-dependency"
         ],
-        "test_count": 24
+        "test_count": 25
       },
       "cards": [
         {
@@ -4285,6 +4712,12 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "depmap-paralog-buffering-per-gene-v1"
+            },
+            {
+              "product_id": "depmap-consortium-26q1-paralogs",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-consortium-26q1-paralogs"
             }
           ],
           "modality_relevance": [
@@ -5992,7 +6425,7 @@
           "pathway-activity-context",
           "dependency-predictability"
         ],
-        "test_count": 12
+        "test_count": 13
       },
       "cards": [
         {
@@ -6883,7 +7316,7 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [],
-        "test_count": 1
+        "test_count": 2
       },
       "cards": [],
       "n_core_cards": 0,
@@ -8404,6 +8837,12 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "depmap-paralog-buffering-per-gene-v1"
+            },
+            {
+              "product_id": "depmap-consortium-26q1-paralogs",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-consortium-26q1-paralogs"
             }
           ],
           "modality_relevance": [
@@ -8849,7 +9288,7 @@
         "fans_out": false,
         "is_placeholder": false,
         "cards_in_runpy": [],
-        "test_count": 69
+        "test_count": 71
       },
       "cards": [
         {
@@ -9472,6 +9911,12 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "depmap-paralog-buffering-per-gene-v1"
+            },
+            {
+              "product_id": "depmap-consortium-26q1-paralogs",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-consortium-26q1-paralogs"
             }
           ],
           "modality_relevance": [
@@ -10093,16 +10538,196 @@
           "fires_in_any_run": true,
           "datasets": [
             {
+              "product_id": "acc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "acc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "blca-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "blca-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "brca-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "brca-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "cesc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "cesc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "coad-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "coad-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
               "product_id": "coadread-dge-tumor-vs-normal-sensitivity-v1",
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "coadread-dge-tumor-vs-normal-sensitivity-v1"
             },
             {
+              "product_id": "esca-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "esca-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "gbm-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "gbm-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "hnsc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "hnsc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "kich-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "kich-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "kirc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "kirc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "kirp-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "kirp-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "lgg-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "lgg-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "lihc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "lihc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "luad-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "luad-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "lusc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "lusc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "nsclc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "nsclc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "ov-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "ov-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "paad-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "paad-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "pcpg-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "pcpg-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "prad-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "prad-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "read-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "read-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "sclc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "sclc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "skcm-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "skcm-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "stad-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "stad-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "tgct-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tgct-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "thca-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "thca-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "ucec-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "ucec-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "ucs-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "ucs-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
               "product_id": "coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1"
+            },
+            {
+              "product_id": "nsclc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "nsclc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1"
+            },
+            {
+              "product_id": "stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1"
             }
           ],
           "modality_relevance": [
@@ -10767,7 +11392,7 @@
           "normal-tissue-liability",
           "sc-normal-celltype-expression"
         ],
-        "test_count": 30
+        "test_count": 31
       },
       "cards": [
         {
@@ -10902,6 +11527,42 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "depmap-subgroup-assignments-coadread-v1"
+            },
+            {
+              "product_id": "depmap-subgroup-assignments-hnsc-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-subgroup-assignments-hnsc-v1"
+            },
+            {
+              "product_id": "depmap-subgroup-assignments-stad-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-subgroup-assignments-stad-v1"
+            },
+            {
+              "product_id": "depmap-subgroup-assignments-nsclc-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-subgroup-assignments-nsclc-v1"
+            },
+            {
+              "product_id": "depmap-subgroup-assignments-esca-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-subgroup-assignments-esca-v1"
+            },
+            {
+              "product_id": "depmap-subgroup-assignments-paad-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-subgroup-assignments-paad-v1"
+            },
+            {
+              "product_id": "depmap-subgroup-assignments-sclc-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "depmap-subgroup-assignments-sclc-v1"
             }
           ],
           "modality_relevance": null,
@@ -11422,6 +12083,66 @@
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "tcga-subgroup-assignments-coadread-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-hnsc-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-hnsc-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-stad-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-stad-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-nsclc-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-nsclc-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-esca-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-esca-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-paad-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-paad-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-hnsc-maf-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-hnsc-maf-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-nsclc-maf-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-nsclc-maf-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-esca-maf-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-esca-maf-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-paad-maf-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-paad-maf-v1"
+            },
+            {
+              "product_id": "sclc-subgroup-assignments-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "sclc-subgroup-assignments-v1"
             }
           ],
           "modality_relevance": null,
@@ -11625,7 +12346,7 @@
           "spatial-surface-protein-abundance",
           "tumor-vs-normal-percentile-crossing-by-subtype"
         ],
-        "test_count": 10
+        "test_count": 12
       },
       "cards": [
         {
@@ -12275,16 +12996,76 @@
               "resolved_id": "gtex-tpm-recount3-long-v1"
             },
             {
-              "product_id": "tcga-tumor-tpm-per-sample-v1",
+              "product_id": "sclc-george-tpm-long-v1",
               "in_catalog": true,
               "matched_by": "exact",
-              "resolved_id": "tcga-tumor-tpm-per-sample-v1"
+              "resolved_id": "sclc-george-tpm-long-v1"
             },
             {
               "product_id": "tcga-subgroup-assignments-coadread-v1",
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "tcga-subgroup-assignments-coadread-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-hnsc-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-hnsc-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-stad-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-stad-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-nsclc-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-nsclc-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-esca-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-esca-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-paad-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-paad-v1"
+            },
+            {
+              "product_id": "sclc-subgroup-assignments-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "sclc-subgroup-assignments-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-hnsc-maf-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-hnsc-maf-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-nsclc-maf-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-nsclc-maf-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-esca-maf-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-esca-maf-v1"
+            },
+            {
+              "product_id": "tcga-subgroup-assignments-paad-maf-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tcga-subgroup-assignments-paad-maf-v1"
             }
           ],
           "modality_relevance": null,
@@ -12345,16 +13126,196 @@
           "fires_in_any_run": true,
           "datasets": [
             {
+              "product_id": "acc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "acc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "blca-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "blca-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "brca-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "brca-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "cesc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "cesc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "coad-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "coad-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
               "product_id": "coadread-dge-tumor-vs-normal-sensitivity-v1",
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "coadread-dge-tumor-vs-normal-sensitivity-v1"
             },
             {
+              "product_id": "esca-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "esca-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "gbm-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "gbm-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "hnsc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "hnsc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "kich-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "kich-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "kirc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "kirc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "kirp-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "kirp-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "lgg-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "lgg-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "lihc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "lihc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "luad-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "luad-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "lusc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "lusc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "nsclc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "nsclc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "ov-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "ov-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "paad-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "paad-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "pcpg-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "pcpg-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "prad-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "prad-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "read-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "read-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "sclc-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "sclc-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "skcm-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "skcm-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "stad-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "stad-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "tgct-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "tgct-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "thca-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "thca-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "ucec-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "ucec-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
+              "product_id": "ucs-dge-tumor-vs-normal-sensitivity-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "ucs-dge-tumor-vs-normal-sensitivity-v1"
+            },
+            {
               "product_id": "coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
               "in_catalog": true,
               "matched_by": "exact",
               "resolved_id": "coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1"
+            },
+            {
+              "product_id": "nsclc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "nsclc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1"
+            },
+            {
+              "product_id": "stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
+              "in_catalog": true,
+              "matched_by": "exact",
+              "resolved_id": "stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1"
             }
           ],
           "modality_relevance": [
@@ -12671,36 +13632,38 @@
       "card_id": "antigen-prevalence",
       "card_yaml_exists": true,
       "is_self_produced_skill_card": false,
-      "is_placeholder": true,
-      "placeholder_reason": "status:placeholder_not_wired",
+      "is_placeholder": false,
+      "placeholder_reason": null,
       "measurement_type": "antigen_expressing_prevalence",
       "has_live_reader": false,
       "method_call": "prevalence-aggregator",
       "dispatch_module": null,
-      "method_dir_exists": false,
-      "method_has_read": false,
+      "method_dir_exists": true,
+      "method_has_read": true,
       "stale_method_label": false,
       "fires_in_real_package": false,
       "fires_in_any_run": false,
       "datasets": [
         {
-          "product_id": "expression-rna-tumor-vs-adjacent",
+          "product_id": "tcga-tumor-tpm-recount3-long-v1",
           "in_catalog": true,
           "matched_by": "exact",
-          "resolved_id": "expression-rna-tumor-vs-adjacent"
+          "resolved_id": "tcga-tumor-tpm-recount3-long-v1"
         }
       ],
       "modality_relevance": null,
       "modality_routing": "not_required",
-      "card_health": "placeholder",
-      "health_reason": "card-placeholder",
-      "reason_text": "card is a declared placeholder / blocked-status card",
+      "card_health": "wired",
+      "health_reason": "card-generic-dispatch-never-fires",
+      "reason_text": "no CARD_DISPATCHERS entry but a built backing method module exists (generic dispatcher via card_spec module/entrypoint) \u2014 WIRED, awaiting its first governed firing (NOT a defect: verified generic-routed cards read fine, e.g. translational-readiness / tractability legs)",
       "consumers": [],
       "n_consumers": 0,
       "is_orphan": true,
-      "is_staged_orphan": true,
-      "dashboard_specs": [],
-      "in_dashboard_spec": false,
+      "is_staged_orphan": false,
+      "dashboard_specs": [
+        "surface-intrinsic-base"
+      ],
+      "in_dashboard_spec": true,
       "consumed_but_no_spec": false
     },
     {
@@ -13068,6 +14031,42 @@
           "in_catalog": true,
           "matched_by": "exact",
           "resolved_id": "depmap-subgroup-assignments-coadread-v1"
+        },
+        {
+          "product_id": "depmap-subgroup-assignments-hnsc-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-subgroup-assignments-hnsc-v1"
+        },
+        {
+          "product_id": "depmap-subgroup-assignments-stad-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-subgroup-assignments-stad-v1"
+        },
+        {
+          "product_id": "depmap-subgroup-assignments-nsclc-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-subgroup-assignments-nsclc-v1"
+        },
+        {
+          "product_id": "depmap-subgroup-assignments-esca-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-subgroup-assignments-esca-v1"
+        },
+        {
+          "product_id": "depmap-subgroup-assignments-paad-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-subgroup-assignments-paad-v1"
+        },
+        {
+          "product_id": "depmap-subgroup-assignments-sclc-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-subgroup-assignments-sclc-v1"
         }
       ],
       "modality_relevance": null,
@@ -15798,6 +16797,12 @@
           "in_catalog": true,
           "matched_by": "exact",
           "resolved_id": "depmap-paralog-buffering-per-gene-v1"
+        },
+        {
+          "product_id": "depmap-consortium-26q1-paralogs",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "depmap-consortium-26q1-paralogs"
         }
       ],
       "modality_relevance": [
@@ -18699,6 +19704,66 @@
           "in_catalog": true,
           "matched_by": "exact",
           "resolved_id": "tcga-subgroup-assignments-coadread-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-hnsc-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-hnsc-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-stad-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-stad-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-nsclc-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-nsclc-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-esca-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-esca-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-paad-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-paad-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-hnsc-maf-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-hnsc-maf-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-nsclc-maf-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-nsclc-maf-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-esca-maf-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-esca-maf-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-paad-maf-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-paad-maf-v1"
+        },
+        {
+          "product_id": "sclc-subgroup-assignments-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "sclc-subgroup-assignments-v1"
         }
       ],
       "modality_relevance": null,
@@ -18965,16 +20030,76 @@
           "resolved_id": "gtex-tpm-recount3-long-v1"
         },
         {
-          "product_id": "tcga-tumor-tpm-per-sample-v1",
+          "product_id": "sclc-george-tpm-long-v1",
           "in_catalog": true,
           "matched_by": "exact",
-          "resolved_id": "tcga-tumor-tpm-per-sample-v1"
+          "resolved_id": "sclc-george-tpm-long-v1"
         },
         {
           "product_id": "tcga-subgroup-assignments-coadread-v1",
           "in_catalog": true,
           "matched_by": "exact",
           "resolved_id": "tcga-subgroup-assignments-coadread-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-hnsc-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-hnsc-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-stad-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-stad-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-nsclc-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-nsclc-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-esca-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-esca-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-paad-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-paad-v1"
+        },
+        {
+          "product_id": "sclc-subgroup-assignments-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "sclc-subgroup-assignments-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-hnsc-maf-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-hnsc-maf-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-nsclc-maf-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-nsclc-maf-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-esca-maf-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-esca-maf-v1"
+        },
+        {
+          "product_id": "tcga-subgroup-assignments-paad-maf-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tcga-subgroup-assignments-paad-maf-v1"
         }
       ],
       "modality_relevance": null,
@@ -19053,16 +20178,196 @@
       "fires_in_any_run": true,
       "datasets": [
         {
+          "product_id": "acc-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "acc-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "blca-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "blca-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "brca-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "brca-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "cesc-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "cesc-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "coad-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "coad-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
           "product_id": "coadread-dge-tumor-vs-normal-sensitivity-v1",
           "in_catalog": true,
           "matched_by": "exact",
           "resolved_id": "coadread-dge-tumor-vs-normal-sensitivity-v1"
         },
         {
+          "product_id": "esca-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "esca-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "gbm-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "gbm-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "hnsc-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "hnsc-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "kich-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "kich-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "kirc-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "kirc-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "kirp-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "kirp-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "lgg-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "lgg-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "lihc-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "lihc-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "luad-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "luad-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "lusc-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "lusc-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "nsclc-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "nsclc-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "ov-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "ov-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "paad-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "paad-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "pcpg-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "pcpg-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "prad-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "prad-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "read-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "read-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "sclc-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "sclc-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "skcm-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "skcm-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "stad-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "stad-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "tgct-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "tgct-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "thca-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "thca-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "ucec-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "ucec-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
+          "product_id": "ucs-dge-tumor-vs-normal-sensitivity-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "ucs-dge-tumor-vs-normal-sensitivity-v1"
+        },
+        {
           "product_id": "coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
           "in_catalog": true,
           "matched_by": "exact",
           "resolved_id": "coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1"
+        },
+        {
+          "product_id": "nsclc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "nsclc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1"
+        },
+        {
+          "product_id": "stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
+          "in_catalog": true,
+          "matched_by": "exact",
+          "resolved_id": "stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1"
         }
       ],
       "modality_relevance": [
@@ -19360,9 +20665,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -19653,9 +20960,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -19673,9 +20982,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -20833,9 +22144,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -20997,9 +22310,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -21713,9 +23028,11 @@
       "file_count": 12,
       "system_of_record": true,
       "n_derived_from": 0,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "paralog-buffering"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": false,
       "is_broken_ref": false,
@@ -22012,6 +23329,26 @@
       "missing_sort_key": false
     },
     {
+      "product_id": "depmap-predictability-26q1-v4",
+      "in_catalog": true,
+      "kind": "derived",
+      "provider": null,
+      "version": null,
+      "size_bytes": null,
+      "file_count": null,
+      "system_of_record": null,
+      "n_derived_from": 4,
+      "consumed_by_cards": [],
+      "n_consumers": 0,
+      "is_orphan": true,
+      "all_consumers_placeholder": false,
+      "has_sort_key": true,
+      "is_broken_ref": false,
+      "is_pending_ref": false,
+      "access_cost": "unknown",
+      "missing_sort_key": false
+    },
+    {
       "product_id": "depmap-prism-activity-v4",
       "in_catalog": true,
       "kind": "derived",
@@ -22108,9 +23445,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "cellline-rna-distribution-by-subtype"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -22128,9 +23467,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "cellline-rna-distribution-by-subtype"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -22148,9 +23489,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "cellline-rna-distribution-by-subtype"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -22168,9 +23511,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "cellline-rna-distribution-by-subtype"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -22188,9 +23533,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "cellline-rna-distribution-by-subtype"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -22208,9 +23555,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "cellline-rna-distribution-by-subtype"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -22392,9 +23741,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -22413,11 +23764,10 @@
       "system_of_record": null,
       "n_derived_from": 1,
       "consumed_by_cards": [
-        "antigen-prevalence",
         "subgroup-stratified-expression",
         "tumor-rna-vs-adjacent"
       ],
-      "n_consumers": 3,
+      "n_consumers": 2,
       "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
@@ -22516,9 +23866,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -24133,9 +25485,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -24737,9 +26091,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -24817,9 +26173,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -24837,9 +26195,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -24877,9 +26237,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -24897,9 +26259,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -24999,9 +26363,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -25019,9 +26385,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -25307,9 +26675,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 3,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -25327,9 +26697,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -25688,9 +27060,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -25728,9 +27102,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -25938,9 +27314,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -26187,9 +27565,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -26599,9 +27979,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -28309,9 +29691,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 2,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -28329,9 +29713,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 2,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-percentile-crossing-by-subtype"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -28349,9 +29735,12 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-rna-distribution-by-subtype",
+        "tumor-vs-normal-percentile-crossing-by-subtype"
+      ],
+      "n_consumers": 2,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -28457,9 +29846,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -28873,9 +30264,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 2,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -28893,9 +30286,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -29606,9 +31001,12 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-rna-distribution-by-subtype",
+        "tumor-vs-normal-percentile-crossing-by-subtype"
+      ],
+      "n_consumers": 2,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -29626,9 +31024,12 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 2,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-rna-distribution-by-subtype",
+        "tumor-vs-normal-percentile-crossing-by-subtype"
+      ],
+      "n_consumers": 2,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -29646,9 +31047,12 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-rna-distribution-by-subtype",
+        "tumor-vs-normal-percentile-crossing-by-subtype"
+      ],
+      "n_consumers": 2,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -29666,9 +31070,12 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 3,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-rna-distribution-by-subtype",
+        "tumor-vs-normal-percentile-crossing-by-subtype"
+      ],
+      "n_consumers": 2,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -29686,9 +31093,12 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-rna-distribution-by-subtype",
+        "tumor-vs-normal-percentile-crossing-by-subtype"
+      ],
+      "n_consumers": 2,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -29706,9 +31116,12 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 3,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-rna-distribution-by-subtype",
+        "tumor-vs-normal-percentile-crossing-by-subtype"
+      ],
+      "n_consumers": 2,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -29726,9 +31139,12 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-rna-distribution-by-subtype",
+        "tumor-vs-normal-percentile-crossing-by-subtype"
+      ],
+      "n_consumers": 2,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -29746,9 +31162,12 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 2,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-rna-distribution-by-subtype",
+        "tumor-vs-normal-percentile-crossing-by-subtype"
+      ],
+      "n_consumers": 2,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -29766,9 +31185,12 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 2,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-rna-distribution-by-subtype",
+        "tumor-vs-normal-percentile-crossing-by-subtype"
+      ],
+      "n_consumers": 2,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -29829,10 +31251,9 @@
       "system_of_record": null,
       "n_derived_from": 3,
       "consumed_by_cards": [
-        "tumor-rna-distribution-by-subtype",
-        "tumor-vs-normal-percentile-crossing-by-subtype"
+        "tumor-rna-distribution-by-subtype"
       ],
-      "n_consumers": 2,
+      "n_consumers": 1,
       "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
@@ -29852,6 +31273,7 @@
       "system_of_record": null,
       "n_derived_from": 1,
       "consumed_by_cards": [
+        "antigen-prevalence",
         "expression-clinical-association",
         "expression-purity-confound",
         "recommended-models",
@@ -29860,7 +31282,7 @@
         "tumor-vs-normal-percentile-crossing",
         "tumor-vs-normal-percentile-crossing-by-subtype"
       ],
-      "n_consumers": 7,
+      "n_consumers": 8,
       "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
@@ -29941,9 +31363,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -29961,9 +31385,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -30147,9 +31573,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -30167,9 +31595,11 @@
       "file_count": null,
       "system_of_record": null,
       "n_derived_from": 1,
-      "consumed_by_cards": [],
-      "n_consumers": 0,
-      "is_orphan": true,
+      "consumed_by_cards": [
+        "tumor-vs-normal-selectivity"
+      ],
+      "n_consumers": 1,
+      "is_orphan": false,
       "all_consumers_placeholder": false,
       "has_sort_key": true,
       "is_broken_ref": false,
@@ -30691,7 +32121,7 @@
         "id": "card:antigen-prevalence",
         "layer": "card",
         "label": "antigen-prevalence",
-        "health": "placeholder",
+        "health": "wired",
         "is_orphan": true,
         "measurement_type": "antigen_expressing_prevalence"
       },
