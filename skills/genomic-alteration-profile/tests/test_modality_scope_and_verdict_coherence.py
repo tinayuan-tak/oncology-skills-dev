@@ -63,7 +63,6 @@ def test_every_publishable_verdict_is_bucketed():
     buckets = {
         "_GA_STRONG_POS": ga._GA_STRONG_POS,
         "_GA_MOD_POS": ga._GA_MOD_POS,
-        "_GA_WEAK_POS": ga._GA_WEAK_POS,
         "_GA_NEG": ga._GA_NEG,
         "_GA_NEUTRAL": ga._GA_NEUTRAL,
         "_GA_NONE": ga._GA_NONE,
@@ -87,16 +86,22 @@ def test_the_sanity_check_can_actually_fail():
     """The closure test above is only meaningful if an unbucketed token would be detected. It reads the
     resolver, so pin that a token absent from every bucket is in fact absent."""
     assert "a_token_no_rung_emits" not in (
-        ga._GA_STRONG_POS | ga._GA_MOD_POS | ga._GA_WEAK_POS | ga._GA_NEG | ga._GA_NEUTRAL | ga._GA_NONE
+        ga._GA_STRONG_POS | ga._GA_MOD_POS | ga._GA_NEG | ga._GA_NEUTRAL | ga._GA_NONE
     )
 
 
-@pytest.mark.parametrize("token", sorted(ga._GA_UNCONFIRMED))
-def test_demotion_tokens_are_neutral_and_insufficient_not_measured_positive(token):
+@pytest.mark.parametrize("token", sorted(ga._GA_NEUTRAL))
+def test_neutral_family_is_neutral_and_insufficient_not_measured_positive(token):
+    """The full neutral family — the two reconciler/backtest demotion tokens (_GA_UNCONFIRMED), the
+    spectrum-SHAPE tokens lof/missense_dominant_pattern (a variant-composition shape, not a driver
+    call), and mixed_pattern — must publish neutral strength + neutral direction + `insufficient`
+    availability. v2.18.0 fixed the demotion tokens (they fell through to measured_positive); v2.19.0
+    folds in the spectrum-shape tokens, which _GA_WEAK_POS had published as measured POSITIVES /
+    `supports` while the verdict spine and _ga_modality_scope already read them as non-driver."""
     assert ga._genomic_strength(token) == "neutral"
     assert ga._ga_direction(token) == "neutral"
     assert ga._ga_availability(token) == "insufficient", (
-        f"{token} withholds a driver call; publishing it as measured_positive asserts the opposite"
+        f"{token} is not a driver call; publishing it as measured_positive asserts the opposite"
     )
 
 

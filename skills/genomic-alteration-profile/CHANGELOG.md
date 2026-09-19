@@ -4,6 +4,37 @@ Development history for the skill. The `SKILL.md` header describes the CURRENT
 contract only; dated design decisions and reclassification notes live here so the
 contract stays readable.
 
+## 2026-09-19 (v2.19.0)
+POWER-HONESTY on the read/projection surfaces, all **VERDICT-INERT** — `sub_verdicts` are byte-stable;
+no resolver rung, and the nomination gate reads the raw ladder, so nothing here moves a nomination.
+
+- **Coverage no longer reads the panel denominator.** `_ga_coverage` read
+  `mutation-stratified-dependency.n_cell_lines_evaluated` — the ~1500-line panel *total*, always ≥20 —
+  so `certainty.coverage` saturated `high` for every measured verdict, a power claim that never varied.
+  It now reads the driving class's **altered arm**: `_dep_arm_n` over the stratified-dependency
+  `n_*_mutant` / `n_amplified` / `n_fusion_positive` fields, `mut_n_cell_lines_mutated` for the
+  SNV-spectrum family, banded at `_COVERAGE_N_HIGH=30` / `_COVERAGE_N_MED=10` (restating
+  `subgroup_common/panorama.py`'s power floors, per the `subgroup_derivation.py` precedent). Curated /
+  landscape verdicts carry no cell-line arm of their own (`copy-number-distribution` exposes only
+  *fractions*), so they stay `high` and defer to corroboration rather than being floored by an absent
+  count. (An earlier design routed `recurrent_amplification/deletion_driver → cn_n_cell_lines_evaluated`;
+  re-measurement showed that is the CN *denominator* — using it would have reintroduced the saturation
+  bug on the CN axis — so those verdicts are in the curated/landscape set instead.)
+- **Panorama split.** `_panorama_axis` conflated two absences into `not_informative`: strata evaluated
+  but <2 cleared the n-floor (**underpowered** — looked, arms too thin) vs nothing evaluated on the axis
+  (**not_informative** — could not look). Now distinct.
+- **Neutral-family coherence.** `lof/missense_dominant_pattern` are a variant-composition *shape*, not a
+  driver call (missense_dominant fires for 62% of the review panel, incl. both negative controls). The
+  verdict spine and `_ga_modality_scope` (→`na`) already treated them as non-driver, but the
+  `(strength, certainty)` + `claim_record` sidecar published them `weak_positive` / `supports` /
+  `measured_positive` via `_GA_WEAK_POS` — a fail-open contradiction with the spine. Converged to
+  `neutral` / `neutral` / `insufficient` (extending the v2.18.0 demotion-token fix); removed
+  `_GA_WEAK_POS`.
+- **Architectural + dead code.** Interpretation rules are equals-only (a rule matches a categorical
+  CLASS token; no `min_n`), so the skill cannot consume a numeric cutoff from a contract — every cutoff
+  is skill-owned policy declared at its use site. Documented this; deleted the dead
+  `_SUBTYPE_DELTA_THRESHOLD` (0 readers).
+
 ## 2026-09-13 (v2.18.0)
 UNIFIED-OUTPUT completion + shadow/verdict coherence, all VERDICT-INERT, plus the companion golden
 re-baseline for contracts resolver **1.10.0** (TC #739 CN-deletion/fusion specificity composed with

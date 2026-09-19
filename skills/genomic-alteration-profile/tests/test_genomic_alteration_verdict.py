@@ -261,10 +261,20 @@ def test_subtype_pattern_uniform_when_delta_low(monkeypatch):
     assert res["axes"]["subtype_axis"]["subtype_mutation_pattern"] == "uniform_across_subgroups"
 
 
-def test_subtype_pattern_not_informative_when_underpowered(monkeypatch):
-    # Only ONE measured stratum (the other absent) → cannot speak to cross-subgroup variation.
+def test_subtype_pattern_underpowered_when_strata_evaluated_but_under_two_measured(monkeypatch):
+    # POWER HONESTY (v2.19.0): strata WERE evaluated but only ONE cleared the n-floor (the other absent)
+    # → `underpowered`. We looked and the arms are too thin to contrast — a measured limitation, NOT an
+    # absence of anything to compare. (Previously this and the nothing-evaluated case both read
+    # `not_informative`; the two are now distinct — see the not_informative test below.)
     rows = [{"stratum": "MSI_H", "evidence_state": "measured"}, {"stratum": "MSS", "evidence_state": "absent"}]
     res = _panorama_with(monkeypatch, rows, delta=None, n_with_data=1)
+    assert res["axes"]["subtype_axis"]["subtype_mutation_pattern"] == "underpowered"
+
+
+def test_subtype_pattern_not_informative_when_nothing_evaluated(monkeypatch):
+    # The OTHER half of the split: NO per-stratum records were evaluated at all (a could-not-look) →
+    # `not_informative`, distinct from the underpowered "looked-but-too-thin" above.
+    res = _panorama_with(monkeypatch, [], delta=None, n_with_data=0)
     assert res["axes"]["subtype_axis"]["subtype_mutation_pattern"] == "not_informative"
 
 
