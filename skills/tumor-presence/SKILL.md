@@ -25,7 +25,12 @@ description: |
                                             molecular subtypes CMS/CIMP/MSI/sidedness/stage; LUAD & NSCLC
                                             driver strata EGFR/KRAS/BRAF/HER2/MET + ALK/ROS1/RET fusions (paired -nsclc-v1 + -nsclc-maf-v1 shards); else
                                             subtype_axis_available:false)
-      - cellline-rna-distribution-by-subtype  cell-line RNA by DepMap driver/molecular subtype (COADREAD proof)
+      - cellline-rna-distribution-by-subtype  cell-line RNA by DepMap driver/molecular subtype — all 7 landed
+                                            shards routed + declared (COADREAD/HNSC/STAD/NSCLC/ESCA/PAAD/SCLC,
+                                            TC#828); measured 2026-09-19 NONE reaches powered: coadread/nsclc/
+                                            esca/sclc exploratory, hnsc underpowered, stad/paad unevaluable
+                                            (axis declared in the catalog, every stratum empty). Coverage is
+                                            complete; the remaining headroom is POWER, not shards.
       - tumor-protein-distribution-by-subtype  per-molecular-subtype tumor PROTEIN panorama (CPTAC
                                             MSI_H/MSS, COADREAD); verdict-inert
       - expression-purity-confound          tumor-intrinsic vs stromal/immune signal
