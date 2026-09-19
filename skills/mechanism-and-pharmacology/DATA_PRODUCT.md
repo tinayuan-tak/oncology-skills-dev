@@ -27,7 +27,7 @@ composed lanes) are LIVE.** `run.py` has no `CARD_CONTEXT` map (mechanism is ind
 | `tahoe-drug-perturbation` | `tahoe_drug_perturbation` | `tahoe-drug-perturbation-per-gene-v1` (~5.3 GB) | display-only |
 | `phospho-pathway-activity` | `phospho_pathway_activity` (reads derived per-site) | `cptac-pdc-snapshot-2026-07-01` (src, declared) → reads `cptac-phospho-per-site-per-cohort-v1` (derived) | display-only |
 | `pathway-activity-context` | `progeny_pathway_activity` (PROGENy) | `progeny-pathway-activity-per-indication-v1` | display-only |
-| `dependency-predictability` | `depmap_predictability` (`depmap-predictability` alias → `-26q1-v3`) | `depmap-predictability-26q1-v3` | display-only |
+| `dependency-predictability` | `depmap_predictability` (`depmap-predictability` alias → `-26q1-v4`) | `depmap-predictability-26q1-v4` | display-only |
 
 **MoA composition (what feeds `network_class`):** SIGNOR (Jul2026) + CollecTRI curated-edge union **only**.
 Reactome is layered as pathway **context** (not counted in the edge total).
@@ -41,8 +41,10 @@ Kinome-atlas predictions + DepMap co-essentiality are carried **alongside** (`ki
 - **SIGNOR** quarterly release `signor-jul2026` (Oct2026 will supersede); derived per-gene = 33,083 human
   rows → ~44,996 dual-emitted edges (~4.2% unmapped). **CollecTRI** = `collectri-tf-regulon-per-gene-v1`.
 - **Phospho** ceiling = CPTAC 10-cohort set (`applies_when`). **PROGENy** = 33 indications × 14 pathways.
-- **Predictability** = 26q1-v3, 9,240 genes, RF+XGB — **SHAP NOT computed** (`shap_computed: false`;
-  RF-impurity / XGB-gain fallback).
+- **Predictability** = 26q1-v4, 9,240 genes, RF+XGB — **SHAP computed** (`shap_computed: true`;
+  `top_features_rf_shap` / `top_features_xgb_shap` carry mean(|SHAP|) TreeExplainer attributions.
+  v4 re-materializes v3's exact gene set / model / CV with `shap` 0.52.0; the older v1/v2/v3 pins
+  fell back to RF-impurity / XGB-gain).
 
 ---
 

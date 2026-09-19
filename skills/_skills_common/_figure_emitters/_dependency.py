@@ -520,12 +520,19 @@ def _emit_dependency_predictability(
     """
     _ensure_methods_path()
     from methods.depmap_predictability import cli as e5cli
+    from methods.depmap_predictability import read as e5read
 
     out_dir.mkdir(parents=True, exist_ok=True)
     e5cli.emit_feature_importance_bar(summary, target, out_dir, TARGET_CONTRACTS)
     e5cli.emit_lineage_conditional_panel(summary, target, out_dir, TARGET_CONTRACTS)
-    parquet_uri = e5cli.RELEASE_PIN_TO_PARQUET.get("26q1-v2", "<unset>")
-    e5cli.emit_manifest(target, "26q1-v2", summary, out_dir, parquet_uri)
+    # Provenance follows the data: read the pin + resolved parquet the reader
+    # (read_predictability) stamped onto the summary rather than hardcoding a
+    # literal that silently drifts when the default pin moves. Fall back to the
+    # reader's default (+ a re-resolve) only for an older summary that predates
+    # the provenance stamp.
+    release_pin = summary.get("_release_pin") or e5read.DEFAULT_RELEASE_PIN
+    parquet_uri = summary.get("_derived_product_uri") or e5cli.RELEASE_PIN_TO_PARQUET.get(release_pin, "<unset>")
+    e5cli.emit_manifest(target, release_pin, summary, out_dir, parquet_uri)
     figures = [
         {
             "id": "feature_importance_bar",

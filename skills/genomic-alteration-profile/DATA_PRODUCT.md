@@ -97,7 +97,7 @@ source (coordinate; major on rename); new facet → no schema change.
   cards are sub-1.0 versions (`splice-exon-skip-landscape` v0.1.0, `alteration-role`, `functional-gene-state`,
   …) yet fully wired + materialized — low version ≠ placeholder.
 - **Logical aliases resolved at read time:** `gdc-pancohort-somatic` (→ `-dr45-0`, per-indication pushdown),
-  `depmap-predictability` (→ `-26q1-v3` by release pin). Indication-scoped derived products carry an
+  `depmap-predictability` (→ `-26q1-v4` by release pin). Indication-scoped derived products carry an
   `indication` column filtered per-indication at read.
 - **`provenance.resolved_releases`** may omit `is_stale` for indeterminate-head families (e.g.
   `gdc-pancohort-somatic`) — the envelope treats `is_stale` as optional for exactly this reason.

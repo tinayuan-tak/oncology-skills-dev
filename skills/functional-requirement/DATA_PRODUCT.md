@@ -32,7 +32,7 @@ Substrates: `depmap-consortium-26q1` (+`-rnai`) source-releases; `depmap-paralog
 `depmap-prism-activity-v4`.
 
 ### Confidence-only (3 → `dependency_confidence_note`, no resolver rung)
-`dependency-predictability` (`depmap-predictability-26q1-v3`), `cross-consortium-dependency` (Broad↔Sanger
+`dependency-predictability` (`depmap-predictability-26q1-v4`), `cross-consortium-dependency` (Broad↔Sanger
 corroboration; also the sole certainty `corroboration` input), `coessential-module`
 (`depmap-coessentiality-26q1-v1`; module-coherence lift).
 

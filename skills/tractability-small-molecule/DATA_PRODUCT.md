@@ -79,7 +79,7 @@ ratchet, target-contracts schema meta-test. Change policy: new verdict token →
 
 - **Clean data product** — no placeholder cards, no stale-metadata. (Prose skew only: SKILL.md "What this
   skill does" says "the 7 tractability cards"; the roster is 8 — `gdsc-drug-activity` is the display-only 8th.)
-- **Logical aliases:** `depmap-predictability` (→ `-26q1-v3` by release pin), PRISM `prism-activity-v4` pin.
+- **Logical aliases:** `depmap-predictability` (→ `-26q1-v4` by release pin), PRISM `prism-activity-v4` pin.
 - **Wiring nuance:** `dgidb-drug-target-directional-v1` supplies directness fields to the known-drug +
   measured-potency cards but is not listed in their `required_inputs` (read alongside the primary product).
 - **Doc-vs-code nuance:** the `_DEG_ARM` map emits `supported` (not `caveated`) for `degrader_rationale`,
