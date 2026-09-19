@@ -19,13 +19,26 @@
 # stratum — the validator asserts sync in BOTH directions: every id here exists in a catalog, AND
 # every catalog id is either registered here or named in `intentionally_excluded` below.
 
-version: 1.3.0   # 1.3.0 (2026-09-14, stage 3d): AUTHORED the HNSC (driver_mutation,
+version: 1.3.1   # 1.3.1 (2026-09-19): COMMENT/METADATA ONLY -- no change to `indications`, so inert
+                 #   to both consumers. RETRACTED the `reader_routing` block's subject: it claimed
+                 #   link 3 was MISSING for HNSC/ESCA, which was false on the day it was written
+                 #   (the TCGA arms' routing table is in ANALYSIS-METHODS and had carried both codes
+                 #   since 2026-08-04; the census only enumerated _live_readers.py). New subject is
+                 #   BRCA, the one registered indication unrouted on every arm -- and its cause is
+                 #   link 1, no published shard. Also: split registries_declared_in_link_3_file from
+                 #   registries_returning_none (one count was answering the other's question); added
+                 #   depmap_genomic_strata_publication_gap, the per-AXIS category that 3 comments
+                 #   were pointing at `reader_routing` for; corrected "9 published DepMap shards"
+                 #   to 8. The 1.3.0 byte-inertness claim below is left standing but its stated
+                 #   MECHANISM is corrected in `reader_routing` and the value was NOT re-measured.
+                 # 1.3.0 (2026-09-14, stage 3d): AUTHORED the HNSC (driver_mutation,
                  #   cn_amplification, tmb) and ESCA (driver_mutation) axes off MEASURED n, clearing
                  #   6 of the 12 pending_authoring entries; + reader_routing; corrected the stale
                  #   hpv_status "no held source" comment; re-measured cohort_claim_reconciliation in
                  #   BOTH directions and falsified 3 of its own dispositions. THIS ONE IS NOT INERT
                  #   to `indications`: default_subtypes() grows HNSC 6 -> 11 and ESCA 3 -> 4. It is
-                 #   nonetheless byte-inert to every skills ARTIFACT today -- see reader_routing.
+                 #   nonetheless byte-inert to every skills ARTIFACT today -- see reader_routing
+                 #   (★ mechanism corrected 2026-09-19; conclusion not re-verified).
                  # 1.2.0 (2026-09-14): + admissibility_floors, authoring_rule,
                  #   cohort_claim_reconciliation. Purely ADDITIVE at the top level -- both
                  #   consumers (tp_common.default_subtypes, tp_facets_subtype._load_subtype_crosswalk)
@@ -437,11 +450,15 @@ cohort_claim_reconciliation:
     # claim is neither confirmed nor refuted. Distinct from a note saying NOT MEASURED.
     # ★ RESOLVED 2026-09-14 by MEASURE, not by DROP. AM#624 ran the assigner against DepMap source
     # data and BRCA TP53_mut has 32 members of 66 evaluable (of 114 rows) -- so the claim is TRUE and
-    # stays. There is no depmap-subgroup-assignments-brca-* shard at all (checked: the 9 published
-    # DepMap shards cover COADREAD x2, ESCA, HNSC, NSCLC, PAAD, SCLC, STAD), which is the same
-    # measured-but-not-servable state as the HNSC/ESCA drivers authored above and is tracked in
-    # `reader_routing`. Dropping the cohort would have narrowed a vocabulary to match a missing
-    # shard -- the failure this whole block exists to prevent.
+    # stays. There is no depmap-subgroup-assignments-brca-* shard at all (re-counted 2026-09-19: the
+    # 8 published DepMap shards cover COADREAD x2, ESCA, HNSC, NSCLC, PAAD, SCLC, STAD -- the earlier
+    # "9" was an arithmetic error against this same enumeration, and the BRCA subgroup catalog says
+    # "8 shards published, BRCA absent" twice). BRCA is doubly blocked and the two reasons are
+    # DIFFERENT: no BRCA shard of any kind (`reader_routing.unrouted_indications`), and no DepMap
+    # genomic-strata shard for any indication (`reader_routing.depmap_genomic_strata_publication_gap`)
+    # -- so even a published BRCA directly-tagged shard would not serve THIS driver_mutation claim.
+    # Dropping the cohort would have narrowed a vocabulary to match a missing shard -- the failure
+    # this whole block exists to prevent.
     disposition: resolved_measured_claim_true_catalog_gains_the_key
     measured:
       - {indication: BRCA, axis: driver_mutation, stratum: TP53_mut, cohort: depmap,
@@ -474,48 +491,98 @@ cohort_claim_reconciliation:
 # ============================================================================================
 #
 # WHY THIS BLOCK EXISTS (stage 3d, 2026-09-14): stage 3d authored the HNSC and ESCA axes above and
-# then measured what a consumer actually gets. The answer was NOTHING, for a reason no file recorded.
+# then measured what a consumer actually gets, because REGISTERING a stratum here is only link 2 of
+# three: (1) data-catalog PUBLISHES an assignments shard, (2) this registry REGISTERS the stratum,
+# (3) a per-indication routing table maps the indication to that shard. A zero-diff replay over a
+# newly authored axis is ambiguous between "safe" and "never reached", and this block says which.
 #
-# Serving a subgroup stratum takes THREE links and this registry is only the second:
-#   1. data-catalog PUBLISHES an assignments shard        -- present for HNSC and ESCA
-#   2. this registry REGISTERS the stratum                -- done above, stage 3d
-#   3. skills _live_readers.py ROUTES the indication to the shard -- ★ MISSING for HNSC and ESCA
+# ★★ CORRECTED 2026-09-19 -- THE ORIGINAL SUBJECT WAS WRONG, AND WRONG ON THE DAY IT WAS WRITTEN.
+# This block used to say link 3 was "MISSING for HNSC and ESCA" and that a consumer gets NOTHING.
+# Re-measured by brace-matching every routing table and testing KEY MEMBERSHIP (not a substring
+# grep), across all four arms that consume this registry:
 #
-# Link 3 is a set of per-indication dicts in claude-oncology-skills
-# skills/_skills_common/_live_readers.py. MEASURED by calling `_shard_for_indication` directly:
-# ALL SEVEN registries return (None, None) for both HNSC and ESCA --
-# _MUTATION_ASSIGNMENTS_MANIFEST, _MUTATION_LOT_ASSIGNMENTS_MANIFEST,
-# _DEPENDENCY_ASSIGNMENTS_MANIFEST, _DEPENDENCY_ASSIGNMENTS_SHARDS,
-# _MUTATION_MOLECULAR_ASSIGNMENTS_SHARDS, _CELLLINE_SUBTYPE_ASSIGNMENTS and
-# _TUMOR_PROTEIN_SUBTYPE_ASSIGNMENTS. The file does not contain the string "HNSC" or "ESCA" at all.
-# Coverage is COADREAD-only in five of the seven and COADREAD+NSCLC in the other two.
+#   TCGA tumor RNA (base strata)  analysis-methods methods/tcga_gtex_expression_distribution/read.py
+#                                 INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST
+#                                 -> HNSC + ESCA ROUTED since 2026-08-04 (AM#124 b65b462)
+#   TCGA tumor genomic (MAF)      same file, INDICATION_TO_TUMOR_MAF_MANIFEST
+#                                 -> HNSC + ESCA ROUTED since 2026-08-04 (AM#135 379461e)
+#   DepMap cell line              skills _live_readers.py _CELLLINE_SUBTYPE_ASSIGNMENTS
+#                                 -> HNSC + ESCA ROUTED since 2026-09-18 (skills#1464 e85fad49),
+#                                    which grew it from 3 keys/1 shard to 14 keys/7 shards
+#   CPTAC tumor protein           skills _live_readers.py _TUMOR_PROTEIN_SUBTYPE_ASSIGNMENTS
+#                                 -> COADREAD ONLY, and that is a SUBSTRATE limit, not a wiring gap:
+#                                    CPTAC has exactly one published assignments shard.
 #
-# ★★ CONSEQUENCE FOR ANYONE READING A REPLAY DIFF: the dispatchers short-circuit on
-# `manifest is None` and return an honest typed-empty (`subtype_axis_available: false`) BEFORE they
-# look at which strata were requested. So authoring these six strata is BYTE-INERT to every skills
-# artifact except `provenance.scope_subtypes`, which grows HNSC 6 -> 11 and ESCA 3 -> 4. A composed
-# replay diff over HNSC/ESCA therefore reads ZERO -- and that zero is a CAPABILITY zero, not the
-# safety zero a replay gate is normally looking for. Do not read it as evidence that the new strata
-# are harmless in a wired state; the gate cannot distinguish those two cases here.
+# ★ HOW THE ORIGINAL MEASUREMENT MISSED IT -- the transferable lesson: the 2026-09-14 census
+# enumerated the seven `*ASSIGNMENTS*` dicts INSIDE _live_readers.py and found no "HNSC" or "ESCA",
+# which was TRUE OF THAT FILE and is still true of six of the seven. But the TCGA tumor arms -- the
+# arms the authored axes actually feed -- resolve their shard in ANALYSIS-METHODS, from a table that
+# had already carried both codes for six weeks. A census bounded by one FILE cannot see a link that
+# lives in another REPO. Enumerate by CONSUMER ("which table does THIS arm read?"), never by file.
 #
-# ★ WHY AUTHORING WAS STILL THE RIGHT MOVE: link 3 cannot be built without link 2. `default_subtypes`
-# only requests strata this registry lists, so wiring HNSC into _live_readers while the strata were
-# parked in `pending_authoring` would route a shard nothing ever asks for. Registration is the
-# PREREQUISITE, and it also makes the gap visible where it was previously silent -- which is the
-# whole premise of the reverse subtype guard.
+# ★ WHAT IS GENUINELY UNROUTED TODAY: BRCA, on every arm -- and the cause is LINK 1, not link 3.
+# BRCA is registered below with three axes and the string "BRCA" does not occur in _live_readers.py
+# at all. No BRCA assignments shard is published in any cohort: eight depmap-subgroup-assignments-*
+# shards exist (coadread, coadread-cms, esca, hnsc, nsclc, paad, sclc, stad) and BRCA is absent. The
+# DepMap assigner HAS been run for BRCA (AM#624, TP53_mut 32 members of 66 evaluable -- see
+# `cohort_claim_reconciliation` above) but nothing was PUBLISHED, which the BRCA subgroup catalog
+# states twice. Wiring link 3 for BRCA would route a shard that does not exist, so the fix is a
+# catalog PUBLICATION, not a reader edit.
 #
-# NOT DONE HERE, DELIBERATELY: skills/_skills_common/_live_readers.py carries an active `planned`
-# claim in ~/.claude/wip-registry.md (entry fix-evidence-graph-verdict-node-type-faithfulness), and
-# the foundation-audit plan of record scopes stage 1 explicitly OUT of _skills_common. Wiring link 3
-# needs that owner's coordination, so it is filed as the follow-up rather than taken.
+# ★★ REPLAY-DIFF WARNING -- THE CONCLUSION MAY STILL HOLD, THE STATED MECHANISM DOES NOT. The
+# original text explained a zero-diff by "the dispatchers short-circuit on `manifest is None` BEFORE
+# they look at which strata were requested". That mechanism is FALSE for three of the four arms
+# above, which DO resolve a manifest for HNSC/ESCA. The tumor subtype dispatcher is
+# COMPUTE-ALL-SPOTLIGHT-ONE -- it fans out over every stratum of the indication's landed SHARD
+# regardless of what this registry requests -- so authoring strata here can still be inert to that
+# arm, but only where the shard does not carry the authored stratum, which is a narrower claim.
+# Concretely it is NOT uniformly inert: tcga-subgroup-assignments-hnsc-maf-v1 IS routed and its
+# verified-powered strata are TP53_mut and PIK3CA_mut -- two of the three HNSC driver_mutation strata
+# stage 3d authored -- so those two are SERVABLE, which the original block denied. NOT RE-MEASURED
+# 2026-09-19: whether `provenance.scope_subtypes` is still the only changed key. Read the field below
+# as the 2026-09-14 measurement it was, not as a re-verified fact.
+#
+# ★ WHY AUTHORING WAS STILL THE RIGHT MOVE (unchanged): link 3 cannot be built without link 2.
+# `default_subtypes` only requests strata this registry lists, so wiring an indication while its
+# strata sat in `pending_authoring` would route a shard nothing ever asks for. Registration is the
+# PREREQUISITE, and it makes a gap visible where it was previously silent -- which is the whole
+# premise of the reverse subtype guard.
+#
+# NO LONGER "NOT DONE HERE": the DepMap cell-line wiring this block deferred to a peer claim on
+# _skills_common/ LANDED in skills#1464 (e85fad49), deliberately mirroring the TCGA arm's alias keys
+# so the two arms resolve the same indications.
 reader_routing:
   registration_is_not_routing: true
-  measured_on: 2026-09-14
+  measured_on: 2026-09-19
+  # `link_3_file` is the one the liveness test re-measures. The TCGA arms' table is the sibling
+  # below, and OMITTING it is exactly how the 2026-09-14 census reached a false conclusion.
   link_3_file: claude-oncology-skills/skills/_skills_common/_live_readers.py
-  unrouted_indications: [HNSC, ESCA]
+  link_3_file_tcga_arms: analysis-methods/methods/tcga_gtex_expression_distribution/read.py
+  unrouted_indications: [BRCA]
+  # TWO counts, because one cannot answer both questions and the single earlier value was compared
+  # against the wrong one: `declared` guards "a NEW registry appeared that might route the subject",
+  # while `returning_none` is the measured per-subject answer. They are equal today only because
+  # BRCA is absent from all seven; they are free to diverge, and a divergence is the signal.
+  registries_declared_in_link_3_file: 7
   registries_returning_none: 7
-  observable_change_from_authoring: provenance.scope_subtypes only (HNSC 6->11, ESCA 3->4)
-  blocked_on: peer_claim_on_live_readers_plus_shard_per_axis_wiring
+  observable_change_from_authoring: provenance.scope_subtypes only (HNSC 6->11, ESCA 3->4) -- 2026-09-14 measurement; mechanism corrected 2026-09-19, value NOT re-measured
+  blocked_on: link_1_no_published_brca_assignments_shard_in_any_cohort
+  # ★ A THIRD FAILURE CATEGORY the original block did not model -- and the one that every
+  # `driver_mutation` + `cohorts: [depmap]` claim below actually hits. The indication IS routed; there
+  # is simply no DepMap GENOMIC-STRATA shard to route to. Measured 2026-09-19 from the shards' own
+  # `parameters.assigner_method`: all 8 published depmap-subgroup-assignments-* shards are
+  # subgroup_assigner_directly_tagged (6) or subgroup_assigner_classifier (2) -- ZERO are
+  # subgroup_assigner_maf_filter, while TCGA publishes 5 of those. So the DepMap side can serve
+  # histology / MSI / CMS / NAPY strata but cannot serve a driver-mutation stratum for ANY indication,
+  # which is why AM#624 could MEASURE those members (it ran the assigner against source data) without
+  # any of them becoming servable. This is per-AXIS, not per-indication, so `unrouted_indications`
+  # cannot express it -- do not collapse the two categories, and do not "fix" it by narrowing
+  # `cohorts:` (see `authoring_rule`: that would delete a measured biological fact).
+  depmap_genomic_strata_publication_gap:
+    measured_on: 2026-09-19
+    depmap_maf_filter_shards_published: 0
+    tcga_maf_filter_shards_published: 5
+    affected: driver_mutation x cohorts[depmap] for COADREAD, NSCLC, PAAD, ESCA, HNSC, BRCA
 
 indications:
 
@@ -699,9 +766,10 @@ indications:
         cohorts: [tcga, depmap]          # tcga-subgroup-assignments-esca-maf-v1: 131 members of
                                          # 169 evaluable of 169 rows -> MEASURED (n>=30).
                                          # depmap: 51 of 83 evaluable -> MEASURED (AM#624, run
-                                         # against DepMap source; depmap-subgroup-assignments-
-                                         # esca-v1 carries histology ONLY, so this cohort is
-                                         # measured-but-not-yet-SERVABLE -- see `reader_routing`.
+                                         # against DepMap source). NOT SERVABLE on depmap, and the
+                                         # reason is GENERAL, not ESCA-specific: no depmap shard uses
+                                         # the maf_filter assigner (0 of 8) -- see
+                                         # `reader_routing.depmap_genomic_strata_publication_gap`.
                                          # `cohorts:` records members-exist, not shard coverage.
     associations: []
 
@@ -728,13 +796,16 @@ indications:
       # actually carry members for it"), NOT "a published shard serves this cohort". The two differ
       # for the drivers below and the distinction is deliberate: AM#624 measured DepMap membership by
       # running the assigner against DepMap source data (TP53_mut 42 of 54 evaluable, PIK3CA_mut 8 of
-      # 95, NOTCH1_mut 7 of 95), but depmap-subgroup-assignments-hnsc-v1 carries HPV (all-null),
-      # site_* and the Bass subtypes ONLY. Narrowing `cohorts:` to what a shard happens to serve
-      # today would DELETE a measured biological fact to match the current substrate -- and
-      # _live_readers.py:559 already states the shard is "the authoritative what's-servable, MORE
-      # PRECISE than the crosswalk cohort", so the consumer expects this lane to be the broader one.
-      # The servability gap is recorded in `reader_routing` below, which is where a substrate fact
-      # belongs. Same reading as the landed NSCLC/PAAD/BRCA driver_mutation depmap claims.
+      # 95, NOTCH1_mut 7 of 95), but depmap-subgroup-assignments-hnsc-v1 is a DIRECTLY-TAGGED shard
+      # (`parameters.assigner_method`) and therefore carries no driver-mutation strata at all.
+      # Narrowing `cohorts:` to what a shard happens to serve today would DELETE a measured
+      # biological fact to match the current substrate -- and _live_readers.py:559 already states the
+      # shard is "the authoritative what's-servable, MORE PRECISE than the crosswalk cohort", so the
+      # consumer expects this lane to be the broader one. The servability gap is recorded in
+      # `reader_routing.depmap_genomic_strata_publication_gap` below (0 of 8 depmap shards use the
+      # maf_filter assigner), which is where a substrate fact belongs -- NOT in
+      # `unrouted_indications`, which is about the indication, not the axis. Same reading as the
+      # landed NSCLC/PAAD/BRCA driver_mutation depmap claims, which hit the identical gap.
       - axis: driver_mutation
         strata: [TP53_mut, PIK3CA_mut, NOTCH1_mut]
         cohorts: [tcga, depmap]          # tcga-subgroup-assignments-hnsc-maf-v1, 277 evaluable:

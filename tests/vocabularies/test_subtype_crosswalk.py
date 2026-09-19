@@ -542,6 +542,39 @@ def test_registered_strata_with_no_measurement_at_all_do_not_grow():
 # =================================================================================================
 
 SKILLS = REPO.parent / "rnd-computational-biology-oncology-claude-oncology-skills"
+METHODS = REPO.parent / "rnd-computational-biology-oncology-analysis-methods"
+
+_LIVE_READER_REGISTRIES = r"_[A-Z0-9_]*ASSIGNMENTS[A-Z0-9_]*"
+_TUMOR_ARM_MAPS = r"INDICATION_TO_TUMOR[A-Z_]*MANIFEST"
+
+
+def _routing_tables(text: str, name_pattern: str) -> dict[str, set[str]]:
+    """Parse each module-level dict literal whose NAME matches `name_pattern` into {name: keys}.
+
+    Brace-matched, and KEY-based on purpose. The first version of the liveness check below asked
+    `code in text` -- a substring test over the whole file, which (a) counts an indication merely
+    NAMED in a comment as routed and (b) reports "HNSC" present when only "HNSCC" is. A routing claim
+    is a claim about DICT KEYS, so measure dict keys.
+
+    Two deliberate fail-CLOSED choices, because the failure this whole check exists to catch is a
+    green-while-blind one: `^` under MULTILINE so an indented/nested dict is never counted as its own
+    registry, and a 4-space-anchored key regex so a reshaped literal under-collects (spurious red,
+    which someone fixes) rather than over-collects (silent pass). Callers must assert non-emptiness.
+    """
+    out: dict[str, set[str]] = {}
+    for m in re.finditer(rf"^({name_pattern})\s*=\s*\{{", text, re.MULTILINE):
+        start = text.index("{", m.start())
+        depth, end = 0, start
+        for i in range(start, len(text)):
+            if text[i] == "{":
+                depth += 1
+            elif text[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    end = i + 1
+                    break
+        out[m.group(1)] = set(re.findall(r'^\s{4}"([A-Z0-9_]+)"\s*:', text[start:end], re.MULTILINE))
+    return out
 
 
 def test_reader_routing_block_is_structurally_live():
@@ -563,10 +596,22 @@ def test_reader_routing_block_is_structurally_live():
             "registered -- the block is warning about a stratum set that does not exist"
         )
         assert registered[code].get("axes"), f"{code}: named unrouted but carries no axes"
-    n = rr.get("registries_returning_none")
-    assert isinstance(n, int) and n > 0, f"registries_returning_none must be a positive count, got {n!r}"
+    for key in ("registries_returning_none", "registries_declared_in_link_3_file"):
+        n = rr.get(key)
+        assert isinstance(n, int) and n > 0, f"{key} must be a positive count, got {n!r}"
+    assert rr["registries_returning_none"] <= rr["registries_declared_in_link_3_file"], (
+        "more registries return no shard than are declared -- one of the two counts is measuring the "
+        "wrong thing, which is exactly the defect these two fields were split apart to prevent"
+    )
     assert str(rr.get("link_3_file", "")).endswith("_live_readers.py"), (
         "link_3_file must name the file that does the routing, so the claim can be re-measured"
+    )
+    # Both link-3 tables must be named. The 2026-09-14 version of this block named only the skills
+    # one and concluded HNSC/ESCA were unrouted, while the TCGA arms resolved them from a table in
+    # analysis-methods -- a census bounded by one file cannot see a link in another repo.
+    assert str(rr.get("link_3_file_tcga_arms", "")).endswith("read.py"), (
+        "link_3_file_tcga_arms must name the TCGA arms' routing table (analysis-methods), or this "
+        "block can once again declare a gap that exists only in the file it happened to look at"
     )
 
 
@@ -578,11 +623,16 @@ def test_reader_routing_block_is_structurally_live():
 def test_reader_routing_unrouted_indications_are_still_unrouted():
     """The liveness half: re-measure the claim instead of trusting the comment that recorded it.
 
-    `reader_routing` asserts that N per-indication registries in `_live_readers.py` return no shard for
-    HNSC and ESCA. Both halves are checkable from the file itself -- the indication codes must be absent
-    from it, and the registry count must still match. If someone wires HNSC (the real capability fix,
-    currently held by a peer claim on `_skills_common/`), this test reds and says so, rather than leaving
-    a stale "MISSING" note that reads as current.
+    `reader_routing` asserts that every per-indication registry in `_live_readers.py` returns no shard
+    for the indications it names. Re-measured here by KEY MEMBERSHIP per registry, which is what
+    "returns no shard" actually means, and which makes the two counts independently checkable:
+
+    - `registries_declared_in_link_3_file` catches a NEW registry appearing -- possibly the one that
+      would route the subject.
+    - `registries_returning_none` is the per-subject answer. Wiring the subject into one registry moves
+      this count without moving the other, so each red names its own cause. The 2026-09-14 version had
+      one field compared against the other's measurement, so it could only ever red for the wrong
+      reason (and did: it sat green while HNSC/ESCA were already routed by the TCGA arms).
 
     A pointer that never resolves looks like a working one, so the file's existence is asserted first.
     """
@@ -590,18 +640,67 @@ def test_reader_routing_unrouted_indications_are_still_unrouted():
     rr = doc["reader_routing"]
     live = SKILLS / "skills" / "_skills_common" / "_live_readers.py"
     assert live.exists(), f"reader_routing.link_3_file does not resolve on disk: {live}"
-    text = live.read_text()
 
-    routed_now = [c for c in rr["unrouted_indications"] if c in text]
-    assert not routed_now, (
-        f"reader_routing is STALE: {routed_now} now appear in {live.name}. Re-measure "
-        "`_shard_for_indication` for them and update or delete the block -- a resolved gap described as "
-        "MISSING is worse than no note, because the next reader trusts it."
-    )
-
-    registries = re.findall(r"^_[A-Z0-9_]*ASSIGNMENTS[A-Z0-9_]*\s*=\s*\{", text, re.MULTILINE)
-    assert len(registries) == rr["registries_returning_none"], (
+    registries = _routing_tables(live.read_text(), _LIVE_READER_REGISTRIES)
+    assert len(registries) == rr["registries_declared_in_link_3_file"], (
         f"{live.name} now declares {len(registries)} per-indication assignment registries but "
-        f"reader_routing claims {rr['registries_returning_none']} return no shard. Re-measure all of "
-        "them and update the count -- a new registry could be the one that routes these indications."
+        f"reader_routing claims {rr['registries_declared_in_link_3_file']}. Re-measure all of them -- "
+        "a new registry could be the one that routes these indications."
     )
+    # ANTI-VACUITY, and it is load-bearing here: an empty parse makes "the subject is absent from every
+    # registry" trivially TRUE and the count below trivially CORRECT, i.e. green while blind.
+    empty = sorted(name for name, keys in registries.items() if not keys)
+    assert not empty, (
+        f"parsed {empty} with zero keys -- the parser broke, not the claim. Every registry must yield "
+        "keys or 'the subject routes nowhere' passes for free."
+    )
+
+    unrouted = rr["unrouted_indications"]
+    routed_by = {c: sorted(n for n, keys in registries.items() if c in keys) for c in unrouted}
+    measured_none = {c: len(registries) - len(v) for c, v in routed_by.items()}
+    now_routed = {c: v for c, v in routed_by.items() if v} or "nothing"
+    claimed = rr["registries_returning_none"]
+    assert all(v == claimed for v in measured_none.values()), (
+        f"reader_routing is STALE: it claims {claimed} of {len(registries)} registries in {live.name} "
+        f"return no shard for {unrouted}, but measured {measured_none}. Now routed by: {now_routed}. "
+        "Update the block (or delete it) -- a resolved gap described as MISSING is worse than no note, "
+        "because the next reader trusts it. Check ALL FOUR arms before rewriting it, not just this file."
+    )
+
+
+@pytest.mark.skipif(
+    not METHODS.exists(),
+    reason="sibling analysis-methods repo not on disk -- the TCGA arms' link-3 claim is UNVERIFIED "
+    "here, not verified-absent; see reader_routing in subtype_crosswalk.yaml",
+)
+def test_reader_routing_tcga_arm_routes_what_the_corrected_block_says_it_does():
+    """Pin the 2026-09-19 correction, in BOTH directions, so it cannot rot back into prose.
+
+    The block used to conclude "link 3 MISSING for HNSC and ESCA" from a census bounded by
+    `_live_readers.py`, while the TCGA tumor arms had resolved both codes from a table in
+    analysis-methods since 2026-08-04. Nothing tested that, so the false claim read as current for
+    five days. This asserts the positive fact (HNSC/ESCA ARE routed by the TCGA arms) and the negative
+    one (BRCA is not) -- the second reds when BRCA is finally wired, which is when the block must move.
+    """
+    rr = _load()["reader_routing"]
+    rel = str(rr["link_3_file_tcga_arms"]).split("analysis-methods/", 1)[-1]
+    tcga = METHODS / rel
+    assert tcga.exists(), f"link_3_file_tcga_arms does not resolve on disk: {tcga}"
+
+    maps = _routing_tables(tcga.read_text(), _TUMOR_ARM_MAPS)
+    assert maps, f"no {_TUMOR_ARM_MAPS} table parsed from {tcga.name} -- re-measure before trusting"
+    routed = {code for keys in maps.values() for code in keys}
+    assert routed, f"every table in {tcga.name} parsed empty -- parser broke, not the claim"
+
+    for code in ("HNSC", "ESCA"):
+        assert code in routed, (
+            f"{code} is NOT routed by any {_TUMOR_ARM_MAPS} in {tcga.name}, but reader_routing's "
+            f"corrected table says the TCGA arms route it (tables seen: {sorted(maps)}). If that arm "
+            "genuinely stopped routing it, move the block -- do NOT silence this by putting the code "
+            "back in unrouted_indications without re-measuring all four arms."
+        )
+    for code in rr["unrouted_indications"]:
+        assert code not in routed, (
+            f"{code} is named unrouted but the TCGA arms now route it. Link 1 (a published assignments "
+            f"shard) must have landed -- re-measure and shrink unrouted_indications."
+        )
