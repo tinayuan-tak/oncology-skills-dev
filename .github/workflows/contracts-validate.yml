@@ -150,6 +150,31 @@ jobs:
           python -m pytest tests/validators/test_eval_ledger.py -q
           python validators/build_eval_ledger.py --self-check
 
+      # T1 reachability (Stage I, 2026-09-19): which (card_id, field, value) triples does the corpus
+      # actually emit? Every interpretation rule keys on a triple, and nothing enumerated them —
+      # gen_summary_schemas.py copies each `enum` from the card's DECLARED vocabulary, so all 46
+      # generated schemas carry required:[] + additionalProperties:true and cannot fail.
+      #
+      # ONLY THE HERMETIC HALF RUNS HERE, and that is a real hole, named rather than papered over:
+      # this runner is checkout-only, so there is no corpus to re-walk. What CI proves is the
+      # DECLARATION side — a card narrowing a vocabulary while the corpus still emits the value
+      # (safety-adverse: a rule keyed on that token now references one the contract rejects), a
+      # field renamed out from under the ledger, a newly declared vocabulary no method produces, a
+      # hand-edited count. A method that starts emitting a NEW token is caught at corpus
+      # regeneration, not here. The gate lands green with today's 3 violations + 11 never-observed
+      # pairs pre-listed and dated, so each removal is a one-line PR and trunk never reds —
+      # contracts-validate is not branch-protection-required, so a red trunk silently taints every
+      # open PR.
+      #
+      # The suite runs FIRST and is not optional: --self-check cannot show its own checks are
+      # non-vacuous, and four of this validator's checks were measured fail-open during development
+      # (an exclusion filter keyed on row presence published `{}` while 4 orphans went unreported).
+      # The mutation tests in that module are the only thing proving they can fail at all.
+      - name: Validate emission ledger (T1 reachability; hermetic half only)
+        run: |
+          python -m pytest tests/validators/test_emission_ledger.py -q
+          python validators/build_emission_ledger.py --self-check
+
       # 2026-08-16 (cleanup follow-up): these three validators were fully built but gated by NO
       # workflow — the same drift-risk the T9b step above fixed for validate_resolvers.py. Wire
       # their suites so subgroup-assignment / coverage-matrix / framework-discrimination contract

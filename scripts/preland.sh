@@ -26,6 +26,10 @@ run "validate_fold_migration"            python validators/validate_fold_migrati
 run "pytest tests/schemas"               python -m pytest tests/schemas/ -q
 run "pytest test_eval_ledger"            python -m pytest tests/validators/test_eval_ledger.py -q
 run "build_eval_ledger --self-check"     python validators/build_eval_ledger.py --self-check
+# T1 reachability. Unlike CI, a local run usually HAS the corpus, so the corpus half also verifies
+# the committed counts — set EMISSION_CORPUS to point at a vintage other than the ledger's.
+run "pytest test_emission_ledger"        python -m pytest tests/validators/test_emission_ledger.py -q
+run "build_emission_ledger --self-check" python validators/build_emission_ledger.py --self-check
 run "pytest subgroup+coverage"           python -m pytest tests/validators/test_subgroup_assignments_and_coverage.py -q
 run "pytest framework_discrimination"    python -m pytest tests/calibration/test_framework_discrimination.py -q
 run "pytest card_concept_discipline"     python -m pytest tests/validators/test_card_concept_discipline.py -q
