@@ -94,3 +94,18 @@ def test_indication_scope_note_none_on_nonpositive_verdict():
 
 def test_indication_scope_note_fires_on_not_in_panel():
     assert run._indication_scope_note("selective_dependent", _by_scope("not_in_panel")) is not None
+
+
+def test_indication_scope_note_coverage_gap_is_not_measured_negative():
+    """C1/C3: not_in_panel / underpowered / data_unavailable are COULD-NOT-LOOK, not a measured negative.
+    The note must fire (never silent) but must NOT claim the pooled positive is 'enriched OUTSIDE this
+    indication' — that asserts a measured negative in the queried lineage we never observed."""
+    for cls in ("not_in_panel", "underpowered", "data_unavailable"):
+        note = run._indication_scope_note("lineage_selective", _by_scope(cls))
+        assert note is not None, f"{cls} must not be silent"
+        assert "COVERAGE GAP" in note and "not a measured negative" in note.lower(), cls
+        assert "enriched OUTSIDE" not in note, f"{cls} is a coverage gap, not a measured negative"
+
+    # the contrast: a REAL measured negative still gets the measured-negative prose (anti-vacuity)
+    neg = run._indication_scope_note("lineage_selective", _by_scope("not_dependent_in_indication"))
+    assert neg and "enriched OUTSIDE" in neg and "COVERAGE GAP" not in neg

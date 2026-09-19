@@ -119,12 +119,21 @@ def test_discordant_consortium_adds_caveat_no_downgrade():
     assert "CAUTION" in c["note"] and "does NOT corroborate" in c["note"]
 
 
-def test_no_corroboration_signal_is_backward_compatible():
-    """single_consortium_only / data_unavailable / None → identical to the 2-arg call (no change)."""
-    for cc in ("single_consortium_only", "data_unavailable", None):
-        assert fr._dependency_confidence_note(
-            "selective_dependent", "unpredictable", cc
-        ) == fr._dependency_confidence_note("selective_dependent", "unpredictable")
+def test_uncorroborated_vs_not_assessed_are_distinguished():
+    """UPDATED 2026-09-19 (Stage 5): the old blanket silence conflated 'not corroborated' with 'not looked
+    at'. single_consortium_only ('the comparator WAS assessed, only one consortium had data' →
+    uncorroborated) now appends a confidence caveat naming the single consortium; data_unavailable / None
+    ('cross-consortium not assessed this run') stay byte-identical to the 2-arg call. The caveat NEVER moves
+    confidence — the resolver owns the verdict."""
+    base = fr._dependency_confidence_note("selective_dependent", "unpredictable")
+    # single_consortium_only: same confidence, but a caveat is now appended (no longer byte-identical)
+    sco = fr._dependency_confidence_note("selective_dependent", "unpredictable", "single_consortium_only")
+    assert sco["confidence"] == base["confidence"], "uncorroborated is a caveat, never a confidence move"
+    assert sco["note"] != base["note"], "single_consortium_only must no longer be silent"
+    assert "single-consortium" in sco["note"].lower() and "corroborate" in sco["note"]
+    # data_unavailable / None: comparator not assessed → still byte-identical to the 2-arg call
+    for cc in ("data_unavailable", None):
+        assert fr._dependency_confidence_note("selective_dependent", "unpredictable", cc) == base
 
 
 def test_corroboration_ignored_on_non_call_verdict():

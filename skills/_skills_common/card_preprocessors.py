@@ -17,6 +17,8 @@ skill's historical semantics) and return a provenance dict.
 
 from __future__ import annotations
 
+from _skills_common.dependency_indication import _dependency_preprocess
+
 # (card_id, class_field, p_field, firing_classes, demoted_class) — the genomic-alteration stratified-
 # dependency family. Each card fires the SAME biomarker_stratified_dependency verdict from an
 # INDEPENDENT Mann-Whitney test at its own per-card alpha; across the family the per-card alpha is
@@ -241,6 +243,10 @@ def _genomic_alteration_preprocess(cards: list[dict]) -> dict:
 CARD_PREPROCESSORS = {
     "genomic_alteration": _genomic_alteration_preprocess,
     "surface_modality": _surface_modality_preprocess,
+    # dependency (Stage 5b, 2026-09-19): write `indication_dependency_class` onto dependency-lineage-
+    # selectivity so the four indication-conditioned resolver rungs are reachable. Logic in
+    # dependency_indication so it single-sources with functional-requirement's headline by-scope block.
+    "dependency": _dependency_preprocess,
 }
 
 

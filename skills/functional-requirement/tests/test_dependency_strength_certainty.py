@@ -15,7 +15,7 @@ rc = load_run_py(Path(__file__).resolve().parent.parent, "fr_run")
 
 
 def test_strength_maps_verdict_class():
-    assert rc._dependency_strength("strongly_dependent") == "strong_positive"
+    assert rc._dependency_strength("broadly_dependent") == "strong_positive"
     assert rc._dependency_strength("lineage_selective") == "moderate_positive"
     assert rc._dependency_strength("pan_essential_killer") == "broad_nonselective"
     assert rc._dependency_strength("non_dependent") == "negative"
@@ -53,7 +53,7 @@ def test_certainty_weakest_link_by_construction(monkeypatch):
     full = _all_decision_cards_present()  # all decision cards available → unknown_mass 0.0
 
     # well-powered + cross-consortium replicated → high
-    sc = rc._dependency_strength_certainty(full, "strongly_dependent", "concordant_dependent")
+    sc = rc._dependency_strength_certainty(full, "broadly_dependent", "concordant_dependent")
     assert sc["certainty"]["level"] == "high" and sc["strength"] == "strong_positive"
     assert sc["certainty"]["unknown_mass"] == 0.0
 

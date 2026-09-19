@@ -8,11 +8,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import _skills_common.dependency_indication as DI
 from _test_support import load_run_py
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 
 M = load_run_py(SKILL_DIR, "_fr_run_scope")
+# Stage 5b: the indication-lineage reduction moved to _skills_common.dependency_indication (single home
+# for the `dependency` card preprocessor). Reference the moved functions THERE — monkeypatching M would
+# be a no-op because _indication_lineage_read resolves _indication_lineage_map in DI's namespace, not M's.
+# _dependency_verdict_by_scope / _subtype_scope_verdict / resolve_cards still live in run.py (= M).
 
 
 def _cards(*, indication="COADREAD", enriched=None, per_lineage=None):
@@ -29,9 +34,9 @@ def _cards(*, indication="COADREAD", enriched=None, per_lineage=None):
 
 
 def test_infer_indication_from_card_summary():
-    assert M._infer_indication(_cards(indication="COADREAD")) == "COADREAD"
-    assert M._infer_indication(_cards(indication="luad")) == "LUAD"  # normalized upper
-    assert M._infer_indication(_cards(indication=None)) is None
+    assert DI._infer_indication(_cards(indication="COADREAD")) == "COADREAD"
+    assert DI._infer_indication(_cards(indication="luad")) == "LUAD"  # normalized upper
+    assert DI._infer_indication(_cards(indication=None)) is None
 
 
 def test_selective_in_indication_when_queried_lineage_is_an_enrichment_hit():
@@ -42,7 +47,7 @@ def test_selective_in_indication_when_queried_lineage_is_an_enrichment_hit():
             {"lineage": "Bowel", "n": 88, "median_chronos": -1.18, "effect_size": 0.53, "q_value": 3.8e-16},
         ]
     )
-    read = M._indication_lineage_read(cards, "COADREAD")
+    read = DI._indication_lineage_read(cards, "COADREAD")
     assert read["depmap_lineage"] == "Bowel"
     assert read["class"] == "selective_in_indication" and read["is_enriched"] is True
     assert read["n"] == 88 and read["q_value"] == 3.8e-16
@@ -55,17 +60,17 @@ def test_dependent_not_enriched_and_not_dependent_from_per_lineage():
         enriched=[{"lineage": "Pancreas", "n": 74, "q_value": 1e-20}],
         per_lineage=[{"lineage": "Bowel", "n": 60, "median_chronos": -0.8}],
     )
-    assert M._indication_lineage_read(dep, "COADREAD")["class"] == "dependent_not_enriched"
+    assert DI._indication_lineage_read(dep, "COADREAD")["class"] == "dependent_not_enriched"
     nod = _cards(
         enriched=[{"lineage": "Pancreas", "n": 74, "q_value": 1e-20}],
         per_lineage=[{"lineage": "Bowel", "n": 60, "median_chronos": -0.1}],
     )
-    assert M._indication_lineage_read(nod, "COADREAD")["class"] == "not_dependent_in_indication"
+    assert DI._indication_lineage_read(nod, "COADREAD")["class"] == "not_dependent_in_indication"
 
 
 def test_underpowered_lineage_never_over_read():
     cards = _cards(enriched=[], per_lineage=[{"lineage": "Bowel", "n": 3, "median_chronos": -1.5}])
-    read = M._indication_lineage_read(cards, "COADREAD")
+    read = DI._indication_lineage_read(cards, "COADREAD")
     assert read["class"] == "underpowered"  # n < floor beats the deep median
 
 
@@ -74,18 +79,18 @@ def test_not_in_panel_only_when_full_table_is_a_real_list():
         enriched=[{"lineage": "Pancreas", "q_value": 1e-9}],
         per_lineage=[{"lineage": "Pancreas", "n": 74, "median_chronos": -1.8}],
     )
-    assert M._indication_lineage_read(cards, "COADREAD")["class"] == "not_in_panel"
+    assert DI._indication_lineage_read(cards, "COADREAD")["class"] == "not_in_panel"
     # fixture-style placeholder (per_lineage_stats is a STRING) + no enrichment hit → data_unavailable,
     # NOT a false not_in_panel
     placeholder = _cards(
         enriched=[{"lineage": "Pancreas", "q_value": 1e-9}], per_lineage="__omitted_from_fixture__ (list, 26 items)"
     )
-    assert M._indication_lineage_read(placeholder, "COADREAD")["class"] == "data_unavailable"
+    assert DI._indication_lineage_read(placeholder, "COADREAD")["class"] == "data_unavailable"
 
 
 def test_shared_lineage_gets_a_caveat():
     # STAD → DepMap "Esophagus/Stomach" (shared with ESCA) → coarse-lineage caveat flagged
-    read = M._indication_lineage_read(
+    read = DI._indication_lineage_read(
         _cards(
             indication="STAD",
             enriched=[{"lineage": "Esophagus/Stomach", "n": 40, "median_chronos": -0.9, "q_value": 1e-6}],
@@ -97,7 +102,7 @@ def test_shared_lineage_gets_a_caveat():
 
 
 def test_no_indication_is_typed_empty_not_a_crash():
-    read = M._indication_lineage_read(_cards(indication=None), None)
+    read = DI._indication_lineage_read(_cards(indication=None), None)
     assert read["class"] == "data_unavailable" and read["scope"] == "indication"
 
 
@@ -203,7 +208,7 @@ def test_sublineage_read_n_weighted_aggregate():
         {"oncotree_code": "TSTAD", "n": 20, "median_chronos": -0.4, "fraction_strongly_dependent": 0.2},
         {"oncotree_code": "ESCA", "n": 50, "median_chronos": 0.1, "fraction_strongly_dependent": 0.0},
     ]
-    sub = M._sublineage_read(_lineage_card_with_codes(rows), ["STAD", "TSTAD", "DSTAD"])
+    sub = DI._sublineage_read(_lineage_card_with_codes(rows), ["STAD", "TSTAD", "DSTAD"])
     assert sub["matched_codes"] == ["STAD", "TSTAD"]  # ESCA excluded; DSTAD absent
     assert sub["n"] == 80
     # n-weighted median = (-0.8*60 + -0.4*20)/80 = -0.7
@@ -213,7 +218,7 @@ def test_sublineage_read_n_weighted_aggregate():
 def test_indication_read_sublineage_resolves_shared_caveat(monkeypatch):
     # STAD → shared Esophagus/Stomach lineage + a curated code-set → sublineage read RESOLVES the caveat
     monkeypatch.setattr(
-        M,
+        DI,
         "_indication_lineage_map",
         lambda: {
             "STAD": {
@@ -227,7 +232,7 @@ def test_indication_read_sublineage_resolves_shared_caveat(monkeypatch):
         {"oncotree_code": "STAD", "n": 60, "median_chronos": -0.9, "fraction_strongly_dependent": 0.6},
         {"oncotree_code": "ESCA", "n": 50, "median_chronos": 0.1, "fraction_strongly_dependent": 0.0},
     ]
-    read = M._indication_lineage_read(_lineage_card_with_codes(rows), "STAD")
+    read = DI._indication_lineage_read(_lineage_card_with_codes(rows), "STAD")
     assert read["sublineage_resolved"] is True
     assert read["shared_lineage_caveat"] is False  # resolved, not merely flagged
     assert read["matched_oncotree_codes"] == ["STAD"]  # ESCA de-confounded out
@@ -238,7 +243,7 @@ def test_indication_read_sublineage_resolves_shared_caveat(monkeypatch):
 def test_indication_read_falls_back_to_coarse_without_code_stats(monkeypatch):
     # code-set present but the card has NO per_oncotree_code_stats (e.g. old run) → coarse path, caveat stays
     monkeypatch.setattr(
-        M,
+        DI,
         "_indication_lineage_map",
         lambda: {"STAD": {"depmap_lineage": "Esophagus/Stomach", "depmap_oncotree_codes": ["STAD", "TSTAD"]}},
     )
@@ -252,7 +257,7 @@ def test_indication_read_falls_back_to_coarse_without_code_stats(monkeypatch):
         },
         {"card_id": "abundance-dependency", "summary": {"indication": "STAD"}},
     ]
-    read = M._indication_lineage_read(cards, "STAD")
+    read = DI._indication_lineage_read(cards, "STAD")
     assert read.get("sublineage_resolved") is not True
     assert read["shared_lineage_caveat"] is True  # unresolved → still flagged (honest)
     assert read["class"] == "dependent_not_enriched"  # coarse Esophagus/Stomach median -0.6
@@ -277,13 +282,13 @@ def test_shared_lineage_without_a_code_set_still_gets_a_caveat():
     """The regression this fix closes: GBM and LGG BOTH map to DepMap `CNS/Brain` — they are pooled with
     each other — and neither has an authored `depmap_oncotree_codes`. Under the old `bool(codes)`
     predicate both read `shared_lineage_caveat: false` on a demonstrably confounded coarse read."""
-    xw = M._indication_lineage_map()
+    xw = DI._indication_lineage_map()
     for code in _MULTIPLICITY_ONLY:
         entry = xw[code]
         assert not entry.get("depmap_oncotree_codes"), f"{code} gained a code set — move it out of this list"
-        assert M._lineage_is_shared(entry) is True, f"{code} ({entry['depmap_lineage']}) lost its caveat"
+        assert DI._lineage_is_shared(entry) is True, f"{code} ({entry['depmap_lineage']}) lost its caveat"
 
-    read = M._indication_lineage_read(
+    read = DI._indication_lineage_read(
         _cards(indication="GBM", enriched=[{"lineage": "CNS/Brain", "n": 60, "median_chronos": -0.9, "q_value": 1e-6}]),
         "GBM",
     )
@@ -295,8 +300,8 @@ def test_shared_lineage_without_a_code_set_still_gets_a_caveat():
 def test_caveat_population_is_derived_and_nonempty_in_both_directions():
     """Anti-vacuity + coverage. Both poles must be populated from the LIVE crosswalk, so the check can
     fail either way, and the confounded set must not shrink silently as the vocabulary is edited."""
-    xw = M._indication_lineage_map()
-    shared = {c for c in xw if M._lineage_is_shared(xw[c])}
+    xw = DI._indication_lineage_map()
+    shared = {c for c in xw if DI._lineage_is_shared(xw[c])}
     assert shared, "no indication reads as shared — the caveat would be unreachable"
     assert set(xw) - shared, "every indication reads as shared — the caveat would be meaningless"
     missing = [c for c in _MULTIPLICITY_ONLY + _SUBSET_DECL_ONLY if c not in shared]
@@ -308,8 +313,8 @@ def test_the_two_sharedness_signals_are_a_union_neither_alone_suffices():
     (`depmap_oncotree_codes`) each cover cases the other cannot. Multiplicity alone regresses COADREAD
     ⊂ Bowel and UVM ⊂ Eye, whose other lineage members (anal squamous, appendiceal, retinoblastoma) are
     not themselves crosswalk indications. The declaration alone misses the six in _MULTIPLICITY_ONLY."""
-    xw = M._indication_lineage_map()
-    by_multiplicity = M._shared_depmap_lineages(xw)
+    xw = DI._indication_lineage_map()
+    by_multiplicity = DI._shared_depmap_lineages(xw)
 
     for code in _SUBSET_DECL_ONLY:
         entry = xw[code]
@@ -317,7 +322,7 @@ def test_the_two_sharedness_signals_are_a_union_neither_alone_suffices():
         assert entry["depmap_lineage"] not in by_multiplicity, (
             f"{code}'s lineage gained a second indication — it is no longer a subset-declaration-only case"
         )
-        assert M._lineage_is_shared(entry) is True
+        assert DI._lineage_is_shared(entry) is True
 
     for code in _MULTIPLICITY_ONLY:
         assert xw[code]["depmap_lineage"] in by_multiplicity
@@ -326,15 +331,15 @@ def test_the_two_sharedness_signals_are_a_union_neither_alone_suffices():
 def test_pure_lineages_do_not_get_a_caveat():
     """The negative pole: an indication that is the only disease on its DepMap lineage and declares no
     subset must NOT be flagged, or the caveat degenerates into a banner on every run."""
-    xw = M._indication_lineage_map()
+    xw = DI._indication_lineage_map()
     for code in _PURE_LINEAGE:
-        assert M._lineage_is_shared(xw[code]) is False, f"{code} ({xw[code]['depmap_lineage']}) falsely flagged"
+        assert DI._lineage_is_shared(xw[code]) is False, f"{code} ({xw[code]['depmap_lineage']}) falsely flagged"
 
 
 def test_aliases_do_not_inflate_lineage_multiplicity():
     """LUAD and LUSC are ALIASES of NSCLC and inherit its `Lung`. Counting raw map keys would read Lung
     as a 4-way split and, worse, would make any aliased lineage look shared on its own account."""
-    xw = M._indication_lineage_map()
+    xw = DI._indication_lineage_map()
     assert xw["LUAD"]["canonical_code"] == "NSCLC"
     assert xw["LUSC"]["canonical_code"] == "NSCLC"
     lung_canonical = {xw[c]["canonical_code"] for c in xw if xw[c].get("depmap_lineage") == "Lung"}
@@ -358,7 +363,7 @@ def test_sublineage_still_clears_the_caveat_when_a_code_set_resolves():
         },
         {"card_id": "abundance-dependency", "summary": {"indication": "STAD"}},
     ]
-    read = M._indication_lineage_read(cards, "STAD")
+    read = DI._indication_lineage_read(cards, "STAD")
     assert read["sublineage_resolved"] is True
     assert read["shared_lineage_caveat"] is False
 

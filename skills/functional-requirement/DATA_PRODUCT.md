@@ -39,7 +39,15 @@ corroboration; also the sole certainty `corroboration` input), `coessential-modu
 ### Verdict-inert render facets (5)
 `expression-dependency-correlation`, `abundance-dependency` (Gygi + expression), `recommended-models`
 (`bulk_rna`/`tumor`; recount3 + DepMap), `genomic-event-model-match` (MC3 + PanCanAtlas CNV + DepMap),
-`organoid-crispr-dependency` (~114 GI organoid models; corroborates a positive, never a veto).
+`organoid-crispr-dependency` (~114 GI organoid models; corroborates a positive, never a veto — machine-
+enforced by `tests/test_organoid_arm_never_vetoes.py`: no dependency-resolver rung references an organoid
+rule id).
+
+FR composes these facets and projects NOTHING from them into its OWN dependency verdict; where they carry
+downstream weight, a SIBLING projects them: `organoid_dependency_class` → translational-readiness;
+`correlation_class` (expression-dependency-correlation) → target-profile `tp_facets_biomarker` + cis-
+feature-coherence; `subtype_dependency_pattern` → example-gallery render only. (Swept 2026-09-19; no
+verdict-inert facet is orphaned — each has a consumer or a render home.)
 
 ### Subtype panorama (1, `--subtypes`-gated)
 `subgroup-stratified-dependency` — verdict-INERT in this standalone skill (resolved on the separate
