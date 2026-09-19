@@ -26,6 +26,7 @@ from _skills_common.claim_record import assemble_claim_record, magnitude_for_car
 from _skills_common.dependency_claims import dependency_claim_vector, dependency_key_signals
 from _skills_common.dependency_question_table import dependency_question_table
 from _skills_common.dispatcher import run_wired_skill
+from _skills_common.evidence_salience import contract_threshold
 from _skills_common.headline_core import HeadlineSpec, build_headline
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.literature_retrieval import default_retrieve, verify_citations
@@ -173,9 +174,18 @@ SUBTYPE_CARDS = [
     "subgroup-stratified-dependency",
 ]
 
-# Cross-stratum delta threshold mirroring the card's interpretation_hints
-# (meaningful_subgroup_delta). Display-only flavor label, NOT a verdict.
-_MEANINGFUL_SUBGROUP_DELTA = 0.10
+# Cross-stratum delta threshold, SINGLE-SOURCED from the card's own `thresholds:` block
+# (subgroup-stratified-dependency → meaningful_subgroup_delta). Display-only flavor label, NOT a verdict.
+# This read `0.10` under a comment claiming it mirrored the card while the card declared `0.3` — a 3x
+# drift no test could see, because the only fixture exercising the label uses delta=0.5, above BOTH cuts.
+# contract_threshold() is fail-soft to None (an isolated checkout with no contracts sibling), so the
+# literal below is a DECLARED FALLBACK that must equal the card; test_subgroup_delta_single_source.py
+# reds if the two ever diverge. Explicit `is None`, never `or`: a declared 0.0 is falsy.
+_MEANINGFUL_SUBGROUP_DELTA_FALLBACK = 0.3
+_CARD_MEANINGFUL_SUBGROUP_DELTA = contract_threshold("subgroup-stratified-dependency", "meaningful_subgroup_delta")
+_MEANINGFUL_SUBGROUP_DELTA = (
+    _MEANINGFUL_SUBGROUP_DELTA_FALLBACK if _CARD_MEANINGFUL_SUBGROUP_DELTA is None else _CARD_MEANINGFUL_SUBGROUP_DELTA
+)
 # Power floor mirroring the card + subgroup_common/panorama.py SUBGROUP_N_FLOOR: DepMap per-indication
 # molecular strata below this are UNDERPOWERED and must never be read as a subtype-specific call.
 _SUBGROUP_N_FLOOR = 30
@@ -244,8 +254,10 @@ def _resolve_dependency_subtype_panorama(target: str, indication: str | None, su
     delta = summary.get("cross_subgroup_delta_dependency")
 
     # Compact pattern label mirroring the card's interpretation_hints (delta on median_chronos):
-    # >= 0.10 with >=2 measured strata = subgroup-specific; < 0.10 with >=2 = uniform; else n/a.
-    # DISPLAY-ONLY flavor — NOT a verdict.
+    # >= the card's meaningful_subgroup_delta with >=2 measured strata = subgroup-specific; below it with
+    # >=2 = uniform; else n/a. The cut is named, never re-literalled here — a literal in this comment is
+    # what let the 0.10-vs-0.3 drift read as intentional. The `>=2` is the card's min_subgroups_for_call
+    # (verified equal, 2026-09-19). DISPLAY-ONLY flavor — NOT a verdict.
     if len(measured) < 2 or delta is None:
         pattern = "not_informative"
     elif abs(delta) >= _MEANINGFUL_SUBGROUP_DELTA:
