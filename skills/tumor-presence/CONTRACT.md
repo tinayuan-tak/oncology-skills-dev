@@ -241,7 +241,7 @@ golden-spine test + the guards' own unit tests):
 
 - **`protein_confirmation_state`** (finding G5 — *name the untested case*). For a PRESENT collapsed
   verdict, states whether protein was `confirmed` (measured present **in this indication's tumor** — a
-  CPTAC/subtype TMT-MS positive **or** an HPA antibody-IHC detection), `confirmed_cell_line_only`
+  CPTAC/subtype TMT-MS positive **or** an HPA antibody-IHC detection in **≥ 2 patients**), `confirmed_cell_line_only`
   (cell-line MS present, tumor-tissue protein untested), `measured_absent` (a measured indication-grain
   absence — an antibody-IHC `not_detected` or a bulk-MS `protein_broadly_low` — and nowhere confirmed
   present), `untested` (no indication-grain tumor-protein bucket is `measured` — RNA-only presence), or
@@ -254,7 +254,14 @@ golden-spine test + the guards' own unit tests):
   reading `confirmed` with `protein_expression_class=data_unavailable`); (2) a MEASURED antibody-IHC
   `not_detected` in the indication tumor (`protein_ihc/tumor`) reaches `measured_absent` even when a
   pan-cancer/cell-line positive is present (fixes CD19/COADREAD reading `confirmed` despite a measured IHC
-  absence). No new state token; verdict-inert (presence_verdict byte-stable). **Design note:** the measured-ABSENT contradiction is a rare,
+  absence). **Single-patient IHC guard (v1.24.0):** a lone stained patient of ~10-12 sits at HPA's
+  antibody-specificity noise floor (measured 48.6% of the `ihc_detected_low` corpus = 23,136/47,640 cells),
+  so an `ihc_detected_low` with `n_detected = round(fraction_detected × n_patients) < 2` no longer counts as
+  an IHC detection for `confirmed` / `ihc_positive` / `malignant_protein_confirmed` — it stays a surfaced
+  `hpa_ihc_*` display atom and the `protein_ihc/tumor` bucket verdict is unchanged. `ihc_detected_moderate`/`_high`
+  are unaffected (`fraction_detected > 0.33` ⇒ ≥ 2 detected at HPA's n). The root cause is upstream in the
+  data-catalog product classifier; the consumer-side guard was chosen over a product-`v2` republish that
+  would reclassify 23,136 cells for every consumer. No new state token; verdict-inert (presence_verdict byte-stable). **Design note:** the measured-ABSENT contradiction is a rare,
   alarming state and is handled at the SPINE (`present_rna_only_protein_absent`); the UNTESTED case is
   the MODAL case (most indications lack CPTAC / cell-line-MS) and is *lower confidence, not a different
   presence state*, so it is surfaced HERE as a verdict-inert facet rather than minting a new default
@@ -398,6 +405,7 @@ not `presence_signal_strength`.
 ## Version history
 
 | version | date | change |
+| 1.24.0 | 2026-09-19 | **HPA antibody-IHC single-patient guard** (see § above). Measured over the full product (403,240 rows): 48.6% of `ihc_detected_low` cells (23,136/47,640) rest on a single stained patient of ~10-12 — the antibody noise floor. An `ihc_detected_low` with `n_detected < 2` no longer counts as an IHC detection for `confirmed` / `ihc_positive` / `malignant_protein_confirmed`; the raw `hpa_ihc_*` atoms + `protein_ihc/tumor` bucket verdict are unchanged. `ihc_detected_moderate`/`_high` unaffected. GFAP/COADREAD (single weakly-stained patient) now reads `confirmed_cell_line_only`, not `confirmed`. Consumer-side fix (chosen over a data-catalog product-`v2` republish). No new state token, no contract change. **Verdict-inert** (presence_verdict + presence_verdict_by_modality + resolver goldens byte-stable). |
 | 1.23.0 | 2026-09-19 | **`protein_confirmation_state` grain fix** (see § above). (1) The pan-cancer target-grain `tumor-elevation-breadth` verdicts share the `bulk_protein_ms/tumor` bucket with indication-grain CPTAC/subtype, so a breadth-only bucket read `confirmed`; those verdicts (derived from `_PROTEIN_RANK`'s `tumor-breadth-*` rules) are now excluded from the confirmed trigger → `untested`. (2) The facet now reads the `protein_ihc/tumor` bucket symmetrically, so a measured antibody-IHC `not_detected` reaches `measured_absent` (previously unreachable). No new state token, no contract change. **Verdict-inert** (presence_verdict + presence_verdict_by_modality + resolver goldens byte-stable; only the confidence facet + `presence_confirmation_caveat` move). |
 |---|---|---|
 | 1.22.0 | 2026-09-18 | **`subset_high` split, phase 2 of 3** (see § above): new `_EXPRESSION_RANK` rung `tumor-expression-subset-high-supportive` → `tumor_subset_high_expression` (tier 2) so a target high in as few as 10% of patients is no longer reported with the same word and phrase as a broadly-expressed one; prevalence-naming phrase; `tumor_expression_class` + `tumor_high_fraction` lifted into the headline and synthesis facet (that card's class/fraction had never been surfaced). New ladder guards: producer-vocabulary REACH (guard 3) and output-vocabulary DECLARATION against the pinned `presence_verdict_enum` (guard 4). **Verdict-inert by measurement** on today's contracts (2×2 verified); verdict-MOVING at phase 3, which needs 3a (declare the token in the enum) BEFORE 3b (narrow the broad rule). Also corrects stale prose in `run.py`/`SKILL.md`/`README.md` that called any `cell_line_vs_tumor_discordant: True` a ladder regression. |

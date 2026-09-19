@@ -104,7 +104,10 @@ def test_pan_cancer_breadth_only_is_untested_not_confirmed():
 
 
 def test_ihc_detected_confirms_in_tumor():
-    """DEFECT 2 (positive direction): an antibody-IHC detection is indication-grain tumor protein."""
+    """DEFECT 2 (positive direction): an antibody-IHC detection is indication-grain tumor protein.
+    NOTE: no fraction/n_patients passed here, so the single-patient guard (v1.24.0) cannot fire —
+    ihc_detected_low confirms on absent metadata by design (guard only SUPPRESSES a measured single
+    patient). The guard's suppression is covered below with fraction/n supplied."""
     for ihc_v in ("ihc_detected_high", "ihc_detected_moderate", "ihc_detected_low"):
         pm = _pm(**{"protein_ihc/tumor": _bucket(ihc_v)})
         assert tp._protein_confirmation_state(pm, "broadly_high_expression") == "confirmed", ihc_v
@@ -141,6 +144,129 @@ def test_indication_ms_present_still_wins_over_breadth_in_same_bucket():
     """A real CPTAC positive is not shadowed by the breadth exclusion — it is a non-breadth token."""
     pm = _pm(**{"bulk_protein_ms/tumor": _bucket("protein_broadly_high")})
     assert tp._protein_confirmation_state(pm, "broadly_high_expression") == "confirmed"
+
+
+# --- SINGLE-PATIENT IHC guard (v1.24.0): a lone stained patient is the antibody noise floor ---
+
+
+def test_ihc_guard_helper_pure_function():
+    """_ihc_is_confirmatory: detected_moderate/_high always confirm; ihc_detected_low confirms IFF
+    >= 2 detected patients; non-detected classes never confirm."""
+    # moderate/high confirm regardless of the (small) count args
+    assert tp._ihc_is_confirmatory("ihc_detected_high", 0.9, 11) is True
+    assert tp._ihc_is_confirmatory("ihc_detected_moderate", 0.5, 12) is True
+    # single-patient low = noise floor → NOT confirmatory (GFAP/COADREAD: 1 of 12)
+    assert tp._ihc_is_confirmatory("ihc_detected_low", 1 / 12, 12) is False
+    # two-patient low IS confirmatory (reproducible staining)
+    assert tp._ihc_is_confirmatory("ihc_detected_low", 2 / 12, 12) is True
+    # non-detected / absent / unknown classes are never confirmatory
+    for v in ("ihc_not_detected", "data_unavailable", None):
+        assert tp._ihc_is_confirmatory(v, 0.9, 11) is False, v
+
+
+def test_ihc_guard_confirms_on_missing_metadata():
+    """The guard only SUPPRESSES a positively-measured single patient — absent fraction/n preserves the
+    prior behavior (confirm), so a coverage gap never silently demotes a real detection."""
+    assert tp._ihc_is_confirmatory("ihc_detected_low", None, None) is True
+    assert tp._ihc_is_confirmatory("ihc_detected_low", 1 / 12, None) is True
+    assert tp._ihc_is_confirmatory("ihc_detected_low", None, 12) is True
+
+
+def test_ihc_detected_patients_is_an_exact_round():
+    """n_detected = round(fraction * n); HPA reports integer-over-integer so the round is exact."""
+    assert tp._ihc_detected_patients(1 / 12, 12) == 1
+    assert tp._ihc_detected_patients(2 / 12, 12) == 2
+    assert tp._ihc_detected_patients(0.33, 12) == 4
+    assert tp._ihc_detected_patients(None, 12) is None
+    assert tp._ihc_detected_patients(0.5, 0) is None
+    assert tp._ihc_detected_patients(0.5, None) is None
+
+
+def test_guard_threshold_is_two():
+    """Anti-drift: the confirmatory floor is 2 patients (a single patient is the noise floor). If this
+    constant moves, the 23,136-cell single-patient population changes — force a conscious edit."""
+    assert tp._IHC_MIN_CONFIRMATORY_DETECTED == 2
+
+
+def test_single_patient_ihc_low_does_not_confirm_falls_to_untested():
+    """DEFECT 3 (GFAP/COADREAD shape): a single-patient ihc_detected_low is NOT confirmation; with no
+    other protein evidence the state is untested, not confirmed."""
+    pm = _pm(**{"protein_ihc/tumor": _bucket("ihc_detected_low")})
+    assert (
+        tp._protein_confirmation_state(pm, "broadly_high_expression", ihc_fraction_detected=1 / 12, ihc_n_patients=12)
+        == "untested"
+    )
+
+
+def test_single_patient_ihc_low_falls_to_cell_line_only_when_cellline_present():
+    """The exact GFAP/COADREAD shape: single-patient IHC + a cell-line MS positive → confirmed_cell_line_only
+    (tumor-tissue protein is not confirmed by one stained patient), NOT plain confirmed."""
+    pm = _pm(
+        **{
+            "protein_ihc/tumor": _bucket("ihc_detected_low"),
+            "bulk_protein_ms/cell_line": _bucket("protein_broadly_high"),
+        }
+    )
+    assert (
+        tp._protein_confirmation_state(pm, "broadly_high_expression", ihc_fraction_detected=1 / 12, ihc_n_patients=12)
+        == "confirmed_cell_line_only"
+    )
+
+
+def test_two_patient_ihc_low_still_confirms():
+    """Two stained patients is reproducible staining, above the noise floor → confirmed."""
+    pm = _pm(**{"protein_ihc/tumor": _bucket("ihc_detected_low")})
+    assert (
+        tp._protein_confirmation_state(pm, "broadly_high_expression", ihc_fraction_detected=2 / 12, ihc_n_patients=12)
+        == "confirmed"
+    )
+
+
+def test_single_patient_guard_does_not_touch_measured_absent():
+    """A measured IHC not_detected still reaches measured_absent — the guard only gates DETECTED-low, it
+    does not disturb the fix-2 absence path."""
+    pm = _pm(**{"protein_ihc/tumor": _bucket("ihc_not_detected")})
+    assert (
+        tp._protein_confirmation_state(pm, "broadly_high_expression", ihc_fraction_detected=0.0, ihc_n_patients=12)
+        == "measured_absent"
+    )
+
+
+def test_headline_single_patient_ihc_low_does_not_confirm_and_verdict_byte_stable():
+    """Integration: a single-patient ihc_detected_low card must (a) keep presence_verdict byte-stable,
+    (b) still SURFACE the raw IHC atoms + the protein_ihc/tumor bucket verdict, but (c) NOT read
+    protein_confirmation_state=confirmed."""
+    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution")]
+    cards = [{"card_id": cid, "summary": {}} for cid in tp.CARDS]
+    for c in cards:
+        if c["card_id"] == "hpa-pathology-cancer-ihc":
+            c["summary"] = {
+                "protein_presence_class": "ihc_detected_low",
+                "fraction_detected": 1 / 12,
+                "n_patients_total": 12,
+            }
+    h = tp._headline(cards, fired, tp._verdict(fired))
+    assert h["presence_verdict"] == "broadly_high_expression"  # spine byte-stable
+    # the raw display atoms + bucket verdict are UNTOUCHED (still surfaced)
+    assert h["hpa_ihc_protein_presence_class"] == "ihc_detected_low"
+    assert h["presence_verdict_by_modality"]["protein_ihc/tumor"]["verdict"] == "ihc_detected_low"
+    # but a single stained patient does not CONFIRM protein-in-tumor
+    assert h["protein_confirmation_state"] == "untested"
+
+
+def test_headline_two_patient_ihc_low_confirms():
+    """Contrast to the single-patient case: two stained patients confirm in the headline path."""
+    fired = [_fr("expression-broadly-high-supportive", "cellline-rna-distribution")]
+    cards = [{"card_id": cid, "summary": {}} for cid in tp.CARDS]
+    for c in cards:
+        if c["card_id"] == "hpa-pathology-cancer-ihc":
+            c["summary"] = {
+                "protein_presence_class": "ihc_detected_low",
+                "fraction_detected": 2 / 12,
+                "n_patients_total": 12,
+            }
+    h = tp._headline(cards, fired, tp._verdict(fired))
+    assert h["protein_confirmation_state"] == "confirmed"
 
 
 # --- integration: surfaces in the headline + synthesis facet, verdict byte-stable ---
