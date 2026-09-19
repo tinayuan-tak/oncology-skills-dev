@@ -1,0 +1,93 @@
+# dataset_fitness_class.enum.yaml
+# Controlled vocabulary: the fitness verdict a DATA PRODUCT lands in on the
+# orthogonal, product-grain dataset-fitness axis. See docs/design/DATASET_FITNESS_AXIS.md.
+#
+# ORTHOGONALITY (the reason this is its OWN vocab, not a measurement_type):
+#   The per-target grammar's identity is (measurement_type x entity_grain) and answers
+#   "is this gene a good target here?". This axis answers a question about the EVIDENCE
+#   ITSELF — "how fit is product P to serve as evidence for the claim it is meant to
+#   support?" — keyed by product_id, not by target x indication. measurement_types.yaml
+#   explicitly excludes this ("a different product class ... kept out of the per-target
+#   skills"), so fitness lives here, parallel to the card grammar.
+#
+# DIMENSION, NOT GATE (machine-visible invariant below):
+#   fitness REPORTS; it never vetoes. No fitness_class value is wired into
+#   nomination_verdict_gate.yaml — an `unfit` product is FLAGGED, not silenced. The
+#   `never_gates: true` field lets a future validator assert that no fitness_class token
+#   ever appears in the nomination gate. `not_measured` is the NULL abstention: reports
+#   "unknown", never "bad".
+#
+# VALUE SEMANTICS ONLY (framework convention):
+#   This enum declares what each class MEANS. The numeric thresholds that map the measured
+#   quality signals (quality.measured: primary_value_missingness / dynamic_range /
+#   significant_fraction / rows_measured / sampling) to a class live in the resolver
+#   (resolvers/dataset_fitness.resolver.yaml, a later PR), NEVER in the vocabulary.
+
+enum_id: dataset_fitness_class
+version: 1.0.0
+axis: dataset_fitness
+keyed_by: product_id          # orthogonal to (measurement_type x entity_grain)
+axis_role: dimension          # reports; never forces an overall_recommendation
+never_gates: true             # not wired into nomination_verdict_gate.yaml (assertable invariant)
+default: not_measured         # the class assigned when quality.measured is absent
+description: |
+  Per-data-product fitness outcome on the dataset-fitness axis. Answers "how fit is this
+  product to serve as evidence for the claim it is meant to support?", derived from the
+  general cross-omics quality.measured signals emitted on the product's dataset-profile
+  sidecar. Five classes are recognized. The axis is a reporting DIMENSION, never a gate:
+  a downstream consumer reads the class to caveat or narrow its use of the product, but no
+  class forces a recommendation. The class boundaries are defined on the general signals
+  (not on any single dataset family) and are validated against the whole first roster when
+  the resolver lands.
+
+values:
+  - value: fit
+    label: "Fit"
+    description: |
+      Measured, and the quality signals are healthy for the product's declared use: low
+      primary-value missingness, an informative dynamic range, a full (not skipped/sampled)
+      read. The product can be used as evidence without a data-quality caveat.
+    is_measured: true
+    renders_in_dashboard: as_normal_panel
+    typical_example: "coadread-dge-df06320: full paired-adjacent contrast (n_adjacent=51), low missingness, wide log2FC range."
+
+  - value: fit_with_caveats
+    label: "Fit with caveats"
+    description: |
+      Measured and usable, but at least one quality signal is degraded enough to warrant a
+      surfaced caveat — e.g. elevated missingness, a bounded_sample rather than a full read,
+      or a thin (but adequate) row count. Consumers should render the caveat alongside the
+      product's evidence.
+    is_measured: true
+    renders_in_dashboard: as_panel_with_caveat_strip
+
+  - value: partially_fit
+    label: "Partially fit"
+    description: |
+      Measured, but a quality signal is degraded severely enough that the product supports
+      only a NARROWER read of its claim than its name implies — the "silent degradation"
+      case. The product still answers a question, just not the full one it advertises.
+    is_measured: true
+    renders_in_dashboard: as_panel_with_scope_narrowing
+    typical_example: "A fused tumor-vs-normal product whose adjacent arm is empty (n_adjacent=0): it answers tumor-vs-GTEx only, not the paired tumor-vs-adjacent its name implies."
+
+  - value: unfit
+    label: "Unfit"
+    description: |
+      Measured, and the product cannot support its intended claim from its own values —
+      e.g. the primary value is almost entirely missing, or there is no informative signal.
+      Reporting only: the product is FLAGGED as unusable for this claim; it does not veto
+      any downstream recommendation.
+    is_measured: true
+    renders_in_dashboard: as_unfit_stub_with_reason
+
+  - value: not_measured
+    label: "Not measured"
+    description: |
+      quality.measured is absent for the product — it has not been value-profiled, or the
+      object was too large to read (sampling=skipped_too_large). The NULL abstention and the
+      DEFAULT class: it reports "we do not know," NEVER "bad." An unprofiled product is not
+      penalized on this axis.
+    is_measured: false
+    is_default: true
+    renders_in_dashboard: as_absent_with_reason
