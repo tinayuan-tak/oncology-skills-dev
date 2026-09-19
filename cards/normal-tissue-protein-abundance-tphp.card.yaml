@@ -39,7 +39,10 @@
 # DIA MaxLFQ abundance is a panel-relative log2 intensity, NOT absolute copies-per-cell.
 
 card_id: normal-tissue-protein-abundance-tphp
-version: 1.1.0   # 1.1.0: v2 substrate — tissue_category/solid-tissue counts + vital-organ MEASURABILITY labels.
+version: 1.2.0   # 1.2.0: the ABUNDANCE read-out (max / median / highest_abundance_tissue + its class) is
+                 # ORGANS ONLY — body fluids, blood compartments, hair and unassignable parts excluded.
+                 # Display-only fields, no rule reads them, so the verdict spine is unmoved.
+# 1.1.0: v2 substrate — tissue_category/solid-tissue counts + vital-organ MEASURABILITY labels.
 question: "Across the TPHP normal-tissue proteome (DIA MaxLFQ), how broad is {target.symbol}'s NORMAL-tissue protein footprint, and where is it highest — the quantitative normal-protein comparator for tumor-vs-normal selectivity?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
@@ -112,10 +115,28 @@ outputs:
     - n_fetal_groups_detected                     # distinct FETAL germ-layer groups detected (0-4)
     - n_adult_tissues_total                       # denominator (panel adult tissues, 70) — the count the CLASSES use
     - n_fetal_groups_total                        # denominator (panel fetal germ-layer groups, 4)
-    - max_median_log2_abundance                   # highest per-tissue median log2 MaxLFQ abundance (panel-relative)
-    - median_across_tissues_log2_abundance        # median over the per-tissue medians (typical normal level)
-    - highest_abundance_tissue                    # the tissue carrying max_median_log2_abundance
-    - highest_abundance_tissue_class              # adult_normal | fetal — class of the highest-abundance tissue
+    # ★ THE ABUNDANCE READ-OUT IS ORGANS ONLY — all four fields below are computed over the SAME
+    # narrowed population: the 60 solid adult parts + the 4 fetal germ-layer groups (64 of 74). The 10
+    # adult parts that are not organs (tissue_category in body_fluid | blood_compartment | non_tissue |
+    # unassignable) are EXCLUDED, because these fields answer "how much protein sits in the normal
+    # ORGANS a systemic agent would hit, and which one carries the most". Before the filter existed the
+    # selector was tissue_category-BLIND and 2558 of 13261 genes (19.3%, measured on v2) named a
+    # non-organ part: CDH17 read `plant vessel` (18.16), MSLN `tear`, FOLR1 `saliva`, GPC3 `urine`.
+    # ⚠️ This is the OPPOSITE direction from the breadth counts above, deliberately. Those keep every
+    # part and fail OPEN, because dropping a part there makes the liability veto fire LESS. These are
+    # display-only (no interpretation rule reads them), and naming a body fluid as the organ at risk is
+    # the failure mode, so the read-out narrows while the counts stay wide.
+    # ⚠️ EXCLUDE-list, never an allow-list of solid_tissue: fetal_germ_layer must stay in, or
+    # highest_abundance_tissue_class could never read `fetal` (922 genes top out on a fetal group).
+    - max_median_log2_abundance                   # highest per-ORGAN median log2 MaxLFQ abundance (panel-relative)
+    - median_across_tissues_log2_abundance        # median over the per-ORGAN medians (typical normal level).
+                                                  # Same population as the max, so it can never EXCEED it —
+                                                  # narrowing only the max would have inverted the two for 77 genes.
+    - highest_abundance_tissue                    # the ORGAN carrying max_median_log2_abundance
+    - highest_abundance_tissue_class              # adult_normal | fetal — class of the highest-abundance organ.
+                                                  # All four are null when a gene is detected ONLY in non-organ
+                                                  # parts (105 genes): honest "no organ abundance", NOT a
+                                                  # coverage gap — breadth still reports the detection.
     - fetal_vs_adult_flag                         # categorical — adult/fetal detection pattern
     - max_detection_rate                          # max per-tissue n_detected/n_samples (support gate)
     - uniprot_ac                                  # UniProt accession of the protein group (1:1 with the gene)
@@ -239,6 +260,8 @@ caveats:
     DIA MaxLFQ abundance is a panel-relative log2 intensity, NOT absolute copies-per-cell; compare
     distribution + breadth CLASS and per-tissue relative levels, never treat max_median_log2_abundance
     as a concentration. Absolute surface density lives in surface-abundance-density (copies/cell).
+    The abundance read-out spans ORGANS ONLY (60 solid adult + 4 fetal groups); the 10 non-organ parts
+    stay in per_tissue_abundance and in the breadth counts, but never name the organ at risk.
   - |
     Detected-only rows: a (gene, tissue) with n_detected==0 is NOT stored, so a gene absent from the
     product reads data_unavailable (coverage gap), and small tissue groups (n_samples 1-2 for rare
