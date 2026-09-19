@@ -270,11 +270,12 @@ open_questions:
       DISCORDANCE also feed it — i.e. the two arms both ran but disagree?
     measured_today: |
       The characterization dossier already emits `value_level.discordant_fraction` per product —
-      emitted for 32 of 36, range 0.0 -> 0.2124 on the first roster. It quantifies how much the
-      arms actually conflict WHERE BOTH RAN, a within-shape comparison, so unlike
-      significant_fraction it is NOT exposed to the pooling confound above.
-      Verified universal: a product with a single LIVE effect column reports 0.0 (nothing to
-      disagree with). But discordance is NOT a proxy for comparator_status — the two can
+      a float for 25 of 36 (range 0.0035 -> 0.2124 on the first roster), null for the rest. It
+      quantifies how much the arms actually conflict WHERE BOTH RAN, a within-shape comparison,
+      so unlike significant_fraction it is NOT exposed to the pooling confound above.
+      Verified universal: a product with a single LIVE effect column has UNDEFINED discordance
+      (nothing to disagree with), so the producer emits null — data-catalog #642 corrected an
+      earlier fabricated 0.0. But discordance is NOT a proxy for comparator_status — the two can
       disagree. hnsc (degraded_to_adjacent_only) reports 0.0035, nonzero, because it lost its
       GTEx comparator yet retains two adjacent-based effect columns: one COMPARATOR, two live
       ARMS. A resolution that read discordance as "both comparators ran" would misclassify it.

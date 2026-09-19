@@ -28,9 +28,10 @@
 #
 # (2) DISCORDANCE IS ONLY EVALUABLE ONCE SHAPE IS RESOLVED — and this is the answer to the
 #     open_question #830 recorded. `discordant_fraction` is shape-confounded in the SAME
-#     direction as the pooled signals: 7 of the 8 collapsed products report exactly 0.0
-#     (a single live comparator has nothing to disagree with), while NO both_comparators
-#     product falls below 0.0194. Reading it across the whole roster would caveat only the
+#     direction as the pooled signals: for 7 of the 8 collapsed products it is UNDEFINED — a
+#     single live comparator has nothing to disagree with, so the producer emits null (it used
+#     to fabricate a 0.0; fixed in data-catalog #642) — while NO both_comparators product falls
+#     below 0.0194. Reading it across the whole roster would caveat only the
 #     HEALTHY products. But WITHIN the both_comparators partition it is a clean same-parquet,
 #     same-genes comparison. So it may only be consulted on a rung STRICTLY BELOW the rung
 #     that resolves shape — which is exactly what priority 40 (< 30) buys. The open question
@@ -148,8 +149,10 @@ reads:
     use: within_shape_only
     conditioned_on: "comparator_status == both_comparators (guaranteed by priority 40 > 30)"
     provenance_gap: |
-      Emitted as a BARE FLOAT for all 32 products that carry it, unlike every other dossier
-      field, which is wrapped as {value, source, confidence}. So it arrives with no source or
+      Emitted as a BARE FLOAT (unlike every other dossier field, which is wrapped as
+      {value, source, confidence}), and null where discordance is undefined — the 7 single-
+      live-arm products (a lone arm cannot disagree with itself) plus the 4 that lack the
+      column entirely, so 25 of 36 carry a float. Where present it arrives with no source or
       confidence to propagate. Recorded, not relied on; a follow-up should wrap it.
 
 # ---------------------------------------------------------------------------------------
@@ -341,7 +344,7 @@ roster_validation:
   products:
     - {product_id: acc-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
        dynamic_range: 0.7027, rows_measured: 29302, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
-       discordant_fraction: 0.0}
+       discordant_fraction: null}
     - {product_id: blca-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0026,
        dynamic_range: 0.5647, rows_measured: 30262, comparator_status: both_comparators, arm_below_floor: [],
        discordant_fraction: 0.037}
@@ -386,7 +389,7 @@ roster_validation:
        discordant_fraction: 0.121}
     - {product_id: lgg-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
        dynamic_range: 0.7225, rows_measured: 30321, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
-       discordant_fraction: 0.0}
+       discordant_fraction: null}
     - {product_id: lihc-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0204,
        dynamic_range: 0.5748, rows_measured: 28965, comparator_status: both_comparators, arm_below_floor: [],
        discordant_fraction: 0.1629}
@@ -404,7 +407,7 @@ roster_validation:
        discordant_fraction: 0.151}
     - {product_id: ov-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
        dynamic_range: 1.1085, rows_measured: 31918, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
-       discordant_fraction: 0.0}
+       discordant_fraction: null}
     - {product_id: ov-tumor-vs-gtex-poc-v1, quality_measured_present: false, sampling: null, primary_value_missingness: null,
        dynamic_range: null, rows_measured: null, comparator_status: cohort_not_declared, arm_below_floor: [],
        discordant_fraction: null}
@@ -425,10 +428,10 @@ roster_validation:
        discordant_fraction: 0.0817}
     - {product_id: sclc-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.6667,
        dynamic_range: 0.8043, rows_measured: 16876, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
-       discordant_fraction: 0.0}
+       discordant_fraction: null}
     - {product_id: skcm-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
        dynamic_range: 0.9679, rows_measured: 30300, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
-       discordant_fraction: 0.0}
+       discordant_fraction: null}
     - {product_id: stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0381,
        dynamic_range: 0.5269, rows_measured: 132413, comparator_status: cohort_not_declared, arm_below_floor: [],
        discordant_fraction: 0.0903}
@@ -437,7 +440,7 @@ roster_validation:
        discordant_fraction: 0.1424}
     - {product_id: tgct-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
        dynamic_range: 1.4587, rows_measured: 35772, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
-       discordant_fraction: 0.0}
+       discordant_fraction: null}
     - {product_id: thca-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0248,
        dynamic_range: 0.4445, rows_measured: 31080, comparator_status: both_comparators, arm_below_floor: [],
        discordant_fraction: 0.1502}
@@ -446,4 +449,4 @@ roster_validation:
        discordant_fraction: 0.0461}
     - {product_id: ucs-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
        dynamic_range: 1.038, rows_measured: 30627, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
-       discordant_fraction: 0.0}
+       discordant_fraction: null}

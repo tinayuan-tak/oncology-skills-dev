@@ -17,11 +17,13 @@ measured INPUT and the class is re-derived on every run.
 The load-bearing invariants, each the machine form of something that was measured:
   - `fit` is reachable only by an explicit `when_all`, never by fall-through, and `default` is
     the abstention. A fall-through to the best class is how an absence becomes a compliment.
-  - the `fit` conjunction MUST pin comparator_status == both_comparators. That pin is what makes
-    the shape-confounded bounds inside the same conjunction safe: a collapsed product reports
-    discordance 0.0 and missingness 0.0, which SATISFY those bounds, so without the shape pin
-    the ladder would promote exactly the broken products (#830 measured 7 of the top 8 / 6 of
-    the best 8). Deleting the pin reds here.
+  - the `fit` conjunction MUST pin comparator_status == both_comparators. A collapsed product
+    reports NULL discordance (a lone arm cannot disagree with itself) and a genuine 0.0
+    missingness; the null now fails the <=0.15 bound, but the pin is what makes both_comparators
+    an EXPLICIT precondition for the best class rather than an emergent side effect of how
+    absence happens to serialize — a producer that back-filled a collapsed arm's discordance as
+    0.0 (as the old one did, before data-catalog #642) would re-admit exactly the broken products
+    (#830 measured 7 of the top 8 / 6 of the best 8). Deleting the pin reds here.
   - every roster_relative threshold records the distribution it was cut from, so a relative cut
     can never be mistaken for an absolute standard.
   - the rung-attribution counts are pinned, so a rung that fires zero times is DECLARED as a
@@ -259,12 +261,14 @@ def test_fit_conjunction_pins_the_comparator_shape():
     """THE load-bearing invariant of this file.
 
     The `fit` conjunction bounds two shape-confounded signals (discordant_fraction <= 0.15,
-    primary_value_missingness <= 0.25). A COLLAPSED product satisfies both — it reports 0.0 on
-    each, because a single live comparator has nothing to disagree with and its dead arm's
-    column was dropped rather than NaN-filled. So without an explicit
-    `comparator_status == both_comparators` pin in the same conjunction, the best class would be
-    reachable by exactly the products #830 measured as ranking best-by-breakage. Removing the
-    pin reds here.
+    primary_value_missingness <= 0.25). A COLLAPSED product reports NULL discordance (a single
+    live comparator has nothing to disagree with, so the producer emits null — data-catalog
+    #642) and a genuine 0.0 missingness: the null now fails the discordance bound, so the pin is
+    not the ONLY thing blocking promotion on this roster. But the pin is what makes
+    `comparator_status == both_comparators` an EXPLICIT precondition rather than an emergent
+    property of how absence serializes — the old producer back-filled that discordance as 0.0,
+    which SATISFIED the bound, and without the pin the best class was reachable by exactly the
+    products #830 measured as ranking best-by-breakage. Removing the pin reds here.
     """
     fit = [r for r in _rules() if r["class"] == "fit"][0]
     pins = [
@@ -306,9 +310,9 @@ def test_every_threshold_declares_its_basis_and_relative_ones_show_the_distribut
 
 def test_discordance_is_conditioned_on_resolved_shape():
     """discordant_fraction is shape-confounded in the same direction as the pooled signals (7 of
-    8 collapsed products report exactly 0.0). It is only readable within the both_comparators
-    partition, which the ladder buys by ORDERING: its rung must sit strictly below the rung that
-    resolves shape."""
+    8 collapsed products report NULL — a lone arm cannot disagree with itself). It is only
+    readable within the both_comparators partition, which the ladder buys by ORDERING: its rung
+    must sit strictly below the rung that resolves shape."""
     reads = _reads()
     assert reads["discordant_fraction"]["use"] == "within_shape_only"
     assert reads["discordant_fraction"].get("conditioned_on", "").strip()
@@ -410,9 +414,11 @@ def test_the_unfired_value_floors_are_declared_as_forward_guards():
 def test_collapsed_products_are_not_promoted_by_their_clean_value_signals():
     """The measured inversion, checked end to end rather than by declaration.
 
-    The 8 collapsed products report the BEST values on the pooled signals (6 of them exactly 0.0
-    missingness, 7 of them exactly 0.0 discordance). Every one of them must still land in
-    partially_fit, never fit or fit_with_caveats.
+    The 8 collapsed products report the BEST values on the pooled signals: 6 of them exactly 0.0
+    missingness, and discordance is NULL for 7 of them (undefined — a lone arm cannot disagree
+    with itself, so the producer emits null rather than the fabricated 0.0 it used to; data-
+    catalog #642). Every one of them must still land in partially_fit, never fit or
+    fit_with_caveats.
     """
     derived = _derived()
     collapsed = [
@@ -428,9 +434,14 @@ def test_collapsed_products_are_not_promoted_by_their_clean_value_signals():
             f"discordance {p['discordant_fraction']})"
         )
         assert prio == 30
-    # the premise: they really do look cleanest on the pooled signals
+    # the premise, anti-vacuous in both halves: 6 collapsed products report a genuine 0.0
+    # missingness (they really do look cleanest on that pooled signal, and are still not
+    # promoted), and discordance is NULL for 7 of the 8 -- undefined, not a fabricated 0.0
+    # (data-catalog #642) -- so a discordance <= 0.15 bound cannot be what would promote them.
     assert sum(1 for p in collapsed if p["primary_value_missingness"] == 0.0) == 6
-    assert sum(1 for p in collapsed if p["discordant_fraction"] == 0.0) == 7
+    assert sum(1 for p in collapsed if p["discordant_fraction"] is None) == 7
+    # and no collapsed product carries a spurious 0.0 discordance any more (regression guard)
+    assert sum(1 for p in collapsed if p["discordant_fraction"] == 0.0) == 0
 
 
 def test_cohort_not_declared_abstains_rather_than_scoring():
