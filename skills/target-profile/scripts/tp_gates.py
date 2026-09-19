@@ -157,6 +157,18 @@ _RECOGNIZED_GATING_VERDICTS: dict[str, frozenset[str]] = {
             "insufficient",
             "insufficient_underpowered",
             "insufficient_underpowered_pan_essential",  # admissibility guards
+            # indication-conditioned tokens (resolver dependency v1.5.0, contracts #812/#818; 2026-09-19).
+            # not_dependent_in_indication is a vocab VETO (its escapes live in the vocab's
+            # veto_suppressors, not the fallback — which stays pinned at two vetoes); the two positives
+            # are vocab positive_signals. All four MUST be recognized so an UNRECOGNIZED dependency verdict
+            # cannot fail-closed to a forced veto (tp_gates.py routes unrecognized → least-permissive).
+            # insufficient_underpowered_in_indication is caught by NEITHER coupling test (it appears in no
+            # vocab gate/positive/suppressor block by design) — so "we could not look in this indication"
+            # would silently force a veto without this line.
+            "lineage_selective_in_indication",
+            "dependent_in_indication",
+            "not_dependent_in_indication",
+            "insufficient_underpowered_in_indication",
         }
     ),
     "safety": frozenset(

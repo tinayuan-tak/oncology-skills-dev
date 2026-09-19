@@ -101,10 +101,11 @@ composition:
 - Emits `decision.json` with:
   - `headline`: `dependency_verdict` (pan_essential_killer / concordant_dependent /
     lineage_selective / selective_dependent / chemical_genetic_confirmed_dependent /
-    partner_conditional_dependent / discordant / non_dependent /
+    partner_conditional_dependent / lineage_selective_in_indication /
+    dependent_in_indication / not_dependent_in_indication / discordant / non_dependent /
     non_dependent_paralog_buffered / broadly_dependent / insufficient*), plus the
     driving CRISPR + RNAi calls and the predictability confidence annotation.
-    All 13 tokens with their precedence are under "Verdict resolution" below; that list and
+    All 17 tokens with their precedence are under "Verdict resolution" below; that list and
     `resolvers/dependency.resolver.yaml` are the authoritative enum.
   - `fired_rules`: which of the dep-* rules matched.
   - `modality_lenses`: optional SM+degrader tally (`--modality`).
@@ -207,9 +208,25 @@ match wins), highest precedence first:
       as of 2026-09-06 a live-read-errored backbone card also anchors this rung
       rather than falling through to a null driving_rule).
 
-(These are the 13 emitted verdicts; the resolver expresses them across 18 ordered
+Indication-conditioned verdicts (resolver v1.5.0+, priorities 4/5/10/11 — they
+outrank `lineage_selective` so the target-grain shape token is reachable only on a
+run with NO indication supplied). Each fires on the `indication_dependency_class`
+card field, which a `dependency` card preprocessor writes at the QUERIED lineage
+grain, so the name means what it says about the indication the run asked about:
+
+  - `lineage_selective_in_indication` — the queried lineage IS the enriched one
+    (the honest form of `lineage_selective`).
+  - `dependent_in_indication` — dependent in the queried lineage, but not
+    selectively so.
+  - `not_dependent_in_indication` — measured negative in the queried lineage (a
+    veto at the indication grain; its escapes mirror the pooled `non_dependent`).
+  - `insufficient_underpowered_in_indication` — could-not-look / barely-looked in
+    the queried lineage (never a call).
+
+(These are the 17 emitted verdicts; the resolver expresses them across 26 ordered
 rungs — several verdicts have multiple rungs, e.g. the CRISPR vs RNAi-both-agree
-paths and the partner-conditional strong/moderate × rescue/standalone matrix.)
+paths, the partner-conditional strong/moderate × rescue/standalone matrix, and the
+indication-killer's paralog twin.)
 
 `driving_rule_id` in the headline records which rule drove the verdict, so a
 reviewer can trace back to the resolver rung + the interpretation-rules YAML.

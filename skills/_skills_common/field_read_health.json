@@ -545,6 +545,7 @@
       "dependency-lineage-selectivity": [
         "enriched_lineages",
         "enrichment_class",
+        "indication_dependency_class",
         "lineage_omnibus_effect_size_class",
         "lineage_omnibus_kruskal_h",
         "lineage_omnibus_p",
@@ -726,6 +727,7 @@
         "dependency_available",
         "depmap_lineage",
         "event_correspondence_class",
+        "indication",
         "matched_models",
         "n_event_matched",
         "n_event_matched_in_lineage",
@@ -1405,6 +1407,7 @@
       "recommended-models": [
         "correspondence_class",
         "depmap_lineage",
+        "indication",
         "n_lineage_models",
         "n_models_considered",
         "n_positive_models",
@@ -2138,7 +2141,7 @@
     "n_no_reads_detected": 7,
     "n_reads_detected": 514,
     "n_roster_cards": 148,
-    "n_roster_fields": 1808,
+    "n_roster_fields": 1811,
     "n_undeclared_pairs": 2,
     "n_units": 23,
     "n_units_with_undeclared_reads": 2

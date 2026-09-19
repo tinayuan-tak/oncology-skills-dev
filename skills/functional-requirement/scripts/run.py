@@ -314,6 +314,11 @@ _DEPENDENCY_CALL_VERDICTS = frozenset(
         # dependency that escapes a pooled non_dependent veto). It was added to dependency.resolver.yaml
         # but never here, so its predictability-confidence annotation was wrongly suppressed.
         "partner_conditional_dependent",
+        # indication-conditioned calls (2026-09-19): the honest indication-grain forms. Each is a real
+        # dependency call in the QUERIED lineage, so the predictability note meaningfully sharpens it.
+        "lineage_selective_in_indication",
+        "dependent_in_indication",
+        "not_dependent_in_indication",
     }
 )
 
@@ -328,6 +333,9 @@ _NON_CALL_VERDICTS = frozenset(
         "insufficient",
         "insufficient_underpowered",
         "insufficient_underpowered_pan_essential",
+        # could-not-look in the queried indication (underpowered / not-in-panel / data-unavailable);
+        # NOT a call, so the predictability note stays neutral (2026-09-19).
+        "insufficient_underpowered_in_indication",
     }
 )
 
@@ -338,7 +346,7 @@ _NON_CALL_VERDICTS = frozenset(
 # note text was polarity-blind, so a `non_dependent` verdict emitted a note BYTE-IDENTICAL to
 # `concordant_dependent`'s ("the dependency sits in a coherent co-essential module", "independently
 # corroborated across consortia") — affirming the very dependency the verdict denies.
-_NEGATIVE_CALL_VERDICTS = frozenset({"non_dependent", "non_dependent_paralog_buffered"})
+_NEGATIVE_CALL_VERDICTS = frozenset({"non_dependent", "non_dependent_paralog_buffered", "not_dependent_in_indication"})
 
 
 # Confidence ladder (low→high) for the cross-consortium corroboration lift below.
@@ -499,9 +507,32 @@ _DEP_STRONG_POS = {
     "concordant_dependent",
     "chemical_genetic_confirmed_dependent",
 }
-_DEP_MOD_POS = {"lineage_selective", "selective_dependent", "partner_conditional_dependent"}
-_DEP_NEG = {"non_dependent", "non_dependent_paralog_buffered", "discordant"}
-_DEP_INSUFF = {"insufficient", "insufficient_underpowered", "insufficient_underpowered_pan_essential", None}
+_DEP_MOD_POS = {
+    "lineage_selective",
+    "selective_dependent",
+    "partner_conditional_dependent",
+    # indication-conditioned positives (2026-09-19): moderate-tier dependency calls in the queried
+    # lineage. In _DEP_MOD_POS they read moderate_positive strength / positive polarity / supports
+    # direction; they are SUBTRACTED from _POSITIVE_POOLED_VERDICTS below (they are already
+    # indication-grain, so the "pooled call may sit outside your indication" scope note must not fire).
+    "lineage_selective_in_indication",
+    "dependent_in_indication",
+}
+_DEP_NEG = {
+    "non_dependent",
+    "non_dependent_paralog_buffered",
+    "discordant",
+    # measured negative in the queried lineage (2026-09-19): a real negative call, so strength is
+    # "negative" and it must not read as a strengthless coverage gap.
+    "not_dependent_in_indication",
+}
+_DEP_INSUFF = {
+    "insufficient",
+    "insufficient_underpowered",
+    "insufficient_underpowered_pan_essential",
+    "insufficient_underpowered_in_indication",
+    None,
+}
 _ORD = {"low": 0, "medium": 1, "high": 2}
 
 # The DECISION-RELEVANT dependency cards — the verdict-bearing set that bears on the dependency CALL.
@@ -655,7 +686,12 @@ _DEP_STRENGTH_TO_LEVEL = {
 def _dep_availability(v) -> str:
     if v in _DEP_OPEN_WORLD:
         return "not_wired"  # no verdict at all → open-world
-    if v in ("insufficient", "insufficient_underpowered", "insufficient_underpowered_pan_essential"):
+    if v in (
+        "insufficient",
+        "insufficient_underpowered",
+        "insufficient_underpowered_pan_essential",
+        "insufficient_underpowered_in_indication",
+    ):
         return "insufficient"  # measured but underpowered
     if v in _DEP_NEG:
         return "measured_negative"  # measured non-dependence / discordant
@@ -1075,16 +1111,21 @@ _DEPENDENCY_VERDICT_PHRASE = {
     "selective_dependent": "Selective genetic dependency",
     "partner_conditional_dependent": "Partner-conditional (synthetic-lethal) dependency",
     "chemical_genetic_confirmed_dependent": "Dependency, chemically confirmed",
+    # indication-conditioned calls — the honest indication-grain forms (2026-09-19)
+    "lineage_selective_in_indication": "Lineage-selective dependency in this indication",
+    "dependent_in_indication": "Genetic dependency in this indication",
     # pan-essential — a real dependency, but a broad-toxicity liability (low selective window)
     "pan_essential_killer": "Pan-essential (broad-toxicity liability)",
     # measured negatives
     "non_dependent": "Not a genetic dependency",
     "non_dependent_paralog_buffered": "Not dependent (paralog-buffered)",
+    "not_dependent_in_indication": "Not a genetic dependency in this indication",
     "discordant": "Discordant dependency evidence",
     # coverage gaps
     "insufficient": "Insufficient evidence",
     "insufficient_underpowered": "Insufficient evidence (underpowered)",
     "insufficient_underpowered_pan_essential": "Insufficient / underpowered (pan-essential)",
+    "insufficient_underpowered_in_indication": "Insufficient evidence in this indication (underpowered)",
 }
 
 
@@ -1215,9 +1256,15 @@ def _concordance_scope_note(concordance_call, crispr_call, rnai_call) -> str | N
     return None
 
 
+# The indication-conditioned POSITIVE verdicts. They live in _DEP_MOD_POS (moderate_positive strength /
+# positive polarity / supports direction), but they are INDICATION-GRAIN by construction — the queried
+# lineage IS the answer — so they must be excluded from the pooled-scope note below, which exists to warn
+# that a TARGET-GRAIN pooled positive may sit outside the queried indication.
+_IN_INDICATION_POSITIVE_VERDICTS = frozenset({"lineage_selective_in_indication", "dependent_in_indication"})
 # A POSITIVE pooled dependency call (strong or moderate/selective) — the verdicts where a target-grain
-# positive could be enriched OUTSIDE the queried indication.
-_POSITIVE_POOLED_VERDICTS = _DEP_STRONG_POS | _DEP_MOD_POS
+# positive could be enriched OUTSIDE the queried indication. The in-indication positives are subtracted:
+# they already answer the indication, so the "may sit outside your indication" note would be self-contradictory.
+_POSITIVE_POOLED_VERDICTS = (_DEP_STRONG_POS | _DEP_MOD_POS) - _IN_INDICATION_POSITIVE_VERDICTS
 # by_scope.indication.class values that mean the QUERIED lineage is NOT a dependency (vs the pooled call).
 _INDICATION_MISMATCH_CLASSES = frozenset({"not_dependent_in_indication", "not_in_panel"})
 

@@ -248,7 +248,22 @@ jobs:
           # PYTHONPATH is not optional: pointing pytest at a worktree path from the home checkout fails
           # COLLECTION with `ModuleNotFoundError: No module named '_test_support'`, which prints no pass
           # count at all. Both branch cells first measured that way and read as blank, not as red.
-          ref: c3eec129a460df41075f7c539261013258a1c9da
+          #
+          # ============================================================================================
+          # BUMP c3eec12 -> ebdcdfb, "main @ 2026-09-19 (#830 HEAD)". FIFTH hand bump in this arc, and the
+          # SECOND instance of the FOURTH direction above (local RED / CI GREEN): a token PRODUCER landed
+          # in contracts first, so the skills guards asserting the OLD dependency verdict enum broke
+          # LOCALLY while CI, reading the stale pin, stayed green. Contracts dependency.resolver.yaml
+          # v1.4.0 -> v1.6.0 (#812/#818, paralog twin #830-era) minted 4 indication-conditioned verdicts —
+          # lineage_selective_in_indication / dependent_in_indication / not_dependent_in_indication /
+          # insufficient_underpowered_in_indication — plus their nomination_verdict_gate.yaml arms (#814).
+          # FORCED-ATOMIC with their skills-side consumption in this same commit: test_resolver_verdict_
+          # consumers.py asserts a BIDIRECTIONAL enum equality (consumer sets == resolver enum), so the pin
+          # and the consumer edits cannot go green independently (main is protected, neither half lands
+          # alone). Aperture ratchet inert (test_field_disposition unchanged at HEAD). This bump also
+          # carries the intervening skills-INERT contracts PRs #819-#830; the full skills fan-out on this
+          # branch reds ONLY the dependency-token guards, empirically confirming those PRs are skills-inert.
+          ref: ebdcdfbf67c1532e724d9fea1cd4b2def170adbc
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

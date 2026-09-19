@@ -177,7 +177,7 @@ def test_coessential_module_inert_on_non_call_verdict():
 # coherent co-essential module") and was CONFIDENCE-LIFTED by evidence that contradicts it, while
 # `concordant_non_dependent` — the strongest corroboration a veto can have — was ignored entirely.
 
-_NEGATIVE = ("non_dependent", "non_dependent_paralog_buffered")
+_NEGATIVE = ("non_dependent", "non_dependent_paralog_buffered", "not_dependent_in_indication")
 
 
 def test_negative_verdicts_are_a_declared_subset_of_the_call_set():
