@@ -20,8 +20,16 @@
 # VALUE SEMANTICS ONLY (framework convention):
 #   This enum declares what each class MEANS. The numeric thresholds that map the measured
 #   quality signals (quality.measured: primary_value_missingness / dynamic_range /
-#   significant_fraction / rows_measured / sampling) to a class live in the resolver
-#   (resolvers/dataset_fitness.resolver.yaml, a later PR), NEVER in the vocabulary.
+#   significant_fraction / rows_measured / sampling) to a class live in the resolution
+#   artifact (vocabularies/dataset_fitness_resolution.yaml, a later PR), NEVER in the vocabulary.
+#
+#   CORRECTED (2026-09-19): this line previously named `resolvers/dataset_fitness.resolver.yaml`.
+#   That path is not available to a product-grain axis — validators/validate_resolvers.py globs
+#   resolvers/*.resolver.yaml and requires every `when_fired` token to be a rule_id from
+#   interpretation-rules/, which key on card_id, which requires a per-TARGET measurement_type.
+#   Keeping the resolution out of resolvers/ is what makes `never_gates: true` structural rather
+#   than conventional: the nomination machinery has no path to reach it. See the PLACEMENT section
+#   of vocabularies/dataset_profiling_axes.yaml.
 
 enum_id: dataset_fitness_class
 version: 1.0.0

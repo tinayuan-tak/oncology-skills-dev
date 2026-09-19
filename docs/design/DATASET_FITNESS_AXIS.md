@@ -88,13 +88,23 @@ vocabulary. The default/abstention value is `not_measured`.
 
 ## Planned sequence (one thing per branch)
 
-1. **this PR** — design doc + `fitness_class` vocabulary.
-2. **axis registry** — `dataset_fitness` axis descriptor mapping `product_id → the quality.measured
-   signals it reads`, parallel to `target_profiling_axes.yaml` but product-grain.
-3. **resolver** — `resolvers/dataset_fitness.resolver.yaml`: measured signals → `fitness_class`
-   with declared thresholds, `default: not_measured`, validated against the full first roster.
+1. **done** — design doc + `fitness_class` vocabulary.
+2. **axis registry** (this PR) — `vocabularies/dataset_profiling_axes.yaml`: the `dataset_fitness`
+   axis descriptor naming the signals it reads and their roles, parallel to
+   `target_profiling_axes.yaml` but product-grain.
+3. **resolution** — `vocabularies/dataset_fitness_resolution.yaml`: signals → `fitness_class` with
+   declared thresholds, `default: not_measured`, validated against the full first roster.
 4. **metric** — a reusable analysis-methods method that computes the signals (house rule:
-   skill-readable ⇒ method), so the resolver reads a method output rather than re-deriving.
+   skill-readable ⇒ method), so the resolution reads a method output rather than re-deriving.
+
+**Step 3 is NOT a `resolvers/*.resolver.yaml`** (corrected 2026-09-19; this section previously
+named `resolvers/dataset_fitness.resolver.yaml`). `validators/validate_resolvers.py` globs that
+directory and requires every `when_fired` token to be a `rule_id` declared in
+`interpretation-rules/`, which match on `card_id`, which requires a per-target `measurement_type` —
+so the only way a product-grain resolver could pass validation there is by first committing the
+category error this design exists to avoid. Keeping the resolution outside `resolvers/` is what
+upgrades `never_gates: true` from a convention to a **reachability** guarantee: the
+rule → resolver → `nomination_verdict_gate` chain has no path to a fitness class at all.
 
 ## Non-goals (explicit)
 
