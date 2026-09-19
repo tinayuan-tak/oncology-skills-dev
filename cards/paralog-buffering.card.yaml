@@ -40,6 +40,14 @@ applies_when: []
 
 required_inputs:
   - product_id: depmap-paralog-buffering-per-gene-v1
+  # Raw source read on depmap_paralog_aggregator's FALLBACK path (read.py:529-533),
+  # which recomputes buffering live from ParalogGeneEffect.csv when the derived product
+  # is unavailable. Declared so provenance.input_manifest_ids (stamped from the DECLARED
+  # ids) reflects the substrate the run actually reads — otherwise the cross-evidence
+  # independence invariant treats a fallback recompute as if it shared no source with
+  # sibling DepMap cards, a certainty-inflation channel. Fixed 26Q1 manifest id (no
+  # release_pin: the aggregator hardcodes PARALOG_SOURCE_MANIFEST_ID).
+  - product_id: depmap-consortium-26q1-paralogs
 
 methods:
   - call: depmap-paralog-aggregator
