@@ -104,6 +104,7 @@ from tp_gates import (  # names main() calls directly
     _hard_gates_status,
     _positive_tier,
     _positive_tier_nominates,
+    _safety_hold_reconciliation,
     abstention_lower_bound_clamp,
     derive_thesis,
     reconcile_positive_nomination,
@@ -1212,6 +1213,14 @@ def main() -> int:
     # fired/suppressed/excluded/blind status. Additive — reads the resolved gate state, forces
     # nothing; flows into nomination.json + evidence_package via recommendation_gate.
     recommendation_gate["hard_gates"] = _hard_gates_status(sub_results, gate_hits, gate_suppressions)
+
+    # CASE-015 signal<->verdict reconciliation (VERDICT-INERT): when a constrained-gene safety
+    # hold is the deciding call while dependency reads favorable (non-veto), surface the
+    # divergence as an explicitly-subordinate note. Reads the resolved gate state, forces
+    # nothing, mints no verdict; None on the common case so most runs carry no note.
+    _reconciliation = _safety_hold_reconciliation(gate_action, gate_hits, sub_results)
+    if _reconciliation is not None:
+        recommendation_gate["reconciliation"] = _reconciliation
 
     # Deciding-axis router: name the load-bearing gate + whether the framework can
     # evidence it. Reports (never predicts): a fired gate is the deciding axis; on abstention,

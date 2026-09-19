@@ -877,8 +877,25 @@ the ledger-diff scope guard in this PR (CASE-021).
 - **Also queued (separate defect):** the composed `--emit` evidence_package envelope FAILS
   `evidence_package.schema` validation for the `translational_readiness` + `literature_context` claim-vectors
   (6 errors; non-fatal — target_profile.md/nomination.json still emit). A real schema/emitter mismatch to fix.
-- **Status:** composed backtest phases 1-2 DONE (dependency/SL cohort, per-axis scored). Phases 3 (surface/
-  biologics) + 4 (remainder) + the context-conditional-safety extension are OPEN (user's call).
+- **Resolution — VERDICT-INERT reconciliation note landed (2026-09-19, evidence-signals reframe):** the
+  residual "narrow residual (verdict-moving)" above was the verdict-INDEXED framing. Per the user's steer
+  (stop indexing on the verdict; surface the signal faithfully, keep the verdict conservative), the fix is
+  NOT a `context_conditional_safety_window` suppressor (which would loosen a safety gate on constrained
+  genes) but a presentation-layer note that NAMES the divergence and leaves the hold authoritative.
+  `tp_gates.py::_safety_hold_reconciliation` (mirroring `_hard_gates_status`: reads the resolved gate state,
+  forces nothing) fires when (a) the forced recommendation is `hold`, (b) a surviving hit is a constrained-gene
+  safety concern (`_SAFETY_WT_LOSS_CONCERNS`), and (c) the dependency axis reads AFFIRMATIVELY favorable per
+  the framework's OWN positive_map (not merely non-veto — `insufficient`/`non_dependent`/`broadly_dependent`
+  are excluded so no false "favorable" claim). It attaches as `recommendation_gate.reconciliation` (flows
+  into nomination.json), states the hold is conservative + authoritative, that it does NOT model
+  context-conditional normal-tissue tolerance, and names a demonstrated selectivity/context window as the
+  lift path. Changes NO verdict and NO resolver golden (the schema documents `recommendation_gate` as a
+  consumer-owned additive property). This governs CASE-019 by the same annotate-never-drop rule.
+- **Status:** RESOLVED (reconciliation contract discharged, 2026-09-19). The composed-backtest build —
+  phases 3 (surface/biologics) + 4 (remainder) — remains QUEUED as supporting measurement, NOT
+  release-blocking; the `eval/backtest_per_axis.py` tool is landed. The `context_conditional_safety_window`
+  suppressor is deliberately NOT built (would loosen a constrained-gene safety gate); the note surfaces the
+  same signal without touching the verdict.
 
 ### CASE-014 — functional-requirement EPAS1/HIF2A/RCC `non_dependent` vs belzutifan-validated VHL-conditional dependency — REAL biomarker-conditional FN — ✅ RESOLVED (verdict-moving fix landed, 2026-09-07)
 - **Surfaced by:** the CASE-011 re-harvest de-masking (`~/dev/discordance_full_sweep_ledger_2026-09-07.json`;
@@ -1487,6 +1504,12 @@ Bucket B as dimension-emits (surface the signal, leave the verdict conservative 
   output say so?** That is a presentation/reconciliation contract, and it is yours. Composed-backtest
   phases 3–4 (surface/biologics) + the per-axis backtest tool remain as the supporting build; CASE-027-D3
   (panel-design) rides along.
+  - **RESOLVED 2026-09-19:** implemented as a VERDICT-INERT reconciliation note
+    (`tp_gates.py::_safety_hold_reconciliation` → `recommendation_gate.reconciliation`). The consumer acts
+    on the authoritative conservative verdict; the divergent favorable-dependency signal is surfaced as an
+    explicitly-subordinate note naming what would lift the hold. No gate change, no resolver golden. See the
+    CASE-015 record's Resolution block. This discharges the last Bucket C residual — criterion 7 stays met
+    and the release scope ("deterministic spine + honest ceilings") is unaffected.
 
 **Release conclusion:** criterion 7 is met. No Bucket A/B item blocks the cut; the single Bucket C
 residual is a reconciliation-contract decision, not a gate change, and the conservative verdict ships

@@ -1117,6 +1117,91 @@ def _hard_gates_status(
     return rows
 
 
+def _safety_hold_reconciliation(
+    forced_action: Optional[str],
+    hits: list[dict],
+    sub_results: dict,
+    contracts_repo: Path | None = None,
+) -> Optional[dict]:
+    """Surface -- VERDICT-INERT -- the divergence when a CONSTRAINED-GENE safety hold is the
+    deciding call while the dependency axis reads FAVORABLE (non-veto). CASE-015.
+
+    The gate holds conservatively on a germline-constrained / normal-tissue safety concern
+    (`_SAFETY_WT_LOSS_CONCERNS`), and `exists_safe_modality` only clears such a hold on a
+    WT-SPARING modality -- it does NOT model CONTEXT-CONDITIONAL normal-tissue tolerance (a
+    genotype- or lineage-restricted therapeutic window). When the program's dependency thesis
+    is favorable but the target is held on safety, the two signals DIVERGE, and a reader
+    deserves that divergence NAMED rather than read a bare hold and silently infer the target
+    is uninteresting.
+
+    This is the presentation-layer counterpart of `_hard_gates_status`: it reads the
+    already-resolved gate state and returns an explicitly-SUBORDINATE note. The verdict is
+    authoritative and UNCHANGED -- the note states the conservative hold stands, why the gate
+    cannot soften it today, and what would lift it (a demonstrated selectivity/context window).
+    It forces nothing, mints no verdict, and touches no resolver golden. (Contract:
+    docs/UNIFIED_OUTPUT_CONTRACT.md would name this the signal<->verdict reconciliation note;
+    it governs CASE-019's lineage-rung reconciliation by the same "annotate, never drop" rule.)
+
+    Fires ONLY when ALL hold (returns None otherwise -- the common case, so most runs carry
+    no note):
+      * the forced recommendation is `hold` -- NOT a veto: a dominating veto is not a
+        conservative hold and must never be annotated as "a window would lift this";
+      * a surviving hit is a constrained-gene safety hold (verdict in _SAFETY_WT_LOSS_CONCERNS);
+      * dependency was EVALUATED (present, well-formed verdict) and reads non-veto -- it did
+        not itself fire any gate this run. A SUPPRESSED dependency veto (e.g. a modality-cleared
+        `non_dependent` for an ADC) lives in `suppressions`, NOT `hits`, so it correctly counts
+        as non-veto here: the suppression IS the framework judging dependency non-disqualifying,
+        which is exactly the favorable divergence this note surfaces (the CEACAM5/CASE-015 shape).
+    A dependency-BLIND run yields None: an absence is a coverage gap, not a favorable signal to
+    reconcile against ([[absence outranks measurement]] -- do not manufacture a divergence from
+    a non-read).
+    """
+    if forced_action != "hold":
+        return None
+    held_verdicts = sorted(
+        {h.get("verdict") for h in hits if h.get("short") == "safety" and h.get("verdict") in _SAFETY_WT_LOSS_CONCERNS}
+    )
+    if not held_verdicts:
+        return None
+    dep = sub_results.get("dependency")
+    dep_v = dep.get("verdict") if isinstance(dep, dict) else None
+    if not (isinstance(dep_v, (list, tuple)) and len(dep_v) >= 1 and isinstance(dep_v[0], str)):
+        return None  # dependency blind -> no favorable read, so no divergence to reconcile
+    if any(h.get("short") == "dependency" for h in hits):
+        return None  # dependency itself vetoed/held this run -> no favorable divergence
+    dep_verdict = dep_v[0]
+    # Require an AFFIRMATIVELY-FAVORABLE dependency read, per the framework's OWN positive
+    # signal map (nomination_verdict_gate.yaml) -- NOT merely non-veto. `insufficient*` is
+    # underpowered, `non_dependent` non-disqualifying-not-positive, `broadly_dependent` a
+    # CONTRADICTION (broad essentiality = a liability): none is a favorable divergence, and
+    # labelling them "favorable" would be a self-contradictory consumer-facing claim (the
+    # conjunctive-label trap). EMPTY-on-load-failure => note simply does not fire (fail-quiet,
+    # never a spurious favorable claim), matching _load_positive_signals' own inverted fallback.
+    pos_map, _contra, _cfg, _src = _load_positive_signals(contracts_repo)
+    favorable_dependency = {v for (s, v) in pos_map if s == "dependency"}
+    if dep_verdict not in favorable_dependency:
+        return None
+    held_str = ", ".join(held_verdicts)
+    return {
+        "kind": "conservative_safety_hold_vs_favorable_dependency",
+        "authoritative": "verdict",
+        "held_axis": "safety",
+        "held_verdicts": held_verdicts,
+        "divergent_signal": {"axis": "dependency", "verdict": dep_verdict},
+        "unmodeled": "context_conditional_normal_tissue_tolerance",
+        "would_lift": "demonstrated_selectivity_or_context_window",
+        "note": (
+            f"Held conservatively on a germline-constrained / normal-tissue safety concern "
+            f"({held_str}). The dependency axis reads favorable (non-veto: {dep_verdict}), so "
+            f"the hold and the dependency thesis DIVERGE. This hold does NOT model "
+            f"context-conditional normal-tissue tolerance (a genotype- or lineage-restricted "
+            f"therapeutic window); exists_safe_modality clears such a concern only on a "
+            f"WT-sparing modality. The verdict is authoritative and unchanged -- a demonstrated "
+            f"selectivity/context window is what would lift it."
+        ),
+    }
+
+
 # --- Deciding-axis router -----
 #
 # Turns a bare `insufficient_evidence` into a ROUTING statement: which gate is load-bearing
@@ -1866,6 +1951,7 @@ __all__ = [
     "_GATING_AXES",
     "_GATING_AXIS_FAILCLOSED_ACTION",
     "_RECOGNIZED_GATING_VERDICTS",
+    "_SAFETY_WT_LOSS_CONCERNS",
     "_SCORECARD_STATUS_ORDER",
     "_TIER_TO_CONFIDENCE",
     "_V2_GATE_LISTS",
@@ -1881,6 +1967,7 @@ __all__ = [
     "_gate_recommendation",
     "_gate_scorecard",
     "_hard_gates_status",
+    "_safety_hold_reconciliation",
     "_load_gate_coverage",
     "_load_gate_verdicts",
     "_load_kill_capable_verdicts",
