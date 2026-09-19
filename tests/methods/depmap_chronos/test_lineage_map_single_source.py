@@ -277,6 +277,44 @@ def test_map_does_not_contradict_the_crosswalk_on_a_null_lineage():
     assert not fabricated, f"map asserts a lineage the crosswalk declares absent in DepMap: {fabricated}"
 
 
+def test_map_is_exactly_the_crosswalk_projection():
+    """STRONGEST single-source guard: the canonical literal must equal the crosswalk's non-null
+    depmap_lineage projection EXACTLY -- same keys AND same values, both directions. This is what
+    makes the target-contracts crosswalk the enforced authority for every entry of the literal.
+
+    Each sibling guard above is necessarily weaker and leaves a gap this closes:
+      - test_every_framework_indication_resolves_to_a_real_lineage checks each crosswalk code
+        resolves to *a* real lineage, NOT to the SAME one the crosswalk specifies, so a
+        wrong-but-valid value (e.g. HNSC -> 'Lung') would pass it silently;
+      - test_only_canonical_module_holds_a_scalar_literal forbids a SECOND literal but says
+        nothing about the canonical literal's CONTENTS;
+      - the null-contradiction leg only covers codes the crosswalk marks absent (THYM).
+
+    Skips (does not fail) when the sibling repo is absent -- the offline-floor tests carry the
+    unconditional obligation there.
+    """
+    xw = _crosswalk_indications()
+    if xw is None:
+        pytest.skip("sibling target-contracts crosswalk not readable; offline-floor tests carry the floor")
+    projection = {code: lin for code, lin in xw.items() if lin}  # non-null depmap_lineage only
+    assert projection, "crosswalk projection is empty -- guard would be vacuous"
+    literal = dict(INDICATION_TO_DEPMAP_LINEAGE)
+    map_only = {k: literal[k] for k in literal.keys() - projection.keys()}
+    crosswalk_only = {k: projection[k] for k in projection.keys() - literal.keys()}
+    disagreements = {
+        k: (literal[k], projection[k]) for k in literal.keys() & projection.keys() if literal[k] != projection[k]
+    }
+    assert not map_only, (
+        f"canonical literal has entries the crosswalk cannot govern (a fork by another name): {map_only}"
+    )
+    assert not crosswalk_only, (
+        f"crosswalk supports codes the literal lacks (each a silent pan-lineage fallback): {crosswalk_only}"
+    )
+    assert not disagreements, (
+        f"literal disagrees with the crosswalk on the lineage VALUE {{code: (literal, crosswalk)}}: {disagreements}"
+    )
+
+
 # ---- (d) no silent pan-lineage fallback: evidence_scope is ALWAYS explicit ----------
 
 
