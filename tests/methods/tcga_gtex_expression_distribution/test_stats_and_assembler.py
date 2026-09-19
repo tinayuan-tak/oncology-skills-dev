@@ -156,6 +156,39 @@ def test_q2_q3_cli_build_and_liability_figure(tmp_path, monkeypatch):
     assert cli.emit_liability_svg("GHOST", tmp_path) is None
 
 
+# ---- antigen-prevalence projection (monkeypatched reader, no S3) ----
+def test_build_antigen_prevalence_projects_card_fractions(monkeypatch):
+    """antigen-prevalence: fraction >= clinical (TPM 1) / high (TPM 10) cutoffs + LINEAR median, off
+    the per-sample tumor reader. 5 undetectable + 6 clinical-only + 9 high, in log2(TPM+1) space, so
+    clinical = 15/20, high = 9/20, and the median sample (2.0 log2) is 3.0 linear TPM."""
+    import importlib
+
+    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
+    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [0.1] * 5 + [2.0] * 6 + [6.0] * 9)
+    out = cli.build_antigen_prevalence("CEACAM5", "COADREAD")
+    assert out["n_samples"] == 20
+    assert out["fraction_clinically_relevant"] == pytest.approx(0.75)  # 15/20 at >= TPM 1
+    assert out["fraction_high_expression"] == pytest.approx(0.45)  # 9/20 at >= TPM 10
+    assert out["median_tpm"] == pytest.approx(3.0)  # 2**2 - 1
+    assert out["cutoff_used_tpm"] == 1.0
+    assert "method_version" in out
+
+
+def test_build_antigen_prevalence_data_unavailable(monkeypatch):
+    """No surviving per-sample rows -> all-None fractions with n_samples 0, never a spurious 0.0
+    prevalence (absence must read as unmeasured, not as 'expressed in 0% of tumors')."""
+    import importlib
+
+    cli = importlib.import_module("methods.tcga_gtex_expression_distribution.cli")
+    monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [])
+    out = cli.build_antigen_prevalence("GHOST", "COADREAD")
+    assert out["n_samples"] == 0
+    assert out["fraction_clinically_relevant"] is None
+    assert out["fraction_high_expression"] is None
+    assert out["median_tpm"] is None
+    assert out["cutoff_used_tpm"] == 1.0
+
+
 # ---- Q1 assembler (monkeypatched readers, no S3) ----
 def test_assembler_broadly_high(monkeypatch):
     monkeypatch.setattr(R, "read_tumor_samples", lambda t, i: [6.0, 6.5, 7.0, 5.8, 6.1] * 4)

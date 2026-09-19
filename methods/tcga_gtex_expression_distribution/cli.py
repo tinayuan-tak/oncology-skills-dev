@@ -231,6 +231,57 @@ def build_normal_liability_summary(target: str, indication: str = None, plot_dat
     return summary
 
 
+# antigen-prevalence card thresholds (mirror antigen-prevalence.card.yaml `thresholds`). A cutoff in
+# linear TPM maps into the reader's log2(TPM+1) space as log2(cutoff + 1): TPM 1.0 -> 1.0 and
+# TPM 10.0 -> log2(11) ~= 3.4594 (the same anchors stats.expression_fractions uses for
+# detectable/moderate). Kept explicit so `cutoff_used_tpm` is truthful and the card's declared
+# thresholds are the single source this projection honours.
+CLINICAL_RELEVANCE_TPM = 1.0
+HIGH_EXPRESSION_TPM = 10.0
+
+
+def build_antigen_prevalence(target: str, indication: str, plot_data_out=None) -> dict:
+    """antigen-prevalence card (DESCRIPTIVE) — patient-selection prevalence: what fraction of an
+    indication's tumors express `target` at clinically-relevant / high levels?
+
+    A projection of the SAME per-sample tumor long product build_summary reads (read_tumor_samples ->
+    log2(TPM+1) per sample, restricted to the indication's TCGA study/studies) onto the card's two
+    fixed clinical TPM cutoffs. Prevalence is a per-SAMPLE count question, so it cannot be recovered
+    from the whole-cohort differential the card was formerly (mis-)pointed at — it needs the surviving
+    per-sample rows this reader already returns. data_unavailable-safe: no rows -> all-None fractions
+    with n_samples 0 (never a spurious 0.0 prevalence).
+
+    plot_data_out is accepted for the figure offline seam (generic-dispatch contract); the
+    `prevalence_curve_with_thresholds` emitter is a follow-on, so it is currently inert here."""
+    import numpy as np
+
+    values = _read.read_tumor_samples(target, indication)
+    a = np.asarray(values, dtype=float)
+    a = a[~np.isnan(a)]
+    n = int(a.size)
+    if n == 0:
+        return {
+            "fraction_clinically_relevant": None,
+            "fraction_high_expression": None,
+            "n_samples": 0,
+            "median_tpm": None,
+            "cutoff_used_tpm": CLINICAL_RELEVANCE_TPM,
+            "method_version": METHOD_VERSION,
+        }
+    clinical_log2 = float(np.log2(CLINICAL_RELEVANCE_TPM + 1.0))
+    high_log2 = float(np.log2(HIGH_EXPRESSION_TPM + 1.0))
+    # median reported in LINEAR TPM (the card field is median_tpm, not log2): invert log2(TPM+1).
+    median_tpm = float(np.power(2.0, float(np.median(a))) - 1.0)
+    return {
+        "fraction_clinically_relevant": float(np.mean(a >= clinical_log2)),
+        "fraction_high_expression": float(np.mean(a >= high_log2)),
+        "n_samples": n,
+        "median_tpm": round(median_tpm, 4),
+        "cutoff_used_tpm": CLINICAL_RELEVANCE_TPM,
+        "method_version": METHOD_VERSION,
+    }
+
+
 def emit_plot_data(target: str, indication: str, out_dir: Path, *, presampled=None) -> Path:
     """Tier-2: the per-sample long-format rows behind the figure (tumor + matched normal).
 
