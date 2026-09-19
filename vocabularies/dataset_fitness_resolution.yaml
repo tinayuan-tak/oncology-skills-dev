@@ -1,0 +1,449 @@
+# dataset_fitness_resolution.yaml — signals -> dataset_fitness_class (v1.0.0)
+# ============================================================================
+# WHAT THIS IS: the threshold layer for the product-grain dataset-fitness axis. The axis is
+# declared in vocabularies/dataset_profiling_axes.yaml; the class SEMANTICS are declared in
+# vocabularies/dataset_fitness_class.enum.yaml; the numbers that map measured signals onto a
+# class live HERE and nowhere else (framework convention: vocabularies carry meaning, the
+# resolution carries thresholds).
+#
+# ---------------------------------------------------------------------------------------
+# WHY THIS IS NOT resolvers/dataset_fitness.resolver.yaml
+# ---------------------------------------------------------------------------------------
+# validators/validate_resolvers.py globs `resolvers/*.resolver.yaml` and requires every
+# `when_fired` token to be a rule_id declared in interpretation-rules/*.rules.yaml; those rules
+# match on card_id; a card requires a measurement_type from the per-TARGET registry. A
+# product-grain resolution can therefore only pass validation there by first committing the
+# category error the axis exists to avoid. Staying out of resolvers/ is what makes
+# `never_gates: true` a REACHABILITY guarantee rather than a convention: the
+# rule -> resolver -> nomination_verdict_gate chain has no path to a fitness class at all.
+#
+# ---------------------------------------------------------------------------------------
+# THE ORDERING IS THE DESIGN — three facts force it, all measured
+# ---------------------------------------------------------------------------------------
+# (1) NO SHAPE-CONFOUNDED SIGNAL MAY PROMOTE. #830 measured that all four pooled value-level
+#     signals rank collapsed products BEST (significant_fraction 7 of the top 8; dynamic_range
+#     5 of the top 8; primary_value_missingness 6 of the BEST 8 at exactly 0.0, which no
+#     healthy product reaches). So promotion is driven by SHAPE (comparator_status) and by the
+#     PROBE fact (sampling). The pooled signals appear only as absolute floors.
+#
+# (2) DISCORDANCE IS ONLY EVALUABLE ONCE SHAPE IS RESOLVED — and this is the answer to the
+#     open_question #830 recorded. `discordant_fraction` is shape-confounded in the SAME
+#     direction as the pooled signals: 7 of the 8 collapsed products report exactly 0.0
+#     (a single live comparator has nothing to disagree with), while NO both_comparators
+#     product falls below 0.0194. Reading it across the whole roster would caveat only the
+#     HEALTHY products. But WITHIN the both_comparators partition it is a clean same-parquet,
+#     same-genes comparison. So it may only be consulted on a rung STRICTLY BELOW the rung
+#     that resolves shape — which is exactly what priority 40 (< 30) buys. The open question
+#     ("should discordance feed partially_fit?") is answered NO, by SEPARATION:
+#       partially_fit    = SCOPE narrowing   — the comparator set collapsed (a fact about
+#                                              which question the product can still answer)
+#       fit_with_caveats = RELIABILITY doubt — the comparators BOTH ran and disagree
+#     This follows the enum's own value semantics (partially_fit is defined as "supports only
+#     a NARROWER read than its name implies"), not a fresh judgement call.
+#
+#     ORDERING ALONE WAS NOT ENOUGH, and the roster re-derivation is what proved it. The first
+#     draft let priority 30 do the conditioning and claimed "everything reaching priority 40 has
+#     a resolved shape". That was FALSE: priority 30 removes the products KNOWN to have
+#     collapsed, not the ones whose shape is UNDECIDABLE.
+#     nsclc-dge-tumor-vs-normal-sensitivity-v1 (cohort_not_declared, discordance 0.1510) sailed
+#     into priority 40 and took a reliability caveat computed from a signal that had never been
+#     conditioned — the exact confound the ordering exists to prevent. It surfaced because the
+#     `expected` block was hand-derived from the INTENT while the test's interpreter reads the
+#     RULES, so the two disagreed instead of agreeing with each other. Fixed by giving the shape
+#     abstention its own rung (priority 15): the conditioning is now structural, not a property
+#     the prose asserted about itself.
+#
+# (3) ABSENCE OUTRANKS MEASUREMENT. not_measured is evaluated FIRST and is also the default,
+#     so an unprofiled or unreadable product can never be scored on partial evidence, and an
+#     unrecognised state falls through to the abstention rather than to `fit`. `fit` is
+#     reachable ONLY via an explicit positive conjunction (priority 50) — it is never a
+#     fall-through, because a fall-through to the BEST class is how an absence becomes a
+#     compliment.
+#
+# ---------------------------------------------------------------------------------------
+# arm_below_floor IS A REASON, NOT A PREDICATE (correcting #830)
+# ---------------------------------------------------------------------------------------
+# #830 gave `arm_below_floor` the `primary` role with the use "an arm below min_normals =>
+# caveat". That use is UNREACHABLE, by construction rather than by roster: the producer
+# (data-catalog characterization/dge_characterize.py:126-150) computes `effective` as the arms
+# that cleared min_normals and `below_floor` as those that did not, from the SAME test — so a
+# non-empty arm_below_floor makes `effective` a strict subset, which makes comparator_status
+# degraded_*/no_comparator_ran, never both_comparators. Measured on the first roster:
+# below_floor non-empty co-occurs with degraded_* in 8/8 cases and with both_comparators in
+# 0/21. A separate caveat rung keyed on it could never fire.
+# Its real job is to say WHY the scope narrowed (an arm ran underpowered vs. was never
+# declared), so it is emitted as `reason_detail` on the class, not as a trigger.
+#
+# ---------------------------------------------------------------------------------------
+# CLOSED-SET GAP IN #830 (flagged, fixed here, follow-up needed there)
+# ---------------------------------------------------------------------------------------
+# dataset_profiling_axes.yaml declares comparator_status values as
+#   [both_comparators, degraded_to_gtex_only, degraded_to_adjacent_only, cohort_not_declared]
+# but the producer can emit SIX: it also emits `no_comparator_ran` (every declared arm below
+# the floor) and `single_comparator` (a declared arm set that is neither pair nor a recognised
+# singleton). Neither occurs on the first roster, which is why the declared four sum to 36 and
+# the gap is invisible to a count check. This resolution handles all six — an unhandled token
+# would otherwise fall through to the abstention and read as "unprofiled" when the truth is
+# "measured, and nothing compared". A follow-up PR should complete the registry's `values:`.
+# ============================================================================
+
+resolution_id: dataset_fitness_resolution
+version: 1.0.0
+axis: dataset_fitness                       # vocabularies/dataset_profiling_axes.yaml
+emits: dataset_fitness_class                # vocabularies/dataset_fitness_class.enum.yaml
+keyed_by: product_id
+axis_role: dimension
+never_gates: true                           # enforced by reachability — see the header
+evaluation: first_match_wins                # rules sorted by ascending `priority`
+description: |
+  Maps the measured quality signals and the declared comparator shape of a data product onto a
+  dataset_fitness_class. Reports only: no class here feeds nomination_verdict_gate.yaml. Lower
+  `priority` is evaluated first; the first matching rule wins; anything unmatched takes
+  `default`. Every rule emits a `reason_code` because the enum's render contract asks for one
+  (`unfit -> as_unfit_stub_with_reason`, `not_measured -> as_absent_with_reason`).
+
+# ---------------------------------------------------------------------------------------
+# INPUTS — every signal this resolution may read, and where it comes from.
+# A signal not listed here may not appear in any rule (asserted by the tests).
+# ---------------------------------------------------------------------------------------
+reads:
+  - signal: quality_measured_present
+    origin: derived
+    dtype: boolean
+    note: "whether the dataset-profile sidecar carries a quality.measured block at all."
+  - signal: sampling
+    origin: "data-catalog dataset-profile sidecar: quality.measured.sampling"
+    dtype: enum
+    values: [full, bounded_sample, skipped_too_large, ""]
+  - signal: primary_value_missingness
+    origin: "data-catalog dataset-profile sidecar: quality.measured.primary_value_missingness"
+    dtype: fraction
+    shape_confounded: true
+    use: floor_only
+  - signal: dynamic_range
+    origin: "data-catalog dataset-profile sidecar: quality.measured.dynamic_range"
+    dtype: float
+    shape_confounded: true
+    use: floor_only
+  - signal: rows_measured
+    origin: "data-catalog dataset-profile sidecar: quality.measured.rows_measured"
+    dtype: integer
+    shape_confounded: true
+    use: floor_only
+  - signal: comparator_status
+    origin: "data-catalog characterization dossier: manifest_pass.comparator_status"
+    dtype: enum
+    values: [both_comparators, degraded_to_gtex_only, degraded_to_adjacent_only, single_comparator, no_comparator_ran, cohort_not_declared]
+    use: primary
+    note: "all SIX producer tokens, not the four #830 declared."
+  - signal: arm_below_floor
+    origin: "data-catalog characterization dossier: manifest_pass.arm_below_floor"
+    dtype: "list of arm names"
+    use: reason_detail
+    note: "NOT a predicate — subsumed by comparator_status by construction. See the header."
+  - signal: discordant_fraction
+    origin: "data-catalog characterization dossier: value_level.discordant_fraction"
+    dtype: fraction
+    shape_confounded: true
+    use: within_shape_only
+    conditioned_on: "comparator_status == both_comparators (guaranteed by priority 40 > 30)"
+    provenance_gap: |
+      Emitted as a BARE FLOAT for all 32 products that carry it, unlike every other dossier
+      field, which is wrapped as {value, source, confidence}. So it arrives with no source or
+      confidence to propagate. Recorded, not relied on; a follow-up should wrap it.
+
+# ---------------------------------------------------------------------------------------
+# THRESHOLDS — each one declares its BASIS. `absolute` is a standard that holds for any
+# product; `roster_relative` is a cut taken from the first roster's own distribution and must
+# be re-anchored when a second family lands. The tests assert every roster_relative threshold
+# records the distribution it came from.
+# ---------------------------------------------------------------------------------------
+thresholds:
+  - id: missingness_unusable
+    signal: primary_value_missingness
+    op: gt
+    value: 0.90
+    basis: absolute
+    rationale: "above 90% NaN the effect column cannot support any claim. Roster max is 0.6667 (sclc, two of three arms serialized as all-NaN), so this rung is UNFIRED on the first roster — a forward guard, declared as such, not a validated cut."
+  - id: dynamic_range_flat
+    signal: dynamic_range
+    op: lt
+    value: 0.01
+    basis: absolute
+    rationale: "a median |log2FC| under 0.01 is no interpretable signal at all. Roster min is 0.0767 (coadread-dge-tumor-vs-gtex-v1), so UNFIRED on the first roster — a forward guard."
+  - id: rows_too_thin
+    signal: rows_measured
+    op: lt
+    value: 1000
+    basis: absolute
+    rationale: "below ~1000 value rows a transcriptome-wide product is not transcriptome-wide. Roster min is 16876 (sclc), so UNFIRED on the first roster — a forward guard."
+  - id: missingness_elevated
+    signal: primary_value_missingness
+    op: gt
+    value: 0.25
+    basis: absolute
+    rationale: "WITHIN a fixed column set, >25% missing effect values means a whole arm was serialized as all-NaN rather than dropped (the 1/3 and 2/3 quantization). Fires for sclc (0.6667) only, and sclc is already routed at priority 30, so this too is UNFIRED as a decision — retained because a both_comparators product CAN reach it."
+  - id: discordance_high
+    signal: discordant_fraction
+    op: gt
+    value: 0.15
+    basis: roster_relative
+    distribution: "both_comparators arm (n=21, all three effect columns): p50 0.1210, p75 0.1502, p90 0.1662, max 0.2124 (kirc). Cut at the p75."
+    rationale: |
+      A RELATIVE cut on the first roster, not an absolute reliability standard: it says "this
+      product is in the top quartile of its own family for sign-conflict between its two
+      comparators", and it must be re-anchored when a second family lands. Only evaluable
+      within the both_comparators partition — see fact (2) in the header.
+
+# ---------------------------------------------------------------------------------------
+# THE LADDER
+# ---------------------------------------------------------------------------------------
+resolve:
+  - class: not_measured
+    priority: 10
+    reason_code: not_value_profiled
+    rationale: "absence outranks measurement: never score a product on evidence that was not collected."
+    when_any:
+      - {signal: quality_measured_present, op: is_false}
+      - {signal: sampling, op: in, value: [skipped_too_large, "", null]}
+
+  - class: not_measured
+    priority: 15
+    reason_code: shape_undecidable
+    rationale: |
+      The axis's PRIMARY signal is absent. `cohort_not_declared` means the manifest never declares
+      cohort sizes, so whether a comparator collapsed cannot be determined — #830's registry is
+      explicit that this is "an ABSTENTION, not a failure ... never unfit". These payloads ARE
+      value-profiled, so the risk runs the other way: without this rung they keep descending and
+      get scored on value signals whose confounder was never checked. Placed at 15 rather than
+      left to `default` so every rung below it is guaranteed a RESOLVED shape — that guarantee is
+      what makes the discordance read at priority 40 a within-shape comparison instead of a
+      cross-shape one.
+    when_any:
+      - {signal: comparator_status, op: eq, value: cohort_not_declared}
+
+  - class: unfit
+    priority: 20
+    reason_code: no_usable_signal
+    rationale: |
+      Measured, and the product cannot support its claim from its own values. `no_comparator_ran`
+      belongs here and not at priority 30: a product whose every declared arm fell below the floor
+      has not narrowed its question, it has no comparison at all. The three value floors are
+      demote-only reads of shape-confounded signals — they can reach this class but can never
+      promote out of it.
+    when_any:
+      - {signal: comparator_status, op: eq, value: no_comparator_ran}
+      - {threshold: missingness_unusable}
+      - {threshold: dynamic_range_flat}
+      - {threshold: rows_too_thin}
+
+  - class: partially_fit
+    priority: 30
+    reason_code: comparator_set_collapsed
+    reason_detail_from: arm_below_floor
+    rationale: |
+      SCOPE narrowing. The comparator set collapsed, so the product answers a narrower question
+      than its name advertises — the silent-degradation case. Decided here, ABOVE any reliability
+      rung, because every downstream reliability read (discordance, pooled missingness) is only
+      interpretable once shape is known.
+    when_any:
+      - {signal: comparator_status, op: in, value: [degraded_to_gtex_only, degraded_to_adjacent_only, single_comparator]}
+
+  - class: fit_with_caveats
+    priority: 40
+    reason_code: reliability_caveat
+    rationale: |
+      RELIABILITY doubt, not scope doubt. Everything reaching this rung has a KNOWN and
+      uncollapsed shape — priority 15 removed the shape-undecidable products and priority 30 the
+      collapsed ones — which is precisely what makes discordance readable here: the comparison is
+      same-parquet, same-genes, both arms live. Both of those higher rungs are load-bearing for
+      this claim; dropping either one re-admits a cross-shape read (see the header).
+    when_any:
+      - {signal: sampling, op: eq, value: bounded_sample}
+      - {threshold: discordance_high}
+      - {threshold: missingness_elevated}
+
+  - class: fit
+    priority: 50
+    reason_code: all_signals_healthy
+    rationale: |
+      An EXPLICIT positive conjunction, never a fall-through. Reaching the best class requires
+      evidence of every condition, so a product with an unrecognised or unmeasured state lands on
+      `default` (the abstention) instead of being promoted by silence.
+    when_all:
+      - {signal: quality_measured_present, op: is_true}
+      - {signal: sampling, op: eq, value: full}
+      - {signal: comparator_status, op: eq, value: both_comparators}
+      - {signal: discordant_fraction, op: lte, value: 0.15}
+      - {signal: primary_value_missingness, op: lte, value: 0.25}
+
+default:
+  class: not_measured
+  reason_code: shape_undecidable
+  rationale: |
+    The fall-through carries the CONSERVATIVE value, and it is an abstention rather than a
+    failure: an unrecognised state reports "we cannot tell", which is true, where a fall-through
+    to `fit` would report that the silent degradation was checked and absent, which is not.
+    UNFIRED on the first roster (0 of 36) — every product is decided by a named rung. That is
+    deliberate and is pinned by the tests: if a future product reaches the default, the pin reds
+    and forces an explicit decision rather than letting the state be absorbed silently. A default
+    that quietly does real work is a rung nobody reviewed.
+
+# ---------------------------------------------------------------------------------------
+# ROSTER VALIDATION — the MEASURED INPUTS for all 36 first-roster products, so the ladder is
+# validated in-repo with no dependency on the sibling data-catalog clone (an x-repo read would
+# degrade to a silent skip in CI). The tests implement the ladder INDEPENDENTLY from the rules
+# above and re-derive each class from these inputs; `expected` below is the hand-derived
+# specification, so a disagreement between the two reds rather than confirming itself. The
+# stored values are the irreproducible measured inputs, never the derived outcome.
+# ---------------------------------------------------------------------------------------
+roster_validation:
+  roster: "data-catalog characterization/dossiers/tcga-dge-family.json + inventories/dataset-profiles/*.json"
+  measured_on: 2026-09-19
+  n_products: 36
+  expected:
+    class_counts: {fit: 15, fit_with_caveats: 6, partially_fit: 8, unfit: 0, not_measured: 7}
+    # Named membership for every non-`fit` class — a count alone cannot catch a swap.
+    partially_fit:
+      - acc-dge-tumor-vs-normal-sensitivity-v1
+      - hnsc-dge-tumor-vs-normal-sensitivity-v1
+      - lgg-dge-tumor-vs-normal-sensitivity-v1
+      - ov-dge-tumor-vs-normal-sensitivity-v1
+      - sclc-dge-tumor-vs-normal-sensitivity-v1
+      - skcm-dge-tumor-vs-normal-sensitivity-v1
+      - tgct-dge-tumor-vs-normal-sensitivity-v1
+      - ucs-dge-tumor-vs-normal-sensitivity-v1
+    fit_with_caveats:
+      - coad-dge-tumor-vs-normal-sensitivity-v1
+      - coadread-dge-tumor-vs-normal-sensitivity-v1
+      - kirc-dge-tumor-vs-normal-sensitivity-v1
+      - lihc-dge-tumor-vs-normal-sensitivity-v1
+      - prad-dge-tumor-vs-normal-sensitivity-v1
+      - thca-dge-tumor-vs-normal-sensitivity-v1
+    unfit: []
+    not_measured:
+      - coadread-dge-df06320
+      - coadread-dge-tumor-vs-gtex-v1
+      - nsclc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+      - nsclc-dge-tumor-vs-normal-sensitivity-v1
+      - ov-tumor-vs-gtex-poc-v1
+      - pancan-dge-tumor-vs-normal-v1
+      - stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
+  # Which rungs actually DECIDED a product, so an unfired rung is declared rather than assumed.
+  rungs_fired_on_first_roster:
+    priority_10_not_measured: 3      # 2 unprofiled (nsclc-by-subgroup, ov-poc) + 1 skipped_too_large (pancan)
+    priority_15_not_measured: 4      # the cohort_not_declared products that WERE value-profiled
+    priority_20_unfit: 0             # every value floor is a forward guard; no no_comparator_ran product exists yet
+    priority_30_partially_fit: 8
+    priority_40_fit_with_caveats: 6  # all 6 via discordance_high; bounded_sample and missingness_elevated unfired
+    priority_50_fit: 15
+    default_not_measured: 0          # UNFIRED by design — see default.rationale
+  products:
+    - {product_id: acc-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
+       dynamic_range: 0.7027, rows_measured: 29302, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
+       discordant_fraction: 0.0}
+    - {product_id: blca-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0026,
+       dynamic_range: 0.5647, rows_measured: 30262, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.037}
+    - {product_id: brca-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0108,
+       dynamic_range: 0.6652, rows_measured: 31120, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.1305}
+    - {product_id: cesc-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0043,
+       dynamic_range: 0.6062, rows_measured: 30280, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.0194}
+    - {product_id: coad-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0359,
+       dynamic_range: 0.7641, rows_measured: 30794, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.1662}
+    - {product_id: coadread-dge-df06320, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
+       dynamic_range: 0.7151, rows_measured: 34531, comparator_status: cohort_not_declared, arm_below_floor: [],
+       discordant_fraction: null}
+    - {product_id: coadread-dge-tumor-vs-gtex-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
+       dynamic_range: 0.0767, rows_measured: 45584, comparator_status: cohort_not_declared, arm_below_floor: [],
+       discordant_fraction: null}
+    - {product_id: coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0459,
+       dynamic_range: 0.7827, rows_measured: 186235, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.1457}
+    - {product_id: coadread-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0325,
+       dynamic_range: 0.7692, rows_measured: 30662, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.1785}
+    - {product_id: esca-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0438,
+       dynamic_range: 0.4022, rows_measured: 34195, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.041}
+    - {product_id: gbm-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0392,
+       dynamic_range: 0.7089, rows_measured: 31414, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.0327}
+    - {product_id: hnsc-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0004,
+       dynamic_range: 0.4623, rows_measured: 30236, comparator_status: degraded_to_adjacent_only, arm_below_floor: [gtex],
+       discordant_fraction: 0.0035}
+    - {product_id: kich-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0248,
+       dynamic_range: 0.7118, rows_measured: 30715, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.0709}
+    - {product_id: kirc-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0047,
+       dynamic_range: 0.6783, rows_measured: 31718, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.2124}
+    - {product_id: kirp-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0102,
+       dynamic_range: 0.5374, rows_measured: 30480, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.121}
+    - {product_id: lgg-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
+       dynamic_range: 0.7225, rows_measured: 30321, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
+       discordant_fraction: 0.0}
+    - {product_id: lihc-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0204,
+       dynamic_range: 0.5748, rows_measured: 28965, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.1629}
+    - {product_id: luad-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0201,
+       dynamic_range: 0.6491, rows_measured: 31649, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.1417}
+    - {product_id: lusc-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0213,
+       dynamic_range: 0.8015, rows_measured: 31990, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.1069}
+    - {product_id: nsclc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1, quality_measured_present: false, sampling: null, primary_value_missingness: null,
+       dynamic_range: null, rows_measured: null, comparator_status: cohort_not_declared, arm_below_floor: [],
+       discordant_fraction: 0.0823}
+    - {product_id: nsclc-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0135,
+       dynamic_range: 0.7443, rows_measured: 31658, comparator_status: cohort_not_declared, arm_below_floor: [],
+       discordant_fraction: 0.151}
+    - {product_id: ov-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
+       dynamic_range: 1.1085, rows_measured: 31918, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
+       discordant_fraction: 0.0}
+    - {product_id: ov-tumor-vs-gtex-poc-v1, quality_measured_present: false, sampling: null, primary_value_missingness: null,
+       dynamic_range: null, rows_measured: null, comparator_status: cohort_not_declared, arm_below_floor: [],
+       discordant_fraction: null}
+    - {product_id: paad-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0241,
+       dynamic_range: 0.1207, rows_measured: 31062, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.0204}
+    - {product_id: pancan-dge-tumor-vs-normal-v1, quality_measured_present: true, sampling: skipped_too_large, primary_value_missingness: null,
+       dynamic_range: null, rows_measured: null, comparator_status: cohort_not_declared, arm_below_floor: [],
+       discordant_fraction: null}
+    - {product_id: pcpg-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0308,
+       dynamic_range: 0.5705, rows_measured: 30435, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.0293}
+    - {product_id: prad-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0155,
+       dynamic_range: 0.4503, rows_measured: 30866, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.1603}
+    - {product_id: read-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0478,
+       dynamic_range: 0.6839, rows_measured: 31107, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.0817}
+    - {product_id: sclc-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.6667,
+       dynamic_range: 0.8043, rows_measured: 16876, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
+       discordant_fraction: 0.0}
+    - {product_id: skcm-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
+       dynamic_range: 0.9679, rows_measured: 30300, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
+       discordant_fraction: 0.0}
+    - {product_id: stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0381,
+       dynamic_range: 0.5269, rows_measured: 132413, comparator_status: cohort_not_declared, arm_below_floor: [],
+       discordant_fraction: 0.0903}
+    - {product_id: stad-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0197,
+       dynamic_range: 0.5815, rows_measured: 33995, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.1424}
+    - {product_id: tgct-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
+       dynamic_range: 1.4587, rows_measured: 35772, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
+       discordant_fraction: 0.0}
+    - {product_id: thca-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0248,
+       dynamic_range: 0.4445, rows_measured: 31080, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.1502}
+    - {product_id: ucec-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0141,
+       dynamic_range: 0.8401, rows_measured: 31002, comparator_status: both_comparators, arm_below_floor: [],
+       discordant_fraction: 0.0461}
+    - {product_id: ucs-dge-tumor-vs-normal-sensitivity-v1, quality_measured_present: true, sampling: full, primary_value_missingness: 0.0,
+       dynamic_range: 1.038, rows_measured: 30627, comparator_status: degraded_to_gtex_only, arm_below_floor: [adjacent],
+       discordant_fraction: 0.0}
