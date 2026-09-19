@@ -40,7 +40,7 @@ utilization of each card's `summary_fields` is ratcheted by [field_disposition.y
 | card_id | layer · context | catalog manifest(s) | status |
 |---|---|---|---|
 | `tumor-rna-distribution-by-subtype` | bulk_rna · tumor | `tcga-tumor-tpm-*`; **11** pinned `*-subgroup-assignments-*` shards (6 TCGA molecular: coadread/hnsc/stad/nsclc/esca/paad · 4 TCGA-MAF genomic-strata: hnsc/nsclc/esca/paad · 1 non-TCGA `sclc-subgroup-assignments-v1`) | LIVE · 7 indication families (COADREAD/HNSC/STAD/NSCLC/ESCA/PAAD/SCLC) |
-| `cellline-rna-distribution-by-subtype` | bulk_rna · cell_line | `depmap-consortium-26q1` (src); **1** pinned shard `depmap-subgroup-assignments-coadread-v1` | LIVE · card pins COADREAD only (the reader `_CELLLINE_SUBTYPE_ASSIGNMENTS` names 7 shards; non-COADREAD degrade to `subtype_axis_available: false` when the manifest is absent) |
+| `cellline-rna-distribution-by-subtype` | bulk_rna · cell_line | `depmap-consortium-26q1` (src); **7** pinned `depmap-subgroup-assignments-*` shards (coadread/hnsc/stad/nsclc/esca/paad/sclc) | LIVE · 7 indication families (COADREAD/HNSC/STAD/NSCLC/ESCA/PAAD/SCLC). Measured through the reader 2026-09-19, `subtype_axis_quality`: coadread/nsclc/esca/sclc `exploratory`, hnsc `underpowered`, stad/paad `unevaluable` (all-null strata). No routed family reaches `powered` today (needs ≥2 strata ≥30; the best is 1 measured + 1 exploratory partner) |
 | `tumor-protein-distribution-by-subtype` | bulk_protein_ms · tumor | `cptac-protein-tumor-vs-normal-per-sample`; **1** pinned shard `cptac-subgroup-assignments-coadread-v1` | LIVE · COADREAD-scoped (CPTAC has one landed shard) |
 | `expression-purity-confound` | bulk_rna · tumor | `tcga-tumor-tpm-recount3-long-v1`; `gdc-pancanatlas-cnv-2018` (ABSOLUTE purity, src) | LIVE |
 | `cellline-rna-protein-concordance` | bulk_rna · cell_line (RNA-anchored) | `depmap-consortium-26q1` + `-26q1-proteomics` (src) | LIVE |
@@ -75,9 +75,11 @@ A gap here is an **honest capability ceiling** (emits `data_unavailable`), never
 - **By-subtype panoramas** — pinned coverage now differs **per arm** (measured against `required_inputs`
   2026-09-19): the TCGA tumor-RNA arm (`tumor-rna-distribution-by-subtype`) pins **11** subgroup-assignment
   shards spanning 7 indication families (COADREAD/HNSC/STAD/NSCLC/ESCA/PAAD/SCLC — 6 TCGA molecular + 4
-  TCGA-MAF genomic-strata + 1 non-TCGA SCLC), while the DepMap cell-line and CPTAC protein arms each pin a
-  **single** COADREAD shard. (The cell-line reader names 7 DepMap shards but the card declares only COADREAD;
-  the others degrade to `subtype_axis_available: false` when the manifest is absent.)
+  TCGA-MAF genomic-strata + 1 non-TCGA SCLC); the DepMap cell-line arm
+  (`cellline-rna-distribution-by-subtype`) now pins **7** shards over the same 7 families, matching its
+  reader (`_CELLLINE_SUBTYPE_ASSIGNMENTS`); the CPTAC protein arm still pins a **single** COADREAD shard
+  (CPTAC has one landed shard). Cell-line power is honest but thin — measured 2026-09-19 no routed family
+  reaches `powered` (best grade `exploratory`; STAD/PAAD are `unevaluable`, all-null strata).
 - **Tumor protein (CPTAC)** — 10 CPTAC cohorts; elsewhere `protein_ihc/tumor` (HPA IHC, ~20 cancer types)
   is the MS-independent protein-in-tumor leg.
 
@@ -158,10 +160,11 @@ enum as `presence_verdict`); the `provenance` lineage digests + per-manifest `is
 - **Materialized-but-unwired sc-tumor cubes:** `sc-pseudobulk-tumor-3ca-npc-v1`,
   `-coadread-vumc-v1`, `-hnsc-bu-v1` exist in the catalog but are not in `INDICATION_TO_PRODUCT`
   (deliberate — single-reader-per-indication; swapping regressed the primary reader). Available headroom.
-- **By-subtype non-COADREAD shards:** now pinned for the **TCGA tumor-RNA** arm (esca/hnsc/nsclc/paad/stad
-  molecular + hnsc/nsclc/esca/paad MAF + sclc — 11 shards total in `required_inputs`). The **DepMap
-  cell-line** arm still pins COADREAD only, though its reader (`_CELLLINE_SUBTYPE_ASSIGNMENTS`) maps 7
-  indications to DepMap shards; declaring those in `required_inputs` (so the independence guard and staleness
-  audit see them) is the remaining additive headroom. The **CPTAC protein** arm is genuinely one shard.
+- **By-subtype non-COADREAD shards:** now pinned for **both** the **TCGA tumor-RNA** arm
+  (esca/hnsc/nsclc/paad/stad molecular + hnsc/nsclc/esca/paad MAF + sclc — 11 shards in `required_inputs`)
+  **and** the **DepMap cell-line** arm (7 shards over COADREAD/HNSC/STAD/NSCLC/ESCA/PAAD/SCLC, matching its
+  reader `_CELLLINE_SUBTYPE_ASSIGNMENTS`), so the independence guard and staleness audit see the full union
+  each arm can read. The **CPTAC protein** arm is genuinely one shard. Remaining headroom is *power*, not
+  *coverage*: no routed cell-line family reaches `powered` today (best `exploratory`; STAD/PAAD all-null).
 - **Heavy substrates** (`gtex-tpm-recount3-long-v1` 7.57 GB, `tcga-tumor-tpm-recount3-long-v1` 3.03 GB):
   fine for gene-sorted predicate-pushdown per-gene reads; relevant only on re-materialization.

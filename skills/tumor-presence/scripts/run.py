@@ -415,7 +415,7 @@ CARDS = [
     # ── DISPLAY-ONLY facets (8 total: the 6 here + cellline-protein-abundance-procan
     #    + hpa-pathology-cancer-ihc below) — additive context, feed no ladder ────────────
     "tumor-rna-distribution-by-subtype",  # per-molecular-subtype tumor RNA panorama
-    "cellline-rna-distribution-by-subtype",  # cell-line RNA by DepMap driver subtype (COADREAD proof)
+    "cellline-rna-distribution-by-subtype",  # cell-line RNA by DepMap driver subtype (7 routed families; best grade today is exploratory)
     "tumor-protein-distribution-by-subtype",  # per-molecular-subtype tumor PROTEIN panorama (CPTAC MSI, COADREAD)
     "expression-purity-confound",  # tumor-intrinsic vs stromal/immune signal
     "cellline-rna-protein-concordance",  # is RNA an adequate protein proxy? (cell-line arm)
