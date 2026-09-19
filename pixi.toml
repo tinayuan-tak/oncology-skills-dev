@@ -43,6 +43,7 @@ bioconductor-birewire = "*"      # cooccurrence_fisher_pancohort: SELECT depende
 bioconductor-deseq2 = "*"
 bioconductor-apeglm = "*"        # dge_deseq2: lfcShrink() adaptive-prior shrinkage (03_deseq2.R)
 bioconductor-sva = "*"           # combat-seq batch correction
+bioconductor-ruvseq = "*"        # dge_deseq2 v2: RUVg latent-factor correction of the cross-cohort (TCGA-vs-GTEx) contrast; pulls in edgeR as a declared transitive dep
 bioconductor-msstatstmt = "*"    # cptac_protein_deg: CPTAC TMT protein DEG with plex-batch mixed model
 bioconductor-limma = "*"         # cptac_protein_deg: MSstatsTMT peer dep (eBayes under the hood); ALSO CMScaller dep
 bioconductor-biobase = "*"       # subgroup_assigner_classifier (CMS): CMScaller dependency (ExpressionSet/NTP)
