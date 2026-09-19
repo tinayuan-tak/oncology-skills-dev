@@ -29,10 +29,12 @@ _meta:
 cellline-rna-distribution:
   allgene_percentile:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "pan-gene expression percentile of the DepMap cell-line panel; continuous magnitude behind allgene_percentile_class; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   allgene_percentile_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "categorical pan-gene percentile call for cell-line RNA; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   allgene_percentile_context:
     role: provenance
     reason: provenance/audit token
@@ -40,11 +42,13 @@ cellline-rna-distribution:
     role: display
     reason: human-facing detail / large container
   control_position:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "position of the housekeeping-control band vs the target; reference qualifier behind control_position_class; no exact reader (census 2026-09-19)"
+    reviewed: true
   control_position_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "cell-line RNA position vs the housekeeping-control band, as a call; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   control_position_context:
     role: provenance
     reason: provenance/audit token
@@ -52,8 +56,9 @@ cellline-rna-distribution:
     role: display
     reason: human-facing detail / large container
   dominant_isoform:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "names which isoform isoform_expression_class refers to; cross-axis pointer; no exact reader (census 2026-09-19)"
+    reviewed: true
   dominant_isoform_fraction:
     role: context
     reason: "magnitude behind the READ isoform_expression_class (capsule); name_only credit only, because
@@ -61,7 +66,8 @@ cellline-rna-distribution:
     reviewed: true
   expression_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "headline DepMap cell-line RNA expression call; role:signal reach-confirmed via {capsule, display_rule, question_table, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   fraction_expressed:
     role: context
     reason: "within-cohort breadth magnitude behind the READ expression_class; _abundance_floor's docstring states the
@@ -82,7 +88,8 @@ cellline-rna-distribution:
     reason: provenance/audit token
   isoform_expression_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "dominant-isoform expression call for the cell-line RNA arm; role:signal reach-confirmed via {capsule} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   isoform_n_models:
     role: context
     reason: power / statistical qualifier
@@ -91,7 +98,8 @@ cellline-rna-distribution:
     reason: power / statistical qualifier
   median_log2tpm_panel:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "panel-median log2 TPM magnitude behind the cell-line RNA call; role:signal reach-confirmed via {salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   n_cell_lines_evaluated:
     role: context
     reason: power / statistical qualifier
@@ -106,13 +114,16 @@ cellline-rna-distribution:
     reason: power / statistical qualifier
   p25_log2tpm_panel:
     role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    reason: "lower-quartile of the panel log2 TPM distribution; verdict-inert distribution shape; no exact reader (census 2026-09-19)"
+    reviewed: true
   p5_log2tpm_panel:
     role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    reason: "5th-percentile of the panel log2 TPM distribution; verdict-inert distribution shape; no exact reader (census 2026-09-19)"
+    reviewed: true
   p75_log2tpm_panel:
     role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    reason: "upper-quartile of the panel log2 TPM distribution; verdict-inert distribution shape; no exact reader (census 2026-09-19)"
+    reviewed: true
   p95_log2tpm_panel:
     role: context
     reason: "panel dispersion around the READ median_log2tpm_panel; its p5/p25/p75 siblings were already labelled display,
@@ -124,16 +135,19 @@ cellline-rna-distribution:
 tumor-rna-vs-adjacent:
   allgene_percentile:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "pan-gene percentile of tumor vs adjacent-normal RNA; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   allgene_percentile_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "categorical pan-gene percentile call for tumor-vs-adjacent RNA; role:signal reach-confirmed via {capsule} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   allgene_percentile_context:
     role: provenance
     reason: provenance/audit token
   expression_call_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "the tumor-vs-adjacent-normal expression call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   gtex_log2_fc:
     role: context
     reason: vs-GTEx-normal contrast = SELECTIVITY axis; context pointer to tumor-selectivity, not a presence
@@ -143,7 +157,8 @@ tumor-rna-vs-adjacent:
     reason: power / statistical qualifier
   log2_fc:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "tumor-vs-adjacent log2 fold-change; the continuous presence effect size; role:signal reach-confirmed via {claim_passthrough, figure, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   n_adjacent:
     role: context
     reason: power / statistical qualifier
@@ -151,18 +166,21 @@ tumor-rna-vs-adjacent:
     role: context
     reason: power / statistical qualifier
   q_value:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "multiple-testing-adjusted significance qualifier on log2_fc; a statistical qualifier, not itself a presence claim; reached via {claim_passthrough, figure, salience, skill_code} (census 2026-09-19)"
+    reviewed: true
 tumor-rna-distribution:
   allgene_percentile:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "pan-gene percentile of the TCGA tumor RNA distribution; role:signal reach-confirmed via {claim_passthrough, salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   allgene_percentile_by_study:
     role: provenance
     reason: provenance/audit token
   allgene_percentile_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "categorical pan-gene percentile call for TCGA tumor RNA; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   allgene_percentile_context:
     role: provenance
     reason: provenance/audit token
@@ -176,11 +194,13 @@ tumor-rna-distribution:
     role: display
     reason: human-facing detail / large container
   control_position:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "position of the housekeeping-control band vs the target; reference qualifier behind control_position_class; reached via {claim_passthrough} (census 2026-09-19)"
+    reviewed: true
   control_position_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "tumor RNA position vs the housekeeping-control band, as a call; role:signal reach-confirmed via {capsule, claim_passthrough, salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   control_position_context:
     role: provenance
     reason: provenance/audit token
@@ -197,10 +217,12 @@ tumor-rna-distribution:
     reason: power / statistical qualifier
   distribution_pattern:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "shape of the tumor RNA distribution (uni/bi-modal etc.); feeds the presence narrative; role:signal reach-confirmed via {capsule, claim_passthrough} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   dominant_event_splice_type:
     role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    reason: "names the dominant splice event; descriptive detail of the verdict-inert splicing arm; no exact reader (census 2026-09-19)"
+    reviewed: true
   fraction_tumor_above_normal_p95:
     role: context
     reason: vs-normal window = SELECTIVITY axis (Gate B); surfaced as context pointing to tumor-selectivity,
@@ -222,13 +244,16 @@ tumor-rna-distribution:
     reason: identity/scope key
   max_event_psi_std:
     role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    reason: "max across-event PSI dispersion; verdict-inert splicing detail; no exact reader (census 2026-09-19)"
+    reviewed: true
   median_event_psi_std:
     role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    reason: "median across-event PSI dispersion; verdict-inert splicing detail; no exact reader (census 2026-09-19)"
+    reviewed: true
   median_log2tpm:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "tumor-cohort median log2 TPM magnitude behind the presence call; role:signal reach-confirmed via {claim_passthrough, salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   moderate_fraction:
     role: context
     reason: "within-cohort breadth magnitude behind the READ tumor_expression_class; _abundance_floor's docstring states
@@ -251,7 +276,8 @@ tumor-rna-distribution:
     reason: power / statistical qualifier
   p95_log2tpm:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "upper-tail (p95) log2 TPM magnitude of the tumor distribution; role:signal reach-confirmed via {claim_passthrough} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   p99_log2tpm:
     role: context
     reason: "tail rung beyond the p95_log2tpm that claim A's evidence atom already cites"
@@ -282,10 +308,12 @@ tumor-rna-distribution:
 tumor-protein-abundance-cptac:
   allgene_percentile:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "pan-gene percentile of CPTAC tumor protein abundance; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   allgene_percentile_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "categorical pan-gene percentile call for CPTAC tumor protein; role:signal reach-confirmed via {capsule} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   allgene_percentile_context:
     role: provenance
     reason: provenance/audit token
@@ -303,25 +331,30 @@ tumor-protein-abundance-cptac:
     reason: power / statistical qualifier
   protein_effect_cohens_d:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "Cohen's d effect size for tumor-vs-normal protein; role:signal reach-confirmed via {salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   protein_effect_size:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "tumor-vs-normal protein effect-size magnitude; role:signal reach-confirmed via {claim_passthrough, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   protein_effect_size_se:
     role: context
     reason: power / statistical qualifier
   protein_effect_standardized_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "standardized protein-effect call; role:signal reach-confirmed via {capsule, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   protein_effect_standardized_method:
     role: provenance
     reason: provenance/audit token
   protein_effect_standardized_t:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "standardized t-statistic magnitude of the protein effect; role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   protein_expression_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "headline CPTAC tumor protein presence call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, gating_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   protein_median_log2_normal:
     role: context
     reason: "OPERAND of the READ protein_effect_size (= median_log2_tumor - median_log2_normal, documented at
@@ -341,10 +374,12 @@ tumor-protein-abundance-cptac:
 cellline-protein-abundance:
   allgene_percentile:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "pan-gene percentile of DepMap/CCLE cell-line protein abundance; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   allgene_percentile_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "categorical pan-gene percentile call for cell-line protein; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   allgene_percentile_context:
     role: provenance
     reason: provenance/audit token
@@ -358,7 +393,8 @@ cellline-protein-abundance:
     reason: power / statistical qualifier
   median_log2_abundance_panel:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "panel-median log2 protein abundance magnitude; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   method_version:
     role: provenance
     reason: provenance/audit token
@@ -410,20 +446,24 @@ cellline-protein-abundance:
       into a tidy role. Owner: target-contracts."
   protein_expression_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "headline cell-line protein presence call; role:signal reach-confirmed via {capsule, display_rule, question_table, salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
 tumor-elevation-breadth:
   breadth_layer_concordance:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "agreement between the RNA and protein breadth layers; feeds the breadth narrative; role:signal reach-confirmed via {capsule, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   cohorts_tested:
     role: provenance
     reason: identity/scope key
   fraction_elevated:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "protein-arm fraction of cohorts with elevated expression; the breadth magnitude surfaced as salient; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   median_effect_across_elevated:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "median effect size across elevated cohorts; magnitude behind tumor_elevation_breadth_class; no exact reader (census 2026-09-19)"
+    reviewed: true
   most_elevated_cohorts:
     role: display
     reason: human-facing detail / large container
@@ -434,8 +474,9 @@ tumor-elevation-breadth:
     role: context
     reason: power / statistical qualifier
   rna_fraction_elevated:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "RNA-arm fraction of cohorts elevated; magnitude behind rna_tumor_elevation_breadth_class (only the class is surfaced, unlike the protein-arm fraction_elevated which run.py lists as salient); no exact reader (census 2026-09-19)"
+    reviewed: true
   rna_median_max_log2fc_across_elevated:
     role: context
     reason: "magnitude behind the READ rna_tumor_elevation_breadth_class; its protein-arm twin
@@ -452,14 +493,17 @@ tumor-elevation-breadth:
     reason: power / statistical qualifier
   rna_tumor_elevation_breadth_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "RNA-arm tumor elevation-breadth call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   tumor_elevation_breadth_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "protein-arm tumor elevation-breadth call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
 tumor-scrna-celltype-expression:
   ambient_contamination_risk:
     role: signal
-    reason: QC (ambient soup-leakage) — tempers claim-C corroboration (#984 Tier-1)
+    reason: "QC (ambient soup-leakage) — tempers claim-C corroboration (#984 Tier-1)"
+    reviewed: true
   caf_abundance_log1p_cp10k:
     role: signal
     reason: "CAF-compartment abundance in the same log1p CP10K units as the READ malignant_abundance_log1p_cp10k, behind
@@ -467,14 +511,17 @@ tumor-scrna-celltype-expression:
       was the only one of this card's 29 declared fields left unlifted"
     reviewed: true
   caf_compartment_available:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "whether the CAF compartment was resolvable; availability qualifier on the stromal-confound reads; reached via {skill_code} (census 2026-09-19)"
+    reviewed: true
   caf_detection_fraction:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "CAF-compartment detection fraction; stromal-confound magnitude; role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   caf_vs_malignant_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "malignant-vs-CAF specificity call (stromal confound); role:signal reach-confirmed via {capsule, claim_passthrough, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   compartment_detection:
     role: display
     reason: human-facing detail / large container
@@ -483,28 +530,33 @@ tumor-scrna-celltype-expression:
     reason: cube entity purity — confidence qualifier for claim-C (#984 Tier-1)
   fraction_donors_broadly_detecting:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "cross-donor breadth-of-detection fraction; role:signal reach-confirmed via {claim_passthrough, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   indication:
     role: provenance
     reason: identity/scope key
   inter_donor_consistency_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "inter-donor consistency call for the single-cell read; role:signal reach-confirmed via {capsule, claim_passthrough, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   malignant_annotation_method:
     role: provenance
     reason: malignant-label provenance — tempers claim-C corroboration (#984 Tier-1)
   malignant_abundance_log1p_cp10k:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "malignant-cell abundance magnitude (log1p CP10K); role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   malignant_compartment_available:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "whether the malignant compartment was resolvable; availability qualifier on the malignant reads; reached via {skill_code} (census 2026-09-19)"
+    reviewed: true
   malignant_detection_donor_iqr:
     role: context
     reason: power / statistical qualifier
   malignant_detection_fraction:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "fraction of malignant cells detecting the target; the core single-cell presence magnitude; role:signal reach-confirmed via {claim_passthrough, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   malignant_n_cells:
     role: context
     reason: power / statistical qualifier
@@ -528,25 +580,32 @@ tumor-scrna-celltype-expression:
     reason: provenance/audit token
   sc_expression_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "headline single-cell malignant expression call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, figure, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   stromal_confound_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "stromal-confound severity call; gates single-cell interpretation; role:signal reach-confirmed via {gating_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   tce_antigen_escape_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "TCE antigen-escape-risk call from single-cell heterogeneity; fires a gate; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, gating_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   tce_homogeneity_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "within-tumor TCE target-homogeneity call; role:signal reach-confirmed via {capsule, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   top_microenvironment_compartment:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "names the top microenvironment cell type top_microenvironment_detection_fraction refers to; cross-axis pointer; reached via {claim_passthrough, skill_code} (census 2026-09-19)"
+    reviewed: true
   top_microenvironment_detection_fraction:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "detection fraction in the top microenvironment compartment; role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   within_tumor_coverage_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "within-tumor coverage call (how completely the target is sampled); role:signal reach-confirmed via {capsule, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
 tumor-rna-distribution-by-subtype:
   assignment_manifest:
     role: provenance
@@ -592,26 +651,32 @@ tumor-rna-distribution-by-subtype:
       top_enriched_subtype, which the question table reads for Q4 and labels 'top' rather than 'spotlight'."
     reviewed: true
   subtype_axis_available:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "whether a subtype stratification axis exists for this indication; availability qualifier on the subtype signal; reached via {claim_passthrough, figure, skill_code} (census 2026-09-19)"
+    reviewed: true
   subtype_axis_quality:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "power grade of the subtype axis (powered/exploratory/unavailable); certainty qualifier on the subtype signal; reached via {capsule, question_table, skill_code} (census 2026-09-19)"
+    reviewed: true
   subtype_effect_size_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "per-subtype RNA effect-size call for the tumor arm; role:signal reach-confirmed via {capsule, claim_passthrough} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   subtype_omnibus_kruskal_h:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "Kruskal-Wallis omnibus H across subgroups; statistical qualifier; no exact reader (census 2026-09-19)"
+    reviewed: true
   subtype_omnibus_p:
     role: context
     reason: power / statistical qualifier
   subtype_purity_spread:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "spread of tumor purity across subgroups; confound qualifier on the subtype signal; reached via {question_table, skill_code} (census 2026-09-19)"
+    reviewed: true
   subtype_stratification_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "per-subtype tumor-RNA stratification call; role:signal reach-confirmed via {capsule, claim_passthrough, question_table, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   subtype_variance_explained:
     role: context
     reason: power / statistical qualifier
@@ -620,14 +685,17 @@ tumor-rna-distribution-by-subtype:
     reason: human-facing detail / large container
 cellline-rna-distribution-by-subtype:
   cross_subgroup_delta_expression:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "max cross-subgroup expression delta; magnitude behind subtype_stratification_class; no exact reader (census 2026-09-19)"
+    reviewed: true
   max_subgroup_expression:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "highest per-subgroup expression; magnitude behind the subtype call; no exact reader (census 2026-09-19)"
+    reviewed: true
   min_subgroup_expression:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "lowest per-subgroup expression; magnitude behind the subtype call; no exact reader (census 2026-09-19)"
+    reviewed: true
   n_subgroups_with_data:
     role: context
     reason: power / statistical qualifier
@@ -659,14 +727,17 @@ cellline-rna-distribution-by-subtype:
       lands. Verdict-inert on purpose - the class and axis quality carry the claim, this only names the leader."
     reviewed: true
   subtype_axis_available:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "whether a DepMap subtype axis exists for this indication; availability qualifier; reached via {skill_code} (census 2026-09-19)"
+    reviewed: true
   subtype_axis_quality:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "power grade of the DepMap subtype axis; certainty qualifier; reached via {skill_code} (census 2026-09-19)"
+    reviewed: true
   subtype_stratification_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "per-subtype cell-line-RNA stratification call; role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
 tumor-protein-distribution-by-subtype:
   n_subtypes_depleted:
     role: context
@@ -686,11 +757,13 @@ tumor-protein-distribution-by-subtype:
       COADREAD); the auto-drafted role:signal contradicted the skill's own declared design"
     reviewed: true
   subtype_axis_available:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "whether a CPTAC protein subtype axis exists; availability qualifier; reached via {skill_code} (census 2026-09-19)"
+    reviewed: true
   subtype_axis_quality:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "power grade of the CPTAC protein subtype axis; certainty qualifier; reached via {skill_code} (census 2026-09-19)"
+    reviewed: true
   subtype_stratification_class:
     role: display
     reason: "SKILL.md:75 declares this card DISPLAY-ONLY / verdict-inert; Stage 5 now PROJECTS this arm onto the headline
@@ -708,8 +781,9 @@ expression-purity-confound:
     role: context
     reason: power / statistical qualifier
   expression_purity_spearman_r:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "Spearman r of expression vs tumor purity; statistical qualifier behind purity_confound_class; no exact reader (census 2026-09-19)"
+    reviewed: true
   median_purity:
     role: context
     reason: power / statistical qualifier
@@ -721,7 +795,8 @@ expression-purity-confound:
     reason: power / statistical qualifier
   purity_confound_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "tumor-purity confound-severity call on the RNA signal; role:signal reach-confirmed via {display_rule, figure, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   purity_source:
     role: provenance
     reason: provenance/audit token
@@ -738,7 +813,8 @@ cellline-rna-protein-concordance:
     reason: provenance/audit token
   rna_as_biomarker:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "whether cell-line RNA tracks protein well enough to serve as a biomarker, as a call; role:signal reach-confirmed via {display_rule, figure, question_table, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   rna_expressed_fraction:
     role: context
     reason: "marginal expressed rate qualifying the READ rna_protein_r / rna_as_biomarker (question-table Q6)"
@@ -763,8 +839,9 @@ cellline-rna-protein-concordance:
       one-sided DOWNWARD departure from the 0.10 construction null (i.e. as concordance evidence, as at AR 0.0000),
       labelled with that null, and never as a bare rate. Q6 deliberately does not cite it in this PR."
   rna_protein_r:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "RNA-protein correlation coefficient; statistical qualifier behind rna_as_biomarker; reached via {question_table, salience, skill_code} (census 2026-09-19)"
+    reviewed: true
   rna_protein_spearman:
     role: context
     reason: power / statistical qualifier
@@ -777,10 +854,12 @@ rna-protein-concordance-tumor:
     reason: power / statistical qualifier
   rna_as_biomarker:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "whether tumor RNA tracks protein well enough to serve as a biomarker, as a call; role:signal reach-confirmed via {display_rule, figure, question_table, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   rna_protein_r:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "RNA-protein correlation coefficient; statistical qualifier behind rna_as_biomarker; reached via {question_table, salience, skill_code} (census 2026-09-19)"
+    reviewed: true
   rna_protein_spearman:
     role: context
     reason: power / statistical qualifier
@@ -790,10 +869,12 @@ rna-protein-concordance-tumor:
 cellline-protein-abundance-procan:
   allgene_percentile:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "pan-gene percentile of ProCan cell-line protein abundance; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   allgene_percentile_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "categorical pan-gene percentile call for ProCan cell-line protein; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   allgene_percentile_context:
     role: provenance
     reason: provenance/audit token
@@ -807,7 +888,8 @@ cellline-protein-abundance-procan:
     reason: power / statistical qualifier
   median_log2_abundance_panel:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "panel-median log2 protein abundance magnitude (ProCan); role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   method_version:
     role: provenance
     reason: provenance/audit token
@@ -860,14 +942,17 @@ cellline-protein-abundance-procan:
       mis-label it. Kept as signal-with-waiver so it stays in the queue. Owner: target-contracts."
   protein_expression_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "headline ProCan cell-line protein presence call; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
 hpa-pathology-cancer-ihc:
   protein_presence_class:
     role: signal
     reason: "primary antibody-IHC protein-presence-in-tumor readout (protein_ihc/tumor bucket)"
+    reviewed: true
   fraction_detected:
     role: signal
-    reason: "(High+Medium+Low)/total \u2014 the continuous presence signal the class keys on"
+    reason: "(High+Medium+Low)/total — the continuous presence signal the class keys on"
+    reviewed: true
   fraction_moderate_strong:
     role: context
     reason: "(High+Medium)/total \u2014 moderate-or-strong staining fraction"
@@ -907,17 +992,21 @@ hpa-pathology-cancer-ihc:
 
 normal-tissue-liability:
   essential_tissue_flag:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: signal
+    reason: "boolean essential-normal-tissue safety flag; fires a gating rule and is surfaced as salient; a heuristic mis-bucket into display, corrected here (does not move presence_verdict); role:signal reach-confirmed via {display_rule, gating_rule, salience, skill_code} (census 2026-09-19)"
+    reviewed: true
   essential_tissues_flagged:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "list naming which essential tissues drove essential_tissue_flag; identifies the subject of the flag; reached via {skill_code} (census 2026-09-19)"
+    reviewed: true
   hpa_tissue_distribution:
     role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    reason: "per-tissue HPA distribution container; verdict-inert human-facing detail; no exact reader (census 2026-09-19)"
+    reviewed: true
   hpa_tissue_specificity:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "HPA tissue-specificity category; cross-axis selectivity qualifier surfaced in presence; reached via {salience} (census 2026-09-19)"
+    reviewed: true
   method_version:
     role: provenance
     reason: provenance/audit token
@@ -929,7 +1018,8 @@ normal-tissue-liability:
     reason: human-facing detail / large container
   normal_tissue_breadth_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "breadth of normal-tissue expression; the selectivity-liability call surfaced in presence; role:signal reach-confirmed via {display_rule, question_table, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   safety_tissue_flags:
     role: display
     reason: human-facing detail / large container
@@ -942,16 +1032,19 @@ sc-normal-celltype-expression:
     reason: power / statistical qualifier
   sc_normal_abundance_class:
     role: signal
-    reason: normal-tissue abundance at the liability-anchor cell — sharpens window breadcrumb (#984 Tier-2)
+    reason: "normal-tissue abundance at the liability-anchor cell — sharpens window breadcrumb (#984 Tier-2)"
+    reviewed: true
   sc_normal_peak_median_abund:
     role: context
     reason: magnitude behind sc_normal_abundance_class (#984 Tier-2)
   max_detection_cell_type:
-    role: display
-    reason: "unclassified by heuristic \u2014 REVIEW"
+    role: context
+    reason: "names the normal cell type with peak detection that max_detection_fraction refers to; cross-axis pointer; reached via {skill_code} (census 2026-09-19)"
+    reviewed: true
   max_detection_fraction:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "peak normal single-cell detection fraction; magnitude behind the normal-expression call; role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   method_version:
     role: provenance
     reason: provenance/audit token
@@ -963,10 +1056,12 @@ sc-normal-celltype-expression:
     reason: human-facing detail / large container
   sc_normal_expression_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "normal single-cell expression call (selectivity liability); role:signal reach-confirmed via {capsule, display_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   sc_normal_safety_essential_class:
     role: signal
-    reason: magnitude/categorical signal
+    reason: "binary essential-cell safety call; fires the BiTE/TCE killer gate; read at run.py:1960 and salient at :2153 (graded successor is sc_normal_essential_veto_grade below); role:signal reach-confirmed via {capsule, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
   # The GRADED successor to sc_normal_safety_essential_class (analysis-methods #647 + target-contracts
   # #786, both merged 2026-09-18). `signal` is the honest role by this file's own definition — it feeds a
   # verdict: surface-intrinsic.rules.yaml gates the `dominant: true` BiTE/TCE killer on it, and the regrade

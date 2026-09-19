@@ -23,7 +23,7 @@ description: |
                                             corroboration of the Gygi TMT card; verdict-inert
       - tumor-rna-distribution-by-subtype   per-subtype panorama (per-indication strata: COADREAD
                                             molecular subtypes CMS/CIMP/MSI/sidedness/stage; LUAD & NSCLC
-                                            driver-mutation strata EGFR/KRAS/ALK/HER2/BRAF; else
+                                            driver strata EGFR/KRAS/BRAF/HER2/MET + ALK/ROS1/RET fusions (paired -nsclc-v1 + -nsclc-maf-v1 shards); else
                                             subtype_axis_available:false)
       - cellline-rna-distribution-by-subtype  cell-line RNA by DepMap driver/molecular subtype (COADREAD proof)
       - tumor-protein-distribution-by-subtype  per-molecular-subtype tumor PROTEIN panorama (CPTAC
