@@ -7,6 +7,12 @@ via pyarrow predicate pushdown. No sklearn / XGBoost at framework runtime.
 On unreachable parquet or missing target, returns a dict with
 `_live_read_error` + `predictability_class=data_unavailable` so the framework's
 graceful-degradation contract holds (same shape as E1-E4).
+
+Every returned dict carries provenance metadata — `_release_pin` (the pin the row
+was actually read with) and `_derived_product_uri` (the resolved parquet, or None
+when the pin did not resolve). Out-of-band consumers that stamp an evidence
+manifest (e.g. the skills figure emitters) MUST read these rather than hardcoding
+a pin, so provenance follows the data instead of drifting when the default moves.
 """
 
 from __future__ import annotations
@@ -30,21 +36,36 @@ def read_predictability(target: str, indication: Optional[str] = None, release_p
     axis. Per-lineage read-outs are exposed via `per_lineage_predictability`.
     """
     ensure_aws_profile()
+
+    def _with_provenance(summary: dict, parquet_uri: Optional[str]) -> dict:
+        # Provenance follows the data (see module docstring): stamp the pin actually
+        # used and the resolved parquet onto EVERY return path, so a consumer reads
+        # it from the summary instead of hardcoding a literal that drifts.
+        summary["_release_pin"] = release_pin
+        summary["_derived_product_uri"] = parquet_uri
+        return summary
+
     parquet_uri = _cli.RELEASE_PIN_TO_PARQUET.get(release_pin)
     if parquet_uri is None:
-        return {
-            "_live_read_error": "unknown_release_pin",
-            "_remediation": f"release_pin {release_pin!r} not in {list(_cli.RELEASE_PIN_TO_PARQUET.keys())}",
-            "predictability_class": "data_unavailable",
-            "pred_dominant_feature_class": "data_unavailable",
-        }
+        return _with_provenance(
+            {
+                "_live_read_error": "unknown_release_pin",
+                "_remediation": f"release_pin {release_pin!r} not in {list(_cli.RELEASE_PIN_TO_PARQUET.keys())}",
+                "predictability_class": "data_unavailable",
+                "pred_dominant_feature_class": "data_unavailable",
+            },
+            None,
+        )
     try:
         row = _cli.fetch_predictability_row(parquet_uri, target)
     except Exception as e:
-        return {
-            "_live_read_error": "s3_read_failed",
-            "_remediation": f"Could not read {parquet_uri}: {e}",
-            "predictability_class": "data_unavailable",
-            "pred_dominant_feature_class": "data_unavailable",
-        }
-    return _cli.compute_summary(row, target)
+        return _with_provenance(
+            {
+                "_live_read_error": "s3_read_failed",
+                "_remediation": f"Could not read {parquet_uri}: {e}",
+                "predictability_class": "data_unavailable",
+                "pred_dominant_feature_class": "data_unavailable",
+            },
+            parquet_uri,
+        )
+    return _with_provenance(_cli.compute_summary(row, target), parquet_uri)
