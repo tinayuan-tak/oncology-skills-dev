@@ -31,23 +31,43 @@ subgroup_stratification:
   rationale: "Cell-line RNA can vary by driver/molecular stratum (e.g. lineage-marker antigens tracking with a driver context). Backed by depmap-expression-distribution, which recomputes the per-ModelID distribution within each stratum's member-set of the DepMap-side assignment shard — not an emit-time aggregate."
 
 applies_when:
-  # COADREAD-only, and the REASON has changed (2026-09-18). This allowlist used to say
-  # depmap-subgroup-assignments-coadread-v1 was "the only landed cell-line shard today". That is
-  # MEASURABLY FALSE: EIGHT DepMap assignment shards are landed in the data catalog —
-  # coadread, coadread-cms, esca, hnsc, nsclc, paad, sclc, stad. The binding constraint is not the
-  # catalog, it is the SKILL: _CELLLINE_SUBTYPE_ASSIGNMENTS in skills/_skills_common/_live_readers.py
-  # still maps 3 indication codes to the 1 coadread shard, so the other 7 are unreachable from a run.
-  # Widening this list before that map is extended would make the card eligible for indications whose
-  # axis can only answer `unavailable` — a declaration the substrate supports but the reader cannot
-  # honour. So the widening rides WITH the reader extension, not ahead of it, and the two stay in
-  # lockstep exactly as this comment always said. An indication not listed → subtype_axis_available:
-  # false (honest).
-  - "context.indication in ['COADREAD', 'COAD', 'READ']"
+  # WIDENED 2026-09-19 to the full reader footprint. This allowlist was COADREAD-only through
+  # 2026-09-18 because of the SKILL-side constraint the previous comment documented:
+  # _CELLLINE_SUBTYPE_ASSIGNMENTS in skills/_skills_common/_live_readers.py mapped only 3 codes to the
+  # 1 coadread shard, so widening the card ahead of the reader would have made it eligible for
+  # indications whose axis could only answer `unavailable` — a declaration the reader could not honour.
+  # That constraint is now RESOLVED: the reader map was extended (tumor-presence Stage 5) and today
+  # resolves 14 indication codes to SEVEN DepMap shards. MEASURED on skills trunk e3ba6fad,
+  # _CELLLINE_SUBTYPE_ASSIGNMENTS = {COADREAD/COAD/READ→coadread, HNSC/HNSCC→hnsc, STAD/GC→stad,
+  # NSCLC/LUAD/LUSC→nsclc, ESCA→esca, PAAD/PDAC→paad, SCLC→sclc}. So the widening now rides the OTHER
+  # way — the card is the lagging half — and the two are back in lockstep. The code list below mirrors
+  # the reader's keys EXACTLY. coadread-cms is deliberately NOT here: the reader does not resolve it
+  # (no key maps to depmap-subgroup-assignments-coadread-cms-v1), so listing it would declare an axis
+  # no run path can reach. Honest grading downstream: PAAD/STAD shards are ALL-NULL (measured
+  # 2026-09-18) so those two report subtype_axis_quality: unevaluable, not a false `powered`.
+  # An indication not listed → subtype_axis_available: false (honest).
+  - "context.indication in ['COADREAD', 'COAD', 'READ', 'HNSC', 'HNSCC', 'STAD', 'GC', 'NSCLC', 'LUAD', 'LUSC', 'ESCA', 'PAAD', 'PDAC', 'SCLC']"
   - "indication.subgroup_catalog_available == true"
 
 required_inputs:
+  # DECLARED UNION (mirrors tumor-rna-distribution-by-subtype). required_inputs[].product_id is not
+  # documentation — _skills_common/envelope.py copies it into (a) governance.resolved_releases
+  # staleness auditing and (b) card_present[].provenance.required_product_ids, which the cross-evidence
+  # INDEPENDENCE invariant reads to avoid double-counting correlated evidence toward certainty. So this
+  # is the UNION of every shard ANY run of this card could resolve, NOT an all-must-resolve gate: a
+  # given run reads exactly the one shard its indication maps to, and stamps that single manifest in the
+  # reader's own assignment_manifest. Declaring the union errs the SAFE way (more apparent sharing ⇒
+  # LESS independence credit); under-declaring would let the integrator treat correlated subtype
+  # evidence as independent. The seven shards below are EXACTLY the reader's footprint (skills trunk
+  # e3ba6fad); coadread-cms is excluded because the reader does not resolve it.
   - product_id: depmap-consortium-26q1                  # DepMap 26Q1 log2(TPM+1) matrix (the distribution substrate)
-  - product_id: depmap-subgroup-assignments-coadread-v1 # the DepMap-side (ModelID-keyed) assignment shard
+  - product_id: depmap-subgroup-assignments-coadread-v1 # COADREAD / COAD / READ (MSI_H / MSS)
+  - product_id: depmap-subgroup-assignments-hnsc-v1     # HNSC / HNSCC
+  - product_id: depmap-subgroup-assignments-stad-v1     # STAD / GC  (all-null today → unevaluable)
+  - product_id: depmap-subgroup-assignments-nsclc-v1    # NSCLC / LUAD / LUSC (histology split Adeno/SCC)
+  - product_id: depmap-subgroup-assignments-esca-v1     # ESCA
+  - product_id: depmap-subgroup-assignments-paad-v1     # PAAD / PDAC (all-null today → unevaluable)
+  - product_id: depmap-subgroup-assignments-sclc-v1     # SCLC (George 2015 NAPY strata)
 
 methods:
   - call: depmap-expression-distribution
@@ -205,7 +225,7 @@ threshold_roles:
     role: method_parameter
     consumed_by: depmap-expression-distribution
 caveats:
-  - "CORRECTED 2026-09-18 — the previous caveat here claimed depmap-subgroup-assignments-coadread-v1 was the ONLY landed DepMap cell-line assignment shard. It is not: EIGHT are landed (coadread, coadread-cms, esca, hnsc, nsclc, paad, sclc, stad). The card stays COADREAD-only because the SKILL-side indication→shard map reaches just the one, not because the substrate is missing. Reaching the other seven is a skills change, tracked with the widening of applies_when."
+  - "SUBTYPE COVERAGE (2026-09-19): this card now reaches SEVEN of the eight landed DepMap shards (coadread, hnsc, stad, nsclc, esca, paad, sclc) — one per applies_when family, declared as the union in required_inputs. The eighth (coadread-cms) is landed but the reader does not resolve it, so it is deliberately NOT declared. Not every reached shard is claim-grade: STAD and PAAD are all-null → subtype_axis_quality: unevaluable, and several strata sit in the 10-29 exploratory band."
   - "Enrichment baseline is the WITHIN-LINEAGE pooled median (the union of all strata members), NOT the pan-cancer panel median — a stratum is enriched/depleted relative to its own indication's cell-line panel."
   - "A stratum below subgroup_n_floor (n<30 cell lines) carries distribution stats for context but a NULL subtype_signal — never a scoped call on underpowered data."
   - "Subtype is confidence/context for patient selection, NOT a new veto — the pooled cellline-rna-distribution card carries the presence read; this card enriches it."
