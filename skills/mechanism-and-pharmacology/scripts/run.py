@@ -56,7 +56,7 @@ _MECHANISM_VALUE_TIERS = {
 
 
 SKILL_NAME = "mechanism-and-pharmacology"
-SKILL_VERSION = "1.10.2"  # 1.10.2 (2026-09-12): curation_gap_note signal-specificity split (20-target lit-panel) — target-specific (phospho/co-essentiality) vs indication/expression-level (PROGENy/tahoe) signals; context-level-only thin targets get thin_network_context_level_signal_only (no curation-gap over-call for surface antigens like CEACAM5/MSLN). Verdict-inert.   # 1.10.1 (2026-09-12): mapped-MoA guard note — has_actionable_moa/has_pd_marker now require a MAPPED MoA class (method fix); confirmation-caveat note text + docs updated (31-class ontology, Reactome=context). Verdict-inert; spine byte-stable.   # 1.10.0 (2026-09-04): VERDICT-INERT prediction_lane_caveat MATERIALITY gate — fires only when the non-curated (kinome-prediction + co-essentiality) lanes are at least as large as the curated network, so it goes quiet on curated-dominant hubs (MYC/TP53) where firing on ~every target was noise. Spine byte-stable.   # 1.9.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(MECHANISM_PHARMACOLOGY)) + VERDICT-INERT actionable-MoA INFLATION surfacing (mechanism_confirmation_caveat = has_actionable_moa off a CONTEXT-FREE curated edge without indication-operative validation, clinically-precedented false-demote guard; prediction_lane_caveat = kinome-atlas/co-essentiality lanes carried alongside but never merged; curation_gap_note; mechanism_provenance quorum summary; MECHANISM_PHARMACOLOGY thesis + polarity_note). Spine byte-stable (resolver keys only on network_class).   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
+SKILL_VERSION = "1.11.0"  # 1.11.0 (2026-09-19): CASE-027-D1 — VERDICT-INERT mechanism_verdict_currency note: names that mechanism_verdict measures signaling-network ANNOTATION-DENSITY currency, so a partial/sparse verdict on a non-signaling mechanism class (surface antigen / neomorphic-metabolic enzyme / structural protein / synthetic-lethal partner) is expected by construction, NOT a poorly-characterized target. Constant scale-disclaimer (no over-call risk), complements curation_gap_note; cannot assert the class (points to target-profile mechanism_mismatch). Spine byte-stable (resolver keys only on network_class; replay guard asserts verdict + driving_rule_id).   # 1.10.2 (2026-09-12): curation_gap_note signal-specificity split (20-target lit-panel) — target-specific (phospho/co-essentiality) vs indication/expression-level (PROGENy/tahoe) signals; context-level-only thin targets get thin_network_context_level_signal_only (no curation-gap over-call for surface antigens like CEACAM5/MSLN). Verdict-inert.   # 1.10.1 (2026-09-12): mapped-MoA guard note — has_actionable_moa/has_pd_marker now require a MAPPED MoA class (method fix); confirmation-caveat note text + docs updated (31-class ontology, Reactome=context). Verdict-inert; spine byte-stable.   # 1.10.0 (2026-09-04): VERDICT-INERT prediction_lane_caveat MATERIALITY gate — fires only when the non-curated (kinome-prediction + co-essentiality) lanes are at least as large as the curated network, so it goes quiet on curated-dominant hubs (MYC/TP53) where firing on ~every target was noise. Spine byte-stable.   # 1.9.0 (2026-09-04): --literature lane (run_wired_skill make_literature_fn(MECHANISM_PHARMACOLOGY)) + VERDICT-INERT actionable-MoA INFLATION surfacing (mechanism_confirmation_caveat = has_actionable_moa off a CONTEXT-FREE curated edge without indication-operative validation, clinically-precedented false-demote guard; prediction_lane_caveat = kinome-atlas/co-essentiality lanes carried alongside but never merged; curation_gap_note; mechanism_provenance quorum summary; MECHANISM_PHARMACOLOGY thesis + polarity_note). Spine byte-stable (resolver keys only on network_class).   # 1.8.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.7.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.                       # stamped into provenance.yaml — MUST equal SKILL.md metadata.version
 #        facet (verdict-inert; SIGNOR cross-referenced)
 # 1.5.0: pathway-activity-context (PROGENy)
 # 1.4.0: + tahoe-drug-perturbation MoA facet (verdict-inert)
@@ -510,6 +510,59 @@ def _curation_gap_note(network_class, phospho, pathway_activity, tahoe, coess_pa
     }
 
 
+# ── VERDICT-INERT mechanism-verdict CURRENCY note (CASE-027-D1; 2026-09-19). The mechanism_verdict is a
+#    signaling-network CHARACTERIZATION class — calibrated to curated signaling-edge / phospho ANNOTATION
+#    DENSITY (mechanism_claims.py caps it at moderate; NETWORK is curation, not target biology). For a target
+#    whose therapeutic mechanism is NOT signaling-network-mediated — a lineage-restricted SURFACE ANTIGEN for
+#    redirected cytotoxicity (CEACAM5/MSLN), a NEOMORPHIC / metabolic enzyme (IDH1), a STRUCTURAL protein, or
+#    a SYNTHETIC-LETHAL partner (WRN/SMARCA2) — a partial/sparse verdict is expected BY CONSTRUCTION and is
+#    NOT evidence the target is poorly characterized; it is characterized in a DIFFERENT CURRENCY (antigen
+#    expression + surface fit / neomorphic enzymatic activity + genomic driver / partner-conditional SL).
+#    CASE-027-D1's five `mechanism-partial-neutral` pairs (CEACAM5/LUAD, IDH1/LGG, MSLN/MESO, SMARCA2/LUAD,
+#    WRN/COADREAD) are exactly this shape.
+#
+#    THE BOUNDARY that scopes this to a NOTE and not a re-grade: this skill reads only signaling-network +
+#    phospho + perturbation cards, so it CANNOT know which non-signaling class applies (that lives in the
+#    target's THESIS — target-profile's `mechanism_mismatch` dimension, CASE-018). So the note NAMES the
+#    currency and the mis-read risk WITHOUT asserting a class. Unlike `curation_gap_note` (which fires
+#    CONDITIONALLY on co-occurring signals and was deliberately split to avoid over-calling a curation gap on
+#    non-signaling targets), this is a CONSTANT descriptor of what the scale measures — so it has NO
+#    false-positive risk and it also covers the bare-thin / no-corroborating-signal case that fires no
+#    curation_gap_note at all. Verdict-INERT: never moves the byte-stable verdict (the EGFR/CEACAM5 replay
+#    guard asserts verdict + driving_rule_id only) and forces nothing.
+_MECHANISM_VERDICT_UNDER_READS = ("partial", "sparse", "data_unavailable", "insufficient")
+
+
+def _mechanism_verdict_currency(verdict) -> dict | None:
+    """Name — VERDICT-INERT — that `mechanism_verdict` measures signaling-network annotation-density currency,
+    so a below-rich verdict does NOT mean the target is poorly characterized: a non-signaling mechanism class
+    is characterized in a different currency. None for well_characterized (there is no under-read to name)."""
+    if verdict not in _MECHANISM_VERDICT_UNDER_READS:
+        return None
+    return {
+        "reason": "mechanism_verdict_is_signaling_annotation_density_currency",
+        "authoritative": "verdict",
+        "measures": (
+            "curated signaling-network + phospho ANNOTATION DENSITY (a curation currency, capped at "
+            "moderate), NOT target quality, druggability, or characterization in a non-signaling currency"
+        ),
+        "not_a_target_quality_call": True,
+        "note": (
+            f"mechanism_verdict={verdict} scores the density of the target's CURATED SIGNALING NETWORK — the "
+            "WRONG CURRENCY for a target whose therapeutic mechanism is not signaling-network-mediated. A "
+            "lineage-restricted SURFACE ANTIGEN for redirected cytotoxicity (CEACAM5/MSLN), a NEOMORPHIC / "
+            "metabolic enzyme (IDH1), a STRUCTURAL protein, or a SYNTHETIC-LETHAL partner (WRN/SMARCA2) reads "
+            "partial/sparse BY CONSTRUCTION and is characterized in a DIFFERENT currency (antigen expression + "
+            "surface fit / neomorphic enzymatic activity + genomic driver / partner-conditional SL evidence). "
+            "Do NOT read a below-rich mechanism_verdict as a poorly-characterized TARGET. This skill reads only "
+            "signaling / phospho / perturbation cards and CANNOT assert which non-signaling class applies — "
+            "confirm the target's mechanism class via its thesis (target-profile `mechanism_mismatch`) and the "
+            "target's own-currency skill; the mechanism_verdict is authoritative and unchanged for what it "
+            "measures (signaling-network annotation density)."
+        ),
+    }
+
+
 _MECHANISM_HEADLINE_SPEC = HeadlineSpec(
     gate="mechanism",
     axis_labels={
@@ -650,6 +703,10 @@ def _headline(cards, fired, verdict_pair, target=None):
         headline.get("tahoe_perturbation_class"),
         _n_coess,
     )
+    # CASE-027-D1: name the signaling-annotation-density CURRENCY of the mechanism_verdict — a constant,
+    # verdict-INERT scale-disclaimer for the under-reads verdicts (partial/sparse/data_unavailable/
+    # insufficient) so a non-signaling mechanism class is not mis-read as poorly characterized.
+    headline["mechanism_verdict_currency"] = _mechanism_verdict_currency(headline.get("mechanism_verdict"))
     # verdict-INERT claim-vector projection (11th concrete) — NETWORK/PHOSPHO/PATHWAY/PERTURBATION/
     # PREDICTABILITY decomposition + citable atoms. NETWORK is capped at moderate (annotation density,
     # not biology); PHOSPHO is the one positive signal. The mechanism resolver keys only on
@@ -718,6 +775,8 @@ _SYNTHESIS_FACET_KEYS = (
     "mechanism_confirmation_caveat",
     "prediction_lane_caveat",
     "curation_gap_note",
+    # CASE-027-D1: the verdict-inert signaling-annotation-density CURRENCY disclaimer on mechanism_verdict.
+    "mechanism_verdict_currency",
     "mechanism_provenance",
     "high_confidence_edges_count",
     "kinome_atlas_prediction_lane",

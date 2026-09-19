@@ -1214,6 +1214,106 @@ def _safety_hold_reconciliation(
     }
 
 
+# Thesis -> mechanism-class evidence currency, for the CASE-018 mechanism_mismatch dimension.
+# Keyed by the theses `thesis_axis_relevance` (nomination_verdict_gate.yaml) drops the dependency
+# veto for -- for each, a whole-gene-KO dependency scalar is the WRONG ESTIMATOR and the target is
+# adjudicated in a different currency. `oncogene_addiction` is deliberately ABSENT (dependency is
+# its legitimate decider, so no mismatch). A thesis dropped by the vocab but MISSING here still
+# emits an honest generic note (never silent on a real suppression) -- see the fallback below.
+_THESIS_MECHANISM_CLASS: dict[str, dict[str, str]] = {
+    "antigen_driven": {
+        "mechanism_class": "surface_antigen_engagement",
+        "right_currency": "antigen expression + selectivity and surface therapeutic fit",
+    },
+    "tme_io": {
+        "mechanism_class": "tumor_microenvironment_immune_modulation",
+        "right_currency": "immune-context biology (blockade / neutralization), not a tumor-cell-intrinsic dependency",
+    },
+    "neomorphic_gof": {
+        "mechanism_class": "neomorphic_gain_of_function",
+        "right_currency": "the neomorphic enzymatic activity and its genomic driver",
+    },
+    "partner_conditional_sl": {
+        "mechanism_class": "synthetic_lethal_partner_conditional",
+        "right_currency": "partner-conditional / synthetic-lethal evidence in the permissive context",
+    },
+}
+
+
+def _mechanism_mismatch_dimension(
+    suppressions: list[dict],
+    thesis: Optional[str] = None,
+) -> Optional[dict]:
+    """Surface -- VERDICT-INERT -- that the dependency axis is the WRONG ESTIMATOR for this
+    target's mechanism class, when the gate has already DROPPED a dependency veto as irrelevant
+    to the thesis. CASE-018 / CASE-027-D1 (the veto half).
+
+    A modality whose therapeutic mechanism is NOT "loss of function of this gene" -- surface
+    antigen engagement (redirected cytotoxicity), a neomorphic gain-of-function, a
+    partner-conditional synthetic lethal, or TME/immune modulation -- is not adjudicated by a
+    whole-gene-KO dependency scalar. `thesis_axis_relevance` (Step 2b) already DROPS the
+    `non_dependent` / `not_dependent_in_indication` veto for exactly these theses, recording the
+    drop in `suppressions` as `{"kind": "thesis_irrelevant_axis", "thesis": ...}`. That record is
+    gate MECHANICS, though -- a reader sees a veto vanish without the biology named. This is the
+    presentation-layer counterpart: it NAMES the mismatch as a first-class dimension (the KO axis
+    does not phenocopy this mechanism, so its non-dependence does not adjudicate the target) and
+    points to the currency that does. Mirrors `_safety_hold_reconciliation`: reads already-resolved
+    gate state, forces nothing, mints no verdict, touches no resolver golden.
+
+    Fires ONLY on a real dependency-veto drop by thesis routing (returns None otherwise). A
+    surviving veto is NOT annotated -- if the veto stands, dependency DID adjudicate and there is
+    no mismatch to name. A thesis in the vocab drop-set but absent from `_THESIS_MECHANISM_CLASS`
+    still emits an honest generic note keyed on the thesis name (never silent on a real drop).
+    """
+
+    def _is_thesis_drop(s: object) -> bool:
+        # Fail-closed on a garbled record (a bare string, a non-dict suppressed_by): only a
+        # well-formed thesis_irrelevant_axis dependency drop is a mechanism mismatch.
+        return (
+            isinstance(s, dict)
+            and s.get("short") == "dependency"
+            and isinstance(s.get("suppressed_by"), dict)
+            and s["suppressed_by"].get("kind") == "thesis_irrelevant_axis"
+        )
+
+    dropped = sorted({s["verdict"] for s in suppressions if _is_thesis_drop(s) and isinstance(s.get("verdict"), str)})
+    if not dropped:
+        return None
+    # The recorded thesis on the drop is authoritative; the argument is a fallback for callers that
+    # do not thread it. A drop can only carry ONE thesis (the target's), so either source agrees.
+    recorded = next(
+        (
+            s["suppressed_by"].get("thesis")
+            for s in suppressions
+            if _is_thesis_drop(s) and s["suppressed_by"].get("thesis")
+        ),
+        None,
+    )
+    resolved_thesis = recorded or thesis
+    cls = _THESIS_MECHANISM_CLASS.get(resolved_thesis or "", {})
+    mechanism_class = cls.get("mechanism_class", resolved_thesis or "non_loss_of_function")
+    right_currency = cls.get("right_currency", "its thesis-appropriate mechanism evidence")
+    dropped_str = ", ".join(dropped)
+    return {
+        "kind": "dependency_axis_mechanism_mismatch",
+        "authoritative": "verdict",
+        "axis": "dependency",
+        "estimator": "whole_gene_ko_dependency_scalar",
+        "thesis": resolved_thesis,
+        "mechanism_class": mechanism_class,
+        "dropped_verdicts": dropped,
+        "adjudicated_on": right_currency,
+        "note": (
+            f"The dependency axis fired {dropped_str} but the gate dropped it as IRRELEVANT to a "
+            f"{mechanism_class} target ({resolved_thesis}): a whole-gene-KO dependency scalar is the "
+            f"WRONG ESTIMATOR for this mechanism -- it does not phenocopy how the therapeutic acts -- "
+            f"so the (pooled or indication-conditioned) non-dependence does NOT adjudicate this "
+            f"target. The verdict is authoritative and unchanged; this target is adjudicated on "
+            f"{right_currency}."
+        ),
+    }
+
+
 # --- Deciding-axis router -----
 #
 # Turns a bare `insufficient_evidence` into a ROUTING statement: which gate is load-bearing
@@ -1980,6 +2080,8 @@ __all__ = [
     "_gate_scorecard",
     "_hard_gates_status",
     "_safety_hold_reconciliation",
+    "_THESIS_MECHANISM_CLASS",
+    "_mechanism_mismatch_dimension",
     "_load_gate_coverage",
     "_load_gate_verdicts",
     "_load_kill_capable_verdicts",

@@ -102,6 +102,7 @@ from tp_gates import (  # names main() calls directly
     _gate_recommendation,
     _gate_scorecard,
     _hard_gates_status,
+    _mechanism_mismatch_dimension,
     _positive_tier,
     _positive_tier_nominates,
     _safety_hold_reconciliation,
@@ -1221,6 +1222,15 @@ def main() -> int:
     _reconciliation = _safety_hold_reconciliation(gate_action, gate_hits, sub_results)
     if _reconciliation is not None:
         recommendation_gate["reconciliation"] = _reconciliation
+
+    # CASE-018 / CASE-027-D1 mechanism_mismatch dimension (VERDICT-INERT): when the gate has
+    # already DROPPED a dependency veto as irrelevant to the target's thesis (thesis_irrelevant_axis),
+    # name the biology as a first-class dimension — a whole-gene-KO dependency scalar is the wrong
+    # estimator for a surface-antigen / neomorphic-GoF / partner-conditional-SL / TME-IO mechanism.
+    # Reads the resolved suppression state, forces nothing; None when no such drop occurred.
+    _mechanism_mismatch = _mechanism_mismatch_dimension(gate_suppressions, thesis.get("thesis"))
+    if _mechanism_mismatch is not None:
+        recommendation_gate["mechanism_mismatch"] = _mechanism_mismatch
 
     # Deciding-axis router: name the load-bearing gate + whether the framework can
     # evidence it. Reports (never predicts): a fired gate is the deciding axis; on abstention,

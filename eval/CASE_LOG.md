@@ -641,6 +641,33 @@ concordance rate should be quoted as evidence of anything.
   antigen-expression / partner-conditional), rather than against phospho-signaling evidence a
   non-kinase will never produce. Same family as CASE-018's `mechanism_mismatch`.
 - **Status:** both OPEN. D1 is ranked #1 of this panel; D3 is a panel-design fix, not a code fix.
+- **Resolution (D1) — VERDICT-INERT `mechanism_verdict_currency` note landed (2026-09-19, evidence-signals
+  reframe):** the original proposal (a mechanism-CLASS conditioning INPUT so "well characterized" is judged
+  against the target's currency) was scoped down during implementation, because the input it needs is not
+  available and adding it would be a cross-repo contracts change (deferred to plan Step 5):
+  1. **mechanism-and-pharmacology has no thesis / mechanism-class signal.** It reads only four cards
+     (signaling-network-mechanism, phospho-pathway-activity, dependency-predictability, tahoe-drug-
+     perturbation); none carries a mechanism class. It therefore CANNOT assert "this is a neomorph /
+     antigen / SL-partner" — that lives in the target's thesis (target-profile / functional-requirement).
+     Threading it in is a cross-repo input, the same "make mechanism class a first-class input" CASE-018
+     names, not an in-skill fix.
+  2. **Much of D1's intent already shipped.** The verdict is already `polarity=neutral` and phrased
+     "…signaling **network**"; the v1.10.2 `curation_gap_note` signal-specificity split already refuses to
+     over-call a curation gap for non-signaling targets (CEACAM5/MSLN) and names the mechanism-class
+     hypothesis space — but only CONDITIONALLY on a co-occurring signal, and it deliberately does not
+     assert a class.
+- **What landed:** `run.py::_mechanism_verdict_currency` (v1.11.0) — a CONSTANT, verdict-inert scale-
+  disclaimer on the headline for the under-reads verdicts (partial/sparse/data_unavailable/insufficient):
+  names that mechanism_verdict measures signaling-network ANNOTATION-DENSITY currency, so a below-rich
+  verdict on a non-signaling mechanism class (surface antigen / neomorphic-metabolic enzyme / structural
+  protein / synthetic-lethal partner — the five D1 pairs CEACAM5/LUAD, IDH1/LGG, MSLN/MESO, SMARCA2/LUAD,
+  WRN/COADREAD) is expected BY CONSTRUCTION, NOT a poorly-characterized target, and points to the target's
+  own currency + target-profile `mechanism_mismatch` for the class. Being a constant (not an evidence-firing
+  heuristic) it has NO over-call risk and it also covers the bare-thin / no-corroborating-signal case that
+  fires no `curation_gap_note` at all. Spine byte-stable (resolver keys only on network_class; EGFR/CEACAM5
+  replay guard asserts verdict + driving_rule_id). 8-test file `test_mechanism_verdict_currency.py`. Shipped
+  with Part A (CASE-018) on branch `feat/mechanism-class-dimension`. **Class-asserting upgrade (the
+  contracts input) remains DEFERRED to Step 5.** D3 stays a panel-design item (undrugged targets needed).
 
 ### FR 20-pair literature panel baseline (2026-09-12) — 20/20 emitted, 65 ledger rows / 62 actionable
 
@@ -707,6 +734,28 @@ the ledger-diff scope guard in this PR (CASE-021).
   reuses `_fr_modality_fit`. Fails safe: suppression yields `hold`, never `nominate`.
 - **Status:** OPEN. Two named instances plus the CASE-001/003/006 family; the strongest argument yet
   for making mechanism class a first-class input to gate C rather than a caveat string.
+- **Resolution — VERDICT-INERT `mechanism_mismatch` DIMENSION landed (2026-09-19, evidence-signals reframe):**
+  the fix was RE-BUCKETED C→B under the reframe (do not re-grade; NAME the signal the lens vetoes instead
+  of naming). Two findings during implementation reshaped the original "new gate-C disposition" proposal:
+  1. **The veto-drop machinery ALREADY exists.** `thesis_axis_relevance` (target-contracts
+     `vocabularies/nomination_verdict_gate.yaml`, gate Step 2b) already DROPS the `(dependency,
+     non_dependent)` / `(dependency, not_dependent_in_indication)` veto for 4 of 5 canonical theses
+     (antigen_driven, tme_io, neomorphic_gof, partner_conditional_sl — NOT oncogene_addiction, which
+     keeps the veto legitimately), recording each drop as `{"kind": "thesis_irrelevant_axis", ...}` in
+     `gate_suppressions`. So there was NO new suppression to build — the honest fix is to NAME that
+     already-adjudicated state as a first-class dimension, exactly the CASE-015 verdict-inert-provenance
+     precedent (`_safety_hold_reconciliation`).
+  2. So `mechanism_mismatch` is a **read of the resolved suppression state**, not a gate mutation.
+- **What landed:** `tp_gates.py::_mechanism_mismatch_dimension` (+ `_THESIS_MECHANISM_CLASS` map) reads
+  the `thesis_irrelevant_axis` drops and emits `recommendation_gate.mechanism_mismatch` (run.py) —
+  `{kind: dependency_axis_mechanism_mismatch, authoritative: "verdict", axis: dependency, estimator:
+  whole_gene_ko_dependency_scalar, thesis, mechanism_class, dropped_verdicts, note}`. **Verdict-inert**
+  (forces nothing; the verdict is authoritative and unchanged). 11-test file
+  `test_mechanism_mismatch_dimension.py` drives through the REAL `_gate_recommendation` (not a hand-built
+  suppression list): fires for the whole vocab drop-set + never silent (anti-vacuity), silent when the
+  veto survives (oncogene_addiction / no thesis / favorable dependency), honest generic fallback for an
+  unmapped thesis, robust to malformed records. Shipped with Part B (CASE-027-D1) on branch
+  `feat/mechanism-class-dimension`.
 
 ### CASE-019 — `lineage_selective` published alongside claim_vector DEP `absent` on 4 of 10 lineage pairs — REPORTABLE RISK, not a bug (2026-09-12)
 - **Surfaced by:** the panel. GATA3/NBL, SPI1/AML, STAG2/BLCA and MAPK1/COADREAD all publish verdict
@@ -1486,7 +1535,7 @@ the Bucket C reconciliation contract must clear.*
 | **CASE-025** | fleet-level `emits → consumed` guard (4 orphan summary_fields) | engineering; verdict-inert; its own PR |
 | **CASE-026** | pin the `axis_key` set → deterministic per-axis panel stats | engineering; verdict-inert (per-pair verdicts unaffected) |
 | **CASE-023** (residual) | `harvest_literature` should refuse unresolvable codes | engineering; ad-hoc-path half |
-| **CASE-018 / -027-D1** | emit `mechanism_mismatch` as a first-class DIMENSION (PARP1/BRCA, CD19/DLBC) — **no gate-C wiring** | engineering; verdict-neutral. **Re-bucketed C→B under the reframe**: the defect is a signal the lens *vetoes instead of naming*, so name it |
+| **CASE-018 / -027-D1** | emit `mechanism_mismatch` as a first-class DIMENSION (PARP1/BRCA, CD19/DLBC) — **no gate-C wiring** | ✅ **LANDED 2026-09-19** (branch `feat/mechanism-class-dimension`): target-profile `mechanism_mismatch` (names the already-dropped `thesis_irrelevant_axis` veto) + mechanism-and-pharmacology `mechanism_verdict_currency` (names the signaling-annotation-density currency mis-read). Both verdict-inert. Class-asserting contracts INPUT deferred to Step 5. See Resolution blocks above. |
 | **CASE-016** | surface the surface/immune thesis as a first-class DIMENSION; verdict stays conservative | engineering; verdict-neutral. **Re-bucketed C→B**: the question was never "should surface DECIDE a GO" but "is its signal shown on its own axis" |
 
 ### Bucket C — needs-your-scientific-call (signal↔verdict reconciliation; NOT verdict-loosening)
