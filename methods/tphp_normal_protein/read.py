@@ -30,7 +30,8 @@ from methods.catalog_query.read import bucket_key_for
 from methods.normal_tissue_safety_common.essential_organs import TPHP_CROSSWALK
 
 DERIVED_MANIFEST_ID = "normal-tissue-protein-abundance-per-gene-v2"
-METHOD_VERSION = "0.3.0"  # 0.3.0: v2 substrate — tissue_category + solid-tissue counts + vital-organ MEASURABILITY
+METHOD_VERSION = "0.4.0"  # 0.4.0: abundance read-out is ORGANS ONLY (NON_TISSUE_ABUNDANCE_CATEGORIES)
+# 0.3.0: v2 substrate — tissue_category + solid-tissue counts + vital-organ MEASURABILITY
 # 0.2.0: + vital-organ safety read (tphp_vital_organ_* via TPHP_CROSSWALK), for T0-3 (on-target-safety wiring)
 
 # Denominators sourced from the derived manifest `parameters` block (n_adult_tissues / n_fetal_groups)
@@ -49,6 +50,26 @@ N_FETAL_GROUPS_TOTAL = 4
 # 60 solid + 4 blood_compartment + 4 body_fluid + 1 non_tissue + 1 unassignable = 70.
 SOLID_TISSUE_CATEGORY = "solid_tissue"
 N_SOLID_ADULT_TISSUES_TOTAL = 60
+
+# Categories the ABUNDANCE read-out must not name. `max_median_log2_abundance` /
+# `median_across_tissues_log2_abundance` / `highest_abundance_tissue` answer "how much protein is in
+# the normal ORGANS a systemic agent would hit, and which one carries the most" — so the 10 adult
+# parts that are not organs are excluded from that population. Measured off v2 before this filter
+# existed: CDH17 reported `plant vessel` (18.16), MSLN `tear`, FOLR1 `saliva`, GPC3 `urine`. The
+# vocabulary already knew what those parts were; the selector never asked.
+#
+# ⚠️ EXCLUDE-LIST, NOT an allow-list of SOLID_TISSUE_CATEGORY. `tissue_category` and `tissue_class`
+# partition each other exactly (`fetal_germ_layer` <-> `fetal`, measured: 4 parts), so filtering to
+# solid_tissue alone would make `highest_abundance_tissue_class == "fetal"` UNREACHABLE and leave
+# half the card's declared `adult_normal | fetal` vocabulary permanently dead. The read-out
+# population is the 60 solid adult parts + the 4 fetal germ-layer groups = 64 of 74.
+#
+# ⚠️ AND THIS IS THE OPPOSITE DIRECTION FROM THE BREADTH COUNTS, DELIBERATELY. The breadth
+# numerators keep every part and fail OPEN on an unrecognised category (see `tcat` below), because
+# there dropping a part makes the liability veto fire LESS. Here the fields are DISPLAY — no rule
+# reads any of the three — and naming a body fluid as the organ at risk is the failure, so the
+# read-out narrows while the counts stay wide. Two populations, two directions, one reason each.
+NON_TISSUE_ABUNDANCE_CATEGORIES = frozenset({"body_fluid", "blood_compartment", "non_tissue", "unassignable"})
 
 # ── SUPPORT (measurability) bar ────────────────────────────────────────────────────────────────────
 # 21 of the 70 adult parts have n_samples <= 2 (measured off v2, 2026-09-13) — 30% of the breadth
@@ -499,11 +520,23 @@ def compute_summary(gene: str, rows: list[dict]) -> dict:
         key=lambda t: (t["median_log2_abundance"] is not None, t["median_log2_abundance"] or 0.0), reverse=True
     )
 
-    abundances = [t["median_log2_abundance"] for t in per_tissue if t["median_log2_abundance"] is not None]
+    # ABUNDANCE READ-OUT POPULATION: organs only (solid adult + fetal germ layer), never a body fluid,
+    # blood compartment, hair or an unassignable part — see NON_TISSUE_ABUNDANCE_CATEGORIES. All THREE
+    # abundance fields derive from this one list on purpose: the card documents
+    # `highest_abundance_tissue` as "the tissue carrying max_median_log2_abundance", and narrowing the
+    # max while leaving the median over all 74 parts could make the MEDIAN EXCEED THE MAX — a worse
+    # contradiction than the one this filter closes.
+    abundance_rows = [t for t in per_tissue if t["tissue_category"] not in NON_TISSUE_ABUNDANCE_CATEGORIES]
+
+    abundances = [t["median_log2_abundance"] for t in abundance_rows if t["median_log2_abundance"] is not None]
+    # Detection breadth keeps EVERY part: "was this protein seen at all" is not an organ-risk claim, and
+    # this is the wide/fail-open population the breadth counts use.
     det_rates = [t["detection_rate"] for t in per_tissue if t["detection_rate"] is not None]
 
-    # Highest-abundance tissue (across adult + fetal): the top of the sorted display list with a value.
-    top = next((t for t in per_tissue if t["median_log2_abundance"] is not None), None)
+    # Highest-abundance tissue (across solid adult + fetal): the top of the sorted read-out population
+    # with a value. `per_tissue` is already sorted by abundance descending, and the filter preserves
+    # that order, so `next(...)` is still the argmax.
+    top = next((t for t in abundance_rows if t["median_log2_abundance"] is not None), None)
 
     n_adult = len(adult_tissues)
     n_fetal = len(fetal_tissues)

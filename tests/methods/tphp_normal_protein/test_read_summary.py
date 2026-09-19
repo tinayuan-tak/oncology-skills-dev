@@ -555,3 +555,131 @@ def test_compute_abundance_floor_recalibration(tmp_path):
     prod = _write_product(tmp_path, rows)
     assert read.compute_abundance_floor(product_path=prod, percentile=50) == pytest.approx(50.0, abs=1.0)
     assert read.compute_abundance_floor(product_path=prod, percentile=75) == pytest.approx(75.0, abs=1.0)
+
+
+# ── ABUNDANCE READ-OUT IS ORGANS ONLY (NON_TISSUE_ABUNDANCE_CATEGORIES) ────────────────────────────
+# Before this filter the three abundance fields were a category-BLIND argmax over all 74 parts, while
+# the same module already filtered by category for its breadth denominators. Measured off the live v2
+# product: 2558 of 13261 genes (19.3%) named a non-organ part as their highest-abundance normal
+# TISSUE — 1505 body_fluid, 547 blood_compartment, 399 non_tissue (hair), 107 unassignable. CDH17
+# read `plant vessel` (18.16), MSLN `tear`, FOLR1 `saliva`, GPC3 `urine`.
+
+
+def test_body_fluid_is_not_named_as_the_highest_abundance_tissue(tmp_path):
+    """The MSLN/FOLR1 shape: a body fluid outranks every organ on abundance.
+
+    Anti-vacuity is built in — `tear` is the unfiltered argmax by 3.0 log2, so this test can only
+    pass because the filter exists, and it reds on a category-blind selector.
+    """
+    rows = [
+        _row("MSLN", "tear", "adult_normal", 19.4, tissue_category="body_fluid"),
+        _row("MSLN", "seminal vesicle", "adult_normal", 17.5),
+        _row("MSLN", "lung", "adult_normal", 16.0),
+    ]
+    out = read.read_target_summary("MSLN", product_path=_write_product(tmp_path, rows))
+    assert out["highest_abundance_tissue"] == "seminal vesicle"
+    assert out["max_median_log2_abundance"] == 17.5
+    # the displaced part is still IN the display list — narrowing the read-out never hides a row
+    assert "tear" in {t["tissue"] for t in out["per_tissue_abundance"]}
+    assert out["n_adult_tissues_detected"] == 3, "breadth counts keep every part (fail-OPEN, by design)"
+
+
+@pytest.mark.parametrize(
+    "category,part",
+    [
+        ("body_fluid", "saliva"),
+        ("blood_compartment", "erythrocyte"),
+        ("non_tissue", "hair"),
+        ("unassignable", "plant vessel"),
+    ],
+)
+def test_every_non_organ_category_is_excluded_from_the_readout(tmp_path, category, part):
+    """All FOUR excluded categories, not just the one that motivated the fix.
+
+    `non_tissue` (hair, 399 genes) and `blood_compartment` (547) are together larger than
+    `unassignable` (107) by an order of magnitude, so a fix aimed only at `plant vessel` would have
+    closed the smallest of the four holes.
+    """
+    rows = [
+        _row("GENE1", part, "adult_normal", 20.0, tissue_category=category),
+        _row("GENE1", "liver", "adult_normal", 12.0),
+    ]
+    out = read.read_target_summary("GENE1", product_path=_write_product(tmp_path, rows))
+    assert out["highest_abundance_tissue"] == "liver"
+    assert out["max_median_log2_abundance"] == 12.0
+
+
+def test_a_fetal_germ_layer_can_still_be_the_highest_abundance_tissue(tmp_path):
+    """⚠️ REGRESSION GUARD ON THE FIX'S OWN SHAPE — do not turn this into an allow-list.
+
+    `tissue_category` and `tissue_class` partition each other (`fetal_germ_layer` <-> `fetal`), so
+    filtering to `solid_tissue` ALONE would make `highest_abundance_tissue_class == "fetal"`
+    unreachable and leave half the card's declared `adult_normal | fetal` vocabulary permanently
+    dead. Measured on the live product: 922 of 13261 genes top out on a fetal group.
+    """
+    rows = [
+        _row("MAGEA3", "blood plasma", "adult_normal", 18.0, tissue_category="body_fluid"),
+        _row("MAGEA3", "endoderm", "fetal", 15.0, tissue_category="fetal_germ_layer"),
+        _row("MAGEA3", "testis", "adult_normal", 9.0),
+    ]
+    out = read.read_target_summary("MAGEA3", product_path=_write_product(tmp_path, rows))
+    assert out["highest_abundance_tissue"] == "endoderm"
+    assert out["highest_abundance_tissue_class"] == "fetal"
+    assert out["max_median_log2_abundance"] == 15.0
+
+
+def test_median_can_never_exceed_the_max_across_the_readout_population(tmp_path):
+    """The card's invariant: `highest_abundance_tissue` is "the tissue carrying
+    max_median_log2_abundance". All three abundance fields therefore derive from ONE population.
+
+    Narrowing the max while leaving the median over all 74 parts would let the MEDIAN EXCEED THE MAX
+    — measured on the live product, that state would have been reachable for 77 genes. This fixture
+    is one of them in miniature: the two body fluids at 30.0 drag an all-parts median to 15.0, above
+    the organs-only max of 12.0.
+    """
+    rows = [
+        _row("GENE2", "urine", "adult_normal", 30.0, tissue_category="body_fluid"),
+        _row("GENE2", "blood plasma", "adult_normal", 30.0, tissue_category="body_fluid"),
+        _row("GENE2", "liver", "adult_normal", 12.0),
+        _row("GENE2", "lung", "adult_normal", 3.0),
+    ]
+    out = read.read_target_summary("GENE2", product_path=_write_product(tmp_path, rows))
+    assert out["max_median_log2_abundance"] == 12.0
+    assert out["median_across_tissues_log2_abundance"] == 7.5, "median over the 2 ORGANS, not all 4 parts"
+    assert out["median_across_tissues_log2_abundance"] <= out["max_median_log2_abundance"]
+    # the anti-vacuity arm: the unfiltered median WOULD have broken the invariant
+    all_parts_median = 21.0  # median(30.0, 30.0, 12.0, 3.0)
+    assert all_parts_median > out["max_median_log2_abundance"]
+
+
+def test_organ_free_detection_nulls_the_abundance_readout_but_not_the_breadth(tmp_path):
+    """THE FIX'S OWN FAIL DIRECTION, measured: 105 of 13261 genes (0.8%) are detected ONLY in
+    non-organ parts, so their abundance read-out becomes None where it used to name a fluid.
+
+    None is the honest answer — there is no organ abundance to report — and it is the same token the
+    absent-gene path already emits. Breadth is deliberately UNCHANGED: it keeps every part and still
+    says the protein was seen, so a consumer can tell "no organ abundance" from "gene not found".
+    """
+    rows = [
+        _row("GENE3", "blood plasma", "adult_normal", 14.0, tissue_category="body_fluid"),
+        _row("GENE3", "leukocyte", "adult_normal", 13.0, tissue_category="blood_compartment"),
+    ]
+    out = read.read_target_summary("GENE3", product_path=_write_product(tmp_path, rows))
+    assert out["highest_abundance_tissue"] is None
+    assert out["highest_abundance_tissue_class"] is None
+    assert out["max_median_log2_abundance"] is None
+    assert out["median_across_tissues_log2_abundance"] is None
+    # NOT data_unavailable — the gene WAS found, in 2 adult parts
+    assert out["normal_protein_breadth_class"] == "restricted_normal_protein"
+    assert out["n_adult_tissues_detected"] == 2
+    assert out["max_detection_rate"] == 1.0, "detection breadth keeps every part"
+
+
+def test_a_missing_tissue_category_still_counts_as_an_organ(tmp_path):
+    """v1-substrate compatibility: an absent `tissue_category` fails OPEN to solid_tissue at the
+    `tcat` assignment, so a v1 product read through this reader keeps its whole read-out population
+    rather than silently emptying it."""
+    rows = [_row("GENE4", "liver", "adult_normal", 9.0, tissue_category=None)]
+    out = read.read_target_summary("GENE4", product_path=_write_product(tmp_path, rows))
+    assert out["highest_abundance_tissue"] == "liver"
+    assert out["max_median_log2_abundance"] == 9.0
