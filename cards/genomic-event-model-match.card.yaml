@@ -95,10 +95,19 @@ thresholds:
   dominant_event_min_fraction: 0.10   # fraction of tumors of a state for it to be the matched event
   dependent_chronos: -0.5             # model DEPENDENT on target (positive_model gate)
   not_dependent_chronos: -0.2         # model NOT dependent (resistance_model gate)
+  # Sample-size discipline (existence-power): event_matched_not_dependent fires when >=1 model carries
+  # the tumor's functional event (n_event_matched > 0) but NONE are Chronos-dependent
+  # (read.py _classify_event_correspondence). Below this floor that negative rests on a handful of
+  # matched models — absence of dependency across few genotype-matched lines is weak evidence of
+  # non-dependency, not a measured negative. Keyed on n_event_matched (often 1-5 for a specific
+  # event, so the warning is non-vacuous).
+  min_event_matched_models: 5
 
-# No card predicate compares these: the method emits the already-derived event_correspondence_class,
-# applying each cutoff itself. Verified consumed in genomic_event_model_match/read.py:35-38
-# (DEPENDENT_CHRONOS / NOT_DEPENDENT_CHRONOS and the dominant-event fraction gate).
+# The first three are applied by the method (never a card predicate): it emits the already-derived
+# event_correspondence_class, applying each cutoff itself. Verified consumed in
+# genomic_event_model_match/read.py:35-38 (DEPENDENT_CHRONOS / NOT_DEPENDENT_CHRONOS and the
+# dominant-event fraction gate). min_event_matched_models is compared by a warning predicate on this
+# card, so it is deliberately NOT declared in threshold_roles (that would trip MISDECLARED_THRESHOLD_ROLE).
 threshold_roles:
   dominant_event_min_fraction:
     role: method_parameter
@@ -109,6 +118,11 @@ threshold_roles:
   not_dependent_chronos:
     role: method_parameter
     consumed_by: genomic-event-model-match
+
+warning_predicates:
+  - warning_id: few_event_matched_models
+    if: "n_event_matched < THRESHOLD.min_event_matched_models"
+    message: "Fewer than 5 genotype-matched DepMap models carry the tumor's functional event. An event_matched_not_dependent call rests on a small matched set — absence of dependency across few matched models is weak evidence of non-dependency. Read alongside the pan-cancer and lineage dependency cards."
 
 caveats:
   - "GENOTYPE-identity correspondence, NOT expression-similarity (recommended-models) and NOT full-transcriptome Celligner. The two patient↔model joins are complementary — a model can match on one axis and mismatch on the other; that disagreement is the signal (expression-matched but genotype-mismatched = poor model for a LoF-driven dependency)."

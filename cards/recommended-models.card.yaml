@@ -80,10 +80,20 @@ thresholds:
   dependent_chronos: -0.5           # model DEPENDENT on target (positive_model gate)
   not_dependent_chronos: -0.2       # model NOT dependent (resistance_model gate)
   detectable_log2tpm: 1.0           # model "expresses" target (below → negative_control)
+  # Sample-size discipline (existence-power, not estimation-power): the in-lineage correspondence
+  # distinction (well_modeled_in_lineage needs n_positive_models_in_lineage >= 1) rests on how many
+  # DepMap models of the patient's lineage exist at all. Below this floor, a well_modeled_off_lineage
+  # or poorly_modeled call reflects a thin lineage panel, not a measured absence of a representative
+  # in-lineage model. Keyed on n_lineage_models (small + variable across lineages), NOT on
+  # n_models_considered — that counts every DepMap model with a target TPM (~1900), so a floor on it
+  # could never fire (a green that cannot fail).
+  min_lineage_models: 5
 
-# No card predicate compares these: the method emits the already-derived model_correspondence_class,
-# applying each cutoff itself. Verified consumed in patient_model_expression_correspondence/read.py:19-23
-# (DEPENDENT_CHRONOS / NOT_DEPENDENT_CHRONOS / DETECTABLE_LOG2TPM).
+# The first three are applied by the method (never a card predicate): it emits the already-derived
+# correspondence_class, applying each cutoff itself. Verified consumed in
+# patient_model_expression_correspondence/read.py:19-23 (DEPENDENT_CHRONOS / NOT_DEPENDENT_CHRONOS /
+# DETECTABLE_LOG2TPM). min_lineage_models is compared by a warning predicate on this card, so it is
+# deliberately NOT declared in threshold_roles (that would trip MISDECLARED_THRESHOLD_ROLE).
 threshold_roles:
   dependent_chronos:
     role: method_parameter
@@ -94,6 +104,11 @@ threshold_roles:
   detectable_log2tpm:
     role: method_parameter
     consumed_by: patient-model-expression-correspondence
+
+warning_predicates:
+  - warning_id: few_lineage_models
+    if: "n_lineage_models < THRESHOLD.min_lineage_models"
+    message: "Fewer than 5 DepMap models of {indication.label}'s lineage. The in-lineage vs off-lineage distinction is underpowered — a well_modeled_off_lineage or poorly_modeled call reflects a thin lineage panel, not a measured absence of an in-lineage model. Read alongside the pan-cancer cards."
 
 caveats:
   - "EXPRESSION-similarity correspondence, NOT the genomic same-functional-event join (canonical P3/M11) and NOT full-transcriptome Celligner — both deferred. A model can match on target expression yet carry a different driver context; genomic-event matching is the genomic-alteration plan's job."
