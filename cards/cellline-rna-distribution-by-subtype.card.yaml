@@ -102,9 +102,19 @@ outputs:
     # contract is that a reader opts in only after its card declares the wider enum. This arm is where
     # `exploratory` matters MOST: the DepMap panels are an order of magnitude smaller than the patient
     # cohorts the floor of 30 was calibrated on (n≈20-130 per indication BEFORE the stratum split), so
-    # a floor of 30 rejects nearly every stratum. Measured 2026-09-18 on the landed shards, the 10-29
-    # band is where the real information sits: coadread-cms CMS3 19 / CMS1 17, hnsc larynx 10,
-    # sclc SCLC_N 15. Those are hypothesis-grade, not claim-grade — which is what a distinct grade says.
+    # a floor of 30 rejects nearly every stratum.
+    #
+    # ★ RE-MEASURED 2026-09-19 THROUGH THE READER (not off the shards) and the conclusion got STRONGER
+    # while two of the old example numbers turned out to be the WRONG MEASURAND — see the units note in
+    # `thresholds` below. Post-join, `powered` is UNREACHABLE on this arm today: every one of the seven
+    # routed families has AT MOST ONE stratum clearing 30, so none can ever show >=2. The full grade
+    # census, per family: coadread exploratory (MSS 100 measured / MSI_H 27) · nsclc exploratory
+    # (Adeno 107 / SCC 28) · esca exploratory (EAC 63 / ESCC 26) · sclc exploratory (SCLC_A 32 /
+    # SCLC_N 15, SCLC_P 8, SCLC_Y 8) · hnsc underpowered (oral_cavity 55 only; larynx 5,
+    # oropharyngeal 2, HPV±/4 expression-subtype strata all unclassified) · stad + paad unevaluable.
+    # So `exploratory` is not a nicety here — it is the ONLY grade under which this arm says anything
+    # at all, and the strata it admits (MSI_H 27, SCC 28, ESCC 26, SCLC_N 15) are the entire
+    # cross-subtype signal. Hypothesis-grade, not claim-grade — which is what a distinct grade says.
     subtype_axis_quality:
       - powered                                  # >=2 strata clear the n-floor → cross-subtype contrast supportable
       - exploratory                              # <2 measured but >=2 measured-OR-exploratory (10-29 members):
@@ -201,13 +211,30 @@ thresholds:
   # Mirrors _SUBTYPE_ENRICH_LOG2_DELTA in the method (declared here so it is reviewable).
   subtype_enrich_log2_delta: 1.0
   subgroup_n_floor: 30                           # underpowered stratum → null signal, never a scoped call
+  #
+  # ★★ UNITS — WHAT BOTH FLOORS ARE APPLIED TO (corrected 2026-09-19). Both floors read the EMITTED
+  # `subgroup_n`, which is the POST-JOIN count: shard members ∩ DepMap cell lines that carry an RNA
+  # profile. It is NOT the assignment shard's `is_member == true` count, and the two differ by enough
+  # to flip a grade. Measured both ways on the same day (shard-side → post-join): coadread MSI_H
+  # 30 → 27, MSS 106 → 100; hnsc site_larynx 10 → 5, site_oral_cavity 63 → 55; nsclc Adeno 118 → 107,
+  # SCC 32 → 28; esca EAC 67 → 63, ESCC 30 → 26; sclc unchanged (32/15/8/8).
+  # The earlier revision of this block, and the panel caveat below, quoted the SHARD-SIDE numbers and
+  # then drew floor conclusions from them. That made two claims that are false of the emitted record:
+  # "MSI_H 30 clears the floor of 30" (it is 27 post-join, so it does NOT) and "hnsc larynx 10 sits in
+  # the 10-29 exploratory band" (it is 5 post-join, so it grades `underpowered`). Same for esca ESCC,
+  # which is 30 in the shard and 26 in the record. The shard numbers were never wrong; they were the
+  # wrong MEASURAND for a statement about a floor the consumer applies after the join.
+  # POST-JOIN COUNTS ARE TARGET-INDEPENDENT — verified identical for EPCAM / MET / DLL3 — because the
+  # join is on RNA-profile availability per cell line, not on the queried gene. So a grade quoted here
+  # is a property of the substrate and is safe to state once, rather than per target.
+  #
   # SECOND, LOWER band — NOT a relaxation of subgroup_n_floor, which keeps its one meaning (>=30) on
   # every substrate. INCLUSIVE (`subgroup_n >= exploratory_floor`), mirroring
-  # subgroup_common.SUBGROUP_EXPLORATORY_FLOOR. This is the arm where the band does the most work:
-  # DepMap panels are n≈20-130 per indication BEFORE the stratum split, so a floor calibrated on
-  # patient cohorts rejects nearly everything. MEASURED 2026-09-18 on the landed shards, the band
-  # captures coadread-cms CMS3 19 / CMS1 17, hnsc larynx 10 and sclc SCLC_N 15 — real cell lines that
-  # were previously discarded to a null with no trace that they existed.
+  # subgroup_common.SUBGROUP_EXPLORATORY_FLOOR. This is the arm where the band does the most work, and
+  # post-join that case is STRONGER than the shard-side numbers suggested: no routed family has >=2
+  # strata clearing 30, so `powered` is unreachable and the band carries the whole arm. What it
+  # actually admits: coadread MSI_H 27, nsclc SCC 28, esca ESCC 26, sclc SCLC_N 15 — real cell lines
+  # that were previously discarded to a null with no trace that they existed.
   subgroup_exploratory_floor: 10
 
 threshold_roles:
@@ -229,7 +256,7 @@ caveats:
   - "Enrichment baseline is the WITHIN-LINEAGE pooled median (the union of all strata members), NOT the pan-cancer panel median — a stratum is enriched/depleted relative to its own indication's cell-line panel."
   - "A stratum below subgroup_n_floor (n<30 cell lines) carries distribution stats for context but a NULL subtype_signal — never a scoped call on underpowered data."
   - "Subtype is confidence/context for patient selection, NOT a new veto — the pooled cellline-rna-distribution card carries the presence read; this card enriches it."
-  - "DepMap cell-line panels are small per stratum; most indication×stratum cells will be underpowered. This is an honest capability ceiling, not an absence of signal. Measured 2026-09-18 across the landed shards: coadread MSS 106 / MSI_H 30 and coadread-cms CMS2 41 / CMS4 33 clear the floor of 30, while CMS3 19, CMS1 17, hnsc larynx 10 and sclc SCLC_N 15 sit in the 10-29 exploratory band — real cell lines, too few for a scoped call."
+  - "DepMap panels are small per stratum, and both floors read the POST-JOIN subgroup_n (shard members ∩ lines with an RNA profile), NOT the shard member count — see the units note in thresholds. Measured through the reader 2026-09-19: no routed family has 2 strata clearing 30, so `powered` is unreachable today. Best per family: coadread MSS 100 (MSI_H 27), nsclc Adeno 107 (SCC 28), esca EAC 63 (ESCC 26), sclc SCLC_A 32 (SCLC_N 15), hnsc oral_cavity 55. An honest ceiling, not absent signal."
 
 # Two orthogonal axes (Slice A1): measurement LAYER + biological SAMPLE. Same as the pooled sibling —
 # differs only in GRAIN (target_subtype), not measurement/sample_context.
