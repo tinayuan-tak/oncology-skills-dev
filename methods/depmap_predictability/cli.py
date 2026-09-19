@@ -1,32 +1,29 @@
 #!/usr/bin/env python3
 """depmap-predictability CLI (v2 — DepMap-parity + extensions thin lookup).
 
-Reads ONE row out of the frozen derived parquet (default pin 26q1-v3)
-`s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v3/predictability_per_gene.parquet`
+Reads ONE row out of the frozen derived parquet (default pin 26q1-v4)
+`s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v4/predictability_per_gene.parquet`
 via pyarrow predicate pushdown. The parquet was produced by the sibling
-precompute method (`depmap_predictability_precompute`). v2 remains selectable
-via --release-pin for reproducibility (identical schema; v3 only widens the
-gene-set gate 0.30 → 0.15).
+precompute method (`depmap_predictability_precompute`). v1/v2/v3 remain selectable
+via --release-pin for reproducibility (v4 re-materializes v3's exact gene set / model /
+CV with real SHAP attributions; v3 widened the gene-set gate 0.30 → 0.15 over v2).
 
 v2 schema exposes:
   - pearson_r_rf + r² + bootstrap 95% CI (primary DepMap-parity scalar)
   - pearson_r_xgb + r² + CI (XGBoost companion)
   - model_agreement + delta_r2 (dual-model divergence diagnostic)
-  - top_features_rf_shap + top_features_xgb_shap: top-ranked features. NOTE: the
-    `_shap` column suffix is retained for schema-compat with v1/v2, but the shipped
-    26q1 products carry RF impurity importances / XGB gain importances, NOT SHAP
-    values (the precompute lazy-imports `shap` and took its documented fallback path
-    when shap was absent at runtime; see the derived-manifest provenance note). Human-
-    facing figure labels say "feature importance" accordingly. Re-run with `shap`
-    installed for true TreeExplainer attributions.
-    ⚠ VINTAGE CAVEAT: products materialized BEFORE 2026-09-16 do not match the
-    "XGB gain importances" half of that sentence. The precompute's no-SHAP fallback
-    ranked the xgb table by RF's importances, so in those vintages
-    top_features_xgb_shap is top_features_rf_shap under another name (identical
-    features AND identical scores), and its per-entry rf_importance was hard-coded
-    to 0.0, which concealed the duplication. Fixed in the precompute on 2026-09-16;
-    the claim above becomes true only for products re-materialized after that date.
-    Compare the two lists before treating them as independent models.
+  - top_features_rf_shap + top_features_xgb_shap: top-ranked features by mean(|SHAP|)
+    TreeExplainer attribution in the default 26q1-v4 pin, which ran with `shap` 0.52.0
+    installed — so the RF and XGB tables are INDEPENDENT second-model opinions (verified
+    against the shipped bytes: xgb == rf in 0/9,240 genes).
+    ⚠ VINTAGE CAVEAT: older pins (26q1-v1/v2/v3, materialized BEFORE 2026-09-16) are
+    NOT SHAP. The precompute lazy-imported `shap`, found it absent, and took its
+    documented fallback path: both columns carry RF impurity importances, so
+    top_features_xgb_shap is top_features_rf_shap under another name (identical features
+    AND identical scores) with per-entry rf_importance hard-coded to 0.0, which concealed
+    the duplication. Compare the two lists before treating an older pin's columns as
+    independent models. Human-facing figure labels for those pins say "feature importance"
+    accordingly.
   - per_lineage_predictability (RF-only lineage-conditional table). top_feature is
     NULL where the within-lineage r² fell below the DepMap high-confidence floor
     (0.16); top_feature_status distinguishes "reported" from
@@ -60,14 +57,17 @@ DEFAULT_TARGET_CONTRACTS = Path(
     or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
 
-# Release-pin → parquet S3 URI. v3 (wider 0.15 gate, 9,240 genes) is the canonical build;
-# v2 (0.30 gate, 3,730 genes) is RETAINED for reproducibility of historical runs. v2/v3
-# resolve from their data-catalog manifests (single source of truth); v1's manifest is NOT
-# in the catalog (BLOCKED) so its URI stays hardcoded until that manifest lands.
+# Release-pin → parquet S3 URI. v4 (real TreeExplainer SHAP attributions, 9,240 genes) is
+# the CANONICAL build; v3 (same gene set / model / CV as v4, but `shap` was absent at
+# precompute so attributions fell back to RF impurity / XGB gain) and v2 (0.30 gate, 3,730
+# genes) are RETAINED for reproducibility of historical runs. v2/v3/v4 resolve from their
+# data-catalog manifests (single source of truth); v1's manifest is NOT in the catalog
+# (BLOCKED) so its URI stays hardcoded until that manifest lands.
 RELEASE_PIN_TO_PARQUET = {
     "26q1-v1": "s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v1/predictability_per_gene.parquet",
     "26q1-v2": s3_uri_for("depmap-predictability-26q1-v2"),
     "26q1-v3": s3_uri_for("depmap-predictability-26q1-v3"),
+    "26q1-v4": s3_uri_for("depmap-predictability-26q1-v4"),
 }
 
 # Feature-class → SVG color map. Extended for v2 (arm + driver_gof/lof + cross-gene).
@@ -452,7 +452,7 @@ def emit_manifest(target: str, release_pin: str, summary: dict, out_dir: Path, p
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol")
 @click.option(
-    "--release-pin", default="26q1-v3", show_default=True, type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys()))
+    "--release-pin", default="26q1-v4", show_default=True, type=click.Choice(list(RELEASE_PIN_TO_PARQUET.keys()))
 )
 @click.option("--parquet-uri", default=None, help="Override the parquet URI (testing / local fixture).")
 @click.option("--out", required=True, type=click.Path(file_okay=False, writable=True, path_type=Path))
