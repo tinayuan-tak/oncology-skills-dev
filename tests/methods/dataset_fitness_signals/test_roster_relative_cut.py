@@ -152,52 +152,73 @@ def test_the_conditioned_distribution_reproduces_what_the_contract_declared(rows
 
 
 @needs_contract
-def test_a_single_armed_product_reports_absence_as_a_measured_zero(rows):
-    """The mechanism behind the confound, pinned on the data.
+def test_a_single_armed_product_reports_absence_as_null(rows):
+    """The mechanism behind the confound, pinned on the data -- as corrected by target-contracts #837.
 
     Discordance is the fraction of genes whose two arms disagree in sign. One live arm cannot
-    disagree with itself, so a collapsed product's 0.0 is an ABSENCE wearing a measured value,
-    not a good result. Seven of the eight report exactly 0.0 for that reason; ``hnsc`` is the
-    instructive exception -- ``degraded_to_adjacent_only`` but with two adjacent-derived arms
-    still live, so one COMPARATOR yet two ARMS, and its 0.0035 is genuinely measured.
+    disagree with itself, so a collapsed product has NOTHING to measure. #837 records that as
+    ``null`` (undefined) rather than the fabricated ``0.0`` it used to carry: an absence must not
+    wear a measured value, because a 0.0 reads as "measured, and perfectly concordant" -- the most
+    reassuring value there is -- exactly where nothing was measured at all. The seven
+    ``degraded_to_gtex_only`` products (acc, lgg, ov, sclc, skcm, tgct, ucs) each report null.
+    ``hnsc`` is the instructive exception: ``degraded_to_adjacent_only`` but with two
+    adjacent-derived arms still live, so one COMPARATOR yet two ARMS, and its 0.0035 is genuinely
+    measured -- the one collapsed product that survives a non-null filter.
     """
+    gtex_only = [r for r in rows if r["comparator_status"] == "degraded_to_gtex_only"]
+    assert len(gtex_only) == 7, [r["product_id"] for r in gtex_only]
+    assert all(r["discordant_fraction"] is None for r in gtex_only), gtex_only
+
+    # non-null filtering (what conditioned_values does) leaves exactly hnsc among the collapsed set
     collapsed = conditioned_values(rows, "discordant_fraction", {"comparator_status": list(COLLAPSED)})
-    assert len(collapsed) == 8
-    assert sum(1 for v in collapsed if v == 0.0) == 7, collapsed
+    assert len(collapsed) == 1, collapsed
     hnsc = next(r for r in rows if r["product_id"].startswith("hnsc-"))
     assert hnsc["comparator_status"] == "degraded_to_adjacent_only"
     assert 0.0 < hnsc["discordant_fraction"] < 0.01, hnsc["discordant_fraction"]
 
 
 @needs_contract
-def test_pooling_the_roster_moves_the_cut_and_misgrades_a_product(contract, rows):
-    """Why the conditioning is enforced rather than recommended.
+def test_pooling_the_roster_leaves_the_p75_cut_but_still_dilutes_the_median(contract, rows):
+    """What the shape-conditioning defends against, re-measured after target-contracts #837.
 
-    Re-anchoring by pooling the whole roster drags the p75 from 0.1502 down to 0.1432, because
-    the reference class is diluted by products that had nothing to disagree with. That is not
-    cosmetic: it fires on 7 of 21 both-arm products instead of 6, so a healthy product is
-    labelled high-discordance by a threshold calibrated against structural absence. The confound
-    reaches the CALIBRATION, not just a ranking.
+    This test used to prove the sharp version of the confound: pooling the whole roster dragged the
+    p75 from 0.1502 down to 0.1432 and misgraded a healthy product, because seven single-live-arm
+    products carried a fabricated ``discordant_fraction`` of 0.0 that diluted the reference class.
+    That was the arc's flagship result -- the confound reaching the CALIBRATION, not just a ranking.
+
+    #837 dissolved exactly that mechanism. Turning the fabricated zeros into ``null`` removes them
+    from the pool entirely (a lone arm has nothing to disagree with), so the pooled p75 no longer
+    moves: pooled-p75 now EQUALS conditioned-p75 (0.1502) and pooling fires FEWER, not more. The
+    p75 confound is gone. What survives is a weaker, honest version -- the dilution still shows in
+    the MEDIAN (0.1210 -> 0.1069), because the collapsed products that remain (cohort_not_declared
+    with a genuine low measurement) sit below the centre. So conditioning still guards the centre of
+    the distribution, but the "pooling misgrades a product at the declared cut" claim is no longer
+    true and must not be re-asserted. (If pooled-p75 ever drifts BELOW conditioned again, a
+    fabricated absence has crept back into the roster -- that regression is what this test now
+    guards.)
     """
     conditioned = conditioned_values(rows, "discordant_fraction", {"comparator_status": "both_comparators"})
     pooled = conditioned_values(rows, "discordant_fraction", None)
-    assert len(pooled) == 32, len(pooled)
+    assert len(conditioned) == 21, len(conditioned)
+    assert len(pooled) == 25, len(pooled)  # 21 both + hnsc + 3 cohort_not_declared non-null; the 7 gtex-only are null
 
     cut_conditioned = percentile_cut(conditioned, 75)
     cut_pooled = percentile_cut(pooled, 75)
     assert round(cut_conditioned, 4) == 0.1502
-    assert round(cut_pooled, 4) == 0.1432
-    assert cut_pooled < cut_conditioned
+    assert round(cut_pooled, 4) == 0.1502
+    assert cut_pooled == cut_conditioned, "post-#837 the fabricated zeros are gone, so pooling no longer moves the p75"
 
     declared = next(t for t in contract["thresholds"] if t["id"] == "discordance_high")["value"]
     fires_declared = sum(1 for v in conditioned if v > declared)
     fires_pooled = sum(1 for v in conditioned if v > cut_pooled)
     assert fires_declared == 6, fires_declared
-    assert fires_pooled == 7, fires_pooled
+    assert fires_pooled == 5, fires_pooled
+    assert fires_pooled <= fires_declared, "pooling no longer OVER-fires now that structural absences are null"
 
-    # and the median is understated by more than a third, which is the size of the dilution
+    # the residual, honest confound: the centre still dilutes even though the p75 cut is now robust
     assert round(np.median(conditioned), 4) == 0.1210
-    assert round(np.median(pooled), 4) == 0.0763
+    assert round(np.median(pooled), 4) == 0.1069
+    assert np.median(pooled) < np.median(conditioned)
 
 
 @needs_contract
@@ -208,7 +229,7 @@ def test_reanchor_against_the_frozen_roster_shows_only_the_declared_rounding(con
     exact = reanchor(contract, "discordance_high", rows, percentile=75, where={"comparator_status": "both_comparators"})
     assert exact["declared"] == 0.15
     assert round(exact["remeasured"], 4) == 0.1502
-    assert exact["n_conditioned"] == 21 and exact["n_pooled"] == 32
+    assert exact["n_conditioned"] == 21 and exact["n_pooled"] == 25
     assert exact["drifted"] is True, "exact tolerance should surface the deliberate rounding"
 
     tolerant = reanchor(
