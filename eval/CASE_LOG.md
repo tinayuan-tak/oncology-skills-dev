@@ -897,6 +897,19 @@ the ledger-diff scope guard in this PR (CASE-021).
 - **Status:** Takeda ONC composed backtest COMPLETE (phases 1-4). OPEN (user call, verdict-moving): GO-on-surface
   gate-policy (should surface/immune theses be able to DECIDE a GO, not just downgrade?); context-conditional-
   safety suppressor (CASE-015); NOX1 advanced→veto re-check; SCD1 re-run (lone timeout).
+- **Resolution — VERDICT-INERT participation dimension landed (2026-09-19, evidence-signals reframe):** the
+  Bucket-B half ("surface the surface/immune thesis on its own axis; verdict stays conservative") is
+  discharged by `tp_gates._surface_thesis_participation` → `recommendation_gate.surface_thesis_participation`.
+  It reads the gate's already-resolved suppression records — a `biology_axis_downgrade` (favorable surface fit
+  downgrades a dependency `non_dependent` veto to a hold) and a biologics-channel `exists_safe_modality` clear
+  (an ADC/TCE/antibody arm clears a WT-loss safety hold) — and NAMES them as first-class surface/immune-thesis
+  participation, alongside the deciding axis the thesis could not overtake. This makes the modulation visible
+  (it was buried in `suppressed_vetoes` as gate mechanics) WITHOUT touching the verdict: the conservative call
+  stands, forces nothing, mints no verdict, no resolver-golden change. An allele-selective small-molecule
+  `exists_safe_modality` clear is deliberately NOT counted as surface participation (it is a GoF/SM thesis).
+  Mirrors CASE-015 `reconciliation` + CASE-018 `mechanism_mismatch`. **The GO-on-surface gate-policy question
+  above remains PARKED (verdict-moving user call) — this dimension surfaces the signal, it does not let surface
+  DECIDE.** Distinct from the landed density-crosspath residual (PR #1461, `91300d5e`).
 
 ### CASE-015 — Takeda ONC composed backtest: the nomination is SAFETY-axis-dominated (per-axis attribution) — mostly DEFENSIBLE + a per-axis backtest tool (2026-09-08)
 - **Surfaced by:** the Takeda ONC backtest (c). Re-ran the composed target-profile (`--verdict-only`, 90s/target
@@ -1536,7 +1549,7 @@ the Bucket C reconciliation contract must clear.*
 | **CASE-026** | pin the `axis_key` set → deterministic per-axis panel stats | engineering; verdict-inert (per-pair verdicts unaffected) |
 | **CASE-023** (residual) | `harvest_literature` should refuse unresolvable codes | engineering; ad-hoc-path half |
 | **CASE-018 / -027-D1** | emit `mechanism_mismatch` as a first-class DIMENSION (PARP1/BRCA, CD19/DLBC) — **no gate-C wiring** | ✅ **LANDED 2026-09-19** (branch `feat/mechanism-class-dimension`): target-profile `mechanism_mismatch` (names the already-dropped `thesis_irrelevant_axis` veto) + mechanism-and-pharmacology `mechanism_verdict_currency` (names the signaling-annotation-density currency mis-read). Both verdict-inert. Class-asserting contracts INPUT deferred to Step 5. See Resolution blocks above. |
-| **CASE-016** | surface the surface/immune thesis as a first-class DIMENSION; verdict stays conservative | engineering; verdict-neutral. **Re-bucketed C→B**: the question was never "should surface DECIDE a GO" but "is its signal shown on its own axis" |
+| **CASE-016** | surface the surface/immune thesis as a first-class DIMENSION; verdict stays conservative | ✅ **LANDED 2026-09-19** (branch `feat/surface-thesis-participation-dimension`): `tp_gates._surface_thesis_participation` → `recommendation_gate.surface_thesis_participation` names the `biology_axis_downgrade` + biologics `exists_safe_modality` modulation events, verdict-inert. GO-on-surface gate-policy stays PARKED. See Resolution block above. |
 
 ### Bucket C — needs-your-scientific-call (signal↔verdict reconciliation; NOT verdict-loosening)
 

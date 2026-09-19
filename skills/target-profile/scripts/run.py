@@ -106,6 +106,7 @@ from tp_gates import (  # names main() calls directly
     _positive_tier,
     _positive_tier_nominates,
     _safety_hold_reconciliation,
+    _surface_thesis_participation,
     abstention_lower_bound_clamp,
     derive_thesis,
     reconcile_positive_nomination,
@@ -1247,6 +1248,16 @@ def main() -> int:
         f"[target-profile] deciding axis [{deciding_axis['basis']}]: {deciding_axis.get('routing', '')}",
         file=sys.stderr,
     )
+
+    # CASE-016 surface/immune-thesis participation dimension (VERDICT-INERT): the composed gate is
+    # dependency+safety-attribution-dominated; a surface/immune thesis MODULATES those (downgrades a
+    # dependency veto given a favorable surface fit; clears a WT-loss safety hold for a biologics
+    # channel) but never DECIDES. Name that participation as a first-class dimension — the raw events
+    # are otherwise buried in `suppressed_vetoes` as gate mechanics. Reads gate_suppressions +
+    # deciding_axis, forces nothing; None when the surface/immune thesis did not modulate the gate.
+    _surface_participation = _surface_thesis_participation(gate_suppressions, deciding_axis)
+    if _surface_participation is not None:
+        recommendation_gate["surface_thesis_participation"] = _surface_participation
 
     # Gate scorecard (deterministic, top-of-report): 8-gate rows from the gate registry, 4-state
     # status reusing the nomination-gate policy. Also emitted in nomination.json.

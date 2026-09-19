@@ -1314,6 +1314,102 @@ def _mechanism_mismatch_dimension(
     }
 
 
+def _surface_thesis_participation(
+    suppressions: list[dict],
+    deciding_axis: Optional[dict] = None,
+) -> Optional[dict]:
+    """Surface -- VERDICT-INERT -- that a surface/immune thesis PARTICIPATED in the gate but is
+    not the DECIDING axis. CASE-016.
+
+    The composed nomination gate is decision-attribution-dominated by the dependency + safety
+    axes. A surface/immune thesis MODULATES those two: a favorable surface fit DOWNGRADES a
+    dependency `non_dependent` veto to a hold (`biology_axis_downgrade`), and an admissible
+    biologics channel (adc/bite_tce/antibody) CLEARS a WT-loss safety hold (`exists_safe_modality`,
+    biologics arm) -- an ADC delivers a payload, it does not deplete WT protein. But a surface
+    antigen is not itself a genetic dependency or a normal-tissue safety profile, so the surface
+    thesis structurally never becomes the DECIDING axis: the composed backtest over the 14-target
+    surface/biologics cohort measured axis-attribution 0.0 (decided on dependency 13 / safety 1).
+
+    That modulation is invisible to a reader today -- the raw events sit in
+    `recommendation_gate["suppressed_vetoes"]` as gate mechanics, without the thesis named. This is
+    the presentation-layer counterpart: it NAMES the surface/immune thesis's participation as a
+    first-class dimension and states, faithfully, that the participation is subordinate to the
+    authoritative verdict (which decided on a different axis). Mirrors
+    `_mechanism_mismatch_dimension` / `_safety_hold_reconciliation`: reads already-resolved gate
+    state, forces nothing, mints no verdict, touches no resolver golden.
+
+    Fires ONLY on a real surface/immune modulation event (returns None otherwise). An
+    `exists_safe_modality` cleared purely by an allele-selective small-molecule escape is NOT a
+    surface event and does not count -- only a biologics-channel clear does.
+    """
+    events: list[dict] = []
+    for s in suppressions:
+        if not isinstance(s, dict):
+            continue
+        sb = s.get("suppressed_by")
+        if not isinstance(sb, dict):
+            continue
+        kind = sb.get("kind")
+        if kind == "biology_axis_downgrade":
+            events.append(
+                {
+                    "axis": s.get("short"),
+                    "verdict": s.get("verdict"),
+                    "modulation": "veto_downgraded_to_hold",
+                    "via": "favorable_surface_fit",
+                    "surface_verdict": sb.get("surface_verdict"),
+                }
+            )
+        elif kind == "exists_safe_modality":
+            # A safe-modality clear counts as surface/immune participation ONLY when a biologics arm
+            # is what cleared it; an allele-selective small-molecule escape (a GoF/SM thesis) does
+            # not. Filtering to _BIOLOGICS_CHANNELS is what keeps this dimension from over-reading a
+            # small-molecule clear as surface biology.
+            biologics = sorted(c for c in (sb.get("safe_channels") or []) if c in _BIOLOGICS_CHANNELS)
+            if biologics:
+                events.append(
+                    {
+                        "axis": s.get("short"),
+                        "verdict": s.get("verdict"),
+                        "modulation": "hold_suppressed",
+                        "via": "biologics_modality",
+                        "safe_channels": biologics,
+                    }
+                )
+    if not events:
+        return None
+
+    modulated_axes = sorted({e["axis"] for e in events if e.get("axis")})
+    deciding_short = None
+    if isinstance(deciding_axis, dict) and deciding_axis.get("basis") == "gate_fired":
+        deciding_short = (deciding_axis.get("deciding_axis") or {}).get("short")
+
+    axes_str = " + ".join(modulated_axes) if modulated_axes else "the gate"
+    # Read the deciding axis, never assert it: by construction a modulation event lifts OTHER axes,
+    # so on the CASE-016 cohort the deciding axis is dependency/safety, not surface -- but phrase it
+    # from what the run actually decided so a future surface-deciding path stays honest.
+    decided_clause = (
+        f"the deciding axis is `{deciding_short}`, not the surface/immune thesis: "
+        if deciding_short and deciding_short != "surface_modality"
+        else ""
+    )
+    return {
+        "kind": "surface_immune_thesis_participation",
+        "authoritative": "verdict",
+        "modulated_axes": modulated_axes,
+        "deciding_axis": deciding_short,
+        "events": events,
+        "note": (
+            f"The surface/immune thesis PARTICIPATED in the gate -- it modulated the {axes_str} "
+            f"axis(es): a favorable surface fit downgrades a dependency non-dependence to a hold "
+            f"and/or a biologics channel clears a WT-loss safety hold. But {decided_clause}a surface "
+            f"antigen is not itself a genetic dependency or a normal-tissue safety profile, so the "
+            f"surface thesis MODULATES the conservative gate rather than DECIDING it. The verdict is "
+            f"authoritative and unchanged; this dimension surfaces the otherwise-invisible participation."
+        ),
+    }
+
+
 # --- Deciding-axis router -----
 #
 # Turns a bare `insufficient_evidence` into a ROUTING statement: which gate is load-bearing
@@ -2082,6 +2178,7 @@ __all__ = [
     "_safety_hold_reconciliation",
     "_THESIS_MECHANISM_CLASS",
     "_mechanism_mismatch_dimension",
+    "_surface_thesis_participation",
     "_load_gate_coverage",
     "_load_gate_verdicts",
     "_load_kill_capable_verdicts",
