@@ -5,10 +5,12 @@
 # methodology (Dempster 2020; cds-daintree pipeline) with three principled
 # extensions:
 #   1. Bootstrap 95% CI on r² for calibration
-#   2. Feature attributions alongside RF importances (SHAP when the `shap` lib is
-#      present; the current 26q1-v3 precompute took the documented fallback path —
-#      shap_computed:false — so attribution = RF impurity / XGB gain importance. The
-#      `_shap` column suffix is retained for schema compat only; it is NOT SHAP.)
+#   2. Feature attributions alongside RF importances (mean(|SHAP|) TreeExplainer values
+#      when the `shap` lib is present. The canonical 26q1-v4 precompute ran with shap
+#      installed, so top_features_rf_shap and top_features_xgb_shap are TRUE SHAP and
+#      independent second-model opinions; the older v1/v2/v3 pins took the documented
+#      fallback path — shap_computed:false — where attribution = RF impurity and the two
+#      columns are byte-identical duplicates.)
 #   3. RF + XGBoost dual-model with agreement/divergence diagnostic
 #   4. Lineage-conditional companion table (per-lineage r² + top feature)
 #
@@ -57,7 +59,7 @@ applies_when:
 
 required_inputs:
   - product_id: depmap-predictability
-    release_pin: "26q1-v3"
+    release_pin: "26q1-v4"
 
 methods:
   - call: depmap-predictability
@@ -65,7 +67,7 @@ methods:
     entrypoint: read_predictability
     args:
       target: "{target.symbol}"
-      release_pin: "26q1-v3"
+      release_pin: "26q1-v4"
 
 outputs:
   summary_fields:
@@ -80,8 +82,8 @@ outputs:
     - model_agreement                   # 'concordant' | 'divergent' | 'single_model'
     - delta_r2                          # r²_rf - r²_xgb (dual-model divergence)
     # Feature-attribution outputs
-    - pred_top_features_rf              # top-10 features by RF impurity importance (SHAP mean|value|
-                                          # only when shap lib present; 26q1-v3 = RF impurity fallback)
+    - pred_top_features_rf              # top-10 features by mean(|SHAP|) in canonical 26q1-v4
+                                          # (RF impurity fallback in the older v1/v2/v3 pins)
                                           # struct{feature, feature_class, importance, rf_importance}
     - pred_top_features_xgb             # same for XGBoost
     - pred_dominant_feature             # top-1 feature name
@@ -128,7 +130,7 @@ outputs:
   figures:
     - id: feature_importance_bar
       type: horizontal_bar
-      description: "Horizontal bar of top-10 importance-ranked features (RF; impurity importance in the 26q1-v3 fallback, SHAP when the shap lib is present), colored by feature_class. Reads as: dominant navy/red = own-omic biomarker; dominant slate = cross-gene expression / arm-level CN; dominant gray = lineage-context. Title carries r² + bootstrap CI + predictability_class + optional RF↔XGB divergence caveat."
+      description: "Horizontal bar of top-10 importance-ranked features (RF; mean(|SHAP|) in the canonical 26q1-v4 build, impurity-importance fallback in the older v1/v2/v3 pins), colored by feature_class. Reads as: dominant navy/red = own-omic biomarker; dominant slate = cross-gene expression / arm-level CN; dominant gray = lineage-context. Title carries r² + bootstrap CI + predictability_class + optional RF↔XGB divergence caveat."
       preferred_surfaces: [markdown, ppt, decision_memo]
       primary: true
     - id: lineage_predictability
@@ -179,7 +181,7 @@ caveats:
 # feature-attribution facet) and tractability-small-molecule (headline display) — plus the
 # target-profile composer transitively. It is VERDICT-INERT everywhere: it fires no verdict rung in
 # any resolver (predictability_class is DESCRIPTIVE). No `status:` field → defaults to `wired`
-# (live method + dispatcher + landed product depmap-predictability-26q1-v3).
+# (live method + dispatcher + landed product depmap-predictability-26q1-v4).
 measurement_type: dependency_predictability
 entity_grains: [target, target_lineage]
 schema_version: 1
@@ -187,7 +189,7 @@ threshold_roles:
   r2_depmap_high_conf:
     role: reader_gate
     note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the dependency_predictability reference frame over `pearson_r_squared_rf` (r2), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
-  # UPSTREAM precompute parameters. read_predictability reads a FROZEN parquet (26q1-v3); it computes
+  # UPSTREAM precompute parameters. read_predictability reads a FROZEN parquet (26q1-v4); it computes
   # nothing. Both the classification cutpoint (r2_high_ci_lo) and every ML hyperparameter are applied
   # in the training build depmap_predictability_precompute/cli.py — the bands at :85 (R2_HIGH_CI_LO=0.35)
   # applied in _classify at :365-376 and baked into the parquet's predictability_class at :543; the
