@@ -95,7 +95,7 @@ def test_reanchor_invariant_no_cellline_over_tumor_for_broad():
 # TWO MATRICES FOLLOW, AND THE SPLIT BETWEEN THEM IS THE POINT.
 #   § A (immediately below) — DETERMINISTIC flip semantics over SYNTHETIC fired-sets: which shapes move,
 #     which must NOT move, and what compensates where the collapsed word cannot carry the distinction.
-#   § B (end of file) — the LIVE-PANEL counterfactual: 58 real (target, indication) pairs measured off
+#   § B (end of file) — the LIVE-PANEL counterfactual: 59 real (target, indication) pairs measured off
 #     S3, ranked under both rule arms, committed as fixtures/subset_high_live_flip_matrix.json.
 #
 # § B was deferred out of phase 2, and the reason is worth keeping because it is the vacuity argument.
@@ -174,7 +174,7 @@ def test_cellline_high_over_subset_is_compensated_by_the_discordance_flag():
     assert disc_b is False and dir_b is None, "the both-high case must stay concordant"
 
 
-# ── § B. THE LIVE-PANEL COUNTERFACTUAL — 58 measured pairs, both rule arms (2026-09-18) ─────────────
+# ── § B. THE LIVE-PANEL COUNTERFACTUAL — 59 measured pairs, both rule arms (2026-09-18; +MAGEA3/LUAD 2026-09-19) ──
 # CONTRACT.md conceded that the v1.7.0 re-anchor's 43-pair backtest data was never committed, so its
 # conclusion was unreproducible. This section pays that debt forward for the subset_high split: the panel
 # behind THIS verdict change is committed, and the verdicts are RE-DERIVED here rather than transcribed.
@@ -209,10 +209,10 @@ _LIVE_PAIRS = _LIVE_MATRIX["pairs"]
 # THE MEASUREMENT, restated as constants so a hand-edit of the fixture cannot pass silently. These are
 # the numbers the split is justified by; if the panel is legitimately re-measured, these move WITH it and
 # the diff is the review artifact.
-_PANEL_PAIRS = 58
+_PANEL_PAIRS = 59
 _PANEL_TARGETS = 56
 _PANEL_INDICATIONS = 12
-_PANEL_MOVERS = {("MAGEA3", "SKCM"), ("MAGEA4", "LUSC")}
+_PANEL_MOVERS = {("MAGEA3", "SKCM"), ("MAGEA4", "LUSC"), ("MAGEA3", "LUAD")}
 _PANEL_NON_MOVER_CLASSES = {
     "broadly_high": 21,
     "broadly_detected": 19,
@@ -251,7 +251,7 @@ def test_live_panel_matrix_is_the_measurement_it_claims_to_be():
 
 
 def test_live_panel_ladder_reproduces_every_verdict_in_both_arms():
-    """§ B.2 — the load-bearing, credential-less leg: re-run run.py::_verdict over all 58 stored
+    """§ B.2 — the load-bearing, credential-less leg: re-run run.py::_verdict over all 59 stored
     fired-sets and reproduce BOTH columns, verdict and driver. This is what goes red if a future
     _EXPRESSION_RANK edit reverts the split or re-orders the new rung against the broad one, and it runs
     in every environment because it needs no contracts checkout."""
@@ -270,14 +270,14 @@ def test_live_panel_ladder_reproduces_every_verdict_in_both_arms():
 def test_live_panel_movers_are_exactly_the_subset_high_rows_and_nothing_else_moved():
     """§ B.3 — BOTH DIRECTIONS, which is the whole reason a flip count is evidence rather than a headline.
 
-    Forward: the 2 movers must move, from tumor_broadly_expressed (driven by the broad rung, because
+    Forward: the 3 movers must move, from tumor_broadly_expressed (driven by the broad rung, because
     pre-3b it claimed subset_high too) to tumor_subset_high_expression (driven by the new rung).
     Reverse, and equally load-bearing: the other 56 must be BYTE-IDENTICAL across the arms. A split that
     silently re-worded 56 unrelated targets would be a regression dressed as a fix, and a mover-count-only
     test would report it as a bigger success.
 
-    The identity `movers == subset_high rows` is asserted as a SET, not a count: 2-in-2-out with the wrong
-    two targets is a different change with the same headline."""
+    The identity `movers == subset_high rows` is asserted as a SET, not a count: 3-in-3-out with the wrong
+    three targets is a different change with the same headline."""
     movers = {(r["target"], r["code"]) for r in _LIVE_PAIRS if r["A"] != r["B"]}
     subset_rows = {(r["target"], r["code"]) for r in _LIVE_PAIRS if r["cls"] == "subset_high"}
     assert movers == _PANEL_MOVERS, f"mover set changed: {movers} vs {_PANEL_MOVERS}"
@@ -309,15 +309,18 @@ def test_live_panel_subset_high_rows_satisfy_the_methods_conjunctive_definition(
     class stops meaning what the rung's rationale says it means. The committed measurements can.
 
     Both clauses are load-bearing ON THIS PANEL, which is why this is a check and not a tautology: of the
-    four rows holding the shape clause, two pass the fraction clause (the movers, at 0.33 and 0.37) and
-    two FAIL it — CTAG1B/SKCM at 0.058 and DLK1/LIHC at 0.097, the latter missing by 0.003. Drop the
+    five rows holding the shape clause, three pass the fraction clause (the movers, at 0.13, 0.33 and 0.37)
+    and two FAIL it — CTAG1B/SKCM at 0.058 and DLK1/LIHC at 0.097, the latter missing by 0.003. Drop the
     fraction clause and DLK1 becomes a patient-selection call on a 9.7%-of-patients read; drop the shape
     clause and 19 continuous rows with high_fraction above 0.1 would qualify. Asserted as an IFF over the
-    shape-clause rows so it bites in both directions."""
+    shape-clause rows so it bites in both directions. The IFF pins the 0.1 floor only to the gap between its
+    nearest failing and passing witnesses: DLK1/LIHC at 0.0970 below and MAGEA3/LUAD at 0.1296 above, i.e.
+    the floor could move anywhere in (0.0970, 0.1296] without reddening this test — MAGEA3/LUAD is what
+    tightened the upper bracket from the old 0.3254."""
     shape_rows = [r for r in _LIVE_PAIRS if r["pat"] in _SUBSET_SHAPES]
     assert len(shape_rows) >= 4, f"only {len(shape_rows)} shape-clause rows — too few to test either clause"
     # the fraction clause must be DECIDABLE wherever the shape clause holds. high_fraction is absent on 34
-    # of 58 rows (the reader does not always emit it), so this is stated for the population where it decides
+    # of 59 rows (the reader does not always emit it), so this is stated for the population where it decides
     # rather than asserted panel-wide — an unconditional non-null assert here would simply be false.
     assert all(r["high"] is not None for r in shape_rows), "a shape-clause row has no high_fraction"
     for row in shape_rows:
@@ -328,7 +331,7 @@ def test_live_panel_subset_high_rows_satisfy_the_methods_conjunctive_definition(
             f"{'clears' if passes else 'misses'} the {_SUBSET_HIGH_FLOOR} floor — the committed panel no "
             "longer matches the method's conjunctive subset_high definition"
         )
-    assert sum(r["cls"] == "subset_high" for r in shape_rows) == 2, "expected exactly 2 passing rows"
+    assert sum(r["cls"] == "subset_high" for r in shape_rows) == 3, "expected exactly 3 passing rows"
     assert sum(r["cls"] != "subset_high" for r in shape_rows) >= 2, (
         "no shape-clause row FAILS the fraction clause — the floor is untested on this panel"
     )

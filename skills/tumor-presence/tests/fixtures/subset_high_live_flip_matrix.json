@@ -3,7 +3,7 @@
   "what": "Live-panel flip counterfactual for the 2026-09-18 subset_high split (target-contracts #809 phase 3b, c3eec12). Each pair is ranked twice: arm A = the PRE-3b overlap rules (the broad rung also claims subset_high), arm B = the narrowed rules. The movers are the targets whose presence headline the split actually changed; the rest must be byte-identical.",
   "ground_truth": "Only cls/high/det/pat are MEASURED (live S3 reads of the tumor RNA distribution card, AWS_PROFILE=cbg). A/B/drvA/drvB/firedA/firedB are DERIVED, and the test re-derives them through the real rules loader rather than trusting them -- a fixture that stored only derived values would be asserting a computation against a copy of its own output.",
   "first_generated": "2026-09-18, out-of-tree, from skills trunk 56e91b8d against TWO real contracts checkouts: A = main 8d0fb9c (broad rule still listed subset_high), B = #809 head a9c5cad (narrowed). That B worktree was pruned when the PR landed; the arms are now one tree plus a one-field in-process mutation, verified to reproduce BOTH stored columns for all 58 pairs (0 mismatches) against contracts c475e69.",
-  "panel": "The 60 (target, indication) pairs scanned for candidate subset_high reads. 2 returned data_unavailable and are listed under the excluded key rather than dropped silently -- an unexplained shrink in the row count is indistinguishable from a coverage loss.",
+  "panel": "The 61 (target, indication) pairs scanned for candidate subset_high reads. 2 returned data_unavailable and are listed under the excluded key rather than dropped silently -- an unexplained shrink in the row count is indistinguishable from a coverage loss.",
   "excluded": [
    {
     "target": "MS4A1",
@@ -17,13 +17,13 @@
    }
   ],
   "regenerated_by": "skills/tumor-presence/tests/regenerate_live_flip_matrix.py",
-  "skills_sha": "1b0b7c10",
-  "contracts_sha": "c475e69",
-  "arm_a": "synthesized in-process from contracts c475e69 by re-adding subset_high to tumor-expression-broadly-high-supportive",
-  "arm_b": "contracts c475e69 as checked out",
+  "skills_sha": "37a72458",
+  "contracts_sha": "519dfb5",
+  "arm_a": "synthesized in-process from contracts 519dfb5 by re-adding subset_high to tumor-expression-broadly-high-supportive",
+  "arm_b": "contracts 519dfb5 as checked out",
   "measured": {
-   "pairs_ranked": 58,
-   "movers": 2,
+   "pairs_ranked": 59,
+   "movers": 3,
    "byte_identical": 56,
    "targets": 56,
    "indications": 12,
@@ -1080,6 +1080,25 @@
    ],
    "firedB": [
     "tumor-expression-broadly-high-supportive"
+   ]
+  },
+  {
+   "target": "MAGEA3",
+   "code": "LUAD",
+   "cls": "subset_high",
+   "high": 0.12962962962962962,
+   "det": 0.29074074074074074,
+   "pat": "long_tail",
+   "A": "tumor_broadly_expressed",
+   "B": "tumor_subset_high_expression",
+   "drvA": "tumor-expression-broadly-high-supportive",
+   "drvB": "tumor-expression-subset-high-supportive",
+   "firedA": [
+    "tumor-expression-broadly-high-supportive",
+    "tumor-expression-subset-high-supportive"
+   ],
+   "firedB": [
+    "tumor-expression-subset-high-supportive"
    ]
   }
  ]
