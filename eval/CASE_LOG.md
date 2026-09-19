@@ -1411,6 +1411,92 @@ signal-vector backtest measures, and it's where the cadence should aim next. See
 
 ---
 
+## Release-readiness triage (2026-09-18) — plan `polymorphic-questing-zephyr` Step 3
+
+`RELEASE_GATE.md` criterion 7 is satisfied by gaps **measured and triaged**, not closed. This
+section sweeps every case marker into the three release buckets. It is added as one section
+rather than rewritten status lines throughout the file, so the per-case records above remain
+the source of truth and this is their release-lens rollup.
+
+**Headline:** of the 35 case ids, ~20 already carry a terminal `✅ FIXED / RESOLVED / DONE /
+DEMOTED / TRIAGED` status — they live under `## Open cases` only because the `## Closed cases`
+section below was never populated, not because they are open. The genuinely-unresolved set is
+small, and **under Step 4's decided scope (deterministic spine + honest ceilings, conservative
+hold as the safe default), zero open cases block the release.**
+
+**Reframe (2026-09-19, evidence-signals lens — arc `evidence_signals_and_subtype_dup`).** An earlier
+cut of this triage indexed the residual items on the *verdict* (should surface biology DECIDE a GO,
+should a safety gate LOOSEN). That is the framing the 09-17 arc corrects: **emit as a DIMENSION, not a
+GATE** — surface the evidence signal faithfully and keep the verdict optional/conservative; a gateless
+axis is reported-not-scored and is never a verdict member. Applying that lens dissolves most of the
+"scientific-call" load below: two of the three items become buildable dimension-emits with no policy
+fork (moved to Bucket B), and Bucket A is revealed as the reframe's *model* (report faithfully, don't
+gate), not a compromise. The one genuine residual is a signal↔verdict *reconciliation* contract, not a
+gate-loosening decision.
+
+### Bucket 0 — already terminal (no release action)
+
+FIXED / root-fixed: **CASE-008, -011, -014, -021, -022 (core), -031, -032, -033, -034**.
+RESOLVED / honest-read / verdict-inert: **CASE-005, -012, -013, -030**.
+DONE: **CASE-028**. DEMOTED by live data: **CASE-001**. TRIAGED (dismissed/scope-caveat):
+**CASE-007 (core), -009, -010, -023 (crosswalk half), -024**. These need only to be promoted
+into `## Closed cases` in a future housekeeping pass; they carry no open risk.
+
+### Bucket A — known-gap-accepted (documented honest ceiling; non-blocking)
+
+| Case | Gap | Disposition |
+|---|---|---|
+| **CASE-003** | DLL3-SCLC holds on gate-C; deciding axis (aberrant surface trafficking) blind | `honest_blind` in the calibration set; folds into the surface-antigen program. Represented in `capture_by_family` as `surface_antigen_biology {blind}`. Accept as documented ceiling. |
+| **CASE-035** | DLL3-SCLC reads `bite_tce: unsafe` via the enteric-neuron veto the gut-organ promotion opened | ACCEPTED AS REAL — the ENS liability is defensible biology; findings (a)/(b) already filed for the normal-tissue safety panel. Not a logic bug; document and keep. |
+| **CASE-019** | `lineage_selective` published alongside claim_vector DEP `absent` on 4/10 lineage pairs | REPORTABLE RISK, not a bug. Cheapest small win: a verdict-inert reconciliation note. No data dependency. Accept + optional doc note. |
+
+*Bucket A is the reframe's model: each is a signal surfaced faithfully without gating. CASE-019 is its
+cautionary edge — a surfaced signal that visibly diverges from the verdict — and is exactly the floor
+the Bucket C reconciliation contract must clear.*
+
+### Bucket B — needs-build (named owner + queued; non-release-blocking)
+
+| Case | What must be built | Owner / gating |
+|---|---|---|
+| **CASE-029** (SNV half) | per-indication MC3 hotspot-recurrence aggregates, published to shared S3 | data-build; **gated on your go/no-go for publishing a production data product** |
+| **CASE-004** | antigen-DENSITY capture axis | data-build from existing catalog; verify vs a fresh FOLR1/TROP2 emit first |
+| **CASE-002** (residual) | METex14 genomic-fidelity classifier (signal-vector, not veto) | data+method+card build; QUEUED as a real (non-false-alarm) build |
+| **CASE-006** | CNDP2-COADREAD neomorphic-GoF fidelity | genomic/GoF data build |
+| **CASE-007** (method) | co-occurrence temporal-context method + card | cross-repo build (analysis-methods + contracts) |
+| **CASE-017** | ligand-context card for a `context_conditional_dependent` rung (AR/PRAD) | data build; ranked #1 of the FR panel |
+| **CASE-022** (residual) | v2 paralog rebuild + HER2-conditional rung | needs rebuild **authorization** + build |
+| **CASE-020** | recency-bias instrument for the literature lane | measure-first (instrument), then build |
+| **CASE-025** | fleet-level `emits → consumed` guard (4 orphan summary_fields) | engineering; verdict-inert; its own PR |
+| **CASE-026** | pin the `axis_key` set → deterministic per-axis panel stats | engineering; verdict-inert (per-pair verdicts unaffected) |
+| **CASE-023** (residual) | `harvest_literature` should refuse unresolvable codes | engineering; ad-hoc-path half |
+| **CASE-018 / -027-D1** | emit `mechanism_mismatch` as a first-class DIMENSION (PARP1/BRCA, CD19/DLBC) — **no gate-C wiring** | engineering; verdict-neutral. **Re-bucketed C→B under the reframe**: the defect is a signal the lens *vetoes instead of naming*, so name it |
+| **CASE-016** | surface the surface/immune thesis as a first-class DIMENSION; verdict stays conservative | engineering; verdict-neutral. **Re-bucketed C→B**: the question was never "should surface DECIDE a GO" but "is its signal shown on its own axis" |
+
+### Bucket C — needs-your-scientific-call (signal↔verdict reconciliation; NOT verdict-loosening)
+
+Under the reframe this collapses to **one** genuine call. CASE-016 and CASE-018/-027-D1 moved to
+Bucket B as dimension-emits (surface the signal, leave the verdict conservative — no policy fork).
+
+- **CASE-015 — the signal↔verdict reconciliation contract.** The old framing ("extend the suppressor
+  to *loosen* a safety gate on context-constrained genes") was the verdict-indexed version. The
+  reframe: surface the context-conditional-safety **signal** faithfully as a dimension and leave the
+  veto conservative. But safety-negative signals hit a floor the reframe does not clear — **CASE-019's
+  exact shape**: a faithfully-surfaced "safe-in-context" signal sitting next to a still-vetoing verdict
+  is a self-contradicting output. So the residual decision is not "loosen the gate" but: **when a
+  surfaced signal and the conservative verdict diverge, which does the consumer act on, and how does the
+  output say so?** That is a presentation/reconciliation contract, and it is yours. Composed-backtest
+  phases 3–4 (surface/biologics) + the per-axis backtest tool remain as the supporting build; CASE-027-D3
+  (panel-design) rides along.
+
+**Release conclusion:** criterion 7 is met. No Bucket A/B item blocks the cut; the single Bucket C
+residual is a reconciliation-contract decision, not a gate change, and the conservative verdict ships
+regardless. The one precondition already discharged is Step 2's conservative fall-through (PR #1461,
+squash `91300d5e`) — the framework now *holds rather than nominates when blind*, and (per the reframe)
+its own catch-instrument `nominated_while_blind` is a reported-not-scored dimension: the model this
+triage now follows.
+
+---
+
 ## Closed cases
 
 _(none yet — first turn lands under CASE-001)_
