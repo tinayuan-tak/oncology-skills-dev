@@ -98,7 +98,7 @@ from _skills_common.selectivity_veto import (  # noqa: F401
 SKILL_NAME = "tumor-selectivity"
 # This constant is stamped into provenance.yaml and MUST equal SKILL.md metadata.version
 # (tests/test_version_parity.py guards the equality). Bump both together; log the change in CHANGELOG.md.
-SKILL_VERSION = "1.25.0"  # 1.25.0 (2026-09-18): sc-normal essential SEVERITY ladder realigned with analysis-methods (VERDICT-INERT). `_sc_normal_essential_severity` was a hand-copy of stats.py::_essential_severity whose thresholds were "ported verbatim"; a 616-cell differential grid measured it disagreeing on 394 cells via FOUR independent causes. Adds the REPLICATION_DOMINANT rung (det >= 0.40 AND donor >= 0.70 AND n_datasets >= 15 -> high_severity, the MSLN-PAAD 26-atlas shape), stops defaulting an absent donor fraction to 0.0 / an absent atlas count to 0 (a FIRED-but-ungradeable hit now reads `ungraded`, which the method deliberately ranks ABOVE moderate so thin data can never RELAX a veto), and renames `low_severity` -> `low_confidence` because a det-0.85/donor-0.90 single-atlas hit is UNREPLICATED, not SMALL. The read-out is now an explicit map: the old f"{sev.split('_')[0]}-severity" printed "low-severity" for `low_confidence`, so the rename alone would not have reached the name a reviewer reads. Live over all 504 corpus-20260914 pairs, agreement with the method goes 391/451 -> 451/451 by severity rank AND 356/451 -> 451/451 by string equality. No rule, card, ledger, schema or golden reads this field.  # 1.24.0 (2026-09-12): MODALITY-CONDITIONAL normal-breadth KILL suppression (verdict-MOVING, --modality runs ONLY). The veto rules in target-contracts have always declared per-modality signals and three of the five arms declare `adc: neutral` on purpose — tvn-no-full-normal-window-veto names sacituzumab/Dato-DXd — but apply_normal_breadth_veto took no modality argument and mapped every fired arm straight to its verdict, so validated ADC antigens were downgraded to the housekeeping KILL on evidence the contract itself calls neutral for ADCs. The clamp now reads the FIRED RULE'S OWN signals[modality] (contract-driven, no Python modality table): a KILL arm declared neutral/supportive for the chosen modality is SKIPPED and precedence falls through, so an arm that is `opposing` for that modality (the essential-organ window veto, ALL modalities) still KILLs. Selectivity-PRESERVING arms are never suppressed and modality=None is worst-case, so every run without --modality is byte-identical. Threaded via dispatcher verdict_modality_aware + the existing signature-gated headline kwargs; new headline fields verdict_modality_lens / modality_suppressed_veto_arms / modality_suppressed_veto_note keep a waived arm VISIBLE.   # 1.23.0 (2026-09-04, W3c): VERDICT-INERT sc-normal essential-liability SEVERITY grade (det x consistency x n_datasets, derived from the already-emitted per-driver fields — no new card field) surfaced in sc_normal_liability_detail + a new headline/synthesis facet; + an explicit "single-cell critical-organ safety UNASSESSED" tension when sc_normal_safety_essential_class == data_unavailable on a clean axis-A selective call (the blind arm already feeds _sel_unknown_mass numerically — this names it so a coverage gap is not read as a clean pass). Resolver/veto spine byte-stable; CEACAM5/TACSTD2 replay verdicts unchanged.   # 1.22.0 (2026-09-04, #978): protein+population RESCUE clamp — a flat/discordant matched-ADJACENT RNA arm (CEA/EpCAM class: adjacent normal also expresses the antigen) does NOT sink a selectivity call the INDEPENDENT CPTAC-protein + population-normal arms support; one-directional UPGRADE of a not_informative/discordant RNA verdict to field_effect_tumor_selective, applied BEFORE the normal-breadth veto (stromal/no-window safety nets preserved) + a verdict-inert selectivity_comparator_note. Byte-stable DEFENSIVE guard: inert on the current panel (CEACAM5 already field_effect via classifier FIX2; EPCAM's CPTAC not up — a separate mixed-adjacent classifier fix). # 1.21.0 (2026-09-03): VERDICT-INERT measurement_caveat — a coverage-gap class token (not_informative/insufficient/data_unavailable) that actually rests on a decisive MEASURED signal (e.g. FAP/PDAC stroma-driven false window) is named so the composed profile need not treat it as an unmeasured gap. Additive headline field + synthesis-facet key; resolver/veto spine byte-stable.   # 1.20.0 (2026-09-03): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain; lens-specific query variations) so a transient single-source outage no longer collapses grounding to unverified. Shared _skills_common change.   # 1.19.0 (2026-09-03): OPTIONAL verdict-INERT LLM --literature lane (Europe-PMC-grounded + PMID-verified; decision['literature_synthesis'] fed to the --synthesize narrator), scoped to the WIN/DIST/INT/SAFE axes; reuses the shared _skills_common literature lane. Spine byte-stable.   # 1.18.0 (2026-09-03): multi-platform corroboration folded into the claim vector (VERDICT-INERT): WIN protein quorum (CPTAC+TPHP caps an un-corroborated RNA window) + INT in-situ-spatial quorum + WIN field-effect signature; LensConfig thesis + narrator rule lead with cross-platform corroboration.   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
+SKILL_VERSION = "1.26.0"  # 1.26.0 (2026-09-18): TPHP normal-PROTEIN veto arm PROJECTION + subtype panorama RECONCILIATION (VERDICT-INERT). selective_with_normal_liability is minted by TWO arms (sc-normal single-cell critical-organ AND the TPHP broad-abundant-normal-protein veto), but the tension text named only the sc-normal single-cell detail, so a TPHP-driven clamp emitted an UNNAMED organ and MISATTRIBUTED bulk DIA-MS normal-protein breadth to a single-cell "critical-organ" liability; and normal_protein_breadth_class / tphp_normal_protein_liability_class were read NOWHERE, making the CARDS comment's "surfaces normal_protein_breadth_class + highest-abundance normal tissue" measurably FALSE. _headline now surfaces tphp_normal_protein_liability_class / normal_protein_breadth_class / tphp_highest_abundance_normal_tissue / tphp_highest_abundance_tissue_class + the derived tphp_normal_liability_detail; _selectivity_tension_extra branches on driving_rule_id so a tvn-tphp-broad-abundant-normal-protein-veto clamp NAMES the normal tissue IT implicates with normal-PROTEIN (bulk DIA-MS) framing, and a NEW TPHP UNASSESSED tension fires when tphp_normal_protein_liability_class == data_unavailable on a clean axis-A selective call (the TPHP analogue of the sc-normal UNASSESSED tension — absent normal-protein coverage no longer reads as a clean pass; ranks after the sc-normal single-cell gap under first-match-wins). The subtype panorama now RECONCILES against the pooled crossing call (pooled_percentile_crossing_class + strata_diverging_from_pooled over MEASURED strata) and grades power against subgroup_n_floor=30 via the method's evidence_state (n_strata_underpowered / n_strata_absent), and the unlinked module-private _CROSSING_VARIES_DELTA=0.25 (an unread 4th copy of a cutoff the METHOD owns) is removed. No rule, card, ledger, schema or golden reads any new field; resolver/veto spine byte-stable.  # 1.25.0 (2026-09-18): sc-normal essential SEVERITY ladder realigned with analysis-methods (VERDICT-INERT). `_sc_normal_essential_severity` was a hand-copy of stats.py::_essential_severity whose thresholds were "ported verbatim"; a 616-cell differential grid measured it disagreeing on 394 cells via FOUR independent causes. Adds the REPLICATION_DOMINANT rung (det >= 0.40 AND donor >= 0.70 AND n_datasets >= 15 -> high_severity, the MSLN-PAAD 26-atlas shape), stops defaulting an absent donor fraction to 0.0 / an absent atlas count to 0 (a FIRED-but-ungradeable hit now reads `ungraded`, which the method deliberately ranks ABOVE moderate so thin data can never RELAX a veto), and renames `low_severity` -> `low_confidence` because a det-0.85/donor-0.90 single-atlas hit is UNREPLICATED, not SMALL. The read-out is now an explicit map: the old f"{sev.split('_')[0]}-severity" printed "low-severity" for `low_confidence`, so the rename alone would not have reached the name a reviewer reads. Live over all 504 corpus-20260914 pairs, agreement with the method goes 391/451 -> 451/451 by severity rank AND 356/451 -> 451/451 by string equality. No rule, card, ledger, schema or golden reads this field.  # 1.24.0 (2026-09-12): MODALITY-CONDITIONAL normal-breadth KILL suppression (verdict-MOVING, --modality runs ONLY). The veto rules in target-contracts have always declared per-modality signals and three of the five arms declare `adc: neutral` on purpose — tvn-no-full-normal-window-veto names sacituzumab/Dato-DXd — but apply_normal_breadth_veto took no modality argument and mapped every fired arm straight to its verdict, so validated ADC antigens were downgraded to the housekeeping KILL on evidence the contract itself calls neutral for ADCs. The clamp now reads the FIRED RULE'S OWN signals[modality] (contract-driven, no Python modality table): a KILL arm declared neutral/supportive for the chosen modality is SKIPPED and precedence falls through, so an arm that is `opposing` for that modality (the essential-organ window veto, ALL modalities) still KILLs. Selectivity-PRESERVING arms are never suppressed and modality=None is worst-case, so every run without --modality is byte-identical. Threaded via dispatcher verdict_modality_aware + the existing signature-gated headline kwargs; new headline fields verdict_modality_lens / modality_suppressed_veto_arms / modality_suppressed_veto_note keep a waived arm VISIBLE.   # 1.23.0 (2026-09-04, W3c): VERDICT-INERT sc-normal essential-liability SEVERITY grade (det x consistency x n_datasets, derived from the already-emitted per-driver fields — no new card field) surfaced in sc_normal_liability_detail + a new headline/synthesis facet; + an explicit "single-cell critical-organ safety UNASSESSED" tension when sc_normal_safety_essential_class == data_unavailable on a clean axis-A selective call (the blind arm already feeds _sel_unknown_mass numerically — this names it so a coverage gap is not read as a clean pass). Resolver/veto spine byte-stable; CEACAM5/TACSTD2 replay verdicts unchanged.   # 1.22.0 (2026-09-04, #978): protein+population RESCUE clamp — a flat/discordant matched-ADJACENT RNA arm (CEA/EpCAM class: adjacent normal also expresses the antigen) does NOT sink a selectivity call the INDEPENDENT CPTAC-protein + population-normal arms support; one-directional UPGRADE of a not_informative/discordant RNA verdict to field_effect_tumor_selective, applied BEFORE the normal-breadth veto (stromal/no-window safety nets preserved) + a verdict-inert selectivity_comparator_note. Byte-stable DEFENSIVE guard: inert on the current panel (CEACAM5 already field_effect via classifier FIX2; EPCAM's CPTAC not up — a separate mixed-adjacent classifier fix). # 1.21.0 (2026-09-03): VERDICT-INERT measurement_caveat — a coverage-gap class token (not_informative/insufficient/data_unavailable) that actually rests on a decisive MEASURED signal (e.g. FAP/PDAC stroma-driven false window) is named so the composed profile need not treat it as an unmeasured gap. Additive headline field + synthesis-facet key; resolver/veto spine byte-stable.   # 1.20.0 (2026-09-03): --literature retriever -> default_retrieve (Europe PMC -> PubTator3 fallback chain; lens-specific query variations) so a transient single-source outage no longer collapses grounding to unverified. Shared _skills_common change.   # 1.19.0 (2026-09-03): OPTIONAL verdict-INERT LLM --literature lane (Europe-PMC-grounded + PMID-verified; decision['literature_synthesis'] fed to the --synthesize narrator), scoped to the WIN/DIST/INT/SAFE axes; reuses the shared _skills_common literature lane. Spine byte-stable.   # 1.18.0 (2026-09-03): multi-platform corroboration folded into the claim vector (VERDICT-INERT): WIN protein quorum (CPTAC+TPHP caps an un-corroborated RNA window) + INT in-situ-spatial quorum + WIN field-effect signature; LensConfig thesis + narrator rule lead with cross-platform corroboration.   # 1.17.0 (2026-08-31): INT-axis stromal-confound veto (verdict-MOVING, backtest-gated): stromal_confound_class == stromal_confounded → selective_but_stromal_confound (Option B: outranks the window KILL).   # 1.16.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.
 
 # ── Cards consumed, grouped by the role each plays in the answer ──────────────────────────────────
 # The selectivity RESOLVER is keyed only to the aggregate tumor-vs-normal-selectivity card (the
@@ -149,18 +149,21 @@ CARDS = [
     # selectivity — the RNA-up/protein-flat false-positive). Feeds
     # no resolver rung / no clamp; data_unavailable off the ~10
     # CPTAC cohorts (honest abstain).
-    "normal-tissue-protein-abundance-tphp",  # QUANTITATIVE NORMAL-tissue PROTEIN comparator (verdict-inert):
+    "normal-tissue-protein-abundance-tphp",  # QUANTITATIVE NORMAL-tissue PROTEIN comparator:
     # per-tissue DIA-MS protein abundance across 70 adult tissues + 4
     # fetal germ-layer groups (TPHP; Xu et al. Nature 2026). The normal-
     # PROTEIN baseline the skill lacked — it had GTEx-RNA + HPA-IHC
-    # categorical breadth, but no quantitative normal protein. Surfaces
-    # normal_protein_breadth_class + highest-abundance normal tissue as an
-    # additive normal-comparator facet (a target RNA-restricted in normal
-    # tissue can still be broadly normal-PROTEIN-expressed). Its
-    # tphp_normal_protein_liability_class is VERDICT-BEARING (4th normal-breadth
-    # veto arm): broad_and_abundant -> tvn-tphp-broad-abundant-normal-protein-veto
-    # -> _verdict clamp -> selective_with_normal_liability. data_unavailable off
-    # the TPHP proteome (e.g. DLL3).
+    # categorical breadth, but no quantitative normal protein (a target
+    # RNA-restricted in normal tissue can still be broadly normal-PROTEIN-
+    # expressed). VERDICT-DRIVING (4th normal-breadth veto arm): when
+    # tphp_normal_protein_liability_class == broad_and_abundant it fires
+    # tvn-tphp-broad-abundant-normal-protein-veto -> _verdict clamp ->
+    # selective_with_normal_liability. _headline surfaces normal_protein_breadth_class,
+    # tphp_highest_abundance_normal_tissue and the derived tphp_normal_liability_detail,
+    # which name THIS arm's implicated normal tissue in the tension text
+    # (_selectivity_tension_extra) instead of borrowing the sc-normal single-cell
+    # framing; data_unavailable off the TPHP proteome (e.g. DLL3) drives the TPHP
+    # UNASSESSED tension so absent normal-protein coverage does not read as a clean pass.
     "tumor-vs-normal-protein-abundance-tphp",  # RNA→PROTEIN CORROBORATION (verdict-inert), PARALLEL to
     # tumor-protein-abundance-cptac. Does the tumor-vs-normal signal
     # hold at the PROTEIN layer in the TPHP DIA-MS proteome (Xu et al.
@@ -495,6 +498,31 @@ def _sc_normal_liability_detail(sc_normal: dict):
     return f"{where} ({', '.join(parts)})" if parts else where
 
 
+def _tphp_normal_liability_detail(tphp_normal: dict):
+    """Human-readable named-tissue liability from the TPHP normal-tissue DIA-MS proteome, or None.
+
+    The TPHP counterpart to _sc_normal_liability_detail. `selective_with_normal_liability` is minted by
+    TWO arms — the sc-normal single-cell critical-organ veto AND this bulk-DIA-MS broad-abundant-normal-
+    protein veto (tvn-tphp-broad-abundant-normal-protein-veto) — but the tension text used to name only
+    the sc-normal organ, so a TPHP-driven clamp emitted an UNNAMED organ AND was narrated with the
+    sc-normal arm's "single-cell critical-organ" framing, misattributing bulk normal-protein breadth to a
+    cell-type liability. Populated only when tphp_normal_protein_liability_class == broad_and_abundant (the
+    class that fires the veto), it names the breadth band + highest-abundance normal tissue — e.g.
+    "broad normal protein; highest in liver". Returns None when the arm did not fire (any other class,
+    including data_unavailable)."""
+    cls = (tphp_normal or {}).get("tphp_normal_protein_liability_class")
+    if cls != "broad_and_abundant":
+        return None  # only the veto-firing class names an organ; data_unavailable is handled as UNASSESSED
+    tissue = tphp_normal.get("highest_abundance_tissue")
+    breadth = tphp_normal.get("normal_protein_breadth_class")
+    parts = []
+    if breadth and breadth != "data_unavailable":
+        parts.append(breadth.replace("_", " "))
+    if tissue:
+        parts.append(f"highest in {tissue}")
+    return f"{'; '.join(parts)}" if parts else "broad, abundant normal-tissue protein"
+
+
 def _selectivity_tension_extra(headline: dict):
     """The sharpest cross-cutting selectivity caveat the per-axis claim conflicts don't already carry:
     the normal-breadth VETO downgrade. The resolved selectivity_class (post-veto) differs from the raw
@@ -527,6 +555,23 @@ def _selectivity_tension_extra(headline: dict):
             "severity": 4,
         }
     if resolved == "selective_with_normal_liability":
+        # selective_with_normal_liability is minted by TWO arms with DIFFERENT evidence: the sc-normal
+        # single-cell critical-organ veto and the TPHP bulk-DIA-MS broad-abundant-normal-protein veto.
+        # Branch on the driving rule so a TPHP-driven clamp names the NORMAL-PROTEIN tissue IT implicates
+        # and is framed as a bulk normal-protein liability — instead of borrowing the sc-normal arm's
+        # "single-cell critical-organ" wording (the misattribution fix) and emitting an UNNAMED organ.
+        if headline.get("driving_rule_id") == "tvn-tphp-broad-abundant-normal-protein-veto":
+            tphp_detail = headline.get("tphp_normal_liability_detail")
+            named = f" ({tphp_detail})" if tphp_detail else ""
+            return {
+                "text": (
+                    "tumor-selective but broadly and abundantly expressed as protein across normal "
+                    f"tissues{named} — normal-protein liability (bulk DIA-MS; severity owned by "
+                    "on-target-safety-liability + modality-fit)"
+                ),
+                "source": "normal_liability_flag_tphp",
+                "severity": 3,
+            }
         named = f" in {liability}" if liability else ""
         return {
             "text": (
@@ -549,6 +594,21 @@ def _selectivity_tension_extra(headline: dict):
                 "at cell-type resolution; treat as unknown, not a clean normal-tissue pass"
             ),
             "source": "sc_normal_unassessed",
+            "severity": 2,
+        }
+    # TPHP analogue of the UNASSESSED tension: the NORMAL-tissue PROTEIN comparator is data_unavailable
+    # (target absent from the TPHP DIA-MS proteome, e.g. DLL3) on a clean axis-A selective call. Without
+    # this, absent normal-protein coverage reads as a clean normal-protein pass — but the broad-abundant-
+    # normal-protein liability arm simply could not look. Reached only when the sc-normal arm did NOT
+    # already claim the single tension slot above (first-match-wins; the single-cell gap ranks first).
+    if resolved in _AXIS_A_SELECTIVE and headline.get("tphp_normal_protein_liability_class") == "data_unavailable":
+        return {
+            "text": (
+                "tumor-selective, but the normal-tissue PROTEIN comparator is UNASSESSED (target absent "
+                "from the TPHP DIA-MS proteome) — the broad-abundant-normal-protein liability arm could "
+                "not look; treat as unknown, not a clean normal-protein pass"
+            ),
+            "source": "tphp_normal_unassessed",
             "severity": 2,
         }
     return None
@@ -799,6 +859,9 @@ def _headline(cards, fired, verdict_pair, modality=None):
     protein_tvn_tphp = _summary(
         "tumor-vs-normal-protein-abundance-tphp"
     )  # RNA→protein corrob, TPHP DIA-MS (verdict-inert)
+    tphp_normal = _summary(
+        "normal-tissue-protein-abundance-tphp"
+    )  # NORMAL-tissue PROTEIN comparator — VERDICT-DRIVING via the tphp broad-abundant-normal-protein veto
     window = _summary("modality-therapeutic-window")  # NORMAL-BREADTH VETO instrument (window arms)
     sc_normal = _summary("sc-normal-celltype-expression")  # veto instrument (normal side)
     sc_tumor = _summary("tumor-scrna-celltype-expression")  # tumor side, single-cell
@@ -928,6 +991,23 @@ def _headline(cards, fired, verdict_pair, modality=None):
             protein_tvn_tphp.get("protein_effect_size"),
             protein_tvn_tphp.get("protein_bh_q_value"),
         ),
+        # NORMAL-tissue PROTEIN comparator facet — the tphp-broad-abundant-normal-protein veto's OWN inputs.
+        # This card is verdict-DRIVING (4th normal-breadth veto arm: tphp_normal_protein_liability_class ==
+        # broad_and_abundant fires tvn-tphp-broad-abundant-normal-protein-veto → the _verdict clamp mints
+        # selective_with_normal_liability). Until now these fields were read NOWHERE — the CARDS comment's
+        # claim that the card "surfaces normal_protein_breadth_class + highest-abundance normal tissue" was
+        # measurably false, and the shared selective_with_normal_liability tension text named only the
+        # sc-normal single-cell detail, so a TPHP-driven clamp emitted an UNNAMED organ. Surfacing them here
+        # de-anonymizes the TPHP arm the same way #572 de-anonymized the sc-normal arm. Display; the resolved
+        # spine (set by _verdict via the shared clamp over `fired`) is byte-stable.
+        "tphp_normal_protein_liability_class": tphp_normal.get("tphp_normal_protein_liability_class"),
+        "normal_protein_breadth_class": tphp_normal.get("normal_protein_breadth_class"),
+        "tphp_highest_abundance_normal_tissue": tphp_normal.get("highest_abundance_tissue"),
+        "tphp_highest_abundance_tissue_class": tphp_normal.get("highest_abundance_tissue_class"),
+        # Human-readable normal-PROTEIN liability string, the TPHP counterpart to sc_normal_liability_detail.
+        # Populated only when the arm actually fires (broad_and_abundant) — data_unavailable is surfaced as
+        # the UNASSESSED tension, not as a named liability. Consumed by _selectivity_tension_extra.
+        "tphp_normal_liability_detail": _tphp_normal_liability_detail(tphp_normal),
         # Modality-therapeutic-window facet — the NORMAL-BREADTH WINDOW veto's own inputs, surfaced for
         # transparency (the card is verdict-DRIVING via the window arms: therapeutic_window_class ==
         # no_therapeutic_window / full_normal_window_class == no_full_normal_window each fire a KILL
@@ -1095,6 +1175,13 @@ _SYNTHESIS_FACET_KEYS = (
     "sc_normal_liability_detail",
     "sc_normal_essential_severity",  # W3c verdict-inert severity grade of the fired essential liability
     "sc_normal_abundance_class",
+    # the NORMAL-PROTEIN (TPHP) veto arm's inputs + de-anonymized detail — the 2nd arm that mints
+    # selective_with_normal_liability, so the narrator names the implicated normal tissue for a TPHP-driven
+    # clamp instead of the sc-normal single-cell organ (F10).
+    "tphp_normal_protein_liability_class",
+    "normal_protein_breadth_class",
+    "tphp_highest_abundance_normal_tissue",
+    "tphp_normal_liability_detail",
     "percentile_crossing_class",
     "fraction_tumor_above_normal_p95",
     "distribution_overlap_tumor_normal",
@@ -1134,7 +1221,47 @@ def _synthesis_facet(cards, fired, verdict_pair):
 # headline, but NEVER enter `fired` — the selectivity_class spine + normal-breadth veto are
 # byte-identical with or without --subtypes (mirrors functional-requirement's dependency panorama).
 SUBTYPE_CARDS = ["tumor-vs-normal-percentile-crossing-by-subtype"]
-_CROSSING_VARIES_DELTA = 0.25  # fraction-range span flagging subtype-specific crossing (mirrors the card)
+# NOTE: the 0.25 fraction-range span that flags crossing_varies_by_subtype is owned by the METHOD
+# (tcga_gtex_expression_distribution/cli.py::build_selectivity_crossing_subtype_panorama, applied
+# upstream and documented in the card's threshold_roles), and the card emits the resulting BOOLEAN
+# (crossing_varies_by_subtype). run.py passes that boolean through — it does NOT re-derive the span —
+# so the former module-private `_CROSSING_VARIES_DELTA = 0.25` was an unlinked 4th copy of the cutoff,
+# read nowhere. Removed to keep exactly one declared home for the threshold (defect-class #3).
+
+
+def _reconcile_subtype_crossing(per_subgroup: list, measured: list, pooled_crossing_class) -> dict:
+    """PURE reconciliation of the per-subtype crossing panorama against the pooled crossing call (F11).
+
+    `per_subgroup` is the card's per_subgroup_metrics; `measured` is the subset already filtered to
+    evidence_state=measured with a non-null fraction; `pooled_crossing_class` is the POOLED crossing
+    card's selectivity_class (the same enum the by-subtype card calls percentile_crossing_class).
+
+    Divergence is graded over MEASURED strata ONLY. The card stamps any stratum below subgroup_n_floor
+    (n<30) as evidence_state=underpowered AND percentile_crossing_class=data_unavailable, so restricting
+    to `measured` prevents a thin-data stratum from reading as "diverging" — power grading and divergence
+    grading are the same filter from two sides. Split out as a pure fn so the reconciliation is unit-
+    testable without live card resolution."""
+    strata_diverging = [
+        r.get("stratum_id")
+        for r in measured
+        if r.get("percentile_crossing_class") not in (None, "data_unavailable", pooled_crossing_class)
+    ]
+    return {
+        # RECONCILIATION against the pooled call (F11) — same crossing vocabulary, named consistently.
+        # pooled_percentile_crossing_class is the pooled card's `selectivity_class` surfaced under the
+        # by-subtype vocabulary name so a consumer reads ONE shared crossing vocabulary; strata_diverging
+        # _from_pooled names the (measured) strata whose crossing class departs from it — i.e. where
+        # subtype IS a selection axis for THIS target, reconciled rather than asserted.
+        "pooled_percentile_crossing_class": pooled_crossing_class,
+        "strata_diverging_from_pooled": strata_diverging,
+        "n_strata_diverging_from_pooled": len(strata_diverging),
+        # POWER (graded against the card's subgroup_n_floor=30, via the method's evidence_state): how many
+        # requested strata could not be called (underpowered <30 → data_unavailable, or absent), so a
+        # narrow "n_subtypes_measured" is not silently read as full coverage.
+        "n_strata_requested": len(per_subgroup),
+        "n_strata_underpowered": sum(1 for r in per_subgroup if r.get("evidence_state") == "underpowered"),
+        "n_strata_absent": sum(1 for r in per_subgroup if r.get("evidence_state") == "absent"),
+    }
 
 
 def _resolve_selectivity_subtype_panorama(target: str, indication: str | None, subtypes: list) -> dict:
@@ -1185,10 +1312,23 @@ def _resolve_selectivity_subtype_panorama(target: str, indication: str | None, s
         "_missing": bool(dg is None or dg.get("_missing")),
     }
 
+    # RECONCILE the per-subtype crossing panorama against the POOLED per-sample crossing call (F11: the
+    # subtype arm previously had nothing tying it back to the pooled verdict, and used a DIFFERENT field
+    # name — `percentile_crossing_class` — for the SAME vocabulary the pooled card calls `selectivity_class`
+    # (both are [strongly_tumor_enriched, enriched_subset, minimally_enriched, not_enriched, data_unavailable]).
+    # Resolve the pooled crossing card WITHOUT subgroup_context (this is the pooled call, not a stratum);
+    # it is a reconciliation READ only and is deliberately NOT appended to `cards` (the package already
+    # carries the pooled crossing card via the main run — adding it here would double-count it).
+    pooled_cards = resolve_cards(["tumor-vs-normal-percentile-crossing"], target, indication)
+    pooled_xs = next((c for c in pooled_cards if c["card_id"] == "tumor-vs-normal-percentile-crossing"), None)
+    pooled_crossing_class = ((pooled_xs or {}).get("summary") or {}).get("selectivity_class")
+    reconciliation = _reconcile_subtype_crossing(per_subgroup, measured, pooled_crossing_class)
+
     return {
         "cards": sub_cards + dge_cards,
         "scope_subtypes": list(subtypes),
         "subtype_selectivity_panorama": {
+            **reconciliation,
             # display-only flavor: does per-sample crossing selectivity vary across subtypes?
             "crossing_varies_by_subtype": summary.get("crossing_varies_by_subtype"),
             "n_subtypes_measured": summary.get("n_subtypes_measured"),
