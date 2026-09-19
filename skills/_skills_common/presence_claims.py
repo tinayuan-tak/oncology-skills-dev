@@ -750,8 +750,10 @@ def render_presence_label(state: dict) -> str:
 # projects the strata-varying claims per molecular subtype from the ALREADY-resolved
 # tumor-rna-distribution-by-subtype card's per_subgroup_metrics (LIVE): Claim A (abundance) and a
 # distributional Claim B (fraction of stratum tumours above GTEx-normal p95) are computable per
-# stratum NOW. Claim C (single-cell) and protein-confirmation stay INDICATION-grain (whole-cohort /
-# pooled) — carried + labelled, never faked per stratum. Verdict-inert, like the pooled vector.
+# stratum NOW, and — where tumor-protein-distribution-by-subtype has a MEASURED stratum — a protein
+# confirmation leg is joined by stratum name (CPTAC class + tumor/normal log2 ratio + detectable
+# fraction). Claim C (single-cell malignant) stays INDICATION-grain (single-cell pooled) — carried +
+# labelled, never faked per stratum. Verdict-inert, like the pooled vector.
 def _tier_from_median(med):
     if not isinstance(med, (int, float)):
         return "unmeasured"
@@ -762,6 +764,16 @@ def _tier_from_fraction_above_normal(fa):
     if not isinstance(fa, (int, float)):
         return "unmeasured"
     return "strong" if fa >= 0.5 else "moderate" if fa >= 0.2 else "weak" if fa >= 0.05 else "absent"
+
+
+def _protein_direction(cls):
+    """CPTAC by-subtype protein `class` -> a direction word for the per-stratum claim vector's protein
+    leg (protein_elevated/neutral/reduced is a tumor-vs-normal DIRECTION, not an abundance tier)."""
+    return {
+        "protein_elevated": "elevated",
+        "protein_neutral": "neutral",
+        "protein_reduced": "reduced",
+    }.get(cls, "unmeasured")
 
 
 # Multiplicity-aware certainty (Phase 3): a per-stratum signal is one of k strata scanned, so the
@@ -781,8 +793,10 @@ def _multiplicity_discount(rel: str, k) -> str:
 
 
 def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
-    """Per-stratum claim vector (A abundance + distributional B) from per_subgroup_metrics. Returns
-    None when the indication has no subtype axis. C / protein remain indication-grain (flagged)."""
+    """Per-stratum claim vector (A abundance + distributional B + protein confirmation) from
+    per_subgroup_metrics. Returns None when the indication has no subtype axis. Claim C (single-cell
+    malignant) remains indication-grain (single-cell pooled) and is flagged; the protein arm is now
+    FILLED per-stratum where tumor-protein-distribution-by-subtype has measured strata."""
     c = _by_id(cards)
     s = c.get("tumor-rna-distribution-by-subtype", {})
     if not isinstance(s, dict) or not s.get("subtype_axis_available"):
@@ -792,6 +806,21 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
     k_tested = s.get("n_subtypes_measured")
     if not isinstance(k_tested, int):
         k_tested = sum(1 for r in (s.get("per_subgroup_metrics") or []) if isinstance(r, dict) and r.get("stratum_id"))
+    # PROTEIN arm, per-stratum (retires the old "protein stays indication-grain" flag): the CPTAC
+    # by-subtype card carries a per-stratum protein read (class + tumor/normal log2 ratio + detectable
+    # fraction). Join it by stratum NAME onto the RNA strata below. Its OWN multiplicity surface is the
+    # count of MEASURED protein strata (k_protein) — the SAME _multiplicity_discount haircut, applied
+    # once per arm, NOT a second correction stacked on the RNA k.
+    pr_card = c.get("tumor-protein-distribution-by-subtype", {})
+    pr_by_stratum = {}
+    if isinstance(pr_card, dict):
+        for pr in pr_card.get("per_subgroup_metrics") or []:
+            if not isinstance(pr, dict) or pr.get("evidence_state") != "measured":
+                continue
+            psid = pr.get("stratum") or pr.get("stratum_id")  # protein arm keys stratum as `stratum`
+            if psid:
+                pr_by_stratum[psid] = pr
+    k_protein = len(pr_by_stratum)
     for r in s.get("per_subgroup_metrics") or []:
         if not isinstance(r, dict):  # tolerate simplified/frozen fixtures where rows aren't full dicts
             continue
@@ -822,6 +851,29 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
             },
             "n_tumor_samples": n,
         }
+        # PROTEIN confirmation leg (joined by stratum name; present only where CPTAC MEASURED this
+        # stratum). Direction from the by-subtype `class`; certainty from the protein arm's own n with
+        # the SAME multiplicity haircut over k_protein — no second correction on top.
+        pr = pr_by_stratum.get(sid)
+        if pr is not None:
+            n_p = pr.get("subgroup_n")
+            rel_p_base = (
+                "high"
+                if isinstance(n_p, int) and n_p >= 100
+                else "moderate"
+                if isinstance(n_p, int) and n_p >= 30
+                else "low"
+            )
+            ratio, det = pr.get("median_log2_ratio"), pr.get("detectable_fraction")
+            strata[sid]["protein"] = {
+                "signal": _protein_direction(pr.get("class")),
+                "corroboration": _multiplicity_discount(rel_p_base, k_protein),
+                "evidence": (
+                    f"CPTAC {pr.get('class')} vs normal (log2 T/N {_f(ratio, 2)}), "
+                    f"detectable in {_f((det or 0) * 100, 0)}% of stratum tumours, n={n_p}"
+                    + (f" [{pr.get('source_cohort')}]" if pr.get("source_cohort") else "")
+                ),
+            }
     # ENRICHED-SUBTYPE IDENTITIES (verdict-INERT legibility): the reader computes a per-stratum
     # subtype_signal (subtype_enriched / subtype_restricted) but the rollup previously surfaced only the
     # COUNT (n_subtypes_enriched) + the single argmax-ε² axis (which_subtypes_separate) — so a consumer of
@@ -857,13 +909,17 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
         "enriched_subtypes": enriched_subtypes,
         "top_enriched_subtype": (enriched_subtypes[0]["stratum"] if enriched_subtypes else None),
         "multiplicity_strata_tested": k_tested,
+        "protein_strata_measured": k_protein,
         "strata": strata,
-        "_indication_grain_claims": "C (single-cell malignant) and protein-confirmation are NOT stratified "
-        "(single-cell pooled; CPTAC whole-cohort) — read them from the pooled claim_vector.",
+        "_indication_grain_claims": "C (single-cell malignant) is NOT stratified (single-cell pooled) — "
+        "read it from the pooled claim_vector. The PROTEIN arm IS now filled per-stratum (key 'protein' "
+        "on each stratum) wherever CPTAC has a measured stratum; a stratum with no measured protein read "
+        "simply omits the leg.",
         "_disclaimer": (
             "Per-stratum claim vector — verdict-INERT (the pooled presence_verdict is byte-stable). "
-            "Only claims A (abundance) and a distributional B (fraction > GTEx-normal p95) are live per "
-            "subtype (from per_subgroup_metrics); a pooled indication read can flatten a subtype-"
+            "Claims A (abundance) and a distributional B (fraction > GTEx-normal p95) are live per "
+            "subtype (from per_subgroup_metrics), plus a protein-confirmation leg where CPTAC measured "
+            "the stratum; a pooled indication read can flatten a subtype-"
             "concentrated signal (cf. CD274/MSI-H), so a per-stratum POSITIVE is surfaced here rather "
             f"than suppressed. Certainty is MULTIPLICITY-AWARE: with {k_tested} strata scanned, each "
             "per-stratum corroboration takes a 1-tier haircut (k>=5) so a single stratum is not over-"

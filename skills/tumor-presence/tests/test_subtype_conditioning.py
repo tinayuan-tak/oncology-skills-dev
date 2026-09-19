@@ -69,3 +69,77 @@ def test_k_falls_back_to_row_count():
 def test_verdict_inert_no_spine_key():
     v = presence_claim_vector_by_subtype(_cards(14, [_MSIH, _MSS]))
     assert "presence_verdict" not in v and "driving_rule_id" not in v
+
+
+# ── Stage 5: the PROTEIN arm is filled per-stratum (retires "protein stays indication-grain") ─────
+
+
+def _cards_with_protein(rna_rows, protein_rows):
+    """RNA arm (keys stratum as `stratum_id`) + CPTAC by-subtype protein arm (keys as `stratum`)."""
+    return [
+        {
+            "card_id": "tumor-rna-distribution-by-subtype",
+            "summary": {
+                "subtype_axis_available": True,
+                "n_subtypes_measured": len(rna_rows),
+                "per_subgroup_metrics": rna_rows,
+            },
+        },
+        {
+            "card_id": "tumor-protein-distribution-by-subtype",
+            "summary": {"subtype_axis_available": True, "per_subgroup_metrics": protein_rows},
+        },
+    ]
+
+
+# CPTAC by-subtype rows: MSS measured (elevated), MSI_H NOT measured (must omit the protein leg).
+_PR_MSS = {
+    "stratum": "MSS",
+    "class": "protein_elevated",
+    "evidence_state": "measured",
+    "median_log2_ratio": 1.2,
+    "detectable_fraction": 0.9,
+    "subgroup_n": 40,
+}
+_PR_MSIH_UNMEASURED = {"stratum": "MSI_H", "class": "protein_neutral", "evidence_state": "unevaluable", "subgroup_n": 8}
+
+
+def test_protein_leg_filled_where_measured():
+    v = presence_claim_vector_by_subtype(_cards_with_protein([_MSIH, _MSS], [_PR_MSS, _PR_MSIH_UNMEASURED]))
+    assert v["protein_strata_measured"] == 1  # only MSS is a measured protein stratum
+    mss = v["strata"]["MSS"]["protein"]
+    assert mss["signal"] == "elevated"  # from class protein_elevated
+    assert "detectable in 90%" in mss["evidence"] and "log2 T/N 1.20" in mss["evidence"]
+    assert mss["corroboration"] == "moderate"  # n=40 → moderate base; k_protein=1 < 5 → no haircut
+    # MSI_H is not a MEASURED protein stratum → the protein leg is omitted, not faked
+    assert "protein" not in v["strata"]["MSI_H"]
+
+
+def test_protein_leg_omitted_when_no_protein_card():
+    """No protein by-subtype card → protein_strata_measured 0 and no protein leg anywhere (the arm is
+    absent, not invented)."""
+    v = presence_claim_vector_by_subtype(_cards(14, [_MSIH, _MSS]))
+    assert v["protein_strata_measured"] == 0
+    assert all("protein" not in st for st in v["strata"].values())
+
+
+def test_protein_leg_multiplicity_over_k_protein():
+    """The protein leg's certainty haircut runs over the PROTEIN arm's own k (measured protein strata),
+    not the RNA k — 5 measured protein strata (k_protein=5) haircut a high-n leg to moderate."""
+    strata_ids = ["MSS", "MSI_H", "CMS1", "CMS2", "CMS3"]
+    rna = [{"stratum_id": s, "median_log2tpm": 6.0, "n_tumor_samples": 100} for s in strata_ids]
+    protein = [
+        {
+            "stratum": s,
+            "class": "protein_elevated",
+            "evidence_state": "measured",
+            "median_log2_ratio": 1.0,
+            "detectable_fraction": 0.9,
+            "subgroup_n": 120,
+        }
+        for s in strata_ids
+    ]
+    v = presence_claim_vector_by_subtype(_cards_with_protein(rna, protein))
+    assert v["protein_strata_measured"] == 5
+    # n=120 → high base; k_protein=5 → 1-tier haircut → moderate
+    assert v["strata"]["MSS"]["protein"]["corroboration"] == "moderate"

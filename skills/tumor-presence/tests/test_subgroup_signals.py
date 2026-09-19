@@ -104,3 +104,28 @@ def test_subtype_grain_cards_excluded(_headline):
     src_cards = {s["card"] for s in ab.get("sources", [])}
     assert "tumor-rna-distribution-by-subtype" not in src_cards
     assert "cellline-rna-distribution-by-subtype" not in src_cards
+
+
+def test_protein_subtype_arm_projected_onto_headline(_headline):
+    """Stage 5: the protein-subtype arm is lifted onto the headline (mirroring the cell-line arm), ending
+    "resolved every run, read zero times". WIRING guard: the keys must EXIST — values may be None on a
+    fixture frozen before the protein by-subtype card existed (the nightly re-freeze populates real
+    values), so this pins wiring, not a magnitude."""
+    for k in (
+        "protein_subtype_scope_available",
+        "protein_subtype_axis_quality",
+        "protein_n_subtypes_measured",
+        "protein_subtype_stratification_class",
+    ):
+        assert k in _headline, f"{k} not surfaced into the presence headline (protein-subtype wiring drift)"
+
+
+def test_subtype_layer_concordance_wired_and_verdict_inert(_headline):
+    """The cross-layer concordance facet is surfaced on the headline; when present it carries the
+    never-lift stamp. Verdict-INERT: presence_verdict is byte-stable regardless of the facet."""
+    assert "subtype_layer_concordance" in _headline
+    assert _headline.get("presence_verdict") == "tumor_broadly_expressed"  # spine unmoved by the facet
+    c = _headline.get("subtype_layer_concordance")
+    if c is not None:
+        assert "verdict-INERT" in c["_never_lift"]
+        assert c["concordance_class"] in ("discordant", "concordant", "insufficient")

@@ -41,7 +41,7 @@ from pathlib import Path
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-from _skills_common import get_card_field, resolve_cards
+from _skills_common import card_summary, get_card_field, resolve_cards
 from _skills_common._live_readers import _load_surface_secreted_antigens
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.dispatcher import run_wired_skill
@@ -73,7 +73,14 @@ _SUBGROUP_N_FLOOR = 30
 # The presence-by-subtype PANORAMA card. Like functional-requirement's subgroup-stratified-dependency,
 # it needs externally-resolved strata (subgroup_context.resolved_strata_ids) and resolves on a SEPARATE,
 # --subtypes-gated path (the dispatcher's subtype_panorama_fn hook), NEVER on the whole-cohort spine.
-_SUBTYPE_PANORAMA_CARDS = ["tumor-rna-distribution-by-subtype"]
+# All three by-subtype arms so --subtypes returns the MULTI-LAYER panorama, not the RNA arm alone.
+# The tumor-RNA arm remains the PRIMARY (verdict-relevant, tumor-lens) scoped read; the cell-line and
+# protein arms are projected as a descriptive layer_panorama + cross-layer concordance (never-lift).
+_SUBTYPE_PANORAMA_CARDS = [
+    "tumor-rna-distribution-by-subtype",
+    "cellline-rna-distribution-by-subtype",
+    "tumor-protein-distribution-by-subtype",
+]
 
 
 def _stratum_presence_call(rec: dict) -> str:
@@ -135,6 +142,96 @@ def _presence_subtype_scope_read(per_subgroup: list, requested: list) -> dict:
     return {"by_stratum": by_stratum, "n_admissible": len(admissible), "scoped_read": scoped, "headline": headline}
 
 
+# The three by-subtype arms, joined for cross-layer concordance. All three are resolved on the main
+# spine (CARDS), so the concordance reads their already-resolved summaries — no extra --subtypes pass.
+_CONCORDANCE_ARMS = (
+    ("rna_tumor", "tumor-rna-distribution-by-subtype"),
+    ("rna_cellline", "cellline-rna-distribution-by-subtype"),
+    ("protein", "tumor-protein-distribution-by-subtype"),
+)
+
+
+def _arm_subtype_layer(cards: list, card_id: str) -> dict:
+    """One arm's descriptive subtype layer for the multi-layer panorama: its honest axis grade and a
+    per-stratum subtype_signal roll-up. DISPLAY-only (verdict-inert) — a graceful {} accessor keeps a
+    missing/unresolved arm from crashing the panorama (card_summary returns {} when the card is absent)."""
+    summ = card_summary(cards, card_id)
+    return {
+        "card_id": card_id,
+        "subtype_axis_quality": summ.get("subtype_axis_quality"),
+        "subtype_stratification_class": summ.get("subtype_stratification_class"),
+        "n_subtypes_measured": summ.get("n_subtypes_measured"),
+        "per_stratum_signal": {
+            (r.get("stratum_id") or r.get("stratum")): r.get("subtype_signal")
+            for r in (summ.get("per_subgroup_metrics") or [])
+            if isinstance(r, dict) and (r.get("stratum_id") or r.get("stratum"))
+        },
+    }
+
+
+def _subtype_layer_concordance(cards: list) -> "dict | None":
+    """Verdict-INERT cross-layer subtype concordance: join the three by-subtype arms (tumor RNA /
+    cell-line RNA / tumor protein) on stratum name and report, per stratum, each MEASURED arm's
+    `subtype_signal` (subtype_enriched / subtype_depleted / subtype_uniform) and whether the measured
+    arms agree, disagree, or only one arm measured it.
+
+    NEVER-LIFT ASYMMETRY (the framework invariant): this may raise/flag confidence and name a
+    directional discordance only — it must NEVER move `presence_verdict`. The pooled spine is untouched.
+    A stratum joined by NAME: the three arms share one axis per routed indication (e.g. COADREAD
+    MSI_H/MSS resolve to the same MSI axis in TCGA / DepMap / CPTAC), so a same-name join is exact and
+    needs no crosswalk; cross-axis bridging (e.g. molecular CMS ↔ CMS_depmap) is a target-profile-level
+    concern (tp_facets_subtype._subtype_facet) and out of scope here. An underpowered / unevaluable
+    stratum carries a null `subtype_signal` and is excluded, so it is never over-read. Returns None when
+    no arm has a single measured stratum (nothing to reconcile)."""
+    per_arm_axis: dict = {}
+    stratum_signal: dict = {}  # stratum -> {arm_key: subtype_signal}
+    for arm_key, cid in _CONCORDANCE_ARMS:
+        summ = card_summary(cards, cid)
+        per_arm_axis[arm_key] = summ.get("subtype_axis_quality")
+        for rec in summ.get("per_subgroup_metrics") or []:
+            if not isinstance(rec, dict):  # tolerate simplified/frozen fixtures where rows aren't full dicts
+                continue
+            stratum = rec.get("stratum_id") or rec.get("stratum")
+            sig = rec.get("subtype_signal")
+            if stratum and sig:  # non-null signal ⇔ a MEASURED stratum (reader nulls the rest)
+                stratum_signal.setdefault(stratum, {})[arm_key] = sig
+    if not stratum_signal:
+        return None
+    by_stratum: dict = {}
+    n_agree = n_disagree = n_single = 0
+    for stratum, sigs in sorted(stratum_signal.items()):
+        if len(sigs) <= 1:
+            status = "single_arm"
+            n_single += 1
+        elif len(set(sigs.values())) == 1:
+            status = "agree"
+            n_agree += 1
+        else:
+            status = "disagree"
+            n_disagree += 1
+        by_stratum[stratum] = {"signals": sigs, "status": status}
+    if n_disagree:
+        concordance_class = "discordant"
+    elif n_agree:
+        concordance_class = "concordant"
+    else:
+        concordance_class = "insufficient"  # only single-arm strata — nothing cross-checked
+    return {
+        "axis": "subtype_signal",
+        "arm_axis_quality": per_arm_axis,
+        "by_stratum": by_stratum,
+        "n_strata_joined": len(by_stratum),
+        "n_agree": n_agree,
+        "n_disagree": n_disagree,
+        "n_single_arm": n_single,
+        "concordance_class": concordance_class,
+        "_never_lift": (
+            "verdict-INERT: cross-layer subtype agreement raises/flags confidence only and never "
+            "moves presence_verdict; the pooled spine is byte-stable"
+        ),
+    }
+
+
 def _resolve_presence_subtype_panorama(target: str, indication: "str | None", subtypes: list) -> dict:
     """DESCRIPTIVE presence-by-subtype panorama for the dispatcher's subtype_panorama_fn hook (opt-in
     via --subtypes). Resolves tumor-rna-distribution-by-subtype scoped to the requested strata and
@@ -151,6 +248,8 @@ def _resolve_presence_subtype_panorama(target: str, indication: "str | None", su
         "cards": sub_cards,
         "scope_subtypes": list(subtypes),
         "subtype_presence_panorama": {
+            # PRIMARY arm: tumor RNA is the presence (tumor-lens) arm — its axis grade, the purity
+            # confounder, and the power-gated NEGATIVE-SELECTION-ONLY scoped read live here.
             "subtype_axis_quality": summary.get("subtype_axis_quality"),
             "subtype_stratification_class": summary.get("subtype_stratification_class"),
             "n_subtypes_measured": summary.get("n_subtypes_measured"),
@@ -172,6 +271,12 @@ def _resolve_presence_subtype_panorama(target: str, indication: "str | None", su
                 }
                 for r in per_subgroup
             ],
+            # MULTI-LAYER descriptive view: each arm's honest axis grade + per-stratum subtype_signal,
+            # so --subtypes returns the cell-line and protein layers alongside RNA (never-lift: all
+            # three are resolved OFF the verdict spine and touch no ladder rung).
+            "layer_panorama": {arm_key: _arm_subtype_layer(sub_cards, cid) for arm_key, cid in _CONCORDANCE_ARMS},
+            # the cross-layer stratum-join agreement/disagreement summary (verdict-inert)
+            "concordance": _subtype_layer_concordance(sub_cards),
             "_missing": bool(card is None or card.get("_missing")),
             "_missing_reason": (card or {}).get("_missing_reason"),
         },
@@ -1943,6 +2048,25 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         "cellline_spotlight_subtype": get_card_field(
             cards, "cellline-rna-distribution-by-subtype", "spotlight_subtype"
         ),
+        # Tumor-protein (CPTAC) subtype panorama — the third arm, projected here so it is READ, not
+        # resolved-every-run-and-dropped. Verdict-inert like its RNA siblings; it never enters a rank
+        # ladder. The protein card emits no spotlight_subtype, so this mirrors the cell-line SUBSET
+        # (scope/quality/n_measured/class) rather than the fuller tumor-RNA key set.
+        "protein_subtype_scope_available": get_card_field(
+            cards, "tumor-protein-distribution-by-subtype", "subtype_axis_available"
+        ),
+        "protein_subtype_axis_quality": get_card_field(
+            cards, "tumor-protein-distribution-by-subtype", "subtype_axis_quality"
+        ),
+        "protein_n_subtypes_measured": get_card_field(
+            cards, "tumor-protein-distribution-by-subtype", "n_subtypes_measured"
+        ),
+        "protein_subtype_stratification_class": get_card_field(
+            cards, "tumor-protein-distribution-by-subtype", "subtype_stratification_class"
+        ),
+        # Cross-layer subtype concordance — the three arms joined on stratum, agree/disagree/single-arm
+        # per stratum. Verdict-INERT (never-lift): raises/flags confidence only, never moves the verdict.
+        "subtype_layer_concordance": _subtype_layer_concordance(cards),
         # ── Single-cell tumor (sc_rna/tumor) — verdict-bearing via _SC_RNA_RANK ──
         # sc_expression_class drives the ladder; the rest is per-compartment / CAF / homogeneity detail
         # that bulk cannot give (see CONTRACT.md § "Single-cell layer").
@@ -2235,6 +2359,12 @@ _SYNTHESIS_FACET_KEYS = (
     "subtype_purity_source",
     "subtype_purity_spread",
     "cellline_subtype_axis_quality",
+    # Tumor-protein subtype arm — lifted so the composed reasoner sees the CPTAC arm's capability
+    # grade alongside the two RNA arms (ends "resolved every run, read zero times"). Verdict-inert.
+    "protein_subtype_scope_available",
+    "protein_subtype_axis_quality",
+    # Cross-layer subtype concordance (the three arms joined per stratum) — verdict-inert.
+    "subtype_layer_concordance",
     # Modality-blind claim vector + brief cited read (the within-lens integration this subskill owns).
     "claim_vector",
     "claim_vector_by_subtype",

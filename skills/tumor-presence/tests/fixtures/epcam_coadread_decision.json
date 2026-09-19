@@ -3596,7 +3596,7 @@
             "subgroup_n": 100,
             "subgroup_n_floor_met": true,
             "subtype_defining_data": "genomic",
-            "subtype_signal": "uniform",
+            "subtype_signal": "subtype_uniform",
             "source_cohort": "DepMap-26q1"
           }
         ],
@@ -3646,7 +3646,7 @@
             "subgroup_n": 34,
             "subgroup_n_floor_met": true,
             "source_cohort": "CPTAC-COAD",
-            "subtype_signal": "uniform"
+            "subtype_signal": "subtype_uniform"
           }
         ],
         "subtype_axis_available": true,

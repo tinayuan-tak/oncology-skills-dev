@@ -693,8 +693,9 @@ tumor-protein-distribution-by-subtype:
     reason: "unclassified by heuristic \u2014 REVIEW"
   subtype_stratification_class:
     role: display
-    reason: "SKILL.md:75 declares this card DISPLAY-ONLY / verdict-inert; its cellline twin IS lifted onto the headline,
-      this arm is not — surfaced via the emitted card, feeds no ladder"
+    reason: "SKILL.md:75 declares this card DISPLAY-ONLY / verdict-inert; Stage 5 now PROJECTS this arm onto the headline
+      (protein_subtype_stratification_class) mirroring its cell-line twin, but it stays verdict-inert — it feeds no
+      ladder rung and the pooled presence_verdict is byte-stable"
     reviewed: true
 expression-purity-confound:
   cellular_source:

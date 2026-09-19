@@ -1090,12 +1090,30 @@ def _dispatch_tumor_expression_distribution_subtype(
 
 
 # Indication → DepMap-side (ModelID-keyed) assignment shard for the cell-line subtype panorama.
-# COADREAD-only for the pattern proof (the only landed DepMap cell-line shard: MSI_H/MSS). Extend in
-# lockstep with the card's applies_when as new --data-source depmap shards land.
+# Reaches every landed DepMap cell-line shard, mirroring the alias keys of the TCGA tumor arm's
+# INDICATION_TO_TUMOR_ASSIGNMENT_MANIFEST so the two arms resolve the same indications. Verified member
+# counts (per data-catalog manifests, 2026-09-18): COADREAD MSI_H(30)/MSS(106) and NSCLC Adeno(118)/
+# SCC(32) and ESCA EAC(67)/ESCC(30) carry POWERED strata; SCLC has SCLC_A(32) powered + N(15)/P/Y
+# exploratory; HNSC is mixed; PAAD and STAD land but every stratum has 0 cell lines (empty) — those
+# degrade honestly (subtype_axis_quality: empty/unevaluable, subtype_signal: null), they do NOT lie.
+# COADREAD stays on the MSI_H/MSS shard (the powered one); the CMS shard (-coadread-cms-v1) is a
+# SECOND axis and is not routed here (one manifest per indication). Extend in lockstep with the card's
+# applies_when. An indication absent here → subtype_axis_available:false (honest named gap).
 _CELLLINE_SUBTYPE_ASSIGNMENTS = {
     "COADREAD": "depmap-subgroup-assignments-coadread-v1",
     "COAD": "depmap-subgroup-assignments-coadread-v1",
     "READ": "depmap-subgroup-assignments-coadread-v1",
+    "HNSC": "depmap-subgroup-assignments-hnsc-v1",
+    "HNSCC": "depmap-subgroup-assignments-hnsc-v1",
+    "STAD": "depmap-subgroup-assignments-stad-v1",
+    "GC": "depmap-subgroup-assignments-stad-v1",
+    "NSCLC": "depmap-subgroup-assignments-nsclc-v1",
+    "LUAD": "depmap-subgroup-assignments-nsclc-v1",  # NSCLC shard carries the histology split (Adeno/SCC)
+    "LUSC": "depmap-subgroup-assignments-nsclc-v1",
+    "ESCA": "depmap-subgroup-assignments-esca-v1",
+    "PAAD": "depmap-subgroup-assignments-paad-v1",
+    "PDAC": "depmap-subgroup-assignments-paad-v1",
+    "SCLC": "depmap-subgroup-assignments-sclc-v1",
 }
 
 
