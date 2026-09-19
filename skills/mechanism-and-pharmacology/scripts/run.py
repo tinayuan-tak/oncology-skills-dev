@@ -192,8 +192,10 @@ def _predictability_mechanism_facet(cards):
     partner-gene-bearing feature classes and cross-reference each partner gene against SIGNOR's
     upstream/downstream partner symbols: overlap = curated+empirical CONVERGENCE (a stronger MoA/PD-marker
     hypothesis); a predictive partner ABSENT from SIGNOR = a data-driven hypothesis the curated network
-    does not yet capture. NOTE: importance is RF-impurity / XGB-gain (NOT SHAP; see the predictability
-    manifest) and CORRELATIONAL, not causal — hypothesis-generating only. Feeds NO resolver."""
+    does not yet capture. NOTE: in the canonical depmap-predictability 26q1-v4 build importance is
+    mean(|SHAP|) TreeExplainer attribution (the older v1/v2/v3 pins fall back to RF-impurity / XGB-gain;
+    see the predictability manifest); either way it is CORRELATIONAL, not causal — hypothesis-generating
+    only. Feeds NO resolver."""
     pclass = get_card_field(cards, "dependency-predictability", "predictability_class")
     dom_class = get_card_field(cards, "dependency-predictability", "pred_dominant_feature_class")
     top_rf = get_card_field(cards, "dependency-predictability", "pred_top_features_rf") or []
