@@ -562,13 +562,12 @@ KNOWN_FIGURE_DEBT = {
 
 # KNOWN unroutable cards (foundation audit 2026-09-13): cards the skills live-reader layer cannot read
 # on ANY path — no `methods[].entrypoint` for the generic dispatcher AND no card_id in any
-# `*DISPATCHERS` registry. All 9 declare a non-live top-level status, so the exemption is BY
+# `*DISPATCHERS` registry. All 8 declare a non-live top-level status, so the exemption is BY
 # DECLARATION, not by silence — validate_card_method_routability() asserts that, asserts this set is
 # exactly the unroutable set (a stale waiver on a now-routable card is also an error), and errors on
 # any card that joins it. The status column is what makes the waiver reviewable.
 KNOWN_UNROUTED_CARDS = {
     "antigen-internalization",  # placeholder_not_wired — no internalization/turnover product exists
-    "antigen-prevalence",  # placeholder_not_wired — no prevalence product exists
     "antigen-prevalence-protein",  # placeholder_not_wired — no CPTAC protein-prevalence product
     "functional-blockade-rationale",  # placeholder_not_wired — contract created to kill a phantom ref
     "lineage-restriction-evidence",  # dormant_pending_data

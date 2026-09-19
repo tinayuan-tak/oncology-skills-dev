@@ -216,7 +216,7 @@ measurement_types:
 
   antigen_expressing_prevalence:
     claim: "What fraction of tumors express target above a clinically relevant level (patient-selection prevalence)?"
-    evidence_substrate: recount3_tcga_gtex_bulk_rna   # describes the DOMINANT (RNA) provider — reads the SAME dge-tumor-vs-adjacent product as tumor_vs_adjacent_expression (recount3 substrate). The protein provider below is a DISTINCT MS substrate (CPTAC TMT), surfaced side-by-side via surface_discordance and never pooled — so this tag intentionally names only the RNA leg.
+    evidence_substrate: recount3_tcga_gtex_bulk_rna   # describes the DOMINANT (RNA) provider — reads the PER-SAMPLE tumor-TPM product tcga-tumor-tpm-recount3-long-v1 (recount3 substrate; prevalence needs per-sample rows, not a whole-cohort differential). The protein provider below is a DISTINCT MS substrate (CPTAC TMT), surfaced side-by-side via surface_discordance and never pooled — so this tag intentionally names only the RNA leg.
     entity_grains: [target_indication, target_subtype]   # target_subtype eligible-but-blocked
     cards: [antigen-prevalence, antigen-prevalence-protein]
     # >1 provider (RNA upper-bound vs protein patient-selection read): the two are reported SIDE-BY-SIDE
@@ -224,7 +224,7 @@ measurement_types:
     # averaged/pick-one. surface_discordance is the correct policy (the concordance-test discipline).
     multi_provider_policy: surface_discordance
     providers:
-      - {kind: dataset, source: dge-tumor-vs-adjacent, evidence_tier: measured}                    # RNA prevalence (upper bound) — antigen-prevalence
+      - {kind: dataset, source: tcga-tumor-tpm-recount3-long-v1, evidence_tier: measured}          # RNA prevalence (upper bound) — antigen-prevalence (per-sample tumor TPM; fraction >= cutoff)
       - {kind: dataset, source: cptac-protein-prevalence-per-cohort-v1, evidence_tier: measured}   # PROTEIN prevalence (CPTAC TMT, patient-selection read) — antigen-prevalence-protein (product not yet built; card is placeholder_not_wired)
 
   temporal_expression_shift:

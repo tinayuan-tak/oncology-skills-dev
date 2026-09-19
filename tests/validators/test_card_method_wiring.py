@@ -47,11 +47,10 @@ def _load(mod_name: str):
 
 VC = _load("validate_cards")
 
-# The nine cards with no reader on any path, pinned BY NAME (not by count, and not by re-reading the
+# The eight cards with no reader on any path, pinned BY NAME (not by count, and not by re-reading the
 # validator's own set — a test that iterates the declaration it is checking is green under a swap).
 _EXPECTED_UNROUTED = {
     "antigen-internalization",
-    "antigen-prevalence",
     "antigen-prevalence-protein",
     "functional-blockade-rationale",
     "lineage-restriction-evidence",
@@ -306,8 +305,9 @@ def test_a_new_unwired_card_is_an_error(tmp_path, monkeypatch):
 
 
 def test_a_stale_waiver_is_an_error(tmp_path, monkeypatch):
-    """Mirror direction: a waiver that outlives its gap. `antigen-prevalence` gets a real entrypoint →
-    the waiver must be removed, and the check says so instead of staying quietly green."""
+    """Mirror direction: a waiver that outlives its gap. When the alphabetically-first waived card
+    gets a real module+entrypoint, the waiver must be removed, and the check says so instead of
+    staying quietly green. (antigen-prevalence left this set on 2026-09-19 for exactly this reason.)"""
     monkeypatch.setattr(VC, "_dispatcher_routed_card_ids", lambda: frozenset())
     specs = [_card(cid, methods=[{"call": cid}], status="placeholder_not_wired") for cid in sorted(_EXPECTED_UNROUTED)]
     specs[0]["methods"] = [{"call": specs[0]["card_id"], "module": "m", "entrypoint": "f"}]

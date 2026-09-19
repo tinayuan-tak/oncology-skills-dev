@@ -42,6 +42,13 @@ optional_cards:
   - card_id: rwd-stratified-expression
     version: ">=1.0.0,<2"
     when: "indication in [\"COADREAD\"]"
+  # WIRED 2026-09-19 — graduated from placeholder_cards. build_antigen_prevalence (analysis-methods
+  # #671) projects the fraction of tumor samples >= clinically-relevant / high TPM cutoffs off the
+  # per-sample product tcga-tumor-tpm-recount3-long-v1. OPTIONAL + COADREAD-gated: v1 is the COADREAD
+  # pilot cohort; resolves out-of-cohort indications by simply not firing (honest pilot scope).
+  - card_id: antigen-prevalence
+    version: ">=1.0.0,<2"
+    when: "indication in [\"COADREAD\", \"COAD\", \"READ\"]"
   # B2 (2026-08-06): the surface-modality-fit VERDICT cards were consumed by the
   # surface-modality-fit skill but absent from every dashboard_spec — so they could NEVER fire in a
   # real evidence package (health flags `card_consumed_but_no_spec` + `card-reader-never-fires`).
@@ -80,8 +87,6 @@ placeholder_cards:
   # Declared-but-not-yet-wired (card.status != wired) — surfaced for roadmap transparency, NOT required to
   # produce. compose-dashboard surfaces them in excluded_at_compose (exclusion_source=data_blocked_at_compose;
   # SK#373); validate_cards forbids a non-wired card in required_cards (so "required" keeps meaning "must produce").
-  - card_id: antigen-prevalence
-    version: ">=1.0.0,<2"        # status: placeholder_not_wired — no prevalence-aggregator method yet
   # (clinical-precedent graduated to required_cards 2026-08-21 — WIRED to AACT.)
   # EG1 (iter-2): lineage-restriction-evidence — discovery-driving signal for surface modalities
   # (DLL3/CLDN18.2/GUCY2C single/two-tissue DOMINANT calls). Dormant until hpa-normal-tissue-expression lands.

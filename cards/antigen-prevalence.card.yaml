@@ -7,40 +7,46 @@ card_id: antigen-prevalence
 version: 1.0.0
 # interpretation (descriptive): emits no categorical class.
 interpretation: descriptive
-status: placeholder_not_wired   # no prevalence-aggregator method built yet; compose surfaces it in excluded_at_compose (exclusion_source=data_blocked_at_compose). Belongs in placeholder_cards, not required_cards.
+status: wired   # LIVE 2026-09-19: build_antigen_prevalence (analysis-methods #671, on main) reads the per-sample tumor-TPM product and projects the two prevalence fractions. Routes via the GENERIC dispatcher (methods[0].module/entrypoint below). Wired into surface-intrinsic-base as an OPTIONAL, COADREAD-gated card (v1 pilot cohort).
 question: "What fraction of {indication.label} tumors express {target.symbol} at clinically relevant levels?"
 
-tier: indication   # primary scope is indication-level prevalence; subtype-eligible (see below) once a per-sample reader ships
+tier: indication   # indication-level prevalence; subtype-eligible-in-principle (see below), deliberately pooled in v1
 
-# BLOCKED (2026-07-16): expressing-fraction genuinely varies by molecular subgroup
-# (filter 1 met), but the prevalence estimate composes from the whole-cohort
-# `dge-tumor-vs-adjacent` aggregate — no per-sample expression rows survive to
-# read time to recount within a stratum member-set (filter 2 FAILS). Tagged
-# not-live; carries no per-subgroup panorama field until a per-sample expression
-# reader ships. This card is subtype-eligible-in-principle, not yet stratifiable.
+# WIRED (2026-09-19): the original 2026-07-16 block was WRONG about the substrate, not the
+# biology. Prevalence needs PER-SAMPLE rows (a whole-cohort differential like
+# dge-tumor-vs-adjacent cannot yield a fraction-of-samples-above-cutoff); the per-sample
+# product `tcga-tumor-tpm-recount3-long-v1` already ships and the pooled reader now projects
+# the two fractions. v1 is POOLED whole-cohort only. Per-subgroup stratification is OUT OF SCOPE this iteration:
+# the per-sample substrate now EXISTS, but the bound reader pools; a per-stratum recount (panorama)
+# method (mirroring PANORAMA_DISPATCHERS) is eligible-in-principle follow-on. Not yet stratified.
 subgroup_stratification:
   eligible: true
-  status: blocked_needs_per_sample_reader
+  status: out_of_scope   # per schema: deliberately not stratified this iteration
   axes: [msi_status]
-  rationale: "Expressing-fraction varies by subgroup but dge-tumor-vs-adjacent is a whole-cohort aggregate; needs a per-sample expression reader to recount per stratum."
+  rationale: "Per-sample substrate now ships (tcga-tumor-tpm-recount3-long-v1) and the bound reader returns a whole-cohort POOLED fraction; v1 is deliberately pooled. Per-stratum recount (a panorama method fanning the read over each stratum member-set) is eligible-in-principle follow-on, not built this iteration."
 
 applies_when:
   - "target.tumor_expression_p95 >= THRESHOLD.expression_p95_min"
   - "indication.tumor_sample_count >= THRESHOLD.min_samples_for_prevalence"
 
 required_inputs:
-  - product_id: expression-rna-tumor-vs-adjacent   # products.yaml registry id; catalog carries it per-indication via each manifest's product_id: field
+  - product_id: tcga-tumor-tpm-recount3-long-v1   # per-sample tumor TPM (log2(TPM+1)), the substrate prevalence needs; products.yaml registry id, catalog carries it per-study via each manifest's product_id: field
     indication: "{indication}"
     release_pin: "{release_pin}"
 
 methods:
   - call: prevalence-aggregator
+    # GENERIC dispatch (skills _live_readers._generic_dispatch): module resolves to the object that
+    # DIRECTLY holds the entrypoint — the cli submodule, not the package (which does not re-export it).
+    module: tcga_gtex_expression_distribution.cli
+    entrypoint: build_antigen_prevalence
     args:
+      # Only target + indication are forwarded by the generic dispatcher. The two TPM cutoffs are NOT
+      # passed through; the method hardcodes CLINICAL_RELEVANCE_TPM=1.0 / HIGH_EXPRESSION_TPM=10.0 as
+      # constants that MIRROR the `thresholds:` block below (kept in sync by hand). cutoff_used_tpm in
+      # the output makes the honoured cutoff auditable.
       target: "{target.symbol}"
       indication: "{indication}"
-      release_pin: "{release_pin}"
-      clinical_relevance_tpm: "THRESHOLD.clinical_relevance_tpm"
-      high_expression_tpm: "THRESHOLD.high_expression_tpm"
 
 outputs:
   summary_fields:
