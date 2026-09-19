@@ -240,12 +240,21 @@ golden-spine test + the guards' own unit tests):
   infer "enough antigen" for a modality decision from a presence-positive.
 
 - **`protein_confirmation_state`** (finding G5 — *name the untested case*). For a PRESENT collapsed
-  verdict, states whether protein was `confirmed` (measured present in the tumor-CPTAC or cell-line-MS
-  bucket), `measured_absent` (measured cell-line `protein_broadly_low` and nowhere confirmed present),
-  `untested` (no protein bucket is `measured` — RNA-only presence), or `not_applicable` (the collapsed
-  verdict is not a presence-positive). A protein PRESENT reading in ANY context wins (cell-line MS
-  under-samples surface antigens, so a tumor-present / cell-line-absent target is `confirmed`), mirroring
-  the positives-over-negatives collapse. **Design note:** the measured-ABSENT contradiction is a rare,
+  verdict, states whether protein was `confirmed` (measured present **in this indication's tumor** — a
+  CPTAC/subtype TMT-MS positive **or** an HPA antibody-IHC detection), `confirmed_cell_line_only`
+  (cell-line MS present, tumor-tissue protein untested), `measured_absent` (a measured indication-grain
+  absence — an antibody-IHC `not_detected` or a bulk-MS `protein_broadly_low` — and nowhere confirmed
+  present), `untested` (no indication-grain tumor-protein bucket is `measured` — RNA-only presence), or
+  `not_applicable` (not a presence-positive). An indication-grain protein PRESENT reading wins over
+  cell-line/pan-cancer (cell-line MS under-samples surface antigens), mirroring the
+  positives-over-negatives collapse **applied at the right grain**. **Grain (v1.23.0):** two weaker grains
+  also land in the `bulk_protein_ms/tumor` bucket and must NOT satisfy `confirmed`: (1) `tumor-elevation-breadth`
+  is a pan-cancer *target-grain* card, so its breadth verdicts (`multi_tumor_elevated` etc.) are excluded
+  from the confirmed trigger — a breadth-only bucket is `untested`, not `confirmed` (fixes GFAP/COADREAD
+  reading `confirmed` with `protein_expression_class=data_unavailable`); (2) a MEASURED antibody-IHC
+  `not_detected` in the indication tumor (`protein_ihc/tumor`) reaches `measured_absent` even when a
+  pan-cancer/cell-line positive is present (fixes CD19/COADREAD reading `confirmed` despite a measured IHC
+  absence). No new state token; verdict-inert (presence_verdict byte-stable). **Design note:** the measured-ABSENT contradiction is a rare,
   alarming state and is handled at the SPINE (`present_rna_only_protein_absent`); the UNTESTED case is
   the MODAL case (most indications lack CPTAC / cell-line-MS) and is *lower confidence, not a different
   presence state*, so it is surfaced HERE as a verdict-inert facet rather than minting a new default
@@ -389,6 +398,7 @@ not `presence_signal_strength`.
 ## Version history
 
 | version | date | change |
+| 1.23.0 | 2026-09-19 | **`protein_confirmation_state` grain fix** (see § above). (1) The pan-cancer target-grain `tumor-elevation-breadth` verdicts share the `bulk_protein_ms/tumor` bucket with indication-grain CPTAC/subtype, so a breadth-only bucket read `confirmed`; those verdicts (derived from `_PROTEIN_RANK`'s `tumor-breadth-*` rules) are now excluded from the confirmed trigger → `untested`. (2) The facet now reads the `protein_ihc/tumor` bucket symmetrically, so a measured antibody-IHC `not_detected` reaches `measured_absent` (previously unreachable). No new state token, no contract change. **Verdict-inert** (presence_verdict + presence_verdict_by_modality + resolver goldens byte-stable; only the confidence facet + `presence_confirmation_caveat` move). |
 |---|---|---|
 | 1.22.0 | 2026-09-18 | **`subset_high` split, phase 2 of 3** (see § above): new `_EXPRESSION_RANK` rung `tumor-expression-subset-high-supportive` → `tumor_subset_high_expression` (tier 2) so a target high in as few as 10% of patients is no longer reported with the same word and phrase as a broadly-expressed one; prevalence-naming phrase; `tumor_expression_class` + `tumor_high_fraction` lifted into the headline and synthesis facet (that card's class/fraction had never been surfaced). New ladder guards: producer-vocabulary REACH (guard 3) and output-vocabulary DECLARATION against the pinned `presence_verdict_enum` (guard 4). **Verdict-inert by measurement** on today's contracts (2×2 verified); verdict-MOVING at phase 3, which needs 3a (declare the token in the enum) BEFORE 3b (narrow the broad rule). Also corrects stale prose in `run.py`/`SKILL.md`/`README.md` that called any `cell_line_vs_tumor_discordant: True` a ladder regression. |
 | 1.21.0 | 2026-09-10 | `--literature` retriever routed through the shared `default_retrieve` (EPMC → PubTator3 fallback) so the optional literature lane no longer hard-depends on a single source (#1263). Verdict-inert (literature is a sibling key). |

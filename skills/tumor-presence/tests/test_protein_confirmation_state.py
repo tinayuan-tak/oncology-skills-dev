@@ -82,6 +82,67 @@ def test_not_applicable_when_verdict_not_positive():
     assert tp._protein_confirmation_state(_pm(), "insufficient") == "not_applicable"
 
 
+# --- GRAIN (v1.23.0): pan-cancer breadth is not indication-grain confirmation; IHC read symmetrically ---
+
+
+def test_pan_cancer_breadth_set_is_nonempty_and_derived_from_the_ladder():
+    """Anti-vacuity: the exclusion set must actually contain the breadth positives, or fix 1 is a no-op
+    that silently re-admits them. Derived from _PROTEIN_RANK's tumor-breadth-* rules."""
+    assert "multi_tumor_elevated" in tp._PAN_CANCER_BREADTH_VERDICTS
+    assert "broadly_tumor_elevated" in tp._PAN_CANCER_BREADTH_VERDICTS
+    # and those breadth positives are (still) members of the present-verdict set they're excluded from —
+    # otherwise the exclusion guards nothing.
+    assert "multi_tumor_elevated" in tp._PROTEIN_PRESENT_VERDICTS
+
+
+def test_pan_cancer_breadth_only_is_untested_not_confirmed():
+    """DEFECT 1 (GFAP/COADREAD): tumor-elevation-breadth (pan-cancer, target-grain) filling the
+    bulk_protein_ms/tumor bucket must NOT read as `confirmed` — indication tumor protein is untested."""
+    for breadth_v in ("multi_tumor_elevated", "broadly_tumor_elevated"):
+        pm = _pm(**{"bulk_protein_ms/tumor": _bucket(breadth_v)})
+        assert tp._protein_confirmation_state(pm, "broadly_high_expression") == "untested", breadth_v
+
+
+def test_ihc_detected_confirms_in_tumor():
+    """DEFECT 2 (positive direction): an antibody-IHC detection is indication-grain tumor protein."""
+    for ihc_v in ("ihc_detected_high", "ihc_detected_moderate", "ihc_detected_low"):
+        pm = _pm(**{"protein_ihc/tumor": _bucket(ihc_v)})
+        assert tp._protein_confirmation_state(pm, "broadly_high_expression") == "confirmed", ihc_v
+
+
+def test_measured_ihc_not_detected_is_measured_absent_even_under_breadth():
+    """DEFECT 2 (CD19/COADREAD): a MEASURED antibody-IHC not_detected is an indication-grain absence and
+    must reach `measured_absent`, outranking a pan-cancer-breadth or cell-line positive that masked it."""
+    # breadth positive in the tumor bucket + measured IHC absence → measured_absent (was `confirmed`)
+    pm = _pm(
+        **{
+            "bulk_protein_ms/tumor": _bucket("multi_tumor_elevated"),
+            "protein_ihc/tumor": _bucket("ihc_not_detected"),
+        }
+    )
+    assert tp._protein_confirmation_state(pm, "broadly_high_expression") == "measured_absent"
+    # cell-line MS present + measured IHC absence → measured_absent (indication grain wins)
+    pm = _pm(
+        **{
+            "bulk_protein_ms/cell_line": _bucket("protein_broadly_high"),
+            "protein_ihc/tumor": _bucket("ihc_not_detected"),
+        }
+    )
+    assert tp._protein_confirmation_state(pm, "broadly_high_expression") == "measured_absent"
+
+
+def test_unmeasured_ihc_bucket_is_ignored():
+    """An IHC bucket that is data_unavailable (evidence_state != measured) must not be read either way."""
+    pm = _pm(**{"protein_ihc/tumor": _bucket("ihc_not_detected", "data_unavailable")})
+    assert tp._protein_confirmation_state(pm, "broadly_high_expression") == "untested"
+
+
+def test_indication_ms_present_still_wins_over_breadth_in_same_bucket():
+    """A real CPTAC positive is not shadowed by the breadth exclusion — it is a non-breadth token."""
+    pm = _pm(**{"bulk_protein_ms/tumor": _bucket("protein_broadly_high")})
+    assert tp._protein_confirmation_state(pm, "broadly_high_expression") == "confirmed"
+
+
 # --- integration: surfaces in the headline + synthesis facet, verdict byte-stable ---
 
 
