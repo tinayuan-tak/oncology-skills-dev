@@ -84,6 +84,34 @@ def test_field_declared_but_absent_fires_only_for_missing():
     assert missing == ["missing_field"]  # present_field must NOT appear (anti-vacuity)
 
 
+def test_field_name_normalizes_dict_and_bare_string():
+    # a card may declare summary_fields as bare names OR as {name, description, lens_conditional_on} dicts
+    assert cca._field_name("plain") == "plain"
+    assert cca._field_name({"name": "adc_grade", "description": "…"}) == "adc_grade"
+    assert cca._field_name({"field": "x"}) == "x"
+    assert cca._field_name({"no_name_key": 1}) is None  # unnameable ⇒ dropped by the caller
+
+
+def test_dict_shaped_summary_fields_do_not_crash_and_lens_conditional_is_excluded():
+    # regression: a dict-shaped summary_fields entry once raised "unhashable type: dict" on `f not in
+    # summary`. A lens-conditional field absent from a non-lensed run must NOT be flagged.
+    declared = {
+        "method_calls": [],
+        "summary_fields": ["always_field", "adc_grade"],  # names (as build_declared normalizes them)
+        "conditional_summary_fields": ["adc_grade"],  # emitted only under the --modality lens
+        "manifests": [],
+    }
+    summary = {"always_field": 1}  # adc_grade absent because no lens was invoked
+    findings = cca.detect_findings(declared, [], summary, None)
+    kinds = [f["kind"] for f in findings]
+    assert "field_declared_but_absent_from_summary" not in kinds  # conditional field is not "missing"
+    # teeth: a NON-conditional absent field still fires
+    declared["summary_fields"] = ["always_field", "missing_nonconditional"]
+    findings2 = cca.detect_findings(declared, [], summary, None)
+    absent = [f["field"] for f in findings2 if f["kind"] == "field_declared_but_absent_from_summary"]
+    assert absent == ["missing_nonconditional"]
+
+
 # ── declared_input_not_read_this_run + read_object_not_in_any_manifest ────────────────────────────────
 def test_never_read_and_uncataloged_object_with_fake_catalog():
     cat = _Catalog(

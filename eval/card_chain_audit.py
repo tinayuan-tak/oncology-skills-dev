@@ -195,6 +195,22 @@ def _manifest_view(manifest_id: str, catalog: Any) -> dict:
     }
 
 
+def _field_name(f: Any) -> str | None:
+    """A ``outputs.summary_fields`` entry is either a bare name string or a dict carrying ``name`` (some
+    cards attach ``description`` / ``lens_conditional_on`` metadata, e.g. adc-tce-modality-fit). Return the
+    field name in both shapes (None if unnameable — dropped by the caller)."""
+    if isinstance(f, dict):
+        return f.get("name") or f.get("field") or f.get("id")
+    return f
+
+
+def _conditional_field_names(raw_fields: list) -> set[str]:
+    """Names of declared fields emitted only under a lens (``lens_conditional_on``). These are
+    legitimately absent when that lens was not invoked, so they must NOT fire
+    ``field_declared_but_absent_from_summary`` (a false positive on every non-lensed run)."""
+    return {_field_name(f) for f in raw_fields if isinstance(f, dict) and f.get("lens_conditional_on")}
+
+
 def build_declared(card_id: str, input_manifest_ids: list[str], catalog: Any, tc_root: Path) -> dict:
     """Assemble the DECLARED column: card yaml + resolved catalog manifests + summary schema."""
     card_path = tc_root / "cards" / f"{card_id}.card.yaml"
@@ -204,6 +220,7 @@ def build_declared(card_id: str, input_manifest_ids: list[str], catalog: Any, tc
     methods = spec.get("methods") or []
     required = spec.get("required_inputs") or []
     outputs = spec.get("outputs") or {}
+    raw_fields = outputs.get("summary_fields") or []
     return {
         "card_yaml_found": True,
         "method_calls": [
@@ -212,7 +229,9 @@ def build_declared(card_id: str, input_manifest_ids: list[str], catalog: Any, tc
         "required_product_ids": [r.get("product_id") for r in required if isinstance(r, dict)],
         "thresholds": spec.get("thresholds") or {},
         "threshold_roles": spec.get("threshold_roles") or {},
-        "summary_fields": list(outputs.get("summary_fields") or []),
+        # normalized to NAME strings — a card may declare either bare names or {name, description, ...} dicts
+        "summary_fields": [n for n in (_field_name(f) for f in raw_fields) if n],
+        "conditional_summary_fields": sorted(n for n in _conditional_field_names(raw_fields) if n),
         "summary_field_types": _summary_schema(card_id, tc_root),
         # resolved from the RUN's own input_manifest_ids (already concrete manifest ids — no release guess)
         "manifests": [_manifest_view(m, catalog) for m in input_manifest_ids],
@@ -264,8 +283,10 @@ def detect_findings(declared: dict, measured: list[dict] | None, summary: dict, 
 
     # field_declared_but_absent_from_summary — declared output field missing from the emitted summary
     declared_fields = declared.get("summary_fields") or []
+    conditional = set(declared.get("conditional_summary_fields") or [])
     if isinstance(summary, dict):
-        missing = [f for f in declared_fields if f not in summary]
+        # a lens-conditional field absent from a non-lensed run is expected, not a defect
+        missing = [f for f in declared_fields if f not in summary and f not in conditional]
         for f in missing:
             findings.append({"kind": "field_declared_but_absent_from_summary", "field": f})
 
@@ -473,7 +494,8 @@ def _card_health(summary: dict, measured: list[dict] | None, findings: list[dict
     was not traced), not a broken card — distinct from ``no_output``."""
     kinds = {f["kind"] for f in findings}
     has_output = bool(summary)
-    missing = [f for f in (declared.get("summary_fields") or []) if f not in summary]
+    # single source of truth: reuse detect_findings' absent-field verdict (normalized + lens-aware)
+    missing = [f for f in findings if f["kind"] == "field_declared_but_absent_from_summary"]
 
     if "rederived_mismatch" in kinds:
         return {
