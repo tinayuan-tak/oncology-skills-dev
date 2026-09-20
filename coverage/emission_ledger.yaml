@@ -2,19 +2,28 @@ _doc: 'T1 emission ledger: the (card_id, field, value) triples the corpus actual
   card. out_of_vocab GATES (a contradiction between two committed files); never_emitted and saturation
   are DIMENSIONS, not gates. Regenerate with validators/build_emission_ledger.py; --self-check gates declaration-side
   drift. Grain is per (card_id, field) and is never pooled by field name.'
-corpus_vintage: target-archetype-corpus-20260915
+corpus_vintage: target-archetype-corpus-20260920
 n_packages: 504
 n_unparseable: 0
-producing_shas: {}
-provenance: 'unknown: corpus carries no build_sha.json stamps'
+producing_shas:
+  6cd0bb6929e65b505f2e04b5905db6854f2e5699: 145
+  71f08e6ced6e5ab92fe1e73bb72b9b9c514333e6: 76
+  c71eb8e625ef1d125ab71564cdfafb3d60da6c10: 68
+  0fcd7d67e9c3bd63915e367879627bf4b7e550e4: 63
+  68c892dc191c53c97d8005cc3bc51949c15a8d19: 48
+  282f1cc1f27331de6881eb41445c58dd387c7d36: 34
+  066f762a862bca1afb50d3c66a46401d47b1ad9e: 31
+  a2cb61d72a8632e0020540ae4b9b5e5aff89b4e8: 23
+  472bf767d060c8dc502add4f14bdffae4ddcddc1: 16
+provenance: 'heterogeneous: packages were produced by different code'
 counts:
   cards_declaring_vocabulary: 136
   cards_with_observations: 132
   declared_pairs: 293
   pairs: 286
   out_of_vocab: 3
-  never_observed_pairs: 11
-  dead_tokens: 360
+  never_observed_pairs: 8
+  dead_tokens: 345
 ungated_absences:
   "orphan: declared on no field \u2014 already gated by validate_cards":
   - functional-gene-state::sample_state
@@ -22,37 +31,31 @@ ungated_absences:
   - prism-compound-activity::metric_source
   - variant-level-interpretation::resistance_class
 known_out_of_vocab:
-  as_of: '2026-09-19'
+  as_of: '2026-09-20'
   keys:
   - alteration-role::oncokb_gene_type::INSUFFICIENT_EVIDENCE
   - mouse-ko-phenotype::impc_viability_class::unknown
   - surface-abundance-density::surface_density_class::not_surface_density_whole_cell_estimate
 known_never_observed:
-  as_of: '2026-09-19'
+  as_of: '2026-09-20'
   keys:
   - antigen-internalization::internalization_class
   - antigen-internalization::internalization_evidence_tier
   - antigen-internalization::surface_turnover_class
-  - dependency-lineage-selectivity::indication_dependency_class
-  - sc-normal-celltype-expression::sc_normal_essential_veto_grade
   - sc-surface-normal-safety-solid::sc_surface_normal_solid_class
   - sc-surface-normal-safety-solid::sc_surface_safety_essential_class
   - surface-topology-and-ptm::endocytosis_motif_types
   - temporal-setting-expression-shift::temporal_shift_class
   - tumor-vs-normal-percentile-crossing-by-subtype::percentile_crossing_class
-  - tumor-vs-normal-selectivity::selectivity_substrate_basis
   reasons:
     antigen-internalization::internalization_class: card_never_emitted
     antigen-internalization::internalization_evidence_tier: card_never_emitted
     antigen-internalization::surface_turnover_class: card_never_emitted
-    dependency-lineage-selectivity::indication_dependency_class: field_absent
-    sc-normal-celltype-expression::sc_normal_essential_veto_grade: field_absent
     sc-surface-normal-safety-solid::sc_surface_normal_solid_class: card_never_emitted
     sc-surface-normal-safety-solid::sc_surface_safety_essential_class: card_never_emitted
     surface-topology-and-ptm::endocytosis_motif_types: always_empty_array
     temporal-setting-expression-shift::temporal_shift_class: card_never_emitted
     tumor-vs-normal-percentile-crossing-by-subtype::percentile_crossing_class: card_never_emitted
-    tumor-vs-normal-selectivity::selectivity_substrate_basis: field_absent
 by_card:
   abundance-dependency:
     abundance_dependency_class:
@@ -91,19 +94,19 @@ by_card:
       - moderate
       - unmeasured
       observed:
-        unmeasured: 496
+        unmeasured: 494
         clinically_internalizing: 7
-      n_non_null: 503
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 503
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
       - high
       - low
       - moderate
       top: unmeasured
-      saturation: 0.9861
+      saturation: 0.986
     fit_class:
       grain: scalar
       arity: scalar
@@ -117,21 +120,21 @@ by_card:
       - modality_ambiguous
       - neither_viable
       observed:
-        neither_viable: 375
+        neither_viable: 373
         both_viable: 94
         TCE_preferred: 20
         modality_ambiguous: 11
         data_unavailable: 3
-      n_non_null: 503
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 503
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
       - ADC_preferred
       - isoform_dependent_undefined
       top: neither_viable
-      saturation: 0.7455
+      saturation: 0.7445
     surface_confirmation_state:
       grain: scalar
       arity: scalar
@@ -142,18 +145,18 @@ by_card:
       - confirmed_protein
       - not_applicable
       observed:
-        not_applicable: 389
+        not_applicable: 387
         confirmed_protein: 97
         annotation_only: 12
         clinically_precedented: 5
-      n_non_null: 503
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 503
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted: []
       top: not_applicable
-      saturation: 0.7734
+      saturation: 0.7725
   alteration-clinical-association:
     alteration_survival_association_class:
       grain: scalar
@@ -166,19 +169,19 @@ by_card:
       - insufficient_survival_data
       - no_survival_association
       observed:
-        insufficient_survival_data: 151
+        insufficient_survival_data: 150
         no_survival_association: 16
         alteration_mutated_worse_survival: 1
-      n_non_null: 168
+      n_non_null: 167
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 168
+      n_packages_with_card: 167
       out_of_vocab: []
       never_emitted:
       - alteration_mutated_better_survival
       - data_unavailable
       top: insufficient_survival_data
-      saturation: 0.8988
+      saturation: 0.8982
   alteration-role:
     alteration_role:
       grain: scalar
@@ -193,19 +196,19 @@ by_card:
       - predictive_biomarker
       observed:
         direct_driver_gof: 210
-        curated_cancer_gene: 101
+        curated_cancer_gene: 99
         direct_driver_lof: 82
         data_unavailable: 64
         predictive_biomarker: 35
         passenger: 12
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted: []
       top: direct_driver_gof
-      saturation: 0.4167
+      saturation: 0.4183
     functional_direction:
       grain: scalar
       arity: scalar
@@ -215,17 +218,17 @@ by_card:
       - ambiguous
       - loss_of_function
       observed:
-        activating: 292
-        loss_of_function: 101
+        activating: 291
+        loss_of_function: 100
         ambiguous: 35
-      n_non_null: 428
+      n_non_null: 426
       n_null: 76
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted: []
       top: activating
-      saturation: 0.6822
+      saturation: 0.6831
     oncokb_gene_type:
       grain: scalar
       arity: scalar
@@ -237,21 +240,21 @@ by_card:
       - ONCOGENE_AND_TSG
       - TSG
       observed:
-        ONCOGENE: 302
-        TSG: 103
+        ONCOGENE: 301
+        TSG: 102
         ONCOGENE_AND_TSG: 20
         NEITHER: 11
         INSUFFICIENT_EVIDENCE: 4
-      n_non_null: 440
+      n_non_null: 438
       n_null: 64
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab:
       - INSUFFICIENT_EVIDENCE
       never_emitted:
       - INSUFFICIENT
       top: ONCOGENE
-      saturation: 0.6864
+      saturation: 0.6872
   amp-expr-stratified-dependency:
     amp_expr_stratification_class:
       grain: scalar
@@ -289,18 +292,18 @@ by_card:
       - within_indication
       - within_indication_mut_vs_pan_wt
       observed:
-        pan_lineage_evidence_only: 447
-        within_indication: 46
-        pan_no_indication: 9
+        pan_lineage_evidence_only: 455
+        within_indication: 47
       n_non_null: 502
       n_null: 0
       n_absent: 0
       n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
+      - pan_no_indication
       - within_indication_mut_vs_pan_wt
       top: pan_lineage_evidence_only
-      saturation: 0.8904
+      saturation: 0.9064
   caf-compartment-expression-luo:
     caf_expression_class:
       grain: scalar
@@ -314,16 +317,16 @@ by_card:
       observed:
         caf_subset_detected: 243
         caf_broadly_detected: 207
-        caf_low: 52
-      n_non_null: 502
+        caf_low: 51
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 502
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: caf_subset_detected
-      saturation: 0.4841
+      saturation: 0.485
   cd-antigen-backbone:
     cd_antigen_backbone_class:
       grain: scalar
@@ -358,18 +361,18 @@ by_card:
       - isoform_diverse
       - single_isoform_dominant
       observed:
-        balanced: 220
-        single_isoform_dominant: 205
+        balanced: 219
+        single_isoform_dominant: 204
         isoform_diverse: 71
-      n_non_null: 496
+      n_non_null: 494
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 496
+      n_packages_with_card: 494
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: balanced
-      saturation: 0.4435
+      saturation: 0.4433
   cellline-methylation-expression-coherence:
     evidence_scope:
       grain: scalar
@@ -381,11 +384,11 @@ by_card:
       - within_indication
       - within_indication_mut_vs_pan_wt
       observed:
-        pan_no_indication: 433
-      n_non_null: 433
+        pan_no_indication: 431
+      n_non_null: 431
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 433
+      n_packages_with_card: 431
       out_of_vocab: []
       never_emitted:
       - pan_lineage_evidence_only
@@ -405,15 +408,15 @@ by_card:
       - silencing_coupled_strong
       - silencing_lineage_confounded
       observed:
-        methylation_invariant_panel: 220
-        methylation_uncoupled: 118
+        methylation_invariant_panel: 219
+        methylation_uncoupled: 117
         silencing_coupled_strong: 46
         silencing_lineage_confounded: 43
         silencing_coupled_moderate: 6
-      n_non_null: 433
+      n_non_null: 431
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 433
+      n_packages_with_card: 431
       out_of_vocab: []
       never_emitted:
       - data_unavailable
@@ -430,9 +433,9 @@ by_card:
         subset_hypermethylation: 93
         pan_panel_correlation: 2
       n_non_null: 95
-      n_null: 338
+      n_null: 336
       n_absent: 0
-      n_packages_with_card: 433
+      n_packages_with_card: 431
       out_of_vocab: []
       never_emitted: []
       top: subset_hypermethylation
@@ -449,19 +452,19 @@ by_card:
       - top_1pct
       - top_decile
       observed:
-        mid: 330
-        bottom_decile: 57
-        top_decile: 27
+        mid: 327
+        bottom_decile: 56
+        top_decile: 26
         top_1pct: 5
-      n_non_null: 419
+      n_non_null: 414
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 419
+      n_packages_with_card: 414
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: mid
-      saturation: 0.7876
+      saturation: 0.7899
     protein_expression_class:
       grain: scalar
       arity: scalar
@@ -474,20 +477,20 @@ by_card:
       - lineage_restricted
       - sub_broad_detection
       observed:
-        broadly_moderate: 278
-        broadly_high: 94
-        broadly_low: 40
+        broadly_moderate: 276
+        broadly_high: 92
+        broadly_low: 39
         lineage_restricted: 7
-      n_non_null: 419
+      n_non_null: 414
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 419
+      n_packages_with_card: 414
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       - sub_broad_detection
       top: broadly_moderate
-      saturation: 0.6635
+      saturation: 0.6667
   cellline-protein-abundance-procan:
     allgene_percentile_class:
       grain: scalar
@@ -527,7 +530,7 @@ by_card:
       observed:
         broadly_high: 95
         broadly_low: 94
-        lineage_restricted: 85
+        sub_broad_detection: 85
         broadly_moderate: 69
       n_non_null: 343
       n_null: 0
@@ -536,7 +539,7 @@ by_card:
       out_of_vocab: []
       never_emitted:
       - data_unavailable
-      - sub_broad_detection
+      - lineage_restricted
       top: broadly_high
       saturation: 0.277
   cellline-rna-distribution:
@@ -622,10 +625,10 @@ by_card:
       - isoform_diverse
       - single_isoform_dominant
       observed:
-        balanced: 220
-        single_isoform_dominant: 205
+        balanced: 219
+        single_isoform_dominant: 204
         isoform_diverse: 71
-        data_unavailable: 8
+        data_unavailable: 10
       n_non_null: 504
       n_null: 0
       n_absent: 0
@@ -633,7 +636,7 @@ by_card:
       out_of_vocab: []
       never_emitted: []
       top: balanced
-      saturation: 0.4365
+      saturation: 0.4345
   cellline-rna-distribution-by-subtype:
     subtype_axis_quality:
       grain: scalar
@@ -647,20 +650,20 @@ by_card:
       - underpowered
       - unevaluable
       observed:
-        underpowered: 45
-      n_non_null: 45
+        exploratory: 185
+        unevaluable: 80
+        underpowered: 40
+      n_non_null: 305
       n_null: 0
-      n_absent: 459
+      n_absent: 199
       n_packages_with_card: 504
       out_of_vocab: []
       never_emitted:
       - empty
-      - exploratory
       - powered
       - unavailable
-      - unevaluable
-      top: underpowered
-      saturation: 1.0
+      top: exploratory
+      saturation: 0.6066
     subtype_stratification_class:
       grain: scalar
       arity: scalar
@@ -671,18 +674,18 @@ by_card:
       - subtype_enriched
       - subtype_variable
       observed:
-        pan_subtype_uniform: 45
-      n_non_null: 45
-      n_null: 459
+        pan_subtype_uniform: 303
+        subtype_depleted: 1
+        subtype_enriched: 1
+      n_non_null: 305
+      n_null: 199
       n_absent: 0
       n_packages_with_card: 504
       out_of_vocab: []
       never_emitted:
-      - subtype_depleted
-      - subtype_enriched
       - subtype_variable
       top: pan_subtype_uniform
-      saturation: 1.0
+      saturation: 0.9934
   cellline-rna-protein-concordance:
     rna_as_biomarker:
       grain: scalar
@@ -866,7 +869,8 @@ by_card:
       - no_evidence
       - ok
       observed:
-        ok: 504
+        ok: 502
+        no_evidence: 2
       n_non_null: 504
       n_null: 0
       n_absent: 0
@@ -874,9 +878,8 @@ by_card:
       out_of_vocab: []
       never_emitted:
       - insufficient
-      - no_evidence
       top: ok
-      saturation: 1.0
+      saturation: 0.996
   clingen-dosage:
     dosage_sensitivity_class:
       grain: scalar
@@ -1015,18 +1018,18 @@ by_card:
       - isolated_dependency
       - sparse_module
       observed:
-        sparse_module: 207
+        sparse_module: 205
         in_coherent_module: 148
         isolated_dependency: 65
-      n_non_null: 420
+      n_non_null: 418
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 420
+      n_packages_with_card: 418
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: sparse_module
-      saturation: 0.4929
+      saturation: 0.4904
   combinatorial-dependency:
     combinatorial_dependency_class:
       grain: scalar
@@ -1041,19 +1044,19 @@ by_card:
       - suppressive_interaction
       observed:
         context_synthetic_lethal: 187
-        no_paralog_screened: 147
+        no_paralog_screened: 145
         no_interaction: 98
         strong_synthetic_lethal: 71
         suppressive_interaction: 1
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: context_synthetic_lethal
-      saturation: 0.371
+      saturation: 0.3725
   combo-chemical-synergy:
     synergy_opportunity_class:
       grain: scalar
@@ -1067,20 +1070,20 @@ by_card:
       - strong_synergy_opportunity
       - synergy_opportunity
       observed:
-        no_synergy_screen: 404
+        no_synergy_screen: 402
         synergy_opportunity: 98
         context_synergy_opportunity: 1
         strong_synergy_opportunity: 1
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       - no_synergy_signal
       top: no_synergy_screen
-      saturation: 0.8016
+      saturation: 0.8008
   combo-crispr-screen:
     combination_opportunity_class:
       grain: scalar
@@ -1094,20 +1097,20 @@ by_card:
       - no_combination_signal
       - strong_combination_opportunity
       observed:
-        no_anchor_screen: 487
+        no_anchor_screen: 485
         strong_combination_opportunity: 9
         combination_opportunity: 8
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - context_combination_opportunity
       - data_unavailable
       - no_combination_signal
       top: no_anchor_screen
-      saturation: 0.9663
+      saturation: 0.9661
     combination_opportunity_class_prefloor:
       grain: scalar
       arity: scalar
@@ -1120,20 +1123,20 @@ by_card:
       - no_combination_signal
       - strong_combination_opportunity
       observed:
-        no_anchor_screen: 487
+        no_anchor_screen: 485
         strong_combination_opportunity: 9
         combination_opportunity: 8
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - context_combination_opportunity
       - data_unavailable
       - no_combination_signal
       top: no_anchor_screen
-      saturation: 0.9663
+      saturation: 0.9661
   competitor-landscape:
     competitor_class:
       grain: scalar
@@ -1279,11 +1282,11 @@ by_card:
       - recurrently_amplified
       - recurrently_deleted
       observed:
-        recurrently_amplified: 139
+        recurrently_amplified: 137
         recurrently_deleted: 135
         broadly_neutral: 104
-        data_unavailable: 94
-        mixed: 32
+        data_unavailable: 97
+        mixed: 31
       n_non_null: 504
       n_null: 0
       n_absent: 0
@@ -1291,7 +1294,7 @@ by_card:
       out_of_vocab: []
       never_emitted: []
       top: recurrently_amplified
-      saturation: 0.2758
+      saturation: 0.2718
     patient_focal_cn_class:
       grain: scalar
       arity: scalar
@@ -1302,8 +1305,8 @@ by_card:
       - recurrent_focal_amplification
       - recurrent_focal_deletion
       observed:
-        focal_neutral: 384
-        data_unavailable: 94
+        focal_neutral: 381
+        data_unavailable: 97
         recurrent_focal_amplification: 19
         recurrent_focal_deletion: 7
       n_non_null: 504
@@ -1313,7 +1316,7 @@ by_card:
       out_of_vocab: []
       never_emitted: []
       top: focal_neutral
-      saturation: 0.7619
+      saturation: 0.756
   copy-number-stratified-dependency:
     cn_stratification_class:
       grain: scalar
@@ -1351,18 +1354,18 @@ by_card:
       - within_indication
       - within_indication_mut_vs_pan_wt
       observed:
-        pan_lineage_evidence_only: 432
-        within_indication: 60
-        pan_no_indication: 9
+        pan_lineage_evidence_only: 440
+        within_indication: 61
         within_indication_mut_vs_pan_wt: 1
       n_non_null: 502
       n_null: 0
       n_absent: 0
       n_packages_with_card: 502
       out_of_vocab: []
-      never_emitted: []
+      never_emitted:
+      - pan_no_indication
       top: pan_lineage_evidence_only
-      saturation: 0.8606
+      saturation: 0.8765
   crispr-rnai-dependency-concordance:
     concordance_class:
       grain: scalar
@@ -1429,19 +1432,19 @@ by_card:
       - not_screened_off_panel
       - single_consortium_corroboration
       observed:
-        not_screened_off_panel: 230
+        not_screened_off_panel: 228
         no_cross_consortium_signal: 224
         single_consortium_corroboration: 50
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - corroborated_multi_consortium
       - data_unavailable
       top: not_screened_off_panel
-      saturation: 0.4563
+      saturation: 0.4542
     dede_class:
       grain: scalar
       arity: scalar
@@ -1454,20 +1457,20 @@ by_card:
       - not_screened
       - suppressive
       observed:
-        not_screened: 443
+        not_screened: 441
         no_interaction: 53
         constitutive_buffering: 4
         context_buffering: 4
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       - suppressive
       top: not_screened
-      saturation: 0.879
+      saturation: 0.8785
     in4mer_class:
       grain: scalar
       arity: scalar
@@ -1480,20 +1483,20 @@ by_card:
       - not_screened
       - suppressive
       observed:
-        not_screened: 232
         no_interaction: 230
+        not_screened: 230
         constitutive_buffering: 42
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - context_buffering
       - data_unavailable
       - suppressive
-      top: not_screened
-      saturation: 0.4603
+      top: no_interaction
+      saturation: 0.4582
   ddr-deficiency-context:
     ddr_context_class:
       grain: scalar
@@ -1531,17 +1534,17 @@ by_card:
       observed:
         ubiquitination_substrate: 196
         unfavorable_location: 181
-        plausible_untested: 113
+        plausible_untested: 111
         precedented_degradable: 14
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: ubiquitination_substrate
-      saturation: 0.3889
+      saturation: 0.3904
     degrader_precedent_modality:
       grain: scalar
       arity: scalar
@@ -1552,9 +1555,9 @@ by_card:
       observed:
         PROTAC: 14
       n_non_null: 14
-      n_null: 490
+      n_null: 488
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - molecular_glue
@@ -1575,9 +1578,9 @@ by_card:
         CRBN: 10
         CRBN/VHL: 4
       n_non_null: 14
-      n_null: 490
+      n_null: 488
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - DCAF15
@@ -1596,16 +1599,16 @@ by_card:
       - predicted_only
       observed:
         literature: 297
-        predicted_only: 206
+        predicted_only: 204
         none_in_ubibrowser: 1
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted: []
       top: literature
-      saturation: 0.5893
+      saturation: 0.5916
   dependency-lineage-selectivity:
     enrichment_class:
       grain: scalar
@@ -1631,8 +1634,8 @@ by_card:
       saturation: 0.6885
     indication_dependency_class:
       grain: scalar
-      arity: none
-      status: field_absent
+      arity: scalar
+      status: observed
       declared:
       - data_unavailable
       - dependent_not_enriched
@@ -1641,25 +1644,22 @@ by_card:
       - not_in_panel
       - selective_in_indication
       - underpowered
-      observed: {}
-      n_non_null: 0
+      observed:
+        not_dependent_in_indication: 397
+        dependent_not_enriched: 97
+        selective_in_indication: 10
+      n_non_null: 504
       n_null: 0
-      n_absent: 504
+      n_absent: 0
       n_packages_with_card: 504
       out_of_vocab: []
       never_emitted:
       - data_unavailable
-      - dependent_not_enriched
       - indication_not_supplied
-      - not_dependent_in_indication
       - not_in_panel
-      - selective_in_indication
       - underpowered
-      top: null
-      saturation: null
-      saturation_na: 'arity=none: top/total is a token share, not a package share'
-      n_emissions: 0
-      n_empty_array: 0
+      top: not_dependent_in_indication
+      saturation: 0.7877
     lineage_omnibus_effect_size_class:
       grain: scalar
       arity: scalar
@@ -1693,12 +1693,12 @@ by_card:
       - divergent
       - single_model
       observed:
-        concordant: 383
+        concordant: 380
         divergent: 1
-      n_non_null: 384
+      n_non_null: 381
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 384
+      n_packages_with_card: 381
       out_of_vocab: []
       never_emitted:
       - data_unavailable
@@ -1732,17 +1732,17 @@ by_card:
       - sv_gene
       - unpredictable
       observed:
-        unpredictable: 223
-        cross_gene_expression: 80
-        own_expression: 40
+        unpredictable: 220
+        cross_gene_expression: 77
+        own_expression: 44
         own_mut_hotspot: 36
-        cross_gene_copy_number: 2
         mol_signature: 2
+        cross_gene_copy_number: 1
         lineage: 1
-      n_non_null: 384
+      n_non_null: 381
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 384
+      n_packages_with_card: 381
       out_of_vocab: []
       never_emitted:
       - arm_level_cn
@@ -1760,7 +1760,7 @@ by_card:
       - rppa_protein
       - sv_gene
       top: unpredictable
-      saturation: 0.5807
+      saturation: 0.5774
     predictability_class:
       grain: scalar
       arity: scalar
@@ -1772,19 +1772,19 @@ by_card:
       - unpredictable
       - weakly_predictable
       observed:
-        unpredictable: 223
+        unpredictable: 220
         weakly_predictable: 114
         own_omics_driven: 27
         context_or_driver_dependent: 20
-      n_non_null: 384
+      n_non_null: 381
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 384
+      n_packages_with_card: 381
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: unpredictable
-      saturation: 0.5807
+      saturation: 0.5774
   domain-modality-relevance:
     modality_implication_basis:
       grain: scalar
@@ -1795,17 +1795,17 @@ by_card:
       - heuristic
       - none
       observed:
-        heuristic: 480
+        heuristic: 477
         curated: 14
-      n_non_null: 494
+      n_non_null: 491
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 494
+      n_packages_with_card: 491
       out_of_vocab: []
       never_emitted:
       - none
       top: heuristic
-      saturation: 0.9717
+      saturation: 0.9715
     modality_implication_class:
       grain: scalar
       arity: scalar
@@ -1818,20 +1818,20 @@ by_card:
       - removal_favored
       - removal_required_scaffolding
       observed:
-        indeterminate: 227
-        removal_favored: 138
-        inhibitor_sufficient: 120
+        indeterminate: 226
+        removal_favored: 137
+        inhibitor_sufficient: 119
         context_dependent: 9
-      n_non_null: 494
+      n_non_null: 491
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 494
+      n_packages_with_card: 491
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       - removal_required_scaffolding
       top: indeterminate
-      saturation: 0.4595
+      saturation: 0.4603
   drug-warning-safety:
     drug_warning_class:
       grain: scalar
@@ -1874,16 +1874,16 @@ by_card:
         no_survival_association: 307
         insufficient_survival_data: 41
         expression_high_worse_survival: 38
-        expression_high_better_survival: 22
-      n_non_null: 408
+        expression_high_better_survival: 21
+      n_non_null: 407
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 408
+      n_packages_with_card: 407
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: no_survival_association
-      saturation: 0.7525
+      saturation: 0.7543
   expression-dependency-correlation:
     correlation_class:
       grain: scalar
@@ -1948,19 +1948,19 @@ by_card:
       - recurrent_biallelic_inactivation
       - sporadic_biallelic_inactivation
       observed:
-        sporadic_biallelic_inactivation: 331
+        sporadic_biallelic_inactivation: 328
         rarely_altered: 85
         recurrent_biallelic_inactivation: 46
         predominantly_monoallelic: 42
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: sporadic_biallelic_inactivation
-      saturation: 0.6567
+      saturation: 0.6547
     sample_state:
       grain: orphan
       arity: none
@@ -1975,8 +1975,8 @@ by_card:
       observed: {}
       n_non_null: 0
       n_null: 0
-      n_absent: 504
-      n_packages_with_card: 504
+      n_absent: 501
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
       - biallelic+epigenetic
@@ -2002,19 +2002,19 @@ by_card:
       - recurrent_fusion_driver
       - sporadic_fusion
       observed:
-        no_recurrent_fusion: 360
+        no_recurrent_fusion: 358
         sporadic_fusion: 84
         recurrent_fusion_driver: 20
         data_unavailable: 9
         promiscuous_amplicon_fusion: 5
-      n_non_null: 478
+      n_non_null: 476
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 478
+      n_packages_with_card: 476
       out_of_vocab: []
       never_emitted: []
       top: no_recurrent_fusion
-      saturation: 0.7531
+      saturation: 0.7521
     fusion_recurrence_confidence:
       grain: scalar
       arity: scalar
@@ -2026,9 +2026,9 @@ by_card:
         moderate_promiscuous: 19
         high_recurrent_partner: 6
       n_non_null: 25
-      n_null: 453
+      n_null: 451
       n_absent: 0
-      n_packages_with_card: 478
+      n_packages_with_card: 476
       out_of_vocab: []
       never_emitted: []
       top: moderate_promiscuous
@@ -2044,19 +2044,19 @@ by_card:
       - top_1pct
       - top_decile
       observed:
-        data_unavailable: 261
+        data_unavailable: 260
         bottom_decile: 97
-        mid: 83
+        mid: 82
         top_decile: 25
         top_1pct: 12
-      n_non_null: 478
+      n_non_null: 476
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 478
+      n_packages_with_card: 476
       out_of_vocab: []
       never_emitted: []
       top: data_unavailable
-      saturation: 0.546
+      saturation: 0.5462
   fusion-stratified-dependency:
     evidence_scope:
       grain: scalar
@@ -2068,18 +2068,18 @@ by_card:
       - within_indication
       - within_indication_mut_vs_pan_wt
       observed:
-        pan_lineage_evidence_only: 476
-        within_indication: 18
-        pan_no_indication: 9
+        pan_lineage_evidence_only: 484
+        within_indication: 19
         within_indication_mut_vs_pan_wt: 1
       n_non_null: 504
       n_null: 0
       n_absent: 0
       n_packages_with_card: 504
       out_of_vocab: []
-      never_emitted: []
+      never_emitted:
+      - pan_no_indication
       top: pan_lineage_evidence_only
-      saturation: 0.9444
+      saturation: 0.9603
     fusion_stratification_class:
       grain: scalar
       arity: scalar
@@ -2140,19 +2140,19 @@ by_card:
       - potent_activity
       - weak_activity
       observed:
-        no_compounds_found: 326
+        no_compounds_found: 324
         moderate_activity: 103
         potent_activity: 52
         weak_activity: 23
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: no_compounds_found
-      saturation: 0.6468
+      saturation: 0.6454
     resolved_via:
       grain: scalar
       arity: scalar
@@ -2164,9 +2164,9 @@ by_card:
         direct: 149
         hgnc_alias: 29
       n_non_null: 178
-      n_null: 326
+      n_null: 324
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted: []
       top: direct
@@ -2207,18 +2207,18 @@ by_card:
       - sparse
       - well_annotated
       observed:
-        well_annotated: 416
-        partial: 85
+        well_annotated: 414
+        partial: 84
         sparse: 1
-      n_non_null: 502
+      n_non_null: 499
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 502
+      n_packages_with_card: 499
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: well_annotated
-      saturation: 0.8287
+      saturation: 0.8297
   genomic-event-model-match:
     event_correspondence_class:
       grain: scalar
@@ -2232,20 +2232,20 @@ by_card:
       - no_event_match
       - no_target_event
       observed:
-        no_target_event: 144
+        no_target_event: 143
         data_unavailable: 140
-        event_matched_dependent_in_lineage: 77
+        event_matched_dependent_in_lineage: 76
         event_matched_not_dependent: 76
-        event_matched_dependent_off_lineage: 65
+        event_matched_dependent_off_lineage: 64
         no_event_match: 2
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted: []
       top: no_target_event
-      saturation: 0.2857
+      saturation: 0.2854
     patient_event_state:
       grain: scalar
       arity: scalar
@@ -2255,17 +2255,17 @@ by_card:
       - biallelic-genetic
       - monoallelic
       observed:
-        monoallelic: 194
+        monoallelic: 192
         biallelic-genetic: 14
         activating_mutation: 12
-      n_non_null: 220
-      n_null: 284
+      n_non_null: 218
+      n_null: 283
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted: []
       top: monoallelic
-      saturation: 0.8818
+      saturation: 0.8807
   genomic-instability-state:
     aneuploidy_burden_class:
       grain: scalar
@@ -2277,18 +2277,18 @@ by_card:
       - intermediate_aneuploidy
       - quiet_genome
       observed:
-        highly_aneuploid: 214
-        intermediate_aneuploidy: 120
+        highly_aneuploid: 212
+        intermediate_aneuploidy: 119
         data_unavailable: 40
         quiet_genome: 5
-      n_non_null: 379
+      n_non_null: 376
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 379
+      n_packages_with_card: 376
       out_of_vocab: []
       never_emitted: []
       top: highly_aneuploid
-      saturation: 0.5646
+      saturation: 0.5638
     hrd_scar_class:
       grain: scalar
       arity: scalar
@@ -2299,18 +2299,18 @@ by_card:
       - hrd_intermediate
       - hrd_rare
       observed:
-        hrd_enriched: 289
+        hrd_enriched: 286
         hrd_intermediate: 50
         data_unavailable: 40
-      n_non_null: 379
+      n_non_null: 376
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 379
+      n_packages_with_card: 376
       out_of_vocab: []
       never_emitted:
       - hrd_rare
       top: hrd_enriched
-      saturation: 0.7625
+      saturation: 0.7606
     model_mmr_signature_class:
       grain: scalar
       arity: scalar
@@ -2321,18 +2321,18 @@ by_card:
       - mmr_signature_intermediate
       - mmr_signature_rare
       observed:
-        mmr_signature_rare: 180
+        mmr_signature_rare: 177
         mmr_signature_intermediate: 101
         data_unavailable: 53
         mmr_signature_enriched: 45
-      n_non_null: 379
+      n_non_null: 376
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 379
+      n_packages_with_card: 376
       out_of_vocab: []
       never_emitted: []
       top: mmr_signature_rare
-      saturation: 0.4749
+      saturation: 0.4707
     model_msi_class:
       grain: scalar
       arity: scalar
@@ -2343,18 +2343,18 @@ by_card:
       - msi_intermediate
       - mss_dominant
       observed:
-        mss_dominant: 180
+        mss_dominant: 177
         msi_intermediate: 101
         data_unavailable: 53
         msi_high_enriched: 45
-      n_non_null: 379
+      n_non_null: 376
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 379
+      n_packages_with_card: 376
       out_of_vocab: []
       never_emitted: []
       top: mss_dominant
-      saturation: 0.4749
+      saturation: 0.4707
     msi_class:
       grain: scalar
       arity: scalar
@@ -2365,18 +2365,18 @@ by_card:
       - msi_intermediate
       - mss_dominant
       observed:
-        data_unavailable: 294
+        data_unavailable: 291
         msi_intermediate: 45
         msi_high_enriched: 40
-      n_non_null: 379
+      n_non_null: 376
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 379
+      n_packages_with_card: 376
       out_of_vocab: []
       never_emitted:
       - mss_dominant
       top: data_unavailable
-      saturation: 0.7757
+      saturation: 0.7739
     wgd_class:
       grain: scalar
       arity: scalar
@@ -2387,18 +2387,18 @@ by_card:
       - wgd_intermediate
       - wgd_rare
       observed:
-        wgd_intermediate: 213
-        wgd_enriched: 121
+        wgd_intermediate: 212
+        wgd_enriched: 119
         data_unavailable: 40
         wgd_rare: 5
-      n_non_null: 379
+      n_non_null: 376
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 379
+      n_packages_with_card: 376
       out_of_vocab: []
       never_emitted: []
       top: wgd_intermediate
-      saturation: 0.562
+      saturation: 0.5638
   gnomad-lof-constraint:
     constraint_class:
       grain: scalar
@@ -2454,17 +2454,17 @@ by_card:
       - none
       - unfavorable
       observed:
-        none: 283
+        none: 281
         unfavorable: 16
         favorable: 9
-      n_non_null: 308
+      n_non_null: 306
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 308
+      n_packages_with_card: 306
       out_of_vocab: []
       never_emitted: []
       top: none
-      saturation: 0.9188
+      saturation: 0.9183
     protein_presence_class:
       grain: scalar
       arity: scalar
@@ -2476,19 +2476,19 @@ by_card:
       - ihc_detected_moderate
       - ihc_not_detected
       observed:
-        ihc_detected_high: 196
+        ihc_detected_high: 194
         ihc_detected_moderate: 43
         ihc_detected_low: 39
         ihc_not_detected: 30
-      n_non_null: 308
+      n_non_null: 306
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 308
+      n_packages_with_card: 306
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: ihc_detected_high
-      saturation: 0.6364
+      saturation: 0.634
   ici-response-association:
     ici_response_class:
       grain: scalar
@@ -2567,9 +2567,9 @@ by_card:
       - antigen_high_is_colder
       - data_unavailable
       observed:
-        antigen_high_immune_intermediate: 219
+        antigen_high_immune_intermediate: 217
         antigen_high_is_colder: 62
-        data_unavailable: 52
+        data_unavailable: 54
         antigen_high_immune_cold: 48
         antigen_high_immune_hot: 37
       n_non_null: 418
@@ -2579,7 +2579,7 @@ by_card:
       out_of_vocab: []
       never_emitted: []
       top: antigen_high_immune_intermediate
-      saturation: 0.5239
+      saturation: 0.5191
     immune_context_class:
       grain: scalar
       arity: scalar
@@ -2617,16 +2617,16 @@ by_card:
       observed:
         approved_direct: 233
         approved_indirect_only: 175
-        not_approved: 87
+        not_approved: 85
         approved_biologic_only: 9
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted: []
       top: approved_direct
-      saturation: 0.4623
+      saturation: 0.4641
     approved_drug_modality:
       grain: scalar
       arity: scalar
@@ -2637,16 +2637,16 @@ by_card:
       - small_molecule_or_unknown
       observed:
         small_molecule_or_unknown: 408
-        not_applicable: 87
+        not_applicable: 85
         biologic: 9
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted: []
       top: small_molecule_or_unknown
-      saturation: 0.8095
+      saturation: 0.8127
     direct_engagement_class:
       grain: scalar
       arity: scalar
@@ -2658,17 +2658,17 @@ by_card:
       - unmeasured
       observed:
         direct_typed: 250
-        indirect_or_untyped_only: 147
-        sparse_direct: 107
-      n_non_null: 504
+        indirect_or_untyped_only: 146
+        sparse_direct: 106
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - unmeasured
       top: direct_typed
-      saturation: 0.496
+      saturation: 0.498
     known_drug_tractability_class:
       grain: scalar
       arity: scalar
@@ -2682,19 +2682,19 @@ by_card:
       - no_known_drug_evidence
       observed:
         approved_drug_tractable: 417
-        clinically_actionable: 41
+        clinically_actionable: 40
         druggable_genome: 19
-        category_only: 11
+        category_only: 10
         no_known_drug_evidence: 10
         interaction_only: 6
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted: []
       top: approved_drug_tractable
-      saturation: 0.8274
+      saturation: 0.8307
   measured-potency-tractability:
     chembl_approved_engagement_class:
       grain: scalar
@@ -2706,16 +2706,16 @@ by_card:
       - not_chembl_approved
       observed:
         approved_direct: 228
-        not_chembl_approved: 204
+        not_chembl_approved: 202
         approved_indirect_only: 72
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted: []
       top: approved_direct
-      saturation: 0.4524
+      saturation: 0.4542
     chembl_clinical_phase_class:
       grain: scalar
       arity: scalar
@@ -2728,16 +2728,16 @@ by_card:
       observed:
         approved: 300
         clinical: 81
-        data_unavailable: 76
+        data_unavailable: 74
         preclinical_or_none: 47
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted: []
       top: approved
-      saturation: 0.5952
+      saturation: 0.5976
     measured_bioactivity_class:
       grain: scalar
       arity: scalar
@@ -2750,16 +2750,16 @@ by_card:
       observed:
         potent_measured_ligand: 325
         weak_measured_ligand: 78
-        data_unavailable: 76
+        data_unavailable: 74
         no_measured_activity: 25
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted: []
       top: potent_measured_ligand
-      saturation: 0.6448
+      saturation: 0.6474
   modality-exon-window:
     exon_window_class:
       grain: scalar
@@ -2773,20 +2773,20 @@ by_card:
       - not_in_product
       - uniform_gene_window
       observed:
-        not_in_product: 323
-        essential_exon_liability: 114
+        not_in_product: 320
+        essential_exon_liability: 118
         not_expressed_in_cohort: 12
-        uniform_gene_window: 4
         exon_heterogeneity_flag: 1
-      n_non_null: 454
+      n_non_null: 451
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 454
+      n_packages_with_card: 451
       out_of_vocab: []
       never_emitted:
       - data_unavailable
+      - uniform_gene_window
       top: not_in_product
-      saturation: 0.7115
+      saturation: 0.7095
   modality-therapeutic-window:
     full_normal_window_class:
       grain: scalar
@@ -2823,10 +2823,10 @@ by_card:
       - no_therapeutic_window
       - not_expressed_in_cohort
       observed:
-        no_therapeutic_window: 263
-        narrow_window: 61
+        no_therapeutic_window: 265
+        narrow_window: 62
         not_expressed_in_cohort: 31
-        clean_window: 11
+        clean_window: 8
       n_non_null: 366
       n_null: 0
       n_absent: 0
@@ -2835,7 +2835,7 @@ by_card:
       never_emitted:
       - data_unavailable
       top: no_therapeutic_window
-      saturation: 0.7186
+      saturation: 0.724
     window_class:
       grain: scalar
       arity: scalar
@@ -2847,9 +2847,9 @@ by_card:
       - narrow_window
       - not_expressed_in_cohort
       observed:
-        essential_tissue_liability: 331
+        essential_tissue_liability: 333
         not_expressed_in_cohort: 31
-        clean_window: 4
+        clean_window: 2
       n_non_null: 366
       n_null: 0
       n_absent: 0
@@ -2859,7 +2859,7 @@ by_card:
       - data_unavailable
       - narrow_window
       top: essential_tissue_liability
-      saturation: 0.9044
+      saturation: 0.9098
   mouse-ko-phenotype:
     impc_ko_phenotype_class:
       grain: scalar
@@ -2873,20 +2873,20 @@ by_card:
       - no_phenotype
       - severe_organ_phenotype
       observed:
-        no_phenotype: 282
+        no_phenotype: 279
         developmental_only: 134
         severe_organ_phenotype: 51
         mild_phenotype: 37
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
-      n_absent: 0
+      n_absent: 3
       n_packages_with_card: 504
       out_of_vocab: []
       never_emitted:
       - insufficient
       - lethal_ko
       top: no_phenotype
-      saturation: 0.5595
+      saturation: 0.5569
     impc_viability_class:
       grain: scalar
       arity: scalar
@@ -2897,20 +2897,20 @@ by_card:
       - unmeasured
       - viable
       observed:
-        unmeasured: 278
+        unmeasured: 275
         lethal_preweaning: 94
         unknown: 58
         viable: 47
         subviable: 27
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
-      n_absent: 0
+      n_absent: 3
       n_packages_with_card: 504
       out_of_vocab:
       - unknown
       never_emitted: []
       top: unmeasured
-      saturation: 0.5516
+      saturation: 0.5489
     ko_phenotype_class:
       grain: scalar
       arity: scalar
@@ -3002,8 +3002,8 @@ by_card:
       - top_1pct
       - top_decile
       observed:
-        mid: 197
-        data_unavailable: 105
+        mid: 194
+        data_unavailable: 108
         top_decile: 39
         bottom_decile: 22
         top_1pct: 10
@@ -3014,7 +3014,7 @@ by_card:
       out_of_vocab: []
       never_emitted: []
       top: mid
-      saturation: 0.5282
+      saturation: 0.5201
     pooled_driver_recurrence_class:
       grain: scalar
       arity: scalar
@@ -3026,11 +3026,11 @@ by_card:
       - top_1pct
       - top_decile
       observed:
-        mid: 192
+        mid: 188
         top_decile: 70
-        top_1pct: 56
+        top_1pct: 62
         data_unavailable: 28
-        bottom_decile: 27
+        bottom_decile: 25
       n_non_null: 373
       n_null: 0
       n_absent: 0
@@ -3038,7 +3038,7 @@ by_card:
       out_of_vocab: []
       never_emitted: []
       top: mid
-      saturation: 0.5147
+      saturation: 0.504
   mutation-stratified-dependency:
     evidence_scope:
       grain: scalar
@@ -3050,18 +3050,18 @@ by_card:
       - within_indication
       - within_indication_mut_vs_pan_wt
       observed:
-        pan_lineage_evidence_only: 432
-        within_indication: 52
-        pan_no_indication: 9
-        within_indication_mut_vs_pan_wt: 7
-      n_non_null: 500
+        pan_lineage_evidence_only: 441
+        within_indication: 54
+        within_indication_mut_vs_pan_wt: 8
+      n_non_null: 503
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 500
+      n_packages_with_card: 503
       out_of_vocab: []
-      never_emitted: []
+      never_emitted:
+      - pan_no_indication
       top: pan_lineage_evidence_only
-      saturation: 0.864
+      saturation: 0.8767
     mutation_stratification_class:
       grain: scalar
       arity: scalar
@@ -3074,20 +3074,20 @@ by_card:
       - not_mutation_stratified
       - wt_strongly_dependent
       observed:
-        not_mutation_stratified: 272
+        not_mutation_stratified: 274
         insufficient_mutation_rate: 123
-        mutant_moderately_dependent: 81
-        mutant_strongly_dependent: 22
+        mutant_moderately_dependent: 83
+        mutant_strongly_dependent: 21
         wt_strongly_dependent: 2
-      n_non_null: 500
+      n_non_null: 503
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 500
+      n_packages_with_card: 503
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: not_mutation_stratified
-      saturation: 0.544
+      saturation: 0.5447
   mutation-stratified-surface:
     mutant_stratified_surface_class:
       grain: scalar
@@ -3100,13 +3100,13 @@ by_card:
       - not_stratified
       - underpowered
       observed:
-        not_in_product: 502
+        not_in_product: 499
         mutant_up_surface: 1
         not_stratified: 1
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
       - mutant_down_surface
@@ -3380,9 +3380,9 @@ by_card:
       - present
       - unknown
       observed:
-        present: 237
-        absent: 162
-        unknown: 105
+        present: 281
+        absent: 149
+        unknown: 74
       n_non_null: 504
       n_null: 0
       n_absent: 0
@@ -3390,7 +3390,7 @@ by_card:
       out_of_vocab: []
       never_emitted: []
       top: present
-      saturation: 0.4702
+      saturation: 0.5575
     normal_tissue_breadth_class:
       grain: scalar
       arity: scalar
@@ -3427,9 +3427,9 @@ by_card:
       - moderate_normal_breadth
       - restricted_normal
       observed:
-        critical_organ_liability: 223
+        critical_organ_liability: 227
         broadly_expressed_normal: 196
-        restricted_normal: 58
+        restricted_normal: 54
         moderate_normal_breadth: 27
       n_non_null: 504
       n_null: 0
@@ -3439,7 +3439,7 @@ by_card:
       never_emitted:
       - data_unavailable
       top: critical_organ_liability
-      saturation: 0.4425
+      saturation: 0.4504
   normal-tissue-protein-abundance-tphp:
     fetal_vs_adult_flag:
       grain: scalar
@@ -3550,9 +3550,9 @@ by_card:
       - vital_organ_abundant
       - vital_organ_low
       observed:
-        vital_organ_low: 240
+        vital_organ_low: 242
         vital_organ_abundant: 172
-        no_vital_organ_signal: 36
+        no_vital_organ_signal: 34
       n_non_null: 448
       n_null: 0
       n_absent: 0
@@ -3561,7 +3561,7 @@ by_card:
       never_emitted:
       - data_unavailable
       top: vital_organ_low
-      saturation: 0.5357
+      saturation: 0.5402
   oncogenic-pathway-alteration:
     oncogenic_pathway_class:
       grain: scalar
@@ -3593,17 +3593,17 @@ by_card:
       - labeled_ade_profile
       - no_mapped_drug_ade
       observed:
-        no_mapped_drug_ade: 272
+        no_mapped_drug_ade: 270
         labeled_ade_profile: 140
         boxed_warning_ade: 92
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted: []
       top: no_mapped_drug_ade
-      saturation: 0.5397
+      saturation: 0.5378
   organoid-crispr-dependency:
     organoid_dependency_class:
       grain: scalar
@@ -3617,20 +3617,20 @@ by_card:
       - rare_organoid_dependency
       - selective_organoid_dependency
       observed:
-        not_organoid_dependent: 251
-        broad_organoid_dependency: 88
-        rare_organoid_dependency: 87
-        selective_organoid_dependency: 47
+        not_organoid_dependent: 250
+        broad_organoid_dependency: 87
+        rare_organoid_dependency: 86
+        selective_organoid_dependency: 46
         pan_organoid_essential: 31
-      n_non_null: 504
+      n_non_null: 500
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 500
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: not_organoid_dependent
-      saturation: 0.498
+      saturation: 0.5
   pan-cancer-crispr-dependency-distribution:
     dep_control_position_class:
       grain: scalar
@@ -3888,17 +3888,17 @@ by_card:
       - pan_lineage_thin_cohort
       - within_indication_lineage
       observed:
-        within_indication_lineage: 495
-        pan_lineage_no_indication: 9
-      n_non_null: 504
+        within_indication_lineage: 501
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
+      - pan_lineage_no_indication
       - pan_lineage_thin_cohort
       top: within_indication_lineage
-      saturation: 0.9821
+      saturation: 1.0
     node_leverage_class:
       grain: scalar
       arity: scalar
@@ -3911,20 +3911,20 @@ by_card:
       - no_node_set
       - weak_and_uncontested
       observed:
-        dominated_node: 303
-        dominant_node: 76
-        dominated_but_tractability_edge: 76
-        weak_and_uncontested: 49
-      n_non_null: 504
+        dominated_node: 299
+        dominated_but_tractability_edge: 77
+        dominant_node: 75
+        weak_and_uncontested: 50
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       - no_node_set
       top: dominated_node
-      saturation: 0.6012
+      saturation: 0.5968
     paralog_buffering_class:
       grain: scalar
       arity: scalar
@@ -3936,17 +3936,17 @@ by_card:
       - strong
       observed:
         none: 158
-        data_unavailable: 147
-        partial: 115
+        data_unavailable: 145
+        partial: 114
         strong: 84
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted: []
       top: none
-      saturation: 0.3135
+      saturation: 0.3154
     single_ko_leverage_understated:
       grain: scalar
       arity: scalar
@@ -3955,18 +3955,18 @@ by_card:
       - 'false'
       - 'true'
       observed:
-        'false': 305
-        'true': 199
-      n_non_null: 504
+        'false': 303
+        'true': 198
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted: []
       top: 'false'
-      saturation: 0.6052
+      saturation: 0.6048
       emitted_types:
-        bool: 504
+        bool: 501
   pathway-stratified-surface:
     pathway_stratified_surface_class:
       grain: scalar
@@ -3979,13 +3979,13 @@ by_card:
       - pathway_high_up_surface
       - underpowered
       observed:
-        not_in_product: 502
+        not_in_product: 499
         not_stratified: 1
         pathway_high_up_surface: 1
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
       - pathway_high_down_surface
@@ -4000,11 +4000,11 @@ by_card:
       declared:
       - patient_indication
       observed:
-        patient_indication: 504
-      n_non_null: 504
+        patient_indication: 501
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted: []
       top: patient_indication
@@ -4020,15 +4020,15 @@ by_card:
       - cn_invariant_panel
       - data_unavailable
       observed:
-        cn_dosage_uncoupled: 167
+        cn_dosage_uncoupled: 166
         data_unavailable: 144
-        cn_dosage_coupled_moderate: 118
+        cn_dosage_coupled_moderate: 116
         cn_dosage_coupled_strong: 63
         cn_invariant_panel: 12
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted: []
       top: cn_dosage_uncoupled
@@ -4042,17 +4042,17 @@ by_card:
       - insufficient_methylation_data
       - no_silencing_signal
       observed:
-        insufficient_methylation_data: 446
-        no_silencing_signal: 52
+        insufficient_methylation_data: 444
+        no_silencing_signal: 51
         epigenetic_silencing: 6
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted: []
       top: insufficient_methylation_data
-      saturation: 0.8849
+      saturation: 0.8862
   phospho-pathway-activity:
     phospho_activity_class:
       grain: scalar
@@ -4090,19 +4090,19 @@ by_card:
       - presented_not_tcell_confirmed
       - tcell_validated
       observed:
-        presented_not_tcell_confirmed: 271
+        presented_not_tcell_confirmed: 269
         tcell_validated: 230
         not_observed: 1
-      n_non_null: 502
+      n_non_null: 500
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 502
+      n_packages_with_card: 500
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       - no_positive_epitopes
       top: presented_not_tcell_confirmed
-      saturation: 0.5398
+      saturation: 0.538
   pmhc-presentation:
     pmhc_presentation_class:
       grain: scalar
@@ -4116,18 +4116,18 @@ by_card:
       - restricted_presentation
       observed:
         intermediate_presentation: 215
-        broadly_presented_normal: 205
-        restricted_presentation: 63
+        broadly_presented_normal: 204
+        restricted_presentation: 62
         not_observed: 5
-      n_non_null: 488
+      n_non_null: 486
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 488
+      n_packages_with_card: 486
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: intermediate_presentation
-      saturation: 0.4406
+      saturation: 0.4424
   ppi-interactome:
     interactome_class:
       grain: scalar
@@ -4140,19 +4140,19 @@ by_card:
       - no_high_confidence_interactors
       - sparse
       observed:
-        hub: 390
-        connected: 103
+        hub: 389
+        connected: 101
         sparse: 9
         no_high_confidence_interactors: 2
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: hub
-      saturation: 0.7738
+      saturation: 0.7764
     physical_interactome_class:
       grain: scalar
       arity: scalar
@@ -4164,19 +4164,19 @@ by_card:
       - physically_connected
       - physically_sparse
       observed:
-        physical_hub: 439
+        physical_hub: 437
         physically_connected: 45
-        physically_sparse: 17
+        physically_sparse: 16
         no_physical_interactors: 3
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: physical_hub
-      saturation: 0.871
+      saturation: 0.8723
   precog-prognostic-association:
     pan_cancer_prognostic_class:
       grain: scalar
@@ -4356,18 +4356,18 @@ by_card:
       - interpro_only
       - none
       observed:
-        both: 348
-        interpro_only: 68
+        both: 354
+        interpro_only: 72
         none: 35
         curated: 3
-      n_non_null: 454
+      n_non_null: 464
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 454
+      n_packages_with_card: 464
       out_of_vocab: []
       never_emitted: []
       top: both
-      saturation: 0.7665
+      saturation: 0.7629
     protein_class:
       grain: scalar
       arity: array
@@ -4393,35 +4393,35 @@ by_card:
       - transporter
       - ubiquitin_system
       observed:
-        transferase: 181
-        kinase: 142
-        transcription_factor: 141
-        receptor: 91
-        hydrolase: 61
-        chromatin_regulator: 39
-        cell_adhesion: 33
-        ubiquitin_system: 33
+        transferase: 183
+        kinase: 144
+        transcription_factor: 144
+        receptor: 93
+        hydrolase: 62
+        chromatin_regulator: 41
+        ubiquitin_system: 36
+        cell_adhesion: 34
         transporter: 21
-        oxidoreductase: 19
-        isomerase: 6
-        protease: 6
+        oxidoreductase: 20
+        protease: 7
         gpcr: 5
+        isomerase: 5
         growth_factor: 4
         chaperone: 2
         cytokine: 2
         ion_channel: 2
         lyase: 2
         ligase: 1
-      n_non_null: 791
+      n_non_null: 808
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 454
+      n_packages_with_card: 464
       out_of_vocab: []
       never_emitted: []
       top: transferase
       saturation: null
       saturation_na: 'arity=array: top/total is a token share, not a package share'
-      n_emissions: 454
+      n_emissions: 464
       n_empty_array: 41
     protein_features_class:
       grain: scalar
@@ -4433,18 +4433,18 @@ by_card:
       - no_curated_domain
       - single_domain
       observed:
-        multi_domain: 195
+        multi_domain: 201
         single_domain: 156
-        no_curated_domain: 103
-      n_non_null: 454
+        no_curated_domain: 107
+      n_non_null: 464
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 454
+      n_packages_with_card: 464
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: multi_domain
-      saturation: 0.4295
+      saturation: 0.4332
   protein-surface-evidence:
     surface_confirmation_class:
       grain: scalar
@@ -4456,18 +4456,18 @@ by_card:
       - data_unavailable
       - not_surface
       observed:
-        not_surface: 400
+        not_surface: 397
         confirmed_high: 99
         confirmed: 5
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: not_surface
-      saturation: 0.7937
+      saturation: 0.7924
   reactome-pathway-membership:
     pathway_class:
       grain: scalar
@@ -4480,17 +4480,17 @@ by_card:
       - well_annotated
       observed:
         well_annotated: 315
-        partial: 128
+        partial: 126
         sparse: 37
-      n_non_null: 480
+      n_non_null: 478
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 480
+      n_packages_with_card: 478
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: well_annotated
-      saturation: 0.6562
+      saturation: 0.659
   recommended-models:
     correspondence_class:
       grain: scalar
@@ -4527,20 +4527,20 @@ by_card:
       - resistance_signal
       - strong_resistance_signal
       observed:
-        no_anchor_screen: 487
+        no_anchor_screen: 485
         strong_resistance_signal: 9
         resistance_signal: 8
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - context_resistance_signal
       - data_unavailable
       - no_resistance_signal
       top: no_anchor_screen
-      saturation: 0.9663
+      saturation: 0.9661
     resistance_emergence_class_prefloor:
       grain: scalar
       arity: scalar
@@ -4553,20 +4553,20 @@ by_card:
       - resistance_signal
       - strong_resistance_signal
       observed:
-        no_anchor_screen: 487
+        no_anchor_screen: 485
         strong_resistance_signal: 9
         resistance_signal: 8
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - context_resistance_signal
       - data_unavailable
       - no_resistance_signal
       top: no_anchor_screen
-      saturation: 0.9663
+      saturation: 0.9661
     tahoe_adaptation_class:
       grain: scalar
       arity: scalar
@@ -4577,18 +4577,18 @@ by_card:
       - no_induced_programs
       - not_in_tahoe
       observed:
-        not_in_tahoe: 487
+        not_in_tahoe: 485
         induced_resistance_programs: 17
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       - no_induced_programs
       top: not_in_tahoe
-      saturation: 0.9663
+      saturation: 0.9661
   rna-protein-concordance-tumor:
     rna_as_biomarker:
       grain: scalar
@@ -4625,9 +4625,9 @@ by_card:
       - low_abundance
       - moderate_abundance
       observed:
-        high_abundance: 331
-        moderate_abundance: 142
-        low_abundance: 31
+        high_abundance: 336
+        moderate_abundance: 138
+        low_abundance: 30
       n_non_null: 504
       n_null: 0
       n_absent: 0
@@ -4636,11 +4636,11 @@ by_card:
       never_emitted:
       - data_unavailable
       top: high_abundance
-      saturation: 0.6567
+      saturation: 0.6667
     sc_normal_essential_veto_grade:
       grain: scalar
-      arity: none
-      status: field_absent
+      arity: scalar
+      status: observed
       declared:
       - accessible_high_severity
       - accessible_low_confidence
@@ -4650,26 +4650,23 @@ by_card:
       - data_unavailable
       - not_applicable
       - origin_tissue
-      observed: {}
-      n_non_null: 0
+      observed:
+        accessible_high_severity: 330
+        accessible_moderate_severity: 86
+        accessible_low_confidence: 35
+        not_applicable: 26
+        bbb_protected: 23
+        origin_tissue: 4
+      n_non_null: 504
       n_null: 0
-      n_absent: 504
+      n_absent: 0
       n_packages_with_card: 504
       out_of_vocab: []
       never_emitted:
-      - accessible_high_severity
-      - accessible_low_confidence
-      - accessible_moderate_severity
       - accessible_ungraded
-      - bbb_protected
       - data_unavailable
-      - not_applicable
-      - origin_tissue
-      top: null
-      saturation: null
-      saturation_na: 'arity=none: top/total is a token share, not a package share'
-      n_emissions: 0
-      n_empty_array: 0
+      top: accessible_high_severity
+      saturation: 0.6548
     sc_normal_expression_class:
       grain: scalar
       arity: scalar
@@ -4681,8 +4678,8 @@ by_card:
       - NOT_EXPRESSED
       - data_unavailable
       observed:
-        HIGH_LIABILITY: 471
-        MODERATE_LIABILITY: 31
+        HIGH_LIABILITY: 475
+        MODERATE_LIABILITY: 27
         LOW_LIABILITY: 2
       n_non_null: 504
       n_null: 0
@@ -4693,7 +4690,7 @@ by_card:
       - NOT_EXPRESSED
       - data_unavailable
       top: HIGH_LIABILITY
-      saturation: 0.9345
+      saturation: 0.9425
     sc_normal_safety_essential_class:
       grain: scalar
       arity: scalar
@@ -4704,9 +4701,9 @@ by_card:
       - none
       - origin_tissue_liability
       observed:
-        critical_organ_liability: 468
-        none: 29
-        origin_tissue_liability: 7
+        critical_organ_liability: 474
+        none: 26
+        origin_tissue_liability: 4
       n_non_null: 504
       n_null: 0
       n_absent: 0
@@ -4715,7 +4712,7 @@ by_card:
       never_emitted:
       - data_unavailable
       top: critical_organ_liability
-      saturation: 0.9286
+      saturation: 0.9405
   sc-surface-normal-safety:
     sc_surface_normal_class:
       grain: scalar
@@ -4753,19 +4750,19 @@ by_card:
       - partial_proxy
       - poor_proxy
       observed:
-        data_unavailable: 473
+        data_unavailable: 470
         adequate_proxy: 16
         poor_proxy: 11
         partial_proxy: 4
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
       - indeterminate
       top: data_unavailable
-      saturation: 0.9385
+      saturation: 0.9381
   shed-ectodomain-liability:
     measured_shed_class:
       grain: scalar
@@ -4847,17 +4844,17 @@ by_card:
       - tolerant
       observed:
         high_intolerance: 224
-        moderate_intolerance: 206
+        moderate_intolerance: 204
         tolerant: 74
-      n_non_null: 504
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - indeterminate
       top: high_intolerance
-      saturation: 0.4444
+      saturation: 0.4462
   signaling-network-mechanism:
     has_pd_marker:
       grain: scalar
@@ -5009,19 +5006,19 @@ by_card:
       - tumour_present_no_compartment_preference
       - underpowered
       observed:
-        tumour_present_no_compartment_preference: 122
+        tumour_present_no_compartment_preference: 121
         tumour_enriched_rna: 47
         tme_enriched_rna: 12
-      n_non_null: 181
+      n_non_null: 180
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 181
+      n_packages_with_card: 180
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       - underpowered
       top: tumour_present_no_compartment_preference
-      saturation: 0.674
+      saturation: 0.6722
   spatial-surface-protein-abundance:
     spatial_protein_class:
       grain: scalar
@@ -5063,23 +5060,23 @@ by_card:
       - stromal_niche_colocalized
       - underpowered
       observed:
-        no_spatial_preference: 80
-        immune_excluded: 42
+        no_spatial_preference: 79
+        immune_excluded: 41
         endothelial_niche_colocalized: 9
         stromal_niche_colocalized: 7
         immune_niche_colocalized: 6
-      n_non_null: 144
+        underpowered: 1
+      n_non_null: 143
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 144
+      n_packages_with_card: 143
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       - normal_epithelium_adjacent
       - other_niche_colocalized
-      - underpowered
       top: no_spatial_preference
-      saturation: 0.5556
+      saturation: 0.5524
   splice-exon-skip-landscape:
     driver_direction:
       grain: scalar
@@ -5154,9 +5151,9 @@ by_card:
       - unavailable
       observed:
         moderate: 275
-        low: 137
+        low: 127
         high: 88
-        unavailable: 4
+        unavailable: 14
       n_non_null: 504
       n_null: 0
       n_absent: 0
@@ -5268,16 +5265,16 @@ by_card:
       observed:
         subtype_stratifies_survival: 85
         no_subtype_survival_association: 43
-        insufficient_survival_data: 40
-      n_non_null: 168
+        insufficient_survival_data: 39
+      n_non_null: 167
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 168
+      n_packages_with_card: 167
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: subtype_stratifies_survival
-      saturation: 0.506
+      saturation: 0.509
   surface-abundance-density:
     density_floor_verdict:
       grain: scalar
@@ -5439,19 +5436,19 @@ by_card:
       - moderate_ecd
       - no_extracellular_domain
       observed:
-        no_extracellular_domain: 375
+        no_extracellular_domain: 374
         large_ecd: 98
         moderate_ecd: 24
         minimal_ecd: 3
-      n_non_null: 500
+      n_non_null: 499
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 500
+      n_packages_with_card: 499
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: no_extracellular_domain
-      saturation: 0.75
+      saturation: 0.7495
     endocytosis_motif_types:
       grain: scalar
       arity: array
@@ -5464,7 +5461,7 @@ by_card:
       n_non_null: 0
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 500
+      n_packages_with_card: 499
       out_of_vocab: []
       never_emitted:
       - Dileucine
@@ -5473,8 +5470,8 @@ by_card:
       top: null
       saturation: null
       saturation_na: 'arity=array: top/total is a token share, not a package share'
-      n_emissions: 500
-      n_empty_array: 500
+      n_emissions: 499
+      n_empty_array: 499
     isoform_selective_warning:
       grain: scalar
       arity: scalar
@@ -5483,18 +5480,18 @@ by_card:
       - 'false'
       - 'true'
       observed:
-        'false': 500
-      n_non_null: 500
+        'false': 499
+      n_non_null: 499
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 500
+      n_packages_with_card: 499
       out_of_vocab: []
       never_emitted:
       - 'true'
       top: 'false'
       saturation: 1.0
       emitted_types:
-        bool: 500
+        bool: 499
     topology_class:
       grain: scalar
       arity: scalar
@@ -5509,14 +5506,14 @@ by_card:
       - single_pass_type_2
       - single_pass_type_other
       observed:
-        no_transmembrane: 375
+        no_transmembrane: 374
         single_pass_type_1: 100
         multi_pass: 16
         single_pass_type_2: 9
-      n_non_null: 500
+      n_non_null: 499
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 500
+      n_packages_with_card: 499
       out_of_vocab: []
       never_emitted:
       - beta_barrel
@@ -5524,7 +5521,7 @@ by_card:
       - gpi_anchored
       - single_pass_type_other
       top: no_transmembrane
-      saturation: 0.75
+      saturation: 0.7495
   surfaceome-cohort-ranking:
     cohort_rank_class:
       grain: scalar
@@ -5657,17 +5654,17 @@ by_card:
       - experimental
       - other
       observed:
-        experimental: 354
+        experimental: 353
         computational: 86
         other: 2
-      n_non_null: 442
-      n_null: 62
+      n_non_null: 441
+      n_null: 61
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted: []
       top: experimental
-      saturation: 0.8009
+      saturation: 0.8005
     sl_partner_class:
       grain: scalar
       arity: scalar
@@ -5678,18 +5675,18 @@ by_card:
       - has_experimental_sl_partner
       - no_curated_sl_partner
       observed:
-        has_experimental_sl_partner: 354
+        has_experimental_sl_partner: 353
         has_computational_sl_partner: 88
-        no_curated_sl_partner: 62
-      n_non_null: 504
+        no_curated_sl_partner: 61
+      n_non_null: 502
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 502
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: has_experimental_sl_partner
-      saturation: 0.7024
+      saturation: 0.7032
   tahoe-drug-perturbation:
     tahoe_perturbation_class:
       grain: scalar
@@ -5755,18 +5752,18 @@ by_card:
       - data_unavailable
       observed:
         Tclin: 178
-        Tbio: 163
+        Tbio: 161
         Tchem: 161
-      n_non_null: 502
+      n_non_null: 500
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 502
+      n_packages_with_card: 500
       out_of_vocab: []
       never_emitted:
       - Tdark
       - data_unavailable
       top: Tclin
-      saturation: 0.3546
+      saturation: 0.356
   target-genotype-matched-model:
     genotype_matched_class:
       grain: scalar
@@ -5934,18 +5931,18 @@ by_card:
       - til_intermediate
       - til_low
       observed:
-        til_high: 145
+        til_high: 143
         til_intermediate: 48
         til_low: 48
-      n_non_null: 241
+      n_non_null: 239
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 241
+      n_packages_with_card: 239
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: til_high
-      saturation: 0.6017
+      saturation: 0.5983
   tumor-elevation-breadth:
     breadth_layer_concordance:
       grain: scalar
@@ -5959,20 +5956,20 @@ by_card:
       - rna_only
       - single_layer
       observed:
-        discordant: 240
-        concordant: 208
+        discordant: 238
+        concordant: 207
         rna_only: 28
         concordant_not_elevated: 24
-        single_layer: 4
+        single_layer: 6
+        protein_only: 1
       n_non_null: 504
       n_null: 0
       n_absent: 0
       n_packages_with_card: 504
       out_of_vocab: []
-      never_emitted:
-      - protein_only
+      never_emitted: []
       top: discordant
-      saturation: 0.4762
+      saturation: 0.4722
     rna_tumor_elevation_breadth_class:
       grain: scalar
       arity: scalar
@@ -5985,16 +5982,16 @@ by_card:
       - single_tumor_elevated
       observed:
         multi_tumor_elevated: 295
-        single_tumor_elevated: 79
+        single_tumor_elevated: 76
         not_tumor_elevated: 72
         broadly_tumor_elevated: 58
+        data_unavailable: 3
       n_non_null: 504
       n_null: 0
       n_absent: 0
       n_packages_with_card: 504
       out_of_vocab: []
-      never_emitted:
-      - data_unavailable
+      never_emitted: []
       top: multi_tumor_elevated
       saturation: 0.5853
     tumor_elevation_breadth_class:
@@ -6150,15 +6147,15 @@ by_card:
       - unevaluable
       observed:
         unavailable: 459
-        underpowered: 26
+        exploratory: 24
         empty: 19
+        underpowered: 2
       n_non_null: 504
       n_null: 0
       n_absent: 0
       n_packages_with_card: 504
       out_of_vocab: []
       never_emitted:
-      - exploratory
       - powered
       - unevaluable
       top: unavailable
@@ -6266,10 +6263,10 @@ by_card:
       - stable
       - tumor_shifted
       observed:
-        stable: 179
-        data_unavailable: 129
+        stable: 177
+        data_unavailable: 132
         highly_variable: 95
-        tumor_shifted: 37
+        tumor_shifted: 36
       n_non_null: 440
       n_null: 0
       n_absent: 0
@@ -6277,7 +6274,7 @@ by_card:
       out_of_vocab: []
       never_emitted: []
       top: stable
-      saturation: 0.4068
+      saturation: 0.4023
     tumor_expression_class:
       grain: scalar
       arity: scalar
@@ -6319,7 +6316,7 @@ by_card:
       observed:
         powered: 265
         unavailable: 199
-        underpowered: 40
+        exploratory: 40
       n_non_null: 504
       n_null: 0
       n_absent: 0
@@ -6327,7 +6324,7 @@ by_card:
       out_of_vocab: []
       never_emitted:
       - empty
-      - exploratory
+      - underpowered
       - unevaluable
       top: powered
       saturation: 0.5258
@@ -6414,17 +6411,17 @@ by_card:
       - low
       - possible
       observed:
-        low: 301
+        low: 298
         data_unavailable: 2
-      n_non_null: 303
+      n_non_null: 300
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 303
+      n_packages_with_card: 300
       out_of_vocab: []
       never_emitted:
       - possible
       top: low
-      saturation: 0.9934
+      saturation: 0.9933
     caf_vs_malignant_class:
       grain: scalar
       arity: scalar
@@ -6436,19 +6433,19 @@ by_card:
       - malignant_dominant
       - shared_caf_malignant
       observed:
-        caf_low: 238
+        caf_low: 235
         shared_caf_malignant: 44
         caf_dominant: 15
         malignant_dominant: 5
         data_unavailable: 1
-      n_non_null: 303
+      n_non_null: 300
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 303
+      n_packages_with_card: 300
       out_of_vocab: []
       never_emitted: []
       top: caf_low
-      saturation: 0.7855
+      saturation: 0.7833
     entity_purity:
       grain: scalar
       arity: scalar
@@ -6458,17 +6455,17 @@ by_card:
       - multi_entity_pooled
       - unspecified
       observed:
-        entity_specific: 224
-        multi_entity_pooled: 79
-      n_non_null: 303
+        entity_specific: 222
+        multi_entity_pooled: 78
+      n_non_null: 300
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 303
+      n_packages_with_card: 300
       out_of_vocab: []
       never_emitted:
       - unspecified
       top: entity_specific
-      saturation: 0.7393
+      saturation: 0.74
     inter_donor_consistency_class:
       grain: scalar
       arity: scalar
@@ -6479,18 +6476,18 @@ by_card:
       - underpowered
       - variable
       observed:
-        variable: 290
+        variable: 287
         consistent: 12
         underpowered: 1
-      n_non_null: 303
+      n_non_null: 300
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 303
+      n_packages_with_card: 300
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: variable
-      saturation: 0.9571
+      saturation: 0.9567
     malignant_annotation_method:
       grain: scalar
       arity: scalar
@@ -6501,18 +6498,18 @@ by_card:
       - phenotype_proxy
       - unspecified
       observed:
-        curated: 133
-        infercnv: 117
+        curated: 132
+        infercnv: 116
         phenotype_proxy: 39
-        unspecified: 14
-      n_non_null: 303
+        unspecified: 13
+      n_non_null: 300
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 303
+      n_packages_with_card: 300
       out_of_vocab: []
       never_emitted: []
       top: curated
-      saturation: 0.4389
+      saturation: 0.44
     sc_expression_class:
       grain: scalar
       arity: scalar
@@ -6524,19 +6521,19 @@ by_card:
       - malignant_subset_detected
       - microenvironment_dominant
       observed:
-        malignant_subset_detected: 146
-        broadly_low: 105
+        malignant_subset_detected: 145
+        broadly_low: 103
         malignant_broadly_detected: 43
         microenvironment_dominant: 7
         data_unavailable: 2
-      n_non_null: 303
+      n_non_null: 300
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 303
+      n_packages_with_card: 300
       out_of_vocab: []
       never_emitted: []
       top: malignant_subset_detected
-      saturation: 0.4818
+      saturation: 0.4833
     stromal_confound_class:
       grain: scalar
       arity: scalar
@@ -6548,19 +6545,19 @@ by_card:
       - not_stromal_confounded
       - stromal_confounded
       observed:
-        malignant_intrinsic: 189
-        not_stromal_confounded: 106
+        malignant_intrinsic: 188
+        not_stromal_confounded: 104
         inconclusive_low_confidence: 4
         data_unavailable: 2
         stromal_confounded: 2
-      n_non_null: 303
+      n_non_null: 300
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 303
+      n_packages_with_card: 300
       out_of_vocab: []
       never_emitted: []
       top: malignant_intrinsic
-      saturation: 0.6238
+      saturation: 0.6267
     tce_antigen_escape_class:
       grain: scalar
       arity: scalar
@@ -6573,20 +6570,20 @@ by_card:
       - escape_risk_moderate
       - escape_risk_patient_variable
       observed:
-        escape_risk_high: 260
+        escape_risk_high: 257
         escape_risk_patient_variable: 31
         escape_risk_low: 11
         escape_risk_moderate: 1
-      n_non_null: 303
+      n_non_null: 300
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 303
+      n_packages_with_card: 300
       out_of_vocab: []
       never_emitted:
       - coverage_high_donor_underpowered
       - data_unavailable
       top: escape_risk_high
-      saturation: 0.8581
+      saturation: 0.8567
     tce_homogeneity_class:
       grain: scalar
       arity: scalar
@@ -6597,18 +6594,18 @@ by_card:
       - homogeneous
       - moderately_homogeneous
       observed:
-        heterogeneous: 198
+        heterogeneous: 195
         moderately_homogeneous: 62
         homogeneous: 43
-      n_non_null: 303
+      n_non_null: 300
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 303
+      n_packages_with_card: 300
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: heterogeneous
-      saturation: 0.6535
+      saturation: 0.65
     within_tumor_coverage_class:
       grain: scalar
       arity: scalar
@@ -6619,18 +6616,18 @@ by_card:
       - low
       - partial
       observed:
-        low: 260
+        low: 257
         partial: 26
         high: 17
-      n_non_null: 303
+      n_non_null: 300
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 303
+      n_packages_with_card: 300
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: low
-      saturation: 0.8581
+      saturation: 0.8567
   tumor-splice-dysregulation:
     splicing_dysregulation_class:
       grain: scalar
@@ -6881,27 +6878,24 @@ by_card:
       saturation: 0.7328
     selectivity_substrate_basis:
       grain: scalar
-      arity: none
-      status: field_absent
+      arity: scalar
+      status: observed
       declared:
       - cross_cohort_non_deseq2
       - unknown_substrate
       - within_pipeline_deseq2_counts
-      observed: {}
-      n_non_null: 0
+      observed:
+        within_pipeline_deseq2_counts: 367
+        cross_cohort_non_deseq2: 40
+        unknown_substrate: 1
+      n_non_null: 408
       n_null: 0
-      n_absent: 408
+      n_absent: 0
       n_packages_with_card: 408
       out_of_vocab: []
-      never_emitted:
-      - cross_cohort_non_deseq2
-      - unknown_substrate
-      - within_pipeline_deseq2_counts
-      top: null
-      saturation: null
-      saturation_na: 'arity=none: top/total is a token share, not a package share'
-      n_emissions: 0
-      n_empty_array: 0
+      never_emitted: []
+      top: within_pipeline_deseq2_counts
+      saturation: 0.8995
   variant-effect-mave-mavedb:
     mave_evidence_class:
       grain: scalar
@@ -6914,19 +6908,19 @@ by_card:
       - mave_well_characterized
       - not_assayed
       observed:
-        not_assayed: 419
+        not_assayed: 416
         mave_unmapped_target: 49
         mave_well_characterized: 33
         mave_assayed: 3
-      n_non_null: 504
+      n_non_null: 501
       n_null: 0
       n_absent: 0
-      n_packages_with_card: 504
+      n_packages_with_card: 501
       out_of_vocab: []
       never_emitted:
       - data_unavailable
       top: not_assayed
-      saturation: 0.8313
+      saturation: 0.8303
   variant-level-interpretation:
     civic_variant_class:
       grain: scalar

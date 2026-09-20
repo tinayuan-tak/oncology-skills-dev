@@ -76,7 +76,7 @@ ROOT = Path(__file__).resolve().parents[1]
 CARDS = ROOT / "cards"
 LEDGER_PATH = ROOT / "coverage" / "emission_ledger.yaml"
 
-DEFAULT_CORPUS = Path(os.environ.get("EMISSION_CORPUS", Path.home() / "dev" / "target-archetype-corpus-20260919"))
+DEFAULT_CORPUS = Path(os.environ.get("EMISSION_CORPUS", Path.home() / "dev" / "target-archetype-corpus-20260920"))
 
 # Anti-vacuity floors. A ledger that silently finds nothing is indistinguishable from a clean
 # repo, which is the exact failure this file exists to remove.
