@@ -41,6 +41,13 @@ plotly = ">=5"       # figure emitters — plotly figure specs
 openpyxl = ">=3.1"   # Excel parsing (CPTAC clinical XLSX + SURFY) reached by some readers
 matplotlib = ">=3.8" # figure emitters — matplotlib-based card figures (e.g. dependency-lineage-selectivity)
 numpy = ">=1.26"     # explicit (readers/emitters); previously only transitive via pandas/scipy
+# polars pilot (2026-09-16): hpa_normal_tissue_liability's reader parses the HPA master TSV with
+# polars. Declared in analysis-methods' pixi.toml but the mirror here was missed — so the skills
+# `.pixi/envs/default` (used by the corpus regen) lacked it, every HPA read raised ModuleNotFoundError,
+# the dispatcher's `except Exception` degraded it to hpa_normal_tissue_read_failed, and the
+# normal-tissue-liability card went silently dark on all 504 packages of a regenerated corpus.
+# Pin mirrors analysis-methods/pixi.toml exactly.
+polars = ">=1.44.2,<2"
 # target-archetype's atlas BUILD (scripts/build_atlas.py) imports sklearn.decomposition.PCA to fit the
 # frozen linear embedding. Undeclared until 2026-09-13, which meant the freeze was not reproducible in
 # this environment AT ALL: `atlas_stability.py --verify-rebuild` — the check that makes a re-freeze diff
