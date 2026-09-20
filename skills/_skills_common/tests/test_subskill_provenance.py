@@ -72,6 +72,86 @@ def test_card_input_manifest_ids_failopen_on_unknown():
     assert skc.card_input_manifest_ids("no-such-card-xyz") == ()
 
 
+# ── resolve_cards stamps declared method_calls (2026-09-20) ──────────────────
+# The evidence_package.schema `provenance.method_calls` slot (declared 2026-08-16) was populated in 0
+# of the emitted cards because resolve_cards CLOBBERED reader provenance with an input_manifest_ids-only
+# dict. resolve_cards now MERGES and stamps the declared method_calls; the envelope's
+# `{**defaults, **card.provenance}` then surfaces them into card_present.provenance.
+
+
+def test_resolve_cards_stamps_declared_method_calls(monkeypatch):
+    """resolve_cards attaches provenance.method_calls (from the card_spec) to available AND missing
+    cards, and keeps input_manifest_ids unchanged."""
+    monkeypatch.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)
+    monkeypatch.setattr(
+        skc, "_import_dispatcher", lambda: lambda cid, t, i, **k: {"foo_class": "bar"} if cid == "c-ok" else None
+    )
+    monkeypatch.setattr(skc, "card_input_manifest_ids", lambda cid: ("m-1",) if cid == "c-ok" else ())
+    monkeypatch.setattr(
+        skc,
+        "card_declared_method_calls",
+        lambda cid: (
+            ({"method": "meth-a", "git_sha": "abc1234", "args": {"target": "{target.symbol}"}},)
+            if cid == "c-ok"
+            else ()
+        ),
+    )
+    out = {c["card_id"]: c for c in skc.resolve_cards(["c-ok", "c-missing"], "EGFR", "PANCANCER")}
+    assert out["c-ok"]["provenance"]["method_calls"] == [
+        {"method": "meth-a", "git_sha": "abc1234", "args": {"target": "{target.symbol}"}}
+    ]
+    assert out["c-ok"]["provenance"]["input_manifest_ids"] == ["m-1"]  # unchanged by the merge
+    # a card with no declared methods gets an EMPTY list, not garbage — the can-fail control
+    assert out["c-missing"]["provenance"]["method_calls"] == []
+
+
+def test_resolve_cards_method_calls_entries_are_independent_copies(monkeypatch):
+    """The @lru_cache'd helper returns a shared tuple; resolve_cards must hand out per-card COPIES so a
+    consumer mutating one card's method_calls cannot corrupt the cache / another card."""
+    monkeypatch.delenv("FRAMEWORK_HEALTH_SMOKE", raising=False)
+    monkeypatch.setattr(skc, "_import_dispatcher", lambda: lambda cid, t, i, **k: {"foo_class": "bar"})
+    monkeypatch.setattr(skc, "card_input_manifest_ids", lambda cid: ())
+    monkeypatch.setattr(skc, "card_declared_method_calls", lambda cid: ({"method": "m", "git_sha": "0000000"},))
+    a, b = skc.resolve_cards(["c1", "c2"], "EGFR", "PANCANCER")
+    a["provenance"]["method_calls"][0]["method"] = "MUTATED"
+    assert b["provenance"]["method_calls"][0]["method"] == "m"  # not corrupted
+
+
+def test_card_declared_method_calls_reads_real_card_spec():
+    """Against a checked-out target-contracts, a known card resolves its declared methods[].call, each
+    stamped with a real analysis-methods SHA (7 hex chars, or the 0000000 git-unreachable sentinel)."""
+    from _skills_common.rules_loader import TARGET_CONTRACTS
+
+    if not (TARGET_CONTRACTS / "cards" / "cellline-rna-distribution.card.yaml").is_file():
+        pytest.skip("target-contracts not checked out adjacent")
+    mcs = skc.card_declared_method_calls("cellline-rna-distribution")
+    methods = [m["method"] for m in mcs]
+    assert "depmap-expression-distribution" in methods and "depmap-isoform-expression" in methods
+    for m in mcs:
+        assert len(m["git_sha"]) == 7 and all(ch in "0123456789abcdef" for ch in m["git_sha"])
+
+
+def test_card_declared_method_calls_failopen_on_unknown():
+    """Unknown/malformed card_id → empty tuple (provenance never blocks a run)."""
+    assert skc.card_declared_method_calls("no-such-card-xyz") == ()
+
+
+def test_decision_json_cards_do_not_carry_method_calls():
+    """SCOPE GUARD: make_decision_json lifts only input_manifest_ids into decision.json cards, so the
+    method_calls stamp reaches the evidence_package (card_present) but leaves decision.json byte-stable.
+    If decision.json cards ever grow a provenance/method_calls key, every committed decision golden
+    silently drifts — this pins that they do NOT."""
+    card = {
+        "card_id": "c1",
+        "summary": {},
+        "provenance": {"input_manifest_ids": ["m-a"], "method_calls": [{"method": "x", "git_sha": "0000000"}]},
+    }
+    d = skc.make_decision_json("s", "EGFR", "PANCANCER", "q", [card], [], {})
+    (entry,) = d["cards"]
+    assert entry["input_manifest_ids"] == ["m-a"]
+    assert "method_calls" not in entry and "provenance" not in entry
+
+
 # ── make_decision_json surfaces the block + per-card ids ────────────────────
 
 

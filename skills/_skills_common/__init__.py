@@ -94,6 +94,48 @@ def card_input_manifest_ids(card_id: str) -> tuple[str, ...]:
         return ()
 
 
+@lru_cache(maxsize=512)
+def card_declared_method_calls(card_id: str) -> tuple:
+    """The method calls a card DECLARES — its `methods[].call` + `args` from the card_spec, each
+    stamped with the analysis-methods repo SHA (the code version that ran the method).
+
+    This is the fact that fills evidence_package.schema's long-empty `provenance.method_calls`
+    slot (`{method, git_sha, args}` — declared there since 2026-08-16, populated in 0 of the
+    emitted cards because resolve_cards clobbered reader provenance). `git_sha` answers the
+    question gitmeta.py was written for — "which code version produced this?" — which the static
+    card yaml alone cannot: it is the analysis-methods HEAD, not this skills repo's. `args` are the
+    card's DECLARED (still-templated, e.g. `{target.symbol}`) values; a downstream tool resolves
+    them against thresholds — the runtime stamp faithfully copies the declaration rather than
+    re-implementing threshold resolution in the read hot path.
+
+    Best-effort + fail-open: a missing/malformed card_spec or absent `methods` → empty tuple. The
+    SHA is resolved once (gitmeta.git_sha is lru_cached) and is the "0000000" sentinel when git is
+    unreachable. Returns a tuple of dicts so the @lru_cache result is not mutated by a caller — each
+    entry should be shallow-copied before mutation (resolve_cards does).
+    """
+    try:
+        from .gitmeta import git_sha
+        from .paths import analysis_methods_root
+
+        path = TARGET_CONTRACTS / "cards" / f"{card_id}.card.yaml"
+        spec = yaml.safe_load(path.read_text()) or {}
+        methods = spec.get("methods") or []
+        if not methods:
+            return ()
+        am_sha = git_sha(str(analysis_methods_root()))
+        out = []
+        for m in methods:
+            if not isinstance(m, dict) or not m.get("call"):
+                continue
+            entry = {"method": m["call"], "git_sha": am_sha}
+            if isinstance(m.get("args"), dict):
+                entry["args"] = dict(m["args"])
+            out.append(entry)
+        return tuple(out)
+    except Exception:  # noqa: BLE001 — provenance is best-effort; never break card resolution
+        return ()
+
+
 # --- Skill API -------------------------------------------------------------
 
 
@@ -391,8 +433,21 @@ def resolve_cards(
     # per-card data provenance as the composed engine — the basis for the decision.json governance
     # block + the resolved_release_digest. Applied to available AND missing cards: the digest is the
     # run's DECLARED input set (stable across transient read misses), not only successful reads.
+    #
+    # 2026-09-20: MERGE, do not clobber. The former `o["provenance"] = {...}` discarded any provenance
+    # a reader had already attached — which is why evidence_package.schema's `provenance.method_calls`
+    # slot (declared since 2026-08-16) was populated in 0 of 5015 emitted cards. We now (a) preserve
+    # whatever the reader supplied, (b) keep `input_manifest_ids` = the DECLARED ids byte-for-byte (the
+    # old behavior — declared ids win over a reader value, so the governance digest is unchanged), and
+    # (c) stamp the DECLARED `method_calls` ({method, git_sha, args}) so the package answers "which code
+    # produced this." Verdict-inert: provenance feeds governance/render, never a rule. Both envelope
+    # card_present builders already merge `{**defaults, **card.provenance}` (dispatcher/envelope), so a
+    # stamped method_calls flows through to the evidence_package and overrides the `[]` default there.
     for o in outputs:
-        o["provenance"] = {"input_manifest_ids": list(card_input_manifest_ids(o["card_id"]))}
+        prov = dict(o.get("provenance") or {})
+        prov["input_manifest_ids"] = list(card_input_manifest_ids(o["card_id"]))
+        prov["method_calls"] = [dict(mc) for mc in card_declared_method_calls(o["card_id"])]
+        o["provenance"] = prov
     return outputs
 
 
