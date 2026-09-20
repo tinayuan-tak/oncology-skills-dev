@@ -25,7 +25,11 @@ Two honesty rules the plan pins:
 
 Findings (per card, never gated):
   declared_call_unresolved         — card declares methods[].call but none resolve to an importable reader
-  declared_product_never_read      — a declared input manifest whose s3_uri no traced read matched
+  declared_input_not_read_this_run — a declared input neither read nor reached via lineage on THIS run.
+                                     A per-run COVERAGE dimension, not a defect: mostly benign (an input
+                                     for another target/indication). A declared SOURCE counts as read when
+                                     a read object is derived_from it (source→derived reprojection). True
+                                     dead wiring only shows as read-by-zero across a CORPUS of runs.
   read_object_not_in_any_manifest  — a traced s3 object no catalog manifest owns
   field_declared_but_absent_from_summary — an outputs.summary_fields entry missing from the emitted summary
   rederived_mismatch               — an independently recomputed value disagrees with the emitted one
@@ -98,6 +102,26 @@ def _manifest_owns(trace_uri: str, manifest_s3_uri: str | None) -> bool:
     if m.endswith("/") and t.startswith(m):
         return True
     return False
+
+
+def _upstream_ids(manifest_id: str, catalog: Any) -> set[str]:
+    """Transitive upstream lineage of a manifest via ``derived_from`` (BFS, cycle-safe; excludes the
+    starting id). Empty when the catalog or the record is unknown. Used so a declared SOURCE reads as
+    satisfied when a read object is derived from it — the reader opens the derived reprojection, not the
+    raw source the card declares."""
+    if catalog is None:
+        return set()
+    seen: set[str] = set()
+    stack = [manifest_id]
+    while stack:
+        rec = catalog.manifests.get(stack.pop())
+        if rec is None:
+            continue
+        for up in getattr(rec, "derived_from", None) or []:
+            if up not in seen:
+                seen.add(up)
+                stack.append(up)
+    return seen
 
 
 # ── declared side ───────────────────────────────────────────────────────────────────────────────────
@@ -232,6 +256,7 @@ def detect_findings(declared: dict, measured: list[dict] | None, summary: dict, 
     if measured is None:
         return findings
 
+    read_owner_ids: set[str] = set()
     for ev in measured:
         if ev["uri_class"] != "s3_object" or not ev["uri"]:
             continue
@@ -243,15 +268,29 @@ def detect_findings(declared: dict, measured: list[dict] | None, summary: dict, 
                     break
         if owner is None:
             findings.append({"kind": "read_object_not_in_any_manifest", "uri": ev["uri"], "op": ev["op"]})
+        else:
+            read_owner_ids.add(owner)
 
-    # declared_product_never_read — a declared input manifest whose s3_uri no traced read matched
+    # A declared input is satisfied if a read object owns it directly OR is DERIVED from it: cards
+    # routinely declare a raw source (e.g. depmap-consortium-26q1) while the reader opens the derived
+    # reprojection (depmap-26q1-parquet-v1, derived_from that source). Walk upstream lineage so that
+    # source→derived hop is not mis-reported as unread.
+    reachable = set(read_owner_ids)
+    for oid in read_owner_ids:
+        reachable |= _upstream_ids(oid, catalog)
+
+    # declared_input_not_read_this_run — a per-run COVERAGE dimension, never a defect: a declared input
+    # neither read nor reached via lineage on THIS run. Mostly benign (an input for another
+    # target/indication, e.g. one of many subgroup-assignment products); genuine dead wiring only shows
+    # as read-by-zero across a CORPUS of runs, which a single-run audit cannot see.
     for man in declared.get("manifests") or []:
         s3 = man.get("s3_uri")
         if not man.get("in_catalog") or not s3:
             continue
-        read = any(_manifest_owns(ev["uri"], s3) for ev in measured if ev["uri"])
+        mid = man["manifest_id"]
+        read = mid in reachable or any(_manifest_owns(ev["uri"], s3) for ev in measured if ev["uri"])
         if not read:
-            findings.append({"kind": "declared_product_never_read", "manifest_id": man["manifest_id"], "s3_uri": s3})
+            findings.append({"kind": "declared_input_not_read_this_run", "manifest_id": mid, "s3_uri": s3})
 
     return findings
 

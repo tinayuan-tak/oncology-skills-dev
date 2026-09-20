@@ -22,13 +22,14 @@ import card_chain_audit as cca  # noqa: E402
 
 # ── fake catalog ────────────────────────────────────────────────────────────────────────────────────
 class _Rec:
-    def __init__(self, mid, s3_uri):
+    def __init__(self, mid, s3_uri, derived_from=None):
         self.id = mid
         self.s3_uri = s3_uri
         self.type = "derived"
         self.parquet_schema = []
         self.query_optimization = None
         self.license = None
+        self.derived_from = list(derived_from or [])
 
 
 class _Catalog:
@@ -81,7 +82,7 @@ def test_field_declared_but_absent_fires_only_for_missing():
     assert missing == ["missing_field"]  # present_field must NOT appear (anti-vacuity)
 
 
-# ── declared_product_never_read + read_object_not_in_any_manifest ─────────────────────────────────────
+# ── declared_input_not_read_this_run + read_object_not_in_any_manifest ────────────────────────────────
 def test_never_read_and_uncataloged_object_with_fake_catalog():
     cat = _Catalog(
         [_Rec("read-mani", "s3://b/derived/read/f.parquet"), _Rec("unread-mani", "s3://b/derived/unread/f.parquet")]
@@ -99,10 +100,31 @@ def test_never_read_and_uncataloged_object_with_fake_catalog():
         {"op": "pandas.read_csv", "uri": "/home/x/.cache/local.csv", "uri_class": "local_cache"},
     ]
     findings = cca.detect_findings(declared, measured, {}, cat)
-    never = [f["manifest_id"] for f in findings if f["kind"] == "declared_product_never_read"]
+    never = [f["manifest_id"] for f in findings if f["kind"] == "declared_input_not_read_this_run"]
     orphan = [f["uri"] for f in findings if f["kind"] == "read_object_not_in_any_manifest"]
     assert never == ["unread-mani"]  # read-mani WAS read → must not fire (anti-vacuity)
     assert orphan == ["b/derived/orphan/g.parquet"]  # the local_cache read is NOT flagged as uncataloged
+
+
+# ── source→derived lineage hop ────────────────────────────────────────────────────────────────────────
+def test_declared_source_read_via_derived_reprojection_is_not_flagged():
+    # the card declares a SOURCE; the run opens the DERIVED product (derived_from that source).
+    cat = _Catalog(
+        [
+            _Rec("depmap-source", "s3://b/sources/depmap/"),
+            _Rec("depmap-parquet", "s3://b/derived/depmap-parquet/f.parquet", derived_from=["depmap-source"]),
+        ]
+    )
+    declared = {
+        "method_calls": [],
+        "manifests": [{"manifest_id": "depmap-source", "in_catalog": True, "s3_uri": "s3://b/sources/depmap/"}],
+    }
+    measured = [{"op": "pyarrow.read_table", "uri": "b/derived/depmap-parquet/f.parquet", "uri_class": "s3_object"}]
+    # the source is satisfied THROUGH the derived read → must NOT be flagged
+    assert "declared_input_not_read_this_run" not in _kinds(cca.detect_findings(declared, measured, {}, cat))
+    # teeth: sever the lineage and it DOES fire — proving the hop is what suppressed it
+    cat.manifests["depmap-parquet"].derived_from = []
+    assert "declared_input_not_read_this_run" in _kinds(cca.detect_findings(declared, measured, {}, cat))
 
 
 # ── unmeasured ⇒ null, not 0 ─────────────────────────────────────────────────────────────────────────
@@ -116,7 +138,7 @@ def test_unmeasured_suppresses_measured_dependent_findings():
     findings = cca.detect_findings(declared, None, {}, cat)  # measured is None ⇒ UNMEASURED
     kinds = _kinds(findings)
     # measured-dependent findings must NOT appear when unmeasured (no false clean either way)
-    assert "declared_product_never_read" not in kinds
+    assert "declared_input_not_read_this_run" not in kinds
     assert "read_object_not_in_any_manifest" not in kinds
     # anti-vacuity: measurement-independent findings STILL fire, so the empty measured set is the cause
     assert "declared_call_unresolved" in kinds
@@ -129,9 +151,9 @@ def test_traced_zero_reads_is_distinct_from_unmeasured():
         "method_calls": [],
         "manifests": [{"manifest_id": "m", "in_catalog": True, "s3_uri": "s3://b/derived/m/f.parquet"}],
     }
-    # measured == [] (traced, zero reads) DOES fire never-read, unlike measured is None above
+    # measured == [] (traced, zero reads) DOES fire not-read-this-run, unlike measured is None above
     findings = cca.detect_findings(declared, [], {}, cat)
-    assert "declared_product_never_read" in _kinds(findings)
+    assert "declared_input_not_read_this_run" in _kinds(findings)
 
 
 def test_build_measured_none_vs_empty():
