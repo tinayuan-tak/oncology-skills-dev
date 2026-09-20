@@ -175,6 +175,19 @@ jobs:
           python -m pytest tests/validators/test_emission_ledger.py -q
           python validators/build_emission_ledger.py --self-check
 
+      # I.3 wiring reconciliation: READS (method) vs DECLARES (card required_inputs) vs EMITS
+      # (emission ledger). This runner is checkout-only (no analysis-methods/skills/data-catalog
+      # siblings), so only the HERMETIC half runs — it re-derives the findings from the committed
+      # reads against today's cards, catching declaration-side drift; the LIVE re-extraction runs at
+      # preland. Findings are asserted only on the SOUND tier (fully catalog_query-visible reads); the
+      # dated known_violations baseline is EMPTY (the one genuine finding was fixed in the card). The
+      # mutation suite runs FIRST and is not optional: with an empty baseline it is the only proof the
+      # gate can fail at all (self-check alone cannot show its own checks are non-vacuous).
+      - name: Validate wiring reconciliation (I.3; hermetic half only)
+        run: |
+          python -m pytest tests/validators/test_wiring_reconciliation.py -q
+          python validators/build_wiring_reconciliation.py --self-check
+
       # 2026-08-16 (cleanup follow-up): these three validators were fully built but gated by NO
       # workflow — the same drift-risk the T9b step above fixed for validate_resolvers.py. Wire
       # their suites so subgroup-assignment / coverage-matrix / framework-discrimination contract

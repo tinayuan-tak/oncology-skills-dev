@@ -30,6 +30,10 @@ run "build_eval_ledger --self-check"     python validators/build_eval_ledger.py 
 # the committed counts — set EMISSION_CORPUS to point at a vintage other than the ledger's.
 run "pytest test_emission_ledger"        python -m pytest tests/validators/test_emission_ledger.py -q
 run "build_emission_ledger --self-check" python validators/build_emission_ledger.py --self-check
+# I.3 wiring reconciliation (READS vs DECLARES vs EMITS). Locally the siblings are usually present,
+# so the LIVE half also re-extracts reads and diffs the committed snapshot; CI runs the hermetic half.
+run "pytest test_wiring_reconciliation"      python -m pytest tests/validators/test_wiring_reconciliation.py -q
+run "build_wiring_reconciliation --self-check" python validators/build_wiring_reconciliation.py --self-check
 run "pytest subgroup+coverage"           python -m pytest tests/validators/test_subgroup_assignments_and_coverage.py -q
 run "pytest framework_discrimination"    python -m pytest tests/calibration/test_framework_discrimination.py -q
 run "pytest card_concept_discipline"     python -m pytest tests/validators/test_card_concept_discipline.py -q

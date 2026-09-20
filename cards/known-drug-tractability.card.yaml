@@ -30,7 +30,8 @@ tier: target   # known-drug + druggable-category are properties of the gene, ind
 applies_when: []
 
 required_inputs:
-  - product_id: dgidb-drug-gene-per-gene-v1
+  - product_id: dgidb-drug-gene-per-gene-v1              # known drug-gene interactions (approved/antineoplastic counts, categories)
+  - product_id: dgidb-drug-target-directional-v1        # directness metadata (n_direct_interactions / direct_engagement_class) — v1.1.0 read, dgidb_drug_gene/read.py:46
 
 methods:
   - call: known-drug-tractability
