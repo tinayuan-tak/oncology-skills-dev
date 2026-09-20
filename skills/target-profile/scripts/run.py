@@ -544,6 +544,16 @@ def _build_arg_parser() -> argparse.ArgumentParser:
     ap.add_argument(
         "--no-hypothesis", action="store_true", help="Granular opt-out: skip the cross-evidence-hypothesis [3B] leg."
     )
+    ap.add_argument(
+        "--trace",
+        action="store_true",
+        help="DEV TOOLING (chain audit): capture the S3 objects / columns / row-filters / rows each "
+        "sub-skill card reader actually reads across the fan-out, and write <out>/read_trace.json. FORCES "
+        "the sequential read path (SKILLS_READ_WORKERS=1 + a single fan-out worker) so per-card IO "
+        "attribution is unambiguous, so a --trace run is slower. PURELY ADDITIVE — the verdict spine / "
+        "evidence_package.json is byte-identical whether or not this flag is set (a normal run installs "
+        "no IO patches). Feed the trace + evidence_package.json to eval/card_chain_audit.py.",
+    )
     return ap
 
 
@@ -732,6 +742,16 @@ def main() -> int:
             f"needs Bedrock+network, VERDICT-INERT. Use --no-rich-embedded for a fast run.",
             file=sys.stderr,
         )
+    # DEV TOOLING (--trace): capture per-card reader IO across the fan-out for the chain audit. A trace
+    # forces the sequential read path (the fan-out uses one worker; the env kill-switch pins any nested
+    # resolve_cards sequential too) so per-card IO attribution is unambiguous. No trace ⇒ _trace is None ⇒
+    # byte-identical (no IO patches installed, full concurrency). Mirrors the dispatcher's --trace plumbing.
+    _trace = None
+    if getattr(args, "trace", False):
+        from _skills_common.read_trace import ReadTrace
+
+        os.environ["SKILLS_READ_WORKERS"] = "1"
+        _trace = ReadTrace()
     sub_results = _run_sub_skills(
         args.target,
         args.indication,
@@ -742,7 +762,12 @@ def main() -> int:
         subskill_literature=_subskill_literature,
         subskill_literature_scope=args.subskill_literature_scope,
         synthesis_model=getattr(args, "synthesis_model", None),
+        trace=_trace,
     )
+    if _trace is not None:
+        from _skills_common.dispatcher import _write_read_trace
+
+        _write_read_trace(args.out, _trace)
     if args.profile_timers:
         print(f"[perf] === fan-out total {time.perf_counter() - _fanout_t0:6.1f}s ===", file=sys.stderr)
     for short, r in sub_results.items():

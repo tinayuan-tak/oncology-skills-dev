@@ -503,8 +503,59 @@ def _card_health(summary: dict, measured: list[dict] | None, findings: list[dict
 
 
 # ── orchestration ─────────────────────────────────────────────────────────────────────────────────────
+# A run's per-card facts live in a focused-skill decision.json OR a target-profile evidence_package.json
+# (the composed fan-out emits the latter under `--emit evidence-package`). They differ in two ways the
+# audit cares about: input_manifest_ids sits at the card top level in decision.json but under
+# `provenance` in evidence_package.json, and target/indication are top-level strings in decision.json but
+# structured under `context` in evidence_package.json. _load_run normalizes both to a single shape.
+RUN_ARTIFACTS = ("decision.json", "evidence_package.json")
+
+
+def _run_artifact(run_dir: Path) -> "Path | None":
+    """The run artifact to audit: decision.json if present, else evidence_package.json, else None."""
+    for name in RUN_ARTIFACTS:
+        p = run_dir / name
+        if p.exists():
+            return p
+    return None
+
+
+def _load_run(run_dir: Path) -> "tuple[list[dict], Any, Any]":
+    """Normalize a run's per-card records + (target, indication) from decision.json or
+    evidence_package.json. Each returned card carries card_id, summary, input_manifest_ids at the top
+    level regardless of source. Prefers decision.json when both exist."""
+    art = _run_artifact(run_dir)
+    if art is None:
+        raise FileNotFoundError(f"no {' or '.join(RUN_ARTIFACTS)} in {run_dir}")
+    d = json.loads(art.read_text())
+    cards = []
+    for c in d.get("cards") or []:
+        prov = c.get("provenance") or {}
+        # decision.json lifts input_manifest_ids to the card top level; evidence_package.json keeps it
+        # under provenance. Take the top level when present, else fall back to provenance.
+        mids = c.get("input_manifest_ids")
+        if mids is None:
+            mids = prov.get("input_manifest_ids")
+        cards.append(
+            {
+                "card_id": c.get("card_id"),
+                "summary": c.get("summary") or {},
+                "input_manifest_ids": list(mids or []),
+            }
+        )
+    if art.name == "decision.json":
+        return cards, d.get("target"), d.get("indication")
+    # evidence_package.json: target/indication are structured under context.
+    ctx = d.get("context") or {}
+    tgt = ctx.get("target") or {}
+    ind = ctx.get("indication") or {}
+    target = tgt.get("symbol") if isinstance(tgt, dict) else tgt
+    indication = ind.get("oncotree_code") if isinstance(ind, dict) else ind
+    return cards, target, indication
+
+
 def audit_run(run_dir: Path, skill: str, do_rederive: bool) -> dict:
-    decision = json.loads((run_dir / "decision.json").read_text())
+    run_cards, run_target, run_indication = _load_run(run_dir)
     trace_path = run_dir / "read_trace.json"
     trace = json.loads(trace_path.read_text()) if trace_path.exists() else None
 
@@ -519,7 +570,7 @@ def audit_run(run_dir: Path, skill: str, do_rederive: bool) -> dict:
 
     tc_root = target_contracts_root()
     cards_out = []
-    for card in decision.get("cards") or []:
+    for card in run_cards:
         card_id = card.get("card_id")
         if not card_id:
             continue
@@ -557,8 +608,8 @@ def audit_run(run_dir: Path, skill: str, do_rederive: bool) -> dict:
     return {
         "schema": "card_chain_audit/v1",
         "skill": skill,
-        "target": decision.get("target"),
-        "indication": decision.get("indication"),
+        "target": run_target,
+        "indication": run_indication,
         "run_dir": str(run_dir),
         "traced": trace is not None,
         "rederive_read": do_rederive,
@@ -795,9 +846,12 @@ def _main_corpus(args: argparse.Namespace) -> int:
     if len(run_dirs) < 2:
         print("[card-chain-audit] ERROR: --runs needs ≥2 run dirs to be a corpus", file=sys.stderr)
         return 2
-    missing = [d for d in run_dirs if not (d / "decision.json").exists()]
+    missing = [d for d in run_dirs if _run_artifact(d) is None]
     if missing:
-        print(f"[card-chain-audit] ERROR: decision.json not found in: {', '.join(map(str, missing))}", file=sys.stderr)
+        print(
+            f"[card-chain-audit] ERROR: no {' or '.join(RUN_ARTIFACTS)} found in: {', '.join(map(str, missing))}",
+            file=sys.stderr,
+        )
         return 2
     out_dir: Path = args.out or run_dirs[0]
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -819,7 +873,11 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--skill", required=True, help="skill name (labels the report)")
     mode = ap.add_mutually_exclusive_group(required=True)
-    mode.add_argument("--run", type=Path, help="a single run dir containing decision.json (+ read_trace.json)")
+    mode.add_argument(
+        "--run",
+        type=Path,
+        help="a single run dir containing decision.json or evidence_package.json (+ read_trace.json)",
+    )
     mode.add_argument(
         "--runs",
         type=Path,
@@ -840,8 +898,11 @@ def main(argv: list[str] | None = None) -> int:
         return _main_corpus(args)
 
     run_dir: Path = args.run
-    if not (run_dir / "decision.json").exists():
-        print(f"[card-chain-audit] ERROR: {run_dir / 'decision.json'} not found", file=sys.stderr)
+    if _run_artifact(run_dir) is None:
+        print(
+            f"[card-chain-audit] ERROR: no {' or '.join(RUN_ARTIFACTS)} in {run_dir}",
+            file=sys.stderr,
+        )
         return 2
     out_dir: Path = args.out or run_dir
     out_dir.mkdir(parents=True, exist_ok=True)

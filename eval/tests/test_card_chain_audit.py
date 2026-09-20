@@ -17,6 +17,8 @@ _EVAL = Path(__file__).resolve().parents[1]
 if str(_EVAL) not in sys.path:
     sys.path.insert(0, str(_EVAL))
 
+import json  # noqa: E402
+
 import card_chain_audit as cca  # noqa: E402
 
 
@@ -355,6 +357,57 @@ def test_aggregate_flags_dead_only_when_read_by_zero_and_above_breadth_floor():
     assert by_mid["dead-mani"]["read_runs"] == 0 and by_mid["dead-mani"]["declared_traced_runs"] == 3
     assert by_mid["live-mani"]["dead"] is False  # anti-vacuity: a read-at-least-once input must NOT be dead
     assert {d["manifest_id"] for d in dead} == {"dead-mani"}
+
+
+# ── run-artifact adapter: decision.json vs evidence_package.json ──────────────────────────────────────
+def test_run_artifact_none_when_neither_present(tmp_path):
+    assert cca._run_artifact(tmp_path) is None
+
+
+def test_load_run_reads_decision_json(tmp_path):
+    (tmp_path / "decision.json").write_text(
+        json.dumps(
+            {
+                "target": "KRAS",
+                "indication": "COADREAD",
+                "cards": [{"card_id": "c1", "summary": {"n": 5}, "input_manifest_ids": ["m1", "m2"]}],
+            }
+        )
+    )
+    cards, target, indication = cca._load_run(tmp_path)
+    assert (target, indication) == ("KRAS", "COADREAD")
+    assert cards == [{"card_id": "c1", "summary": {"n": 5}, "input_manifest_ids": ["m1", "m2"]}]
+
+
+def test_load_run_reads_evidence_package_from_provenance_and_context(tmp_path):
+    # target-profile shape: manifest ids under provenance, target/indication structured under context.
+    (tmp_path / "evidence_package.json").write_text(
+        json.dumps(
+            {
+                "context": {"target": {"symbol": "AURKB"}, "indication": {"oncotree_code": "COADREAD"}},
+                "cards": [
+                    {
+                        "card_id": "c1",
+                        "summary": {"n": 7},
+                        "provenance": {"input_manifest_ids": ["p1", "p2"]},
+                    }
+                ],
+            }
+        )
+    )
+    cards, target, indication = cca._load_run(tmp_path)
+    assert (target, indication) == ("AURKB", "COADREAD")
+    # input_manifest_ids lifted out of provenance to the normalized top level
+    assert cards == [{"card_id": "c1", "summary": {"n": 7}, "input_manifest_ids": ["p1", "p2"]}]
+
+
+def test_load_run_prefers_decision_json_when_both_present(tmp_path):
+    (tmp_path / "decision.json").write_text(json.dumps({"target": "KRAS", "indication": "COADREAD", "cards": []}))
+    (tmp_path / "evidence_package.json").write_text(
+        json.dumps({"context": {"target": {"symbol": "AURKB"}, "indication": {"oncotree_code": "PAAD"}}, "cards": []})
+    )
+    _, target, indication = cca._load_run(tmp_path)
+    assert (target, indication) == ("KRAS", "COADREAD")  # decision.json wins
 
 
 def test_aggregate_breadth_floor_suppresses_single_observation():

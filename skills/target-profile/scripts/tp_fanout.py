@@ -1340,6 +1340,7 @@ def _run_sub_skills(
     subskill_literature_scope: str = "all",
     synthesis_model: Optional[str] = None,
     skills: "Optional[Iterable[str]]" = None,
+    trace: "Optional[Any]" = None,
 ) -> dict:
     """Invoke each sub-skill's verdict logic in-process. Returns dict keyed
     by short name (`expression`, `selectivity`, ...) with:
@@ -1383,7 +1384,9 @@ def _run_sub_skills(
         # figure emitters render OFFLINE from it instead of re-executing a second live read. VERDICT-INERT
         # — persistence is a side artifact; the returned card summaries (hence the verdict spine) are
         # byte-identical to a plot_data_root=None run. None (verdict-only / --no-figures) => no persistence.
-        cards = resolve_cards(SUB_SKILL_CARDS[skill_dir], target, indication, plot_data_root=plot_data_root)
+        cards = resolve_cards(
+            SUB_SKILL_CARDS[skill_dir], target, indication, plot_data_root=plot_data_root, trace=trace
+        )
         if profile_timers:
             print(
                 f"[perf] read  {short:26s} {time.perf_counter() - _t0:6.1f}s ({len(SUB_SKILL_CARDS[skill_dir])} cards)",
@@ -1637,7 +1640,12 @@ def _run_sub_skills(
     _active = _select_active_sub_skills(skills)
     _prewarm_sub_skill_imports()
     completed: dict = {}
-    with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(_active), _FANOUT_MAX_WORKERS)) as ex:
+    # DEV TOOLING (--trace, chain audit): a ReadTrace attributes each captured read to the card being
+    # resolved via a thread-local sink, so concurrent sub-skills would interleave reads ambiguously.
+    # Force the sequential fan-out (1 worker) under trace — the documented "--trace forces the sequential
+    # read path" contract — so per-card IO attribution is unambiguous. None ⇒ full concurrency, unchanged.
+    _workers = 1 if trace is not None else min(len(_active), _FANOUT_MAX_WORKERS)
+    with concurrent.futures.ThreadPoolExecutor(max_workers=_workers) as ex:
         futures = {ex.submit(_one_sub_skill, sd, sh): sh for sd, sh in _active}
         for fut in concurrent.futures.as_completed(futures):
             short, res = fut.result()  # a sub-skill exception propagates here (fail-loud, as serial did)
@@ -1666,7 +1674,14 @@ def _run_sub_skills(
                 continue
             _ctx = {"resolved_strata_ids": _card_strata, "catalog_status": "resolved_active"}
             sub_cards.extend(
-                resolve_cards([_card_id], target, indication, subgroup_context=_ctx, plot_data_root=plot_data_root)
+                resolve_cards(
+                    [_card_id],
+                    target,
+                    indication,
+                    subgroup_context=_ctx,
+                    plot_data_root=plot_data_root,
+                    trace=trace,
+                )
             )
         sub_fired: list[dict] = []
         for axis in axes:
