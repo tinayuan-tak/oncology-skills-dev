@@ -372,6 +372,37 @@ def test_card_read_status_skips_not_in_catalog_and_uncataloged_inputs():
     assert cca._card_read_status(_report([card]))["c"] == {"good": True}  # only the in-catalog + s3 input counts
 
 
+def test_card_read_status_run_level_union_clears_shared_cache_reader():
+    # The lru_cache-sharing case: 'reader' physically reads shared-mani; 'consumer' declares it but records
+    # 0 events for it (warm cache) so it lands in consumer's not_read. The run-level union must still score
+    # shared-mani read for consumer — any traced card reading it means the wiring is live, not dead.
+    rep = _report(
+        [
+            _card("reader", [{"op": "x"}], ["shared-mani"]),
+            _card(
+                "consumer", [{"op": "y"}], ["shared-mani", "own-dead-mani"], not_read=["shared-mani", "own-dead-mani"]
+            ),
+        ]
+    )
+    status = cca._card_read_status(rep)
+    assert status["reader"] == {"shared-mani": True}
+    # shared-mani cleared by the union (reader read it); own-dead-mani read by NObody → stays False
+    assert status["consumer"] == {"shared-mani": True, "own-dead-mani": False}
+
+
+def test_card_read_status_union_draws_only_from_traced_cards():
+    # An untraced card's declared inputs must not seed the union (it contributes no read evidence).
+    rep = _report(
+        [
+            _card("untraced", None, ["ghost-mani"]),
+            _card("consumer", [{"op": "y"}], ["ghost-mani"], not_read=["ghost-mani"]),
+        ]
+    )
+    status = cca._card_read_status(rep)
+    assert "untraced" not in status
+    assert status["consumer"] == {"ghost-mani": False}  # untraced card cannot vouch for a read
+
+
 def test_aggregate_flags_dead_only_when_read_by_zero_and_above_breadth_floor():
     # dead-mani: declared+traced in all 3 runs, read in NONE → dead. live-mani: read in ≥1 → never dead.
     matrices = [

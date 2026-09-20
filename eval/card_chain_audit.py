@@ -40,6 +40,10 @@ genuine dead-wiring signal it can only *approximate* on one run:
                         exercised by THIS target" confound that makes the single-run signal benign. Below
                         the breadth floor the input is reported with its counts but NOT flagged dead —
                         one traced observation is no better evidence than the single-run dimension.
+                        The per-run brick scores "read" at the RUN-LEVEL UNION grain (read by ANY traced
+                        card in the run), because process-level ``lru_cache`` sharing across the fan-out
+                        credits a shared substrate's physical read to only the first card to miss the cache
+                        — see ``_card_read_status``.
   field_declared_but_absent_from_summary — an outputs.summary_fields entry missing from the emitted summary
   rederived_mismatch               — an independently recomputed value disagrees with the emitted one
 
@@ -742,10 +746,21 @@ def _card_read_status(report: dict) -> dict[str, dict[str, bool]]:
 
     This is the per-run brick the corpus detector stacks. Untraced cards (``measured is None``) are OMITTED,
     never recorded as unread: an unread declared input is only evidence of dead wiring on a run that
-    actually captured that card's IO. ``was_read`` is ``declared − not_read``, so the source→derived
-    lineage hop already applied by ``detect_findings`` is inherited for free (a source reached through its
-    derived reprojection never appears in ``declared_input_not_read_this_run`` and so counts as read)."""
-    out: dict[str, dict[str, bool]] = {}
+    actually captured that card's IO.
+
+    ``was_read`` is evaluated against a **run-level union**: a declared input counts as read when THIS card
+    read/reached it (``declared − not_read``, so the source→derived lineage hop ``detect_findings`` already
+    applied is inherited for free) OR when ANY traced card in the run read/reached it. The union is required
+    because per-card *physical* read attribution is confounded by process-level ``lru_cache`` sharing across
+    the fan-out: the analysis-methods loaders are ``@lru_cache``d and a composed run resolves many cards that
+    share them, so a substrate is physically read by ONLY the first card to miss the cache (e.g. the DepMap
+    Gygi matrix is read once by ``cellline-protein-abundance``) while every sibling that CONSUMES the warm
+    cache (``abundance-dependency`` …) records zero events. Dead WIRING means "no path in the run touches the
+    declared input", so the union grain — not per-card physical IO — is the honest denominator; the softer
+    per-card view remains available as the benign ``declared_input_not_read_this_run`` dimension."""
+    # first pass — per-card declared + not_read (traced cards only), and the run-level union of read ids
+    per_card: dict[str, tuple[list[str], set[str]]] = {}
+    run_read_ids: set[str] = set()
     for card in report.get("cards") or []:
         if card.get("measured") is None:  # untraced ⇒ no evidence either way, omit
             continue
@@ -759,8 +774,12 @@ def _card_read_status(report: dict) -> dict[str, dict[str, bool]]:
             for f in (card.get("findings") or [])
             if f.get("kind") == "declared_input_not_read_this_run"
         }
-        out[card["card_id"]] = {mid: (mid not in not_read) for mid in declared}
-    return out
+        per_card[card["card_id"]] = (declared, not_read)
+        run_read_ids |= {mid for mid in declared if mid not in not_read}
+    return {
+        cid: {mid: (mid not in not_read or mid in run_read_ids) for mid in declared}
+        for cid, (declared, not_read) in per_card.items()
+    }
 
 
 def _aggregate_read_matrices(
