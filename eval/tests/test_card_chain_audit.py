@@ -300,3 +300,70 @@ def test_health_not_read_this_run_does_not_downgrade():
     # its outputs over traced reads is still OK even when one declared input went unread this run.
     findings = [{"kind": "declared_input_not_read_this_run", "manifest_id": "unread-mani"}]
     assert _health({"n": 2446}, [{"op": "x", "uri": "b/k/f.parquet"}], findings) == "ok"
+
+
+# ── corpus mode: read-by-zero-across-a-matrix = declared_input_dead ────────────────────────────────────
+def _report(cards):
+    """Minimal per-run audit report shape for the corpus bricks (only the fields _card_read_status reads)."""
+    return {"cards": cards}
+
+
+def _card(card_id, measured, manifest_ids, not_read=()):
+    manifests = [{"manifest_id": m, "in_catalog": True, "s3_uri": f"s3://b/{m}/f.parquet"} for m in manifest_ids]
+    findings = [{"kind": "declared_input_not_read_this_run", "manifest_id": m} for m in not_read]
+    return {"card_id": card_id, "measured": measured, "declared": {"manifests": manifests}, "findings": findings}
+
+
+def test_card_read_status_omits_untraced_and_maps_read_from_not_read():
+    rep = _report(
+        [
+            _card("c1", [{"op": "x"}], ["read-mani", "unread-mani"], not_read=["unread-mani"]),
+            _card("c2", None, ["whatever"]),  # untraced ⇒ omitted entirely, never recorded as unread
+        ]
+    )
+    status = cca._card_read_status(rep)
+    assert "c2" not in status  # untraced card gives no evidence either way
+    assert status["c1"] == {"read-mani": True, "unread-mani": False}
+
+
+def test_card_read_status_skips_not_in_catalog_and_uncataloged_inputs():
+    card = {
+        "card_id": "c",
+        "measured": [{"op": "x"}],
+        "declared": {
+            "manifests": [
+                {"manifest_id": "good", "in_catalog": True, "s3_uri": "s3://b/good/f.parquet"},
+                {"manifest_id": "no-cat", "in_catalog": False, "s3_uri": "s3://b/x/f.parquet"},
+                {"manifest_id": "no-uri", "in_catalog": True, "s3_uri": None},
+            ]
+        },
+        "findings": [],
+    }
+    assert cca._card_read_status(_report([card]))["c"] == {"good": True}  # only the in-catalog + s3 input counts
+
+
+def test_aggregate_flags_dead_only_when_read_by_zero_and_above_breadth_floor():
+    # dead-mani: declared+traced in all 3 runs, read in NONE → dead. live-mani: read in ≥1 → never dead.
+    matrices = [
+        {"card": {"dead-mani": False, "live-mani": True}},
+        {"card": {"dead-mani": False, "live-mani": False}},
+        {"card": {"dead-mani": False, "live-mani": True}},
+    ]
+    cards, dead = cca._aggregate_read_matrices(matrices, min_runs=2)
+    by_mid = {i["manifest_id"]: i for i in cards[0]["inputs"]}
+    assert by_mid["dead-mani"]["dead"] is True
+    assert by_mid["dead-mani"]["read_runs"] == 0 and by_mid["dead-mani"]["declared_traced_runs"] == 3
+    assert by_mid["live-mani"]["dead"] is False  # anti-vacuity: a read-at-least-once input must NOT be dead
+    assert {d["manifest_id"] for d in dead} == {"dead-mani"}
+
+
+def test_aggregate_breadth_floor_suppresses_single_observation():
+    # declared+traced in only ONE run, unread — no better evidence than the single-run dimension.
+    matrices = [{"card": {"lonely": False}}]
+    cards, dead = cca._aggregate_read_matrices(matrices, min_runs=2)
+    rec = cards[0]["inputs"][0]
+    assert rec["declared_traced_runs"] == 1 and rec["read_runs"] == 0
+    assert rec["dead"] is False and dead == []  # below floor ⇒ counted but NOT flagged
+    # teeth: drop the floor to 1 and the SAME evidence now fires — proving the floor is what suppressed it
+    _, dead1 = cca._aggregate_read_matrices(matrices, min_runs=1)
+    assert [d["manifest_id"] for d in dead1] == ["lonely"]

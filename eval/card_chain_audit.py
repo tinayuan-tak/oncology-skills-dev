@@ -31,6 +31,15 @@ Findings (per card, never gated):
                                      a read object is derived_from it (source→derived reprojection). True
                                      dead wiring only shows as read-by-zero across a CORPUS of runs.
   read_object_not_in_any_manifest  — a traced s3 object no catalog manifest owns
+
+The corpus mode (``--runs DIR…``) turns the per-run ``declared_input_not_read_this_run`` dimension into the
+genuine dead-wiring signal it can only *approximate* on one run:
+  declared_input_dead — a declared in-catalog input read in ZERO of the traced runs that declared it, and
+                        declared+traced in at least ``--min-runs`` runs (default 2). Stacking the per-run
+                        read/unread brick across a MATRIX of targets/indications rules out the "not
+                        exercised by THIS target" confound that makes the single-run signal benign. Below
+                        the breadth floor the input is reported with its counts but NOT flagged dead —
+                        one traced observation is no better evidence than the single-run dimension.
   field_declared_but_absent_from_summary — an outputs.summary_fields entry missing from the emitted summary
   rederived_mismatch               — an independently recomputed value disagrees with the emitted one
 
@@ -654,13 +663,181 @@ def render_html(report: dict) -> str:
     )
 
 
+# ── corpus mode: read-by-zero-across-a-matrix = the genuine dead-wiring signal ────────────────────────
+def _card_read_status(report: dict) -> dict[str, dict[str, bool]]:
+    """From ONE per-run audit report, map each TRACED card → {declared in-catalog manifest_id: was_read}.
+
+    This is the per-run brick the corpus detector stacks. Untraced cards (``measured is None``) are OMITTED,
+    never recorded as unread: an unread declared input is only evidence of dead wiring on a run that
+    actually captured that card's IO. ``was_read`` is ``declared − not_read``, so the source→derived
+    lineage hop already applied by ``detect_findings`` is inherited for free (a source reached through its
+    derived reprojection never appears in ``declared_input_not_read_this_run`` and so counts as read)."""
+    out: dict[str, dict[str, bool]] = {}
+    for card in report.get("cards") or []:
+        if card.get("measured") is None:  # untraced ⇒ no evidence either way, omit
+            continue
+        declared = [
+            m["manifest_id"]
+            for m in (card.get("declared", {}).get("manifests") or [])
+            if m.get("in_catalog") and m.get("s3_uri")
+        ]
+        not_read = {
+            f["manifest_id"]
+            for f in (card.get("findings") or [])
+            if f.get("kind") == "declared_input_not_read_this_run"
+        }
+        out[card["card_id"]] = {mid: (mid not in not_read) for mid in declared}
+    return out
+
+
+def _aggregate_read_matrices(
+    matrices: list[dict[str, dict[str, bool]]], min_runs: int
+) -> tuple[list[dict], list[dict]]:
+    """Stack per-run read bricks (``_card_read_status`` outputs) into a corpus verdict.
+
+    For each (card, manifest) counts ``declared_traced_runs`` (traced runs where the card declared it) and
+    ``read_runs`` (of those, where it was read). Flags ``dead`` only when ``read_runs == 0`` AND
+    ``declared_traced_runs >= min_runs`` — the breadth floor is what separates genuine dead wiring from a
+    single unlucky run. Sub-floor inputs are still listed with their counts, ``dead=False``. Returns
+    ``(cards_out, dead_inputs)``."""
+    agg: dict[str, dict[str, dict[str, int]]] = {}
+    for mat in matrices:
+        for cid, mans in mat.items():
+            for mid, was_read in mans.items():
+                st = agg.setdefault(cid, {}).setdefault(mid, {"declared_traced_runs": 0, "read_runs": 0})
+                st["declared_traced_runs"] += 1
+                if was_read:
+                    st["read_runs"] += 1
+    cards_out: list[dict] = []
+    dead_inputs: list[dict] = []
+    for cid in sorted(agg):
+        inputs = []
+        for mid in sorted(agg[cid]):
+            st = agg[cid][mid]
+            dead = st["read_runs"] == 0 and st["declared_traced_runs"] >= min_runs
+            rec = {"manifest_id": mid, **st, "dead": dead}
+            inputs.append(rec)
+            if dead:
+                dead_inputs.append({"kind": "declared_input_dead", "card_id": cid, **rec})
+        cards_out.append({"card_id": cid, "inputs": inputs})
+    return cards_out, dead_inputs
+
+
+def audit_corpus(run_dirs: list[Path], skill: str, min_runs: int) -> dict:
+    """Run the per-card audit over a MATRIX of runs and roll the per-run read/unread bricks up into the
+    corpus-level ``declared_input_dead`` verdict. Re-derivation is off (this mode is about wiring coverage,
+    not value re-computation)."""
+    runs_meta: list[dict] = []
+    matrices: list[dict[str, dict[str, bool]]] = []
+    for rd in run_dirs:
+        rep = audit_run(rd, skill, do_rederive=False)
+        runs_meta.append(
+            {
+                "run_dir": str(rd),
+                "target": rep.get("target"),
+                "indication": rep.get("indication"),
+                "traced": rep.get("traced"),
+            }
+        )
+        matrices.append(_card_read_status(rep))
+    cards_out, dead_inputs = _aggregate_read_matrices(matrices, min_runs)
+    n_traced = sum(1 for r in runs_meta if r["traced"])
+    return {
+        "schema": "card_chain_audit_corpus/v1",
+        "skill": skill,
+        "n_runs": len(run_dirs),
+        "n_traced_runs": n_traced,
+        "min_runs": min_runs,
+        "runs": runs_meta,
+        "n_cards": len(cards_out),
+        "n_dead_inputs": len(dead_inputs),
+        "cards": cards_out,
+        "dead_inputs": dead_inputs,
+    }
+
+
+def render_corpus_html(report: dict) -> str:
+    rows = []
+    for c in report["cards"]:
+        for i, inp in enumerate(c["inputs"]):
+            card_cell = f"<td rowspan='{len(c['inputs'])}'>{_esc(c['card_id'])}</td>" if i == 0 else ""
+            cls = "h-bad" if inp["dead"] else "ok"
+            verdict = "<b class='h-bad'>DEAD</b>" if inp["dead"] else "read"
+            rows.append(
+                f"<tr>{card_cell}<td><code>{_esc(inp['manifest_id'])}</code></td>"
+                f"<td>{_esc(inp['read_runs'])}/{_esc(inp['declared_traced_runs'])}</td>"
+                f"<td class='{cls}'>{verdict}</td></tr>"
+            )
+    runs_list = "".join(
+        f"<li><code>{_esc(r['run_dir'])}</code> — {_esc(r['target'])}/{_esc(r['indication'])}"
+        f"{'' if r['traced'] else ' (untraced — excluded)'}</li>"
+        for r in report["runs"]
+    )
+    return (
+        "<!doctype html><meta charset='utf-8'><title>card chain audit — corpus</title>"
+        "<style>body{font:13px system-ui;margin:2rem}table{border-collapse:collapse;width:100%}"
+        "td,th{border:1px solid #ccc;padding:6px;vertical-align:top;text-align:left}"
+        "th{background:#f4f4f4}.ok{color:#888}code{background:#f4f4f4}"
+        ".h-bad{color:#c00;font-weight:600}</style>"
+        f"<h1>card chain audit — corpus dead-wiring — {_esc(report['skill'])}</h1>"
+        f"<p>{_esc(report['n_runs'])} runs ({_esc(report['n_traced_runs'])} traced) · "
+        f"min-runs floor={_esc(report['min_runs'])} · "
+        f"<b class='h-bad'>{_esc(report['n_dead_inputs'])} dead input(s)</b> across "
+        f"{_esc(report['n_cards'])} cards</p>"
+        f"<ul>{runs_list}</ul>"
+        "<table><tr><th>card</th><th>declared input</th><th>read / declared-traced runs</th>"
+        "<th>verdict</th></tr>" + "".join(rows) + "</table>"
+    )
+
+
+def _main_corpus(args: argparse.Namespace) -> int:
+    run_dirs: list[Path] = list(args.runs)
+    if len(run_dirs) < 2:
+        print("[card-chain-audit] ERROR: --runs needs ≥2 run dirs to be a corpus", file=sys.stderr)
+        return 2
+    missing = [d for d in run_dirs if not (d / "decision.json").exists()]
+    if missing:
+        print(f"[card-chain-audit] ERROR: decision.json not found in: {', '.join(map(str, missing))}", file=sys.stderr)
+        return 2
+    out_dir: Path = args.out or run_dirs[0]
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    report = audit_corpus(run_dirs, args.skill, args.min_runs)
+    (out_dir / "card_chain_audit_corpus.json").write_text(json.dumps(report, indent=2, default=str))
+    (out_dir / "card_chain_audit_corpus.html").write_text(render_corpus_html(report))
+    print(
+        f"[card-chain-audit] corpus: {report['n_runs']} runs ({report['n_traced_runs']} traced), "
+        f"{report['n_cards']} cards, {report['n_dead_inputs']} dead input(s) "
+        f"→ {out_dir / 'card_chain_audit_corpus.json'}"
+    )
+    for f in report["dead_inputs"]:
+        print(f"  DEAD  {f['card_id']}: {f['manifest_id']} (read 0/{f['declared_traced_runs']} traced runs)")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--skill", required=True, help="skill name (labels the report)")
-    ap.add_argument("--run", required=True, type=Path, help="run dir containing decision.json (+ read_trace.json)")
-    ap.add_argument("--out", type=Path, default=None, help="output dir (default: the run dir)")
+    mode = ap.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--run", type=Path, help="a single run dir containing decision.json (+ read_trace.json)")
+    mode.add_argument(
+        "--runs",
+        type=Path,
+        nargs="+",
+        help="≥2 run dirs (a matrix of targets/indications) → corpus declared_input_dead detector",
+    )
+    ap.add_argument("--out", type=Path, default=None, help="output dir (default: the (first) run dir)")
     ap.add_argument("--rederive", action="store_true", help="live-re-read traced objects to recompute scalars")
+    ap.add_argument(
+        "--min-runs",
+        type=int,
+        default=2,
+        help="corpus mode: min traced runs an input must be declared in before read-by-zero counts as dead",
+    )
     args = ap.parse_args(argv)
+
+    if args.runs is not None:
+        return _main_corpus(args)
 
     run_dir: Path = args.run
     if not (run_dir / "decision.json").exists():
