@@ -1,0 +1,202 @@
+"""Hermetic tests for eval/card_chain_audit.py.
+
+No live data, no sibling-repo catalog: findings are driven off hand-built ``declared`` dicts, a fake
+catalog, and a synthetic trace. Each guard is paired with an anti-vacuity control (the clean case that
+must NOT fire), and the two honesty rules are asserted directly:
+  * unmeasured (``measured is None``) suppresses the measured-dependent findings — null, not a false clean;
+  * a traced-zero-reads card (``measured == []``) is distinct from unmeasured and DOES fire never-read;
+  * re-derivation has teeth — a mutated emitted value flips ``match`` to False.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+_EVAL = Path(__file__).resolve().parents[1]
+if str(_EVAL) not in sys.path:
+    sys.path.insert(0, str(_EVAL))
+
+import card_chain_audit as cca  # noqa: E402
+
+
+# ── fake catalog ────────────────────────────────────────────────────────────────────────────────────
+class _Rec:
+    def __init__(self, mid, s3_uri):
+        self.id = mid
+        self.s3_uri = s3_uri
+        self.type = "derived"
+        self.parquet_schema = []
+        self.query_optimization = None
+        self.license = None
+
+
+class _Catalog:
+    def __init__(self, recs):
+        self.manifests = {r.id: r for r in recs}
+
+
+def _kinds(findings):
+    return [f["kind"] for f in findings]
+
+
+# ── uri helpers ───────────────────────────────────────────────────────────────────────────────────────
+def test_uri_class_distinguishes_local_cache_from_s3():
+    assert cca._uri_class("/home/x/.cache/f.csv") == "local_cache"
+    assert cca._uri_class("file:///tmp/f.csv") == "local_cache"
+    assert cca._uri_class("onc-compbio/data-catalog/derived/x/f.parquet") == "s3_object"
+    assert cca._uri_class("s3://onc-compbio/x/f.parquet") == "s3_object"
+    assert cca._uri_class(None) == "unknown"
+
+
+def test_manifest_owns_exact_and_directory_prefix():
+    # exact single-file (derived) match, tolerant of the s3:// scheme on one side only
+    assert cca._manifest_owns("bucket/derived/m/f.parquet", "s3://bucket/derived/m/f.parquet")
+    # directory-prefix (source/multi-file) match
+    assert cca._manifest_owns("bucket/sources/m/sub/f.csv", "s3://bucket/sources/m/")
+    # a sibling object under the same dir but NOT under a single-file manifest is NOT owned
+    assert not cca._manifest_owns("bucket/derived/m/f.allgene_null.parquet", "s3://bucket/derived/m/f.parquet")
+    assert not cca._manifest_owns("bucket/x/f.parquet", None)
+
+
+# ── declared_call_unresolved ──────────────────────────────────────────────────────────────────────────
+def test_declared_call_unresolved_fires_and_clean_case_does_not():
+    unresolvable = {"method_calls": [{"call": "no-such-call-xyz", "resolvable": False}], "manifests": []}
+    resolvable = {"method_calls": [{"call": "whatever", "resolvable": True}], "manifests": []}
+    assert "declared_call_unresolved" in _kinds(cca.detect_findings(unresolvable, [], {}, None))
+    # anti-vacuity: a resolvable call must NOT fire
+    assert "declared_call_unresolved" not in _kinds(cca.detect_findings(resolvable, [], {}, None))
+    # a card that declares NO calls at all is not "unresolved"
+    assert "declared_call_unresolved" not in _kinds(
+        cca.detect_findings({"method_calls": [], "manifests": []}, [], {}, None)
+    )
+
+
+# ── field_declared_but_absent_from_summary ────────────────────────────────────────────────────────────
+def test_field_declared_but_absent_fires_only_for_missing():
+    declared = {"method_calls": [], "summary_fields": ["present_field", "missing_field"], "manifests": []}
+    summary = {"present_field": 1.0}
+    findings = cca.detect_findings(declared, [], summary, None)
+    missing = [f["field"] for f in findings if f["kind"] == "field_declared_but_absent_from_summary"]
+    assert missing == ["missing_field"]  # present_field must NOT appear (anti-vacuity)
+
+
+# ── declared_product_never_read + read_object_not_in_any_manifest ─────────────────────────────────────
+def test_never_read_and_uncataloged_object_with_fake_catalog():
+    cat = _Catalog(
+        [_Rec("read-mani", "s3://b/derived/read/f.parquet"), _Rec("unread-mani", "s3://b/derived/unread/f.parquet")]
+    )
+    declared = {
+        "method_calls": [],
+        "manifests": [
+            {"manifest_id": "read-mani", "in_catalog": True, "s3_uri": "s3://b/derived/read/f.parquet"},
+            {"manifest_id": "unread-mani", "in_catalog": True, "s3_uri": "s3://b/derived/unread/f.parquet"},
+        ],
+    }
+    measured = [
+        {"op": "pyarrow.read_table", "uri": "b/derived/read/f.parquet", "uri_class": "s3_object"},
+        {"op": "pyarrow.read_table", "uri": "b/derived/orphan/g.parquet", "uri_class": "s3_object"},
+        {"op": "pandas.read_csv", "uri": "/home/x/.cache/local.csv", "uri_class": "local_cache"},
+    ]
+    findings = cca.detect_findings(declared, measured, {}, cat)
+    never = [f["manifest_id"] for f in findings if f["kind"] == "declared_product_never_read"]
+    orphan = [f["uri"] for f in findings if f["kind"] == "read_object_not_in_any_manifest"]
+    assert never == ["unread-mani"]  # read-mani WAS read → must not fire (anti-vacuity)
+    assert orphan == ["b/derived/orphan/g.parquet"]  # the local_cache read is NOT flagged as uncataloged
+
+
+# ── unmeasured ⇒ null, not 0 ─────────────────────────────────────────────────────────────────────────
+def test_unmeasured_suppresses_measured_dependent_findings():
+    cat = _Catalog([_Rec("m", "s3://b/derived/m/f.parquet")])
+    declared = {
+        "method_calls": [{"call": "no-such-call", "resolvable": False}],
+        "summary_fields": ["absent"],
+        "manifests": [{"manifest_id": "m", "in_catalog": True, "s3_uri": "s3://b/derived/m/f.parquet"}],
+    }
+    findings = cca.detect_findings(declared, None, {}, cat)  # measured is None ⇒ UNMEASURED
+    kinds = _kinds(findings)
+    # measured-dependent findings must NOT appear when unmeasured (no false clean either way)
+    assert "declared_product_never_read" not in kinds
+    assert "read_object_not_in_any_manifest" not in kinds
+    # anti-vacuity: measurement-independent findings STILL fire, so the empty measured set is the cause
+    assert "declared_call_unresolved" in kinds
+    assert "field_declared_but_absent_from_summary" in kinds
+
+
+def test_traced_zero_reads_is_distinct_from_unmeasured():
+    cat = _Catalog([_Rec("m", "s3://b/derived/m/f.parquet")])
+    declared = {
+        "method_calls": [],
+        "manifests": [{"manifest_id": "m", "in_catalog": True, "s3_uri": "s3://b/derived/m/f.parquet"}],
+    }
+    # measured == [] (traced, zero reads) DOES fire never-read, unlike measured is None above
+    findings = cca.detect_findings(declared, [], {}, cat)
+    assert "declared_product_never_read" in _kinds(findings)
+
+
+def test_build_measured_none_vs_empty():
+    trace = {"cards": {"present-zero": [], "present-one": [{"op": "x", "uri": "b/k/f.parquet"}]}}
+    assert cca.build_measured("absent-card", trace) is None  # not in trace ⇒ unmeasured (null)
+    assert cca.build_measured("present-zero", trace) == []  # traced, zero reads
+    assert len(cca.build_measured("present-one", trace)) == 1
+    assert cca.build_measured("any", None) is None  # run not traced at all ⇒ null
+
+
+# ── re-derivation has teeth ───────────────────────────────────────────────────────────────────────────
+def test_close_numeric_integer_and_none():
+    assert cca._close(2446, 2446.0) is True
+    assert cca._close(2446, 2447) is False
+    assert cca._close(0.6308, 0.63080001) is True
+    assert cca._close(0.6308, 0.7) is False
+    assert cca._close("x", 1.0) is None  # non-numeric ⇒ null, not a spurious mismatch
+    assert cca._close(None, 1.0) is None
+
+
+def test_rederive_mismatch_fires_on_mutation_and_clean_run_is_clean(monkeypatch):
+    # synthetic panel scores → deterministic expected scalars, no live S3
+    monkeypatch.setattr(cca, "_read_panel_scores", lambda event: [0.0, 2.0, 6.0, 6.0])
+    event = {
+        "op": "pyarrow.read_table",
+        "uri": "b/derived/depmap-26q1-parquet-v1/OmicsExpressionX.parquet",
+        "columns": ["EPCAM (4072)", "ModelID", "IsDefaultEntryForModel"],
+    }
+    # correct emitted values (n=4; >=1.0 → 3/4; >=5.0 → 2/4; <1.0 → 1/4; median of [0,2,6,6] = 4.0)
+    good = {
+        "n_cell_lines_evaluated": 4,
+        "median_log2tpm_panel": 4.0,
+        "fraction_expressed": 0.75,
+        "fraction_highly_expressed": 0.5,
+        "fraction_not_expressed": 0.25,
+    }
+    out = cca._rederive_cellline_rna_distribution([event], good, do_read=True)
+    assert out["n_cell_lines_evaluated"]["match"] is True
+    assert out["fraction_expressed"]["match"] is True
+    assert all(v.get("match") is not False for v in out.values() if v.get("measured"))  # clean run is clean
+
+    bad = dict(good, fraction_expressed=0.10)  # mutate one emitted value
+    out2 = cca._rederive_cellline_rna_distribution([event], bad, do_read=True)
+    assert out2["fraction_expressed"]["match"] is False  # re-derivation catches the mutation → teeth
+
+    # method-internal fields are honestly non-rederivable, never silently "matched"
+    assert out["distribution_pattern"]["rederivable"] is False
+
+
+def test_rederive_empty_scores_is_unmeasured_not_crash(monkeypatch):
+    # a read that returns no rows (e.g. a wrong dedup filter) must degrade to unmeasured, never crash
+    monkeypatch.setattr(cca, "_read_panel_scores", lambda event: [])
+    event = {"op": "pyarrow.read_table", "uri": "b/x/OmicsExpressionX.parquet", "columns": ["G", "ModelID"]}
+    out = cca._rederive_cellline_rna_distribution([event], {"n_cell_lines_evaluated": 4}, do_read=True)
+    assert out["n_cell_lines_evaluated"]["measured"] is False
+    assert "match" not in out["n_cell_lines_evaluated"]
+
+
+def test_rederive_without_read_flag_is_unmeasured_not_matched():
+    event = {"op": "pyarrow.read_table", "uri": "b/x/OmicsExpressionX.parquet", "columns": []}
+    out = cca._rederive_cellline_rna_distribution([event], {"n_cell_lines_evaluated": 4}, do_read=False)
+    # do_read=False ⇒ scalar fields report unmeasured (rederivable True, measured False), never a match verdict
+    assert out["n_cell_lines_evaluated"]["measured"] is False
+    assert "match" not in out["n_cell_lines_evaluated"]
+
+
+def test_unknown_card_has_no_rederiver():
+    assert cca.build_rederived("tumor-rna-distribution", [], {}, do_read=False) is None
