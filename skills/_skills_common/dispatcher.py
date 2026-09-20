@@ -643,6 +643,15 @@ def _build_run_parser() -> argparse.ArgumentParser:
         "byte-identical whether or not the dashboard is written. Use for batch/backtest "
         "runs that want only the data package.",
     )
+    ap.add_argument(
+        "--trace",
+        action="store_true",
+        help="DEV TOOLING (chain audit): capture the S3 objects / columns / row-filters / rows each "
+        "card reader actually reads, and write <out>/read_trace.json. FORCES the sequential read path "
+        "(SKILLS_READ_WORKERS=1) so per-card IO attribution is unambiguous, so a --trace run is slower. "
+        "PURELY ADDITIVE — decision.json is byte-identical whether or not this flag is set (a normal run "
+        "installs no IO patches). Feed the trace to eval/card_chain_audit.py.",
+    )
     return ap
 
 
@@ -657,6 +666,26 @@ def _merge_panorama_cards(card_outputs: list, panorama_cards: list) -> list:
     (panorama cards fire no rung). Distinct panorama cards (not in the whole-cohort set) are still appended."""
     seen = {c.get("card_id") for c in card_outputs}
     return card_outputs + [c for c in panorama_cards if c.get("card_id") not in seen]
+
+
+def _write_read_trace(out_dir, trace) -> None:
+    """Persist a --trace run's per-card IO capture to <out>/read_trace.json for eval/card_chain_audit.py.
+    Best-effort: a write failure logs to stderr and never breaks the run (the trace is a dev artifact,
+    not part of the decision spine)."""
+    try:
+        path = Path(out_dir) / "read_trace.json"
+        payload = {
+            "schema": "read_trace/v1",
+            "note": (
+                "Per-card data-read IO captured under --trace (sequential read path). uri_attribution="
+                "preceding_fetch_same_thread marks a URI-less buffer read inferred from the prior "
+                "same-thread fetch — a heuristic, not an assertion."
+            ),
+            "cards": trace.as_dict(),
+        }
+        path.write_text(json.dumps(payload, indent=2, sort_keys=True))
+    except Exception as e:  # noqa: BLE001 — a dev-artifact write must never break the run
+        print(f"[dispatcher] --trace: could not write read_trace.json ({type(e).__name__}: {e})", file=sys.stderr)
 
 
 def _attach_literature_lane(decision: dict, args, literature_fn) -> None:
@@ -859,7 +888,18 @@ def run_wired_skill(
     # the persisted plot_data) with no second live read. Default (no --figures) => plot_data_root=None,
     # a byte-identical no-op. The figures_root here must match _emit_card_figures' Path(out)/"figures".
     _plot_data_root = (Path(args.out) / "figures") if getattr(args, "figures", False) else None
-    card_outputs = resolve_cards(_cards_to_read, args.target, _indication, plot_data_root=_plot_data_root)
+    # DEV TOOLING (--trace): capture per-card reader IO for the chain audit. A trace forces the
+    # sequential read path (resolve_cards ignores the pool under a trace); we also pin the env kill-switch
+    # so any nested resolve_cards on this run is sequential too. No trace ⇒ _trace is None ⇒ byte-identical.
+    _trace = None
+    if getattr(args, "trace", False):
+        from _skills_common.read_trace import ReadTrace
+
+        os.environ["SKILLS_READ_WORKERS"] = "1"
+        _trace = ReadTrace()
+    card_outputs = resolve_cards(_cards_to_read, args.target, _indication, plot_data_root=_plot_data_root, trace=_trace)
+    if _trace is not None:
+        _write_read_trace(args.out, _trace)
     _read_secs = time.perf_counter() - _t0
     _compute_start = time.perf_counter()
 

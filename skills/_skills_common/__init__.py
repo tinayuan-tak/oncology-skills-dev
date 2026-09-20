@@ -35,10 +35,11 @@ from __future__ import annotations
 
 import os
 import sys
+from contextlib import nullcontext as _nullcontext
 from datetime import datetime, timezone
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 import yaml
 
@@ -228,6 +229,7 @@ def _resolve_one_card(
     indication: str,
     subgroup_context: "Optional[dict]",
     plot_data_root: "Optional[Path]" = None,
+    trace: "Optional[Any]" = None,
 ) -> dict:
     """Read + classify ONE card into its card_output dict. MODULE-LEVEL (picklable) so it can run in
     either a thread or a FORKED worker process. Imports the live-reader dispatcher internally (cached
@@ -237,18 +239,25 @@ def _resolve_one_card(
 
     plot_data_root (figure Stage 1): OPT-IN. When set, forwarded to the dispatcher so the method
     persists its plot_data under <plot_data_root>/cards/<card_id>/ DURING resolution. None => the
-    exact former scalar call (byte-identical)."""
+    exact former scalar call (byte-identical).
+
+    trace (chain-audit dev tooling): OPT-IN ReadTrace. When set, the reader's data IO for THIS card is
+    captured under `trace.capture(card_id)` (the trace's patches must already be installed by the
+    caller). None => no capture (byte-identical). Only honoured on the sequential path — resolve_cards
+    forces SKILLS_READ_WORKERS=1 under a trace so per-card attribution is unambiguous."""
     read_live = _import_dispatcher()
     _read_kw = {}
     if subgroup_context is not None:
         _read_kw["subgroup_context"] = subgroup_context
     if plot_data_root is not None:
         _read_kw["plot_data_root"] = plot_data_root
-    try:
-        summary = read_live(card_id, target, indication, **_read_kw)
-    except TypeError:
-        # Dispatcher predates one of these kwargs — scalar fallback (backward-compat).
-        summary = read_live(card_id, target, indication)
+    _capture = trace.capture(card_id) if trace is not None else _nullcontext()
+    with _capture:
+        try:
+            summary = read_live(card_id, target, indication, **_read_kw)
+        except TypeError:
+            # Dispatcher predates one of these kwargs — scalar fallback (backward-compat).
+            summary = read_live(card_id, target, indication)
     if summary is None:
         return {
             "card_id": card_id,
@@ -352,6 +361,7 @@ def resolve_cards(
     indication: str,
     subgroup_context: Optional[dict] = None,
     plot_data_root: Optional[Path] = None,
+    trace: Optional[Any] = None,
 ) -> list[dict]:
     """Fetch live summaries for a list of card_ids via the compose-dashboard
     dispatcher registry. Returns one card_output dict per card_id.
@@ -372,6 +382,12 @@ def resolve_cards(
     RESOLUTION (not a figure re-read). Only readers whose signature declares plot_data_out receive
     it (signature-introspected, like data_context); all others are untouched. None → no persistence
     (byte-identical to the former call).
+
+    trace (optional, chain-audit dev tooling): a ReadTrace. When provided, the reader data IO is
+    captured per card and each card's provenance gains a `datasets` list ({s3_uri, columns_read,
+    filters, rows_returned, op, ms}). A trace FORCES the sequential read path (no thread/process pool)
+    so per-card IO attribution is unambiguous — this mirrors the `--trace` contract at the CLI, which
+    also sets SKILLS_READ_WORKERS=1. None → no capture, no `datasets` key (byte-identical).
 
     FRAMEWORK_HEALTH_SMOKE (env flag): when set, SKIP all live dispatcher reads and
     return a synthetic minimal card output per card_id. This lets the framework-health
@@ -422,7 +438,16 @@ def resolve_cards(
     except ValueError:
         _max_workers = 8
     _pool_mode = os.environ.get("SKILLS_READ_POOL", "thread").strip().lower()
-    if len(card_ids) <= 1 or _max_workers <= 1:
+    if trace is not None:
+        # A trace forces the sequential path: per-card IO attribution requires each card's reads to run
+        # start-to-finish on one thread, and a ReadTrace (threading.Lock) is not picklable into a fork
+        # pool. The trace's patches are installed for the whole loop; _resolve_one_card scopes each
+        # card's capture. This is the library-level twin of the CLI's --trace => SKILLS_READ_WORKERS=1.
+        with trace.installed():
+            outputs = [
+                _resolve_one_card(cid, target, indication, subgroup_context, plot_data_root, trace) for cid in card_ids
+            ]
+    elif len(card_ids) <= 1 or _max_workers <= 1:
         outputs = [_resolve_one_card(cid, target, indication, subgroup_context, plot_data_root) for cid in card_ids]
     elif _pool_mode == "process":
         outputs = _read_cards_process(card_ids, target, indication, subgroup_context, _max_workers, plot_data_root)
@@ -447,8 +472,33 @@ def resolve_cards(
         prov = dict(o.get("provenance") or {})
         prov["input_manifest_ids"] = list(card_input_manifest_ids(o["card_id"]))
         prov["method_calls"] = [dict(mc) for mc in card_declared_method_calls(o["card_id"])]
+        # TRACE (chain-audit dev tooling): when tracing, surface the MEASURED reads this card performed
+        # as provenance.datasets. Present ONLY under a trace (a normal run never grows this key), so the
+        # decision.json / evidence_package remain byte-identical off the trace path.
+        if trace is not None:
+            prov["datasets"] = [_trace_event_to_dataset(ev) for ev in trace.events_for(o["card_id"])]
         o["provenance"] = prov
     return outputs
+
+
+def _trace_event_to_dataset(ev: dict) -> dict:
+    """Project one ReadTrace event onto the card-provenance `datasets` shape. Keeps the audit-relevant
+    facts (object, columns, row filter, rows returned) and drops timing internals; carries the
+    uri_attribution label when the URI was inferred rather than observed."""
+    ds = {
+        "s3_uri": ev.get("uri"),
+        "op": ev.get("op"),
+        "columns_read": ev.get("columns"),
+        "filters": ev.get("filters"),
+        "rows_returned": ev.get("rows"),
+        "cols_returned": ev.get("cols"),
+        "ms": ev.get("ms"),
+    }
+    if ev.get("uri_attribution"):
+        ds["uri_attribution"] = ev["uri_attribution"]
+    if ev.get("error"):
+        ds["error"] = ev["error"]
+    return ds
 
 
 def _rule_values_equal(actual, expected) -> bool:
