@@ -33,6 +33,14 @@ Findings (per card, never gated):
   read_object_not_in_any_manifest  — a traced s3 object no catalog manifest owns
   field_declared_but_absent_from_summary — an outputs.summary_fields entry missing from the emitted summary
   rederived_mismatch               — an independently recomputed value disagrees with the emitted one
+
+Each card also carries the EMITTED output values (``emitted.scalars`` = field→value pairs, plus the names
+of complex list/dict fields) and a HEALTH roll-up answering "did this card extract data as expected?"
+(worst-wins over the signals):
+  ok · partial_output · off_contract_read · value_mismatch · no_output · unmeasured
+  opaque — emitted a full summary yet shows no traced reads (untraced run, or the reader's IO was not
+           captured): an AUDIT BLIND SPOT, not a broken card. This is why emitted values sit next to the
+           chain — they reveal the tool being blind to a card that in fact ran.
 """
 
 from __future__ import annotations
@@ -422,6 +430,69 @@ def build_rederived(card_id: str, measured: list[dict] | None, summary: dict, do
     return fn(measured, summary, do_read)
 
 
+# ── emitted values + health ───────────────────────────────────────────────────────────────────────────
+def _split_summary(summary: dict) -> dict:
+    """Split an emitted card summary into scalar field→value pairs (the actual output data) and the
+    NAMES of complex (list/dict) fields, which are shown by name only. ``n_fields`` counts everything."""
+    scalars: dict = {}
+    complex_fields: list[str] = []
+    for k, v in summary.items():
+        if isinstance(v, (list, dict)):
+            complex_fields.append(k)
+        else:
+            scalars[k] = v
+    return {"scalars": scalars, "complex_fields": complex_fields, "n_fields": len(summary)}
+
+
+# worst-wins order (index 0 = worst); a card's health is the worst state any signal implies.
+_HEALTH_SEVERITY = [
+    "value_mismatch",
+    "no_output",
+    "opaque",
+    "off_contract_read",
+    "partial_output",
+    "unmeasured",
+    "ok",
+]
+
+
+def _card_health(summary: dict, measured: list[dict] | None, findings: list[dict], declared: dict) -> dict:
+    """Per-card roll-up answering "did this card extract data as expected?". Worst-wins over the
+    observable signals. ``declared_input_not_read_this_run`` is a benign per-run coverage dimension and
+    never downgrades health. The ``opaque`` state is the load-bearing one: a card that emitted a full
+    summary yet shows no traced reads is an AUDIT BLIND SPOT (the reader's IO was not captured / the run
+    was not traced), not a broken card — distinct from ``no_output``."""
+    kinds = {f["kind"] for f in findings}
+    has_output = bool(summary)
+    missing = [f for f in (declared.get("summary_fields") or []) if f not in summary]
+
+    if "rederived_mismatch" in kinds:
+        return {
+            "status": "value_mismatch",
+            "reason": "an independently re-derived value disagrees with the emitted number",
+        }
+    if not has_output:
+        if measured is None:
+            return {"status": "unmeasured", "reason": "not traced and no summary emitted — nothing to assess"}
+        return {"status": "no_output", "reason": "traced but the card emitted no summary fields"}
+    # the card DID emit output below
+    if measured is None:
+        return {
+            "status": "opaque",
+            "reason": "emitted output but the run was not traced — extraction chain unverifiable",
+        }
+    if not measured:
+        return {
+            "status": "opaque",
+            "reason": "emitted output but 0 reads were traced — the reader's IO was not captured",
+        }
+    if "read_object_not_in_any_manifest" in kinds:
+        return {"status": "off_contract_read", "reason": "read an S3 object no catalog manifest declares"}
+    if missing:
+        return {"status": "partial_output", "reason": f"{len(missing)} declared summary field(s) not emitted"}
+    return {"status": "ok", "reason": "traced reads present; declared outputs emitted; re-derivations (if any) match"}
+
+
 # ── orchestration ─────────────────────────────────────────────────────────────────────────────────────
 def audit_run(run_dir: Path, skill: str, do_rederive: bool) -> dict:
     decision = json.loads((run_dir / "decision.json").read_text())
@@ -464,9 +535,11 @@ def audit_run(run_dir: Path, skill: str, do_rederive: bool) -> dict:
         cards_out.append(
             {
                 "card_id": card_id,
+                "health": _card_health(summary, measured, findings, declared),
                 "measured_state": "unmeasured" if measured is None else f"{len(measured)} read(s)",
                 "declared": declared,
                 "measured": measured,
+                "emitted": _split_summary(summary),
                 "rederived": rederived,
                 "findings": findings,
             }
@@ -490,9 +563,52 @@ def _esc(v: Any) -> str:
     return html.escape(str(v))
 
 
+# health status → CSS colour class (green ok · amber caution · red broken · grey unknown)
+_HEALTH_CSS = {
+    "ok": "h-ok",
+    "partial_output": "h-warn",
+    "off_contract_read": "h-warn",
+    "opaque": "h-opaque",
+    "no_output": "h-bad",
+    "value_mismatch": "h-bad",
+    "unmeasured": "h-grey",
+}
+
+
+def _emitted_cell(c: dict) -> str:
+    """Scalar emitted field=value pairs (the actual output data); complex fields listed by name. Fields
+    with a re-derivation carry a ✓ (match) / ✗ (mismatch) marker so the number's provenance is visible."""
+    emitted = c.get("emitted") or {}
+    scalars = emitted.get("scalars") or {}
+    rederived = c.get("rederived") or {}
+    if not scalars and not emitted.get("complex_fields"):
+        return "<span class='ok'>—</span>"
+    lines = []
+    for k, v in scalars.items():
+        mark = ""
+        rec = rederived.get(k) if isinstance(rederived, dict) else None
+        if isinstance(rec, dict) and rec.get("rederivable") and rec.get("measured"):
+            mark = " <b class='h-ok'>✓</b>" if rec.get("match") else " <b class='h-bad'>✗</b>"
+        val = _esc(v)
+        if len(val) > 80:
+            val = val[:77] + "…"
+        lines.append(f"<div><code>{_esc(k)}</code> = {val}{mark}</div>")
+    cf = emitted.get("complex_fields") or []
+    if cf:
+        lines.append(f"<div class='ok'>+{len(cf)} complex: {_esc(', '.join(cf))}</div>")
+    return "".join(lines)
+
+
 def render_html(report: dict) -> str:
     rows = []
+    tally: dict[str, int] = {}
     for c in report["cards"]:
+        health = c.get("health") or {"status": "unmeasured", "reason": ""}
+        tally[health["status"]] = tally.get(health["status"], 0) + 1
+        badge = (
+            f"<span class='badge {_HEALTH_CSS.get(health['status'], 'h-grey')}' "
+            f"title='{_esc(health['reason'])}'>{_esc(health['status'])}</span>"
+        )
         finds = c["findings"]
         if finds:
             items = "".join(
@@ -515,18 +631,26 @@ def render_html(report: dict) -> str:
                 )
                 or "traced, 0 reads"
             )
-        rows.append(f"<tr><td>{_esc(c['card_id'])}</td><td>{man}</td><td>{reads}</td><td>{find_html}</td></tr>")
+        rows.append(
+            f"<tr><td>{_esc(c['card_id'])}<br>{badge}</td><td>{man}</td><td>{reads}</td>"
+            f"<td>{_emitted_cell(c)}</td><td>{find_html}</td></tr>"
+        )
+    legend = " · ".join(f"{k}={v}" for k, v in sorted(tally.items()))
     return (
         "<!doctype html><meta charset='utf-8'><title>card chain audit</title>"
         "<style>body{font:13px system-ui;margin:2rem}table{border-collapse:collapse;width:100%}"
         "td,th{border:1px solid #ccc;padding:6px;vertical-align:top;text-align:left}"
-        "th{background:#f4f4f4}.ok{color:#888}code{background:#f4f4f4}</style>"
+        "th{background:#f4f4f4}.ok{color:#888}code{background:#f4f4f4}"
+        ".badge{display:inline-block;padding:1px 6px;border-radius:3px;font-size:11px;font-weight:600}"
+        ".h-ok{color:#0a0}.badge.h-ok{background:#e3f6e3;color:#060}"
+        ".h-bad{color:#c00}.badge.h-bad{background:#fbe3e3;color:#900}"
+        ".badge.h-warn{background:#fff2d6;color:#7a5200}.badge.h-opaque{background:#e5e9fb;color:#334}"
+        ".badge.h-grey{background:#eee;color:#666}</style>"
         f"<h1>card chain audit — {_esc(report['skill'])}</h1>"
         f"<p>{_esc(report['target'])}/{_esc(report['indication'])} · run <code>{_esc(report['run_dir'])}</code> · "
-        f"traced={_esc(report['traced'])} · {_esc(report['n_cards'])} cards</p>"
-        "<table><tr><th>card</th><th>declared inputs</th><th>measured reads</th><th>findings</th></tr>"
-        + "".join(rows)
-        + "</table>"
+        f"traced={_esc(report['traced'])} · {_esc(report['n_cards'])} cards · health: {_esc(legend)}</p>"
+        "<table><tr><th>card / health</th><th>declared inputs</th><th>measured reads</th>"
+        "<th>emitted values</th><th>findings</th></tr>" + "".join(rows) + "</table>"
     )
 
 

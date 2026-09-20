@@ -222,3 +222,81 @@ def test_rederive_without_read_flag_is_unmeasured_not_matched():
 
 def test_unknown_card_has_no_rederiver():
     assert cca.build_rederived("tumor-rna-distribution", [], {}, do_read=False) is None
+
+
+# ── emitted values: scalar vs complex split ───────────────────────────────────────────────────────────
+def test_split_summary_separates_scalars_from_complex_fields():
+    summary = {
+        "n_cell_lines_evaluated": 2446,
+        "median_log2tpm_panel": 2.5138,
+        "distribution_pattern": "bimodal",
+        "per_lineage": [{"lineage": "COADREAD", "n": 40}],  # list ⇒ complex
+        "thresholds": {"expressed": 1.0},  # dict ⇒ complex
+    }
+    out = cca._split_summary(summary)
+    # the actual output DATA (the values a reviewer reads) survive as scalars
+    assert out["scalars"] == {
+        "n_cell_lines_evaluated": 2446,
+        "median_log2tpm_panel": 2.5138,
+        "distribution_pattern": "bimodal",
+    }
+    # list/dict fields are named only, never inlined as values
+    assert sorted(out["complex_fields"]) == ["per_lineage", "thresholds"]
+    assert out["n_fields"] == 5  # counts EVERY field, scalar or complex
+
+
+def test_split_summary_empty():
+    out = cca._split_summary({})
+    assert out == {"scalars": {}, "complex_fields": [], "n_fields": 0}
+
+
+# ── health status: did the card extract data as expected? ─────────────────────────────────────────────
+def _health(summary, measured, findings, declared=None):
+    return cca._card_health(summary, measured, findings, declared or {})["status"]
+
+
+def test_health_ok_when_traced_emitted_and_no_downgrading_finding():
+    assert _health({"n": 2446}, [{"op": "x", "uri": "b/k/f.parquet"}], []) == "ok"
+
+
+def test_health_opaque_for_emitted_but_untraced_run():
+    # the sc-normal case: a full summary emitted, but the run carries no trace at all (measured is None)
+    assert _health({"cell_types": 143, "liability": "HIGH"}, None, []) == "opaque"
+
+
+def test_health_opaque_for_emitted_but_zero_traced_reads():
+    # emitted output yet the tracer captured zero reads for this card ⇒ audit blind spot, not broken
+    assert _health({"cell_types": 143}, [], []) == "opaque"
+
+
+def test_health_value_mismatch_dominates_everything():
+    # a re-derived disagreement is the worst state and wins even over an off-contract read
+    findings = [{"kind": "rederived_mismatch", "field": "x"}, {"kind": "read_object_not_in_any_manifest", "uri": "u"}]
+    assert _health({"x": 1}, [{"op": "x", "uri": "u"}], findings) == "value_mismatch"
+
+
+def test_health_no_output_when_traced_but_empty_summary():
+    # traced reads happened but nothing was emitted — distinct from opaque (which HAS output)
+    assert _health({}, [{"op": "x", "uri": "b/k/f.parquet"}], []) == "no_output"
+
+
+def test_health_unmeasured_when_neither_traced_nor_emitted():
+    assert _health({}, None, []) == "unmeasured"
+
+
+def test_health_off_contract_read_when_uncataloged_object_read():
+    findings = [{"kind": "read_object_not_in_any_manifest", "uri": "b/orphan/g.parquet"}]
+    assert _health({"n": 1}, [{"op": "x", "uri": "b/orphan/g.parquet"}], findings) == "off_contract_read"
+
+
+def test_health_partial_output_when_a_declared_field_is_missing():
+    declared = {"summary_fields": ["present", "absent"]}
+    findings = [{"kind": "field_declared_but_absent_from_summary", "field": "absent"}]
+    assert _health({"present": 1}, [{"op": "x", "uri": "b/k/f.parquet"}], findings, declared) == "partial_output"
+
+
+def test_health_not_read_this_run_does_not_downgrade():
+    # declared_input_not_read_this_run is a benign per-run coverage dimension — a card that emitted
+    # its outputs over traced reads is still OK even when one declared input went unread this run.
+    findings = [{"kind": "declared_input_not_read_this_run", "manifest_id": "unread-mani"}]
+    assert _health({"n": 2446}, [{"op": "x", "uri": "b/k/f.parquet"}], findings) == "ok"
