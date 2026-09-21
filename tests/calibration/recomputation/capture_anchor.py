@@ -43,9 +43,24 @@ from __future__ import annotations
 import argparse
 import datetime as _dt
 import json
+import math
 import subprocess
 import sys
 from pathlib import Path
+
+
+def _json_num(v):
+    """Belt-and-suspenders: non-finite floats are not valid JSON. Store them as null.
+    (T3 is numeric-only — capture() aborts a non-finite target below — so this only ever
+    fires defensively, keeping allow_nan=False from raising on a surprise value.)"""
+    if v is None or (isinstance(v, float) and not math.isfinite(v)):
+        return None
+    return v
+
+
+def _finite(values):
+    return [v for v in values if isinstance(v, (int, float)) and math.isfinite(v)]
+
 
 HERE = Path(__file__).resolve().parent
 NULLS = HERE / "nulls"
@@ -101,10 +116,20 @@ def capture(target: str, indication: str) -> None:
         raise SystemExit(f"no sensitivity row for {target}/{indication} (product absent or gene missing)")
     s3_uri = dge.s3_uri_for(manifest_id)
     null = list(dge._sensitivity_cell_null(manifest_id, s3_uri, CELL_COLUMN))
-    if len(null) < 1000:
-        raise SystemExit(f"null vector too small ({len(null)}) — capture aborted, would be a vacuous fixture")
+    # Count FINITE values, not raw length: a comparator-less indication (e.g. SCLC has no TCGA
+    # tumor-vs-adjacent arm) returns a full-length but all-NaN column — a vacuous distribution.
+    if len(_finite(null)) < 1000:
+        raise SystemExit(
+            f"null has only {len(_finite(null))} finite values (of {len(null)}) — no real comparator "
+            f"distribution; this is data_unavailable, not a numeric T3 anchor."
+        )
 
     target_log2fc = row.get("log2fc_cell_a")
+    if target_log2fc is None or not math.isfinite(float(target_log2fc)):
+        raise SystemExit(
+            f"{target}/{indication} log2fc_A is non-finite ({target_log2fc!r}) ⇒ selectivity is "
+            f"data_unavailable, not a numeric T3 anchor (covered by T4 biology + percentile_null unit test)."
+        )
     expected_pct = percentile_rank(target_log2fc, null)
     expected_class = classify_percentile(expected_pct)
     # Sanity: the reader's own value must equal our re-derivation from the same null.
@@ -129,8 +154,8 @@ def capture(target: str, indication: str) -> None:
         "cell_column": CELL_COLUMN,
         "null_fixture": f"nulls/{null_name}",
         "n_null": len(null),
-        "target_log2fc": target_log2fc,
-        "expected_percentile": expected_pct,
+        "target_log2fc": _json_num(target_log2fc),
+        "expected_percentile": _json_num(expected_pct),
         "expected_class": expected_class,
         "snapshot_class_cross_ref": _snapshot_class(target, indication),
         "_captured_at": _dt.datetime.now(_dt.timezone.utc).isoformat(),
@@ -142,7 +167,9 @@ def capture(target: str, indication: str) -> None:
         ),
     }
     anchor_name = f"{target.lower()}_{indication.lower()}.selectivity_percentile.json"
-    (ANCHORS / anchor_name).write_text(json.dumps(anchor, indent=2) + "\n")
+    # allow_nan=False: refuse to emit non-conforming JSON (NaN/Infinity) — forces every
+    # non-finite value through _json_num first, so a committed anchor is always valid JSON.
+    (ANCHORS / anchor_name).write_text(json.dumps(anchor, indent=2, allow_nan=False) + "\n")
     print(f"wrote anchors/{anchor_name} + nulls/{null_name}")
     print(f"  target_log2fc={target_log2fc}  pct={expected_pct}  class={expected_class}")
     print(f"  snapshot cross-ref class={anchor['snapshot_class_cross_ref']}  n_null={len(null)}")

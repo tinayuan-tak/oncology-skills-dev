@@ -1,25 +1,33 @@
 """T3 recomputation anchors — tumor-vs-normal selectivity all-gene percentile.
 
-Plan foamy-bird, Stage I / tier T3: the ONLY tier that proves a number is right. It
-re-derives the field from the IRREPRODUCIBLE raw input (the full all-gene log2fc_A
-null column, committed as a parquet fixture) through the REAL method code, and asserts
-the live-captured value. See capture_anchor.py for what an anchor is and how it is made.
+Plan foamy-bird, Stage I / tier T3: the ONLY tier that proves a NUMBER is right. It re-derives
+the field from the IRREPRODUCIBLE raw input (the full all-gene log2fc_A null column, committed as
+a parquet fixture) through the REAL method code, and asserts the live-captured value. See
+capture_anchor.py for what an anchor is and how it is made.
 
-Why this is not the green-for-the-wrong-reason trap the calibration snapshots fall into:
-a snapshot stores a DERIVED value and asserts the code reproduces its own output — it
-can never catch a wrong computation. Here the fixture is the raw INPUT (the null), the
-expected percentile is re-derived by the same `percentile_rank` the pipeline runs, and
-the mutation tests below prove the assertion has teeth: perturb the input and the
-re-derived number must move. A downsampled or rounded null would BE the wrong-denominator
-bug this tier exists to catch, so capture_anchor.py stores it at full float64 precision.
+Why this is not the green-for-the-wrong-reason trap the calibration snapshots fall into: a
+snapshot stores a DERIVED value and asserts the code reproduces its own output — it can never
+catch a wrong computation. Here the fixture is the raw INPUT (the null), the expected percentile
+is re-derived by the same percentile_rank the pipeline runs, and the mutation tests below prove
+the assertion has teeth: perturb the input and the re-derived number must move. A downsampled or
+rounded null would BE the wrong-denominator bug this tier exists to catch, so capture_anchor.py
+stores it at full float64 precision.
 
-This is OFFLINE — it reads only committed fixtures, no S3, no creds. It runs in CI.
+Anchors are the curated known-target tumor-selectivity set that have a finite log2fc_A against a
+real all-gene comparator distribution (CEACAM5/APC/EPCAM/MET/TACSTD2-COADREAD, ERBB2-BRCA,
+KLK3-PRAD, MSLN-PAAD) — spanning the classifier's mid / top_decile / top_1pct branches. Targets
+with no comparator column (e.g. DLL3-SCLC: TCGA has no SCLC tumor-vs-adjacent arm ⇒ the whole
+column is non-finite ⇒ data_unavailable) are NOT numeric anchors; that behavior is a T4 biology
+anchor + the percentile_null empty-population unit test.
+
+OFFLINE — reads only committed fixtures, no S3, no creds. Runs in CI.
 """
 
 from __future__ import annotations
 
 import importlib.util
 import json
+import math
 from pathlib import Path
 
 import pyarrow.parquet as pq
@@ -39,8 +47,9 @@ _spec.loader.exec_module(_pn)
 percentile_rank = _pn.percentile_rank
 classify_percentile = _pn.classify_percentile
 
-MIN_ANCHORS = 1  # raise as the anchor set grows; a zeroed dir must never read as green
+MIN_ANCHORS = 6  # anti-vacuity floor below the current 8; a zeroed dir must never read as green
 MIN_NULL_LEN = 1000  # a truncated/empty null fixture is the wrong-denominator bug
+MIN_DISTINCT_CLASSES = 3  # the set must span classifier branches, not all sit in "mid"
 
 
 def _anchor_files() -> list[Path]:
@@ -68,9 +77,13 @@ ANCHOR_PARAMS = [pytest.param(p, id=_anchor_id(p)) for p in ANCHOR_FILES]
 
 def test_anchor_set_is_not_vacuous():
     # A silently-empty anchor dir is indistinguishable from a passing suite — the exact
-    # trap this tier exists to remove. Assert the set is populated before any parametrize.
+    # trap this tier exists to remove. Assert the set is populated and spans classes.
     assert len(ANCHOR_FILES) >= MIN_ANCHORS, (
         f"expected >= {MIN_ANCHORS} recomputation anchor(s), found {len(ANCHOR_FILES)} in {ANCHOR_DIR}"
+    )
+    classes = {_load_anchor(p)["expected_class"] for p in ANCHOR_FILES}
+    assert len(classes) >= MIN_DISTINCT_CLASSES, (
+        f"anchors must exercise >= {MIN_DISTINCT_CLASSES} classifier branches; found {sorted(classes)}"
     )
 
 
@@ -84,7 +97,7 @@ def test_percentile_rederives_from_raw_null(anchor_path: Path):
     assert len(null) >= MIN_NULL_LEN, f"null too small ({len(null)}) — fixture truncated?"
     assert len(null) == anchor["n_null"], "null length drifted from the captured count"
     target = anchor["target_log2fc"]
-    assert target == target and target not in (float("inf"), float("-inf")), "target must be finite"
+    assert isinstance(target, (int, float)) and math.isfinite(target), "target must be finite"
 
     pct = percentile_rank(target, null)
     cls = classify_percentile(pct)
@@ -119,7 +132,11 @@ def test_teeth_perturbing_target_moves_the_percentile(anchor_path: Path):
     and the class to top_1pct — proving re-derivation is live, not an echo of the pin."""
     anchor = _load_anchor(anchor_path)
     null = _load_null(anchor)
-    mutated_target = max(null) + 1.0
+    # Max over FINITE values only — some null columns carry NaNs, which the real percentile_rank
+    # drops via _finite; a raw max() could yield NaN and defeat the mutation.
+    finite = [v for v in null if isinstance(v, (int, float)) and math.isfinite(v)]
+    assert finite, "null has no finite values"
+    mutated_target = max(finite) + 1.0
     pct = percentile_rank(mutated_target, null)
     assert pct != anchor["expected_percentile"]
     assert pct >= 99.0
@@ -129,15 +146,15 @@ def test_teeth_perturbing_target_moves_the_percentile(anchor_path: Path):
 @pytest.mark.parametrize("anchor_path", ANCHOR_PARAMS)
 def test_teeth_dropping_below_null_values_moves_the_percentile(anchor_path: Path):
     """Dropping every null value below the target (a corrupted-population / wrong-denominator
-    mutation) forces the below-count to zero, so the re-derived percentile must collapse
-    toward 0 — proving the full captured distribution is load-bearing, not a self-echo.
-    Deterministic: the pinned percentile (~26.7 for CEACAM5) is well above 0, and we assert
-    there really were below-values to drop, so this can never be a vacuous no-op."""
+    mutation) forces the below-count to zero, so the re-derived percentile must collapse toward
+    0 — proving the full captured distribution is load-bearing, not a self-echo. Deterministic:
+    we assert there really were below-values to drop, so this can never be a vacuous no-op."""
     anchor = _load_anchor(anchor_path)
     null = _load_null(anchor)
     target = anchor["target_log2fc"]
-    at_or_above = [v for v in null if v >= target]
-    assert len(at_or_above) < len(null), "expected some null values below the target to drop"
+    at_or_above = [v for v in null if not (isinstance(v, (int, float)) and math.isfinite(v)) or v >= target]
+    below = [v for v in null if isinstance(v, (int, float)) and math.isfinite(v) and v < target]
+    assert below, "expected some finite null values below the target to drop"
     pct_full = percentile_rank(target, null)
     pct_dropped = percentile_rank(target, at_or_above)
     assert pct_dropped < pct_full
