@@ -106,7 +106,7 @@ outputs:
   summary_fields_vocabulary:
     expression_class:
       - broadly_high                              # >70% cell lines highly expressed
-      - broadly_moderate                          # >70% expressed but <30% highly expressed
+      - broadly_moderate                          # broad/patchy moderate presence: >=70% expressed but <30% highly, OR 10-70% expressed with no lineage enriched
       - lineage_restricted                        # 10-70% expressed; lineage-stratified
       - broadly_low                               # <30% expressed
       - data_unavailable
