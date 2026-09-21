@@ -20,11 +20,22 @@ if str(_EVAL) not in sys.path:
 import json  # noqa: E402
 
 import card_chain_audit as cca  # noqa: E402
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _clear_owner_index_cache():
+    # _owner_index caches by id(catalog); short-lived test catalogs can reuse an id after GC, so clear the
+    # cache around every test to keep the fake catalogs isolated. (In production the catalog is a long-lived
+    # lru_cached singleton, so the id-keyed cache is stable.)
+    cca._OWNER_INDEX_CACHE.clear()
+    yield
+    cca._OWNER_INDEX_CACHE.clear()
 
 
 # ── fake catalog ────────────────────────────────────────────────────────────────────────────────────
 class _Rec:
-    def __init__(self, mid, s3_uri, derived_from=None):
+    def __init__(self, mid, s3_uri, derived_from=None, raw=None):
         self.id = mid
         self.s3_uri = s3_uri
         self.type = "derived"
@@ -32,6 +43,9 @@ class _Rec:
         self.query_optimization = None
         self.license = None
         self.derived_from = list(derived_from or [])
+        # the full manifest yaml dict — carries parameters.companion_summary_path / sidecar_s3_uri, which
+        # _owner_index reads so a read of a documented companion object resolves to the owning manifest
+        self.raw = raw or {}
 
 
 class _Catalog:
@@ -559,3 +573,163 @@ def test_read_lineage_map_reads_local_csv(tmp_path):
     assert out == {"ACH-1": "Lung", "ACH-2": None}
     # no Model.csv read in the trace ⇒ None (input absent), never a crash
     assert cca._read_lineage_map([{"op": "pandas.read_csv", "uri": "/tmp/Other.csv"}]) is None
+
+
+# ── owner resolution: companion / sidecar / unique-basename attribution gaps ──────────────────────────
+def test_owning_manifest_credits_companion_summary_object():
+    # G1 (paralog-GI): the manifest's PRIMARY s3_uri is the per-line table, but the card reads the documented
+    # parameters.companion_summary_path (the *_summary.parquet). Exact match on s3_uri alone misses it.
+    cat = _Catalog(
+        [
+            _Rec(
+                "dede-gi",
+                "s3://b/derived/dede/dede_gi_per_pair_line.parquet",
+                raw={"parameters": {"companion_summary_path": "dede_gi_per_pair_summary.parquet"}},
+            )
+        ]
+    )
+    # the primary object resolves…
+    assert cca._owning_manifest("b/derived/dede/dede_gi_per_pair_line.parquet", cat) == "dede-gi"
+    # …and so does the companion the card actually opens
+    assert cca._owning_manifest("b/derived/dede/dede_gi_per_pair_summary.parquet", cat) == "dede-gi"
+
+
+def test_owning_manifest_companion_anti_vacuity_without_the_param():
+    # teeth: strip the companion_summary_path and the SAME summary read is no longer credited — proving the
+    # companion parameter is what resolves it, not an incidental basename/prefix match.
+    cat = _Catalog([_Rec("dede-gi", "s3://b/derived/dede/dede_gi_per_pair_line.parquet")])
+    assert cca._owning_manifest("b/derived/dede/dede_gi_per_pair_summary.parquet", cat) is None
+
+
+def test_owning_manifest_credits_sidecar_object():
+    cat = _Catalog(
+        [
+            _Rec(
+                "m",
+                "s3://b/derived/m/f.parquet",
+                raw={"parameters": {"sidecar_s3_uri": "s3://b/derived/m/side.parquet"}},
+            )
+        ]
+    )
+    assert cca._owning_manifest("b/derived/m/side.parquet", cat) == "m"
+
+
+def test_owning_manifest_unique_basename_fallback_credits_local_cache_copy():
+    # G2 (local cache): the physical read is a /home/.../.cache/<x>/surfaceome_family.parquet copy of the
+    # manifest's own object; its path is not an s3 uri so exact/prefix both miss. A UNIQUE basename resolves it.
+    cat = _Catalog([_Rec("surfaceome", "s3://b/derived/surfaceome/surfaceome_family.parquet")])
+    assert cca._owning_manifest("/home/x/.cache/framework-abc/surfaceome_family.parquet", cat) == "surfaceome"
+
+
+def test_owning_manifest_ambiguous_basename_is_not_credited():
+    # teeth: two manifests own the SAME basename ⇒ the fallback must refuse to guess (never mis-credit).
+    cat = _Catalog(
+        [
+            _Rec("maf-a", "s3://b/derived/a/per_sample_maf.parquet"),
+            _Rec("maf-b", "s3://b/derived/b/per_sample_maf.parquet"),
+        ]
+    )
+    assert cca._owning_manifest("/home/x/.cache/framework-abc/per_sample_maf.parquet", cat) is None
+    # each canonical s3 object still resolves exactly (the ambiguity only defeats the basename fallback)
+    assert cca._owning_manifest("b/derived/a/per_sample_maf.parquet", cat) == "maf-a"
+
+
+def test_reachable_from_events_folds_owner_and_derived_from_lineage():
+    # G3: a read of the DERIVED product reaches BOTH the derived id and the raw source it derives from.
+    cat = _Catalog(
+        [
+            _Rec("mc3-source", "s3://b/sources/mc3/"),
+            _Rec("mc3-per-sample", "s3://b/derived/mc3ps/per_sample.parquet", derived_from=["mc3-source"]),
+        ]
+    )
+    reached = cca._reachable_from_events(
+        [{"op": "pyarrow.read_table", "uri": "b/derived/mc3ps/per_sample.parquet"}], cat
+    )
+    assert reached == {"mc3-per-sample", "mc3-source"}
+    # an unresolvable uri contributes nothing (never a crash)
+    assert cca._reachable_from_events([{"op": "x", "uri": "b/nowhere/z.parquet"}], cat) == set()
+    assert cca._reachable_from_events(None, cat) == set()
+
+
+def test_detect_findings_companion_read_is_neither_unread_nor_uncataloged():
+    # end-to-end (G1): the card declares the paralog-GI manifest and the run opens its companion summary.
+    # Neither declared_input_not_read_this_run nor read_object_not_in_any_manifest may fire.
+    cat = _Catalog(
+        [
+            _Rec(
+                "dede-gi",
+                "s3://b/derived/dede/dede_gi_per_pair_line.parquet",
+                raw={"parameters": {"companion_summary_path": "dede_gi_per_pair_summary.parquet"}},
+            )
+        ]
+    )
+    declared = {
+        "method_calls": [],
+        "manifests": [
+            {
+                "manifest_id": "dede-gi",
+                "in_catalog": True,
+                "s3_uri": "s3://b/derived/dede/dede_gi_per_pair_line.parquet",
+            }
+        ],
+    }
+    measured = [
+        {"op": "pyarrow.read_table", "uri": "b/derived/dede/dede_gi_per_pair_summary.parquet", "uri_class": "s3_object"}
+    ]
+    kinds = _kinds(cca.detect_findings(declared, measured, {}, cat))
+    assert "declared_input_not_read_this_run" not in kinds
+    assert "read_object_not_in_any_manifest" not in kinds
+
+
+def test_card_read_status_credits_source_via_cross_card_derived_read():
+    # G3 at corpus grain: card A declares the raw SOURCE and records 0 events (lru_cache sharing); a DIFFERENT
+    # card B reads the DERIVED product. The run-level union of reachable_manifest_ids must credit A's source.
+    rep = {
+        "cards": [
+            {
+                "card_id": "A",
+                "measured": [],  # traced, zero own events
+                "declared": {
+                    "manifests": [{"manifest_id": "mc3-source", "in_catalog": True, "s3_uri": "s3://b/sources/mc3/"}]
+                },
+                "reachable_manifest_ids": [],  # A itself reached nothing
+                "findings": [{"kind": "declared_input_not_read_this_run", "manifest_id": "mc3-source"}],
+            },
+            {
+                "card_id": "B",
+                "measured": [{"op": "pyarrow.read_table", "uri": "b/derived/mc3ps/per_sample.parquet"}],
+                "declared": {"manifests": []},
+                # B's read reached the derived product AND, via derived_from, the source A declares
+                "reachable_manifest_ids": ["mc3-per-sample", "mc3-source"],
+                "findings": [],
+            },
+        ]
+    }
+    status = cca._card_read_status(rep)
+    assert status["A"] == {"mc3-source": True}  # credited through B's derived read — not dead
+
+
+def test_card_read_status_source_stays_unread_when_no_card_reaches_it():
+    # anti-vacuity for the above: with B reaching only the derived product (lineage severed / different
+    # source), A's declared source is NOT in the union and stays unread.
+    rep = {
+        "cards": [
+            {
+                "card_id": "A",
+                "measured": [],
+                "declared": {
+                    "manifests": [{"manifest_id": "mc3-source", "in_catalog": True, "s3_uri": "s3://b/sources/mc3/"}]
+                },
+                "reachable_manifest_ids": [],
+                "findings": [{"kind": "declared_input_not_read_this_run", "manifest_id": "mc3-source"}],
+            },
+            {
+                "card_id": "B",
+                "measured": [{"op": "pyarrow.read_table", "uri": "b/derived/other/x.parquet"}],
+                "declared": {"manifests": []},
+                "reachable_manifest_ids": ["some-other-mani"],  # does NOT reach mc3-source
+                "findings": [],
+            },
+        ]
+    }
+    assert cca._card_read_status(rep)["A"] == {"mc3-source": False}

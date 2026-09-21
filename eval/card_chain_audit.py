@@ -149,6 +149,109 @@ def _upstream_ids(manifest_id: str, catalog: Any) -> set[str]:
     return seen
 
 
+# ── owner resolution (uri → owning manifest id) ─────────────────────────────────────────────────────
+# Cached reverse index, keyed by id(catalog): building it walks ~450 records, so do it once.
+_OWNER_INDEX_CACHE: dict[int, dict] = {}
+
+
+def _dirname(u: str) -> str:
+    return u.rsplit("/", 1)[0] if "/" in u else u
+
+
+def _basename(u: str) -> str:
+    return u.rsplit("/", 1)[-1] if u else u
+
+
+def _owner_index(catalog: Any) -> dict:
+    """Build (once per catalog) the reverse index resolving a traced uri to its owning manifest id.
+
+    Beyond the primary ``s3_uri``, a manifest may OWN sibling objects under the same derived prefix that a
+    reader actually opens: ``parameters.companion_summary_path`` (a convenience summary parquet — e.g. the
+    paralog-GI ``*_summary.parquet`` companions, whose primary object is the per-line table) and
+    ``sidecar_s3_uri``. Those are indexed as exact single-file matches so a read of the companion is not
+    mis-reported as unread / uncatalogued. A ``basenames`` map (basename → owning mids) backs the
+    unique-basename fallback for local-cache reads (see ``_owning_manifest``)."""
+    key = id(catalog)
+    cached = _OWNER_INDEX_CACHE.get(key)
+    if cached is not None:
+        return cached
+    exact: dict[str, str] = {}  # normalized single-file uri → mid
+    prefixes: list[tuple[str, str]] = []  # (normalized dir-prefix, mid) for source/multi-file manifests
+    basenames: dict[str, set[str]] = {}  # basename → {mid} for the unique-basename local-cache fallback
+    if catalog is not None:
+        for rec in catalog.manifests.values():
+            mid = rec.id
+            s3 = getattr(rec, "s3_uri", None)
+            if not s3:
+                continue
+            n = _norm_uri(s3)
+            if n.endswith("/"):
+                prefixes.append((n, mid))
+                continue
+            exact.setdefault(n, mid)
+            basenames.setdefault(_basename(n), set()).add(mid)
+            raw = getattr(rec, "raw", None) or {}
+            params = raw.get("parameters") if isinstance(raw, dict) else None
+            params = params or {}
+            comp = params.get("companion_summary_path")
+            if comp:
+                cu = _dirname(n) + "/" + comp
+                exact.setdefault(cu, mid)
+                basenames.setdefault(_basename(cu), set()).add(mid)
+            sidecar = params.get("sidecar_s3_uri") or (raw.get("sidecar_s3_uri") if isinstance(raw, dict) else None)
+            if sidecar:
+                su = _norm_uri(sidecar)
+                exact.setdefault(su, mid)
+                basenames.setdefault(_basename(su), set()).add(mid)
+    idx = {"exact": exact, "prefixes": prefixes, "basenames": basenames}
+    _OWNER_INDEX_CACHE[key] = idx
+    return idx
+
+
+def _owning_manifest(uri: str | None, catalog: Any) -> str | None:
+    """Resolve a traced read uri to the id of the manifest that owns the object, or ``None``.
+
+    Order, most specific first: exact single-file match (primary ``s3_uri``, its companion summary, or a
+    sidecar); directory-prefix match (source/multi-file manifest, trailing ``/``); then — for a read that
+    matched none of those, typically a LOCAL ``.cache`` copy whose path is not an s3 uri — a UNIQUE
+    basename match against the indexed object basenames. The basename fallback credits ONLY when exactly
+    one manifest owns that basename, so an ambiguous name (e.g. ``per_sample_maf.parquet``, owned by
+    several MAF products) is never mis-credited."""
+    if not uri or catalog is None:
+        return None
+    idx = _owner_index(catalog)
+    n = _norm_uri(uri)
+    hit = idx["exact"].get(n)
+    if hit:
+        return hit
+    for pfx, mid in idx["prefixes"]:
+        if n.startswith(pfx):
+            return mid
+    cand = idx["basenames"].get(_basename(n))
+    if cand and len(cand) == 1:
+        return next(iter(cand))
+    return None
+
+
+def _reachable_from_events(events: list[dict] | None, catalog: Any) -> set[str]:
+    """Manifest ids TOUCHED by a set of read events: for each event with a uri, the owning manifest plus
+    its transitive upstream lineage (``derived_from``). Local-cache reads are included (via the
+    unique-basename fallback in ``_owning_manifest``) so a manifest's own cached object counts. This is the
+    owner+lineage grain the corpus detector unions across ALL cards in a run: a declared input is
+    'reached' when the run physically read the object it owns OR any object derived from it — even when the
+    read was attributed to a *different* card (``lru_cache`` sharing) or the reader opened a *derived*
+    reprojection of the declared source (a card declares raw ``tcga-mc3-public``; a sibling reads the
+    derived ``tcga-mc3-per-sample-maf-v1`` whose lineage walks back to it)."""
+    reached: set[str] = set()
+    for ev in events or []:
+        mid = _owning_manifest(ev.get("uri"), catalog)
+        if mid is None:
+            continue
+        reached.add(mid)
+        reached |= _upstream_ids(mid, catalog)
+    return reached
+
+
 # ── declared side ───────────────────────────────────────────────────────────────────────────────────
 def _call_resolvable(method: dict) -> bool:
     """A declared ``methods[].call`` resolves if the naming-convention module imports, or the method
@@ -275,7 +378,13 @@ def build_measured(card_id: str, trace: dict | None) -> list[dict] | None:
 
 
 # ── findings (dimensions, never gates) ──────────────────────────────────────────────────────────────
-def detect_findings(declared: dict, measured: list[dict] | None, summary: dict, catalog: Any) -> list[dict]:
+def detect_findings(
+    declared: dict,
+    measured: list[dict] | None,
+    summary: dict,
+    catalog: Any,
+    reachable: set[str] | None = None,
+) -> list[dict]:
     findings: list[dict] = []
 
     # declared_call_unresolved — declares calls but none resolve to an importable reader
@@ -302,28 +411,22 @@ def detect_findings(declared: dict, measured: list[dict] | None, summary: dict, 
     if measured is None:
         return findings
 
-    read_owner_ids: set[str] = set()
+    # read_object_not_in_any_manifest — a traced s3 object that resolves to no owning manifest. Owner
+    # resolution now credits a manifest's companion/sidecar objects (see _owning_manifest), so a read of a
+    # documented companion parquet no longer false-fires here. Local-cache reads are skipped: a
+    # /home/.../.cache copy is a derived local artifact, not an uncatalogued S3 object.
     for ev in measured:
         if ev["uri_class"] != "s3_object" or not ev["uri"]:
             continue
-        owner = None
-        if catalog is not None:
-            for rec in catalog.manifests.values():
-                if _manifest_owns(ev["uri"], getattr(rec, "s3_uri", None)):
-                    owner = rec.id
-                    break
-        if owner is None:
+        if _owning_manifest(ev["uri"], catalog) is None:
             findings.append({"kind": "read_object_not_in_any_manifest", "uri": ev["uri"], "op": ev["op"]})
-        else:
-            read_owner_ids.add(owner)
 
-    # A declared input is satisfied if a read object owns it directly OR is DERIVED from it: cards
-    # routinely declare a raw source (e.g. depmap-consortium-26q1) while the reader opens the derived
-    # reprojection (depmap-26q1-parquet-v1, derived_from that source). Walk upstream lineage so that
-    # source→derived hop is not mis-reported as unread.
-    reachable = set(read_owner_ids)
-    for oid in read_owner_ids:
-        reachable |= _upstream_ids(oid, catalog)
+    # A declared input is satisfied if a read object owns it directly OR is DERIVED from it (cards routinely
+    # declare a raw source while the reader opens the derived reprojection), OR the object was read from a
+    # local cache copy — _reachable_from_events folds all three in. Computed here unless the caller passed a
+    # precomputed set (audit_run does, so it can also stamp it for the corpus union).
+    if reachable is None:
+        reachable = _reachable_from_events(measured, catalog)
 
     # declared_input_not_read_this_run — a per-run COVERAGE dimension, never a defect: a declared input
     # neither read nor reached via lineage on THIS run. Mostly benign (an input for another
@@ -334,8 +437,7 @@ def detect_findings(declared: dict, measured: list[dict] | None, summary: dict, 
         if not man.get("in_catalog") or not s3:
             continue
         mid = man["manifest_id"]
-        read = mid in reachable or any(_manifest_owns(ev["uri"], s3) for ev in measured if ev["uri"])
-        if not read:
+        if mid not in reachable:
             findings.append({"kind": "declared_input_not_read_this_run", "manifest_id": mid, "s3_uri": s3})
 
     return findings
@@ -774,7 +876,10 @@ def audit_run(run_dir: Path, skill: str, do_rederive: bool) -> dict:
         input_manifest_ids = list(card.get("input_manifest_ids") or [])
         declared = build_declared(card_id, input_manifest_ids, catalog, tc_root)
         measured = build_measured(card_id, trace)
-        findings = detect_findings(declared, measured, summary, catalog)
+        # owner+lineage ids this card's reads TOUCHED — stamped so the corpus union (_card_read_status)
+        # can credit a declared input read by ANY card in the run (lru_cache sharing / derived reprojection)
+        reachable = _reachable_from_events(measured, catalog) if measured is not None else set()
+        findings = detect_findings(declared, measured, summary, catalog, reachable)
         rederived = build_rederived(card_id, measured, summary, do_rederive)
         # surface rederived_mismatch as a first-class finding
         if rederived:
@@ -793,6 +898,7 @@ def audit_run(run_dir: Path, skill: str, do_rederive: bool) -> dict:
                 "card_id": card_id,
                 "health": _card_health(summary, measured, findings, declared),
                 "measured_state": "unmeasured" if measured is None else f"{len(measured)} read(s)",
+                "reachable_manifest_ids": sorted(reachable) if measured is not None else None,
                 "declared": declared,
                 "measured": measured,
                 "emitted": _split_summary(summary),
@@ -930,19 +1036,24 @@ def _card_read_status(report: dict) -> dict[str, dict[str, bool]]:
     never recorded as unread: an unread declared input is only evidence of dead wiring on a run that
     actually captured that card's IO.
 
-    ``was_read`` is evaluated against a **run-level union**: a declared input counts as read when THIS card
-    read/reached it (``declared − not_read``, so the source→derived lineage hop ``detect_findings`` already
-    applied is inherited for free) OR when ANY traced card in the run read/reached it. The union is required
-    because per-card *physical* read attribution is confounded by process-level ``lru_cache`` sharing across
-    the fan-out: the analysis-methods loaders are ``@lru_cache``d and a composed run resolves many cards that
-    share them, so a substrate is physically read by ONLY the first card to miss the cache (e.g. the DepMap
-    Gygi matrix is read once by ``cellline-protein-abundance``) while every sibling that CONSUMES the warm
-    cache (``abundance-dependency`` …) records zero events. Dead WIRING means "no path in the run touches the
-    declared input", so the union grain — not per-card physical IO — is the honest denominator; the softer
-    per-card view remains available as the benign ``declared_input_not_read_this_run`` dimension."""
-    # first pass — per-card declared + not_read (traced cards only), and the run-level union of read ids
-    per_card: dict[str, tuple[list[str], set[str]]] = {}
-    run_read_ids: set[str] = set()
+    ``was_read`` is evaluated against a **run-level union** of the owner+lineage ids every traced card
+    physically TOUCHED (``reachable_manifest_ids``, stamped by ``audit_run`` via ``_reachable_from_events``:
+    the owning manifest of each read object plus its ``derived_from`` lineage, local-cache and companion
+    reads folded in). A declared input counts as read when it is in that run-wide touched set. The union is
+    required because per-card *physical* read attribution is confounded by process-level ``lru_cache``
+    sharing across the fan-out: the analysis-methods loaders are ``@lru_cache``d and a composed run resolves
+    many cards that share them, so a substrate is physically read by ONLY the first card to miss the cache
+    (e.g. the DepMap Gygi matrix is read once by ``cellline-protein-abundance``) while every sibling that
+    CONSUMES the warm cache (``abundance-dependency`` …) records zero events. It also credits a card that
+    declares a raw SOURCE while a *different* card reads a DERIVED reprojection of it (mc3, Open Targets).
+    Dead WIRING means "no path in the run touches the declared input", so the union grain — not per-card
+    physical IO — is the honest denominator; the softer per-card view remains available as the benign
+    ``declared_input_not_read_this_run`` dimension.
+
+    Reports predating ``reachable_manifest_ids`` fall back to the earlier ``declared − not_read`` per-card
+    read set, so an older corpus still aggregates (at the coarser, declared-id-keyed grain)."""
+    per_card: dict[str, list[str]] = {}  # cid → declared in-catalog manifest ids
+    run_touched: set[str] = set()  # run-level union of owner+lineage ids physically touched
     for card in report.get("cards") or []:
         if card.get("measured") is None:  # untraced ⇒ no evidence either way, omit
             continue
@@ -951,17 +1062,17 @@ def _card_read_status(report: dict) -> dict[str, dict[str, bool]]:
             for m in (card.get("declared", {}).get("manifests") or [])
             if m.get("in_catalog") and m.get("s3_uri")
         ]
-        not_read = {
-            f["manifest_id"]
-            for f in (card.get("findings") or [])
-            if f.get("kind") == "declared_input_not_read_this_run"
-        }
-        per_card[card["card_id"]] = (declared, not_read)
-        run_read_ids |= {mid for mid in declared if mid not in not_read}
-    return {
-        cid: {mid: (mid not in not_read or mid in run_read_ids) for mid in declared}
-        for cid, (declared, not_read) in per_card.items()
-    }
+        reachable = card.get("reachable_manifest_ids")
+        if reachable is None:  # older report — reconstruct the per-card read set from findings
+            not_read = {
+                f["manifest_id"]
+                for f in (card.get("findings") or [])
+                if f.get("kind") == "declared_input_not_read_this_run"
+            }
+            reachable = [mid for mid in declared if mid not in not_read]
+        per_card[card["card_id"]] = declared
+        run_touched |= set(reachable)
+    return {cid: {mid: (mid in run_touched) for mid in declared} for cid, declared in per_card.items()}
 
 
 def _aggregate_read_matrices(
