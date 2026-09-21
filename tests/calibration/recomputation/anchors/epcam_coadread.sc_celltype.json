@@ -1,0 +1,29 @@
+{
+  "target": "EPCAM",
+  "indication": "COADREAD",
+  "rows_fixture": "sc_compartment_rows/sc_pseudobulk__compartment_rows.parquet",
+  "rows_kind": "rows",
+  "n_rows": 1301,
+  "expected_sc_expression_class": "malignant_broadly_detected",
+  "expected_malignant_detection_fraction": 0.89476,
+  "expected_malignant_abundance_log1p_cp10k": 2.08927,
+  "expected_malignant_compartment_available": true,
+  "expected_malignant_n_donors": 361,
+  "expected_malignant_n_cells": 509583,
+  "expected_n_compartments_measured": 5,
+  "expected_top_microenvironment_compartment": "stromal",
+  "expected_top_microenvironment_detection_fraction": 0.07692,
+  "expected_caf_vs_malignant_class": "caf_low",
+  "expected_caf_detection_fraction": 0.07692,
+  "snapshot_cross_ref": {
+    "source": "rnd-computational-biology-oncology-target-contracts/tests/calibration/snapshots/epcam_coadread.tumor-selectivity.json",
+    "sc_tumor_expression_class": "malignant_broadly_detected",
+    "sc_caf_vs_malignant_class": "caf_low",
+    "sc_malignant_detection_fraction": 0.888605
+  },
+  "_source": {
+    "product": "single-cell pseudobulk compartment cube (per-donor detection/abundance by compartment)",
+    "captured_utc": "2026-09-21T12:35:14.214931+00:00",
+    "rows_fixture_md5": "a76a7e2cf69bf0cff15968e74a62eaa5"
+  }
+}
