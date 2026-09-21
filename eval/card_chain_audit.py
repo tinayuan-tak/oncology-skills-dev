@@ -20,8 +20,12 @@ Two honesty rules the plan pins:
     a card present in the trace with no read events reads as ``measured: []`` (traced, zero reads — a
     real signal, e.g. a card whose declared ``call`` never resolved to a reader). The two are distinct.
   * **Re-derivation may not lie about coverage.** A field is re-derived only when the recipe is
-    unambiguous over the traced object; anything method-internal is emitted ``rederivable: false`` with a
-    reason, never guessed.
+    unambiguous over the traced object; anything else is emitted ``rederivable: false`` (or
+    ``measured: false``) with a ``reason_class`` that says WHY, never guessed. The reason classes keep
+    two states the audit must not conflate apart: ``input_absent_from_trace`` (the object needed to check
+    the value was not read in this run — genuinely uncheckable) vs ``method_internal`` (a threshold /
+    classification choice, not mechanically re-derivable even when the input IS present); plus
+    ``not_requested`` (--rederive not passed), ``read_failed``, and ``matched`` / ``mismatch``.
 
 Findings (per card, never gated):
   declared_call_unresolved         — card declares methods[].call but none resolve to an importable reader
@@ -338,34 +342,80 @@ def detect_findings(declared: dict, measured: list[dict] | None, summary: dict, 
 
 
 # ── re-derivation (honestly scoped; opt-in live re-read) ────────────────────────────────────────────
-def _rederive_cellline_rna_distribution(measured: list[dict] | None, summary: dict, do_read: bool) -> dict:
-    """Independently recompute the panel scalars of ``cellline-rna-distribution`` from the traced
-    OmicsExpression object, diffing against the emitted summary. Method-internal fields (per-lineage,
-    isoform, allgene-percentile, distribution_pattern) are declared ``rederivable: false``."""
-    internal = {
-        "distribution_pattern": "method-internal categorical over per-lineage stats",
-        "per_lineage_stats": "method-internal grouping",
-        "allgene_percentile": "requires the allgene-rank product join, not the panel column alone",
-        "isoform_expression_class": "derived from a separate isoform product",
-    }
-    scalars = [
-        "n_cell_lines_evaluated",
-        "median_log2tpm_panel",
-        "p25_log2tpm_panel",
-        "p75_log2tpm_panel",
-        "p5_log2tpm_panel",
-        "p95_log2tpm_panel",
-        "fraction_expressed",
-        "fraction_highly_expressed",
-        "fraction_not_expressed",
-    ]
-    out: dict[str, dict] = {}
-    for f, reason in internal.items():
-        out[f] = {"rederivable": False, "reason": reason, "emitted": summary.get(f)}
+# A non-rederived record carries a ``reason_class`` so a reviewer knows WHY a field is not checked —
+# the honest distinction the audit must keep, not conflate:
+#   method_internal          — value is a method choice (threshold/classification); not mechanically
+#                              re-derivable even when the input object IS present in the trace.
+#   input_absent_from_trace  — the object needed to re-derive was NOT read in this run; genuinely
+#                              uncheckable here (distinct from "the recompute is not implemented").
+#   not_requested            — re-derivable + input present, but --rederive was not passed.
+#   read_failed              — tried to re-read the traced object but got nothing (no creds / moved /
+#                              empty after dedup).
+#   matched / mismatch       — re-derived and (agrees | disagrees) with the emitted value.
+_RNA_SCALARS = [
+    "n_cell_lines_evaluated",
+    "median_log2tpm_panel",
+    "p25_log2tpm_panel",
+    "p75_log2tpm_panel",
+    "p5_log2tpm_panel",
+    "p95_log2tpm_panel",
+    "fraction_expressed",
+    "fraction_highly_expressed",
+    "fraction_not_expressed",
+]
+# per_lineage_stats grouping parameters — mirror depmap_expression_distribution.compute_summary_stats so
+# an independent recompute matches the method's DEFINITIONS (not its code): expressed at log2(TPM+1)>=1.0,
+# lineages with fewer than 5 default-entry models dropped.
+_EXPRESSED_THRESHOLD = 1.0
+_HIGHLY_EXPRESSED_THRESHOLD = 5.0
+_MIN_LINEAGE_SIZE = 5
 
-    def _unmeasured(reason: str) -> dict:
-        for f in scalars:
-            out[f] = {"rederivable": True, "measured": False, "emitted": summary.get(f), "reason": reason}
+
+def _rederive_cellline_rna_distribution(measured: list[dict] | None, summary: dict, do_read: bool) -> dict:
+    """Independently recompute the panel scalars AND the per-lineage table of ``cellline-rna-distribution``
+    from the traced OmicsExpression object (+ the traced Model.csv lineage map), diffing against the
+    emitted summary. Genuinely method-internal fields (``distribution_pattern``, ``isoform_expression_class``)
+    are ``rederivable: false`` with ``reason_class="method_internal"``; ``allgene_percentile`` needs a
+    different object never read by this card (``reason_class="input_absent_from_trace"``)."""
+    out: dict[str, dict] = {
+        "distribution_pattern": {
+            "rederivable": False,
+            "reason_class": "method_internal",
+            "reason": "categorical shape label from a method-internal gap heuristic over the score array",
+            "emitted": summary.get("distribution_pattern"),
+        },
+        "isoform_expression_class": {
+            "rederivable": False,
+            "reason_class": "method_internal",
+            "reason": "classification cutoffs over a separate isoform product are method-internal "
+            "(the product may be read, but the class label is a method choice)",
+            "emitted": summary.get("isoform_expression_class"),
+        },
+        "allgene_percentile": {
+            "rederivable": False,
+            "reason_class": "input_absent_from_trace",
+            "reason": "requires the allgene-rank product join (not read by this card); the panel column "
+            "alone cannot give a genome-wide percentile",
+            "emitted": summary.get("allgene_percentile"),
+        },
+    }
+
+    def _scalars_unmeasured(reason_class: str, reason: str) -> dict:
+        for f in _RNA_SCALARS:
+            out[f] = {
+                "rederivable": True,
+                "measured": False,
+                "reason_class": reason_class,
+                "emitted": summary.get(f),
+                "reason": reason,
+            }
+        out["per_lineage_stats"] = {
+            "rederivable": True,
+            "measured": False,
+            "reason_class": reason_class,
+            "emitted_n_lineages": len(summary.get("per_lineage_stats") or []),
+            "reason": reason,
+        }
         return out
 
     # locate the traced OmicsExpression read (the panel column source)
@@ -376,13 +426,15 @@ def _rederive_cellline_rna_distribution(measured: list[dict] | None, summary: di
                 event = ev
                 break
     if event is None:
-        return _unmeasured("panel-column read not found in trace")
+        return _scalars_unmeasured("input_absent_from_trace", "panel-column read not found in trace")
     if not do_read:
-        return _unmeasured("pass --rederive to re-read the object and recompute")
+        return _scalars_unmeasured("not_requested", "pass --rederive to re-read the object and recompute")
 
     values = _read_panel_scores(event)
     if not values:
-        return _unmeasured("re-read failed / no rows (no creds, object moved, or empty after dedup)")
+        return _scalars_unmeasured(
+            "read_failed", "re-read failed / no rows (no creds, object moved, or empty after dedup)"
+        )
 
     import numpy as np
 
@@ -394,21 +446,102 @@ def _rederive_cellline_rna_distribution(measured: list[dict] | None, summary: di
         "p75_log2tpm_panel": float(np.percentile(scores, 75)),
         "p5_log2tpm_panel": float(np.percentile(scores, 5)),
         "p95_log2tpm_panel": float(np.percentile(scores, 95)),
-        "fraction_expressed": float(np.mean(scores >= 1.0)),
-        "fraction_highly_expressed": float(np.mean(scores >= 5.0)),
-        "fraction_not_expressed": float(np.mean(scores < 1.0)),
+        "fraction_expressed": float(np.mean(scores >= _EXPRESSED_THRESHOLD)),
+        "fraction_highly_expressed": float(np.mean(scores >= _HIGHLY_EXPRESSED_THRESHOLD)),
+        "fraction_not_expressed": float(np.mean(scores < _EXPRESSED_THRESHOLD)),
     }
-    for f in scalars:
+    for f in _RNA_SCALARS:
         emitted = summary.get(f)
         rederived = recomputed[f]
+        match = _close(emitted, rederived)
         out[f] = {
             "rederivable": True,
             "measured": True,
+            "reason_class": "mismatch" if match is False else "matched",
             "emitted": emitted,
             "rederived": rederived,
-            "match": _close(emitted, rederived),
+            "match": match,
         }
+    out["per_lineage_stats"] = _rederive_per_lineage(event, measured, summary.get("per_lineage_stats") or [])
     return out
+
+
+def _rederive_per_lineage(event: dict, measured: list[dict] | None, emitted_rows: list[dict]) -> dict:
+    """Recompute each emitted per-lineage row (n / median_log2tpm / fraction_expressed) by re-reading the
+    panel column keyed by ModelID and joining the traced Model.csv OncotreeLineage map, then verifying
+    every emitted lineage reproduces. Checks the reported VALUES; it does not re-assert the method's
+    top-20 truncation boundary (an ordering detail, not a data claim)."""
+    if not emitted_rows:
+        # nothing to check (card emitted no per-lineage table) — never a spurious mismatch
+        return {
+            "rederivable": True,
+            "measured": True,
+            "reason_class": "matched",
+            "n_lineages_checked": 0,
+            "match": None,
+        }
+    model_scores = _read_panel_scores_by_model(event)
+    if not model_scores:
+        return {
+            "rederivable": True,
+            "measured": False,
+            "reason_class": "read_failed",
+            "emitted_n_lineages": len(emitted_rows),
+            "reason": "re-read of the panel column keyed by ModelID failed / no rows",
+        }
+    lineage_map = _read_lineage_map(measured)
+    if not lineage_map:
+        return {
+            "rederivable": True,
+            "measured": False,
+            "reason_class": "input_absent_from_trace",
+            "emitted_n_lineages": len(emitted_rows),
+            "reason": "Model.csv OncotreeLineage map not found in trace / unreadable",
+        }
+
+    import numpy as np
+
+    by_lineage: dict[str, list[float]] = {}
+    for mid, score in model_scores.items():
+        lineage = lineage_map.get(mid) or "unknown"
+        by_lineage.setdefault(lineage, []).append(score)
+    recomputed: dict[str, dict] = {}
+    for lineage, vals in by_lineage.items():
+        if len(vals) < _MIN_LINEAGE_SIZE:
+            continue
+        arr = np.asarray(vals, dtype=float)
+        recomputed[lineage] = {
+            "n": int(arr.size),
+            "median_log2tpm": float(np.median(arr)),
+            "fraction_expressed": float(np.mean(arr >= _EXPRESSED_THRESHOLD)),
+        }
+
+    mismatches: list[dict] = []
+    checked = 0
+    for row in emitted_rows:
+        lineage = row.get("lineage")
+        rec = recomputed.get(lineage)
+        if rec is None:
+            mismatches.append({"lineage": lineage, "field": "presence", "emitted": row.get("n"), "rederived": None})
+            continue
+        checked += 1
+        for fld in ("n", "median_log2tpm", "fraction_expressed"):
+            if _close(row.get(fld), rec.get(fld)) is False:
+                mismatches.append(
+                    {"lineage": lineage, "field": fld, "emitted": row.get(fld), "rederived": rec.get(fld)}
+                )
+    match = not mismatches and checked > 0
+    result = {
+        "rederivable": True,
+        "measured": True,
+        "reason_class": "matched" if match else "mismatch",
+        "n_lineages_checked": checked,
+        "match": match,
+    }
+    if mismatches:
+        result["emitted"] = "; ".join(f"{m['lineage']}.{m['field']}={m['emitted']}" for m in mismatches[:5])
+        result["rederived"] = "; ".join(f"{m['lineage']}.{m['field']}={m['rederived']}" for m in mismatches[:5])
+    return result
 
 
 # the DepMap default-entry flag is a STRING column ("Yes"/"No"), NOT a boolean — the 2700→2446 dedup
@@ -417,17 +550,17 @@ _DEFAULT_ENTRY_COL = "IsDefaultEntryForModel"
 _NON_SCORE_COLS = {"ModelID", "IsDefaultEntryForModel", "IsDefaultEntryForMC"}
 
 
-def _read_panel_scores(event: dict) -> list[float] | None:
-    """Re-read the traced OmicsExpression object independently of the method: keep default-entry models
-    only (the dedup evidenced by the traced ``IsDefaultEntryForModel`` column), return the target score
-    column. Returns ``None`` if the object cannot be read or yields no rows."""
+def _read_panel_scores_by_model(event: dict) -> dict[str, float] | None:
+    """Re-read the traced OmicsExpression object independently of the method, keyed by ``ModelID``: keep
+    default-entry models only (the dedup evidenced by the traced ``IsDefaultEntryForModel`` column) and
+    return ``{ModelID: score}``. Returns ``None`` if the object cannot be read or yields no rows."""
     import pyarrow.parquet as pq
     import s3fs
 
     uri = _norm_uri(event["uri"])
     cols = event.get("columns") or []
     score_col = next((c for c in cols if c not in _NON_SCORE_COLS), None)
-    if score_col is None:
+    if score_col is None or "ModelID" not in cols:
         return None
     try:
         fs = s3fs.S3FileSystem()
@@ -437,8 +570,45 @@ def _read_panel_scores(event: dict) -> list[float] | None:
     df = table.to_pandas()
     if _DEFAULT_ENTRY_COL in df.columns:
         df = df[df[_DEFAULT_ENTRY_COL] == "Yes"]
-    series = df[score_col].dropna()
-    return [float(v) for v in series.tolist()]
+    df = df[["ModelID", score_col]].dropna(subset=[score_col])
+    return {str(mid): float(v) for mid, v in zip(df["ModelID"], df[score_col])}
+
+
+def _read_panel_scores(event: dict) -> list[float] | None:
+    """The panel score array (default-entry deduped), independent of ModelID. ``None`` if unreadable."""
+    by_model = _read_panel_scores_by_model(event)
+    if not by_model:
+        return None
+    return list(by_model.values())
+
+
+def _read_lineage_map(measured: list[dict] | None) -> dict[str, str | None] | None:
+    """Build ``{ModelID: OncotreeLineage}`` from the traced ``Model.csv`` read (local cache path or S3).
+    Returns ``None`` if no Model.csv read is in the trace or the object cannot be read."""
+    if not measured:
+        return None
+    event = next((e for e in measured if (e.get("uri") or "").endswith("Model.csv")), None)
+    if event is None:
+        return None
+    uri = event["uri"]
+    try:
+        import pandas as pd
+
+        if uri.startswith("/"):
+            df = pd.read_csv(uri, usecols=["ModelID", "OncotreeLineage"])
+        else:
+            import s3fs
+
+            fs = s3fs.S3FileSystem()
+            with fs.open(_norm_uri(uri)) as fh:
+                df = pd.read_csv(fh, usecols=["ModelID", "OncotreeLineage"])
+    except Exception:
+        return None
+    import pandas as pd
+
+    return {
+        str(mid): (lineage if pd.notna(lineage) else None) for mid, lineage in zip(df["ModelID"], df["OncotreeLineage"])
+    }
 
 
 def _close(a: Any, b: Any, rel: float = 1e-6, abs_: float = 1e-9) -> bool | None:
@@ -681,7 +851,19 @@ def _emitted_cell(c: dict) -> str:
         lines.append(f"<div><code>{_esc(k)}</code> = {val}{mark}</div>")
     cf = emitted.get("complex_fields") or []
     if cf:
-        lines.append(f"<div class='ok'>+{len(cf)} complex: {_esc(', '.join(cf))}</div>")
+        parts = []
+        for name in cf:
+            rec = rederived.get(name) if isinstance(rederived, dict) else None
+            mk = ""
+            if (
+                isinstance(rec, dict)
+                and rec.get("rederivable")
+                and rec.get("measured")
+                and rec.get("match") is not None
+            ):
+                mk = " <b class='h-ok'>✓</b>" if rec.get("match") else " <b class='h-bad'>✗</b>"
+            parts.append(_esc(name) + mk)
+        lines.append(f"<div class='ok'>+{len(cf)} complex: {', '.join(parts)}</div>")
     return "".join(lines)
 
 

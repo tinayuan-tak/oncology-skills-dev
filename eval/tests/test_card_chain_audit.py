@@ -479,3 +479,83 @@ def test_aggregate_breadth_floor_suppresses_single_observation():
     # teeth: drop the floor to 1 and the SAME evidence now fires — proving the floor is what suppressed it
     _, dead1 = cca._aggregate_read_matrices(matrices, min_runs=1)
     assert [d["manifest_id"] for d in dead1] == ["lonely"]
+
+
+# ── re-derivation honesty: reason_class taxonomy + per-lineage re-derivation ────────────────────────
+def test_rederive_reason_class_splits_input_absent_from_method_internal():
+    # no OmicsExpression read in the trace ⇒ scalars are input_absent_from_trace, NOT method_internal
+    out = cca._rederive_cellline_rna_distribution([], {"n_cell_lines_evaluated": 4}, do_read=True)
+    assert out["n_cell_lines_evaluated"]["reason_class"] == "input_absent_from_trace"
+    assert out["n_cell_lines_evaluated"]["measured"] is False
+    # genuinely method-internal fields keep method_internal regardless of what was traced
+    assert out["distribution_pattern"]["reason_class"] == "method_internal"
+    assert out["isoform_expression_class"]["reason_class"] == "method_internal"
+    # allgene_percentile needs a DIFFERENT object never read by this card — that is input-absent, not
+    # method-internal (the split the whole change is about)
+    assert out["allgene_percentile"]["reason_class"] == "input_absent_from_trace"
+
+
+def test_rederive_not_requested_is_its_own_reason_class():
+    event = {"op": "pyarrow.read_table", "uri": "b/x/OmicsExpressionX.parquet", "columns": ["G", "ModelID"]}
+    out = cca._rederive_cellline_rna_distribution([event], {"n_cell_lines_evaluated": 4}, do_read=False)
+    # input present + re-derivable, but --rederive not passed ⇒ distinct from input-absent
+    assert out["n_cell_lines_evaluated"]["reason_class"] == "not_requested"
+    assert "match" not in out["n_cell_lines_evaluated"]
+
+
+def _lin(vals):
+    import numpy as np
+
+    a = np.asarray(vals, dtype=float)
+    return {"n": len(vals), "median_log2tpm": float(np.median(a)), "fraction_expressed": float(np.mean(a >= 1.0))}
+
+
+def test_rederive_per_lineage_matches_and_catches_mismatch(monkeypatch):
+    event = {"op": "pyarrow.read_table", "uri": "b/x/OmicsExpressionX.parquet", "columns": ["G (1)", "ModelID"]}
+    lung_vals = [0.5, 2.0, 6.0, 6.0, 3.0]  # 5 models (>= min lineage size)
+    bowel_vals = [0.0, 0.0, 0.5, 2.0, 7.0]  # 5 models
+    model_scores = {f"M{i}": v for i, v in enumerate(lung_vals + bowel_vals)}
+    lineage_map = {**{f"M{i}": "Lung" for i in range(5)}, **{f"M{i}": "Bowel" for i in range(5, 10)}}
+    monkeypatch.setattr(cca, "_read_panel_scores_by_model", lambda e: model_scores)
+    monkeypatch.setattr(cca, "_read_lineage_map", lambda m: lineage_map)
+
+    emitted_rows = [{"lineage": "Lung", **_lin(lung_vals)}, {"lineage": "Bowel", **_lin(bowel_vals)}]
+    res = cca._rederive_per_lineage(event, [event], emitted_rows)
+    assert res["match"] is True and res["measured"] is True and res["n_lineages_checked"] == 2
+    assert res["reason_class"] == "matched"
+
+    # teeth: corrupt one lineage's median ⇒ the per-lineage re-derivation goes red
+    bad_rows = [dict(emitted_rows[0], median_log2tpm=emitted_rows[0]["median_log2tpm"] + 2.0), emitted_rows[1]]
+    bad = cca._rederive_per_lineage(event, [event], bad_rows)
+    assert bad["match"] is False and bad["reason_class"] == "mismatch"
+    assert "Lung.median_log2tpm" in bad["rederived"]
+
+
+def test_rederive_per_lineage_missing_lineage_map_is_input_absent(monkeypatch):
+    event = {"op": "pyarrow.read_table", "uri": "b/x/OmicsExpressionX.parquet", "columns": ["G (1)", "ModelID"]}
+    monkeypatch.setattr(cca, "_read_panel_scores_by_model", lambda e: {"M0": 1.0})
+    monkeypatch.setattr(cca, "_read_lineage_map", lambda m: None)  # Model.csv not traced / unreadable
+    emitted = [{"lineage": "Lung", "n": 5, "median_log2tpm": 1.0, "fraction_expressed": 1.0}]
+    res = cca._rederive_per_lineage(event, [event], emitted)
+    assert res["measured"] is False and res["reason_class"] == "input_absent_from_trace"
+
+
+def test_rederive_per_lineage_empty_emitted_is_benign_not_mismatch():
+    # a card that emitted no per-lineage table must not read as a spurious mismatch
+    event = {"op": "pyarrow.read_table", "uri": "b/x/OmicsExpressionX.parquet", "columns": []}
+    res = cca._rederive_per_lineage(event, [event], [])
+    assert res["match"] is None and res["n_lineages_checked"] == 0
+
+
+def test_read_lineage_map_reads_local_csv(tmp_path):
+    import pandas as pd
+
+    p = tmp_path / "Model.csv"
+    pd.DataFrame({"ModelID": ["ACH-1", "ACH-2"], "OncotreeLineage": ["Lung", None], "Other": [1, 2]}).to_csv(
+        p, index=False
+    )
+    measured = [{"op": "pandas.read_csv", "uri": str(p)}]
+    out = cca._read_lineage_map(measured)
+    assert out == {"ACH-1": "Lung", "ACH-2": None}
+    # no Model.csv read in the trace ⇒ None (input absent), never a crash
+    assert cca._read_lineage_map([{"op": "pandas.read_csv", "uri": "/tmp/Other.csv"}]) is None
