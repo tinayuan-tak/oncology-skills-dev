@@ -43,7 +43,7 @@ applies_when:
   - "true"   # any gene; data_unavailable-safe when the gene has no single-variant CIViC evidence
 
 required_inputs:
-  - product_id: civic-variant-interpretation-per-gene-v1
+  - product_id: civic-nightly-snapshot-2026-07-02
 
 methods:
   - call: civic-variant-interpretation
@@ -81,8 +81,9 @@ caveats:
   - "SINGLE-VARIANT molecular profiles only. Complex/compound/fusion profiles (BRAF V600E AND NF1 Loss, BCR::ABL1) are combination biology — see differentiation-landscape's co-mutation axis — and are excluded to keep gene attribution unambiguous."
   - "DISPLAY facet, verdict-inert: fires no resolver rung; the genomic-alteration verdict still rests on the gene-level SNV/copy-number/role axes. CIViC is CC0. IntOGen 2D/3D driver-cluster residues (a recall-extension leg for uncurated variants) are a deferred fast-follow."
 
-# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `variant_level_interpretation` claim, derived_from
-# [civic-variant-interpretation-per-gene-v1]. Additive per-variant axis for genomic-alteration-profile.
+# DATA_TO_SKILL_CONTRACT Rule 1 — view of the `variant_level_interpretation` claim, computed live from
+# the raw civic-nightly-snapshot-2026-07-02 by civic_variant_interpretation (the per-gene product is a
+# self-cache of that same logic). Additive per-variant axis for genomic-alteration-profile.
 measurement_type: variant_level_interpretation
 entity_grains: [target]
 schema_version: 1

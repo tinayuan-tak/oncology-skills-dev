@@ -43,7 +43,7 @@ applies_when: []   # LIVE: the reader returns data_unavailable gracefully when t
 
 required_inputs:
   - product_id: tcga-fusion-consensus-v1
-  - product_id: genie-sv-recurrence-v1              # ADDITIVE breadth sibling (genie_sv_* fields); reader degrades gracefully
+  - product_id: genie-public-v19-0                  # ADDITIVE breadth sibling (genie_sv_* fields, computed live from raw GENIE 19.0 SV); reader degrades gracefully
 
 methods:
   - call: tcga-fusion-consensus
@@ -97,7 +97,7 @@ caveats:
   - "Consensus of 3 TCGA callers (TumorFusions/Hu 2018 PRADA, Gao 2018, cBioPortal PanCancer Atlas 2018 SV), UNIONED not intersected — caller_count in the product encodes agreement; the reader's min_callers arg (1=union default / 2=majority) lets a consumer require consensus."
   - "RNA transcript-fusion (TumorFusions/Gao) + DNA SV (cBioPortal) are combined; a consumer needing one modality should filter by caller. Gao 2018 publishes no frame predictions."
   - "Driver-fusion counts are SMALL per tissue (e.g. ~5 ALK in LUAD) — a RECURRENCE/landscape signal, not a per-patient diagnostic. fusion_frequency is n_samples_with_fusion / assayed samples in the indication tissue (sample_coverage), or None when the coverage denominator is unavailable — never a rate over an unknown cohort."
-  - "The TCGA-consensus facts are DEEP but tissue-limited (33 TCGA types). The genie_sv_* fields are the pan-cohort BREADTH complement (GENIE 19.0, 271k panel tumors, genie-sv-recurrence-v1) — e.g. TCGA sees ~5 ALK-fusion LUAD samples while GENIE sees 774 ALK-SV NSCLC samples (top_1pct, EML4 dominant). GENIE SV frequency is panel-coverage-correct (n_sv_samples / SV-profiled-and-covering samples), NOT a raw-cohort rate. These are DISPLAY comparators — they do NOT drive the fusion verdict."
+  - "The TCGA-consensus facts are DEEP but tissue-limited (33 TCGA types). The genie_sv_* fields are the pan-cohort BREADTH complement (GENIE 19.0, 271k panel tumors, genie-public-v19-0) — e.g. TCGA sees ~5 ALK-fusion LUAD samples while GENIE sees 774 ALK-SV NSCLC samples (top_1pct, EML4 dominant). GENIE SV frequency is panel-coverage-correct (n_sv_samples / SV-profiled-and-covering samples), NOT a raw-cohort rate. These are DISPLAY comparators — they do NOT drive the fusion verdict."
   - "no_recurrent_fusion (assayed-negative) is DISTINCT from data_unavailable (product/target absent) — do not read the latter as evidence of absence. genie_sv_recurrence_class=data_unavailable additionally covers a coverage-gap (target on no SV panel) or too-thin coverage (< 20 SV-covered samples), never a fabricated 0%."
   - "fusion_recurrence_confidence tiers a recurrent_fusion_driver call. high_recurrent_partner is precise; moderate_promiscuous (target recurs, no recurrent partner) is a MIXED bucket — genuine kinase fusions (ROS1/NTRK1) AND amplicon passenger SVs (ERBB2/STAD) both fall here. #983: the genomic_alteration preprocessor demotes fusion_class to promiscuous_amplicon_fusion when moderate_promiscuous co-occurs with patient_focal_cn_class==recurrent_focal_amplification, sparing not-amplified kinase fusions."
 

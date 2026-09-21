@@ -811,7 +811,7 @@ measurement_types:
     entity_grains: [target]
     cards: [variant-level-interpretation]
     providers:
-      - {kind: dataset, source: civic-variant-interpretation-per-gene-v1, method: civic_variant_interpretation, evidence_tier: measured}
+      - {kind: dataset, source: civic-nightly-snapshot-2026-07-02, method: civic_variant_interpretation, evidence_tier: measured}
 
   variant_functional_effect_mave:
     # MEASURED multiplexed variant-effect (MAVE / deep mutational scanning / saturation genome

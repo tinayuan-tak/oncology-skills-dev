@@ -6,71 +6,72 @@ _doc: 'I.4 wiring ledger: every data-catalog manifest id by wiring status -- rea
   reads, declares, OR names it; the wiring worklist). `dark` is the number I.4 moves, a sound lower bound
   on the truly-unwired set. Regenerate with validators/build_wiring_ledger.py; --self-check gates drift.'
 sibling_shas:
-  analysis-methods: 7adc875
-  skills: 843e4082
+  analysis-methods: 61451a3
+  skills: ea906e9b
   data-catalog: 161d13e
 n_catalog_datasets: 534
 counts:
   read: 135
-  declared_only: 260
+  declared_only: 258
   referenced_only: 23
-  dark: 116
+  dark: 118
 n_literal_reads: 67
 dark_by_source_family:
   cbioportal: 17
+  genie: 10
   geo: 9
-  genie: 9
   sc: 8
   prism: 6
   depmap: 6
+  3ca: 3
+  omicsoft: 3
   ucsc: 3
   loveless: 3
-  omicsoft: 3
-  3ca: 3
+  hpvneg: 2
   crc: 2
   arm: 2
-  htan: 2
-  hpvneg: 2
   horlbeck: 2
-  datlinger: 1
-  mygene: 1
-  ensembl: 1
-  msk: 1
-  ncbi: 1
-  hpa: 1
-  rancho: 1
-  meditreme: 1
-  ov: 1
-  merops: 1
-  cheng: 1
-  omnipath: 1
-  vandewetering: 1
-  cancermine: 1
-  pelka: 1
-  hnsc: 1
-  schutte: 1
-  met500: 1
-  replogle: 1
-  gnomad: 1
-  lee: 1
-  gdc: 1
-  tempus: 1
+  htan: 2
+  cellxgene: 1
   xena: 1
   tcga: 1
   williams: 1
-  hnscc: 1
+  met500: 1
+  vandewetering: 1
   gencode: 1
-  gastric: 1
   dgv: 1
-  peptideatlas: 1
-  pooled: 1
+  schutte: 1
+  datlinger: 1
+  hpa: 1
+  gastric: 1
+  gnomad: 1
+  pelka: 1
+  cancermine: 1
+  ncbi: 1
+  lee: 1
+  cheng: 1
+  meditreme: 1
+  biogrid: 1
+  rancho: 1
+  ensembl: 1
+  merops: 1
+  hnsc: 1
+  mygene: 1
+  gdc: 1
+  peng: 1
+  dream: 1
+  tempus: 1
+  ov: 1
+  gao: 1
+  omnipath: 1
   tflink: 1
   pancanatlas: 1
-  dream: 1
-  biogrid: 1
-  cellxgene: 1
-  gao: 1
-  peng: 1
+  pooled: 1
+  msk: 1
+  peptideatlas: 1
+  civic: 1
+  replogle: 1
+  hnscc: 1
 read:
 - allgene-depmap-rank-26q1-v1
 - allgene-tumor-rank-v1
@@ -230,7 +231,6 @@ declared_only:
 - chembl-bioactivity-per-protein-v1
 - cheng-myeloid-pancancer-scatlas-2021
 - civic-nightly-snapshot-2026-07-02
-- civic-variant-interpretation-per-gene-v1
 - coad-dge-tumor-vs-normal-sensitivity-v1
 - coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
 - coadread-dge-tumor-vs-normal-sensitivity-v1
@@ -258,7 +258,6 @@ declared_only:
 - gdsc-drug-activity-per-gene-v1
 - gdsc-release-8-5-snapshot-2026-08-24
 - gene-ontology-release-2026-05-19
-- genie-sv-recurrence-v1
 - genomescreen-hf-2025-04-25
 - genomescreen-hits-per-protein-v1
 - geo-gse174743-nsclc-geomx-rna-snapshot-2026-08-14
@@ -519,6 +518,7 @@ dark:
 - cbioportal-pancan-pdmr-2025
 - cellxgene-discover-collections-index-2026-07-09
 - cheng-metastatic-gastric-ferroptosis-gse239676
+- civic-variant-interpretation-per-gene-v1
 - crc-anti-egfr-resistance-geo-snapshot-2026-09-14
 - crc-egfri-residual-geo-snapshot-2026-09-14
 - datlinger-2017-cropseq-gse92872
@@ -544,6 +544,7 @@ dark:
 - genie-bpc-panc-v1-0
 - genie-bpc-prostate-v1-0
 - genie-panel-recurrence-v1
+- genie-sv-recurrence-v1
 - geo-gse114647-fgfr-emt-egfri-resistance-nsclc-snapshot-2026-09-15
 - geo-gse142669-erlotinib-resistance-crispr-nsclc-snapshot-2026-09-16
 - geo-gse148668-lapatinib-resistance-crispr-her2-gastric-snapshot-2026-09-15
