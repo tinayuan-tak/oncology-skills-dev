@@ -323,6 +323,103 @@ def test_role_and_direction_can_never_contradict_each_other():
     assert not contradictions, f"role/direction contradictions: {contradictions}"
 
 
+# ---------------------------------------------------------------------------------------------
+# DEFECT #6 (2026-09-21). The magnitude (intogen_min_qvalue / intogen_max_pct_samples) was a
+# best-of across ALL of the gene's rows while the CLASS is a dominance vote — so the reported
+# effect size could be won by a row of the LOSING direction. The magnitude now reduces over the
+# rows that SUPPORT the called role. The CLASS and DIRECTION are unchanged (the backtest invariant).
+# ---------------------------------------------------------------------------------------------
+
+
+def _mrows(sym, per_role, cancer="COAD"):
+    """per_role = [(ROLE, q, pct), ...] → one compendium row each (differing magnitudes allowed)."""
+    cols = ["SYMBOL", "CANCER_TYPE", "ROLE", "QVALUE_COMBINATION", "%_SAMPLES_COHORT", "IS_DRIVER"]
+    rows = [
+        {
+            "SYMBOL": sym,
+            "CANCER_TYPE": cancer,
+            "ROLE": r,
+            "QVALUE_COMBINATION": q,
+            "%_SAMPLES_COHORT": p,
+            "IS_DRIVER": True,
+        }
+        for (r, q, p) in per_role
+    ]
+    return rows, cols
+
+
+def test_magnitude_describes_the_called_role_not_best_of(monkeypatch):
+    """An Act-dominant gene (3 Act, 1 LoF) whose single LoF row is BOTH the most-significant and the
+    highest-prevalence row. Before the fix the surfaced q/pct came from that losing LoF row; now they
+    come from the winning Act rows. The class (direct_driver_gof) and direction (activating) are
+    unchanged — only the magnitude is corrected."""
+    rows, _cols = _mrows(
+        "G",
+        [("Act", 1e-5, 0.10), ("Act", 1e-6, 0.12), ("Act", 3e-6, 0.08), ("LoF", 1e-30, 0.90)],
+    )
+    _wire(monkeypatch, {"G": "ONCOGENE"}, rows)
+    o = R.read_alteration_role("G", "COADREAD")
+    # class + direction UNCHANGED (computed by _majority_role / _resolve_direction, not touched)
+    assert o["intogen_role"] == "Act"
+    assert o["alteration_role"] == "direct_driver_gof" and o["functional_direction"] == "activating"
+    # magnitude now from the Act rows: best q among Act = 1e-6, best pct among Act = 0.12
+    assert o["intogen_min_qvalue"] == float(f"{1e-6:.3g}")
+    assert o["intogen_max_pct_samples"] == 0.12
+    # and NOT the losing LoF row's values
+    assert o["intogen_min_qvalue"] != 1e-30 and o["intogen_max_pct_samples"] != 0.9
+
+
+def test_magnitude_for_ambiguous_vote_spans_all_rows(monkeypatch):
+    """An ambiguous vote (2 Act, 2 LoF) has no single winning role, so the magnitude reduction spans
+    all rows unchanged — the effect size is the driver-call strength, which names no direction."""
+    rows, _cols = _mrows("G", [("Act", 1e-5, 0.10), ("Act", 1e-4, 0.11), ("LoF", 1e-30, 0.90), ("LoF", 1e-3, 0.20)])
+    _wire(monkeypatch, {"G": "ONCOGENE"}, rows)
+    o = R.read_alteration_role("G", "COADREAD")
+    assert o["intogen_role"] == "ambiguous"
+    # ambiguous defers direction to curation and stays a driver-role-gof by OncoKB backbone
+    assert o["functional_direction"] == "activating"
+    # magnitude over ALL rows: smallest q = 1e-30, largest pct = 0.90
+    assert o["intogen_min_qvalue"] == float(f"{1e-30:.3g}") and o["intogen_max_pct_samples"] == 0.9
+
+
+@pytest.mark.parametrize(
+    ("per_role", "role", "exp_q", "exp_pct"),
+    [
+        # Act wins: reduce over Act rows only
+        ([("Act", 1e-6, 0.2), ("Act", 1e-4, 0.5), ("LoF", 1e-30, 0.9)], "Act", 1e-6, 0.5),
+        # LoF wins: reduce over LoF rows only
+        ([("LoF", 1e-8, 0.3), ("Act", 1e-30, 0.99)], "LoF", 1e-8, 0.3),
+        # ambiguous: all rows
+        ([("Act", 1e-2, 0.1), ("LoF", 1e-9, 0.4)], "ambiguous", 1e-9, 0.4),
+    ],
+)
+def test_role_magnitude_filters_to_the_called_role(per_role, role, exp_q, exp_pct):
+    rows, cols = _mrows("G", per_role)
+    df = pd.DataFrame(rows, columns=cols)
+    min_q, max_pct = R._role_magnitude(df, role)
+    assert min_q == exp_q and max_pct == exp_pct
+
+
+def test_role_magnitude_is_nan_safe():
+    """All-NaN q/pct reduces to None (not NaN): the any-indication and pan-cancer fallbacks do not
+    pre-filter q, so a row can carry NaN — and NaN in intogen_min_qvalue serialises incoherently."""
+    cols = ["SYMBOL", "CANCER_TYPE", "ROLE", "QVALUE_COMBINATION", "%_SAMPLES_COHORT", "IS_DRIVER"]
+    df = pd.DataFrame(
+        [
+            {
+                "SYMBOL": "G",
+                "CANCER_TYPE": "COAD",
+                "ROLE": "Act",
+                "QVALUE_COMBINATION": float("nan"),
+                "%_SAMPLES_COHORT": float("nan"),
+                "IS_DRIVER": True,
+            }
+        ],
+        columns=cols,
+    )
+    assert R._role_magnitude(df, "Act") == (None, None)
+
+
 def test_every_role_the_classifier_emits_is_in_the_card_vocabulary():
     """Mirror guard: a role token the method can emit but the card does not declare fails validation
     downstream (fail-closed), so pin the two in sync here where the change is made."""

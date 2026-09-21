@@ -179,13 +179,14 @@ def read_alteration_role(target: str, indication: str) -> dict:
     if not src_rows.empty:
         intogen_role = _majority_role(src_rows)
         intogen_scope = "indication"
-        intogen_min_q = float(src_rows["QVALUE_COMBINATION"].min())
-        intogen_pct = float(src_rows["%_SAMPLES_COHORT"].max())
+        # magnitude reduced over the rows that SUPPORT the called role, not best-of across all rows
+        # (which could be won by a losing-direction row) — see _role_magnitude.
+        intogen_min_q, intogen_pct = _role_magnitude(src_rows, intogen_role)
     elif not g.empty:
         # gene is an IntOGen driver, but not in THIS indication's cohorts → pan-cancer evidence only
         intogen_role = _majority_role(g)
         intogen_scope = "pan_cancer"
-        intogen_min_q = float(g["QVALUE_COMBINATION"].min()) if g["QVALUE_COMBINATION"].notna().any() else None
+        intogen_min_q, _ = _role_magnitude(g, intogen_role)  # pan-cancer reports q only (pct stays None)
 
     direction = _resolve_direction(intogen_role, gene_type)
     role = _classify_alteration_role(gene_type, intogen_role, intogen_scope)
@@ -236,6 +237,27 @@ def _majority_role(df) -> str:
     if lof > act and lof >= act * _ROLE_DOMINANCE_RATIO:
         return "LoF"
     return "ambiguous"  # tie, near-tie, or ambiguous-dominant
+
+
+def _role_magnitude(df, role):
+    """(min QVALUE_COMBINATION, max %_SAMPLES_COHORT) over the rows that SUPPORT the called role.
+
+    The CLASS (`_majority_role`) is a dominance vote, but the surfaced effect size used to be a
+    best-of across ALL of the gene's rows, so the reported q-value / %-samples could come from a
+    row whose ROLE LOST the vote — an effect size describing the OPPOSITE direction to the class
+    actually called (e.g. an `Act`-dominant gene surfacing its single most-significant `LoF` row).
+    Restricting the reduction to the winning role's rows makes the magnitude describe the class.
+
+    For an `ambiguous` vote there is no single winning role, so the reduction spans all rows: the
+    magnitude is then the driver-call strength, which carries no direction to filter on. NaN-safe —
+    a compendium row can carry a NaN q or pct (the confident branch pre-filters q<cutoff, but the
+    any-indication and pan-cancer fallbacks do not), and all-NaN reduces to None, not NaN."""
+    sub = df[df["ROLE"] == role] if role in ("Act", "LoF") else df
+    if sub.empty:  # defensive: a won Act/LoF vote always has >=1 supporting row, so this is unreachable
+        sub = df
+    min_q = float(sub["QVALUE_COMBINATION"].min()) if sub["QVALUE_COMBINATION"].notna().any() else None
+    max_pct = float(sub["%_SAMPLES_COHORT"].max()) if sub["%_SAMPLES_COHORT"].notna().any() else None
+    return min_q, max_pct
 
 
 def _resolve_direction(intogen_role, gene_type) -> str | None:
