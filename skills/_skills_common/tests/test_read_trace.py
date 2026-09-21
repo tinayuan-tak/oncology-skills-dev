@@ -105,18 +105,59 @@ def test_polars_scan_records_lazy_marker(tmp_path):
     assert scans[0]["rows"] is None  # NOT 0 — deferred, unmeasured
 
 
+# ── pyarrow.dataset (cached-Dataset singleton path, e.g. allgene percentile lookup) ──────────────────
+
+
+def test_pyarrow_dataset_records_lazy_marker(tmp_path):
+    """A `pyarrow.dataset.dataset(...)` build is recorded at CONSTRUCTION, lazy with rows unmeasured —
+    its `.to_table(filter=)` pushdowns are not pq.read_table so they are invisible, but the OBJECT read
+    is captured (this is the read that went dark after methods switched read_table -> Dataset singleton,
+    the cause of the cellline-rna-distribution / allgene-depmap-rank 'declared but never read' flag)."""
+    import pyarrow.dataset as pads
+
+    p = tmp_path / "rank.parquet"
+    pd.DataFrame({"gene_symbol": ["EGFR", "KRAS"], "rank": [0.9, 0.1]}).to_parquet(p)
+    t = rt.ReadTrace()
+    with t.installed(), t.capture("c1"):
+        ds = pads.dataset(str(p), format="parquet")
+        tbl = ds.to_table()  # real pushdown — invisible to the tracer; no extra event expected
+    assert tbl.num_rows == 2  # result intact
+    evs = [e for e in t.events_for("c1") if e["op"] == rt.OP_PA_DATASET]
+    assert len(evs) == 1
+    assert evs[0]["uri"] == str(p)
+    assert evs[0]["lazy"] is True
+    assert evs[0]["rows"] is None  # NOT 0 — the pushdown is deferred/unmeasured
+
+
+def test_pyarrow_dataset_not_double_counted_under_read_table(tmp_path):
+    """pq.read_table builds a Dataset internally; the depth guard must suppress that nested construction
+    so a read_table records ONE read-family event, never a phantom `pyarrow.dataset` alongside it."""
+    p = tmp_path / "x.parquet"
+    pd.DataFrame({"a": [1, 2, 3]}).to_parquet(p)
+    t = rt.ReadTrace()
+    with t.installed(), t.capture("c1"):
+        pq.read_table(str(p))
+    ops = [e["op"] for e in t.events_for("c1")]
+    assert ops == [rt.OP_READ_TABLE], ops  # NOT [..., pyarrow.dataset]
+
+
 # ── restore discipline ───────────────────────────────────────────────────────
 
 
 def test_patches_restored_on_normal_exit():
+    import pyarrow.dataset as pads
+
     orig_rt, orig_pq, orig_csv, orig_run = pq.read_table, pd.read_parquet, pd.read_csv, subprocess.run
+    orig_ds = pads.dataset
     t = rt.ReadTrace()
     with t.installed():
         assert pq.read_table is not orig_rt  # patched inside
+        assert pads.dataset is not orig_ds
     assert pq.read_table is orig_rt
     assert pd.read_parquet is orig_pq
     assert pd.read_csv is orig_csv
     assert subprocess.run is orig_run
+    assert pads.dataset is orig_ds
 
 
 def test_patches_restored_on_exception():

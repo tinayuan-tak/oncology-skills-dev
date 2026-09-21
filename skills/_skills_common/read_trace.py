@@ -36,6 +36,11 @@ Capture points, in priority order (see the plan's "design constraints"):
   directly. ``polars.scan_parquet`` / ``scan_csv`` are LAZY: the object is recorded but rows/pushdown
   are left unmeasured (``lazy: true``) because the real IO fires at ``LazyFrame.collect()`` in native
   code no Python patch can observe.
+* ``pyarrow.dataset.dataset`` -- a cached ``Dataset`` singleton queried via ``.to_table(filter=)`` (NOT
+  ``pq.read_table``, so the read-family point above misses it). The object is recorded at construction,
+  ``lazy: true`` with rows unmeasured (the pushdown fires later at ``.to_table()`` we do not patch).
+  DEPTH-GUARDED, unlike the polars scans: ``read_table`` itself builds a ``Dataset`` internally, so an
+  unguarded patch would emit a phantom nested event on every ``read_table``.
 * ``subprocess.run`` -- recorded ONLY when argv is an ``aws s3 …`` call (the ``aws s3 cp <uri> -``
   streaming family in ``methods/derived_product.py``); everything else passes through unrecorded.
 * ``botocore`` ``get_object`` -- boto3 object fetches that are NOT nested inside a read-family call.
@@ -63,6 +68,7 @@ OP_PL_SCAN_PARQUET = "polars.scan_parquet"
 OP_PL_SCAN_CSV = "polars.scan_csv"
 OP_AWS_CP = "subprocess.aws_s3"
 OP_GET_OBJECT = "botocore.get_object"
+OP_PA_DATASET = "pyarrow.dataset"
 
 # The EAGER read-family (a nested one of these is suppressed by the depth guard). polars' eager readers
 # join it; the pilot is migrating pandas -> polars, and polars uses a native Rust reader (NOT pandas or
@@ -260,6 +266,37 @@ class ReadTrace:
                     orig = getattr(_pl, fname)
                     self._saved[f"pl.{fname}"] = (_pl, fname, orig)
                     setattr(_pl, fname, self._make_lazy_scan_wrapper(orig, op))
+        except Exception:  # noqa: BLE001
+            pass
+
+        # pyarrow.dataset.dataset — a cached Dataset singleton whose `.to_table(filter=)` pushdowns are
+        # NOT pq.read_table (so the read-family patch above misses them). Some methods build one Dataset
+        # per object and re-query it (e.g. allgene_percentile_precompute.lookup._rank_dataset), which
+        # went dark to the tracer after that optimization. Record the object at CONSTRUCTION, lazy with
+        # rows unmeasured — the row/column pushdown fires later at .to_table() we do not patch. DEPTH-
+        # GUARDED (unlike the polars scans): pyarrow.parquet.read_table itself builds a Dataset
+        # internally, so an unguarded patch would emit a phantom nested event on every read_table.
+        try:
+            import pyarrow.dataset as _pads
+
+            if hasattr(_pads, "dataset"):
+                orig_ds = _pads.dataset
+                self._saved["pads.dataset"] = (_pads, "dataset", orig_ds)
+
+                def _traced_dataset(*args, **kwargs):
+                    if self._suppressed():
+                        return orig_ds(*args, **kwargs)
+                    uri = _uri_of(args[0] if args else kwargs.get("source"))
+                    t0 = time.perf_counter()
+                    try:
+                        result = orig_ds(*args, **kwargs)
+                    except Exception as e:  # noqa: BLE001
+                        self._record(_mk(OP_PA_DATASET, uri, {}, t0, error=e, lazy=True))
+                        raise
+                    self._record(_mk(OP_PA_DATASET, uri, {}, t0, lazy=True))
+                    return result
+
+                _pads.dataset = _traced_dataset
         except Exception:  # noqa: BLE001
             pass
 
