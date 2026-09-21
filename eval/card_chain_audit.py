@@ -1075,6 +1075,19 @@ def _card_read_status(report: dict) -> dict[str, dict[str, bool]]:
     return {cid: {mid: (mid in run_touched) for mid in declared} for cid, declared in per_card.items()}
 
 
+def _family_key(mid: str) -> tuple[tuple[str, ...], str] | None:
+    """Group a card's per-cohort declared inputs into a prefix-family: ``(first three dash-tokens, last
+    token)``. Per-indication shard menus (``tcga-subgroup-assignments-{coadread,hnsc,…}-v1``,
+    ``sc-normal-celltype-<organ>-v1``) collapse to one family; the ``(first3, last)`` key keeps a
+    co-required pair like ``tcga-tumor-tpm-{recount3-long,per-sample}-v1`` in its OWN family, separate
+    from ``tcga-subgroup-assignments-*`` on the same card. Ids with <4 tokens have no distinct varying
+    middle and are never grouped (``None`` ⇒ treated as a singleton)."""
+    toks = mid.split("-")
+    if len(toks) < 4:
+        return None
+    return (tuple(toks[:3]), toks[-1])
+
+
 def _aggregate_read_matrices(
     matrices: list[dict[str, dict[str, bool]]], min_runs: int
 ) -> tuple[list[dict], list[dict]]:
@@ -1083,7 +1096,16 @@ def _aggregate_read_matrices(
     For each (card, manifest) counts ``declared_traced_runs`` (traced runs where the card declared it) and
     ``read_runs`` (of those, where it was read). Flags ``dead`` only when ``read_runs == 0`` AND
     ``declared_traced_runs >= min_runs`` — the breadth floor is what separates genuine dead wiring from a
-    single unlucky run. Sub-floor inputs are still listed with their counts, ``dead=False``. Returns
+    single unlucky run. Sub-floor inputs are still listed with their counts, ``dead=False``.
+
+    **Cohort-conditionality.** A per-cohort shard menu (many declared inputs of which each run reads a
+    mutually-exclusive subset) would otherwise flag every unselected shard as dead. A member of a
+    prefix-family (``_family_key``) read SELECTIVELY — some run reads the family but no single run reads
+    the whole family (``max_coread < family_size``) — is tagged ``conditional_unselected`` (its
+    ``read_runs`` still shown, but kept OUT of ``dead_inputs``). This requires POSITIVE selective-read
+    evidence within the same family, so it never masks a genuinely dead input: a co-required family
+    (every read run opens the whole family, ``max_coread == family_size``) and a never-read family (no
+    evidence of a live menu vs genuine dead wiring) are both left flagged. Returns
     ``(cards_out, dead_inputs)``."""
     agg: dict[str, dict[str, dict[str, int]]] = {}
     for mat in matrices:
@@ -1093,14 +1115,52 @@ def _aggregate_read_matrices(
                 st["declared_traced_runs"] += 1
                 if was_read:
                     st["read_runs"] += 1
+    # Prefix-family co-occurrence: members ever declared, whether any member was ever read, and the max
+    # members read TOGETHER in a single run — the mutual-exclusivity discriminator.
+    fam_members: dict[tuple[str, tuple], set[str]] = {}
+    for cid in agg:
+        for mid in agg[cid]:
+            fk = _family_key(mid)
+            if fk is not None:
+                fam_members.setdefault((cid, fk), set()).add(mid)
+    fam_any_read: dict[tuple[str, tuple], bool] = {}
+    fam_max_coread: dict[tuple[str, tuple], int] = {}
+    for mat in matrices:
+        run_fam_reads: dict[tuple[str, tuple], int] = {}
+        for cid, mans in mat.items():
+            for mid, was_read in mans.items():
+                if not was_read:
+                    continue
+                fk = _family_key(mid)
+                if fk is None:
+                    continue
+                key = (cid, fk)
+                run_fam_reads[key] = run_fam_reads.get(key, 0) + 1
+                fam_any_read[key] = True
+        for key, cnt in run_fam_reads.items():
+            fam_max_coread[key] = max(fam_max_coread.get(key, 0), cnt)
+
     cards_out: list[dict] = []
     dead_inputs: list[dict] = []
     for cid in sorted(agg):
         inputs = []
         for mid in sorted(agg[cid]):
             st = agg[cid][mid]
-            dead = st["read_runs"] == 0 and st["declared_traced_runs"] >= min_runs
+            base_dead = st["read_runs"] == 0 and st["declared_traced_runs"] >= min_runs
+            fk = _family_key(mid)
+            key = (cid, fk)
+            members = fam_members.get(key, set())
+            in_family = fk is not None and len(members) >= 2
+            selective = in_family and fam_any_read.get(key, False) and fam_max_coread.get(key, 0) < len(members)
+            conditional_unselected = base_dead and selective
+            dead = base_dead and not selective
             rec = {"manifest_id": mid, **st, "dead": dead}
+            if in_family:
+                rec["family"] = "-".join(fk[0]) + "-*-" + fk[1]
+                rec["family_size"] = len(members)
+                rec["family_read_members"] = sum(1 for mm in members if agg[cid][mm]["read_runs"] > 0)
+            if conditional_unselected:
+                rec["conditional_unselected"] = True
             inputs.append(rec)
             if dead:
                 dead_inputs.append({"kind": "declared_input_dead", "card_id": cid, **rec})
@@ -1127,6 +1187,7 @@ def audit_corpus(run_dirs: list[Path], skill: str, min_runs: int) -> dict:
         matrices.append(_card_read_status(rep))
     cards_out, dead_inputs = _aggregate_read_matrices(matrices, min_runs)
     n_traced = sum(1 for r in runs_meta if r["traced"])
+    n_cond = sum(1 for c in cards_out for inp in c["inputs"] if inp.get("conditional_unselected"))
     return {
         "schema": "card_chain_audit_corpus/v1",
         "skill": skill,
@@ -1136,6 +1197,7 @@ def audit_corpus(run_dirs: list[Path], skill: str, min_runs: int) -> dict:
         "runs": runs_meta,
         "n_cards": len(cards_out),
         "n_dead_inputs": len(dead_inputs),
+        "n_conditional_unselected": n_cond,
         "cards": cards_out,
         "dead_inputs": dead_inputs,
     }
@@ -1146,8 +1208,16 @@ def render_corpus_html(report: dict) -> str:
     for c in report["cards"]:
         for i, inp in enumerate(c["inputs"]):
             card_cell = f"<td rowspan='{len(c['inputs'])}'>{_esc(c['card_id'])}</td>" if i == 0 else ""
-            cls = "h-bad" if inp["dead"] else "ok"
-            verdict = "<b class='h-bad'>DEAD</b>" if inp["dead"] else "read"
+            if inp["dead"]:
+                cls, verdict = "h-bad", "<b class='h-bad'>DEAD</b>"
+            elif inp.get("conditional_unselected"):
+                cls = "cond"
+                verdict = (
+                    f"cond. unselected ({_esc(inp.get('family_read_members', '?'))}"
+                    f"/{_esc(inp.get('family_size', '?'))} read)"
+                )
+            else:
+                cls, verdict = "ok", "read"
             rows.append(
                 f"<tr>{card_cell}<td><code>{_esc(inp['manifest_id'])}</code></td>"
                 f"<td>{_esc(inp['read_runs'])}/{_esc(inp['declared_traced_runs'])}</td>"
@@ -1163,12 +1233,13 @@ def render_corpus_html(report: dict) -> str:
         "<style>body{font:13px system-ui;margin:2rem}table{border-collapse:collapse;width:100%}"
         "td,th{border:1px solid #ccc;padding:6px;vertical-align:top;text-align:left}"
         "th{background:#f4f4f4}.ok{color:#888}code{background:#f4f4f4}"
-        ".h-bad{color:#c00;font-weight:600}</style>"
+        ".cond{color:#a60}.h-bad{color:#c00;font-weight:600}</style>"
         f"<h1>card chain audit — corpus dead-wiring — {_esc(report['skill'])}</h1>"
         f"<p>{_esc(report['n_runs'])} runs ({_esc(report['n_traced_runs'])} traced) · "
         f"min-runs floor={_esc(report['min_runs'])} · "
-        f"<b class='h-bad'>{_esc(report['n_dead_inputs'])} dead input(s)</b> across "
-        f"{_esc(report['n_cards'])} cards</p>"
+        f"<b class='h-bad'>{_esc(report['n_dead_inputs'])} dead input(s)</b> · "
+        f"{_esc(report.get('n_conditional_unselected', 0))} conditional-unselected (per-cohort menu) "
+        f"across {_esc(report['n_cards'])} cards</p>"
         f"<ul>{runs_list}</ul>"
         "<table><tr><th>card</th><th>declared input</th><th>read / declared-traced runs</th>"
         "<th>verdict</th></tr>" + "".join(rows) + "</table>"

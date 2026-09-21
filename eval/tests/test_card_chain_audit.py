@@ -495,6 +495,71 @@ def test_aggregate_breadth_floor_suppresses_single_observation():
     assert [d["manifest_id"] for d in dead1] == ["lonely"]
 
 
+# ── cohort-conditionality: a per-cohort shard menu is not dead wiring ──────────────────────────────────
+def test_family_key_groups_cohort_shards_and_skips_short_ids():
+    # per-indication shards share (first 3 tokens, last token) ⇒ one family
+    assert cca._family_key("tcga-subgroup-assignments-coadread-v1") == (("tcga", "subgroup", "assignments"), "v1")
+    assert cca._family_key("tcga-subgroup-assignments-hnsc-v1") == (("tcga", "subgroup", "assignments"), "v1")
+    # a co-required sibling with a different first-3 stem is a DIFFERENT family (never merged with the menu)
+    assert cca._family_key("tcga-tumor-tpm-per-sample-v1") != cca._family_key("tcga-subgroup-assignments-hnsc-v1")
+    # <4 tokens ⇒ no varying middle ⇒ not grouped (singleton)
+    assert cca._family_key("depmap-26q1-v1") is None
+    assert cca._family_key("a-b-c") is None
+
+
+def test_cohort_menu_member_read_selectively_is_conditional_not_dead():
+    # 3-shard menu, each run reads exactly ONE shard (mutually exclusive); shard z is never selected.
+    matrices = [
+        {"c": {"fam-aa-bb-x-v1": True, "fam-aa-bb-y-v1": False, "fam-aa-bb-z-v1": False}},
+        {"c": {"fam-aa-bb-x-v1": False, "fam-aa-bb-y-v1": True, "fam-aa-bb-z-v1": False}},
+    ]
+    cards, dead = cca._aggregate_read_matrices(matrices, min_runs=2)
+    by_mid = {i["manifest_id"]: i for i in cards[0]["inputs"]}
+    # z is read-by-zero across both runs but the family is read SELECTIVELY ⇒ conditional, kept out of dead
+    assert by_mid["fam-aa-bb-z-v1"]["read_runs"] == 0  # still visible, not masked
+    assert by_mid["fam-aa-bb-z-v1"]["conditional_unselected"] is True
+    assert by_mid["fam-aa-bb-z-v1"]["dead"] is False
+    assert by_mid["fam-aa-bb-z-v1"]["family_size"] == 3 and by_mid["fam-aa-bb-z-v1"]["family_read_members"] == 2
+    assert dead == []
+    # the selected shards are plainly read and carry NO conditional tag
+    assert "conditional_unselected" not in by_mid["fam-aa-bb-x-v1"]
+
+
+def test_conditional_discriminator_requires_selective_sibling_reads():
+    # THE anti-masking teeth: the same never-read member flips verdict purely on the sibling read pattern.
+    dead_member = "fam-pp-qq-dead-v1"
+    # SELECTIVE siblings (read one-at-a-time, max_coread=1 < size) ⇒ dead_member downgraded to conditional
+    selective = [
+        {"c": {dead_member: False, "fam-pp-qq-aa-v1": True, "fam-pp-qq-bb-v1": False}},
+        {"c": {dead_member: False, "fam-pp-qq-aa-v1": False, "fam-pp-qq-bb-v1": True}},
+    ]
+    _, dead = cca._aggregate_read_matrices(selective, min_runs=2)
+    assert [d["manifest_id"] for d in dead] == []  # menu evidence clears the read-0 member
+    # NEVER-READ family (no sibling ever read) ⇒ no menu evidence ⇒ ALL three stay DEAD (blind-spot/breadth)
+    never = [
+        {"c": {dead_member: False, "fam-pp-qq-aa-v1": False, "fam-pp-qq-bb-v1": False}},
+        {"c": {dead_member: False, "fam-pp-qq-aa-v1": False, "fam-pp-qq-bb-v1": False}},
+    ]
+    cards2, dead2 = cca._aggregate_read_matrices(never, min_runs=2)
+    assert {d["manifest_id"] for d in dead2} == {dead_member, "fam-pp-qq-aa-v1", "fam-pp-qq-bb-v1"}
+    by_mid = {i["manifest_id"]: i for i in cards2[0]["inputs"]}
+    assert "conditional_unselected" not in by_mid[dead_member]  # never-read is NOT a menu
+
+
+def test_coread_family_is_not_a_menu():
+    # co-required pair read TOGETHER every run (max_coread == family_size) ⇒ not a menu; both plainly read.
+    matrices = [
+        {"c": {"co-mm-nn-alpha-v1": True, "co-mm-nn-beta-v1": True}},
+        {"c": {"co-mm-nn-alpha-v1": True, "co-mm-nn-beta-v1": True}},
+    ]
+    cards, dead = cca._aggregate_read_matrices(matrices, min_runs=2)
+    by_mid = {i["manifest_id"]: i for i in cards[0]["inputs"]}
+    assert dead == []
+    assert by_mid["co-mm-nn-alpha-v1"]["family_size"] == 2  # grouped as a family …
+    assert "conditional_unselected" not in by_mid["co-mm-nn-alpha-v1"]  # … but co-read ⇒ never a menu
+    assert "conditional_unselected" not in by_mid["co-mm-nn-beta-v1"]
+
+
 # ── re-derivation honesty: reason_class taxonomy + per-lineage re-derivation ────────────────────────
 def test_rederive_reason_class_splits_input_absent_from_method_internal():
     # no OmicsExpression read in the trace ⇒ scalars are input_absent_from_trace, NOT method_internal
