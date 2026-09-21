@@ -1089,10 +1089,16 @@ rules:
       small_molecule: supportive
       degrader: supportive
     rationale: |
-      Missense-dominant variant profile (≥70% missense among coding variants) is
-      the canonical oncogene signature. Activating hotspot mutations support both
-      small-molecule (inhibitor of the mutant protein, e.g. KRAS-G12C inhibitors)
-      and degrader strategies (degrade the oncogenic protein).
+      Missense-dominant variant profile (≥70% missense among coding variants) — the
+      variant-SHAPE most often carried by an activating oncogene, supportive of both
+      small-molecule (inhibitor of the mutant protein, e.g. KRAS-G12C inhibitors) and
+      degrader strategies. NOTE: this is a shape signal only; it does NOT by itself
+      decide the GoF/LoF mechanism. The genomic_alteration resolver pairs this rule
+      with an `alteration-role-*` co-signal (OncoKB×IntOGen) that sets the mechanism —
+      with `alteration-role-gof-driver-supportive` it drives `confirmed_driver`, but
+      with `alteration-role-lof-driver-neutral` the SAME missense-dominant shape drives
+      `confirmed_lof_driver` (a hotspot in a TSG). Read the paired role co-signal, not
+      this shape alone, for the mechanism.
 
   - rule_id: mut-lof-dominant-supportive
     when:
@@ -1103,11 +1109,19 @@ rules:
       small_molecule: supportive
       degrader: supportive
     rationale: |
-      LOF-dominant variant profile (≥50% nonsense + frameshift + splice) is the
-      canonical tumor-suppressor signature. The target itself is being lost — so
-      direct inhibition is NOT the strategy. Supportive for SYNTHETIC-LETHAL
-      partner-targeting strategies (PARP for BRCA-LOF, MAT2A for MTAP-LOF, etc.)
-      where the framework subsequently asks 'what depends on this LOF context?'.
+      LOF-dominant variant profile (≥50% nonsense + frameshift + splice) — the
+      variant-SHAPE most often carried by a tumor-suppressor. NOTE: this is a shape
+      signal only; it does NOT by itself decide the GoF/LoF mechanism. The
+      genomic_alteration resolver pairs this rule with an `alteration-role-*`
+      co-signal (OncoKB×IntOGen) that sets the mechanism — with
+      `alteration-role-lof-driver-neutral` it drives `confirmed_lof_driver` (the TSG
+      reading below), but with `alteration-role-gof-driver-supportive` the SAME
+      lof-dominant shape drives `confirmed_driver`. When the reading is LoF: the
+      target itself is being lost, so direct inhibition is NOT the strategy —
+      supportive instead for SYNTHETIC-LETHAL partner-targeting (PARP for BRCA-LOF,
+      MAT2A for MTAP-LOF, etc.) where the framework asks 'what depends on this LOF
+      context?'. Read the paired role co-signal, not this shape alone, for the
+      mechanism.
 
   - rule_id: mut-mixed-neutral
     when:

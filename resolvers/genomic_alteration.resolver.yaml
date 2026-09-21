@@ -84,7 +84,7 @@ version: 1.10.0  # 2026-09-13: COMPOSITION of two independently-measured precede
                  # Surgical blast radius (only genes w/ a registered exon-skip event in curated oncogenic scope).
                  # 1.7.0 2026-08-28: subclonal-recurrence guard (distillation assessment change-3, backtest-gated) —
                  # a MEASURED predominantly-subclonal top-1% recurrent SNV with no other corroboration demotes
-                 # recurrent_snv_driver → recurrent_snv_subclonal_uncertain (new rung priority 44, via
+                 # recurrent_snv_driver → recurrent_snv_subclonal_uncertain (new rung priority 47, via
                  # snv-clonality-subclonal-opposing + snv-recurrence-top-driver-supportive). Clonal/unavailable unaffected.
 description: |
   Multi-class genomic-alteration verdict. A Chronos stratified-dependency (any alteration class) is

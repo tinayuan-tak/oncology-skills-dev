@@ -14,9 +14,14 @@
 # Local allele-specific CN + multiplicity estimation (abs_segtabs) is the v2 refinement; the
 # clonal/subclonal CLASS is robust to the diploid approximation → evidence_tier=inferred_diploid.
 #
-# ROLE — verdict-INERT durability/heterogeneity facet (v1). Reaches the LLM/matrix/headline; drives NO
-# resolver rung. A predominantly-subclonal driver DOWNGRADING nomination confidence is a later,
-# verdict-moving step gated by a backtest (the framework's discipline for verdict-moving changes).
+# ROLE — durability/heterogeneity facet. Reaches the LLM/matrix/headline; those consumers stay
+# DESCRIPTIVE. As of 2026-08-28 (v1 was verdict-INERT; promoted change-3, backtest-gated) it is also
+# NARROWLY VERDICT-BEARING: a MEASURED predominantly_subclonal class fires snv-clonality-subclonal-
+# opposing, which — ONLY paired with snv-recurrence-top-driver-supportive and no other corroboration —
+# demotes a recurrence-ONLY SNV to recurrent_snv_subclonal_uncertain (genomic_alteration resolver,
+# subclonal-guard rung priority 47; see the caveat + §thresholds note below). Clonal / mixed /
+# insufficient / data_unavailable classes drive NO rung, and dependency/role/CN/fusion corroboration
+# pre-empts the demotion — so the facet is inert for every class but measured-subclonal.
 # Genuinely TARGET-dependent (the ccf is specific to THIS gene's mutations), so `target` is consumed.
 #
 # ZERO new ingestion: MC3 (tcga-mc3-public-v0-2-8) + PanCanAtlas ABSOLUTE (gdc-pancanatlas-cnv-2018)
