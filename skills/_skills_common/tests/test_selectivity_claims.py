@@ -501,7 +501,13 @@ def test_indication_mapped_tphp_arm_is_not_excluded():
     h["rna_protein_tvn_concordance_tphp"] = "rna_protein_discordant"
     vec = selectivity_claim_vector(h, _tphp_cards())  # defaults: indication_mapped + fully detected
     assert vec["WIN"]["corroboration"] == "low"
-    assert "EXCLUDED" not in (vec["WIN"]["conflict"] or "")
+    # The arm STAYS and votes: an indication_mapped discordant read is counted as a real contradiction,
+    # NOT relabelled off-indication. The old `"EXCLUDED" not in ...` guarded a token the producer NEVER
+    # emits — the #1383 drop→relabel switch retired the drop path, leaving that clause vacuous — so
+    # assert the positive tokens the arm's PRESENCE produces (a dropped/excluded arm yields no CONTRADICTS).
+    conflict = vec["WIN"]["conflict"] or ""
+    assert "CONTRADICTS" in conflict
+    assert "pan-cancer extremum" not in conflict and "NON-corroborating only" not in conflict
 
 
 def test_the_off_indication_guard_does_not_relax_the_n_scaled_cap():
@@ -564,7 +570,10 @@ def test_tphp_summary_without_the_censoring_fields_keeps_prior_behaviour():
         assert vec["WIN"]["corroboration"] == "low", label
         conflict = vec["WIN"]["conflict"] or ""
         assert "CONTRADICTS" in conflict, label
-        assert "CENSORED" not in conflict and "EXCLUDED" not in conflict, label
+        # A MISSING/`None` flag is not `False`: no `CENSORED` aside means the DOWN direction was not
+        # discounted (this is the teeth of the byte-stability claim — a wrongly-`False`-treated missing
+        # flag would surface `CENSORED`). `"EXCLUDED"` dropped: vacuous, the producer never emits it.
+        assert "CENSORED" not in conflict, label
 
 
 def test_win_evidence_surfaces_field_effect_from_per_cell_log2fc():
