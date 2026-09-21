@@ -70,15 +70,60 @@ outputs:
   summary_fields_vocabulary:
     clonality_class: [predominantly_clonal, mixed_clonality, predominantly_subclonal, insufficient, data_unavailable]
 
+  # The derivation edge — the hop the ccf reader (methods/pancan_mutation_ccf) performs to bin the
+  # numeric fields into clonality_class. `derives_from` names the numeric metrics a re-binning consumer
+  # routes through (clonal_fraction for the 0.7/0.4 bands; n_mutant_samples for the n>=10 power gate),
+  # NEVER the headline class token; `cutpoints` names the threshold_roles (role: class_cutpoint) that
+  # supply the boundaries. Banding is UNCHANGED; this only exposes the same cuts declaratively.
+  derivations:
+    clonality_class:
+      derives_from: [clonal_fraction, n_mutant_samples]
+      cutpoints: [predominantly_clonal_frac, mixed_clonality_frac, min_mutant_samples]
+
 caveats:
   - "INFERRED (evidence_tier=inferred_diploid): cancer-cell fraction uses the v1 DIPLOID approximation (CN=2, multiplicity=1) of the purity-corrected VAF. The clonal/subclonal CLASS is robust to this approximation (validated against known clonal architecture), but the absolute ccf is not allele-specific; local CN + multiplicity estimation is the v2 refinement."
   - "VERDICT-BEARING as of 2026-08-28 (change-3, backtest-gated): predominantly_subclonal fires snv-clonality-subclonal-opposing, which — ONLY with snv-recurrence-top-driver-supportive — demotes a recurrence-ONLY SNV call to recurrent_snv_subclonal_uncertain (genomic_alteration resolver, subclonal-guard rung). Fires no bare rung: clonal/mixed/unavailable targets are unaffected, and dependency/role/CN/fusion corroboration pre-empt the demotion. Other uses (matrix/headline/LLM) remain descriptive."
   - "data_unavailable / insufficient when the gene is not recurrently mutated in-indication (fewer than 10 mutant tumors with an ABSOLUTE purity call) — never a fabricated clonality call. Covers only the TSS-mapped indications on the product (COADREAD / PAAD / NSCLC / GC)."
 
-# No `thresholds:` block — the class thresholds (ccf >=0.8 clonal cut; >=0.7 clonal / >=0.4 mixed CLASS)
-# are applied in the method. As of 2026-08-28 clonality_class IS read by a rule (snv-clonality-subclonal-
-# opposing) that fires the backtest-gated subclonal-guard rung — the "future verdict-moving promotion
-# behind a backtest" this note previously anticipated.
+# Gating cutoffs applied by the ccf reader (methods/pancan_mutation_ccf), promoted from prose (this
+# note + the caveats) to named, single-sourced thresholds. clonality_class IS read by a rule
+# (snv-clonality-subclonal-opposing → the backtest-gated subclonal-guard rung), so its cuts owe a
+# declared home. Banding is UNCHANGED; this only exposes the same cuts declaratively.
+thresholds:
+  clonal_ccf_cut: 0.8             # a mutation is clonal if per-sample ccf >= this (standard cut)
+  predominantly_clonal_frac: 0.7  # clonal_fraction >= this -> predominantly_clonal
+  mixed_clonality_frac: 0.4       # clonal_fraction >= this (and < 0.7) -> mixed_clonality; below -> predominantly_subclonal
+  min_mutant_samples: 10          # fewer than this many mutant tumors (with an ABSOLUTE purity call) -> insufficient
+threshold_roles:
+  # clonal_ccf_cut is applied UPSTREAM over the raw per-sample ccf vector to COMPUTE clonal_fraction
+  # (not re-binnable from an emitted field) -> method_parameter. The 0.7/0.4 cuts bin the EMITTED
+  # clonal_fraction into clonality_class -> class_cutpoint; min_mutant_samples is the conjunctive power
+  # gate (n<10 -> insufficient) qualifying every band (no boundary, like a significance guard). The
+  # derivation edge is declared in outputs.derivations above. None is predicate-referenced (the class
+  # is applied by the reader), so THRESHOLD_UNUSED would be a false positive.
+  clonal_ccf_cut:
+    role: method_parameter
+    consumed_by: pancan-mutation-ccf
+    scale: ccf
+  predominantly_clonal_frac:
+    role: class_cutpoint
+    bins: clonality_class
+    of: clonal_fraction
+    boundary: predominantly_clonal
+    scale: fraction
+  mixed_clonality_frac:
+    role: class_cutpoint
+    bins: clonality_class
+    of: clonal_fraction
+    boundary: mixed_clonality
+    scale: fraction
+  min_mutant_samples:
+    role: class_cutpoint
+    bins: clonality_class
+    of: n_mutant_samples
+    scale: sample_count
+    # No `boundary`: the conjunctive power gate (n < 10 -> insufficient) qualifies every band rather
+    # than admitting one class — the same shape as a significance/power guard (cf. call_significance_q).
 
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of `mutation_clonality` at target_indication grain. The
 # mutation_clonality registry entry already back-references this card; declaring the type here closes

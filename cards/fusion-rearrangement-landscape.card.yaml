@@ -101,6 +101,30 @@ caveats:
   - "no_recurrent_fusion (assayed-negative) is DISTINCT from data_unavailable (product/target absent) — do not read the latter as evidence of absence. genie_sv_recurrence_class=data_unavailable additionally covers a coverage-gap (target on no SV panel) or too-thin coverage (< 20 SV-covered samples), never a fabricated 0%."
   - "fusion_recurrence_confidence tiers a recurrent_fusion_driver call. high_recurrent_partner is precise; moderate_promiscuous (target recurs, no recurrent partner) is a MIXED bucket — genuine kinase fusions (ROS1/NTRK1) AND amplicon passenger SVs (ERBB2/STAD) both fall here. #983: the genomic_alteration preprocessor demotes fusion_class to promiscuous_amplicon_fusion when moderate_promiscuous co-occurs with patient_focal_cn_class==recurrent_focal_amplification, sparing not-amplified kinase fusions."
 
+# Gating cutoffs applied by the reader (methods/tcga_fusion_consensus), promoted from prose (the
+# fusion_class / fusion_recurrence_confidence vocabulary comments + the coverage caveat) to named,
+# single-sourced thresholds so the numeric bar behind a recurrent_fusion_driver / high_recurrent_partner
+# call and the too-thin-coverage cut are declared rather than magic numbers. Both are applied UPSTREAM by
+# the method — over the raw per-partner sample counts (recurrence bar) and the SV-covered denominator
+# (coverage floor), NOT re-binnable from a single emitted summary_field — hence threshold_roles.role:
+# method_parameter, not class_cutpoint. Banding is UNCHANGED; this only exposes the same cuts declaratively.
+thresholds:
+  recurrent_partner_min_samples: 3   # same partner recurs in >=3 samples -> high_recurrent_partner
+                                     # (recurrent_fusion_driver: a partner OR the target recurs >=3)
+  sv_coverage_min_samples: 20        # < 20 SV-covered samples -> genie_sv_recurrence_class=data_unavailable
+                                     # (too-thin coverage; never a fabricated 0%)
+threshold_roles:
+  # method_parameter (not predicate-referenced): applied by methods/tcga_fusion_consensus, so
+  # THRESHOLD_UNUSED would be a false positive on a reader-applied cut rather than an interpretation cutoff.
+  recurrent_partner_min_samples:
+    role: method_parameter
+    consumed_by: tcga-fusion-consensus
+    scale: sample_count
+  sv_coverage_min_samples:
+    role: method_parameter
+    consumed_by: tcga-fusion-consensus
+    scale: sample_count
+
 # DATA_TO_SKILL_CONTRACT Rule 1 — view of the `fusion_rearrangement` claim, derived_from
 # [tcga-fusion-consensus-v1]. Routes to the genomic gate (genomic-alteration-profile fusion axis).
 measurement_type: fusion_rearrangement

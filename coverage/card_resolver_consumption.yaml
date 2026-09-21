@@ -85,7 +85,9 @@ detail:
     resolvers:
     - cis_coherence
     rules:
+    - cis-dosage-amplification-coupled-supportive
     - cis-dosage-coupled-supportive
+    - cis-dosage-deletion-coupled-neutral
     - cis-dosage-uncoupled-neutral
   clingen-dosage:
     resolvers:
@@ -116,8 +118,8 @@ detail:
     - cn-data-unavailable-insufficient
     - cn-patient-focal-amplified-supportive
     - cn-patient-focal-deleted-supportive
+    - cn-recurrent-homozygous-deletion-supportive
     - cn-recurrently-amplified-supportive
-    - cn-recurrently-deleted-supportive
   copy-number-stratified-dependency:
     resolvers:
     - genomic_alteration
@@ -137,8 +139,12 @@ detail:
     resolvers:
     - dependency
     rules:
+    - dependency-in-indication-selective-supportive
+    - dependency-in-indication-supportive
+    - dependency-in-indication-underpowered-insufficient
     - lineage-selective-supportive
     - lineage-selectivity-data-unavailable-insufficient
+    - not-dependent-in-indication-killer
   expression-dependency-correlation:
     resolvers:
     - cis_coherence
@@ -150,6 +156,7 @@ detail:
     - genomic_alteration
     rules:
     - fusion-landscape-recurrent-driver-supportive
+    - fusion-recurrence-high-partner-context
   fusion-stratified-dependency:
     resolvers:
     - genomic_alteration

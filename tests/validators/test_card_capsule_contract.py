@@ -112,7 +112,23 @@ def _gating_read_fields() -> dict[str, set[str]]:
 
 
 def _genomic_cards(consumption: dict) -> list[str]:
-    return sorted(c for c, d in consumption.items() if GENOMIC_RESOLVER in (d.get("resolvers") or []))
+    """Cards whose rules feed the genomic_alteration resolver gate, keyed on BOTH the `resolvers`
+    gate list AND the per-rule `rules` list. A card listed as consumed by the gate MUST carry at
+    least one rule id — a gate cannot be fed via no rule — so an empty `rules` here means the
+    consumption snapshot's `detail` is internally inconsistent (e.g. hand-edited, or a rule renamed
+    without regenerating). Asserting it makes the genomic fail-closed set depend on the same
+    per-rule detail that validate_card_resolver_consumption now guards, rather than on the
+    card-level gate flag alone."""
+    out = []
+    for c, d in consumption.items():
+        if GENOMIC_RESOLVER in (d.get("resolvers") or []):
+            assert d.get("rules"), (
+                f"{c}: consumption snapshot lists it as consumed by {GENOMIC_RESOLVER} but its "
+                f"detail.rules is empty — a card cannot feed a resolver gate via zero rules; "
+                f"regenerate coverage/card_resolver_consumption.yaml."
+            )
+            out.append(c)
+    return sorted(out)
 
 
 # ── 1. the genomic axis is fail-closed ────────────────────────────────────────────────────────────

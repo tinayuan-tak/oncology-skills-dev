@@ -123,6 +123,33 @@ class _Report:
         return not self.errors
 
 
+def _detail_drift(current: dict, committed: dict) -> list[str]:
+    """Per-card drift in the `detail` map (the rules + resolver gates a card is consumed by), for
+    cards present in BOTH snapshots' consumed set. Card-level add/remove is reported separately by
+    the caller; THIS catches the case a card stays resolver-consumed while its per-RULE / per-GATE
+    consumption changes underneath (a rule renamed, a rung added or removed). That is invisible to
+    the `resolver_consumed_cards` set comparison — so before this check the snapshot's `detail`
+    could silently go stale (it had, on copy-number-distribution / fusion-rearrangement-landscape /
+    cis-feature-expression-coherence / dependency-lineage-selectivity, 2026-09-21 genomic audit)."""
+    msgs: list[str] = []
+    cur_detail = current.get("detail") or {}
+    com_detail = committed.get("detail") or {}
+    for card in sorted(set(cur_detail) & set(com_detail)):
+        for key in ("rules", "resolvers"):
+            cur_v = set((cur_detail[card] or {}).get(key) or [])
+            com_v = set((com_detail[card] or {}).get(key) or [])
+            if cur_v != com_v:
+                gained = sorted(cur_v - com_v)
+                lost = sorted(com_v - cur_v)
+                parts = []
+                if gained:
+                    parts.append(f"NEWLY consumed {gained}")
+                if lost:
+                    parts.append(f"NO LONGER consumed {lost}")
+                msgs.append(f"detail[{card}].{key} drifted from snapshot: {'; '.join(parts)}")
+    return msgs
+
+
 def report() -> "_Report":
     """Non-printing, in-process form of main()'s checks: unknown consumed card_ids +
     drift-from-committed-snapshot. Returns a report; never raises / never exits."""
@@ -143,6 +170,8 @@ def report() -> "_Report":
             rep.errors.append(f"card became verdict-bearing but not in snapshot: {c}")
         for c in sorted(com_set - cur_set):
             rep.errors.append(f"card no longer resolver-consumed but still in snapshot: {c}")
+        for m in _detail_drift(current, committed):
+            rep.errors.append(m)
     except Exception as e:  # keep aggregators resilient
         rep.warnings.append(f"validate_card_resolver_consumption.report() could not complete: {e}")
     return rep
@@ -181,20 +210,25 @@ def main() -> int:
     committed = _load(SNAPSHOT) or {}
     cur_set = set(current["resolver_consumed_cards"])
     com_set = set(committed.get("resolver_consumed_cards") or [])
-    if cur_set != com_set:
-        gained = sorted(cur_set - com_set)
-        lost = sorted(com_set - cur_set)
+    card_drift = cur_set != com_set
+    detail_msgs = _detail_drift(current, committed)
+    if card_drift or detail_msgs:
         print("ERROR: card->resolver consumption DRIFTED from the committed snapshot.", file=sys.stderr)
-        if gained:
-            print(f"  NEWLY resolver-consumed (a card became verdict-bearing): {gained}", file=sys.stderr)
-        if lost:
-            print(f"  NO LONGER resolver-consumed (a card's verdict rung went dead?): {lost}", file=sys.stderr)
+        if card_drift:
+            gained = sorted(cur_set - com_set)
+            lost = sorted(com_set - cur_set)
+            if gained:
+                print(f"  NEWLY resolver-consumed (a card became verdict-bearing): {gained}", file=sys.stderr)
+            if lost:
+                print(f"  NO LONGER resolver-consumed (a card's verdict rung went dead?): {lost}", file=sys.stderr)
+        for m in detail_msgs:
+            print(f"  {m}", file=sys.stderr)
         print(
             "  If intended, regenerate: python validators/validate_card_resolver_consumption.py --write",
             file=sys.stderr,
         )
         return 1
-    print(f"OK: {len(cur_set)} resolver-consumed cards match the committed snapshot.")
+    print(f"OK: {len(cur_set)} resolver-consumed cards match the committed snapshot (cards + per-rule detail).")
     return 0
 
 
