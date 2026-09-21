@@ -17,6 +17,7 @@ _EVAL = Path(__file__).resolve().parents[1]
 if str(_EVAL) not in sys.path:
     sys.path.insert(0, str(_EVAL))
 
+import importlib  # noqa: E402
 import json  # noqa: E402
 
 import card_chain_audit as cca  # noqa: E402
@@ -619,6 +620,115 @@ def test_blind_spot_precedes_conditional_when_owner_opaque_in_all_runs():
     assert by_mid["fam-gg-hh-y-v1"]["blind_spot_opaque"] is True
     assert "conditional_unselected" not in by_mid["fam-gg-hh-y-v1"]  # blind spot wins over the menu tag
     assert by_mid["fam-gg-hh-y-v1"]["dead"] is False and dead == []
+
+
+# ── partial blind spots (reader references the id; 0-read = warm-cache capture artifact) ─────────────
+def _make_methods_pkg(root: Path, modules: dict[str, str]) -> None:
+    """Write a fake importable ``methods`` package under ``root`` — ``{module_name: read.py source}``."""
+    (root / "methods").mkdir(parents=True, exist_ok=True)
+    (root / "methods" / "__init__.py").write_text("")
+    for name, src in modules.items():
+        pkg = root / "methods" / name
+        pkg.mkdir(parents=True, exist_ok=True)
+        (pkg / "__init__.py").write_text("")
+        (pkg / "read.py").write_text(src)
+
+
+@pytest.fixture
+def _reader_source_env(monkeypatch, tmp_path):
+    """Prepend a tmp dir to sys.path and clear all caches that would leak one test's fake ``methods``
+    package into the next: the memoized reader-source lru_cache, importlib's finder caches, AND any
+    ``methods*`` already in ``sys.modules`` (a cached parent package pins ``methods.__path__`` to the
+    prior test's tmp dir, so a later ``find_spec`` would look in the wrong place)."""
+
+    def _purge():
+        for name in [m for m in sys.modules if m == "methods" or m.startswith("methods.")]:
+            del sys.modules[name]
+        importlib.invalidate_caches()
+        cca._reader_source_for_call.cache_clear()
+
+    monkeypatch.syspath_prepend(str(tmp_path))
+    _purge()
+    yield tmp_path
+    _purge()
+
+
+def test_reader_references_finds_manifest_id_in_call_package(_reader_source_env):
+    # the id lives as a literal in the call's own reader package (the measured-potency shape)
+    _make_methods_pkg(_reader_source_env, {"pkg_a": 'PROD = "widget-per-protein-v1"\n'})
+    assert cca._reader_references("pkg-a", "widget-per-protein-v1") is True
+    assert cca._reader_references("pkg-a", "unrelated-product-v9") is False
+
+
+def test_reader_references_follows_one_hop_import_to_sibling(_reader_source_env):
+    # the call's package only imports the sibling that holds the id literal (the pathway-node/paralog shape)
+    _make_methods_pkg(
+        _reader_source_env,
+        {
+            "pkg_root": "from methods.pkg_sib.read import load as _load\n",
+            "pkg_sib": 'DERIVED = "buffering-per-gene-v1"\n',
+        },
+    )
+    assert cca._reader_references("pkg-root", "buffering-per-gene-v1") is True
+
+
+def test_reader_references_absent_when_no_code_reference(_reader_source_env):
+    # the two GENUINE dead cases: reader reimplements from raw / declares an unwired additive ⇒ 0 refs
+    _make_methods_pkg(_reader_source_env, {"pkg_raw": 'RAW = "some-nightly-snapshot.tsv"\n'})
+    assert cca._reader_references("pkg-raw", "reviewed-per-gene-v1") is False
+
+
+def test_reader_references_unresolvable_call_is_false(_reader_source_env):
+    # no such module ⇒ empty source ⇒ False (best-effort; fails toward NOT reclassifying)
+    assert cca._reader_references("no-such-method-xyz", "any-product-v1") is False
+    assert cca._reader_references("", "any-product-v1") is False
+
+
+def test_blind_spot_partial_reclassifies_referenced_dead_input_not_dead():
+    # owner is NOT opaque (it read other objects every run) but the reader HAS code for this id ⇒ its
+    # 0-read is a warm-cache capture artifact, not dead wiring.
+    matrices = [{"c": {"cached-mani": False}}, {"c": {"cached-mani": False}}]
+    reader_refs = {"c": {"cached-mani"}}
+    cards, dead = cca._aggregate_read_matrices(matrices, min_runs=2, reader_refs=reader_refs)
+    rec = cards[0]["inputs"][0]
+    assert rec["read_runs"] == 0 and rec["declared_traced_runs"] == 2  # still counted + visible
+    assert rec["blind_spot_partial"] is True
+    assert rec["dead"] is False
+    assert dead == []  # kept OUT of the dead-wiring verdict
+
+
+def test_unreferenced_dead_input_stays_dead_even_with_reader_refs():
+    # THE anti-masking teeth: an input the reader NEVER references (civic-per-gene / genie-sv-recurrence)
+    # stays dead even though reader_refs is supplied for OTHER inputs on the card.
+    matrices = [{"c": {"unwired-mani": False, "cached-mani": False}}] * 2
+    reader_refs = {"c": {"cached-mani"}}  # only cached-mani is referenced
+    cards, dead = cca._aggregate_read_matrices(matrices, min_runs=2, reader_refs=reader_refs)
+    by_mid = {i["manifest_id"]: i for i in cards[0]["inputs"]}
+    assert by_mid["cached-mani"]["blind_spot_partial"] is True and by_mid["cached-mani"]["dead"] is False
+    assert "blind_spot_partial" not in by_mid["unwired-mani"]
+    assert by_mid["unwired-mani"]["dead"] is True
+    assert [d["manifest_id"] for d in dead] == ["unwired-mani"]
+
+
+def test_no_reader_refs_arg_never_reclassifies_as_partial():
+    # backward compat: without a reader_refs map a read-0 non-opaque input stays dead (pre-fix behavior).
+    matrices = [{"c": {"cached-mani": False}}, {"c": {"cached-mani": False}}]
+    cards, dead = cca._aggregate_read_matrices(matrices, min_runs=2)
+    rec = cards[0]["inputs"][0]
+    assert "blind_spot_partial" not in rec
+    assert rec["dead"] is True and [d["manifest_id"] for d in dead] == ["cached-mani"]
+
+
+def test_blind_spot_opaque_precedes_partial_when_owner_opaque_in_all_runs():
+    # an input that is BOTH referenced and owned by an all-opaque card is the STRONGER opaque blind spot.
+    matrices = [{"c": {"cached-mani": False}}, {"c": {"cached-mani": False}}]
+    cards, dead = cca._aggregate_read_matrices(
+        matrices, min_runs=2, opacities=[{"c": True}, {"c": True}], reader_refs={"c": {"cached-mani"}}
+    )
+    rec = cards[0]["inputs"][0]
+    assert rec["blind_spot_opaque"] is True
+    assert "blind_spot_partial" not in rec  # opaque wins; not double-tagged
+    assert rec["dead"] is False and dead == []
 
 
 # ── re-derivation honesty: reason_class taxonomy + per-lineage re-derivation ────────────────────────

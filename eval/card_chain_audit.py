@@ -66,7 +66,9 @@ import argparse
 import html
 import importlib.util
 import json
+import re
 import sys
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
@@ -268,6 +270,58 @@ def _call_resolvable(method: dict) -> bool:
     except (ModuleNotFoundError, ValueError):
         # a parent package that itself fails to import — treat as unresolved, not a crash
         return False
+
+
+@lru_cache(maxsize=None)
+def _reader_source_for_call(call: str) -> str:
+    """Combined source text of the analysis-methods reader package a card's ``methods[].call`` resolves to
+    (convention module ``methods.<call_underscored>``), PLUS the source of any sibling ``methods.<pkg>`` it
+    imports (ONE hop). This answers a single question: does the reader that runs this card contain code
+    that references a given product id? A declared input whose manifest id appears here yet was read 0× is
+    plausibly a warm-``lru_cache`` capture artifact (a PARTIAL blind spot) — the reader demonstrably has
+    code to open it — NOT demonstrated dead wiring. The one-hop follow is load-bearing: a card's own package
+    often only ``from methods.<sibling>.read import …`` the loader that holds the id literal (e.g.
+    ``pathway_node_leverage`` reads the buffering product via ``methods.depmap_paralog_aggregator``).
+    Best-effort: an unresolvable call / missing sibling repo yields ``""`` ⇒ no reclassification ⇒ the input
+    stays flagged (the honest OVER-report direction, never a mask). Source mention is a HEURISTIC that the
+    product is wired into reader code, not proof this card read it on any run."""
+    mod = (call or "").replace("-", "_")
+    if not mod:
+        return ""
+
+    def _pkg_text(module: str) -> str:
+        try:
+            spec = importlib.util.find_spec(f"methods.{module}")
+        except (ModuleNotFoundError, ValueError):
+            return ""
+        if spec is None or not spec.origin:
+            return ""
+        parts: list[str] = []
+        for p in sorted(Path(spec.origin).parent.glob("*.py")):
+            try:
+                parts.append(p.read_text())
+            except OSError:
+                continue
+        return "\n".join(parts)
+
+    root = _pkg_text(mod)
+    if not root:
+        return ""
+    texts = [root]
+    seen = {mod}
+    # one hop only: follow `from methods.X …` / `import methods.X` to the sibling reader package
+    for sib in sorted(set(re.findall(r"(?:from|import)\s+methods\.(\w+)", root))):
+        if sib not in seen:
+            texts.append(_pkg_text(sib))
+            seen.add(sib)
+    return "\n".join(texts)
+
+
+def _reader_references(call: str, manifest_id: str) -> bool:
+    """True if the reader ``call`` resolves to (or a sibling method it imports one hop out) mentions
+    ``manifest_id`` as a source literal — the signal that a 0-read declared input is a capture artifact
+    (input loaded via a warmed cache), not dead wiring. See ``_reader_source_for_call``."""
+    return bool(manifest_id) and manifest_id in _reader_source_for_call(call)
 
 
 def _summary_schema(card_id: str, tc_root: Path) -> dict[str, dict]:
@@ -1114,6 +1168,7 @@ def _aggregate_read_matrices(
     matrices: list[dict[str, dict[str, bool]]],
     min_runs: int,
     opacities: list[dict[str, bool]] | None = None,
+    reader_refs: dict[str, set[str]] | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """Stack per-run read bricks (``_card_read_status`` outputs) into a corpus verdict.
 
@@ -1129,6 +1184,21 @@ def _aggregate_read_matrices(
     dead wiring — it is tagged ``blind_spot_opaque`` and kept OUT of ``dead_inputs``. Requiring opacity in
     ALL runs is what keeps this honest: a card observed reading other objects in even one run (non-opaque
     there) still yields a genuine ``dead`` for an input its reader never touched.
+
+    **Partial blind spots (referenced-but-unread).** A card can be ``health=ok`` — some per-target read WAS
+    captured — while a SPECIFIC declared input is loaded through a process-wide ``lru_cache`` warmed before
+    the capture window (so its read is never recorded). That input reads as 0× on a non-opaque owner, so the
+    ``blind_spot_opaque`` guard above (which needs opacity in ALL runs) misses it. ``reader_refs`` (per card,
+    the declared manifest ids that appear as literals in the reader the card's ``call`` resolves to — see
+    ``_reader_references``) supplies the discriminator: a would-be-dead input the reader demonstrably HAS
+    code to open is tagged ``blind_spot_partial`` and kept OUT of ``dead_inputs``. The tag records what is
+    KNOWN (the reader references the id yet it read 0×) without asserting WHY — the two mechanisms it covers
+    are a warmed cache (read outside the capture window) and a conditional path the corpus never triggered
+    (e.g. a per-cohort shard whose indication no run exercised). It never masks the two genuine wiring gaps
+    this arc found (a card that recomputes from raw and never references the reviewed derived product it
+    declares, and an aspirational additive declaration wired to nothing) — both have zero reader-code
+    references, so they stay ``dead``. Absent ``reader_refs`` (or the sibling repo), nothing is reclassified
+    and every would-be-dead input stays flagged (the honest over-report direction).
 
     **Cohort-conditionality.** A per-cohort shard menu (many declared inputs of which each run reads a
     mutually-exclusive subset) would otherwise flag every unselected shard as dead. A member of a
@@ -1194,7 +1264,11 @@ def _aggregate_read_matrices(
             in_family = fk is not None and len(members) >= 2
             selective = in_family and fam_any_read.get(key, False) and fam_max_coread.get(key, 0) < len(members)
             conditional_unselected = base_dead and not blind_spot and selective
-            dead = base_dead and not blind_spot and not selective
+            # partial blind spot: owner is not opaque (a captured read exists) but the reader HAS code to
+            # open this specific input ⇒ its 0-read is a warm-cache capture artifact, not dead wiring.
+            referenced = bool(reader_refs) and mid in (reader_refs or {}).get(cid, set())
+            blind_spot_partial = base_dead and not blind_spot and not conditional_unselected and referenced
+            dead = base_dead and not (blind_spot or conditional_unselected or blind_spot_partial)
             rec = {"manifest_id": mid, **st, "dead": dead}
             if in_family:
                 rec["family"] = "-".join(fk[0]) + "-*-" + fk[1]
@@ -1202,6 +1276,8 @@ def _aggregate_read_matrices(
                 rec["family_read_members"] = sum(1 for mm in members if agg[cid][mm]["read_runs"] > 0)
             if blind_spot:
                 rec["blind_spot_opaque"] = True
+            if blind_spot_partial:
+                rec["blind_spot_partial"] = True
             if conditional_unselected:
                 rec["conditional_unselected"] = True
             inputs.append(rec)
@@ -1218,6 +1294,9 @@ def audit_corpus(run_dirs: list[Path], skill: str, min_runs: int) -> dict:
     runs_meta: list[dict] = []
     matrices: list[dict[str, dict[str, bool]]] = []
     opacities: list[dict[str, bool]] = []
+    # reader_refs: per card, the declared manifest ids that appear as literals in the reader its call
+    # resolves to (union across runs — declared calls/manifests are static). Powers blind_spot_partial.
+    reader_refs: dict[str, set[str]] = {}
     for rd in run_dirs:
         rep = audit_run(rd, skill, do_rederive=False)
         runs_meta.append(
@@ -1230,10 +1309,20 @@ def audit_corpus(run_dirs: list[Path], skill: str, min_runs: int) -> dict:
         )
         matrices.append(_card_read_status(rep))
         opacities.append(_card_opacity(rep))
-    cards_out, dead_inputs = _aggregate_read_matrices(matrices, min_runs, opacities)
+        for card in rep.get("cards") or []:
+            cid = card.get("card_id")
+            decl = card.get("declared") or {}
+            calls = [c.get("call") for c in (decl.get("method_calls") or []) if c.get("call")]
+            mids = [m.get("manifest_id") for m in (decl.get("manifests") or []) if m.get("manifest_id")]
+            refs = reader_refs.setdefault(cid, set())
+            for mid in mids:
+                if mid not in refs and any(_reader_references(call, mid) for call in calls):
+                    refs.add(mid)
+    cards_out, dead_inputs = _aggregate_read_matrices(matrices, min_runs, opacities, reader_refs)
     n_traced = sum(1 for r in runs_meta if r["traced"])
     n_cond = sum(1 for c in cards_out for inp in c["inputs"] if inp.get("conditional_unselected"))
     n_blind = sum(1 for c in cards_out for inp in c["inputs"] if inp.get("blind_spot_opaque"))
+    n_partial = sum(1 for c in cards_out for inp in c["inputs"] if inp.get("blind_spot_partial"))
     return {
         "schema": "card_chain_audit_corpus/v1",
         "skill": skill,
@@ -1245,6 +1334,7 @@ def audit_corpus(run_dirs: list[Path], skill: str, min_runs: int) -> dict:
         "n_dead_inputs": len(dead_inputs),
         "n_conditional_unselected": n_cond,
         "n_blind_spot_opaque": n_blind,
+        "n_blind_spot_partial": n_partial,
         "cards": cards_out,
         "dead_inputs": dead_inputs,
     }
@@ -1262,6 +1352,12 @@ def render_corpus_html(report: dict) -> str:
                 verdict = (
                     f"blind spot — opaque owner ({_esc(inp.get('opaque_runs', '?'))}"
                     f"/{_esc(inp.get('declared_traced_runs', '?'))} runs 0-read)"
+                )
+            elif inp.get("blind_spot_partial"):
+                cls = "partial"
+                verdict = (
+                    f"blind spot — partial (reader references id; read 0/"
+                    f"{_esc(inp.get('declared_traced_runs', '?'))} — warm-cache artifact or untriggered path)"
                 )
             elif inp.get("conditional_unselected"):
                 cls = "cond"
@@ -1286,12 +1382,13 @@ def render_corpus_html(report: dict) -> str:
         "<style>body{font:13px system-ui;margin:2rem}table{border-collapse:collapse;width:100%}"
         "td,th{border:1px solid #ccc;padding:6px;vertical-align:top;text-align:left}"
         "th{background:#f4f4f4}.ok{color:#888}code{background:#f4f4f4}"
-        ".cond{color:#a60}.blind{color:#559}.h-bad{color:#c00;font-weight:600}</style>"
+        ".cond{color:#a60}.blind{color:#559}.partial{color:#786}.h-bad{color:#c00;font-weight:600}</style>"
         f"<h1>card chain audit — corpus dead-wiring — {_esc(report['skill'])}</h1>"
         f"<p>{_esc(report['n_runs'])} runs ({_esc(report['n_traced_runs'])} traced) · "
         f"min-runs floor={_esc(report['min_runs'])} · "
         f"<b class='h-bad'>{_esc(report['n_dead_inputs'])} dead input(s)</b> · "
         f"{_esc(report.get('n_blind_spot_opaque', 0))} blind-spot (opaque owner) · "
+        f"{_esc(report.get('n_blind_spot_partial', 0))} blind-spot (partial — warm-cache) · "
         f"{_esc(report.get('n_conditional_unselected', 0))} conditional-unselected (per-cohort menu) "
         f"across {_esc(report['n_cards'])} cards</p>"
         f"<ul>{runs_list}</ul>"
@@ -1322,6 +1419,7 @@ def _main_corpus(args: argparse.Namespace) -> int:
         f"[card-chain-audit] corpus: {report['n_runs']} runs ({report['n_traced_runs']} traced), "
         f"{report['n_cards']} cards, {report['n_dead_inputs']} dead input(s), "
         f"{report.get('n_blind_spot_opaque', 0)} blind-spot(s), "
+        f"{report.get('n_blind_spot_partial', 0)} partial-blind-spot(s), "
         f"{report.get('n_conditional_unselected', 0)} conditional "
         f"→ {out_dir / 'card_chain_audit_corpus.json'}"
     )
