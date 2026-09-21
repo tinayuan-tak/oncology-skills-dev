@@ -1075,6 +1075,28 @@ def _card_read_status(report: dict) -> dict[str, dict[str, bool]]:
     return {cid: {mid: (mid in run_touched) for mid in declared} for cid, declared in per_card.items()}
 
 
+def _card_opacity(report: dict) -> dict[str, bool]:
+    """From ONE per-run audit report, map each TRACED card → whether it is ``opaque`` (emitted a full
+    summary yet the tracer captured 0 reads). Mirrors ``_card_read_status`` inclusion: untraced
+    (``measured is None``) cards are omitted (they are not in the corpus matrix at all).
+
+    An opaque card RAN — it produced output — but its reader IO was never observed, because its
+    ``@lru_cache``d analysis-methods loader was warmed outside any ``capture()`` block before the traced
+    fan-out (the read hits ``read_trace``'s ``sink is None`` drop) or its call path was unresolved. For such
+    a card we have NO read evidence at all, so a declared input read by nobody is an audit BLIND SPOT, not
+    demonstrated dead wiring — ``_aggregate_read_matrices`` uses this to reclassify. Reading the stamped
+    ``health.status`` keeps this in lock-step with ``_card_health`` (for in-matrix cards, ``opaque`` ⟺
+    emitted output with an empty trace; ``no_output`` — emitted nothing — is deliberately NOT opaque, so a
+    genuinely silent card stays flagged)."""
+    out: dict[str, bool] = {}
+    for card in report.get("cards") or []:
+        if card.get("measured") is None:  # untraced ⇒ not in the matrix, no opacity to record
+            continue
+        status = (card.get("health") or {}).get("status")
+        out[card["card_id"]] = status == "opaque"
+    return out
+
+
 def _family_key(mid: str) -> tuple[tuple[str, ...], str] | None:
     """Group a card's per-cohort declared inputs into a prefix-family: ``(first three dash-tokens, last
     token)``. Per-indication shard menus (``tcga-subgroup-assignments-{coadread,hnsc,…}-v1``,
@@ -1089,7 +1111,9 @@ def _family_key(mid: str) -> tuple[tuple[str, ...], str] | None:
 
 
 def _aggregate_read_matrices(
-    matrices: list[dict[str, dict[str, bool]]], min_runs: int
+    matrices: list[dict[str, dict[str, bool]]],
+    min_runs: int,
+    opacities: list[dict[str, bool]] | None = None,
 ) -> tuple[list[dict], list[dict]]:
     """Stack per-run read bricks (``_card_read_status`` outputs) into a corpus verdict.
 
@@ -1097,6 +1121,14 @@ def _aggregate_read_matrices(
     ``read_runs`` (of those, where it was read). Flags ``dead`` only when ``read_runs == 0`` AND
     ``declared_traced_runs >= min_runs`` — the breadth floor is what separates genuine dead wiring from a
     single unlucky run. Sub-floor inputs are still listed with their counts, ``dead=False``.
+
+    **Blind spots (opaque owner).** ``opacities`` (parallel to ``matrices``, from ``_card_opacity``) marks,
+    per run, cards that emitted output but traced 0 reads. When a would-be-dead input's owning card was
+    opaque in EVERY declared-traced run (``opaque_runs == declared_traced_runs``), the tool never once
+    observed that card reading anything, so a read-by-nobody input is an audit BLIND SPOT, not demonstrated
+    dead wiring — it is tagged ``blind_spot_opaque`` and kept OUT of ``dead_inputs``. Requiring opacity in
+    ALL runs is what keeps this honest: a card observed reading other objects in even one run (non-opaque
+    there) still yields a genuine ``dead`` for an input its reader never touched.
 
     **Cohort-conditionality.** A per-cohort shard menu (many declared inputs of which each run reads a
     mutually-exclusive subset) would otherwise flag every unselected shard as dead. A member of a
@@ -1108,13 +1140,19 @@ def _aggregate_read_matrices(
     evidence of a live menu vs genuine dead wiring) are both left flagged. Returns
     ``(cards_out, dead_inputs)``."""
     agg: dict[str, dict[str, dict[str, int]]] = {}
-    for mat in matrices:
+    for i, mat in enumerate(matrices):
+        op = opacities[i] if opacities is not None else {}
         for cid, mans in mat.items():
+            card_opaque = bool(op.get(cid, False))
             for mid, was_read in mans.items():
-                st = agg.setdefault(cid, {}).setdefault(mid, {"declared_traced_runs": 0, "read_runs": 0})
+                st = agg.setdefault(cid, {}).setdefault(
+                    mid, {"declared_traced_runs": 0, "read_runs": 0, "opaque_runs": 0}
+                )
                 st["declared_traced_runs"] += 1
                 if was_read:
                     st["read_runs"] += 1
+                if card_opaque:
+                    st["opaque_runs"] += 1
     # Prefix-family co-occurrence: members ever declared, whether any member was ever read, and the max
     # members read TOGETHER in a single run — the mutual-exclusivity discriminator.
     fam_members: dict[tuple[str, tuple], set[str]] = {}
@@ -1147,18 +1185,23 @@ def _aggregate_read_matrices(
         for mid in sorted(agg[cid]):
             st = agg[cid][mid]
             base_dead = st["read_runs"] == 0 and st["declared_traced_runs"] >= min_runs
+            # blind spot: the owning card emitted output but traced 0 reads in EVERY declared run ⇒ its IO
+            # was never observed ⇒ read-by-nobody is unverifiable, not demonstrated dead wiring.
+            blind_spot = base_dead and st["opaque_runs"] == st["declared_traced_runs"]
             fk = _family_key(mid)
             key = (cid, fk)
             members = fam_members.get(key, set())
             in_family = fk is not None and len(members) >= 2
             selective = in_family and fam_any_read.get(key, False) and fam_max_coread.get(key, 0) < len(members)
-            conditional_unselected = base_dead and selective
-            dead = base_dead and not selective
+            conditional_unselected = base_dead and not blind_spot and selective
+            dead = base_dead and not blind_spot and not selective
             rec = {"manifest_id": mid, **st, "dead": dead}
             if in_family:
                 rec["family"] = "-".join(fk[0]) + "-*-" + fk[1]
                 rec["family_size"] = len(members)
                 rec["family_read_members"] = sum(1 for mm in members if agg[cid][mm]["read_runs"] > 0)
+            if blind_spot:
+                rec["blind_spot_opaque"] = True
             if conditional_unselected:
                 rec["conditional_unselected"] = True
             inputs.append(rec)
@@ -1174,6 +1217,7 @@ def audit_corpus(run_dirs: list[Path], skill: str, min_runs: int) -> dict:
     not value re-computation)."""
     runs_meta: list[dict] = []
     matrices: list[dict[str, dict[str, bool]]] = []
+    opacities: list[dict[str, bool]] = []
     for rd in run_dirs:
         rep = audit_run(rd, skill, do_rederive=False)
         runs_meta.append(
@@ -1185,9 +1229,11 @@ def audit_corpus(run_dirs: list[Path], skill: str, min_runs: int) -> dict:
             }
         )
         matrices.append(_card_read_status(rep))
-    cards_out, dead_inputs = _aggregate_read_matrices(matrices, min_runs)
+        opacities.append(_card_opacity(rep))
+    cards_out, dead_inputs = _aggregate_read_matrices(matrices, min_runs, opacities)
     n_traced = sum(1 for r in runs_meta if r["traced"])
     n_cond = sum(1 for c in cards_out for inp in c["inputs"] if inp.get("conditional_unselected"))
+    n_blind = sum(1 for c in cards_out for inp in c["inputs"] if inp.get("blind_spot_opaque"))
     return {
         "schema": "card_chain_audit_corpus/v1",
         "skill": skill,
@@ -1198,6 +1244,7 @@ def audit_corpus(run_dirs: list[Path], skill: str, min_runs: int) -> dict:
         "n_cards": len(cards_out),
         "n_dead_inputs": len(dead_inputs),
         "n_conditional_unselected": n_cond,
+        "n_blind_spot_opaque": n_blind,
         "cards": cards_out,
         "dead_inputs": dead_inputs,
     }
@@ -1210,6 +1257,12 @@ def render_corpus_html(report: dict) -> str:
             card_cell = f"<td rowspan='{len(c['inputs'])}'>{_esc(c['card_id'])}</td>" if i == 0 else ""
             if inp["dead"]:
                 cls, verdict = "h-bad", "<b class='h-bad'>DEAD</b>"
+            elif inp.get("blind_spot_opaque"):
+                cls = "blind"
+                verdict = (
+                    f"blind spot — opaque owner ({_esc(inp.get('opaque_runs', '?'))}"
+                    f"/{_esc(inp.get('declared_traced_runs', '?'))} runs 0-read)"
+                )
             elif inp.get("conditional_unselected"):
                 cls = "cond"
                 verdict = (
@@ -1233,11 +1286,12 @@ def render_corpus_html(report: dict) -> str:
         "<style>body{font:13px system-ui;margin:2rem}table{border-collapse:collapse;width:100%}"
         "td,th{border:1px solid #ccc;padding:6px;vertical-align:top;text-align:left}"
         "th{background:#f4f4f4}.ok{color:#888}code{background:#f4f4f4}"
-        ".cond{color:#a60}.h-bad{color:#c00;font-weight:600}</style>"
+        ".cond{color:#a60}.blind{color:#559}.h-bad{color:#c00;font-weight:600}</style>"
         f"<h1>card chain audit — corpus dead-wiring — {_esc(report['skill'])}</h1>"
         f"<p>{_esc(report['n_runs'])} runs ({_esc(report['n_traced_runs'])} traced) · "
         f"min-runs floor={_esc(report['min_runs'])} · "
         f"<b class='h-bad'>{_esc(report['n_dead_inputs'])} dead input(s)</b> · "
+        f"{_esc(report.get('n_blind_spot_opaque', 0))} blind-spot (opaque owner) · "
         f"{_esc(report.get('n_conditional_unselected', 0))} conditional-unselected (per-cohort menu) "
         f"across {_esc(report['n_cards'])} cards</p>"
         f"<ul>{runs_list}</ul>"
@@ -1266,7 +1320,9 @@ def _main_corpus(args: argparse.Namespace) -> int:
     (out_dir / "card_chain_audit_corpus.html").write_text(render_corpus_html(report))
     print(
         f"[card-chain-audit] corpus: {report['n_runs']} runs ({report['n_traced_runs']} traced), "
-        f"{report['n_cards']} cards, {report['n_dead_inputs']} dead input(s) "
+        f"{report['n_cards']} cards, {report['n_dead_inputs']} dead input(s), "
+        f"{report.get('n_blind_spot_opaque', 0)} blind-spot(s), "
+        f"{report.get('n_conditional_unselected', 0)} conditional "
         f"→ {out_dir / 'card_chain_audit_corpus.json'}"
     )
     for f in report["dead_inputs"]:

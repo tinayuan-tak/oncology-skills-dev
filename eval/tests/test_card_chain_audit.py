@@ -560,6 +560,67 @@ def test_coread_family_is_not_a_menu():
     assert "conditional_unselected" not in by_mid["co-mm-nn-beta-v1"]
 
 
+# ── blind spots: an opaque owner (emitted output, 0 captured reads) is not demonstrated dead wiring ────
+def test_card_opacity_maps_traced_opaque_and_omits_untraced():
+    rep = {
+        "cards": [
+            {"card_id": "opaque_c", "measured": [], "health": {"status": "opaque"}},  # traced, 0 reads
+            {"card_id": "ok_c", "measured": [{"op": "x"}], "health": {"status": "ok"}},
+            {"card_id": "silent_c", "measured": [], "health": {"status": "no_output"}},  # emitted nothing
+            {"card_id": "untraced_c", "measured": None, "health": {"status": "opaque"}},  # omitted entirely
+        ]
+    }
+    op = cca._card_opacity(rep)
+    assert op == {"opaque_c": True, "ok_c": False, "silent_c": False}  # no_output is NOT opaque; untraced omitted
+
+
+def test_blind_spot_opaque_owner_reclassified_not_dead():
+    # read-by-nobody input whose owning card was opaque (0 captured reads) in BOTH runs ⇒ blind spot, not dead.
+    matrices = [{"c": {"mystery-mani": False}}, {"c": {"mystery-mani": False}}]
+    opacities = [{"c": True}, {"c": True}]
+    cards, dead = cca._aggregate_read_matrices(matrices, min_runs=2, opacities=opacities)
+    rec = cards[0]["inputs"][0]
+    assert rec["read_runs"] == 0 and rec["declared_traced_runs"] == 2  # still counted + visible
+    assert rec["blind_spot_opaque"] is True
+    assert rec["dead"] is False
+    assert dead == []  # kept OUT of the dead-wiring verdict
+
+
+def test_blind_spot_requires_opacity_in_ALL_runs_else_stays_dead():
+    # THE anti-masking teeth: the SAME read-0 input flips on whether the owner was observed reading.
+    matrices = [{"c": {"mystery-mani": False}}, {"c": {"mystery-mani": False}}]
+    # opaque in only ONE run (in the other the card WAS observed reading, just not this object) ⇒ genuine dead
+    partial = [{"c": True}, {"c": False}]
+    cards, dead = cca._aggregate_read_matrices(matrices, min_runs=2, opacities=partial)
+    rec = cards[0]["inputs"][0]
+    assert "blind_spot_opaque" not in rec
+    assert rec["dead"] is True
+    assert [d["manifest_id"] for d in dead] == ["mystery-mani"]
+
+
+def test_no_opacities_arg_never_reclassifies_as_blind_spot():
+    # backward compat: without an opacity map the detector cannot infer opacity ⇒ a read-0 input stays dead.
+    matrices = [{"c": {"mystery-mani": False}}, {"c": {"mystery-mani": False}}]
+    cards, dead = cca._aggregate_read_matrices(matrices, min_runs=2)
+    rec = cards[0]["inputs"][0]
+    assert "blind_spot_opaque" not in rec
+    assert rec["dead"] is True and [d["manifest_id"] for d in dead] == ["mystery-mani"]
+
+
+def test_blind_spot_precedes_conditional_when_owner_opaque_in_all_runs():
+    # a family read only via the run-union (owner opaque throughout) ⇒ blind spot dominates the menu label.
+    matrices = [
+        {"c": {"fam-gg-hh-x-v1": True, "fam-gg-hh-y-v1": False}},
+        {"c": {"fam-gg-hh-x-v1": False, "fam-gg-hh-y-v1": False}},
+    ]
+    opacities = [{"c": True}, {"c": True}]
+    cards, dead = cca._aggregate_read_matrices(matrices, min_runs=2, opacities=opacities)
+    by_mid = {i["manifest_id"]: i for i in cards[0]["inputs"]}
+    assert by_mid["fam-gg-hh-y-v1"]["blind_spot_opaque"] is True
+    assert "conditional_unselected" not in by_mid["fam-gg-hh-y-v1"]  # blind spot wins over the menu tag
+    assert by_mid["fam-gg-hh-y-v1"]["dead"] is False and dead == []
+
+
 # ── re-derivation honesty: reason_class taxonomy + per-lineage re-derivation ────────────────────────
 def test_rederive_reason_class_splits_input_absent_from_method_internal():
     # no OmicsExpression read in the trace ⇒ scalars are input_absent_from_trace, NOT method_internal
