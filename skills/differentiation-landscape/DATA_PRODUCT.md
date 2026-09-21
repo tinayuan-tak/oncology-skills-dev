@@ -6,7 +6,7 @@ logic + history live in SKILL.md / run.py; this file is the data-product spec.
 | | |
 |---|---|
 | **Skill** | `differentiation-landscape` |
-| **Skill code version** | 1.10.0 |
+| **Skill code version** | 1.12.0 |
 | **Contract version** | 1.0.0 (emitted-output schema; versioned independently — see §4) |
 | **Role** | `gating` (verdict = a co-mutation / mutual-exclusivity landscape class; all values hero-polarity `neutral` — a descriptive landscape, direction lives in the claim atom) |
 | **Verdict field** | `headline.differentiation_verdict` (resolves on `co-mutation-and-mutual-exclusivity`) |

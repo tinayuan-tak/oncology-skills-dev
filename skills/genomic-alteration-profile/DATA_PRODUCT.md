@@ -6,7 +6,7 @@ history live in SKILL.md / run.py; this file is the data-product spec.
 | | |
 |---|---|
 | **Skill** | `genomic-alteration-profile` |
-| **Skill code version** | 2.17.0 |
+| **Skill code version** | 2.19.0 |
 | **Contract version** | 1.0.0 (emitted-output schema; versioned independently — see §4) |
 | **Role** | `gating` (verdict moves the nomination; polarity dynamic — positive driver / negative passenger / neutral) |
 | **Verdict field** | `headline.genomic_alteration_profile` (scalar, reconciled) + `genomic_alteration_by_class` {snv_indel, copy_number, fusion, splice} + `genomic_alteration_by_scope` {pan_cancer, indication, subtype} |

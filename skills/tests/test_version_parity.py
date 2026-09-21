@@ -25,6 +25,12 @@ SKILLS = Path(__file__).resolve().parent.parent
 
 _SKILL_VERSION_RE = re.compile(r'^\s*SKILL_VERSION\s*=\s*["\']([^"\']+)["\']', re.MULTILINE)
 
+# DATA_PRODUCT.md carries the same version in a markdown table row:
+#   | **Skill code version** | 2.19.0 |
+# Some rows trail explanatory text (e.g. "1.24.0 (see CONTRACT.md § Version history)"); the
+# leading semver is the version, so capture the first x.y.z after the row label.
+_DATA_PRODUCT_VERSION_RE = re.compile(r"\*\*Skill code version\*\*\s*\|\s*(\d+\.\d+\.\d+)")
+
 
 def _frontmatter_version(skill_md: Path):
     text = skill_md.read_text()
@@ -68,6 +74,51 @@ def test_skill_md_version_matches_stamped_version(name, skill_md, run_py):
     )
 
 
+def _data_product_version(data_product_md: Path):
+    m = _DATA_PRODUCT_VERSION_RE.search(data_product_md.read_text())
+    return m.group(1) if m else None
+
+
+def _skill_dirs_with_data_product():
+    pairs = []
+    for skill_md in sorted(SKILLS.glob("*/SKILL.md")):
+        run_py = skill_md.parent / "scripts" / "run.py"
+        data_product = skill_md.parent / "DATA_PRODUCT.md"
+        if run_py.exists() and data_product.exists():
+            pairs.append((skill_md.parent.name, run_py, data_product))
+    return pairs
+
+
+_DP_PAIRS = _skill_dirs_with_data_product()
+
+
+@pytest.mark.parametrize("name,run_py,data_product", _DP_PAIRS, ids=[p[0] for p in _DP_PAIRS])
+def test_data_product_version_matches_stamped_version(name, run_py, data_product):
+    """A skill's DATA_PRODUCT.md 'Skill code version' row must equal the stamped SKILL_VERSION.
+
+    DATA_PRODUCT.md is the data-product spec a downstream consumer reads to learn which skill-code
+    version produced a package. It is NOT covered by the SKILL.md parity test above and had drifted
+    on 7 of the wired skills (2026-09-21 genomic-alteration audit). Skips a skill that lacks either a
+    SKILL_VERSION constant or the version row, mirroring the SKILL.md test's both-present rule.
+    """
+    stamped = _run_py_version(run_py)
+    documented = _data_product_version(data_product)
+    if stamped is None or documented is None:
+        pytest.skip(
+            f"{name}: missing SKILL_VERSION ({stamped!r}) or DATA_PRODUCT.md 'Skill code version' row ({documented!r})"
+        )
+    assert documented == stamped, (
+        f"{name}: DATA_PRODUCT.md 'Skill code version'={documented!r} but run.py "
+        f"SKILL_VERSION={stamped!r}. These MUST agree — the version row documents which skill-code "
+        f"version produced the emitted data-package. Bump the DATA_PRODUCT.md row to match."
+    )
+
+
 def test_at_least_one_pair_checked():
     """Sanity: the discovery glob actually found wired skills (guards a silent skip-everything)."""
     assert _PAIRS, "no skills with both SKILL.md and scripts/run.py were discovered"
+
+
+def test_at_least_one_data_product_checked():
+    """Sanity: the DATA_PRODUCT.md discovery found skills (guards a silent skip-everything)."""
+    assert _DP_PAIRS, "no skills with both DATA_PRODUCT.md and scripts/run.py were discovered"

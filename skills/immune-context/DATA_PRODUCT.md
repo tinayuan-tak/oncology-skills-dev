@@ -6,7 +6,7 @@ in SKILL.md / run.py; this file is the data-product spec.
 | | |
 |---|---|
 | **Skill** | `immune-context` |
-| **Skill code version** | 1.8.0 |
+| **Skill code version** | 1.10.0 |
 | **Contract version** | 1.0.0 (emitted-output schema; versioned independently — see §4) |
 | **Role** | `descriptive` (TCE-effector CD8 read; **gateless/additive** — inline `_verdict`, no shared resolver, absent from `_SHORT_TO_GATE`; `polarity: not_scored`) |
 | **Verdict field** | `headline.immune_context_verdict` (indication-level / **target-independent**) |

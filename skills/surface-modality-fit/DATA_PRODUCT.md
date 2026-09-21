@@ -6,7 +6,7 @@ live in SKILL.md / run.py; this file is the data-product spec.
 | | |
 |---|---|
 | **Skill** | `surface-modality-fit` |
-| **Skill code version** | 1.9.0 |
+| **Skill code version** | 1.11.0 |
 | **Contract version** | 1.0.0 (emitted-output schema; versioned independently — see §4) |
 | **Role** | `gating` (verdict can move the nomination; polarity dynamic 3-band with a **killer** override fired only by `fit_class == neither_viable`) |
 | **Verdict fields (multi-layer)** | `headline.fit_class` (base composed call = `skill_report.call`) · `surface_modality_verdict` (resolved post safety/density/shed/escape downgrade — the sharpest signal, surfaced as top tension) · `surface_modality_verdict_by_modality` ({adc, bite_tce, antibody(, pmhc_tce)}) |
