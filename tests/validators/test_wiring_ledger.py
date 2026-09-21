@@ -1,11 +1,17 @@
-"""Tests for the I.4 wiring ledger (dataset-grain: read / declared_only / dark).
+"""Tests for the I.4 wiring ledger (dataset-grain: read / declared_only / referenced_only / dark).
 
 WHY THE SHAPE OF THESE TESTS MATTERS. `dark` is a DIMENSION, not a gate — a backlog of unwired
 datasets is the I.4 worklist, not a failure. So the ONLY thing --self-check enforces is that the
-committed number cannot silently move: the three status lists must partition the committed universe,
-the anti-vacuity floors must hold, and no committed-`dark` id may be declared by a card today without
-regenerating. With nothing "baselined," a mutation test is the only proof those checks have teeth — a
-gate that only ever fires, or never does, is as broken as no gate.
+committed number cannot silently move: the four status lists must partition the committed universe,
+the anti-vacuity floors must hold, and no committed-`dark`/`referenced_only` id may be declared by a
+card today without regenerating. With nothing "baselined," a mutation test is the only proof those
+checks have teeth — a gate that only ever fires, or never does, is as broken as no gate.
+
+`referenced_only` (its literal id appears in method/skill .py source, but no captured read and no card
+declaration) is the tightening that makes `dark` a SOUND lower bound: an id merely NAMED in code
+cannot be confidently dark (it may be a param-passed read the AST oracle cannot see). It is a live-only
+split, so the hermetic tests here treat it as an opaque committed bucket in the partition; the LIVE
+test proves every referenced_only id is actually code-referenced.
 
 These are HERMETIC: they exercise self_check_hermetic / _partition_errors / _floors over a synthetic
 snapshot dict + a sandbox cards/ dir, needing no analysis-methods / skills / data-catalog sibling, so
@@ -30,14 +36,28 @@ import build_wiring_ledger as bwl  # noqa: E402
 # ---------------------------------------------------------------------------
 # synthetic fixtures — a snapshot whose right answer is known independent of the extractor
 # ---------------------------------------------------------------------------
-def _snap(read: list[str], declared_only: list[str], dark: list[str], universe: int | None = None) -> dict:
+def _snap(
+    read: list[str],
+    declared_only: list[str],
+    dark: list[str],
+    referenced_only: list[str] | None = None,
+    universe: int | None = None,
+) -> dict:
     read, declared_only, dark = sorted(read), sorted(declared_only), sorted(dark)
+    referenced_only = sorted(referenced_only or [])
+    n = len(read) + len(declared_only) + len(referenced_only) + len(dark)
     return {
-        "n_catalog_datasets": universe if universe is not None else len(read) + len(declared_only) + len(dark),
-        "counts": {"read": len(read), "declared_only": len(declared_only), "dark": len(dark)},
+        "n_catalog_datasets": universe if universe is not None else n,
+        "counts": {
+            "read": len(read),
+            "declared_only": len(declared_only),
+            "referenced_only": len(referenced_only),
+            "dark": len(dark),
+        },
         "n_literal_reads": len(read),
         "read": read,
         "declared_only": declared_only,
+        "referenced_only": referenced_only,
         "dark": dark,
     }
 
@@ -45,9 +65,10 @@ def _snap(read: list[str], declared_only: list[str], dark: list[str], universe: 
 def _healthy_snap() -> dict:
     # universe 500 >= MIN_CATALOG_DATASETS (400); read 60 >= MIN_READ_DATASETS (40); dark < universe.
     read = [f"read-{i}" for i in range(60)]
-    declared = [f"decl-{i}" for i in range(390)]
+    declared = [f"decl-{i}" for i in range(370)]
+    referenced = [f"ref-{i}" for i in range(20)]
     dark = [f"dark-{i}" for i in range(50)]
-    return _snap(read, declared, dark)
+    return _snap(read, declared, dark, referenced_only=referenced)
 
 
 @pytest.fixture
@@ -86,6 +107,16 @@ def test_overlap_between_read_and_dark_reds(empty_cards):
     snap["n_catalog_datasets"] += 1
     errs = bwl.self_check_hermetic(snap)
     assert any("not disjoint" in e and "read" in e and "dark" in e for e in errs), errs
+
+
+def test_overlap_between_referenced_only_and_dark_reds(empty_cards):
+    # a referenced id leaking into dark is the exact defect this bucket exists to prevent.
+    snap = _healthy_snap()
+    snap["dark"].append(snap["referenced_only"][0])
+    snap["counts"]["dark"] += 1
+    snap["n_catalog_datasets"] += 1
+    errs = bwl.self_check_hermetic(snap)
+    assert any("not disjoint" in e and "referenced_only" in e and "dark" in e for e in errs), errs
 
 
 def test_partition_sum_mismatch_reds(empty_cards):
@@ -138,6 +169,17 @@ def test_declaring_a_committed_dark_id_reds(empty_cards):
     assert any("declaration drift" in e and victim in e for e in errs), errs
 
 
+def test_declaring_a_committed_referenced_only_id_reds(empty_cards):
+    # declared_only has precedence over referenced_only, so a card newly declaring a referenced_only id
+    # must regenerate to move it — same drift signal as for dark.
+    snap = _healthy_snap()
+    victim = snap["referenced_only"][0]
+    assert bwl.self_check_hermetic(snap) == []
+    _write_card(empty_cards, "c", [victim])
+    errs = bwl.self_check_hermetic(snap)
+    assert any("declaration drift" in e and victim in e and "referenced_only" in e for e in errs), errs
+
+
 def test_declaring_a_non_dark_id_does_not_red(empty_cards):
     # NEGATIVE control: declaring an id that is already `read` is not drift (it is expected).
     snap = _healthy_snap()
@@ -161,11 +203,14 @@ def test_committed_snapshot_has_expected_shape():
     moves a handful of datasets does not force a churn edit here — only a large drift reds."""
     snap = yaml.safe_load(bwl.SNAPSHOT_PATH.read_text())
     c = snap["counts"]
-    assert snap["n_catalog_datasets"] == c["read"] + c["declared_only"] + c["dark"]
+    assert snap["n_catalog_datasets"] == c["read"] + c["declared_only"] + c["referenced_only"] + c["dark"]
     assert c["read"] >= bwl.MIN_READ_DATASETS
     assert c["dark"] < snap["n_catalog_datasets"]
-    # dark is the I.4 worklist; it should be a real, non-empty backlog on landing (measured 139).
+    # dark is the I.4 worklist; it should be a real, non-empty backlog on landing (measured ~116).
     assert c["dark"] > 0
+    # referenced_only is the tightening: ids named in code but not read/declared (measured ~23). It
+    # must be non-empty, else the split found nothing and `dark` reverts to the AST over-count.
+    assert c["referenced_only"] > 0
 
 
 @pytest.mark.skipif(
@@ -174,7 +219,23 @@ def test_committed_snapshot_has_expected_shape():
 )
 def test_live_recompute_matches_committed():
     # self_check_live recomputes the whole ledger and diffs it; a null diff proves the committed
-    # read/declared_only/dark sets match the methods + catalog on disk today.
+    # read/declared_only/referenced_only/dark sets match the methods + catalog on disk today.
     committed = yaml.safe_load(bwl.SNAPSHOT_PATH.read_text())
     live_errs, skipped = bwl.self_check_live(committed)
     assert skipped is None and live_errs == [], live_errs
+
+
+@pytest.mark.skipif(
+    not bwl.wr._siblings_available(),
+    reason="analysis-methods / skills siblings absent (checkout-only CI)",
+)
+def test_dark_has_zero_code_reference_and_referenced_only_does_not():
+    # The soundness contract of the split: every committed `dark` id is referenced NOWHERE in
+    # method/skill source (a true lower bound on the unwired set), and every `referenced_only` id IS
+    # referenced (it earned its place out of dark). Recomputes the code-reference set directly.
+    committed = yaml.safe_load(bwl.SNAPSHOT_PATH.read_text())
+    dark = set(committed.get("dark") or [])
+    referenced_only = set(committed.get("referenced_only") or [])
+    referenced = bwl._referenced_in_code(dark | referenced_only)
+    assert dark & referenced == set(), sorted(dark & referenced)[:5]
+    assert referenced_only <= referenced, sorted(referenced_only - referenced)[:5]

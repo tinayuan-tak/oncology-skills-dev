@@ -1,84 +1,76 @@
 _doc: 'I.4 wiring ledger: every data-catalog manifest id by wiring status -- read (a method reads it /
-  template / lineage), declared_only (a card names it but no static read; likely consumed via an escape
-  hatch the AST oracle cannot see -- a dimension), or dark (no card reads OR names it -- the wiring worklist).
-  `dark` is the number I.4 moves. Regenerate with validators/build_wiring_ledger.py; --self-check gates
-  drift.'
+  template / lineage), declared_only (a card names it in required_inputs but no static read -- likely
+  an escape-hatch read the AST oracle cannot see; a dimension), referenced_only (its literal id appears
+  in method/skill .py source but is neither a captured read nor a card declaration -- a param-passed read
+  / produced dataset / stale mention; a dimension needing triage), or dark (ZERO reference -- no code
+  reads, declares, OR names it; the wiring worklist). `dark` is the number I.4 moves, a sound lower bound
+  on the truly-unwired set. Regenerate with validators/build_wiring_ledger.py; --self-check gates drift.'
 sibling_shas:
   analysis-methods: 7adc875
-  skills: 03a45432
+  skills: 843e4082
   data-catalog: 161d13e
 n_catalog_datasets: 534
 counts:
   read: 135
   declared_only: 260
-  dark: 139
+  referenced_only: 23
+  dark: 116
 n_literal_reads: 67
 dark_by_source_family:
   cbioportal: 17
-  genie: 11
-  depmap: 10
-  sc: 10
   geo: 9
+  genie: 9
+  sc: 8
   prism: 6
-  loveless: 3
-  3ca: 3
-  omicsoft: 3
+  depmap: 6
   ucsc: 3
-  hpa: 2
-  tcga: 2
+  loveless: 3
+  omicsoft: 3
+  3ca: 3
   crc: 2
-  gdc: 2
-  horlbeck: 2
-  hpvneg: 2
-  opentargets: 2
   arm: 2
   htan: 2
-  xena: 1
-  hnsc: 1
-  peptideatlas: 1
-  schutte: 1
-  gao: 1
-  cheng: 1
-  toxcast: 1
-  ncbi: 1
-  lee: 1
-  tphp: 1
-  mygene: 1
-  vandewetering: 1
-  gastric: 1
+  hpvneg: 2
+  horlbeck: 2
   datlinger: 1
-  pancan: 1
-  omnipath: 1
+  mygene: 1
+  ensembl: 1
+  msk: 1
+  ncbi: 1
+  hpa: 1
+  rancho: 1
+  meditreme: 1
   ov: 1
   merops: 1
-  met500: 1
-  gencode: 1
-  gnomad: 1
-  dream: 1
-  pancanatlas: 1
-  ccle: 1
-  pooled: 1
-  peng: 1
-  cellxgene: 1
-  dgv: 1
-  coadread: 1
+  cheng: 1
+  omnipath: 1
+  vandewetering: 1
   cancermine: 1
-  hnscc: 1
-  meditreme: 1
-  williams: 1
-  msk: 1
   pelka: 1
-  gtex: 1
-  go: 1
-  normal: 1
-  tflink: 1
-  uniprot: 1
-  kinome: 1
-  tempus: 1
-  rancho: 1
+  hnsc: 1
+  schutte: 1
+  met500: 1
   replogle: 1
+  gnomad: 1
+  lee: 1
+  gdc: 1
+  tempus: 1
+  xena: 1
+  tcga: 1
+  williams: 1
+  hnscc: 1
+  gencode: 1
+  gastric: 1
+  dgv: 1
+  peptideatlas: 1
+  pooled: 1
+  tflink: 1
+  pancanatlas: 1
+  dream: 1
   biogrid: 1
-  ensembl: 1
+  cellxgene: 1
+  gao: 1
+  peng: 1
 read:
 - allgene-depmap-rank-26q1-v1
 - allgene-tumor-rank-v1
@@ -476,6 +468,30 @@ declared_only:
 - wu-swarbrick-brca-scatlas-2021
 - zeng-shet-genebayes-snapshot-2026-08-28
 - zenodo-luca-salcher-nsclc-snapshot-2026-08-13
+referenced_only:
+- ccle-rrbs-promoter-methylation-mean-per-gene-v1
+- coadread-dge-df06320
+- depmap-predictability-26q1-v2
+- depmap-predictability-26q1-v3
+- depmap-predictability-26q1-v4
+- depmap-subgroup-assignments-coadread-cms-v1
+- gdc-pancohort-somatic-dr45-0
+- genie-bpc-subgroup-assignments-coadread-v1
+- genie-bpc-subgroup-assignments-nsclc-v1
+- go-annotation-per-uniprot-v1
+- gtex-v10-gene-tpm
+- hpa-rna-tissue-consensus-v25-1
+- kinome-atlas-pwm-lookup-v1
+- normal-tissue-protein-abundance-per-gene-v1
+- opentargets-literature-per-target-v1
+- opentargets-literature-per-target-v2
+- pancan-arm-cnv-per-sample-v1
+- sc-pseudobulk-donor-celltype-coadread-v1
+- sc-samecell-coexpr-nsclc-v1
+- tcga-gdc-dr45-0
+- toxcast-invitrodb-v3-3
+- tphp-tumor-vs-normal-protein-per-cohort-v1
+- uniprot-string-hc-edges-per-gene-v1
 dark:
 - 3ca-colorectal-snapshot-2026-08-25
 - 3ca-hematologic-snapshot-2026-08-25
@@ -501,10 +517,8 @@ dark:
 - cbioportal-pan-origimed-2020
 - cbioportal-pancan-pcawg-2020
 - cbioportal-pancan-pdmr-2025
-- ccle-rrbs-promoter-methylation-mean-per-gene-v1
 - cellxgene-discover-collections-index-2026-07-09
 - cheng-metastatic-gastric-ferroptosis-gse239676
-- coadread-dge-df06320
 - crc-anti-egfr-resistance-geo-snapshot-2026-09-14
 - crc-egfri-residual-geo-snapshot-2026-09-14
 - datlinger-2017-cropseq-gse92872
@@ -514,17 +528,12 @@ dark:
 - depmap-consortium-25q2-paralogs
 - depmap-consortium-25q3
 - depmap-consortium-26q1-perturbation-screens
-- depmap-predictability-26q1-v2
-- depmap-predictability-26q1-v3
-- depmap-predictability-26q1-v4
-- depmap-subgroup-assignments-coadread-cms-v1
 - dgv-gold-standard-hg38-snapshot-2026-08-28
 - dream-menden-2019-snapshot-2026-07-23
 - ensembl-coords-release-116-snapshot-2026-06-22
 - gao-gc-spatial-atlas-2026
 - gastric-tcell-dynamics-2025-gse315928
 - gdc-dr45-alchemist-nsclc-hotspot-v1
-- gdc-pancohort-somatic-dr45-0
 - gencode-v26-tss-windows-v1
 - genie-bpc-bladder-v1-0
 - genie-bpc-brca-v1-0
@@ -534,8 +543,6 @@ dark:
 - genie-bpc-nsclc-v2-treatment
 - genie-bpc-panc-v1-0
 - genie-bpc-prostate-v1-0
-- genie-bpc-subgroup-assignments-coadread-v1
-- genie-bpc-subgroup-assignments-nsclc-v1
 - genie-panel-recurrence-v1
 - geo-gse114647-fgfr-emt-egfri-resistance-nsclc-snapshot-2026-09-15
 - geo-gse142669-erlotinib-resistance-crispr-nsclc-snapshot-2026-09-16
@@ -547,19 +554,15 @@ dark:
 - geo-gse315547-chemical-genetic-interaction-matrix-snapshot-2026-09-15
 - geo-gse323365-egfri-cell-death-dependencies-snapshot-2026-09-15
 - gnomad-constraint-snapshot-2026-07-02
-- go-annotation-per-uniprot-v1
-- gtex-v10-gene-tpm
 - hnsc-conde-lopez-scatlas-2026
 - hnscc-ifn-mhcii-2026-gse301741
 - horlbeck-2018-gi-map
 - horlbeck-genetic-interaction-per-pair-v1
 - hpa-normal-tissue-expression-v1
-- hpa-rna-tissue-consensus-v25-1
 - hpvneg-hnscc-annotations-v1
 - hpvneg-hnscc-scatlas-monti-2026
 - htan-vumc-crc-polyp-annotations-v1
 - htan-vumc-crc-polyp-scatlas-2021
-- kinome-atlas-pwm-lookup-v1
 - lee-2020-crc-smc-gse132465
 - loveless-pdac-scatlas-2025
 - loveless-pdac-scatlas-annotations-2025
@@ -570,15 +573,11 @@ dark:
 - msk-chord-per-sample-maf-v1
 - mygene-info-metadata-20260602
 - ncbi-gene-snapshot-2026-06-18
-- normal-tissue-protein-abundance-per-gene-v1
 - omicsoft-oncoland-ccle-b38-gc33-2025r3
 - omicsoft-oncoland-gtex-b38-gc33-2025r3
 - omicsoft-oncoland-tcga-b38-gc33-2025r3
 - omnipath-snapshot-2026-06-29
-- opentargets-literature-per-target-v1
-- opentargets-literature-per-target-v2
 - ov-tumor-vs-gtex-poc-v1
-- pancan-arm-cnv-per-sample-v1
 - pancanatlas-driver-tools-bailey-2018
 - pelka-2021-crc-gse178341
 - peng-2021-oscc-tcf7-gse172577
@@ -592,7 +591,6 @@ dark:
 - prism-repurposing-secondary-20q2
 - rancho-lung-cancer-atlas-2024
 - replogle-perturb-seq-figshare-20029387-snapshot-2026-09-14
-- sc-pseudobulk-donor-celltype-coadread-v1
 - sc-pseudobulk-donor-celltype-coadread-v2
 - sc-pseudobulk-donor-celltype-nsclc-v1
 - sc-pseudobulk-tumor-3ca-npc-v1
@@ -601,18 +599,13 @@ dark:
 - sc-samecell-coexpr-3ca-npc-v1
 - sc-samecell-coexpr-coadread-v1
 - sc-samecell-coexpr-hnsc-bu-v1
-- sc-samecell-coexpr-nsclc-v1
 - schutte-2017-crc-models-pmc-snapshot-2026-09-14
-- tcga-gdc-dr45-0
 - tcga-maf-subgroup-assignments-coadread-v1
 - tempus-crc-2026-03-17
 - tflink-human-v1-0-snapshot-2026-06-30
-- toxcast-invitrodb-v3-3
-- tphp-tumor-vs-normal-protein-per-cohort-v1
 - ucsc-cytoband-hg19-snapshot-2026-09-15
 - ucsc-cytoband-hg38-snapshot-2026-07-01
 - ucsc-genomicsuperdups-hg38-snapshot-2026-08-28
-- uniprot-string-hc-edges-per-gene-v1
 - vandewetering-crc-organoids-geo-snapshot-2026-09-14
 - williams-2017-crc-cetuximab-sirna-pubchem-snapshot-2026-09-14
 - xena-toil-tcga-target-gtex-snapshot-2026-09-20

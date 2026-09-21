@@ -8,7 +8,8 @@ read? A dark dataset produces no (card_id, field, value) triples — it is invis
 until a method is extended to read it. "Wire the dark datasets" = shrink `dark`, one PR each; the
 I.1 emission ledger and the I.3 reconciliation are the acceptance test for each wiring.
 
-THREE mutually-exclusive statuses per catalog manifest id (they partition the universe):
+FOUR mutually-exclusive statuses per catalog manifest id (they partition the universe), in
+precedence order read > declared_only > referenced_only > dark:
 
     read            a routed card's method statically reads it (a catalog_query literal), OR it
                     matches a reader f-string template, OR a read product transitively derives from
@@ -19,27 +20,39 @@ THREE mutually-exclusive statuses per catalog manifest id (they partition the un
                     manifest id, `aws s3 cp`, or a direct `data-catalog/derived/{id}` path, none of
                     which the catalog_query AST oracle can see (the same UNSOUNDNESS that put I.3's
                     confidence gate in place). A DIMENSION, never dark: a card claims it.
-    dark            neither read nor declared nor lineage-covered. No card names it at all. THE I.4
-                    WORKLIST — the number that moves.
+    referenced_only its literal id appears in analysis-methods / skills .py source, but it is neither
+                    a captured read nor a card declaration. A mixed bag that CANNOT be confidently
+                    called dark: a param-passed read (`{IND: id}` dict then a variable arg), a
+                    dataset a method PRODUCES (build_product/derive), or a stale mention in a comment
+                    about a superseded id. A DIMENSION — the residue that needs human triage, the
+                    mirror of declared_only for code references. (Measured: 23 ids, incl. 2 genuine
+                    escape-hatch reads — coadread-dge-df06320 via an _INDICATION_TO_ADJ_MANIFEST
+                    dict, hpa-rna-tissue-consensus-v25-1 via a MANIFEST_ID module constant.)
+    dark            ZERO reference anywhere — not read, not declared, and its literal appears in no
+                    method/skill source. No code touches it at all. THE I.4 WORKLIST.
 
-WHY declared_only is NOT folded into dark: the I.3 arc measured that a static reads oracle over this
-codebase is unsound (reads escape through param-passed ids / s3 cp / direct paths). Calling a
-declared-but-not-statically-read dataset "dark" would ship those extraction artifacts as a worklist —
-the exact green-for-the-wrong-reason this plan removes. So the read side is asserted only where it is
-POSITIVE (a literal read is real); absence-of-read is downgraded to `declared_only` whenever a card
-declares the id, and only the residue no card mentions is called dark.
+WHY declared_only AND referenced_only are NOT folded into dark: the I.3 arc measured that a static
+reads oracle over this codebase is unsound (reads escape through param-passed ids / s3 cp / direct
+paths). Calling a dataset that is declared, or merely NAMED in code, "dark" would ship those
+extraction artifacts as a worklist — the exact green-for-the-wrong-reason this plan removes. So the
+read side is asserted only where it is POSITIVE (a literal read is real); absence-of-read is
+downgraded to a dimension whenever a card declares the id (declared_only) or any method/skill source
+mentions its literal (referenced_only), and only the residue with NO reference is called dark. `dark`
+is thus a sound lower bound on the truly-unwired set, not a static-oracle over-count.
 
 WHAT EACH HALF OF --self-check CAN AND CANNOT SEE:
 
-  HERMETIC half — CI, no siblings, no credentials. Cannot recompute the universe or the read set
-                  (both need data-catalog + analysis-methods + skills). It re-reads TODAY's cards
-                  (in-repo) for the declared set and checks: the three lists partition the committed
-                  universe, the anti-vacuity floors hold, and no committed-`dark` id is declared by a
-                  card today (that in-repo edit must move the id to `declared_only` — regenerate).
-  LIVE half     — needs the three siblings. Fully recomputes the ledger and diffs it. Catches
-                  READ-side drift the hermetic half is blind to: a method starting/stopping a read,
-                  lineage moving, the catalog universe changing. Announced-skip (never silent) when a
-                  sibling is absent — the same epistemic position as the checkout-only CI runner.
+  HERMETIC half — CI, no siblings, no credentials. Cannot recompute the universe, the read set, or the
+                  referenced_only split (all need data-catalog + analysis-methods + skills). It re-reads
+                  TODAY's cards (in-repo) for the declared set and checks: the four lists partition the
+                  committed universe, the anti-vacuity floors hold, and no committed-`dark` OR
+                  `referenced_only` id is declared by a card today (that in-repo edit must move the id
+                  to `declared_only` — regenerate).
+  LIVE half     — needs the three siblings. Fully recomputes the ledger and diffs it. Catches READ-side
+                  AND code-reference drift the hermetic half is blind to: a method starting/stopping a
+                  read, a source file gaining/losing an id literal, lineage moving, the catalog universe
+                  changing. Announced-skip (never silent) when a sibling is absent — the same epistemic
+                  position as the checkout-only CI runner.
 
 `dark` is a DIMENSION, not a gate: having a backlog of unwired datasets is not a failure, it is the
 I.4 worklist. `--self-check` gates DRIFT (the committed snapshot must equal a regeneration) plus the
@@ -118,6 +131,28 @@ def _read_closure(cat_ids: set[str], derived_from: dict) -> tuple[set[str], set[
     return closure, lits
 
 
+def _referenced_in_code(candidates: set[str]) -> set[str]:
+    """Of `candidates`, those whose literal id substring appears in any analysis-methods `methods/**`
+    or skills `skills/**` .py source. A NAME reference the catalog_query reads oracle does not count as
+    a read: a param-passed id (`{IND: id}` dict then a variable arg), a dataset the method PRODUCES,
+    or a stale comment about a superseded id. LIVE-only (needs the two sibling source trees) — the
+    hermetic self-check can neither compute nor verify it, so `referenced_only` is a committed list the
+    live half re-derives. Reads every source once into a single blob and substring-tests each candidate;
+    manifest ids are long hyphenated slugs, so substring collision with unrelated code is negligible."""
+    roots = [wr.AM / "methods", wr.vc._SKILLS_REPO / "skills"]
+    blobs: list[str] = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for f in root.rglob("*.py"):
+            try:
+                blobs.append(f.read_text(errors="ignore"))
+            except Exception:
+                continue
+    source = "\n".join(blobs)
+    return {c for c in candidates if c in source}
+
+
 def compute_ledger() -> dict:
     cat_ids, derived_from = wr.load_catalog()
     read_closure, literal_reads = _read_closure(cat_ids, derived_from)
@@ -129,22 +164,34 @@ def compute_ledger() -> dict:
     declared_closure &= cat_ids
     declared_only = declared_closure - read_closure
 
-    dark = cat_ids - read_closure - declared_only
+    # Precedence read > declared_only > referenced_only > dark. Of the residue no card reads or
+    # declares, split by whether the id's literal is NAMED anywhere in method/skill source — a name is
+    # not a captured read, so it cannot be confidently dark (likely a param-passed read the AST oracle
+    # cannot see). Only ids with ZERO reference are dark; the census is a sound lower bound, not an
+    # AST over-count.
+    remaining = cat_ids - read_closure - declared_only
+    referenced_only = _referenced_in_code(remaining)
+    dark = remaining - referenced_only
     dark_by_family = dict(Counter(d.split("-")[0] for d in dark).most_common())
 
     return {
         "_doc": (
             "I.4 wiring ledger: every data-catalog manifest id by wiring status -- read (a method "
-            "reads it / template / lineage), declared_only (a card names it but no static read; "
-            "likely consumed via an escape hatch the AST oracle cannot see -- a dimension), or dark "
-            "(no card reads OR names it -- the wiring worklist). `dark` is the number I.4 moves. "
-            "Regenerate with validators/build_wiring_ledger.py; --self-check gates drift."
+            "reads it / template / lineage), declared_only (a card names it in required_inputs but no "
+            "static read -- likely an escape-hatch read the AST oracle cannot see; a dimension), "
+            "referenced_only (its literal id appears in method/skill .py source but is neither a "
+            "captured read nor a card declaration -- a param-passed read / produced dataset / stale "
+            "mention; a dimension needing triage), or dark (ZERO reference -- no code reads, declares, "
+            "OR names it; the wiring worklist). `dark` is the number I.4 moves, a sound lower bound on "
+            "the truly-unwired set. Regenerate with validators/build_wiring_ledger.py; --self-check "
+            "gates drift."
         ),
         "sibling_shas": wr._sibling_shas(),
         "n_catalog_datasets": len(cat_ids),
         "counts": {
             "read": len(read_closure),
             "declared_only": len(declared_only),
+            "referenced_only": len(referenced_only),
             "dark": len(dark),
         },
         # literal_reads is the sound floor of `read` (before template/lineage widening) — recorded so a
@@ -153,6 +200,7 @@ def compute_ledger() -> dict:
         "dark_by_source_family": dark_by_family,
         "read": sorted(read_closure),
         "declared_only": sorted(declared_only),
+        "referenced_only": sorted(referenced_only),
         "dark": sorted(dark),
     }
 
@@ -161,29 +209,25 @@ def compute_ledger() -> dict:
 # self-check
 # ---------------------------------------------------------------------------
 def _partition_errors(snap: dict) -> list[str]:
-    """The three lists must partition the committed universe and match the counts — pure arithmetic on
+    """The four lists must partition the committed universe and match the counts — pure arithmetic on
     the committed snapshot, so it catches a hand-edit that drops/moves/dupes an id."""
     errs: list[str] = []
     universe = snap.get("n_catalog_datasets") or 0
-    read = set(snap.get("read") or [])
-    decl = set(snap.get("declared_only") or [])
-    dark = set(snap.get("dark") or [])
-    for a, b, na, nb in (
-        (read, decl, "read", "declared_only"),
-        (read, dark, "read", "dark"),
-        (decl, dark, "declared_only", "dark"),
-    ):
-        overlap = a & b
-        if overlap:
-            errs.append(f"status lists not disjoint: {na} ∩ {nb} = {sorted(overlap)[:5]} — regenerate")
-    total = len(read) + len(decl) + len(dark)
+    buckets = {k: set(snap.get(k) or []) for k in ("read", "declared_only", "referenced_only", "dark")}
+    names = list(buckets)
+    for i, na in enumerate(names):
+        for nb in names[i + 1 :]:
+            overlap = buckets[na] & buckets[nb]
+            if overlap:
+                errs.append(f"status lists not disjoint: {na} ∩ {nb} = {sorted(overlap)[:5]} — regenerate")
+    total = sum(len(s) for s in buckets.values())
     if total != universe:
         errs.append(
-            f"partition broken: read+declared_only+dark = {total} != n_catalog_datasets {universe} "
-            f"— a dataset is missing or double-counted; regenerate"
+            f"partition broken: read+declared_only+referenced_only+dark = {total} != "
+            f"n_catalog_datasets {universe} — a dataset is missing or double-counted; regenerate"
         )
     counts = snap.get("counts") or {}
-    for k, s in (("read", read), ("declared_only", decl), ("dark", dark)):
+    for k, s in buckets.items():
         if counts.get(k) != len(s):
             errs.append(f"counts.{k}={counts.get(k)} != len({k})={len(s)} — the snapshot was hand-edited")
     return errs
@@ -210,17 +254,19 @@ def _floors(snap: dict) -> list[str]:
 
 
 def self_check_hermetic(snap: dict) -> list[str]:
-    """Partition + floors + one in-repo drift signal. Cannot recompute the universe or read set (both
-    need siblings); re-reads TODAY's cards (in-repo) for the declared set and asserts no committed-dark
-    id is declared now — that edit must move the id to declared_only. Only the live half proves reads."""
+    """Partition + floors + one in-repo drift signal. Cannot recompute the universe, the read set, or
+    the referenced_only split (all need siblings); re-reads TODAY's cards (in-repo) for the declared set
+    and asserts no committed-dark OR committed-referenced_only id is declared now — declared_only has
+    precedence, so that in-repo edit must move the id there. Only the live half proves reads/references."""
     errs = _partition_errors(snap)
     errs += _floors(snap)
-    newly_declared_dark = sorted(_all_declared() & set(snap.get("dark") or []))
-    for d in newly_declared_dark:
-        errs.append(
-            f"declaration drift: card(s) now declare {d} but it is committed as dark — regenerate so "
-            f"it moves to declared_only"
-        )
+    declared = _all_declared()
+    for bucket in ("dark", "referenced_only"):
+        for d in sorted(declared & set(snap.get(bucket) or [])):
+            errs.append(
+                f"declaration drift: card(s) now declare {d} but it is committed as {bucket} — "
+                f"regenerate so it moves to declared_only"
+            )
     return errs
 
 
@@ -236,7 +282,7 @@ def self_check_live(snap: dict) -> tuple[list[str], str | None]:
             f"universe drift: live {fresh['n_catalog_datasets']} vs committed "
             f"{snap.get('n_catalog_datasets')} — the manifest set changed; regenerate"
         )
-    for k in ("read", "declared_only", "dark"):
+    for k in ("read", "declared_only", "referenced_only", "dark"):
         if sorted(fresh[k]) != sorted(snap.get(k) or []):
             fl, cl = set(fresh[k]), set(snap.get(k) or [])
             added = sorted(fl - cl)[:5]
@@ -288,7 +334,8 @@ def main(argv=None) -> int:
     c = snap["counts"]
     print(
         f"wrote {SNAPSHOT_PATH.relative_to(ROOT)} — {snap['n_catalog_datasets']} datasets: "
-        f"{c['read']} read / {c['declared_only']} declared_only / {c['dark']} DARK."
+        f"{c['read']} read / {c['declared_only']} declared_only / {c['referenced_only']} "
+        f"referenced_only / {c['dark']} DARK."
     )
     return 0
 
