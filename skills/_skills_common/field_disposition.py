@@ -518,13 +518,14 @@ def code_readers(
     ``(card_id, field)`` pairs recovered where BOTH the card and the field are statically known;
     ``name_only`` holds bare field names, where the field is a literal but the card is computed at
     runtime. AST, not regex, because a regex over Python mis-parses exactly the nested and
-    multi-line calls that matter. Five shapes are recognised:
+    multi-line calls that matter. Six shapes are recognised:
 
       ``get_card_field(cards, "card-id", "field")``      -> exact
       ``<expr>["card-id"].get("field")``                 -> exact   (inline ``cbyid`` subscript)
       ``cp = c.get("card-id") ... cp.get("field")``      -> exact   (function-scoped alias)
       ``_patom("card-id", recv, ("f1", "f2", ...), ...)`` -> exact   (evidence-atom PASSTHROUGH)
       ``{"card-id": _emit_x}`` + ``def _emit_x(summary: dict)`` -> exact  (DISPATCH-TABLE join)
+      ``cp = c.get("card-id") ... cp["field"]``          -> exact   (alias SUBSCRIPT read, shape 6)
 
     The atom shape matters disproportionately: it is how a field reaches the claim_vector, the eval
     harness, the literature lane and the discordance ledger. It names its fields in a literal tuple
@@ -584,6 +585,27 @@ def code_readers(
         for scope in scopes:
             aliases = _card_aliases(scope, known_cards)
             for node in ast.walk(scope):
+                # (6) card-alias SUBSCRIPT read: `cp["field"]` (bound alias) or `c["card-id"]["field"]`
+                #     (double subscript). Shapes 2/3 miss these — they only fire on a `.get` CALL, and the
+                #     Call-only loop below never even visits an `ast.Subscript`. EXACT-ONLY on purpose: an
+                #     unresolved receiver yields NO name-only credit (a bare `d["x"]` on a non-card dict
+                #     must not flood the name-only slot). `ctx=Load` only — a subscript on the left of `=`
+                #     is a WRITE not a read (card_preprocessors mutates the summary that way).
+                if isinstance(node, ast.Subscript) and isinstance(node.ctx, ast.Load):
+                    field = _literal(node.slice)
+                    if field:
+                        recv, card = node.value, None
+                        if isinstance(recv, ast.Name):
+                            card = aliases.get(recv.id)
+                        elif isinstance(recv, ast.Subscript):
+                            card = _literal(recv.slice)
+                        # Same CONTAINER-HOP guard as shape 3: `cp["summary"]` names the container, not a
+                        # field, unless the card really declares `summary`.
+                        if _is_card_id(card, known_cards) and not (
+                            field == _SUMMARY_KEY and field not in (declared.get(card) or ())
+                        ):
+                            exact[kind].add((card, field))
+                    continue
                 if not isinstance(node, ast.Call):
                     continue
                 fn = node.func

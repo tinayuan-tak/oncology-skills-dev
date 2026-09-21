@@ -1258,3 +1258,77 @@ def test_test_files_are_excluded_from_reader_detection():
     src = inspect.getsource(fd.code_readers)
     assert re.search(r"tests?\b", src), "code_readers no longer mentions test exclusion"
     assert "test_" in src
+
+
+# ── shape (6): the card-alias SUBSCRIPT read ────────────────────────────────────────────────────────
+#
+# Shapes 2/3 only fire on a `.get` CALL, and the scrape loop visits only `ast.Call`, so a subscript
+# read off a card alias (`cp = c.get("card"); cp["field"]`) was never visited at all. On trunk today
+# every such read is SHADOWED by a `.get` of the same field in the same scope (presence_claims.py reads
+# `tva["log2_fc"]` at :483 but also `tva.get("log2_fc")` at :196/:239/:477), so adding this shape moves
+# the aperture by ZERO pairs — which is exactly why it can only be given teeth by a synthetic tree with
+# a subscript-ONLY read. These drive both directions from that tree so each guard falsifies by
+# construction.
+
+
+@needs_contracts
+def test_shape_6_alias_subscript_read_is_credited_exact(tmp_path):
+    """POSITIVE CONTROL — the read shapes 1-5 miss. A card alias read by SUBSCRIPT and never by `.get`
+    is a real field read; before shape 6 it fell through entirely (the loop skips non-Call nodes) and
+    the pair read as a candidate_orphan. It must now be credited EXACT, not name-only."""
+    card, field, _, _ = _two_real_fields()
+    exact, name_only = fd.code_readers(
+        _alias_tree(
+            tmp_path,
+            "sub6",
+            f'def render(cards):\n    cp = cards.get("{card}")\n    return cp["{field}"]\n',
+        )
+    )
+    assert (card, field) in exact.get("skill_code", set()), (
+        "a subscript read off a bound card alias was not credited — shape 6 is not firing"
+    )
+    # Not name-only: the receiver resolves to a specific card, so the credit must be bound to it.
+    assert field not in name_only.get("skill_code", set()), (
+        "the subscript read leaked into name-only credit, which over-credits every card declaring the name"
+    )
+
+
+@needs_contracts
+def test_shape_6_double_subscript_read_is_credited(tmp_path):
+    """`cards["card-id"]["field"]` — the receiver is a literal-card-id subscript rather than a bound
+    alias, so the card binds from the inner slice. Same exact credit."""
+    card, field, _, _ = _two_real_fields()
+    exact, _ = fd.code_readers(
+        _alias_tree(tmp_path, "dsub6", f'def render(cards):\n    return cards["{card}"]["{field}"]\n')
+    )
+    assert (card, field) in exact.get("skill_code", set()), "the double-subscript read was not credited"
+
+
+@needs_contracts
+def test_shape_6_will_not_invent_a_binding_from_an_unbound_receiver(tmp_path):
+    """FALSIFIABILITY, over-credit direction. A subscript off a name that is not a known card alias has
+    no card to bind to, so it must credit NOTHING — never fall through to name-only, which would credit
+    every card declaring the field name. This is what keeps `d["x"]` on an arbitrary dict from flooding
+    the census."""
+    card, field, _, _ = _two_real_fields()
+    exact, name_only = fd.code_readers(
+        _alias_tree(tmp_path, "unbound6", f'def render(payload):\n    return payload["{field}"]\n')
+    )
+    assert (card, field) not in exact.get("skill_code", set()), "invented a card binding from a bare dict subscript"
+    assert field not in name_only.get("skill_code", set()), "an unbound subscript leaked into name-only credit"
+
+
+@needs_contracts
+def test_shape_6_ignores_a_subscript_write(tmp_path):
+    """FALSIFIABILITY, wrong-direction. `cp["field"] = v` is a WRITE (ctx=Store), not a read — card
+    preprocessors mutate the summary this way. Crediting a write as a read invents coverage for a field
+    the code produces rather than consumes."""
+    card, field, _, _ = _two_real_fields()
+    exact, _ = fd.code_readers(
+        _alias_tree(
+            tmp_path,
+            "write6",
+            f'def mutate(cards):\n    cp = cards.get("{card}")\n    cp["{field}"] = 1\n    return cp\n',
+        )
+    )
+    assert (card, field) not in exact.get("skill_code", set()), "a subscript WRITE was credited as a read"
