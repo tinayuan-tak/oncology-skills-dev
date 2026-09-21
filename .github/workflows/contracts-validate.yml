@@ -188,6 +188,17 @@ jobs:
           python -m pytest tests/validators/test_wiring_reconciliation.py -q
           python validators/build_wiring_reconciliation.py --self-check
 
+      # I.4 wiring ledger: dataset-grain complement of I.3 — every data-catalog manifest id as read /
+      # declared_only / dark (the wiring worklist). Checkout-only here, so only the HERMETIC half runs:
+      # it re-reads today's cards for the declared set and gates the partition invariant, anti-vacuity
+      # floors, and declaration drift (a card now declaring a committed-dark id). The LIVE recompute
+      # runs at preland. `dark` is a dimension, never a gate; --self-check only forbids silent drift.
+      # The mutation suite runs FIRST: with nothing baselined it is the only proof the checks can fail.
+      - name: Validate wiring ledger (I.4; hermetic half only)
+        run: |
+          python -m pytest tests/validators/test_wiring_ledger.py -q
+          python validators/build_wiring_ledger.py --self-check
+
       # 2026-08-16 (cleanup follow-up): these three validators were fully built but gated by NO
       # workflow — the same drift-risk the T9b step above fixed for validate_resolvers.py. Wire
       # their suites so subgroup-assignment / coverage-matrix / framework-discrimination contract

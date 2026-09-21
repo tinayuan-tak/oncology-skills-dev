@@ -34,6 +34,10 @@ run "build_emission_ledger --self-check" python validators/build_emission_ledger
 # so the LIVE half also re-extracts reads and diffs the committed snapshot; CI runs the hermetic half.
 run "pytest test_wiring_reconciliation"      python -m pytest tests/validators/test_wiring_reconciliation.py -q
 run "build_wiring_reconciliation --self-check" python validators/build_wiring_reconciliation.py --self-check
+# I.4 wiring ledger (dataset-grain: read / declared_only / dark). Locally the siblings are usually
+# present, so the LIVE half recomputes the whole ledger and diffs it; CI runs the hermetic half.
+run "pytest test_wiring_ledger"          python -m pytest tests/validators/test_wiring_ledger.py -q
+run "build_wiring_ledger --self-check"   python validators/build_wiring_ledger.py --self-check
 run "pytest subgroup+coverage"           python -m pytest tests/validators/test_subgroup_assignments_and_coverage.py -q
 run "pytest framework_discrimination"    python -m pytest tests/calibration/test_framework_discrimination.py -q
 run "pytest card_concept_discipline"     python -m pytest tests/validators/test_card_concept_discipline.py -q
