@@ -77,10 +77,18 @@ INDICATION_TO_TCGA = {
     "UCS": ("UCS",),
 }
 # GISTIC discrete: +1 = low-level gain, +2 = high-level amplification; -1 = shallow loss, -2 = homdel.
-# "Amplified" = >= +1 (any gain); "deleted" = <= -1 (any loss). Cohort-recurrence bar = 20% (mirrors
-# the DepMap cn distribution's recurrent-event threshold, so patient and cell-line classes are comparable).
+# "Amplified" = >= +1 (any gain); "deleted" = <= -1 (any loss). Cohort-recurrence bar = 20%, which mirrors
+# the DepMap cn-distribution recurrent-event threshold (_classify_cn(recurrent_threshold=0.20) in
+# depmap_cn_distribution/cli.py) — so the RECURRENT-vs-neutral cut is on the same footing across patient
+# and cell-line. NOTE: only the recurrence bar is mirrored. The mixed-vs-dominant boundary is NOT: patient
+# uses _DOMINANCE_RATIO = 1.5 vs cell-line's dominant_ratio = 2.0, so when BOTH amp and del are recurrent
+# the two readers can disagree (a target with amp = 1.7*del is recurrently_amplified here but "mixed" for
+# cell lines). The class VOCABULARY matches; the balanced-regime labels are NOT strictly comparable. This
+# divergence is verdict-bearing — unifying the ratio would move class calls, so it is left as-is here (a
+# reconciliation would be a separate backtest-gated change, not a comment edit).
 _RECURRENT_FRACTION = 0.20
-# When BOTH amp and del clear the bar, "mixed" iff neither dominates by more than this ratio.
+# When BOTH amp and del clear the bar, "mixed" iff neither dominates by more than this ratio (see the
+# note above: this 1.5 differs from the cell-line reader's 2.0 by design).
 _DOMINANCE_RATIO = 1.5
 # FOCAL categorical (verdict-consensus companion). patient_copy_number_class fires on ANY gain
 # (>= +1), which includes arm-level noise (e.g. KRAS 12p arm-gain 23% but only 1% focal). The
@@ -175,8 +183,11 @@ def _read_gistic_gene(target: str) -> tuple:
 
 
 def _classify(amp_frac: float, del_frac: float) -> str:
-    """Mirror the DepMap copy_number_class vocabulary so patient + cell-line CN are comparable:
-    recurrently_amplified / recurrently_deleted / mixed / broadly_neutral."""
+    """Mirror the DepMap copy_number_class VOCABULARY (recurrently_amplified / recurrently_deleted /
+    mixed / broadly_neutral) and the 20% recurrence bar. The mixed-vs-dominant boundary is NOT mirrored
+    (1.5 here vs the cell-line reader's 2.0 — see the _DOMINANCE_RATIO note above), so the two readers'
+    labels are comparable at the recurrent-vs-neutral cut but NOT strictly comparable in the balanced
+    (both-recurrent) regime."""
     amp_rec = amp_frac >= _RECURRENT_FRACTION
     del_rec = del_frac >= _RECURRENT_FRACTION
     if amp_rec and del_rec:
