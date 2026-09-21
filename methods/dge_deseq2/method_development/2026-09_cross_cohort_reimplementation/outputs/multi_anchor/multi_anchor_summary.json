@@ -1,0 +1,550 @@
+{
+  "metric_defs": {
+    "gate": "|log2FC|>=0.585 & (svalue<0.005 | padj<0.05 fallback)",
+    "anchor_null": "A padj>0.5 & |lfc_A|<0.585",
+    "n_boot": 1000,
+    "substrates": [
+      "recount3"
+    ],
+    "indications": [
+      "brca",
+      "kirc",
+      "luad",
+      "lusc",
+      "prad",
+      "coad"
+    ]
+  },
+  "per_cell": {
+    "recount3/brca": {
+      "cells_ran": [
+        "A",
+        "C",
+        "Cr"
+      ],
+      "n_A_sig": 11441,
+      "n_A_null": 2739,
+      "fpr_C": 0.4682510211659859,
+      "fpr_C_ci": [
+        0.44968436687708874,
+        0.48570367619754923
+      ],
+      "n_null_shared_C": 2693,
+      "sign_conc_C": 0.9030837004405287,
+      "sign_conc_C_ci": [
+        0.8974449339207048,
+        0.9090770925110133
+      ],
+      "n_A_sig_shared_C": 11350,
+      "eff_corr_C": 0.8178432757849892,
+      "eff_corr_C_ci": [
+        0.8088837491750422,
+        0.8253615529450917
+      ],
+      "fpr_Cr": 0.46528035647976235,
+      "fpr_Cr_ci": [
+        0.4467137021908652,
+        0.4834942443371704
+      ],
+      "n_null_shared_Cr": 2693,
+      "sign_conc_Cr": 0.872863436123348,
+      "sign_conc_Cr_ci": [
+        0.8665176211453745,
+        0.8789449339207049
+      ],
+      "n_A_sig_shared_Cr": 11350,
+      "eff_corr_Cr": 0.764132852651105,
+      "eff_corr_Cr_ci": [
+        0.7539969573329229,
+        0.7739731617536916
+      ],
+      "fpr_uplift_Cr_minus_C": -0.002970664686223534,
+      "fpr_uplift_ci": [
+        -0.01449127367248426,
+        0.008540660972892689
+      ],
+      "sign_conc_uplift_Cr_minus_C": -0.030220264317180612,
+      "sign_conc_uplift_ci": [
+        -0.0339229074889868,
+        -0.026343612334801758
+      ]
+    },
+    "recount3/kirc": {
+      "cells_ran": [
+        "A",
+        "C",
+        "Cr"
+      ],
+      "n_A_sig": 12951,
+      "n_A_null": 2573,
+      "fpr_C": 0.37083993660855785,
+      "fpr_C_ci": [
+        0.35062400950871636,
+        0.3890649762282092
+      ],
+      "n_null_shared_C": 2524,
+      "sign_conc_C": 0.7500581260172053,
+      "sign_conc_C_ci": [
+        0.7426954971712005,
+        0.7574207548632101
+      ],
+      "n_A_sig_shared_C": 12903,
+      "eff_corr_C": 0.6900434878682488,
+      "eff_corr_C_ci": [
+        0.6785987367311065,
+        0.7006890004936115
+      ],
+      "fpr_Cr": 0.3518225039619651,
+      "fpr_Cr_ci": [
+        0.3339837559429477,
+        0.37045364500792394
+      ],
+      "n_null_shared_Cr": 2524,
+      "sign_conc_Cr": 0.7278927381229171,
+      "sign_conc_Cr_ci": [
+        0.7199837247151826,
+        0.7351798031465551
+      ],
+      "n_A_sig_shared_Cr": 12903,
+      "eff_corr_Cr": 0.633661657858337,
+      "eff_corr_Cr_ci": [
+        0.6222561944812652,
+        0.6450204514879518
+      ],
+      "fpr_uplift_Cr_minus_C": -0.019017432646592725,
+      "fpr_uplift_ci": [
+        -0.029724643423137864,
+        -0.008716323296354966
+      ],
+      "sign_conc_uplift_Cr_minus_C": -0.022165387894288235,
+      "sign_conc_uplift_ci": [
+        -0.026427962489343537,
+        -0.01759280787413775
+      ]
+    },
+    "recount3/luad": {
+      "cells_ran": [
+        "A",
+        "C",
+        "Cr"
+      ],
+      "n_A_sig": 10519,
+      "n_A_null": 3490,
+      "fpr_C": 0.46058458813108943,
+      "fpr_C_ci": [
+        0.44346028934160026,
+        0.4759374077354591
+      ],
+      "n_null_shared_C": 3387,
+      "sign_conc_C": 0.866783523225241,
+      "sign_conc_C_ci": [
+        0.8601616515726945,
+        0.8732130684584672
+      ],
+      "n_A_sig_shared_C": 10269,
+      "eff_corr_C": 0.8122001880725787,
+      "eff_corr_C_ci": [
+        0.8031876498428903,
+        0.8212064114666808
+      ],
+      "fpr_Cr": 0.4292884558606436,
+      "fpr_Cr_ci": [
+        0.41245940360200767,
+        0.4475937407735459
+      ],
+      "n_null_shared_Cr": 3387,
+      "sign_conc_Cr": 0.8520790729379687,
+      "sign_conc_Cr_ci": [
+        0.8453573863083066,
+        0.8593850423605025
+      ],
+      "n_A_sig_shared_Cr": 10269,
+      "eff_corr_Cr": 0.7809699955261932,
+      "eff_corr_Cr_ci": [
+        0.7708049933490105,
+        0.7904652002971597
+      ],
+      "fpr_uplift_Cr_minus_C": -0.03129613227044581,
+      "fpr_uplift_ci": [
+        -0.04193238854443461,
+        -0.02154561558901679
+      ],
+      "sign_conc_uplift_Cr_minus_C": -0.014704450287272297,
+      "sign_conc_uplift_ci": [
+        -0.0185996689064174,
+        -0.011098938552926306
+      ]
+    },
+    "recount3/lusc": {
+      "cells_ran": [
+        "A",
+        "C",
+        "Cr"
+      ],
+      "n_A_sig": 13356,
+      "n_A_null": 3228,
+      "fpr_C": 0.5188981422165279,
+      "fpr_C_ci": [
+        0.5012812299807815,
+        0.5358744394618834
+      ],
+      "n_null_shared_C": 3122,
+      "sign_conc_C": 0.9085314254942688,
+      "sign_conc_C_ci": [
+        0.9033752596353566,
+        0.9134568043695669
+      ],
+      "n_A_sig_shared_C": 12999,
+      "eff_corr_C": 0.8755834091745206,
+      "eff_corr_C_ci": [
+        0.8690782429701318,
+        0.8817922538179077
+      ],
+      "fpr_Cr": 0.4638052530429212,
+      "fpr_Cr_ci": [
+        0.44650864830237025,
+        0.48142216527866755
+      ],
+      "n_null_shared_Cr": 3122,
+      "sign_conc_Cr": 0.8281406262020156,
+      "sign_conc_Cr_ci": [
+        0.82167859066082,
+        0.8345276559735364
+      ],
+      "n_A_sig_shared_Cr": 12999,
+      "eff_corr_Cr": 0.7868686005281421,
+      "eff_corr_Cr_ci": [
+        0.778074033303947,
+        0.7953057092404409
+      ],
+      "fpr_uplift_Cr_minus_C": -0.05509288917360666,
+      "fpr_uplift_ci": [
+        -0.07238949391415761,
+        -0.039069506726457454
+      ],
+      "sign_conc_uplift_Cr_minus_C": -0.08039079929225323,
+      "sign_conc_uplift_ci": [
+        -0.08562389414570357,
+        -0.07530963920301553
+      ]
+    },
+    "recount3/prad": {
+      "cells_ran": [
+        "A",
+        "C",
+        "Cr"
+      ],
+      "n_A_sig": 5144,
+      "n_A_null": 5027,
+      "fpr_C": 0.5199186991869919,
+      "fpr_C_ci": [
+        0.5067073170731707,
+        0.533135162601626
+      ],
+      "n_null_shared_C": 4920,
+      "sign_conc_C": 0.8049873368400545,
+      "sign_conc_C_ci": [
+        0.7946571205922462,
+        0.8166812780050653
+      ],
+      "n_A_sig_shared_C": 5133,
+      "eff_corr_C": 0.6430920447004635,
+      "eff_corr_C_ci": [
+        0.6211232600091733,
+        0.663939639599289
+      ],
+      "fpr_Cr": 0.45203252032520325,
+      "fpr_Cr_ci": [
+        0.43841463414634146,
+        0.4660619918699187
+      ],
+      "n_null_shared_Cr": 4920,
+      "sign_conc_Cr": 0.8120007792713813,
+      "sign_conc_Cr_ci": [
+        0.8004967855055524,
+        0.8223261250730567
+      ],
+      "n_A_sig_shared_Cr": 5133,
+      "eff_corr_Cr": 0.6592196750575026,
+      "eff_corr_Cr_ci": [
+        0.6436344168295263,
+        0.6755181230742014
+      ],
+      "fpr_uplift_Cr_minus_C": -0.0678861788617886,
+      "fpr_uplift_ci": [
+        -0.07784552845528453,
+        -0.057723577235772316
+      ],
+      "sign_conc_uplift_Cr_minus_C": 0.007013442431326733,
+      "sign_conc_uplift_ci": [
+        0.0007744009351255773,
+        0.013442431326709525
+      ]
+    },
+    "recount3/coad": {
+      "cells_ran": [
+        "A",
+        "C",
+        "Cr"
+      ],
+      "n_A_sig": 10529,
+      "n_A_null": 3295,
+      "fpr_C": 0.5929616941762691,
+      "fpr_C_ci": [
+        0.5758252880722516,
+        0.6094752413578325
+      ],
+      "n_null_shared_C": 3211,
+      "sign_conc_C": 0.8130152264571816,
+      "sign_conc_C_ci": [
+        0.806226360197847,
+        0.8202938609252255
+      ],
+      "n_A_sig_shared_C": 10311,
+      "eff_corr_C": 0.7560018723050449,
+      "eff_corr_C_ci": [
+        0.7458940979071903,
+        0.7657546318445976
+      ],
+      "fpr_Cr": 0.456555590158829,
+      "fpr_Cr_ci": [
+        0.43879632513235756,
+        0.4743070694487699
+      ],
+      "n_null_shared_Cr": 3211,
+      "sign_conc_Cr": 0.8325089710018427,
+      "sign_conc_Cr_ci": [
+        0.8253321695276888,
+        0.8394942294636796
+      ],
+      "n_A_sig_shared_Cr": 10311,
+      "eff_corr_Cr": 0.7582142841247925,
+      "eff_corr_Cr_ci": [
+        0.747195700230166,
+        0.7685383500757829
+      ],
+      "fpr_uplift_Cr_minus_C": -0.13640610401744008,
+      "fpr_uplift_ci": [
+        -0.15167393335409537,
+        -0.1205232014948614
+      ],
+      "sign_conc_uplift_Cr_minus_C": 0.01949374454466113,
+      "sign_conc_uplift_ci": [
+        0.014159635340898036,
+        0.024638735331199705
+      ]
+    }
+  },
+  "provenance": {
+    "recount3/brca": {
+      "substrate": "recount3",
+      "indication": "brca",
+      "n_tumor": 1127,
+      "n_adjacent": 114,
+      "n_gtex": 482,
+      "min_normals": 3,
+      "k": 2,
+      "cells": {
+        "A": {
+          "ran": true,
+          "n_genes": 30747,
+          "n_tumor": 1127,
+          "n_normal": 114
+        },
+        "C": {
+          "ran": true,
+          "n_genes": 30847,
+          "n_tumor": 1127,
+          "n_normal": 482
+        },
+        "Cr": {
+          "ran": true,
+          "n_genes": 30847,
+          "n_tumor": 1127,
+          "n_normal": 482,
+          "k": 2,
+          "control_strategy": "empirical top-5000 least-DE (naive ~group) \u222a 25 HK genes",
+          "n_control": 5022,
+          "n_empirical": 5000,
+          "n_hk_present": 25,
+          "n_hk_in_control": 3
+        }
+      }
+    },
+    "recount3/kirc": {
+      "substrate": "recount3",
+      "indication": "kirc",
+      "n_tumor": 543,
+      "n_adjacent": 72,
+      "n_gtex": 98,
+      "min_normals": 3,
+      "k": 2,
+      "cells": {
+        "A": {
+          "ran": true,
+          "n_genes": 31602,
+          "n_tumor": 543,
+          "n_normal": 72
+        },
+        "C": {
+          "ran": true,
+          "n_genes": 31527,
+          "n_tumor": 543,
+          "n_normal": 98
+        },
+        "Cr": {
+          "ran": true,
+          "n_genes": 31527,
+          "n_tumor": 543,
+          "n_normal": 98,
+          "k": 2,
+          "control_strategy": "empirical top-5000 least-DE (naive ~group) \u222a 25 HK genes",
+          "n_control": 5025,
+          "n_empirical": 5000,
+          "n_hk_present": 25,
+          "n_hk_in_control": 0
+        }
+      }
+    },
+    "recount3/luad": {
+      "substrate": "recount3",
+      "indication": "luad",
+      "n_tumor": 540,
+      "n_adjacent": 59,
+      "n_gtex": 655,
+      "min_normals": 3,
+      "k": 2,
+      "cells": {
+        "A": {
+          "ran": true,
+          "n_genes": 30991,
+          "n_tumor": 540,
+          "n_normal": 59
+        },
+        "C": {
+          "ran": true,
+          "n_genes": 31065,
+          "n_tumor": 540,
+          "n_normal": 655
+        },
+        "Cr": {
+          "ran": true,
+          "n_genes": 31065,
+          "n_tumor": 540,
+          "n_normal": 655,
+          "k": 2,
+          "control_strategy": "empirical top-5000 least-DE (naive ~group) \u222a 25 HK genes",
+          "n_control": 5024,
+          "n_empirical": 5000,
+          "n_hk_present": 25,
+          "n_hk_in_control": 1
+        }
+      }
+    },
+    "recount3/lusc": {
+      "substrate": "recount3",
+      "indication": "lusc",
+      "n_tumor": 504,
+      "n_adjacent": 51,
+      "n_gtex": 655,
+      "min_normals": 3,
+      "k": 2,
+      "cells": {
+        "A": {
+          "ran": true,
+          "n_genes": 31342,
+          "n_tumor": 504,
+          "n_normal": 51
+        },
+        "C": {
+          "ran": true,
+          "n_genes": 31266,
+          "n_tumor": 504,
+          "n_normal": 655
+        },
+        "Cr": {
+          "ran": true,
+          "n_genes": 31266,
+          "n_tumor": 504,
+          "n_normal": 655,
+          "k": 2,
+          "control_strategy": "empirical top-5000 least-DE (naive ~group) \u222a 25 HK genes",
+          "n_control": 5023,
+          "n_empirical": 5000,
+          "n_hk_present": 25,
+          "n_hk_in_control": 2
+        }
+      }
+    },
+    "recount3/prad": {
+      "substrate": "recount3",
+      "indication": "prad",
+      "n_tumor": 505,
+      "n_adjacent": 52,
+      "n_gtex": 263,
+      "min_normals": 3,
+      "k": 2,
+      "cells": {
+        "A": {
+          "ran": true,
+          "n_genes": 30259,
+          "n_tumor": 505,
+          "n_normal": 52
+        },
+        "C": {
+          "ran": true,
+          "n_genes": 30640,
+          "n_tumor": 505,
+          "n_normal": 263
+        },
+        "Cr": {
+          "ran": true,
+          "n_genes": 30640,
+          "n_tumor": 505,
+          "n_normal": 263,
+          "k": 2,
+          "control_strategy": "empirical top-5000 least-DE (naive ~group) \u222a 25 HK genes",
+          "n_control": 5025,
+          "n_empirical": 5000,
+          "n_hk_present": 25,
+          "n_hk_in_control": 0
+        }
+      }
+    },
+    "recount3/coad": {
+      "substrate": "recount3",
+      "indication": "coad",
+      "n_tumor": 503,
+      "n_adjacent": 41,
+      "n_gtex": 821,
+      "min_normals": 3,
+      "k": 2,
+      "cells": {
+        "A": {
+          "ran": true,
+          "n_genes": 29451,
+          "n_tumor": 503,
+          "n_normal": 41
+        },
+        "C": {
+          "ran": true,
+          "n_genes": 30207,
+          "n_tumor": 503,
+          "n_normal": 821
+        },
+        "Cr": {
+          "ran": true,
+          "n_genes": 30207,
+          "n_tumor": 503,
+          "n_normal": 821,
+          "k": 2,
+          "control_strategy": "empirical top-5000 least-DE (naive ~group) \u222a 25 HK genes",
+          "n_control": 5024,
+          "n_empirical": 5000,
+          "n_hk_present": 25,
+          "n_hk_in_control": 1
+        }
+      }
+    }
+  }
+}

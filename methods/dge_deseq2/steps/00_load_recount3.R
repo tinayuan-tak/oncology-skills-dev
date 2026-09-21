@@ -14,7 +14,9 @@
 #
 # Output .rds: list(
 #   counts    = integer matrix (gene_symbol × sample),  HGNC-collapsed
-#   coldata   = data.frame(sample_id, group, source, tcga_tss, submitter_id, study)
+#   coldata   = data.frame(sample_id, group, source, tcga_tss, submitter_id,
+#                          study, smrin, smtsisch)   # smrin/smtsisch: GTEx-only,
+#                          diagnostic-only (NA on TCGA rows; see loader note)
 #   rowdata   = data.frame(gene_symbol, gene_id, gene_stem)
 #   metadata  = list(substrate, tcga_studies, gtex_tissue, counts, n_*)
 # )
@@ -190,13 +192,35 @@ for (study in tcga_studies) {
 # --- GTEx (all normal) ------------------------------------------------------
 gtex_gs <- NULL
 gtex_ids <- character(0)
+gtex_smrin_by_id    <- character(0)
+gtex_smtsisch_by_id <- character(0)
 if (!is.null(gtex_tissue)) {
   gtex_gs <- read_gene_sums("gtex", gtex_tissue)
   gtex_md <- read_metadata("gtex", gtex_tissue)
   stopifnot("external_id" %in% names(gtex_md))
   gtex_ids <- intersect(gtex_md$external_id, setdiff(names(gtex_gs), "gene_id"))
-  message(sprintf("[00_load_recount3]   GTEx %s: %d normal samples",
-                  gtex_tissue, length(gtex_ids)))
+  # DIAGNOSTIC-ONLY RNA-quality covariates. SMRIN (RNA integrity) and SMTSISCH
+  # (ischemic time) are the mechanism of the post-mortem GTEx confound. The RIN
+  # symmetry probe (method_development/.../outputs/rin_symmetry_probe.json)
+  # found these exist ONLY on the GTEx arm — the TCGA recount3 metadata carries
+  # no RNA-integrity field — so RIN is collinear with `group` in the
+  # cross-cohort contrast and CANNOT be a DESeq2 design term (non-identifiable).
+  # Carry them as colData columns for QC / RIN-distribution reporting / an
+  # optional low-RIN sensitivity filter; RUVg (not these) corrects the confound.
+  # NA-safe: a missing column yields an all-NA map, never an error.
+  smrin_col    <- if ("SMRIN" %in% names(gtex_md)) "SMRIN" else NA_character_
+  smtsisch_col <- if ("SMTSISCH" %in% names(gtex_md)) "SMTSISCH" else NA_character_
+  if (!is.na(smrin_col)) {
+    gtex_smrin_by_id <- setNames(gtex_md[[smrin_col]], gtex_md$external_id)
+  }
+  if (!is.na(smtsisch_col)) {
+    gtex_smtsisch_by_id <- setNames(gtex_md[[smtsisch_col]], gtex_md$external_id)
+  }
+  message(sprintf(paste0("[00_load_recount3]   GTEx %s: %d normal samples ",
+                         "(SMRIN %s, SMTSISCH %s — diagnostic-only)"),
+                  gtex_tissue, length(gtex_ids),
+                  if (length(gtex_smrin_by_id)) "present" else "ABSENT",
+                  if (length(gtex_smtsisch_by_id)) "present" else "ABSENT"))
 }
 
 # --- align all matrices on gene_id (inner join) -----------------------------
@@ -227,7 +251,10 @@ for (study in tcga_studies) {
       sample_id = ids, group = grp, source = "TCGA",
       tcga_tss  = unname(ci$tss[ids]) %||% NA_character_,
       submitter_id = unname(ci$submitter[ids]),
-      study     = study, stringsAsFactors = FALSE)
+      study     = study,
+      # RIN/ischemic are GTEx-only (see loader note) — NA for every TCGA sample.
+      smrin     = NA_real_, smtsisch = NA_real_,
+      stringsAsFactors = FALSE)
   }
 }
 if (!is.null(gtex_gs) && length(gtex_ids)) {
@@ -239,6 +266,9 @@ if (!is.null(gtex_gs) && length(gtex_ids)) {
     sample_id = ids, group = "normal", source = "GTEx",
     tcga_tss = NA_character_, submitter_id = NA_character_,
     study = paste0("GTEX_", gtex_tissue),
+    # Diagnostic-only RNA-quality covariates (numeric); missing map -> NA.
+    smrin    = suppressWarnings(as.numeric(unname(gtex_smrin_by_id[ids]))),
+    smtsisch = suppressWarnings(as.numeric(unname(gtex_smtsisch_by_id[ids]))),
     stringsAsFactors = FALSE)
 }
 

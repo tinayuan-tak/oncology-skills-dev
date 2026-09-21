@@ -47,7 +47,14 @@ prefilter <- function(mat) {
 # every gene has at least one zero. Anders/Huber's "poscounts" estimator uses
 # only positive counts per gene and is the field-standard fix for large-N
 # cohorts; setting it everywhere gives cell-consistent normalization semantics.
-deseq2_fit <- function(mat, cd) {
+# `with_svalue`: additionally report the apeglm s-value (Stephens 2017) against
+# the null |log2FC| <= log2(1.5). The apeglm MAP point estimate of log2FC is
+# unchanged by lfcThreshold — it only changes the reported error quantity — so
+# the shrunken `log2FoldChange` column is identical whether or not s-values are
+# requested; `padj` continues to come from the standard Wald `results()` call
+# (padj stays the verdict driver; s-values are additive — plan B3). Cells A/C/Cr
+# request it; cell B (a within-TCGA robustness re-run) does not.
+deseq2_fit <- function(mat, cd, with_svalue = FALSE) {
   cd$group <- factor(cd$group, levels = c("normal", "tumor"))
   mat <- prefilter(mat)
   storage.mode(mat) <- "integer"
@@ -71,13 +78,121 @@ deseq2_fit <- function(mat, cd) {
   dds <- DESeqDataSetFromMatrix(countData = mat, colData = cd, design = design)
   dds <- DESeq(dds, parallel = TRUE, quiet = TRUE, sfType = "poscounts")
   res_un <- results(dds, contrast = c("group", "tumor", "normal"), alpha = 0.05)
+  res <- if (with_svalue) {
+    # lfcThreshold => apeglm reports the s-value against the null |LFC| <= thr.
+    lfcShrink(dds, coef = "group_tumor_vs_normal", type = "apeglm",
+              lfcThreshold = log2(1.5), svalue = TRUE,
+              parallel = TRUE, res = res_un, quiet = TRUE)
+  } else {
+    # Exact v1 call path — untouched so cells A/B/C stay byte-identical.
+    lfcShrink(dds, coef = "group_tumor_vs_normal", type = "apeglm",
+              parallel = TRUE, res = res_un, quiet = TRUE)
+  }
+  out <- data.frame(gene_symbol   = rownames(res),
+                    log2FoldChange = res$log2FoldChange,
+                    padj           = res_un$padj,
+                    baseMean       = res_un$baseMean,
+                    stringsAsFactors = FALSE)
+  if (with_svalue) out$svalue <- res$svalue
+  out
+}
+
+# --- RUVg cross-cohort correction (cell Cr) ---------------------------------
+# Curated housekeeping panel (Eisenberg & Levanon 2013, "human housekeeping
+# genes revisited" — a subset of the most stably-expressed, plus canonical
+# normalizers). Used to CROSS-CHECK the empirical control set and as a FALLBACK
+# for tiny cohorts where the first-pass DE ranking is unstable. HGNC symbols,
+# matching the loader's gene_symbol row keys.
+HK_GENES <- c(
+  "ACTB", "GAPDH", "B2M", "HPRT1", "PGK1", "PPIA", "RPL13A", "RPLP0", "TBP",
+  "GUSB", "TFRC", "YWHAZ", "SDHA", "UBC", "RPS18", "RPL37A", "EEF1A1", "PSMB4",
+  "REEP5", "VPS29", "C1orf43", "CHMP2A", "EMC7", "GPI", "VCP", "SNRPD3"
+)
+
+# Empirical negative-control genes for RUVg (Risso et al. 2014, RUVSeq). Genes
+# with the WEAKEST tumor-vs-normal evidence in a naive `~group` first pass are
+# the least condition-associated, so their residual variation estimates the
+# unwanted (batch/quality) factors. Returns the control row names + a strategy
+# record for provenance. `hk_genes` present in the matrix are always unioned in
+# as a stability anchor; for tiny cohorts (< min_first_pass samples per group)
+# the first-pass ranking is skipped and expressed HK genes are used directly.
+empirical_controls <- function(mat, group, n_control = 5000L,
+                               hk_genes = HK_GENES, min_first_pass = 10L) {
+  group <- factor(group, levels = c("normal", "tumor"))
+  n_min <- min(table(group))
+  hk_present <- intersect(hk_genes, rownames(mat))
+  if (n_min < min_first_pass) {
+    ctrl <- hk_present
+    return(list(idx = ctrl, strategy = "housekeeping-only (tiny cohort)",
+                n_control = length(ctrl), n_empirical = 0L,
+                n_hk_present = length(hk_present),
+                n_hk_in_control = length(hk_present)))
+  }
+  cd0 <- data.frame(group = group)
+  dds0 <- DESeqDataSetFromMatrix(mat, cd0, ~ group)
+  dds0 <- suppressMessages(DESeq(dds0, parallel = TRUE, quiet = TRUE,
+                                 sfType = "poscounts"))
+  res0 <- results(dds0, contrast = c("group", "tumor", "normal"))
+  # Largest p-value == least evidence of DE == best empirical control. Untested
+  # genes (NA p) count as "no evidence" so they are eligible controls.
+  pv <- res0$pvalue; pv[is.na(pv)] <- 1
+  ord <- order(pv, decreasing = TRUE)
+  n_control <- min(as.integer(n_control), nrow(mat))
+  ctrl_emp <- rownames(mat)[ord[seq_len(n_control)]]
+  ctrl <- union(ctrl_emp, hk_present)   # anchor with expressed HK genes
+  list(idx = ctrl,
+       strategy = sprintf("empirical top-%d least-DE (naive ~group) ∪ %d HK genes",
+                          n_control, length(hk_present)),
+       n_control = length(ctrl), n_empirical = length(ctrl_emp),
+       n_hk_present = length(hk_present),
+       n_hk_in_control = length(intersect(hk_present, ctrl_emp)))
+}
+
+# RUVg-corrected cross-cohort fit (cell Cr). Estimates k factors of unwanted
+# variation from the empirical control genes, binds W_1..W_k into colData, and
+# fits `~ W_1 + ... + W_k + group` with group last (so
+# lfcShrink(coef="group_tumor_vs_normal") is unaffected — same invariant as the
+# `study` covariate in deseq2_fit). RIN/ischemic are NOT design terms: the
+# symmetry probe (rin_symmetry_probe.json) found RIN is GTEx-only and therefore
+# collinear with `group` (non-identifiable) — they ride as diagnostic-only
+# colData columns, never here. poscounts size factors; apeglm shrinkage with an
+# lfcThreshold=log2(1.5) s-value. Returns the tidy frame plus a `ruv` attribute
+# (k, control strategy, W matrix) for provenance.
+ruvg_fit <- function(mat, cd, k = 2L, n_control = 5000L, hk_genes = HK_GENES) {
+  cd$group <- factor(cd$group, levels = c("normal", "tumor"))
+  mat <- prefilter(mat)
+  storage.mode(mat) <- "integer"
+  ctrl <- empirical_controls(mat, cd$group, n_control = n_control,
+                             hk_genes = hk_genes)
+  stopifnot(length(ctrl$idx) > k)
+  ruv <- RUVg(mat, cIdx = ctrl$idx, k = as.integer(k))
+  W <- ruv$W
+  colnames(W) <- paste0("W_", seq_len(ncol(W)))
+  cd <- cbind(cd, W)
+  w_terms <- colnames(W)
+  design <- stats::as.formula(paste("~", paste(c(w_terms, "group"), collapse = " + ")))
+  message(sprintf("[four_cell_lib]   RUVg design (%s); k=%d, %d control genes (%s)",
+                  paste(c(w_terms, "group"), collapse = " + "), k,
+                  ctrl$n_control, ctrl$strategy))
+  dds <- DESeqDataSetFromMatrix(countData = mat, colData = cd, design = design)
+  dds <- DESeq(dds, parallel = TRUE, quiet = TRUE, sfType = "poscounts")
+  res_un <- results(dds, contrast = c("group", "tumor", "normal"), alpha = 0.05)
   res <- lfcShrink(dds, coef = "group_tumor_vs_normal", type = "apeglm",
+                   lfcThreshold = log2(1.5), svalue = TRUE,
                    parallel = TRUE, res = res_un, quiet = TRUE)
-  data.frame(gene_symbol   = rownames(res),
-             log2FoldChange = res$log2FoldChange,
-             padj           = res$padj,
-             baseMean       = res$baseMean,
-             stringsAsFactors = FALSE)
+  out <- data.frame(gene_symbol    = rownames(res),
+                    log2FoldChange = res$log2FoldChange,
+                    padj           = res_un$padj,
+                    svalue         = res$svalue,
+                    baseMean       = res_un$baseMean,
+                    stringsAsFactors = FALSE)
+  attr(out, "ruv") <- list(k = as.integer(k), control_strategy = ctrl$strategy,
+                           n_control = ctrl$n_control,
+                           n_empirical = ctrl$n_empirical,
+                           n_hk_present = ctrl$n_hk_present,
+                           n_hk_in_control = ctrl$n_hk_in_control,
+                           W = W)
+  out
 }
 
 # ComBat-seq batch correction. See 06_four_cell_driver.R history for the full

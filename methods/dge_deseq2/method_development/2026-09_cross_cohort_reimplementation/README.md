@@ -1,8 +1,25 @@
 # 2026-09 — TCGA DGE "sensitivity" cross-cohort reimplementation
 
-**Status:** in progress (Stage 0). Approved plan: `piped-whistling-conway`.
+**Status:** Stage 1 calibration COMPLETE — **cell Cr failed the sign-off gate (NEGATIVE)**.
+Approved plan: `piped-whistling-conway`.
 **Design reference:** [`../../DESIGN_v2_four_cell_consolidation.md`](../../DESIGN_v2_four_cell_consolidation.md).
 **Characterization spec:** `data-catalog/specs/dataset-characterization-2026-Q3.md`.
+
+## Result — cell Cr NEGATIVE (do not use as a verdict input) · 2026-09-20
+
+RUVg-in-GLM does **not** make the cross-cohort TCGA-vs-GTEx contrast trustworthy. A four-lens
+independent review + an authorized **6-anchor recount3 re-run** (brca/kirc/luad/lusc/prad/coad)
+with a rebuilt, CI-bearing metric are unanimous: the residual false-positive rate against the
+confound-free within-TCGA anchor stays **0.35–0.47 on every anchor** (RUVg only partially trims
+naive-C's inflation), and its effect on sign/effect concordance is cohort-dependent, never
+converging on the anchor — the signature of the structural non-identifiability (cohort aliased
+to `group`). See the verdict + numbers in [`outputs/calibration_report.md`](outputs/calibration_report.md)
+and the rebuilt-metric panel in [`outputs/multi_anchor/multi_anchor_calibration.md`](outputs/multi_anchor/multi_anchor_calibration.md).
+
+**Disposition (user sign-off):** ship the anchor-independent v2 wins (baseMean carry-through,
+apeglm s-values, comparator-family de-dup, no-Welch); ship **Cr diagnostic-only** with a
+negative-calibration flag (never feeds the classifier/ranker); classifier stays on A + naive C;
+do **not** extend RUVg-Cr to the 7 GTEx-only cohorts (unsupportable, not merely deferred).
 
 ## The question
 
@@ -39,10 +56,17 @@ Run over the shipped v1 products (`scripts/qc.py`, `scripts/concordance_all.py`;
 3. **Cross-cohort cell C is corrected count-based:** RUVg-as-covariate in a single GLM (`~ W_k + group`),
    *not* the two-step ComBat→naive-DE that inflates confidence (Nygaard 2016). Shipped additively as
    cell **Cr** (`log2fc_Cr` / `padj_Cr` / `baseMean_Cr`).
-4. **RIN / ischemic time evaluated as measured covariates.** They are the *mechanism* of the
-   post-mortem confound and already sit in the recount3 GTEx metadata file the loader downloads
-   (`gtex.gtex.<TISSUE>.MD.gz`, currently only `external_id` is kept). A symmetry probe decides whether
-   they enter the design (present for both cohorts) or stay diagnostic-only (GTEx-only → confounded).
+4. **RIN / ischemic time are DIAGNOSTIC-ONLY — symmetry probe resolved GTEx-only (2026-09-20).**
+   They are the *mechanism* of the post-mortem confound and sit in the recount3 GTEx metadata file the
+   loader downloads (`gtex.gtex.<TISSUE>.MD.gz`, currently only `external_id` is kept). The Stage-1
+   symmetry probe ([`outputs/rin_symmetry_probe.json`](outputs/rin_symmetry_probe.json)) checked whether
+   the TCGA side carries a comparable field: **GTEx `SMRIN`/`SMTSISCH` are 100% populated** (brca 482/482,
+   paad 360/360) but the **TCGA recount3 metadata has no RNA-integrity field at all** — only analyte-level
+   `a260_a280_ratio` (a spectrophotometric *purity* ratio, not strand integrity, and absent from GTEx).
+   So RIN is GTEx-only → perfectly collinear with `group` in the cross-cohort contrast →
+   **non-identifiable as a design term.** RIN/ischemic are surfaced into colData as **diagnostic-only**
+   columns (RIN-distribution reporting + optional low-RIN QC filter), never a GLM covariate. **RUVg is
+   the sole confound corrector** — the graceful-degradation path plan risk #8 anticipated.
 5. **Publication-native normals do not exist** for the GTEx-only cohorts — verified: SCLC/George is
    81 tumors / 0 normals (raw counts EGA-locked); the 6 TCGA GTEx-only cohorts never had adjacent
    normal collected. GTEx-lung stays the only fallback normal (already tissue-matched via
@@ -56,7 +80,10 @@ Run over the shipped v1 products (`scripts/qc.py`, `scripts/concordance_all.py`;
 |---|---|---|
 | `scripts/qc.py` | Per-product volcano + MA + p-distribution panels; within-product A-vs-C concordance scatter for brca/paad. | live S3 (`AWS_PROFILE=cbg`) |
 | `scripts/concordance_all.py` | Panel-wide A-vs-C concordance for every fused product with both arms live (Pearson, sign-flip, sig-fraction, median\|lfc\|). | live S3 + data-catalog manifests |
-| `scripts/ruvg_calibration.py` | *(Stage 1)* substrate × method matrix (naive-C vs RUVg-Cr vs RUVg+RIN-Cr; recount3 vs Xena/Toil) vs the cell-A anchor → `outputs/calibration_report.md`. | live S3 + R pipeline |
+| `scripts/ruvg_calibration.py` | *(Stage 1)* substrate × method matrix (**naive-C vs RUVg-Cr**; recount3 vs Xena/Toil) vs the cell-A anchor → `outputs/calibration_report.md`. The `RUVg+RIN-Cr` arm was dropped after the symmetry probe (RIN GTEx-only → non-identifiable; see Decision 4). `DGE_CALIB_SUBSTRATES`/`DGE_CALIB_INDICATIONS` env-override the matrix (used for the multi-anchor re-run). | live S3 + R pipeline |
+| `scripts/volcano_and_genome_summary.py` | 4×3 volcano grid (substrate×indication × A/C/Cr) + genome-wide summary stats → `outputs/plots/volcano_grid.png`, `outputs/genome_summary.{md,csv}`. | cell TSVs |
+| `scripts/multi_anchor_report.py` | *(re-run)* rebuilt metric — FPR-vs-anchor-null, sign-concordance on anchor-sig genes, effect-size correlation, each with gene-bootstrap 95% CIs + paired Cr−C uplift CI → `outputs/multi_anchor/`. Companion to the hand-authored verdict; never regenerates `calibration_report.md`. | cell TSVs |
+| `scripts/kscan_cr.R` | RUVg k-sensitivity probe scaffold. **Killed as moot** — the failure is structural, not k-dependent. | cached `.rds` |
 
 ### Running
 
@@ -73,6 +100,9 @@ Override the output dir with `DGE_QC_OUT=/some/dir` and the data-catalog clone w
 
 ## Outputs (committed)
 
-- [`outputs/summary.json`](outputs/summary.json) — per-product volcano/MA/p-dist summary from `qc.py`.
+- [`outputs/calibration_report.md`](outputs/calibration_report.md) — **the NEGATIVE verdict** (four-lens review + multi-anchor confirmation).
+- [`outputs/summary.json`](outputs/summary.json) — k=2 substrate×indication calibration metrics + provenance.
+- [`outputs/genome_summary.md`](outputs/genome_summary.md) / `.csv` — genome-wide per-cell summary stats.
+- [`outputs/multi_anchor/multi_anchor_calibration.md`](outputs/multi_anchor/multi_anchor_calibration.md) + `multi_anchor_summary.json` — 6-anchor rebuilt-metric panel (FPR/sign-conc/effect-corr with bootstrap CIs).
 - [`outputs/concordance_all.json`](outputs/concordance_all.json) — panel-wide A-vs-C concordance table.
 - `outputs/plots/*.png`, `outputs/*.parquet` — regenerated, **gitignored** (see `.gitignore`).
