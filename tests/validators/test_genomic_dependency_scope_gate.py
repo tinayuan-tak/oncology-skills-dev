@@ -86,6 +86,78 @@ def test_scope_gate_rule_is_indication_scoped(cls, driver_rules, gate, card_id):
     )
 
 
+# (class, strong rule, within gate, fallback gate, card id) — the #8 hybrid-scope demotion (v1.11.0).
+_FALLBACK_FAMILIES = [
+    (
+        "mutation",
+        "mutant-strongly-dependent-supportive",
+        "mutant-indication-scoped-context",
+        "mutant-indication-scoped-fallback-context",
+    ),
+    (
+        "copy_number",
+        "cn-amplified-strongly-dependent-supportive",
+        "cn-amplified-indication-scoped-context",
+        "cn-amplified-indication-scoped-fallback-context",
+    ),
+    (
+        "fusion",
+        "fusion-positive-strongly-dependent-supportive",
+        "fusion-positive-indication-scoped-context",
+        "fusion-positive-indication-scoped-fallback-context",
+    ),
+    (
+        "amp_expr",
+        "amp-expr-strongly-dependent-supportive",
+        "amp-expr-indication-scoped-context",
+        "amp-expr-indication-scoped-fallback-context",
+    ),
+]
+
+
+@pytest.mark.parametrize("cls,strong,within,fallback", _FALLBACK_FAMILIES, ids=[f[0] for f in _FALLBACK_FAMILIES])
+def test_fallback_gate_is_hybrid_scope_only(cls, strong, within, fallback):
+    """Each #8 fallback gate must fire ONLY on the hybrid within_indication_mut_vs_pan_wt scope.
+
+    If it also admitted within_indication (or a pan_* scope), the demotion rung would fire on a fully
+    within-indication dependency too and demote the dominant band the locked decision keeps."""
+    g = next((r for r in RULES["rules"] if r.get("rule_id") == fallback), None)
+    assert g is not None, f"{fallback} missing from intracellular-intrinsic.rules.yaml"
+    when = g["when"]
+    within_rule = next(r for r in RULES["rules"] if r.get("rule_id") == within)
+    assert when["card_id"] == within_rule["when"]["card_id"] and when["field"] == "evidence_scope"
+    assert when.get("equals") == "within_indication_mut_vs_pan_wt" and "in" not in when, (
+        f"{fallback} must match ONLY evidence_scope == within_indication_mut_vs_pan_wt (the hybrid scope); "
+        f"admitting within_indication would demote fully-in-indication dependencies too."
+    )
+
+
+@pytest.mark.parametrize("cls,strong,within,fallback", _FALLBACK_FAMILIES, ids=[f[0] for f in _FALLBACK_FAMILIES])
+def test_hybrid_demotion_rung_outranks_the_strong_biomarker_rung(cls, strong, within, fallback):
+    """Exactly one demotion rung per class: {strong, within gate, fallback gate} → moderate, and it must
+    out-prioritise (min-priority-wins) the strong biomarker rung it demotes. Stated as an ORDERING over
+    derived priorities, never literals, so the priority placement can move without rotting."""
+    demotion = [r for r in RESOLVER["resolve"] if set(r.get("when_all_fired", []) or []) == {strong, within, fallback}]
+    assert len(demotion) == 1, f"expected exactly one {cls} hybrid demotion rung, found {len(demotion)}"
+    d = demotion[0]
+    assert d["verdict"] == "moderate_biomarker_dependency", (
+        f"{cls} hybrid demotion must emit moderate_biomarker_dependency, not {d['verdict']!r}"
+    )
+    assert d.get("driving_rule") == strong, "demotion rung must anchor provenance to the dependency rule"
+
+    biomarker = [
+        r
+        for r in RESOLVER["resolve"]
+        if set(r.get("when_all_fired", []) or []) == {strong, within}
+        and r["verdict"] == "biomarker_stratified_dependency"
+    ]
+    assert len(biomarker) == 1, f"expected exactly one {cls} strong biomarker rung, found {len(biomarker)}"
+    assert d["priority"] < biomarker[0]["priority"], (
+        f"the {cls} demotion rung @{d['priority']} must outrank the strong biomarker rung "
+        f"@{biomarker[0]['priority']} (match_all_reduce picks min priority), or the demotion is dead."
+    )
+
+
 @pytest.mark.parametrize("cls,driver_rules,gate,card_id", _FAMILIES, ids=[f[0] for f in _FAMILIES])
 def test_evidence_scope_vocabulary_declared(cls, driver_rules, gate, card_id):
     """The `in:` comparison requires each card to declare evidence_scope's vocabulary (else CI fails)."""

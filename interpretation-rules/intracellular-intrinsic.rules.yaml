@@ -774,6 +774,10 @@ rules:
   # call. The genomic_alteration_by_scope headline block (skills Phase 0) surfaces which lineage each call
   # rests on. Backtest-gated: KRAS/ERBB2/EWSR1/BRAF/MET retain (indication-scoped); a pan-lineage-only-in-
   # wrong-tissue signal downgrades.
+  # v1.11.0 (#8): these gates are UNCHANGED — they still admit BOTH within_indication and the hybrid
+  # within_indication_mut_vs_pan_wt scope. A pooled-WT hybrid STRONG dependency is demoted NOT by narrowing
+  # these gates but by a higher-priority hybrid-demotion rung that keys on the within-gate AND the new
+  # *-indication-scoped-fallback-context twin below → moderate_biomarker_dependency (see the resolver's #8 note).
   - rule_id: mutant-indication-scoped-context
     when:
       card_id: mutation-stratified-dependency
@@ -840,6 +844,74 @@ rules:
       by the genomic resolver's fusion-positive-*-dependent biomarker rungs (when_all_fired) so
       pan-lineage-only fusion dependency falls through to the confirmed_driver / recurrent_fusion_driver
       rungs. Twin of amp-expr-indication-scoped-context.
+
+  # ── HYBRID-scope FALLBACK gates for the stratified-dependency biomarker verdicts (#8 fail-open demote) ──
+  # The *-indication-scoped-context gates above admit BOTH within_indication and the hybrid
+  # within_indication_mut_vs_pan_wt scope, so BEFORE v1.11.0 a STRONG dependency computed at the hybrid scope
+  # earned the full biomarker_stratified_dependency verdict — a fail-open promotion: the hybrid scope has the
+  # mutant arm indication-native but the wild-type comparator pooled pan-lineage, which is WEAKER evidence
+  # than a fully within-indication mut-vs-WT contrast. FIX (#8, ADDITIVE — the within-gates above are
+  # UNCHANGED): these four fallback gates fire ONLY on the hybrid scope, and the genomic resolver adds a
+  # dedicated hybrid-demotion rung {strong *-dependent-supportive rule, within-gate, fallback-gate} at
+  # priority 0-3 — ABOVE the strong biomarker rung @4-7. At hybrid scope BOTH gates fire so the demotion rung
+  # (min priority) wins → moderate_biomarker_dependency. A fully within_indication dependency lacks the
+  # fallback gate, so the demotion rung misses and the biomarker rung @4-7 stands → biomarker_stratified_
+  # dependency. The moderate band @8-11 (which keys on the within-gate only) is untouched, so a moderate
+  # dependency at hybrid scope stays moderate_biomarker_dependency. Neutral: scope context, not a biology
+  # call. Backtest-gated.
+  - rule_id: mutant-indication-scoped-fallback-context
+    when:
+      card_id: mutation-stratified-dependency
+      field: evidence_scope
+      equals: within_indication_mut_vs_pan_wt
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Hybrid-scope FALLBACK gate for the mutation biomarker verdict (#8). Fires ONLY when evidence_scope
+      == within_indication_mut_vs_pan_wt (mutant arm indication-native, WT comparator pooled pan-lineage).
+      Paired (with the within-gate) with mutant-strongly-dependent-supportive in the hybrid-demotion rung
+      (priority 0) so a hybrid-scope STRONG mutation dependency reads moderate_biomarker_dependency, not
+      biomarker_stratified_dependency. Twin of cn-amplified / fusion-positive / amp-expr-indication-scoped-fallback-context.
+  - rule_id: cn-amplified-indication-scoped-fallback-context
+    when:
+      card_id: copy-number-stratified-dependency
+      field: evidence_scope
+      equals: within_indication_mut_vs_pan_wt
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Hybrid-scope FALLBACK gate for the copy-number-amplified biomarker verdict (#8). Fires ONLY on
+      evidence_scope == within_indication_mut_vs_pan_wt. Paired with cn-amplified-strongly-dependent-supportive
+      (with the within-gate) in the hybrid-demotion rung (priority 1) so a hybrid-scope STRONG amplification
+      dependency reads moderate_biomarker_dependency. Twin of mutant-indication-scoped-fallback-context.
+  - rule_id: fusion-positive-indication-scoped-fallback-context
+    when:
+      card_id: fusion-stratified-dependency
+      field: evidence_scope
+      equals: within_indication_mut_vs_pan_wt
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Hybrid-scope FALLBACK gate for the fusion-positive biomarker verdict (#8). Fires ONLY on
+      evidence_scope == within_indication_mut_vs_pan_wt. Paired with fusion-positive-strongly-dependent-supportive
+      (with the within-gate) in the hybrid-demotion rung (priority 2) so a hybrid-scope STRONG fusion
+      dependency reads moderate_biomarker_dependency. Twin of mutant-indication-scoped-fallback-context.
+  - rule_id: amp-expr-indication-scoped-fallback-context
+    when:
+      card_id: amp-expr-stratified-dependency
+      field: evidence_scope
+      equals: within_indication_mut_vs_pan_wt
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Hybrid-scope FALLBACK gate for the amp-expr biomarker verdict (#8). Fires ONLY on evidence_scope
+      == within_indication_mut_vs_pan_wt. Paired (with the within-gate) with amp-expr-strongly-dependent-
+      supportive in the hybrid-demotion rung (priority 3) so a hybrid-scope STRONG amp-expr dependency reads
+      moderate_biomarker_dependency. Twin of mutant-indication-scoped-fallback-context.
 
   - rule_id: wt-strongly-dependent-neutral
     when:

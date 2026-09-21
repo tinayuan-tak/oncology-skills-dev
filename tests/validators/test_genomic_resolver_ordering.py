@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
 import yaml
 
 REPO = Path(__file__).resolve().parents[2]
@@ -228,3 +229,107 @@ def test_dependency_outranks_snv_recurrence():
         )[0]
         == "biomarker_stratified_dependency"
     )
+
+
+# --- #8 hybrid-scope fail-open demotion (resolver v1.11.0, backtest-gated) -------------------------
+# The *-indication-scoped-context gates admit BOTH within_indication and the hybrid
+# within_indication_mut_vs_pan_wt scope, so a STRONG dependency at the hybrid scope earned the FULL
+# biomarker_stratified_dependency band off a pooled-pan-lineage WT comparator. The four demotion rungs
+# (priority 0-3, ABOVE the strong biomarker rung @4-7) require BOTH the within gate AND the new
+# *-indication-scoped-fallback-context gate (hybrid only), so at hybrid scope both fire and the demotion
+# rung wins (min priority) → moderate_biomarker_dependency — while a fully within_indication dependency
+# (no fallback gate) keeps the dominant band @4-7. These pins are the teeth: the golden snapshot is BLIND
+# to these debt rule_ids, so absent these cases the flip is untested here.
+
+# The four classes: (strong rule, within gate, fallback gate, realistic in-indication driver co-signals).
+_HYBRID_FAMILIES = [
+    (
+        "mutation",
+        "mutant-strongly-dependent-supportive",
+        "mutant-indication-scoped-context",
+        "mutant-indication-scoped-fallback-context",
+        ["mut-missense-dominant-supportive", "alteration-role-gof-driver-supportive"],
+    ),
+    (
+        "copy_number",
+        "cn-amplified-strongly-dependent-supportive",
+        "cn-amplified-indication-scoped-context",
+        "cn-amplified-indication-scoped-fallback-context",
+        ["cn-recurrently-amplified-supportive", "alteration-role-gof-driver-supportive"],
+    ),
+    (
+        "fusion",
+        "fusion-positive-strongly-dependent-supportive",
+        "fusion-positive-indication-scoped-context",
+        "fusion-positive-indication-scoped-fallback-context",
+        ["fusion-landscape-recurrent-driver-supportive"],
+    ),
+    (
+        "amp_expr",
+        "amp-expr-strongly-dependent-supportive",
+        "amp-expr-indication-scoped-context",
+        "amp-expr-indication-scoped-fallback-context",
+        [],
+    ),
+]
+
+
+@pytest.mark.parametrize("cls,strong,within,fallback,cosignals", _HYBRID_FAMILIES, ids=[f[0] for f in _HYBRID_FAMILIES])
+def test_hybrid_scope_strong_dependency_demotes_to_moderate(cls, strong, within, fallback, cosignals):
+    """A STRONG dependency at the hybrid within_indication_mut_vs_pan_wt scope (both scope gates fire)
+    reads moderate_biomarker_dependency, NOT the full biomarker_stratified_dependency band."""
+    verdict, drv = resolve(strong, within, fallback, *cosignals)
+    assert verdict == "moderate_biomarker_dependency", (
+        f"{cls} hybrid-scope strong dependency must demote to moderate_biomarker_dependency, got {verdict!r}"
+    )
+    assert drv == strong, f"{cls} demotion rung must anchor provenance to the dependency rule, not a scope gate"
+
+
+@pytest.mark.parametrize("cls,strong,within,fallback,cosignals", _HYBRID_FAMILIES, ids=[f[0] for f in _HYBRID_FAMILIES])
+def test_full_within_indication_strong_retains_dominant_band(cls, strong, within, fallback, cosignals):
+    """The demotion is scoped to the hybrid gate ONLY: a fully within_indication strong dependency (the
+    fallback gate is ABSENT) keeps biomarker_stratified_dependency. This is the 'within stays dominant'
+    half of the locked decision — a guard that the demotion did not widen to all within-indication."""
+    verdict, drv = resolve(strong, within, *cosignals)
+    assert verdict == "biomarker_stratified_dependency", (
+        f"{cls} fully within_indication strong dependency must retain the dominant band, got {verdict!r}"
+    )
+    assert drv == strong
+
+
+def test_hybrid_demotion_outranks_driver_rungs_no_failopen():
+    """THE fail-open guard: the resolver has NO clamp layer, so a demoted hybrid target must not slip
+    UP to confirmed_driver via its driver co-signals. The demotion rung (priority 0-3) must win over
+    the driver rungs (@12+), i.e. moderate_biomarker_dependency, never confirmed_driver."""
+    # mutation hybrid strong WITH a full driver signature (shape + GoF role) that alone → confirmed_driver.
+    assert resolve("mut-missense-dominant-supportive", "alteration-role-gof-driver-supportive") == (
+        "confirmed_driver",
+        "mut-missense-dominant-supportive",
+    ), "precondition: these co-signals alone are a driver"
+    verdict, drv = resolve(
+        "mutant-strongly-dependent-supportive",
+        "mutant-indication-scoped-context",
+        "mutant-indication-scoped-fallback-context",
+        "mut-missense-dominant-supportive",
+        "alteration-role-gof-driver-supportive",
+    )
+    assert verdict == "moderate_biomarker_dependency", (
+        f"hybrid demotion must outrank the driver rungs (no fail-open promotion), got {verdict!r}"
+    )
+    assert drv == "mutant-strongly-dependent-supportive"
+
+
+def test_moderate_hybrid_dependency_unchanged():
+    """The demotion rungs key on the STRONG dependency rule only. A MODERATE dependency at hybrid scope
+    still resolves via the untouched moderate band (the within gate fires on the hybrid scope), so it is
+    byte-stable at moderate_biomarker_dependency — the change touches ONLY the strong→moderate flip."""
+    assert resolve("mutant-moderately-dependent-supportive", "mutant-indication-scoped-context") == (
+        "moderate_biomarker_dependency",
+        "mutant-moderately-dependent-supportive",
+    )
+    # and the same at hybrid scope (fallback gate present but unused by the moderate band)
+    assert resolve(
+        "mutant-moderately-dependent-supportive",
+        "mutant-indication-scoped-context",
+        "mutant-indication-scoped-fallback-context",
+    ) == ("moderate_biomarker_dependency", "mutant-moderately-dependent-supportive")

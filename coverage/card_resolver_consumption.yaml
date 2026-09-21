@@ -73,6 +73,7 @@ detail:
     - genomic_alteration
     rules:
     - amp-expr-indication-scoped-context
+    - amp-expr-indication-scoped-fallback-context
     - amp-expr-moderately-dependent-supportive
     - amp-expr-strongly-dependent-supportive
     - cis-conjoint-dependent-supportive
@@ -125,6 +126,7 @@ detail:
     - genomic_alteration
     rules:
     - cn-amplified-indication-scoped-context
+    - cn-amplified-indication-scoped-fallback-context
     - cn-amplified-moderately-dependent-supportive
     - cn-amplified-strongly-dependent-supportive
   crispr-rnai-dependency-concordance:
@@ -162,6 +164,7 @@ detail:
     - genomic_alteration
     rules:
     - fusion-positive-indication-scoped-context
+    - fusion-positive-indication-scoped-fallback-context
     - fusion-positive-moderately-dependent-supportive
     - fusion-positive-strongly-dependent-supportive
   gene-burden-safety:
@@ -223,6 +226,7 @@ detail:
     - genomic_alteration
     rules:
     - mutant-indication-scoped-context
+    - mutant-indication-scoped-fallback-context
     - mutant-moderately-dependent-supportive
     - mutant-strongly-dependent-supportive
   mutation-type-counts:

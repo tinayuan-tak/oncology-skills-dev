@@ -12,14 +12,15 @@ attribution_keypaths:
 - post_resolver_clamp/modality_conditional/expected_inert_arms/[]/rule_id
 - resolve/[]/driving_rule
 counts:
-  total: 435
-  gating: 140
+  total: 439
+  gating: 144
   display: 295
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
 - alteration-role-lof-driver-neutral
 - amp-expr-indication-scoped-context
+- amp-expr-indication-scoped-fallback-context
 - amp-expr-moderately-dependent-supportive
 - amp-expr-strongly-dependent-supportive
 - both-viable-supportive
@@ -36,6 +37,7 @@ gating:
 - clingen-recessive-only-safety-favorable
 - clinvar-germline-pathogenic-safety-warning
 - cn-amplified-indication-scoped-context
+- cn-amplified-indication-scoped-fallback-context
 - cn-amplified-moderately-dependent-supportive
 - cn-amplified-strongly-dependent-supportive
 - cn-data-unavailable-insufficient
@@ -65,6 +67,7 @@ gating:
 - exon-window-essential-liability-tce-opposing
 - fusion-landscape-recurrent-driver-supportive
 - fusion-positive-indication-scoped-context
+- fusion-positive-indication-scoped-fallback-context
 - fusion-positive-moderately-dependent-supportive
 - fusion-positive-strongly-dependent-supportive
 - fusion-recurrence-high-partner-context
@@ -99,6 +102,7 @@ gating:
 - mut-mixed-neutral
 - mut-no-mutations-neutral
 - mutant-indication-scoped-context
+- mutant-indication-scoped-fallback-context
 - mutant-moderately-dependent-supportive
 - mutant-strongly-dependent-supportive
 - mutation-drug-response-strongly-sensitive-supportive
