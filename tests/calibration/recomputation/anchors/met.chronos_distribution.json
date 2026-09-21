@@ -1,0 +1,21 @@
+{
+  "target": "MET",
+  "indication": null,
+  "roster_indication": "LUAD",
+  "release_pin": "26q1",
+  "counts_fixture": "chronos_vectors/depmap_26q1__chronos_panels.parquet",
+  "curated_common_essential": false,
+  "n_cell_lines_evaluated": 1538,
+  "expected_median_chronos_panel": -0.021880543790757656,
+  "expected_fraction_strongly_dependent": 0.007802340702210663,
+  "expected_dependency_class": "non_dependent",
+  "expected_distribution_shape": "non_essential",
+  "snapshot_cross_ref": null,
+  "_source": {
+    "product": "depmap-consortium-26q1 CRISPRGeneEffect (Chronos) via depmap-26q1-parquet-v1",
+    "curated_control_set": "AchillesCommonEssentialControls.csv",
+    "curated_set_size": 1247,
+    "captured_utc": "2026-09-21T11:22:59.720610+00:00",
+    "counts_fixture_md5": "4fbbc05472422664a125d32801de94a4"
+  }
+}

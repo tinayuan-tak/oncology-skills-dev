@@ -1,0 +1,28 @@
+{
+  "target": "KRAS",
+  "indication": null,
+  "roster_indication": "COADREAD",
+  "release_pin": "26q1",
+  "counts_fixture": "chronos_vectors/depmap_26q1__chronos_panels.parquet",
+  "curated_common_essential": false,
+  "n_cell_lines_evaluated": 1538,
+  "expected_median_chronos_panel": -0.45738519728183746,
+  "expected_fraction_strongly_dependent": 0.17620286085825748,
+  "expected_dependency_class": "strongly_selective",
+  "expected_distribution_shape": "bimodal_selective",
+  "snapshot_cross_ref": {
+    "source": "rnd-computational-biology-oncology-target-contracts/tests/calibration/snapshots/kras_coadread.functional-requirement.json",
+    "n_cell_lines_evaluated": 1538,
+    "median_chronos_panel": -0.45738519728183746,
+    "fraction_strongly_dependent": 0.17620286085825748,
+    "dependency_class": "strongly_selective",
+    "distribution_shape": "bimodal_selective"
+  },
+  "_source": {
+    "product": "depmap-consortium-26q1 CRISPRGeneEffect (Chronos) via depmap-26q1-parquet-v1",
+    "curated_control_set": "AchillesCommonEssentialControls.csv",
+    "curated_set_size": 1247,
+    "captured_utc": "2026-09-21T11:22:59.720610+00:00",
+    "counts_fixture_md5": "4fbbc05472422664a125d32801de94a4"
+  }
+}
