@@ -24,6 +24,7 @@ reads and silently returns false-`insufficient`) and `AWS_PROFILE=cbg`, output u
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -236,6 +237,187 @@ def test_calibration_coverage_report(capsys):
     with capsys.disabled():
         print(f"\n[calibration] measured={measured} pending(reasoned-only)={pending} by_assertion_type={by_type}")
     assert measured >= 1  # the suite is not empty of measured anchors
+
+
+# ---------------------------------------------------------------------------
+# biology_anchors — T4 field-grain directional biology (plan foamy-bird I.2)
+# ---------------------------------------------------------------------------
+# The buckets above pin the TOP-LINE class per snapshot. These promote the SAME
+# committed snapshots to FIELD grain: directional assertions on the SUPPORTING
+# fields that drive that class, grounded in known biology. A data fix that moves a
+# driving field reds the anchor even when the top-line class is unchanged.
+#
+# Teeth-vs-vacuity discipline (the emission-ledger lesson, feedback_green_for_the_wrong_reason):
+#   - a renamed/typo'd field must FAIL, never silently pass  -> field-present guard first
+#   - a numeric op against a null/None value must FAIL        -> numeric guard
+#   - the anchors re-read the snapshot                        -> test_biology_anchor_detects_mutation
+#   - no anchor asserts a field another bucket owns           -> test_biology_anchor_ownership_is_disjoint
+
+_BIOLOGY_OPS = {"equals", "in", "not_in", "gte", "lte", "gt", "lt", "matches"}
+_NUMERIC_OPS = {"gte", "lte", "gt", "lt"}
+
+
+def _biology_anchors() -> dict:
+    return _load_fixtures().get("biology_anchors") or {}
+
+
+def _eval_biology_assertion(headline: dict, a: dict) -> None:
+    """Evaluate one biology assertion against a snapshot headline; raise AssertionError on failure.
+
+    Anti-vacuity: the field must be PRESENT (a renamed/removed field reds, never skips), and a
+    numeric op needs an actual number (a None/null must red, not pass).
+    """
+    field, op = a["field"], a["op"]
+    expected = a.get("value")
+    assert field in headline, (
+        f"biology anchor references field {field!r} absent from snapshot headline "
+        f"(keys={sorted(headline)}); a renamed/removed field must red, not pass silently"
+    )
+    got = headline[field]
+    if op == "equals":
+        assert got == expected, f"{field}: {got!r} != expected {expected!r}"
+    elif op == "in":
+        assert got in expected, f"{field}: {got!r} not in {expected!r}"
+    elif op == "not_in":
+        assert got not in expected, f"{field}: {got!r} unexpectedly in {expected!r}"
+    elif op == "matches":
+        assert isinstance(got, str), f"{field}: matches needs a string, got {got!r}"
+        assert re.search(expected, got, re.IGNORECASE), f"{field}: {got!r} does not match /{expected}/i"
+    elif op in _NUMERIC_OPS:
+        assert isinstance(got, (int, float)) and not isinstance(got, bool), (
+            f"{field}: numeric op {op} needs a number, got {got!r} (a null/None must red, not skip)"
+        )
+        ok = {"gte": got >= expected, "lte": got <= expected, "gt": got > expected, "lt": got < expected}[op]
+        assert ok, f"{field}: {got!r} fails {op} {expected!r}"
+    else:  # pragma: no cover - guarded by test_biology_anchors_well_formed
+        raise AssertionError(f"unknown biology op {op!r}")
+
+
+def _biology_anchor_params():
+    out = []
+    for name, e in _biology_anchors().items():
+        for a in e.get("assertions") or []:
+            out.append(pytest.param(name, e, a, id=f"{name}-{a.get('field', '?')}"))
+    return out
+
+
+def _owned_fields_by_snapshot() -> dict:
+    """Fields the four assertion buckets ALREADY own per snapshot — biology anchors must avoid them."""
+    owned: dict[str, set] = {}
+    for _bucket, _name, e in _all_entries(_load_fixtures()):
+        snap = e.get("snapshot")
+        if not snap:
+            continue
+        at = e.get("assertion_type")
+        fields: set[str] = set()
+        if at == "selectivity_verdict_expected":
+            fields.add("selectivity_class")
+            if e.get("expected_driving_rule_current"):
+                fields.add("driving_rule_id")
+        elif at == "must_not_veto":
+            fields.add("dependency_verdict")
+        elif at == "known_gap_expected_fail":
+            fields |= {"dependency_verdict", "driving_rule_id"}
+        elif at == "abstention_expected":
+            fields |= {"surface_modality_verdict", "fit_class"}
+        owned.setdefault(snap, set()).update(fields)
+    return owned
+
+
+def test_biology_anchors_well_formed():
+    anchors = _biology_anchors()
+    assert anchors, "biology_anchors bucket missing or empty"
+    for name, e in anchors.items():
+        assert e.get("snapshot"), f"{name}: missing snapshot"
+        assert (SNAP_DIR / e["snapshot"]).exists(), f"{name}: snapshot file absent: {e['snapshot']}"
+        assert e.get("skill"), f"{name}: missing skill"
+        assert e.get("biology"), f"{name}: missing biology rationale"
+        aa = e.get("assertions")
+        assert aa, f"{name}: no assertions"
+        for a in aa:
+            assert a.get("field"), f"{name}: an assertion is missing `field`"
+            assert a.get("op") in _BIOLOGY_OPS, f"{name}: bad op {a.get('op')!r} on {a.get('field')}"
+            assert "value" in a, f"{name}: assertion on {a.get('field')} missing `value`"
+            assert a.get("because"), f"{name}: assertion on {a.get('field')} missing `because`"
+            if a["op"] in _NUMERIC_OPS:
+                assert isinstance(a["value"], (int, float)) and not isinstance(a["value"], bool), (
+                    f"{name}: numeric op {a['op']} on {a['field']} needs a numeric value, got {a['value']!r}"
+                )
+            if a["op"] in {"in", "not_in"}:
+                assert isinstance(a["value"], list), f"{name}: {a['op']} on {a['field']} needs a list value"
+
+
+def test_biology_anchors_nonvacuous():
+    """Floors: the bucket cannot silently shrink to nothing (the exact trap this plan removes)."""
+    anchors = _biology_anchors()
+    n_anchors = len(anchors)
+    n_assertions = sum(len(e.get("assertions") or []) for e in anchors.values())
+    assert n_anchors >= 8, f"biology anchor floor tripped: {n_anchors} < 8"
+    assert n_assertions >= 20, f"biology assertion floor tripped: {n_assertions} < 20"
+    skills = {e.get("skill") for e in anchors.values()}
+    assert len(skills) >= 2, f"biology anchors span only {skills} — expected >= 2 skills"
+    assert _biology_anchor_params(), "parametrize is empty — the per-assertion suite would be vacuous"
+
+
+def test_biology_anchor_ownership_is_disjoint():
+    """No biology anchor may assert a field another bucket already owns for the same snapshot —
+    duplicate ownership means a data fix has two places to update and one silently rots."""
+    owned = _owned_fields_by_snapshot()
+    for name, e in _biology_anchors().items():
+        snap = e["snapshot"]
+        for a in e.get("assertions") or []:
+            assert a["field"] not in owned.get(snap, set()), (
+                f"{name}: biology anchor asserts {a['field']!r} on {snap}, already owned by another "
+                f"bucket ({sorted(owned.get(snap, set()))}) — move the pin, don't duplicate it"
+            )
+
+
+@pytest.mark.parametrize("name,entry,assertion", _biology_anchor_params())
+def test_biology_anchor(name, entry, assertion):
+    """Field-grain directional biology assertion over a committed snapshot (regression anchor)."""
+    snap = _load_snapshot(entry["snapshot"])
+    headline = snap.get("headline") or {}
+    assert headline, f"{name}: snapshot {entry['snapshot']} has no headline"
+    _eval_biology_assertion(headline, assertion)
+
+
+# --- teeth: the guards must be observed refusing to pass (never vacuous) ---
+
+
+def test_biology_anchor_field_present_guard():
+    """A typo'd/renamed field must FAIL (the emission-ledger vacuity trap), in BOTH directions."""
+    with pytest.raises(AssertionError, match="absent from snapshot headline"):
+        _eval_biology_assertion({"real_field": "x"}, {"field": "typo_field", "op": "equals", "value": "x"})
+    # the dangerous direction: a not_in / matches on a MISSING field must not vacuously pass
+    with pytest.raises(AssertionError, match="absent"):
+        _eval_biology_assertion({}, {"field": "gone", "op": "not_in", "value": ["a"]})
+
+
+def test_biology_anchor_numeric_guard():
+    """A numeric op against a null/None value must red — an abstaining field must not sail past gte."""
+    with pytest.raises(AssertionError, match="needs a number"):
+        _eval_biology_assertion({"max_abs_log2fc": None}, {"field": "max_abs_log2fc", "op": "gte", "value": 3.0})
+
+
+def test_biology_anchor_detects_mutation():
+    """The anchors re-read the snapshot: a mutated value reds. Proves teeth, not a tautology."""
+    base = _load_snapshot("dll3_sclc.tumor-selectivity.json")["headline"]
+    h = dict(base)
+    h["axis_a_selectivity_class"] = "not_selective"
+    with pytest.raises(AssertionError):
+        _eval_biology_assertion(
+            h, {"field": "axis_a_selectivity_class", "op": "equals", "value": "strong_tumor_selective"}
+        )
+    h = dict(base)
+    h["sc_normal_max_detection_cell_type"] = "hepatocyte"
+    with pytest.raises(AssertionError):
+        _eval_biology_assertion(
+            h, {"field": "sc_normal_max_detection_cell_type", "op": "matches", "value": "neuron|forebrain|neural"}
+        )
+    h = dict(base)
+    h["max_abs_log2fc"] = 0.5
+    with pytest.raises(AssertionError):
+        _eval_biology_assertion(h, {"field": "max_abs_log2fc", "op": "gte", "value": 3.0})
 
 
 # ---------------------------------------------------------------------------

@@ -40,8 +40,18 @@
 #     no snapshot yet (the test skips its hard assertion, reports as pending).
 #   - Extending is cheap — add an entry + (for measured ones) a snapshot; bump version.
 
-version: 1.4.0
+version: 1.5.0
 snapshot_date: "2026-07-19"
+# v1.5.0 (2026-09-21, plan foamy-bird I.2 / T4): added the `biology_anchors` bucket — field-grain
+# directional biology assertions over the SAME committed snapshots the buckets above already carry.
+# Where the existing buckets pin only the top-line class (selectivity_class / dependency_verdict /
+# surface_modality_verdict), these anchor the SUPPORTING driving fields (axis_a_selectivity_class,
+# sc_normal_safety_essential_class, sc_normal_max_detection_cell_type, max_abs_log2fc,
+# selectivity_allgene_percentile_class, sc_tumor_expression_class, percentile_crossing_class,
+# crispr_call/rnai_call/paralog fields, family_class) to the biology of an approved/validated target.
+# Non-duplicative by construction (test_biology_anchor_ownership_is_disjoint enforces it). A data fix
+# that moves a driving field reds the anchor even when the top-line class is unchanged. No snapshots
+# were re-captured; all pinned values verified against the committed 26q1 snapshots.
 # v1.4.0 (2026-09-18, Stage 2b parity): every `expected_verdict_not_in` list (10 entries, 8 of them
 # live — BRAF/SKCM and EGFR/LUAD are `measured: false`, so their lists are declarations the
 # parametrize never evaluates) gains `not_dependent_in_indication`, the third dependency veto arm
@@ -668,3 +678,164 @@ decoy_controls:
     measured: true
     note: "VERIFIED 2026-09-02: correctly HELD via safety:normal_tissue_protein_safety_concern, never
       nominated. Specificity pass."
+
+# ---------------------------------------------------------------------------
+# biology_anchors — T4 (plan foamy-bird I.2). Field-grain directional biology.
+# ---------------------------------------------------------------------------
+# The buckets above pin only the TOP-LINE class per snapshot (selectivity_class /
+# dependency_verdict / surface_modality_verdict). These anchors promote the SAME
+# committed snapshots to FIELD grain: they assert the SUPPORTING fields that DRIVE
+# that top-line class, each grounded in known biology of an approved/validated
+# target. Non-duplicative by construction — no anchor asserts a field an entry above
+# already owns (see tests/calibration/test_known_target_calibration.py
+# test_biology_anchor_ownership_is_disjoint). Consumer: the same test module,
+# test_biology_anchor (parametrized per assertion) + the mutation/vacuity guards.
+#
+# Each assertion pins the CURRENT measured value of a driving field, tagged with the
+# biology it encodes. A data fix that flips the biology (a wrong join/denominator/
+# comparator that moves a driving field) reds the anchor even when the top-line class
+# is unchanged — that is the intended field-grain regression signal. All values were
+# verified against the committed snapshots (depmap-consortium-26q1). Ops:
+#   equals | in | not_in | gte | lte | gt | lt | matches (case-insensitive regex)
+# `matches`/`not_in`/numeric ops are guarded: a missing/typo'd field or a non-numeric
+# value FAILS (never silently passes) — see test_biology_anchor_field_present_guard
+# and test_biology_anchor_numeric_guard.
+biology_anchors:
+
+  DLL3:
+    indication: SCLC
+    skill: tumor-selectivity
+    snapshot: dll3_sclc.tumor-selectivity.json
+    outcome: approved_class            # tarlatamab (DLL3xCD3 TCE), approved SCLC
+    biology: "neuroendocrine-restricted; strong tumor axis with a real CNS/neuronal normal liability"
+    assertions:
+      - {field: axis_a_selectivity_class, op: equals, value: strong_tumor_selective,
+         because: "axis-A tumor-vs-normal separation is strong for DLL3 in SCLC"}
+      - {field: sc_normal_safety_essential_class, op: equals, value: critical_organ_liability,
+         because: "the single-cell normal signal is a critical-organ (neuronal) cell type — the CNS liability"}
+      - {field: sc_normal_max_detection_cell_type, op: matches, value: "neuron|forebrain|neural|neuroendocrine",
+         because: "the driving normal cell type is neuronal (forebrain neuron in 26q1), not housekeeping epithelium"}
+      - {field: max_abs_log2fc, op: gte, value: 3.0,
+         because: "DLL3 shows a large tumor-vs-normal fold change (approved-antigen-grade separation)"}
+
+  KLK3:
+    indication: PRAD
+    skill: tumor-selectivity
+    snapshot: klk3_prad.tumor-selectivity.json
+    outcome: active                    # KLK3/PSA, prostate-restricted
+    biology: "prostate lineage-restricted antigen (PSA) — strong selectivity, NO critical-organ liability"
+    assertions:
+      - {field: axis_a_selectivity_class, op: equals, value: strong_tumor_selective,
+         because: "PSA is strongly tumor/lineage-restricted across comparators"}
+      - {field: sc_normal_safety_essential_class, op: equals, value: none,
+         because: "prostate-restricted expression carries NO critical-organ normal liability — the contrast to DLL3/ERBB2"}
+      - {field: sc_normal_max_detection_cell_type, op: matches, value: "prostate",
+         because: "the max normal detection is a prostate luminal epithelial cell (the tissue of origin), not an off-target organ"}
+
+  ERBB2:
+    indication: BRCA
+    skill: tumor-selectivity
+    snapshot: erbb2_brca.tumor-selectivity.json
+    outcome: approved_class            # trastuzumab / T-DXd
+    biology: "HER2 amplification-driven — extreme expression rank, strong axis, named nephron/cardiac liability"
+    assertions:
+      - {field: axis_a_selectivity_class, op: equals, value: strong_tumor_selective,
+         because: "amplification drives strong tumor-vs-normal axis-A separation"}
+      - {field: selectivity_allgene_percentile_class, op: equals, value: top_1pct,
+         because: "HER2 amplification pushes expression into the extreme all-gene percentile — the amplification signature"}
+      - {field: max_abs_log2fc, op: gte, value: 3.0,
+         because: "amplification-driven expression yields a large fold change (5.2 in 26q1)"}
+
+  FOLR1:
+    indication: OV
+    skill: tumor-selectivity
+    snapshot: folr1_ov.tumor-selectivity.json
+    outcome: approved_class            # mirvetuximab soravtansine, approved OV
+    biology: "folate receptor alpha — very high tumor expression, broadly malignant, renal normal liability"
+    assertions:
+      - {field: max_abs_log2fc, op: gte, value: 3.0,
+         because: "FOLR1 shows a very large tumor-vs-normal fold change in ovarian (9.9 in 26q1)"}
+      - {field: sc_tumor_expression_class, op: equals, value: malignant_broadly_detected,
+         because: "FOLR1 is broadly detected across malignant cells (a homogeneous ADC antigen)"}
+      - {field: sc_normal_safety_essential_class, op: equals, value: critical_organ_liability,
+         because: "the known renal (proximal-tubule/loop-of-Henle) normal expression surfaces as a named liability"}
+
+  MSLN:
+    indication: PAAD
+    skill: tumor-selectivity
+    snapshot: msln_paad.tumor-selectivity.json
+    outcome: approved_class            # mesothelin ADC/TCE programs
+    biology: "mesothelin — mesothelial (serosal) normal expression is its real serositis dose-limiting tox"
+    assertions:
+      - {field: sc_normal_max_detection_cell_type, op: matches, value: "mesothel",
+         because: "the driving normal cell type is mesothelial (pleura) — the anatomic basis of MSLN serositis tox"}
+      - {field: sc_normal_safety_essential_class, op: equals, value: critical_organ_liability,
+         because: "the mesothelial normal expression surfaces as a named safety liability"}
+      - {field: sc_tumor_expression_class, op: equals, value: malignant_subset_detected,
+         because: "MSLN is detected on a malignant subset (heterogeneous), not broadly"}
+
+  MET:
+    indication: COADREAD
+    skill: tumor-selectivity
+    snapshot: met_coadread.tumor-selectivity.json
+    outcome: active
+    biology: "MET — strong tumor enrichment with a named renal collecting-duct normal liability"
+    assertions:
+      - {field: axis_a_selectivity_class, op: equals, value: strong_tumor_selective,
+         because: "axis-A separation is strong for MET in COADREAD"}
+      - {field: percentile_crossing_class, op: equals, value: strongly_tumor_enriched,
+         because: "MET crosses into strong tumor enrichment on the percentile axis"}
+      - {field: sc_tumor_expression_class, op: equals, value: malignant_subset_detected,
+         because: "MET is detected on a malignant subset in single-cell tumor data"}
+
+  APC:
+    indication: COADREAD
+    skill: tumor-selectivity
+    snapshot: apc_coadread.tumor-selectivity.json
+    outcome: not_a_selectivity_target  # tumor suppressor, not over-expressed
+    biology: "NEGATIVE control — a tumor suppressor is not tumor-over-expressed; no selectivity axis"
+    assertions:
+      - {field: axis_a_selectivity_class, op: equals, value: not_selective,
+         because: "a tumor suppressor shows no tumor-over-expression axis-A signal"}
+      - {field: max_abs_log2fc, op: lt, value: 1.0,
+         because: "APC shows essentially no tumor-vs-normal separation (0.94 in 26q1) — the negative anchor"}
+      - {field: percentile_crossing_class, op: equals, value: not_enriched,
+         because: "APC is not tumor-enriched on the percentile axis"}
+
+  KRAS:
+    indication: COADREAD
+    skill: functional-requirement
+    snapshot: kras_coadread.functional-requirement.json
+    outcome: active                    # KRAS dependency in CRC
+    biology: "RAS-family paralog biology — CRISPR-selective, NRAS is the strongest paralog buffer"
+    assertions:
+      - {field: crispr_call, op: equals, value: strongly_selective,
+         because: "KRAS is a strongly selective CRISPR dependency in its lineage"}
+      - {field: strongest_paralog_symbol, op: equals, value: NRAS,
+         because: "KRAS's strongest paralog is NRAS (the RAS family) — a hard gene-identity biology anchor"}
+      - {field: paralog_buffering_class, op: equals, value: strong,
+         because: "RAS paralog redundancy gives strong buffering — why single-gene KO can under-call dependency"}
+
+  CTNNB1:
+    indication: COADREAD
+    skill: functional-requirement
+    snapshot: ctnnb1_coadread.functional-requirement.json
+    outcome: active                    # beta-catenin, WNT-driven CRC
+    biology: "beta-catenin — WNT-lineage dependency in colorectal, concordant across CRISPR + RNAi"
+    assertions:
+      - {field: crispr_call, op: equals, value: strongly_selective,
+         because: "CTNNB1 is a strongly selective CRISPR dependency in WNT-driven CRC"}
+      - {field: rnai_call, op: equals, value: strongly_selective,
+         because: "the dependency replicates on the orthogonal RNAi platform (concordant evidence)"}
+      - {field: lineage_selectivity, op: equals, value: lineage_selective,
+         because: "the dependency is lineage-selective (colorectal), not pan-essential"}
+
+  HTR1D:
+    indication: COADREAD
+    skill: surface-modality-fit
+    snapshot: htr1d_coadread.surface-modality-fit.json
+    outcome: honest_insufficient       # surface derived products not yet on S3
+    biology: "5-HT1D is a GPCR — the family classifier must read gpcr even when the fit verdict abstains"
+    assertions:
+      - {field: family_class, op: equals, value: gpcr,
+         because: "HTR1D (5-HT1D receptor) is a G-protein-coupled receptor; family classification is data-independent of the abstaining fit verdict"}
