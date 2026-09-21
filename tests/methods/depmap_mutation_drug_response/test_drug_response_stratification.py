@@ -1,8 +1,11 @@
 """Thread 4: genotype × PRISM DRUG-RESPONSE biomarker (the pharmacological half).
 
-Pure-dict (no S3): synthetic drug-response (PRISM Log2AUC) + mutation bool vectors. Verifies the
-classification directions (mutant more sensitive / resistant / not stratified / insufficient) and
-that the drug-response classification-performance passes through from the shared primitive.
+Pure-dict (no S3): synthetic drug-response (PRISM Log2AUC) + mutation bool vectors. These are
+END-TO-END tests that run the real Mann-Whitney kernel via ``compute_drug_response_stratification``,
+so they genuinely need scipy and stay behind ``importorskip`` — that is correct here. The pure
+classification-DIRECTION boundary logic (no scipy) lives in test_drug_response_classification.py so
+it stays under test on a scipy-less runner; a module-level ``importorskip('scipy')`` was previously
+skipping those direction assertions too, which is the green-for-the-wrong-reason this split fixes.
 Lower Log2AUC = more drug-sensitive (same direction as lower Chronos = more dependent).
 """
 

@@ -56,6 +56,40 @@ MIN_MUTANT_LINES = 5
 MIN_WILDTYPE_LINES = 30
 
 
+def classify_drug_response(
+    delta: float | None,
+    q: float | None,
+    q_reverse: float | None,
+    insufficient: bool,
+    strong_effect_delta: float = STRONG_EFFECT_DELTA,
+    moderate_effect_delta: float = MODERATE_EFFECT_DELTA,
+    stratification_alpha: float = STRATIFICATION_ALPHA,
+) -> str:
+    """Map a computed mutant-vs-WT drug-response contrast to a class token.
+
+    Pure threshold logic over the stratification kernel's outputs (``delta`` = mutant median minus
+    WT median on the Log2AUC scale, ``q``/``q_reverse`` the forward/reverse one-sided significances,
+    ``insufficient`` the kernel's power flag). Split out of ``compute_drug_response_stratification``
+    so the classification DIRECTIONS can be tested without scipy — the kernel that produces
+    ``delta``/``q`` needs scipy, but the boundary logic that turns them into a verdict does not, and
+    a module-level ``importorskip('scipy')`` used to skip those assertions silently."""
+    if insufficient:
+        return "insufficient_mutant_or_drug_data"
+    if delta is None:
+        return "not_drug_response_stratified"
+    # FORWARD: mutant more SENSITIVE (lower Log2AUC → negative delta).
+    if q is not None and q < stratification_alpha:
+        if delta <= strong_effect_delta:
+            return "mutant_strongly_drug_sensitive"
+        if delta <= moderate_effect_delta:
+            return "mutant_moderately_drug_sensitive"
+    # REVERSE (second pass): mutant more RESISTANT (WT more sensitive) — a real resistance-
+    # biomarker signal. Gated on reverse q + a strong POSITIVE delta.
+    if q_reverse is not None and q_reverse < stratification_alpha and delta >= -strong_effect_delta:
+        return "mutant_drug_resistant"
+    return "not_drug_response_stratified"
+
+
 def compute_drug_response_stratification(
     drug_response_by_model: dict,
     hotspot_by_model: dict,
@@ -90,24 +124,15 @@ def compute_drug_response_stratification(
     q_reverse = res.get("p_value_reverse")
     delta = res.get("delta_mut_vs_wt")
 
-    def _classify() -> str:
-        if res.get("_insufficient_data"):
-            return "insufficient_mutant_or_drug_data"
-        if delta is None:
-            return "not_drug_response_stratified"
-        # FORWARD: mutant more SENSITIVE (lower Log2AUC → negative delta).
-        if q is not None and q < stratification_alpha:
-            if delta <= strong_effect_delta:
-                return "mutant_strongly_drug_sensitive"
-            if delta <= moderate_effect_delta:
-                return "mutant_moderately_drug_sensitive"
-        # REVERSE (second pass): mutant more RESISTANT (WT more sensitive) — a real resistance-
-        # biomarker signal. Gated on reverse q + a strong POSITIVE delta. Verdict-inert direction.
-        if q_reverse is not None and q_reverse < stratification_alpha and delta >= -strong_effect_delta:
-            return "mutant_drug_resistant"
-        return "not_drug_response_stratified"
-
-    cls = _classify()
+    cls = classify_drug_response(
+        delta,
+        q,
+        q_reverse,
+        bool(res.get("_insufficient_data")),
+        strong_effect_delta=strong_effect_delta,
+        moderate_effect_delta=moderate_effect_delta,
+        stratification_alpha=stratification_alpha,
+    )
     return {
         "drug_response_stratification_class": cls,
         "n_mutant": res["n_mutant"],

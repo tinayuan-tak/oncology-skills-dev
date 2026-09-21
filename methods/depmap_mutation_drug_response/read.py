@@ -118,7 +118,26 @@ def load_drug_response_by_model(release_pin: str, sample_ids: list, aggregate: s
                  (the deep-responder biology; a target-selective drug need not be the panel's
                  broadest killer). This is the primary drug-response phenotype.
       'median' — the median across on-target compounds (robustness companion).
-    Lines with no measured value across the selected compounds are omitted (not imputed)."""
+    Lines with no measured value across the selected compounds are omitted (not imputed).
+
+    Why 'best' is the INTENDED phenotype, not a defect (measured 2026-09-21). Per-line min across a
+    HETEROGENEOUS on-target compound set is a deliberate biomarker-DETECTOR choice: the biomarker
+    question is "does genotype predict sensitivity to SOME target-directed agent", and a
+    mutant-selective drug (e.g. a KRAS-G12C inhibitor among 21 'KRAS' PRISM compounds, many of them
+    weak/pan-pathway) need not be the panel's broadest killer. A backtest over the full 133-gene
+    flip-eligible universe (genes with >=2 on-target compounds; the 131 single-compound genes are
+    aggregate-invariant by construction) found the choice is verdict-load-bearing for only 6/71
+    genes that reach a computed contrast, and it bites at the EFFECT-SIZE threshold (not
+    significance — at n in the hundreds the Mann-Whitney q is saturated on both aggregates). The
+    'median' central-tendency DEMOTES canonical mutant-selective drivers by diluting the real signal
+    across the heterogeneous compound set (KRAS strongly_sensitive→not_stratified, delta −0.46→−0.04;
+    PIK3CA strong→moderate) — i.e. median loses true biomarkers, so it is a robustness companion, not
+    the primary. KNOWN PROPERTY: because min is an order statistic it can inflate the absolute
+    effect-size MAGNITUDE (and it grades "best available on-target drug", not one fixed compound). If
+    per-drug effect-size PRECISION is ever needed, the principled successor is a per-compound contrast
+    (grade each single-drug vector, BH-correct across compounds, name the driving compound) — a
+    separate output-shape change, deliberately NOT folded in here. The chosen aggregate travels on
+    every summary as `aggregate_metric` + `n_on_target_compounds` for provenance."""
     if not sample_ids:
         return {}, [{"_live_read_error": "no on-target compounds"}]
     cfg = _release_cfg(release_pin)
