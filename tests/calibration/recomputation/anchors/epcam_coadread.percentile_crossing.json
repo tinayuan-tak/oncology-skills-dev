@@ -1,0 +1,23 @@
+{
+  "target": "EPCAM",
+  "indication": "COADREAD",
+  "vectors_fixture": "tumor_normal_tpm/recount3_gtex__percentile_crossing_vectors.parquet",
+  "matched_normal_tissue": "COLON",
+  "n_tumor_samples": 669,
+  "n_normal_samples": 822,
+  "expected_selectivity_class": "strongly_tumor_enriched",
+  "expected_fraction_tumor_above_normal_p95": 0.7369207772795217,
+  "expected_fraction_tumor_above_normal_p99": 0.5082212257100149,
+  "expected_normal_p95_log2tpm": 9.236587429046631,
+  "expected_normal_p99_log2tpm": 9.613868045806885,
+  "expected_distribution_overlap_tumor_normal": 0.27958168308729664,
+  "snapshot_cross_ref": {
+    "source": "rnd-computational-biology-oncology-target-contracts/tests/calibration/snapshots/epcam_coadread.tumor-selectivity.json",
+    "percentile_crossing_class": "strongly_tumor_enriched"
+  },
+  "_source": {
+    "product": "recount3 TCGA/non-TCGA tumor long product + GTEx matched-normal (recount3/GENCODE-v26)",
+    "captured_utc": "2026-09-21T12:17:08.402134+00:00",
+    "vectors_fixture_md5": "e38f4a83b83c63792247666e6699aaea"
+  }
+}

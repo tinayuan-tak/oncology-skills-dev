@@ -1,0 +1,23 @@
+{
+  "target": "DLL3",
+  "indication": "SCLC",
+  "vectors_fixture": "tumor_normal_tpm/recount3_gtex__percentile_crossing_vectors.parquet",
+  "matched_normal_tissue": null,
+  "n_tumor_samples": 81,
+  "n_normal_samples": 0,
+  "expected_selectivity_class": "data_unavailable",
+  "expected_fraction_tumor_above_normal_p95": null,
+  "expected_fraction_tumor_above_normal_p99": null,
+  "expected_normal_p95_log2tpm": null,
+  "expected_normal_p99_log2tpm": null,
+  "expected_distribution_overlap_tumor_normal": null,
+  "snapshot_cross_ref": {
+    "source": "rnd-computational-biology-oncology-target-contracts/tests/calibration/snapshots/dll3_sclc.tumor-selectivity.json",
+    "percentile_crossing_class": "data_unavailable"
+  },
+  "_source": {
+    "product": "recount3 TCGA/non-TCGA tumor long product + GTEx matched-normal (recount3/GENCODE-v26)",
+    "captured_utc": "2026-09-21T12:17:08.402134+00:00",
+    "vectors_fixture_md5": "e38f4a83b83c63792247666e6699aaea"
+  }
+}
