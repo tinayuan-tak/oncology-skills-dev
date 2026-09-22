@@ -70,7 +70,7 @@ outputs:
     #    on the OT-MGI primary. Coverage is PARTIAL (IMPC ~9k genes) → impc_ko_phenotype_class
     #    no_phenotype for un-phenotyped genes (KRAS/BRAF/VHL). NO warning_predicate keys on these.
     - impc_ko_phenotype_class             # IMPC-direct ko_phenotype_class (shared taxonomy); corroboration only
-    - impc_viability_class                # IMPC preweaning viability: lethal_preweaning|subviable|viable|unmeasured
+    - impc_viability_class                # IMPC preweaning viability: lethal_preweaning|subviable|viable|unknown|unmeasured
     - impc_top_level_systems              # '|'-joined IMPC top-level MP organ systems
     - impc_orthology_confidence           # Ensembl mouse-ortholog confidence [0 low, 1 high] for the IMPC row
 
@@ -96,6 +96,7 @@ outputs:
       - lethal_preweaning        # IMPC homozygous preweaning-lethal (developmental)
       - subviable                # reduced-penetrance preweaning lethality
       - viable                   # KO survives to weaning
+      - unknown                  # gene phenotyped by IMPC but viability call indeterminate (distinct from unmeasured = not phenotyped)
       - unmeasured               # gene not phenotyped by IMPC (coverage gap)
 
   # NO figure: tables-only (deferred with the other safety-axis figures).

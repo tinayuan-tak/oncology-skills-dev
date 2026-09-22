@@ -43,11 +43,15 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "validators"))
 import build_emission_ledger as bel  # noqa: E402
 
-#: Pinned BY NAME, not by count. Two committed files contradict each other: the card declares
+#: Pinned BY NAME, not by count. This WAS a two-file contradiction: the card declared
 #: surface_density_class: [high, moderate, low, very_low, unmeasured] while
-#: analysis-methods/methods/cptac_protein_deg/read.py emits this token — and that repo's
-#: test_abundance_density.py ASSERTS it. It cannot vanish quietly, so the ledger must keep naming it.
-ANCHOR_VIOLATION = (
+#: analysis-methods/methods/cptac_protein_deg/read.py emits this token (the "unsupported" grade:
+#: a whole-cell abundance estimate that is not a valid surface density) — and that repo's
+#: test_abundance_density.py ASSERTS it (test_unsupported_retains_estimate_but_flags_not_surface,
+#: test_no_transmembrane_non_gpi_stays_unsupported). The contradiction was RESOLVED deliberately by
+#: declaring the token in the card (the emitter's output is intentional and tested). This guard now
+#: keeps the reconciliation from silently regressing back into an out-of-vocab contradiction.
+ANCHOR_RECONCILED = (
     "surface-abundance-density",
     "surface_density_class",
     "not_surface_density_whole_cell_estimate",
@@ -351,16 +355,17 @@ def test_committed_ledger_passes_the_hermetic_self_check():
     assert bel.self_check_hermetic(ledger) == []
 
 
-def test_committed_ledger_still_names_the_anchor_violation():
-    """Pinned BY NAME: two committed files contradict each other and another repo's test asserts
-    the out-of-vocabulary value, so this cannot be fixed by accident. If it IS fixed, update this
-    test deliberately — that is the point."""
-    card_id, field, token = ANCHOR_VIOLATION
+def test_committed_ledger_keeps_the_anchor_reconciled():
+    """Pinned BY NAME: the card/emitter contradiction on this token was resolved deliberately by
+    declaring it in the card. This guard keeps that reconciliation from regressing — if the token
+    ever drops out of the card's declared vocabulary again, it reappears as an out-of-vocab
+    contradiction (analysis-methods still emits and asserts it), and this fails LOUDLY."""
+    card_id, field, token = ANCHOR_RECONCILED
     ledger = yaml.safe_load(bel.LEDGER_PATH.read_text())
     row = ledger["by_card"][card_id][field]
-    assert token in row["out_of_vocab"]
-    assert token not in row["declared"]
-    assert f"{card_id}::{field}::{token}" in ledger["known_out_of_vocab"]["keys"]
+    assert token in row["declared"]
+    assert token not in row["out_of_vocab"]
+    assert f"{card_id}::{field}::{token}" not in ledger["known_out_of_vocab"]["keys"]
 
 
 def test_committed_ledger_is_not_vacuous():

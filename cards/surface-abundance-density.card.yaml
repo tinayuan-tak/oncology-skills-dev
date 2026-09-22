@@ -93,6 +93,7 @@ outputs:
       - low
       - very_low
       - unmeasured
+      - not_surface_density_whole_cell_estimate   # admissibility=unsupported: a whole-cell abundance estimate that is NOT a valid surface density (distinct from unmeasured = no estimate at all); TCE/ADC flags forced False
     hpa_ihc_intensity_class:
       - high
       - medium

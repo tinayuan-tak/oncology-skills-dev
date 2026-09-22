@@ -98,7 +98,7 @@ outputs:
   summary_fields:
     - alteration_role                       # PRIMARY categorical (drives Tier-2 rules)
     - functional_direction                  # activating | loss_of_function | ambiguous | null
-    - oncokb_gene_type                       # ONCOGENE | TSG | ONCOGENE_AND_TSG | NEITHER | INSUFFICIENT | null
+    - oncokb_gene_type                       # ONCOGENE | TSG | ONCOGENE_AND_TSG | NEITHER | INSUFFICIENT_EVIDENCE | null
     - intogen_role                           # Act | LoF | ambiguous | null (indication-scoped, confident-preferred)
     - intogen_scope                          # indication | pan_cancer | null (was the driver call in THIS cancer type?)
     - intogen_min_qvalue                     # driver-call significance (smaller = stronger)
@@ -112,7 +112,7 @@ outputs:
     # the "drives this indication" claim the two direct_driver_* tokens make.
     alteration_role: [direct_driver_gof, direct_driver_lof, curated_cancer_gene, predictive_biomarker, passenger, data_unavailable]
     functional_direction: [activating, loss_of_function, ambiguous]
-    oncokb_gene_type: [ONCOGENE, TSG, ONCOGENE_AND_TSG, NEITHER, INSUFFICIENT]   # OncoKB geneType backbone (null when gene absent from OncoKB); consumed by oncogene-role-safety-context
+    oncokb_gene_type: [ONCOGENE, TSG, ONCOGENE_AND_TSG, NEITHER, INSUFFICIENT_EVIDENCE]   # OncoKB geneType backbone verbatim (null when gene absent from OncoKB); consumed by oncogene-role-safety-context
   figure: alteration_role_evidence_card      # compact role call + OncoKB/IntOGen evidence panel
 
 thresholds:
