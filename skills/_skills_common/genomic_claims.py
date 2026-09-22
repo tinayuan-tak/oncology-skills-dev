@@ -53,6 +53,13 @@ _CN_SIGNAL = {
     "recurrently_deleted": "moderate",
     "mixed": "weak",
     "broadly_neutral": "absent",
+    # Measured, but under the CN power floor (too few CN-covered samples to call recurrence) — a gap WITH
+    # INTENT, distinct from `data_unavailable` (nobody looked → `unmeasured`). Reads as the off-scale
+    # `underpowered` tier (never `absent`/passenger, never a driver). Consumed by C3's `_classify_cn`
+    # (depmap_cn_distribution) + tcga `_classify` (tcga_patient_cn) below each classifier's power floor;
+    # forward-declared here so C3 need not re-touch this shared file, and BYTE-INERT until an emitter ships
+    # (no live fixture emits copy_number_class == "underpowered").
+    "underpowered": "underpowered",
     "data_unavailable": "unmeasured",
 }
 _CN_FOCAL_POS = {"recurrent_focal_amplification", "recurrent_focal_deletion"}
@@ -72,6 +79,14 @@ _FUS_SIGNAL = {
     # driver → WEAK (never absent: the rearrangement is real; never strong: it is a passenger).
     "promiscuous_amplicon_fusion": "weak",
     "no_recurrent_fusion": "absent",
+    # Measured, but under the fusion power floor (too few SV-covered samples / null fusion_frequency to
+    # call recurrence) — a gap WITH INTENT, distinct from `data_unavailable` (nobody looked → `unmeasured`).
+    # Reads as the off-scale `underpowered` tier (never `absent`/passenger, never a driver). Consumed by
+    # C3's fusion `fclass` (tcga_fusion_consensus), which kills the `recurrent_fusion_driver`-with-null-
+    # frequency case by emitting this token instead; forward-declared here so C3 need not re-touch this
+    # shared file, and BYTE-INERT until an emitter ships (no live fixture emits fusion_class ==
+    # "underpowered").
+    "underpowered": "underpowered",
     "data_unavailable": "unmeasured",
 }
 # splice_exon_skip_class (splice-exon-skip-landscape) — curated oncogenic exon-skip DRIVER (METex14).
@@ -353,8 +368,13 @@ def _cn_corroboration(h, c):
     than by a trailing else."""
     bc = _by_class(h).get("copy_number") or {}
     cls = bc.get("verdict")
-    if _CN_SIGNAL.get(cls, "unmeasured") == "unmeasured":
-        return "unmeasured"  # nobody looked — a gap is neither corroborated nor contradicted
+    # A GAP collapses the axis — keyed off the OFF-SCALE ordinal (None) so BOTH gap kinds qualify:
+    # `data_unavailable` (nobody looked → `unmeasured`) AND `underpowered` (the CN arm looked but was
+    # under-powered). A string match on `unmeasured` alone would let an `underpowered` cell arm slip past
+    # and read as a MEASURED positive (`single_arm` via the arm frame below) — the gap≠measured error this
+    # tier exists to prevent. Byte-identical for every existing class (all non-gap tiers are non-None).
+    if SIGNAL_ORD.get(_CN_SIGNAL.get(cls, "unmeasured")) is None:
+        return "unmeasured"  # a gap is neither corroborated nor contradicted
 
     focal = h.get("patient_focal_cn_class")
     # The patient arm: True/False if GISTIC looked, None if it did not. `data_unavailable` is a truthy
@@ -462,7 +482,11 @@ def _fus_corroboration(h, c):
     Deriving the side from `_FUS_SIGNAL` fixes both, and cannot drift from the signal tier."""
     bc = _by_class(h).get("fusion") or {}
     fus_tier = _FUS_SIGNAL.get(bc.get("verdict"), "unmeasured")
-    if fus_tier == "unmeasured":
+    # A GAP (off-scale ordinal) collapses the axis: `data_unavailable`→`unmeasured` AND `underpowered`
+    # (the fusion arm looked but was under-powered / null fusion_frequency). Off-scale keying, not a string
+    # match, so an `underpowered` fusion arm cannot read as a measured positive. Byte-identical for every
+    # existing class.
+    if SIGNAL_ORD.get(fus_tier) is None:
         return "unmeasured"
     genie_sv = bc.get("genie_sv_recurrence_class")
     sv_positive = _SV_BAND_IS_RECURRENT.get(genie_sv) if genie_sv is not None else None

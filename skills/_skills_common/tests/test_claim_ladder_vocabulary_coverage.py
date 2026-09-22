@@ -95,7 +95,14 @@ from _skills_common.claim_vector_core import CORROBORATION_ORD, SIGNAL_ORD  # no
 # Vestigial from the shared-map era that caused the only-moderate bug: no producer emits these on the
 # corroboration axis and no frozen cell holds their value. They are dead decoration, which is precisely why
 # they are the cheapest place for a future author to park a new meaning — see the rank-floor test below.
-_VESTIGIAL_CORROBORATION_RUNGS = {"absent", "negative", "none"}
+# JUSTIFIED ADDITION (2026-09-21, `underpowered` tier): `underpowered` differs in KIND from the three above
+# — it IS a deliberate `CORROBORATION_ORD` key (None, off-scale), carried there for signal/corroboration
+# symmetry with SIGNAL_ORD. But like them, NO corroboration producer emits it: a gap-with-intent on the
+# corroboration axis collapses to `unmeasured` (the `_cn_corroboration`/`_fus_corroboration` off-scale
+# guards return `"unmeasured"`, never `"underpowered"`), so it is not a LIVE projection rung and must be
+# excluded from the per-projection coverage requirement below. If a producer ever mints it, it needs a rung
+# of its own and an ordering argument, exactly as this note demands of the others.
+_VESTIGIAL_CORROBORATION_RUNGS = {"absent", "negative", "none", "underpowered"}
 
 # Encoder keys that no producer emits, tolerated as an UPPER BOUND rather than pinned by equality. This set
 # should only ever SHRINK — and it just did. `single_arm` was listed here because the encoder rung landed

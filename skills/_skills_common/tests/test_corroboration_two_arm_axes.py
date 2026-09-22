@@ -30,7 +30,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))
 from _skills_common import cis_coherence_claims as cis  # noqa: E402
 from _skills_common import genomic_claims as gen  # noqa: E402
 from _skills_common import selectivity_claims as sel  # noqa: E402
-from _skills_common.claim_vector_core import CORROBORATION_ORD  # noqa: E402
+from _skills_common.claim_vector_core import CORROBORATION_ORD, SIGNAL_ORD  # noqa: E402
 
 # The closed vocabulary from cards/copy-number-distribution.card.yaml
 # → outputs.summary_fields_vocabulary.patient_focal_cn_class. Mirrored here (skills CI does not
@@ -47,11 +47,15 @@ def _cn_headline(cn_class, focal):
 
 
 # (cell-line copy_number_class, patient_focal_cn_class) -> expected corroboration, with the REASON.
-# Enumerated over the full cross product: 5 cell-line classes x (4 enum values + None) = 25 rows.
+# Enumerated over the full cross product: 6 cell-line classes x (4 enum values + None) = 30 rows.
 _CN_CASES = {
-    # A GAP carries no corroboration whatever the patient arm says: nobody looked, so there is nothing
-    # to agree or disagree with. This is the ONLY signal state that collapses the axis.
+    # A GAP carries no corroboration whatever the patient arm says: there is nothing to agree or disagree
+    # with. The two gap KINDS collapse the axis alike — `data_unavailable` (nobody looked) and
+    # `underpowered` (the cell-line arm looked but was under-powered): both are off-scale in SIGNAL_ORD, so
+    # neither is a measured arm the patient focal call could corroborate. (Before the `underpowered` tier,
+    # `data_unavailable` was the only signal state that collapsed the axis.)
     **{("data_unavailable", f): "unmeasured" for f in _PATIENT_FOCAL_ENUM + (None,)},
+    **{("underpowered", f): "unmeasured" for f in _PATIENT_FOCAL_ENUM + (None,)},
     # `broadly_neutral` is a measured NEGATIVE and `mixed` a measured DIRECTIONLESS call. Both are real
     # one-armed claims: the cell-line arm looked and reported something, but nothing it reported gives a
     # patient focal call anything to agree or disagree WITH. `single_arm`, not `unmeasured` — collapsing
@@ -78,7 +82,7 @@ def test_cn_case_table_is_exhaustive_over_the_closed_enum():
     map, so a NEW cell-line class fails here rather than slipping through untested."""
     expected = {(cls, f) for cls in gen._CN_SIGNAL for f in _PATIENT_FOCAL_ENUM + (None,)}
     assert set(_CN_CASES) == expected, f"missing {sorted(expected - set(_CN_CASES))}"
-    assert len(_CN_CASES) == 25
+    assert len(_CN_CASES) == 30
 
 
 @pytest.mark.parametrize(("cn_class", "focal"), sorted(_CN_CASES, key=lambda k: (k[0], str(k[1]))))
@@ -259,7 +263,13 @@ def test_the_negative_side_is_derived_from_the_signal_map_not_from_a_class_LITER
         assert _snv(cls, "top_1pct") == "low"
 
     # …and the positive side must be the MIRROR, or "relative" would just be an inverted absolute read.
-    for cls in (k for k, v in gen._FUS_SIGNAL.items() if v not in ("absent", "unmeasured")):
+    # The positive population is derived from the ORDINAL, not a literal exclusion list: a POSITIVE
+    # directional class is on-scale (not a gap → not None) AND above the negative floor (> `absent`). This
+    # excludes both gap kinds (`unmeasured` AND `underpowered`, both None) and the measured-negative floor
+    # in one predicate — a literal `not in ("absent", "unmeasured")` silently admitted the `underpowered`
+    # gap as a positive class the day that tier landed, which is exactly the map-not-literal defect this
+    # whole test exists to prevent.
+    for cls in (k for k, v in gen._FUS_SIGNAL.items() if SIGNAL_ORD.get(v) not in (None, SIGNAL_ORD["absent"])):
         assert _fus(cls, "top_1pct") == "high" and _fus(cls, "bottom_decile") == "low"
 
 

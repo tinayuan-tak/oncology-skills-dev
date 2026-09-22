@@ -53,6 +53,13 @@ _CORR_TO_CONF = {
     "single_arm": "weak",
     "low": "weak",
     "unmeasured": "insufficient",
+    # `underpowered` (a gap WITH intent — the arm ran but was under-powered) reads as the SAME
+    # `insufficient` confidence as the `unmeasured` gap. Explicit rather than via the `.get(..., "insufficient")`
+    # default so a rung can never silently fall through (see test_every_corroboration_rung_has_a_confidence
+    # _projection). Verdict-inert: no live corroboration projection emits `underpowered` (the _cn/_fus arm
+    # guards collapse an underpowered signal to `unmeasured` corroboration) — this is the gap-consistent
+    # reading for the day a producer does.
+    "underpowered": "insufficient",
 }
 
 

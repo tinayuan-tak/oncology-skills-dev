@@ -23,6 +23,7 @@ from _skills_common.genomic_claims import (  # noqa: E402  # noqa: E402
     _CN_FOCAL_NEG,
     _CN_FOCAL_POS,
     _CN_SIGNAL,
+    _FUS_SIGNAL,
     _RECURRENCE_SIGNAL,
     _ROLE_SIGNAL,
     _SPLICE_SIGNAL,
@@ -205,6 +206,30 @@ def test_dep_underpowered_is_gap_not_absent():
     }
     vec = genomic_claim_vector(h, [])
     assert vec["DEP"]["signal"] == "unmeasured"  # insufficient-rate + data_unavailable → gap, not absent
+
+
+def test_underpowered_cn_and_fus_read_as_a_gap_with_intent_not_absent_or_driver():
+    """C1 foundation. A classifier that emits `underpowered` (measured, but under its power floor) below
+    CN / fusion recurrence must read as the gap-WITH-INTENT `underpowered` tier — never `unmeasured`
+    (which would erase that the axis WAS consulted) and never `absent` (a measured floor / passenger). The
+    token is forward-declared for C3's emitters (depmap_cn_distribution `_classify_cn`, tcga `_classify`,
+    tcga_fusion_consensus `fclass`); this pins the mapping so a C3 emitter cannot silently fall through to
+    `unmeasured`, and pins the tier DISTINCT from the `data_unavailable`/`no_recurrent_fusion` families."""
+    # the map entries, distinct from the nobody-looked gap and from a measured `absent` floor
+    assert _CN_SIGNAL["underpowered"] == "underpowered"
+    assert _FUS_SIGNAL["underpowered"] == "underpowered"
+    assert _CN_SIGNAL["underpowered"] != _CN_SIGNAL["data_unavailable"]  # gap-with-intent ≠ nobody-looked
+    assert _FUS_SIGNAL["underpowered"] != _FUS_SIGNAL["no_recurrent_fusion"]  # ≠ a measured `absent` floor
+    # end-to-end through the claim vector: the axis signal is the gap tier, off-scale (never a driver/floor)
+    cn = genomic_claim_vector({"genomic_alteration_by_class": _by_class(cn="underpowered")}, [])["CN"]
+    assert cn["signal"] == "underpowered" and SIGNAL_ORD[cn["signal"]] is None
+    fus = genomic_claim_vector({"genomic_alteration_by_class": _by_class(fusion="underpowered")}, [])["FUS"]
+    assert fus["signal"] == "underpowered" and SIGNAL_ORD[fus["signal"]] is None
+    # …and the CORROBORATION collapses too: an underpowered arm looked but is off-scale, so there is
+    # nothing for a second arm to agree with. Pins the `_cn_/_fus_corroboration` off-scale guards — a
+    # regression back to a string match on `"unmeasured"` would let this read as a measured `single_arm`.
+    assert cn["corroboration"] == "unmeasured", "an underpowered CN arm is a gap, not a measured arm"
+    assert fus["corroboration"] == "unmeasured", "an underpowered fusion arm is a gap, not a measured arm"
 
 
 def test_field_names_are_corroboration():

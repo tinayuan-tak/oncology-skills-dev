@@ -92,6 +92,25 @@ def test_gap_is_off_scale_not_zero():
     assert CORROBORATION_ORD["unmeasured"] is None
 
 
+def test_underpowered_is_a_gap_with_intent_off_scale_like_unmeasured():
+    """`underpowered` (measured, but under the power floor) is a gap WITH INTENT: distinct in TEXT from
+    `unmeasured` (nobody looked) but identical in the ordinal MACHINERY — None, off-scale, the slot
+    `negative`/`absent` share at 0 one level down. Pinned the way `single_arm`'s ordering is pinned, so the
+    tier cannot silently decay to an on-scale integer — which would let an underpowered axis read as a
+    driver (sig_ge true) or as a measured `absent` floor / passenger, the gap≠absent violation this tier
+    exists to prevent."""
+    assert SIGNAL_ORD["underpowered"] is None  # off-scale gap, NOT 0 (0 would read as a measured floor)
+    assert CORROBORATION_ORD["underpowered"] is None
+    assert SIGNAL_ORD["underpowered"] == SIGNAL_ORD["unmeasured"]  # same off-scale slot as the other gap
+    assert not sig_ge("underpowered", "absent")  # a gap is never >= even the floor → never a driver
+    # excluded from the measured-rung machinery exactly like `unmeasured`, for free (the `o is not None` idiom)
+    assert weakest(["high", "underpowered"], CORROBORATION_ORD) == "high"  # a gap never wins weakest-link
+    assert bump_corroboration("underpowered", True) == "underpowered"  # a gap cannot be corroborated
+    assert cap_corroboration("underpowered", "low") == "underpowered"  # nor capped by a conflict
+    # DISTINCT recognized token from `unmeasured` — a gap-with-intent, not one aliased onto the other
+    assert "underpowered" in SIGNAL_ORD and "underpowered" in CORROBORATION_ORD
+
+
 def test_sig_ge_treats_unmeasured_as_never_meeting_floor():
     assert sig_ge("strong", "moderate")
     assert sig_ge("moderate", "moderate")

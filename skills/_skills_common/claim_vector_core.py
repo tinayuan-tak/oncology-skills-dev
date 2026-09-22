@@ -13,8 +13,9 @@ speculated from one.
 
 THE COMBINATION DISCIPLINE (the honesty rules this module reifies as shared helpers):
   * ORDINAL, not metric. Tiers preserve ORDER (strong>moderate>weak>absent); gaps are not distances.
-  * gap ≠ absent. `unmeasured` (never measured / no anchor) is DISTINCT from `absent` (a measured
-    floor) and `negative` (measured, wrong direction). A coverage gap is never evidence of absence.
+  * gap ≠ absent. `unmeasured` (never measured / no anchor) and `underpowered` (measured, but under the
+    statistical-power floor — a gap WITH intent) are both DISTINCT from `absent` (a measured floor) and
+    `negative` (measured, wrong direction). A coverage gap — of EITHER kind — is never evidence of absence.
   * claims are kept SEPARATE, never averaged. A weak claim on one axis does not degrade a strong claim
     on another — they are orthogonal projections, not a scalar score.
   * within a claim, corroboration is SUB-ADDITIVE: a second AGREEING arm raises CORROBORATION, never the
@@ -39,9 +40,22 @@ from dataclasses import dataclass
 from typing import Callable, Optional, Sequence
 
 # Ordinal signal tiers — SHARED across all skills. `negative` (measured, wrong direction) and `absent`
-# (a measured floor) both rank 0 but read differently in text; `unmeasured` (a GAP) is None, NOT 0 — so
-# it is never comparable/averageable and gap≠absent is enforced at the type level.
-SIGNAL_ORD = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "negative": 0, "unmeasured": None}
+# (a measured floor) both rank 0 but read differently in text; `unmeasured` (a GAP — never measured / no
+# anchor) is None, NOT 0 — so it is never comparable/averageable and gap≠absent is enforced at the type
+# level. `underpowered` (measured, but under the statistical-power floor — a gap WITH INTENT: the axis WAS
+# consulted, it just could not resolve a confident call) is ALSO None, sharing the off-scale gap slot with
+# `unmeasured` the same way `negative`/`absent` share 0 — distinct in TEXT ("we looked but were
+# underpowered" vs "nobody looked"), identical in the ordinal MACHINERY (never a driver, never averaged,
+# never `absent`; auto-excluded from every measured-rung derivation via the `o is not None` idiom).
+SIGNAL_ORD = {
+    "strong": 3,
+    "moderate": 2,
+    "weak": 1,
+    "absent": 0,
+    "negative": 0,
+    "unmeasured": None,
+    "underpowered": None,
+}
 
 # Ordinal CORROBORATION tiers. `single_arm` is the rung for "measured, but by exactly ONE arm" — the
 # state that has no second arm to agree or disagree with. It exists because `moderate` used to serve
@@ -57,7 +71,10 @@ SIGNAL_ORD = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "negative": 0,
 #     projects to confidence `weak`.
 # `eval/build_discordance_ledger._DISAGREEMENT_CORROBORATION` stays {"low"} — `single_arm` is
 # deliberately NOT a disagreement, and a test pins that so this rung cannot decay into a rename.
-CORROBORATION_ORD = {"high": 4, "moderate": 3, "single_arm": 2, "low": 1, "unmeasured": None}
+# `underpowered` mirrors SIGNAL_ORD's: a corroborating arm that RAN but lacked power is a gap-WITH-INTENT,
+# None (off-scale) like `unmeasured` — so it is excluded from every measured-rung derivation and can never
+# be bumped/capped into confidence (a gap cannot be corroborated).
+CORROBORATION_ORD = {"high": 4, "moderate": 3, "single_arm": 2, "low": 1, "unmeasured": None, "underpowered": None}
 
 # The measured-arm frame (user decision, 2026-09-13). Corroboration is computed over MEASURED arms
 # ONLY: an absent arm leaves BOTH the numerator and the denominator, rather than being scored as a
