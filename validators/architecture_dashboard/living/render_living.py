@@ -422,6 +422,281 @@ def _schematic_pre(art):
 
 
 # --------------------------------------------------------------------------- #
+# PRODUCT PAGE — the per-subskill five-panel view (exemplar: tumor-presence)
+# --------------------------------------------------------------------------- #
+def _pp_observed(field):
+    """A compact 'top observed value ×N' string for a summary field's live emission counts."""
+    top = field.get("top") or field.get("observed")
+    if isinstance(top, dict) and top:
+        items = sorted(top.items(), key=lambda kv: (-(kv[1] or 0), str(kv[0])))[:4]
+        return ", ".join(f"{_esc(str(k))}·{v}" for k, v in items)
+    if isinstance(top, list) and top:
+        return _esc(", ".join(str(x) for x in top[:4]))
+    return ""
+
+
+def _pp_live_badge(live):
+    """A live/dark chip from a card's health overlay."""
+    h = (live or {}).get("health")
+    if h in ("live",):
+        return _chip("live", TEAL)
+    if h in ("dark", None, "placeholder") or (live or {}).get("is_placeholder"):
+        return _chip("dark", GREY)
+    return _chip(str(h), AMBER)
+
+
+def _pp_spine(graph, block):
+    """Panel 1 — data source → method → card → field(+type,observed) → rule → verdict → collapsed
+    skill verdict → output shape. One block per verdict-bearing card, then the collapse footer."""
+    sp = block.get("panels", {}).get("spine", {})
+    rows = sp.get("cards") or []
+    if not rows:
+        return '<div class="empty">no verdict-bearing cards resolved</div>'
+    out = []
+    for row in rows:
+        ds = "".join(
+            f'<span class="pp-ds" title="{_esc(str(d.get("license") or ""))}">'
+            f"{_esc(d.get('provider') or d.get('resolved_id') or '?')}"
+            f"{'' if d.get('in_catalog') else ' ⚠'}</span>"
+            for d in (row.get("datasets") or [])
+        )
+        methods = "".join(f'<code class="pp-m">{_esc(m)}</code>' for m in (row.get("methods") or []))
+        fields = "".join(
+            f"<tr><td>{_tok(graph, None, f['name'])}</td>"
+            f'<td class="pp-ty">{_esc(f.get("type") or "—")}</td>'
+            f'<td class="pp-ob">{_pp_observed(f) or "—"}</td></tr>'
+            for f in (row.get("fields") or [])
+        )
+        rules = "".join(
+            f"<tr><td>{_tok(graph, 'rule', r['rule_id'])}</td>"
+            f"<td>{_chip('gating', PURPLE) if r.get('role') == 'gating' else _chip('display', GREY)}"
+            f"{'  ' + _chip('killer', RED) if r.get('is_killer') else ''}</td>"
+            f'<td class="pp-cond">{_esc(json.dumps(r.get("condition")) if r.get("condition") else "—")}</td>'
+            f"<td>{' '.join(_tok(graph, 'verdict', v) for v in (r.get('verdicts') or [])) or '—'}</td></tr>"
+            for r in (row.get("rules") or [])
+        )
+        out.append(
+            f'<div class="cblock"><div class="chead">'
+            f'<span class="ctitle">{_tok(graph, "card", row["card_id"])}</span>'
+            f"{_pp_live_badge(row.get('live'))}"
+            f'<span class="cdef">{_tok(graph, "measurement_type", row.get("measurement_type"))}</span></div>'
+            f'<div class="pp-body">'
+            f'<div class="pp-q">{_esc(row.get("question") or "")}</div>'
+            f'<div class="pp-prov"><b>sources</b> {ds or "—"} &nbsp;·&nbsp; <b>methods</b> {methods or "—"}</div>'
+            f'<table class="pp-tbl"><thead><tr><th>field</th><th>type</th><th>observed (top)</th></tr></thead>'
+            f"<tbody>{fields}</tbody></table>"
+            f'<table class="pp-tbl"><thead><tr><th>rule</th><th>role</th><th>condition</th><th>→ verdict</th></tr></thead>'
+            f"<tbody>{rules}</tbody></table>"
+            f"</div></div>"
+        )
+    enum = sp.get("verdict_enum") or []
+    enum_html = " ".join(f'<span class="pp-en">{_esc(t)}</span>' for t in enum)
+    src = sp.get("verdict_source")
+    gate = sp.get("gate")
+    footer = (
+        f'<div class="pp-collapse"><div class="pp-collapse-hd">↓ collapses to the skill verdict</div>'
+        f'<div class="pp-collapse-body">'
+        f"<b>verdict field</b> <code>{_esc(sp.get('collapsed_verdict_field') or '')}</code> &nbsp;·&nbsp; "
+        f"<b>source</b> {_chip(src or '?', PURPLE if src == 'python_ladder' else TEAL)}"
+        f"{' &nbsp;·&nbsp; <b>gate</b> ' + _tok(graph, 'gate', gate) if gate else ''} &nbsp;·&nbsp; "
+        f"<b>output shape</b> {_esc(', '.join(sp.get('output_shape') or []) or '—')}</div>"
+        f'<details class="pp-enum"><summary>pinned verdict enum ({len(enum)} tokens)</summary>'
+        f'<div class="pp-enums">{enum_html}</div></details></div>'
+    )
+    return "".join(out) + footer
+
+
+def _pp_drilldown(graph, block):
+    """Panel 2 — per-card drill-down: fields, source datasets (+license on hover), live/dark."""
+    rows = block.get("panels", {}).get("card_drilldown") or []
+    if not rows:
+        return '<div class="empty">no cards</div>'
+    trs = []
+    for r in rows:
+        ds = ", ".join(
+            f'<span title="{_esc(str(d.get("license") or ""))}">{_esc(d.get("provider") or "?")}'
+            f"{'' if d.get('in_catalog') else ' ⚠'}</span>"
+            for d in (r.get("datasets") or [])
+        )
+        vb = _chip("verdict-bearing", PURPLE) if r.get("is_verdict_bearing") else _chip("display", GREY)
+        trs.append(
+            f"<tr><td>{_tok(graph, 'card', r['card_id'])}</td>"
+            f"<td>{vb}</td>"
+            f"<td>{_pp_live_badge(r.get('live'))}</td>"
+            f"<td>{len(r.get('fields') or [])}</td>"
+            f"<td>{ds or '—'}</td>"
+            f'<td class="pp-wire">{_esc(str(r.get("wiring") or "—"))}</td>'
+            f'<td><span class="pp-gal" title="worked example renders this card live">↗ {_esc(r.get("example_gallery_ref") or "")}</span></td></tr>'
+        )
+    return (
+        '<table class="pp-tbl pp-wide"><thead><tr><th>card</th><th>role</th><th>live</th>'
+        "<th>fields</th><th>source datasets</th><th>wiring</th><th>worked example</th></tr></thead>"
+        f"<tbody>{''.join(trs)}</tbody></table>"
+    )
+
+
+def _pp_optionality(block):
+    """Panel 3 — the deterministic spine vs the optional, verdict-INERT lanes."""
+    op = block.get("panels", {}).get("optionality") or {}
+    lanes = "".join(
+        f'<div class="pp-lane"><div class="pp-lane-hd"><code>{_esc(l.get("flag"))}</code> '
+        f'<span class="pp-lane-name">{_esc(l.get("label") or l.get("lane"))}</span>'
+        f"{_chip('verdict-inert', TEAL) if l.get('verdict_inert') else _chip('VERDICT-MOVING', RED)}</div>"
+        f'<div class="pp-lane-adds"><b>adds</b> <code>{_esc(l.get("adds") or "")}</code></div>'
+        f'<div class="pp-lane-note">{_esc(l.get("note") or "")}</div></div>'
+        for l in (op.get("lanes") or [])
+    )
+    return (
+        f'<div class="pp-spineline">◆ deterministic spine — {_esc(op.get("deterministic_spine") or "")}</div>'
+        f'<div class="pp-lanes">{lanes}</div>'
+    )
+
+
+def _pp_rollup(graph, block):
+    """Panel 4 — how the subskill verdict rolls into the nomination: short → gate/gateless → risk bin."""
+    ru = block.get("panels", {}).get("rollup") or {}
+    gate = ru.get("gate")
+    gate_html = _tok(graph, "gate", gate) if gate else _chip("gateless (necessity band)", GREY)
+    risk = ru.get("risk_dim")
+    risk_html = f'{_esc(risk)} <span class="pp-src">({_esc(ru.get("risk_source") or "?")})</span>' if risk else "—"
+    drift = ru.get("drift")
+    drift_html = ""
+    if drift:
+        drift_html = (
+            f'<div class="pp-drift">⚠ registry↔code drift ({_esc(drift.get("kind"))}): registry says '
+            f"<b>{_esc(drift.get('registry_risk_category'))}</b>, code bins into "
+            f"<b>{_esc(str(drift.get('code_risk_dim')))}</b> — surfaced as data (fix: issue #856)</div>"
+        )
+    fc = ", ".join(_esc(x) for x in (ru.get("foreign_consumers") or [])) or "—"
+    return (
+        '<table class="pp-tbl"><tbody>'
+        f"<tr><th>axis (short)</th><td>{_esc(ru.get('short') or '—')}</td></tr>"
+        f"<tr><th>nomination gate</th><td>{gate_html}</td></tr>"
+        f"<tr><th>band</th><td>{_esc(ru.get('band') or '—')}</td></tr>"
+        f"<tr><th>risk-6dim bin</th><td>{risk_html}</td></tr>"
+        f"<tr><th>registry risk_category</th><td>{_esc(ru.get('registry_risk_category') or '—')}</td></tr>"
+        f"<tr><th>exclusion state</th><td>{_esc(str(ru.get('exclusion_state') or '—'))}</td></tr>"
+        f"<tr><th>foreign consumers</th><td>{fc}</td></tr>"
+        f"</tbody></table>{drift_html}"
+    )
+
+
+def _pp_cards_questions(graph, block):
+    """Panel 5 — axis → sub-group → question → measurement_type → card (from the registry)."""
+    cq = block.get("panels", {}).get("cards_questions") or {}
+
+    def _mts(mts):
+        return "".join(
+            f"<li>{_tok(graph, 'measurement_type', m.get('measurement_type'))} → "
+            f"{' '.join(_tok(graph, 'card', c) for c in (m.get('cards') or [])) or '<span class=empty>no card</span>'}</li>"
+            for m in (mts or [])
+        )
+
+    groups = ""
+    for sg in cq.get("sub_groups") or []:
+        qs = "".join(
+            f'<div class="pp-q2"><div class="pp-qid">{_esc(q.get("id"))}'
+            f"{' ' + _chip(q.get('role'), PURPLE) if q.get('role') else ''}</div>"
+            f'<ul class="pp-mt">{_mts(q.get("measurement_types"))}</ul></div>'
+            for q in (sg.get("questions") or [])
+        )
+        groups += (
+            f'<div class="pp-sg"><div class="pp-sg-hd">{_esc(sg.get("id"))} '
+            f'<span class="pp-ctx">{_esc(", ".join(sg.get("claim_axes") or []))}</span></div>{qs}</div>'
+        )
+    lenses = "".join(
+        f'<div class="pp-sg"><div class="pp-sg-hd">lens · {_esc(ol.get("lens"))}</div>'
+        f'<ul class="pp-mt">{_mts(ol.get("measurement_types"))}</ul></div>'
+        for ol in (cq.get("other_lenses") or [])
+    )
+    return (
+        f'<div class="pp-axis">axis: <b>{_esc(cq.get("axis") or "—")}</b></div>{groups}'
+        f"{'<h4 class=pp-h4>Other lenses</h4>' + lenses if lenses else ''}"
+    )
+
+
+def _pp_risk_drift(block_map):
+    """The skill-invariant registry↔code risk drift, surfaced once for the whole product page."""
+    rows = block_map.get("risk_drift") or []
+    if not rows:
+        return '<div class="pp-nodrift">✓ no registry↔code risk drift</div>'
+    trs = "".join(
+        f"<tr><td>{_esc(r.get('short'))}</td>"
+        f"<td>{_esc(r.get('registry_risk_category') or '—')}</td>"
+        f"<td>{_esc(str(r.get('code_risk_dim') or '—'))}</td>"
+        f"<td>{_esc(r.get('code_source') or '—')}</td>"
+        f"<td>{_chip(r.get('kind'), AMBER if r.get('kind') == 'category_mismatch' else RED)}</td></tr>"
+        for r in rows
+    )
+    return (
+        f'<p class="muted">Registry-declared <code>risk_category</code> vs the risk-6dim bin the '
+        f"runtime code actually assigns. The code is authoritative; this is surfaced as data, not "
+        f"fixed here (issue #856).</p>"
+        '<table class="pp-tbl pp-wide"><thead><tr><th>axis</th><th>registry risk_category</th>'
+        "<th>code risk dim</th><th>code source</th><th>kind</th></tr></thead>"
+        f"<tbody>{trs}</tbody></table>"
+    )
+
+
+_PP_PANELS = [
+    (
+        "Spine",
+        "The deterministic anatomy — source → method → card → field → rule → verdict → skill verdict → shape",
+        _pp_spine,
+    ),
+    ("Card drill-down", "Every card the skill composes: fields, source datasets, live/dark", _pp_drilldown),
+    ("Optionality", "The deterministic spine vs the optional, verdict-inert lanes", _pp_optionality),
+    ("Roll-up", "How this subskill's verdict flows into the target-profile nomination", _pp_rollup),
+    ("Cards ← questions", "The question hierarchy that lands on each card", _pp_cards_questions),
+]
+
+
+def _product_page(graph):
+    """The Product tab: a skill selector over the per-subskill five-panel product pages."""
+    pp = graph.get("product_page") or {}
+    skills = pp.get("skills") or {}
+    if not skills:
+        return '<div class="empty">no product page built (regenerate with the skills sibling present)</div>'
+    default = pp.get("default_skill") or next(iter(skills))
+    intro = (
+        '<p class="muted">A target-invariant tour of ONE subskill as a product: the deterministic '
+        "spine that turns data into a verdict, the cards it composes, the optional (verdict-inert) "
+        "lanes, how its verdict rolls into a nomination, and the questions each card answers. "
+        "Pick a subskill:</p>"
+    )
+    options = "".join(
+        f'<option value="{_esc(name)}"{" selected" if name == default else ""}>{_esc(humanize(name))}</option>'
+        for name in sorted(skills)
+    )
+    selector = f'<select class="pp-select" id="pp-select" onchange="selProduct(this.value)">{options}</select>'
+
+    blocks = ""
+    for name, block in sorted(skills.items()):
+        panes = ""
+        for title, sub, fn in _PP_PANELS:
+            body = fn(graph, block) if fn not in (_pp_optionality,) else fn(block)
+            panes += (
+                f'<section class="pp-panel"><h3 class="pp-panel-hd">{_esc(title)}'
+                f'<span class="pp-panel-sub">{_esc(sub)}</span></h3>{body}</section>'
+            )
+        errs = block.get("errors") or []
+        err_html = ""
+        if errs:
+            lis = "".join(f"<li>{_esc(e)}</li>" for e in errs)
+            err_html = f'<details class="pp-errs"><summary>⚠ {len(errs)} surfaced extraction finding(s)</summary><ul>{lis}</ul></details>'
+        blocks += (
+            f'<div class="pp-skill" id="pp-skill-{_esc(name)}" style="display:{"block" if name == default else "none"}">'
+            f'<div class="pp-meta">{_tok(graph, None, name)} · status {_esc(str(block.get("status") or "?"))} · '
+            f"{block.get('n_cards', 0)} cards · verdict via "
+            f"{_esc(block.get('ladder', {}).get('verdict_source') or '?')}</div>"
+            f"{err_html}{panes}</div>"
+        )
+
+    drift = f'<section class="pp-panel"><h3 class="pp-panel-hd">Registry ↔ code risk drift<span class="pp-panel-sub">skill-invariant</span></h3>{_pp_risk_drift(pp)}</section>'
+    return f'{intro}<div class="pp-selbar">subskill: {selector}</div>{blocks}{drift}'
+
+
+# --------------------------------------------------------------------------- #
 # CSS + shell
 # --------------------------------------------------------------------------- #
 _LIVING_CSS = """
@@ -496,6 +771,49 @@ pre.schem{background:#161616;color:#e8e8e8;border-radius:8px;padding:14px 16px;o
   font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;line-height:1.35;white-space:pre;margin:0}
 @media(max-width:900px){.pnode{width:100%;min-width:0}.parrow{transform:rotate(90deg);padding:2px 0}
   .pipe{flex-direction:column}.hub{grid-template-columns:1fr}.hubsats{grid-template-columns:1fr}}
+/* product page */
+.pp-selbar{margin:6px 0 16px;font-size:13px;font-weight:600}
+.pp-select{font-size:13px;padding:5px 10px;border:1px solid var(--line);border-radius:6px;background:var(--card);font-weight:600;margin-left:6px}
+.pp-meta{font-size:12px;color:var(--muted);margin:0 0 10px;padding:6px 10px;background:#f3f2ec;border-radius:6px}
+.pp-panel{margin:0 0 22px;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:var(--card)}
+.pp-panel-hd{margin:0;padding:10px 14px;background:#161616;color:#fff;font-size:14px;font-weight:700}
+.pp-panel-sub{display:block;font-size:11px;font-weight:400;color:#cfcfca;margin-top:2px}
+.pp-panel>*:not(.pp-panel-hd){margin:12px 14px}
+.pp-body{margin:10px 14px}
+.pp-q{font-size:12.5px;font-style:italic;color:var(--muted);margin-bottom:6px}
+.pp-prov{font-size:11.5px;margin-bottom:8px;line-height:1.7}
+.pp-ds{display:inline-block;background:#eef4f1;border:1px solid #cfe3da;border-radius:4px;padding:1px 6px;margin:0 3px 3px 0;font-size:11px;cursor:help}
+.pp-m,.pp-prov code{background:#f5f4ef;border-radius:4px;padding:1px 5px;font-size:11px;margin:0 2px}
+.pp-tbl{width:100%;border-collapse:collapse;font-size:11.5px;margin:6px 0}
+.pp-tbl th,.pp-tbl td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
+.pp-tbl th{background:#f3f2ec;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:var(--muted)}
+.pp-tbl.pp-wide td:first-child,.pp-tbl.pp-wide th:first-child{white-space:nowrap}
+.pp-ty{font-family:ui-monospace,Menlo,monospace;color:#199e70}
+.pp-ob,.pp-cond{font-family:ui-monospace,Menlo,monospace;font-size:10.5px;word-break:break-word}
+.pp-collapse{border:1px dashed var(--purple);border-radius:8px;margin:12px 14px;padding:10px 14px;background:#fbfaf6}
+.pp-collapse-hd{font-weight:700;color:var(--purple);font-size:12px;margin-bottom:6px}
+.pp-collapse-body{font-size:12px;line-height:1.7}
+.pp-enum{margin-top:8px}.pp-enum summary{cursor:pointer;font-size:11.5px;color:var(--muted)}
+.pp-enums{margin-top:6px}.pp-en{display:inline-block;background:#f3f0fa;border:1px solid #e0d8f2;border-radius:4px;padding:1px 6px;margin:0 3px 3px 0;font-size:10.5px;font-family:ui-monospace,Menlo,monospace}
+.pp-spineline{background:#161616;color:#e8e8e8;border-radius:8px;padding:10px 14px;font-size:12.5px;font-weight:600}
+.pp-lanes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pp-lane{border:1px solid var(--line);border-radius:8px;padding:9px 12px;background:#fbfaf6}
+.pp-lane-hd{font-size:12.5px;margin-bottom:4px}.pp-lane-name{font-weight:700;margin:0 6px}
+.pp-lane-adds{font-size:11px;margin-bottom:3px}.pp-lane-note{font-size:11px;color:var(--muted);line-height:1.5}
+.pp-drift{margin:10px 14px;background:#fdf6ec;border:1px solid #f0d9a8;border-radius:6px;padding:8px 12px;font-size:12px;line-height:1.5}
+.pp-nodrift{color:#199e70;font-weight:600;font-size:12.5px}
+.pp-src{color:var(--muted);font-size:10.5px}
+.pp-axis{font-size:13px;margin-bottom:8px}
+.pp-sg{border:1px solid var(--line);border-radius:8px;margin:8px 0;padding:8px 12px}
+.pp-sg-hd{font-weight:700;font-size:12.5px;margin-bottom:4px}
+.pp-ctx{font-weight:400;font-size:11px;color:var(--muted);margin-left:6px}
+.pp-q2{margin:6px 0 6px 6px}.pp-qid{font-size:12px;font-weight:600}
+.pp-mt{margin:3px 0 3px 18px;padding:0;font-size:11.5px;line-height:1.6}
+.pp-h4{margin:14px 0 4px;font-size:12.5px}
+.pp-gal{color:var(--purple);font-weight:600;cursor:help;font-size:11px}
+.pp-errs{margin:0 14px 10px}.pp-errs summary{cursor:pointer;color:#b06a00;font-size:11.5px;font-weight:600}
+.pp-errs ul{font-size:11px;color:var(--muted)}
+@media(max-width:900px){.pp-lanes{grid-template-columns:1fr}}
 """
 
 
@@ -531,6 +849,7 @@ def render_html(graph: dict) -> str:
 <div class="utabs">
   <div class="utab active" id="utab-overview" onclick="showTab('overview')">Overview</div>
   <div class="utab" id="utab-flow" onclick="showTab('flow')">Flow</div>
+  <div class="utab" id="utab-product" onclick="showTab('product')">Product</div>
   <div class="utab" id="utab-gaps" onclick="showTab('gaps')">Gaps{gaps_badge}</div>
   <div class="utab" id="utab-concepts" onclick="showTab('concepts')">Concepts</div>
   <div class="utab" id="utab-explorer" onclick="showTab('explorer')">Explorer</div>
@@ -545,6 +864,7 @@ def render_html(graph: dict) -> str:
 
 <div class="upane active" id="pane-overview"><main>{U._overview(graph)}</main></div>
 <div class="upane" id="pane-flow"><main><h2>Flow — the framework at every altitude</h2>{_flow(graph)}</main></div>
+<div class="upane" id="pane-product"><main><h2>Product page — one subskill, end to end</h2>{_product_page(graph)}</main></div>
 <div class="upane" id="pane-gaps"><main><h2>Gaps — every missing or broken piece, ranked</h2>{_gaps(graph)}</main></div>
 <div class="upane" id="pane-concepts"><main><h2>Concepts &amp; schemas — the building blocks</h2>{_concepts(graph)}</main></div>
 
@@ -592,6 +912,11 @@ function flowView(i,mode){{
   ['schem','boxes'].forEach(function(m){{
     var x=document.getElementById('vbtn-'+m+'-'+i); if(x) x.classList.toggle('active', m===mode);
   }});
+}}
+function selProduct(skill){{
+  document.querySelectorAll('.pp-skill').forEach(function(d){{ d.style.display='none'; }});
+  var el=document.getElementById('pp-skill-'+skill);
+  if(el) el.style.display='block';
 }}
 </script>
 </body></html>"""

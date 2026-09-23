@@ -1,0 +1,42 @@
+[
+  {
+    "code_risk_dim": "biological",
+    "code_source": "_CONTEXT_DIM",
+    "exclusion_state": "declared_context_tier",
+    "kind": "category_mismatch",
+    "registry_risk_category": "biology",
+    "short": "cis_coherence"
+  },
+  {
+    "code_risk_dim": "biological",
+    "code_source": "_CONTEXT_DIM",
+    "exclusion_state": "declared_descriptive",
+    "kind": "category_mismatch",
+    "registry_risk_category": "biomarker",
+    "short": "combination_vulnerability"
+  },
+  {
+    "code_risk_dim": "translational",
+    "code_source": "AXIS_TO_DIM",
+    "exclusion_state": null,
+    "kind": "category_mismatch",
+    "registry_risk_category": "commercial",
+    "short": "differentiation"
+  },
+  {
+    "code_risk_dim": "safety",
+    "code_source": "AXIS_TO_DIM",
+    "exclusion_state": null,
+    "kind": "category_mismatch",
+    "registry_risk_category": "biological",
+    "short": "selectivity"
+  },
+  {
+    "code_risk_dim": null,
+    "code_source": null,
+    "exclusion_state": null,
+    "kind": "unmapped_in_code",
+    "registry_risk_category": "translational",
+    "short": "translational"
+  }
+]

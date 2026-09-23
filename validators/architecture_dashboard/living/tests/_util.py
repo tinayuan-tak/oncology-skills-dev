@@ -12,6 +12,8 @@ _LIVING = Path(__file__).resolve().parent.parent  # .../living
 _ARCH = _LIVING.parent  # .../architecture_dashboard
 _REPO = _ARCH.parent.parent  # target-contracts repo root
 COMMITTED_JSON = _REPO / "health" / "framework_atlas.json"
+GOLDENS = Path(__file__).resolve().parent / "goldens"
+_SKILLS_REPO = "rnd-computational-biology-oncology-claude-oncology-skills"
 
 for p in (str(_ARCH), str(_LIVING)):
     if p not in sys.path:
@@ -28,3 +30,24 @@ def builder():
     import build_living_doc  # noqa: E402  (arch/living on path)
 
     return build_living_doc
+
+
+def load_golden(name: str) -> dict:
+    return json.loads((GOLDENS / name).read_text())
+
+
+def skills_root():
+    """The claude-oncology-skills sibling checkout, or skip. Live-extraction tests (ladder /
+    code-map shims read skill SOURCE) need it; CI is checkout-only, so they skip there while the
+    committed-artifact tests still run. Tries the build default, then the worktree sibling."""
+    import build_architecture_explorer as A  # noqa: E402
+
+    candidates = [Path(A.DEFAULTS["sk"]), _REPO.parent / _SKILLS_REPO]
+    for c in candidates:
+        if (c / "skills" / "tumor-presence" / "scripts" / "run.py").exists():
+            return c
+    pytest.skip(f"no {_SKILLS_REPO} sibling (checkout-only env) — skipping live source extraction")
+
+
+def tc_root() -> Path:
+    return _REPO

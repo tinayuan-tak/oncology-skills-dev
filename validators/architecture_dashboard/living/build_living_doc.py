@@ -39,6 +39,7 @@ try:
     from . import gaps as _gaps
     from . import glossary as _glossary
     from . import narrative as _narrative
+    from . import product_page as _product
     from .render_living import render_html
 except Exception:  # pragma: no cover - bare-path fallback
     sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -47,7 +48,15 @@ except Exception:  # pragma: no cover - bare-path fallback
     import gaps as _gaps  # type: ignore
     import glossary as _glossary  # type: ignore
     import narrative as _narrative  # type: ignore
+    import product_page as _product  # type: ignore
     from render_living import render_html  # type: ignore
+
+import yaml  # noqa: E402  (pyyaml; used for the axis registry the product page joins)
+
+# The exemplar subskill the product page defaults to; the render layer exposes a selector over
+# graph["product_page"]["skills"]. Extend this list to add more product pages (each is target-
+# invariant; adding one is a data change, not new machinery).
+_PRODUCT_SKILLS = ("tumor-presence",)
 
 HOME = Path.home()
 DEFAULT_JSON = _ARCH.parent.parent / "health" / "framework_atlas.json"  # <tc>/health/framework_atlas.json
@@ -69,8 +78,23 @@ def assemble(tc: Path, sk: Path, dc: Path, dp: Path, out_dir: Path, compute_heal
     graph["flow"] = _flow.build_flow(graph)  # needs concepts + glossary
     graph["gaps"] = _gaps.build_gaps(graph, roots)
     graph["narrative"] = _narrative.build_narrative(roots)
+    # product page: the per-subskill five-panel view. Needs the wiring graph + the live health
+    # overlay + the coverage ledgers (read from tc) + the axis registry; the ladder / code-map
+    # shims read the skills sibling (sk). Attached after everything it joins is in place.
+    axes_registry = _load_axes(tc)
+    graph["product_page"] = _product.build_product_pages(
+        graph, health, axes_registry, tc_root=tc, sk_root=sk, skills=_PRODUCT_SKILLS
+    )
     graph["framework_atlas_version"] = "1.0.0"
     return graph
+
+
+def _load_axes(tc: Path) -> dict:
+    """Parse the target-profiling axis registry (question hierarchies + per-question risk_category)."""
+    try:
+        return yaml.safe_load((Path(tc) / "vocabularies" / "target_profiling_axes.yaml").read_text()) or {}
+    except Exception:
+        return {}
 
 
 def stable_projection(graph: dict) -> str:
@@ -211,6 +235,47 @@ def self_check(graph: dict) -> list[str]:
 
     # glossary: coverage over the graph-derived token sets (legibility contract)
     errs += glossary_coverage_errors(graph)
+    # product page: five panels present + a spine that actually resolves verdicts
+    errs += product_page_errors(graph)
+    return errs
+
+
+def product_page_errors(graph: dict) -> list[str]:
+    """Structural consistency of the committed product_page block (CI-safe, no siblings).
+
+    Guards SHAPE, not drift: the ladder/code-map ``errors`` a block carries are surfaced findings
+    (e.g. a rule the skill's ladder references that the atlas has not yet regenerated), not
+    build failures, so they are deliberately NOT asserted here. What must hold on any committed
+    artifact: the block exists, the default skill is present, every skill block carries the five
+    panels, and each verdict-bearing spine card resolves at least one verdict token."""
+    errs: list[str] = []
+    pp = graph.get("product_page")
+    if not pp:
+        errs.append("no product_page present")
+        return errs
+    skills = pp.get("skills") or {}
+    if not skills:
+        errs.append("product_page has no skills")
+    default = pp.get("default_skill")
+    if default not in skills:
+        errs.append(f"product_page default_skill {default!r} not among built skills {sorted(skills)}")
+    panels_expected = {"spine", "card_drilldown", "optionality", "rollup", "cards_questions"}
+    for name, block in skills.items():
+        panels = block.get("panels") or {}
+        missing = panels_expected - set(panels)
+        if missing:
+            errs.append(f"product_page[{name}] missing panels: {sorted(missing)}")
+            continue
+        spine = panels["spine"]
+        for row in spine.get("cards") or []:
+            rules = row.get("rules") or []
+            if not rules:
+                errs.append(f"product_page[{name}] spine card {row.get('card_id')} has no rules")
+            elif not any(r.get("verdicts") for r in rules):
+                errs.append(f"product_page[{name}] spine card {row.get('card_id')} resolves no verdict token")
+        rollup = panels["rollup"]
+        if not rollup.get("short"):
+            errs.append(f"product_page[{name}] rollup has no short")
     return errs
 
 

@@ -1,0 +1,107 @@
+{
+  "axis_dim_exclusions": {
+    "cis_coherence": "declared_context_tier",
+    "combination_vulnerability": "declared_descriptive",
+    "immune_context": "declared_context_tier",
+    "literature_context": "declared_descriptive",
+    "subtype_fit": "open_pending_review",
+    "target_intrinsic": "declared_descriptive",
+    "translational_readiness": "declared_descriptive"
+  },
+  "axis_to_dim": {
+    "clinical": "clinical",
+    "commercial": "commercial",
+    "dependency": "biological",
+    "differentiation": "translational",
+    "expression": "biological",
+    "genomic_alteration": "biological",
+    "mechanism": "biological",
+    "safety": "safety",
+    "selectivity": "safety",
+    "surface_modality": "druggability",
+    "tractability_sm": "druggability"
+  },
+  "confidence_axis_to_gate": {
+    "cis_coherence": "cis_coherence"
+  },
+  "context_dim": {
+    "cis_coherence": "biological",
+    "combination_vulnerability": "biological",
+    "immune_context": "druggability",
+    "literature_context": "commercial",
+    "target_intrinsic": "druggability",
+    "translational_readiness": "translational"
+  },
+  "short_to_gate": {
+    "dependency": "dependency",
+    "differentiation": "differentiation",
+    "genomic_alteration": "genomic_alteration",
+    "mechanism": "mechanism",
+    "safety": "safety",
+    "selectivity": "selectivity",
+    "surface_modality": "surface_modality",
+    "tractability_sm": "tractability_small_molecule"
+  },
+  "sub_skills": [
+    {
+      "short": "expression",
+      "skill": "tumor-presence"
+    },
+    {
+      "short": "selectivity",
+      "skill": "tumor-selectivity"
+    },
+    {
+      "short": "dependency",
+      "skill": "functional-requirement"
+    },
+    {
+      "short": "mechanism",
+      "skill": "mechanism-and-pharmacology"
+    },
+    {
+      "short": "genomic_alteration",
+      "skill": "genomic-alteration-profile"
+    },
+    {
+      "short": "differentiation",
+      "skill": "differentiation-landscape"
+    },
+    {
+      "short": "tractability_sm",
+      "skill": "tractability-small-molecule"
+    },
+    {
+      "short": "surface_modality",
+      "skill": "surface-modality-fit"
+    },
+    {
+      "short": "immune_context",
+      "skill": "immune-context"
+    },
+    {
+      "short": "safety",
+      "skill": "on-target-safety-liability"
+    },
+    {
+      "short": "target_intrinsic",
+      "skill": "target-intrinsic"
+    },
+    {
+      "short": "cis_coherence",
+      "skill": "cis-feature-coherence"
+    },
+    {
+      "short": "combination_vulnerability",
+      "skill": "combination-and-vulnerability"
+    },
+    {
+      "short": "translational_readiness",
+      "skill": "translational-readiness"
+    },
+    {
+      "short": "literature_context",
+      "skill": "literature-context"
+    }
+  ]
+}
