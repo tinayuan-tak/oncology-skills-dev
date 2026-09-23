@@ -459,7 +459,11 @@ def _genomic_alteration_by_scope(cards: list[dict], driving_rule: str | None) ->
         return (card_by_id.get(card_id, {}).get("summary") or {}).get(field)
 
     def _measured(v):
-        return v not in (None, "", "data_unavailable")
+        # A coverage GAP is not a measurement. `data_unavailable` = could-not-look;
+        # `underpowered` = looked-but-too-thin (below the classifier's recurrence power floor,
+        # PR-C2). Both must read as NO evidence at this scope, else evidence_present falsely
+        # asserts "evidence exists here" off an axis that could not be powered.
+        return v not in (None, "", "data_unavailable", "underpowered")
 
     # PAN-CANCER (DepMap/PRISM cell-line) — the ladder-leading dependency + variant-shape + drug-response,
     # each dependency carrying its own indication-localisation scope.
