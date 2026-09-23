@@ -1,6 +1,6 @@
 """narrative.py — the Docs fold.
 
-Indexes the prose design docs (target-contracts docs/design/*.md + skills docs/*.md), and
+Indexes the prose design docs (target-contracts docs/design/*.md + docs/product/*.md + skills docs/*.md), and
 keys each to the component type(s) it describes (via the `doc_keying` table in concepts.yaml).
 Titles, first-paragraph summaries, and links are GENERATED; keying is the only hand input.
 
@@ -76,6 +76,7 @@ def build_narrative(roots: dict) -> dict:
 
     docs = {}
     docs.update(_index_dir(tc, "docs/design", "tc"))
+    docs.update(_index_dir(tc, "docs/product", "tc"))
     docs.update(_index_dir(sk, "docs", "sk"))
 
     # attach component keys (from doc_keying); docs not keyed still listed under "general"
