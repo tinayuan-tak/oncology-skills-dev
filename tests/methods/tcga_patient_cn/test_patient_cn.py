@@ -126,6 +126,31 @@ def test_focal_deletion_gates_on_homdel(monkeypatch):
     assert out["patient_focal_cn_class"] == "recurrent_focal_deletion"
 
 
+def test_underpowered_below_sample_floor(monkeypatch):
+    # PR-C3: fewer than _MIN_COVERED (20) GISTIC-covered samples in the cohort → the fractions are too
+    # thin to characterize a recurrence pattern. Both classifiers emit `underpowered` (coverage gap),
+    # NOT broadly_neutral / focal_neutral (which would read as a measured negative).
+    # 15 samples, ALL high-level amplified — a strong signal that must still be gated by n.
+    g = {f"TCGA-A1-{i:04d}-01A": 2 for i in range(15)}
+    cancer = {f"TCGA-A1-{i:04d}": "BRCA" for i in range(15)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("ERBB2", "BRCA")
+    assert out["n_samples"] == 15
+    assert out["patient_copy_number_class"] == "underpowered"
+    assert out["patient_focal_cn_class"] == "underpowered"
+
+
+def test_at_sample_floor_is_powered(monkeypatch):
+    # Exactly _MIN_COVERED (20) samples clears the floor — classification proceeds normally.
+    g = {f"TCGA-A1-{i:04d}-01A": (2 if i < 8 else 0) for i in range(20)}  # 40% high-level amp
+    cancer = {f"TCGA-A1-{i:04d}": "BRCA" for i in range(20)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("ERBB2", "BRCA")
+    assert out["n_samples"] == 20
+    assert out["patient_copy_number_class"] == "recurrently_amplified"
+    assert out["patient_focal_cn_class"] == "recurrent_focal_amplification"
+
+
 def test_gene_absent_data_unavailable(monkeypatch):
     monkeypatch.setattr(r, "_read_from_product", lambda t, i: None)
     r._read_gistic_gene.cache_clear()

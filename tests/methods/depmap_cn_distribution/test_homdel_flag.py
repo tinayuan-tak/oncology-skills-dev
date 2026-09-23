@@ -40,3 +40,19 @@ def test_shallow_del_does_not_trip_homdel_flag():
     # shallow deletions (0.6, between DEEP_DEL 0.5 and SHALLOW_DEL) must NOT count as homozygous.
     s = compute_summary_stats(_cn(10, 20, deep_val=0.6), {}, "wes")
     assert s["cn_homozygous_deletion_recurrent"] == "not_recurrent_homozygous_deletion"
+
+
+def test_underpowered_below_cn_floor():
+    # PR-C3: fewer than MIN_COVERED_CN (20) CN-covered cell lines → too thin to characterize a
+    # recurrence pattern. copy_number_class emits `underpowered` (coverage gap → insufficient),
+    # NOT broadly_neutral (a measured negative) — even when every line is deeply deleted.
+    s = compute_summary_stats(_cn(15, 15), {}, "wes")  # 15 lines, all deep-del
+    assert s["cn_n_cell_lines_evaluated"] == 15
+    assert s["copy_number_class"] == "underpowered"
+
+
+def test_at_cn_floor_is_powered():
+    # Exactly MIN_COVERED_CN (20) clears the floor — classification proceeds.
+    s = compute_summary_stats(_cn(10, 20), {}, "wes")  # 50% deep-del
+    assert s["cn_n_cell_lines_evaluated"] == 20
+    assert s["copy_number_class"] == "recurrently_deleted"

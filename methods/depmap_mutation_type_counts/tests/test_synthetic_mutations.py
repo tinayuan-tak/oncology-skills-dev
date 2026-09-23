@@ -107,8 +107,10 @@ def test_mixed_tp53_like():
     assert s["mut_fraction_lof"] == 0.40
 
 
-def test_no_mutations_below_threshold():
-    """Only 3 mutated cell lines → no_mutations call."""
+def test_underpowered_below_threshold():
+    """PR-C3: only 3 mutated cell lines (< min_mutated=5) -> underpowered (a coverage gap -- too
+    few lines to characterize a pattern), NOT no_mutations (that's reserved for n_mutated==0, a
+    genuine measured negative -- see test_empty_rows_returns_no_mutations)."""
     rows = _build_mutation_rows(
         [
             {"model": "ACH-000001", "vep": "missense_variant"},
@@ -118,7 +120,7 @@ def test_no_mutations_below_threshold():
     )
     meta = {f"ACH-{i:06d}": {"ModelID": f"ACH-{i:06d}", "OncotreeLineage": "Lung"} for i in range(1, 4)}
     s = c.compute_summary_stats(rows, meta, n_cell_lines_total=1500)
-    assert s["mutation_landscape_class"] == "no_mutations"
+    assert s["mutation_landscape_class"] == "underpowered"
     assert s["mut_dominant_mutation_class"] == "none"
 
 

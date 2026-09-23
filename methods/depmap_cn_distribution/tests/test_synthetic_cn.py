@@ -139,14 +139,26 @@ def test_threshold_boundary_focal_amp_strict():
 def test_classify_cn_dominant_amp():
     """When amp fraction >= 2x del fraction, both recurrent → recurrently_amplified."""
     # amp=0.6, del=0.25 → 0.6 >= 2*0.25 = 0.5 ✓ → dominant amp
-    cls = c._classify_cn(fraction_amp=0.6, fraction_del=0.25)
+    cls = c._classify_cn(fraction_amp=0.6, fraction_del=0.25, n=100)
     assert cls == "recurrently_amplified"
 
 
 def test_classify_cn_dominant_del():
     """When del fraction >= 2x amp fraction, both recurrent → recurrently_deleted."""
-    cls = c._classify_cn(fraction_amp=0.25, fraction_del=0.6)
+    cls = c._classify_cn(fraction_amp=0.25, fraction_del=0.6, n=100)
     assert cls == "recurrently_deleted"
+
+
+def test_classify_cn_underpowered_below_floor():
+    """n below MIN_COVERED_CN (20) -> underpowered, regardless of how extreme the fractions are."""
+    cls = c._classify_cn(fraction_amp=0.9, fraction_del=0.0, n=19)
+    assert cls == "underpowered"
+
+
+def test_classify_cn_at_floor_not_underpowered():
+    """n exactly at MIN_COVERED_CN (20) is powered -- classifies normally."""
+    cls = c._classify_cn(fraction_amp=0.0, fraction_del=0.0, n=20)
+    assert cls == "broadly_neutral"
 
 
 def test_modelid_bridge_via_modelcondition_not_model():

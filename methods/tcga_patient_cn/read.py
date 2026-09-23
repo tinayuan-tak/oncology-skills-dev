@@ -98,6 +98,11 @@ _DOMINANCE_RATIO = 1.5
 # recurrence bar for FOCAL amp is lower than any-gain because high-level +2 is a stronger event.
 _FOCAL_AMP_FRACTION = 0.10  # high-level (+2) in >= 10% of tumours → recurrent_focal_amplification
 _FOCAL_HOMDEL_FRACTION = 0.10  # homdel (-2) in >= 10% → recurrent_focal_deletion (the TSG analog)
+# Power floor: below this many GISTIC-covered tumours the fractions are too thin to characterize a
+# recurrence pattern. Mirrors _MIN_COVERED=20 in genie_sv_recurrence / pooled_snv_recurrence and the
+# cell-line reader's MIN_COVERED_CN. Below it both classifiers emit `underpowered` (a coverage GAP —
+# looked-but-too-thin) rather than a measured-negative (broadly_neutral / focal_neutral).
+_MIN_COVERED = 20
 
 
 from methods.target_id_sidecar import ensure_aws_profile
@@ -182,12 +187,14 @@ def _read_gistic_gene(target: str) -> tuple:
         raise
 
 
-def _classify(amp_frac: float, del_frac: float) -> str:
+def _classify(amp_frac: float, del_frac: float, n: int, min_n: int = _MIN_COVERED) -> str:
     """Mirror the DepMap copy_number_class VOCABULARY (recurrently_amplified / recurrently_deleted /
     mixed / broadly_neutral) and the 20% recurrence bar. The mixed-vs-dominant boundary is NOT mirrored
     (1.5 here vs the cell-line reader's 2.0 — see the _DOMINANCE_RATIO note above), so the two readers'
     labels are comparable at the recurrent-vs-neutral cut but NOT strictly comparable in the balanced
-    (both-recurrent) regime."""
+    (both-recurrent) regime. Below the power floor emit `underpowered` (coverage gap) not broadly_neutral."""
+    if n < min_n:
+        return "underpowered"
     amp_rec = amp_frac >= _RECURRENT_FRACTION
     del_rec = del_frac >= _RECURRENT_FRACTION
     if amp_rec and del_rec:
@@ -204,11 +211,15 @@ def _classify(amp_frac: float, del_frac: float) -> str:
     return "broadly_neutral"
 
 
-def _focal_class(high_amp_frac: float, homdel_frac: float) -> str:
+def _focal_class(high_amp_frac: float, homdel_frac: float, n: int, min_n: int = _MIN_COVERED) -> str:
     """FOCAL categorical for the genomic-verdict consensus rung — gates on HIGH-LEVEL (+2) focal
     amplification / homozygous (-2) deletion, NOT arm-level any-gain. equals-matchable by the rule
     engine. recurrent_focal_amplification takes precedence over deletion when both clear (a focal
-    high-amp is the actionable oncogene signal); returns focal_neutral when neither is recurrent."""
+    high-amp is the actionable oncogene signal); returns focal_neutral when neither is recurrent.
+    Below the power floor emit `underpowered` (coverage gap) — unmatched by the equals-only
+    cn-patient-focal-* rules, so it never fires the CN-consensus rescue (same fail-safe as focal_neutral)."""
+    if n < min_n:
+        return "underpowered"
     amp = high_amp_frac is not None and high_amp_frac >= _FOCAL_AMP_FRACTION
     dele = homdel_frac is not None and homdel_frac >= _FOCAL_HOMDEL_FRACTION
     if amp and dele:
@@ -238,8 +249,8 @@ def _summarize(vals) -> Optional[dict]:
     amp_frac, del_frac = n_amp / n, n_del / n
     high_amp_frac, homdel_frac = n_highamp / n, n_homdel / n
     return {
-        "patient_copy_number_class": _classify(amp_frac, del_frac),
-        "patient_focal_cn_class": _focal_class(high_amp_frac, homdel_frac),  # verdict-consensus gate (focal only)
+        "patient_copy_number_class": _classify(amp_frac, del_frac, n),
+        "patient_focal_cn_class": _focal_class(high_amp_frac, homdel_frac, n),  # verdict-consensus gate (focal only)
         "patient_amplified_fraction": amp_frac,
         "patient_high_amp_fraction": high_amp_frac,
         "patient_deleted_fraction": del_frac,
@@ -382,8 +393,8 @@ def build_patient_cn_table():
                 {
                     "gene_symbol": gi,
                     "indication": ind,
-                    "patient_copy_number_class": _classify(float(amp_f), float(del_f)),
-                    "patient_focal_cn_class": _focal_class(high_f, homdel_f),
+                    "patient_copy_number_class": _classify(float(amp_f), float(del_f), ni),
+                    "patient_focal_cn_class": _focal_class(high_f, homdel_f, ni),
                     "patient_amplified_fraction": float(amp_f),
                     "patient_high_amp_fraction": high_f,
                     "patient_deleted_fraction": float(del_f),

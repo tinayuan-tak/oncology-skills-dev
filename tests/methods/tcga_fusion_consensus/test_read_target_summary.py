@@ -70,12 +70,44 @@ def test_recurrent_partner_is_driver(monkeypatch):
 
 
 def test_recurs_without_single_recurrent_partner_still_driver(monkeypatch):
+    # Promiscuous recurrence (no single recurrent partner) is still a driver AS LONG AS an assayed
+    # denominator establishes the frequency. PR-C3: without a denominator this becomes `underpowered`
+    # (see test_promiscuous_without_denominator_is_underpowered) — so patch coverage here.
     rows = [_row(f"TCGA-01-{i}-01", "ROS1", "LUAD", 2, partners_tf=[f"P{i}"], n_tf=1) for i in range(4)]
     _patch(monkeypatch, rows)
+    _patch_coverage(
+        monkeypatch, [{"sample_key": f"TCGA-01-{i}-01", "tissue": "LUAD", "caller": "x"} for i in range(20)]
+    )
     d = r.read_target_summary("ROS1", "LUAD")
     assert d["fusion_class"] == "recurrent_fusion_driver"
+    assert d["fusion_recurrence_confidence"] == "moderate_promiscuous"
     assert d["recurrent_partners"] == []
     assert d["n_samples_with_fusion"] == 4
+
+
+def test_promiscuous_without_denominator_is_underpowered(monkeypatch):
+    # PR-C3: the target recurs (>= _RECURRENT_MIN_SAMPLES) with NO recurrent partner AND no assayed
+    # denominator (coverage sibling unavailable → fusion_frequency would be None). The "recurrence" is a
+    # raw fused-sample count over an unknown cohort — too thin to call a driver. Emit `underpowered`
+    # (coverage gap → insufficient), NOT recurrent_fusion_driver w/ fusion_frequency=None.
+    rows = [_row(f"TCGA-01-{i}-01", "ROS1", "LUAD", 2, partners_tf=[f"P{i}"], n_tf=1) for i in range(4)]
+    _patch(monkeypatch, rows)  # _patch defaults _load_coverage to empty → n_assayed None
+    d = r.read_target_summary("ROS1", "LUAD")
+    assert d["fusion_class"] == "underpowered"
+    assert d["fusion_frequency"] is None and d["n_assayed_in_tissue"] is None
+    assert d["n_samples_with_fusion"] == 4
+
+
+def test_recurrent_partner_is_driver_even_without_denominator(monkeypatch):
+    # Counter-example the issue protects: a recurrent PARTNER is a precise driver signal on its own,
+    # regardless of denominator. Must stay recurrent_fusion_driver / high_recurrent_partner even when
+    # coverage is unavailable (fusion_frequency None).
+    rows = [_row(f"TCGA-01-{i}-01", "ALK", "LUAD", 3, partners_tf=["EML4"], n_tf=1) for i in range(4)]
+    _patch(monkeypatch, rows)  # empty coverage → n_assayed None
+    d = r.read_target_summary("ALK", "NSCLC")
+    assert d["fusion_class"] == "recurrent_fusion_driver"
+    assert d["fusion_recurrence_confidence"] == "high_recurrent_partner"
+    assert d["fusion_frequency"] is None
 
 
 def test_sporadic_when_few_samples(monkeypatch):

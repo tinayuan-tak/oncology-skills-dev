@@ -240,14 +240,28 @@ def load_cn_files(release_pin: str, target_symbol: str) -> tuple[dict, dict, str
     return cn_by_model_id, model_metadata_by_id, assay_used, load_errors
 
 
+# Power floor: below this many evaluated cell lines the per-event fractions are too noisy to
+# characterize a recurrence pattern. Mirrors _MIN_COVERED=20 in genie_sv_recurrence /
+# pooled_snv_recurrence. Below it we emit `underpowered` (a coverage GAP — looked-but-too-thin,
+# reads `insufficient` downstream) rather than defaulting to broadly_neutral (a measured negative).
+MIN_COVERED_CN = 20
+
+
 def _classify_cn(
-    fraction_amp: float, fraction_del: float, recurrent_threshold: float = 0.20, dominant_ratio: float = 2.0
+    fraction_amp: float,
+    fraction_del: float,
+    n: int,
+    recurrent_threshold: float = 0.20,
+    dominant_ratio: float = 2.0,
+    min_n: int = MIN_COVERED_CN,
 ) -> str:
     """Map per-event fractions to copy_number_class.
 
     Returns one of:
-      recurrently_amplified | recurrently_deleted | mixed | broadly_neutral
+      underpowered | recurrently_amplified | recurrently_deleted | mixed | broadly_neutral
     """
+    if n < min_n:
+        return "underpowered"
     amp_recurrent = fraction_amp >= recurrent_threshold
     del_recurrent = fraction_del >= recurrent_threshold
     if amp_recurrent and del_recurrent:
@@ -340,6 +354,7 @@ def compute_summary_stats(
     summary["copy_number_class"] = _classify_cn(
         fraction_recurrent_amp,
         fraction_recurrent_del,
+        n,
         recurrent_threshold=recurrent_threshold,
     )
     # Homozygous-deletion recurrence flag (DISPLAY facet). copy_number_class folds deep +

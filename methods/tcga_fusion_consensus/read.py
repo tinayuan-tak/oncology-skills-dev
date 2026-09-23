@@ -306,20 +306,26 @@ def read_target_summary(target: str, indication: str = None, min_callers: int = 
     # demote the promiscuous branch (that would turn ROS1/NTRK1/FGFR2 true drivers into false
     # negatives); we keep fusion_class as-is and expose the confidence tier so a downstream consumer
     # can weight a high vs moderate recurrent call.
-    fusion_recurrence_confidence = None
-    if recurrent_partners:
-        fclass = "recurrent_fusion_driver"
-        fusion_recurrence_confidence = "high_recurrent_partner"
-    elif n_samples >= _RECURRENT_MIN_SAMPLES:
-        fclass = "recurrent_fusion_driver"
-        fusion_recurrence_confidence = "moderate_promiscuous"
-    else:
-        fclass = "sporadic_fusion"
-
     # frequency = fused samples / ASSAYED samples in the indication tissue (sample_coverage sibling).
     # None when coverage is unavailable or no indication given — never divide by an unknown cohort.
     n_assayed = _n_assayed_in_tissue(indication)
     freq = (n_samples / n_assayed) if n_assayed else None
+
+    fusion_recurrence_confidence = None
+    if recurrent_partners:
+        # A recurrent PARTNER is a real driver signal on its own — precise regardless of denominator.
+        fclass = "recurrent_fusion_driver"
+        fusion_recurrence_confidence = "high_recurrent_partner"
+    elif n_samples >= _RECURRENT_MIN_SAMPLES and n_assayed:
+        fclass = "recurrent_fusion_driver"
+        fusion_recurrence_confidence = "moderate_promiscuous"
+    elif n_samples >= _RECURRENT_MIN_SAMPLES:
+        # Promiscuous branch (no recurrent partner) with NO assayed denominator: the "recurrence" is a
+        # raw fused-sample count over an unknown cohort — too thin to call a driver. Emit `underpowered`
+        # (coverage gap → reads insufficient) rather than recurrent_fusion_driver w/ fusion_frequency=None.
+        fclass = "underpowered"
+    else:
+        fclass = "sporadic_fusion"
     return {
         "n_samples_with_fusion": int(n_samples),
         "fusion_frequency": freq,

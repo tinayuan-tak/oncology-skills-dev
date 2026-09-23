@@ -246,18 +246,30 @@ def compute_summary_stats(
     fraction_lof = (lof_total / coding_total) if coding_total > 0 else 0.0
     fraction_inframe_indel = (counts["inframe_indel"] / coding_total) if coding_total > 0 else 0.0
 
-    # Dominant class
-    if n_mutated < min_mutated:
+    # Dominant class + landscape class.
+    #   n_mutated == 0                 → no_mutations (a genuine MEASURED negative)
+    #   1 <= n_mutated < min_mutated,   → underpowered (a coverage GAP — too few lines to characterize
+    #     or coding_total == 0            a variant-class pattern, or mutated lines carry zero coding
+    #                                     variants so there is no missense/LOF/inframe signal to classify;
+    #                                     the previous code mis-labeled the latter `mixed`, wrongly
+    #                                     implying a measured dual-role signal). Reads insufficient.
+    if n_mutated == 0:
         dominant_class = "none"
         landscape_class = "no_mutations"
+    elif n_mutated < min_mutated or coding_total == 0:
+        dominant_class = "none"
+        landscape_class = "underpowered"
     else:
-        # Identify the single largest coding category
+        # Identify the single largest coding category; a TIE for the max is genuinely ambiguous → mixed
+        # (never let dict-insertion order silently pick missense over an equal-count lof/inframe class).
         coding_counts = {
             "missense": counts["missense"],
             "lof": lof_total,
             "inframe_indel": counts["inframe_indel"],
         }
-        dominant_class = max(coding_counts, key=coding_counts.get) if max(coding_counts.values()) > 0 else "none"
+        max_count = max(coding_counts.values())
+        winners = [k for k, v in coding_counts.items() if v == max_count]
+        dominant_class = winners[0] if len(winners) == 1 else "mixed"
 
         if fraction_missense >= missense_dominant_fraction:
             landscape_class = "missense_dominant"
