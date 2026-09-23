@@ -34,15 +34,43 @@ source(file.path(.here, "_four_cell_lib.R"))
 
 `%||%` <- function(a, b) if (!is.null(a) && length(a) && !is.na(a[1])) a else b
 
-# indication → GTEx/TCGA primary-site label in the Xena phenotype `_primary_site`
-# column (shared across tumor + adjacent + GTEx rows). Mirrors the recount3
-# loader's GTEX_TISSUE_BY_STUDY intent. Extend for the Stage-3 fan-out.
+# indication → Xena `_primary_site` label(s), per arm. The Xena phenotype keys
+# tumor/adjacent/GTEx rows on `_primary_site` (a TISSUE label), so the TCGA arm
+# can span more than one site for a COMPOSITE indication — COADREAD = colon +
+# rectum (Xena splits `Colon` (COAD) from `Rectum` (READ)). The GTEx arm uses
+# the tissue-level site, and GTEx carries no separate rectum, so `Colon` covers
+# the colorectal normal.
+#
+# CAVEAT — this is a TISSUE filter, not a TCGA-study filter. It is correct only
+# where a tissue maps 1:1 to the intended study set: true single-study tissues
+# (brca=Breast, paad=Pancreas, …) and COADREAD (colon+rectum = exactly
+# COAD+READ; no other TCGA study is `Colon`/`Rectum`). It is NOT correct for a
+# tissue shared by multiple histologies you want to separate — `Lung` conflates
+# LUAD+LUSC, `Kidney` conflates KIRC/KIRP/KICH. Those entries below select the
+# whole tissue; do not run them expecting a single histology without adding a
+# `detailed_category` filter. recount3 (which filters by TCGA study code) is the
+# substrate for those splits.
 SITE_BY_INDICATION <- list(
-  brca = "Breast", paad = "Pancreas", luad = "Lung", lusc = "Lung",
-  coad = "Colon", read = "Colon", stad = "Stomach", prad = "Prostate",
-  lihc = "Liver", blca = "Bladder", kirc = "Kidney", skcm = "Skin",
-  cesc = "Cervix Uteri", esca = "Esophagus"
+  brca     = list(tcga = "Breast",              gtex = "Breast"),
+  paad     = list(tcga = "Pancreas",            gtex = "Pancreas"),
+  luad     = list(tcga = "Lung",                gtex = "Lung"),      # tissue-level: LUAD+LUSC
+  lusc     = list(tcga = "Lung",                gtex = "Lung"),      # tissue-level: LUAD+LUSC
+  coad     = list(tcga = "Colon",               gtex = "Colon"),
+  read     = list(tcga = "Rectum",              gtex = "Colon"),     # READ is `Rectum` in Xena; GTEx has no rectum
+  coadread = list(tcga = c("Colon", "Rectum"),  gtex = "Colon"),     # composite: COAD + READ
+  stad     = list(tcga = "Stomach",             gtex = "Stomach"),
+  prad     = list(tcga = "Prostate",            gtex = "Prostate"),
+  lihc     = list(tcga = "Liver",               gtex = "Liver"),
+  blca     = list(tcga = "Bladder",             gtex = "Bladder"),
+  kirc     = list(tcga = "Kidney",              gtex = "Kidney"),    # tissue-level: KIRC/KIRP/KICH
+  skcm     = list(tcga = "Skin",                gtex = "Skin"),
+  cesc     = list(tcga = "Cervix Uteri",        gtex = "Cervix Uteri"),
+  esca     = list(tcga = "Esophagus",           gtex = "Esophagus")
 )
+
+# TCGA study code(s) recorded in provenance (metadata$tcga_studies). Defaults to
+# toupper(indication); composites list their constituent studies.
+TCGA_STUDIES_BY_INDICATION <- list(coadread = c("COAD", "READ"))
 
 option_list <- list(
   make_option("--indication", type = "character",
@@ -65,12 +93,21 @@ opts <- parse_args(OptionParser(option_list = option_list))
 stopifnot(!is.null(opts$indication) || !is.null(opts$`primary-site`), !is.null(opts$out))
 
 ind  <- tolower(opts$indication %||% "")
-site <- opts$`primary-site`
-if (is.null(site)) {
-  site <- SITE_BY_INDICATION[[ind]]
-  if (is.null(site)) stop("no _primary_site mapping for indication '", ind,
-                          "' — pass --primary-site explicitly")
+if (!is.null(opts$`primary-site`)) {
+  # Explicit override: a comma-separated `_primary_site` list applied to BOTH
+  # the TCGA and GTEx arms (escape hatch for a site not in the map).
+  ov <- trimws(strsplit(opts$`primary-site`, ",")[[1]])
+  tcga_sites <- ov
+  gtex_sites <- ov
+} else {
+  m <- SITE_BY_INDICATION[[ind]]
+  if (is.null(m)) stop("no _primary_site mapping for indication '", ind,
+                       "' — pass --primary-site explicitly")
+  tcga_sites <- m$tcga
+  gtex_sites <- m$gtex
 }
+tcga_studies <- TCGA_STUDIES_BY_INDICATION[[ind]] %||% toupper(ind)
+gtex_tissue  <- paste(gtex_sites, collapse = "+")
 bucket <- opts$bucket
 prefix <- opts$`s3-prefix`
 
@@ -90,7 +127,9 @@ s3_get <- function(name, local) {
 }
 
 # --- phenotype: pick tumor / adjacent / GTEx sample ids for this site --------
-message("[00_load_xena_toil] indication=", ind, " site=", site)
+message("[00_load_xena_toil] indication=", ind,
+        " tcga_sites=", paste(tcga_sites, collapse = "+"),
+        " gtex_sites=", paste(gtex_sites, collapse = "+"))
 pheno_local <- s3_get("TcgaTargetGTEX_phenotype.txt.gz",
                       file.path(tmpdir, "pheno.txt.gz"))
 # encoding="Latin-1": the Xena phenotype carries non-UTF-8 bytes in some
@@ -105,9 +144,9 @@ setnames(ph, "_primary_site", "primary_site", skip_absent = TRUE)
 setnames(ph, "_study", "study", skip_absent = TRUE)
 stopifnot(all(c("sample", "sample_type", "primary_site", "study") %in% names(ph)))
 
-tumor_ids    <- ph[study == "TCGA" & sample_type == "Primary Tumor"       & tolower(primary_site) == tolower(site), sample]
-adjacent_ids <- ph[study == "TCGA" & sample_type == "Solid Tissue Normal" & tolower(primary_site) == tolower(site), sample]
-gtex_ids     <- ph[study == "GTEX" & sample_type == "Normal Tissue"       & tolower(primary_site) == tolower(site), sample]
+tumor_ids    <- ph[study == "TCGA" & sample_type == "Primary Tumor"       & tolower(primary_site) %in% tolower(tcga_sites), sample]
+adjacent_ids <- ph[study == "TCGA" & sample_type == "Solid Tissue Normal" & tolower(primary_site) %in% tolower(tcga_sites), sample]
+gtex_ids     <- ph[study == "GTEX" & sample_type == "Normal Tissue"       & tolower(primary_site) %in% tolower(gtex_sites), sample]
 
 # One-aliquot-per-case dedup (S-fix, analysis-methods#691), TCGA arm only —
 # GTEx samples are one draw per donor per tissue, not GDC-style technical
@@ -165,12 +204,14 @@ mat_dt <- data.table::fread(
 setnames(mat_dt, 1, "gene_id")
 
 # --- recover integer counts from log2(count + 1) ----------------------------
+# xena_log2_to_counts (in _four_cell_lib.R) inverts Toil's log2(expected_count+1)
+# transform: round(2^x-1), clamped at 0, integer-stored. It is a shared, unit-
+# tested function (test_xena_log2_to_counts.py) so the round-trip/non-negativity/
+# integer invariant this loader depends on can't silently drift.
 gene_id <- mat_dt$gene_id
 vals <- as.matrix(mat_dt[, -1])
 storage.mode(vals) <- "double"
-counts <- round(2^vals - 1)
-counts[counts < 0 | is.na(counts)] <- 0
-storage.mode(counts) <- "integer"
+counts <- xena_log2_to_counts(vals)
 rownames(counts) <- gene_id
 
 # --- map Ensembl gene_id → HGNC symbol via the probemap; collapse by sum -----
@@ -228,7 +269,7 @@ coldata <- data.frame(
   group     = unname(grp_of[sample_ids]),
   source    = unname(src_of[sample_ids]),
   study     = ifelse(unname(src_of[sample_ids]) == "GTEx",
-                     paste0("GTEX_", gsub("[^A-Za-z]", "", site)),
+                     paste0("GTEX_", gsub("[^A-Za-z]", "", paste(gtex_sites, collapse = ""))),
                      paste0("TCGA_", toupper(ind))),
   smrin     = NA_real_,   # Xena phenotype carries no RIN; GTEx-only + non-identifiable anyway
   smtsisch  = NA_real_,
@@ -249,7 +290,10 @@ out <- list(
   counts = counts, coldata = coldata, rowdata = rowdata,
   metadata = list(
     substrate    = "xena-toil/tcga-target-gtex-snapshot-2026-09-20 (GENCODE v23, RSEM expected_count)",
-    indication   = ind, gtex_site = site,
+    indication   = ind,
+    tcga_studies = tcga_studies,   # read by 06_four_cell_driver.R provenance
+    gtex_tissue  = gtex_tissue,    # read by 06_four_cell_driver.R provenance
+    gtex_site    = gtex_tissue,    # back-compat alias (method_development scripts)
     n_genes      = nrow(counts),
     n_tumor      = sum(coldata$group == "tumor"),
     n_adjacent   = sum(coldata$group == "normal" & coldata$source == "TCGA"),

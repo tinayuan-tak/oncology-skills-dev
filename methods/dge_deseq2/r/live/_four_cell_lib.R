@@ -66,6 +66,35 @@ dedupe_one_aliquot_per_case <- function(ids, case_id_by_id, order_key_by_id = NU
   ids[keep]
 }
 
+# --- Xena/Toil expected_count de-transform (S1b, github analysis-methods#694) --
+# The UCSC Toil hub ships the gene matrix as log2(expected_count + 1), NOT raw
+# integer counts (recorded in the source manifest xena-toil-tcga-target-gtex-*).
+# DESeq2's NB-GLM requires INTEGER counts, so 00_load_xena_toil.R must invert
+# the transform before the four-cell driver ever sees the matrix. This is a pure
+# function so the invariant a future edit must not break — round-trip, clamped
+# at 0, integer storage — is unit-tested (test_xena_log2_to_counts.py) rather
+# than trusted to a comment.
+#
+# INVARIANT: for any non-negative integer count n, log2(n + 1) round-trips
+# exactly: round(2^log2(n+1) - 1) == n. Values are clamped at 0 (a floating
+# point undershoot or a NA cannot become a negative or missing count) and stored
+# as integer (`storage.mode <- "integer"`), the one type DESeq2 accepts.
+#
+# Operates on `x` directly (element-wise `2^x - 1`) rather than as.numeric(x), so
+# a matrix keeps BOTH its dims AND its dimnames: the loader relies on
+# colnames(counts) (the sample ids) surviving this transform to build coldata.
+# `as.numeric()` would flatten those away — a subtle regression the dimnames
+# assertions in test_xena_log2_to_counts.py now guard against.
+#
+# `x`: numeric matrix (or vector) of log2(expected_count + 1) values.
+# returns: an integer matrix/vector of the same shape (dimnames preserved), all values >= 0.
+xena_log2_to_counts <- function(x) {
+  counts <- round(2^x - 1)
+  counts[is.na(counts) | counts < 0] <- 0
+  storage.mode(counts) <- "integer"
+  counts
+}
+
 # Pre-filter low-count genes on a per-cell sample subset. recount3 G026 carries
 # ~64K genes, a large fraction of which are lncRNA/pseudogene with near-zero
 # counts — these inflate DESeq2's dispersion-fit time (O(genes)) without adding

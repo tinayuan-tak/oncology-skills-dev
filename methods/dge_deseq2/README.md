@@ -38,12 +38,24 @@ adjacent-normal and a GTEx arm — see analysis-methods#690 for the indication-c
   uniformly reprocessed by one Monorail pipeline on GENCODE v26, so cells A/B/C above are
   internally comparable (see `read/__init__.py`'s substrate-provenance helpers, which derive
   this from the product manifest rather than an indication list).
-- **Xena/Toil** (`r/legacy/00_load_xena_toil.R`) — a second, independent count substrate
-  (UCSC Toil recompute, GENCODE v23) for a cross-substrate reproducibility check. **Currently
-  dev-only and unwired** — no production CLI path calls it; it lives under `r/legacy/`
-  because it isn't part of the live pipeline today, not because it's being retired. Promoting
-  it to its own catalogued secondary-substrate data-package (with the same one-aliquot-per-case
-  dedup discipline as recount3) is analysis-methods#694 (S1b). See `r/legacy/README.md`.
+- **Xena/Toil** (`r/live/00_load_xena_toil.R`) — a second, independent count substrate
+  (UCSC Toil recompute, STAR+RSEM, GENCODE **v23**) for a cross-substrate reproducibility
+  check. **Secondary / diagnostic, NOT a verdict input** (S1b, analysis-methods#694): run it
+  with `run_pipeline.R --contrast four_cell_sensitivity --substrate xena_toil --indication <ind>`
+  (or `scripts/run_indication_batch.sh` with `SUBSTRATE=xena_toil`). It reuses the same 06
+  four-cell driver and the same one-aliquot-per-case dedup as recount3, but its catalogued
+  product carries a **`-xenatoil` id infix** (`<ind>-dge-tumor-vs-normal-sensitivity-xenatoil-v1`)
+  so it lands on a distinct S3 key/catalog id and is invisible to the pancan discovery glob and
+  the sensitivity read path — the classifier only ever reads the recount3 product. On this
+  substrate only **cells A and C run** — cell B (ComBat-seq batch-correction on TCGA
+  tissue-source-site) is skipped (`SKIP_CELL_B=1`, set by the `xena_toil` branch of
+  `run_pipeline.R`): it is verdict-inert even on recount3, and the Toil matrix carries no
+  `tcga_tss` batch structure to correct on. The emitted `sensitivity.parquet` therefore has no
+  `log2fc_B`/`padj_B` columns and `cells_ran` is at most 2. Both
+  substrates are fed **offset-free** (plain counts; Toil ships `expected_count` with no
+  effective-length matrix, so no length offset is possible — see the loader header). Gene rows
+  are keyed on HGNC symbol via the substrate's native GENCODE v23 probemap; the cross-substrate
+  stable-Ensembl-ID authority is a separate concern (S1c, #699).
 
 ## Directory layout
 

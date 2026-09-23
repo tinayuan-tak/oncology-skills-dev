@@ -61,6 +61,7 @@ def test_r_live_and_r_legacy_layout():
     legacy = METHOD_DIR / "r" / "legacy"
     assert {p.name for p in live.glob("*.R")} == {
         "00_load_recount3.R",
+        "00_load_xena_toil.R",  # promoted from r/legacy in S1b (#694): secondary/diagnostic substrate
         "06_four_cell_driver.R",
         "07_stratified_four_cell_driver.R",
         "_four_cell_lib.R",
@@ -73,7 +74,6 @@ def test_r_live_and_r_legacy_layout():
         "03_deseq2.R",
         "04_write_parquet.R",
         "05_provenance.R",
-        "00_load_xena_toil.R",
     }
     assert not (METHOD_DIR / "steps").exists(), "steps/ should be gone, replaced by r/live + r/legacy"
 

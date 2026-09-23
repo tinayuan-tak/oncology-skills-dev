@@ -1,8 +1,9 @@
 # `r/legacy/` — quarantined, not production
 
 Nothing in `../live/` (the production `four_cell_sensitivity` path — recount3 loader +
-four-cell driver) calls anything in this directory. Two unrelated things live here, for two
-different reasons — don't read "legacy" as "safe to delete":
+four-cell driver) calls anything in this directory. What lives here is the retired
+single-cell GDC-STAR chain, kept for one narrow reason — don't read "legacy" as
+"safe to delete":
 
 ## The single-cell GDC-STAR chain (`00_load_counts.R`, `01_build_design.R`,
 ## `02_combat_seq.R`, `03_deseq2.R`, `04_write_parquet.R`, `05_provenance.R`)
@@ -14,14 +15,11 @@ invokes it. It is kept solely so
 byte-identity guard against `claude-oncology-skills/batch/expression_rna_COADREAD/`) has
 something to run against. Do not extend it; do not route new indications through it.
 
-## `00_load_xena_toil.R`
+## `00_load_xena_toil.R` — PROMOTED to `../live/` (S1b, #694)
 
-Not retired — dev-only and **currently unwired**. No production CLI path calls it; today it
-is invoked only by ad-hoc scripts under `../../method_development/`
-(`tss_covariate_comparison.R`, `ruvg_calibration.py`) for the Stage-1 cross-substrate
-calibration work. Per the parent modernization plan
-(analysis-methods#690, decision 2), Xena/Toil is slated to become its own standards-compliant
-catalogued secondary-substrate derivation in S1b (#694) — at that point this file (or its
-successor) is promoted OUT of `r/legacy/` into `r/live/`. It sits here only because "not
-currently wired into a production CLI path" is the one thing it shares with the GDC-STAR
-chain above; its future is the opposite of retirement.
+The Xena/Toil loader used to sit here (dev-only, unwired). S1b (analysis-methods#694)
+made it a standards-compliant catalogued **secondary/diagnostic** substrate, so it now
+lives at `../live/00_load_xena_toil.R` and is reachable through
+`../live/run_pipeline.R --contrast four_cell_sensitivity --substrate xena_toil` (and
+`scripts/run_indication_batch.sh` with `SUBSTRATE=xena_toil`). Its products carry a
+`-xenatoil` id infix and are NOT verdict inputs. See that file's header + the S1b PR.

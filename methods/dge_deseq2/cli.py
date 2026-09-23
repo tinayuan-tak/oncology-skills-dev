@@ -91,6 +91,14 @@ def compute_git_sha(repo_path: Path) -> str:
     "(cells A/B/C/D + sensitivity.parquet).",
 )
 @click.option("--gtex-tissue", default=None, help="Override recount3 GTEx tissue code (four_cell_sensitivity only).")
+@click.option(
+    "--substrate",
+    default="recount3",
+    type=click.Choice(["recount3", "xena_toil"]),
+    help="four_cell_sensitivity count substrate: recount3 (default, GENCODE v26 — the classifier "
+    "substrate) | xena_toil (secondary/diagnostic, GENCODE v23 — S1b #694). xena_toil selects "
+    "samples by --indication and needs no recount3 config.",
+)
 @click.option("--release-pin", required=True, help="Catalog release_pin (e.g., 2026-Q2).")
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 @click.option(
@@ -142,6 +150,7 @@ def compute_git_sha(repo_path: Path) -> str:
 def main(
     indication: str,
     contrast: str,
+    substrate: str,
     release_pin: str,
     catalog_repo: Path,
     out: Path,
@@ -162,6 +171,15 @@ def main(
             f"a cell WITHIN --contrast four_cell_sensitivity (cell C); subtype_stratified "
             f"remains an iter-1 stub. Use four_cell_sensitivity or tumor_vs_adjacent."
         )
+
+    if substrate == "xena_toil":
+        # Secondary/diagnostic Xena/Toil substrate (S1b #694): reuses the four-cell
+        # driver only, selects samples by --indication (no recount3 config), and is
+        # NOT a verdict input — its catalogued product carries the -xenatoil infix.
+        if contrast != "four_cell_sensitivity":
+            raise click.ClickException("--substrate xena_toil is only valid with --contrast four_cell_sensitivity.")
+        if stratify_by:
+            raise click.ClickException("--substrate xena_toil does not support --stratify-by.")
 
     # --- per-subgroup DGE (07_stratified_four_cell_driver.R) ----------------
     subgroup_parquet: str | None = None
@@ -192,7 +210,8 @@ def main(
 
     out.mkdir(parents=True, exist_ok=True)
 
-    config_path = resolve_config(indication, catalog_repo)
+    # The xena_toil loader selects samples by --indication, so no recount3 config.
+    config_path = None if substrate == "xena_toil" else resolve_config(indication, catalog_repo)
     if parquet_uri is None:
         parquet_uri = str(out / "result.parquet")
 
@@ -201,14 +220,18 @@ def main(
     cmd = [
         "Rscript",
         str(RUN_PIPELINE),
-        f"--config={config_path}",
         f"--catalog-repo={catalog_repo}",
         f"--git-sha={git_sha}",
         f"--out-dir={out}",
         f"--parquet-uri={parquet_uri}",
         f"--threads={threads}",
+        f"--substrate={substrate}",
         f"--contrast={'four_cell_sensitivity_by_subgroup' if stratify_by else contrast}",
     ]
+    if substrate == "xena_toil":
+        cmd.append(f"--indication={indication}")
+    else:
+        cmd.append(f"--config={config_path}")
     if stratify_by:
         cmd += [
             f"--subgroup-assignments={subgroup_parquet}",
@@ -222,8 +245,9 @@ def main(
     click.echo("=== dge-deseq2 invocation ===")
     click.echo(f"  indication:   {indication}")
     click.echo(f"  contrast:     {contrast}")
+    click.echo(f"  substrate:    {substrate}")
     click.echo(f"  release-pin:  {release_pin}")
-    click.echo(f"  config:       {config_path}")
+    click.echo(f"  config:       {config_path if config_path else '(none — xena_toil selects by indication)'}")
     click.echo(f"  catalog-repo: {catalog_repo}")
     click.echo(f"  out:          {out}")
     click.echo(f"  parquet-uri:  {parquet_uri}")

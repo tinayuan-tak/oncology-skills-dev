@@ -38,10 +38,19 @@ option_list <- list(
               help = "Comma-separated stratum_ids (four_cell_sensitivity_by_subgroup)."),
   make_option("--min-subgroup-tumor", type = "integer", default = 10L,
               help = "Minimum tumor members for a stratum to be emitted (07)."),
+  make_option("--substrate", type = "character", default = "recount3",
+              help = paste("four_cell_sensitivity count substrate:",
+                           "recount3 (default, GENCODE v26 — the classifier substrate) |",
+                           "xena_toil (secondary/diagnostic, GENCODE v23 — S1b #694).")),
+  make_option("--indication", type = "character", default = NULL,
+              help = "Indication slug for the xena_toil loader (required when --substrate xena_toil)."),
   make_option("--threads", type = "integer", default = 4)
 )
 opts <- parse_args(OptionParser(option_list = option_list))
-stopifnot(!is.null(opts$config), !is.null(opts$`git-sha`))
+stopifnot(!is.null(opts$`git-sha`))
+# The xena_toil loader selects samples by --indication (not a recount3 config),
+# so --config is required for every path EXCEPT the xena_toil substrate.
+if (!identical(opts$substrate, "xena_toil")) stopifnot(!is.null(opts$config))
 
 dir.create(opts$`out-dir`, showWarnings = FALSE, recursive = TRUE)
 
@@ -72,12 +81,34 @@ f <- function(name) file.path(opts$`out-dir`, name)
 # + TCGA adjacent-normal + GTEx normal) from ONE recount3 substrate, then runs
 # cells A/B/C/D and emits sensitivity.parquet + the two contrast parquets.
 if (identical(opts$contrast, "four_cell_sensitivity")) {
-  run("00_load_recount3.R", c(
-    paste0("--config=", shQuote(opts$config)),
-    if (!is.null(opts$`gtex-tissue`))
-      paste0("--gtex-tissue=", shQuote(opts$`gtex-tissue`)) else "",
-    paste0("--out=", shQuote(f("00_recount3.rds")))
-  ))
+  # Two count substrates feed the SAME four-cell driver (06). recount3 (default)
+  # is the classifier substrate; xena_toil is the S1b secondary/diagnostic one
+  # (analysis-methods#694) — a distinct GENCODE v23 loader that emits the same
+  # .rds shape. The intermediate is named 00_recount3.rds either way (a local
+  # temp in out-dir, no external contract); 06 reads whichever loader wrote it.
+  if (identical(opts$substrate, "xena_toil")) {
+    stopifnot(!is.null(opts$indication))
+    # Cell B (ComBat-seq batch-correction on TCGA tissue-source-site) is OUT OF
+    # SCOPE for the xena_toil substrate (S1b #694): it is verdict-inert (de-weighted
+    # even on recount3, excluded from the magnitude gate) and the Toil matrix carries
+    # no tcga_tss batch structure to correct on. The cross-substrate reproducibility
+    # check is cells A + C (raw tumor-vs-adjacent + tumor-vs-GTEx) — the load-bearing
+    # biology. We reuse the driver's existing SKIP_CELL_B gate (system() inherits the
+    # env), which yields a valid A+C sensitivity.parquet, the same shape the fusion
+    # already handles for A/B-only (HNSC) and C-only (OV/SKCM) products.
+    Sys.setenv(SKIP_CELL_B = "1")
+    run("00_load_xena_toil.R", c(
+      paste0("--indication=", shQuote(opts$indication)),
+      paste0("--out=", shQuote(f("00_recount3.rds")))
+    ))
+  } else {
+    run("00_load_recount3.R", c(
+      paste0("--config=", shQuote(opts$config)),
+      if (!is.null(opts$`gtex-tissue`))
+        paste0("--gtex-tissue=", shQuote(opts$`gtex-tissue`)) else "",
+      paste0("--out=", shQuote(f("00_recount3.rds")))
+    ))
+  }
   run("06_four_cell_driver.R", c(
     paste0("--in=",      shQuote(f("00_recount3.rds"))),
     paste0("--out-dir=", shQuote(opts$`out-dir`)),

@@ -71,6 +71,20 @@ CATALOG_REPO="${CATALOG_REPO:-${DATA_CATALOG_ROOT:-$(dirname "$REPO_ROOT")/rnd-c
 RELEASE_PIN="${RELEASE_PIN:-2026-Q3}"
 S3_BUCKET="onc-compbio"
 
+# Count substrate. recount3 (default) is the classifier substrate and its product
+# id is the bare `-dge-tumor-vs-normal-sensitivity-v1`. xena_toil is the S1b
+# secondary/diagnostic substrate (analysis-methods#694): its product carries a
+# `-xenatoil` INFIX so it lands on a DISTINCT S3 key/catalog id and, crucially,
+# does NOT end in the pancan discovery suffix `-dge-tumor-vs-normal-sensitivity-v1`
+# (so list_published_sensitivity_indications / assert_roster_matches_published /
+# read_tumor_vs_normal_sensitivity_gene_row never pick it up — mechanically secondary).
+SUBSTRATE="${SUBSTRATE:-recount3}"
+case "$SUBSTRATE" in
+    recount3)  SUBSTRATE_INFIX="" ;;
+    xena_toil) SUBSTRATE_INFIX="-xenatoil" ;;
+    *) echo "[batch] unknown SUBSTRATE='$SUBSTRATE' (expected recount3|xena_toil)" >&2; exit 2 ;;
+esac
+
 # --- helpers -----------------------------------------------------------------
 
 log() { printf '[batch %s] %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
@@ -78,8 +92,8 @@ log() { printf '[batch %s] %s\n' "$(date -u +%H:%M:%S)" "$*" >&2; }
 # Destination S3 key for a completed indication's sensitivity.parquet.
 dest_key() {
     local ind="$1"
-    printf 'data-catalog/derived/%s-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' \
-        "$(printf '%s' "$ind" | tr '[:upper:]' '[:lower:]')"
+    printf 'data-catalog/derived/%s-dge-tumor-vs-normal-sensitivity%s-v1/sensitivity.parquet' \
+        "$(printf '%s' "$ind" | tr '[:upper:]' '[:lower:]')" "$SUBSTRATE_INFIX"
 }
 
 # Resume gate: skip an indication if its S3 sensitivity.parquet already exists.
@@ -104,8 +118,8 @@ throttle() {
 # S3 prefix for a completed indication's outputs.
 dest_prefix() {
     local ind="$1"
-    printf 's3://%s/data-catalog/derived/%s-dge-tumor-vs-normal-sensitivity-v1' \
-        "$S3_BUCKET" "$(printf '%s' "$ind" | tr '[:upper:]' '[:lower:]')"
+    printf 's3://%s/data-catalog/derived/%s-dge-tumor-vs-normal-sensitivity%s-v1' \
+        "$S3_BUCKET" "$(printf '%s' "$ind" | tr '[:upper:]' '[:lower:]')" "$SUBSTRATE_INFIX"
 }
 
 # Upload every artifact the R pipeline emitted to $out_dir up to the
@@ -166,6 +180,7 @@ log "parallelism: $PARALLEL"
 log "indications: ${INDICATIONS[*]}"
 log "catalog-repo: $CATALOG_REPO"
 log "release-pin: $RELEASE_PIN"
+log "substrate: $SUBSTRATE${SUBSTRATE_INFIX:+ (product id infix ${SUBSTRATE_INFIX})}"
 [[ -n "$DRY_RUN" ]] && log "DRY_RUN=1 — printing commands, no execution"
 
 # --- preflight ---------------------------------------------------------------
@@ -228,6 +243,7 @@ run_one() {
         python -m methods.dge_deseq2.cli
         --indication "$ind"
         --contrast four_cell_sensitivity
+        --substrate "$SUBSTRATE"
         --release-pin "$RELEASE_PIN"
         --catalog-repo "$CATALOG_REPO"
         --out "$out_dir"
@@ -239,7 +255,10 @@ run_one() {
         # answers nothing — it just looks like validation. Resolve the SAME two candidates
         # resolve_config() will (methods/dge_deseq2/cli.py), so `ok` means "this would run".
         # Only the config is resolved: the R stages' own inputs stay their business.
-        if [[ ! -f "$CATALOG_REPO/indication-configs/$ind.yaml" \
+        # The xena_toil substrate selects samples by --indication and needs NO config, so the
+        # config-existence probe applies only to recount3.
+        if [[ "$SUBSTRATE" != "xena_toil" \
+           && ! -f "$CATALOG_REPO/indication-configs/$ind.yaml" \
            && ! -f "$CATALOG_REPO/manifests/sources/$ind.yaml" ]]; then
             log "DRY-FAIL $ind — no config at indication-configs/$ind.yaml nor manifests/sources/$ind.yaml under $CATALOG_REPO"
             write_status "$ind" failed
