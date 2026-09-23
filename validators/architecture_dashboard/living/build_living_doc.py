@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """build_living_doc.py — generate the Framework Atlas.
 
-A SUPERSET of the unified dashboard: composes the existing wiring graph
+A SUPERSET of the base wiring/health/coverage build: composes the existing wiring graph
 (build_architecture_explorer.build) + health + output-registry coverage
-(build_unified_dashboard), then ATTACHES three sections — concepts, gaps, narrative — and a
+(build_unified_dashboard — the internal module name; the product-facing surface this repo
+ships is the Framework Atlas), then ATTACHES three sections — concepts, gaps, narrative — and a
 glossary (the legibility layer). Renders one self-contained HTML with three new tabs, and
 writes a committed JSON feed guarded two ways:
 

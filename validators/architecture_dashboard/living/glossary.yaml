@@ -68,3 +68,32 @@ gate:
   tractability_small_molecule: {label: "Small-molecule tractability", plain_english: "Is there a compound, and does chemistry agree with genetics?"}
   cis_coherence:              {label: "Cis coherence", plain_english: "Do locus -> expression -> dependency line up?"}
   synthetic_lethal_partners:  {label: "Synthetic-lethal partners", plain_english: "Which partner losses make the target essential?"}
+
+# ---------------------------------------------------------------------------------------------
+# Phase model (A-K letters vs the legacy numeric "N-phase" framing).
+#
+# The biology-first spine is lettered A-K (11 letters -> the "11-phase" framing some older docs
+# and conversations refer to by number). The letter IS the phase; this table is the canonical
+# letter<->number map so both vocabularies resolve to the same thing. Not scanned by the
+# glossary-coverage test (no code path surfaces a raw phase token today) — reference only, so a
+# reader hitting either naming convention lands on one definition.
+#
+# "9 wired dimensions" = the 9 gates actually present in target-profile's fan-out today
+# (verified against health/framework_atlas.json `skills.target-profile.gates`, 2026-09-23):
+# cis_coherence, dependency, differentiation, genomic_alteration, mechanism, safety,
+# selectivity, surface_modality, tractability_small_molecule. `synthetic_lethal_partners`
+# (combination-and-vulnerability, phase I) is glossed above but NOT yet in that fan-out list —
+# it is phase-lettered and card-wired, but not yet a target-profile gate, so it does not count
+# toward the 9.
+phase:
+  A: {label: "Phase 1 - Presence", plain_english: "Is the target present at all (expression/protein)? -> tumor-presence."}
+  B: {label: "Phase 2 - Selectivity", plain_english: "Is presence tumor-selective vs normal? -> tumor-selectivity."}
+  C: {label: "Phase 3 - Dependency", plain_english: "Is the target a genetic dependency? -> functional-requirement (also the dependency leg of cis-feature-coherence)."}
+  D: {label: "Phase 4 - Mechanism", plain_english: "What signaling role / MoA hooks does it have? -> mechanism-and-pharmacology."}
+  E: {label: "Phase 5 - Genomic alteration & differentiation", plain_english: "How is it altered (mutation/CN/fusion) and what co-mutation landscape differentiates patients? -> genomic-alteration-profile, differentiation-landscape."}
+  F: {label: "Phase 6 - Tractability & surface modality", plain_english: "Is there a compound or a surface/ADC-TCE handle? -> tractability-small-molecule, surface-modality-fit."}
+  G: {label: "Phase 7 - On-target safety", plain_english: "Is loss-of-function tolerated in humans? -> on-target-safety-liability."}
+  H: {label: "Phase 8 - Roll-up overlay", plain_english: "Cross-dimension synthesis fields carried only at the target-profile roll-up (no standalone subskill emits this phase alone)."}
+  I: {label: "Phase 9 - Combination & resistance", plain_english: "What combination partners or resistance mediators condition the target? -> combination-and-vulnerability."}
+  J: {label: "Phase 10 - Literature & translational readiness", plain_english: "What does the literature say, and how translation-ready is the evidence? -> literature-context, literature-risk-assessment, translational-readiness."}
+  K: {label: "Phase 11 - Nomination synthesis", plain_english: "The terminal target-profile roll-up: sub-verdicts -> gate -> risk bins -> claim vectors."}

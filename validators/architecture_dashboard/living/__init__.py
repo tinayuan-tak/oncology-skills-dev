@@ -1,6 +1,7 @@
-"""living — the living architecture document (superset of the unified dashboard).
+"""living — the Framework Atlas (the living architecture document).
 
-Adds three tabs on top of the unified dashboard's wiring/health/coverage:
+Adds three tabs on top of the base wiring/health/coverage build (`build_unified_dashboard.py`
+— retained as the internal module name; the product-facing surface is the Framework Atlas):
   · Gaps      — one ranked "missing pieces" list (validators + framework_health + coverage)
   · Concepts  — the ~8 component types, each with concept + schema + real example + where-defined
   · Docs      — the prose design docs, keyed to the component types they describe

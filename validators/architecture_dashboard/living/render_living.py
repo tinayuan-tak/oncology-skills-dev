@@ -1,4 +1,4 @@
-"""render_living.py — the living document, a SUPERSET of the unified dashboard.
+"""render_living.py — renders the Framework Atlas, a SUPERSET of the base wiring/health build.
 
 Reuses every renderer, helper, palette, and the Miller/JS from render_unified + render_arch
 (import-only; those files are untouched) and adds three panes — Gaps, Concepts, Docs — plus
