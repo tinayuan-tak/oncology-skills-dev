@@ -53,14 +53,49 @@ except Exception:  # pragma: no cover - bare-path fallback
 
 import yaml  # noqa: E402  (pyyaml; used for the axis registry the product page joins)
 
-# The exemplar subskill the product page defaults to; the render layer exposes a selector over
-# graph["product_page"]["skills"]. Extend this list to add more product pages (each is target-
-# invariant; adding one is a data change, not new machinery).
+# The exemplar subskill the product page defaults to (the render layer's selector opens here).
+# The FULL product-page roster is now enumerated from the wiring graph's skill set at build time
+# (see assemble → _product_roster) rather than a hardcoded list, so a skill added to the framework
+# gets a product page automatically. This constant is only the render default + a fallback.
 _PRODUCT_SKILLS = ("tumor-presence",)
+
+
+def _product_roster(graph: dict) -> tuple[str, ...]:
+    """The full product-page roster: every skill the wiring graph knows about, sorted. Each page
+    is target-invariant, so covering the whole roster is a data enumeration, not new machinery.
+    Falls back to the exemplar tuple if the graph carries no skills (shouldn't happen live)."""
+    roster = tuple(sorted((graph.get("skills") or {}).keys()))
+    return roster or _PRODUCT_SKILLS
+
 
 HOME = Path.home()
 DEFAULT_JSON = _ARCH.parent.parent / "health" / "framework_atlas.json"  # <tc>/health/framework_atlas.json
 DEFAULT_HTML = _ARCH.parent.parent / "health" / "framework_atlas.html"
+DEFAULT_PRODUCT_DIR = _ARCH.parent.parent / "health" / "product"  # <tc>/health/product/<skill>.html
+
+
+def export_product_pages(graph: dict, product_dir: Path, skills: list[str] | None = None) -> list[Path]:
+    """Write one standalone ``health/product/<skill>.html`` per skill from the committed graph's
+    ``product_page`` block (dependency-light, CI-safe — reads only the committed artifact, no
+    siblings). ``skills=None`` → the whole built roster. Returns the paths written."""
+    try:
+        from .render_living import render_product_page_standalone
+    except Exception:  # pragma: no cover - bare-path fallback (matches sibling living modules)
+        sys.path.insert(0, str(Path(__file__).resolve().parent))
+        from render_living import render_product_page_standalone  # type: ignore
+
+    pp = graph.get("product_page") or {}
+    built = pp.get("skills") or {}
+    want = skills if skills is not None else sorted(built)
+    product_dir.mkdir(parents=True, exist_ok=True)
+    written: list[Path] = []
+    for skill in want:
+        if skill not in built:
+            raise KeyError(f"skill {skill!r} not in committed product_page (built: {sorted(built)})")
+        out = product_dir / f"{skill}.html"
+        out.write_text(render_product_page_standalone(graph, skill))
+        written.append(out)
+    return written
 
 
 def assemble(tc: Path, sk: Path, dc: Path, dp: Path, out_dir: Path, compute_health: bool = True) -> dict:
@@ -83,7 +118,7 @@ def assemble(tc: Path, sk: Path, dc: Path, dp: Path, out_dir: Path, compute_heal
     # shims read the skills sibling (sk). Attached after everything it joins is in place.
     axes_registry = _load_axes(tc)
     graph["product_page"] = _product.build_product_pages(
-        graph, health, axes_registry, tc_root=tc, sk_root=sk, skills=_PRODUCT_SKILLS
+        graph, health, axes_registry, tc_root=tc, sk_root=sk, skills=_product_roster(graph)
     )
     graph["framework_atlas_version"] = "1.0.0"
     return graph
@@ -241,13 +276,24 @@ def self_check(graph: dict) -> list[str]:
 
 
 def product_page_errors(graph: dict) -> list[str]:
-    """Structural consistency of the committed product_page block (CI-safe, no siblings).
+    """Structural consistency of the committed product_page block, over the WHOLE roster
+    (CI-safe, no siblings).
 
     Guards SHAPE, not drift: the ladder/code-map ``errors`` a block carries are surfaced findings
-    (e.g. a rule the skill's ladder references that the atlas has not yet regenerated), not
-    build failures, so they are deliberately NOT asserted here. What must hold on any committed
-    artifact: the block exists, the default skill is present, every skill block carries the five
-    panels, and each verdict-bearing spine card resolves at least one verdict token."""
+    (e.g. a rule the skill's ladder references that the atlas has not yet regenerated), not build
+    failures, so they are deliberately NOT asserted here.
+
+    What must hold on any committed artifact, for EVERY skill in the roster — spanning the three
+    shape buckets (python-ladder, resolver-backed, and no-verdict-source descriptive/support/
+    gateless skills):
+
+      * the block exists, the default skill is present, every skill block carries the five panels;
+      * a VERDICT-BEARING block (``verdict_source`` set AND a non-empty spine) resolves ≥1 verdict
+        token per spine card, all within the pinned enum when one is present;
+      * a NO-VERDICT-SOURCE block carries an EMPTY spine — a gateless skill must never fabricate a
+        verdict spine (the "no fabricated green" invariant);
+      * every optionality lane is verdict-inert, for every skill.
+    """
     errs: list[str] = []
     pp = graph.get("product_page")
     if not pp:
@@ -267,15 +313,35 @@ def product_page_errors(graph: dict) -> list[str]:
             errs.append(f"product_page[{name}] missing panels: {sorted(missing)}")
             continue
         spine = panels["spine"]
-        for row in spine.get("cards") or []:
-            rules = row.get("rules") or []
-            if not rules:
-                errs.append(f"product_page[{name}] spine card {row.get('card_id')} has no rules")
-            elif not any(r.get("verdicts") for r in rules):
-                errs.append(f"product_page[{name}] spine card {row.get('card_id')} resolves no verdict token")
-        rollup = panels["rollup"]
-        if not rollup.get("short"):
-            errs.append(f"product_page[{name}] rollup has no short")
+        spine_cards = spine.get("cards") or []
+        vsource = (block.get("ladder") or {}).get("verdict_source") or block.get("verdict_source")
+        enum = set(spine.get("verdict_enum") or [])
+        if vsource:
+            # verdict-bearing shape: every spine card must resolve a pinned verdict token.
+            for row in spine_cards:
+                rules = row.get("rules") or []
+                toks = {v for r in rules for v in (r.get("verdicts") or [])}
+                if not rules:
+                    errs.append(f"product_page[{name}] spine card {row.get('card_id')} has no rules")
+                elif not toks:
+                    errs.append(f"product_page[{name}] spine card {row.get('card_id')} resolves no verdict token")
+                elif enum and not (toks <= enum):
+                    errs.append(
+                        f"product_page[{name}] spine card {row.get('card_id')} verdicts "
+                        f"{sorted(toks - enum)} not in the pinned enum"
+                    )
+        else:
+            # no-verdict-source shape: a gateless / descriptive / support skill. It must degrade to
+            # an EMPTY spine — never fabricate a verdict-bearing card where the skill emits none.
+            if spine_cards:
+                errs.append(
+                    f"product_page[{name}] has no verdict source but its spine lists "
+                    f"{len(spine_cards)} card(s) — a fabricated verdict spine"
+                )
+        # optionality lanes are verdict-inert for every skill (byte-identical-spine guarantee).
+        for lane in panels["optionality"].get("lanes") or []:
+            if lane.get("verdict_inert") is not True:
+                errs.append(f"product_page[{name}] optionality lane {lane.get('flag')!r} is not verdict-inert")
     return errs
 
 
@@ -339,7 +405,42 @@ def main(argv=None) -> int:
         action="store_true",
         help="CI-safe: validate the committed JSON's internal consistency (no siblings)",
     )
+    ap.add_argument(
+        "--skill",
+        default=None,
+        help="standalone export: render one skill's product page from the committed JSON to "
+        "health/product/<skill>.html (no siblings needed)",
+    )
+    ap.add_argument(
+        "--all-skills",
+        action="store_true",
+        help="standalone export: render EVERY roster skill's product page to health/product/ "
+        "(the atlas-product target; reads the committed JSON, no siblings needed)",
+    )
+    ap.add_argument("--product-dir", default=str(DEFAULT_PRODUCT_DIR))
     args = ap.parse_args(argv)
+
+    if args.skill or args.all_skills:
+        p = Path(args.json)
+        if not p.exists():
+            print(f"  MISSING {p} — generate the atlas first (make atlas).", file=sys.stderr)
+            return 1
+        try:
+            graph = json.loads(p.read_text())
+        except Exception as e:
+            print(f"  UNREADABLE {p}: {e}", file=sys.stderr)
+            return 1
+        try:
+            written = export_product_pages(
+                graph, Path(args.product_dir), skills=None if args.all_skills else [args.skill]
+            )
+        except KeyError as e:
+            print(f"  {e}", file=sys.stderr)
+            return 1
+        print(f"  ✓ product page(s) → {args.product_dir} ({len(written)} file(s))")
+        for w in written:
+            print(f"      {w.name}")
+        return 0
 
     if args.self_check:
         p = Path(args.json)

@@ -13,7 +13,7 @@
 STAMP ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 AWS_PROFILE ?= cbg
 
-.PHONY: dashboard dashboard-dry promote-list profile atlas atlas-check health-check drift-check
+.PHONY: dashboard dashboard-dry promote-list profile atlas atlas-product atlas-check health-check drift-check
 # atlas : regenerate the Framework Atlas LOCALLY — the SAME single dashboard
 #              `make dashboard` publishes (Overview/Explorer/Health/Cards/Datasets/Coverage +
 #              Flow / Gaps / Concepts / Docs + the glossary legibility layer). Writes the
@@ -25,6 +25,16 @@ atlas:
 
 atlas-check:
 	python3 -m validators.architecture_dashboard.living.build_living_doc --check
+
+# atlas-product : render one standalone per-subskill "product page" HTML per roster skill into
+#                 health/product/<skill>.html (the target-invariant five-panel view: verdict spine,
+#                 card drill-down, verdict-inert optionality lanes, nomination roll-up, and the
+#                 question hierarchy). Reads the COMMITTED health/framework_atlas.json (no siblings
+#                 needed) — run `make atlas` first if the feed is stale. Same renderer as the Atlas
+#                 Product tab, so the standalone pages never diverge from it.
+#   make atlas-product
+atlas-product:
+	python3 -m validators.architecture_dashboard.living.build_living_doc --all-skills
 
 # health-check : local drift-guard for the framework_health feed only (the fast half of
 #                drift-check). Token-free — reads the side-by-side sibling clones, not the network.

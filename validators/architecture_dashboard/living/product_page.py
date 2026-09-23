@@ -132,11 +132,21 @@ def _pinned_enum(tc_root: str | Path, skill: str) -> list[str] | None:
         pins = json.loads(p.read_text())
     except Exception:
         return None
-    for spec in (pins.get("$defs") or {}).values():
+    string_enums: dict[str, list[str]] = {}
+    for name, spec in (pins.get("$defs") or {}).items():
         enum = spec.get("enum") if isinstance(spec, dict) else None
         if isinstance(enum, list) and all(isinstance(e, str) for e in enum):
+            string_enums[name] = enum
+    if not string_enums:
+        return None
+    # A pins file may declare several string enums (e.g. surface-modality-fit pins both a
+    # ``fit_class_enum`` summary label and the operative ``surface_modality_verdict_enum``). The
+    # verdict tokens the resolver emits live in the ``*_verdict_enum`` def — prefer it over the
+    # first-declared enum, which would otherwise shadow it with an unrelated class vocabulary.
+    for name, enum in string_enums.items():
+        if name.endswith("_verdict_enum"):
             return enum
-    return None
+    return next(iter(string_enums.values()))
 
 
 def _run_py(sk_root: str | Path, skill: str) -> Path:
@@ -175,6 +185,19 @@ def _card_datasets(card: dict) -> list[dict]:
             }
         )
     return rows
+
+
+def _field_name(f) -> str | None:
+    """A card's ``summary_fields`` entry is either a bare field name (str) or a lens-conditional
+    field record (``{"name": ..., "lens_conditional_on": "modality", ...}`` — e.g. the ADC/TCE
+    grade fields emitted only under ``--modality``). Reduce either form to the field name so a
+    dict entry cannot flow into a dict lookup key (which would raise ``unhashable type``)."""
+    if isinstance(f, str):
+        return f
+    if isinstance(f, dict):
+        n = f.get("name")
+        return n if isinstance(n, str) else None
+    return None
 
 
 def _field_record(card_id: str, field: str, card: dict, ledgers: dict) -> dict:
@@ -269,7 +292,8 @@ def _panel_card_drilldown(skill_rec, cards, ledgers, health_cards, verdict_card_
     rows = []
     for card_id in skill_rec.get("cards_used") or []:
         card = cards.get(card_id) or {}
-        field_names = card.get("summary_fields") or list((ftypes.get(card_id) or {}).keys())
+        raw_fields = card.get("summary_fields") or list((ftypes.get(card_id) or {}).keys())
+        field_names = [fn for fn in (_field_name(f) for f in raw_fields) if fn]
         rows.append(
             {
                 "card_id": card_id,
@@ -376,6 +400,19 @@ def build(graph, health, ledgers, axes_registry, skill, *, sk_root=None, tc_root
 
     r2v = _rule_to_verdict(ladder, graph)
 
+    # Honesty cross-check for the reclassified "no verdict source" bucket: a skill whose short is
+    # a GATING axis (present in the code-map's _SHORT_TO_GATE) MUST have resolved a gate / ladder.
+    # If it did not, we mis-parsed a real verdict source — surface it rather than silently letting
+    # a gating skill degrade to a clean gateless block (a false green). A gateless / support skill
+    # (short absent from _SHORT_TO_GATE) legitimately carries no verdict source and is NOT flagged.
+    verdict_source_errors: list[str] = []
+    gating_gate = (code_maps.get("short_to_gate") or {}).get(short)
+    if gating_gate and ladder.get("verdict_source") is None:
+        verdict_source_errors.append(
+            f"{skill}: short '{short}' is a gating axis (gate '{gating_gate}') but no verdict "
+            "ladder or resolver gate was recovered from run.py"
+        )
+
     # measurement_type → card_ids (for panel 5's bottom join)
     mtype_to_cards: dict[str, list[str]] = {}
     for cid, c in cards.items():
@@ -398,6 +435,7 @@ def build(graph, health, ledgers, axes_registry, skill, *, sk_root=None, tc_root
         "status": skill_rec.get("status"),
         "phase": skill_rec.get("phase"),
         "n_cards": len(skill_rec.get("cards_used") or []),
+        "verdict_source": ladder.get("verdict_source"),
         "ladder": ladder,
         "panels": {
             "spine": spine,
@@ -406,7 +444,7 @@ def build(graph, health, ledgers, axes_registry, skill, *, sk_root=None, tc_root
             "rollup": _panel_rollup(skill, short, code_maps, axes_q, drift_rows),
             "cards_questions": _panel_cards_questions(skill, axes_registry, mtype_to_cards),
         },
-        "errors": (ladder.get("errors") or []) + (code_maps.get("errors") or []),
+        "errors": (ladder.get("errors") or []) + verdict_source_errors + (code_maps.get("errors") or []),
     }
 
 

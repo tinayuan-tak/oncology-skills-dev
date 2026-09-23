@@ -34,3 +34,8 @@ __pycache__/
 # they become CI-lockable only once products are published to S3 (Phase 2b/c).
 coverage/*.coverage.yaml
 health/health_current.json
+
+# Per-skill standalone product pages (`make atlas-product`) are a rendered VIEW over the committed
+# framework_atlas.json — regenerable on demand, no drift guard of their own, so kept out of the tree
+# (same rationale as health_current.json). The canonical committed feed is framework_atlas.{json,html}.
+health/product/

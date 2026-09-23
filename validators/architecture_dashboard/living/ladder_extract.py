@@ -134,7 +134,7 @@ def extract_ladder(
 
         {
           "skill": "tumor-presence",
-          "verdict_source": "python_ladder" | "resolver_yaml",
+          "verdict_source": "python_ladder" | "resolver_yaml" | None,  # None = no verdict ladder
           "gate": None | "<gate>",           # set only for resolver_yaml
           "ladders": [ {"name": "_EXPRESSION_RANK", "layer": "bulk_rna",
                         "rungs": [{"rule_id","verdict","tier","layer"}, ...]}, ... ],
@@ -171,15 +171,24 @@ def extract_ladder(
 
     if not ladders:
         gate = _resolver_gate(tree)
+        # Three skill shapes, one extractor. With no ``_*_RANK`` ladder either:
+        #   * a ``resolve_or_raise`` gate is found → resolver-backed (``resolver_yaml``); the
+        #     assembler reads the ladder from ``graph["resolvers"][gate]``.
+        #   * NO gate either → a descriptive / support / gateless skill (literature-context,
+        #     target-intrinsic, catalog-query, …) that legitimately collapses to NO verdict.
+        #     This is a CLEAN classification (``verdict_source = None``), not drift, so no error
+        #     is surfaced — the product page renders it as an honest "no verdict ladder" block
+        #     rather than fabricating a spine. (A gating skill whose gate we FAILED to recover is
+        #     caught downstream by product_page.build against the code-map's gating shorts.)
         return {
             "skill": skill,
-            "verdict_source": "resolver_yaml",
+            "verdict_source": "resolver_yaml" if gate else None,
             "gate": gate,
             "ladders": [],
             "rungs": [],
             "verdict_tokens": [],
             "rule_ids": [],
-            "errors": [] if gate else [f"{skill}: no _*_RANK ladders and no resolve_or_raise gate found"],
+            "errors": [],
         }
 
     flat = [rung for lad in ladders for rung in lad["rungs"]]

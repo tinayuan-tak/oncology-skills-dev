@@ -451,7 +451,18 @@ def _pp_spine(graph, block):
     sp = block.get("panels", {}).get("spine", {})
     rows = sp.get("cards") or []
     if not rows:
-        return '<div class="empty">no verdict-bearing cards resolved</div>'
+        # Honest "no verdict ladder" degrade for the third shape bucket (descriptive / support /
+        # gateless skills — no python-ladder and no resolver gate), and for a verdict-bearing
+        # skill whose atlas wiring has not yet regenerated a matching card.
+        vsource = (block.get("ladder") or {}).get("verdict_source") or block.get("verdict_source")
+        if not vsource:
+            return (
+                '<div class="pp-noladder">This skill has <b>no verdict ladder</b> — it is a '
+                "descriptive / support / gateless skill that emits evidence without collapsing to "
+                "a gated verdict token. The spine, gate and risk-bin panels below are shown "
+                "empty on purpose (nothing is fabricated).</div>"
+            )
+        return '<div class="empty">no verdict-bearing cards resolved (regenerate the atlas wiring)</div>'
     out = []
     for row in rows:
         ds = "".join(
@@ -672,28 +683,68 @@ def _product_page(graph):
 
     blocks = ""
     for name, block in sorted(skills.items()):
-        panes = ""
-        for title, sub, fn in _PP_PANELS:
-            body = fn(graph, block) if fn not in (_pp_optionality,) else fn(block)
-            panes += (
-                f'<section class="pp-panel"><h3 class="pp-panel-hd">{_esc(title)}'
-                f'<span class="pp-panel-sub">{_esc(sub)}</span></h3>{body}</section>'
-            )
-        errs = block.get("errors") or []
-        err_html = ""
-        if errs:
-            lis = "".join(f"<li>{_esc(e)}</li>" for e in errs)
-            err_html = f'<details class="pp-errs"><summary>⚠ {len(errs)} surfaced extraction finding(s)</summary><ul>{lis}</ul></details>'
         blocks += (
             f'<div class="pp-skill" id="pp-skill-{_esc(name)}" style="display:{"block" if name == default else "none"}">'
-            f'<div class="pp-meta">{_tok(graph, None, name)} · status {_esc(str(block.get("status") or "?"))} · '
-            f"{block.get('n_cards', 0)} cards · verdict via "
-            f"{_esc(block.get('ladder', {}).get('verdict_source') or '?')}</div>"
-            f"{err_html}{panes}</div>"
+            f"{_pp_skill_body(graph, block, name)}</div>"
         )
 
     drift = f'<section class="pp-panel"><h3 class="pp-panel-hd">Registry ↔ code risk drift<span class="pp-panel-sub">skill-invariant</span></h3>{_pp_risk_drift(pp)}</section>'
     return f'{intro}<div class="pp-selbar">subskill: {selector}</div>{blocks}{drift}'
+
+
+def _pp_skill_body(graph, block, name) -> str:
+    """The meta line + surfaced-findings fold + the five rendered panels for one skill. Shared by
+    the in-Atlas Product tab and the standalone per-skill export so both stay byte-identical."""
+    panes = ""
+    for title, sub, fn in _PP_PANELS:
+        body = fn(graph, block) if fn not in (_pp_optionality,) else fn(block)
+        panes += (
+            f'<section class="pp-panel"><h3 class="pp-panel-hd">{_esc(title)}'
+            f'<span class="pp-panel-sub">{_esc(sub)}</span></h3>{body}</section>'
+        )
+    errs = block.get("errors") or []
+    err_html = ""
+    if errs:
+        lis = "".join(f"<li>{_esc(e)}</li>" for e in errs)
+        err_html = f'<details class="pp-errs"><summary>⚠ {len(errs)} surfaced extraction finding(s)</summary><ul>{lis}</ul></details>'
+    vsource = (block.get("ladder") or {}).get("verdict_source") or block.get("verdict_source")
+    meta = (
+        f'<div class="pp-meta">{_tok(graph, None, name)} · status {_esc(str(block.get("status") or "?"))} · '
+        f"{block.get('n_cards', 0)} cards · verdict via {_esc(vsource or 'none (no ladder — descriptive/support skill)')}</div>"
+    )
+    return f"{meta}{err_html}{panes}"
+
+
+def render_product_page_standalone(graph: dict, skill: str) -> str:
+    """A self-contained, dependency-light HTML page for ONE skill's five-panel product page.
+
+    Reuses the exact panel renderers + legibility layer used by the in-Atlas Product tab (so the
+    two never diverge), wrapped in a minimal standalone shell. Reads only the committed graph's
+    ``product_page`` block — no siblings — so ``make atlas-product`` runs in a checkout-only env.
+    """
+    pp = graph.get("product_page") or {}
+    block = (pp.get("skills") or {}).get(skill)
+    if not block:
+        raise KeyError(f"skill {skill!r} not in product_page (built: {sorted((pp.get('skills') or {}))})")
+    agen = _esc(str(graph.get("generated_at", ""))[:19])
+    body = _pp_skill_body(graph, block, skill)
+    drift = (
+        '<section class="pp-panel"><h3 class="pp-panel-hd">Registry ↔ code risk drift'
+        f'<span class="pp-panel-sub">skill-invariant</span></h3>{_pp_risk_drift(pp)}</section>'
+    )
+    return f"""<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Product page — {_esc(humanize(skill))}</title>
+<style>{MILLER_CSS}{_UNIFIED_CSS}{_LIVING_CSS}</style></head>
+<body><main>
+<h1 class="pp-standalone-hd">{_esc(humanize(skill))} — product page</h1>
+<p class="pp-standalone-sub">A target-invariant tour of one subskill as a product: its deterministic
+verdict spine, the cards it composes, the optional (verdict-inert) lanes, how its verdict rolls into
+a nomination, and the questions each card answers. One of the Framework Atlas per-subskill product
+pages. Generated {agen}.
+<label class="rawtoggle" style="display:inline-flex"><input type="checkbox" onchange="document.body.classList.toggle('showraw',this.checked)"> show raw ids</label></p>
+{body}{drift}
+</main></body></html>"""
 
 
 # --------------------------------------------------------------------------- #
@@ -813,6 +864,9 @@ pre.schem{background:#161616;color:#e8e8e8;border-radius:8px;padding:14px 16px;o
 .pp-gal{color:var(--purple);font-weight:600;cursor:help;font-size:11px}
 .pp-errs{margin:0 14px 10px}.pp-errs summary{cursor:pointer;color:#b06a00;font-size:11.5px;font-weight:600}
 .pp-errs ul{font-size:11px;color:var(--muted)}
+.pp-noladder{background:#f3f2ec;border:1px dashed var(--line);border-radius:8px;padding:12px 16px;font-size:12.5px;line-height:1.6;color:var(--muted)}
+.pp-standalone-hd{margin:0 0 4px;font-size:18px}
+.pp-standalone-sub{color:var(--muted);font-size:12.5px;margin:0 0 14px}
 @media(max-width:900px){.pp-lanes{grid-template-columns:1fr}}
 """
 
