@@ -248,12 +248,6 @@
         "string"
       ]
     },
-    "control_negatives_excluded_lineage_conflict": {
-      "type": [
-        "array",
-        "null"
-      ]
-    },
     "control_percentile_source": {
       "type": [
         "null",
@@ -265,6 +259,27 @@
         "null",
         "string"
       ]
+    },
+    "control_negatives_excluded_lineage_conflict": {
+      "type": [
+        "array",
+        "null"
+      ]
+    },
+    "expression_properties": {
+      "description": "Structured expression-property facet, keyed by vocabularies/expression_property.enum.yaml property ids; each value is one of that property's ordinal strings (or 'unmeasured'). Hand-tightened (not corpus-observed — the P2 resolver has not landed yet): gen_summary_schemas.py would otherwise widen this to null-only.",
+      "type": [
+        "object",
+        "null"
+      ],
+      "properties": {
+        "presence": {"type": ["string", "null"], "enum": ["supported", "weak", "absent", "unmeasured", null]},
+        "magnitude": {"type": ["string", "null"], "enum": ["high", "moderate", "low", "unmeasured", null]},
+        "prevalence": {"type": ["string", "null"], "enum": ["broad", "subset", "rare", "unmeasured", null]},
+        "heterogeneity": {"type": ["string", "null"], "enum": ["high", "moderate", "uniform", "unmeasured", null]},
+        "lineage_restriction": {"type": ["string", "null"], "enum": ["restricted", "intermediate", "diffuse", "unmeasured", null]}
+      },
+      "additionalProperties": {"type": ["string", "null"]}
     }
   }
 }

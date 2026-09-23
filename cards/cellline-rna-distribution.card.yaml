@@ -14,7 +14,7 @@
 #   log2(TPM+1) <  1.0   = not expressed   (TPM <  1.0)
 
 card_id: cellline-rna-distribution
-version: 1.1.0
+version: 1.2.0
 question: "Across ~1500 DepMap cell lines, what is the expression distribution of {target.symbol}, and is it lineage-stratified?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
@@ -102,6 +102,29 @@ outputs:
     - dominant_isoform                             # string — modal top-isoform ENST across the panel
     - isoform_n_models                             # int — cell lines expressing the gene (isoform-facet denominator)
     - isoform_context                              # string — human-readable isoform summary (audit)
+    # Runtime-orphan fields (additive, P3 2026-09-23, evidence-property architecture epic
+    # claude-oncology-skills#1507 / audit #1506 / issue #862). depmap-expression-distribution has
+    # emitted these since before this card's outputs.summary_fields was written; declaring them
+    # here is what lets the SK tumor-presence field-disposition ledger's completeness ratchet
+    # (test_field_disposition_complete.py::test_ledger_matches_emitted_fields) see and disposition
+    # them instead of silently dropping them. Verdict-inert — none of these move expression_class.
+    - coefficient_of_variation                     # float — CoV of linear TPM across the panel (dispersion qualifier)
+    - distribution_pattern                         # categorical — shape of the log2(TPM+1) distribution (unimodal/bimodal/long_tail); the P2 property resolver (methods/expression_properties, separate PR) will read this into heterogeneity/prevalence
+    - control_target_percentile                    # float 0-100 (or null) — REDUNDANT ECHO of allgene_percentile (same computation, different name); kept for backward-compat call sites, dispositioned context in the SK ledger
+    - control_target_class                         # categorical — REDUNDANT ECHO of allgene_percentile_class; see control_target_percentile note
+    - control_percentile_source                    # string — audit token naming which product/method resolved allgene_percentile
+    - control_position_method_version              # string — audit token, control-position method version
+    - control_negatives_excluded_lineage_conflict  # array — negative-control genes excluded from control_position because their lineage conflicts with the target's; display-only, measured=false
+    # Expression-property layer (additive, P1/P3 2026-09-23, same epic). Structured object keyed
+    # by the shared vocabularies/expression_property.enum.yaml property ids (presence, magnitude,
+    # prevalence, heterogeneity, lineage_restriction — the properties Card-1 measurements can
+    # resolve today; selectivity/localization/subtype_restriction are fleet-deferred and always
+    # `unmeasured` from this card), each value one of that property's ordinal strings (or
+    # `unmeasured`). VERDICT-INERT: resolved from the SAME measurements above, carried as facet
+    # data for the claim/evidence layer (P4, separate PR); does not move expression_class or any
+    # rule. Populated once the P2 resolver (analysis-methods, separate PR) is wired; until then a
+    # run may emit it as null/absent.
+    - expression_properties
 
   summary_fields_vocabulary:
     expression_class:

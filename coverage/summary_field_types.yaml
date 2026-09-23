@@ -6,12 +6,12 @@ counts:
   categorical: 124
   numeric: 421
   boolean: 34
-  record: 13
+  record: 14
   array: 58
   string: 155
   unknown: 23
 n_cards: 46
-n_fields: 828
+n_fields: 829
 by_card:
   adc-tce-modality-fit:
     adc_grade: unknown
@@ -117,6 +117,7 @@ by_card:
     dominant_isoform: string
     dominant_isoform_fraction: numeric
     expression_class: categorical
+    expression_properties: record
     fraction_expressed: numeric
     fraction_highly_expressed: numeric
     fraction_not_expressed: numeric
