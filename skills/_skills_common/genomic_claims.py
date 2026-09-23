@@ -377,9 +377,13 @@ def _cn_corroboration(h, c):
         return "unmeasured"  # a gap is neither corroborated nor contradicted
 
     focal = h.get("patient_focal_cn_class")
-    # The patient arm: True/False if GISTIC looked, None if it did not. `data_unavailable` is a truthy
-    # STRING, so it is tested against the sentinel explicitly and never by truthiness.
-    if focal is None or focal == "data_unavailable":
+    # The patient arm: True/False if GISTIC looked, None if it did not. Two focal values are GAPS the
+    # arm cannot take a side from, tested by sentinel (both are truthy STRINGS, never by truthiness):
+    # `data_unavailable` (nobody looked) and `underpowered` (the patient focal read RAN but was under the
+    # CN power floor — a gap WITH INTENT, mirroring the cell-line `underpowered` tier above and added to
+    # the card vocab by contracts PR-C3 #851). Neither is a measured focal call, so both leave the
+    # patient arm absent → the cell-line call stands ALONE (`single_arm`), never a fabricated conflict.
+    if focal is None or focal in ("data_unavailable", "underpowered"):
         patient_arm = None
     elif cls == "recurrently_amplified":
         patient_arm = focal == "recurrent_focal_amplification"

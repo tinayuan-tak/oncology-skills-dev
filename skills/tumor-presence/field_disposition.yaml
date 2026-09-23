@@ -38,6 +38,10 @@ cellline-rna-distribution:
   allgene_percentile_context:
     role: provenance
     reason: provenance/audit token
+  coefficient_of_variation:
+    role: context
+    reason: "power / statistical qualifier behind heterogeneity (distribution dispersion on linear TPM); matches the disposition given to the tumor-rna-vs-adjacent sibling field of the same name. Capsule-wired as a numeric_anchor (TC #873) so the fleet-aperture census reaches it (P3, issue #862)"
+    reviewed: true
   control_negatives:
     role: display
     reason: human-facing detail / large container
@@ -55,6 +59,10 @@ cellline-rna-distribution:
   control_positives:
     role: display
     reason: human-facing detail / large container
+  distribution_pattern:
+    role: context
+    reason: "shape of the log2(TPM+1) distribution (unimodal/bimodal/long_tail); a display/context qualifier, capsule-wired as a categorical_field (TC #873) so the fleet-aperture census reaches it. Stays role:context — its promotion to a property SIGNAL lands in P5, once the P2 property resolver reads it into heterogeneity/prevalence (evidence-property architecture epic claude-oncology-skills#1507) (P3, issue #862)"
+    reviewed: true
   dominant_isoform:
     role: context
     reason: "names which isoform isoform_expression_class refers to; cross-axis pointer; no exact reader (census 2026-09-19)"

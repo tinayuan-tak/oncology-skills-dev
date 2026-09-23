@@ -94,18 +94,31 @@ _GOLDEN = json.loads(SNAPSHOT.read_text())
 # listing them would blow the frozen cross-product up (row counts in the module docstring). Shrink
 # this map; do not grow it without the measured row count that justifies the entry.
 RULE_ID_COVERAGE_DEBT: dict[str, set[str]] = {
+    # The five `*-fallback-context` + `fusion-underpowered-insufficient` ids were added by contracts'
+    # genomic n-honesty vertical (PRs #850/#851, the `underpowered` tier): four indication-scoped
+    # FALLBACK-context rungs (siblings of the already-debted `*-indication-scoped-context` rungs) and the
+    # new `fusion-underpowered-insufficient` non-driver rung (sibling of `cn-data-unavailable-insufficient`).
+    # They are DEBTED, not listed, for the SAME reason as the rest of this gate: genomic is the unshippable
+    # cross-product (docstring: full listing ~30 ids ≈ 25 GB), so each added (card, field) dimension
+    # multiplies the frozen row count — listing these would not be shippable and they are exercised by the
+    # resolver's own contracts-side gates, not the skills golden.
     "genomic_alteration": {
         "amp-expr-indication-scoped-context",
+        "amp-expr-indication-scoped-fallback-context",
         "amp-expr-moderately-dependent-supportive",
         "amp-expr-strongly-dependent-supportive",
         "cn-amplified-indication-scoped-context",
+        "cn-amplified-indication-scoped-fallback-context",
         "cn-amplified-moderately-dependent-supportive",
         "cn-amplified-strongly-dependent-supportive",
         "cn-data-unavailable-insufficient",
         "fusion-positive-indication-scoped-context",
+        "fusion-positive-indication-scoped-fallback-context",
         "fusion-positive-moderately-dependent-supportive",
         "fusion-positive-strongly-dependent-supportive",
+        "fusion-underpowered-insufficient",
         "mutant-indication-scoped-context",
+        "mutant-indication-scoped-fallback-context",
         "mutation-drug-response-strongly-sensitive-supportive",
     },
     # DIFFERENT KIND of debt from the other three (which are cross-product COST): the selectivity

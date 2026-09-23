@@ -366,6 +366,12 @@ _INDICATION_ANCHORED_RULES = {
 # not been taught) so the two cannot be confused: one is an honest absence, the other is map drift.
 _NO_EVIDENCE_RULES = {
     "cn-data-unavailable-insufficient",
+    # `underpowered` sibling of the above: the fusion axis WAS looked at but fewer than the recurrence
+    # power floor cleared (PR-C2 gap-with-intent tier, contracts resolver underpowered), so the rung
+    # fired on an axis that could not be powered — no evidence whose scope could be read, same as a
+    # could-not-look. `_measured()` already folds `underpowered` in with `data_unavailable`, so scope
+    # is `not_applicable` here for the identical reason. Added with the TC #873 pin bump.
+    "fusion-underpowered-insufficient",
 }
 # ... vs pan-cancer cell-line landscape / variant-shape / pharmacology rungs.
 _PAN_CANCER_RULES = {

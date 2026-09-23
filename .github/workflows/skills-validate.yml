@@ -264,7 +264,46 @@ jobs:
           # alone). Aperture ratchet inert (test_field_disposition unchanged at HEAD). This bump also
           # carries the intervening skills-INERT contracts PRs #819-#830; the full skills fan-out on this
           # branch reds ONLY the dependency-token guards, empirically confirming those PRs are skills-inert.
-          ref: ebdcdfbf67c1532e724d9fea1cd4b2def170adbc
+          #
+          # ============================================================================================
+          # BUMP ebdcdfb -> 1863722c, "main @ 2026-09-23 (#873, over #869/#862)". SIXTH hand bump in this
+          # arc. Direction: local RED / CI GREEN again — a token PRODUCER (cellline-rna card fields) landed
+          # in contracts first, so the skills ledger guard broke LOCALLY while CI, reading the stale pin,
+          # stayed green. This is P3 of the evidence-property epic (#1507): TC #869 declared 8 Card-1
+          # `outputs.summary_fields`, TC #873 NARROWED that to the 2 the fleet actually reads —
+          # coefficient_of_variation (capsule numeric_anchor) and distribution_pattern (capsule
+          # categorical_field) — and reverted the other 6 (2 redundant echoes of allgene_percentile[_class],
+          # 3 provenance/version tokens, 1 display array) plus expression_properties (deferred to P4 with its
+          # claim/evidence reader). This commit narrows skills/tumor-presence/field_disposition.yaml to
+          # disposition exactly those 2 fields.
+          #
+          # WHY IT IS FORCED-ATOMIC. tumor-presence/tests/test_field_disposition_complete.py::
+          # test_ledger_matches_emitted_fields asserts SET EQUALITY (ledger card-section == card
+          # outputs.summary_fields) against the LIVE contracts tree. So the pin and the ledger cannot go
+          # green independently:
+          #   - branch ledger (2 P3 rows) x OLD pin ebdcdfb (card emits neither): the 2 rows are STALE -> RED.
+          #     MEASURED (git archive ebdcdfb + TARGET_CONTRACTS_ROOT): "STALE ledger fields (card no longer
+          #     emits): ['coefficient_of_variation', 'distribution_pattern']".
+          #   - branch ledger x NEW pin 1863722c (card emits both): set-equal -> GREEN (5 passed).
+          #   - trunk ledger (no P3 rows) x NEW pin: the 2 emitted fields are UNCLASSIFIED -> RED.
+          # Anti-diagonal: read either axis alone and the other looks fine. So pin + ledger move in one commit.
+          #
+          # APERTURE: MEASURED 781 on this branch x the new pin (domain 1813). 781 == APERTURE_CEILING, so
+          # 781 <= 781 clears the ceiling half and 781 - 781 = 0 <= APERTURE_SLACK 20 clears the slack half:
+          # THE CEILING DOES NOT MOVE and there is nothing to bank. Why declaring 2 new fields is aperture-
+          # inert: TC #873 WIRED both into the card `capsule:` block, so capsule_readers() credits both
+          # (verified: neither pair is in the orphan set) — a declared-AND-read field is not a candidate
+          # orphan. The 6 reverted #869 fields leave the (card, field) domain entirely. (test_field_disposition.py
+          # needs no edit; its vintage for this pin is recorded here, per this file's "a number that did not
+          # move still has a new vintage" rule.)
+          #
+          # ALSO FORCED-ATOMIC: the genomic mirror. The pinned range carries the genomic `underpowered`
+          # gap-with-intent tier (TC + skills #1504/#1505); moving the pin surfaces resolver guards that were
+          # green only against the stale SHA. This commit mirrors them skills-side (genomic_claims.py
+          # _cn_corroboration treats an underpowered patient-focal arm as a gap -> single_arm, not a fabricated
+          # `low`; two-arm axes + resolver golden rule_id coverage updated) and regenerates the pinned roster
+          # field_read_health.json against 1863722c (2 cellline fields, n=1813). Cross-repo live gate: none.
+          ref: 1863722c671ff92dac905c0cbd52b84b007677b4
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

@@ -36,7 +36,17 @@ from _skills_common.claim_vector_core import CORROBORATION_ORD, SIGNAL_ORD  # no
 # → outputs.summary_fields_vocabulary.patient_focal_cn_class. Mirrored here (skills CI does not
 # necessarily have the contracts checkout) and CROSS-CHECKED against the contract when it IS reachable,
 # by test_patient_focal_enum_matches_the_card_contract below — so this copy cannot silently go stale.
-_PATIENT_FOCAL_ENUM = ("recurrent_focal_amplification", "recurrent_focal_deletion", "focal_neutral", "data_unavailable")
+_PATIENT_FOCAL_ENUM = (
+    "recurrent_focal_amplification",
+    "recurrent_focal_deletion",
+    "focal_neutral",
+    "data_unavailable",
+    # The patient-tumour focal arm looked but was under the CN power floor (too few CN-covered patient
+    # samples to call recurrence) — a gap WITH INTENT, distinct from `data_unavailable` (nobody looked).
+    # Added to the card's `patient_focal_cn_class` vocabulary by contracts PR-C3 (#851); mirrored here so
+    # the exhaustive table below grows the two new directional rows rather than silently shrinking.
+    "underpowered",
+)
 
 
 def _cn_headline(cn_class, focal):
@@ -47,7 +57,7 @@ def _cn_headline(cn_class, focal):
 
 
 # (cell-line copy_number_class, patient_focal_cn_class) -> expected corroboration, with the REASON.
-# Enumerated over the full cross product: 6 cell-line classes x (4 enum values + None) = 30 rows.
+# Enumerated over the full cross product: 6 cell-line classes x (5 enum values + None) = 36 rows.
 _CN_CASES = {
     # A GAP carries no corroboration whatever the patient arm says: there is nothing to agree or disagree
     # with. The two gap KINDS collapse the axis alike — `data_unavailable` (nobody looked) and
@@ -67,11 +77,17 @@ _CN_CASES = {
     ("recurrently_amplified", "recurrent_focal_deletion"): "low",  # OPPOSITE directions — a conflict
     ("recurrently_amplified", "focal_neutral"): "low",  # GISTIC looked and found nothing — disagreement
     ("recurrently_amplified", "data_unavailable"): "single_arm",  # a truthy STRING sentinel, not an arm
+    # The patient focal arm RAN but was under-powered: a gap on the SECOND arm, exactly like
+    # `data_unavailable`/None above — the measured cell-line call stands alone. NOT a conflict: reading
+    # `underpowered` as "the patient arm disagrees" would fabricate the sharp discordance the eval ledger
+    # routes to a reviewer, the same gap≠contradiction error the purity/panel arms guard against.
+    ("recurrently_amplified", "underpowered"): "single_arm",
     ("recurrently_amplified", None): "single_arm",  # the field was never emitted
     ("recurrently_deleted", "recurrent_focal_deletion"): "high",
     ("recurrently_deleted", "recurrent_focal_amplification"): "low",
     ("recurrently_deleted", "focal_neutral"): "low",
     ("recurrently_deleted", "data_unavailable"): "single_arm",
+    ("recurrently_deleted", "underpowered"): "single_arm",  # under-powered patient arm = a gap, one-armed
     ("recurrently_deleted", None): "single_arm",
 }
 
@@ -82,7 +98,7 @@ def test_cn_case_table_is_exhaustive_over_the_closed_enum():
     map, so a NEW cell-line class fails here rather than slipping through untested."""
     expected = {(cls, f) for cls in gen._CN_SIGNAL for f in _PATIENT_FOCAL_ENUM + (None,)}
     assert set(_CN_CASES) == expected, f"missing {sorted(expected - set(_CN_CASES))}"
-    assert len(_CN_CASES) == 30
+    assert len(_CN_CASES) == 36
 
 
 @pytest.mark.parametrize(("cn_class", "focal"), sorted(_CN_CASES, key=lambda k: (k[0], str(k[1]))))
