@@ -4,14 +4,14 @@
 # disposition (that is skills-side). --self-check gates drift.
 counts:
   categorical: 124
-  numeric: 421
+  numeric: 420
   boolean: 34
-  record: 14
-  array: 58
-  string: 155
+  record: 13
+  array: 57
+  string: 152
   unknown: 23
 n_cards: 46
-n_fields: 829
+n_fields: 823
 by_card:
   adc-tce-modality-fit:
     adc_grade: unknown
@@ -104,20 +104,14 @@ by_card:
     allgene_percentile_context: string
     coefficient_of_variation: numeric
     control_negatives: record
-    control_negatives_excluded_lineage_conflict: array
-    control_percentile_source: string
     control_position: string
     control_position_class: categorical
     control_position_context: string
-    control_position_method_version: string
     control_positives: record
-    control_target_class: string
-    control_target_percentile: numeric
     distribution_pattern: string
     dominant_isoform: string
     dominant_isoform_fraction: numeric
     expression_class: categorical
-    expression_properties: record
     fraction_expressed: numeric
     fraction_highly_expressed: numeric
     fraction_not_expressed: numeric

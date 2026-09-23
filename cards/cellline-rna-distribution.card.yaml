@@ -14,7 +14,7 @@
 #   log2(TPM+1) <  1.0   = not expressed   (TPM <  1.0)
 
 card_id: cellline-rna-distribution
-version: 1.2.0
+version: 1.3.0
 question: "Across ~1500 DepMap cell lines, what is the expression distribution of {target.symbol}, and is it lineage-stratified?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
@@ -27,6 +27,9 @@ capsule:
     - allgene_percentile_class
     - control_position_class
     - isoform_expression_class
+    - distribution_pattern                        # P3 2026-09-23: shape categorical (unimodal/bimodal/long_tail); capsule-wired so the SK fleet-aperture ratchet counts it as read
+  numeric_anchors:
+    - coefficient_of_variation                    # P3 2026-09-23: linear-TPM dispersion qualifier; capsule-wired display anchor (earns a reader for the aperture ratchet)
 
 applies_when:
   - "context.data_sources.depmap_expression_available == true"
@@ -102,29 +105,26 @@ outputs:
     - dominant_isoform                             # string — modal top-isoform ENST across the panel
     - isoform_n_models                             # int — cell lines expressing the gene (isoform-facet denominator)
     - isoform_context                              # string — human-readable isoform summary (audit)
-    # Runtime-orphan fields (additive, P3 2026-09-23, evidence-property architecture epic
+    # Runtime-orphan display fields (additive, P3 2026-09-23, evidence-property architecture epic
     # claude-oncology-skills#1507 / audit #1506 / issue #862). depmap-expression-distribution has
-    # emitted these since before this card's outputs.summary_fields was written; declaring them
-    # here is what lets the SK tumor-presence field-disposition ledger's completeness ratchet
-    # (test_field_disposition_complete.py::test_ledger_matches_emitted_fields) see and disposition
-    # them instead of silently dropping them. Verdict-inert — none of these move expression_class.
-    - coefficient_of_variation                     # float — CoV of linear TPM across the panel (dispersion qualifier)
-    - distribution_pattern                         # categorical — shape of the log2(TPM+1) distribution (unimodal/bimodal/long_tail); the P2 property resolver (methods/expression_properties, separate PR) will read this into heterogeneity/prevalence
-    - control_target_percentile                    # float 0-100 (or null) — REDUNDANT ECHO of allgene_percentile (same computation, different name); kept for backward-compat call sites, dispositioned context in the SK ledger
-    - control_target_class                         # categorical — REDUNDANT ECHO of allgene_percentile_class; see control_target_percentile note
-    - control_percentile_source                    # string — audit token naming which product/method resolved allgene_percentile
-    - control_position_method_version              # string — audit token, control-position method version
-    - control_negatives_excluded_lineage_conflict  # array — negative-control genes excluded from control_position because their lineage conflicts with the target's; display-only, measured=false
-    # Expression-property layer (additive, P1/P3 2026-09-23, same epic). Structured object keyed
-    # by the shared vocabularies/expression_property.enum.yaml property ids (presence, magnitude,
-    # prevalence, heterogeneity, lineage_restriction — the properties Card-1 measurements can
-    # resolve today; selectivity/localization/subtype_restriction are fleet-deferred and always
-    # `unmeasured` from this card), each value one of that property's ordinal strings (or
-    # `unmeasured`). VERDICT-INERT: resolved from the SAME measurements above, carried as facet
-    # data for the claim/evidence layer (P4, separate PR); does not move expression_class or any
-    # rule. Populated once the P2 resolver (analysis-methods, separate PR) is wired; until then a
-    # run may emit it as null/absent.
-    - expression_properties
+    # emitted these since before this card's outputs.summary_fields was written; declaring AND
+    # capsule-wiring them (see capsule.categorical_fields / numeric_anchors above) both lets the SK
+    # tumor-presence field-disposition ledger disposition them (test_field_disposition_complete.py::
+    # test_ledger_matches_emitted_fields) AND earns them a reader, so the SK fleet-aperture ratchet
+    # (test_fleet_aperture_does_not_grow) counts them as read rather than as declared-but-unread
+    # orphans. Verdict-inert — neither moves expression_class.
+    #
+    # NARROWED from #869: that PR declared 6 further runtime orphans here — control_target_percentile
+    # / control_target_class (redundant echoes of allgene_percentile / allgene_percentile_class),
+    # control_percentile_source / control_position_method_version (control-position provenance tokens),
+    # control_negatives_excluded_lineage_conflict (a display array), and expression_properties (the P1
+    # structured facet object). All six are reverted here: none has a landed reader yet, and a
+    # declared-but-unread field breaches the aperture ratchet (a capsule can only credit scalar
+    # primary_class / categorical_fields / numeric_anchors, never an object or array). They return
+    # WITH their readers — expression_properties with the P4 claim/evidence layer; the echoes and
+    # provenance/exclusion fields if and when a genuine (non-echo) reader materialises.
+    - coefficient_of_variation                     # float — CoV of linear TPM across the panel (dispersion qualifier); capsule numeric_anchor
+    - distribution_pattern                          # categorical — shape of the log2(TPM+1) distribution (unimodal/bimodal/long_tail); capsule categorical. The P2 property resolver (methods/expression_properties, separate PR) will additionally read this into heterogeneity/prevalence.
 
   summary_fields_vocabulary:
     expression_class:
