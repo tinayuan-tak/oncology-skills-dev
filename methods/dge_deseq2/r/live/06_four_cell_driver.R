@@ -86,9 +86,18 @@ message(sprintf("[06_four_cell] partitions: %d tumor | %d TCGA-adjacent | %d GTE
 # --- cell A: tumor vs adjacent, raw -----------------------------------------
 cellA <- NULL; cellB <- NULL; cellC <- NULL; cellAG <- NULL
 
+# Known-marker panel for the fail-loud sign check (S3a #701): the pan-cancer
+# tumor-UP proliferation panel is a global-sign-inversion tripwire for the
+# tumor-vs-normal cells A/B/C. Cell AG (normal-vs-normal) is DELIBERATELY given
+# no panel — proliferation markers are not expected up between two normal
+# cohorts, so a sign check there would be meaningless.
+qc_indication <- dat$metadata$tcga_studies
+tumor_panel   <- marker_panel_for(qc_indication)
+
 if (length(adjacent_ids) >= min_n) {
   ids <- c(tumor_ids, adjacent_ids)
-  cellA <- run_cell("A", counts[, ids], coldata[ids, ], opts$`out-dir`, min_n, flog)
+  cellA <- run_cell("A", counts[, ids], coldata[ids, ], opts$`out-dir`, min_n, flog,
+                    qc_panel = tumor_panel, qc_indication = qc_indication)
 
   # cell B: same samples, ComBat on TCGA tissue-source-site (plate proxy).
   #
@@ -110,7 +119,8 @@ if (length(adjacent_ids) >= min_n) {
             "(match_quantiles perf cliff mitigation)")
   } else {
     cellB <- run_cell("B", counts[, ids], coldata[ids, ], opts$`out-dir`, min_n, flog,
-                      combat_batch = "tcga_tss")
+                      combat_batch = "tcga_tss",
+                      qc_panel = tumor_panel, qc_indication = qc_indication)
   }
 } else {
   message("[06_four_cell] cells A/B SKIPPED — TCGA adjacent-normal < ", min_n)
@@ -128,7 +138,8 @@ if (length(adjacent_ids) >= min_n) {
 # an RUV/SVASeq-based source-adjustment that preserves group signal.
 if (length(gtex_ids) >= min_n) {
   ids <- c(tumor_ids, gtex_ids)
-  cellC <- run_cell("C", counts[, ids], coldata[ids, ], opts$`out-dir`, min_n, flog)
+  cellC <- run_cell("C", counts[, ids], coldata[ids, ], opts$`out-dir`, min_n, flog,
+                    qc_panel = tumor_panel, qc_indication = qc_indication)
 } else {
   message("[06_four_cell] cell C SKIPPED — GTEx normal < ", min_n,
           " (no GTEx tissue for this indication?)")

@@ -134,7 +134,9 @@ prefilter <- function(mat) {
 # request it; cell B (a within-TCGA robustness re-run) does not.
 deseq2_fit <- function(mat, cd, with_svalue = FALSE) {
   cd$group <- factor(cd$group, levels = c("normal", "tumor"))
+  n_genes_pre <- nrow(mat)
   mat <- prefilter(mat)
+  n_genes_post <- nrow(mat)
   storage.mode(mat) <- "integer"
   # Study covariate for POOLED multi-study indications (NSCLC=LUAD+LUSC, COADREAD=COAD+READ):
   # adjust the tumor-vs-normal effect for study so a pooled contrast is not confounded by the
@@ -172,6 +174,35 @@ deseq2_fit <- function(mat, cd, with_svalue = FALSE) {
                     baseMean       = res_un$baseMean,
                     stringsAsFactors = FALSE)
   if (with_svalue) out$svalue <- res$svalue
+  # --- attach the raw QC inputs the output-QC layer (S3a #701) alone needs -----
+  # The tidy `out` frame keeps only gene_symbol/log2FC/padj/baseMean, so the
+  # signals the fail-loud gate reads (the UNSHRUNK Wald p-value used for the
+  # padj=NA taxonomy, gene-wise dispersions, poscounts size factors, the
+  # independent-filtering threshold, per-group n) survive ONLY if captured here,
+  # where the dds / res_un objects are still in scope. Stored as an ATTRIBUTE so
+  # the public columns — hence every emitted parquet — stay byte-identical (cells
+  # A/B/C products are unchanged; write_parquet writes columns, not R attrs).
+  # `four_cell_qc_metrics()` + `assert_contrast_qc()` (below) consume this list;
+  # both are pure functions of these vectors, so they are testable without DESeq2.
+  attr(out, "qc") <- list(
+    gene_symbol      = rownames(res),
+    pvalue           = res_un$pvalue,          # unshrunk Wald p (NA taxonomy)
+    padj             = res_un$padj,
+    baseMean         = res_un$baseMean,
+    lfc              = res$log2FoldChange,     # apeglm-shrunk (coherence check)
+    dispersions      = tryCatch(as.numeric(dispersions(dds)),
+                                error = function(e) NA_real_),
+    size_factors     = tryCatch({
+                          sf <- sizeFactors(dds)
+                          if (is.null(sf)) NULL else as.numeric(sf)
+                        }, error = function(e) NULL),
+    filter_threshold = tryCatch(as.numeric(S4Vectors::metadata(res_un)$filterThreshold),
+                                error = function(e) NA_real_),
+    n_tumor          = sum(cd$group == "tumor"),
+    n_normal         = sum(cd$group == "normal"),
+    n_genes_pre      = n_genes_pre,
+    n_genes_post     = n_genes_post
+  )
   out
 }
 
@@ -302,16 +333,32 @@ combat_correct <- function(mat, batch, group, preserve_group = TRUE) {
   list(counts = adj, keep = ok)
 }
 
+# Run the fail-loud output-QC gate (S3a #701) on a completed per-cell fit and
+# stamp the metrics record onto it for the provenance sidecar. Shared by the
+# fresh-fit and cache-reuse paths so a re-run reusing a cached fit is QC'd too
+# (a fit cached before S3a has no qc attr -> the gate skips loudly, never fails
+# open silently). `qc_panel = NULL` disables the marker sign check (cell AG).
+.four_cell_qc_gate <- function(fit, label, flog, qc_panel = NULL,
+                               qc_indication = NULL) {
+  metrics <- four_cell_qc_metrics(attr(fit, "qc"))
+  assert_contrast_qc(fit, metrics, label = label, panel = qc_panel,
+                     indication = qc_indication, emit = flog)
+  attr(fit, "qc_metrics") <- metrics
+  fit
+}
+
 # Run one cell (fit DESeq2 on a sample subset). Parameterised on out_dir / min_n
 # / flog (previously globals inside 06); label-suffixed cache .rds lets a
 # resumed / re-run cohort reuse a completed fit.
 run_cell <- function(label, mat, cd, out_dir, min_n, flog,
-                     combat_batch = NULL, preserve_group = TRUE) {
+                     combat_batch = NULL, preserve_group = TRUE,
+                     qc_panel = NULL, qc_indication = NULL) {
   n_t <- sum(cd$group == "tumor"); n_n <- sum(cd$group == "normal")
   cache_path <- file.path(out_dir, sprintf("_cell_%s.rds", label))
   if (file.exists(cache_path)) {
     flog(sprintf("cell %s: reusing cached fit at %s", label, cache_path))
-    return(readRDS(cache_path))
+    fit <- readRDS(cache_path)
+    return(.four_cell_qc_gate(fit, label, flog, qc_panel, qc_indication))
   }
   if (n_t < min_n || n_n < min_n) {
     flog(sprintf("cell %s SKIPPED (n_tumor=%d, n_normal=%d < %d)",
@@ -332,6 +379,10 @@ run_cell <- function(label, mat, cd, out_dir, min_n, flog,
   names(fit)[names(fit) == "log2FoldChange"] <- paste0("log2fc_", label)
   names(fit)[names(fit) == "padj"]           <- paste0("padj_", label)
   names(fit)[names(fit) == "baseMean"]        <- paste0("baseMean_", label)
+  # Fail loud on a degenerate fit BEFORE it is cached or written downstream — a
+  # stop() here exits the driver non-zero instead of persisting a silent
+  # zero-row / all-NaN / sign-inverted product.
+  fit <- .four_cell_qc_gate(fit, label, flog, qc_panel, qc_indication)
   saveRDS(fit, cache_path)
   flog(sprintf("cell %s: DESeq2 DONE (%d genes, cached at %s)",
                label, nrow(fit), cache_path))
@@ -390,4 +441,268 @@ assemble_sensitivity <- function(cells) {
   sens$max_abs_log2fc <- apply(abs(lfc_mat), 1, max, na.rm = TRUE)
   sens$max_abs_log2fc[!is.finite(sens$max_abs_log2fc)] <- NA_real_
   sens[order(sens$gene_symbol), ]
+}
+
+# ============================================================================
+# Fail-loud output-QC layer (S3a, github analysis-methods#701)
+# ----------------------------------------------------------------------------
+# The R drivers historically only message() counts and NEVER assert, so a
+# degenerate DESeq2 output — a zero-row parquet, the documented SCLC all-NaN
+# A/B cell, a globally sign-inverted (backwards-wired) contrast — writes
+# SILENTLY. This layer stops the run on those degeneracies instead. It is split
+# into two PURE functions (no DESeq2 objects, only the vectors deseq2_fit
+# stashed in attr(fit,"qc")) so both are exercised hermetically by synthetic
+# fixtures, including the load-bearing proof that each assertion actually FIRES
+# on a degenerate input (a QC gate that cannot fail is worse than none).
+
+# Pan-cancer tumor-UP marker panel: genes robustly up-regulated in tumor vs
+# normal across essentially every solid-tumor indication (cell-cycle /
+# proliferation core). Used ONLY as a global-sign-inversion tripwire — NOT to
+# validate biology and NOT applied to the normal-vs-normal cell AG. `+1` == the
+# marker is expected UP in the positive ("tumor") group of a tumor-vs-normal
+# contrast (cells A/B/C sign convention: log2FC > 0 == up in tumor).
+TUMOR_UP_MARKER_PANEL <- c(
+  MKI67 = 1, TOP2A = 1, PCNA = 1, CCNB1 = 1, CCNB2 = 1, CDK1 = 1,
+  BIRC5 = 1, AURKA = 1, BUB1 = 1, CENPF = 1, FOXM1 = 1, UBE2C = 1
+)
+
+# Resolve the known-marker panel for an indication. Today every solid-tumor
+# indication uses the pan-cancer proliferation tripwire; the argument is the
+# hook a future indication-specific panel registers against. Returns a named
+# numeric vector gene_symbol -> expected sign, or NULL to disable the check.
+marker_panel_for <- function(indication = NULL) {
+  TUMOR_UP_MARKER_PANEL
+}
+
+# Default fail-loud thresholds. Exposed as a function so tests can perturb one
+# knob without redefining the rest, and so the drivers document the values in
+# one place. Deliberately LOOSE where healthy biology is variable (a cross-cohort
+# cell C legitimately has abundant DE and large effects) and TIGHT only on the
+# unambiguous degeneracies.
+qc_thresholds <- function() {
+  list(
+    min_rows              = 1L,    # zero-row parquet
+    max_coherence_viol    = 0L,    # finite padj but NA shrunk LFC
+    max_frac_p1_spike     = 0.5,   # >50% of tested genes piled at p>=0.99
+    min_sign_markers      = 3L,    # need >=3 panel markers present to judge sign
+    min_sign_concordance  = 0.5,   # < majority concordant == global inversion
+    n_tested_warn_floor   = 1000L  # SOFT: implausibly few tested genes (warn only)
+  )
+}
+
+# Compute the QC metrics record from the attr(fit,"qc") input list. PURE: takes
+# vectors, returns a summary list — no DESeq2, no I/O. `qc = NULL` (e.g. an
+# old cached fit predating S3a) yields list(available = FALSE); the assertion
+# then skips loudly rather than failing open silently.
+four_cell_qc_metrics <- function(qc) {
+  if (is.null(qc)) return(list(available = FALSE))
+
+  padj <- qc$padj; pval <- qc$pvalue; bm <- qc$baseMean; lfc <- qc$lfc
+  n_genes <- length(padj)
+
+  padj_na <- is.na(padj)
+  pval_na <- is.na(pval)
+
+  # padj=NA taxonomy — three DISJOINT, exhaustive causes (DESeq2 semantics):
+  #   (1) independent filtering: gene WAS tested (pvalue present) but its low
+  #       baseMean fell below the optimized filter, so padj is set NA.
+  #   (2) all-zero / failed fit:  baseMean 0 (or NA) -> never fit, pvalue NA.
+  #   (3) Cook's-distance outlier: baseMean > 0 (was fit) but an extreme count
+  #       flagged the gene, so DESeq2 dropped its pvalue -> padj NA.
+  na_indep_filter <- sum(padj_na & !pval_na)
+  na_allzero      <- sum(padj_na & pval_na & (is.na(bm) | bm == 0))
+  na_cooks        <- sum(padj_na & pval_na & !is.na(bm) & bm > 0)
+  na_total        <- sum(padj_na)
+  # Self-consistency of the partition (guards a future DESeq2 semantics change).
+  na_taxonomy_exhaustive <- (na_indep_filter + na_allzero + na_cooks) == na_total
+
+  n_tested <- sum(!pval_na)
+  n_sig    <- sum(!padj_na & padj < 0.05)
+
+  # padj/LFC coherence: padj comes from the UNSHRUNK res_un, log2FC from the
+  # apeglm-shrunk res. A gene tested to a finite padj must carry a finite shrunk
+  # LFC; finite-padj-with-NA-LFC is an incoherent pairing (a real defect). The
+  # reverse (NA padj, finite LFC) is EXPECTED — filtered genes still get a shrunk
+  # estimate — so it is recorded but not asserted.
+  finite_padj      <- !padj_na
+  n_finite_padj_na_lfc <- sum(finite_padj & is.na(lfc))
+
+  # p-value histogram: the informative pathologies are a p=1 SPIKE (broken null /
+  # all-outlier fit) and a CONSERVATIVE HUMP (over-dispersion). A blanket KS test
+  # is anti-conservative when DE is abundant, so it is deliberately NOT used.
+  pv <- pval[!pval_na]
+  frac_p1_spike <- if (length(pv)) mean(pv >= 0.99) else NA_real_
+  frac_p_exact1 <- if (length(pv)) mean(pv == 1)    else NA_real_
+  # hump ratio: high-tail density [0.9,1] relative to mid density [0.4,0.6].
+  mid  <- if (length(pv)) mean(pv >= 0.4 & pv <= 0.6) else NA_real_
+  high <- if (length(pv)) mean(pv >= 0.9)             else NA_real_
+  hump_ratio <- if (isTRUE(mid > 0)) high / mid else NA_real_
+
+  disp <- qc$dispersions
+  frac_disp_na <- if (length(disp)) mean(is.na(disp)) else NA_real_
+  all_disp_na  <- length(disp) > 0 && all(is.na(disp))
+  max_disp     <- if (length(disp) && any(!is.na(disp))) max(disp, na.rm = TRUE) else NA_real_
+
+  sf <- qc$size_factors
+  sf_available <- !is.null(sf) && length(sf) > 0
+  sf_nonfinite <- sf_available && any(!is.finite(sf))
+  sf_nonpos    <- sf_available && any(sf[is.finite(sf)] <= 0)
+  sf_range_ratio <- if (sf_available && any(is.finite(sf)) &&
+                        min(sf[is.finite(sf)]) > 0)
+                      max(sf[is.finite(sf)]) / min(sf[is.finite(sf)]) else NA_real_
+
+  list(
+    available              = TRUE,
+    n_genes                = n_genes,
+    n_tested               = n_tested,
+    n_sig                  = n_sig,
+    na_total               = na_total,
+    na_indep_filter        = na_indep_filter,
+    na_allzero             = na_allzero,
+    na_cooks               = na_cooks,
+    na_taxonomy_exhaustive = na_taxonomy_exhaustive,
+    frac_padj_na           = if (n_genes) na_total / n_genes else NA_real_,
+    all_padj_na            = n_genes > 0 && na_total == n_genes,
+    all_lfc_na             = length(lfc) > 0 && all(is.na(lfc)),
+    n_finite_padj_na_lfc   = n_finite_padj_na_lfc,
+    frac_p1_spike          = frac_p1_spike,
+    frac_p_exact1          = frac_p_exact1,
+    hump_ratio             = hump_ratio,
+    frac_disp_na           = frac_disp_na,
+    all_disp_na            = all_disp_na,
+    max_disp               = max_disp,
+    sf_available           = sf_available,
+    sf_nonfinite           = sf_nonfinite,
+    sf_nonpos              = sf_nonpos,
+    sf_range_ratio         = sf_range_ratio,
+    n_tumor                = qc$n_tumor,
+    n_normal               = qc$n_normal,
+    n_genes_pre            = qc$n_genes_pre,
+    n_genes_post           = qc$n_genes_post,
+    filter_threshold       = qc$filter_threshold
+  )
+}
+
+# Fail loud on a degenerate contrast. `fit` is the per-cell tidy frame (used for
+# the row-count + required-column schema check and the per-gene sign panel);
+# `metrics` is the four_cell_qc_metrics() record; `label` names the cell (A/B/C/
+# AG); `panel` is a gene->sign vector or NULL (NULL disables the sign check, as
+# for the normal-vs-normal cell AG). Raises via stop() — an unhandled stop() in a
+# driver exits non-zero, which is exactly "the run stops instead of writing
+# silently". Returns invisibly TRUE when all checks pass, FALSE when QC was
+# skipped (no inputs). The FATAL set is deliberately narrow: only the unambiguous
+# degeneracies the issue enumerates; the softer signals (NA taxonomy breakdown,
+# dispersion pile, conservative hump, n-tested band) are reported, not enforced.
+assert_contrast_qc <- function(fit, metrics, label = "", panel = NULL,
+                               indication = NULL, thresholds = qc_thresholds(),
+                               emit = message) {
+  tag  <- sprintf("[qc:%s]", label)
+  fail <- function(...) stop(tag, " FAIL-LOUD output-QC: ", ..., call. = FALSE)
+
+  if (isFALSE(metrics$available)) {
+    emit(paste0(tag, " no QC inputs on this fit (a cache predating S3a?) — QC ",
+                "SKIPPED; rerun without the _cell_*.rds cache to QC it"))
+    return(invisible(FALSE))
+  }
+
+  # (1) row-count > 0 + schema / required columns.
+  if (nrow(fit) < thresholds$min_rows) {
+    fail(sprintf("%d rows (< %d) — a zero-row / empty-result contrast",
+                 nrow(fit), thresholds$min_rows))
+  }
+  required <- c("gene_symbol", paste0("log2fc_", label),
+                paste0("padj_", label), paste0("baseMean_", label))
+  missing_cols <- setdiff(required, names(fit))
+  if (length(missing_cols)) {
+    fail("missing required column(s): ", paste(missing_cols, collapse = ", "))
+  }
+
+  # (2) all-NaN cell (the documented SCLC A/B degeneracy) — nothing usable.
+  if (metrics$n_tested == 0) {
+    fail("0 of ", metrics$n_genes, " genes were tested (every p-value NA) — ",
+         "the all-NaN cell degeneracy")
+  }
+  if (isTRUE(metrics$all_padj_na)) {
+    fail("every gene has padj=NA — all-NaN cell (no significant-call is possible)")
+  }
+  if (isTRUE(metrics$all_lfc_na)) {
+    fail("every gene has NA shrunk log2FC — apeglm shrinkage failed globally")
+  }
+
+  # (3) padj/LFC coherence.
+  if (metrics$n_finite_padj_na_lfc > thresholds$max_coherence_viol) {
+    fail(sprintf(paste0("%d genes have a finite padj but NA shrunk log2FC — ",
+                        "padj(res_un) / LFC(apeglm) incoherence"),
+                 metrics$n_finite_padj_na_lfc))
+  }
+
+  # (4) dispersion-fit health (fatal only on a wholesale failure).
+  if (isTRUE(metrics$all_disp_na)) {
+    fail("all gene-wise dispersions are NA — the dispersion fit failed")
+  }
+
+  # (5) size-factor sanity (poscounts): a factor must be finite and > 0.
+  if (isTRUE(metrics$sf_available) && (metrics$sf_nonfinite || metrics$sf_nonpos)) {
+    fail("non-finite or non-positive poscounts size factor(s) — normalization failed")
+  }
+
+  # (6) p-value histogram: a pathological p=1 spike (NOT a KS test).
+  if (isTRUE(is.finite(metrics$frac_p1_spike)) &&
+      metrics$frac_p1_spike > thresholds$max_frac_p1_spike) {
+    fail(sprintf(paste0("p-value spike: %.0f%% of %d tested genes at p>=0.99 ",
+                        "(> %.0f%%) — pathological null / broken fit"),
+                 100 * metrics$frac_p1_spike, metrics$n_tested,
+                 100 * thresholds$max_frac_p1_spike))
+  }
+
+  # (7) sign sanity vs a per-indication known-marker panel (NOT a global stat).
+  #     Guards a globally sign-inverted contrast. Skipped when the panel is NULL
+  #     (cell AG) or too few markers survived the prefilter to judge.
+  if (!is.null(panel) && length(panel)) {
+    lfc_col <- paste0("log2fc_", label)
+    present <- intersect(names(panel), fit$gene_symbol)
+    if (length(present)) {
+      lfcv <- fit[[lfc_col]][match(present, fit$gene_symbol)]
+      keep <- is.finite(lfcv)
+      present <- present[keep]; lfcv <- lfcv[keep]
+    }
+    if (length(present) >= thresholds$min_sign_markers) {
+      concordance <- mean(sign(lfcv) == sign(panel[present]))
+      if (concordance < thresholds$min_sign_concordance) {
+        fail(sprintf(paste0("known-marker sign concordance %.2f (< %.2f) over %d ",
+                            "markers {%s} — likely a GLOBAL SIGN INVERSION ",
+                            "(contrast wired backwards)"),
+                     concordance, thresholds$min_sign_concordance,
+                     length(present), paste(present, collapse = ",")))
+      }
+    } else {
+      emit(sprintf(paste0("%s sign panel: only %d marker(s) present (< %d) — ",
+                          "sign check skipped"),
+                   tag, length(present), thresholds$min_sign_markers))
+    }
+  }
+
+  # Non-fatal reporting of the softer signals (visible in the run log / prov).
+  if (!isTRUE(metrics$na_taxonomy_exhaustive)) {
+    emit(sprintf(paste0("%s WARN: padj=NA taxonomy does not partition ",
+                        "exhaustively (indep=%d allzero=%d cooks=%d total=%d) ",
+                        "— DESeq2 NA semantics may have changed"),
+                 tag, metrics$na_indep_filter, metrics$na_allzero,
+                 metrics$na_cooks, metrics$na_total))
+  }
+  if (isTRUE(metrics$n_tested < thresholds$n_tested_warn_floor)) {
+    emit(sprintf(paste0("%s WARN: only %d genes tested (< %d) post-prefilter ",
+                        "— unusually thin for a bulk cohort"),
+                 tag, metrics$n_tested, thresholds$n_tested_warn_floor))
+  }
+  emit(sprintf(paste0("%s QC OK: %d genes | %d tested | %d sig(padj<0.05) | ",
+                      "padj=NA %d (indep %d / cooks %d / allzero %d) | ",
+                      "p>=0.99 %.1f%% | n_tumor %d n_normal %d"),
+               tag, metrics$n_genes, metrics$n_tested, metrics$n_sig,
+               metrics$na_total, metrics$na_indep_filter, metrics$na_cooks,
+               metrics$na_allzero,
+               100 * (if (is.finite(metrics$frac_p1_spike)) metrics$frac_p1_spike else 0),
+               as.integer(metrics$n_tumor %||% -1L),
+               as.integer(metrics$n_normal %||% -1L)))
+  invisible(TRUE)
 }

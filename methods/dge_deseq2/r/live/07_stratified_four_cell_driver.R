@@ -74,6 +74,13 @@ coldata <- dat$coldata
 min_n   <- opts$`min-normals`
 strata  <- trimws(strsplit(opts$strata, ",")[[1]])
 
+# Fail-loud output-QC panel (S3a #701): the same pan-cancer tumor-UP
+# global-sign-inversion tripwire the whole-cohort driver (06) uses. Cells A/B/C
+# are tumor-vs-normal here too (only the tumor arm is subset per stratum), so
+# the panel applies unchanged per stratum.
+qc_indication <- dat$metadata$tcga_studies
+tumor_panel   <- marker_panel_for(qc_indication)
+
 if (!"submitter_id" %in% names(coldata)) {
   stop("bundle coldata has no `submitter_id` column — re-run 00_load_recount3.R ",
        "with the 2026-08-18 patient-barcode patch before stratifying.")
@@ -145,19 +152,22 @@ run_stratum <- function(stratum) {
   cellA <- cellB <- cellC <- NULL
   if (length(adjacent_ids) >= min_n) {
     ids <- c(strat_tumor_ids, adjacent_ids)
-    cellA <- run_cell("A", counts[, ids], coldata[ids, ], strat_dir, min_n, flog)
+    cellA <- run_cell("A", counts[, ids], coldata[ids, ], strat_dir, min_n, flog,
+                      qc_panel = tumor_panel, qc_indication = qc_indication)
     if (Sys.getenv("SKIP_CELL_B") == "1") {
       flog(sprintf("stratum %s: cell B SKIPPED (SKIP_CELL_B=1)", stratum))
     } else {
       cellB <- run_cell("B", counts[, ids], coldata[ids, ], strat_dir, min_n, flog,
-                        combat_batch = "tcga_tss")
+                        combat_batch = "tcga_tss",
+                        qc_panel = tumor_panel, qc_indication = qc_indication)
     }
   } else {
     flog(sprintf("stratum %s: cells A/B SKIPPED — TCGA adjacent < %d", stratum, min_n))
   }
   if (length(gtex_ids) >= min_n) {
     ids <- c(strat_tumor_ids, gtex_ids)
-    cellC <- run_cell("C", counts[, ids], coldata[ids, ], strat_dir, min_n, flog)
+    cellC <- run_cell("C", counts[, ids], coldata[ids, ], strat_dir, min_n, flog,
+                      qc_panel = tumor_panel, qc_indication = qc_indication)
   } else {
     flog(sprintf("stratum %s: cell C SKIPPED — GTEx normal < %d", stratum, min_n))
   }
