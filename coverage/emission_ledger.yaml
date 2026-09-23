@@ -23,7 +23,7 @@ counts:
   pairs: 286
   out_of_vocab: 0
   never_observed_pairs: 8
-  dead_tokens: 344
+  dead_tokens: 349
 ungated_absences:
   "orphan: declared on no field \u2014 already gated by validate_cards":
   - functional-gene-state::sample_state
@@ -31,10 +31,10 @@ ungated_absences:
   - prism-compound-activity::metric_source
   - variant-level-interpretation::resistance_class
 known_out_of_vocab:
-  as_of: '2026-09-21'
+  as_of: '2026-09-23'
   keys: []
 known_never_observed:
-  as_of: '2026-09-21'
+  as_of: '2026-09-23'
   keys:
   - antigen-internalization::internalization_class
   - antigen-internalization::internalization_evidence_tier
@@ -1252,6 +1252,7 @@ by_card:
       - mixed
       - recurrently_amplified
       - recurrently_deleted
+      - underpowered
       observed:
         recurrently_deleted: 296
         broadly_neutral: 183
@@ -1264,6 +1265,7 @@ by_card:
       out_of_vocab: []
       never_emitted:
       - mixed
+      - underpowered
       top: recurrently_deleted
       saturation: 0.5873
     patient_copy_number_class:
@@ -1276,6 +1278,7 @@ by_card:
       - mixed
       - recurrently_amplified
       - recurrently_deleted
+      - underpowered
       observed:
         recurrently_amplified: 137
         recurrently_deleted: 135
@@ -1287,7 +1290,8 @@ by_card:
       n_absent: 0
       n_packages_with_card: 504
       out_of_vocab: []
-      never_emitted: []
+      never_emitted:
+      - underpowered
       top: recurrently_amplified
       saturation: 0.2718
     patient_focal_cn_class:
@@ -1299,6 +1303,7 @@ by_card:
       - focal_neutral
       - recurrent_focal_amplification
       - recurrent_focal_deletion
+      - underpowered
       observed:
         focal_neutral: 381
         data_unavailable: 97
@@ -1309,7 +1314,8 @@ by_card:
       n_absent: 0
       n_packages_with_card: 504
       out_of_vocab: []
-      never_emitted: []
+      never_emitted:
+      - underpowered
       top: focal_neutral
       saturation: 0.756
   copy-number-stratified-dependency:
@@ -1996,6 +2002,7 @@ by_card:
       - promiscuous_amplicon_fusion
       - recurrent_fusion_driver
       - sporadic_fusion
+      - underpowered
       observed:
         no_recurrent_fusion: 358
         sporadic_fusion: 84
@@ -2007,7 +2014,8 @@ by_card:
       n_absent: 0
       n_packages_with_card: 476
       out_of_vocab: []
-      never_emitted: []
+      never_emitted:
+      - underpowered
       top: no_recurrent_fusion
       saturation: 0.7521
     fusion_recurrence_confidence:
@@ -3143,6 +3151,7 @@ by_card:
       - missense_dominant
       - mixed
       - no_mutations
+      - underpowered
       observed:
         missense_dominant: 377
         mixed: 81
@@ -3155,6 +3164,7 @@ by_card:
       out_of_vocab: []
       never_emitted:
       - data_unavailable
+      - underpowered
       top: missense_dominant
       saturation: 0.748
   mutational-signature-context:

@@ -64,7 +64,12 @@
 # data_unavailable (rule: cn-data-unavailable-insufficient).
 
 card_id: copy-number-distribution
-version: 1.5.0    # 1.5.0 (2026-09-23): + `underpowered` copy_number_class value (PR-C2 genomic n-honesty vertical) — a
+version: 1.5.1    # 1.5.1 (2026-09-23): + `underpowered` patient_copy_number_class + patient_focal_cn_class values
+                  # (PR-C3 companion, genomic n-honesty vertical) — the patient-CN cross-check reaches the same
+                  # coverage-gap floor as the cell-line class. Vocab-only: both fields' existing rules are
+                  # equals-only positive matches, so an unmatched value already fails safe (no new rule needed).
+                  # Emitted by tcga_patient_cn's _classify/_focal_class power floor (n_samples<20) in PR-C3.
+                  # 1.5.0 (2026-09-23): + `underpowered` copy_number_class value (PR-C2 genomic n-honesty vertical) — a
                   # coverage GAP (classifier looked but too few CN-covered samples cleared the recurrence power floor),
                   # distinct from data_unavailable (could-not-look). Consumed by cn-data-unavailable-insufficient's
                   # widened matcher so it reads insufficient, never a driver/passenger. Emitted by the _classify_cn
@@ -194,11 +199,13 @@ outputs:
       - mixed                            # both recurrent, neither dominates by 1.5x
       - broadly_neutral                  # neither recurrent
       - data_unavailable                 # gene absent from GISTIC or no TCGA-mapped cohort for the indication
+      - underpowered                     # classifier LOOKED but too few GISTIC-covered samples cleared the recurrence power floor (< 20 samples) — a coverage GAP (looked-but-too-thin), NOT a measured-negative. Fires no rule (display cross-check); emitted by _classify below its power floor (PR-C3).
     patient_focal_cn_class:              # FOCAL gate — the CN-CONSENSUS VERDICT input (high-level +2 / homdel -2 only)
       - recurrent_focal_amplification    # high-level (+2) in >=10% of tumours — focal oncogene amp (drives verdict)
       - recurrent_focal_deletion         # homdel (-2) in >=10% — focal TSG loss (drives verdict)
       - focal_neutral                    # no recurrent FOCAL event (arm-level any-gain lands here — verdict-safe)
       - data_unavailable                 # gene absent from GISTIC or no TCGA-mapped cohort for the indication
+      - underpowered                     # classifier LOOKED but too few GISTIC-covered samples cleared the recurrence power floor (< 20 samples) — a coverage GAP, NOT a measured-negative. Unmatched by cn-patient-focal-{amplified,deleted}-supportive (equals-only), so it never fires the CN-consensus rescue — same fail-safe effect as focal_neutral. Emitted by _focal_class below its power floor (PR-C3).
     cn_assay_used:
       - wes
       - wgs

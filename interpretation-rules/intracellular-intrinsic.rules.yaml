@@ -1257,6 +1257,22 @@ rules:
       Other evidence threads (dependency, expression, copy number) carry the
       call; this card adds no signal.
 
+  - rule_id: mut-underpowered-insufficient
+    when:
+      card_id: mutation-type-counts
+      field: mutation_landscape_class
+      equals: underpowered
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      1-4 cell lines mutated (too few to characterize a variant-class pattern), or mutated cell
+      lines exist but carry zero coding variants (no missense/LOF/inframe signal at all). A
+      coverage GAP distinct from no_mutations (0 mutated — a genuine measured negative) and from
+      mixed (a real dual-signal coding-variant profile); reads as unmeasured, never a neutral
+      call via a false 'mixed' or a measured-negative call via a false 'no_mutations' (PR-C3 of
+      the genomic n-honesty vertical, mirrors fusion-underpowered-insufficient).
+
   - rule_id: mut-data-unavailable-insufficient
     when:
       card_id: mutation-type-counts

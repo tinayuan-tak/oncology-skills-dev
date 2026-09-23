@@ -20,7 +20,14 @@
 # highest-impact class per VEP severity ranking.
 
 card_id: mutation-type-counts
-version: 1.0.0
+version: 1.1.0    # 1.1.0 (2026-09-23): + `underpowered` mutation_landscape_class value (PR-C3 companion, genomic
+                  # n-honesty vertical) — a coverage GAP distinct from both no_mutations (n_mutated==0, a genuine
+                  # measured negative) and mixed (a real dual-signal coding-variant profile). Emitted when 1-4
+                  # cell lines are mutated (too few to characterize a pattern) or when mutated cell lines exist
+                  # but carry zero CODING variants (no missense/LOF/inframe signal to classify at all — the
+                  # previous code called this "mixed", which wrongly implied a measured dual-role signal).
+                  # Consumed by the new mut-underpowered-insufficient rule so it reads insufficient, never
+                  # neutral-via-false-mixed or a measured negative-via-false-no_mutations.
 question: "Across DepMap cell lines, what kinds of mutations does {target.symbol} carry — missense-dominant (oncogene pattern), LOF-dominant (tumor-suppressor pattern), mixed, or no mutations?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
@@ -80,7 +87,8 @@ outputs:
       - missense_dominant                   # oncogene pattern; ≥70% missense among coding variants
       - lof_dominant                        # tumor-suppressor pattern; ≥50% nonsense+frameshift+splice
       - mixed                               # neither single class dominates (dual-role genes)
-      - no_mutations                        # <5 cell lines mutated; insufficient signal
+      - no_mutations                        # 0 cell lines mutated — a genuine measured negative
+      - underpowered                        # 1-4 cell lines mutated, or mutated but zero coding variants — too thin to characterize a pattern (coverage gap, NOT a measured negative or a real mixed signal)
       - data_unavailable                    # MAF unreachable or target absent
     mut_dominant_mutation_class:
       - missense
@@ -120,7 +128,7 @@ warning_predicates:
     message: "MAF panel covers fewer than 1000 cell lines — mutation-rate estimate may be biased."
   - warning_id: very_rare_mutation
     if: "mut_n_cell_lines_mutated < THRESHOLD.min_mutated_cell_lines"
-    message: "Fewer than 5 cell lines mutated — classification deferred to 'no_mutations'. Read other evidence threads instead."
+    message: "Fewer than 5 cell lines mutated — classification deferred to 'no_mutations' (0) or 'underpowered' (1-4). Read other evidence threads instead."
 
 caveats:
   - "Variant-class counts use the Ensembl VEP sequence-ontology terminology (missense_variant, stop_gained, frameshift_variant, splice_acceptor_variant, etc.). Compound VEP annotations (e.g. 'stop_gained&frameshift_variant') are resolved to the highest-impact class."

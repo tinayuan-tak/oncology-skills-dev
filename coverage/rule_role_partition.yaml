@@ -12,9 +12,9 @@ attribution_keypaths:
 - post_resolver_clamp/modality_conditional/expected_inert_arms/[]/rule_id
 - resolve/[]/driving_rule
 counts:
-  total: 440
+  total: 441
   gating: 145
-  display: 295
+  display: 296
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -287,6 +287,7 @@ display:
 - mouse-ko-developmental-only-neutral
 - multi-pass-tce-concern
 - mut-data-unavailable-insufficient
+- mut-underpowered-insufficient
 - mutant-up-surface-antigen-supportive
 - mutation-drug-response-data-unavailable-insufficient
 - mutation-drug-response-insufficient
