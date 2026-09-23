@@ -49,7 +49,7 @@ _ARM_SITES: dict[str, int] = {
 # widening one requires its card to be widened FIRST, in target-contracts, in its own PR.
 _NARROW_ENUM_SITES: dict[str, int] = {
     "methods/depmap_chronos/read.py": 1,
-    "methods/dge_deseq2/read.py": 1,
+    "methods/dge_deseq2/read/__init__.py": 1,
     "methods/gdc_somatic_hotspot/read.py": 1,
     "methods/tcga_fusion_consensus/stratified.py": 1,
     "methods/tcga_patient_cn/stratified.py": 1,

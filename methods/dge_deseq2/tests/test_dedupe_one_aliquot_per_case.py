@@ -1,6 +1,6 @@
 """One-aliquot-per-case dedup (S-fix, github analysis-methods#691).
 
-`dedupe_one_aliquot_per_case()` in `steps/_four_cell_lib.R` restores the dedup the legacy
+`dedupe_one_aliquot_per_case()` in `r/live/_four_cell_lib.R` restores the dedup the legacy
 loader had (00_load_counts.R:127-158) but the two PRODUCTION loaders (00_load_recount3.R,
 00_load_xena_toil.R) lost: a case (patient) contributing more than one file/sample within a
 single group violates DESeq2's per-sample independence and inflates significance
@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 METHODS_REPO = Path(__file__).resolve().parents[3]
-LIB_PATH = METHODS_REPO / "methods" / "dge_deseq2" / "steps" / "_four_cell_lib.R"
+LIB_PATH = METHODS_REPO / "methods" / "dge_deseq2" / "r" / "live" / "_four_cell_lib.R"
 
 
 def _resolve_rscript() -> str | None:

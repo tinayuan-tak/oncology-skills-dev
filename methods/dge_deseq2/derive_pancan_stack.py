@@ -283,7 +283,7 @@ def write_stack(out_path: Path, indications: list[str] | None = None) -> dict:
 # magnitude >=1.0, and NOT discordant.
 #
 # M2 FIX (2026-08-15): the magnitude gate previously read the `max_abs_log2fc` column, but that column
-# is built in steps/06_four_cell_driver.R as apply(abs(lfc_mat),1,max) over ALL ran cells INCLUDING
+# is built in r/live/06_four_cell_driver.R as apply(abs(lfc_mat),1,max) over ALL ran cells INCLUDING
 # cell B — so the "NEVER uses cell B" guarantee above was silently violated: a gene elevated only via
 # an inflated/sign-flipped ComBat cell B (the documented GAPDH COADREAD B=4.8 vs A=1.0/C=1.5 pattern)
 # scored as tumor-elevated. The gate now recomputes magnitude from cells A + C ONLY

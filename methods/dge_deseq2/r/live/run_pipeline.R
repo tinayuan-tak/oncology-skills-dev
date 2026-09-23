@@ -1,8 +1,9 @@
 #!/usr/bin/env Rscript
-# run_pipeline.R — chain stages 00 → 05 in order, with intermediate .rds in tmp/.
-#
-# This is a thin wrapper. Each stage is independently runnable (see batch/expression_rna_COADREAD/README.md);
-# this just spares you typing the chain by hand for an end-to-end run.
+# run_pipeline.R — lives in r/live/ alongside the production recount3 loader + four-cell
+# drivers. Each --contrast is independently runnable (see methods/dge_deseq2/README.md);
+# this just spares you typing the chain by hand for an end-to-end run. --contrast
+# tumor_vs_adjacent reaches into ../legacy/ for the quarantined single-cell GDC-STAR chain
+# (00_load_counts.R + 01-05) — see r/legacy/README.md for why that chain is kept at all.
 #
 # Usage:
 #   Rscript run_pipeline.R --config configs/COADREAD.yaml \
@@ -119,37 +120,41 @@ if (identical(opts$contrast, "four_cell_sensitivity_by_subgroup")) {
 }
 
 # === tumor_vs_adjacent (legacy GDC-STAR chain) ==============================
+# Quarantined under ../legacy/ (analysis-methods#692, S0): no production caller uses this
+# contrast anymore (four_cell_sensitivity/recount3 is the live path above), but the R4
+# byte-identity gate (tests/test_byte_identity_vs_legacy_coadread.py) still exercises it as a
+# historical-parity check, so the chain itself is kept runnable, just relocated.
 stopifnot(!is.null(opts$`parquet-uri`))
 
-run("00_load_counts.R", c(
+run("../legacy/00_load_counts.R", c(
   paste0("--config=",       shQuote(opts$config)),
   paste0("--catalog-repo=", shQuote(opts$`catalog-repo`)),
   paste0("--out=",          shQuote(f("00_counts.rds")))
 ))
 
-run("01_build_design.R", c(
+run("../legacy/01_build_design.R", c(
   paste0("--counts=", shQuote(f("00_counts.rds"))),
   paste0("--out=",    shQuote(f("01_design.rds"))),
   if (isTRUE(opts$`joint-gtex`)) "--joint-gtex" else ""
 ))
 
-run("02_combat_seq.R", c(
+run("../legacy/02_combat_seq.R", c(
   paste0("--in=",  shQuote(f("01_design.rds"))),
   paste0("--out=", shQuote(f("02_corrected.rds")))
 ))
 
-run("03_deseq2.R", c(
+run("../legacy/03_deseq2.R", c(
   paste0("--in=",      shQuote(f("02_corrected.rds"))),
   paste0("--out=",     shQuote(f("03_deseq2.rds"))),
   paste0("--threads=", opts$threads)
 ))
 
-run("04_write_parquet.R", c(
+run("../legacy/04_write_parquet.R", c(
   paste0("--in=",  shQuote(f("03_deseq2.rds"))),
   paste0("--out=", shQuote(opts$`parquet-uri`))
 ))
 
-run("05_provenance.R", c(
+run("../legacy/05_provenance.R", c(
   paste0("--in=",            shQuote(f("03_deseq2.rds"))),
   paste0("--config=",        shQuote(opts$config)),
   paste0("--git-sha=",       shQuote(opts$`git-sha`)),

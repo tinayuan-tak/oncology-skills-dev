@@ -69,7 +69,7 @@ def test_empty_or_none_row_is_single_comparator():
 def test_field_wired_into_selectivity_summary_shape():
     """The reader's summary dict must carry comparator_concordance (both v3 + v2 paths add it).
     We can't hit S3 here, but we can assert the classifier is referenced in the return assembly."""
-    src = (REPO / "methods" / "dge_deseq2" / "read.py").read_text()
+    src = (REPO / "methods" / "dge_deseq2" / "read" / "__init__.py").read_text()
     assert src.count('"comparator_concordance"') >= 2, (
         "comparator_concordance must be emitted in BOTH the v3 primary and v2 fallback returns"
     )

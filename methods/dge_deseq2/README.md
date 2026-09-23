@@ -1,78 +1,124 @@
-# `batch/expression_rna_COADREAD/` — global COADREAD (CRC) tumor-vs-normal DGE pipeline (R)
+# `dge_deseq2` — TCGA/GTEx tumor-vs-normal DESeq2
 
-Pure-R Bioconductor pipeline that computes the global COADREAD (combined TCGA-COAD + TCGA-READ; OncoTree code COADREAD; common name "colorectal cancer / CRC") differential expression once across all ~18K genes and writes a Parquet artifact for sub-second per-gene retrieval downstream.
+DESeq2-based differential-gene-expression method for the RNA-seq tumor-vs-normal diagnostic.
+Part of the `dge_deseq2` modernization arc
+(analysis-methods [#690](https://github.com/oneTakeda/rnd-computational-biology-oncology-analysis-methods/issues/690));
+this file describes the module as it stands after S0
+([#692](https://github.com/oneTakeda/rnd-computational-biology-oncology-analysis-methods/issues/692)).
 
-> **TODO (deep-research finding from `wf_9cf5659f-2e0`, 2026-06-15):** The runbook now mandates a **sensitivity-analysis discipline for the joint TCGA + GTEx regime** — when joint analysis is used (typically when adjacent-normal n < 30 for an indication), the pipeline must run **four DESeq2 cells**: {with, without} ComBat-seq class covariates × {TCGA-adjacent-only, joint with GTEx}, and emit a `sensitivity.parquet` matrix in addition to the primary results. The current pipeline below is the **single-cell** version; the four-cell variant becomes the default for the joint regime once `00_load_counts.R`'s source-specific loader is implemented (loader is currently a stub awaiting GDC + recount3 mirror availability). Rationale: per Sorokin/Buzdin 2023 (PMC10448432), TCGA-adjacent has field-effect signatures; per Hui/Goh 2024 (PMC11471903), class-covariate inclusion in ComBat when batch is confounded with biology inflates p-values. Neither comparator is clean; reporting only genes that survive all four cells is the high-confidence answer. See [runbook §"Decisions carried into implementation"](https://github.com/takoncoder/personal-notes/blob/main/strategy/oncology-platform-implementation-runbook.md) for the full rationale.
+## The live design: a three-cell sensitivity grid
 
-## The pipeline
+The production pipeline runs up to three DESeq2 contrasts ("cells") per indication, all from
+the SAME loaded substrate, so a gene's call can be checked for robustness across comparator
+type and batch-correction choice:
+
+| cell | contrast | correction | status |
+|------|----------|------------|--------|
+| A | TCGA tumor vs TCGA adjacent-normal | raw | live |
+| B | TCGA tumor vs TCGA adjacent-normal | ComBat-seq (TSS covariate) | live, de-weighted (see `read/`) |
+| C | TCGA tumor vs GTEx normal (population) | raw | live |
+| D | TCGA tumor vs GTEx normal (joint, ComBat source-correction) | — | **retired** |
+| Cr | RUVg-corrected re-run | — | diagnostic-only, `method_development/` |
+
+Cell A is the trust anchor; cell C is the population-normal cross-check; cell B corroborates
+direction but is excluded from the magnitude gate (ComBat inflates/sign-flips log2FC for some
+genes — see the calibration notes in `read/__init__.py`). Cell D was retired for carrying an
+unresolved platform/batch confound between the two comparator families; it is no longer
+computed. `cells_ran` / `comparator_families_ran` on the emitted `sensitivity.parquet`
+records which cells actually ran for a given indication (adjacent-normal is absent for
+ACC/LGG/OV/SKCM/TGCT/UCS/SCLC, so those read cell C alone).
+
+Not all ~30 TCGA indications are wired yet, and not every wired indication has both an
+adjacent-normal and a GTEx arm — see analysis-methods#690 for the indication-coverage roadmap
+(S1) and the planned adjacent-vs-GTEx diagnostic contrast (S2).
+
+## Substrates
+
+- **recount3** (`r/live/00_load_recount3.R`) — the production substrate. TCGA + GTEx counts
+  uniformly reprocessed by one Monorail pipeline on GENCODE v26, so cells A/B/C above are
+  internally comparable (see `read/__init__.py`'s substrate-provenance helpers, which derive
+  this from the product manifest rather than an indication list).
+- **Xena/Toil** (`r/legacy/00_load_xena_toil.R`) — a second, independent count substrate
+  (UCSC Toil recompute, GENCODE v23) for a cross-substrate reproducibility check. **Currently
+  dev-only and unwired** — no production CLI path calls it; it lives under `r/legacy/`
+  because it isn't part of the live pipeline today, not because it's being retired. Promoting
+  it to its own catalogued secondary-substrate data-package (with the same one-aliquot-per-case
+  dedup discipline as recount3) is analysis-methods#694 (S1b). See `r/legacy/README.md`.
+
+## Directory layout
 
 ```
-00_load_counts.R       Load raw integer counts (cohort + matched normal).
-                       Resolves source via configs/COADREAD.yaml `source.manifest_id`
-                       (data-catalog manifest — gives the s3_uri to read from).
-01_build_design.R      Construct the design matrix: tumor/normal label, batch
-                       (TCGA-vs-GTEx if joint), CMS subtype if available.
-02_combat_seq.R        ComBat-seq batch correction on raw counts (sva package).
-                       Writes adjusted counts; the original counts also kept.
-03_deseq2.R            DESeq2 NB GLM, Wald test, lfcShrink with apeglm.
-                       Tier-1 BH-FDR genome-wide. Independent filtering on baseMean.
-04_write_parquet.R     Convert DESeq2 results to a tidy Parquet (one row per gene,
-                       columns: gene_symbol, log2fc, lfcSE, pvalue, padj, baseMean,
-                       n_tumor, n_normal, …). Sorted by gene_symbol so per-gene
-                       predicate-pushdown reads are sub-second.
-05_provenance.R        Write provenance.yaml: DESeq2 version, sva version,
-                       design formula, parameter hash, git commit, source
-                       catalog_refs, Bioconductor release.
+dge_deseq2/
+  __init__.py          public API — re-exports the read/-side functions consumers import
+  cli.py                Python CLI wrapping the R pipeline (Rscript r/live/run_pipeline.R)
+  emit.py, emit_pan_tissue.py, figures.py   matplotlib/plotly figure emitters (no R dependency)
+  gene_lengths.py       Gencode v26 gene-length loader (TPM normalization)
+  derive_pancan_stack.py
+  read/                 read-side package — Parquet readers consumed by compose-dashboard,
+                        notebooks, and other methods. `from .read import ...` in __init__.py
+                        and `from methods.dge_deseq2 import read` elsewhere both still resolve
+                        every current name (including the private helpers several tests reach
+                        into directly) — this stage only wraps the module in a package so a
+                        future secondary-substrate reader (S1b) has somewhere to live alongside
+                        it; it does not yet split the file's contents.
+  r/
+    live/                production R pipeline: 00_load_recount3.R (loader) →
+                          06_four_cell_driver.R (whole-cohort) /
+                          07_stratified_four_cell_driver.R (per-subgroup),
+                          both sourcing _four_cell_lib.R; run_pipeline.R chains them.
+    legacy/               quarantined — see r/legacy/README.md. Not called by anything in
+                          r/live/ or by cli.py's default path.
+  method_development/    ad-hoc calibration / reimplementation scratch work, not shipped code
+  scripts/write_evidence.py
+  tests/
 ```
 
-## Why pure R, not Python
-
-DESeq2 + ComBat-seq are R/Bioconductor canon. Reviewers expect identical results to every published TCGA tumor-vs-normal analysis, which means *the* DESeq2, not a port. The interface to the rest of the platform is the **Parquet artifact**, not in-process function calls — Python skills/query_evidence.py reads what R writes. Process boundary = clean architectural seam.
-
-## Running the pipeline
+## Running it
 
 ```bash
-# end-to-end (orchestrator chains 00→05 in order):
-pixi run Rscript batch/expression_rna_COADREAD/run_pipeline.R --config configs/COADREAD.yaml --git-sha $(git rev-parse HEAD)
+# production: recount3 four-cell sensitivity grid (writes sensitivity.parquet +
+# tumor_vs_adjacent.parquet + tumor_vs_gtex.parquet + provenance.yaml)
+pixi run python -m methods.dge_deseq2.cli \
+    --indication COADREAD --contrast four_cell_sensitivity \
+    --release-pin 2026-Q2 --out /tmp/dge_deseq2_run/
 
-# or each step independently for development:
-pixi run Rscript batch/expression_rna_COADREAD/00_load_counts.R    --config configs/COADREAD.yaml --out /tmp/00_counts.rds
-pixi run Rscript batch/expression_rna_COADREAD/01_build_design.R   --counts /tmp/00_counts.rds --out /tmp/01_design.rds
-# ... etc.
+# quarantined legacy chain (only exercised today by the byte-identity gate)
+pixi run python -m methods.dge_deseq2.cli \
+    --indication COADREAD --contrast tumor_vs_adjacent \
+    --release-pin 2026-Q2 --out /tmp/dge_deseq2_run/
 ```
 
-## Source-agnostic: how the source decision plugs in
+`--dry-run` prints the resolved `Rscript` invocation without executing it. Per-subgroup runs
+add `--stratify-by <axis> --subgroup-assignments-manifest <id> --strata <A,B,...>` (requires
+`--contrast four_cell_sensitivity`).
 
-`configs/COADREAD.yaml` has a `source:` block:
+## Consuming the output
 
-```yaml
-source:
-  manifest_id: TODO          # e.g. tcga-gdc-dr42 — set after deep-research lands
-  catalog_repo: rnd-computational-biology-oncology-data-catalog
+`dge_deseq2.read` (in `read/`) is the read side — Parquet predicate-pushdown readers keyed by
+target + indication, e.g. `read_tumor_vs_normal_selectivity`, `read_dge_gene_row`,
+`read_per_sample_expression_all_three_groups`. These are re-exported from the package
+`__init__.py` for the `_import_method`-then-getattr pattern compose-dashboard uses; import
+either `methods.dge_deseq2` or `methods.dge_deseq2.read` directly.
+
+## Testing
+
+```bash
+pixi run pytest methods/dge_deseq2/ --import-mode=importlib
 ```
 
-The R pipeline calls a small helper (`resolve_source.R`) that reads the catalog manifest by `manifest_id`, returns the `s3_uri` and per-file metadata, and the loader pulls counts from there. **Swapping sources = a config edit, not a code change.**
+The R4 byte-identity gate (`tests/test_byte_identity_vs_legacy_coadread.py`) additionally
+needs a full R/Bioconductor env, a sibling `claude-oncology-skills` checkout, and credentialed
+S3 — it's `@pytest.mark.requires_data` and skips cleanly without them; see its module
+docstring for what it's actually checking and why the legacy chain (`r/legacy/`) is kept
+runnable rather than deleted.
 
-## Output
+## Known gaps / roadmap
 
-```
-s3://onc-compbio/data-catalog/derived/COADREAD-dge/{git-sha}/
-├── tumor_vs_adjacent.parquet     # one row per gene, sorted by gene_symbol
-└── provenance.yaml               # what produced this and from what
-```
-
-That Parquet is what `skills/query-target-evidence` reads (via predicate pushdown — one row, ~ms) to assemble per-gene `evidence.json` artifacts in `core-artifacts/`.
-
-## Package dependencies
-
-To be added to `pixi.toml` (channels: `conda-forge`, `bioconda`):
-- `r-base`
-- `bioconductor-deseq2`
-- `bioconductor-sva` (provides `ComBat_seq`)
-- `bioconductor-apeglm` (provides `lfcShrink` shrinkage method)
-- `r-arrow` (Parquet I/O)
-- `r-yaml`
-- `r-optparse`
-- `r-aws.s3` or `r-paws.storage` (S3 reads)
-
-This adds ~500-800 MB to the environment, accepted per the v2 architecture decision (2026-06-15) since DESeq2 canonical-results are BLF-defensibility-critical.
+See analysis-methods#690 for the full modernization plan. As of S0:
+- The indication → TCGA-study / GTEx-tissue rosters are still hard-coded in several places
+  (`read/__init__.py`, R loaders) — consolidating them into one source of truth is S1 (#693).
+- Xena/Toil is dev-only (above) — S1b (#694).
+- The adjacent-vs-GTEx normal-baseline-agreement diagnostic contrast doesn't exist yet — S2
+  (#695).
+- There is no automated output-QC layer (summary tables, figures, cross-substrate
+  reproducibility) — S3 (#696).

@@ -1,6 +1,10 @@
 # dge_deseq2 v2 — Four-Cell Sensitivity Consolidation
 
-**Status:** DRAFT — awaiting scientific review + implementation kick-off
+**Status:** DRAFT — awaiting scientific review + implementation kick-off. Historical decision
+record: cells A/B/C described below are now live, cell D is retired (see `README.md` for the
+current state). Path references to `methods/dge_deseq2/steps/*.R` below are stale — those
+scripts moved to `r/live/` / `r/legacy/` in the S0 reorg (analysis-methods#692); not rewritten
+here, since this file documents the design decision, not the current layout.
 **Date:** 2026-07-06
 **Author:** Ryan Abo (via Claude Code)
 **Supersedes:** `methods/dge_deseq2/README.md` §"TODO (deep-research finding from wf_9cf5659f-2e0, 2026-06-15)"

@@ -603,7 +603,7 @@ def _fetch_recount3_rpk_sums(
     if cache_path.exists():
         return pd.read_parquet(cache_path)["rpk_sum"]
 
-    from .gene_lengths import load_gene_lengths
+    from ..gene_lengths import load_gene_lengths
 
     gene_lengths = load_gene_lengths()  # unversioned Ensembl → bp
 
@@ -1595,7 +1595,7 @@ def read_per_sample_expression_tumor_vs_adjacent(
     import numpy as np
     import pandas as pd
 
-    from .gene_lengths import load_gene_lengths
+    from ..gene_lengths import load_gene_lengths
 
     gene_lengths = load_gene_lengths()
 

@@ -9,7 +9,7 @@ from pathlib import Path
 
 import pytest
 
-READ = Path(__file__).resolve().parents[3] / "methods" / "dge_deseq2" / "read.py"
+READ = Path(__file__).resolve().parents[3] / "methods" / "dge_deseq2" / "read" / "__init__.py"
 
 
 def _load():

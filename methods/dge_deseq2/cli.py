@@ -15,7 +15,7 @@ The CLI:
   1. Resolves --indication to a config YAML path under {catalog_repo}/subgroup-catalogs/{indication}/
      (or, during the migration window, falls back to legacy configs/{indication}.yaml in skills repo).
   2. Computes a git_sha for provenance.
-  3. Invokes steps/run_pipeline.R with translated args.
+  3. Invokes r/live/run_pipeline.R with translated args.
   4. Validates the emitted Parquet against target-contracts/schemas/products/<product>.result.schema.json.
 
 Iter-1 scope:
@@ -37,8 +37,7 @@ from pathlib import Path
 import click
 
 METHOD_DIR = Path(__file__).resolve().parent
-STEPS_DIR = METHOD_DIR / "steps"
-RUN_PIPELINE = STEPS_DIR / "run_pipeline.R"
+RUN_PIPELINE = METHOD_DIR / "r" / "live" / "run_pipeline.R"
 
 
 def resolve_config(indication: str, catalog_repo: Path | None) -> Path:

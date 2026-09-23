@@ -99,8 +99,8 @@ pairs recover published signs:
 
 ## Reference pattern to reuse
 
-- R subprocess pattern: [../../dge_deseq2/steps/run_pipeline.R:51-57](../../dge_deseq2/steps/run_pipeline.R)
-- R stage script structure: [../../dge_deseq2/steps/03_deseq2.R](../../dge_deseq2/steps/03_deseq2.R) is
+- R subprocess pattern: [../../dge_deseq2/r/live/run_pipeline.R:51-57](../../dge_deseq2/r/live/run_pipeline.R)
+- R stage script structure: [../../dge_deseq2/r/legacy/03_deseq2.R](../../dge_deseq2/r/legacy/03_deseq2.R) is
   a good template for arg-parsing + rds-round-trip + logging.
 - Panel-intersect (already done): [01_panel_intersect.py](01_panel_intersect.py)
 
