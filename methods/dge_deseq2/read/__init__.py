@@ -25,6 +25,7 @@ from typing import Optional
 import yaml
 
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
+from methods.dge_deseq2.config import indication_to_gtex_tissue, indication_to_tcga_studies
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 DATA_CATALOG = Path(
@@ -385,30 +386,10 @@ ENSEMBL_ID_MAP_S3 = (
 )
 
 # Indication → recount3 TCGA study codes. Some framework indications map to
-# multiple recount3 studies (COADREAD = COAD + READ).
-INDICATION_TO_TCGA_STUDIES = {
-    "COADREAD": ["COAD", "READ"],
-    "COAD": ["COAD"],
-    "READ": ["READ"],
-    "NSCLC": ["LUAD", "LUSC"],  # composite: pooled LUAD+LUSC (study-adjusted DGE, see 06_four_cell_driver.R)
-    "LUAD": ["LUAD"],
-    "LUSC": ["LUSC"],
-    "BRCA": ["BRCA"],
-    "PAAD": ["PAAD"],
-    "PDAC": ["PAAD"],
-    "SKCM": ["SKCM"],
-    "STAD": ["STAD"],
-    "PRAD": ["PRAD"],
-    "OV": ["OV"],
-    "KIRC": ["KIRC"],
-    "GBM": ["GBM"],
-    "LGG": ["LGG"],
-    "HNSC": ["HNSC"],
-    "BLCA": ["BLCA"],
-    "LIHC": ["LIHC"],
-    "CESC": ["CESC"],
-    "ESCA": ["ESCA"],
-}
+# multiple recount3 studies (COADREAD = COAD + READ). Consolidated into
+# config/indications.yaml (S1, #693) — the read-map entries (with their tcga_studies)
+# project into this dict; add or edit an indication there, not here.
+INDICATION_TO_TCGA_STUDIES = indication_to_tcga_studies()
 
 
 def _load_ensembl_hgnc_map():
@@ -1304,29 +1285,10 @@ def _comparator_concordance(row: dict) -> str:
     return "concordant" if adj == gtex else "discordant"
 
 
-# GTEx indication → tissue-of-origin (mirrors dge_tcga_gtex_precompute.cli).
-INDICATION_TO_GTEX_TISSUE = {
-    "COADREAD": "COLON",
-    "COAD": "COLON",
-    "READ": "COLON",
-    "NSCLC": "LUNG",
-    "LUAD": "LUNG",
-    "LUSC": "LUNG",
-    "BRCA": "BREAST",
-    "PAAD": "PANCREAS",
-    "PDAC": "PANCREAS",
-    "SKCM": "SKIN",
-    "STAD": "STOMACH",
-    "PRAD": "PROSTATE",
-    "OV": "OVARY",
-    "KIRC": "KIDNEY",
-    "GBM": "BRAIN",
-    "LGG": "BRAIN",
-    "BLCA": "BLADDER",
-    "LIHC": "LIVER",
-    "CESC": "CERVIX_UTERI",
-    "ESCA": "ESOPHAGUS",
-}
+# GTEx indication → tissue-of-origin (mirrors dge_tcga_gtex_precompute.cli). Consolidated into
+# config/indications.yaml (S1, #693); HNSC has no clean GTEx match so it carries gtex_tissue: null
+# there and is deliberately absent from this map.
+INDICATION_TO_GTEX_TISSUE = indication_to_gtex_tissue()
 
 
 # NOTE: the three on-demand recount3 GTEx helpers below

@@ -33,30 +33,12 @@ import os
 from pathlib import Path
 from typing import Optional
 
-# Indication → TCGA-study + GTEx-tissue mapping (mirrors
-# INDICATION_TO_TCGA_STUDIES + INDICATION_TO_GTEX_TISSUE in read.py).
-# The set below is limited to the 18 indications the batch produced.
-PAN_TISSUE_INDICATIONS = [
-    "COAD",
-    "READ",
-    "COADREAD",
-    "LUAD",
-    "LUSC",
-    "BRCA",
-    "PAAD",
-    "SKCM",
-    "STAD",
-    "PRAD",
-    "OV",
-    "KIRC",
-    "GBM",
-    "LGG",
-    "BLCA",
-    "LIHC",
-    "CESC",
-    "ESCA",
-    "HNSC",
-]
+from methods.dge_deseq2.config import pan_tissue_indications
+
+# Ordered pan-indication render roster — a deliberate subset of the published universe (the
+# rarer indications were not produced by the figure batch). Declared in config/indications.yaml
+# (S1, #693) as pan_tissue_render; order there IS the figure row order.
+PAN_TISSUE_INDICATIONS = pan_tissue_indications()
 
 # Local batch output root (for dev-mode reads when S3 isn't populated yet).
 LOCAL_BATCH_ROOT = Path.home() / "dev" / "framework-runs" / "tvn-batch-2026-07-07"

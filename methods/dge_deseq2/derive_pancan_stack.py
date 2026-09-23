@@ -39,6 +39,12 @@ import hashlib
 from functools import lru_cache
 from pathlib import Path
 
+from methods.dge_deseq2.config import (
+    cell_b_semantics_map,
+    composite_indications,
+    default_cell_b_semantics,
+)
+
 STACKED_PRODUCT_ID = "pancan-dge-tumor-vs-normal-v1"
 STACKED_S3_PREFIX = f"data-catalog/derived/{STACKED_PRODUCT_ID}"
 STACKED_PARQUET_KEY = f"{STACKED_S3_PREFIX}/pancan_dge_tumor_vs_normal.parquet"
@@ -47,39 +53,14 @@ DEFAULT_AWS_PROFILE = "cbg"
 
 # The 27 per-indication sensitivity products → cell_b_semantics, ground-truthed from each
 # manifest's git_commit (data-catalog/manifests/derived/{ind}-dge-tumor-vs-normal-sensitivity-v1.yaml).
-# The DEFAULT for a new indication is combat_seq_tcga_tss (the acb0179 majority vintage); the two
-# exceptions are listed explicitly. Keep this in sync if new indications land on a new vintage.
-_COMBAT_TSS = "combat_seq_tcga_tss"
-_INDICATION_CELL_B_SEMANTICS = {
-    "COADREAD": "design_comparison_unspecified",  # deef28a 2026-07-06
-    "UCEC": "cell_b_skipped",  # 927a556 2026-07-16 (SKIP_CELL_B=1)
-    # all others → combat_seq_tcga_tss (acb0179 2026-07-15)
-    "ACC": _COMBAT_TSS,
-    "BLCA": _COMBAT_TSS,
-    "BRCA": _COMBAT_TSS,
-    "CESC": _COMBAT_TSS,
-    "COAD": _COMBAT_TSS,
-    "ESCA": _COMBAT_TSS,
-    "GBM": _COMBAT_TSS,
-    "HNSC": _COMBAT_TSS,
-    "KICH": _COMBAT_TSS,
-    "KIRC": _COMBAT_TSS,
-    "KIRP": _COMBAT_TSS,
-    "LGG": _COMBAT_TSS,
-    "LIHC": _COMBAT_TSS,
-    "LUAD": _COMBAT_TSS,
-    "LUSC": _COMBAT_TSS,
-    "OV": _COMBAT_TSS,
-    "PAAD": _COMBAT_TSS,
-    "PCPG": _COMBAT_TSS,
-    "PRAD": _COMBAT_TSS,
-    "READ": _COMBAT_TSS,
-    "SKCM": _COMBAT_TSS,
-    "STAD": _COMBAT_TSS,
-    "TGCT": _COMBAT_TSS,
-    "THCA": _COMBAT_TSS,
-    "UCS": _COMBAT_TSS,
-}
+# Consolidated into config/indications.yaml (S1, #693): the DEFAULT for a new published indication
+# is combat_seq_tcga_tss (the acb0179 majority vintage) and the two exceptions (COADREAD
+# design_comparison_unspecified, UCEC cell_b_skipped) are declared there. Add a new indication —
+# with its ground-truthed vintage — to that file, not here.
+_INDICATION_CELL_B_SEMANTICS = cell_b_semantics_map()
+# Fallback vintage for an indication absent from the map (was the module literal _COMBAT_TSS
+# pre-S1; now config/indications.yaml defaults.cell_b_semantics).
+_DEFAULT_CELL_B_SEMANTICS = default_cell_b_semantics()
 
 # The union of columns any per-indication sensitivity parquet carries. UCEC lacks
 # log2fc_B/padj_B; the concat fills them NaN. Order is stable for the stacked schema.
@@ -109,11 +90,9 @@ _UNION_COLUMNS = [
 # breadth-count time we DROP the composite whenever a child is present, keeping the finer
 # COAD/READ granularity. Scan (2026-08-08) confirmed COADREAD is the ONLY composite in the
 # 27-indication stack (NSCLC/GBMLGG/KIPAN/STES are absent — only their single-study children
-# appear). Add a new entry here if a merged-parent indication ever lands alongside its children.
-_COMPOSITE_INDICATIONS = {
-    "COADREAD": {"COAD", "READ"},
-    "NSCLC": {"LUAD", "LUSC"},  # pooled NSCLC; drop from breadth roll-up when LUAD+LUSC present
-}
+# appear). Add a `composite_children:` entry in config/indications.yaml if a merged-parent
+# indication ever lands alongside its children (S1, #693).
+_COMPOSITE_INDICATIONS = composite_indications()
 
 
 def _dedupe_overlapping_indications(rows: list) -> list:
@@ -230,7 +209,7 @@ def build_stack(indications: list[str] | None = None):
                 df[col] = float("nan")
         df = df[_UNION_COLUMNS].copy()
         df.insert(0, "indication", ind)
-        df["cell_b_semantics"] = _INDICATION_CELL_B_SEMANTICS.get(ind, _COMBAT_TSS)
+        df["cell_b_semantics"] = _INDICATION_CELL_B_SEMANTICS.get(ind, _DEFAULT_CELL_B_SEMANTICS)
         frames.append(df)
     stacked = pd.concat(frames, ignore_index=True)
     # Sort by (gene_symbol, indication) so pyarrow predicate pushdown on gene_symbol
