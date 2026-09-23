@@ -64,7 +64,12 @@
 # data_unavailable (rule: cn-data-unavailable-insufficient).
 
 card_id: copy-number-distribution
-version: 1.4.0    # 1.4.0 (2026-09-12): cn_homozygous_deletion_recurrent PROMOTED verdict-inert → VERDICT-BEARING
+version: 1.5.0    # 1.5.0 (2026-09-23): + `underpowered` copy_number_class value (PR-C2 genomic n-honesty vertical) — a
+                  # coverage GAP (classifier looked but too few CN-covered samples cleared the recurrence power floor),
+                  # distinct from data_unavailable (could-not-look). Consumed by cn-data-unavailable-insufficient's
+                  # widened matcher so it reads insufficient, never a driver/passenger. Emitted by the _classify_cn
+                  # power floor in PR-C3; inert until then.
+                  # 1.4.0 (2026-09-12): cn_homozygous_deletion_recurrent PROMOTED verdict-inert → VERDICT-BEARING
                   # (fires cn-recurrent-homozygous-deletion-supportive on the resolver's deletion rungs, replacing the
                   # shallow-inclusive copy_number_class whose measured genome-wide null rate is 60.1% — see header).
                   # 1.3.0: includes patient_focal_cn_class (FOCAL gate → CN-consensus VERDICT rung, cell-line OR patient), patient CN cross-check, homdel flag
@@ -178,6 +183,7 @@ outputs:
       - mixed                            # both amp and del recurrent (different lineages)
       - broadly_neutral                  # neither amp nor del recurrent — VALID DESCRIPTIVE CALL
       - data_unavailable                 # target absent from CN matrix or load failed
+      - underpowered                     # classifier LOOKED but too few CN-covered samples cleared the recurrence power floor — a coverage GAP (looked-but-too-thin), NOT a measured-negative. Reads as unmeasured/insufficient, never a driver and never passenger-via-fall-through (PR-C2). Emitted by _classify_cn below its power floor (PR-C3).
     cn_homozygous_deletion_recurrent:
       - recurrent_homozygous_deletion    # deep deletion (CN<0.5) in >=20% of the panel — degrader-relevant (no protein)
       - not_recurrent_homozygous_deletion

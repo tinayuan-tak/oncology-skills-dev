@@ -641,6 +641,33 @@ rules:
       read passenger (EWSR1-FLI1, BCR-ABL1, EML4-ALK). NOT a killer — recurrence establishes driver
       status, the modality-fit + dependency threads carry the tractability story.
 
+  # FUSION coverage gap (2026-09-23, PR-C2 genomic n-honesty vertical). The FIRST non-driver
+  # fusion_class rule: fusion-landscape-recurrent-driver-supportive above is the ONLY other rule that
+  # keys on fusion_class, so before this an underpowered fusion class fired no rung at all and, on a
+  # no-mutation gene, fell through to passenger_pattern (a false evidence-of-absence — the classifier
+  # could not power a recurrence call, it did not measure "no fusion"). This rule keeps an underpowered
+  # fusion OUT of every driver rung (it is not `recurrent_fusion_driver`) and feeds only the resolver's
+  # double-data-gap guard (no-mutations + this rule -> insufficient), the fusion analog of
+  # cn-data-unavailable-insufficient. A MEASURED-negative fusion (no_recurrent_fusion) still contributes
+  # nothing and a no-mutation gene with one still reads passenger — the could-not-look vs looked-and-
+  # found-nothing distinction the underpowered token exists to draw. Consumed by C3's fusion `fclass`
+  # emitter; verdict-inert on the live corpus until then.
+  - rule_id: fusion-underpowered-insufficient
+    when:
+      card_id: fusion-rearrangement-landscape
+      field: fusion_class
+      equals: underpowered
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      The fusion/rearrangement classifier looked but too few SV-covered samples cleared the recurrence
+      power floor to call a class (looked-but-too-thin), so the fusion axis is a COVERAGE GAP. Not a
+      driver and — CRUCIALLY — not opposing evidence: an underpowered fusion axis must not read as
+      "no fusion" (passenger). Keeps the axis out of every driver rung and feeds only the double-data-
+      gap guard so a no-mutation gene with an underpowered fusion reads insufficient, not a false
+      passenger. Other evidence threads remain the basis for the call.
+
   # SPLICE exon-skip driver (2026-09-02, CASE-002). Reads splice-exon-skip-landscape: a CURATED
   # exon-skipping driver event (METex14) that is oncogenic in the indication, confirmed by live DepMap
   # carriers. Fires the splice_exon_skip_driver resolver rung, which ranks ABOVE the variant-class-shape
@@ -1074,14 +1101,22 @@ rules:
     when:
       card_id: copy-number-distribution
       field: copy_number_class
-      equals: data_unavailable
+      in: [data_unavailable, underpowered]
     signals:
       small_molecule: insufficient
       degrader: insufficient
     rationale: |
-      CN data unreachable, OR the target gene is absent from both the WES and WGS
-      panels. Coverage gap; not used as opposing evidence. Other evidence threads
-      remain the basis for the call.
+      A COVERAGE GAP on the copy-number axis, of two kinds that read identically here:
+      `data_unavailable` — CN data unreachable, OR the target gene is absent from both
+      the WES and WGS panels (could-not-look); `underpowered` — the classifier looked
+      but too few samples cleared the recurrence power floor to call a class (looked-but-
+      too-thin). Neither licenses a directional claim, and CRUCIALLY neither is used as
+      OPPOSING evidence: a gap must not read as evidence-of-absence (passenger). The rule
+      keeps the CN axis OUT of every driver rung and feeds only the double-data-gap guard
+      (resolver: no-mutations + this rule -> insufficient, an honest coverage gap rather
+      than a false passenger). Other evidence threads remain the basis for the call.
+      (rule_id retains its historical name; `underpowered` was folded in for PR-C2 of the
+      genomic n-honesty vertical, mirroring dependency-in-indication-underpowered-insufficient.)
 
   # ---- PATIENT-tumour FOCAL CN (2026-08-06) — the cell-line-OR-patient CONSENSUS ----
   # These fire on patient_focal_cn_class (TCGA GISTIC, per-indication, HIGH-LEVEL +2 amp / -2 homdel

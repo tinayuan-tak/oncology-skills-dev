@@ -12,7 +12,12 @@
 # license-clean/open. caller_count in the product encodes cross-caller agreement.
 
 card_id: fusion-rearrangement-landscape
-version: 1.5.0   # 1.5.0 (2026-09-12): fusion_recurrence_confidence PROMOTED verdict-inert → VERDICT-BEARING. It now gates the
+version: 1.6.0   # 1.6.0 (2026-09-23): + `underpowered` fusion_class value (PR-C2 genomic n-honesty vertical) — a coverage
+                 # GAP (classifier looked but < 20 SV-covered samples cleared the recurrence power floor), distinct from
+                 # data_unavailable (could-not-look). Consumed by the new fusion-underpowered-insufficient rule so it reads
+                 # insufficient, never a driver and never passenger-via-fall-through. Emitted by fclass below its power
+                 # floor in PR-C3; inert until then.
+                 # 1.5.0 (2026-09-12): fusion_recurrence_confidence PROMOTED verdict-inert → VERDICT-BEARING. It now gates the
                  # genomic resolver's TOP fusion rung via fusion-recurrence-high-partner-context: only high_recurrent_partner
                  # (same partner >=3 samples) pre-empts top-1% patient SNV recurrence; a moderate_promiscuous call falls to a
                  # DEMOTED bare-fusion rung below the SNV-recurrence rungs (still rescues a fusion-only target from passenger).
@@ -74,6 +79,7 @@ outputs:
       - sporadic_fusion                             # fusions present but non-recurrent (1-2 samples)
       - no_recurrent_fusion                         # assayed in the indication, no recurrent fusion signal (measured-negative)
       - data_unavailable                            # product/target absent — NOT a measured negative
+      - underpowered                                # classifier LOOKED but too few SV-covered samples cleared the recurrence power floor (< 20 SV-covered) — a coverage GAP (looked-but-too-thin), NOT a measured-negative. Reads as unmeasured/insufficient, never a driver and never passenger-via-fall-through (PR-C2). Emitted by fclass below its power floor (PR-C3).
     fusion_recurrence_confidence:                   # VERDICT-BEARING tier for a recurrent_fusion_driver call (1.5.0).
                                                     # NULLABLE: the reader emits None (field absent) when it is NOT a
                                                     # recurrent_fusion_driver call (sporadic / no_recurrent / data_unavailable);

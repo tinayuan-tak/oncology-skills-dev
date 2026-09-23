@@ -159,6 +159,7 @@ detail:
     rules:
     - fusion-landscape-recurrent-driver-supportive
     - fusion-recurrence-high-partner-context
+    - fusion-underpowered-insufficient
   fusion-stratified-dependency:
     resolvers:
     - genomic_alteration

@@ -12,8 +12,8 @@ attribution_keypaths:
 - post_resolver_clamp/modality_conditional/expected_inert_arms/[]/rule_id
 - resolve/[]/driving_rule
 counts:
-  total: 439
-  gating: 144
+  total: 440
+  gating: 145
   display: 295
 gating:
 - adc-preferred-supportive
@@ -71,6 +71,7 @@ gating:
 - fusion-positive-moderately-dependent-supportive
 - fusion-positive-strongly-dependent-supportive
 - fusion-recurrence-high-partner-context
+- fusion-underpowered-insufficient
 - gene-burden-lof-safety-warning
 - highly-constrained-safety-warning
 - hotspot-in-druggable-pocket-sm-supportive-e8

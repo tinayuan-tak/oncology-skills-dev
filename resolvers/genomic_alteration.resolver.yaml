@@ -23,7 +23,21 @@
 #   6. CN-only and fusion-landscape recurrent drivers — landscape recurrence with no dependency line.
 #   7. mixed / passenger fallback, guarded so a double data-gap reads insufficient, not passenger.
 gate: genomic_alteration
-version: 1.11.0  # 2026-09-21: #8 HYBRID-SCOPE FAIL-OPEN DEMOTION (content-audit arc, backtest-gated). The four
+version: 1.12.0  # 2026-09-23: PR-C2 CONSUME THE `underpowered` COVERAGE-GAP TOKEN (genomic n-honesty vertical,
+                 # backtest-gated). An underpowered CN/fusion classifier axis (looked but too few samples cleared
+                 # the recurrence power floor) must read UNMEASURED, never a driver and never passenger via silent
+                 # fall-through — this resolver has NO clamp layer, so an unhandled new token changes fall-through.
+                 # ADDITIVE, two arms: (1) cn-data-unavailable-insufficient's matcher widened equals:data_unavailable
+                 # → in:[data_unavailable, underpowered] (rule_id UNCHANGED — no verdict-identity erasure, no golden
+                 # rule_id churn), so an underpowered CN fires no driver rung AND joins the existing double-data-gap
+                 # guard @56; (2) a NEW fusion-underpowered-insufficient rule (fusion had NO non-driver rule) + a NEW
+                 # guard rung @57 pairing it with mut-no-mutations-neutral → insufficient, the fusion analog of the CN
+                 # guard. Priorities MUST be unique integers (validate_fold_migration), so the tail renumbered
+                 # mixed_pattern 57→58 and passenger_pattern 58→59; RELATIVE order preserved so existing fixtures are
+                 # byte-stable (no live target emits underpowered until PR-C3 lands the classifier emitters). No new
+                 # verdict token (insufficient pre-exists). Coverage regenerated (card_resolver_consumption.yaml,
+                 # rule_role_partition.yaml — fusion-underpowered-insufficient is GATING).
+                 # 2026-09-21: #8 HYBRID-SCOPE FAIL-OPEN DEMOTION (content-audit arc, backtest-gated). The four
                  # *-indication-scoped-context gates admit within_indication AND the hybrid
                  # within_indication_mut_vs_pan_wt scope, so BEFORE this change a STRONG dependency at the hybrid
                  # scope earned the full biomarker_stratified_dependency dominant band off a pooled-pan-lineage WT
@@ -307,14 +321,23 @@ resolve:
 
   # ── 7. mixed / passenger fallback, with a double-data-gap guard ──────────────────────────────────
   #    passenger_pattern is a substantive "not a driver" call, but its trigger fires on a rarely-mutated
-  #    gene. When the copy-number axis is ALSO unmeasured (cn-data-unavailable-insufficient), asserting
-  #    "not a driver" would come from a double data-gap — the exact mutation-only failure mode the
-  #    amplification reframe was built to kill. The engine has no negation predicate, so the guard is
-  #    precedence: no-mutations + CN-unavailable resolves to insufficient (an honest coverage gap). A
-  #    MEASURED-neutral CN + no mutations still reads passenger_pattern (an informative not-a-driver call).
+  #    gene. When another axis is ALSO a COVERAGE GAP, asserting "not a driver" would come from a double
+  #    data-gap — the exact mutation-only failure mode the amplification reframe was built to kill. The
+  #    engine has no negation predicate, so the guard is precedence: no-mutations + a gapped CN or fusion
+  #    axis resolves to insufficient (an honest coverage gap) BEFORE the passenger rung.
+  #    CN guard (priority 56): cn-data-unavailable-insufficient fires on copy_number_class in
+  #    {data_unavailable, underpowered} — CN unreachable/off-panel OR looked-but-too-thin.
+  #    FUSION guard (priority 57, added PR-C2): fusion-underpowered-insufficient fires on
+  #    fusion_class == underpowered — the fusion classifier looked but could not power a recurrence call.
+  #    Symmetric with CN: a could-not-power fusion axis must not let a no-mutation gene read passenger.
+  #    A MEASURED-neutral CN + a MEASURED-negative fusion + no mutations still reads passenger_pattern (an
+  #    informative not-a-driver call) — only a GAP (unmeasured/underpowered), never a measured negative,
+  #    trips the guard. underpowered fires NO driver rung (it is neither a recurrent/focal class nor
+  #    recurrent_fusion_driver), so this guard is its ONLY verdict-moving reach.
   - {verdict: insufficient, when_all_fired: [mut-no-mutations-neutral, cn-data-unavailable-insufficient], driving_rule: cn-data-unavailable-insufficient, priority: 56}
-  - {verdict: mixed_pattern, when_fired: mut-mixed-neutral, priority: 57}
-  - {verdict: passenger_pattern, when_fired: mut-no-mutations-neutral, priority: 58}
+  - {verdict: insufficient, when_all_fired: [mut-no-mutations-neutral, fusion-underpowered-insufficient], driving_rule: fusion-underpowered-insufficient, priority: 57}
+  - {verdict: mixed_pattern, when_fired: mut-mixed-neutral, priority: 58}
+  - {verdict: passenger_pattern, when_fired: mut-no-mutations-neutral, priority: 59}
 
 default: insufficient
 evaluation: match_all_reduce
