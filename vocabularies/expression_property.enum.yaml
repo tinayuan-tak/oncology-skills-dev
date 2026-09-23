@@ -1,0 +1,255 @@
+# expression_property.enum.yaml
+# Controlled vocabulary: the SHARED, cross-skill EXPRESSION-PROPERTY ontology — the "L2"
+# biological-property layer of the evidence-property architecture (epic
+# claude-oncology-skills#1507; audit #1506; plan sequential-sparking-stonebraker.md).
+#
+# WHAT THIS IS: a small set of ORTHOGONAL expression PROPERTIES, each with a short ORDINAL
+# value set. A property is a standardized biological fact that a measurement RESOLVES
+# (median TPM, fraction_high, distribution_pattern → magnitude / prevalence / heterogeneity),
+# not a bespoke per-card "class". Every value maps to a tier of the shared claim ladder's
+# SIGNAL_ORD (SK/skills/_skills_common/claim_vector_core.py:50 — the {signal × corroboration}
+# ordinal contract) so a property can be carried on a claim's evidence_atom and the existing
+# ladder helpers (sig_ge, ordering, corroboration_from_arms) consume it UNCHANGED.
+#
+# WHY IT EXISTS: the framework already has shared ordinal SIGNAL/POLARITY tiers (SIGNAL_ORD)
+# and a shared objective AXIS ontology (target_profiling_axes.yaml), but NO shared cross-skill
+# biological-PROPERTY vocabulary — expression "class" values were bespoke per card and
+# normalized via per-skill `smap` dicts (the audit found 8 independent expression classifiers,
+# ~7 differently-named class fields, ≥6 overlapping vocabularies, one field-name collision).
+# The architecture's thesis: measurements resolve STANDARDIZED PROPERTIES, and those properties
+# — not ever-richer classifiers — become the substrate for contextual reasoning. This file is
+# the seed of that layer.
+#
+# ORTHOGONALITY: the properties are independent projections of the SAME distribution, not a
+# ranked scale. A target may be presence=supported ∧ magnitude=moderate ∧ prevalence=subset ∧
+# heterogeneity=high simultaneously (EPCAM in the cell-line panel: bimodal, frac_high≈0.44,
+# frac_off≈0.37 → presence=supported, prevalence=subset, heterogeneity=high — the bimodality
+# the flat expression_class drops). Properties are carried on the claim atom as PROVENANCE and
+# are NEVER averaged into one another or into a verdict (the claim_vector_core contract:
+# "claims are kept SEPARATE, never averaged").
+#
+# SIGNAL_ORD POLARITY CONVENTION (a design decision, user-confirmed 2026-09-23):
+#   - For MONOTONE presence-polarity properties (presence, magnitude, prevalence), the tier is
+#     the strength of the positive expression signal: more expressed / more prevalent = higher
+#     tier. These are the axes a presence claim would naturally rank on.
+#   - For DESCRIPTIVE properties with NO natural presence-favorability (heterogeneity,
+#     lineage_restriction), the tier encodes the INTENSITY OF THE NAMED PROPERTY, not a
+#     presence judgment: heterogeneity=high → `strong` (much heterogeneity), uniform → `weak`;
+#     lineage_restriction=restricted → `strong` (highly restricted), diffuse → `weak`. This
+#     keeps the axes orthogonal — whether high heterogeneity is "good" or "bad" is the CONSUMING
+#     axis's call, made downstream, not baked into this vocabulary. EPCAM's heterogeneity=high is
+#     an INFORMATIVE finding (a strongly-expressing subset), not weak presence.
+#
+# unmeasured ≠ 0: `unmeasured` maps to SIGNAL_ORD `unmeasured` (None — OFF the numeric scale),
+#   NOT to `absent` (a measured floor, rank 0). A property an arm cannot resolve emits
+#   `unmeasured` (a NULL), never a zero tier. This enforces gap ≠ absent at the type level, the
+#   same way claim_vector_core does — an unmeasured property is never comparable/averageable and
+#   is auto-excluded from every measured-rung derivation via the `o is not None` idiom.
+#
+# SCOPE (this version): only the properties Card-1 (cellline-rna-distribution) measurements can
+#   RESOLVE NOW are given a live value set (`status: resolvable`). selectivity / localization /
+#   subtype_restriction are DECLARED-but-deferred (`status: fleet_deferred`) — their value sets
+#   are governed in the fleet phase; today every measurement resolves them to `unmeasured`
+#   (NULL). Declaring them now reserves the names as shared substrate without committing an
+#   un-designed value set. Consumers: none in this version — P2 (AM resolver) resolves the
+#   properties from measurements, P4 (SK) carries them on the claim atom; both land separately.
+#
+# GOVERNANCE / VERSIONING (this vocabulary is the fleet LONG-POLE — govern it from day one):
+#   see the `governance:` block below. The property NAMES become the cross-skill substrate; a
+#   rename or a value-set change is a breaking contract change for every arm that resolves into
+#   it. Version deliberately (semver on `version:`); add properties/values additively; deprecate,
+#   never silently repurpose. Sibling pattern: biology_axis.enum.yaml, availability_state.enum.yaml.
+
+enum_id: expression_property
+version: 1.0.0
+
+description: |
+  Shared cross-skill expression-property vocabulary. Orthogonal expression PROPERTIES, each a
+  standardized biological fact resolved from objective measurements, each value tagged with a
+  shared SIGNAL_ORD tier so the claim ladder consumes it unchanged. v1.0.0 gives live value sets
+  only to the properties Card-1 (cellline-rna-distribution) can resolve today
+  (presence · magnitude · prevalence · heterogeneity · lineage_restriction); selectivity ·
+  localization · subtype_restriction are declared-but-fleet-deferred and resolve to `unmeasured`
+  until their arms are wired (unmeasured ≠ 0 — emit NULLs, not zeros).
+
+# The shared ordinal ladder every property value maps into. Mirror of
+# SK/skills/_skills_common/claim_vector_core.py:50 (SIGNAL_ORD). `unmeasured`/`underpowered` are
+# None (OFF-scale gaps — never comparable, never a driver, never `absent`); `negative`/`absent`
+# both rank 0 but read differently. Reproduced here so this file is self-describing; the SK
+# module remains the source of truth for the numeric ranks and the combination discipline.
+signal_ord_reference:
+  source: "SK/skills/_skills_common/claim_vector_core.py:50 (SIGNAL_ORD)"
+  tiers:
+    strong: 3
+    moderate: 2
+    weak: 1
+    absent: 0        # a MEASURED floor
+    negative: 0      # measured, wrong direction (unused by expression properties — no opposite direction)
+    unmeasured: null # a GAP — never measured / no anchor; None, off-scale (unmeasured ≠ absent)
+    underpowered: null # measured but under the statistical-power floor; a gap WITH intent
+
+# ---------------------------------------------------------------------------
+# GOVERNANCE — this vocabulary is the fleet long-pole. Treat it like a shared contract.
+# ---------------------------------------------------------------------------
+governance:
+  role: |
+    The single shared vocabulary that ALL expression-measuring skills resolve into. The audit
+    counted 8 independent expression classifiers converging here over the fleet rollout, so a
+    change ripples across every arm. This is the long-pole artifact of the architecture.
+  versioning: |
+    Semver on `version:`. Additive changes (a new property, a new value on an existing property)
+    bump MINOR. A rename, a removed value, or a changed SIGNAL_ORD tier is a BREAKING change
+    (MAJOR) — it silently invalidates every resolver and every claim atom keyed on the old token.
+    Never silently repurpose a name; deprecate with a `deprecated:` marker and a migration note.
+  ownership: |
+    Owned as a framework contract (target-contracts vocabularies/), not by any single skill. A
+    property is added only when at least one arm can RESOLVE it (rule-of-two for value-set design
+    where possible); a declared-but-`fleet_deferred` property reserves the name without freezing
+    its value set. Cross-repo consumers (AM resolvers, SK claim wiring) reference these tokens by
+    string; coordinate a token change via the wip-registry before landing.
+  change_discipline: |
+    Any change that alters a live value set or a tier mapping must be validated against every
+    resolver that consumes it (P2 onward) — a tier flip is verdict-affecting even when the value
+    name is unchanged. Keep additions verdict-inert until a consuming gate is deliberately,
+    separately reworked (the pilot's core invariant: expression_class + all verdict tokens stay
+    byte-stable).
+
+# ---------------------------------------------------------------------------
+# PROPERTIES — orthogonal projections; each value carries an explicit signal_ord tier.
+# ---------------------------------------------------------------------------
+properties:
+
+  # ---- presence: is the target expressed at all in the panel? (monotone presence-polarity) ----
+  - id: presence
+    label: "Presence"
+    status: resolvable
+    polarity: presence_signal
+    description: |
+      Whether the target is expressed at a detectable level in the panel — the base "is it there"
+      fact, independent of HOW MUCH (magnitude) or HOW WIDELY (prevalence). Resolved from the
+      fraction of samples above the detection floor and the panel-level detection call.
+    resolves_from:
+      card: cellline-rna-distribution
+      measurements: [fraction_expressed, fraction_not_expressed, median_log2tpm_panel]
+    values:
+      - {value: supported, signal_ord: strong,   description: "Clearly expressed above the detection floor across the panel."}
+      - {value: weak,       signal_ord: weak,     description: "Detected, but near the floor / in a thin fraction — expression is real but marginal."}
+      - {value: absent,     signal_ord: absent,   description: "Measured below the detection floor — a MEASURED negative, not a coverage gap."}
+      - {value: unmeasured, signal_ord: unmeasured, description: "Not measured / no anchor in this dataset — a gap, NOT absence (NULL)."}
+
+  # ---- magnitude: how high is expression WHERE present? (monotone; conditional on presence) ----
+  - id: magnitude
+    label: "Magnitude"
+    status: resolvable
+    polarity: presence_signal
+    description: |
+      The LEVEL of expression where the target is expressed — orthogonal to how many samples
+      express it (prevalence). Resolved from the median expression of the expressing samples and
+      the all-gene percentile position. Conditional on presence: when presence=absent, magnitude
+      is `unmeasured` (there is no level to grade), NOT a zero tier.
+    resolves_from:
+      card: cellline-rna-distribution
+      measurements: [median_log2tpm_panel, control_target_percentile, fraction_highly_expressed]
+    values:
+      - {value: high,       signal_ord: strong,     description: "High expression level (top of the all-gene distribution / high median TPM)."}
+      - {value: moderate,   signal_ord: moderate,   description: "Mid-range expression level."}
+      - {value: low,        signal_ord: weak,       description: "Low but non-zero expression level."}
+      - {value: unmeasured, signal_ord: unmeasured, description: "Level not resolvable (e.g. presence=absent, or no anchor) — NULL, not a floor."}
+
+  # ---- prevalence: in how much of the panel is it expressed? (monotone presence-polarity) ----
+  - id: prevalence
+    label: "Prevalence"
+    status: resolvable
+    polarity: presence_signal
+    description: |
+      The BREADTH of expression across the panel — what fraction of samples express the target,
+      orthogonal to the level (magnitude). Resolved from the fraction of samples expressing /
+      highly-expressing. `subset` is the distinct-subpopulation case that co-occurs with
+      heterogeneity=high in a bimodal distribution.
+    resolves_from:
+      card: cellline-rna-distribution
+      measurements: [fraction_expressed, fraction_highly_expressed, fraction_not_expressed]
+    values:
+      - {value: broad,      signal_ord: strong,     description: "Expressed across most/all of the panel."}
+      - {value: subset,     signal_ord: moderate,   description: "Expressed in a distinct subpopulation — a substantial fraction, not the whole panel."}
+      - {value: rare,       signal_ord: weak,       description: "Expressed in only a small fraction of samples."}
+      - {value: unmeasured, signal_ord: unmeasured, description: "Breadth not resolvable / no anchor — NULL, not zero."}
+
+  # ---- heterogeneity: how variable is expression across the panel? (DESCRIPTIVE — intensity) ----
+  - id: heterogeneity
+    label: "Heterogeneity"
+    status: resolvable
+    polarity: property_intensity   # tier = amount of heterogeneity, NOT a presence judgment
+    description: |
+      The VARIABILITY of expression across the panel — resolved from the distribution shape
+      (bimodal / long_tail → high; unimodal / tight → uniform) and the coefficient of variation.
+      This is the property the flat expression_class drops: a bimodal target reads
+      heterogeneity=high (+prevalence=subset), an informative "strongly-expressing subset" signal.
+      DESCRIPTIVE: the tier encodes how MUCH heterogeneity, not whether heterogeneity is favorable
+      — that is the consuming axis's call. No `absent` value: uniform is the measured low end.
+    resolves_from:
+      card: cellline-rna-distribution
+      measurements: [distribution_pattern, coefficient_of_variation]
+    values:
+      - {value: high,       signal_ord: strong,     description: "Strongly variable — bimodal or long-tailed; distinct high- and low-expressing subpopulations."}
+      - {value: moderate,   signal_ord: moderate,   description: "Moderately variable across the panel."}
+      - {value: uniform,    signal_ord: weak,       description: "Little variability — a tight/unimodal distribution; the measured low end of heterogeneity."}
+      - {value: unmeasured, signal_ord: unmeasured, description: "Distribution shape not resolvable / no anchor — NULL."}
+
+  # ---- lineage_restriction: is expression confined to few lineages? (DESCRIPTIVE — intensity) ----
+  - id: lineage_restriction
+    label: "Lineage restriction"
+    status: resolvable
+    polarity: property_intensity   # tier = degree of restriction, NOT a presence judgment
+    description: |
+      The degree to which expression is CONFINED to a small number of cell lineages vs spread
+      across many — resolved from the count of lineage-restricted lineages and per-lineage stats.
+      DESCRIPTIVE: the tier encodes how RESTRICTED (restricted → strong), not whether restriction
+      is favorable (that is a selectivity/safety judgment made downstream, and this property is
+      NOT selectivity — selectivity is a distinct, fleet-deferred property below).
+    resolves_from:
+      card: cellline-rna-distribution
+      measurements: [n_lineage_restricted_lineages, per_lineage_stats]
+    values:
+      - {value: restricted,   signal_ord: strong,     description: "Expression confined to a small number of lineages."}
+      - {value: intermediate, signal_ord: moderate,   description: "Expression in a partial set of lineages — between restricted and diffuse."}
+      - {value: diffuse,      signal_ord: weak,       description: "Expression spread across most/all lineages — the low end of restriction."}
+      - {value: unmeasured,   signal_ord: unmeasured, description: "Lineage breadth not resolvable / no anchor — NULL."}
+
+  # ---- FLEET-DEFERRED: declared to reserve the shared name; value set governed later. ----
+  #      Card-1 (and every arm, in this version) resolves these to `unmeasured` (NULL, not 0).
+  #      unmeasured ≠ absent: a deferred property is a coverage gap, never a measured negative.
+  - id: selectivity
+    label: "Selectivity (tumor vs normal)"
+    status: fleet_deferred
+    polarity: presence_signal
+    description: |
+      Tumor-vs-normal expression selectivity. NOT resolvable from a single cell-line panel
+      (needs a normal-tissue comparator — tumor-selectivity's arms). DECLARED here so the fleet
+      resolves into a shared name; its live value set is governed in the fleet phase. Today
+      resolves to `unmeasured` (NULL). Distinct from lineage_restriction (a within-panel
+      breadth descriptor, not a tumor-vs-normal window).
+    values:
+      - {value: unmeasured, signal_ord: unmeasured, description: "Not resolvable in this version — NULL, not zero. Live value set is fleet-phase."}
+
+  - id: localization
+    label: "Subcellular / surface localization"
+    status: fleet_deferred
+    polarity: descriptive
+    description: |
+      Where the protein product localizes (surface-accessible vs intracellular, etc.). Not an
+      RNA-distribution measurement. DECLARED to reserve the shared name; live value set governed
+      in the fleet phase. Today resolves to `unmeasured` (NULL).
+    values:
+      - {value: unmeasured, signal_ord: unmeasured, description: "Not resolvable in this version — NULL, not zero. Live value set is fleet-phase."}
+
+  - id: subtype_restriction
+    label: "Subtype restriction"
+    status: fleet_deferred
+    polarity: property_intensity
+    description: |
+      The degree to which expression is confined to specific disease subtypes. Needs a
+      subtype-stratified comparator (subtype_crosswalk arms). DECLARED to reserve the shared
+      name; live value set governed in the fleet phase. Today resolves to `unmeasured` (NULL).
+    values:
+      - {value: unmeasured, signal_ord: unmeasured, description: "Not resolvable in this version — NULL, not zero. Live value set is fleet-phase."}
