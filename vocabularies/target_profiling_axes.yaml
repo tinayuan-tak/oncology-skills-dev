@@ -84,7 +84,7 @@ questions:
   - short: selectivity
     question: "Is the target selective for tumor vs normal (adjacent=efficacy; population=safety)?"
     band: necessity
-    risk_category: biological
+    risk_category: safety              # #856: reconciled to runtime AXIS_TO_DIM["selectivity"]="safety" (risk_projection.py); selectivity escalates the SAFETY window
     home_skill: tumor-selectivity
     foreign_consumers: [surface-modality-fit]
     framework_can_evidence: captured
@@ -182,7 +182,7 @@ questions:
   - short: differentiation
     question: "Is the target differentiated (co-mutation landscape, precedent, biomarker definability)?"
     band: sufficiency
-    risk_category: commercial
+    risk_category: translational        # #856: reconciled to runtime AXIS_TO_DIM["differentiation"]="translational" (risk_projection.py); patient-selection escalates the TRANSLATIONAL dim
     home_skill: differentiation-landscape
     foreign_consumers: []
     framework_can_evidence: partial
@@ -209,7 +209,7 @@ questions:
   - short: combination_vulnerability
     question: "What does the target depend on / combine with RELATIONALLY — synthetic-lethal partners, measured dual-KO co-dependencies, combination co-targets under inhibition, and resistance mediators?"
     band: sufficiency                  # combination / resistance STRATEGY (informs the drug program), not "is this real biology"
-    risk_category: biomarker           # patient-selection / combination-biomarker
+    risk_category: biological          # #856: reconciled to runtime ir._CONTEXT_DIM["combination_vulnerability"]="biological" (displayed as a biological `context` companion; verdict=None / declared_descriptive)
     home_skill: combination-and-vulnerability   # PLANNED consolidated relational skill (Debt #2); today split (see relational_consolidation)
     foreign_consumers: []
     framework_can_evidence: partial
@@ -231,7 +231,7 @@ questions:
     question: "Does the target's OWN locus feature (copy-number / promoter methylation) explain its OWN expression AND its OWN dependency — a coherent cis-driven addiction, or co-occurring but mechanistically-independent axes?"
     band: necessity                    # characterizes WHY the target is a dependency (cis-driven addiction); does not itself flip the nomination verdict
     characterization_only: true        # gateless coherence axis (the "verdict" is a 2×2 leg interaction), advisory like `mechanism` — not a hard gate
-    risk_category: biology
+    risk_category: biological          # #856: reconciled to runtime ir._CONTEXT_DIM["cis_coherence"]="biological" (displayed as a biological `context` companion; declared_context_tier). Also fixes the "biology"/"biological" spelling drift.
     home_skill: cis-feature-coherence
     foreign_consumers: []
     framework_can_evidence: partial    # wired (7 composer cards + cis-coherence.rules.yaml); thin leg = cross-grain TCGA-patient corroboration
