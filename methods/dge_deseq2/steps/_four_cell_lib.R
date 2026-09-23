@@ -17,6 +17,55 @@
 
 `%||%` <- function(a, b) if (!is.null(a) && length(a) && !is.na(a[1])) a else b
 
+# --- one-aliquot-per-case dedup (S-fix, github analysis-methods#691) --------
+# Shared by 00_load_recount3.R and 00_load_xena_toil.R so both TCGA-sourcing
+# loaders apply the SAME policy the legacy loader had (00_load_counts.R:127-158,
+# dedup_policy = "one_per_case_group_first_by_file_id"): a case (patient) that
+# contributes more than one file/sample within a single group (tumor OR normal)
+# — technical-replicate vials, biological aliquots from the same tumor block —
+# violates DESeq2's per-sample independence assumption. Keep exactly one
+# aliquot per case, chosen deterministically by ordering on `order_key` (the
+# legacy policy's tie-break was ascending GDC file_id) and taking the first.
+#
+# `ids`: the candidate sample identifiers for ONE group (e.g. tumor_ids). Order
+# in the returned vector matches the INPUT order (only a subset is dropped) so
+# callers that rely on `ids` order elsewhere are unaffected.
+# `case_id_by_id`: named vector/list, id -> case/patient identifier (may be NA
+#   where linkage is unknown for that id).
+# `order_key_by_id`: named vector/list, id -> deterministic tie-break key
+#   (ascending). Defaults to `ids` themselves (alphabetical) when NULL.
+#
+# Safety valve: if case linkage is unavailable for EVERY id (e.g. the
+# metadata schema is missing the submitter-id column), dedup is a no-op — the
+# alternative (dedup on an all-NA key) would collapse the entire group to one
+# sample, which is a far worse failure than the pseudo-replication this guards
+# against.
+dedupe_one_aliquot_per_case <- function(ids, case_id_by_id, order_key_by_id = NULL,
+                                        label = "") {
+  if (length(ids) == 0) return(ids)
+  case_ids <- unname(case_id_by_id[ids])
+  if (all(is.na(case_ids))) {
+    message("[dedupe_one_aliquot_per_case] ", label,
+            ": case linkage unavailable for all ", length(ids),
+            " sample(s) — dedup skipped")
+    return(ids)
+  }
+  order_key <- if (is.null(order_key_by_id)) ids else unname(order_key_by_id[ids])
+  ord <- order(order_key, na.last = TRUE)
+  # A NA case_id gets a per-id unique key so it is never treated as a
+  # duplicate of another NA-case sample.
+  case_key <- ifelse(is.na(case_ids), paste0("__no_case_id__", ids), case_ids)
+  keep <- logical(length(ids))
+  keep[ord] <- !duplicated(case_key[ord])
+  n_dropped <- sum(!keep)
+  if (n_dropped > 0) {
+    message("[dedupe_one_aliquot_per_case] ", label, ": deduped ", n_dropped,
+            " of ", length(ids),
+            " sample(s) (one aliquot per case; first by order key)")
+  }
+  ids[keep]
+}
+
 # Pre-filter low-count genes on a per-cell sample subset. recount3 G026 carries
 # ~64K genes, a large fraction of which are lncRNA/pseudogene with near-zero
 # counts — these inflate DESeq2's dispersion-fit time (O(genes)) without adding

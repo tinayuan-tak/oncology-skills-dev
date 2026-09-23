@@ -26,6 +26,12 @@ suppressPackageStartupMessages({
   library(data.table)
 })
 
+# Source the shared dedupe_one_aliquot_per_case() (S-fix, analysis-methods#691).
+# Robust self-location under `pixi run Rscript`, same pattern as 06/07.
+.args <- commandArgs(trailingOnly = FALSE)
+.here <- dirname(normalizePath(sub("^--file=", "", .args[grepl("^--file=", .args)][1])))
+source(file.path(.here, "_four_cell_lib.R"))
+
 `%||%` <- function(a, b) if (!is.null(a) && length(a) && !is.na(a[1])) a else b
 
 # indication → GTEx/TCGA primary-site label in the Xena phenotype `_primary_site`
@@ -102,6 +108,20 @@ stopifnot(all(c("sample", "sample_type", "primary_site", "study") %in% names(ph)
 tumor_ids    <- ph[study == "TCGA" & sample_type == "Primary Tumor"       & tolower(primary_site) == tolower(site), sample]
 adjacent_ids <- ph[study == "TCGA" & sample_type == "Solid Tissue Normal" & tolower(primary_site) == tolower(site), sample]
 gtex_ids     <- ph[study == "GTEX" & sample_type == "Normal Tissue"       & tolower(primary_site) == tolower(site), sample]
+
+# One-aliquot-per-case dedup (S-fix, analysis-methods#691), TCGA arm only —
+# GTEx samples are one draw per donor per tissue, not GDC-style technical
+# aliquots, so the legacy loader's dedup never applied to them either. The
+# Xena `sample` barcode is the 15-char TCGA sample barcode
+# (TCGA-XX-XXXX-TT, e.g. "TCGA-V4-A9EE-01") with no aliquot/vial suffix, so
+# case_id is its first 12 characters; order key = the barcode itself
+# (deterministic, mirrors the recount3 loader's ascending-id-first policy).
+case_id_of <- function(ids) substr(ids, 1, 12)
+tumor_ids <- dedupe_one_aliquot_per_case(
+  tumor_ids, setNames(case_id_of(tumor_ids), tumor_ids), label = "tumor")
+adjacent_ids <- dedupe_one_aliquot_per_case(
+  adjacent_ids, setNames(case_id_of(adjacent_ids), adjacent_ids), label = "adjacent-normal")
+
 if (!is.na(opts$limit)) {
   tumor_ids    <- head(tumor_ids, opts$limit)
   adjacent_ids <- head(adjacent_ids, opts$limit)

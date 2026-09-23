@@ -31,6 +31,12 @@ suppressPackageStartupMessages({
   library(data.table)
 })
 
+# Source the shared dedupe_one_aliquot_per_case() (S-fix, analysis-methods#691).
+# Robust self-location under `pixi run Rscript`, same pattern as 06/07.
+.args <- commandArgs(trailingOnly = FALSE)
+.here <- dirname(normalizePath(sub("^--file=", "", .args[grepl("^--file=", .args)][1])))
+source(file.path(.here, "_four_cell_lib.R"))
+
 `%||%` <- function(a, b) if (!is.null(a) && length(a) && !is.na(a[1])) a else b
 
 option_list <- list(
@@ -183,6 +189,17 @@ for (study in tcga_studies) {
   normal_ids <- intersect(normal_ids, present)
   message(sprintf("[00_load_recount3]   %s: %d tumor + %d adjacent-normal (of %d cols)",
                   study, length(tumor_ids), length(normal_ids), length(present)))
+
+  # One-aliquot-per-case dedup (S-fix, analysis-methods#691): a case can
+  # contribute >1 gdc_file_id within the same sample_type (technical-replicate
+  # vials / multiple aliquots of the same tumor block). Order key = gdc_file_id
+  # itself, matching the legacy loader's ascending-file_id-first policy.
+  tumor_ids  <- dedupe_one_aliquot_per_case(tumor_ids,  submitter_by_id,
+                                            label = paste0(study, " tumor"))
+  normal_ids <- dedupe_one_aliquot_per_case(normal_ids, submitter_by_id,
+                                            label = paste0(study, " adjacent-normal"))
+  message(sprintf("[00_load_recount3]   %s: %d tumor + %d adjacent-normal after dedup",
+                  study, length(tumor_ids), length(normal_ids)))
 
   tcga_pieces[[study]] <- gs
   tcga_cols[[study]]   <- list(tumor = tumor_ids, normal = normal_ids,
