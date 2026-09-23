@@ -19,6 +19,7 @@ type and batch-correction choice:
 | C | TCGA tumor vs GTEx normal (population) | raw | live |
 | D | TCGA tumor vs GTEx normal (joint, ComBat source-correction) | — | **retired** |
 | Cr | RUVg-corrected re-run | — | diagnostic-only, `method_development/` |
+| AG | TCGA adjacent-normal vs GTEx normal | raw | diagnostic-only, `adj_vs_gtex.parquet` (S2, #695) |
 
 Cell A is the trust anchor; cell C is the population-normal cross-check; cell B corroborates
 direction but is excluded from the magnitude gate (ComBat inflates/sign-flips log2FC for some
@@ -28,9 +29,22 @@ computed. `cells_ran` / `comparator_families_ran` on the emitted `sensitivity.pa
 records which cells actually ran for a given indication (adjacent-normal is absent for
 ACC/LGG/OV/SKCM/TGCT/UCS/SCLC, so those read cell C alone).
 
+Cell **AG** (adjacent-vs-GTEx, S2 #695) is a **normal-vs-normal QC diagnostic**, not a
+comparator cell: it fits TCGA adjacent-normal (relabelled to the positive "tumor" level) vs
+GTEx normal (reference) through the *unchanged* `deseq2_fit`, so `log2FC > 0` means higher in
+TCGA adjacent than GTEx — the same TCGA-positive/GTEx-reference orientation as cell C. It
+measures the combined TCGA-vs-GTEx nuisance envelope (cross-cohort batch + field-cancerized
+peritumoral effect + RIN/ischemic + annotation), so a **large effect is the expected signal**,
+and its best use is as the evaluation target for a source-correction (RUVg / cell Cr). It is
+emitted as its own `adj_vs_gtex.parquet` byproduct and, like cell Cr, is **never added to the
+`cells` list** that feeds `assemble_sensitivity` — so it does not enter `sensitivity.parquet`,
+`cells_supporting`, or any concordance column. It runs on **both** substrates (recount3 and
+xena_toil), guarded by the same availability check as cells A/C. Consume its direction/rank,
+not its absolute log2FC (cross-cohort size factors are partly a normalization artifact).
+
 Not all ~30 TCGA indications are wired yet, and not every wired indication has both an
 adjacent-normal and a GTEx arm — see analysis-methods#690 for the indication-coverage roadmap
-(S1) and the planned adjacent-vs-GTEx diagnostic contrast (S2).
+(S1). The adjacent-vs-GTEx diagnostic contrast landed in S2 (#695).
 
 ## Substrates
 
@@ -89,7 +103,7 @@ dge_deseq2/
 
 ```bash
 # production: recount3 four-cell sensitivity grid (writes sensitivity.parquet +
-# tumor_vs_adjacent.parquet + tumor_vs_gtex.parquet + provenance.yaml)
+# tumor_vs_adjacent.parquet + tumor_vs_gtex.parquet + adj_vs_gtex.parquet + provenance.yaml)
 pixi run python -m methods.dge_deseq2.cli \
     --indication COADREAD --contrast four_cell_sensitivity \
     --release-pin 2026-Q2 --out /tmp/dge_deseq2_run/
@@ -130,7 +144,8 @@ See analysis-methods#690 for the full modernization plan. As of S0:
 - The indication → TCGA-study / GTEx-tissue rosters are still hard-coded in several places
   (`read/__init__.py`, R loaders) — consolidating them into one source of truth is S1 (#693).
 - Xena/Toil is dev-only (above) — S1b (#694).
-- The adjacent-vs-GTEx normal-baseline-agreement diagnostic contrast doesn't exist yet — S2
-  (#695).
+- ~~The adjacent-vs-GTEx normal-baseline-agreement diagnostic contrast~~ — **landed, S2 (#695)**:
+  cell AG, emitted as `adj_vs_gtex.parquet` on both substrates, diagnostic-only /
+  classifier-excluded.
 - There is no automated output-QC layer (summary tables, figures, cross-substrate
   reproducibility) — S3 (#696).

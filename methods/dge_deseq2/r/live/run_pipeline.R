@@ -118,6 +118,7 @@ if (identical(opts$contrast, "four_cell_sensitivity")) {
   message("  Sensitivity:  ", f("sensitivity.parquet"))
   message("  Contrasts:    ", f("tumor_vs_adjacent.parquet"), " + ",
           f("tumor_vs_gtex.parquet"))
+  message("  Diagnostic:   ", f("adj_vs_gtex.parquet"), " (adj-vs-GTEx QC, #695)")
   message("  Provenance:   ", f("provenance.yaml"))
   quit(status = 0)
 }
