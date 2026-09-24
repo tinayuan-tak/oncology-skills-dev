@@ -203,6 +203,48 @@ deseq2_fit <- function(mat, cd, with_svalue = FALSE) {
     n_genes_pre      = n_genes_pre,
     n_genes_post     = n_genes_post
   )
+  # --- attach the figure inputs the S3b QC bundle (_qc_figures.R) needs --------
+  # The result-diagnostic figures (MA / p-hist / volcano / indep-filter) read
+  # attr(fit,"qc") above; the sample-level trio (PCA / sample-distance /
+  # library-size) and the three-component plotDispEsts need the VST matrix + the
+  # dispersion trend + per-sample metadata, which live only on the dds here.
+  # Captured as attr(out,"fig") — like the qc attr, an R attribute, so the
+  # emitted parquet columns stay byte-identical (write_parquet drops attrs). Only
+  # the top-N most-variable genes' VST is kept so the cache stays light; PCA and
+  # the sample-distance heatmap both use the top-variable subset by convention.
+  # Any failure here is non-fatal: the fig attr is a diagnostic sidecar, never a
+  # product input, so a VST hiccup must not fail a fit whose parquet is valid.
+  fig <- tryCatch({
+    vsd <- tryCatch(vst(dds, blind = FALSE),
+                    error = function(e) varianceStabilizingTransformation(dds, blind = FALSE))
+    vm  <- SummarizedExperiment::assay(vsd)
+    n_top <- min(500L, nrow(vm))
+    rv  <- matrixStats::rowVars(vm)
+    top <- order(rv, decreasing = TRUE)[seq_len(n_top)]
+    vm_top <- vm[top, , drop = FALSE]
+    md <- data.frame(group = as.character(cd$group), stringsAsFactors = FALSE,
+                     row.names = colnames(mat))
+    for (cov in c("source", "tcga_tss", "SMRIN")) {
+      if (cov %in% colnames(cd)) md[[cov]] <- cd[[cov]]
+    }
+    list(
+      vst           = vm_top,
+      n_top_var     = n_top,
+      baseMean      = res_un$baseMean,
+      disp_gene_est = tryCatch(as.numeric(S4Vectors::mcols(dds)$dispGeneEst),
+                               error = function(e) NULL),
+      disp_fit      = tryCatch(as.numeric(S4Vectors::mcols(dds)$dispFit),
+                               error = function(e) NULL),
+      disp_final    = tryCatch(as.numeric(dispersions(dds)), error = function(e) NULL),
+      lib_size      = colSums(mat),
+      sample_meta   = md
+    )
+  }, error = function(e) {
+    message("[four_cell_lib]   attr(fit,\"fig\") capture failed (",
+            conditionMessage(e), ") — S3b sample-level figures will be skipped")
+    NULL
+  })
+  attr(out, "fig") <- fig
   out
 }
 
@@ -518,6 +560,11 @@ four_cell_qc_metrics <- function(qc) {
 
   n_tested <- sum(!pval_na)
   n_sig    <- sum(!padj_na & padj < 0.05)
+  # Secondary FDR band + effect size of the significant set (S3b summary row).
+  n_sig_010 <- sum(!padj_na & padj < 0.10)
+  abs_lfc_sig <- abs(lfc[!padj_na & padj < 0.05])
+  median_abs_lfc_sig <- if (any(is.finite(abs_lfc_sig)))
+    stats::median(abs_lfc_sig[is.finite(abs_lfc_sig)]) else NA_real_
 
   # padj/LFC coherence: padj comes from the UNSHRUNK res_un, log2FC from the
   # apeglm-shrunk res. A gene tested to a finite padj must carry a finite shrunk
@@ -550,12 +597,16 @@ four_cell_qc_metrics <- function(qc) {
   sf_range_ratio <- if (sf_available && any(is.finite(sf)) &&
                         min(sf[is.finite(sf)]) > 0)
                       max(sf[is.finite(sf)]) / min(sf[is.finite(sf)]) else NA_real_
+  sf_min <- if (sf_available && any(is.finite(sf))) min(sf[is.finite(sf)]) else NA_real_
+  sf_max <- if (sf_available && any(is.finite(sf))) max(sf[is.finite(sf)]) else NA_real_
 
   list(
     available              = TRUE,
     n_genes                = n_genes,
     n_tested               = n_tested,
     n_sig                  = n_sig,
+    n_sig_010              = n_sig_010,
+    median_abs_lfc_sig     = median_abs_lfc_sig,
     na_total               = na_total,
     na_indep_filter        = na_indep_filter,
     na_allzero             = na_allzero,
@@ -575,6 +626,8 @@ four_cell_qc_metrics <- function(qc) {
     sf_nonfinite           = sf_nonfinite,
     sf_nonpos              = sf_nonpos,
     sf_range_ratio         = sf_range_ratio,
+    sf_min                 = sf_min,
+    sf_max                 = sf_max,
     n_tumor                = qc$n_tumor,
     n_normal               = qc$n_normal,
     n_genes_pre            = qc$n_genes_pre,

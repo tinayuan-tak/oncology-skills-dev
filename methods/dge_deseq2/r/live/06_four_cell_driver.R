@@ -39,6 +39,9 @@ suppressPackageStartupMessages({
 .args <- commandArgs(trailingOnly = FALSE)
 .here <- dirname(normalizePath(sub("^--file=", "", .args[grepl("^--file=", .args)][1])))
 source(file.path(.here, "_four_cell_lib.R"))
+# S3b (#702): the per-contrast QC report bundle (figures/ + metrics row). Pure
+# functions of the fit's attributes — defined separately, side-effect-free.
+source(file.path(.here, "_qc_figures.R"))
 
 option_list <- list(
   make_option("--in", type = "character", dest = "in_path",
@@ -274,4 +277,25 @@ prov <- list(
   schema_version = "2"
 )
 writeLines(yaml::as.yaml(prov), file.path(opts$`out-dir`, "provenance.yaml"))
+
+# --- per-contrast QC report bundles (S3b, github analysis-methods#702) --------
+# For every cell that RAN (A/B/C and the diagnostic AG), emit a QC bundle
+# (figures/ + metrics.csv) under <out-dir>/qc/<cell>/ alongside the parquets, and
+# a per-run qc_summary.csv (one row per cell) that the cross-indication index
+# (scripts/build_qc_index.py) concatenates across runs. Reads each fit's
+# attr(,"qc")/attr(,"fig"); NEVER touches the emitted parquets (byte-identical).
+qc_bundle_root <- file.path(opts$`out-dir`, "qc")
+dir.create(qc_bundle_root, showWarnings = FALSE, recursive = TRUE)
+ind_label  <- paste(dat$metadata$tcga_studies, collapse = "+")
+subs_label <- dat$metadata$substrate %||% "recount3"
+qc_cells   <- Filter(Negate(is.null), list(A = cellA, B = cellB, C = cellC, AG = cellAG))
+qc_rows    <- Filter(Negate(is.null), lapply(names(qc_cells), function(lab) {
+  emit_qc_bundle(qc_cells[[lab]], file.path(qc_bundle_root, lab), lab,
+                 indication = ind_label, substrate = subs_label, emit = flog)
+}))
+if (length(qc_rows)) {
+  qc_summary <- do.call(rbind, qc_rows)
+  write.csv(qc_summary, file.path(qc_bundle_root, "qc_summary.csv"), row.names = FALSE)
+  flog(sprintf("[06_four_cell] QC bundles: %d cell(s) -> %s", nrow(qc_summary), qc_bundle_root))
+}
 message("[06_four_cell] done.")

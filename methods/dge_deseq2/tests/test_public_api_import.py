@@ -65,6 +65,7 @@ def test_r_live_and_r_legacy_layout():
         "06_four_cell_driver.R",
         "07_stratified_four_cell_driver.R",
         "_four_cell_lib.R",
+        "_qc_figures.R",  # S3b (#702): per-contrast QC report bundle (figures + metrics row)
         "run_pipeline.R",
     }
     assert {p.name for p in legacy.glob("*.R")} == {

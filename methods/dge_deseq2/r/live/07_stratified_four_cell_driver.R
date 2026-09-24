@@ -39,6 +39,9 @@ suppressPackageStartupMessages({
 .args <- commandArgs(trailingOnly = FALSE)
 .here <- dirname(normalizePath(sub("^--file=", "", .args[grepl("^--file=", .args)][1])))
 source(file.path(.here, "_four_cell_lib.R"))
+# S3b (#702): per-contrast QC report bundle (figures/ + metrics row), emitted
+# per stratum. Pure functions of the fit's attributes; side-effect-free.
+source(file.path(.here, "_qc_figures.R"))
 
 option_list <- list(
   make_option("--in", type = "character", dest = "in_path",
@@ -177,6 +180,23 @@ run_stratum <- function(stratum) {
     flog(sprintf("stratum %s SKIPPED — no cells ran", stratum))
     return(NULL)
   }
+
+  # Per-contrast QC bundles (S3b #702) for this stratum, under
+  # <out-dir>/_strat_<stratum>/qc/<cell>/. indication carries the stratum so the
+  # cross-indication index disambiguates strata.
+  qc_root <- file.path(strat_dir, "qc")
+  dir.create(qc_root, showWarnings = FALSE, recursive = TRUE)
+  ind_label  <- paste0(paste(dat$metadata$tcga_studies, collapse = "+"), ":", stratum)
+  subs_label <- dat$metadata$substrate %||% "recount3"
+  qc_rows <- Filter(Negate(is.null), lapply(names(cells), function(lab) {
+    emit_qc_bundle(cells[[lab]], file.path(qc_root, lab), lab,
+                   indication = ind_label, substrate = subs_label, emit = flog)
+  }))
+  if (length(qc_rows)) {
+    write.csv(do.call(rbind, qc_rows), file.path(qc_root, "qc_summary.csv"),
+              row.names = FALSE)
+  }
+
   sens <- assemble_sensitivity(cells)
   sens$stratum_id       <- stratum
   sens$subgroup_axis    <- opts$axis
