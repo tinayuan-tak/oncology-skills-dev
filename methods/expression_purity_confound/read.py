@@ -24,6 +24,25 @@ CONFOUND_R = -0.3  # r <= CONFOUND_R (significant) → microenvironment_confound
 MIN_PAIRED_SAMPLES = 30
 SIGNIFICANCE_ALPHA = 0.05
 
+# Purity-SPREAD power gate. Detecting a purity confound REQUIRES the purity regressor to vary:
+# a narrow purity band cannot resolve an expression↔purity association, so a `purity_independent`
+# call from a tight band is UNDER-POWERED, not reassuring (cf. card caveat — "in high-purity
+# cohorts the purity range may be too narrow to resolve a confound"). The n>=MIN_PAIRED_SAMPLES
+# and near-zero-variance guards do NOT catch this: a cohort can have 100+ paired cases with real
+# (non-zero) but tightly-concentrated purity and still be blind to a confound.
+#
+# MIN_PURITY_IQR chosen from the observed corpus distribution of the paired-purity IQR across the
+# 31 TCGA indications this method serves (broadly-expressed proxy, purity is target-independent):
+#   IQR percentiles  p0=0.153  p10=0.190  p25=0.220  p50=0.250  p75=0.282  p90=0.358  p100=0.380
+# The narrow tail is the small HIGH-purity cohorts (median purity 0.85-0.86): ACC 0.153, KICH 0.160,
+# UCS 0.172 — then a clear gap to OV 0.190. 0.18 sits in that gap, flagging exactly the unambiguous
+# "high-purity cohort, band too narrow to resolve a confound" case the card warns about, without
+# flagging the mid-spread majority (honest, not conservative-to-a-fault). Emitted as an advisory
+# qualifier field alongside the raw `purity_range_iqr` — the class vocabulary is unchanged, so a
+# genuine wide-spread `purity_independent` still grades cleanly; a consumer keys the flag to decide
+# how confidently to read a `purity_independent` call.
+MIN_PURITY_IQR = 0.18
+
 
 from methods.target_id_sidecar import ensure_aws_profile
 
@@ -86,6 +105,29 @@ def classify_purity_confound(pearson_r: Optional[float], pearson_p: Optional[flo
     if significant and pearson_r <= CONFOUND_R:
         return "microenvironment_confounded"
     return "purity_independent"
+
+
+def purity_spread_iqr(purity_values) -> Optional[float]:
+    """IQR (Q75-Q25) of the paired ABSOLUTE purity vector — an honest spread/power qualifier.
+
+    Pure (no I/O), so it is unit-testable from a stored raw purity vector. Returns None when fewer
+    than two finite values are present (spread undefined)."""
+    import numpy as np
+
+    p = np.asarray(list(purity_values), dtype=float)
+    p = p[np.isfinite(p)]
+    if p.size < 2:
+        return None
+    q25, q75 = np.percentile(p, [25, 75])
+    return float(q75 - q25)
+
+
+def is_purity_spread_underpowered(purity_range_iqr: Optional[float]) -> bool:
+    """True when the paired purity band is too narrow (IQR < MIN_PURITY_IQR) to resolve a confound.
+
+    A None IQR (undefined spread) is NOT flagged as under-powered here — that degenerate case is
+    already routed to data_unavailable by the near-zero-variance guard upstream."""
+    return purity_range_iqr is not None and purity_range_iqr < MIN_PURITY_IQR
 
 
 def read_purity_points(target: str, indication: str):
@@ -173,6 +215,7 @@ def read_expression_purity_confound(target: str, indication: str) -> dict:
     pearson_r, pearson_p = stats.pearsonr(e, p)
     spearman_r, spearman_p = stats.spearmanr(e, p)
     cls = classify_purity_confound(float(pearson_r), float(pearson_p), n_paired)
+    purity_iqr = purity_spread_iqr(p)
     base.update(
         {
             "purity_confound_class": cls,
@@ -180,6 +223,11 @@ def read_expression_purity_confound(target: str, indication: str) -> dict:
             "expression_purity_pearson_p": float(f"{pearson_p:.3g}"),
             "expression_purity_spearman_r": round(float(spearman_r), 4),
             "median_purity": round(float(np.median(p)), 4),
+            # honest SPREAD qualifier: median_purity conveys location, this conveys whether the
+            # design could resolve a confound at all. A narrow band (underpowered) means a
+            # purity_independent call abstains rather than reassures — the class stays unchanged.
+            "purity_range_iqr": round(purity_iqr, 4) if purity_iqr is not None else None,
+            "purity_spread_underpowered": is_purity_spread_underpowered(purity_iqr),
             # honest limits: bulk cannot resolve cell-of-origin; a purity-independent / confounded call is
             # a FLAG for interpretation, not proof — CIBERSORT immune-cell attribution is a later enrichment.
             "cellular_source": "unresolved_from_bulk",
