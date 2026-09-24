@@ -342,7 +342,7 @@ def _build_headline_block(headline: dict) -> dict:
 
 
 SKILL_NAME = "surface-modality-fit"
-SKILL_VERSION = "1.11.0"  # 1.11.0 (2026-09-15) DISPLAY-ONLY: the headline PHRASE no longer asserts an arm the resolver excluded. Measured 108 of 504 corpus rows (21.4%) rendering "ADC & TCE viable" / "TCE-favorable" for a token whose own arm projection carries an `unsafe` / `escape_risk` / `caveated` arm (fit_class is blind to the downgrade — it lives in surface_modality_verdict). When an arm is downgraded the phrase is rebuilt from the PINNED arm projection via headline_core's phrase_override (`TCE unsafe; ADC & mAb viable`); trigger derived from _VERDICT_ARMS, not the hand-maintained reason map. Also adds the 2 _SURFACE_DOWNGRADE_REASON rows missing since 1.3.0 (adc_preferred_tce_escape_risk / tce_escape_risk rendered with NO tension note). verdict.call / gate / polarity / claim_vector / resolver all byte-stable.   # 1.10.0 (2026-09-07, CASE-012) VERDICT-INERT: pmhc_presentation_caveat — a pmhc_tce_supported call whose epitope is presented on an INTERMEDIATE breadth of normal tissues (Q1–Q3, below the broadly_presented_normal veto) is flagged (NOX1/CRC: colon+small-intestine+marrow). Presentation-axis (modality-appropriate), not expression; names the on-target/off-tumor liability the binary veto misses, without foreclosing the route (NY-ESO-1/MAGE-A4 restricted → no caveat). Spine/resolver/replay byte-stable.   # 1.9.0 (2026-09-04) Phase-6 VERDICT-MOVING: consume the TC surface_annotation_only_unconfirmed verdict (resolver v1.7.0). Cross-card surface_confirmation_state derived by the NEW surface_modality card preprocessor (registered + run_wired_skill preprocess_gate); _compose_adc_tce_fit emits biologics_precedented (widened ADC/TCE/CAR crosswalk). A positive fit_class resting on family/predicted-topology annotation w/o confirmed protein or clinical precedent → NON-NOMINATING caveat. DLL3/CEACAM5 spared (clinically_precedented). Depends TC #631.   # 1.8.0 (2026-09-04): --literature lane + VERDICT-INERT surfacing (surface_confirmation_caveat = surfaceome-family/RNA/predicted-topology annotation-INFLATION flag when a positive fit_class lacks confirmed cell-surface protein; endocytosis-unmeasured ADC sub-note; shed_caveat soluble-antigen-sink arm; SURFACE_MODALITY_FIT thesis + polarity_note). Spine byte-stable (resolver keys only on fit_class + safety/density/shed rungs).   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
+SKILL_VERSION = "1.12.0"  # 1.12.0 (2026-09-24, canon-17 F1): the sc-normal clamp's GATING FIELD is now PROJECTED (VERDICT-INERT). `sc-normal-high-liability-bite-killer` is a `dominant: true` BiTE/TCE killer (surface-intrinsic.rules.yaml) keyed on `sc_normal_essential_veto_grade` (`in: [accessible_high_severity, accessible_ungraded]`, repointed by TC#786), resolving through surface_modality.resolver.yaml to adc_preferred_tce_unsafe / tce_unsafe_normal_liability (priorities 4/6) — yet the skill lifted only `sc_normal_expression_class` + the generic max-detection fields, so a `tce_unsafe_normal_liability` headline carried NO field explaining its own downgrade (measured on DLL3-SCLC: the card read `accessible_high_severity`, the headline read nothing). `_headline` now projects the gating field + its named essential driver cell/tissue/detection-fraction (`sc_normal_essential_veto_grade` / `sc_normal_essential_max_cell_type` / `_max_tissue` / `_max_detection_fraction`). Also corrects the false block comment (it named `sc_normal_expression_class` as the gating field, claimed "no resolver rung", and "LIVE for colon+lung only" — all three measurably false against the killer rule + resolver + 19 wired tissue shards). Mirror of tumor-selectivity PR#1475. No rule/card/ledger/schema/golden reads the new keys; resolver/veto spine byte-stable.   # 1.11.0 (2026-09-15) DISPLAY-ONLY: the headline PHRASE no longer asserts an arm the resolver excluded. Measured 108 of 504 corpus rows (21.4%) rendering "ADC & TCE viable" / "TCE-favorable" for a token whose own arm projection carries an `unsafe` / `escape_risk` / `caveated` arm (fit_class is blind to the downgrade — it lives in surface_modality_verdict). When an arm is downgraded the phrase is rebuilt from the PINNED arm projection via headline_core's phrase_override (`TCE unsafe; ADC & mAb viable`); trigger derived from _VERDICT_ARMS, not the hand-maintained reason map. Also adds the 2 _SURFACE_DOWNGRADE_REASON rows missing since 1.3.0 (adc_preferred_tce_escape_risk / tce_escape_risk rendered with NO tension note). verdict.call / gate / polarity / claim_vector / resolver all byte-stable.   # 1.10.0 (2026-09-07, CASE-012) VERDICT-INERT: pmhc_presentation_caveat — a pmhc_tce_supported call whose epitope is presented on an INTERMEDIATE breadth of normal tissues (Q1–Q3, below the broadly_presented_normal veto) is flagged (NOX1/CRC: colon+small-intestine+marrow). Presentation-axis (modality-appropriate), not expression; names the on-target/off-tumor liability the binary veto misses, without foreclosing the route (NY-ESO-1/MAGE-A4 restricted → no caveat). Spine/resolver/replay byte-stable.   # 1.9.0 (2026-09-04) Phase-6 VERDICT-MOVING: consume the TC surface_annotation_only_unconfirmed verdict (resolver v1.7.0). Cross-card surface_confirmation_state derived by the NEW surface_modality card preprocessor (registered + run_wired_skill preprocess_gate); _compose_adc_tce_fit emits biologics_precedented (widened ADC/TCE/CAR crosswalk). A positive fit_class resting on family/predicted-topology annotation w/o confirmed protein or clinical precedent → NON-NOMINATING caveat. DLL3/CEACAM5 spared (clinically_precedented). Depends TC #631.   # 1.8.0 (2026-09-04): --literature lane + VERDICT-INERT surfacing (surface_confirmation_caveat = surfaceome-family/RNA/predicted-topology annotation-INFLATION flag when a positive fit_class lacks confirmed cell-surface protein; endocytosis-unmeasured ADC sub-note; shed_caveat soluble-antigen-sink arm; SURFACE_MODALITY_FIT thesis + polarity_note). Spine byte-stable (resolver keys only on fit_class + safety/density/shed rungs).   # 1.7.0 (2026-09-04, #979): consume the MIDDLE antigen-escape band (escape_risk_patient_variable) — VERDICT-MOVING: two positive-caveated verdicts (adc_preferred_tce_patient_variable / tce_patient_variable) temper the TCE arm without foreclosing it.   # 1.6.0 (2026-08-28): capsule-driven narrator via generic engine. Verdict-INERT.   # 1.5.0 (2026-08-27): tuned signals-first sub-group reader (surface-modality vocab). Verdict-INERT.
 # 1.4.0 (2026-08-21): emit existing per-question question_table into the headline; 1.3.0 +sc-surface-normal-safety +sc-surface-rna-protein-concordance
 
 # VERDICT-RELEVANT vs ENRICHMENT: the surface_modality resolver (v1.1.0, 2026-08-09) keys on the
@@ -361,14 +361,17 @@ CARDS = [
     "adc-tce-modality-fit",
     "normal-tissue-liability",  # HPA IHC on-target-off-tumor safety (wired 2026-07-20)
     "sc-normal-celltype-expression",  # (2026-08-07): scRNA cell-type-resolved
-    # normal-tissue safety from Census pseudobulk (sc_rna/normal). Its
-    # rules fire on sc_normal_expression_class: HIGH_LIABILITY →
-    # bite_tce killer + adc/antibody opposing; MODERATE → all opposing;
-    # NOT_EXPRESSED → supportive (dominant). Complements HPA IHC:
-    # IHC misses low-level inducible targets + can't distinguish cell
-    # types (e.g. hepatocyte vs Kupffer cell). LIVE for colon+lung;
-    # other tissues → data_unavailable (honest coverage gap). ADDITIVE
-    # signal-only (no resolver rung → verdict byte-stable).
+    # normal-tissue safety from Census pseudobulk (sc_rna/normal). VERDICT-DRIVING:
+    # sc-normal-high-liability-bite-killer (surface-intrinsic.rules.yaml) is a
+    # `dominant: true` BiTE/TCE killer keyed on the GRADED field
+    # sc_normal_essential_veto_grade (in: [accessible_high_severity,
+    # accessible_ungraded], repointed by TC#786 — NOT sc_normal_expression_class),
+    # resolving to adc_preferred_tce_unsafe / tce_unsafe_normal_liability
+    # (surface_modality.resolver.yaml, priorities 4/6). NOT_EXPRESSED →
+    # supportive (dominant). Complements HPA IHC: IHC misses low-level inducible
+    # targets + can't distinguish cell types (e.g. hepatocyte vs Kupffer cell).
+    # 19 tissue shards wired (NOT colon+lung only); uncovered tissues →
+    # data_unavailable (honest coverage gap).
     "sc-surface-normal-safety",  # REVIVE (dead-card resolution 2026-08-19): single-cell CITE-seq
     # SURFACE-protein footprint on normal immune cell types — the PROTEIN
     # single-cell sibling of sc-normal-celltype-expression (RNA) + normal-
@@ -1105,14 +1108,37 @@ def _headline(cards, fired, verdict_pair):
         "cd_antigen_backbone_class": get_card_field(cards, "cd-antigen-backbone", "cd_antigen_backbone_class"),
         "cd_number": get_card_field(cards, "cd-antigen-backbone", "cd_number"),
         "cd_established_io_precedent": get_card_field(cards, "cd-antigen-backbone", "established_io_precedent"),
-        # scRNA cell-type-resolved normal-tissue safety (sc-normal-celltype-expression).
-        # Its rules fire on sc_normal_expression_class on the surface_intrinsic axis: HIGH_LIABILITY →
-        # bite_tce killer + adc/antibody opposing; NOT_EXPRESSED → supportive (dominant). Provides
+        # scRNA cell-type-resolved normal-tissue safety (sc-normal-celltype-expression). Provides
         # cell-type-level resolution HPA IHC can't deliver (e.g. hepatocyte vs Kupffer cell, AT2 vs
-        # alveolar macrophage). LIVE for colon+lung; other tissues → data_unavailable (named gap).
-        # Additive; verdict byte-stable (no resolver rung — safety_essential_flags surfaced for LLM).
+        # alveolar macrophage).
+        #
+        # ⚠️ THIS CARD IS VERDICT-DRIVING VIA A `dominant: true` BiTE/TCE KILLER — NOT display-only.
+        # `sc-normal-high-liability-bite-killer` (surface-intrinsic.rules.yaml) keys on the GRADED field
+        # `sc_normal_essential_veto_grade` (`in: [accessible_high_severity, accessible_ungraded]`) and
+        # resolves through `surface_modality.resolver.yaml` to `adc_preferred_tce_unsafe` /
+        # `tce_unsafe_normal_liability` (priorities 4/6). It IS a resolver rung, it fires on the graded
+        # field (repointed by TC#786, NOT `sc_normal_expression_class`), and 19 tissue shards are wired
+        # (NOT colon+lung only). The prior comment — "no resolver rung", "fires on sc_normal_expression_class",
+        # "LIVE for colon+lung" — was measurably false on all three counts and read as display-only.
+        #
+        # ★ THE FIELD THE KILLER ACTUALLY GATES ON is projected below beside its named driver cell/tissue/
+        # fraction, so a `tce_unsafe_normal_liability` verdict carries the field that DROVE its own
+        # downgrade (data-package-over-verdict). Projection is additive; the resolver/veto spine is
+        # byte-stable (no rule/card/ledger/schema/golden reads these headline keys).
         "sc_normal_expression_class": get_card_field(
             cards, "sc-normal-celltype-expression", "sc_normal_expression_class"
+        ),
+        "sc_normal_essential_veto_grade": get_card_field(
+            cards, "sc-normal-celltype-expression", "sc_normal_essential_veto_grade"
+        ),
+        "sc_normal_essential_max_cell_type": get_card_field(
+            cards, "sc-normal-celltype-expression", "sc_normal_essential_max_cell_type"
+        ),
+        "sc_normal_essential_max_tissue": get_card_field(
+            cards, "sc-normal-celltype-expression", "sc_normal_essential_max_tissue"
+        ),
+        "sc_normal_essential_max_detection_fraction": get_card_field(
+            cards, "sc-normal-celltype-expression", "sc_normal_essential_max_detection_fraction"
         ),
         "sc_normal_max_det_cell_type": get_card_field(
             cards, "sc-normal-celltype-expression", "max_detection_cell_type"

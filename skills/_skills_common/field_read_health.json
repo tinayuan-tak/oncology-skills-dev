@@ -1,6 +1,6 @@
 {
   "attribution": {
-    "per_unit_read_credits": 564,
+    "per_unit_read_credits": 568,
     "per_unit_union_pairs": 517,
     "reconciled": true,
     "unattributed": [],
@@ -2317,9 +2317,9 @@
     "surface-modality-fit": {
       "disposition": "clean",
       "kind": "skill",
-      "n_reads": 76,
+      "n_reads": 80,
       "reads_by_kind": {
-        "skill_code": 76
+        "skill_code": 80
       },
       "undeclared": []
     },
