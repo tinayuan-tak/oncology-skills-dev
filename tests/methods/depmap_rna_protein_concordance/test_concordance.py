@@ -146,12 +146,34 @@ def test_tumor_arm_concordance(monkeypatch):
         }
         for i in range(n)
     ]
-    monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort: pd.DataFrame(rows))
+    monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort, target=None: pd.DataFrame(rows))
     out = R.read_tumor_rna_protein_concordance("KRAS", "COADREAD")
     assert out["cptac_cohort"] == "coad" and out["substrate"] == "cptac_tumor"
     assert out["rna_as_biomarker"] == "adequate_proxy" and out["n_paired_tumors"] == n
     # unmapped indication → data_unavailable (no CPTAC cohort)
     assert R.read_tumor_rna_protein_concordance("KRAS", "SKCM")["rna_as_biomarker"] == "data_unavailable"
+
+
+def test_tumor_gene_pushdown_and_projection(monkeypatch):
+    """OPT-1: _read_matched_cohort pushes the gene predicate down and projects only the consumed
+    columns to the parquet reader, instead of materializing the whole cohort matrix."""
+    import pandas as pd
+    import pyarrow.parquet as pq
+
+    captured = {}
+
+    def _fake_read_table(path, filesystem=None, columns=None, filters=None):
+        captured["columns"] = columns
+        captured["filters"] = filters
+        return pytest.importorskip("pyarrow").Table.from_pandas(
+            pd.DataFrame(columns=["patient_id", "gene", "rna_log2tpm", "protein_log2abundance"])
+        )
+
+    monkeypatch.setattr(pq, "read_table", _fake_read_table)
+    R._read_matched_cohort("coad", target="kras")
+    assert captured["columns"] == ["patient_id", "gene", "rna_log2tpm", "protein_log2abundance"]
+    assert ("cohort", "==", "coad") in captured["filters"]
+    assert ("gene", "==", "KRAS") in captured["filters"]  # upper()/strip() normalized
 
 
 def test_tumor_emitter(tmp_path, monkeypatch):
@@ -171,7 +193,7 @@ def test_tumor_emitter(tmp_path, monkeypatch):
         }
         for i in range(n)
     ]
-    monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort: pd.DataFrame(rows))
+    monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort, target=None: pd.DataFrame(rows))
     svg = cli.emit_tumor_svg("CDX2", "COADREAD", tmp_path)
     assert svg is not None and svg.exists()
     specs = cli.emit_tumor_plotly_specs("CDX2", "COADREAD", tmp_path)
@@ -188,13 +210,15 @@ def test_tumor_arm_underpowered_and_gap(monkeypatch):
         {"patient_id": f"p{i}", "gene": "X", "rna_log2tpm": float(i), "protein_log2abundance": float(i)}
         for i in range(5)
     ]
-    monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort: pd.DataFrame(rows))
+    monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort, target=None: pd.DataFrame(rows))
     assert R.read_tumor_rna_protein_concordance("X", "COADREAD")["rna_as_biomarker"] == "insufficient_paired_tumors"
     # target absent from the cohort → data_unavailable (n==0)
     monkeypatch.setattr(
         R,
         "_read_matched_cohort",
-        lambda cohort: pd.DataFrame(columns=["patient_id", "gene", "rna_log2tpm", "protein_log2abundance"]),
+        lambda cohort, target=None: pd.DataFrame(
+            columns=["patient_id", "gene", "rna_log2tpm", "protein_log2abundance"]
+        ),
     )
     assert R.read_tumor_rna_protein_concordance("GHOST", "COADREAD")["rna_as_biomarker"] == "data_unavailable"
 

@@ -198,6 +198,25 @@ CPTAC_MATCHED_MANIFEST_ID = "cptac-rna-protein-matched-per-sample-v1"
 # bucket + key resolved from the data-catalog manifest (single source of truth).
 S3_BUCKET, CPTAC_MATCHED_KEY = bucket_key_for(CPTAC_MATCHED_MANIFEST_ID)
 MIN_PAIRED_TUMORS = 20
+# Columns the tumor arm consumes — projected at read time so the parquet reader
+# materializes only these (not the full gene×patient matrix). cohort is the read
+# filter (need not be projected).
+_MATCHED_COLUMNS = ["patient_id", "gene", "rna_log2tpm", "protein_log2abundance"]
+
+# Module-level S3FileSystem singleton (OPT-2): reconstructing pafs.S3FileSystem()
+# on every cohort read is wasteful for umbrella indications that loop leaf cohorts.
+_S3FS = None
+
+
+def _s3_filesystem():
+    """Lazily construct + cache the module-level pyarrow S3FileSystem singleton."""
+    global _S3FS
+    if _S3FS is None:
+        import pyarrow.fs as pafs  # sibling-standard S3 reader (see dgidb_drug_gene/read.py)
+
+        _S3FS = pafs.S3FileSystem()
+    return _S3FS
+
 
 # indication → CPTAC cohort code (the 10 cohorts in the matched product).
 INDICATION_TO_CPTAC_COHORT = {
@@ -235,29 +254,38 @@ def _cptac_cohorts_for(indication: str) -> list[str]:
     return out
 
 
-def _read_matched_cohorts(cohorts: list[str]):
-    """Read + row-concat the matched CPTAC product across one or more leaf cohorts (pooled NSCLC)."""
+def _read_matched_cohorts(cohorts: list[str], target: "Optional[str]" = None):
+    """Read + row-concat the matched CPTAC product across one or more leaf cohorts (pooled NSCLC).
+    When target is given the gene predicate is pushed down to the parquet reader (OPT-1)."""
     import pandas as pd
 
-    frames = [_read_matched_cohort(c) for c in cohorts]
+    frames = [_read_matched_cohort(c, target=target) for c in cohorts]
     frames = [f for f in frames if not f.empty]
-    return pd.concat(frames, ignore_index=True) if frames else _read_matched_cohort(cohorts[0])
+    return pd.concat(frames, ignore_index=True) if frames else _read_matched_cohort(cohorts[0], target=target)
 
 
-def _read_matched_cohort(cohort: str):
+def _read_matched_cohort(cohort: str, target: "Optional[str]" = None):
     """Read the matched CPTAC product for one cohort → DataFrame[patient_id, gene, rna_log2tpm,
-    protein_log2abundance]. Empty on any read failure (data_unavailable-safe)."""
+    protein_log2abundance]. Empty on any read failure (data_unavailable-safe).
+
+    OPT-1: project only the consumed columns and push the gene predicate down when target is
+    given, so the reader materializes one gene's rows rather than the whole cohort gene×patient
+    matrix. Output is identical to the prior "read whole cohort, filter gene in pandas" path."""
     import pandas as pd
 
     try:
-        import pyarrow.fs as pafs  # was s3fs — the ONLY module importing it; s3fs is absent from
         import pyarrow.parquet as pq
 
-        # pixi.toml so this reader crashed at import in the pixi runtime
-        # (cards review 2026-08-17, S2). pyarrow.fs.S3FileSystem is the
-        # sibling-standard S3 reader (see dgidb_drug_gene/read.py).
-        fs = pafs.S3FileSystem()
-        tbl = pq.read_table(f"{S3_BUCKET}/{CPTAC_MATCHED_KEY}", filesystem=fs, filters=[("cohort", "==", cohort)])
+        # pyarrow.fs (not s3fs — the ONLY module importing s3fs, which is absent from pixi.toml so
+        # this reader crashed at import in the pixi runtime, cards review 2026-08-17, S2). The
+        # S3FileSystem is a module-level singleton (OPT-2), not reconstructed per cohort.
+        fs = _s3_filesystem()
+        filters = [("cohort", "==", cohort)]
+        if target is not None:
+            filters.append(("gene", "==", target.upper().strip()))
+        tbl = pq.read_table(
+            f"{S3_BUCKET}/{CPTAC_MATCHED_KEY}", filesystem=fs, columns=_MATCHED_COLUMNS, filters=filters
+        )
         return tbl.to_pandas()
     except Exception as e:  # noqa: BLE001
         from methods.target_id_sidecar import is_definitively_absent
@@ -277,18 +305,6 @@ def read_tumor_rna_protein_concordance(target: str, indication: str, plot_data_o
 
     plot_data_out (figure Stage 6): OPT-IN — persist the per-tumor scatter points
     (plot_data_rna_protein_tumor.parquet) so the figure renders offline. Best-effort."""
-    if plot_data_out is not None:
-        try:
-            import pandas as _pd
-
-            pts = (read_tumor_rna_protein_scatter(target, indication).get("points")) or []
-            if pts:
-                Path(plot_data_out).mkdir(parents=True, exist_ok=True)
-                _pd.DataFrame([{"rna": p["rna"], "protein": p["protein"]} for p in pts]).to_parquet(
-                    Path(plot_data_out) / "plot_data_rna_protein_tumor.parquet", index=False
-                )
-        except Exception:  # noqa: BLE001 — persistence best-effort
-            pass
     cohorts = _cptac_cohorts_for(indication)
     cohort = "+".join(cohorts) if cohorts else None  # e.g. "luad+lscc" for the NSCLC umbrella
     base = {"target": target, "indication": indication, "cptac_cohort": cohort, "substrate": "cptac_tumor"}
@@ -302,7 +318,21 @@ def read_tumor_rna_protein_concordance(target: str, indication: str, plot_data_o
             }
         )
         return base
-    df = _read_matched_cohorts(cohorts)
+    # OPT-2: read the matched frame ONCE per render and reuse it for both the plot-data
+    # persistence (scatter) and the verdict, instead of reading the cohort twice.
+    df = _read_matched_cohorts(cohorts, target)
+    if plot_data_out is not None:
+        try:
+            import pandas as _pd
+
+            pts = (_scatter_from_frame(df, target, cohort).get("points")) or []
+            if pts:
+                Path(plot_data_out).mkdir(parents=True, exist_ok=True)
+                _pd.DataFrame([{"rna": p["rna"], "protein": p["protein"]} for p in pts]).to_parquet(
+                    Path(plot_data_out) / "plot_data_rna_protein_tumor.parquet", index=False
+                )
+        except Exception:  # noqa: BLE001 — persistence best-effort
+            pass
     sub = df[df["gene"] == target.upper().strip()] if not df.empty else df
     sub = sub.dropna(subset=["rna_log2tpm", "protein_log2abundance"]) if not sub.empty else sub
     n = len(sub)
@@ -354,13 +384,9 @@ def read_tumor_rna_protein_concordance(target: str, indication: str, plot_data_o
     return base
 
 
-def read_tumor_rna_protein_scatter(target: str, indication: str) -> dict:
-    """Per-tumor paired points for the Q5 TUMOR scatter figure. data-gap-safe."""
-    cohorts = _cptac_cohorts_for(indication)
-    if not cohorts:
-        return {"available": False, "points": [], "cptac_cohort": None}
-    cohort = "+".join(cohorts)
-    df = _read_matched_cohorts(cohorts)
+def _scatter_from_frame(df, target: str, cohort: "Optional[str]") -> dict:
+    """Build the scatter dict from an already-read matched frame (shared by the public scatter
+    reader and the concordance render's plot-data persistence, so a render reads the cohort once)."""
     sub = df[df["gene"] == target.upper().strip()] if not df.empty else df
     sub = sub.dropna(subset=["rna_log2tpm", "protein_log2abundance"]) if not sub.empty else sub
     return {
@@ -375,6 +401,16 @@ def read_tumor_rna_protein_scatter(target: str, indication: str) -> dict:
             for r in sub.itertuples()
         ],
     }
+
+
+def read_tumor_rna_protein_scatter(target: str, indication: str) -> dict:
+    """Per-tumor paired points for the Q5 TUMOR scatter figure. data-gap-safe."""
+    cohorts = _cptac_cohorts_for(indication)
+    if not cohorts:
+        return {"available": False, "points": [], "cptac_cohort": None}
+    cohort = "+".join(cohorts)
+    df = _read_matched_cohorts(cohorts, target)
+    return _scatter_from_frame(df, target, cohort)
 
 
 def read_rna_protein_scatter(target: str, release_pin: str = "26q1") -> dict:
