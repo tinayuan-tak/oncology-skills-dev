@@ -114,15 +114,23 @@ outputs:
     # (test_fleet_aperture_does_not_grow) counts them as read rather than as declared-but-unread
     # orphans. Verdict-inert — neither moves expression_class.
     #
-    # NARROWED from #869: that PR declared 6 further runtime orphans here — control_target_percentile
-    # / control_target_class (redundant echoes of allgene_percentile / allgene_percentile_class),
-    # control_percentile_source / control_position_method_version (control-position provenance tokens),
-    # control_negatives_excluded_lineage_conflict (a display array), and expression_properties (the P1
-    # structured facet object). All six are reverted here: none has a landed reader yet, and a
-    # declared-but-unread field breaches the aperture ratchet (a capsule can only credit scalar
-    # primary_class / categorical_fields / numeric_anchors, never an object or array). They return
-    # WITH their readers — expression_properties with the P4 claim/evidence layer; the echoes and
-    # provenance/exclusion fields if and when a genuine (non-echo) reader materialises.
+    # NARROWED from #869 (then partially RESTORED in P4): #869 declared 6 further runtime orphans here.
+    # Five remain reverted — control_target_percentile / control_target_class (redundant echoes of
+    # allgene_percentile / allgene_percentile_class), control_percentile_source /
+    # control_position_method_version (control-position provenance tokens) and
+    # control_negatives_excluded_lineage_conflict (a display array): none has a landed reader, and a
+    # declared-but-unread field breaches the SK aperture ratchet (a capsule can only credit scalar
+    # primary_class / categorical_fields / numeric_anchors, never an object or array). They return if
+    # and when a genuine (non-echo) reader materialises.
+    #
+    # RE-DECLARED in P4 (evidence-property architecture, SK#1508): expression_properties now has a
+    # landed reader — the SK tumor-presence claim layer surfaces it as a CITABLE evidence atom
+    # (_skills_common/presence_claims.py, via the `_patom` claim-passthrough seam), VERDICT-INERT. That
+    # reader is a claim atom, not a capsule (a capsule cannot credit an object), and the census credits
+    # the passthrough field, so declaring it here closes the SK ledger (test_ledger_matches_emitted_
+    # fields) and keeps the aperture ratchet balanced (domain +1, reached +1). Neither moves
+    # expression_class. The P2 resolver (analysis-methods/methods/expression_properties, #720) emits it.
+    - expression_properties                         # object {presence, magnitude, prevalence, heterogeneity, lineage_restriction, selectivity, localization, subtype_restriction} — the shared L2 expression-property facet (P1 vocab expression_property.enum.yaml v1.0.0). Surfaced by the SK claim layer, verdict-inert.
     - coefficient_of_variation                     # float — CoV of linear TPM across the panel (dispersion qualifier); capsule numeric_anchor
     - distribution_pattern                          # categorical — shape of the log2(TPM+1) distribution (unimodal/bimodal/long_tail); capsule categorical. The P2 property resolver (methods/expression_properties, separate PR) will additionally read this into heterogeneity/prevalence.
 
