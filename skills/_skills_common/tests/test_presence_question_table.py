@@ -416,6 +416,48 @@ def test_q4_exploratory_axis_does_not_read_as_a_subtype_differential():
     assert "enriched:" not in r["signal"]["label"], "must not label a hypothesis-grade axis as enriched"
 
 
+def _q4_cellline_fixture(clsub_class, clsub_quality):
+    """Base fixture with Card 9 (`cellline-rna-distribution-by-subtype`) set to a given capsule class
+    and axis-quality grade, so the Q4 cell-line support bit can be exercised in isolation."""
+    h, cards, cv = _fixture()
+    for card in cards:
+        if card["card_id"] == "cellline-rna-distribution-by-subtype":
+            summ = {"subtype_stratification_class": clsub_class}
+            if clsub_quality is not None:
+                summ["subtype_axis_quality"] = clsub_quality
+            card["summary"] = summ
+    return h, cards, cv
+
+
+def test_q4_cellline_support_bit_grades_an_exploratory_capsule_class():
+    """SK#1519 (Card 9 reach). The cell-line capsule `subtype_stratification_class` is derived from the
+    MEASURED strata alone, so a single measured-enriched DepMap stratum in an `exploratory`-graded family
+    yields `subtype_enriched` while Card 9's own `subtype_axis_quality` says the genotype axis is NOT
+    powered (no routed family reaches `powered` today). The Q4 support bit must carry that grade instead
+    of surfacing the class as a bare differential fact."""
+    r = _by_id(presence_question_table(*_q4_cellline_fixture("subtype_enriched", "exploratory")))["Q4"]
+    assert "cell-line (genotype axis, exploratory): subtype_enriched" in r["support"], r["support"]
+    assert "hypothesis-grade" in r["support"], r["support"]
+    # The ungraded, bare-differential form is exactly what this fix removes.
+    assert "cell-line (genotype axis): subtype_enriched" not in r["support"], r["support"]
+
+
+def test_q4_cellline_support_bit_shows_powered_class_verbatim():
+    """A `powered` cell-line axis IS a usable cross-subtype differential, so the class reads verbatim —
+    the grade caveat must not fire on the one grade that supports the claim."""
+    r = _by_id(presence_question_table(*_q4_cellline_fixture("subtype_enriched", "powered")))["Q4"]
+    assert "cell-line (genotype axis): subtype_enriched" in r["support"], r["support"]
+    assert "hypothesis-grade" not in r["support"], r["support"]
+
+
+def test_q4_cellline_support_bit_leaves_non_differential_class_verbatim():
+    """`pan_subtype_uniform` carries no differential claim, so no grade caveat is needed regardless of
+    quality — the bit renders verbatim as before."""
+    r = _by_id(presence_question_table(*_q4_cellline_fixture("pan_subtype_uniform", "exploratory")))["Q4"]
+    assert "cell-line (genotype axis): pan_subtype_uniform" in r["support"], r["support"]
+    assert "hypothesis-grade" not in r["support"], r["support"]
+
+
 # ── Q6: show the correlation that actually classified ──────────────────────────────────────────────
 
 

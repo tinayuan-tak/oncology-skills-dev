@@ -219,7 +219,16 @@ def _q4_subtype(h, c, cv, sv=None):
     else:  # pan_subtype_uniform (on a powered axis)
         sig = _sig("uniform", "uniform across subtypes")
         primary = f"pan-subtype uniform ({nenr or 0}/{nmeas} enriched)"
-    clsub = c.get("cellline-rna-distribution-by-subtype", {}).get("subtype_stratification_class")
+    clcard = c.get("cellline-rna-distribution-by-subtype", {})
+    clsub = clcard.get("subtype_stratification_class")
+    # Card 9's capsule class is derived from MEASURED strata only, so a single measured-enriched
+    # cell-line stratum in an `exploratory` (or weaker) DepMap family yields `subtype_enriched` while
+    # its own `subtype_axis_quality` says the genotype axis is not powered — no routed family reaches
+    # `powered` today (ledger: powered never emitted; observed exploratory/underpowered/unevaluable).
+    # Gate on that grade (same predicate as the tumour axis above) so the support bit never surfaces a
+    # hypothesis-grade class as a bare differential fact. Card 9 is display-only (feeds no ladder),
+    # so this stays verdict-inert.
+    clsub_quality = clcard.get("subtype_axis_quality") or h.get("cellline_subtype_axis_quality")
     hom = h.get("sc_tce_homogeneity_class")
     support_bits = []
     # The full RANKED enriched set, when there is more than one. `primary` names the single best pick;
@@ -232,7 +241,14 @@ def _q4_subtype(h, c, cv, sv=None):
     if quality == "powered":
         support_bits.append("axis powered")
     if clsub:
-        support_bits.append(f"cell-line (genotype axis): {clsub}")
+        if is_differential_axis(clsub_quality):
+            support_bits.append(f"cell-line (genotype axis): {clsub}")
+        elif clsub in ("subtype_enriched", "subtype_restricted", "subtype_differential"):
+            grade = clsub_quality or "ungraded"
+            support_bits.append(f"cell-line (genotype axis, {grade}): {clsub} — hypothesis-grade")
+        else:
+            # pan_subtype_uniform / data_unavailable etc. carry no differential claim; show verbatim.
+            support_bits.append(f"cell-line (genotype axis): {clsub}")
     if hom and hom != "data_unavailable":
         support_bits.append(f"single-cell homogeneity: {hom}")
     # Purity confounder flag: a large across-stratum purity spread means an "enrichment" may be stromal.
