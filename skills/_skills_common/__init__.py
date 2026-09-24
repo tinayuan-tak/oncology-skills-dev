@@ -145,13 +145,20 @@ def _is_data_unavailable(v) -> bool:
     return isinstance(v, str) and (v == "data_unavailable" or v.endswith("_data_unavailable"))
 
 
-def _primary_class_value(summary: dict):
+def _primary_class_value(summary: dict, card_id: Optional[str] = None):
     """The card's PRIMARY interpretation categorical — the value resolve_cards lifts into
-    `interpretation_call`. Legacy primaries (selectivity_class / class / interpretation_call)
-    win; otherwise the card's primary answer lives in a topic-specific `*_class` field
-    (dependency_class, fit_class, immune_context_class, copy_number_class, …), so return the
-    first REAL (non-data_unavailable) `*_class` value — falling back to a data_unavailable one
-    only when there is no real class answer anywhere.
+    `interpretation_call`. CONTRACTS-FIRST: when `card_id` is given and its card declares a
+    `capsule.primary_class`, that field's value wins (the same source `emit_capsules` reads) —
+    so a card whose declared primary is NOT a `*_class` field (sc-normal's graded veto
+    `sc_normal_essential_veto_grade`, alteration-role's `alteration_role`, …) is read as its
+    author declared, not silently down-shifted to whatever `*_class` field happens to be first.
+
+    Fallback heuristic (no declared primary, or the declared field is absent from the summary):
+    legacy primaries (selectivity_class / class / interpretation_call) win; otherwise the card's
+    primary answer lives in a topic-specific `*_class` field (dependency_class, fit_class,
+    immune_context_class, copy_number_class, …), so return the first REAL (non-data_unavailable)
+    `*_class` value — falling back to a data_unavailable one only when there is no real class
+    answer anywhere.
 
     Only this PRIMARY decides availability; a data_unavailable value in a SECONDARY sub-field
     (a dual-layer card's protein sub-layer, copy-number's patient_* cross-check, gnomAD's
@@ -159,6 +166,14 @@ def _primary_class_value(summary: dict):
     """
     if not isinstance(summary, dict):
         return None
+    if card_id:
+        # Lazy import: subgroup_derivation triggers this package's __init__, so a module-level
+        # import would be circular. Cached + verdict-inert; never raises.
+        from _skills_common.subgroup_derivation import _card_capsule_contract
+
+        declared = _card_capsule_contract(card_id)[0]
+        if declared and isinstance(summary.get(declared), str):
+            return summary[declared]
     for f in ("selectivity_class", "class", "interpretation_call"):
         v = summary.get(f)
         if v is not None:
@@ -284,7 +299,7 @@ def _resolve_one_card(
     return {
         "card_id": card_id,
         "summary": summary,
-        "interpretation_call": _primary_class_value(summary),
+        "interpretation_call": _primary_class_value(summary, card_id),
     }
 
 

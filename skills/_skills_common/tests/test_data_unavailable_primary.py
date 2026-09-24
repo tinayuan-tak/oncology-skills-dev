@@ -74,3 +74,29 @@ def test_legacy_primary_real_is_available_despite_data_unavailable_secondary():
 def test_no_class_fields_is_not_flagged():
     assert _data_unavailable_field({"cn_median_panel": 1.2, "n_samples": 40}) is None
     assert _data_unavailable_field({}) is None
+
+
+# --- contracts-first: a declared non-`*_class` primary wins over the `*_class` heuristic --------
+
+
+def test_declared_non_class_primary_wins_over_first_class_field():
+    """`sc-normal-celltype-expression` declares `capsule.primary_class:
+    sc_normal_essential_veto_grade` — a field that does NOT end in `_class`. Without the card_id
+    the helper falls back to the blunt first-`*_class` heuristic; WITH the card_id it must return
+    the declared graded veto, not `sc_normal_expression_class` (canon-17 F5 root cause, #1539)."""
+    s = {
+        "sc_normal_expression_class": "broadly_high",
+        "sc_normal_essential_veto_grade": "epithelial_severe_veto",
+    }
+    # Heuristic (no card_id) mis-picks the first `*_class` field — the bug this fix leaves intact
+    # only for un-declared cards.
+    assert _primary_class_value(s) == "broadly_high"
+    # Contracts-first (card_id given) honors the declared primary.
+    assert _primary_class_value(s, "sc-normal-celltype-expression") == "epithelial_severe_veto"
+
+
+def test_declared_primary_absent_falls_back_to_heuristic():
+    """When the declared primary field is not present in the summary, the helper falls back to the
+    legacy/`*_class` heuristic rather than returning None."""
+    s = {"sc_normal_expression_class": "broadly_high"}
+    assert _primary_class_value(s, "sc-normal-celltype-expression") == "broadly_high"
