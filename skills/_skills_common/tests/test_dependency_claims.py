@@ -288,3 +288,177 @@ def test_dependency_atoms_absent_without_cards():
     vec = dependency_claim_vector(_kras_headline(), [])
     for ax in ("DEP", "SEL", "COND", "CHEM"):
         assert "evidence_atom" not in vec[ax], f"{ax} gained an atom with no source card"
+
+
+# ── L2b-2: cross-source essentiality concordance (CRISPR × RNAi) (SK#1533) ────────────────────────────
+# A CROSS-SOURCE integration claim: CRISPR Chronos essentiality (pan-cancer-crispr-dependency-distribution
+# .dependency_class) integrated with RNAi DEMETER2 essentiality (pan-cancer-rnai-dependency-distribution
+# .rnai_dependency_class) — two ORTHOGONAL loss-of-function assays emitting the SAME vocabulary. Store the
+# RAW per-assay tokens and RE-DERIVE the claim in-test — a derived fixture cannot fail; the tokens are the
+# irreproducible inputs. The claim reads the cards directly, not the headline, so it is exercised through
+# the same dependency_claim_vector(headline, cards) seam without touching the four verdict axes.
+_ESS_KEY = "crispr_rnai_essentiality_concordance"
+
+
+def _ess_cards(crispr="common_essential", rnai="common_essential"):
+    """Card set carrying the two assay essentiality tokens. crispr/rnai=None omit the field (assay
+    data-absence path); an off-scale token (e.g. data_unavailable / *_underpowered) is passed as-is."""
+    crispr_summary = {"bimodality_coefficient": 0.70, "distribution_shape": "bimodal_selective"}
+    if crispr is not None:
+        crispr_summary["dependency_class"] = crispr
+    rnai_summary = {}
+    if rnai is not None:
+        rnai_summary["rnai_dependency_class"] = rnai
+    return [
+        {"card_id": "pan-cancer-crispr-dependency-distribution", "summary": crispr_summary},
+        {"card_id": "pan-cancer-rnai-dependency-distribution", "summary": rnai_summary},
+    ]
+
+
+def test_ess_concordant_dependent():
+    # Both assays call a dependency → concordant_dependent, corroborated by two independent LoF arms.
+    claim = dependency_claim_vector(_kras_headline(), _ess_cards(crispr="common_essential", rnai="broadly_dependent"))[
+        _ESS_KEY
+    ]
+    assert claim["concordance_class"] == "essentiality_concordant_dependent"
+    assert claim["corroboration"] == "high"  # two measured arms agree
+    assert claim["integration_method"] == "explicit_deterministic"  # NO llm_inference: reproducible by contract
+    assert claim["assay_support"]["agreed_direction"] == "dependent"
+    # Provenance graph records BOTH source properties, recoverable, + an independence note.
+    srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
+    assert srcs["crispr_essentiality"]["card_id"] == "pan-cancer-crispr-dependency-distribution"
+    assert srcs["crispr_essentiality"]["fields"]["dependency_class"] == "common_essential"
+    assert srcs["rnai_essentiality"]["card_id"] == "pan-cancer-rnai-dependency-distribution"
+    assert srcs["rnai_essentiality"]["fields"]["rnai_dependency_class"] == "broadly_dependent"
+    assert "independent" in claim["provenance"]["independence_note"].lower()
+
+
+def test_ess_concordant_nondependent():
+    # Both assays call non_dependent → concordant_nondependent (agree it is NOT a dependency).
+    claim = dependency_claim_vector(_kras_headline(), _ess_cards(crispr="non_dependent", rnai="non_dependent"))[
+        _ESS_KEY
+    ]
+    assert claim["concordance_class"] == "essentiality_concordant_nondependent"
+    assert claim["corroboration"] == "high"
+    assert claim["assay_support"]["agreed_direction"] == "nondependent"
+
+
+def test_ess_discordant_carries_which_assay_supports():
+    # CRISPR dependent, RNAi not → assay_discordant; the disagreement is NAMED (which assay supports
+    # which call), never collapsed or averaged. Corroboration degrades to low (arms point opposite).
+    claim = dependency_claim_vector(_kras_headline(), _ess_cards(crispr="common_essential", rnai="non_dependent"))[
+        _ESS_KEY
+    ]
+    assert claim["concordance_class"] == "essentiality_assay_discordant"
+    assert claim["corroboration"] == "low"
+    assert claim["assay_support"]["dependency_supported_by"] == "crispr_chronos"
+    assert claim["assay_support"]["nondependency_supported_by"] == "rnai_demeter"
+    # symmetric: RNAi dependent, CRISPR not
+    claim2 = dependency_claim_vector(_kras_headline(), _ess_cards(crispr="non_dependent", rnai="broadly_dependent"))[
+        _ESS_KEY
+    ]
+    assert claim2["assay_support"]["dependency_supported_by"] == "rnai_demeter"
+    assert claim2["assay_support"]["nondependency_supported_by"] == "crispr_chronos"
+
+
+def test_ess_single_assay_only_when_one_arm_is_a_gap():
+    # RNAi resolves, CRISPR is an admissibility GAP (data_unavailable) → single_assay_only, naming the
+    # RESOLVED arm and carrying its raw call (recoverable); corroboration is single_arm (one measured arm).
+    claim = dependency_claim_vector(_kras_headline(), _ess_cards(crispr="data_unavailable", rnai="common_essential"))[
+        _ESS_KEY
+    ]
+    assert claim["concordance_class"] == "essentiality_single_assay_only"
+    assert claim["corroboration"] == "single_arm"
+    assert claim["assay_support"]["resolved_by"] == "rnai_demeter"
+    assert claim["assay_support"]["resolved_call"] == "common_essential"
+    assert claim["assay_support"]["resolved_direction"] == "dependent"
+    # an *_underpowered token is likewise a gap, not a floor: CRISPR resolves, RNAi underpowered
+    claim2 = dependency_claim_vector(
+        _kras_headline(), _ess_cards(crispr="strongly_selective", rnai="common_essential_underpowered")
+    )[_ESS_KEY]
+    assert claim2["concordance_class"] == "essentiality_single_assay_only"
+    assert claim2["assay_support"]["resolved_by"] == "crispr_chronos"
+
+
+def test_ess_selective_distinction_carried_not_collapsed():
+    # strongly_selective is a dependency, but a SELECTIVE one — the distinction is carried in the payload
+    # (selective_assays + the raw token in provenance), never collapsed into a bare pan/broad dependent.
+    claim = dependency_claim_vector(_kras_headline(), _ess_cards(crispr="strongly_selective", rnai="common_essential"))[
+        _ESS_KEY
+    ]
+    assert claim["concordance_class"] == "essentiality_concordant_dependent"
+    assert claim["selective_assays"] == ["crispr_chronos"]  # only CRISPR read selective
+    # both selective → both listed
+    both = dependency_claim_vector(
+        _kras_headline(), _ess_cards(crispr="strongly_selective", rnai="strongly_selective")
+    )[_ESS_KEY]
+    assert both["selective_assays"] == ["crispr_chronos", "rnai_demeter"]
+    # neither selective → empty list (not omitted — a stable, honest empty)
+    neither = dependency_claim_vector(
+        _kras_headline(), _ess_cards(crispr="common_essential", rnai="broadly_dependent")
+    )[_ESS_KEY]
+    assert neither["selective_assays"] == []
+
+
+def test_ess_recoverability_round_trip():
+    # FIDELITY: the actual per-assay VALUES round-trip through provenance, not merely a key. Re-derive
+    # the concordance direction from the stored raw tokens the same way the claim does.
+    crispr_tok, rnai_tok = "broadly_dependent", "non_dependent"
+    claim = dependency_claim_vector(_kras_headline(), _ess_cards(crispr=crispr_tok, rnai=rnai_tok))[_ESS_KEY]
+    srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
+    assert srcs["crispr_essentiality"]["fields"]["dependency_class"] == crispr_tok
+    assert srcs["rnai_essentiality"]["fields"]["rnai_dependency_class"] == rnai_tok
+    # a consumer can reconstruct the discordance purely from the recovered tokens
+    assert (crispr_tok in {"common_essential", "broadly_dependent", "strongly_selective"}) is True
+    assert (rnai_tok == "non_dependent") is True
+    assert claim["concordance_class"] == "essentiality_assay_discordant"
+
+
+def test_ess_is_verdict_inert_no_signal_and_axes_unperturbed():
+    # Verdict-INERT: the claim carries NO `signal` key (never a chip, never a tier), and surfacing it
+    # must not perturb the DEP/SEL/COND/CHEM axes / _disclaimer. Toggle ONLY the RNAi card presence — a
+    # card the four verdict axes do NOT read (they read signals off the HEADLINE and cite the CRISPR
+    # card's OTHER fields) — so any axis delta would be MY perturbation, not the L2b-2 claim's.
+    base = dependency_claim_vector(_kras_headline(), _ess_cards(crispr="common_essential", rnai=None))
+    withclaim = dependency_claim_vector(
+        _kras_headline(), _ess_cards(crispr="common_essential", rnai="common_essential")
+    )
+    # base: rnai absent but crispr resolves → single_assay_only still present (one arm resolves)
+    assert base[_ESS_KEY]["concordance_class"] == "essentiality_single_assay_only"
+    claim = withclaim[_ESS_KEY]
+    assert "signal" not in claim, "an L2b claim must never carry a signal tier"
+    for ax in ("DEP", "SEL", "COND", "CHEM", "_disclaimer"):
+        assert withclaim[ax] == base[ax], f"surfacing the essentiality-concordance claim perturbed {ax}"
+
+
+def test_ess_single_arm_mutation_only_degrades_defeating_both_erases():
+    # M3-vs-M4 reach: a SINGLE-arm mutation (kill one assay's supply) may only DEGRADE the read to
+    # single_assay_only — the concept survives on the surviving arm. ERASING the claim (key omitted)
+    # requires defeating BOTH assay supplies. This is the "defeat every supply path" discipline.
+    both = dependency_claim_vector(_kras_headline(), _ess_cards(crispr="common_essential", rnai="common_essential"))
+    assert both[_ESS_KEY]["concordance_class"] == "essentiality_concordant_dependent"
+    # defeat ONE arm → degrades, does not erase
+    one_gone = dependency_claim_vector(_kras_headline(), _ess_cards(crispr="common_essential", rnai=None))
+    assert _ESS_KEY in one_gone, "defeating one assay must NOT erase the claim"
+    assert one_gone[_ESS_KEY]["concordance_class"] == "essentiality_single_assay_only"
+    # defeat the OTHER arm → still degrades, does not erase
+    other_gone = dependency_claim_vector(_kras_headline(), _ess_cards(crispr=None, rnai="common_essential"))
+    assert _ESS_KEY in other_gone
+    assert other_gone[_ESS_KEY]["concordance_class"] == "essentiality_single_assay_only"
+    # defeat BOTH → key omitted (byte-stable erasure)
+    both_gone = dependency_claim_vector(_kras_headline(), _ess_cards(crispr=None, rnai=None))
+    assert _ESS_KEY not in both_gone, "only defeating BOTH assay supplies erases the claim"
+
+
+def test_ess_omitted_when_both_absent_or_both_gaps():
+    # Byte-stability: the KEY is omitted (not None) unless at least one assay resolves.
+    assert _ESS_KEY not in dependency_claim_vector(_kras_headline(), [])  # no cards
+    assert _ESS_KEY not in dependency_claim_vector(_kras_headline(), _ess_cards(crispr=None, rnai=None))
+    # both assays present but BOTH are admissibility gaps → neither resolves → omitted
+    assert _ESS_KEY not in dependency_claim_vector(
+        _kras_headline(), _ess_cards(crispr="data_unavailable", rnai="non_dependent_underpowered")
+    )
+    # an off-roster / unknown token is treated as unresolved (not a silent dependent)
+    assert _ESS_KEY not in dependency_claim_vector(
+        _kras_headline(), _ess_cards(crispr="some_future_token", rnai="data_unavailable")
+    )

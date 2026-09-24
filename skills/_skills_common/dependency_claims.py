@@ -36,6 +36,8 @@ from _skills_common.claim_vector_core import (
     build_summary_atom,
     bump_corroboration,
     cap_corroboration,
+    cards_by_id,
+    corroboration_from_arms,
     sig_ge,
 )
 
@@ -315,10 +317,186 @@ _DISCLAIMER = (
 )
 
 
+# ── L2b-2: cross-source essentiality concordance (CRISPR × RNAi) (SK#1533, evidence-property arch #1507) ─
+# The SECOND cross-source INTEGRATED claim (L2b), and the FIRST on a NON-expression property (essentiality
+# depth) — the chosen probe because it is the cleanest concordance test in the fleet: CRISPR Chronos and
+# RNAi DEMETER2 are two ORTHOGONAL loss-of-function assays that already emit the SAME essentiality
+# vocabulary BY DESIGN, so agreement/disagreement is directly readable WITHOUT any vocabulary
+# reconciliation. Integrates two ALREADY-EMITTED properties neither assay could integrate alone:
+#   * CRISPR essentiality — pan-cancer-crispr-dependency-distribution.dependency_class (Chronos)
+#   * RNAi  essentiality  — pan-cancer-rnai-dependency-distribution.rnai_dependency_class (DEMETER2)
+# HARD RULE (L2b reproducibility): a DETERMINISTIC explicit rule over the two tokens — NO llm_inference
+# (L2b is L3-only for LLM inference).
+#
+# The shared classifier vocabulary (both assays; see analysis-methods _classify_dependency /
+# _classify_rnai_dependency): common_essential | common_essential_underpowered | strongly_selective |
+# broadly_dependent | non_dependent | non_dependent_underpowered (CRISPR only) | data_unavailable.
+# DEPENDENT tokens read as a positive requirement call; `non_dependent` is a MEASURED floor; the
+# `*_underpowered` / `data_unavailable` tokens are admissibility GAPS — the arm WAS consulted but could
+# not resolve a trusted call, so the arm is UNRESOLVED (mirrors _DEP_SIGNAL's `unmeasured`), never a floor.
+_ESS_DEPENDENT = frozenset({"common_essential", "broadly_dependent", "strongly_selective"})
+_ESS_NONDEPENDENT = frozenset({"non_dependent"})
+# `strongly_selective` is a dependency, but a SELECTIVE one (essential in a subset of lines) — distinct
+# from a pan/broad requirement. Carried in the payload rather than collapsed into a bare `dependent`.
+_ESS_SELECTIVE = frozenset({"strongly_selective"})
+_ASSAY_NAME = {"crispr": "crispr_chronos", "rnai": "rnai_demeter"}
+
+
+def _ess_resolve(token) -> str | None:
+    """Categorise one assay's essentiality token → 'dependent' | 'nondependent' | None (unresolved gap).
+
+    None covers data_unavailable / *_underpowered / a missing field / an off-roster value — the arm did
+    not resolve a trusted call. `data_unavailable` is a TRUTHY string, so the membership test (not an
+    `if token:` guard) is what keeps it out of the resolved buckets."""
+    if token in _ESS_DEPENDENT:
+        return "dependent"
+    if token in _ESS_NONDEPENDENT:
+        return "nondependent"
+    return None
+
+
+def _essentiality_concordance_claim(c: dict) -> dict | None:
+    """L2b-2 CROSS-SOURCE integration claim: `crispr_rnai_essentiality_concordance`.
+
+    Reads the two orthogonal-assay essentiality tokens and integrates them by an EXPLICIT DETERMINISTIC
+    rule (no LLM — L2b is reproducible by contract):
+      * essentiality_concordant_dependent    — both assays call a dependency (agree, dependent);
+      * essentiality_concordant_nondependent  — both call non_dependent (agree, not a dependency);
+      * essentiality_assay_discordant          — one assay dependent, the other non_dependent (with a
+        which-assay-supports payload — the disagreement neither collapses nor is averaged);
+      * essentiality_single_assay_only         — exactly ONE assay resolves and the other is an
+        admissibility gap (data_unavailable / underpowered / absent): the degraded read that names the
+        resolved arm (recoverable), NOT a concordance claim.
+    The selective-vs-common distinction (`strongly_selective` on either arm) is CARRIED in the payload
+    (`selective_assays` + the raw tokens in provenance), never collapsed to a bare `dependent`.
+
+    Corroboration is on the shared MEASURED-ARM contract: two agreeing arms → high, a disagreement →
+    low, one measured arm with the other unresolved → single_arm. So a SINGLE-arm mutation only DEGRADES
+    the read to `essentiality_single_assay_only`; ERASING the concordance conclusion (key omitted) takes
+    defeating BOTH assay supplies (the M3-vs-M4 fidelity / reach discipline).
+
+    VERDICT-INERT: carries NO `signal` key (never a chip, never a tier, never averaged), reads no
+    verdict, feeds no rule. Returns None — key omitted, byte-stable — when NEITHER assay resolves."""
+    crispr = (c.get("pan-cancer-crispr-dependency-distribution") or {}).get("dependency_class")
+    rnai = (c.get("pan-cancer-rnai-dependency-distribution") or {}).get("rnai_dependency_class")
+    crispr_dir = _ess_resolve(crispr)
+    rnai_dir = _ess_resolve(rnai)
+    # Neither arm resolves → no claim (key omitted → byte-stable). This is the ONLY erasing state: it
+    # takes defeating BOTH assay supplies, matching the atom discipline for the DEP/SEL/COND/CHEM axes.
+    if crispr_dir is None and rnai_dir is None:
+        return None
+
+    resolved = [d for d in (crispr_dir, rnai_dir) if d is not None]
+    if len(resolved) == 1:
+        concordance = "essentiality_single_assay_only"
+    elif crispr_dir == rnai_dir:
+        concordance = (
+            "essentiality_concordant_dependent" if crispr_dir == "dependent" else "essentiality_concordant_nondependent"
+        )
+    else:
+        concordance = "essentiality_assay_discordant"
+
+    # Corroboration on the measured-arm frame: for a discordance the two arms point opposite ([True,
+    # False] → low); for a concordance both agree ([True, True] → high); with one arm unresolved the
+    # measured arm is unopposed ([True, None] → single_arm, below the arm floor).
+    if concordance == "essentiality_assay_discordant":
+        crispr_arm, rnai_arm = True, False
+    else:
+        crispr_arm = True if crispr_dir is not None else None
+        rnai_arm = True if rnai_dir is not None else None
+    corroboration = corroboration_from_arms([crispr_arm, rnai_arm])
+
+    # which-assay-supports / resolved-arm payload — the disagreement or the degraded single arm is named,
+    # never collapsed.
+    if concordance == "essentiality_assay_discordant":
+        dep_assay = _ASSAY_NAME["crispr"] if crispr_dir == "dependent" else _ASSAY_NAME["rnai"]
+        nondep_assay = _ASSAY_NAME["rnai"] if crispr_dir == "dependent" else _ASSAY_NAME["crispr"]
+        assay_support = {"dependency_supported_by": dep_assay, "nondependency_supported_by": nondep_assay}
+    elif concordance == "essentiality_single_assay_only":
+        if crispr_dir is not None:
+            assay_support = {
+                "resolved_by": _ASSAY_NAME["crispr"],
+                "resolved_call": crispr,
+                "resolved_direction": crispr_dir,
+            }
+        else:
+            assay_support = {"resolved_by": _ASSAY_NAME["rnai"], "resolved_call": rnai, "resolved_direction": rnai_dir}
+    else:
+        assay_support = {"agreed_direction": crispr_dir}  # both arms resolved to the same direction
+    # selective-vs-common distinction (do not collapse): which assay(s) read strongly_selective.
+    selective_assays = [
+        name for tok, name in ((crispr, _ASSAY_NAME["crispr"]), (rnai, _ASSAY_NAME["rnai"])) if tok in _ESS_SELECTIVE
+    ]
+
+    _PHRASE = {
+        "essentiality_concordant_dependent": "AGREE the target is a dependency",
+        "essentiality_concordant_nondependent": "AGREE the target is NOT a dependency",
+        "essentiality_assay_discordant": "DISAGREE on the dependency call",
+        "essentiality_single_assay_only": "only one assay resolves",
+    }
+    return {
+        "concordance_class": concordance,
+        "corroboration": corroboration,
+        # DETERMINISTIC, reproducible-by-contract: an explicit rule over two tokens, never an LLM.
+        "integration_method": "explicit_deterministic",
+        "assay_support": assay_support,
+        "selective_assays": selective_assays,
+        "informs": (
+            "cross-source essentiality concordance — the core actionability signal, corroborated (or "
+            "contradicted) across two genuinely INDEPENDENT loss-of-function assays: a dependency both "
+            "CRISPR and RNAi see is far more credible than a single-assay call"
+        ),
+        "evidence": (
+            f"CRISPR {crispr or 'data_unavailable'} × RNAi {rnai or 'data_unavailable'}: "
+            + _PHRASE[concordance]
+            + (f" (selective: {', '.join(selective_assays)})" if selective_assays else "")
+        ),
+        # Provenance graph: BOTH source properties + an independence note. CRISPR (genetic knockout) and
+        # RNAi (knockdown) are measured on genuinely INDEPENDENT perturbation assays, so their
+        # (dis)agreement is a real cross-source corroboration, not a within-assay echo. NOT the reserved
+        # single-card `evidence_atom` key — this records TWO-card cross-source provenance, and carries the
+        # raw per-assay tokens so the VALUES (not just the key) are recoverable.
+        "provenance": {
+            "sources": [
+                {
+                    "property": "crispr_essentiality",
+                    "assay": _ASSAY_NAME["crispr"],
+                    "card_id": "pan-cancer-crispr-dependency-distribution",
+                    "fields": {"dependency_class": crispr},
+                },
+                {
+                    "property": "rnai_essentiality",
+                    "assay": _ASSAY_NAME["rnai"],
+                    "card_id": "pan-cancer-rnai-dependency-distribution",
+                    "fields": {"rnai_dependency_class": rnai},
+                },
+            ],
+            "independence_note": (
+                "CRISPR Chronos (genetic knockout) and RNAi DEMETER2 (RNA knockdown) are measured on "
+                "genuinely INDEPENDENT loss-of-function perturbation assays; their agreement is a real "
+                "cross-source corroboration of essentiality, not a within-assay restatement."
+            ),
+        },
+        "_disclaimer": (
+            "L2b CROSS-SOURCE integration claim (deterministic, no LLM) — verdict-INERT provenance: "
+            "never a signal tier, never averaged into a claim, never feeds the dependency_verdict."
+        ),
+    }
+
+
 def dependency_claim_vector(headline: dict, cards: list) -> dict:
     """The modality-blind claim vector {DEP,SEL,COND,CHEM: {signal, corroboration, evidence, conflict,
     informs}, _disclaimer}. Verdict-inert projection over the computed headline."""
-    return build_claim_vector(DEPENDENCY_CLAIM_SPEC, headline, cards, _DISCLAIMER)
+    vec = build_claim_vector(DEPENDENCY_CLAIM_SPEC, headline, cards, _DISCLAIMER)
+    # L2b-2 cross-source integration claim (SK#1533): CRISPR × RNAi essentiality concordance. Carries NO
+    # `signal` key → not a chip, not a tier; OMITTED (byte-stable) unless at least one assay resolves —
+    # and the FULL concordance/discordance read requires BOTH. Reads the two assay cards directly (the
+    # DEP/SEL/COND/CHEM axes read their signals off the HEADLINE and cite OTHER CRISPR-card fields, so this
+    # never perturbs them). Matches the presence L2b-1 (`bulk_vs_singlecell_coverage_concordance`) pattern.
+    _ess = _essentiality_concordance_claim(cards_by_id(cards))
+    if _ess is not None:
+        vec["crispr_rnai_essentiality_concordance"] = _ess
+    return vec
 
 
 def dependency_key_signals(headline: dict, cards: list) -> dict:
