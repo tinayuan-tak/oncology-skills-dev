@@ -124,6 +124,50 @@ def test_raw_loeuf_surfaced_in_safety_chain():
     assert any("0.12" in str(detail) for _src, detail, _lvl in chain)
 
 
+def test_sc_normal_risk_rung_reads_graded_veto_not_blunt_class():
+    """The sc-normal safety rung must key on the GRADED veto the verdict-active consumers (surface
+    killer / selectivity clamp) honor — grade ∈ {accessible_high_severity, accessible_ungraded} — NOT the
+    blunt interpretation_call (sc_normal_expression_class == HIGH_LIABILITY, 94% saturated).
+
+    A validated ADC/TCE antigen (FOLR1/ERBB2-class) at HIGH normal expression that the grade RELIEVES
+    (accessible_low_confidence / bbb_protected / accessible_moderate_severity) must NOT raise this rung,
+    even though its interpretation_call is HIGH_LIABILITY."""
+
+    def _scn_pkg(grade):
+        # interpretation_call carries the blunt HIGH_LIABILITY (what _primary_class_value would lift); the
+        # summary carries the graded instrument the fix reads instead.
+        return _pkg(
+            {},
+            [
+                {
+                    "card_id": "sc-normal-celltype-expression",
+                    "interpretation_call": "HIGH_LIABILITY",
+                    "summary": {
+                        "sc_normal_expression_class": "HIGH_LIABILITY",
+                        "sc_normal_essential_veto_grade": grade,
+                    },
+                }
+            ],
+        )
+
+    def _fired(grade):
+        chain = deterministic_bins(_scn_pkg(grade), "adc")["safety"]["chain"]
+        return any(src == "sc-normal" for src, _detail, _lvl in chain)
+
+    # Relieved grades: the graded veto opposes but does not raise the risk rung.
+    for relieved in ("accessible_low_confidence", "bbb_protected", "accessible_moderate_severity", "origin_tissue"):
+        assert not _fired(relieved), relieved
+        # with no other safety signal, an ADC (surface, esc=2) stays at the tolerant base LOW
+        assert deterministic_bins(_scn_pkg(relieved), "adc")["safety"]["bin"] == "LOW", relieved
+
+    # Veto-firing grades: the rung fires and (surface modality, esc=2) escalates safety to HIGH.
+    for firing in ("accessible_high_severity", "accessible_ungraded"):
+        assert _fired(firing), firing
+        d = deterministic_bins(_scn_pkg(firing), "adc")["safety"]
+        assert d["bin"] == "HIGH", firing
+        assert any(detail == firing for src, detail, _lvl in d["chain"] if src == "sc-normal"), firing
+
+
 # --------------------------------------------------------------- assemble_risk_package (in-memory pkg)
 
 
