@@ -198,3 +198,179 @@ def emit_fusion_frequency_pie(
     fig.savefig(svg_path)
     plt.close(fig)
     return svg_path
+
+
+def emit_fusion_frequency_stacked(
+    target: str,
+    indication: str,
+    target_freq_indication: float,
+    indication_gene_frequencies: list[tuple[str, float]],
+    target_freq_pancancer: float,
+    pancancer_gene_frequencies: list[tuple[str, float]],
+    out_path: Path,
+    contracts_root: Path = DEFAULT_TARGET_CONTRACTS,
+    *,
+    min_frequency: float = 0.005,
+) -> Optional[Path]:
+    """Emit a stacked figure with indication-specific (top) and pan-cancer (bottom) fusion frequency.
+
+    Args:
+        target: gene symbol
+        indication: indication code
+        target_freq_indication: target's fusion frequency in indication
+        indication_gene_frequencies: list of (gene, freq) tuples for indication
+        target_freq_pancancer: target's fusion frequency pan-cancer
+        pancancer_gene_frequencies: list of (gene, freq) tuples for pan-cancer
+        out_path: directory to write figure
+        contracts_root: path to target-contracts repo
+        min_frequency: minimum frequency threshold for display (default 0.5%)
+    """
+    if not indication_gene_frequencies:
+        return None
+
+    sys.path.insert(0, str(contracts_root / "plot_styles"))
+    try:
+        from takeda_palette import (
+            REFLINE_NEUTRAL,
+            figure_title,
+            provenance_tag,
+            takeaway,
+        )
+    except ImportError:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(7.0, 6.5))
+        ax.text(0.5, 0.5, "takeda_palette not available", ha="center", va="center", transform=ax.transAxes)
+        svg_path = out_path / "figure_fusion_frequency_stacked.svg"
+        fig.savefig(svg_path, bbox_inches="tight")
+        plt.close(fig)
+        return svg_path
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    style_path = contracts_root / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+
+    # Process gene frequencies for both panels
+    def process_genes(gene_list, target_name, target_freq, threshold):
+        if not gene_list:
+            return [], 0
+        if isinstance(gene_list[0], (list, tuple)):
+            pairs = [(g, f) for g, f in gene_list if f is not None and f >= threshold]
+        else:
+            pairs = [(f"gene_{i}", f) for i, f in enumerate(gene_list) if f is not None and f >= threshold]
+        pairs.sort(key=lambda x: x[1])
+        total = len([g for g, f in gene_list if f is not None and f >= threshold])
+        return pairs, total
+
+    ind_genes, ind_total = process_genes(indication_gene_frequencies, target, target_freq_indication, min_frequency)
+    pan_genes, pan_total = process_genes(pancancer_gene_frequencies, target, target_freq_pancancer, min_frequency)
+
+    if not ind_genes and not pan_genes:
+        return None
+
+    # Purple color scheme for fusions
+    color_target = "#7B2D8E"  # Purple for target
+    color_other = "#D4B8E0"   # Light purple for others
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7.0, 6.5))
+    fig.subplots_adjust(top=0.88, bottom=0.08, left=0.12, right=0.95, hspace=0.35)
+
+    def plot_panel(ax, genes, target_freq, panel_title, total_genes):
+        if not genes:
+            ax.text(0.5, 0.5, f"No genes ≥{min_frequency*100:.1f}% threshold",
+                    ha="center", va="center", transform=ax.transAxes, fontsize=10, color="#888888")
+            ax.set_xticks([])
+            ax.set_yticks([])
+            return
+
+        names = [g for g, f in genes]
+        freqs = [f for g, f in genes]
+        colors = [color_target if g == target else color_other for g, f in genes]
+
+        ax.bar(range(len(names)), freqs, color=colors, edgecolor="white", linewidth=0.5)
+
+        target_in_panel = target in names
+        for i, (gene, freq) in enumerate(genes):
+            if gene == target:
+                ax.annotate(
+                    f"{gene} ({freq*100:.2f}%)",
+                    xy=(i, freq),
+                    xytext=(0, 4),
+                    textcoords="offset points",
+                    fontsize=7,
+                    fontweight="bold",
+                    color=color_target,
+                    ha="center",
+                    va="bottom",
+                    rotation=90,
+                )
+            else:
+                ax.annotate(
+                    f"{gene} ({freq*100:.2f}%)",
+                    xy=(i, freq),
+                    xytext=(0, 4),
+                    textcoords="offset points",
+                    fontsize=5,
+                    color="#888888",
+                    ha="center",
+                    va="bottom",
+                    rotation=90,
+                )
+
+        if not target_in_panel and target_freq is not None:
+            ax.text(
+                0.5, 0.85,
+                f"{target} ({target_freq*100:.2f}%) — below {min_frequency*100:.1f}% threshold",
+                ha="center", va="top", transform=ax.transAxes,
+                fontsize=8, fontweight="bold", color=color_target,
+                bbox=dict(boxstyle="round,pad=0.5", facecolor="#F3E8F7", edgecolor=color_target, linewidth=1),
+            )
+
+        ax.axhline(y=min_frequency, **REFLINE_NEUTRAL, zorder=1)
+        ax.set_xlim(-0.5, len(genes) - 0.5)
+        ax.set_ylim(bottom=0)
+        ax.set_xticks([])
+        ax.grid(axis="y", alpha=0.3)
+        ax.set_ylabel("Frequency", fontsize=9, color="#33383D")
+        ax.set_title(f"{panel_title} ({len(genes)} genes ≥{min_frequency*100:.1f}%)",
+                     fontsize=10, fontweight="bold", loc="left", color="#33383D")
+
+    plot_panel(ax1, ind_genes, target_freq_indication, indication, ind_total)
+    plot_panel(ax2, pan_genes, target_freq_pancancer, "Pan-Cancer", pan_total)
+
+    figure_title(fig, target, None, "fusion frequency", y=0.96)
+    provenance_tag(fig, f"TCGA Fusion Consensus (3-caller) · genes fused in ≥{min_frequency*100:.1f}% of samples", y=0.93)
+
+    def get_rank(genes, target_name, target_freq):
+        sorted_desc = sorted(genes, key=lambda x: x[1], reverse=True)
+        for i, (gene, freq) in enumerate(sorted_desc):
+            if gene == target_name or (target_freq and abs(freq - target_freq) < 1e-9):
+                return i + 1
+        return None
+
+    ind_rank = get_rank(ind_genes, target, target_freq_indication) if ind_genes else None
+    pan_rank = get_rank(pan_genes, target, target_freq_pancancer) if pan_genes else None
+
+    if ind_rank and pan_rank:
+        take_text = (f"{target} is the {ordinal(ind_rank)} most frequently fused gene in {indication} "
+                     f"and the {ordinal(pan_rank)} most frequently fused gene pan-cancer.")
+    elif ind_rank:
+        take_text = (f"{target} is the {ordinal(ind_rank)} most frequently fused gene in {indication} "
+                     f"but is below the {min_frequency*100:.1f}% threshold pan-cancer.")
+    elif pan_rank:
+        take_text = (f"{target} is the {ordinal(pan_rank)} most frequently fused gene pan-cancer "
+                     f"but is below the {min_frequency*100:.1f}% threshold in {indication}.")
+    else:
+        take_text = (f"{target} is below the {min_frequency*100:.1f}% fusion frequency threshold "
+                     f"in both {indication} and pan-cancer.")
+    takeaway(fig, take_text, y=0.02)
+
+    svg_path = out_path / "figure_fusion_frequency_stacked.svg"
+    fig.savefig(svg_path)
+    plt.close(fig)
+    return svg_path

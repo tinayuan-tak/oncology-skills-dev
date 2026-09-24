@@ -66,6 +66,7 @@ def main():
     figures_module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(figures_module)
     emit_fusion_frequency_pie = figures_module.emit_fusion_frequency_pie
+    emit_fusion_frequency_stacked = figures_module.emit_fusion_frequency_stacked
 
     # Use target-contracts repo from environment variable
     contracts_path = os.environ.get("TARGET_CONTRACTS_PATH")
@@ -103,15 +104,31 @@ def main():
     if svg1:
         print(f"  ✓ Fusion pie chart: {svg1}")
 
-    # === Test 2: NTRK1 fusion (rarer) ===
-    print(f"\n=== Test 2: NTRK1 fusion pie chart (rare) ===")
+    # === Test 2: ALK fusion stacked bar ===
+    print(f"\n=== Test 2: ALK fusion stacked bar ===")
+
+    svg2 = emit_fusion_frequency_stacked(
+        TARGET,
+        INDICATION,
+        TARGET_FREQ_INDICATION,
+        LUAD_FUSION_GENES,
+        TARGET_FREQ_PANCANCER,
+        PANCANCER_FUSION_GENES,
+        out_dir,
+        TARGET_CONTRACTS,
+    )
+    if svg2:
+        print(f"  ✓ Fusion stacked bar: {svg2}")
+
+    # === Test 3: NTRK1 fusion pie (rarer) ===
+    print(f"\n=== Test 3: NTRK1 fusion pie chart (rare) ===")
     ntrk1_freq_ind = 0.01
     ntrk1_freq_pan = 0.002
 
     luad_with_ntrk1 = LUAD_FUSION_GENES.copy()
     pancancer_with_ntrk1 = PANCANCER_FUSION_GENES + [("NTRK1", ntrk1_freq_pan)]
 
-    svg2 = emit_fusion_frequency_pie(
+    svg3 = emit_fusion_frequency_pie(
         "NTRK1",
         INDICATION,
         ntrk1_freq_ind,
@@ -125,8 +142,8 @@ def main():
         out_dir,
         TARGET_CONTRACTS,
     )
-    if svg2:
-        print(f"  ✓ Fusion pie chart (NTRK1): {svg2}")
+    if svg3:
+        print(f"  ✓ Fusion pie chart (NTRK1): {svg3}")
 
     print(f"\nFigures saved to: {out_dir}")
 
