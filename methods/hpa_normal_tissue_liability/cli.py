@@ -20,6 +20,7 @@ favorable window — do not read absence as safety).
 
 from __future__ import annotations
 
+import os
 import sys
 import zipfile
 from functools import lru_cache
@@ -82,20 +83,35 @@ ESSENTIAL_TISSUES = HPA_ESSENTIAL_TISSUES
 GI_TISSUES = {"intestine", "stomach"}
 
 
-from methods.target_id_sidecar import ensure_aws_profile
+from methods.target_id_sidecar import s3_client
 
 
 def _ensure_hpa_cached() -> Path:
     """Download the HPA master zip to the local disk cache ONCE per machine; return the local path.
-    Second-session / second-call runs are a no-op cache hit (mirrors depmap_common/parquet.py)."""
+    Second-session / second-call runs are a no-op cache hit (mirrors depmap_common/parquet.py).
+
+    Downloads via the shared `s3_client()` (AM#746 F3) — NOT the former `ensure_aws_profile()`
+    (which `setdefault`s `AWS_PROFILE=cbg`) + a bare `boto3.client("s3")`. That pairing forced the
+    `cbg` SSO profile in any environment with `AWS_PROFILE` unset (CI, prod, instance-role, OIDC),
+    where the bare client then raised `ProfileNotFound` → read.py's bare except → every target went
+    `data_unavailable` (the whole normal-tissue safety axis silently dark). `s3_client()` prefers
+    `cbg` but falls back to the ambient credential chain when the profile is absent, so the reader
+    works off-cbg too. Same one-line shape as the AM#731/#735/#739 fixes.
+
+    The download is ATOMIC (AM#746 F10a): boto3 streams to a per-process temp file in the cache
+    dir, then `os.replace`s it into place. An interrupted download previously left a truncated
+    size>0 zip at the final path, which the guard below then served as a corrupt cache hit
+    (`BadZipFile` on every later call until manual cache removal)."""
     HPA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     if HPA_CACHE_ZIP.exists() and HPA_CACHE_ZIP.stat().st_size > 0:
         return HPA_CACHE_ZIP
-    ensure_aws_profile()
-    import boto3
-
     print(f"[hpa] downloading s3://{S3_BUCKET}/{HPA_KEY} -> {HPA_CACHE_ZIP}", file=sys.stderr)
-    boto3.client("s3").download_file(S3_BUCKET, HPA_KEY, str(HPA_CACHE_ZIP))
+    tmp = HPA_CACHE_ZIP.parent / f"{HPA_CACHE_ZIP.name}.tmp.{os.getpid()}"
+    try:
+        s3_client().download_file(S3_BUCKET, HPA_KEY, str(tmp))
+        os.replace(tmp, HPA_CACHE_ZIP)  # atomic within the cache dir (same filesystem)
+    finally:
+        tmp.unlink(missing_ok=True)  # no-op after a successful replace; cleans up a failed download
     return HPA_CACHE_ZIP
 
 

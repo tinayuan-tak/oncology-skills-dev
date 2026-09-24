@@ -159,14 +159,97 @@ def test_gene_index_is_invalidated_with_the_frame(tmp_path, monkeypatch):
 
 
 def test_ensure_hpa_cached_hits_existing_disk_file(tmp_path, monkeypatch):
-    # if the cache zip already exists + nonempty, no S3 download is attempted
+    # if the cache zip already exists + nonempty, no S3 client is constructed / download attempted
     monkeypatch.setattr(cli, "HPA_CACHE_DIR", tmp_path)
     z = tmp_path / "proteinatlas.tsv.zip"
     monkeypatch.setattr(cli, "HPA_CACHE_ZIP", z)
     _write_hpa_zip(tmp_path, [["KRAS", "Detected in all", "y", ""]])  # writes proteinatlas.tsv.zip
 
     def _boom(*a, **k):
-        raise AssertionError("must not download when disk cache exists")
+        raise AssertionError("must not touch S3 when disk cache exists")
 
-    monkeypatch.setattr(cli, "ensure_aws_profile", _boom)
+    monkeypatch.setattr(cli, "s3_client", _boom)
     assert cli._ensure_hpa_cached() == z
+
+
+def test_download_is_atomic_and_routes_through_s3_client(tmp_path, monkeypatch):
+    """AM#746 F10a: the download must land atomically — stream to a temp file, then rename — so an
+    interrupted download can't leave a truncated size>0 zip that the exists()+st_size guard then
+    serves as a corrupt cache hit (BadZipFile on every later call). Also pins AM#746 F3: the
+    download goes through cli.s3_client (fallback-capable), not a bare boto3 client."""
+    src_zip = _write_hpa_zip(tmp_path, [["KRAS", "Detected in all", "y", ""]])
+    cache_dir = tmp_path / "cache"
+    final = cache_dir / "proteinatlas.tsv.zip"
+    monkeypatch.setattr(cli, "HPA_CACHE_DIR", cache_dir)
+    monkeypatch.setattr(cli, "HPA_CACHE_ZIP", final)
+
+    seen = {"dest": None, "final_existed_mid_download": None}
+
+    class _FakeClient:
+        def download_file(self, bucket, key, dest):
+            seen["dest"] = dest
+            # while bytes are being written, the FINAL path must not yet exist (atomic rename)
+            seen["final_existed_mid_download"] = final.exists()
+            Path(dest).write_bytes(Path(src_zip).read_bytes())
+
+    called = {"n": 0}
+
+    def _fake_s3_client(*a, **k):
+        called["n"] += 1
+        return _FakeClient()
+
+    monkeypatch.setattr(cli, "s3_client", _fake_s3_client)
+
+    got = cli._ensure_hpa_cached()
+    assert called["n"] == 1, "download must route through cli.s3_client (F3)"
+    assert got == final and final.exists()
+    assert seen["dest"] != str(final), "download must target a temp path, not the final zip (F10a)"
+    assert seen["final_existed_mid_download"] is False, "final zip must appear only after atomic rename"
+    assert not list(cache_dir.glob("*.tmp.*")), "temp file must be renamed away / cleaned up"
+
+
+def test_reader_survives_off_cbg_profile_absent(tmp_path, monkeypatch):
+    """AM#746 F3 regression: with AWS_PROFILE unset and the preferred `cbg` SSO profile absent
+    (CI / prod / instance-role / OIDC), the reader must still download via s3_client()'s ambient
+    credential-chain fallback — not raise ProfileNotFound → read.py's bare except → every target
+    data_unavailable (the whole normal-tissue safety axis silently dark).
+
+    Reaches the REAL production fallback in target_id_sidecar.s3_client: patches boto3.Session so a
+    NAMED profile raises ProfileNotFound (as it would off-cbg) while a bare Session() succeeds and
+    its client's download_file writes the fixture zip. Store-the-raw-input / re-derive: the fixture
+    holds the raw HPA rows; the assertion re-derives the classification through load_and_classify.
+    If _ensure_hpa_cached still used ensure_aws_profile() + a bare boto3.client('s3'), AWS_PROFILE
+    would be forced to cbg and this would raise instead."""
+    import boto3
+    from botocore.exceptions import ProfileNotFound
+
+    monkeypatch.delenv("AWS_PROFILE", raising=False)
+
+    src_zip = _write_hpa_zip(tmp_path, [["KRAS", "Detected in all", "Low tissue specificity", ""]])
+
+    class _FakeClient:
+        def download_file(self, bucket, key, dest):
+            Path(dest).write_bytes(Path(src_zip).read_bytes())
+
+    class _FakeSession:
+        def __init__(self, *a, profile_name=None, **k):
+            if profile_name is not None:  # off-cbg: the named SSO profile does not exist
+                raise ProfileNotFound(profile=profile_name)
+
+        def client(self, *a, **k):
+            return _FakeClient()
+
+    monkeypatch.setattr(boto3, "Session", _FakeSession)
+
+    cache_dir = tmp_path / "cache"
+    monkeypatch.setattr(cli, "HPA_CACHE_DIR", cache_dir)
+    monkeypatch.setattr(cli, "HPA_CACHE_ZIP", cache_dir / "proteinatlas.tsv.zip")
+    cli.clear_hpa_caches()
+
+    out = cli.load_and_classify("KRAS")
+    assert out["normal_tissue_breadth_class"] == "broad_normal_expression", (
+        "reader must re-derive off-cbg, not go data_unavailable"
+    )
+    assert (cache_dir / "proteinatlas.tsv.zip").exists()
+    assert not list(cache_dir.glob("*.tmp.*")), "atomic download must leave no temp file"
+    cli.clear_hpa_caches()
