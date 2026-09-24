@@ -34,6 +34,8 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
             "essential_tissue_flag": "unknown",  # SOURCE unread → no data (NOT a measured `absent`); mirrors cli.py compute_summary(row=None)
             "hpa_tissue_distribution": None,
             "hpa_tissue_specificity": None,
+            "hpa_ihc_reliability": None,  # SOURCE unread → grade unknown (mirrors compute_summary(row=None))
+            "essential_tissue_low_reliability": False,
             "n_essential_tissues_with_expression": 0,
             "essential_tissues_flagged": [],
             "n_specific_tissues": 0,

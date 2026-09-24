@@ -39,11 +39,21 @@ if str(REPO) not in sys.path:
 cli = importlib.import_module("methods.hpa_normal_tissue_liability.cli")
 
 
-def _write_hpa_zip(tmp_path, rows):
-    """Write a minimal HPA master TSV (the 4 columns the reader uses) into a zip.
-    Library-free on purpose — the fixture must not depend on the frame library under test."""
-    cols = [cli.HPA_GENE_COL, cli.HPA_DIST_COL, cli.HPA_SPEC_COL, cli.HPA_INTENSITY_COL]
-    lines = ["\t".join(cols)] + ["\t".join("" if c is None else str(c) for c in row) for row in rows]
+def _write_hpa_zip(tmp_path, rows, reliability="Enhanced"):
+    """Write a minimal HPA master TSV (the columns the reader uses) into a zip.
+    Library-free on purpose — the fixture must not depend on the frame library under test.
+
+    `rows` may omit the trailing `Reliability (IH)` column; it is padded with `reliability`
+    (default a validated grade, so existing verdict assertions are unaffected)."""
+    cols = [cli.HPA_GENE_COL, cli.HPA_DIST_COL, cli.HPA_SPEC_COL, cli.HPA_INTENSITY_COL, cli.HPA_RELIABILITY_COL]
+
+    def _pad(row):
+        row = list(row)
+        while len(row) < len(cols):
+            row.append(reliability)
+        return row
+
+    lines = ["\t".join(cols)] + ["\t".join("" if c is None else str(c) for c in _pad(row)) for row in rows]
     tsv = "\n".join(lines) + "\n"
     zpath = tmp_path / "proteinatlas.tsv.zip"
     with zipfile.ZipFile(zpath, "w") as z:
@@ -54,7 +64,13 @@ def _write_hpa_zip(tmp_path, rows):
 def test_override_path_reads_and_is_not_cached(tmp_path):
     z1 = _write_hpa_zip(tmp_path, [["KRAS", "Detected in all", "Low tissue specificity", ""]])
     df1 = cli._read_hpa(hpa_path=z1)
-    assert list(df1.columns) == [cli.HPA_GENE_COL, cli.HPA_DIST_COL, cli.HPA_SPEC_COL, cli.HPA_INTENSITY_COL]
+    assert list(df1.columns) == [
+        cli.HPA_GENE_COL,
+        cli.HPA_DIST_COL,
+        cli.HPA_SPEC_COL,
+        cli.HPA_INTENSITY_COL,
+        cli.HPA_RELIABILITY_COL,
+    ]
     assert df1.row(0, named=True)[cli.HPA_GENE_COL] == "KRAS"
     # a DIFFERENT override path returns different data (override is not lru-cached)
     z2 = _write_hpa_zip(
@@ -72,8 +88,10 @@ def test_override_read_keeps_every_column_as_string(tmp_path):
     earlier version of this test used realistic values ("KRAS", "Detected in all", "liver: 500"),
     none of which polars would infer as a number, so it passed even with infer_schema_length=0
     REMOVED. It asserted the reader's contract using data that could not violate it. This fixture
-    can: drop infer_schema_length=0 and all four columns come back Int64."""
-    z = _write_hpa_zip(tmp_path, [["7", "1", "2", "500"], ["8", "3", "4", "600"]])
+    can: drop infer_schema_length=0 and all columns come back Int64."""
+    # reliability padded numeric too, so EVERY column is numeric-inferable — the whole frame must
+    # still come back Utf8 (else inference was silently re-enabled).
+    z = _write_hpa_zip(tmp_path, [["7", "1", "2", "500"], ["8", "3", "4", "600"]], reliability="9")
     df = cli._read_hpa(hpa_path=z)
     assert set(df.dtypes) == {pl.String}, f"expected all-Utf8 (no inference), got {df.dtypes}"
 

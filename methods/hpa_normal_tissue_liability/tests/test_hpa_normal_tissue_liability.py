@@ -98,8 +98,13 @@ def test_summary_identical_across_null_shapes():
 # --- essential-tissue flagging (synthetic row) ----------------------------
 
 
-def _row(dist, intensity, spec="Tissue enriched"):
-    return {hc.HPA_DIST_COL: dist, hc.HPA_SPEC_COL: spec, hc.HPA_INTENSITY_COL: intensity}
+def _row(dist, intensity, spec="Tissue enriched", reliability="Enhanced"):
+    return {
+        hc.HPA_DIST_COL: dist,
+        hc.HPA_SPEC_COL: spec,
+        hc.HPA_INTENSITY_COL: intensity,
+        hc.HPA_RELIABILITY_COL: reliability,
+    }
 
 
 def test_essential_tissue_flagged():
@@ -171,16 +176,87 @@ def test_non_essential_named_tissue_no_essential_flag():
     assert s["n_specific_tissues"] == 1
 
 
+# --- antibody reliability (AM#745) ----------------------------------------
+# The `Reliability (IH)` grade is ingested + surfaced, and a LONE low-reliability single-essential-
+# tissue killer is MARKED. This is VERDICT-INERT: essential_tissue_flag never moves (a safety killer
+# is fail-safe — surfaced + qualified, never silently suppressed on a weak antibody).
+
+
+def test_reliability_normalizer():
+    assert hc.normalize_reliability("Enhanced") == "enhanced"
+    assert hc.normalize_reliability("  Uncertain ") == "uncertain"
+    for blank in (None, "nan", "", float("nan")):
+        assert hc.normalize_reliability(blank) is None
+
+
+def test_reliability_surfaced_on_summary():
+    s = hc.compute_summary("X", _row("Detected in single", "heart muscle: 5e5", reliability="Supported"))
+    assert s["hpa_ihc_reliability"] == "supported"
+
+
+def test_lone_low_reliability_essential_hit_is_marked_but_killer_still_fires():
+    """A single essential-tissue enrichment hit on a weak (Approved/Uncertain) antibody: the killer
+    STILL fires (essential_tissue_flag == present, byte-stable) but is marked low-confidence."""
+    for grade in ("Approved", "Uncertain"):
+        s = hc.compute_summary("X", _row("Detected in single", "heart muscle: 5e5", reliability=grade))
+        assert s["essential_tissue_flag"] == "present", grade  # verdict UNCHANGED — killer not suppressed
+        assert s["essential_tissue_low_reliability"] is True, grade
+        assert s["n_essential_tissues_with_expression"] == 1, grade
+
+
+def test_high_reliability_single_essential_hit_not_marked():
+    for grade in ("Enhanced", "Supported"):
+        s = hc.compute_summary("X", _row("Detected in single", "heart muscle: 5e5", reliability=grade))
+        assert s["essential_tissue_flag"] == "present", grade
+        assert s["essential_tissue_low_reliability"] is False, grade
+
+
+def test_missing_reliability_is_not_treated_as_low():
+    """Absent grade → NOT low (no fail-open demotion on missing antibody metadata)."""
+    s = hc.compute_summary("X", _row("Detected in single", "heart muscle: 5e5", reliability=None))
+    assert s["hpa_ihc_reliability"] is None
+    assert s["essential_tissue_low_reliability"] is False
+
+
+def test_multi_tissue_low_reliability_not_marked():
+    """>=2 essential tissues → the killer has independent support, so a lone-hit qualifier must NOT
+    fire even on a weak antibody."""
+    s = hc.compute_summary("X", _row("Detected in some", "heart muscle: 5e5;liver: 4e5", reliability="Uncertain"))
+    assert s["n_essential_tissues_with_expression"] == 2
+    assert s["essential_tissue_flag"] == "present"
+    assert s["essential_tissue_low_reliability"] is False
+
+
+def test_detected_in_all_low_reliability_not_marked():
+    """`Detected in all` (present via broad genome-wide detection, empty enrichment list) is NOT a
+    lone single-tissue call, so the qualifier must not fire regardless of antibody grade."""
+    s = hc.compute_summary("X", _row("Detected in all", None, reliability="Uncertain"))
+    assert s["essential_tissue_flag"] == "present"
+    assert s["essential_tissue_low_reliability"] is False
+
+
+def test_reliability_does_not_move_essential_tissue_flag_byte_stable():
+    """The whole verdict spine (essential_tissue_flag) is identical across ALL reliability grades on
+    the same underlying IHC row — the only thing reliability moves is the confidence qualifier."""
+    flags = {
+        g: hc.compute_summary("X", _row("Detected in single", "heart muscle: 5e5", reliability=g))[
+            "essential_tissue_flag"
+        ]
+        for g in ("Enhanced", "Supported", "Approved", "Uncertain", None)
+    }
+    assert set(flags.values()) == {"present"}
+
+
 # --- data_unavailable + lookup --------------------------------------------
 
 
 def _write_hpa_tsv(tmp_path):
     p = tmp_path / "hpa_mini.tsv"
-    cols = [hc.HPA_GENE_COL, hc.HPA_DIST_COL, hc.HPA_SPEC_COL, hc.HPA_INTENSITY_COL]
+    cols = [hc.HPA_GENE_COL, hc.HPA_DIST_COL, hc.HPA_SPEC_COL, hc.HPA_INTENSITY_COL, hc.HPA_RELIABILITY_COL]
     rows = [
-        ["EGFR", "Detected in all", "Low tissue specificity", ""],
-        ["TACSTD2", "Detected in many", "Tissue enhanced", "lung: 2.2e7;salivary gland: 2.4e6"],
-        ["MLANA", "Not detected", "Not detected", ""],
+        ["EGFR", "Detected in all", "Low tissue specificity", "", "Enhanced"],
+        ["TACSTD2", "Detected in many", "Tissue enhanced", "lung: 2.2e7;salivary gland: 2.4e6", "Supported"],
+        ["MLANA", "Not detected", "Not detected", "", "Approved"],
     ]
     with open(p, "w") as fh:
         fh.write("\t".join(cols) + "\n")
@@ -211,6 +287,8 @@ def test_card_contract_fields_present(tmp_path):
         "normal_tissue_breadth_class",
         "hpa_tissue_distribution",
         "hpa_tissue_specificity",
+        "hpa_ihc_reliability",
+        "essential_tissue_low_reliability",
         "n_essential_tissues_with_expression",
         "essential_tissues_flagged",
         "n_specific_tissues",

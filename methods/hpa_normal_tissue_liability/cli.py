@@ -16,6 +16,24 @@ HPA uses a CLOSED 16-name tissue vocabulary in the specific-intensity field, so 
 essential-tissue set is an EXACT membership test (no fuzzy matching). A gene absent
 from HPA / with no tissue-distribution call → data_unavailable (coverage gap, NOT a
 favorable window — do not read absence as safety).
+
+ANTIBODY RELIABILITY (`Reliability (IH)`, added 2026-09-24, AM#745). HPA's IHC calls
+carry a per-antibody reliability grade — Enhanced / Supported (validated) vs Approved /
+Uncertain (weaker). It is ingested and SURFACED (`hpa_ihc_reliability`), and a lone
+low-reliability single-essential-tissue hit is MARKED (`essential_tissue_low_reliability`)
+so the dominant BiTE/TCE essential-tissue killer stays legible as lower-confidence. The
+killer is NOT suppressed: `essential_tissue_flag` is left byte-stable (this method change
+is verdict-inert). For a SAFETY axis, silently demoting a killer on weak-antibody grounds
+would be a fail-open (a real essential-tissue hit escaping on an "Approved" antibody is a
+false absence) — so we surface + qualify rather than down-weight the verdict. A downstream
+rule/claim (target-contracts caveat-3) may consume the reliability + qualifier to discount
+CONFIDENCE; that re-wiring is out of scope for this methods-only change.
+
+F5 SUBSTRATE LIMITATION: `Protein tissue distribution` is a single pre-summarised
+pathologist verdict with NO patient-n exposed, so there is no `round(frac*n)>=2`-style
+low-n guard — a single IHC section has full veto power. Reliability weighting partially
+mitigates (it is the only actionable quality lever available here since patient-n is not
+in the substrate), but the residual limitation remains.
 """
 
 from __future__ import annotations
@@ -50,6 +68,13 @@ HPA_GENE_COL = "Gene"
 HPA_DIST_COL = "Protein tissue distribution"
 HPA_SPEC_COL = "Protein tissue specificity"
 HPA_INTENSITY_COL = "Protein tissue specific Intensity"
+HPA_RELIABILITY_COL = "Reliability (IH)"  # antibody IHC reliability: Enhanced|Supported|Approved|Uncertain
+
+# HPA `Reliability (IH)` grades below which a single-tissue IHC call is treated as
+# controversial (caveat 3): the weaker antibody grades. Enhanced / Supported = validated.
+# Missing/blank reliability is NOT treated as low — for a safety killer we do not demote on
+# an ABSENT grade (that would be a fail-open on missing metadata).
+_RELIABILITY_LOW = {"approved", "uncertain"}
 
 # HPA `Protein tissue distribution` → normal_tissue_breadth_class.
 _DIST_TO_CLASS = {
@@ -115,7 +140,7 @@ def _ensure_hpa_cached() -> Path:
     return HPA_CACHE_ZIP
 
 
-HPA_COLS = [HPA_GENE_COL, HPA_DIST_COL, HPA_SPEC_COL, HPA_INTENSITY_COL]
+HPA_COLS = [HPA_GENE_COL, HPA_DIST_COL, HPA_SPEC_COL, HPA_INTENSITY_COL, HPA_RELIABILITY_COL]
 
 # polars rather than pandas for this reader (pilot, 2026-09-16). Three reasons, measured at HPA
 # scale (20.4k rows x 4 string cols) rather than assumed:
@@ -244,6 +269,17 @@ def classify_breadth(dist_value: Optional[str]) -> str:
     return _DIST_TO_CLASS.get(str(dist_value).strip().lower(), "data_unavailable")
 
 
+def normalize_reliability(value: Optional[str]) -> Optional[str]:
+    """HPA `Reliability (IH)` cell → normalised lowercase grade, or None when absent.
+
+    Values are Enhanced / Supported / Approved / Uncertain. Absent (None / "nan" / "")
+    → None (grade unknown — NOT treated as low reliability; see _RELIABILITY_LOW)."""
+    if value is None or _is_absent(value):
+        return None
+    v = str(value).strip().lower()
+    return v or None
+
+
 def compute_summary(gene: str, row: Optional[dict]) -> dict:
     """Build the normal-tissue-liability card summary from an HPA row."""
     if row is None:
@@ -252,6 +288,8 @@ def compute_summary(gene: str, row: Optional[dict]) -> dict:
             "essential_tissue_flag": "unknown",  # gene absent from HPA → no data (NOT a measured `absent`)
             "hpa_tissue_distribution": None,
             "hpa_tissue_specificity": None,
+            "hpa_ihc_reliability": None,  # antibody IHC reliability grade — absent when gene not in HPA
+            "essential_tissue_low_reliability": False,  # no killer to qualify when there is no data
             "n_essential_tissues_with_expression": 0,
             "essential_tissues_flagged": [],
             "n_specific_tissues": 0,
@@ -299,6 +337,20 @@ def compute_summary(gene: str, row: Optional[dict]) -> dict:
     if breadth == "broad_normal_expression":
         flags.append("broad")
 
+    # Antibody reliability (AM#745). Surface the grade, and MARK the one case caveat 3 calls out:
+    # the dominant essential-tissue killer resting SOLELY on a lone (n==1), low-reliability single-
+    # tissue IHC enrichment hit. NOT flagged when the killer has independent support — multiple
+    # essential tissues (len>=2) or a genome-wide `Detected in all` (essential_from_broad_detection),
+    # where the antibody grade of one enrichment call is not pivotal — nor for a validated
+    # (Enhanced/Supported) or missing grade. This changes CONFIDENCE, not the verdict:
+    # essential_tissue_flag is deliberately left unchanged (killer keeps firing = fail-safe).
+    reliability = normalize_reliability(row.get(HPA_RELIABILITY_COL))
+    essential_low_reliability = (
+        essential_flag == "present" and len(essential) == 1 and not detected_in_all and reliability in _RELIABILITY_LOW
+    )
+    # Surfaced as its OWN field (below), NOT appended to safety_tissue_flags — that list is a
+    # consumed field (surface-modality-fit reads it), so it is left byte-stable.
+
     return {
         "normal_tissue_breadth_class": breadth,
         # Scalar categorical the essential-tissue rule matches with `equals` (the rules
@@ -307,6 +359,11 @@ def compute_summary(gene: str, row: Optional[dict]) -> dict:
         "essential_tissue_flag": essential_flag,
         "hpa_tissue_distribution": dist,
         "hpa_tissue_specificity": spec,
+        # Antibody IHC reliability (surfacing lever; see caveat 3). Grade string or None.
+        "hpa_ihc_reliability": reliability,
+        # True only for the lone low-reliability single-essential-tissue killer (see above) — a
+        # confidence qualifier for a downstream discount, NOT a verdict change here.
+        "essential_tissue_low_reliability": bool(essential_low_reliability),
         "n_essential_tissues_with_expression": len(essential),
         "essential_tissues_flagged": essential,
         "n_specific_tissues": len(specific),
