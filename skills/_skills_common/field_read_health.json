@@ -1,10 +1,10 @@
 {
   "attribution": {
-    "per_unit_read_credits": 568,
-    "per_unit_union_pairs": 517,
+    "per_unit_read_credits": 570,
+    "per_unit_union_pairs": 519,
     "reconciled": true,
     "unattributed": [],
-    "whole_tree_pairs": 517
+    "whole_tree_pairs": 519
   },
   "note": "Reads MINUS declarations, per unit, for the target-contracts framework-health dashboard. TRENDING, never a gate: a populated queue is a review queue and this tool returns 0 however long it is. The queue is NOT split into read_of_None vs emitted_but_undeclared here \u2014 that needs observed-package evidence this producer cannot see, so the contracts side resolves emission_undetermined against the data-products root. no_reads_detected means the scraper's five shapes matched nothing, NOT that the unit is clean.",
   "rosters": {
@@ -2139,13 +2139,13 @@
   "summary": {
     "attribution_reconciled": true,
     "n_clean": 14,
-    "n_emission_undetermined": 1,
+    "n_emission_undetermined": 3,
     "n_meta_key": 1,
     "n_no_reads_detected": 7,
-    "n_reads_detected": 517,
+    "n_reads_detected": 519,
     "n_roster_cards": 148,
     "n_roster_fields": 1814,
-    "n_undeclared_pairs": 2,
+    "n_undeclared_pairs": 4,
     "n_units": 23,
     "n_units_with_undeclared_reads": 2
   },
@@ -2158,6 +2158,24 @@
         "skill_code"
       ],
       "unit": "literature-risk-assessment"
+    },
+    {
+      "card": "expression-purity-confound",
+      "classification": "emission_undetermined",
+      "field": "purity_range_iqr",
+      "reader_kinds": [
+        "skill_code"
+      ],
+      "unit": "tumor-selectivity"
+    },
+    {
+      "card": "expression-purity-confound",
+      "classification": "emission_undetermined",
+      "field": "purity_spread_underpowered",
+      "reader_kinds": [
+        "skill_code"
+      ],
+      "unit": "tumor-selectivity"
     },
     {
       "card": "tumor-vs-normal-selectivity",
@@ -2369,11 +2387,27 @@
     "tumor-selectivity": {
       "disposition": "undeclared_reads",
       "kind": "skill",
-      "n_reads": 61,
+      "n_reads": 63,
       "reads_by_kind": {
-        "skill_code": 61
+        "skill_code": 63
       },
       "undeclared": [
+        {
+          "card": "expression-purity-confound",
+          "classification": "emission_undetermined",
+          "field": "purity_range_iqr",
+          "reader_kinds": [
+            "skill_code"
+          ]
+        },
+        {
+          "card": "expression-purity-confound",
+          "classification": "emission_undetermined",
+          "field": "purity_spread_underpowered",
+          "reader_kinds": [
+            "skill_code"
+          ]
+        },
         {
           "card": "tumor-vs-normal-selectivity",
           "classification": "meta_key",

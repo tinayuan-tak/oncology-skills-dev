@@ -293,6 +293,16 @@ def _dist_corroboration(h, c):
     return "single_arm"
 
 
+def _purity_underpowered(h) -> bool:
+    """AM#736 honest power qualifier: a `purity_independent` call resting on a NARROW high-purity band
+    (paired-purity IQR < MIN_PURITY_IQR) is underpowered to resolve a confound at all, so it must
+    ABSTAIN rather than reassure. The method emits `purity_spread_underpowered` as an advisory bool
+    beside the (unchanged) class; a genuine wide-spread `purity_independent` leaves it false and reads
+    exactly as before. Only qualifies `purity_independent` — a positive `microenvironment_confounded`
+    detection is not weakened by spread, and other classes carry no purity reassurance to withdraw."""
+    return h.get("purity_confound_class") == "purity_independent" and bool(h.get("purity_spread_underpowered"))
+
+
 def _int_signal(h, c):
     cls = h.get("sc_tumor_expression_class")
     sig = _INT_SIGNAL.get(cls, "unmeasured")
@@ -302,9 +312,19 @@ def _int_signal(h, c):
         conflict = "bulk selectivity may be microenvironment-confounded (purity) — the signal is not clearly tumor-cell-intrinsic"
         if sig_ge(sig, "moderate"):
             sig = "weak"  # purity contradicts an apparent intrinsic single-cell signal → downgrade
+    elif _purity_underpowered(h) and sig_ge(sig, "moderate"):
+        # AM#736: an underpowered-narrow-purity `purity_independent` is ABSENCE of a confound signal,
+        # not evidence AGAINST one. Do NOT downgrade the single-cell signal (no confound was measured —
+        # a downgrade would be conservative-to-a-fault), but do NOT let it silently read as a confirmed
+        # clean intrinsic call either: flag the caveat so a moderate+ signal is not treated as clean.
+        conflict = (
+            "purity_independent rests on a narrow high-purity band (underpowered to resolve a confound) "
+            "— the intrinsic single-cell signal is not confirmed purity-independent"
+        )
     ev = (
         f"single-cell: {cls or 'data_unavailable'}, malignant frac {_f(h.get('sc_malignant_detection_fraction'))}, "
         f"CAF={h.get('sc_caf_vs_malignant_class')}, purity={purity}"
+        f"{' (narrow-purity band, underpowered)' if _purity_underpowered(h) else ''}"
     )
     # In-situ SPATIAL region-RNA is a deconvolution-free read of the SAME malignant-compartment question.
     # Surface it in the evidence, and flag a conflict when it DISAGREES with an apparent intrinsic signal.
@@ -341,7 +361,11 @@ def _int_corroboration(h, c):
             disagrees={"caf_dominant"},
         ),
         arm_from_class(
-            h.get("purity_confound_class"),
+            # AM#736: an underpowered-narrow-purity `purity_independent` cannot corroborate — treat it as
+            # ABSENT (None), not AGREEING, mirroring the absent-vs-disagreeing discipline above. Passing
+            # None here (rather than the class) drops the arm from the frame instead of scoring it as a
+            # clean agreeing arm. A wide-spread `purity_independent` (flag false) still corroborates.
+            None if _purity_underpowered(h) else h.get("purity_confound_class"),
             agrees={"tumor_intrinsic", "purity_independent"},
             disagrees={"microenvironment_confounded"},
         ),

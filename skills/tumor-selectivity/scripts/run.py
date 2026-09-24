@@ -960,6 +960,12 @@ def _headline(cards, fired, verdict_pair, modality=None):
         # driven by stromal/immune microenvironment content the bulk DESeq2 design can't separate?
         "purity_confound_class": purity.get("purity_confound_class"),
         "expression_purity_pearson_r": purity.get("expression_purity_pearson_r"),
+        # AM#736 honest power qualifier (verdict-inert): a `purity_independent` call on a NARROW
+        # high-purity band (paired-purity IQR below the method's floor) is underpowered to resolve a
+        # confound, so selectivity_claims abstains on it rather than crediting it as a clean agreeing
+        # arm. Project both the raw IQR and the bool the claim vector keys on; the class is unchanged.
+        "purity_range_iqr": purity.get("purity_range_iqr"),
+        "purity_spread_underpowered": purity.get("purity_spread_underpowered"),
         # Absolute-density facet (verdict-inert): Tier-1 calibrated copies/cell + floor standing +
         # modality-viability flags. below_tce_floor is a MODALITY caveat, not a downgrade (CD19
         # counterexample). density_floor_verdict == 'unmeasured' for un-anchored targets.
@@ -1170,6 +1176,7 @@ _SYNTHESIS_FACET_KEYS = (
     "discordant",
     "selectivity_allgene_percentile_class",
     "purity_confound_class",
+    "purity_spread_underpowered",  # AM#736 power qualifier: project it beside its class so a reviewer can see WHY an underpowered purity_independent stopped corroborating
     "rna_protein_tvn_concordance",
     "sc_normal_safety_essential_class",  # the veto input (why a target down-graded)
     "claim_vector",

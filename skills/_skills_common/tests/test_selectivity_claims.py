@@ -166,6 +166,62 @@ def test_microenvironment_confounded_downgrades_and_flags():
     assert vec["INT"]["corroboration"] == "low"
 
 
+def _narrow_purity_headline(underpowered: bool):
+    """CEACAM5-shaped INT inputs with the CAF arm ABSENT, so the purity arm is the deciding second
+    arm — isolating the AM#736 power qualifier's effect on corroboration.
+
+    `underpowered` is the RAW method output the skills consumer keys on (analysis-methods'
+    `expression_purity_confound` emits `purity_spread_underpowered` beside the unchanged class; this
+    module consumes the bool, it does not re-derive it — so the bool IS the raw input here). The
+    method sets it true when the paired-purity IQR falls below its floor (MIN_PURITY_IQR = 0.18; e.g.
+    the ACC 0.153 / KICH 0.160 high-purity cohorts) and false for the mid-spread majority (~0.25)."""
+    return {
+        "axis_a_selectivity_class": "field_effect_tumor_selective",
+        "cells_supporting": 1.0,
+        "cells_ran": 3.0,
+        "discordant": True,
+        "percentile_crossing_class": "strongly_tumor_enriched",
+        "distribution_overlap_tumor_normal": 0.25,
+        "sc_tumor_expression_class": "malignant_broadly_detected",  # → strong INT signal
+        "sc_malignant_detection_fraction": 0.756,
+        "sc_caf_vs_malignant_class": None,  # CAF arm ABSENT → purity is the deciding second arm
+        "purity_confound_class": "purity_independent",
+        "purity_spread_underpowered": underpowered,
+        "sc_normal_safety_essential_class": "none",
+        "sc_normal_expression_class": "NOT_EXPRESSED",
+    }
+
+
+def test_underpowered_narrow_purity_independent_abstains_from_corroboration():
+    """AM#736 follow-on (card-11 audit F2): a `purity_independent` resting on a NARROW high-purity band
+    is underpowered to resolve a confound, so it must ABSTAIN — treated as an ABSENT arm, not an
+    agreeing one. With the CAF arm absent, the purity arm is the only would-be second arm, so dropping
+    it leaves a single measured arm (`single_arm`), not the two-arm agreement a wide spread would buy."""
+    h = _narrow_purity_headline(underpowered=True)
+    vec = selectivity_claim_vector(h, [])
+    assert vec["INT"]["corroboration"] == "single_arm"
+    # signal is NOT downgraded (absence of a confound signal is not evidence against one — honest,
+    # not conservative-to-a-fault) but the caveat is flagged so a moderate+ signal is not read as clean.
+    assert vec["INT"]["signal"] == "strong"
+    assert "underpowered" in (vec["INT"]["conflict"] or "")
+    assert "underpowered" in (vec["INT"]["evidence"] or "")
+
+
+def test_wide_spread_purity_independent_still_corroborates():
+    """The other half of honesty: a genuine WIDE-spread `purity_independent` (flag false) still
+    corroborates and reads exactly as before — self-arm + purity arm agree → two-arm `high`, no caveat."""
+    h = _narrow_purity_headline(underpowered=False)
+    vec = selectivity_claim_vector(h, [])
+    assert vec["INT"]["corroboration"] == "high"
+    assert vec["INT"]["signal"] == "strong"
+    assert vec["INT"]["conflict"] is None
+    # and the flag being ABSENT entirely (older method output) must read like a wide spread, never
+    # like an underpowered one — the consumer only withdraws credit on an explicit true.
+    h_absent = _narrow_purity_headline(underpowered=False)
+    del h_absent["purity_spread_underpowered"]
+    assert selectivity_claim_vector(h_absent, [])["INT"]["corroboration"] == "high"
+
+
 def test_microenvironment_dominant_is_negative():
     h = _ceacam5_headline()
     h["sc_tumor_expression_class"] = "microenvironment_dominant"
