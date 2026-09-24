@@ -82,7 +82,7 @@ def main():
     from methods.gdc_somatic_hotspot.cli import (
         emit_hotspot_lollipop,
         emit_mutation_frequency_stacked,
-        emit_mutation_frequency_waterfall,
+        emit_mutation_frequency_pie,
         emit_plot_data,
     )
 
@@ -155,7 +155,7 @@ def main():
 
     # === Test 4: KRAS pie chart figure ===
     print(f"\n=== Test 4: KRAS pie chart figure ===")
-    svg4 = emit_mutation_frequency_waterfall(
+    svg4 = emit_mutation_frequency_pie(
         "KRAS",
         INDICATION,
         TARGET_FREQUENCY,  # 42% in COADREAD
@@ -170,7 +170,7 @@ def main():
 
     # === Test 5: JAK2 pie chart (rare gene) ===
     print(f"\n=== Test 5: JAK2 pie chart figure ===")
-    svg5 = emit_mutation_frequency_waterfall(
+    svg5 = emit_mutation_frequency_pie(
         "JAK2",
         INDICATION,
         JAK2_COADREAD_FREQ,

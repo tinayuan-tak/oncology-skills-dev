@@ -1012,7 +1012,7 @@ def emit_mutation_frequency_stacked(
     return svg_path
 
 
-def emit_mutation_frequency_waterfall(
+def emit_mutation_frequency_pie(
     target: str,
     indication: str,
     target_frequency_indication: float,
@@ -1025,12 +1025,10 @@ def emit_mutation_frequency_waterfall(
     min_frequency: float = 0.05,
     top_n: int = 100,
 ) -> Optional[Path]:
-    """Emit a waterfall plot with a pie chart overlay showing mutation frequency.
+    """Emit dual pie charts showing mutation frequency in indication vs pan-cancer.
 
-    The pie chart (top-left) shows the target's mutation frequency in the indication,
-    with pan-cancer frequency noted in parentheses. The waterfall shows the top N
-    most frequently mutated genes ordered by ascending frequency, with the target
-    highlighted in red with an arrow marker.
+    Two donut-style pie charts side by side: indication (red) on left, pan-cancer
+    (black) on right. Captions below show the gene's rank in each context.
 
     Args:
         target: gene symbol
@@ -1060,7 +1058,7 @@ def emit_mutation_frequency_waterfall(
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots(figsize=(7.0, 5.0))
         ax.text(0.5, 0.5, "takeda_palette not available", ha="center", va="center", transform=ax.transAxes)
-        svg_path = out_path / "figure_mutation_frequency_waterfall.svg"
+        svg_path = out_path / "figure_mutation_frequency_pie.svg"
         fig.savefig(svg_path, bbox_inches="tight")
         plt.close(fig)
         return svg_path
@@ -1223,7 +1221,7 @@ def emit_mutation_frequency_waterfall(
                  f"{target} mutation frequency pan-cancer: {target_frequency_pancancer*100:.1f}%",
                  ha="center", va="top", fontsize=10, color="#333333", fontweight="bold")
 
-    svg_path = out_path / "figure_mutation_frequency_waterfall.svg"
+    svg_path = out_path / "figure_mutation_frequency_pie.svg"
     fig.savefig(svg_path)
     plt.close(fig)
     return svg_path
