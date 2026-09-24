@@ -28,9 +28,15 @@ from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 from methods.dge_deseq2.config import indication_to_gtex_tissue, indication_to_tcga_studies
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
+# NOTE: this reader is a *package* (methods/dge_deseq2/read/__init__.py), one directory deeper
+# than the flat sibling readers (methods/<name>/read.py, e.g. catalog_query). So the anchor is
+# parents[3] (the analysis-methods repo root) .parent (the sibling-clone dir) — one more level up
+# than the flat readers' parents[2].parent. Must equal catalog_query.read.DATA_CATALOG; a
+# regression here is masked in CI (skip_if_no_data swallows the S3 error before the catalog lookup),
+# so it is pinned hermetically in tests/test_data_catalog_resolution.py. (#728, S0 reorg #692.)
 DATA_CATALOG = Path(
     os.environ.get("DATA_CATALOG_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
+    or Path(__file__).resolve().parents[3].parent / "rnd-computational-biology-oncology-data-catalog"
 )
 DEFAULT_AWS_PROFILE = "cbg"
 
