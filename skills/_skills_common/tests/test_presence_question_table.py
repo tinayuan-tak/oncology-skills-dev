@@ -340,7 +340,7 @@ _HNSC_STRATA = [
 ]
 
 
-def _enriched_fixture(strata=None, *, spotlight=None, n_enriched=4, n_measured=11):
+def _enriched_fixture(strata=None, *, spotlight=None, n_enriched=4, n_measured=11, quality="powered"):
     """The base fixture with its uniform subtype card swapped for an ENRICHED one.
 
     The subtype claim vector is NOT injected: `presence_question_table` derives it from these same
@@ -350,7 +350,7 @@ def _enriched_fixture(strata=None, *, spotlight=None, n_enriched=4, n_measured=1
     cards = [c for c in cards if c["card_id"] != "tumor-rna-distribution-by-subtype"]
     summary = {
         "subtype_axis_available": True,
-        "subtype_axis_quality": "powered",
+        "subtype_axis_quality": quality,
         "subtype_stratification_class": "subtype_enriched",
         "n_subtypes_measured": n_measured,
         "n_subtypes_enriched": n_enriched,
@@ -398,6 +398,22 @@ def test_q4_single_enriched_stratum_is_not_repeated_in_support():
     r = _by_id(presence_question_table(*_enriched_fixture(only, n_enriched=1, n_measured=3)))["Q4"]
     assert "(top site_oropharyngeal)" in r["primary"], r["primary"]
     assert "enriched:" not in r["support"], r["support"]
+
+
+def test_q4_exploratory_axis_does_not_read_as_a_subtype_differential():
+    """SK#1518. `subtype_stratification_class` is derived from the MEASURED strata alone, so a single
+    measured-enriched stratum in an `exploratory`-graded family yields `subtype_enriched` while the
+    axis-quality grade says the axis is NOT powered (needs >=2 strata >=30). That combination must NOT
+    read as a differential — exactly the case the function's :189-190 comment intends to block. Only a
+    `powered` axis (test_q4_names_the_data_driven_stratum...) surfaces `moderate`/enriched here."""
+    only = [_HNSC_STRATA[1]]  # one measured-enriched stratum; the rest never cleared the floor
+    r = _by_id(presence_question_table(*_enriched_fixture(only, n_enriched=1, n_measured=6, quality="exploratory")))[
+        "Q4"
+    ]
+    assert r["signal"]["tier"] == "unmeasured", r["signal"]
+    assert r["signal"]["polarity"] == "none", "an exploratory axis must not carry a favourable polarity"
+    assert "exploratory" in r["primary"] and "hypothesis-grade" in r["primary"], r["primary"]
+    assert "enriched:" not in r["signal"]["label"], "must not label a hypothesis-grade axis as enriched"
 
 
 # ── Q6: show the correlation that actually classified ──────────────────────────────────────────────

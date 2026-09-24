@@ -31,6 +31,7 @@ from _skills_common.question_table_core import cbyid as _cbyid
 from _skills_common.question_table_core import conf as _conf
 from _skills_common.question_table_core import row as _row
 from _skills_common.question_table_core import sig as _sig
+from _skills_common.subtype_axis import is_differential_axis
 
 
 def _top_labels(rows, key: str, k: int = 3, rank_by: str | None = None) -> list:
@@ -199,8 +200,22 @@ def _q4_subtype(h, c, cv, sv=None):
         sig = _sig("unmeasured", f"axis {quality}")
         primary = f"subtype axis present but {quality} ({detail}); not a usable selection axis"
     elif cls in ("subtype_enriched", "subtype_restricted", "subtype_differential"):
-        sig = _sig("moderate", f"enriched: {named}" if named else "subtype-differential")
-        primary = f"{cls}" + (f" ({named_kind} {named})" if named else "") + f"; {nenr}/{nmeas} enriched"
+        if is_differential_axis(quality):
+            sig = _sig("moderate", f"enriched: {named}" if named else "subtype-differential")
+            primary = f"{cls}" + (f" ({named_kind} {named})" if named else "") + f"; {nenr}/{nmeas} enriched"
+        else:
+            # The class is derived from MEASURED strata only, so a single measured-enriched stratum in
+            # an `exploratory` (or weaker) family yields `subtype_enriched` while the axis-quality grade
+            # says the axis is not powered. That is a HYPOTHESIS, not a usable cross-subtype selection
+            # axis — exactly what the comment above (:189-190) intends to block. Say the grade; never
+            # assert a differential here. (`quality` is exploratory/unevaluable/None on this branch;
+            # empty/underpowered were handled above.)
+            grade = quality or "ungraded"
+            sig = _sig("unmeasured", f"axis {grade}")
+            primary = (
+                f"subtype axis {grade} — {cls} in a single stratum is hypothesis-grade, "
+                f"not a usable selection axis ({nenr}/{nmeas} enriched)"
+            )
     else:  # pan_subtype_uniform (on a powered axis)
         sig = _sig("uniform", "uniform across subtypes")
         primary = f"pan-subtype uniform ({nenr or 0}/{nmeas} enriched)"

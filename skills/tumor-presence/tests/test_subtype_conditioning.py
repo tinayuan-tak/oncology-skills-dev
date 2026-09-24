@@ -34,8 +34,23 @@ def _cards(n_subtypes_measured, rows):
 
 
 # CD274-shaped: MSI-H present (strong), MSS low — across a 14-stratum panel (the flattening case).
-_MSIH = {"stratum_id": "MSI_H", "median_log2tpm": 6.0, "n_tumor_samples": 100, "fraction_tumor_above_normal_p95": 0.6}
-_MSS = {"stratum_id": "MSS", "median_log2tpm": 1.5, "n_tumor_samples": 100, "fraction_tumor_above_normal_p95": 0.05}
+# Both strata are MEASURED (n=100). `evidence_state: "measured"` is now load-bearing: SK#1518 gates the
+# per-stratum A/B signal on it (a non-measured stratum reads `unmeasured`, not a minted differential),
+# matching subgroup_derivation.py and the reader, which always emits evidence_state on every row.
+_MSIH = {
+    "stratum_id": "MSI_H",
+    "evidence_state": "measured",
+    "median_log2tpm": 6.0,
+    "n_tumor_samples": 100,
+    "fraction_tumor_above_normal_p95": 0.6,
+}
+_MSS = {
+    "stratum_id": "MSS",
+    "evidence_state": "measured",
+    "median_log2tpm": 1.5,
+    "n_tumor_samples": 100,
+    "fraction_tumor_above_normal_p95": 0.05,
+}
 
 
 def test_stratum_positive_is_surfaced():

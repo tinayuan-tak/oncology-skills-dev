@@ -983,6 +983,16 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
         if not sid:
             continue
         med, fa, n = r.get("median_log2tpm"), r.get("fraction_tumor_above_normal_p95"), r.get("n_tumor_samples")
+        # A stratum whose read the method did NOT MEASURE (exploratory / underpowered / unevaluable —
+        # the reader nulls `subtype_signal` for every non-floor-met stratum) must not present an A/B
+        # `signal`: a median can survive on a non-measured stratum, so `_tier_from_median` would mint a
+        # per-stratum differential from a read that never cleared the power floor, and knocking only
+        # `corroboration` to "low" leaves a consumer reading `signal` alone over-reading it. Gate the
+        # signal on this stratum's own `evidence_state == "measured"`, matching subgroup_derivation.py
+        # (`powered = evidence_state == "measured" and n >= floor`) and run.py's non-null-signal join.
+        # Verdict-INERT (this vector feeds no ladder); the NAMED enriched picks below already filter
+        # `evidence_state == "measured"`, so this converges the per-stratum legs on that same reading.
+        measured = r.get("evidence_state") == "measured"
         rel_base = (
             "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 30 else "low"
         )
@@ -990,21 +1000,31 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
         fb = "moderate" if isinstance(fa, (int, float)) else "unmeasured"
         strata[sid] = {
             "A": {
-                "signal": _tier_from_median(med),
-                "corroboration": rel,
-                "evidence": f"stratum median {_f(med, 1)} log2TPM, n={n}"
-                + (f" (certainty {rel_base}→{rel}: 1 of {k_tested} strata scanned)" if rel != rel_base else ""),
+                "signal": _tier_from_median(med) if measured else "unmeasured",
+                "corroboration": rel if measured else "low",
+                "evidence": (
+                    f"stratum median {_f(med, 1)} log2TPM, n={n}"
+                    + (f" (certainty {rel_base}→{rel}: 1 of {k_tested} strata scanned)" if rel != rel_base else "")
+                    if measured
+                    else f"stratum not measured (evidence_state {r.get('evidence_state') or 'unavailable'}); "
+                    f"hypothesis-grade, not a per-stratum differential"
+                ),
             },
             "B": {
-                "signal": _tier_from_fraction_above_normal(fa),
-                "corroboration": _multiplicity_discount(fb, k_tested),
+                "signal": _tier_from_fraction_above_normal(fa) if measured else "unmeasured",
+                "corroboration": _multiplicity_discount(fb, k_tested) if measured else "low",
                 "evidence": (
-                    f"{_f((fa or 0) * 100, 0)}% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
-                    if isinstance(fa, (int, float))
-                    else "no per-stratum normal window"
+                    (
+                        f"{_f((fa or 0) * 100, 0)}% of stratum tumours > GTEx-normal p95 (distributional, not the DEG)"
+                        if isinstance(fa, (int, float))
+                        else "no per-stratum normal window"
+                    )
+                    if measured
+                    else "stratum not measured"
                 ),
             },
             "n_tumor_samples": n,
+            "evidence_state": r.get("evidence_state"),
         }
         # PROTEIN confirmation leg (joined by stratum name; present only where CPTAC MEASURED this
         # stratum). Direction from the by-subtype `class`; certainty from the protein arm's own n with

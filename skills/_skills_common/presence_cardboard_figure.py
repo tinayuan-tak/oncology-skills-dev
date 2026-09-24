@@ -19,6 +19,7 @@ import json
 from pathlib import Path
 
 from _skills_common.figure_palette import esc as _esc
+from _skills_common.subtype_axis import is_differential_axis
 
 # card_id -> (claim, primary field, role). role: signal | reliability | comparator.
 _SPEC = [
@@ -193,6 +194,17 @@ _GLYPH = {
     "unknown": ("?", "#888"),
 }
 _RELDOT = {"high": 3, "moderate": 2, "low": 1}
+# `subtype_stratification_class` values that assert a real cross-subtype DIFFERENTIAL (a positive
+# selection handle). Rendered as a favourable ● only on a `powered` axis (see the render loop);
+# `pan_subtype_uniform` is deliberately absent — it is not a differential claim.
+_SUBTYPE_DIFFERENTIAL_CLASSES = frozenset(
+    {
+        "subtype_enriched",
+        "subtype_restricted",
+        "subtype_differential",
+        "subtype_restricted_with_window",
+    }
+)
 
 
 def _bucket(val, role):
@@ -227,6 +239,27 @@ def _bucket(val, role):
     return "unknown"
 
 
+def _subtype_axis_gated_bucket(cid, summary, val, bucket):
+    """Downgrade a tumor-rna-distribution-by-subtype differential-class SIGNAL to `not_measured` when
+    the subtype axis is not `powered`. Identity for every other card/value/bucket.
+
+    `subtype_stratification_class` is derived from the MEASURED strata alone, so a single
+    measured-enriched stratum in an `exploratory` (or weaker) family yields a differential class
+    (subtype_enriched/restricted/differential) while `subtype_axis_quality` says the axis is not
+    powered — a favourable ● SIGNAL for a hypothesis-grade axis. Route it to ▨ (a coverage/power gap,
+    not a measured negative ○), matching _q4_subtype and the two reader consumers that already honor
+    the grade (run.py:_subtype_layer_concordance, subgroup_derivation.py). Verdict-inert; display-only.
+    """
+    if (
+        cid == "tumor-rna-distribution-by-subtype"
+        and bucket == "signal"
+        and val in _SUBTYPE_DIFFERENTIAL_CLASSES
+        and not is_differential_axis((summary or {}).get("subtype_axis_quality"))
+    ):
+        return "not_measured"
+    return bucket
+
+
 def _reliability(cid, s, h):
     def bq(q, n=None):
         if not isinstance(q, (int, float)):
@@ -252,7 +285,7 @@ def render_card_board_svg(cards: list, headline: dict, target: str, indication: 
     for cid, claim, field, role in _SPEC:
         s = by_id.get(cid, {})
         val = s.get(field)
-        b = _bucket(val, role)
+        b = _subtype_axis_gated_bucket(cid, s, val, _bucket(val, role))
         # No confidence rating on a measurement that did not happen, or on a value we cannot read.
         rel = "" if b in ("not_measured", "unknown") else _reliability(cid, s, headline)
         groups.setdefault(claim, []).append((cid, val, b, rel))

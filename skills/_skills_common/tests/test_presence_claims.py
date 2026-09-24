@@ -436,6 +436,55 @@ def test_enriched_subtype_identities_are_projected_and_ranked():
     assert cv["enriched_subtypes"][0]["subtype_signal"] == "subtype_enriched"
 
 
+def test_by_subtype_non_measured_stratum_carries_no_ab_signal():
+    """SK#1518. The strata dict used to include EVERY stratum with a stratum_id and compute an A/B
+    `signal` from its median/fraction even when the stratum never cleared the power floor
+    (evidence_state != "measured"), knocking only `corroboration` to low — so a consumer reading
+    `signal` alone over-read a hypothesis-grade stratum as a per-stratum differential. Gate the signal
+    on the stratum's own evidence_state (matching subgroup_derivation.py and run.py's non-null-signal
+    join). The MEASURED enriched stratum keeps its signal; the NON-measured one reads `unmeasured`."""
+    cards = [
+        {
+            "card_id": "tumor-rna-distribution-by-subtype",
+            "summary": {
+                "subtype_axis_available": True,
+                "subtype_axis_quality": "exploratory",
+                "subtype_stratification_class": "subtype_enriched",
+                "n_subtypes_measured": 1,
+                "per_subgroup_metrics": [
+                    {
+                        "stratum_id": "MSI_H",
+                        "evidence_state": "measured",
+                        "subtype_signal": "subtype_enriched",
+                        "median_log2tpm": 3.2,
+                        "n_tumor_samples": 41,
+                        "fraction_tumor_above_normal_p95": 0.5,
+                    },
+                    {
+                        # a median survives on a non-measured stratum, but it never cleared the floor —
+                        # it must NOT mint a per-stratum differential signal.
+                        "stratum_id": "CMS1",
+                        "evidence_state": "exploratory",
+                        "subtype_signal": None,
+                        "median_log2tpm": 2.9,
+                        "n_tumor_samples": 12,
+                        "fraction_tumor_above_normal_p95": 0.4,
+                    },
+                ],
+            },
+        }
+    ]
+    cv = presence_claim_vector_by_subtype(cards)
+    measured = cv["strata"]["MSI_H"]
+    unmeasured = cv["strata"]["CMS1"]
+    assert measured["A"]["signal"] != "unmeasured", "a MEASURED stratum keeps its abundance signal"
+    assert unmeasured["A"]["signal"] == "unmeasured", "a non-measured stratum must not carry an A signal"
+    assert unmeasured["B"]["signal"] == "unmeasured", "a non-measured stratum must not carry a B signal"
+    assert unmeasured["evidence_state"] == "exploratory"
+    # the NAMED enriched pick still surfaces the one MEASURED enriched identity (left unchanged).
+    assert cv["top_enriched_subtype"] == "MSI_H"
+
+
 def test_no_axis_returns_none_and_empty_enrichment_is_a_list():
     assert presence_claim_vector_by_subtype([]) is None
     cards = [

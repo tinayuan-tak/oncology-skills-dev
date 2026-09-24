@@ -50,6 +50,7 @@ from _skills_common.presence_cardboard_figure import (
     _SIGNAL,
     _SPEC,
     _bucket,
+    _subtype_axis_gated_bucket,
 )
 
 _CONTRACTS = Path(
@@ -265,3 +266,27 @@ def test_the_undeclared_subtype_vocabulary_is_covered():
             f"{foreign} is not a subtype_stratification_class value in this tree; it must not inherit "
             "a polarity from a field this module does not render"
         )
+
+
+def test_exploratory_axis_differential_class_renders_not_measured_not_signal():
+    """SK#1518. `subtype_stratification_class` is derived from the MEASURED strata alone, so a single
+    measured-enriched stratum in an `exploratory` (or weaker) family yields a differential class while
+    `subtype_axis_quality` says the axis is not powered. `_bucket` alone would render that favourable ●
+    (the class IS a declared SIGNAL member); the axis-quality gate must route it to ▨ (a coverage/power
+    gap, not a measured negative ○). Only a `powered` axis keeps the differential signal. Verdict-inert."""
+    cid = "tumor-rna-distribution-by-subtype"
+    for cls in ("subtype_enriched", "subtype_restricted", "subtype_differential", "subtype_restricted_with_window"):
+        assert _bucket(cls, "signal") == "signal", "the class itself is still a declared signal member"
+        # powered: the differential stands.
+        assert _subtype_axis_gated_bucket(cid, {"subtype_axis_quality": "powered"}, cls, "signal") == "signal"
+        # every non-powered grade (and None): downgraded to a coverage/power gap, never ● favourable.
+        for grade in ("exploratory", "underpowered", "unevaluable", "empty", "unavailable", None):
+            assert _subtype_axis_gated_bucket(cid, {"subtype_axis_quality": grade}, cls, "signal") == "not_measured", (
+                f"{cls} on a {grade} axis must not render as a favourable signal"
+            )
+    # a non-differential class (uniform) is untouched by the gate; other cards are never affected.
+    assert (
+        _subtype_axis_gated_bucket(cid, {"subtype_axis_quality": "exploratory"}, "pan_subtype_uniform", "signal")
+        == "signal"
+    )
+    assert _subtype_axis_gated_bucket("tumor-rna-distribution", {}, "broadly_high", "signal") == "signal"
