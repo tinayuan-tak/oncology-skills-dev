@@ -24,6 +24,8 @@ Modules:
                  (mirrors gencode_exon_index.loader)
     harmonize  — resolve native ids onto the authority + fail-loud join
     audit      — symbol-drift / symbol-reuse audit + per-substrate coverage
+    product    — resolve a symbol-keyed dge_deseq2 product back onto the
+                 authority gene_id (the join key #732 consumes), fail-loud
 """
 
 METHOD_VERSION = "0.1.0"
