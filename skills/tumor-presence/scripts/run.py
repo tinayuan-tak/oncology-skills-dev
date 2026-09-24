@@ -680,11 +680,21 @@ _MEASURED_NEGATIVE_VERDICTS = frozenset(
         "broadly_low_expression",
         "protein_modestly_downregulated",
         "protein_strongly_downregulated",
-        # `protein_broadly_low` (cell-line whole-panel MS) is the ONLY reachable protein-absence negative.
+        # `protein_broadly_low` (cell-line whole-panel MS) is the ONLY reachable MS protein-absence negative.
         # The former `protein_not_detected` was retired (target-contracts #467): whole-proteome CPTAC TMT
         # cannot assert per-gene absence (a missing protein → data_unavailable), so no rule ever emitted it —
         # keeping it here pinned a structurally-unreachable token and gave false assurance.
         "protein_broadly_low",
+        # HPA antibody-IHC not-detected-in-tumor (protein_ihc/tumor bucket, evidence_state="measured", NO
+        # rule — a measured-unruled per_modality verdict, NOT a ladder rung). It is a genuine MEASURED
+        # protein-absence, so it must classify NEGATIVE here (#1552): (a) _is_presence_positive is
+        # negative-DEFINED, so omitting it silently read a measured IHC not_detected as presence-POSITIVE;
+        # (b) presence_headline_conflict's cross-bucket scan reads only _MEASURED_NEGATIVE_VERDICTS, so an
+        # RNA-broadly-high headline sitting over an IHC not_detected got no "confirm in the negative
+        # modality" descriptor — the point of the guard for an ADC/degrader/TCE call. SPINE BYTE-STABLE:
+        # protein_ihc has no ladder (see _MEASUREMENT_RANK), so this token is never a collapse rung; it
+        # reaches _MEASURED_NEGATIVE_VERDICTS only through the cross-bucket per_modality scan.
+        "ihc_not_detected",
     }
 )
 _COLLAPSE_GAP_VERDICTS = frozenset({"data_unavailable", "not_informative"})
@@ -1272,6 +1282,14 @@ _PRESENCE_TIER = {
     "lineage_restricted": 1,
     "broadly_low_expression": 1,
     "tumor_sparsely_expressed": 1,
+    # Tumor-vs-adjacent DOWN reads (tier 0 — below every present tier). #1552 secondary: without these the
+    # _headline_lens_discordance guard's `tumor_tier is not None` check silently swallowed the case where a
+    # cell-line-anchored headline reads high while the tumor lens is DOWN-regulated — so no
+    # `cell_line_overstates_tumor` direction fired for the sharpest overstatement. The DANGEROUS collapse
+    # is already caught by presence_headline_conflict (both tokens ARE _MEASURED_NEGATIVE_VERDICTS); this is
+    # the cosmetic direction label only. Kept OUT of tier 3 so the INV-1 tier-3 cap stays inapplicable.
+    "modestly_downregulated_in_tumor": 0,
+    "strongly_downregulated_in_tumor": 0,
 }
 
 

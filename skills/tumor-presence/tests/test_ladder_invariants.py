@@ -580,3 +580,63 @@ def test_the_pinned_enum_actually_rejects_an_undeclared_verdict():
         ".github/workflows/skills-validate.yml predates target-contracts #807 (26eee89), or the pins enum "
         "was regenerated without it."
     )
+
+
+# ── PROBE 9. VERDICT-TOKEN-SET COMPLETENESS ────────────────────────────────────────────────────────
+# The guards above cover the LADDER (_VERDICT_RANK) tokens. But a per_modality bucket can carry a verdict
+# that is NOT a ladder rung: the HPA antibody-IHC tokens (protein_ihc/tumor, measured-unruled) and the
+# measured-unruled class-map outputs (_MEASURED_UNRULED_PRESENT). Those non-ladder tokens are the blind
+# spot Probe 9 closes: `_is_presence_positive` is NEGATIVE-DEFINED (True for ANY token not enumerated in
+# _MEASURED_NEGATIVE_VERDICTS / _COLLAPSE_GAP_VERDICTS), so a newly-emitted absence token reads
+# present-POSITIVE by omission — which is exactly how a MEASURED IHC not_detected went missing from the
+# negative set (#1552) and stayed invisible to presence_headline_conflict's cross-bucket scan.
+
+
+def _emitted_verdict_vocabulary():
+    """Every verdict token that can appear as a `verdict` on a per_modality bucket: the three ladders,
+    the HPA-IHC present/absent tokens, and the measured-unruled class-map outputs. This is the vocabulary
+    the classification CONSUMERS (below) partition — the population every consumer token-set is diffed
+    against."""
+    vocab = {v for _rid, v in tp._VERDICT_RANK}
+    vocab |= set(tp._IHC_PRESENT_VERDICTS) | {tp._IHC_ABSENT_VERDICT}
+    for _card, _field, class_map in tp._MEASURED_UNRULED_PRESENT.values():
+        vocab |= set(class_map.values())
+    return vocab
+
+
+def test_probe9_every_emitted_ihc_verdict_is_classified_by_its_declared_polarity():
+    """The HPA-IHC bucket declares its own polarity via _IHC_PRESENT_VERDICTS / _IHC_ABSENT_VERDICT.
+    _is_presence_positive must AGREE with that declaration for every emitted IHC token — present tokens
+    positive, the not-detected token a measured-negative. Directly pins #1552: a measured IHC not_detected
+    must be a _MEASURED_NEGATIVE_VERDICTS member (so it is NOT read present, and so the
+    presence_headline_conflict cross-bucket scan surfaces an RNA-high-over-IHC-absent conjunction)."""
+    assert tp._IHC_ABSENT_VERDICT in tp._MEASURED_NEGATIVE_VERDICTS, (
+        "a MEASURED HPA-IHC not_detected-in-tumor is not classified as a measured-negative — "
+        "_is_presence_positive would read it present, and presence_headline_conflict (which scans only "
+        "_MEASURED_NEGATIVE_VERDICTS) would miss an RNA-broadly-high headline over an IHC not_detected."
+    )
+    assert not tp._is_presence_positive(tp._IHC_ABSENT_VERDICT)
+    assert tp._IHC_PRESENT_VERDICTS, "anti-vacuity: IHC present vocabulary not loaded"
+    for v in tp._IHC_PRESENT_VERDICTS:
+        assert tp._is_presence_positive(v), f"IHC-present token {v!r} misclassified as non-positive"
+
+
+def test_probe9_no_consumer_token_set_classifies_a_non_emitted_verdict():
+    """Every token a verdict-vocabulary CONSUMER enumerates must actually be emittable — a token in a
+    partition set but in NO bucket's output vocabulary is dead weight that gives false assurance (the
+    `protein_not_detected` failure mode target-contracts #467 already retired). Diffs each consumer
+    token-set against the full emitted vocabulary. Consumers checked are the ones that classify a
+    per_modality BUCKET verdict; _PRESENCE_VERDICT_PHRASE is deliberately excluded — it maps the COLLAPSED
+    presence_verdict, a superset that also carries reconciled tokens (absent / stromal_* / insufficient)
+    that are never a bucket verdict."""
+    vocab = _emitted_verdict_vocabulary()
+    assert len(vocab) > 20, f"anti-vacuity: only {len(vocab)} emitted tokens — vocabulary not loaded"
+    consumers = {
+        "_MEASURED_NEGATIVE_VERDICTS": set(tp._MEASURED_NEGATIVE_VERDICTS),
+        "_COLLAPSE_GAP_VERDICTS": set(tp._COLLAPSE_GAP_VERDICTS),
+        "_RNA_PRESENCE_POSITIVE": set(tp._RNA_PRESENCE_POSITIVE),
+        "_PRESENCE_TIER": set(tp._PRESENCE_TIER),
+    }
+    for name, tokens in consumers.items():
+        dead = tokens - vocab
+        assert not dead, f"{name} classifies token(s) no bucket can emit: {sorted(dead)}"
