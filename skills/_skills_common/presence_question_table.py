@@ -384,6 +384,13 @@ def _q6_concordance(h, c, cv):
     # `rna_protein_spearman` pairs visibly REACHED rather than silently counted as orphans.
     tum_spear, tum_pear = tum.get("rna_protein_spearman"), tum.get("rna_protein_r")
     cl_spear, cl_pear = clc.get("rna_protein_spearman"), clc.get("rna_protein_r")
+    # The card's most decision-relevant proxy-reliability datum (#1526 F3): the fraction of
+    # RNA-expressed cell lines whose PROTEIN sits in the bottom decile — i.e. the population where a
+    # high RNA read MISLEADS as a protein proxy (don't select those patients on RNA). Fetched at the
+    # card-aliased `.get()` (see the census note above) so the read is visible, then surfaced as a
+    # caveat. The sibling `protein_detection_fraction` / `rna_expressed_fraction` are panel-coverage
+    # bookkeeping, not proxy-reliability, so this row deliberately keeps them minimal (not surfaced here).
+    cl_rna_high_prot_low = clc.get("rna_high_protein_low_fraction")
     tier = {"adequate_proxy": "strong", "partial_proxy": "moderate", "poor_proxy": "weak"}.get(bio, "unmeasured")
     rtxt, rnote = _proxy_corr(tum_spear, tum_pear if tum_pear is not None else h.get("rna_protein_r_tumor"))
     primary = f"tumor: {bio or 'n/a'}" + rtxt
@@ -391,6 +398,12 @@ def _q6_concordance(h, c, cv):
     cltxt, clnote = _proxy_corr(cl_spear, cl_pear)
     bits = [f"cell-line: {clbio}{cltxt}"] if clbio else []
     bits += [f"⚠ {arm} {note}" for note, arm in ((rnote, "tumor"), (clnote, "cell-line")) if note]
+    if (
+        isinstance(cl_rna_high_prot_low, (int, float))
+        and not isinstance(cl_rna_high_prot_low, bool)
+        and cl_rna_high_prot_low > 0
+    ):
+        bits.append(f"⚠ RNA misleads in {cl_rna_high_prot_low:.0%} of cell lines (RNA-high, protein-low)")
     support = " · ".join(bits) if bits else "—"
     conf = "high" if isinstance(n, int) and n >= 50 else "moderate" if n else "unmeasured"
     return _row("Q6", "Do RNA and protein agree?", primary, support, _sig(tier, tier), _conf(conf))

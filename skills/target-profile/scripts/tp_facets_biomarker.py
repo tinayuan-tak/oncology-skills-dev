@@ -68,6 +68,19 @@ _BIOMARKER_QUANT = {
 }
 
 
+def _rna_as_biomarker_cellline_arm(expr_result: dict):
+    """`rna_as_biomarker` from the CELL-LINE concordance arm explicitly (see #1526 F2). Both concordance
+    arms in the expression sub-result emit this field; the cell-line arm is the RNA-as-SM-biomarker owner
+    and the intended `preferred_assay` input. Falls back to the first-match value (the prior behaviour)
+    when the cell-line arm is absent, so coverage is preserved rather than blanked."""
+    for c in expr_result.get("cards") or []:
+        if c.get("card_id") == "cellline-rna-protein-concordance":
+            v = (c.get("summary") or {}).get("rna_as_biomarker")
+            if v is not None:
+                return v
+    return _first_card_summary_field(expr_result, "rna_as_biomarker")
+
+
 def _biomarker_quantitative(sub_results: dict) -> dict:
     """Re-surface the raw statistics behind the biomarker categorical classes. Returns a
     {sub_skill: {field: value}} dict of the numeric companion fields that were present this run —
@@ -252,6 +265,18 @@ def _biomarker_facet(sub_results: dict) -> dict:
             val = _first_card_summary_field(r, field)
             target_block = corroboration if role == "corroboration" else stratification
             target_block[field] = val
+
+    # `rna_as_biomarker` is emitted by BOTH concordance arms in the expression sub-result — the cell-line
+    # arm (`cellline-rna-protein-concordance`, the canonical RNA-as-SM-biomarker owner: its card names
+    # "RNA-based patient-selection biomarkers … are trustworthy" as its raison d'être, and the tumor
+    # card defers "RNA-as-SM-biomarker is carried by the sibling cell-line concordance card") and the
+    # tumor arm (`rna-protein-concordance-tumor`, a surface proxy-caution). A first-match accessor picked
+    # whichever arm was ordered first, so `preferred_assay`/`rna_as_biomarker` was card-order dependent.
+    # Pin it to the cell-line arm explicitly; fall back to the first-match value only when that arm is
+    # absent, so coverage never regresses. See #1526 F2.
+    _expr = sub_results.get("expression")
+    if _expr and "rna_as_biomarker" in stratification:
+        stratification["rna_as_biomarker"] = _rna_as_biomarker_cellline_arm(_expr)
 
     # preferred_assay: which layer is the trustworthy biomarker readout?
     #   genomic  — a mutant-stratified dependency or predictive_biomarker alteration_role (the

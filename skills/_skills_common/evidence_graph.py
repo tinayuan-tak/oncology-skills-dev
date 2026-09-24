@@ -487,6 +487,15 @@ def _build_key_evidence(cap: dict, summary: dict, indication: Optional[str] = No
     return ke or None
 
 
+# Measurement layers that fire rules but are NEVER selected by a presence-verdict ladder
+# (tumor-presence run.py `_MEASUREMENT_RANK` / `_rank_verdict`): their fired rules are
+# corroboration / proxy-reliability signals (e.g. `rna_as_biomarker` — is RNA an adequate proxy for
+# protein), off the presence axis, so a card in one of these layers moves no verdict and is
+# `display_only` even though it fired ≥1 rule. Keyed by capsule `measurement_type`; unique to the two
+# RNA↔protein-concordance cards (cellline-/rna-protein-concordance-tumor). See #1526 F1.
+_DISPLAY_ONLY_MEASUREMENT_TYPES = frozenset({"rna_protein_concordance"})
+
+
 # ── the builder ──────────────────────────────────────────────────────────────────────────────────
 def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> dict:
     """Assemble decision.headline.evidence_graph as a pure projection/JOIN over `decision`.
@@ -521,7 +530,14 @@ def build_evidence_graph(decision: dict, questions: Optional[list] = None) -> di
             fired_by_card.setdefault(cid, []).append(r)
         if rid and rid == driving_rule_id:
             driving_card_id = cid
-    verdict_bearing_cards = set(fired_by_card.keys())
+    # `verdict_bearing` means "moved the verdict" (was selected by a ladder), NOT merely "fired ≥1
+    # rule": a card whose measurement layer has no presence-verdict ladder fires only display /
+    # proxy-reliability rules and stays display_only. See _DISPLAY_ONLY_MEASUREMENT_TYPES / #1526 F1.
+    verdict_bearing_cards = {
+        cid
+        for cid in fired_by_card
+        if (caps.get(cid) or {}).get("measurement_type") not in _DISPLAY_ONLY_MEASUREMENT_TYPES
+    }
 
     # per-card (strength tier, sample-size n) from the framework's own subgroup-source binding — the
     # authoritative per-card corroboration read (only for cards bound to a sub-group; else None).

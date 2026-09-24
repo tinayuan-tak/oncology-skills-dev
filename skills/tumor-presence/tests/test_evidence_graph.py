@@ -18,7 +18,11 @@ from pathlib import Path
 
 import pytest
 
-# ── the 9/8 role partition (spec §7.4 + appendix) ──
+# ── the 8/9 role partition (spec §7.4 + appendix) ──
+# `cellline-rna-protein-concordance` fires `rna-protein-adequate-proxy-supportive` (an `rna_as_biomarker`
+# proxy-reliability rule) but its measurement layer (rna_protein_concordance) has no presence-verdict
+# ladder in run.py `_MEASUREMENT_RANK`, so `_rank_verdict` can never select it — it moves NO presence
+# verdict and is display_only, exactly like its tumor sibling `rna-protein-concordance-tumor` (#1526 F1).
 VERDICT_BEARING = {
     "cellline-rna-distribution",
     "tumor-rna-vs-adjacent",
@@ -27,13 +31,13 @@ VERDICT_BEARING = {
     "tumor-elevation-breadth",
     "tumor-scrna-celltype-expression",
     "expression-purity-confound",
-    "cellline-rna-protein-concordance",
     "sc-normal-celltype-expression",
 }
 DISPLAY_ONLY = {
     "tumor-protein-abundance-cptac",
     "cellline-protein-abundance-procan",
     "hpa-pathology-cancer-ihc",
+    "cellline-rna-protein-concordance",
     "rna-protein-concordance-tumor",
     "tumor-rna-distribution-by-subtype",
     "cellline-rna-distribution-by-subtype",
@@ -60,12 +64,17 @@ def test_questions_registry_loads_seven(eg_questions):
 
 
 # ── §7.4 role partition ──────────────────────────────────────────────────────────────────────────
-def test_role_partition_9_verdict_bearing_8_display_only(eg_graph):
+def test_role_partition_8_verdict_bearing_9_display_only(eg_graph):
     vb = {c["id"] for c in eg_graph["cards"] if c["role"] == "verdict_bearing"}
     do = {c["id"] for c in eg_graph["cards"] if c["role"] == "display_only"}
     assert vb == VERDICT_BEARING
     assert do == DISPLAY_ONLY
-    assert len(vb) == 9 and len(do) == 8 and len(eg_graph["cards"]) == 17
+    assert len(vb) == 8 and len(do) == 9 and len(eg_graph["cards"]) == 17
+    # a fired-but-display_only card (concordance) still declares NO rule contribution to the verdict
+    conc = next(c for c in eg_graph["cards"] if c["id"] == "cellline-rna-protein-concordance")
+    assert conc["role"] == "display_only"
+    assert conc["chain"]["contributes_to_verdict"] is False
+    assert conc["chain"]["is_driving"] is False
 
 
 # ── §7.1 reconstruction: 7 questions with signal+confidence, each question's cards ──────────────────
