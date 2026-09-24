@@ -55,6 +55,40 @@ pan_tissue_render:
   - ESCA
   - HNSC
 
+# Run-ledger intent (S5, analysis-methods #698): the roster of dge_deseq2 catalogued derived
+# products the batch is INTENDED to have produced, declared per (family x substrate). It is the
+# NEW substrate axis the plan-review flagged (the per-indication config above carries no substrate
+# dimension). build_run_ledger.py projects this into the expected {catalog_id -> attrs} map and
+# reconciles it BIDIRECTIONALLY (mirror derive_pancan_stack.assert_roster_matches_published) against
+# (a) the S3 data-catalog/derived/ product prefixes and (b) the derived manifests whose
+# `notebook:` is under methods/dge_deseq2/ — reddening on ANY asymmetry (present-not-declared,
+# declared-not-present, manifest-without-config). This is a DECLARATION reconciled against actuality,
+# NOT the iteration driver: a product present on S3/catalog but absent here still reds (config alone
+# never bounds the universe), and a cell declared here but never produced also reds.
+#
+# recount3 four-cell sensitivity products are the `published: true` indications by projection; the
+# extra list adds 06-driver products that ship a sensitivity product WITHOUT a standalone `published`
+# flag (NSCLC is the pooled LUAD+LUSC composite — published: false for the pancan stack, yet it has a
+# landed sensitivity product on S3). Keeping the two apart is deliberate: the pancan-stack roster
+# must NOT gain NSCLC (it would double-count LUAD+LUSC), but the run-ledger universe must include it.
+run_ledger_intent:
+  sensitivity_recount3_extra: [NSCLC]
+  sensitivity_xena_toil: [COADREAD]
+  adj_vs_gtex_recount3: [COADREAD]
+  adj_vs_gtex_xena_toil: [COADREAD]
+  subgroup_recount3: [COADREAD, NSCLC, STAD]
+  # Products with no (indication x substrate) axis of their own — declared by explicit id.
+  singletons:
+    - id: pancan-dge-tumor-vs-normal-v1                 # derive_pancan_stack roll-up
+      role: pancan_rollup
+      substrate: recount3
+    - id: dge-deseq2-qc-index-v1                        # build_qc_index cross-run QC index
+      role: qc_index
+      substrate: null
+    - id: gencode-v26-gene-lengths-union-of-exons-v1    # gene_lengths.py reference input
+      role: reference_gene_lengths
+      substrate: null
+
 indications:
   # --- in the read maps (21): substrate lookups for INDICATION_TO_{TCGA_STUDIES,GTEX_TISSUE} ---
   COADREAD:

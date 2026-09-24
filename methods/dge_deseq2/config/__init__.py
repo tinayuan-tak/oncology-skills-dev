@@ -87,3 +87,31 @@ def indication_to_gtex_tissue() -> dict:
 def pan_tissue_indications() -> list:
     """Ordered pan-indication figure render roster (emit_pan_tissue)."""
     return list(_load()["pan_tissue_render"])
+
+
+def run_ledger_intent() -> dict:
+    """Declared run-ledger product roster per (family, substrate) — S5, #698.
+
+    The recount3 sensitivity roster is the ``published: true`` universe PLUS any
+    ``sensitivity_recount3_extra`` (06-driver products that ship without a
+    standalone published flag, e.g. the NSCLC composite). Everything else is a
+    literal per-family / singleton roster. ``build_run_ledger`` turns this into
+    the expected ``{catalog_id -> attrs}`` map and reconciles it bidirectionally
+    against the catalog manifests + S3 prefixes; it is NOT the iteration driver.
+    """
+    intent = _load()["run_ledger_intent"]
+    published = sorted(cell_b_semantics_map())  # the 27 published indications
+    return {
+        "sensitivity": {
+            "recount3": published + list(intent.get("sensitivity_recount3_extra", [])),
+            "xena_toil": list(intent.get("sensitivity_xena_toil", [])),
+        },
+        "adj_vs_gtex": {
+            "recount3": list(intent.get("adj_vs_gtex_recount3", [])),
+            "xena_toil": list(intent.get("adj_vs_gtex_xena_toil", [])),
+        },
+        "subgroup": {
+            "recount3": list(intent.get("subgroup_recount3", [])),
+        },
+        "singletons": [dict(s) for s in intent.get("singletons", [])],
+    }
