@@ -87,7 +87,7 @@ def _mk_null_background(tmp_path, target_rows) -> Path:
 @pytest.fixture(autouse=True)
 def _reset_caches():
     cli._load_abundance_pushdown_live.cache_clear()
-    cli._allprotein_median_null_live.cache_clear()
+    cli._reset_allprotein_null_cache()  # F1: success-only memo replaced the old @lru_cache
     cli._panel_size.cache_clear()
     yield
 
@@ -184,6 +184,77 @@ def test_read_target_summary_degrades_on_fault(monkeypatch):
     assert out["protein_abundance_source"] == "data_unavailable"
     assert out["allgene_percentile"] is None and out["median_log2_abundance_panel"] is None
     assert out["per_lineage_stats"] == [] and out["method_version"] == cli.METHOD_VERSION
+
+
+def test_transient_null_scan_failure_not_memoized(monkeypatch):
+    """F1: a transient failure of the all-protein null scan must NOT stick session-wide. The old
+    @lru_cache(maxsize=1) memoized the except-branch empty tuple, poisoning allgene_percentile +
+    broadly_high for every target for the process lifetime. The success-only memo lets a later call
+    retry: first call degrades to (), the second succeeds and is cached."""
+    monkeypatch.setattr(cli, "ensure_aws_profile", lambda: None)
+    monkeypatch.setattr(cli, "_derived_bucket_key", lambda: ("bucket", "key"))
+    monkeypatch.setattr(cli, "_get_s3fs", lambda: object())
+    calls = {"n": 0}
+
+    def _flaky(path, filesystem=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("transient s3 throttle")
+        return (1.0, 2.0, 3.0)
+
+    monkeypatch.setattr(cli, "_compute_null_from_table", _flaky)
+    cli._reset_allprotein_null_cache()
+
+    assert cli._allprotein_median_null_live() == tuple()  # transient failure → graceful empty
+    assert cli._allprotein_median_null_live() == (1.0, 2.0, 3.0)  # NOT poisoned — retried, succeeded
+    assert cli._allprotein_median_null_live() == (1.0, 2.0, 3.0)  # success now memoized
+    assert calls["n"] == 2  # third call served from cache, no re-scan
+
+
+def test_missing_panel_size_is_data_unavailable_not_full_panel(tmp_path, monkeypatch):
+    """F7: when panel_size_n_cell_lines is absent from manifest params, compute_summary would fall back
+    to denom=n_eval → a fabricated fraction_detected=1.0. Instead emit data_unavailable (never a false
+    '100% of panel')."""
+    _patch_map(monkeypatch, {"EGFR": ["P00533"]})
+    _patch_panel(monkeypatch, None)  # manifest genuinely missing the panel-size constant
+    tgt = [("P00533", "EGFR_HUMAN", f"SIDM{i:04d}", 5.0) for i in range(50)]
+    prod = _mk_null_background(tmp_path, tgt)
+    out = cli.load_and_classify("EGFR", product_path=prod, null_path=prod)
+    assert out["protein_expression_class"] == "data_unavailable"
+    assert out["protein_abundance_source"] == "data_unavailable"
+    assert out["fraction_detected"] != 1.0  # the fabricated full-panel value is NOT emitted
+    assert out["fraction_detected"] == 0.0
+    assert out["n_cell_lines_in_panel"] is None
+    assert out["allgene_percentile_class"] == "data_unavailable"
+
+
+def test_pct_cutoffs_track_default_cutoffs(monkeypatch):
+    """F6: the percentile cutoffs derive from methods.percentile_null.DEFAULT_CUTOFFS (no hard-copied
+    literals that could silently drift)."""
+    from methods.percentile_null import DEFAULT_CUTOFFS
+
+    assert cli._PCT_CUTOFFS == DEFAULT_CUTOFFS
+
+
+def test_s3fs_singleton_is_shared(monkeypatch):
+    """F5: _get_s3fs returns one process-wide instance (the shared hardening point)."""
+    cli._S3FS = None
+    built = {"n": 0}
+
+    class _FakeFS:
+        pass
+
+    def _fake_ctor():
+        built["n"] += 1
+        return _FakeFS()
+
+    import pyarrow.fs as pafs
+
+    monkeypatch.setattr(pafs, "S3FileSystem", _fake_ctor)
+    a = cli._get_s3fs()
+    b = cli._get_s3fs()
+    assert a is b and built["n"] == 1
+    cli._S3FS = None  # don't leak the fake into other tests
 
 
 def test_isoform_tiebreak_picks_min_uniprot_id(tmp_path, monkeypatch):

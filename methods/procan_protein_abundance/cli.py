@@ -32,6 +32,7 @@ _live_read_error.
 
 from __future__ import annotations
 
+import threading
 from functools import lru_cache
 from typing import Optional
 
@@ -43,15 +44,39 @@ from methods.depmap_protein_abundance.cli import (  # noqa: F401
     classify_protein_abundance,
     compute_summary,
 )
-from methods.percentile_null import classify_percentile, percentile_rank
+from methods.percentile_null import DEFAULT_CUTOFFS, classify_percentile, percentile_rank
 from methods.target_id_sidecar import ensure_aws_profile
 
 METHOD_VERSION = "0.1.0"
 DERIVED_PRODUCT_MANIFEST_ID = "procan-cellline-protein-abundance-per-protein-v1"
 PROTEIN_ABUNDANCE_SOURCE = "procan_dia_swath"
 
-# all-gene percentile-class cutoffs (mirror cellline-protein-abundance*.card.yaml thresholds).
-_PCT_CUTOFFS = {"top_1pct": 99.0, "top_decile": 90.0, "bottom_decile": 10.0}
+# all-gene percentile-class cutoffs. F6: derive from methods.percentile_null.DEFAULT_CUTOFFS (the same
+# source the Gygi sibling uses via classify_percentile(pct) with no arg) instead of hard-copying the
+# literals, so a future change to DEFAULT_CUTOFFS cannot silently drift ProCan out of parity. Values
+# are identical today {top_1pct:99, top_decile:90, bottom_decile:10} — this is behavior-inert.
+_PCT_CUTOFFS = dict(DEFAULT_CUTOFFS)
+
+
+# --- F5: shared S3FileSystem singleton -------------------------------------------------------------
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
+
+
+def _get_s3fs():
+    """Process-wide pyarrow S3FileSystem singleton (F5). Both cached loaders below share ONE instance
+    instead of constructing a fresh `pafs.S3FileSystem()` inline per loader, and this is the single
+    place to add retry/connect-timeout/region hardening later (parity with tcga_gtex_expression_
+    distribution.read._get_s3fs). Double-checked locking so concurrent first-callers build exactly one.
+    """
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                import pyarrow.fs as pafs
+
+                _S3FS = pafs.S3FileSystem()
+    return _S3FS
 
 
 @lru_cache(maxsize=1)
@@ -109,12 +134,11 @@ def _load_abundance_pushdown(accession: str, product_path=None):
 def _load_abundance_pushdown_live(accession: str):
     """LIVE S3 pushdown, cached per accession (a single small row-group slice). A transient failure
     RAISES and is NOT cached (lru_cache never memoizes exceptions), so a later call retries."""
-    import pyarrow.fs as pafs
     import pyarrow.parquet as pq
 
     ensure_aws_profile()
     bucket, key = _derived_bucket_key()
-    tbl = pq.read_table(f"{bucket}/{key}", filesystem=pafs.S3FileSystem(), filters=[("uniprot_base", "=", accession)])
+    tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(), filters=[("uniprot_base", "=", accession)])
     return _select_abundance_from_table(tbl, accession, _panel_size())
 
 
@@ -137,20 +161,53 @@ def _allprotein_median_null(product_path=None) -> tuple:
     return _allprotein_median_null_live()
 
 
-@lru_cache(maxsize=1)
-def _allprotein_median_null_live() -> tuple:
-    import pyarrow.fs as pafs
+# F1: SUCCESS-ONLY memo (was @lru_cache(maxsize=1)). The bare-except degrade below returns tuple()
+# on a transient scan failure; lru_cache would MEMOIZE that empty tuple and poison the whole session
+# (allgene_percentile → data_unavailable + broadly_high high_cutoff → None for ALL targets for the
+# process lifetime). So we cache ONLY a successful scan and let a failure fall through uncached, so a
+# later call retries — parity with the raising primary pushdown (_load_abundance_pushdown_live), which
+# lru_cache correctly never memoizes. `None` sentinel = not-yet-successfully-computed (a genuine empty
+# product legitimately caches an empty tuple, distinct from the None "no success yet" state).
+_ALLPROTEIN_NULL_CACHE: Optional[tuple] = None
 
+
+def _reset_allprotein_null_cache() -> None:
+    """Clear the success-only null memo (test seam; parity with the old lru_cache.cache_clear())."""
+    global _ALLPROTEIN_NULL_CACHE
+    _ALLPROTEIN_NULL_CACHE = None
+
+
+def _allprotein_median_null_live() -> tuple:
+    global _ALLPROTEIN_NULL_CACHE
+    if _ALLPROTEIN_NULL_CACHE is not None:
+        return _ALLPROTEIN_NULL_CACHE
     ensure_aws_profile()
     bucket, key = _derived_bucket_key()
     try:
-        return _compute_null_from_table(f"{bucket}/{key}", filesystem=pafs.S3FileSystem())
-    except Exception:  # noqa: BLE001  # absence-discipline: exempt -- the null is an OPTIONAL enhancement, not an absence signal: the per-protein pushdown (_load_abundance_pushdown_live, no broad except) runs FIRST in load_and_classify and propagates any transient/creds/broken-env failure honestly as _live_read_error; a null-read failure at that point only degrades broadly_high (unreachable) + allgene_percentile (data_unavailable), never masks a coverage gap. Mirrors the Gygi sibling's _all_protein_median_null.
+        result = _compute_null_from_table(f"{bucket}/{key}", filesystem=_get_s3fs())
+    except Exception:  # noqa: BLE001  # absence-discipline: exempt -- the null is an OPTIONAL enhancement, not an absence signal: the per-protein pushdown (_load_abundance_pushdown_live, no broad except) runs FIRST in load_and_classify and propagates any transient/creds/broken-env failure honestly as _live_read_error; a null-read failure at that point only degrades broadly_high (unreachable) + allgene_percentile (data_unavailable), never masks a coverage gap. Mirrors the Gygi sibling's _all_protein_median_null. F1: NOT memoized so a transient failure does not stick session-wide.
         return tuple()
+    _ALLPROTEIN_NULL_CACHE = result
+    return result
 
 
 def _pct_context() -> str:
     return f"{DERIVED_PRODUCT_MANIFEST_ID} panel-wide metric=median_log_abundance source={PROTEIN_ABUNDANCE_SOURCE}"
+
+
+def _data_unavailable_summary(target: str, panel_size, note: Optional[str] = None) -> dict:
+    """The card-shaped data_unavailable summary (coverage-gap / missing-input path). Reuses the Gygi
+    sibling's compute_summary None-branch (fraction_detected=0.0, never fabricated) + the ProCan source
+    marker and null-percentile placeholders. `note` (optional) records WHY it is unavailable."""
+    summ = compute_summary(target, None, {}, n_panel=panel_size)
+    summ["method_version"] = METHOD_VERSION
+    summ["protein_abundance_source"] = "data_unavailable"
+    summ["allgene_percentile"] = None
+    summ["allgene_percentile_class"] = "data_unavailable"
+    summ["allgene_percentile_context"] = _pct_context()
+    if note is not None:
+        summ["_data_note"] = note
+    return summ
 
 
 def load_and_classify(target: str, product_path=None, null_path=None) -> dict:
@@ -162,19 +219,21 @@ def load_and_classify(target: str, product_path=None, null_path=None) -> dict:
     Lineage is unavailable for SIDM ids (no ACH crosswalk), so an EMPTY lineage map is passed →
     per_lineage_stats == [] (honest)."""
     panel_size = _panel_size()
+    if panel_size is None:
+        # F7: panel_size_n_cell_lines (the detection denominator) is a release constant carried in the
+        # manifest params — it is NOT recoverable from the detected-only long table. Absent it,
+        # compute_summary falls back to denom=n_eval → a fabricated fraction_detected=1.0 ("100% of
+        # panel") that could mislabel the detection band (broadly_moderate/broadly_high). Fail loud
+        # with data_unavailable instead of minting a false full-panel detection. Inert today: the
+        # manifest carries 949; this fires only if a future manifest genuinely drops the field.
+        return _data_unavailable_summary(target, panel_size, note="panel_size_n_cell_lines absent from manifest params")
     col = None
     for acc in resolve_accessions(target):
         col, panel_size = _load_abundance_pushdown(acc, product_path=product_path)
         if col:
             break
     if not col:
-        summ = compute_summary(target, None, {}, n_panel=panel_size)
-        summ["method_version"] = METHOD_VERSION
-        summ["protein_abundance_source"] = "data_unavailable"
-        summ["allgene_percentile"] = None
-        summ["allgene_percentile_class"] = "data_unavailable"
-        summ["allgene_percentile_context"] = _pct_context()
-        return summ
+        return _data_unavailable_summary(target, panel_size)
 
     null_vec = _allprotein_median_null(product_path=(null_path if null_path is not None else product_path))
     summary = compute_summary(target, col, {}, n_panel=panel_size, all_protein_medians=(null_vec or None))
