@@ -1553,3 +1553,152 @@ def test_veto_grade_is_a_STRICT_REFINEMENT_of_the_safety_essential_class():
     du = S._data_unavailable_class()
     assert du["sc_normal_safety_essential_class"] == "data_unavailable"
     assert du["sc_normal_essential_veto_grade"] == "data_unavailable"
+
+
+# --- MNAR / detection-floor qualifier (F2) + breadth multiplicity context (F9) ----------------
+#
+# These fields are VERDICT-INERT: they annotate the confidence of the safety read, they never move
+# sc_normal_safety_essential_class or sc_normal_essential_veto_grade (the whole pre-existing suite
+# above pins those values and passes unchanged, which is the byte-stability proof). The dropout→MNAR
+# path is exercised from RAW per-donor count vectors re-derived here — a fixture of derived medians
+# could never fail, so we store the counts and compute median_det from them (see keeper: "store the
+# raw INPUT & re-derive").
+
+
+def _detection_fraction(counts) -> float:
+    """Per-donor detection fraction = fraction of cells with count > 0 (the Tier-2 measurand)."""
+    return sum(1 for c in counts if c > 0) / len(counts)
+
+
+def _median_det_from_donor_counts(donor_count_vectors) -> float:
+    """Re-derive the cross-donor median detection_fraction the way aggregate.py's MEDIAN(...) does."""
+    import statistics
+
+    return statistics.median(_detection_fraction(v) for v in donor_count_vectors)
+
+
+def _rows_from_raw_counts(cell_type, tissue, donor_count_vectors, frac=0.80, n_datasets=6):
+    """Build a one-cell-type Tier-1 row whose median_det is RE-DERIVED from raw per-donor count
+    vectors, so the fixture cannot silently encode the answer."""
+    med = _median_det_from_donor_counts(donor_count_vectors)
+    n = len(donor_count_vectors)
+    return pd.DataFrame(
+        [
+            {
+                "gene_symbol": "TESTG",
+                "ensembl_gene_id": "ENSG_TEST",
+                "tissue": tissue,
+                "cell_type": cell_type,
+                "n_donors_total": n,
+                "n_donors_reliable": n,
+                "n_datasets_reliable": n_datasets,
+                "n_donors_expressing": n,
+                "median_det": med,
+                "q25_det": med * 0.7,
+                "q75_det": med * 1.3,
+                "expressing_donor_fraction": frac,
+                "median_abund": med * 3.0,
+                "q25_abund": med * 2.0,
+                "q75_abund": med * 4.0,
+                "detection_pct_rank": 0.5,
+                "n_cell_types_above_20pct": 0,
+            }
+        ]
+    )
+
+
+def test_dropout_masked_off_origin_hit_is_flagged_detection_limited_from_raw_counts():
+    """A low-copy gene under heavy 10x dropout: most cells read zero, a minority detect it. The
+    per-donor detection fractions land in the 0.05-0.20 ambiguous band, so median_det sits BELOW the
+    0.20 off-origin veto floor and the class stays non-critical — the FAIL-OPEN case. The qualifier
+    must refuse to call this confident absence."""
+    # 6 donors × 100 cells; ~15/100 detect → detection_fraction ≈ 0.15 (dropout-ambiguous band).
+    donor_vectors = [[1] * 15 + [0] * 85 for _ in range(6)]  # off-origin heart cardiomyocyte
+    med = _median_det_from_donor_counts(donor_vectors)
+    assert 0.05 < med <= 0.20, f"fixture must land in the ambiguous band, got {med}"
+    rows = _rows_from_raw_counts("cardiomyocyte", "heart", donor_vectors)
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    # verdict-inert: the veto did NOT fire (sub-floor off-origin hit) — the exact fail-open the
+    # qualifier exists to annotate.
+    assert r["sc_normal_safety_essential_class"] != "critical_organ_liability"
+    assert r["sc_normal_safety_detection_confidence"] == "detection_limited"
+    assert r["sc_normal_detection_caveat"] is not None
+    assert "cardiomyocyte" in r["sc_normal_detection_caveat"]
+
+
+def test_detection_confident_when_off_origin_hit_clears_veto_floor_from_raw_counts():
+    """Same organ, but enough cells detect the gene that median_det clears 0.20: the veto fires, so
+    the absence is not in question → confident, no caveat."""
+    donor_vectors = [[1] * 62 + [0] * 38 for _ in range(6)]  # detection ≈ 0.62
+    med = _median_det_from_donor_counts(donor_vectors)
+    assert med > 0.20
+    rows = _rows_from_raw_counts("cardiomyocyte", "heart", donor_vectors, frac=0.90)
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert r["sc_normal_safety_essential_class"] == "critical_organ_liability"
+    assert r["sc_normal_safety_detection_confidence"] == "confident"
+    assert r["sc_normal_detection_caveat"] is None
+
+
+def test_detection_confident_when_no_essential_hit():
+    """No safety-essential cell type detected at all → confident (nothing dropout-suspect present)."""
+    rows = _tier1_rows([("fibroblast", 20, 0.90, 0.90)], tissue="colon")
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert r["sc_normal_safety_essential_class"] == "none"
+    assert r["sc_normal_safety_detection_confidence"] == "confident"
+    assert r["sc_normal_detection_caveat"] is None
+
+
+def test_detection_confidence_ignores_an_ambiguous_band_ORIGIN_hit():
+    """An ambiguous-band essential hit in the tumor's OWN tissue is on-origin (window-arbitrated), not
+    the off-origin fail-open the qualifier guards — it must not be flagged detection_limited."""
+    donor_vectors = [[1] * 15 + [0] * 85 for _ in range(6)]  # detection ≈ 0.15, but ORIGIN organ
+    rows = _rows_from_raw_counts("cardiomyocyte", "heart", donor_vectors)
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["heart"])  # heart IS the origin here
+    assert r["sc_normal_safety_essential_class"] != "critical_organ_liability"
+    assert r["sc_normal_safety_detection_confidence"] == "confident"
+
+
+def test_detection_confidence_and_caveat_and_breadth_in_data_unavailable_branch():
+    r = S._data_unavailable_class()
+    assert r["sc_normal_safety_detection_confidence"] == "data_unavailable"
+    assert r["sc_normal_detection_caveat"] is None
+    assert r["sc_normal_breadth_null_fraction"] is None
+
+
+def test_safety_detection_confidence_helper_band_boundaries():
+    """The band is (lo, hi]: strictly above the flag floor, at-or-below the veto floor."""
+    lo, hi = 0.05, 0.20
+
+    def rec(det):
+        return {
+            "cell_type": "cardiomyocyte",
+            "tissue": "heart",
+            "median_detection_fraction": det,
+            "is_off_origin": True,
+        }
+
+    # exactly at lo → excluded (strict >), just inside → included, exactly at hi → included, above → excluded
+    assert S._safety_detection_confidence([rec(0.05)], False, lo, hi)[0] == "confident"
+    assert S._safety_detection_confidence([rec(0.06)], False, lo, hi)[0] == "detection_limited"
+    assert S._safety_detection_confidence([rec(0.20)], False, lo, hi)[0] == "detection_limited"
+    assert S._safety_detection_confidence([rec(0.201)], False, lo, hi)[0] == "confident"
+    # a fired veto (essential_off_origin True) short-circuits to confident regardless of the pool
+    assert S._safety_detection_confidence([rec(0.15)], True, lo, hi) == ("confident", None)
+
+
+def test_breadth_null_fraction_is_above20_over_reliable_rederived():
+    """breadth_null_fraction = (# reliable cell types with median_det > 0.20) / (# reliable cell
+    types), re-derived from the input spec, not read back from the output."""
+    spec = [
+        ("colonocyte", 20, 0.85, 0.90),  # > 0.20
+        ("enterocyte", 20, 0.55, 0.80),  # > 0.20
+        ("fibroblast", 20, 0.10, 0.20),  # <= 0.20
+        ("endothelial cell", 20, 0.03, 0.10),  # <= 0.20  (endothelial IS essential; det>0.05? no, 0.03 sub-flag)
+    ]
+    rows = _tier1_rows(spec)
+    n_above = sum(1 for (_ct, _n, med, _f) in spec if med > 0.20)
+    n_total = len(spec)
+    r = S.classify_sc_normal_expression(rows, origin_tissues=["colon"])
+    assert r["sc_normal_breadth_null_fraction"] == pytest.approx(n_above / n_total)
+    assert r["n_cell_types_above_20pct"] == n_above
+    assert r["n_reliable_cell_types"] == n_total

@@ -586,6 +586,69 @@ def _essential_veto_selection(veto_pool: list[dict], essential_origin_only: bool
     return f"accessible_{_essential_severity(driver)}", driver
 
 
+def _safety_detection_confidence(
+    essential_records: list[dict],
+    essential_off_origin: bool,
+    ambiguous_lo: float,
+    ambiguous_hi: float,
+) -> tuple[str, str | None]:
+    """MNAR / detection-floor qualifier for the SAFETY read — `(confidence, caveat)`. VERDICT-INERT.
+
+    WHY THIS EXISTS. scRNA `detection_fraction` is left-censored by technical dropout: a gene truly
+    expressed at low mRNA copy shows a depressed `median_det` and can fall BELOW the off-origin
+    critical-organ veto floor (`CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR = 0.20`), escaping the safety veto.
+    For a SAFETY comparator that is the FAIL-OPEN direction — a real low-copy liability read as
+    confident absence (the sibling protein method `sc_surface_normal_safety` reasons about its ADT
+    noise floor for the same reason; same MNAR class as the concordance canon audits #740/#741).
+
+    This method CANNOT separate biological low-expression from technical dropout: the Tier-1 product
+    carries no per-cell sequencing depth, and cell types below `median_det` 0.01 are dropped upstream
+    (`aggregate.py` WHERE filter), so a fully dropout-masked cell type may not appear as a row at all —
+    that deeper censoring is a Tier-1/reader-boundary limit this qualifier documents but cannot close.
+    What it CAN do honestly is REFUSE to call "confident absence" when a safety-essential cell type IS
+    observed OFF-ORIGIN but only in the `(ambiguous_lo, ambiguous_hi]` band — above the ambient-noise
+    flag floor (0.05) yet below the veto floor (0.20), so it was recorded but did not flip the class.
+    Under heavy dropout a genuinely low-copy off-origin liability produces exactly this signature.
+
+    Reuses the two ALREADY-BACKTESTED floors (`SAFETY_FLAG_FLOOR`, `CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR`)
+    rather than inventing a threshold, so it introduces no new tunable and cannot drift from the band
+    the class itself uses. It NEVER changes `sc_normal_safety_essential_class` or the veto grade —
+    it annotates the confidence of a non-veto so a downstream rule can decline to read low-detection as
+    a safety pass. Returns:
+      * `confident`         — the veto fired (absence is not in question), OR no off-origin essential
+                              hit sits in the ambiguous band.
+      * `detection_limited` — the veto did NOT fire, yet an off-origin essential hit sits in the band.
+    """
+    if essential_off_origin:
+        return "confident", None
+    ambiguous = [
+        e
+        for e in essential_records
+        if e.get("is_off_origin") and ambiguous_lo < (e.get("median_detection_fraction") or 0.0) <= ambiguous_hi
+    ]
+    if not ambiguous:
+        return "confident", None
+    # Name a SYSTEMICALLY-ACCESSIBLE driver in preference to a bbb_protected (brain) one when both are
+    # in the band — the accessible organ is the fail-open direction a systemically dosed modality
+    # actually cares about (mirrors _essential_veto_selection's compartment-first partition); break
+    # remaining ties by detection.
+    worst = max(
+        ambiguous,
+        key=lambda e: (
+            _essential_compartment(e.get("tissue")) == "systemically_accessible",
+            e.get("median_detection_fraction") or 0.0,
+        ),
+    )
+    caveat = (
+        f"{len(ambiguous)} off-origin safety-essential cell type(s) detected in the "
+        f"{ambiguous_lo:.2f}-{ambiguous_hi:.2f} scRNA dropout-ambiguous band below the critical-organ "
+        f"veto floor (worst: {worst['cell_type']} in {worst.get('tissue')} at median_det "
+        f"{(worst.get('median_detection_fraction') or 0.0):.3f}); technical dropout can mask low-copy "
+        f"expression, so this is not confident absence of an off-origin safety liability."
+    )
+    return "detection_limited", caveat
+
+
 def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> dict:
     """Classify normal-tissue liability from a Tier-1 gene rows DataFrame.
 
@@ -827,6 +890,22 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
             }
         )
 
+    # --- MNAR / detection-floor qualifier (F2) + multiplicity context (F9), both VERDICT-INERT ---
+    # F2: is a NON-critical safety read confident absence, or dropout-limited? See
+    # _safety_detection_confidence. Reuses the two backtested floors — no new threshold.
+    safety_detection_confidence, detection_caveat = _safety_detection_confidence(
+        essential_records, essential_off_origin, SAFETY_FLAG_FLOOR, CRITICAL_ORGAN_OFF_ORIGIN_DET_FLOOR
+    )
+    # F9: breadth of the ANY-cell-type quantifier as a fraction of the cell types TESTED. The class
+    # fires on ANY cell type clearing a fixed floor with no multiplicity control, and a broad-transcriptome
+    # shard (brain: median 150 of 172 cell types clear 0.20, "close to the null for any expressed gene")
+    # runs that quantifier over far more candidates than a small shard. A HIGH fraction means the gene is
+    # broadly expressed and the liability is NON-SPECIFIC (near the transcriptome-wide null), not a
+    # discriminating signal; a consumer can discount an ANY-quantifier call accordingly. This is context,
+    # not a correction — VERDICT-INERT — because an honest multiplicity/FDR correction is a verdict-moving,
+    # backtest-gated change (see PR notes). Both inputs (n_above_20, len(reliable)) are already emitted.
+    breadth_null_fraction = (n_above_20 / len(reliable)) if len(reliable) else None
+
     return {
         "sc_normal_expression_class": liability,
         # CATEGORICAL companion to the safety_essential_flags dict, so the categorical rule engine can
@@ -882,6 +961,18 @@ def classify_sc_normal_expression(rows: pd.DataFrame, origin_tissues=None) -> di
         #   origin_tissue  → origin-only essential hits (window-arbitrated, unchanged)
         #   not_applicable → no essential hit above floor
         "sc_normal_essential_veto_grade": veto_grade,
+        # MNAR / detection-floor qualifier (F2): confidence of a NON-critical safety read against scRNA
+        # dropout. `detection_limited` when an off-origin safety-essential cell type is observed only in
+        # the 0.05-0.20 dropout-ambiguous band below the veto floor (a real low-copy liability would look
+        # like this); `confident` when the veto fired or no such hit exists; `data_unavailable` on the gap
+        # branch. VERDICT-INERT — never moves sc_normal_safety_essential_class or the veto grade.
+        "sc_normal_safety_detection_confidence": safety_detection_confidence,
+        # Human-readable MNAR caveat — None when confident, else a one-line reason (mirrors the
+        # nullable `*_caveat` idiom, e.g. dge_deseq2's selectivity_substrate_caveat).
+        "sc_normal_detection_caveat": detection_caveat,
+        # F9 multiplicity context (VERDICT-INERT): fraction of TESTED reliable cell types clearing the
+        # 0.20 breadth floor; high ⇒ broadly expressed / non-specific ANY-quantifier call.
+        "sc_normal_breadth_null_fraction": breadth_null_fraction,
         # Normal cell-type detection ceiling across all reliable cell types (single-cell window denominator).
         "sc_normal_ceiling_detection_fraction": ceiling_det,
         "safety_essential_flags": safety_flags,
@@ -909,6 +1000,11 @@ def _data_unavailable_class(note: str = "") -> dict:
         # `data_unavailable`, NOT `not_applicable`: no product / no reliable donors is a coverage gap,
         # and a gap must not be spelled the same way as a measured absence of liability.
         "sc_normal_essential_veto_grade": "data_unavailable",
+        # MNAR qualifier: a coverage gap is `data_unavailable`, not a confident/detection-limited call —
+        # no signal to reason about dropout over (same not-a-safety-pass discipline as the veto grade).
+        "sc_normal_safety_detection_confidence": "data_unavailable",
+        "sc_normal_detection_caveat": None,
+        "sc_normal_breadth_null_fraction": None,
         "sc_normal_ceiling_detection_fraction": None,
         "safety_essential_flags": {},
         "n_cell_types_above_20pct": 0,
