@@ -126,6 +126,37 @@ target + indication, e.g. `read_tumor_vs_normal_selectivity`, `read_dge_gene_row
 `__init__.py` for the `_import_method`-then-getattr pattern compose-dashboard uses; import
 either `methods.dge_deseq2` or `methods.dge_deseq2.read` directly.
 
+## Cross-substrate reproducibility QC (S3c, #732)
+
+`dge_deseq2.concordance` measures how well the per-gene effect sizes agree between the
+**recount3** and **Xena/Toil** substrates for the same contrast cell (A and C), for every
+indication that has a sensitivity product on both substrates (declared in
+`config.run_ledger_intent()['sensitivity']`; today: COADREAD).
+
+```bash
+python -m methods.dge_deseq2.concordance --out concordance.json --self-check   # reads S3; needs cbg creds
+```
+
+- **Reproducibility-only, NOT biological validation.** The two substrates reprocess largely the
+  same raw reads, so agreement measures *pipeline stability*, not that the biology is true. Every
+  emitted row carries `reproducibility_only=True`.
+- **Joins on the stable authority `gene_id`, never on the HGNC symbol.** The two substrates
+  collapse counts to different symbol vocabularies (Ensembl-116 HGNC vs GENCODE-v23), so a
+  symbol-string join would silently drop drifted symbols and mis-map reused ones — the
+  annotation-skew artifact this QC exists to catch. Each product is resolved back to the authority
+  gene_id (read time, via `methods.gene_id_authority.product`) and only genes resolving to exactly
+  one authority gene in both substrates enter the join.
+- Reports per (indication × cell): **coverage denominators** (mapped / ambiguous-dropped /
+  unmapped-dropped per substrate), a significant-in-both gate, and the **Spearman rho** of log2fc
+  over the gated set (plus sign-discordance and an ungated-context rho).
+- **Fail-loud**: an empty/degenerate shared-gene join, a degenerate gated set, or zero declared
+  pairs raise `ConcordanceError` rather than emitting a NaN/vacuous concordance.
+- The artifact is generated on demand and is **not catalogued** (an ops/QC artifact *about* the
+  products, like `build_run_ledger`'s `run_ledger.json`).
+
+Live COADREAD signal (reproduces the ad-hoc S1b check): cell A rho ≈ 0.97, cell C rho ≈ 0.96,
+with the GTEx colon tissue-composition confound surfacing as more sign-discordant genes in cell C.
+
 ## Testing
 
 ```bash
@@ -147,5 +178,7 @@ See analysis-methods#690 for the full modernization plan. As of S0:
 - ~~The adjacent-vs-GTEx normal-baseline-agreement diagnostic contrast~~ — **landed, S2 (#695)**:
   cell AG, emitted as `adj_vs_gtex.parquet` on both substrates, diagnostic-only /
   classifier-excluded.
-- There is no automated output-QC layer (summary tables, figures, cross-substrate
-  reproducibility) — S3 (#696).
+- ~~There is no automated output-QC layer (summary tables, figures, cross-substrate
+  reproducibility)~~ — **landed**: fail-loud output-QC assertions (S3a #701), per-run
+  figures/metrics bundle (S3b #702), and the cross-substrate reproducibility concordance QC
+  (S3c #732, `dge_deseq2.concordance`, above).
