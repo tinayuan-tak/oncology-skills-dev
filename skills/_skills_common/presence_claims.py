@@ -425,6 +425,32 @@ def _homogeneity(h, c):
     return hc if hc and hc != "data_unavailable" else "unmeasured"
 
 
+def _expression_property_atom(c):
+    """The shared L2 expression-PROPERTIES facet, surfaced as a CITABLE evidence atom on the claim
+    vector — VERDICT-INERT provenance, never a signal and never averaged into any claim or the
+    presence_verdict (evidence-property architecture P4, SK#1508).
+
+    The cell-line RNA distribution card carries `expression_properties`, an object resolved by
+    analysis-methods/methods/expression_properties (P2/#720) from the SAME measurements that drive
+    `expression_class` — presence / magnitude / prevalence / heterogeneity / lineage_restriction, plus
+    fleet-deferred selectivity / localization / subtype_restriction. We PASS IT THROUGH unchanged (a
+    projection, not a re-derivation) so the object's own values — e.g. `heterogeneity`, `prevalence` —
+    are RECOVERABLE from atom['values']['expression_properties'], not merely labelled.
+
+    Built via `_patom`, whose bare-string field tuple is the census's `claim_passthrough` reader shape:
+    declaring `expression_properties` on the contract card earns exact reach through this atom (a
+    capsule cannot credit an object), keeping the fleet-aperture ratchet balanced. Returns None when
+    the cell-line card omits the field, so the claim vector stays byte-stable (no key)."""
+    crd = c.get("cellline-rna-distribution", {})
+    return _patom(
+        "cellline-rna-distribution",
+        crd,
+        ("expression_properties",),
+        {"measurement_type": "cellline_rna_expression", "sample_context": "cell_line"},
+        "shared L2 expression properties (presence/magnitude/prevalence/heterogeneity/lineage) — verdict-inert provenance",
+    )
+
+
 def presence_claim_vector(headline: dict, cards: list) -> dict:
     """The modality-blind claim vector: {A,B,C,D: {signal, corroboration, evidence, informs}, homogeneity}.
     Verdict-inert projection over the computed headline + card summaries."""
@@ -447,6 +473,12 @@ def presence_claim_vector(headline: dict, cards: list) -> dict:
     for k in ("A", "B", "C", "D"):
         if isinstance(vec[k], dict) and vec[k].get("evidence_atom") is None:
             vec[k].pop("evidence_atom", None)
+    # The shared expression-properties facet: provenance-only, surfaced as a scalar carrying its own
+    # citable atom (NO `signal` key → not a chip, not a claim tier). OMITTED when the cell-line card
+    # lacks the field, keeping a card-absent run byte-stable — matching the A/B/C/D atom discipline.
+    _ep_atom = _expression_property_atom(c)
+    if _ep_atom is not None:
+        vec["expression_properties"] = {"evidence_atom": _ep_atom}
     return vec
 
 

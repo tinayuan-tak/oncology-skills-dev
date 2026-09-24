@@ -303,7 +303,20 @@ jobs:
           # _cn_corroboration treats an underpowered patient-focal arm as a gap -> single_arm, not a fabricated
           # `low`; two-arm axes + resolver golden rule_id coverage updated) and regenerates the pinned roster
           # field_read_health.json against 1863722c (2 cellline fields, n=1813). Cross-repo live gate: none.
-          ref: 1863722c671ff92dac905c0cbd52b84b007677b4
+          #
+          # ── BUMPED 1863722c -> 4f4866d4 (TC #876, P4 of the evidence-property architecture, SK#1508). TC #876
+          # RE-DECLARES expression_properties on cards/cellline-rna-distribution.card.yaml — the object facet
+          # #873 reverted "to return WITH its reader in P4". This commit lands that reader: presence_claims.py
+          # `_expression_property_atom` surfaces it as a citable claim-vector evidence atom (verdict-inert), and
+          # a field_disposition.yaml role:context row dispositions it. FORCED-ATOMIC for the same set-equality
+          # reason as the P3 bump above (test_ledger_matches_emitted_fields): the ledger row and the pin cannot
+          # go green independently — old pin x new ledger row = STALE; new pin x no row = UNCLASSIFIED.
+          # APERTURE: the reader is a `_patom` claim_passthrough (an EXACT census reader; a capsule cannot credit
+          # an object), so declaring the field is domain +1 AND reached +1 → orphan count UNCHANGED at 781 ==
+          # APERTURE_CEILING (measured on this branch x the new pin, domain 1814). Ceiling half 781 <= 781 and
+          # slack half 781 - 781 = 0 <= 20 both clear; THE CEILING DOES NOT MOVE. Verdict byte-inert: the
+          # tumor-presence replay golden and resolver golden are unchanged (the atom is provenance, never a tier).
+          ref: 4f4866d44d02728db597e51850f1ffe737b57cc2
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

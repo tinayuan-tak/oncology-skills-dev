@@ -90,6 +90,73 @@ def test_presence_atoms_omitted_without_cards():
         assert "evidence_atom" not in vec[ax], f"{ax} carries an atom with no source card"
 
 
+# ── expression_properties: the shared L2 facet, surfaced verdict-inert (P4, SK#1508) ─────────────
+# Store the raw resolved facet and RE-DERIVE the surfaced atom in-test: the wiring is a pure
+# passthrough, so the atom's values must EQUAL the raw input (a derived fixture cannot fail; the raw
+# facet is the irreproducible input). EPCAM-shaped, mirroring the P2 resolver output for a bimodal
+# cell-line panel (presence=supported, prevalence=subset, heterogeneity=high).
+_RAW_EXPRESSION_PROPERTIES = {
+    "presence": "supported",
+    "magnitude": "high",
+    "prevalence": "subset",
+    "heterogeneity": "high",
+    "lineage_restriction": "diffuse",
+    "selectivity": "unmeasured",
+    "localization": "unmeasured",
+    "subtype_restriction": "unmeasured",
+}
+
+
+def _cards_with_expression_properties(props=_RAW_EXPRESSION_PROPERTIES):
+    cards = _cards()
+    cards.append({"card_id": "cellline-rna-distribution", "summary": {"expression_properties": dict(props)}})
+    return cards
+
+
+def test_expression_properties_atom_surfaces_and_is_recoverable():
+    vec = presence_claim_vector(_headline(), _cards_with_expression_properties())
+    assert "expression_properties" in vec, "the shared L2 facet must surface on the claim vector"
+    atom = vec["expression_properties"]["evidence_atom"]
+    # Cited to the cell-line arm, with its measurement entity.
+    assert atom["cite"]["card_id"] == "cellline-rna-distribution"
+    assert atom["cite"]["fields"] == ["expression_properties"]
+    assert atom["entity"] == {"measurement_type": "cellline_rna_expression", "sample_context": "cell_line"}
+    # FIDELITY INVARIANT: the actual property VALUES are recoverable, not merely a key. Re-derive by
+    # equality against the stored raw facet — a passthrough must reproduce it byte-for-byte.
+    surfaced = atom["values"]["expression_properties"]
+    assert surfaced == _RAW_EXPRESSION_PROPERTIES
+    assert surfaced["heterogeneity"] == "high"
+    assert surfaced["prevalence"] == "subset"
+
+
+def test_expression_properties_is_verdict_inert_not_a_claim_tier():
+    # A provenance scalar, NOT an A/B/C/D-style claim: no `signal`/`corroboration`, so it is never a
+    # chip and never enters any tier arithmetic. And surfacing it must not perturb the four claims.
+    base = presence_claim_vector(_headline(), _cards())
+    withprops = presence_claim_vector(_headline(), _cards_with_expression_properties())
+    ep = withprops["expression_properties"]
+    assert "signal" not in ep and "corroboration" not in ep
+    for ax in ("A", "B", "C", "D", "homogeneity", "_disclaimer"):
+        assert withprops[ax] == base[ax], f"surfacing expression_properties perturbed {ax}"
+
+
+def test_expression_properties_omitted_when_card_absent():
+    # M3 supply-defeat #1: no cellline-rna-distribution card at all → the KEY is omitted (byte-stable),
+    # exactly like the A/B/C/D atoms. This is the path the committed replay fixture takes.
+    vec = presence_claim_vector(_headline(), _cards())
+    assert "expression_properties" not in vec
+
+
+def test_expression_properties_omitted_when_field_absent():
+    # M3 supply-defeat #2: the card is present but emits no expression_properties (e.g. an older run,
+    # or a data_unavailable panel the resolver leaves unset) → build_summary_atom returns None → the
+    # key is omitted, never a None-valued atom.
+    cards = _cards()
+    cards.append({"card_id": "cellline-rna-distribution", "summary": {"expression_class": "broadly_moderate"}})
+    vec = presence_claim_vector(_headline(), cards)
+    assert "expression_properties" not in vec
+
+
 def test_homogeneity_unmeasured_not_null_without_scrna():
     # No single-cell card (SCLC / NECTIN4-BRCA-pair scRNA = data_unavailable) → homogeneity must be
     # the STRING sentinel "unmeasured", never null. null fails the evidence_package claim_vector schema

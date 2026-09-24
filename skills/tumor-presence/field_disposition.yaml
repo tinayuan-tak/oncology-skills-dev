@@ -76,6 +76,10 @@ cellline-rna-distribution:
     role: signal
     reason: "headline DepMap cell-line RNA expression call; role:signal reach-confirmed via {capsule, display_rule, question_table, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
+  expression_properties:
+    role: context
+    reason: "shared L2 expression-property facet object {presence, magnitude, prevalence, heterogeneity, lineage_restriction, + fleet-deferred selectivity/localization/subtype_restriction} resolved by the P2 property resolver (analysis-methods/methods/expression_properties, #720) from the same measurements that drive expression_class. Surfaced VERDICT-INERT as a citable evidence atom on the presence claim vector (_skills_common/presence_claims.py `_expression_property_atom`, via the `_patom` claim_passthrough seam) — provenance only, never a signal, never averaged into any claim or the presence_verdict. Reach-confirmed exact via skill_code/claim_passthrough (a capsule cannot credit an object). Evidence-property architecture epic claude-oncology-skills#1507 / audit #1506 (P4, issue #1508)"
+    reviewed: true
   fraction_expressed:
     role: context
     reason: "within-cohort breadth magnitude behind the READ expression_class; _abundance_floor's docstring states the
