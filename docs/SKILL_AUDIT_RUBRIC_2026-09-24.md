@@ -15,10 +15,13 @@ necessary, not sufficient — a card can be green for the wrong reason.
 ## How to run it
 
 For each **card** in the skill, and for each **field** that card emits, walk
-the nine probes below (Probes 1–6 from the tumor-presence audit; 7–8 added from
+the ten probes below (Probes 1–6 from the tumor-presence audit; 7–8 added from
 the on-target-safety-liability dry-run; 5–8 refined by the immune-context and
 differentiation-landscape dry-runs; 9 added from the genomic-alteration-profile
-dry-run). Three disciplines wrap the whole pass:
+dry-run; 10 added by request from the translational-readiness audit — the
+data-EXTRACTION layer). Probes 1–9 are keyed to the *field*; Probe 10 is keyed
+to the *card's method* (run it once per dispatched reader, not per field). Three
+disciplines wrap the whole pass:
 
 - **Tag every finding** `DEFECT` (wrong verdict/label/gate) · `DATA-UTILIZATION`
   (datum right but under-used / display-only / verdict-inert) · `PIPELINE`
@@ -49,8 +52,12 @@ dry-run). Three disciplines wrap the whole pass:
 from a **static read** of cards + resolver + consumers. Probes 1 and 3 need
 **runtime instruments** — the field-disposition ledger (#1506) / reach
 classifier (#1509) for 1, and a **corpus run counting fires-vs-verdict-deltas**
-for 3. Budget a corpus run up front, or scope those two probes to
-wiring-confirmation only and mark findings `needs-verification`.
+for 3. Probe 10 is answered by a **static read of the method module** in the
+`analysis-methods` sibling repo (guardrails + the extraction *pattern*); only
+the *magnitude* of a cost finding — wire-bytes / wall-time across the corpus —
+is runtime, so confirm the pattern statically and mark the cost
+`needs-verification`. Budget a corpus run up front, or scope the runtime probes
+to wiring-confirmation only and mark findings `needs-verification`.
 
 **The golden may be blind to the rungs you are auditing — do not trust
 "byte-stable / verdict-inert" until you check.** On a verdict-driving skill the
@@ -295,6 +302,97 @@ gap that never shows up field-by-field.
   (documented) subset of the resolver vocabulary catches the next omission.
 - *(Added from the genomic-alteration-profile dry-run, gap 1 — the verdict-driving archetype.)*
 
+## Probe 10 — Method S3 query/extraction: sound, optimized, guardrailed
+
+Probes 1–9 trust the datum and ask whether it is *used* correctly. Probe 10
+interrogates the layer *below* the card — the `analysis-methods` reader that
+queries the S3 dataset and materializes the card summary. Run it **once per
+dispatched card-method** (read `analysis-methods/methods/<method>/read.py`, not
+the card). Two failure classes: extraction is **unsound** (a guardrail gap that
+corrupts or mis-classifies the datum — `DEFECT`, because it can reach the
+verdict) or **wasteful** (an optimization gap that scales badly over the
+504-target corpus — `PIPELINE`). This layer is shared infrastructure, so a
+finding here is usually a *pattern* fix routed to `analysis-methods`, not the
+audited skill — expect Probe-10 findings to land cross-repo.
+
+**A. Guardrails (soundness).**
+
+- **Absence classification — an S3 miss must become `data_unavailable`, and a
+  *transient* fault must NOT.** This is Probe 4 at the extraction boundary. The
+  shared classifier is `target_id_sidecar.is_definitively_absent(exc)` (True
+  only for NoSuchKey / 404 / NoSuchBucket). A reader must route its read
+  `except` through it — swallow definitive absence as `data_unavailable`,
+  **re-raise** throttle / creds / broken-env. *Signature:* a bare
+  `except Exception → return None/empty` masks throttling as absence (a
+  documented incident silently dropped ~5/19 EGFR cards); or a reader that
+  catches only `FileNotFoundError` (pdxe `read.py:103-104`) so a pyarrow-S3FS
+  `ClientError` NoSuchKey propagates instead of resolving to unavailable. And an
+  empty result must map to `data_unavailable`, **not** a silent empty frame that
+  reads downstream as `measured_negative`.
+- **Key resolution single-source.** Is the S3 key resolved from the data-catalog
+  manifest (`catalog_query.bucket_key_for`, which fails loud on an unknown id) or
+  a hardcoded `s3://…` literal? A hardcoded key drifts silently when the product
+  is re-released. The repo is **mid-migration** (≈128 files manifest-resolve vs
+  ≈64 still hardcode), so this is a live pattern gap. *Signature:*
+  `hcmi_model_availability/read.py:18-25` hardcodes its URIs while its two
+  siblings (pdxe, organoid) resolve via `bucket_key_for`.
+- **Schema / version pinning (reproducibility).** Is the object version / md5 /
+  release pinned, and the column schema **asserted** at the read boundary? A live
+  read of an upstream derived product with no schema check surfaces drift only as
+  a downstream `KeyError` or a tolerant `if col in row` fallback. *Signature:*
+  none of the three translational-readiness readers assert a schema/version,
+  though `target_id_sidecar.read_resolver_sidecar_map` (`:129-133`) shows the
+  discipline (asserts expected columns, raises on drift); at minimum pin the
+  manifest id to a release, as organoid does (`MANIFEST_ID =
+  "organoid-crispr-dependency-26q1-v1"`).
+- **Input interpolation.** Is the `target` / `indication` string concatenated
+  into an S3 key or a query (path/SQL), or passed as a query *value*?
+  Concatenation is a correctness + injection risk. *(Negative control worth
+  recording: the TR readers pass it as a pyarrow filter value and normalize
+  `.upper().strip()` — safe; record it as checked-and-clean.)*
+
+**B. Optimization (cost across the corpus).**
+
+- **Pushdown vs whole-object.** Does the reader pull the whole object and filter
+  in pandas, or push **column projection + a predicate/partition filter** down to
+  the read? *Signature (bad):* `hcmi_model_availability/read.py:123,164` reads
+  the whole parquet then `df[df["indication"]==…]`. *Signature (good):* pdxe
+  (`:88-105`) and organoid (`lookup.py:126-184`) use
+  `filters=[("gene_symbol","==",…)]` + explicit `columns=`.
+- **N+1 / caching.** Is the same object re-read per target across the 504-target
+  corpus, or memoized (`@lru_cache` per `(target, release)`) / batch-downloaded
+  once and cached? A per-target cold read of a whole matrix is the N+1 trap.
+- **Transport.** boto3 / pyarrow-`S3FileSystem` (adaptive retry, HTTP-range /
+  row-group reads, a cred-frozen singleton — organoid `lookup.py:98-106`) vs an
+  `aws s3 cp` subprocess (`hcmi …:92` — depends on the CLI being on PATH, a fixed
+  120s timeout, no adaptive retry).
+- **No full-bucket enumeration in the read path.** Any `s3 ls --recursive` /
+  `list_objects_v2` scan in the **per-target read path** (vs a bounded
+  build/precompute step)? And the classic `s3 ls | .split()` trap — parsing
+  listing output on whitespace **fabricates objects, because keys can contain
+  spaces**. *(Negative control from the TR triad: neither trap is present in the
+  card readers — record it as checked.)*
+
+**Instrument:** a static read of the method module answers all of A and the
+*pattern* half of B (pushdown-vs-whole-read, transport, N+1-vs-cache). The
+*magnitude* of a B finding is runtime — mark it `needs-verification`.
+
+**Fix shape / guard:** route every reader through the shared seams —
+`bucket_key_for` for the key, `is_definitively_absent` for the read `except`,
+pushdown + projection + `@lru_cache` for the read — and add a schema/version
+assertion at the boundary. **Fix the pattern, not the instance:** these are
+shared-infra gaps, so the guard is a test that mocks the S3 layer (moto) or at
+least asserts the product schema. None of the three TR readers has one — their
+absence tests use a per-reader seam (a `product_path=` local override or a
+monkeypatched inner read fn) that never exercises the real key or schema, so a
+key/schema regression ships green (a Probe-10 flavor of green-for-the-wrong-reason).
+
+- *(Added 2026-09-24 by request, grounded in the translational-readiness reader
+  triad — `hcmi_model_availability` / `pdxe_drug_response` /
+  `organoid_dependency_precompute` — which spans the quality spectrum. Not yet
+  hardened by a dedicated dry-run across skills; treat its signatures as
+  provisional until a second skill's method layer is walked.)*
+
 ---
 
 ## The meta-lesson: fix the pattern, not the instance
@@ -314,9 +412,10 @@ narrowly the first time.
 
 ## Scaling checklist per skill
 
-1. Enumerate cards × emitted fields.
-2. Run Probes 1–8 per field; tag each finding (DEFECT / DATA-UTILIZATION /
-   PIPELINE / ARCHITECTURE) and route by consumer/owner.
+1. Enumerate cards × emitted fields (and each card's dispatched method).
+2. Run Probes 1–9 per field and Probe 10 per card-method; tag each finding
+   (DEFECT / DATA-UTILIZATION / PIPELINE / ARCHITECTURE) and route by
+   consumer/owner (Probe-10 findings usually route to `analysis-methods`).
 3. Cluster findings by probe before filing — file one issue per *pattern×owner*,
    not one per card, when a fix generalizes.
 4. If a card forces open-ended investigation not covered by a probe, **add the
