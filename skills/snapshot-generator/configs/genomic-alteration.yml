@@ -10,13 +10,13 @@ groups:
         table: "subskills/genomic_alteration/tables/mutation-hotspot-frequency_summary_stats.csv"
         table_max_rows: 3
 
-      - title: "Hotspot Frequency in {indication} (TCGA)"
-        table: "subskills/genomic_alteration/tables/mutation-hotspot-frequency_hotspot_frequencies.csv"
-        table_max_rows: 5
-
       - title: "Variant Types in {indication} (Cell Lines)"
         figure: "figures/cards/mutation-type-counts/figure_mutation_class_bar.svg"
         caption: "Cell line - Pan-Cancer"
+        
+      - title: "Hotspot Frequency in {indication} (TCGA)"
+        table: "subskills/genomic_alteration/tables/mutation-hotspot-frequency_hotspot_frequencies.csv"
+        table_max_rows: 5
 
   - title: "Copy Number"
     panels:
@@ -37,7 +37,7 @@ groups:
           column: "field"
           values: ["n_samples_with_fusion", "fusion_frequency", "fusion_class"]
 
-      - title: "Alternative Splicing (TCGA)"
+      - title: "Alternative Splicing Frequency (TCGA)"
         table: "subskills/genomic_alteration/tables/tumor-splice-dysregulation_summary_stats.csv"
         table_row_select:
           column: "field"
