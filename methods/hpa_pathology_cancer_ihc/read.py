@@ -8,11 +8,12 @@ a transient/creds/broken-env failure PROPAGATES as an honest _live_read_error (n
 
 from __future__ import annotations
 
+import os
 import threading
 from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
-from methods.target_id_sidecar import ensure_aws_profile, is_definitively_absent
+from methods.target_id_sidecar import is_definitively_absent
 
 METHOD_VERSION = "1.0.0"
 DEFAULT_AWS_PROFILE = "cbg"
@@ -72,7 +73,6 @@ INDICATION_TO_HPA_CANCER = {
 
 _S3FS = None
 _S3FS_LOCK = threading.Lock()
-_DERIVED_STATUS: Optional[bool] = None
 
 _SUMMARY_FIELDS = (
     "protein_presence_class",
@@ -89,16 +89,57 @@ _SUMMARY_FIELDS = (
     "prognostic_p_value",
 )
 
+# Only the fields actually consumed are projected off S3 (pushdown): the summary fields returned to
+# the caller plus `cancer_type` (the in-Python row selector). `gene_symbol` is used only in the
+# predicate-pushdown filter, which does not require it in the column projection.
+_READ_COLUMNS = list(_SUMMARY_FIELDS) + ["cancer_type"]
+
+
+def _resolve_s3fs_credentials() -> dict:
+    """Resolve AWS credentials for the pyarrow S3FileSystem, preferring the `cbg` dev SSO profile but
+    falling back to the ambient credential chain (env / OIDC / instance role) when `cbg` is not
+    configured — i.e. CI / prod / instance-role hosts.
+
+    Mirrors target_id_sidecar.s3_client()'s ProfileNotFound fallback, applied to the pyarrow path:
+    pyarrow's S3FileSystem uses the AWS C++ SDK (not botocore) and cannot do the boto profile
+    fallback itself, so we resolve creds via boto3 here and inject the frozen credentials. Returns
+    kwargs for fs.S3FileSystem; an EMPTY dict means "no explicit creds — let pyarrow use its own
+    default (ambient) chain" (e.g. no credentials resolvable in this process)."""
+    import boto3
+    from botocore.exceptions import ProfileNotFound
+
+    prof = os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)
+    try:
+        creds = boto3.Session(profile_name=prof).get_credentials()
+    except ProfileNotFound:
+        # Preferred/default profile absent (CI / prod / instance-role): use the ambient chain.
+        # A bare Session() still reads AWS_PROFILE from the env, so strip a bad value first
+        # (restored after) — otherwise the fallback re-raises the same ProfileNotFound.
+        saved = os.environ.pop("AWS_PROFILE", None)
+        try:
+            creds = boto3.Session().get_credentials()
+        finally:
+            if saved is not None:
+                os.environ["AWS_PROFILE"] = saved
+    if creds is None:
+        return {}
+    frozen = creds.get_frozen_credentials()
+    return {
+        "access_key": frozen.access_key,
+        "secret_key": frozen.secret_key,
+        "session_token": frozen.token,
+    }
+
 
 def _get_s3fs():
     global _S3FS
     if _S3FS is None:
         with _S3FS_LOCK:
             if _S3FS is None:
-                ensure_aws_profile()
+                creds = _resolve_s3fs_credentials()
                 import pyarrow.fs as fs
 
-                _S3FS = fs.S3FileSystem(region="us-east-1")
+                _S3FS = fs.S3FileSystem(region="us-east-1", **creds)
     return _S3FS
 
 
@@ -129,7 +170,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
 
     uri = f"{S3_BUCKET}/{DERIVED_S3_KEY}"
     try:
-        tbl = pq.read_table(uri, filesystem=_get_s3fs(), filters=[("gene_symbol", "=", sym)])
+        tbl = pq.read_table(uri, filesystem=_get_s3fs(), columns=_READ_COLUMNS, filters=[("gene_symbol", "=", sym)])
     except Exception as e:  # noqa: BLE001 — distinguish definitive-absence from transient
         if is_definitively_absent(e):
             return _empty(f"{DERIVED_MANIFEST_ID} not found (404)", cancer_type)
