@@ -239,20 +239,38 @@ _SUMMARY_KEY = "summary"
 _SALIENCE_SCALAR_SLOTS = ("effect_field", "significance_field", "n_field", "omnibus_field", "strata_array")
 _SALIENCE_LIST_SLOTS = ("categorical", "extra_scalars")
 
+# ── SLOT-AWARE salience: which slots credit SIGNAL reach vs merely POWER/qualifier reach (P5 #1509) ──
+# The ruler reads EVERY slot above — a `salience_readers()` pair is a genuine read, so all of them keep
+# census reach and none of them orphans a field. But a read is not uniform evidence about the field's
+# ROLE. A read through a SIGNAL-BEARING slot (the load-bearing effect/significance, the decisive
+# categorical, a surfaced extra scalar, or a reference_frame value_field) says the field carries a
+# call the ruler ranks on. A read through a POWER slot (`n_field` sample size, `strata_array` the raw
+# per-stratum container) is consumed for weighting/support, not as a decisive call; and `omnibus_field`
+# is a cross-stratum qualifier. So the offline role classifier (field_role_classifier.py) must not
+# propose `role: signal` on power/qualifier reach alone — else a bare `n_cell_lines_evaluated` or a raw
+# strata array promotes to signal on reach that never carried a call. `salience_signal_readers()` is
+# that filtered view; `salience_readers()` (unfiltered) remains the census reach and is unchanged.
+_SALIENCE_SIGNAL_SCALAR_SLOTS = ("effect_field", "significance_field")
+_SALIENCE_SIGNAL_LIST_SLOTS = ("categorical", "extra_scalars")
+_SALIENCE_POWER_SCALAR_SLOTS = ("n_field", "strata_array")  # read for support, not as a signal
 
-def salience_readers(contracts_repo: Path | None = None) -> set:
-    """(card, field) pairs the SALIENCE_SPECS rulers gauge.
+
+def _salience_pairs(scalar_slots, list_slots, contracts_repo: Path | None = None) -> set:
+    """(card, field) pairs the SALIENCE_SPECS rulers gauge through the given slots.
 
     A spec is keyed by ``measurement_type``, so it is joined to cards two ways: the cards declaring
-    that measurement_type, plus any card named explicitly by a ``reference_frame.cut.card_id``.
+    that measurement_type, plus any card named explicitly by a ``reference_frame.cut.card_id``. A
+    ``reference_frame.value_field`` is always a signal-bearing read (an atlas-live magnitude), so it is
+    added whenever any slot set is being gathered — its inclusion is governed by the frame, not the
+    scalar/list slot lists.
     """
     from _skills_common.evidence_salience import SALIENCE_SPECS
 
     mt2cards = _card_measurement_types(contracts_repo)
     pairs = set()
     for mt, spec in SALIENCE_SPECS.items():
-        names = [spec[s] for s in _SALIENCE_SCALAR_SLOTS if spec.get(s)]
-        for slot in _SALIENCE_LIST_SLOTS:
+        names = [spec[s] for s in scalar_slots if spec.get(s)]
+        for slot in list_slots:
             names += list(spec.get(slot) or ())
         targets = set(mt2cards.get(mt) or ())
         frames = spec.get("reference_frame") or {}
@@ -268,6 +286,28 @@ def salience_readers(contracts_repo: Path | None = None) -> set:
             for name in names:
                 pairs.add((cid, name))
     return pairs
+
+
+def salience_readers(contracts_repo: Path | None = None) -> set:
+    """(card, field) pairs the SALIENCE_SPECS rulers gauge — the CENSUS reach (all slots).
+
+    Every declared slot counts: the ruler genuinely reads the sample size and the raw strata array, so
+    a field named in ANY slot is read and must not be reported a candidate orphan. Slot-awareness (which
+    reads carry a decisive call) lives in :func:`salience_signal_readers`, not here.
+    """
+    return _salience_pairs(_SALIENCE_SCALAR_SLOTS, _SALIENCE_LIST_SLOTS, contracts_repo)
+
+
+def salience_signal_readers(contracts_repo: Path | None = None) -> set:
+    """(card, field) pairs read through a SIGNAL-BEARING salience slot only (P5 #1509).
+
+    Excludes the POWER slots (``n_field``/``strata_array``) and the ``omnibus_field`` cross-stratum
+    qualifier: those are read by the ruler (so they keep census reach in :func:`salience_readers`) but a
+    read through them is not evidence the field carries a decisive call. This is the reach the offline
+    role classifier consults before proposing ``role: signal`` on a salience read — so a power/qualifier
+    field never promotes on reach alone.
+    """
+    return _salience_pairs(_SALIENCE_SIGNAL_SCALAR_SLOTS, _SALIENCE_SIGNAL_LIST_SLOTS, contracts_repo)
 
 
 def gloss_readers() -> set:
