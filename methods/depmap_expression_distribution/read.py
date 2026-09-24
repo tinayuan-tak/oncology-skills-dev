@@ -91,6 +91,18 @@ def read_expression_distribution(
             _cli.emit_plot_data(tpm_by_model, model_metadata, expressed_threshold, _pd_dir)
         except Exception:  # noqa: BLE001 — plot_data persistence is additive; never break resolution
             pass
+    # Evidence-property architecture (epic claude-oncology-skills#1507; P2 = analysis-methods#709).
+    # ADDITIVELY resolve the shared L2 expression PROPERTIES from the SAME measurements above — the
+    # cell-line analogue of the tumor twin's shape read. This RESCUES the buried distribution_pattern
+    # signal (EPCAM bimodal → heterogeneity=high + prevalence=subset) that expression_class drops,
+    # WITHOUT touching expression_class (byte-identical — the pilot's verdict-inert invariant). Pure
+    # over the summary we already hold; keep it best-effort so a resolver hiccup never breaks the read.
+    try:
+        from methods.expression_properties.resolve import resolve_expression_properties
+
+        summary["expression_properties"] = resolve_expression_properties(summary)
+    except Exception:  # noqa: BLE001 — property resolution is additive; never break resolution
+        summary.setdefault("expression_properties", None)
     return summary
 
 
