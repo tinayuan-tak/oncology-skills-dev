@@ -21,11 +21,18 @@ Usage:
 from __future__ import annotations
 
 import gzip
+import os
 import sys
 from collections import defaultdict
 from pathlib import Path
+from typing import Optional
 
 import click
+
+# Figure generation constants
+DEFAULT_TARGET_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 MC3_S3_BUCKET = "onc-compbio"
 MC3_S3_KEY = "data-catalog/sources/synapse/tcga-mc3-public/mc3.v0.2.8.PUBLIC.maf.gz"
@@ -700,6 +707,587 @@ def per_sample_maf(indication: str) -> "pa.Table":
     ]
     rows.sort(key=lambda r: (r["gene_symbol"], r["sample_id"]))
     return pa.Table.from_pylist(rows, schema=_per_sample_schema())
+
+
+# ============================================================================
+# FIGURE EMITTERS (hotspot lollipop + driver recurrence context)
+# ============================================================================
+
+
+def emit_hotspot_lollipop(
+    hotspot_frequencies: list[dict],
+    target: str,
+    indication: str,
+    out_path: Path,
+    contracts_root: Path = DEFAULT_TARGET_CONTRACTS,
+    *,
+    top_n: int = 15,
+) -> Optional[Path]:
+    """Emit a lollipop plot showing top hotspot protein changes and their frequencies.
+
+    Each hotspot is a vertical stem with a circle at the frequency value. Hotspots are
+    sorted by frequency descending. Returns the path to the saved SVG, or None if no
+    hotspots to plot.
+
+    Args:
+        hotspot_frequencies: list of {protein_change, frequency, n_samples} dicts
+        target: gene symbol
+        indication: indication code (e.g., COADREAD)
+        out_path: directory to write figure_hotspot_lollipop.svg
+        contracts_root: path to target-contracts repo (for styling)
+        top_n: max number of hotspots to display
+    """
+    if not hotspot_frequencies:
+        return None
+
+    sys.path.insert(0, str(contracts_root / "plot_styles"))
+    try:
+        from takeda_palette import (
+            OKABE_ITO,
+            REFLINE_NEUTRAL,
+            figure_frame,
+        )
+    except ImportError:
+        import matplotlib
+
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots(figsize=(7.0, 3.5))
+        ax.text(0.5, 0.5, "takeda_palette not available", ha="center", va="center", transform=ax.transAxes)
+        svg_path = out_path / "figure_hotspot_lollipop.svg"
+        fig.savefig(svg_path, bbox_inches="tight")
+        plt.close(fig)
+        return svg_path
+
+    sorted_hotspots = sorted(hotspot_frequencies, key=lambda h: h.get("frequency", 0) or 0, reverse=True)[:top_n]
+    if not sorted_hotspots:
+        return None
+
+    n_hotspots = len(sorted_hotspots)
+    labels = [h.get("protein_change", "?") for h in sorted_hotspots]
+    freqs = [h.get("frequency", 0) or 0 for h in sorted_hotspots]
+    n_samples = [h.get("n_samples", 0) or 0 for h in sorted_hotspots]
+
+    max_freq = max(freqs) if freqs else 0.1
+    top_hotspot = sorted_hotspots[0] if sorted_hotspots else {}
+    top_pct = (top_hotspot.get("frequency", 0) or 0) * 100
+
+    takeaway_text = (
+        f"Top hotspot {top_hotspot.get('protein_change', '?')} occurs in {top_pct:.1f}% of {indication} samples "
+        f"(n={top_hotspot.get('n_samples', 0)})."
+    ) if top_hotspot else None
+
+    svg_path = out_path / "figure_hotspot_lollipop.svg"
+    fig_height = max(3.0, 0.25 * n_hotspots + 1.5)
+
+    with figure_frame(
+        target,
+        indication,
+        view="mutation hotspot frequency",
+        out_path=svg_path,
+        kind="single",
+        provenance=f"TCGA MC3 v0.2.8 · {indication}",
+        takeaway=takeaway_text,
+        figsize=(7.0, fig_height),
+        left=0.28,
+    ) as F:
+        ax = F.ax
+        y_pos = range(n_hotspots)
+
+        for i, (freq, n) in enumerate(zip(freqs, n_samples)):
+            color = OKABE_ITO[0] if i == 0 else OKABE_ITO[1]
+            ax.hlines(y=i, xmin=0, xmax=freq, color=color, linewidth=1.5, zorder=2)
+            ax.scatter([freq], [i], s=80, c=color, zorder=3, edgecolors="white", linewidths=0.8)
+            ax.annotate(
+                f"n={n} ({freq*100:.1f}%)",
+                xy=(freq, i),
+                xytext=(5, 0),
+                textcoords="offset points",
+                fontsize=7,
+                va="center",
+                color="#666666",
+            )
+
+        ax.set_yticks(list(y_pos))
+        ax.set_yticklabels(labels, fontsize=9)
+        ax.invert_yaxis()
+
+        ax.axvline(x=0, **REFLINE_NEUTRAL, zorder=1)
+        ax.set_xlim(left=-0.005, right=max_freq * 1.15)
+        ax.grid(axis="x", alpha=0.3)
+
+        F.axis_label("x", "Mutation Frequency", "fraction of samples")
+
+    return svg_path
+
+
+
+def emit_mutation_frequency_stacked(
+    target: str,
+    indication: str,
+    target_frequency_indication: float,
+    indication_gene_frequencies: list[tuple[str, float]],
+    target_frequency_pancancer: float,
+    pancancer_gene_frequencies: list[tuple[str, float]],
+    out_path: Path,
+    contracts_root: Path = DEFAULT_TARGET_CONTRACTS,
+    *,
+    min_frequency: float = 0.05,
+) -> Optional[Path]:
+    """Emit a stacked figure with indication-specific (top) and pan-cancer (bottom) mutation frequency.
+
+    Args:
+        target: gene symbol
+        indication: indication code (e.g., COADREAD)
+        target_frequency_indication: target's frequency in the indication
+        indication_gene_frequencies: list of (gene, freq) for indication
+        target_frequency_pancancer: target's frequency pan-cancer
+        pancancer_gene_frequencies: list of (gene, freq) for pan-cancer
+        out_path: directory to write figure
+        contracts_root: path to target-contracts repo
+        min_frequency: minimum frequency threshold (default 5%)
+    """
+    if not indication_gene_frequencies and not pancancer_gene_frequencies:
+        return None
+
+    sys.path.insert(0, str(contracts_root / "plot_styles"))
+    try:
+        from takeda_palette import (
+            REFLINE_NEUTRAL,
+            figure_title,
+            provenance_tag,
+            takeaway,
+        )
+    except ImportError:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(7.0, 6.0))
+        ax.text(0.5, 0.5, "takeda_palette not available", ha="center", va="center", transform=ax.transAxes)
+        svg_path = out_path / "figure_mutation_frequency_stacked.svg"
+        fig.savefig(svg_path, bbox_inches="tight")
+        plt.close(fig)
+        return svg_path
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    style_path = contracts_root / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+
+    def filter_and_sort(gene_freqs, target_freq):
+        if gene_freqs and isinstance(gene_freqs[0], (list, tuple)):
+            pairs = [(g, f) for g, f in gene_freqs if f is not None and f > 0]
+        else:
+            pairs = [(f"gene_{i}", f) for i, f in enumerate(gene_freqs) if f is not None and f > 0]
+        frequent = [(g, f) for g, f in pairs if f >= min_frequency]
+        frequent.sort(key=lambda x: x[1])
+        return frequent, len(pairs)
+
+    ind_genes, ind_total = filter_and_sort(indication_gene_frequencies, target_frequency_indication)
+    pan_genes, pan_total = filter_and_sort(pancancer_gene_frequencies, target_frequency_pancancer)
+
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7.0, 7.0))
+    fig.subplots_adjust(top=0.88, bottom=0.12, left=0.12, right=0.95, hspace=0.35)
+
+    bar_width = 0.6
+
+    def plot_panel(ax, genes, target_freq, panel_title, total_genes):
+        if len(genes) == 0:
+            ax.text(0.5, 0.5, f"No genes ≥{min_frequency*100:.0f}%", ha="center", va="center",
+                    transform=ax.transAxes, fontsize=10, color="#666666")
+            ax.set_xticks([])
+            ax.set_title(panel_title, fontsize=10, fontweight="bold", loc="left", color="#33383D")
+            return
+
+        x_positions = np.arange(len(genes))
+        frequencies = [f for _, f in genes]
+
+        colors = []
+        target_in_panel = False
+        target_idx = None
+        for i, (gene, freq) in enumerate(genes):
+            if gene == target or abs(freq - target_freq) < 1e-9:
+                colors.append("#B22222")
+                target_in_panel = True
+                target_idx = i
+            else:
+                colors.append("#A9C5DB")
+
+        ax.bar(x_positions, frequencies, color=colors, edgecolor="none", width=bar_width, zorder=2)
+
+        for i, (gene, freq) in enumerate(genes):
+            is_target_gene = gene == target or abs(freq - target_freq) < 1e-9
+            if is_target_gene:
+                ax.annotate(
+                    f"{gene} ({freq*100:.1f}%)",
+                    xy=(i, freq),
+                    xytext=(0, 4),
+                    textcoords="offset points",
+                    fontsize=7,
+                    fontweight="bold",
+                    color="#B22222",
+                    ha="center",
+                    va="bottom",
+                    rotation=90,
+                )
+            else:
+                ax.annotate(
+                    f"{gene} ({freq*100:.1f}%)",
+                    xy=(i, freq),
+                    xytext=(0, 4),
+                    textcoords="offset points",
+                    fontsize=5,
+                    color="#888888",
+                    ha="center",
+                    va="bottom",
+                    rotation=90,
+                )
+
+        if not target_in_panel and target_freq is not None:
+            ax.text(
+                0.5, 0.85,
+                f"{target} ({target_freq*100:.1f}%) — below {min_frequency*100:.0f}% threshold",
+                ha="center", va="top", transform=ax.transAxes,
+                fontsize=8, fontweight="bold", color="#B22222",
+                bbox=dict(boxstyle="round,pad=0.5", facecolor="#FFEEEE", edgecolor="#B22222", linewidth=1),
+            )
+
+        ax.axhline(y=min_frequency, **REFLINE_NEUTRAL, zorder=1)
+        ax.set_xlim(-0.5, len(genes) - 0.5)
+        ax.set_ylim(bottom=0)
+        ax.set_xticks([])
+        ax.grid(axis="y", alpha=0.3)
+        ax.set_ylabel("Frequency", fontsize=9, color="#33383D")
+        ax.set_title(f"{panel_title} ({len(genes)} genes ≥{min_frequency*100:.0f}%)",
+                     fontsize=10, fontweight="bold", loc="left", color="#33383D")
+
+    plot_panel(ax1, ind_genes, target_frequency_indication, indication, ind_total)
+    plot_panel(ax2, pan_genes, target_frequency_pancancer, "Pan-Cancer", pan_total)
+
+    figure_title(fig, target, None, "mutation frequency", y=0.96)
+    provenance_tag(fig, f"TCGA MC3 v0.2.8 · genes mutated in ≥{min_frequency*100:.0f}% of samples", y=0.93)
+
+    def get_rank(genes, target_name, target_freq):
+        """Get 1-based rank (1 = most frequent) among genes >= threshold."""
+        sorted_desc = sorted(genes, key=lambda x: x[1], reverse=True)
+        for i, (gene, freq) in enumerate(sorted_desc):
+            if gene == target_name or abs(freq - target_freq) < 1e-9:
+                return i + 1
+        return None
+
+    ind_rank = get_rank(ind_genes, target, target_frequency_indication) if ind_genes else None
+    pan_rank = get_rank(pan_genes, target, target_frequency_pancancer) if pan_genes else None
+
+    def ordinal(n):
+        if n is None:
+            return None
+        if 10 <= n % 100 <= 20:
+            suffix = "th"
+        else:
+            suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+        return f"{n}{suffix}"
+
+    if ind_rank and pan_rank:
+        take_text = (f"{target} is the {ordinal(ind_rank)} most frequently mutated gene in {indication} "
+                     f"and the {ordinal(pan_rank)} most frequently mutated gene pan-cancer.")
+    elif ind_rank:
+        take_text = (f"{target} is the {ordinal(ind_rank)} most frequently mutated gene in {indication} "
+                     f"but is below the {min_frequency*100:.0f}% threshold pan-cancer.")
+    elif pan_rank:
+        take_text = (f"{target} is the {ordinal(pan_rank)} most frequently mutated gene pan-cancer "
+                     f"but is below the {min_frequency*100:.0f}% threshold in {indication}.")
+    else:
+        take_text = (f"{target} is below the {min_frequency*100:.0f}% mutation frequency threshold "
+                     f"in both {indication} and pan-cancer.")
+    takeaway(fig, take_text, y=0.02)
+
+    svg_path = out_path / "figure_mutation_frequency_stacked.svg"
+    fig.savefig(svg_path)
+    plt.close(fig)
+    return svg_path
+
+
+def emit_mutation_frequency_waterfall(
+    target: str,
+    indication: str,
+    target_frequency_indication: float,
+    indication_gene_frequencies: list[tuple[str, float]],
+    target_frequency_pancancer: float,
+    pancancer_gene_frequencies: list[tuple[str, float]],
+    out_path: Path,
+    contracts_root: Path = DEFAULT_TARGET_CONTRACTS,
+    *,
+    min_frequency: float = 0.05,
+    top_n: int = 100,
+) -> Optional[Path]:
+    """Emit a waterfall plot with a pie chart overlay showing mutation frequency.
+
+    The pie chart (top-left) shows the target's mutation frequency in the indication,
+    with pan-cancer frequency noted in parentheses. The waterfall shows the top N
+    most frequently mutated genes ordered by ascending frequency, with the target
+    highlighted in red with an arrow marker.
+
+    Args:
+        target: gene symbol
+        indication: indication code (e.g., COADREAD)
+        target_frequency_indication: target's frequency in the indication
+        indication_gene_frequencies: list of (gene, freq) for indication
+        target_frequency_pancancer: target's frequency pan-cancer
+        out_path: directory to write figure
+        contracts_root: path to target-contracts repo
+        min_frequency: minimum frequency threshold (default 5%)
+        top_n: number of top genes to display in waterfall (default 500)
+    """
+    if not indication_gene_frequencies:
+        return None
+
+    sys.path.insert(0, str(contracts_root / "plot_styles"))
+    try:
+        from takeda_palette import (
+            REFLINE_NEUTRAL,
+            figure_title,
+            provenance_tag,
+            takeaway,
+        )
+    except ImportError:
+        import matplotlib
+        matplotlib.use("Agg")
+        import matplotlib.pyplot as plt
+        fig, ax = plt.subplots(figsize=(7.0, 5.0))
+        ax.text(0.5, 0.5, "takeda_palette not available", ha="center", va="center", transform=ax.transAxes)
+        svg_path = out_path / "figure_mutation_frequency_waterfall.svg"
+        fig.savefig(svg_path, bbox_inches="tight")
+        plt.close(fig)
+        return svg_path
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    style_path = contracts_root / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+
+    # Filter and sort genes
+    if indication_gene_frequencies and isinstance(indication_gene_frequencies[0], (list, tuple)):
+        gene_freq_pairs = [(g, f) for g, f in indication_gene_frequencies if f is not None and f > 0]
+    else:
+        gene_freq_pairs = [(f"gene_{i}", f) for i, f in enumerate(indication_gene_frequencies) if f is not None and f > 0]
+
+    if len(gene_freq_pairs) == 0:
+        return None
+
+    # Take top N most frequently mutated genes (no min_frequency filter), sorted ascending for display
+    gene_freq_pairs.sort(key=lambda x: x[1], reverse=True)  # Sort descending first
+    top_genes = gene_freq_pairs[:top_n]  # Take top N
+    top_genes.sort(key=lambda x: x[1])  # Then sort ascending for display
+
+    # Find target in the list
+    target_in_list = False
+    target_idx = None
+    for i, (gene, freq) in enumerate(top_genes):
+        if gene == target:
+            target_in_list = True
+            target_idx = i
+            break
+
+    # Create square figure with two pie charts
+    fig = plt.figure(figsize=(5.5, 5.0))
+    fig.subplots_adjust(top=0.85, bottom=0.15, left=0.10, right=0.90)
+
+    # Two pie chart axes - indication on left, pan-cancer on right
+    ax_pie_ind = fig.add_axes([0.08, 0.35, 0.38, 0.50])
+    ax_pie_pan = fig.add_axes([0.54, 0.35, 0.38, 0.50])
+
+    # === Draw Pie Charts ===
+    # Indication pie chart (red)
+    if target_frequency_indication is not None:
+        ind_pct = target_frequency_indication * 100
+        ind_not_mutated = 100 - ind_pct
+
+        pie_colors_ind = ["#B22222", "#E8E8E8"]
+        ax_pie_ind.pie(
+            [ind_pct, ind_not_mutated],
+            colors=pie_colors_ind,
+            startangle=90,
+            wedgeprops=dict(width=0.4, edgecolor="white", linewidth=1),
+        )
+
+        ax_pie_ind.text(
+            0, 0,
+            f"{ind_pct:.1f}%",
+            ha="center", va="center",
+            fontsize=12, fontweight="bold", color="#B22222",
+        )
+
+        ax_pie_ind.text(
+            0, -1.1,
+            f"{indication}",
+            ha="center", va="top",
+            fontsize=9, fontweight="bold", color="#B22222",
+        )
+
+        ax_pie_ind.set_aspect("equal")
+
+    # Pan-cancer pie chart (black)
+    if target_frequency_pancancer is not None:
+        pan_pct = target_frequency_pancancer * 100
+        pan_not_mutated = 100 - pan_pct
+
+        pie_colors_pan = ["#333333", "#E8E8E8"]
+        ax_pie_pan.pie(
+            [pan_pct, pan_not_mutated],
+            colors=pie_colors_pan,
+            startangle=90,
+            wedgeprops=dict(width=0.4, edgecolor="white", linewidth=1),
+        )
+
+        ax_pie_pan.text(
+            0, 0,
+            f"{pan_pct:.1f}%",
+            ha="center", va="center",
+            fontsize=12, fontweight="bold", color="#333333",
+        )
+
+        ax_pie_pan.text(
+            0, -1.1,
+            f"Pan-Cancer",
+            ha="center", va="top",
+            fontsize=9, fontweight="bold", color="#333333",
+        )
+
+        ax_pie_pan.set_aspect("equal")
+
+    # === Title and annotations ===
+    figure_title(fig, target, None, "mutation frequency", y=0.94)
+    provenance_tag(fig, "TCGA MC3 v0.2.8", y=0.90)
+
+    # Helper for ordinal numbers
+    def ordinal(n):
+        if n is None:
+            return None
+        if 10 <= n % 100 <= 20:
+            suffix = "th"
+        else:
+            suffix = {1: "st", 2: "nd", 3: "rd"}.get(n % 10, "th")
+        return f"{n}{suffix}"
+
+    # Calculate indication rank
+    all_sorted_ind = sorted(gene_freq_pairs, key=lambda x: x[1], reverse=True)
+    ind_rank = None
+    for i, (gene, freq) in enumerate(all_sorted_ind):
+        if gene == target:
+            ind_rank = i + 1
+            break
+
+    # Calculate pan-cancer rank
+    pan_rank = None
+    if pancancer_gene_frequencies:
+        if isinstance(pancancer_gene_frequencies[0], (list, tuple)):
+            pan_pairs = [(g, f) for g, f in pancancer_gene_frequencies if f is not None and f > 0]
+        else:
+            pan_pairs = [(f"gene_{i}", f) for i, f in enumerate(pancancer_gene_frequencies) if f is not None and f > 0]
+        all_sorted_pan = sorted(pan_pairs, key=lambda x: x[1], reverse=True)
+        for i, (gene, freq) in enumerate(all_sorted_pan):
+            if gene == target:
+                pan_rank = i + 1
+                break
+
+    # Caption below pie charts (moved closer to charts)
+    caption_y = 0.28
+    line_spacing = 0.05
+
+    # Indication caption - rank highlighted in red bold
+    if ind_rank:
+        fig.text(0.5, caption_y,
+                 f"{target} is the {ordinal(ind_rank)} most frequently mutated gene in {indication}",
+                 ha="center", va="top", fontsize=10, color="#B22222", fontweight="bold")
+    else:
+        fig.text(0.5, caption_y,
+                 f"{target} mutation frequency in {indication}: {target_frequency_indication*100:.1f}%",
+                 ha="center", va="top", fontsize=10, color="#B22222", fontweight="bold")
+
+    # Pan-cancer caption - rank highlighted in black bold
+    if pan_rank:
+        fig.text(0.5, caption_y - line_spacing,
+                 f"{target} is the {ordinal(pan_rank)} most frequently mutated gene pan-cancer",
+                 ha="center", va="top", fontsize=10, color="#333333", fontweight="bold")
+    else:
+        fig.text(0.5, caption_y - line_spacing,
+                 f"{target} mutation frequency pan-cancer: {target_frequency_pancancer*100:.1f}%",
+                 ha="center", va="top", fontsize=10, color="#333333", fontweight="bold")
+
+    svg_path = out_path / "figure_mutation_frequency_waterfall.svg"
+    fig.savefig(svg_path)
+    plt.close(fig)
+    return svg_path
+
+
+def emit_plot_data(
+    hotspot_frequencies: list[dict],
+    target: str,
+    indication: str,
+    overall_frequency: float,
+    all_gene_frequencies: list,
+    out_path: Path,
+) -> Path:
+    """Emit plot_data.parquet for offline figure re-rendering.
+
+    Persists the data needed by emit_hotspot_lollipop and emit_driver_recurrence_context
+    so figures can be regenerated without re-querying the source data.
+
+    Args:
+        all_gene_frequencies: list of (gene_symbol, frequency) tuples OR list of floats
+    """
+    import pandas as pd
+
+    rows = []
+    for h in (hotspot_frequencies or []):
+        rows.append({
+            "target": target,
+            "indication": indication,
+            "gene_symbol": target,
+            "protein_change": h.get("protein_change"),
+            "frequency": h.get("frequency"),
+            "n_samples": h.get("n_samples"),
+            "row_type": "hotspot",
+        })
+
+    rows.append({
+        "target": target,
+        "indication": indication,
+        "gene_symbol": target,
+        "protein_change": None,
+        "frequency": overall_frequency,
+        "n_samples": None,
+        "row_type": "target_summary",
+    })
+
+    for item in (all_gene_frequencies or []):
+        if isinstance(item, (list, tuple)):
+            gene_name, freq = item
+        else:
+            gene_name, freq = None, item
+        rows.append({
+            "target": target,
+            "indication": indication,
+            "gene_symbol": gene_name,
+            "protein_change": None,
+            "frequency": freq,
+            "n_samples": None,
+            "row_type": "all_genes_context",
+        })
+
+    df = pd.DataFrame(rows)
+    parquet_path = out_path / "plot_data.parquet"
+    df.to_parquet(parquet_path, index=False)
+    return parquet_path
 
 
 @click.command()
