@@ -32,6 +32,7 @@ from typing import Optional
 # (ordinal scale, card indexer, number formatter) so those can never drift from the fleet contract.
 from _skills_common.claim_vector_core import SIGNAL_ORD as _SIG_ORD
 from _skills_common.claim_vector_core import cards_by_id as _by_id
+from _skills_common.claim_vector_core import corroboration_from_arms as _corr_from_arms
 from _skills_common.claim_vector_core import fmt as _f
 
 CLAIM_NAME = {"A": "abundance", "B": "tumor-elevation", "C": "malignant-intrinsic", "D": "generality"}
@@ -451,6 +452,121 @@ def _expression_property_atom(c):
     )
 
 
+# ── L2b-1: bulk × single-cell coverage concordance (SK#1517, evidence-property architecture #1507) ─
+# The FIRST cross-source INTEGRATED claim (L2b). L2a properties re-state a single measurement; L2b
+# INTEGRATES two ORTHOGONAL assays into a claim neither could make alone — the target-independent
+# durable value the EPCAM×TACSTD2 prototype identified. This one integrates:
+#   * BULK tumor presence  — tumor-rna-distribution.tumor_expression_class (population-averaged RNA),
+#     gated on a BROADLY-present read (the "bulk sees it everywhere" precondition);
+#   * SINGLE-CELL malignant coverage — tumor-scrna-celltype-expression.within_tumor_coverage_class
+#     (PRIMARY: what fraction of malignant cells actually carry the antigen) + tce_antigen_escape_class
+#     (CORROBORATING: the inter-/intra-tumour escape read).
+# HARD RULE (L2b reproducibility): a DETERMINISTIC explicit_integration_method — NO llm_inference.
+_BULK_BROAD_PRESENCE = frozenset({"broadly_high", "broadly_detected", "broadly_moderate"})
+# escape classes that AGREE with broad coverage vs that agree with LOW coverage; the rest
+# (moderate / underpowered / data_unavailable) are off-scale → the escape arm reads unmeasured.
+_ESCAPE_HOMOGENEOUS = frozenset({"escape_risk_low"})
+_ESCAPE_HETEROGENEOUS = frozenset({"escape_risk_high", "escape_risk_patient_variable"})
+
+
+def _coverage_concordance_claim(c):
+    """L2b-1 CROSS-SOURCE integration claim: `bulk_vs_singlecell_coverage_concordance`.
+
+    Reads two ALREADY-EMITTED properties and integrates them by an EXPLICIT DETERMINISTIC rule (no
+    LLM — the L2b layer is reproducible by contract):
+      * coverage_concordant     — broad bulk presence AGREES with HIGH single-cell malignant coverage
+        (EPCAM: bulk broadly-high, sc coverage high, escape_risk_low);
+      * bulk_masks_low_coverage — broad bulk presence COEXISTS with LOW single-cell coverage / high
+        antigen escape (TACSTD2: bulk broadly present, sc coverage low). The population-averaged bulk
+        read is BLIND to the malignant fraction that escapes; a bulk-only lens cannot state this.
+        (a.k.a. `bulk_blind_to_escape`.)
+
+    The concordance CLASS is set by the coverage axis (the direct measure of malignant coverage). The
+    escape axis CORROBORATES via the shared measured-arm contract (agreeing arm → high corroboration,
+    disagreeing → low, off-scale/absent → single_arm). So a read resting on BOTH sc facets only
+    DEGRADES when one is defeated; to FLIP the class you must defeat EVERY sc supply path (the M3-vs-M4
+    fidelity discipline).
+
+    VERDICT-INERT: carries NO `signal` key (never a chip, never a tier, never averaged), reads no
+    verdict, feeds no rule. Returns None — key omitted, byte-stable — unless BOTH source properties
+    resolve: bulk broadly-present AND a single-cell coverage class of high|low."""
+    trd = c.get("tumor-rna-distribution", {}) or {}
+    scd = c.get("tumor-scrna-celltype-expression", {}) or {}
+    bulk_cls = trd.get("tumor_expression_class")
+    cov_cls = scd.get("within_tumor_coverage_class")
+    escape_cls = scd.get("tce_antigen_escape_class")
+    # Gate: the claim speaks ONLY when bulk reads BROADLY present AND the sc coverage axis resolves to a
+    # decisive high|low. Any other combination (subset/absent bulk, moderate/unmeasured coverage) → no
+    # claim (key omitted → byte-stable), matching the atom discipline for the A/B/C/D axes.
+    if bulk_cls not in _BULK_BROAD_PRESENCE:
+        return None
+    if cov_cls == "high":
+        concordance, coverage_dir = "coverage_concordant", "broad"
+    elif cov_cls == "low":
+        concordance, coverage_dir = "bulk_masks_low_coverage", "low"
+    else:
+        return None
+    # Corroboration on the shared measured-arm contract: arm 1 is the coverage axis (always agrees with
+    # itself → True); arm 2 is the escape read, which AGREES when its homogeneity matches the coverage
+    # direction, DISAGREES when it opposes, and is None (absent) when off-scale/unmeasured.
+    if escape_cls in _ESCAPE_HOMOGENEOUS:
+        escape_arm = coverage_dir == "broad"
+    elif escape_cls in _ESCAPE_HETEROGENEOUS:
+        escape_arm = coverage_dir == "low"
+    else:
+        escape_arm = None
+    corroboration = _corr_from_arms([True, escape_arm])
+    return {
+        "concordance_class": concordance,
+        "corroboration": corroboration,
+        # DETERMINISTIC, reproducible-by-contract: an explicit rule over two properties, never an LLM.
+        "integration_method": "explicit_deterministic",
+        "informs": (
+            "cross-source coverage concordance — informs tumor-cell-targeted modalities (ADC/TCE/CAR): "
+            "a bulk-masked LOW-coverage antigen risks efficacy escape the population-averaged bulk read hides"
+        ),
+        "evidence": (
+            f"bulk {bulk_cls} ({trd.get('distribution_pattern') or 'pattern n/a'}) "
+            + ("AGREES WITH" if concordance == "coverage_concordant" else "MASKS")
+            + f" single-cell within-tumour coverage {cov_cls}"
+            + (f"; antigen-escape {escape_cls}" if escape_cls else "")
+        ),
+        # Provenance graph: BOTH source properties + an independence note (the two are measured on
+        # ORTHOGONAL assays sampling different biological grains, so their (dis)agreement is a genuine
+        # cross-source corroboration, not a within-assay echo). NOT the reserved single-card
+        # `evidence_atom` key — this records TWO-card cross-source provenance.
+        "provenance": {
+            "sources": [
+                {
+                    "property": "bulk_tumor_presence",
+                    "card_id": "tumor-rna-distribution",
+                    "fields": {
+                        "tumor_expression_class": bulk_cls,
+                        "distribution_pattern": trd.get("distribution_pattern"),
+                    },
+                },
+                {
+                    "property": "single_cell_malignant_coverage",
+                    "card_id": "tumor-scrna-celltype-expression",
+                    "fields": {
+                        "within_tumor_coverage_class": cov_cls,
+                        "tce_antigen_escape_class": escape_cls,
+                    },
+                },
+            ],
+            "independence_note": (
+                "Bulk RNA (population-averaged tissue lysate) and single-cell malignant coverage are "
+                "measured on INDEPENDENT assays sampling different biological grains; their agreement "
+                "is a genuine cross-source corroboration, not a within-assay restatement."
+            ),
+        },
+        "_disclaimer": (
+            "L2b CROSS-SOURCE integration claim (deterministic, no LLM) — verdict-INERT provenance: "
+            "never a signal tier, never averaged into a claim, never feeds the presence_verdict."
+        ),
+    }
+
+
 def presence_claim_vector(headline: dict, cards: list) -> dict:
     """The modality-blind claim vector: {A,B,C,D: {signal, corroboration, evidence, informs}, homogeneity}.
     Verdict-inert projection over the computed headline + card summaries."""
@@ -479,6 +595,13 @@ def presence_claim_vector(headline: dict, cards: list) -> dict:
     _ep_atom = _expression_property_atom(c)
     if _ep_atom is not None:
         vec["expression_properties"] = {"evidence_atom": _ep_atom}
+    # L2b-1 cross-source integration claim (SK#1517): bulk presence × single-cell malignant coverage.
+    # Carries NO `signal` key → not a chip, not a tier; OMITTED unless BOTH source properties resolve
+    # (bulk broadly-present AND sc coverage high|low), keeping a card-absent / non-broad / unmeasured-
+    # coverage run byte-stable — matching the A/B/C/D + expression_properties atom discipline above.
+    _cc = _coverage_concordance_claim(c)
+    if _cc is not None:
+        vec["bulk_vs_singlecell_coverage_concordance"] = _cc
     return vec
 
 

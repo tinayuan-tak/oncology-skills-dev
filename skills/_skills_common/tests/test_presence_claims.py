@@ -224,6 +224,163 @@ def test_claim_d_corroboration_still_ladders_when_the_claim_is_stated():
         assert (d["signal"], d["corroboration"]) == (sig, "high"), f"{br} must keep its laddered tier"
 
 
+# ── L2b-1: bulk × single-cell coverage concordance (SK#1517) ─────────────────────────────────────
+# A CROSS-SOURCE integration claim: bulk tumor-presence (tumor-rna-distribution) integrated with
+# single-cell malignant coverage (tumor-scrna-celltype-expression). Store the RAW source-property
+# inputs and RE-DERIVE the claim in-test — a derived fixture cannot fail; the raw properties are the
+# irreproducible inputs. Panel of 2: EPCAM (concordant) and TACSTD2/TROP2 (bulk masks low coverage).
+
+# EPCAM/COADREAD (replay-fixture shaped): bulk broadly present + high sc malignant coverage + low escape.
+_RAW_EPCAM = {
+    "bulk_class": "broadly_high",
+    "distribution_pattern": "continuous",
+    "coverage_class": "high",
+    "escape_class": "escape_risk_low",
+}
+# TACSTD2/TROP2/COADREAD (tumor-selectivity fixture shaped): bulk broadly present but LOW sc coverage +
+# high antigen escape — the population-averaged bulk read masks the malignant fraction that escapes.
+_RAW_TACSTD2 = {
+    "bulk_class": "broadly_high",
+    "distribution_pattern": "continuous",
+    "coverage_class": "low",
+    "escape_class": "escape_risk_high",
+}
+
+
+def _l2b_cards(
+    bulk_class="broadly_high", distribution_pattern="continuous", coverage_class="high", escape_class="escape_risk_low"
+):
+    """A minimal card set carrying the two SOURCE properties the L2b claim integrates. `coverage_class`
+    / `escape_class` set to None omit that field (source-absence / off-scale supply-defeat paths)."""
+    trd_summary = {"tumor_expression_class": bulk_class, "distribution_pattern": distribution_pattern}
+    sc_summary = {
+        "sc_expression_class": "malignant_subset_detected",
+        "malignant_detection_fraction": 0.48,
+        "malignant_n_donors": 362,
+    }
+    if coverage_class is not None:
+        sc_summary["within_tumor_coverage_class"] = coverage_class
+    if escape_class is not None:
+        sc_summary["tce_antigen_escape_class"] = escape_class
+    return [
+        {"card_id": "tumor-rna-distribution", "summary": trd_summary},
+        {"card_id": "tumor-scrna-celltype-expression", "summary": sc_summary},
+    ]
+
+
+def test_coverage_concordance_epcam_is_concordant():
+    # EPCAM: broad bulk presence AGREES with high single-cell malignant coverage → coverage_concordant,
+    # corroborated by escape_risk_low. Re-derive from the stored raw source properties.
+    vec = presence_claim_vector(
+        _headline(),
+        _l2b_cards(
+            bulk_class=_RAW_EPCAM["bulk_class"],
+            distribution_pattern=_RAW_EPCAM["distribution_pattern"],
+            coverage_class=_RAW_EPCAM["coverage_class"],
+            escape_class=_RAW_EPCAM["escape_class"],
+        ),
+    )
+    claim = vec["bulk_vs_singlecell_coverage_concordance"]
+    assert claim["concordance_class"] == "coverage_concordant"
+    assert claim["corroboration"] == "high"  # coverage arm + escape arm both agree (2 measured arms)
+    assert claim["integration_method"] == "explicit_deterministic"  # NO llm_inference: reproducible by contract
+    # Provenance graph records BOTH source properties, recoverable, + an independence note.
+    srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
+    assert srcs["bulk_tumor_presence"]["card_id"] == "tumor-rna-distribution"
+    assert srcs["bulk_tumor_presence"]["fields"]["tumor_expression_class"] == _RAW_EPCAM["bulk_class"]
+    assert srcs["single_cell_malignant_coverage"]["card_id"] == "tumor-scrna-celltype-expression"
+    assert (
+        srcs["single_cell_malignant_coverage"]["fields"]["within_tumor_coverage_class"] == _RAW_EPCAM["coverage_class"]
+    )
+    assert srcs["single_cell_malignant_coverage"]["fields"]["tce_antigen_escape_class"] == _RAW_EPCAM["escape_class"]
+    assert "independent" in claim["provenance"]["independence_note"].lower()
+
+
+def test_coverage_concordance_tacstd2_bulk_masks_low_coverage():
+    # TACSTD2/TROP2: broad bulk presence COEXISTS with LOW single-cell coverage (+ high antigen escape)
+    # → bulk_masks_low_coverage. A bulk-only lens cannot state this — it is a cross-source integration.
+    vec = presence_claim_vector(
+        _headline(),
+        _l2b_cards(
+            bulk_class=_RAW_TACSTD2["bulk_class"],
+            distribution_pattern=_RAW_TACSTD2["distribution_pattern"],
+            coverage_class=_RAW_TACSTD2["coverage_class"],
+            escape_class=_RAW_TACSTD2["escape_class"],
+        ),
+    )
+    claim = vec["bulk_vs_singlecell_coverage_concordance"]
+    assert claim["concordance_class"] == "bulk_masks_low_coverage"
+    assert claim["corroboration"] == "high"  # low coverage + high escape both point the same way
+    srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
+    assert srcs["single_cell_malignant_coverage"]["fields"]["within_tumor_coverage_class"] == "low"
+    assert srcs["single_cell_malignant_coverage"]["fields"]["tce_antigen_escape_class"] == "escape_risk_high"
+
+
+def test_coverage_concordance_is_verdict_inert():
+    # Verdict-INERT: the claim carries NO `signal` key (never a chip, never a tier), and surfacing it
+    # must not perturb the four claims / homogeneity / _disclaimer. Toggle ONLY within_tumor_coverage_class
+    # — a field the A/B/C/D claims do NOT read — so any A/B/C/D delta would be MY perturbation, not claim C's.
+    base = presence_claim_vector(_headline(), _l2b_cards(coverage_class=None))  # no coverage → claim omitted
+    withclaim = presence_claim_vector(_headline(), _l2b_cards(coverage_class="high"))
+    assert "bulk_vs_singlecell_coverage_concordance" not in base
+    claim = withclaim["bulk_vs_singlecell_coverage_concordance"]
+    assert "signal" not in claim, "an L2b claim must never carry a signal tier"
+    for ax in ("A", "B", "C", "D", "homogeneity", "_disclaimer"):
+        assert withclaim[ax] == base[ax], f"surfacing the coverage-concordance claim perturbed {ax}"
+
+
+def test_coverage_concordance_all_supply_mutation_flip_both_flips_class():
+    # M3 (all-supply): to FLIP the concordance class you must defeat EVERY single-cell supply path —
+    # flip BOTH coverage AND escape. EPCAM concordant → mutate to TACSTD2-shaped → bulk_masks_low_coverage.
+    concordant = presence_claim_vector(_headline(), _l2b_cards(coverage_class="high", escape_class="escape_risk_low"))[
+        "bulk_vs_singlecell_coverage_concordance"
+    ]
+    flipped = presence_claim_vector(_headline(), _l2b_cards(coverage_class="low", escape_class="escape_risk_high"))[
+        "bulk_vs_singlecell_coverage_concordance"
+    ]
+    assert concordant["concordance_class"] == "coverage_concordant"
+    assert flipped["concordance_class"] == "bulk_masks_low_coverage", "flipping BOTH sc facets must flip the class"
+
+
+def test_coverage_concordance_single_supply_mutation_only_degrades():
+    # M3-vs-M4 fidelity: flipping ONE arm (escape only) must NOT flip the class — the coverage axis is
+    # the primary determinant — but it DEGRADES corroboration (high → low), so the concept survives on
+    # the coverage arm. This is the "defeat every supply path" discipline: one flip erodes, it cannot erase.
+    both_agree = presence_claim_vector(_headline(), _l2b_cards(coverage_class="high", escape_class="escape_risk_low"))[
+        "bulk_vs_singlecell_coverage_concordance"
+    ]
+    escape_flipped = presence_claim_vector(
+        _headline(), _l2b_cards(coverage_class="high", escape_class="escape_risk_high")
+    )["bulk_vs_singlecell_coverage_concordance"]
+    assert both_agree["corroboration"] == "high"
+    assert escape_flipped["concordance_class"] == "coverage_concordant", "flipping only escape must NOT flip the class"
+    assert escape_flipped["corroboration"] == "low", "a disagreeing escape arm degrades corroboration"
+    # and an OFF-SCALE / absent escape arm drops to single_arm (below the measured-arm floor), not high
+    escape_gone = presence_claim_vector(_headline(), _l2b_cards(coverage_class="high", escape_class=None))[
+        "bulk_vs_singlecell_coverage_concordance"
+    ]
+    assert escape_gone["concordance_class"] == "coverage_concordant"
+    assert escape_gone["corroboration"] == "single_arm"
+
+
+def test_coverage_concordance_omitted_when_a_source_is_absent_or_indecisive():
+    # Byte-stability: the KEY is omitted (not None) unless BOTH source properties resolve.
+    # (a) bulk not broadly present → no claim (subset/absent bulk is off-precondition)
+    assert "bulk_vs_singlecell_coverage_concordance" not in presence_claim_vector(
+        _headline(), _l2b_cards(bulk_class="subset_high")
+    )
+    # (b) single-cell coverage card/field absent → no claim
+    assert "bulk_vs_singlecell_coverage_concordance" not in presence_claim_vector(
+        _headline(), _l2b_cards(coverage_class=None)
+    )
+    # (c) single-cell coverage neither high nor low (indecisive) → no claim
+    assert "bulk_vs_singlecell_coverage_concordance" not in presence_claim_vector(
+        _headline(), _l2b_cards(coverage_class="moderate")
+    )
+    # (d) no cards at all → no claim
+    assert "bulk_vs_singlecell_coverage_concordance" not in presence_claim_vector(_headline(), [])
+
+
 def _by_subtype_cards():
     """A tumor-rna-distribution-by-subtype card mirroring CD274/COADREAD: MSI_H/CMS1/CIMP_High enriched,
     MSS uniform — the per-stratum subtype_signal is set, the rollup carries n_subtypes_enriched=3."""
