@@ -984,6 +984,11 @@ question_hierarchies:
         - normal_tissue_protein_breadth
         - normal_tissue_rna_breadth
         - normal_tissue_protein_abundance        # T0-3: TPHP DIA-MS quantitative vital-organ protein (verdict-inert)
+      context_types:
+      # L2b-3 (SK#1546): sc-normal-celltype-expression feeds ONLY the deterministic cross-source
+      # normal_liability_concordance claim (GTEx bulk x scRNA-normal x HPA-IHC), not a safety verdict
+      # question — context (verdict-inert) rather than a question source.
+      - sc_normal_celltype_expression
   surface-modality-fit:
     axis: surface_modality
     sub_groups:
