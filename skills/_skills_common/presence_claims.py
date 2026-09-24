@@ -46,6 +46,7 @@ CLAIM_INFORMS = {
 
 
 from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
+from _skills_common.subtype_axis import is_differential_axis  # SK#1518 shared axis-quality gate
 
 
 def _patom(card_id, summary, keys, entity, read):
@@ -976,6 +977,18 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
             if psid:
                 pr_by_stratum[psid] = pr
     k_protein = len(pr_by_stratum)
+    # AXIS-LEVEL gate for the protein leg (SK#1521, the protein cousin of SK#1518): the CPTAC
+    # by-subtype card's `subtype_stratification_class` is derived from the MEASURED protein strata
+    # alone, so a single measured stratum in an `exploratory`/`underpowered`-graded family still
+    # mints a per-stratum protein DIRECTION that reads as a real cross-subtype protein differential
+    # to a consumer keying on the leg without the grade. The per-stratum-n + k_protein multiplicity
+    # haircut does not close this (it discounts CERTAINTY, not the axis's differential-capability).
+    # Route the leg through the SAME shared axis-quality predicate SK#1518 introduced, keyed on the
+    # PROTEIN card's own grade (projected to the headline as `protein_subtype_axis_quality`,
+    # run.py:2221). Only a `powered` protein axis may surface a per-stratum differential; every
+    # weaker grade renders the leg hypothesis-grade. Verdict-INERT (this vector feeds no ladder).
+    protein_axis_quality = pr_card.get("subtype_axis_quality") if isinstance(pr_card, dict) else None
+    protein_axis_differential = is_differential_axis(protein_axis_quality)
     for r in s.get("per_subgroup_metrics") or []:
         if not isinstance(r, dict):  # tolerate simplified/frozen fixtures where rows aren't full dicts
             continue
@@ -1041,12 +1054,15 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
             )
             ratio, det = pr.get("median_log2_ratio"), pr.get("detectable_fraction")
             strata[sid]["protein"] = {
-                "signal": _protein_direction(pr.get("class")),
-                "corroboration": _multiplicity_discount(rel_p_base, k_protein),
+                "signal": _protein_direction(pr.get("class")) if protein_axis_differential else "unmeasured",
+                "corroboration": _multiplicity_discount(rel_p_base, k_protein) if protein_axis_differential else "low",
                 "evidence": (
                     f"CPTAC {pr.get('class')} vs normal (log2 T/N {_f(ratio, 2)}), "
                     f"detectable in {_f((det or 0) * 100, 0)}% of stratum tumours, n={n_p}"
                     + (f" [{pr.get('source_cohort')}]" if pr.get("source_cohort") else "")
+                    if protein_axis_differential
+                    else f"protein subtype axis not powered (subtype_axis_quality "
+                    f"{protein_axis_quality or 'unavailable'}); hypothesis-grade, not a per-stratum differential"
                 ),
             }
     # ENRICHED-SUBTYPE IDENTITIES (verdict-INERT legibility): the reader computes a per-stratum

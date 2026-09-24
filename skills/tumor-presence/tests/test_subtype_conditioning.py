@@ -89,8 +89,10 @@ def test_verdict_inert_no_spine_key():
 # ── Stage 5: the PROTEIN arm is filled per-stratum (retires "protein stays indication-grain") ─────
 
 
-def _cards_with_protein(rna_rows, protein_rows):
-    """RNA arm (keys stratum as `stratum_id`) + CPTAC by-subtype protein arm (keys as `stratum`)."""
+def _cards_with_protein(rna_rows, protein_rows, protein_axis_quality="powered"):
+    """RNA arm (keys stratum as `stratum_id`) + CPTAC by-subtype protein arm (keys as `stratum`).
+    `protein_axis_quality` is the AXIS-level grade the protein leg is gated on (SK#1521); default
+    `powered` so a measured stratum surfaces its differential (the pre-SK#1521 assumed path)."""
     return [
         {
             "card_id": "tumor-rna-distribution-by-subtype",
@@ -102,7 +104,11 @@ def _cards_with_protein(rna_rows, protein_rows):
         },
         {
             "card_id": "tumor-protein-distribution-by-subtype",
-            "summary": {"subtype_axis_available": True, "per_subgroup_metrics": protein_rows},
+            "summary": {
+                "subtype_axis_available": True,
+                "subtype_axis_quality": protein_axis_quality,
+                "per_subgroup_metrics": protein_rows,
+            },
         },
     ]
 
@@ -128,6 +134,37 @@ def test_protein_leg_filled_where_measured():
     assert mss["corroboration"] == "moderate"  # n=40 → moderate base; k_protein=1 < 5 → no haircut
     # MSI_H is not a MEASURED protein stratum → the protein leg is omitted, not faked
     assert "protein" not in v["strata"]["MSI_H"]
+
+
+def test_protein_leg_gated_on_non_powered_axis():
+    """SK#1521 (protein cousin of SK#1518). The CPTAC by-subtype `subtype_stratification_class` is
+    derived from the MEASURED protein strata alone, so a single measured stratum on an
+    `exploratory`/`underpowered` axis mints a per-stratum protein DIRECTION that reads as a real
+    cross-subtype protein differential to a consumer keying on the leg without the axis grade. Route
+    the leg through the shared axis-quality predicate (is_differential_axis): only a `powered`
+    protein axis surfaces the differential; a weaker grade renders the leg hypothesis-grade
+    (signal `unmeasured`, corroboration `low`), even though the stratum itself is MEASURED (n≥30)."""
+    # Same measured MSS protein stratum as test_protein_leg_filled_where_measured, but the AXIS grade
+    # is exploratory (only 1 measured stratum) — the leg is present but not a differential.
+    v = presence_claim_vector_by_subtype(
+        _cards_with_protein([_MSIH, _MSS], [_PR_MSS, _PR_MSIH_UNMEASURED], protein_axis_quality="exploratory")
+    )
+    assert v["protein_strata_measured"] == 1  # MSS is still a MEASURED protein stratum
+    mss = v["strata"]["MSS"]["protein"]
+    assert mss["signal"] == "unmeasured", "a measured stratum on a non-powered axis must not mint a differential"
+    assert mss["corroboration"] == "low"
+    assert "not powered" in mss["evidence"] and "exploratory" in mss["evidence"]
+
+
+def test_protein_leg_suppressed_when_axis_grade_absent():
+    """A protein card that never produced a `subtype_axis_quality` grade (None) is NOT powered, so the
+    leg reads hypothesis-grade — the axis-differential gate fails closed, not open."""
+    v = presence_claim_vector_by_subtype(
+        _cards_with_protein([_MSIH, _MSS], [_PR_MSS, _PR_MSIH_UNMEASURED], protein_axis_quality=None)
+    )
+    mss = v["strata"]["MSS"]["protein"]
+    assert mss["signal"] == "unmeasured" and mss["corroboration"] == "low"
+    assert "unavailable" in mss["evidence"]
 
 
 def test_protein_leg_omitted_when_no_protein_card():
