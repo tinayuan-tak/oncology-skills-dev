@@ -8,8 +8,11 @@ out for unit-testing without S3.
 from __future__ import annotations
 
 import io
+import logging
 from functools import lru_cache
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 S3_BUCKET = "onc-compbio"
 PANCAN_PREFIX = "data-catalog/sources/gdc-pancanatlas/2018-snapshot-2026-06-27"
@@ -44,13 +47,7 @@ SIGNIFICANCE_ALPHA = 0.05
 MIN_PURITY_IQR = 0.18
 
 
-from methods.target_id_sidecar import ensure_aws_profile
-
-
-def _boto3():
-    import boto3
-
-    return boto3.Session().client("s3")
+from methods.target_id_sidecar import ensure_aws_profile, s3_client
 
 
 def _tcga_case(barcode: str) -> str:
@@ -58,10 +55,27 @@ def _tcga_case(barcode: str) -> str:
     return "-".join(parts[:3]) if len(parts) >= 3 else str(barcode)
 
 
+def collapse_purity_by_case(samples, purities) -> dict:
+    """{case_barcode: purity} collapsing sample-level ABSOLUTE purity to ONE value per TCGA case
+    by MEAN over the case's samples — pure (no I/O), so it is unit-testable from stored raw rows.
+
+    Replaces a `dict(zip(...))` that kept only the LAST row's purity when a case had multiple
+    ABSOLUTE samples (primary+metastasis / multiple aliquots) with differing purity; because the
+    rows are unsorted the "winner" was input-order-dependent and could flip a borderline pearson_r
+    across the ±0.3 class cut. Mean here MATCHES the mean-expression collapse the caller pairs it
+    against (read_expression_purity_confound step 3)."""
+    import pandas as pd
+
+    df = pd.DataFrame({"sample": list(samples), "purity": pd.to_numeric(list(purities), errors="coerce")})
+    df = df.dropna(subset=["sample", "purity"])
+    df["case"] = df["sample"].map(_tcga_case)
+    return df.groupby("case")["purity"].mean().to_dict()
+
+
 @lru_cache(maxsize=1)
 def _load_purity_by_case() -> dict:
-    """{case_barcode: purity} from ABSOLUTE abs_tables. One purity per case (last wins; consistent
-    within case).
+    """{case_barcode: purity} from ABSOLUTE abs_tables. One purity per case (mean over the case's
+    samples, see collapse_purity_by_case).
 
     Returns {} ONLY when the ABSOLUTE table is genuinely absent from the bucket (S3 404 /
     NoSuchKey / NoSuchBucket) — a real coverage gap the caller surfaces as data_unavailable
@@ -69,22 +83,28 @@ def _load_purity_by_case() -> dict:
     credentials, throttling, a corrupt or schema-changed table) is an ENVIRONMENT break and is
     RAISED, never masked as "no purity data": silently degrading a broken env to data_unavailable
     is the bare-except trap that quietly kills an axis (cf. the missing-openpyxl env-mask bug class).
-    The parse is deliberately OUTSIDE the try so a schema drift on a PRESENT table fails loudly too."""
+    The parse is deliberately OUTSIDE the try so a schema drift on a PRESENT table fails loudly too.
+
+    NOTE (lru_cache): a genuine {} absence is pinned process-wide, so an ABSOLUTE table that appears
+    mid-process is not re-read. This is intentional (the table is a static snapshot); raises are NOT
+    memoized, so a transient env break still re-attempts on the next call.
+
+    S3 read goes through the shared s3_client() helper: it falls back from the (dev-only) `cbg`
+    profile to the ambient credential chain when the profile is absent (CI / prod / instance-role) —
+    so client construction no longer raises ProfileNotFound — and adds adaptive retry that absorbs
+    throttling/SlowDown on the purity read."""
     import pandas as pd
     from botocore.exceptions import ClientError
 
     try:
-        raw = _boto3().get_object(Bucket=S3_BUCKET, Key=ABS_TABLES_KEY)["Body"].read()
+        raw = s3_client().get_object(Bucket=S3_BUCKET, Key=ABS_TABLES_KEY)["Body"].read()
     except ClientError as e:
         code = str(e.response.get("Error", {}).get("Code", ""))
         if code in ("NoSuchKey", "NoSuchBucket", "404"):
             return {}  # genuine absence → typed no-data upstream
         raise  # 403 / AccessDenied / SlowDown / anything else = env break → fail loudly
     df = pd.read_csv(io.BytesIO(raw), sep="\t", usecols=["sample", "purity"])
-    df["purity"] = pd.to_numeric(df["purity"], errors="coerce")
-    df = df.dropna(subset=["sample", "purity"])
-    df["case"] = df["sample"].map(_tcga_case)
-    return dict(zip(df["case"], df["purity"]))
+    return collapse_purity_by_case(df["sample"], df["purity"])
 
 
 def classify_purity_confound(pearson_r: Optional[float], pearson_p: Optional[float], n_paired: int) -> str:
@@ -150,7 +170,11 @@ def read_purity_points(target: str, indication: str):
         if len(df) < 2:
             return None
         return (df["log2_tpm"].astype(float).tolist(), df["purity"].astype(float).tolist())
-    except Exception:  # noqa: BLE001 — figure is best-effort; a read failure just yields no scatter
+    except Exception as e:  # noqa: BLE001 — figure is best-effort; a read failure just yields no scatter
+        # Figure-only (called AFTER the real class is computed) → cannot produce a false verdict, so a
+        # failure degrades to "no scatter" rather than propagating. Log it instead of swallowing blindly
+        # so the dropped figure is diagnosable.
+        logger.debug("read_purity_points(%s, %s) failed, no scatter: %s", target, indication, e)
         return None
 
 
