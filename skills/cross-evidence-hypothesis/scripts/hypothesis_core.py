@@ -595,7 +595,18 @@ def safety_action_for_modality(sv: dict, modality: Optional[str]) -> Optional[st
 # `pan_essential_killer` (no selectivity window) stays a genuine veto.
 _MUTANT_SELECTIVE_SAFETY = frozenset({"wt_human_genetics_mechanism_mismatch", "wt_constraint_mechanism_mismatch"})
 _NON_DEPENDENT_TOKENS = frozenset(
-    {"non_dependent", "non_dependent_paralog_buffered", "not_a_dependency", "non_essential"}
+    {
+        "non_dependent",
+        "non_dependent_paralog_buffered",
+        "not_a_dependency",
+        "non_essential",
+        # not_dependent_in_indication (ndi) is the corpus-dominant dependency veto token
+        # (target-contracts nomination_verdict_gate.yaml kill_capable_verdicts, disposition gated).
+        # Include it so the mechanism-exclusion at the fired-veto path (verdict ∈ _NON_DEPENDENT_TOKENS
+        # and mutant_selective) reaches ndi — a mutant-selective/GoF driver (e.g. IDH1-R132) carrying
+        # ndi + wt_*_mechanism_mismatch safety is mechanism-excluded, not declined.
+        "not_dependent_in_indication",
+    }
 )
 
 
@@ -774,7 +785,7 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
         # scan the veto-capable sub-verdicts for kill tokens the prototype ignored — DEPENDENCY only
         # (the sole veto axis), and only when dependency is in scope for the modality.
         dep = _sv_verdict(sv, "dependency")
-        if dep in {"pan_essential_killer", "non_dependent"} and "dependency" not in oos:
+        if dep in {"pan_essential_killer", "non_dependent", "not_dependent_in_indication"} and "dependency" not in oos:
             if dep in _NON_DEPENDENT_TOKENS and mutant_selective:
                 pass  # mutant-selective driver — WT non-dependence is expected, not a veto
             else:
