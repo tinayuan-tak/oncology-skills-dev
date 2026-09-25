@@ -705,14 +705,24 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
         # MED). Aligned with tractability-small-molecule's polarity: _TRACT_STRONG → LOW(0); the caveated
         # moderate rungs (structurally_ligandable / clinical_precedent_only / tool_compound_only /
         # weakly_active) stay MED(1) via the default; negatives → HIGH(2).
+        # #1568: annotation_only_indirect is a NEGATIVE-polarity token (_TRACTABILITY_NEGATIVE in the
+        # resolver, added v1.5.0→1.7.0 AFTER this map was frozen — the CASE-008 modality gate mints it
+        # to mark a biologics-only approved antigen / undruggable TF with NO direct SM binder). It is a
+        # sibling of chemically_unhit / structurally_intractable and must read HIGH(2), not silently
+        # default to MED. `insufficient` is a resolver COVERAGE GAP ("never a verdict"), not a negative
+        # finding: it is keyed EXPLICITLY at MED(1) — the same value as the default, but pinned so a
+        # coverage gap is a governance-citable choice and is NOT escalated to HIGH. INV has no
+        # data-unavailable bin, so a full abstention treatment is out of scope for this single-leg map.
         r = {
             "well_covered": 0,
             "chemically_confirmed_genetic": 0,
             "chemically_active": 0,
             "measured_potent_ligand": 0,
             "discordant": 1,
+            "insufficient": 1,
             "chemically_unhit": 2,
             "structurally_intractable": 2,
+            "annotation_only_indirect": 2,
         }.get(sv.get("tractability_sm"), 1)
         _tdl = _q(pkg, "target-development-level", "tdl_class")  # raw Pharos tier (Tclin>Tchem>Tbio>Tdark)
         chain.append(("tractability-SM", f"{sv.get('tractability_sm')} [Pharos TDL={_tdl}]", INV[r]))

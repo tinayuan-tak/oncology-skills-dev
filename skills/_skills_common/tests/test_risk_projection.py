@@ -61,6 +61,29 @@ def test_druggability_strong_tractability_is_low():
         assert deterministic_bins(pkg, "small_molecule")["druggability"]["bin"] == "LOW", v
 
 
+def test_druggability_negative_tractability_is_high():
+    """#1568: NEGATIVE-polarity SM tractability tokens read HIGH, not the MED default. annotation_only_indirect
+    (no direct SM binder — biologics-only antigen / undruggable TF, minted by the CASE-008 modality gate) is a
+    sibling of chemically_unhit / structurally_intractable and must not silently sit at MED."""
+    for v in ("chemically_unhit", "structurally_intractable", "annotation_only_indirect"):
+        pkg = _pkg({"tractability_sm": v})
+        assert deterministic_bins(pkg, "small_molecule")["druggability"]["bin"] == "HIGH", v
+
+
+def test_druggability_insufficient_coverage_gap_is_med_not_high():
+    """#1568: `insufficient` is a resolver coverage gap, never a negative verdict — it is pinned EXPLICITLY at
+    MED and must NOT be escalated to HIGH. The caveated moderate rungs likewise stay MED via the default."""
+    for v in (
+        "insufficient",
+        "structurally_ligandable",
+        "clinical_precedent_only",
+        "tool_compound_only",
+        "weakly_active",
+    ):
+        pkg = _pkg({"tractability_sm": v})
+        assert deterministic_bins(pkg, "small_molecule")["druggability"]["bin"] == "MED", v
+
+
 def test_clinical_bin_from_precedent_card():
     hi = _pkg({}, [{"card_id": "clinical-precedent", "summary": {"notable_failures": True}}])
     assert deterministic_bins(hi, "small_molecule")["clinical"]["bin"] == "HIGH"
