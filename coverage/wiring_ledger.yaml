@@ -6,16 +6,16 @@ _doc: 'I.4 wiring ledger: every data-catalog manifest id by wiring status -- rea
   reads, declares, OR names it; the wiring worklist). `dark` is the number I.4 moves, a sound lower bound
   on the truly-unwired set. Regenerate with validators/build_wiring_ledger.py; --self-check gates drift.'
 sibling_shas:
-  analysis-methods: 7e02d0b
-  skills: 3d8b06f6
+  analysis-methods: 900f46c
+  skills: f1973042
   data-catalog: d1c0e5d
 n_catalog_datasets: 539
 counts:
-  read: 137
-  declared_only: 258
+  read: 150
+  declared_only: 245
   referenced_only: 27
   dark: 117
-n_literal_reads: 68
+n_literal_reads: 70
 dark_by_source_family:
   cbioportal: 17
   genie: 10
@@ -74,6 +74,8 @@ dark_by_source_family:
 read:
 - allgene-depmap-rank-26q1-v1
 - allgene-tumor-rank-v1
+- alphafold-db-2025
+- alphafold-disorder-per-protein-v1
 - bispecific-bulk-pair-selectivity-per-indication-v1
 - cbioportal-msk-impact-50k-2026
 - cbioportal-sclc-ucologne-2015
@@ -119,6 +121,8 @@ read:
 - cptac-protein-tumor-vs-normal-per-cohort-v1
 - cptac-protein-tumor-vs-normal-per-sample-v1
 - cptac-rna-protein-matched-per-sample-v1
+- cryptobench-cryptic-sites-per-protein-v1
+- cryptobench-osf-2025
 - depmap-26q1-parquet-v1
 - depmap-coessentiality-26q1-v1
 - depmap-consortium-26q1
@@ -149,6 +153,8 @@ read:
 - gene-id-authority-v23-v116-v1
 - genie-public-v19-0
 - genie-registry-per-sample-maf-v1
+- genomescreen-hf-2025-04-25
+- genomescreen-hits-per-protein-v1
 - geo-gse164378-hao-2021-cite-pbmc-snapshot-2026-08-12
 - gtex-tpm-recount3-long-v1
 - gtex-tpm-recount3-per-sample-v1
@@ -156,10 +162,13 @@ read:
 - hgnc-gene-group-471-cd-molecules-snapshot-2026-07-08
 - hla-ligand-atlas-2020-12
 - hla-ligand-atlas-presentation-per-protein-v1
+- hotpocket-pockets-per-protein-v1
+- hotpocket-zenodo-2025-11-19
 - hpa-v25-1
 - impc-ko-phenotype-per-gene-v1
 - impc-release-24-0
 - interpro-109-0-snapshot-2026-08-05
+- interpro-domains-per-protein-v1
 - intogen-v2024-09-20
 - iuphar-gtop-2026-2
 - kinome-atlas-long-edges-v1
@@ -172,6 +181,9 @@ read:
 - pancan-genomic-two-hit-per-gene-v1
 - pancanatlas-cibersort-lm22-per-sample-v1
 - pathway-stratified-surface-window-v1
+- pdb-alphafold-structure-features-per-uniprot-v1
+- plinder-cocrystal-per-protein-v1
+- plinder-gcs-2024-06-v2
 - pooled-snv-recurrence-v2
 - procan-cellline-protein-abundance-per-protein-v1
 - procan-depmapsanger-proteome-snapshot-2026-08-24
@@ -182,6 +194,7 @@ read:
 - sclc-george-tpm-long-v1
 - signor-jul2026
 - signor-mechanism-network-per-gene-v1
+- structure-ligandability-per-protein-v1
 - surface-antigen-absolute-density-curated-v1
 - surfaceome-family-classification-per-uniprot-v1
 - surfacome-ethz-2018
@@ -217,8 +230,6 @@ declared_only:
 - aact-ctti-2026-07-snapshot-2026-07-23
 - aact-oncology-trial-precedent-per-condition-intervention-v1
 - acc-dge-tumor-vs-normal-sensitivity-v1
-- alphafold-db-2025
-- alphafold-disorder-per-protein-v1
 - bindingdb-202608
 - bindingdb-affinity-per-protein-v1
 - biogrid-physical-interactions-per-gene-v1
@@ -237,8 +248,6 @@ declared_only:
 - coadread-dge-tumor-vs-normal-sensitivity-v1
 - corum-5-3
 - cptac-subgroup-assignments-coadread-v1
-- cryptobench-cryptic-sites-per-protein-v1
-- cryptobench-osf-2025
 - cspa-bausch-fluck-2015
 - cspa-surface-confirmation-per-uniprot-v1
 - dede-2020-paralog-sl
@@ -259,8 +268,6 @@ declared_only:
 - gdsc-drug-activity-per-gene-v1
 - gdsc-release-8-5-snapshot-2026-08-24
 - gene-ontology-release-2026-05-19
-- genomescreen-hf-2025-04-25
-- genomescreen-hits-per-protein-v1
 - geo-gse174743-nsclc-geomx-rna-snapshot-2026-08-14
 - geo-gse194122-neurips-bmmc-cite-snapshot-2026-08-13
 - geo-gse199102-paad-geomx-rna-snapshot-2026-08-14
@@ -290,8 +297,6 @@ declared_only:
 - hcmi-genotype-matched-model-per-gene-v1
 - hcmi-model-availability-per-indication-v1
 - hnsc-dge-tumor-vs-normal-sensitivity-v1
-- hotpocket-pockets-per-protein-v1
-- hotpocket-zenodo-2025-11-19
 - hpa-pathology-cancer-ihc-per-gene-v1
 - hpa-pathology-cancer-ihc-v23
 - hpa-subcellular-location-per-gene-v1
@@ -302,7 +307,6 @@ declared_only:
 - imvigor210-ici-response-per-gene-v1
 - in4mer-2024-paralog-gi
 - in4mer-paralog-genetic-interaction-per-pair-v1
-- interpro-domains-per-protein-v1
 - kich-dge-tumor-vs-normal-sensitivity-v1
 - kirc-dge-tumor-vs-normal-sensitivity-v1
 - kirp-dge-tumor-vs-normal-sensitivity-v1
@@ -330,12 +334,9 @@ declared_only:
 - pancanatlas-ddr-deficiency-per-indication-v1
 - pancohort-cooccurrence-fisher-v1
 - pcpg-dge-tumor-vs-normal-sensitivity-v1
-- pdb-alphafold-structure-features-per-uniprot-v1
 - pdxe-drug-response-per-gene-v1
 - pdxe-gao-2015-snapshot-2026-08-24
 - pharos-idg-tcrd-snapshot-2026-08-10
-- plinder-cocrystal-per-protein-v1
-- plinder-gcs-2024-06-v2
 - prad-dge-tumor-vs-normal-sensitivity-v1
 - precog-metaz-gentles-2026-08-10
 - precog-prognostic-meta-z-per-indication-v1
@@ -437,7 +438,6 @@ declared_only:
 - stad-dge-tumor-vs-normal-sensitivity-v1
 - stemness-mrnasi-per-indication-v1
 - string-v12-human-snapshot-2026-06-30
-- structure-ligandability-per-protein-v1
 - surfaceome-cohort-ranking-per-indication-v1
 - synlethdb-sl-partners-per-gene-v1
 - synlethdb-v3-snapshot-2026-06-30
