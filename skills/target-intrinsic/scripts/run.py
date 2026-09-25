@@ -340,7 +340,6 @@ _VALIDATED_INTRINSIC_PROPERTY = {
     "MET",
     "KIT",
     "ABL1",
-    "BCR",
     "ROS1",
     "RET",
     "FGFR2",

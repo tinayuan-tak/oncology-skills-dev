@@ -128,6 +128,22 @@ def test_provenance_double_count_and_confirmed_flag():
     assert prov2["experimentally_confirmed_actionable_property"] is False
 
 
+def test_bcr_is_not_a_validated_intrinsic_property_member():
+    """BCR is the 5' FUSION PARTNER in BCR::ABL1 — the approved TKIs act on the ABL1 kinase domain, never
+    on BCR. It must NOT be in the crosswalk (that would earn a false 'experimentally confirmed agent'
+    caveat); ABL1, the true drug target, stays. See issue #1591."""
+    assert "BCR" not in RUN._VALIDATED_INTRINSIC_PROPERTY
+    assert "ABL1" in RUN._VALIDATED_INTRINSIC_PROPERTY
+    # a standalone --target BCR predicted-structure dossier now gets the HONEST unconfirmed adjudication,
+    # not the crosswalk guard.
+    f = {"structural_ligandability_class": "predicted_ligandable", "has_experimental_cocrystal": False}
+    cav = RUN._intrinsic_confirmation_caveat("BCR", f)
+    assert cav["reason"] == "predicted_structure_or_homology_annotated_unconfirmed", cav
+    prov = RUN._intrinsic_provenance("BCR", f)
+    assert prov["experimentally_confirmed_actionable_property"] is False
+    assert prov["validated_intrinsic_property_crosswalk_hit"] is False
+
+
 def test_crosswalk_is_a_set_literal_not_tuple():
     """SET literals, not 2-tuples (a 2-string tuple is misread as a (rule_id, verdict) precedence pair by
     the reference-drift guard)."""
