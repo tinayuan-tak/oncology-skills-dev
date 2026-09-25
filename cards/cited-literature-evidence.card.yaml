@@ -20,14 +20,15 @@
 # INTEGRATION.md §4) — so there is intentionally NO `thresholds:` block.
 #
 # cited_evidence_status (PRIMARY): ok (>=1 lane present) | insufficient (target didn't resolve) |
-#   no_evidence (target resolved but no literature rows — an honest coverage gap).
+#   no_evidence (target resolved but no literature rows — an honest coverage gap) |
+#   data_unavailable (a lane could not run — creds/S3/broken-env — distinct from no_evidence).
 #
 # ZERO new ingestion: both products were already in the catalog; the card composes their readers via
 # analysis-methods cited_literature_evidence.read.read_cited_literature_evidence.
 
 card_id: cited-literature-evidence
 version: 1.0.0
-# interpretation (informational): cited_evidence_status is ok/insufficient/no_evidence — literature availability.
+# interpretation (informational): cited_evidence_status is ok/insufficient/no_evidence/data_unavailable — literature availability.
 interpretation: informational
 question: "For {target.symbol} in {indication.label}, what does the literature say — co-occurrence volume/recency, the top cited statements, and typed relation direction (associate/cause/inhibit/…), with citations?"
 
@@ -65,12 +66,13 @@ outputs:
       - ok                               # >=1 literature lane present (europepmc and/or pubtator)
       - insufficient                     # the target could not be resolved to an Ensembl gene id (both readers insufficient)
       - no_evidence                      # the target resolved but has no literature rows (honest coverage gap / un-text-mined)
+      - data_unavailable                 # a literature lane could not run (creds/S3/broken-env) — distinct from no_evidence's honest coverage gap; best-effort, recorded in notes.
 
 caveats:
   - "VERDICT-INERT descriptive context facet: reaches the LLM / matrix / headline but drives NO resolver rung and no verdict/gate. Literature is CONTEXT/CONFIDENCE, never a nomination-gate input (RISK_ASSESSMENT_INTEGRATION.md §4). No thresholds: block by design."
   - "paper_disease_mentions / recent_mentions are SUMMED over the indication's disease subtypes — a paper co-occurring with N subtypes counts N times. They are paper×disease MENTIONS, not distinct papers (the product carries per-(gene,disease) counts); n_diseases is surfaced so the inflation is visible."
   - "Co-occurrence != assertion: the europepmc lane is CO-OCCURRENCE volume + text-mined sentences (no polarity). relation_types (PubTator BioREx) carries DIRECTION but is dominated by `associate`; directional types are sparser. When the indication has no EFO/MeSH scope the read falls back to TARGET-LEVEL (literature_scope=target_level*), not disease-scoped."
-  - "no_evidence (target resolved, no rows) is an HONEST coverage gap, DISTINCT from insufficient (target didn't resolve). Both lanes best-effort: an absent product/creds degrades that half to null (recorded in notes), never a fabricated count."
+  - "no_evidence (target resolved, no rows) is an HONEST coverage gap, DISTINCT from insufficient (target didn't resolve) and from data_unavailable (a lane could not run — creds/S3/broken-env). Both lanes best-effort: an absent product/creds degrades that half to null (recorded in notes), never a fabricated count."
 
 measurement_type: cited_literature_evidence   # per-(target, indication) cited-literature context (DATA_TO_SKILL_CONTRACT Rule 1)
 entity_grains: [target_indication]
