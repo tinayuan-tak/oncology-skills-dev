@@ -297,10 +297,19 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     sym = target.upper().strip()
     try:
         # Streamed per-target pushdown. None = product definitively absent (NoSuchKey/404);
-        # RAISES on transient/creds/broken-env, caught below with a cause-accurate breadcrumb.
+        # RAISES on transient/creds/broken-env.
         rows = _read_target_rows(sym)
-    except Exception as e:
-        return _empty(f"cooccurrence_load_failed: {type(e).__name__}: {e}")
+    except Exception as e:  # noqa: BLE001
+        # Fail-loud boundary (absence discipline; mirrors aact_clinical_precedent._read_rows).
+        # `_read_target_rows` already returns None for definitive absence, but re-check here so a
+        # genuine NoSuchKey/404/FileNotFound STILL yields honest data_unavailable while a
+        # transient/creds/broken-env fault PROPAGATES as a loud _live_read_error instead of being
+        # re-masked into the verdict-driving cooccurrence_class="data_unavailable".
+        from methods.target_id_sidecar import is_definitively_absent
+
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            return _empty(f"cooccurrence_data_unavailable: {type(e).__name__}: {e}")
+        raise
     if rows is None:
         return _empty("cooccurrence_data_unavailable")
     if not rows:

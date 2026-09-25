@@ -133,3 +133,31 @@ def test_unmapped_indication_is_data_unavailable():
     out = _R.read_subtype_survival_association("GLIOMA")  # no registered TCGA subtype shard
     assert out["subtype_survival_association_class"] == "data_unavailable"
     assert "no TCGA subtype" in out["_data_note"]
+
+
+# ── AM#776: the assignment-shard boundary must fail LOUD on a transient, not re-mask it ─────────
+# `load_assignments` raises FileNotFoundError when the shard is genuinely unresolvable (honest
+# data_unavailable) but lets a transient read_parquet fault propagate. The old broad
+# `except Exception:` re-masked that transient as data_unavailable — a fake honest-negative.
+def _shard_raises(exc):
+    def f(m, data_catalog_repo=None):
+        raise exc
+
+    return f
+
+
+def test_shard_transient_fault_raises_not_masked(monkeypatch):
+    from botocore.exceptions import ClientError
+
+    monkeypatch.setattr(
+        _R, "load_assignments", _shard_raises(ClientError({"Error": {"Code": "SlowDown", "Message": "x"}}, "GetObject"))
+    )
+    with pytest.raises(ClientError):
+        _R.read_subtype_survival_association("COADREAD", "tcga-maf-subgroup-assignments-coadread-v1")
+
+
+def test_shard_genuine_absence_is_data_unavailable(monkeypatch):
+    monkeypatch.setattr(_R, "load_assignments", _shard_raises(FileNotFoundError("shard not in cache")))
+    out = _R.read_subtype_survival_association("COADREAD", "tcga-maf-subgroup-assignments-coadread-v1")
+    assert out["subtype_survival_association_class"] == "data_unavailable"
+    assert "unresolvable" in out["_data_note"]

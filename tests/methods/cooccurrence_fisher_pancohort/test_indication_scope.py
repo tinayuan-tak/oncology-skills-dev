@@ -182,3 +182,45 @@ def test_panel_eligible_target_byte_identical_prefloor(monkeypatch):
     d = r.read_target_summary("KRAS", "COADREAD")
     assert d["cooccurrence_class"] == "both_patterns_present"
     assert d["cooccurrence_class_prefloor"] == "both_patterns_present"
+
+
+# ── AM#776: the VERDICT-DRIVING outer boundary must fail LOUD, not re-mask a transient ──────────
+# `_read_target_rows` returns None on definitive absence and RAISES on transient/creds/broken-env.
+# The old outer `except Exception: return _empty(...)` re-masked that raise back into the
+# verdict-driving cooccurrence_class="data_unavailable" (a fake honest-negative). It must now
+# swallow ONLY definitive absence (NoSuchKey/404/FileNotFound) and PROPAGATE everything else.
+def _raise(exc):
+    def f(sym):
+        raise exc
+
+    return f
+
+
+def test_outer_boundary_reraises_transient(monkeypatch):
+    import pytest
+    from botocore.exceptions import ClientError
+
+    monkeypatch.setattr(
+        r, "_read_target_rows", _raise(ClientError({"Error": {"Code": "SlowDown", "Message": "x"}}, "GetObject"))
+    )
+    with pytest.raises(ClientError):
+        r.read_target_summary("KRAS", "COADREAD")
+
+
+def test_outer_boundary_reraises_broken_env(monkeypatch):
+    import pytest
+
+    monkeypatch.setattr(r, "_read_target_rows", _raise(ImportError("pyarrow missing")))
+    with pytest.raises(ImportError):
+        r.read_target_summary("KRAS", "COADREAD")
+
+
+def test_outer_boundary_definitive_absence_is_data_unavailable(monkeypatch):
+    from botocore.exceptions import ClientError
+
+    monkeypatch.setattr(
+        r, "_read_target_rows", _raise(ClientError({"Error": {"Code": "NoSuchKey", "Message": "x"}}, "GetObject"))
+    )
+    d = r.read_target_summary("KRAS", "COADREAD")
+    assert d["cooccurrence_class"] == "data_unavailable"
+    assert "cooccurrence_data_unavailable" in d["_data_note"]

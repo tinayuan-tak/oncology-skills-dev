@@ -146,7 +146,16 @@ def read_subtype_survival_association(
     # 1) per-stratum member patients from the assignment shard
     try:
         asg = load_assignments(subgroup_assignments_manifest, data_catalog_repo=data_catalog_repo)
-    except Exception as e:  # noqa: BLE001 — shard genuinely unresolvable → honest data_unavailable
+    except Exception as e:  # noqa: BLE001
+        # Fail-loud boundary (absence discipline; mirrors aact_clinical_precedent._read_rows).
+        # `load_assignments` raises FileNotFoundError when the shard is genuinely unresolvable
+        # (not in session cache AND no derived manifest / no s3_uri) → honest data_unavailable.
+        # A transient/creds/broken-env read_parquet fault is NOT absence → re-raise so it surfaces
+        # as a loud failure instead of being re-masked into data_unavailable.
+        from methods.target_id_sidecar import is_definitively_absent
+
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         base.update(
             {
                 "subtype_survival_association_class": "data_unavailable",

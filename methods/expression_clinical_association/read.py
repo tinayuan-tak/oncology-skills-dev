@@ -56,9 +56,19 @@ def _load_cdr():
     global _CDR_LOAD_ERROR
     try:
         raw = _boto3().get_object(Bucket=S3_BUCKET, Key=CDR_KEY)["Body"].read()
-    except Exception as e:  # noqa: BLE001 — genuine data-unreachable (S3/network/absent): honest {}
-        _CDR_LOAD_ERROR = f"TCGA-CDR table unreachable ({type(e).__name__})"
-        return {}
+    except Exception as e:  # noqa: BLE001
+        # Fail-loud boundary (absence discipline; mirrors the openpyxl ImportError branch below and
+        # aact_clinical_precedent._read_rows). Only a DEFINITIVELY-absent object (NoSuchKey/404/
+        # FileNotFound) is an honest data gap → {}. A transient/creds/broken-env S3 fault is NOT a
+        # data gap → re-raise so it surfaces as a loud failure instead of a fake honest-negative
+        # (was: bare `except: return {}`, which re-masked every transient as data_unavailable).
+        from methods.target_id_sidecar import is_definitively_absent
+
+        if is_definitively_absent(e) or isinstance(e, FileNotFoundError):
+            _CDR_LOAD_ERROR = f"TCGA-CDR table unreachable ({type(e).__name__})"
+            return {}
+        _CDR_LOAD_ERROR = f"TCGA-CDR read failed (non-absence): {type(e).__name__}"
+        raise
     try:
         df = pd.read_excel(io.BytesIO(raw), sheet_name=0, usecols=["bcr_patient_barcode", "OS", "OS.time"])
     except ImportError as e:

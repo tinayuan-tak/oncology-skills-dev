@@ -50,21 +50,42 @@ def test_load_cdr_raises_on_missing_dependency_not_silent(monkeypatch):
 
 
 def test_load_cdr_genuine_s3_absence_is_graceful_empty(monkeypatch):
-    # a genuine data-unreachable (S3 error) stays a graceful {} with a distinct note (NOT raised)
+    # a GENUINE absence (botocore NoSuchKey/404) stays a graceful {} with a distinct note (NOT raised)
+    from botocore.exceptions import ClientError
+
     _R._load_cdr.cache_clear()
 
-    def _boom_s3():
-        raise RuntimeError("NoSuchKey")
+    def _nosuchkey(*a, **k):
+        raise ClientError({"Error": {"Code": "NoSuchKey", "Message": "x"}}, "GetObject")
 
     monkeypatch.setattr(
         _R,
         "_boto3",
-        lambda: type(
-            "S", (), {"get_object": lambda self, Bucket, Key: (_ for _ in ()).throw(RuntimeError("NoSuchKey"))}
-        )(),
+        lambda: type("S", (), {"get_object": staticmethod(_nosuchkey)})(),
     )
     assert _R._load_cdr() == {}
     assert _R._CDR_LOAD_ERROR and "unreachable" in _R._CDR_LOAD_ERROR.lower()
+    _R._load_cdr.cache_clear()
+
+
+def test_load_cdr_transient_s3_fault_raises_not_masked(monkeypatch):
+    # AM#776: a TRANSIENT/creds/broken-env S3 fault is NOT a data gap. Before the fix, the bare
+    # `except Exception: return {}` re-masked it into an empty {} that reads as survival
+    # data_unavailable framework-wide. It must now PROPAGATE (fail-loud), not fake a honest-negative.
+    from botocore.exceptions import ClientError
+
+    _R._load_cdr.cache_clear()
+
+    def _throttle(*a, **k):
+        raise ClientError({"Error": {"Code": "SlowDown", "Message": "throttle"}}, "GetObject")
+
+    monkeypatch.setattr(
+        _R,
+        "_boto3",
+        lambda: type("S", (), {"get_object": staticmethod(_throttle)})(),
+    )
+    with pytest.raises(ClientError):
+        _R._load_cdr()
     _R._load_cdr.cache_clear()
 
 
