@@ -81,8 +81,9 @@ entity_grains: [target_indication]
 schema_version: 1
 threshold_roles:
   intrinsic_r:
-    role: reader_gate
-    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the expression_purity_confound reference frame over `expression_purity_pearson_r` (pearson_r), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+    role: method_parameter
+    consumed_by: expression-purity-confound
+    note: 'Method gates tumor_intrinsic on pearson_r >= 0.3 (significant) in expression_purity_confound/read.py:25 (INTRINSIC_R), applied L123 — twin of CONFOUND_R. ALSO a reader_gate: skill-side salience (evidence_salience.py:1053-1064) frames the display cut. Applied upstream, never a card predicate.'
   confound_r:
     role: method_parameter
     consumed_by: expression-purity-confound

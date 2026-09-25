@@ -3,15 +3,15 @@
 # boolean/record/array/string/unknown). NOT the editorial signal/context/provenance/display
 # disposition (that is skills-side). --self-check gates drift.
 counts:
-  categorical: 126
-  numeric: 433
+  categorical: 127
+  numeric: 439
   boolean: 36
   record: 13
   array: 57
-  string: 162
+  string: 167
   unknown: 23
-n_cards: 48
-n_fields: 850
+n_cards: 49
+n_fields: 862
 by_card:
   adc-tce-modality-fit:
     adc_grade: unknown
@@ -313,6 +313,19 @@ by_card:
     spearman_r: numeric
     top_lineages_by_dependence_high_expression: array
     tpm_iqr: numeric
+  expression-purity-confound:
+    cellular_source: string
+    expression_purity_pearson_p: numeric
+    expression_purity_pearson_r: numeric
+    expression_purity_spearman_r: numeric
+    indication: string
+    median_purity: numeric
+    method_version: string
+    n_expr_samples: numeric
+    n_paired_samples: numeric
+    purity_confound_class: categorical
+    purity_source: string
+    target: string
   fusion-rearrangement-landscape:
     fusion_class: categorical
     fusion_frequency: numeric
