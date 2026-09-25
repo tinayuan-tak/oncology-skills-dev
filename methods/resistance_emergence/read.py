@@ -4,7 +4,7 @@ Consumer: resistance-emergence-signature evidence card (Phase-I) via the combo-a
 Answers, for a target gene: "when {target} is INHIBITED (by its anchor drug), which gene knockouts
 RESCUE the cell — i.e. which genes are candidate mediators of resistance to the {target} inhibitor?"
 
-Data: depmap-drug-anchor-resistance-per-target-v1 (derived from the DepMap 26Q1 drug-anchor CRISPR
+Data: depmap-drug-anchor-resistance-per-target-26q3-v1 (derived from the DepMap 26Q1 drug-anchor CRISPR
 screens; the SIGN-MIRROR of the combination product). Pushdown on inhibited_target. Signal =
 essentiality shift under the anchor drug; POSITIVE = rescuer KO becomes LESS essential under
 inhibition (KO rescues the drug's effect = candidate resistance mediator). resistance_class robust/
@@ -20,7 +20,7 @@ COVERAGE (narrow — the discipline that matters): only single-target anchor inh
 mirroring combo_drug_anchor's no_anchor_screen).
 
 License: DepMap Consortium Member Data Use Agreement — Takeda institutional access.
-Companion: data-catalog:manifests/derived/depmap-drug-anchor-resistance-per-target-v1.yaml
+Companion: data-catalog:manifests/derived/depmap-drug-anchor-resistance-per-target-26q3-v1.yaml
 """
 
 from __future__ import annotations
@@ -28,7 +28,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-PRODUCT_MANIFEST_ID = "depmap-drug-anchor-resistance-per-target-v1"
+PRODUCT_MANIFEST_ID = "depmap-drug-anchor-resistance-per-target-26q3-v1"
 METHOD_VERSION = "0.1.0"
 
 # Caches ONLY successful reads (a hit or a definitive empty tuple()), keyed by UPPER(target).

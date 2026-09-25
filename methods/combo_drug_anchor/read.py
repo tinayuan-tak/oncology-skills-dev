@@ -4,7 +4,7 @@ Consumer: combo-crispr-screen evidence card (Phase-I) via the combo-and-resistan
 for a target gene: "when {target} is INHIBITED (by its anchor drug), which OTHER genes become MORE
 essential — i.e. what are the co-targeting / combination-therapy opportunities?"
 
-Data: depmap-drug-anchor-combination-per-target-v1 (derived from DepMap 26Q1 drug-anchor CRISPR
+Data: depmap-drug-anchor-combination-per-target-26q3-v1 (derived from DepMap 26Q1 drug-anchor CRISPR
 screens). Pushdown on inhibited_target. Signal = essentiality shift under the anchor drug; NEGATIVE
 = co-target more essential under inhibition (combination candidate). combination_class robust/
 supported/context.
@@ -18,7 +18,7 @@ Resistance arm (positive-shift / rescued genes) is NOT in this product — the r
 card is a deferred follow-on.
 
 License: DepMap Consortium Member Data Use Agreement — Takeda institutional access.
-Companion: data-catalog:manifests/derived/depmap-drug-anchor-combination-per-target-v1.yaml
+Companion: data-catalog:manifests/derived/depmap-drug-anchor-combination-per-target-26q3-v1.yaml
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
-PRODUCT_MANIFEST_ID = "depmap-drug-anchor-combination-per-target-v1"
+PRODUCT_MANIFEST_ID = "depmap-drug-anchor-combination-per-target-26q3-v1"
 METHOD_VERSION = "0.1.0"
 
 # Caches ONLY successful reads (a hit or a definitive empty tuple()), keyed by UPPER(target).
