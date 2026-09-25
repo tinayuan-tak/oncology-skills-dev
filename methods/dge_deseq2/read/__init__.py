@@ -724,16 +724,31 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
     Maps the two independent contrasts onto cells A (adjacent) and C (GTEx),
     marks cells_ran=2, and derives cells_supporting from the two q-values.
     """
+    from methods.target_id_sidecar import is_definitively_absent
+
+    def _is_genuine_absence(e: Exception) -> bool:
+        # Mirrors RD3 (read_tumor_vs_gtex_gene_row, #783): a missing manifest / missing S3
+        # object is honest data_unavailable; anything else (creds, throttling, broken env)
+        # must surface as a loud _live_read_error, never a silently-clean absence (#797).
+        return isinstance(e, FileNotFoundError) or is_definitively_absent(e)
+
+    live_read_errors = []
+
     adj_manifest = _INDICATION_TO_ADJ_MANIFEST.get(indication.upper())
     adj = None
     if adj_manifest:
         try:
             adj = read_dge_gene_row(target, adj_manifest)
-        except Exception:
+        except Exception as e:
+            if not _is_genuine_absence(e):
+                live_read_errors.append(f"adj:{type(e).__name__}:{e}")
             adj = None
+    gtex = None
     try:
         gtex = read_tumor_vs_gtex_gene_row(target, indication)
-    except Exception:
+    except Exception as e:
+        if not _is_genuine_absence(e):
+            live_read_errors.append(f"gtex:{type(e).__name__}:{e}")
         gtex = None
 
     lfc_a = (adj or {}).get("log2_fc")
@@ -773,7 +788,7 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
             "q_value_cell_c": q_c,
         }
 
-    return {
+    out = {
         "cells_ran": 2 if row else None,
         "cells_supporting": (row or {}).get("cells_supporting"),
         "dominant_direction": (row or {}).get("dominant_direction"),
@@ -817,6 +832,12 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
         "_data_source": "v2_fallback",
         "_schema": "v2_two_product_fallback",
     }
+    if live_read_errors:
+        # A non-definitive child failure (transient/creds/broken-env) must surface as an honest
+        # loud error, never as a clean data_unavailable-shaped record (#797) — mirrors the
+        # `_live_read_error` breadcrumb convention the skill layer checks for.
+        out["_live_read_error"] = "; ".join(live_read_errors)
+    return out
 
 
 # Indication → tumor-vs-adjacent DGE manifest ID. Extension point: add rows
