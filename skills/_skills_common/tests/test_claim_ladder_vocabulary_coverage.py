@@ -384,6 +384,11 @@ _CORROBORATION_READERS = {
     "skills/_skills_common/dependency_question_table.py": "DELEGATES to question_table_core.conf",
     "skills/_skills_common/differentiation_question_table.py": "DELEGATES to question_table_core.conf",
     "skills/_skills_common/presence_question_table.py": "DELEGATES to question_table_core.conf",
+    "skills/_skills_common/safety_question_table.py": (
+        "DELEGATES row confidence to question_table_core.conf; also PASS-THROUGH — copies the L2b-3 "
+        "claim's `corroboration` token VERBATIM into the Normal-tissue row's integrated_signal annotation "
+        "(no map, nothing to keep in step). Mirrors presence_question_table's G3.1 coverage annotation."
+    ),
     "skills/_skills_common/selectivity_question_table.py": "DELEGATES to question_table_core.conf",
     # --- PASS-THROUGH: renders or copies the token verbatim. An unrecognised rung reads as ITSELF,
     #     which is honest — no map, so nothing to keep in step. This is the safe way to consume the axis.

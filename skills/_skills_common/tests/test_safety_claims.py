@@ -430,3 +430,57 @@ def test_liab_omitted_when_no_source_resolves():
     assert _LIAB_KEY not in safety_claim_vector(
         _headline(), _liab_cards(gtex="some_future_token", sc="data_unavailable", hpa=None)
     )
+
+
+# ── SK#1582 G3.2: PRESENTATION-SUPPORT fields on the claim (surface-consumption, NOT verdict-routing) ─
+# Additive to the existing claim shape (source_support/provenance UNCHANGED). Exactly ONE of
+# positive/qualifying is non-null; the encouraging direction is a CLEAN concordance, every other class is
+# a qualifying caveat. boundary_sensitive is a deterministic read of corroboration (!= high). None of
+# these carry a signal tier / polarity / drives_rule_id — they route nothing.
+def test_liab_presentation_concordant_low_is_positive_only():
+    claim = safety_claim_vector(_headline(), _liab_cards(gtex="restricted_normal", sc="NOT_EXPRESSED", hpa="absent"))[
+        _LIAB_KEY
+    ]
+    assert claim["positive_signal"] and claim["qualifying_signal"] is None
+    assert claim["boundary_sensitive"] is False  # 3 clean arms → corroboration high
+    assert "CLEAN" in claim["positive_signal"]["statement"]
+    assert claim["positive_signal"]["provenance_ref"] == "source_support.sources_agree"
+
+
+def test_liab_presentation_qualifying_classes_are_qualifying_only():
+    for gtex, sc, hpa, klass in (
+        ("critical_organ_liability", "HIGH_LIABILITY", "present", "liability_concordant_high"),
+        ("critical_organ_liability", "NOT_EXPRESSED", "absent", "liability_assay_discordant"),
+        ("data_unavailable", "data_unavailable", "present", "liability_single_source_only"),
+    ):
+        claim = safety_claim_vector(_headline(), _liab_cards(gtex=gtex, sc=sc, hpa=hpa))[_LIAB_KEY]
+        assert claim["concordance_class"] == klass, klass
+        assert claim["positive_signal"] is None and claim["qualifying_signal"], klass
+
+
+def test_liab_presentation_boundary_sensitive_tracks_corroboration():
+    # high corroboration (>=2 agreeing arms) → not boundary-sensitive; a discordance / single arm → yes.
+    conc_high = safety_claim_vector(
+        _headline(), _liab_cards(gtex="critical_organ_liability", sc="HIGH_LIABILITY", hpa="present")
+    )[_LIAB_KEY]
+    assert conc_high["corroboration"] == "high" and conc_high["boundary_sensitive"] is False
+    disc = safety_claim_vector(
+        _headline(), _liab_cards(gtex="critical_organ_liability", sc="NOT_EXPRESSED", hpa="absent")
+    )[_LIAB_KEY]
+    assert disc["corroboration"] == "low" and disc["boundary_sensitive"] is True
+    single = safety_claim_vector(_headline(), _liab_cards(gtex="critical_organ_liability", sc=None, hpa=None))[
+        _LIAB_KEY
+    ]
+    assert single["corroboration"] == "single_arm" and single["boundary_sensitive"] is True
+
+
+def test_liab_presentation_fields_carry_no_signal_tier():
+    # the presentation fields must never introduce a `signal` tier (the L2b verdict-inertness contract).
+    claim = safety_claim_vector(
+        _headline(), _liab_cards(gtex="critical_organ_liability", sc="HIGH_LIABILITY", hpa="present")
+    )[_LIAB_KEY]
+    assert "signal" not in claim
+    for f in ("positive_signal", "qualifying_signal"):
+        v = claim.get(f)
+        if v:
+            assert set(v) == {"statement", "source", "provenance_ref"}, f

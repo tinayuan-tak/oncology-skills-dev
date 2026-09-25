@@ -506,6 +506,71 @@ def _normal_liability_concordance_claim(c: dict) -> "dict | None":
         "liability_assay_discordant": "DISAGREE on the normal-tissue liability call",
         "liability_single_source_only": "only one normal-tissue source resolves",
     }
+
+    # ── PRESENTATION-SUPPORT fields (SK#1582 G3.2, mirroring G3.1 #1578) ────────────────────────────
+    # Structured directional fields so a question_table answer can SURFACE the integrated read without
+    # prose-parsing `evidence`. UNLIKE G3.1's coverage-concordance (always-positive 2-directional shape),
+    # the safety valence is CLASS-DEPENDENT / 3-arm: the ENCOURAGING direction is a CLEAN read
+    # (concordant_low) and every other class is a QUALIFYING caveat (a corroborated liability, a
+    # cross-source disagreement, or a thin single arm) — so exactly ONE of positive/qualifying is non-null.
+    # These are PRESENTATION-support ONLY: no signal tier, no polarity, no drives_rule_id, route NOTHING.
+    #
+    # BOUNDARY-SENSITIVITY (deterministic read of the already-computed corroboration, NOT a new
+    # threshold/calibration): the class is corroborated only when >=2 independent lenses AGREE in direction
+    # (corroboration `high`). A single measured arm (`single_arm`) or a cross-source disagreement (`low`)
+    # leaves the class resting on an uncorroborated / contradicted read — a near-boundary perturbation
+    # could flip it, so the alarming classes must never be asserted flatly.
+    boundary_sensitive = corroboration != "high"
+    if concordance == "liability_concordant_low":
+        positive_signal = {
+            "statement": (
+                f"All resolving normal-tissue lenses ({', '.join(sorted(resolved))}) AGREE the target reads "
+                "CLEAN in normal tissue — a low-liability read corroborated across genuinely independent "
+                "bulk-RNA / single-cell-RNA / protein-IHC lenses."
+            ),
+            "source": "normal_liability_concordant_clean",
+            "provenance_ref": "source_support.sources_agree",
+        }
+        qualifying_signal = None
+    else:
+        positive_signal = None
+        if concordance == "liability_concordant_high":
+            qualifying_signal = {
+                "statement": (
+                    f"All resolving normal-tissue lenses ({', '.join(sorted(resolved))}) AGREE the target "
+                    "carries a normal-tissue safety liability — a corroborated on-target/off-tumour concern "
+                    "(broad normal expression = broad off-tumour liability for a full-KO agent)."
+                ),
+                "source": "normal_liability_concordant_high",
+                "provenance_ref": "source_support.sources_agree",
+            }
+        elif concordance == "liability_assay_discordant":
+            qualifying_signal = {
+                "statement": (
+                    f"Normal-tissue lenses DISAGREE: {', '.join(flagged)} flag a liability while "
+                    f"{', '.join(read_clean)} read clean — a localised artifact (bulk contamination vs "
+                    "cell-type-resolved safety, or transcript vs protein), not a settled call."
+                ),
+                "source": "normal_liability_assay_discordant",
+                "provenance_ref": "source_support.liability_flagged_by",
+            }
+        else:  # liability_single_source_only
+            sk = next(iter(resolved))
+            qualifying_signal = {
+                "statement": (
+                    f"Only {sk} resolves ({raw[sk]} → {resolved[sk]}); the other normal-tissue lenses are "
+                    "data gaps — a thin single-arm read, not a cross-source concordance."
+                ),
+                "source": "normal_liability_single_source_only",
+                "provenance_ref": "source_support.resolved_by",
+            }
+    boundary_note = (
+        "the normal-tissue concordance rests on a single measured arm or a cross-source disagreement "
+        "(corroboration != high) — treat as near-boundary, not a flat assertion"
+        if boundary_sensitive
+        else "corroborated by >=2 independent normal-tissue lenses agreeing in direction"
+    )
+
     return {
         "concordance_class": concordance,
         "corroboration": corroboration,
@@ -513,6 +578,11 @@ def _normal_liability_concordance_claim(c: dict) -> "dict | None":
         "integration_method": "explicit_deterministic",
         "source_support": source_support,
         "sources_resolved": sorted(resolved),
+        # PRESENTATION-SUPPORT (surface-consumption, NOT verdict-routing) — see block above.
+        "positive_signal": positive_signal,
+        "qualifying_signal": qualifying_signal,
+        "boundary_sensitive": boundary_sensitive,
+        "boundary_note": boundary_note,
         "informs": (
             "cross-source normal-tissue safety-liability concordance — an on-target/off-tumor liability seen "
             "across genuinely INDEPENDENT normal-tissue lenses (bulk RNA, cell-type-resolved single-cell RNA, "

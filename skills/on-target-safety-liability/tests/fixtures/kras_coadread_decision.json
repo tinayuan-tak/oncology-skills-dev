@@ -733,6 +733,23 @@
           "dots": 2,
           "label": "moderate"
         }
+      },
+      {
+        "id": "Normal-tissue",
+        "question": "Restricted normal-tissue footprint (no essential-tissue liability)?",
+        "primary": "\u2014",
+        "support": "",
+        "signal": {
+          "tier": "unmeasured",
+          "fill": 0,
+          "polarity": "none",
+          "label": "not measured"
+        },
+        "confidence": {
+          "tier": "unmeasured",
+          "dots": 0,
+          "label": "unmeasured"
+        }
       }
     ],
     "headline_block": {
