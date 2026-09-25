@@ -45,6 +45,13 @@ outputs:
     - n_paired_tumors
     - cptac_cohort                               # the CPTAC cohort backing this indication
     - substrate                                  # 'cptac_tumor' (distinguishes from the cell-line card)
+    # G10 boundary-fragility quartet (verdict-INERT; mirrors the cell-line orphan set). Emitted by
+    # read.py::_proxy_boundary_ci on the full-data path — they never change rna_as_biomarker, they
+    # let a consumer down-weight a class call whose Fisher-z CI straddles a 0.4/0.7 boundary.
+    - rna_proxy_classified_on                    # 'spearman' | 'pearson_fallback' — which correlation drove the class
+    - rna_protein_r_ci95_low                     # Fisher-z 95% CI low of the classifying correlation
+    - rna_protein_r_ci95_high                    # Fisher-z 95% CI high
+    - rna_proxy_class_boundary_fragile           # bool: CI straddles a class boundary (call may flip by sampling alone)
   summary_fields_vocabulary:
     rna_as_biomarker: [adequate_proxy, partial_proxy, poor_proxy, insufficient_paired_tumors, data_unavailable]
   figure: rna_protein_concordance_tumor_scatter  # per-tumor RNA vs protein, fitted trend + r
@@ -60,6 +67,7 @@ caveats:
   - "bcm protein abundance is NOT zero-centered (per the matched product manifest) — used for CORRELATION only (scale-invariant), never cross-gene comparison."
   - "A poor_proxy verdict is a MODALITY caution (protein must be measured for ADC/TCE; RNA biomarker inadequate in THIS tumor type), NOT a target killer."
   - "Bulk-tumor concordance is degraded by purity/stroma; a low r may partly reflect microenvironmental dilution rather than pure post-transcriptional decoupling (see Q9 purity attribution)."
+  - "PROVENANCE+LICENSE (canon-13 #883): CPTAC proteogenomics (NCI Proteomic Data Commons) via the open-access cptac Python package — broad RSEM tumor RNA joined to bcm protein on the shared CPTAC Patient_ID, per required_inputs product cptac-rna-protein-matched-per-sample-v1 (from source cptac-pdc-snapshot-2026-07-01). LICENSE: NCI PDC open-access; attribution per CPTAC conventions (https://pdc.cancer.gov/pdc/about). Prose because card.schema.json admits no top-level provenance/license key."
 
 measurement: bulk_rna
 sample_context: tumor          # patient tumor (CPTAC), contrasted RNA-vs-protein
@@ -70,3 +78,20 @@ measurement_type: rna_protein_concordance
 modality_relevance: [adc, bite_tce, antibody]
 entity_grains: [target_indication]
 schema_version: 1
+
+# canon-13 (#883): the 0.4/0.7/20 cuts are verdict/reader cuts applied OUTSIDE a card predicate, so
+# THRESHOLD_UNUSED must not ask for their deletion. They are NOT read from this card — the method
+# hardcodes them as module constants, so card and code can drift silently; this block is the single
+# reviewable point of record for that drift (3rd occurrence of the hardcode pattern: canon-11 F4 →
+# canon-12 TC#882 → here). Sibling: cellline-rna-protein-concordance (same reader frame).
+threshold_roles:
+  moderate_concordance_r:
+    role: reader_gate
+    note: 'reader_gate: skill-side reader (evidence_salience.contract_threshold) applies 0.4 as the rna_protein_concordance frame over rna_protein_r, not a card predicate (THRESHOLD_UNUSED is a false positive here). ALSO hardcoded method-side as MODERATE_CONCORDANCE_R in analysis-methods depmap_rna_protein_concordance/read.py; method never reads this card so card/code can drift.'
+  strong_concordance_r:
+    role: reader_gate
+    note: 'reader_gate: skill-side reader (evidence_salience.contract_threshold) applies 0.7 as the rna_protein_concordance frame over rna_protein_r, not a card predicate (THRESHOLD_UNUSED is a false positive here). ALSO hardcoded method-side as STRONG_CONCORDANCE_R in analysis-methods depmap_rna_protein_concordance/read.py; method never reads this card so card/code can drift.'
+  min_paired_tumors:
+    role: method_parameter
+    consumed_by: depmap-rna-protein-concordance
+    note: 'Tumor arm read_tumor_rna_protein_concordance applies MIN_PAIRED_TUMORS=20 method-side (below it rna_as_biomarker=insufficient_paired_tumors); hardcoded in analysis-methods depmap_rna_protein_concordance/read.py, not read from this card — documented for drift review.'

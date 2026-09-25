@@ -3,15 +3,15 @@
 # boolean/record/array/string/unknown). NOT the editorial signal/context/provenance/display
 # disposition (that is skills-side). --self-check gates drift.
 counts:
-  categorical: 124
-  numeric: 420
-  boolean: 34
+  categorical: 125
+  numeric: 425
+  boolean: 35
   record: 13
   array: 57
-  string: 152
+  string: 158
   unknown: 23
-n_cards: 46
-n_fields: 823
+n_cards: 47
+n_fields: 836
 by_card:
   adc-tce-modality-fit:
     adc_grade: unknown
@@ -678,6 +678,20 @@ by_card:
     n_compounds_evaluated: numeric
     n_dual_responders: numeric
     per_compound_concordance: array
+  rna-protein-concordance-tumor:
+    cptac_cohort: string
+    indication: string
+    method_version: string
+    n_paired_tumors: numeric
+    rna_as_biomarker: categorical
+    rna_protein_r: numeric
+    rna_protein_r_ci95_high: numeric
+    rna_protein_r_ci95_low: numeric
+    rna_protein_spearman: numeric
+    rna_proxy_class_boundary_fragile: boolean
+    rna_proxy_classified_on: string
+    substrate: string
+    target: string
   sc-normal-celltype-expression:
     expressing_donor_fraction_max: numeric
     indication: string
