@@ -57,11 +57,12 @@ def render_from_plot_data(
     out_dir.mkdir(parents=True, exist_ok=True)
     tcd = Path(target_contracts_dir) if target_contracts_dir else _cli.DEFAULT_TARGET_CONTRACTS
 
-    chronos_by_model, hotspot_by_model, damaging_by_model, _meta = _reconstruct(plot_data)
+    chronos_by_model, hotspot_by_model, damaging_by_model, model_metadata = _reconstruct(plot_data)
     recomputed = _cli.compute_mutation_stratification(chronos_by_model, hotspot_by_model, damaging_by_model)
 
     _cli.emit_mut_vs_wt_strip_plot(
-        chronos_by_model, hotspot_by_model, damaging_by_model, target, recomputed, out_dir, tcd
+        chronos_by_model, hotspot_by_model, damaging_by_model, target, recomputed, out_dir, tcd,
+        model_metadata=model_metadata, indication=indication
     )
     _cli.emit_per_hotspot_chronos_plot(chronos_by_model, recomputed.get("per_hotspot_stats", []), target, out_dir, tcd)
 

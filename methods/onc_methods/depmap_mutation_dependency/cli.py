@@ -668,9 +668,13 @@ def emit_mut_vs_wt_strip_plot(
     summary: dict,
     out_path: Path,
     contracts_root: Path,
+    *,
+    model_metadata: dict = None,
+    indication: str = None,
 ) -> None:
     """Primary figure: Chronos strip plot grouped by mutation status (hotspot + damaging
-    tiers side-by-side, each split mut vs WT). Annotated with q-values."""
+    tiers side-by-side, each split mut vs WT). When model_metadata and indication are provided,
+    highlights indication-specific cell lines and shows dual statistics."""
     import matplotlib.pyplot as plt
     import numpy as np
 
@@ -684,7 +688,12 @@ def emit_mut_vs_wt_strip_plot(
         REFLINE_NOMINAL,
     )
 
-    fig, ax = plt.subplots(figsize=FIGSIZE_DOUBLE_COLUMN)
+    # Resolve indication lineage for highlighting
+    indication_lineage = None
+    if indication and model_metadata:
+        indication_lineage = _resolve_indication_lineage(indication)
+
+    fig, ax = plt.subplots(figsize=FIGSIZE_DOUBLE_COLUMN if isinstance(FIGSIZE_DOUBLE_COLUMN, tuple) else (8.0, 5.5))
 
     if not chronos_by_model:
         ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes, color="#666666")
@@ -694,81 +703,180 @@ def emit_mut_vs_wt_strip_plot(
 
     rng = np.random.default_rng(seed=42)
 
-    # Four columns: hotspot_mut, hotspot_wt, damaging_mut, damaging_wt
+    # Build groups with model IDs for indication highlighting
+    def build_group(label, model_filter, color):
+        models = [m for m in chronos_by_model if model_filter(m)]
+        scores = [chronos_by_model[m] for m in models]
+        if indication_lineage and model_metadata:
+            is_indication = [
+                (model_metadata.get(m) or {}).get("OncotreeLineage") == indication_lineage
+                for m in models
+            ]
+        else:
+            is_indication = [False] * len(models)
+        return label, models, scores, is_indication, color
+
     groups = []
     if hotspot_by_model:
-        groups.append(
-            (
-                "hotspot\nmutant",
-                [chronos_by_model[m] for m in chronos_by_model if m in hotspot_by_model and hotspot_by_model[m]],
-                "#B22222",
-            )
-        )
-        groups.append(
-            (
-                "hotspot\nWT",
-                [chronos_by_model[m] for m in chronos_by_model if m in hotspot_by_model and not hotspot_by_model[m]],
-                "#888888",
-            )
-        )
+        groups.append(build_group(
+            "hotspot\nmutant",
+            lambda m: m in hotspot_by_model and hotspot_by_model[m],
+            "#B22222",
+        ))
+        groups.append(build_group(
+            "hotspot\nWT",
+            lambda m: m in hotspot_by_model and not hotspot_by_model[m],
+            "#888888",
+        ))
     if damaging_by_model:
-        groups.append(
-            (
-                "damaging\nmutant",
-                [chronos_by_model[m] for m in chronos_by_model if m in damaging_by_model and damaging_by_model[m]],
-                "#E69F00",
-            )
-        )
-        groups.append(
-            (
-                "damaging\nWT",
-                [chronos_by_model[m] for m in chronos_by_model if m in damaging_by_model and not damaging_by_model[m]],
-                "#888888",
-            )
-        )
+        groups.append(build_group(
+            "damaging\nmutant",
+            lambda m: m in damaging_by_model and damaging_by_model[m],
+            "#E69F00",
+        ))
+        groups.append(build_group(
+            "damaging\nWT",
+            lambda m: m in damaging_by_model and not damaging_by_model[m],
+            "#888888",
+        ))
 
-    for i, (label, scores, color) in enumerate(groups):
+    # Plot each group
+    for i, (label, models, scores, is_ind, color) in enumerate(groups):
         if not scores:
             continue
+
         scores_arr = np.array(scores)
+        is_ind_arr = np.array(is_ind)
         xs = i + rng.uniform(-0.25, 0.25, size=len(scores_arr))
-        ax.scatter(xs, scores_arr, s=14, alpha=0.55, color=color, edgecolor="white", linewidth=0.3, zorder=2)
-        # Median tick
-        med = float(np.median(scores_arr))
-        ax.plot([i - 0.35, i + 0.35], [med, med], color="#222222", linewidth=1.5, zorder=3)
+
+        if indication_lineage:
+            # Plot non-indication points (no outline, smaller)
+            non_ind_mask = ~is_ind_arr
+            if np.any(non_ind_mask):
+                ax.scatter(xs[non_ind_mask], scores_arr[non_ind_mask], s=30, alpha=0.4,
+                           color=color, edgecolor="white", linewidth=0.3, zorder=2)
+
+            # Plot indication points with black outline
+            ind_mask = is_ind_arr
+            if np.any(ind_mask):
+                ax.scatter(xs[ind_mask], scores_arr[ind_mask], s=50, alpha=0.9,
+                           color=color, edgecolor="black", linewidth=0.8, zorder=3)
+
+            # Pan-lineage median (solid black line)
+            med_all = float(np.median(scores_arr))
+            ax.plot([i - 0.35, i + 0.35], [med_all, med_all], color="#222222",
+                    linewidth=2.0, zorder=4, linestyle="-")
+
+            # Indication-specific median (dashed black line)
+            if np.any(ind_mask):
+                med_ind = float(np.median(scores_arr[ind_mask]))
+                ax.plot([i - 0.35, i + 0.35], [med_ind, med_ind], color="#222222",
+                        linewidth=2.0, zorder=5, linestyle="--")
+        else:
+            # Original behavior: no indication highlighting
+            ax.scatter(xs, scores_arr, s=14, alpha=0.55, color=color, edgecolor="white", linewidth=0.3, zorder=2)
+            med = float(np.median(scores_arr))
+            ax.plot([i - 0.35, i + 0.35], [med, med], color="#222222", linewidth=1.5, zorder=3)
 
     # Reference lines
     ax.axhline(y=0, **REFLINE_NOMINAL, zorder=1)
     ax.axhline(y=CHRONOS_STRONG_DEPENDENCY, **REFLINE_KILLER, zorder=1)
 
-    # Annotation: q-values
-    hot_q = summary.get("hotspot_mannwhitney_q")
-    dam_q = summary.get("damaging_mannwhitney_q")
-    parts = []
-    if hot_q is not None:
-        parts.append(f"hotspot q = {hot_q:.2e}")
-    if dam_q is not None:
-        parts.append(f"damaging q = {dam_q:.2e}")
-    if parts:
-        ax.text(
-            0.02,
-            0.98,
-            "  ·  ".join(parts),
-            transform=ax.transAxes,
-            ha="left",
-            va="top",
-            fontsize=9,
-            family="monospace",
-            bbox=dict(facecolor="white", edgecolor="#888888", alpha=0.92, pad=4, boxstyle="round,pad=0.4"),
-            zorder=5,
-        )
-
     ax.set_xticks(range(len(groups)))
-    ax.set_xticklabels([label for label, _, _ in groups], fontsize=9)
+    ax.set_xticklabels([label for label, _, _, _, _ in groups], fontsize=9)
     ax.set_ylabel("Chronos score (more dependent ↓)")
     cls = summary.get("mutation_stratification_class", "?")
     ax.set_title(f"{target_symbol}: dependency stratified by mutation status  ({cls})")
     ax.grid(axis="y")
+
+    # Statistics display
+    if indication_lineage and indication:
+        # Compute indication-specific stats
+        hot_mut_pan = [chronos_by_model[m] for m in chronos_by_model
+                       if hotspot_by_model.get(m, False)]
+        hot_wt_pan = [chronos_by_model[m] for m in chronos_by_model
+                      if not hotspot_by_model.get(m, True)]
+        hot_mut_ind = [chronos_by_model[m] for m in chronos_by_model
+                       if hotspot_by_model.get(m, False)
+                       and (model_metadata.get(m) or {}).get("OncotreeLineage") == indication_lineage]
+        hot_wt_ind = [chronos_by_model[m] for m in chronos_by_model
+                      if not hotspot_by_model.get(m, True)
+                      and (model_metadata.get(m) or {}).get("OncotreeLineage") == indication_lineage]
+
+        med_mut_pan = float(np.median(hot_mut_pan)) if hot_mut_pan else None
+        med_wt_pan = float(np.median(hot_wt_pan)) if hot_wt_pan else None
+        med_mut_ind = float(np.median(hot_mut_ind)) if hot_mut_ind else None
+        med_wt_ind = float(np.median(hot_wt_ind)) if hot_wt_ind else None
+
+        hot_q_pan = summary.get("hotspot_mannwhitney_q")
+
+        # Compute indication-specific q-value
+        from scipy import stats as scipy_stats
+        hot_q_ind = None
+        if len(hot_mut_ind) >= 3 and len(hot_wt_ind) >= 3:
+            try:
+                _, p_ind = scipy_stats.mannwhitneyu(hot_mut_ind, hot_wt_ind, alternative='less')
+                hot_q_ind = p_ind
+            except Exception:
+                pass
+
+        # Table at bottom
+        col_labels = ["", "Median (Mut)", "Median (WT)", "q-value", ""]
+        table_data = [
+            ["Pan-DepMap",
+             f"{med_mut_pan:.2f}" if med_mut_pan else "—",
+             f"{med_wt_pan:.2f}" if med_wt_pan else "—",
+             f"{hot_q_pan:.1e}" if hot_q_pan else "—",
+             "— solid"],
+            [f"{indication}",
+             f"{med_mut_ind:.2f}" if med_mut_ind else "—",
+             f"{med_wt_ind:.2f}" if med_wt_ind else "—",
+             f"{hot_q_ind:.1e}" if hot_q_ind else "—",
+             "-- dashed, ● outlined"],
+        ]
+
+        table = ax.table(
+            cellText=table_data,
+            colLabels=col_labels,
+            loc="bottom",
+            cellLoc="center",
+            bbox=[0.0, -0.35, 1.0, 0.20],
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(9)
+
+        for (row, col), cell in table.get_celld().items():
+            cell.set_edgecolor("#CCCCCC")
+            cell.set_linewidth(0.5)
+            if row == 0:
+                cell.set_text_props(fontweight="bold")
+                cell.set_facecolor("#F0F0F0")
+            else:
+                cell.set_facecolor("white")
+
+        fig.subplots_adjust(bottom=0.25)
+    else:
+        # Original q-value annotation
+        hot_q = summary.get("hotspot_mannwhitney_q")
+        dam_q = summary.get("damaging_mannwhitney_q")
+        parts = []
+        if hot_q is not None:
+            parts.append(f"hotspot q = {hot_q:.2e}")
+        if dam_q is not None:
+            parts.append(f"damaging q = {dam_q:.2e}")
+        if parts:
+            ax.text(
+                0.02,
+                0.98,
+                "  ·  ".join(parts),
+                transform=ax.transAxes,
+                ha="left",
+                va="top",
+                fontsize=9,
+                family="monospace",
+                bbox=dict(facecolor="white", edgecolor="#888888", alpha=0.92, pad=4, boxstyle="round,pad=0.4"),
+                zorder=5,
+            )
 
     fig.savefig(out_path / "figure_mut_vs_wt_strip.svg", bbox_inches="tight")
     plt.close(fig)
@@ -1055,7 +1163,8 @@ def main(target, indication, release_pin, out, contracts_root, dry_run) -> int:
 
     emit_plot_data(chronos_by_model, hotspot_by_model, damaging_by_model, model_metadata, out)
     emit_mut_vs_wt_strip_plot(
-        chronos_by_model, hotspot_by_model, damaging_by_model, target, summary, out, contracts_root
+        chronos_by_model, hotspot_by_model, damaging_by_model, target, summary, out, contracts_root,
+        model_metadata=model_metadata, indication=indication
     )
     emit_per_hotspot_chronos_plot(chronos_by_model, summary.get("per_hotspot_stats", []), target, out, contracts_root)
     emit_manifest(target, indication, release_pin, summary, out, [])
