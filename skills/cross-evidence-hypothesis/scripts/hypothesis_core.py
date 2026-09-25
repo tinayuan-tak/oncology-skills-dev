@@ -659,6 +659,17 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
     hard_gates = rg.get("hard_gates")
     oos = out_of_scope_dims(modality) if modality else set()  # dims out-of-scope for this modality
     mutant_selective = safety in _MUTANT_SELECTIVE_SAFETY  # mechanism-conditions the dependency veto
+    # (short, verdict) pairs the SPINE recorded in its own recommendation_gate.suppressed_vetoes.
+    # A veto DOWNGRADED to a hold (biology_axis_downgrade / gof_driver_downgrade, to_action: hold)
+    # survives in BOTH the gate hits AND the suppressions list, so tp_gates._hard_gates_status labels
+    # its row `fired` (:1079 checks fired before suppressed). The hard_gates loop below consults this
+    # set on the fired veto path so it does NOT re-impose a decline the spine already released to a hold
+    # — mirrors the fallback's suppressed_vetoes check. Fully-suppressed vetoes (context_escape /
+    # modality_scoped / thesis_irrelevant / exists_safe_modality) are DROPPED from hits, so they never
+    # reach the fired path; only spine-DOWNGRADED (to-hold) vetoes intersect fired ∩ suppressed here.
+    suppressed_veto_pairs = {
+        (s.get("short"), s.get("verdict")) for s in (rg.get("suppressed_vetoes") or []) if isinstance(s, dict)
+    }
     # MODALITY×SAFETY: the per-modality safety action for THIS channel. When it clears (== conditional,
     # the spine's sole safe action), the blanket hold-grade safety cap below is modality-cleared — a
     # scalar `safety` hold no longer caps a channel the spine's own exists_safe_modality would suppress.
@@ -694,6 +705,19 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
                     # a genuine veto.
                     if verdict in _NON_DEPENDENT_TOKENS and mutant_selective:
                         excluded.append(tag)
+                    elif (short, verdict) in suppressed_veto_pairs:
+                        # SPINE-SUPPRESSED: this exact (short, verdict) veto sits in the spine's own
+                        # recommendation_gate.suppressed_vetoes — a biology_axis_downgrade /
+                        # gof_driver_downgrade that released the veto to a HOLD (to_action: hold,
+                        # forced_recommendation == "hold"). The row reads `fired` only because
+                        # _hard_gates_status labels a both-fired-and-suppressed pair by its fired
+                        # precedence (tp_gates.py:1079). Re-imposing a decline would OVERRIDE the
+                        # spine's own adjudicated hold — the one thing this integrator must never do
+                        # ("it ENRICHES; it never OVERRIDES"). Mirror the fallback's suppressed_vetoes
+                        # check: cap at the hold grade (advanceable_flagged), not a veto. Conservative:
+                        # the released veto is not treated as clean-advanceable.
+                        excluded.append(tag)
+                        signals.append((VERDICT_RANK["advanceable_flagged"], f"spine-suppressed veto → hold ({tag})"))
                     else:
                         active_vetoes.append(tag)
                         signals.append((VERDICT_RANK["declined"], f"hard-gate fired ({tag})"))
