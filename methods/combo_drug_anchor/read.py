@@ -90,7 +90,6 @@ def _classify(rows: Optional[tuple], min_models: int = 0) -> str:
       strong_combination_opportunity   >=1 co-target robust_combination
       combination_opportunity          else >=1 supported_combination
       context_combination_opportunity  else >=1 context_combination
-      no_combination_signal            anchor screened, no co-target passed
       no_anchor_screen                 target has no anchor-drug screen (coverage gap)
       data_unavailable                 read failure
 
@@ -115,7 +114,14 @@ def _classify(rows: Optional[tuple], min_models: int = 0) -> str:
     # but underpowered → cap at context (never erase a measured co-target to no-signal).
     if min_models and any(r.get("combination_class") in _POSITIVE_COMBINATION_CLASSES for r in rows):
         return "context_combination_opportunity"
-    return "no_combination_signal"
+    # Unreachable defensive fallback: every product row is schema-guaranteed to carry a positive
+    # combination_class ∈ {robust,supported,context}_combination (non-passing rows are DROPPED at
+    # data-catalog materialization — the sanctioned coverage-gap discipline), so a non-empty `rows`
+    # either hits a positive branch above or (all-underpowered) the context cap. The former
+    # `no_combination_signal` (measured-negative) label was therefore dead; a genuine screened-negative
+    # arrives as EMPTY rows (len 0) and is honestly reported as the no_anchor_screen coverage gap.
+    # Fall through to that same coverage-gap class.
+    return "no_anchor_screen"
 
 
 def _rank(rows: tuple, top_n: int = 20) -> list:
@@ -216,8 +222,6 @@ def _context(
         )
     if klass == "data_unavailable":
         return f"{sym}: drug-anchor combination product unavailable (read error)."
-    if klass == "no_combination_signal":
-        return f"{sym}: anchor screen present ({anchor}) but no co-target passed the combination threshold."
     s = strongest or {}
     cg, shift, nsig, nm = (
         s.get("co_target_gene"),

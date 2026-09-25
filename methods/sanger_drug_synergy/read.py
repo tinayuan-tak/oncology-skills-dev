@@ -67,7 +67,13 @@ def _classify(rows: Optional[list]) -> str:
         return "synergy_opportunity"
     if "context_synergy" in classes:
         return "context_synergy_opportunity"
-    return "no_synergy_signal"
+    # Unreachable defensive fallback: every product row is schema-guaranteed to carry a positive
+    # synergy_class ∈ {robust,supported,context}_synergy (non-synergistic weak rows are DROPPED at
+    # data-catalog materialization — the sanctioned coverage-gap discipline), so a non-empty `rows`
+    # always hits a positive branch above. The former `no_synergy_signal` (measured-negative) label
+    # was therefore dead; a genuine screened-negative arrives as EMPTY rows and is honestly reported
+    # as the no_synergy_screen coverage gap. Fall through to that same coverage-gap class.
+    return "no_synergy_screen"
 
 
 def _rank(rows: list, top_n: int = 20) -> list:
