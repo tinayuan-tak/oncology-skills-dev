@@ -446,3 +446,52 @@ def test_every_two_arm_axis_can_actually_reach_the_top_of_the_ladder():
     assert all(v == "high" for v in reached.values()), f"an axis cannot reach `high`: {reached}"
     # …and every one of them can also report the one-armed rung, so neither branch is dead.
     assert gen._cn_corroboration(_cn_headline("recurrently_amplified", None), {}) == "single_arm"
+
+
+# ── ARM COMMENSURABILITY: the GENIE arm's agreement reference must be INDEPENDENT of GENIE ──────────
+# SK#1667 (generalizes #1575). `_snv_corroboration` measures the GENIE panel arm's agreement against the
+# WES side. `rec = _recurrence_class(h)` PREFERS `pooled_driver_recurrence_class`, a DECLARED superset
+# derived_from [mc3_exome, genie_panel] — so comparing GENIE against it compares GENIE against a value that
+# already ABSORBED GENIE, and manufactures agreement (superset ⊇ subset). The independent WES reference is
+# the MC3 exome band `driver_recurrence_class`. Every fixture in the two-arm cases above OMITS the pooled
+# band (so `rec` already falls through to the exome band); these cases SUPPLY a conflicting pooled superset,
+# which is the only shape where the bug is observable. Raw tokens are stored and the real fn re-derives.
+def _snv_pooled(exome, genie, pooled, n_cohorts=0):
+    return gen._snv_corroboration(
+        {
+            "driver_recurrence_class": exome,
+            "genie_driver_recurrence_class": genie,
+            "pooled_driver_recurrence_class": pooled,
+            "pooled_recurrence_cohorts": n_cohorts,
+        },
+        {},
+    )
+
+
+def test_pooled_superset_cannot_manufacture_genie_agreement():
+    """The manufacture case, and its foil. WES exome sees NO recurrence (`bottom_decile`) while the GENIE
+    panel calls a top-percentile driver — a REAL cross-source conflict that must read `low`. The pooled
+    band folds both and lands positive; keying the GENIE arm off the pooled band would have the panel
+    "agree" with a value it helped produce and report `high`. The verdict is verdict-inert, but a fabricated
+    concordance still poisons the confidence read that consumes it."""
+    # The bug shape: conflicting arms, pooled masks the conflict.
+    assert _snv_pooled("bottom_decile", "top_1pct", "top_1pct") == "low", (
+        "WES floor vs GENIE driver is a real conflict; the pooled superset must not manufacture agreement"
+    )
+    # Guard against the reverse costume too: WES driver, GENIE floor, pooled positive.
+    assert _snv_pooled("top_1pct", "bottom_decile", "top_1pct") == "low"
+
+
+def test_genuine_cross_source_agreement_still_reads_high_with_a_pooled_band_present():
+    """The must-stay-concordant foil: WES exome and the GENIE panel INDEPENDENTLY agree there is a
+    top-percentile driver. A conflicting-arm fix must not over-correct this true agreement down."""
+    assert _snv_pooled("top_1pct", "top_decile", "top_1pct") == "high"
+    # Two concordant measured negatives are still agreement (CASE-032 convention), pooled present or not.
+    assert _snv_pooled("bottom_decile", "bottom_decile", "bottom_decile") == "high"
+
+
+def test_genie_only_via_a_pooled_read_is_not_an_independent_arm():
+    """If the exome arm is unmeasured, the pooled band is the ONLY WES-side signal — and it is not
+    GENIE-independent, so it cannot serve as the reference. The GENIE arm leaves the frame; the pooled band
+    still supplies the signal so the claim exists as a single arm rather than vanishing."""
+    assert _snv_pooled("data_unavailable", "top_1pct", "top_1pct") == "single_arm"

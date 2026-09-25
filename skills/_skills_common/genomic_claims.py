@@ -295,13 +295,24 @@ def _snv_corroboration(h, c):
     # the `moderate` default it replaced, and it is the same mistake in a second costume — an arm read in
     # isolation cannot tell agreement from disagreement, only presence from absence.
     #
-    # An off-roster or unmeasured panel token leaves the frame (None) rather than defaulting to a side.
+    # ── ARM-COMMENSURABILITY FIX (SK#1667, generalizes #1575; anti-pattern of L2b-5 below) ──
+    # The GENIE arm's agreement reference is the MC3 exome band `driver_recurrence_class`, NOT `rec`.
+    # `rec = _recurrence_class(h)` PREFERS `pooled_driver_recurrence_class`, a DECLARED DEPENDENT SUPERSET
+    # (derived_from [mc3_exome, genie_panel]) that has already ABSORBED this very GENIE read. Judging the
+    # GENIE arm against a pooled value that contains GENIE manufactures agreement — a superset cannot be an
+    # independent second arm for its own subset (exactly what `_recurrence_concordance_claim` bars). `rec`
+    # still gates claim existence and the signal side (arm 1); only the GENIE COMPARISON becomes independent.
+    #
+    # An off-roster or unmeasured panel token — or an unmeasured exome reference — leaves the frame (None)
+    # rather than defaulting to a side.
+    exome = h.get("driver_recurrence_class")
+    exome_tier = _RECURRENCE_SIGNAL.get(exome, "unmeasured") if exome is not None else "unmeasured"
     genie_tier = _RECURRENCE_SIGNAL.get(genie) if genie is not None else None
-    if genie_tier in (None, "unmeasured"):
+    if genie_tier in (None, "unmeasured") or exome_tier == "unmeasured":
         genie_arm = None
     else:
         # `bottom_decile` is the only NEGATIVE band; every other measured band is a positive driver call.
-        genie_arm = (genie_tier != "absent") == (_RECURRENCE_SIGNAL[rec] != "absent")
+        genie_arm = (genie_tier != "absent") == (exome_tier != "absent")
     # Independent multi-cohort pooled recurrence is a genuine SECOND arm on the WES side. Fewer than two
     # cohorts is not a disagreement — there was simply no second cohort — so it leaves the frame.
     multi_cohort_arm = True if n_cohorts >= 2 else None
