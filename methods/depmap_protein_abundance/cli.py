@@ -93,7 +93,40 @@ LINEAGE_CONCENTRATION_MAX_LINEAGES = 3  # detected in <= this many lineages → 
 LINEAGE_CONCENTRATION_TOP_SHARE = 0.50  # one lineage holds >= this share of detected lines → concentrated
 
 
-from methods.target_id_sidecar import ensure_aws_profile
+from methods.target_id_sidecar import s3_client
+
+
+def _prot_s3_filesystem():
+    """pyarrow S3FileSystem sharing target_id_sidecar.s3_client()'s preferred-profile→ambient-chain
+    fallback (the protein-arm parquet pushdown + null-sidecar reader).
+
+    pyarrow's S3FileSystem honors AWS_PROFILE, so a bare construction raised ProfileNotFound in
+    CI/prod/instance-role where the `cbg` developer profile is absent (AWS_PROFILE unset there, and
+    the former ensure_aws_profile() setdefault installed `cbg`) — the same latent break s3_client
+    fixed for the boto3 arm. Resolve credentials through a boto3 Session (which owns the fallback),
+    then hand the frozen credentials to pyarrow so the two clients authenticate identically. When no
+    credentials resolve, defer to pyarrow's own default provider chain (unchanged bare behavior)."""
+    import boto3
+    import pyarrow.fs as pafs
+    from botocore.exceptions import ProfileNotFound
+
+    prof = os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)
+    try:
+        session = boto3.Session(profile_name=prof)
+    except ProfileNotFound:
+        # Preferred/default profile absent (CI / prod / instance-role): use the ambient chain. A bare
+        # Session() still reads AWS_PROFILE from the env, so strip the bad value first (restored after).
+        saved = os.environ.pop("AWS_PROFILE", None)
+        try:
+            session = boto3.Session()
+        finally:
+            if saved is not None:
+                os.environ["AWS_PROFILE"] = saved
+    creds = session.get_credentials()
+    if creds is None:
+        return pafs.S3FileSystem()
+    frozen = creds.get_frozen_credentials()
+    return pafs.S3FileSystem(access_key=frozen.access_key, secret_key=frozen.secret_key, session_token=frozen.token)
 
 
 @lru_cache(maxsize=8)
@@ -110,10 +143,7 @@ def _cached_csv(path_or_none, bucket, key):
 
     if path_or_none is not None:
         return pd.read_csv(path_or_none)
-    ensure_aws_profile()
-    import boto3
-
-    body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
+    body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_csv(io.BytesIO(body))
 
 
@@ -125,10 +155,7 @@ def _read_csv(path_or_none, bucket, key, **kw):
     if kw:
         if path_or_none is not None:
             return pd.read_csv(path_or_none, **kw)
-        ensure_aws_profile()
-        import boto3
-
-        body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
+        body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
         return pd.read_csv(io.BytesIO(body), **kw)
     return _cached_csv(path_or_none, bucket, key)
 
@@ -142,10 +169,7 @@ def _read_parquet(path_or_none, bucket, key):
 
     if path_or_none is not None:
         return pd.read_parquet(path_or_none)
-    ensure_aws_profile()
-    import boto3
-
-    body = boto3.client("s3").get_object(Bucket=bucket, Key=key)["Body"].read()
+    body = s3_client().get_object(Bucket=bucket, Key=key)["Body"].read()
     return pd.read_parquet(io.BytesIO(body))
 
 
@@ -202,12 +226,10 @@ def _load_gygi_abundance_pushdown(accession: str, product_path=None) -> tuple:
 def _load_gygi_abundance_pushdown_live(accession: str) -> tuple:
     """LIVE S3 pushdown, cached per accession (a single small row-group slice). A transient failure
     RAISES and is NOT cached, so a later call retries — lru_cache never memoizes exceptions."""
-    import pyarrow.fs as pafs
     import pyarrow.parquet as pq
 
-    ensure_aws_profile()
     bucket, key = _derived_bucket_key()
-    tbl = pq.read_table(f"{bucket}/{key}", filesystem=pafs.S3FileSystem(), filters=[("uniprot_base", "=", accession)])
+    tbl = pq.read_table(f"{bucket}/{key}", filesystem=_prot_s3_filesystem(), filters=[("uniprot_base", "=", accession)])
     return _select_abundance_from_table(tbl, accession, _derived_panel_size())
 
 
@@ -225,16 +247,14 @@ def _load_allgene_null_sidecar(null_path=None) -> tuple:
 
 @lru_cache(maxsize=1)
 def _load_allgene_null_sidecar_live() -> tuple:
-    import pyarrow.fs as pafs
     import pyarrow.parquet as pq
 
-    ensure_aws_profile()
     bucket, key = _derived_bucket_key()
     null_file = (_derived_manifest().get("parameters", {}) or {}).get(
         "null_sidecar_file", "depmap_gygi_protein_abundance.allgene_null.parquet"
     )
     null_key = key.rsplit("/", 1)[0] + "/" + null_file
-    tbl = pq.read_table(f"{bucket}/{null_key}", filesystem=pafs.S3FileSystem(), columns=["median_log2_abundance"])
+    tbl = pq.read_table(f"{bucket}/{null_key}", filesystem=_prot_s3_filesystem(), columns=["median_log2_abundance"])
     return tuple(float(x) for x in tbl.to_pydict()["median_log2_abundance"])
 
 

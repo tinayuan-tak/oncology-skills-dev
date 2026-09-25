@@ -31,10 +31,17 @@ def _paired_rna_protein(target: str, release_pin: str = "26q1"):
         return {}, {}, f"RNA load failed: {type(e).__name__}"
     if errs or not rna_by_model:
         return {}, {}, (errs[0].get("_live_read_error") if errs else "no model RNA")
-    acc = _prot.resolve_accession(target)
-    if acc is None:
-        return rna_by_model, {}, "target has no UniProt accession in the Gygi MS sidecar"
-    prot_by_model, _panel = _prot.load_abundance_column(acc)
+    # Protein arm: guard symmetrically with the RNA arm above. resolve_accession/load_abundance_column
+    # RAISE on transient S3, creds/broken-env (ProfileNotFound), or the schema-drift ValueError; those
+    # must degrade to an honest data_unavailable rather than crash the data_unavailable-safe reader.
+    # Genuine absence (acc is None, or an empty column) is preserved as its own "not quantified" note.
+    try:
+        acc = _prot.resolve_accession(target)
+        if acc is None:
+            return rna_by_model, {}, "target has no UniProt accession in the Gygi MS sidecar"
+        prot_by_model, _panel = _prot.load_abundance_column(acc)
+    except Exception as e:  # noqa: BLE001
+        return rna_by_model, {}, f"protein load failed: {type(e).__name__}"
     if not prot_by_model:
         return rna_by_model, {}, "target not quantified in the Gygi MS panel"
     return rna_by_model, prot_by_model, None
