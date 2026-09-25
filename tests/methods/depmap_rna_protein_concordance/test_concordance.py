@@ -92,6 +92,56 @@ def test_boundary_ci_fragility_flag_G10():
     assert R._proxy_boundary_ci(0.5, 3)["rna_protein_r_ci95_low"] is None
 
 
+def test_spearman_ci_wider_than_pearson_F3():
+    """F3: the classifying r is Spearman, whose Fisher-z SE is ~6% larger than Pearson's, so the CI
+    built for a Spearman-classified r must be WIDER than the Pearson-coefficient band at the same r/n
+    (default spearman=True); the widened band is what stops fragility being under-reported."""
+    r, n = 0.55, 40
+    spear = R._proxy_boundary_ci(r, n)  # default: classifying metric (Spearman)
+    pear = R._proxy_boundary_ci(r, n, spearman=False)
+    assert spear["rna_protein_r_ci95_low"] < pear["rna_protein_r_ci95_low"]
+    assert spear["rna_protein_r_ci95_high"] > pear["rna_protein_r_ci95_high"]
+    # boundary test-vector unchanged: r=0.45 @ n=20 still straddles 0.4 and stays fragile
+    assert R._proxy_boundary_ci(0.45, 20)["rna_proxy_class_boundary_fragile"] is True
+
+
+def test_detection_limited_qualifier_F1(monkeypatch):
+    """F1: a poor/partial class where protein coverage is low (< DETECTION_LIMITED_FRACTION) is flagged
+    rna_proxy_detection_limited — the discordance may be an MS detection-floor artifact. Verdict-INERT:
+    rna_as_biomarker is unchanged. A high-coverage poor/partial call is NOT flagged."""
+    ids = [f"ACH-{i:04d}" for i in range(50)]
+    rna = {m: float(i % 8) for i, m in enumerate(ids)}
+    prot = {m: float((i * 37) % 5) for i, m in enumerate(ids)}  # scrambled → poor/partial
+    # low protein coverage: protein quantified in 22/50 models → detection_fraction 0.44 < 0.5, but
+    # still >= MIN_PAIRED_MODELS paired so a class is emitted
+    prot_sparse = {m: prot[m] for m in ids[:22]}
+    _wire(monkeypatch, rna, prot_sparse)
+    out = R.read_rna_protein_concordance("X")
+    assert out["rna_as_biomarker"] in ("poor_proxy", "partial_proxy")
+    assert out["protein_detection_fraction"] < R.DETECTION_LIMITED_FRACTION
+    assert out["rna_proxy_detection_limited"] is True
+    # full coverage → same discordant class, but NOT detection-limited
+    _wire(monkeypatch, rna, prot)
+    out2 = R.read_rna_protein_concordance("X")
+    assert out2["protein_detection_fraction"] >= R.DETECTION_LIMITED_FRACTION
+    assert out2["rna_proxy_detection_limited"] is False
+
+
+def test_underpowered_qualifier_near_floor_F2(monkeypatch):
+    """F2: a class emitted between MIN_PAIRED_MODELS (20) and the ≥30 confident bar is flagged
+    rna_proxy_underpowered (verdict-INERT — the class still emits); at n≥30 it is not."""
+    ids = [f"ACH-{i:04d}" for i in range(25)]  # 20 <= n < 30
+    rna = {m: float(i % 8) for i, m in enumerate(ids)}
+    _wire(monkeypatch, rna, {m: rna[m] + 0.1 for m in ids})
+    out = R.read_rna_protein_concordance("EGFR")
+    assert out["n_paired_models"] == 25 and out["rna_as_biomarker"] != "insufficient_paired_models"
+    assert out["rna_proxy_underpowered"] is True
+    ids2 = [f"ACH-{i:04d}" for i in range(35)]  # n >= 30
+    rna2 = {m: float(i % 8) for i, m in enumerate(ids2)}
+    _wire(monkeypatch, rna2, {m: rna2[m] + 0.1 for m in ids2})
+    assert R.read_rna_protein_concordance("EGFR")["rna_proxy_underpowered"] is False
+
+
 def test_underpowered_paired_models(monkeypatch):
     # fewer than MIN_PAIRED_MODELS with BOTH → insufficient, not a fabricated r
     ids = [f"ACH-{i:04d}" for i in range(10)]

@@ -61,6 +61,29 @@ def _pal(contracts_dir):
         return None
 
 
+def _class_r_annotation(summary: dict) -> "str | None":
+    """Figure annotation for the correlation the rna_as_biomarker class was actually computed on (F4).
+
+    The class derives from SPEARMAN (read.rna_proxy_classified_on == "spearman"), so annotating the
+    Pearson r alone can sit the shown r on the opposite side of a class boundary from the shown class.
+    Label the classifying metric (Spearman ρ) and show Pearson r alongside for reference; when the class
+    fell back to Pearson (scipy unavailable) annotate Pearson only. None when no correlation is defined."""
+    pear = summary.get("rna_protein_r")
+    if pear is None:
+        return None
+    if summary.get("rna_proxy_classified_on") == "spearman" and summary.get("rna_protein_spearman") is not None:
+        return f"Spearman ρ = {summary['rna_protein_spearman']} (class)  ·  Pearson r = {pear}"
+    return f"Pearson r = {pear}"
+
+
+def _class_r_short(summary: dict) -> str:
+    """Compact interactive-title label for the classifying correlation (F4): Spearman ρ when the class
+    was computed on Spearman, else Pearson r (fallback)."""
+    if summary.get("rna_proxy_classified_on") == "spearman" and summary.get("rna_protein_spearman") is not None:
+        return f"ρ={summary['rna_protein_spearman']}"
+    return f"r={summary.get('rna_protein_r')}"
+
+
 def _proxy_takeaway(target, r, cls):
     """rna_as_biomarker class → one-line finding (r rounded)."""
     rr = f"{float(r):.2f}" if r is not None else "n/a"
@@ -119,7 +142,7 @@ def emit_svg(
             ax.text(
                 0.98,
                 0.03,
-                f"Pearson r = {r}",
+                _class_r_annotation(summary),
                 transform=ax.transAxes,
                 fontsize=8,
                 color="#33383D",
@@ -179,7 +202,7 @@ def emit_plotly_specs(
     )
     fig.update_layout(
         title=f"{target} — cell-line RNA↔protein concordance "
-        f"(r={summary.get('rna_protein_r')}, {summary.get('rna_as_biomarker')})",
+        f"({_class_r_short(summary)}, {summary.get('rna_as_biomarker')})",
         xaxis_title=f"{target} RNA log2(TPM+1)",
         yaxis_title=f"{target} protein log2-abundance",
         template="plotly_white",
@@ -244,7 +267,7 @@ def emit_tumor_svg(
             ax.text(
                 0.98,
                 0.03,
-                f"Pearson r = {r}",
+                _class_r_annotation(summary),
                 transform=ax.transAxes,
                 fontsize=8,
                 color="#33383D",
@@ -288,7 +311,7 @@ def emit_tumor_plotly_specs(
     )
     fig.update_layout(
         title=f"{target} in {indication} — TUMOR RNA↔protein concordance "
-        f"(r={summary.get('rna_protein_r')}, {summary.get('rna_as_biomarker')})",
+        f"({_class_r_short(summary)}, {summary.get('rna_as_biomarker')})",
         xaxis_title=f"{target} RNA log2(TPM+1)",
         yaxis_title=f"{target} protein log2-abundance",
         template="plotly_white",

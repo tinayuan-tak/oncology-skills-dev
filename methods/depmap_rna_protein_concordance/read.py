@@ -10,12 +10,25 @@ from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
 
-# concordance thresholds (Pearson r on paired per-model RNA vs protein).
+# concordance thresholds (correlation on paired per-model RNA vs protein; classified on Spearman).
 STRONG_CONCORDANCE_R = 0.7  # RNA is an adequate protein proxy
 MODERATE_CONCORDANCE_R = 0.4  # RNA is a partial proxy; interpret with caution
 MIN_PAIRED_MODELS = 20  # below this the correlation is underpowered
+# Confident-class bar: at n between MIN_PAIRED_MODELS and this the single pooled correlation is
+# CI-fragile (the class can flip by sampling alone), so a near-floor class is flagged underpowered
+# (verdict-INERT — the class is unchanged) rather than emitted as a confident call (F2).
+ADEQUATE_POWER_N = 30
+# Protein coverage below this ⇒ Gygi MS left-censoring (MNAR: undetected low-abundance proteins are
+# dropped before the correlation) can attenuate r downward, so a poor/partial class may be a
+# detection-floor artifact rather than genuine post-transcriptional decoupling (F1). Verdict-INERT.
+DETECTION_LIMITED_FRACTION = 0.5
 # RNA "expressed" / protein "detected" floors (log2 units; RNA matches stats.py detectable).
 DETECTABLE_LOG2TPM = 1.0
+# Fisher-z SE coefficient for the classifying correlation's 95% CI. Pearson = 1.0; the Spearman rank
+# correlation's Fisher-z SE is ~6% larger (≈1.06/sqrt(n-3), Fieller/Bonett-Wright), so a Spearman-
+# classified band built with the Pearson coefficient is ~6% too narrow and UNDER-reports fragility (F3).
+PEARSON_FISHER_Z_SE_COEFF = 1.0
+SPEARMAN_FISHER_Z_SE_COEFF = 1.06
 
 
 def _paired_rna_protein(target: str, release_pin: str = "26q1"):
@@ -143,9 +156,16 @@ def read_rna_protein_concordance(
     # Classify on Spearman (G10) — the consensus rank metric for the nonlinear mRNA↔protein relationship;
     # fall back to Pearson only when scipy is unavailable (spear is None). rna_protein_r stays Pearson.
     _classify_r = spear if spear is not None else pear
-    out["rna_as_biomarker"] = _classify_rna_biomarker(_classify_r, n)
-    out["rna_proxy_classified_on"] = "spearman" if spear is not None else "pearson_fallback"
-    out.update(_proxy_boundary_ci(_classify_r, n))  # G10: Fisher-z CI + boundary-fragility flag
+    _on_spearman = spear is not None
+    rna_class = _classify_rna_biomarker(_classify_r, n)
+    out["rna_as_biomarker"] = rna_class
+    out["rna_proxy_classified_on"] = "spearman" if _on_spearman else "pearson_fallback"
+    # G10/F3: Fisher-z CI + boundary-fragility flag, built with the SE coefficient of the classifying
+    # metric (Spearman ≈1.06 vs Pearson 1.0) so a Spearman-classified band is not ~6% too narrow.
+    out.update(_proxy_boundary_ci(_classify_r, n, spearman=_on_spearman))
+    # F1/F2: verdict-INERT honesty qualifiers (never change rna_as_biomarker). Detection fraction lets
+    # a consumer tell a poor/partial call driven by MS under-detection from genuine decoupling.
+    out.update(_proxy_qualifiers(rna_class, n, protein_detection_fraction=out["protein_detection_fraction"]))
     return out
 
 
@@ -170,13 +190,18 @@ def _classify_rna_biomarker(r, n_paired) -> str:
     return "poor_proxy"
 
 
-def _proxy_boundary_ci(r, n_paired) -> dict:
+def _proxy_boundary_ci(r, n_paired, spearman: bool = True) -> dict:
     """G10 refinement: the Fisher-z 95% CI of the classifying correlation + whether it STRADDLES an
     rna_as_biomarker class boundary (0.4 / 0.7). At small n the r estimate is wide (at n=20 the 95% CI
     half-width is ~±0.35), so the adequate/partial/poor qualifier can flip by sampling alone. This
     surfaces that instability as a verdict-INERT flag — it never changes rna_as_biomarker (a consumer
     can down-weight a boundary-fragile call). Returns rna_protein_r_ci95_low/high +
-    rna_proxy_class_boundary_fragile (None when the CI can't be formed: r None, or n<=3)."""
+    rna_proxy_class_boundary_fragile (None when the CI can't be formed: r None, or n<=3).
+
+    F3: the classifying r is normally SPEARMAN, whose Fisher-z SE is ~6% larger than Pearson's
+    (≈1.06/sqrt(n-3), Fieller/Bonett-Wright). Building it with the Pearson SE makes the band ~6% too
+    narrow and UNDER-reports fragility. `spearman` selects the coefficient; default True (the classifying
+    metric), Pearson only when scipy is unavailable and the class fell back to Pearson."""
     if r is None or n_paired is None or n_paired <= 3:
         return {
             "rna_protein_r_ci95_low": None,
@@ -185,7 +210,8 @@ def _proxy_boundary_ci(r, n_paired) -> dict:
         }
     rc = max(min(float(r), 0.999999), -0.999999)  # atanh is undefined at |r|==1
     z = math.atanh(rc)
-    se = 1.0 / math.sqrt(n_paired - 3)  # Fisher-z standard error
+    coeff = SPEARMAN_FISHER_Z_SE_COEFF if spearman else PEARSON_FISHER_Z_SE_COEFF
+    se = coeff / math.sqrt(n_paired - 3)  # Fisher-z standard error (Spearman SE ~6% wider than Pearson)
     lo = math.tanh(z - 1.96 * se)
     hi = math.tanh(z + 1.96 * se)
     fragile = any(lo <= b <= hi for b in (MODERATE_CONCORDANCE_R, STRONG_CONCORDANCE_R))
@@ -193,6 +219,30 @@ def _proxy_boundary_ci(r, n_paired) -> dict:
         "rna_protein_r_ci95_low": round(lo, 4),
         "rna_protein_r_ci95_high": round(hi, 4),
         "rna_proxy_class_boundary_fragile": bool(fragile),
+    }
+
+
+def _proxy_qualifiers(rna_class, n_paired, protein_detection_fraction=None) -> dict:
+    """Verdict-INERT honesty qualifiers on the pooled rna_as_biomarker class (they NEVER change it).
+
+    rna_proxy_underpowered (F2): the pooled correlation has no strata, and between MIN_PAIRED_MODELS
+      (20) and the ≥30 confident bar the adequate/partial/poor class is CI-fragile and can flip by
+      sampling alone. True when n_paired < ADEQUATE_POWER_N, so a consumer can treat a near-floor class
+      as soft/exploratory without the method demoting it.
+    rna_proxy_detection_limited (F1): Gygi MS is sparse and undetected (low-abundance) proteins are
+      dropped before the correlation (MNAR left-censoring), which attenuates r downward. When the class
+      is poor/partial AND protein coverage is low (< DETECTION_LIMITED_FRACTION), the discordance may be
+      a detection-floor artifact rather than genuine post-transcriptional decoupling. None when the
+      detection fraction is unavailable (e.g. the tumor arm reads a per-sample matched product)."""
+    underpowered = n_paired is not None and n_paired < ADEQUATE_POWER_N
+    detection_limited = None
+    if protein_detection_fraction is not None:
+        detection_limited = bool(
+            rna_class in ("poor_proxy", "partial_proxy") and protein_detection_fraction < DETECTION_LIMITED_FRACTION
+        )
+    return {
+        "rna_proxy_underpowered": bool(underpowered),
+        "rna_proxy_detection_limited": detection_limited,
     }
 
 
@@ -378,14 +428,21 @@ def read_tumor_rna_protein_concordance(target: str, indication: str, plot_data_o
         pear = float(np.corrcoef(rna, prot)[0, 1])
         spear = None
     _classify_r = spear if spear is not None else pear  # G10: classify on Spearman (Pearson fallback)
+    _on_spearman = spear is not None
+    tumor_class = _classify_rna_biomarker(_classify_r, n)
     base.update(
         {
             "rna_protein_r": round(pear, 4),
             "rna_protein_spearman": (round(spear, 4) if spear is not None else None),
             "n_paired_tumors": n,
-            "rna_as_biomarker": _classify_rna_biomarker(_classify_r, n),
-            "rna_proxy_classified_on": "spearman" if spear is not None else "pearson_fallback",
-            **_proxy_boundary_ci(_classify_r, n),  # G10: Fisher-z CI + boundary-fragility flag
+            "rna_as_biomarker": tumor_class,
+            "rna_proxy_classified_on": "spearman" if _on_spearman else "pearson_fallback",
+            # G10/F3: CI built with the classifying metric's SE coefficient (Spearman ~6% wider).
+            **_proxy_boundary_ci(_classify_r, n, spearman=_on_spearman),
+            # F2 (symmetric): verdict-INERT near-floor power flag. No protein_detection_fraction here —
+            # the matched CPTAC product is per-sample paired, so F1's detection-floor qualifier is
+            # cell-line-specific (left as None). Tumor-specific work is the sibling issue #741.
+            **_proxy_qualifiers(tumor_class, n, protein_detection_fraction=None),
         }
     )
     return base
