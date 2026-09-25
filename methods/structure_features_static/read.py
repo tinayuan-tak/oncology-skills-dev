@@ -31,9 +31,12 @@ from typing import Optional
 METHOD_VERSION = "0.2.0"
 
 DEFAULT_AWS_PROFILE = "cbg"
-S3_BUCKET = "onc-compbio"
+# Object locations resolve through the catalog manifest (single source of truth) via
+# bucket_key_for(<manifest_id>) at read time — NOT a hardcoded s3://bucket/key literal.
+# The manifest owns the (bucket, key); a re-point (bucket move, key rename) therefore
+# propagates to this reader instead of silently missing it. The *_MANIFEST_ID constants
+# below are the only location handles this reader carries.
 DERIVED_MANIFEST_ID = "pdb-alphafold-structure-features-per-uniprot-v1"
-DERIVED_S3_KEY = "data-catalog/derived/pdb-alphafold-structure-features-per-uniprot-v1/structure_features.parquet"
 
 # Composite small-molecule structural-LIGANDABILITY product (data-catalog derived).
 # This is a LIVE structure signal: it fuses 6 shipped per-UniProt products (HOTPocket
@@ -45,9 +48,6 @@ DERIVED_S3_KEY = "data-catalog/derived/pdb-alphafold-structure-features-per-unip
 # mutation_hotspot_in_druggable_pocket=True; a target with no oncogenic hotspot in a
 # druggable pocket -> 'no_hotspots_annotated'. Both legs feed the E8 SM-ligandability rules.
 LIGAND_MANIFEST_ID = "structure-ligandability-per-protein-v1"
-LIGAND_S3_KEY = (
-    "data-catalog/derived/structure-ligandability-per-protein-v1/structure_ligandability_per_protein.parquet"
-)
 
 CACHE_DIR = Path.home() / ".cache" / "framework-structure-features"
 CACHE_PARQUET = CACHE_DIR / "structure_features.parquet"
@@ -57,6 +57,7 @@ _DERIVED_STATUS: Optional[bool] = None  # negative cache (hotspot-adjacency prod
 _LIGAND_STATUS: Optional[bool] = None  # negative cache (ligandability product)
 
 
+from methods.catalog_query.read import bucket_key_for
 from methods.target_id_sidecar import s3_client as _boto3_client
 
 
@@ -69,9 +70,12 @@ def _ensure_derived_cached() -> Optional[Path]:
         _DERIVED_STATUS = True
         return CACHE_PARQUET
     if _DERIVED_STATUS is None:
+        # Resolve (bucket, key) from the catalog manifest OUTSIDE the try: an unknown/broken
+        # manifest id is a wiring error (fail loud), NOT data absence to latch False on.
+        bucket, key = bucket_key_for(DERIVED_MANIFEST_ID)
         try:
             s3 = _boto3_client()
-            s3.download_file(S3_BUCKET, DERIVED_S3_KEY, str(CACHE_PARQUET))
+            s3.download_file(bucket, key, str(CACHE_PARQUET))
             _DERIVED_STATUS = True
             return CACHE_PARQUET
         except Exception as e:
@@ -217,9 +221,11 @@ def _ensure_ligand_cached() -> Optional[Path]:
         _LIGAND_STATUS = True
         return CACHE_LIGAND_PARQUET
     if _LIGAND_STATUS is None:
+        # Resolve (bucket, key) from the catalog manifest OUTSIDE the try (see _ensure_derived_cached).
+        bucket, key = bucket_key_for(LIGAND_MANIFEST_ID)
         try:
             s3 = _boto3_client()
-            s3.download_file(S3_BUCKET, LIGAND_S3_KEY, str(CACHE_LIGAND_PARQUET))
+            s3.download_file(bucket, key, str(CACHE_LIGAND_PARQUET))
             _LIGAND_STATUS = True
             return CACHE_LIGAND_PARQUET
         except Exception as e:
