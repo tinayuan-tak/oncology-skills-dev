@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as _dt
+import hashlib
 import json
 import re
 import sys
@@ -80,6 +81,23 @@ TOOL_SCHEMA = {
     },
     "required": ["risk_level", "justification", "interpretation", "cited_pmids", "contradicts_deterministic"],
 }
+
+
+def _prompt_schema_hash() -> str:
+    """Deterministic sha256 of the version-invariant prompt surface (SYSTEM + TOOL_SCHEMA), so a
+    WITHIN-VERSION change to the grading prompt or the tool schema is detectable in provenance/corpus_pin.
+    The per-call user prompt varies by target/dimension/corpus (already captured by corpus_pin.retrieved),
+    so this hash intentionally covers only the shared instruction surface — not the sampled output, which
+    is unpinnable (temperature deprecated on the framework model → 'the sampled output IS the pin'). TOOL_SCHEMA
+    is serialized sort-key so field-order permutations don't change the hash."""
+    h = hashlib.sha256()
+    for part in (SYSTEM, json.dumps(TOOL_SCHEMA, sort_keys=True)):
+        h.update(part.encode("utf-8"))
+        h.update(b"\x00")
+    return h.hexdigest()
+
+
+PROMPT_SCHEMA_HASH = _prompt_schema_hash()
 
 
 def _uv(x):
@@ -332,6 +350,9 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6,
                 "maxdate": maxdate,
                 "abstracts_per_category": per_cat,
                 "retrieved": corpus,
+                # sha256 of the version-invariant prompt surface (SYSTEM + TOOL_SCHEMA): a WITHIN-version
+                # change to the grading prompt/schema is detectable here, not resting solely on generated_by.
+                "prompt_hash": PROMPT_SCHEMA_HASH,
             },
             "n_samples": n_samples,  # self-consistency sampling depth (1 = single grade, no vote)
             "anchored_from_evidence_package": bool(pkg_path),

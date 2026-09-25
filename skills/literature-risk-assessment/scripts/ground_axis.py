@@ -272,14 +272,15 @@ AXIS_CONFIG = {
         ),
     },
 }
-# Controlled per-finding SEVERITY — the SINGLE SOURCE OF TRUTH for pseudo-card (clinical/commercial)
-# escalation (decision 2: literature-only, uncalibrated bin for portfolio-sortability). This replaces
-# the former free-text `kind` substring-grep, which was fragile-by-construction: it hoped the model's
-# prose `kind` happened to contain a token like "toxic"/"crowded", and one escalator ("lack_of") could
-# NEVER match natural prose ("lack of clinical validation"). Now the model classifies each finding into
-# a fixed enum and risk_rollup bins on exact membership — no substring matching, no drift-prone list.
+# Controlled per-finding SEVERITY — a fixed enum the model classifies each finding into (replacing the
+# former fragile free-text `kind` substring-grep, which hoped the prose `kind` happened to contain a token
+# like "toxic"/"crowded" and where one escalator ("lack_of") could NEVER match natural prose). NOTE: since
+# the 2026-09-03 grounding demotion (risk_rollup.py, locked decision #1), severity is NO LONGER a
+# pseudo-card escalator — risk_rollup.project() does NOT read severity, and the `_pseudo_literature_bin`
+# helper + `SEVERITY_HIGH` import were removed. Severity now survives only as a per-finding annotation
+# attribute (surfaced on each grounded finding below), not an input to any risk_6dim bin.
 SEVERITY_LEVELS = ("high", "moderate")  # schema enum (order-stable)
-SEVERITY_HIGH = "high"  # a `severity == SEVERITY_HIGH` finding escalates a pseudo dim
+SEVERITY_HIGH = "high"  # highest per-finding severity level (annotation only; no longer escalates a dim)
 
 # Per-abstract character budget passed to the model. Raised from the original 900 (which cut most
 # oncology abstracts mid-way, dropping the RESULTS/limitations text where escalating findings live) to

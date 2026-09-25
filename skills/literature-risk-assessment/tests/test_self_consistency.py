@@ -96,6 +96,39 @@ def test_run_default_single_sample_has_no_vote_fields(monkeypatch):
     assert res["provenance"]["n_samples"] == 1
 
 
+def test_corpus_pin_carries_prompt_hash(monkeypatch):
+    # SKILL.md advertises the prompt_hash as part of the pinned artifact: corpus_pin MUST carry a
+    # deterministic sha256 of the version-invariant prompt surface (SYSTEM + TOOL_SCHEMA), so a
+    # within-version prompt/schema change is detectable in provenance (not resting solely on generated_by).
+    monkeypatch.setattr(
+        rc.rl,
+        "retrieve_axis",
+        lambda target, indication, axis, **k: {"kept": ([_Ab("111")] if axis == "safety" else []), "dropped": []},
+    )
+    monkeypatch.setattr(
+        rc,
+        "synthesize_structured",
+        lambda *a, **k: {
+            "risk_level": "LOW",
+            "justification": "j",
+            "interpretation": "i",
+            "cited_pmids": ["111"],
+            "contradicts_deterministic": False,
+        },
+    )
+    res = rc.run("GENE", "safety-indication", None, "2015", "2026", per_cat=1)
+    ph = res["provenance"]["corpus_pin"]["prompt_hash"]
+    import hashlib
+    import json as _json
+
+    expected = hashlib.sha256()
+    for part in (rc.SYSTEM, _json.dumps(rc.TOOL_SCHEMA, sort_keys=True)):
+        expected.update(part.encode("utf-8"))
+        expected.update(b"\x00")
+    assert ph == expected.hexdigest()  # exact, deterministic
+    assert ph == rc.PROMPT_SCHEMA_HASH  # module-level constant, stable within version
+
+
 class _Ab:
     def __init__(self, pmid):
         self.pmid, self.year, self.title, self.abstract = pmid, 2020, "t", "body"

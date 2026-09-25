@@ -1887,7 +1887,8 @@ def assemble(
             if v.get("driving_rule_id"):
                 rule_ids.add(v["driving_rule_id"])
 
-    # 6-dim risk read (retrieval-grounded). Optional. allowed_pmids = the retrieved set.
+    # 6-dim risk read (retrieval-grounded). Optional. allowed_pmids accumulates the CITED subset
+    # (v["cited_pmids"], the post-containment survivors) per dimension — NOT the full retrieved corpus.
     risk, allowed_pmids, risk_present = {}, set(), False
     if risk_path and Path(risk_path).exists():
         rd = json.loads(Path(risk_path).read_text()).get("dimensions", {})
