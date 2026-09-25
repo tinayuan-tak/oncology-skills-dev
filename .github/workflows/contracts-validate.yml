@@ -35,12 +35,36 @@ name: contracts-validate
 # set the floor and one runner cannot beat its single longest test (~57s). So the pytest
 # net is SHARDED across a matrix of jobs — each shard its own runner = real added cores —
 # using pytest-split's `least_duration` algorithm over the committed `.test_durations`
-# balance file (regenerate with `pytest --store-durations` after a big test-timing shift;
-# stale durations only degrade BALANCE, never coverage — pytest-split still assigns every
+# balance file. least_duration greedily packs the longest tests into different shards
+# first, so the biggest single-test cost (test_real_root_still_scans, ~58s — it scans this
+# repo's OWN card corpus, no sibling gate, so it costs the same on CI as it does anywhere)
+# lands alone on its own shard rather than stacking with another giant.
+#
+# ⚠️ REGEN REGIME (#924, 2026-09-25): `.test_durations` MUST be recorded in a CI-faithful
+# regime, not a plain local `pytest --store-durations`. A local recording (siblings
+# present: analysis-methods / claude-oncology-skills / data-catalog checked out as
+# siblings) times tests that are `skipif(not _siblings_available())` / conditionally
+# skipped on this checkout-only runner — those looked like ~55-84s giants locally and
+# ~0s on CI, so least_duration balanced shards around costs CI never pays (measured
+# 2026-09-25: live shards 38/103/38/74s despite a "balanced" local recording). The fix is
+# to record with the SAME env + worker count CI uses:
+#   1. Add a temporary `pull_request`-triggered workflow (scoped to its own path, since
+#      `workflow_dispatch` requires the workflow file to already exist on the default
+#      branch — it won't on a fresh capture branch) that runs, on ubuntu-latest:
+#        DATA_CATALOG_ROOT=/nonexistent CLAUDE_ONCOLOGY_SKILLS_ROOT=/nonexistent \
+#        ANALYSIS_METHODS_ROOT=/nonexistent python -m pytest -q -n auto \
+#        --store-durations --durations-path .test_durations
+#      i.e. the SAME command as the `contracts-pytest` step below but WITHOUT
+#      `--splits`/`--group`, so pytest-split gets real per-test timings for the whole
+#      checkout-only suite in one job (upload the file via actions/upload-artifact,
+#      with `include-hidden-files: true` — v4 excludes dotfiles by default and silently
+#      warns "no files found" otherwise).
+#   2. Download the artifact, commit it as `.test_durations`, delete the temp workflow.
+# Stale durations only degrade BALANCE, never coverage — pytest-split still assigns every
 # collected test to exactly one shard, so a newly-added test file is gated the day it
-# lands). least_duration greedily packs the longest tests into different shards first, so
-# the two dashboard giants (test_rollup_attaches_runs_clean ~57s +
-# test_real_root_still_scans ~32s) are guaranteed onto SEPARATE shards.
+# lands. Cross-worker corpus-fixture sharing was investigated and is a proven dead end
+# (#919/#920): `-n auto` gives one worker per dedicated core, so per-worker corpus
+# rebuilds already parallelize for zero wall-time cost — do not reopen that approach.
 #
 # ⚠️ REQUIRED-CHECK FAN-IN (the deadlock gotcha — validate by watching a live run, not by
 # reading this YAML): `contracts-validate` is a branch-protection REQUIRED status check.
@@ -244,9 +268,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # 4 shards: least_duration puts the ~57s and ~32s dashboard giants on separate
-        # shards; the ~57s single test is the indivisible wall floor, so more shards would
-        # not lower it. `.test_durations` is 1-indexed (--group 1..4).
+        # 4 shards; `.test_durations` is 1-indexed (--group 1..4). See the REGEN REGIME
+        # note in the header for how the balance file must be recorded.
         group: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
@@ -276,9 +299,10 @@ jobs:
       # the runner's core count. Do NOT path-filter this workflow to speed it up — that
       # re-opens the required-check deadlock (see header).
       #
-      # least_duration + the committed .test_durations balance file guarantees the two
-      # dashboard giants land on different shards. If a big test-timing shift makes the shards
-      # lopsided, regenerate: `python -m pytest --store-durations --durations-path .test_durations`.
+      # least_duration + the committed .test_durations balance file packs shards evenly by
+      # CI-observed cost. If a big test-timing shift makes the shards lopsided, regenerate
+      # in the CI-faithful regime — see the REGEN REGIME note in the header; a plain local
+      # `pytest --store-durations` (siblings present) reintroduces the #924 imbalance.
       - name: Whole-repo test suite (shard ${{ matrix.group }}/4; the pytest gate)
         run: >
           DATA_CATALOG_ROOT=/nonexistent
