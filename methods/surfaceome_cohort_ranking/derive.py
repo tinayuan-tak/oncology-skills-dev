@@ -68,6 +68,24 @@ CPTAC_COHORT_MAP = {
 _PADJ_FLOOR = 1e-300
 _SIG_Q = 0.05
 
+# Per-indication normal-contrast caveat, propagated onto every ranked row for the indication
+# (constant within an indication; empty string where there is nothing to flag). This is NOT
+# derivable from the parquet alone: it encodes a biological property of the normal comparator, not a
+# cell-count. LAML's only contrast is cell C (tumor vs GTEx whole blood; no adjacent normal), and
+# whole blood carries a maturation-state confound — mature circulating blood vs immature leukemic
+# blasts — so LAML surface ranks are direction/rank-informative but not magnitude-comparable to
+# adjacent-normal-backed indications (mirrors the caveat on laml-dge-tumor-vs-normal-sensitivity-v1
+# and the LAML DGE-publish decision, analysis-methods#734 Phase 2 / #789). Other GTEx-only
+# single-cell-C indications (e.g. OV vs GTEx ovary) are tissue-matched and carry no such caveat, so
+# this is keyed on the biological fact, not on cells_ran.
+INDICATION_NORMAL_CAVEAT = {
+    "LAML": (
+        "normal contrast is GTEx whole blood (no adjacent normal; cell C sole contrast); "
+        "maturation-state confound (mature circulating blood vs immature leukemic blasts) — "
+        "consume direction/rank, not absolute magnitude"
+    ),
+}
+
 OUTPUT_COLUMNS = [
     "indication",
     "gene_symbol",
@@ -82,6 +100,7 @@ OUTPUT_COLUMNS = [
     "tissue_percentile_protein",
     "rna_protein_concordance",
     "cohort_rank_class",
+    "normal_contrast_caveat",
     "method_version",
 ]
 
@@ -194,6 +213,7 @@ def rank_indication(
     df["uniprot_ac"] = df["gene_symbol"].map(surf_map["uniprot_ac"])
     df["surface_protein_family"] = df["gene_symbol"].map(surf_map["surface_protein_family"])
     df["indication"] = indication
+    df["normal_contrast_caveat"] = INDICATION_NORMAL_CAVEAT.get(indication, "")
     df["method_version"] = METHOD_VERSION
 
     # ── CPTAC protein overlay ──────────────────────────────────────────────

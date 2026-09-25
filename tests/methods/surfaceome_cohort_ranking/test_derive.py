@@ -5,6 +5,7 @@ import pandas as pd
 
 from methods.surfaceome_cohort_ranking.derive import (
     CPTAC_COHORT_MAP,
+    INDICATION_NORMAL_CAVEAT,
     OUTPUT_COLUMNS,
     _cell_pairs,
     _cohort_rank_class,
@@ -287,3 +288,53 @@ def test_empty_when_no_surface_hits():
     out = rank_indication("HNSC", sens, _surface_df(), min_cells_supporting=2)
     assert out.empty
     assert list(out.columns) == OUTPUT_COLUMNS
+
+
+def _sens_laml():
+    # LAML-style single-cell-C product (tumor vs GTEx whole blood; no adjacent normal => cell A empty).
+    return pd.DataFrame(
+        [
+            {
+                "gene_symbol": "SURF1",
+                "cells_ran": 1,
+                "cells_supporting": 1,
+                "dominant_direction": "up",
+                "log2fc_C": 2.5,
+                "padj_C": 1e-7,
+                "max_abs_log2fc": 2.5,
+            },
+        ]
+    )
+
+
+def test_laml_caveat_propagated_to_every_row():
+    out = rank_indication("LAML", _sens_laml(), _surface_df(), cptac_df=None, min_cells_supporting=2)
+    assert set(out.gene_symbol) == {"SURF1"}  # single-cell-C survives, as OV does
+    caveat = out["normal_contrast_caveat"]
+    assert (caveat == INDICATION_NORMAL_CAVEAT["LAML"]).all()
+    assert "whole blood" in caveat.iloc[0] and "maturation-state confound" in caveat.iloc[0]
+
+
+def test_normal_indication_has_empty_caveat():
+    # A tissue-matched indication carries no normal-contrast caveat (guards against a vacuous map that
+    # stamps the confound everywhere).
+    out = rank_indication("COADREAD", _sens_ac(), _surface_df(), min_cells_supporting=2)
+    assert not out.empty
+    assert (out["normal_contrast_caveat"] == "").all()
+
+
+def test_caveat_is_rank_inert():
+    # The caveat is a per-indication annotation, not a ranking input: the same fixture ranked as a
+    # caveated (LAML) vs non-caveated (OV) indication must produce identical ranking columns.
+    laml = rank_indication("LAML", _sens_laml(), _surface_df(), cptac_df=None, min_cells_supporting=2)
+    ov = rank_indication("OV", _sens_laml(), _surface_df(), cptac_df=None, min_cells_supporting=2)
+    rank_cols = ["gene_symbol", "ranking_score", "tissue_rank", "tissue_percentile_rna", "cohort_rank_class"]
+    pd.testing.assert_frame_equal(laml[rank_cols].reset_index(drop=True), ov[rank_cols].reset_index(drop=True))
+    assert laml["normal_contrast_caveat"].iloc[0] != ""
+    assert ov["normal_contrast_caveat"].iloc[0] == ""
+
+
+def test_caveat_map_scope():
+    # Only LAML is currently caveated; keep the map from silently growing/emptying.
+    assert set(INDICATION_NORMAL_CAVEAT) == {"LAML"}
+    assert INDICATION_NORMAL_CAVEAT["LAML"]

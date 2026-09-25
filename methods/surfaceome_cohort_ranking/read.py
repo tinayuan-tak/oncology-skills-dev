@@ -43,6 +43,7 @@ _COLUMNS = [
     "max_abs_log2fc",
     "surface_protein_family",
     "uniprot_ac",
+    "normal_contrast_caveat",
 ]
 
 # Per-target row cache (keyed by UPPER(gene_symbol)); caches ONLY successful reads. A transient
@@ -181,6 +182,10 @@ def _row_to_summary(row: dict) -> dict:
         "cells_supporting": row.get("cells_supporting"),
         "max_abs_log2fc": row.get("max_abs_log2fc"),
         "surface_protein_family": row.get("surface_protein_family"),
+        # Empty string on a normal indication; a non-empty confound note (e.g. LAML whole-blood
+        # maturation-state) travels with the ranking so the consumer never reads a caveated rank as
+        # equivalent-quality. Normalized to None when blank so the summary reads "no caveat".
+        "normal_contrast_caveat": (row.get("normal_contrast_caveat") or None),
         "method_version": "0.1.0",
         "_data_source": DERIVED_MANIFEST_ID,
     }
@@ -198,6 +203,7 @@ def _empty(note: str) -> dict:
         "cells_supporting": None,
         "max_abs_log2fc": None,
         "surface_protein_family": None,
+        "normal_contrast_caveat": None,
         "method_version": "0.1.0",
         "_data_note": note,
     }

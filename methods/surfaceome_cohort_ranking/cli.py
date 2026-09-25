@@ -34,7 +34,9 @@ DERIVED_PREFIX = "data-catalog/derived/"
 SURFACE_KEY = f"{DERIVED_PREFIX}surfaceome-family-classification-per-uniprot-v1/surfaceome_family.parquet"
 CPTAC_KEY = f"{DERIVED_PREFIX}cptac-protein-tumor-vs-normal-per-cohort-v1/cptac_protein_deg.parquet"
 
-# Indications with a materialized *-dge-tumor-vs-normal-sensitivity-v1 product on S3 (2026-08-18).
+# Indications with a materialized *-dge-tumor-vs-normal-sensitivity-v1 product on S3 (2026-08-18;
+# LAML added 2026-09-25 after analysis-methods#734 Phase 2 published its GTEx-whole-blood sensitivity
+# product — carries a maturation-state caveat, see derive.INDICATION_NORMAL_CAVEAT).
 WIRED_INDICATIONS = [
     "ACC",
     "BLCA",
@@ -48,6 +50,7 @@ WIRED_INDICATIONS = [
     "KICH",
     "KIRC",
     "KIRP",
+    "LAML",
     "LGG",
     "LIHC",
     "LUAD",
