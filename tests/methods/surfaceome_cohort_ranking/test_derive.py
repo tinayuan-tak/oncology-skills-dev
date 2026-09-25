@@ -55,59 +55,51 @@ def _surface_df():
     )
 
 
-def _sens_3cell():
-    # 3-cell indication. SURF1 strong-up robust; SURF2 up but only 1/3 supporting; SURF3 down;
-    # NOTSURF up robust (must be filtered out — not surface).
+def _sens_ac():
+    # 2-cell indication (A/C; cell B removed in analysis-methods#727). SURF1 strong-up robust;
+    # SURF2 up but only 1/2 supporting; SURF3 down; NOTSURF up robust (filtered — not surface).
     return pd.DataFrame(
         [
             {
                 "gene_symbol": "SURF1",
-                "cells_ran": 3,
-                "cells_supporting": 3,
+                "cells_ran": 2,
+                "cells_supporting": 2,
                 "dominant_direction": "up",
                 "log2fc_A": 3.0,
                 "padj_A": 1e-10,
-                "log2fc_B": 2.5,
-                "padj_B": 1e-8,
                 "log2fc_C": 2.8,
                 "padj_C": 1e-9,
                 "max_abs_log2fc": 3.0,
             },
             {
                 "gene_symbol": "SURF2",
-                "cells_ran": 3,
+                "cells_ran": 2,
                 "cells_supporting": 1,
                 "dominant_direction": "up",
                 "log2fc_A": 1.0,
                 "padj_A": 1e-3,
-                "log2fc_B": 0.1,
-                "padj_B": 0.6,
                 "log2fc_C": 0.2,
                 "padj_C": 0.7,
                 "max_abs_log2fc": 1.0,
             },
             {
                 "gene_symbol": "SURF3",
-                "cells_ran": 3,
-                "cells_supporting": 3,
+                "cells_ran": 2,
+                "cells_supporting": 2,
                 "dominant_direction": "down",
                 "log2fc_A": -2.0,
                 "padj_A": 1e-6,
-                "log2fc_B": -2.1,
-                "padj_B": 1e-6,
                 "log2fc_C": -1.9,
                 "padj_C": 1e-5,
-                "max_abs_log2fc": 2.1,
+                "max_abs_log2fc": 2.0,
             },
             {
                 "gene_symbol": "NOTSURF",
-                "cells_ran": 3,
-                "cells_supporting": 3,
+                "cells_ran": 2,
+                "cells_supporting": 2,
                 "dominant_direction": "up",
                 "log2fc_A": 5.0,
                 "padj_A": 1e-20,
-                "log2fc_B": 4.0,
-                "padj_B": 1e-15,
                 "log2fc_C": 4.5,
                 "padj_C": 1e-18,
                 "max_abs_log2fc": 5.0,
@@ -124,11 +116,11 @@ def test_cell_pairs_discovery():
 
 
 def test_surface_only_and_direction_filter():
-    out = rank_indication("COADREAD", _sens_3cell(), _surface_df(), min_cells_supporting=2)
+    out = rank_indication("COADREAD", _sens_ac(), _surface_df(), min_cells_supporting=2)
     genes = set(out.gene_symbol)
     assert "NOTSURF" not in genes  # non-surface excluded
     assert "SURF3" not in genes  # tumor-DOWN excluded
-    assert "SURF2" not in genes  # only 1/3 supporting < min(2,3)
+    assert "SURF2" not in genes  # only 1/2 supporting < min(2,2)
     assert genes == {"SURF1"}
     assert list(out.columns) == OUTPUT_COLUMNS
 
@@ -165,8 +157,8 @@ def test_ranking_order_and_percentile():
                 "dominant_direction": "up",
                 "log2fc_A": 3.0,
                 "padj_A": 1e-10,
-                "log2fc_B": 3.0,
-                "padj_B": 1e-10,
+                "log2fc_C": 3.0,
+                "padj_C": 1e-10,
                 "max_abs_log2fc": 3.0,
             },
             {
@@ -176,8 +168,8 @@ def test_ranking_order_and_percentile():
                 "dominant_direction": "up",
                 "log2fc_A": 1.0,
                 "padj_A": 1e-3,
-                "log2fc_B": 1.0,
-                "padj_B": 1e-3,
+                "log2fc_C": 1.0,
+                "padj_C": 1e-3,
                 "max_abs_log2fc": 1.0,
             },
         ]
@@ -218,8 +210,8 @@ def test_cptac_concordance():
                 "dominant_direction": "up",
                 "log2fc_A": 2.0,
                 "padj_A": 1e-8,
-                "log2fc_B": 2.0,
-                "padj_B": 1e-8,
+                "log2fc_C": 2.0,
+                "padj_C": 1e-8,
                 "max_abs_log2fc": 2.0,
             }
             for g in ("SURF1", "SURF2", "SURF3")
@@ -248,8 +240,8 @@ def test_no_cptac_cohort_is_no_protein():
                 "dominant_direction": "up",
                 "log2fc_A": 2.0,
                 "padj_A": 1e-8,
-                "log2fc_B": 2.0,
-                "padj_B": 1e-8,
+                "log2fc_C": 2.0,
+                "padj_C": 1e-8,
                 "max_abs_log2fc": 2.0,
             },
         ]
@@ -286,8 +278,8 @@ def test_empty_when_no_surface_hits():
                 "dominant_direction": "up",
                 "log2fc_A": 2.0,
                 "padj_A": 1e-8,
-                "log2fc_B": 2.0,
-                "padj_B": 1e-8,
+                "log2fc_C": 2.0,
+                "padj_C": 1e-8,
                 "max_abs_log2fc": 2.0,
             },
         ]

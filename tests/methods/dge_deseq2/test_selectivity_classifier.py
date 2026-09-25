@@ -1,14 +1,16 @@
 """Coverage for _classify_selectivity_from_sensitivity — the v3 tumor-vs-normal selectivity
-classifier and the home of the two backtest-driven calibration fixes (FIX-1 ComBat de-weight,
-FIX-2 field-effect rescue).
+classifier and the home of the backtest-driven FIX-2 field-effect rescue.
 
-The 2026-08-08 selectivity review found this classifier — which encodes the exact calibration
-that stopped GAPDH reading false-strong (via an inflated ComBat cell B) and stopped CEACAM5/EPCAM
-being swallowed as discordant — had NO test. These pure-function tests pin those invariants so a
-future edit to the magnitude gate or the field-effect rescue can't silently regress them.
+The 2026-08-08 selectivity review found this classifier — which encodes the calibration that stopped
+CEACAM5/EPCAM being swallowed as discordant — had NO test. These pure-function tests pin those
+invariants so a future edit to the magnitude gate or the field-effect rescue can't silently regress
+them.
 
-Row shape mirrors the reader's internal sensitivity row-dict: log2fc_cell_{a,b,c},
-q_value_cell_{a,b,c}, cells_supporting, cells_ran, dominant_direction, discordant.
+Row shape mirrors the reader's internal sensitivity row-dict: log2fc_cell_{a,c},
+q_value_cell_{a,c}, cells_supporting, cells_ran, dominant_direction, discordant. Cell B (the ComBat
+re-run of cell A on the SAME samples) was removed in analysis-methods#727 — the FIX-1 "ComBat
+de-weight" tests that lived here are gone with it, since the magnitude gate now has only the two raw
+comparators A and C to key on. A stray log2fc_cell_b from a not-yet-rebuilt product is never read.
 
 2026-09-12 (FIX 4, comparator independence): the fixtures below now carry q_value_cell_* wherever
 they claim support. They previously asserted support through `cells_supporting=3` while leaving every
@@ -32,14 +34,12 @@ from methods.dge_deseq2.read import _classify_selectivity_from_sensitivity as cl
 
 def _row(**kw):
     base = dict(
-        cells_ran=3,
-        cells_supporting=3,
+        cells_ran=2,
+        cells_supporting=2,
         dominant_direction="up",
         discordant=False,
         log2fc_cell_a=None,
         q_value_cell_a=None,
-        log2fc_cell_b=None,
-        q_value_cell_b=None,
         log2fc_cell_c=None,
         q_value_cell_c=None,
     )
@@ -71,14 +71,12 @@ def test_down_direction_full_support_is_not_selective():
 
 
 def test_one_of_two_families_is_not_support():
-    # The adjacent family is sig-up but the GTEx family RAN and did not concur → 1/2, not support.
-    # This is the 12,492 shipped rows that used to reach `modest` on cells A+B with cell C measured
-    # and dissenting: one comparator, counted twice, clearing a 2/3 bar.
+    # The adjacent family (cell A) is sig-up but the GTEx family RAN and did not concur → 1/2, not
+    # support. This is the 12,492 shipped rows that used to reach `modest` on cells A+B (one
+    # comparator counted twice) clearing a 2/3 bar with cell C measured and dissenting.
     r = _row(
         log2fc_cell_a=2.0,
         q_value_cell_a=1e-6,
-        log2fc_cell_b=1.9,
-        q_value_cell_b=1e-6,
         log2fc_cell_c=0.1,
         q_value_cell_c=0.80,  # GTEx measured this gene and saw nothing
     )
@@ -96,45 +94,13 @@ def test_empty_or_missing_is_data_unavailable():
     )
 
 
-# ── FIX 1 (ComBat de-weight): cell B alone cannot confer strong/modest ───────
-def test_combat_cellB_alone_does_NOT_confer_strong():
-    # GAPDH/COADREAD archetype: raw A & C modest (<1.5), ComBat cell B artifactually inflated to 4.8.
-    # The magnitude gate keys on raw A/C only → B's 4.8 is excluded → NOT strong.
-    r = _row(
-        log2fc_cell_a=1.0,
-        q_value_cell_a=1e-6,
-        log2fc_cell_c=1.2,
-        q_value_cell_c=1e-6,
-        log2fc_cell_b=4.8,
-        q_value_cell_b=1e-6,
-    )
-    assert classify(r) != "strong_tumor_selective"  # the housekeeping false-strong is blocked
-    # A=1.0/C=1.2 still clear the modest gate (>=0.5, both families up) — the raw-comparator call
-    assert classify(r) == "modest_tumor_selective"
-
-
-def test_combat_cellB_cannot_manufacture_magnitude_from_flat_raw():
-    # raw A & C both flat (<0.5); only ComBat B is large → below the modest raw floor → not strong/modest
-    r = _row(
-        log2fc_cell_a=0.2,
-        q_value_cell_a=1e-6,
-        log2fc_cell_c=0.3,
-        q_value_cell_c=1e-6,
-        log2fc_cell_b=4.8,
-        q_value_cell_b=1e-6,
-    )
-    assert classify(r) not in ("strong_tumor_selective", "modest_tumor_selective")
-
-
 # ── FIX 2 (field-effect rescue): CEACAM5/EPCAM pattern ───────────────────────
 def test_field_effect_rescue_when_adjacent_flat_gtex_strong_up():
-    # discordant; adjacent (A+B) NOT sig-up (field cancerization), GTEx cell C strongly up & sig.
+    # discordant; adjacent (cell A) sig-DOWN (field cancerization), GTEx cell C strongly up & sig.
     r = _row(
         discordant=True,
         log2fc_cell_a=-0.3,
         q_value_cell_a=0.02,  # adjacent down (field effect)
-        log2fc_cell_b=0.1,
-        q_value_cell_b=0.9,  # adjacent flat
         log2fc_cell_c=2.4,
         q_value_cell_c=0.001,
     )  # GTEx strongly up

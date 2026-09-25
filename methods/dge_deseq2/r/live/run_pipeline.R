@@ -79,7 +79,7 @@ f <- function(name) file.path(opts$`out-dir`, name)
 # === four_cell_sensitivity: recount3 loader → four-cell driver ==============
 # Bypasses the linear 00→05 GDC-STAR chain. Loads ALL sample groups (TCGA tumor
 # + TCGA adjacent-normal + GTEx normal) from ONE recount3 substrate, then runs
-# cells A/B/C/D and emits sensitivity.parquet + the two contrast parquets.
+# cells A/C and emits sensitivity.parquet + the two contrast parquets.
 if (identical(opts$contrast, "four_cell_sensitivity")) {
   # Two count substrates feed the SAME four-cell driver (06). recount3 (default)
   # is the classifier substrate; xena_toil is the S1b secondary/diagnostic one
@@ -88,15 +88,6 @@ if (identical(opts$contrast, "four_cell_sensitivity")) {
   # temp in out-dir, no external contract); 06 reads whichever loader wrote it.
   if (identical(opts$substrate, "xena_toil")) {
     stopifnot(!is.null(opts$indication))
-    # Cell B (ComBat-seq batch-correction on TCGA tissue-source-site) is OUT OF
-    # SCOPE for the xena_toil substrate (S1b #694): it is verdict-inert (de-weighted
-    # even on recount3, excluded from the magnitude gate) and the Toil matrix carries
-    # no tcga_tss batch structure to correct on. The cross-substrate reproducibility
-    # check is cells A + C (raw tumor-vs-adjacent + tumor-vs-GTEx) — the load-bearing
-    # biology. We reuse the driver's existing SKIP_CELL_B gate (system() inherits the
-    # env), which yields a valid A+C sensitivity.parquet, the same shape the fusion
-    # already handles for A/B-only (HNSC) and C-only (OV/SKCM) products.
-    Sys.setenv(SKIP_CELL_B = "1")
     run("00_load_xena_toil.R", c(
       paste0("--indication=", shQuote(opts$indication)),
       paste0("--out=", shQuote(f("00_recount3.rds")))

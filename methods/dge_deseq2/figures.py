@@ -30,11 +30,15 @@ _REQUIRED_COLUMNS = ("group",)
 _SAMPLE_FIELDS = _emit._PLOT_DATA_SAMPLE_FIELDS
 _GROUP_TO_KEY = {"tumor": "tumor_samples", "adjacent": "adjacent_samples", "gtex": "gtex_samples"}
 
-# Mirror of _skills_common/_figure_emitters/_common._DGE_SENSITIVITY_CELLS — the 4 sensitivity cells
+# Mirror of _skills_common/_figure_emitters/_common._DGE_SENSITIVITY_CELLS — the sensitivity cells
 # the SVG forest draws, read straight off the summary (no recompute). Kept in step with that helper.
+# Cell B (ComBat re-run of A) was REMOVED here in analysis-methods#727; the skills-side mirror in
+# _skills_common still lists cell B and must be updated to match in a follow-up cross-repo PR (this
+# PR is analysis-methods-only). A cell absent from the summary is skipped by _cell_contrasts anyway,
+# so a lingering B entry there is harmless (never drawn) until that mirror lands. Cell D is retired
+# but kept declared for forward-compat (skipped when absent).
 _DGE_SENSITIVITY_CELLS = [
     ("tumor vs TCGA adj (raw)", "log2fc_cell_a", "q_value_cell_a"),
-    ("tumor vs TCGA adj (ComBat)", "log2fc_cell_b", "q_value_cell_b"),
     ("tumor vs GTEx (raw joint)", "log2fc_cell_c", "q_value_cell_c"),
     ("tumor vs GTEx (ComBat)", "log2fc_cell_d", "q_value_cell_d"),
 ]

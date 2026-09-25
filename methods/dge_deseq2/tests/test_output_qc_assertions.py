@@ -1,7 +1,7 @@
 """Fail-loud output-QC layer (S3a, github analysis-methods#701).
 
 The four-cell R drivers historically only `message()` counts and NEVER assert, so a
-degenerate DESeq2 output — a zero-row parquet, the documented SCLC all-NaN A/B cell, a
+degenerate DESeq2 output — a zero-row parquet, the documented SCLC all-NaN cell-A contrast, a
 globally sign-inverted (backwards-wired) contrast — writes SILENTLY. `assert_contrast_qc()`
 in `r/live/_four_cell_lib.R` now stops the run on those degeneracies.
 
@@ -129,7 +129,7 @@ expect_fail(gate(fit_badcol, "C"), "missing required column fires the schema ass
             "missing required column")
 
 # =================================================================================
-# 2. ALL-NaN cell (the documented SCLC A/B degeneracy) — nothing tested.
+# 2. ALL-NaN cell (the documented SCLC cell-A degeneracy) — nothing tested.
 # =================================================================================
 gnan <- c("a", "b", "c", "d")
 fit_nan <- mkfit("C", gnan, rep(NA_real_, 4), rep(NA_real_, 4), rep(NA_real_, 4), rep(100, 4))
@@ -261,20 +261,21 @@ def test_output_qc_assertions_fire_and_pass(tmp_path):
 
 # --- source-pin the driver wiring (the sign panel is cell-appropriate) -----------
 # assert_contrast_qc runs inside run_cell for every cell; but the marker sign check must be
-# given to the tumor-vs-normal cells A/B/C and NOT to the normal-vs-normal cell AG (where
+# given to the tumor-vs-normal cells A and C and NOT to the normal-vs-normal cell AG (where
 # proliferation markers are not expected up). These pins fail if a future edit drops the panel
-# from A/B/C or hands one to AG.
+# from A/C or hands one to AG. (Cell B — the ComBat re-run — was removed in analysis-methods#727,
+# so it is no longer among the panel-bearing cells; test_no_cell_b.py guards its non-return.)
 
 
 def _src(p: Path) -> str:
     return p.read_text()
 
 
-def test_driver_06_passes_marker_panel_to_abc_but_not_ag():
+def test_driver_06_passes_marker_panel_to_ac_but_not_ag():
     src = _src(DRIVER_06)
-    # A tumor-up panel is resolved once and handed to cells A, B, C.
+    # A tumor-up panel is resolved once and handed to the tumor-vs-normal cells A and C.
     assert "marker_panel_for(" in src, "06 must resolve a marker panel"
-    for cell in ("A", "B", "C"):
+    for cell in ("A", "C"):
         m = re.search(rf'run_cell\(\s*"{cell}".*?qc_panel\s*=\s*tumor_panel', src, re.DOTALL)
         assert m, f"cell {cell} must be given qc_panel = tumor_panel in 06"
     # Cell AG (normal-vs-normal) must NOT be given the tumor-up panel.
@@ -289,6 +290,6 @@ def test_driver_06_passes_marker_panel_to_abc_but_not_ag():
 def test_driver_07_passes_marker_panel_to_stratified_cells():
     src = _src(DRIVER_07)
     assert "marker_panel_for(" in src, "07 must resolve a marker panel"
-    for cell in ("A", "B", "C"):
+    for cell in ("A", "C"):
         m = re.search(rf'run_cell\(\s*"{cell}".*?qc_panel\s*=\s*tumor_panel', src, re.DOTALL)
         assert m, f"stratified cell {cell} must be given qc_panel = tumor_panel in 07"

@@ -7,17 +7,19 @@ Composes a per-indication whole-surfaceome tumor-vs-normal ranking from three in
 
 ## Sensitivity schema is HETEROGENEOUS across indications (important)
 
-The materialized sensitivity products carry a VARIABLE number of comparator "cells" — some
-indications ran cells A+B+C (cells_ran=3), some A+B (2), some only C (1, e.g. OV). Column sets
-differ accordingly (log2fc_A/padj_A, log2fc_B/padj_B, log2fc_C/padj_C — any subset present).
-So the compute is schema-adaptive: it discovers whichever `log2fc_*`/`padj_*` pairs exist and uses
-the pre-computed robustness fields (`cells_ran`, `cells_supporting`, `dominant_direction`).
+The materialized sensitivity products carry a VARIABLE number of comparator "cells" — a
+new-vintage product runs cells A+C (cells_ran=2), some only C (1, e.g. OV). (The ComBat cell B
+was removed in analysis-methods#727; older materialized products may still carry log2fc_B/padj_B
+— cells_ran=3 — and are read unchanged.) Column sets differ accordingly (log2fc_A/padj_A,
+log2fc_C/padj_C, and on an older product log2fc_B/padj_B — any subset present). So the compute is
+schema-adaptive: it discovers whichever `log2fc_*`/`padj_*` pairs exist and uses the pre-computed
+robustness fields (`cells_ran`, `cells_supporting`, `dominant_direction`).
 
 The original scaffold assumed a fixed 4-cell layout and filtered `cells_supporting >= 3` — that is
-STALE: it returns zero rows against the real 1-3 cell products (and excludes single-cell indications
+STALE: it returns zero rows against the real 1-2 cell products (and excludes single-cell indications
 entirely). The robustness filter here is RELATIVE: keep genes tumor-up and supported by
 `>= min(min_cells_supporting, cells_ran)` comparator cells — which scales from 1-cell (OV) to
-3-cell products without dropping any wired indication.
+multi-cell products without dropping any wired indication.
 
 ## Ranking
 

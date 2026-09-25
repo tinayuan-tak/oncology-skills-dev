@@ -5,15 +5,19 @@
 #
 # Cells (see DESIGN_v2_four_cell_consolidation.md §2.1):
 #   A  TCGA tumor vs TCGA adjacent-normal    | raw           | ~ group
-#   B  TCGA tumor vs TCGA adjacent-normal    | ComBat(TSS)   | ~ group
 #   C  TCGA tumor vs GTEx normal (joint)     | raw           | ~ group  (naive)
-#   D  TCGA tumor vs GTEx normal (joint)     | ComBat(source)| ~ group
 #   AG TCGA adjacent-normal vs GTEx normal   | raw           | ~ group  (diagnostic-only)
 #
+# Cell B (ComBat-seq TSS re-run of cell A on the SAME samples) was removed in
+# analysis-methods#727: it was a robustness re-run of cell A, not an independent
+# comparator, and its ComBat-seq step both inflated/sign-flipped log2FC and was
+# the pipeline's perf cliff. Cell D (ComBat source) was retired earlier (see the
+# cell C block below).
+#
 # A gene's `cells_supporting` = count of cells where padj<0.05 in the same
-# direction as the dominant sign. `sig_all_four` = padj<0.05 same-direction in
-# all four cells (the gold-standard call). Cells A/B are skipped when TCGA
-# adjacent-normal < min_normals; cells C/D skipped when no GTEx tissue.
+# direction as the dominant sign. `sig_all_cells` = padj<0.05 same-direction in
+# all cells that ran (the gold-standard call). Cell A is skipped when TCGA
+# adjacent-normal < min_normals; cell C is skipped when no GTEx tissue.
 #
 # Cell AG (adjacent-vs-GTEx, analysis-methods#695) is a NORMAL-vs-NORMAL QC
 # contrast, not a selectivity vote — it measures the combined TCGA-vs-GTEx
@@ -34,8 +38,8 @@ suppressPackageStartupMessages({
   library(arrow)
 })
 
-# Source the shared four-cell compute (prefilter / deseq2_fit / combat_correct /
-# run_cell / assemble_sensitivity). Robust self-location under `pixi run Rscript`.
+# Source the shared four-cell compute (prefilter / deseq2_fit / run_cell /
+# assemble_sensitivity). Robust self-location under `pixi run Rscript`.
 .args <- commandArgs(trailingOnly = FALSE)
 .here <- dirname(normalizePath(sub("^--file=", "", .args[grepl("^--file=", .args)][1])))
 source(file.path(.here, "_four_cell_lib.R"))
@@ -69,8 +73,8 @@ counts  <- dat$counts
 coldata <- dat$coldata
 min_n   <- opts$`min-normals`
 
-# The four-cell compute (prefilter / deseq2_fit / combat_correct / run_cell /
-# assemble_sensitivity) is sourced from _four_cell_lib.R above and shared with
+# The four-cell compute (prefilter / deseq2_fit / run_cell / assemble_sensitivity)
+# is sourced from _four_cell_lib.R above and shared with
 # 07_stratified_four_cell_driver.R. run_cell is called with (out_dir, min_n,
 # flog) — previously closed-over globals, now explicit args.
 
@@ -87,11 +91,11 @@ message(sprintf("[06_four_cell] partitions: %d tumor | %d TCGA-adjacent | %d GTE
                 length(tumor_ids), length(adjacent_ids), length(gtex_ids)))
 
 # --- cell A: tumor vs adjacent, raw -----------------------------------------
-cellA <- NULL; cellB <- NULL; cellC <- NULL; cellAG <- NULL
+cellA <- NULL; cellC <- NULL; cellAG <- NULL
 
 # Known-marker panel for the fail-loud sign check (S3a #701): the pan-cancer
 # tumor-UP proliferation panel is a global-sign-inversion tripwire for the
-# tumor-vs-normal cells A/B/C. Cell AG (normal-vs-normal) is DELIBERATELY given
+# tumor-vs-normal cells A/C. Cell AG (normal-vs-normal) is DELIBERATELY given
 # no panel — proliferation markers are not expected up between two normal
 # cohorts, so a sign check there would be meaningless.
 qc_indication <- dat$metadata$tcga_studies
@@ -101,42 +105,19 @@ if (length(adjacent_ids) >= min_n) {
   ids <- c(tumor_ids, adjacent_ids)
   cellA <- run_cell("A", counts[, ids], coldata[ids, ], opts$`out-dir`, min_n, flog,
                     qc_panel = tumor_panel, qc_indication = qc_indication)
-
-  # cell B: same samples, ComBat on TCGA tissue-source-site (plate proxy).
-  #
-  # SKIP_CELL_B env-var gate (added 2026-07-16): ComBat_seq's inner
-  # sva:::match_quantiles is a doubly-nested pure-R loop over
-  # (n_genes x n_samples) per batch, and on cohorts with many small TSS
-  # batches (e.g. UCEC: 24 batches after singleton drop) it can grind for
-  # 20+ hours without terminating in reasonable time. Cell B is only the
-  # batch-correction robustness re-run of cell A; cells A + C carry the
-  # load-bearing biology (raw tumor-vs-adjacent + tumor-vs-GTEx). This
-  # env-var lets a targeted rerun skip cell B when it hits the perf
-  # pathology, producing a valid A+C sensitivity.parquet (same shape as
-  # HNSC's A/B-only or OV/SKCM's C-only products, which the downstream
-  # fusion code already handles). Follow-up: replace match_quantiles with
-  # a vectorized quantile-match, or collapse small TSS batches before
-  # ComBat-seq.
-  if (Sys.getenv("SKIP_CELL_B") == "1") {
-    message("[06_four_cell] cell B SKIPPED — SKIP_CELL_B=1 env-var set ",
-            "(match_quantiles perf cliff mitigation)")
-  } else {
-    cellB <- run_cell("B", counts[, ids], coldata[ids, ], opts$`out-dir`, min_n, flog,
-                      combat_batch = "tcga_tss",
-                      qc_panel = tumor_panel, qc_indication = qc_indication)
-  }
 } else {
-  message("[06_four_cell] cells A/B SKIPPED — TCGA adjacent-normal < ", min_n)
+  message("[06_four_cell] cell A SKIPPED — TCGA adjacent-normal < ", min_n)
 }
 
 # --- cell C: tumor vs GTEx, raw ---------------------------------------------
 # Cell D (ComBat_seq batch=source) was RETIRED after the initial full-cohort
 # COADREAD validation showed it collapses biology entirely: with source
 # perfectly confounded with group, ComBat_seq(group=NULL) regresses out the
-# tumor-vs-normal signal along with the source effect (empirical result:
-# mean|log2FC|=0.05 vs 1.05-1.40 in cells A/B/C; only 1,205 sig genes vs
-# 20-28K in A/B/C). The intended "pessimistic anchor" reads as noise, not
-# signal. Trust anchor is therefore 3-cell (A/B/C); design doc §2.1
+# tumor-vs-normal signal along with the source effect (empirical result at the
+# time, when cell B still ran: mean|log2FC|=0.05 vs 1.05-1.40 in the other
+# cells; only 1,205 sig genes vs 20-28K). The intended "pessimistic anchor"
+# reads as noise, not signal. Trust anchor is therefore cells A/C (cell B
+# removed in #727); design doc §2.1
 # documents the retirement and the reasoning. Future work: replace with
 # an RUV/SVASeq-based source-adjustment that preserves group signal.
 if (length(gtex_ids) >= min_n) {
@@ -186,16 +167,16 @@ if (length(adjacent_ids) >= min_n && length(gtex_ids) >= min_n) {
 # concordance vote (cells_supporting / sig_all_cells). Mirrors cell Cr. Its
 # exclusion is proved byte-identical-before/after in
 # tests/test_adj_vs_gtex_excluded_from_sensitivity.py.
-cells <- Filter(Negate(is.null), list(A = cellA, B = cellB, C = cellC))
+cells <- Filter(Negate(is.null), list(A = cellA, C = cellC))
 if (length(cells) == 0) stop("No cells ran — check sample availability.")
 
 # --- sensitivity concordance (shared with 07; see _four_cell_lib.R) ---------
-# NOTE (2026-08-13 review): cells_supporting counts cells A and B as TWO
-# supporting votes, but they are the SAME tumour-vs-adjacent comparison (A =
-# raw, B = ComBat robustness re-run on the identical sample set) — a robustness
-# pair, NOT two independent comparators. Genuine cross-comparator agreement
-# (adjacent family vs GTEx family) is exposed downstream via _family_direction
-# (dge_deseq2/read.py). Documented in _classify_selectivity_from_sensitivity.
+# NOTE (analysis-methods#727): cell B (the ComBat robustness re-run of cell A on
+# the identical tumour-vs-adjacent sample set) was removed — counting it as a
+# second supporting vote double-counted the SAME comparison, and it corrupted
+# log2FC. The remaining cells A (tumour vs TCGA adjacent) and C (tumour vs GTEx)
+# are the two GENUINELY independent comparators; their cross-comparator agreement
+# is exposed downstream via _family_direction (dge_deseq2/read.py).
 lab_ran <- names(cells)
 sens <- assemble_sensitivity(cells)
 
@@ -247,7 +228,7 @@ write_contrast(cellAG, "AG", "adj_vs_gtex.parquet",
 #
 # schema_version 2 (analysis-methods#695): adds the `adj_vs_gtex` byproduct
 # block below. `cells_ran` continues to list ONLY the sensitivity-vote cells
-# (A/B/C) — the AG diagnostic is recorded separately so a consumer that reads
+# (A/C) — the AG diagnostic is recorded separately so a consumer that reads
 # cells_ran for the concordance grid never mistakes AG for a comparator.
 prov <- list(
   substrate      = dat$metadata$substrate,
@@ -279,7 +260,7 @@ prov <- list(
 writeLines(yaml::as.yaml(prov), file.path(opts$`out-dir`, "provenance.yaml"))
 
 # --- per-contrast QC report bundles (S3b, github analysis-methods#702) --------
-# For every cell that RAN (A/B/C and the diagnostic AG), emit a QC bundle
+# For every cell that RAN (A/C and the diagnostic AG), emit a QC bundle
 # (figures/ + metrics.csv) under <out-dir>/qc/<cell>/ alongside the parquets, and
 # a per-run qc_summary.csv (one row per cell) that the cross-indication index
 # (scripts/build_qc_index.py) concatenates across runs. Reads each fit's
@@ -288,7 +269,7 @@ qc_bundle_root <- file.path(opts$`out-dir`, "qc")
 dir.create(qc_bundle_root, showWarnings = FALSE, recursive = TRUE)
 ind_label  <- paste(dat$metadata$tcga_studies, collapse = "+")
 subs_label <- dat$metadata$substrate %||% "recount3"
-qc_cells   <- Filter(Negate(is.null), list(A = cellA, B = cellB, C = cellC, AG = cellAG))
+qc_cells   <- Filter(Negate(is.null), list(A = cellA, C = cellC, AG = cellAG))
 qc_rows    <- Filter(Negate(is.null), lapply(names(qc_cells), function(lab) {
   emit_qc_bundle(qc_cells[[lab]], file.path(qc_bundle_root, lab), lab,
                  indication = ind_label, substrate = subs_label, emit = flog)

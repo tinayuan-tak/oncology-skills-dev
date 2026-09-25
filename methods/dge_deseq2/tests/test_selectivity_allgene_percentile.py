@@ -3,8 +3,9 @@
 read_tumor_vs_normal_sensitivity_gene_row was already COMPUTING a cell-A percentile but
 emitting it under `allgene_percentile` — colliding namewise with the presence
 tumor-rna-vs-adjacent reader's abundance rank. SEL-1 renames it to
-`selectivity_allgene_percentile*` and extends the null to cells B + C, each ranked
-against its OWN comparator column (never pooled).
+`selectivity_allgene_percentile*` and extends the null to cell C (and, historically,
+cell B — removed in analysis-methods#727), each ranked against its OWN comparator column
+(never pooled).
 
 These tests exercise the percentile helper + column-parameterized null WITHOUT S3, by
 monkeypatching the null vector. They pin: per-column nulls (no pooling), the mid-rank
@@ -46,7 +47,7 @@ def test_percentile_ranks_within_the_named_column(monkeypatch):
 
 def test_empty_null_returns_none(monkeypatch):
     monkeypatch.setattr(r, "_sensitivity_cell_null", lambda m, s, c: tuple())
-    pct, cls = r._dge_sensitivity_cell_percentile("m", "s3://x", "log2fc_B", 1.2)
+    pct, cls = r._dge_sensitivity_cell_percentile("m", "s3://x", "log2fc_C", 1.2)
     assert pct is None and cls == "data_unavailable"
 
 

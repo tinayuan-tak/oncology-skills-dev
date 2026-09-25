@@ -3,7 +3,7 @@
 Loads ``config/indications.yaml`` and PROJECTS it into the structures each consumer
 previously hard-coded independently:
 
-  * :func:`cell_b_semantics_map`      -> derive_pancan_stack._INDICATION_CELL_B_SEMANTICS
+  * :func:`published_indications`     -> derive_pancan_stack._PUBLISHED_INDICATIONS
   * :func:`composite_indications`     -> derive_pancan_stack._COMPOSITE_INDICATIONS
   * :func:`indication_to_tcga_studies`-> read.INDICATION_TO_TCGA_STUDIES
   * :func:`indication_to_gtex_tissue` -> read.INDICATION_TO_GTEX_TISSUE
@@ -44,21 +44,14 @@ def _indications() -> dict:
     return _load()["indications"]
 
 
-def default_cell_b_semantics() -> str:
-    """Default cell-B vintage for an indication absent from the published map.
+def published_indications() -> list:
+    """The 27 published indications (derive_pancan_stack roster), sorted.
 
-    The pre-S1 code used the module literal ``_COMBAT_TSS`` as the ``.get`` fallback in
-    ``build_stack``; that literal now lives here as ``defaults.cell_b_semantics``.
+    This is the ``{indication}-dge-tumor-vs-normal-sensitivity-v1`` product universe. Was
+    ``cell_b_semantics_map`` (a name -> cell-B vintage dict) until analysis-methods#727 removed
+    the ComBat cell B; the vintage payload is gone, only the roster of published names remains.
     """
-    return _load()["defaults"]["cell_b_semantics"]
-
-
-def cell_b_semantics_map() -> dict:
-    """The 27 published indications -> cell-B vintage (derive_pancan_stack roster)."""
-    default = default_cell_b_semantics()
-    return {
-        name: attrs.get("cell_b_semantics", default) for name, attrs in _indications().items() if attrs.get("published")
-    }
+    return sorted(name for name, attrs in _indications().items() if attrs.get("published"))
 
 
 def composite_indications() -> dict:
@@ -100,7 +93,7 @@ def run_ledger_intent() -> dict:
     against the catalog manifests + S3 prefixes; it is NOT the iteration driver.
     """
     intent = _load()["run_ledger_intent"]
-    published = sorted(cell_b_semantics_map())  # the 27 published indications
+    published = published_indications()  # the 27 published indications (sorted)
     return {
         "sensitivity": {
             "recount3": published + list(intent.get("sensitivity_recount3_extra", [])),

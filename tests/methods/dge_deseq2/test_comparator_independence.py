@@ -1,15 +1,18 @@
 """Comparator INDEPENDENCE in the axis-A selectivity classifier (FIX 4, 2026-09-12).
 
-Cells A and B of the tumour-vs-normal sensitivity design are ONE comparison run twice — A is TCGA
-tumour-vs-adjacent raw, B is the same contrast re-run through ComBat-seq with preserve_group=TRUE
-(i.e. explicitly told to protect the effect being tested). Cell C (TCGA-tumour vs GTEx population)
-is the only INDEPENDENT second comparator. The shipped classifier counted CELLS, so:
+The tumour-vs-normal sensitivity design brackets a gene between TWO independent comparator families:
+the TCGA-adjacent within-patient margin (cell A) and the GTEx population normal (cell C). Cell B —
+the ComBat-seq re-run of cell A on the SAME tumour-vs-adjacent samples — was a robustness re-run,
+not a third comparator, and was removed entirely in analysis-methods#727. The classifier now reads
+cells A and C only; a legacy materialized product that still carries log2fc_cell_b/q_value_cell_b
+columns (this PR did NOT rebuild the products) has them ignored — they can neither manufacture a
+support vote nor stand in for the adjacent arm.
 
-  * A+B alone cleared the `modest` 2/3 tier with no GTEx concurrence — one comparator, two votes
-    (12,492 shipped rows); and
-  * a non-significant ComBat cell B DILUTED a genuine A+C agreement from 2/2 to 2/3, holding real
-    two-comparator results at `modest` (7,084 shipped rows, incl. MSLN/PAAD, ERBB2/STAD,
-    NECTIN4/BLCA, UPK1B/BLCA).
+Historically the shipped classifier counted CELLS, so cells A+B (one comparison, two votes) could
+clear the `modest` tier with no GTEx concurrence, and a non-significant ComBat B could dilute a
+genuine A+C agreement. FIX 4 replaced the per-CELL count with a per-FAMILY count, and #727 then
+removed cell B outright, so both directions of that error are now structurally impossible: the
+adjacent family is cell A alone.
 
 Seven indications ship with no adjacent arm at all, so `strong` was minted on cell C alone — the
 arm cell D was retired for confounding (32,784 rows). The nomination gate weights
@@ -18,7 +21,7 @@ surface-/intracellular-intrinsic rule sets fire on the strong band only, so thes
 movers, not cosmetics.
 
 This file pins three things the classifier's own docstring cannot enforce:
-  1. the FAMILY denominator, in both directions it was wrong;
+  1. the FAMILY denominator, and that a stray legacy cell-B column never re-manufactures a vote;
   2. the EVIDENCE-BASE requirement for `strong`, and the deliberate asymmetry it leaves;
   3. the invariant that no field-effect or strong class ever rests on an adjacent arm that was never
      measured. No SHIPPED row does (0 of 890,801 for field-effect; 32,784 did for strong before FIX
@@ -63,17 +66,16 @@ STRONG = "strong_tumor_selective"
 
 
 def _row(**kw):
+    """A post-#727 sensitivity row: cells A (TCGA-adjacent) and C (GTEx) only — no cell B."""
     base = dict(
-        cells_ran=3,
-        cells_supporting=3,
+        cells_ran=2,
+        cells_supporting=2,
         dominant_direction="up",
         discordant=False,
         sig_all_cells=False,
         max_abs_log2fc=None,
         log2fc_cell_a=None,
         q_value_cell_a=None,
-        log2fc_cell_b=None,
-        q_value_cell_b=None,
         log2fc_cell_c=None,
         q_value_cell_c=None,
     )
@@ -81,47 +83,41 @@ def _row(**kw):
     return base
 
 
-# ── 1. the family denominator, in BOTH directions it was wrong ───────────────
+# ── 1. the family denominator, and that legacy cell B never re-manufactures a vote ───
 
 
-def test_combat_B_does_not_manufacture_a_second_vote():
-    """A+B sig-up with cell C MEASURED and dissenting is 1 family of 2, not 2 cells of 3.
-
-    Shipped shape (12,492 rows): the old per-cell count gave 2/3 → `modest`. The adjacent
-    comparison agreeing with its own ComBat re-run is not corroboration.
-    """
+def test_a_up_with_gtex_measured_and_dissenting_is_one_family_of_two():
+    """Cell A sig-up with cell C MEASURED and NOT agreeing is 1 supporting family of 2 that ran —
+    not support. (Under the retired per-cell count, cells A+B agreeing with each other reached
+    `modest` here; the family denominator makes a single adjacent comparator one vote.)"""
     r = _row(
         log2fc_cell_a=2.4,
         q_value_cell_a=1e-9,
-        log2fc_cell_b=2.5,
-        q_value_cell_b=1e-9,
         log2fc_cell_c=0.05,
         q_value_cell_c=0.91,
-        max_abs_log2fc=2.5,
+        max_abs_log2fc=2.4,
     )
     assert dge._independent_support(r, "up") == (1, 2)
     assert classify(r) == "not_informative"
 
 
-def test_nonsignificant_combat_B_does_not_dilute_a_real_two_comparator_agreement():
-    """MSLN/PAAD live shape: A +0.033 q=0.222, B +5.644 q=1.5e-09, C +8.121 q=6.8e-166.
-
-    The adjacent family is sig-up (cell B carries the significance), GTEx is sig-up, magnitude on
-    the RAW comparators is 8.121 → strong. Under per-cell counting this was 2/3 → `modest`: a
-    robustness re-run's null result was demoting a clinically validated antigen (7,084 rows).
-    """
+def test_legacy_cell_b_column_never_manufactures_a_support_vote():
+    """REGRESSION (#727): the reader reads MATERIALIZED products, which this PR did not rebuild, so a
+    row can still carry a (corrupted) log2fc_cell_b. It must be ignored — the adjacent family is cell
+    A alone. Here cell A ran flat and cell C ran flat, so no family supports `up`; a stray sig-up
+    cell B must not add one. If cell B ever re-enters _ADJACENT_CELLS this flips to (1, 2)."""
     r = _row(
-        log2fc_cell_a=0.033,
-        q_value_cell_a=0.222,
-        log2fc_cell_b=5.644,
-        q_value_cell_b=1.5e-9,
-        log2fc_cell_c=8.121,
-        q_value_cell_c=6.8e-166,
-        cells_supporting=2,
-        max_abs_log2fc=8.121,
+        log2fc_cell_a=0.05,
+        q_value_cell_a=0.80,  # adjacent ran, flat
+        log2fc_cell_c=0.10,
+        q_value_cell_c=0.77,  # gtex ran, flat
+        max_abs_log2fc=3.0,
     )
-    assert dge._independent_support(r, "up") == (2, 2)
-    assert classify(r) == STRONG
+    r["log2fc_cell_b"] = 3.0  # leftover from an old ComBat product — must not be read
+    r["q_value_cell_b"] = 1e-9
+    assert dge._independent_support(r, "up") == (0, 2)
+    assert classify(r) == "not_informative"
+    assert dge._selectivity_evidence_independence(r) == "two_independent_comparators"
 
 
 def test_cells_supporting_and_cells_ran_no_longer_drive_the_class():
@@ -130,8 +126,6 @@ def test_cells_supporting_and_cells_ran_no_longer_drive_the_class():
     evidence = dict(
         log2fc_cell_a=2.0,
         q_value_cell_a=1e-9,
-        log2fc_cell_b=2.1,
-        q_value_cell_b=1e-9,
         log2fc_cell_c=2.2,
         q_value_cell_c=1e-9,
         max_abs_log2fc=2.2,
@@ -162,15 +156,13 @@ def test_strong_requires_the_adjacent_arm_to_have_been_measured():
 
 def test_strong_blocked_by_a_PER_ROW_absent_adjacent_estimate_not_just_a_missing_product():
     """CTAG1B/LUAD shape — the case the plan did not anticipate. LUAD HAS an adjacent arm, but this
-    gene has no cell-A/B estimate (DESeq2 filtered it there), so the absence is per-ROW. `strong`
+    gene has no cell-A estimate (DESeq2 filtered it there), so the absence is per-ROW. `strong`
     must be blocked the same way: the product's capability is not this gene's evidence."""
     r = _row(
         cells_ran=1,
         cells_supporting=1,
         log2fc_cell_a=None,
         q_value_cell_a=None,
-        log2fc_cell_b=None,
-        q_value_cell_b=None,
         log2fc_cell_c=5.79,
         q_value_cell_c=1e-40,
         max_abs_log2fc=5.79,
@@ -201,12 +193,10 @@ def test_strong_on_the_adjacent_arm_ALONE_is_allowed_but_is_labelled():
     consumer that wants two-comparator corroboration reads selectivity_evidence_independence.
     """
     r = _row(
-        cells_ran=2,
-        cells_supporting=2,
+        cells_ran=1,
+        cells_supporting=1,
         log2fc_cell_a=2.8,
         q_value_cell_a=1e-20,
-        log2fc_cell_b=2.7,
-        q_value_cell_b=1e-18,
         max_abs_log2fc=2.8,
     )
     assert classify(r) == STRONG
@@ -238,8 +228,6 @@ def test_no_field_effect_class_ever_rests_on_an_unmeasured_adjacent_arm():
             dominant_direction=direction,
             log2fc_cell_a=None,
             q_value_cell_a=None,
-            log2fc_cell_b=None,
-            q_value_cell_b=None,
             log2fc_cell_c=c_lfc,
             q_value_cell_c=c_q,
             max_abs_log2fc=abs(c_lfc),
@@ -278,11 +266,13 @@ def test_no_strong_class_ever_rests_on_an_unmeasured_adjacent_arm():
 
 def test_evidence_independence_vocabulary_is_closed():
     """No input may produce a value outside the documented vocabulary — the check that would have
-    caught a dead literal (the surfaceome `"ns"` lesson)."""
+    caught a dead literal (the surfaceome `"ns"` lesson). Cell B is not read, so only A and C move
+    the value; a stray B is swept in too to prove it stays inert."""
     emitted = set()
     lfc_opts = [None, float("nan"), 0.0, 2.0]
-    for a, b, c in itertools.product(lfc_opts, lfc_opts, lfc_opts):
-        r = _row(log2fc_cell_a=a, log2fc_cell_b=b, log2fc_cell_c=c)
+    for a, c, b in itertools.product(lfc_opts, lfc_opts, lfc_opts):
+        r = _row(log2fc_cell_a=a, log2fc_cell_c=c)
+        r["log2fc_cell_b"] = b  # legacy column; must not affect the value
         emitted.add(dge._selectivity_evidence_independence(r))
     emitted.add(dge._selectivity_evidence_independence({}))
     emitted.add(dge._selectivity_evidence_independence(None))
@@ -294,9 +284,9 @@ def test_every_evidence_independence_value_is_reachable():
     shipped product that produces it. A rung nothing can reach is a rung that does not exist."""
     reached = {
         # COADREAD etc. — adjacent arm + GTEx arm both shipped
-        "two_independent_comparators": _row(log2fc_cell_a=1.0, log2fc_cell_b=1.1, log2fc_cell_c=1.2),
+        "two_independent_comparators": _row(log2fc_cell_a=1.0, log2fc_cell_c=1.2),
         # HNSC — adjacent arm only, no cell C in the product
-        "adjacent_only": _row(log2fc_cell_a=1.0, log2fc_cell_b=1.1),
+        "adjacent_only": _row(log2fc_cell_a=1.0),
         # ACC/LGG/OV/SCLC/SKCM/TGCT/UCS — no adjacent normals exist
         "population_normal_only": _row(log2fc_cell_c=1.2),
         # gene absent from every arm
@@ -307,10 +297,12 @@ def test_every_evidence_independence_value_is_reachable():
         assert dge._selectivity_evidence_independence(row) == expected
 
 
-def test_sclk_style_materialized_but_all_null_columns_read_as_not_measured():
-    """SCLC ships log2fc_A/log2fc_B COLUMNS with zero non-null values. A schema check would call
-    that "the adjacent arm ran"; only a VALUE check gets it right."""
-    r = _row(log2fc_cell_a=None, q_value_cell_a=None, log2fc_cell_b=None, q_value_cell_b=None, log2fc_cell_c=5.02)
+def test_sclc_style_materialized_but_all_null_adjacent_column_reads_as_not_measured():
+    """SCLC ships a log2fc_A COLUMN with zero non-null values (and, on legacy products, an all-null
+    log2fc_B too). A schema check would call that "the adjacent arm ran"; only a VALUE check gets it
+    right. The stray all-null B column, if present, is ignored regardless."""
+    r = _row(log2fc_cell_a=None, q_value_cell_a=None, log2fc_cell_c=5.02)
+    r["log2fc_cell_b"] = None  # legacy all-null column on the materialized product
     assert dge._family_ran(r, dge._ADJACENT_CELLS) is False
     assert dge._selectivity_evidence_independence(r) == "population_normal_only"
 
@@ -318,7 +310,7 @@ def test_sclk_style_materialized_but_all_null_columns_read_as_not_measured():
 def test_nan_is_treated_as_absent_not_as_an_estimate():
     """parquet nulls arrive as NaN through pandas and as None through pyarrow's as_py(). Both must
     read as "not measured" — a NaN counted as an estimate would restore the C-only strong path."""
-    r = _row(log2fc_cell_a=float("nan"), log2fc_cell_b=float("nan"), log2fc_cell_c=3.0, q_value_cell_c=1e-9)
+    r = _row(log2fc_cell_a=float("nan"), log2fc_cell_c=3.0, q_value_cell_c=1e-9)
     assert dge._family_ran(r, dge._ADJACENT_CELLS) is False
     assert dge._selectivity_evidence_independence(r) == "population_normal_only"
 

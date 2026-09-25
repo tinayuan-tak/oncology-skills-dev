@@ -2,14 +2,14 @@
 # 07_stratified_four_cell_driver.R — per-subgroup tumor-vs-normal sensitivity DEG.
 #
 # The emit-time half of unblocking the `tumor-vs-normal-selectivity` card for
-# molecular subgroups (2026-08-18). It runs the SAME four-cell contrast as
-# 06_four_cell_driver.R (cells A/B/C via _four_cell_lib.R) but restricts the
+# molecular subgroups (2026-08-18). It runs the SAME contrast as
+# 06_four_cell_driver.R (cells A/C via _four_cell_lib.R) but restricts the
 # TUMOR samples to each stratum's member set, then concatenates a tall
 # per-gene x per-stratum sensitivity table.
 #
 # WHY normals stay whole-cohort: a molecular subgroup (MSI-H, CMS2, KRAS-mut, …)
 # is a TUMOR property — there is no "MSI-H adjacent normal" or "MSI-H GTEx". So
-# only the tumor arm is subset; the TCGA-adjacent (cells A/B) and GTEx (cell C)
+# only the tumor arm is subset; the TCGA-adjacent (cell A) and GTEx (cell C)
 # comparators are the same whole-cohort normals every stratum is contrasted
 # against. This is exactly the biological question the card asks: "is the target
 # tumor-selective WITHIN this molecular subgroup, against the shared normal
@@ -78,7 +78,7 @@ min_n   <- opts$`min-normals`
 strata  <- trimws(strsplit(opts$strata, ",")[[1]])
 
 # Fail-loud output-QC panel (S3a #701): the same pan-cancer tumor-UP
-# global-sign-inversion tripwire the whole-cohort driver (06) uses. Cells A/B/C
+# global-sign-inversion tripwire the whole-cohort driver (06) uses. Cells A/C
 # are tumor-vs-normal here too (only the tumor arm is subset per stratum), so
 # the panel applies unchanged per stratum.
 qc_indication <- dat$metadata$tcga_studies
@@ -152,20 +152,13 @@ run_stratum <- function(stratum) {
   strat_dir <- file.path(opts$`out-dir`, paste0("_strat_", stratum))
   dir.create(strat_dir, showWarnings = FALSE, recursive = TRUE)
 
-  cellA <- cellB <- cellC <- NULL
+  cellA <- cellC <- NULL
   if (length(adjacent_ids) >= min_n) {
     ids <- c(strat_tumor_ids, adjacent_ids)
     cellA <- run_cell("A", counts[, ids], coldata[ids, ], strat_dir, min_n, flog,
                       qc_panel = tumor_panel, qc_indication = qc_indication)
-    if (Sys.getenv("SKIP_CELL_B") == "1") {
-      flog(sprintf("stratum %s: cell B SKIPPED (SKIP_CELL_B=1)", stratum))
-    } else {
-      cellB <- run_cell("B", counts[, ids], coldata[ids, ], strat_dir, min_n, flog,
-                        combat_batch = "tcga_tss",
-                        qc_panel = tumor_panel, qc_indication = qc_indication)
-    }
   } else {
-    flog(sprintf("stratum %s: cells A/B SKIPPED — TCGA adjacent < %d", stratum, min_n))
+    flog(sprintf("stratum %s: cell A SKIPPED — TCGA adjacent < %d", stratum, min_n))
   }
   if (length(gtex_ids) >= min_n) {
     ids <- c(strat_tumor_ids, gtex_ids)
@@ -175,7 +168,7 @@ run_stratum <- function(stratum) {
     flog(sprintf("stratum %s: cell C SKIPPED — GTEx normal < %d", stratum, min_n))
   }
 
-  cells <- Filter(Negate(is.null), list(A = cellA, B = cellB, C = cellC))
+  cells <- Filter(Negate(is.null), list(A = cellA, C = cellC))
   if (length(cells) == 0) {
     flog(sprintf("stratum %s SKIPPED — no cells ran", stratum))
     return(NULL)
@@ -214,7 +207,7 @@ ok <- Filter(Negate(is.null), results)
 if (length(ok) == 0) stop("No strata produced a fit — check members / sample availability.")
 
 # --- concat + write ---------------------------------------------------------
-# Union columns across strata (a stratum where cell B/C was skipped lacks those
+# Union columns across strata (a stratum where cell C was skipped lacks those
 # log2fc/padj cols); rbind after aligning to the full column set.
 sens_list <- lapply(ok, function(x) x$sens)
 all_cols <- Reduce(union, lapply(sens_list, names))

@@ -14,38 +14,40 @@ import copy
 
 from methods.dge_deseq2 import config as cfg
 
-_COMBAT = "combat_seq_tcga_tss"
-
-# derive_pancan_stack._INDICATION_CELL_B_SEMANTICS — the 27 published products.
-EXPECTED_CELL_B = {
-    "COADREAD": "design_comparison_unspecified",
-    "UCEC": "cell_b_skipped",
-    "ACC": _COMBAT,
-    "BLCA": _COMBAT,
-    "BRCA": _COMBAT,
-    "CESC": _COMBAT,
-    "COAD": _COMBAT,
-    "ESCA": _COMBAT,
-    "GBM": _COMBAT,
-    "HNSC": _COMBAT,
-    "KICH": _COMBAT,
-    "KIRC": _COMBAT,
-    "KIRP": _COMBAT,
-    "LGG": _COMBAT,
-    "LIHC": _COMBAT,
-    "LUAD": _COMBAT,
-    "LUSC": _COMBAT,
-    "OV": _COMBAT,
-    "PAAD": _COMBAT,
-    "PCPG": _COMBAT,
-    "PRAD": _COMBAT,
-    "READ": _COMBAT,
-    "SKCM": _COMBAT,
-    "STAD": _COMBAT,
-    "TGCT": _COMBAT,
-    "THCA": _COMBAT,
-    "UCS": _COMBAT,
-}
+# derive_pancan_stack._PUBLISHED_INDICATIONS — the 27 published products (sorted). The
+# per-indication `cell_b_semantics` vintage payload was removed in analysis-methods#727 when
+# the ComBat cell B was deleted; only the roster of published names remains.
+EXPECTED_PUBLISHED = sorted(
+    [
+        "COADREAD",
+        "UCEC",
+        "ACC",
+        "BLCA",
+        "BRCA",
+        "CESC",
+        "COAD",
+        "ESCA",
+        "GBM",
+        "HNSC",
+        "KICH",
+        "KIRC",
+        "KIRP",
+        "LGG",
+        "LIHC",
+        "LUAD",
+        "LUSC",
+        "OV",
+        "PAAD",
+        "PCPG",
+        "PRAD",
+        "READ",
+        "SKCM",
+        "STAD",
+        "TGCT",
+        "THCA",
+        "UCS",
+    ]
+)
 
 # derive_pancan_stack._COMPOSITE_INDICATIONS
 EXPECTED_COMPOSITE = {"COADREAD": {"COAD", "READ"}, "NSCLC": {"LUAD", "LUSC"}}
@@ -124,15 +126,9 @@ EXPECTED_PAN_TISSUE = [
 
 
 # --- projections match the frozen literals -------------------------------------------------
-def test_cell_b_semantics_matches_frozen_literal():
-    assert cfg.cell_b_semantics_map() == EXPECTED_CELL_B
-    assert len(EXPECTED_CELL_B) == 27
-
-
-def test_default_cell_b_semantics_matches_frozen_literal():
-    # The pre-S1 `.get` fallback in derive_pancan_stack.build_stack was the module literal
-    # _COMBAT_TSS = "combat_seq_tcga_tss"; it now lives in the config default. Pin it.
-    assert cfg.default_cell_b_semantics() == _COMBAT
+def test_published_indications_matches_frozen_literal():
+    assert cfg.published_indications() == EXPECTED_PUBLISHED
+    assert len(EXPECTED_PUBLISHED) == 27
 
 
 def test_composite_indications_matches():
@@ -168,10 +164,10 @@ def test_read_module_attrs_are_config_projections():
 def test_pancan_stack_module_attrs_are_config_projections():
     from methods.dge_deseq2 import derive_pancan_stack as d
 
-    assert d._INDICATION_CELL_B_SEMANTICS == EXPECTED_CELL_B
+    assert d._PUBLISHED_INDICATIONS == set(EXPECTED_PUBLISHED)
     assert d._COMPOSITE_INDICATIONS == EXPECTED_COMPOSITE
     # all_indications() sorts the roster; pin it too since it is the stack build order.
-    assert d.all_indications() == sorted(EXPECTED_CELL_B)
+    assert d.all_indications() == EXPECTED_PUBLISHED
 
 
 def test_emit_pan_tissue_module_attr_is_config_projection():
@@ -181,24 +177,13 @@ def test_emit_pan_tissue_module_attr_is_config_projection():
 
 
 # --- mutation checks: the projections READ the config, they are not hard-coded copies -------
-def test_published_flag_gates_cell_b_map(monkeypatch):
+def test_published_flag_gates_published_indications(monkeypatch):
     data = copy.deepcopy(cfg._load())
     data["indications"]["ACC"]["published"] = False
     monkeypatch.setattr(cfg, "_load", lambda: data)
-    m = cfg.cell_b_semantics_map()
+    m = cfg.published_indications()
     assert "ACC" not in m
     assert len(m) == 26
-
-
-def test_default_cell_b_vintage_is_applied(monkeypatch):
-    data = copy.deepcopy(cfg._load())
-    data["defaults"]["cell_b_semantics"] = "SENTINEL_VINTAGE"
-    monkeypatch.setattr(cfg, "_load", lambda: data)
-    m = cfg.cell_b_semantics_map()
-    # ACC has no explicit vintage -> inherits the default; the two exceptions do not.
-    assert m["ACC"] == "SENTINEL_VINTAGE"
-    assert m["COADREAD"] == "design_comparison_unspecified"
-    assert m["UCEC"] == "cell_b_skipped"
 
 
 def test_in_read_map_flag_gates_tcga_studies(monkeypatch):

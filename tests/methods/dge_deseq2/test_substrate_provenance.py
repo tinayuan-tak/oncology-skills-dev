@@ -184,8 +184,6 @@ def test_basis_separates_sclc_from_ov_where_independence_cannot():
         sig_all_cells=False,
         log2fc_cell_a=None,
         q_value_cell_a=None,
-        log2fc_cell_b=None,
-        q_value_cell_b=None,
         log2fc_cell_c=2.0,
         q_value_cell_c=1e-9,
         max_abs_log2fc=2.0,

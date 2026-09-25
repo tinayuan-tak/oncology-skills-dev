@@ -335,14 +335,15 @@ def emit_tumor_vs_normal_selectivity_4panel(
 ) -> Path:
     """v3 sensitivity-panel figure for the tumor-vs-normal-selectivity card.
     (Function name retains the historical `_4panel` suffix for API stability; the
-    middle forest now draws 3 live cells A/B/C — cell D was retired.)
+    middle forest now draws 2 live cells A/C — cell B was removed in #727, cell D
+    was retired earlier.)
 
-    Layout (single SVG, 3-panel row like v2; the middle forest is 3 rows A/B/C):
+    Layout (single SVG, 3-panel row like v2; the middle forest is 2 rows A/C):
       Left:   horizontal box + strip of log2(CPM+1) for Primary Tumor, TCGA
               Adjacent Normal, and GTEx (unchanged from v2).
-      Middle: forest of the live cell log2FC estimates (A/B/C; cell D retired) with
-              q-value stars, colored by up/down. Cells that disagree on sign vs the
-              dominant direction are drawn hollow (discordance flag).
+      Middle: forest of the live cell log2FC estimates (A/C; cell B removed, cell D
+              retired) with q-value stars, colored by up/down. Cells that disagree on
+              sign vs the dominant direction are drawn hollow (discordance flag).
       Right:  sensitivity callout — cells_supporting badge (n/cells_ran),
               dominant_direction, sig_all_cells check, discordant flag, class.
 
@@ -465,13 +466,13 @@ def emit_tumor_vs_normal_selectivity_4panel(
             return "*"
         return "ns"
 
-    # Cell D (GTEx, ComBat(source)) was RETIRED from the FOREST — this plot draws only the three live
-    # cells A/B/C. The reader STILL emits log2fc_cell_d / q_value_cell_d (read.py:963, kept declared
-    # for forward-compat per DESIGN_v2_four_cell_consolidation.md:81); they are simply not drawn here.
-    # See card + 06_four_cell_driver.R:227-244.
+    # Cell B (ComBat re-run of A) was REMOVED in #727 and cell D (GTEx, ComBat(source)) was RETIRED
+    # earlier — this plot draws only the two live cells A/C. The reader STILL emits log2fc_cell_d /
+    # q_value_cell_d (read.py, kept declared for forward-compat per
+    # DESIGN_v2_four_cell_consolidation.md:81); they are simply not drawn here. See card +
+    # 06_four_cell_driver.R.
     cells = [
         ("A", "TCGA adj-normal\n(raw)", "log2fc_cell_a", "q_value_cell_a"),
-        ("B", "TCGA adj-normal\n(ComBat)", "log2fc_cell_b", "q_value_cell_b"),
         ("C", "GTEx normal\n(raw joint)", "log2fc_cell_c", "q_value_cell_c"),
     ]
     rows = []

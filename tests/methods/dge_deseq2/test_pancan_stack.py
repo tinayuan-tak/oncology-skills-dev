@@ -1,13 +1,14 @@
 """Pan-cancer stacked tumor-vs-normal product (Slice C-1).
 
 derive_pancan_stack.build_stack concatenates the 27 per-indication sensitivity
-parquets into one stacked frame with an `indication` column + a `cell_b_semantics`
-provenance column. The load-bearing hazard: three cell-B vintages exist (one indication
-skips cell B entirely, so its parquet LACKS log2fc_B/padj_B). These tests pin, with S3
+parquets into one stacked frame with a leading `indication` column. The ComBat cell B
+(log2fc_B/padj_B) was removed in analysis-methods#727; the stacked schema no longer carries
+those columns nor the old `cell_b_semantics` provenance column. These tests pin, with S3
 stubbed (pyarrow monkeypatched to synthetic per-indication tables):
-  - union-schema alignment: an indication missing cell-B cols is NaN-filled, concat OK;
+  - union-schema alignment: an indication missing a `_UNION_COLUMNS` entry (e.g. cell C
+    skipped) is NaN-filled, and a LEGACY product that still carries log2fc_B/padj_B has those
+    dropped by the projection (the stack was NOT rebuilt by #727, so old inputs may hold B);
   - the indication column is present + correct per source;
-  - cell_b_semantics is stamped per the vintage map (skipped/design-comparison/combat);
   - one row per (indication, gene); deterministic ordering.
 """
 
@@ -37,11 +38,12 @@ def _clear_breadth_cache():
     d.read_rna_tumor_elevation_breadth.cache_clear()
 
 
-def _full_cols(gene, run_b=True):
-    row = {
+def _ac_cols(gene, cells=2.0):
+    """A new-vintage (post-#727) per-indication row: cells A/C only, no cell B."""
+    return {
         "gene_symbol": gene,
-        "cells_ran": 3.0 if run_b else 2.0,
-        "cells_supporting": 3.0 if run_b else 2.0,
+        "cells_ran": cells,
+        "cells_supporting": cells,
         "dominant_direction": "up",
         "sig_all_cells": True,
         "discordant": False,
@@ -51,17 +53,31 @@ def _full_cols(gene, run_b=True):
         "padj_C": 1e-5,
         "max_abs_log2fc": 2.0,
     }
-    if run_b:
-        row["log2fc_B"] = 1.9
-        row["padj_B"] = 1e-5
+
+
+def _legacy_b_cols(gene):
+    """A LEGACY (pre-#727) product row that still carries log2fc_B/padj_B — build_stack must
+    DROP these (they are not in _UNION_COLUMNS) rather than propagate them into the stack."""
+    row = _ac_cols(gene, cells=3.0)
+    row["log2fc_B"] = 1.9
+    row["padj_B"] = 1e-5
     return row
 
 
-# synthetic per-indication tables: COADREAD + LUAD have cell B; UCEC does NOT (skipped)
+def _missing_c_cols(gene):
+    """A product where cell C was skipped: no log2fc_C/padj_C columns → union NaN-fill."""
+    row = _ac_cols(gene, cells=1.0)
+    del row["log2fc_C"]
+    del row["padj_C"]
+    return row
+
+
+# synthetic per-indication tables: COADREAD is a legacy product still carrying cell B (must be
+# dropped); LUAD is a new A/C product; UCEC skipped cell C (missing log2fc_C → NaN-filled).
 _SYNTH = {
-    "COADREAD": pd.DataFrame([_full_cols("EPCAM"), _full_cols("KRAS")]),
-    "LUAD": pd.DataFrame([_full_cols("EPCAM"), _full_cols("KRAS")]),
-    "UCEC": pd.DataFrame([_full_cols("EPCAM", run_b=False), _full_cols("KRAS", run_b=False)]),
+    "COADREAD": pd.DataFrame([_legacy_b_cols("EPCAM"), _legacy_b_cols("KRAS")]),
+    "LUAD": pd.DataFrame([_ac_cols("EPCAM"), _ac_cols("KRAS")]),
+    "UCEC": pd.DataFrame([_missing_c_cols("EPCAM"), _missing_c_cols("KRAS")]),
 }
 
 
@@ -99,15 +115,17 @@ def _patch(monkeypatch):
     monkeypatch.setattr(_fs, "S3FileSystem", _FakeFs.S3FileSystem)
 
 
-def test_union_schema_ucec_missing_cell_b_is_nan_filled(monkeypatch):
+def test_union_schema_drops_legacy_b_and_nanfills_missing(monkeypatch):
     _patch(monkeypatch)
     stacked = d.build_stack(["COADREAD", "LUAD", "UCEC"])
-    # union columns present for every indication
-    assert "log2fc_B" in stacked.columns and "padj_B" in stacked.columns
+    # cell B columns are NEVER in the stacked schema, even though COADREAD's product carried them.
+    assert "log2fc_B" not in stacked.columns and "padj_B" not in stacked.columns
+    # UCEC skipped cell C → its log2fc_C/padj_C are union NaN-filled.
     ucec = stacked[stacked.indication == "UCEC"]
-    assert ucec["log2fc_B"].isna().all() and ucec["padj_B"].isna().all()
-    # cells_ran reflects the skip (2, not 3)
-    assert (ucec["cells_ran"] == 2.0).all()
+    assert ucec["log2fc_C"].isna().all() and ucec["padj_C"].isna().all()
+    assert (ucec["cells_ran"] == 1.0).all()
+    # the stacked schema is exactly indication + _UNION_COLUMNS.
+    assert list(stacked.columns) == ["indication", *d._UNION_COLUMNS]
 
 
 def test_indication_column_and_row_count(monkeypatch):
@@ -118,34 +136,26 @@ def test_indication_column_and_row_count(monkeypatch):
     assert len(stacked) == 6  # 3 indications x 2 genes
 
 
-def test_cell_b_semantics_provenance_stamped(monkeypatch):
-    _patch(monkeypatch)
-    stacked = d.build_stack(["COADREAD", "LUAD", "UCEC"])
-    by_ind = stacked.groupby("indication")["cell_b_semantics"].first().to_dict()
-    assert by_ind["COADREAD"] == "design_comparison_unspecified"
-    assert by_ind["UCEC"] == "cell_b_skipped"
-    assert by_ind["LUAD"] == "combat_seq_tcga_tss"
-
-
-def test_all_indications_map_has_27():
+def test_all_indications_roster_has_27():
     assert len(d.all_indications()) == 27
-    # every indication has a cell_b_semantics entry (no silent default gap for the known 27)
+    # every stack-build indication is in the declared published roster (no silent gap).
     for ind in d.all_indications():
-        assert ind in d._INDICATION_CELL_B_SEMANTICS
+        assert ind in d._PUBLISHED_INDICATIONS
 
 
-def test_leading_columns_order(monkeypatch):
+def test_leading_and_trailing_columns(monkeypatch):
     _patch(monkeypatch)
     stacked = d.build_stack(["COADREAD"])
-    # indication leads, cell_b_semantics trails — the stacked contract
+    # indication leads; max_abs_log2fc trails (last of _UNION_COLUMNS) — the stacked contract.
     assert stacked.columns[0] == "indication"
-    assert stacked.columns[-1] == "cell_b_semantics"
+    assert stacked.columns[-1] == "max_abs_log2fc"
 
 
 # --- RNA tumor-elevation breadth reader (Slice C-3) -------------------------------------------
 
 
-def _stacked_row(ind, gene, direction="up", supporting=3.0, max_lfc=2.0, discordant=False, cells_ran=3.0):
+def _stacked_row(ind, gene, direction="up", supporting=2.0, max_lfc=2.0, discordant=False, cells_ran=2.0):
+    """A stacked row in the post-#727 schema (no cell B, no cell_b_semantics)."""
     return {
         "indication": ind,
         "gene_symbol": gene,
@@ -156,12 +166,9 @@ def _stacked_row(ind, gene, direction="up", supporting=3.0, max_lfc=2.0, discord
         "discordant": discordant,
         "log2fc_A": max_lfc,
         "padj_A": 1e-6,
-        "log2fc_B": max_lfc,
-        "padj_B": 1e-6,
         "log2fc_C": max_lfc,
         "padj_C": 1e-6,
         "max_abs_log2fc": max_lfc,
-        "cell_b_semantics": "combat_seq_tcga_tss",
     }
 
 
@@ -214,13 +221,13 @@ def test_rna_breadth_broadly_elevated(monkeypatch):
     assert [x["indication"] for x in b["most_elevated_indications"]] == ["BRCA", "LUAD", "COAD"]
 
 
-def test_rna_breadth_ignores_cell_b_vintage(monkeypatch):
-    """The vintage-stable guarantee: a UCEC-style row with NO cell B (NaN log2fc_B) that is
-    up-dominant + supported still counts as elevated — the predicate never touches cell B."""
+def test_rna_breadth_tolerates_legacy_cell_b_columns(monkeypatch):
+    """The reader reads the MATERIALIZED product, which #727 did NOT rebuild — a row can still
+    carry stray log2fc_B/padj_B. The predicate ignores them entirely; an up-dominant + supported
+    row still counts as elevated off cells A/C."""
     row = _stacked_row("UCEC", "KRAS", supporting=2.0, cells_ran=2.0)
-    row["log2fc_B"] = float("nan")
-    row["padj_B"] = float("nan")
-    row["cell_b_semantics"] = "cell_b_skipped"
+    row["log2fc_B"] = 3.3  # leftover from an old product; must be ignored
+    row["padj_B"] = 1e-9
     _patch_reader(monkeypatch, [row])
     b = d.read_rna_tumor_elevation_breadth("KRAS")
     assert b["rna_tumor_elevation_breadth_class"] == "single_tumor_elevated"
@@ -243,13 +250,14 @@ def test_rna_breadth_absent_target_data_unavailable(monkeypatch):
     assert b["n_indications_tested"] == 0 and b["indications_tested"] == []
 
 
-# --- M2 FIX: breadth magnitude gates on cells A/C ONLY, never the cell-B-inflated max_abs_log2fc ---
+# --- M2 FIX: breadth magnitude gates on cells A/C ONLY, never a legacy cell-B-inflated max_abs_log2fc ---
 
 
-def _ac_split_row(ind, gene, a, c, b, *, supporting=3.0, cells_ran=3.0):
-    """A stacked row with independent A/B/C log2fc, and max_abs_log2fc set the way the R producer
-    builds it: max(|A|,|B|,|C|) over ALL ran cells (INCLUDING cell B). Lets a test drive the case
-    where cell B inflates max_abs_log2fc above the bar while cells A/C are below it."""
+def _ac_split_row(ind, gene, a, c, b, *, supporting=2.0, cells_ran=2.0):
+    """A stacked row from a LEGACY product with independent A/B/C log2fc, and max_abs_log2fc set the
+    way the old R producer built it: max(|A|,|B|,|C|) over ALL ran cells (INCLUDING cell B). Lets a
+    test drive the case where a leftover cell B inflates max_abs_log2fc above the bar while A/C are
+    below it — the reader must still gate on A/C only."""
     return {
         "indication": ind,
         "gene_symbol": gene,
@@ -265,7 +273,6 @@ def _ac_split_row(ind, gene, a, c, b, *, supporting=3.0, cells_ran=3.0):
         "log2fc_C": c,
         "padj_C": 1e-6,
         "max_abs_log2fc": max(abs(a), abs(b), abs(c)),
-        "cell_b_semantics": "combat_seq_tcga_tss",
     }
 
 
@@ -280,9 +287,10 @@ def test_ac_max_log2fc_ignores_cell_b():
 
 
 def test_rna_breadth_gene_elevated_only_via_cell_b_is_not_counted(monkeypatch):
-    """REGRESSION (M2): a passenger elevated ONLY through an inflated ComBat cell B (A/C both < 1.0,
-    B >> 1.0) must NOT count toward breadth. Pre-fix it did (max_abs_log2fc read cell B); post-fix
-    the A/C-only magnitude gate drops it. Three such indications flip broadly -> not-elevated here."""
+    """REGRESSION (M2): on a LEGACY product, a passenger elevated ONLY through an inflated ComBat
+    cell B (A/C both < 1.0, B >> 1.0) must NOT count toward breadth. Pre-fix it did (max_abs_log2fc
+    read cell B); post-fix the A/C-only magnitude gate drops it. Three such indications flip
+    broadly -> not-elevated here."""
     rows = [
         _ac_split_row("ESCA", "PPIA", a=0.79, c=0.47, b=4.66),  # A/C < 1.0, B inflated
         _ac_split_row("KIRC", "PPIA", a=0.40, c=0.16, b=1.07),
@@ -310,11 +318,10 @@ def test_rna_breadth_ac_elevated_gene_still_counted(monkeypatch):
 
 
 # --- sweep2 Fix 4: roster drift-guard vs published sensitivity products ----------------------
-# The stack roster is a static 27-key dict. If a NEW sensitivity product lands on S3 but nobody
-# updates _INDICATION_CELL_B_SEMANTICS, build_stack silently omits it and the breadth reader keeps
-# reporting n_indications_tested over the stale 27 (under-counting fraction_elevated). The build must
-# fail loud on drift instead. cell_b_semantics can't be auto-derived (it's per-manifest git_commit),
-# so the guard forces a maintainer to add the new indication with its correct vintage.
+# The stack roster is a static 27-key set. If a NEW sensitivity product lands on S3 but nobody
+# adds it to config/indications.yaml (published: true), build_stack silently omits it and the
+# breadth reader keeps reporting n_indications_tested over the stale 27 (under-counting
+# fraction_elevated). The build must fail loud on drift instead.
 
 
 class _FakeInfo:
@@ -344,25 +351,25 @@ def test_list_published_extracts_sensitivity_indications():
 
 
 def test_roster_matches_published_no_drift_passes():
-    # published set exactly equals the declared 27-key map → no raise
-    published = set(d._INDICATION_CELL_B_SEMANTICS)
+    # published set exactly equals the declared 27-key roster → no raise
+    published = set(d._PUBLISHED_INDICATIONS)
     d.assert_roster_matches_published(published=published)
 
 
-def test_roster_drift_published_but_unmapped_raises():
-    published = set(d._INDICATION_CELL_B_SEMANTICS) | {"NEWIND"}
+def test_roster_drift_published_but_undeclared_raises():
+    published = set(d._PUBLISHED_INDICATIONS) | {"NEWIND"}
     with pytest.raises(RuntimeError) as exc:
         d.assert_roster_matches_published(published=published)
     assert "NEWIND" in str(exc.value)
-    assert "published-but-unmapped" in str(exc.value)
+    assert "published-but-undeclared" in str(exc.value)
 
 
-def test_roster_drift_mapped_but_unpublished_raises():
-    published = set(d._INDICATION_CELL_B_SEMANTICS) - {"UCEC"}
+def test_roster_drift_declared_but_unpublished_raises():
+    published = set(d._PUBLISHED_INDICATIONS) - {"UCEC"}
     with pytest.raises(RuntimeError) as exc:
         d.assert_roster_matches_published(published=published)
     assert "UCEC" in str(exc.value)
-    assert "mapped-but-unpublished" in str(exc.value)
+    assert "declared-but-unpublished" in str(exc.value)
 
 
 def test_build_stack_with_explicit_subset_skips_drift_check(monkeypatch):

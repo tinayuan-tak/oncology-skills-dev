@@ -11,7 +11,7 @@
 #
 # Count reconciliation (from the #693 plan-review comment — these are DIFFERENT sets with
 # different consumers, NOT one roster counted several ways):
-#   * published: true    -> 27  (derive_pancan_stack._INDICATION_CELL_B_SEMANTICS universe)
+#   * published: true    -> 27  (derive_pancan_stack._PUBLISHED_INDICATIONS universe)
 #   * pan_tissue_render   -> 19  (emit_pan_tissue.PAN_TISSUE_INDICATIONS; an old comment said "18")
 #   * in_read_map: true   -> 21  (read.INDICATION_TO_TCGA_STUDIES; 20 have a GTEx tissue, HNSC null)
 #   * "24" was a STALE changelog vintage note (acb0179, 2026-07-15), never a live roster.
@@ -24,12 +24,10 @@
 #   gtex_tissue         matched recount3 GTEx tissue code, or null for no clean match (HNSC)
 #   published           in the 27 published *-dge-tumor-vs-normal-sensitivity-v1 products
 #   in_read_map         exposed via read.INDICATION_TO_{TCGA_STUDIES,GTEX_TISSUE}
-#   cell_b_semantics    cell-B vintage (published only); omitted -> defaults.cell_b_semantics
 #   composite_children  finer sibling cohorts this OncoTree parent is the union of
-
-defaults:
-  # The DEFAULT cell-B vintage for a new published indication (the acb0179 majority, 2026-07-15).
-  cell_b_semantics: combat_seq_tcga_tss
+#
+# (The per-indication `cell_b_semantics` vintage field was removed in analysis-methods#727
+#  when the ComBat-seq cell B was deleted from the four-cell pipeline.)
 
 # Ordered render roster for emit_pan_tissue's pan-indication figure. Order IS the figure row order
 # and must be preserved. A subset of the published universe (19 of 27; the 8 rarer
@@ -96,7 +94,6 @@ indications:
     gtex_tissue: COLON
     published: true
     in_read_map: true
-    cell_b_semantics: design_comparison_unspecified  # deef28a 2026-07-06
     composite_children: [COAD, READ]
   COAD:
     tcga_studies: [COAD]
@@ -200,7 +197,7 @@ indications:
     published: true
     in_read_map: true
   # --- published but NOT in the read maps and NOT rendered by pan_tissue (the 8 rarer ---
-  # --- indications); cell_b_semantics defaults to combat_seq_tcga_tss unless noted ---
+  # --- indications) ---
   ACC:
     published: true
   KICH:
@@ -217,4 +214,3 @@ indications:
     published: true
   UCEC:
     published: true
-    cell_b_semantics: cell_b_skipped  # 927a556 2026-07-16 (SKIP_CELL_B=1)

@@ -130,8 +130,8 @@ prefilter <- function(mat) {
 # unchanged by lfcThreshold — it only changes the reported error quantity — so
 # the shrunken `log2FoldChange` column is identical whether or not s-values are
 # requested; `padj` continues to come from the standard Wald `results()` call
-# (padj stays the verdict driver; s-values are additive — plan B3). Cells A/C/Cr
-# request it; cell B (a within-TCGA robustness re-run) does not.
+# (padj stays the verdict driver; s-values are additive — plan B3). Cell Cr's fit
+# (ruvg_fit) requests it; the raw sensitivity cells A/C do not.
 deseq2_fit <- function(mat, cd, with_svalue = FALSE) {
   cd$group <- factor(cd$group, levels = c("normal", "tumor"))
   n_genes_pre <- nrow(mat)
@@ -140,7 +140,7 @@ deseq2_fit <- function(mat, cd, with_svalue = FALSE) {
   storage.mode(mat) <- "integer"
   # Study covariate for POOLED multi-study indications (NSCLC=LUAD+LUSC, COADREAD=COAD+READ):
   # adjust the tumor-vs-normal effect for study so a pooled contrast is not confounded by the
-  # study mix. Applied ONLY when BOTH groups span >1 study level (cells A/B, where tumor AND
+  # study mix. Applied ONLY when BOTH groups span >1 study level (cell A, where tumor AND
   # adjacent each include both studies -> full-rank). NOT the GTEx contrast (cell C): GTEx normal
   # is a single study in group=normal, so `study` is confounded with `group` there -> stays ~ group.
   # group is the last term so lfcShrink(coef="group_tumor_vs_normal") is unaffected. Self-guards
@@ -164,7 +164,7 @@ deseq2_fit <- function(mat, cd, with_svalue = FALSE) {
               lfcThreshold = log2(1.5), svalue = TRUE,
               parallel = TRUE, res = res_un, quiet = TRUE)
   } else {
-    # Exact v1 call path — untouched so cells A/B/C stay byte-identical.
+    # Exact v1 call path — untouched so cells A/C stay byte-identical.
     lfcShrink(dds, coef = "group_tumor_vs_normal", type = "apeglm",
               parallel = TRUE, res = res_un, quiet = TRUE)
   }
@@ -181,7 +181,7 @@ deseq2_fit <- function(mat, cd, with_svalue = FALSE) {
   # independent-filtering threshold, per-group n) survive ONLY if captured here,
   # where the dds / res_un objects are still in scope. Stored as an ATTRIBUTE so
   # the public columns — hence every emitted parquet — stay byte-identical (cells
-  # A/B/C products are unchanged; write_parquet writes columns, not R attrs).
+  # A/C products are unchanged; write_parquet writes columns, not R attrs).
   # `four_cell_qc_metrics()` + `assert_contrast_qc()` (below) consume this list;
   # both are pure functions of these vectors, so they are testable without DESeq2.
   attr(out, "qc") <- list(
@@ -346,35 +346,6 @@ ruvg_fit <- function(mat, cd, k = 2L, n_control = 5000L, hk_genes = HK_GENES) {
   out
 }
 
-# ComBat-seq batch correction. See 06_four_cell_driver.R history for the full
-# rationale (preserve_group semantics, ESCA integer-overflow clip).
-combat_correct <- function(mat, batch, group, preserve_group = TRUE) {
-  mat <- as.matrix(mat); storage.mode(mat) <- "integer"
-  tb <- table(batch)
-  ok <- batch %in% names(tb)[tb >= 2]
-  if (!all(ok)) {
-    message("[four_cell_lib]     dropping ", sum(!ok),
-            " samples in singleton batches before ComBat_seq")
-  }
-  bfac <- droplevels(factor(batch[ok]))
-  run <- function(grp) ComBat_seq(counts = mat[, ok, drop = FALSE],
-                                  batch = bfac, group = grp)
-  adj <- NULL
-  if (preserve_group) {
-    adj <- tryCatch(run(group[ok]), error = function(e) {
-      message("[four_cell_lib]     ComBat_seq group-preservation failed (",
-              conditionMessage(e), "); retrying without group protection")
-      NULL
-    })
-  }
-  if (is.null(adj)) adj <- run(NULL)
-  adj <- round(adj)
-  adj[adj < 0] <- 0
-  adj[adj > .Machine$integer.max] <- .Machine$integer.max
-  storage.mode(adj) <- "integer"
-  list(counts = adj, keep = ok)
-}
-
 # Run the fail-loud output-QC gate (S3a #701) on a completed per-cell fit and
 # stamp the metrics record onto it for the provenance sidecar. Shared by the
 # fresh-fit and cache-reuse paths so a re-run reusing a cached fit is QC'd too
@@ -393,7 +364,6 @@ combat_correct <- function(mat, batch, group, preserve_group = TRUE) {
 # / flog (previously globals inside 06); label-suffixed cache .rds lets a
 # resumed / re-run cohort reuse a completed fit.
 run_cell <- function(label, mat, cd, out_dir, min_n, flog,
-                     combat_batch = NULL, preserve_group = TRUE,
                      qc_panel = NULL, qc_indication = NULL) {
   n_t <- sum(cd$group == "tumor"); n_n <- sum(cd$group == "normal")
   cache_path <- file.path(out_dir, sprintf("_cell_%s.rds", label))
@@ -406,14 +376,6 @@ run_cell <- function(label, mat, cd, out_dir, min_n, flog,
     flog(sprintf("cell %s SKIPPED (n_tumor=%d, n_normal=%d < %d)",
                  label, n_t, n_n, min_n))
     return(NULL)
-  }
-  if (!is.null(combat_batch)) {
-    flog(sprintf("cell %s: ComBat_seq(batch=%s, preserve_group=%s) START",
-                 label, combat_batch, preserve_group))
-    cc <- combat_correct(mat, cd[[combat_batch]], cd$group,
-                         preserve_group = preserve_group)
-    mat <- cc$counts; cd <- cd[cc$keep, , drop = FALSE]
-    flog(sprintf("cell %s: ComBat_seq DONE; %d samples remain", label, ncol(mat)))
   }
   flog(sprintf("cell %s: DESeq2 START (n_tumor=%d, n_normal=%d, n_genes_pre=%d)",
                label, sum(cd$group=="tumor"), sum(cd$group=="normal"), nrow(mat)))
@@ -490,7 +452,7 @@ assemble_sensitivity <- function(cells) {
 # ----------------------------------------------------------------------------
 # The R drivers historically only message() counts and NEVER assert, so a
 # degenerate DESeq2 output — a zero-row parquet, the documented SCLC all-NaN
-# A/B cell, a globally sign-inverted (backwards-wired) contrast — writes
+# cell, a globally sign-inverted (backwards-wired) contrast — writes
 # SILENTLY. This layer stops the run on those degeneracies instead. It is split
 # into two PURE functions (no DESeq2 objects, only the vectors deseq2_fit
 # stashed in attr(fit,"qc")) so both are exercised hermetically by synthetic
@@ -502,7 +464,7 @@ assemble_sensitivity <- function(cells) {
 # proliferation core). Used ONLY as a global-sign-inversion tripwire — NOT to
 # validate biology and NOT applied to the normal-vs-normal cell AG. `+1` == the
 # marker is expected UP in the positive ("tumor") group of a tumor-vs-normal
-# contrast (cells A/B/C sign convention: log2FC > 0 == up in tumor).
+# contrast (cells A/C sign convention: log2FC > 0 == up in tumor).
 TUMOR_UP_MARKER_PANEL <- c(
   MKI67 = 1, TOP2A = 1, PCNA = 1, CCNB1 = 1, CCNB2 = 1, CDK1 = 1,
   BIRC5 = 1, AURKA = 1, BUB1 = 1, CENPF = 1, FOXM1 = 1, UBE2C = 1
@@ -638,7 +600,7 @@ four_cell_qc_metrics <- function(qc) {
 
 # Fail loud on a degenerate contrast. `fit` is the per-cell tidy frame (used for
 # the row-count + required-column schema check and the per-gene sign panel);
-# `metrics` is the four_cell_qc_metrics() record; `label` names the cell (A/B/C/
+# `metrics` is the four_cell_qc_metrics() record; `label` names the cell (A/C/
 # AG); `panel` is a gene->sign vector or NULL (NULL disables the sign check, as
 # for the normal-vs-normal cell AG). Raises via stop() — an unhandled stop() in a
 # driver exits non-zero, which is exactly "the run stops instead of writing
@@ -670,7 +632,7 @@ assert_contrast_qc <- function(fit, metrics, label = "", panel = NULL,
     fail("missing required column(s): ", paste(missing_cols, collapse = ", "))
   }
 
-  # (2) all-NaN cell (the documented SCLC A/B degeneracy) — nothing usable.
+  # (2) all-NaN cell (the documented SCLC all-NaN degeneracy) — nothing usable.
   if (metrics$n_tested == 0) {
     fail("0 of ", metrics$n_genes, " genes were tested (every p-value NA) — ",
          "the all-NaN cell degeneracy")

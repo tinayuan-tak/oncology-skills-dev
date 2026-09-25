@@ -86,7 +86,7 @@ def test_roster_check_ignores_a_landed_xenatoil_product():
     # "unmapped published indication" — it isn't a sensitivity-v1 product at all. We pass the
     # already-filtered `published` set the discovery function would return (COADREAD present via
     # its recount3 product) to confirm no drift is raised on account of the xenatoil object.
-    declared = set(dps._INDICATION_CELL_B_SEMANTICS)
+    declared = set(dps._PUBLISHED_INDICATIONS)
     # Simulate discovery having run over a bucket that also holds the xenatoil object: because
     # the suffix filter already excluded it, `published` never contains a xenatoil-only code.
     dps.assert_roster_matches_published(published=declared)  # no raise = rosters agree

@@ -6,31 +6,22 @@ Slice C of the tumor_elevation_breadth vertical. Concatenates the 27 per-indicat
 N indications" WITHOUT 27 S3 reads on the render path (the derived-product discipline).
 
 Mirrors CPTAC's stacked shape (cptac-protein-tumor-vs-normal-per-cohort-v1): one row per
-(indication, gene), a leading `indication` column, and a `cell_b_semantics` provenance
-column that records WHICH cell-B model each indication ran.
+(indication, gene) with a leading `indication` column.
 
-## The cell-B vintage hazard (why cell_b_semantics exists)
+## Only vintage-stable signals survive (cell B removed, #727)
 
-The 27 products were emitted in THREE vintages with DIFFERENT cell-B meanings — a naive
-concat would silently conflate them:
-  - deef28a (coadread, 2026-07-06): cell B = an unspecified design-comparison variant.
-  - acb0179 (24 indications, 2026-07-15): cell B = tumor-vs-adjacent, ComBat-seq
-    batch-corrected on TCGA tissue-source-site.
-  - 927a556 (ucec, 2026-07-16): cell B SKIPPED (SKIP_CELL_B=1 — ComBat-seq hit a
-    match_quantiles perf cliff). UCEC's parquet has NO log2fc_B/padj_B columns at all
-    (cells_ran maxes at 2).
-
-Consequence, enforced downstream: the RNA breadth "elevated" predicate MUST key off the
-VINTAGE-STABLE signal (dominant_direction + cells_supporting + max_abs_log2fc, all of which
-mean the same thing in every vintage — cells A/C are identical across vintages), NEVER off
-cell B. `cell_b_semantics` is carried so a consumer that DOES want cell B can filter to one
-vintage, but breadth does not.
+The RNA breadth "elevated" predicate keys off dominant_direction + cells_supporting + an
+A/C-only magnitude — cells A (TCGA tumor-vs-adjacent) and C (tumor-vs-GTEx) mean the same
+thing in every historical product. The ComBat-seq cell B was removed from the four-cell
+pipeline in analysis-methods#727 (it re-ran cell A on the identical samples and corrupted
+log2FC); newly-emitted per-indication products carry no log2fc_B/padj_B columns, and the
+stack no longer reads or carries them. Older materialized products may still hold B columns
+— the union projection below simply drops them (only `_UNION_COLUMNS` is retained).
 
 ## Not a recompute
 
-This is pure metadata assembly over already-published DESeq2 outputs — no DESeq2 re-run,
-values byte-identical to each per-indication emit. UCEC's missing cell-B columns are
-NaN-filled by the concat (union schema), which is honest: cell B was not run there.
+This is pure metadata assembly over already-published DESeq2 outputs — no DESeq2 re-run.
+A product missing a `_UNION_COLUMNS` entry is NaN-filled by the concat (union schema).
 """
 
 from __future__ import annotations
@@ -40,9 +31,8 @@ from functools import lru_cache
 from pathlib import Path
 
 from methods.dge_deseq2.config import (
-    cell_b_semantics_map,
     composite_indications,
-    default_cell_b_semantics,
+    published_indications,
 )
 
 STACKED_PRODUCT_ID = "pancan-dge-tumor-vs-normal-v1"
@@ -51,19 +41,14 @@ STACKED_PARQUET_KEY = f"{STACKED_S3_PREFIX}/pancan_dge_tumor_vs_normal.parquet"
 S3_BUCKET = "onc-compbio"
 DEFAULT_AWS_PROFILE = "cbg"
 
-# The 27 per-indication sensitivity products → cell_b_semantics, ground-truthed from each
-# manifest's git_commit (data-catalog/manifests/derived/{ind}-dge-tumor-vs-normal-sensitivity-v1.yaml).
-# Consolidated into config/indications.yaml (S1, #693): the DEFAULT for a new published indication
-# is combat_seq_tcga_tss (the acb0179 majority vintage) and the two exceptions (COADREAD
-# design_comparison_unspecified, UCEC cell_b_skipped) are declared there. Add a new indication —
-# with its ground-truthed vintage — to that file, not here.
-_INDICATION_CELL_B_SEMANTICS = cell_b_semantics_map()
-# Fallback vintage for an indication absent from the map (was the module literal _COMBAT_TSS
-# pre-S1; now config/indications.yaml defaults.cell_b_semantics).
-_DEFAULT_CELL_B_SEMANTICS = default_cell_b_semantics()
+# The 27 published per-indication sensitivity products (the stack roster). Declared in
+# config/indications.yaml (S1, #693) via `published: true`. Add a new indication there, not here.
+_PUBLISHED_INDICATIONS = set(published_indications())
 
-# The union of columns any per-indication sensitivity parquet carries. UCEC lacks
-# log2fc_B/padj_B; the concat fills them NaN. Order is stable for the stacked schema.
+# The union of columns the stacked schema carries. A per-indication product missing any of
+# these (an older one, or one whose cell C was skipped) is NaN-filled by the concat. Order is
+# stable for the stacked schema. Cell B (log2fc_B/padj_B) was removed in #727 and is no longer
+# carried — an older product's B columns are dropped by the projection below.
 _UNION_COLUMNS = [
     "gene_symbol",
     "cells_ran",
@@ -73,8 +58,6 @@ _UNION_COLUMNS = [
     "discordant",
     "log2fc_A",
     "padj_A",
-    "log2fc_B",
-    "padj_B",
     "log2fc_C",
     "padj_C",
     "max_abs_log2fc",
@@ -121,7 +104,7 @@ def _sensitivity_s3_uri(indication: str) -> str:
 
 def all_indications() -> list[str]:
     """The 27 indications with a published sensitivity product (upper-case)."""
-    return sorted(_INDICATION_CELL_B_SEMANTICS)
+    return sorted(_PUBLISHED_INDICATIONS)
 
 
 _SENSITIVITY_SUFFIX = "-dge-tumor-vs-normal-sensitivity-v1"
@@ -147,31 +130,29 @@ def list_published_sensitivity_indications(s3fs=None) -> set[str]:
 
 
 def assert_roster_matches_published(published: set[str] | None = None, s3fs=None) -> None:
-    """Assert the hard-coded ``_INDICATION_CELL_B_SEMANTICS`` roster matches the set of published
+    """Assert the declared ``_PUBLISHED_INDICATIONS`` roster matches the set of published
     sensitivity products. Raises on drift.
 
-    Without this, the stack roster is a static 27-key dict: a NEW sensitivity product that lands on
+    Without this, the stack roster is a static 27-key set: a NEW sensitivity product that lands on
     S3 is silently omitted from the stack (``build_stack`` iterates ``all_indications()``), so the
     breadth reader keeps reporting ``n_indications_tested`` over the stale 27 and UNDER-counts
-    ``fraction_elevated``. We cannot auto-derive the roster wholesale because each indication's
-    ``cell_b_semantics`` vintage is ground-truthed from its manifest ``git_commit`` (see the module
-    docstring) — so a newly-published product must force a maintainer to add it here with the correct
-    vintage. This assertion is that forcing function: it fails loud on either a published-but-unmapped
-    indication or a mapped-but-unpublished one."""
+    ``fraction_elevated``. The roster is declared in config/indications.yaml (``published: true``)
+    rather than auto-derived from S3 so a maintainer consciously adds a newly-published product.
+    This assertion is that forcing function: it fails loud on either a published-but-undeclared
+    indication or a declared-but-unpublished one."""
     if published is None:
         published = list_published_sensitivity_indications(s3fs=s3fs)
-    declared = set(_INDICATION_CELL_B_SEMANTICS)
-    unmapped = published - declared  # published on S3 but missing from the vintage map
-    unpublished = declared - published  # in the vintage map but no published product
-    if unmapped or unpublished:
+    declared = set(_PUBLISHED_INDICATIONS)
+    undeclared = published - declared  # published on S3 but missing from the roster
+    unpublished = declared - published  # in the roster but no published product
+    if undeclared or unpublished:
         raise RuntimeError(
             "pancan-dge stack roster drift vs published "
             f"*{_SENSITIVITY_SUFFIX} prefixes: "
-            f"published-but-unmapped={sorted(unmapped)} "
-            "(add each to _INDICATION_CELL_B_SEMANTICS with its ground-truthed cell_b_semantics "
-            "vintage before rebuilding the stack); "
-            f"mapped-but-unpublished={sorted(unpublished)} "
-            "(remove from the map or restore the product). The vintage map must stay in sync with "
+            f"published-but-undeclared={sorted(undeclared)} "
+            "(add each to config/indications.yaml with published: true before rebuilding the stack); "
+            f"declared-but-unpublished={sorted(unpublished)} "
+            "(remove from the config or restore the product). The roster must stay in sync with "
             "the published sensitivity products so the RNA breadth reader's n_indications_tested is "
             "not stale."
         )
@@ -180,16 +161,16 @@ def assert_roster_matches_published(published: set[str] | None = None, s3fs=None
 def build_stack(indications: list[str] | None = None):
     """Read each per-indication sensitivity parquet and concat into the stacked frame.
 
-    Returns a pandas.DataFrame with a leading `indication` column, a `cell_b_semantics`
-    provenance column, and the union of the per-indication columns (UCEC's absent cell-B
-    columns NaN-filled). One row per (indication, gene). Never re-runs DESeq2.
+    Returns a pandas.DataFrame with a leading `indication` column and the union of the
+    per-indication columns (`_UNION_COLUMNS`; an absent column NaN-filled). One row per
+    (indication, gene). Never re-runs DESeq2.
     """
     import pandas as pd
     import pyarrow.fs as pafs
     import pyarrow.parquet as pq
 
     ensure_aws_profile()
-    # Full-roster build (no explicit subset): verify the hard-coded vintage map still matches the
+    # Full-roster build (no explicit subset): verify the declared roster still matches the
     # published sensitivity products, so a newly-landed indication can't be silently dropped from the
     # stack (which would leave the breadth reader's n_indications_tested stale). An explicit subset
     # (indications=...) is a deliberate partial/test build and skips the drift check.
@@ -203,13 +184,13 @@ def build_stack(indications: list[str] | None = None):
         path = uri[5:]  # strip s3://
         table = pq.read_table(path, filesystem=s3)
         df = table.to_pandas()
-        # union-align columns (UCEC is missing log2fc_B/padj_B)
+        # union-align to _UNION_COLUMNS: NaN-fill an absent column, and drop any extra a
+        # product carries (e.g. an older product's log2fc_B/padj_B, removed in #727).
         for col in _UNION_COLUMNS:
             if col not in df.columns:
                 df[col] = float("nan")
         df = df[_UNION_COLUMNS].copy()
         df.insert(0, "indication", ind)
-        df["cell_b_semantics"] = _INDICATION_CELL_B_SEMANTICS.get(ind, _DEFAULT_CELL_B_SEMANTICS)
         frames.append(df)
     stacked = pd.concat(frames, ignore_index=True)
     # Sort by (gene_symbol, indication) so pyarrow predicate pushdown on gene_symbol
@@ -220,8 +201,8 @@ def build_stack(indications: list[str] | None = None):
 
 def write_stack(out_path: Path, indications: list[str] | None = None) -> dict:
     """Build the stack and write it to `out_path` (local parquet). Returns a summary dict
-    (n_rows, n_indications, md5, size_bytes, per-indication row counts, vintage counts)
-    for the manifest + a provenance sidecar. Deterministic (indications sorted)."""
+    (n_rows, n_indications, md5, size_bytes, per-indication row counts) for the manifest +
+    a provenance sidecar. Deterministic (indications sorted)."""
     stacked = build_stack(indications)
     out_path = Path(out_path)
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -232,7 +213,6 @@ def write_stack(out_path: Path, indications: list[str] | None = None) -> dict:
     pq.write_table(tbl, out_path, compression="snappy", row_group_size=64)
     raw = out_path.read_bytes()
     per_ind = stacked.groupby("indication").size().to_dict()
-    vintages = stacked.groupby("cell_b_semantics")["indication"].nunique().to_dict()
     return {
         "product_id": STACKED_PRODUCT_ID,
         "out_path": str(out_path),
@@ -242,7 +222,6 @@ def write_stack(out_path: Path, indications: list[str] | None = None) -> dict:
         "size_bytes": len(raw),
         "columns": list(stacked.columns),
         "rows_per_indication": {k: int(v) for k, v in sorted(per_ind.items())},
-        "indications_per_cell_b_semantics": {k: int(v) for k, v in sorted(vintages.items())},
     }
 
 
@@ -254,26 +233,30 @@ def write_stack(out_path: Path, indications: list[str] | None = None) -> dict:
 # (alongside the CPTAC-protein reader) — breadth over INDICATIONS for one target (allowed), NOT a
 # ranking over targets.
 #
-# THE VINTAGE-STABLE PREDICATE (load-bearing): "elevated" keys off dominant_direction +
-# cells_supporting + an A/C-ONLY magnitude — the signals that mean the SAME thing in every cell-B
-# vintage (cells A/C are identical across vintages). It deliberately does NOT use cell B
-# (log2fc_B/padj_B), which is design-comparison in COADREAD, ComBat-TSS in 24 indications, and ABSENT
-# in UCEC. A gene is elevated in an indication iff it is up-dominant, supported by >=2 cells that ran,
-# magnitude >=1.0, and NOT discordant.
+# THE A/C-ONLY PREDICATE (load-bearing): "elevated" keys off dominant_direction +
+# cells_supporting + an A/C-ONLY magnitude — the surviving comparators (cell A = TCGA
+# tumor-vs-adjacent, cell C = tumor-vs-GTEx). A gene is elevated in an indication iff it is
+# up-dominant, supported by >=2 cells that ran, magnitude >=1.0, and NOT discordant.
 #
-# M2 FIX (2026-08-15): the magnitude gate previously read the `max_abs_log2fc` column, but that column
-# is built in r/live/06_four_cell_driver.R as apply(abs(lfc_mat),1,max) over ALL ran cells INCLUDING
-# cell B — so the "NEVER uses cell B" guarantee above was silently violated: a gene elevated only via
-# an inflated/sign-flipped ComBat cell B (the documented GAPDH COADREAD B=4.8 vs A=1.0/C=1.5 pattern)
-# scored as tumor-elevated. The gate now recomputes magnitude from cells A + C ONLY
-# (max(|log2fc_A|,|log2fc_C|)), mirroring the sibling selectivity classifier's FIX 1
-# (read.py::classify_selectivity, raw_max_lfc over log2fc_cell_a/c). Backtested on the real
-# materialized pancan-dge-tumor-vs-normal-v1 (38004 genes) before shipping: strictly monotone
-# (A/C-max <= all-cells-max, so breadth can only DROP, never rise — 0 up-flips), 1000 genes flip
-# verdict downward, ALL housekeeping/passenger-like (the 61 losing `broadly` are ribosomal/glycolytic/
-# pseudogenes); 82 validated onco/antigen targets (EPCAM/MSLN/ERBB2/FOLR1/TACSTD2/CEACAM5/NECTIN4/
-# CD70/DLL3/...) unchanged — 0 dangerous false-negatives. The `max_abs_log2fc` column is retained in
-# the stacked product (secondary magnitude signal for forest plots); breadth just no longer gates on it.
+# WHY A/C-ONLY (still load-bearing after #727 removed cell B): the ComBat-seq cell B was deleted
+# from the four-cell pipeline in analysis-methods#727 — it re-ran cell A on the identical samples
+# and both inflated/sign-flipped log2FC. But this reader reads the MATERIALIZED product, which was
+# NOT rebuilt by #727, so an older product's rows can still carry log2fc_B/padj_B AND a
+# `max_abs_log2fc` column built over all-cells-including-B.
+#
+# M2 FIX (2026-08-15): the magnitude gate previously read the `max_abs_log2fc` column, but that
+# column is built in r/live/06_four_cell_driver.R as apply(abs(lfc_mat),1,max) over ALL ran cells,
+# so on an older product it INCLUDES cell B — a gene elevated only via an inflated/sign-flipped
+# ComBat cell B (the documented GAPDH COADREAD B=4.8 vs A=1.0/C=1.5 pattern) scored as
+# tumor-elevated. The gate recomputes magnitude from cells A + C ONLY (max(|log2fc_A|,|log2fc_C|)),
+# mirroring the sibling selectivity classifier's FIX 1 (read.py::classify_selectivity, raw_max_lfc
+# over log2fc_cell_a/c). Backtested on the real materialized pancan-dge-tumor-vs-normal-v1 (38004
+# genes): strictly monotone (A/C-max <= all-cells-max, so breadth can only DROP, never rise — 0
+# up-flips), 1000 genes flip verdict downward, ALL housekeeping/passenger-like (the 61 losing
+# `broadly` are ribosomal/glycolytic/pseudogenes); 82 validated onco/antigen targets (EPCAM/MSLN/
+# ERBB2/FOLR1/TACSTD2/CEACAM5/NECTIN4/CD70/DLL3/...) unchanged — 0 dangerous false-negatives. The
+# `max_abs_log2fc` column is retained in the stacked product (secondary magnitude signal for forest
+# plots); breadth just no longer gates on it.
 
 _RNA_STACKED_S3_URI = f"s3://{S3_BUCKET}/{STACKED_PARQUET_KEY}"
 # The RNA "tumor-elevated in this indication" bar. NOTE (M4 — cross-modality bar asymmetry): this RNA
@@ -291,9 +274,9 @@ _RNA_ELEVATED_MIN_LOG2FC = 1.0
 
 
 def _rna_ac_max_log2fc(row: dict) -> float:
-    """Vintage-stable magnitude: max(|log2fc_A|, |log2fc_C|) over cells A (TCGA-adjacent-raw) and
-    C (GTEx-raw) ONLY — the cells identical across every cell-B vintage. Mirrors the selectivity
-    classifier's FIX 1 (read.py raw_max_lfc). NaN/absent cells contribute nothing; empty -> 0.0."""
+    """A/C-only magnitude: max(|log2fc_A|, |log2fc_C|) over cells A (TCGA-adjacent-raw) and
+    C (GTEx-raw) ONLY — the surviving comparators. Mirrors the selectivity classifier's FIX 1
+    (read.py raw_max_lfc). NaN/absent cells contribute nothing; empty -> 0.0."""
     vals = []
     for k in ("log2fc_A", "log2fc_C"):
         v = row.get(k)
@@ -303,9 +286,9 @@ def _rna_ac_max_log2fc(row: dict) -> float:
 
 
 def _rna_row_is_elevated(row: dict) -> bool:
-    """Vintage-stable 'tumor-elevated in this indication' predicate. NEVER uses cell B (see the
-    M2 FIX note above: the magnitude gate now recomputes from cells A/C only, not max_abs_log2fc,
-    which was built over all cells including the ComBat cell B)."""
+    """'tumor-elevated in this indication' predicate. NEVER uses cell B (see the M2 FIX note
+    above: the magnitude gate recomputes from cells A/C only, not max_abs_log2fc, which on an
+    older materialized product was built over all cells including the removed ComBat cell B)."""
     if row.get("discordant"):
         return False
     if row.get("dominant_direction") != "up":

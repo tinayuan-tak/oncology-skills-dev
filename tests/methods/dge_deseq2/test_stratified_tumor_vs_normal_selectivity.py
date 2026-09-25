@@ -51,8 +51,6 @@ def _series(**kw):
         discordant=False,
         log2fc_A=1.8,
         padj_A=1e-8,
-        log2fc_B=1.5,
-        padj_B=1e-6,
         log2fc_C=2.0,
         padj_C=1e-9,
         max_abs_log2fc=2.0,
@@ -88,9 +86,11 @@ def test_evidence_state_respects_subgroup_floor():
 
 
 def test_projection_handles_skipped_cell_nan():
-    # A stratum where cell B was skipped (NaN) must not crash and must not count B.
-    rec = read._stratum_row_to_card_fields(_series(log2fc_B=float("nan"), padj_B=float("nan")))
-    assert rec["log2fc_cell_b"] is None
+    # A stratum where cell C was skipped (NaN) must not crash and must not count C. (Cell B was
+    # removed in analysis-methods#727 and is no longer mapped at all.)
+    rec = read._stratum_row_to_card_fields(_series(log2fc_C=float("nan"), padj_C=float("nan")))
+    assert rec["log2fc_cell_c"] is None
+    # cell A alone still carries it: A=1.8 sig-up, adjacent-only → strong
     assert rec["selectivity_class"] == "strong_tumor_selective"
 
 
@@ -108,8 +108,6 @@ def _write_synthetic_product(tmp_path: Path) -> Path:
         "discordant": [False, False],
         "log2fc_A": [1.8, 0.6],
         "padj_A": [1e-8, 1e-3],
-        "log2fc_B": [1.5, 0.5],
-        "padj_B": [1e-6, 1e-2],
         "log2fc_C": [2.0, 0.7],
         "padj_C": [1e-9, 1e-3],
         "max_abs_log2fc": [2.0, 0.7],

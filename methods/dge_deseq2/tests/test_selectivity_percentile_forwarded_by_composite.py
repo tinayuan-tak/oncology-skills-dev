@@ -24,16 +24,14 @@ def test_composite_forwards_percentile_from_gene_row(monkeypatch):
     """read_tumor_vs_normal_selectivity must forward selectivity_allgene_percentile* from
     the gene_row it calls — not drop it in the explicit field-map."""
     fake_row = {
-        "cells_ran": 3,
-        "cells_supporting": 3,
+        "cells_ran": 2,
+        "cells_supporting": 2,
         "dominant_direction": "up",
         "sig_all_cells": True,
         "discordant": False,
         "max_abs_log2fc": 2.1,
         "log2fc_cell_a": 2.1,
         "q_value_cell_a": 1e-9,
-        "log2fc_cell_b": 1.9,
-        "q_value_cell_b": 1e-8,
         "log2fc_cell_c": 1.7,
         "q_value_cell_c": 1e-6,
         "log2fc_cell_d": None,
@@ -41,7 +39,6 @@ def test_composite_forwards_percentile_from_gene_row(monkeypatch):
         "selectivity_allgene_percentile": 98.5,
         "selectivity_allgene_percentile_class": "top_decile",
         "selectivity_allgene_percentile_context": "coadread-...-v1 metric=log2fc_A(primary)",
-        "selectivity_allgene_percentile_cell_b": 96.2,
         "selectivity_allgene_percentile_cell_c": 91.0,
         "_data_source": "coadread-dge-tumor-vs-normal-sensitivity-v1",
     }
@@ -49,11 +46,12 @@ def test_composite_forwards_percentile_from_gene_row(monkeypatch):
     out = r.read_tumor_vs_normal_selectivity("EPCAM", "COADREAD")
     assert out["selectivity_allgene_percentile"] == 98.5
     assert out["selectivity_allgene_percentile_class"] == "top_decile"
-    assert out["selectivity_allgene_percentile_cell_b"] == 96.2
     assert out["selectivity_allgene_percentile_cell_c"] == 91.0
     assert "metric=log2fc_A" in out["selectivity_allgene_percentile_context"]
+    # cell B was removed in #727 — the composite must not forward a cell-B percentile field.
+    assert "selectivity_allgene_percentile_cell_b" not in out
     # the composite must not have perturbed the verdict-bearing fields
-    assert out["selectivity_class"] is not None and out["cells_supporting"] == 3
+    assert out["selectivity_class"] is not None and out["cells_supporting"] == 2
 
 
 def test_v2_fallback_emits_percentile_data_unavailable(monkeypatch):

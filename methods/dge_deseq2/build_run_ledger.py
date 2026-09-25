@@ -261,15 +261,15 @@ class QcSpec:
 
 _QC_BY_CONTRAST = {
     "tumor-vs-normal": QcSpec(
-        value_cols=("log2fc_C", "log2fc_A", "log2fc_B", "max_abs_log2fc"),
+        value_cols=("log2fc_C", "log2fc_A", "max_abs_log2fc"),
         signed_cols=("log2fc_C", "log2fc_A"),
     ),
     "tumor-vs-normal-by-subgroup": QcSpec(
-        value_cols=("log2fc_C", "log2fc_A", "log2fc_B", "max_abs_log2fc"),
+        value_cols=("log2fc_C", "log2fc_A", "max_abs_log2fc"),
         signed_cols=("log2fc_C", "log2fc_A"),
     ),
     "pancan-rollup": QcSpec(
-        value_cols=("log2fc_C", "log2fc_A", "log2fc_B", "max_abs_log2fc"),
+        value_cols=("log2fc_C", "log2fc_A", "max_abs_log2fc"),
         signed_cols=("log2fc_C", "log2fc_A"),
     ),
     "adjacent-vs-gtex": QcSpec(value_cols=("log2FoldChange", "baseMean"), signed_cols=("log2FoldChange",)),

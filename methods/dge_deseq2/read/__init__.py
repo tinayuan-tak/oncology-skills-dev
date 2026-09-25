@@ -117,11 +117,11 @@ def _dge_allgene_percentile(manifest_id: str, log2_fc, cutoffs: dict = None):
 
 @lru_cache(maxsize=24)
 def _sensitivity_cell_null(manifest_id: str, s3_uri: str, column: str) -> tuple:
-    """All genes' log2FC for ONE sensitivity cell (log2fc_A/B/C) from a sensitivity product —
+    """All genes' log2FC for ONE sensitivity cell (log2fc_A / log2fc_C) from a sensitivity product —
     the context-matched null for the tumor-vs-normal SELECTIVITY percentile. Each cell is a
-    DISTINCT comparator (A/B = TCGA-adjacent raw/ComBat, C = GTEx), so each gets its OWN
-    null over its OWN column — pooling A and C would mix comparator scales. Cached per
-    (manifest, column); one added full-column scan per cell. Empty on failure."""
+    DISTINCT comparator (A = TCGA-adjacent, C = GTEx; the ComBat cell B was removed in #727), so
+    each gets its OWN null over its OWN column — pooling A and C would mix comparator scales. Cached
+    per (manifest, column); one added full-column scan per cell. Empty on failure."""
     import pyarrow.parquet as pq
 
     ensure_aws_profile()
@@ -645,9 +645,10 @@ def read_tumor_vs_normal_selectivity(
 
     Reads the four-cell sensitivity product and maps it to the card v3.0.0
     summary_fields shape. Trust anchor is agreement between the two INDEPENDENT
-    comparator FAMILIES (adjacent A+B vs GTEx C) + dominant_direction — NOT the
-    product's own cells_supporting, which counts A and B as two votes for one
-    comparison (see `_classify_selectivity_from_sensitivity`, FIX 4). The
+    comparator FAMILIES (adjacent A vs GTEx C) + dominant_direction — NOT the
+    product's own cells_supporting (see `_classify_selectivity_from_sensitivity`,
+    FIX 4). Cell B (the ComBat re-run of A that used to double-count the adjacent
+    comparison) was removed in analysis-methods#727. The
     denominator actually used is emitted as comparator_families_ran /
     comparator_families_supporting / adjacent_arm_measured /
     selectivity_evidence_independence.
@@ -676,8 +677,6 @@ def read_tumor_vs_normal_selectivity(
             "max_abs_log2fc": row.get("max_abs_log2fc"),
             "log2fc_cell_a": row.get("log2fc_cell_a"),
             "q_value_cell_a": row.get("q_value_cell_a"),
-            "log2fc_cell_b": row.get("log2fc_cell_b"),
-            "q_value_cell_b": row.get("q_value_cell_b"),
             "log2fc_cell_c": row.get("log2fc_cell_c"),
             "q_value_cell_c": row.get("q_value_cell_c"),
             "log2fc_cell_d": row.get("log2fc_cell_d"),
@@ -688,14 +687,13 @@ def read_tumor_vs_normal_selectivity(
             # Forward the SEL-1 selectivity all-gene percentile the gene_row reader computes.
             # The card dispatcher calls THIS composite (not the gene_row reader directly), so an
             # explicit field-map here silently dropped the percentile — the orphaned-signal pattern
-            # one layer up. Forward all cells (A primary + B/C corroboration) + class + context.
+            # one layer up. Forward all cells (A primary + C corroboration) + class + context.
             "selectivity_allgene_percentile": row.get("selectivity_allgene_percentile"),
             "selectivity_allgene_percentile_class": row.get("selectivity_allgene_percentile_class"),
             "selectivity_allgene_percentile_context": row.get("selectivity_allgene_percentile_context"),
-            "selectivity_allgene_percentile_cell_b": row.get("selectivity_allgene_percentile_cell_b"),
             "selectivity_allgene_percentile_cell_c": row.get("selectivity_allgene_percentile_cell_c"),
             "selectivity_class": _classify_selectivity_from_sensitivity(row),
-            # DERIVED: do the TCGA-adjacent (A/B) and GTEx (C) comparator families agree? Exposes the
+            # DERIVED: do the TCGA-adjacent (A) and GTEx (C) comparator families agree? Exposes the
             # cross-comparator robustness cells_supporting collapses to a count (slice-4 finding #3).
             "comparator_concordance": _comparator_concordance(row),
             # Recomputed from `row`'s per-cell fields rather than forwarded, so this composite can
@@ -765,8 +763,6 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
             # not_informative/discordant. Cell A = TCGA-adjacent, cell C = GTEx (see docstring).
             "log2fc_cell_a": lfc_a,
             "q_value_cell_a": q_a,
-            "log2fc_cell_b": None,
-            "q_value_cell_b": None,
             "log2fc_cell_c": lfc_c,
             "q_value_cell_c": q_c,
         }
@@ -780,8 +776,6 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
         "max_abs_log2fc": (row or {}).get("max_abs_log2fc"),
         "log2fc_cell_a": lfc_a,
         "q_value_cell_a": q_a,
-        "log2fc_cell_b": None,
-        "q_value_cell_b": None,
         "log2fc_cell_c": lfc_c,
         "q_value_cell_c": q_c,
         "log2fc_cell_d": None,
@@ -795,7 +789,6 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
         "selectivity_allgene_percentile": None,
         "selectivity_allgene_percentile_class": "data_unavailable",
         "selectivity_allgene_percentile_context": "v2_fallback: sensitivity product not landed; percentile uncomputable",
-        "selectivity_allgene_percentile_cell_b": None,
         "selectivity_allgene_percentile_cell_c": None,
         "selectivity_class": _classify_selectivity_from_sensitivity(row),
         # v2 fallback carries cell A (TCGA-adjacent) + cell C (GTEx) — the two families — so
@@ -803,9 +796,9 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
         "comparator_concordance": _comparator_concordance(
             {"log2fc_cell_a": lfc_a, "q_value_cell_a": q_a, "log2fc_cell_c": lfc_c, "q_value_cell_c": q_c}
         ),
-        # The v2 fallback has NO ComBat cell B, so cell A alone IS the adjacent family — the family
-        # denominator is the honest one here and `adjacent_only` / `population_normal_only` correctly
-        # marks which of the two legacy products actually landed for this indication.
+        # Cell A alone IS the adjacent family (as it is everywhere since #727 removed the ComBat cell
+        # B), so the family denominator is the honest one here and `adjacent_only` /
+        # `population_normal_only` correctly marks which legacy product actually landed for this indication.
         **_independence_fields(row),
         # The v2 fallback stitches cells A and C from TWO SEPARATE legacy products, so its substrate is
         # cross-product by construction and there is no single manifest to characterise it from. Emit
@@ -887,10 +880,12 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
     s3://onc-compbio/data-catalog/derived/
       {indication}-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet
 
-    The parquet columns use uppercase cell tags (log2fc_A..D, padj_A..D) — the
-    driver's native output. This reader maps them to the card's lowercase
-    summary_field names (log2fc_cell_a etc). Returns None if the row/product is
-    absent.
+    The parquet columns use uppercase cell tags (log2fc_A/log2fc_C, padj_A/padj_C)
+    — the driver's native output. (Cell B was removed in analysis-methods#727 and
+    cell D was retired earlier, so neither column is emitted; the `.get` lookups
+    below tolerate their absence on any older product still carrying them.) This
+    reader maps them to the card's lowercase summary_field names (log2fc_cell_a
+    etc). Returns None if the row/product is absent.
     """
     import pyarrow.parquet as pq
 
@@ -923,16 +918,14 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
     # tumor-rna-vs-adjacent reader emits) — same name, different semantics (selectivity contrast vs
     # abundance rank); the namespace prevents a silent collision in the composed target-profile.
     # Cell A is the PRIMARY comparator (TCGA tumor-vs-adjacent, the same frame the class keys on);
-    # B (ComBat) + C (GTEx) are corroborating, each ranked against its OWN column (never pooled).
+    # C (GTEx) is corroborating, ranked against its OWN column (never pooled).
     pct_a, pct_a_class = _dge_sensitivity_cell_percentile(manifest_id, s3_uri, "log2fc_A", raw.get("log2fc_A"))
-    pct_b, _ = _dge_sensitivity_cell_percentile(manifest_id, s3_uri, "log2fc_B", raw.get("log2fc_B"))
     pct_c, _ = _dge_sensitivity_cell_percentile(manifest_id, s3_uri, "log2fc_C", raw.get("log2fc_C"))
     out = {
         "gene_symbol": raw.get("gene_symbol"),
         "selectivity_allgene_percentile": pct_a,  # cell-A (TCGA tumor-vs-adjacent) — PRIMARY
         "selectivity_allgene_percentile_class": pct_a_class,
         "selectivity_allgene_percentile_context": f"{manifest_id} metric=log2fc_A(tumor-vs-adjacent, primary)",
-        "selectivity_allgene_percentile_cell_b": pct_b,  # cell-B (TCGA-adjacent ComBat) corroboration
         "selectivity_allgene_percentile_cell_c": pct_c,  # cell-C (GTEx population) corroboration
         "cells_ran": raw.get("cells_ran"),
         "cells_supporting": raw.get("cells_supporting"),
@@ -943,8 +936,6 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
         # per-cell log2fc / padj → lowercase card field names
         "log2fc_cell_a": raw.get("log2fc_A"),
         "q_value_cell_a": raw.get("padj_A"),
-        "log2fc_cell_b": raw.get("log2fc_B"),
-        "q_value_cell_b": raw.get("padj_B"),
         "log2fc_cell_c": raw.get("log2fc_C"),
         "q_value_cell_c": raw.get("padj_C"),
         "log2fc_cell_d": raw.get("log2fc_D"),
@@ -965,25 +956,31 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
     """Assign the v3 selectivity_class from a sensitivity gene row.
 
     Trust anchor is agreement between the two INDEPENDENT comparator families
-    (TCGA-adjacent = cells A+B, GTEx-population = cell C) + dominant_direction;
+    (TCGA-adjacent = cell A, GTEx-population = cell C) + dominant_direction;
     magnitude on the RAW comparators is the secondary gate. Mirrors the card v3.0.0
     vocabulary (cards/tumor-vs-normal-selectivity.card.yaml). Renderer language
     MUST mirror this rule (per dashboard-rendering-discipline).
 
-    NOTE the product's own `cells_supporting`/`cells_ran` are deliberately NOT the
-    denominator (they were until FIX 4 below): they count cells, and cells A and B
-    are ONE comparison run twice. They remain on the row for provenance, and
-    `comparator_families_ran`/`comparator_families_supporting` expose what this
-    classifier actually used.
+    CELL B REMOVED (analysis-methods#727): cell B was the ComBat-seq re-run of cell A on the SAME
+    tumour-vs-adjacent samples — a robustness re-run, not an independent comparator. With it gone
+    the product's `cells_ran`/`cells_supporting` count exactly cells A and C, which ARE the two
+    independent families, so the cell-vs-family distinction FIX 4 introduced no longer bites for
+    fresh products. The family-based denominator is retained regardless (below), and older products
+    that still carry log2fc_B/padj_B are simply not read. The FIX narratives below are kept as the
+    calibration history that shaped the surviving gates.
+
+    NOTE the product's own `cells_supporting`/`cells_ran` are still NOT used as the
+    denominator (they were until FIX 4 below); `comparator_families_ran`/
+    `comparator_families_supporting` expose what this classifier actually used.
 
     CALIBRATION FIXES (2026-08-07, backtest-driven — see feedback_selectivity_calibration_backtest):
-      FIX 1 (ComBat de-weight): the magnitude gate now keys on the RAW comparators (cell A
+      FIX 1 (ComBat de-weight): the magnitude gate keys on the RAW comparators (cell A
         TCGA-adjacent-raw + cell C GTEx-raw), NOT max-across-all-cells. The ComBat cell B was
         found to INFLATE / sign-flip log2FC (GAPDH/COADREAD B=4.8 vs A=1.0/C=1.5; EPCAM A=-0.3→B=1.7),
-        driving housekeeping false-positives when B alone cleared 1.5. Cell B still counts toward
-        direction/support, but may not by itself confer `strong`/`modest` magnitude.
+        driving housekeeping false-positives when B alone cleared 1.5 — one of the reasons B was
+        later removed entirely (#727).
       FIX 2 (field-effect-aware discordant): a discordant row whose signature is
-        adjacent-flat/down (cells A+B) BUT GTEx strongly up (cell C) is the FIELD-CANCERIZATION
+        adjacent-flat/down (cell A) BUT GTEx strongly up (cell C) is the FIELD-CANCERIZATION
         pattern (adjacent 'normal' already over-expresses — e.g. CEACAM5/EPCAM in COADREAD). Rather
         than collapse a validated tumour antigen to neutral, defer to the population-normal comparator:
         classify `field_effect_tumor_selective` (a tumour-selective subclass, GTEx-anchored, flagged).
@@ -991,10 +988,10 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
       FIX 4 (comparator INDEPENDENCE, 2026-09-12 — measured on all 29 shipped sensitivity products,
         890,801 rows; supersedes the first two KNOWN LIMITATIONS below, which are now fixed rather
         than documented):
-        FIX 4a — the support fraction counts comparator FAMILIES, not cells. Cells A and B are the
-          SAME tumour-vs-adjacent comparison (A raw, B the ComBat-seq robustness re-run), so the old
-          per-cell count was wrong in BOTH directions, and the measured damage was mostly the
-          direction the 2026-08-13 note did not anticipate:
+        FIX 4a — the support fraction counts comparator FAMILIES, not cells. Cells A and B WERE the
+          SAME tumour-vs-adjacent comparison (A raw, B the ComBat-seq robustness re-run, since
+          removed in #727), so the old per-cell count was wrong in BOTH directions, and the measured
+          damage was mostly the direction the 2026-08-13 note did not anticipate:
             * it MANUFACTURED support — 12,492 rows reached `modest` (frac 2/3) on cells A+B alone,
               one comparator counted twice, with cell C measured and NOT agreeing; and
             * it DESTROYED support — 7,084 rows were held at `modest` because a NON-SIGNIFICANT
@@ -1006,8 +1003,8 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
           is why the effect on the strong tier is net POSITIVE once the denominator is right.
         FIX 4b — `strong_tumor_selective` now requires the TCGA-adjacent family to have MEASURED the
           gene and to support the direction. Seven shipped products (ACC, LGG, OV, SKCM, TGCT, UCS,
-          and SCLC whose A/B columns are present but entirely null) have no adjacent-normal arm at
-          all, so every row was cells_ran=1 / cells_supporting=1 → frac 1.0 → `strong` on cell C
+          and SCLC whose adjacent columns are present but entirely null) have no adjacent-normal arm
+          at all, so every row was cells_ran=1 / cells_supporting=1 → frac 1.0 → `strong` on cell C
           ALONE: 32,784 strong calls resting entirely on the TCGA-vs-GTEx contrast that cell D was
           RETIRED for carrying a platform/batch confound. They now read `modest` (demoted, not
           deleted — the biology is often real, e.g. CLDN6/OV C=+12.18, FOLR1/OV C=+9.95,
@@ -1040,7 +1037,8 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
     if not row:
         return "data_unavailable"
     direction = row.get("dominant_direction")
-    # FIX 1: RAW-comparator magnitude (A=TCGA-adjacent-raw, C=GTEx-raw); exclude ComBat cell B.
+    # FIX 1: RAW-comparator magnitude (A=TCGA-adjacent-raw, C=GTEx-raw). (Cell B, the ComBat re-run
+    # this used to exclude from the magnitude gate, was removed in analysis-methods#727.)
     raw_lfcs = [
         abs(row.get(k))
         for k in ("log2fc_cell_a", "log2fc_cell_c")
@@ -1050,19 +1048,15 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
 
     if row.get("discordant"):
         # FIX 2: distinguish the field-effect signature from a genuine comparator conflict.
-        adj = _family_direction(row, _ADJACENT_CELLS)  # TCGA-adjacent (A+B)
+        adj = _family_direction(row, _ADJACENT_CELLS)  # TCGA-adjacent (A)
         gtex = _family_direction(row, _GTEX_CELLS)  # GTEx population-normal (C)
         c_lfc = row.get("log2fc_cell_c")
         gtex_strong_up = gtex == "up" and isinstance(c_lfc, (int, float)) and c_lfc >= 1.5
-        # FIX 2b (#1013, EPCAM/COADREAD): a "mixed" adjacent family — raw cell A sig-down/flat but the
-        # ComBat cell B flipped sig-up — is field-affected, not a genuine conflict. Deweight the
-        # untrustworthy ComBat B for DIRECTION exactly as FIX 1 already does for MAGNITUDE, but only when
-        # the RAW cell A is not-up AND GTEx (C) is strongly up. Requiring raw A not-up uniquely selects the
-        # raw-down/ComBat-up shape (EPCAM) and leaves a GENUINE adjacent-up (raw A up, ComBat B down)
-        # discordant.
-        a_lfc = row.get("log2fc_cell_a")
-        a_not_up = isinstance(a_lfc, (int, float)) and a_lfc <= 0
-        if gtex_strong_up and (adj in (None, "down") or (adj == "mixed" and a_not_up)):
+        # (FIX 2b removed with cell B in analysis-methods#727: it rescued a "mixed" adjacent family —
+        # raw cell A sig-down/flat while the ComBat cell B flipped sig-up. With cell B gone the adjacent
+        # family is cell A alone, so it can never be "mixed"; the raw adjacent-down/absent path is now
+        # the only field-effect signature and FIX 2 base handles it.)
+        if gtex_strong_up and adj in (None, "down"):
             # FIX 4c: `adj is None` above means "the adjacent family reached no significance" OR
             # "the adjacent family was never measured" — _family_direction cannot tell them apart.
             # Field cancerization is a claim ABOUT the adjacent tissue ("the margin already
@@ -1137,13 +1131,14 @@ def _classify_selectivity_from_sensitivity(row: dict) -> str:
     return "not_informative"
 
 
-# The two comparator FAMILIES the selectivity design brackets: TCGA-adjacent (cells A + B,
+# The two comparator FAMILIES the selectivity design brackets: TCGA-adjacent (cell A,
 # within-patient margin — carries field-effect) vs GTEx-population (cell C — carries the
 # TCGA-vs-GTEx source confound). cells_supporting collapses agreement to a COUNT; this exposes
 # whether the two INDEPENDENT comparator types actually concur — the cross-comparator robustness
-# the four-/three-cell design exists to produce (audit finding: "whether TCGA-adjacent and GTEx
-# agree is invisible downstream"). Cell D retired; the GTEx family is cell C alone.
-_ADJACENT_CELLS = (("log2fc_cell_a", "q_value_cell_a"), ("log2fc_cell_b", "q_value_cell_b"))
+# the design exists to produce (audit finding: "whether TCGA-adjacent and GTEx
+# agree is invisible downstream"). Cell B removed (#727) and cell D retired; each family is now
+# a single cell (adjacent = A, GTEx = C), so a family can no longer self-disagree ("mixed").
+_ADJACENT_CELLS = (("log2fc_cell_a", "q_value_cell_a"),)
 _GTEX_CELLS = (("log2fc_cell_c", "q_value_cell_c"),)
 _CONCORDANCE_Q = 0.05
 
@@ -1169,12 +1164,12 @@ def _family_ran(row: dict, cells) -> bool:
 def _independent_support(row: dict, direction) -> tuple:
     """(supporting_families, families_ran) — the INDEPENDENT-comparator support fraction.
 
-    Replaces the per-CELL count for classification. Cells A and B are the same
-    tumour-vs-adjacent comparison (A raw, B the ComBat-seq robustness re-run — see
-    06_four_cell_driver.R), so counting them separately counts one comparator twice; cell C
-    (TCGA-tumour vs GTEx population) is the only independent second comparator. The denominator is
-    the number of families that RAN, so an indication with no adjacent normals scores 1/1 rather
-    than being silently credited with a unanimous vote.
+    Replaces the per-CELL count for classification. The adjacent family (cell A, TCGA
+    tumour-vs-adjacent) and the GTEx family (cell C, TCGA-tumour vs GTEx population) are the two
+    INDEPENDENT comparators. (Cell B — the ComBat-seq re-run of A on the same samples — was removed
+    in analysis-methods#727; while it existed, counting it separately counted the adjacent
+    comparison twice.) The denominator is the number of families that RAN, so an indication with no
+    adjacent normals scores 1/1 rather than being silently credited with a unanimous vote.
     """
     ran = supporting = 0
     for family in (_ADJACENT_CELLS, _GTEX_CELLS):
@@ -1272,7 +1267,7 @@ def _family_direction(row: dict, cells) -> Optional[str]:
 
 
 def _comparator_concordance(row: dict) -> str:
-    """Do the two INDEPENDENT comparator families (TCGA-adjacent A/B vs GTEx C) agree?
+    """Do the two INDEPENDENT comparator families (TCGA-adjacent A vs GTEx C) agree?
 
     Returns:
       concordant       — both families significant in the SAME direction (robust to "which normal?")
@@ -1668,8 +1663,6 @@ def read_per_sample_expression_tumor_vs_adjacent(
 _STRATUM_CELL_MAP = {
     "log2fc_A": "log2fc_cell_a",
     "padj_A": "q_value_cell_a",
-    "log2fc_B": "log2fc_cell_b",
-    "padj_B": "q_value_cell_b",
     "log2fc_C": "log2fc_cell_c",
     "padj_C": "q_value_cell_c",
 }
