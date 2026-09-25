@@ -95,12 +95,14 @@ detail:
     - safety
     rules:
     - clingen-dominant-loss-safety-warning
+    - clingen-dosage-safety-axis-measured-clear
     - clingen-recessive-only-safety-favorable
   clinvar-pathogenicity-safety:
     resolvers:
     - safety
     rules:
     - clinvar-germline-pathogenic-safety-warning
+    - clinvar-germline-safety-axis-measured-clear
   co-mutation-and-mutual-exclusivity:
     resolvers:
     - differentiation
@@ -173,6 +175,7 @@ detail:
     - safety
     rules:
     - gene-burden-lof-safety-warning
+    - gene-burden-safety-axis-measured-clear
   gnomad-lof-constraint:
     resolvers:
     - safety
@@ -212,6 +215,7 @@ detail:
     - safety
     rules:
     - mouse-ko-lethal-safety-warning
+    - mouse-ko-safety-axis-measured-clear
   mutation-drug-response:
     resolvers:
     - genomic_alteration
@@ -244,6 +248,7 @@ detail:
     - surface_modality
     rules:
     - normal-tissue-essential-bite-killer
+    - normal-tissue-essential-tissue-measured-clear
     - normal-tissue-protein-liability-safety-warning
   pan-cancer-crispr-dependency-distribution:
     resolvers:
@@ -257,6 +262,7 @@ detail:
     - non-dependent-underpowered-insufficient
     - pan-essential-broad-tox-safety-warning
     - pan-essential-killer
+    - pan-essential-safety-axis-measured-clear
     - strongly-selective-supportive
   pan-cancer-rnai-dependency-distribution:
     resolvers:

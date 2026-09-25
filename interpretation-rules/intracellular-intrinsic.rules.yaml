@@ -5570,3 +5570,140 @@ rules:
       inert); this leg adds the protein-level critical-organ read the surface-modality skill already
       used. No mutant-selective downgrade: full-KO SM/degrader engages the WT protein regardless of
       any activating mutation, so the essential-tissue concern is not spared by allele selectivity.
+
+  # ============================================================================
+  # SAFETY-AXIS MEASURED-CLEAR WITNESSES (2026-09-25, TC#895 fail-open closure).
+  # ============================================================================
+  # RESOLVER-CORROBORATION witnesses ONLY — one per NON-CONSTRAINT concern axis. Each fires when its
+  # concern axis was INFORMATIVELY evaluated and came back NON-concerning (a measured-negative), as
+  # opposed to DARK (absent / indeterminate / insufficient / unknown, which fire NOTHING). Their sole
+  # job is to be a fired rule the safety resolver can conjoin (when_all_fired) with
+  # tolerant-safety-supportive, so that `tolerant_reduced_safety_risk` is emitted ONLY when >=1
+  # non-constraint concern axis was informatively cleared — never on gnomAD constraint alone with
+  # every other axis dark (the TC#895 resolver-precedence fail-open: "inert by corpus != safe by
+  # contract"). NEUTRAL signals: these witnesses carry NO per-modality biology of their own (the
+  # reassuring / concerning biology of each axis is carried by the axis's own supportive/opposing
+  # rules elsewhere); a neutral signal cannot move any modality lens or any other gate's verdict, so
+  # adding them is verdict-inert EXCEPT through the safety resolver's tolerant co-condition. They
+  # deliberately OVERLAP the axis's existing measured rules on some values (e.g. dependency_class
+  # strongly_selective also fires strongly-selective-supportive) — a second neutral fired-rule on the
+  # same measurement is harmless to signal aggregation and gives the resolver ONE clean conjunct per
+  # named concern axis. Verdict-affecting ONLY in the fall-open direction (removes tolerant from an
+  # all-dark gene); it can never ADD a tolerant verdict (every co-condition rung requires
+  # tolerant-safety-supportive to have fired). See safety.resolver.yaml v2.2.0.
+
+  # (a) DepMap pan-essential broad-tox axis — informatively NON-common-essential (a therapeutic
+  #     window exists / no broad normal-tissue essentiality). Excludes the underpowered / data-
+  #     unavailable classes (those are coverage gaps = DARK, not measured-negatives).
+  - rule_id: pan-essential-safety-axis-measured-clear
+    when:
+      card_id: pan-cancer-crispr-dependency-distribution
+      field: dependency_class
+      in: [strongly_selective, broadly_dependent, non_dependent]
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      DepMap MEASURED the pan-cancer dependency distribution and it is NOT common_essential
+      (strongly_selective / broadly_dependent / non_dependent) — the broad normal-tissue-toxicity
+      SAFETY concern (pan-essential-broad-tox-safety-warning) was informatively evaluated and is
+      absent. RESOLVER-CORROBORATION witness for the TC#895 tolerant co-condition (NEUTRAL: no
+      per-modality biology of its own; the dependency/therapeutic-window biology is carried by the
+      E1 dependency rules). The underpowered / data_unavailable classes are DARK (coverage gaps) and
+      deliberately fire NOTHING here, so they cannot corroborate a constraint-only reassurance.
+
+  # (b) HPA essential-tissue protein axis — MEASURED narrow distribution, essentials genuinely not
+  #     expressed (essential_tissue_flag == absent). `unknown` (gene absent from HPA / "Detected in
+  #     many" with no essential enrichment) is a DATA GAP, NOT reassurance (card vocab 2026-08-24) —
+  #     it fires nothing, so a dark essential-tissue axis can no longer be silently swallowed by a
+  #     constraint-only reassurance (the TC#895 contributing sub-mechanism).
+  - rule_id: normal-tissue-essential-tissue-measured-clear
+    when:
+      card_id: normal-tissue-liability
+      field: essential_tissue_flag
+      equals: absent
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      HPA-IHC MEASURED a narrow normal-tissue distribution with the curated essential organs
+      genuinely NOT expressing the target protein (essential_tissue_flag == absent, a true measured-
+      negative) — the on-target-off-tumor essential-tissue SAFETY concern
+      (normal-tissue-protein-liability-safety-warning) was informatively evaluated and is absent.
+      RESOLVER-CORROBORATION witness for the TC#895 tolerant co-condition (NEUTRAL). The `unknown`
+      value (no HPA distribution call / broad detection with no essential enrichment) is a DATA GAP,
+      NOT a measured-negative, and fires NOTHING — so a dark essential-tissue axis cannot corroborate.
+
+  # (c) Rare-variant gene-burden axis — burden MEASURED with no LoF-risk direction (protective, or
+  #     no significant burden association). `direction_unresolved` / `insufficient` are DARK.
+  - rule_id: gene-burden-safety-axis-measured-clear
+    when:
+      card_id: gene-burden-safety
+      field: burden_safety_class
+      in: [protective, no_burden_signal]
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Population rare-variant burden was MEASURED and shows no LoF-RISK direction (protective, or no
+      significant burden association) — the gene-burden WT-loss SAFETY concern
+      (gene-burden-lof-safety-warning) was informatively evaluated and is absent. RESOLVER-
+      CORROBORATION witness for the TC#895 tolerant co-condition (NEUTRAL: the drug-positive biology
+      of a PROTECTIVE burden is carried by gene-burden-protective-favorable; this witness only marks
+      the axis as informatively cleared). `direction_unresolved` / `insufficient` are DARK and fire
+      nothing here.
+
+  # (d) ClinGen dosage axis — dosage MEASURED as sufficient (single-copy loss tolerated / recessive).
+  #     `unresolved` / `no_clingen_entry` / `insufficient` are DARK. (recessive_only inheritance is a
+  #     stronger reassurance and independently routes to tolerant via the resolver's p-recessive rung.)
+  - rule_id: clingen-dosage-safety-axis-measured-clear
+    when:
+      card_id: clingen-dosage
+      field: dosage_sensitivity_class
+      equals: dosage_sufficient
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      ClinGen MEASURED dosage sensitivity as dosage_sufficient (single-copy loss is tolerated — no
+      high-confidence autosomal-dominant/haploinsufficiency disease) — the dominant-loss WT-safety
+      concern (clingen-dominant-loss-safety-warning) was informatively evaluated and is absent.
+      RESOLVER-CORROBORATION witness for the TC#895 tolerant co-condition (NEUTRAL; overlaps
+      clingen-dosage-sufficient-neutral). `unresolved` / `no_clingen_entry` / `insufficient` are DARK.
+
+  # (e) Mouse-KO axis — KO MEASURED with no adult-lethal/severe-organ phenotype (developmental-only
+  #     guardrail, mild, or no phenotype). `lethal_ko` / `severe_organ_phenotype` are concerns;
+  #     `insufficient` is DARK.
+  - rule_id: mouse-ko-safety-axis-measured-clear
+    when:
+      card_id: mouse-ko-phenotype
+      field: ko_phenotype_class
+      in: [developmental_only, mild_phenotype, no_phenotype]
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      Mouse knockout was MEASURED with no adult on-target-tox signal (developmental-only guardrail,
+      mild, or no phenotype) — the adult-essentiality SAFETY caution (mouse-ko-lethal-safety-warning)
+      was informatively evaluated and is absent. RESOLVER-CORROBORATION witness for the TC#895
+      tolerant co-condition (NEUTRAL; overlaps mouse-ko-developmental-only-neutral). `lethal_ko` and
+      `severe_organ_phenotype` are concerns (not cleared); `insufficient` is DARK and fires nothing.
+
+  # (f) ClinVar germline axis — ClinVar MEASURED with no confident germline-pathogenic signal
+  #     (entries present but none pathogenic, or only somatic variants — which are a cancer-driver
+  #     signal, NOT a germline-safety signal). `no_clinvar_entry` / `insufficient` are DARK.
+  - rule_id: clinvar-germline-safety-axis-measured-clear
+    when:
+      card_id: clinvar-pathogenicity-safety
+      field: clinvar_pathogenic_class
+      in: [no_pathogenic_signal, somatic_only]
+    signals:
+      small_molecule: neutral
+      degrader: neutral
+    rationale: |
+      ClinVar was MEASURED and carries no confident GERMLINE-pathogenic signal for this gene (entries
+      present but none germline-pathogenic, or only somatic variants — a cancer-driver signal, not a
+      germline WT-loss safety signal) — the germline-pathogenic SAFETY concern
+      (clinvar-germline-pathogenic-safety-warning) was informatively evaluated and is absent.
+      RESOLVER-CORROBORATION witness for the TC#895 tolerant co-condition (NEUTRAL). `no_clinvar_entry`
+      / `insufficient` are DARK (coverage gaps) and fire nothing here.

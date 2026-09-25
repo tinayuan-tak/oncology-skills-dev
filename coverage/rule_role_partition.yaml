@@ -12,8 +12,8 @@ attribution_keypaths:
 - post_resolver_clamp/modality_conditional/expected_inert_arms/[]/rule_id
 - resolve/[]/driving_rule
 counts:
-  total: 441
-  gating: 145
+  total: 447
+  gating: 151
   display: 296
 gating:
 - adc-preferred-supportive
@@ -34,8 +34,10 @@ gating:
 - cis-expr-dependency-coupled-supportive
 - cis-silencing-coupled-supportive
 - clingen-dominant-loss-safety-warning
+- clingen-dosage-safety-axis-measured-clear
 - clingen-recessive-only-safety-favorable
 - clinvar-germline-pathogenic-safety-warning
+- clinvar-germline-safety-axis-measured-clear
 - cn-amplified-indication-scoped-context
 - cn-amplified-indication-scoped-fallback-context
 - cn-amplified-moderately-dependent-supportive
@@ -73,6 +75,7 @@ gating:
 - fusion-recurrence-high-partner-context
 - fusion-underpowered-insufficient
 - gene-burden-lof-safety-warning
+- gene-burden-safety-axis-measured-clear
 - highly-constrained-safety-warning
 - hotspot-in-druggable-pocket-sm-supportive-e8
 - ihc-not-detected-killer
@@ -98,6 +101,7 @@ gating:
 - modality-window-essential-liability-tce-opposing
 - moderately-constrained-safety-neutral
 - mouse-ko-lethal-safety-warning
+- mouse-ko-safety-axis-measured-clear
 - mut-lof-dominant-supportive
 - mut-missense-dominant-supportive
 - mut-mixed-neutral
@@ -111,10 +115,12 @@ gating:
 - non-dependent-killer
 - non-dependent-underpowered-insufficient
 - normal-tissue-essential-bite-killer
+- normal-tissue-essential-tissue-measured-clear
 - normal-tissue-protein-liability-safety-warning
 - not-dependent-in-indication-killer
 - pan-essential-broad-tox-safety-warning
 - pan-essential-killer
+- pan-essential-safety-axis-measured-clear
 - partner-conditional-moderately-dependent-supportive
 - partner-conditional-strongly-dependent-supportive
 - pmhc-broadly-presented-normal-tce-opposing
