@@ -42,6 +42,8 @@ from _skills_common.claim_vector_core import (
     build_key_signals,
     bump_corroboration,
     cap_corroboration,
+    cards_by_id,
+    corroboration_from_arms,
     sig_ge,
 )
 
@@ -366,6 +368,186 @@ def _normaltissue_corr(h, c):
     return "single_arm"  # GTEx unavailable / indeterminate → ONE arm, nothing to agree with
 
 
+# ── L2b-3 cross-source normal-tissue safety-liability concordance (SK#1546) ───────────────────────
+# Three genuinely INDEPENDENT normal-tissue liability measurements, integrated by an EXPLICIT
+# DETERMINISTIC rule (no LLM — L2b is reproducible by contract). Each source resolves a per-source
+# liability DIRECTION: 'high' (a clear normal-tissue liability), 'clean' (a measured low/absent read),
+# or None (unavailable / ambiguous — abstains from the vote, raw value still recorded for fidelity).
+_LIAB_SC_HIGH = frozenset({"HIGH_LIABILITY"})
+_LIAB_SC_CLEAN = frozenset({"LOW_LIABILITY", "NOT_EXPRESSED"})
+# (source_key, property, assay, card_id, field) — fixed order; the arm list & payload follow it.
+_LIAB_SOURCES = (
+    (
+        "gtex_bulk_rna",
+        "normal_tissue_liability_rna_bulk",
+        "gtex_bulk",
+        "normal-tissue-liability-gtex",
+        "liability_class",
+    ),
+    (
+        "sc_normal_rna",
+        "normal_tissue_liability_rna_singlecell",
+        "sc_normal_celltype",
+        "sc-normal-celltype-expression",
+        "sc_normal_expression_class",
+    ),
+    (
+        "hpa_ihc_protein",
+        "normal_tissue_liability_protein_ihc",
+        "hpa_ihc",
+        "normal-tissue-liability",
+        "essential_tissue_flag",
+    ),
+)
+
+
+def _liab_direction(source_key: str, token) -> "str | None":
+    """One source's normal-tissue liability token → 'high' | 'clean' | None (abstain: unavailable/ambiguous).
+
+    Membership tests, NOT `if token:` — every abstain sentinel here (data_unavailable, unknown,
+    MODERATE_LIABILITY) is a TRUTHY string that must stay OUT of the resolved buckets.
+
+    scRNA `MODERATE_LIABILITY` deliberately ABSTAINS: its threshold (median_det>0.20 OR donor_frac>0.30)
+    does NOT line up with the GTEx tissue-breadth `moderate_normal_breadth` (a CLEAN narrow-window call),
+    so voting it either way would fabricate a cross-source (dis)agreement. It abstains; its raw token
+    still rides in the payload (recoverable)."""
+    if source_key == "gtex_bulk_rna":
+        if token in _GTEX_LIABILITY:
+            return "high"
+        if token in _GTEX_CLEAN:
+            return "clean"
+        return None
+    if source_key == "sc_normal_rna":
+        if token in _LIAB_SC_HIGH:
+            return "high"
+        if token in _LIAB_SC_CLEAN:
+            return "clean"
+        return None
+    # hpa_ihc_protein: essential_tissue_flag present=liability, absent=clean, unknown/None=abstain (a gap,
+    # never reassurance — mirrors the card's `unknown` semantics).
+    if token == "present":
+        return "high"
+    if token == "absent":
+        return "clean"
+    return None
+
+
+def _normal_liability_concordance_claim(c: dict) -> "dict | None":
+    """L2b-3 CROSS-SOURCE integration claim: `normal_liability_concordance` (SK#1546).
+
+    Integrates THREE genuinely INDEPENDENT normal-tissue safety-liability measurements by an EXPLICIT
+    DETERMINISTIC rule (no LLM — L2b is reproducible by contract):
+      * GTEx bulk RNA   (normal-tissue-liability-gtex.liability_class)         — pooled tissue transcriptome
+      * scRNA cell-type (sc-normal-celltype-expression.sc_normal_expression_class) — single-cell atlas
+      * HPA-IHC protein (normal-tissue-liability.essential_tissue_flag)        — antibody protein staining
+
+    Each resolves a liability DIRECTION (high / clean / None-abstain). Then:
+      * liability_concordant_high    — >=2 sources resolve and ALL agree there IS a normal-tissue liability;
+      * liability_concordant_low     — >=2 resolve and ALL agree the target reads clean;
+      * liability_assay_discordant   — resolved sources DISAGREE (payload names which flag liability vs
+        read clean — e.g. GTEx bulk-high but scRNA cell-type-resolved clean = possible bulk contamination
+        vs cell-type-resolved safety; RNA-high but protein IHC clean = possible non-translated transcript);
+      * liability_single_source_only — exactly ONE source resolves, the other two are gaps: the degraded
+        read that names the resolved arm (recoverable), NOT a concordance claim.
+
+    Corroboration on the shared MEASURED-ARM frame: agreeing arms → high, any disagreement → low, one
+    measured arm → single_arm. A single-source mutation only DEGRADES the read to
+    `liability_single_source_only`; ERASING the conclusion (key omitted, byte-stable) takes defeating ALL
+    THREE supplies (the M3 fidelity / reach discipline).
+
+    VERDICT-INERT: carries NO `signal` key (never a chip, never a tier, never averaged), reads no verdict,
+    feeds no rule. The sc-normal card's own veto (tvn-sc-normal-critical-organ-veto) is NOT a
+    safety.resolver rung nor in the wt_loss_safety_conditioning modality contract, so both the scalar and
+    per-modality safety verdicts stay byte-stable. Returns None — key omitted — when NO source resolves."""
+    raw = {sk: (c.get(cid) or {}).get(field) for sk, _prop, _assay, cid, field in _LIAB_SOURCES}
+    dirs = {sk: _liab_direction(sk, raw[sk]) for sk in raw}
+    resolved = {sk: d for sk, d in dirs.items() if d is not None}
+    # Neither source resolves → no claim (key omitted → byte-stable). The ONLY erasing state: it takes
+    # defeating ALL THREE supplies, matching the atom discipline for the other liability axes.
+    if not resolved:
+        return None
+
+    if len(resolved) == 1:
+        concordance = "liability_single_source_only"
+    elif all(d == "high" for d in resolved.values()):
+        concordance = "liability_concordant_high"
+    elif all(d == "clean" for d in resolved.values()):
+        concordance = "liability_concordant_low"
+    else:
+        concordance = "liability_assay_discordant"
+
+    # Arms in fixed source order: an unresolved source is None (dropped before counting). For a discordance
+    # a 'high' source AGREES a liability is present (True) and a 'clean' source DISAGREES (False) → any
+    # disagreement drops corroboration to `low`. For a concordance / single, each resolved source agrees
+    # with the consensus (True): [T,T,None]→high, [T,None,None]→single_arm.
+    def _arm(sk: str) -> "bool | None":
+        d = dirs[sk]
+        if d is None:
+            return None
+        if concordance == "liability_assay_discordant":
+            return d == "high"
+        return True
+
+    corroboration = corroboration_from_arms([_arm(sk) for sk, *_ in _LIAB_SOURCES])
+
+    flagged = sorted(sk for sk, d in dirs.items() if d == "high")
+    read_clean = sorted(sk for sk, d in dirs.items() if d == "clean")
+    if concordance == "liability_assay_discordant":
+        source_support = {"liability_flagged_by": flagged, "read_clean_by": read_clean}
+    elif concordance == "liability_single_source_only":
+        sk = next(iter(resolved))
+        source_support = {"resolved_by": sk, "resolved_call": raw[sk], "resolved_direction": resolved[sk]}
+    else:
+        source_support = {"agreed_direction": next(iter(resolved.values())), "sources_agree": sorted(resolved)}
+
+    _PHRASE = {
+        "liability_concordant_high": "AGREE the target carries a normal-tissue safety liability",
+        "liability_concordant_low": "AGREE the target reads clean in normal tissue",
+        "liability_assay_discordant": "DISAGREE on the normal-tissue liability call",
+        "liability_single_source_only": "only one normal-tissue source resolves",
+    }
+    return {
+        "concordance_class": concordance,
+        "corroboration": corroboration,
+        # DETERMINISTIC, reproducible-by-contract: an explicit rule over three tokens, never an LLM.
+        "integration_method": "explicit_deterministic",
+        "source_support": source_support,
+        "sources_resolved": sorted(resolved),
+        "informs": (
+            "cross-source normal-tissue safety-liability concordance — an on-target/off-tumor liability seen "
+            "across genuinely INDEPENDENT normal-tissue lenses (bulk RNA, cell-type-resolved single-cell RNA, "
+            "protein IHC) is far more credible than a single-lens call; a DISCORDANCE localises the artifact "
+            "(bulk contamination vs cell-type-resolved safety; transcript vs protein)"
+        ),
+        "evidence": (
+            f"GTEx-bulk {raw['gtex_bulk_rna'] or 'data_unavailable'} × "
+            f"scRNA-normal {raw['sc_normal_rna'] or 'data_unavailable'} × "
+            f"HPA-IHC {raw['hpa_ihc_protein'] or 'data_unavailable'}: " + _PHRASE[concordance]
+        ),
+        # Provenance graph: ALL THREE source properties + an independence note. NOT the reserved single-card
+        # `evidence_atom` key — this records THREE-card cross-source provenance and carries each source's raw
+        # token so the VALUES (not just the key) are recoverable.
+        "provenance": {
+            "sources": [
+                {"property": prop, "assay": assay, "card_id": cid, "fields": {field: raw[sk]}}
+                for sk, prop, assay, cid, field in _LIAB_SOURCES
+            ],
+            "independence_note": (
+                "GTEx bulk RNA (pooled tissue transcriptome), sc-normal cell-type-resolved single-cell RNA "
+                "(a DIFFERENT resolution — the cell-type medians the bulk pool dilutes), and HPA-IHC protein "
+                "(an ORTHOGONAL antibody protein readout) are three independent normal-tissue liability "
+                "measurements; the bulk/single-cell pair shares the RNA modality but differs in resolution, "
+                "while IHC is a genuinely orthogonal protein lens — so their (dis)agreement is a real "
+                "cross-source corroboration, not a within-assay restatement."
+            ),
+        },
+        "_disclaimer": (
+            "L2b CROSS-SOURCE integration claim (deterministic, no LLM) — verdict-INERT provenance: never a "
+            "signal tier, never averaged into a claim, never feeds the safety verdict (scalar or per-modality)."
+        ),
+    }
+
+
 _PHARMACOVIGILANCE_CAVEAT = (
     "CONFOUNDED on-target-vs-off-target (drug-name→gene join, class-wide recall) — pharmacovigilance "
     "CONTEXT that ORIENTS the reader; the scalar safety verdict does not read it"
@@ -590,7 +772,17 @@ def safety_claim_vector(headline: dict, cards: list) -> dict:
     """The verdict-INERT safety liability claim vector {CONSTRAINT,BURDEN,DOSAGE,CLINVAR,MOUSE_KO,
     PAN_ESSENTIAL,NORMAL_TISSUE: {signal, corroboration, evidence, conflict, informs, evidence_atom?},
     _disclaimer}."""
-    return build_claim_vector(SAFETY_CLAIM_SPEC, headline, cards, _DISCLAIMER)
+    vec = build_claim_vector(SAFETY_CLAIM_SPEC, headline, cards, _DISCLAIMER)
+    # L2b-3 cross-source integration claim (SK#1546): GTEx bulk × scRNA-normal × HPA-IHC normal-tissue
+    # liability concordance. Carries NO `signal` key → not a chip, not a tier; OMITTED (byte-stable) unless
+    # at least ONE source resolves — the full concordance/discordance read needs >=2. Reads the three source
+    # cards directly (the NORMAL_TISSUE axis reads HPA off the headline + GTEx as one corroboration arm; this
+    # integrates all three independently and never perturbs them). Mirrors the dependency L2b-2
+    # (`crispr_rnai_essentiality_concordance`) pattern.
+    _liab = _normal_liability_concordance_claim(cards_by_id(cards))
+    if _liab is not None:
+        vec["normal_liability_concordance"] = _liab
+    return vec
 
 
 def safety_key_signals(headline: dict, cards: list) -> dict:

@@ -6,7 +6,7 @@ history live in SKILL.md / run.py; this file is the data-product spec.
 | | |
 |---|---|
 | **Skill** | `on-target-safety-liability` |
-| **Skill code version** | 1.19.0 |
+| **Skill code version** | 1.20.0 |
 | **Contract version** | 1.0.0 (emitted-output schema; versioned independently — see §4) |
 | **Role** | `gating` (the 4 concern verdicts force `action: hold`; polarity dynamic display-only; **no scalar killer** — safety is a HOLD, not a veto) |
 | **Verdict fields** | `headline.safety_verdict` (scalar = the honest raw WT-loss concern; `skill_report.call`) + `safety_verdict_by_modality` (the modality-conditional GoF-downgrade layer) |

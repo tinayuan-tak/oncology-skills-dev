@@ -249,3 +249,184 @@ def test_pharmacovigilance_atom_cites_drug_warning_card():
     ]
     assert a["cite"]["card_id"] == "drug-warning-safety"
     assert a["entity"]["valence"] == "liability"
+
+
+# ── L2b-3: cross-source normal-tissue safety-liability concordance (SK#1546) ──────────────────────
+# A CROSS-SOURCE integration claim over THREE genuinely INDEPENDENT normal-tissue liability lenses:
+# GTEx bulk RNA (normal-tissue-liability-gtex.liability_class) × scRNA cell-type-resolved
+# (sc-normal-celltype-expression.sc_normal_expression_class) × HPA-IHC protein
+# (normal-tissue-liability.essential_tissue_flag). Store the RAW per-source tokens and RE-DERIVE the
+# claim in-test — a derived fixture cannot fail; the tokens are the irreproducible inputs. The claim
+# reads the cards directly (not the headline), so it is exercised through the same
+# safety_claim_vector(headline, cards) seam without touching the seven verdict-liability axes.
+_LIAB_KEY = "normal_liability_concordance"
+
+
+def _liab_cards(gtex="critical_organ_liability", sc="HIGH_LIABILITY", hpa="present"):
+    """Card set carrying the three normal-tissue source tokens. Any of gtex/sc/hpa=None OMITS that
+    field (source data-absence path); an abstain sentinel (data_unavailable / unknown / MODERATE_LIABILITY)
+    is passed as-is and must NOT resolve into a high/clean bucket."""
+    cards = []
+    if gtex is not None:
+        cards.append({"card_id": "normal-tissue-liability-gtex", "summary": {"liability_class": gtex}})
+    if sc is not None:
+        cards.append({"card_id": "sc-normal-celltype-expression", "summary": {"sc_normal_expression_class": sc}})
+    if hpa is not None:
+        cards.append({"card_id": "normal-tissue-liability", "summary": {"essential_tissue_flag": hpa}})
+    return cards
+
+
+def test_liab_concordant_high_three_sources_agree():
+    # All three lenses flag a normal-tissue liability → concordant_high, corroborated by 3 independent arms.
+    claim = safety_claim_vector(
+        _headline(), _liab_cards(gtex="broadly_expressed_normal", sc="HIGH_LIABILITY", hpa="present")
+    )[_LIAB_KEY]
+    assert claim["concordance_class"] == "liability_concordant_high"
+    assert claim["corroboration"] == "high"  # >=2 measured arms, all agree
+    assert claim["integration_method"] == "explicit_deterministic"  # NO llm_inference: reproducible by contract
+    assert claim["source_support"]["agreed_direction"] == "high"
+    assert claim["source_support"]["sources_agree"] == ["gtex_bulk_rna", "hpa_ihc_protein", "sc_normal_rna"]
+    # Provenance records ALL THREE source properties, recoverable, + an independence note.
+    srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
+    assert srcs["normal_tissue_liability_rna_bulk"]["fields"]["liability_class"] == "broadly_expressed_normal"
+    assert srcs["normal_tissue_liability_rna_singlecell"]["fields"]["sc_normal_expression_class"] == "HIGH_LIABILITY"
+    assert srcs["normal_tissue_liability_protein_ihc"]["fields"]["essential_tissue_flag"] == "present"
+    assert "independent" in claim["provenance"]["independence_note"].lower()
+
+
+def test_liab_concordant_low_three_sources_read_clean():
+    # All three lenses read clean → concordant_low (agree there is NO normal-tissue liability).
+    claim = safety_claim_vector(_headline(), _liab_cards(gtex="restricted_normal", sc="NOT_EXPRESSED", hpa="absent"))[
+        _LIAB_KEY
+    ]
+    assert claim["concordance_class"] == "liability_concordant_low"
+    assert claim["corroboration"] == "high"
+    assert claim["source_support"]["agreed_direction"] == "clean"
+
+
+def test_liab_discordant_names_which_source_flags_vs_clean():
+    # GTEx bulk-high but scRNA cell-type-resolved clean + HPA clean → assay_discordant; the split is NAMED
+    # (which sources flag liability vs read clean), never collapsed. Corroboration degrades to low.
+    claim = safety_claim_vector(
+        _headline(), _liab_cards(gtex="critical_organ_liability", sc="NOT_EXPRESSED", hpa="absent")
+    )[_LIAB_KEY]
+    assert claim["concordance_class"] == "liability_assay_discordant"
+    assert claim["corroboration"] == "low"
+    assert claim["source_support"]["liability_flagged_by"] == ["gtex_bulk_rna"]
+    assert claim["source_support"]["read_clean_by"] == ["hpa_ihc_protein", "sc_normal_rna"]
+    # symmetric: protein flags, both RNA lenses read clean (transcript-vs-protein discordance)
+    claim2 = safety_claim_vector(_headline(), _liab_cards(gtex="restricted_normal", sc="LOW_LIABILITY", hpa="present"))[
+        _LIAB_KEY
+    ]
+    assert claim2["source_support"]["liability_flagged_by"] == ["hpa_ihc_protein"]
+    assert claim2["source_support"]["read_clean_by"] == ["gtex_bulk_rna", "sc_normal_rna"]
+
+
+def test_liab_single_source_only_when_two_arms_are_gaps():
+    # HPA resolves, both RNA lenses are admissibility GAPS → single_source_only, naming the RESOLVED arm
+    # and carrying its raw call (recoverable); corroboration is single_arm (one measured arm).
+    claim = safety_claim_vector(
+        _headline(), _liab_cards(gtex="data_unavailable", sc="data_unavailable", hpa="present")
+    )[_LIAB_KEY]
+    assert claim["concordance_class"] == "liability_single_source_only"
+    assert claim["corroboration"] == "single_arm"
+    assert claim["source_support"]["resolved_by"] == "hpa_ihc_protein"
+    assert claim["source_support"]["resolved_call"] == "present"
+    assert claim["source_support"]["resolved_direction"] == "high"
+
+
+def test_liab_moderate_and_unknown_abstain_not_a_silent_vote():
+    # scRNA MODERATE_LIABILITY and HPA `unknown` are ABSTAIN sentinels — they must NOT resolve into a
+    # high/clean bucket. Here only GTEx resolves → single_source_only (not a concordance / discordance).
+    claim = safety_claim_vector(
+        _headline(), _liab_cards(gtex="critical_organ_liability", sc="MODERATE_LIABILITY", hpa="unknown")
+    )[_LIAB_KEY]
+    assert claim["concordance_class"] == "liability_single_source_only"
+    assert claim["source_support"]["resolved_by"] == "gtex_bulk_rna"
+    # the abstaining tokens still ride in provenance (recoverable), just don't vote
+    srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
+    assert (
+        srcs["normal_tissue_liability_rna_singlecell"]["fields"]["sc_normal_expression_class"] == "MODERATE_LIABILITY"
+    )
+    assert srcs["normal_tissue_liability_protein_ihc"]["fields"]["essential_tissue_flag"] == "unknown"
+
+
+def test_liab_recoverability_round_trip():
+    # FIDELITY: the actual per-source VALUES round-trip through provenance, not merely a key. A consumer
+    # can reconstruct the discordance purely from the recovered tokens the same way the claim does.
+    gtex_tok, sc_tok, hpa_tok = "broadly_expressed_normal", "NOT_EXPRESSED", "absent"
+    claim = safety_claim_vector(_headline(), _liab_cards(gtex=gtex_tok, sc=sc_tok, hpa=hpa_tok))[_LIAB_KEY]
+    srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
+    assert srcs["normal_tissue_liability_rna_bulk"]["fields"]["liability_class"] == gtex_tok
+    assert srcs["normal_tissue_liability_rna_singlecell"]["fields"]["sc_normal_expression_class"] == sc_tok
+    assert srcs["normal_tissue_liability_protein_ihc"]["fields"]["essential_tissue_flag"] == hpa_tok
+    # bulk flags a liability, both cell-type RNA + protein read clean → a discordance, re-derivable from tokens
+    assert (gtex_tok in {"critical_organ_liability", "broadly_expressed_normal"}) is True
+    assert (sc_tok in {"LOW_LIABILITY", "NOT_EXPRESSED"}) is True
+    assert claim["concordance_class"] == "liability_assay_discordant"
+
+
+def test_liab_is_verdict_inert_no_signal_and_axes_unperturbed():
+    # Verdict-INERT: the claim carries NO `signal` key (never a chip, never a tier), and surfacing it must
+    # not perturb the seven liability axes / _disclaimer. Toggle ONLY sc_normal_expression_class — a field
+    # the safety intracellular_intrinsic verdict path does NOT read (its sc-normal rules are on the surface
+    # axis; the veto keys on sc_normal_essential_veto_grade, a DIFFERENT field) — so any axis delta would be
+    # a real perturbation, not the L2b-3 claim's.
+    base = safety_claim_vector(
+        _headline(), _liab_cards(gtex="critical_organ_liability", sc="LOW_LIABILITY", hpa="present")
+    )
+    toggled = safety_claim_vector(
+        _headline(), _liab_cards(gtex="critical_organ_liability", sc="HIGH_LIABILITY", hpa="present")
+    )
+    # the concordance class DID move with the sc field (discordant → concordant_high) — the claim is live ...
+    assert base[_LIAB_KEY]["concordance_class"] == "liability_assay_discordant"
+    assert toggled[_LIAB_KEY]["concordance_class"] == "liability_concordant_high"
+    # ... but nothing else did:
+    claim = toggled[_LIAB_KEY]
+    assert "signal" not in claim, "an L2b claim must never carry a signal tier"
+    for ax in (
+        "CONSTRAINT",
+        "BURDEN",
+        "DOSAGE",
+        "CLINVAR",
+        "MOUSE_KO",
+        "PAN_ESSENTIAL",
+        "NORMAL_TISSUE",
+        "_disclaimer",
+    ):
+        assert toggled[ax] == base[ax], f"surfacing the normal-liability-concordance claim perturbed {ax}"
+
+
+def test_liab_single_source_mutation_only_degrades_defeating_all_three_erases():
+    # M3-vs-M4 reach: killing ONE source's supply may only DEGRADE the read — the concept survives on the
+    # surviving arms. ERASING the claim (key omitted) requires defeating ALL THREE supplies.
+    three = safety_claim_vector(
+        _headline(), _liab_cards(gtex="critical_organ_liability", sc="HIGH_LIABILITY", hpa="present")
+    )
+    assert three[_LIAB_KEY]["concordance_class"] == "liability_concordant_high"
+    # defeat ONE arm → still a 2-source concordance, not erased
+    one_gone = safety_claim_vector(_headline(), _liab_cards(gtex="critical_organ_liability", sc=None, hpa="present"))
+    assert _LIAB_KEY in one_gone
+    assert one_gone[_LIAB_KEY]["concordance_class"] == "liability_concordant_high"
+    assert one_gone[_LIAB_KEY]["corroboration"] == "high"  # two arms still agree
+    # defeat TWO arms → degrades to single_source_only, still not erased
+    two_gone = safety_claim_vector(_headline(), _liab_cards(gtex=None, sc=None, hpa="present"))
+    assert _LIAB_KEY in two_gone
+    assert two_gone[_LIAB_KEY]["concordance_class"] == "liability_single_source_only"
+    # defeat ALL THREE (fields absent) → key omitted (byte-stable erasure)
+    all_gone = safety_claim_vector(_headline(), _liab_cards(gtex=None, sc=None, hpa=None))
+    assert _LIAB_KEY not in all_gone, "only defeating ALL THREE supplies erases the claim"
+
+
+def test_liab_omitted_when_no_source_resolves():
+    # Byte-stability: the KEY is omitted (not None) unless at least one source resolves.
+    assert _LIAB_KEY not in safety_claim_vector(_headline(), [])  # no cards
+    assert _LIAB_KEY not in safety_claim_vector(_headline(), _liab_cards(gtex=None, sc=None, hpa=None))
+    # all three present but ALL are abstain sentinels → none resolve → omitted
+    assert _LIAB_KEY not in safety_claim_vector(
+        _headline(), _liab_cards(gtex="data_unavailable", sc="MODERATE_LIABILITY", hpa="unknown")
+    )
+    # an off-roster / unknown token is treated as unresolved (not a silent liability)
+    assert _LIAB_KEY not in safety_claim_vector(
+        _headline(), _liab_cards(gtex="some_future_token", sc="data_unavailable", hpa=None)
+    )

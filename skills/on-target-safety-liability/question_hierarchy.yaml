@@ -48,3 +48,5 @@ sub_groups:
     - normal_tissue_protein_breadth
     - normal_tissue_rna_breadth
     - normal_tissue_protein_abundance
+  context_types:
+  - sc_normal_celltype_expression

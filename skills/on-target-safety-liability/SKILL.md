@@ -29,7 +29,7 @@ description: |
   because two axes remain placeholder (see status note).
 
 metadata:
-  version: 1.19.0    # 1.19.0 (2026-09-10, T0-3): +normal-tissue-protein-abundance-tphp — TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN (tphp_vital_organ_liability_class), the quantitative-protein leg the safety substrate lacked (RNA+categorical-IHC only); resolves the endocrine/vascular/CNS organs HPA-IHC is blind to. VERDICT-INERT display CONTEXT (card rules are on the tumor-selectivity axis, NOT intracellular_intrinsic rules_scope) — scalar verdict byte-stable. # 1.18.0 (2026-09-07, CASE-009): +VERDICT-INERT pharmacovigilance_scope_caveat (drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity — mechanism-based dose-limiting tox often not boxed; byte-stable). # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature
+  version: 1.20.0    # 1.20.0 (2026-09-24, L2b-3 / SK#1546): +sc-normal-celltype-expression card feeding a VERDICT-INERT cross-source claim normal_liability_concordance (GTEx bulk × scRNA-normal × HPA-IHC, deterministic). sc-normal veto enters fired list but is not a resolver rung nor in wt_loss_safety_conditioning ⇒ scalar + per-modality verdict byte-stable. Epic #1507 M3 2→3. # 1.19.0 (2026-09-10, T0-3): +normal-tissue-protein-abundance-tphp — TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN (tphp_vital_organ_liability_class), the quantitative-protein leg the safety substrate lacked (RNA+categorical-IHC only); resolves the endocrine/vascular/CNS organs HPA-IHC is blind to. VERDICT-INERT display CONTEXT (card rules are on the tumor-selectivity axis, NOT intracellular_intrinsic rules_scope) — scalar verdict byte-stable. # 1.18.0 (2026-09-07, CASE-009): +VERDICT-INERT pharmacovigilance_scope_caveat (drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity — mechanism-based dose-limiting tox often not boxed; byte-stable). # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature
                      # synthesis, Europe-PMC-grounded + PMID-verified via _skills_common.literature_synthesis;
                      # run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968.
                      # + VERDICT-INERT signal-surfacing of rich safety sub-fields the capsule projection
@@ -81,6 +81,14 @@ composition:
                                        # only on the surface axis): essential_tissue_flag==present fires
                                        # normal-tissue-protein-liability-safety-warning → normal_tissue_
                                        # protein_safety_concern HOLD.
+    - sc-normal-celltype-expression    # (L2b-3, SK#1546, 2026-09-24) scRNA CELL-TYPE-RESOLVED normal-tissue
+                                       # liability — the single-cell RNA sibling of the GTEx-bulk + HPA-IHC
+                                       # legs. Added to feed the L2b-3 normal_liability_concordance cross-source
+                                       # claim (GTEx bulk × scRNA-normal × HPA-IHC). VERDICT-INERT: its
+                                       # tvn-sc-normal-critical-organ-veto rule IS on the intracellular_intrinsic
+                                       # axis so it enters the fired list, but it is NOT a safety.resolver rung
+                                       # nor in wt_loss_safety_conditioning ⇒ scalar + per-modality verdict
+                                       # byte-stable. NOT in rules_scope; NOT in _SAFETY_DECISION_CARDS.
     - normal-tissue-protein-abundance-tphp  # (T0-3, 2026-09-10) TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN —
                                        # VERDICT-INERT display CONTEXT (NOT in rules_scope). The safety skill had
                                        # RNA (GTEx) + categorical IHC (HPA) but no quantitative protein; this adds
@@ -110,6 +118,7 @@ composition:
     - functional_gene_state                    # functional-gene-state — rarely-altered guard (rule now ORPHAN; disqualifier moved to per-modality verdict)
     - crispr_lof_dependency                    # pan-cancer-crispr-dependency-distribution — pan-essential broad-tox (data-util expansion)
     - normal_tissue_protein_breadth            # normal-tissue-liability — HPA-IHC essential-tissue protein (data-util expansion)
+    - sc_normal_celltype_expression            # sc-normal-celltype-expression — scRNA cell-type-resolved normal-tissue liability (L2b-3 concordance, SK#1546)
     - normal_tissue_protein_abundance          # normal-tissue-protein-abundance-tphp — TPHP DIA-MS quantitative vital-organ protein (T0-3, verdict-inert)
     - drug_warning_safety                      # drug-warning-safety — OT pharmacovigilance context (verdict-inert, 2026-08-21)
     - onsides_adverse_event_safety             # onsides-adverse-event-safety — OnSIDES drug-label ADE context (verdict-inert DISPLAY, 2026-08-25)

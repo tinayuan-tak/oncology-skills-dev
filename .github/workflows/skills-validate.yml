@@ -316,7 +316,14 @@ jobs:
           # APERTURE_CEILING (measured on this branch x the new pin, domain 1814). Ceiling half 781 <= 781 and
           # slack half 781 - 781 = 0 <= 20 both clear; THE CEILING DOES NOT MOVE. Verdict byte-inert: the
           # tumor-presence replay golden and resolver golden are unchanged (the atom is provenance, never a tier).
-          ref: 4f4866d44d02728db597e51850f1ffe737b57cc2
+          # L2b-3 (#1546) BUMP -> c55602a6 (#890): pulls #887 (sc_normal_celltype_expression declared a
+          # NORMAL_TISSUE context_type) + #890 (same card anchored in the safety normal-tissue-breadth
+          # question answered_by). Needed by this branch: test_hierarchy_connectivity (context_type) and
+          # test_question_card_coverage reverse-coverage (answered_by) both read the LIVE contracts tree.
+          # Aperture-inert: measured the field_disposition suite (73 passed) against this branch x c55602a6 —
+          # orphans stay in [APERTURE_CEILING-APERTURE_SLACK, APERTURE_CEILING] = [761, 781], so the ceiling
+          # (781, in test_field_disposition.py) does not move and this pin bumps ALONE.
+          ref: c55602a67ba14d234bf47f6ce13b4297a4d7d6d8
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

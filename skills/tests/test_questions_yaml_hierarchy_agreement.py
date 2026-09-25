@@ -58,9 +58,9 @@ _NO_HIERARCHY = {"literature-context", "translational-readiness"}
 # question whose role is not `display_only`. A type that is a hierarchy `context_type` AND lives on a
 # `display_only` (or absent) questions.yaml question is off-signal on BOTH sides: it is a bookkeeping
 # mismatch, reported only because this guard unions `context_types` into the axis — which it must, or it
-# would stop catching the real ones. Measured over this ledger: **40 of 59 triples are scored on at least
-# one side; 19 are off-signal on both.** The off-signal-both-sides 19 are all of
-# on-target-safety-liability (8), all of target-intrinsic (8), differentiation-landscape (2) and
+# would stop catching the real ones. Measured over this ledger: **40 of 60 triples are scored on at least
+# one side; 20 are off-signal on both.** The off-signal-both-sides 20 are all of
+# on-target-safety-liability (9), all of target-intrinsic (8), differentiation-landscape (2) and
 # tractability-small-molecule (1).
 #
 # Four causes:
@@ -125,6 +125,12 @@ _KNOWN_DRIFT: dict[str, set[tuple[str, str, str]]] = {
         ("SPL", "hierarchy_only", "tumor_splice_dysregulation"),
     },
     "on-target-safety-liability": {
+        # L2b-3 (#1546): sc_normal_celltype_expression is declared a NORMAL_TISSUE context_type in
+        # the hierarchy (off-signal, verdict-inert) so it feeds ONLY the deterministic
+        # normal_liability_concordance claim, NOT the scored/displayed normal_tissue_read question.
+        # Deliberately not mirrored into questions.yaml (the sole NORMAL_TISSUE question is
+        # verdict_bearing — mirroring it there would score its 'liability' class as killer polarity).
+        ("NORMAL_TISSUE", "hierarchy_only", "sc_normal_celltype_expression"),
         ("CONSTRAINT", "hierarchy_only", "alteration_role"),
         ("CONSTRAINT", "hierarchy_only", "copy_number_alteration"),
         ("CONSTRAINT", "hierarchy_only", "drug_warning_safety"),
