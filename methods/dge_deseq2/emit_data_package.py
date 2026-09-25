@@ -44,6 +44,7 @@ from pathlib import Path
 
 import yaml
 
+from .config import substrates as _substrates_config
 from .derive_pancan_stack import _SENSITIVITY_SUFFIX
 
 S3_BUCKET = "onc-compbio"
@@ -51,8 +52,9 @@ DERIVED_BASE = f"s3://{S3_BUCKET}/data-catalog/derived"
 
 # recount3 is the classifier substrate (bare id); xena_toil is the S1b
 # secondary/diagnostic substrate and carries a -xenatoil infix so its packages
-# land on distinct S3 keys / catalog ids (analysis-methods#694).
-_SUBSTRATE_INFIX = {"recount3": "", "xena_toil": "-xenatoil"}
+# land on distinct S3 keys / catalog ids (analysis-methods#694). Projected from
+# config/substrates.yaml (analysis-methods#733) rather than hard-coded here.
+_SUBSTRATE_INFIX = {name: attrs["s3_key_infix"] for name, attrs in _substrates_config().items()}
 
 _ADJ_VS_GTEX_PARQUET = "adj_vs_gtex.parquet"
 _SIDECAR_NAME = "provenance.yaml"  # same filename as the sensitivity family's inline sidecar

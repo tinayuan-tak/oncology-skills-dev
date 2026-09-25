@@ -24,9 +24,11 @@
 suppressPackageStartupMessages({
   library(optparse)
   library(data.table)
+  library(yaml)
 })
 
-# Source the shared dedupe_one_aliquot_per_case() (S-fix, analysis-methods#691).
+# Source the shared dedupe_one_aliquot_per_case() + resolve_xena_site_and_studies()
+# (S-fix, analysis-methods#691; R-side roster consolidation, analysis-methods#733).
 # Robust self-location under `pixi run Rscript`, same pattern as 06/07.
 .args <- commandArgs(trailingOnly = FALSE)
 .here <- dirname(normalizePath(sub("^--file=", "", .args[grepl("^--file=", .args)][1])))
@@ -34,43 +36,26 @@ source(file.path(.here, "_four_cell_lib.R"))
 
 `%||%` <- function(a, b) if (!is.null(a) && length(a) && !is.na(a[1])) a else b
 
-# indication → Xena `_primary_site` label(s), per arm. The Xena phenotype keys
-# tumor/adjacent/GTEx rows on `_primary_site` (a TISSUE label), so the TCGA arm
-# can span more than one site for a COMPOSITE indication — COADREAD = colon +
-# rectum (Xena splits `Colon` (COAD) from `Rectum` (READ)). The GTEx arm uses
-# the tissue-level site, and GTEx carries no separate rectum, so `Colon` covers
-# the colorectal normal.
+# indication → Xena `_primary_site` label(s) + TCGA study code(s), per arm — now the
+# `xena_primary_site` / `tcga_studies` fields of config/indications.yaml (single source
+# of truth shared with the Python side, analysis-methods#733), resolved by the shared
+# `resolve_xena_site_and_studies()` helper rather than a forked R literal.
 #
-# CAVEAT — this is a TISSUE filter, not a TCGA-study filter. It is correct only
-# where a tissue maps 1:1 to the intended study set: true single-study tissues
-# (brca=Breast, paad=Pancreas, …) and COADREAD (colon+rectum = exactly
-# COAD+READ; no other TCGA study is `Colon`/`Rectum`). It is NOT correct for a
-# tissue shared by multiple histologies you want to separate — `Lung` conflates
-# LUAD+LUSC, `Kidney` conflates KIRC/KIRP/KICH. Those entries below select the
-# whole tissue; do not run them expecting a single histology without adding a
-# `detailed_category` filter. recount3 (which filters by TCGA study code) is the
-# substrate for those splits.
-SITE_BY_INDICATION <- list(
-  brca     = list(tcga = "Breast",              gtex = "Breast"),
-  paad     = list(tcga = "Pancreas",            gtex = "Pancreas"),
-  luad     = list(tcga = "Lung",                gtex = "Lung"),      # tissue-level: LUAD+LUSC
-  lusc     = list(tcga = "Lung",                gtex = "Lung"),      # tissue-level: LUAD+LUSC
-  coad     = list(tcga = "Colon",               gtex = "Colon"),
-  read     = list(tcga = "Rectum",              gtex = "Colon"),     # READ is `Rectum` in Xena; GTEx has no rectum
-  coadread = list(tcga = c("Colon", "Rectum"),  gtex = "Colon"),     # composite: COAD + READ
-  stad     = list(tcga = "Stomach",             gtex = "Stomach"),
-  prad     = list(tcga = "Prostate",            gtex = "Prostate"),
-  lihc     = list(tcga = "Liver",               gtex = "Liver"),
-  blca     = list(tcga = "Bladder",             gtex = "Bladder"),
-  kirc     = list(tcga = "Kidney",              gtex = "Kidney"),    # tissue-level: KIRC/KIRP/KICH
-  skcm     = list(tcga = "Skin",                gtex = "Skin"),
-  cesc     = list(tcga = "Cervix Uteri",        gtex = "Cervix Uteri"),
-  esca     = list(tcga = "Esophagus",           gtex = "Esophagus")
-)
-
-# TCGA study code(s) recorded in provenance (metadata$tcga_studies). Defaults to
-# toupper(indication); composites list their constituent studies.
-TCGA_STUDIES_BY_INDICATION <- list(coadread = c("COAD", "READ"))
+# The Xena phenotype keys tumor/adjacent/GTEx rows on `_primary_site` (a TISSUE label),
+# so the TCGA arm can span more than one site for a COMPOSITE indication — COADREAD =
+# colon + rectum (Xena splits `Colon` (COAD) from `Rectum` (READ)). The GTEx arm uses
+# the tissue-level site, and GTEx carries no separate rectum, so `Colon` covers the
+# colorectal normal.
+#
+# CAVEAT — this is a TISSUE filter, not a TCGA-study filter. It is correct only where a
+# tissue maps 1:1 to the intended study set: true single-study tissues (brca=Breast,
+# paad=Pancreas, …) and COADREAD (colon+rectum = exactly COAD+READ; no other TCGA study
+# is `Colon`/`Rectum`). It is NOT correct for a tissue shared by multiple histologies you
+# want to separate — `Lung` conflates LUAD+LUSC, `Kidney` conflates KIRC/KIRP/KICH.
+# Those entries select the whole tissue; do not run them expecting a single histology
+# without adding a `detailed_category` filter. recount3 (which filters by TCGA study
+# code) is the substrate for those splits.
+CFG_INDICATIONS <- yaml::read_yaml(file.path(.here, "..", "config", "indications.yaml"))$indications
 
 option_list <- list(
   make_option("--indication", type = "character",
@@ -93,6 +78,11 @@ opts <- parse_args(OptionParser(option_list = option_list))
 stopifnot(!is.null(opts$indication) || !is.null(opts$`primary-site`), !is.null(opts$out))
 
 ind  <- tolower(opts$indication %||% "")
+# tcga_studies is resolved from config regardless of a --primary-site override (matches
+# the pre-#733 behaviour, where TCGA_STUDIES_BY_INDICATION[[ind]] %||% toupper(ind) ran
+# unconditionally): config/indications.yaml's own `tcga_studies` field, or toupper(ind).
+cfg_entry <- CFG_INDICATIONS[[toupper(ind)]]
+tcga_studies <- if (!is.null(cfg_entry$tcga_studies)) unlist(cfg_entry$tcga_studies, use.names = FALSE) else toupper(ind)
 if (!is.null(opts$`primary-site`)) {
   # Explicit override: a comma-separated `_primary_site` list applied to BOTH
   # the TCGA and GTEx arms (escape hatch for a site not in the map).
@@ -100,13 +90,12 @@ if (!is.null(opts$`primary-site`)) {
   tcga_sites <- ov
   gtex_sites <- ov
 } else {
-  m <- SITE_BY_INDICATION[[ind]]
+  m <- resolve_xena_site_and_studies(ind, CFG_INDICATIONS)
   if (is.null(m)) stop("no _primary_site mapping for indication '", ind,
                        "' — pass --primary-site explicitly")
-  tcga_sites <- m$tcga
-  gtex_sites <- m$gtex
+  tcga_sites <- m$tcga_sites
+  gtex_sites <- m$gtex_sites
 }
-tcga_studies <- TCGA_STUDIES_BY_INDICATION[[ind]] %||% toupper(ind)
 gtex_tissue  <- paste(gtex_sites, collapse = "+")
 bucket <- opts$bucket
 prefix <- opts$`s3-prefix`

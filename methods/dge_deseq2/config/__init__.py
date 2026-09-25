@@ -1,4 +1,5 @@
-"""dge_deseq2.config — single source of truth for indication rosters (S1, #693).
+"""dge_deseq2.config — single source of truth for indication rosters (S1, #693)
+and substrate metadata (S1's deferred (b)-half, #733).
 
 Loads ``config/indications.yaml`` and PROJECTS it into the structures each consumer
 previously hard-coded independently:
@@ -13,6 +14,15 @@ Pure no-op consolidation: every projection is verdict-identical to the pre-S1 li
 pinned byte-for-byte by ``tests/test_indication_config_rosters.py``. These are DIFFERENT
 sets (a 27-product universe, a 19-row render subset, a 21-key substrate lookup), so each
 projection filters the universe on its own membership flag rather than sharing one list.
+
+``config/substrates.yaml`` (#733) is a SEPARATE, smaller file declaring per-substrate
+metadata (annotation version, S3 key infix, source manifest id, role) that was previously
+scattered as independent literals in ``emit_data_package._SUBSTRATE_INFIX`` and
+``read.RECOUNT3_S3_PREFIX``:
+
+  * :func:`substrates`                    -> the full {substrate -> attrs} map
+  * :func:`substrate_infix`               -> emit_data_package._SUBSTRATE_INFIX values
+  * :func:`substrate_source_manifest_id`  -> read.RECOUNT3_S3_PREFIX's manifest id
 """
 
 from __future__ import annotations
@@ -23,6 +33,7 @@ from pathlib import Path
 import yaml
 
 _CONFIG_PATH = Path(__file__).with_name("indications.yaml")
+_SUBSTRATES_PATH = Path(__file__).with_name("substrates.yaml")
 
 
 @lru_cache(maxsize=1)
@@ -38,6 +49,12 @@ def _load() -> dict:
     unpublished = [c for c in render if not inds[c].get("published")]
     assert not unpublished, f"pan_tissue_render includes non-published indications: {unpublished}"
     return data
+
+
+@lru_cache(maxsize=1)
+def _load_substrates() -> dict:
+    with open(_SUBSTRATES_PATH, encoding="utf-8") as fh:
+        return yaml.safe_load(fh)["substrates"]
 
 
 def _indications() -> dict:
@@ -108,3 +125,18 @@ def run_ledger_intent() -> dict:
         },
         "singletons": [dict(s) for s in intent.get("singletons", [])],
     }
+
+
+def substrates() -> dict:
+    """Per-substrate metadata: annotation_version, s3_key_infix, source_manifest_id, role."""
+    return {name: dict(attrs) for name, attrs in _load_substrates().items()}
+
+
+def substrate_infix(substrate: str) -> str:
+    """The catalog-id / S3-key infix for one substrate (e.g. "" for recount3, "-xenatoil")."""
+    return _load_substrates()[substrate]["s3_key_infix"]
+
+
+def substrate_source_manifest_id(substrate: str) -> str:
+    """The data-catalog source manifest id backing one substrate."""
+    return _load_substrates()[substrate]["source_manifest_id"]

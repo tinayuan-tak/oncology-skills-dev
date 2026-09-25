@@ -25,6 +25,12 @@
 #   published           in the 27 published *-dge-tumor-vs-normal-sensitivity-v1 products
 #   in_read_map         exposed via read.INDICATION_TO_{TCGA_STUDIES,GTEX_TISSUE}
 #   composite_children  finer sibling cohorts this OncoTree parent is the union of
+#   xena_primary_site   {tcga, gtex} Xena/Toil `_primary_site` label(s) for the xena_toil
+#                       substrate (R-side roster consolidation, analysis-methods#733). A
+#                       TISSUE-level filter, not a TCGA-study filter (see 00_load_xena_toil.R's
+#                       header note): present only for the 15 indications the xena_toil
+#                       secondary/diagnostic substrate (S1b #694) actually loads. Xena has no
+#                       separate rectum normal, so READ's own gtex site is "Colon" too.
 #
 # (The per-indication `cell_b_semantics` vintage field was removed in analysis-methods#727
 #  when the ComBat-seq cell B was deleted from the four-cell pipeline.)
@@ -95,16 +101,19 @@ indications:
     published: true
     in_read_map: true
     composite_children: [COAD, READ]
+    xena_primary_site: {tcga: [Colon, Rectum], gtex: Colon}
   COAD:
     tcga_studies: [COAD]
     gtex_tissue: COLON
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: Colon, gtex: Colon}
   READ:
     tcga_studies: [READ]
     gtex_tissue: COLON
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: Rectum, gtex: Colon}  # Xena carries no separate rectum normal
   NSCLC:
     tcga_studies: [LUAD, LUSC]  # composite: pooled LUAD+LUSC (study-adjusted DGE, see 06_four_cell_driver.R)
     gtex_tissue: LUNG
@@ -116,21 +125,25 @@ indications:
     gtex_tissue: LUNG
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: Lung, gtex: Lung}  # tissue-level: conflates LUAD+LUSC
   LUSC:
     tcga_studies: [LUSC]
     gtex_tissue: LUNG
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: Lung, gtex: Lung}  # tissue-level: conflates LUAD+LUSC
   BRCA:
     tcga_studies: [BRCA]
     gtex_tissue: BREAST
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: Breast, gtex: Breast}
   PAAD:
     tcga_studies: [PAAD]
     gtex_tissue: PANCREAS
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: Pancreas, gtex: Pancreas}
   PDAC:
     tcga_studies: [PAAD]  # alias of PAAD
     gtex_tissue: PANCREAS
@@ -141,16 +154,19 @@ indications:
     gtex_tissue: SKIN
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: Skin, gtex: Skin}
   STAD:
     tcga_studies: [STAD]
     gtex_tissue: STOMACH
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: Stomach, gtex: Stomach}
   PRAD:
     tcga_studies: [PRAD]
     gtex_tissue: PROSTATE
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: Prostate, gtex: Prostate}
   OV:
     tcga_studies: [OV]
     gtex_tissue: OVARY
@@ -161,6 +177,7 @@ indications:
     gtex_tissue: KIDNEY
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: Kidney, gtex: Kidney}  # tissue-level: conflates KIRC/KIRP/KICH
   GBM:
     tcga_studies: [GBM]
     gtex_tissue: BRAIN
@@ -181,21 +198,25 @@ indications:
     gtex_tissue: BLADDER
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: Bladder, gtex: Bladder}
   LIHC:
     tcga_studies: [LIHC]
     gtex_tissue: LIVER
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: Liver, gtex: Liver}
   CESC:
     tcga_studies: [CESC]
     gtex_tissue: CERVIX_UTERI
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: "Cervix Uteri", gtex: "Cervix Uteri"}
   ESCA:
     tcga_studies: [ESCA]
     gtex_tissue: ESOPHAGUS
     published: true
     in_read_map: true
+    xena_primary_site: {tcga: Esophagus, gtex: Esophagus}
   # --- published but NOT in the read maps and NOT rendered by pan_tissue (the 8 rarer ---
   # --- indications) ---
   ACC:

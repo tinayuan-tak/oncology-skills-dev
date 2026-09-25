@@ -25,7 +25,11 @@ from typing import Optional
 import yaml
 
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
-from methods.dge_deseq2.config import indication_to_gtex_tissue, indication_to_tcga_studies
+from methods.dge_deseq2.config import (
+    indication_to_gtex_tissue,
+    indication_to_tcga_studies,
+    substrate_source_manifest_id,
+)
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
 # NOTE: this reader is a *package* (methods/dge_deseq2/read/__init__.py), one directory deeper
@@ -385,8 +389,10 @@ def _classify_expression_call(log2_fc, q_value) -> str:
 #              gene_sums/{tcga|gtex}.gene_sums.{TISSUE}.G026.gz  (raw counts)
 #              metadata/{tcga|gtex}.{tcga|gtex}.{TISSUE}.MD.gz    (sample annotations)
 # source prefixes/keys resolved from the data-catalog manifests (single source of truth);
-# rstrip('/') keeps the existing f"{RECOUNT3_S3_PREFIX}/tcga/..." idiom byte-identical.
-RECOUNT3_S3_PREFIX = bucket_prefix_for("recount3-tcga-gtex-2023-01-04")[1].rstrip("/")
+# rstrip('/') keeps the existing f"{RECOUNT3_S3_PREFIX}/tcga/..." idiom byte-identical. The
+# manifest id itself is projected from config/substrates.yaml (analysis-methods#733) rather
+# than hard-coded here.
+RECOUNT3_S3_PREFIX = bucket_prefix_for(substrate_source_manifest_id("recount3"))[1].rstrip("/")
 ENSEMBL_ID_MAP_S3 = (
     f"{bucket_prefix_for('ensembl-id-mapping-release-116-snapshot-2026-06-18')[1]}hsapiens_gene_id_map_release-116.tsv"
 )

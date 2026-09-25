@@ -95,6 +95,35 @@ xena_log2_to_counts <- function(x) {
   counts
 }
 
+# --- Xena/Toil site + TCGA-study resolution (R-side roster consolidation, ------
+# analysis-methods#733, S1's deferred (b)-half) --------------------------------
+# 00_load_xena_toil.R used to carry its own SITE_BY_INDICATION / TCGA_STUDIES_BY_INDICATION
+# R literals, independently of config/indications.yaml (the single source of truth the
+# Python side already projects from, S1 #693). This is the SAME lookup, moved here as a
+# pure function so the loader reads config/indications.yaml's per-indication
+# `xena_primary_site` (tcga/gtex Xena `_primary_site` labels) and `tcga_studies` fields
+# instead of a forked R copy. `tcga_studies` needs no new YAML field: it is already
+# present for every in_read_map indication and already equals the R literal's override
+# (e.g. COADREAD: [COAD, READ]); everywhere else the R literal's own fallback was
+# `toupper(ind)`, which a single-study `tcga_studies: [XXXX]` entry reproduces exactly.
+#
+# `ind`: lowercase indication slug (e.g. "coadread"). `cfg_indications`: the
+# `indications:` block of config/indications.yaml, as parsed by yaml::read_yaml
+# (a named list keyed by the UPPERCASE indication name).
+# Returns list(tcga_sites, gtex_sites, tcga_studies) or NULL if `ind` has no
+# `xena_primary_site` entry (the caller's cue to require --primary-site).
+resolve_xena_site_and_studies <- function(ind, cfg_indications) {
+  entry <- cfg_indications[[toupper(ind)]]
+  site <- if (!is.null(entry)) entry$xena_primary_site else NULL
+  if (is.null(site)) return(NULL)
+  tcga_studies <- if (!is.null(entry$tcga_studies)) unlist(entry$tcga_studies, use.names = FALSE) else toupper(ind)
+  list(
+    tcga_sites   = unlist(site$tcga, use.names = FALSE),
+    gtex_sites   = unlist(site$gtex, use.names = FALSE),
+    tcga_studies = tcga_studies
+  )
+}
+
 # Pre-filter low-count genes on a per-cell sample subset. recount3 G026 carries
 # ~64K genes, a large fraction of which are lncRNA/pseudogene with near-zero
 # counts — these inflate DESeq2's dispersion-fit time (O(genes)) without adding
