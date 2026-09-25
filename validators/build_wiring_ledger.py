@@ -172,7 +172,7 @@ def compute_ledger() -> dict:
     remaining = cat_ids - read_closure - declared_only
     referenced_only = _referenced_in_code(remaining)
     dark = remaining - referenced_only
-    dark_by_family = dict(Counter(d.split("-")[0] for d in dark).most_common())
+    dark_by_family = dict(sorted(Counter(d.split("-")[0] for d in dark).items(), key=lambda kv: (-kv[1], kv[0])))
 
     return {
         "_doc": (

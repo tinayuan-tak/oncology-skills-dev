@@ -6,8 +6,8 @@ _doc: 'I.4 wiring ledger: every data-catalog manifest id by wiring status -- rea
   reads, declares, OR names it; the wiring worklist). `dark` is the number I.4 moves, a sound lower bound
   on the truly-unwired set. Regenerate with validators/build_wiring_ledger.py; --self-check gates drift.'
 sibling_shas:
-  analysis-methods: 5cb504d
-  skills: e93c63f5
+  analysis-methods: 7e02d0b
+  skills: 3d8b06f6
   data-catalog: d1c0e5d
 n_catalog_datasets: 539
 counts:
@@ -15,7 +15,7 @@ counts:
   declared_only: 258
   referenced_only: 27
   dark: 117
-n_literal_reads: 69
+n_literal_reads: 68
 dark_by_source_family:
   cbioportal: 17
   genie: 10
@@ -24,53 +24,53 @@ dark_by_source_family:
   depmap: 6
   prism: 6
   3ca: 3
-  ucsc: 3
   loveless: 3
   omicsoft: 3
-  hpvneg: 2
-  htan: 2
+  ucsc: 3
+  arm: 2
   crc: 2
   horlbeck: 2
-  arm: 2
-  gastric: 1
-  gencode: 1
-  dream: 1
-  cheng: 1
-  dgv: 1
-  tflink: 1
-  ncbi: 1
-  gdc: 1
-  lee: 1
-  schutte: 1
-  rancho: 1
-  meditreme: 1
-  hnscc: 1
-  pooled: 1
-  replogle: 1
-  pelka: 1
-  msk: 1
-  hpa: 1
-  met500: 1
-  peng: 1
+  hpvneg: 2
+  htan: 2
   biogrid: 1
-  cellxgene: 1
-  civic: 1
-  gnomad: 1
-  gao: 1
-  omnipath: 1
-  williams: 1
-  mygene: 1
-  tcga: 1
-  hnsc: 1
-  pancanatlas: 1
-  ov: 1
-  vandewetering: 1
-  ensembl: 1
-  peptideatlas: 1
   cancermine: 1
-  merops: 1
+  cellxgene: 1
+  cheng: 1
+  civic: 1
   datlinger: 1
+  dgv: 1
+  dream: 1
+  ensembl: 1
+  gao: 1
+  gastric: 1
+  gdc: 1
+  gencode: 1
+  gnomad: 1
+  hnsc: 1
+  hnscc: 1
+  hpa: 1
+  lee: 1
+  meditreme: 1
+  merops: 1
+  met500: 1
+  msk: 1
+  mygene: 1
+  ncbi: 1
+  omnipath: 1
+  ov: 1
+  pancanatlas: 1
+  pelka: 1
+  peng: 1
+  peptideatlas: 1
+  pooled: 1
+  rancho: 1
+  replogle: 1
+  schutte: 1
+  tcga: 1
   tempus: 1
+  tflink: 1
+  vandewetering: 1
+  williams: 1
 read:
 - allgene-depmap-rank-26q1-v1
 - allgene-tumor-rank-v1
