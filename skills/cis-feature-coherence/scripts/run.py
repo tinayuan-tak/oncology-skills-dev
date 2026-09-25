@@ -22,7 +22,14 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import card_summary
-from _skills_common.cis_coherence_claims import cis_coherence_claim_vector, cis_coherence_key_signals
+from _skills_common.cis_coherence_claims import (
+    _CIS_DOSAGE_SIGNAL,
+    _CONJOINT_SIGNAL,
+    _EXPR_DEP_SIGNAL,
+    _SILENCING_SIGNAL,
+    cis_coherence_claim_vector,
+    cis_coherence_key_signals,
+)
 from _skills_common.cis_coherence_question_table import cis_coherence_question_table
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.dispatcher import run_wired_skill
@@ -38,25 +45,47 @@ from _skills_common.subgroup_derivation import make_value_classifier
 
 # Signals-first sub-group reader (VERDICT-INERT). Thesis: cis locus→expression→dependency coherence.
 # default_classify is the fallback for unmapped values.
+#
+# DERIVED from the authoritative claim_vector SIGNAL maps in cis_coherence_claims.py (SINGLE SOURCE OF
+# TRUTH) so the sources[].tier/confidence classification cannot drift from the top-line signal that
+# overlay_claim_signals writes from the SAME maps (#1595, next instance of the #1563 `_*_VALUE_TIERS`
+# drift pattern; cf. #1587). The prior hand-maintained literal had zero `unmeasured` entries: it flipped
+# methylation_invariant_panel to `absent` (a measured negative) and dropped silencing_lineage_confounded /
+# cn_invariant_panel / insufficient_* entirely, and it mapped positive_anomaly / amp_expr_negative_more_
+# dependent (MEASURED wrong-direction) through default_classify to `absent` too. The presence-ordinal
+# value classifier has no `negative` rung (subgroup_derivation._TIERV = strong/moderate/weak/absent), so a
+# MEASURED wrong-direction read floors at `absent` (tier 0, measured no/adverse signal — NOT a coverage gap).
+_NEGATIVE_TIER_FLOOR = "absent"
 _CIS_VALUE_TIERS = {
-    "cn_dosage_coupled_strong": "strong",
-    "cn_dosage_coupled_moderate": "moderate",
-    "cn_dosage_uncoupled": "absent",
-    "amplified_overexpressed_strongly_dependent": "strong",
-    "amplified_overexpressed_moderately_dependent": "moderate",
-    # real cellline-methylation-expression-coherence vocab (methylation_silencing_class ∈
-    # {silencing_coupled_strong, silencing_coupled_moderate, methylation_uncoupled,
-    # methylation_invariant_panel, data_unavailable}); the prior methylation_silenced/
-    # methylation_variable keys never existed, so methylation subgroup rows fell through to default.
-    "silencing_coupled_strong": "strong",
-    "silencing_coupled_moderate": "moderate",
-    "methylation_uncoupled": "absent",
-    "methylation_invariant_panel": "absent",
-    "strong_negative": "strong",
-    "moderate_negative": "moderate",
-    "weak_negative": "weak",
-    "no_correlation": "absent",
+    token: (_NEGATIVE_TIER_FLOOR if tier == "negative" else tier)
+    for signal_map in (_CIS_DOSAGE_SIGNAL, _SILENCING_SIGNAL, _EXPR_DEP_SIGNAL, _CONJOINT_SIGNAL)
+    for token, tier in signal_map.items()
 }
+# The two PROTEIN legs + the PATIENT cross-grain arm are bound in question_hierarchy.yaml (CIS_DOSAGE→
+# cis_protein_dosage_coupling, EXPR_DEP→abundance_dependency_correlation, CONJOINT→patient_cis_coherence)
+# but their card `*_class` vocabularies are NOT in the mRNA/methylation claim SIGNAL maps above, so their
+# tokens fell through default_classify — flipping the real MEASURED positive protein_predicts_dependency to
+# `absent`. Tiered here explicitly from the card summary_fields_vocabulary (target-contracts:
+# cis-feature-protein-coherence / abundance-dependency / patient-cis-coherence).
+_CIS_VALUE_TIERS.update(
+    {
+        # cis-feature-protein-coherence.cis_protein_dosage_class (cn_invariant_panel / data_unavailable
+        # already routed to `unmeasured` by _CIS_DOSAGE_SIGNAL above).
+        "prot_dosage_coupled_strong": "strong",
+        "prot_dosage_coupled_moderate": "moderate",
+        "prot_dosage_uncoupled": "absent",  # MEASURED: CN varies but protein flat (dosage-buffered)
+        # abundance-dependency.abundance_dependency_class (data_unavailable already routed above).
+        "protein_predicts_dependency": "strong",  # MEASURED positive: high abundance → dependent
+        "weak_protein_dependency_link": "weak",
+        "no_protein_dependency_link": "absent",
+        "insufficient_paired_models": "unmeasured",  # < min paired models — untested, resolver abstains
+        # patient-cis-coherence.patient_methylation_silencing_class (patient_cis_dosage_class tokens all
+        # coincide with _CIS_DOSAGE_SIGNAL above).
+        "epigenetic_silencing": "strong",  # MEASURED: methylated cases express ≥1 log2 unit lower
+        "no_silencing_signal": "absent",  # MEASURED, no silencing separation
+        "insufficient_methylation_data": "unmeasured",  # < 5 methylated OR < 5 unmethylated cases
+    }
+)
 
 
 SKILL_NAME = "cis-feature-coherence"
