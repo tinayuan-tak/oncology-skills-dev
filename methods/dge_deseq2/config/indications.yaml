@@ -94,6 +94,19 @@ pan_tissue_render:
 # flag (NSCLC is the pooled LUAD+LUSC composite — published: false for the pancan stack, yet it has a
 # landed sensitivity product on S3). Keeping the two apart is deliberate: the pancan-stack roster
 # must NOT gain NSCLC (it would double-count LUAD+LUSC), but the run-ledger universe must include it.
+# Sensitivity products that legitimately exist on S3 under the *-dge-tumor-vs-normal-sensitivity-v1
+# prefix but are NOT pancan-stack members (analysis-methods#791). derive_pancan_stack's
+# assert_roster_matches_published() must subtract this set from the live S3-published listing
+# before diffing against `_PUBLISHED_INDICATIONS`, or it false-positives "published-but-undeclared"
+# on a product that was deliberately kept out of the pancan roster.
+#   * NSCLC -> the pooled LUAD+LUSC composite (see run_ledger_intent.sensitivity_recount3_extra
+#     above); entering the pancan stack would double-count LUAD+LUSC.
+#   * SCLC  -> produced by a DIFFERENT method (all-NaN cell-A/B degeneracy handling), not a
+#     four-cell recount3 pancan member.
+# A genuinely new, undeclared S3 prefix (anything NOT in `_PUBLISHED_INDICATIONS` and NOT here)
+# must still fail the guard loud — this list is a conscious, reviewed exclusion, not a wildcard.
+pancan_stack_excluded_from_roster: [NSCLC, SCLC]
+
 run_ledger_intent:
   sensitivity_recount3_extra: [NSCLC]
   sensitivity_xena_toil: [COADREAD]

@@ -372,6 +372,43 @@ def test_roster_drift_declared_but_unpublished_raises():
     assert "declared-but-unpublished" in str(exc.value)
 
 
+def test_roster_guard_tolerates_intentional_nsclc_sclc_products():
+    """#791: NSCLC (pooled LUAD+LUSC composite) and SCLC (different-method product) legitimately
+    exist on S3 under the sensitivity suffix but are declared non-pancan-members
+    (config/indications.yaml pancan_stack_excluded_from_roster). The guard must not false-positive
+    on them."""
+    published = set(d._PUBLISHED_INDICATIONS) | {"NSCLC", "SCLC"}
+    d.assert_roster_matches_published(published=published)  # must not raise
+
+
+def test_roster_guard_end_to_end_live_s3_shape_with_nsclc_sclc():
+    """Full no-arg-mode shape (drives from a fake S3 listing, not a hand-built set): the real
+    published roster plus the two intentional-exclusion prefixes must not raise."""
+    dir_names = [f"{ind.lower()}-dge-tumor-vs-normal-sensitivity-v1" for ind in d._PUBLISHED_INDICATIONS]
+    dir_names += ["nsclc-dge-tumor-vs-normal-sensitivity-v1", "sclc-dge-tumor-vs-normal-sensitivity-v1"]
+    fs = _fake_s3fs(dir_names)
+    published = d.list_published_sensitivity_indications(s3fs=fs)
+    d.assert_roster_matches_published(published=published)  # must not raise
+
+
+def test_roster_guard_still_raises_on_genuinely_undeclared_new_prefix():
+    """Mutation test (right-reason red): a truly new, undeclared product prefix (not in the
+    declared roster and NOT in the reviewed pancan_stack_excluded_from_roster list) must still
+    fail the guard loud — the NSCLC/SCLC fix must not silence the guard's actual teeth."""
+    dir_names = [f"{ind.lower()}-dge-tumor-vs-normal-sensitivity-v1" for ind in d._PUBLISHED_INDICATIONS]
+    dir_names += [
+        "nsclc-dge-tumor-vs-normal-sensitivity-v1",
+        "sclc-dge-tumor-vs-normal-sensitivity-v1",
+        "brand-new-cohort-dge-tumor-vs-normal-sensitivity-v1",  # genuinely undeclared
+    ]
+    fs = _fake_s3fs(dir_names)
+    published = d.list_published_sensitivity_indications(s3fs=fs)
+    with pytest.raises(RuntimeError) as exc:
+        d.assert_roster_matches_published(published=published)
+    assert "BRAND-NEW-COHORT" in str(exc.value)
+    assert "published-but-undeclared" in str(exc.value)
+
+
 def test_build_stack_with_explicit_subset_skips_drift_check(monkeypatch):
     """An explicit indications=[...] subset build is a deliberate partial/test build — it must NOT
     trigger the S3-listing drift check (only the full-roster build does)."""

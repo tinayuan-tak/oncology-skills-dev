@@ -32,6 +32,7 @@ from pathlib import Path
 
 from methods.dge_deseq2.config import (
     composite_indications,
+    pancan_stack_excluded_from_roster,
     published_indications,
 )
 
@@ -62,6 +63,12 @@ _UNION_COLUMNS = [
     "padj_C",
     "max_abs_log2fc",
 ]
+
+# Sensitivity products intentionally excluded from the pancan-stack roster (#791): they
+# legitimately exist on S3 under a *-dge-tumor-vs-normal-sensitivity-v1 prefix but are NOT
+# pancan members (NSCLC = pooled LUAD+LUSC composite; SCLC = different-method product).
+# assert_roster_matches_published subtracts this set from the live S3 listing before diffing.
+_EXCLUDED_FROM_ROSTER = pancan_stack_excluded_from_roster()
 
 # Composite (OncoTree parent) indications that are the UNION of finer sibling cohorts also
 # present in the stack. COADREAD = COAD (colon) ∪ READ (rectal): the SAME tumor samples feed
@@ -139,9 +146,16 @@ def assert_roster_matches_published(published: set[str] | None = None, s3fs=None
     ``fraction_elevated``. The roster is declared in config/indications.yaml (``published: true``)
     rather than auto-derived from S3 so a maintainer consciously adds a newly-published product.
     This assertion is that forcing function: it fails loud on either a published-but-undeclared
-    indication or a declared-but-unpublished one."""
+    indication or a declared-but-unpublished one.
+
+    Some sensitivity products intentionally live on S3 but are NOT pancan-stack members (e.g.
+    NSCLC's pooled LUAD+LUSC composite, SCLC's different-method product) — declared in
+    ``config/indications.yaml`` (``pancan_stack_excluded_from_roster``, #791). Those are
+    subtracted from the S3-published set before comparing, so a reviewed, intentional exclusion
+    doesn't false-positive as roster drift; a genuinely new, undeclared prefix still raises."""
     if published is None:
         published = list_published_sensitivity_indications(s3fs=s3fs)
+    published = published - _EXCLUDED_FROM_ROSTER
     declared = set(_PUBLISHED_INDICATIONS)
     undeclared = published - declared  # published on S3 but missing from the roster
     unpublished = declared - published  # in the roster but no published product

@@ -88,6 +88,18 @@ def staged_indications() -> dict:
     }
 
 
+def pancan_stack_excluded_from_roster() -> set:
+    """Sensitivity products intentionally excluded from the pancan-stack roster (#791).
+
+    Products that legitimately live on S3 under a ``*-dge-tumor-vs-normal-sensitivity-v1``
+    prefix but are NOT pancan-stack members (e.g. NSCLC's pooled LUAD+LUSC composite, SCLC's
+    different-method product). ``derive_pancan_stack.assert_roster_matches_published`` subtracts
+    this set from the live S3-published listing before diffing against the declared roster, so
+    these known, reviewed exclusions don't false-positive as roster drift.
+    """
+    return set(_load().get("pancan_stack_excluded_from_roster", []))
+
+
 def composite_indications() -> dict:
     """Composite OncoTree parent -> set of finer sibling cohorts it is the union of."""
     return {
