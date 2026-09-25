@@ -102,6 +102,17 @@ _TARGET_INTRINSIC_VALUE_TIERS = {
     # "partial" are already tiered above; the two model-only / empty tokens carry no experimental structure.
     "af_only": "weak",
     "none": "absent",
+    # composite SM-ligandability call (structure-features-static structural_ligandability_class), the
+    # card primary the panel now binds (#1592). Tiered on SIGNAL STRENGTH of the ligandability read: an
+    # experimental co-crystal is the strongest handle; a predicted pocket / VS hit is a weaker inference;
+    # an annotated site (no pocket call) weaker still; no positive axis and a measured-disorder liability
+    # are confident negatives; absence from all six sources is a coverage gap, NOT a negative.
+    "experimental_ligandable": "strong",
+    "predicted_ligandable": "moderate",
+    "annotation_ligandable": "weak",
+    "no_ligandability_signal": "absent",
+    "disordered_low": "absent",
+    "insufficient_evidence": "unmeasured",
     # interactome (ppi-interactome interactome_class); hub / connected / sparse tiered above
     "no_high_confidence_interactors": "absent",
     # EXPLICIT gap token, emitted by several readers when the gene is outside the source's coverage.
@@ -123,21 +134,22 @@ _TARGET_INTRINSIC_VALUE_TIERS = {
 # identical evidence, and the offline guard could not see the live tokens. Declaring the fields pins both
 # paths to the same read. Bindings + `n` field orders are transcribed from the LIVE heuristic result on the
 # EGFR reference run, so the live panel is byte-stable; only the replay converges onto it.
-# (Deferred, deliberately not changed here: whether `structure_druggability` should read the contract's
-# `capsule.primary_class` = structural_ligandability_class instead of pdb_coverage_class, and whether GO's
-# power should key on n_go_terms_total rather than the first-ranked n_cellular_component. Both would move
-# emitted panel values and belong in their own reviewed change.)
+# (#1592: two entries were rebound to the card-primary field so the panel displays the same value the
+# headline/caveat reason over. `structure_druggability` now reads the contract primary_class
+# `structural_ligandability_class` (the composite SM-ligandability call) instead of the blunter
+# `pdb_coverage_class`; GO's power keys on the total annotation count `n_go_terms_total` instead of the
+# first-ranked `n_cellular_component`. Both move emitted panel values; verdict-inert.)
 _TARGET_INTRINSIC_SUBGROUP_READER = {
     "surfaceome_family": {"class": "family_class", "n": [], "label": "family"},
-    "structure_druggability": {"class": "pdb_coverage_class", "n": [], "label": "pdb coverage"},
+    "structure_druggability": {"class": "structural_ligandability_class", "n": [], "label": "structural ligandability"},
     "shed_ectodomain_liability": {"class": "shed_liability_class", "n": [], "label": "shed liability"},
     "gene_ontology_annotation": {
         "class": "annotation_class",
         "n": [
+            "n_go_terms_total",
             "n_cellular_component",
             "n_biological_process",
             "n_go_terms_experimental",
-            "n_go_terms_total",
             "n_molecular_function",
         ],
         "label": "annotation",
