@@ -28,18 +28,31 @@ DOSSIER = FIX / "dossier.json"
 
 # =============================== is_negative_verdict ===============================
 def test_is_negative_verdict_polarity():
-    assert hc.is_negative_verdict("non_dependent_paralog_buffered") is True
-    assert hc.is_negative_verdict("no_partner_mapped") is True
-    assert hc.is_negative_verdict("neither_viable") is True
-    assert hc.is_negative_verdict("passenger_pattern") is True
+    # measured negatives across the realigned gate + card-grain enums (#1607)
+    for v in (
+        "non_dependent_paralog_buffered",
+        "not_dependent_in_indication",  # corpus-dominant dependency veto — was fail-OPEN pre-#1607
+        "neither_viable",
+        "passenger_pattern",
+        "tce_unsafe_normal_liability",  # surface-modality kill
+        "selective_but_stromal_confound",  # selectivity contradiction
+        "highly_constrained_safety_concern",  # safety hold
+        "structurally_intractable",  # tractability kill
+        "no_curated_sl_partner",  # SL card measured negative
+        "not_partner_stratified",  # partner-conditional honest negative
+    ):
+        assert hc.is_negative_verdict(v) is True, v
     for v in (
         "strongly_selective_dependency",
         "strong_tumor_selective",
         "lineage_selective",
+        # `uncorroborated` on the gate = "absence of resolution, NOT a measurement against the target"
         "discordant_across_comparators",
         "constitutive_combinatorial_dependency",
+        # ABSTAIN, not a negative (partner-conditional-dependency card: "abstains; NOT a negative")
+        "no_partner_mapped",
     ):
-        assert hc.is_negative_verdict(v) is False
+        assert hc.is_negative_verdict(v) is False, v
     # gap verdicts are absence, NOT measured-negative (handled by absence-discipline)
     for v in ("insufficient", "data_unavailable", None, "not_informative"):
         assert hc.is_negative_verdict(v) is False
@@ -84,7 +97,7 @@ def test_out_of_scope_negative_not_flagged():
 # =============================== (a2) card-grain measured-negative =================================
 def test_card_grain_negative_call_cited_as_support_is_flagged():
     conv = {"dependency": "strongly_selective_dependency"}
-    card_calls = {"partner-conditional-dependency": "no_partner_mapped"}
+    card_calls = {"partner-conditional-dependency": "not_partner_stratified"}
     clauses = {"causal_rationale": {"support": ["partner-conditional-dependency"], "surfaced": []}}
     v = hc.coherence_violations(
         clauses, conv, [], [], {"partner-conditional-dependency"}, out_of_scope=set(), card_calls=card_calls
@@ -191,10 +204,11 @@ def test_dimension_cards_matches_spine():
 # =============================== (c) INTRINSIC SL-vs-no_partner (the task example) =================
 def test_intrinsic_sl_without_mapped_partner_flagged_even_when_uncited():
     """The exact skeptic-found class: a clause rests on the SL/combination strategy while
-    partner-conditional-dependency=no_partner_mapped is PRESENT (even if the clause never cites it)."""
+    partner-conditional-dependency=not_partner_stratified (the honest measured negative) is PRESENT
+    (even if the clause never cites it)."""
     conv = {
         "combinatorial_dependency": "constitutive_combinatorial_dependency",
-        "partner_conditional_dependency": "no_partner_mapped",
+        "partner_conditional_dependency": "not_partner_stratified",
     }
     clauses = {"therapeutic_hypothesis": {"support": ["combinatorial-dependency"], "surfaced": []}}
     present = {"combinatorial-dependency", "partner_conditional_dependency"}
@@ -385,7 +399,7 @@ def test_mark2_style_sl_no_partner_survives_modality_scope():
     small-molecule objective and must NOT be excluded by the surface_modality scope."""
     conv = {
         "combinatorial_dependency": "constitutive_combinatorial_dependency",
-        "partner_conditional_dependency": "no_partner_mapped",
+        "partner_conditional_dependency": "not_partner_stratified",
     }
     present = {hc._norm(x) for x in list(conv)}
     clauses = {"therapeutic_hypothesis": {"support": ["combinatorial-dependency"], "surfaced": []}}

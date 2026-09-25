@@ -352,39 +352,71 @@ GAP_VERDICTS = {
 # MEASURED-NEGATIVE sub-verdicts (distinct from GAP_VERDICTS, which are absence): a line that was
 # evaluated and returned a NEGATIVE call. A positive-thesis clause may not cite one of these as
 # SUPPORT without surfacing the tension (intra-package coherence, adversarial-survival —
-# the SL-vs-non_dependent class of internal contradiction). Curated conservative set + a few stems so
-# suffix variants (e.g. non_dependent_paralog_buffered) are covered; positive tokens
-# (strongly_selective_dependency, strong_tumor_selective, lineage_selective, discordant_*) do NOT match.
+# the SL-vs-non_dependent class of internal contradiction). Positive tokens
+# (strongly_selective_dependency, strong_tumor_selective, lineage_selective) do NOT match.
+#
+# REALIGNED TO THE GATE ENUM (#1607). The gate axes below MIRROR target-contracts
+# nomination_verdict_gate.yaml `kill_capable_verdicts` for every disposition EXCEPT `uncorroborated`
+# (dependency=discordant, selectivity=discordant_across_comparators): the gate's own comments call the
+# uncorroborated class "an absence of resolution, NOT a measurement against the target" / "uninformative,
+# not an opposing read", so it is gap-adjacent, not a MEASURED negative — deliberately excluded (see
+# test_is_negative_verdict_polarity, which pins discordant_across_comparators False). The bare token
+# `discordant` IS included because tractability_sm/discordant is a `contradiction` (the discordance IS
+# the finding); dependency/discordant shares that string and is incidentally covered — acceptable, since
+# citing an unresolved axis as positive support is itself incoherent. A drift-guard test
+# (test_negative_signal_verdicts_cover_gate_enum) asserts this set ⊇ the gate's non-uncorroborated kill
+# tokens, so a new gate kill (or a renamed one) can never silently fail-OPEN here again. The SL/partner
+# and genomic-alteration tokens are NOT gate axes (annotation / non-gated cards) but are genuine
+# card-grain measured negatives; they are validated against their live card enums by the same test.
 NEGATIVE_SIGNAL_VERDICTS = {
-    # dependency / functional-requirement
+    # --- GATE-AXIS kills (nomination_verdict_gate.yaml kill_capable_verdicts; uncorroborated excluded) ---
+    # dependency
+    "pan_essential_killer",
     "non_dependent",
     "non_dependent_paralog_buffered",
-    "not_a_dependency",
+    "not_dependent_in_indication",
+    "broadly_dependent",
     "non_essential",
+    # safety (holds)
+    "highly_constrained_safety_concern",
+    "human_genetics_safety_concern",
+    "pan_essential_broad_tox_concern",
+    "normal_tissue_protein_safety_concern",
+    # subtype_fit
+    "subtype_specific_non_dependence",
     # selectivity / tumor-vs-normal
     "not_selective",
     "selective_but_broadly_normal",
-    "not_tumor_selective",
+    "selective_but_stromal_confound",
     # surface / modality fit
     "neither_viable",
-    # synthetic-lethal / combinatorial / partner-conditional
-    "no_partner_mapped",
-    "no_experimental_sl_partner",
-    "no_sl_partner",
-    "no_combinatorial_dependency",
-    # genomic-alteration
+    "adc_preferred_tce_unsafe",
+    "tce_unsafe_normal_liability",
+    "adc_preferred_tce_escape_risk",
+    "tce_escape_risk",
+    "shed_dominant_opposed",
+    # tractability (small molecule)
+    "structurally_intractable",
+    "chemically_unhit",
+    "discordant",
+    # cis-coherence
+    "expressed_cis_coupled_inert",
+    # --- SL / partner-conditional card-grain negatives (NOT gate axes; annotation + stratification cards).
+    #     `no_partner_mapped` is DELIBERATELY absent — the partner-conditional-dependency card labels it
+    #     "abstains; NOT a negative"; the genuine measured negative is not_partner_stratified. ---
+    "no_curated_sl_partner",
+    "not_partner_stratified",
+    # --- genomic-alteration card-grain negatives (genomic-alteration is not a gate axis) ---
     "passenger_pattern",
-    "not_altered",
-    "no_recurrent_alteration",
+    "no_recurrent_fusion",
+    "no_combinatorial_dependency",
 }
+# Suffix-variant STEMS (substring match) for the two families that mint real *_paralog_buffered /
+# passenger_* variants. Kept minimal on purpose: the old `no_partner` / `no_experimental_sl` /
+# `no_sl_partner` stems matched the ABSTAIN token no_partner_mapped and two phantom tokens (0 emitters),
+# so they fail-opened the abstain and added drift surface — dropped in favour of the explicit enum above.
 _NEGATIVE_STEMS = (
     "non_dependent",
-    "no_partner",
-    "no_experimental_sl",
-    "no_sl_partner",
-    "not_selective",
-    "neither_viable",
-    "no_combinatorial",
     "passenger",
 )
 CERTAINTY_RANK = {"low": 0, "moderate": 1, "high": 2}
@@ -1501,11 +1533,18 @@ INTRINSIC_CONTRADICTIONS = [
             "combinatorial_dependency",
             "combination_vulnerability",
         },
-        # ... is contradicted when a partner-mapping line is present with a no-partner call.
+        # ... is contradicted when a partner-mapping line is present with a MEASURED-negative call.
+        # Keyed to the LIVE card enums (#1607): partner-conditional-dependency's honest-negative is
+        # not_partner_stratified (no_partner_mapped ABSTAINS and is explicitly NOT a negative), and the
+        # synthetic-lethal-partners card's measured negative is no_curated_sl_partner. The prior values
+        # {no_partner_mapped, no_sl_partner} were vacuous: no_sl_partner is a phantom (0 emitters) and
+        # no_partner_mapped is the abstain token — so the rule fired on an abstain yet was BLIND to the
+        # real negatives. test_intrinsic_contradiction_values_are_live_enum_tokens pins this to the enums.
         "contradicted_by": {
-            "partner-conditional-dependency": {"no_partner_mapped", "no_sl_partner"},
-            "partner_conditional_dependency": {"no_partner_mapped", "no_sl_partner"},
-            "synthetic_lethal_partners": {"no_partner_mapped", "no_sl_partner"},
+            "partner-conditional-dependency": {"not_partner_stratified"},
+            "partner_conditional_dependency": {"not_partner_stratified"},
+            "synthetic-lethal-partners": {"no_curated_sl_partner"},
+            "synthetic_lethal_partners": {"no_curated_sl_partner"},
         },
     },
 ]
