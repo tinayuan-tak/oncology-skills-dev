@@ -488,9 +488,17 @@ def _coverage_concordance_claim(c):
     DEGRADES when one is defeated; to FLIP the class you must defeat EVERY sc supply path (the M3-vs-M4
     fidelity discipline).
 
+    PRESENTATION-SUPPORT (SK#1507 G3.1): the claim also carries structured two-directional fields so a
+    question_table answer can SURFACE the integrated read without prose-parsing `evidence` —
+    `positive_signal` (the encouraging bulk-broad-presence direction, always present), `qualifying_signal`
+    (the single-cell coverage caveat; NULL when concordant), a uniform `source_support` map (both sources,
+    identical key shape), and a deterministic `boundary_sensitive` flag (True unless the orthogonal escape
+    facet corroborates the class). These are PRESENTATION-support only.
+
     VERDICT-INERT: carries NO `signal` key (never a chip, never a tier, never averaged), reads no
-    verdict, feeds no rule. Returns None — key omitted, byte-stable — unless BOTH source properties
-    resolve: bulk broadly-present AND a single-cell coverage class of high|low."""
+    verdict, feeds no rule; the presentation fields route NOTHING. Returns None — key omitted,
+    byte-stable — unless BOTH source properties resolve: bulk broadly-present AND a single-cell
+    coverage class of high|low."""
     trd = c.get("tumor-rna-distribution", {}) or {}
     scd = c.get("tumor-scrna-celltype-expression", {}) or {}
     bulk_cls = trd.get("tumor_expression_class")
@@ -517,9 +525,87 @@ def _coverage_concordance_claim(c):
     else:
         escape_arm = None
     corroboration = _corr_from_arms([True, escape_arm])
+    concordant = concordance == "coverage_concordant"
+    pattern = trd.get("distribution_pattern") or "pattern n/a"
+    # BOUNDARY-SENSITIVITY (presentation-support, NOT a verdict): the concordance CLASS is fixed by the
+    # single coverage token. It is CORROBORATED only when the orthogonal escape facet agrees
+    # (corroboration `high`). When corroboration is `single_arm` (escape off-scale/absent) or `low`
+    # (escape conflicts), the class rests on ONE uncorroborated/contradicted scRNA token with an
+    # expert-set threshold and no calibrated CI — a near-boundary perturbation of that token could flip
+    # it. This is a DETERMINISTIC read of the already-computed corroboration structure — NOT a new
+    # calibration layer, threshold, or continuous margin. The alarming `bulk_masks_low_coverage` class
+    # in particular must never be asserted flatly when it rests on a lone token.
+    boundary_sensitive = corroboration != "high"
+    # ── Two-directional PRESENTATION fields (surface-consumption, NOT verdict-routing) ──────────────
+    # A uniform per-source support map: each source carries the SAME key shape so a consumer reads the
+    # two directions structurally rather than prose-parsing `evidence`. `stance` names the source's
+    # contribution to the integrated read (positive = bulk broad presence; concordant/qualifying = the
+    # single-cell coverage read confirming or caveating it). NOT a signal tier, NOT averaged, NOT routed.
+    source_support = {
+        "bulk_tumor_presence": {
+            "card_id": "tumor-rna-distribution",
+            "stance": "positive",
+            "summary": f"bulk {bulk_cls} ({pattern})",
+            "fields": {
+                "tumor_expression_class": bulk_cls,
+                "distribution_pattern": trd.get("distribution_pattern"),
+            },
+        },
+        "single_cell_malignant_coverage": {
+            "card_id": "tumor-scrna-celltype-expression",
+            "stance": "concordant" if concordant else "qualifying",
+            "summary": (
+                f"single-cell within-tumour coverage {cov_cls}"
+                + (f"; antigen-escape {escape_cls}" if escape_cls else "")
+            ),
+            "fields": {
+                "within_tumor_coverage_class": cov_cls,
+                "tce_antigen_escape_class": escape_cls,
+            },
+        },
+    }
+    # The ENCOURAGING direction — always present when the claim resolves (bulk is broadly present by the
+    # gate). Sourced from the bulk assay; `provenance_ref` keys into source_support / provenance.sources.
+    positive_signal = {
+        "statement": (
+            f"Bulk RNA reports {bulk_cls} tumour presence ({pattern}) — the antigen is broadly "
+            "detected in the population-averaged read."
+        ),
+        "source": "bulk_tumor_presence",
+        "provenance_ref": "bulk_tumor_presence",
+    }
+    # The QUALIFYING direction — NULL when concordant (single-cell CONFIRMS the broad bulk read, no
+    # caveat). Populated only for `bulk_masks_low_coverage`: the population-averaged bulk read is BLIND
+    # to the malignant fraction that lacks the antigen and can escape tumour-cell-targeted killing.
+    if concordant:
+        qualifying_signal = None
+    else:
+        qualifying_signal = {
+            "statement": (
+                f"Single-cell malignant coverage is {cov_cls}"
+                + (f" (antigen-escape {escape_cls})" if escape_cls else "")
+                + " — a bulk-masked fraction of malignant cells lacks the antigen, an efficacy-escape "
+                "risk the population-averaged bulk read hides."
+            ),
+            "source": "single_cell_malignant_coverage",
+            "provenance_ref": "single_cell_malignant_coverage",
+        }
     return {
         "concordance_class": concordance,
         "corroboration": corroboration,
+        # PRESENTATION-SUPPORT (surface-consumption): two-directional structured fields + a
+        # deterministic boundary-sensitivity flag. NONE of these route a verdict, name a signal tier,
+        # or feed a rule — they let a question_table answer present the integrated read honestly.
+        "positive_signal": positive_signal,
+        "qualifying_signal": qualifying_signal,
+        "source_support": source_support,
+        "boundary_sensitive": boundary_sensitive,
+        "boundary_note": (
+            "concordance class rests on a single uncorroborated/contradicted scRNA coverage token "
+            "(expert-set threshold, no calibrated CI) — treat as near-boundary, not a flat assertion"
+            if boundary_sensitive
+            else "concordance class corroborated by the orthogonal antigen-escape facet"
+        ),
         # DETERMINISTIC, reproducible-by-contract: an explicit rule over two properties, never an LLM.
         "integration_method": "explicit_deterministic",
         "informs": (

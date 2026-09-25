@@ -409,6 +409,41 @@ def _q6_concordance(h, c, cv):
     return _row("Q6", "Do RNA and protein agree?", primary, support, _sig(tier, tier), _conf(conf))
 
 
+def _coverage_concordance_integrated_signal(claim: dict) -> dict:
+    """Project the L2b `bulk_vs_singlecell_coverage_concordance` claim (presence_claims.py) into the
+    row's `integrated_signal` surface — a verdict-INERT, two-directional presentation payload. Surfaces
+    both directions (encouraging bulk-broad presence + the single-cell coverage caveat), the honest
+    corroboration/boundary-sensitivity annotation, and the uniform source_support map so a consumer
+    renders the integrated cross-source read WITHOUT prose-parsing. Carries NO signal tier / polarity /
+    fill — it never routes the verdict; it is the answer's cross-source annotation, not a meter cell."""
+    qual = claim.get("qualifying_signal")
+    pos = claim.get("positive_signal") or {}
+    boundary = bool(claim.get("boundary_sensitive"))
+    # A one-line human headline that always names BOTH directions (or the concordant confirmation),
+    # flagged boundary-sensitive when the class rests on a lone uncorroborated coverage token.
+    if qual:
+        headline = f"{pos.get('statement', '')} However — {qual.get('statement', '')}"
+    else:
+        headline = (
+            f"{pos.get('statement', '')} Single-cell malignant coverage CONFIRMS the broad read "
+            "(no bulk-masked escape fraction)."
+        )
+    if boundary:
+        headline += f" [boundary-sensitive: {claim.get('boundary_note', '')}]"
+    return {
+        "kind": "bulk_vs_singlecell_coverage_concordance",
+        "concordance_class": claim.get("concordance_class"),
+        "corroboration": claim.get("corroboration"),
+        "boundary_sensitive": boundary,
+        "boundary_note": claim.get("boundary_note"),
+        "positive_signal": pos or None,
+        "qualifying_signal": qual,
+        "source_support": claim.get("source_support"),
+        "headline": headline,
+        "provenance_ref": "claim_vector.bulk_vs_singlecell_coverage_concordance",
+    }
+
+
 def _q7_intrinsic(h, c, cv):
     cc = cv.get("C", {})
     tier, corr = cc.get("signal", "unmeasured"), cc.get("corroboration", "unmeasured")
@@ -421,7 +456,15 @@ def _q7_intrinsic(h, c, cv):
     if scnorm and scnorm != "data_unavailable":
         support_bits.append(f"normal single-cell: {scnorm}")
     support = " · ".join(support_bits) if support_bits else "—"
-    return _row("Q7", "Is the tumor signal malignant-cell-intrinsic?", primary, support, _sig(tier, tier), _conf(corr))
+    r = _row("Q7", "Is the tumor signal malignant-cell-intrinsic?", primary, support, _sig(tier, tier), _conf(corr))
+    # SK#1507 G3.1: SURFACE the L2b bulk×single-cell coverage-concordance signal (emitted by #1517, read
+    # by nothing until now) as a first-class cross-source annotation on this question's answer. Attached
+    # only when the claim resolves (key omitted otherwise → row byte-stable). Verdict-inert: the row's
+    # `signal`/`confidence` meter cells are UNCHANGED — this adds an annotation, never a tier.
+    integ = cv.get("bulk_vs_singlecell_coverage_concordance")
+    if integ:
+        r["integrated_signal"] = _coverage_concordance_integrated_signal(integ)
+    return r
 
 
 def presence_question_table(headline: dict, cards: list, claim_vector: Optional[dict] = None) -> list:

@@ -450,7 +450,64 @@
         }
       },
       "homogeneity": "homogeneous",
-      "_disclaimer": "Modality-blind, verdict-INERT projection of the presence cards into orthogonal claims (A abundance / B tumor-elevation / C malignant-intrinsic / D generality), each signal\u00d7corroboration. Claims are NOT additive; a weak C does not degrade a strong B. Never feeds the presence_verdict."
+      "_disclaimer": "Modality-blind, verdict-INERT projection of the presence cards into orthogonal claims (A abundance / B tumor-elevation / C malignant-intrinsic / D generality), each signal\u00d7corroboration. Claims are NOT additive; a weak C does not degrade a strong B. Never feeds the presence_verdict.",
+      "bulk_vs_singlecell_coverage_concordance": {
+        "concordance_class": "coverage_concordant",
+        "corroboration": "high",
+        "positive_signal": {
+          "statement": "Bulk RNA reports broadly_high tumour presence (continuous) \u2014 the antigen is broadly detected in the population-averaged read.",
+          "source": "bulk_tumor_presence",
+          "provenance_ref": "bulk_tumor_presence"
+        },
+        "qualifying_signal": null,
+        "source_support": {
+          "bulk_tumor_presence": {
+            "card_id": "tumor-rna-distribution",
+            "stance": "positive",
+            "summary": "bulk broadly_high (continuous)",
+            "fields": {
+              "tumor_expression_class": "broadly_high",
+              "distribution_pattern": "continuous"
+            }
+          },
+          "single_cell_malignant_coverage": {
+            "card_id": "tumor-scrna-celltype-expression",
+            "stance": "concordant",
+            "summary": "single-cell within-tumour coverage high; antigen-escape escape_risk_low",
+            "fields": {
+              "within_tumor_coverage_class": "high",
+              "tce_antigen_escape_class": "escape_risk_low"
+            }
+          }
+        },
+        "boundary_sensitive": false,
+        "boundary_note": "concordance class corroborated by the orthogonal antigen-escape facet",
+        "integration_method": "explicit_deterministic",
+        "informs": "cross-source coverage concordance \u2014 informs tumor-cell-targeted modalities (ADC/TCE/CAR): a bulk-masked LOW-coverage antigen risks efficacy escape the population-averaged bulk read hides",
+        "evidence": "bulk broadly_high (continuous) AGREES WITH single-cell within-tumour coverage high; antigen-escape escape_risk_low",
+        "provenance": {
+          "sources": [
+            {
+              "property": "bulk_tumor_presence",
+              "card_id": "tumor-rna-distribution",
+              "fields": {
+                "tumor_expression_class": "broadly_high",
+                "distribution_pattern": "continuous"
+              }
+            },
+            {
+              "property": "single_cell_malignant_coverage",
+              "card_id": "tumor-scrna-celltype-expression",
+              "fields": {
+                "within_tumor_coverage_class": "high",
+                "tce_antigen_escape_class": "escape_risk_low"
+              }
+            }
+          ],
+          "independence_note": "Bulk RNA (population-averaged tissue lysate) and single-cell malignant coverage are measured on INDEPENDENT assays sampling different biological grains; their agreement is a genuine cross-source corroboration, not a within-assay restatement."
+        },
+        "_disclaimer": "L2b CROSS-SOURCE integration claim (deterministic, no LLM) \u2014 verdict-INERT provenance: never a signal tier, never averaged into a claim, never feeds the presence_verdict."
+      }
     },
     "key_signals": {
       "headline": "Present, with caveats.",
@@ -800,6 +857,41 @@
           "tier": "high",
           "dots": 3,
           "label": "high"
+        },
+        "integrated_signal": {
+          "kind": "bulk_vs_singlecell_coverage_concordance",
+          "concordance_class": "coverage_concordant",
+          "corroboration": "high",
+          "boundary_sensitive": false,
+          "boundary_note": "concordance class corroborated by the orthogonal antigen-escape facet",
+          "positive_signal": {
+            "statement": "Bulk RNA reports broadly_high tumour presence (continuous) \u2014 the antigen is broadly detected in the population-averaged read.",
+            "source": "bulk_tumor_presence",
+            "provenance_ref": "bulk_tumor_presence"
+          },
+          "qualifying_signal": null,
+          "source_support": {
+            "bulk_tumor_presence": {
+              "card_id": "tumor-rna-distribution",
+              "stance": "positive",
+              "summary": "bulk broadly_high (continuous)",
+              "fields": {
+                "tumor_expression_class": "broadly_high",
+                "distribution_pattern": "continuous"
+              }
+            },
+            "single_cell_malignant_coverage": {
+              "card_id": "tumor-scrna-celltype-expression",
+              "stance": "concordant",
+              "summary": "single-cell within-tumour coverage high; antigen-escape escape_risk_low",
+              "fields": {
+                "within_tumor_coverage_class": "high",
+                "tce_antigen_escape_class": "escape_risk_low"
+              }
+            }
+          },
+          "headline": "Bulk RNA reports broadly_high tumour presence (continuous) \u2014 the antigen is broadly detected in the population-averaged read. Single-cell malignant coverage CONFIRMS the broad read (no bulk-masked escape fraction).",
+          "provenance_ref": "claim_vector.bulk_vs_singlecell_coverage_concordance"
         }
       }
     ],
@@ -1513,6 +1605,41 @@
             "tier": "high",
             "dots": 3,
             "label": "high"
+          },
+          "integrated_signal": {
+            "kind": "bulk_vs_singlecell_coverage_concordance",
+            "concordance_class": "coverage_concordant",
+            "corroboration": "high",
+            "boundary_sensitive": false,
+            "boundary_note": "concordance class corroborated by the orthogonal antigen-escape facet",
+            "positive_signal": {
+              "statement": "Bulk RNA reports broadly_high tumour presence (continuous) \u2014 the antigen is broadly detected in the population-averaged read.",
+              "source": "bulk_tumor_presence",
+              "provenance_ref": "bulk_tumor_presence"
+            },
+            "qualifying_signal": null,
+            "source_support": {
+              "bulk_tumor_presence": {
+                "card_id": "tumor-rna-distribution",
+                "stance": "positive",
+                "summary": "bulk broadly_high (continuous)",
+                "fields": {
+                  "tumor_expression_class": "broadly_high",
+                  "distribution_pattern": "continuous"
+                }
+              },
+              "single_cell_malignant_coverage": {
+                "card_id": "tumor-scrna-celltype-expression",
+                "stance": "concordant",
+                "summary": "single-cell within-tumour coverage high; antigen-escape escape_risk_low",
+                "fields": {
+                  "within_tumor_coverage_class": "high",
+                  "tce_antigen_escape_class": "escape_risk_low"
+                }
+              }
+            },
+            "headline": "Bulk RNA reports broadly_high tumour presence (continuous) \u2014 the antigen is broadly detected in the population-averaged read. Single-cell malignant coverage CONFIRMS the broad read (no bulk-masked escape fraction).",
+            "provenance_ref": "claim_vector.bulk_vs_singlecell_coverage_concordance"
           }
         }
       ],

@@ -537,3 +537,128 @@ def test_fmt_r_keeps_the_common_case_at_two_dp():
     """The widening must be the exception. A number rendered at 3 dp is a signal to the reader that it
     sits near a class cut, so widening everything would destroy that signal."""
     assert _fmt_r(0.41) == "0.41" and _fmt_r(0.14) == "0.14" and _fmt_r(0.86) == "0.86"
+
+
+# ── Q7: SURFACE the L2b bulk×single-cell coverage-concordance signal (SK#1507 G3.1) ─────────────────
+#
+# The L2b `bulk_vs_singlecell_coverage_concordance` claim (presence_claims.py, emitted by #1517) was
+# read by nothing until now. G3.1 SURFACES it as an `integrated_signal` annotation on the Q7 answer —
+# verdict-INERT (the row's signal/confidence meter is untouched), attached only when the claim resolves.
+# The claim is built by the REAL claim builder so the presentation logic is exercised end-to-end, not
+# re-stated here (a re-derived fixture cannot fail).
+
+from _skills_common.presence_claims import presence_claim_vector  # noqa: E402
+
+
+def _coverage_claim(coverage_class="high", escape_class="escape_risk_low", bulk_class="broadly_high"):
+    trd = {"tumor_expression_class": bulk_class, "distribution_pattern": "continuous"}
+    sc = {"sc_expression_class": "malignant_subset_detected"}
+    if coverage_class is not None:
+        sc["within_tumor_coverage_class"] = coverage_class
+    if escape_class is not None:
+        sc["tce_antigen_escape_class"] = escape_class
+    cards = [
+        {"card_id": "tumor-rna-distribution", "summary": trd},
+        {"card_id": "tumor-scrna-celltype-expression", "summary": sc},
+    ]
+    return presence_claim_vector({"presence_verdict": "tumor_broadly_expressed"}, cards)[
+        "bulk_vs_singlecell_coverage_concordance"
+    ]
+
+
+def _q7_with_coverage_claim(claim):
+    h, cards, cv = _fixture()
+    if claim is not None:
+        cv = {**cv, "bulk_vs_singlecell_coverage_concordance": claim}
+    return _by_id(presence_question_table(h, cards, cv))["Q7"]
+
+
+def test_q7_omits_integrated_signal_when_the_claim_is_absent():
+    # Byte-stability: with no coverage claim in the vector (the base fixture), Q7 carries no
+    # integrated_signal key at all — the row is unchanged, the meter cells untouched.
+    r = _by_id(presence_question_table(*_fixture()))["Q7"]
+    assert "integrated_signal" not in r
+    # and the meter cells are exactly the pre-existing malignant-intrinsic read
+    assert r["signal"]["tier"] == "strong" and r["confidence"]["tier"] == "high"
+
+
+def test_q7_surfaces_concordant_signal_both_directions_no_meter_change():
+    claim = _coverage_claim(coverage_class="high", escape_class="escape_risk_low")
+    r = _q7_with_coverage_claim(claim)
+    isig = r["integrated_signal"]
+    assert isig["kind"] == "bulk_vs_singlecell_coverage_concordance"
+    assert isig["concordance_class"] == "coverage_concordant"
+    # verdict-INERT surface: the annotation carries NO signal tier / polarity / fill, and the row's own
+    # meter cells are the UNCHANGED malignant-intrinsic read (this adds an annotation, never a tier).
+    assert "tier" not in isig and "polarity" not in isig and "fill" not in isig
+    assert r["signal"]["tier"] == "strong" and r["confidence"]["tier"] == "high"
+    # both directions surfaced: the encouraging bulk read present, the qualifying caveat NULL (concordant)
+    assert isig["positive_signal"]["source"] == "bulk_tumor_presence"
+    assert isig["qualifying_signal"] is None
+    assert "CONFIRMS" in isig["headline"] and isig["boundary_sensitive"] is False
+    assert set(isig["source_support"]) == {"bulk_tumor_presence", "single_cell_malignant_coverage"}
+
+
+def test_q7_surfaces_the_qualifying_direction_for_bulk_masks_low_coverage():
+    claim = _coverage_claim(coverage_class="low", escape_class="escape_risk_high")
+    isig = _q7_with_coverage_claim(claim)["integrated_signal"]
+    assert isig["concordance_class"] == "bulk_masks_low_coverage"
+    assert isig["qualifying_signal"] is not None
+    # the headline names BOTH directions — the encouraging bulk read AND the "However" caveat
+    assert "However" in isig["headline"]
+    assert isig["boundary_sensitive"] is False  # low coverage + high escape corroborate → not boundary
+
+
+def test_q7_integrated_signal_flags_boundary_sensitivity_when_class_rests_on_a_lone_token():
+    # Part 6.5: an alarming class resting on a single uncorroborated coverage token must be surfaced as
+    # boundary-sensitive, never asserted flat — the headline carries the flag the consumer renders.
+    claim = _coverage_claim(coverage_class="low", escape_class=None)  # escape off-scale → single_arm
+    isig = _q7_with_coverage_claim(claim)["integrated_signal"]
+    assert isig["concordance_class"] == "bulk_masks_low_coverage"
+    assert isig["boundary_sensitive"] is True
+    assert "boundary-sensitive" in isig["headline"]
+
+
+def _derive_q7_from_cards(coverage_class, escape_class, bulk_class="broadly_high"):
+    """Enter where run.py enters: build the row from CARDS with NO pre-built claim_vector, so
+    presence_question_table DERIVES the claim itself (presence_question_table.py:432 fallback →
+    presence_claim_vector). This proves the surface is wired end-to-end, not merely when a claim is
+    hand-injected. The base fixture carries no tumor-scrna card; swap in one with the modern sc fields."""
+    h, cards, _cv = _fixture()
+    cards = [c for c in cards if c["card_id"] != "tumor-scrna-celltype-expression"]
+    for c in cards:
+        if c["card_id"] == "tumor-rna-distribution":
+            c["summary"] = {
+                "tumor_expression_class": bulk_class,
+                "distribution_pattern": "continuous",
+                "allgene_percentile": 99.9,
+                "allgene_percentile_class": "top_1pct",
+            }
+    sc = {"sc_expression_class": "malignant_subset_detected"}
+    if coverage_class is not None:
+        sc["within_tumor_coverage_class"] = coverage_class
+    if escape_class is not None:
+        sc["tce_antigen_escape_class"] = escape_class
+    cards.append({"card_id": "tumor-scrna-celltype-expression", "summary": sc})
+    # claim_vector=None AND headline carries none → the builder derives it from cards, as run.py does.
+    h = {k: v for k, v in h.items() if k != "claim_vector"}
+    return _by_id(presence_question_table(h, cards, None))["Q7"]
+
+
+def test_q7_derives_and_surfaces_the_signal_end_to_end_from_cards():
+    # EPCAM-shaped concordant PANEL case, derived (not injected): the run.py path surfaces it.
+    r = _derive_q7_from_cards(coverage_class="high", escape_class="escape_risk_low")
+    assert r["integrated_signal"]["concordance_class"] == "coverage_concordant"
+    assert r["integrated_signal"]["qualifying_signal"] is None
+
+
+def test_q7_derives_the_lossy_case_and_the_absence_case_from_cards():
+    # TACSTD2-shaped lossy PANEL case, derived: the qualifying escape direction is surfaced.
+    lossy = _derive_q7_from_cards(coverage_class="low", escape_class="escape_risk_high")
+    assert lossy["integrated_signal"]["concordance_class"] == "bulk_masks_low_coverage"
+    assert lossy["integrated_signal"]["qualifying_signal"] is not None
+    # M3 reach: defeat EVERY single-cell supply path (both sc fields absent) → the claim omits and the
+    # row falls back CLEANLY to no integrated_signal (never a fabricated one), the meter cells intact.
+    gone = _derive_q7_from_cards(coverage_class=None, escape_class=None)
+    assert "integrated_signal" not in gone
+    assert gone["question"] == "Is the tumor signal malignant-cell-intrinsic?"

@@ -294,6 +294,20 @@ def test_coverage_concordance_epcam_is_concordant():
     )
     assert srcs["single_cell_malignant_coverage"]["fields"]["tce_antigen_escape_class"] == _RAW_EPCAM["escape_class"]
     assert "independent" in claim["provenance"]["independence_note"].lower()
+    # G3.1 PRESENTATION fields: the encouraging bulk direction is always present; the qualifying
+    # single-cell caveat is NULL when concordant (sc CONFIRMS the broad read). source_support is a
+    # uniform per-source map. Both facets agree → corroboration high → NOT boundary-sensitive.
+    assert claim["positive_signal"]["source"] == "bulk_tumor_presence"
+    assert _RAW_EPCAM["bulk_class"] in claim["positive_signal"]["statement"]
+    assert claim["qualifying_signal"] is None, "concordant → no qualifying caveat"
+    assert claim["boundary_sensitive"] is False  # escape facet corroborates the class
+    # uniform source_support: identical key shape on both sources; provenance_refs resolve into it.
+    ss = claim["source_support"]
+    assert set(ss) == {"bulk_tumor_presence", "single_cell_malignant_coverage"}
+    for key, entry in ss.items():
+        assert set(entry) == {"card_id", "stance", "summary", "fields"}, f"{key} non-uniform shape"
+    assert claim["positive_signal"]["provenance_ref"] in ss
+    assert ss["single_cell_malignant_coverage"]["stance"] == "concordant"
 
 
 def test_coverage_concordance_tacstd2_bulk_masks_low_coverage():
@@ -314,6 +328,15 @@ def test_coverage_concordance_tacstd2_bulk_masks_low_coverage():
     srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
     assert srcs["single_cell_malignant_coverage"]["fields"]["within_tumor_coverage_class"] == "low"
     assert srcs["single_cell_malignant_coverage"]["fields"]["tce_antigen_escape_class"] == "escape_risk_high"
+    # G3.1 PRESENTATION: the alarming class POPULATES the qualifying single-cell caveat (bulk masks a
+    # low-coverage escape fraction) while the encouraging bulk direction stays present. Both facets
+    # agree (low coverage + high escape) → corroboration high → the class is NOT boundary-sensitive here.
+    assert claim["positive_signal"]["source"] == "bulk_tumor_presence"
+    assert claim["qualifying_signal"] is not None, "bulk_masks_low_coverage → a qualifying caveat"
+    assert claim["qualifying_signal"]["source"] == "single_cell_malignant_coverage"
+    assert "escape" in claim["qualifying_signal"]["statement"].lower()
+    assert claim["boundary_sensitive"] is False
+    assert claim["source_support"]["single_cell_malignant_coverage"]["stance"] == "qualifying"
 
 
 def test_coverage_concordance_is_verdict_inert():
@@ -340,6 +363,26 @@ def test_coverage_concordance_all_supply_mutation_flip_both_flips_class():
     ]
     assert concordant["concordance_class"] == "coverage_concordant"
     assert flipped["concordance_class"] == "bulk_masks_low_coverage", "flipping BOTH sc facets must flip the class"
+    # DIRECTIONAL presentation: mutating the SINGLE-CELL source (bulk fixed) changes qualifying_signal
+    # (null → populated) while positive_signal (sourced from the unchanged bulk read) is byte-identical.
+    assert concordant["qualifying_signal"] is None and flipped["qualifying_signal"] is not None
+    assert concordant["positive_signal"] == flipped["positive_signal"], "bulk unchanged → positive_signal stable"
+
+
+def test_coverage_concordance_bulk_mutation_changes_positive_signal():
+    # MIRROR of the single-cell mutation: mutating the BULK source (single-cell fixed) changes
+    # positive_signal while the concordance class + qualifying_signal (sc-sourced) are unchanged.
+    hi = presence_claim_vector(_headline(), _l2b_cards(bulk_class="broadly_high", coverage_class="high"))[
+        "bulk_vs_singlecell_coverage_concordance"
+    ]
+    mod = presence_claim_vector(_headline(), _l2b_cards(bulk_class="broadly_moderate", coverage_class="high"))[
+        "bulk_vs_singlecell_coverage_concordance"
+    ]
+    assert hi["concordance_class"] == mod["concordance_class"] == "coverage_concordant"
+    assert hi["positive_signal"] != mod["positive_signal"], "a different bulk class → a different positive_signal"
+    assert "broadly_high" in hi["positive_signal"]["statement"]
+    assert "broadly_moderate" in mod["positive_signal"]["statement"]
+    assert hi["qualifying_signal"] == mod["qualifying_signal"] is None  # sc unchanged (concordant)
 
 
 def test_coverage_concordance_single_supply_mutation_only_degrades():
@@ -361,6 +404,30 @@ def test_coverage_concordance_single_supply_mutation_only_degrades():
     ]
     assert escape_gone["concordance_class"] == "coverage_concordant"
     assert escape_gone["corroboration"] == "single_arm"
+
+
+def test_coverage_concordance_boundary_sensitivity_tracks_corroboration():
+    # Part 6.5 near-boundary discipline: the concordance class is fixed by the LONE coverage token; it is
+    # boundary-sensitive UNLESS the orthogonal escape facet corroborates it (corroboration high). A
+    # near-boundary perturbation of the sole token could flip a class that rests only on it, so it must be
+    # surfaced as boundary-sensitive rather than asserted flat. This is a deterministic read of the
+    # already-computed corroboration structure — NOT a calibration layer / CI / continuous margin.
+    def _claim(cov, esc):
+        return presence_claim_vector(_headline(), _l2b_cards(coverage_class=cov, escape_class=esc))[
+            "bulk_vs_singlecell_coverage_concordance"
+        ]
+
+    corroborated = _claim("high", "escape_risk_low")  # both facets agree → high
+    assert corroborated["corroboration"] == "high" and corroborated["boundary_sensitive"] is False
+    lone = _claim("high", None)  # escape off-scale → single_arm → class rests on ONE token
+    assert lone["corroboration"] == "single_arm" and lone["boundary_sensitive"] is True
+    conflicted = _claim("high", "escape_risk_high")  # escape CONTRADICTS coverage → low
+    assert conflicted["corroboration"] == "low" and conflicted["boundary_sensitive"] is True
+    # The alarming class, when it rests on a lone token, must ALSO carry the boundary flag (never flat).
+    alarming_lone = _claim("low", None)
+    assert alarming_lone["concordance_class"] == "bulk_masks_low_coverage"
+    assert alarming_lone["boundary_sensitive"] is True
+    assert "near-boundary" in alarming_lone["boundary_note"]
 
 
 def test_coverage_concordance_omitted_when_a_source_is_absent_or_indecisive():
