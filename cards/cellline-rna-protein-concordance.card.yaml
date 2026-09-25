@@ -53,6 +53,13 @@ outputs:
     - rna_expressed_fraction
     - rna_high_protein_low_fraction              # the population where RNA MISLEADS (RNA-high, protein-low)
     - release_pin
+    # G10 boundary-fragility quartet (verdict-INERT; mirrors the tumor sibling's orphan set). Emitted by
+    # read.py::_proxy_boundary_ci on the full-data path — they never change rna_as_biomarker, they let a
+    # consumer down-weight a class call whose Fisher-z CI straddles a 0.4/0.7 boundary (F4 #882).
+    - rna_proxy_classified_on                    # 'spearman' | 'pearson_fallback' — which correlation drove the class
+    - rna_protein_r_ci95_low                     # Fisher-z 95% CI low of the classifying correlation
+    - rna_protein_r_ci95_high                    # Fisher-z 95% CI high
+    - rna_proxy_class_boundary_fragile           # bool: CI straddles a class boundary (call may flip by sampling alone)
   summary_fields_vocabulary:
     rna_as_biomarker: [adequate_proxy, partial_proxy, poor_proxy, insufficient_paired_models, data_unavailable]
   figure: rna_protein_concordance_scatter        # per-model RNA vs protein, fitted trend + r
@@ -66,7 +73,7 @@ caveats:
   - "CELL-LINE concordance (DepMap RNA vs Gygi MS). The TUMOR arm is the sibling card rna-protein-concordance-tumor (CPTAC matched RNA+protein, target_indication grain). Report the two SIDE-BY-SIDE, never averaged — cell-line and tumor concordance genuinely differ (KRAS cell-line r≈0.55 partial vs COAD tumor r≈0.01 poor; the disagreement is decision-relevant), because tumor purity/stroma + proteostasis differ."
   - "Gygi MS quantifies ~12.5k proteins; a target absent from the MS panel yields data_unavailable (protein_detection_fraction reflects panel coverage, not biology)."
   - "A poor_proxy verdict is a MODALITY caution (protein must be measured for ADC/TCE; RNA biomarker inadequate), NOT a target killer — the target may still be a valid protein-confirmed target."
-  - "Pearson (linear) + Spearman (rank) are both reported; a high Spearman with low Pearson indicates a monotone-but-nonlinear RNA→protein relationship."
+  - "The rna_as_biomarker VERDICT is classified on SPEARMAN (rank) — the consensus proteogenomics metric for the monotone-but-nonlinear RNA→protein relationship (read.py::_classify_rna_biomarker classifies on the Spearman value; Pearson is used only as the scipy-absent fallback). rna_protein_r stays Pearson as the linear/companion statistic; a high Spearman with low Pearson indicates monotone-but-nonlinear tracking. Both are reported side-by-side but the class call is Spearman-driven (F5 #882)."
 
 measurement: bulk_rna   # the concordance is anchored on the RNA layer (RNA-as-proxy question); protein is the comparator
 sample_context: cell_line   # DepMap cell-line arm (RNA vs Gygi MS). The tumor arm is the sibling card rna-protein-concordance-tumor (sample_context: tumor). Added 2026-07-23 when the card joined tumor-presence's CARD_CONTEXT taxonomy (drift-guarded on both axes).
@@ -77,10 +84,25 @@ measurement_type: rna_protein_concordance
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target]
 schema_version: 1
+# canon-12 (#882): the 0.4/0.7/20 cuts are applied OUTSIDE a card predicate, so THRESHOLD_UNUSED must
+# not ask for their deletion. F1: unlike the reader-frame-only framing they carried before, the METHOD
+# consumes strong/moderate_concordance_r as method_parameters — _classify_rna_biomarker (read.py) bins
+# the classifying (Spearman) correlation on them to PRODUCE rna_as_biomarker; they are also re-used in
+# _proxy_boundary_ci. So role=method_parameter (primary) with the reader_gate frame recorded in the note
+# (the schema `role` is a single enum, not a list). AGGRAVATOR: the method HARDCODES 0.7/0.4/20 as module
+# constants and never reads this card, so card and code are independent copies that can silently drift —
+# this block is the single reviewable point of record for that drift (a follow-up could have the method
+# read the card values). 3rd occurrence of the hardcode pattern: canon-11 F4 → here → canon-13 (#883).
 threshold_roles:
   moderate_concordance_r:
-    role: reader_gate
-    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the rna_protein_concordance reference frame over `rna_protein_r` (pearson_r), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+    role: method_parameter
+    consumed_by: depmap-rna-protein-concordance
+    note: 'method_parameter: MODERATE_CONCORDANCE_R=0.4 in analysis-methods read.py::_classify_rna_biomarker bins the classifying (Spearman) correlation to produce rna_as_biomarker (0.4-0.7 → partial_proxy); re-used in _proxy_boundary_ci. ALSO the skill-side reader_gate frame over rna_protein_r. Method HARDCODES it and never reads this card (card/code can drift); THRESHOLD_UNUSED is a false positive.'
   strong_concordance_r:
-    role: reader_gate
-    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the rna_protein_concordance reference frame over `rna_protein_r` (pearson_r), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+    role: method_parameter
+    consumed_by: depmap-rna-protein-concordance
+    note: 'method_parameter: STRONG_CONCORDANCE_R=0.7 in analysis-methods read.py::_classify_rna_biomarker bins the classifying (Spearman) correlation to produce rna_as_biomarker (>=0.7 → adequate_proxy); re-used in _proxy_boundary_ci. ALSO the skill-side reader_gate frame over rna_protein_r. Method HARDCODES it and never reads this card (card/code can drift); THRESHOLD_UNUSED is a false positive.'
+  min_paired_models:
+    role: method_parameter
+    consumed_by: depmap-rna-protein-concordance
+    note: 'method_parameter: MIN_PAIRED_MODELS=20 in analysis-methods depmap_rna_protein_concordance/read.py — below it rna_as_biomarker=insufficient_paired_models (a hard method gate). Hardcoded method-side, not read from this card; documented here for drift review (F2 #882).'
