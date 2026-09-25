@@ -599,6 +599,21 @@ _NON_DEPENDENT_TOKENS = frozenset(
 )
 
 
+# The COMPLETE set of `status` tokens the target-profile spine mints on a hard-gate row
+# (tp_gates._hard_gates_status is the SOURCE OF TRUTH — mirror it here in lockstep). `gate_ceiling`'s
+# switch below MUST give every one of these explicit ceiling semantics; a token outside this set — e.g.
+# the planned `opposing → uncorroborated` lifecycle split (docs/UNIFIED_OUTPUT_CONTRACT.md "Typed surface
+# authority") — hits the exhaustiveness guard and fails LOUD rather than falling through with no signal
+# (which would silently drop the ceiling clamp = fail-OPEN). This is the STATUS-axis mirror of the
+# VALUE-axis token-completeness cluster; see the guard test in tests/test_gate_ceiling_status_exhaustiveness.py.
+_SPINE_HARD_GATE_STATUSES = frozenset({"fired", "suppressed", "excluded", "opposing", "blind", "latent", "reconciled"})
+# Statuses that carry NO ceiling signal BY DESIGN (the spine already adjudicated or declared them inert):
+#   suppressed = spine evaluated the gate and RELEASED it; reconciled = the cross-axis reconciler
+#   resolved the contradiction; latent = declared-dormant (no negative stratum fired).
+# Handled EXPLICITLY (not by fall-through) so a NEW spine token cannot silently inherit no-signal.
+_NON_CAPPING_SPINE_STATUSES = frozenset({"suppressed", "reconciled", "latent"})
+
+
 # --- FAIL-CLOSED, GATE-COMPLETE ceiling — consumes recommendation_gate.hard_gates ------------
 def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
     """The most permissive verdict the deterministic spine permits; the hypothesis is clamped to it.
@@ -705,6 +720,26 @@ def gate_ceiling(pkg: dict, modality: Optional[str] = None) -> dict:
                 signals.append((VERDICT_RANK["advanceable_with_caveat"], f"opposing measured evidence ({tag})"))
             elif status == "excluded":
                 excluded.append(tag)  # modality-scoped foreclosure — surfaced, no blanket veto
+            elif status == "blind":
+                # blind but NOT gated-disposed (disp != "gated"): the gated-veto/hold cases are handled
+                # above and are the only blind rows that carry a ceiling signal. A non-gated blind row
+                # (a contradiction/excluded-disposition axis that happens to be absent) caps nothing.
+                pass
+            elif status in _NON_CAPPING_SPINE_STATUSES:
+                # suppressed / reconciled / latent — no ceiling signal BY DESIGN (see the constant's
+                # docstring). Handled EXPLICITLY so a future spine token can never inherit this silently.
+                pass
+            else:
+                # EXHAUSTIVENESS GUARD — fail-CLOSED, fail-LOUD. `status` is outside the spine's emitted
+                # vocab (_SPINE_HARD_GATE_STATUSES). Falling through with no signal would silently drop
+                # the ceiling clamp for every gate carrying the new token (fail-OPEN one surface out from
+                # the one that minted it). A new spine status MUST be given explicit ceiling semantics
+                # here — and _SPINE_HARD_GATE_STATUSES updated in lockstep with tp_gates._hard_gates_status.
+                raise ValueError(
+                    f"gate_ceiling: unhandled hard-gate status {status!r} on gate {tag!r}; the "
+                    f"target-profile spine emits {sorted(_SPINE_HARD_GATE_STATUSES)} — give a new status "
+                    f"token explicit ceiling semantics here, never drop it silently (fail-closed guard)"
+                )
         hard_gates_present = True
     else:
         # ---- FALLBACK: no hard_gates block (older package). Fail-closed, not fail-open. ----
