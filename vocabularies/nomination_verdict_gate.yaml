@@ -1201,9 +1201,18 @@ positive_signals:
   # genuine driver). SUPPORTIVE, not dominant, and GROUPED with genomic_alteration + cis_coherence below:
   # the driver-hood it corroborates is largely a re-read of what genomic_alteration's alteration-role /
   # biomarker rungs already count, so it raises confidence without being a 2nd INDEPENDENT line that
-  # manufactures `strong`. Only strong_mutually_exclusive is wired (both_patterns_present / strong_cooccurring
-  # are combination/co-occurrence CONTEXT, not target-quality); the neutral/gap verdicts stay advisory.
+  # manufactures `strong`. both_patterns_present is ALSO wired supportive (#897, 2026-09-25): by
+  # classifier construction (cooccurrence_fisher_pancohort/read.py:225-230) both_patterns_present is a
+  # SUPERSET of the strong_mutually_exclusive predicate (strong_mutex = qc<0.001 AND log2_or<-1.0, :217-218)
+  # — every both_patterns_present target ALSO satisfies the mutex arm that earns strong_mutually_exclusive
+  # its credit. Wiring only the mutex-exclusive composite was NON-MONOTONE: adding co-occurring evidence on
+  # top of qualifying mutex evidence STRIPPED the credit (strictly-stronger evidence scored lower). The mutex
+  # HALF is a genuine driver-inference signal regardless of the co-occurring half; wiring both restores
+  # monotonicity. strong_cooccurring stays UNWIRED (pure combination CONTEXT, no mutex arm); neutral/gap
+  # verdicts stay advisory. Same supportive weight/grouping — a both-patterns target is at least as
+  # mutex-supportive as a mutex-only one, not more.
   - {sub_skill: differentiation, verdict: strong_mutually_exclusive,      weight: supportive}
+  - {sub_skill: differentiation, verdict: both_patterns_present,          weight: supportive}
 
 # Modality-scoped positives (2026-08-14): under an EXPLICIT biologics modality, a
 # favorable surface-modality verdict IS a target positive — symmetric to

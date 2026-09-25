@@ -216,10 +216,12 @@ def test_positives_only_from_cross_target_axes():
     # differentiation added v1.11.0 (2026-09-07, differentiation deep-dive): strong_mutually_exclusive
     # is a genuine CROSS-TARGET requirement — the target's mutations are strongly mutually-exclusive with
     # established driver partner(s) across the pan-cohort Fisher scan, a driver-inference + patient-
-    # selection signal. Positive-eligible ONLY for strong_mutually_exclusive; both_patterns_present /
-    # strong_cooccurring stay advisory (combination CONTEXT, not target-quality). GROUPED with
-    # genomic_alteration+cis_coherence (correlated_dimension_groups) so it corroborates confidence but
-    # never independently mints `strong`.
+    # selection signal. both_patterns_present ADDED as a positive #897 (2026-09-25): it is a SUPERSET of
+    # the strong_mutually_exclusive predicate (cooccurrence_fisher_pancohort/read.py:225-230), so wiring
+    # only the mutex-exclusive composite was non-monotone — the mutex HALF is a genuine positive regardless
+    # of the co-occurring half. strong_cooccurring stays advisory (pure combination CONTEXT, no mutex arm).
+    # GROUPED with genomic_alteration+cis_coherence (correlated_dimension_groups) so it corroborates
+    # confidence but never independently mints `strong`.
     allowed = {
         "dependency",
         "selectivity",
