@@ -29,6 +29,8 @@ from _skills_common.genomic_claims import (  # noqa: E402  # noqa: E402
     _SPLICE_SIGNAL,
     _UNMEASURED_RECURRENCE,
     _recurrence_class,
+    _recurrence_concordance_claim,
+    _recurrence_direction,
     _role_corroboration,
     _role_signal,
     _spl_corroboration,
@@ -549,3 +551,165 @@ def test_sentinel_fix_reaches_every_recurrence_surface():
     assert "bottom_decile" in vec["SNV"]["evidence"] and "data_unavailable" not in vec["SNV"]["evidence"]
     blob = repr(genomic_key_signals(h, []))
     assert "bottom_decile" in blob, "narrator surfaces still quote the sentinel"
+
+
+# ── L2b-5: recurrence_concordance (SK#1629) — MC3 × GENIE concordance + the envelope's dependence slot ──
+# The FIRST conformance test of docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md from a foreign modality (variant
+# recurrence, not continuous abundance/dependency) AND the first family with a genuinely DEPENDENT source
+# (pooled ⊃ MC3+GENIE). These tests pin: the direction split, the four classes, the corroboration frame,
+# the envelope's TWO COUNTS + THREE source notions, that pooled is evidence-not-corroboration and NEVER
+# resurrects the key, the M3 defeat-EVERY-independent-arm discipline, byte-stability, and verdict-inertness.
+def _rec_h(mc3=None, genie=None, pooled=None, mc3_pct=None, genie_pct=None, pooled_pct=None):
+    """A minimal headline carrying only the recurrence fields the claim reads (all live on the headline,
+    already read by run.py — no card reads)."""
+    return {
+        "genomic_alteration_by_class": _by_class(),  # keep the rest of the vector well-formed
+        "driver_recurrence_class": mc3,
+        "genie_driver_recurrence_class": genie,
+        "pooled_driver_recurrence_class": pooled,
+        "driver_recurrence_percentile": mc3_pct,
+        "genie_driver_recurrence_percentile": genie_pct,
+        "pooled_driver_recurrence_percentile": pooled_pct,
+    }
+
+
+def test_recurrence_direction_reuses_the_driver_split():
+    # bottom_decile is the ONLY measured NEGATIVE band; every other measured band is a positive driver
+    # call; data_unavailable / off-roster / None are UNRESOLVED gaps (gap != absent).
+    assert _recurrence_direction("top_1pct") == "recurrent"
+    assert _recurrence_direction("top_decile") == "recurrent"
+    assert _recurrence_direction("mid") == "recurrent"
+    assert _recurrence_direction("bottom_decile") == "not_recurrent"
+    assert _recurrence_direction("data_unavailable") is None  # a gap, NOT a measured negative
+    assert _recurrence_direction(None) is None
+    assert _recurrence_direction("some_off_roster_token") is None
+
+
+def test_recurrence_concordant_positive_two_agreeing_arms():
+    claim = _recurrence_concordance_claim(_rec_h(mc3="top_1pct", genie="top_decile"))
+    assert claim["concordance_class"] == "recurrence_concordant"
+    assert claim["corroboration"] == "high"  # two INDEPENDENT arms agree
+    assert claim["corroborating_independent_arm_count"] == 2
+    assert claim["resolved_source_count"] == 2  # no pooled
+    assert claim["concordance_support"] == {"agreed_direction": "recurrent"}
+    assert claim["integration_method"] == "explicit_deterministic"
+    assert claim["grain"] == "patient_cohort_variant"
+
+
+def test_recurrence_concordant_negative_is_a_measured_floor_not_a_gap():
+    # both arms read the measured bottom_decile floor: a real "we looked; not a recurrent driver" AGREEMENT
+    # (Convention A) — corroborated, not collapsed to unmeasured.
+    claim = _recurrence_concordance_claim(_rec_h(mc3="bottom_decile", genie="bottom_decile"))
+    assert claim["concordance_class"] == "recurrence_concordant"
+    assert claim["corroboration"] == "high"
+    assert claim["concordance_support"] == {"agreed_direction": "not_recurrent"}
+
+
+def test_panel_masks_recurrence_is_a_low_corroboration_disagreement():
+    # MC3 exome recurrent, GENIE panel a measured not-recurrent floor → the panel misses it.
+    claim = _recurrence_concordance_claim(_rec_h(mc3="top_1pct", genie="bottom_decile"))
+    assert claim["concordance_class"] == "panel_masks_recurrence"
+    assert claim["corroboration"] == "low"  # a disagreement caps corroboration
+    assert claim["corroborating_independent_arm_count"] == 2
+    assert claim["concordance_support"] == {"recurrent_in": "mc3_exome", "not_recurrent_in": "genie_panel"}
+
+
+def test_exome_masks_recurrence_is_the_mirror():
+    claim = _recurrence_concordance_claim(_rec_h(mc3="bottom_decile", genie="top_1pct"))
+    assert claim["concordance_class"] == "exome_masks_recurrence"
+    assert claim["corroboration"] == "low"
+    assert claim["concordance_support"] == {"recurrent_in": "genie_panel", "not_recurrent_in": "mc3_exome"}
+
+
+def test_single_independent_arm_degrades_not_omits():
+    # ONE independent arm resolves (GENIE a data_unavailable gap) → single_source_only, corroboration
+    # single_arm, key PRESENT. This is the envelope's "emit-on-one-arm" boundary (essentiality/normal-
+    # liability precedent), chosen so the resolved_source_count != corroborating_independent_arm_count
+    # case is SURFACED, not hidden. Defeating one arm only DEGRADES (M3).
+    claim = _recurrence_concordance_claim(_rec_h(mc3="top_1pct", genie="data_unavailable"))
+    assert claim["concordance_class"] == "single_source_only"
+    assert claim["corroboration"] == "single_arm"
+    assert claim["corroborating_independent_arm_count"] == 1
+    assert claim["concordance_support"] == {
+        "resolved_by": "mc3_exome",
+        "resolved_call": "top_1pct",
+        "resolved_direction": "recurrent",
+    }
+
+
+def test_key_omitted_when_neither_independent_arm_resolves():
+    # Byte-stable: both independent arms are gaps → no claim (key omitted).
+    assert _recurrence_concordance_claim(_rec_h(mc3="data_unavailable", genie=None)) is None
+    assert _recurrence_concordance_claim(_rec_h()) is None
+    # and it is genuinely absent from the emitted vector (not merely None)
+    vec = genomic_claim_vector(_rec_h(mc3="data_unavailable", genie=None), [])
+    assert "recurrence_concordance" not in vec
+
+
+def test_pooled_is_evidence_not_corroboration_and_never_resurrects():
+    # (a) pooled ALONE can never emit the claim: both independent arms are gaps, pooled resolves → OMITTED.
+    # This is the `pooled OR driver` superset-as-fallback anti-pattern being replaced.
+    assert _recurrence_concordance_claim(_rec_h(mc3="data_unavailable", genie=None, pooled="top_1pct")) is None
+    # (b) with both independent arms present, pooled is SHOWN + PRESERVED (resolved_source_count 3) but
+    # NEVER inflates corroboration and is corroboration_INELIGIBLE (the three source notions kept separate).
+    claim = _recurrence_concordance_claim(_rec_h(mc3="top_1pct", genie="top_decile", pooled="top_1pct"))
+    assert claim["corroborating_independent_arm_count"] == 2  # pooled EXCLUDED
+    assert claim["resolved_source_count"] == 3  # pooled INCLUDED as evidence
+    assert claim["corroboration"] == "high"  # pooled did NOT inflate it beyond the two real arms
+    pooled_src = next(s for s in claim["source_support"] if s["source"] == "pooled")
+    assert pooled_src["resolved"] is True and pooled_src["quality_eligible"] is True
+    assert pooled_src["corroboration_eligible"] is False  # dependent != independent corroboration
+    assert pooled_src["derived_from"] == ["mc3_exome", "genie_panel"]
+    assert claim["evidence_dependence"]["derived_sources"]["pooled"]["corroboration_eligible"] is False
+
+
+def test_m3_defeat_every_independent_supply_path():
+    """M3 all-supply fidelity: the concordance conclusion must survive defeating ONE arm (degrade only)
+    and vanish ONLY when EVERY independent arm is defeated — with pooled unable to keep it alive."""
+    full = _rec_h(mc3="top_1pct", genie="top_decile", pooled="top_1pct")
+    assert _recurrence_concordance_claim(full)["concordance_class"] == "recurrence_concordant"
+    # defeat GENIE only → still emits, degraded to single_source_only (pooled irrelevant to emission)
+    m1 = dict(full, genie_driver_recurrence_class="data_unavailable")
+    assert _recurrence_concordance_claim(m1)["concordance_class"] == "single_source_only"
+    # defeat BOTH independent arms (pooled STILL present) → key omitted; pooled does not resurrect it
+    m2 = dict(m1, driver_recurrence_class="data_unavailable")
+    assert _recurrence_concordance_claim(m2) is None
+
+
+def test_retained_quantitative_is_recoverable_per_source():
+    # fidelity/recoverability: the raw percentile anchor is DEMOTED into the payload, not deleted, and is
+    # recoverable per source (store an irreproducible number, re-read it here).
+    claim = _recurrence_concordance_claim(_rec_h(mc3="top_1pct", genie="top_decile", mc3_pct=99.7, genie_pct=93.1))
+    by_src = {s["source"]: s for s in claim["source_support"]}
+    assert by_src["mc3_exome"]["retained_quantitative"]["driver_recurrence_percentile"] == 99.7
+    assert by_src["genie_panel"]["retained_quantitative"]["driver_recurrence_percentile"] == 93.1
+    assert by_src["mc3_exome"]["provenance"]["headline_field"] == "driver_recurrence_class"
+
+
+def test_recurrence_concordance_is_verdict_inert():
+    # NO `signal` key (never a chip / tier / averaged) and PURELY ADDITIVE: for the SAME headline the L2b
+    # claim only appends its own key — every pre-existing SNV/CN/FUS/SPL/DEP/ROLE axis is byte-identical to
+    # the bare build_claim_vector (the axes DO read the recurrence bands directly, but the concordance
+    # claim itself routes nothing back into them or the verdict).
+    from _skills_common.claim_vector_core import build_claim_vector  # noqa: PLC0415
+    from _skills_common.genomic_claims import _DISCLAIMER, GENOMIC_CLAIM_SPEC  # noqa: PLC0415
+
+    h = _rec_h(mc3="top_1pct", genie="top_decile")
+    claim = _recurrence_concordance_claim(h)
+    assert "signal" not in claim
+    assert "verdict-INERT" in claim["_disclaimer"]
+    base = build_claim_vector(GENOMIC_CLAIM_SPEC, h, [], _DISCLAIMER)
+    vec = genomic_claim_vector(h, [])
+    for ax in ("SNV", "CN", "FUS", "SPL", "DEP", "ROLE"):
+        assert vec[ax] == base[ax], f"{ax} axis moved when recurrence_concordance was added"
+    assert set(vec) - set(base) == {"recurrence_concordance"}  # the ONLY delta
+
+
+def test_dependence_structure_is_relational_not_a_global_boolean():
+    claim = _recurrence_concordance_claim(_rec_h(mc3="top_1pct", genie="top_decile", pooled="top_1pct"))
+    assert "independent" not in claim  # no global independence boolean
+    groups = {g["members"][0]: g["relationship"] for g in claim["evidence_dependence"]["groups"]}
+    assert groups == {"mc3_exome": "independent_cohort", "genie_panel": "independent_cohort"}
+    # the grain comparability caveat (panel denominator != exome) is carried, per F caveat §5
+    assert "not" in claim["provenance"]["independence_note"].lower()
+    assert "exome" in claim["provenance"]["independence_note"].lower()

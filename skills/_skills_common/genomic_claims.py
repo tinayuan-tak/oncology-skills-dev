@@ -722,12 +722,249 @@ _DISCLAIMER = (
 )
 
 
+# ── L2b-5: MC3 × GENIE driver-recurrence concordance (SK#1629, evidence-property architecture #1507) ─
+# The 5th cross-source INTEGRATED claim (L2b) — and the FIRST conformance test of the extracted evidence
+# envelope (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md) from a FOREIGN modality: variant recurrence across
+# cohorts, not the continuous abundance/dependency the n=4 envelope was extracted from. It is also the
+# first family with a genuinely DEPENDENT source, which is why it was chosen — it forces the envelope's
+# dependence slot (relational groups + two counts + three source notions) to earn its place.
+#
+# It integrates the TWO INDEPENDENT cohort arms:
+#   * MC3 exome  — driver_recurrence_class      (TCGA-MC3 whole-exome cohort);
+#   * GENIE panel — genie_driver_recurrence_class (AACR GENIE targeted-panel cohort).
+# pooled_driver_recurrence_class is a DECLARED DEPENDENT SUPERSET (derived_from [mc3, genie]): it is
+# SHOWN and PRESERVED as evidence (quality_eligible) but is NEVER an independent corroboration arm
+# (corroboration_eligible: no) and NEVER resurrects the claim. This deliberately does NOT reuse
+# `_recurrence_class` (:232), whose `pooled OR driver` precedence is the exact superset-as-fallback
+# anti-pattern the F inventory flagged.
+def _recurrence_direction(band):
+    """One recurrence-band token → 'recurrent' | 'not_recurrent' | None (unresolved gap).
+
+    Reuses the fleet driver/not-a-driver split via `_RECURRENCE_SIGNAL` (Convention A): `bottom_decile`
+    (`absent`) is the only MEASURED NEGATIVE band — a real "we looked; not a recurrent driver" floor;
+    every other measured band (top_1pct/top_decile/mid) is a positive driver call. `data_unavailable`
+    (→ `unmeasured`) and any off-roster / None token are UNRESOLVED gaps, never a measured negative
+    (`gap ≠ absent`). Deriving the split from `_RECURRENCE_SIGNAL` keeps it aligned with the SNV axis."""
+    sig = _RECURRENCE_SIGNAL.get(band)
+    if sig is None or sig == "unmeasured":
+        return None  # off-roster / data_unavailable → gap, never a measured negative
+    return "not_recurrent" if sig == "absent" else "recurrent"
+
+
+def _recurrence_concordance_claim(h: dict) -> "dict | None":
+    """L2b-5 CROSS-SOURCE integration claim: `recurrence_concordance` — the FIRST envelope conformance
+    test (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md) from a foreign modality.
+
+    Integrates the two INDEPENDENT cohort arms — MC3 exome (`driver_recurrence_class`) × GENIE panel
+    (`genie_driver_recurrence_class`) — by an EXPLICIT DETERMINISTIC rule (no LLM; L2b is reproducible by
+    contract), emitting one of:
+      * recurrence_concordant    — both arms resolve and AGREE (both recurrent, or both a measured
+        not-recurrent floor); the agreed direction is carried in `concordance_support`, never collapsed;
+      * panel_masks_recurrence   — MC3 exome reads RECURRENT but the GENIE panel does NOT: the targeted
+        panel misses recurrence the exome sees (a panel-restricted denominator / coverage caveat);
+      * exome_masks_recurrence   — the mirror: the GENIE panel reads recurrent but the exome does not;
+      * single_source_only       — exactly ONE independent arm resolves, the other is a gap: a degraded
+        read that names the resolved cohort (recoverable), NOT a concordance claim.
+
+    DEPENDENCE (the slot recurrence exists to exercise): `pooled_driver_recurrence_class` is a DECLARED
+    DEPENDENT SUPERSET (`derived_from: [mc3_exome, genie_panel]`). It is preserved in `source_support`
+    and counted in `resolved_source_count` (evidence), but `corroboration_eligible: no` — it NEVER enters
+    the corroboration tier, NEVER counts as an independent arm, and NEVER resurrects the claim. The
+    envelope's TWO COUNTS make this legible: `corroborating_independent_arm_count` (MC3+GENIE only, ≤2)
+    vs `resolved_source_count` (≤3, pooled included).
+
+    Corroboration is on the shared MEASURED-ARM frame over the two INDEPENDENT arms only: two agreeing
+    arms → high, a disagreement → low, one measured arm → single_arm. So a single-arm mutation only
+    DEGRADES the read to `single_source_only`; ERASING the claim (key omitted, byte-stable) takes
+    defeating BOTH independent arm supplies — and pooled, a dependent superset, must NOT keep it alive
+    (the M3 all-supply-fidelity discipline / the anti-pattern replacement).
+
+    GRAIN: MC3 and GENIE are both patient-cohort variant-recurrence reads (same sample-context grain);
+    the panel-coverage-corrected-vs-exome comparability caveat is carried in
+    `provenance.independence_note` — a panel-restricted denominator is never equated with exome.
+
+    VERDICT-INERT: carries NO `signal` key (never a chip, never a tier, never averaged), reads no
+    verdict, feeds no rule. Returns None — key omitted, byte-stable — when NEITHER independent arm
+    resolves."""
+    mc3_band = h.get("driver_recurrence_class")
+    genie_band = h.get("genie_driver_recurrence_class")
+    pooled_band = h.get("pooled_driver_recurrence_class")
+    mc3_dir = _recurrence_direction(mc3_band)
+    genie_dir = _recurrence_direction(genie_band)
+    pooled_dir = _recurrence_direction(pooled_band)
+
+    # Emit iff ≥1 INDEPENDENT arm resolves. pooled (a dependent superset) can NEVER resurrect the claim —
+    # that is precisely the `pooled OR driver` collapse we are replacing.
+    resolved_indep = [(name, d) for name, d in (("mc3_exome", mc3_dir), ("genie_panel", genie_dir)) if d is not None]
+    if not resolved_indep:
+        return None  # neither cohort arm resolves → key omitted (byte-stable)
+
+    if len(resolved_indep) == 1:
+        concordance = "single_source_only"
+    elif mc3_dir == genie_dir:
+        concordance = "recurrence_concordant"
+    elif mc3_dir == "recurrent":
+        concordance = "panel_masks_recurrence"  # exome recurrent, panel not → panel hides it
+    else:
+        concordance = "exome_masks_recurrence"  # panel recurrent, exome not → exome hides it
+
+    # Corroboration over the two INDEPENDENT arms ONLY (pooled is never an arm). For a discordance the
+    # arms point opposite ([True, False] → low); for a concordance both agree ([True, True] → high); with
+    # one arm unresolved the measured arm is unopposed ([True, None] → single_arm, below the arm floor).
+    if concordance in ("panel_masks_recurrence", "exome_masks_recurrence"):
+        mc3_arm, genie_arm = True, False
+    else:
+        mc3_arm = True if mc3_dir is not None else None
+        genie_arm = True if genie_dir is not None else None
+    corroboration = corroboration_from_arms([mc3_arm, genie_arm])
+
+    # ── the envelope's TWO COUNTS ──────────────────────────────────────────────────────────────────
+    corroborating_independent_arm_count = len(resolved_indep)  # MC3 + GENIE only, pooled EXCLUDED
+    resolved_source_count = corroborating_independent_arm_count + (1 if pooled_dir is not None else 0)
+
+    # which-arm payload — the disagreement or the degraded single arm is NAMED, never collapsed/averaged.
+    if concordance in ("panel_masks_recurrence", "exome_masks_recurrence"):
+        rec_arm = "mc3_exome" if mc3_dir == "recurrent" else "genie_panel"
+        neg_arm = "genie_panel" if rec_arm == "mc3_exome" else "mc3_exome"
+        concordance_support = {"recurrent_in": rec_arm, "not_recurrent_in": neg_arm}
+    elif concordance == "single_source_only":
+        name, d = resolved_indep[0]
+        concordance_support = {
+            "resolved_by": name,
+            "resolved_call": mc3_band if name == "mc3_exome" else genie_band,
+            "resolved_direction": d,
+        }
+    else:
+        concordance_support = {"agreed_direction": mc3_dir}
+
+    # ── uniform per-source support (the envelope `source_support` list) + relational dependence ──────
+    _pct = {
+        "mc3_exome": h.get("driver_recurrence_percentile"),
+        "genie_panel": h.get("genie_driver_recurrence_percentile"),
+        "pooled": h.get("pooled_driver_recurrence_percentile"),
+    }
+    _band = {"mc3_exome": mc3_band, "genie_panel": genie_band, "pooled": pooled_band}
+    _dir = {"mc3_exome": mc3_dir, "genie_panel": genie_dir, "pooled": pooled_dir}
+    _field = {
+        "mc3_exome": "driver_recurrence_class",
+        "genie_panel": "genie_driver_recurrence_class",
+        "pooled": "pooled_driver_recurrence_class",
+    }
+    _cohort = {
+        "mc3_exome": "TCGA-MC3 whole-exome",
+        "genie_panel": "AACR GENIE targeted panel",
+        "pooled": "pooled cohorts",
+    }
+
+    def _support(source, group, corroboration_eligible, derived_from=None):
+        d = _dir[source]
+        s = {
+            "source": source,
+            "dependence_group": group,
+            "value": _band[source],
+            "recurrence_direction": d,
+            # THREE separate source notions — no single overloaded boolean smuggles two meanings.
+            "resolved": d is not None,
+            "quality_eligible": d is not None,  # a resolved read is usable evidence, shown & preserved
+            "corroboration_eligible": corroboration_eligible,  # eligible to count as INDEPENDENT replication?
+            "provenance": {"headline_field": _field[source], "cohort": _cohort[source]},
+            # retained_quantitative: the raw percentile anchor DEMOTED not deleted (fidelity/recoverability).
+            "retained_quantitative": {"driver_recurrence_percentile": _pct[source]},
+        }
+        if derived_from is not None:
+            s["derived_from"] = derived_from
+        return s
+
+    # Both independent arms ALWAYS appear (the definitional concordance pair — an absent arm shows as
+    # resolved:False, keeping the two-count / dependence structure legible); pooled appears ONLY when it
+    # resolves, as the worked dependent-superset case.
+    source_support = [
+        _support("mc3_exome", "mc3", corroboration_eligible=True),
+        _support("genie_panel", "genie", corroboration_eligible=True),
+    ]
+    evidence_dependence = {
+        "groups": [
+            {"members": ["mc3_exome"], "relationship": "independent_cohort"},
+            {"members": ["genie_panel"], "relationship": "independent_cohort"},
+        ],
+        "derived_sources": {},
+    }
+    if pooled_dir is not None:
+        source_support.append(
+            _support("pooled", "pooled", corroboration_eligible=False, derived_from=["mc3_exome", "genie_panel"])
+        )
+        evidence_dependence["derived_sources"]["pooled"] = {
+            "derived_from": ["mc3_exome", "genie_panel"],
+            "corroboration_eligible": False,
+            "note": (
+                "pooled recurrence is a SUPERSET of MC3 + GENIE — it contributes EVIDENCE, not an "
+                "additional INDEPENDENT replication arm (dependent ≠ ignore, dependent ≠ corroboration)."
+            ),
+        }
+
+    _PHRASE = {
+        "recurrence_concordant": "AGREE on the driver-recurrence call",
+        "panel_masks_recurrence": "DISAGREE — MC3 exome recurrent, GENIE panel not (panel masks it)",
+        "exome_masks_recurrence": "DISAGREE — GENIE panel recurrent, MC3 exome not (exome masks it)",
+        "single_source_only": "only one independent cohort arm resolves",
+    }
+    return {
+        "concordance_class": concordance,
+        "corroboration": corroboration,
+        # DETERMINISTIC, reproducible-by-contract: an explicit rule over the cohort tokens, never an LLM.
+        "integration_method": "explicit_deterministic",
+        "grain": "patient_cohort_variant",
+        "resolved_source_count": resolved_source_count,
+        "corroborating_independent_arm_count": corroborating_independent_arm_count,
+        "concordance_support": concordance_support,
+        "source_support": source_support,
+        "evidence_dependence": evidence_dependence,
+        "informs": (
+            "cross-cohort driver-recurrence concordance — a recurrent-driver call two INDEPENDENT cohorts "
+            "(TCGA-MC3 exome + AACR GENIE panel) agree on is far more credible than a single-cohort read; "
+            "the pooled superset is preserved as evidence but never double-counts as a third arm"
+        ),
+        "evidence": (
+            f"MC3 exome {mc3_band or 'data_unavailable'} × GENIE panel {genie_band or 'data_unavailable'}: "
+            + _PHRASE[concordance]
+            + (
+                f"; pooled {pooled_band} (dependent superset — evidence, not corroboration)"
+                if pooled_dir is not None
+                else ""
+            )
+        ),
+        "provenance": {
+            "sources": source_support,
+            "independence_note": (
+                "MC3 exome (TCGA whole-exome) and GENIE panel (AACR targeted panel) are genuinely "
+                "INDEPENDENT cohorts, so their agreement is real cross-cohort corroboration. pooled is a "
+                "DEPENDENT superset of both (never an independent arm). GRAIN CAVEAT: both are "
+                "patient-cohort variant-recurrence reads, but a panel-restricted denominator is NOT "
+                "exome-comparable — panel non-recurrence can reflect coverage, not biology; not equated."
+            ),
+        },
+        "_disclaimer": (
+            "L2b CROSS-SOURCE integration claim (deterministic, no LLM) — verdict-INERT provenance: never "
+            "a signal tier, never averaged into a claim, never feeds the genomic_alteration verdict."
+        ),
+    }
+
+
 def genomic_claim_vector(headline: dict, cards: list) -> dict:
     """The verdict-inert claim vector {SNV,CN,FUS,SPL,DEP,ROLE: {signal, corroboration, evidence,
     conflict, informs}, _disclaimer}. Projection over the computed headline. The axis roster is
     GENOMIC_CLAIM_SPEC — never re-enumerate it by hand (this docstring and _DISCLAIMER both omitted ROLE
     for the whole window it existed, and so did the narrator lens, which made it unaskable)."""
-    return build_claim_vector(GENOMIC_CLAIM_SPEC, headline, cards, _DISCLAIMER)
+    vec = build_claim_vector(GENOMIC_CLAIM_SPEC, headline, cards, _DISCLAIMER)
+    # L2b-5 cross-source integration claim (SK#1629): MC3 × GENIE driver-recurrence concordance. Carries
+    # NO `signal` key → not a chip, not a tier; OMITTED (byte-stable) unless ≥1 independent cohort arm
+    # resolves. Reads only ALREADY-READ headline recurrence fields (driver_recurrence_class /
+    # genie_driver_recurrence_class / pooled_driver_recurrence_class), so it perturbs no census aperture
+    # and no verdict. Mirrors the presence/dependency/safety L2b concordance pattern.
+    _rec = _recurrence_concordance_claim(headline)
+    if _rec is not None:
+        vec["recurrence_concordance"] = _rec
+    return vec
 
 
 def genomic_key_signals(headline: dict, cards: list) -> dict:
