@@ -582,6 +582,36 @@ def _context_generalization_caveat(hl: dict) -> dict | None:
     }
 
 
+def _molecular_form_caveat(hl: dict) -> dict | None:
+    """MOLECULAR-FORM (isoform) modality-fit note (VERDICT-INERT), surfacing the previously-stranded
+    cellline-isoform-expression card. It says WHICH transcript carries the target's expression across the
+    DepMap panel: single_isoform_dominant is a cleaner modality/epitope target (an antibody / ADC / oligo
+    hits a defined transcript, and the CN→expression cis-dosage coupling acts on that transcript), while
+    isoform_diverse / balanced flags that the DRUGGABLE isoform must be specified. Fires whenever the isoform
+    class is MEASURED; None on an unmeasured / data_unavailable facet → byte-stable negative path. Fires no
+    interpretation rule and moves no cis_coherence verdict."""
+    cls = hl.get("isoform_expression_class")
+    if cls in (None, "data_unavailable"):
+        return None
+    return {
+        "isoform_expression_class": cls,
+        "dominant_isoform_fraction": hl.get("dominant_isoform_fraction"),
+        "n_expressed_isoforms": hl.get("n_expressed_isoforms"),
+        "dominant_isoform": hl.get("dominant_isoform"),
+        "single_isoform_target": cls == "single_isoform_dominant",
+        "detail": (
+            "MOLECULAR-FORM (isoform) context for the cis read (DepMap cell-line grain): "
+            "single_isoform_dominant means one transcript carries expression — a cleaner modality / epitope "
+            "target (an antibody / ADC / oligo hits a defined transcript), and the CN→expression cis-dosage "
+            "coupling acts on that transcript. isoform_diverse (< 0.50 dominant-isoform fraction) or "
+            "balanced means the FUNCTIONAL / druggable isoform must be specified — VEGFA / ERBB2 / BCL2L1 "
+            "are isoform-diverse loci where the modality must name the transcript. Verdict-inert: it fires "
+            "no interpretation rule and moves no cis_coherence verdict. MODEL arm (DepMap cell lines); the "
+            "patient-tumour splice complement is tumor-splice-dysregulation (TCGA SpliceSeq)."
+        ),
+    }
+
+
 def _cis_coherence_provenance(hl: dict, target=None, indication=None) -> dict | None:
     """QUORUM / PROVENANCE summary for the cis-coherence call (VERDICT-INERT): which legs are coherent
     (CN→mRNA / CN→protein / meth→expr / expr→dep / conjoint), the mRNA-vs-protein slope ratio, amplicon
@@ -641,6 +671,7 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
     abdep = _s("abundance-dependency")  # leg-2 (PROTEIN) — verdict-inert
     ampx = _s("amp-expr-stratified-dependency")  # leg-2 (conjoint)
     pat = _s("patient-cis-coherence")  # VERDICT-INERT patient (TCGA) corroboration
+    iso = _s("cellline-isoform-expression")  # MOLECULAR-FORM facet (WHICH transcript) — VERDICT-INERT
 
     # Cross-grain agreement (verdict-inert confidence signal): does the patient tumour arm replicate the
     # cell-line call? Directional only (thresholds differ across grains) — None when either grain is unmeasured.
@@ -737,6 +768,16 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         "patient_n_cases_expression": pat.get("n_cases_expression"),
         "patient_dosage_agrees_with_cellline": dosage_agreement,
         "patient_silencing_agrees_with_cellline": silencing_agreement,
+        # MOLECULAR-FORM facet (VERDICT-INERT, fires no cis_coherence rule): WHICH transcript carries the
+        # target's expression across the DepMap panel. single_isoform_dominant = a cleaner modality/epitope
+        # target (an antibody / ADC / oligo hits a defined transcript, and the CN→expression cis coupling
+        # acts on that transcript); isoform_diverse flags that the DRUGGABLE isoform must be specified. The
+        # card was previously stranded (dispatched but consumed by nothing) — surfaced here into the
+        # molecular_form_caveat + the synthesis facet (#1598).
+        "isoform_expression_class": iso.get("isoform_expression_class"),
+        "dominant_isoform_fraction": iso.get("dominant_isoform_fraction"),
+        "n_expressed_isoforms": iso.get("n_expressed_isoforms"),
+        "dominant_isoform": iso.get("dominant_isoform"),
         # coherence framing
         "n_cell_lines_evaluated": cis.get("n_cell_lines_evaluated"),
     }
@@ -767,6 +808,11 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
     except Exception as exc:  # noqa: BLE001
         hl.setdefault("_enrichment_errors", {})["context_generalization_caveat"] = f"{type(exc).__name__}: {exc}"
         hl["context_generalization_caveat"] = None
+    try:
+        hl["molecular_form_caveat"] = _molecular_form_caveat(hl)
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["molecular_form_caveat"] = f"{type(exc).__name__}: {exc}"
+        hl["molecular_form_caveat"] = None
     try:
         hl["cis_coherence_provenance"] = _cis_coherence_provenance(hl, target=target, indication=indication)
     except Exception as exc:  # noqa: BLE001
@@ -828,8 +874,28 @@ _SYNTHESIS_FACET_KEYS = (
     "cis_protein_dosage_class",
     "mrna_vs_protein_dosage_slope_ratio",
     "abundance_dependency_class",
+    # protein-leg NUMERIC provenance (VERDICT-INERT): the materialized r / delta / paired-model-count that
+    # back the protein classes above — previously lifted into `hl` but dropped from the facet (#1598). A
+    # consumer that sees only the classes cannot read the effect size or the paired-model support.
+    "cn_prot_spearman_r",
+    "delta_log2abundance_amplified_vs_neutral",
+    "n_paired_models_cn_protein",
+    "protein_dependency_pearson_r",
     "patient_dosage_agrees_with_cellline",
     "patient_silencing_agrees_with_cellline",
+    # PATIENT (TCGA) raw cross-grain classes + case count (VERDICT-INERT): the classes behind the derived
+    # agreement booleans, so target-profile can read the patient arm directly, not only the agreement flags
+    # (previously lifted into `hl` but dropped from the facet — #1598).
+    "patient_cis_dosage_class",
+    "patient_methylation_silencing_class",
+    "patient_n_cases_expression",
+    # MOLECULAR-FORM (isoform) facet + modality-fit caveat (VERDICT-INERT) — WHICH transcript carries the
+    # target's expression. Surfaces the previously-stranded cellline-isoform-expression card (#1598).
+    "isoform_expression_class",
+    "dominant_isoform_fraction",
+    "n_expressed_isoforms",
+    "dominant_isoform",
+    "molecular_form_caveat",
     # VERDICT-INERT cis-coherence CONFIDENCE surface (v1.4.0) — the statistical-vs-causal over-call surface
     "cis_coherence_confidence_caveat",
     "causal_attribution_caveat",
