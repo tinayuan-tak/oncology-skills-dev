@@ -327,6 +327,42 @@ def test_spl_driver_is_corroborated():
     assert _spl_corroboration(_spl_h("recurrent_splice_driver"), None) == "single_arm"
 
 
+def test_spl_off_indication_carrier_arm_is_incommensurate():
+    """ARM-COMMENSURABILITY (SK#1674, sibling of the landed #1667 GENIE-superset fix).
+
+    `_spl_corroboration` folds a curated splice-registry arm (`splice_exon_skip_class`) and a live
+    DepMap-carrier arm (`n_depmap_carriers`). `exon_skip_carrier.depmap_carriers` is PAN-CANCER — it
+    counts every DepMap line carrying the event, with no indication filter. That count cannot agree or
+    disagree with `splice_event_off_indication`, a curated INDICATION-SCOPED negative ("the event is
+    registered but NOT oncogenic in THIS indication"): whether METex14 physically appears in DepMap's
+    (mostly-lung) panel says nothing about whether it drives off its curated scope. So the carrier arm
+    must leave the frame → `single_arm`, NOT a manufactured `low`/`high`.
+
+    Inputs are RAW ARM TOKENS (the curated class + a stored carrier count), re-derived through the real
+    function — no derived tier is baked into a fixture that could never fail. n=3 is the live MET/LUAD
+    audit carrier count, which a MET run in any off-lung indication (MET/COADREAD, MET/STAD are real
+    corpus rows) carries unchanged, since the probe is pan-cancer."""
+    # The bug flips a vote in BOTH directions. Before the fix these read `low` and `high` respectively;
+    # both are spurious because the pan-cancer carrier count is incommensurate with the off-scope negative.
+    assert _spl_corroboration(_spl_h("splice_event_off_indication", n=3), None) == "single_arm", (
+        "pan-cancer carriers cannot CONTRADICT an indication-scoped off-indication call (was a false `low`)"
+    )
+    assert _spl_corroboration(_spl_h("splice_event_off_indication", n=0), None) == "single_arm", (
+        "pan-cancer 0-carriers cannot CONFIRM an indication-scoped off-indication call (was a false `high`)"
+    )
+    # DepMap not consulted → the arm leaves the frame anyway (unchanged, both branches agree here).
+    assert _spl_corroboration(_spl_h("splice_event_off_indication"), None) == "single_arm"
+
+    # CONCORDANT CONTROL — the commensurate case must stay a genuine two-arm vote. A curated DRIVER in its
+    # oncogenic indication IS confirmed by pan-cancer carriers (METex14's carriers are its own lung lines),
+    # so this stays `high` and is BYTE-STABLE across the fix (the real MET/LUAD audit emission).
+    assert _spl_corroboration(_spl_h("recurrent_splice_driver", n=3), None) == "high"
+    # And a whole-registry negative keeps its relative reading (the producer emits n=None here, but the
+    # branch is preserved: a hypothetical carrier of an unregistered event is a genuine conflict).
+    assert _spl_corroboration(_spl_h("no_registered_event", n=7), None) == "low"
+    assert _spl_corroboration(_spl_h("no_registered_event", n=0), None) == "high"
+
+
 def test_spl_signal_corroboration_comove_over_full_vocab():
     """CO-MOVEMENT IS NOW AN EXACT IFF ON MEASUREDNESS, which is the stronger form of what this test
     always wanted. It formerly read "corroboration is `unmeasured` for every NON-POSITIVE signal", lumping

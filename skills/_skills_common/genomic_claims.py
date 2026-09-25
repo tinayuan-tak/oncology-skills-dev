@@ -461,17 +461,41 @@ def _spl_corroboration(h, c):
     Once a negative signal keeps a tier, "do live carriers agree" depends on which side the registry
     arm took: carriers >= 1 CONFIRMS a driver call but CONTRADICTS `no_registered_event` (DepMap sees
     carriers of an event the registry does not register). Testing `n >= 1` on its own would file that
-    contradiction as `high` — the same mistake `_snv_corroboration` documents, in a third costume."""
+    contradiction as `high` — the same mistake `_snv_corroboration` documents, in a third costume.
+
+    BUT THE RELATIVE READING ONLY HOLDS WHERE THE TWO ARMS ARE COMMENSURATE. The DepMap carrier probe is
+    PAN-CANCER (not indication-scoped), so it cannot agree or disagree with `splice_event_off_indication`
+    — a curated INDICATION-SCOPED negative — and that arm leaves the frame (SK#1674; see the inline note)."""
     bc = _by_class(h).get("splice") or {}
     # Keyed off the SHARED `_spl_tier` so signal and corroboration can never disagree on what counts as
     # measured (the historical signal=absent / corrob=unmeasured asymmetry).
-    tier = _spl_tier(bc.get("verdict"))
+    verdict = bc.get("verdict")
+    tier = _spl_tier(verdict)
     if tier == "unmeasured":
         return "unmeasured"
     n = bc.get("n_depmap_carriers")
-    # None/non-numeric = DepMap was not consulted: the arm leaves the frame rather than taking a side.
-    # `n == 0` is a MEASURED read ("we looked, no carriers"), so it counts and takes the negative side.
-    carrier_arm = None if not isinstance(n, (int, float)) else ((n >= 1) == (tier != "absent"))
+    # ── ARM-COMMENSURABILITY (SK#1674, same family as #1667/#1575) ──────────────────────────────────
+    # The DepMap carrier arm is a PAN-CANCER event-presence probe: `exon_skip_carrier.depmap_carriers`
+    # counts EVERY DepMap line carrying the event and is NOT indication-scoped. That count is commensurate
+    # with a curated DRIVER assertion (`recurrent_splice_driver`: the event exists AND is oncogenic HERE —
+    # for METex14 its live carriers are essentially all in the driver's own lung tissue, so they confirm
+    # it) and — vacuously — with `no_registered_event` (no event ⇒ the producer emits
+    # `n_depmap_carriers = None`, so this arm was never populated; a hypothetical carrier count against a
+    # whole-registry negative would be a genuine registry-vs-DepMap conflict, which is why that branch
+    # keeps the relative reading below). It is NOT commensurate with `splice_event_off_indication`: the
+    # event IS registered and its pan-cancer carriers are EXPECTED, but whether METex14 physically appears
+    # in DepMap's (mostly-lung) panel says nothing about whether it drives in THIS off-scope indication.
+    # Reading the carrier count against that indication-scoped negative manufactured a vote either way —
+    # carriers ≥ 1 → `low` (a false conflict), carriers == 0 → `high` (a false agreement) — so the carrier
+    # arm leaves the frame instead, exactly as `_cn_corroboration` drops a patient focal call against a
+    # directionless/negative cell-line arm. (MET/COADREAD and MET/STAD are real off-lung corpus rows.)
+    if verdict == "splice_event_off_indication" or not isinstance(n, (int, float)):
+        # None/non-numeric = DepMap was not consulted; off-indication = the carrier arm is incommensurate.
+        carrier_arm = None
+    else:
+        # `n == 0` is a MEASURED read ("we looked, no carriers"), so it counts and takes the negative side;
+        # the relative form keeps a driver call's carrier arm agreeing iff carriers are present.
+        carrier_arm = (n >= 1) == (tier != "absent")
     return corroboration_from_arms([True, carrier_arm])
 
 
