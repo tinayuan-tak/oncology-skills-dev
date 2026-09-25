@@ -241,13 +241,23 @@ def combinatorial_dependency_for_gene(target: str, summary_rows: Optional[tuple]
     klass = _classify(rows)
     partners = _rank_partners(rows, top_n=20) if rows else []
     strongest = partners[0] if partners else None
-    n_interacting = sum(
-        1 for p in partners if p["interaction_class"] in ("constitutive_buffering", "context_buffering", "suppressive")
+    # Count interacting partners over ALL screened rows, NOT the top_n-capped `partners` list — the
+    # counter must stay honest when >top_n partners interact (skills-side partner_table reads this).
+    # Re-classify each row with the reader-authoritative _partner_class (same basis as top_partners).
+    n_interacting = (
+        sum(1 for r in rows if _partner_class(r) in ("constitutive_buffering", "context_buffering", "suppressive"))
+        if rows
+        else 0
     )
     out = {
         "combinatorial_dependency_class": klass,
         "n_paralog_partners_screened": len(rows) if rows else 0,
         "n_interacting_partners": n_interacting,
+        # strongest_partner is the largest-magnitude interactor (mean_gi ascending, _rank_partners[0]);
+        # its own strongest_partner_class MAY disagree with the gene-level combinatorial_dependency_class,
+        # which is set by the most-severe class present across partners (_classify), not by magnitude. A
+        # strongest-by-magnitude partner need not be the class-determining one — this divergence is
+        # intentional and both fields are surfaced so a consumer can reconcile them.
         "strongest_partner": (strongest or {}).get("partner_gene"),
         "strongest_partner_mean_gi": (strongest or {}).get("mean_gi"),
         "strongest_partner_class": (strongest or {}).get("interaction_class"),

@@ -206,3 +206,15 @@ def test_regression_ERBB2_demotes_to_context():
     )
     r = combinatorial_dependency_for_gene("ERBB2", summary_rows=rows)
     assert r["combinatorial_dependency_class"] == "context_synthetic_lethal"
+
+
+def test_n_interacting_partners_counts_beyond_top20():
+    """n_interacting_partners must count ALL interacting rows, not the top_n(=20)-capped top_partners
+    list (skills-side partner_table reads this counter; a >20-partner gene must not silently undercount).
+    """
+    # 25 context_buffering partners (frac_strong >= CONTEXT_FRAC=0.10) -> all interacting.
+    rows = tuple(_pair(f"P{i:02d}", mean_gi=-0.15, frac_strong=0.20) for i in range(25))
+    r = combinatorial_dependency_for_gene("GENEA", summary_rows=rows)
+    assert len(r["top_partners"]) == 20  # display list still capped
+    assert r["n_interacting_partners"] == 25  # counter is honest beyond the cap
+    assert r["n_paralog_partners_screened"] == 25

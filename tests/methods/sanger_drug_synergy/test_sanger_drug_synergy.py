@@ -59,3 +59,15 @@ def test_summary_ranks_and_surfaces_strongest():
     assert s["n_synergy_partners"] == 2
     assert "chemical synergy" in s["synergy_context"]
     assert s["top_synergy_partners"][0]["partner_drug"] == "MK-2206"
+
+
+def test_true_zero_delta_emax_not_mis_sorted_as_sentinel():
+    """A genuine mean_delta_emax == 0.0 is falsy; the old `or -1.0` demoted it below a NEGATIVE-delta
+    peer of the same class. Within a class, higher delta must rank first, so 0.0 outranks -0.05."""
+    rows = [
+        _row("supported_synergy", "NegPair", -0.05, pt="X"),
+        _row("supported_synergy", "ZeroPair", 0.0, pt="Y"),
+    ]
+    s = synergy_partners_for_gene("EGFR", rows=rows)
+    assert s["top_synergy_partners"][0]["partner_drug"] == "ZeroPair"
+    assert s["strongest_synergy_partner_drug"] == "ZeroPair"

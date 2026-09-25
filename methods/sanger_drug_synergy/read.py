@@ -72,7 +72,13 @@ def _classify(rows: Optional[list]) -> str:
 
 def _rank(rows: list, top_n: int = 20) -> list:
     ordered = sorted(
-        rows, key=lambda r: (_CLASS_RANK.get(r.get("synergy_class"), 9), -(r.get("mean_delta_emax") or -1.0))
+        rows,
+        key=lambda r: (
+            _CLASS_RANK.get(r.get("synergy_class"), 9),
+            # `is not None` guard, NOT `or`: a genuine mean_delta_emax == 0.0 is falsy and `or -1.0` would
+            # mis-sort a true-zero-effect pair as if it held the sentinel worst value.
+            -(r.get("mean_delta_emax") if r.get("mean_delta_emax") is not None else -1.0),
+        ),
     )
     return [
         {
