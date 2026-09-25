@@ -256,3 +256,83 @@ the collapsing/composite classifiers named in §2c rather than adding claims alo
   (patient vs. model, TCGA vs. GENIE panel-coverage-corrected) and are kept as separate fields —
   correct discipline, but a future canonical schema needs an explicit grain axis on the property,
   not a single flat name, or it will silently re-introduce the mixing this inventory screened for.
+
+## 6. Promotion-eligibility taxonomy (this doc's primary, durable value)
+
+**Reframe (SK#1630).** §§1–4 answered a one-time go/no-go for issue **A** and that question is
+now *closed* (A does not proceed as a general architecture; §4). What outlives that verdict is a
+**map**: the layer a field lives on, and — the load-bearing part — **whether the field is allowed
+to become a shared property "island" at all** (to instantiate the evidence-property envelope
+landed in #1629). F's original 5-bucket split (§1) forced a false binary in which any field that
+failed the "clean" test read as *bad*; in fact many are legitimate, reproducible **within-card
+summaries** — useful, just not portable as a single cross-card/cross-source property. The taxonomy
+below replaces that split. It is the **architectural guardrail**: it is what stops a future
+developer from seeing a categorical field like `combination_opportunity_class` and promoting it
+into a property claim *just because it looks categorical*.
+
+**This taxonomy — not the 20.1% clean-% — is now the primary value of this document.** The clean-%
+and the issue-A go/no-go (§§2c, 4) are retained for the record but superseded; do not re-run or
+re-litigate them.
+
+### 6a. The six categories (layer spectrum)
+
+Ordered from most-raw to most-derived. **Only `atomic-property-candidate` and
+`integrated-property-candidate` are island-eligible** — everything else is, by category, ineligible
+to instantiate the #1629 envelope. The category *itself* is the guardrail; eligibility is decided
+by which layer a field sits on, not by whether it happens to be categorical.
+
+```
+measurement → atomic-property-candidate → integrated-property-candidate → local-composite → L3-context → display/provenance
+              └──────────── island-eligible ────────────┘
+```
+
+| Category | What it is | Island-eligible? | Maps from F bucket (§1) |
+|---|---|:---:|---|
+| `measurement` | Raw / simple resolved value — a count, fraction, median, p/q-value, hazard ratio, CoV, a single directly-read datum. No canonicalization intended. | no | `measurement-only` |
+| `atomic-property-candidate` | A single biological fact from one measurement/source at one stated grain, that *could be* canonicalized into a shared property (the shape of the expression `presence`/`magnitude`/… bundle; an ordinal band over one continuous measurement). | **yes** | the "clean" part of `candidate` (+ the 1 exact `shared-property`) |
+| `integrated-property-candidate` | One property resolved by corroborating ≥2 *independent* sources/assays — the L2b concordance shape. Island-eligible and the preferred target. | **yes** | landed concordance claims + a few `candidate` fields |
+| `local-composite` | A reproducible within-card summary that folds ≥1 fact into a single token under a "dominant"/"landscape"/"overall" framing. **Legitimate and useful** as a card readout — **NOT** island-eligible, because the token is not a single portable fact. | no | the "not-clean" part of `candidate` |
+| `L3-context` | A decision- / context-conditioned output (modality-fit, grades, gates/vetoes, risk tiers, subtype/subgroup facets). A *frame input*, never a property; pending issue **G**. | no | `L3-context` |
+| `display/provenance` | Presentational or lineage-only tokens (`_version`, `_pin`, `_ref`, `provenance`, `source`, `pmid`, `_rationale`, `_note`, narrative prose). | no | `display-only` |
+
+The dividing line between `local-composite` and the two island-eligible candidate categories is
+exactly F's "clean" test (§1, "The clean test, applied concretely"): a token is `local-composite`
+(ineligible) if it folds ≥2 distinct biological facts, reaches into another card's output, or
+collapses multiple meanings under a dominant/landscape/overall framing. `integrated-property-candidate`
+differs from `atomic-property-candidate` only by drawing on ≥2 *independent* sources for the *same*
+fact — that is corroboration, not folding, and is the good direction.
+
+### 6b. Exemplars (sampled — from the 45 cards already read for F, §1)
+
+**Sampled / exemplar-based, per the §5 caveat discipline.** These are drawn only from the 45 cards
+already read in F's judgment pass — this is **not** a re-audit of all 947 candidate fields, and the
+1814-field census was not re-classified into these six categories exhaustively. The exemplars
+illustrate the guardrail; the disqualifying fact is named for each.
+
+**`local-composite` (legitimate within-card summaries, NOT island-eligible):**
+
+| Field (card) | Disqualifying fact |
+|---|---|
+| `mutation_landscape_class` (`mutation-type-counts`) | folds **5** meanings — missense-dominance, LoF-dominance, mixed, no-mutation, underpowered — into one token |
+| `expression_class` / `_classify_expression` (`tumor-rna-distribution`, all 8 expression classifiers per TC#864) | folds **3** facts (presence + magnitude + heterogeneity) into one flat class and drops the bimodal case — the field motivating the whole epic (#1506) |
+| `combination_opportunity_class` (pre-decision, `combo-crispr-screen`) | folds **4** inputs — mediator count + strongest shift + significance + power floor — into one call |
+| `resistance_emergence_class` (`resistance-emergence-signature`) | folds **4** inputs — mediator count + strongest shift + significance + power floor |
+| `known_drug_tractability_class` (`known-drug-tractability`) | folds several DGIdb category flags into one class |
+| `degradability_feasibility_class` (`degradation-feasibility`) | folds E3 evidence + precedent + surface-exclusion (**3** inputs) |
+
+**`L3-context` (decision/context frame, never a property):**
+
+| Field (card) | Disqualifying fact |
+|---|---|
+| `surface_confirmation_state` (`adc-tce-modality-fit`) | explicitly **DERIVED cross-card** by the surface_modality preprocessor from **3** other cards — cross-card reach = 3 |
+| `promiscuous_amplicon_fusion` value of `fusion_class` (`fusion-rearrangement-landscape`) | a documented **SKILL-LAYER DEMOTION** keyed on `copy-number-distribution.patient_focal_cn_class` — cross-card reach = 1 |
+| `adc_grade` / `tce_grade` (`adc-tce-modality-fit`) | modality-conditioned **decision grade**, not a fact about the target — a frame input |
+| `target_safety_prioritisation` risk tier (`target-safety-prioritisation`) | a **decision gate** rolling up multiple safety signals into a prioritisation call |
+| subtype/subgroup/indication-conditioned facets (e.g. `subgroup-stratified-expression`, `temporal-setting-expression-shift`) | **context-conditioned** grain — the same fact at a decision-frame slice, routed to L3 in F's mechanical pass |
+
+For contrast, the island-eligible categories are already enumerated in §3's registry: the 3 landed
+concordance claims (`bulk_vs_singlecell_coverage_concordance`, `crispr_rnai_essentiality_concordance`,
+`normal_liability_concordance`) are the archetypal `integrated-property-candidate`s, and the
+`genomic_instability` arms, `recurrence_class`, and `surfaceome_family` are the next
+`integrated-property-candidate` targets; the expression `presence`/`magnitude`/`prevalence`/
+`heterogeneity`/`lineage_restriction` bundle is the archetypal `atomic-property-candidate` shape.
