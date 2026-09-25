@@ -30,6 +30,10 @@ applies_when:
 
 required_inputs:
   - product_id: hpa-pathology-cancer-ihc-per-gene-v1
+  # Source manifest (HPA v23 pathology.tsv) the per-gene product is derived from — the v23 pin lived
+  # only in prose (caveat) before. Listing it keeps the resolve_cards provenance stamp equal to the
+  # full input lineage the reader depends on.
+  - product_id: hpa-pathology-cancer-ihc-v23
 
 methods:
   - call: hpa-pathology-cancer-ihc
@@ -68,6 +72,15 @@ outputs:
       - unfavorable
       - none
 
+  # The protein_presence_class -> fraction_detected binning edge (previously declared nowhere): the
+  # upstream data-catalog classifier (scripts/derive_hpa_pathology_cancer_ihc.py:_classify) bins
+  # fraction_detected at the two cuts below, so a consumer re-bins through fraction_detected, never the
+  # headline class token. Round-trips against the class_cutpoint threshold_roles.
+  derivations:
+    protein_presence_class:
+      derives_from: [fraction_detected]
+      cutpoints: [ihc_detected_low_max_fraction, ihc_detected_moderate_max_fraction]
+
 thresholds:
   ihc_detected_low_max_fraction: 0.33
   ihc_detected_moderate_max_fraction: 0.66
@@ -77,6 +90,13 @@ caveats:
   - "HPA cancer types are COARSER than OncoTree (one 'lung cancer' type = LUAD+LUSC+NSCLC; one 'colorectal cancer' = COAD+READ; no subtype split). The read reports hpa_cancer_type so the granularity is explicit; the same HPA read is shared across OncoTree codes that map to one HPA type."
   - "IHC is antibody-dependent (staining reflects the specific HPA antibody + epitope); small patient n per cancer (often 4-12). Read fraction_detected alongside n_patients_total, not as a population prevalence. Source pinned to HPA v23 (last release shipping the bulk pathology.tsv); IHC corpus is version-stable."
   - "prognostic_* are HPA's own survival associations (favorable/unfavorable) for the gene in that cancer — DISPLAY context, not a presence signal."
+  - "LICENSE: HPA is CC-BY-SA-4.0 (proteinatlas.org/about/licence). Share-alike is INHERITABLE — any external redistribution of these IHC rows must carry attribution to Uhlen et al. 2015 Science 347(6220):1260419 + the HPA v23 release AND a share-alike notice. Commercial internal-analysis use is permitted with attribution. Source pinned to HPA v23 (manifest hpa-pathology-cancer-ihc-v23; last release with the bulk pathology.tsv)."
+  - |
+    ANTIBODY RELIABILITY is NOT modeled: HPA staining reflects upstream single-antibody curation, and
+    reliability tiers (enhanced/supported/approved/uncertain) and cross-antibody incomparability are
+    not captured here. Read staining as antibody-conditional, not an absolute presence measurement.
+    (A data-catalog companion issue will emit antibody_reliability; declare it here — schema +
+    vocabulary — once available.)
 
 # DATA_TO_SKILL_CONTRACT — a DIRECT view of the tumor_protein_ihc_presence measurement (HPA antibody
 # staining fraction per gene x cancer type). Dataset-kind (single-source raw HPA IHC), NOT a derived
@@ -88,6 +108,20 @@ modality_relevance: [antibody, adc, bite_tce, small_molecule, degrader]
 entity_grains: [target_indication]
 schema_version: 1
 threshold_roles:
+  # BOTH cuts bin fraction_detected -> protein_presence_class in the UPSTREAM data-catalog classifier
+  # (scripts/derive_hpa_pathology_cancer_ihc.py:_classify), not in any card predicate — hence
+  # class_cutpoint (round-tripped against outputs.derivations), never a predicate reference.
+  ihc_detected_low_max_fraction:
+    role: class_cutpoint
+    bins: protein_presence_class
+    of: fraction_detected
+    boundary: ihc_detected_moderate
+    scale: fraction
+    note: 'Classifier _classify: fraction_detected > 0.33 (and <= 0.66) admits ihc_detected_moderate; <= 0.33 is ihc_detected_low. Applied upstream in the data-catalog derive, not a card predicate. Re-bin through fraction_detected, never the headline class token.'
   ihc_detected_moderate_max_fraction:
-    role: reader_gate
-    note: 'Applied by the skill-side reader (evidence_salience.contract_threshold), not by a card predicate: it anchors the tumor_protein_ihc_presence reference frame over `fraction_moderate_strong` (fraction), single-sourcing the display cut and claim_record.magnitude.distance_to_cut. THRESHOLD_UNUSED here is a false positive on a live read.'
+    role: class_cutpoint
+    bins: protein_presence_class
+    of: fraction_detected
+    boundary: ihc_detected_high
+    scale: fraction
+    note: 'Classifier _classify: fraction_detected > 0.66 admits ihc_detected_high. The same 0.66 also single-sources the skill reference frame over fraction_moderate_strong (evidence_salience distance_to_cut / claim_record.magnitude) — a display anchor, still verdict-inert.'

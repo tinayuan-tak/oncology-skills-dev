@@ -3,15 +3,15 @@
 # boolean/record/array/string/unknown). NOT the editorial signal/context/provenance/display
 # disposition (that is skills-side). --self-check gates drift.
 counts:
-  categorical: 127
-  numeric: 439
-  boolean: 36
+  categorical: 129
+  numeric: 448
+  boolean: 37
   record: 13
   array: 57
-  string: 167
+  string: 169
   unknown: 23
-n_cards: 49
-n_fields: 862
+n_cards: 50
+n_fields: 876
 by_card:
   adc-tce-modality-fit:
     adc_grade: unknown
@@ -392,6 +392,21 @@ by_card:
     obs_lof_count: numeric
     pli_score: numeric
     syn_z_score: numeric
+  hpa-pathology-cancer-ihc:
+    fraction_detected: numeric
+    fraction_moderate_strong: numeric
+    hpa_cancer_type: string
+    method_version: string
+    n_high: numeric
+    n_low: numeric
+    n_medium: numeric
+    n_not_detected: numeric
+    n_patients_total: numeric
+    prognostic_is_significant: boolean
+    prognostic_p_value: numeric
+    prognostic_type: categorical
+    protein_presence_class: categorical
+    staining_score: numeric
   known-drug-tractability:
     approved_drug_engagement_class: categorical
     approved_drug_modality: categorical
