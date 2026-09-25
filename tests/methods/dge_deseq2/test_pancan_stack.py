@@ -136,8 +136,8 @@ def test_indication_column_and_row_count(monkeypatch):
     assert len(stacked) == 6  # 3 indications x 2 genes
 
 
-def test_all_indications_roster_has_27():
-    assert len(d.all_indications()) == 27
+def test_all_indications_roster_has_28():
+    assert len(d.all_indications()) == 28  # +LAML (#734 Phase 2)
     # every stack-build indication is in the declared published roster (no silent gap).
     for ind in d.all_indications():
         assert ind in d._PUBLISHED_INDICATIONS

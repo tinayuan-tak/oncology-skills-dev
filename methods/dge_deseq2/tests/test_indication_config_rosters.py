@@ -14,9 +14,9 @@ import copy
 
 from methods.dge_deseq2 import config as cfg
 
-# derive_pancan_stack._PUBLISHED_INDICATIONS — the 27 published products (sorted). The
-# per-indication `cell_b_semantics` vintage payload was removed in analysis-methods#727 when
-# the ComBat cell B was deleted; only the roster of published names remains.
+# derive_pancan_stack._PUBLISHED_INDICATIONS — the 28 published products (sorted); 27 before
+# #734 Phase 2 added LAML. The per-indication `cell_b_semantics` vintage payload was removed in
+# analysis-methods#727 when the ComBat cell B was deleted; only the roster of published names remains.
 EXPECTED_PUBLISHED = sorted(
     [
         "COADREAD",
@@ -32,6 +32,7 @@ EXPECTED_PUBLISHED = sorted(
         "KICH",
         "KIRC",
         "KIRP",
+        "LAML",  # +#734 Phase 2: published against GTEx whole blood (maturation-state caveat)
         "LGG",
         "LIHC",
         "LUAD",
@@ -75,6 +76,7 @@ EXPECTED_TCGA = {
     "LIHC": ["LIHC"],
     "CESC": ["CESC"],
     "ESCA": ["ESCA"],
+    "LAML": ["LAML"],  # +#734 Phase 2
 }
 
 # read.INDICATION_TO_GTEX_TISSUE (HNSC deliberately absent — no clean GTEx match).
@@ -99,6 +101,7 @@ EXPECTED_GTEX = {
     "LIHC": "LIVER",
     "CESC": "CERVIX_UTERI",
     "ESCA": "ESOPHAGUS",
+    "LAML": "BLOOD",  # +#734 Phase 2 — GTEx whole blood (NOT bone marrow; recount3's is K-562)
 }
 
 # emit_pan_tissue.PAN_TISSUE_INDICATIONS — ORDER is the figure row order (order-sensitive).
@@ -128,7 +131,7 @@ EXPECTED_PAN_TISSUE = [
 # --- projections match the frozen literals -------------------------------------------------
 def test_published_indications_matches_frozen_literal():
     assert cfg.published_indications() == EXPECTED_PUBLISHED
-    assert len(EXPECTED_PUBLISHED) == 27
+    assert len(EXPECTED_PUBLISHED) == 28
 
 
 def test_composite_indications_matches():
@@ -137,14 +140,14 @@ def test_composite_indications_matches():
 
 def test_tcga_studies_matches():
     assert cfg.indication_to_tcga_studies() == EXPECTED_TCGA
-    assert len(EXPECTED_TCGA) == 21
+    assert len(EXPECTED_TCGA) == 22
 
 
 def test_gtex_tissue_matches_and_omits_hnsc():
     got = cfg.indication_to_gtex_tissue()
     assert got == EXPECTED_GTEX
     assert "HNSC" not in got
-    assert len(got) == 20
+    assert len(got) == 21
 
 
 def test_pan_tissue_matches_in_order():
@@ -183,7 +186,7 @@ def test_published_flag_gates_published_indications(monkeypatch):
     monkeypatch.setattr(cfg, "_load", lambda: data)
     m = cfg.published_indications()
     assert "ACC" not in m
-    assert len(m) == 26
+    assert len(m) == 27  # 28 published, less the one flipped off
 
 
 def test_in_read_map_flag_gates_tcga_studies(monkeypatch):
@@ -200,56 +203,100 @@ def test_null_gtex_tissue_is_excluded(monkeypatch):
     assert "BRCA" not in cfg.indication_to_gtex_tissue()
 
 
-# --- #734 Phase 1: staged universe-expansion candidates (must stay VERDICT-INERT) -----------
-# LAML/DLBC are DEFINED (published: false + in_read_map: false) toward the issue's "~30 TCGA
-# studies" but must not move any live roster until their flags are flipped WITH domain sign-off.
-EXPECTED_STAGED = {"LAML", "DLBC"}
+# --- #734 Phase 2: the staged set is now EMPTY (LAML published, DLBC dropped) ----------------
+# Phase 1 (#781) staged LAML + DLBC verdict-inert. Phase 2 (this change) resolved both after
+# domain sign-off: LAML -> published (above), DLBC -> excluded (no nodal-lymphoid GTEx normal).
+# The `staged` MECHANISM remains for a future candidate; the set it currently projects is empty.
+EXPECTED_STAGED: set[str] = set()
 
-# The 7 TCGA study codes not covered by a published product triage into: staged (a GTEx normal
-# exists), uncertain, or excluded (no usable GTEx normal). Only the two staged ones may appear.
-NO_GTEX_NORMAL_STUDIES = {"MESO", "SARC", "THYM", "UVM"}  # excluded — no matched normal in GTEx
+# TCGA study codes with no usable matched GTEx normal -> deliberately absent from the config
+# entirely (adding one would FABRICATE a matched normal, the failure HNSC's null guard prevents).
+# DLBC joined this set in Phase 2 (nodal germinal-center B cells are in neither GTEx spleen nor
+# blood); MESO/SARC/THYM/UVM have no GTEx normal tissue at all.
+NO_GTEX_NORMAL_STUDIES = {"DLBC", "MESO", "SARC", "THYM", "UVM"}
 UNCERTAIN_STUDIES = {"CHOL"}  # bile duct — GTEx has LIVER but no bile-duct normal; not yet staged
 
 
-def test_staged_indications_are_exactly_laml_dlbc():
+def test_staged_set_is_empty_after_phase2():
+    # Phase 2 resolved both Phase-1 candidates; nothing is awaiting sign-off.
     assert set(cfg.staged_indications()) == EXPECTED_STAGED
 
 
-def test_staged_entries_are_not_published_and_not_in_read_map():
+def test_laml_is_published_with_surfaced_caveat():
+    # LAML crossed from staged -> published in Phase 2. The accepted maturation-state confound
+    # must ride ALONG with the publish (it is the signed-off condition of publishing), so a
+    # published LAML with an empty/absent caveat is a regression.
     inds = cfg._load()["indications"]
-    for name in EXPECTED_STAGED:
-        assert inds[name]["published"] is False, f"{name} must not be published in Phase 1"
-        assert inds[name]["in_read_map"] is False, f"{name} must not be in the read map in Phase 1"
+    laml = inds["LAML"]
+    assert laml["published"] is True
+    assert laml["in_read_map"] is True
+    assert laml["gtex_tissue"] == "BLOOD"  # NOT bone marrow (recount3's is the K-562 cell line)
+    caveat = laml.get("caveat")
+    assert isinstance(caveat, str) and caveat.strip(), "published LAML must carry its signed-off caveat"
+    assert "maturation" in caveat.lower()
 
 
-def test_staged_entries_carry_a_nonnull_caveat():
-    for name, attrs in cfg.staged_indications().items():
-        caveat = attrs["caveat"]
-        assert isinstance(caveat, str) and caveat.strip(), f"{name} staged without a caveat"
+def test_dlbc_is_absent_from_the_config():
+    # DLBC was staged in Phase 1 and DROPPED in Phase 2 (unpaired in the literature). It must not
+    # linger as a staged or published entry, and it is now one of the excluded no-normal studies.
+    inds = cfg._load()["indications"]
+    assert "DLBC" not in inds
+    assert "DLBC" not in cfg.staged_indications()
+    assert "DLBC" not in cfg.published_indications()
 
 
-def test_staged_entries_record_a_candidate_gtex_tissue():
-    # The matched-normal proposal is recorded for Phase 2 (consumed by nothing yet).
-    for name, attrs in cfg.staged_indications().items():
-        assert attrs["gtex_tissue"], f"{name} staged without a candidate gtex_tissue"
+def test_staged_projection_reads_the_flag_via_injection(monkeypatch):
+    # The staged set is empty, so the per-entry invariants above would go VACUOUS. Inject a
+    # synthetic staged candidate to prove the MECHANISM still has teeth: staged_indications()
+    # surfaces exactly the flagged entry, exposes its caveat + candidate gtex_tissue, and the
+    # entry leaks into NO verdict-bearing projection.
+    data = copy.deepcopy(cfg._load())
+    data["indications"]["ZZZTEST"] = {
+        "tcga_studies": ["ZZZ"],
+        "gtex_tissue": "BLOOD",
+        "published": False,
+        "in_read_map": False,
+        "staged": True,
+        "caveat": "synthetic staged candidate for the mechanism test",
+    }
+    monkeypatch.setattr(cfg, "_load", lambda: data)
+
+    staged = cfg.staged_indications()
+    assert set(staged) == {"ZZZTEST"}, "staged_indications() must READ the flag, not hard-code a set"
+    attrs = staged["ZZZTEST"]
+    assert attrs["caveat"].strip()
+    assert attrs["gtex_tissue"] == "BLOOD"
+
+    # verdict-inert: a staged entry moves no live projection.
+    assert "ZZZTEST" not in cfg.published_indications()
+    assert "ZZZTEST" not in cfg.indication_to_tcga_studies()
+    assert "ZZZTEST" not in cfg.indication_to_gtex_tissue()
+    assert "ZZZTEST" not in cfg.pan_tissue_indications()
+    assert "ZZZTEST" not in cfg.composite_indications()
 
 
-def test_staged_entries_leak_into_no_verdict_projection():
-    # The whole point of Phase 1: staging must not move a single live projection.
-    for name in EXPECTED_STAGED:
-        assert name not in cfg.published_indications()
-        assert name not in cfg.indication_to_tcga_studies()
-        assert name not in cfg.indication_to_gtex_tissue()
-        assert name not in cfg.pan_tissue_indications()
-        assert name not in cfg.composite_indications()
+def test_clearing_the_staged_flag_drops_the_entry(monkeypatch):
+    # Mutation companion: with the flag off, the same synthetic entry disappears from the
+    # projection — proving the flag GATES staging (not the entry's mere presence).
+    data = copy.deepcopy(cfg._load())
+    data["indications"]["ZZZTEST"] = {
+        "gtex_tissue": "BLOOD",
+        "published": False,
+        "in_read_map": False,
+        "staged": False,
+        "caveat": "synthetic",
+    }
+    monkeypatch.setattr(cfg, "_load", lambda: data)
+    assert "ZZZTEST" not in cfg.staged_indications()
 
 
-def test_frozen_roster_counts_unchanged_by_staging():
-    # Belt-and-suspenders alongside the frozen-literal pins above: the roster SIZES are exactly
-    # what they were before #734 staging (a size drift here means a staged entry leaked).
-    assert len(cfg.published_indications()) == 27
-    assert len(cfg.indication_to_tcga_studies()) == 21
-    assert len(cfg.indication_to_gtex_tissue()) == 20
+def test_frozen_roster_counts():
+    # Belt-and-suspenders alongside the frozen-literal pins above: the roster SIZES after #734
+    # Phase 2 (LAML published, DLBC dropped). published/read-map/gtex each +1 for LAML;
+    # pan_tissue_render unchanged (LAML is not rendered, like the 8 rarer published indications).
+    assert len(cfg.published_indications()) == 28
+    assert len(cfg.indication_to_tcga_studies()) == 22
+    assert len(cfg.indication_to_gtex_tissue()) == 21
     assert len(cfg.pan_tissue_indications()) == 19
 
 
@@ -267,11 +314,3 @@ def test_no_gtex_normal_and_uncertain_studies_are_not_present():
     inds = cfg._load()["indications"]
     for study in NO_GTEX_NORMAL_STUDIES | UNCERTAIN_STUDIES:
         assert study not in inds, f"{study} must not be in the config without a domain sign-off"
-
-
-def test_staged_flag_gates_staged_indications(monkeypatch):
-    # Mutation: staged_indications() READS the flag, it is not a hard-coded {LAML, DLBC}.
-    data = copy.deepcopy(cfg._load())
-    data["indications"]["LAML"]["staged"] = False
-    monkeypatch.setattr(cfg, "_load", lambda: data)
-    assert "LAML" not in cfg.staged_indications()

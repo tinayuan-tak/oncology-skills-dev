@@ -66,6 +66,80 @@ dedupe_one_aliquot_per_case <- function(ids, case_id_by_id, order_key_by_id = NU
   ids[keep]
 }
 
+# --- GTEx cell-line screen (#734, dge_deseq2 arc #690) ----------------------
+# recount3 organizes GTEx by an SMTS-level tissue "project", but several projects
+# BUNDLE immortalized CELL LINES under the same umbrella: "Cells - EBV-transformed
+# lymphocytes" sit inside the BLOOD project (~19% of it), "Cells - Cultured
+# fibroblasts" inside SKIN (~27%), and "Cells - Leukemia cell line (CML)" IS the
+# K-562 line inside BONE_MARROW. These are NOT primary normal tissue: pairing a
+# tumor against immortalized proliferating lines contaminates the "normal" arm
+# with the very proliferation/immortalization signal that should distinguish
+# cancer. It is most consequential for LAML, whose ONLY normal contrast is GTEx
+# blood (TCGA-LAML has no adjacent normal — cell A is empty), so a 19% cell-line
+# fraction would directly shape its verdict; and for SKCM (SKIN is 27% fibroblast
+# lines). The loader historically applied NO such screen.
+#
+# Every GTEx cell-line SMTSD begins "Cells - "; a primary-tissue SMTSD never does,
+# so the prefix is a complete, future-proof discriminator (captures the CML line
+# too). This is a NO-OP for the 13 clean tissues and drops samples only from SKIN
+# and BLOOD. FAIL-CLOSED: a GTEx metadata table lacking SMTSD stops the run rather
+# than silently passing cell lines through — the passthrough is exactly the
+# failure this guards against.
+#
+# `md`: GTEx metadata data.frame/data.table (must carry an SMTSD column).
+# `tissue_label`: the tissue code, for log messages only.
+# Returns `md` with the cell-line rows removed (order of survivors preserved).
+GTEX_CELL_LINE_SMTSD_PREFIX <- "Cells - "
+drop_gtex_cell_lines <- function(md, tissue_label = "") {
+  if (!("SMTSD" %in% names(md))) {
+    stop("[drop_gtex_cell_lines] GTEx metadata for ", tissue_label,
+         " lacks an SMTSD column — cannot screen cell lines (refusing to pass ",
+         "through, which would admit immortalized lines into the normal arm)",
+         call. = FALSE)
+  }
+  is_cell_line <- startsWith(as.character(md$SMTSD), GTEX_CELL_LINE_SMTSD_PREFIX)
+  is_cell_line[is.na(is_cell_line)] <- FALSE
+  n_drop <- sum(is_cell_line)
+  if (n_drop > 0) {
+    kinds <- paste(sort(unique(as.character(md$SMTSD[is_cell_line]))), collapse = "; ")
+    message(sprintf(paste0("[drop_gtex_cell_lines] GTEx %s: dropped %d cell-line ",
+                           "sample(s) of %d [%s]"),
+                    tissue_label, n_drop, nrow(md), kinds))
+  }
+  md[!is_cell_line, ]
+}
+
+# --- TCGA tumor sample-type selection (#734, dge_deseq2 arc #690) ------------
+# recount3 TCGA metadata labels each sample by `gdc_cases.samples.sample_type`.
+# The four-cell "tumor" arm is "Primary Tumor" for every SOLID cohort, but
+# TCGA-LAML — the only published LIQUID tumor (arc #734) — has NO "Primary
+# Tumor" rows at all: all 178 of its samples are labelled "Primary Blood
+# Derived Cancer - Peripheral Blood" (the leukemic peripheral-blood blasts).
+# A tumor filter of `== "Primary Tumor"` therefore selects ZERO LAML tumor
+# samples and the run dies with an empty tumor arm. The tumor set must admit
+# LAML's liquid-tumor label.
+#
+# DELIBERATELY EXCLUDED: "Metastatic" / "Additional Metastatic" / "Recurrent
+# Tumor". This is load-bearing for the SKCM re-materialization in the same arc:
+# SKCM is 368 Metastatic + 103 Primary Tumor, and its ALREADY-SHIPPED verdict
+# was computed on the 103 Primary-Tumor samples only. Admitting Metastatic here
+# would move SKCM's tumor arm and confound the cell-line-filter verdict diff
+# with an unrelated cohort change. The blood-cancer label is absent from every
+# solid cohort, so adding it is a strict no-op for the other 27 published
+# indications (verified against recount3 metadata, 2026-09-25).
+TCGA_TUMOR_SAMPLE_TYPES <- c(
+  "Primary Tumor",
+  "Primary Blood Derived Cancer - Peripheral Blood"
+)
+
+# Logical mask over a sample_type vector: TRUE where the sample is a tumor of a
+# kind the four-cell tumor arm admits. NA sample_type is FALSE (not a tumor).
+is_tcga_tumor_sample_type <- function(sample_type) {
+  hit <- as.character(sample_type) %in% TCGA_TUMOR_SAMPLE_TYPES
+  hit[is.na(sample_type)] <- FALSE
+  hit
+}
+
 # --- Xena/Toil expected_count de-transform (S1b, github analysis-methods#694) --
 # The UCSC Toil hub ships the gene matrix as log2(expected_count + 1), NOT raw
 # integer counts (recorded in the source manifest xena-toil-tcga-target-gtex-*).

@@ -169,7 +169,10 @@ for (study in tcga_studies) {
   sub_col <- "gdc_cases.submitter_id"
   stopifnot(st_col %in% names(md), id_col %in% names(md))
 
-  tumor_ids  <- md[get(st_col) == "Primary Tumor",        get(id_col)]
+  # Tumor arm admits "Primary Tumor" (solid cohorts) AND LAML's liquid-tumor
+  # label "Primary Blood Derived Cancer - Peripheral Blood"; metastatic/recurrent
+  # are excluded (see is_tcga_tumor_sample_type in _four_cell_lib.R, #734).
+  tumor_ids  <- md[is_tcga_tumor_sample_type(get(st_col)), get(id_col)]
   normal_ids <- md[get(st_col) == "Solid Tissue Normal",  get(id_col)]
   tss_by_id  <- setNames(md[[tss_col]], md[[id_col]])
   # Patient-barcode-by-file-id map (NA vector when the column is absent, so the
@@ -215,6 +218,11 @@ if (!is.null(gtex_tissue)) {
   gtex_gs <- read_gene_sums("gtex", gtex_tissue)
   gtex_md <- read_metadata("gtex", gtex_tissue)
   stopifnot("external_id" %in% names(gtex_md))
+  # Screen out recount3's immortalized cell-line pseudo-tissues (EBV-transformed
+  # lymphocytes in BLOOD, cultured fibroblasts in SKIN, the K-562 line in
+  # BONE_MARROW) BEFORE selecting gtex_ids, so they never enter the normal arm
+  # (#734; drop_gtex_cell_lines is a no-op for the clean tissues).
+  gtex_md <- drop_gtex_cell_lines(gtex_md, gtex_tissue)
   gtex_ids <- intersect(gtex_md$external_id, setdiff(names(gtex_gs), "gene_id"))
   # DIAGNOSTIC-ONLY RNA-quality covariates. SMRIN (RNA integrity) and SMTSISCH
   # (ischemic time) are the mechanism of the post-mortem GTEx confound. The RIN

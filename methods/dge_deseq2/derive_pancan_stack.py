@@ -103,7 +103,7 @@ def _sensitivity_s3_uri(indication: str) -> str:
 
 
 def all_indications() -> list[str]:
-    """The 27 indications with a published sensitivity product (upper-case)."""
+    """The 28 indications with a published sensitivity product (upper-case)."""
     return sorted(_PUBLISHED_INDICATIONS)
 
 
