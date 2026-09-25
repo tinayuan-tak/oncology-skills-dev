@@ -1292,6 +1292,14 @@ def run(
             "requested_strata": panel["subtype"]["requested_strata"],
             "available_strata": panel["subtype"]["available_strata"],
             "convergence_facet": panel["subtype"]["convergence_facet"],
+            # per-stratum n-floor status — the auditable surface for the citable-token gate. Without it
+            # a reviewer cannot reconstruct which stratum-axis citations were below-floor (hence not
+            # credited by check_traceability). Each entry carries {stratum, n_floor_met_by_axis}; an
+            # axis with n_floor_met_by_axis=false is UNDERPOWERED and is NOT in the citable set.
+            "per_stratum_n_floor": [
+                {"stratum": rec.get("stratum"), "n_floor_met_by_axis": rec.get("n_floor_met_by_axis", {})}
+                for rec in panel["subtype"]["per_stratum"]
+            ],
         },
         "degraded_mode": {
             "dossier_present": panel["dossier_present"],

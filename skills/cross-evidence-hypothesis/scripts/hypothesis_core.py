@@ -978,12 +978,17 @@ def parse_subtype_resolved(pkg: dict) -> dict:
             if isinstance(adata, dict):
                 floor_ok[ax] = bool(adata.get("subgroup_n_floor_met"))
         strata_summary.append({"stratum": st, "axes": axes, "n_floor_met_by_axis": floor_ok})
-        # the PER-STRATUM AXIS names are citable too. The comment here used to claim they were added and
-        # the code never added them, so a clause citing a stratum axis that is not ALSO a top-level
-        # sub-verdict short was scored untraceable — teeth biting a claim the package does support.
+        # the PER-STRATUM AXIS names are citable too — but ONLY when the axis met the subgroup n-floor.
+        # A below-floor axis (subgroup_n_floor_met=false) stays in strata_summary so the narrator can
+        # see (and must NOT credit) it, but it is NOT added to the citable set: the traceability check
+        # would otherwise score a clause citing an UNDERPOWERED axis as TRACEABLE, actively licensing a
+        # citation the n-floor discipline says must not be credited (fail-open). Fail-closed: an axis
+        # whose adata is not a dict, or carries no n_floor flag, is treated as below-floor (floor_ok
+        # defaults False) and is NOT citable.
         if isinstance(axes, dict):
             for ax in axes:
-                stratum_tokens.add(str(ax))
+                if floor_ok.get(ax):
+                    stratum_tokens.add(str(ax))
     # also allow citing the requested/available stratum names
     for s in block.get("requested_strata") or []:
         stratum_tokens.add(str(s))

@@ -490,6 +490,63 @@ def test_per_stratum_axis_names_are_citable():
     assert "dependency" in st["stratum_tokens"] and "MSS" in st["stratum_tokens"]
 
 
+def test_below_floor_stratum_axis_is_not_citable_and_fails_traceability():
+    """#1610: the citable-token surface must honor the n-floor discipline. A stratum axis whose
+    subgroup_n_floor_met=false is UNDERPOWERED — it stays in strata_summary for the narrator but must
+    NOT join stratum_tokens, else check_traceability scores a below-floor citation TRACEABLE (fail-open,
+    the teeth actively licensing a citation the discipline says must not be credited)."""
+    pkg = _pkg()
+    pkg["subtype_resolved"] = {
+        "requested_strata": ["MSS"],
+        "available_strata": ["MSS"],
+        "per_stratum": [
+            {
+                "stratum": "MSS",
+                "axes": {
+                    "dependency": {"subgroup_n_floor_met": True},
+                    "expression_selectivity": {"subgroup_n_floor_met": False},
+                },
+            }
+        ],
+    }
+    st = hc.parse_subtype_resolved(pkg)
+    # floor-met axis stays citable; below-floor axis is dropped from the citable set
+    assert "dependency" in st["stratum_tokens"]
+    assert "expression_selectivity" not in st["stratum_tokens"]
+    # but the below-floor axis IS still surfaced to the narrator (strata_summary / per_stratum) with its
+    # floor flag, so the discipline is auditable, not erased
+    floor_by_axis = st["per_stratum"][0]["n_floor_met_by_axis"]
+    assert floor_by_axis == {"dependency": True, "expression_selectivity": False}
+
+    surface = {
+        "card_ids": set(),
+        "sub_verdicts": set(),
+        "rule_ids": set(),
+        "dossier_fields": set(),
+        "strata": set(st["stratum_tokens"]),
+        "pmids": set(),
+    }
+    # a clause citing the below-floor axis is NOT traceable (was fail-open); the floor-met axis passes
+    assert hc.check_traceability(["expression_selectivity"], surface) == ["expression_selectivity"]
+    assert hc.check_traceability(["dependency"], surface) == []
+
+
+def test_axis_with_no_floor_flag_is_fail_closed_not_citable():
+    """Fail-closed: an axis whose payload carries no subgroup_n_floor_met (or is not a dict) is treated as
+    below-floor — absent evidence of the floor being met is NOT evidence of it being met."""
+    pkg = _pkg()
+    pkg["subtype_resolved"] = {
+        "requested_strata": [],
+        "available_strata": [],
+        "per_stratum": [{"stratum": "MSS", "axes": {"dependency": {}, "selectivity": "notadict"}}],
+    }
+    st = hc.parse_subtype_resolved(pkg)
+    assert "dependency" not in st["stratum_tokens"]
+    assert "selectivity" not in st["stratum_tokens"]
+    # the stratum name itself remains citable (subtype identity is a scoping fact, not a measurement)
+    assert "MSS" in st["stratum_tokens"]
+
+
 # =============================== run()-level: skill_report + wiring ================================
 
 
@@ -656,6 +713,34 @@ def test_run_emits_a_top_level_skill_report(tmp_path):
     }
     assert sr["provenance"]["cards_used"] == [] and sr["provenance"]["fired_rule_ids"] == []
     assert sr["_contract"] == "docs/UNIFIED_OUTPUT_CONTRACT.md"
+
+
+def test_structured_subtype_resolved_carries_per_axis_floor_status(tmp_path):
+    """#1610 (b): the STRUCTURED subtype_resolved output must carry the per-axis n-floor status so the
+    auditable surface can reconstruct which stratum-axis citations were below-floor (hence not credited).
+    Previously per_stratum / n_floor_met_by_axis reached only the LLM prompt, never the structured out."""
+    pkg = _pkg()
+    pkg["subtype_resolved"] = {
+        "present": True,
+        "requested_strata": ["MSS"],
+        "available_strata": ["MSS"],
+        "per_stratum": [
+            {
+                "stratum": "MSS",
+                "axes": {
+                    "dependency": {"subgroup_n_floor_met": True},
+                    "expression_selectivity": {"subgroup_n_floor_met": False},
+                },
+            }
+        ],
+        "convergence_facet": None,
+    }
+    r = _run(tmp_path, pkg)
+    sr = r["subtype_resolved"]
+    assert "per_stratum_n_floor" in sr
+    assert sr["per_stratum_n_floor"] == [
+        {"stratum": "MSS", "n_floor_met_by_axis": {"dependency": True, "expression_selectivity": False}}
+    ]
 
 
 def test_skill_report_call_reflects_the_promotion_cap(tmp_path):
