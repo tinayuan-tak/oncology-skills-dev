@@ -19,11 +19,11 @@ provenance: 'heterogeneous: packages were produced by different code'
 counts:
   cards_declaring_vocabulary: 136
   cards_with_observations: 132
-  declared_pairs: 294
-  pairs: 287
+  declared_pairs: 295
+  pairs: 288
   out_of_vocab: 0
   never_observed_pairs: 8
-  dead_tokens: 350
+  dead_tokens: 351
 ungated_absences:
   "orphan: declared on no field \u2014 already gated by validate_cards":
   - functional-gene-state::sample_state
@@ -878,6 +878,7 @@ by_card:
       arity: scalar
       status: observed
       declared:
+      - data_unavailable
       - insufficient
       - no_evidence
       - ok
@@ -890,6 +891,7 @@ by_card:
       n_packages_with_card: 504
       out_of_vocab: []
       never_emitted:
+      - data_unavailable
       - insufficient
       top: ok
       saturation: 0.996
@@ -3438,6 +3440,31 @@ by_card:
       - data_unavailable
       top: broad_normal_expression
       saturation: 0.5198
+    safety_tissue_flags:
+      grain: scalar
+      arity: array
+      status: observed
+      declared:
+      - broad
+      - essential_from_broad_detection
+      - essential_tissue
+      - gi_tract
+      observed:
+        broad: 262
+        essential_tissue: 224
+        gi_tract: 73
+        essential_from_broad_detection: 57
+      n_non_null: 616
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 504
+      out_of_vocab: []
+      never_emitted: []
+      top: broad
+      saturation: null
+      saturation_na: 'arity=array: top/total is a token share, not a package share'
+      n_emissions: 504
+      n_empty_array: 148
   normal-tissue-liability-gtex:
     liability_class:
       grain: scalar
