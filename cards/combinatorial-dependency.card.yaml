@@ -52,7 +52,7 @@ outputs:
 
   summary_fields_vocabulary:
     combinatorial_dependency_class:
-      - strong_synthetic_lethal         # >=1 partner constitutive_buffering (broad, mean GI<=-0.25, p<0.05)
+      - strong_synthetic_lethal         # >=1 partner constitutive_buffering (broad, mean GI<=-0.25 AND frac strong lines>=0.4)
       - context_synthetic_lethal        # else >=1 partner context_buffering (minority of lines / conditional)
       - suppressive_interaction         # else >=1 partner suppressive (positive GI / masking)
       - no_interaction                  # partners screened, none interacting beyond additive
@@ -67,9 +67,12 @@ outputs:
       primary: true
 
 thresholds:
-  strong_gi_chronos: -0.5              # a "strong" per-line synthetic-lethal / buffering GI
-  constitutive_mean_gi: -0.25          # broad additive-negative (mean across lines)
-  significance_pvalue: 0.05
+  strong_gi_chronos: -0.5              # a "strong" per-line synthetic-lethal / buffering GI (reader STRONG_GI)
+  constitutive_mean_gi: -0.25          # broad additive-negative (mean across lines; reader CONSTITUTIVE_MEAN)
+  frac_lines_strong_gi: 0.4            # specificity gate: MAJORITY-ish of lines strongly buffered required
+                                       #   for a constitutive_buffering call (reader FRAC_STRONG_CONSTITUTIVE).
+                                       #   The reader does NOT gate on a p-value (significance-at-large-n is
+                                       #   inert here); effect size, not significance, is the discriminator.
 
 warning_predicates:
   - warning_id: single_partner_only
