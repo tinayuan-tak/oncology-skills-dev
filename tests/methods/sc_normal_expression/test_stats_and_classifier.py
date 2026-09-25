@@ -500,6 +500,43 @@ def test_read_target_summary_gene_absent(monkeypatch):
     assert "absent" in out.get("_data_note", "")
 
 
+def test_data_unavailable_arm_carries_origin_tissues(monkeypatch):
+    """F14: the abstention arm must carry `origin_tissues` (present on the success arm) so a
+    consumer reading that field does not KeyError depending on which arm fired."""
+    monkeypatch.setattr(R, "read_gene_celltype_rows", lambda t, ts: None)
+    out = R.read_target_summary("EPCAM", "KIRC")
+    assert out["sc_normal_expression_class"] == "data_unavailable"
+    assert out["origin_tissues"] == ["kidney"]  # matches the success-arm value for KIRC
+
+
+def test_essential_shard_missing_flags_coverage_caveat(monkeypatch):
+    """F6: when a safety-essential shard is dropped (missing on S3), the summary must record it in
+    essential_tissues_missing + a coverage caveat, so a confident veto/class is never mistaken for a
+    clean examination of that organ."""
+    rows = _tier1_rows([("colonocyte", 20, 0.85, 0.90)], tissue="colon")
+    # simulate the reader having dropped the heart shard (not landed) but examined the rest
+    rows.attrs["tissues_loaded"] = ["colon", "liver", "kidney"]
+    rows.attrs["tissues_missing"] = ["heart"]
+    monkeypatch.setattr(R, "read_gene_celltype_rows", lambda t, ts: rows)
+    out = R.read_target_summary("EPCAM", "COADREAD")
+    assert out["essential_tissues_missing"] == ["heart"]
+    assert out["tissues_missing"] == ["heart"]
+    assert "sc_normal_coverage_caveat" in out and "heart" in out["sc_normal_coverage_caveat"]
+
+
+def test_all_shards_missing_labeled_coverage_gap_not_measured_absence(monkeypatch):
+    """F6: an all-fail empty read (every shard missing) must be labeled a coverage gap, NOT
+    'not measured in the Census atlases' (which mislabels a hole as a measured absence)."""
+    empty = pd.DataFrame()
+    empty.attrs["tissues_loaded"] = []
+    empty.attrs["tissues_missing"] = ["colon", "heart"]
+    monkeypatch.setattr(R, "read_gene_celltype_rows", lambda t, ts: empty)
+    out = R.read_target_summary("EPCAM", "COADREAD")
+    assert out["sc_normal_expression_class"] == "data_unavailable"
+    assert "coverage gap" in out.get("_data_note", "")
+    assert "not measured" not in out.get("_data_note", "")
+
+
 def test_tissues_for_indication_unions_matched_and_safety_essential():
     """tumor-matched tissue(s) UNION the always-on safety-essential tissues, de-duplicated."""
     # Census-backed indications. Always-on safety-essential set now includes lung + pancreas

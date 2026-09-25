@@ -6,13 +6,17 @@ Products are gene-SORTED — a per-gene read uses pyarrow + predicate-pushdown t
 few row-groups (same invariant as the bulk and sc_tumor readers).
 
 Dependencies: pyarrow/pandas/boto3 ONLY — no scanpy/anndata/cellxgene-census at read time.
-Credential discipline: boto3 Session(profile_name=AWS_PROFILE) where default="cbg" — the
-Developer-Dev SSO role lacks GetObject on onc-compbio (see sc_tumor_expression_celltype/read.py).
+Credential discipline: prefer the onc-compbio `cbg` SSO profile (the Developer-Dev role lacks
+GetObject on onc-compbio) but fall back to the ambient credential chain when `cbg` is not
+configured (CI / prod / instance-role host) — see _get_s3fs. The former unconditional
+`boto3.Session(profile_name="cbg")` crashed the whole read with ProfileNotFound in any non-cbg
+env, silently darkening the on-target-safety veto.
 """
 
 from __future__ import annotations
 
 import os
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from typing import Optional
 
@@ -20,6 +24,7 @@ import boto3
 import pandas as pd
 import pyarrow.fs as fs
 import pyarrow.parquet as pq
+from botocore.exceptions import ProfileNotFound
 
 from methods.normal_tissue_safety_common import SC_NORMAL_ESSENTIAL_TISSUES
 
@@ -27,6 +32,12 @@ from . import stats as _stats
 
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
+
+# Process-wide pyarrow S3FileSystem singleton (see _get_s3fs). Built once, shared across
+# every read_gene_celltype_rows call so the SSO-credential resolution is not repeated per
+# card/target. pyarrow's S3FileSystem is safe to share across threads for reads.
+_S3FS = None
+_S3FS_LOCK = threading.Lock()
 
 # tissue name → landed Tier-1 product key.
 # Only tissues with sc-normal-celltype-expression-{tissue}-v1 on S3 are listed.
@@ -151,25 +162,64 @@ def _s3_key(tissue: str) -> Optional[str]:
     return f"data-catalog/derived/{prod}/sc_normal_expression.parquet"
 
 
+def _build_s3fs() -> "fs.S3FileSystem":
+    """Construct a pyarrow S3FileSystem, preferring the onc-compbio `cbg` SSO profile but
+    falling back to the ambient credential chain when `cbg` is not configured.
+
+    The former code did `boto3.Session(profile_name="cbg").get_credentials().get_frozen_credentials()`
+    unconditionally (AWS_PROFILE defaults to "cbg"). On a CI / prod / instance-role host the `cbg`
+    SSO profile does not exist, so `get_credentials()` raised `ProfileNotFound` (or returned None →
+    AttributeError) and the exception escaped the whole read — the skill seam then converted it to
+    `_live_read_error`, silently darkening the on-target-safety veto for all tissues. This mirrors
+    `target_id_sidecar.s3_client`'s ProfileNotFound→ambient fallback (and the sibling
+    tcga_gtex `_get_s3fs`): try the preferred profile's frozen creds; if the profile is absent or
+    yields no creds, use a bare S3FileSystem that resolves via the default chain (env / OIDC /
+    instance role), exactly as the ambient path it degrades to."""
+    profile = os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)
+    creds = None
+    try:
+        creds = boto3.Session(profile_name=profile).get_credentials()
+    except ProfileNotFound:
+        creds = None  # cbg absent (CI / prod / instance-role) → ambient chain below
+    if creds is not None:
+        frozen = creds.get_frozen_credentials()
+        return fs.S3FileSystem(
+            region="us-east-1",
+            access_key=frozen.access_key,
+            secret_key=frozen.secret_key,
+            session_token=frozen.token,
+        )
+    # No configured profile / no creds resolvable → ambient credential chain.
+    return fs.S3FileSystem(region="us-east-1")
+
+
+def _get_s3fs() -> "fs.S3FileSystem":
+    """Process-wide S3FileSystem singleton (double-checked locking). Building one re-resolves the
+    SSO credential chain, which is wasted work when this reader fires once per card/target across a
+    run; build it once and share it (thread-safe for reads)."""
+    global _S3FS
+    if _S3FS is None:
+        with _S3FS_LOCK:
+            if _S3FS is None:
+                _S3FS = _build_s3fs()
+    return _S3FS
+
+
 def read_gene_celltype_rows(target: str, tissues: list[str]) -> Optional[pd.DataFrame]:
     """Per-cell_type Tier-1 rows for one gene across the requested tissues.
 
     Returns a concatenated DataFrame (possibly empty), or None when no Tier-1 product
     exists for ANY of the requested tissues. Empty (0-row) DataFrame means the gene is
-    absent from the product(s); None means no product exists at all."""
-    # Explicit credential injection — mirrors aggregate.py's CREATE SECRET pattern.
-    # pyarrow S3FileSystem can use AWS_PROFILE via botocore, but that silently falls back to the
-    # Developer-Dev role (cmp-dev) if the env var is unset, which lacks GetObject on onc-compbio.
-    # Explicit boto3 Session guarantees the cbg SSO profile is always used regardless of env state.
-    profile = os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)
-    session = boto3.Session(profile_name=profile)
-    creds = session.get_credentials().get_frozen_credentials()
-    s3fs = fs.S3FileSystem(
-        region="us-east-1",
-        access_key=creds.access_key,
-        secret_key=creds.secret_key,
-        session_token=creds.token,
-    )
+    absent from the product(s); None means no product exists at all.
+
+    Per-tissue coverage accounting is attached to the returned frame's `.attrs`
+    (`tissues_requested` / `tissues_with_product` / `tissues_loaded` / `tissues_missing`) so the
+    caller can distinguish an examined-clean tissue from a dropped (not-yet-landed) shard and never
+    overstate coverage. A per-tissue read that raises a genuine object-absence (NoSuchKey / 404 /
+    FileNotFound) is a coverage gap and is recorded in `tissues_missing`; a transient / creds /
+    broken-env error is re-raised so the live-read seam surfaces `_live_read_error` rather than a
+    false 'not expressed'."""
+    s3fs = _get_s3fs()
 
     # The per-tissue reads are INDEPENDENT single-gene pushdowns against SEPARATE parquet shards
     # (origin tissue + the always-on safety-essential organs — 9 for COADREAD). Reading them in a
@@ -189,15 +239,36 @@ def read_gene_celltype_rows(target: str, tissues: list[str]) -> Optional[pd.Data
         try:
             tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs, filters=filters, columns=_PARQUET_COLS)
             return tbl.to_pandas()
-        except FileNotFoundError:
+        except Exception as e:  # noqa: BLE001
+            # Only a GENUINE object-absence (NoSuchKey / 404 / FileNotFound) is a coverage gap for
+            # this tissue → None (recorded in tissues_missing). A transient / creds / broken-env
+            # error must NOT masquerade as "shard absent" (which would drop the tissue and let the
+            # veto be computed as if it were examined-clean) — re-raise so the seam reports
+            # _live_read_error. Aligns with the shared is_definitively_absent predicate + the
+            # tcga_gtex exemplar.
+            from methods.target_id_sidecar import is_definitively_absent
+
+            if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+                raise
             return None  # product not yet on S3 for this tissue — treat as coverage gap
 
     # Preserve the original tissue ORDER in the concat (executor.map yields in submission order),
     # so the assembled frame is identical to the former serial loop, not completion-order-dependent.
+    tissues_kept = [tissue for tissue, _key in keyed]
     with ThreadPoolExecutor(max_workers=len(keyed)) as pool:
-        results = pool.map(_read_one, [key for _tissue, key in keyed])
+        results = list(pool.map(_read_one, [key for _tissue, key in keyed]))
+    # Per-tissue attempted/loaded accounting: a frame (even 0-row) = shard PRESENT and examined;
+    # None = shard genuinely absent on S3 (dropped, a coverage gap). This distinction is what lets
+    # read_target_summary avoid overstating coverage / flag a missing safety-essential shard.
+    tissues_loaded = [tissue for tissue, df in zip(tissues_kept, results) if df is not None]
+    tissues_missing = [tissue for tissue, df in zip(tissues_kept, results) if df is None]
     dfs = [df for df in results if df is not None]
-    return pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    out = pd.concat(dfs, ignore_index=True) if dfs else pd.DataFrame()
+    out.attrs["tissues_requested"] = list(tissues)
+    out.attrs["tissues_with_product"] = tissues_kept  # had a Tier-1 product key
+    out.attrs["tissues_loaded"] = tissues_loaded  # shard read OK (present, examined)
+    out.attrs["tissues_missing"] = tissues_missing  # shard absent on S3 (coverage gap)
+    return out
 
 
 def read_target_summary(target: str, indication: str) -> dict:
@@ -218,13 +289,32 @@ def read_target_summary(target: str, indication: str) -> dict:
             note=f"No sc-normal-celltype-expression product landed for "
             f"tissues {tissues}; coverage gap, not a safety pass.",
         )
+    # Per-tissue coverage accounting (attrs absent on older / monkeypatched callers → degrade
+    # gracefully to the un-split behavior).
+    cov = getattr(rows, "attrs", None) or {}
+    tissues_loaded = cov.get("tissues_loaded")  # None when unknown
+    tissues_missing = cov.get("tissues_missing") or []
+    essential_missing = [t for t in tissues_missing if t in set(SAFETY_ESSENTIAL_TISSUES)]
     if rows.empty:
-        return _data_unavailable(
-            target,
-            indication,
-            note=f"{target} absent from sc-normal-celltype-expression products "
-            f"for tissues {tissues} (not measured in the Census atlases).",
-        )
+        # Distinguish a genuine coverage gap (every shard was missing on S3) from a measured
+        # absence (shards examined clean, gene simply not detected). The former must NOT be spelled
+        # "not measured in the Census atlases" — that mislabels a coverage hole as a safety read.
+        if tissues_loaded is not None and len(tissues_loaded) == 0:
+            note = (
+                f"No sc-normal-celltype-expression shard returned for tissues {tissues} "
+                f"(all shards missing on S3: {tissues_missing}); coverage gap, not a safety pass."
+            )
+        else:
+            note = (
+                f"{target} absent from sc-normal-celltype-expression products "
+                f"for tissues {tissues_loaded if tissues_loaded is not None else tissues} "
+                f"(examined clean, not measured in the Census atlases)."
+            )
+        result = _data_unavailable(target, indication, note=note)
+        result["tissues_loaded"] = tissues_loaded if tissues_loaded is not None else []
+        result["tissues_missing"] = tissues_missing
+        result["essential_tissues_missing"] = essential_missing
+        return result
     # origin_tissues = the tumor's tissue-of-origin ONLY (matched normal), NOT the always-on
     # safety-essential organs — so the classifier can split origin-tissue essential expression
     # (on-tissue, therapeutic-window-arbitrated) from non-origin critical-organ expression (hard veto).
@@ -233,11 +323,26 @@ def read_target_summary(target: str, indication: str) -> dict:
     result["tissues_queried"] = tissues
     result["origin_tissues"] = origin_tissues
     result["indication"] = str(indication).upper().strip()
+    # Coverage transparency: which requested tissues actually returned a shard vs were dropped, so
+    # the veto/class is never read as a clean examination of a safety-essential organ whose shard
+    # silently failed to load. Falls back to the full requested set when accounting is unavailable.
+    result["tissues_loaded"] = tissues_loaded if tissues_loaded is not None else tissues
+    result["tissues_missing"] = tissues_missing
+    result["essential_tissues_missing"] = essential_missing
+    if essential_missing:
+        result["sc_normal_coverage_caveat"] = (
+            f"safety-essential shard(s) {essential_missing} missing from S3; the essential-tissue "
+            f"veto/class was computed over the examined tissues only ({tissues_loaded}), NOT a clean "
+            f"read of those organs — treat the safety call as coverage-limited, not a clean pass."
+        )
     return result
 
 
 def _data_unavailable(target: str, indication: str, note: str) -> dict:
     base = _stats._data_unavailable_class(note=note)
     base["tissues_queried"] = tissues_for_indication(indication)
+    # Mirror the success arm's `origin_tissues` (read_target_summary:success) so a consumer reading
+    # that field does not KeyError on the abstention arm — the arms must carry the same schema.
+    base["origin_tissues"] = INDICATION_TO_TISSUES.get(str(indication).upper().strip(), [])
     base["indication"] = str(indication).upper().strip()
     return base

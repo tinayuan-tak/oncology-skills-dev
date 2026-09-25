@@ -29,6 +29,7 @@ class _FakeTable:
 def fake_s3(monkeypatch):
     """Stub creds/S3FileSystem so no network/credentials are touched, and route each tissue's
     parquet key to a synthetic one-row frame tagged with the tissue (so order is observable)."""
+    monkeypatch.setattr(r, "_S3FS", None)  # reset the process-wide singleton so mocks are exercised
     monkeypatch.setattr(r.boto3, "Session", lambda *a, **k: _FakeSession())
     monkeypatch.setattr(r.fs, "S3FileSystem", lambda *a, **k: object())
 
@@ -77,3 +78,59 @@ def test_gene_absent_returns_empty_frame(fake_s3, monkeypatch):
     monkeypatch.setattr(r.pq, "read_table", lambda *a, **k: _FakeTable(pd.DataFrame(columns=["gene_symbol", "tissue"])))
     out = r.read_gene_celltype_rows("NOPE", ["colon", "heart"])
     assert out is not None and out.empty
+
+
+def test_coverage_accounting_marks_missing_shard(fake_s3, monkeypatch):
+    """F6: a per-tissue FileNotFound (shard not yet on S3) is a coverage gap — dropped from the
+    frame but RECORDED in .attrs so the caller can tell an examined-clean tissue from a missing one."""
+
+    def selective_read(path, filesystem=None, filters=None, columns=None):
+        tissue_slug = path.split("sc-normal-celltype-expression-")[1].split("-v1/")[0]
+        if tissue_slug == "heart":
+            raise FileNotFoundError(path)  # heart shard not landed
+        return _FakeTable(
+            pd.DataFrame(
+                [{"gene_symbol": "CEACAM5", "tissue": tissue_slug, "cell_type": "epithelial", "median_det": 0.5}]
+            )
+        )
+
+    monkeypatch.setattr(r.pq, "read_table", selective_read)
+    df = r.read_gene_celltype_rows("CEACAM5", ["colon", "heart", "liver"])
+    assert df.attrs["tissues_loaded"] == ["colon", "liver"]
+    assert df.attrs["tissues_missing"] == ["heart"]
+    assert list(df["tissue"]) == ["colon", "liver"]  # heart dropped, order preserved
+
+
+def test_transient_read_error_propagates_not_masked(fake_s3, monkeypatch):
+    """F6: a non-absence error (throttle / creds / broken env) must re-raise so the seam reports
+    _live_read_error, never masquerade as a per-tissue coverage gap (which would fail-open)."""
+
+    def throttled_read(*a, **k):
+        raise RuntimeError("SlowDown: throttled")
+
+    monkeypatch.setattr(r.pq, "read_table", throttled_read)
+    with pytest.raises(RuntimeError):
+        r.read_gene_celltype_rows("CEACAM5", ["colon", "heart"])
+
+
+def test_get_s3fs_falls_back_to_ambient_when_profile_missing(monkeypatch):
+    """F4: cbg profile absent (CI / prod / instance-role) → ProfileNotFound is caught and the
+    reader degrades to the ambient credential chain instead of crashing the whole read."""
+    from botocore.exceptions import ProfileNotFound
+
+    def raise_profile_not_found(*a, **k):
+        raise ProfileNotFound(profile="cbg")
+
+    built = {}
+
+    def fake_fs(*a, **k):
+        built["kwargs"] = k
+        return object()
+
+    monkeypatch.setattr(r, "_S3FS", None)
+    monkeypatch.setattr(r.boto3, "Session", raise_profile_not_found)
+    monkeypatch.setattr(r.fs, "S3FileSystem", fake_fs)
+    got = r._get_s3fs()
+    assert got is not None
+    # ambient path: bare S3FileSystem(region=...) with NO injected access_key
+    assert "access_key" not in built["kwargs"]
