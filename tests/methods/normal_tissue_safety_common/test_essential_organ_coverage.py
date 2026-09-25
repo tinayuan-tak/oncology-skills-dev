@@ -60,12 +60,23 @@ def test_sc_normal_covers_brain_and_adrenal():
     assert eo.required_names(eo.SC_NORMAL_CROSSWALK) <= set(eo.SC_NORMAL_ESSENTIAL_TISSUES)
 
 
+def test_hpa_represents_skeletal_muscle():
+    # muscle is NOT an HPA substrate gap (issue #744): HPA's 16-name grouped-intensity vocabulary
+    # CONTAINS `skeletal muscle`, so the muscle=None fail-open — a skeletal-muscle-restricted antigen
+    # escaping HPA's essential-tissue killer under a false substrate-absence claim — is closed.
+    assert eo.HPA_CROSSWALK["muscle"] == "skeletal muscle"
+    assert "skeletal muscle" in eo.HPA_ESSENTIAL_TISSUES
+
+
 def test_tphp_fills_endocrine_vascular_and_flags_pituitary_gap():
     # T0-3: TPHP DIA-MS PROTEIN resolves the endocrine/vascular/CNS organs HPA-IHC is blind to.
-    # It must represent (non-None) the organs HPA cannot: nerve / muscle / blood / adrenal / thyroid.
-    for organ in ("nerve", "muscle", "blood", "adrenal_gland", "thyroid"):
+    # It must represent (non-None) the organs HPA cannot: nerve / blood / adrenal / thyroid.
+    # (muscle was formerly listed here as an HPA gap — that was the false claim fixed in #744; HPA
+    # DOES represent muscle as `skeletal muscle`. TPHP muscle coverage is checked below via req/panel.)
+    for organ in ("nerve", "blood", "adrenal_gland", "thyroid"):
         assert eo.HPA_CROSSWALK.get(organ) is None  # HPA substrate gap
         assert eo.TPHP_CROSSWALK[organ] is not None  # TPHP fills it
+    assert eo.TPHP_CROSSWALK["muscle"] == "skeletal muscle"  # TPHP still covers muscle
     # It covers 4 of the 5 S1-3 endocrine/vascular/CNS organs (adrenal, thyroid, vasculature, brain) —
     # the S1-3 required-name coverage invariant holds for what TPHP can represent.
     req = eo.required_names(eo.TPHP_CROSSWALK)

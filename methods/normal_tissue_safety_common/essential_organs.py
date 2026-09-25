@@ -205,18 +205,17 @@ HPA_CROSSWALK = {
     # aperture, and the organ is NOT thereby unguarded in HPA: `intestine` covers it.
     "small_intestine": None,
     "nerve": None,
-    # ⚠️ KNOWN DEFECT, MEASURED 2026-09-18, deliberately NOT fixed here. This `None` is FALSE: the
-    # closed vocabulary was re-measured from the real intensity column (exactly 16 names, confirming
-    # the count) and it CONTAINS `skeletal muscle` — the same name TPHP_CROSSWALK below uses as its
-    # muscle anchor. So HPA can represent muscle, and a skeletal-muscle-enriched antigen escapes
-    # HPA's essential-tissue killer under a claim of substrate absence that is not true. It is the
-    # `None`-as-unmeasured-claim failure mode named in the module docstring above.
-    #   Not fixed in this change because it is an INDEPENDENT semantic change to the HPA arm, and
-    #   folding it in would make this change's HPA backtest unattributable between two causes.
-    #   It also needs a test edit, not just this line:
-    #   test_essential_organ_coverage.py::test_tphp_fills_endocrine_vascular_and_flags_pituitary_gap
-    #   ASSERTS `HPA_CROSSWALK.get("muscle") is None`, i.e. the suite currently pins the false claim.
-    "muscle": None,
+    # muscle -> "skeletal muscle". MEASURED 2026-09-18: HPA's closed 16-name grouped-intensity
+    # vocabulary was re-read from the real intensity column and it CONTAINS `skeletal muscle` — the
+    # same name TPHP_CROSSWALK below uses as its muscle anchor. So HPA CAN represent muscle. This was
+    # previously `None` (a false substrate-gap claim documented in-code as a known defect): under it a
+    # skeletal-muscle-restricted antigen escaped HPA's essential-tissue killer, under-firing
+    # `essential_tissue_flag == present` on the normal-tissue-liability card — a verdict-active
+    # fail-open for the exact high-mass on-target-off-tumor muscle liability the killer exists to
+    # catch (systemically-delivered TCE / full-KO modalities). `skeletal muscle` is the canonical
+    # dose-limiting representative; `smooth muscle` is a real HPA non-anchor (matching the scalar-anchor
+    # convention TPHP_CROSSWALK uses for muscle). Fixed 2026-09-24 (issue #744).
+    "muscle": "skeletal muscle",
     "blood": None,
     "adrenal_gland": None,
     "pituitary": None,
@@ -283,7 +282,9 @@ SC_NORMAL_CROSSWALK = {
 # TPHP DIA-MS pan-tissue proteome `tissue` column (SDRF organism-part, lowercase). None = the organ
 # has no organism-part in the 70-tissue adult TPHP panel. TPHP's value for SAFETY is that DIA-MS
 # PROTEIN resolves the endocrine/vascular/CNS organs HPA-IHC's 16-name grouped field is BLIND to:
-# it covers nerve / muscle / blood / adrenal_gland / thyroid (all None in HPA_CROSSWALK) and 4 of the
+# it covers nerve / blood / adrenal_gland / thyroid (all None in HPA_CROSSWALK; muscle was None here
+# too until #744 exposed that as a false substrate-gap claim — HPA now represents it as `skeletal
+# muscle`, and TPHP still carries it as a corroborating protein signal) and 4 of the
 # 5 S1_3_REQUIRED_ORGANS (adrenal_gland, thyroid, vasculature, brain) — missing ONLY pituitary, which
 # is absent from the TPHP panel (a data-substrate gap, like HPA's). Scalar convention (one
 # representative organism-part per organ) matches GTEX/HPA/SC; muscle->skeletal muscle and
