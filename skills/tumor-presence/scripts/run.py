@@ -918,15 +918,32 @@ def _presence_strength(v) -> str:
     return "none"
 
 
-def _pres_corroboration(rna_as_biomarker) -> str:
+# Corroboration ordinal, low→high, for the boundary-fragility down-weight below.
+_PRES_CORROBORATION_ORD = ("low", "medium", "high")
+
+
+def _pres_corroboration(rna_as_biomarker, boundary_fragile=None) -> str:
     c = str(rna_as_biomarker or "")
     if c == "adequate_proxy":
-        return "high"
-    if c == "partial_proxy":
-        return "medium"
-    if c == "poor_proxy":
-        return "low"
-    return "unmeasured"  # insufficient_paired_tumors / data_unavailable → ignorance (unknown_mass)
+        base = "high"
+    elif c == "partial_proxy":
+        base = "medium"
+    elif c == "poor_proxy":
+        base = "low"
+    else:
+        return "unmeasured"  # insufficient_paired_tumors / data_unavailable → ignorance (unknown_mass)
+    # DOWN-WEIGHT a boundary-fragile proxy call (#1650, dropped-signal wiring, epic #1507). The producer
+    # emits `rna_proxy_class_boundary_fragile` verdict-inert BY DESIGN — its docstring: "a consumer can
+    # down-weight a boundary-fragile call" — because the classifying correlation's Fisher-z 95% CI straddles
+    # an rna_as_biomarker class cut (0.4 / 0.7), so the adequate/partial/poor label can flip by sampling
+    # alone. Until now nothing deterministic read it while the point estimate and the class it qualifies ARE
+    # read (the structural twin of the distribution_pattern bug). We do NOT flip the call — we lower CONFIDENCE
+    # in it: demote corroboration one ordinal level (floored at "low"). Verdict-token-inert (corroboration
+    # feeds only the certainty/composite sidecar, never a presence rung — see _strength_certainty). Strict
+    # `is True`: the field is boolean|null, and only an explicit True is a fragile call (None/False → keep).
+    if boundary_fragile is True:
+        base = _PRES_CORROBORATION_ORD[max(0, _PRES_CORROBORATION_ORD.index(base) - 1)]
+    return base
 
 
 def _pres_coverage(cards) -> str:
@@ -984,8 +1001,14 @@ def _strength_certainty(cards, fired=None, verdict_pair=None, claim_vector=None,
     the FALLBACK for any legacy 3-arg call without the vector. Verdict-INERT (only the composite sidecar)."""
     v = verdict_pair[0] if verdict_pair else (_verdict(fired)[0] if fired is not None else None)
     rna_bm = _safe_card_field(cards, "rna-protein-concordance-tumor", "rna_as_biomarker")
+    # #1650: read the boundary-fragility flag (+ its CI backing, for the audit reason) off the SAME tumor
+    # arm that supplies corroboration. A fragile call down-weights corroboration one level in
+    # _pres_corroboration; here we record WHY so the demotion is auditable in the emitted certainty block.
+    fragile = _safe_card_field(cards, "rna-protein-concordance-tumor", "rna_proxy_class_boundary_fragile")
+    ci_low = _safe_card_field(cards, "rna-protein-concordance-tumor", "rna_protein_r_ci95_low")
+    ci_high = _safe_card_field(cards, "rna-protein-concordance-tumor", "rna_protein_r_ci95_high")
     coverage = _pres_coverage(cards)
-    corroboration = _pres_corroboration(rna_bm)
+    corroboration = _pres_corroboration(rna_bm, boundary_fragile=fragile)
     components = [coverage] + ([corroboration] if corroboration != "unmeasured" else [])
     level = min(components, key=lambda c: _PRES_ORD[c]) if components else "low"
     if v in _PRES_NONE:
@@ -995,14 +1018,33 @@ def _strength_certainty(cards, fired=None, verdict_pair=None, claim_vector=None,
         if presence_state is not None and claim_vector is not None
         else _presence_strength(v)
     )
+    certainty = {
+        "level": level,
+        "coverage": coverage,
+        "corroboration": corroboration,
+        "unknown_mass": _pres_unknown_mass(cards),
+    }
+    # Additive audit annotation, present ONLY when the tumor proxy call is boundary-fragile (so every
+    # non-fragile certainty block is byte-stable). Names that corroboration was demoted and cites the
+    # 95% CI that straddles the class cut — the numeric CI is DISPLAYED here as the reason, not consumed
+    # as a separate logic input (the flag is the decision-relevant summary).
+    if fragile is True:
+        _ci = (
+            f" (classifying-correlation 95% CI [{ci_low}, {ci_high}] straddles a class cut)"
+            if isinstance(ci_low, (int, float))
+            and not isinstance(ci_low, bool)
+            and isinstance(ci_high, (int, float))
+            and not isinstance(ci_high, bool)
+            else ""
+        )
+        certainty["corroboration_boundary_fragile"] = True
+        certainty["corroboration_note"] = (
+            "rna_as_biomarker proxy call is boundary-fragile — the adequate/partial/poor label can flip by "
+            f"sampling alone{_ci}; corroboration demoted one level (presence verdict unchanged)"
+        )
     return {
         "strength": strength,
-        "certainty": {
-            "level": level,
-            "coverage": coverage,
-            "corroboration": corroboration,
-            "unknown_mass": _pres_unknown_mass(cards),
-        },
+        "certainty": certainty,
         # continuous ranking primitive (verdict-inert; a NAMED projection, not the canonical value)
         "composite": _presence_composite(strength, level),
         "composite_basis": (
