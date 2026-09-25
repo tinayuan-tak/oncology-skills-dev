@@ -507,6 +507,98 @@
           "independence_note": "Bulk RNA (population-averaged tissue lysate) and single-cell malignant coverage are measured on INDEPENDENT assays sampling different biological grains; their agreement is a genuine cross-source corroboration, not a within-assay restatement."
         },
         "_disclaimer": "L2b CROSS-SOURCE integration claim (deterministic, no LLM) \u2014 verdict-INERT provenance: never a signal tier, never averaged into a claim, never feeds the presence_verdict."
+      },
+      "abundance_concordance": {
+        "concordance_class": "rna_high_protein_low",
+        "corroboration": "high",
+        "positive_signal": {
+          "statement": "Both independent RNA and mass-spec protein assays detect the target (tumor grain: RNA rank high, MS-protein rank moderate).",
+          "source": "rna_abundance",
+          "provenance_ref": "rna_abundance"
+        },
+        "qualifying_signal": {
+          "statement": "MS-protein abundance ranks BELOW RNA (tumor grain: RNA high vs MS-protein moderate) \u2014 a post-transcriptional attenuation / low proxy-quality signal: the presented protein is scarcer than the transcript implies, tempering RNA-based abundance expectations for abundance-dependent modalities (ADC/degrader payload delivery).",
+          "source": "ms_protein_abundance",
+          "provenance_ref": "ms_protein_abundance"
+        },
+        "source_support": {
+          "rna_abundance": {
+            "property": "rna_abundance_magnitude",
+            "card_id": "tumor-rna-distribution",
+            "grain": "tumor",
+            "stance": "higher_rank",
+            "summary": "RNA abundance high (top_1pct)",
+            "fields": {
+              "allgene_percentile_class": "top_1pct",
+              "magnitude_level": "high"
+            }
+          },
+          "ms_protein_abundance": {
+            "property": "ms_protein_abundance_magnitude",
+            "card_id": "tumor-protein-abundance-cptac",
+            "grain": "tumor",
+            "stance": "lower_rank",
+            "summary": "MS-protein abundance moderate (mid)",
+            "fields": {
+              "allgene_percentile_class": "mid",
+              "magnitude_level": "moderate"
+            }
+          }
+        },
+        "boundary_sensitive": false,
+        "boundary_note": "concordance class corroborated by the independent cross-grain abundance read",
+        "grain": "tumor",
+        "rna_magnitude": "high",
+        "protein_magnitude": "moderate",
+        "integration_method": "explicit_deterministic",
+        "informs": "cross-source abundance-magnitude concordance \u2014 whether independent RNA and mass-spec protein reads agree the target sits at the same within-population abundance rank. A directional split (RNA rank above protein) flags post-transcriptional attenuation / low proxy-quality, informing proxy choice for abundance-dependent modalities (ADC/degrader payload delivery).",
+        "evidence": "tumor grain: RNA top_1pct (high) RANKS ABOVE MS-protein mid (moderate); cross-grain corroboration high",
+        "provenance": {
+          "sources": [
+            {
+              "property": "rna_abundance_magnitude",
+              "card_id": "tumor-rna-distribution",
+              "grain": "tumor",
+              "role": "primary",
+              "fields": {
+                "allgene_percentile_class": "top_1pct",
+                "magnitude_level": "high"
+              }
+            },
+            {
+              "property": "ms_protein_abundance_magnitude",
+              "card_id": "tumor-protein-abundance-cptac",
+              "grain": "tumor",
+              "role": "primary",
+              "fields": {
+                "allgene_percentile_class": "mid",
+                "magnitude_level": "moderate"
+              }
+            },
+            {
+              "property": "rna_abundance_magnitude",
+              "card_id": "cellline-rna-distribution",
+              "grain": "cell_line",
+              "role": "corroborating",
+              "fields": {
+                "allgene_percentile_class": "mid",
+                "magnitude_level": "moderate"
+              }
+            },
+            {
+              "property": "ms_protein_abundance_magnitude",
+              "card_id": "cellline-protein-abundance",
+              "grain": "cell_line",
+              "role": "corroborating",
+              "fields": {
+                "allgene_percentile_class": "bottom_decile",
+                "magnitude_level": "low"
+              }
+            }
+          ],
+          "independence_note": "RNA abundance (transcript-level) and mass-spec protein abundance are measured on INDEPENDENT assays with different molecular readouts and reference spaces; the comparison is on WITHIN-POPULATION rank CLASS, never raw magnitude (CPTAC/Gygi/ProCan mass-spec percentiles are pooled-reference-relative ratios, NOT scale-comparable to RNA TPM percentiles \u2014 #1512). Their rank agreement is a genuine cross-modality corroboration, not a within-assay restatement."
+        },
+        "_disclaimer": "L2b CROSS-SOURCE integration claim (deterministic, no LLM) \u2014 verdict-INERT provenance: never a signal tier, never averaged into a claim, never feeds the presence_verdict."
       }
     },
     "key_signals": {
@@ -840,6 +932,52 @@
           "tier": "high",
           "dots": 3,
           "label": "high"
+        },
+        "integrated_signal": {
+          "kind": "abundance_concordance",
+          "concordance_class": "rna_high_protein_low",
+          "corroboration": "high",
+          "grain": "tumor",
+          "rna_magnitude": "high",
+          "protein_magnitude": "moderate",
+          "boundary_sensitive": false,
+          "boundary_note": "concordance class corroborated by the independent cross-grain abundance read",
+          "positive_signal": {
+            "statement": "Both independent RNA and mass-spec protein assays detect the target (tumor grain: RNA rank high, MS-protein rank moderate).",
+            "source": "rna_abundance",
+            "provenance_ref": "rna_abundance"
+          },
+          "qualifying_signal": {
+            "statement": "MS-protein abundance ranks BELOW RNA (tumor grain: RNA high vs MS-protein moderate) \u2014 a post-transcriptional attenuation / low proxy-quality signal: the presented protein is scarcer than the transcript implies, tempering RNA-based abundance expectations for abundance-dependent modalities (ADC/degrader payload delivery).",
+            "source": "ms_protein_abundance",
+            "provenance_ref": "ms_protein_abundance"
+          },
+          "source_support": {
+            "rna_abundance": {
+              "property": "rna_abundance_magnitude",
+              "card_id": "tumor-rna-distribution",
+              "grain": "tumor",
+              "stance": "higher_rank",
+              "summary": "RNA abundance high (top_1pct)",
+              "fields": {
+                "allgene_percentile_class": "top_1pct",
+                "magnitude_level": "high"
+              }
+            },
+            "ms_protein_abundance": {
+              "property": "ms_protein_abundance_magnitude",
+              "card_id": "tumor-protein-abundance-cptac",
+              "grain": "tumor",
+              "stance": "lower_rank",
+              "summary": "MS-protein abundance moderate (mid)",
+              "fields": {
+                "allgene_percentile_class": "mid",
+                "magnitude_level": "moderate"
+              }
+            }
+          },
+          "headline": "Both independent RNA and mass-spec protein assays detect the target (tumor grain: RNA rank high, MS-protein rank moderate). However \u2014 MS-protein abundance ranks BELOW RNA (tumor grain: RNA high vs MS-protein moderate) \u2014 a post-transcriptional attenuation / low proxy-quality signal: the presented protein is scarcer than the transcript implies, tempering RNA-based abundance expectations for abundance-dependent modalities (ADC/degrader payload delivery).",
+          "provenance_ref": "claim_vector.abundance_concordance"
         }
       },
       {
@@ -1588,6 +1726,52 @@
             "tier": "high",
             "dots": 3,
             "label": "high"
+          },
+          "integrated_signal": {
+            "kind": "abundance_concordance",
+            "concordance_class": "rna_high_protein_low",
+            "corroboration": "high",
+            "grain": "tumor",
+            "rna_magnitude": "high",
+            "protein_magnitude": "moderate",
+            "boundary_sensitive": false,
+            "boundary_note": "concordance class corroborated by the independent cross-grain abundance read",
+            "positive_signal": {
+              "statement": "Both independent RNA and mass-spec protein assays detect the target (tumor grain: RNA rank high, MS-protein rank moderate).",
+              "source": "rna_abundance",
+              "provenance_ref": "rna_abundance"
+            },
+            "qualifying_signal": {
+              "statement": "MS-protein abundance ranks BELOW RNA (tumor grain: RNA high vs MS-protein moderate) \u2014 a post-transcriptional attenuation / low proxy-quality signal: the presented protein is scarcer than the transcript implies, tempering RNA-based abundance expectations for abundance-dependent modalities (ADC/degrader payload delivery).",
+              "source": "ms_protein_abundance",
+              "provenance_ref": "ms_protein_abundance"
+            },
+            "source_support": {
+              "rna_abundance": {
+                "property": "rna_abundance_magnitude",
+                "card_id": "tumor-rna-distribution",
+                "grain": "tumor",
+                "stance": "higher_rank",
+                "summary": "RNA abundance high (top_1pct)",
+                "fields": {
+                  "allgene_percentile_class": "top_1pct",
+                  "magnitude_level": "high"
+                }
+              },
+              "ms_protein_abundance": {
+                "property": "ms_protein_abundance_magnitude",
+                "card_id": "tumor-protein-abundance-cptac",
+                "grain": "tumor",
+                "stance": "lower_rank",
+                "summary": "MS-protein abundance moderate (mid)",
+                "fields": {
+                  "allgene_percentile_class": "mid",
+                  "magnitude_level": "moderate"
+                }
+              }
+            },
+            "headline": "Both independent RNA and mass-spec protein assays detect the target (tumor grain: RNA rank high, MS-protein rank moderate). However \u2014 MS-protein abundance ranks BELOW RNA (tumor grain: RNA high vs MS-protein moderate) \u2014 a post-transcriptional attenuation / low proxy-quality signal: the presented protein is scarcer than the transcript implies, tempering RNA-based abundance expectations for abundance-dependent modalities (ADC/degrader payload delivery).",
+            "provenance_ref": "claim_vector.abundance_concordance"
           }
         },
         {

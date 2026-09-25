@@ -528,17 +528,70 @@ def test_abundance_concordance_rna_high_protein_low_directional():
 
 
 def test_abundance_concordance_is_verdict_inert():
-    # Verdict-INERT: the claim carries NO `signal` key and NO presentation-support fields (those belong to
-    # the surface follow-on #1594), and surfacing it must not perturb A/B/C/D / homogeneity / _disclaimer.
+    # Verdict-INERT even WITH the #1594 presentation-support fields: the claim now CARRIES
+    # positive_signal / qualifying_signal / source_support / boundary_sensitive (SK#1594 surface), but it
+    # must still carry NO `signal` key, and surfacing it must not perturb A/B/C/D / homogeneity /
+    # _disclaimer. The presentation fields route NOTHING.
     base = presence_claim_vector(_headline(), _abund_cards(tumor_rna="top_decile"))  # RNA only → claim omitted
     withclaim = presence_claim_vector(_headline(), _abund_cards(tumor_rna="top_decile", tumor_protein="top_decile"))
     assert "abundance_concordance" not in base
     claim = withclaim["abundance_concordance"]
     assert "signal" not in claim, "an L2b claim must never carry a signal tier"
-    for pres in ("positive_signal", "qualifying_signal", "source_support", "boundary_sensitive"):
-        assert pres not in claim, f"{pres} is a #1594 surface field, not part of the L2b-4 build"
+    for pres in ("positive_signal", "qualifying_signal", "source_support", "boundary_sensitive", "boundary_note"):
+        assert pres in claim, f"{pres} is a #1594 presentation-support field the surface must carry"
     for ax in ("A", "B", "C", "D", "homogeneity", "_disclaimer"):
         assert withclaim[ax] == base[ax], f"surfacing the abundance-concordance claim perturbed {ax}"
+
+
+def test_abundance_concordance_presentation_fields_concordant_direction():
+    # #1594 surface: when the primary grain is abundance_concordant, positive_signal is present and names
+    # the cross-modality AGREEMENT; qualifying_signal is NULL (no directional split to caveat); the uniform
+    # source_support map carries BOTH modalities with the identical key shape, each stance `concordant`.
+    claim = presence_claim_vector(_headline(), _abund_cards(**_RAW_ABUND_CONCORDANT))["abundance_concordance"]
+    assert claim["concordance_class"] == "abundance_concordant"
+    assert claim["qualifying_signal"] is None, "concordant → no directional-split caveat"
+    pos = claim["positive_signal"]
+    assert pos["source"] == "rna_abundance" and pos["provenance_ref"] == "rna_abundance"
+    assert "agree" in pos["statement"].lower()
+    ss = claim["source_support"]
+    assert set(ss) == {"rna_abundance", "ms_protein_abundance"}
+    # identical key shape per source (read structurally, not by prose)
+    assert set(ss["rna_abundance"]) == set(ss["ms_protein_abundance"])
+    assert ss["rna_abundance"]["stance"] == "concordant" and ss["ms_protein_abundance"]["stance"] == "concordant"
+    assert ss["rna_abundance"]["fields"]["magnitude_level"] == "high"
+    assert claim["boundary_sensitive"] is False, "two agreeing grains → corroboration high → not boundary"
+
+
+def test_abundance_concordance_presentation_fields_directional_split():
+    # #1594 surface: rna_high_protein_low populates qualifying_signal (post-transcriptional attenuation /
+    # low proxy-quality), sourced from the protein modality; the mirror direction reverses the stances.
+    hi_lo = presence_claim_vector(_headline(), _abund_cards(**_RAW_ABUND_RNA_HIGH_PROTEIN_LOW))["abundance_concordance"]
+    assert hi_lo["concordance_class"] == "rna_high_protein_low"
+    qual = hi_lo["qualifying_signal"]
+    assert qual is not None and qual["source"] == "ms_protein_abundance"
+    assert "post-transcriptional" in qual["statement"].lower() or "below" in qual["statement"].lower()
+    ss = hi_lo["source_support"]
+    assert ss["rna_abundance"]["stance"] == "higher_rank" and ss["ms_protein_abundance"]["stance"] == "lower_rank"
+    # single grain (no cross-grain corroboration) → boundary-sensitive
+    assert hi_lo["corroboration"] == "single_arm" and hi_lo["boundary_sensitive"] is True
+    lo_hi = presence_claim_vector(_headline(), _abund_cards(tumor_rna="mid", tumor_protein="top_decile"))[
+        "abundance_concordance"
+    ]
+    assert lo_hi["concordance_class"] == "rna_low_protein_high"
+    assert lo_hi["qualifying_signal"]["source"] == "ms_protein_abundance"
+    assert lo_hi["source_support"]["rna_abundance"]["stance"] == "lower_rank"
+    assert lo_hi["source_support"]["ms_protein_abundance"]["stance"] == "higher_rank"
+
+
+def test_abundance_concordance_boundary_sensitive_tracks_corroboration():
+    # Deterministic: boundary_sensitive is exactly `corroboration != "high"` — corroborated (two agreeing
+    # grains) → False; single grain → True. NOT a new threshold/calibration, just a read of corroboration.
+    full = presence_claim_vector(_headline(), _abund_cards(**_RAW_ABUND_CONCORDANT))["abundance_concordance"]
+    assert full["corroboration"] == "high" and full["boundary_sensitive"] is False
+    single = presence_claim_vector(_headline(), _abund_cards(tumor_rna="top_decile", tumor_protein="top_decile"))[
+        "abundance_concordance"
+    ]
+    assert single["corroboration"] == "single_arm" and single["boundary_sensitive"] is True
 
 
 def test_abundance_concordance_defeat_every_protein_platform_omits_key():

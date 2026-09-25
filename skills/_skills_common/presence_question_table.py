@@ -406,7 +406,16 @@ def _q6_concordance(h, c, cv):
         bits.append(f"⚠ RNA misleads in {cl_rna_high_prot_low:.0%} of cell lines (RNA-high, protein-low)")
     support = " · ".join(bits) if bits else "—"
     conf = "high" if isinstance(n, int) and n >= 50 else "moderate" if n else "unmeasured"
-    return _row("Q6", "Do RNA and protein agree?", primary, support, _sig(tier, tier), _conf(conf))
+    r = _row("Q6", "Do RNA and protein agree?", primary, support, _sig(tier, tier), _conf(conf))
+    # SK#1594 L2b-4 surface: SURFACE the L2b abundance-MAGNITUDE concordance signal (built by #1589/#1621,
+    # read by nothing until now) as a first-class cross-source annotation on this question's answer — the
+    # magnitude-level RNA↔protein agreement, distinct from the row's population proxy-correlation. Attached
+    # only when the claim resolves (key omitted otherwise → row byte-stable). Verdict-inert: the row's
+    # `signal`/`confidence` meter cells are UNCHANGED — this adds an annotation, never a tier.
+    integ = cv.get("abundance_concordance")
+    if integ:
+        r["integrated_signal"] = _abundance_concordance_integrated_signal(integ)
+    return r
 
 
 def _coverage_concordance_integrated_signal(claim: dict) -> dict:
@@ -441,6 +450,45 @@ def _coverage_concordance_integrated_signal(claim: dict) -> dict:
         "source_support": claim.get("source_support"),
         "headline": headline,
         "provenance_ref": "claim_vector.bulk_vs_singlecell_coverage_concordance",
+    }
+
+
+def _abundance_concordance_integrated_signal(claim: dict) -> dict:
+    """Project the L2b `abundance_concordance` claim (presence_claims.py) into the Q6 row's
+    `integrated_signal` surface — a verdict-INERT, two-directional presentation payload. Surfaces both
+    directions (the encouraging cross-modality detection/agreement + the directional-split caveat when RNA
+    and MS-protein rank the target differently), the honest corroboration/boundary-sensitivity annotation,
+    and the uniform per-modality source_support map so a consumer renders the integrated cross-source read
+    WITHOUT prose-parsing. Carries NO signal tier / polarity / fill — it never routes the verdict; it is
+    the answer's cross-source annotation, not a meter cell."""
+    qual = claim.get("qualifying_signal")
+    pos = claim.get("positive_signal") or {}
+    boundary = bool(claim.get("boundary_sensitive"))
+    # A one-line human headline that always names BOTH directions (or the concordant confirmation),
+    # flagged boundary-sensitive when the class rests on a lone uncorroborated grain.
+    if qual:
+        headline = f"{pos.get('statement', '')} However — {qual.get('statement', '')}"
+    else:
+        headline = (
+            f"{pos.get('statement', '')} RNA and MS-protein rank the target at the SAME within-population "
+            "abundance level (no cross-modality split)."
+        )
+    if boundary:
+        headline += f" [boundary-sensitive: {claim.get('boundary_note', '')}]"
+    return {
+        "kind": "abundance_concordance",
+        "concordance_class": claim.get("concordance_class"),
+        "corroboration": claim.get("corroboration"),
+        "grain": claim.get("grain"),
+        "rna_magnitude": claim.get("rna_magnitude"),
+        "protein_magnitude": claim.get("protein_magnitude"),
+        "boundary_sensitive": boundary,
+        "boundary_note": claim.get("boundary_note"),
+        "positive_signal": pos or None,
+        "qualifying_signal": qual,
+        "source_support": claim.get("source_support"),
+        "headline": headline,
+        "provenance_ref": "claim_vector.abundance_concordance",
     }
 
 

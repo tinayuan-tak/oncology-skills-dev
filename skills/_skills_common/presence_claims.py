@@ -757,9 +757,20 @@ def _abundance_concordance_claim(c):
     knocking out one only DEGRADES corroboration (the concept is multiply-supported) — the M3 all-supply
     fidelity discipline.
 
+    PRESENTATION-SUPPORT (SK#1594 L2b-4 surface): the claim also carries structured two-directional
+    fields so a question_table answer can SURFACE the integrated read without prose-parsing `evidence` —
+    `positive_signal` (the encouraging cross-modality direction: both independent assays detect / agree on
+    the target's abundance; always present), `qualifying_signal` (the directional-split caveat; NULL when
+    `abundance_concordant`, populated for `rna_high_protein_low` = post-transcriptional attenuation / low
+    proxy-quality and its mirror), a uniform `source_support` map (both modalities of the primary grain,
+    identical key shape), and a deterministic `boundary_sensitive` flag (True unless the independent
+    cross-grain read corroborates the class → `corroboration != "high"`). These are PRESENTATION-support
+    only — they route NOTHING.
+
     #1512: compares within-population rank CLASSES, never raw TMT-vs-TPM percentiles. VERDICT-INERT:
     carries NO `signal` key (never a chip, never a tier, never averaged), reads no verdict, feeds no
-    rule. Returns None — key omitted, byte-stable — unless at least one grain resolves BOTH modalities."""
+    rule; the presentation fields route NOTHING. Returns None — key omitted, byte-stable — unless at
+    least one grain resolves BOTH modalities."""
     grains = []
     for label, rna_card, protein_cards in _ABUNDANCE_GRAINS:
         g = _resolve_abundance_grain(c, rna_card, protein_cards)
@@ -812,9 +823,116 @@ def _abundance_concordance_claim(c):
         "rna_high_protein_low": "RANKS ABOVE",
         "rna_low_protein_high": "RANKS BELOW",
     }[concordance]
+    concordant = concordance == "abundance_concordant"
+    grain = primary["grain"]
+    rna_mag, protein_mag = primary["rna_level"], primary["protein_level"]
+    # BOUNDARY-SENSITIVITY (presentation-support, NOT a verdict): the concordance CLASS is fixed by the
+    # primary grain's single RNA-vs-protein rank comparison. It is CORROBORATED only when the INDEPENDENT
+    # cross-grain read lands on the same class (corroboration `high`). When corroboration is `single_arm`
+    # (only one grain resolved) or `low` (the other grain conflicts), the class rests on ONE grain's
+    # rank pair with no calibrated CI — a near-boundary perturbation of either rank could flip it. This
+    # is a DETERMINISTIC read of the already-computed corroboration structure — NOT a new calibration
+    # layer, threshold, or continuous margin. The directional-split classes in particular must never be
+    # asserted flatly when they rest on a lone grain.
+    boundary_sensitive = corroboration != "high"
+    # ── Two-directional PRESENTATION fields (surface-consumption, NOT verdict-routing) ──────────────
+    # A uniform per-MODALITY support map for the PRIMARY grain: each modality carries the SAME key shape
+    # so a consumer reads the two directions structurally rather than prose-parsing `evidence`. `stance`
+    # names the modality's rank position in the integrated read (concordant when the ranks agree; else
+    # higher_rank / lower_rank). NOT a signal tier, NOT averaged, NOT routed.
+    _rna_stance = (
+        "concordant" if concordant else ("higher_rank" if concordance == "rna_high_protein_low" else "lower_rank")
+    )
+    _prot_stance = (
+        "concordant" if concordant else ("lower_rank" if concordance == "rna_high_protein_low" else "higher_rank")
+    )
+    source_support = {
+        "rna_abundance": {
+            "property": "rna_abundance_magnitude",
+            "card_id": primary["rna_card"],
+            "grain": grain,
+            "stance": _rna_stance,
+            "summary": f"RNA abundance {rna_mag} ({primary['rna_pctile_class']})",
+            "fields": {
+                "allgene_percentile_class": primary["rna_pctile_class"],
+                "magnitude_level": rna_mag,
+            },
+        },
+        "ms_protein_abundance": {
+            "property": "ms_protein_abundance_magnitude",
+            "card_id": primary["protein_card"],
+            "grain": grain,
+            "stance": _prot_stance,
+            "summary": f"MS-protein abundance {protein_mag} ({primary['protein_pctile_class']})",
+            "fields": {
+                "allgene_percentile_class": primary["protein_pctile_class"],
+                "magnitude_level": protein_mag,
+            },
+        },
+    }
+    # The ENCOURAGING direction — always present when the claim resolves: both INDEPENDENT assays place
+    # the target on the abundance ladder (the cross-modality detection floor). When concordant it is the
+    # stronger statement that they AGREE on the rank. Sourced from the RNA anchor; `provenance_ref` keys
+    # into source_support / provenance.sources.
+    if concordant:
+        _pos_statement = (
+            f"Independent RNA and mass-spec protein assays AGREE the target sits at {rna_mag} "
+            f"within-population abundance rank ({grain} grain) — a genuine cross-modality corroboration."
+        )
+    else:
+        _pos_statement = (
+            f"Both independent RNA and mass-spec protein assays detect the target ({grain} grain: RNA "
+            f"rank {rna_mag}, MS-protein rank {protein_mag})."
+        )
+    positive_signal = {
+        "statement": _pos_statement,
+        "source": "rna_abundance",
+        "provenance_ref": "rna_abundance",
+    }
+    # The QUALIFYING direction — NULL when concordant (RNA and MS-protein rank the target identically, no
+    # caveat). Populated only for a directional split: the SPLIT DIRECTION is the informative datum, NOT
+    # nullification. rna_high_protein_low = post-transcriptional attenuation / low proxy-quality (the
+    # presented protein is scarcer than the transcript implies); rna_low_protein_high = the mirror.
+    if concordant:
+        qualifying_signal = None
+    elif concordance == "rna_high_protein_low":
+        qualifying_signal = {
+            "statement": (
+                f"MS-protein abundance ranks BELOW RNA ({grain} grain: RNA {rna_mag} vs MS-protein "
+                f"{protein_mag}) — a post-transcriptional attenuation / low proxy-quality signal: the "
+                "presented protein is scarcer than the transcript implies, tempering RNA-based abundance "
+                "expectations for abundance-dependent modalities (ADC/degrader payload delivery)."
+            ),
+            "source": "ms_protein_abundance",
+            "provenance_ref": "ms_protein_abundance",
+        }
+    else:  # rna_low_protein_high
+        qualifying_signal = {
+            "statement": (
+                f"MS-protein abundance ranks ABOVE RNA ({grain} grain: MS-protein {protein_mag} vs RNA "
+                f"{rna_mag}) — protein accumulates beyond the transcript signal; an RNA-only read "
+                "UNDER-states the presented protein abundance."
+            ),
+            "source": "ms_protein_abundance",
+            "provenance_ref": "ms_protein_abundance",
+        }
     return {
         "concordance_class": concordance,
         "corroboration": corroboration,
+        # PRESENTATION-SUPPORT (surface-consumption): two-directional structured fields + a deterministic
+        # boundary-sensitivity flag. NONE of these route a verdict, name a signal tier, or feed a rule —
+        # they let a question_table answer present the integrated cross-modality read honestly.
+        "positive_signal": positive_signal,
+        "qualifying_signal": qualifying_signal,
+        "source_support": source_support,
+        "boundary_sensitive": boundary_sensitive,
+        "boundary_note": (
+            "concordance class rests on a single grain's RNA-vs-protein rank comparison with no "
+            "corroborating (or a conflicting) cross-grain read — treat as near-boundary, not a flat "
+            "assertion"
+            if boundary_sensitive
+            else "concordance class corroborated by the independent cross-grain abundance read"
+        ),
         # The primary-grain magnitude reads, surfaced for a consumer that wants the levels without
         # walking provenance. NONE of these route a verdict, name a signal tier, or feed a rule.
         "grain": primary["grain"],

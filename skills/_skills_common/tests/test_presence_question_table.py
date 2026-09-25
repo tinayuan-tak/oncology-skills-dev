@@ -662,3 +662,118 @@ def test_q7_derives_the_lossy_case_and_the_absence_case_from_cards():
     gone = _derive_q7_from_cards(coverage_class=None, escape_class=None)
     assert "integrated_signal" not in gone
     assert gone["question"] == "Is the tumor signal malignant-cell-intrinsic?"
+
+
+# ── Q6: SURFACE the L2b RNA×MS-protein abundance-MAGNITUDE concordance signal (SK#1594 L2b-4) ────────
+#
+# The L2b `abundance_concordance` claim (presence_claims.py, built by #1589/#1621) was read by nothing
+# until now. SK#1594 SURFACES it as an `integrated_signal` annotation on the Q6 ("Do RNA and protein
+# agree?") answer — the magnitude-level RNA↔protein agreement, distinct from Q6's population
+# proxy-correlation read. Verdict-INERT (the row's signal/confidence meter is untouched), attached only
+# when the claim resolves. The claim is built by the REAL builder so the presentation logic is exercised
+# end-to-end, not re-stated here (a re-derived fixture cannot fail).
+
+
+def _abundance_claim(tumor_rna="top_decile", tumor_protein="top_decile", cl_rna=None, cl_gygi=None, cl_procan=None):
+    cards = []
+
+    def _c(cid, cls):
+        if cls is not None:
+            cards.append({"card_id": cid, "summary": {"allgene_percentile_class": cls}})
+
+    _c("tumor-rna-distribution", tumor_rna)
+    _c("tumor-protein-abundance-cptac", tumor_protein)
+    _c("cellline-rna-distribution", cl_rna)
+    _c("cellline-protein-abundance", cl_gygi)
+    _c("cellline-protein-abundance-procan", cl_procan)
+    return presence_claim_vector({"presence_verdict": "tumor_broadly_expressed"}, cards)["abundance_concordance"]
+
+
+def _q6_with_abundance_claim(claim):
+    h, cards, cv = _fixture()
+    if claim is not None:
+        cv = {**cv, "abundance_concordance": claim}
+    return _by_id(presence_question_table(h, cards, cv))["Q6"]
+
+
+def test_q6_omits_integrated_signal_when_the_claim_is_absent():
+    # Byte-stability: with no abundance claim in the passed vector, Q6 carries no integrated_signal key.
+    r = _by_id(presence_question_table(*_fixture()))["Q6"]
+    assert "integrated_signal" not in r
+
+
+def test_q6_surfaces_concordant_signal_both_directions_no_meter_change():
+    # baseline row (no claim) vs enriched row (claim injected): the meter cells must be BYTE-IDENTICAL —
+    # the surface adds an annotation, never a tier.
+    base = _by_id(presence_question_table(*_fixture()))["Q6"]
+    claim = _abundance_claim(
+        tumor_rna="top_decile", tumor_protein="top_decile", cl_rna="top_1pct", cl_gygi="top_decile"
+    )
+    r = _q6_with_abundance_claim(claim)
+    assert r["signal"] == base["signal"] and r["confidence"] == base["confidence"]
+    isig = r["integrated_signal"]
+    assert isig["kind"] == "abundance_concordance"
+    assert isig["concordance_class"] == "abundance_concordant"
+    # verdict-INERT annotation: no signal tier / polarity / fill on the integrated_signal itself
+    assert "tier" not in isig and "polarity" not in isig and "fill" not in isig
+    # both directions surfaced: encouraging cross-modality read present, qualifying caveat NULL (concordant)
+    assert isig["positive_signal"]["source"] == "rna_abundance"
+    assert isig["qualifying_signal"] is None
+    assert "same" in isig["headline"].lower() and isig["boundary_sensitive"] is False
+    assert set(isig["source_support"]) == {"rna_abundance", "ms_protein_abundance"}
+
+
+def test_q6_surfaces_the_qualifying_direction_for_rna_high_protein_low():
+    claim = _abundance_claim(tumor_rna="top_decile", tumor_protein="mid")  # high vs moderate → rna_high_protein_low
+    isig = _q6_with_abundance_claim(claim)["integrated_signal"]
+    assert isig["concordance_class"] == "rna_high_protein_low"
+    assert isig["qualifying_signal"] is not None
+    # the headline names BOTH directions — the encouraging detection read AND the "However" caveat
+    assert "However" in isig["headline"]
+    assert isig["rna_magnitude"] == "high" and isig["protein_magnitude"] == "moderate"
+
+
+def test_q6_integrated_signal_flags_boundary_sensitivity_when_class_rests_on_a_lone_grain():
+    # A directional split resting on a SINGLE grain (no cross-grain corroboration) must be surfaced as
+    # boundary-sensitive, never asserted flat — the headline carries the flag the consumer renders.
+    claim = _abundance_claim(tumor_rna="top_decile", tumor_protein="mid")  # tumor grain only → single_arm
+    isig = _q6_with_abundance_claim(claim)["integrated_signal"]
+    assert isig["corroboration"] == "single_arm"
+    assert isig["boundary_sensitive"] is True
+    assert "boundary-sensitive" in isig["headline"]
+
+
+def _derive_q6_from_cards(tumor_rna, tumor_protein):
+    """Enter where run.py enters: build the row from CARDS with NO pre-built claim_vector, so
+    presence_question_table DERIVES the claim itself (fallback → presence_claim_vector). This proves the
+    surface is wired end-to-end, not merely when a claim is hand-injected."""
+    h, cards, _cv = _fixture()
+    for c in cards:
+        if c["card_id"] == "tumor-rna-distribution":
+            c["summary"] = {**c["summary"], "allgene_percentile_class": tumor_rna}
+        if c["card_id"] == "tumor-protein-abundance-cptac":
+            c["summary"] = {**c["summary"], "allgene_percentile_class": tumor_protein}
+    h = {k: v for k, v in h.items() if k != "claim_vector"}
+    return _by_id(presence_question_table(h, cards, None))["Q6"]
+
+
+def test_q6_derives_and_surfaces_the_signal_end_to_end_from_cards():
+    # concordant PANEL case, derived (not injected): the run.py path surfaces it.
+    r = _derive_q6_from_cards(tumor_rna="top_1pct", tumor_protein="top_1pct")
+    assert r["integrated_signal"]["concordance_class"] == "abundance_concordant"
+    assert r["integrated_signal"]["qualifying_signal"] is None
+    # directional PANEL case, derived: the qualifying split direction is surfaced.
+    split = _derive_q6_from_cards(tumor_rna="top_1pct", tumor_protein="mid")
+    assert split["integrated_signal"]["concordance_class"] == "rna_high_protein_low"
+    assert split["integrated_signal"]["qualifying_signal"] is not None
+
+
+def test_q6_defeat_every_protein_supply_omits_the_row_signal_cleanly():
+    # M3 reach: defeat the protein modality (no tumor CPTAC, no cell-line protein) → the claim omits and
+    # the row falls back CLEANLY to no integrated_signal (never a fabricated one), meter cells intact.
+    h, cards, _cv = _fixture()
+    cards = [c for c in cards if c["card_id"] not in ("tumor-protein-abundance-cptac", "cellline-protein-abundance")]
+    h = {k: v for k, v in h.items() if k != "claim_vector"}
+    r = _by_id(presence_question_table(h, cards, None))["Q6"]
+    assert "integrated_signal" not in r
+    assert r["question"] == "Do RNA and protein agree?"
