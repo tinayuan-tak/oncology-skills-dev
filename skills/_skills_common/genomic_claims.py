@@ -324,7 +324,7 @@ def _cn_signal(h, c):
     cls = bc.get("verdict")  # copy_number_class (cell-line)
     sig = _CN_SIGNAL.get(cls, "unmeasured")
     focal = h.get("patient_focal_cn_class")
-    demoted = False
+    demoted = None  # None | "amp" | "del" — which commensurate patient axis drove the demotion narration
     if focal in _CN_FOCAL_POS:
         # Patient-tumour focal CN is the clinically-relevant driver event and drives the signal
         # INDEPENDENTLY of the cell-line arm. HER2/CCND1 are recurrently focally amplified in patient
@@ -334,49 +334,77 @@ def _cn_signal(h, c):
         # patient-focal alone (cell-line neutral) -> moderate. Mirrors the tumor-presence de-differentiation
         # fix (a measured tumour-tissue positive is not vetoed by a neutral cell-line proxy).
         sig = "strong" if sig_ge(sig, "moderate") else "moderate"
-    elif cls in _CN_CELL_LINE_RECURRENT and focal in _CN_FOCAL_NEG:
-        # The MIRROR of the arm above, and it was missing: corroboration is bidirectional but signal was
-        # one-way. `_cn_corroboration` already returns `low` for exactly this shape (cell-line recurrent,
-        # patient tumour explicitly focal-neutral), while `_cn_signal` had only the elevation path — so the
-        # claim kept publishing a `moderate` measured-POSITIVE CN signal for a shallow cell-line call over
-        # near-diploid patient tumours (0.1-2.3% of the cohort). TC #739 retired this predicate from every
-        # driver-establishing rung, but retiring it from the LADDER does not retire it from the CLAIM, which
-        # is what the eval harness, the literature lane and the discordance ledger read.
+    elif cls == "recurrently_amplified" and focal in _CN_FOCAL_NEG:
+        # The demotion MIRROR of the elevation arm: corroboration is bidirectional but signal was one-way, so
+        # the claim kept publishing a `moderate` measured-POSITIVE CN signal for a cell-line call over
+        # near-diploid patient tumours. TC #739 retired this predicate from every driver-establishing rung,
+        # but retiring it from the LADDER does not retire it from the CLAIM, which is what the eval harness,
+        # the literature lane and the discordance ledger read. `weak` (not `absent`) mirrors `_fus_signal`'s
+        # `promiscuous_amplicon_fusion` — the event is real in some lines, it just is not population recurrence.
         #
-        # SYMMETRIC across amplification and deletion on purpose: the mechanism is direction-agnostic and
-        # `_cn_corroboration` already treats both alike, so demoting only the deletion instance would
-        # recreate the mirror-guard DIRECTION gap this arm exists to close. `weak` (not `absent`) mirrors
-        # `_fus_signal`'s `promiscuous_amplicon_fusion` — the event is real in some lines, it just is not
-        # population recurrence. Keyed on _CN_FOCAL_NEG, never on `data_unavailable`: an UNMEASURED patient
-        # arm is not a contradiction, and demoting on it would punish coverage gaps as disagreement.
-        sig, demoted = "weak", True
+        # AMP is FOCAL-commensurate: the cell-line amp score counts only focal/high gain (relative CN > 1.5,
+        # shallow arm-level gain EXCLUDED — `depmap_cn_distribution._classify_cn`), so a patient FOCAL-neutral
+        # call (no GISTIC +2) is a genuine same-construct disagreement. Keyed on _CN_FOCAL_NEG, never on
+        # `data_unavailable`/`underpowered`: an UNMEASURED patient arm is not a contradiction.
+        sig, demoted = "weak", "amp"
+    elif cls == "recurrently_deleted" and h.get("patient_copy_number_class") == "broadly_neutral":
+        # DEL is repointed to the COMMENSURATE any-loss axis (SK#1673), NO LONGER symmetric with amp. The
+        # cell-line del score folds deep AND shallow hemizygous loss, so the homdel-only `focal_neutral` call
+        # is INCOMMENSURATE with it — the old `focal in _CN_FOCAL_NEG` demotion fired for the many tumour
+        # suppressors recurrently HEMIZYGOUSLY deleted in patients below the homdel bar (SMAD4/COADREAD,
+        # PTEN/LUSC, RB1, STK11 …: cell-line recurrently_deleted, patient any-loss recurrent but focal_neutral),
+        # manufacturing a `weak` "not population recurrence" for a claim patients DO corroborate. This mirrors
+        # `_cn_corroboration`'s deletion arm exactly. Demote only when the patient ANY-loss call
+        # `patient_copy_number_class` is a MEASURED negative (`broadly_neutral`: patients looked and found no
+        # recurrent loss). `recurrently_deleted` (patients also lose it) keeps the cell-line signal; a gap
+        # (data_unavailable/underpowered/None) is not a contradiction; `mixed` is directionless.
+        sig, demoted = "weak", "del"
     ev = f"CN: cell-line {cls or 'data_unavailable'}, patient-focal {focal or 'data_unavailable'}"
-    if demoted:
+    if demoted == "amp":
         # Name the demotion in the evidence, not just in the tier — the literature lane and the ledger
         # read this string, and "weak" alone reads as a weak measurement rather than as a disagreement.
         ev += " — cell-line-recurrent but patient tumours focal-neutral: not population recurrence"
+    elif demoted == "del":
+        pcn = h.get("patient_copy_number_class")
+        ev += f" (patient any-loss {pcn}) — cell-line-recurrent but patient tumours broadly copy-number-neutral: not population recurrence"
     return sig, ev, None
 
 
 def _cn_corroboration(h, c):
-    """CN corroboration over the two arms — cell-line `copy_number_class` and patient-tumour
-    `patient_focal_cn_class` — under the MEASURED-ARM frame.
+    """CN corroboration over two arms — the cell-line `copy_number_class` and a patient-tumour cross-arm
+    matched PER DIRECTION to the COMMENSURATE patient measure — under the MEASURED-ARM frame.
 
     The unconditional trailing `return "moderate"` this replaced conflated THREE distinct states, which
     is what made eval CASE-034's DLL3/SCLC row unreadable:
-      1. one-armed (patient focal `data_unavailable`/None) — nobody looked for a second arm;
-      2. DIRECTION CONFLICT (cell-line amplified + patient `recurrent_focal_deletion`, or the mirror) —
-         two measured arms pointing OPPOSITE ways, priced as partial agreement;
+      1. one-armed (patient arm `data_unavailable`/None) — nobody looked for a second arm;
+      2. DIRECTION CONFLICT (cell-line amplified + a patient deletion, or the mirror) — two measured arms
+         pointing OPPOSITE ways, priced as partial agreement;
       3. `cls == "mixed"` — a measured but directionless cell-line call, which has no direction for a
-         patient focal call to agree OR disagree with.
+         patient call to agree OR disagree with.
 
     A measured-NEGATIVE `broadly_neutral` keeps a measured corroboration tier (`single_arm`): the
     cell-line arm did look and did report no event, and that negative is a claim a second arm could
     corroborate. This is convention A — see `_snv_corroboration`, which records why it became the fleet
     convention on 2026-09-14 and which axes were converted to it.
 
-    `patient_focal_cn_class` is a CLOSED enum, so the arms below are exhaustive by construction rather
-    than by a trailing else."""
+    WHY THE TWO DIRECTIONS CONSULT DIFFERENT PATIENT ARMS (SK#1673). `depmap_cn_distribution` scores the
+    cell-line `copy_number_class` ASYMMETRICALLY on purpose (cli._classify_cn): the AMP score counts only
+    focal/high gain (relative CN > 1.5, shallow arm-level gain EXCLUDED), while the DEL score folds deep
+    AND shallow hemizygous loss. So each direction has a DIFFERENT commensurate patient measure:
+      * `recurrently_amplified` is FOCAL, so its commensurate arm is the FOCAL patient call
+        `patient_focal_cn_class` (GISTIC +2 high-level). A `focal_neutral` patient here is a genuine focal
+        disagreement — cell lines are focally amplified, patient tumours are not.
+      * `recurrently_deleted` is BROAD (deep + hemizygous), so the homdel-only `patient_focal_cn_class`
+        (`recurrent_focal_deletion` = GISTIC -2 only; arm-level/shallow loss lands in `focal_neutral`) is
+        INCOMMENSURATE with it — judging a broad cell-line deletion against a focal homdel patient call
+        MANUFACTURED a false conflict (`low`) for the many tumour suppressors recurrently HEMIZYGOUSLY
+        deleted in patients below the homdel bar (SMAD4/COADREAD, PTEN, RB1, STK11 …; the #1575/#1674
+        construct-incommensurability shape). Its commensurate arm is the ANY-loss `patient_copy_number_class`
+        (GISTIC <= -1 — the display-only cross-check the copy-number-distribution manifest calls "directly
+        comparable" to the cell-line class). This repoint is verdict-inert: `patient_copy_number_class`
+        fires NO resolver rung (only `patient_focal_cn_class` does, and this fn feeds only the verdict-inert
+        `genomic_claim_vector`), and the field is already lifted into the headline, so the census is
+        unchanged. Both patient enums are CLOSED, so the per-direction arms below are exhaustive."""
     bc = _by_class(h).get("copy_number") or {}
     cls = bc.get("verdict")
     # A GAP collapses the axis — keyed off the OFF-SCALE ordinal (None) so BOTH gap kinds qualify:
@@ -387,23 +415,33 @@ def _cn_corroboration(h, c):
     if SIGNAL_ORD.get(_CN_SIGNAL.get(cls, "unmeasured")) is None:
         return "unmeasured"  # a gap is neither corroborated nor contradicted
 
-    focal = h.get("patient_focal_cn_class")
-    # The patient arm: True/False if GISTIC looked, None if it did not. Two focal values are GAPS the
-    # arm cannot take a side from, tested by sentinel (both are truthy STRINGS, never by truthiness):
-    # `data_unavailable` (nobody looked) and `underpowered` (the patient focal read RAN but was under the
-    # CN power floor — a gap WITH INTENT, mirroring the cell-line `underpowered` tier above and added to
-    # the card vocab by contracts PR-C3 #851). Neither is a measured focal call, so both leave the
+    # Both patient arms share the same two GAP sentinels — truthy STRINGS, tested by value never by
+    # truthiness: `data_unavailable` (nobody looked) and `underpowered` (the patient read RAN but was
+    # under the CN power floor, a gap WITH INTENT; card vocab, contracts PR-C3 #851). Either leaves the
     # patient arm absent → the cell-line call stands ALONE (`single_arm`), never a fabricated conflict.
-    if focal is None or focal in ("data_unavailable", "underpowered"):
-        patient_arm = None
-    elif cls == "recurrently_amplified":
-        patient_arm = focal == "recurrent_focal_amplification"
+    _CN_GAPS = ("data_unavailable", "underpowered")
+    if cls == "recurrently_amplified":
+        # FOCAL cell-line amp ↔ FOCAL patient call (commensurate: both exclude shallow arm-level gain).
+        focal = h.get("patient_focal_cn_class")
+        patient_arm = None if (focal is None or focal in _CN_GAPS) else focal == "recurrent_focal_amplification"
     elif cls == "recurrently_deleted":
-        patient_arm = focal == "recurrent_focal_deletion"
+        # BROAD cell-line del (deep + hemizygous) ↔ ANY-loss `patient_copy_number_class` (commensurate),
+        # NOT the homdel-only `patient_focal_cn_class`.
+        pcn = h.get("patient_copy_number_class")
+        if pcn is None or pcn in _CN_GAPS:
+            patient_arm = None  # gap on the patient arm — one-armed, never a conflict
+        elif pcn == "recurrently_deleted":
+            patient_arm = True  # patient tumours ALSO recurrently lose the locus — concordant any-loss
+        elif pcn == "mixed":
+            patient_arm = None  # patients recurrently BOTH gain and lose it: directionless, no clean del comparison
+        else:
+            # `recurrently_amplified` (opposite direction) or `broadly_neutral` (patients looked at any-loss
+            # and found none recurrent): a measured patient call that disagrees with a cell-line deletion.
+            patient_arm = False
     else:
-        # `mixed` and `broadly_neutral`: the cell-line arm asserts no DIRECTION (mixed) or asserts a
-        # NEGATIVE (broadly_neutral), so no patient focal call can agree or disagree with it. Measured,
-        # but not comparable — which is a one-armed claim, not a conflict.
+        # `mixed` and `broadly_neutral` cell-line: the cell-line arm asserts no DIRECTION (mixed) or asserts
+        # a NEGATIVE (broadly_neutral), so no patient call can agree or disagree with it. Measured, but not
+        # comparable — which is a one-armed claim, not a conflict.
         patient_arm = None
     # The cell-line arm is measured and positive by the guard above, so it always agrees with itself.
     return corroboration_from_arms([True, patient_arm])

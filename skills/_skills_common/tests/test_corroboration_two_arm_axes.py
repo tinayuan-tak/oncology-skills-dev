@@ -12,10 +12,16 @@ So these axes need real inputs. They are also the only axes where `moderate`/`hi
 reachable at all, which makes them the place a regression would be least visible: the value looks
 plausible because the axis genuinely can produce it.
 
-The CN case is enumerated EXHAUSTIVELY over the closed `patient_focal_cn_class` vocabulary rather than
-sampled, because the four states the old trailing `return "moderate"` conflated (one-armed, direction
-conflict, directionless `mixed`, measured-negative) are distinguishable only by walking the cross
-product — and eval CASE-034's DLL3/SCLC row was unreadable precisely because two of them collided.
+The CN case is enumerated EXHAUSTIVELY over the closed patient vocabularies rather than sampled, because
+the four states the old trailing `return "moderate"` conflated (one-armed, direction conflict,
+directionless `mixed`, measured-negative) are distinguishable only by walking the cross product — and
+eval CASE-034's DLL3/SCLC row was unreadable precisely because two of them collided.
+
+The two DIRECTIONS consult DIFFERENT patient arms, so the table crosses each against its own enum
+(SK#1673): the AMP direction reads the FOCAL patient call `patient_focal_cn_class` (commensurate with the
+focal-only cell-line amp score), while the DEL direction reads the ANY-loss `patient_copy_number_class`
+(commensurate with the deep+hemizygous cell-line del score — the homdel-only focal call would manufacture
+a false conflict for the many tumour suppressors recurrently HEMIZYGOUSLY deleted below the homdel bar).
 """
 
 from __future__ import annotations
@@ -36,6 +42,8 @@ from _skills_common.claim_vector_core import CORROBORATION_ORD, SIGNAL_ORD  # no
 # → outputs.summary_fields_vocabulary.patient_focal_cn_class. Mirrored here (skills CI does not
 # necessarily have the contracts checkout) and CROSS-CHECKED against the contract when it IS reachable,
 # by test_patient_focal_enum_matches_the_card_contract below — so this copy cannot silently go stale.
+# This is the FOCAL (GISTIC high-level) patient arm — the commensurate second arm for the cell-line AMP
+# direction only (see _PATIENT_PCN_ENUM for the DEL direction, SK#1673).
 _PATIENT_FOCAL_ENUM = (
     "recurrent_focal_amplification",
     "recurrent_focal_deletion",
@@ -48,34 +56,61 @@ _PATIENT_FOCAL_ENUM = (
     "underpowered",
 )
 
+# The closed vocabulary from the SAME card → summary_fields_vocabulary.patient_copy_number_class: the
+# ANY-loss/any-gain (GISTIC |CN| >= 1) patient call the DELETION direction consults after SK#1673, because
+# it is commensurate with the deep+hemizygous cell-line del score (the focal homdel-only enum above is
+# not). Same two gap sentinels as the focal enum. Cross-checked against the contract below.
+_PATIENT_PCN_ENUM = (
+    "recurrently_amplified",
+    "recurrently_deleted",
+    "mixed",
+    "broadly_neutral",
+    "data_unavailable",
+    "underpowered",
+)
 
-def _cn_headline(cn_class, focal):
+
+def _cn_headline(cn_class, focal=None, pcn=None):
     return {
         "genomic_alteration_by_class": {"copy_number": {"verdict": cn_class}},
         "patient_focal_cn_class": focal,
+        "patient_copy_number_class": pcn,
     }
 
 
-# (cell-line copy_number_class, patient_focal_cn_class) -> expected corroboration, with the REASON.
-# Enumerated over the full cross product: 6 cell-line classes x (5 enum values + None) = 36 rows.
+def _cn_headline_for(cn_class, patient_val):
+    """Route the patient token to the arm the cell-line DIRECTION actually consults: the DEL direction
+    reads `patient_copy_number_class`, every other class reads (or ignores) `patient_focal_cn_class`."""
+    if cn_class == "recurrently_deleted":
+        return _cn_headline(cn_class, pcn=patient_val)
+    return _cn_headline(cn_class, focal=patient_val)
+
+
+# (cell-line copy_number_class, patient token) -> expected corroboration, with the REASON. The patient
+# token is drawn from the enum the direction CONSULTS: the DEL rows cross `patient_copy_number_class`
+# (_PATIENT_PCN_ENUM), every other row crosses `patient_focal_cn_class` (_PATIENT_FOCAL_ENUM). For the gap
+# / `mixed` / `broadly_neutral` cell-line rows the patient token is IRRELEVANT (the fn short-circuits or
+# sets the arm absent without reading either field), so those cross the focal enum purely for coverage.
+# 4 patient-irrelevant classes x 6 focal tokens + 6 AMP focal tokens + 7 DEL pcn tokens = 37 rows.
 _CN_CASES = {
     # A GAP carries no corroboration whatever the patient arm says: there is nothing to agree or disagree
     # with. The two gap KINDS collapse the axis alike — `data_unavailable` (nobody looked) and
     # `underpowered` (the cell-line arm looked but was under-powered): both are off-scale in SIGNAL_ORD, so
-    # neither is a measured arm the patient focal call could corroborate. (Before the `underpowered` tier,
+    # neither is a measured arm a patient call could corroborate. (Before the `underpowered` tier,
     # `data_unavailable` was the only signal state that collapsed the axis.)
     **{("data_unavailable", f): "unmeasured" for f in _PATIENT_FOCAL_ENUM + (None,)},
     **{("underpowered", f): "unmeasured" for f in _PATIENT_FOCAL_ENUM + (None,)},
     # `broadly_neutral` is a measured NEGATIVE and `mixed` a measured DIRECTIONLESS call. Both are real
     # one-armed claims: the cell-line arm looked and reported something, but nothing it reported gives a
-    # patient focal call anything to agree or disagree WITH. `single_arm`, not `unmeasured` — collapsing
-    # them to a gap would regress CASE-032, where a measured floor reading as a gap is the whole defect.
+    # patient call anything to agree or disagree WITH. `single_arm`, not `unmeasured` — collapsing them to
+    # a gap would regress CASE-032, where a measured floor reading as a gap is the whole defect.
     **{("broadly_neutral", f): "single_arm" for f in _PATIENT_FOCAL_ENUM + (None,)},
     **{("mixed", f): "single_arm" for f in _PATIENT_FOCAL_ENUM + (None,)},
-    # A positive, DIRECTIONAL cell-line call: now the patient arm can actually be compared.
+    # AMP: a positive FOCAL cell-line call, compared against the FOCAL patient arm (both exclude shallow
+    # arm-level gain — commensurate). Unchanged by SK#1673.
     ("recurrently_amplified", "recurrent_focal_amplification"): "high",  # both arms, same direction
     ("recurrently_amplified", "recurrent_focal_deletion"): "low",  # OPPOSITE directions — a conflict
-    ("recurrently_amplified", "focal_neutral"): "low",  # GISTIC looked and found nothing — disagreement
+    ("recurrently_amplified", "focal_neutral"): "low",  # GISTIC looked and found no focal amp — disagreement
     ("recurrently_amplified", "data_unavailable"): "single_arm",  # a truthy STRING sentinel, not an arm
     # The patient focal arm RAN but was under-powered: a gap on the SECOND arm, exactly like
     # `data_unavailable`/None above — the measured cell-line call stands alone. NOT a conflict: reading
@@ -83,29 +118,40 @@ _CN_CASES = {
     # routes to a reviewer, the same gap≠contradiction error the purity/panel arms guard against.
     ("recurrently_amplified", "underpowered"): "single_arm",
     ("recurrently_amplified", None): "single_arm",  # the field was never emitted
-    ("recurrently_deleted", "recurrent_focal_deletion"): "high",
-    ("recurrently_deleted", "recurrent_focal_amplification"): "low",
-    ("recurrently_deleted", "focal_neutral"): "low",
-    ("recurrently_deleted", "data_unavailable"): "single_arm",
+    # DEL: a positive BROAD cell-line call (deep + hemizygous loss), compared against the ANY-loss patient
+    # arm `patient_copy_number_class` (SK#1673) — NOT the focal homdel-only call, which is incommensurate
+    # and manufactured a false conflict for hemizygously-deleted tumour suppressors (SMAD4/COADREAD,
+    # PTEN/LUSC, RB1, STK11 …: cell-line recurrently_deleted, patient any-loss recurrent but focal_neutral).
+    ("recurrently_deleted", "recurrently_deleted"): "high",  # patients ALSO recurrently lose it — concordant
+    ("recurrently_deleted", "recurrently_amplified"): "low",  # OPPOSITE directions — a real conflict
+    ("recurrently_deleted", "broadly_neutral"): "low",  # patients looked at any-loss and found none recurrent
+    ("recurrently_deleted", "mixed"): "single_arm",  # patients BOTH gain and lose it: directionless, no clean del cmp
+    ("recurrently_deleted", "data_unavailable"): "single_arm",  # truthy sentinel, not an arm
     ("recurrently_deleted", "underpowered"): "single_arm",  # under-powered patient arm = a gap, one-armed
-    ("recurrently_deleted", None): "single_arm",
+    ("recurrently_deleted", None): "single_arm",  # the field was never emitted
 }
 
 
-def test_cn_case_table_is_exhaustive_over_the_closed_enum():
+def test_cn_case_table_is_exhaustive_over_the_closed_enums():
     """The table is a POPULATION, not a sample: every cell-line class in `_CN_SIGNAL` crossed with every
-    value of the closed patient enum plus the never-emitted `None`. Derived from the module's own signal
-    map, so a NEW cell-line class fails here rather than slipping through untested."""
-    expected = {(cls, f) for cls in gen._CN_SIGNAL for f in _PATIENT_FOCAL_ENUM + (None,)}
-    assert set(_CN_CASES) == expected, f"missing {sorted(expected - set(_CN_CASES))}"
-    assert len(_CN_CASES) == 36
+    value of the enum THAT DIRECTION CONSULTS plus the never-emitted `None` — the DEL direction over
+    `patient_copy_number_class` (SK#1673), all others over `patient_focal_cn_class`. Derived from the
+    module's own signal map, so a NEW cell-line class fails here rather than slipping through untested."""
+    expected = set()
+    for cls in gen._CN_SIGNAL:
+        patient_vals = _PATIENT_PCN_ENUM if cls == "recurrently_deleted" else _PATIENT_FOCAL_ENUM
+        expected |= {(cls, pv) for pv in patient_vals + (None,)}
+    assert set(_CN_CASES) == expected, (
+        f"missing {sorted(expected - set(_CN_CASES))}, extra {sorted(set(_CN_CASES) - expected)}"
+    )
+    assert len(_CN_CASES) == 37
 
 
-@pytest.mark.parametrize(("cn_class", "focal"), sorted(_CN_CASES, key=lambda k: (k[0], str(k[1]))))
-def test_cn_corroboration_over_the_full_arm_cross_product(cn_class, focal):
-    got = gen._cn_corroboration(_cn_headline(cn_class, focal), {})
-    assert got == _CN_CASES[(cn_class, focal)], (
-        f"copy_number={cn_class!r} x patient_focal={focal!r}: expected {_CN_CASES[(cn_class, focal)]!r}, got {got!r}"
+@pytest.mark.parametrize(("cn_class", "patient_val"), sorted(_CN_CASES, key=lambda k: (k[0], str(k[1]))))
+def test_cn_corroboration_over_the_full_arm_cross_product(cn_class, patient_val):
+    got = gen._cn_corroboration(_cn_headline_for(cn_class, patient_val), {})
+    assert got == _CN_CASES[(cn_class, patient_val)], (
+        f"copy_number={cn_class!r} x patient={patient_val!r}: expected {_CN_CASES[(cn_class, patient_val)]!r}, got {got!r}"
     )
 
 
@@ -118,6 +164,33 @@ def test_cn_distinguishes_a_missing_patient_arm_from_a_contradicting_one():
     assert CORROBORATION_ORD[gap] > CORROBORATION_ORD[conflict], "a gap must not rank below a conflict"
 
 
+def test_cn_deletion_arm_is_commensurate_any_loss_not_focal_homdel():
+    """SK#1673, stated as the vote it flips. The cell-line `recurrently_deleted` score folds deep AND
+    shallow hemizygous loss (`depmap_cn_distribution._classify_cn`), so it is commensurate with the ANY-loss
+    patient call `patient_copy_number_class`, NOT the homdel-only `patient_focal_cn_class`. The SMAD4/COADREAD
+    shape — cell lines recurrently deleted, patients recurrently HEMIZYGOUSLY deleted (any-loss
+    `recurrently_deleted`) but below the focal homdel bar (`focal_neutral`) — must read as CONCORDANT
+    (`high`), not the false conflict (`low`) the focal comparison produced."""
+    commensurate = gen._cn_corroboration(
+        _cn_headline("recurrently_deleted", focal="focal_neutral", pcn="recurrently_deleted"), {}
+    )
+    assert commensurate == "high", (
+        "cell-line recurrently_deleted + patient any-loss recurrently_deleted is two arms agreeing; reading "
+        "the homdel-only focal_neutral arm instead manufactures the SK#1673 false conflict"
+    )
+    # The mutation this guards: repointing the del arm back to `patient_focal_cn_class` would read
+    # `focal_neutral` as a disagreement and return `low`. If a future change ignores the pcn field, this row
+    # collapses to `single_arm` (arm absent) — either way NOT `high`, so the assertion has teeth.
+
+
+def test_cn_deletion_arm_still_catches_a_real_opposite_direction_conflict():
+    """The repoint must not go soft on genuine discordance: a cell-line deletion where patient tumours
+    recurrently GAIN the locus is still a real conflict (`low`), and one where patients looked and found no
+    recurrent loss (`broadly_neutral`) is too."""
+    assert gen._cn_corroboration(_cn_headline("recurrently_deleted", pcn="recurrently_amplified"), {}) == "low"
+    assert gen._cn_corroboration(_cn_headline("recurrently_deleted", pcn="broadly_neutral"), {}) == "low"
+
+
 # (label, signal map, class -> corroboration) for every axis whose corroboration reads the SAME source
 # its signal does. The negative population is DERIVED from each map, per the idiom at
 # test_the_negative_side_is_derived_from_the_signal_map_not_from_a_class_LITERAL below: a listed one goes
@@ -126,7 +199,7 @@ def test_cn_distinguishes_a_missing_patient_arm_from_a_contradicting_one():
 # negative carry a tier AT ALL — from the separate question of which side that arm takes.
 _MEASURED_NEGATIVE_AXES = [
     ("SNV", lambda: gen._RECURRENCE_SIGNAL, lambda cls: _snv(cls, None)),
-    ("CN", lambda: gen._CN_SIGNAL, lambda cls: gen._cn_corroboration(_cn_headline(cls, None), {})),
+    ("CN", lambda: gen._CN_SIGNAL, lambda cls: gen._cn_corroboration(_cn_headline(cls), {})),
     ("FUS", lambda: gen._FUS_SIGNAL, lambda cls: _fus(cls, None)),
     ("SPL", lambda: gen._SPLICE_SIGNAL, lambda cls: gen._spl_corroboration(_spl_headline(cls), None)),
     ("ROLE", lambda: gen._ROLE_SIGNAL, lambda cls: gen._role_corroboration({"alteration_role": cls}, {})),
@@ -332,6 +405,13 @@ def test_patient_focal_enum_matches_the_card_contract():
     assert set(declared) == set(_PATIENT_FOCAL_ENUM), (
         f"the closed enum DRIFTED: contract={sorted(declared)} vs mirrored={sorted(_PATIENT_FOCAL_ENUM)}. "
         f"Extend _PATIENT_FOCAL_ENUM and the _CN_CASES table together."
+    )
+    # …and the ANY-loss patient enum the DELETION direction consults after SK#1673 (same drift guard).
+    declared_pcn = vocab.get("patient_copy_number_class")
+    assert declared_pcn, "the card no longer declares a patient_copy_number_class vocabulary"
+    assert set(declared_pcn) == set(_PATIENT_PCN_ENUM), (
+        f"the closed enum DRIFTED: contract={sorted(declared_pcn)} vs mirrored={sorted(_PATIENT_PCN_ENUM)}. "
+        f"Extend _PATIENT_PCN_ENUM and the _CN_CASES deletion rows together."
     )
 
 

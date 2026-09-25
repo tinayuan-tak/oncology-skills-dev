@@ -462,44 +462,69 @@ def test_role_direction_arm_is_read_relative_to_the_signal_side():
     assert _role_corroboration(_role_h("data_unavailable", "activating"), None) == "unmeasured"
 
 
-# ── CASE-031: the CN demotion mirror (cell-line recurrent vs patient-tumour focal-neutral) ────────
-def _cn_disagree_headline(cell_line_cls):
+# ── CASE-031 / SK#1673: the CN demotion mirror, now DIRECTION-SPLIT by commensurability ───────────
+def _cn_disagree_headline(cell_line_cls, *, focal="focal_neutral", pcn=None):
     """The measured discordance shape from the genomic-20 panel: DepMap calls the locus recurrently
-    amplified/deleted, but GISTIC says patient tumours are focal-neutral (0.1-2.3% of the cohort)."""
+    amplified/deleted, but the patient tumours disagree. `focal` sets the GISTIC high-level (homdel/+2)
+    call `patient_focal_cn_class`; `pcn` sets the ANY-loss/any-gain call `patient_copy_number_class` that
+    the DELETION direction consults after SK#1673."""
     return {
         "genomic_alteration_by_class": _by_class(
             snv_landscape="no_mutations", cn=cell_line_cls, fusion="no_recurrent_fusion"
         ),
-        "patient_focal_cn_class": "focal_neutral",
+        "patient_focal_cn_class": focal,
+        "patient_copy_number_class": pcn,
         "drug_response_stratification_class": "not_drug_response_stratified",
     }
 
 
-def test_cellline_recurrent_over_focal_neutral_patients_is_demoted_in_BOTH_directions():
-    """CASE-031. `_cn_corroboration` already returned `low` for this shape while `_cn_signal` kept
-    publishing a measured-POSITIVE `moderate` — corroboration was bidirectional, signal was one-way.
-
-    Iterates `_CN_CELL_LINE_RECURRENT` rather than naming the two tokens, so a vocabulary that grows a
-    third recurrent cell-line class is covered by declaration; the length assert keeps that derivation
-    honest (a token RENAMED out of the set would otherwise make this test vacuously pass over 0 cases).
-    """
-    assert len(_CN_CELL_LINE_RECURRENT) >= 2, "population shrank — the symmetry claim is no longer tested"
-    for cls in _CN_CELL_LINE_RECURRENT:
-        vec = genomic_claim_vector(_cn_disagree_headline(cls), [])
-        assert vec["CN"]["signal"] == "weak", f"{cls}: measured patient focal-neutral did not demote"
-        assert vec["CN"]["corroboration"] == "low", f"{cls}: corroboration arm regressed"
-        assert "not population recurrence" in vec["CN"]["evidence"], f"{cls}: demotion unnarrated"
+def test_amp_over_focal_neutral_patients_is_demoted_on_the_commensurate_focal_axis():
+    """CASE-031, amplification arm — UNCHANGED by SK#1673. The cell-line `recurrently_amplified` score is
+    FOCAL (shallow arm-level gain excluded), so it is commensurate with the homdel/+2 patient call: patient
+    tumours that are focal-neutral are a same-construct disagreement. Signal demotes to `weak` with the
+    narration; the corroboration arm reads `low`."""
+    vec = genomic_claim_vector(_cn_disagree_headline("recurrently_amplified", focal="focal_neutral"), [])
+    assert vec["CN"]["signal"] == "weak", "measured patient focal-neutral did not demote the amp signal"
+    assert vec["CN"]["corroboration"] == "low", "amp corroboration arm regressed"
+    assert "not population recurrence" in vec["CN"]["evidence"], "amp demotion unnarrated"
 
 
-def test_cn_demotion_is_keyed_on_a_MEASURED_negative_not_on_a_gap():
-    """DLL3/SCLC shape: cell-line `recurrently_deleted` with NO patient-CN read. An unmeasured patient
-    arm is not a contradiction — demoting on it would price a coverage gap as disagreement. This is the
-    both-directions companion to the test above and the reason `_CN_FOCAL_NEG` is not `!= focal event`."""
-    for gap in ("data_unavailable", None):
-        h = _cn_disagree_headline("recurrently_deleted")
-        h["patient_focal_cn_class"] = gap
+def test_del_over_focal_neutral_but_any_loss_recurrent_patients_is_NOT_demoted():
+    """SK#1673, the vote this fix flips. The cell-line `recurrently_deleted` score folds deep AND shallow
+    hemizygous loss, so it is INCOMMENSURATE with the homdel-only `patient_focal_cn_class`. The SMAD4/COADREAD
+    shape — cell lines recurrently deleted, patients recurrently HEMIZYGOUSLY deleted (any-loss
+    `recurrently_deleted`) but below the homdel bar (`focal_neutral`) — must NOT be demoted: it is a claim
+    patients CORROBORATE. Signal stays at the cell-line tier (`moderate`), corroboration is `high`, and the
+    demotion narration is absent. The old `focal in _CN_FOCAL_NEG` comparison read this as a false
+    `weak`/`low` conflict for every tumour suppressor recurrently hemizygously deleted below the homdel bar."""
+    h = _cn_disagree_headline("recurrently_deleted", focal="focal_neutral", pcn="recurrently_deleted")
+    vec = genomic_claim_vector(h, [])
+    assert vec["CN"]["signal"] == "moderate", "cell-line del over any-loss-recurrent patients wrongly demoted"
+    assert vec["CN"]["corroboration"] == "high", "commensurate any-loss agreement not credited"
+    assert "not population recurrence" not in vec["CN"]["evidence"], "false demotion narrated"
+
+
+def test_del_over_broadly_neutral_patients_IS_demoted_on_the_commensurate_any_loss_axis():
+    """The measured-negative deletion demotion still fires — on the COMMENSURATE axis. Cell-line
+    `recurrently_deleted` over patients who are broadly copy-number-neutral (any-loss looked, found no
+    recurrent loss: `patient_copy_number_class == broadly_neutral`) is a genuine same-construct disagreement,
+    so it demotes to `weak`/`low` WITH narration — regardless of the focal call."""
+    h = _cn_disagree_headline("recurrently_deleted", focal="focal_neutral", pcn="broadly_neutral")
+    vec = genomic_claim_vector(h, [])
+    assert vec["CN"]["signal"] == "weak", "measured patient broadly-neutral did not demote the del signal"
+    assert vec["CN"]["corroboration"] == "low", "del corroboration arm regressed"
+    assert "not population recurrence" in vec["CN"]["evidence"], "del demotion unnarrated"
+
+
+def test_cn_del_demotion_is_keyed_on_a_MEASURED_negative_not_on_a_gap():
+    """DLL3/SCLC shape: cell-line `recurrently_deleted` with NO patient any-loss read. An unmeasured patient
+    arm is not a contradiction — demoting on it would price a coverage gap as disagreement. After SK#1673 the
+    deletion demotion keys on `patient_copy_number_class`, so the gap sentinels (and `None`) live there now;
+    `focal_neutral` alone no longer demotes a deletion (that was the incommensurate false conflict)."""
+    for gap in ("data_unavailable", "underpowered", None):
+        h = _cn_disagree_headline("recurrently_deleted", focal="focal_neutral", pcn=gap)
         vec = genomic_claim_vector(h, [])
-        assert vec["CN"]["signal"] == "moderate", f"patient-focal {gap!r} wrongly demoted the CN claim"
+        assert vec["CN"]["signal"] == "moderate", f"patient any-loss {gap!r} wrongly demoted the CN claim"
         assert "not population recurrence" not in vec["CN"]["evidence"]
 
 
