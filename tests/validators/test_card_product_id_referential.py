@@ -406,7 +406,7 @@ def test_real_supersession_loader_does_not_lift_prose_from_block_scalars():
             assert pattern.match(n), f"non-id value in supersession map: {n!r}"
 
 
-def test_real_catalog_fire_set_over_all_cards_is_small_and_named():
+def test_real_catalog_fire_set_over_all_cards_is_small_and_named(card_reports):
     """The blast radius, asserted rather than remembered. Originally measured at 2 of 148 cards, both
     naming `tcga-tumor-tpm-per-sample-v1`. As of 2026-09-18 the fire set is DELIBERATELY narrowed to 1:
     the F4 provenance fix dropped the superseded `tcga-tumor-tpm-per-sample-v1` from
@@ -419,8 +419,7 @@ def test_real_catalog_fire_set_over_all_cards_is_small_and_named():
     if VC._data_catalog_manifest_ids() is None:
         return  # sibling absent
     firing = {}
-    for card in sorted((REPO / "cards").glob("*.card.yaml")):
-        r = VC.validate_card_file(card)
+    for card, r in card_reports.items():
         hits = [w for w in r.warnings if "PRODUCT_ID_SUPERSEDED" in w]
         if hits:
             firing[card.name] = hits

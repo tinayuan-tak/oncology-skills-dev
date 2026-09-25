@@ -48,7 +48,6 @@ import pytest
 import yaml
 
 REPO = Path(__file__).resolve().parents[2]
-CARDS = REPO / "cards"
 
 
 def _load_validator():
@@ -81,10 +80,6 @@ _PRIMARY_CLASS_GATING_DEBT = {
 # point is that the number can only go down, and a NEW resolver-consumed card without a declaration
 # pushes it up and fails.
 _UNDECLARED_CAPSULE_CEILING = 21
-
-
-def _cards() -> dict[str, dict]:
-    return {(d := yaml.safe_load(p.read_text()) or {}).get("card_id"): d for p in sorted(CARDS.glob("*.card.yaml"))}
 
 
 def _consumption() -> dict[str, dict]:
@@ -132,10 +127,10 @@ def _genomic_cards(consumption: dict) -> list[str]:
 
 
 # ── 1. the genomic axis is fail-closed ────────────────────────────────────────────────────────────
-def test_every_genomic_resolver_card_declares_a_capsule_projection():
+def test_every_genomic_resolver_card_declares_a_capsule_projection(cards_by_id):
     """FAIL-CLOSED for the genomic axis: a card that can move the genomic_alteration verdict must say
     which class and which numbers its capsule shows, rather than inheriting an alphabetical guess."""
-    cards, consumption = _cards(), _consumption()
+    cards, consumption = cards_by_id, _consumption()
     genomic = _genomic_cards(consumption)
     assert len(genomic) >= 12, f"genomic consumption set shrank to {len(genomic)} — check the map"
 
@@ -159,14 +154,14 @@ def test_every_genomic_resolver_card_declares_a_capsule_projection():
 
 
 # ── 2. the mirror-guard property: primary_class is what the verdict turns on ───────────────────────
-def test_declared_primary_class_is_a_field_the_gating_rules_read():
+def test_declared_primary_class_is_a_field_the_gating_rules_read(cards_by_id):
     """The capsule's whole job is to show the reader WHY the verdict landed where it did. If
     `primary_class` names a field no gating rule keys on, the capsule shows a class that moved nothing.
 
     Scoped to cards that HAVE gating rules: a card no gating rule reads is verdict-inert at the
     resolver layer, so its capsule class is a pure display choice and there is nothing to mirror.
     """
-    cards, reads = _cards(), _gating_read_fields()
+    cards, reads = cards_by_id, _gating_read_fields()
     offenders = {}
     for cid, doc in cards.items():
         pc = ((doc or {}).get("capsule") or {}).get("primary_class")
@@ -179,10 +174,10 @@ def test_declared_primary_class_is_a_field_the_gating_rules_read():
     )
 
 
-def test_primary_class_debt_list_only_shrinks():
+def test_primary_class_debt_list_only_shrinks(cards_by_id):
     """A debt list that outlives its debt is worse than no list — it silently exempts a card that has
     since been fixed or renamed. Every entry must still be a REAL, reachable mismatch."""
-    cards, reads = _cards(), _gating_read_fields()
+    cards, reads = cards_by_id, _gating_read_fields()
     stale = {}
     for cid, pc in _PRIMARY_CLASS_GATING_DEBT.items():
         doc = cards.get(cid)
@@ -198,11 +193,11 @@ def test_primary_class_debt_list_only_shrinks():
 
 
 # ── 3. the remaining debt is counted, not hidden ───────────────────────────────────────────────────
-def test_undeclared_capsule_debt_only_shrinks():
+def test_undeclared_capsule_debt_only_shrinks(cards_by_id):
     """Resolver-consumed cards still on the heuristic. The other resolvers' axes are out of scope for
     this PR, but the count is a ratchet: it may fall as axes are reviewed and must never rise, so a new
     verdict-bearing card cannot quietly join the heuristic bucket."""
-    cards, consumption = _cards(), _consumption()
+    cards, consumption = cards_by_id, _consumption()
     undeclared = sorted(c for c in consumption if not isinstance((cards.get(c) or {}).get("capsule"), dict))
     assert len(undeclared) <= _UNDECLARED_CAPSULE_CEILING, (
         f"{len(undeclared)} resolver-consumed cards have no capsule: (ceiling {_UNDECLARED_CAPSULE_CEILING}): "
@@ -268,13 +263,12 @@ def test_a_broken_capsule_declaration_errors(tmp_path, capsule, token):
     assert token in "\n".join(r.errors), r.errors
 
 
-def test_the_live_fleet_passes_the_per_card_capsule_checks():
+def test_the_live_fleet_passes_the_per_card_capsule_checks(card_reports):
     """The same check over every real card — this is what would have caught a declaration drifting off
     a renamed field. Runs the whole validator, but only capsule findings are asserted on, so unrelated
-    pre-existing warnings on other cards do not couple into this test."""
-    schema = VC._load_schema()
+    pre-existing warnings on other cards do not couple into this test. Consumes the session-scoped
+    `card_reports` fixture (validated once per session) rather than re-running the validator here."""
     findings = []
-    for p in sorted(CARDS.glob("*.card.yaml")):
-        r = VC.validate_card_file(p, schema)
+    for r in card_reports.values():
         findings += [m for m in r.errors + r.warnings if "CAPSULE_" in m]
     assert not findings, findings

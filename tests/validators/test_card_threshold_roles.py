@@ -230,15 +230,14 @@ def test_unknown_key_inside_a_role_entry_is_rejected(tmp_path):
 # ---------- the shipped cards ----------
 
 
-def test_every_shipped_role_entry_is_valid(tmp_path):
+def test_every_shipped_role_entry_is_valid(card_specs, card_reports):
     """The annotated cards must satisfy every check above, not just the schema."""
     annotated = []
-    for p in sorted((REPO / "cards").glob("*.card.yaml")):
-        spec = yaml.safe_load(p.read_text())
+    for p, spec in card_specs.items():
         if not spec.get("threshold_roles"):
             continue
         annotated.append(spec["card_id"])
-        report = VC.validate_card_file(p)
+        report = card_reports[p]
         # case-insensitive: a schema that does not KNOW threshold_roles rejects it as an
         # unevaluated property, which an upper-case-only needle would miss entirely.
         bad = [e for e in report.errors if "threshold" in e.lower()]
@@ -246,12 +245,11 @@ def test_every_shipped_role_entry_is_valid(tmp_path):
     assert annotated, "no shipped card declares threshold_roles — this test would be vacuous"
 
 
-def test_shipped_role_entries_name_only_their_own_method_calls():
+def test_shipped_role_entries_name_only_their_own_method_calls(card_specs):
     """Read directly off the YAML rather than through the validator, so a regression that
     disabled the UNKNOWN_THRESHOLD_CONSUMER check would still be caught here."""
     checked = 0
-    for p in sorted((REPO / "cards").glob("*.card.yaml")):
-        spec = yaml.safe_load(p.read_text())
+    for spec in card_specs.values():
         roles = spec.get("threshold_roles") or {}
         own = {m.get("call") for m in (spec.get("methods") or []) if isinstance(m, dict)}
         for name, entry in roles.items():
@@ -262,13 +260,12 @@ def test_shipped_role_entries_name_only_their_own_method_calls():
     assert checked >= 40, f"only {checked} method_parameter entries found — expected the 43 annotated"
 
 
-def test_no_shipped_role_entry_shadows_a_predicate_reference():
+def test_no_shipped_role_entry_shadows_a_predicate_reference(card_specs):
     """The population-level version of the misdeclaration check: no annotated card may declare a
     role for a threshold its own predicates use."""
     import re
 
-    for p in sorted((REPO / "cards").glob("*.card.yaml")):
-        spec = yaml.safe_load(p.read_text())
+    for spec in card_specs.values():
         roles = set((spec.get("threshold_roles") or {}).keys())
         if not roles:
             continue

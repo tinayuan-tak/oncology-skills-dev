@@ -320,8 +320,8 @@ def test_grain_check_graceful_skip_when_vocab_absent(tmp_path, monkeypatch):
     assert "ENTITY_GRAINS_CEILING" not in _errs(report)
 
 
-def test_real_cards_respect_entity_grains_ceiling():
-    """Regression guard: no shipped card advertises a grain outside its measurement_type's ceiling."""
-    reports = VC.validate_directory(REPO / "cards")
-    offenders = [r.card_path for r in reports if any("ENTITY_GRAINS_CEILING" in e for e in r.errors)]
+def test_real_cards_respect_entity_grains_ceiling(card_reports):
+    """Regression guard: no shipped card advertises a grain outside its measurement_type's ceiling.
+    Consumes the session-scoped `card_reports` (validated once) instead of re-running the validator."""
+    offenders = [r.card_path for r in card_reports.values() if any("ENTITY_GRAINS_CEILING" in e for e in r.errors)]
     assert not offenders, f"cards breaching the entity_grains ceiling: {offenders}"
