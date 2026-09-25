@@ -70,19 +70,19 @@ def test_indeterminate_and_missing_are_unmeasured():
 
 
 # ── SK#1582 G3.2: the Normal-tissue leg + its surfaced L2b-3 integrated_signal ─────────────────────
-def _liab_cards(gtex="critical_organ_liability", sc="HIGH_LIABILITY", hpa="present"):
+def _liab_cards(gtex="critical_organ_liability", sc="critical_organ_liability", hpa="present"):
     """The three normal-tissue source cards carrying raw tokens; None OMITS a source (M3 supply-defeat)."""
     cards = []
     if gtex is not None:
         cards.append({"card_id": "normal-tissue-liability-gtex", "summary": {"liability_class": gtex}})
     if sc is not None:
-        cards.append({"card_id": "sc-normal-celltype-expression", "summary": {"sc_normal_expression_class": sc}})
+        cards.append({"card_id": "sc-normal-celltype-expression", "summary": {"sc_normal_safety_essential_class": sc}})
     if hpa is not None:
         cards.append({"card_id": "normal-tissue-liability", "summary": {"essential_tissue_flag": hpa}})
     return cards
 
 
-def _headline_with_claim(gtex="critical_organ_liability", sc="HIGH_LIABILITY", hpa="present", flag=None):
+def _headline_with_claim(gtex="critical_organ_liability", sc="critical_organ_liability", hpa="present", flag=None):
     """A safety headline whose claim_vector carries a resolved L2b-3 claim (built by the REAL builder from
     the source cards) — the same seam run.py uses (it sets headline['claim_vector'] before the table)."""
     cards = _liab_cards(gtex, sc, hpa)
@@ -95,7 +95,7 @@ def _headline_with_claim(gtex="critical_organ_liability", sc="HIGH_LIABILITY", h
 
 def test_normal_tissue_row_carries_integrated_signal_when_claim_resolves():
     # concordant_low (all three lenses read clean) → integrated_signal with a POSITIVE (reassuring) lead.
-    h, _ = _headline_with_claim(gtex="restricted_normal", sc="NOT_EXPRESSED", hpa="absent", flag="absent")
+    h, _ = _headline_with_claim(gtex="restricted_normal", sc="none", hpa="absent", flag="absent")
     row = {r["id"]: r for r in safety_question_table(h)}["Normal-tissue"]
     integ = row["integrated_signal"]
     assert integ["kind"] == "normal_liability_concordance"
@@ -120,8 +120,8 @@ def test_integrated_signal_absent_when_claim_omitted():
 def test_integrated_signal_directional_qualifying_classes():
     # concordant_high / discordant / single_source_only all lead with a QUALIFYING caveat, positive null.
     for gtex, sc, hpa, klass in (
-        ("critical_organ_liability", "HIGH_LIABILITY", "present", "liability_concordant_high"),
-        ("critical_organ_liability", "NOT_EXPRESSED", "absent", "liability_assay_discordant"),
+        ("critical_organ_liability", "critical_organ_liability", "present", "liability_concordant_high"),
+        ("critical_organ_liability", "none", "absent", "liability_assay_discordant"),
         ("data_unavailable", "data_unavailable", "present", "liability_single_source_only"),
     ):
         h, _ = _headline_with_claim(gtex=gtex, sc=sc, hpa=hpa)
@@ -134,7 +134,7 @@ def test_integrated_signal_directional_qualifying_classes():
 def test_integrated_signal_discordant_names_split_and_is_boundary_sensitive():
     # a discordance must NAME which lens flags vs reads clean (never collapse) and flag boundary-sensitive
     # (corroboration != high) so the alarming read is never a flat assertion.
-    h, _ = _headline_with_claim(gtex="critical_organ_liability", sc="NOT_EXPRESSED", hpa="absent")
+    h, _ = _headline_with_claim(gtex="critical_organ_liability", sc="none", hpa="absent")
     integ = {r["id"]: r for r in safety_question_table(h)}["Normal-tissue"]["integrated_signal"]
     ss = integ["source_support"]
     assert ss["liability_flagged_by"] == ["gtex_bulk_rna"]
@@ -148,12 +148,13 @@ def test_integrated_signal_mutation_flips_positive_vs_qualifying():
     # bulk liability already present, flipping the surfaced read from a discordance caveat to a corroborated
     # concern; the source_support and headline track it. (bulk drives the flagged arm either way.)
     disc = {
-        r["id"]: r
-        for r in safety_question_table(_headline_with_claim("critical_organ_liability", "NOT_EXPRESSED", "absent")[0])
+        r["id"]: r for r in safety_question_table(_headline_with_claim("critical_organ_liability", "none", "absent")[0])
     }
     conc = {
         r["id"]: r
-        for r in safety_question_table(_headline_with_claim("critical_organ_liability", "HIGH_LIABILITY", "present")[0])
+        for r in safety_question_table(
+            _headline_with_claim("critical_organ_liability", "critical_organ_liability", "present")[0]
+        )
     }
     assert disc["Normal-tissue"]["integrated_signal"]["concordance_class"] == "liability_assay_discordant"
     assert conc["Normal-tissue"]["integrated_signal"]["concordance_class"] == "liability_concordant_high"
@@ -163,7 +164,7 @@ def test_integrated_signal_mutation_flips_positive_vs_qualifying():
 
 def test_integrated_signal_helper_is_pure_projection():
     # the builder is a pure projection of the claim's presentation fields — no I/O, no verdict read.
-    h, _ = _headline_with_claim(gtex="restricted_normal", sc="NOT_EXPRESSED", hpa="absent")
+    h, _ = _headline_with_claim(gtex="restricted_normal", sc="none", hpa="absent")
     claim = h["claim_vector"]["normal_liability_concordance"]
     integ = _normal_liability_concordance_integrated_signal(claim)
     assert integ["positive_signal"] is claim["positive_signal"]

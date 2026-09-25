@@ -373,8 +373,19 @@ def _normaltissue_corr(h, c):
 # DETERMINISTIC rule (no LLM — L2b is reproducible by contract). Each source resolves a per-source
 # liability DIRECTION: 'high' (a clear normal-tissue liability), 'clean' (a measured low/absent read),
 # or None (unavailable / ambiguous — abstains from the vote, raw value still recorded for fidelity).
-_LIAB_SC_HIGH = frozenset({"HIGH_LIABILITY"})
-_LIAB_SC_CLEAN = frozenset({"LOW_LIABILITY", "NOT_EXPRESSED"})
+#
+# APPLES-TO-APPLES (SK#1575): the scRNA arm reads the ORGAN-AWARE `sc_normal_safety_essential_class`
+# (critical_organ_liability / origin_tissue_liability / none), NOT the organ-agnostic breadth field
+# `sc_normal_expression_class`. GTEx `liability_class` (curated critical-organ OR ≥70% breadth) and HPA
+# `essential_tissue_flag` (curated essential normal tissue) both resolve an ORGAN/essential-tissue
+# liability; the breadth field's HIGH_LIABILITY fired on strong detection in ANY queried normal cell type
+# — incl. non-critical / tissue-of-origin epithelium — so it voted 'high' on a systematically broader
+# basis than the two organ-aware arms and could MANUFACTURE a cross-source (dis)concordance. The graded
+# veto sibling `sc_normal_essential_veto_grade` folds SEVERITY into the token, which would conflate the
+# directional liability read with the veto's own strength ladder — the categorical class is the direct
+# organ-aware analogue of the GTEx/HPA categorical calls, so it is the apples-to-apples choice.
+_LIAB_SC_HIGH = frozenset({"critical_organ_liability"})
+_LIAB_SC_CLEAN = frozenset({"none"})
 # (source_key, property, assay, card_id, field) — fixed order; the arm list & payload follow it.
 _LIAB_SOURCES = (
     (
@@ -389,7 +400,7 @@ _LIAB_SOURCES = (
         "normal_tissue_liability_rna_singlecell",
         "sc_normal_celltype",
         "sc-normal-celltype-expression",
-        "sc_normal_expression_class",
+        "sc_normal_safety_essential_class",
     ),
     (
         "hpa_ihc_protein",
@@ -405,12 +416,15 @@ def _liab_direction(source_key: str, token) -> "str | None":
     """One source's normal-tissue liability token → 'high' | 'clean' | None (abstain: unavailable/ambiguous).
 
     Membership tests, NOT `if token:` — every abstain sentinel here (data_unavailable, unknown,
-    MODERATE_LIABILITY) is a TRUTHY string that must stay OUT of the resolved buckets.
+    origin_tissue_liability) is a TRUTHY string that must stay OUT of the resolved buckets.
 
-    scRNA `MODERATE_LIABILITY` deliberately ABSTAINS: its threshold (median_det>0.20 OR donor_frac>0.30)
-    does NOT line up with the GTEx tissue-breadth `moderate_normal_breadth` (a CLEAN narrow-window call),
-    so voting it either way would fabricate a cross-source (dis)agreement. It abstains; its raw token
-    still rides in the payload (recoverable)."""
+    scRNA `origin_tissue_liability` deliberately ABSTAINS (SK#1575): it is essential-cell expression
+    CONFINED to the tumour's tissue of origin — on-tissue, window-ARBITRATED, explicitly NOT a hard
+    safety veto (a validated ADC target must survive it). The GTEx and HPA arms do not resolve a
+    tissue-of-origin call as either a critical-organ liability or a clean read, so voting it 'high' would
+    manufacture discordance against them and voting it 'clean' would deny a real essential-cell read.
+    It abstains — the direct analogue of the GTEx `moderate_normal_breadth` narrow-window abstain — and
+    its raw token still rides in the payload (recoverable)."""
     if source_key == "gtex_bulk_rna":
         if token in _GTEX_LIABILITY:
             return "high"
@@ -438,7 +452,7 @@ def _normal_liability_concordance_claim(c: dict) -> "dict | None":
     Integrates THREE genuinely INDEPENDENT normal-tissue safety-liability measurements by an EXPLICIT
     DETERMINISTIC rule (no LLM — L2b is reproducible by contract):
       * GTEx bulk RNA   (normal-tissue-liability-gtex.liability_class)         — pooled tissue transcriptome
-      * scRNA cell-type (sc-normal-celltype-expression.sc_normal_expression_class) — single-cell atlas
+      * scRNA cell-type (sc-normal-celltype-expression.sc_normal_safety_essential_class) — single-cell atlas
       * HPA-IHC protein (normal-tissue-liability.essential_tissue_flag)        — antibody protein staining
 
     Each resolves a liability DIRECTION (high / clean / None-abstain). Then:
@@ -458,7 +472,10 @@ def _normal_liability_concordance_claim(c: dict) -> "dict | None":
     VERDICT-INERT: carries NO `signal` key (never a chip, never a tier, never averaged), reads no verdict,
     feeds no rule. The sc-normal card's own veto (tvn-sc-normal-critical-organ-veto) is NOT a
     safety.resolver rung nor in the wt_loss_safety_conditioning modality contract, so both the scalar and
-    per-modality safety verdicts stay byte-stable. Returns None — key omitted — when NO source resolves."""
+    per-modality safety verdicts stay byte-stable. The scRNA arm reads `sc_normal_safety_essential_class`
+    (SK#1575), which no interpretation rule keys on for ANY axis — it is a DISPLAY class (every gate reads
+    the graded `sc_normal_essential_veto_grade`), so repointing onto it neither routes the claim nor moves
+    a verdict. Returns None — key omitted — when NO source resolves."""
     raw = {sk: (c.get(cid) or {}).get(field) for sk, _prop, _assay, cid, field in _LIAB_SOURCES}
     dirs = {sk: _liab_direction(sk, raw[sk]) for sk in raw}
     resolved = {sk: d for sk, d in dirs.items() if d is not None}

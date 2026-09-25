@@ -169,16 +169,18 @@ CARDS = [
     # card surface-modality-fit uses for its BiTE/TCE killer. This is
     # PROTEIN-level critical-organ liability; the GTEx card above is
     # RNA-breadth. No mutant-selective downgrade (full-KO hits WT).
-    "sc-normal-celltype-expression",  # (L2b-3, SK#1546, 2026-09-24) — scRNA CELL-TYPE-RESOLVED normal-tissue
-    # liability (sc_normal_expression_class): the single-cell RNA sibling of the GTEx-bulk + HPA-IHC normal-
-    # liability legs. Added ONLY to feed the L2b-3 `normal_liability_concordance` cross-source claim (GTEx bulk
-    # × scRNA-normal × HPA-IHC). VERDICT-INERT: unlike TPHP (whose rules live on a different axis), this card's
-    # tvn-sc-normal-critical-organ-veto rule IS on the intracellular_intrinsic axis, so it DOES enter this
-    # skill's fired list — but it is NOT a safety.resolver.yaml rung and NOT in the wt_loss_safety_conditioning
-    # modality contract, so the scalar `safety_verdict` AND `safety_verdict_by_modality` both stay byte-stable
-    # (test_safety_replay). NOT added to _SAFETY_DECISION_CARDS (coverage unchanged). The concordance claim
-    # reads sc_normal_expression_class (surface-axis-only field — verdict-blind for the safety intracellular
-    # axis), so the claim itself perturbs no verdict path.
+    "sc-normal-celltype-expression",  # (L2b-3, SK#1546, 2026-09-24; scRNA arm repointed SK#1575, 2026-09-25) —
+    # scRNA CELL-TYPE-RESOLVED normal-tissue liability (sc_normal_safety_essential_class): the single-cell RNA
+    # sibling of the GTEx-bulk + HPA-IHC normal-liability legs. Added ONLY to feed the L2b-3
+    # `normal_liability_concordance` cross-source claim (GTEx bulk × scRNA-normal × HPA-IHC). VERDICT-INERT:
+    # unlike TPHP (whose rules live on a different axis), this card's tvn-sc-normal-critical-organ-veto rule IS
+    # on the intracellular_intrinsic axis, so it DOES enter this skill's fired list — but it is NOT a
+    # safety.resolver.yaml rung and NOT in the wt_loss_safety_conditioning modality contract, so the scalar
+    # `safety_verdict` AND `safety_verdict_by_modality` both stay byte-stable (test_safety_replay). NOT added to
+    # _SAFETY_DECISION_CARDS (coverage unchanged). The concordance claim reads sc_normal_safety_essential_class
+    # (ORGAN-AWARE apples-to-apples with the GTEx/HPA arms — SK#1575 fixed the prior organ-agnostic
+    # sc_normal_expression_class mismatch); it is a DISPLAY class no interpretation rule keys on (every gate
+    # reads sc_normal_essential_veto_grade), so the claim still perturbs no verdict path.
     "drug-warning-safety",  # (2026-08-21) — OT pharmacovigilance CONTEXT: do drugs that ENGAGE
     # the target carry FDA black-box / withdrawn warnings (drug_warning ⋈
     # drug_mechanism_of_action)? VERDICT-INERT (no resolver rung; like

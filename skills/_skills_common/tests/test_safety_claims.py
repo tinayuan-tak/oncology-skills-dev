@@ -251,26 +251,29 @@ def test_pharmacovigilance_atom_cites_drug_warning_card():
     assert a["entity"]["valence"] == "liability"
 
 
-# ── L2b-3: cross-source normal-tissue safety-liability concordance (SK#1546) ──────────────────────
+# ── L2b-3: cross-source normal-tissue safety-liability concordance (SK#1546; scRNA arm SK#1575) ────
 # A CROSS-SOURCE integration claim over THREE genuinely INDEPENDENT normal-tissue liability lenses:
 # GTEx bulk RNA (normal-tissue-liability-gtex.liability_class) × scRNA cell-type-resolved
-# (sc-normal-celltype-expression.sc_normal_expression_class) × HPA-IHC protein
-# (normal-tissue-liability.essential_tissue_flag). Store the RAW per-source tokens and RE-DERIVE the
-# claim in-test — a derived fixture cannot fail; the tokens are the irreproducible inputs. The claim
-# reads the cards directly (not the headline), so it is exercised through the same
-# safety_claim_vector(headline, cards) seam without touching the seven verdict-liability axes.
+# (sc-normal-celltype-expression.sc_normal_safety_essential_class) × HPA-IHC protein
+# (normal-tissue-liability.essential_tissue_flag). SK#1575 repointed the scRNA arm off the
+# organ-AGNOSTIC breadth field (sc_normal_expression_class, HIGH_LIABILITY = any queried normal cell
+# type) onto the ORGAN-AWARE class so all three arms measure organ/essential-tissue liability. Store the
+# RAW per-source tokens and RE-DERIVE the claim in-test — a derived fixture cannot fail; the tokens are
+# the irreproducible inputs. The claim reads the cards directly (not the headline), so it is exercised
+# through the same safety_claim_vector(headline, cards) seam without touching the seven verdict axes.
 _LIAB_KEY = "normal_liability_concordance"
 
 
-def _liab_cards(gtex="critical_organ_liability", sc="HIGH_LIABILITY", hpa="present"):
-    """Card set carrying the three normal-tissue source tokens. Any of gtex/sc/hpa=None OMITS that
-    field (source data-absence path); an abstain sentinel (data_unavailable / unknown / MODERATE_LIABILITY)
-    is passed as-is and must NOT resolve into a high/clean bucket."""
+def _liab_cards(gtex="critical_organ_liability", sc="critical_organ_liability", hpa="present"):
+    """Card set carrying the three normal-tissue source tokens. Any of gtex/sc/hpa=None OMITS that field
+    (source data-absence path); an abstain sentinel (data_unavailable / unknown / origin_tissue_liability)
+    is passed as-is and must NOT resolve into a high/clean bucket. The scRNA arm reads the ORGAN-AWARE
+    `sc_normal_safety_essential_class` (critical_organ_liability / origin_tissue_liability / none)."""
     cards = []
     if gtex is not None:
         cards.append({"card_id": "normal-tissue-liability-gtex", "summary": {"liability_class": gtex}})
     if sc is not None:
-        cards.append({"card_id": "sc-normal-celltype-expression", "summary": {"sc_normal_expression_class": sc}})
+        cards.append({"card_id": "sc-normal-celltype-expression", "summary": {"sc_normal_safety_essential_class": sc}})
     if hpa is not None:
         cards.append({"card_id": "normal-tissue-liability", "summary": {"essential_tissue_flag": hpa}})
     return cards
@@ -279,7 +282,7 @@ def _liab_cards(gtex="critical_organ_liability", sc="HIGH_LIABILITY", hpa="prese
 def test_liab_concordant_high_three_sources_agree():
     # All three lenses flag a normal-tissue liability → concordant_high, corroborated by 3 independent arms.
     claim = safety_claim_vector(
-        _headline(), _liab_cards(gtex="broadly_expressed_normal", sc="HIGH_LIABILITY", hpa="present")
+        _headline(), _liab_cards(gtex="broadly_expressed_normal", sc="critical_organ_liability", hpa="present")
     )[_LIAB_KEY]
     assert claim["concordance_class"] == "liability_concordant_high"
     assert claim["corroboration"] == "high"  # >=2 measured arms, all agree
@@ -289,16 +292,17 @@ def test_liab_concordant_high_three_sources_agree():
     # Provenance records ALL THREE source properties, recoverable, + an independence note.
     srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
     assert srcs["normal_tissue_liability_rna_bulk"]["fields"]["liability_class"] == "broadly_expressed_normal"
-    assert srcs["normal_tissue_liability_rna_singlecell"]["fields"]["sc_normal_expression_class"] == "HIGH_LIABILITY"
+    assert (
+        srcs["normal_tissue_liability_rna_singlecell"]["fields"]["sc_normal_safety_essential_class"]
+        == "critical_organ_liability"
+    )
     assert srcs["normal_tissue_liability_protein_ihc"]["fields"]["essential_tissue_flag"] == "present"
     assert "independent" in claim["provenance"]["independence_note"].lower()
 
 
 def test_liab_concordant_low_three_sources_read_clean():
     # All three lenses read clean → concordant_low (agree there is NO normal-tissue liability).
-    claim = safety_claim_vector(_headline(), _liab_cards(gtex="restricted_normal", sc="NOT_EXPRESSED", hpa="absent"))[
-        _LIAB_KEY
-    ]
+    claim = safety_claim_vector(_headline(), _liab_cards(gtex="restricted_normal", sc="none", hpa="absent"))[_LIAB_KEY]
     assert claim["concordance_class"] == "liability_concordant_low"
     assert claim["corroboration"] == "high"
     assert claim["source_support"]["agreed_direction"] == "clean"
@@ -307,15 +311,15 @@ def test_liab_concordant_low_three_sources_read_clean():
 def test_liab_discordant_names_which_source_flags_vs_clean():
     # GTEx bulk-high but scRNA cell-type-resolved clean + HPA clean → assay_discordant; the split is NAMED
     # (which sources flag liability vs read clean), never collapsed. Corroboration degrades to low.
-    claim = safety_claim_vector(
-        _headline(), _liab_cards(gtex="critical_organ_liability", sc="NOT_EXPRESSED", hpa="absent")
-    )[_LIAB_KEY]
+    claim = safety_claim_vector(_headline(), _liab_cards(gtex="critical_organ_liability", sc="none", hpa="absent"))[
+        _LIAB_KEY
+    ]
     assert claim["concordance_class"] == "liability_assay_discordant"
     assert claim["corroboration"] == "low"
     assert claim["source_support"]["liability_flagged_by"] == ["gtex_bulk_rna"]
     assert claim["source_support"]["read_clean_by"] == ["hpa_ihc_protein", "sc_normal_rna"]
     # symmetric: protein flags, both RNA lenses read clean (transcript-vs-protein discordance)
-    claim2 = safety_claim_vector(_headline(), _liab_cards(gtex="restricted_normal", sc="LOW_LIABILITY", hpa="present"))[
+    claim2 = safety_claim_vector(_headline(), _liab_cards(gtex="restricted_normal", sc="none", hpa="present"))[
         _LIAB_KEY
     ]
     assert claim2["source_support"]["liability_flagged_by"] == ["hpa_ihc_protein"]
@@ -335,18 +339,20 @@ def test_liab_single_source_only_when_two_arms_are_gaps():
     assert claim["source_support"]["resolved_direction"] == "high"
 
 
-def test_liab_moderate_and_unknown_abstain_not_a_silent_vote():
-    # scRNA MODERATE_LIABILITY and HPA `unknown` are ABSTAIN sentinels — they must NOT resolve into a
-    # high/clean bucket. Here only GTEx resolves → single_source_only (not a concordance / discordance).
+def test_liab_origin_tissue_and_unknown_abstain_not_a_silent_vote():
+    # scRNA `origin_tissue_liability` (on-tissue, window-arbitrated, NOT a hard veto) and HPA `unknown`
+    # are ABSTAIN sentinels — they must NOT resolve into a high/clean bucket. Here only GTEx resolves →
+    # single_source_only (not a concordance / discordance).
     claim = safety_claim_vector(
-        _headline(), _liab_cards(gtex="critical_organ_liability", sc="MODERATE_LIABILITY", hpa="unknown")
+        _headline(), _liab_cards(gtex="critical_organ_liability", sc="origin_tissue_liability", hpa="unknown")
     )[_LIAB_KEY]
     assert claim["concordance_class"] == "liability_single_source_only"
     assert claim["source_support"]["resolved_by"] == "gtex_bulk_rna"
     # the abstaining tokens still ride in provenance (recoverable), just don't vote
     srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
     assert (
-        srcs["normal_tissue_liability_rna_singlecell"]["fields"]["sc_normal_expression_class"] == "MODERATE_LIABILITY"
+        srcs["normal_tissue_liability_rna_singlecell"]["fields"]["sc_normal_safety_essential_class"]
+        == "origin_tissue_liability"
     )
     assert srcs["normal_tissue_liability_protein_ihc"]["fields"]["essential_tissue_flag"] == "unknown"
 
@@ -354,29 +360,26 @@ def test_liab_moderate_and_unknown_abstain_not_a_silent_vote():
 def test_liab_recoverability_round_trip():
     # FIDELITY: the actual per-source VALUES round-trip through provenance, not merely a key. A consumer
     # can reconstruct the discordance purely from the recovered tokens the same way the claim does.
-    gtex_tok, sc_tok, hpa_tok = "broadly_expressed_normal", "NOT_EXPRESSED", "absent"
+    gtex_tok, sc_tok, hpa_tok = "broadly_expressed_normal", "none", "absent"
     claim = safety_claim_vector(_headline(), _liab_cards(gtex=gtex_tok, sc=sc_tok, hpa=hpa_tok))[_LIAB_KEY]
     srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
     assert srcs["normal_tissue_liability_rna_bulk"]["fields"]["liability_class"] == gtex_tok
-    assert srcs["normal_tissue_liability_rna_singlecell"]["fields"]["sc_normal_expression_class"] == sc_tok
+    assert srcs["normal_tissue_liability_rna_singlecell"]["fields"]["sc_normal_safety_essential_class"] == sc_tok
     assert srcs["normal_tissue_liability_protein_ihc"]["fields"]["essential_tissue_flag"] == hpa_tok
     # bulk flags a liability, both cell-type RNA + protein read clean → a discordance, re-derivable from tokens
     assert (gtex_tok in {"critical_organ_liability", "broadly_expressed_normal"}) is True
-    assert (sc_tok in {"LOW_LIABILITY", "NOT_EXPRESSED"}) is True
+    assert (sc_tok == "none") is True
     assert claim["concordance_class"] == "liability_assay_discordant"
 
 
 def test_liab_is_verdict_inert_no_signal_and_axes_unperturbed():
     # Verdict-INERT: the claim carries NO `signal` key (never a chip, never a tier), and surfacing it must
-    # not perturb the seven liability axes / _disclaimer. Toggle ONLY sc_normal_expression_class — a field
-    # the safety intracellular_intrinsic verdict path does NOT read (its sc-normal rules are on the surface
-    # axis; the veto keys on sc_normal_essential_veto_grade, a DIFFERENT field) — so any axis delta would be
-    # a real perturbation, not the L2b-3 claim's.
-    base = safety_claim_vector(
-        _headline(), _liab_cards(gtex="critical_organ_liability", sc="LOW_LIABILITY", hpa="present")
-    )
+    # not perturb the seven liability axes / _disclaimer. Toggle ONLY sc_normal_safety_essential_class — a
+    # DISPLAY class no interpretation rule keys on for ANY axis (every gate reads sc_normal_essential_veto_grade,
+    # a DIFFERENT field) — so any axis delta would be a real perturbation, not the L2b-3 claim's.
+    base = safety_claim_vector(_headline(), _liab_cards(gtex="critical_organ_liability", sc="none", hpa="present"))
     toggled = safety_claim_vector(
-        _headline(), _liab_cards(gtex="critical_organ_liability", sc="HIGH_LIABILITY", hpa="present")
+        _headline(), _liab_cards(gtex="critical_organ_liability", sc="critical_organ_liability", hpa="present")
     )
     # the concordance class DID move with the sc field (discordant → concordant_high) — the claim is live ...
     assert base[_LIAB_KEY]["concordance_class"] == "liability_assay_discordant"
@@ -401,7 +404,7 @@ def test_liab_single_source_mutation_only_degrades_defeating_all_three_erases():
     # M3-vs-M4 reach: killing ONE source's supply may only DEGRADE the read — the concept survives on the
     # surviving arms. ERASING the claim (key omitted) requires defeating ALL THREE supplies.
     three = safety_claim_vector(
-        _headline(), _liab_cards(gtex="critical_organ_liability", sc="HIGH_LIABILITY", hpa="present")
+        _headline(), _liab_cards(gtex="critical_organ_liability", sc="critical_organ_liability", hpa="present")
     )
     assert three[_LIAB_KEY]["concordance_class"] == "liability_concordant_high"
     # defeat ONE arm → still a 2-source concordance, not erased
@@ -424,12 +427,50 @@ def test_liab_omitted_when_no_source_resolves():
     assert _LIAB_KEY not in safety_claim_vector(_headline(), _liab_cards(gtex=None, sc=None, hpa=None))
     # all three present but ALL are abstain sentinels → none resolve → omitted
     assert _LIAB_KEY not in safety_claim_vector(
-        _headline(), _liab_cards(gtex="data_unavailable", sc="MODERATE_LIABILITY", hpa="unknown")
+        _headline(), _liab_cards(gtex="data_unavailable", sc="origin_tissue_liability", hpa="unknown")
     )
     # an off-roster / unknown token is treated as unresolved (not a silent liability)
     assert _LIAB_KEY not in safety_claim_vector(
         _headline(), _liab_cards(gtex="some_future_token", sc="data_unavailable", hpa=None)
     )
+
+
+# ── SK#1575 PANEL: the scRNA arm now measures ORGAN/essential-tissue liability, apples-to-apples with
+# GTEx + HPA. Store the RAW per-source tokens and re-derive; a derived fixture cannot fail. Two
+# archetypes: one where the OLD organ-agnostic field MANUFACTURED a vote (fixed), one genuinely
+# organ-concordant target that MUST stay concordant (correct-negative preserved).
+def test_liab_1575_origin_tissue_manufactured_discordance_is_corrected():
+    # ARCHETYPE: a lineage/differentiation antigen strongly detected in the essential cells of the
+    # tumour's OWN tissue of origin, but clean in critical organs — GTEx narrow (restricted_normal),
+    # HPA absent. The retired organ-AGNOSTIC field `sc_normal_expression_class` = HIGH_LIABILITY fired on
+    # that origin-tissue detection and voted 'high', so 2 clean organ-aware arms + 1 broad-basis 'high'
+    # scored a FALSE `liability_assay_discordant`. The organ-aware `sc_normal_safety_essential_class` reads
+    # `origin_tissue_liability` for the same target (on-tissue, window-arbitrated, NOT a critical-organ
+    # veto) → it ABSTAINS, so only the two agreeing clean arms vote → the corrected call is concordant_low.
+    gtex_tok, sc_tok, hpa_tok = "restricted_normal", "origin_tissue_liability", "absent"
+    claim = safety_claim_vector(_headline(), _liab_cards(gtex=gtex_tok, sc=sc_tok, hpa=hpa_tok))[_LIAB_KEY]
+    assert claim["concordance_class"] == "liability_concordant_low"
+    assert claim["source_support"]["agreed_direction"] == "clean"
+    # the scRNA arm ABSTAINS — it must NOT appear as a resolved vote in either direction ...
+    assert claim["sources_resolved"] == ["gtex_bulk_rna", "hpa_ihc_protein"]
+    # ... yet its raw origin-tissue token still rides in provenance (recoverable, not a silent drop).
+    srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
+    assert srcs["normal_tissue_liability_rna_singlecell"]["fields"]["sc_normal_safety_essential_class"] == sc_tok
+    # re-derive the manufacture from the token: the organ-agnostic HIGH would have voted a 3rd 'high'
+    # direction against 2 clean arms → discordant; the organ-aware origin token abstains → concordant_low.
+    assert (sc_tok == "origin_tissue_liability") is True  # abstains under the organ-aware mapping
+
+
+def test_liab_1575_genuine_organ_concordance_stays_high():
+    # CORRECT-NEGATIVE: a genuine cross-organ liability — critical-organ essential-cell detection (scRNA),
+    # a curated critical-organ GTEx call, and an essential-tissue HPA hit — must stay `concordant_high`.
+    gtex_tok, sc_tok, hpa_tok = "critical_organ_liability", "critical_organ_liability", "present"
+    claim = safety_claim_vector(_headline(), _liab_cards(gtex=gtex_tok, sc=sc_tok, hpa=hpa_tok))[_LIAB_KEY]
+    assert claim["concordance_class"] == "liability_concordant_high"
+    assert claim["corroboration"] == "high"
+    assert claim["source_support"]["sources_agree"] == ["gtex_bulk_rna", "hpa_ihc_protein", "sc_normal_rna"]
+    srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
+    assert srcs["normal_tissue_liability_rna_singlecell"]["fields"]["sc_normal_safety_essential_class"] == sc_tok
 
 
 # ── SK#1582 G3.2: PRESENTATION-SUPPORT fields on the claim (surface-consumption, NOT verdict-routing) ─
@@ -438,9 +479,7 @@ def test_liab_omitted_when_no_source_resolves():
 # a qualifying caveat. boundary_sensitive is a deterministic read of corroboration (!= high). None of
 # these carry a signal tier / polarity / drives_rule_id — they route nothing.
 def test_liab_presentation_concordant_low_is_positive_only():
-    claim = safety_claim_vector(_headline(), _liab_cards(gtex="restricted_normal", sc="NOT_EXPRESSED", hpa="absent"))[
-        _LIAB_KEY
-    ]
+    claim = safety_claim_vector(_headline(), _liab_cards(gtex="restricted_normal", sc="none", hpa="absent"))[_LIAB_KEY]
     assert claim["positive_signal"] and claim["qualifying_signal"] is None
     assert claim["boundary_sensitive"] is False  # 3 clean arms → corroboration high
     assert "CLEAN" in claim["positive_signal"]["statement"]
@@ -449,8 +488,8 @@ def test_liab_presentation_concordant_low_is_positive_only():
 
 def test_liab_presentation_qualifying_classes_are_qualifying_only():
     for gtex, sc, hpa, klass in (
-        ("critical_organ_liability", "HIGH_LIABILITY", "present", "liability_concordant_high"),
-        ("critical_organ_liability", "NOT_EXPRESSED", "absent", "liability_assay_discordant"),
+        ("critical_organ_liability", "critical_organ_liability", "present", "liability_concordant_high"),
+        ("critical_organ_liability", "none", "absent", "liability_assay_discordant"),
         ("data_unavailable", "data_unavailable", "present", "liability_single_source_only"),
     ):
         claim = safety_claim_vector(_headline(), _liab_cards(gtex=gtex, sc=sc, hpa=hpa))[_LIAB_KEY]
@@ -461,12 +500,12 @@ def test_liab_presentation_qualifying_classes_are_qualifying_only():
 def test_liab_presentation_boundary_sensitive_tracks_corroboration():
     # high corroboration (>=2 agreeing arms) → not boundary-sensitive; a discordance / single arm → yes.
     conc_high = safety_claim_vector(
-        _headline(), _liab_cards(gtex="critical_organ_liability", sc="HIGH_LIABILITY", hpa="present")
+        _headline(), _liab_cards(gtex="critical_organ_liability", sc="critical_organ_liability", hpa="present")
     )[_LIAB_KEY]
     assert conc_high["corroboration"] == "high" and conc_high["boundary_sensitive"] is False
-    disc = safety_claim_vector(
-        _headline(), _liab_cards(gtex="critical_organ_liability", sc="NOT_EXPRESSED", hpa="absent")
-    )[_LIAB_KEY]
+    disc = safety_claim_vector(_headline(), _liab_cards(gtex="critical_organ_liability", sc="none", hpa="absent"))[
+        _LIAB_KEY
+    ]
     assert disc["corroboration"] == "low" and disc["boundary_sensitive"] is True
     single = safety_claim_vector(_headline(), _liab_cards(gtex="critical_organ_liability", sc=None, hpa=None))[
         _LIAB_KEY
@@ -477,7 +516,7 @@ def test_liab_presentation_boundary_sensitive_tracks_corroboration():
 def test_liab_presentation_fields_carry_no_signal_tier():
     # the presentation fields must never introduce a `signal` tier (the L2b verdict-inertness contract).
     claim = safety_claim_vector(
-        _headline(), _liab_cards(gtex="critical_organ_liability", sc="HIGH_LIABILITY", hpa="present")
+        _headline(), _liab_cards(gtex="critical_organ_liability", sc="critical_organ_liability", hpa="present")
     )[_LIAB_KEY]
     assert "signal" not in claim
     for f in ("positive_signal", "qualifying_signal"):
