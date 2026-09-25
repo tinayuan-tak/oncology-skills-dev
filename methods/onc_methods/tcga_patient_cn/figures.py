@@ -24,8 +24,10 @@ def _reconstruct(plot_data: "Union[str, Path, object]") -> dict:
         indication: str
         amp_freq: float (target amplification frequency)
         del_freq: float (target deletion frequency)
-        amp_genes: list[(gene, freq)] for amplification context
-        del_genes: list[(gene, freq)] for deletion context
+        amp_genes: list[(gene, freq)] for amplification context (indication)
+        del_genes: list[(gene, freq)] for deletion context (indication)
+        amp_genes_pancancer: list[(gene, freq)] for amplification context (pan-cancer)
+        del_genes_pancancer: list[(gene, freq)] for deletion context (pan-cancer)
     """
     import pandas as pd
 
@@ -47,7 +49,7 @@ def _reconstruct(plot_data: "Union[str, Path, object]") -> dict:
     result["amp_freq"] = float(amp_target["frequency"].iloc[0]) if len(amp_target) > 0 else None
     result["del_freq"] = float(del_target["frequency"].iloc[0]) if len(del_target) > 0 else None
 
-    # Extract all genes context
+    # Extract indication-specific context
     context_rows = df[df["row_type"] == "all_genes_context"]
 
     amp_context = context_rows[context_rows["cn_type"] == "amplification"]
@@ -57,6 +59,21 @@ def _reconstruct(plot_data: "Union[str, Path, object]") -> dict:
     del_context = context_rows[context_rows["cn_type"] == "deletion"]
     result["del_genes"] = [(row["gene_symbol"], row["frequency"])
                            for _, row in del_context.iterrows()]
+
+    # Extract pan-cancer context (if available)
+    pancancer_rows = df[df["row_type"] == "all_genes_context_pancancer"]
+    if len(pancancer_rows) > 0:
+        amp_pan = pancancer_rows[pancancer_rows["cn_type"] == "amplification"]
+        result["amp_genes_pancancer"] = [(row["gene_symbol"], row["frequency"])
+                                          for _, row in amp_pan.iterrows()]
+
+        del_pan = pancancer_rows[pancancer_rows["cn_type"] == "deletion"]
+        result["del_genes_pancancer"] = [(row["gene_symbol"], row["frequency"])
+                                          for _, row in del_pan.iterrows()]
+    else:
+        # Fallback to indication data if no pan-cancer rows
+        result["amp_genes_pancancer"] = result["amp_genes"]
+        result["del_genes_pancancer"] = result["del_genes"]
 
     return result
 
@@ -101,7 +118,7 @@ def render_from_plot_data(
             indication_gene_frequencies=data["amp_genes"],
             target_any_pancancer=summary.get("pancancer_amp_freq", amp_any),
             target_focal_pancancer=summary.get("pancancer_focal_amp_freq", amp_focal),
-            pancancer_gene_frequencies=data["amp_genes"],  # Use same as fallback
+            pancancer_gene_frequencies=data.get("amp_genes_pancancer", data["amp_genes"]),
             out_path=out_dir,
             contracts_root=tcd,
             cn_type="amplification",
@@ -127,7 +144,7 @@ def render_from_plot_data(
             indication_gene_frequencies=data["del_genes"],
             target_any_pancancer=summary.get("pancancer_del_freq", del_any),
             target_focal_pancancer=summary.get("pancancer_focal_del_freq", del_focal),
-            pancancer_gene_frequencies=data["del_genes"],
+            pancancer_gene_frequencies=data.get("del_genes_pancancer", data["del_genes"]),
             out_path=out_dir,
             contracts_root=tcd,
             cn_type="deletion",
@@ -148,10 +165,11 @@ def render_from_plot_data(
             target_freq_indication=data["amp_freq"],
             indication_gene_frequencies=data["amp_genes"],
             target_freq_pancancer=summary.get("pancancer_amp_freq", data["amp_freq"]),
-            pancancer_gene_frequencies=data["amp_genes"],
+            pancancer_gene_frequencies=data.get("amp_genes_pancancer", data["amp_genes"]),
             out_path=out_dir,
             contracts_root=tcd,
             cn_type="amplification",
+            focal_events=True,
         )
         if svg:
             figures.append({
@@ -169,10 +187,11 @@ def render_from_plot_data(
             target_freq_indication=data["del_freq"],
             indication_gene_frequencies=data["del_genes"],
             target_freq_pancancer=summary.get("pancancer_del_freq", data["del_freq"]),
-            pancancer_gene_frequencies=data["del_genes"],
+            pancancer_gene_frequencies=data.get("del_genes_pancancer", data["del_genes"]),
             out_path=out_dir,
             contracts_root=tcd,
             cn_type="deletion",
+            focal_events=True,
         )
         if svg:
             figures.append({

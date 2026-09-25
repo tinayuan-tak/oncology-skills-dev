@@ -232,24 +232,24 @@ def emit_cn_frequency_stacked(
     out_path: Path,
     contracts_root: Path = DEFAULT_TARGET_CONTRACTS,
     *,
-    min_frequency: float = 0.05,
+    min_frequency: float = 0.03,
     cn_type: str = "amplification",
+    focal_events: bool = True,
 ) -> Optional[Path]:
     """Emit a stacked figure with indication-specific (top) and pan-cancer (bottom) CN frequency.
-
-    Shows any-level events: GISTIC ≥+1 (any gain) or ≤-1 (any loss).
 
     Args:
         target: gene symbol
         indication: indication code
-        target_freq_indication: target's any-level frequency in indication
+        target_freq_indication: target's frequency in indication
         indication_gene_frequencies: list of (gene, freq) tuples for indication
-        target_freq_pancancer: target's any-level frequency pan-cancer
+        target_freq_pancancer: target's frequency pan-cancer
         pancancer_gene_frequencies: list of (gene, freq) tuples for pan-cancer
         out_path: directory to write figure
         contracts_root: path to target-contracts repo
-        min_frequency: minimum frequency threshold for display (default 5%)
+        min_frequency: minimum frequency threshold for display (default 3%)
         cn_type: "amplification" or "deletion"
+        focal_events: if True, shows focal events (GISTIC ≥+2 / ≤-2); if False, any-level (≥+1 / ≤-1)
     """
     if not indication_gene_frequencies:
         return None
@@ -366,7 +366,7 @@ def emit_cn_frequency_stacked(
 
         ax.axhline(y=min_frequency, **REFLINE_NEUTRAL, zorder=1)
         ax.set_xlim(-0.5, len(genes) - 0.5)
-        ax.set_ylim(bottom=0)
+        ax.set_ylim(bottom=0, top=0.3)  # Fixed max at 30% to avoid label overlap with verdict box
         ax.set_xticks([])
         ax.grid(axis="y", alpha=0.3)
         ax.set_ylabel("Frequency", fontsize=9, color="#33383D")
@@ -376,14 +376,24 @@ def emit_cn_frequency_stacked(
     plot_panel(ax1, ind_genes, target_freq_indication, indication, ind_total)
     plot_panel(ax2, pan_genes, target_freq_pancancer, "Pan-Cancer", pan_total)
 
-    # Labels for any-level events
-    if cn_type == "deletion":
-        level_label = "any loss (≤-1)"
+    # Labels for GISTIC thresholds
+    if focal_events:
+        if cn_type == "deletion":
+            level_label = "homozygous deletion (GISTIC ≤-2)"
+            driver_label = "OncoKB tumor suppressors"
+        else:
+            level_label = "focal amplification (GISTIC ≥+2)"
+            driver_label = "OncoKB oncogenes"
     else:
-        level_label = "any gain (≥+1)"
+        if cn_type == "deletion":
+            level_label = "any loss (GISTIC ≤-1)"
+            driver_label = "OncoKB tumor suppressors"
+        else:
+            level_label = "any gain (GISTIC ≥+1)"
+            driver_label = "OncoKB oncogenes"
 
     figure_title(fig, target, None, f"copy number {cn_type}", y=0.96)
-    provenance_tag(fig, f"TCGA GISTIC PanCanAtlas · {level_label} in ≥{min_frequency*100:.0f}% of samples", y=0.93)
+    provenance_tag(fig, f"TCGA GISTIC PanCanAtlas · {level_label} in ≥{min_frequency*100:.0f}% of samples · {driver_label}", y=0.93)
 
     def get_rank(genes, target_name, target_freq):
         sorted_desc = sorted(genes, key=lambda x: x[1], reverse=True)
