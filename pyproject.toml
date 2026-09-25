@@ -11,6 +11,19 @@ dependencies = [
     "pyyaml",
 ]
 
+# Test-time only. The gate (scripts/preland.sh and .github/workflows/contracts-validate.yml's
+# whole-repo net) fans the suite across cores with `pytest -n auto`; pytest-xdist supplies that
+# `-n` flag. jsonschema + matplotlib are also imported by the suite (schema validation; the
+# figure-emission tests). Declared here so `pip install -e .[test]` provisions a working gate
+# without copying the CI pip-install line. Runtime (contracts_root/loader/plot_styles) needs none.
+[project.optional-dependencies]
+test = [
+    "pytest",
+    "pytest-xdist",
+    "jsonschema",
+    "matplotlib",
+]
+
 # Tier-1 packaging (ADDITIVE). This makes the `oncology_target_contracts` package —
 # a contracts_root() resolver + thin loader API + importable plot_styles palette —
 # pip-installable so consumers can locate/load cards, rules, schemas, vocabularies and

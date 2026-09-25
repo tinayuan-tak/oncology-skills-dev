@@ -62,7 +62,7 @@ jobs:
       # 1224 WITH it, and those 10 are the entire difference. So without this dependency the
       # whole-repo step below would be green while 10 rendering-contract tests never ran.
       - name: Install dependencies
-        run: python -m pip install --upgrade pip pyyaml jsonschema pytest matplotlib
+        run: python -m pip install --upgrade pip pyyaml jsonschema pytest pytest-xdist matplotlib
 
       - name: Validate card specs
         run: python validators/validate_cards.py cards/
@@ -120,15 +120,12 @@ jobs:
       # live contracts — a rule gaining/losing verdict-moving consumption fails until the committed
       # snapshot (coverage/rule_role_partition.yaml) is consciously regenerated.
       #
-      # 2026-09-13: tests/validators/test_rule_role_partition.py was built with the validator and gated
-      # by NO workflow — the same drift-risk the subgroup/coverage step below calls out. It is wired here
-      # because --self-check alone cannot prove its own checks are non-vacuous: the `duplicate` check
-      # finds nothing on this repo, and the mutation tests in that module are the only thing that shows
-      # it (and the coverage/dangling/attribution checks) can fail at all.
+      # Only the --self-check runs here now; its non-vacuity proof — the mutation tests in
+      # tests/validators/test_rule_role_partition.py (--self-check alone cannot show the duplicate /
+      # coverage / dangling / attribution checks can fail) — runs in the same job via the whole-repo
+      # net at the end (2026-09-25: enumerated pytest dropped, all tests collected by that net).
       - name: Validate rule-role partition (gating vs display drift)
-        run: |
-          python validators/build_rule_role_partition.py --self-check
-          python -m pytest tests/validators/test_rule_role_partition.py -q
+        run: python validators/build_rule_role_partition.py --self-check
 
       # Fold M3 completion guard (VERDICT_REPRESENTATION_FOLD.md): every resolver must stay
       # match_all_reduce with unique per-rung priorities — the first_match interpreter path is retired
@@ -136,19 +133,10 @@ jobs:
       - name: Validate Fold migration (all resolvers folded)
         run: python validators/validate_fold_migration.py --resolvers resolvers/
 
-      # T2 (2026-08-11): validate dashboard_spec + evidence_package INSTANCES against their schemas.
-      # dashboard_spec instances were never schema-validated, so the required_cards maxItems:20 vs
-      # 26 drift (and a `when`-required contradiction) shipped silently. This runs the schema-test
-      # suite that pins every shipped dashboard_spec.
-      - name: Validate contract instances against schemas (dashboard_spec, etc.)
-        run: python -m pytest tests/schemas/ -q
-
-      # Eval ledger (portfolio memory): unit tests + CI-safe self-check of the committed artifact
+      # Eval ledger (portfolio memory): CI-safe self-check of the committed artifact
       # (checkout-only, no sibling probes — mirrors the framework-health self-check gate).
-      - name: Eval ledger unit tests + committed-artifact self-check
-        run: |
-          python -m pytest tests/validators/test_eval_ledger.py -q
-          python validators/build_eval_ledger.py --self-check
+      - name: Eval ledger committed-artifact self-check
+        run: python validators/build_eval_ledger.py --self-check
 
       # T1 reachability (Stage I, 2026-09-19): which (card_id, field, value) triples does the corpus
       # actually emit? Every interpretation rule keys on a triple, and nothing enumerated them —
@@ -166,98 +154,36 @@ jobs:
       # contracts-validate is not branch-protection-required, so a red trunk silently taints every
       # open PR.
       #
-      # The suite runs FIRST and is not optional: --self-check cannot show its own checks are
-      # non-vacuous, and four of this validator's checks were measured fail-open during development
-      # (an exclusion filter keyed on row presence published `{}` while 4 orphans went unreported).
-      # The mutation tests in that module are the only thing proving they can fail at all.
+      # Non-vacuity is not optional: --self-check cannot show its own checks are non-vacuous, and four
+      # of this validator's checks were measured fail-open during development (an exclusion filter keyed
+      # on row presence published `{}` while 4 orphans went unreported). The mutation tests in
+      # tests/validators/test_emission_ledger.py are the only thing proving they can fail at all — they
+      # run in this same job via the whole-repo net at the end (2026-09-25: enumerated pytest dropped).
       - name: Validate emission ledger (T1 reachability; hermetic half only)
-        run: |
-          python -m pytest tests/validators/test_emission_ledger.py -q
-          python validators/build_emission_ledger.py --self-check
+        run: python validators/build_emission_ledger.py --self-check
 
       # I.3 wiring reconciliation: READS (method) vs DECLARES (card required_inputs) vs EMITS
       # (emission ledger). This runner is checkout-only (no analysis-methods/skills/data-catalog
       # siblings), so only the HERMETIC half runs — it re-derives the findings from the committed
       # reads against today's cards, catching declaration-side drift; the LIVE re-extraction runs at
       # preland. Findings are asserted only on the SOUND tier (fully catalog_query-visible reads); the
-      # dated known_violations baseline is EMPTY (the one genuine finding was fixed in the card). The
-      # mutation suite runs FIRST and is not optional: with an empty baseline it is the only proof the
-      # gate can fail at all (self-check alone cannot show its own checks are non-vacuous).
+      # dated known_violations baseline is EMPTY (the one genuine finding was fixed in the card). With
+      # an empty baseline the mutation suite tests/validators/test_wiring_reconciliation.py are the only
+      # proof the gate can fail at all (self-check alone cannot show its own checks are non-vacuous) —
+      # they run in this same job via the whole-repo net at the end (2026-09-25: enumerated pytest dropped).
       - name: Validate wiring reconciliation (I.3; hermetic half only)
-        run: |
-          python -m pytest tests/validators/test_wiring_reconciliation.py -q
-          python validators/build_wiring_reconciliation.py --self-check
+        run: python validators/build_wiring_reconciliation.py --self-check
 
       # I.4 wiring ledger: dataset-grain complement of I.3 — every data-catalog manifest id as read /
       # declared_only / dark (the wiring worklist). Checkout-only here, so only the HERMETIC half runs:
       # it re-reads today's cards for the declared set and gates the partition invariant, anti-vacuity
       # floors, and declaration drift (a card now declaring a committed-dark id). The LIVE recompute
       # runs at preland. `dark` is a dimension, never a gate; --self-check only forbids silent drift.
-      # The mutation suite runs FIRST: with nothing baselined it is the only proof the checks can fail.
+      # With nothing baselined the mutation suite tests/validators/test_wiring_ledger.py is the only
+      # proof the checks can fail; it runs in this same job via the whole-repo net at the end
+      # (2026-09-25: enumerated pytest dropped, all tests collected by that net).
       - name: Validate wiring ledger (I.4; hermetic half only)
-        run: |
-          python -m pytest tests/validators/test_wiring_ledger.py -q
-          python validators/build_wiring_ledger.py --self-check
-
-      # 2026-08-16 (cleanup follow-up): these three validators were fully built but gated by NO
-      # workflow — the same drift-risk the T9b step above fixed for validate_resolvers.py. Wire
-      # their suites so subgroup-assignment / coverage-matrix / framework-discrimination contract
-      # checks actually run on a PR.
-      - name: Validate subgroup assignments + coverage matrix
-        run: python -m pytest tests/validators/test_subgroup_assignments_and_coverage.py -q
-
-      - name: Framework-discrimination calibration
-        run: python -m pytest tests/calibration/test_framework_discrimination.py -q
-
-      # Card CONCEPT-DISCIPLINE ratchet: no NEW molecular-form (isoform/splice) fields on a bulk_rna
-      # expression-abundance card (a card owns ONE concept). Baselined debt burns down via Phase 3b.
-      - name: Card concept-discipline ratchet
-        run: python -m pytest tests/validators/test_card_concept_discipline.py -q
-
-      # 2026-09-12: shared-measurement_type VOCABULARY ratchet. A measurement_type is the
-      # DATA_TO_SKILL_CONTRACT unit, so two cards carrying it must not spell the same summary field's
-      # vocabulary differently — the divergence lives in two files nothing diffs, nothing fails, and the
-      # cost lands on the first rule author, whose `equals:` is then permanently dead on one card.
-      # Gated explicitly (this dir is curated, not run wholesale) or the ratchet would never run in CI.
-      - name: Shared-measurement_type vocabulary ratchet
-        run: python -m pytest tests/validators/test_shared_measurement_type_vocabularies.py -q
-
-      # 2026-09-15 (CI-gap closure): summary-field VOCABULARY-DECLARATION ratchet — a card that spells an
-      # enumerated value set in `outputs.summary_fields_vocabulary` must also DECLARE that field as a
-      # summary_field, or the vocabulary becomes the only evidence the field exists and a rule author's
-      # `equals:` compiles against a field the card never emits. The FLEET arm rides validate_cards.py, so
-      # every card is already gated by the validate-cards step above; this file carries the synthetic-spec,
-      # waiver-staleness and record-schema RESCUE-ARM coverage, which nothing else executes.
-      # Gated explicitly — tests/validators/ is curated file-by-file (measured 2026-09-15: 43 of 68 files
-      # under tests/ are named by NO workflow), so an unnamed test file runs in zero CI.
-      - name: Card summary-field vocabulary-declaration ratchet
-        run: python -m pytest tests/validators/test_card_vocabulary_declaration.py -q
-
-      # 2026-09-13 (foundation audit): method-WIRING ratchet — a declared `methods[].entrypoint` must
-      # name a symbol the module exports, and every card must be readable on SOME path (generic
-      # entrypoint or a *DISPATCHERS registry entry) or declare a non-live status. Both halves
-      # self-skip here (no sibling analysis-methods / skills checkout on this runner), so the hermetic
-      # behavioural tests are what CI actually gates; the live ratchets run in scripts/preland.sh.
-      # Gated explicitly — tests/validators/ is curated file-by-file, so an unwired file never runs.
-      - name: Card method-wiring ratchet
-        run: python -m pytest tests/validators/test_card_method_wiring.py -q
-
-      # 2026-08-20 (CI-gap closure): the nomination-gate CURATION invariants (veto set, positive-axis
-      # discipline, disjointness, provenance completeness) + the subtype-tier ADMISSIBILITY guard were
-      # fully tested but gated by NO workflow — so a positive_signal graduation (cis_coherence) drifted
-      # from the test allowlist unnoticed on trunk. Gate the two invariant files explicitly (curated,
-      # not the whole dir — the figure-emission tests are skills-dependent and self-skip here).
-      - name: Nomination-gate curation + subtype-tier admissibility invariants
-        run: python -m pytest tests/vocabularies/test_nomination_verdict_gate.py tests/validators/test_subtype_tier_rules.py -q
-
-      # 2026-08-21 (CI-gap closure): test_target_profiling_axes.py — THE canonical objective→axis→card
-      # ontology contract (well-formedness, no-coverage-regression vs gate_coverage v2, no dangling
-      # primary_axis / reports_into / conditioned_by refs, relational-consolidation shape) — was gated
-      # by NO workflow. So #479's relational-trio consolidation renamed a key + left cis-feature-coherence
-      # pointing at an UNREGISTERED cis_coherence axis, and the test file went red on trunk for weeks with
-      # a green pipeline (fixed in #491). Gate it explicitly so ontology drift fails a PR instead.
-      - name: Target-profiling-axes ontology contract
-        run: python -m pytest tests/vocabularies/test_target_profiling_axes.py tests/vocabularies/test_question_hierarchies.py -q
+        run: python validators/build_wiring_ledger.py --self-check
 
       # Framework Atlas (validators/architecture_dashboard/living/): a superset of the
       # unified dashboard adding Gaps / Concepts / Docs tabs + the glossary LEGIBILITY layer. Like
@@ -265,10 +191,11 @@ jobs:
       # it validates the committed health/framework_atlas.json's internal consistency — concepts resolved,
       # gaps tally == list, and EVERY surfaced machine token is glossed (the legibility contract fails
       # the build on an unglossed token). Full regenerate / --check is a local guard (needs siblings).
-      - name: Living doc self-check + unit tests (incl. glossary coverage)
-        run: |
-          python validators/architecture_dashboard/living/build_living_doc.py --self-check
-          python -m pytest validators/architecture_dashboard/living/tests/ -q
+      # Only the --self-check runs here; the unit tests (incl. glossary coverage) under
+      # validators/architecture_dashboard/living/tests/ run in this same job via the whole-repo net at
+      # the end — confirmed collected by it (2026-09-25: enumerated pytest dropped).
+      - name: Living doc self-check
+        run: python validators/architecture_dashboard/living/build_living_doc.py --self-check
 
       # ── SAFETY NET (2026-09-17) ─────────────────────────────────────────────────────────
       # Every pytest step above names one file or directory, because tests/ is curated
@@ -314,9 +241,14 @@ jobs:
       #     env DATA_CATALOG_ROOT=/nonexistent CLAUDE_ONCOLOGY_SKILLS_ROOT=/nonexistent \
       #         ANALYSIS_METHODS_ROOT=/nonexistent python -m pytest -q
       #
-      # TIMING: this job was ~2m51s before this step and 6m42s with it, on EVERY PR, since the
-      # pull_request trigger is deliberately unfiltered (see header). If that becomes the
-      # bottleneck the remedy is to drop the now-redundant enumerated pytest steps — NOT to
-      # path-filter this workflow, which would re-open the required-check deadlock.
-      - name: Whole-repo test suite (safety net for files no step above names)
-        run: python -m pytest -q
+      # TIMING: this job was ~2m51s before this step and 6m42s with it. 2026-09-25 both bottlenecks
+      # were taken out (chore/parallelize-gate-xdist): (1) the redundant enumerated `pytest` steps
+      # were dropped — the author-endorsed remedy — since this net collects and runs every test file
+      # anyway (only the `validators/validate_*.py` + `build_*.py --self-check` steps remain above,
+      # which are not pytest and NOT covered here); (2) this net now runs under pytest-xdist. Measured
+      # in this worktree, roots pointed at /nonexistent: serial `pytest -q` = 1490 passed / 15 skipped
+      # in 5m29s; `-n auto` = the SAME 1490 / 15 in 1m17s (4.1×, byte-identical pass/skip → the suite
+      # is parallel-safe). Do NOT path-filter this workflow to speed it up — that re-opens the
+      # required-check deadlock (see header). `-n auto` sizes workers to the runner's core count.
+      - name: Whole-repo test suite (the pytest gate; also nets files no validator step above names)
+        run: python -m pytest -q -n auto

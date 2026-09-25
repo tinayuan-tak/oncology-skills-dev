@@ -6,10 +6,56 @@
 set -uo pipefail
 cd "$(cd "$(dirname "$0")/.." && pwd)" || exit 2
 fail=0
-run() { local label="$1"; shift; local out
-  if out=$("$@" 2>&1); then echo "PASS  $label"
-  else echo "FAIL  $label"; echo "$out" | tail -n 30 | sed 's/^/      /'; fail=1; fi; }
-# --- gates (transcribed in order from contracts-validate.yml) ---
+
+# ── PARALLELISM (2026-09-25) ──────────────────────────────────────────────────────────────────
+# The gate steps below are independent and READ-ONLY (validators re-derive + compare committed
+# artifacts under --self-check; pytest steps use tmp_path fixtures and read-only session loaders),
+# so they were fully serial for no reason on a 32-core host — dominated by the two whole-corpus /
+# whole-sibling recomputes (test_wiring_ledger + the emission/wiring self-checks, ~70s each) plus
+# ~30 interpreter+import cold starts. They now run in a CONCURRENCY POOL: `run` ENQUEUES a step to
+# the pool, `report_pool` drains it and prints PASS/FAIL in the SAME launch order as before (so the
+# transcript still reads in contracts-validate.yml order). Wall-clock collapses from the sum of the
+# steps to roughly the single tall pole. Modest default for a shared, no-swap host where peers may
+# run concurrently; override per-run. PRELAND_POOL=1 restores fully-serial behaviour for debugging.
+#   PRELAND_POOL   concurrent gate steps                                           default 8
+# NB: the pytest steps are deliberately NOT given `-n` (xdist) — each names one small file, which
+# LOSES to worker-spawn overhead; the parallelism that pays here is ACROSS steps (this pool), and
+# the whole-repo safety net in CI is the single place a within-suite `-n auto` earns its keep.
+PRELAND_POOL="${PRELAND_POOL:-8}"
+resdir=$(mktemp -d)
+trap 'rm -rf "$resdir"' EXIT
+_seq=0
+# `run` enqueues one gate step. Each background job writes "<rc>" and its captured output to files
+# keyed by a zero-padded launch ordinal, so report_pool can print in launch order and set `fail` in
+# the MAIN shell (a subshell's `fail=1` would not survive). Output is captured, never streamed, so
+# concurrent steps never interleave.
+run() { local label="$1"; shift
+  local i; i=$(printf '%03d' "$_seq"); _seq=$((_seq + 1))
+  printf '%s' "$label" > "$resdir/$i.label"
+  ( local out rc
+    if out=$("$@" 2>&1); then rc=0; else rc=$?; fi
+    # Trailing newline is load-bearing: report_pool tails this file, and an output without one
+    # would glue the NEXT step's PASS/FAIL line onto it (looks like a dropped step).
+    printf '%s\n' "$out" > "$resdir/$i.out"
+    printf '%s' "$rc" > "$resdir/$i.rc" ) &
+  while [ "$(jobs -r -p | wc -l)" -ge "$PRELAND_POOL" ]; do wait -n; done
+}
+# Iterate the LABEL files (written synchronously in the main shell, so one exists for every enqueued
+# step) rather than the .rc files: a step whose background job vanished without writing a result must
+# read as a LOUD FAIL, never silently drop out of both the PASS and FAIL lists.
+report_pool() { wait
+  local lf i label rc
+  for lf in $(ls "$resdir"/*.label 2>/dev/null | sort); do
+    i="${lf%.label}"; label=$(cat "$lf")
+    if [ ! -f "$i.rc" ]; then
+      echo "FAIL  $label (no result written — pool job vanished)"; fail=1; continue
+    fi
+    rc=$(cat "$i.rc")
+    if [ "$rc" = "0" ]; then echo "PASS  $label"
+    else echo "FAIL  $label"; tail -n 30 "$i.out" | sed 's/^/      /'; fail=1; fi
+  done
+}
+# --- gates (transcribed in order from contracts-validate.yml; enqueued to the pool above) ---
 run "validate_cards"                     python validators/validate_cards.py cards/
 run "validate_evidence_graph"            python validators/validate_evidence_graph.py --self-check
 run "validate_questions"                 python validators/validate_questions.py
@@ -67,6 +113,15 @@ run "pytest indication gate parity"      python -m pytest tests/vocabularies/tes
 # safely, by reding when a rule keys on a token its own card no longer declares. A migration guard
 # first observed in CI is a guard that was absent exactly when the removal commit was written.
 run "pytest subtype_signal vocabulary"   python -m pytest tests/validators/test_subtype_signal_vocabulary_alignment.py -q
+
+# Drain the pool and print every gate's PASS/FAIL in launch (CI) order before the ruff/advisory
+# steps below, which stay SYNCHRONOUS (fast, and the ruff block has its own version-gate control
+# flow). Restore the plain serial `run` for them so that block is unchanged from its original form.
+report_pool
+run() { local label="$1"; shift; local out
+  if out=$("$@" 2>&1); then echo "PASS  $label"
+  else echo "FAIL  $label"; echo "$out" | tail -n 30 | sed 's/^/      /'; fail=1; fi; }
+
 # --- ruff (.github/workflows/ruff.yml) ---
 # 2026-09-13: this script mirrored contracts-validate.yml and NOTHING ELSE, so "ALL GATES PASS" was
 # reported on a branch whose ruff job then failed on the PR — format-only, but a red check either way.
