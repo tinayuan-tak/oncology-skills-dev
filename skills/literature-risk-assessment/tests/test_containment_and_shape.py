@@ -57,6 +57,42 @@ def test_norm_pmid_pmc_accession_not_collapsed_to_bogus_pmid():
     assert good == [] and bad == ["PMC3539614"]
 
 
+def test_fit_abstract_keeps_tail_and_stays_in_budget():
+    # #1635a: a structured abstract whose escalating CONCLUSIONS sentence lives past ABSTRACT_CHARS must
+    # remain in-window — the truncation×containment seam (a real, retrieved PMID whose SHOWN text no
+    # longer supports the grade). Head+tail fitting keeps both the framing and the tail.
+    body = (
+        "BACKGROUND: "
+        + ("filler background text. " * 90)
+        + "RESULTS: "
+        + ("filler results text. " * 40)
+        + "CONCLUSIONS: unexpected on-target hepatotoxicity was reported in the phase II cohort."
+    )
+    assert len(body) > rc.ABSTRACT_CHARS
+    fitted = rc._fit_abstract(body, rc.ABSTRACT_CHARS)
+    assert len(fitted) <= rc.ABSTRACT_CHARS
+    assert "unexpected on-target hepatotoxicity" in fitted  # tail conclusion survives
+    assert fitted.startswith("BACKGROUND:") and rc._ABSTRACT_TRUNC_MARKER in fitted
+    assert rc._fit_abstract("short", rc.ABSTRACT_CHARS) == "short"  # within budget → verbatim
+    assert rc._fit_abstract(None, rc.ABSTRACT_CHARS) == ""  # tolerates a missing abstract
+
+
+def test_build_prompt_fences_abstracts_with_random_sentinel():
+    # #1635b: each interpolated (external) abstract is wrapped in a per-run random delimiter the SYSTEM
+    # prompt (rule 7) names as the untrusted-data boundary.
+    from types import SimpleNamespace
+
+    abs_ = [SimpleNamespace(pmid="111", year=2020, title="T", abstract="body")]
+    p = rc._build_prompt("safety", "q", abs_, None, sentinel="cafef00d")
+    assert "BEGIN-UNTRUSTED-cafef00d" in p and "END-UNTRUSTED-cafef00d" in p
+    assert "PMID 111" in p
+    # SYSTEM rule 7 names the fence convention; the fence is randomized when not supplied
+    assert "BEGIN-UNTRUSTED-" in rc.SYSTEM
+    p1 = rc._build_prompt("safety", "q", abs_, None)
+    p2 = rc._build_prompt("safety", "q", abs_, None)
+    assert "cafef00d" not in p1 and p1 != p2  # fresh random token per run
+
+
 class _Ab:
     def __init__(self, pmid):
         self.pmid, self.year, self.title, self.abstract = pmid, 2020, "t", "body"

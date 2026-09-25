@@ -104,11 +104,52 @@ def test_prompt_abstract_truncation_uses_budget():
     abs_ = [SimpleNamespace(pmid="1", title="T", abstract=long)]
     # default budget raised from the original 900
     assert ga.ABSTRACT_CHARS == 1500
-    p_default = ga._prompt("KRAS", "COADREAD", "safety", "concern", abs_)
-    assert ("X" * ga.ABSTRACT_CHARS) in p_default and ("X" * (ga.ABSTRACT_CHARS + 1)) not in p_default
-    # explicit override is honored
-    p_small = ga._prompt("KRAS", "COADREAD", "safety", "concern", abs_, abstract_chars=100)
-    assert ("X" * 100) in p_small and ("X" * 101) not in p_small
+    # #1635: over-budget abstracts are head+tail fitted (not blind head-sliced), so the shown text
+    # stays within budget and the tail (RESULTS/CONCLUSIONS) survives. The interpolated abstract body
+    # carries the truncation marker and never exceeds the budget.
+    fitted = ga._fit_abstract(long, ga.ABSTRACT_CHARS)
+    assert ga._ABSTRACT_TRUNC_MARKER in fitted
+    assert len(fitted) <= ga.ABSTRACT_CHARS
+    p_default = ga._prompt("KRAS", "COADREAD", "safety", "concern", abs_, sentinel="tok")
+    assert fitted in p_default
+    # explicit override is honored (smaller budget → smaller fitted body)
+    small = ga._fit_abstract(long, 100)
+    assert len(small) <= 100
+    assert small in ga._prompt("KRAS", "COADREAD", "safety", "concern", abs_, abstract_chars=100, sentinel="tok")
+
+
+def test_fit_abstract_preserves_conclusion_tail():
+    # A structured oncology abstract whose escalating CONCLUSIONS sentence lives PAST char 1500 must
+    # remain in-window — a blind head-slice would drop it while its PMID still passes containment.
+    body = (
+        "BACKGROUND: "
+        + ("filler background text. " * 90)
+        + "RESULTS: "
+        + ("filler results text. " * 40)
+        + "CONCLUSIONS: unexpected on-target cardiotoxicity was observed in the trial cohort."
+    )
+    assert len(body) > ga.ABSTRACT_CHARS
+    fitted = ga._fit_abstract(body, ga.ABSTRACT_CHARS)
+    assert len(fitted) <= ga.ABSTRACT_CHARS
+    assert "unexpected on-target cardiotoxicity" in fitted  # the tail conclusion survived
+    assert fitted.startswith("BACKGROUND:")  # head framing survives too
+    # short abstracts pass through verbatim
+    assert ga._fit_abstract("short", ga.ABSTRACT_CHARS) == "short"
+
+
+def test_prompt_fences_each_abstract_with_sentinel():
+    # #1635b: every interpolated abstract is wrapped in the per-run random delimiter the SYSTEM prompt
+    # names as the untrusted-data boundary.
+    from types import SimpleNamespace
+
+    abs_ = [SimpleNamespace(pmid="1", title="T", abstract="body")]
+    p = ga._prompt("KRAS", "COADREAD", "safety", "concern", abs_, sentinel="deadbeef")
+    assert "BEGIN-UNTRUSTED-deadbeef" in p and "END-UNTRUSTED-deadbeef" in p
+    # the fence is randomized per run when not supplied
+    p1 = ga._prompt("KRAS", "COADREAD", "safety", "concern", abs_)
+    p2 = ga._prompt("KRAS", "COADREAD", "safety", "concern", abs_)
+    assert "BEGIN-UNTRUSTED-deadbeef" not in p1  # a fresh random token, not the test literal
+    assert p1 != p2  # per-run randomization
 
 
 def test_axis_config_has_all_rolled_out_axes_with_complete_framing():
