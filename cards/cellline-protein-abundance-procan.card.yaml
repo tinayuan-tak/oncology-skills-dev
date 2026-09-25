@@ -83,6 +83,11 @@ outputs:
     - allgene_percentile                          # float 0-100 (or null)
     - allgene_percentile_class                    # categorical
     - allgene_percentile_context                  # string — panel/metric the null was drawn from (audit)
+    # Which MS platform produced this record — the field that PREVENTS the cross-assay scale confusion
+    # the caveats warn about (ProCan DIA MaxLFQ log-intensity vs the Gygi sibling's TMT log2-ratio). The
+    # reader always tags it (procan/cli.py:241 on the read path, :204 on the absent path; read.py:40 on
+    # the error path), so it is load-bearing; declared here so the completeness ratchet sees it.
+    - protein_abundance_source                    # CATEGORICAL — MS platform tag (procan_dia_swath)
 
   summary_fields_vocabulary:
     protein_expression_class:
@@ -105,6 +110,39 @@ outputs:
       - mid
       - bottom_decile
       - data_unavailable
+    protein_abundance_source:
+      - procan_dia_swath                          # the only live-read platform tag on this card
+      - data_unavailable                          # absent/error paths (procan/cli.py:204, read.py:40)
+
+  # Scalar (non-categorical) summary fields — types for the completeness/ledger triad. A runtime null
+  # (e.g. an unquantified protein's percentiles, or allgene_percentile when the null is unavailable) is
+  # permitted; the schema types the non-null case (parity with the Gygi sibling / cptac convention).
+  summary_fields_scalar_types:
+    n_cell_lines_evaluated: integer
+    n_cell_lines_in_panel: integer
+    fraction_detected: number
+    median_log2_abundance_panel: number
+    p25_log2_abundance_panel: number
+    p75_log2_abundance_panel: number
+    p5_log2_abundance_panel: number
+    p95_log2_abundance_panel: number
+    log2_abundance_iqr: number
+    protein_effect_size: number
+    n_lineages_evaluated: integer
+    n_lineage_restricted_lineages: integer
+    method_version: string
+    allgene_percentile: number
+    allgene_percentile_context: string
+
+  # per_lineage_stats is ALWAYS [] on this card (no SIDM->OncotreeLineage crosswalk yet — a v2 item),
+  # so the shape is moot in practice; declared for triad completeness and to match the Gygi sibling's
+  # per-lineage record shape, which is what the list would carry once a crosswalk lands.
+  summary_fields_record_schemas:
+    per_lineage_stats:
+      lineage: string
+      n: integer
+      median_log2_abundance: number
+      fraction_detected: number
 
 thresholds:
   # Detection-fraction bands (DIA is sparse — detection is a first-class signal, mirrors the Gygi sibling).
@@ -162,3 +200,47 @@ measurement_type: cell_line_protein_abundance
 modality_relevance: [small_molecule, degrader]
 entity_grains: [target]     # target-grain only: no lineage crosswalk, so target_lineage is NOT emittable on this platform
 schema_version: 1
+
+# All declared cutoffs are applied UPSTREAM by the method (procan-protein-abundance), never by a card
+# predicate: the detection/abundance bands live as module constants in the shared Gygi compute the
+# ProCan reader reuses (depmap_protein_abundance/cli.py), and the allgene percentile-class cutoffs live
+# as procan/cli.py:54 `_PCT_CUTOFFS = dict(DEFAULT_CUTOFFS)`. Editing the card changes nothing; the
+# values are documentation of what the method applies. Roled here so THRESHOLD_UNUSED does not fire on
+# a live method-side read (parity with the Gygi sibling's threshold_roles block).
+threshold_roles:
+  broadly_detected_fraction_threshold:
+    role: method_parameter
+    consumed_by: procan-protein-abundance
+    note: 'Detection-band cutoff applied by the shared Gygi compute the ProCan reader reuses (module constant), not by a card predicate.'
+  low_detection_fraction_threshold:
+    role: method_parameter
+    consumed_by: procan-protein-abundance
+    note: 'Detection-band cutoff applied by the shared Gygi compute the ProCan reader reuses (module constant), not by a card predicate.'
+  lineage_restricted_min_fraction:
+    role: method_parameter
+    consumed_by: procan-protein-abundance
+    note: 'Lineage-restriction band cutoff applied by the shared Gygi compute (module constant), not by a card predicate. Unreachable in practice here (per_lineage_stats always empty), but the classifier still reads it.'
+  lineage_restricted_max_fraction:
+    role: method_parameter
+    consumed_by: procan-protein-abundance
+    note: 'Lineage-restriction band cutoff applied by the shared Gygi compute (module constant), not by a card predicate. Unreachable in practice here (per_lineage_stats always empty), but the classifier still reads it.'
+  high_abundance_percentile:
+    role: method_parameter
+    consumed_by: procan-protein-abundance
+    note: 'Panel-relative high-abundance cutoff applied by the shared Gygi compute (module constant), not by a card predicate.'
+  min_lineage_size:
+    role: method_parameter
+    consumed_by: procan-protein-abundance
+    note: 'Minimum lineage size applied by the shared Gygi compute (module constant), not by a card predicate. Moot here (no lineage breakdown), but read by the reused classifier.'
+  allgene_top_1_percentile:
+    role: method_parameter
+    consumed_by: procan-protein-abundance
+    note: 'Bins allgene_percentile -> allgene_percentile_class via procan/cli.py:54 `_PCT_CUTOFFS = dict(DEFAULT_CUTOFFS)` (shared percentile_null helper), not by a card predicate.'
+  allgene_top_decile:
+    role: method_parameter
+    consumed_by: procan-protein-abundance
+    note: 'Bins allgene_percentile -> allgene_percentile_class via procan/cli.py:54 `_PCT_CUTOFFS = dict(DEFAULT_CUTOFFS)` (shared percentile_null helper), not by a card predicate.'
+  allgene_bottom_decile:
+    role: method_parameter
+    consumed_by: procan-protein-abundance
+    note: 'Bins allgene_percentile -> allgene_percentile_class via procan/cli.py:54 `_PCT_CUTOFFS = dict(DEFAULT_CUTOFFS)` (shared percentile_null helper), not by a card predicate.'

@@ -19,11 +19,11 @@ provenance: 'heterogeneous: packages were produced by different code'
 counts:
   cards_declaring_vocabulary: 136
   cards_with_observations: 132
-  declared_pairs: 293
-  pairs: 286
+  declared_pairs: 294
+  pairs: 287
   out_of_vocab: 0
   never_observed_pairs: 8
-  dead_tokens: 349
+  dead_tokens: 350
 ungated_absences:
   "orphan: declared on no field \u2014 already gated by validate_cards":
   - functional-gene-state::sample_state
@@ -31,10 +31,10 @@ ungated_absences:
   - prism-compound-activity::metric_source
   - variant-level-interpretation::resistance_class
 known_out_of_vocab:
-  as_of: '2026-09-23'
+  as_of: '2026-09-25'
   keys: []
 known_never_observed:
-  as_of: '2026-09-23'
+  as_of: '2026-09-25'
   keys:
   - antigen-internalization::internalization_class
   - antigen-internalization::internalization_evidence_tier
@@ -511,6 +511,24 @@ by_card:
       - data_unavailable
       top: mid
       saturation: 0.8047
+    protein_abundance_source:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - procan_dia_swath
+      observed:
+        procan_dia_swath: 343
+      n_non_null: 343
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 343
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: procan_dia_swath
+      saturation: 1.0
     protein_expression_class:
       grain: scalar
       arity: scalar
