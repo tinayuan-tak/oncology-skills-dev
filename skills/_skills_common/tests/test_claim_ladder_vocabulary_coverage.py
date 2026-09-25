@@ -392,6 +392,12 @@ _CORROBORATION_READERS = {
     "skills/_skills_common/selectivity_question_table.py": "DELEGATES to question_table_core.conf",
     # --- PASS-THROUGH: renders or copies the token verbatim. An unrecognised rung reads as ITSELF,
     #     which is honest — no map, so nothing to keep in step. This is the safe way to consume the axis.
+    "skills/_skills_common/narrative_grounding.py": (
+        "PASS-THROUGH — INV-6 grounding guard reads the cited claims' `corroboration` tokens only to "
+        "rank them via `_ord(CORROBORATION_ORD, ...)` for a non-exceedance comparison against the "
+        "narrative's asserted `strength`. No map, no projection: an unrecognised rung reads off-scale "
+        "(_ord -> None) as itself, which is honest. VERDICT-INERT (reads only)."
+    ),
     "skills/_skills_common/literature_synthesis.py": "PASS-THROUGH (prose line)",
     "skills/_skills_common/report_render/backends/text.py": "PASS-THROUGH (prose line)",
     "skills/_skills_common/signals_first.py": "PASS-THROUGH (prose line)",
