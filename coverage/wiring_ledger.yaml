@@ -6,72 +6,71 @@ _doc: 'I.4 wiring ledger: every data-catalog manifest id by wiring status -- rea
   reads, declares, OR names it; the wiring worklist). `dark` is the number I.4 moves, a sound lower bound
   on the truly-unwired set. Regenerate with validators/build_wiring_ledger.py; --self-check gates drift.'
 sibling_shas:
-  analysis-methods: 61451a3
-  skills: ea906e9b
-  data-catalog: 161d13e
-n_catalog_datasets: 534
+  analysis-methods: 5cb504d
+  skills: e93c63f5
+  data-catalog: d1c0e5d
+n_catalog_datasets: 539
 counts:
-  read: 135
+  read: 137
   declared_only: 258
-  referenced_only: 23
-  dark: 118
-n_literal_reads: 67
+  referenced_only: 27
+  dark: 117
+n_literal_reads: 69
 dark_by_source_family:
   cbioportal: 17
   genie: 10
   geo: 9
   sc: 8
-  prism: 6
   depmap: 6
+  prism: 6
   3ca: 3
-  omicsoft: 3
   ucsc: 3
   loveless: 3
+  omicsoft: 3
   hpvneg: 2
-  crc: 2
-  arm: 2
-  horlbeck: 2
   htan: 2
-  cellxgene: 1
-  xena: 1
-  tcga: 1
-  williams: 1
-  met500: 1
-  vandewetering: 1
-  gencode: 1
-  dgv: 1
-  schutte: 1
-  datlinger: 1
-  hpa: 1
+  crc: 2
+  horlbeck: 2
+  arm: 2
   gastric: 1
-  gnomad: 1
-  pelka: 1
-  cancermine: 1
-  ncbi: 1
-  lee: 1
-  cheng: 1
-  meditreme: 1
-  biogrid: 1
-  rancho: 1
-  ensembl: 1
-  merops: 1
-  hnsc: 1
-  mygene: 1
-  gdc: 1
-  peng: 1
+  gencode: 1
   dream: 1
-  tempus: 1
-  ov: 1
+  cheng: 1
+  dgv: 1
+  tflink: 1
+  ncbi: 1
+  gdc: 1
+  lee: 1
+  schutte: 1
+  rancho: 1
+  meditreme: 1
+  hnscc: 1
+  pooled: 1
+  replogle: 1
+  pelka: 1
+  msk: 1
+  hpa: 1
+  met500: 1
+  peng: 1
+  biogrid: 1
+  cellxgene: 1
+  civic: 1
+  gnomad: 1
   gao: 1
   omnipath: 1
-  tflink: 1
+  williams: 1
+  mygene: 1
+  tcga: 1
+  hnsc: 1
   pancanatlas: 1
-  pooled: 1
-  msk: 1
+  ov: 1
+  vandewetering: 1
+  ensembl: 1
   peptideatlas: 1
-  civic: 1
-  replogle: 1
-  hnscc: 1
+  cancermine: 1
+  merops: 1
+  datlinger: 1
+  tempus: 1
 read:
 - allgene-depmap-rank-26q1-v1
 - allgene-tumor-rank-v1
@@ -147,6 +146,7 @@ read:
 - gencode-v26-exon-index-v1
 - gencode-v26-gene-lengths-union-of-exons-v1
 - gencode-v26-primary-assembly
+- gene-id-authority-v23-v116-v1
 - genie-public-v19-0
 - genie-registry-per-sample-maf-v1
 - geo-gse164378-hao-2021-cite-pbmc-snapshot-2026-08-12
@@ -207,6 +207,7 @@ read:
 - ucsc-hg38-cpg-islands-v1
 - uniprot-gpi-anchored-v1
 - uniprot-sprot-human-2026-02-snapshot-2026-06-18
+- xena-toil-tcga-target-gtex-snapshot-2026-09-20
 - zhou-hm450-manifest-20180909
 declared_only:
 - 3ca-head-and-neck-snapshot-2026-08-12
@@ -469,11 +470,15 @@ declared_only:
 - zenodo-luca-salcher-nsclc-snapshot-2026-08-13
 referenced_only:
 - ccle-rrbs-promoter-methylation-mean-per-gene-v1
+- coadread-dge-adj-vs-gtex-v1
+- coadread-dge-adj-vs-gtex-xenatoil-v1
 - coadread-dge-df06320
+- coadread-dge-tumor-vs-normal-sensitivity-xenatoil-v1
 - depmap-predictability-26q1-v2
 - depmap-predictability-26q1-v3
 - depmap-predictability-26q1-v4
 - depmap-subgroup-assignments-coadread-cms-v1
+- dge-deseq2-qc-index-v1
 - gdc-pancohort-somatic-dr45-0
 - genie-bpc-subgroup-assignments-coadread-v1
 - genie-bpc-subgroup-assignments-nsclc-v1
@@ -609,4 +614,3 @@ dark:
 - ucsc-genomicsuperdups-hg38-snapshot-2026-08-28
 - vandewetering-crc-organoids-geo-snapshot-2026-09-14
 - williams-2017-crc-cetuximab-sirna-pubchem-snapshot-2026-09-14
-- xena-toil-tcga-target-gtex-snapshot-2026-09-20
