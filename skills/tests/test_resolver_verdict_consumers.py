@@ -40,6 +40,7 @@ def _load_skill_run(skill_name: str):
 
 _DEP = _resolver_verdicts("dependency")
 _SAF = _resolver_verdicts("safety")
+_CIS = _resolver_verdicts("cis_coherence")
 
 
 @pytest.mark.skipif(_DEP is None, reason="dependency.resolver.yaml unavailable (target-contracts not checked out)")
@@ -73,4 +74,29 @@ def test_safety_mechanism_mismatch_set_matches_resolver():
     )
     assert set(saf._MECHANISM_MISMATCH_VERDICTS) == by_name == set(), (
         f"_MECHANISM_MISMATCH_VERDICTS {set(saf._MECHANISM_MISMATCH_VERDICTS)} must be empty post-retirement."
+    )
+
+
+@pytest.mark.skipif(_CIS is None, reason="cis_coherence.resolver.yaml unavailable (target-contracts not checked out)")
+def test_cis_coherence_verdicts_are_exhaustively_registered():
+    """cis-feature-coherence is a confidence-tier axis with no gate/veto, so an unregistered resolver
+    verdict cannot cross the kill boundary — but it can silently forfeit its human phrase / polarity /
+    coherent-chain classification (a future 8th cis rung shipping unnamed). Guard: every verdict the
+    resolver can emit MUST have an entry in _CIS_COHERENCE_VERDICT_PHRASE (the registration surface that
+    every downstream consumer keys off), and the phrase map must carry no stale token."""
+    cis = _load_skill_run("cis-feature-coherence")
+    registered = set(cis._CIS_COHERENCE_VERDICT_PHRASE)
+    unregistered = _CIS - registered
+    assert not unregistered, (
+        f"cis_coherence.resolver.yaml emits verdict(s) {sorted(unregistered)} unregistered in "
+        f"cis-feature-coherence/run.py _CIS_COHERENCE_VERDICT_PHRASE — add each a human phrase and, if "
+        f"it is a coherent cis chain, to _CIS_COHERENT / _CIS_COHERENCE_FAVORABLE as appropriate."
+    )
+    stale = registered - _CIS
+    assert not stale, (
+        f"_CIS_COHERENCE_VERDICT_PHRASE lists verdict(s) no longer in cis_coherence.resolver.yaml: {sorted(stale)}"
+    )
+    # the coherent-chain classification set must itself be a subset of real resolver verdicts.
+    assert set(cis._CIS_COHERENT) <= _CIS, (
+        f"_CIS_COHERENT lists verdict(s) not emitted by cis_coherence.resolver.yaml: {sorted(set(cis._CIS_COHERENT) - _CIS)}"
     )

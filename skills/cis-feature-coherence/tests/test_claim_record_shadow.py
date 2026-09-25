@@ -25,6 +25,20 @@ def test_coherent_driver_supports():
     assert rec["provenance"]["fired_rule_ids"] == ["cis-coherent"]
 
 
+def test_coherent_lof_supports():
+    """coherent_cis_loss_of_function (resolver v1.3.0) is an equally-coherent cis chain
+    (deletion → low expression) — it must carry the same supports/moderate direction as its
+    silencing sibling, not fall through to neutral/none (the _CIS_COHERENT omission this fixes)."""
+    rec = cis._claim_record(
+        [],
+        fired=_fired("cis-coherent-lof"),
+        verdict_pair=("coherent_cis_loss_of_function", "cis-coherent-lof"),
+    )
+    assert rec["finding"]["direction"] == "supports"
+    assert rec["finding"]["magnitude"]["level"] == "moderate"
+    assert rec["finding"]["availability"] == "measured_positive"
+
+
 def test_uncoupled_is_neutral_measured():
     rec = cis._claim_record([], fired=[], verdict_pair=("cis_uncoupled_no_dependency", None))
     assert rec["finding"]["direction"] == "neutral"
@@ -55,6 +69,7 @@ def test_conforms_to_contract_schema_if_available():
     for v in (
         "coherent_cis_driver",
         "coherent_epigenetic_silencing",
+        "coherent_cis_loss_of_function",
         "cis_uncoupled_no_dependency",
         "dependency_without_cis_dosage",
         "expressed_cis_coupled_inert",

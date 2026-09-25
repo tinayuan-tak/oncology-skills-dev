@@ -132,11 +132,17 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 
 
 # ── FACTORED-RECORD SHADOW (M1) — the CIS-COHERENCE per-axis builder. DESCRIPTIVE / non-gating: it
-#    reads out whether the locus→expression→dependency chain is coherent. A coherent-driver call
-#    SUPPORTS the thesis; the other measured patterns are informational (neutral). VERDICT-INERT:
-#    surfaced by the fan-out into decision.claim_record_shadow.cis_coherence, consumed by NOTHING.
-#    No verdict-disjoint corroborator → minimal coverage-only certainty. Mirrors the other axes' hook.
-_CIS_COHERENT = {"coherent_cis_driver", "coherent_epigenetic_silencing"}
+#    reads out whether the locus→expression→dependency chain is coherent. A coherent-chain call
+#    SUPPORTS the thesis (coherence-of-the-chain); the other measured patterns are informational
+#    (neutral). VERDICT-INERT: surfaced by the fan-out into decision.claim_record_shadow.cis_coherence,
+#    consumed by NOTHING. No verdict-disjoint corroborator → minimal coverage-only certainty. Mirrors
+#    the other axes' hook.
+#    All THREE coherent-cis-chain verdicts belong here: coherent_cis_driver (amp→expr→dep),
+#    coherent_epigenetic_silencing (methylation→low expr), and coherent_cis_loss_of_function
+#    (deletion→low expr, resolver v1.3.0). LoF is an equally-coherent cis chain and an equally-valid
+#    SL hypothesis sibling of silencing, so it must carry the same direction=supports / magnitude=
+#    moderate rather than falling through to neutral/none (the v1.3.0 token was previously unpropagated).
+_CIS_COHERENT = {"coherent_cis_driver", "coherent_epigenetic_silencing", "coherent_cis_loss_of_function"}
 
 
 def _cis_availability(v) -> str:
@@ -477,7 +483,12 @@ def _cis_coherence_confidence_caveat(hl: dict, target=None, indication=None) -> 
 
     # TIER (i) SHARP — a coherent call whose CAUSAL confirmation legs are thin: no protein-dosage confirmation
     # (protein leg data_unavailable / uninformative) AND the patient arm does not corroborate.
-    prot_measured = hl.get("cis_protein_dosage_class") not in (None, "data_unavailable")
+    # protein-dosage confirmation is a CN→PROTEIN dosage (GoF / amplification) concept — it confirms a
+    # cis-DRIVER call, NOT methylation causality. Gate the protein-dosage conjunct to the driver branch
+    # only: for a silencing verdict an incidentally-populated cis_protein_dosage_class (the protein card
+    # runs regardless) must NOT suppress the statistical-unconfirmed caveat. The honest silencing
+    # confirmation is patient-methylation agreement / demethylation rescue, carried by patient_agrees.
+    prot_measured = is_driver and hl.get("cis_protein_dosage_class") not in (None, "data_unavailable")
     patient_agrees = (
         hl.get("patient_dosage_agrees_with_cellline") is True
         or hl.get("patient_silencing_agrees_with_cellline") is True

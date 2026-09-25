@@ -115,6 +115,45 @@ def test_confidence_honest_positive_when_patient_corroborates():
     assert _cis_coherence_confidence_caveat(hl, target="SOMEGENE", indication="COADREAD") is None
 
 
+def test_confidence_silencing_protein_dosage_does_not_suppress_statistical_unconfirmed():
+    """Gap-1 fix: cis_protein_dosage_class is a CN→PROTEIN (GoF/amplification) concept irrelevant to
+    confirming methylation causality. For a coherent_epigenetic_silencing verdict, an incidentally-
+    populated protein-dosage class must NOT suppress the statistical-unconfirmed caveat when the patient
+    methylation arm does not corroborate — protein dosage is gated to the DRIVER branch only."""
+    hl = {
+        "cis_coherence_verdict": "coherent_epigenetic_silencing",
+        "cis_protein_dosage_class": "prot_dosage_coupled_moderate",  # incidentally populated
+        "patient_silencing_agrees_with_cellline": None,  # patient methylation arm does NOT corroborate
+    }
+    # non-validated silencing gene in a NON-CIMP indication → past tier (ii), lands on tier (i)
+    c = _cis_coherence_confidence_caveat(hl, target="SOMEGENE", indication="BRCA")
+    assert c is not None, "silencing statistical-unconfirmed caveat wrongly suppressed by protein dosage"
+    assert c["reason"] == "statistical_cis_correlation_causally_unconfirmed"
+
+
+def test_confidence_silencing_honest_positive_when_patient_methylation_corroborates():
+    """The honest silencing confirmation is patient-methylation agreement / demethylation rescue —
+    patient_silencing_agrees_with_cellline=True → honest positive (no caveat), regardless of protein."""
+    hl = {
+        "cis_coherence_verdict": "coherent_epigenetic_silencing",
+        "cis_protein_dosage_class": "data_unavailable",
+        "patient_silencing_agrees_with_cellline": True,
+    }
+    assert _cis_coherence_confidence_caveat(hl, target="SOMEGENE", indication="BRCA") is None
+
+
+def test_confidence_driver_protein_dosage_still_suppresses_statistical_unconfirmed():
+    """Driver branch is UNCHANGED: a measured protein-dosage class remains a valid causal confirmation
+    leg for coherent_cis_driver, so with protein measured (and not buffered) → honest positive, no caveat."""
+    hl = {
+        "cis_coherence_verdict": "coherent_cis_driver",
+        "cis_protein_dosage_class": "prot_dosage_coupled_strong",
+        "mrna_vs_protein_dosage_slope_ratio": 0.95,
+        "patient_dosage_agrees_with_cellline": None,
+    }
+    assert _cis_coherence_confidence_caveat(hl, target="SOMEGENE", indication="BRCA") is None
+
+
 def test_confidence_guard_outranks_buffered_protein_precedence():
     """A guarded gene with a buffered protein slope must return the guard, NOT the amplicon-passenger tier."""
     hl = {
