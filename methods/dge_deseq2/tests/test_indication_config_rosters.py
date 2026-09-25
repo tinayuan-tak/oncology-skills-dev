@@ -198,3 +198,80 @@ def test_null_gtex_tissue_is_excluded(monkeypatch):
     data["indications"]["BRCA"]["gtex_tissue"] = None
     monkeypatch.setattr(cfg, "_load", lambda: data)
     assert "BRCA" not in cfg.indication_to_gtex_tissue()
+
+
+# --- #734 Phase 1: staged universe-expansion candidates (must stay VERDICT-INERT) -----------
+# LAML/DLBC are DEFINED (published: false + in_read_map: false) toward the issue's "~30 TCGA
+# studies" but must not move any live roster until their flags are flipped WITH domain sign-off.
+EXPECTED_STAGED = {"LAML", "DLBC"}
+
+# The 7 TCGA study codes not covered by a published product triage into: staged (a GTEx normal
+# exists), uncertain, or excluded (no usable GTEx normal). Only the two staged ones may appear.
+NO_GTEX_NORMAL_STUDIES = {"MESO", "SARC", "THYM", "UVM"}  # excluded — no matched normal in GTEx
+UNCERTAIN_STUDIES = {"CHOL"}  # bile duct — GTEx has LIVER but no bile-duct normal; not yet staged
+
+
+def test_staged_indications_are_exactly_laml_dlbc():
+    assert set(cfg.staged_indications()) == EXPECTED_STAGED
+
+
+def test_staged_entries_are_not_published_and_not_in_read_map():
+    inds = cfg._load()["indications"]
+    for name in EXPECTED_STAGED:
+        assert inds[name]["published"] is False, f"{name} must not be published in Phase 1"
+        assert inds[name]["in_read_map"] is False, f"{name} must not be in the read map in Phase 1"
+
+
+def test_staged_entries_carry_a_nonnull_caveat():
+    for name, attrs in cfg.staged_indications().items():
+        caveat = attrs["caveat"]
+        assert isinstance(caveat, str) and caveat.strip(), f"{name} staged without a caveat"
+
+
+def test_staged_entries_record_a_candidate_gtex_tissue():
+    # The matched-normal proposal is recorded for Phase 2 (consumed by nothing yet).
+    for name, attrs in cfg.staged_indications().items():
+        assert attrs["gtex_tissue"], f"{name} staged without a candidate gtex_tissue"
+
+
+def test_staged_entries_leak_into_no_verdict_projection():
+    # The whole point of Phase 1: staging must not move a single live projection.
+    for name in EXPECTED_STAGED:
+        assert name not in cfg.published_indications()
+        assert name not in cfg.indication_to_tcga_studies()
+        assert name not in cfg.indication_to_gtex_tissue()
+        assert name not in cfg.pan_tissue_indications()
+        assert name not in cfg.composite_indications()
+
+
+def test_frozen_roster_counts_unchanged_by_staging():
+    # Belt-and-suspenders alongside the frozen-literal pins above: the roster SIZES are exactly
+    # what they were before #734 staging (a size drift here means a staged entry leaked).
+    assert len(cfg.published_indications()) == 27
+    assert len(cfg.indication_to_tcga_studies()) == 21
+    assert len(cfg.indication_to_gtex_tissue()) == 20
+    assert len(cfg.pan_tissue_indications()) == 19
+
+
+def test_hnsc_null_normal_guard_still_holds():
+    # The guard that stops fabricating a matched normal where none exists must survive #734.
+    inds = cfg._load()["indications"]
+    assert inds["HNSC"]["gtex_tissue"] is None
+    assert "HNSC" not in cfg.indication_to_gtex_tissue()
+
+
+def test_no_gtex_normal_and_uncertain_studies_are_not_present():
+    # MESO/SARC/THYM/UVM have no usable GTEx normal; staging one would FABRICATE a matched normal
+    # (the failure HNSC's null guard prevents). CHOL is uncertain (no bile-duct normal). None of
+    # them may appear in the config at all until a domain call adds them deliberately.
+    inds = cfg._load()["indications"]
+    for study in NO_GTEX_NORMAL_STUDIES | UNCERTAIN_STUDIES:
+        assert study not in inds, f"{study} must not be in the config without a domain sign-off"
+
+
+def test_staged_flag_gates_staged_indications(monkeypatch):
+    # Mutation: staged_indications() READS the flag, it is not a hard-coded {LAML, DLBC}.
+    data = copy.deepcopy(cfg._load())
+    data["indications"]["LAML"]["staged"] = False
+    monkeypatch.setattr(cfg, "_load", lambda: data)
+    assert "LAML" not in cfg.staged_indications()

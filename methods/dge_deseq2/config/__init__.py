@@ -71,6 +71,23 @@ def published_indications() -> list:
     return sorted(name for name, attrs in _indications().items() if attrs.get("published"))
 
 
+def staged_indications() -> dict:
+    """Universe-expansion candidates staged but NOT yet published (#734, Phase 1).
+
+    Each staged entry carries ``published: false`` + ``in_read_map: false`` -> it is consumed by
+    NO other projection (``published_indications``, ``indication_to_{tcga_studies,gtex_tissue}``,
+    ``pan_tissue_indications``, ``composite_indications``), so staging is VERDICT-INERT. The
+    recorded ``gtex_tissue`` / ``tcga_studies`` are the Phase-2 matched-normal proposal; each entry
+    also carries a non-null ``caveat`` naming the contrast confound that must be signed off before
+    its flags may be flipped to a live product. Returns ``{name -> {gtex_tissue, caveat}}``.
+    """
+    return {
+        name: {"gtex_tissue": attrs.get("gtex_tissue"), "caveat": attrs.get("caveat")}
+        for name, attrs in _indications().items()
+        if attrs.get("staged")
+    }
+
+
 def composite_indications() -> dict:
     """Composite OncoTree parent -> set of finer sibling cohorts it is the union of."""
     return {

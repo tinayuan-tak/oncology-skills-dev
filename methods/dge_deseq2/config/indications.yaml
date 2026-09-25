@@ -15,15 +15,26 @@
 #   * pan_tissue_render   -> 19  (emit_pan_tissue.PAN_TISSUE_INDICATIONS; an old comment said "18")
 #   * in_read_map: true   -> 21  (read.INDICATION_TO_TCGA_STUDIES; 20 have a GTEx tissue, HNSC null)
 #   * "24" was a STALE changelog vintage note (acb0179, 2026-07-15), never a live roster.
-# Any UNIVERSE EXPANSION (toward the "~30" in the issue body, which matches no roster today) is a
-# separate verdict-diff PR per the reviewer's (a)/(b) split — do NOT add a new indication here
-# without a published product and a before/after verdict diff.
+# UNIVERSE EXPANSION toward the "~30" in the issue body (analysis-methods#734, the verdict-diff PR
+# of arc #690) proceeds in two phases. Phase 1 (this file's `staged: true` entries) DEFINES the
+# target universe with NO compute: candidates go in as published: false + in_read_map: false, so
+# they change no projection and no live verdict (see the STAGED block near the bottom). A staged
+# entry only becomes verdict-affecting when its flags are FLIPPED -- and that (Phase 2) requires
+# BOTH explicit authorization AND domain sign-off on the matched-normal contrast, PLUS a
+# before/after verdict diff. So: adding a `staged` candidate here is fine; PUBLISHING one (flipping
+# `published`/`in_read_map`) is the gated step that must not happen without sign-off + verdict diff.
 #
 # Fields per indication:
-#   tcga_studies        recount3 TCGA study codes (present iff in_read_map)
+#   tcga_studies        recount3 TCGA study codes (present iff in_read_map, or recorded on a staged
+#                       candidate for the Phase-2 run)
 #   gtex_tissue         matched recount3 GTEx tissue code, or null for no clean match (HNSC)
 #   published           in the 27 published *-dge-tumor-vs-normal-sensitivity-v1 products
 #   in_read_map         exposed via read.INDICATION_TO_{TCGA_STUDIES,GTEX_TISSUE}
+#   staged              #734 universe-expansion candidate: defined but NOT yet published
+#                       (published: false + in_read_map: false => verdict-inert). Requires a
+#                       non-null `caveat`. Consumed by config.staged_indications() only.
+#   caveat              matched-normal / contrast confound recorded on a staged candidate; the
+#                       domain question that must be signed off before it can be published.
 #   composite_children  finer sibling cohorts this OncoTree parent is the union of
 #   xena_primary_site   {tcga, gtex} Xena/Toil `_primary_site` label(s) for the xena_toil
 #                       substrate (R-side roster consolidation, analysis-methods#733). A
@@ -235,3 +246,45 @@ indications:
     published: true
   UCEC:
     published: true
+
+  # --- STAGED universe-expansion candidates (analysis-methods #734, Phase 1) -------------------
+  # Toward the issue's "~30 TCGA studies". These are NOT published and NOT in the read maps:
+  # published: false + in_read_map: false => EVERY projection (published_indications,
+  # indication_to_{tcga_studies,gtex_tissue}, pan_tissue_render, composite_indications) is
+  # BYTE-IDENTICAL to before -- staging them is VERDICT-INERT (the frozen-literal pins in
+  # tests/test_indication_config_rosters.py still hold: 27 / 21 / 20 / 19). gtex_tissue and
+  # tcga_studies are RECORDED for the Phase-2 verdict-diff run but consumed by NOTHING until a
+  # `published`/`in_read_map` flip lands WITH (a) explicit authorization AND (b) domain sign-off
+  # on the matched-normal contrast, plus a before/after verdict diff. `staged: true` and a
+  # non-null `caveat` are REQUIRED (pinned by the tests). Do NOT flip these without sign-off.
+  #
+  # TCGA study triage (33 study codes - 26 already covered by published products = 7 uncovered):
+  #   STAGED here : LAML, DLBC          -- a GTEx normal exists; the contrast has a recorded confound.
+  #   UNCERTAIN   : CHOL                -- cholangiocarcinoma (bile duct); GTEx has LIVER but no
+  #                                        bile-duct normal, so no clean matched contrast. NOT added;
+  #                                        needs a domain call before it can even be staged.
+  #   EXCLUDED    : MESO, SARC, THYM, UVM -- no usable GTEx normal at all (mesothelium, heterogeneous
+  #                                        soft tissue, thymus, and uvea are absent from GTEx).
+  #                                        Staging one would FABRICATE a matched normal -- the exact
+  #                                        failure the HNSC `gtex_tissue: null` guard exists to
+  #                                        prevent -- so they are deliberately omitted, not staged.
+  LAML:
+    tcga_studies: [LAML]
+    gtex_tissue: BLOOD  # GTEx Whole Blood -- recorded for Phase 2, NOT consumed (in_read_map: false)
+    published: false
+    in_read_map: false
+    staged: true
+    caveat: >-
+      Maturation-state confound: TCGA LAML is immature peripheral-blood / bone-marrow blasts, but
+      the only GTEx normal is mature, differentiated whole blood -- the contrast conflates
+      malignancy with hematopoietic maturation. Needs domain sign-off before Phase-2 compute.
+  DLBC:
+    tcga_studies: [DLBC]
+    gtex_tissue: SPLEEN  # candidate normal (SPLEEN or BLOOD) -- recorded for Phase 2, NOT consumed
+    published: false
+    in_read_map: false
+    staged: true
+    caveat: >-
+      Mixed-lymphoid-organ confound: TCGA DLBC arises in lymph node / extranodal sites, but GTEx
+      has no matched lymph-node normal -- the nearest normals (SPLEEN, whole BLOOD) are different
+      lymphoid compartments. The matched-normal choice needs domain sign-off before Phase-2 compute.
