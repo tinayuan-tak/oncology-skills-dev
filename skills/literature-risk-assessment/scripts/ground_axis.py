@@ -325,13 +325,21 @@ def _uv(x):
 
 
 _PMID_RE = re.compile(r"\d+")
+_PMCID_RE = re.compile(r"^\s*PMC\d+\s*$", re.IGNORECASE)
 
 
 def _norm_pmid(p) -> str:
     """Normalize a cited token to its bare PMID digit-run so a real-but-misformatted citation
-    ('PMID 12345') is not falsely dropped as confabulated. Falls back to the stripped token."""
-    m = _PMID_RE.search(str(p))
-    return m.group(0) if m else str(p).strip()
+    ('PMID 12345') is not falsely dropped as confabulated. Falls back to the stripped token.
+
+    A PMC accession ('PMC3539614') is NOT a PMID: its digit-run is the PMC accession number, not
+    that article's PubMed ID. Return the stripped token unchanged so containment never fabricates
+    a bogus PMID from the accession digits (wrong-drop / wrong-admit)."""
+    s = str(p)
+    if _PMCID_RE.match(s):
+        return s.strip()
+    m = _PMID_RE.search(s)
+    return m.group(0) if m else s.strip()
 
 
 def build_grounded_block(det: dict, llm_out: dict, retrieved_pmids: set, *, corpus_pin: dict, n_retrieved: int) -> dict:

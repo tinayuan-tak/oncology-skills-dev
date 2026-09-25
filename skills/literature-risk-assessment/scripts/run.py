@@ -105,14 +105,24 @@ def _uv(x):
 
 
 _PMID_RE = re.compile(r"\d+")
+_PMCID_RE = re.compile(r"^\s*PMC\d+\s*$", re.IGNORECASE)
 
 
 def _norm_pmid(p) -> str:
     """Normalize a cited token to its bare PMID digit-run so a real-but-misformatted citation
     (e.g. 'PMID 12345', 'PMID: 12345') is not falsely dropped as confabulated. Falls back to the
-    stripped token when no digit run is present."""
-    m = _PMID_RE.search(str(p))
-    return m.group(0) if m else str(p).strip()
+    stripped token when no digit run is present.
+
+    A PMC accession ('PMC3539614') is NOT a PMID: its digit-run is the PMC accession number, not
+    that article's PubMed ID. Collapsing it to the bare digits would fabricate a bogus PMID and
+    cause a wrong-drop (real citation whose normalized number never equals its PMID) or a
+    wrong-admit (coincidental digit collision with a retrieved PMID). Return the stripped token
+    unchanged so containment never matches on the accession digits."""
+    s = str(p)
+    if _PMCID_RE.match(s):
+        return s.strip()
+    m = _PMID_RE.search(s)
+    return m.group(0) if m else s.strip()
 
 
 def _contain(cited, retrieved_pmids):

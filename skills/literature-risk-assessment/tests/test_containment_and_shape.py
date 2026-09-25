@@ -41,6 +41,22 @@ def test_containment_normalizes_misformatted_pmid():
     assert bad == ["999"]
 
 
+def test_norm_pmid_versioned_suffix_stripped():
+    # a versioned PubMed id ('12345678.1') normalizes to its bare PMID
+    assert rc._norm_pmid("12345678.1") == "12345678"
+
+
+def test_norm_pmid_pmc_accession_not_collapsed_to_bogus_pmid():
+    # a PMC accession's digit-run is the PMC accession number, NOT the article's PMID; it must
+    # not be collapsed to bogus digits (which would wrong-drop the real citation or wrong-admit a
+    # coincidental PMID collision). Case-insensitive; the stripped token is returned unchanged.
+    assert rc._norm_pmid("PMC3539614") == "PMC3539614"
+    assert rc._norm_pmid("pmc3539614") == "pmc3539614"
+    # containment: a cited PMC accession never falsely matches a retrieved PMID that shares digits
+    good, bad = rc._contain(["PMC3539614"], {"3539614"})
+    assert good == [] and bad == ["PMC3539614"]
+
+
 class _Ab:
     def __init__(self, pmid):
         self.pmid, self.year, self.title, self.abstract = pmid, 2020, "t", "body"
