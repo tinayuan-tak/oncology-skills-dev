@@ -305,7 +305,6 @@ _VALIDATED_CIS_DRIVER_AMP = frozenset(
         "EGFR",
         "FGFR1",
         "FGFR2",
-        "KIT",
         "CDK4",
     }
 )
@@ -315,11 +314,8 @@ _VALIDATED_SILENCING = frozenset(
         "MGMT",
         "CDKN2A",
         "CDKN2B",
-        "MSH2",
         "BRCA1",
-        "RB1",
         "VHL",
-        "PTEN",
     }
 )
 # CIMP / global-hypermethylation LINEAGE contexts — where a promoter-methylation↔low-expression correlation
