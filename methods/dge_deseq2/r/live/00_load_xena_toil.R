@@ -55,7 +55,7 @@ source(file.path(.here, "_four_cell_lib.R"))
 # Those entries select the whole tissue; do not run them expecting a single histology
 # without adding a `detailed_category` filter. recount3 (which filters by TCGA study
 # code) is the substrate for those splits.
-CFG_INDICATIONS <- yaml::read_yaml(file.path(.here, "..", "config", "indications.yaml"))$indications
+CFG_INDICATIONS <- yaml::read_yaml(file.path(.here, "..", "..", "config", "indications.yaml"))$indications
 
 option_list <- list(
   make_option("--indication", type = "character",
@@ -133,7 +133,7 @@ setnames(ph, "_primary_site", "primary_site", skip_absent = TRUE)
 setnames(ph, "_study", "study", skip_absent = TRUE)
 stopifnot(all(c("sample", "sample_type", "primary_site", "study") %in% names(ph)))
 
-tumor_ids    <- ph[study == "TCGA" & sample_type == "Primary Tumor"       & tolower(primary_site) %in% tolower(tcga_sites), sample]
+tumor_ids    <- ph[study == "TCGA" & is_tcga_tumor_sample_type(sample_type) & tolower(primary_site) %in% tolower(tcga_sites), sample]
 adjacent_ids <- ph[study == "TCGA" & sample_type == "Solid Tissue Normal" & tolower(primary_site) %in% tolower(tcga_sites), sample]
 gtex_ids     <- ph[study == "GTEX" & sample_type == "Normal Tissue"       & tolower(primary_site) %in% tolower(gtex_sites), sample]
 

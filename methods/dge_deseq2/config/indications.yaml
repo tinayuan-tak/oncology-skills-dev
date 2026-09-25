@@ -262,6 +262,12 @@ indications:
     gtex_tissue: BLOOD
     published: true
     in_read_map: true
+    # Xena/Toil's own `_primary_site` vocabulary (not the recount3/GDC one above): the TCGA-LAML
+    # arm is labelled "White blood cell" (all 173 samples are `Primary Blood Derived Cancer -
+    # Peripheral Blood`, admitted by is_tcga_tumor_sample_type — Xena carries no LAML adjacent-
+    # normal rows), and GTEx whole blood is "Blood" (verified 2026-09-25 against the live
+    # TcgaTargetGTEX_phenotype.txt.gz on S3).
+    xena_primary_site: {tcga: "White blood cell", gtex: Blood}
     caveat: >-
       Maturation-state confound: TCGA LAML is immature peripheral-blood / bone-marrow blasts, but the
       GTEx normal is mature, differentiated whole blood -- the tumor-vs-normal contrast conflates

@@ -84,6 +84,15 @@ for (ind in names(frozen_site)) {
 }
 cat("all 15 frozen indications match exactly\n")
 
+# 1b. LAML (#790: newly added, NOT part of the pre-#733 frozen 15 above) resolves to the
+# Xena `_primary_site` labels verified against the live TcgaTargetGTEX_phenotype.txt.gz.
+laml <- resolve_xena_site_and_studies("laml", cfg)
+if (is.null(laml)) stop("no mapping for laml")
+if (!identical(laml$tcga_sites, "White blood cell")) stop("tcga_sites mismatch for laml")
+if (!identical(laml$gtex_sites, "Blood")) stop("gtex_sites mismatch for laml")
+if (!identical(laml$tcga_studies, "LAML")) stop("tcga_studies mismatch for laml")
+cat("laml resolves correctly\n")
+
 # 2. An indication NEVER in the xena_toil roster (e.g. a recount3-only one) returns NULL, the
 # caller's cue to require --primary-site — never a fabricated/partial mapping.
 stopifnot("HNSC (no xena_primary_site) resolves to NULL" = is.null(resolve_xena_site_and_studies("hnsc", cfg)))
@@ -119,7 +128,7 @@ def test_resolve_xena_site_and_studies_matches_frozen_literals():
     assert "ALL R SITE-RESOLUTION CHECKS PASSED" in result.stdout
 
 
-def test_config_carries_xena_primary_site_for_exactly_the_15_frozen_indications():
+def test_config_carries_xena_primary_site_for_exactly_the_16_frozen_indications():
     import yaml
 
     data = yaml.safe_load(CONFIG_PATH.read_text())["indications"]
@@ -140,6 +149,7 @@ def test_config_carries_xena_primary_site_for_exactly_the_15_frozen_indications(
         "SKCM",
         "CESC",
         "ESCA",
+        "LAML",  # #790: added to unblock xena_toil cross-substrate concordance for LAML
     }
     assert have == expected
-    assert len(expected) == 15
+    assert len(expected) == 16
