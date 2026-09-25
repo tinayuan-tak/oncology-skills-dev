@@ -31,7 +31,7 @@ from _skills_common.question_table_core import cbyid as _cbyid
 from _skills_common.question_table_core import conf as _conf
 from _skills_common.question_table_core import row as _row
 from _skills_common.question_table_core import sig as _sig
-from _skills_common.subtype_axis import is_differential_axis
+from _skills_common.subtype_axis import SUBTYPE_DIFFERENTIAL_CLASSES, is_differential_axis
 
 
 def _top_labels(rows, key: str, k: int = 3, rank_by: str | None = None) -> list:
@@ -199,7 +199,7 @@ def _q4_subtype(h, c, cv, sv=None):
         detail = "all strata empty" if quality == "empty" else f"only {nenr or 0}/{nmeas or 0} powered — underpowered"
         sig = _sig("unmeasured", f"axis {quality}")
         primary = f"subtype axis present but {quality} ({detail}); not a usable selection axis"
-    elif cls in ("subtype_enriched", "subtype_restricted", "subtype_differential"):
+    elif cls in SUBTYPE_DIFFERENTIAL_CLASSES:
         if is_differential_axis(quality):
             sig = _sig("moderate", f"enriched: {named}" if named else "subtype-differential")
             primary = f"{cls}" + (f" ({named_kind} {named})" if named else "") + f"; {nenr}/{nmeas} enriched"
@@ -243,7 +243,7 @@ def _q4_subtype(h, c, cv, sv=None):
     if clsub:
         if is_differential_axis(clsub_quality):
             support_bits.append(f"cell-line (genotype axis): {clsub}")
-        elif clsub in ("subtype_enriched", "subtype_restricted", "subtype_differential"):
+        elif clsub in SUBTYPE_DIFFERENTIAL_CLASSES:
             grade = clsub_quality or "ungraded"
             support_bits.append(f"cell-line (genotype axis, {grade}): {clsub} — hypothesis-grade")
         else:

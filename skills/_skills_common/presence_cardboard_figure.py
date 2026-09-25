@@ -19,7 +19,7 @@ import json
 from pathlib import Path
 
 from _skills_common.figure_palette import esc as _esc
-from _skills_common.subtype_axis import is_differential_axis
+from _skills_common.subtype_axis import SUBTYPE_DIFFERENTIAL_CLASSES, is_differential_axis
 
 # card_id -> (claim, primary field, role). role: signal | reliability | comparator.
 _SPEC = [
@@ -195,16 +195,11 @@ _GLYPH = {
 }
 _RELDOT = {"high": 3, "moderate": 2, "low": 1}
 # `subtype_stratification_class` values that assert a real cross-subtype DIFFERENTIAL (a positive
-# selection handle). Rendered as a favourable ● only on a `powered` axis (see the render loop);
-# `pan_subtype_uniform` is deliberately absent — it is not a differential claim.
-_SUBTYPE_DIFFERENTIAL_CLASSES = frozenset(
-    {
-        "subtype_enriched",
-        "subtype_restricted",
-        "subtype_differential",
-        "subtype_restricted_with_window",
-    }
-)
+# selection handle). The set lives in `subtype_axis.SUBTYPE_DIFFERENTIAL_CLASSES` — one definition
+# shared with the question table so the two display surfaces can never disagree (see that module and
+# claude-oncology-skills#1553). Rendered as a favourable ● only on a `powered` axis (see the render
+# loop); `pan_subtype_uniform` is deliberately absent — it is not a differential claim.
+_SUBTYPE_DIFFERENTIAL_CLASSES = SUBTYPE_DIFFERENTIAL_CLASSES
 
 
 def _bucket(val, role):

@@ -34,6 +34,22 @@ from typing import Optional
 # "differential-capable" grades has exactly one definition across every consumer.
 _POWERED_GRADE = "powered"
 
+# The `subtype_stratification_class` values that ASSERT a real cross-subtype DIFFERENTIAL (a positive
+# selection handle). One definition shared by every display surface (card-board figure + question
+# table) so the two can never disagree about whether a class is a differential — in particular
+# `subtype_restricted_with_window` (restricted AND a clean normal window) is the STRONGEST such
+# signal and must read as a differential on both surfaces (claude-oncology-skills#1553).
+# `pan_subtype_uniform` is deliberately absent — it is not a differential claim. Membership here is
+# necessary-not-sufficient: a differential still only surfaces on a `powered` axis (is_differential_axis).
+SUBTYPE_DIFFERENTIAL_CLASSES = frozenset(
+    {
+        "subtype_enriched",
+        "subtype_restricted",
+        "subtype_differential",
+        "subtype_restricted_with_window",
+    }
+)
+
 
 def is_powered_axis(subtype_axis_quality: Optional[str]) -> bool:
     """True iff the subtype axis-quality grade is `powered` — enough powered strata to support a
