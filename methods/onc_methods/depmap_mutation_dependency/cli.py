@@ -693,7 +693,13 @@ def emit_mut_vs_wt_strip_plot(
     if indication and model_metadata:
         indication_lineage = _resolve_indication_lineage(indication)
 
-    fig, ax = plt.subplots(figsize=FIGSIZE_DOUBLE_COLUMN if isinstance(FIGSIZE_DOUBLE_COLUMN, tuple) else (8.0, 5.5))
+    # Increase height when showing indication table at bottom
+    base_figsize = FIGSIZE_DOUBLE_COLUMN if isinstance(FIGSIZE_DOUBLE_COLUMN, tuple) else (8.0, 5.5)
+    if indication_lineage:
+        fig_height = base_figsize[1] + 1.2  # Extra height for table
+    else:
+        fig_height = base_figsize[1]
+    fig, ax = plt.subplots(figsize=(base_figsize[0], fig_height))
 
     if not chronos_by_model:
         ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes, color="#666666")
@@ -728,7 +734,8 @@ def emit_mut_vs_wt_strip_plot(
             lambda m: m in hotspot_by_model and not hotspot_by_model[m],
             "#888888",
         ))
-    if damaging_by_model:
+    # Always show damaging groups if dict exists (even if 0 mutants)
+    if damaging_by_model is not None and len(damaging_by_model) > 0:
         groups.append(build_group(
             "damaging\nmutant",
             lambda m: m in damaging_by_model and damaging_by_model[m],
