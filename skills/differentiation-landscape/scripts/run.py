@@ -248,10 +248,16 @@ def _panel_absent_tension(hl: dict) -> dict | None:
 #    MSI-H/CIMP CRC co-occurs with a long PASSENGER tail because both are frequent at high mutation burden),
 #    (b) a lineage/subtype-restricted exclusivity, from (c) a biologically-established same-pathway
 #    relationship (KRAS/NRAS/BRAF MAPK redundancy). Live proof (COADREAD): BRAF (1029 co-occurring),
-#    KRAS (709), TP53 (near-universal) ALL fire `both_patterns_present`/`strong_*` → the identical
-#    `supportive`(+dominant) rung — the token cannot distinguish them. Because DIFFERENTIATION IS a
-#    NOMINATING axis (∈ target-profile _SHORT_TO_GATE; the cooccurrence rules fire small_molecule/degrader
-#    `supportive`, two of them `dominant:true`), a TMB-confounded co-occurrence INFLATES a nomination. So —
+#    KRAS (709), TP53 (near-universal) ALL fire `both_patterns_present`/`strong_cooccurring` — the exact
+#    co-occurrence classes the composed gate EXCLUDES BY DESIGN (nomination_verdict_gate.yaml wires only
+#    `strong_mutually_exclusive` as the differentiation positive_signal; `both_patterns_present`/
+#    `strong_cooccurring` are explicitly excluded, gate v1.11.0). So a TMB-confounded co-occurrence hub
+#    reads those excluded classes → reaches the gate as NO positive signal → CANNOT inflate a nomination
+#    through the composed gate. (The `supportive`(+`dominant:true`) rung those rules carry is the
+#    SKILL-INTERNAL rule signal/precedence — per the rules' own comments NOT what the gate reads; the gate
+#    reads the vocab weight, not the rule `signal`/`dominant` flag.) The residual TMB/subtype confound is
+#    therefore a concern only for the mutual-exclusivity half that IS gate-wired (and for downstream readers
+#    of the raw scan), not a nomination-inflation path. So —
 #    exactly as the mechanism (_VALIDATED_ACTIONABLE_MOA_PRECEDENT) and tumor-presence
 #    (_CLINICALLY_PRECEDENTED_TUMOR_ANTIGENS) arcs concluded — the honest DETERMINISTIC discriminator is a
 #    SMALL, DISCLAIMED, NON-EXHAUSTIVE curated (target, indication) crosswalk, corroborated by the
