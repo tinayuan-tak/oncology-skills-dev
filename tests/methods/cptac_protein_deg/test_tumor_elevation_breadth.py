@@ -31,10 +31,11 @@ r = importlib.import_module("methods.cptac_protein_deg.read")
 
 def _patch(monkeypatch, rows):
     df = pd.DataFrame(rows)
-    gi = {}
+    gi, cohort_effect_null = {}, {}
     for i, row in enumerate(rows):
         gi.setdefault(str(row["gene_symbol"]).upper(), []).append(i)
-    monkeypatch.setattr(r, "_load_indexed", lambda: (df, {}, gi))
+        cohort_effect_null.setdefault(str(row["cohort"]).upper(), []).append(row["protein_effect_size"])
+    monkeypatch.setattr(r, "_load_indexed", lambda: (df, {}, gi, cohort_effect_null))
 
 
 def _row(cohort, gene, cls, effect, q=1e-6):

@@ -33,7 +33,8 @@ def _fake_indexed():
     )
     gene_idx = {"EPCAM": [0, 1]}
     cohort_gene_idx = {("OV", "EPCAM"): 0, ("LUAD", "EPCAM"): 1}
-    return df, cohort_gene_idx, gene_idx
+    cohort_effect_null = {"OV": [9.9], "LUAD": [1.2]}
+    return df, cohort_gene_idx, gene_idx, cohort_effect_null
 
 
 def test_supplied_unmapped_indication_is_data_unavailable(monkeypatch):
@@ -65,7 +66,7 @@ def test_nsclc_umbrella_absent_in_leaves_abstains_no_leak(monkeypatch):
     # leaf-scoped reason, and does NOT leak OV's contrast.
     def _ov_only():
         df = pd.DataFrame([{"cohort": "OV", "gene_symbol": "MUC16", "protein_effect_size": 9.9}])
-        return df, {("OV", "MUC16"): 0}, {"MUC16": [0]}
+        return df, {("OV", "MUC16"): 0}, {"MUC16": [0]}, {"OV": [9.9]}
 
     monkeypatch.setattr(RD, "_load_indexed", _ov_only)
     out = RD.read_target_summary("MUC16", "NSCLC")

@@ -216,22 +216,30 @@ def _ensure_derived_cached() -> Optional[str]:
     return uri
 
 
+# Verdict-bearing columns the derived parquet must carry. A `.get(..., default)` read of any of
+# these (the pre-#715 pattern) silently fabricates a value for EVERY gene on drift instead of
+# raising — see the schema-drift guard in _load_indexed.
+_REQUIRED_COLS = ("protein_expression_class", "protein_effect_size", "protein_effect_size_se")
+
+
 @lru_cache(maxsize=1)
 def _load_indexed():
-    """Load derived parquet + build (cohort, gene) index + gene-only index.
+    """Load derived parquet + build (cohort, gene) index + gene-only index + per-cohort null.
 
-    Returns (df, cohort_gene_idx, gene_idx):
+    Returns (df, cohort_gene_idx, gene_idx, cohort_effect_null):
         - df: pandas.DataFrame with all rows (~180K rows across 10 cohorts,
           fits trivially in memory).
         - cohort_gene_idx: dict[(cohort, gene_upper) -> row_index_in_df]
         - gene_idx: dict[gene_upper -> list[row_index_in_df]] (across cohorts)
+        - cohort_effect_null: dict[cohort_upper -> list[protein_effect_size]], the per-cohort
+          all-gene percentile null consumed by _allgene_effect_percentile (see below).
         Empty structures if load failed.
     """
     path = _ensure_derived_cached()
     if path is None:
         import pandas as pd
 
-        return pd.DataFrame(), {}, {}
+        return pd.DataFrame(), {}, {}, {}
 
     import pandas as pd
 
@@ -246,15 +254,35 @@ def _load_indexed():
     # dead-axed the process for its lifetime).
     df = pd.read_parquet(path, filesystem=_get_s3fs())
 
+    # Schema-drift guard (#715 D): a present, non-empty-schema parquet missing one of the
+    # verdict-bearing columns means the provider rebuild renamed/dropped it — NOT that every gene
+    # is genuinely absent. `_row_to_summary`'s `row.get("protein_expression_class", "not_significant")`
+    # would otherwise fabricate "tested, no difference" for every gene and a missing
+    # protein_effect_size would silently collapse the whole product to data_unavailable, with no
+    # signal anything broke. Raise loud instead, matching the target_id_sidecar
+    # .read_resolver_sidecar_map / dge_deseq2.read_dge_gene_row (#712) schema-drift pattern. A
+    # genuinely EMPTY product (0 rows, intact schema) still degrades cleanly below.
+    _missing = [c for c in _REQUIRED_COLS if c not in df.columns]
+    if _missing:
+        raise ValueError(
+            f"schema drift: manifest {DERIVED_MANIFEST_ID!r} missing expected column(s) "
+            f"{_missing!r} (present: {list(df.columns)[:10]})"
+        )
+
     if df.empty:
-        return df, {}, {}
+        return df, {}, {}, {}
 
     # Column-array iteration (NOT iterrows). Direct numpy access.
     cohort_gene_idx: dict[tuple, int] = {}
     gene_idx: dict[str, list[int]] = {}
+    # Per-cohort all-gene percentile null (#715 O), built ONCE here (inside the lru_cache) instead
+    # of via a `df["cohort"].str.upper() == cohort` full-column recompute on every
+    # _allgene_effect_percentile call (a warm path fired once per gene query).
+    cohort_effect_null: dict[str, list] = {}
 
     cohort_col = df["cohort"].values
     gene_col = df["gene_symbol"].values
+    effect_col = df["protein_effect_size"].values
     for idx in range(len(df)):
         cohort = str(cohort_col[idx]).strip().upper()
         gene = str(gene_col[idx]).strip().upper()
@@ -262,8 +290,9 @@ def _load_indexed():
             continue
         cohort_gene_idx[(cohort, gene)] = idx
         gene_idx.setdefault(gene, []).append(idx)
+        cohort_effect_null.setdefault(cohort, []).append(effect_col[idx])
 
-    return df, cohort_gene_idx, gene_idx
+    return df, cohort_gene_idx, gene_idx, cohort_effect_null
 
 
 def _unestimable_reason(row) -> Optional[str]:
@@ -409,7 +438,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     # would then be re-swallowed as data_unavailable, defeating the raise-on-broken-env discipline
     # in _load_indexed. Let it propagate to the live-read seam (honest _live_read_error). A genuine
     # absent product still yields an empty df below -> _empty (unchanged data_unavailable).
-    df, cohort_gene_idx, gene_idx = _load_indexed()
+    df, cohort_gene_idx, gene_idx, cohort_effect_null = _load_indexed()
     if df is None or df.empty:
         return _empty("cptac_data_unavailable")
 
@@ -438,7 +467,7 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         # argmax. Matters for a multi-cohort umbrella (NSCLC -> LUAD+LSCC); harmless for a single cohort.
         best_c, best_idx = max(present, key=lambda ci: _finite_effect_or_nan(df.iloc[ci[1]]))
         row = df.iloc[best_idx].to_dict()
-        pct, pct_class = _allgene_effect_percentile(df, best_c, row.get("protein_effect_size"))
+        pct, pct_class = _allgene_effect_percentile(cohort_effect_null, best_c, row.get("protein_effect_size"))
         summ = _row_to_summary(row, matched_cohort=best_c, allgene_percentile=pct, allgene_percentile_class=pct_class)
         if len(cohorts) > 1:
             summ["_data_note"] = (
@@ -467,23 +496,22 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     # BRCA/unestimable instead of their real best cohort; see _finite_effect_or_nan).
     best_row = max(rows, key=_finite_effect_or_nan)
     best_cohort = str(best_row.get("cohort", "")).upper()
-    pct, pct_class = _allgene_effect_percentile(df, best_cohort, best_row.get("protein_effect_size"))
+    pct, pct_class = _allgene_effect_percentile(cohort_effect_null, best_cohort, best_row.get("protein_effect_size"))
     return _row_to_summary(
         best_row, matched_cohort=best_cohort, allgene_percentile=pct, allgene_percentile_class=pct_class
     )
 
 
-def _allgene_effect_percentile(df, cohort: str, effect_size):
+def _allgene_effect_percentile(cohort_effect_null: dict, cohort: str, effect_size):
     """Percentile of `effect_size` among ALL genes' protein_effect_size in this cohort.
 
     Context-matched by construction: the null is the cohort's own slice of the resident
-    df (no pooling across cohorts). Zero new I/O — df is already in the lru_cache."""
+    df (no pooling across cohorts). Zero new I/O — `cohort_effect_null` is built ONCE inside
+    `_load_indexed`'s lru_cache (#715 O: previously this recomputed `df["cohort"].str.upper()`
+    over the full ~101K-row column on every call — a warm path fired once per gene query)."""
     from methods.percentile_null import classify_percentile, percentile_rank
 
-    try:
-        null_vals = df.loc[df["cohort"].str.upper() == cohort, "protein_effect_size"].tolist()
-    except Exception:
-        return None, "data_unavailable"
+    null_vals = cohort_effect_null.get(cohort, [])
     # NOT affected by the unestimable-contrast defect, and deliberately left alone: percentile_null
     # already drops non-finite values from the null (percentile_null._finite) and already returns None for
     # a non-finite VALUE, so the +Inf mass never entered a percentile and never deflated a real gene.
@@ -501,7 +529,7 @@ def read_all_cohorts(target: str) -> list[dict]:
     measurement_type (Part 2). Empty list when the target is absent / product unavailable."""
     # Propagate broken-env/corrupt-cache from _load_indexed (honest _live_read_error) rather than
     # re-swallowing to []. Genuine absent product -> empty df -> [] (unchanged data_unavailable).
-    df, _cohort_gene_idx, gene_idx = _load_indexed()
+    df, _cohort_gene_idx, gene_idx, _cohort_effect_null = _load_indexed()
     if df is None or df.empty:
         return []
     indices = gene_idx.get(target.upper().strip(), [])

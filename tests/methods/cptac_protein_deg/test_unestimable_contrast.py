@@ -72,12 +72,14 @@ def _unestimable_row(cohort="BRCA", gene="STEAP1", sign=1.0):
 
 def _patch(monkeypatch, rows):
     df = pd.DataFrame(rows)
-    cgi, gi = {}, {}
+    cgi, gi, cohort_effect_null = {}, {}, {}
     for i, row in enumerate(rows):
         g = str(row["gene_symbol"]).upper()
-        cgi[(str(row["cohort"]).upper(), g)] = i
+        c = str(row["cohort"]).upper()
+        cgi[(c, g)] = i
         gi.setdefault(g, []).append(i)
-    monkeypatch.setattr(r, "_load_indexed", lambda: (df, cgi, gi))
+        cohort_effect_null.setdefault(c, []).append(row["protein_effect_size"])
+    monkeypatch.setattr(r, "_load_indexed", lambda: (df, cgi, gi, cohort_effect_null))
 
 
 # --- the mechanism itself ---------------------------------------------------------------------------
