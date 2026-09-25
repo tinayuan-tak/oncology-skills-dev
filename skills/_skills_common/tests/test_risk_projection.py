@@ -41,6 +41,33 @@ def test_safety_conjunction_fixes_false_low():
     assert deterministic_bins(pkg, "small_molecule")["safety"]["bin"] == "MED"
 
 
+def test_safety_measured_hold_concerns_are_high_not_low_default():
+    """#1573: the p1 pan_essential_broad_tox_concern and p2 normal_tissue_protein_safety_concern are
+    measured HOLD concerns that were silently absent from the `ots` map, so both fell through the
+    `.get(...,0)` LOW default (fail-toward-safe on a governance-citable safety axis). With no other
+    safety rung firing they must now score HIGH from the on-target verdict alone."""
+    for tok in ("pan_essential_broad_tox_concern", "normal_tissue_protein_safety_concern"):
+        pkg = _pkg({"safety": tok})
+        d = deterministic_bins(pkg, "small_molecule")["safety"]
+        assert d["bin"] == "HIGH", tok
+        assert d["chain"][0][2] == "HIGH", tok  # scored off the on-target verdict, not an escalation rung
+
+
+def test_safety_moderately_constrained_token_is_med():
+    """The map keyed a PHANTOM `moderately_constrained_safety_concern`; the resolver actually emits
+    `moderately_constrained_safety` (#1573). The live token must score MED, not fall to the LOW default."""
+    d = deterministic_bins(_pkg({"safety": "moderately_constrained_safety"}), "small_molecule")["safety"]
+    assert d["bin"] == "MED"
+    assert d["chain"][0][2] == "MED"
+
+
+def test_safety_mitigation_is_retired():
+    """The mutant-selective downgrade (mit branch) was gated on two v2.0.0-retired tokens → dead; it is
+    removed and no safety mitigation string is produced (#1573)."""
+    for tok in ("highly_constrained_safety_concern", "pan_essential_broad_tox_concern", "tolerant_reduced_safety_risk"):
+        assert deterministic_bins(_pkg({"safety": tok}), "small_molecule")["safety"]["mitigation"] is None, tok
+
+
 def test_deterministic_bin_is_reproducible():
     pkg = _pkg({"safety": "highly_constrained_safety_concern", "dependency": "concordant_dependent"})
     assert deterministic_bins(pkg, "small_molecule") == deterministic_bins(pkg, "small_molecule")

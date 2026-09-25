@@ -587,13 +587,19 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
 
     # SAFETY — modality-conditioned conjunction (the validated false-LOW fix)
     sig, chain = 0, []
+    # Re-synced to the resolver's live 8-token safety verdict set (_SAFETY_VERDICT_PHRASE,
+    # on-target-safety-liability run.py). The p1 pan_essential_broad_tox_concern (dominant) and p2
+    # normal_tissue_protein_safety_concern are measured HOLD concerns and score HIGH (2) per their
+    # precedence — they were silently absent, so both fell through the `.get(...,0)` default to LOW
+    # (fail-toward-safe on a governance-citable axis; #1573). The retired v2.0.0 downgrade tokens
+    # (wt_*_mechanism_mismatch) and the phantom moderately_constrained_safety_concern are dropped;
+    # data_unavailable / insufficient are gaps, not concerns, and stay at the 0 default.
     ots = {
         "highly_constrained_safety_concern": 2,
+        "pan_essential_broad_tox_concern": 2,
+        "normal_tissue_protein_safety_concern": 2,
         "human_genetics_safety_concern": 1,
         "moderately_constrained_safety": 1,
-        "moderately_constrained_safety_concern": 1,
-        "wt_constraint_mechanism_mismatch": 0,
-        "wt_human_genetics_mechanism_mismatch": 0,
         "tolerant_reduced_safety_risk": 0,
     }.get(sv.get("safety"), 0)
     _loeuf = _q(pkg, "gnomad-lof-constraint", "loeuf_score")
@@ -631,19 +637,15 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
     if surf and calls.get("shed-ectodomain-liability") == "clinically_shed":
         sig = max(sig, 1)
         chain.append(("shed-ectodomain", "clinically_shed", "MED"))
-    mit = (
-        "mitigated IF mutant-selective chemistry"
-        if (
-            not surf
-            and sv.get("safety") in ("wt_constraint_mechanism_mismatch", "wt_human_genetics_mechanism_mismatch")
-        )
-        else None
-    )
+    # The mutant-selective "mitigated IF mutant-selective chemistry" downgrade was RETIRED at resolver
+    # v2.0.0 (2026-08-24): the resolver now emits the raw per-modality concern with no wt_*_mechanism_mismatch
+    # token, so this branch was gated on two dead tokens and could never fire (#1573). Removed — no safety
+    # mitigation string is currently produced.
     dims["safety"] = {
         "pillar": "Right Safety",
         "bin": INV[sig],
         "chain": chain,
-        "mitigation": mit,
+        "mitigation": None,
         "blind_spots": ["off-target/secondary-pharmacology", "immunogenicity", "ADC payload tox", "PK/exposure"],
     }
 
