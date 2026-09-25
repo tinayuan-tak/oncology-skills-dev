@@ -608,13 +608,14 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
     ) in ("selective_but_broadly_normal", "not_selective"):
         sig = max(sig, esc)
         chain.append(("tumor-selectivity normal-breadth", "broad", INV[esc]))
-    # sc-normal veto: read the GRADED instrument the verdict-active consumers honor, NOT the blunt
-    # interpretation_call. `interpretation_call` resolves via _primary_class_value → the first `*_class`
-    # field = sc_normal_expression_class == HIGH_LIABILITY, which fires on ANY high normal cell (incl.
-    # tissue-of-origin epithelium / non-essential cells) and is 94% saturated — the exact bluntness the
-    # graded veto (AM#647/TC#786) was built to replace. The card DECLARES primary_class:
-    # sc_normal_essential_veto_grade, but _primary_class_value ignores capsule.primary_class and can never
-    # pick a field not ending in `_class`, so it silently mis-reads here. The surface killer
+    # sc-normal veto: read the GRADED instrument the verdict-active consumers honor DIRECTLY off the
+    # summary field, NOT the blunt interpretation_call. The blunt `sc_normal_expression_class` ==
+    # HIGH_LIABILITY fires on ANY high normal cell (incl. tissue-of-origin epithelium / non-essential
+    # cells) and is 94% saturated — the exact bluntness the graded veto (AM#647/TC#786) was built to
+    # replace. The card DECLARES primary_class: sc_normal_essential_veto_grade, and post-#1541
+    # `_primary_class_value(summary, card_id)` is contracts-first so it now honors that declaration —
+    # but this rung reads the graded field by name off the summary regardless, so it is robust whether
+    # or not the caller threaded the card_id. The surface killer
     # (sc-normal-high-liability-bite-killer) and the selectivity clamp (tvn-sc-normal-critical-organ-veto)
     # both fire ONLY on grade ∈ {accessible_high_severity, accessible_ungraded}; accessible_moderate_severity
     # / accessible_low_confidence / bbb_protected are relieved (opposing, no veto). Mirror that here so the

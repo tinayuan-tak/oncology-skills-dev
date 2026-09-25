@@ -185,11 +185,22 @@ def _primary_class_value(summary: dict, card_id: Optional[str] = None):
     return real[0] if real else class_vals[0]
 
 
-def _data_unavailable_field(summary: dict) -> Optional[str]:
+def _data_unavailable_field(summary: dict, card_id: Optional[str] = None) -> Optional[str]:
     """If this summary's PRIMARY answer is an honest `data_unavailable`, return the
     field name carrying it, else None.
 
-    A card answers in a topic-specific `*_class` field (dependency_class, fit_class,
+    CONTRACTS-FIRST (mirrors `_primary_class_value`, #1541): when `card_id` is given and its card
+    declares a `capsule.primary_class`, that field ALONE decides availability — so a card whose
+    declared primary is NOT a `*_class` field (sc-normal's graded veto `sc_normal_essential_veto_grade`,
+    alteration-role's `alteration_role`, …) is judged available/unavailable on the SAME field
+    `_primary_class_value` reads its value from. Without this branch the two helpers key on different
+    fields for such cards: the value helper reads the declared graded field while this one scans only
+    `*_class` fields, so a card whose declared primary is `data_unavailable` while a secondary `*_class`
+    still carries a value would be judged AVAILABLE here yet report a no-data primary value — the exact
+    drift #1541 closed on the value side.
+
+    Fallback heuristic (no declared primary, or the declared field is absent from the summary):
+    a card answers in a topic-specific `*_class` field (dependency_class, fit_class,
     immune_context_class, copy_number_class, …), not just the legacy three — so a genuinely
     no-data PRIMARY must be detected there too (M2, 2026-08-11). BUT a `data_unavailable` in a
     SECONDARY facet (antigen_high_immune_context_class, patient_copy_number_class,
@@ -205,6 +216,13 @@ def _data_unavailable_field(summary: dict) -> Optional[str]:
     """
     if not isinstance(summary, dict):
         return None
+    if card_id:
+        # Lazy import (circular otherwise — see _primary_class_value). Cached; verdict-inert.
+        from _skills_common.subgroup_derivation import _card_capsule_contract
+
+        declared = _card_capsule_contract(card_id)[0]
+        if declared and isinstance(summary.get(declared), str):
+            return declared if _is_data_unavailable(summary[declared]) else None
     for f in ("selectivity_class", "class", "interpretation_call"):
         if f in summary:
             return f if _is_data_unavailable(summary.get(f)) else None
@@ -214,7 +232,7 @@ def _data_unavailable_field(summary: dict) -> Optional[str]:
     return None
 
 
-def _summary_is_unavailable(summary: dict) -> Optional[str]:
+def _summary_is_unavailable(summary: dict, card_id: Optional[str] = None) -> Optional[str]:
     """Return a short reason string if this dispatcher summary represents a
     NON-answer (error or data-unavailable) at the PRIMARY level, else None.
 
@@ -232,7 +250,7 @@ def _summary_is_unavailable(summary: dict) -> Optional[str]:
         return "non_dict_summary"
     if "_live_read_error" in summary:
         return f"live_read_error: {summary['_live_read_error']}"
-    field = _data_unavailable_field(summary)
+    field = _data_unavailable_field(summary, card_id)
     if field is not None:
         return f"{field}={summary.get(field)}"
     return None
@@ -281,13 +299,13 @@ def _resolve_one_card(
             "_missing": True,
             "_missing_reason": "dispatcher_returned_none",
         }
-    unavailable = _summary_is_unavailable(summary)
+    unavailable = _summary_is_unavailable(summary, card_id)
     if unavailable is not None:
         # Distinguish an HONEST data_unavailable answer (the card ran and reported no data) from a
         # genuine absence (dispatcher None / live_read_error). Both count against COVERAGE (`_missing`),
         # but the honest-data_unavailable card is flagged `_data_unavailable` so fired_rules still
         # evaluates its dedicated `equals: data_unavailable` rung (M2, 2026-08-11).
-        is_honest_du = "_live_read_error" not in summary and _data_unavailable_field(summary) is not None
+        is_honest_du = "_live_read_error" not in summary and _data_unavailable_field(summary, card_id) is not None
         return {
             "card_id": card_id,
             "summary": summary,
@@ -605,7 +623,7 @@ def fired_rules(
         and (
             not c.get("_missing")
             or c.get("_data_unavailable")
-            or _data_unavailable_field(c.get("summary") or {}) is not None
+            or _data_unavailable_field(c.get("summary") or {}, c.get("card_id")) is not None
         )
     }
 

@@ -100,3 +100,47 @@ def test_declared_primary_absent_falls_back_to_heuristic():
     legacy/`*_class` heuristic rather than returning None."""
     s = {"sc_normal_expression_class": "broadly_high"}
     assert _primary_class_value(s, "sc-normal-celltype-expression") == "broadly_high"
+
+
+# --- GUARD (#1551): the two helpers must key on the SAME primary field for every card whose --------
+# declared primary is a non-`*_class` field. _primary_class_value (#1539/#1541) is contracts-first;
+# _data_unavailable_field must be too, or the availability decision and the value decision drift.
+
+
+def _cards_declaring_non_class_primary():
+    import yaml
+    from _skills_common.paths import target_contracts_root
+
+    out = []
+    cards_dir = target_contracts_root() / "cards"
+    for p in sorted(cards_dir.glob("*.card.yaml")):
+        try:
+            y = yaml.safe_load(p.read_text()) or {}
+        except Exception:  # noqa: BLE001
+            continue
+        pc = (y.get("capsule") or {}).get("primary_class")
+        if isinstance(pc, str) and pc and not pc.endswith("_class"):
+            out.append((p.name.replace(".card.yaml", ""), pc))
+    return out
+
+
+def test_helpers_agree_on_primary_for_non_class_declared_cards():
+    cards = _cards_declaring_non_class_primary()
+    assert cards, "expected at least one card declaring a non-`*_class` primary (alteration-role, sc-normal, …)"
+    for card_id, declared in cards:
+        # (a) declared primary is data_unavailable while a SECONDARY `*_class` carries a real value:
+        # both helpers must key on the DECLARED field — unavailable, value == data_unavailable.
+        s_du = {declared: "data_unavailable", "some_secondary_class": "a_real_value"}
+        assert _data_unavailable_field(s_du, card_id) == declared, (
+            f"{card_id}: _data_unavailable_field must flag the declared primary `{declared}`, "
+            "not scan `*_class` secondaries"
+        )
+        assert _primary_class_value(s_du, card_id) == "data_unavailable", f"{card_id}: value helper drift"
+
+        # (b) declared primary carries a real value while a secondary is data_unavailable:
+        # both helpers must key on the DECLARED field — available, value == the real value.
+        s_ok = {declared: "a_real_value", "some_secondary_class": "data_unavailable"}
+        assert _data_unavailable_field(s_ok, card_id) is None, (
+            f"{card_id}: a real declared primary must stay AVAILABLE despite a data-less secondary"
+        )
+        assert _primary_class_value(s_ok, card_id) == "a_real_value", f"{card_id}: value helper drift"
