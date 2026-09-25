@@ -279,6 +279,7 @@ def _ontology_axis_shorts() -> Optional[set[str]]:
     return shorts
 
 
+@functools.lru_cache(maxsize=1)
 def _question_shorts_only() -> Optional[set[str]]:
     """The question `short`s alone (no conditioners) — axis_edge.reports_into must name a QUESTION."""
     if not _AXES_PATH.exists():
@@ -628,14 +629,35 @@ class ValidationReport:
         self.warnings.append(msg)
 
 
+@functools.lru_cache(maxsize=1)
 def _load_schema() -> dict:
     with SCHEMA_PATH.open() as f:
         return json.load(f)
 
 
+_VALIDATOR_CACHE: dict[int, Draft202012Validator] = {}
+
+
+def _cached_validator(schema: dict) -> Draft202012Validator:
+    """Build a Draft202012Validator once per distinct schema object and reuse it.
+
+    `dict` isn't hashable, so this keys on id(schema) rather than an lru_cache
+    over the schema itself. Since _load_schema() is itself cached (returns the
+    same dict object every call), all callers that go through it share one
+    cached validator instead of rebuilding it per card (~148x per
+    validate_directory run).
+    """
+    key = id(schema)
+    validator = _VALIDATOR_CACHE.get(key)
+    if validator is None:
+        validator = Draft202012Validator(schema)
+        _VALIDATOR_CACHE[key] = validator
+    return validator
+
+
 def _structural_check(spec: dict, report: ValidationReport, schema: dict) -> None:
     """Layer 1: JSON Schema validation against card.schema.json."""
-    validator = Draft202012Validator(schema)
+    validator = _cached_validator(schema)
     for err in validator.iter_errors(spec):
         path = ".".join(str(p) for p in err.absolute_path) or "<root>"
         report.add_error(f"STRUCTURAL [{path}]: {err.message}")
