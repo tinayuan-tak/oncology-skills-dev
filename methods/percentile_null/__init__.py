@@ -18,6 +18,8 @@ from __future__ import annotations
 import math
 from typing import Iterable, Optional
 
+import numpy as np
+
 # Default percentile-class cutoffs (cards may override via their thresholds: block).
 DEFAULT_CUTOFFS = {"top_1pct": 99.0, "top_decile": 90.0, "bottom_decile": 10.0}
 
@@ -50,13 +52,18 @@ def percentile_rank(value: Optional[float], null_values: Iterable[float]) -> Opt
         return None
     if not math.isfinite(v):
         return None
-    pop = _finite(null_values)
-    if not pop:
+    pop = np.asarray(_finite(null_values), dtype=float)
+    if pop.size == 0:
         return None
-    below = sum(1 for x in pop if x < v)
-    equal = sum(1 for x in pop if x == v)
+    pop.sort()
+    # searchsorted on the sorted null: 'left' insertion point = count strictly below v;
+    # 'right' - 'left' = count of exact ties. O(log n) vs. the prior O(n) double Python
+    # sum() pass — the null is ~30k genes and this fires once per gene per card.
+    below = int(np.searchsorted(pop, v, side="left"))
+    right = int(np.searchsorted(pop, v, side="right"))
+    equal = right - below
     # mid-rank: count ties as half, so an exactly-median gene lands ~50th pct.
-    return 100.0 * (below + 0.5 * equal) / len(pop)
+    return 100.0 * (below + 0.5 * equal) / pop.size
 
 
 def classify_percentile(pct: Optional[float], cutoffs: dict | None = None) -> str:

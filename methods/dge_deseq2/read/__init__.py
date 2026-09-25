@@ -312,6 +312,20 @@ def read_dge_gene_row(
         raw["_data_s3_uri"] = s3_uri
         return raw
 
+    # Schema-drift guard (D1-D): the row exists (num_rows>0, genuine absence already
+    # handled above), so a missing verdict-bearing column here means the provider parquet
+    # renamed/dropped it -- NOT that the gene is absent. `.get()` would silently return
+    # None for every gene and collapse the whole indication to data_unavailable with no
+    # signal that anything broke. Raise loud instead, matching the
+    # target_id_sidecar.read_resolver_sidecar_map schema-drift pattern.
+    _required_cols = ("log2FoldChange", "padj")
+    _missing = [c for c in _required_cols if c not in table.column_names]
+    if _missing:
+        raise ValueError(
+            f"schema drift: manifest {manifest_id!r} ({s3_uri}) missing expected column(s) "
+            f"{_missing!r} (present: {table.column_names})"
+        )
+
     log2_fc = raw.get("log2FoldChange")
     q_value = raw.get("padj")
 
