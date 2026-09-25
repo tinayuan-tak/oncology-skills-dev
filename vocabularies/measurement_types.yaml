@@ -1896,9 +1896,9 @@ measurement_types:
     # TWO INDEPENDENT breadth inputs (Slice C landed the RNA half):
     #   - tumor_protein_abundance: CPTAC per-cohort protein tumor-vs-normal (10 cohorts). Slice B.
     #   - tumor_vs_normal_selectivity: the pan-cancer stacked RNA DESeq2 product
-    #     (pancan-dge-tumor-vs-normal-v1, 27 indications). Slice C. The RNA "elevated" predicate is
+    #     (pancan-dge-tumor-vs-normal-v1, 28 indications). Slice C. The RNA "elevated" predicate is
     #     VINTAGE-STABLE (dominant_direction + cells_supporting + magnitude; NEVER cell B — see the
-    #     data-catalog manifest's cell_b_semantics note). RNA (27 inds) + protein (10 cohorts) are
+    #     data-catalog manifest's cell_b_semantics note). RNA (28 inds) + protein (10 cohorts) are
     #     DIFFERENT-layer corroborating breadth counts, reported ALONGSIDE, never averaged into one
     #     number (the two-provider surface_discordance discipline applies at the card layer).
     entity_grains: [target]

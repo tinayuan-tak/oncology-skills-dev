@@ -4547,7 +4547,7 @@ rules:
   # RNA tumor-elevation BREADTH (Slice C parallel layer) — added 2026-08-11 (G3 fix)
   # ----------------------------------------------------------------------------
   # tumor-elevation-breadth emits a SECOND breadth layer alongside the primary protein one:
-  # rna_tumor_elevation_breadth_class (pan-cancer DESeq2, 27 indications vs CPTAC's 10). It was
+  # rna_tumor_elevation_breadth_class (pan-cancer DESeq2, 28 indications vs CPTAC's 10). It was
   # EMITTED but UN-RULED — decision-inert, the exact 2026-07-14 "emitted-but-un-ruled" failure the
   # protein breadth rules above were written to avoid. These mirror the protein signal semantics
   # (breadth is presence-SUPPORTIVE, never a killer; BREADTH ≠ SELECTIVITY). PARALLEL layer by the
@@ -4566,7 +4566,7 @@ rules:
       degrader: supportive
     rationale: |
       Target RNA is elevated vs normal in >=3 indications AND in >=50% of those tested —
-      pan-cancer RNA tumor-presence breadth over 27 indications. Presence-supportive, parallel
+      pan-cancer RNA tumor-presence breadth over 28 indications. Presence-supportive, parallel
       to the protein breadth broadly rule; surfaced as a facet, not a ladder rung.
 
   - rule_id: rna-tumor-breadth-multi-supportive
