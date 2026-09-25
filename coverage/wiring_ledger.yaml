@@ -6,22 +6,22 @@ _doc: 'I.4 wiring ledger: every data-catalog manifest id by wiring status -- rea
   reads, declares, OR names it; the wiring worklist). `dark` is the number I.4 moves, a sound lower bound
   on the truly-unwired set. Regenerate with validators/build_wiring_ledger.py; --self-check gates drift.'
 sibling_shas:
-  analysis-methods: 900f46c
-  skills: f1973042
-  data-catalog: d1c0e5d
-n_catalog_datasets: 539
+  analysis-methods: ef48e66
+  skills: 7ae3138d
+  data-catalog: a90cc45
+n_catalog_datasets: 544
 counts:
   read: 150
-  declared_only: 245
-  referenced_only: 27
-  dark: 117
+  declared_only: 246
+  referenced_only: 29
+  dark: 119
 n_literal_reads: 70
 dark_by_source_family:
   cbioportal: 17
   genie: 10
   geo: 9
+  depmap: 8
   sc: 8
-  depmap: 6
   prism: 6
   3ca: 3
   loveless: 3
@@ -126,13 +126,13 @@ read:
 - depmap-26q1-parquet-v1
 - depmap-coessentiality-26q1-v1
 - depmap-consortium-26q1
-- depmap-consortium-26q1-crispr-supplementary
 - depmap-consortium-26q1-paralogs
 - depmap-consortium-26q1-proteomics
 - depmap-consortium-26q1-rnai
+- depmap-consortium-26q3-crispr-supplementary
 - depmap-consortium-ccle-2019
-- depmap-drug-anchor-combination-per-target-v1
-- depmap-drug-anchor-resistance-per-target-v1
+- depmap-drug-anchor-combination-per-target-26q3-v1
+- depmap-drug-anchor-resistance-per-target-26q3-v1
 - depmap-gygi-protein-abundance-per-protein-v1
 - depmap-isoform-expression-per-gene-v1
 - depmap-paralog-genetic-interaction-per-pair-v1
@@ -310,6 +310,7 @@ declared_only:
 - kich-dge-tumor-vs-normal-sensitivity-v1
 - kirc-dge-tumor-vs-normal-sensitivity-v1
 - kirp-dge-tumor-vs-normal-sensitivity-v1
+- laml-dge-tumor-vs-normal-sensitivity-v1
 - lgg-dge-tumor-vs-normal-sensitivity-v1
 - lihc-dge-tumor-vs-normal-sensitivity-v1
 - luad-dge-tumor-vs-normal-sensitivity-v1
@@ -474,6 +475,8 @@ referenced_only:
 - coadread-dge-adj-vs-gtex-xenatoil-v1
 - coadread-dge-df06320
 - coadread-dge-tumor-vs-normal-sensitivity-xenatoil-v1
+- depmap-drug-anchor-combination-per-target-v1
+- depmap-drug-anchor-resistance-per-target-v1
 - depmap-predictability-26q1-v2
 - depmap-predictability-26q1-v3
 - depmap-predictability-26q1-v4
@@ -532,7 +535,9 @@ dark:
 - depmap-consortium-25q2
 - depmap-consortium-25q2-paralogs
 - depmap-consortium-25q3
+- depmap-consortium-26q1-crispr-supplementary
 - depmap-consortium-26q1-perturbation-screens
+- depmap-consortium-26q3
 - dgv-gold-standard-hg38-snapshot-2026-08-28
 - dream-menden-2019-snapshot-2026-07-23
 - ensembl-coords-release-116-snapshot-2026-06-22

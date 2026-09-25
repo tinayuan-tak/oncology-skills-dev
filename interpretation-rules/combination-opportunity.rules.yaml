@@ -100,7 +100,7 @@ rules:
 
   # verdict: combination_insufficient
   # message: |
-  #   No drug-anchor CRISPR screen for this target (the panel covers KRAS/KIT/XPO1 only). A coverage
+  #   No drug-anchor CRISPR screen for this target (the panel covers KRAS/KIT/XPO1/BCL2/EZH2 only). A coverage
   #   gap — NOT evidence against a combination opportunity.
   - rule_id: combo-no-anchor-screen
     when:

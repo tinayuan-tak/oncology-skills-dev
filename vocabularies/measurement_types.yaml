@@ -1910,9 +1910,9 @@ measurement_types:
 
   drug_anchored_combination:
     claim: "When {target} is INHIBITED by its anchor drug, which other genes become MORE essential (drug-anchored CRISPR combination opportunities)?"
-    # NEW measurement_type (Phase-I combination half). DepMap 26Q1 drug-anchor CRISPR screens
+    # NEW measurement_type (Phase-I combination half). DepMap 26Q3 drug-anchor CRISPR screens
     # (genome-wide KO WITH vs WITHOUT a fixed anchor inhibitor). NARROW coverage: single-target
-    # anchor inhibitors only (KRAS/KIT/XPO1) → a card returns no_anchor_screen for uncovered targets.
+    # anchor inhibitors only (KRAS/KIT/XPO1/BCL2/EZH2) → a card returns no_anchor_screen for uncovered targets.
     # Distinct from combinatorial_ko_dependency (paralog dual-KO, gene×gene) — this is drug×gene.
     # The RESISTANCE arm (positive shifts) is now WIRED as the sibling drug_anchored_resistance.
     entity_grains: [target]
@@ -1920,7 +1920,7 @@ measurement_types:
     modality_relevance: [small_molecule, degrader]
     multi_provider_policy: tier_dominant
     providers:
-      - {kind: dataset, source: depmap-drug-anchor-combination-per-target-v1, method: combo_drug_anchor, evidence_tier: measured}
+      - {kind: dataset, source: depmap-drug-anchor-combination-per-target-26q3-v1, method: combo_drug_anchor, evidence_tier: measured}
 
   chemical_combination_synergy:
     claim: "Which partner DRUGS synergize (Bliss excess) with a drug hitting {target} across cell lines — chemical drug×drug combination opportunities?"
@@ -1938,16 +1938,16 @@ measurement_types:
   drug_anchored_resistance:
     claim: "When {target} is INHIBITED by its anchor drug, which gene knockouts RESCUE the cell (candidate resistance mediators)?"
     # NEW measurement_type (Phase-I resistance half). The SIGN-MIRROR of drug_anchored_combination:
-    # the POSITIVE arm of the same DepMap 26Q1 drug-anchor CRISPR screens (KO becomes LESS essential
+    # the POSITIVE arm of the same DepMap 26Q3 drug-anchor CRISPR screens (KO becomes LESS essential
     # under the drug = the drug's effect depends on that gene = losing it blunts the drug). NARROW
-    # coverage: single-target anchor inhibitors only (KRAS/KIT/XPO1) → a card returns no_anchor_screen
+    # coverage: single-target anchor inhibitors only (KRAS/KIT/XPO1/BCL2/EZH2) → a card returns no_anchor_screen
     # for uncovered targets. Self-target rescue (KO of the drug's own target) is suppressed upstream.
     entity_grains: [target]
     cards: [resistance-emergence-signature]
     modality_relevance: [small_molecule, degrader]
     multi_provider_policy: tier_dominant
     providers:
-      - {kind: dataset, source: depmap-drug-anchor-resistance-per-target-v1, method: resistance_emergence, evidence_tier: measured}
+      - {kind: dataset, source: depmap-drug-anchor-resistance-per-target-26q3-v1, method: resistance_emergence, evidence_tier: measured}
 
   combinatorial_ko_dependency:
     claim: "When {target} is co-knocked-out with a paralog partner, is there a synthetic-lethal / buffering genetic interaction (GI = dual - sum-of-singles, Chronos scale), and is it constitutive or context-conditional?"

@@ -3,9 +3,9 @@ _doc: 'I.3 wiring reconciliation: per card, READS (AST over the dispatch closure
   no opaque call, >0 reads, no bespoke read primitive); other routed cards are READS_UNDETERMINED (a dimension,
   not a finding). Regenerate with validators/build_wiring_reconciliation.py; --self-check gates drift.'
 sibling_shas:
-  analysis-methods: b11c206
-  skills: 2ee8d0bf
-  data-catalog: 161d13e
+  analysis-methods: ef48e66
+  skills: 7ae3138d
+  data-catalog: a90cc45
 n_dispatcher_routed_cards: 68
 counts:
   sound: 14
@@ -23,7 +23,7 @@ sound_cards_not_in_emission_ledger:
 - target-identity-summary
 - tumor-vs-normal-percentile-crossing-by-subtype
 known_violations:
-  as_of: '2026-09-20'
+  as_of: '2026-09-25'
   keys: []
 by_card:
   abundance-dependency:
@@ -151,7 +151,7 @@ by_card:
   combo-crispr-screen:
     confidence: undetermined
     declares:
-    - depmap-drug-anchor-combination-per-target-v1
+    - depmap-drug-anchor-combination-per-target-26q3-v1
     modules:
     - combo_drug_anchor.read
     emits_in_ledger: true
@@ -227,7 +227,7 @@ by_card:
   fusion-rearrangement-landscape:
     confidence: undetermined
     declares:
-    - genie-sv-recurrence-v1
+    - genie-public-v19-0
     - tcga-fusion-consensus-v1
     modules:
     - tcga_fusion_consensus
@@ -275,7 +275,7 @@ by_card:
     - immune_context
     - immune_context.antigen_conditioned
     emits_in_ledger: true
-    reason: 3 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+    reason: 4 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
   known-drug-tractability:
     confidence: sound
     declares:
@@ -457,7 +457,7 @@ by_card:
   resistance-emergence-signature:
     confidence: undetermined
     declares:
-    - depmap-drug-anchor-resistance-per-target-v1
+    - depmap-drug-anchor-resistance-per-target-26q3-v1
     modules:
     - resistance_emergence.read
     emits_in_ledger: true
@@ -651,7 +651,7 @@ by_card:
     modules:
     - pair_selectivity_gate.bulk_read
     emits_in_ledger: true
-    reason: 7 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+    reason: 8 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
   surface-colocalization-avidity:
     confidence: undetermined
     declares:
@@ -668,7 +668,7 @@ by_card:
     modules:
     - pair_selectivity_gate.cli
     emits_in_ledger: true
-    reason: 7 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+    reason: 8 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
   surface-topology-and-ptm:
     confidence: sound
     declares:
@@ -740,7 +740,7 @@ by_card:
     - cptac_protein_deg
     - dge_deseq2
     emits_in_ledger: true
-    reason: 3 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+    reason: 4 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
   tumor-protein-distribution-by-subtype:
     confidence: undetermined
     declares:
@@ -790,7 +790,7 @@ by_card:
     modules:
     - dge_deseq2
     emits_in_ledger: true
-    reason: 3 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+    reason: 4 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
   tumor-scrna-celltype-expression:
     confidence: undetermined
     declares:
@@ -806,7 +806,7 @@ by_card:
     modules:
     - sc_tumor_expression_celltype.cli
     emits_in_ledger: true
-    reason: 8 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+    reason: 9 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
   tumor-vs-normal-percentile-crossing:
     confidence: undetermined
     declares:
@@ -875,11 +875,11 @@ by_card:
     modules:
     - dge_deseq2.read
     emits_in_ledger: true
-    reason: 3 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
+    reason: 4 opaque catalog call(s); bespoke read primitive (manifest-path/s3-cp)
   variant-level-interpretation:
     confidence: undetermined
     declares:
-    - civic-variant-interpretation-per-gene-v1
+    - civic-nightly-snapshot-2026-07-02
     modules:
     - civic_variant_interpretation
     emits_in_ledger: true
