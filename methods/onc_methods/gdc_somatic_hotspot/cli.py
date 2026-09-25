@@ -833,7 +833,8 @@ def emit_mutation_frequency_stacked(
     out_path: Path,
     contracts_root: Path = DEFAULT_TARGET_CONTRACTS,
     *,
-    min_frequency: float = 0.05,
+    min_frequency_indication: float = 0.10,
+    min_frequency_pancancer: float = 0.05,
 ) -> Optional[Path]:
     """Emit a stacked figure with indication-specific (top) and pan-cancer (bottom) mutation frequency.
 
@@ -846,7 +847,8 @@ def emit_mutation_frequency_stacked(
         pancancer_gene_frequencies: list of (gene, freq) for pan-cancer
         out_path: directory to write figure
         contracts_root: path to target-contracts repo
-        min_frequency: minimum frequency threshold (default 5%)
+        min_frequency_indication: minimum frequency threshold for indication panel (default 10%)
+        min_frequency_pancancer: minimum frequency threshold for pan-cancer panel (default 5%)
     """
     if not indication_gene_frequencies and not pancancer_gene_frequencies:
         return None
@@ -879,26 +881,26 @@ def emit_mutation_frequency_stacked(
     if style_path.exists():
         plt.style.use(str(style_path))
 
-    def filter_and_sort(gene_freqs, target_freq):
+    def filter_and_sort(gene_freqs, target_freq, min_freq):
         if gene_freqs and isinstance(gene_freqs[0], (list, tuple)):
             pairs = [(g, f) for g, f in gene_freqs if f is not None and f > 0]
         else:
             pairs = [(f"gene_{i}", f) for i, f in enumerate(gene_freqs) if f is not None and f > 0]
-        frequent = [(g, f) for g, f in pairs if f >= min_frequency]
+        frequent = [(g, f) for g, f in pairs if f >= min_freq]
         frequent.sort(key=lambda x: x[1])
         return frequent, len(pairs)
 
-    ind_genes, ind_total = filter_and_sort(indication_gene_frequencies, target_frequency_indication)
-    pan_genes, pan_total = filter_and_sort(pancancer_gene_frequencies, target_frequency_pancancer)
+    ind_genes, ind_total = filter_and_sort(indication_gene_frequencies, target_frequency_indication, min_frequency_indication)
+    pan_genes, pan_total = filter_and_sort(pancancer_gene_frequencies, target_frequency_pancancer, min_frequency_pancancer)
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7.0, 7.0))
     fig.subplots_adjust(top=0.88, bottom=0.12, left=0.12, right=0.95, hspace=0.35)
 
     bar_width = 0.6
 
-    def plot_panel(ax, genes, target_freq, panel_title, total_genes):
+    def plot_panel(ax, genes, target_freq, panel_title, total_genes, min_freq):
         if len(genes) == 0:
-            ax.text(0.5, 0.5, f"No genes ≥{min_frequency*100:.0f}%", ha="center", va="center",
+            ax.text(0.5, 0.5, f"No genes ≥{min_freq*100:.0f}%", ha="center", va="center",
                     transform=ax.transAxes, fontsize=10, color="#666666")
             ax.set_xticks([])
             ax.set_title(panel_title, fontsize=10, fontweight="bold", loc="left", color="#33383D")
@@ -951,26 +953,26 @@ def emit_mutation_frequency_stacked(
         if not target_in_panel and target_freq is not None:
             ax.text(
                 0.5, 0.85,
-                f"{target} ({target_freq*100:.1f}%) — below {min_frequency*100:.0f}% threshold",
+                f"{target} ({target_freq*100:.1f}%) — below {min_freq*100:.0f}% threshold",
                 ha="center", va="top", transform=ax.transAxes,
                 fontsize=8, fontweight="bold", color="#B22222",
                 bbox=dict(boxstyle="round,pad=0.5", facecolor="#FFEEEE", edgecolor="#B22222", linewidth=1),
             )
 
-        ax.axhline(y=min_frequency, **REFLINE_NEUTRAL, zorder=1)
+        ax.axhline(y=min_freq, **REFLINE_NEUTRAL, zorder=1)
         ax.set_xlim(-0.5, len(genes) - 0.5)
         ax.set_ylim(bottom=0)
         ax.set_xticks([])
         ax.grid(axis="y", alpha=0.3)
         ax.set_ylabel("Frequency", fontsize=9, color="#33383D")
-        ax.set_title(f"{panel_title} ({len(genes)} genes ≥{min_frequency*100:.0f}%)",
+        ax.set_title(f"{panel_title} ({len(genes)} genes ≥{min_freq*100:.0f}%)",
                      fontsize=10, fontweight="bold", loc="left", color="#33383D")
 
-    plot_panel(ax1, ind_genes, target_frequency_indication, indication, ind_total)
-    plot_panel(ax2, pan_genes, target_frequency_pancancer, "Pan-Cancer", pan_total)
+    plot_panel(ax1, ind_genes, target_frequency_indication, indication, ind_total, min_frequency_indication)
+    plot_panel(ax2, pan_genes, target_frequency_pancancer, "Pan-Cancer", pan_total, min_frequency_pancancer)
 
     figure_title(fig, target, None, "mutation frequency", y=0.96)
-    provenance_tag(fig, f"TCGA MC3 v0.2.8 · genes mutated in ≥{min_frequency*100:.0f}% of samples", y=0.93)
+    provenance_tag(fig, f"TCGA MC3 v0.2.8 · {indication} ≥{min_frequency_indication*100:.0f}% · Pan-Cancer ≥{min_frequency_pancancer*100:.0f}%", y=0.93)
 
     def get_rank(genes, target_name, target_freq):
         """Get 1-based rank (1 = most frequent) among genes >= threshold."""
@@ -993,17 +995,17 @@ def emit_mutation_frequency_stacked(
         return f"{n}{suffix}"
 
     if ind_rank and pan_rank:
-        take_text = (f"{target} is the {ordinal(ind_rank)} most frequently mutated gene in {indication} "
-                     f"and the {ordinal(pan_rank)} most frequently mutated gene pan-cancer.")
+        take_text = (f"{target} is the {ordinal(ind_rank)} most frequently mutated gene in {indication} (≥{min_frequency_indication*100:.0f}%) "
+                     f"and the {ordinal(pan_rank)} most frequently mutated gene pan-cancer (≥{min_frequency_pancancer*100:.0f}%).")
     elif ind_rank:
-        take_text = (f"{target} is the {ordinal(ind_rank)} most frequently mutated gene in {indication} "
-                     f"but is below the {min_frequency*100:.0f}% threshold pan-cancer.")
+        take_text = (f"{target} is the {ordinal(ind_rank)} most frequently mutated gene in {indication} (≥{min_frequency_indication*100:.0f}%) "
+                     f"but is below the {min_frequency_pancancer*100:.0f}% threshold pan-cancer.")
     elif pan_rank:
-        take_text = (f"{target} is the {ordinal(pan_rank)} most frequently mutated gene pan-cancer "
-                     f"but is below the {min_frequency*100:.0f}% threshold in {indication}.")
+        take_text = (f"{target} is the {ordinal(pan_rank)} most frequently mutated gene pan-cancer (≥{min_frequency_pancancer*100:.0f}%) "
+                     f"but is below the {min_frequency_indication*100:.0f}% threshold in {indication}.")
     else:
-        take_text = (f"{target} is below the {min_frequency*100:.0f}% mutation frequency threshold "
-                     f"in both {indication} and pan-cancer.")
+        take_text = (f"{target} is below the mutation frequency threshold "
+                     f"in both {indication} (≥{min_frequency_indication*100:.0f}%) and pan-cancer (≥{min_frequency_pancancer*100:.0f}%).")
     takeaway(fig, take_text, y=0.02)
 
     svg_path = out_path / "figure_mutation_frequency_stacked.svg"
