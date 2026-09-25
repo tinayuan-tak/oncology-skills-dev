@@ -654,6 +654,207 @@ def _coverage_concordance_claim(c):
     }
 
 
+# ── L2b-4: RNA × MS-protein abundance-MAGNITUDE concordance (SK#1589, evidence-property arch #1507) ──
+# The FOURTH cross-source INTEGRATED claim (L2b), growing the epic's master indicator M3 vocabulary-reuse
+# 3→4: `magnitude` becomes the 4th shared biological property resolved from ≥2 INDEPENDENT sources. It
+# asks whether an independent RNA-abundance read and an independent MASS-SPEC protein-abundance read AGREE
+# on the target's abundance-MAGNITUDE class — a cross-MODALITY concordance neither assay can state alone.
+#
+# #1512 (TMT non-comparability) is load-bearing: CPTAC/Gygi/ProCan mass-spec percentiles are
+# POOLED-REFERENCE-RELATIVE RATIOS, NOT scale-comparable to RNA TPM percentiles. So we compare each
+# source's WITHIN-POPULATION rank CLASS (`allgene_percentile_class` — the target's rank against ALL genes
+# in THAT source's OWN space), never a raw TMT-percentile against a raw TPM-percentile. Rank/bucket
+# agreement, not magnitude equality.
+#
+# GRAIN IS FIRST-CLASS (the patient_vs_model guard applied at build time): a magnitude comparison must
+# never conflate a MODALITY disagreement with a SAMPLE-CONTEXT (tumor vs cell-line) disagreement. So the
+# RNA and protein reads are always taken from the SAME grain — tumor-RNA pairs ONLY with tumor-protein
+# (CPTAC); cell-line RNA pairs ONLY with cell-line protein (Gygi/ProCan). The tumor grain is PREFERRED
+# (most disease-relevant); the cell-line grain is the fallback and — when it also resolves — an
+# INDEPENDENT cross-grain CORROBORATING arm.
+#
+# Distinct from #1514 (protein×protein cross-PLATFORM Gygi×ProCan, a run.py `_abundance_floor` facet):
+# this is the RNA×protein cross-MODALITY axis as a claim-vector atom. HARD RULE (L2b reproducibility):
+# a DETERMINISTIC explicit rule — NO llm_inference.
+#
+# FORWARD NOTE: the 3-level magnitude bucket below is the ORDINAL content of the shared `magnitude`
+# property. We deliberately do NOT mint a canonical `ordinal_rank` field name here — a future property-A
+# pass defines the canonical ordinal field and migrates this claim into it (premature naming = churn).
+_MAGNITUDE_BY_PCTILE_CLASS = {
+    "top_1pct": "high",
+    "top_decile": "high",
+    "mid": "moderate",
+    "bottom_decile": "low",
+}
+_MAGNITUDE_ORDER = {"low": 0, "moderate": 1, "high": 2}
+# Grain-anchored pairs: (grain_label, rna_card, protein_cards-in-preference-order). Losing the first
+# protein platform in a grain falls through to the next within that SAME grain (never cross-grain).
+_ABUNDANCE_GRAINS = (
+    ("tumor", "tumor-rna-distribution", ("tumor-protein-abundance-cptac",)),
+    ("cell_line", "cellline-rna-distribution", ("cellline-protein-abundance", "cellline-protein-abundance-procan")),
+)
+
+
+def _resolve_abundance_grain(c, rna_card, protein_cards):
+    """Resolve one grain's (RNA magnitude, MS-protein magnitude) from within-population rank CLASSES.
+
+    Returns a dict (rna/protein card_id + raw `allgene_percentile_class` + mapped magnitude level) when
+    BOTH modalities resolve to a magnitude level, else None. Protein platforms are tried in preference
+    order; the FIRST that resolves wins (so defeating one platform falls through to the next within the
+    grain, never leaking into the other grain)."""
+    rna_cls = (c.get(rna_card, {}) or {}).get("allgene_percentile_class")
+    rna_level = _MAGNITUDE_BY_PCTILE_CLASS.get(rna_cls)
+    if rna_level is None:
+        return None
+    for pc in protein_cards:
+        p_cls = (c.get(pc, {}) or {}).get("allgene_percentile_class")
+        p_level = _MAGNITUDE_BY_PCTILE_CLASS.get(p_cls)
+        if p_level is not None:
+            return {
+                "rna_card": rna_card,
+                "protein_card": pc,
+                "rna_pctile_class": rna_cls,
+                "protein_pctile_class": p_cls,
+                "rna_level": rna_level,
+                "protein_level": p_level,
+            }
+    return None
+
+
+def _abundance_concordance_class(rna_level, protein_level):
+    """Directional magnitude-concordance class over the shared 3-level `magnitude` ordinal. Never
+    averaged: same rank → concordant; RNA rank higher → rna_high_protein_low (post-transcriptional
+    attenuation / low proxy-quality); protein rank higher → the mirror."""
+    if rna_level == protein_level:
+        return "abundance_concordant"
+    if _MAGNITUDE_ORDER[rna_level] > _MAGNITUDE_ORDER[protein_level]:
+        return "rna_high_protein_low"
+    return "rna_low_protein_high"
+
+
+def _abundance_concordance_claim(c):
+    """L2b-4 CROSS-SOURCE, CROSS-MODALITY integration claim: `abundance_concordance`.
+
+    Integrates two INDEPENDENT abundance reads of the target — RNA transcript abundance and MASS-SPEC
+    protein abundance — by an EXPLICIT DETERMINISTIC rule (no LLM; the L2b layer is reproducible by
+    contract), emitting one of:
+      * abundance_concordant   — RNA and MS-protein land in the SAME within-population magnitude rank;
+      * rna_high_protein_low   — RNA rank EXCEEDS protein rank (transcript present, protein lower — a
+        post-transcriptional / low-proxy-quality signal, NOT nullification: the disagreement direction
+        is the informative datum);
+      * rna_low_protein_high   — the mirror.
+    `single_modality_only` names the <2-modality case; the KEY IS OMITTED then (byte-stable), matching
+    the coverage-concordance / A-B-C-D atom discipline (see the class list only in this docstring).
+
+    GRAIN-ANCHORED (tumor-preferred): the class is set by the TUMOR grain (tumor-RNA × CPTAC) when it
+    resolves, else the CELL-LINE grain (cell-line RNA × Gygi, then ProCan). The two reads are ALWAYS
+    same-grain so a magnitude disagreement is never confounded with a tumor-vs-model context difference.
+
+    CORROBORATION (cross-grain): when BOTH grains resolve, the non-primary grain is an INDEPENDENT
+    sample-context read of the same RNA×protein concordance — it AGREES (arm True) when it lands on the
+    same class, DISAGREES (False) when it lands on a different one, and is ABSENT (None) when only one
+    grain resolved. To DEFEAT the claim you must knock out EVERY protein platform across BOTH grains;
+    knocking out one only DEGRADES corroboration (the concept is multiply-supported) — the M3 all-supply
+    fidelity discipline.
+
+    #1512: compares within-population rank CLASSES, never raw TMT-vs-TPM percentiles. VERDICT-INERT:
+    carries NO `signal` key (never a chip, never a tier, never averaged), reads no verdict, feeds no
+    rule. Returns None — key omitted, byte-stable — unless at least one grain resolves BOTH modalities."""
+    grains = []
+    for label, rna_card, protein_cards in _ABUNDANCE_GRAINS:
+        g = _resolve_abundance_grain(c, rna_card, protein_cards)
+        if g is not None:
+            g["grain"] = label
+            grains.append(g)
+    if not grains:
+        return None  # <2 modalities in ANY single grain → single_modality_only → key omitted (byte-stable)
+    primary = grains[0]  # tumor grain preferred (grains appended in _ABUNDANCE_GRAINS order)
+    concordance = _abundance_concordance_class(primary["rna_level"], primary["protein_level"])
+    other = grains[1] if len(grains) > 1 else None
+    if other is not None:
+        other_class = _abundance_concordance_class(other["rna_level"], other["protein_level"])
+        corroborating_arm = other_class == concordance
+    else:
+        other_class = None
+        corroborating_arm = None
+    corroboration = _corr_from_arms([True, corroborating_arm])
+    # Provenance: EVERY resolved source (both grains when present), each recoverable to its raw rank
+    # class + mapped magnitude level, tagged with grain + role (primary sets the class; corroborating is
+    # the independent cross-grain arm). NOT the reserved single-card `evidence_atom` key.
+    sources = []
+    for g, role in [(primary, "primary")] + ([(other, "corroborating")] if other is not None else []):
+        sources.append(
+            {
+                "property": "rna_abundance_magnitude",
+                "card_id": g["rna_card"],
+                "grain": g["grain"],
+                "role": role,
+                "fields": {
+                    "allgene_percentile_class": g["rna_pctile_class"],
+                    "magnitude_level": g["rna_level"],
+                },
+            }
+        )
+        sources.append(
+            {
+                "property": "ms_protein_abundance_magnitude",
+                "card_id": g["protein_card"],
+                "grain": g["grain"],
+                "role": role,
+                "fields": {
+                    "allgene_percentile_class": g["protein_pctile_class"],
+                    "magnitude_level": g["protein_level"],
+                },
+            }
+        )
+    _rel = {
+        "abundance_concordant": "AGREES WITH",
+        "rna_high_protein_low": "RANKS ABOVE",
+        "rna_low_protein_high": "RANKS BELOW",
+    }[concordance]
+    return {
+        "concordance_class": concordance,
+        "corroboration": corroboration,
+        # The primary-grain magnitude reads, surfaced for a consumer that wants the levels without
+        # walking provenance. NONE of these route a verdict, name a signal tier, or feed a rule.
+        "grain": primary["grain"],
+        "rna_magnitude": primary["rna_level"],
+        "protein_magnitude": primary["protein_level"],
+        # DETERMINISTIC, reproducible-by-contract: an explicit rule over two rank classes, never an LLM.
+        "integration_method": "explicit_deterministic",
+        "informs": (
+            "cross-source abundance-magnitude concordance — whether independent RNA and mass-spec protein "
+            "reads agree the target sits at the same within-population abundance rank. A directional split "
+            "(RNA rank above protein) flags post-transcriptional attenuation / low proxy-quality, informing "
+            "proxy choice for abundance-dependent modalities (ADC/degrader payload delivery)."
+        ),
+        "evidence": (
+            f"{primary['grain']} grain: RNA {primary['rna_pctile_class']} ({primary['rna_level']}) "
+            f"{_rel} MS-protein {primary['protein_pctile_class']} ({primary['protein_level']})"
+            + (
+                f"; cross-grain corroboration {corroboration}"
+                if other is not None
+                else "; single-grain (no cross-grain corroborating read)"
+            )
+        ),
+        "provenance": {
+            "sources": sources,
+            "independence_note": (
+                "RNA abundance (transcript-level) and mass-spec protein abundance are measured on "
+                "INDEPENDENT assays with different molecular readouts and reference spaces; the comparison "
+                "is on WITHIN-POPULATION rank CLASS, never raw magnitude (CPTAC/Gygi/ProCan mass-spec "
+                "percentiles are pooled-reference-relative ratios, NOT scale-comparable to RNA TPM "
+                "percentiles — #1512). Their rank agreement is a genuine cross-modality corroboration, "
+                "not a within-assay restatement."
+            ),
+        },
+        "_disclaimer": (
+            "L2b CROSS-SOURCE integration claim (deterministic, no LLM) — verdict-INERT provenance: "
+            "never a signal tier, never averaged into a claim, never feeds the presence_verdict."
+        ),
+    }
+
+
 def presence_claim_vector(headline: dict, cards: list) -> dict:
     """The modality-blind claim vector: {A,B,C,D: {signal, corroboration, evidence, informs}, homogeneity}.
     Verdict-inert projection over the computed headline + card summaries."""
@@ -689,6 +890,9 @@ def presence_claim_vector(headline: dict, cards: list) -> dict:
     _cc = _coverage_concordance_claim(c)
     if _cc is not None:
         vec["bulk_vs_singlecell_coverage_concordance"] = _cc
+    _ac = _abundance_concordance_claim(c)
+    if _ac is not None:
+        vec["abundance_concordance"] = _ac
     return vec
 
 

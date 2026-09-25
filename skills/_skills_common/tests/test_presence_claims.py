@@ -448,6 +448,150 @@ def test_coverage_concordance_omitted_when_a_source_is_absent_or_indecisive():
     assert "bulk_vs_singlecell_coverage_concordance" not in presence_claim_vector(_headline(), [])
 
 
+# ── L2b-4: RNA × MS-protein abundance-MAGNITUDE concordance (SK#1589) ─────────────────────────────
+# The FOURTH cross-source integrated claim (grows the epic's M3 vocabulary-reuse 3→4). Integrates an
+# independent RNA-abundance read with an independent MASS-SPEC protein-abundance read, comparing each
+# source's WITHIN-POPULATION rank CLASS (allgene_percentile_class) mapped to a 3-level magnitude — NEVER
+# raw TMT-vs-TPM percentiles (#1512). Grain-anchored (tumor-RNA×CPTAC preferred, cell-line RNA×Gygi/
+# ProCan fallback + cross-grain corroborating arm). Store the RAW percentile classes and RE-DERIVE the
+# claim in-test — a derived fixture cannot fail; the rank classes are the irreproducible inputs.
+
+# Both grains agree the target ranks HIGH on RNA and HIGH on MS-protein → abundance_concordant, and the
+# cell-line grain corroborates the tumor grain (corroboration high).
+_RAW_ABUND_CONCORDANT = {
+    "tumor_rna": "top_decile",  # → high
+    "tumor_protein": "top_decile",  # → high
+    "cl_rna": "top_1pct",  # → high
+    "cl_gygi": "top_decile",  # → high
+    "cl_procan": "top_decile",  # → high
+}
+# Tumor grain only: RNA ranks HIGH but MS-protein only MID → rna_high_protein_low (a post-transcriptional
+# attenuation / low-proxy-quality direction, NOT nullification — the split direction is the datum).
+_RAW_ABUND_RNA_HIGH_PROTEIN_LOW = {
+    "tumor_rna": "top_decile",  # → high
+    "tumor_protein": "mid",  # → moderate
+}
+
+
+def _abund_cards(tumor_rna=None, tumor_protein=None, cl_rna=None, cl_gygi=None, cl_procan=None):
+    """Minimal card set carrying `allgene_percentile_class` on the five abundance sources the L2b-4 claim
+    integrates. A None arg OMITS that card entirely (source-absence / supply-defeat paths). These cards
+    do NOT carry the A/B/C/D-load-bearing fields, so the four claims stay atom-less and byte-stable across
+    every abundance permutation — any A/B/C/D delta in the inert test would then be MY perturbation."""
+    cards = []
+
+    def _card(cid, cls):
+        if cls is not None:
+            cards.append({"card_id": cid, "summary": {"allgene_percentile_class": cls}})
+
+    _card("tumor-rna-distribution", tumor_rna)
+    _card("tumor-protein-abundance-cptac", tumor_protein)
+    _card("cellline-rna-distribution", cl_rna)
+    _card("cellline-protein-abundance", cl_gygi)
+    _card("cellline-protein-abundance-procan", cl_procan)
+    return cards
+
+
+def test_abundance_concordance_concordant():
+    # RNA high AGREES with MS-protein high in the tumor grain → abundance_concordant, corroborated by the
+    # independent cell-line grain (also concordant) → corroboration high. Re-derive from raw rank classes.
+    vec = presence_claim_vector(_headline(), _abund_cards(**_RAW_ABUND_CONCORDANT))
+    claim = vec["abundance_concordance"]
+    assert claim["concordance_class"] == "abundance_concordant"
+    assert claim["corroboration"] == "high"  # tumor arm + agreeing cell-line grain = 2 measured arms
+    assert claim["integration_method"] == "explicit_deterministic"  # NO llm_inference: reproducible by contract
+    assert claim["grain"] == "tumor"  # tumor grain preferred over cell-line
+    assert claim["rna_magnitude"] == "high" and claim["protein_magnitude"] == "high"
+    # Provenance records BOTH modalities in BOTH grains, each recoverable to its raw rank class + level.
+    srcs = {(s["grain"], s["property"]): s for s in claim["provenance"]["sources"]}
+    assert srcs[("tumor", "rna_abundance_magnitude")]["card_id"] == "tumor-rna-distribution"
+    assert srcs[("tumor", "rna_abundance_magnitude")]["fields"]["allgene_percentile_class"] == "top_decile"
+    assert srcs[("tumor", "ms_protein_abundance_magnitude")]["card_id"] == "tumor-protein-abundance-cptac"
+    assert srcs[("tumor", "rna_abundance_magnitude")]["role"] == "primary"
+    assert srcs[("cell_line", "ms_protein_abundance_magnitude")]["role"] == "corroborating"
+    # Compared on within-population RANK, independent assays — the #1512 non-comparability discipline.
+    note = claim["provenance"]["independence_note"].lower()
+    assert "independent" in note and "rank" in note
+
+
+def test_abundance_concordance_rna_high_protein_low_directional():
+    # RNA ranks HIGH but MS-protein only MID (tumor grain, no cell-line read) → rna_high_protein_low: a
+    # directional split neither assay states alone. Single grain → no corroborating arm → single_arm.
+    hi_lo = presence_claim_vector(_headline(), _abund_cards(**_RAW_ABUND_RNA_HIGH_PROTEIN_LOW))["abundance_concordance"]
+    assert hi_lo["concordance_class"] == "rna_high_protein_low"
+    assert hi_lo["corroboration"] == "single_arm"  # only the tumor grain resolved
+    # The MIRROR direction: RNA mid, protein high → rna_low_protein_high (protein exceeds transcript rank).
+    lo_hi = presence_claim_vector(_headline(), _abund_cards(tumor_rna="mid", tumor_protein="top_decile"))[
+        "abundance_concordance"
+    ]
+    assert lo_hi["concordance_class"] == "rna_low_protein_high"
+
+
+def test_abundance_concordance_is_verdict_inert():
+    # Verdict-INERT: the claim carries NO `signal` key and NO presentation-support fields (those belong to
+    # the surface follow-on #1594), and surfacing it must not perturb A/B/C/D / homogeneity / _disclaimer.
+    base = presence_claim_vector(_headline(), _abund_cards(tumor_rna="top_decile"))  # RNA only → claim omitted
+    withclaim = presence_claim_vector(_headline(), _abund_cards(tumor_rna="top_decile", tumor_protein="top_decile"))
+    assert "abundance_concordance" not in base
+    claim = withclaim["abundance_concordance"]
+    assert "signal" not in claim, "an L2b claim must never carry a signal tier"
+    for pres in ("positive_signal", "qualifying_signal", "source_support", "boundary_sensitive"):
+        assert pres not in claim, f"{pres} is a #1594 surface field, not part of the L2b-4 build"
+    for ax in ("A", "B", "C", "D", "homogeneity", "_disclaimer"):
+        assert withclaim[ax] == base[ax], f"surfacing the abundance-concordance claim perturbed {ax}"
+
+
+def test_abundance_concordance_defeat_every_protein_platform_omits_key():
+    # M3 all-supply ERASE: to remove the claim you must defeat EVERY protein platform across BOTH grains
+    # (CPTAC + Gygi + ProCan). RNA alone in either grain is <2 modalities → single_modality_only → key
+    # OMITTED (byte-stable), matching the A/B/C/D + coverage-concordance atom discipline.
+    assert "abundance_concordance" in presence_claim_vector(_headline(), _abund_cards(**_RAW_ABUND_CONCORDANT))
+    no_protein = presence_claim_vector(
+        _headline(),
+        _abund_cards(tumor_rna="top_decile", cl_rna="top_1pct"),  # both RNA reads, zero protein
+    )
+    assert "abundance_concordance" not in no_protein
+
+
+def test_abundance_concordance_single_platform_defeat_only_degrades():
+    # M3-vs-M4 fidelity: knocking out ONE protein platform must NOT erase the claim — the concept survives
+    # on a surviving grain/platform — it only DEGRADES corroboration.
+    full = presence_claim_vector(_headline(), _abund_cards(**_RAW_ABUND_CONCORDANT))["abundance_concordance"]
+    assert full["corroboration"] == "high"
+    # (a) knock out CPTAC only → tumor grain fails, primary FALLS BACK to the cell-line grain; class
+    #     survives but there is no second grain to corroborate → single_arm.
+    no_cptac = presence_claim_vector(_headline(), _abund_cards(**{**_RAW_ABUND_CONCORDANT, "tumor_protein": None}))[
+        "abundance_concordance"
+    ]
+    assert no_cptac["concordance_class"] == "abundance_concordant", "surviving grain keeps the class"
+    assert no_cptac["grain"] == "cell_line"
+    assert no_cptac["corroboration"] == "single_arm", "one grain lost → corroboration degrades, not erased"
+    # (b) knock out Gygi only → the cell-line grain FALLS THROUGH to ProCan within the grain; both grains
+    #     still resolve → corroboration stays high (within-grain platform fallback, never cross-grain).
+    no_gygi = presence_claim_vector(_headline(), _abund_cards(**{**_RAW_ABUND_CONCORDANT, "cl_gygi": None}))[
+        "abundance_concordance"
+    ]
+    assert no_gygi["corroboration"] == "high", "cell-line grain survives on ProCan → still corroborated"
+    cl_protein_cards = {
+        s["card_id"] for s in no_gygi["provenance"]["sources"] if s["property"] == "ms_protein_abundance_magnitude"
+    }
+    assert "cellline-protein-abundance-procan" in cl_protein_cards, "fell through to ProCan within the grain"
+
+
+def test_abundance_concordance_omitted_when_a_modality_absent_or_indecisive():
+    # Byte-stability: the KEY is omitted (not None) unless at least one grain resolves BOTH modalities.
+    # (a) protein present but RNA absent in every grain → no grain resolves → no claim
+    assert "abundance_concordance" not in presence_claim_vector(
+        _headline(), _abund_cards(tumor_protein="top_decile", cl_gygi="top_decile")
+    )
+    # (b) an indecisive percentile class (not in the magnitude map) does not resolve a modality
+    assert "abundance_concordance" not in presence_claim_vector(
+        _headline(), _abund_cards(tumor_rna="unmapped_class", tumor_protein="top_decile")
+    )
+    # (c) no cards at all → no claim
+    assert "abundance_concordance" not in presence_claim_vector(_headline(), [])
+
+
 def _by_subtype_cards():
     """A tumor-rna-distribution-by-subtype card mirroring CD274/COADREAD: MSI_H/CMS1/CIMP_High enriched,
     MSS uniform — the per-stratum subtype_signal is set, the rollup carries n_subtypes_enriched=3."""
