@@ -14,8 +14,11 @@ Composes:
   - pubtator3_gene_disease_relations (pubtator3-gene-disease-relations-per-gene-v1): PubTator BioREx
     typed relation DIRECTION (associate / cause / positive_correlate / negative_correlate / …) + PMIDs.
 
-Both lanes are best-effort: an absent method/product/creds degrades that half to None and is recorded
-in `notes`, never raising. The card carries NO verdict and can change NO verdict/gate/sub-verdict — it
+Both lanes are best-effort and NEVER raise, but they distinguish "we looked, nothing there" (a
+genuine coverage gap → `no_evidence`) from "the lane never ran" (import missing / transient / creds /
+broken-env, OR a re-raised infra fault the child reader deliberately propagated → `data_unavailable`).
+An unavailable lane contributes an explicit `data_unavailable` sentinel (recorded in `notes`), NOT a
+None that would collapse into `no_evidence` clean-zero. The card carries NO verdict and can change NO verdict/gate/sub-verdict — it
 is descriptive CONTEXT/CONFIDENCE only, exactly like the risk-assessment layer. Extraction stays in the
 underlying readers/products; this reader only assembles + trims for display, then FLATTENS the
 display-relevant fields to top level (so a card's `outputs.summary_fields` can name emitted top-level
@@ -55,8 +58,11 @@ def build_cited_evidence_card(
     target: str, indication: str, epmc: Optional[dict], relations: Optional[dict], *, top_cited: int = DEFAULT_TOP_CITED
 ) -> dict:
     """PURE (offline-testable): assemble the two reader outputs into the verdict-inert NESTED card.
-    Either reader dict may be None (lane unavailable) or carry a non-'ok' status (absence/insufficient)
-    — in which case that half is None and its note is recorded. NEVER raises on shape.
+    Either reader dict may be None (lane not provided) or carry a non-'ok' status
+    (no_evidence/insufficient/data_unavailable) — in which case that half is None and its note is
+    recorded. When neither lane emits evidence the overall status is data_unavailable (a lane could not
+    run) > insufficient (target didn't resolve) > no_evidence (measured coverage gap). NEVER raises on
+    shape.
 
     Contract preserved verbatim from the former skills-side sibling so its tests stay green when the
     sibling delegates here."""
@@ -114,10 +120,20 @@ def build_cited_evidence_card(
     if card["literature_evidence"] or card["relation_direction"]:
         card["status"] = "ok"
     else:
-        # distinguish a bad/unresolvable input ('insufficient' from a reader) from a genuine coverage
-        # gap ('no_evidence'): if the gene didn't resolve, BOTH readers report 'insufficient'.
+        # Neither lane produced evidence. Distinguish, in precedence order:
+        #   data_unavailable — at least one lane could NOT run (import missing / transient / creds /
+        #     broken-env, surfaced by _compose_nested as a data_unavailable sentinel). We did not
+        #     fully look, so this is NOT a measured zero — must not collapse to no_evidence.
+        #   insufficient    — the target could not be resolved to an Ensembl gene id (BOTH readers
+        #     report 'insufficient').
+        #   no_evidence     — the target resolved and every lane returned a genuine coverage gap.
         reader_statuses = {d.get("status") for d in (epmc, relations) if isinstance(d, dict)}
-        card["status"] = "insufficient" if "insufficient" in reader_statuses else "no_evidence"
+        if "data_unavailable" in reader_statuses:
+            card["status"] = "data_unavailable"
+        elif "insufficient" in reader_statuses:
+            card["status"] = "insufficient"
+        else:
+            card["status"] = "no_evidence"
     return card
 
 
@@ -170,22 +186,39 @@ def read_cited_literature_evidence(
     }
 
 
+def _unavailable_arm(lane: str, exc: Exception) -> dict:
+    """A lane the composing reader could NOT run — import missing / transient / creds / broken-env, OR
+    a re-raised infra fault from the child reader (both arm readers practice absence discipline: they
+    return `[]`/a status dict on a DEFINITIVE absence and re-RAISE transient/infra faults). Return an
+    explicit `data_unavailable` sentinel so the card status is the honest "a lane never ran", NOT the
+    None that the former blanket swallow collapsed into `no_evidence` clean-zero (defeating the child
+    readers' distinction — #774/#776/#770 fail-toward-absence seam-except family). A genuine
+    NoSuchKey/404/FileNotFound never reaches here as an exception (the child converts it to a status
+    dict), but is_definitively_absent is still consulted so the recorded note is cause-accurate."""
+    from methods.target_id_sidecar import is_definitively_absent
+
+    kind = "absent" if is_definitively_absent(exc) or isinstance(exc, FileNotFoundError) else "unavailable"
+    return {"status": "data_unavailable", "_note": f"{lane} reader {kind}: {type(exc).__name__}: {exc}"}
+
+
 def _compose_nested(target: str, indication: str, *, top_cited: int = DEFAULT_TOP_CITED) -> dict:
     """LIVE: best-effort compose the two readers into the NESTED card (the human-readable standalone
-    shape). Each reader is imported + called defensively; a missing method/product must not raise."""
+    shape). Each reader is imported + called defensively; a lane that cannot run does not raise but
+    contributes an explicit `data_unavailable` sentinel (see `_unavailable_arm`), so an infra fault is
+    distinguishable from a genuine measured coverage gap instead of both collapsing to `no_evidence`."""
     epmc = relations = None
     try:
         from methods.opentargets_europepmc_evidence.read import read_europepmc_evidence
 
         epmc = read_europepmc_evidence(target, indication)
-    except Exception:  # noqa: BLE001 — best-effort; missing method/product must not break the card
-        epmc = None
+    except Exception as e:  # noqa: BLE001 — best-effort verdict-inert card; surface as data_unavailable, not None
+        epmc = _unavailable_arm("europepmc", e)
     try:
         from methods.pubtator3_gene_disease_relations.read import read_gene_disease_relations
 
         relations = read_gene_disease_relations(target, indication)
-    except Exception:  # noqa: BLE001
-        relations = None
+    except Exception as e:  # noqa: BLE001
+        relations = _unavailable_arm("pubtator", e)
     return build_cited_evidence_card(target, indication, epmc, relations, top_cited=top_cited)
 
 

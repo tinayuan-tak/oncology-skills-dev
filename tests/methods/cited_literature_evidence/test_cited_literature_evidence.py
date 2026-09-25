@@ -111,6 +111,97 @@ def test_both_none_never_raises():
     assert len(card["notes"]) == 2
 
 
+# --- #783: infra-unavailable must NOT collapse into no_evidence clean-zero -------------------------
+# A lane the composing reader could not run surfaces as an explicit data_unavailable sentinel dict
+# (see _compose_nested / _unavailable_arm). The builder must promote that to a card-level
+# data_unavailable status, DISTINCT from a genuine measured no_evidence, so a consumer keyed on
+# cited_evidence_status can tell "a lane never ran" from "we looked, nothing there".
+def _unavail(note="reader unavailable: ClientError"):
+    return {"status": "data_unavailable", "_note": note}
+
+
+def test_infra_unavailable_arm_is_data_unavailable_not_no_evidence():
+    # one lane unavailable (infra), the other a genuine measured zero -> overall data_unavailable
+    card = build_cited_evidence_card("KRAS", "COADREAD", _unavail(), _rel(status="no_relations"))
+    assert card["status"] == "data_unavailable"
+    assert card["verdict"] is None and card["verdict_inert"] is True
+    assert card["literature_evidence"] is None and card["relation_direction"] is None
+    assert any("europepmc" in n for n in card["notes"])
+
+
+def test_both_lanes_unavailable_is_data_unavailable():
+    card = build_cited_evidence_card("X", "Y", _unavail(), _unavail())
+    assert card["status"] == "data_unavailable"
+
+
+def test_data_unavailable_outranks_insufficient():
+    # infra beats a non-resolving target: the honest overall state is "we could not fully look"
+    card = build_cited_evidence_card("X", "Y", _unavail(), {"status": "insufficient"})
+    assert card["status"] == "data_unavailable"
+
+
+def test_measured_zero_still_no_evidence_when_no_lane_unavailable():
+    # regression guard: without an unavailable lane, a genuine measured coverage gap stays no_evidence
+    card = build_cited_evidence_card("X", "Y", _epmc(status="no_evidence"), _rel(status="no_relations"))
+    assert card["status"] == "no_evidence"
+
+
+def test_data_unavailable_flattens_to_status_field():
+    card = build_cited_evidence_card("X", "Y", _unavail(), _unavail())
+    flat = _flatten_for_card(card)
+    assert flat["cited_evidence_status"] == "data_unavailable"
+
+
+# --- #783: the composing seam must NOT swallow a child's re-raised infra fault into no_evidence ----
+# The two arm readers practice absence discipline (return a status dict on definitive absence, RE-RAISE
+# transient/creds/broken-env). The former blanket `except: arm = None` defeated that by collapsing a
+# re-raised infra fault to None -> no_evidence. This guard pins the seam directly (no S3): monkeypatch
+# the child reader fns on their own modules (the compose imports them by name at call time).
+def test_compose_transient_faults_become_data_unavailable_never_raises(monkeypatch):
+    from botocore.exceptions import ClientError
+
+    import methods.opentargets_europepmc_evidence.read as EP
+    import methods.pubtator3_gene_disease_relations.read as PT
+    from methods.cited_literature_evidence.read import _compose_nested
+
+    def _throttle(*a, **k):
+        raise ClientError({"Error": {"Code": "SlowDown", "Message": "throttle"}}, "GetObject")
+
+    monkeypatch.setattr(EP, "read_europepmc_evidence", _throttle)
+    monkeypatch.setattr(PT, "read_gene_disease_relations", _throttle)
+    card = _compose_nested("KRAS", "COADREAD")  # must NOT raise
+    assert card["status"] == "data_unavailable"
+    assert card["verdict"] is None
+    assert any("unavailable" in n for n in card["notes"])
+
+
+def test_compose_one_infra_one_clean_zero_is_data_unavailable(monkeypatch):
+    from botocore.exceptions import ClientError
+
+    import methods.opentargets_europepmc_evidence.read as EP
+    import methods.pubtator3_gene_disease_relations.read as PT
+    from methods.cited_literature_evidence.read import _compose_nested
+
+    def _expired(*a, **k):
+        raise ClientError({"Error": {"Code": "ExpiredToken", "Message": "creds"}}, "GetObject")
+
+    monkeypatch.setattr(EP, "read_europepmc_evidence", _expired)
+    monkeypatch.setattr(PT, "read_gene_disease_relations", lambda *a, **k: _rel(status="no_relations"))
+    card = _compose_nested("KRAS", "COADREAD")
+    assert card["status"] == "data_unavailable"  # one lane never ran -> not a measured no_evidence
+
+
+def test_compose_both_clean_zero_still_no_evidence(monkeypatch):
+    import methods.opentargets_europepmc_evidence.read as EP
+    import methods.pubtator3_gene_disease_relations.read as PT
+    from methods.cited_literature_evidence.read import _compose_nested
+
+    monkeypatch.setattr(EP, "read_europepmc_evidence", lambda *a, **k: _epmc(status="no_evidence"))
+    monkeypatch.setattr(PT, "read_gene_disease_relations", lambda *a, **k: _rel(status="no_relations"))
+    card = _compose_nested("X", "Y")
+    assert card["status"] == "no_evidence"
+
+
 # --- FLATTENED card entrypoint --------------------------------------------------------------------
 
 # every declared summary_field on cards/cited-literature-evidence.card.yaml — the emission guard
