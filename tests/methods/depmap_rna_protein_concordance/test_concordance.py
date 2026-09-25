@@ -273,6 +273,91 @@ def test_tumor_arm_underpowered_and_gap(monkeypatch):
     assert R.read_tumor_rna_protein_concordance("GHOST", "COADREAD")["rna_as_biomarker"] == "data_unavailable"
 
 
+def test_tumor_confounds_flag_low_class_741_F1_F2(monkeypatch):
+    """#741 F1/F2: a poor/partial tumor class carries the tumor-specific confound tags (MS LOD/MNAR
+    left-censoring + bulk purity/stromal admixture) that a consumer gates on; an adequate class does
+    NOT. Verdict-INERT — rna_as_biomarker is unchanged, and no cross_cohort tag on a single cohort."""
+    import pandas as pd
+
+    # decoupled KRAS relationship (protein independent of RNA) → poor/partial, single COAD cohort.
+    n = 40
+    poor_rows = [
+        {
+            "patient_id": f"01CO{i:03d}",
+            "gene": "KRAS",
+            "rna_log2tpm": float(i % 8),
+            "protein_log2abundance": float((i * 37) % 5),
+        }
+        for i in range(n)
+    ]
+    monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort, target=None: pd.DataFrame(poor_rows))
+    out = R.read_tumor_rna_protein_concordance("KRAS", "COADREAD")
+    assert out["rna_as_biomarker"] in ("poor_proxy", "partial_proxy")
+    assert "lod_mnar_attenuation" in out["rna_proxy_tumor_confounds"]
+    assert "bulk_purity_stromal_admixture" in out["rna_proxy_tumor_confounds"]
+    assert "cross_cohort_pooling" not in out["rna_proxy_tumor_confounds"]  # single leaf cohort
+    assert out["rna_proxy_cross_cohort_pooled"] is False
+    # detection fraction genuinely unrecoverable from the build-time inner-joined product
+    assert out["rna_proxy_detection_limited"] is None
+
+    # a clean linear (adequate) relationship carries NO F1/F2 confound tags — it survived attenuation.
+    good_rows = [
+        {
+            "patient_id": f"01CO{i:03d}",
+            "gene": "KRAS",
+            "rna_log2tpm": 3.0 + (i % 8) * 0.3,
+            "protein_log2abundance": 3.0 + (i % 8) * 0.3 + 0.1,
+        }
+        for i in range(n)
+    ]
+    monkeypatch.setattr(R, "_read_matched_cohort", lambda cohort, target=None: pd.DataFrame(good_rows))
+    good = R.read_tumor_rna_protein_concordance("KRAS", "COADREAD")
+    assert good["rna_as_biomarker"] == "adequate_proxy"
+    assert good["rna_proxy_tumor_confounds"] == []
+
+
+def test_tumor_cross_cohort_pooling_stratified_741_F3(monkeypatch):
+    """#741 F3: an umbrella indication (NSCLC → luad+lscc) pools two independently-normalized bcm
+    cohorts into one correlation. Surface the pooled flag + per-cohort stratified correlations so a
+    consumer can spot a Simpson's/batch artifact. Verdict (pooled rna_as_biomarker) is still emitted."""
+    import pandas as pd
+
+    def _fake(cohort, target=None):
+        if cohort == "luad":  # clean positive relationship
+            rows = [
+                {
+                    "patient_id": f"L{i:03d}",
+                    "gene": "KRAS",
+                    "rna_log2tpm": float(i % 8),
+                    "protein_log2abundance": float(i % 8) + 0.1,
+                }
+                for i in range(25)
+            ]
+        else:  # lscc: decoupled (protein independent of RNA)
+            rows = [
+                {
+                    "patient_id": f"S{i:03d}",
+                    "gene": "KRAS",
+                    "rna_log2tpm": float(i % 8),
+                    "protein_log2abundance": float((i * 37) % 5),
+                }
+                for i in range(25)
+            ]
+        return pd.DataFrame(rows)
+
+    monkeypatch.setattr(R, "_read_matched_cohort", _fake)
+    out = R.read_tumor_rna_protein_concordance("KRAS", "NSCLC")
+    assert out["cptac_cohort"] == "luad+lscc"  # umbrella expanded to leaves
+    assert out["rna_proxy_cross_cohort_pooled"] is True
+    assert "cross_cohort_pooling" in out["rna_proxy_tumor_confounds"]
+    assert out["rna_as_biomarker"] in ("adequate_proxy", "partial_proxy", "poor_proxy")  # pooled class emitted
+    per = {r["cohort"]: r for r in out["rna_proxy_per_cohort"]}
+    assert set(per) == {"luad", "lscc"} and per["luad"]["n"] == 25 and per["lscc"]["n"] == 25
+    # the per-cohort split reveals the divergence a single pooled number hides
+    assert per["luad"]["spearman"] > 0.9
+    assert per["lscc"]["spearman"] < 0.5
+
+
 def test_cli_build_and_figure(tmp_path, monkeypatch):
     import importlib
 

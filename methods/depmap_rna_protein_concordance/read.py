@@ -311,13 +311,26 @@ def _cptac_cohorts_for(indication: str) -> list[str]:
     return out
 
 
+def _read_matched_cohorts_map(cohorts: list[str], target: "Optional[str]" = None) -> dict:
+    """Read the matched CPTAC product PER leaf cohort → {cohort_code: DataFrame}. The per-cohort split
+    is what lets the tumor arm compute stratified correlations (F3) instead of pooling independently
+    normalized bcm batches (manifest:104) into one number. When target is given the gene predicate is
+    pushed down per cohort (OPT-1)."""
+    return {c: _read_matched_cohort(c, target=target) for c in cohorts}
+
+
 def _read_matched_cohorts(cohorts: list[str], target: "Optional[str]" = None):
     """Read + row-concat the matched CPTAC product across one or more leaf cohorts (pooled NSCLC).
     When target is given the gene predicate is pushed down to the parquet reader (OPT-1)."""
+    return _concat_matched(_read_matched_cohorts_map(cohorts, target=target), cohorts, target=target)
+
+
+def _concat_matched(frames_by_cohort: dict, cohorts: list[str], target: "Optional[str]" = None):
+    """Row-concat the per-cohort matched frames into the pooled frame (shared by _read_matched_cohorts
+    and the tumor render, so a render reads each cohort exactly once)."""
     import pandas as pd
 
-    frames = [_read_matched_cohort(c, target=target) for c in cohorts]
-    frames = [f for f in frames if not f.empty]
+    frames = [f for f in frames_by_cohort.values() if not f.empty]
     return pd.concat(frames, ignore_index=True) if frames else _read_matched_cohort(cohorts[0], target=target)
 
 
@@ -356,6 +369,66 @@ def _read_matched_cohort(cohort: str, target: "Optional[str]" = None):
         raise
 
 
+def _tumor_confounds(rna_class, n_cohorts: int) -> list[str]:
+    """Verdict-INERT tumor-specific caveats on rna_as_biomarker (they NEVER change it). Names the
+    confounds that can drive a LOW tumor class independent of genuine post-transcriptional biology, so
+    a consumer can gate a poor/partial tumor concordance the way the cell-line arm's detection/power
+    qualifiers gate the cell-line class:
+
+      lod_mnar_attenuation (F1)          — the matched product is a BUILD-TIME inner-join that drops
+        NaN pairs (manifest:34), so below-LOD protein is MNAR left-censored before this reader ever
+        sees it. Unlike the cell-line arm there is NO recoverable protein_detection_fraction here (the
+        censored rows are gone), so a poor/partial r may be a MS detection-floor artifact rather than
+        real decoupling — and the fraction cannot be surfaced to distinguish the two.
+      bulk_purity_stromal_admixture (F2) — bulk-tumor purity + stromal admixture dilute the protein
+        signal (manifest:12-14), strongly gene-specific, and are indistinguishable from genuine
+        post-transcriptional decoupling in the emitted class; no cell-line analogue (cell lines have no
+        stroma).
+      cross_cohort_pooling (F3)          — >1 independently-normalized bcm cohort pooled into one
+        correlation (manifest:104 — bcm abundance is NOT cross-comparable across cohorts), risking a
+        Simpson's/batch artifact; see rna_proxy_per_cohort for the stratified view.
+
+    F1/F2 threaten a spuriously LOW correlation, so they attach only to poor/partial classes (an
+    adequate_proxy survived the attenuation); F3 is a pooling property independent of the class."""
+    tags: list[str] = []
+    if rna_class in ("poor_proxy", "partial_proxy"):
+        tags += ["lod_mnar_attenuation", "bulk_purity_stromal_admixture"]
+    if n_cohorts > 1:
+        tags.append("cross_cohort_pooling")
+    return tags
+
+
+def _per_cohort_concordance(frames_by_cohort: dict, target: str) -> list[dict]:
+    """F3: per-cohort Spearman/Pearson (verdict-INERT) so a consumer can detect a Simpson's/batch
+    artifact from pooling the independently-normalized bcm cohorts (manifest:104) into one correlation.
+    Returns [{cohort, n, spearman, pearson}] sorted by cohort; correlation is None where a cohort has
+    <4 matched tumors or a constant arm (undefined). Computed on the same gene-filtered, NaN-dropped
+    population as the pooled headline, per leaf cohort."""
+    import numpy as np
+
+    tgt = target.upper().strip()
+    out: list[dict] = []
+    for cohort in sorted(frames_by_cohort):
+        f = frames_by_cohort[cohort]
+        sub = f[f["gene"] == tgt] if not f.empty else f
+        sub = sub.dropna(subset=["rna_log2tpm", "protein_log2abundance"]) if not sub.empty else sub
+        n = len(sub)
+        spear = pear = None
+        if n >= 4:
+            rna = sub["rna_log2tpm"].to_numpy(dtype=float)
+            prot = sub["protein_log2abundance"].to_numpy(dtype=float)
+            if np.ptp(rna) > 0 and np.ptp(prot) > 0:
+                try:
+                    from scipy.stats import pearsonr, spearmanr
+
+                    spear = round(float(spearmanr(rna, prot)[0]), 4)
+                    pear = round(float(pearsonr(rna, prot)[0]), 4)
+                except Exception:  # noqa: BLE001 — scipy-unavailable fallback (Pearson only)
+                    pear = round(float(np.corrcoef(rna, prot)[0, 1]), 4)
+        out.append({"cohort": cohort, "n": n, "spearman": spear, "pearson": pear})
+    return out
+
+
 def read_tumor_rna_protein_concordance(target: str, indication: str, plot_data_out: "Optional[Path]" = None) -> dict:
     """Q5 TUMOR arm — CPTAC matched tumor RNA↔protein concordance for target in the indication's
     CPTAC cohort. Same correlation + rna_as_biomarker vocab as the cell-line arm. data_unavailable-safe.
@@ -375,9 +448,11 @@ def read_tumor_rna_protein_concordance(target: str, indication: str, plot_data_o
             }
         )
         return base
-    # OPT-2: read the matched frame ONCE per render and reuse it for both the plot-data
-    # persistence (scatter) and the verdict, instead of reading the cohort twice.
-    df = _read_matched_cohorts(cohorts, target)
+    # OPT-2: read the matched frame ONCE per render and reuse it for the plot-data persistence
+    # (scatter), the pooled verdict, AND the F3 per-cohort stratification — reading each leaf cohort
+    # exactly once. frames_by_cohort keeps the leaves separate so pooling artifacts are recoverable.
+    frames_by_cohort = _read_matched_cohorts_map(cohorts, target)
+    df = _concat_matched(frames_by_cohort, cohorts, target=target)
     if plot_data_out is not None:
         try:
             import pandas as _pd
@@ -439,10 +514,16 @@ def read_tumor_rna_protein_concordance(target: str, indication: str, plot_data_o
             "rna_proxy_classified_on": "spearman" if _on_spearman else "pearson_fallback",
             # G10/F3: CI built with the classifying metric's SE coefficient (Spearman ~6% wider).
             **_proxy_boundary_ci(_classify_r, n, spearman=_on_spearman),
-            # F2 (symmetric): verdict-INERT near-floor power flag. No protein_detection_fraction here —
-            # the matched CPTAC product is per-sample paired, so F1's detection-floor qualifier is
-            # cell-line-specific (left as None). Tumor-specific work is the sibling issue #741.
+            # F2 (symmetric): verdict-INERT near-floor power flag. protein_detection_fraction is None —
+            # the matched CPTAC product is a build-time inner-join, so the cell-line-style detection
+            # fraction is unrecoverable here (rna_proxy_detection_limited stays None; see F1 below).
             **_proxy_qualifiers(tumor_class, n, protein_detection_fraction=None),
+            # #741 tumor-specific verdict-INERT qualifiers (never change rna_as_biomarker):
+            #   F1 (MS LOD/MNAR) + F2 (bulk purity/stromal admixture) attach to poor/partial classes;
+            #   F3 (cross-cohort pooling) flags an umbrella + surfaces the per-cohort stratified view.
+            "rna_proxy_tumor_confounds": _tumor_confounds(tumor_class, len(cohorts)),
+            "rna_proxy_cross_cohort_pooled": bool(len(cohorts) > 1),
+            "rna_proxy_per_cohort": _per_cohort_concordance(frames_by_cohort, target),
         }
     )
     return base
