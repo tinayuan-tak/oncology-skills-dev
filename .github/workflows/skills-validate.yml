@@ -323,7 +323,25 @@ jobs:
           # Aperture-inert: measured the field_disposition suite (73 passed) against this branch x c55602a6 —
           # orphans stay in [APERTURE_CEILING-APERTURE_SLACK, APERTURE_CEILING] = [761, 781], so the ceiling
           # (781, in test_field_disposition.py) does not move and this pin bumps ALONE.
-          ref: c55602a67ba14d234bf47f6ce13b4297a4d7d6d8
+          # #1719 BUMP -> 37b5728 (TC #902 = issue #882; forward from c55602a6): declares the dropped
+          # rna_proxy_class_boundary_fragile signal + its CI backing (rna_protein_r_ci95_low/high) +
+          # rna_proxy_classified_on on BOTH concordance cards — rna-protein-concordance-tumor (TC #896,
+          # issue #883, commit 026670f) and cellline-rna-protein-concordance (TC #902, issue #882, commit
+          # 37b5728). The intervening commit 499bb41 (#898, Card 11 procan) also lands, declaring one field
+          # (cellline-protein-abundance-procan.protein_abundance_source). Regenerated the pinned roster
+          # field_read_health.json against this tree: declared-pairs 1814 -> 1823 (+9, 0 removed) — exactly
+          # the 4 fields x 2 concordance cards + the 1 procan field; every other census row (units, reads,
+          # undeclared pairs=4, meta_key) byte-identical, and measured_axes_per_dim.json byte-stable (no new
+          # measurement_type axis).
+          # WIP / FORCED-ATOMIC (see the P3 bump precedent above, ~lines 280-313): this bump makes 3 cards
+          # emit 9 fields that the tumor-presence field_disposition.yaml does NOT yet disposition, so
+          # test_field_disposition_complete.py::test_ledger_matches_emitted_fields (SET EQUALITY vs the LIVE
+          # tree) goes UNCLASSIFIED -> RED (VERIFIED: old pin c55602a6 = GREEN/1 passed, this pin = RED with the
+          # 9 orphans). Per the repo's own documented invariant the pin and the field_disposition.yaml rows
+          # MUST move in ONE commit — this pin CANNOT land standalone. Those rows are #1650's step-2
+          # deliverable; #1719 was scoped to EXCLUDE field_disposition.yaml. Needs re-scope / co-land — see
+          # the #1719 issue comment.
+          ref: 37b5728241f4e591367c0a9dfacdd19a5cb7b187
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

@@ -854,9 +854,25 @@ cellline-rna-protein-concordance:
     role: context
     reason: "RNA-protein correlation coefficient; statistical qualifier behind rna_as_biomarker; reached via {question_table, salience, skill_code} (census 2026-09-19)"
     reviewed: true
+  rna_protein_r_ci95_high:
+    role: context
+    reason: "Fisher-z 95% CI upper bound of the cell-line classifying correlation; statistical qualifier behind rna_as_biomarker; no consumer wired — the #1650 boundary-fragile corroboration down-weight reads the TUMOR arm only"
+    reviewed: true
+  rna_protein_r_ci95_low:
+    role: context
+    reason: "Fisher-z 95% CI lower bound of the cell-line classifying correlation; statistical qualifier behind rna_as_biomarker; no consumer wired — the #1650 boundary-fragile corroboration down-weight reads the TUMOR arm only"
+    reviewed: true
   rna_protein_spearman:
     role: context
     reason: power / statistical qualifier
+  rna_proxy_class_boundary_fragile:
+    role: context
+    reason: "bool: the cell-line classifying-correlation 95% CI straddles an rna_as_biomarker class cut; qualifies the cell-line proxy call but no consumer is wired (the #1650 corroboration down-weight consumes the TUMOR arm only)"
+    reviewed: true
+  rna_proxy_classified_on:
+    role: provenance
+    reason: "'spearman' | 'pearson_fallback' — names which correlation statistic the cell-line rna_as_biomarker class was computed on; method/provenance token"
+    reviewed: true
 rna-protein-concordance-tumor:
   cptac_cohort:
     role: provenance
@@ -872,9 +888,25 @@ rna-protein-concordance-tumor:
     role: context
     reason: "RNA-protein correlation coefficient; statistical qualifier behind rna_as_biomarker; reached via {question_table, salience, skill_code} (census 2026-09-19)"
     reviewed: true
+  rna_protein_r_ci95_high:
+    role: signal
+    reason: "Fisher-z 95% CI upper bound of the classifying RNA-protein correlation (tumor arm); read by run.py _strength_certainty via get_card_field and surfaced as the audit reason for the boundary-fragile corroboration demotion (#1650); role:signal reach-confirmed via {skill_code}"
+    reviewed: true
+  rna_protein_r_ci95_low:
+    role: signal
+    reason: "Fisher-z 95% CI lower bound of the classifying RNA-protein correlation (tumor arm); read by run.py _strength_certainty via get_card_field and surfaced as the audit reason for the boundary-fragile corroboration demotion (#1650); role:signal reach-confirmed via {skill_code}"
+    reviewed: true
   rna_protein_spearman:
     role: context
     reason: power / statistical qualifier
+  rna_proxy_class_boundary_fragile:
+    role: signal
+    reason: "bool: the classifying-correlation 95% CI straddles an rna_as_biomarker class cut, so the adequate/partial/poor tumor proxy call can flip by sampling alone; consumed by _pres_corroboration/_strength_certainty to demote corroboration one ordinal level when the TUMOR arm is fragile (verdict-token-inert — moves only the certainty/composite sidecar; presence_verdict byte-stable) (#1650); role:signal reach-confirmed via {skill_code}"
+    reviewed: true
+  rna_proxy_classified_on:
+    role: provenance
+    reason: "'spearman' | 'pearson_fallback' — names which correlation statistic the tumor rna_as_biomarker class was computed on; method/provenance token, not a signal (the Pearson-vs-Spearman corpus-staleness concern is a separate corpus-regen item, #1650 guard-rail)"
+    reviewed: true
   substrate:
     role: provenance
     reason: identity/scope key
@@ -944,6 +976,10 @@ cellline-protein-abundance-procan:
   per_lineage_stats:
     role: display
     reason: human-facing detail / large container
+  protein_abundance_source:
+    role: provenance
+    reason: "categorical MS-platform / dataset tag (e.g. procan_dia_swath) naming the ProCan protein-abundance source; provenance/audit token, not a signal"
+    reviewed: true
   protein_effect_size:
     role: signal
     reason:

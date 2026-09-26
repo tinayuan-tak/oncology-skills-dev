@@ -1004,9 +1004,26 @@ def _strength_certainty(cards, fired=None, verdict_pair=None, claim_vector=None,
     # #1650: read the boundary-fragility flag (+ its CI backing, for the audit reason) off the SAME tumor
     # arm that supplies corroboration. A fragile call down-weights corroboration one level in
     # _pres_corroboration; here we record WHY so the demotion is auditable in the emitted certainty block.
-    fragile = _safe_card_field(cards, "rna-protein-concordance-tumor", "rna_proxy_class_boundary_fragile")
-    ci_low = _safe_card_field(cards, "rna-protein-concordance-tumor", "rna_protein_r_ci95_low")
-    ci_high = _safe_card_field(cards, "rna-protein-concordance-tumor", "rna_protein_r_ci95_high")
+    # Read via the census-VISIBLE get_card_field (not _safe_card_field) so these three signal fields earn
+    # fleet-aperture reader credit (#1719/#1650). get_card_field RAISES on an absent card_id, so guard on
+    # card presence to preserve the None-on-absent-card semantics _safe_card_field gave — behaviour is
+    # byte-identical: card absent -> None -> fragile is not True -> no demotion; only the read helper changed.
+    _has_tumor_concordance = "rna-protein-concordance-tumor" in {c["card_id"] for c in (cards or [])}
+    fragile = (
+        get_card_field(cards, "rna-protein-concordance-tumor", "rna_proxy_class_boundary_fragile")
+        if _has_tumor_concordance
+        else None
+    )
+    ci_low = (
+        get_card_field(cards, "rna-protein-concordance-tumor", "rna_protein_r_ci95_low")
+        if _has_tumor_concordance
+        else None
+    )
+    ci_high = (
+        get_card_field(cards, "rna-protein-concordance-tumor", "rna_protein_r_ci95_high")
+        if _has_tumor_concordance
+        else None
+    )
     coverage = _pres_coverage(cards)
     corroboration = _pres_corroboration(rna_bm, boundary_fragile=fragile)
     components = [coverage] + ([corroboration] if corroboration != "unmeasured" else [])
