@@ -127,20 +127,6 @@ def coverage_summary(doc: dict) -> dict:
     }
 
 
-def format_review_queue(doc: dict) -> str:
-    """A human-readable report block (report-only; asserts nothing — mirrors the fleet-report
-    precedent of a CI-safe advisory). Lists the ranked contradictions and the coverage dimension."""
-    cov = coverage_summary(doc)
-    lines = [
-        "field-disposition review queue (advisory — the projection is a heuristic, not a correction)",
-        f"  rows={cov['rows']} agree={cov['agree']} contradict={cov['contradict']} "
-        f"unprojectable(unclassified)={cov['unprojectable']}",
-    ]
-    for c in review_queue(doc):
-        lines.append(f"  - {c!r}")
-    return "\n".join(lines)
-
-
 __all__ = [
     "STRUCTURAL_TO_EDITORIAL",
     "UNPROJECTABLE_ROLES",
@@ -149,5 +135,4 @@ __all__ = [
     "iter_contradictions",
     "review_queue",
     "coverage_summary",
-    "format_review_queue",
 ]

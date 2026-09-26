@@ -75,9 +75,6 @@ OP_PA_DATASET = "pyarrow.dataset"
 # pyarrow.parquet.read_table), so without these the tracer would go blind exactly as the migration lands.
 _READ_FAMILY = (OP_READ_TABLE, OP_READ_PARQUET, OP_READ_CSV, OP_PL_READ_PARQUET, OP_PL_READ_CSV)
 # LAZY scans (polars): record the object targeted; the actual IO + column/row pushdown happens later at
-# LazyFrame.collect() through polars' own object-store — invisible to a Python-level patch — so rows are
-# left unmeasured (null, never 0) and the event is marked lazy. Not depth-guarded: a scan does ~no IO.
-_LAZY_SCAN_OPS = (OP_PL_SCAN_PARQUET, OP_PL_SCAN_CSV)
 # ops that establish a URI on a thread, so a following URI-less buffer read can be attributed to them.
 _FETCH_OPS = (OP_AWS_CP, OP_GET_OBJECT) + _READ_FAMILY
 

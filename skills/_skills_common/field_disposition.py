@@ -252,7 +252,6 @@ _SALIENCE_LIST_SLOTS = ("categorical", "extra_scalars")
 # that filtered view; `salience_readers()` (unfiltered) remains the census reach and is unchanged.
 _SALIENCE_SIGNAL_SCALAR_SLOTS = ("effect_field", "significance_field")
 _SALIENCE_SIGNAL_LIST_SLOTS = ("categorical", "extra_scalars")
-_SALIENCE_POWER_SCALAR_SLOTS = ("n_field", "strata_array")  # read for support, not as a signal
 
 
 def _salience_pairs(scalar_slots, list_slots, contracts_repo: Path | None = None) -> set:

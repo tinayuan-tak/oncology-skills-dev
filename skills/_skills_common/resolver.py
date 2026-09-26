@@ -32,7 +32,6 @@ from _skills_common.paths import target_contracts_root
 
 # Resolver specs live in target-contracts (they are CONTRACTS, like interpretation-rules).
 _CONTRACTS_REPO = target_contracts_root()
-_RESOLVERS_DIR = _CONTRACTS_REPO / "resolvers"
 
 
 @functools.lru_cache(maxsize=None)

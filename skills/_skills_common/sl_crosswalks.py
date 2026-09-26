@@ -221,16 +221,6 @@ SCAFFOLD_UNDRUGGABLE_PARTNERS = {
 }
 
 
-def validated_combination_precedent(target, indication):
-    """The (target, indication)-keyed clinically/functionally-validated combination guard, or None."""
-    return VALIDATED_COMBINATION_PRECEDENT.get(((target or "").upper().strip(), norm_ind(indication)))
-
-
-def validated_paralog_sl(target):
-    """The (target)-keyed canonical paralog-SL guard → (paralog_partner, detail) or None."""
-    return VALIDATED_PARALOG_SL.get((target or "").upper().strip())
-
-
 __all__ = [
     "COMBO_IND_ALIAS",
     "norm_ind",
@@ -240,6 +230,4 @@ __all__ = [
     "PAN_ESSENTIAL_GENES",
     "is_pan_essential",
     "SCAFFOLD_UNDRUGGABLE_PARTNERS",
-    "validated_combination_precedent",
-    "validated_paralog_sl",
 ]

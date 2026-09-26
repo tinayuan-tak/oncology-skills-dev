@@ -35,7 +35,6 @@ from _skills_common.claim_vector_core import cards_by_id as _by_id
 from _skills_common.claim_vector_core import corroboration_from_arms as _corr_from_arms
 from _skills_common.claim_vector_core import fmt as _f
 
-CLAIM_NAME = {"A": "abundance", "B": "tumor-elevation", "C": "malignant-intrinsic", "D": "generality"}
 # light-touch routing (which downstream lens each claim informs) — NOT a gate.
 CLAIM_INFORMS = {
     "A": "abundance — informs every modality (a degrader/SM needs the protein present)",
@@ -1536,6 +1535,5 @@ __all__ = [
     "render_presence_label",
     "presence_strength_from_state",
     "presence_state_phrase",
-    "CLAIM_NAME",
     "CLAIM_INFORMS",
 ]

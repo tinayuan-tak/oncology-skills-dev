@@ -110,7 +110,6 @@ _STATUS_FILL = {"critical": "#d03b3b", "warning": "#fab219", "good": "#0ca30c"}
 _STATUS_ICON = {"critical": "×", "warning": "!", "good": "✓"}  # × ! ✓
 _STATUS_WORD = {"critical": "liability", "warning": "caution", "good": "window"}
 
-_OFFSCALE_FILL = "#f0f0ee"  # data_unavailable — hatched blank
 _OFFSCALE_INK = "#8a8d91"
 
 
