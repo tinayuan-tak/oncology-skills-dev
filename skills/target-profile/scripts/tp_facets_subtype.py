@@ -331,7 +331,7 @@ def _rollup_subtype_block(subtype_facet: "Optional[dict]") -> dict:
     convergent = sf.get("convergent_subtypes") or []
     axes_avail = sf.get("axes_available") or []
     n_eval = sf.get("n_subtypes_evaluated") or 0
-    status = sf.get("verdict") or ("no_subtype_signal" if not n_eval else None)
+    status = sf.get("verdict") or ("subtype_axis_unavailable" if not n_eval else None)
     if convergent:
         headline = (
             f"{len(convergent)} convergent subtype stratum"
