@@ -9,7 +9,7 @@ FLI1/EWSR1-FLI1) — the class the mutation + CN stratified paths miss.
 Composes existing Chronos loading + the PROVEN Mann-Whitney contrast (imported verbatim from
 depmap_mutation_dependency), so the statistics are identical to the mutation/CN paths:
   - Chronos via depmap_chronos_distribution.load_depmap_files ({ModelID -> chronos})
-  - fusion-involvement bool from DepMap 26Q1 OmicsFusionFiltered.csv (ModelID-native; the target
+  - fusion-involvement bool from DepMap 26Q3 OmicsFusionFiltered.csv (ModelID-native; the target
     symbol appearing as EITHER the 5' (LeftGene) OR 3' (RightGene) partner in any high/medium-
     confidence call — the gene-collapsed symbol-union boolean).
   - fusion-negative (comparator) = every other screened line.

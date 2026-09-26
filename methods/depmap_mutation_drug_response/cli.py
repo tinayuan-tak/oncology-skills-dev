@@ -175,7 +175,7 @@ def _no_compound_summary(target: str, reason: str) -> dict:
 @click.command()
 @click.option("--target", required=True)
 @click.option("--indication", required=True)
-@click.option("--release-pin", default="26q1")
+@click.option("--release-pin", default="26q3")
 @click.option("--out", required=True, type=click.Path())
 @click.option("--aggregate", default="best", type=click.Choice(["best", "median"]))
 def main(target, indication, release_pin, out, aggregate) -> int:
@@ -240,7 +240,7 @@ def _emit_manifest(target, indication, release_pin, summary, out):
                 "indication": indication,
                 "release_pin": release_pin,
                 "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                "input_manifests": ["depmap-consortium-26q1", "prism-oncref-dmc-25q4"],
+                "input_manifests": ["depmap-consortium-26q3", "prism-oncref-dmc-25q4"],
                 "drug_response_stratification_class": summary.get("drug_response_stratification_class"),
                 "n_on_target_compounds": summary.get("n_on_target_compounds"),
             },

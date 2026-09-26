@@ -30,7 +30,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 from methods.target_id_sidecar import ensure_aws_profile
 
 
-def read_cis_protein_dosage(target: str, indication: Optional[str] = None, release_pin: str = "26q1") -> dict:
+def read_cis_protein_dosage(target: str, indication: Optional[str] = None, release_pin: str = "26q3") -> dict:
     """Compute protein cis-dosage (own-CN → own-protein) coupling for target across the DepMap panel.
 
     `indication` is accepted for dispatcher-signature back-compat but NOT consumed (target-only,
@@ -67,7 +67,7 @@ def read_cis_protein_dosage(target: str, indication: Optional[str] = None, relea
         return _unavailable(
             cn_errs[0].get("_live_read_error", "cn_read_failed") if cn_errs else "no_cn_for_target",
             errors=cn_errs,
-            remediation="Method cannot reach DepMap 26Q1 copy number; verify local cache or AWS credentials.",
+            remediation="Method cannot reach DepMap 26Q3 copy number; verify local cache or AWS credentials.",
         )
 
     # 2. Gygi-MS protein abundance ({ModelID -> log2 abundance}). Symbol -> UniProt accession resolves

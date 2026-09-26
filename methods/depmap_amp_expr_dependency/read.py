@@ -26,7 +26,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 from methods.target_id_sidecar import ensure_aws_profile
 
 
-def read_amp_expr_dependency(target: str, indication: Optional[str] = None, release_pin: str = "26q1") -> dict:
+def read_amp_expr_dependency(target: str, indication: Optional[str] = None, release_pin: str = "26q3") -> dict:
     """Compute amplification+overexpression conjoint-stratified dependency for target across the panel.
 
     `indication` is accepted for dispatcher-signature back-compat but NOT consumed (target-only, like
@@ -51,7 +51,7 @@ def read_amp_expr_dependency(target: str, indication: Optional[str] = None, rele
         return {
             "_live_read_error": chronos_errs[0].get("_live_read_error", "s3_or_local_read_failed"),
             "errors": chronos_errs,
-            "_remediation": "Method cannot reach DepMap 26Q1 Chronos; verify local cache or AWS credentials.",
+            "_remediation": "Method cannot reach DepMap 26Q3 Chronos; verify local cache or AWS credentials.",
             "amp_expr_stratification_class": "data_unavailable",
         }
     if not chronos_by_model:
@@ -69,7 +69,7 @@ def read_amp_expr_dependency(target: str, indication: Optional[str] = None, rele
                 cn_errs[0].get("_live_read_error", "cn_read_failed") if cn_errs else "no_cn_for_target"
             ),
             "errors": cn_errs,
-            "_remediation": "Method cannot reach DepMap 26Q1 copy number; verify local cache or AWS credentials.",
+            "_remediation": "Method cannot reach DepMap 26Q3 copy number; verify local cache or AWS credentials.",
             "amp_expr_stratification_class": "data_unavailable",
         }
 
@@ -83,7 +83,7 @@ def read_amp_expr_dependency(target: str, indication: Optional[str] = None, rele
                 else "no_expression_for_target"
             ),
             "errors": tpm_errs,
-            "_remediation": "Method cannot reach DepMap 26Q1 expression; verify local cache or AWS credentials.",
+            "_remediation": "Method cannot reach DepMap 26Q3 expression; verify local cache or AWS credentials.",
             "amp_expr_stratification_class": "data_unavailable",
         }
 

@@ -2,7 +2,7 @@
 
 Guards the reshape that swapped the MODEL arm's raw full-object DepMap CSV reads (~500 MB each:
 OmicsSomaticMutationsMatrixDamaging/Hotspot + OmicsCNGeneWGS) for gene-column projection reads of
-the depmap-26q1-parquet-v1 product (~1-2 MB/gene). All S3-free (the parquet accessor is monkeypatched).
+the depmap-26q3-parquet-v1 product (~1-2 MB/gene). All S3-free (the parquet accessor is monkeypatched).
 
 Invariants:
   1. PREFERENCE: when the parquet accessor returns a column, the arm uses it and maps to the right

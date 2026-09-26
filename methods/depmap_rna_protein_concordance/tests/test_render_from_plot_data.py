@@ -33,9 +33,9 @@ def _svg_ok(p: Path) -> bool:
 
 def test_cellline_persist_and_render(tmp_path, monkeypatch):
     monkeypatch.setattr(
-        r, "read_rna_protein_scatter", lambda target, release_pin="26q1": {"available": True, "points": _PTS}
+        r, "read_rna_protein_scatter", lambda target, release_pin="26q3": {"available": True, "points": _PTS}
     )
-    monkeypatch.setattr(r, "_paired_rna_protein", lambda target, release_pin="26q1": ({}, {}, "stub"))
+    monkeypatch.setattr(r, "_paired_rna_protein", lambda target, release_pin="26q3": ({}, {}, "stub"))
     r.read_rna_protein_concordance("MYGENE", plot_data_out=tmp_path)
     assert (tmp_path / "plot_data_rna_protein.parquet").exists()
 

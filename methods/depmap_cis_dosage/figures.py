@@ -15,7 +15,7 @@ from typing import Optional
 from methods.target_id_sidecar import ensure_aws_profile
 
 
-def load_cn_tpm_model(target: str, release_pin: str = "26q1") -> tuple[dict, dict, dict, list]:
+def load_cn_tpm_model(target: str, release_pin: str = "26q3") -> tuple[dict, dict, dict, list]:
     """Load relative CN + log2TPM + Model metadata for `target`. Returns
     (cn_by_model, tpm_by_model, model_metadata, load_errors). Mirrors the loaders the compute path
     (read_cis_dosage) uses, plus Model.csv for lineage colouring."""

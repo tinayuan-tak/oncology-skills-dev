@@ -248,7 +248,7 @@ try:
     @click.command()
     @click.option("--target", required=True)
     @click.option("--indication", default=None, help="Accepted for dispatcher signature; not consumed (target-only).")
-    @click.option("--release-pin", default="26q1")
+    @click.option("--release-pin", default="26q3")
     @click.option("--out", type=click.Path(file_okay=False, path_type=Path), default=None)
     def main(target, indication, release_pin, out):
         """Compute partner-conditional stratified dependency for TARGET."""

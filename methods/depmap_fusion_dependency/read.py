@@ -27,9 +27,9 @@ from . import cli as _cli
 METHOD_VERSION = _cli.METHOD_VERSION
 DEFAULT_AWS_PROFILE = "cbg"
 
-# DepMap 26Q1 source location (raw source, mirrors depmap_predictability_precompute.features).
+# DepMap 26Q3 source location (raw source, mirrors depmap_predictability_precompute.features).
 DEPMAP_S3_BUCKET = "onc-compbio"
-DEPMAP_SOURCE_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q1"
+DEPMAP_SOURCE_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q3"
 FUSION_S3_KEY = f"{DEPMAP_SOURCE_PREFIX}/OmicsFusionFiltered.csv"
 
 _GENE_PAREN_RE = re.compile(r"^([A-Za-z0-9._\-]+)\s*\(\d+\)$")
@@ -119,12 +119,12 @@ def read_fusion_stratified_dependency(target: str, indication: Optional[str] = N
     from methods.depmap_chronos_distribution import cli as c1cli
 
     # 1. Chronos (reuse Card-1's loader)
-    chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(release_pin="26q1", target_symbol=target)
+    chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(release_pin="26q3", target_symbol=target)
     if chronos_errs:
         return {
             "_live_read_error": chronos_errs[0].get("_live_read_error", "s3_or_local_read_failed"),
             "errors": chronos_errs,
-            "_remediation": "Method cannot reach DepMap 26Q1 Chronos; verify local cache or AWS credentials.",
+            "_remediation": "Method cannot reach DepMap 26Q3 Chronos; verify local cache or AWS credentials.",
             "fusion_stratification_class": "data_unavailable",
         }
     if not chronos_by_model:
@@ -144,7 +144,7 @@ def read_fusion_stratified_dependency(target: str, indication: Optional[str] = N
                 else "no_fusion_profiled_lines"
             ),
             "errors": fusion_errs,
-            "_remediation": "Method cannot reach DepMap 26Q1 fusion calls; verify local cache or AWS credentials.",
+            "_remediation": "Method cannot reach DepMap 26Q3 fusion calls; verify local cache or AWS credentials.",
             "fusion_stratification_class": "data_unavailable",
         }
 
@@ -205,7 +205,7 @@ def _fusion_alteration_confound(
     try:  # mutation arm (hotspot ∪ damaging)
         from methods.depmap_mutation_dependency.cli import load_mutation_data
 
-        hotspot, damaging, mut_errs = load_mutation_data("26q1", target)
+        hotspot, damaging, mut_errs = load_mutation_data("26q3", target)
         if hotspot or damaging:
             altered |= {m for m in fus_pos if hotspot.get(m) or damaging.get(m)}
             ok = True
@@ -215,7 +215,7 @@ def _fusion_alteration_confound(
         from methods.depmap_cn_dependency.cli import FOCAL_AMP_HIGH
         from methods.depmap_cn_distribution import cli as _cncli
 
-        cn_by, _meta, _assay, cn_errs = _cncli.load_cn_files(release_pin="26q1", target_symbol=target)
+        cn_by, _meta, _assay, cn_errs = _cncli.load_cn_files(release_pin="26q3", target_symbol=target)
         if cn_by and not cn_errs:
             altered |= {m for m in fus_pos if cn_by.get(m, 0) > FOCAL_AMP_HIGH}
             ok = True

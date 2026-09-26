@@ -6,7 +6,7 @@ Score, via DepMap's ScreenGeneEffect combined Broad+Sanger Chronos) AGREE with t
 dependency call (CRISPRGeneEffect)? Two independent libraries + pipelines agreeing is stronger
 corroboration than the framework's existing CRISPR×RNAi (both Broad-ecosystem).
 
-Both matrices are ALREADY in the DepMap 26q1 mirror (no new source): CRISPRGeneEffect.csv (Broad Achilles
+Both matrices are ALREADY in the DepMap 26q3 mirror (no new source): CRISPRGeneEffect.csv (Broad Achilles
 Chronos) + ScreenGeneEffect.csv (the Sanger-inclusive combined Chronos). Per target, compare the
 pan-cell dependency fraction in each; classify agreement.
 
@@ -21,10 +21,10 @@ import subprocess
 from typing import Optional
 
 METHOD_VERSION = "0.1.0"
-_PREFIX = "s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1"
+_PREFIX = "s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q3"
 _BROAD = f"{_PREFIX}/CRISPRGeneEffect.csv"  # Broad Achilles Chronos (CSV fallback)
 _SANGER = f"{_PREFIX}/ScreenGeneEffect.csv"  # Sanger-inclusive combined Chronos (Project Score; CSV fallback)
-# Gene-column parquet products in depmap-26q1-parquet-v1 (column projection: ~1-2 MB over the wire vs the
+# Gene-column parquet products in depmap-26q3-parquet-v1 (column projection: ~1-2 MB over the wire vs the
 # 560/685 MB CSVs). Preferred read path; the CSVs above are the graceful fallback if a product is absent.
 _BROAD_PARQUET = "CRISPRGeneEffect.parquet"
 _SANGER_PARQUET = "ScreenGeneEffect.parquet"
@@ -57,7 +57,7 @@ def _summarize_vals(vals):
 def _consortium_frac(parquet_name: str, uri: str, gene: str):
     """Return (frac_dependent, n_lines, median) for the gene in one consortium's gene-effect matrix.
 
-    Prefers the gene-COLUMN projection from the parquet product (depmap-26q1-parquet-v1; only the one
+    Prefers the gene-COLUMN projection from the parquet product (depmap-26q3-parquet-v1; only the one
     gene's column transits the wire, ~1-2 MB, vs downloading the 560/685 MB CSV). Falls back to the
     full-object CSV read only when the parquet PRODUCT is genuinely unreachable. Output-equivalent: the
     parquet stores float32, but frac_dependent/median rounded to 4 dp match the float64 CSV (verified
@@ -152,7 +152,7 @@ def read_cross_consortium_dependency(target: str, indication: Optional[str] = No
         "sanger_n_lines": sanger["n_lines"],
         "dependency_cut": DEPENDENCY_CUT,
         "_method_version": METHOD_VERSION,
-        "_source": "Broad Achilles (CRISPRGeneEffect) vs Sanger Project Score (ScreenGeneEffect), DepMap 26q1; verdict-inert cross-consortium corroboration",
+        "_source": "Broad Achilles (CRISPRGeneEffect) vs Sanger Project Score (ScreenGeneEffect), DepMap 26q3; verdict-inert cross-consortium corroboration",
     }
 
 

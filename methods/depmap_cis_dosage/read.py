@@ -27,7 +27,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 
 def read_cis_dosage(
-    target: str, indication: Optional[str] = None, release_pin: str = "26q1", plot_data_out: Optional[Path] = None
+    target: str, indication: Optional[str] = None, release_pin: str = "26q3", plot_data_out: Optional[Path] = None
 ) -> dict:
     """Compute cis-dosage (own-CN → own-expression) coupling for target across the DepMap panel.
 
@@ -61,7 +61,7 @@ def read_cis_dosage(
         return _unavailable(
             cn_errs[0].get("_live_read_error", "cn_read_failed") if cn_errs else "no_cn_for_target",
             errors=cn_errs,
-            remediation="Method cannot reach DepMap 26Q1 copy number; verify local cache or AWS credentials.",
+            remediation="Method cannot reach DepMap 26Q3 copy number; verify local cache or AWS credentials.",
         )
 
     # 2. log2TPM expression
@@ -70,7 +70,7 @@ def read_cis_dosage(
         return _unavailable(
             tpm_errs[0].get("_live_read_error", "expression_read_failed") if tpm_errs else "no_expression_for_target",
             errors=tpm_errs,
-            remediation="Method cannot reach DepMap 26Q1 expression; verify local cache or AWS credentials.",
+            remediation="Method cannot reach DepMap 26Q3 expression; verify local cache or AWS credentials.",
         )
 
     # 3. Lineage labels — a CONTROL, not an input: they gate the focal-amplification subset escape on a

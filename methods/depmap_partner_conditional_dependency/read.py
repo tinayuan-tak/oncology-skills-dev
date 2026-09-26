@@ -38,7 +38,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 
 
 def read_partner_conditional_dependency(
-    target: str, indication: Optional[str] = None, release_pin: str = "26q1"
+    target: str, indication: Optional[str] = None, release_pin: str = "26q3"
 ) -> dict:
     """Compute partner-conditional dependency for target across the DepMap panel.
 

@@ -35,7 +35,7 @@ Substrate (all LANDED + verified readable; no new ingestion):
     - GISTIC per-gene discrete CN (`all_thresholded.by_genes_whitelisted.tsv`): −2 homdel / −1 loss —
       the per-gene homdel call for the NO-mutation case (has a target-resolver sidecar).
     - Barcode→indication: `merged_sample_quality_annotations.tsv` (patient_barcode → `cancer type`).
-  MODEL (DepMap 26q1)
+  MODEL (DepMap 26q3)
     - OmicsSomaticMutationsMatrixDamaging.csv / *Hotspot.csv (model × gene boolean).
     - OmicsCNGeneWGS.csv (per-gene RELATIVE CN → homdel / single-copy-loss thresholds).
     - Model-side per-gene LOH is NOT currently loaded (unwired): OmicsGlobalSignatures.csv holds only

@@ -16,7 +16,7 @@ DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT") or str(
 _FILL, _LINE = "#1f4e79", "#0a2540"
 
 
-def build_summary(target: str, indication: str = None, release_pin: str = "26q1", plot_data_out=None) -> dict:
+def build_summary(target: str, indication: str = None, release_pin: str = "26q3", plot_data_out=None) -> dict:
     """Q5 summary. indication accepted for the CARD_DISPATCHERS contract but NOT consumed
     (RNA↔protein concordance is a per-ModelID target property, indication-independent).
     plot_data_out (figure offline seam): forwarded so plot_data_rna_protein.parquet persists."""
@@ -129,7 +129,7 @@ def emit_svg(
         "cell-line RNA vs. protein",
         out_path=out_path,
         kind="scatter",
-        provenance=f"DepMap 26Q1 RNA  ·  Gygi TMT MS protein  ·  n={summary.get('n_paired_models')} paired cell lines",
+        provenance=f"DepMap 26Q3 RNA  ·  Gygi TMT MS protein  ·  n={summary.get('n_paired_models')} paired cell lines",
         takeaway=_proxy_takeaway(target, r, cls),
     ) as F:
         ax = F.ax
@@ -333,7 +333,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", default=None)
-    ap.add_argument("--release-pin", default="26q1")
+    ap.add_argument("--release-pin", default="26q3")
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--target-contracts", default=DEFAULT_TARGET_CONTRACTS)
     args = ap.parse_args()

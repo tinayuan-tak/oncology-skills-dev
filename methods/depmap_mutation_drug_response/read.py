@@ -24,7 +24,7 @@ import statistics
 from typing import Optional
 
 # Single-source release-pin → PRISM OncRef source prefix (mirrors depmap_prism_precompute v3).
-# NOTE the pin is the DepMap pin (default "26q1"): it resolves the DepMap mutation-matrix PARQUET
+# NOTE the pin is the DepMap pin (default "26q3"): it resolves the DepMap mutation-matrix PARQUET
 # product (depmap-{pin}-parquet-v1) in load_mutation_data. It was previously "dmc-26q1", which
 # resolves depmap-dmc-26q1-parquet-v1 (UNREGISTERED) → the parquet tier failed → every call fell
 # back to the slow full-CSV mutation read. PRISM itself uses its own independent 25q4 release
@@ -162,7 +162,7 @@ def load_drug_response_by_model(release_pin: str, sample_ids: list, aggregate: s
 
 
 def read_mutation_drug_response(
-    target: str, indication: Optional[str] = None, release_pin: str = "26q1", aggregate: str = "best"
+    target: str, indication: Optional[str] = None, release_pin: str = "26q3", aggregate: str = "best"
 ) -> dict:
     """Card entry point: genotype × PRISM drug-response biomarker for target.
 

@@ -41,7 +41,7 @@ def classify_abundance_dependency(pearson_r: Optional[float], pearson_p: Optiona
     return "no_protein_dependency_link"
 
 
-def read_abundance_dependency(target: str, indication: Optional[str] = None, release_pin: str = "26q1") -> dict:
+def read_abundance_dependency(target: str, indication: Optional[str] = None, release_pin: str = "26q3") -> dict:
     """Q7 protein arm — correlate target Gygi-MS protein abundance with its Chronos dependency across
     DepMap cell lines. Returns the class + stats + a comparison hook to the RNA arm. data-safe."""
     ensure_aws_profile()
@@ -98,7 +98,7 @@ def read_abundance_dependency(target: str, indication: Optional[str] = None, rel
             release_pin=release_pin, target_symbol=sym
         )
     except Exception as e:  # noqa: BLE001
-        chronos_by_model, model_meta, errs = {}, {}, [{"_live_read_error": type(e).__name__}]
+        chronos_by_model, _model_meta, errs = {}, {}, [{"_live_read_error": type(e).__name__}]
     if errs or not chronos_by_model:
         base.update(
             {

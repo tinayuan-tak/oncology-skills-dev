@@ -40,12 +40,12 @@ def read_cn_stratified_dependency(target: str, indication: Optional[str] = None)
     from methods.depmap_cn_distribution import cli as cncli
 
     # 1. Chronos (reuse Card-1's loader)
-    chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(release_pin="26q1", target_symbol=target)
+    chronos_by_model, model_metadata, chronos_errs = c1cli.load_depmap_files(release_pin="26q3", target_symbol=target)
     if chronos_errs:
         return {
             "_live_read_error": chronos_errs[0].get("_live_read_error", "s3_or_local_read_failed"),
             "errors": chronos_errs,
-            "_remediation": "Method cannot reach DepMap 26Q1 Chronos; verify local cache or AWS credentials.",
+            "_remediation": "Method cannot reach DepMap 26Q3 Chronos; verify local cache or AWS credentials.",
             "cn_stratification_class": "data_unavailable",
         }
     if not chronos_by_model:
@@ -56,14 +56,14 @@ def read_cn_stratified_dependency(target: str, indication: Optional[str] = None)
         }
 
     # 2. Relative CN (already bridged ModelConditionID → ModelID by load_cn_files)
-    cn_by_model, _cn_meta, assay_used, cn_errs = cncli.load_cn_files(release_pin="26q1", target_symbol=target)
+    cn_by_model, _cn_meta, assay_used, cn_errs = cncli.load_cn_files(release_pin="26q3", target_symbol=target)
     if cn_errs or not cn_by_model:
         return {
             "_live_read_error": (
                 cn_errs[0].get("_live_read_error", "cn_read_failed") if cn_errs else "no_cn_for_target"
             ),
             "errors": cn_errs,
-            "_remediation": "Method cannot reach DepMap 26Q1 copy number; verify local cache or AWS credentials.",
+            "_remediation": "Method cannot reach DepMap 26Q3 copy number; verify local cache or AWS credentials.",
             "cn_stratification_class": "data_unavailable",
         }
 

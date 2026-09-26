@@ -31,7 +31,7 @@ PEARSON_FISHER_Z_SE_COEFF = 1.0
 SPEARMAN_FISHER_Z_SE_COEFF = 1.06
 
 
-def _paired_rna_protein(target: str, release_pin: str = "26q1"):
+def _paired_rna_protein(target: str, release_pin: str = "26q3"):
     """Per-ModelID paired (rna_log2tpm, protein_log2abundance) for target across DepMap cell lines.
     Reuses the two landed per-model readers (RNA = card4 S3 matrix; protein = Gygi MS).
     Returns (rna_by_model, protein_by_model, note) — note is a data-gap string or None."""
@@ -61,7 +61,7 @@ def _paired_rna_protein(target: str, release_pin: str = "26q1"):
 
 
 def read_rna_protein_concordance(
-    target: str, release_pin: str = "26q1", plot_data_out: "Optional[Path]" = None
+    target: str, release_pin: str = "26q3", plot_data_out: "Optional[Path]" = None
 ) -> dict:
     """Q5 assembler — cell-line RNA↔protein concordance for target. target-grain (no indication).
 
@@ -558,7 +558,7 @@ def read_tumor_rna_protein_scatter(target: str, indication: str) -> dict:
     return _scatter_from_frame(df, target, cohort)
 
 
-def read_rna_protein_scatter(target: str, release_pin: str = "26q1") -> dict:
+def read_rna_protein_scatter(target: str, release_pin: str = "26q3") -> dict:
     """Per-model paired points for the Q5 scatter figure (RNA x, protein y). data-gap-safe."""
     rna_by_model, prot_by_model, note = _paired_rna_protein(target, release_pin=release_pin)
     if not rna_by_model or not prot_by_model:

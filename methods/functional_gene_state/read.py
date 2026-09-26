@@ -4,7 +4,7 @@ Two arms sharing ONE classifier (classify.py):
   PATIENT (TCGA): MC3 mutations ⋈ PanCanAtlas ABSOLUTE segments (point-in-interval LOH/homdel at the
                   mutation locus) + GISTIC per-gene discrete CN (homdel for the no-mutation case),
                   scoped to the indication via merged_sample_quality_annotations (barcode→cancer type).
-  MODEL (DepMap 26q1): OmicsSomaticMutationsMatrixDamaging/Hotspot (model × gene boolean) +
+  MODEL (DepMap 26q3): OmicsSomaticMutationsMatrixDamaging/Hotspot (model × gene boolean) +
                   OmicsCNGeneWGS relative per-gene CN (homdel / single-copy-loss thresholds).
 
 READ-PATH DISCIPLINE: the raw inputs are large (ABSOLUTE 253 MB, MC3 MAF + DepMap matrices hundreds
@@ -35,7 +35,7 @@ MC3_KEY = f"{bucket_prefix_for('tcga-mc3-public-v0-2-8')[1]}mc3.v0.2.8.PUBLIC.ma
 ABS_SEGTABS_KEY = f"{PANCAN_PREFIX}/TCGA_mastercalls.abs_segtabs.fixed.txt"
 GISTIC_KEY = f"{PANCAN_PREFIX}/all_thresholded.by_genes_whitelisted.tsv"
 SAMPLE_ANNOT_KEY = f"{PANCAN_PREFIX}/merged_sample_quality_annotations.tsv"
-DEPMAP_PREFIX = bucket_prefix_for("depmap-consortium-26q1")[1].rstrip("/")
+DEPMAP_PREFIX = bucket_prefix_for("depmap-consortium-26q3")[1].rstrip("/")
 
 # CCLE 2019 RRBS methylation (model side, epigenetic arm).
 # Rows = TSS-1kb windows; locus_id = GENESYMBOL_CHR_START_END.
@@ -470,7 +470,7 @@ def _abs_sample_key(mc3_barcode: str, segs) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Model arm (DepMap 26q1)
+# Model arm (DepMap 26q3)
 # ─────────────────────────────────────────────────────────────────────────────
 @lru_cache(maxsize=1)
 def _load_ccle_colname_to_model_id() -> dict:
@@ -670,7 +670,7 @@ def _read_patient_methylation(target: str, indication: str) -> dict:
         return {}
 
 
-# DepMap matrix CSV → parquet product name (depmap-26q1-parquet-v1, column-projection reads).
+# DepMap matrix CSV → parquet product name (depmap-26q3-parquet-v1, column-projection reads).
 _DEPMAP_MATRIX_PARQUET = {
     "OmicsSomaticMutationsMatrixDamaging.csv": "OmicsSomaticMutationsMatrixDamaging.parquet",
     "OmicsSomaticMutationsMatrixHotspot.csv": "OmicsSomaticMutationsMatrixHotspot.parquet",
@@ -774,7 +774,7 @@ def _depmap_cn_class(rel_cn: Optional[float]) -> Optional[str]:
 
 
 def read_model_states_per_model(target: str) -> dict:
-    """PUBLIC per-model accessor: the DepMap 26q1 functional gene state of `target` per cell line.
+    """PUBLIC per-model accessor: the DepMap 26q3 functional gene state of `target` per cell line.
 
     Returns {ModelID: {state, cn_class, has_mutation, mutation_is_lof, is_methylated}} — the
     per-model rows the aggregate model arm rolls up. Empty dict when absent from all substrate.
@@ -824,7 +824,7 @@ def read_model_states_per_model(target: str) -> dict:
 
 
 def _read_model_arm(target: str) -> dict:
-    """Model (DepMap 26q1) functional-gene-state DISTRIBUTION across all cell lines (pan-lineage) —
+    """Model (DepMap 26q3) functional-gene-state DISTRIBUTION across all cell lines (pan-lineage) —
     a pure roll-up of read_model_states_per_model. Model-side LOH is genome-wide only (not per-gene)
     → copy-neutral mutations resolve `uncertain` rather than a false biallelic (documented caveat)."""
     per_model = read_model_states_per_model(target)
