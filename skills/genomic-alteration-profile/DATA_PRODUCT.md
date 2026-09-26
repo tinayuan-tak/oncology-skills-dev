@@ -93,9 +93,12 @@ source (coordinate; major on rename); new facet → no schema change.
 
 ## 5. Known gaps & notes (non-blocking)
 
-- **No stale-metadata bugs** (unlike other skills — genomic's cards are clean). Several verdict-driving
-  cards are sub-1.0 versions (`splice-exon-skip-landscape` v0.1.0, `alteration-role`, `functional-gene-state`,
-  …) yet fully wired + materialized — low version ≠ placeholder.
+- **Cards are md5-clean, which is NOT the same as release-current** (see #C1/#C2). "md5-clean" means the
+  cited artifacts match their recorded checksums — no stale-metadata *corruption* — but it does NOT assert
+  that each card cites the latest available *release* of its source (a pinned older release is md5-clean yet
+  release-behind). Read this note as "no checksum drift", not "everything is on the newest release". Several
+  verdict-driving cards are sub-1.0 versions (`splice-exon-skip-landscape` v0.1.0, `alteration-role`,
+  `functional-gene-state`, …) yet fully wired + materialized — low version ≠ placeholder.
 - **Logical aliases resolved at read time:** `gdc-pancohort-somatic` (→ `-dr45-0`, per-indication pushdown),
   `depmap-predictability` (→ `-26q1-v4` by release pin). Indication-scoped derived products carry an
   `indication` column filtered per-indication at read.

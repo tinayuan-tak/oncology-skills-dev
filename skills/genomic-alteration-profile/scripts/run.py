@@ -590,7 +590,9 @@ _HEADLINE_FIELDS: list[tuple[str, str, str]] = [
     ("functional_state_class", "functional-gene-state", "functional_state_class"),
     ("clonality_class", "target-clonality", "clonality_class"),
     ("clonal_fraction", "target-clonality", "clonal_fraction"),
-    ("clonality_n_mutant_samples", "target-clonality", "n_mutant_samples"),
+    # `n_mutant_samples` was lifted here but read by no surface (no genomic claim carries a clonality
+    # denominator, and `clonal_fraction` — the salience effect field — already carries the clonality
+    # read). Dropped as a dead lift (#1767 field hygiene) rather than folded into a surface it has none.
     ("event_correspondence_class", "genomic-event-model-match", "event_correspondence_class"),
     # ── Indication-level cohort context (target-independent) ─────────────────
     ("aneuploidy_burden_class", "genomic-instability-state", "aneuploidy_burden_class"),
@@ -835,17 +837,55 @@ def reconciled_verdict_from_cards(raw_verdict: str | None, cards) -> str | None:
 
 
 def _genomic_tension_extra(headline: dict):
-    """The sharpest cross-class caveat: the verdict rests on a PAN-CANCER extrapolation (a pan-lineage
-    cell-line dependency / spectrum call), not an in-indication signal — the scope leak the one-word
-    verdict otherwise hides, surfaced by the existing genomic_alteration_by_scope decomposition."""
+    """The sharpest cross-class SCOPE caveat on the stratified-dependency verdict. Three related
+    scope-leak candidates, highest severity wins (verdict-inert, display-only):
+
+      1. the verdict rests on a PAN-CANCER extrapolation (`scope_of_driving_verdict`), not an
+         in-indication signal — the scope leak the one-word verdict otherwise hides;
+      2. the stratified-dependency call is LINEAGE-CONTEXT DIVERGENT
+         (`stratified_lineage_context_divergent`): the within-indication and pan-cancer arms
+         disagree, so the pan-cancer read does not transfer cleanly to this indication;
+      3. a pan-fallback strong call was CAPPED to moderate
+         (`stratified_pan_fallback_capped`): the strong signal was earned only pan-cancer and was
+         deliberately demoted for this indication.
+
+    Candidate (1) is listed first so it wins any severity tie, preserving the prior output byte-for-byte
+    where the driving verdict is a pan-cancer extrapolation."""
     scope = (headline.get("genomic_alteration_by_scope") or {}).get("scope_of_driving_verdict")
+    cands = []
     if scope == "pan_cancer_extrapolation":
-        return {
-            "text": "verdict rests on a pan-cancer extrapolation, not an in-indication signal",
-            "source": "genomic_alteration_by_scope.scope_of_driving_verdict",
-            "severity": 3,
-        }
-    return None
+        cands.append(
+            {
+                "text": "verdict rests on a pan-cancer extrapolation, not an in-indication signal",
+                "source": "genomic_alteration_by_scope.scope_of_driving_verdict",
+                "severity": 3,
+            }
+        )
+    if headline.get("stratified_lineage_context_divergent"):
+        cands.append(
+            {
+                "text": (
+                    "stratified-dependency call is lineage-context divergent: the within-indication and "
+                    "pan-cancer arms disagree, so the pan-cancer read may not transfer to this indication"
+                ),
+                "source": "mutation-stratified-dependency.lineage_context_divergent",
+                "severity": 3,
+            }
+        )
+    if headline.get("stratified_pan_fallback_capped"):
+        cands.append(
+            {
+                "text": (
+                    "a pan-cancer-fallback strong stratified-dependency call was capped to moderate for "
+                    "this indication (the strong signal was earned only pan-cancer)"
+                ),
+                "source": "mutation-stratified-dependency.pan_fallback_strong_capped_to_moderate",
+                "severity": 2,
+            }
+        )
+    if not cands:
+        return None
+    return max(cands, key=lambda t: t["severity"])
 
 
 _GENOMIC_HEADLINE_SPEC = HeadlineSpec(

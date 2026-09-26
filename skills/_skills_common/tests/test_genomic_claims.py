@@ -851,3 +851,60 @@ def test_dependence_structure_is_relational_not_a_global_boolean():
     # the grain comparability caveat (panel denominator != exome) is carried, per F caveat §5
     assert "not" in claim["provenance"]["independence_note"].lower()
     assert "exome" in claim["provenance"]["independence_note"].lower()
+
+
+# ── #1767 field-hygiene: verdict-inert breadcrumbs + cohort-context hypermutator caveat ────────────
+def test_oncogenic_actionability_breadcrumb_folded_into_role_evidence():
+    """civic_oncogenic_variants (previously a dark headline lift) surfaces in the ROLE claim evidence,
+    symmetric to the landed resistance rescue. Verdict-inert: ROLE signal tier is unchanged."""
+    h = _kras_headline()
+    h["alteration_role"] = "oncogene"
+    h["functional_direction"] = "activating"
+    h["civic_oncogenic_variants"] = [{"variant": "G12D"}, {"variant": "G12C"}]
+    vec = genomic_claim_vector(h, [])
+    assert "CIViC oncogenic" in vec["ROLE"]["evidence"]
+    assert "G12D" in vec["ROLE"]["evidence"]
+    # byte-stable when absent: no oncogenic clause
+    h2 = _kras_headline()
+    h2["alteration_role"] = "oncogene"
+    assert "CIViC oncogenic" not in genomic_claim_vector(h2, [])["ROLE"]["evidence"]
+
+
+def test_drug_response_breadcrumb_folded_into_dep_evidence():
+    h = _kras_headline()
+    h["drug_response_delta_log2auc"] = -1.3
+    h["drug_response_n_on_target_compounds"] = 4
+    ev = genomic_claim_vector(h, [])["DEP"]["evidence"]
+    assert "PRISM drug-response" in ev and "on-target compound" in ev
+    # absent → byte-stable (no clause)
+    assert "PRISM drug-response" not in genomic_claim_vector(_kras_headline(), [])["DEP"]["evidence"]
+
+
+def test_fusion_partner_breadcrumb_folded_into_fus_evidence():
+    h = _fusion_dependent_headline()
+    h["genie_sv_recurrent_partners"] = ["EML4", "KIF5B"]
+    assert "recurrent partner" in genomic_claim_vector(h, [])["FUS"]["evidence"]
+    assert "recurrent partner" not in genomic_claim_vector(_fusion_dependent_headline(), [])["FUS"]["evidence"]
+
+
+def test_hypermutator_caveat_fires_on_recurrence_positive_in_hypermutator_cohort():
+    h = _kras_headline()  # strong recurrence-driven SNV positive
+    h["msi_class"] = "msi_high_enriched"
+    h["dominant_mutational_process"] = "mmr_deficiency"
+    h["target_pathway_alteration"] = "RTK-RAS_altered"
+    ks = genomic_key_signals(h, [])
+    cav = ks.get("cohort_context_caveat")
+    assert cav is not None and "hypermutator" in cav["text"]
+    assert "msi_class" in cav["text"]
+
+
+def test_hypermutator_caveat_byte_stable_without_context_or_recurrence():
+    # recurrence-positive but MSS cohort → no caveat
+    h = _kras_headline()
+    h["msi_class"] = "mss_dominant"
+    h["dominant_mutational_process"] = "tobacco"
+    assert "cohort_context_caveat" not in genomic_key_signals(h, [])
+    # hypermutator cohort but no recurrence-driven SNV positive → no caveat
+    h2 = _fusion_dependent_headline()
+    h2["msi_class"] = "msi_high_enriched"
+    assert "cohort_context_caveat" not in genomic_key_signals(h2, [])

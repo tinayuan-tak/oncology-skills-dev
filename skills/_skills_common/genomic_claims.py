@@ -178,6 +178,11 @@ def _role_signal(h, c):
     sig = _ROLE_SIGNAL.get(cls, "unmeasured")
     fd = h.get("functional_direction")
     ev = f"curated role: {cls or 'data_unavailable'}" + (f" ({fd})" if fd else "")
+    # VERDICT-INERT clinical-actionability breadcrumb: name the specific curated ONCOGENIC alleles behind
+    # the role call (CIViC), symmetric to the resistance rescue on the DEP claim. None → no clause.
+    _onc = _oncogenic_actionability(h)
+    if _onc:
+        ev = ev + f"; {_onc}"
     return sig, ev, None
 
 
@@ -447,10 +452,25 @@ def _cn_corroboration(h, c):
     return corroboration_from_arms([True, patient_arm])
 
 
+def _fus_partner_breadcrumb(h) -> str:
+    """VERDICT-INERT clause naming the recurrent 3'/5' partner genes (`genie_sv_recurrent_partners`,
+    already lifted onto the headline but read by nothing) — the partner recurrence that is the
+    discriminator behind `fusion_recurrence_confidence`. Empty string when no recurrent partner is
+    curated (byte-stable — nothing appended). Text-only."""
+    partners = h.get("genie_sv_recurrent_partners") if isinstance(h, dict) else None
+    if not isinstance(partners, (list, tuple)) or not partners:
+        return ""
+    names = [str(p).strip() for p in partners if p]
+    if not names:
+        return ""
+    return f"; recurrent partner(s): {', '.join(names[:3])} [fusion-rearrangement-landscape]"
+
+
 def _fus_signal(h, c):
     bc = _by_class(h).get("fusion") or {}
     cls = bc.get("verdict")  # fusion_class
     sig = _FUS_SIGNAL.get(cls, "unmeasured")
+    _partners = _fus_partner_breadcrumb(h)
     # #983 COPY-NUMBER GATE (upstream, card preprocessor): a moderate_promiscuous fusion at a recurrently
     # focally-AMPLIFIED locus is demoted to `promiscuous_amplicon_fusion` (an amplicon passenger, not a
     # competent driver) BEFORE rules fire — so it fires no driver rung and drops out of the multi-class
@@ -474,7 +494,7 @@ def _fus_signal(h, c):
     # the amplified vs not-focally-amplified halves of the moderate_promiscuous bucket).
     if sig == "strong" and h.get("fusion_recurrence_confidence") == "moderate_promiscuous":
         return "weak", f"fusion: {cls} (low-confidence: moderate_promiscuous — no recurrent partner)", None
-    return sig, f"fusion: {cls or 'data_unavailable'}", None
+    return sig, f"fusion: {cls or 'data_unavailable'}" + _partners, None
 
 
 def _spl_signal(h, c):
@@ -632,6 +652,57 @@ def _resistance_actionability(h) -> str | None:
     )
 
 
+def _oncogenic_actionability(h) -> str | None:
+    """VERDICT-INERT clinical-actionability breadcrumb from CIViC per-variant interpretation, symmetric to
+    `_resistance_actionability` on the ONCOGENIC side. Summarises the curated ONCOGENIC alleles
+    (`civic_oncogenic_variants`, already lifted onto the headline) as a compact clause folded into the
+    ROLE (curated-driver-role) claim's evidence, so the narrator names the specific curated oncogenic
+    alleles behind an OncoKB/IntOGen driver-role call rather than only the class label. The oncogenic
+    list, like the resistance list, is fully present on the card but was invisible to the
+    claim_vector / key_signals / narrator (the capsule projection surfaces neither). Class-generic (no
+    hardcoded allele / indication); returns None when no oncogenic alleles are curated (axis byte-stable
+    — no clause added). A clinical-INTERPRETATION annotation on the target's OWN alterations, squarely
+    within this skill's variant-level-interpretation card — never a verdict input (the claim vector never
+    feeds the genomic resolver)."""
+    ov = h.get("civic_oncogenic_variants") if isinstance(h, dict) else None
+    if not isinstance(ov, list) or not ov:
+        return None
+    alleles: list[str] = []
+    for v in ov:
+        if not isinstance(v, dict):
+            continue
+        name = v.get("variant") or v.get("name") or v.get("allele")
+        if name:
+            alleles.append(str(name).strip())
+    n = len(ov)
+    top = ", ".join(alleles[:3]) if alleles else None
+    return (
+        f"CIViC oncogenic: {n} curated oncogenic allele(s)"
+        + (f" (e.g. {top})" if top else "")
+        + " [variant-level-interpretation]"
+    )
+
+
+def _drug_response_breadcrumb(h) -> str | None:
+    """VERDICT-INERT quantification of the PHARMACOLOGY arm folded into the DEP claim's evidence: names
+    the PRISM genotype→drug-response effect size (`drug_response_delta_log2auc`) and the number of
+    on-target compounds it was measured over (`drug_response_n_on_target_compounds`), both already lifted
+    onto the headline but previously read by nothing. Returns None when neither is measured (byte-stable —
+    no clause added). Text-only; touches no signal / corroboration tier."""
+    if not isinstance(h, dict):
+        return None
+    delta = h.get("drug_response_delta_log2auc")
+    n_comp = h.get("drug_response_n_on_target_compounds")
+    parts: list[str] = []
+    if isinstance(delta, (int, float)):
+        parts.append(f"Δlog2AUC(mut vs wt) {delta:+.2f}")
+    if isinstance(n_comp, (int, float)) and n_comp:
+        parts.append(f"{int(n_comp)} on-target compound(s)")
+    if not parts:
+        return None
+    return "PRISM drug-response: " + ", ".join(parts) + " [mutation-drug-response]"
+
+
 def _dep_signal(h, c):
     bc = _by_class(h)
     fields = [
@@ -645,7 +716,10 @@ def _dep_signal(h, c):
     # VERDICT-INERT clinical-actionability breadcrumb (CIViC therapy-resistance) folded into the DEP
     # ("actionability so what") claim's rendered evidence so the narrator surfaces it; None → no clause.
     _res = _resistance_actionability(h)
-    _res_clause = f"; {_res}" if _res else ""
+    # VERDICT-INERT pharmacology-arm quantification (drug_response_delta_log2auc + on-target compound
+    # count) folded into the same DEP evidence clause; None → no clause. Text-only.
+    _drug = _drug_response_breadcrumb(h)
+    _res_clause = ("; " + _res if _res else "") + ("; " + _drug if _drug else "")
     # VERDICT-INERT alteration-confound caveat on the DEP claim (#1765). The producer sets
     # `fusion_stratification_confound == "alteration_confounded"` ONLY on a fusion-positive-dependent call
     # whose fusion+ subgroup is majority target-altered (mutation ∪ focal amp) — so the measured fusion
@@ -1136,6 +1210,51 @@ def genomic_claim_vector(headline: dict, cards: list) -> dict:
     return vec
 
 
+# Cohort mutagenic contexts whose elevated mutation rate makes a recurrence-based "selected driver" call
+# less credible: a recurrent SNV can arise by hypermutation rather than positive selection. MSI-high
+# (mmr_deficiency) + POLE + APOBEC are the canonical hypermutator processes (see
+# mutational-signature-context / genomic-instability-state vocab); HRD/tobacco/UV are mutagens but not
+# hypermutator states in this sense.
+_HYPERMUTATOR_PROCESSES = frozenset({"apobec", "mmr_deficiency", "pole"})
+
+
+def _hypermutator_recurrence_caveat(h, vec) -> dict | None:
+    """VERDICT-INERT cohort-context caveat: a recurrence-driven positive SNV call read in an MSI-high /
+    POLE / APOBEC hypermutator cohort is less credible as a POSITIVELY-SELECTED driver, because a
+    recurrent SNV can arise from the elevated background mutation rate rather than selection. Reads only
+    already-lifted headline cohort-context fields (`msi_class` / `model_msi_class` /
+    `dominant_mutational_process`, plus `target_pathway_alteration` as the target's own cohort
+    pathway-alteration frequency). Returns None (key omitted → byte-stable) unless BOTH a recurrence-driven
+    SNV positive AND a hypermutator context hold. Touches no signal / corroboration tier or verdict."""
+    if not isinstance(h, dict):
+        return None
+    # recurrence-driven SNV positive: the SNV claim carries a measured (>= moderate) recurrence signal
+    if not sig_ge((vec.get(SNV) or {}).get("signal") or "unmeasured", "moderate"):
+        return None
+    contexts: list[str] = []
+    if h.get("msi_class") == "msi_high_enriched":
+        contexts.append("patient MSI-high (msi_class)")
+    if h.get("model_msi_class") == "msi_high_enriched":
+        contexts.append("model MSI-high (model_msi_class)")
+    proc = h.get("dominant_mutational_process")
+    if proc in _HYPERMUTATOR_PROCESSES:
+        contexts.append(f"dominant process {proc}")
+    if not contexts:
+        return None
+    tpa = h.get("target_pathway_alteration")
+    tpa_clause = f"; target pathway-alteration {tpa}" if tpa not in (None, "", "data_unavailable") else ""
+    return {
+        "text": (
+            "recurrence-driven driver call read in a hypermutator cohort ("
+            + ", ".join(contexts)
+            + ") — a recurrent SNV here may reflect the elevated background mutation rate rather than "
+            "positive selection" + tpa_clause
+        ),
+        "source": "genomic-instability-state.msi_class / mutational-signature-context.dominant_process",
+        "severity": 2,
+    }
+
+
 def genomic_key_signals(headline: dict, cards: list) -> dict:
     """A brief, direct, CITED read (deterministic; available without the LLM)."""
     vec = genomic_claim_vector(headline, cards)
@@ -1215,7 +1334,7 @@ def genomic_key_signals(headline: dict, cards: list) -> dict:
                 base = base.rstrip(".") + ", biomarker-stratified dependency."
         return base
 
-    return build_key_signals(
+    ks = build_key_signals(
         vec,
         rank_keys=(SNV, CN, FUS, SPL, DEP),
         support_fns={SNV: sup_snv, CN: sup_cn, FUS: sup_fus, SPL: sup_spl, DEP: sup_dep},
@@ -1225,6 +1344,12 @@ def genomic_key_signals(headline: dict, cards: list) -> dict:
         caveat_fns={SNV: cav_snv, CN: cav_cn, FUS: cav_cn, SPL: cav_spl, DEP: cav_dep},
         headline_fn=head,
     )
+    # VERDICT-INERT cohort-context caveat: recurrence-driven positive in a hypermutator cohort. Key
+    # OMITTED (byte-stable) unless it fires; never touches the spine or the existing signals.
+    _cohort = _hypermutator_recurrence_caveat(h, vec)
+    if _cohort is not None:
+        ks["cohort_context_caveat"] = _cohort
+    return ks
 
 
 __all__ = ["genomic_claim_vector", "genomic_key_signals", "GENOMIC_CLAIM_SPEC"]
