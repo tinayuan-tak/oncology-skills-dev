@@ -30,23 +30,32 @@ from _skills_common.skill_report import ROLE_GATING, build_skill_report
 from _skills_common.subgroup_derivation import make_value_classifier
 
 # Signals-first sub-group reader (VERDICT-INERT). Thesis: a differentiation signal exists (co-mutation
-# pattern / stemness node / prognostic association). default_classify is the fallback for unmapped values.
+# pattern / prognostic association / pathway-node leverage). default_classify is the fallback for unmapped
+# values. Keys MUST track the tokens the differentiation cards actually emit — the canonical per-axis tier
+# maps live in _skills_common/differentiation_claims.py (_COMUT_SIGNAL / _SURVIVAL_SIGNAL / _PROGNOSIS_SIGNAL
+# / _NODE_SIGNAL); this map is their union so an emitted token never falls through default_classify to
+# `absent` (which would flip a measured signal to "no signal"). #1819 (instance of #1644).
 _DIFFERENTIATION_VALUE_TIERS = {
+    # co-mutation / mutual-exclusivity (cooccurrence_class)
+    "strong_cooccurring": "strong",
+    "strong_mutually_exclusive": "strong",
+    "modest_cooccurring": "moderate",
+    "modest_mutually_exclusive": "moderate",
     "both_patterns_present": "moderate",
-    "co_occurrence": "moderate",
-    "mutual_exclusivity": "moderate",
-    "no_significant_pattern": "absent",
-    "stem_high": "strong",
-    "stem_intermediate": "moderate",
-    "stem_low": "weak",
-    "dominant_node": "strong",
-    "intermediate_node": "moderate",
-    "peripheral_node": "weak",
+    "ns": "absent",
+    # survival / prognosis (survival_association_class / prognostic_class)
+    "expression_high_worse_survival": "strong",
     "expression_high_better_survival": "moderate",
-    "expression_high_worse_survival": "moderate",
-    "no_prognostic_association": "absent",
     "no_survival_association": "absent",
-    "subtype_stratifies_survival": "strong",
+    "insufficient_survival_data": "unmeasured",
+    "no_prognostic_association": "absent",
+    # pathway-node leverage (node_leverage_class)
+    "dominant_node": "strong",
+    "dominated_but_tractability_edge": "moderate",
+    "dominated_node": "weak",
+    "weak_and_uncontested": "weak",
+    "no_node_set": "absent",
+    "data_unavailable": "unmeasured",
 }
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.resolver import resolve_or_raise
