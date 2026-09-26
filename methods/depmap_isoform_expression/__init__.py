@@ -1,6 +1,6 @@
 """depmap_isoform_expression — per-gene MODEL-side isoform-expression summary from DepMap.
 
-The isoform/splice-EXPRESSION axis (roadmap #2), model arm. DepMap 26q1 ships per-transcript TPM
+The isoform/splice-EXPRESSION axis (roadmap #2), model arm. DepMap 26q3 ships per-transcript TPM
 (OmicsExpressionTranscriptTPMLogp1HumanAllGenes.csv, models × ENST) — landed but UNCONSUMED. This
 summarizes, per gene, how DOMINATED its expression is by a single isoform across the cell-line panel:
 

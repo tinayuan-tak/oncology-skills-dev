@@ -14,7 +14,7 @@ A genomic window is the robust cross-source primitive: it isolates the exon-14 c
 excludes the distant splice sites, and it validates against the canonical cell lines.
 
 Coordinates are pinned to a genome build; callers MUST supply build-matched positions
-(DepMap 26Q1 + TCGA MC3 + GENIE public are all hg38-aligned).
+(DepMap 26Q3 + TCGA MC3 + GENIE public are all hg38-aligned).
 
 SCOPE NOTE: this registry is deliberately event-specific, NOT a generic "any exon skip"
 heuristic. Distinct exon/isoform oncogenic events arise by distinct mechanisms (EGFRvIII is
