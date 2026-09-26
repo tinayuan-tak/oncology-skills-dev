@@ -364,6 +364,14 @@ _DECLARED_SELECTIVITY_CORROBORATION_BUILDERS = {
         "four INDEPENDENT reads of the SAME malignant-cell-intrinsic property, one multi-modal quorum "
         "(commensurate by same-property; see _INT_COMMENSURATE_ARM_FIELDS)"
     ),
+    "_selectivity_concordance_claim": (
+        "bulk-RNA tumor-vs-normal window (recount3 TCGA/GTEx) × protein-MS tumor-vs-normal window (CPTAC "
+        "TMT-MS) — the two INDEPENDENT arms of the L2b-5 selectivity_concordance family (SK#1752). Two "
+        "reads of the SAME tumor-vs-normal-window property at DIFFERENT molecular layers (commensurate by "
+        "same-property, cross-modality). The protein arm is one arm supplied by a same-modality group "
+        "{cptac_tmt, tphp_dia}; TPHP DIA-MS is corroboration-INELIGIBLE (never a third independent arm), "
+        "so corroboration_from_arms folds EXACTLY [rna_arm, protein_arm] — never a TPHP third arm."
+    ),
 }
 
 # The headline fields `_int_corroboration` reads to build its arms. Each is a read of the malignant-

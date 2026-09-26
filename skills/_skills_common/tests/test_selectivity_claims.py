@@ -18,6 +18,7 @@ if str(SKILLS) not in sys.path:
 
 from _skills_common import selectivity_claims as sel  # noqa: E402
 from _skills_common.selectivity_claims import (  # noqa: E402
+    _selectivity_concordance_claim,
     selectivity_claim_vector,
     selectivity_key_signals,
 )
@@ -724,3 +725,201 @@ def test_selectivity_atoms_absent_without_cards():
     vec = selectivity_claim_vector(_ceacam5_headline(), [])
     for ax in ("WIN", "DIST", "INT", "SAFE"):
         assert "evidence_atom" not in vec[ax], f"{ax} gained an atom with no source card"
+
+
+# ── L2b-5 selectivity_concordance (SK#1752) — cross-source tumor-vs-normal WINDOW ──────────────────
+def _sc_h(rna="strong_tumor_selective", cptac_eff=1.6, cptac_q=0.01, tphp_eff=None, tphp_q=None, log2fc=2.1):
+    """Minimal headline exercising the selectivity_concordance builder's two independent arms."""
+    return {
+        "axis_a_selectivity_class": rna,
+        "max_abs_log2fc": log2fc,
+        "protein_tumor_vs_normal_effect_size": cptac_eff,
+        "protein_tumor_vs_normal_q_value": cptac_q,
+        "protein_tumor_vs_normal_tphp_effect_size": tphp_eff,
+        "protein_tumor_vs_normal_tphp_q_value": tphp_q,
+    }
+
+
+def test_selectivity_concordance_both_arms_agree_positive():
+    c = _selectivity_concordance_claim(_sc_h(rna="strong_tumor_selective", cptac_eff=1.6, cptac_q=0.01))
+    assert c["concordance_class"] == "selectivity_window_concordant"
+    assert c["corroboration"] == "high"
+    assert c["integration_method"] == "explicit_deterministic"
+    assert c["concordance_support"]["agreed_direction"] == "tumor_selective_window"
+    assert c["corroborating_independent_arm_count"] == 2
+    assert c["resolved_source_count"] == 2  # RNA + CPTAC (no TPHP)
+    assert c["boundary_sensitive"] is False
+    assert c["qualifying_signal"] is None
+
+
+def test_selectivity_concordance_both_arms_agree_negative():
+    # RNA measured non-selective + protein measured-but-not-significant → both agree NO window.
+    c = _selectivity_concordance_claim(_sc_h(rna="not_selective", cptac_eff=0.4, cptac_q=0.5))
+    assert c["concordance_class"] == "selectivity_window_concordant"
+    assert c["concordance_support"]["agreed_direction"] == "no_selective_window"
+    assert c["corroboration"] == "high"
+
+
+def test_selectivity_concordance_protein_masks_rna_only_window():
+    # RNA sees a window, protein does NOT corroborate (measured, not significant) — the RNA-only FP.
+    c = _selectivity_concordance_claim(_sc_h(rna="strong_tumor_selective", cptac_eff=0.3, cptac_q=0.9))
+    assert c["concordance_class"] == "protein_masks_selectivity_window"
+    assert c["corroboration"] == "low"
+    assert c["concordance_support"] == {"window_in": "rna_bulk", "no_window_in": "protein_ms"}
+    assert c["boundary_sensitive"] is True
+    assert c["qualifying_signal"]["source"] == "protein_ms"
+
+
+def test_selectivity_concordance_protein_significant_down_is_no_window():
+    # A significant tumor-DOWN protein direction is a resolved NO-window (anti-selective), not a window.
+    c = _selectivity_concordance_claim(_sc_h(rna="strong_tumor_selective", cptac_eff=-1.4, cptac_q=0.001))
+    assert c["concordance_class"] == "protein_masks_selectivity_window"
+
+
+def test_selectivity_concordance_rna_masks_protein_window():
+    # Protein sees a window, RNA measured non-selective.
+    c = _selectivity_concordance_claim(_sc_h(rna="not_selective", cptac_eff=1.8, cptac_q=0.001))
+    assert c["concordance_class"] == "rna_masks_selectivity_window"
+    assert c["concordance_support"] == {"window_in": "protein_ms", "no_window_in": "rna_bulk"}
+    assert c["corroboration"] == "low"
+
+
+def test_selectivity_concordance_discordant_rna_is_no_clean_window():
+    # comparator-discordant RNA is a resolved read but carries NO clean tumor-up window.
+    c = _selectivity_concordance_claim(_sc_h(rna="discordant_across_comparators", cptac_eff=1.8, cptac_q=0.001))
+    assert c["concordance_class"] == "rna_masks_selectivity_window"
+
+
+def test_selectivity_concordance_single_source_only_rna():
+    c = _selectivity_concordance_claim(_sc_h(rna="modest_tumor_selective", cptac_eff=None, cptac_q=None))
+    assert c["concordance_class"] == "single_source_only"
+    assert c["corroboration"] == "single_arm"
+    assert c["concordance_support"]["resolved_by"] == "rna_bulk"
+    assert c["corroborating_independent_arm_count"] == 1
+    assert c["resolved_source_count"] == 1
+
+
+def test_selectivity_concordance_single_source_only_protein():
+    c = _selectivity_concordance_claim(_sc_h(rna="not_informative", cptac_eff=1.8, cptac_q=0.001))
+    assert c["concordance_class"] == "single_source_only"
+    assert c["concordance_support"]["resolved_by"] == "protein_ms"
+    assert c["concordance_support"]["resolved_via_source"] == "cptac_tmt"
+
+
+def test_selectivity_concordance_key_omitted_when_neither_arm_resolves():
+    # RNA unresolved + no protein value anywhere → None (key omitted, byte-stable).
+    h = _sc_h(rna="not_informative", cptac_eff=None, cptac_q=None, tphp_eff=None, tphp_q=None)
+    assert _selectivity_concordance_claim(h) is None
+    vec = selectivity_claim_vector(h, [])
+    assert "selectivity_concordance" not in vec
+
+
+def test_tphp_is_evidence_not_a_third_independent_arm():
+    # All three sources resolve and agree: corroboration is over the TWO arms (RNA + protein), NOT three.
+    c = _selectivity_concordance_claim(
+        _sc_h(rna="strong_tumor_selective", cptac_eff=1.6, cptac_q=0.01, tphp_eff=1.2, tphp_q=0.02)
+    )
+    assert c["concordance_class"] == "selectivity_window_concordant"
+    assert c["corroborating_independent_arm_count"] == 2  # RNA + protein layer — NEVER 3
+    assert c["resolved_source_count"] == 3  # RNA + CPTAC + TPHP (evidence)
+    tphp = [s for s in c["source_support"] if s["source"] == "tphp_dia"]
+    assert len(tphp) == 1
+    assert tphp[0]["corroboration_eligible"] is False  # a same-modality sibling is never a third arm
+    assert tphp[0]["dependence_group"] == "protein_ms"
+    cptac = [s for s in c["source_support"] if s["source"] == "cptac_tmt"][0]
+    assert cptac["corroboration_eligible"] is True
+    # relational dependence: cptac + tphp are declared as ONE same-modality group.
+    grp = [g for g in c["evidence_dependence"]["groups"] if set(g["members"]) == {"cptac_tmt", "tphp_dia"}]
+    assert grp and grp[0]["relationship"] == "same_modality_partial_overlap"
+
+
+def test_tphp_may_supply_the_protein_arm_when_cptac_is_a_gap_but_not_a_new_arm():
+    # CPTAC unmeasured, TPHP significant-up: the protein arm resolves VIA tphp, still ONE protein arm.
+    c = _selectivity_concordance_claim(
+        _sc_h(rna="strong_tumor_selective", cptac_eff=None, cptac_q=None, tphp_eff=1.3, tphp_q=0.01)
+    )
+    assert c["concordance_class"] == "selectivity_window_concordant"
+    assert c["corroborating_independent_arm_count"] == 2  # RNA + protein(via TPHP) — arm count unchanged
+    assert c["resolved_source_count"] == 2  # RNA + TPHP (CPTAC is a gap)
+    cptac = [s for s in c["source_support"] if s["source"] == "cptac_tmt"][0]
+    assert cptac["resolved"] is False
+
+
+def test_selectivity_concordance_m3_defeat_every_independent_supply_path():
+    # full: all three resolve, concordant.
+    full = _sc_h(rna="strong_tumor_selective", cptac_eff=1.6, cptac_q=0.01, tphp_eff=1.2, tphp_q=0.02)
+    assert _selectivity_concordance_claim(full)["concordance_class"] == "selectivity_window_concordant"
+    # defeat CPTAC only — TPHP still supplies the protein arm → NOT degraded (protein layer survives).
+    no_cptac = dict(full, protein_tumor_vs_normal_effect_size=None, protein_tumor_vs_normal_q_value=None)
+    assert _selectivity_concordance_claim(no_cptac)["corroborating_independent_arm_count"] == 2
+    # defeat BOTH protein sources — only the RNA arm survives → degrade to single_source_only.
+    no_protein = dict(
+        no_cptac, protein_tumor_vs_normal_tphp_effect_size=None, protein_tumor_vs_normal_tphp_q_value=None
+    )
+    assert _selectivity_concordance_claim(no_protein)["concordance_class"] == "single_source_only"
+    # defeat the RNA arm too — EVERY independent supply path defeated → key omitted (byte-stable).
+    none = dict(no_protein, axis_a_selectivity_class="not_informative")
+    assert _selectivity_concordance_claim(none) is None
+
+
+def test_selectivity_concordance_retained_quantitative_recoverable():
+    c = _selectivity_concordance_claim(_sc_h(rna="strong_tumor_selective", cptac_eff=1.6, cptac_q=0.01, log2fc=2.94))
+    by = {s["source"]: s for s in c["source_support"]}
+    assert by["rna_bulk"]["retained_quantitative"]["max_abs_log2fc"] == 2.94
+    assert by["cptac_tmt"]["retained_quantitative"]["protein_tumor_vs_normal_effect_size"] == 1.6
+    assert by["cptac_tmt"]["retained_quantitative"]["protein_tumor_vs_normal_q_value"] == 0.01
+
+
+def test_selectivity_concordance_grain_is_first_class_and_differs_across_arms():
+    c = _selectivity_concordance_claim(_sc_h(rna="strong_tumor_selective", cptac_eff=1.6, cptac_q=0.01))
+    by = {s["source"]: s for s in c["source_support"]}
+    assert by["rna_bulk"]["grain"] == "bulk_rna_transcript"
+    assert by["cptac_tmt"]["grain"] == "ms_protein"  # arms DIFFER in grain → grain first-class
+
+
+def _signal_shape_ok(sig):
+    return isinstance(sig, dict) and set(sig) == {"statement", "source", "provenance_ref"}
+
+
+def test_selectivity_concordance_presentation_signal_shape():
+    # concordant: positive present, qualifying NULL.
+    conc = _selectivity_concordance_claim(_sc_h(rna="strong_tumor_selective", cptac_eff=1.6, cptac_q=0.01))
+    assert _signal_shape_ok(conc["positive_signal"])
+    assert conc["qualifying_signal"] is None
+    # discordance: both present, exact 3-key shape.
+    masks = _selectivity_concordance_claim(_sc_h(rna="strong_tumor_selective", cptac_eff=0.3, cptac_q=0.9))
+    assert _signal_shape_ok(masks["positive_signal"]) and _signal_shape_ok(masks["qualifying_signal"])
+
+
+def test_selectivity_concordance_is_verdict_inert_and_purely_additive():
+    # NO `signal` key, and PURELY ADDITIVE: the four pre-existing WIN/DIST/INT/SAFE axes are byte-identical
+    # to the bare build_claim_vector; selectivity_concordance is the ONLY delta.
+    from _skills_common.claim_vector_core import build_claim_vector  # noqa: PLC0415
+    from _skills_common.selectivity_claims import _DISCLAIMER, SELECTIVITY_CLAIM_SPEC  # noqa: PLC0415
+
+    h = _sc_h(rna="strong_tumor_selective", cptac_eff=1.6, cptac_q=0.01)
+    claim = _selectivity_concordance_claim(h)
+    assert "signal" not in claim
+    assert "verdict-INERT" in claim["_disclaimer"]
+    base = build_claim_vector(SELECTIVITY_CLAIM_SPEC, h, [], _DISCLAIMER)
+    vec = selectivity_claim_vector(h, [])
+    for ax in ("WIN", "DIST", "INT", "SAFE"):
+        assert vec[ax] == base[ax], f"{ax} axis moved when selectivity_concordance was added"
+    assert set(vec) - set(base) == {"selectivity_concordance"}  # the ONLY delta
+
+
+def test_selectivity_concordance_non_finite_quant_demoted_to_none():
+    # A NaN protein effect size must NOT leak into claim_vectors (the emission-invariants non-finite rule):
+    # the arm is unresolved and its retained_quantitative anchor is demoted to None, not NaN/Inf.
+    import math as _m
+
+    c = _selectivity_concordance_claim(
+        _sc_h(rna="strong_tumor_selective", cptac_eff=_m.nan, cptac_q=_m.inf, tphp_eff=1.2, tphp_q=0.02)
+    )
+    cptac = [s for s in c["source_support"] if s["source"] == "cptac_tmt"][0]
+    assert cptac["resolved"] is False
+    rq = cptac["retained_quantitative"]
+    assert rq["protein_tumor_vs_normal_effect_size"] is None
+    assert rq["protein_tumor_vs_normal_q_value"] is None
+    # the protein arm still resolves via TPHP (finite) — concordant, no non-finite anywhere.
+    assert c["concordance_class"] == "selectivity_window_concordant"

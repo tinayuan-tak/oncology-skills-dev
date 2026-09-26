@@ -27,6 +27,8 @@ the `cards` param is accepted for contract-uniformity but unused here.
 
 from __future__ import annotations
 
+import math
+
 from _skills_common.claim_vector_core import (
     ClaimSpec,
     arm_from_class,
@@ -549,10 +551,371 @@ _DISCLAIMER = (
 )
 
 
+# ── L2b-5 CROSS-SOURCE integration claim: selectivity_concordance ─────────────────────────────────
+# The tumor-vs-normal SELECTIVITY WINDOW resolved from >=2 TRULY INDEPENDENT sources, conforming to
+# docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md (the coverage/essentiality/safety/abundance/recurrence family).
+# Independent arms (the definitional pair): the BULK-RNA window (recount3 TCGA/GTEx tumor-vs-normal
+# DESeq2, `tumor-vs-normal-selectivity`) x the PROTEIN-MS window (CPTAC TMT-MS tumor-vs-normal,
+# `tumor-protein-abundance-cptac`). These are independent MOLECULAR LAYERS (transcript vs MS-protein),
+# independent cohorts, independent assays. TPHP DIA-MS (`tumor-vs-normal-protein-abundance-tphp`) is a
+# SAME-MODALITY partial-cohort-overlap sibling of CPTAC (NOT an independent third arm — two protein-MS
+# platforms are ONE protein arm), so it is a declared DEPENDENT WITHIN-GROUP source: preserved as
+# evidence (resolved_source_count), never a corroborating independent arm. This is the #1667/#1673/#1674
+# arm-commensurability lesson made structural: a same-modality sibling cannot buy an extra independent
+# arm for the protein layer. Verdict-INERT (no `signal` key, feeds no rule/veto/resolver rung); the token
+# `selectivity_concordance` is read NOWHERE on the selectivity spine (selectivity_veto keys on the
+# verdict token + fired rule-ids; risk_projection keys on sv.get("selectivity"); the resolver keys on
+# card summary fields). Key OMITTED (byte-stable) when NEITHER independent arm resolves.
+
+# selectivity-window token maps for the two INDEPENDENT arms (each read from its OWN source, never a
+# pre-collapsed relational token — the rna_protein_tvn_concordance headline field bakes in the RNA
+# direction and is therefore NOT an independent protein call).
+_RNA_WINDOW_UP = {  # a tumor-enriched RNA window (any axis-A selective-ish class)
+    "strong_tumor_selective",
+    "modest_tumor_selective",
+    "field_effect_tumor_selective",
+    "selective_but_broadly_normal",
+}
+_RNA_WINDOW_ABSENT = {  # RNA resolved a MEASURED non-selective / internally-discordant read (no clean window)
+    "not_selective",
+    "discordant_across_comparators",
+}
+_RNA_WINDOW_UNRESOLVED = {None, "not_informative", "data_unavailable"}
+
+
+def _fin(v):
+    """Demote a NON-FINITE numeric anchor (NaN/±Inf) to None before it enters retained_quantitative:
+    ±Inf/NaN are NUMBERS that pass isinstance/isna-style guards and would leak into claim_vectors (the
+    emission-invariants non-finite rule). MS-protein effect sizes / q-values are the realistic source of
+    a NaN here. A legitimate None stays None; a finite value passes through unchanged (verdict-inert)."""
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else None
+
+
+def _rna_window_call(cls):
+    """The bulk-RNA arm's OWN tumor-vs-normal window call. Returns (resolved: bool, has_window: bool|None).
+    has_window = True iff RNA resolves a tumor-enriched window; False on a measured non-selective /
+    comparator-discordant read; None when unresolved (coverage gap)."""
+    if cls in _RNA_WINDOW_UNRESOLVED:
+        return False, None
+    if cls in _RNA_WINDOW_UP:
+        return True, True
+    return True, False  # _RNA_WINDOW_ABSENT (or any other measured class): resolved, no clean window
+
+
+def _protein_window_call(effect, q):
+    """A protein-MS arm's OWN tumor-vs-normal window call (mirrors run.py::_rna_protein_tvn_concordance's
+    protein logic, applied to the platform's OWN effect/q — not the RNA-relative token). Returns
+    (resolved: bool, has_window: bool|None). Unresolved when no protein value (unmeasured); a measured but
+    BH q>=0.05 read is a resolved no-window; q<0.05 up = window, q<0.05 down = resolved no-window (an
+    anti-selective protein direction is not a tumor-selective window)."""
+    if effect is None or effect != effect:  # None or NaN → protein_unmeasured
+        return False, None
+    if q is None or q != q or q >= 0.05:  # measured but not significant → resolved no-window
+        return True, False
+    return True, effect > 0  # significant: up = window, down = resolved no-window
+
+
+def _selectivity_concordance_claim(h: dict) -> "dict | None":
+    """L2b-5 CROSS-SOURCE integration claim: `selectivity_concordance` — the tumor-vs-normal selectivity
+    WINDOW integrated from >=2 INDEPENDENT sources (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md), a foreign
+    (expression/proteomics) family for the M3 growth ladder.
+
+    Integrates the two INDEPENDENT arms — BULK-RNA window (`axis_a_selectivity_class`) x PROTEIN-MS
+    window (CPTAC `protein_tumor_vs_normal_effect_size`/`_q_value`) — by an EXPLICIT DETERMINISTIC rule
+    (no LLM; L2b is reproducible by contract), emitting one of:
+      * selectivity_window_concordant     — both INDEPENDENT arms resolve and AGREE (both a tumor-enriched
+        window, or both a measured no-window floor); the agreed direction is carried, never collapsed;
+      * protein_masks_selectivity_window  — RNA resolves a tumor-enriched window but the PROTEIN-MS layer
+        does NOT corroborate it (the dangerous RNA-only false positive: transcript up / protein flat|down);
+      * rna_masks_selectivity_window      — the mirror: protein sees a window RNA does not;
+      * single_source_only                — exactly ONE independent arm (RNA, or the protein layer)
+        resolves — a degraded read that names the resolved layer (recoverable), NOT a concordance claim.
+
+    DEPENDENCE (the slot this family exercises MORE than recurrence): the protein arm is one INDEPENDENT
+    arm supplied by a MULTI-MEMBER group `{cptac_tmt, tphp_dia}`. CPTAC TMT-MS is the primary; TPHP DIA-MS
+    (`protein_tumor_vs_normal_tphp_*`) is a SAME-MODALITY partial-cohort-overlap sibling — `resolved: yes`,
+    `quality_eligible: yes` (it may supply the protein arm's value when CPTAC is a gap), but
+    `corroboration_eligible: NO`: two protein-MS platforms are ONE protein arm, never a third independent
+    replication. It is preserved in `source_support` and counted in `resolved_source_count` (evidence),
+    but NEVER in `corroborating_independent_arm_count` and NEVER resurrects an independent arm beyond the
+    protein layer. This is the #1667/#1673/#1674 arm-commensurability lesson made structural.
+
+    Corroboration is on the shared MEASURED-ARM frame over the two INDEPENDENT arms only (RNA + protein):
+    two agreeing arms -> high, a disagreement -> low, one measured arm -> single_arm. A single-arm
+    mutation only DEGRADES to `single_source_only`; ERASING the claim (key omitted, byte-stable) takes
+    defeating BOTH independent arms — and the protein arm survives on EITHER protein-MS source, so
+    defeating the protein layer means defeating BOTH CPTAC and TPHP.
+
+    GRAIN is first-class here because the arms DIFFER in grain (assay-modality: bulk-RNA transcript vs
+    MS-protein) — carried per-source in `source_support` and in `provenance.independence_note`: a
+    transcript-level window need not manifest at the protein layer (post-transcriptional regulation), so a
+    discordance is a real biological signal, not necessarily measurement error.
+
+    PRESENTATION-SUPPORT (L2b->L3, mirrors coverage/abundance/recurrence): two-directional structured
+    `positive_signal` (always) / `qualifying_signal` (NULL when concordant) + a deterministic
+    `boundary_sensitive` flag. These route NOTHING.
+
+    VERDICT-INERT: carries NO `signal` key, reads no verdict, feeds no rule/veto. Returns None — key
+    omitted, byte-stable — when NEITHER independent arm resolves."""
+    rna_cls = h.get("axis_a_selectivity_class")
+    cptac_eff = h.get("protein_tumor_vs_normal_effect_size")
+    cptac_q = h.get("protein_tumor_vs_normal_q_value")
+    tphp_eff = h.get("protein_tumor_vs_normal_tphp_effect_size")
+    tphp_q = h.get("protein_tumor_vs_normal_tphp_q_value")
+
+    rna_res, rna_win = _rna_window_call(rna_cls)
+    cptac_res, cptac_win = _protein_window_call(cptac_eff, cptac_q)
+    tphp_res, tphp_win = _protein_window_call(tphp_eff, tphp_q)
+
+    # The PROTEIN arm = one independent arm vs RNA, supplied by the protein-MS group. CPTAC is the
+    # primary; TPHP (a same-modality dependent sibling) may supply the arm's value when CPTAC is a gap,
+    # but adding TPHP NEVER makes a second independent arm — the arm count stays 1 for the protein layer.
+    if cptac_res:
+        prot_res, prot_win, prot_src = True, cptac_win, "cptac_tmt"
+    elif tphp_res:
+        prot_res, prot_win, prot_src = True, tphp_win, "tphp_dia"
+    else:
+        prot_res, prot_win, prot_src = False, None, None
+
+    # Emit iff >=1 INDEPENDENT arm resolves (RNA or the protein layer).
+    resolved_indep = [
+        (name, win) for name, win, res in (("rna_bulk", rna_win, rna_res), ("protein_ms", prot_win, prot_res)) if res
+    ]
+    if not resolved_indep:
+        return None  # neither independent arm resolves → key omitted (byte-stable)
+
+    if len(resolved_indep) == 1:
+        concordance = "single_source_only"
+    elif rna_win == prot_win:
+        concordance = "selectivity_window_concordant"
+    elif rna_win:  # RNA sees a window, protein does not
+        concordance = "protein_masks_selectivity_window"
+    else:  # protein sees a window, RNA does not
+        concordance = "rna_masks_selectivity_window"
+
+    # Corroboration over the two INDEPENDENT arms ONLY. A disagreement points the arms opposite
+    # ([True, False] → low); a concordance both agree ([True, True] → high); one arm unresolved leaves the
+    # measured arm unopposed ([True, None] → single_arm).
+    if concordance in ("protein_masks_selectivity_window", "rna_masks_selectivity_window"):
+        rna_arm, prot_arm = True, False
+    else:
+        rna_arm = True if rna_res else None
+        prot_arm = True if prot_res else None
+    corroboration = corroboration_from_arms([rna_arm, prot_arm])
+
+    # ── the envelope's TWO COUNTS ──────────────────────────────────────────────────────────────────
+    corroborating_independent_arm_count = len(resolved_indep)  # RNA + protein layer only, max 2
+    # resolved_source_count counts ALL THREE sources — RNA + CPTAC + TPHP — so the "TPHP is evidence, not
+    # a third independent arm" fact is legible in the gap between the two counts (max 3 vs max 2).
+    resolved_source_count = (1 if rna_res else 0) + (1 if cptac_res else 0) + (1 if tphp_res else 0)
+
+    _label = {"rna_bulk": rna_cls, "cptac_tmt": None, "tphp_dia": None}
+    _label["cptac_tmt"] = "protein_unmeasured" if not cptac_res else ("tumor_up" if cptac_win else "no_window")
+    _label["tphp_dia"] = "protein_unmeasured" if not tphp_res else ("tumor_up" if tphp_win else "no_window")
+    _label["rna_bulk"] = rna_cls or "data_unavailable"
+    _win = {"rna_bulk": rna_win, "cptac_tmt": cptac_win, "tphp_dia": tphp_win}
+    _cohort = {
+        "rna_bulk": "recount3 TCGA/GTEx bulk-RNA (DESeq2 tumor-vs-normal)",
+        "cptac_tmt": "CPTAC TMT-MS tumor-vs-normal protein",
+        "tphp_dia": "TPHP DIA-MS tumor-vs-normal protein",
+    }
+    _grain = {"rna_bulk": "bulk_rna_transcript", "cptac_tmt": "ms_protein", "tphp_dia": "ms_protein"}
+    _field = {
+        "rna_bulk": "axis_a_selectivity_class",
+        "cptac_tmt": "protein_tumor_vs_normal_effect_size",
+        "tphp_dia": "protein_tumor_vs_normal_tphp_effect_size",
+    }
+    _quant = {
+        "rna_bulk": {"max_abs_log2fc": _fin(h.get("max_abs_log2fc"))},
+        "cptac_tmt": {
+            "protein_tumor_vs_normal_effect_size": _fin(cptac_eff),
+            "protein_tumor_vs_normal_q_value": _fin(cptac_q),
+        },
+        "tphp_dia": {
+            "protein_tumor_vs_normal_tphp_effect_size": _fin(tphp_eff),
+            "protein_tumor_vs_normal_tphp_q_value": _fin(tphp_q),
+        },
+    }
+    _res = {"rna_bulk": rna_res, "cptac_tmt": cptac_res, "tphp_dia": tphp_res}
+
+    def _support(source, group, corroboration_eligible):
+        r = _res[source]
+        return {
+            "source": source,
+            "dependence_group": group,
+            "grain": _grain[source],  # FIRST-CLASS: the arms DIFFER in grain (bulk-RNA vs MS-protein)
+            "value": _label[source],
+            "has_window": _win[source],
+            # THREE separate source notions — no single overloaded boolean smuggles two meanings.
+            "resolved": r,
+            "quality_eligible": r,  # a resolved read is usable evidence (may supply its group's arm value)
+            "corroboration_eligible": corroboration_eligible,  # eligible to count as INDEPENDENT replication?
+            "provenance": {"headline_field": _field[source], "cohort": _cohort[source]},
+            "retained_quantitative": _quant[source],
+        }
+
+    # Both independent arms ALWAYS appear (the definitional concordance pair — an absent arm shows as
+    # resolved:False, keeping the two-count / dependence structure legible). TPHP appears ONLY when it
+    # resolves, as the worked same-modality dependent-sibling case.
+    source_support = [
+        _support("rna_bulk", "rna_bulk", corroboration_eligible=True),
+        _support("cptac_tmt", "protein_ms", corroboration_eligible=True),
+    ]
+    if tphp_res:
+        source_support.append(_support("tphp_dia", "protein_ms", corroboration_eligible=False))
+    evidence_dependence = {
+        "groups": [
+            {"members": ["rna_bulk"], "relationship": "independent_modality"},
+            {
+                "members": ["cptac_tmt"] + (["tphp_dia"] if tphp_res else []),
+                "relationship": "same_modality_partial_overlap",
+                "note": (
+                    "CPTAC TMT-MS and TPHP DIA-MS are BOTH tumor-vs-normal protein-MS platforms with "
+                    "partially overlapping cohorts — ONE independent protein arm, NOT two. TPHP is "
+                    "corroboration-ineligible (it cannot buy a third independent arm); it may supply the "
+                    "protein arm's value as evidence (dependent != ignore)."
+                ),
+            },
+        ],
+        "derived_sources": {},
+    }
+
+    # which-arm payload — the disagreement or the degraded single arm is NAMED, never collapsed/averaged.
+    if concordance in ("protein_masks_selectivity_window", "rna_masks_selectivity_window"):
+        win_arm = "rna_bulk" if rna_win else "protein_ms"
+        no_arm = "protein_ms" if win_arm == "rna_bulk" else "rna_bulk"
+        concordance_support = {"window_in": win_arm, "no_window_in": no_arm}
+    elif concordance == "single_source_only":
+        name, win = resolved_indep[0]
+        concordance_support = {
+            "resolved_by": name,
+            "resolved_call": rna_cls if name == "rna_bulk" else _label[prot_src],
+            "resolved_via_source": "rna_bulk" if name == "rna_bulk" else prot_src,
+            "resolved_has_window": win,
+        }
+    else:
+        concordance_support = {"agreed_direction": "tumor_selective_window" if rna_win else "no_selective_window"}
+
+    _PHRASE = {
+        "selectivity_window_concordant": "AGREE on the tumor-vs-normal window call",
+        "protein_masks_selectivity_window": "DISAGREE — bulk-RNA sees a window, the protein-MS layer does NOT (RNA-only window)",
+        "rna_masks_selectivity_window": "DISAGREE — the protein-MS layer sees a window, bulk-RNA does NOT",
+        "single_source_only": "only one independent modality arm resolves",
+    }
+    _ARM_NAME = {"rna_bulk": "bulk-RNA (recount3 TCGA/GTEx)", "protein_ms": "protein-MS (CPTAC TMT-MS)"}
+
+    # ── PRESENTATION-SUPPORT fields (L2b->L3) — surface-consumption, NOT verdict-routing ─────────────
+    boundary_sensitive = corroboration != "high"
+    if concordance == "selectivity_window_concordant":
+        _dir_text = "a tumor-enriched window" if rna_win else "NO tumor-selective window"
+        positive_signal = {
+            "statement": (
+                f"Both INDEPENDENT modalities AGREE on {_dir_text} (bulk-RNA {rna_cls} x "
+                f"CPTAC protein {_label['cptac_tmt']}) — a cross-modality-corroborated read."
+            ),
+            "source": "rna_bulk",
+            "provenance_ref": "rna_bulk",
+        }
+        qualifying_signal = None
+    elif concordance in ("protein_masks_selectivity_window", "rna_masks_selectivity_window"):
+        win_arm = concordance_support["window_in"]
+        no_arm = concordance_support["no_window_in"]
+        positive_signal = {
+            "statement": f"{_ARM_NAME[win_arm]} reports a tumor-vs-normal window — a selective signal in this modality.",
+            "source": win_arm,
+            "provenance_ref": win_arm,
+        }
+        qualifying_signal = {
+            "statement": (
+                f"{_ARM_NAME[no_arm]} does NOT corroborate the window — the modalities DISAGREE. A "
+                "transcript-level window need not manifest at the protein layer (post-transcriptional "
+                "regulation); an RNA-only window is the selectivity false-positive this cross-source check exists to surface."
+            ),
+            "source": no_arm,
+            "provenance_ref": no_arm,
+        }
+    else:  # single_source_only
+        name = concordance_support["resolved_by"]
+        gap = "protein_ms" if name == "rna_bulk" else "rna_bulk"
+        positive_signal = {
+            "statement": (
+                f"{_ARM_NAME[name]} reports {'a tumor-vs-normal window' if concordance_support['resolved_has_window'] else 'no tumor-selective window'} "
+                f"({concordance_support['resolved_call']}) — the sole independent modality arm that resolves."
+            ),
+            "source": name,
+            "provenance_ref": name,
+        }
+        qualifying_signal = {
+            "statement": (
+                f"Only {_ARM_NAME[name]} resolves; {_ARM_NAME[gap]} is a gap (unresolved) — a degraded "
+                "single-modality read, NOT cross-source corroboration."
+            ),
+            "source": gap,
+            "provenance_ref": gap,
+        }
+
+    return {
+        "concordance_class": concordance,
+        "corroboration": corroboration,
+        "integration_method": "explicit_deterministic",
+        "grain": "tumor_vs_normal_window (cross-modality: bulk-RNA transcript x MS-protein)",
+        "resolved_source_count": resolved_source_count,
+        "corroborating_independent_arm_count": corroborating_independent_arm_count,
+        "concordance_support": concordance_support,
+        "source_support": source_support,
+        "positive_signal": positive_signal,
+        "qualifying_signal": qualifying_signal,
+        "boundary_sensitive": boundary_sensitive,
+        "boundary_note": (
+            "concordance class rests on a single measured modality arm (single_arm / low corroboration) — "
+            "treat as near-boundary, not a flat cross-modality assertion"
+            if boundary_sensitive
+            else "concordance corroborated by BOTH independent modality arms agreeing"
+        ),
+        "evidence_dependence": evidence_dependence,
+        "informs": (
+            "cross-source tumor-vs-normal selectivity-window concordance — a window two INDEPENDENT "
+            "molecular layers (bulk-RNA recount3 TCGA/GTEx + MS-protein CPTAC TMT) agree on is far more "
+            "credible than an RNA-only window; TPHP DIA-MS is a same-modality sibling preserved as "
+            "evidence but never double-counted as a third independent arm"
+        ),
+        "evidence": (
+            f"bulk-RNA {rna_cls or 'data_unavailable'} x protein-MS {_label['cptac_tmt']}: " + _PHRASE[concordance]
+        ),
+        "provenance": {
+            "sources": source_support,
+            "independence_note": (
+                "Bulk-RNA (recount3 TCGA/GTEx DESeq2 tumor-vs-normal) and CPTAC TMT-MS protein are "
+                "genuinely INDEPENDENT molecular layers, cohorts and assays, so their agreement is real "
+                "cross-source corroboration. TPHP DIA-MS is a SAME-MODALITY partial-cohort-overlap sibling "
+                "of CPTAC (two protein-MS platforms are ONE protein arm), so it is corroboration-ineligible "
+                "— never an independent third arm. GRAIN CAVEAT: the arms differ in grain (transcript vs "
+                "MS-protein); a transcript-level window need not manifest at the protein layer "
+                "(post-transcriptional regulation), so a discordance is a real biological signal, not "
+                "necessarily measurement error."
+            ),
+        },
+        "_disclaimer": (
+            "L2b CROSS-SOURCE integration claim (deterministic, no LLM) — verdict-INERT provenance: never "
+            "a signal tier, never averaged into a claim, never feeds the selectivity_class, the "
+            "normal-breadth veto, or risk_projection."
+        ),
+    }
+
+
 def selectivity_claim_vector(headline: dict, cards: list) -> dict:
     """The verdict-inert claim vector {WIN,DIST,INT,SAFE: {signal, corroboration, evidence, conflict,
     informs}, _disclaimer}. Projection over the computed headline."""
-    return build_claim_vector(SELECTIVITY_CLAIM_SPEC, headline, cards, _DISCLAIMER)
+    vec = build_claim_vector(SELECTIVITY_CLAIM_SPEC, headline, cards, _DISCLAIMER)
+    # L2b-5 cross-source integration claim (SK#1752): bulk-RNA x protein-MS tumor-vs-normal window
+    # concordance. Carries NO `signal` key → not a chip, not a tier; OMITTED (byte-stable) unless >=1
+    # independent modality arm resolves. Reads only ALREADY-READ headline window/protein fields, so it
+    # perturbs no census aperture and no verdict. Mirrors the presence/dependency/safety/genomic L2b
+    # concordance pattern.
+    _sc = _selectivity_concordance_claim(headline)
+    if _sc is not None:
+        vec["selectivity_concordance"] = _sc
+    return vec
 
 
 def selectivity_key_signals(headline: dict, cards: list) -> dict:
