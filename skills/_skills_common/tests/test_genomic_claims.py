@@ -50,6 +50,7 @@ def _by_class(
     fusion_strat=None,
     genie_sv=None,
     mut_strat=None,
+    fusion_confound=None,
 ):
     return {
         "snv_indel": {"verdict": snv_landscape, "recurrence_class": snv_rec, "stratified_dependency_class": mut_strat},
@@ -57,6 +58,7 @@ def _by_class(
         "fusion": {
             "verdict": fusion,
             "stratified_dependency_class": fusion_strat,
+            "stratified_dependency_confound": fusion_confound,
             "genie_sv_recurrence_class": genie_sv,
         },
     }
@@ -98,6 +100,37 @@ def test_kras_snv_driven_with_dependency():
     assert vec["DEP"]["signal"] == "strong" and vec["DEP"]["corroboration"] == "high"
     ks = genomic_key_signals(_kras_headline(), [])
     assert ks["headline"] == "SNV/indel-driven alteration, biomarker-stratified dependency."
+
+
+def _fusion_dependent_headline(fusion_confound=None):
+    """A fusion-positive stratified-dependency headline (the scenario the confound flag annotates)."""
+    return {
+        "genomic_alteration_by_class": _by_class(
+            snv_landscape="no_mutations",
+            cn="broadly_neutral",
+            fusion="recurrent_fusion_driver",
+            fusion_strat="fusion_positive_strongly_dependent",
+            fusion_confound=fusion_confound,
+            genie_sv="top_1pct",
+        ),
+        "fusion_stratification_class": "fusion_positive_strongly_dependent",
+    }
+
+
+def test_dep_conflict_surfaces_fusion_alteration_confound():
+    """#1765: `alteration_confounded` on the fusion arm surfaces as a DEP claim conflict (was buried,
+    display-only). The measured dependency signal itself is unchanged — the caveat is additive."""
+    vec = genomic_claim_vector(_fusion_dependent_headline(fusion_confound="alteration_confounded"), [])
+    assert vec["DEP"]["signal"] == "strong"  # signal tier byte-stable — the confound is a caveat, not a demotion
+    assert vec["DEP"]["conflict"] and "alteration-confounded" in vec["DEP"]["conflict"]
+
+
+def test_dep_conflict_none_without_fusion_confound():
+    """Byte-stable without the flag: absent, and the non-confounded states, emit NO conflict."""
+    assert genomic_claim_vector(_fusion_dependent_headline(fusion_confound=None), [])["DEP"]["conflict"] is None
+    for state in ("alteration_independent", "not_applicable", "unassessed"):
+        vec = genomic_claim_vector(_fusion_dependent_headline(fusion_confound=state), [])
+        assert vec["DEP"]["conflict"] is None, state
 
 
 def test_amplification_driven_is_not_read_as_not_a_driver():

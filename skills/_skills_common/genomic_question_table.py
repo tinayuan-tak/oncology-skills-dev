@@ -66,6 +66,12 @@ def _support(entry: dict) -> str:
         "recurrence_class",
         "patient_class",
         "stratified_dependency_class",
+        # VERDICT-INERT fusion caveat (#1765): on a fusion-positive dependency, is the fusion+ subgroup
+        # majority target-altered → the dependency may be the alteration's, not the fusion's. Surfaced on
+        # the row so the deterministic hero carries the "which class drives" caveat, not just the salience
+        # display. Skipped when data_unavailable (the shared guard below), so a class without the field is
+        # byte-stable.
+        "stratified_dependency_confound",
         "amp_expr_dependency_class",
         "genie_sv_recurrence_class",
         "event_id",

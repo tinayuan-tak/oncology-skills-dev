@@ -646,11 +646,25 @@ def _dep_signal(h, c):
     # ("actionability so what") claim's rendered evidence so the narrator surfaces it; None → no clause.
     _res = _resistance_actionability(h)
     _res_clause = f"; {_res}" if _res else ""
+    # VERDICT-INERT alteration-confound caveat on the DEP claim (#1765). The producer sets
+    # `fusion_stratification_confound == "alteration_confounded"` ONLY on a fusion-positive-dependent call
+    # whose fusion+ subgroup is majority target-altered (mutation ∪ focal amp) — so the measured fusion
+    # dependency may be the alteration's, not the fusion's (KRAS/COADREAD, 8/13). Emitted ONLY for that
+    # value: the other states (alteration_independent / not_applicable / unassessed) leave `conflict` None,
+    # so a class without a genuine confound is byte-stable (no empty conflict).
+    _confound = (bc.get("fusion") or {}).get("stratified_dependency_confound")
+    conflict = (
+        "fusion-stratified dependency may be alteration-confounded: the fusion-positive subgroup is "
+        "majority target-altered (mutation ∪ focal amp), so the dependency may be the alteration's, not "
+        "the fusion's"
+        if _confound == "alteration_confounded"
+        else None
+    )
     if not measured:
-        return "unmeasured", "no biomarker-stratified dependency measured" + _res_clause, None
+        return "unmeasured", "no biomarker-stratified dependency measured" + _res_clause, conflict
     best = max(measured, key=lambda t: SIGNAL_ORD[t])
     fired = [f for f in fields if f and _STRAT_SIGNAL.get(f) == best]
-    return best, f"biomarker-stratified dependency: strongest = {fired[0] if fired else best}" + _res_clause, None
+    return best, f"biomarker-stratified dependency: strongest = {fired[0] if fired else best}" + _res_clause, conflict
 
 
 def _dep_corroboration(h, c):

@@ -47,6 +47,38 @@ def test_signal_tiers_by_class():
     assert rows["Fusion"]["confidence"]["tier"] == "unmeasured"
 
 
+def test_fusion_confound_surfaces_on_row_support():
+    """#1765: an `alteration_confounded` fusion arm surfaces in the Fusion row's support string."""
+    h = {
+        "genomic_alteration_by_class": {
+            "fusion": {
+                "verdict": "recurrent_fusion_driver",
+                "evidence_state": "measured",
+                "stratified_dependency_class": "fusion_positive_strongly_dependent",
+                "stratified_dependency_confound": "alteration_confounded",
+            },
+        },
+    }
+    rows = {r["id"]: r for r in genomic_question_table(h)}
+    assert "stratified dependency confound: alteration_confounded" in rows["Fusion"]["support"]
+
+
+def test_fusion_confound_absent_is_byte_stable():
+    """Without the confound field (data_unavailable / missing) the support string is unchanged."""
+    base = {
+        "verdict": "recurrent_fusion_driver",
+        "evidence_state": "measured",
+        "stratified_dependency_class": "fusion_positive_strongly_dependent",
+    }
+    without = genomic_question_table({"genomic_alteration_by_class": {"fusion": dict(base)}})
+    unavail = genomic_question_table(
+        {"genomic_alteration_by_class": {"fusion": {**base, "stratified_dependency_confound": "data_unavailable"}}}
+    )
+    fusion_support = lambda rows: next(r for r in rows if r["id"] == "Fusion")["support"]
+    assert "confound" not in fusion_support(without)
+    assert fusion_support(without) == fusion_support(unavail)
+
+
 def test_absent_by_class_yields_full_unmeasured_ladder():
     rows = genomic_question_table({})  # no by_class at all
     assert [r["id"] for r in rows] == ["SNV", "CN", "Fusion", "Splice"]
