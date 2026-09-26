@@ -23,9 +23,12 @@ in this test), so this whole module is verdict-inert: it moves no decision.json,
 and needs no target-contracts pin.
 
 SK#1689 EXTENDS the same mechanism to a SECOND, NON-GENOMIC builder family — the EXPRESSION / PROTEOMICS
-multi-arm builders in selectivity_claims.py (tumor-vs-normal RNA window + CPTAC/TPHP protein quorum). See
-the block at the bottom of this file; the milestone is that the arm-commensurability audit becomes a
-repo-wide standing gate rather than a per-family manual sweep.
+multi-arm builders in selectivity_claims.py (tumor-vs-normal RNA window + CPTAC/TPHP protein quorum).
+SK#1675 EXTENDS it to a THIRD family — the TUMOR-PRESENCE multi-arm builders in presence_claims.py
+(`_claim_B`'s RNA-DGE × CPTAC protein tumor-elevation fold, plus the L2b cross-source claims). Both later
+families proved COMMENSURATE by design (detector-oracle extensions, not fixes). See the family blocks at
+the bottom of this file; the milestone is that the arm-commensurability audit becomes a repo-wide standing
+gate rather than a per-family manual sweep.
 """
 
 from __future__ import annotations
@@ -479,3 +482,289 @@ def test_detector_bites_an_int_arm_repointed_to_a_different_axis():
     # …and the detector rejects it
     with pytest.raises(AssertionError, match="_int_corroboration"):
         assert_int_arms_are_commensurate(mutant)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# THIRD FAMILY — the TUMOR-PRESENCE multi-arm builders in presence_claims.py (SK#1675)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# SK#1688/#1689 made the audit a standing gate for the GENOMIC and EXPRESSION/PROTEOMICS families. The
+# presence family is the last open sibling of the arm-commensurability audit (#1507). Its lead multi-arm
+# builder is `_claim_B` (tumor-elevation): it folds a tumor-vs-normal DIRECTION from TWO arms —
+#   * RNA-DGE  — tumor-rna-vs-adjacent.expression_call_class, and
+#   * CPTAC    — tumor-protein-abundance-cptac.protein_expression_class —
+# and awards corroboration `high` when BOTH arms are up (`len(ups) >= 2`). The deferred finding asked
+# whether that fold conflates agreement-on-signal with agreement-on-COMPARATOR (the reference each arm is
+# scored against differing across arms).
+#
+# AUDIT VERDICT (SK#1675): NO incommensurate pairing was found — like the selectivity family (#1689),
+# `_claim_B`'s two direction arms are COMMENSURATE, so this is a detector-oracle EXTENSION, not a fix:
+#   * BOTH arms are scored against MATCHED-ADJACENT normal — RNA vs TCGA adjacent-normal (the
+#     tumor-rna-vs-adjacent card question is literally "…upregulated in tumor vs matched adjacent normal";
+#     the class bins a DESeq2 `tumor_vs_adjacent` contrast), and CPTAC protein vs the cohort's own
+#     Solid-Tissue-Normal aliquots (the tumor-protein-abundance-cptac card question is "…vs matched
+#     normals per CPTAC"; the class thresholds an MSstatsTMT Tumor−Normal effect where the analysis-methods
+#     input-prep maps "Solid Tissue Normal"/"Blood Derived Normal" → "Normal"). So the two arms share the
+#     SAME comparator basis and differ only in MODALITY (RNA vs protein) — commensurate by the
+#     "same-basis, different-measurement" test, the analogue of the selectivity multi-modal quorum.
+#   * MEASURED (no vote flip): both-arms-up → corroboration `high` is a genuine cross-modality
+#     corroboration of tumor-elevation-vs-adjacent, NOT a comparator conflation; a single arm reads
+#     `moderate`; a direction disagreement (up/down) and a modality/post-transcriptional discordance
+#     (one arm up, one measured-flat vs the SAME adjacent basis) are already surfaced as conflicts. No
+#     alternative same-basis pairing exists that would change the fold, so no vote flips → no `_claim_B`
+#     change.
+#   * "The author already partially handled the comparator basis": the RNA card ALSO carries a
+#     gtex_log2_fc/gtex_q_value tumor-vs-GTEx-POPULATION contrast — a DIFFERENT comparator basis — but it
+#     is DISPLAY-ONLY (verdict-inert; no rule keys on it and the class stays adjacent-driven), and
+#     `_claim_B` surfaces it as `comparator_detail` / a "flat vs adjacent but elevated vs GTEx-population"
+#     NOTE, never as a `_dir` direction arm. Folding that population contrast (or any population field) as
+#     a direction arm — mixing matched-adjacent RNA with population protein — is the presence analogue of
+#     the #1673 construct-mismatch; the mutation test at the bottom drives exactly that red.
+#     (An in-file code comment on `_claim_B` loosely paraphrases the CPTAC arm as "vs population-normal";
+#     that phrasing is imprecise — the authoritative basis is matched-adjacent — but it is a comment only,
+#     moves no published object, and is left untouched to keep the change verdict byte-stable.)
+#
+# SHAPE DIFFERENCES from the earlier families (why the presence detectors below are keyed differently):
+#   1. `_claim_B` folds arms through the presence DIRECTION primitive `_dir(...)`, NOT
+#      `corroboration_from_arms`, and computes corroboration inline (`len(ups) >= 2`); so the direction
+#      builders are discovered by counting `_dir(...)` calls.
+#   2. `_claim_B` reads its arms from the CARD dict (`c.get("<card>", {}).get("<field>")`), NOT the
+#      headline `h`; so the arm extractor resolves card aliases and returns (card_id, field) pairs.
+#   3. presence ALSO has two `corroboration_from_arms` callers, but IMPORTED UNDER AN ALIAS
+#      (`corroboration_from_arms as _corr_from_arms`): the L2b cross-source claims
+#      `_coverage_concordance_claim` (two orthogonal facets of the SAME single-cell assay) and
+#      `_abundance_concordance_claim` (GRAIN-ANCHORED same-grain RNA×MS-protein, cross-grain as an
+#      independent corroborating arm, compared on within-population rank per #1512). Both are commensurate
+#      by construction; the enumeration below resolves the import alias so a NEW aliased caller is caught.
+#
+# This whole block edits ONLY the test file — no presence_claims.py change — so it is verdict byte-stable
+# by construction (no decision.json / field_read_health / golden move, no target-contracts pin).
+
+_PRESENCE_CLAIMS = pathlib.Path(__file__).resolve().parents[1] / "presence_claims.py"
+
+
+# The DECLARED oracle for the presence DIRECTION builders (the `_claim_B` shape): every function that
+# folds ≥2 tumor-vs-normal direction arms via the `_dir(...)` primitive must appear here with its arm
+# pairing, or the enumeration test fails until it is declared — the anti-drift gate for this family.
+_DECLARED_PRESENCE_DIRECTION_BUILDERS = {
+    "_claim_B": (
+        "tumor-vs-normal ELEVATION from two arms: RNA-DGE (tumor-rna-vs-adjacent.expression_call_class) "
+        "× CPTAC protein (tumor-protein-abundance-cptac.protein_expression_class) — BOTH scored vs "
+        "MATCHED-ADJACENT normal (TCGA adjacent for RNA, CPTAC solid-tissue-normal for protein), "
+        "commensurate by same-basis / different-modality; see _CLAIM_B_ARM_BASIS (SK#1675)"
+    ),
+}
+
+# The two direction arms `_claim_B` folds, each (card_id, field) → comparator BASIS. The set is what
+# makes the fold commensurate: BOTH arms are 'matched_adjacent'. A re-pointed arm (a field NOT on this
+# list) or a new undeclared arm changes this set and fails the commensurability test below.
+_CLAIM_B_ARM_BASIS = {
+    ("tumor-rna-vs-adjacent", "expression_call_class"): "matched_adjacent",
+    ("tumor-protein-abundance-cptac", "protein_expression_class"): "matched_adjacent",
+}
+
+# The RNA card's tumor-vs-GTEx-POPULATION contrast fields — a DIFFERENT comparator basis, DISPLAY-ONLY
+# (verdict-inert). They must NEVER be folded as a `_dir` direction arm (that would mix matched-adjacent
+# with population, the #1673-class construct-mismatch). The mutation test re-points an arm to one of these.
+_PRESENCE_POPULATION_FIELDS = frozenset({"gtex_log2_fc", "gtex_q_value"})
+
+# The DECLARED oracle for presence's `corroboration_from_arms` callers (imported aliased as
+# `_corr_from_arms`). Same contract as the genomic/selectivity families.
+_DECLARED_PRESENCE_CORROBORATION_BUILDERS = {
+    "_coverage_concordance_claim": (
+        "single-cell within-tumour coverage arm × antigen-escape arm — BOTH orthogonal facets of the "
+        "SAME single-cell malignant-coverage assay (tumor-scrna-celltype-expression); a same-assay "
+        "corroboration, commensurate by construction"
+    ),
+    "_abundance_concordance_claim": (
+        "primary-grain RNA×MS-protein magnitude concordance × the INDEPENDENT cross-grain read — "
+        "GRAIN-ANCHORED (tumor RNA×CPTAC, or cell-line RNA×Gygi/ProCan), ALWAYS same-grain within an arm "
+        "and compared on WITHIN-POPULATION rank CLASS not raw TMT-vs-TPM (#1512); the second grain is an "
+        "independent cross-grain corroborating arm — commensurate by construction"
+    ),
+}
+
+
+def _presence_tree() -> ast.Module:
+    return _parse(_PRESENCE_CLAIMS.read_text())
+
+
+def _corr_from_arms_local_name(tree: ast.Module) -> str:
+    """The local name that `corroboration_from_arms` is imported under in this module. presence aliases
+    it (`from … import corroboration_from_arms as _corr_from_arms`); genomic/selectivity import it
+    unaliased. Resolving the alias keeps the enumeration correct regardless of import style."""
+    for n in ast.walk(tree):
+        if isinstance(n, ast.ImportFrom):
+            for a in n.names:
+                if a.name == "corroboration_from_arms":
+                    return a.asname or a.name
+    return "corroboration_from_arms"
+
+
+def _presence_corroboration_builders(tree: ast.Module) -> set[str]:
+    """Every function that folds arms via the (aliased) `corroboration_from_arms` in presence_claims.py."""
+    local = _corr_from_arms_local_name(tree)
+    return {name for name, fn in _functions(tree).items() if _calls_named(fn, local)}
+
+
+def _card_aliases(func: ast.FunctionDef) -> dict[str, str]:
+    """Map each local bound to `<name> = c.get("<card>", …)` → that card_id. `_claim_B` reads its arm
+    cards through these locals (`tva = c.get("tumor-rna-vs-adjacent", {})`), so a `_dir` arg that reads
+    the field THROUGH a local is resolved to its card."""
+    aliases: dict[str, str] = {}
+    for n in ast.walk(func):
+        if isinstance(n, ast.Assign) and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name):
+            v = n.value
+            if (
+                isinstance(v, ast.Call)
+                and isinstance(v.func, ast.Attribute)
+                and v.func.attr == "get"
+                and isinstance(v.func.value, ast.Name)
+                and v.func.value.id == "c"
+                and v.args
+                and isinstance(v.args[0], ast.Constant)
+                and isinstance(v.args[0].value, str)
+            ):
+                aliases[n.targets[0].id] = v.args[0].value
+    return aliases
+
+
+def _dir_call_count(func: ast.FunctionDef) -> int:
+    return sum(
+        1 for n in ast.walk(func) if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "_dir"
+    )
+
+
+def _direction_builders(tree: ast.Module) -> set[str]:
+    """Every function that folds ≥2 direction arms via the presence `_dir(...)` primitive — the AST is
+    the source of truth, so a newly-added manual multi-arm direction builder is DISCOVERED, not assumed."""
+    return {name for name, fn in _functions(tree).items() if _dir_call_count(fn) >= 2}
+
+
+def claim_b_direction_arms(func: ast.FunctionDef) -> set[tuple[str, str]]:
+    """The (card_id, field) pairs `_claim_B` folds as direction arms: each `_dir(<alias>.get("<field>"))`
+    resolved through the card aliases."""
+    aliases = _card_aliases(func)
+    arms: set[tuple[str, str]] = set()
+    for n in ast.walk(func):
+        if not (isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "_dir" and n.args):
+            continue
+        arg = n.args[0]
+        if (
+            isinstance(arg, ast.Call)
+            and isinstance(arg.func, ast.Attribute)
+            and arg.func.attr == "get"
+            and isinstance(arg.func.value, ast.Name)
+            and arg.func.value.id in aliases
+            and arg.args
+            and isinstance(arg.args[0], ast.Constant)
+            and isinstance(arg.args[0].value, str)
+        ):
+            arms.add((aliases[arg.func.value.id], arg.args[0].value))
+    return arms
+
+
+def assert_claim_b_arms_are_commensurate(tree: ast.Module) -> None:
+    """Raise AssertionError unless `_claim_B` folds EXACTLY the declared commensurate matched-adjacent
+    direction arms (`_CLAIM_B_ARM_BASIS`) — no incommensurate/population field pulled in, none dropped.
+    The predicate the presence-family mutation test drives red."""
+    funcs = _functions(tree)
+    assert "_claim_B" in funcs, "_claim_B vanished from presence_claims.py"
+    arms = claim_b_direction_arms(funcs["_claim_B"])
+    declared = set(_CLAIM_B_ARM_BASIS)
+    undeclared = arms - declared
+    population = {f for (_card, f) in undeclared if f in _PRESENCE_POPULATION_FIELDS}
+    assert arms == declared, (
+        f"_claim_B folds direction arms {sorted(arms)} — expected EXACTLY the commensurate matched-"
+        f"adjacent arm set {sorted(declared)}. An extra arm mixes a DIFFERENT comparator basis into the "
+        f"tumor-elevation fold (a false agreement/conflict, the presence analogue of SK#1673); a missing "
+        f"arm means an arm was dropped or renamed. undeclared = {sorted(undeclared)}"
+        + (
+            f" — INCLUDING the DISPLAY-ONLY population contrast {sorted(population)}: the tumor-vs-GTEx-"
+            f"population reference is a different comparator basis and must never be a `_dir` direction arm"
+            if population
+            else ""
+        )
+        + f"; gone = {sorted(declared - arms)}."
+    )
+
+
+# ── the presence-family tests ─────────────────────────────────────────────────────────────────────
+def test_presence_direction_builders_are_declared():
+    """ENUMERATION / anti-drift for the presence DIRECTION family: every function folding ≥2 tumor-vs-
+    normal arms via the `_dir(...)` primitive must be declared. A NEW manual multi-arm direction builder
+    fails here until its arm pairing is declared in `_DECLARED_PRESENCE_DIRECTION_BUILDERS`."""
+    discovered = _direction_builders(_presence_tree())
+    declared = set(_DECLARED_PRESENCE_DIRECTION_BUILDERS)
+    assert discovered == declared, (
+        f"presence direction builders drifted from the declared oracle: "
+        f"undeclared (add its arm pairing) = {sorted(discovered - declared)}; "
+        f"declared-but-gone (remove it) = {sorted(declared - discovered)}"
+    )
+
+
+def test_presence_corroboration_builders_are_declared():
+    """ENUMERATION / anti-drift for presence's `corroboration_from_arms` callers (imported ALIASED as
+    `_corr_from_arms`). Every such builder must be declared, or this fails until its arm pairing is
+    added to `_DECLARED_PRESENCE_CORROBORATION_BUILDERS`."""
+    discovered = _presence_corroboration_builders(_presence_tree())
+    declared = set(_DECLARED_PRESENCE_CORROBORATION_BUILDERS)
+    assert discovered == declared, (
+        f"presence multi-arm corroboration builders drifted from the declared oracle: "
+        f"undeclared (add its arm pairing) = {sorted(discovered - declared)}; "
+        f"declared-but-gone (remove it) = {sorted(declared - discovered)}"
+    )
+
+
+def test_claim_b_oracle_is_internally_same_comparator_basis():
+    """The declared table itself encodes the commensurability rule: both `_claim_B` arms share the SAME
+    comparator basis (matched-adjacent) and differ only by MODALITY. Guards the oracle against a typo
+    that would make the whole detector assert the wrong pairing."""
+    bases = set(_CLAIM_B_ARM_BASIS.values())
+    assert bases == {"matched_adjacent"}, (
+        f"the declared _claim_B arms must all be the SAME comparator basis (matched_adjacent); got {bases}"
+    )
+    cards = {card for (card, _f) in _CLAIM_B_ARM_BASIS}
+    assert len(cards) == 2, (
+        f"the two arms must be different-MODALITY cards (RNA vs protein), commensurate on basis but "
+        f"independent measurements; got cards {sorted(cards)}"
+    )
+    # the display-only population fields must NOT be in the commensurate arm set (they are a different basis).
+    assert not (_PRESENCE_POPULATION_FIELDS & {f for (_c, f) in _CLAIM_B_ARM_BASIS}), (
+        "a tumor-vs-GTEx-population field leaked into the declared matched-adjacent arm set"
+    )
+
+
+def test_claim_b_folds_the_commensurate_matched_adjacent_arms():
+    """GREEN on today's presence_claims.py: `_claim_B` folds exactly the two commensurate matched-adjacent
+    direction arms. Also anti-vacuity — the declared arm set is non-empty."""
+    assert _CLAIM_B_ARM_BASIS, "the declared _claim_B arm set is empty — the test would pin nothing"
+    assert_claim_b_arms_are_commensurate(_presence_tree())
+
+
+# The mutation the presence-family detector exists to catch: the RNA-DGE arm re-pointed from the matched-
+# adjacent `expression_call_class` to the DISPLAY-ONLY tumor-vs-GTEx-POPULATION `gtex_log2_fc` — folding a
+# population-basis contrast against the matched-adjacent CPTAC protein arm (incommensurate comparator
+# bases, the presence analogue of #1673). Applied to a COPY of the source string, so the real module is
+# never mutated.
+def _mutant_claim_b_arm_repointed_to_gtex_population(source: str) -> str:
+    mutated = source.replace('_dir(tva.get("expression_call_class"))', '_dir(tva.get("gtex_log2_fc"))')
+    assert mutated != source, "mutation was a no-op — the matched-adjacent RNA arm is no longer present to re-point"
+    return mutated
+
+
+def test_detector_bites_a_claim_b_arm_repointed_to_the_population_contrast():
+    """MUTATION TEST for the presence family — the corpus alone has no teeth here, so prove the detector
+    bites. With the RNA-DGE arm re-pointed to the population `gtex_log2_fc` contrast (an incommensurate
+    different-basis field), `_claim_B`'s direction-arm set no longer equals the declared matched-adjacent
+    arms and `assert_claim_b_arms_are_commensurate` FAILS. Confirms both the RED (on the mutant) and — via
+    `test_claim_b_folds_the_commensurate_matched_adjacent_arms` — the GREEN on real source."""
+    mutant = _parse(_mutant_claim_b_arm_repointed_to_gtex_population(_PRESENCE_CLAIMS.read_text()))
+    # sanity: the mutant genuinely re-points the RNA arm to the population field
+    arms = claim_b_direction_arms(_functions(mutant)["_claim_B"])
+    assert ("tumor-rna-vs-adjacent", "gtex_log2_fc") in arms and (
+        "tumor-rna-vs-adjacent",
+        "expression_call_class",
+    ) not in arms, "the mutation did not re-point the RNA arm as intended"
+    # …and the detector rejects it
+    with pytest.raises(AssertionError, match="_claim_B"):
+        assert_claim_b_arms_are_commensurate(mutant)
