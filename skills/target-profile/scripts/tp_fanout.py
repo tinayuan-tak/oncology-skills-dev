@@ -27,6 +27,7 @@ from _skills_common.narrator_engine import LensConfig as _LensConfig
 from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.skill_report import ROLE_GATING, build_skill_report
 from _skills_common.subgroup_derivation import subgroup_signals_for
+from _skills_common.subtype_axis import is_differential_axis  # SK#1624 powered-axis gate for the differential mint
 from tp_common import SKILLS_DIR
 
 # Central per-skill narrator/literature lens registry, auto-collected by `LensConfig.name` (== the skill
@@ -1085,7 +1086,35 @@ def _strata_for_card(card_id: str, subtypes: list[str], cohorts_of: dict[str, li
     return [s for s in subtypes if not cohorts_of.get(s) or (set(cohorts_of[s]) & serving)]
 
 
-def _subtype_verdict(fired: list[dict]) -> tuple[str, str | None] | None:
+def _subtype_expression_differential(expr_result: dict | None) -> str | None:
+    """SK#1624 — the LOWEST-priority subtype-tier positive: a POWERED cross-subtype expression
+    DIFFERENTIAL. Returns the fired rule_id (for provenance) iff, in the `expression` sub-result,
+    (1) a subtype-expression-enriched/restricted-context rule fired emitting `subtype_fit_expression:
+    supportive` (target-contracts promoted these from neutral, #1624), AND (2) the tumor-rna-
+    distribution-by-subtype card's rolled-up `subtype_axis_quality` is `powered`
+    (is_differential_axis — >=2 strata clear the n>=30 floor). The powered gate is applied HERE, not in
+    the rule's in_record, so a single-stratum `exploratory` enrichment (a hypothesis, not a real
+    differential) fires the context rule but never mints the verdict. Returns None otherwise.
+
+    Reads the `expression` sub-result (threaded in from the completed main fan-out) rather than the
+    subtype tier's own SUBTYPE_CARDS: tumor-rna-distribution-by-subtype lives in the `expression`
+    short, so its fired records carry `subtype_fit_expression` in their in-memory signals dict."""
+    if not expr_result:
+        return None
+    quality = None
+    for c in expr_result.get("cards") or []:
+        if c.get("card_id") == "tumor-rna-distribution-by-subtype":
+            quality = (c.get("summary") or {}).get("subtype_axis_quality")
+            break
+    if not is_differential_axis(quality):
+        return None
+    for f in expr_result.get("fired") or []:
+        if "supportive" in ((f.get("signals") or {}).get("subtype_fit_expression") or ""):
+            return f.get("rule_id")
+    return None
+
+
+def _subtype_verdict(fired: list[dict], expr_result: dict | None = None) -> tuple[str, str | None] | None:
     """Verdict producer for the subtype tier. BI-DIRECTIONAL, negative-precedence (2026-08-19,
     subtype-verdict-shifting review).
 
@@ -1105,14 +1134,24 @@ def _subtype_verdict(fired: list[dict]) -> tuple[str, str | None] | None:
     tumor-tissue analogue that reaches indications whose DepMap subtype dependency channel is
     data-blocked (STAD/ESCA carry 0 subtype-labeled DepMap lines).
 
+    POSITIVE — POWERED EXPRESSION DIFFERENTIAL (2026-09-26, SK#1624), LOWEST priority: on a `powered`
+    subtype axis a subtype-expression-enriched/restricted-context rule (subtype_fit_expression:
+    supportive) -> `subtype_powered_differential`. A DOMINANT patient-selection nomination signal in
+    nomination_verdict_gate.yaml, but ADDITIVE here — it is minted ONLY when no opposing / dependency /
+    selectivity subtype verdict was found, so it never displaces them (see _subtype_expression_differential
+    for the powered gate).
+
     Precedence is CONSERVATIVE and RANKED: (1) any opposing subtype -> HOLD wins. Else (2) a dependency
     supportive -> subtype_restricted_dependency (the STRONGER positive: KO-proven efficacy + veto-
-    suppressor). Else (3) a selectivity supportive -> subtype_restricted_selectivity. So a subtype with
-    BOTH strong dependency and strong selectivity reports the dependency verdict; selectivity-only
-    subtypes (the data-blocked-dependency case) get the selectivity verdict. Admissibility (n>=30 floor,
-    measured) is enforced upstream at rule-fire time. Byte-stable: no --subtypes -> no subtype rule
-    fires -> None; existing opposing/dependency-only runs unchanged; only a selectivity-supportive
-    without any dependency/opposing signal is new.
+    suppressor). Else (3) a selectivity supportive -> subtype_restricted_selectivity. Else (4) a powered
+    expression differential -> subtype_powered_differential (SK#1624, lowest — additive, never displaces).
+    So a subtype with BOTH strong dependency and strong selectivity reports the dependency verdict;
+    selectivity-only subtypes (the data-blocked-dependency case) get the selectivity verdict; a
+    powered-expression-only subtype gets the differential verdict. Admissibility (n>=30 floor, measured)
+    is enforced upstream at rule-fire time (the powered-axis gate additionally skills-side). Byte-stable:
+    no --subtypes -> no subtype tier -> None; and the expression differential fires only where the
+    tumor-rna subtype axis is `powered` (the ~34-package powered-differential set), so a run whose
+    expression axis is not powered is byte-identical to before.
     """
 
     def _sig(f: dict) -> str:
@@ -1134,6 +1173,11 @@ def _subtype_verdict(fired: list[dict]) -> tuple[str, str | None] | None:
     if sel_supportive:
         # SUPPORTIVE positive (tumor-tissue selectivity) — the data-blocked-dependency channel.
         return ("subtype_restricted_selectivity", sel_supportive[0].get("rule_id"))
+    # LOWEST priority (SK#1624): a POWERED cross-subtype expression differential. ADDITIVE — reached
+    # only when none of the above subtype verdicts fired, so it never displaces them.
+    expr_rule = _subtype_expression_differential(expr_result)
+    if expr_rule:
+        return ("subtype_powered_differential", expr_rule)
     return None
 
 
@@ -1191,6 +1235,10 @@ _SUBTYPE_VERDICT_POLARITY = {
     "subtype_specific_non_dependence": "opposing",
     "subtype_restricted_dependency": "supportive",  # KO-proven efficacy + non_dependent veto-suppressor
     "subtype_restricted_selectivity": "supportive",  # tumor-tissue analogue; NOT a veto-suppressor
+    "subtype_powered_differential": "supportive",  # SK#1624 powered cross-subtype expression differential;
+    # DOMINANT positive in the nomination gate but `supportive` POLARITY on this display surface (a
+    # patient-selection nomination input, NOT a veto/hold): same polarity family as the two rungs above.
+    # MUST be listed — an unrecognized token fail-closes to `opposing` (_SUBTYPE_UNRECOGNIZED_POLARITY).
     # recognized by tp_gates but NON-gating ("falls through as a permissive pass, never forces hold") and
     # it asserts nothing was measurable ⇒ unranked, exactly like the dormant case. Listed EXPLICITLY, not
     # left to a default, so that adding a verdict to the vocab forces a decision here (a guard test pins
@@ -1686,7 +1734,9 @@ def _run_sub_skills(
         sub_fired: list[dict] = []
         for axis in axes:
             sub_fired.extend(fired_rules(sub_cards, axis=axis, card_id_filter=SUBTYPE_CARDS))
-        subtype_verdict_pair = _subtype_verdict(sub_fired)
+        # SK#1624: thread the completed `expression` sub-result so the lowest-priority powered-
+        # differential branch can read its fired subtype-expression signals + axis-quality grade.
+        subtype_verdict_pair = _subtype_verdict(sub_fired, results.get("expression"))
         results[SUBTYPE_SHORT] = {
             "skill_dir": None,  # not a directory sub-skill; composed inline
             "cards": sub_cards,

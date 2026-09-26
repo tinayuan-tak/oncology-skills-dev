@@ -346,7 +346,13 @@ jobs:
           #     safety resolver_golden regenerated + 6 witness rule_ids added to the safety gate rule_ids.
           #   • DIFFERENTIATION (#922 = TC#897): both_patterns_present wired supportive in
           #     nomination_verdict_gate.yaml (monotonicity fix; superset of strong_mutually_exclusive).
-          ref: 468c3dc194e769d4c9786956246fecc4fdccca46
+          # ── BUMPED 468c3dc -> 759bea8 (SK#1624, TC PR#936 merge): activates the subtype_powered_differential
+          #     DOMINANT positive slot (vocab nomination_verdict_gate.yaml 1.22.0 -> 1.23.0 + the promoted
+          #     subtype-expression-enriched/restricted-context rules). Forced ordering: validate_verdict_tokens
+          #     walks gate->resolver one-way, so the TC gate row must precede this producer/pin. The skills
+          #     producer (tp_fanout `_subtype_verdict` + tp_gates `_RECOGNIZED_GATING_VERDICTS`) lands in the
+          #     same PR as this bump.
+          ref: 759bea80894924023039db4aa3e433f29f0ee499
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

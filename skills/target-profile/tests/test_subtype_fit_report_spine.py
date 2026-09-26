@@ -199,7 +199,7 @@ def test_the_hold_verdict_is_opposing_and_never_enters_killer_axes():
 
 
 def test_supportive_subtype_verdicts_are_supportive():
-    for v in ("subtype_restricted_dependency", "subtype_restricted_selectivity"):
+    for v in ("subtype_restricted_dependency", "subtype_restricted_selectivity", "subtype_powered_differential"):
         assert _subtype_spine_skill_report((v, "r"), _CARDS, _FIRED)["polarity"] == "supportive", v
 
 

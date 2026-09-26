@@ -193,6 +193,12 @@ _RECOGNIZED_GATING_VERDICTS: dict[str, frozenset[str]] = {
             #                                                               veto-suppressor) — 2026-09-11 STAD subtype-shard
             #                                                               wiring. Non-gating: falls through as a permissive
             #                                                               pass (like subtype_restricted_dependency).
+            "subtype_powered_differential",  # SK#1624 powered cross-subtype expression differential.
+            #                                                               DOMINANT positive_signal in the nomination gate but
+            #                                                               NON-GATING here: falls through as a permissive pass
+            #                                                               (never forces hold), like the two rungs above. MUST
+            #                                                               be listed — an unrecognized subtype verdict fail-
+            #                                                               closes to a hold.
             "insufficient",  # (vocab: positive_signals + veto_suppressors,
             #                                                               NOT gates/kill_capable → recognized, non-gating:
             #                                                               falls through as a permissive pass, never forces

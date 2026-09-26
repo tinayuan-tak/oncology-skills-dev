@@ -136,8 +136,35 @@ def test_subtype_fit_emitter_tokens_are_recognized_and_declared_in_vocab():
     positive = tp_fanout._subtype_verdict(
         [{"tier": "subtype", "signals": {"subtype_fit_genomic": "supportive"}, "rule_id": "r-pos"}]
     )
-    assert hold and positive, "emitter did not produce both subtype_fit tokens — stale test fixture"
-    emitted = {hold[0], positive[0]}
+    selectivity = tp_fanout._subtype_verdict(
+        [{"tier": "subtype", "signals": {"subtype_fit_selectivity": "supportive"}, "rule_id": "r-sel"}]
+    )
+    # SK#1624: the LOWEST-priority powered cross-subtype expression differential. It reads the
+    # `expression` sub-result (threaded in from the fan-out), so drive it with a synthetic expression
+    # result carrying a POWERED tumor-rna subtype axis + a supportive subtype-expression fired record.
+    _powered_expr = {
+        "cards": [{"card_id": "tumor-rna-distribution-by-subtype", "summary": {"subtype_axis_quality": "powered"}}],
+        "fired": [
+            {"signals": {"subtype_fit_expression": "supportive"}, "rule_id": "subtype-expression-enriched-context"}
+        ],
+    }
+    differential = tp_fanout._subtype_verdict([], _powered_expr)
+    assert hold and positive and selectivity and differential, (
+        "emitter did not produce all four subtype_fit tokens — stale test fixture"
+    )
+    assert differential[0] == "subtype_powered_differential", differential
+    # the powered gate is LOAD-BEARING: an exploratory (non-powered) axis must NOT mint the differential,
+    # so the same supportive fired record on a non-powered axis falls through to None (byte-stability).
+    _exploratory_expr = {
+        "cards": [{"card_id": "tumor-rna-distribution-by-subtype", "summary": {"subtype_axis_quality": "exploratory"}}],
+        "fired": [
+            {"signals": {"subtype_fit_expression": "supportive"}, "rule_id": "subtype-expression-enriched-context"}
+        ],
+    }
+    assert tp_fanout._subtype_verdict([], _exploratory_expr) is None, (
+        "a non-powered subtype axis must not mint subtype_powered_differential (is_differential_axis gate)"
+    )
+    emitted = {hold[0], positive[0], selectivity[0], differential[0]}
     short = tp_fanout.SUBTYPE_SHORT  # "subtype_fit"
 
     # (1) emitter ↔ recognized set (pure skills; no vocab needed)
