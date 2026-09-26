@@ -26,7 +26,10 @@ SK#1689 EXTENDS the same mechanism to a SECOND, NON-GENOMIC builder family — t
 multi-arm builders in selectivity_claims.py (tumor-vs-normal RNA window + CPTAC/TPHP protein quorum).
 SK#1675 EXTENDS it to a THIRD family — the TUMOR-PRESENCE multi-arm builders in presence_claims.py
 (`_claim_B`'s RNA-DGE × CPTAC protein tumor-elevation fold, plus the L2b cross-source claims). Both later
-families proved COMMENSURATE by design (detector-oracle extensions, not fixes). See the family blocks at
+families proved COMMENSURATE by design (detector-oracle extensions, not fixes). SK#1600 EXTENDS it to a
+FOURTH family — the LITERATURE-CONTEXT corroboration builder in literature_context_claims.py — which,
+unlike the selectivity/presence extensions, was a genuine FIX (a non-independent n_diseases pleiotropy
+arm, the #1667 shape): literature is a one-armed axis capped at single_arm. See the family blocks at
 the bottom of this file; the milestone is that the arm-commensurability audit becomes a repo-wide standing
 gate rather than a per-family manual sweep.
 """
@@ -771,6 +774,147 @@ def test_detector_bites_a_claim_b_arm_repointed_to_the_population_contrast():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# FOURTH FAMILY — the LITERATURE-CONTEXT corroboration builder in literature_context_claims.py (SK#1600)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# SK#1688/#1689/#1675 covered the GENOMIC / EXPRESSION-PROTEOMICS / PRESENCE families. literature-context
+# is the Tier-1 literature family of the same audit. Unlike the selectivity/presence extensions (which
+# proved COMMENSURATE by design), this family was a genuine FIX (#1600, the #1667 non-independent-arm
+# shape):
+#   `_corr` built its corroboration from `corroboration_from_arms([True, multi_disease_arm])`, where the
+#   ONLY route to `high` was `n_diseases >= 3 AND tier == "strong"`. That "second arm" is NOT independent:
+#   the card documents `paper_disease_mentions` is SUMMED over the `n_diseases` disease subtypes, so
+#   n_diseases is the DENOMINATOR the volume was summed across — a component of the SAME europePMC read,
+#   never an independent corroborating measurement. It also (a) rewarded pleiotropy that run.py's own
+#   confidence caveat flags NEGATIVE (`_PLEIOTROPY_MIN_DISEASES=8`, the low-specificity TP53 pattern) and
+#   (b) was cross-axis mis-wired (that VOLUME-scope field was the second arm for RECENCY and RELATION too).
+#
+# THE FIX (#1600): literature is a ONE-ARMED axis — a single corpus read has nothing INDEPENDENT to agree
+# with — so `_corr` now folds `corroboration_from_arms([True])` and is capped at `single_arm`, mirroring
+# translational_readiness_claims `_one_arm`. The COMMENSURABILITY invariant this block pins is therefore:
+# `_corr` reads NO headline field as an arm (the declared commensurate arm set is EMPTY) and folds a single
+# literal `True` arm. Re-introducing ANY headline-field second arm (the removed `n_diseases`, or any other)
+# re-opens the non-independent double-count — the mutation test at the bottom drives exactly that red.
+#
+# SHAPE NOTE: the corroboration builder here is the FACTORY `_corr` (its inner closure calls
+# `corroboration_from_arms`); `_functions`/`ast.walk` attribute the call to the enclosing `_corr`, which is
+# how the fleet enumeration already discovers this file. This block edits ONLY the test file (the
+# literature_context_claims.py fix lands in the same PR but is asserted, not authored, here).
+
+_LITERATURE_CLAIMS = pathlib.Path(__file__).resolve().parents[1] / "literature_context_claims.py"
+
+
+# The DECLARED oracle for the literature family. Same contract as the earlier families: every function
+# that folds arms via `corroboration_from_arms` in literature_context_claims.py must appear here.
+_DECLARED_LITERATURE_CORROBORATION_BUILDERS = {
+    "_corr": (
+        "the single europePMC co-occurrence read per axis (VOLUME/RECENCY/RELATION) — a ONE-ARMED axis "
+        "capped at single_arm: one corpus read has nothing INDEPENDENT to agree with. NO headline field is "
+        "folded as a second arm (see _LITERATURE_COMMENSURATE_ARM_FIELDS); #1600 removed the non-independent "
+        "n_diseases arm (a sub-field of the SAME read, the #1667 shape); mirrors translational _one_arm"
+    ),
+}
+
+# literature corroboration is a SINGLE-ARM axis, so the declared commensurate arm set is EMPTY: no headline
+# field is an independent second arm (n_diseases is the denominator the volume was summed across). A
+# re-pointed/re-added arm reads SOME headline field here and fails the commensurability assertion below.
+_LITERATURE_COMMENSURATE_ARM_FIELDS = frozenset()
+
+
+def _literature_tree() -> ast.Module:
+    return _parse(_LITERATURE_CLAIMS.read_text())
+
+
+def _corroboration_from_arms_calls(func: ast.FunctionDef) -> list[ast.Call]:
+    """Every `corroboration_from_arms(...)` call anywhere in `func` (incl. its inner closures)."""
+    return [
+        n
+        for n in ast.walk(func)
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "corroboration_from_arms"
+    ]
+
+
+def assert_literature_is_single_arm(tree: ast.Module) -> None:
+    """Raise AssertionError unless `_corr` is a genuine SINGLE-ARM fold: it reads NO headline field as an
+    arm (the declared EMPTY commensurate set) and folds exactly one literal `True` arm. The predicate the
+    literature-family mutation test drives red."""
+    funcs = _functions(tree)
+    assert "_corr" in funcs, "_corr vanished from literature_context_claims.py"
+    corr = funcs["_corr"]
+    # (a) no headline field is folded as a (non-independent) second arm.
+    fields = _headline_fields_read(corr)
+    assert fields == set(_LITERATURE_COMMENSURATE_ARM_FIELDS), (
+        f"_corr reads headline fields {sorted(fields)} — expected NONE. literature corroboration is a "
+        f"ONE-ARMED axis (one europePMC corpus read has nothing INDEPENDENT to agree with); folding ANY "
+        f"headline field as a second arm re-opens the #1600 non-independent double-count (n_diseases is the "
+        f"denominator paper_disease_mentions was summed across, a component of the SAME read — the #1667 "
+        f"shape). undeclared = {sorted(fields - set(_LITERATURE_COMMENSURATE_ARM_FIELDS))}."
+    )
+    # (b) the fold is a single literal `True` arm → capped at single_arm.
+    calls = _corroboration_from_arms_calls(corr)
+    assert len(calls) == 1, f"_corr must fold arms in exactly one corroboration_from_arms call; found {len(calls)}"
+    arg = calls[0].args[0] if calls[0].args else None
+    is_single_true = (
+        isinstance(arg, ast.List)
+        and len(arg.elts) == 1
+        and isinstance(arg.elts[0], ast.Constant)
+        and arg.elts[0].value is True
+    )
+    assert is_single_true, (
+        "_corr must fold `corroboration_from_arms([True])` — a single literal-True arm capped at "
+        "single_arm. A multi-element arm list re-introduces a second arm (the #1600 non-independent "
+        "n_diseases route or any other), which literature has no INDEPENDENT measurement to supply."
+    )
+
+
+# ── the literature-family tests ─────────────────────────────────────────────────────────────────────
+def test_literature_multi_arm_builders_are_declared():
+    """ENUMERATION / anti-drift for the literature family: every function that folds arms via
+    `corroboration_from_arms` in literature_context_claims.py must be declared. A NEW multi-arm builder
+    fails here until its arm pairing is declared in `_DECLARED_LITERATURE_CORROBORATION_BUILDERS`."""
+    discovered = _corroboration_builders(_literature_tree())
+    declared = set(_DECLARED_LITERATURE_CORROBORATION_BUILDERS)
+    assert discovered == declared, (
+        f"literature multi-arm corroboration builders drifted from the declared oracle: "
+        f"undeclared (add its arm pairing) = {sorted(discovered - declared)}; "
+        f"declared-but-gone (remove it) = {sorted(declared - discovered)}"
+    )
+
+
+def test_literature_corroboration_is_single_arm():
+    """GREEN on today's literature_context_claims.py: `_corr` folds a single literal-True arm and reads no
+    headline field as a second arm — a one-armed axis capped at single_arm (#1600)."""
+    assert_literature_is_single_arm(_literature_tree())
+
+
+# The mutation the literature detector exists to catch: the removed #1600 non-independent second arm
+# (n_diseases, a sub-field of the SAME europePMC read) re-introduced into the fold. Applied to a COPY of
+# the source string, so the real module is never mutated.
+def _mutant_literature_readds_n_diseases_arm(source: str) -> str:
+    mutated = source.replace(
+        "return corroboration_from_arms([True])",
+        'return corroboration_from_arms([True, (True if (h.get("n_diseases") or 0) >= 3 '
+        'and tier == "strong" else None)])',
+    )
+    assert mutated != source, "mutation was a no-op — the single-arm fold is no longer present to re-point"
+    return mutated
+
+
+def test_detector_bites_a_readded_non_independent_n_diseases_arm():
+    """MUTATION TEST for the literature family — the corpus alone has no teeth here, so prove the detector
+    bites. With the non-independent n_diseases second arm re-introduced, `_corr` reads a headline field and
+    folds a two-element arm list, so `assert_literature_is_single_arm` FAILS. Confirms both the RED (on the
+    mutant) and — via `test_literature_corroboration_is_single_arm` — the GREEN on real source."""
+    mutant = _parse(_mutant_literature_readds_n_diseases_arm(_LITERATURE_CLAIMS.read_text()))
+    # sanity: the mutant genuinely re-adds the n_diseases arm
+    assert "n_diseases" in _headline_fields_read(_functions(mutant)["_corr"]), (
+        "the mutation did not re-introduce the n_diseases arm as intended"
+    )
+    # …and the detector rejects it
+    with pytest.raises(AssertionError, match="_corr"):
+        assert_literature_is_single_arm(mutant)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
 # FLEET-COMPLETENESS META-GUARD — every multi-arm fold-builder in _skills_common must belong to a
 # declared commensurability family (SK#1704, tracking #1703, epic #1507)
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -790,8 +934,9 @@ def test_detector_bites_a_claim_b_arm_repointed_to_the_population_contrast():
 # the un-declared-builder population is closed by construction — a future multi-arm builder either lands
 # in a declared family, or is baselined as debt, or fails this gate.
 #
-# The four currently-un-declared families are baselined here as explicit known-debt (each entry cites its
-# #1703 checklist row), so the guard is GREEN today. It reds the moment a NEW un-declared family/file
+# The currently-un-declared families are baselined here as explicit known-debt (each entry cites its
+# #1703 checklist row), so the guard is GREEN today. (literature moved from debt → a declared covered
+# family in #1600, atomically with its `_corr` fix + oracle block above.) It reds the moment a NEW un-declared family/file
 # appears, OR a debt family is removed from the debt list without a matching declared oracle block (the
 # file still holds a caller, so it lands in NEITHER set → red). The `_cn_signal`-style signal/demotion
 # MIRROR shape is already governed within its family block (genomic `_CN_DIRECTIONAL_BUILDERS`,
@@ -819,6 +964,10 @@ _COVERED_FAMILY_FILES = {
         "presence — detector SK#1675 (_DECLARED_PRESENCE_CORROBORATION_BUILDERS, corroboration_from_arms "
         "imported ALIASED as _corr_from_arms); #1703 row: presence [x]"
     ),
+    "literature_context_claims.py": (
+        "literature — detector SK#1600 (_DECLARED_LITERATURE_CORROBORATION_BUILDERS + the single-arm `_corr` "
+        "fold: no non-independent n_diseases arm, capped at single_arm); #1703 row: literature [x]"
+    ),
 }
 
 # The explicit KNOWN-DEBT list: files that DO contain a `corroboration_from_arms` caller but whose family
@@ -826,11 +975,6 @@ _COVERED_FAMILY_FILES = {
 # #1703 checklist row. Removing an entry here WITHOUT adding a declared oracle block for the file reds the
 # guard (the file's caller then belongs to NEITHER set) — which is exactly the intended forcing function.
 _KNOWN_DEBT_FILES = {
-    "literature_context_claims.py": (
-        "literature (literature_context_claims.py:95 `corroboration_from_arms([True, multi_disease_arm])`) "
-        "— #1703 row: literature. CONFIRMED incommensurate (non-independent pleiotropy arm); fix tracked in "
-        "#1600 (verdict-impact NOT yet concluded — measure before declaring)."
-    ),
     "dependency_claims.py": (
         "dependency (dependency_claims.py:407 `corroboration_from_arms([crispr_arm, rnai_arm])`) — #1703 "
         "row: dependency. CRISPR×RNAi fold (L2b-2 #1533); documented inert — audit + declare an oracle block."
@@ -914,7 +1058,7 @@ def test_every_multi_arm_fold_builder_file_is_declared_or_debt():
 
 def test_fleet_enumeration_finds_all_seven_known_family_files():
     """Anti-vacuity + coverage floor: the sweep must actually discover the seven family files known today
-    (three covered + four debt), each with ≥1 caller. If the enumeration silently found nothing (e.g. a
+    (four covered + three debt), each with ≥1 caller. If the enumeration silently found nothing (e.g. a
     broken alias resolution or glob), the completeness test above would pass VACUOUSLY. Pins that the
     enumeration has teeth and that every declared/debt file genuinely still carries a caller (so the debt
     list cannot go stale un-noticed)."""

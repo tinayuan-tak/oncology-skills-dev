@@ -96,7 +96,11 @@ def test_literature_claim_vector_status_gating():
         },
         [],
     )
-    assert ok["VOLUME"]["signal"] == "strong" and ok["VOLUME"]["corroboration"] == "high"
+    # VOLUME corroboration is `single_arm`, not `high` (#1600): the old value was minted from a
+    # non-independent second arm (`n_diseases>=3 AND tier==strong`). n_diseases is the denominator
+    # `paper_disease_mentions` was summed across (a component of the SAME europePMC read, the #1667 shape),
+    # not an independent corroborating measurement — so literature is a one-armed axis capped at single_arm.
+    assert ok["VOLUME"]["signal"] == "strong" and ok["VOLUME"]["corroboration"] == "single_arm"
     assert ok["RELATION"]["signal"] == "strong"
     # no_evidence → measured absent; data_unavailable → unmeasured; insufficient caps at weak
     assert lc_cv({"cited_evidence_status": "no_evidence"}, [])["VOLUME"]["signal"] == "absent"

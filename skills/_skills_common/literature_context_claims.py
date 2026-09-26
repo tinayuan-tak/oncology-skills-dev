@@ -73,26 +73,48 @@ def _sig(count_field, cuts, ev_fn):
 
 
 def _corr(count_field, cuts):
-    """Corroboration = corpus breadth: `unmeasured` on a coverage GAP; `high` when the axis is strong AND
-    the corpus spans >=3 diseases (a genuine SECOND arm — independent disease contexts agreeing);
-    otherwise `single_arm`, because a single corpus read has nothing to agree with.
+    """Corroboration: `unmeasured` on a coverage GAP; otherwise CAPPED at `single_arm`, because a single
+    europePMC corpus read has nothing INDEPENDENT to agree with — literature is a one-armed axis, like the
+    single-leg axes in translational_readiness_claims (`_one_arm`). #1600.
 
-    This used to return `low` for an `absent` or `weak` tier, which made "no papers found" read as
-    CONFLICTING evidence: `eval/build_discordance_ledger._DISAGREEMENT_CORROBORATION == {"low"}` is the
-    ledger's sharpness predicate, so a thin corpus manufactured a sharp discordance row on VOLUME,
-    RECENCY and RELATION alike — on all three axes at once, for every target with a sparse corpus.
+    This used to route `high` when the axis was `strong` AND `n_diseases>=3`, treating disease breadth as a
+    genuine second arm. It is NOT one (arm-commensurability audit, epic #1507 / tracking #1703; same shape
+    as #1667's non-independent superset arm):
+      * NOT INDEPENDENT — the card documents (cited-literature-evidence.card.yaml `paper_disease_mentions`
+        caveat) that `paper_disease_mentions` is SUMMED over the `n_diseases` disease subtypes ("a paper
+        co-occurring with N subtypes counts N times"), so `n_diseases` is the DENOMINATOR the volume was
+        summed across — a component of THIS SAME read, not an independent corroborating measurement.
+        Folding it into `corroboration_from_arms` (the MEASURED-INDEPENDENT-ARM frame) double-counted one
+        source, and nothing ever checked the disease contexts AGREED.
+      * IT REWARDED PLEIOTROPY THE SKILL ITSELF FLAGS NEGATIVE — run.py's confidence caveat treats disease
+        breadth as an OVER-CALL warning (`_PLEIOTROPY_MIN_DISEASES=8`, the "TP53 pattern": a promiscuous
+        hub whose VOLUME is a LOW-SPECIFICITY signal). Using `n_diseases>=3` to UPGRADE corroboration to
+        `high` contradicted that surface. Dropping the arm reconciles the two: run.py's negative treatment
+        of disease breadth is now the SINGLE source of truth (claims.py no longer reads breadth as positive).
+      * CROSS-AXIS MIS-WIRED — the same `n_diseases` (a VOLUME-scope field) was the second arm for the
+        RECENCY and RELATION axes too, so a `high` RECENCY/RELATION corroboration asserted agreement on the
+        basis of disease breadth from the volume read, which cannot corroborate a recency or typed-relation
+        count.
 
     Note the `absent` tier keeps a MEASURED corroboration tier (`single_arm`) rather than reading
     `unmeasured`: `no_evidence` means the corpus WAS searched and came back empty, which the module gates
     to a measured `absent` precisely so it stays distinct from `data_unavailable`. Collapsing it here
-    would re-merge on the corroboration axis the two states the signal axis works to keep apart."""
+    would re-merge on the corroboration axis the two states the signal axis works to keep apart. Feeding a
+    single measured arm `[True]` to `corroboration_from_arms` yields `single_arm` for every measured tier
+    (including `absent`), and only `unmeasured` short-circuits — preserving that distinction.
+
+    (History: this fn used to return `low` for an `absent`/`weak` tier, which made "no papers found" read
+    as CONFLICTING evidence — `eval/build_discordance_ledger._DISAGREEMENT_CORROBORATION == {"low"}` is the
+    ledger's sharpness predicate — manufacturing a sharp discordance row on all three axes for every sparse
+    corpus. The single-arm floor here keeps that fixed: `[True]` never routes a `False` arm, so `_corr`
+    can never return `low`.)"""
 
     def fn(h, _c):
         tier = _gated_tier(h, count_field, cuts)
         if tier == "unmeasured":
             return "unmeasured"  # nobody searched — neither corroborated nor contradicted
-        multi_disease_arm = True if (h.get("n_diseases") or 0) >= 3 and tier == "strong" else None
-        return corroboration_from_arms([True, multi_disease_arm])
+        # ONE corpus read has nothing INDEPENDENT to agree with → capped at single_arm (see docstring).
+        return corroboration_from_arms([True])
 
     return fn
 

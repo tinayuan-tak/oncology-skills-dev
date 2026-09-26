@@ -95,7 +95,7 @@
     "claim_vector": {
       "VOLUME": {
         "signal": "strong",
-        "corroboration": "high",
+        "corroboration": "single_arm",
         "evidence": "paper_disease_mentions=12691 across 7 diseases",
         "conflict": null,
         "informs": "literature_context",
@@ -208,7 +208,7 @@
       },
       "RECENCY": {
         "signal": "strong",
-        "corroboration": "high",
+        "corroboration": "single_arm",
         "evidence": "recent_mentions=4919 (latest 2026)",
         "conflict": null,
         "informs": "literature_context",
@@ -321,7 +321,7 @@
       },
       "RELATION": {
         "signal": "strong",
-        "corroboration": "high",
+        "corroboration": "single_arm",
         "evidence": "total_relation_publications=5106 \u2014 associate, stimulate, inhibit",
         "conflict": null,
         "informs": "literature_context",
@@ -583,21 +583,21 @@
             "key": "VOLUME",
             "label": "co-occurrence volume",
             "signal": "strong",
-            "corroboration": "high",
+            "corroboration": "single_arm",
             "conflict": false
           },
           {
             "key": "RECENCY",
             "label": "recent activity",
             "signal": "strong",
-            "corroboration": "high",
+            "corroboration": "single_arm",
             "conflict": false
           },
           {
             "key": "RELATION",
             "label": "typed relations",
             "signal": "strong",
-            "corroboration": "high",
+            "corroboration": "single_arm",
             "conflict": false
           }
         ]
@@ -672,7 +672,7 @@
           "key": "VOLUME",
           "label": "literature_context",
           "signal": "strong",
-          "corroboration": "high",
+          "corroboration": "single_arm",
           "conflict": null,
           "evidence": "paper_disease_mentions=12691 across 7 diseases",
           "cites": [
@@ -709,7 +709,7 @@
           "key": "RECENCY",
           "label": "literature_context",
           "signal": "strong",
-          "corroboration": "high",
+          "corroboration": "single_arm",
           "conflict": null,
           "evidence": "recent_mentions=4919 (latest 2026)",
           "cites": [
@@ -746,7 +746,7 @@
           "key": "RELATION",
           "label": "literature_context",
           "signal": "strong",
-          "corroboration": "high",
+          "corroboration": "single_arm",
           "conflict": null,
           "evidence": "total_relation_publications=5106 \u2014 associate, stimulate, inhibit",
           "cites": [
