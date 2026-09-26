@@ -6,6 +6,8 @@ drivers are rescued (stay nominable), amplification-driven / non-GoF constrained
 import sys
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import tp_gates
 
@@ -125,3 +127,40 @@ def test_surface_foreclosed_channel_not_listed_safe():
     chans = rec["suppressed_by"]["safe_channels"]
     assert "adc" in chans and "antibody" in chans
     assert "bite_tce" not in chans, "TCE-unsafe channel must not be listed as a safe modality"
+
+
+# --- SK #1603: the clearance set is DERIVED from the vocab nominate favorable set (no drift) ---
+
+
+def _vocab_favorable():
+    import yaml
+
+    path = tp_gates._CONTRACTS_REPO / "vocabularies" / "nomination_verdict_gate.yaml"
+    blocks = yaml.safe_load(path.read_text())["thesis_deciding_axes"]
+    blk = next(b for b in blocks if b.get("thesis") == "antigen_driven")
+    return set(blk["deciding"]["favorable_verdicts"])
+
+
+def test_surface_favorable_tracks_vocab():
+    """Anti-drift guard: the surface-favorable clearance set MUST equal the vocab's
+    `thesis_deciding_axes[antigen_driven].deciding.favorable_verdicts` — the same set the nominate
+    decider and (as a superset) branch-C use. Fails if the two ever diverge (the #1603 fail-closed bug)."""
+    loaded = set(tp_gates._load_surface_favorable_verdicts())
+    assert loaded == _vocab_favorable(), (
+        "surface-favorable clearance set drifted from the vocab nominate favorable set: "
+        f"loaded={sorted(loaded)} vocab={sorted(_vocab_favorable())}"
+    )
+    # The conservative fallback must be a SUBSET of the vocab set (fewer clears = the safe direction).
+    assert set(tp_gates._FALLBACK_SURFACE_FAVORABLE_VERDICTS) <= _vocab_favorable()
+
+
+@pytest.mark.parametrize(
+    "token",
+    ["adc_preferred_tce_escape_risk", "adc_preferred_tce_patient_variable", "tce_patient_variable"],
+)
+def test_new_favorable_tokens_clear_wt_loss_hold(token):
+    """The 3 tokens that already downgrade the dependency veto + carry an antigen_driven nomination now
+    ALSO clear a WT-loss safety hold on a viable biologics arm (the #1603 divergent-encoding fix)."""
+    survives, supp = _survives_surface(_AMP, token)
+    assert not survives, f"{token} is a viable surface arm → WT-loss hold should clear (not fail-closed)"
+    assert any(s.get("suppressed_by", {}).get("kind") == "exists_safe_modality" for s in supp)

@@ -313,10 +313,19 @@ def _load_kill_capable_verdicts(
 _BIOLOGICS_MODALITIES = {"adc", "bite_tce", "antibody"}
 
 
-# Surface_modality fit_class verdicts that mean a surface therapeutic arm is VIABLE — the
-# co-condition that lets the biology-axis downgrade (branch C) fire (a surface antigen with NO viable
-# arm, neither_viable / shed_dominant_opposed, still vetoes). Keep in sync with the vocab block.
-_SURFACE_FAVORABLE_VERDICTS = frozenset(
+# Surface_modality fit_class verdicts that mean a surface therapeutic arm is VIABLE ENOUGH to rest a
+# nomination (and to clear a WT-loss safety hold on a biologics channel) on. This is the SAME contract
+# the thesis-nominate decider enforces, so it is DERIVED from the vocab's single source of truth —
+# `thesis_deciding_axes[antigen_driven].deciding.favorable_verdicts` (see _load_surface_favorable_verdicts) —
+# rather than hardcoded, so it cannot drift from the set the nominate/downgrade paths already use.
+#
+# The frozenset below is the CONSERVATIVE FALLBACK, used only when the vocab is unreadable. It must be a
+# SUBSET of the vocab favorable set (fewer clears = the safe direction for a safety hold); the anti-drift
+# guard test_surface_favorable_tracks_vocab pins this. NOTE it is deliberately NARROWER than branch-C's
+# `when_surface_verdict_in` (10 tokens): branch C additionally admits `pmhc_tce_supported` /
+# `modality_ambiguous`, which the vocab marks supportive-only / ambiguous ("must not carry a nomination
+# alone") — those must NOT clear a safety hold, so the clearance tracks the 8-token NOMINATE favorable set.
+_FALLBACK_SURFACE_FAVORABLE_VERDICTS = frozenset(
     {
         "both_viable",
         "adc_preferred",
@@ -325,6 +334,27 @@ _SURFACE_FAVORABLE_VERDICTS = frozenset(
         "surface_viable_density_caveated",
     }
 )
+
+
+def _load_surface_favorable_verdicts(contracts_repo: Path | None = None) -> frozenset:
+    """The surface_modality verdicts that mean a surface arm is VIABLE, derived from the vocab's
+    `thesis_deciding_axes[antigen_driven].deciding.favorable_verdicts` — the SAME set the thesis-nominate
+    decider (tp_gates:977) uses, so the WT-loss safety-hold clearance (tp_gates:_suppressed_gate_hits) can
+    never diverge from "is this arm viable?" as answered elsewhere.
+
+    CONSERVATIVE FALLBACK: any failure / missing block / empty set → the hardcoded
+    `_FALLBACK_SURFACE_FAVORABLE_VERDICTS` (a subset), so a broken vocab can never WIDEN the set that
+    clears a safety hold — it can only fall back to today's established narrower behavior."""
+    blocks, _src = _load_thesis_deciding_axes(contracts_repo)
+    for b in blocks:
+        if b.get("thesis") == "antigen_driven":
+            fav = (b.get("deciding") or {}).get("favorable_verdicts") or []
+            fav = frozenset(v for v in fav if isinstance(v, str))
+            if fav:
+                return fav
+            break
+    return _FALLBACK_SURFACE_FAVORABLE_VERDICTS
+
 
 # Among the FAVORABLE surface verdicts, the tokens that nonetheless EXPLICITLY foreclose a specific
 # biologics channel — so a WT-loss escape must NOT cite that (foreclosed) channel as a safe modality.
@@ -586,7 +616,7 @@ def _suppressed_gate_hits(
         if suppressed_by is None and h["short"] == "safety" and h["verdict"] in _SAFETY_WT_LOSS_CONCERNS:
             _sfired = (sub_results.get("safety") or {}).get("fired") or []
             _vbm = safety_verdict_by_modality(_sfired, str(contracts_repo) if contracts_repo else None)
-            _surface_ok = surface_verdict in _SURFACE_FAVORABLE_VERDICTS
+            _surface_ok = surface_verdict in _load_surface_favorable_verdicts(contracts_repo)
 
             _surface_foreclosed = _SURFACE_VERDICT_FORECLOSED_CHANNELS.get(surface_verdict, frozenset())
 
