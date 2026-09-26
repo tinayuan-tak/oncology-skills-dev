@@ -18,11 +18,16 @@ The CLI:
   3. Invokes r/live/run_pipeline.R with translated args.
   4. Validates the emitted Parquet against target-contracts/schemas/products/<product>.result.schema.json.
 
-Iter-1 scope:
-  - Only --contrast tumor_vs_adjacent is wired (the iter-1 dge-tumor-vs-adjacent product).
-  - --stratify-by subgroup_catalog is an iter-1 deliverable but currently stubs;
-    the R pipeline needs an iter-1 patch to read the subgroup catalog. Tracked in
-    methods/dge_deseq2/tests/test_stratify_by_subgroup_catalog.py (TBD).
+Contrasts / stratification:
+  - --contrast tumor_vs_adjacent and four_cell_sensitivity are wired. tumor_vs_gtex
+    and subtype_stratified are not standalone pipelines (see main()).
+  - --stratify-by <axis> (e.g. msi_status), together with --contrast four_cell_sensitivity,
+    runs the per-subgroup driver r/live/07_stratified_four_cell_driver.R. It requires
+    --subgroup-assignments-manifest (a data-catalog derived-manifest id for the
+    subgroup_assignments.parquet) and --strata. The manifest is resolved to a local
+    parquet via subgroup_common.loaders.load_assignments (session-cached); the emit-side
+    driver and the read layer read the SAME assignments product, keeping their member
+    sets identical.
   - Byte-identity gate against legacy batch/expression_rna_COADREAD/ output:
     methods/dge_deseq2/tests/test_byte_identity_vs_legacy_coadread.py (TBD; requires R env).
 """
