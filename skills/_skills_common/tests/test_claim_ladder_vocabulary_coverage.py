@@ -390,6 +390,12 @@ _CORROBORATION_READERS = {
         "(no map, nothing to keep in step). Mirrors presence_question_table's G3.1 coverage annotation."
     ),
     "skills/_skills_common/selectivity_question_table.py": "DELEGATES to question_table_core.conf",
+    "skills/_skills_common/genomic_question_table.py": (
+        "DELEGATES row confidence to question_table_core.conf; also PASS-THROUGH — copies the L2b-5 "
+        "recurrence_concordance claim's `corroboration` token VERBATIM into the SNV row's integrated_signal "
+        "annotation (SK#1750; no map, nothing to keep in step). Mirrors safety/presence question_table's "
+        "L2b surface annotation."
+    ),
     # --- PASS-THROUGH: renders or copies the token verbatim. An unrecognised rung reads as ITSELF,
     #     which is honest — no map, so nothing to keep in step. This is the safe way to consume the axis.
     "skills/_skills_common/narrative_grounding.py": (

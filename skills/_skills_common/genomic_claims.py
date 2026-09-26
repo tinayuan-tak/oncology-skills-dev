@@ -856,6 +856,15 @@ def _recurrence_concordance_claim(h: dict) -> "dict | None":
     the panel-coverage-corrected-vs-exome comparability caveat is carried in
     `provenance.independence_note` — a panel-restricted denominator is never equated with exome.
 
+    PRESENTATION-SUPPORT (SK#1750 L2b→L3): the claim also carries structured two-directional fields so a
+    question_table answer can SURFACE the integrated read without prose-parsing `evidence` —
+    `positive_signal` (the concordant/majority recurrent-driver read, always present), `qualifying_signal`
+    (NULL when concordant; on a discordance names the masking arm, on a single-source read names the
+    unresolved gap arm), the uniform `source_support` list (already emitted), and a deterministic
+    `boundary_sensitive` flag (True unless BOTH independent arms agree). These are PRESENTATION-support
+    only — no polarity / drives_rule_id / corroboration-floor; they route NOTHING. Mirrors the coverage
+    (#1578) / abundance (#1594) / normal-liability (#1584) surface-consumption precedents EXACTLY.
+
     VERDICT-INERT: carries NO `signal` key (never a chip, never a tier, never averaged), reads no
     verdict, feeds no rule. Returns None — key omitted, byte-stable — when NEITHER independent arm
     resolves."""
@@ -981,6 +990,68 @@ def _recurrence_concordance_claim(h: dict) -> "dict | None":
         "exome_masks_recurrence": "DISAGREE — GENIE panel recurrent, MC3 exome not (exome masks it)",
         "single_source_only": "only one independent cohort arm resolves",
     }
+
+    # ── PRESENTATION-SUPPORT fields (SK#1750 L2b→L3) — surface-consumption, NOT verdict-routing ──────
+    # Two-directional structured fields + a deterministic boundary-sensitivity flag so a question_table
+    # answer can SURFACE the integrated cross-cohort read WITHOUT prose-parsing `evidence`. NONE of these
+    # route a verdict, name a signal tier (no `signal` key), or feed a rule; mirrors the coverage (#1578)
+    # / abundance (#1594) / normal-liability (#1584) presentation precedents EXACTLY. Each signal dict is
+    # exactly {statement, source, provenance_ref}; `source`/`provenance_ref` key into the source_support
+    # list entries by their `source` name so a consumer reads them STRUCTURALLY.
+    # BOUNDARY-SENSITIVITY: a DETERMINISTIC read of the already-computed corroboration (no new threshold /
+    # calibration) — the class is corroborated only when BOTH independent arms agree (corroboration high);
+    # single_arm / low means it rests on one uncorroborated/contradicted cohort token.
+    boundary_sensitive = corroboration != "high"
+    # positive_signal — ALWAYS present: the concordant/majority recurrent-driver read, anchored on the
+    # arm(s) that carry the positive call. Conjunctive-label/fall-through discipline: the CONCORDANT
+    # fall-through carries the cross-cohort-corroborated agreement, never an unearned alarm.
+    if concordance == "recurrence_concordant":
+        _pos_source = "mc3_exome"
+        _pos_statement = (
+            f"Both INDEPENDENT cohorts AGREE the driver-recurrence call is {mc3_dir} "
+            f"(MC3 exome {mc3_band} × GENIE panel {genie_band}) — a cross-cohort-corroborated read."
+        )
+    elif concordance in ("panel_masks_recurrence", "exome_masks_recurrence"):
+        _pos_source = concordance_support["recurrent_in"]
+        _pos_statement = (
+            f"{_cohort[_pos_source]} reports a RECURRENT driver ({_band[_pos_source]}) — the alteration "
+            "recurs in this independent cohort."
+        )
+    else:  # single_source_only
+        _pos_source = concordance_support["resolved_by"]
+        _pos_statement = (
+            f"{_cohort[_pos_source]} reports {concordance_support['resolved_direction']} driver-recurrence "
+            f"({concordance_support['resolved_call']}) — the sole independent cohort arm that resolves."
+        )
+    positive_signal = {"statement": _pos_statement, "source": _pos_source, "provenance_ref": _pos_source}
+    # qualifying_signal — NULL when concordant (both cohorts agree, no caveat). Populated on a discordance
+    # (names the masking cohort) or a single-source read (names the unresolved gap arm) — never averaged
+    # or collapsed with the positive direction. pooled is NEVER named here (a dependent superset is not a
+    # corroborating/qualifying arm).
+    if concordance == "recurrence_concordant":
+        qualifying_signal = None
+    elif concordance in ("panel_masks_recurrence", "exome_masks_recurrence"):
+        _neg_arm = concordance_support["not_recurrent_in"]
+        qualifying_signal = {
+            "statement": (
+                f"{_cohort[_neg_arm]} does NOT see the recurrence ({_band[_neg_arm] or 'data_unavailable'}) "
+                "— the cohorts DISAGREE; a panel-restricted denominator can mask recurrence the exome sees, "
+                "not equated with a biological absence."
+            ),
+            "source": _neg_arm,
+            "provenance_ref": _neg_arm,
+        }
+    else:  # single_source_only
+        _gap_arm = "genie_panel" if concordance_support["resolved_by"] == "mc3_exome" else "mc3_exome"
+        qualifying_signal = {
+            "statement": (
+                f"Only {_cohort[concordance_support['resolved_by']]} resolves; {_cohort[_gap_arm]} is a gap "
+                "(unresolved) — a degraded single-cohort read, NOT cross-cohort corroboration."
+            ),
+            "source": _gap_arm,
+            "provenance_ref": _gap_arm,
+        }
+
     return {
         "concordance_class": concordance,
         "corroboration": corroboration,
@@ -991,6 +1062,17 @@ def _recurrence_concordance_claim(h: dict) -> "dict | None":
         "corroborating_independent_arm_count": corroborating_independent_arm_count,
         "concordance_support": concordance_support,
         "source_support": source_support,
+        # PRESENTATION-SUPPORT (surface-consumption): two-directional structured fields + a deterministic
+        # boundary-sensitivity flag. NONE route a verdict, name a signal tier, or feed a rule.
+        "positive_signal": positive_signal,
+        "qualifying_signal": qualifying_signal,
+        "boundary_sensitive": boundary_sensitive,
+        "boundary_note": (
+            "concordance class rests on a single measured cohort arm (single_arm / low corroboration) — "
+            "treat as near-boundary, not a flat cross-cohort assertion"
+            if boundary_sensitive
+            else "concordance corroborated by BOTH independent cohort arms agreeing"
+        ),
         "evidence_dependence": evidence_dependence,
         "informs": (
             "cross-cohort driver-recurrence concordance — a recurrent-driver call two INDEPENDENT cohorts "

@@ -766,6 +766,50 @@ def test_recurrence_concordance_is_verdict_inert():
     assert set(vec) - set(base) == {"recurrence_concordance"}  # the ONLY delta
 
 
+def _signal_shape_ok(sig):
+    # Each presentation signal dict is EXACTLY {statement, source, provenance_ref} — no verdict-routing
+    # keys (no polarity / drives_rule_id / corroboration-floor smuggled in).
+    return isinstance(sig, dict) and set(sig) == {"statement", "source", "provenance_ref"}
+
+
+def test_presentation_positive_always_present_qualifying_null_when_concordant():
+    # SK#1750: the presentation-support fields. Concordant → positive present, qualifying NULL, corroborated
+    # boundary (not sensitive). Each signal dict has EXACTLY the 3-key shape.
+    claim = _recurrence_concordance_claim(_rec_h(mc3="top_1pct", genie="top_decile"))
+    assert _signal_shape_ok(claim["positive_signal"])
+    assert claim["positive_signal"]["source"] == "mc3_exome"
+    assert claim["qualifying_signal"] is None
+    assert claim["boundary_sensitive"] is False  # corroboration == high
+    assert "corroborated" in claim["boundary_note"]
+    # presentation fields carry NO signal tier / polarity anywhere
+    assert "signal" not in claim
+    assert "polarity" not in claim["positive_signal"] and "drives_rule_id" not in claim["positive_signal"]
+
+
+def test_presentation_qualifying_names_the_masking_arm_on_a_disagreement():
+    # panel_masks_recurrence → qualifying names the arm that does NOT see it; boundary-sensitive (low corr).
+    claim = _recurrence_concordance_claim(_rec_h(mc3="top_1pct", genie="bottom_decile"))
+    assert claim["positive_signal"]["source"] == "mc3_exome"  # the recurrent arm
+    assert _signal_shape_ok(claim["qualifying_signal"])
+    assert claim["qualifying_signal"]["source"] == "genie_panel"  # the masking arm
+    assert claim["boundary_sensitive"] is True  # corroboration != high
+
+
+def test_presentation_qualifying_names_the_gap_arm_on_single_source():
+    # single_source_only → positive names the resolved arm, qualifying names the UNRESOLVED gap arm.
+    claim = _recurrence_concordance_claim(_rec_h(mc3="top_1pct", genie="data_unavailable"))
+    assert claim["positive_signal"]["source"] == "mc3_exome"
+    assert claim["qualifying_signal"]["source"] == "genie_panel"
+    assert claim["boundary_sensitive"] is True  # single_arm != high
+
+
+def test_presentation_pooled_is_never_a_named_presentation_arm():
+    # pooled is a DEPENDENT superset — it must NEVER be the source of a positive/qualifying signal.
+    claim = _recurrence_concordance_claim(_rec_h(mc3="top_1pct", genie="data_unavailable", pooled="top_1pct"))
+    assert claim["positive_signal"]["source"] != "pooled"
+    assert claim["qualifying_signal"]["source"] != "pooled"
+
+
 def test_dependence_structure_is_relational_not_a_global_boolean():
     claim = _recurrence_concordance_claim(_rec_h(mc3="top_1pct", genie="top_decile", pooled="top_1pct"))
     assert "independent" not in claim  # no global independence boolean

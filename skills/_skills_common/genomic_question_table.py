@@ -77,6 +77,49 @@ def _support(entry: dict) -> str:
     return " · ".join(bits)
 
 
+def _recurrence_concordance_integrated_signal(claim: dict) -> dict:
+    """Project the L2b `recurrence_concordance` claim (genomic_claims.py) into the SNV row's
+    `integrated_signal` surface — a verdict-INERT, two-directional presentation payload. Surfaces both
+    directions (the encouraging cross-cohort recurrent-driver agreement + the panel/exome-masking or
+    single-source caveat), the honest corroboration/boundary-sensitivity annotation, and the uniform
+    per-cohort source_support list so a consumer renders the integrated cross-source read WITHOUT
+    prose-parsing. Carries NO signal tier / polarity / fill — it never routes the verdict; it is the
+    answer's cross-source annotation, not a meter cell. Mirrors the coverage (#1578) / abundance (#1594)
+    / normal-liability (#1584) surface-consumption precedents.
+
+    PASS-THROUGH on `corroboration`: the token is copied VERBATIM into the annotation (no map, nothing to
+    keep in step) — see `_CORROBORATION_READERS` in test_claim_ladder_vocabulary_coverage.py (#1643)."""
+    qual = claim.get("qualifying_signal")
+    pos = claim.get("positive_signal") or {}
+    boundary = bool(claim.get("boundary_sensitive"))
+    # A one-line human headline that always names BOTH directions (or the concordant confirmation),
+    # flagged boundary-sensitive when the class rests on a lone uncorroborated cohort arm.
+    if qual:
+        headline = f"{pos.get('statement', '')} However — {qual.get('statement', '')}"
+    else:
+        headline = (
+            f"{pos.get('statement', '')} MC3 exome and GENIE panel AGREE on the driver-recurrence call "
+            "(no cross-cohort split)."
+        )
+    if boundary:
+        headline += f" [boundary-sensitive: {claim.get('boundary_note', '')}]"
+    return {
+        "kind": "recurrence_concordance",
+        "concordance_class": claim.get("concordance_class"),
+        "corroboration": claim.get("corroboration"),
+        "grain": claim.get("grain"),
+        "corroborating_independent_arm_count": claim.get("corroborating_independent_arm_count"),
+        "resolved_source_count": claim.get("resolved_source_count"),
+        "boundary_sensitive": boundary,
+        "boundary_note": claim.get("boundary_note"),
+        "positive_signal": pos or None,
+        "qualifying_signal": qual,
+        "source_support": claim.get("source_support"),
+        "headline": headline,
+        "provenance_ref": "claim_vector.recurrence_concordance",
+    }
+
+
 def genomic_question_table(headline: dict, cards: Optional[list] = None) -> list:
     """Per-alteration-class question rows from headline.genomic_alteration_by_class. Verdict-inert;
     tolerant of an absent/partial by_class map (an absent class → an unmeasured row, never omitted, so
@@ -95,6 +138,18 @@ def genomic_question_table(headline: dict, cards: Optional[list] = None) -> list
                 _class_conf(entry),
             )
         )
+    # SK#1750 L2b→L3: SURFACE the L2b-5 recurrence_concordance claim (built by #1637, read by nothing
+    # until now) as a first-class cross-source annotation on the SNV / driver-recurrence question row.
+    # Attached only when the claim resolves (key omitted otherwise → row byte-stable). Reads only the
+    # ALREADY-BUILT claim_vector on the headline (built in run.py before this table), so it perturbs no
+    # census aperture and no verdict. Verdict-inert: the row's signal/confidence meter cells are UNCHANGED
+    # — this adds an annotation, never a tier. Mirrors the presence/safety G3.1/G3.2 surface pattern.
+    rec = ((headline or {}).get("claim_vector") or {}).get("recurrence_concordance")
+    if rec:
+        for r in rows:
+            if r.get("id") == "SNV":
+                r["integrated_signal"] = _recurrence_concordance_integrated_signal(rec)
+                break
     return rows
 
 
