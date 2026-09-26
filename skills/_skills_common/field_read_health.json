@@ -1,10 +1,10 @@
 {
   "attribution": {
-    "per_unit_read_credits": 580,
-    "per_unit_union_pairs": 529,
+    "per_unit_read_credits": 582,
+    "per_unit_union_pairs": 531,
     "reconciled": true,
     "unattributed": [],
-    "whole_tree_pairs": 529
+    "whole_tree_pairs": 531
   },
   "note": "Reads MINUS declarations, per unit, for the target-contracts framework-health dashboard. TRENDING, never a gate: a populated queue is a review queue and this tool returns 0 however long it is. The queue is NOT split into read_of_None vs emitted_but_undeclared here \u2014 that needs observed-package evidence this producer cannot see, so the contracts side resolves emission_undetermined against the data-products root. no_reads_detected means the scraper's five shapes matched nothing, NOT that the unit is clean.",
   "rosters": {
@@ -2147,18 +2147,36 @@
   "schema_version": "1.0.0",
   "summary": {
     "attribution_reconciled": true,
-    "n_clean": 14,
-    "n_emission_undetermined": 3,
+    "n_clean": 13,
+    "n_emission_undetermined": 5,
     "n_meta_key": 1,
     "n_no_reads_detected": 7,
-    "n_reads_detected": 529,
+    "n_reads_detected": 531,
     "n_roster_cards": 148,
     "n_roster_fields": 1823,
-    "n_undeclared_pairs": 4,
+    "n_undeclared_pairs": 6,
     "n_units": 23,
-    "n_units_with_undeclared_reads": 2
+    "n_units_with_undeclared_reads": 3
   },
   "undeclared_queue": [
+    {
+      "card": "sc-normal-celltype-expression",
+      "classification": "emission_undetermined",
+      "field": "indication",
+      "reader_kinds": [
+        "claim_passthrough"
+      ],
+      "unit": "_skills_common"
+    },
+    {
+      "card": "sc-normal-celltype-expression",
+      "classification": "emission_undetermined",
+      "field": "origin_tissues",
+      "reader_kinds": [
+        "claim_passthrough"
+      ],
+      "unit": "_skills_common"
+    },
     {
       "card": "competitor-landscape",
       "classification": "emission_undetermined",
@@ -2198,16 +2216,33 @@
   ],
   "units": {
     "_skills_common": {
-      "disposition": "clean",
+      "disposition": "undeclared_reads",
       "kind": "shared_library",
-      "n_reads": 109,
+      "n_reads": 111,
       "reads_by_kind": {
-        "claim_passthrough": 43,
+        "claim_passthrough": 45,
         "figure": 32,
         "question_table": 29,
         "skill_code": 5
       },
-      "undeclared": []
+      "undeclared": [
+        {
+          "card": "sc-normal-celltype-expression",
+          "classification": "emission_undetermined",
+          "field": "indication",
+          "reader_kinds": [
+            "claim_passthrough"
+          ]
+        },
+        {
+          "card": "sc-normal-celltype-expression",
+          "classification": "emission_undetermined",
+          "field": "origin_tissues",
+          "reader_kinds": [
+            "claim_passthrough"
+          ]
+        }
+      ]
     },
     "catalog-query": {
       "disposition": "no_reads_detected",

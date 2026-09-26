@@ -523,3 +523,61 @@ def test_liab_presentation_fields_carry_no_signal_tier():
         v = claim.get(f)
         if v:
             assert set(v) == {"statement", "source", "provenance_ref"}, f
+
+
+# ── #1770: census-visible consumer for the sc-normal-celltype-expression provenance-echo fields ─────
+# TC#882/F12 adds `origin_tissues` + `indication` summary_fields to the sc-normal card. They are the
+# provenance for the scRNA arm's origin-tissue-liability abstain: which origin tissue(s) / indication the
+# on-tissue detection was arbitrated against. The claim echoes them onto the scRNA `provenance.sources`
+# entry ONLY (verdict-inert; they route nothing). This closes the +1 fleet-aperture orphan when the pin
+# bumps to 468c3dc, while the golden replay stays byte-stable (the echo is absent when the card omits them).
+def _sc_card_with_origin(sc="none", *, origin_tissues=None, indication=None):
+    summary = {"sc_normal_safety_essential_class": sc}
+    if origin_tissues is not None:
+        summary["origin_tissues"] = origin_tissues
+    if indication is not None:
+        summary["indication"] = indication
+    return [
+        {"card_id": "normal-tissue-liability-gtex", "summary": {"liability_class": "restricted_normal"}},
+        {"card_id": "sc-normal-celltype-expression", "summary": summary},
+        {"card_id": "normal-tissue-liability", "summary": {"essential_tissue_flag": "absent"}},
+    ]
+
+
+def test_liab_1770_origin_echo_surfaces_on_scrna_source_when_present():
+    cards = _sc_card_with_origin(sc="origin_tissue_liability", origin_tissues=["colon"], indication="colorectal cancer")
+    claim = safety_claim_vector(_headline(), cards)[_LIAB_KEY]
+    srcs = {s["property"]: s for s in claim["provenance"]["sources"]}
+    echo = srcs["normal_tissue_liability_rna_singlecell"]["off_origin_split"]
+    assert echo == {"origin_tissues": ["colon"], "indication": "colorectal cancer"}
+    # the echo rides the scRNA source ONLY — the other two arms never carry it.
+    assert "off_origin_split" not in srcs["normal_tissue_liability_rna_bulk"]
+    assert "off_origin_split" not in srcs["normal_tissue_liability_protein_ihc"]
+
+
+def test_liab_1770_origin_echo_omitted_when_card_lacks_fields_byte_stable():
+    # BYTE-STABILITY contract: with the fields absent (the state at the CURRENT pin, and every card that
+    # never emits them), the scRNA source dict is IDENTICAL to the pre-#1770 shape — no empty key.
+    with_fields = safety_claim_vector(
+        _headline(), _sc_card_with_origin(sc="none", origin_tissues=["colon"], indication="crc")
+    )[_LIAB_KEY]
+    without = safety_claim_vector(_headline(), _sc_card_with_origin(sc="none"))[_LIAB_KEY]
+    scrna_without = {s["property"]: s for s in without["provenance"]["sources"]}[
+        "normal_tissue_liability_rna_singlecell"
+    ]
+    assert "off_origin_split" not in scrna_without
+    # the echo is the ONLY difference the fields introduce — every verdict-bearing field is unchanged.
+    for k in ("concordance_class", "corroboration", "source_support", "sources_resolved"):
+        assert with_fields[k] == without[k], k
+
+
+def test_liab_1770_origin_echo_carries_no_signal_tier():
+    # verdict-inertness: the echo is pure provenance — it never adds a `signal` tier or a routing key.
+    claim = safety_claim_vector(
+        _headline(), _sc_card_with_origin(sc="none", origin_tissues=["lung"], indication="nsclc")
+    )[_LIAB_KEY]
+    assert "signal" not in claim
+    echo = {s["property"]: s for s in claim["provenance"]["sources"]}["normal_tissue_liability_rna_singlecell"][
+        "off_origin_split"
+    ]
+    assert set(echo) <= {"origin_tissues", "indication"}

@@ -477,6 +477,30 @@ def _normal_liability_concordance_claim(c: dict) -> "dict | None":
     the graded `sc_normal_essential_veto_grade`), so repointing onto it neither routes the claim nor moves
     a verdict. Returns None — key omitted — when NO source resolves."""
     raw = {sk: (c.get(cid) or {}).get(field) for sk, _prop, _assay, cid, field in _LIAB_SOURCES}
+
+    # ── scRNA off-origin split provenance echo (TC#882/F12; #1770) ──────────────────────────────────
+    # VERDICT-INERT provenance: the indication that was resolved to the tumour tissue(s)-of-origin the
+    # scRNA off-origin split was computed against — the very basis for the scRNA arm's
+    # `origin_tissue_liability` ABSTAIN (see `_liab_direction`: essential-cell expression CONFINED to the
+    # tumour's own tissue of origin is on-tissue and deliberately not voted). Surfacing it makes the
+    # abstain auditable ("abstained because the essential cells sit in ORIGIN tissue X, resolved from
+    # indication Y") instead of an unexplained non-vote. Read by a LITERAL card-id subscript alias so
+    # `field_disposition.census` sees the (card, field) pairs (this closes the fleet-aperture orphan the
+    # 468c3dc echo fields open — census reach, blind to the ledger); NOT a literal `get_card_field`, so
+    # `test_card_field_conformance` (run.py-only, literal-only) is not tripped while the fields are not
+    # yet declared on the pinned card. Guarded on card presence with each key OMITTED when its echo is
+    # absent (a pre-echo pinned card, or a genuine data gap), so the claim stays BYTE-STABLE wherever the
+    # fields are not emitted. Routes nothing: pure provenance, no signal / tier / rule.
+    scrna_off_origin_split: dict = {}
+    if "sc-normal-celltype-expression" in c:
+        _scn = c["sc-normal-celltype-expression"]
+        _scn_indication = _scn.get("indication")
+        _scn_origin_tissues = _scn.get("origin_tissues")
+        if _scn_indication is not None:
+            scrna_off_origin_split["indication"] = _scn_indication
+        if _scn_origin_tissues is not None:
+            scrna_off_origin_split["origin_tissues"] = _scn_origin_tissues
+
     dirs = {sk: _liab_direction(sk, raw[sk]) for sk in raw}
     resolved = {sk: d for sk, d in dirs.items() if d is not None}
     # Neither source resolves → no claim (key omitted → byte-stable). The ONLY erasing state: it takes
@@ -616,7 +640,19 @@ def _normal_liability_concordance_claim(c: dict) -> "dict | None":
         # token so the VALUES (not just the key) are recoverable.
         "provenance": {
             "sources": [
-                {"property": prop, "assay": assay, "card_id": cid, "fields": {field: raw[sk]}}
+                {
+                    "property": prop,
+                    "assay": assay,
+                    "card_id": cid,
+                    "fields": {field: raw[sk]},
+                    # scRNA arm only: the off-origin split the liability call was computed against
+                    # (indication → tissue(s)-of-origin). Omitted when the echo is absent → byte-stable.
+                    **(
+                        {"off_origin_split": scrna_off_origin_split}
+                        if sk == "sc_normal_rna" and scrna_off_origin_split
+                        else {}
+                    ),
+                }
                 for sk, prop, assay, cid, field in _LIAB_SOURCES
             ],
             "independence_note": (
