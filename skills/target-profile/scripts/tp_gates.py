@@ -624,12 +624,17 @@ def _suppressed_gate_hits(
                 if action in _SAFETY_SAFE_ACTIONS:  # allele-selective SM escape (GoF)
                     return True
                 if action == "not_applicable" and ch in _BIOLOGICS_CHANNELS:
-                    # WT-loss n/a to a biologic — clears only if that arm is genuinely viable, i.e. the
-                    # surface verdict does not EXPLICITLY foreclose THIS channel (e.g. bite_tce under
-                    # adc_preferred_tce_unsafe) — else safe_channels over-reads as global viability.
+                    # WT-loss n/a to a biologic — clears only if that arm is genuinely viable. Viability
+                    # is a property of the SURFACE FIT, not of which flag the user passed: require
+                    # _surface_ok on BOTH the explicit --modality and the enumerate-all paths (the
+                    # ch in _surface_foreclosed early-return already handles explicit per-channel
+                    # foreclosure, e.g. bite_tce under adc_preferred_tce_unsafe). This closes the
+                    # neither_viable / shed_dominant_opposed fail-open where an explicit --modality adc
+                    # cleared the hold citing a biologics arm the surface verdict says does not exist,
+                    # while preserving the ERBB2/TROP2 favorable-surface clearing (_surface_ok True).
                     if ch in _surface_foreclosed:
                         return False
-                    return (modality == ch) or (modality is None and _surface_ok)
+                    return _surface_ok
                 return False
 
             if modality:

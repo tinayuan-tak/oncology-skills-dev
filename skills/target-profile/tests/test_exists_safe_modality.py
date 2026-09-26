@@ -94,12 +94,46 @@ def test_amp_not_cleared_when_surface_not_viable():
 
 
 def test_amp_adc_cleared_when_modality_explicitly_adc():
-    """An explicit --modality adc clears the WT-loss hold even without a surface sub-verdict (the user is
-    asking about the ADC channel, to which WT-loss does not apply)."""
-    survivors, supp = tp_gates._suppressed_gate_hits(
+    """An explicit --modality adc clears the WT-loss hold only when the ADC arm is genuinely VIABLE
+    (a favorable surface fit). Biologics-arm viability is a property of the surface fit, not of which
+    flag the user passed (#1652): a favorable surface + --modality adc clears."""
+    survives, supp = _survives_surface(_AMP, "adc_preferred_tce_unsafe", modality="adc")
+    assert not survives, "explicit --modality adc on a favorable surface should clear the WT-loss hold"
+    assert any(s.get("suppressed_by", {}).get("kind") == "exists_safe_modality" for s in supp)
+
+
+def test_explicit_modality_does_not_fail_open_without_surface_verdict():
+    """#1652 regression: an explicit --modality adc with NO surface sub-verdict (arm viability never
+    established) must NOT clear the WT-loss hold. Pre-fix this short-circuited on (modality == ch) and
+    never consulted the surface fit — the fail-open on the nomination go/hold spine."""
+    survivors, _ = tp_gates._suppressed_gate_hits(
         list(_HIT), {"safety": {"fired": _AMP, "verdict": ("highly_constrained_safety_concern", "x")}}, "adc"
     )
-    assert not any(h["short"] == "safety" for h in survivors)
+    assert any(h["short"] == "safety" for h in survivors), "no surface fit → biologics arm not viable → hold stands"
+
+
+@pytest.mark.parametrize("modality", ["adc", "bite_tce", "antibody", None])
+@pytest.mark.parametrize("surface_verdict", ["neither_viable", "shed_dominant_opposed"])
+def test_no_viable_surface_arm_keeps_hold_all_biologics_modalities(modality, surface_verdict):
+    """#1652 core: a surface verdict with NO viable arm (neither_viable / shed_dominant_opposed) must
+    keep the WT-loss safety hold for EVERY biologics modality AND the enumerate-all (modality=None)
+    path. The corrected asymmetry: an explicit --modality no longer fails open where the surface fit
+    forecloses every arm."""
+    survives, _ = _survives_surface(_AMP, surface_verdict, modality=modality)
+    assert survives, f"{surface_verdict} + modality={modality}: no viable biologics arm → hold must stand"
+
+
+@pytest.mark.parametrize("modality", ["adc", "bite_tce", "antibody"])
+def test_viable_surface_arm_clears_hold_all_biologics_modalities(modality):
+    """Non-regression: a genuinely viable surface fit (favorable) still clears the WT-loss hold for the
+    explicit biologics modalities (the deliberate ERBB2/TROP2 clearing)."""
+    survives, supp = _survives_surface(_AMP, "adc_preferred_tce_unsafe", modality=modality)
+    if modality == "bite_tce":
+        # adc_preferred_tce_unsafe explicitly forecloses the TCE channel → hold stands even explicitly.
+        assert survives, "TCE-unsafe surface forecloses bite_tce → hold must stand"
+    else:
+        assert not survives, f"favorable surface + --modality {modality} → hold clears (viable arm)"
+        assert any(s.get("suppressed_by", {}).get("kind") == "exists_safe_modality" for s in supp)
 
 
 def test_amp_degrader_keeps_hold_even_with_favorable_surface():
