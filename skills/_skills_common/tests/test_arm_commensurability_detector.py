@@ -915,6 +915,539 @@ def test_detector_bites_a_readded_non_independent_n_diseases_arm():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# FIFTH FAMILY — the DEPENDENCY (essentiality-concordance) builder in dependency_claims.py (SK#1709)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# `_essentiality_concordance_claim` (L2b-2 #1533) folds `corroboration_from_arms([crispr_arm, rnai_arm])`,
+# where each arm is the resolved direction of an ORTHOGONAL loss-of-function dependency screen:
+#   * CRISPR — pan-cancer-crispr-dependency-distribution.dependency_class      (Chronos, Cas9 knockout)
+#   * RNAi   — pan-cancer-rnai-dependency-distribution.rnai_dependency_class   (DEMETER2, shRNA knockdown)
+#
+# AUDIT VERDICT (SK#1709): COMMENSURATE by design — a detector-oracle EXTENSION, not a fix.
+#   * SAME CONSTRUCT: both resolve gene essentiality (a dependency call) via the shared `_ess_resolve`
+#     token→direction map; the fold agrees/disagrees on the SAME dependency question.
+#   * SAME GRANULARITY: both are the PAN-CANCER dependency class per gene (not a subtype-scoped or
+#     lineage-scoped read on one side and pan-cancer on the other).
+#   * INDEPENDENT: two distinct DepMap datasets produced by two distinct perturbation platforms
+#     (CRISPR/Cas9 knockout scored by Chronos vs RNAi/shRNA knockdown scored by DEMETER2). Neither arm is
+#     a subset/superset of the other and neither is DERIVED from the other — they are the textbook pair of
+#     orthogonal knockdown modalities of the same essentiality construct.
+#   * MEASURED (no vote flip): two agreeing arms → corroboration `high`; a discordance → `low`; one
+#     measured arm with the other unresolved → `single_arm`. The claim carries NO `signal` key, reads no
+#     verdict and feeds no rule (VERDICT-INERT, key omitted/byte-stable when neither arm resolves). So this
+#     declaration moves no decision.json — a pure detector extension.
+# The commensurability invariant this block pins: `_essentiality_concordance_claim` folds EXACTLY the two
+# declared dependency-distribution card/field arms — two DISTINCT independent-screen cards. Re-pointing one
+# arm to read the OTHER arm's card (a subset / one-derived-from-the-other relationship, collapsing the two
+# independent modalities into one) reds the commensurability assertion; the mutation test drives that red.
+
+_DEPENDENCY_CLAIMS = pathlib.Path(__file__).resolve().parents[1] / "dependency_claims.py"
+
+
+# The DECLARED oracle for the dependency family. Same contract as the earlier families: every function
+# that folds arms via `corroboration_from_arms` in dependency_claims.py must appear here with its pairing.
+_DECLARED_DEPENDENCY_CORROBORATION_BUILDERS = {
+    "_essentiality_concordance_claim": (
+        "CRISPR `dependency_class` (Chronos/Cas9-KO) × RNAi `rnai_dependency_class` (DEMETER2/shRNA-KD) — "
+        "two INDEPENDENT orthogonal loss-of-function screen modalities of the SAME pan-cancer essentiality "
+        "construct at the SAME granularity; neither a subset/superset nor derived from the other "
+        "(commensurate by same-construct/same-granularity/independent; see _DEPENDENCY_COMMENSURATE_ARM_PAIRS)"
+    ),
+}
+
+# The (card_id, field) arms the fold reads. Two DISTINCT dependency-distribution cards — the set is what
+# makes the two arms commensurate-yet-independent. A re-pointed arm (an arm reading the OTHER card, or a
+# card that is not a dependency-distribution read) changes this set and fails the assertion below.
+_DEPENDENCY_COMMENSURATE_ARM_PAIRS = frozenset(
+    {
+        ("pan-cancer-crispr-dependency-distribution", "dependency_class"),
+        ("pan-cancer-rnai-dependency-distribution", "rnai_dependency_class"),
+    }
+)
+
+
+def _dependency_tree() -> ast.Module:
+    return _parse(_DEPENDENCY_CLAIMS.read_text())
+
+
+def _card_field_get_pairs(func: ast.FunctionDef) -> set[tuple[str, str]]:
+    """Every `(c.get("<card>") or {}).get("<field>")` arm read in `func` → {(card_id, field)}. The
+    dependency builder reads its arms from the CARD dict `c` (not the headline `h`), unwrapping the
+    `… or {}` guard, so this resolves the (card, field) pair each arm is scored from."""
+    pairs: set[tuple[str, str]] = set()
+    for n in ast.walk(func):
+        if not (
+            isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Attribute)
+            and n.func.attr == "get"
+            and n.args
+            and isinstance(n.args[0], ast.Constant)
+            and isinstance(n.args[0].value, str)
+        ):
+            continue
+        field = n.args[0].value
+        obj = n.func.value
+        if isinstance(obj, ast.BoolOp) and isinstance(obj.op, ast.Or) and obj.values:
+            obj = obj.values[0]  # unwrap `(<inner> or {})`
+        if (
+            isinstance(obj, ast.Call)
+            and isinstance(obj.func, ast.Attribute)
+            and obj.func.attr == "get"
+            and isinstance(obj.func.value, ast.Name)
+            and obj.func.value.id == "c"
+            and obj.args
+            and isinstance(obj.args[0], ast.Constant)
+            and isinstance(obj.args[0].value, str)
+        ):
+            pairs.add((obj.args[0].value, field))
+    return pairs
+
+
+def assert_dependency_arms_are_commensurate(tree: ast.Module) -> None:
+    """Raise AssertionError unless `_essentiality_concordance_claim` folds EXACTLY the declared two
+    dependency-distribution card/field arms — no incommensurate card pulled in, none dropped, and the two
+    arms read two DISTINCT independent-screen cards. The predicate the dependency-family mutation drives red."""
+    funcs = _functions(tree)
+    assert "_essentiality_concordance_claim" in funcs, (
+        "_essentiality_concordance_claim vanished from dependency_claims.py"
+    )
+    pairs = _card_field_get_pairs(funcs["_essentiality_concordance_claim"])
+    declared = set(_DEPENDENCY_COMMENSURATE_ARM_PAIRS)
+    assert pairs == declared, (
+        f"_essentiality_concordance_claim folds card/field arms {sorted(pairs)} — expected EXACTLY the two "
+        f"commensurate orthogonal-screen arms {sorted(declared)}. An arm reading a DIFFERENT card mixes an "
+        f"incommensurate construct into the essentiality fold, and an arm reading the OTHER arm's card "
+        f"collapses the two independent modalities into one (a subset/one-derived-from-the-other double-"
+        f"count, the #1667 shape). undeclared = {sorted(pairs - declared)}; gone = {sorted(declared - pairs)}."
+    )
+
+
+# ── the dependency-family tests ───────────────────────────────────────────────────────────────────
+def test_dependency_multi_arm_builders_are_declared():
+    """ENUMERATION / anti-drift for the dependency family: every function that folds arms via
+    `corroboration_from_arms` in dependency_claims.py must be declared. A NEW multi-arm builder fails here
+    until its arm pairing is declared in `_DECLARED_DEPENDENCY_CORROBORATION_BUILDERS`."""
+    discovered = _corroboration_builders(_dependency_tree())
+    declared = set(_DECLARED_DEPENDENCY_CORROBORATION_BUILDERS)
+    assert discovered == declared, (
+        f"dependency multi-arm corroboration builders drifted from the declared oracle: "
+        f"undeclared (add its arm pairing) = {sorted(discovered - declared)}; "
+        f"declared-but-gone (remove it) = {sorted(declared - discovered)}"
+    )
+
+
+def test_dependency_oracle_is_two_independent_screen_modalities():
+    """The declared table itself encodes the commensurability rule: the two arms are two DISTINCT
+    dependency-distribution cards (independent screens), same essentiality construct. Guards the oracle
+    against a typo that would make the detector assert the wrong pairing (e.g. one card read twice)."""
+    cards = {card for (card, _f) in _DEPENDENCY_COMMENSURATE_ARM_PAIRS}
+    assert len(cards) == 2, (
+        f"the two dependency arms must read two DISTINCT independent-screen cards (CRISPR vs RNAi), not one "
+        f"card twice (which would be a subset/one-derived double-count); got cards {sorted(cards)}"
+    )
+    assert all("dependency-distribution" in card for card in cards), (
+        f"both dependency arms must read a dependency-distribution card (the SAME essentiality construct); "
+        f"got {sorted(cards)}"
+    )
+
+
+def test_dependency_folds_the_commensurate_essentiality_arms():
+    """GREEN on today's dependency_claims.py: `_essentiality_concordance_claim` folds exactly the two
+    commensurate orthogonal-screen arms. Also anti-vacuity — the declared arm set is non-empty."""
+    assert _DEPENDENCY_COMMENSURATE_ARM_PAIRS, "the declared dependency arm set is empty — the test would pin nothing"
+    assert_dependency_arms_are_commensurate(_dependency_tree())
+
+
+# The mutation the dependency detector exists to catch: the RNAi arm re-pointed to read the SAME CRISPR
+# dependency card — collapsing the two independent screen modalities into one card (a subset/one-derived-
+# from-the-other relationship, the #1667 shape). Applied to a COPY of the source string.
+def _mutant_dependency_repoints_rnai_arm_to_crispr_card(source: str) -> str:
+    mutated = source.replace(
+        'c.get("pan-cancer-rnai-dependency-distribution")',
+        'c.get("pan-cancer-crispr-dependency-distribution")',
+    )
+    assert mutated != source, "mutation was a no-op — the RNAi arm card read is no longer present to re-point"
+    return mutated
+
+
+def test_detector_bites_a_dependency_arm_repointed_to_the_other_screen_card():
+    """MUTATION TEST for the dependency family — the corpus alone has no teeth here, so prove the detector
+    bites. With the RNAi arm re-pointed to the CRISPR card, the folded card set collapses to a single
+    dependency card (the two independent modalities become one — a subset/one-derived double-count) and
+    `assert_dependency_arms_are_commensurate` FAILS. Confirms both the RED (on the mutant) and — via
+    `test_dependency_folds_the_commensurate_essentiality_arms` — the GREEN on real source."""
+    mutant = _parse(_mutant_dependency_repoints_rnai_arm_to_crispr_card(_DEPENDENCY_CLAIMS.read_text()))
+    # sanity: the mutant genuinely collapses the two arms onto one card
+    pairs = _card_field_get_pairs(_functions(mutant)["_essentiality_concordance_claim"])
+    cards = {card for (card, _f) in pairs}
+    assert cards == {"pan-cancer-crispr-dependency-distribution"}, "the mutation did not collapse the arms as intended"
+    # …and the detector rejects it
+    with pytest.raises(AssertionError, match="_essentiality_concordance_claim"):
+        assert_dependency_arms_are_commensurate(mutant)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# SIXTH FAMILY — the SAFETY (normal-tissue liability quorum) builder in safety_claims.py (SK#1709)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# `_normal_liability_concordance_claim` (L2b-3 #1546) folds `corroboration_from_arms([_arm(sk) for sk, *_
+# in _LIAB_SOURCES])` — a THREE-source normal-tissue safety-liability quorum, one arm per source in the
+# module constant `_LIAB_SOURCES`:
+#   * GTEx bulk RNA   — normal-tissue-liability-gtex.liability_class                  (pooled tissue transcriptome)
+#   * scRNA cell-type — sc-normal-celltype-expression.sc_normal_safety_essential_class (single-cell atlas)
+#   * HPA-IHC protein — normal-tissue-liability.essential_tissue_flag                 (antibody protein staining)
+#
+# AUDIT VERDICT (SK#1709): COMMENSURATE by design — a detector-oracle EXTENSION, not a fix — and the
+# #1673 "quorum over non-commensurate modalities manufactures agreement" concern was ACTIVELY AVOIDED at
+# field-selection time (documented in the source, not stumbled into):
+#   * SAME CONSTRUCT: each source resolves a CRITICAL-ORGAN / essential-tissue normal-safety-liability
+#     DIRECTION (high / clean / None-abstain) via `_liab_direction`. The fold agrees/disagrees on the SAME
+#     organ-aware liability question.
+#   * GRANULARITY reconciled, not conflated: the three sources are DIFFERENT modalities (bulk vs single-
+#     cell vs protein-IHC), but each was DELIBERATELY mapped to the SAME organ-aware categorical basis. The
+#     scRNA arm uses the categorical `sc_normal_safety_essential_class` (`{critical_organ_liability}`→high,
+#     `{none}`→clean) — the direct organ-aware analogue of the GTEx/HPA categorical calls — NOT the broader
+#     breadth field (which fired 'high' on detection in ANY normal cell type, incl. non-critical/origin
+#     epithelium, a SYSTEMATICALLY BROADER basis that would MANUFACTURE (dis)concordance) and NOT the
+#     graded veto sibling `sc_normal_essential_veto_grade` (which folds SEVERITY into the token). The
+#     abstain semantics are likewise aligned (scRNA `origin_tissue_liability` ABSTAINS, matching what GTEx/
+#     HPA can resolve) so a source never votes on a call the others cannot make. This is the same
+#     "same-basis, different-measurement" multi-modal quorum as the selectivity family (#1689).
+#   * INDEPENDENT: three genuinely independent data sources/assays (GTEx consortium bulk RNA-seq, a single-
+#     cell normal atlas, HPA antibody IHC); none derived from another.
+#   * MEASURED (no vote flip): ≥2 agreeing → corroboration `high`; any cross-source disagreement → `low`;
+#     one measured arm → `single_arm`. VERDICT-INERT — no `signal` key, reads no verdict, feeds no rule;
+#     the scRNA arm reads a DISPLAY class (`sc_normal_safety_essential_class`, SK#1575) that no rule keys
+#     on for any axis, and the sc-normal veto is not a safety.resolver rung — so both the scalar and per-
+#     modality safety verdicts stay byte-stable. This declaration moves no decision.json.
+# The commensurability invariant this block pins: the fold folds EXACTLY the three declared source
+# card/field arms (`_LIAB_SOURCES`, resolved statically), and the builder folds over `_LIAB_SOURCES`. Re-
+# pointing the scRNA arm to the graded-veto (or breadth) field the author explicitly rejected — the #1673
+# shape — changes the source set and reds the assertion; the mutation test drives exactly that red.
+
+_SAFETY_CLAIMS = pathlib.Path(__file__).resolve().parents[1] / "safety_claims.py"
+
+
+# The DECLARED oracle for the safety family. Same contract: every function folding arms via
+# `corroboration_from_arms` in safety_claims.py must appear here with its pairing.
+_DECLARED_SAFETY_CORROBORATION_BUILDERS = {
+    "_normal_liability_concordance_claim": (
+        "GTEx-bulk `liability_class` × scRNA-normal `sc_normal_safety_essential_class` × HPA-IHC "
+        "`essential_tissue_flag` — three INDEPENDENT normal-tissue reads of the SAME organ-aware critical-"
+        "organ liability construct, each mapped to the SAME organ-aware categorical basis (the scRNA arm "
+        "uses the categorical class, NOT the broader breadth field nor the graded veto — the #1673 "
+        "manufactured-agreement shape was actively avoided); commensurate by same-construct/same-basis/"
+        "independent, one multi-modal quorum (see _SAFETY_COMMENSURATE_SOURCE_ARMS)"
+    ),
+}
+
+# The (card_id, field) source arms the quorum reads, from the `_LIAB_SOURCES` module constant. The set is
+# what makes the three-modality quorum commensurate: each arm is an organ-aware liability read at a
+# DIFFERENT modality. A re-pointed arm (e.g. the scRNA arm on the broader breadth / graded-veto field) or a
+# new/dropped source changes this set and fails the assertion below.
+_SAFETY_COMMENSURATE_SOURCE_ARMS = frozenset(
+    {
+        ("normal-tissue-liability-gtex", "liability_class"),  # GTEx bulk RNA — pooled tissue transcriptome
+        ("sc-normal-celltype-expression", "sc_normal_safety_essential_class"),  # scRNA cell-type atlas
+        ("normal-tissue-liability", "essential_tissue_flag"),  # HPA-IHC protein staining
+    }
+)
+
+
+def _safety_tree() -> ast.Module:
+    return _parse(_SAFETY_CLAIMS.read_text())
+
+
+def _liab_sources_pairs(tree: ast.Module) -> set[tuple[str, str]]:
+    """Static-read the `_LIAB_SOURCES` module constant → {(card_id, field)} (indices 3,4 of each 5-tuple
+    `(source_key, property, assay, card_id, field)`). The safety quorum reads its arms by iterating this
+    constant, so it — not a literal `.get` in the builder — is the arm source of truth."""
+    for n in ast.walk(tree):
+        if isinstance(n, ast.Assign) and any(isinstance(t, ast.Name) and t.id == "_LIAB_SOURCES" for t in n.targets):
+            tup = n.value
+            assert isinstance(tup, ast.Tuple), "_LIAB_SOURCES is no longer a tuple literal"
+            pairs: set[tuple[str, str]] = set()
+            for elt in tup.elts:
+                assert isinstance(elt, ast.Tuple) and len(elt.elts) == 5, (
+                    "each _LIAB_SOURCES entry must be a 5-tuple (source_key, property, assay, card_id, field)"
+                )
+                cid, field = elt.elts[3], elt.elts[4]
+                assert (
+                    isinstance(cid, ast.Constant)
+                    and isinstance(cid.value, str)
+                    and isinstance(field, ast.Constant)
+                    and isinstance(field.value, str)
+                ), "the card_id/field of a _LIAB_SOURCES entry must be string constants"
+                pairs.add((cid.value, field.value))
+            return pairs
+    raise AssertionError("_LIAB_SOURCES constant not found in safety_claims.py")
+
+
+def _folds_over_liab_sources(func: ast.FunctionDef) -> bool:
+    """True if `func` folds `corroboration_from_arms([… for … in _LIAB_SOURCES])` — the arms iterate the
+    declared source constant, tying the fold to `_SAFETY_COMMENSURATE_SOURCE_ARMS`."""
+    for n in ast.walk(func):
+        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "corroboration_from_arms":
+            arg = n.args[0] if n.args else None
+            if isinstance(arg, ast.ListComp):
+                for gen in arg.generators:
+                    if isinstance(gen.iter, ast.Name) and gen.iter.id == "_LIAB_SOURCES":
+                        return True
+    return False
+
+
+def assert_safety_arms_are_commensurate(tree: ast.Module) -> None:
+    """Raise AssertionError unless the safety quorum folds EXACTLY the three declared source card/field
+    arms (from `_LIAB_SOURCES`) and the builder folds over `_LIAB_SOURCES`. The predicate the safety-family
+    mutation drives red."""
+    funcs = _functions(tree)
+    assert "_normal_liability_concordance_claim" in funcs, (
+        "_normal_liability_concordance_claim vanished from safety_claims.py"
+    )
+    assert _folds_over_liab_sources(funcs["_normal_liability_concordance_claim"]), (
+        "_normal_liability_concordance_claim no longer folds corroboration_from_arms over _LIAB_SOURCES — "
+        "the arm source is no longer the declared source constant"
+    )
+    pairs = _liab_sources_pairs(tree)
+    declared = set(_SAFETY_COMMENSURATE_SOURCE_ARMS)
+    assert pairs == declared, (
+        f"the normal-tissue liability quorum folds source arms {sorted(pairs)} — expected EXACTLY the three "
+        f"commensurate organ-aware source arms {sorted(declared)}. Re-pointing a source arm to a broader-"
+        f"basis field (e.g. the scRNA breadth field or the graded veto `sc_normal_essential_veto_grade`) "
+        f"mixes a DIFFERENT basis into the quorum and MANUFACTURES agreement (the #1673 shape); a new/"
+        f"dropped source changes the quorum. undeclared = {sorted(pairs - declared)}; "
+        f"gone = {sorted(declared - pairs)}."
+    )
+
+
+# ── the safety-family tests ───────────────────────────────────────────────────────────────────────
+def test_safety_multi_arm_builders_are_declared():
+    """ENUMERATION / anti-drift for the safety family: every function that folds arms via
+    `corroboration_from_arms` in safety_claims.py must be declared. A NEW multi-arm builder fails here
+    until its arm pairing is declared in `_DECLARED_SAFETY_CORROBORATION_BUILDERS`."""
+    discovered = _corroboration_builders(_safety_tree())
+    declared = set(_DECLARED_SAFETY_CORROBORATION_BUILDERS)
+    assert discovered == declared, (
+        f"safety multi-arm corroboration builders drifted from the declared oracle: "
+        f"undeclared (add its arm pairing) = {sorted(discovered - declared)}; "
+        f"declared-but-gone (remove it) = {sorted(declared - discovered)}"
+    )
+
+
+def test_safety_oracle_is_three_independent_modalities_same_construct():
+    """The declared table itself encodes the commensurability rule: three DISTINCT cards (independent
+    modalities), each a normal-tissue liability read. Guards the oracle against a typo that would make the
+    detector assert the wrong pairing."""
+    cards = {card for (card, _f) in _SAFETY_COMMENSURATE_SOURCE_ARMS}
+    assert len(cards) == 3, (
+        f"the safety quorum must read three DISTINCT independent-modality cards (GTEx-bulk / scRNA / HPA-"
+        f"IHC), not fewer; got cards {sorted(cards)}"
+    )
+    # the deliberately-rejected broader-basis fields must NOT be in the declared arm set.
+    rejected = {"sc_normal_essential_veto_grade"}
+    assert not (rejected & {f for (_c, f) in _SAFETY_COMMENSURATE_SOURCE_ARMS}), (
+        "a deliberately-rejected broader-basis field (the graded veto) leaked into the declared quorum arms"
+    )
+
+
+def test_safety_folds_the_commensurate_source_arms():
+    """GREEN on today's safety_claims.py: the quorum folds exactly the three commensurate organ-aware
+    source arms and folds over `_LIAB_SOURCES`. Also anti-vacuity — the declared arm set is non-empty."""
+    assert _SAFETY_COMMENSURATE_SOURCE_ARMS, "the declared safety arm set is empty — the test would pin nothing"
+    assert_safety_arms_are_commensurate(_safety_tree())
+
+
+# The mutation the safety detector exists to catch: the scRNA arm re-pointed from the organ-aware
+# categorical `sc_normal_safety_essential_class` to the graded veto `sc_normal_essential_veto_grade` — the
+# broader/severity basis the author explicitly rejected because it would MANUFACTURE cross-source
+# (dis)concordance (the #1673 shape). Applied to a COPY of the source string.
+def _mutant_safety_repoints_sc_arm_to_graded_veto(source: str) -> str:
+    mutated = source.replace("sc_normal_safety_essential_class", "sc_normal_essential_veto_grade")
+    assert mutated != source, "mutation was a no-op — the scRNA categorical arm field is no longer present to re-point"
+    return mutated
+
+
+def test_detector_bites_a_safety_arm_repointed_to_the_rejected_basis():
+    """MUTATION TEST for the safety family — the corpus alone has no teeth here, so prove the detector
+    bites. With the scRNA arm re-pointed to the graded veto (a broader/severity basis that manufactures
+    agreement, the #1673 shape the author avoided), the folded source set no longer equals the declared
+    organ-aware arms and `assert_safety_arms_are_commensurate` FAILS. Confirms both the RED (on the mutant)
+    and — via `test_safety_folds_the_commensurate_source_arms` — the GREEN on real source."""
+    mutant = _parse(_mutant_safety_repoints_sc_arm_to_graded_veto(_SAFETY_CLAIMS.read_text()))
+    # sanity: the mutant genuinely re-points the scRNA arm to the rejected field
+    pairs = _liab_sources_pairs(mutant)
+    assert ("sc-normal-celltype-expression", "sc_normal_essential_veto_grade") in pairs and (
+        "sc-normal-celltype-expression",
+        "sc_normal_safety_essential_class",
+    ) not in pairs, "the mutation did not re-point the scRNA arm as intended"
+    # …and the detector rejects it
+    with pytest.raises(AssertionError, match="liability quorum"):
+        assert_safety_arms_are_commensurate(mutant)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# SEVENTH FAMILY — the COMBINATION (CODEP co-dependency) builder in combination_vulnerability_claims.py (SK#1709)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# `_codep_corroboration` folds `corroboration_from_arms([True, dede, in4mer])` (mirrors genomic
+# `_cn_corroboration`): the PRIMARY DepMap ParalogV2 paralog-SL call is the `True` arm, and the two
+# orthogonal paralog dual-KO consortia are the 2nd/3rd arms:
+#   * dede   — cross-consortium-paralog-gi.dede_class    (Dede consortium, zdLFC scoring)
+#   * in4mer — cross-consortium-paralog-gi.in4mer_class  (in4mer consortium, normZ scoring)
+#
+# AUDIT VERDICT (SK#1709): COMMENSURATE by design — a detector-oracle EXTENSION, not a fix. The two audit
+# concerns the #1703 filing rule flags are both ANSWERED negative:
+#   * The `True` first arm is NOT an inflating free sentinel. The fold is REACHED only after an early
+#     return gate: `_codep_corroboration` returns `unmeasured`/`single_arm` and NEVER reaches
+#     `corroboration_from_arms` unless the DepMap `combinatorial_dependency_class` is already a POSITIVE
+#     (paralog-SL) `strong`/`moderate` call. So `True` encodes the CONFIRMED primary positive arm at this
+#     path — exactly like the `_cn_corroboration` primary. With both consortia absent it stands as `[True]`
+#     → `single_arm` (no inflation); one agreeing consortium lifts to `high`; a suppressive/no-interaction
+#     consortium caps at `low`.
+#   * dede and in4mer are NOT the same underlying signal. They are two SEPARATE consortia with DIFFERENT
+#     scoring methods (Dede/zdLFC vs in4mer/normZ), read from two DISTINCT fields, both resolving the SAME
+#     paralog-SL interaction_class construct at the SAME granularity via the shared `arm_from_class`
+#     vocabulary — independent orthogonal reads, not one derived from the other.
+#   * MEASURED (no vote flip for this declaration): this PR edits only the test file; `_codep_corroboration`
+#     is unchanged, so the corroboration tier is byte-stable. (The tier is a confidence dimension, not the
+#     signal chip.)
+# The commensurability invariant this block pins: the fold reads EXACTLY the two DISTINCT declared
+# consortium fields and folds EXACTLY ONE literal-`True` primary arm (no extra inflating sentinel). Re-
+# pointing in4mer to read dede's field (collapsing the two independent consortia into one — a double-count)
+# reds the assertion; the mutation test drives that red.
+
+_COMBINATION_CLAIMS = pathlib.Path(__file__).resolve().parents[1] / "combination_vulnerability_claims.py"
+
+
+# The DECLARED oracle for the combination family. Same contract: every function folding arms via
+# `corroboration_from_arms` in combination_vulnerability_claims.py must appear here with its pairing.
+_DECLARED_COMBINATION_CORROBORATION_BUILDERS = {
+    "_codep_corroboration": (
+        "PRIMARY DepMap ParalogV2 paralog-SL call (`True`, reached ONLY for a positive strong/moderate "
+        "combinatorial_dependency_class — a confirmed arm, not an inflating sentinel) × Dede `dede_class` "
+        "(zdLFC) × in4mer `in4mer_class` (normZ) — two INDEPENDENT orthogonal consortia (different scoring, "
+        "distinct fields) resolving the SAME paralog-SL interaction_class construct; commensurate by same-"
+        "construct/same-granularity/independent (see _COMBINATION_CONSORTIUM_ARM_FIELDS)"
+    ),
+}
+
+# The two consortium arm fields the fold reads via `xc.get("<field>")`. Two DISTINCT fields — the set is
+# what makes the two orthogonal-consortium arms independent. Re-pointing one arm to the other's field
+# collapses them to one (a double-count) and changes this set, failing the assertion below.
+_COMBINATION_CONSORTIUM_ARM_FIELDS = frozenset({"dede_class", "in4mer_class"})
+
+
+def _combination_tree() -> ast.Module:
+    return _parse(_COMBINATION_CLAIMS.read_text())
+
+
+def _xc_get_fields(func: ast.FunctionDef) -> set[str]:
+    """Every `xc.get("<field>")` string read in `func` — the consortium arms are read from the dispatched
+    cross-consortium card bound to the local `xc`."""
+    found: set[str] = set()
+    for n in ast.walk(func):
+        if (
+            isinstance(n, ast.Call)
+            and isinstance(n.func, ast.Attribute)
+            and n.func.attr == "get"
+            and isinstance(n.func.value, ast.Name)
+            and n.func.value.id == "xc"
+            and n.args
+            and isinstance(n.args[0], ast.Constant)
+            and isinstance(n.args[0].value, str)
+        ):
+            found.add(n.args[0].value)
+    return found
+
+
+def _corroboration_arm_list(func: ast.FunctionDef) -> ast.List:
+    """The single `corroboration_from_arms([...])` list argument in `func`."""
+    calls = _corroboration_from_arms_calls(func)
+    assert len(calls) == 1, f"expected exactly one corroboration_from_arms call in {func.name}; found {len(calls)}"
+    arg = calls[0].args[0] if calls[0].args else None
+    assert isinstance(arg, ast.List), "corroboration_from_arms is no longer folded over a list literal of arms"
+    return arg
+
+
+def assert_combination_arms_are_commensurate(tree: ast.Module) -> None:
+    """Raise AssertionError unless `_codep_corroboration` folds EXACTLY ONE literal-`True` primary arm plus
+    the two DISTINCT declared consortium fields — no inflating extra sentinel, no consortium double-count.
+    The predicate the combination-family mutation drives red."""
+    funcs = _functions(tree)
+    assert "_codep_corroboration" in funcs, "_codep_corroboration vanished from combination_vulnerability_claims.py"
+    corr = funcs["_codep_corroboration"]
+    # (a) exactly one literal-True primary arm (the confirmed DepMap call), not an inflating sentinel.
+    arm_list = _corroboration_arm_list(corr)
+    n_true = sum(1 for e in arm_list.elts if isinstance(e, ast.Constant) and e.value is True)
+    assert n_true == 1, (
+        f"_codep_corroboration must fold EXACTLY ONE literal-`True` primary arm (the confirmed DepMap "
+        f"paralog-SL call, reached only on a positive strong/moderate call); found {n_true} literal-True "
+        f"arms. More than one would INFLATE the quorum with a free sentinel vote."
+    )
+    # (b) the consortium arms read exactly the two DISTINCT declared fields (independent, no double-count).
+    fields = _xc_get_fields(corr)
+    declared = set(_COMBINATION_CONSORTIUM_ARM_FIELDS)
+    assert fields == declared, (
+        f"_codep_corroboration folds consortium arm fields {sorted(fields)} — expected EXACTLY the two "
+        f"DISTINCT orthogonal-consortium fields {sorted(declared)}. Re-pointing one arm to the OTHER "
+        f"consortium's field collapses the two independent reads into one (a double-count of the SAME "
+        f"signal); a new/dropped field changes the quorum. undeclared = {sorted(fields - declared)}; "
+        f"gone = {sorted(declared - fields)}."
+    )
+
+
+# ── the combination-family tests ────────────────────────────────────────────────────────────────────
+def test_combination_multi_arm_builders_are_declared():
+    """ENUMERATION / anti-drift for the combination family: every function that folds arms via
+    `corroboration_from_arms` in combination_vulnerability_claims.py must be declared. A NEW multi-arm
+    builder fails here until its arm pairing is declared in `_DECLARED_COMBINATION_CORROBORATION_BUILDERS`."""
+    discovered = _corroboration_builders(_combination_tree())
+    declared = set(_DECLARED_COMBINATION_CORROBORATION_BUILDERS)
+    assert discovered == declared, (
+        f"combination multi-arm corroboration builders drifted from the declared oracle: "
+        f"undeclared (add its arm pairing) = {sorted(discovered - declared)}; "
+        f"declared-but-gone (remove it) = {sorted(declared - discovered)}"
+    )
+
+
+def test_combination_oracle_is_two_independent_consortia():
+    """The declared table itself encodes the commensurability rule: two DISTINCT consortium fields
+    (independent orthogonal reads). Guards the oracle against a typo (e.g. one field twice)."""
+    assert len(_COMBINATION_CONSORTIUM_ARM_FIELDS) == 2, (
+        f"the two consortium arms must read two DISTINCT fields (Dede vs in4mer), not one field twice (a "
+        f"double-count of the SAME signal); got {sorted(_COMBINATION_CONSORTIUM_ARM_FIELDS)}"
+    )
+
+
+def test_combination_folds_the_primary_and_two_consortium_arms():
+    """GREEN on today's combination_vulnerability_claims.py: `_codep_corroboration` folds one literal-True
+    primary arm and the two commensurate consortium fields. Also anti-vacuity — the declared set is non-empty."""
+    assert _COMBINATION_CONSORTIUM_ARM_FIELDS, "the declared combination consortium set is empty — pins nothing"
+    assert_combination_arms_are_commensurate(_combination_tree())
+
+
+# The mutation the combination detector exists to catch: the in4mer arm re-pointed to read dede's field —
+# collapsing the two independent consortia into one (a double-count of the SAME signal). Applied to a COPY
+# of the source string.
+def _mutant_combination_repoints_in4mer_to_dede_field(source: str) -> str:
+    mutated = source.replace('xc.get("in4mer_class")', 'xc.get("dede_class")')
+    assert mutated != source, "mutation was a no-op — the in4mer consortium arm read is no longer present to re-point"
+    return mutated
+
+
+def test_detector_bites_a_combination_arm_repointed_to_the_other_consortium():
+    """MUTATION TEST for the combination family — the corpus alone has no teeth here, so prove the detector
+    bites. With the in4mer arm re-pointed to dede's field, the folded consortium field set collapses to one
+    (the two independent reads become one — a double-count) and `assert_combination_arms_are_commensurate`
+    FAILS. Confirms both the RED (on the mutant) and — via
+    `test_combination_folds_the_primary_and_two_consortium_arms` — the GREEN on real source."""
+    mutant = _parse(_mutant_combination_repoints_in4mer_to_dede_field(_COMBINATION_CLAIMS.read_text()))
+    # sanity: the mutant genuinely collapses the two consortium arms onto one field
+    fields = _xc_get_fields(_functions(mutant)["_codep_corroboration"])
+    assert fields == {"dede_class"}, "the mutation did not collapse the consortium arms as intended"
+    # …and the detector rejects it
+    with pytest.raises(AssertionError, match="_codep_corroboration"):
+        assert_combination_arms_are_commensurate(mutant)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
 # FLEET-COMPLETENESS META-GUARD — every multi-arm fold-builder in _skills_common must belong to a
 # declared commensurability family (SK#1704, tracking #1703, epic #1507)
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -934,11 +1467,12 @@ def test_detector_bites_a_readded_non_independent_n_diseases_arm():
 # the un-declared-builder population is closed by construction — a future multi-arm builder either lands
 # in a declared family, or is baselined as debt, or fails this gate.
 #
-# The currently-un-declared families are baselined here as explicit known-debt (each entry cites its
-# #1703 checklist row), so the guard is GREEN today. (literature moved from debt → a declared covered
-# family in #1600, atomically with its `_corr` fix + oracle block above.) It reds the moment a NEW un-declared family/file
-# appears, OR a debt family is removed from the debt list without a matching declared oracle block (the
-# file still holds a caller, so it lands in NEITHER set → red). The `_cn_signal`-style signal/demotion
+# As of SK#1709 ALL seven family files are declared covered families and `_KNOWN_DEBT_FILES` is EMPTY —
+# the #1703 milestone "zero un-declared multi-arm builders in _skills_common" is reached. (literature moved
+# from debt → a declared covered family in #1600; dependency/safety/combination moved in #1709, each
+# audited COMMENSURATE with its oracle block above.) The guard reds the moment a NEW un-declared family/
+# file appears, OR — while any debt entry exists — a debt family is removed from the debt list without a
+# matching declared oracle block (the file still holds a caller, so it lands in NEITHER set → red). The `_cn_signal`-style signal/demotion
 # MIRROR shape is already governed within its family block (genomic `_CN_DIRECTIONAL_BUILDERS`,
 # selectivity `_PROTEIN_QUORUM`); at this FILE granularity it lives inside an already-covered file, so the
 # fleet enumeration captures it by inclusion.
@@ -968,27 +1502,32 @@ _COVERED_FAMILY_FILES = {
         "literature — detector SK#1600 (_DECLARED_LITERATURE_CORROBORATION_BUILDERS + the single-arm `_corr` "
         "fold: no non-independent n_diseases arm, capped at single_arm); #1703 row: literature [x]"
     ),
+    "dependency_claims.py": (
+        "dependency — detector SK#1709 (_DECLARED_DEPENDENCY_CORROBORATION_BUILDERS + "
+        "_DEPENDENCY_COMMENSURATE_ARM_PAIRS: CRISPR×RNAi two independent orthogonal essentiality screens, "
+        "same construct/granularity); #1703 row: dependency [x]"
+    ),
+    "safety_claims.py": (
+        "safety — detector SK#1709 (_DECLARED_SAFETY_CORROBORATION_BUILDERS + _SAFETY_COMMENSURATE_SOURCE_ARMS: "
+        "GTEx-bulk × scRNA-normal × HPA-IHC three independent organ-aware liability modalities, all mapped to "
+        "the same organ-aware basis — the #1673 manufactured-agreement shape actively avoided); #1703 row: safety [x]"
+    ),
+    "combination_vulnerability_claims.py": (
+        "combination — detector SK#1709 (_DECLARED_COMBINATION_CORROBORATION_BUILDERS + "
+        "_COMBINATION_CONSORTIUM_ARM_FIELDS: one confirmed-positive DepMap primary arm + Dede/in4mer two "
+        "independent consortia, no inflating sentinel, no double-count); #1703 row: combination [x]"
+    ),
 }
 
 # The explicit KNOWN-DEBT list: files that DO contain a `corroboration_from_arms` caller but whose family
-# is not yet declared with an oracle block. Baselined so the guard is GREEN today; each entry cites its
-# #1703 checklist row. Removing an entry here WITHOUT adding a declared oracle block for the file reds the
-# guard (the file's caller then belongs to NEITHER set) — which is exactly the intended forcing function.
-_KNOWN_DEBT_FILES = {
-    "dependency_claims.py": (
-        "dependency (dependency_claims.py:407 `corroboration_from_arms([crispr_arm, rnai_arm])`) — #1703 "
-        "row: dependency. CRISPR×RNAi fold (L2b-2 #1533); documented inert — audit + declare an oracle block."
-    ),
-    "safety_claims.py": (
-        "safety (safety_claims.py:508 liability-source quorum `corroboration_from_arms([_arm(sk) …])`) — "
-        "#1703 row: safety. L2b-3 #1546; documented inert — audit + declare an oracle block."
-    ),
-    "combination_vulnerability_claims.py": (
-        "combination (combination_vulnerability_claims.py:278 "
-        "`corroboration_from_arms([True, dede, in4mer])`) — #1703 row: combination. Documented inert — "
-        "audit + declare an oracle block."
-    ),
-}
+# is not yet declared with an oracle block. Baselined so the guard is GREEN when a family is still open;
+# each entry cites its #1703 checklist row. Removing an entry here WITHOUT adding a declared oracle block
+# for the file reds the guard (the file's caller then belongs to NEITHER set) — the intended forcing
+# function. SK#1709 declared the last three families (dependency/safety/combination — each audited
+# COMMENSURATE and moved to _COVERED_FAMILY_FILES above), so this list is now EMPTY: the #1703 milestone
+# "zero un-declared multi-arm builders in _skills_common" is reached. A future un-audited builder must be
+# declared (with an oracle block) or baselined here with a cited #1703-style reason, or it reds the guard.
+_KNOWN_DEBT_FILES: dict[str, str] = {}
 
 
 def _all_claims_files() -> list[pathlib.Path]:
@@ -1058,12 +1597,18 @@ def test_every_multi_arm_fold_builder_file_is_declared_or_debt():
 
 def test_fleet_enumeration_finds_all_seven_known_family_files():
     """Anti-vacuity + coverage floor: the sweep must actually discover the seven family files known today
-    (four covered + three debt), each with ≥1 caller. If the enumeration silently found nothing (e.g. a
-    broken alias resolution or glob), the completeness test above would pass VACUOUSLY. Pins that the
-    enumeration has teeth and that every declared/debt file genuinely still carries a caller (so the debt
-    list cannot go stale un-noticed)."""
+    (all seven now COVERED families; `_KNOWN_DEBT_FILES` is empty after SK#1709), each with ≥1 caller. If
+    the enumeration silently found nothing (e.g. a broken alias resolution or glob), the completeness test
+    above would pass VACUOUSLY. Pins that the enumeration has teeth and that every declared/debt file
+    genuinely still carries a caller (so the covered/debt lists cannot go stale un-noticed)."""
     callers = corroboration_callers_by_file()
     expected_files = set(_COVERED_FAMILY_FILES) | set(_KNOWN_DEBT_FILES)
+    # coverage floor: the seven known family files must all still be tracked (guards against the covered
+    # set silently shrinking now that debt is empty and the debt-removal mutation test is vacuously skipped).
+    assert len(expected_files) >= 7, (
+        f"the arm-commensurability audit knows seven family files; the tracked set shrank to "
+        f"{sorted(expected_files)} — a covered family was dropped without a replacement"
+    )
     assert expected_files <= set(callers), (
         f"declared/debt family files with NO discovered corroboration_from_arms caller (stale entry, or "
         f"the enumeration failed to resolve them): {sorted(expected_files - set(callers))}"
