@@ -16,6 +16,7 @@ from _skills_common.presence_claims import (  # noqa: E402
     presence_claim_vector,
     presence_claim_vector_by_subtype,
 )
+from _skills_common.subgroup_derivation import _SUBGROUP_N_FLOOR  # noqa: E402  # #1625 single-sourced floor
 
 
 def _cards():
@@ -747,6 +748,58 @@ def test_by_subtype_non_measured_stratum_carries_no_ab_signal():
     assert unmeasured["evidence_state"] == "exploratory"
     # the NAMED enriched pick still surfaces the one MEASURED enriched identity (left unchanged).
     assert cv["top_enriched_subtype"] == "MSI_H"
+
+
+def test_by_subtype_measured_but_below_n_floor_stratum_carries_no_ab_signal():
+    """#1625. The per-stratum A/B signal gate must require BOTH conjuncts its comment claims parity
+    with (subgroup_derivation.py:388 `powered = evidence_state == "measured" and n >= _SUBGROUP_N_FLOOR`):
+    a stratum can be evidence_state == "measured" AND still fall below the n>=30 power floor, and such a
+    stratum must null the A/B signal to "unmeasured" — not merely dim corroboration to "low". 0/2004
+    measured strata carry n<30 in the corpus (latent defense-in-depth), so this MUTATION synthesizes the
+    below-floor stratum: we store the RAW stratum input (median, fraction, n) and RE-DERIVE the signal
+    through the production function, since a fixture of derived signals could never fail. The floor is
+    single-sourced from subgroup_derivation so this test tracks the real threshold, not a literal copy."""
+    below_floor_n = _SUBGROUP_N_FLOOR - 1  # 29: measured, but under the power floor
+    assert below_floor_n < _SUBGROUP_N_FLOOR
+    cards = [
+        {
+            "card_id": "tumor-rna-distribution-by-subtype",
+            "summary": {
+                "subtype_axis_available": True,
+                "subtype_axis_quality": "exploratory",
+                "subtype_stratification_class": "subtype_enriched",
+                "n_subtypes_measured": 2,
+                "per_subgroup_metrics": [
+                    {
+                        # MEASURED and above the floor — keeps its signal (control).
+                        "stratum_id": "MSI_H",
+                        "evidence_state": "measured",
+                        "subtype_signal": "subtype_enriched",
+                        "median_log2tpm": 3.2,
+                        "n_tumor_samples": 47,
+                        "fraction_tumor_above_normal_p95": 0.5,
+                    },
+                    {
+                        # MEASURED but BELOW the n floor — a real median/fraction survives, but it never
+                        # cleared the power floor, so both A and B must null to "unmeasured".
+                        "stratum_id": "CMS1",
+                        "evidence_state": "measured",
+                        "subtype_signal": "subtype_enriched",
+                        "median_log2tpm": 2.9,
+                        "n_tumor_samples": below_floor_n,
+                        "fraction_tumor_above_normal_p95": 0.4,
+                    },
+                ],
+            },
+        }
+    ]
+    cv = presence_claim_vector_by_subtype(cards)
+    powered = cv["strata"]["MSI_H"]
+    below = cv["strata"]["CMS1"]
+    assert powered["A"]["signal"] != "unmeasured", "a measured, floor-met stratum keeps its abundance signal"
+    assert below["A"]["signal"] == "unmeasured", "measured but n<floor must null the A signal"
+    assert below["B"]["signal"] == "unmeasured", "measured but n<floor must null the B signal"
+    assert below["evidence_state"] == "measured", "evidence_state is unchanged — only the signal is gated"
 
 
 def test_no_axis_returns_none_and_empty_enrichment_is_a_list():

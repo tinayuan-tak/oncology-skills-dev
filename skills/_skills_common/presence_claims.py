@@ -46,6 +46,7 @@ CLAIM_INFORMS = {
 
 
 from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
+from _skills_common.subgroup_derivation import _SUBGROUP_N_FLOOR  # single-source per-stratum power floor (#1625)
 from _skills_common.subtype_axis import is_differential_axis  # SK#1518 shared axis-quality gate
 
 
@@ -1413,7 +1414,7 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
         # (`powered = evidence_state == "measured" and n >= floor`) and run.py's non-null-signal join.
         # Verdict-INERT (this vector feeds no ladder); the NAMED enriched picks below already filter
         # `evidence_state == "measured"`, so this converges the per-stratum legs on that same reading.
-        measured = r.get("evidence_state") == "measured"
+        measured = r.get("evidence_state") == "measured" and isinstance(n, int) and n >= _SUBGROUP_N_FLOOR
         rel_base = (
             "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 30 else "low"
         )
