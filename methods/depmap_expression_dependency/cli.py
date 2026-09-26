@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """depmap-expression-dependency CLI — Card 4 (expression-dependency correlation).
 
-Consumes DepMap 26Q1 CRISPRGeneEffect.csv (Chronos) +
+Consumes DepMap 26Q3 CRISPRGeneEffect.csv (Chronos) +
 OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv (TPM log2) + Model.csv
 (lineage metadata). For a target gene, computes the cross-cell-line correlation
 between its own expression and its own Chronos dependency, emits scatter +
@@ -11,7 +11,7 @@ Usage:
     depmap-expression-dependency \
         --target KRAS \
         --indication COADREAD \
-        --release-pin 26q1 \
+        --release-pin 26q3 \
         --out /tmp/depmap_expression_dependency_KRAS_COADREAD/
 
 Outputs (in --out directory):
@@ -52,14 +52,14 @@ DEFAULT_TARGET_CONTRACTS = Path(
     os.environ.get("TARGET_CONTRACTS_ROOT")
     or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
-DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q3"
 # Resolved from the data-catalog manifest (single source of truth). DEPMAP_S3_PREFIX (s3://-form)
 # feeds echo/provenance; _DEPMAP_KEY_PREFIX (bucket-relative) builds the get_object read keys below.
 DEPMAP_S3_PREFIX = s3_uri_for(DEPMAP_SOURCE_MANIFEST_ID).rstrip("/")
 _DEPMAP_KEY_PREFIX = bucket_prefix_for(DEPMAP_SOURCE_MANIFEST_ID)[1].rstrip("/")
 DEPMAP_LOCAL_FALLBACK_DIRS = [
-    Path("/data/depmap/26q1"),
-    Path.home() / "depmap-26q1",
+    Path("/data/depmap/26q3"),
+    Path.home() / "depmap-26q3",
 ]
 
 # TPM matrix has these metadata columns before any gene column. Skip them when
@@ -697,7 +697,7 @@ def emit_manifest(
         "indication": indication,
         "release_pin": release_pin,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "input_manifest": "depmap-consortium-26q1",
+        "input_manifest": "depmap-consortium-26q3",
         "input_files_consumed": [
             "CRISPRGeneEffect.csv",
             "OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv",
@@ -741,7 +741,7 @@ def build_merged_data(chronos_by_model: dict, tpm_by_model: dict, model_metadata
 @click.option(
     "--indication", required=True, type=click.Choice(sorted(INDICATION_LINEAGE))
 )  # validated against the canonical map — no silent unmapped fallback
-@click.option("--release-pin", default="26q1")
+@click.option("--release-pin", default="26q3")
 @click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path))
 @click.option("--contracts-root", type=click.Path(file_okay=False, path_type=Path), default=DEFAULT_TARGET_CONTRACTS)
 @click.option("--dry-run", is_flag=True)

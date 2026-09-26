@@ -1,6 +1,6 @@
 """depmap_predictability.read — v2 library entry for live-mode reads.
 
-Reads one row out of the frozen derived parquet (default pin 26q1-v4)
+Reads one row out of the frozen derived parquet (default pin 26q1-v4; 26q3-v4 selectable)
 `s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v4/predictability_per_gene.parquet`
 via pyarrow predicate pushdown. No sklearn / XGBoost at framework runtime.
 
@@ -22,6 +22,9 @@ from typing import Optional
 from . import cli as _cli
 
 DEFAULT_AWS_PROFILE = "cbg"
+# Default stays 26q1-v4 until the 26q3-v4 artifact is materialized + its manifest minted (#814).
+# 26q3-v4 remains selectable via `release_pin=`; making it the default now would point every read
+# at a not-yet-existing S3 artifact. Flip tracked in #814.
 DEFAULT_RELEASE_PIN = "26q1-v4"
 
 

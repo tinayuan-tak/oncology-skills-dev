@@ -306,7 +306,7 @@ def compile_rule(rule: str, ctx: RuleContext = _NO_CONTEXT):
 _PREFETCH_LAYOUT = {
     "tcga": ("framework-gdc-pancohort-somatic", "mc3"),
     "genie": ("framework-genie-public-v19", "genie-maf"),
-    "depmap": ("framework-depmap-26q1", "depmap-maf"),
+    "depmap": ("framework-depmap-26q3", "depmap-maf"),
 }
 
 
@@ -425,7 +425,7 @@ def _load_depmap_somatic_mutations(catalog_repo: Path, indication: str | None = 
         if prefetched.exists():
             return pd.read_parquet(prefetched)
 
-    fallback = cache_root() / "framework-depmap-26q1" / "OmicsSomaticMutations.csv"
+    fallback = cache_root() / "framework-depmap-26q3" / "OmicsSomaticMutations.csv"
     if fallback.exists():
         df = pd.read_csv(fallback)
         # Raw CSV needs column normalization (prefetch parquet already has it)

@@ -62,7 +62,7 @@ DEFAULT_TARGET_CONTRACTS = Path(
     os.environ.get("TARGET_CONTRACTS_ROOT")
     or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
-DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q3"
 # Resolved from the data-catalog manifest (single source of truth). DEPMAP_S3_PREFIX (s3://-form)
 # feeds echo/provenance; _DEPMAP_KEY_PREFIX (bucket-relative) builds the get_object read keys below.
 DEPMAP_S3_PREFIX = s3_uri_for(DEPMAP_SOURCE_MANIFEST_ID).rstrip("/")
@@ -830,7 +830,7 @@ def emit_manifest(target_symbol: str, release_pin: str, summary: dict, out_dir: 
 
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol")
-@click.option("--release-pin", default="26q1")
+@click.option("--release-pin", default="26q3")
 @click.option("--out", required=True, type=click.Path(file_okay=False, writable=True, path_type=Path))
 def main(target, release_pin, out):
     out.mkdir(parents=True, exist_ok=True)

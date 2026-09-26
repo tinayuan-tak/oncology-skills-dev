@@ -43,6 +43,43 @@ def test_extract_symbol(col, expected):
     assert feat.extract_symbol(col) == expected
 
 
+# ---------- ENSG → HGNC resolution at feature naming (#806) ----------------
+
+
+def test_extract_symbol_resolves_ensembl_id(monkeypatch):
+    """A bare Ensembl-ID header resolves to its HGNC symbol via the sidecar map,
+    so cross-gene feature names ship symbol-keyed (cn_<SYMBOL>, not cn_ENSG…)."""
+    # Inject the sidecar cache directly — no S3.
+    monkeypatch.setattr(
+        feat,
+        "_ensg_symbol_map",
+        {"ENSG00000258790": "GOLGA8N", "ENSG00000141510": "TP53"},
+    )
+    assert feat.extract_symbol("ENSG00000258790") == "GOLGA8N"
+    # A cn_ENSG… column (as in the FR kras_coadread fixture) now names cn_GOLGA8N.
+    assert f"cn_{feat.extract_symbol('ENSG00000258790')}" == "cn_GOLGA8N"
+    # Version suffix is stripped before lookup.
+    assert feat.extract_symbol("ENSG00000141510.17") == "TP53"
+
+
+def test_extract_symbol_unmapped_ensembl_id_falls_back(monkeypatch):
+    """A genuinely-unmapped ENSG keeps its Ensembl ID as a breadcrumb (not dropped)."""
+    monkeypatch.setattr(feat, "_ensg_symbol_map", {"ENSG00000141510": "TP53"})
+    assert feat.extract_symbol("ENSG99999999999") == "ENSG99999999999"
+
+
+def test_ensg_symbol_map_absent_sidecar_falls_back(monkeypatch):
+    """If the sidecar can't be read, the loader returns {} and naming keeps the ENSG id."""
+
+    def _boom(*a, **k):
+        raise RuntimeError("no S3 in tests")
+
+    monkeypatch.setattr(feat, "_ensg_symbol_map", None)
+    monkeypatch.setattr(feat, "_s3_read_csv", _boom)
+    assert feat._load_ensg_symbol_map() == {}
+    assert feat.extract_symbol("ENSG00000258790") == "ENSG00000258790"
+
+
 # ---------- Feature-class mapping -----------------------------------------
 
 

@@ -9,10 +9,10 @@ mapping to DepMap's transform_* pipeline.
 Design:
   - Loaders read the parquet derived product (methods.depmap_common.parquet)
     once per pipeline run; then in-memory sliced per gene. First call downloads
-    ~1 GB from S3 to ~/.cache/framework-depmap-26q1-parquet/; subsequent calls
+    ~1 GB from S3 to ~/.cache/framework-depmap-26q3-parquet/; subsequent calls
     are local-disk reads.
   - Mutation matrices (Hotspot + Damaging) still come from CSVs — not
-    parquetized in depmap-26q1-parquet-v1. Small enough (~340 MB combined)
+    parquetized in depmap-26q3-parquet-v1. Small enough (~340 MB combined)
     that a single S3 fetch per run is fine.
   - Arm-level CN feature class ("genetic_derangement" in DepMap parlance):
     per-gene coords from ensembl-coords manifest + cytoband labels from ucsc-
@@ -43,7 +43,7 @@ import pandas as pd
 # ---------------------------------------------------------------------------
 
 DEPMAP_S3_BUCKET = "onc-compbio"
-DEPMAP_SOURCE_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q1"
+DEPMAP_SOURCE_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q3"
 DEPMAP_PROTEOMICS_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q1-proteomics"
 DEPMAP_PARALOGS_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q1-paralogs"
 DEPMAP_CCLE_2019_PREFIX = "data-catalog/sources/depmap-consortium/dmc-ccle-2019"
@@ -71,6 +71,23 @@ METABOLOMICS_S3_KEY = f"{DEPMAP_CCLE_2019_PREFIX}/CCLE_metabolomics_20190502.csv
 # Column-header parsing: "SYMBOL (entrez_id)" → SYMBOL, or plain "SYMBOL" → SYMBOL
 _GENE_PAREN_RE = re.compile(r"^([A-Za-z0-9._\-]+)\s*\(\d+\)$")
 
+# Bare Ensembl gene-ID header (e.g. "ENSG00000258790", optionally version-suffixed).
+# Some DepMap matrix columns (notably CN genes with no HGNC mapping in DepMap) arrive
+# as a bare ENSG id; naming a cross-gene feature `cn_ENSG…` makes it invisible to the
+# sole mechanistic consumer (mechanism-and-pharmacology's SIGNOR cross-ref, which keys
+# on HGNC symbols). We resolve ENSG→HGNC at feature-naming time via the manifest-pinned
+# ensembl-id-mapping-release-116 sidecar (see _resolve_ensembl_id / #806).
+_ENSG_RE = re.compile(r"^ENSG\d+")
+
+# ensembl-id-mapping-release-116-snapshot-2026-06-18 (data-catalog manifest, bucket
+# onc-compbio). TSV columns: "Gene stable ID" (ENSG…, no version) + "HGNC symbol".
+ENSEMBL_ID_MAP_S3_KEY = (
+    "data-catalog/sources/ensembl-id-mapping/release-116-snapshot-2026-06-18/hsapiens_gene_id_map_release-116.tsv"
+)
+
+# Module-wide lazy cache of the ENSG→HGNC bridge. None = not yet loaded.
+_ensg_symbol_map: Optional[dict] = None
+
 # Feature-class taxonomy — every feature name resolves to one of these classes
 # via _feature_class(). Used by the classifier to identify dominant-feature-class.
 FEATURE_CLASS_OWN = {
@@ -86,12 +103,48 @@ FEATURE_CLASS_OWN = {
 # ---------------------------------------------------------------------------
 
 
+def _load_ensg_symbol_map() -> dict:
+    """Ensembl gene ID ("Gene stable ID", ENSG…, version-stripped) → HGNC symbol.
+
+    Reads the manifest-pinned ensembl-id-mapping-release-116 sidecar once and caches
+    the dict module-wide. Only rows with a non-empty HGNC symbol are kept. Returns {}
+    if the sidecar can't be read — feature naming then falls back to the bare ENSG id
+    (a visible breadcrumb rather than a silent drop). Uses _s3_read_csv so tests can
+    monkey-patch the S3 seam (or inject `_ensg_symbol_map` directly).
+    """
+    global _ensg_symbol_map
+    if _ensg_symbol_map is not None:
+        return _ensg_symbol_map
+    mapping: dict[str, str] = {}
+    try:
+        df = _s3_read_csv(ENSEMBL_ID_MAP_S3_KEY, sep="\t")
+        for gid, sym in zip(df["Gene stable ID"].astype(str), df["HGNC symbol"]):
+            g = gid.strip()
+            if g and isinstance(sym, str) and sym.strip():
+                mapping[g] = sym.strip()
+    except Exception:  # absence-discipline: exempt -- sidecar unreadable ⇒ ENSG id kept as breadcrumb (no silent drop)
+        mapping = {}
+    _ensg_symbol_map = mapping
+    return _ensg_symbol_map
+
+
+def _resolve_ensembl_id(ensg: str) -> str:
+    """Map a bare Ensembl gene ID (ENSG…, any version suffix) to its HGNC symbol via
+    the pinned ensembl-id-mapping-release-116 sidecar. When NO HGNC mapping exists the
+    Ensembl ID is returned UNCHANGED — the unmapped feature keeps its ENSG name as a
+    breadcrumb so the translation gap stays visible rather than being silently dropped.
+    """
+    return _load_ensg_symbol_map().get(ensg.split(".", 1)[0], ensg)
+
+
 def extract_symbol(col: str) -> Optional[str]:
     """Return HGNC symbol from a matrix column header in either form.
 
     Accepts 'KRAS' or 'KRAS (3845)' or '"KRAS (3845)"'. Returns None for
     empty / non-string inputs. Falls back to first whitespace-split token for
-    unrecognized formats — matches the CRISPR loader convention.
+    unrecognized formats — matches the CRISPR loader convention. A bare Ensembl
+    gene ID (ENSG…) is resolved to its HGNC symbol via the pinned sidecar so
+    cross-gene feature names stay symbol-keyed for the SIGNOR consumer (#806).
     """
     if not isinstance(col, str):
         return None
@@ -100,8 +153,12 @@ def extract_symbol(col: str) -> Optional[str]:
         return None
     m = _GENE_PAREN_RE.match(s)
     if m:
-        return m.group(1)
-    return s.split(" ", 1)[0] or None
+        token = m.group(1)
+    else:
+        token = s.split(" ", 1)[0] or None
+    if token and _ENSG_RE.match(token):
+        return _resolve_ensembl_id(token)
+    return token
 
 
 def _rename_gene_cols_to_symbols(df: pd.DataFrame, protect_cols: set) -> pd.DataFrame:
@@ -150,7 +207,7 @@ def load_model_metadata() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 def _read_parquet_full(filename: str) -> pd.DataFrame:
-    """Read a full parquet from the depmap-26q1-parquet-v1 derived product.
+    """Read a full parquet from the depmap-26q3-parquet-v1 derived product.
 
     Uses the shared local-disk cache in depmap_common.parquet — first call in
     a fresh cache pulls from S3, subsequent calls are local reads.
@@ -216,7 +273,7 @@ def _load_cn_parquet(filename: str, mc_to_model: dict) -> Optional[pd.DataFrame]
         return None
     df = df.set_index("ModelConditionID")
     # Drop all standard DepMap metadata cols that CAN appear in a CN parquet.
-    # The depmap-26q1-parquet-v1 build preserves several string metadata cols
+    # The depmap-26q3-parquet-v1 build preserves several string metadata cols
     # (ModelID, SequencingID, IsDefaultEntryForModel, IsDefaultEntryForMC);
     # any survivor produces a "could not convert string to float" downstream.
     metadata_drops = {
@@ -261,7 +318,7 @@ def load_copy_number(mc_df: pd.DataFrame) -> pd.DataFrame:
 def load_mutation_matrix(suffix: str) -> pd.DataFrame:
     """Load OmicsSomaticMutationsMatrix{Hotspot,Damaging}.csv from S3.
 
-    These matrices are NOT parquetized in depmap-26q1-parquet-v1 (only the
+    These matrices are NOT parquetized in depmap-26q3-parquet-v1 (only the
     long MAF is). Small enough to fetch as CSV per run (~9 MB Hotspot,
     ~328 MB Damaging).
     """
@@ -327,7 +384,7 @@ def load_fusion() -> pd.DataFrame:
     )
     if left_col is None or right_col is None:
         # Fallback: single "FusionName" like GENE1_GENE2 or similar; not present
-        # in current 26Q1 schema. Return empty frame indexed by unique ModelIDs.
+        # in current 26Q3 schema. Return empty frame indexed by unique ModelIDs.
         return pd.DataFrame(index=pd.Index(df["ModelID"].unique(), name="ModelID"))
     # Extract symbol from either raw string or "GENE (entrez)" style
     long_df = pd.DataFrame(

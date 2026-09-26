@@ -94,7 +94,7 @@ def test_projection_shape():
         "fraction_expressed": 0.98,
         "subgroup_n": 100,
         "subgroup_n_floor_met": True,
-        "source_cohort": "DepMap-26q1",
+        "source_cohort": "DepMap-26q3",
     }
     proj = R._expression_projection("MSS", rec)
     assert proj["stratum"] == "MSS" and proj["class"] == "broadly_high"
@@ -202,7 +202,7 @@ def _projected(stratum: str, median, state: str = "measured") -> dict:
             "fraction_expressed": 0.9,
             "subgroup_n": 40,
             "subgroup_n_floor_met": True,
-            "source_cohort": "DepMap-26q1",
+            "source_cohort": "DepMap-26q3",
         },
     )
 

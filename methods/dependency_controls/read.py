@@ -106,7 +106,7 @@ def _classify_dep_control_position(target_med: Optional[float], pos_meds: dict, 
 
 
 def control_position_dependency(
-    target: str, release_pin: str = "26q1", contracts_dir: str = str(DEFAULT_TARGET_CONTRACTS)
+    target: str, release_pin: str = "26q3", contracts_dir: str = str(DEFAULT_TARGET_CONTRACTS)
 ) -> dict:
     """Control-benchmark position for the pan-cancer-crispr-dependency-distribution card.
 

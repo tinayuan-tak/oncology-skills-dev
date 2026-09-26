@@ -6,7 +6,7 @@ sits relative to the anchors — on the same percentile scale, in the same cohor
 
 Two entry points, one per RNA card / percentile source:
   control_position_tumor(target, indication)   → allgene-tumor-rank-v1 (per-study tumor median)
-  control_position_cellline(target)            → allgene-depmap-rank-26q1-v1 (pan-cancer panel)
+  control_position_cellline(target)            → allgene-depmap-rank-26q3-v1 (pan-cancer panel)
 
 INDICATION-MATCHING (the load-bearing rule): a `lineage_marker` negative is only a
 negative AWAY from its own lineage. We resolve the indication's gtex_normal_tissue via
@@ -201,7 +201,7 @@ def control_position_tumor(target: str, indication: str, contracts_dir: str = st
 
 def control_position_cellline(target: str, contracts_dir: str = str(DEFAULT_TARGET_CONTRACTS)) -> dict:
     """Control-benchmark position for the cellline-rna-distribution card (DepMap
-    pan-cancer panel-median rank, allgene-depmap-rank-26q1-v1). The DepMap null is a
+    pan-cancer panel-median rank, allgene-depmap-rank-26q3-v1). The DepMap null is a
     single pan-cancer panel (no indication), so lineage-marker negatives stay applicable
     (there is no single indication tissue to conflict with) — they anchor the FLOOR."""
     from methods.allgene_percentile_precompute.lookup import depmap_allgene_percentile
@@ -229,6 +229,6 @@ def control_position_cellline(target: str, contracts_dir: str = str(DEFAULT_TARG
 
     ctx = (
         f"DepMap pan-cancer panel vs curated controls "
-        f"(tumor_presence_controls v{controls.get('version')}; allgene-depmap-rank-26q1-v1)"
+        f"(tumor_presence_controls v{controls.get('version')}; allgene-depmap-rank-26q3-v1)"
     )
-    return _assemble(target_pct, target_class, pos_pcts, neg_detail, excluded, "allgene-depmap-rank-26q1-v1", ctx)
+    return _assemble(target_pct, target_class, pos_pcts, neg_detail, excluded, "allgene-depmap-rank-26q3-v1", ctx)

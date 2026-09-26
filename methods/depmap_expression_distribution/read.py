@@ -44,12 +44,12 @@ def read_expression_distribution(
     frame is persisted there (plot_data_expression.parquet) as a first-class artifact of card
     RESOLUTION — so the offline renderer draws from it without a second live read. Default None =>
     byte-identical no-op (the frame is simply discarded, as today)."""
-    tpm_by_model, model_metadata, load_errors = _cli.load_expression_files(release_pin="26q1", target_symbol=target)
+    tpm_by_model, model_metadata, load_errors = _cli.load_expression_files(release_pin="26q3", target_symbol=target)
     if load_errors:
         return {
             "_live_read_error": load_errors[0].get("_live_read_error", "unknown"),
             "errors": load_errors,
-            "_remediation": "Method cannot reach DepMap 26Q1 expression data.",
+            "_remediation": "Method cannot reach DepMap 26Q3 expression data.",
             "expression_class": "data_unavailable",
         }
     if not tpm_by_model:
@@ -60,7 +60,7 @@ def read_expression_distribution(
     summary = _cli.compute_summary_stats(tpm_by_model, model_metadata, expressed_threshold=expressed_threshold)
     # All-gene percentile of the panel median (Phase 1C): where does this target's panel
     # median log2(TPM+1) sit among ALL ~19k protein-coding genes in the DepMap panel? A
-    # single-gene predicate-pushdown lookup of the precomputed allgene-depmap-rank-26q1-v1
+    # single-gene predicate-pushdown lookup of the precomputed allgene-depmap-rank-26q3-v1
     # (NO re-scan of the wide matrix). Additive/display — never flips expression_class.
     try:
         from methods.allgene_percentile_precompute.lookup import depmap_allgene_percentile
@@ -136,7 +136,7 @@ def read_stratified_expression(
     *,
     _sample_id_filter=None,
     _stratum_evaluated: bool | None = None,
-    release_pin: str = "26q1",
+    release_pin: str = "26q3",
 ) -> dict:
     """Per-subgroup cell-line RNA distribution of `target` across DepMap cell lines.
 
@@ -316,7 +316,7 @@ def build_expression_subtype_panorama(
     subgroups: list,
     subgroup_assignments_manifest: str,
     subgroup_catalog_repo=None,
-    release_pin: str = "26q1",
+    release_pin: str = "26q3",
 ) -> dict:
     """Assemble the cellline-rna-distribution-by-subtype card's per_subgroup_metrics panorama.
 

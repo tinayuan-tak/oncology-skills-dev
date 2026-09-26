@@ -44,14 +44,14 @@ def read_expression_dependency(
         indication = ""
 
     chronos_by_model, tpm_by_model, model_metadata, load_errors = _cli.load_depmap_files_for_card4(
-        release_pin="26q1", target_symbol=target
+        release_pin="26q3", target_symbol=target
     )
 
     if load_errors:
         return {
             "_live_read_error": load_errors[0].get("_live_read_error", "s3_or_local_read_failed"),
             "errors": load_errors,
-            "_remediation": "Method cannot reach DepMap 26Q1; verify local cache or AWS credentials.",
+            "_remediation": "Method cannot reach DepMap 26Q3; verify local cache or AWS credentials.",
             # Tier-2 vocabulary: always emit correlation_class so rules can fire on data_unavailable.
             "correlation_class": "data_unavailable",
         }

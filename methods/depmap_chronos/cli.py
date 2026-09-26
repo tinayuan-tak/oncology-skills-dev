@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """depmap-chronos CLI — lineage-specific dependency analysis.
 
-Consumes DepMap 26Q1 CRISPRGeneEffect.csv + Model.csv, computes per-target lineage-
+Consumes DepMap 26Q3 CRISPRGeneEffect.csv + Model.csv, computes per-target lineage-
 selectivity stats (target lineage vs panel + all-other-lineages forest), emits
 summary.json + two SVG figures (forest_plot + lineage_strip) + plot_data.parquet
 for the dependency-lineage-selectivity card (Card 2).
@@ -10,7 +10,7 @@ Usage:
     depmap-chronos \
         --target KRAS \
         --indication COADREAD \
-        --release-pin 26q1 \
+        --release-pin 26q3 \
         --out /tmp/depmap_chronos_KRAS_COADREAD/
 
 Outputs (in --out directory):
@@ -50,15 +50,15 @@ DEFAULT_TARGET_CONTRACTS = Path(
     os.environ.get("TARGET_CONTRACTS_ROOT")
     or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
-DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q3"
 # Resolved from the data-catalog manifest (single source of truth). DEPMAP_S3_PREFIX (s3://-form,
 # no trailing slash) feeds echo/provenance strings; _DEPMAP_KEY_PREFIX (bucket-relative) builds the
 # actual get_object read keys below.
 DEPMAP_S3_PREFIX = s3_uri_for(DEPMAP_SOURCE_MANIFEST_ID).rstrip("/")
 _DEPMAP_KEY_PREFIX = bucket_prefix_for(DEPMAP_SOURCE_MANIFEST_ID)[1].rstrip("/")
 DEPMAP_LOCAL_FALLBACK_DIRS = [
-    Path("/data/depmap/26q1"),
-    Path.home() / "depmap-26q1",
+    Path("/data/depmap/26q3"),
+    Path.home() / "depmap-26q3",
 ]
 
 
@@ -937,7 +937,7 @@ def emit_manifest(
         "indication": indication,  # run-context, not data-product binding
         "release_pin": release_pin,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "input_manifest": "depmap-consortium-26q1",
+        "input_manifest": "depmap-consortium-26q3",
         "input_files_consumed": ["CRISPRGeneEffect.csv", "Model.csv"],
         "n_cell_lines_panel": summary.get("n_cell_lines_panel"),
         "n_lineages_evaluated": summary.get("n_lineages_evaluated"),
@@ -954,7 +954,7 @@ def emit_manifest(
 @click.option(
     "--indication", required=True, type=click.Choice(sorted(INDICATION_LINEAGE))
 )  # validated against the canonical map — no silent unmapped fallback
-@click.option("--release-pin", default="26q1")
+@click.option("--release-pin", default="26q3")
 @click.option("--strong-dependency-threshold", type=float, default=-1.0)
 @click.option("--catalog-repo", type=click.Path(file_okay=False, path_type=Path), default=DEFAULT_CATALOG_REPO)
 @click.option("--contracts-root", type=click.Path(file_okay=False, path_type=Path), default=DEFAULT_TARGET_CONTRACTS)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""depmap-parquet-precompute — batch job: DepMap 26Q1 CSVs → parquet on S3.
+"""depmap-parquet-precompute — batch job: DepMap 26Q3 CSVs → parquet on S3.
 
 Design decisions:
   - Numeric matrices (CRISPR, TPM, CN-WES, CN-WGS, DEMETER2): write as WIDE
@@ -19,7 +19,7 @@ Design decisions:
   - Compression: SNAPPY over gzip. Snappy decompresses ~3-5x faster; gzip only
     matters if network is very slow. On SageMaker + S3 (10+ Gbps), snappy wins.
 
-  - Output prefix VERSIONED: depmap-26q1-parquet-v1/. If we regenerate with
+  - Output prefix VERSIONED: depmap-26q3-parquet-v1/. If we regenerate with
     different compression / schema, bump to -v2/ and refactor readers.
 
 WALL TIME: ~15-30 min for full precompute (dominated by S3 downloads of the
@@ -38,9 +38,9 @@ from typing import Optional
 import click
 
 DEPMAP_S3_BUCKET = "onc-compbio"
-DEPMAP_SOURCE_PREFIX_CRISPR = "data-catalog/sources/depmap-consortium/dmc-26q1"
+DEPMAP_SOURCE_PREFIX_CRISPR = "data-catalog/sources/depmap-consortium/dmc-26q3"
 DEPMAP_SOURCE_PREFIX_RNAI = "data-catalog/sources/depmap-consortium/dmc-26q1-rnai"
-DEFAULT_OUTPUT_PREFIX = "data-catalog/derived/depmap-26q1-parquet-v1"
+DEFAULT_OUTPUT_PREFIX = "data-catalog/derived/depmap-26q3-parquet-v1"
 
 # Files to precompute: (source_prefix, filename, output_parquet_name, index_col, dtype_hint)
 # WIDE matrices (cell-line rows × gene cols): CRISPR, TPM, CN. LONG: MAF.
@@ -303,15 +303,15 @@ def write_manifest(entries: list[dict], local_dir: Path, output_prefix: str, s3,
     import yaml
 
     manifest = {
-        "derived_product_id": "depmap-26q1-parquet-v1",
-        "release_pin": "26q1",
+        "derived_product_id": "depmap-26q3-parquet-v1",
+        "release_pin": "26q3",
         "framework_version": "v2",
         "generated_by": "methods.depmap_parquet_precompute.cli",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "output_s3_prefix": f"s3://{DEPMAP_S3_BUCKET}/{output_prefix.rstrip('/')}/",
         "compression": "snappy",
         "notes": (
-            "Parquet-converted DepMap 26Q1 numeric matrices + MAF. Consumed by "
+            "Parquet-converted DepMap 26Q3 numeric matrices + MAF (CRISPR 26Q3; RNAi/DEMETER stays terminal 26Q1). Consumed by "
             "methods.depmap_common.parquet loaders. Column-projection reads (via "
             "pyarrow.dataset) drop per-fetch size ~100-500x vs the source CSVs."
         ),
@@ -327,7 +327,7 @@ def write_manifest(entries: list[dict], local_dir: Path, output_prefix: str, s3,
 
 
 @click.command()
-@click.option("--release-pin", default="26q1")
+@click.option("--release-pin", default="26q3")
 @click.option(
     "--output-prefix", default=DEFAULT_OUTPUT_PREFIX, help="S3 prefix (relative to bucket) where parquets get written."
 )

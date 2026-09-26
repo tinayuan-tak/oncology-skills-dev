@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """depmap-predictability CLI (v2 — DepMap-parity + extensions thin lookup).
 
-Reads ONE row out of the frozen derived parquet (default pin 26q1-v4)
+Reads ONE row out of the frozen derived parquet (default pin 26q1-v4; 26q3-v4 selectable)
 `s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v4/predictability_per_gene.parquet`
 via pyarrow predicate pushdown. The parquet was produced by the sibling
 precompute method (`depmap_predictability_precompute`). v1/v2/v3 remain selectable
@@ -15,7 +15,8 @@ v2 schema exposes:
   - top_features_rf_shap + top_features_xgb_shap: top-ranked features by mean(|SHAP|)
     TreeExplainer attribution in the default 26q1-v4 pin, which ran with `shap` 0.52.0
     installed — so the RF and XGB tables are INDEPENDENT second-model opinions (verified
-    against the shipped bytes: xgb == rf in 0/9,240 genes).
+    against the shipped bytes: xgb == rf in 0/9,240 genes). 26q3-v4 (the #786 recompute build)
+    shares this SHAP treatment and is selectable via --release-pin.
     ⚠ VINTAGE CAVEAT: older pins (26q1-v1/v2/v3, materialized BEFORE 2026-09-16) are
     NOT SHAP. The precompute lazy-imported `shap`, found it absent, and took its
     documented fallback path: both columns carry RF impurity importances, so
@@ -57,13 +58,23 @@ DEFAULT_TARGET_CONTRACTS = Path(
     or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
 
-# Release-pin → parquet S3 URI. v4 (real TreeExplainer SHAP attributions, 9,240 genes) is
-# the CANONICAL build; v3 (same gene set / model / CV as v4, but `shap` was absent at
-# precompute so attributions fell back to RF impurity / XGB gain) and v2 (0.30 gate, 3,730
-# genes) are RETAINED for reproducibility of historical runs. v2/v3/v4 resolve from their
-# data-catalog manifests (single source of truth); v1's manifest is NOT in the catalog
-# (BLOCKED) so its URI stays hardcoded until that manifest lands.
+# Release-pin → parquet S3 URI. 26q3-v4 (real TreeExplainer SHAP attributions on the 26Q3
+# substrate) is the CANONICAL build from the #786 recompute, but stays SELECTABLE-not-default:
+# its artifact is materialized post-#786 and its manifest is minted only at #814, so the default
+# is HELD at 26q1-v4 to avoid a dangling default at a missing artifact (flip tracked in #814). The
+# 26q1-v* keys are RETAINED for reproducibility of historical runs: 26q1-v4 (SHAP, 9,240 genes), v3 (same
+# gene set / model / CV as v4 but `shap` was absent at precompute so attributions fell back to
+# RF impurity / XGB gain), v2 (0.30 gate, 3,730 genes). Only ONE 26q3 vintage is regenerated
+# (v4) — there is no 26q3-v2/v3 (those were pre-SHAP intermediate builds that will never be
+# re-run). 26q1-v2/v3/v4 resolve from their data-catalog manifests (single source of truth).
+# 26q3-v4 and 26q1-v1 are NOT YET in the catalog so their URIs stay HARDCODED (same treatment):
+#   - 26q1-v1: predates the manifest era (never minted).
+#   - 26q3-v4 (#786 BLOCKED): the derived product is produced by this recompute but the
+#     depmap-predictability-26q3-v4 manifest is minted by data-catalog only AFTER the artifact
+#     lands in S3. Until then s3_uri_for would raise at IMPORT and brick the module. TODO(#786
+#     follow-up): swap to s3_uri_for("depmap-predictability-26q3-v4") once that manifest lands.
 RELEASE_PIN_TO_PARQUET = {
+    "26q3-v4": "s3://onc-compbio/data-catalog/derived/depmap-predictability-26q3-v4/predictability_per_gene.parquet",
     "26q1-v1": "s3://onc-compbio/data-catalog/derived/depmap-predictability-26q1-v1/predictability_per_gene.parquet",
     "26q1-v2": s3_uri_for("depmap-predictability-26q1-v2"),
     "26q1-v3": s3_uri_for("depmap-predictability-26q1-v3"),

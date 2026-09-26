@@ -37,12 +37,12 @@ def read_pan_cancer_distribution(
     runtime decides whether the live-reader scalar path is sufficient or whether to
     invoke the CLI for full artifacts.
     """
-    chronos_by_model, model_metadata, load_errors = _cli.load_depmap_files(release_pin="26q1", target_symbol=target)
+    chronos_by_model, model_metadata, load_errors = _cli.load_depmap_files(release_pin="26q3", target_symbol=target)
     if load_errors:
         return {
             "_live_read_error": load_errors[0].get("_live_read_error", "unknown"),
             "errors": load_errors,
-            "_remediation": "Method cannot reach DepMap 26Q1; verify local cache or AWS credentials.",
+            "_remediation": "Method cannot reach DepMap 26Q3; verify local cache or AWS credentials.",
             # Tier-2 vocabulary: always emit dependency_class so rules can fire on "data_unavailable".
             "dependency_class": "data_unavailable",
             "distribution_shape": "unclassified",
@@ -60,7 +60,7 @@ def read_pan_cancer_distribution(
     # pan-essential-killer re-anchor too (the CLI run() already does). Without threading this, the reader
     # defaulted curated_common_essential=None → fraction-only fallback → the re-anchor was inert in the
     # skill (compose-dashboard) path. None when the control list is unreachable → graceful fraction-only.
-    _curated = _cli._load_curated_common_essentials("26q1")
+    _curated = _cli._load_curated_common_essentials("26q3")
     curated_common_essential = (target in _curated) if _curated is not None else None
     summary = _cli.compute_summary_stats(
         chronos_by_model,
@@ -79,7 +79,7 @@ def read_pan_cancer_distribution(
     try:
         from methods.dependency_controls import control_position_dependency
 
-        summary.update(control_position_dependency(target, release_pin="26q1"))
+        summary.update(control_position_dependency(target, release_pin="26q3"))
     except Exception as e:  # noqa: BLE001 — the control axis is a display facet, never load-bearing
         summary.setdefault("dep_control_position_class", "data_unavailable")
         summary.setdefault("_dep_control_note", f"control axis unavailable: {type(e).__name__}")

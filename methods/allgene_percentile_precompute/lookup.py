@@ -51,7 +51,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 from methods.catalog_query.read import bucket_key_for
 
 TUMOR_RANK_MANIFEST_ID = "allgene-tumor-rank-v1"
-DEPMAP_RANK_MANIFEST_ID = "allgene-depmap-rank-26q1-v1"
+DEPMAP_RANK_MANIFEST_ID = "allgene-depmap-rank-26q3-v1"
 # bucket + keys resolved from the data-catalog manifests (single source of truth).
 S3_BUCKET, TUMOR_RANK_KEY = bucket_key_for(TUMOR_RANK_MANIFEST_ID)
 _, DEPMAP_RANK_KEY = bucket_key_for(DEPMAP_RANK_MANIFEST_ID)
@@ -223,7 +223,7 @@ def _depmap_row(gene_symbol: str) -> Optional[tuple]:
 
 def depmap_allgene_percentile(gene_symbol: str, cutoffs: Optional[dict] = None) -> dict:
     """All-gene percentile of the target's DepMap panel MEDIAN log2(TPM+1) among all
-    ~19k protein-coding genes in the panel, from allgene-depmap-rank-26q1-v1.
+    ~19k protein-coding genes in the panel, from allgene-depmap-rank-26q3-v1.
 
     Returns a data_unavailable-safe dict (same shape as the tumor accessor, no per-study
     breakdown — the DepMap null is a single pan-cancer panel)."""
@@ -236,15 +236,15 @@ def depmap_allgene_percentile(gene_symbol: str, cutoffs: Optional[dict] = None) 
     try:
         row = _depmap_row(sym)
     except _RankReadError as e:
-        out["allgene_percentile_context"] = f"DepMap 26q1 panel (allgene-depmap-rank-26q1-v1) — rank read failed: {e}"
+        out["allgene_percentile_context"] = f"DepMap 26q3 panel (allgene-depmap-rank-26q3-v1) — rank read failed: {e}"
         return out
     if row is None:
-        out["allgene_percentile_context"] = "DepMap 26q1 panel (allgene-depmap-rank-26q1-v1) — target absent"
+        out["allgene_percentile_context"] = "DepMap 26q3 panel (allgene-depmap-rank-26q3-v1) — target absent"
         return out
     pct, rank, n_genes, _median = row
     out["allgene_percentile"] = pct
     out["allgene_percentile_class"] = classify_percentile(pct, cutoffs)
     out["allgene_percentile_context"] = (
-        f"DepMap 26q1 pan-cancer panel all-gene median rank (allgene-depmap-rank-26q1-v1; rank {rank}/{n_genes})"
+        f"DepMap 26q3 pan-cancer panel all-gene median rank (allgene-depmap-rank-26q3-v1; rank {rank}/{n_genes})"
     )
     return out

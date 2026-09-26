@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """depmap-mutation-type-counts CLI — cell-line mutation-type analysis.
 
-Consumes DepMap 26Q1 OmicsSomaticMutations.csv (raw MAF, ~738 MB) and emits per-
+Consumes DepMap 26Q3 OmicsSomaticMutations.csv (raw MAF, ~738 MB) and emits per-
 variant-class mutation counts + landscape-class label.
 
 DISTINCT FROM the existing mutation-hotspot-frequency card (TCGA-patient-cohort,
@@ -39,7 +39,7 @@ DEFAULT_TARGET_CONTRACTS = Path(
     os.environ.get("TARGET_CONTRACTS_ROOT")
     or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
-DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q3"
 # bucket + bucket-relative prefix resolved from the manifest (single source of truth);
 # rstrip('/') keeps the existing f"{DEPMAP_S3_PREFIX}/OmicsSomaticMutations.csv" idiom byte-identical.
 DEPMAP_S3_BUCKET, DEPMAP_S3_PREFIX = bucket_prefix_for(DEPMAP_SOURCE_MANIFEST_ID)
@@ -489,7 +489,7 @@ def emit_manifest(target_symbol: str, release_pin: str, summary: dict, out_dir: 
 
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol")
-@click.option("--release-pin", default="26q1")
+@click.option("--release-pin", default="26q3")
 @click.option("--out", required=True, type=click.Path(file_okay=False, writable=True, path_type=Path))
 def main(target, release_pin, out):
     out.mkdir(parents=True, exist_ok=True)

@@ -31,7 +31,7 @@ def test_depmap_percentile_classifies_and_audits(monkeypatch):
     out = lk.depmap_allgene_percentile("GAPDH")
     assert out["allgene_percentile"] == pytest.approx(99.9)
     assert out["allgene_percentile_class"] == "top_1pct"
-    assert "allgene-depmap-rank-26q1-v1" in out["allgene_percentile_context"]
+    assert "allgene-depmap-rank-26q3-v1" in out["allgene_percentile_context"]
     assert "17/19215" in out["allgene_percentile_context"]
 
 

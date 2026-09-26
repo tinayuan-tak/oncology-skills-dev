@@ -705,7 +705,7 @@ def _worker_train(gene: str) -> Optional[dict]:
 
 
 @click.command()
-@click.option("--release-pin", default="26q1", show_default=True)
+@click.option("--release-pin", default="26q3", show_default=True)
 @click.option(
     "--gene-set",
     type=click.Choice(["smoke", "anchor", "medium", "genome", "explicit"]),

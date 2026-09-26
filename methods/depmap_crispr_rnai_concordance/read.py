@@ -13,7 +13,7 @@ def read_crispr_rnai_concordance(
 ) -> Optional[dict]:
     """Compute CRISPR-RNAi concordance for target. Returns summary dict matching
     the crispr-rnai-dependency-concordance card's outputs.summary_fields."""
-    chronos_by, demeter_by, model_meta, load_errors = _cli.load_concordance_inputs(target, "26q1")
+    chronos_by, demeter_by, model_meta, load_errors = _cli.load_concordance_inputs(target, "26q3")
     if load_errors:
         return {
             "_live_read_error": load_errors[0].get("_live_read_error", "unknown"),

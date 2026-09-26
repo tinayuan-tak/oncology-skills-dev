@@ -96,7 +96,7 @@ def test_dependency_panorama_separates_strata(synthetic_env):
     # cross-subgroup dependency delta is large + positive (≈1.5)
     assert pan["cross_subgroup_delta_dependency"] > 1.0
     # mandatory provenance stamp
-    assert by["DEP"]["source_cohort"] == "DepMap-26Q1"
+    assert by["DEP"]["source_cohort"] == "DepMap-26Q3"
 
 
 def test_scalar_path_whole_panel(synthetic_env):

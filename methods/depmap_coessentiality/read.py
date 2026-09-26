@@ -15,8 +15,8 @@ import pyarrow.parquet as pq
 from . import METHOD_VERSION
 
 DEFAULT_AWS_PROFILE = "cbg"
-MANIFEST_ID = "depmap-coessentiality-26q1-v1"
-_CACHE_DIR = Path.home() / ".cache" / "framework-depmap-26q1-parquet"
+MANIFEST_ID = "depmap-coessentiality-26q3-v1"
+_CACHE_DIR = Path.home() / ".cache" / "framework-depmap-26q3-parquet"
 _CACHED_PATH = _CACHE_DIR / "coessentiality_edges.parquet"
 
 
@@ -56,7 +56,7 @@ def read_coessential_partners(
         gene_symbol:      queried symbol
         partners:         list of dicts [{symbol, pearson_r, abs_rank, direction}]
         n_partners:       number of partners returned
-        n_cell_lines:     DepMap 26Q1 cell lines used in the pre-build
+        n_cell_lines:     DepMap 26Q3 cell lines used in the pre-build
         method_version:   MODULE_VERSION from __init__
         substrate_uri:    resolved path used
         _data_unavailable: present (True) if the substrate could not be read

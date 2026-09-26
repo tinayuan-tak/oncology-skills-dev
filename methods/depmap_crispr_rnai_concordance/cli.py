@@ -48,7 +48,7 @@ DEFAULT_TARGET_CONTRACTS = Path(
 )
 
 
-def load_concordance_inputs(target_symbol: str, release_pin: str = "26q1") -> tuple[dict, dict, dict, list]:
+def load_concordance_inputs(target_symbol: str, release_pin: str = "26q3") -> tuple[dict, dict, dict, list]:
     """Load CRISPR + RNAi score columns for the target.
 
     Returns:
@@ -563,7 +563,7 @@ def emit_manifest(target_symbol: str, release_pin: str, summary: dict, out_dir: 
 
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol")
-@click.option("--release-pin", default="26q1")
+@click.option("--release-pin", default="26q3")
 @click.option("--crispr-dependent-threshold", default=-0.5, type=float)
 @click.option("--rnai-dependent-threshold", default=-0.25, type=float)
 @click.option("--out", required=True, type=click.Path(file_okay=False, writable=True, path_type=Path))

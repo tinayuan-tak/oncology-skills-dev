@@ -35,7 +35,7 @@ def test_read_merges_allgene_percentile(monkeypatch):
     out = R.read_expression_distribution("GAPDH")
     assert out["allgene_percentile"] == pytest.approx(99.9)
     assert out["allgene_percentile_class"] == "top_1pct"
-    assert "allgene-depmap-rank-26q1-v1" in out["allgene_percentile_context"]
+    assert "allgene-depmap-rank-26q3-v1" in out["allgene_percentile_context"]
     # core panel summary still present + unperturbed
     assert out["expression_class"] in {"broadly_high", "broadly_moderate", "lineage_restricted", "broadly_low"}
     assert "median_log2tpm_panel" in out

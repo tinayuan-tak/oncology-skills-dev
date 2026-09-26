@@ -6,7 +6,7 @@ each gene's panel median log2(TPM+1) across all cell lines, and ranks genes into
 0-100 percentile. Lets the cellline-rna-distribution card answer "where does this
 target's panel median sit among ALL protein-coding genes in the DepMap panel".
 
-Output: allgene-depmap-rank-26q1-v1/depmap_panel_median_allgene_rank.parquet (gene-sorted).
+Output: allgene-depmap-rank-26q3-v1/depmap_panel_median_allgene_rank.parquet (gene-sorted).
 
 Usage:
   python -m methods.allgene_percentile_precompute.build_depmap_rank \\
@@ -23,9 +23,9 @@ import time
 from pathlib import Path
 
 S3_BUCKET = "onc-compbio"
-OUTPUT_S3_PREFIX = "data-catalog/derived/allgene-depmap-rank-26q1-v1"
+OUTPUT_S3_PREFIX = "data-catalog/derived/allgene-depmap-rank-26q3-v1"
 _S3_MATRIX = (
-    "s3://onc-compbio/data-catalog/derived/depmap-26q1-parquet-v1/"
+    "s3://onc-compbio/data-catalog/derived/depmap-26q3-parquet-v1/"
     "OmicsExpressionTPMLogp1HumanProteinCodingGenes.parquet"
 )
 

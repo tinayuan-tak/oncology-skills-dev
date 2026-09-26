@@ -1,6 +1,6 @@
 """depmap_expression_distribution — pan-cancer expression distribution analysis.
 
-Consumes DepMap 26Q1 OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv + Model.csv,
+Consumes DepMap 26Q3 OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv + Model.csv,
 emits the cellline-rna-distribution card output: panel-wide log2(TPM+1) stats, per-
 lineage breakdown, descriptive expression_class.
 

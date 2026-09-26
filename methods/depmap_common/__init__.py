@@ -7,8 +7,8 @@ instead of each method independently re-fetching.
 
 Public API:
     from methods.depmap_common import (
-        load_model_csv,           # DepMap 26Q1 Model.csv (ModelID + lineage)
-        load_model_condition_csv, # DepMap 26Q1 ModelCondition.csv (MC_ID → ModelID bridge)
+        load_model_csv,           # DepMap 26Q3 Model.csv (ModelID + lineage)
+        load_model_condition_csv, # DepMap 26Q3 ModelCondition.csv (MC_ID → ModelID bridge)
         load_rnai_sample_info,    # DepMap 26Q1 RNAi sample_info.csv (CCLE_ID metadata)
     )
 

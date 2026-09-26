@@ -24,21 +24,21 @@ from methods.catalog_query.read import bucket_prefix_for
 # bucket + source-dir prefixes resolved from the data-catalog manifests (single
 # source of truth). rstrip('/') keeps the existing `f"{PREFIX}/File.csv"` concat
 # idiom byte-identical (bucket_prefix_for returns the dir WITH its trailing slash).
-DEPMAP_CRISPR_MANIFEST_ID = "depmap-consortium-26q1"
-DEPMAP_RNAI_MANIFEST_ID = "depmap-consortium-26q1-rnai"
+DEPMAP_CRISPR_MANIFEST_ID = "depmap-consortium-26q3"
+DEPMAP_RNAI_MANIFEST_ID = "depmap-consortium-26q1-rnai"  # rnai: DEMETER2 v6 terminal, no 26q3 upstream
 DEPMAP_S3_BUCKET, _CRISPR_PREFIX = bucket_prefix_for(DEPMAP_CRISPR_MANIFEST_ID)
 DEPMAP_S3_PREFIX_CRISPR = _CRISPR_PREFIX.rstrip("/")
 DEPMAP_S3_PREFIX_RNAI = bucket_prefix_for(DEPMAP_RNAI_MANIFEST_ID)[1].rstrip("/")
 
 # Local-cache fallback paths (checked in order)
 DEPMAP_LOCAL_FALLBACK_DIRS = [
-    Path("/data/depmap/26q1"),
-    Path.home() / "depmap-26q1",
+    Path("/data/depmap/26q3"),
+    Path.home() / "depmap-26q3",
 ]
 
 # Session-persistent disk-cache location — populated on first fetch; subsequent
 # session runs read locally without hitting S3. Auto-created if absent.
-SESSION_CACHE_DIR = Path.home() / ".cache" / "framework-depmap-26q1"
+SESSION_CACHE_DIR = Path.home() / ".cache" / "framework-depmap-26q3"
 
 
 def _log(msg: str) -> None:
@@ -54,13 +54,13 @@ def _log(msg: str) -> None:
 def _fetch_csv(
     key: str,
     local_filename: str,
-    release_pin: str = "26q1",
+    release_pin: str = "26q3",
     bucket: str = DEPMAP_S3_BUCKET,
 ):
     """Core fetcher: local cache → session cache → S3. Returns pandas DataFrame.
 
     Order of resolution:
-      1. Session cache at ~/.cache/framework-depmap-26q1/{local_filename}
+      1. Session cache at ~/.cache/framework-depmap-26q3/{local_filename}
          (created on first fetch; cheap disk read on subsequent).
       2. Legacy local-cache directories (DEPMAP_LOCAL_FALLBACK_DIRS).
       3. S3 fetch → parse → write to session cache for next time.
@@ -111,7 +111,7 @@ def _fetch_csv(
 
 
 @lru_cache(maxsize=8)
-def load_model_csv(release_pin: str = "26q1"):
+def load_model_csv(release_pin: str = "26q3"):
     """Load DepMap Model.csv (cell-line metadata: ModelID, OncotreeLineage, CCLEName, etc.).
 
     Small file (~922 KB); process-lifetime cached. Compose_dashboard's 8-card run
@@ -186,7 +186,7 @@ def model_metadata_by_id(model_df, model_id_col: str | None = None) -> dict:
 
 
 @lru_cache(maxsize=8)
-def load_model_condition_csv(release_pin: str = "26q1"):
+def load_model_condition_csv(release_pin: str = "26q3"):
     """Load DepMap ModelCondition.csv (ModelConditionID → ModelID bridge).
 
     Required for the CN-distribution card (E3.b) — CN matrix is indexed by
@@ -218,7 +218,7 @@ def clear_all_caches() -> None:
     """Clear the in-process LRU caches for all loaders.
 
     Useful for tests that need a clean state. NOTE: this only clears process
-    memory; the session cache on ~/.cache/framework-depmap-26q1/ persists.
+    memory; the session cache on ~/.cache/framework-depmap-26q3/ persists.
     """
     load_model_csv.cache_clear()
     load_model_condition_csv.cache_clear()

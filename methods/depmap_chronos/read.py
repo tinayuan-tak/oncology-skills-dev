@@ -35,7 +35,7 @@ DEFAULT_AWS_PROFILE = "cbg"
 
 # Per-ModelID Chronos gene-effect matrix (the raw substrate for subgroup-
 # stratified dependency). Columns are `SYMBOL (ENTREZ)`; index/col `ModelID`.
-DEFAULT_CHRONOS_PARQUET = Path.home() / ".cache" / "framework-depmap-26q1-parquet" / "CRISPRGeneEffect.parquet"
+DEFAULT_CHRONOS_PARQUET = Path.home() / ".cache" / "framework-depmap-26q3-parquet" / "CRISPRGeneEffect.parquet"
 
 # Indication → DepMap OncotreeLineage mapping — the CANONICAL, single-source map.
 # It is DEFINED as a literal in cli.py (the leaf module) and re-exported here as the
@@ -75,12 +75,12 @@ def read_lineage_selectivity(
     """
     ensure_aws_profile()
 
-    chronos_by_model, model_metadata, load_errors = _cli.load_depmap_files(release_pin="26q1", target_symbol=target)
+    chronos_by_model, model_metadata, load_errors = _cli.load_depmap_files(release_pin="26q3", target_symbol=target)
     if load_errors:
         return {
             "_live_read_error": load_errors[0].get("_live_read_error", "s3_or_local_read_failed"),
             "errors": load_errors,
-            "_remediation": "Method cannot reach DepMap 26Q1; verify local cache or AWS credentials.",
+            "_remediation": "Method cannot reach DepMap 26Q3; verify local cache or AWS credentials.",
             # Tier-2 vocabulary: always emit enrichment_class so rules can fire on data_unavailable.
             "enrichment_class": "data_unavailable",
         }
@@ -175,7 +175,7 @@ def read_stratified_dependency(
             "subgroup_effect_admissible": False,
             "evidence_state": "absent",
             "dependency_class": "insufficient",
-            "source_cohort": "DepMap-26Q1",
+            "source_cohort": "DepMap-26Q3",
             "_data_note": f"No Chronos parquet at {path}.",
         }
 
@@ -194,7 +194,7 @@ def read_stratified_dependency(
             "subgroup_effect_admissible": False,
             "evidence_state": "absent",
             "dependency_class": "insufficient",
-            "source_cohort": "DepMap-26Q1",
+            "source_cohort": "DepMap-26Q3",
             "_data_note": f"{target!r} not a Chronos column.",
         }
 
@@ -219,7 +219,7 @@ def read_stratified_dependency(
         "subgroup_effect_admissible": bool(effect_admissible),
         "evidence_state": evidence_state(n, floor_met),
         "dependency_class": _dependency_class(median),
-        "source_cohort": "DepMap-26Q1",
+        "source_cohort": "DepMap-26Q3",
     }
 
 
@@ -265,5 +265,5 @@ def build_dependency_panorama(
         subgroup_catalog_repo=subgroup_catalog_repo,
         reader_kwargs={"chronos_parquet": chronos_parquet},
     )
-    panorama["_data_source"] = "DepMap-26Q1 Chronos (subgroup-stratified)"
+    panorama["_data_source"] = "DepMap-26Q3 Chronos (subgroup-stratified)"
     return panorama

@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
 """depmap-chronos-distribution CLI — pan-cancer dependency distribution analysis.
 
-Consumes DepMap 26Q1 CRISPRGeneEffect.csv + Model.csv, computes per-target dependency
+Consumes DepMap 26Q3 CRISPRGeneEffect.csv + Model.csv, computes per-target dependency
 distribution stats across the panel, emits summary.json + two SVG figures (waterfall +
 histogram-KDE) + plot_data.parquet for the pan-cancer-crispr-dependency-distribution card.
 
 Usage:
     depmap-chronos-distribution \
         --target KRAS \
-        --release-pin 26q1 \
+        --release-pin 26q3 \
         --strong-dependency-threshold -1.0 \
         --catalog-repo /path/to/data-catalog \
         --out /tmp/depmap_chronos_distribution_KRAS/
 
-Inputs (resolved from catalog manifest `depmap-consortium-26q1`):
+Inputs (resolved from catalog manifest `depmap-consortium-26q3`):
   - CRISPRGeneEffect.csv (~564 MB) — cell_line × gene Chronos matrix
   - Model.csv (~922 KB) — cell-line metadata (ModelID, lineage, primary_disease, ...)
 
@@ -62,19 +62,19 @@ DEFAULT_TARGET_CONTRACTS = Path(
     os.environ.get("TARGET_CONTRACTS_ROOT")
     or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
-DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q3"
 # Resolved from the data-catalog manifest (single source of truth). DEPMAP_S3_PREFIX (s3://-form)
 # feeds echo/provenance; _DEPMAP_KEY_PREFIX (bucket-relative) builds the get_object read keys below.
 DEPMAP_S3_PREFIX = s3_uri_for(DEPMAP_SOURCE_MANIFEST_ID).rstrip("/")
 _DEPMAP_KEY_PREFIX = bucket_prefix_for(DEPMAP_SOURCE_MANIFEST_ID)[1].rstrip("/")
 DEPMAP_LOCAL_FALLBACK_DIRS = [
-    Path("/data/depmap/26q1"),
-    Path.home() / "depmap-26q1",
+    Path("/data/depmap/26q3"),
+    Path.home() / "depmap-26q3",
 ]
 
 
 @functools.lru_cache(maxsize=4)
-def _load_curated_common_essentials(release_pin: str = "26q1"):
+def _load_curated_common_essentials(release_pin: str = "26q3"):
     """DepMap's CURATED core-essential control set — AchillesCommonEssentialControls.csv, the
     Hart 2015 ∩ Blomen 2014 intersection of curated pan-essential fitness genes: the CALIBRATED,
     published definition of a broad-toxicity core-essential. Used to ANCHOR the pan-essential KILLER
@@ -164,8 +164,8 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
 
     # === TIER-2 PATH: try parquet derived product first (100-500× faster than CSV) ===
     # get_chronos_column reads only ModelID + target column from the parquet at
-    # s3://onc-compbio/data-catalog/derived/depmap-26q1-parquet-v1/CRISPRGeneEffect.parquet
-    # with local-disk cache under ~/.cache/framework-depmap-26q1-parquet/. Falls
+    # s3://onc-compbio/data-catalog/derived/depmap-26q3-parquet-v1/CRISPRGeneEffect.parquet
+    # with local-disk cache under ~/.cache/framework-depmap-26q3-parquet/. Falls
     # through to the CSV path only if the parquet is unreachable AND no local CSV.
     if crispr_path is None:
         try:
@@ -228,7 +228,7 @@ def load_depmap_files(release_pin: str, target_symbol: str) -> tuple[dict, dict,
             {
                 "_live_read_error": "target_not_in_crispr_panel",
                 "detail": f"Target {target_symbol} not found as a column in CRISPRGeneEffect.csv",
-                "remediation": "Confirm HGNC symbol spelling; check whether target was screened in 26Q1.",
+                "remediation": "Confirm HGNC symbol spelling; check whether target was screened in 26Q3.",
             }
         )
         return {}, {}, load_errors
@@ -934,7 +934,7 @@ def emit_manifest(
         "target": target_symbol,
         "release_pin": release_pin,
         "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "input_manifest": "depmap-consortium-26q1",
+        "input_manifest": "depmap-consortium-26q3",
         "input_files_consumed": ["CRISPRGeneEffect.csv", "Model.csv"],
         "n_cell_lines_evaluated": summary.get("n_cell_lines_evaluated", 0),
         "cell_lines_list_sample": cell_line_ids[:10] if cell_line_ids else [],
@@ -948,7 +948,7 @@ def emit_manifest(
 
 @click.command()
 @click.option("--target", required=True, help="HGNC symbol (e.g., KRAS, MYC, BCL2).")
-@click.option("--release-pin", default="26q1", help="DepMap release pin.")
+@click.option("--release-pin", default="26q3", help="DepMap release pin.")
 @click.option(
     "--strong-dependency-threshold",
     type=float,

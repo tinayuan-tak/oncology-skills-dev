@@ -1,6 +1,6 @@
 """depmap_chronos_distribution — pan-cancer Chronos distribution analysis method.
 
-Consumes DepMap 26Q1 CRISPRGeneEffect + Model and emits the pan-cancer dependency
+Consumes DepMap 26Q3 CRISPRGeneEffect + Model and emits the pan-cancer dependency
 distribution card output: summary stats, two SVG figures (waterfall + histogram-KDE),
 and a per-cell-line plot_data Parquet.
 

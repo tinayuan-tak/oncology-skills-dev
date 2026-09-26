@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """depmap-expression-distribution CLI — pan-cancer expression distribution analysis.
 
-Consumes DepMap 26Q1 OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv + Model.csv,
+Consumes DepMap 26Q3 OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv + Model.csv,
 emits per-target expression distribution stats across the cell-line panel + per-
 lineage breakdown + waterfall + per-lineage strip figures + plot_data.parquet.
 
@@ -41,14 +41,14 @@ DEFAULT_TARGET_CONTRACTS = Path(
     os.environ.get("TARGET_CONTRACTS_ROOT")
     or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
 )
-DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q3"
 # Resolved from the data-catalog manifest (single source of truth). DEPMAP_S3_PREFIX (s3://-form)
 # feeds echo/provenance; _DEPMAP_KEY_PREFIX (bucket-relative) builds the get_object read keys below.
 DEPMAP_S3_PREFIX = s3_uri_for(DEPMAP_SOURCE_MANIFEST_ID).rstrip("/")
 _DEPMAP_KEY_PREFIX = bucket_prefix_for(DEPMAP_SOURCE_MANIFEST_ID)[1].rstrip("/")
 DEPMAP_LOCAL_FALLBACK_DIRS = [
-    Path("/data/depmap/26q1"),
-    Path.home() / "depmap-26q1",
+    Path("/data/depmap/26q3"),
+    Path.home() / "depmap-26q3",
 ]
 
 
@@ -422,7 +422,7 @@ def emit_density_plot(
         "cell-line RNA expression",
         out_path=out_path,
         kind="scatter",
-        provenance=f"DepMap 26Q1 RNA  ·  n={len(scores)} cancer cell lines",
+        provenance=f"DepMap 26Q3 RNA  ·  n={len(scores)} cancer cell lines",
         takeaway=_cellline_take(target_symbol, summary),
     ) as F:
         ax = F.ax
@@ -510,7 +510,7 @@ def emit_lineage_strip(
         left=0.24,
         top=1 - 0.72 / fig_h,
         bottom=0.95 / fig_h,
-        provenance=f"DepMap 26Q1 RNA  ·  n={len(df)} cell lines  ·  lineages with n≥5",
+        provenance=f"DepMap 26Q3 RNA  ·  n={len(df)} cell lines  ·  lineages with n≥5",
         takeaway=_cellline_take(target_symbol, summary),
     ) as F:
         ax = F.ax
@@ -725,7 +725,7 @@ def emit_manifest(
 
 @click.command()
 @click.option("--target", required=True)
-@click.option("--release-pin", default="26q1")
+@click.option("--release-pin", default="26q3")
 @click.option("--expressed-threshold", default=1.0, type=float)
 @click.option("--out", required=True, type=click.Path(file_okay=False, writable=True, path_type=Path))
 def main(target, release_pin, expressed_threshold, out):

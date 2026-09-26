@@ -13,7 +13,7 @@ def read_cn_distribution(
 ) -> Optional[dict]:
     """Compute pan-cancer CN distribution for target. WES-primary + WGS-fallback.
     Returns summary dict matching the copy-number-distribution card's outputs.summary_fields."""
-    cn_by, mmeta, assay_used, load_errors = _cli.load_cn_files("26q1", target)
+    cn_by, mmeta, assay_used, load_errors = _cli.load_cn_files("26q3", target)
     if load_errors:
         return {
             "_live_read_error": load_errors[0].get("_live_read_error", "unknown"),

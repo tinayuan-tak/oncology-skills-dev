@@ -1,15 +1,15 @@
-"""cli — one-shot emit for depmap-coessentiality-26q1-v1.
+"""cli — one-shot emit for depmap-coessentiality-26q3-v1.
 
-Loads the DepMap 26Q1 CRISPRGeneEffect parquet (via depmap_common.parquet shared cache),
+Loads the DepMap 26Q3 CRISPRGeneEffect parquet (via depmap_common.parquet shared cache),
 runs the standardize→matmul→top-K kernel, writes a gene-sorted long-format parquet, and
 uploads it to S3.
 
 Usage:
     python -m methods.depmap_coessentiality.cli \\
-        --release-pin 26q1 \\
+        --release-pin 26q3 \\
         --top-k 100 \\
         --min-abs-r 0.2 \\
-        --output-prefix s3://onc-compbio/data-catalog/derived/depmap-coessentiality-26q1-v1/
+        --output-prefix s3://onc-compbio/data-catalog/derived/depmap-coessentiality-26q3-v1/
 
     # Dry-run (no upload):
     python -m methods.depmap_coessentiality.cli --no-upload \\
@@ -45,7 +45,7 @@ def _md5_file(path: Path) -> str:
 
 
 def run_emit(
-    release_pin: str = "26q1",
+    release_pin: str = "26q3",
     top_k: int = 100,
     min_abs_r: float = 0.20,
     output_prefix: str | None = None,
@@ -165,7 +165,7 @@ def run_emit(
 
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description="Emit depmap-coessentiality-{release}-v1 parquet.")
-    ap.add_argument("--release-pin", default="26q1", help="DepMap release label (default: 26q1)")
+    ap.add_argument("--release-pin", default="26q3", help="DepMap release label (default: 26q3)")
     ap.add_argument("--top-k", type=int, default=100, help="Neighbors per gene (default: 100)")
     ap.add_argument("--min-abs-r", type=float, default=0.20, help="Min |r| floor (default: 0.20)")
     ap.add_argument(

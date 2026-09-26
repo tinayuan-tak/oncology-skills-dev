@@ -1,6 +1,6 @@
 """depmap_common.parquet — column-projection loaders for the parquet derived product.
 
-Reads from s3://onc-compbio/data-catalog/derived/depmap-26q1-parquet-v1/ via
+Reads from s3://onc-compbio/data-catalog/derived/depmap-26q3-parquet-v1/ via
 pyarrow. Column projection means a per-target read pulls 1-2 MB from the parquet
 column chunks instead of parsing the 500 MB source CSV.
 
@@ -45,7 +45,7 @@ DEPMAP_S3_BUCKET = "onc-compbio"
 # multi-release caller never gets a 26q1 file back for a 26q2 request (M4). The bare 26q1 path is
 # preserved as the default subdir name for backward-compat with already-cached files.
 _PARQUET_CACHE_ROOT = Path.home() / ".cache"
-PARQUET_CACHE_DIR = _PARQUET_CACHE_ROOT / "framework-depmap-26q1-parquet"  # legacy 26q1 default
+PARQUET_CACHE_DIR = _PARQUET_CACHE_ROOT / "framework-depmap-26q1-parquet"  # legacy pre-scoping default (26q1)
 
 # 2026-08-11 REVIEW FIX (M4 — full multi-release). Every loader accepts a `release_pin`; the S3
 # prefix is now resolved PER RELEASE from the catalog manifest `depmap-{release_pin}-parquet-v1`
@@ -58,7 +58,7 @@ PARQUET_CACHE_DIR = _PARQUET_CACHE_ROOT / "framework-depmap-26q1-parquet"  # leg
 
 
 @lru_cache(maxsize=8)
-def _release_prefix(release_pin: str = "26q1") -> str:
+def _release_prefix(release_pin: str = "26q3") -> str:
     """(bucket-relative) S3 key prefix for a DepMap parquet release, resolved from the catalog
     manifest depmap-{release_pin}-parquet-v1. Cached per release_pin. Raises FileNotFoundError
     (from bucket_prefix_for) if the release is not registered in the catalog — the loud,
@@ -91,7 +91,7 @@ def _get_s3fs():
     return _S3FS
 
 
-def _remote_uri(filename: str, release_pin: str = "26q1") -> str:
+def _remote_uri(filename: str, release_pin: str = "26q3") -> str:
     """`bucket/key` URI for a DepMap parquet, resolved PER release_pin from the catalog manifest.
     Calls _release_prefix, so an UNREGISTERED release raises FileNotFoundError HERE — before any S3
     op — preserving the release-pin guard (tests/methods/depmap_common/test_release_pin_guard.py)."""
@@ -132,9 +132,9 @@ def _log(msg: str) -> None:
         print(msg, file=sys.stderr)
 
 
-def _local_cached(filename: str, release_pin: str = "26q1") -> Path:
-    # 26q1 keeps the legacy cache dir (backward-compat with already-downloaded files); other
-    # releases get their own subdir so files never collide across releases (M4).
+def _local_cached(filename: str, release_pin: str = "26q3") -> Path:
+    # 26q1 keeps the legacy pre-scoping cache dir (backward-compat with already-downloaded files);
+    # other releases (incl. the 26q3 default) get their own subdir so files never collide (M4).
     cache_dir = (
         PARQUET_CACHE_DIR if release_pin == "26q1" else _PARQUET_CACHE_ROOT / f"framework-depmap-{release_pin}-parquet"
     )
@@ -142,7 +142,7 @@ def _local_cached(filename: str, release_pin: str = "26q1") -> Path:
     return cache_dir / filename
 
 
-def _fetch_parquet(filename: str, release_pin: str = "26q1") -> Path:
+def _fetch_parquet(filename: str, release_pin: str = "26q3") -> Path:
     """Ensure a parquet file is available locally; download from S3 if not.
     Returns the local path. On second-session runs, this is a no-op (cache hit).
     The S3 prefix is resolved per release_pin from the catalog manifest (M4)."""
@@ -183,7 +183,7 @@ def _read_wide_target_column(
     filename: str,
     target_symbol: str,
     id_col_hints: tuple = ("ModelID", "ModelConditionID"),
-    release_pin: str = "26q1",
+    release_pin: str = "26q3",
     *,
     source_path=None,
 ):
@@ -214,7 +214,7 @@ def _read_wide_target_column(
 
 
 @lru_cache(maxsize=128)
-def get_chronos_column(target_symbol: str, release_pin: str = "26q1"):
+def get_chronos_column(target_symbol: str, release_pin: str = "26q3"):
     """CRISPR Chronos target column. Returns DataFrame or None.
     Column-projection read: ~1-2 MB (vs 564 MB CSV parse)."""
     return _read_wide_target_column(
@@ -223,7 +223,7 @@ def get_chronos_column(target_symbol: str, release_pin: str = "26q1"):
 
 
 @lru_cache(maxsize=128)
-def get_tpm_column(target_symbol: str, release_pin: str = "26q1"):
+def get_tpm_column(target_symbol: str, release_pin: str = "26q3"):
     """TPM target column. Returns DataFrame or None."""
     return _read_wide_target_column(
         "OmicsExpressionTPMLogp1HumanProteinCodingGenes.parquet",
@@ -234,7 +234,7 @@ def get_tpm_column(target_symbol: str, release_pin: str = "26q1"):
 
 
 @lru_cache(maxsize=128)
-def get_cn_column_wes(target_symbol: str, release_pin: str = "26q1"):
+def get_cn_column_wes(target_symbol: str, release_pin: str = "26q3"):
     """CN WES target column — LEGACY fallback (used only when the gene is absent from the
     canonical WGS matrix; see load_cn_files, #704 6a). Returns DataFrame or None."""
     return _read_wide_target_column(
@@ -243,8 +243,8 @@ def get_cn_column_wes(target_symbol: str, release_pin: str = "26q1"):
 
 
 @lru_cache(maxsize=128)
-def get_cn_column_wgs(target_symbol: str, release_pin: str = "26q1"):
-    """CN WGS target column — the CANONICAL / primary CN read (26Q1 WES CN is legacy; see
+def get_cn_column_wgs(target_symbol: str, release_pin: str = "26q3"):
+    """CN WGS target column — the CANONICAL / primary CN read (26Q3 WES CN is legacy; see
     load_cn_files, #704 6a). Returns DataFrame or None (then falls back to legacy WES)."""
     return _read_wide_target_column(
         "OmicsCNGeneWGS.parquet", target_symbol, id_col_hints=("ModelConditionID",), release_pin=release_pin
@@ -252,7 +252,7 @@ def get_cn_column_wgs(target_symbol: str, release_pin: str = "26q1"):
 
 
 @lru_cache(maxsize=128)
-def get_hotspot_mutation_column(target_symbol: str, release_pin: str = "26q1"):
+def get_hotspot_mutation_column(target_symbol: str, release_pin: str = "26q3"):
     """Binary hotspot-mutation column for target_symbol from
     OmicsSomaticMutationsMatrixHotspot. Returns DataFrame with
     {ModelID, IsDefaultEntryForModel, <target_col>} or None if target absent.
@@ -267,7 +267,7 @@ def get_hotspot_mutation_column(target_symbol: str, release_pin: str = "26q1"):
 
 
 @lru_cache(maxsize=128)
-def get_damaging_mutation_column(target_symbol: str, release_pin: str = "26q1"):
+def get_damaging_mutation_column(target_symbol: str, release_pin: str = "26q3"):
     """Binary damaging (LOF) mutation column for target_symbol from
     OmicsSomaticMutationsMatrixDamaging. Same shape as get_hotspot_mutation_column.
     Broader panel (~19584 gene cols vs ~554 for hotspot).
@@ -278,7 +278,7 @@ def get_damaging_mutation_column(target_symbol: str, release_pin: str = "26q1"):
 
 
 @lru_cache(maxsize=128)
-def get_matrix_column_by_model_id(filename: str, target_symbol: str, release_pin: str = "26q1", *, source_path=None):
+def get_matrix_column_by_model_id(filename: str, target_symbol: str, release_pin: str = "26q3", *, source_path=None):
     """Column-projection read of a wide DepMap matrix parquet, keyed on ModelID.
 
     Unlike get_cn_column_wgs / get_*_mutation_column (which project ModelConditionID or
@@ -307,7 +307,7 @@ def get_matrix_column_by_model_id(filename: str, target_symbol: str, release_pin
 
 
 @lru_cache(maxsize=128)
-def get_demeter_row(target_symbol: str, release_pin: str = "26q1"):
+def get_demeter_row(target_symbol: str, release_pin: str = "26q3"):
     """DEMETER2 RNAi row for target_symbol. Returns {ccle_id: score} dict or None.
 
     DEMETER2 file is TRANSPOSED (gene rows × cell-line cols) — target-level access
@@ -335,7 +335,7 @@ def get_demeter_row(target_symbol: str, release_pin: str = "26q1"):
 
 
 @lru_cache(maxsize=128)
-def get_maf_gene_rows(target_symbol: str, release_pin: str = "26q1"):
+def get_maf_gene_rows(target_symbol: str, release_pin: str = "26q3"):
     """MAF rows matching HugoSymbol == target_symbol. Returns DataFrame.
 
     Uses filter pushdown on the sorted-by-HugoSymbol parquet; row groups without
@@ -349,7 +349,7 @@ def get_maf_gene_rows(target_symbol: str, release_pin: str = "26q1"):
 
 
 @lru_cache(maxsize=1)
-def get_maf_n_cell_lines_total(release_pin: str = "26q1") -> int:
+def get_maf_n_cell_lines_total(release_pin: str = "26q3") -> int:
     """Return the count of distinct ModelIDs in the MAF (denominator for mutation rate).
 
     Reads only the ModelID column across the whole MAF parquet and takes nunique.
@@ -372,7 +372,7 @@ def get_maf_n_cell_lines_total(release_pin: str = "26q1") -> int:
     return int(table.column("ModelID").to_pandas().nunique())
 
 
-def get_full_matrix_path(filename: str, release_pin: str = "26q1") -> Path:
+def get_full_matrix_path(filename: str, release_pin: str = "26q3") -> Path:
     """Return the local-cached path for a parquet filename, downloading from S3
     if not already cached. Public entrypoint for consumers that need the FULL
     matrix (not just a per-target column projection) — e.g. batch precompute

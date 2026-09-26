@@ -17,7 +17,7 @@ differences that follow from the biology:
      sweet spot is BETWEEN the bands.
 
 Public entry point:
-  control_position_dependency(target, release_pin="26q1") -> dict of dep_control_* fields.
+  control_position_dependency(target, release_pin="26q3") -> dict of dep_control_* fields.
 
 data_unavailable-safe: vocab-load failure or absent Chronos → a
 dep_control_position_class of data_unavailable, never a raise into the render path

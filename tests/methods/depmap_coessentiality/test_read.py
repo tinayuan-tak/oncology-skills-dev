@@ -175,5 +175,5 @@ class TestCoessentialModuleSummary:
 
     def test_data_source_and_version(self, module_fixture):
         out = read_mod.read_coessential_module_summary("HUBGENE", parquet_path=module_fixture)
-        assert out["_data_source"] == "depmap-coessentiality-26q1-v1"
+        assert out["_data_source"] == "depmap-coessentiality-26q3-v1"
         assert out["method_version"] == read_mod.METHOD_VERSION

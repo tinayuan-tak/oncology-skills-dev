@@ -1,6 +1,6 @@
 """depmap_mutation_type_counts — cell-line mutation-type counts (MAF-based).
 
-Consumes DepMap 26Q1 OmicsSomaticMutations.csv (raw MAF) and emits per-variant-class
+Consumes DepMap 26Q3 OmicsSomaticMutations.csv (raw MAF) and emits per-variant-class
 mutation counts + landscape-class label for the mutation-type-counts card.
 
 Public API for live-reader dispatcher:

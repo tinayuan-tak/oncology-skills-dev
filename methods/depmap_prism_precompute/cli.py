@@ -61,7 +61,7 @@ Cross-release-pin substrate (v2 semantics preserved):
   - Cross-release dedup by uppercase drug_name; OncRef wins.
 
 Lineage stratification (v2 semantics preserved):
-  - Requires DepMap 26Q1 Model.csv for ModelID → OncotreeLineage join.
+  - Requires DepMap 26Q3 Model.csv for ModelID → OncotreeLineage join.
   - Per-lineage aggregation for the primary activity metric.
   - prism_lineage_selectivity vocabulary: lineage_selective / broadly_active
     / no_lineage_signal / data_unavailable.
@@ -1414,7 +1414,7 @@ def _write_manifest(
             "call. Also identifies dual_responders — cell lines dual-validated "
             "as CRISPR-dependent AND compound-responsive. Primary activity "
             "metric remains Log2AUC; best_responder_lfc unchanged. Requires "
-            "26Q1 Model.csv (lineage + CCLE->ModelID bridge), CRISPRGeneEffect "
+            "26Q3 Model.csv (lineage + CCLE->ModelID bridge), CRISPRGeneEffect "
             "parquet (Chronos), and D2_combined_gene_dep_scores parquet (RNAi)."
         ),
         "gene_aggregate": {
@@ -1555,7 +1555,7 @@ def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_uplo
             )
 
     _log("\n=== Fetching Model.csv for ModelID -> OncotreeLineage + CCLE bridging ===")
-    model_csv_key = "data-catalog/sources/depmap-consortium/dmc-26q1/Model.csv"
+    model_csv_key = "data-catalog/sources/depmap-consortium/dmc-26q3/Model.csv"
     model_body, model_sha, model_size = _fetch_source(s3, model_csv_key)
     model_to_lineage = load_model_to_lineage(model_body)
     ccle_to_modelid = load_ccle_to_modelid(model_body)
@@ -1563,7 +1563,7 @@ def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_uplo
     _log(f"  {len(ccle_to_modelid)} CCLE_ID -> ModelID bridges (for RNAi lookup)")
     entries.append(
         {
-            "release_pin": "dmc-26q1",
+            "release_pin": "dmc-26q3",
             "source_key": model_csv_key,
             "source_sha256": model_sha,
             "source_size_bytes": model_size,
@@ -1592,8 +1592,8 @@ def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_uplo
     _log(f"  Chronos loaded for {len(chronos_by_gene)}/{len(all_annotated_genes)} genes")
     entries.append(
         {
-            "release_pin": "dmc-26q1",
-            "source_key": "data-catalog/derived/depmap-26q1-parquet-v1/CRISPRGeneEffect.parquet",
+            "release_pin": "dmc-26q3",
+            "source_key": "data-catalog/derived/depmap-26q3-parquet-v1/CRISPRGeneEffect.parquet",
             "source_sha256": None,
             "source_size_bytes": chronos_local.stat().st_size,
             "role": "crispr_chronos_for_concordance",
@@ -1607,8 +1607,8 @@ def main(output_prefix: str, local_dir: Path, releases: tuple[str, ...], no_uplo
     _log(f"  RNAi DEMETER2 loaded for {len(rnai_by_gene)}/{len(all_annotated_genes)} genes")
     entries.append(
         {
-            "release_pin": "dmc-26q1",
-            "source_key": "data-catalog/derived/depmap-26q1-parquet-v1/D2_combined_gene_dep_scores.parquet",
+            "release_pin": "dmc-26q3",
+            "source_key": "data-catalog/derived/depmap-26q3-parquet-v1/D2_combined_gene_dep_scores.parquet",
             "source_sha256": None,
             "source_size_bytes": demeter_local.stat().st_size,
             "role": "rnai_demeter2_for_concordance",
