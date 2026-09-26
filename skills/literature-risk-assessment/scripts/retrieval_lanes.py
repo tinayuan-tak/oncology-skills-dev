@@ -263,11 +263,14 @@ RETRIEVAL_LABEL = "entity_pubtator+ot_literature_floor+keyword_eutils+europepmc"
 
 # ── Stage-2 relevance gate (PR-3): DETERMINISTIC on-axis / on-target precision filter ──────────────
 # The lanes maximize RECALL (three sources, tight+broad angles); this gate is the PRECISION lever —
-# it drops abstracts that are neither on-axis nor about the target BEFORE they reach the model, so the
-# grounded read is enriched with the RIGHT literature, not merely more of it (e.g. a KRAS nanoparticle-
-# vaccine paper surfaced under the SAFETY query but discussing no toxicity). Verdict-inert CONTEXT +
-# no embeddings in-framework → a deterministic token-match filter (mirrors analysis-methods
-# opentargets_literature_floor `_axis_tokens`/`_axis_match`), never a learned reranker.
+# it drops abstracts that are not substantively about the target on this axis/indication BEFORE they
+# reach the model, so the grounded read is enriched with the RIGHT literature, not merely more of it
+# (e.g. a KRAS nanoparticle-vaccine paper surfaced under the SAFETY query but discussing no toxicity, or
+# a different gene's toxicity paper that only shares the generic axis word). On-signal now requires a
+# CONJUNCTION anchored to the target — target ∧ (axis ∨ indication) — not a permissive OR of two weak
+# legs (#1615). Verdict-inert CONTEXT + no embeddings in-framework → a deterministic token-match filter
+# (mirrors analysis-methods opentargets_literature_floor `_axis_tokens`/`_axis_match`), never a learned
+# reranker.
 RELEVANCE_FLOOR = 3  # keep at least this many abstracts even if off-axis (never starve the model)
 
 
@@ -288,15 +291,23 @@ def _axis_match(text: str, tokens: list) -> int:
     return sum(1 for tok in tokens if tok and tok in s)
 
 
-def relevance_filter(abstracts: list, target: str, axis: str, *, floor: int = RELEVANCE_FLOOR):
-    """PURE precision gate. Partition retrieved abstracts into (kept, dropped):
-      - an abstract is ON-SIGNAL if its title+abstract contains ≥1 axis phrase-token OR names the target
-        (word-boundary, case-insensitive) — those are ALWAYS kept, in their incoming (lane-ranked) order.
-      - genuinely off-topic abstracts (no axis token, no target mention) are dropped — EXCEPT we backfill
-        from them, in order, until at least `floor` abstracts are kept (never starve the model to zero on
-        a thin axis). Each dropped record is {pmid, reason} for the corpus-pin audit trail.
-    Order-preserving; never raises."""
+def relevance_filter(abstracts: list, target: str, axis: str, *, disease_terms: str = "", floor: int = RELEVANCE_FLOOR):
+    """PURE precision gate. Partition retrieved abstracts into (kept, dropped).
+
+    An abstract is ON-SIGNAL only under a CONJUNCTION anchored to the target: its title+abstract must
+    NAME the target (word-boundary, case-insensitive) AND additionally be on-axis (≥1 axis phrase-token)
+    OR on-indication (≥1 disease phrase-token from `disease_terms`). The prior predicate was a permissive
+    OR of two weak legs (any generic axis substring, OR a bare target mention) with no indication and no
+    conjunction, so an off-target paper carrying a generic axis word (e.g. a *different* gene's
+    `toxicity`) and an off-indication paper merely naming the target both passed as "relevant retrieved."
+    Requiring target ∧ (axis ∨ indication) closes both leaks (issue #1615). On-signal abstracts are always
+    kept, in incoming (lane-ranked) order.
+
+    Off-signal abstracts are dropped EXCEPT the deliberate relaxed floor: keep from them, in order, until
+    at least `floor` abstracts are kept (never starve the model to zero on a thin axis/indication). Each
+    dropped record is {pmid, reason} for the corpus-pin audit trail. Order-preserving; never raises."""
     tokens = _axis_tokens(AXIS_PUBMED_TERMS.get(axis, ("", True))[0])
+    ind_tokens = _axis_tokens(disease_terms)
     tgt = (target or "").strip().lower()
     tgt_re = re.compile(rf"\b{re.escape(tgt)}\b") if tgt else None
 
@@ -304,8 +315,10 @@ def relevance_filter(abstracts: list, target: str, axis: str, *, floor: int = RE
     for a in abstracts:
         text = f"{getattr(a, 'title', '') or ''} {getattr(a, 'abstract', '') or ''}"
         hit_axis = _axis_match(text, tokens) > 0
+        hit_ind = _axis_match(text, ind_tokens) > 0
         hit_tgt = bool(tgt_re.search(text.lower())) if tgt_re else False
-        (on_signal if (hit_axis or hit_tgt) else off).append(a)
+        on = hit_tgt and (hit_axis or hit_ind)
+        (on_signal if on else off).append(a)
 
     kept = list(on_signal)
     dropped = []
@@ -313,7 +326,9 @@ def relevance_filter(abstracts: list, target: str, axis: str, *, floor: int = RE
         if len(kept) < floor:
             kept.append(a)
         else:
-            dropped.append({"pmid": getattr(a, "pmid", None), "reason": "off_axis_no_target_match"})
+            dropped.append(
+                {"pmid": getattr(a, "pmid", None), "reason": "off_signal_needs_target_and_axis_or_indication"}
+            )
     return kept, dropped
 
 
@@ -338,7 +353,7 @@ def retrieve_axis(
         target, disease_terms, axis, per_cat=per_cat, mindate=mindate, maxdate=maxdate, indication=indication
     )
     abstracts = ps._efetch_abstracts(pmids, category=axis, timeout_s=30.0) if pmids else []
-    kept, dropped = relevance_filter(abstracts, target, axis, floor=relevance_floor)
+    kept, dropped = relevance_filter(abstracts, target, axis, disease_terms=disease_terms, floor=relevance_floor)
     return {"kept": kept, "dropped": dropped}
 
 

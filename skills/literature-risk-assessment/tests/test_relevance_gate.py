@@ -33,25 +33,41 @@ def test_axis_match_counts_substring_hits():
     assert rl._axis_match("", toks) == 0
 
 
-def test_relevance_filter_keeps_on_axis_drops_off_axis():
-    # safety axis terms include "toxicity"/"adverse event"/"normal tissue"
-    on1 = _Ab("1", title="Hepatic toxicity of the agent")
-    on2 = _Ab("2", abstract="serious adverse event reported")
-    off1, off2, off3, off4 = (_Ab(str(i), title="nanoparticle synthesis method") for i in (3, 4, 5, 6))
-    kept, dropped = rl.relevance_filter([on1, off1, on2, off2, off3, off4], "KRAS", "safety", floor=3)
+def test_relevance_filter_requires_target_and_axis_conjunction():
+    # safety axis terms include "toxicity"/"adverse event"/"normal tissue". On-signal now requires the
+    # target NAMED *and* an axis (or indication) hit — a bare axis word on an off-target paper is a leak.
+    on1 = _Ab("1", title="Hepatic toxicity of KRAS inhibition")  # target ∧ axis
+    on2 = _Ab("2", abstract="serious adverse event with a KRAS G12C drug")  # target ∧ axis
+    # LEAK-1 (old OR kept these on the bare axis word alone): a *different* gene's toxicity, no target
+    off1 = _Ab("3", title="TP53 toxicity in normal tissue")
+    off2 = _Ab("4", title="EGFR adverse event profile")
+    off3 = _Ab("5", title="nanoparticle synthesis method")
+    kept, dropped = rl.relevance_filter([on1, off1, on2, off2, off3], "KRAS", "safety", floor=3)
     kept_ids = [a.pmid for a in kept]
-    # both on-axis kept; floor=3 backfills ONE off-axis (first in order = pmid 3); the rest dropped
-    assert kept_ids[:2] == ["1", "2"]
-    assert "3" in kept_ids and len(kept) == 3
-    assert {d["pmid"] for d in dropped} == {"4", "5", "6"}
-    assert all(d["reason"] == "off_axis_no_target_match" for d in dropped)
+    assert kept_ids[:2] == ["1", "2"]  # both target∧axis kept, in order
+    assert "3" in kept_ids and len(kept) == 3  # floor=3 backfills ONE off-signal (first in order = pmid 3)
+    assert {d["pmid"] for d in dropped} == {"4", "5"}  # off-target axis-word papers dropped past the floor
+    assert all(d["reason"] == "off_signal_needs_target_and_axis_or_indication" for d in dropped)
 
 
-def test_relevance_filter_keeps_target_mention_even_if_off_axis():
-    tgt = _Ab("1", abstract="KRAS is amplified here")  # names the target, no safety axis term
-    off = _Ab("2", title="unrelated methods")
-    kept, dropped = rl.relevance_filter([tgt, off], "KRAS", "safety", floor=1)
-    assert [a.pmid for a in kept] == ["1"]  # target-mention → on-signal, kept
+def test_relevance_filter_drops_bare_target_mention_off_axis_off_indication():
+    # LEAK-2: the old test `..._keeps_target_mention_even_if_off_axis` enshrined a bare target mention as
+    # KEPT. A paper naming the target but off-axis AND off-indication is no longer substantively relevant.
+    tgt_only = _Ab("1", abstract="KRAS is amplified here")  # names target; no safety axis term, no disease
+    tgt_axis = _Ab("2", title="KRAS knockout mouse toxicity")  # target ∧ axis → the only on-signal
+    off = _Ab("3", title="unrelated methods")
+    kept, dropped = rl.relevance_filter([tgt_only, tgt_axis, off], "KRAS", "safety", floor=1)
+    assert [a.pmid for a in kept] == ["2"]  # only target∧axis on-signal (floor=1 already met)
+    assert {d["pmid"] for d in dropped} == {"1", "3"}  # bare target-mention now dropped
+
+
+def test_relevance_filter_keeps_target_plus_indication_without_axis_word():
+    # target ∧ indication (disease phrase-token) is on-signal even with NO axis phrase-token present —
+    # the indication leg the old predicate lacked entirely.
+    on = _Ab("1", abstract="KRAS mutations in colorectal cancer cohorts")  # target ∧ indication
+    off = _Ab("2", title="KRAS structural biology")  # target only: off-axis (safety) and off-indication
+    kept, dropped = rl.relevance_filter([on, off], "KRAS", "safety", disease_terms="colorectal cancer", floor=1)
+    assert [a.pmid for a in kept] == ["1"]
     assert [d["pmid"] for d in dropped] == ["2"]
 
 
@@ -88,8 +104,9 @@ def test_retrieve_axis_applies_gate_and_reports_dropped(monkeypatch):
 
     monkeypatch.setattr(ps, "_efetch_abstracts", fake_efetch)
     out = rl.retrieve_axis("KRAS", "COADREAD", "safety", per_cat=4)
-    assert [a.pmid for a in out["kept"]] == ["1", "2", "3"]  # 3 on-axis kept
-    assert [d["pmid"] for d in out["dropped"]] == ["4"]  # off-axis excess dropped (floor=3 already met)
+    # none name the target → all off-signal under the conjunction; floor=3 backfills the first three
+    assert [a.pmid for a in out["kept"]] == ["1", "2", "3"]
+    assert [d["pmid"] for d in out["dropped"]] == ["4"]  # off-signal excess dropped (floor=3 already met)
 
 
 def test_retrieve_axis_abstracts_wrapper_returns_kept_only(monkeypatch):
