@@ -1,6 +1,6 @@
 """depmap_isoform_expression.read — per-gene model-side isoform-expression summary + builder.
 
-Product-first reader (gene-sorted pushdown) + a builder that streams the 4.3 GB DepMap
+Product-first reader (gene-sorted pushdown) + a builder that streams the ~4.6 GB DepMap
 transcript-TPM once (the file is too big to live-read per query). ENST→gene via the GENCODE v26 GTF.
 """
 
@@ -14,7 +14,7 @@ from typing import Optional
 
 DEFAULT_AWS_PROFILE = "cbg"
 S3_BUCKET = "onc-compbio"
-DEPMAP_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q1"
+DEPMAP_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q3"
 # The non-stranded human transcript-TPM (log1p). models-in-rows × ENST-in-columns.
 TRANSCRIPT_TPM_KEY = f"{DEPMAP_PREFIX}/OmicsExpressionTranscriptTPMLogp1HumanAllGenes.csv"
 GENCODE_PREFIX = "data-catalog/sources/gencode/gencode-v26-primary-assembly"
@@ -115,7 +115,7 @@ def _read_from_product(target: str) -> Optional[dict]:
 
 def isoform_summary_for_gene(target: str, indication: str | None = None) -> dict:
     """Per-gene MODEL-side isoform-expression summary. Product-first (gene-sorted pushdown); returns
-    data_unavailable when the gene isn't in the product (no product live-fallback — the 4.3 GB source
+    data_unavailable when the gene isn't in the product (no product live-fallback — the ~4.6 GB source
     is build-only). DISPLAY facet, verdict-inert.
 
     `indication` is accepted for the generic compose-dashboard dispatcher contract (it always calls
@@ -144,7 +144,7 @@ def isoform_summary_for_gene(target: str, indication: str | None = None) -> dict
             else f"{sym}: isoform summary present"
         ),
         "method_version": "0.1.0",
-        "_data_source": "depmap-consortium-26q1",
+        "_data_source": "depmap-consortium-26q3",
     }
 
 
@@ -167,33 +167,53 @@ def build_isoform_table(local_csv: Optional[str] = None):
     and for each gene take its column block and compute per-model dominant-isoform fraction +
     expressed-isoform count with numpy (no per-row Python), then cohort medians + modal dominant ENST.
 
-    local_csv: path to the pre-downloaded CSV (production + tests). If None, streams from S3 (slower)."""
+    local_csv: path to the pre-downloaded CSV (production + tests). If None, downloads from S3 first."""
+    import csv as _csv
+    import os as _os
+    import tempfile
+
     import numpy as np
-    import pandas as pd
     import pyarrow as pa
+    import pyarrow.csv as pac
 
     enst2gene = _enst_to_gene()
 
-    src = local_csv
-    if src is None:
+    # The 26q-era transcript-TPM matrix is ~4.6 GB, ~237k ENST columns × ~2.9k model-sequencing rows.
+    # pandas.read_csv builds a per-column BlockManager that balloons past host RAM at that width
+    # (~60+ GB observed on 26q3, risking an OOM on a swap-less host); pyarrow.csv reads ONLY the mapped
+    # columns straight to columnar float32 (peak ~matrix size, ~30× faster). It needs a file PATH, so an
+    # S3 source is staged to a temp file first (the old in-place seek() rewind was fragile on a stream).
+    tmp = None
+    path = local_csv
+    if path is None:
         ensure_aws_profile()
-        src = _boto3().get_object(Bucket=S3_BUCKET, Key=TRANSCRIPT_TPM_KEY)["Body"]
-    # Plan the read from the header FIRST (column identity is data-dependent), then read ONLY the
-    # mapped ENST columns directly as float32. Reading dtype=str over all 237k columns would balloon
-    # to tens of GB of Python str objects; usecols+float32 keeps the peak ~1400×~197k×4 ≈ 1.1 GB.
-    header = list(pd.read_csv(src, nrows=0).columns)
-    if hasattr(src, "seek"):  # rewind an S3 stream / file object consumed by the header read
-        try:
-            src.seek(0)
-        except Exception:  # noqa: BLE001
-            pass
-    enst_cols = [c for c in header if c.startswith("ENST")]
-    # column → gene (version-stripped); keep only mapped columns.
-    col_to_gene = {c: enst2gene[c.split(".")[0]] for c in enst_cols if c.split(".")[0] in enst2gene}
-    mapped = list(col_to_gene)
-    df = pd.read_csv(src, usecols=mapped, dtype={c: "float32" for c in mapped})
-    mat = df[mapped].to_numpy(dtype="float32")  # reorder to `mapped` order; genes[] aligns to this
-    del df
+        body = _boto3().get_object(Bucket=S3_BUCKET, Key=TRANSCRIPT_TPM_KEY)["Body"]
+        tmp = tempfile.NamedTemporaryFile(suffix=".csv", delete=False)
+        for chunk in iter(lambda: body.read(1 << 24), b""):
+            tmp.write(chunk)
+        tmp.close()
+        path = tmp.name
+    try:
+        # Plan the read from the header FIRST (column identity is data-dependent), then read ONLY the
+        # mapped ENST columns as float32.
+        with open(path) as _fh:
+            header = next(_csv.reader(_fh))
+        enst_cols = [c for c in header if c.startswith("ENST")]
+        # column → gene (version-stripped); keep only mapped columns.
+        col_to_gene = {c: enst2gene[c.split(".")[0]] for c in enst_cols if c.split(".")[0] in enst2gene}
+        mapped = list(col_to_gene)
+        # block_size must exceed the longest line; the ~237k-column header line alone is multi-MB.
+        conv = pac.ConvertOptions(include_columns=mapped, column_types={c: pa.float32() for c in mapped})
+        read_opts = pac.ReadOptions(use_threads=True, block_size=256 * 1024 * 1024)
+        tbl = pac.read_csv(path, read_options=read_opts, convert_options=conv).select(mapped)
+    finally:
+        if tmp is not None:
+            _os.unlink(tmp.name)
+    # reorder to `mapped` order (genes[]/enst_ids[] align to this)
+    mat = np.column_stack([tbl.column(i).to_numpy(zero_copy_only=False) for i in range(tbl.num_columns)]).astype(
+        "float32"
+    )
+    del tbl
     mat = np.expm1(mat)  # log1p → linear TPM
     mat[~np.isfinite(mat)] = 0.0
     mat[mat < _MIN_EXPRESSED_TPM] = 0.0  # apply expressed floor (below-floor → 0 = not expressed)
@@ -248,3 +268,53 @@ def _schema():
             pa.field("n_models", pa.int64()),
         ]
     )
+
+
+_PRODUCT_FILENAME = "depmap_isoform_expression.parquet"
+
+
+def build_and_upload(local_csv: Optional[str] = None, upload: bool = False, out_dir: Optional[str] = None) -> dict:
+    """Build the gene-sorted isoform-expression product; write parquet locally; optionally upload to S3.
+    Returns {n_genes, class_distribution, md5, size_bytes, s3_uri, local_path}. S3 key resolution is
+    kept lazy (in-function) so importing this module never touches the catalog."""
+    import hashlib
+
+    import pyarrow.parquet as pq
+
+    tbl = build_isoform_table(local_csv=local_csv)
+    out_dir = out_dir or os.path.join(os.path.expanduser("~"), ".cache", "framework-isoform")
+    os.makedirs(out_dir, exist_ok=True)
+    local_path = os.path.join(out_dir, _PRODUCT_FILENAME)
+    pq.write_table(tbl, local_path, row_group_size=8192, compression="snappy")
+    with open(local_path, "rb") as fh:
+        data = fh.read()
+    md5 = hashlib.md5(data).hexdigest()
+    classes = tbl.column("isoform_expression_class").to_pylist()
+    from collections import Counter
+
+    class_distribution = dict(Counter(classes))
+    s3_uri = f"s3://{S3_BUCKET}/data-catalog/derived/{PRODUCT_MANIFEST_ID}/{_PRODUCT_FILENAME}"
+    if upload:
+        key = f"data-catalog/derived/{PRODUCT_MANIFEST_ID}/{_PRODUCT_FILENAME}"
+        ensure_aws_profile()
+        _boto3().put_object(Bucket=S3_BUCKET, Key=key, Body=data)
+    return {
+        "n_genes": tbl.num_rows,
+        "class_distribution": class_distribution,
+        "md5": md5,
+        "size_bytes": len(data),
+        "s3_uri": s3_uri,
+        "local_path": local_path,
+    }
+
+
+if __name__ == "__main__":
+    import argparse
+    import json
+
+    ap = argparse.ArgumentParser(description="Build depmap-isoform-expression-per-gene-v1")
+    ap.add_argument("--local-csv", default=None, help="pre-downloaded transcript-TPM CSV (else stream from S3)")
+    ap.add_argument("--upload", action="store_true", help="upload the parquet to S3")
+    ap.add_argument("--out-dir", default=None)
+    args = ap.parse_args()
+    print(json.dumps(build_and_upload(local_csv=args.local_csv, upload=args.upload, out_dir=args.out_dir), indent=1))

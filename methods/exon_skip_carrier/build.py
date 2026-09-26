@@ -7,7 +7,7 @@ so exon-skip events (METex14) cannot be isolated from it — a coordinate-less t
 say "MET has a splice variant", not "MET has a splice variant inside the exon-14 window".
 
 The product is small (splice variants are a fraction of the MAF), so downstream consumers
-(exon_skip_carrier.read) do a cheap gene-sorted pushdown instead of streaming the ~738 MB raw
+(exon_skip_carrier.read) do a cheap gene-sorted pushdown instead of streaming the ~192 MB raw
 MAF per query. Event-AGNOSTIC: it retains raw coordinates + classification; the window/event
 logic stays in events.py + classify.py.
 
@@ -23,7 +23,7 @@ from typing import Iterable, Optional
 METHOD_VERSION = "0.1.0"
 
 DEFAULT_AWS_PROFILE = "cbg"
-DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q3"
 PRODUCT_MANIFEST_ID = "depmap-somatic-splice-variants-v1"
 _PRODUCT_FILENAME = "depmap_somatic_splice_variants.parquet"
 _MAF_FILENAME = "OmicsSomaticMutationsMAF.maf"

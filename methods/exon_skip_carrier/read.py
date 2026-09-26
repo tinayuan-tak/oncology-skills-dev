@@ -6,7 +6,7 @@ OmicsSomaticMutationsMAF.maf only when the product is absent. Both are POSITION-
 standard derived per-model somatic parquet (methods.depmap_common.parquet) exposes only
 ModelID/VariantType/VariantInfo/ProteinChange/HugoSymbol — no Chromosome/Start_Position — so it
 CANNOT isolate exon 14 (splice classification alone over-calls distant MET splice sites). The
-product exists precisely so consumers avoid streaming the ~738 MB raw MAF per query.
+product exists precisely so consumers avoid streaming the ~192 MB raw MAF per query.
 
 MC3 / GENIE patient carriers use the SAME classifier (classify.carriers_for_event) over the
 per-sample MAF, which retains Start_Position; that wiring is a downstream follow-up (the
@@ -25,7 +25,7 @@ from .events import EXON_SKIP_EVENTS
 METHOD_VERSION = "0.1.0"
 
 DEFAULT_AWS_PROFILE = "cbg"
-DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
+DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q3"
 PRODUCT_MANIFEST_ID = "depmap-somatic-splice-variants-v1"
 _MAF_FILENAME = "OmicsSomaticMutationsMAF.maf"
 
@@ -133,7 +133,7 @@ def _observations_from_product(gene: str) -> Optional[list]:
 
 
 @lru_cache(maxsize=8)
-def depmap_carriers(event_id: str = "METex14", release_pin: str = "26q1") -> dict:
+def depmap_carriers(event_id: str = "METex14", release_pin: str = "26q3") -> dict:
     """Identify DepMap cell lines (ModelID) carrying `event_id`.
 
     Product-first (gene-sorted pushdown over depmap-somatic-splice-variants-v1); falls back to
