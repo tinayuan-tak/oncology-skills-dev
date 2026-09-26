@@ -175,8 +175,11 @@ AXIS_DIM_EXCLUSIONS = {
         "reason": "GATELESS DESCRIPTIVE peer (2026-09-02) AND the module contract: verdict_fn=None per "
         "RISK_ASSESSMENT_INTEGRATION.md S4 (cited-literature co-occurrence is CONTEXT/CONFIDENCE), plus "
         "this module's own rule that THE LLM/LITERATURE NEVER SETS A BIN. Doubly justified. Its "
-        "literature reaches the bins only via the lit-risk ESCALATE-ONLY overlay in risk_rollup."
-        "project(), never through this map. Measured: 1489 pmid-bearing cited_statements live under "
+        "cited-literature-evidence card reaches NO governance bin by ANY path: it is not in this map, "
+        "not in AXIS_TO_DIM, and is never read by risk_rollup.project() (which routes only "
+        "ground_axis per-engine-axis substrate, not this skill's card). Even the engine-axis grounding "
+        "overlay is confidence-annotation-only and CANNOT move a bin (risk_rollup grounding NEVER moves "
+        "a bin, locked 2026-09-03). Measured: 1489 pmid-bearing cited_statements live under "
         "synthesis.evidence_capsules.literature_context and reach no dim BY CONTRACT, not by omission.",
     },
     # --- SETTLED 2026-09-16: verdict-bearing, but gate-less BY DESIGN, so Decision 3 excludes them from
