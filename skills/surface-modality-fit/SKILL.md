@@ -89,8 +89,9 @@ composition:
                                        # media_shed_high fires shed-ectodomain-measured-media-opposing. Panel bounded +
                                        # secretome-preselected → not_on_secreted_panel non-informative. Still byte-stable.
     - tumor-scrna-celltype-expression  # (in run.py CARDS; wired 2026-08-06, biologics-augment Phase 3.2)
-                                       # Within-tumor antigen HOMOGENEITY via single-cell Census (tce_homogeneity_class
-                                       # facet). TCE program-killer = antigen heterogeneity (antigen-low cells escape).
+                                       # Within-tumor antigen ESCAPE via single-cell Census (tce_antigen_escape_class
+                                       # facet; #1738 display now agrees with the verdict read). TCE program-killer =
+                                       # antigen heterogeneity (antigen-low cells escape).
                                        # Its surface rules (sc-homogeneity-uniform-tce-supportive / -heterogeneous-tce-
                                        # opposing) fire on the homogeneity facet; the card's PRIMARY sc_expression_class
                                        # stays presence-axis. LIVE for COADREAD+NSCLC. Additive; verdict byte-stable.
@@ -180,7 +181,7 @@ composition:
                                        # surface_confirmation (above) is now a FIRING card (protein-surface-evidence),
                                        # not just a pulled intent — CSPA wired into CARDS same change.
     - sc_tumor_celltype_expression     # (2026-08-06, biologics-augment Phase 3.2) single-cell within-tumor antigen
-                                       # homogeneity (tce_homogeneity_class facet); TCE-escape signal, adc/bite_tce.
+                                       # antigen escape (tce_antigen_escape_class facet); TCE-escape signal, adc/bite_tce.
     - modality_window                  # (2026-08-06, biologics-augment window arc) tumor / max-essential-normal TPM
                                        # therapeutic-window ratio, modality-tiered; adc/bite_tce/antibody.
     - mutation_stratified_surface      # (2026-08-07, E4-A2) mutation-stratified surface window — antigen elevated in

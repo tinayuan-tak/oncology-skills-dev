@@ -19,7 +19,7 @@ def _headline():
         "topology_class": "single_pass_type_1",  # ADC-ideal surface topology → strong
         "surface_density_class": "high",  # above floor → strong
         "shed_liability_class": "not_shed_membrane_retained",  # membrane-retained → strong (ADC-good)
-        "tce_homogeneity_class": "heterogeneous",  # heterogeneous → absent (TCE-bad)
+        "tce_antigen_escape_class": "escape_risk_high",  # escape reservoir → absent (TCE-bad)
     }
 
 
@@ -33,7 +33,7 @@ def test_signal_tiers_respect_per_field_polarity():
     assert rows["Surface"]["signal"]["tier"] == "strong"  # single_pass_type_1
     assert rows["Density"]["signal"]["tier"] == "strong"  # high
     assert rows["ADC"]["signal"]["tier"] == "strong"  # not_shed → GOOD (polarity!)
-    assert rows["TCE"]["signal"]["tier"] == "absent"  # heterogeneous → TCE-opposing
+    assert rows["TCE"]["signal"]["tier"] == "absent"  # escape_risk_high → TCE-opposing
 
 
 def test_bad_shed_and_low_density_oppose():
@@ -58,6 +58,25 @@ def test_no_absolute_measurement_density_is_grey_not_weak_supports_994():
         assert sig["tier"] == "unmeasured", token
         assert sig["polarity"] == "none", token  # never "supports"
         assert sig["fill"] == 0, token
+
+
+def test_tce_row_reads_same_source_class_as_verdict_1738():
+    # #1738: the TCE display row must read the SAME field the verdict fires on
+    # (tce_antigen_escape_class), NOT the deprecated lenient tce_homogeneity_class — else the hero can
+    # show "homogeneous / strong" while the verdict fired tce_escape_risk.
+    from _skills_common.surface_modality_question_table import _ROWS
+
+    tce_row = [r for r in _ROWS if r[0] == "TCE"]
+    assert len(tce_row) == 1
+    assert tce_row[0][2] == "tce_antigen_escape_class"  # field the verdict path also reads (run.py)
+
+
+def test_tce_escape_bands_track_verdict_polarity_1738():
+    # escape_risk_low = TCE-favorable (supportive); escape_risk_high = escape reservoir (foreclosure).
+    low = {r["id"]: r for r in surface_modality_question_table({"tce_antigen_escape_class": "escape_risk_low"})}
+    high = {r["id"]: r for r in surface_modality_question_table({"tce_antigen_escape_class": "escape_risk_high"})}
+    assert low["TCE"]["signal"]["tier"] == "strong"
+    assert high["TCE"]["signal"]["tier"] == "absent"
 
 
 def test_renders_html_via_shared_renderer():

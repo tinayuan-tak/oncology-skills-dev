@@ -113,7 +113,7 @@ def test_four_supportive_dimensions_is_broadly_corroborated():
             essential_tissue_flag="absent",
         ),  # D2
         _card("shed-ectodomain-liability", shed_liability_class="not_shed_membrane_retained"),  # D3
-        _card("tumor-scrna-celltype-expression", tce_homogeneity_class="homogeneous"),  # D4
+        _card("tumor-scrna-celltype-expression", tce_antigen_escape_class="escape_risk_low"),  # D4
         _card("pmhc-presentation", pmhc_presentation_class="broadly_presented_normal"),  # D5 opposing
     ]
     out = orth.score_orthogonality(cards)

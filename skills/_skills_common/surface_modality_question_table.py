@@ -50,10 +50,18 @@ _SHED = {
     "clinically_shed": "absent",
     "indeterminate": "unmeasured",
 }
-_HOMOGENEITY = {
-    "homogeneous": "strong",
-    "moderately_homogeneous": "moderate",
-    "heterogeneous": "absent",
+# TCE antigen-escape read (#1738): repointed from the DEPRECATED lenient `tce_homogeneity_class`
+# (detection-fraction-only, 0.5 homogeneous bar) to the superior `tce_antigen_escape_class` (2-axis
+# coverage x inter-donor consistency) — the SAME field the verdict fires on (run.py resolver prio
+# 11-14). Tiers mirror the verdict polarity: escape_risk_low = TCE-favorable (supportive rung),
+# escape_risk_high = escape reservoir (efficacy foreclosure), the middle bands temper without
+# foreclosing, coverage_high_donor_underpowered = honest gap.
+_ESCAPE = {
+    "escape_risk_low": "strong",
+    "escape_risk_moderate": "moderate",
+    "escape_risk_patient_variable": "weak",
+    "escape_risk_high": "absent",
+    "coverage_high_donor_underpowered": "unmeasured",
     "data_unavailable": "unmeasured",
 }
 
@@ -62,7 +70,12 @@ _ROWS = [
     ("Surface", "Is it a cell-surface protein (membrane topology)?", "topology_class", _TOPOLOGY),
     ("Density", "Absolute surface density — above the ADC/TCE abundance floor?", "surface_density_class", _DENSITY),
     ("ADC", "ADC-favorable — ectodomain membrane-retained (not shed)?", "shed_liability_class", _SHED),
-    ("TCE", "TCE-favorable — homogeneous across tumor cells?", "tce_homogeneity_class", _HOMOGENEITY),
+    (
+        "TCE",
+        "TCE-favorable — antigen conserved across tumor cells (no escape reservoir)?",
+        "tce_antigen_escape_class",
+        _ESCAPE,
+    ),
 ]
 
 

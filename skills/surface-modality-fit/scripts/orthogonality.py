@@ -161,11 +161,17 @@ def _d3_shed(cards) -> dict:
 
 
 def _d4_homogeneity(cards) -> dict:
-    """Effector / within-tumor antigen homogeneity (TCE escape reservoir)."""
-    homo = _get(cards, "tumor-scrna-celltype-expression", "tce_homogeneity_class")
-    supportive = homo == "homogeneous"
-    opposing = homo == "heterogeneous"
-    return {"call": _tern(supportive, opposing), "members": {"tce_homogeneity_class": homo}}
+    """Effector / within-tumor antigen conservation (TCE escape reservoir).
+
+    #1738: repointed from the DEPRECATED lenient `tce_homogeneity_class` to `tce_antigen_escape_class`
+    — the SAME field the verdict fires on — so this dimension agrees with the fired verdict. Polarity
+    mirrors the verdict: escape_risk_low is supportive, escape_risk_high (escape reservoir) is
+    opposing; the middle bands (moderate / patient_variable / underpowered) are neutral.
+    """
+    escape = _get(cards, "tumor-scrna-celltype-expression", "tce_antigen_escape_class")
+    supportive = escape == "escape_risk_low"
+    opposing = escape == "escape_risk_high"
+    return {"call": _tern(supportive, opposing), "members": {"tce_antigen_escape_class": escape}}
 
 
 def _d5_pmhc(cards) -> dict:
