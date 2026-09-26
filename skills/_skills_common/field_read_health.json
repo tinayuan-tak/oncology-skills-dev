@@ -1463,11 +1463,13 @@
       ],
       "sc-normal-celltype-expression": [
         "expressing_donor_fraction_max",
+        "indication",
         "max_detection_cell_type",
         "max_detection_fraction",
         "method_version",
         "n_cell_types_above_20pct",
         "n_reliable_cell_types",
+        "origin_tissues",
         "per_cell_type_top",
         "safety_essential_flags",
         "sc_normal_abundance_class",
@@ -2147,36 +2149,18 @@
   "schema_version": "1.0.0",
   "summary": {
     "attribution_reconciled": true,
-    "n_clean": 13,
-    "n_emission_undetermined": 5,
+    "n_clean": 14,
+    "n_emission_undetermined": 3,
     "n_meta_key": 1,
     "n_no_reads_detected": 7,
     "n_reads_detected": 531,
     "n_roster_cards": 148,
-    "n_roster_fields": 1823,
-    "n_undeclared_pairs": 6,
+    "n_roster_fields": 1825,
+    "n_undeclared_pairs": 4,
     "n_units": 23,
-    "n_units_with_undeclared_reads": 3
+    "n_units_with_undeclared_reads": 2
   },
   "undeclared_queue": [
-    {
-      "card": "sc-normal-celltype-expression",
-      "classification": "emission_undetermined",
-      "field": "indication",
-      "reader_kinds": [
-        "claim_passthrough"
-      ],
-      "unit": "_skills_common"
-    },
-    {
-      "card": "sc-normal-celltype-expression",
-      "classification": "emission_undetermined",
-      "field": "origin_tissues",
-      "reader_kinds": [
-        "claim_passthrough"
-      ],
-      "unit": "_skills_common"
-    },
     {
       "card": "competitor-landscape",
       "classification": "emission_undetermined",
@@ -2216,7 +2200,7 @@
   ],
   "units": {
     "_skills_common": {
-      "disposition": "undeclared_reads",
+      "disposition": "clean",
       "kind": "shared_library",
       "n_reads": 111,
       "reads_by_kind": {
@@ -2225,24 +2209,7 @@
         "question_table": 29,
         "skill_code": 5
       },
-      "undeclared": [
-        {
-          "card": "sc-normal-celltype-expression",
-          "classification": "emission_undetermined",
-          "field": "indication",
-          "reader_kinds": [
-            "claim_passthrough"
-          ]
-        },
-        {
-          "card": "sc-normal-celltype-expression",
-          "classification": "emission_undetermined",
-          "field": "origin_tissues",
-          "reader_kinds": [
-            "claim_passthrough"
-          ]
-        }
-      ]
+      "undeclared": []
     },
     "catalog-query": {
       "disposition": "no_reads_detected",

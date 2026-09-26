@@ -1166,3 +1166,18 @@ sc-normal-celltype-expression:
   per_cell_type_top:
     role: display
     reason: human-facing detail / large per-cell-type container (cf. safety_essential_flags)
+  # scRNA off-origin-split echo (TC#882/F12, surfaced by 468c3dc). Pure provenance, verdict-INERT:
+  # these echo the basis of the scRNA `origin_tissue_liability` ABSTAIN (essential-cell expression
+  # confined to the tumour's own tissue-of-origin is on-tissue, deliberately not voted). Read by
+  # _skills_common/safety_claims.py (#1770) as `off_origin_split` on the scRNA provenance.sources entry
+  # (literal card-id subscript alias → census-visible, blind to this ledger); routes no signal/tier/rule.
+  origin_tissues:
+    role: provenance
+    reason: "tumor tissue(s)-of-origin used for the scRNA off-origin split; echoed as off_origin_split
+      provenance by safety_claims.py (#1770), never a signal — identity/scope key"
+    reviewed: true
+  indication:
+    role: provenance
+    reason: "the indication resolved to origin_tissues for the scRNA off-origin split; echoed as
+      off_origin_split provenance by safety_claims.py (#1770), never a signal — identity/scope key"
+    reviewed: true

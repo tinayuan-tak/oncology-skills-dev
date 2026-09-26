@@ -333,15 +333,20 @@ jobs:
           # the 4 fields x 2 concordance cards + the 1 procan field; every other census row (units, reads,
           # undeclared pairs=4, meta_key) byte-identical, and measured_axes_per_dim.json byte-stable (no new
           # measurement_type axis).
-          # WIP / FORCED-ATOMIC (see the P3 bump precedent above, ~lines 280-313): this bump makes 3 cards
-          # emit 9 fields that the tumor-presence field_disposition.yaml does NOT yet disposition, so
-          # test_field_disposition_complete.py::test_ledger_matches_emitted_fields (SET EQUALITY vs the LIVE
-          # tree) goes UNCLASSIFIED -> RED (VERIFIED: old pin c55602a6 = GREEN/1 passed, this pin = RED with the
-          # 9 orphans). Per the repo's own documented invariant the pin and the field_disposition.yaml rows
-          # MUST move in ONE commit — this pin CANNOT land standalone. Those rows are #1650's step-2
-          # deliverable; #1719 was scoped to EXCLUDE field_disposition.yaml. Needs re-scope / co-land — see
-          # the #1719 issue comment.
-          ref: 37b5728241f4e591367c0a9dfacdd19a5cb7b187
+          # (#1719/#1650 landed via #1748, option B — the 9 fields above are now dispositioned + read.)
+          # ── BUMPED 37b5728 -> 468c3dc (skills PR chore/bump-tc-pin, 2026-09-26; 18 TC commits forward):
+          # unblocks #1624 (which bumps again to its own TC merge SHA later). Drift regenerated in THIS PR,
+          # each attributed to an already-merged TC arc:
+          #   • SAFETY (#934 = TC#895, resolver v2.2.0): tolerant_reduced_safety_risk fail-open CLOSURE.
+          #     The bare gnomAD-tolerant rung is replaced by 6 when_all_fired rungs, each co-conditioned on
+          #     a *-safety-axis-measured-clear witness (6 new NEUTRAL witness rules in
+          #     intracellular-intrinsic.rules.yaml). driving_rule pinned to tolerant-safety-supportive =>
+          #     corroborated verdicts BYTE-IDENTICAL; only an all-dark gnomAD-tolerant gene loses the
+          #     spurious "reduced safety risk" (falls through to insufficient — MORE conservative). Skills
+          #     safety resolver_golden regenerated + 6 witness rule_ids added to the safety gate rule_ids.
+          #   • DIFFERENTIATION (#922 = TC#897): both_patterns_present wired supportive in
+          #     nomination_verdict_gate.yaml (monotonicity fix; superset of strong_mutually_exclusive).
+          ref: 468c3dc194e769d4c9786956246fecc4fdccca46
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
