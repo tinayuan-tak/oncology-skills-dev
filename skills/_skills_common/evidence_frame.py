@@ -559,7 +559,11 @@ RECURRENCE_PROPERTY = "recurrence_concordance"
 SELECTIVITY_PROPERTY = "selectivity_concordance"
 DEPENDENCY_EFFECT_MEASUREMENT = "dependency_effect_size"
 COMPOSITE_SELECTIVITY_CLASS = "composite_selectivity_class"
-NORMAL_LIABILITY_PROPERTY = "normal_tissue_liability_concordance"
+# The name safety_claims.py actually EMITS onto the safety claim_vector (`_normal_liability_concordance_claim`).
+# Reconciled from the earlier `normal_tissue_liability_concordance` (SK#1841 precondition) so the input is
+# WIREABLE by name — the reference frame still holds it as the deliberately-ABSENT critical_unknown specimen
+# (a functional-requirement surface never carries a safety claim), so this is name-correctness, not presence.
+NORMAL_LIABILITY_PROPERTY = "normal_liability_concordance"
 
 # The three rung-4 canonical property families this L3 bridge must demonstrably reach.
 RUNG4_CANONICAL_PROPERTIES = (ESSENTIALITY_PROPERTY, RECURRENCE_PROPERTY, SELECTIVITY_PROPERTY)
@@ -625,3 +629,44 @@ def reference_emitted_layers() -> dict:
     for f in FRAME_REGISTRY:
         layers[f.frame_id] = f.claim_type
     return layers
+
+
+# --------------------------------------------------------------------------------------------------
+# Production entry — the L3 -> production beachhead (SK#1841)
+# --------------------------------------------------------------------------------------------------
+def dependency_priority_frame(claim_vector: Optional[Mapping] = None, headline: Optional[Mapping] = None) -> dict:
+    """Evaluate the ``corroborated_dependency_priority`` REFERENCE_FRAME over a functional-requirement
+    skill's ALREADY-EMITTED typed evidence, returning the frame's OWN L3 decision object.
+
+    This is the FIRST place the L3 typed-evidence interface reaches a production answer surface (SK#1841,
+    epic #1749 Milestone-2). Purely ADDITIVE / verdict-INERT: it consumes the emitted claim_vector as
+    typed inputs and produces a NEW decision surface; it routes NOTHING back into the dependency_verdict,
+    the claim_vector, any question_table row's meter cell, or a resolver. The source claims are read
+    through the read-only adapters, so every emitted family stays byte-stable.
+
+    Bundle construction (an input NOT supplied auto-resolves to ``unresolved`` inside ``evaluate_frame``):
+      * ESSENTIALITY (required)   <- the L2b ``crispr_rnai_essentiality_concordance`` claim on the FR
+        vector — the anchor input this surface natively carries.
+      * RECURRENCE / SELECTIVITY  <- adapted only IF present on the vector (they are OTHER skills' L2b
+        properties, structurally absent on a functional-requirement surface, so their supportive/veto
+        absence is fine — never a kill).
+      * DEPENDENCY_EFFECT (contextual) / COMPOSITE_SELECTIVITY (supportive) <- optional headline reads.
+      * NORMAL_LIABILITY (critical_unknown) is DELIBERATELY never supplied: a functional-requirement
+        surface never carries the safety claim, so the unresolved critical routes the frame to an L4
+        forward QUESTION (never a kill) — the roles-not-weights G3.3 forward-question path.
+    """
+    cv = claim_vector or {}
+    h = headline or {}
+    bundle: dict = {}
+    for pid in (ESSENTIALITY_PROPERTY, RECURRENCE_PROPERTY, SELECTIVITY_PROPERTY):
+        claim = cv.get(pid)
+        if claim is not None:
+            bundle[pid] = from_concordance(pid, claim)
+    eff = h.get(DEPENDENCY_EFFECT_MEASUREMENT)
+    if eff is not None:
+        bundle[DEPENDENCY_EFFECT_MEASUREMENT] = measurement(DEPENDENCY_EFFECT_MEASUREMENT, eff)
+    comp = h.get(COMPOSITE_SELECTIVITY_CLASS)
+    if comp is not None:
+        bundle[COMPOSITE_SELECTIVITY_CLASS] = local_composite(COMPOSITE_SELECTIVITY_CLASS, comp)
+    # NORMAL_LIABILITY_PROPERTY intentionally omitted -> unresolved critical_unknown -> L4 question.
+    return evaluate_frame(REFERENCE_FRAME, bundle)

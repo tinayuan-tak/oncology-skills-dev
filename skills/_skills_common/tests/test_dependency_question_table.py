@@ -136,3 +136,65 @@ def test_verdict_inert_no_exceptions_on_sparse_headline():
     rows = dependency_question_table({}, [], {"DEP": {}, "SEL": {}, "COND": {}, "CHEM": {}})
     assert len(rows) == 7
     assert all(r["signal"]["tier"] == "unmeasured" for r in rows if r["id"] in ("Q1", "Q5"))
+
+
+# ── SK#1841 L3→production beachhead: corroborated_dependency_priority frame surfacing ────────────────
+def _essentiality_claim(state="essentiality_concordant_dependent", corr="high"):
+    """A valid L2b crispr_rnai_essentiality_concordance envelope claim (explicit_deterministic)."""
+    return {
+        "concordance_class": state,
+        "corroboration": corr,
+        "integration_method": "explicit_deterministic",
+        "assay_support": {"agreed_direction": "dependent"},
+    }
+
+
+def test_l3_frame_integrated_signal_attaches_to_q4_when_essentiality_resolves():
+    """When the L2b essentiality concordance anchor resolves, the corroborated_dependency_priority L3
+    REFERENCE_FRAME's synthesis surfaces as a verdict-INERT integrated_signal on the Q4 row."""
+    h, cards, cv = _fixture()
+    cv["crispr_rnai_essentiality_concordance"] = _essentiality_claim()
+    q4 = _by_id(dependency_question_table(h, cards, cv))["Q4"]
+    isig = q4["integrated_signal"]
+    assert isig["kind"] == "corroborated_dependency_priority"
+    assert isig["frame_id"] == "corroborated_dependency_priority"
+    assert isig["claim_type"] == "decision_frame"  # L3
+    assert isig["provenance_ref"] == "evidence_frame.corroborated_dependency_priority"
+    assert isig["integration_method"] == "explicit_deterministic"
+    # the anchor essentiality claim is a resolved typed input the frame synthesized over
+    assert isig["resolved_inputs"].get("crispr_rnai_essentiality_concordance") == "essentiality_concordant_dependent"
+    # verdict-INERT annotation: NEVER a meter cell.
+    assert "tier" not in isig and "polarity" not in isig and "fill" not in isig
+
+
+def test_l3_frame_forward_question_is_the_absent_safety_critical_and_never_a_kill():
+    """The frame's CRITICAL_UNKNOWN role (the safety normal_liability_concordance, structurally absent on a
+    functional-requirement surface) renders as an L4 forward question — the first G3.3 forward-question in
+    production. Never a kill: the frame's decision vocabulary carries no negative/kill token."""
+    h, cards, cv = _fixture()
+    cv["crispr_rnai_essentiality_concordance"] = _essentiality_claim()
+    q4 = _by_id(dependency_question_table(h, cards, cv))["Q4"]
+    fq = q4["forward_question"]
+    assert fq["kind"] == "l4_forward_question"
+    assert fq["role"] == "critical_unknown"
+    assert fq["unresolved_critical"] == ["normal_liability_concordance"]
+    assert "normal_liability_concordance" in fq["question"]
+    # the frame routed to a QUESTION (never a HOLD/kill), and the annotation says so.
+    assert q4["integrated_signal"]["decision"] == "question"
+    assert q4["integrated_signal"]["unresolved_critical"] == ["normal_liability_concordance"]
+
+
+def test_l3_frame_annotation_omitted_and_meter_cells_bytestable_when_essentiality_absent():
+    """Byte-stable: with no essentiality concordance claim on the vector the row carries neither the
+    integrated_signal nor the forward_question, and every meter cell is identical to the bare table."""
+    h, cards, cv = _fixture()
+    assert "crispr_rnai_essentiality_concordance" not in cv
+    bare_q4 = _by_id(dependency_question_table(h, cards, cv))["Q4"]
+    assert "integrated_signal" not in bare_q4 and "forward_question" not in bare_q4
+    # attaching the frame leaves the row's signal/confidence meter cells UNCHANGED (annotation only).
+    cv2 = dict(cv)
+    cv2["crispr_rnai_essentiality_concordance"] = _essentiality_claim()
+    framed_q4 = _by_id(dependency_question_table(h, cards, cv2))["Q4"]
+    assert framed_q4["signal"] == bare_q4["signal"]
+    assert framed_q4["confidence"] == bare_q4["confidence"]
+    assert framed_q4["primary"] == bare_q4["primary"] and framed_q4["support"] == bare_q4["support"]

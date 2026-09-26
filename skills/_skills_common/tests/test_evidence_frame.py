@@ -114,7 +114,7 @@ def test_type_integrity_local_composite_not_atomic_measurement():
 
 def test_type_integrity_unresolved_not_neutral_when_declared_missing():
     """A missing/unresolved slot supplied a RESOLVED object is a declaration mismatch."""
-    resolved = _canonical("normal_tissue_liability_concordance", state="liability_concordant_low")
+    resolved = _canonical("normal_liability_concordance", state="liability_concordant_low")
     with pytest.raises(TypeIntegrityError, match="declared missing/unresolved"):
         ef.check_input_integrity(InputKind.MISSING_UNRESOLVED, resolved)
 
@@ -339,3 +339,50 @@ def test_adapter_absent_claim_is_unresolved():
     ev = ef.from_concordance(ef.SELECTIVITY_PROPERTY, None)
     assert ev.emitted_type == ef.UNRESOLVED
     assert not ev.resolved
+
+
+# ==================================================================================================
+# 8. Production entry — the L3 -> production beachhead (SK#1841)
+# ==================================================================================================
+def test_normal_liability_property_name_matches_the_key_safety_emits():
+    """PRECONDITION (SK#1841): the critical_unknown input is named for the key safety_claims.py actually
+    emits (`normal_liability_concordance`), so it is WIREABLE — while staying the deliberately-absent
+    critical specimen."""
+    assert ef.NORMAL_LIABILITY_PROPERTY == "normal_liability_concordance"
+    crit = [i for i in ef.REFERENCE_FRAME.inputs if i.role == Role.CRITICAL_UNKNOWN]
+    assert len(crit) == 1 and crit[0].property_id == "normal_liability_concordance"
+    assert crit[0].kind == InputKind.MISSING_UNRESOLVED
+
+
+def test_dependency_priority_frame_synthesizes_over_an_emitted_claim_vector():
+    """The production entry consumes a functional-requirement claim_vector's already-emitted essentiality
+    concordance claim as a typed input and routes to an L4 QUESTION on the absent safety critical."""
+    from _skills_common.dependency_claims import _essentiality_concordance_claim
+
+    # a REAL essentiality concordance claim (both assays agree, dependent)
+    cards = {
+        "pan-cancer-crispr-dependency-distribution": {"dependency_class": "strongly_selective"},
+        "pan-cancer-rnai-dependency-distribution": {"rnai_dependency_class": "strongly_selective"},
+    }
+    ess = _essentiality_concordance_claim(cards)
+    assert ess is not None and ess["integration_method"] == "explicit_deterministic"
+
+    result = ef.dependency_priority_frame({"crispr_rnai_essentiality_concordance": ess})
+    # the essentiality claim resolved as a typed input the frame synthesized over
+    assert result["resolved_inputs"].get("crispr_rnai_essentiality_concordance") == ess["concordance_class"]
+    assert result["claim_type"] == ClaimType.DECISION_FRAME
+    # the absent safety critical routes to an L4 QUESTION (never a kill)
+    assert result["decision"] == ef.DECISION_QUESTION
+    assert result["unresolved_critical"] == [ef.NORMAL_LIABILITY_PROPERTY]
+    assert ef.NORMAL_LIABILITY_PROPERTY in result["l4_question"]
+    assert result["decision"] != ef.DECISION_HOLD
+
+
+def test_dependency_priority_frame_verdict_inert_disclaimer():
+    """The production surface is ADDITIVE / verdict-inert — the frame's disclaimer says it routes nothing
+    back into any skill verdict / claim_vector / question_table / resolver."""
+    result = ef.dependency_priority_frame({}, {})
+    assert "routes NOTHING back" in result["_disclaimer"]
+    # with nothing supplied the required essentiality is also unresolved -> still a question, never a kill
+    assert result["decision"] == ef.DECISION_QUESTION
+    assert ef.NORMAL_LIABILITY_PROPERTY in result["unresolved_critical"]

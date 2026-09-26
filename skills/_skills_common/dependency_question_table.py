@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from typing import Optional
 
+from _skills_common.evidence_frame import dependency_priority_frame as _dependency_priority_frame
 from _skills_common.question_table_core import cbyid as _cbyid
 from _skills_common.question_table_core import conf as _conf
 from _skills_common.question_table_core import row as _row
@@ -219,6 +220,61 @@ def _q7_corroborated(h, c, cv):
     )
 
 
+# ── SK#1841 L3→production beachhead: the corroborated_dependency_priority REFERENCE_FRAME ────────────
+# The FIRST place the L3 typed-evidence interface (evidence_frame.py, design G) reaches a production
+# answer surface. The frame consumes the ALREADY-EMITTED typed evidence and produces its OWN L3 decision
+# object; this module only RENDERS it as a verdict-INERT annotation on the Q4 (CRISPR↔RNAi concordance)
+# row. Carries NO signal tier / polarity / fill (an annotation, never a meter cell) and routes NOTHING
+# back into the dependency_verdict / claim_vector / resolver.
+def _dependency_priority_frame_signal(fr: dict) -> dict:
+    """Project the frame's L3 decision object into the Q4 row's `integrated_signal` surface (verdict-inert)."""
+    resolved = sorted(fr.get("resolved_inputs") or {})
+    decision = fr.get("decision")
+    headline = (
+        f"L3 decision frame `{fr.get('frame_id')}` → {decision}: synthesized over "
+        f"{len(resolved)} resolved typed input(s)"
+        + (f" ({', '.join(resolved)})" if resolved else "")
+        + "; the safety critical is unresolved on this surface → an L4 forward question (never a kill)."
+    )
+    return {
+        "kind": "corroborated_dependency_priority",
+        "frame_id": fr.get("frame_id"),
+        "claim_type": fr.get("claim_type"),  # decision_frame (L3)
+        "decision": decision,
+        "integration_method": fr.get("integration_method"),
+        "resolved_inputs": fr.get("resolved_inputs"),
+        "rationale": fr.get("rationale"),
+        "reservations": fr.get("reservations"),
+        "vetoes_applied": fr.get("vetoes_applied"),
+        "unresolved_critical": fr.get("unresolved_critical"),
+        "unresolved_required": fr.get("unresolved_required"),
+        "headline": headline,
+        "provenance_ref": "evidence_frame.corroborated_dependency_priority",
+        "_disclaimer": fr.get("_disclaimer"),
+    }
+
+
+def _dependency_priority_forward_question(fr: dict) -> Optional[dict]:
+    """Render the frame's CRITICAL_UNKNOWN role as an L4 FORWARD QUESTION (the first G3.3 forward-question
+    in production) — never a kill. Returns None when the frame did not route to a question."""
+    q = fr.get("l4_question")
+    if not q:
+        return None
+    return {
+        "kind": "l4_forward_question",
+        "role": "critical_unknown",
+        "question": q,
+        "unresolved_critical": fr.get("unresolved_critical"),
+        "unresolved_required": fr.get("unresolved_required"),
+        "provenance_ref": "evidence_frame.corroborated_dependency_priority",
+        "_disclaimer": (
+            "L4 FORWARD QUESTION (design G, roles-not-weights): an unresolved CRITICAL_UNKNOWN routes to a "
+            "QUESTION, never a kill; verdict-INERT — routes nothing back into any verdict / claim_vector / "
+            "resolver."
+        ),
+    }
+
+
 def dependency_question_table(headline: dict, cards: list, claim_vector: Optional[dict] = None) -> list:
     """The 7 question rows (each: id, question, primary read, supporting/caveat line, signal, confidence).
     Verdict-inert. `claim_vector` defaults to the one on the headline (`headline['claim_vector']`)."""
@@ -226,7 +282,7 @@ def dependency_question_table(headline: dict, cards: list, claim_vector: Optiona
 
     cv = claim_vector or headline.get("claim_vector") or dependency_claim_vector(headline, cards)
     c = _cbyid(cards)
-    return [
+    rows = [
         _q1_lethal(headline, c, cv),
         _q2_window(headline, c, cv),
         _q3_lineage(headline, c, cv),
@@ -235,6 +291,23 @@ def dependency_question_table(headline: dict, cards: list, claim_vector: Optiona
         _q6_chemical(headline, c, cv),
         _q7_corroborated(headline, c, cv),
     ]
+    # SK#1841 L3→production beachhead: when the L2b `crispr_rnai_essentiality_concordance` claim resolves
+    # (the frame's anchor input, built by dependency_claims.py but read by nothing until now), evaluate the
+    # `corroborated_dependency_priority` L3 REFERENCE_FRAME over the already-emitted typed evidence and
+    # SURFACE its synthesis as a verdict-INERT `integrated_signal` on the Q4 (CRISPR↔RNAi concordance) row,
+    # plus the frame's CRITICAL_UNKNOWN role as the first G3.3 L4 `forward_question`. Attached only when the
+    # anchor claim resolves (keys omitted otherwise → row byte-stable). Reads only the ALREADY-BUILT
+    # claim_vector + headline, so it perturbs no meter cell and no verdict.
+    if (cv or {}).get("crispr_rnai_essentiality_concordance"):
+        fr = _dependency_priority_frame(cv, headline)
+        for r in rows:
+            if r.get("id") == "Q4":
+                r["integrated_signal"] = _dependency_priority_frame_signal(fr)
+                fq = _dependency_priority_forward_question(fr)
+                if fq is not None:
+                    r["forward_question"] = fq
+                break
+    return rows
 
 
 __all__ = ["dependency_question_table"]
