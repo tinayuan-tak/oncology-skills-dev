@@ -58,6 +58,23 @@ from methods.kinome_atlas_prediction import read as kinome_atlas_read
 from methods.reactome_pathway_context import read as reactome_read
 from methods.signor_mechanism_network import read as signor_read
 from methods.signor_mechanism_network.moa_ontology import ONTOLOGY_VERSION
+from methods.target_id_sidecar import is_definitively_absent
+
+
+def _is_genuine_absence(e: Exception) -> bool:
+    """True IFF `e` means the underlying data product genuinely does not exist.
+
+    Mirrors the honest-loud read contract established across the read path
+    (#783/#797/#712/#800/#715): a missing S3 object (NoSuchKey / 404 / NoSuchBucket)
+    or a missing local file is honest `data_unavailable`; anything else — expired
+    creds / AccessDenied, throttling / SlowDown / 5xx / timeouts, a broken env —
+    must RE-RAISE so it surfaces loudly instead of being silently encoded as a real
+    absence classification (which on the verdict-driving SIGNOR lane also drops
+    mechanism_verdict off its rung and, via risk_projection.py, manufactures a false
+    'Right Target' biological-risk escalation).
+    """
+    return isinstance(e, FileNotFoundError) or is_definitively_absent(e)
+
 
 # Source keys for provenance stamping. Curated sources first; kinome-atlas
 # is PREDICTION so consumers/synthesis should weight it lower.
@@ -205,7 +222,14 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         if signor_result.get("network_class") not in (None, "data_unavailable"):
             sources_wired.append(SOURCE_KEY_SIGNOR)
     except Exception as e:
-        signor_result = {"_data_note": f"signor_failed: {e}", "upstream_regulators": [], "downstream_effectors": []}
+        # SIGNOR is the VERDICT-DRIVING lane: an empty edge union collapses network_class to
+        # data_unavailable and drops mechanism_verdict off its rung, and via the shared risk
+        # projector escalates the 'Right Target' biological-risk bin to MED. So a transient S3
+        # error must NOT be silently encoded as a real absence (#770). Re-raise anything that is
+        # not a genuine not-found; keep the clean empty-lane result only for true absence.
+        if not _is_genuine_absence(e):
+            raise
+        signor_result = {"_data_note": f"signor_absent: {e}", "upstream_regulators": [], "downstream_effectors": []}
 
     try:
         collectri_result = collectri_read.read_target_summary(target, indication)
@@ -248,9 +272,13 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         if not coessentiality_result.get("_data_unavailable"):
             sources_wired.append(SOURCE_KEY_COESSENTIALITY)
     except Exception as e:
+        # Display-only (lower stakes than SIGNOR) but the same honest-loud contract applies (#770):
+        # a transient read error must surface, not masquerade as a genuine substrate absence.
+        if not _is_genuine_absence(e):
+            raise
         coessentiality_result = {
             "_data_unavailable": True,
-            "_data_note": f"coessentiality_failed: {e}",
+            "_data_note": f"coessentiality_absent: {e}",
         }
 
     # Curated union: SIGNOR + CollecTri edges (Reactome is layered as

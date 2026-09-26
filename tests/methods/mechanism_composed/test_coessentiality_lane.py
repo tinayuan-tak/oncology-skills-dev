@@ -88,6 +88,14 @@ def _stub_coessentiality_ok(target, top_n=25, **kwargs):
     }
 
 
+def _nosuchkey_error():
+    """A genuine not-found ClientError — the ONLY failure a lane may swallow into
+    data_unavailable under the honest-loud contract (#770)."""
+    from botocore.exceptions import ClientError
+
+    return ClientError({"Error": {"Code": "NoSuchKey", "Message": "not found"}}, "GetObject")
+
+
 def _stub_coessentiality_unavailable(target, top_n=25, **kwargs):
     return {
         "gene_symbol": target,
@@ -197,19 +205,21 @@ class TestGracefulDegradation:
         assert ctx["data_available"] is False
         assert ctx["n_partners"] == 0
 
-    def test_reader_exception_does_not_crash_composed(self):
+    def test_reader_genuine_absence_does_not_crash_composed(self):
+        # #770: only a GENUINE not-found (NoSuchKey) is swallowed into data_unavailable.
+        # (A transient error now re-raises — see TestHonestLoudReadPath below.)
         def _raise(target, **kwargs):
-            raise RuntimeError("S3 read failed")
+            raise _nosuchkey_error()
 
         result = _run("UBA3", _raise)
         assert "coessentiality_context" in result
         assert result["coessentiality_context"]["data_available"] is False
 
-    def test_existing_upstream_regulators_unaffected_by_coessentiality_failure(self):
-        """Mechanism edge union must be intact even if co-essentiality read fails."""
+    def test_existing_upstream_regulators_unaffected_by_coessentiality_absence(self):
+        """Mechanism edge union must be intact even if co-essentiality is genuinely absent."""
 
         def _raise(target, **kwargs):
-            raise RuntimeError("substrate unavailable")
+            raise _nosuchkey_error()
 
         result = _run("UBA3", _raise)
         assert "upstream_regulators" in result
@@ -218,7 +228,7 @@ class TestGracefulDegradation:
 
     def test_existing_network_class_unaffected(self):
         def _raise(target, **kwargs):
-            raise RuntimeError("substrate unavailable")
+            raise _nosuchkey_error()
 
         result = _run("UBA3", _raise)
         assert result["network_class"] in ("well_characterized", "partial", "sparse", "data_unavailable")
