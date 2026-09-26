@@ -188,6 +188,56 @@ def test_run_flags_partial_confabulation_and_residual_prose(monkeypatch):
     assert d["contradicts_deterministic"] is True  # ≥1 surviving cite → discordance stands
 
 
+def test_run_abstains_when_retrieval_is_all_off_signal_backfill(monkeypatch):
+    # #1613 MARQUEE: a dim whose retrieval returns ONLY off-signal abstracts is handed ≤floor backfilled
+    # off-signal literature (kept non-empty) but ZERO relevant evidence (n_on_signal == 0). The
+    # null-discipline contract (null → not_assessed, NEVER a fabricated grade) must fire DETERMINISTICALLY
+    # — the model must NOT be consulted for this dim. BEFORE the fix run.py keyed on len(kept), so this
+    # dim was graded by the model (LOW/MEDIUM/HIGH) via the floor backfill.
+    def _backfilled_safety(target, indication, axis, **k):
+        # kept non-empty (floor backfill) but n_on_signal == 0 for safety; other dims dry.
+        return {"kept": [_Ab("111")] if axis == "safety" else [], "dropped": [], "n_on_signal": 0}
+
+    called = {"n": 0}
+
+    def _spy_synth(*a, **k):
+        called["n"] += 1
+        raise AssertionError("model must not be consulted when there is zero relevant (on-signal) evidence")
+
+    monkeypatch.setattr(rc.rl, "retrieve_axis", _backfilled_safety)
+    monkeypatch.setattr(rc, "synthesize_structured", _spy_synth)
+    d = rc.run("GENE", "safety-indication", None, "2015", "2026", per_cat=1)["dimensions"]["safety"]
+    assert called["n"] == 0  # deterministic abstain — no model judgment on off-signal-only retrieval
+    assert d["risk_level"] == "not_assessed"  # null != MEDIUM restored for the retrieved-but-irrelevant case
+    assert d["insufficient_relevant_evidence"] is True
+    assert d["cited_pmids"] == [] and d["n_on_signal"] == 0
+    assert d["n_retrieved"] == 1  # audit trail: abstracts WERE retrieved, just none relevant
+
+
+def test_run_still_grades_thin_but_real_axis_with_floor_backfill(monkeypatch):
+    # #1613 counterpart: the floor's legitimate starvation-prevention is preserved. With ≥1 on-signal
+    # abstract (n_on_signal == 1) the dim is graded normally even though the floor backfilled off-signal
+    # abstracts alongside it — the abstain rule fires ONLY on zero relevant evidence, not on thin evidence.
+    def _thin_safety(target, indication, axis, **k):
+        return {"kept": [_Ab("111"), _Ab("222")] if axis == "safety" else [], "dropped": [], "n_on_signal": 1}
+
+    monkeypatch.setattr(rc.rl, "retrieve_axis", _thin_safety)
+    monkeypatch.setattr(
+        rc,
+        "synthesize_structured",
+        lambda *a, **k: {
+            "risk_level": "MEDIUM",
+            "justification": "j",
+            "interpretation": "i",
+            "cited_pmids": ["111"],
+            "contradicts_deterministic": False,
+        },
+    )
+    d = rc.run("GENE", "safety-indication", None, "2015", "2026", per_cat=1)["dimensions"]["safety"]
+    assert d["risk_level"] == "MEDIUM"  # thin-but-real axis still graded (floor backfill legitimate)
+    assert "insufficient_relevant_evidence" not in d
+
+
 def test_six_dimensions_and_overlap_anchors():
     assert set(rc.DIMENSIONS) == {"biological", "druggability", "translational", "clinical", "safety", "commercial"}
     # overlap dimensions anchor to a deterministic sub_verdict; orthogonal ones do not

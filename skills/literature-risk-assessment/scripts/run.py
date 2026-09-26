@@ -383,28 +383,47 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6,
     for dim, (pillar, question, akey) in DIMENSIONS.items():
         retr = rl.retrieve_axis(target, indication, dim, per_cat=per_cat, mindate=mindate, maxdate=maxdate)
         abstracts = retr["kept"]  # post Stage-2 relevance gate; off-axis drops logged below
+        # n_on_signal = abstracts passing target ∧ (axis ∨ indication) BEFORE the starvation floor
+        # backfilled off-signal literature. Keying the null gate on len(abstracts) is defeated by the
+        # floor: a retrieved-but-all-irrelevant dim is handed ≤floor backfilled off-signal abstracts and
+        # graded LOW/MED/HIGH, silently degrading the hard "null → not_assessed" rule to model judgment
+        # (issue #1613). Gate on n_on_signal so the abstain rule fires whenever ZERO relevant abstracts
+        # exist, while the floor still prevents starvation on a THIN-but-real axis (n_on_signal ≥ 1).
+        n_on_signal = retr.get("n_on_signal", len(abstracts))
         rpmids = {a.pmid for a in abstracts}
         corpus[dim] = {
             "query": rl._axis_query(target, disease_terms, dim),
             "pmids": sorted(rpmids),
             "retrieval": rl.RETRIEVAL_LABEL,
             "relevance_dropped": retr["dropped"],
+            "n_on_signal": n_on_signal,
         }
         # overlap dims anchor to a sub_verdict; the engine-blind clinical/commercial dims anchor to their
         # deterministic card summary (A5); the rest are pure-literature.
         anchor = anchors.get(akey) if akey else card_anchors.get(dim)
-        if not abstracts:
+        if not abstracts or not n_on_signal:
+            no_relevant = bool(abstracts) and not n_on_signal
             entry = {
                 "pillar": pillar,
                 "risk_level": "not_assessed",
-                "justification": "no PubMed abstracts retrieved for this dimension",
-                "interpretation": "not assessed — no retrieved abstracts for this axis",
+                "justification": (
+                    "retrieved abstracts were all off-signal (off-target / off-axis / off-indication); "
+                    "no relevant evidence to grade"
+                    if no_relevant
+                    else "no PubMed abstracts retrieved for this dimension"
+                ),
+                "interpretation": "not assessed — no relevant retrieved abstracts for this axis",
                 "cited_pmids": [],
                 "confabulated_dropped": [],
                 "contradicts_deterministic": False,
                 "anchor_verdict": anchor,
-                "n_retrieved": 0,
+                "n_retrieved": len(abstracts),
+                "n_on_signal": n_on_signal,
             }
+            # Distinguish "zero relevant despite retrieval" (floor-backfilled) from true empty retrieval, so
+            # a reader sees the abstain was an active relevance decision, not a dry query.
+            if no_relevant:
+                entry["insufficient_relevant_evidence"] = True
             # PV is abstract-independent — surface it on safety even when no safety literature was retrieved.
             if dim == "safety" and pharmacovigilance:
                 entry["pharmacovigilance"] = pharmacovigilance

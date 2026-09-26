@@ -291,21 +291,12 @@ def _axis_match(text: str, tokens: list) -> int:
     return sum(1 for tok in tokens if tok and tok in s)
 
 
-def relevance_filter(abstracts: list, target: str, axis: str, *, disease_terms: str = "", floor: int = RELEVANCE_FLOOR):
-    """PURE precision gate. Partition retrieved abstracts into (kept, dropped).
+def _partition_on_signal(abstracts: list, target: str, axis: str, *, disease_terms: str = ""):
+    """PURE: partition retrieved abstracts into (on_signal, off) under the target-anchored CONJUNCTION.
 
-    An abstract is ON-SIGNAL only under a CONJUNCTION anchored to the target: its title+abstract must
-    NAME the target (word-boundary, case-insensitive) AND additionally be on-axis (≥1 axis phrase-token)
-    OR on-indication (≥1 disease phrase-token from `disease_terms`). The prior predicate was a permissive
-    OR of two weak legs (any generic axis substring, OR a bare target mention) with no indication and no
-    conjunction, so an off-target paper carrying a generic axis word (e.g. a *different* gene's
-    `toxicity`) and an off-indication paper merely naming the target both passed as "relevant retrieved."
-    Requiring target ∧ (axis ∨ indication) closes both leaks (issue #1615). On-signal abstracts are always
-    kept, in incoming (lane-ranked) order.
-
-    Off-signal abstracts are dropped EXCEPT the deliberate relaxed floor: keep from them, in order, until
-    at least `floor` abstracts are kept (never starve the model to zero on a thin axis/indication). Each
-    dropped record is {pmid, reason} for the corpus-pin audit trail. Order-preserving; never raises."""
+    An abstract is ON-SIGNAL only if its title+abstract NAMES the target (word-boundary, case-insensitive)
+    AND is additionally on-axis (≥1 axis phrase-token) OR on-indication (≥1 disease phrase-token from
+    `disease_terms`) — target ∧ (axis ∨ indication) (issue #1615). Order-preserving; never raises."""
     tokens = _axis_tokens(AXIS_PUBMED_TERMS.get(axis, ("", True))[0])
     ind_tokens = _axis_tokens(disease_terms)
     tgt = (target or "").strip().lower()
@@ -319,6 +310,28 @@ def relevance_filter(abstracts: list, target: str, axis: str, *, disease_terms: 
         hit_tgt = bool(tgt_re.search(text.lower())) if tgt_re else False
         on = hit_tgt and (hit_axis or hit_ind)
         (on_signal if on else off).append(a)
+    return on_signal, off
+
+
+def relevance_filter(abstracts: list, target: str, axis: str, *, disease_terms: str = "", floor: int = RELEVANCE_FLOOR):
+    """PURE precision gate. Partition retrieved abstracts into (kept, dropped).
+
+    On-signal abstracts (target ∧ (axis ∨ indication); see `_partition_on_signal`) are always kept, in
+    incoming (lane-ranked) order. Requiring the conjunction closes the permissive-OR leaks of the prior
+    predicate — an off-target paper carrying a generic axis word, or an off-indication paper merely naming
+    the target — (issue #1615).
+
+    Off-signal abstracts are dropped EXCEPT the deliberate relaxed floor: keep from them, in order, until
+    at least `floor` abstracts are kept (never starve the model to zero on a THIN axis/indication where at
+    least one relevant abstract exists). Each dropped record is {pmid, reason} for the corpus-pin audit
+    trail. Order-preserving; never raises.
+
+    NOTE on the null-discipline contract (issue #1613): when there are ZERO on-signal abstracts the entire
+    `kept` set is BACKFILLED off-signal literature, which carries no relevant evidence — a caller enforcing
+    "null → not_assessed" MUST key on the on-signal count (`retrieve_axis`'s `n_on_signal`), NOT on
+    `len(kept)`, or the floor backfill silently defeats the abstain rule. This function keeps the floor for
+    the legitimate thin-but-real case; the abstain decision belongs to the caller."""
+    on_signal, off = _partition_on_signal(abstracts, target, axis, disease_terms=disease_terms)
 
     kept = list(on_signal)
     dropped = []
@@ -344,8 +357,13 @@ def retrieve_axis(
 ) -> dict:
     """HIGH-LEVEL seam used by BOTH ground_axis.py and run.py: resolve the disease vocabulary, run the
     3-lane union, efetch, then apply the Stage-2 relevance gate. Returns
-    {"kept": [PubMedAbstract...], "dropped": [{pmid, reason}...]} — `dropped` is the corpus-pin audit
-    trail of off-topic abstracts the gate removed. One function to monkeypatch in offline tests."""
+    {"kept": [PubMedAbstract...], "dropped": [{pmid, reason}...], "n_on_signal": int} — `dropped` is the
+    corpus-pin audit trail of off-topic abstracts the gate removed, and `n_on_signal` is the number of
+    abstracts that passed the target ∧ (axis ∨ indication) conjunction BEFORE the starvation floor
+    backfilled off-signal literature. A caller's null-discipline gate must key on `n_on_signal`, not
+    `len(kept)`: with `n_on_signal == 0` the whole kept set is backfilled off-signal (no relevant
+    evidence) and the dimension must abstain (`not_assessed`), not be graded (issue #1613). One function
+    to monkeypatch in offline tests."""
     import pubmed_search as ps
 
     disease_terms = resolve_disease_terms(indication)
@@ -353,8 +371,9 @@ def retrieve_axis(
         target, disease_terms, axis, per_cat=per_cat, mindate=mindate, maxdate=maxdate, indication=indication
     )
     abstracts = ps._efetch_abstracts(pmids, category=axis, timeout_s=30.0) if pmids else []
+    on_signal, _off = _partition_on_signal(abstracts, target, axis, disease_terms=disease_terms)
     kept, dropped = relevance_filter(abstracts, target, axis, disease_terms=disease_terms, floor=relevance_floor)
-    return {"kept": kept, "dropped": dropped}
+    return {"kept": kept, "dropped": dropped, "n_on_signal": len(on_signal)}
 
 
 def retrieve_axis_abstracts(

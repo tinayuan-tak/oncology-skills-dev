@@ -107,6 +107,35 @@ def test_retrieve_axis_applies_gate_and_reports_dropped(monkeypatch):
     # none name the target → all off-signal under the conjunction; floor=3 backfills the first three
     assert [a.pmid for a in out["kept"]] == ["1", "2", "3"]
     assert [d["pmid"] for d in out["dropped"]] == ["4"]  # off-signal excess dropped (floor=3 already met)
+    # #1613: kept is FULLY backfilled off-signal → n_on_signal must be 0 so the caller abstains rather than
+    # grading a fabricated level. (On the old seam this key was absent → KeyError.)
+    assert out["n_on_signal"] == 0
+
+
+def test_retrieve_axis_reports_n_on_signal_for_thin_but_real_axis(monkeypatch):
+    # #1613: ONE genuinely on-signal abstract (target ∧ axis) + off-signal noise. The floor still backfills
+    # to 3, but n_on_signal reflects the single relevant hit so the caller keeps (does not abstain).
+    import pubmed_search as ps
+
+    monkeypatch.setattr(rl, "_retrieve_pmids", lambda *a, **k: ["1", "2", "3"])
+
+    def fake_efetch(pmids, *, category, timeout_s):
+        bodies = {
+            "1": ("KRAS on-target toxicity in liver", ""),  # target ∧ axis → on-signal
+            "2": ("unrelated nanoparticle method", ""),  # off-signal (backfilled by floor)
+            "3": ("TP53 adverse event", ""),  # off-target axis word (backfilled by floor)
+        }
+        return [
+            ps.PubMedAbstract(
+                pmid=p, title=bodies[p][0], abstract=bodies[p][1], journal="j", year=2021, category=category
+            )
+            for p in pmids
+        ]
+
+    monkeypatch.setattr(ps, "_efetch_abstracts", fake_efetch)
+    out = rl.retrieve_axis("KRAS", "COADREAD", "safety", per_cat=3)
+    assert out["n_on_signal"] == 1  # one real on-signal abstract → floor backfill is legitimate, do not abstain
+    assert [a.pmid for a in out["kept"]] == ["1", "2", "3"]  # on-signal first, then floor backfill
 
 
 def test_retrieve_axis_abstracts_wrapper_returns_kept_only(monkeypatch):
