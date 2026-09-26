@@ -21,6 +21,11 @@ between the two CN builders that no single behavioural fixture spans.
 The oracle below is pure declared DATA that the runtime never reads into any verdict path (it lives only
 in this test), so this whole module is verdict-inert: it moves no decision.json, no field_read_health,
 and needs no target-contracts pin.
+
+SK#1689 EXTENDS the same mechanism to a SECOND, NON-GENOMIC builder family — the EXPRESSION / PROTEOMICS
+multi-arm builders in selectivity_claims.py (tumor-vs-normal RNA window + CPTAC/TPHP protein quorum). See
+the block at the bottom of this file; the milestone is that the arm-commensurability audit becomes a
+repo-wide standing gate rather than a per-family manual sweep.
 """
 
 from __future__ import annotations
@@ -304,3 +309,173 @@ def test_detector_bites_a_del_arm_repointed_to_focal_homdel():
     # …and the detector rejects it
     with pytest.raises(AssertionError, match="recurrently_deleted"):
         assert_cn_builders_are_commensurate(mutant)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# SECOND FAMILY — the EXPRESSION / PROTEOMICS multi-arm builders in selectivity_claims.py (SK#1689)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# SK#1688 made the audit a standing gate for the GENOMIC builders. The same failure class — a builder
+# folding arms that are not the same construct — is not genomic-specific. The next family of multi-arm
+# builders in _skills_common is EXPRESSION / PROTEOMICS: selectivity_claims.py projects the tumor-vs-
+# normal RNA window (DESeq2) and the two independent tumor-vs-normal PROTEIN platforms (CPTAC TMT-MS +
+# TPHP DIA-MS) into a claim vector. It has TWO multi-arm builders, audited below.
+#
+# AUDIT VERDICT (SK#1689): NO incommensurate pairing was found in this family — unlike the three genomic
+# cases (#1667/#1674/#1673), both selectivity multi-arm builders already fold COMMENSURATE arms, so this
+# is a detector-oracle EXTENSION, not a fix:
+#   1. `_int_corroboration` — the ONLY `corroboration_from_arms` caller here — folds FOUR reads of the
+#      SAME biological property (is the selective signal MALIGNANT-CELL-INTRINSIC?) across modalities:
+#      the sc-tumour malignant read, the sc CAF-vs-malignant read, the bulk purity-confound read, and the
+#      in-situ SPATIAL region-RNA read. These are commensurate by the "same property, independent
+#      measurement" test (the multi-modal quorum is the deliberate design; the absent-vs-disagreeing arm
+#      discipline was already fixed in-file). Folding a DIFFERENT-axis field (e.g. the WIN RNA window
+#      class) into this quorum is the analogue of the #1673 construct-mismatch, and the mutation test at
+#      the bottom drives exactly that red.
+#   2. `_protein_window_quorum` — a hand-rolled 2-arm quorum over CPTAC TMT-MS × TPHP DIA-MS, both bulk
+#      tumor-vs-normal PROTEIN abundance (same granularity, same provenance basis), so the two arms are
+#      commensurate. It is the `_signal`/demotion MIRROR for this family (the analogue of `_cn_signal`):
+#      it imposes a corroboration CAP and emits a conflict NOTE from ≥2 headline fields. The #1673 trap
+#      was two SEPARATE functions (`_cn_signal`/`_cn_corroboration`) kept in lockstep BY HAND; here the
+#      mirror cannot diverge because it is ONE shared helper consumed by BOTH `_win_signal` (the note) and
+#      `_win_corroboration` (the cap). The mirror test below pins that shared-helper coupling structurally,
+#      so a future edit that reads the quorum in only ONE of the two — re-opening the self-contradiction
+#      risk — fails loudly.
+#
+# This whole block edits ONLY the test file — no selectivity_claims.py change — so it is verdict
+# byte-stable by construction (no decision.json / field_read_health / golden move, no target-contracts
+# pin).
+
+_SELECTIVITY_CLAIMS = pathlib.Path(__file__).resolve().parents[1] / "selectivity_claims.py"
+
+
+# The DECLARED oracle for the expression/proteomics family. Same contract as
+# `_DECLARED_CORROBORATION_BUILDERS`: every function that folds ≥2 arms via `corroboration_from_arms` in
+# selectivity_claims.py must appear here with its arm pairing, or the enumeration test below fails until
+# it is declared — extending the anti-drift gate to this family.
+_DECLARED_SELECTIVITY_CORROBORATION_BUILDERS = {
+    "_int_corroboration": (
+        "sc-tumour malignant read × sc CAF-vs-malignant × bulk purity-confound × in-situ spatial RNA — "
+        "four INDEPENDENT reads of the SAME malignant-cell-intrinsic property, one multi-modal quorum "
+        "(commensurate by same-property; see _INT_COMMENSURATE_ARM_FIELDS)"
+    ),
+}
+
+# The headline fields `_int_corroboration` reads to build its arms. Each is a read of the malignant-
+# compartment-attribution property at a DIFFERENT modality; the set is what makes the quorum commensurate.
+# A re-pointed arm (a field NOT on this list, e.g. a WIN tumor-vs-normal-window class) or a new undeclared
+# arm changes this set and fails the commensurability test below.
+_INT_COMMENSURATE_ARM_FIELDS = frozenset(
+    {
+        "sc_tumor_expression_class",  # the sc-tumour malignant read (the claim being corroborated)
+        "sc_caf_vs_malignant_class",  # sc CAF vs malignant compartment
+        "purity_confound_class",  # bulk purity confound
+        "spatial_rna_class",  # in-situ spatial region-RNA (deconvolution-free)
+    }
+)
+
+# The `_signal`/demotion MIRROR for this family and its two consumers. `_protein_window_quorum` is the
+# shared 2-arm protein quorum; it must be read by BOTH the signal builder (`_win_signal`, which surfaces
+# its NOTE) and the corroboration builder (`_win_corroboration`, which applies its CAP), or the published
+# object could carry a "protein contradicts" note with no matching corroboration cap — the selectivity
+# analogue of the #1673 self-contradiction.
+_PROTEIN_QUORUM = "_protein_window_quorum"
+_PROTEIN_QUORUM_CONSUMERS = ("_win_signal", "_win_corroboration")
+
+
+def _selectivity_tree() -> ast.Module:
+    return _parse(_SELECTIVITY_CLAIMS.read_text())
+
+
+def _headline_fields_read(func: ast.FunctionDef) -> set[str]:
+    """Every `h.get("<field>")` string field read anywhere in `func` (the headline is bound to `h` in
+    every claim builder, `def _fn(h, c)`)."""
+    found: set[str] = set()
+    for n in ast.walk(func):
+        field = _headline_get_field(n)
+        if field is not None:
+            found.add(field)
+    return found
+
+
+def _calls_named(func: ast.FunctionDef, name: str) -> bool:
+    """True if `func` calls the module-level function `name` (a bare `name(...)` call)."""
+    return any(isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == name for n in ast.walk(func))
+
+
+def assert_int_arms_are_commensurate(tree: ast.Module) -> None:
+    """Raise AssertionError unless `_int_corroboration` folds EXACTLY the declared commensurate malignant-
+    compartment arm fields (`_INT_COMMENSURATE_ARM_FIELDS`) — no incommensurate field pulled in, none
+    dropped. The predicate the new-family mutation test drives red."""
+    funcs = _functions(tree)
+    assert "_int_corroboration" in funcs, "_int_corroboration vanished from selectivity_claims.py"
+    fields = _headline_fields_read(funcs["_int_corroboration"])
+    assert fields == set(_INT_COMMENSURATE_ARM_FIELDS), (
+        f"_int_corroboration folds headline fields {sorted(fields)} — expected EXACTLY the commensurate "
+        f"malignant-cell-intrinsic arm set {sorted(_INT_COMMENSURATE_ARM_FIELDS)}. An extra field mixes a "
+        f"DIFFERENT biological property into the intrinsic quorum (a false agreement/conflict, the "
+        f"selectivity analogue of SK#1673); a missing field means an arm was dropped or renamed. "
+        f"undeclared = {sorted(fields - set(_INT_COMMENSURATE_ARM_FIELDS))}; "
+        f"gone = {sorted(set(_INT_COMMENSURATE_ARM_FIELDS) - fields)}."
+    )
+
+
+# ── the selectivity-family tests ────────────────────────────────────────────────────────────────────
+def test_selectivity_multi_arm_builders_are_declared():
+    """ENUMERATION / anti-drift for the expression/proteomics family: every function that folds arms via
+    `corroboration_from_arms` in selectivity_claims.py must be declared. A NEW multi-arm builder fails
+    here until its arm pairing is declared in `_DECLARED_SELECTIVITY_CORROBORATION_BUILDERS`."""
+    discovered = _corroboration_builders(_selectivity_tree())
+    declared = set(_DECLARED_SELECTIVITY_CORROBORATION_BUILDERS)
+    assert discovered == declared, (
+        f"selectivity multi-arm corroboration builders drifted from the declared oracle: "
+        f"undeclared (add its arm pairing) = {sorted(discovered - declared)}; "
+        f"declared-but-gone (remove it) = {sorted(declared - discovered)}"
+    )
+
+
+def test_int_corroboration_folds_the_commensurate_malignant_compartment_arms():
+    """GREEN on today's selectivity_claims.py: `_int_corroboration` folds exactly the four commensurate
+    malignant-cell-intrinsic reads. Also anti-vacuity — the declared arm set is non-empty."""
+    assert _INT_COMMENSURATE_ARM_FIELDS, "the declared INT arm set is empty — the test would pin nothing"
+    assert_int_arms_are_commensurate(_selectivity_tree())
+
+
+def test_protein_window_quorum_is_the_shared_signal_and_corroboration_mirror():
+    """The selectivity `_signal`/demotion MIRROR, as a structural invariant no single behavioural fixture
+    spans: the 2-arm protein quorum must exist and be consumed by BOTH `_win_signal` (its note) and
+    `_win_corroboration` (its cap). Reading it in only one re-opens the #1673-class self-contradiction (a
+    "protein contradicts" note with no matching corroboration cap)."""
+    funcs = _functions(_selectivity_tree())
+    assert _PROTEIN_QUORUM in funcs, f"{_PROTEIN_QUORUM} not found in selectivity_claims.py"
+    for consumer in _PROTEIN_QUORUM_CONSUMERS:
+        assert consumer in funcs, f"{consumer} not found in selectivity_claims.py"
+        assert _calls_named(funcs[consumer], _PROTEIN_QUORUM), (
+            f"{consumer} no longer reads {_PROTEIN_QUORUM} — the shared signal/corroboration mirror is "
+            f"broken (SK#1673-class self-contradiction risk for the tumor-vs-normal protein window)"
+        )
+
+
+# The mutation the new-family detector exists to catch: one INT arm re-pointed from the in-situ spatial
+# read to the WIN tumor-vs-normal-window RNA class — a DIFFERENT biological property (window, not
+# intrinsic compartment). Applied to a COPY of the source string, so the real module is never mutated.
+def _mutant_int_arm_repointed_to_win_window(source: str) -> str:
+    mutated = source.replace("spatial_rna_class", "axis_a_selectivity_class")
+    assert mutated != source, "mutation was a no-op — the spatial arm field is no longer present to re-point"
+    return mutated
+
+
+def test_detector_bites_an_int_arm_repointed_to_a_different_axis():
+    """MUTATION TEST for the new family — the corpus alone has no teeth here, so prove the detector bites.
+    With one INT arm re-pointed to the WIN tumor-vs-normal-window class (an incommensurate different-
+    property field), `_int_corroboration`'s read set no longer equals the declared commensurate arms and
+    `assert_int_arms_are_commensurate` FAILS. Confirms both the RED (on the mutant) and — via
+    `test_int_corroboration_folds_the_commensurate_malignant_compartment_arms` — the GREEN on real source."""
+    mutant = _parse(_mutant_int_arm_repointed_to_win_window(_SELECTIVITY_CLAIMS.read_text()))
+    # sanity: the mutant genuinely re-points an INT arm to the incommensurate window field
+    fields = _headline_fields_read(_functions(mutant)["_int_corroboration"])
+    assert "axis_a_selectivity_class" in fields and "spatial_rna_class" not in fields, (
+        "the mutation did not re-point the INT arm as intended"
+    )
+    # …and the detector rejects it
+    with pytest.raises(AssertionError, match="_int_corroboration"):
+        assert_int_arms_are_commensurate(mutant)
