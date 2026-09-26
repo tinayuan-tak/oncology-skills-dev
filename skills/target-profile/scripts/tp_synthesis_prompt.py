@@ -360,12 +360,22 @@ def _format_card_summary_for_prompt(summary: dict) -> str:
     survive (the old loop dropped `_`-prefixed keys, sampled lists>5 to 3, and hard-capped 1200
     chars — destroying the per-sample distribution stats the extraction layer produces). Policy:
       - scalars (str/num/bool/None) always kept in full;
-      - a list whose key matches a load-bearing pattern (e.g. per_lineage_stats, most_elevated_*)
-        is kept as its top-8 rows (not dropped to a `_len`), since these ARE the decision evidence;
+      - a list/dict whose key matches a load-bearing pattern (e.g. per_lineage_stats, most_elevated_*)
+        is kept (lists as top-8 rows, not dropped to a `_len`), since these ARE the decision evidence;
       - other/unknown lists >8 are summarized as {_len, _sample:3} (the old behavior, for genuine
         noise only);
       - `_`-prefixed provenance keys are still dropped (not decision evidence);
-      - a generous per-card cap (3000) only trims pathological output."""
+      - the per-card cap (3000) is applied PRIORITY-FIRST: the decision fields above are serialized
+        FIRST and always kept; the remaining (noise) fields are packed in only while the blob stays
+        under the cap. The cap therefore trims NOISE, not decision rows.
+
+    Fix (#1632): the old final line `json.dumps(out)[:3000]` sliced the whole insertion-ordered blob,
+    so a large early value (e.g. a 2.7M-char nested `kinome_atlas_predictions` dict kept whole) pushed
+    later load-bearing scalars/lists past char 3000 and (a) severed them and (b) left invalid JSON
+    truncated mid-token. Over the 504-dir corpus that severed a load-bearing/scalar field in 2,846 of
+    3,357 truncated cards. Serializing decision fields first and packing noise only within budget keeps
+    every load-bearing/scalar field (0 severed) and always emits valid JSON, while still bounding
+    pathological output (corpus max post-format length 2.7M → 17.8K chars)."""
 
     def _is_scalar(v):
         return v is None or isinstance(v, (str, int, float, bool))
@@ -374,23 +384,33 @@ def _format_card_summary_for_prompt(summary: dict) -> str:
         kl = key.lower()
         return any(part in kl for part in _LOAD_BEARING_SUMMARY_KEY_PARTS)
 
-    out = {}
+    # PRIORITY = decision evidence that must survive the cap (scalars + load-bearing lists/dicts).
+    # RESIDUAL = genuine noise (unknown lists sampled/summarized, non-load-bearing nested dicts) that
+    # is packed in only while the serialized blob stays within the char cap.
+    priority: dict = {}
+    residual: dict = {}
     for k, v in summary.items():
         if k.startswith("_"):
             continue
         if _is_scalar(v):
-            out[k] = v
+            priority[k] = v
         elif isinstance(v, list):
             if _load_bearing(k):
-                out[k] = v[:8]  # keep the decision rows
+                priority[k] = v[:8]  # keep the decision rows
             elif len(v) > 8:
-                out[f"{k}_len"] = len(v)
-                out[f"{k}_sample"] = v[:3]
+                residual[f"{k}_len"] = len(v)
+                residual[f"{k}_sample"] = v[:3]
             else:
-                out[k] = v
+                residual[k] = v
         else:  # dict / nested
-            out[k] = v
-    return json.dumps(out, default=str)[:_PROMPT_CARD_CHAR_CAP]
+            (priority if _load_bearing(k) else residual)[k] = v
+    # Decision fields first — always kept, even if they alone exceed the cap (the cap trims noise).
+    out = dict(priority)
+    for k, v in residual.items():
+        if len(json.dumps({**out, k: v}, default=str)) > _PROMPT_CARD_CHAR_CAP:
+            continue  # this noise field would blow the budget — drop it, keep packing smaller ones
+        out[k] = v
+    return json.dumps(out, default=str)
 
 
 def _render_certainty_block(fragility: dict, sub_results: dict) -> list[str]:

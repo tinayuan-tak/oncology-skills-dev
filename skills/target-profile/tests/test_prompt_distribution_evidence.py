@@ -50,6 +50,45 @@ def test_formatter_drops_underscore_provenance_keys():
     assert "median_log2tpm_panel" in out
 
 
+def test_formatter_cap_trims_noise_not_load_bearing_fields():
+    """#1632: a large NON-load-bearing early value must not push load-bearing scalars/lists past the
+    char cap and sever them. The old `json.dumps(out)[:3000]` sliced in insertion order, so a huge
+    early nested dict truncated everything after it (incl. decision fields). The priority-first cap
+    keeps every scalar + load-bearing field regardless of where a noise blob sits."""
+    import json
+
+    s = {
+        # a huge NON-load-bearing nested dict emitted BEFORE the decision fields (mirrors the corpus
+        # `kinome_atlas_predictions` case that severed 2,846 truncated cards' load-bearing fields).
+        "kinome_atlas_predictions": {f"pred_{i}": {"score": i, "pad": "x" * 40} for i in range(400)},
+        "network_class": "actionable_moa",
+        "median_log2tpm_panel": 5.5,
+        "moa_ontology_unmapped_fraction": 0.12,
+        "per_lineage_stats": [{"lineage": f"L{i}", "median_log2tpm": float(i)} for i in range(20)],
+    }
+    out = tp._format_card_summary_for_prompt(s)
+    # the load-bearing / scalar decision fields all survive despite the huge early noise dict
+    parsed = json.loads(out)  # output is ALWAYS valid JSON (never truncated mid-token)
+    assert parsed["network_class"] == "actionable_moa"
+    assert parsed["median_log2tpm_panel"] == 5.5
+    assert parsed["moa_ontology_unmapped_fraction"] == 0.12
+    assert "per_lineage_stats" in parsed and len(parsed["per_lineage_stats"]) == 8
+    # the oversized noise dict is dropped (trimmed by the cap), so the blob stays bounded
+    assert "kinome_atlas_predictions" not in parsed
+    assert len(out) <= tp._PROMPT_CARD_CHAR_CAP
+
+
+def test_formatter_output_is_always_valid_json():
+    """The cap must never emit JSON truncated mid-token (the old `[:3000]` slice did)."""
+    import json
+
+    s = {"blob": "y" * 5000, "median_expr": 3.3, "distribution_pattern": "bimodal"}
+    out = tp._format_card_summary_for_prompt(s)
+    parsed = json.loads(out)  # would raise if truncated mid-token
+    # load-bearing scalars survive even when a single scalar 'blob' is oversized
+    assert parsed["median_expr"] == 3.3 and parsed["distribution_pattern"] == "bimodal"
+
+
 def test_prompt_passes_rule_color():
     sub_results = {
         "expression": {
