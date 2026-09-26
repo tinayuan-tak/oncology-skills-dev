@@ -3,7 +3,7 @@
 Two design notes, because both are load-bearing and neither is obvious:
 
 1. THE FROZEN CENSUS CARRIES THE LOAD. Every population size below is asserted against
-   a literal transcription of DepMap 26Q1 Model.csv, not against a live read. A live-only
+   a literal transcription of DepMap 26Q3 Model.csv, not against a live read. A live-only
    guard would `skip` wherever S3/the cache is absent, and a SKIP is not a PASS — the
    suite would go green on a machine that never evaluated the invariant. The one live leg
    (`test_frozen_census_matches_live_model_csv`) is opportunistic and checks DRIFT only;
@@ -35,21 +35,21 @@ from methods.subgroup_common.lineage import (
     depmap_population_for,
 )
 
-# DepMap 26Q1 Model.csv, transcribed 2026-09-14 for the three lineages that merge
+# DepMap 26Q3 Model.csv, transcribed 2026-09-26 for the three lineages that merge
 # distinct catalogued indications. (OncotreeSubtype, OncotreeCode, n_models); a None
 # code is a genuinely null cell in the CSV, not a transcription gap.
-MODEL_CSV_26Q1: dict[str, list[tuple[str, str | None, int]]] = {
+MODEL_CSV_26Q3: dict[str, list[tuple[str, str | None, int]]] = {
     "Lung": [
-        ("Lung Adenocarcinoma", "LUAD", 118),
-        ("Small Cell Lung Cancer", "SCLC", 83),
+        ("Lung Adenocarcinoma", "LUAD", 147),
+        ("Small Cell Lung Cancer", "SCLC", 86),
         ("Lung Squamous Cell Carcinoma", "LUSC", 32),
-        ("Non-Small Cell Lung Cancer", "NSCLC", 14),
+        ("Non-Small Cell Lung Cancer", "NSCLC", 17),
         ("Large Cell Lung Carcinoma", "LCLC", 14),
         ("Lung Adenosquamous Carcinoma", "LUAS", 6),
-        ("Mucoepidermoid Carcinoma of the Lung", "LUMEC", 5),
-        ("Lung Carcinoid", "LUCA", 4),
+        ("Mucoepidermoid Carcinoma of the Lung", "LUMEC", 6),
         ("Giant Cell Carcinoma of the Lung", "GCLC", 4),
-        ("NUT Carcinoma of the Lung", "NUTCL", 2),
+        ("Lung Carcinoid", "LUCA", 4),
+        ("NUT Carcinoma of the Lung", "NUTCL", 4),
         ("Poorly Differentiated Non-Small Cell Lung Cancer", "NSCLCPD", 1),
         ("Immortalized Epithelial Cells, Lung", None, 4),
         ("SMARCA4-deficient undifferentiated tumor", None, 4),
@@ -63,15 +63,15 @@ MODEL_CSV_26Q1: dict[str, list[tuple[str, str | None, int]]] = {
     # OncotreeCode — but it breaks the drift leg and, more importantly, it would break
     # INDICATION_TO_DEPMAP_SUBTYPE_CLAIMS, which matches on the EXACT string.
     "Myeloid": [
-        ("Acute Myeloid Leukemia", "AML", 57),
+        ("Acute Myeloid Leukemia", "AML", 62),
         ("Chronic Myeloid Leukemia, BCR-ABL1+", "CMLBCRABL1", 20),
-        ("AML, NOS", "AMLNOS", 6),
+        ("AML, NOS", "AMLNOS", 7),
         ("AML with Myelodysplasia-Related Changes", "AMLMRC", 5),
         ("Acute Monoblastic/Monocytic Leukemia", "AMOL", 5),
-        ("Acute Leukemias of Ambiguous Lineage", "ALAL", 5),
+        ("Acute Leukemias of Ambiguous Lineage", "ALAL", 4),
+        ("Acute Megakaryoblastic Leukemia", "AMKL", 3),
         ("Myeloid Leukemia Associated with Down Syndrome", "MLADS", 3),
         ("AML with Minimal Differentiation", "AMLMD", 1),
-        ("Acute Megakaryoblastic Leukemia", "AMKL", 1),
         ("Acute Myelomonocytic Leukemia", "AMML", 1),
         ("Mixed Phenotype Acute Leukemia with t(v;11q23.3); KMT2A Rearranged", "MPALKMT2A", 1),
         ("Acute Promyelocytic Leukemia", None, 1),
@@ -82,7 +82,7 @@ MODEL_CSV_26Q1: dict[str, list[tuple[str, str | None, int]]] = {
     # COLLAPSED_LINEAGE_PEERS below, but they are still narrowed: a lineage can be impure
     # without merging a second catalogued indication.
     "Bowel": [
-        ("Colon Adenocarcinoma", "COAD", 83),
+        ("Colon Adenocarcinoma", "COAD", 84),
         ("Colorectal Adenocarcinoma", "COADREAD", 31),
         ("Rectal Adenocarcinoma", "READ", 15),
         ("Mucinous Adenocarcinoma of the Colon and Rectum", "MACR", 4),
@@ -93,19 +93,20 @@ MODEL_CSV_26Q1: dict[str, list[tuple[str, str | None, int]]] = {
         ("Small Bowel Cancer", "SBC", 1),
         ("Small Intestinal Carcinoma", "SIC", 1),
         ("Tubular Adenoma of the Colon", "TAC", 1),
+        ("Immortalized Colon Mucosal Epithelial Cells", None, 1),
         ("Sessile Serrated Adenoma", None, 1),
         ("Tubulovillous adenoma", None, 1),
     ],
     "Eye": [
-        ("Uveal Melanoma", "UM", 16),
+        ("Uveal Melanoma", "UM", 17),
         ("Immortalized Epithelial Cells, Retinal", None, 6),
         ("Retinoblastoma", "RBL", 6),
         ("Immortalized Epithelial Cells, Corneal", None, 1),
     ],
     "Esophagus/Stomach": [
-        ("Stomach Adenocarcinoma", "STAD", 68),
-        ("Esophageal Adenocarcinoma", "ESCA", 67),
-        ("Esophageal Squamous Cell Carcinoma", "ESCC", 30),
+        ("Stomach Adenocarcinoma", "STAD", 75),
+        ("Esophageal Adenocarcinoma", "ESCA", 69),
+        ("Esophageal Squamous Cell Carcinoma", "ESCC", 31),
         ("Tubular Stomach Adenocarcinoma", "TSTAD", 9),
         ("Diffuse Type Stomach Adenocarcinoma", "DSTAD", 7),
         ("Signet Ring Cell Carcinoma of the Stomach", "SSRCC", 3),
@@ -119,11 +120,11 @@ MODEL_CSV_26Q1: dict[str, list[tuple[str, str | None, int]]] = {
 # Lineage totals, restated independently of the census so a transcription slip in either
 # one shows up as a disagreement rather than cancelling out.
 LINEAGE_TOTALS = {
-    "Lung": 293,
-    "Myeloid": 109,
-    "Esophagus/Stomach": 189,
-    "Bowel": 146,
-    "Eye": 29,
+    "Lung": 331,
+    "Myeloid": 116,
+    "Esophagus/Stomach": 199,
+    "Bowel": 148,
+    "Eye": 30,
 }
 
 # Which indications each collapsed lineage merges. The whole defect is that the lineage
@@ -137,14 +138,14 @@ COLLAPSED_LINEAGE_PEERS = {
 # Pinned BY VALUE, not derived from the code sets: deriving would make the test a
 # restatement of the implementation and any roster growth would be self-ratifying.
 EXPECTED_POPULATION = {
-    "NSCLC": 196,
-    "SCLC": 83,
-    "AML": 80,  # 79 by code + 1 Acute Promyelocytic Leukemia claimed by subtype
+    "NSCLC": 231,
+    "SCLC": 86,
+    "AML": 88,  # 87 by code + 1 Acute Promyelocytic Leukemia claimed by subtype
     "CML": 20,
-    "ESCA": 98,
-    "STAD": 91,
-    "COADREAD": 133,  # 146 Bowel - 13 (incl. 3 BENIGN adenomas and 3 anal squamous)
-    "UVM": 16,  # 29 Eye - 6 retinoblastoma - 7 immortalized: the largest relative cut
+    "ESCA": 101,
+    "STAD": 98,
+    "COADREAD": 134,  # 148 Bowel - 14 (11 off-indication incl. 3 anal squamous + 3 null-code)
+    "UVM": 17,  # 30 Eye - 6 retinoblastoma - 7 immortalized: the largest relative cut
 }
 
 # The governed target-contracts `depmap_oncotree_codes` lane, transcribed 2026-09-14 for
@@ -164,7 +165,7 @@ GOVERNED_CROSSWALK_CODES = {
 # cost. Anything not listed here must match the lane byte-for-byte.
 DECLARED_CROSSWALK_DIVERGENCES = {
     "ESCA": (
-        "lane holds ['ESCA'] alone (67 models); adopting it would drop the 30 ESCC and 1 "
+        "lane holds ['ESCA'] alone (69 models); adopting it would drop the 31 ESCC and 1 "
         "GEJ models the production organ substring has always included, narrowing the "
         "population 1.46x. The lane is under-curated; fix it in target-contracts."
     ),
@@ -180,7 +181,7 @@ _TARGET_CONTRACTS_ROOT = Path(
 CROSSWALK_PATH = _TARGET_CONTRACTS_ROOT / "vocabularies" / "indication_crosswalk.yaml"
 
 # Path.home() IS correct here: a per-user cache, not a sibling checkout.
-LIVE_MODEL_CSV = Path.home() / ".cache" / "framework-depmap-26q1" / "Model.csv"
+LIVE_MODEL_CSV = Path.home() / ".cache" / "framework-depmap-26q3" / "Model.csv"
 
 
 def _frozen_model_df() -> pd.DataFrame:
@@ -207,7 +208,7 @@ def _frozen_model_df() -> pd.DataFrame:
                 }
             )
 
-    for lineage, census in MODEL_CSV_26Q1.items():
+    for lineage, census in MODEL_CSV_26Q3.items():
         for subtype, code, n in census:
             _add(lineage, code, subtype, n)
     _add("Pancreas", "PAAD", "Pancreatic Adenocarcinoma", 11)
@@ -223,7 +224,7 @@ def model_df() -> pd.DataFrame:
 
 def test_frozen_census_totals_agree_with_the_declared_lineage_sizes(model_df):
     for lineage, total in LINEAGE_TOTALS.items():
-        assert sum(n for _, _, n in MODEL_CSV_26Q1[lineage]) == total, lineage
+        assert sum(n for _, _, n in MODEL_CSV_26Q3[lineage]) == total, lineage
         assert int((model_df["OncotreeLineage"] == lineage).sum()) == total, lineage
 
 
@@ -370,8 +371,8 @@ def test_the_apl_claim_is_exercised_and_is_the_only_one(model_df):
     aml = depmap_population_for("AML", model_df)
     assert aml.claimed_by_subtype == 1, aml.note
     assert "claimed by exact OncotreeSubtype" in aml.note
-    # Without the claim AML would be 79; the claim is what makes the pinned 80 correct.
-    assert aml.kept == 79 + aml.claimed_by_subtype
+    # Without the claim AML would be 87; the claim is what makes the pinned 88 correct.
+    assert aml.kept == 87 + aml.claimed_by_subtype
     for other in ("CML", "NSCLC", "SCLC", "ESCA", "STAD"):
         assert depmap_population_for(other, model_df).claimed_by_subtype == 0, other
 
@@ -475,11 +476,11 @@ def test_an_unnarrowed_indication_returns_the_whole_lineage_and_never_claims_pur
     assert pop.off_indication == 0 and pop.unclassifiable == 0
 
 
-@pytest.mark.skipif(not LIVE_MODEL_CSV.exists(), reason="DepMap 26Q1 Model.csv not cached")
+@pytest.mark.skipif(not LIVE_MODEL_CSV.exists(), reason="DepMap 26Q3 Model.csv not cached")
 def test_frozen_census_matches_live_model_csv():
     """DRIFT check only. Allowed to skip; the offline legs above carry the invariant."""
     live = pd.read_csv(LIVE_MODEL_CSV)
-    for lineage, census in MODEL_CSV_26Q1.items():
+    for lineage, census in MODEL_CSV_26Q3.items():
         in_lineage = live[live["OncotreeLineage"] == lineage]
         observed = in_lineage.groupby(in_lineage["OncotreeSubtype"], dropna=False).size().to_dict()
         expected = {subtype: n for subtype, _, n in census}

@@ -61,8 +61,8 @@ _EXPECTED_KEPT = {"ACH-C1", "ACH-C2", "ACH-C3", "ACH-C4"}
 
 
 def _write_cache(tmp_path: Path, models=_MODELS, write_model_csv: bool = True) -> Path:
-    """Write a synthetic framework-depmap-26q1 cache and return the root `cache_root()` should yield."""
-    cache = tmp_path / "framework-depmap-26q1"
+    """Write a synthetic framework-depmap-26q3 cache and return the root `cache_root()` should yield."""
+    cache = tmp_path / "framework-depmap-26q3"
     cache.mkdir(parents=True, exist_ok=True)
 
     expressed = [m for m in models if m[4]]
@@ -132,9 +132,9 @@ def test_narrowing_is_a_strict_subset_of_the_coarse_lineage(depmap_cache):
     the strict-subset assertion fails. A test that cannot distinguish the two implementations would be
     measuring nothing.
     """
-    model = pd.read_csv(depmap_cache / "framework-depmap-26q1" / "Model.csv")
+    model = pd.read_csv(depmap_cache / "framework-depmap-26q3" / "Model.csv")
     expressed = set(
-        pd.read_csv(depmap_cache / "framework-depmap-26q1" / "OmicsExpressionProteinCodingGenesTPMLogp1.csv")["ModelID"]
+        pd.read_csv(depmap_cache / "framework-depmap-26q3" / "OmicsExpressionProteinCodingGenesTPMLogp1.csv")["ModelID"]
     )
     coarse = set(model[model["OncotreeLineage"] == "Bowel"]["ModelID"]) & expressed
 

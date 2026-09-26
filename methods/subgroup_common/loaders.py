@@ -53,14 +53,14 @@ CACHE_ROOT = Path.home() / ".cache" / "framework-subgroup-pipeline"
 CACHE_TCGA_MARKER = CACHE_ROOT / "tcga-marker-paper"
 CACHE_TCGA_MAF = CACHE_ROOT / "gdc-pancohort-somatic"
 CACHE_TCGA_EXPRESSION = CACHE_ROOT / "tcga-recount3"
-# TODO(#810 / Wave-2): left at 26q1. The indication→OncotreeLineage crosswalk is byte-stable
-# 26q1→26q3 (#810 Model.csv re-validation: identical lineage/code/subtype value sets), so the
-# narrowing LOGIC needs no change. But moving the subgroup lane to 26q3 is coupled to (a) re-running
-# the subgroup-assignment pipeline against 26q3 and re-publishing the (indication-specific) derived
-# subgroup_assignments products, and (b) re-transcribing the exact per-OncotreeCode 26Q1 census in
-# tests/test_depmap_population_narrowing.py (counts shifted materially in 26q3: Lung 293→331,
-# Myeloid 109→116, Esophagus/Stomach 189→199). Neither exists yet; bump with that re-materialization.
-CACHE_DEPMAP = CACHE_ROOT / "depmap-26q1"
+# Bumped 26q1→26q3 (data-catalog#681, Wave-2 of #810). The indication→OncotreeLineage crosswalk is
+# byte-stable 26q1→26q3 (#810 Model.csv re-validation: identical lineage/code/subtype value sets), so
+# the narrowing LOGIC is unchanged; only per-lineage MEMBERSHIP COUNTS shifted (Lung 293→331, Myeloid
+# 109→116, Esophagus/Stomach 189→199, Bowel 146→148, Eye 29→30). Moved in lockstep with (a) re-running
+# the subgroup-assignment pipeline against 26q3 + re-publishing the derived subgroup_assignments
+# products, and (b) re-transcribing the per-OncotreeCode census in
+# tests/test_depmap_population_narrowing.py to the recomputed 26Q3 counts.
+CACHE_DEPMAP = CACHE_ROOT / "depmap-26q3"
 CACHE_ASSIGNMENTS = CACHE_ROOT / "subgroup-assignments"
 
 # Legacy per-loader-scoped fallback directories (checked before session cache
@@ -68,7 +68,7 @@ CACHE_ASSIGNMENTS = CACHE_ROOT / "subgroup-assignments"
 LEGACY_TCGA_MARKER = Path.home() / ".cache" / "framework-tcga-marker-paper"
 LEGACY_TCGA_MAF = Path.home() / ".cache" / "framework-gdc-pancohort-somatic"
 LEGACY_TCGA_EXPRESSION = Path.home() / ".cache" / "framework-tcga-recount3"
-LEGACY_DEPMAP = Path.home() / ".cache" / "framework-depmap-26q1"
+LEGACY_DEPMAP = Path.home() / ".cache" / "framework-depmap-26q3"
 
 
 def _log(msg: str) -> None:

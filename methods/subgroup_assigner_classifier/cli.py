@@ -112,18 +112,18 @@ def _load_depmap_expression(gene_symbols: list[str], reference_cohort: str | Non
     filter to IsDefaultEntryForModel='Yes', and optionally restrict to an
     OncotreeCode cohort via Model.csv (for reference_cohort filtering).
     """
-    # TODO(#810 / Wave-2): cache pin left at 26q1. The lineage crosswalk is byte-stable 26q1→26q3
-    # (#810), so no mapping change; deferring the pin bump until the subgroup-assignment pipeline is
-    # re-run/re-published against 26q3 (see subgroup_common/loaders.py TODO). The 26q3 source
-    # (dmc-26q3/OmicsExpression...) is available now — this is a lane-coherence deferral, not a
-    # missing-source one. Same TODO applies to the sibling cache in the reference-cohort loader below.
-    cache = cache_root() / "framework-depmap-26q1"
+    # Cache pin bumped 26q1→26q3 (data-catalog#681, Wave-2 of #810). The lineage crosswalk is
+    # byte-stable 26q1→26q3 (#810), so no mapping change; only per-lineage membership counts shifted.
+    # The 26q3 source (dmc-26q3/OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv) is cached under
+    # this dir renamed to the loader's expected OmicsExpressionProteinCodingGenesTPMLogp1.csv.
+    cache = cache_root() / "framework-depmap-26q3"
     fallback = cache / "OmicsExpressionProteinCodingGenesTPMLogp1.csv"
     if not fallback.exists():
         raise FileNotFoundError(
             f"DepMap expression matrix not found at {fallback}. "
-            f"Pull s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1/"
-            f"OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv into that path."
+            f"Pull s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q3/"
+            f"OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv into that path "
+            f"(renamed to OmicsExpressionProteinCodingGenesTPMLogp1.csv)."
         )
     # Read header to map gene symbols to actual column names ('GENE (ID)' format)
     header_df = pd.read_csv(fallback, nrows=0)
@@ -344,13 +344,14 @@ def _load_depmap_expression_full(indication: str | None, reference_cohort: str |
     green. Measured here: dropping 12 of 131 models re-called 4 of the 119 survivors (3 of them
     NA -> classified, because BH adjusts across fewer tests), on top of the 10 removals themselves.
     """
-    cache = cache_root() / "framework-depmap-26q1"
+    cache = cache_root() / "framework-depmap-26q3"
     fallback = cache / "OmicsExpressionProteinCodingGenesTPMLogp1.csv"
     if not fallback.exists():
         raise FileNotFoundError(
             f"DepMap expression matrix not found at {fallback}. "
-            f"Pull s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1/"
-            f"OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv into that path."
+            f"Pull s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q3/"
+            f"OmicsExpressionTPMLogp1HumanProteinCodingGenes.csv into that path "
+            f"(renamed to OmicsExpressionProteinCodingGenesTPMLogp1.csv)."
         )
     df = pd.read_csv(fallback)
     if "IsDefaultEntryForModel" in df.columns:

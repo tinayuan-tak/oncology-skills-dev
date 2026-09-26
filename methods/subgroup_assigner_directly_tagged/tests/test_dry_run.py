@@ -409,7 +409,7 @@ def test_sample_label_null_on_missing_value():
 
 
 def test_depmap_eso_gastric_lineage_and_organ_split():
-    """Regression for the ESCA/STAD zero-cell-line bug: DepMap 26q1 collapses
+    """Regression for the ESCA/STAD zero-cell-line bug: DepMap collapses
     esophageal + gastric into one lineage 'Esophagus/Stomach'. Both indications
     must map to that combined lineage (not the nonexistent 'Stomach'/'Esophagus')
     and be disambiguated by an OncotreeSubtype organ substring — else each shard

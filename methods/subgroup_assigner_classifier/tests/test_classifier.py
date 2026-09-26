@@ -132,12 +132,12 @@ def test_single_gene_threshold():
 def test_e2e_napy_synthetic_depmap(tmp_path):
     """End-to-end: synthetic DepMap expression + SCLC catalog + NAPY config."""
     # Stage fixture under tmp_path/.cache (not the real ~/.cache) via FRAMEWORK_CACHE_ROOT.
-    cache = tmp_path / ".cache" / "framework-depmap-26q1"
+    cache = tmp_path / ".cache" / "framework-depmap-26q3"
     cache.mkdir(parents=True, exist_ok=True)
     exp_path = cache / "OmicsExpressionProteinCodingGenesTPMLogp1.csv"
 
     # 8 cell lines: 2 each dominant in A/N/P/Y.
-    # Column format mirrors the real DepMap 26Q1 file: 'SYMBOL (EntrezID)', plus
+    # Column format mirrors the real DepMap 26Q3 file: 'SYMBOL (EntrezID)', plus
     # ModelID + IsDefaultEntryForModel metadata columns.
     n = 8
     model_ids = [f"ACH-{i:06d}" for i in range(n)]

@@ -27,7 +27,7 @@ def test_cache_dir_layout():
     """Session-cache paths under CACHE_ROOT are constructed correctly."""
     assert loaders.CACHE_ROOT == Path.home() / ".cache" / "framework-subgroup-pipeline"
     assert loaders.CACHE_TCGA_MARKER == loaders.CACHE_ROOT / "tcga-marker-paper"
-    assert loaders.CACHE_DEPMAP == loaders.CACHE_ROOT / "depmap-26q1"
+    assert loaders.CACHE_DEPMAP == loaders.CACHE_ROOT / "depmap-26q3"
     assert loaders.CACHE_ASSIGNMENTS == loaders.CACHE_ROOT / "subgroup-assignments"
 
 

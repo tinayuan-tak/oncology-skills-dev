@@ -810,19 +810,17 @@ def _load_depmap_inferred_subtypes(catalog_repo: Path, indication: str | None = 
         # a Phase-2a.4 add. For now, try local-cache fallback.
     except ImportError:
         pass
-    # TODO(#810 / Wave-2): cache pin left at 26q1. The lineage crosswalk is byte-stable 26q1→26q3
-    # (#810), so no mapping change; deferring the pin bump until the subgroup-assignment pipeline is
-    # re-run/re-published against 26q3 (see subgroup_common/loaders.py TODO). dmc-26q3 already carries
-    # OmicsInferredMolecularSubtypes.csv + Model.csv — this is a lane-coherence deferral, not a
-    # missing-source one.
-    fallback = cache_root() / "framework-depmap-26q1" / "OmicsInferredMolecularSubtypes.csv"
-    model_fallback = cache_root() / "framework-depmap-26q1" / "Model.csv"
+    # Cache pin bumped 26q1→26q3 (data-catalog#681, Wave-2 of #810). The lineage crosswalk is
+    # byte-stable 26q1→26q3 (#810 re-validation), so no mapping change; only per-lineage membership
+    # counts shifted. dmc-26q3 carries OmicsInferredMolecularSubtypes.csv + Model.csv.
+    fallback = cache_root() / "framework-depmap-26q3" / "OmicsInferredMolecularSubtypes.csv"
+    model_fallback = cache_root() / "framework-depmap-26q3" / "Model.csv"
     if not (fallback.exists() and model_fallback.exists()):
         raise FileNotFoundError(
             f"DepMap OmicsInferredMolecularSubtypes.csv + Model.csv not found at "
             f"{fallback} + {model_fallback}. Phase 2a.4 provides the canonical "
             f"loader. For immediate execution: pull both CSVs from "
-            f"s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q1/ "
+            f"s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q3/ "
             f"into the fallback path."
         )
     subtypes = pd.read_csv(fallback)
