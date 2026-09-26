@@ -27,7 +27,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common import card_summary, get_card_field
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.headline_core import HeadlineSpec, build_headline, build_synthesis_facet
 from _skills_common.headline_hero import _ARM_LABEL, emit_headline_hero
 from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common.literature_synthesis import make_literature_fn
@@ -1320,13 +1320,15 @@ def _synthesis_facet(cards, fired, verdict_pair):
     (single source) + returns the surface claim_vector (FIT/TOPOLOGY/DENSITY/SAFETY/SHED) + its citable
     atoms. Never moves the verdict (owned by the surface_modality resolver); safe to omit."""
     h = _headline(cards, fired, verdict_pair)
-    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
-    facet["_facet_note"] = (
-        "Deterministic surface-modality-fit facet; claim_vector is UNIFORM-valence "
-        "(strong = better surface substrate; SAFETY/SHED liabilities are `negative`). "
-        "Verdict owned by the resolver."
+    return build_synthesis_facet(
+        h,
+        _SYNTHESIS_FACET_KEYS,
+        (
+            "Deterministic surface-modality-fit facet; claim_vector is UNIFORM-valence "
+            "(strong = better surface substrate; SAFETY/SHED liabilities are `negative`). "
+            "Verdict owned by the resolver."
+        ),
     )
-    return facet
 
 
 def _llm_synthesis(

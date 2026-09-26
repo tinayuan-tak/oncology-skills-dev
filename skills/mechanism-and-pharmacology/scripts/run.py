@@ -25,7 +25,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common import get_card_field
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.headline_core import HeadlineSpec, build_headline, build_synthesis_facet
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common.literature_synthesis import make_literature_fn
@@ -798,13 +798,15 @@ def _synthesis_facet(cards, fired, verdict_pair):
     h = _headline(cards, fired, verdict_pair)
     # pathway_activity_class is not lifted into _headline; surface it here from the card for the facet key
     h.setdefault("pathway_activity_class", get_card_field(cards, "pathway-activity-context", "pathway_activity_class"))
-    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
-    facet["_facet_note"] = (
-        "Deterministic mechanism-and-pharmacology facet; claim_vector is MOSTLY "
-        "DESCRIPTIVE (NETWORK = annotation density, capped moderate; PHOSPHO the real "
-        "signal; PERTURBATION = engagement not dependency). Verdict owned by the resolver."
+    return build_synthesis_facet(
+        h,
+        _SYNTHESIS_FACET_KEYS,
+        (
+            "Deterministic mechanism-and-pharmacology facet; claim_vector is MOSTLY "
+            "DESCRIPTIVE (NETWORK = annotation density, capped moderate; PHOSPHO the real "
+            "signal; PERTURBATION = engagement not dependency). Verdict owned by the resolver."
+        ),
     )
-    return facet
 
 
 if __name__ == "__main__":

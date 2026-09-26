@@ -33,7 +33,7 @@ from _skills_common.cis_coherence_claims import (
 from _skills_common.cis_coherence_question_table import cis_coherence_question_table
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.headline_core import HeadlineSpec, build_headline, build_synthesis_facet
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common.literature_synthesis import make_literature_fn
@@ -919,13 +919,15 @@ def _synthesis_facet(cards, fired, verdict_pair, target=None, indication=None):
     an INTERACTION owned by the resolver — this never echoes or moves it. target/indication are signature-
     introspected by the fan-out (tp_fanout) so the caveats' curated validated/CIMP guards work composed too."""
     h = _headline(cards, fired, verdict_pair, target=target, indication=indication)
-    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
-    facet["_facet_note"] = (
-        "Deterministic cis-feature-coherence facet; claim_vector is the LEG decomposition "
-        "of the coherence cross-tab (the verdict is their INTERACTION, owned by the "
-        "resolver). CIS_DOSAGE/SILENCING corroboration uses the TCGA patient-agreement arm."
+    return build_synthesis_facet(
+        h,
+        _SYNTHESIS_FACET_KEYS,
+        (
+            "Deterministic cis-feature-coherence facet; claim_vector is the LEG decomposition "
+            "of the coherence cross-tab (the verdict is their INTERACTION, owned by the "
+            "resolver). CIS_DOSAGE/SILENCING corroboration uses the TCGA patient-agreement arm."
+        ),
     )
-    return facet
 
 
 if __name__ == "__main__":

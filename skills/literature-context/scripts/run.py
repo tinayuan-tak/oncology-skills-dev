@@ -26,7 +26,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 
 from _skills_common import get_card_field
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.headline_core import HeadlineSpec, build_headline, build_synthesis_facet
 from _skills_common.literature_context_claims import literature_context_claim_vector, literature_context_key_signals
 from _skills_common.literature_context_question_table import literature_context_question_table
 from _skills_common.narrator_engine import make_synthesize_fn
@@ -522,12 +522,14 @@ def _synthesis_facet(cards, fired, verdict_pair=None, target=None, indication=No
     are signature-introspected by the fan-out (tp_fanout) so the (target, indication)-keyed validated-
     established-relationship false-demote guard reaches the composed profile too."""
     h = _headline(cards, fired, verdict_pair, target=target, indication=indication)
-    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
-    facet["_facet_note"] = (
-        "Deterministic literature-context facet; claim_vector is VOLUME/RECENCY/"
-        "RELATION over the cited-literature card. Context-tier — never a gate."
+    return build_synthesis_facet(
+        h,
+        _SYNTHESIS_FACET_KEYS,
+        (
+            "Deterministic literature-context facet; claim_vector is VOLUME/RECENCY/"
+            "RELATION over the cited-literature card. Context-tier — never a gate."
+        ),
     )
-    return facet
 
 
 if __name__ == "__main__":

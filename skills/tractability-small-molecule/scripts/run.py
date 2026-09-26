@@ -40,7 +40,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common import get_card_field
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.headline_core import HeadlineSpec, build_headline, build_synthesis_facet
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common.literature_synthesis import make_literature_fn
@@ -979,13 +979,15 @@ def _synthesis_facet(cards, fired, verdict_pair, target=None):
     target is signature-introspected by the fan-out so the CASE-008 sm_modality_mismatch_caveat
     (keyed on the biologics-approved crosswalk) reaches the composed profile."""
     h = _headline(cards, fired, verdict_pair, target=target)
-    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
-    facet["_facet_note"] = (
-        "Deterministic small-molecule tractability facet; claim_vector is a "
-        "POSITIVE-valence druggability decomposition. Verdict owned by the "
-        "druggability resolver, not this projection."
+    return build_synthesis_facet(
+        h,
+        _SYNTHESIS_FACET_KEYS,
+        (
+            "Deterministic small-molecule tractability facet; claim_vector is a "
+            "POSITIVE-valence druggability decomposition. Verdict owned by the "
+            "druggability resolver, not this projection."
+        ),
     )
-    return facet
 
 
 def _llm_synthesis(

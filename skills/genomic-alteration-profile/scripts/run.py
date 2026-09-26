@@ -126,7 +126,7 @@ _GENOMIC_VALUE_TIERS = {
     "recurrent_splice_driver": "strong",
     "no_exon_skip": "absent",
 }
-from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.headline_core import HeadlineSpec, build_headline, build_synthesis_facet
 from _skills_common.skill_report import ROLE_GATING, build_skill_report
 
 SKILL_NAME = "genomic-alteration-profile"
@@ -1431,15 +1431,17 @@ def _synthesis_facet(cards, fired, verdict_pair):
     the per-class/per-scope breakdown. Never moves the verdict; safe to omit."""
     verdict, driving = verdict_pair if verdict_pair else (None, None)
     h = _build_headline(cards, verdict, driving, {}, fired=fired)
-    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
-    facet["_facet_note"] = (
-        "Deterministic genomic-alteration facet (a FACET, not a gate; the multi-class genomic verdict is "
-        "owned by the shared resolver and is verdict-inert to this projection). claim_vector is the "
-        "SIGNAL decomposition — SNV / CN / FUS per-class driver + DEP alteration-confers-dependency, each "
-        "a signal×corroboration tier; genomic_alteration_by_class/_by_scope name which class + at what "
-        "scope the verdict was earned. The per-axis certainty roll-up is the separate certainty_by_axis sidecar."
+    return build_synthesis_facet(
+        h,
+        _SYNTHESIS_FACET_KEYS,
+        (
+            "Deterministic genomic-alteration facet (a FACET, not a gate; the multi-class genomic verdict is "
+            "owned by the shared resolver and is verdict-inert to this projection). claim_vector is the "
+            "SIGNAL decomposition — SNV / CN / FUS per-class driver + DEP alteration-confers-dependency, each "
+            "a signal×corroboration tier; genomic_alteration_by_class/_by_scope name which class + at what "
+            "scope the verdict was earned. The per-axis certainty roll-up is the separate certainty_by_axis sidecar."
+        ),
     )
-    return facet
 
 
 def _llm_synthesis(

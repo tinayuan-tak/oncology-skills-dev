@@ -311,6 +311,21 @@ def build_headline(
     }
 
 
+def build_synthesis_facet(headline: dict, keys: Sequence[str], note: str) -> dict:
+    """Project an already-built headline into a compact, VERDICT-INERT synthesis facet.
+
+    The shared assembly tail behind every subskill's `_synthesis_facet`: pull the
+    reconciliation-relevant ``keys`` off the ALREADY-computed ``headline`` dict and stamp
+    the skill's own ``_facet_note``. Each skill keeps its own headline construction (this
+    helper never builds one), its own ``_SYNTHESIS_FACET_KEYS`` selection, and its own
+    note. Like the rest of this module it is a one-way VIEW — it never builds or moves a
+    verdict, so the consuming skill's spine stays byte-identical.
+    """
+    facet = {k: headline.get(k) for k in keys}
+    facet["_facet_note"] = note
+    return facet
+
+
 __all__ = [
     "CONFIDENCE_ORD",
     "HeadlineSpec",
@@ -320,4 +335,5 @@ __all__ = [
     "compose_headline_text",
     "collect_citations",
     "build_headline",
+    "build_synthesis_facet",
 ]

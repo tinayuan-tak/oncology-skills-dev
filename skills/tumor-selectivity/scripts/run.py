@@ -25,7 +25,7 @@ from _skills_common.dispatcher import run_wired_skill
 # tumor-presence / functional-requirement exemplars. build_headline is a verdict-INERT projection over
 # the already-computed selectivity_class + claim_vector / key_signals; emit_headline_hero renders the
 # offline figure_headline_hero.* twin (COMPLEMENTS emit_selectivity_hero — both fire under --figures).
-from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.headline_core import HeadlineSpec, build_headline, build_synthesis_facet
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.literature_retrieval import default_retrieve, verify_citations
 
@@ -1235,15 +1235,17 @@ def _synthesis_facet(cards, fired, verdict_pair):
     resolved selectivity verdict + the WIN/DIST/INT/SAFE claim_vector SIGNAL decomposition + a brief
     cited key-signals read. Never moves the verdict; safe to omit (fan-out treats absence as no-facet)."""
     h = _headline(cards, fired, verdict_pair)
-    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
-    facet["_facet_note"] = (
-        "Deterministic selectivity facet from tumor-selectivity (a FACET, not a gate; the selectivity "
-        "verdict + normal-breadth veto are owned by the shared resolver and are verdict-inert to this "
-        "projection). claim_vector is the SIGNAL decomposition — WIN tumor-vs-normal window / DIST "
-        "distribution-crossing / INT tumor-cell-intrinsic (purity/single-cell) / SAFE normal-liability, "
-        "each a signal tier. The per-axis certainty roll-up is the separate certainty_by_axis sidecar."
+    return build_synthesis_facet(
+        h,
+        _SYNTHESIS_FACET_KEYS,
+        (
+            "Deterministic selectivity facet from tumor-selectivity (a FACET, not a gate; the selectivity "
+            "verdict + normal-breadth veto are owned by the shared resolver and are verdict-inert to this "
+            "projection). claim_vector is the SIGNAL decomposition — WIN tumor-vs-normal window / DIST "
+            "distribution-crossing / INT tumor-cell-intrinsic (purity/single-cell) / SAFE normal-liability, "
+            "each a signal tier. The per-axis certainty roll-up is the separate certainty_by_axis sidecar."
+        ),
     )
-    return facet
 
 
 # ── SUBTYPE PANORAMA (--subtypes; DESCRIPTIVE / verdict-INERT) ────────────────────────────

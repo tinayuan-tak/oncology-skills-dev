@@ -35,7 +35,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common import get_card_field
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.headline_core import HeadlineSpec, build_headline, build_synthesis_facet
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.immune_context_claims import (
     immune_context_claim_vector,
@@ -738,12 +738,14 @@ def _synthesis_facet(cards, fired, verdict_pair):
     source) + returns the IMMUNE claim_vector (TCE effector axis) with its citable CD8-fraction atom.
     immune-context is gateless — this never moves the nomination spine."""
     h = _headline(cards, fired, verdict_pair)
-    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
-    facet["_facet_note"] = (
-        "Deterministic immune-context facet; claim_vector is the TCE EFFECTOR axis "
-        "(indication-level, target-independent). Gateless — no verdict on the spine."
+    return build_synthesis_facet(
+        h,
+        _SYNTHESIS_FACET_KEYS,
+        (
+            "Deterministic immune-context facet; claim_vector is the TCE EFFECTOR axis "
+            "(indication-level, target-independent). Gateless — no verdict on the spine."
+        ),
     )
-    return facet
 
 
 # ── M1 claim-record: wires the CD8 effector context into the composed modality_fit bite_tce channel ──

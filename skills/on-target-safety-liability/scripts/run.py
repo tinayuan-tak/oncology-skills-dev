@@ -17,7 +17,7 @@ sys.path.insert(0, str(SKILLS_DIR))
 from _skills_common import card_summary, get_card_field
 from _skills_common.claim_record import assemble_claim_record
 from _skills_common.dispatcher import run_wired_skill
-from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.headline_core import HeadlineSpec, build_headline, build_synthesis_facet
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.literature_retrieval import default_retrieve, verify_citations
 
@@ -755,15 +755,17 @@ def _synthesis_facet(cards, fired, verdict_pair):
     (single source of truth) and returns the reconciliation-relevant subset, incl. the liability
     claim_vector + its citable atoms. Never moves the verdict; safe to omit."""
     h = _headline(cards, fired, verdict_pair)
-    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
-    facet["_facet_note"] = (
-        "Deterministic on-target-safety facet. claim_vector is an INVERSE-valence LIABILITY decomposition "
-        "(CONSTRAINT / BURDEN / DOSAGE / CLINVAR / MOUSE_KO) — a strong signal is a safety CONCERN, not a "
-        "win; the scalar safety VERDICT is owned by the safety resolver, not this projection. The mutant-"
-        "selective-GoF WT-loss downgrade is MODALITY-CONDITIONAL (realised in the per-modality safety "
-        "verdict, safety_verdict_by_modality), NOT applied to the scalar verdict."
+    return build_synthesis_facet(
+        h,
+        _SYNTHESIS_FACET_KEYS,
+        (
+            "Deterministic on-target-safety facet. claim_vector is an INVERSE-valence LIABILITY decomposition "
+            "(CONSTRAINT / BURDEN / DOSAGE / CLINVAR / MOUSE_KO) — a strong signal is a safety CONCERN, not a "
+            "win; the scalar safety VERDICT is owned by the safety resolver, not this projection. The mutant-"
+            "selective-GoF WT-loss downgrade is MODALITY-CONDITIONAL (realised in the per-modality safety "
+            "verdict, safety_verdict_by_modality), NOT applied to the scalar verdict."
+        ),
     )
-    return facet
 
 
 if __name__ == "__main__":

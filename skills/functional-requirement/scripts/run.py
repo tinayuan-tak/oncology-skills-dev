@@ -27,7 +27,7 @@ from _skills_common.dependency_indication import _indication_lineage_read, _infe
 from _skills_common.dependency_question_table import dependency_question_table
 from _skills_common.dispatcher import run_wired_skill
 from _skills_common.evidence_salience import contract_threshold
-from _skills_common.headline_core import HeadlineSpec, build_headline
+from _skills_common.headline_core import HeadlineSpec, build_headline, build_synthesis_facet
 from _skills_common.headline_hero import emit_headline_hero
 from _skills_common.literature_retrieval import default_retrieve, verify_citations
 from _skills_common.literature_synthesis import make_literature_fn
@@ -1295,15 +1295,17 @@ def _synthesis_facet(cards, fired, verdict_pair):
     Reuses `_headline` (single source of truth) and returns the reconciliation-relevant subset.
     Never moves the verdict; safe to omit (fan-out treats absence as no-facet)."""
     h = _headline(cards, fired, verdict_pair)
-    facet = {k: h.get(k) for k in _SYNTHESIS_FACET_KEYS}
-    facet["_facet_note"] = (
-        "Deterministic dependency facet from functional-requirement (a FACET, not a gate; the "
-        "dependency verdict is owned by the shared resolver and is verdict-inert to this projection). "
-        "claim_vector is the SIGNAL decomposition — DEP genetic-dependency / SEL context-selectivity / "
-        "COND conditional-SL / CHEM chemical-genetic-confirmation, each a signal tier. The per-axis "
-        "certainty roll-up is the separate certainty_by_axis sidecar, not this facet."
+    return build_synthesis_facet(
+        h,
+        _SYNTHESIS_FACET_KEYS,
+        (
+            "Deterministic dependency facet from functional-requirement (a FACET, not a gate; the "
+            "dependency verdict is owned by the shared resolver and is verdict-inert to this projection). "
+            "claim_vector is the SIGNAL decomposition — DEP genetic-dependency / SEL context-selectivity / "
+            "COND conditional-SL / CHEM chemical-genetic-confirmation, each a signal tier. The per-axis "
+            "certainty roll-up is the separate certainty_by_axis sidecar, not this facet."
+        ),
     )
-    return facet
 
 
 def _llm_synthesis(
