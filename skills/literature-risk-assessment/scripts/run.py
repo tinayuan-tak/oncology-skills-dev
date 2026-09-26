@@ -227,21 +227,28 @@ def _drugs_from_package(pkg_path):
     """The target→drug hop for the openFDA pharmacovigilance annotation (PR-7). openFDA is drug-keyed, so
     we resolve the target's drugs from the deterministic clinical-precedent + competitor-landscape cards
     already in the evidence-package (approved_agents + notable_failures — approved AND failed agents both
-    carry relevant AE signal), deduped case-insensitively. Best-effort: no package/cards → []."""
+    carry relevant AE signal), deduped case-insensitively. Best-effort: no package/cards → ([], {}).
+
+    Returns (names, provenance): `names` is the ordered, deduped drug list; `provenance` maps each drug's
+    case-folded key → the `card_id.field` that supplied it (#1617 attribution honesty — the drug→target
+    hop trusts unverified card fields, so a reader can see when an AE signal is a combo-partner's/class
+    agent's rather than this target's own drug). The FIRST card/field to name a drug wins the attribution."""
     if not pkg_path or not Path(pkg_path).exists():
-        return []
+        return [], {}
     d = json.loads(Path(pkg_path).read_text())
     cards = {c.get("card_id"): (c.get("summary") or {}) for c in d.get("cards", []) if c.get("card_id")}
-    names, seen = [], set()
+    names, seen, provenance = [], set(), {}
     for cid in ("clinical-precedent", "competitor-landscape"):
         s = cards.get(cid) or {}
         for field in ("approved_agents", "notable_failures"):
             for agent in s.get(field) or []:
-                key = str(agent).strip().lower()
+                name = str(agent).strip()
+                key = name.lower()
                 if key and key not in seen:
                     seen.add(key)
-                    names.append(str(agent).strip())
-    return names
+                    names.append(name)
+                    provenance[key] = f"{cid}.{field}"
+    return names, provenance
 
 
 def _recency(abstracts, maxdate):
@@ -373,7 +380,10 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6,
     card_anchors = _load_card_anchors(pkg_path)
     # PR-7: openFDA FAERS/label pharmacovigilance for the SAFETY dim — resolved from the target's drugs
     # (approved_agents + notable_failures in the same cards). Escalate-only, best-effort; empty w/o a package.
-    pharmacovigilance = openfda.pharmacovigilance(_drugs_from_package(pkg_path))
+    # #1617: carry drug→card provenance (attribution honesty) + the target indication (so the FAERS block
+    # can record that its counts are NOT indication-scoped) into the annotation.
+    _drug_names, _drug_provenance = _drugs_from_package(pkg_path)
+    pharmacovigilance = openfda.pharmacovigilance(_drug_names, drug_provenance=_drug_provenance, indication=indication)
     # Unified 3-lane retrieval (retrieval_lanes) — the SAME collision-immune + starvation-resistant path
     # ground_axis uses. Replaces the former single-lane ps.search_pubmed keyword search. Disease terms via
     # the shared 40-code crosswalk (resolve_disease_terms), not the retired crc/nsclc DISEASE_TERMS.
@@ -441,6 +451,22 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6,
         if dim == "safety" and pharmacovigilance:  # PR-7: escalate-only openFDA post-market/label signal
             entry["pharmacovigilance"] = pharmacovigilance
         dims[dim] = entry
+    # #1617: the openFDA FAERS/label side-channel is a LIVING, un-pinned source. Record its query surface
+    # (endpoints, per-drug search clauses, as_of, indication scope) inside corpus_pin so the pin honestly
+    # discloses the side-channel — a reader sees that the FAERS half is as-of-date, drug-keyed, and NOT
+    # indication-scoped, rather than it silently drifting outside the reproducibility envelope. Best-effort:
+    # keys pulled with .get so a partial/None annotation never breaks pin construction.
+    openfda_pin = None
+    if pharmacovigilance:
+        openfda_pin = {
+            "source": pharmacovigilance.get("source", "openfda"),
+            "as_of": pharmacovigilance.get("as_of"),
+            "escalate_only": True,
+            "drugs_queried": pharmacovigilance.get("drugs_queried", []),
+            "drug_attribution": pharmacovigilance.get("drug_attribution", {}),
+            "queries": pharmacovigilance.get("queries", []),
+            "indication_scope": pharmacovigilance.get("indication_scope"),
+        }
     return {
         "tier": "context",  # NOT a verdict/gate input
         "target": target,
@@ -460,6 +486,9 @@ def run(target, indication, pkg_path, mindate="2015", maxdate="2026", per_cat=6,
                 # sha256 of the version-invariant prompt surface (SYSTEM + TOOL_SCHEMA): a WITHIN-version
                 # change to the grading prompt/schema is detectable here, not resting solely on generated_by.
                 "prompt_hash": PROMPT_SCHEMA_HASH,
+                # #1617: openFDA safety side-channel disclosed in-pin (living/un-pinnable source). None when
+                # no drug yielded a signal / no evidence-package supplied the target→drug hop.
+                "openfda": openfda_pin,
             },
             "n_samples": n_samples,  # self-consistency sampling depth (1 = single grade, no vote)
             "anchored_from_evidence_package": bool(pkg_path),

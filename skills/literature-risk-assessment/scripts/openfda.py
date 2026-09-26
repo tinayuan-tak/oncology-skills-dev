@@ -118,10 +118,32 @@ def label_boxed_warning(drug: str, *, timeout_s: float = _TIMEOUT) -> dict | Non
     return _parse_label_boxed(_get_json(url, timeout_s=timeout_s))
 
 
-def pharmacovigilance(drugs, *, per_drug_reactions: int = 6, max_drugs: int = 6, timeout_s: float = _TIMEOUT):
+def pharmacovigilance(
+    drugs,
+    *,
+    per_drug_reactions: int = 6,
+    max_drugs: int = 6,
+    timeout_s: float = _TIMEOUT,
+    drug_provenance: dict | None = None,
+    indication: str | None = None,
+):
     """Aggregate FAERS reactions + label boxed warnings across a target's drugs into one escalate-only
     safety annotation. `drugs` is the caller-resolved drug list (target→drug hop). Returns None when no
-    drug yields any openFDA signal (nothing to escalate). Records an `as_of` date — FAERS is a living DB."""
+    drug yields any openFDA signal (nothing to escalate). Records an `as_of` date — FAERS is a living DB.
+
+    #1617 (pin honesty + attribution + scope disclosure):
+      - `drug_provenance` (case-folded drug → `card_id.field`) tags each reaction / boxed-warning /
+        drugs_queried entry with `attributed_via`, so a reader can see when an AE signal comes from a
+        combo-partner or class agent listed on a card rather than this target's own drug.
+      - `indication` records that FAERS counts are NOT scoped to the target indication (they aggregate
+        adverse events across ALL indications for the drug).
+      - `queries` records the deterministic openFDA query surface (endpoint + per-drug search clause) so
+        the (living, un-pinnable) side-channel can be disclosed inside corpus_pin."""
+    prov = {(k or "").strip().lower(): v for k, v in (drug_provenance or {}).items()}
+
+    def _via(name: str):
+        return prov.get((name or "").strip().lower())
+
     seen, ordered = set(), []
     for d in drugs or []:
         key = (d or "").strip().lower()
@@ -133,13 +155,24 @@ def pharmacovigilance(drugs, *, per_drug_reactions: int = 6, max_drugs: int = 6,
     if not ordered:
         return None
 
-    reactions, boxed = [], []
+    reactions, boxed, queries = [], [], []
     for d in ordered:
+        via = _via(d)
+        queries.append(
+            {
+                "drug": d,
+                "attributed_via": via,
+                "event_endpoint": _EVENT_URL,
+                "event_search": _drug_search_clause(d),
+                "label_endpoint": _LABEL_URL,
+                "label_search": _drug_search_clause(d, label=True),
+            }
+        )
         for rx in faers_top_reactions(d, limit=per_drug_reactions, timeout_s=timeout_s):
-            reactions.append({**rx, "drug": d})
+            reactions.append({**rx, "drug": d, "attributed_via": via})
         bw = label_boxed_warning(d, timeout_s=timeout_s)
         if bw:
-            boxed.append({"drug": d, "boxed_warning": bw["boxed_warning"]})
+            boxed.append({"drug": d, "boxed_warning": bw["boxed_warning"], "attributed_via": via})
 
     if not reactions and not boxed:
         return None
@@ -149,6 +182,17 @@ def pharmacovigilance(drugs, *, per_drug_reactions: int = 6, max_drugs: int = 6,
         "as_of": _dt.date.today().isoformat(),  # FAERS is a living DB — annotation is as-of-date context
         "escalate_only": True,
         "drugs_queried": ordered,
+        # case-folded drug → the card_id.field that supplied it (attribution honesty for the target→drug hop)
+        "drug_attribution": {d.strip().lower(): _via(d) for d in ordered},
+        "indication_scope": {
+            "requested_indication": indication,
+            "faers_filtered_to_indication": False,
+            "note": (
+                "FAERS reaction counts and label boxed warnings aggregate ALL indications for each drug; "
+                "they are NOT scoped to the target indication."
+            ),
+        },
+        "queries": queries,  # deterministic openFDA query surface (disclosed in corpus_pin, #1617)
         "boxed_warning_drugs": boxed,
         "top_reactions": reactions[: per_drug_reactions * 2],
     }
