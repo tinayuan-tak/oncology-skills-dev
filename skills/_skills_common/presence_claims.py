@@ -34,6 +34,7 @@ from _skills_common.claim_vector_core import SIGNAL_ORD as _SIG_ORD
 from _skills_common.claim_vector_core import cards_by_id as _by_id
 from _skills_common.claim_vector_core import corroboration_from_arms as _corr_from_arms
 from _skills_common.claim_vector_core import fmt as _f
+from _skills_common.claim_vector_core import select_breadth_class as _select_breadth_class
 
 # light-touch routing (which downstream lens each claim informs) — NOT a gate.
 CLAIM_INFORMS = {
@@ -357,7 +358,11 @@ def _claim_C(h, c):
 
 
 def _claim_D(h, c):
-    br = h.get("tumor_elevation_breadth_class") or h.get("rna_tumor_elevation_breadth_class")
+    # #1513 F2: select the breadth class treating absence sentinels as falsy. The protein layer emits
+    # the truthy string "data_unavailable" on a coverage gap, so a bare `protein or rna` never falls
+    # through to the RNA class — an rna_only target (protein gap, RNA broadly elevated) had its RNA
+    # breadth silently dropped and read `sig="unmeasured"`. select_breadth_class fixes that.
+    br = _select_breadth_class(h)
     dist = c.get("tumor-rna-distribution", {}).get("distribution_pattern")
     sig = {
         "broadly_tumor_elevated": "strong",

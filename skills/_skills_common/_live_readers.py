@@ -1895,7 +1895,14 @@ def _dispatch_adc_tce_modality_fit(target: str, indication: str) -> Optional[dic
 _BREADTH_ELEVATED_CLASSES = frozenset({"broadly_tumor_elevated", "multi_tumor_elevated", "single_tumor_elevated"})
 
 
-def _breadth_layer_concordance(protein_class: Optional[str], rna_class: Optional[str]) -> str:
+_NARROW_PROTEIN_COVERAGE_COHORTS = 3  # card's narrow_cptac_coverage threshold: n_cohorts_tested < 3
+
+
+def _breadth_layer_concordance(
+    protein_class: Optional[str],
+    rna_class: Optional[str],
+    protein_n_cohorts_tested: Optional[int] = None,
+) -> str:
     """Derive breadth_layer_concordance from the two per-layer breadth classes.
 
     Mirrors the card's vocabulary (tumor-elevation-breadth.card.yaml):
@@ -1912,13 +1919,26 @@ def _breadth_layer_concordance(protein_class: Optional[str], rna_class: Optional
 
     surface_discordance discipline: the two classes are NEVER averaged; this only NAMES the
     relationship for the reader. A data_unavailable layer is a coverage gap, not a negative —
-    so it yields single_layer / protein_only / rna_only, never a false negative claim."""
+    so it yields single_layer / protein_only / rna_only, never a false negative claim.
+
+    Power-aware discordance (#1513 F1): CPTAC covers 10 cohorts, and a protein target quantified
+    in only 1-2 of them (the card's `narrow_cptac_coverage` warning, n_cohorts_tested < 3) cannot
+    establish a measured breadth negative strong enough to assert a FULL `discordant` against RNA's
+    27-indication elevation — the layers also carry non-comparable thresholds (RNA has no q-gate /
+    power correction). So a NARROW protein negative facing RNA elevation is treated as a protein
+    coverage-gap-EQUIVALENT (not a measured negative) and yields `rna_only` rather than overstating
+    a conflict. `protein_n_cohorts_tested is None` (coverage unknown) preserves the prior behavior.
+    Verdict-inert: no _PROTEIN_RANK rule keys on the concordance token; wording is coordinated with
+    the target-contracts `narrow_cptac_coverage` warning-prose fix (separate coupled issue)."""
     p_elev = protein_class in _BREADTH_ELEVATED_CLASSES
     r_elev = rna_class in _BREADTH_ELEVATED_CLASSES
     p_measured_neg = protein_class == "not_tumor_elevated"
     r_measured_neg = rna_class == "not_tumor_elevated"
     p_gap = protein_class in (None, "data_unavailable")
     r_gap = rna_class in (None, "data_unavailable")
+    p_narrow_coverage = (
+        protein_n_cohorts_tested is not None and protein_n_cohorts_tested < _NARROW_PROTEIN_COVERAGE_COHORTS
+    )
 
     if p_gap and r_gap:
         return "single_layer"  # neither layer had data — degenerate; concordance untested
@@ -1927,6 +1947,10 @@ def _breadth_layer_concordance(protein_class: Optional[str], rna_class: Optional
     if p_elev and r_measured_neg:
         return "discordant"
     if r_elev and p_measured_neg:
+        # #1513 F1: an under-powered narrow-coverage protein negative does not assert a full
+        # conflict against RNA's broad elevation — treat it as a protein coverage gap → rna_only.
+        if p_narrow_coverage:
+            return "rna_only"
         return "discordant"
     if p_elev and r_gap:
         return "protein_only"  # protein elevated; RNA a coverage gap (not a negative)
@@ -1986,6 +2010,7 @@ def _dispatch_tumor_elevation_breadth(target: str, indication: str) -> Optional[
     merged["breadth_layer_concordance"] = _breadth_layer_concordance(
         protein.get("tumor_elevation_breadth_class"),
         rna.get("rna_tumor_elevation_breadth_class"),
+        protein.get("n_cohorts_tested"),  # #1513 F1: power-aware — narrow CPTAC coverage isn't a full conflict
     )
     return merged
 

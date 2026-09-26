@@ -26,6 +26,7 @@ from __future__ import annotations
 import math
 from typing import Optional
 
+from _skills_common.claim_vector_core import select_breadth_class as _select_breadth_class
 from _skills_common.question_table_core import _SIG_META
 from _skills_common.question_table_core import cbyid as _cbyid
 from _skills_common.question_table_core import conf as _conf
@@ -109,7 +110,9 @@ def _q1_abundance(h, c, cv):
 def _q2_generality(h, c, cv):
     d = cv.get("D", {})
     tier = d.get("signal", "unmeasured")
-    br = h.get("tumor_elevation_breadth_class") or h.get("rna_tumor_elevation_breadth_class")
+    # #1513 F2: absence sentinels are falsy so a protein coverage gap ("data_unavailable") falls
+    # through to the RNA breadth class instead of showing `data_unavailable` for an rna_only target.
+    br = _select_breadth_class(h)
     ne, nt = h.get("tumor_elevation_n_cohorts_elevated"), h.get("tumor_elevation_n_cohorts_tested")
     rne, rnt = h.get("rna_tumor_elevation_n_indications_elevated"), h.get("rna_tumor_elevation_n_indications_tested")
     primary = f"breadth {br}"

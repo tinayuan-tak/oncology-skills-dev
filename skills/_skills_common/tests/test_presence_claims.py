@@ -192,6 +192,29 @@ def test_claim_d_corroboration_inherits_an_unmeasured_signal():
     assert presence_claim_vector(hl_missing, [])["D"]["corroboration"] == "unmeasured"
 
 
+def test_claim_d_rna_only_reads_rna_breadth_not_unmeasured():
+    # #1513 F2 (truthy-sentinel): the protein breadth layer emits the TRUTHY string "data_unavailable"
+    # on a coverage gap, so the old `br = protein or rna` fallback selected the sentinel and never fell
+    # through — a genuine rna_only target (protein gap + RNA broadly elevated across 27 indications) had
+    # its RNA breadth silently dropped and claim D read sig="unmeasured". After the fix, absence
+    # sentinels are treated as falsy so br falls through to the RNA class → sig="strong".
+    hl = {
+        **_headline(),
+        "tumor_elevation_breadth_class": "data_unavailable",
+        "rna_tumor_elevation_breadth_class": "broadly_tumor_elevated",
+        "rna_tumor_elevation_n_indications_tested": 27,
+    }
+    d = presence_claim_vector(hl, [])["D"]
+    assert d["signal"] == "strong", "rna_only target must read the RNA breadth, not unmeasured"
+    # control: BOTH layers a coverage gap → still unmeasured (no real value to fall through to)
+    hl_both_gap = {
+        **_headline(),
+        "tumor_elevation_breadth_class": "data_unavailable",
+        "rna_tumor_elevation_breadth_class": "data_unavailable",
+    }
+    assert presence_claim_vector(hl_both_gap, [])["D"]["signal"] == "unmeasured"
+
+
 def test_claim_d_corroboration_still_ladders_when_the_claim_is_stated():
     # NEGATIVE CONTROL — passes before AND after the coupling above. A STATED claim keeps the full
     # n_tested ladder verbatim, so the fix cannot be mistaken for "claim D stopped corroborating":

@@ -35,6 +35,23 @@ def test_concordance_both_elevated_is_concordant():
 def test_concordance_elevated_vs_measured_negative_is_discordant():
     assert lr._breadth_layer_concordance("broadly_tumor_elevated", "not_tumor_elevated") == "discordant"
     assert lr._breadth_layer_concordance("not_tumor_elevated", "multi_tumor_elevated") == "discordant"
+    # coverage unknown (None) or WIDE (>= 3 cohorts) → the protein negative still asserts discordant
+    assert lr._breadth_layer_concordance("not_tumor_elevated", "multi_tumor_elevated", None) == "discordant"
+    assert lr._breadth_layer_concordance("not_tumor_elevated", "multi_tumor_elevated", 3) == "discordant"
+    assert lr._breadth_layer_concordance("not_tumor_elevated", "broadly_tumor_elevated", 7) == "discordant"
+
+
+def test_concordance_narrow_protein_negative_vs_rna_elevated_is_rna_only_not_discordant():
+    # #1513 F1: a protein not_tumor_elevated drawn from a NARROW CPTAC coverage (< 3 cohorts) is
+    # under-powered — it must NOT assert a full `discordant` against RNA's broad elevation. Treated
+    # as a protein coverage-gap-equivalent → rna_only.
+    assert lr._breadth_layer_concordance("not_tumor_elevated", "broadly_tumor_elevated", 1) == "rna_only"
+    assert lr._breadth_layer_concordance("not_tumor_elevated", "multi_tumor_elevated", 2) == "rna_only"
+    # boundary: exactly 3 cohorts is NOT narrow (matches the card's narrow_cptac_coverage: < 3)
+    assert lr._breadth_layer_concordance("not_tumor_elevated", "multi_tumor_elevated", 3) == "discordant"
+    # power-awareness does NOT touch the symmetric branch (protein ELEVATED vs RNA measured-negative):
+    # F1 is about the under-powered protein NEGATIVE only.
+    assert lr._breadth_layer_concordance("broadly_tumor_elevated", "not_tumor_elevated", 1) == "discordant"
 
 
 def test_concordance_elevated_vs_gap_is_layer_only_not_a_negative():
@@ -123,6 +140,21 @@ def test_dispatcher_protein_only_when_rna_gap(monkeypatch):
     _patch_readers(monkeypatch, protein, rna)
     out = lr._dispatch_tumor_elevation_breadth("X", None)
     assert out["breadth_layer_concordance"] == "protein_only"
+
+
+def test_dispatcher_narrow_protein_negative_stamps_rna_only(monkeypatch):
+    # #1513 F1: dispatcher must forward protein n_cohorts_tested so a narrow-coverage protein
+    # negative facing RNA elevation is stamped rna_only, not discordant.
+    protein = {"tumor_elevation_breadth_class": "not_tumor_elevated", "n_cohorts_tested": 1}
+    rna = {"rna_tumor_elevation_breadth_class": "broadly_tumor_elevated", "n_indications_tested": 27}
+    _patch_readers(monkeypatch, protein, rna)
+    out = lr._dispatch_tumor_elevation_breadth("X", None)
+    assert out["breadth_layer_concordance"] == "rna_only"
+    # a WIDE protein negative (>= 3 cohorts) still stamps discordant
+    protein_wide = {"tumor_elevation_breadth_class": "not_tumor_elevated", "n_cohorts_tested": 6}
+    _patch_readers(monkeypatch, protein_wide, rna)
+    out = lr._dispatch_tumor_elevation_breadth("X", None)
+    assert out["breadth_layer_concordance"] == "discordant"
 
 
 def test_dispatcher_rna_read_failure_degrades_gracefully(monkeypatch):

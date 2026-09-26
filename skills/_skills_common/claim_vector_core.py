@@ -102,6 +102,26 @@ def fmt(v, nd=2) -> str:
     return f"{v:.{nd}f}" if isinstance(v, (int, float)) else "n/a"
 
 
+# Absence sentinels a breadth layer emits when it has NO data. The tumor-elevation-breadth protein
+# layer ALWAYS emits the truthy string "data_unavailable" on a coverage gap (never a missing key),
+# so a bare `protein or rna` fallback never falls through — it selects the truthy sentinel and the
+# RNA breadth is silently dropped. Treat these as falsy so a genuine rna_only target reads its RNA
+# breadth instead of `unmeasured`/`data_unavailable` (#1513 F2). Verdict-inert (display/claim only).
+_BREADTH_ABSENT_SENTINELS = (None, "", "data_unavailable")
+
+
+def select_breadth_class(headline: dict) -> Optional[str]:
+    """Choose the breadth class for the two-layer tumor-elevation-breadth card: the PROTEIN layer's
+    class when it carries a real value, else fall through to the RNA layer's class. Unlike a bare
+    `protein or rna`, this treats absence sentinels (incl. the truthy `"data_unavailable"`) as falsy,
+    so the RNA fallback fires in exactly the case it exists for — a protein coverage gap over a
+    broadly RNA-elevated (`rna_only`) target."""
+    protein = (headline or {}).get("tumor_elevation_breadth_class")
+    if protein not in _BREADTH_ABSENT_SENTINELS:
+        return protein
+    return (headline or {}).get("rna_tumor_elevation_breadth_class")
+
+
 def sig_ge(tier: Optional[str], floor: str) -> bool:
     """Is signal `tier` at least `floor` on the ordinal scale? `unmeasured` is never >= anything."""
     o = SIGNAL_ORD.get(tier)

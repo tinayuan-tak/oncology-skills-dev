@@ -157,6 +157,22 @@ def test_q2_support_preserves_emission_order_and_caps_at_three():
     assert "LUAD" not in support, "the 4th cohort leaked past the k=3 cap"
 
 
+def test_q2_generality_rna_only_reads_rna_breadth_not_data_unavailable():
+    # #1513 F2: the protein breadth layer emits the TRUTHY string "data_unavailable" on a coverage
+    # gap, so the old `br = protein or rna` selected the sentinel and the Q2 generality row showed
+    # "breadth data_unavailable" for a genuine rna_only target. After the fix, absence sentinels are
+    # falsy → Q2 reads the RNA breadth class.
+    h = {
+        "presence_verdict": "tumor_broadly_expressed",
+        "tumor_elevation_breadth_class": "data_unavailable",
+        "rna_tumor_elevation_breadth_class": "broadly_tumor_elevated",
+    }
+    cv = {"A": {}, "B": {}, "C": {}, "D": {"signal": "strong"}}
+    q2 = _by_id(presence_question_table(h, [], cv))["Q2"]
+    assert "breadth broadly_tumor_elevated" in q2["primary"]
+    assert "data_unavailable" not in q2["primary"]
+
+
 def test_q3_surfaces_window_caveat_from_normal_cards():
     r = _by_id(presence_question_table(*_fixture()))["Q3"]
     # claim B drives the meter; the supporting line carries the discordance + normal-tissue window caveat

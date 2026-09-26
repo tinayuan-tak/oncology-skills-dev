@@ -2199,6 +2199,22 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         ),
         # Pan-cancer tumor-elevation breadth (target-grain): protein layer feeds the ladder, RNA layer is
         # display-only. Surfaced side-by-side (never averaged) with breadth_layer_concordance.
+        #
+        # #1513 F3 DECISION (verdict-INERT, kept display-only — deliberate): the broader RNA breadth layer
+        # (pan-cancer DESeq2, ~27 indications) and breadth_layer_concordance reach only the capsule / claim
+        # narrative / salience, NOT presence_verdict — no _PROTEIN_RANK rule keys on rna_tumor_elevation_
+        # breadth_class or the concordance token. An rna_only target (CPTAC protein gap + strong pan-cancer
+        # RNA breadth) therefore does NOT lift the bulk_protein_ms/tumor bucket out of data_unavailable. This
+        # is left verdict-inert ON PURPOSE: (1) the two layers carry NON-COMMENSURATE thresholds — the RNA
+        # breadth roll-up has no q-gate / power correction and no adjacent-normal baseline, so a "27-indication
+        # elevated" call is not the same measured object as a CPTAC tumor-vs-normal breadth and must not be
+        # summed into a verdict spine calibrated on the protein arm (arm-commensurability class, #1703/#1507);
+        # (2) tumor-RNA PRESENCE (not pan-cancer breadth) already reaches the ladder via the bulk-RNA buckets,
+        # so an rna_only-but-truly-present target is not scored a pure gap by the collapsed verdict — only the
+        # protein-BREADTH bucket stays data_unavailable, which is the honest statement of what protein measured.
+        # Lifting it would be verdict-affecting and requires a full replay + golden regen + panel (guard
+        # over-fire) — deferred to a measured proposal, not taken here. F2 (above) ensures the RNA breadth at
+        # least reaches the claim-D narrative + Q2 generality row instead of being silently dropped.
         "tumor_elevation_breadth_class": get_card_field(
             cards, "tumor-elevation-breadth", "tumor_elevation_breadth_class"
         ),
