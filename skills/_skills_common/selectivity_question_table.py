@@ -240,6 +240,47 @@ def _q8_spatial(h, c, cv):
     )
 
 
+def _selectivity_concordance_integrated_signal(claim: dict) -> dict:
+    """Project the L2b-5 `selectivity_concordance` claim (selectivity_claims.py, built by #1752) into the
+    axis-A / tumor-vs-normal question row's `integrated_signal` surface — a verdict-INERT, two-directional
+    presentation payload. Surfaces BOTH the corroborated cross-modality read (bulk-RNA x protein-MS agree
+    on the tumor-vs-normal window) AND the discordance / single-source / boundary caveat (`boundary_note`),
+    the honest corroboration annotation, and the uniform per-source `source_support` list so a consumer
+    renders the integrated cross-source read WITHOUT prose-parsing. Carries NO signal tier / polarity /
+    fill — it never routes the verdict (the selectivity_class spine / normal-breadth veto / risk_projection
+    key elsewhere); it is the answer's cross-source annotation, not a meter cell. Mirrors the genomic
+    recurrence_concordance (#1750) and safety normal-liability (#1584) surface-consumption precedents.
+
+    PASS-THROUGH on `corroboration`: the token is copied VERBATIM into the annotation (no map, nothing to
+    keep in step) — see `_CORROBORATION_READERS` in test_claim_ladder_vocabulary_coverage.py (#1643)."""
+    qual = claim.get("qualifying_signal")
+    pos = claim.get("positive_signal") or {}
+    boundary = bool(claim.get("boundary_sensitive"))
+    # A one-line human headline that always names BOTH directions (the corroborated read + the
+    # discordance/single-source caveat), or the concordant confirmation when both arms agree.
+    if qual:
+        headline = f"{pos.get('statement', '')} However — {qual.get('statement', '')}"
+    else:
+        headline = pos.get("statement", "")
+    if boundary:
+        headline += f" [boundary-sensitive: {claim.get('boundary_note', '')}]"
+    return {
+        "kind": "selectivity_concordance",
+        "concordance_class": claim.get("concordance_class"),
+        "corroboration": claim.get("corroboration"),
+        "grain": claim.get("grain"),
+        "corroborating_independent_arm_count": claim.get("corroborating_independent_arm_count"),
+        "resolved_source_count": claim.get("resolved_source_count"),
+        "boundary_sensitive": boundary,
+        "boundary_note": claim.get("boundary_note"),
+        "positive_signal": pos or None,
+        "qualifying_signal": qual,
+        "source_support": claim.get("source_support"),
+        "headline": headline,
+        "provenance_ref": "claim_vector.selectivity_concordance",
+    }
+
+
 def selectivity_question_table(headline: dict, cards: list, claim_vector: Optional[dict] = None) -> list:
     """The 8 question rows (each: id, question, primary read, supporting/caveat line, signal,
     confidence). Verdict-inert. `claim_vector` defaults to the one on the headline
@@ -248,7 +289,7 @@ def selectivity_question_table(headline: dict, cards: list, claim_vector: Option
 
     cv = claim_vector or headline.get("claim_vector") or selectivity_claim_vector(headline, cards)
     c = _cbyid(cards)
-    return [
+    rows = [
         _q1_window(headline, c, cv),
         _q2_comparators(headline, c, cv),
         _q3_separation(headline, c, cv),
@@ -258,3 +299,17 @@ def selectivity_question_table(headline: dict, cards: list, claim_vector: Option
         _q7_density(headline, c, cv),
         _q8_spatial(headline, c, cv),
     ]
+    # SK#1803 L2b->L3: SURFACE the L2b-5 selectivity_concordance claim (built by #1752, read by nothing
+    # until now) as a first-class cross-source annotation on Q1 — the tumor-vs-normal / axis-A window
+    # question, the row the claim's bulk-RNA x protein-MS integration answers. Attached only when the
+    # claim resolves (key omitted otherwise → row byte-stable). Reads only the ALREADY-BUILT claim_vector
+    # (built in run.py before this table), so it perturbs no census aperture and no verdict. Verdict-inert:
+    # Q1's signal/confidence meter cells are UNCHANGED — this adds an annotation, never a tier. Mirrors the
+    # genomic recurrence_concordance (#1750) + presence/safety surface pattern.
+    sc = (cv or {}).get("selectivity_concordance")
+    if sc:
+        for r in rows:
+            if r.get("id") == "Q1":
+                r["integrated_signal"] = _selectivity_concordance_integrated_signal(sc)
+                break
+    return rows

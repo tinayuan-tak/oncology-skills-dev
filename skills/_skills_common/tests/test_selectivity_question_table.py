@@ -84,6 +84,60 @@ def test_critical_organ_liability_opposes_on_q5():
     assert "loop of Henle" in rows["Q5"]["support"]
 
 
+def _concordant_headline():
+    """CEACAM5-shaped, plus a corroborating CPTAC protein window → both independent arms agree."""
+    h = _ceacam5_headline()
+    h["protein_tumor_vs_normal_effect_size"] = 1.8
+    h["protein_tumor_vs_normal_q_value"] = 0.001
+    return h
+
+
+def test_integrated_signal_attached_to_q1_row_when_claim_resolves():
+    # SK#1803: the selectivity_concordance claim reaches the axis-A / tumor-vs-normal (Q1) answer row as
+    # an additive integrated_signal.
+    h = _concordant_headline()
+    h["claim_vector"] = selectivity_claim_vector(h, [])
+    rows = {r["id"]: r for r in selectivity_question_table(h, [])}
+    isig = rows["Q1"].get("integrated_signal")
+    assert isig is not None and isig["kind"] == "selectivity_concordance"
+    assert isig["concordance_class"] == "selectivity_window_concordant"
+    assert isig["corroboration"] == "high"
+    assert isig["provenance_ref"] == "claim_vector.selectivity_concordance"
+    assert isig["qualifying_signal"] is None  # concordant → no caveat
+    assert isig["positive_signal"] and "statement" in isig["positive_signal"]
+    assert isig["boundary_sensitive"] is False
+    # NO other question row carries the annotation (Q1 is the tumor-vs-normal window question)
+    assert all("integrated_signal" not in rows[k] for k in ("Q2", "Q3", "Q4", "Q5", "Q6", "Q7", "Q8"))
+    # verdict-inert: Q1's meter cells are UNCHANGED by the annotation
+    q1_bare = {r["id"]: r for r in selectivity_question_table(_ceacam5_headline(), [], claim_vector={})}["Q1"]
+    assert rows["Q1"]["signal"] == q1_bare["signal"] and rows["Q1"]["confidence"] == q1_bare["confidence"]
+
+
+def test_row_byte_stable_when_claim_absent():
+    # Neither independent arm resolves → claim omitted → NO integrated_signal key (row byte-stable).
+    h = _ceacam5_headline()
+    h["axis_a_selectivity_class"] = "data_unavailable"  # RNA unresolved; no protein fields → arm unresolved
+    h["claim_vector"] = selectivity_claim_vector(h, [])
+    assert "selectivity_concordance" not in h["claim_vector"]
+    assert "integrated_signal" not in {r["id"]: r for r in selectivity_question_table(h, [])}["Q1"]
+    # a claim_vector present but WITHOUT selectivity_concordance also leaves the row untouched
+    cv_no_sc = {"WIN": {"signal": "moderate", "corroboration": "moderate"}}
+    assert (
+        "integrated_signal"
+        not in {r["id"]: r for r in selectivity_question_table(_ceacam5_headline(), [], claim_vector=cv_no_sc)}["Q1"]
+    )
+
+
+def test_integrated_signal_single_source_degrades():
+    # Only the RNA arm resolves (no protein fields) → single_source_only, surfaced WITH a caveat.
+    h = _ceacam5_headline()
+    h["claim_vector"] = selectivity_claim_vector(h, [])
+    isig = {r["id"]: r for r in selectivity_question_table(h, [])}["Q1"]["integrated_signal"]
+    assert isig["concordance_class"] == "single_source_only"
+    assert isig["qualifying_signal"] is not None  # names the gap arm
+    assert isig["boundary_sensitive"] is True
+
+
 def test_shared_renderer_emits_html():
     h = _ceacam5_headline()
     h["claim_vector"] = selectivity_claim_vector(h, [])

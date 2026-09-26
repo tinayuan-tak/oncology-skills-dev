@@ -389,7 +389,12 @@ _CORROBORATION_READERS = {
         "claim's `corroboration` token VERBATIM into the Normal-tissue row's integrated_signal annotation "
         "(no map, nothing to keep in step). Mirrors presence_question_table's G3.1 coverage annotation."
     ),
-    "skills/_skills_common/selectivity_question_table.py": "DELEGATES to question_table_core.conf",
+    "skills/_skills_common/selectivity_question_table.py": (
+        "DELEGATES row confidence to question_table_core.conf; also PASS-THROUGH — copies the L2b-5 "
+        "selectivity_concordance claim's `corroboration` token VERBATIM into the Q1 (tumor-vs-normal / "
+        "axis-A window) row's integrated_signal annotation (SK#1803; no map, nothing to keep in step). "
+        "Mirrors genomic/safety question_table's L2b surface annotation."
+    ),
     "skills/_skills_common/genomic_question_table.py": (
         "DELEGATES row confidence to question_table_core.conf; also PASS-THROUGH — copies the L2b-5 "
         "recurrence_concordance claim's `corroboration` token VERBATIM into the SNV row's integrated_signal "
