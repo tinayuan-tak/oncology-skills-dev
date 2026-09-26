@@ -1,0 +1,19 @@
+{
+  "synthesis": {
+    "sub_verdicts": {
+      "mechanism": {
+        "verdict": "well_characterized"
+      },
+      "safety": {
+        "verdict": "pan_essential_broad_tox_concern"
+      },
+      "tractability_sm": {
+        "verdict": "well_covered"
+      },
+      "dependency": {
+        "verdict": "pan_essential_killer"
+      }
+    }
+  },
+  "cards": []
+}

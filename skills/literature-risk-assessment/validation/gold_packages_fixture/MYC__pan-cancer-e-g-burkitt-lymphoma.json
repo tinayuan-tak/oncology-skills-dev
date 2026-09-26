@@ -1,0 +1,19 @@
+{
+  "synthesis": {
+    "sub_verdicts": {
+      "mechanism": {
+        "verdict": "well_characterized"
+      },
+      "safety": {
+        "verdict": "tolerant_reduced_safety_risk"
+      },
+      "tractability_sm": {
+        "verdict": "chemically_unhit"
+      },
+      "dependency": {
+        "verdict": "non_dependent"
+      }
+    }
+  },
+  "cards": []
+}

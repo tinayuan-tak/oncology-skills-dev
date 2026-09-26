@@ -8,16 +8,26 @@ literature layer surfaces the decision-relevant papers or filters noise. This ha
   - critical_signal_recall — does ANY kept abstract mention the decision-critical TOPIC (a curated regex,
     e.g. FOLR1 safety → ocular/keratopathy)? A regex PROXY, deliberately NOT a pinned PMID: PMIDs are
     brittle (relevance re-ranks, papers get added) whereas "did we surface the ocular-tox topic at all" is
-    the property that actually matters and stays curatable.
-  - on_axis_precision — fraction of kept abstracts that are on-axis (≥1 axis phrase-token). The Stage-2
-    relevance gate should raise this; the harness is how we PROVE a gate/source change helped vs added noise.
-  - n_kept / n_dropped — the gate's throughput + how much it removed.
+    the property that actually matters and stays curatable. This is the ONLY gated leg — its oracle (the
+    per-case `critical_signal` regex) is INDEPENDENT of the Stage-2 gate's axis-token functions.
+  - n_kept / n_dropped — the gate's throughput + how much it removed (reported, not gated).
+
+`on_axis_precision` was REMOVED as an eval metric (#1618): it reused `retrieval_lanes._axis_tokens` /
+`_axis_match` — the SAME functions the Stage-2 gate uses to decide what to keep — so any abstract kept via
+the axis-token branch was on-axis *by construction* under the metric. It measured the code with the code
+(circular) and gated nothing; a mis-specified axis vocabulary passed both the gate and its own "precision"
+check. The independent teeth are `critical_signal_recall` (a separate curated regex).
+
+THE GATE (#1618): `gate_retrieval(rows, min_recall=...)` is a PURE pass/fail over the scored rows.
+Errored cases count as FAILURES (they do NOT shrink the denominator — a systematic retrieval outage must
+FAIL, not vacuously pass), and an empty row set fails (non-vacuity). `main()` returns non-zero when the
+gate fails, so a recall regression is detectable.
 
 The metric functions are PURE (unit-tested offline on synthetic abstracts). The CLI runs the LIVE 3-lane
 retrieval per case (needs network; no Bedrock — retrieval only) and prints a per-case table + a summary.
-Best-effort per case: a retrieval error is reported, never fatal.
+Best-effort per case: a retrieval error is reported per row, then FAILS the gate.
 
-    python3 scripts/eval_retrieval.py --gold validation/retrieval_gold_v0.json [--per-cat 8]
+    python3 scripts/eval_retrieval.py --gold validation/retrieval_gold_v0.json [--per-cat 8] [--min-recall 1.0]
 """
 
 from __future__ import annotations
@@ -51,27 +61,49 @@ def critical_signal_present(abstracts: list, signal_regex: str) -> bool:
     return any(pat.search(_text(a)) for a in abstracts)
 
 
-def on_axis_precision(abstracts: list, axis: str) -> float | None:
-    """PURE: fraction of abstracts that are ON-AXIS (≥1 axis phrase-token). None for an empty set (a
-    precision of 0/0 is undefined — report it as N/A, never 0.0, so it can't be mistaken for 'all noise')."""
-    if not abstracts:
-        return None
-    tokens = rl._axis_tokens(rl.AXIS_PUBMED_TERMS.get(axis, ("", True))[0])
-    on = sum(1 for a in abstracts if rl._axis_match(_text(a), tokens) > 0)
-    return round(on / len(abstracts), 3)
-
-
 def score_case(case: dict, kept: list, dropped: list) -> dict:
-    """PURE: fold one case's retrieved (kept, dropped) into the scored row."""
+    """PURE: fold one case's retrieved (kept, dropped) into the scored row.
+    `on_axis_precision` was removed (#1618): it was circular with the Stage-2 gate (measured the code with
+    the code). `critical_signal_recall` — an INDEPENDENT curated regex — is the only quality leg."""
     return {
         "target": case.get("target"),
         "indication": case.get("indication"),
         "axis": case.get("axis"),
         "note": case.get("note"),
         "critical_signal_recall": critical_signal_present(kept, case.get("critical_signal", "")),
-        "on_axis_precision": on_axis_precision(kept, case.get("axis", "")),
         "n_kept": len(kept),
         "n_dropped": len(dropped),
+    }
+
+
+def gate_retrieval(rows: list, *, min_recall: float = 1.0) -> dict:
+    """PURE pass/fail gate over scored rows (#1618). The eval is now an ASSERTION, not a printout.
+
+    - critical_signal_recall is the denominator's numerator; the denominator is EVERY row (n_total),
+      so an errored case counts as a FAILURE and a systematic outage cannot shrink its way to green.
+    - an empty row set FAILS (non-vacuity — an eval that scores nothing must not pass).
+    Returns {passed, recall, n_hit, n_total, n_error, failures}."""
+    n_total = len(rows)
+    n_hit = n_error = 0
+    failures: list[str] = []
+    for r in rows:
+        tag = f"{r.get('target')}/{r.get('axis')}"
+        if "error" in r:
+            n_error += 1
+            failures.append(f"{tag}: ERROR {str(r.get('error'))[:60]}")
+        elif r.get("critical_signal_recall"):
+            n_hit += 1
+        else:
+            failures.append(f"{tag}: critical_signal recall MISS")
+    recall = (n_hit / n_total) if n_total else 0.0
+    passed = n_total > 0 and recall >= min_recall
+    return {
+        "passed": passed,
+        "recall": round(recall, 3),
+        "n_hit": n_hit,
+        "n_total": n_total,
+        "n_error": n_error,
+        "failures": failures,
     }
 
 
@@ -96,30 +128,39 @@ def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--gold", default=str(_DEFAULT_GOLD))
     ap.add_argument("--per-cat", type=int, default=8)
+    ap.add_argument(
+        "--min-recall",
+        type=float,
+        default=1.0,
+        help="minimum critical_signal_recall over ALL cases (errors count as failures); gate fails below it",
+    )
     a = ap.parse_args(argv)
     gold = json.loads(Path(a.gold).read_text())
     rows = evaluate(gold, per_cat=a.per_cat)
 
-    print(f"{'target':10} {'indication':22} {'axis':14} {'recall':7} {'prec':6} {'kept':5} {'drop':5}")
-    print("-" * 78)
-    n_recall = 0
+    print(f"{'target':10} {'indication':22} {'axis':14} {'recall':7} {'kept':5} {'drop':5}")
+    print("-" * 72)
     for r in rows:
         if "error" in r:
             print(
-                f"{r.get('target', ''):10} {r.get('indication', ''):22} {r.get('axis', ''):14} ERROR {r['error'][:30]}"
+                f"{r.get('target', ''):10} {r.get('indication', ''):22} {r.get('axis', ''):14} ERROR {str(r['error'])[:30]}"
             )
             continue
-        n_recall += 1 if r["critical_signal_recall"] else 0
-        prec = "N/A" if r["on_axis_precision"] is None else f"{r['on_axis_precision']:.2f}"
         print(
             f"{r['target']:10} {r['indication']:22} {r['axis']:14} "
-            f"{'HIT' if r['critical_signal_recall'] else 'miss':7} {prec:6} {r['n_kept']:<5} {r['n_dropped']:<5}"
+            f"{'HIT' if r['critical_signal_recall'] else 'miss':7} {r['n_kept']:<5} {r['n_dropped']:<5}"
         )
-    scored = [r for r in rows if "error" not in r]
+    g = gate_retrieval(rows, min_recall=a.min_recall)
     print(
-        f"\ncritical_signal_recall: {n_recall}/{len(scored)} cases"
-        + (f"  ({len(rows) - len(scored)} errored)" if len(rows) != len(scored) else "")
+        f"\ncritical_signal_recall: {g['n_hit']}/{g['n_total']} cases (recall={g['recall']}; "
+        f"{g['n_error']} errored, counted as failures); min-recall={a.min_recall}"
     )
+    if not g["passed"]:
+        print("GATE FAILED:")
+        for f in g["failures"]:
+            print(f"  - {f}")
+        return 1
+    print("GATE PASSED")
     return 0
 
 

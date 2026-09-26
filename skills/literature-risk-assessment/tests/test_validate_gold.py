@@ -131,3 +131,47 @@ def test_load_gold_flattens_upheld_only(tmp_path):
     entries, review = vg.load_gold(p)
     assert len(entries) == 1 and entries[0]["target"] == "T1" and entries[0]["_dimension"] == "safety"
     assert len(review) == 1 and review[0]["target"] == "T2"
+
+
+# ---- #1618: the REAL gold_seed_v0.json is scored in CI against committed fixture packages ----
+_GOLD_SEED = Path(__file__).resolve().parent.parent / "validation" / "gold_seed_v0.json"
+_FIXTURE_DIR = Path(__file__).resolve().parent.parent / "validation" / "gold_packages_fixture"
+
+
+def test_gold_seed_v0_scored_against_committed_fixtures():
+    """The 51-entry gold_seed_v0.json was never loaded by any test (#1618) — the headline 'does risk_rollup
+    emit LOW for a validated link / HIGH for a passenger' was aspirational. Wire it: load the REAL gold,
+    resolve against committed fixture packages, and require every SCORED entry to hit. Non-vacuity: at
+    least one entry per gold dimension must actually be scored (an empty fixture dir would score nothing)."""
+    entries, _ = vg.load_gold(_GOLD_SEED)
+    assert entries, "gold_seed_v0.json must be non-empty"
+    rep = vg.score_gold(entries, vg.dir_pkg_resolver(_FIXTURE_DIR))
+
+    scored = rep["overall"]["scored"]
+    assert scored >= 8, f"fixture must score real gold entries (non-vacuity), got {scored}"
+    # every SCORED real gold entry hits — LOW for validated links, HIGH for passengers.
+    assert rep["overall"]["accuracy"] == 1.0, [r for r in rep["rows"] if r["outcome"] == "miss"]
+    # coverage spans all four gold dimensions (both LOW and HIGH cases exercised).
+    for dim in ("safety", "biological", "druggability", "selectivity"):
+        assert rep["by_dimension"][dim]["scored"] >= 2, f"{dim} under-covered"
+
+
+def test_gold_seed_v0_gate_has_teeth():
+    """TEETH: if a fixture package regresses to the wrong sub-verdict, the SCORED real gold entry becomes a
+    MISS and the gate reds — proving this is a gate, not a printout. Here we corrupt ALK's dependency so its
+    biological bin flips LOW→HIGH."""
+    entries, _ = vg.load_gold(_GOLD_SEED)
+    good = vg.dir_pkg_resolver(_FIXTURE_DIR)
+
+    def corrupt(target, indication):
+        pkg = good(target, indication)
+        if pkg and target == "ALK":
+            import copy
+
+            pkg = copy.deepcopy(pkg)
+            pkg["synthesis"]["sub_verdicts"]["dependency"]["verdict"] = "non_dependent"  # LOW → HIGH
+        return pkg
+
+    rep = vg.score_gold(entries, corrupt)
+    assert rep["overall"]["accuracy"] < 1.0, "a corrupted fixture MUST produce a miss (teeth)"
+    assert any(r["outcome"] == "miss" and r["target"] == "ALK" for r in rep["rows"])

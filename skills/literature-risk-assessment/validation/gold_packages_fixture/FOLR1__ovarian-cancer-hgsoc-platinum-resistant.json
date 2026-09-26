@@ -1,0 +1,16 @@
+{
+  "synthesis": {
+    "sub_verdicts": {
+      "mechanism": {
+        "verdict": "well_characterized"
+      },
+      "safety": {
+        "verdict": "tolerant_reduced_safety_risk"
+      },
+      "selectivity": {
+        "verdict": "strong_tumor_selective"
+      }
+    }
+  },
+  "cards": []
+}
