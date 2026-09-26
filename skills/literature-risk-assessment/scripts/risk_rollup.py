@@ -80,9 +80,13 @@ def project(pkg: dict, modality: str, substrate: dict | None = None) -> dict:
         if not dim or dim not in dims:
             continue
         dims[dim].setdefault("grounded_findings", [])
-        dims[dim]["grounded_findings"] += _findings_of(block)
+        findings = _findings_of(block)
+        dims[dim]["grounded_findings"] += findings
         g = block.get("grounded", block) or {}
-        if g.get("contradicts_deterministic"):
+        # (#1614) the engine↔literature discordance flag may only stand on ≥1 SURVIVING grounded
+        # finding. A `contradicts_deterministic` copied from the LLM whose supporting findings were all
+        # quarantined by containment rests on confabulated support — do not emit the flag then.
+        if g.get("contradicts_deterministic") and findings:
             dims[dim]["engine_literature_discordance"] = True
     return dims
 

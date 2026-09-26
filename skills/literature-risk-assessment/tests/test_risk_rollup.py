@@ -66,6 +66,17 @@ def test_grounded_findings_escalate_only_never_change_bin():
     assert out["engine_literature_discordance"] is True  # discordance flag propagates
 
 
+def test_discordance_not_emitted_without_a_surviving_finding():
+    # (#1614 facet c) the engine↔literature discordance flag may only stand on ≥1 SURVIVING grounded
+    # finding. A contradicts_deterministic=True with every supporting finding quarantined by containment
+    # (empty findings) rests on confabulated support — the flag must NOT be projected onto the dim.
+    # BEFORE the fix it was set True regardless of whether any finding survived.
+    pkg = _pkg("wt_human_genetics_mechanism_mismatch", {"normal-tissue-liability-gtex": "critical_organ_liability"})
+    substrate = {"safety": {"grounded": {"findings": [], "contradicts_deterministic": True}}}
+    out = rr.project(pkg, "adc", substrate)["safety"]
+    assert "engine_literature_discordance" not in out  # not emitted on zero-surviving-finding evidence
+
+
 def test_new_target_biology_axes_fold_into_biological_dim():
     # ROLLOUT 2026-08-18: mechanism/genomic/SL/combinatorial/expression grounded findings escalate the
     # BIOLOGICAL (Right Target) dim; the bin stays deterministic (escalate-only).

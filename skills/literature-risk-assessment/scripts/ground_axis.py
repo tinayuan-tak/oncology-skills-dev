@@ -380,13 +380,28 @@ def _norm_pmid(p) -> str:
     return m.group(0) if m else s.strip()
 
 
+def _prose_cites_dropped(text, dropped) -> bool:
+    """True when the free-text prose literally references a DROPPED (confabulated) PMID's digit-run.
+    The residual-prose hole (#1614): containment scrubs the cited-PMID id-list but the sentence still
+    asserts the invalidated claim — and may even name the confabulated PMID's digits verbatim. Surfacing
+    this lets a reader/consumer know the prose out-runs its surviving support."""
+    s = str(text or "")
+    return any(d and str(d) in s for d in (dropped or []))
+
+
 def build_grounded_block(det: dict, llm_out: dict, retrieved_pmids: set, *, corpus_pin: dict, n_retrieved: int) -> dict:
     """PURE (offline-testable): parse the LLM output into the escalate-only grounded block. Cited
     PMIDs are digit-normalized and any NOT in the retrieved set are dropped (confabulation
     containment). A finding whose citations ALL fail containment (zero surviving PMIDs) is an
     escalate-only flag resting on hallucinated support — it is quarantined into
     `dropped_uncited_findings` and NOT kept, so it can never drive a downstream risk bin on invented
-    evidence. Axis-agnostic."""
+    evidence. Axis-agnostic.
+
+    Containment prunes DERIVED signals too, not just the id-list (#1614): a finding that lost ≥1 cite
+    to containment is annotated `confabulated_dropped` (partial-confabulation) and, when its prose still
+    names a dropped PMID's digits, `prose_references_dropped_pmid`; the engine↔literature discordance
+    flag (`contradicts_deterministic`) may only STAND on ≥1 surviving grounded finding — with every
+    finding quarantined it rested on confabulated support and is RESET to False."""
     retr = {_norm_pmid(p) for p in (retrieved_pmids or set())}
     kept, dropped, uncited = [], [], []
     for f in _uv(llm_out.get("findings")) or []:
@@ -394,16 +409,25 @@ def build_grounded_block(det: dict, llm_out: dict, retrieved_pmids: set, *, corp
             f = {"finding": f, "kind": "", "cited_pmids": []}
         cites = _uv(f.get("cited_pmids")) or []
         good = [_norm_pmid(p) for p in cites if _norm_pmid(p) in retr]
-        dropped += [_norm_pmid(p) for p in cites if _norm_pmid(p) not in retr]
+        dropped_here = [_norm_pmid(p) for p in cites if _norm_pmid(p) not in retr]
+        dropped += dropped_here
         sev = str(_uv(f.get("severity")) or "moderate").lower()
         if sev not in SEVERITY_LEVELS:  # tolerate a missing/off-enum value from a legacy or bare finding
             sev = "moderate"
-        rec = {"finding": _uv(f.get("finding")), "kind": _uv(f.get("kind")), "severity": sev, "cited_pmids": good}
+        finding_text = _uv(f.get("finding"))
+        rec = {"finding": finding_text, "kind": _uv(f.get("kind")), "severity": sev, "cited_pmids": good}
+        if dropped_here:  # (a)/(b): this finding rested partly on a confabulated citation — flag it
+            rec["confabulated_dropped"] = dropped_here
+            if _prose_cites_dropped(finding_text, dropped_here):
+                rec["prose_references_dropped_pmid"] = True
         (kept if good else uncited).append(rec)
+    # (c) the engine↔literature discordance flag can only stand on ≥1 SURVIVING grounded finding; if
+    # every finding was quarantined (no surviving citation), the flag rested on confabulated support.
+    contradicts = bool(_uv(llm_out.get("contradicts_deterministic"))) and bool(kept)
     return {
         "findings": kept,
         "corroborations": _uv(llm_out.get("corroborations")) or [],
-        "contradicts_deterministic": _uv(llm_out.get("contradicts_deterministic")),
+        "contradicts_deterministic": contradicts,
         "notes": _uv(llm_out.get("notes")),
         "anchor_verdict": det.get("verdict"),
         "confabulated_dropped": dropped,

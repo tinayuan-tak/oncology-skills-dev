@@ -289,25 +289,49 @@ def _build_prompt(dim, question, abstracts, anchor, sentinel=None):
     return "\n".join(L)
 
 
+def _prose_cites_dropped(text, dropped) -> bool:
+    """True when the free-text prose literally references a DROPPED (confabulated) PMID's digit-run.
+    The residual-prose hole (#1614): containment scrubs the cited-PMID id-list but the justification/
+    interpretation still asserts the invalidated claim — and may even name the confabulated PMID's
+    digits verbatim. Surfacing this lets a reader know the prose out-runs its surviving support."""
+    s = str(text or "")
+    return any(d and str(d) in s for d in (dropped or []))
+
+
 def _grade_dimension(dim, question, abstracts, anchor, rpmids, pillar):
     """ONE grounded grade of a dimension: synthesize over the retrieved abstracts, apply the containment
     guard, and apply the confabulation downgrade (a LOW/MED/HIGH backed by ZERO surviving citations is
     ungrounded by the cite-or-abstain contract → not_assessed, original grade preserved). Returns the
-    per-dimension entry dict. Pure of voting concerns — the self-consistency layer calls it N times."""
+    per-dimension entry dict. Pure of voting concerns — the self-consistency layer calls it N times.
+
+    Containment prunes DERIVED signals too, not just the cited-PMID id-list (#1614): when a citation is
+    dropped the entry is annotated `partial_confabulation` (the grade/prose rested partly on a dropped
+    cite — a surviving cite still grounds the grade, so this is NOT itself a downgrade) and, when the
+    prose still names a dropped PMID's digits, `prose_references_dropped_pmid`; the engine↔literature
+    discordance flag may only stand on ≥1 SURVIVING cited PMID — with none surviving it is RESET."""
     out = synthesize_structured(SYSTEM, _build_prompt(dim, question, abstracts, anchor), "risk_dimension", TOOL_SCHEMA)
     good, bad = _contain(_uv(out.get("cited_pmids")), rpmids)  # containment guard
     risk = _uv(out.get("risk_level"))
+    justification = _uv(out.get("justification"))
+    interpretation = _uv(out.get("interpretation"))
+    # (c) discordance may only stand on ≥1 surviving cited PMID; with none surviving the flag rested on
+    # confabulated support and is reset (mirrors the ground_axis grounded-block gate).
+    contradicts = bool(_uv(out.get("contradicts_deterministic"))) and bool(good)
     entry = {
         "pillar": pillar,
         "risk_level": risk,
-        "justification": _uv(out.get("justification")),
-        "interpretation": _uv(out.get("interpretation")),
+        "justification": justification,
+        "interpretation": interpretation,
         "cited_pmids": good,
         "confabulated_dropped": bad,
-        "contradicts_deterministic": _uv(out.get("contradicts_deterministic")),
+        "contradicts_deterministic": contradicts,
         "anchor_verdict": anchor,
         "n_retrieved": len(abstracts),
     }
+    if bad:  # (a)/(b): the grade/prose rested partly on a dropped (confabulated) citation — surface it
+        entry["partial_confabulation"] = True
+        if _prose_cites_dropped(justification, bad) or _prose_cites_dropped(interpretation, bad):
+            entry["prose_references_dropped_pmid"] = True
     if risk in ("LOW", "MEDIUM", "HIGH") and not good:
         entry["risk_level"] = "not_assessed"
         entry["risk_level_pre_containment"] = risk

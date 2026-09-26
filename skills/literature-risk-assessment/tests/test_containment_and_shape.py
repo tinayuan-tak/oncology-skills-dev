@@ -142,6 +142,52 @@ def test_run_keeps_grade_with_surviving_citation(monkeypatch):
     assert d["risk_level"] == "HIGH" and "risk_level_pre_containment" not in d
 
 
+def test_run_resets_discordance_when_no_surviving_citation(monkeypatch):
+    # (#1614 facet c) contradicts_deterministic may only stand on ≥1 SURVIVING cited PMID. When the only
+    # cite was confabulated (grade downgraded to not_assessed), the discordance flag rested on
+    # confabulated support and must be reset. BEFORE the fix it was copied from the LLM (True).
+    monkeypatch.setattr(rc.rl, "retrieve_axis", _only_safety)
+    monkeypatch.setattr(
+        rc,
+        "synthesize_structured",
+        lambda *a, **k: {
+            "risk_level": "HIGH",
+            "justification": "j",
+            "interpretation": "i",
+            "cited_pmids": ["999"],
+            "contradicts_deterministic": True,
+        },
+    )
+    d = rc.run("GENE", "safety-indication", None, "2015", "2026", per_cat=1)["dimensions"]["safety"]
+    assert d["risk_level"] == "not_assessed"
+    assert d["contradicts_deterministic"] is False  # discordance reset — no surviving citation
+
+
+def test_run_flags_partial_confabulation_and_residual_prose(monkeypatch):
+    # (#1614 facets a/b) a grade backed by one real + one confabulated cite is KEPT (a surviving cite
+    # still grounds it — this is NOT a downgrade), but the entry is annotated `partial_confabulation`,
+    # and when the justification still literally names the dropped PMID's digits,
+    # `prose_references_dropped_pmid`. The surviving-cite discordance flag still stands.
+    monkeypatch.setattr(rc.rl, "retrieve_axis", _only_safety)
+    monkeypatch.setattr(
+        rc,
+        "synthesize_structured",
+        lambda *a, **k: {
+            "risk_level": "HIGH",
+            "justification": "A phase III trial (PMID 99999999) showed 40% hepatotox",
+            "interpretation": "i",
+            "cited_pmids": ["111", "99999999"],
+            "contradicts_deterministic": True,
+        },
+    )
+    d = rc.run("GENE", "safety-indication", None, "2015", "2026", per_cat=1)["dimensions"]["safety"]
+    assert d["risk_level"] == "HIGH"  # a surviving cite grounds the grade — NOT downgraded
+    assert d["cited_pmids"] == ["111"] and d["confabulated_dropped"] == ["99999999"]
+    assert d["partial_confabulation"] is True
+    assert d["prose_references_dropped_pmid"] is True  # prose still names the dropped id
+    assert d["contradicts_deterministic"] is True  # ≥1 surviving cite → discordance stands
+
+
 def test_six_dimensions_and_overlap_anchors():
     assert set(rc.DIMENSIONS) == {"biological", "druggability", "translational", "clinical", "safety", "commercial"}
     # overlap dimensions anchor to a deterministic sub_verdict; orthogonal ones do not

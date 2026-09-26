@@ -67,6 +67,71 @@ def test_unwraps_structured_output_and_quarantines_uncited_finding():
     assert g["contradicts_deterministic"] is True
 
 
+def test_partial_confab_finding_is_flagged_not_silently_scrubbed():
+    # (#1614 facet b) a finding backed by one real + one confabulated citation is kept (a surviving
+    # cite grounds it) but must carry `confabulated_dropped` so the package does not present a
+    # partially-confabulated finding as clean. BEFORE the fix the dropped id vanished from the finding.
+    out = {
+        "findings": [{"finding": "Ocular tox", "kind": "eye", "cited_pmids": ["111", "999"]}],
+        "corroborations": [],
+        "contradicts_deterministic": False,
+        "notes": "",
+    }
+    g = ga.build_grounded_block(DET, out, {"111"}, corpus_pin={}, n_retrieved=5)
+    assert g["findings"][0]["cited_pmids"] == ["111"]
+    assert g["findings"][0]["confabulated_dropped"] == ["999"]  # per-finding partial-confab annotation
+    assert "prose_references_dropped_pmid" not in g["findings"][0]  # prose does not name 999
+
+
+def test_residual_prose_naming_dropped_pmid_is_flagged():
+    # (#1614 facet a) the residual-prose hole: containment scrubs the id-list but the finding text still
+    # literally names the confabulated PMID's digits — flag it so the reader knows the prose out-runs
+    # its surviving support. BEFORE the fix the prose was kept verbatim with no annotation.
+    out = {
+        "findings": [
+            {
+                "finding": "A phase III trial (PMID 99999999) showed 40% hepatotox",
+                "kind": "liver",
+                "cited_pmids": ["111", "99999999"],
+            }
+        ],
+        "corroborations": [],
+        "contradicts_deterministic": False,
+        "notes": "",
+    }
+    g = ga.build_grounded_block(DET, out, {"111"}, corpus_pin={}, n_retrieved=5)
+    assert g["findings"][0]["prose_references_dropped_pmid"] is True
+    assert g["findings"][0]["confabulated_dropped"] == ["99999999"]
+
+
+def test_discordance_reset_when_every_finding_is_quarantined():
+    # (#1614 facet c) contradicts_deterministic may only stand on ≥1 SURVIVING grounded finding. When
+    # every finding is quarantined (zero surviving citation), the discordance flag rested on
+    # confabulated support and is RESET. BEFORE the fix it was copied straight from the LLM (True).
+    out = {
+        "findings": [{"finding": "engine is wrong", "kind": "x", "cited_pmids": ["999"]}],  # 999 not retrieved
+        "corroborations": [],
+        "contradicts_deterministic": True,
+        "notes": "",
+    }
+    g = ga.build_grounded_block(DET, out, {"111"}, corpus_pin={}, n_retrieved=5)
+    assert g["findings"] == []  # quarantined
+    assert g["dropped_uncited_findings"]  # the finding is carried in the review lane
+    assert g["contradicts_deterministic"] is False  # discordance reset — no surviving support
+
+
+def test_discordance_survives_with_a_surviving_finding():
+    # complement: with ≥1 surviving grounded finding the discordance flag stands
+    out = {
+        "findings": [{"finding": "engine is wrong", "kind": "x", "cited_pmids": ["111"]}],
+        "corroborations": [],
+        "contradicts_deterministic": True,
+        "notes": "",
+    }
+    g = ga.build_grounded_block(DET, out, {"111"}, corpus_pin={}, n_retrieved=5)
+    assert g["findings"] and g["contradicts_deterministic"] is True
+
+
 def test_severity_passthrough_and_safe_default():
     # a valid severity is carried through verbatim; a missing/off-enum severity defaults to 'moderate'
     # so the pseudo-card bin never crashes or silently escalates. A bare-string (uncited) finding is
