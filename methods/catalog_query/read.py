@@ -260,8 +260,27 @@ def _family_of(manifest_id: str) -> str:
     member count changes (all 13 are singletons before and after), so no head selection moves.
     Declaring the fully-pinned id still works — resolve_release falls back to
     `if family in idx.manifests: return family`.
+
+    MID-STRING release (2026-09-26, #1768): the DepMap parquet derived product is named
+    `depmap-<release>-parquet-v<N>` (`depmap-26q1-parquet-v1`, `depmap-26q3-parquet-v1`) — the quarter
+    token sits MID-string, sandwiched between the stem and a `-<format>-v<N>` derived tail, so the
+    trailing patterns below never reach it: the two releases resolved to DISTINCT family keys
+    (`depmap-26q1-parquet` vs `depmap-26q3-parquet`), were never siblings, and `is_stale` (envelope's
+    `head not in used`) could NEVER fire for that family — a detector blind spot that fails OPEN.
+    (Contrast the source family `depmap-consortium-26q1` and the `<stem>-<release>-v<N>` derived
+    families `depmap-coessentiality-26q1-v1` / `allgene-depmap-rank-26q1-v1`: there the quarter is
+    trailing-adjacent, so stripping `-v<N>` first exposes it and they already collapse correctly.)
+    The added pattern strips a quarter token ONLY in that `<stem>-<release>-<format>-v<N>` shape
+    (quarter immediately followed by a single lowercase format word and a trailing version). Measured
+    on the live 547-manifest catalog this changes EXACTLY the two parquet ids (both -> `depmap-parquet`)
+    and NO other id — the consortium sub-products (`depmap-consortium-26q1-paralogs`,
+    `-crispr-supplementary`, `-rnai`, ...) lack a trailing `-v<N>` and are untouched, so no other
+    family's key or head selection moves (verdict-inert; guards the same invariant as
+    test_dotted_release_family_change_moves_no_head).
     """
     mid = re.sub(r"-dr\d+(?:-\d+)?$", "", manifest_id, flags=re.IGNORECASE)  # drop -dr45 / -dr45-0
+    # mid-string quarter in the derived shape <stem>-<release>-<format>-v<N> (e.g. depmap-26q1-parquet-v1)
+    mid = re.sub(r"-\d{2}q\d+(?=-[a-z]+-v\d+(?:-\d+)?$)", "", mid, flags=re.IGNORECASE)
     mid = re.sub(r"-v\d+(?:-\d+)?$", "", mid, flags=re.IGNORECASE)  # drop -v2 / -v25-1
     mid = re.sub(r"-\d{2}q\d+$", "", mid, flags=re.IGNORECASE)  # drop -26q1 / -26q10 release token
     return mid

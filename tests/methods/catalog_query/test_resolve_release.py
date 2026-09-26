@@ -83,6 +83,88 @@ def test_dotted_release_family_change_moves_no_head():
     assert resolve_release("gdc-pancohort-somatic", "latest_approved") == "gdc-pancohort-somatic-dr45-0"
 
 
+# ---------------------------------------------------------------------------
+# #1768 — mid-string release token (DepMap parquet derived product)
+# ---------------------------------------------------------------------------
+# `depmap-<release>-parquet-v<N>` puts the quarter token MID-string; before the fix the two releases
+# resolved to distinct family keys, were never siblings, and `is_stale` (envelope's `head not in used`)
+# could never fire for that family. See _family_of docstring.
+_PARQUET_26Q1 = "depmap-26q1-parquet-v1"
+_PARQUET_26Q3 = "depmap-26q3-parquet-v1"
+
+
+def test_family_strip_parquet_mid_string_release():
+    """Acceptance: the two parquet releases collapse to ONE family (are siblings)."""
+    assert _family_of(_PARQUET_26Q1) == _family_of(_PARQUET_26Q3)
+    assert _family_of(_PARQUET_26Q1) == "depmap-parquet"
+
+
+def test_parquet_family_staleness_fires_when_behind_head():
+    """A `-26q1-parquet` id reads as STALE when a newer `-26q3-parquet` sibling exists, and the newer
+    id reads as fresh — the detector half of #1768. Mirrors envelope's `is_stale = head not in used`."""
+    idx = load_catalog()
+    present = {m for m in idx.manifests if m in (_PARQUET_26Q1, _PARQUET_26Q3)}
+    if present != {_PARQUET_26Q1, _PARQUET_26Q3}:
+        pytest.skip(f"parquet sibling releases not both in catalog: {sorted(present)}")
+    fam = _family_of(_PARQUET_26Q1)
+    head = resolve_release(fam, "latest_approved")
+    assert head == _PARQUET_26Q3, head  # natural-order head is the newest release
+    # a run that read only the OLD release is stale; the current head is not
+    assert head not in {_PARQUET_26Q1}  # is_stale == True for the 26q1 read
+    assert head in {_PARQUET_26Q3}  # is_stale == False for the 26q3 read
+
+
+def test_mid_release_fix_moves_no_other_family():
+    """Blast radius: the fix changes the family key for EXACTLY the two parquet ids and no other
+    manifest in the live catalog — so no other family's key or head selection moves (verdict-inert).
+    Asserts on the full catalog, not a sampled subset."""
+    idx = load_catalog()
+
+    def _trailing_only(mid: str) -> str:
+        # the pre-#1768 _family_of: trailing-token strips only (no mid-string quarter rule)
+        import re
+
+        mid = re.sub(r"-dr\d+(?:-\d+)?$", "", mid, flags=re.IGNORECASE)
+        mid = re.sub(r"-v\d+(?:-\d+)?$", "", mid, flags=re.IGNORECASE)
+        mid = re.sub(r"-\d{2}q\d+$", "", mid, flags=re.IGNORECASE)
+        return mid
+
+    changed = {m: (_trailing_only(m), _family_of(m)) for m in idx.manifests if _trailing_only(m) != _family_of(m)}
+    assert set(changed) == {_PARQUET_26Q1, _PARQUET_26Q3}, changed
+
+
+def test_source_family_staleness_unregressed():
+    """No regression to the source family: `depmap-consortium` still resolves its head via the
+    trailing-token path and a behind-head release still reads stale. This is the family that genomic
+    DepMap cards actually stamp in provenance.input_manifest_ids (they declare `depmap-consortium-*`,
+    not the parquet id), so the source-family head is what gates their staleness."""
+    idx = load_catalog()
+    members = sorted(m for m in idx.manifests if _family_of(m) == "depmap-consortium")
+    if len(members) < 2:
+        pytest.skip(f"depmap-consortium has <2 coexisting members: {members}")
+    head = resolve_release("depmap-consortium", "latest_approved")
+    assert head == members[-1]  # newest release is the head
+    behind = members[0]
+    assert head != behind  # is_stale == True for a run that read the oldest release
+
+
+def test_representative_family_keys_unchanged():
+    """A representative set of unrelated families keeps its exact key (over-stripping guard)."""
+    cases = {
+        "depmap-consortium-26q1": "depmap-consortium",
+        "depmap-consortium-26q1-paralogs": "depmap-consortium-26q1-paralogs",  # no trailing -vN: untouched
+        "depmap-consortium-26q1-crispr-supplementary": "depmap-consortium-26q1-crispr-supplementary",
+        "depmap-coessentiality-26q1-v1": "depmap-coessentiality",  # trailing-adjacent quarter: already ok
+        "allgene-depmap-rank-26q3-v1": "allgene-depmap-rank",
+        "depmap-predictability-26q1-v2": "depmap-predictability",
+        "gdc-pancohort-somatic-dr45-0": "gdc-pancohort-somatic",
+        "genie-public-v19-0": "genie-public",
+        "prism-repurposing-19q3-primary": "prism-repurposing-19q3-primary",  # no trailing -vN: untouched
+    }
+    for mid, want in cases.items():
+        assert _family_of(mid) == want, f"{mid!r} -> {_family_of(mid)!r}, expected {want!r}"
+
+
 def test_latest_approved_picks_head(multi_members):
     """latest_approved resolves to a real member and is >= every other member by id sort
     (newest release wins when there are no supersedes edges)."""
