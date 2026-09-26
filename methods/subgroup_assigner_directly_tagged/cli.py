@@ -810,6 +810,11 @@ def _load_depmap_inferred_subtypes(catalog_repo: Path, indication: str | None = 
         # a Phase-2a.4 add. For now, try local-cache fallback.
     except ImportError:
         pass
+    # TODO(#810 / Wave-2): cache pin left at 26q1. The lineage crosswalk is byte-stable 26q1→26q3
+    # (#810), so no mapping change; deferring the pin bump until the subgroup-assignment pipeline is
+    # re-run/re-published against 26q3 (see subgroup_common/loaders.py TODO). dmc-26q3 already carries
+    # OmicsInferredMolecularSubtypes.csv + Model.csv — this is a lane-coherence deferral, not a
+    # missing-source one.
     fallback = cache_root() / "framework-depmap-26q1" / "OmicsInferredMolecularSubtypes.csv"
     model_fallback = cache_root() / "framework-depmap-26q1" / "Model.csv"
     if not (fallback.exists() and model_fallback.exists()):

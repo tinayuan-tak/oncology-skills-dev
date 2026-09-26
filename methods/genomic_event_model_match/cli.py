@@ -27,7 +27,7 @@ _CLASS_COLORS = {
 }
 
 
-def build_summary(target: str, indication: str, release_pin: str = "26q1") -> dict:
+def build_summary(target: str, indication: str, release_pin: str = "26q3") -> dict:
     """genomic_event_model_match summary for a (target, indication)."""
     summary = _read.read_genomic_event_model_match(target, indication, release_pin=release_pin)
     summary["method_version"] = METHOD_VERSION
@@ -155,7 +155,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="genomic_event_model_match (M11) — canonical P3 genomic join")
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
-    ap.add_argument("--release-pin", default="26q1")
+    ap.add_argument("--release-pin", default="26q3")
     ap.add_argument("--out", type=Path, default=None)
     args = ap.parse_args()
     summary = build_summary(args.target, args.indication, release_pin=args.release_pin)

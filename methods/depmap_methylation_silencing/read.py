@@ -210,7 +210,7 @@ def _methylation_for_gene(target: str, stripped_to_model: dict):
     return _load_ccle_methylation_for_gene(target, stripped_to_model)
 
 
-def read_methylation_silencing(target: str, indication: Optional[str] = None, release_pin: str = "26q1") -> dict:
+def read_methylation_silencing(target: str, indication: Optional[str] = None, release_pin: str = "26q3") -> dict:
     """Compute promoter-methylation → own-expression silencing for target across the DepMap panel.
 
     `indication` accepted for dispatcher-signature back-compat but NOT consumed (pan-panel, target-only;

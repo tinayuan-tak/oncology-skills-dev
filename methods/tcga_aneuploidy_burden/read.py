@@ -101,14 +101,15 @@ _MSI_LOW_FRACTION = 0.05
 # OmicsGlobalSignatures.csv carries MSIScore (MSIsensor2) per ModelID for ALL lineages, so the model
 # arm COVERS the indications the patient labels miss (NSCLC/PAAD have no patient MSI, but DO have
 # cell-line MSIScore). Cell-line MSI is a MODEL-cohort property, distinct from patient prevalence.
-DEPMAP_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q1"
+DEPMAP_PREFIX = "data-catalog/sources/depmap-consortium/dmc-26q3"
 DEPMAP_GLOBAL_SIGNATURES_KEY = f"{DEPMAP_PREFIX}/OmicsGlobalSignatures.csv"
 DEPMAP_MODEL_KEY = f"{DEPMAP_PREFIX}/Model.csv"
 # MSIsensor2 MSI-H threshold: score >= 20 (the standard MSIsensor2 cutoff; the MSIScore distribution
 # is bimodal with a clean gap between the MSS bulk (~2 median) and the MSI-H cluster (>>20)).
 _MODEL_MSI_HIGH_SCORE = 20.0
-# framework indication → DepMap OncotreeLineage (26q1 STRINGS — release-correct; note the subgroup
-# assigner's INDICATION_TO_DEPMAP_LINEAGE is STALE for 26q1: 26q1 merged Stomach+Esophagus into
+# framework indication → DepMap OncotreeLineage (26q3 STRINGS — release-correct; the OncotreeLineage
+# value set is byte-stable 26q1→26q3 (#810 crosswalk re-validation), so these strings carry forward
+# unchanged. Note the merged lineages PERSIST in 26q3: Stomach+Esophagus remain collapsed into
 # "Esophagus/Stomach" and Ovary into "Ovary/Fallopian Tube", so STAD/GC map to the merged lineage
 # (broader than gastric alone — includes esophageal, mirroring the GENIE Esophagogastric breadth note).
 INDICATION_TO_DEPMAP_LINEAGE = {
@@ -618,7 +619,7 @@ def model_msi_summary_for_indication(indication: str) -> dict:
             f"target-independent — the all-lineage complement to the CRC+STAD-only patient labels."
         ),
         "method_version": "0.2.0",
-        "_data_source": "depmap-consortium-26q1",
+        "_data_source": "depmap-consortium-26q3",
     }
 
 
@@ -714,7 +715,7 @@ def model_signature_summary_for_indication(indication: str) -> dict:
             f"PARP-sensitivity proxy — a real HRD/genomic-scar score is deferred). MODEL-cohort, target-independent."
         ),
         "method_version": "0.2.0",
-        "_data_source": "depmap-consortium-26q1",
+        "_data_source": "depmap-consortium-26q3",
     }
 
 

@@ -24,7 +24,7 @@ _ROLE_COLORS = {
 }
 
 
-def build_summary(target: str, indication: str, release_pin: str = "26q1", plot_data_out=None) -> dict:
+def build_summary(target: str, indication: str, release_pin: str = "26q3", plot_data_out=None) -> dict:
     """Q4 summary — the recommended_models table + rollup scalars. plot_data_out (figure offline seam):
     forwarded to the read fn so plot_data_recommended_models.parquet persists during resolution."""
     summary = _read.read_recommended_models(target, indication, release_pin=release_pin, plot_data_out=plot_data_out)
@@ -155,7 +155,7 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--target", required=True)
     ap.add_argument("--indication", required=True)
-    ap.add_argument("--release-pin", default="26q1")
+    ap.add_argument("--release-pin", default="26q3")
     ap.add_argument("--out", required=True, type=Path)
     ap.add_argument("--target-contracts", default=DEFAULT_TARGET_CONTRACTS)
     args = ap.parse_args()

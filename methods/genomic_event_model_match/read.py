@@ -93,7 +93,7 @@ def _screen_role(chronos: Optional[float]) -> str:
     return "indeterminate"
 
 
-def read_genomic_event_model_match(target: str, indication: str, release_pin: str = "26q1", top_n: int = 15) -> dict:
+def read_genomic_event_model_match(target: str, indication: str, release_pin: str = "26q3", top_n: int = 15) -> dict:
     """Genotype-match assembler — genotype-matched DepMap models for a (target, indication). Returns the
     ranked matched-models table + rollup. data_unavailable-safe.
 

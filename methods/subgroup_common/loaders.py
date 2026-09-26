@@ -53,6 +53,13 @@ CACHE_ROOT = Path.home() / ".cache" / "framework-subgroup-pipeline"
 CACHE_TCGA_MARKER = CACHE_ROOT / "tcga-marker-paper"
 CACHE_TCGA_MAF = CACHE_ROOT / "gdc-pancohort-somatic"
 CACHE_TCGA_EXPRESSION = CACHE_ROOT / "tcga-recount3"
+# TODO(#810 / Wave-2): left at 26q1. The indication→OncotreeLineage crosswalk is byte-stable
+# 26q1→26q3 (#810 Model.csv re-validation: identical lineage/code/subtype value sets), so the
+# narrowing LOGIC needs no change. But moving the subgroup lane to 26q3 is coupled to (a) re-running
+# the subgroup-assignment pipeline against 26q3 and re-publishing the (indication-specific) derived
+# subgroup_assignments products, and (b) re-transcribing the exact per-OncotreeCode 26Q1 census in
+# tests/test_depmap_population_narrowing.py (counts shifted materially in 26q3: Lung 293→331,
+# Myeloid 109→116, Esophagus/Stomach 189→199). Neither exists yet; bump with that re-materialization.
 CACHE_DEPMAP = CACHE_ROOT / "depmap-26q1"
 CACHE_ASSIGNMENTS = CACHE_ROOT / "subgroup-assignments"
 

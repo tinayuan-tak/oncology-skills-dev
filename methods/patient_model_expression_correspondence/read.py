@@ -70,7 +70,7 @@ def _representativeness(tpm, p25, p75) -> float:
 
 
 def read_recommended_models(
-    target: str, indication: str, release_pin: str = "26q1", top_n: int = 15, plot_data_out: "Optional[Path]" = None
+    target: str, indication: str, release_pin: str = "26q3", top_n: int = 15, plot_data_out: "Optional[Path]" = None
 ) -> dict:
     """Q4 assembler. Returns the recommended_models table + rollup for a (target, indication).
 

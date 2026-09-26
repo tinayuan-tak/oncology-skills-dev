@@ -112,6 +112,11 @@ def _load_depmap_expression(gene_symbols: list[str], reference_cohort: str | Non
     filter to IsDefaultEntryForModel='Yes', and optionally restrict to an
     OncotreeCode cohort via Model.csv (for reference_cohort filtering).
     """
+    # TODO(#810 / Wave-2): cache pin left at 26q1. The lineage crosswalk is byte-stable 26q1→26q3
+    # (#810), so no mapping change; deferring the pin bump until the subgroup-assignment pipeline is
+    # re-run/re-published against 26q3 (see subgroup_common/loaders.py TODO). The 26q3 source
+    # (dmc-26q3/OmicsExpression...) is available now — this is a lane-coherence deferral, not a
+    # missing-source one. Same TODO applies to the sibling cache in the reference-cohort loader below.
     cache = cache_root() / "framework-depmap-26q1"
     fallback = cache / "OmicsExpressionProteinCodingGenesTPMLogp1.csv"
     if not fallback.exists():
