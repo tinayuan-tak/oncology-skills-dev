@@ -167,12 +167,25 @@ def _is_empty_atom(v: ast.AST | None) -> bool:
     return False
 
 
+def _is_diagnostic_string(v: ast.AST | None) -> bool:
+    """A plain string literal or f-string — a diagnostic breadcrumb, not a data payload."""
+    return (isinstance(v, ast.Constant) and isinstance(v.value, str)) or isinstance(v, ast.JoinedStr)
+
+
 def _is_empty_return_value(v: ast.AST | None) -> bool:
     if _is_empty_atom(v):
         return True
-    # tuple/list of all-empty atoms, e.g. `return pd.DataFrame(), {}`
-    if isinstance(v, (ast.Tuple, ast.List)) and v.elts and all(_is_empty_atom(e) for e in v.elts):
-        return True
+    if isinstance(v, (ast.Tuple, ast.List)) and v.elts:
+        # tuple/list of all-empty atoms, e.g. `return pd.DataFrame(), {}`
+        if all(_is_empty_atom(e) for e in v.elts):
+            return True
+        # empty payload + diagnostic error string(s), e.g. `return {}, f"s3_read_failed: {e}"`:
+        # the data slot is an empty atom and the remaining slots only NAME the fault in a string.
+        # (the `{}`-with-breadcrumb evasion — the return still fails toward absence).
+        if any(_is_empty_atom(e) for e in v.elts) and all(
+            _is_empty_atom(e) or _is_diagnostic_string(e) for e in v.elts
+        ):
+            return True
     return False
 
 
@@ -192,15 +205,61 @@ def _string_constants(node: ast.AST) -> set[str]:
     return {n.value for n in ast.walk(node) if isinstance(n, ast.Constant) and isinstance(n.value, str)}
 
 
+def _is_loader_call_name(name: str) -> bool:
+    """A method-local loader entry point — `load_*` / `_load_*` (e.g. `_cli.load_and_classify`,
+    `load_model_csv`, `_load_pathways_from_product`). Its S3 read is usually >=2 levels deep, so
+    the try body that merely CALLS it carries no `_S3_READ_MARKERS` token of its own."""
+    return name.startswith("load_") or name.startswith("_load_")
+
+
+def _try_calls_loader(try_node: ast.Try) -> bool:
+    """True if the try body calls a method-local loader entry point (see `_is_loader_call_name`).
+
+    Closes the 2-deep-loader reachability hole: a seam ``except`` whose try body is just a call
+    into a loader helper (``_cli.load_and_classify``, ``load_model_csv``, ...) hides the actual
+    S3 read one+ levels down, so the try body has no direct ``_S3_READ_MARKERS`` name. We follow
+    the loader call as S3-reaching, matching the one-level-helper intent documented in the header.
+    """
+    for stmt in try_node.body:
+        for n in ast.walk(stmt):
+            if isinstance(n, ast.Call):
+                f = n.func
+                name = f.attr if isinstance(f, ast.Attribute) else (f.id if isinstance(f, ast.Name) else "")
+                if _is_loader_call_name(name):
+                    return True
+    return False
+
+
 def _try_reads_s3(try_node: ast.Try) -> bool:
     names: set[str] = set()
     for stmt in try_node.body:
         names |= _names_and_attrs(stmt)
-    return bool(names & _S3_READ_MARKERS)
+    return bool(names & _S3_READ_MARKERS) or _try_calls_loader(try_node)
 
 
 def _handler_reraises(handler: ast.ExceptHandler) -> bool:
     return any(isinstance(n, ast.Raise) for n in ast.walk(handler))
+
+
+def _type_check_drives_control_flow(handler: ast.ExceptHandler) -> bool:
+    """True if a ``type(...)`` / ``isinstance(...)`` call appears in a CONTROL-FLOW position —
+    the test of an ``if`` / ternary, or inside a ``raise`` arm — i.e. the handler actually
+    BRANCHES on the exception type.
+
+    A bare ``type(e).__name__`` baked into a diagnostic f-string (``return _empty(f"...{type(e).
+    __name__}")``) NAMES the error without branching on it, so it must NOT count as discipline.
+    """
+    guards: list[ast.AST] = []
+    for n in ast.walk(handler):
+        if isinstance(n, (ast.If, ast.IfExp)):
+            guards.append(n.test)
+        elif isinstance(n, ast.Raise):
+            guards.append(n)
+    for g in guards:
+        for n in ast.walk(g):
+            if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id in ("type", "isinstance"):
+                return True
+    return False
 
 
 def _handler_discriminates(handler: ast.ExceptHandler) -> bool:
@@ -208,11 +267,9 @@ def _handler_discriminates(handler: ast.ExceptHandler) -> bool:
         return True
     if _string_constants(handler) & _DISCRIMINATION_STRINGS:
         return True
-    # `type(e).__name__` idiom
-    for n in ast.walk(handler):
-        if isinstance(n, ast.Call) and isinstance(n.func, ast.Name) and n.func.id == "type":
-            return True
-    return False
+    # `type(...)` / `isinstance(...)` idiom — counts ONLY when it drives control flow (an `if`/
+    # ternary test or a `raise` arm), never a bare `type(e).__name__` breadcrumb in an f-string.
+    return _type_check_drives_control_flow(handler)
 
 
 def _handler_returns_empty(handler: ast.ExceptHandler) -> bool:
@@ -329,6 +386,32 @@ _BASELINE_RESIDUALS: dict[str, str] = {
     "structure_features_static/pull.py::_load_domains": "DEFERRED — structure_features_static/ is in the scope of active PR #364 "
     "(fix/sweep2-lru-of-failure); fix there to avoid a collision, not in this glob-widening PR.",
     "structure_features_static/pull.py::_load_hotspots": "DEFERRED — see _load_domains: fix under active PR #364, not here.",
+    # DETECTOR HARDENING (2026-09-26, PR fix/absence-discipline-lint-reachability-774, #774). Closing
+    # the two reachability holes — (1) 2-deep-loader follow in `_try_reads_s3`, (2) the
+    # `type(e).__name__`-breadcrumb false-positive in `_handler_discriminates`, plus the
+    # `return {}, "<err>"` non-empty-tuple gap in `_is_empty_return_value` — newly SURFACES the
+    # residuals below. They masked before purely via those holes (no allowlist entry). Recorded so CI
+    # stays green and the ratchet is ARMED against net-new seams; tracked for burndown, NOT fixed here
+    # (scope = the guard only). Burndown: #809 (four seams) and #796 (marrow-HPA).
+    "depmap_methylation_silencing/read.py::_load_ccle_methylation_for_gene": '#809 — live CCLE gzip fallback: `except Exception → return {}, f"s3_read_failed: {e}"` '
+    "over `s3.get_object` masks a transient/creds blip into methylation_silencing_class="
+    "data_unavailable (VERDICT-DRIVING). Sibling _load_methylation_from_product is the reference-good "
+    "is_definitively_absent+re-raise form; bring the live fallback to the same discipline.",
+    "depmap_rna_protein_concordance/read.py::_paired_rna_protein": '#809 — RNA arm `except Exception → return {}, {}, f"RNA load failed: {type(e).__name__}"` '
+    "masks a transient load_depmap_files_for_card4 failure into the rna_as_biomarker data-gap path "
+    "(VERDICT-DRIVING). Fix symmetrically with the protein arm (:56-57, same shape, non-empty tuple).",
+    "depmap_protein_abundance/cli.py::_all_protein_median_null": "#809 — `except Exception → return tuple()` over the `_load_allgene_null_sidecar()` read: a "
+    "transient sidecar fault empties the all-protein null → high_cutoff None → broadly_high cannot "
+    "fire (degradation lane). Discriminate genuine absence from transient.",
+    "expression_purity_confound/read.py::read_purity_points": "#809 — BENIGN figure-only best-effort: called AFTER the verdict class is computed, already "
+    "logger.debug's the drop and returns None, so it cannot produce a false verdict. Right resolution "
+    "is an inline `# absence-discipline: exempt -- figure-only, post-verdict` on the except line "
+    "(reader-scoped follow-up), then delete this entry — recorded here only because this PR is "
+    "guard-file-scoped and cannot edit the reader.",
+    "tcga_gtex_tpm_quantiles/marrow.py::_load": '#796 — marrow-HPA: `except Exception → _LOAD_ERROR = f"{type(exc).__name__}: {exc}"; '
+    "_TABLE = None; return` over an S3 get_object/read_csv. The type() breadcrumb previously satisfied "
+    "the discriminator (hole 2); it swallows any read failure into an unavailable marrow denominator, "
+    "dropping the essential-window KILL on myeloid-argmax targets (VERDICT-DRIVING).",
 }
 
 _ALLOWLIST: dict[str, str] = {**_DEFERRED_ALLOWLIST, **_BASELINE_RESIDUALS}
@@ -466,6 +549,95 @@ def r():
 """,
             False,
         ),
+        # 8. HOLE 1 (2-deep loader): try body only CALLS a `load_*` entry point (S3 read >=2 levels
+        #    down), bare except returns empty, no discrimination -> now VIOLATION (was invisible).
+        (
+            """
+def r():
+    try:
+        return _cli.load_and_classify(target)
+    except Exception:
+        return {}
+""",
+            True,
+        ),
+        # 8b. `_load_*` (leading underscore) loader entry point, empty-tuple return -> VIOLATION.
+        (
+            """
+def r():
+    try:
+        return _load_allgene_null_sidecar()
+    except Exception:
+        return tuple()
+""",
+            True,
+        ),
+        # 9. HOLE 2 (breadcrumb): the ONLY `type(e)` use is an f-string diagnostic, no branch on the
+        #    exception -> must NOT count as discrimination -> VIOLATION (over a loader call).
+        (
+            """
+def r():
+    try:
+        return load_model_csv(pin)
+    except Exception as e:
+        return {}, f"read_failed: {type(e).__name__}"
+""",
+            True,
+        ),
+        # 10. type() DRIVING control flow (guard of an `if`) -> genuine discrimination -> OK. Proves
+        #     the hole-2 tightening did not over-fire against real type-branching handlers.
+        (
+            """
+def r():
+    try:
+        return load_model_csv(pin)
+    except Exception as e:
+        if type(e) is FileNotFoundError:
+            return {}
+        raise
+""",
+            False,
+        ),
+        # 11. `return {}, "<err>"` non-empty-tuple over an S3 read: the data slot is empty and the
+        #     other slot only NAMES the fault in a string -> fails toward absence -> VIOLATION.
+        (
+            """
+def r():
+    try:
+        body = s3_client().get_object(Bucket=b, Key=k)
+        return body, "ok"
+    except Exception as e:
+        return {}, f"s3_read_failed: {e}"
+""",
+            True,
+        ),
+        # 12. isinstance() in a `raise` arm -> genuine discrimination -> OK (no over-fire).
+        (
+            """
+def r():
+    try:
+        return load_model_csv(pin)
+    except Exception as e:
+        if not isinstance(e, FileNotFoundError):
+            raise
+        return {}
+""",
+            False,
+        ),
+        # 13. Loader-call try body BUT properly disciplined (is_definitively_absent + raise) -> OK.
+        #     Proves the loader-follow (hole 1) still respects the absence discipline.
+        (
+            """
+def r():
+    try:
+        return load_constraint_row(target)
+    except Exception as e:
+        if not is_definitively_absent(e):
+            raise
+        return {}
+""",
+            False,
+        ),
     ],
 )
 def test_detector_semantics(case):
@@ -473,7 +645,6 @@ def test_detector_semantics(case):
     source, expect = case
     tree = ast.parse(source)
     lines = source.splitlines()
-    qmap = _qualname_by_node_id(tree)
     found = False
     for try_node in ast.walk(tree):
         if not isinstance(try_node, ast.Try) or not _try_reads_s3(try_node):
