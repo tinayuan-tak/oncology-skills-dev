@@ -768,3 +768,196 @@ def test_detector_bites_a_claim_b_arm_repointed_to_the_population_contrast():
     # …and the detector rejects it
     with pytest.raises(AssertionError, match="_claim_B"):
         assert_claim_b_arms_are_commensurate(mutant)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# FLEET-COMPLETENESS META-GUARD — every multi-arm fold-builder in _skills_common must belong to a
+# declared commensurability family (SK#1704, tracking #1703, epic #1507)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# SK#1688/#1689/#1675 made the arm-commensurability audit a standing gate for THREE families
+# (genomic / expression-proteomics / presence), but each family block is PER-FILE opt-in: it enumerates
+# the `corroboration_from_arms` callers inside ONE named file against ONE oracle. Nothing asserted that
+# *every* fold-builder across `_skills_common` belongs to a declared family — so a NEW builder landing in
+# an un-audited claim file would ship silently un-audited, and the #1703 milestone ("zero un-declared
+# multi-arm builders") stayed aspirational rather than enforced.
+#
+# This block is the enforcement artifact #1703 calls for. It STATIC-PARSES every `*claims*.py` in
+# `_skills_common`, enumerates each file's `corroboration_from_arms` callers (RESOLVING the import alias
+# per-file — presence imports it as `_corr_from_arms`; the resolution is generic, not hardcoded), and
+# asserts each enclosing FILE is either in the DECLARED covered-families set (which have an oracle block
+# above) OR in an explicit KNOWN-DEBT list. A caller in a file in NEITHER set fails loudly, naming the
+# file + function + arms and pointing at #1703. This flips the audit's to-do list into the gate itself:
+# the un-declared-builder population is closed by construction — a future multi-arm builder either lands
+# in a declared family, or is baselined as debt, or fails this gate.
+#
+# The four currently-un-declared families are baselined here as explicit known-debt (each entry cites its
+# #1703 checklist row), so the guard is GREEN today. It reds the moment a NEW un-declared family/file
+# appears, OR a debt family is removed from the debt list without a matching declared oracle block (the
+# file still holds a caller, so it lands in NEITHER set → red). The `_cn_signal`-style signal/demotion
+# MIRROR shape is already governed within its family block (genomic `_CN_DIRECTIONAL_BUILDERS`,
+# selectivity `_PROTEIN_QUORUM`); at this FILE granularity it lives inside an already-covered file, so the
+# fleet enumeration captures it by inclusion.
+#
+# This block edits ONLY the test file — no `*claims*.py` change — so it is verdict byte-stable by
+# construction (no decision.json / field_read_health / golden move, no target-contracts pin).
+
+_SKILLS_COMMON_DIR = pathlib.Path(__file__).resolve().parents[1]
+
+
+# The DECLARED "covered families" set: files whose `corroboration_from_arms` callers are each pinned by a
+# declared oracle block ABOVE in this file. Value = the family + the landed detector that covers it.
+_COVERED_FAMILY_FILES = {
+    "genomic_claims.py": (
+        "genomic — detector SK#1688 (_DECLARED_CORROBORATION_BUILDERS + the _cn_signal demotion mirror); "
+        "#1703 row: genomic [x]"
+    ),
+    "selectivity_claims.py": (
+        "expression/proteomics — detector SK#1689 (_DECLARED_SELECTIVITY_CORROBORATION_BUILDERS + the "
+        "_protein_window_quorum mirror); #1703 row: expression/proteomics [x]"
+    ),
+    "presence_claims.py": (
+        "presence — detector SK#1675 (_DECLARED_PRESENCE_CORROBORATION_BUILDERS, corroboration_from_arms "
+        "imported ALIASED as _corr_from_arms); #1703 row: presence [x]"
+    ),
+}
+
+# The explicit KNOWN-DEBT list: files that DO contain a `corroboration_from_arms` caller but whose family
+# is not yet declared with an oracle block. Baselined so the guard is GREEN today; each entry cites its
+# #1703 checklist row. Removing an entry here WITHOUT adding a declared oracle block for the file reds the
+# guard (the file's caller then belongs to NEITHER set) — which is exactly the intended forcing function.
+_KNOWN_DEBT_FILES = {
+    "literature_context_claims.py": (
+        "literature (literature_context_claims.py:95 `corroboration_from_arms([True, multi_disease_arm])`) "
+        "— #1703 row: literature. CONFIRMED incommensurate (non-independent pleiotropy arm); fix tracked in "
+        "#1600 (verdict-impact NOT yet concluded — measure before declaring)."
+    ),
+    "dependency_claims.py": (
+        "dependency (dependency_claims.py:407 `corroboration_from_arms([crispr_arm, rnai_arm])`) — #1703 "
+        "row: dependency. CRISPR×RNAi fold (L2b-2 #1533); documented inert — audit + declare an oracle block."
+    ),
+    "safety_claims.py": (
+        "safety (safety_claims.py:508 liability-source quorum `corroboration_from_arms([_arm(sk) …])`) — "
+        "#1703 row: safety. L2b-3 #1546; documented inert — audit + declare an oracle block."
+    ),
+    "combination_vulnerability_claims.py": (
+        "combination (combination_vulnerability_claims.py:278 "
+        "`corroboration_from_arms([True, dede, in4mer])`) — #1703 row: combination. Documented inert — "
+        "audit + declare an oracle block."
+    ),
+}
+
+
+def _all_claims_files() -> list[pathlib.Path]:
+    """Every `*claims*.py` module in `_skills_common` (the population the fleet guard sweeps). Sorted for
+    deterministic reporting. `__file__` lives in tests/, so glob the parent skills_common dir directly."""
+    return sorted(_SKILLS_COMMON_DIR.glob("*claims*.py"))
+
+
+def corroboration_callers_by_file() -> dict[str, set[str]]:
+    """file basename → {function names that fold arms via `corroboration_from_arms`}, across ALL
+    `*claims*.py`. The import alias is resolved PER FILE (`_corr_from_arms_local_name`), so an aliased
+    caller (presence) is enumerated identically to an unaliased one. Files with no caller are omitted."""
+    out: dict[str, set[str]] = {}
+    for path in _all_claims_files():
+        tree = _parse(path.read_text())
+        local = _corr_from_arms_local_name(tree)  # generic alias resolution (asname or plain name)
+        callers = {name for name, fn in _functions(tree).items() if _calls_named(fn, local)}
+        if callers:
+            out[path.name] = callers
+    return out
+
+
+def assert_every_corroboration_file_is_declared_or_debt(
+    callers_by_file: dict[str, set[str]],
+    covered: set[str],
+    debt: set[str],
+) -> None:
+    """Raise AssertionError unless every file that folds arms via `corroboration_from_arms` is in the
+    DECLARED covered-families set OR the explicit known-debt list (and the two sets are disjoint). This is
+    the predicate both fleet-completeness mutation tests drive red."""
+    overlap = covered & debt
+    assert not overlap, (
+        f"a claim file is listed as BOTH a covered family and known-debt: {sorted(overlap)} — a family is "
+        f"either declared (with an oracle block) or debt, never both (#1703)"
+    )
+    for fname in sorted(callers_by_file):
+        funcs = callers_by_file[fname]
+        assert fname in covered or fname in debt, (
+            f"UN-DECLARED multi-arm fold-builder family: {fname} contains `corroboration_from_arms` "
+            f"caller(s) {sorted(funcs)} but the file is in NEITHER the declared covered-families set NOR "
+            f"the known-debt list. Every multi-arm fold-builder in _skills_common must belong to a "
+            f"declared commensurability family (arm-commensurability invariant, tracking #1703, epic "
+            f"#1507): fold arms are only commensurate if same construct/granularity/provenance-basis and "
+            f"independent. Either ADD a declared oracle block for this family (like the genomic/"
+            f"selectivity/presence blocks above) or BASELINE it in _KNOWN_DEBT_FILES citing its #1703 "
+            f"checklist row."
+        )
+
+
+# ── the fleet-completeness tests ─────────────────────────────────────────────────────────────────────
+def test_covered_and_debt_family_files_are_disjoint():
+    """A claim file's family is either DECLARED (oracle block) or DEBT — never both. Guards against a
+    stale debt entry lingering after a family is declared."""
+    overlap = set(_COVERED_FAMILY_FILES) & set(_KNOWN_DEBT_FILES)
+    assert not overlap, f"claim files listed as both covered and debt: {sorted(overlap)}"
+
+
+def test_every_multi_arm_fold_builder_file_is_declared_or_debt():
+    """FLEET COMPLETENESS (GREEN today): every `*claims*.py` that folds arms via `corroboration_from_arms`
+    is in the declared covered-families set or the baselined known-debt list. A NEW un-declared family/
+    file (or a NEW builder in an un-audited claim file) reds here until it is declared or baselined —
+    turning the #1703 to-do list into the gate itself."""
+    assert_every_corroboration_file_is_declared_or_debt(
+        corroboration_callers_by_file(), set(_COVERED_FAMILY_FILES), set(_KNOWN_DEBT_FILES)
+    )
+
+
+def test_fleet_enumeration_finds_all_seven_known_family_files():
+    """Anti-vacuity + coverage floor: the sweep must actually discover the seven family files known today
+    (three covered + four debt), each with ≥1 caller. If the enumeration silently found nothing (e.g. a
+    broken alias resolution or glob), the completeness test above would pass VACUOUSLY. Pins that the
+    enumeration has teeth and that every declared/debt file genuinely still carries a caller (so the debt
+    list cannot go stale un-noticed)."""
+    callers = corroboration_callers_by_file()
+    expected_files = set(_COVERED_FAMILY_FILES) | set(_KNOWN_DEBT_FILES)
+    assert expected_files <= set(callers), (
+        f"declared/debt family files with NO discovered corroboration_from_arms caller (stale entry, or "
+        f"the enumeration failed to resolve them): {sorted(expected_files - set(callers))}"
+    )
+    # presence is the aliased case (`_corr_from_arms`); prove the alias resolution actually enumerated it.
+    assert "presence_claims.py" in callers and callers["presence_claims.py"], (
+        "the aliased presence family (_corr_from_arms) was not enumerated — alias resolution is broken"
+    )
+
+
+# MUTATION (a) — a synthetic `corroboration_from_arms` caller in a claim file that is in NEITHER the
+# covered NOR the debt set must red the guard. Simulated by injecting a synthetic file→caller entry into
+# the enumeration mapping (the guard is a pure predicate over that mapping), so no real module is touched.
+def test_guard_bites_a_new_undeclared_family_file():
+    """MUTATION TEST direction (a): a fold-builder in an un-audited claim file reds the guard. Confirms
+    the guard bites the exact failure mode #1703 exists to prevent — a NEW multi-arm builder shipping in a
+    file that no oracle block or debt entry covers."""
+    mutant = dict(corroboration_callers_by_file())
+    mutant["a_brand_new_undeclared_claims.py"] = {"_some_new_corroboration"}
+    with pytest.raises(AssertionError, match="UN-DECLARED multi-arm fold-builder family"):
+        assert_every_corroboration_file_is_declared_or_debt(mutant, set(_COVERED_FAMILY_FILES), set(_KNOWN_DEBT_FILES))
+
+
+# MUTATION (b) — removing a family from the debt list WITHOUT adding its declared oracle block must red
+# the guard: the file still holds a real caller, so it now belongs to NEITHER set.
+@pytest.mark.parametrize("removed", sorted(_KNOWN_DEBT_FILES))
+def test_guard_bites_a_debt_family_removed_without_a_declared_block(removed):
+    """MUTATION TEST direction (b): silently dropping a debt entry (without promoting it to a declared
+    oracle block) reds the guard, because the un-fixed file's real caller then belongs to neither set.
+    This is what forces the debt list to shrink ONLY by declaring the family — never by quietly deleting
+    the tracking row. Standing negative case over EVERY debt family."""
+    debt_minus_one = set(_KNOWN_DEBT_FILES) - {removed}
+    # sanity: the file we dropped genuinely still holds a live caller (else the test would pass vacuously)
+    assert removed in corroboration_callers_by_file(), (
+        f"{removed} no longer contains a corroboration_from_arms caller — this negative case is vacuous; "
+        f"the debt entry should be removed and this parametrization updated"
+    )
+    with pytest.raises(AssertionError, match="UN-DECLARED multi-arm fold-builder family"):
+        assert_every_corroboration_file_is_declared_or_debt(
+            corroboration_callers_by_file(), set(_COVERED_FAMILY_FILES), debt_minus_one
+        )
