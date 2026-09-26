@@ -29,11 +29,12 @@ from methods.dge_deseq2.build_run_ledger import CatalogedProduct, ExpectedProduc
 # --------------------------------------------------------------------------- #
 # expected_products from the real config intent
 # --------------------------------------------------------------------------- #
-def test_expected_products_from_config_is_the_38_product_universe():
+def test_expected_products_from_config_is_the_41_product_universe():
     exp = B.expected_products()
-    # 29 recount3 sensitivity (28 published + NSCLC) + 1 xenatoil sens + 2 AG + 3 subgroup + 3
-    # singletons. +1 vs the pre-#734 universe: LAML's recount3 sensitivity product (Phase 2 publish).
-    assert len(exp) == 38, sorted(exp)
+    # 29 recount3 sensitivity (28 published + NSCLC) + 1 xenatoil sens + 2 AG + 6 subgroup + 3
+    # singletons. +3 vs the pre-#738 universe: the by-subgroup roster expanded 3 -> 6
+    # (COADREAD/NSCLC/STAD + ESCA/HNSC/PAAD).
+    assert len(exp) == 41, sorted(exp)
     assert "coadread-dge-tumor-vs-normal-sensitivity-v1" in exp
     assert "laml-dge-tumor-vs-normal-sensitivity-v1" in exp  # +#734 Phase 2
     assert "nsclc-dge-tumor-vs-normal-sensitivity-v1" in exp  # the extra composite
@@ -299,7 +300,9 @@ def test_real_catalog_reconciles_offline_green():
         pytest.skip("no data-catalog clone available (set DATA_CATALOG_ROOT)")
     rows, divergences = B.build_and_check(root, offline=True)
     assert divergences == [], divergences
-    assert len(rows) == 38 and all(r.reconciled for r in rows)
+    # 41-product universe (matches the config-intent set above): the by-subgroup roster
+    # expanded 3 -> 6 (COADREAD/NSCLC/STAD + ESCA/HNSC/PAAD) once the #738 catalog manifests landed.
+    assert len(rows) == 41 and all(r.reconciled for r in rows)
 
 
 @pytest.mark.skipif(

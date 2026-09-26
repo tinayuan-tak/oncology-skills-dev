@@ -52,7 +52,7 @@ from pathlib import Path
 
 import yaml
 
-from .config import _CONFIG_PATH, run_ledger_intent
+from .config import _CONFIG_PATH, run_ledger_intent, subgroup_axis_reconciliation
 from .emit_data_package import _SUBSTRATE_INFIX, adj_vs_gtex_catalog_id, prefix_stem_of
 
 # The data-catalog clone (env override + portable sibling default) — same resolution the read
@@ -488,7 +488,11 @@ def build_and_check(
         s3_present = dge_prefixes_on_s3(all_prefixes, all_stems, set(manifests))
         rows = build_ledger(expected, manifests, s3_prefixes=s3_present)
         apply_qc(rows, _real_parquet_reader)
-    return rows, self_check_divergences(rows, expected)
+    # Reconciliation teeth (#738): a curated (indication, axis) that maps to an assignment product
+    # with no catalog manifest must RED the self-check — same fail-open discipline as the config
+    # <-> manifest reconciliation above, folded into the same divergence list.
+    divergences = self_check_divergences(rows, expected) + subgroup_axis_reconciliation(catalog_root)
+    return rows, divergences
 
 
 def _write_ledger(rows: list[LedgerRow], out: Path) -> None:

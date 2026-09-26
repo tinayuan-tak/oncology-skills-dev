@@ -112,7 +112,7 @@ run_ledger_intent:
   sensitivity_xena_toil: [COADREAD]
   adj_vs_gtex_recount3: [COADREAD]
   adj_vs_gtex_xena_toil: [COADREAD]
-  subgroup_recount3: [COADREAD, NSCLC, STAD]
+  subgroup_recount3: [COADREAD, ESCA, HNSC, NSCLC, PAAD, STAD]
   # Products with no (indication x substrate) axis of their own — declared by explicit id.
   singletons:
     - id: pancan-dge-tumor-vs-normal-v1                 # derive_pancan_stack roll-up

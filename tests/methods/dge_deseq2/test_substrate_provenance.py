@@ -64,9 +64,17 @@ SENSITIVITY_GLOB = "manifests/derived/*dge-tumor-vs-normal-sensitivity*.yaml"
 # MEASURED 2026-09-15 by sweeping every manifest matched by SENSITIVITY_GLOB.
 N_SENSITIVITY_MANIFESTS = 32
 CROSS_COHORT_MANIFESTS = {"sclc-dge-tumor-vs-normal-sensitivity-v1"}
+# The full by-subgroup roster after the #738 expansion (COADREAD/ESCA/HNSC/NSCLC/PAAD/STAD). Only
+# COADREAD/NSCLC/STAD have LANDED product manifests today; ESCA/HNSC/PAAD are config-declared but
+# their products are computed + landed downstream of this infra PR. The regression guard below
+# checks whichever of these are present in the live catalog (see the intersection with
+# _manifest_ids()) — every by-subgroup product that EXISTS must be within-pipeline with no caveat.
 BY_SUBGROUP_MANIFESTS = {
     "coadread-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
+    "esca-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
+    "hnsc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
     "nsclc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
+    "paad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
     "stad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1",
 }
 
@@ -217,7 +225,9 @@ def test_by_subgroup_products_are_within_pipeline_not_cross_cohort():
     no manifest key separating them (`type:` is only source-release/derived). Its arity therefore
     cannot stand in for the number of expression substrates, and it must never decide the basis.
     """
-    for m in sorted(BY_SUBGROUP_MANIFESTS):
+    present = sorted(BY_SUBGROUP_MANIFESTS & set(_manifest_ids()))
+    assert present, "no by-subgroup product manifests found in the catalog to guard"
+    for m in present:
         basis, caveat = dge._substrate_provenance(m)
         assert basis == "within_pipeline_deseq2_counts", f"{m} → {basis} (the derived_from proxy is back)"
         assert caveat is None, f"{m} handed a caveat contradicting its own DESeq2 kernel: {caveat}"

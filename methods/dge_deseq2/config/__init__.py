@@ -34,6 +34,7 @@ import yaml
 
 _CONFIG_PATH = Path(__file__).with_name("indications.yaml")
 _SUBSTRATES_PATH = Path(__file__).with_name("substrates.yaml")
+_SUBGROUP_AXES_PATH = Path(__file__).with_name("subgroup_axes.yaml")
 
 
 @lru_cache(maxsize=1)
@@ -154,6 +155,55 @@ def run_ledger_intent() -> dict:
         },
         "singletons": [dict(s) for s in intent.get("singletons", [])],
     }
+
+
+@lru_cache(maxsize=1)
+def subgroup_axes() -> dict[str, list[dict]]:
+    """The by-subgroup DGE curation: ``{INDICATION -> [{axis, assignments_manifest, strata}, ...]}``.
+
+    Config-drive for ``run_subgroup_dge_batch`` (analysis-methods#738): each indication maps to an
+    ORDERED list of subgroup axes, each binding a (axis label, assignment-manifest id, strata) triple
+    out of ``config/subgroup_axes.yaml``.
+
+    Fail loud on drift rather than silently mis-projecting (mirrors the ``pan_tissue_render`` subset
+    assert in :func:`_load`): the set of indications keyed here MUST equal the by-subgroup roster
+    declared in ``run_ledger_intent()["subgroup"]["recount3"]``. A drift in EITHER direction (an axis
+    curated for an indication the ledger does not expect, or an expected indication with no curated
+    axes) is a bug that would desync the orchestrator from the run-ledger.
+    """
+    with open(_SUBGROUP_AXES_PATH, encoding="utf-8") as fh:
+        data = yaml.safe_load(fh)["subgroup_axes"]
+    keyed = set(data)
+    declared = set(run_ledger_intent()["subgroup"]["recount3"])
+    assert keyed == declared, (
+        f"subgroup_axes indications {sorted(keyed)} != run_ledger_intent subgroup.recount3 "
+        f"{sorted(declared)} (drift either way is a bug)"
+    )
+    return {ind: [dict(ax) for ax in axes] for ind, axes in data.items()}
+
+
+def subgroup_axis_reconciliation(catalog_root) -> list[str]:
+    """Return the mapped-but-MISSING assignment-manifest errors (empty list == clean).
+
+    For every ``(indication, axis)`` in :func:`subgroup_axes`, the mapped ``assignments_manifest``
+    id must resolve to a real derived manifest at
+    ``{catalog_root}/manifests/derived/{id}.yaml``. Any mapping that does not is returned as a
+    human-readable error string. These are the "mapped-but-missing must RED" teeth
+    (:mod:`build_run_ledger` folds them into ``--self-check``): a curated axis that points at an
+    assignment product no one has landed must fail loud, never green-on-empty (the S5 #698 fail-open
+    discipline).
+    """
+    derived = Path(catalog_root) / "manifests" / "derived"
+    errors: list[str] = []
+    for ind, axes in subgroup_axes().items():
+        for ax in axes:
+            mid = ax["assignments_manifest"]
+            manifest = derived / f"{mid}.yaml"
+            if not manifest.is_file():
+                errors.append(
+                    f"{ind}/{ax['axis']}: mapped assignments_manifest {mid!r} has no catalog manifest at {manifest}"
+                )
+    return sorted(errors)
 
 
 def substrates() -> dict:
