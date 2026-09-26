@@ -15,6 +15,12 @@
       "COAD",
       "READ"
     ],
+    "cd8_hot_sample_fraction": null,
+    "cd8_treg_ratio": null,
+    "cd8_m2_ratio": null,
+    "median_treg_fraction": null,
+    "median_m2_macrophage_fraction": null,
+    "median_m1_macrophage_fraction": null,
     "til_fraction_class": "til_high",
     "median_til_percentage": 7.9026,
     "til_n_samples": 556,
@@ -22,11 +28,19 @@
     "antigen_conditioned_call": "antigen_high_immune_hot",
     "cd8_high_minus_low": 0.0514,
     "antigen_high_immune_context_class": "immune_hot",
+    "antigen_phenotype_enriched_in": null,
+    "antigen_phenotype_kw_p": null,
+    "antigen_phenotype_scope": null,
+    "indication": "COADREAD",
+    "spatial_coloc_class": null,
+    "spatial_immune_adjacency_fraction": null,
+    "spatial_top_enriched_compartment": null,
     "til_cibersort_agreement": null,
+    "spatial_immune_phenotype": null,
     "claim_vector": {
       "IMMUNE": {
         "signal": "moderate",
-        "corroboration": "moderate",
+        "corroboration": "single_arm",
         "evidence": "immune-context: immune_intermediate (median CD8 frac=0.1)",
         "conflict": null,
         "informs": "TCE effector context \u2014 is the indication immune-hot (CD8 T cells present to redirect)? INDICATION-level / target-independent; immune_cold is an effector-absence efficacy risk for a T-cell engager, not a target-level veto",
@@ -57,7 +71,11 @@
           }
         }
       },
-      "_disclaimer": "Modality-blind, verdict-INERT projection of the immune-context effector axis (IMMUNE), signal\u00d7corroboration. DESCRIPTIVE + INDICATION-level (target-independent in v1): strong = immune-hot (TCE-favourable); `immune_cold` = `absent` (MEASURED effector-absence, a TCE-efficacy risk NOT a target veto \u2014 CIBERSORT is relative + non-spatial); `unmeasured` = no cohort. Never feeds a verdict."
+      "_disclaimer": "Modality-blind, verdict-INERT projection of the immune-context effector axis (IMMUNE), signal\u00d7corroboration. DESCRIPTIVE + INDICATION-level (target-independent in v1): strong = immune-hot (TCE-favourable); `immune_cold` = `absent` (MEASURED effector-absence, a TCE-efficacy risk NOT a target veto \u2014 CIBERSORT is relative + non-spatial); `unmeasured` = no cohort. Never feeds a verdict. CORROBORATION is the orthogonal-platform ruler, not a constant: `high` = an ABSOLUTE H&E-DL TIL (Saltz) or SPATIAL co-localization read AGREES; `single_arm` = CIBERSORT alone (no orthogonal check for this indication \u2014 maps to weak confidence, was `moderate` pre-v1.8.0); `low` = an orthogonal platform CONTRADICTS (and `conflict` names it). FOUR FRAME scalars qualify the token \u2014 reference_frame (pan-cancer rank), heterogeneity_frame (hot-sample PREVALENCE vs the cohort median), suppression_frame (CD8:Treg / CD8:M2) and antigen_phenotype_frame (is the TARGET expressed where the effectors are \u2014 IHC-stratified, Kruskal-Wallis-gated, urothelial scope only) \u2014 all descriptive, none gating: no pan-cancer distribution exists for a prevalence, a suppressor ratio or a phenotype-stratified expression spread yet.",
+      "reference_frame": "median CD8 share 0.1 of the CIBERSORT LM22 LEUKOCYTE compartment (relative, not absolute density; n=723 samples, cohort MEDIAN); pan-cancer cuts Q1=0.084 (cold) / Q3=0.113 (hot) over 33 TCGA studies (pancanatlas-cibersort-lm22-per-sample-v1, 11,373 samples) => `immune_intermediate` is a pan-cancer RANK of the CD8 share, NOT an absolute T-cell density and NOT a spatial or functional read",
+      "heterogeneity_frame": "unmeasured",
+      "suppression_frame": "suppression unmeasurable for `immune_intermediate`: BOTH suppressor medians (Treg None, M2 None) sit at the LM22 noise floor, so the ratios ABSTAIN rather than divide by an absent denominator",
+      "antigen_phenotype_frame": "unmeasured"
     },
     "key_signals": {
       "headline": "TCE effector context present (immune-hot/intermediate).",
@@ -79,17 +97,17 @@
           "label": "moderate"
         },
         "confidence": {
-          "tier": "moderate",
-          "dots": 2,
-          "label": "corroboration: moderate"
+          "tier": "single_arm",
+          "dots": 1,
+          "label": "corroboration: single_arm"
         }
       }
     ],
     "immune_confirmation_caveat": {
-      "reason": "orthogonally_corroborated",
-      "detail": "immune_context_class=immune_intermediate (median CD8 share=0.1) is a bulk CIBERSORT LM22 deconvolution FRACTION \u2014 relative, reference-model-dependent, non-spatial and function-blind, and the orthogonal absolute H&E-DL TIL=til_high (median 7.9026%) does NOT contradict it \u2014 an independent morphology platform agrees the tumour is infiltrated, so this is NOT an over-call of DENSITY (the false-demote guard: a genuinely-inflamed, ICI-validated indication is spared). BUT absolute TIL is a density/morphology read, NOT spatial localization: it cannot confirm tumour-NEST (vs stroma-EXCLUDED / margin-restricted) CD8, nor CD8 function \u2014 an IMMUNE-EXCLUDED tumour can read high on both bulk platforms (see spatial_localization_caveat)."
+      "reason": "bulk_fraction_spatially_unconfirmed",
+      "detail": "immune_context_class=immune_intermediate (median CD8 share=0.1) is a bulk CIBERSORT LM22 deconvolution FRACTION \u2014 relative, reference-model-dependent, non-spatial and function-blind, with NO orthogonal absolute-TIL corroboration for this indication (Saltz unmeasured / non-comparable) and no spatial co-localization read. Looks-hot-but-SPATIALLY-UNCONFIRMED \u2014 the bulk fraction cannot tell an INFLAMED tumour (nest CD8, TCE-favourable) from an IMMUNE-EXCLUDED one (stroma/margin CD8) or a DESERT."
     },
-    "spatial_localization_caveat": "a bulk CD8 fraction reports the SHARE of the leukocyte compartment, not the spatial LOCALIZATION: it cannot distinguish an INFLAMED tumour (CD8 in the malignant nest \u2014 TCE-favourable) from an IMMUNE-EXCLUDED tumour (CD8 trapped in peritumoral stroma / at the invasive margin, not touching malignant cells \u2014 TCE-UNfavourable) from a DESERT. Resolving it needs spatial / multiplex-IHC / pathology, not bulk deconvolution.",
+    "spatial_localization_caveat": "a bulk CD8 fraction reports the SHARE of the leukocyte compartment, not the spatial LOCALIZATION: it cannot distinguish an INFLAMED tumour (CD8 in the malignant nest \u2014 TCE-favourable) from an IMMUNE-EXCLUDED tumour (CD8 trapped in peritumoral stroma / at the invasive margin, not touching malignant cells \u2014 TCE-UNfavourable) from a DESERT. No spatial co-localization product covers this indication; resolving it needs spatial / multiplex-IHC / pathology, not bulk deconvolution.",
     "immune_provenance": {
       "bulk_cibersort": {
         "immune_context_class": "immune_intermediate",
@@ -113,6 +131,19 @@
         "cd8_high_minus_low": 0.0514,
         "antigen_high_immune_context_class": "immune_hot"
       },
+      "cohort_heterogeneity": {
+        "cd8_hot_sample_fraction": null,
+        "frame": "unmeasured"
+      },
+      "suppression": {
+        "cd8_treg_ratio": null,
+        "cd8_m2_ratio": null,
+        "median_treg_fraction": null,
+        "median_m2_macrophage_fraction": null,
+        "median_m1_macrophage_fraction": null,
+        "frame": "suppression unmeasurable for `immune_intermediate`: BOTH suppressor medians (Treg None, M2 None) sit at the LM22 noise floor, so the ratios ABSTAIN rather than divide by an absent denominator",
+        "gating": "none \u2014 no pan-cancer distribution derived for these ratios yet"
+      },
       "confirmed_tumor_nest_infiltration": false,
       "note": "A bulk CIBERSORT CD8 fraction is RELATIVE, non-spatial and function-blind; a positive read is CONFIRMED tumour-nest infiltration only with spatial / multiplex-IHC corroboration. The absolute H&E-DL TIL (Saltz) is an orthogonal ABSOLUTE-density check (still not spatial localization or CD8 function); median_number_of_clusters is a coarse spatial-aggregation hint, not a nest-vs-stroma call."
     },
@@ -125,16 +156,20 @@
         "polarity": "neutral"
       },
       "confidence": {
-        "level": "moderate",
-        "basis": "weakest-link corroboration = moderate",
+        "level": "weak",
+        "basis": "weakest-link corroboration = single_arm",
         "coverage": {
           "n_measured": 1,
           "n_axes": 1,
           "n_critical_measured": 1
         }
       },
-      "top_tension": null,
-      "headline_text": "Immune-intermediate \u2014 partial effector context \u2014 moderate confidence.",
+      "top_tension": {
+        "text": "immune_context_class=immune_intermediate (median CD8 share=0.1) is a bulk CIBERSORT LM22 deconvolution FRACTION \u2014 relative, reference-model-dependent, non-spatial and function-blind, with NO orthogonal absolute-TIL corroboration for this indication (Saltz unmeasured / non-comparable) and no spatial co-localization read. Looks-hot-but-SPATIALLY-UNCONFIRMED \u2014 the bulk fraction cannot tell an INFLAMED tumour (nest CD8, TCE-favourable) from an IMMUNE-EXCLUDED one (stroma/margin CD8) or a DESERT.",
+        "source": "immune_confirmation_caveat",
+        "severity": 2
+      },
+      "headline_text": "Immune-intermediate \u2014 partial effector context \u2014 weak confidence; tension: immune_context_class=immune_intermediate (median CD8 share=0.1) is a bulk CIBERSORT LM22 deconvolution FRACTION \u2014 relative, reference-model-dependent, non-spatial and function-blind, with NO orthogonal absolute-TIL corroboration for this indication (Saltz unmeasured / non-comparable) and no spatial co-localization read. Looks-hot-but-SPATIALLY-UNCONFIRMED \u2014 the bulk fraction cannot tell an INFLAMED tumour (nest CD8, TCE-favourable) from an IMMUNE-EXCLUDED one (stroma/margin CD8) or a DESERT..",
       "hero": {
         "kind": "headline_hero",
         "verdict": {
@@ -144,20 +179,22 @@
           "polarity": "neutral"
         },
         "confidence": {
-          "level": "moderate",
+          "level": "weak",
           "coverage": {
             "n_measured": 1,
             "n_axes": 1,
             "n_critical_measured": 1
           }
         },
-        "tension": null,
+        "tension": {
+          "text": "immune_context_class=immune_intermediate (median CD8 share=0.1) is a bulk CIBERSORT LM22 deconvolution FRACTION \u2014 relative, reference-model-dependent, non-spatial and function-blind, with NO orthogonal absolute-TIL corroboration for this indication (Saltz unmeasured / non-comparable) and no spatial co-localization read. Looks-hot-but-SPATIALLY-UNCONFIRMED \u2014 the bulk fraction cannot tell an INFLAMED tumour (nest CD8, TCE-favourable) from an IMMUNE-EXCLUDED one (stroma/margin CD8) or a DESERT."
+        },
         "axes": [
           {
             "key": "IMMUNE",
             "label": "TCE effector context",
             "signal": "moderate",
-            "corroboration": "moderate",
+            "corroboration": "single_arm",
             "conflict": false
           }
         ]
@@ -182,21 +219,25 @@
       "polarity": "not_scored",
       "honest_phrase": "Immune-intermediate \u2014 partial effector context",
       "confidence": {
-        "level": "moderate",
-        "basis": "weakest-link corroboration = moderate",
+        "level": "weak",
+        "basis": "weakest-link corroboration = single_arm",
         "coverage": {
           "n_measured": 1,
           "n_axes": 1,
           "n_critical_measured": 1
         }
       },
-      "top_tension": null,
+      "top_tension": {
+        "text": "immune_context_class=immune_intermediate (median CD8 share=0.1) is a bulk CIBERSORT LM22 deconvolution FRACTION \u2014 relative, reference-model-dependent, non-spatial and function-blind, with NO orthogonal absolute-TIL corroboration for this indication (Saltz unmeasured / non-comparable) and no spatial co-localization read. Looks-hot-but-SPATIALLY-UNCONFIRMED \u2014 the bulk fraction cannot tell an INFLAMED tumour (nest CD8, TCE-favourable) from an IMMUNE-EXCLUDED one (stroma/margin CD8) or a DESERT.",
+        "source": "immune_confirmation_caveat",
+        "severity": 2
+      },
       "claim_chips": [
         {
           "key": "IMMUNE",
           "label": "TCE effector context \u2014 is the indication immune-hot (CD8 T cells present to redirect)? INDICATION-level / target-independent; immune_cold is an effector-absence efficacy risk for a T-cell engager, not a target-level veto",
           "signal": "moderate",
-          "corroboration": "moderate",
+          "corroboration": "single_arm",
           "conflict": null,
           "evidence": "immune-context: immune_intermediate (median CD8 frac=0.1)",
           "cites": [
@@ -222,8 +263,17 @@
           }
         }
       ],
-      "claim_scalars": {},
-      "modality_scope": null,
+      "claim_scalars": {
+        "reference_frame": "median CD8 share 0.1 of the CIBERSORT LM22 LEUKOCYTE compartment (relative, not absolute density; n=723 samples, cohort MEDIAN); pan-cancer cuts Q1=0.084 (cold) / Q3=0.113 (hot) over 33 TCGA studies (pancanatlas-cibersort-lm22-per-sample-v1, 11,373 samples) => `immune_intermediate` is a pan-cancer RANK of the CD8 share, NOT an absolute T-cell density and NOT a spatial or functional read",
+        "heterogeneity_frame": "unmeasured",
+        "suppression_frame": "suppression unmeasurable for `immune_intermediate`: BOTH suppressor medians (Treg None, M2 None) sit at the LM22 noise floor, so the ratios ABSTAIN rather than divide by an absent denominator",
+        "antigen_phenotype_frame": "unmeasured"
+      },
+      "modality_scope": {
+        "_refinements": {
+          "bite_tce": "conditional"
+        }
+      },
       "claim_chips_by_subtype": null,
       "subgroup_signals": null,
       "question_table": [
@@ -239,9 +289,9 @@
             "label": "moderate"
           },
           "confidence": {
-            "tier": "moderate",
-            "dots": 2,
-            "label": "corroboration: moderate"
+            "tier": "single_arm",
+            "dots": 1,
+            "label": "corroboration: single_arm"
           }
         }
       ],
@@ -264,307 +314,7 @@
         ]
       },
       "_contract": "docs/UNIFIED_OUTPUT_CONTRACT.md"
-    },
-    "subgroup_signals": {
-      "IMMUNE": {
-        "signal": "moderate",
-        "confidence": "low",
-        "n_sources": 6,
-        "n_agree": 2,
-        "power": "high",
-        "conflict": false,
-        "sources": [
-          {
-            "card": "immune-context",
-            "tier": "moderate",
-            "n": 669,
-            "label": "immune context",
-            "conflict": false,
-            "value": "immune_intermediate"
-          },
-          {
-            "card": "myeloid-compartment-expression-cheng",
-            "tier": "absent",
-            "n": 0,
-            "label": "myeloid expression",
-            "conflict": false,
-            "value": "myeloid_subset_detected"
-          },
-          {
-            "card": "caf-compartment-expression-luo",
-            "tier": "moderate",
-            "n": 46,
-            "label": "caf expression",
-            "conflict": false,
-            "value": "caf_subset_detected"
-          },
-          {
-            "card": "ici-response-association",
-            "tier": "absent",
-            "n": 0,
-            "label": "ici response",
-            "conflict": false,
-            "value": "data_unavailable"
-          },
-          {
-            "card": "ici-response-imvigor210",
-            "tier": "absent",
-            "n": null,
-            "label": "ici response",
-            "conflict": false,
-            "value": "data_unavailable"
-          },
-          {
-            "card": "tcga-til-fraction-saltz",
-            "tier": "absent",
-            "n": 556,
-            "label": "til fraction",
-            "conflict": false,
-            "value": "til_high"
-          }
-        ],
-        "signal_source": "claim_vector",
-        "claims": [
-          {
-            "axis": "IMMUNE",
-            "signal": "moderate",
-            "corroboration": "moderate",
-            "evidence": "immune-context: immune_intermediate (median CD8 frac=0.1)",
-            "evidence_atom": {
-              "read": "immune_intermediate",
-              "values": {
-                "immune_context_class": "immune_intermediate",
-                "median_cd8_fraction": 0.1,
-                "median_total_t_cell_fraction": 0.3512,
-                "n_samples": 723,
-                "tumor_studies": [
-                  "COAD",
-                  "READ"
-                ]
-              },
-              "cite": {
-                "card_id": "immune-context",
-                "fields": [
-                  "immune_context_class",
-                  "median_cd8_fraction",
-                  "median_total_t_cell_fraction",
-                  "n_samples"
-                ]
-              },
-              "entity": {
-                "measurement_type": "immune_context",
-                "grain": "indication"
-              }
-            }
-          }
-        ]
-      }
-    },
-    "evidence_capsules": {
-      "capsules": {
-        "caf-compartment-expression-luo": {
-          "card_id": "caf-compartment-expression-luo",
-          "measurement_type": "sc_tumor_caf_state_expression",
-          "tier": "target",
-          "evidence_state": "measured",
-          "class": "caf_subset_detected",
-          "numeric_anchors": [
-            {
-              "metric": "max_detection_fraction",
-              "value": 0.129
-            },
-            {
-              "metric": "median_detection_fraction",
-              "value": 0.0181
-            }
-          ],
-          "categorical_anchors": null,
-          "n_basis": {
-            "max_detection_fraction": 0.129,
-            "median_detection_fraction": 0.0181,
-            "n_caf_groups_measured": 46
-          },
-          "_complete": true,
-          "top_k_strata": null,
-          "conflict_pairs": null,
-          "sibling_caveats": null,
-          "provenance_keys": [
-            {
-              "key": "product_id",
-              "value": "sc-pseudobulk-caf-luo-pancancer-v1"
-            }
-          ],
-          "data_quality_flags": null,
-          "cited_statements": null
-        },
-        "ici-response-association": {
-          "card_id": "ici-response-association",
-          "measurement_type": "ici_response_expression",
-          "evidence_state": "data_unavailable",
-          "_complete": true
-        },
-        "ici-response-imvigor210": {
-          "card_id": "ici-response-imvigor210",
-          "measurement_type": "ici_response_expression",
-          "evidence_state": "data_unavailable",
-          "_complete": true
-        },
-        "immune-context": {
-          "card_id": "immune-context",
-          "measurement_type": "immune_context",
-          "tier": "indication",
-          "evidence_state": "measured",
-          "class": "immune_intermediate",
-          "numeric_anchors": [
-            {
-              "metric": "cd8_fraction_antigen_high",
-              "value": 0.1415
-            },
-            {
-              "metric": "cd8_fraction_antigen_low",
-              "value": 0.0901
-            },
-            {
-              "metric": "join_fraction",
-              "value": 1.0
-            },
-            {
-              "metric": "median_cd8_fraction",
-              "value": 0.1
-            }
-          ],
-          "categorical_anchors": [
-            {
-              "field": "immune_context_class",
-              "value": "immune_intermediate"
-            },
-            {
-              "field": "antigen_conditioned_call",
-              "value": "antigen_high_immune_hot"
-            },
-            {
-              "field": "antigen_high_immune_context_class",
-              "value": "immune_hot"
-            }
-          ],
-          "n_basis": {
-            "cd8_fraction_antigen_high": 0.1415,
-            "cd8_fraction_antigen_low": 0.0901,
-            "join_fraction": 1.0
-          },
-          "_complete": true,
-          "top_k_strata": null,
-          "conflict_pairs": null,
-          "sibling_caveats": null,
-          "provenance_keys": null,
-          "data_quality_flags": null,
-          "cited_statements": null
-        },
-        "myeloid-compartment-expression-cheng": {
-          "card_id": "myeloid-compartment-expression-cheng",
-          "measurement_type": "sc_tumor_myeloid_state_expression",
-          "tier": "target",
-          "evidence_state": "measured",
-          "class": "myeloid_subset_detected",
-          "numeric_anchors": [
-            {
-              "metric": "max_detection_fraction",
-              "value": 0.2
-            },
-            {
-              "metric": "median_detection_fraction",
-              "value": 0.0131
-            }
-          ],
-          "categorical_anchors": null,
-          "n_basis": {
-            "max_detection_fraction": 0.2,
-            "median_detection_fraction": 0.0131,
-            "n_cancer_types_expressing": 0
-          },
-          "_complete": true,
-          "top_k_strata": null,
-          "conflict_pairs": null,
-          "sibling_caveats": null,
-          "provenance_keys": [
-            {
-              "key": "product_id",
-              "value": "sc-pseudobulk-myeloid-cheng-v1"
-            }
-          ],
-          "data_quality_flags": null,
-          "cited_statements": null
-        },
-        "tcga-til-fraction-saltz": {
-          "card_id": "tcga-til-fraction-saltz",
-          "measurement_type": "spatial_til_fraction",
-          "tier": "indication",
-          "evidence_state": "measured",
-          "class": "til_high",
-          "numeric_anchors": [
-            {
-              "metric": "median_number_of_clusters",
-              "value": 12.0
-            },
-            {
-              "metric": "median_til_percentage",
-              "value": 7.9026
-            }
-          ],
-          "categorical_anchors": null,
-          "n_basis": {
-            "median_number_of_clusters": 12.0,
-            "median_til_percentage": 7.9026,
-            "n_samples": 556
-          },
-          "_complete": true,
-          "top_k_strata": null,
-          "conflict_pairs": null,
-          "sibling_caveats": null,
-          "provenance_keys": [
-            {
-              "key": "_data_source",
-              "value": "tcga-til-fraction-saltz-per-sample-v1"
-            }
-          ],
-          "data_quality_flags": null,
-          "cited_statements": null
-        }
-      },
-      "manifest": [
-        {
-          "card_id": "caf-compartment-expression-luo",
-          "status": "full"
-        },
-        {
-          "card_id": "ici-response-association",
-          "status": "absent",
-          "reason": "data_unavailable"
-        },
-        {
-          "card_id": "ici-response-imvigor210",
-          "status": "absent",
-          "reason": "data_unavailable"
-        },
-        {
-          "card_id": "immune-context",
-          "status": "full"
-        },
-        {
-          "card_id": "myeloid-compartment-expression-cheng",
-          "status": "full"
-        },
-        {
-          "card_id": "tcga-til-fraction-saltz",
-          "status": "full"
-        }
-      ]
-    },
-    "cards_available": 4,
-    "cards_missing": [
-      "ici-response-association",
-      "ici-response-imvigor210"
-    ]
+    }
   },
   "cards": [
     {

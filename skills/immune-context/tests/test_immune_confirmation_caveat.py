@@ -8,11 +8,16 @@ These tests pin the three-tier caveat + the spatial_localization_caveat + the im
 assert the immune_context_verdict SPINE stays byte-stable (the skill is gateless; the verdict is a direct
 read of immune_context_class — the enrichment is a one-way projection that NEVER moves it).
 
-Live panel these fixtures mirror (2026-09-04 baseline reads):
-  SKCM immune_hot + Saltz til_intermediate → orthogonally_corroborated (the false-demote guard spares the
+v1.8.0 ORTHOGONAL-RULER ALIGNMENT (#1583): the caveat tiers MIRROR the confidence ruler
+(_orthogonal_check) — corroboration is granted only where the ruler grants it (til_cibersort_agreement is
+True, or spatial inflamed), and a spatial-EXCLUDED positive read is a first-class contradiction. Panel:
+  immune_hot + Saltz til_high (agree True) → orthogonally_corroborated (the false-demote guard spares the
     genuinely-inflamed, ICI-validated positive control) + presence!=function note;
-  BLCA immune_intermediate + Saltz til_high → orthogonally_corroborated (density confirmed — but the
-    spatial_localization_caveat still fires: the excluded-driver, IMvigor210 Mariathasan 2018);
+  immune_intermediate + spatial INFLAMED (agree None) → orthogonally_corroborated (the spatial arm agrees);
+  immune_hot + Saltz til_intermediate / immune_intermediate + Saltz til_high (agree None, no spatial) →
+    bulk_fraction_spatially_unconfirmed — CIBERSORT-only, the ruler reads single_arm→weak (was over-claimed
+    as orthogonally_corroborated pre-v1.8.0);
+  immune_intermediate + spatial EXCLUDED (the ACACA-COADREAD case) → bulk_fraction_spatially_discordant;
   PRAD immune_hot + Saltz til_low → bulk_fraction_til_discordant (the sharpest catch: relative CD8-rich
     SHARE but low ABSOLUTE lymphocyte density);
   LIHC/KIRC + Saltz data_unavailable → bulk_fraction_spatially_unconfirmed (no orthogonal check);
@@ -55,30 +60,74 @@ _INT = "immune-context-intermediate-tce-neutral"
 _COLD = "immune-context-cold-tce-opposing"
 
 
-# ── the three tiers ───────────────────────────────────────────────────────────────────────────────────
-def test_skcm_hot_til_intermediate_is_orthogonally_corroborated_and_spared():
-    """SKCM-like: immune_hot + absolute-TIL MEASURED (til_intermediate, non-contradicting) → the MILDER
-    orthogonally_corroborated tier (the false-demote guard: a genuinely-inflamed, ICI-validated positive
-    control is NOT sharp-flagged). The presence!=function note rides on the hot class."""
-    hl = _hl("immune_hot", 0.154, _HOT, til_class="til_intermediate", til_pct=3.2, til_n=380)
+# ── the tiers (mirror the v1.8.0 orthogonal ruler) ──────────────────────────────────────────────────────
+def _cards_spatial(immune_class, cd8, coloc_class, til_class=None, til_pct=None, til_n=None):
+    cards = _cards(immune_class, cd8, til_class, til_pct, til_n)
+    cards.append({"card_id": "spatial-tumor-normal-colocalization", "summary": {"spatial_coloc_class": coloc_class}})
+    return cards
+
+
+def _hl_spatial(immune_class, cd8, rule_id, coloc_class, til_class=None, til_pct=None, til_n=None):
+    return ic._headline(
+        _cards_spatial(immune_class, cd8, coloc_class, til_class, til_pct, til_n),
+        [],
+        ic._verdict([{"rule_id": rule_id}]),
+    )
+
+
+def test_hot_til_high_agree_true_is_orthogonally_corroborated_and_spared():
+    """immune_hot + Saltz til_high → til_cibersort_agreement is True → the ABSOLUTE-density platform AGREES
+    → the MILDER orthogonally_corroborated tier (the false-demote guard spares the genuinely-inflamed,
+    ICI-validated positive control). presence!=function rides on the hot class; no alarming top_tension."""
+    hl = _hl("immune_hot", 0.21, _HOT, til_class="til_high", til_pct=6.1, til_n=380)
+    assert hl["til_cibersort_agreement"] is True
     cav = hl["immune_confirmation_caveat"]
     assert cav and cav["reason"] == "orthogonally_corroborated", cav
     assert "not an over-call of density" in cav["detail"].lower()
     assert "presence != function" in cav["detail"].lower()  # hot class → exhaustion sub-note
-    # spared: no alarming spatially-unconfirmed top-tension
     tension = (hl["headline_block"] or {}).get("top_tension") or {}
     assert tension.get("source") != "immune_confirmation_caveat"
 
 
-def test_blca_intermediate_til_high_is_orthogonally_corroborated_but_localization_blind():
-    """BLCA-like excluded driver: immune_intermediate + Saltz til_high → both DENSITY platforms agree
-    (orthogonally_corroborated), yet the spatial_localization_caveat STILL fires — the decisive
-    inflamed-vs-EXCLUDED distinction neither bulk platform can make (IMvigor210 Mariathasan 2018)."""
-    hl = _hl("immune_intermediate", 0.110, _INT, til_class="til_high", til_pct=6.1, til_n=410)
+def test_spatial_inflamed_agree_none_is_orthogonally_corroborated():
+    """agree is None but the orthogonal SPATIAL platform reads an INFLAMED niche → the ruler grants
+    corroboration on the spatial arm → orthogonally_corroborated (the spatial branch of the guard)."""
+    hl = _hl_spatial("immune_intermediate", 0.11, _INT, "immune_niche_colocalized", til_class="til_intermediate")
+    assert hl["spatial_immune_phenotype"] == "inflamed"
+    assert hl["til_cibersort_agreement"] is None
     cav = hl["immune_confirmation_caveat"]
-    assert cav["reason"] == "orthogonally_corroborated"
-    assert "presence != function" not in cav["detail"].lower()  # not a hot class → no exhaustion sub-note
-    assert hl["spatial_localization_caveat"] and "excluded" in hl["spatial_localization_caveat"].lower()
+    assert cav["reason"] == "orthogonally_corroborated", cav
+    assert "spatial" in cav["detail"].lower()
+
+
+def test_agree_none_no_spatial_is_spatially_unconfirmed_not_corroborated():
+    """THE F1 FIX (#1583): a positive bulk read with Saltz MEASURED-but-not-directionally-comparable
+    (agree is None) and NO spatial read is CIBERSORT-only — the ruler reads single_arm→weak, so the caveat
+    must be bulk_fraction_spatially_unconfirmed, NOT the reassuring orthogonally_corroborated tier that the
+    pre-v1.8.0 `elif til_measured` branch over-claimed on agree is None."""
+    # immune_hot + til_intermediate → agree None (the old SKCM over-claim)
+    hl = _hl("immune_hot", 0.154, _HOT, til_class="til_intermediate", til_pct=3.2, til_n=380)
+    assert hl["til_cibersort_agreement"] is None
+    assert hl["immune_confirmation_caveat"]["reason"] == "bulk_fraction_spatially_unconfirmed"
+    # immune_intermediate + til_high → agree None (middle CIBERSORT band; the old BLCA over-claim)
+    hl2 = _hl("immune_intermediate", 0.110, _INT, til_class="til_high", til_pct=6.1, til_n=410)
+    assert hl2["til_cibersort_agreement"] is None
+    assert hl2["immune_confirmation_caveat"]["reason"] == "bulk_fraction_spatially_unconfirmed"
+
+
+def test_positive_read_spatial_excluded_is_spatially_discordant():
+    """THE ACACA-COADREAD case: a positive bulk read (immune_intermediate, til_high, agree None) whose
+    orthogonal SPATIAL co-localization reads IMMUNE-EXCLUDED → the NEW bulk_fraction_spatially_discordant
+    tier, matching the severity-3 spatial-excluded contradiction — NOT orthogonally_corroborated. And the
+    tension is never mislabelled til_cibersort_agreement (F3)."""
+    hl = _hl_spatial("immune_intermediate", 0.11, _INT, "immune_excluded", til_class="til_high", til_pct=6.1)
+    assert hl["spatial_immune_phenotype"] == "excluded"
+    cav = hl["immune_confirmation_caveat"]
+    assert cav["reason"] == "bulk_fraction_spatially_discordant", cav
+    assert "excluded" in cav["detail"].lower()
+    assert "over-calls" in cav["detail"].lower()
+    tension = (hl["headline_block"] or {}).get("top_tension") or {}
+    assert tension.get("source") != "til_cibersort_agreement"
 
 
 def test_prad_hot_til_low_is_bulk_fraction_til_discordant():
@@ -164,7 +213,8 @@ def test_immune_provenance_never_confirms_nest_infiltration():
     assert hl3["immune_provenance"]["absolute_til_corroboration"]["orthogonal_agreement"] == "corroborates"
 
     # immune_intermediate + til_high → agreement is None (middle band) → "not_comparable" (measured, no
-    # directional call) yet the caveat still SPARES it (orthogonally_corroborated)
+    # directional call). Post-v1.8.0 (#1583) this is CIBERSORT-only single_arm→weak, so the caveat reads
+    # bulk_fraction_spatially_unconfirmed (NOT the reassuring orthogonally_corroborated it over-claimed).
     hl4 = _hl("immune_intermediate", 0.110, _INT, til_class="til_high", til_pct=6.1)
     assert hl4["immune_provenance"]["absolute_til_corroboration"]["orthogonal_agreement"] == "not_comparable"
-    assert hl4["immune_confirmation_caveat"]["reason"] == "orthogonally_corroborated"
+    assert hl4["immune_confirmation_caveat"]["reason"] == "bulk_fraction_spatially_unconfirmed"

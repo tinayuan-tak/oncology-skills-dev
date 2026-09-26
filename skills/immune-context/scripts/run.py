@@ -205,7 +205,15 @@ def _immune_tension_extra(headline: dict):
     false-demote guard: a genuinely-inflamed, ICI-validated indication like melanoma stays clean)."""
     discord = _til_discordance_text(headline)
     if discord:
-        return {"text": discord, "source": "til_cibersort_agreement", "severity": 3}
+        # orthogonal_discordance_text prioritises the absolute-TIL branch (til_cibersort_agreement is False)
+        # over the SPATIAL branch (spatial_immune_phenotype excluded/inflamed). Attribute the tension to the
+        # platform that actually produced it — a spatial-driven discordance is NOT a til_cibersort one (F3).
+        src = (
+            "til_cibersort_agreement"
+            if headline.get("til_cibersort_agreement") is False
+            else "spatial_immune_phenotype"
+        )
+        return {"text": discord, "source": src, "severity": 3}
     # The DENOMINATOR tension, ahead of the immune_cold one: on a lymphoid cohort the immune_cold branch
     # can never fire (the class is withheld), and a silent top_tension here would let the neutral badge read
     # as "nothing notable" when the notable thing is that the axis cannot speak at all.
@@ -293,18 +301,27 @@ def _immune_confirmation_caveat(headline: dict) -> "dict | None":
     alone is not confirmed tumour-nest infiltration. Returns None on the negative (immune_cold) /
     insufficient paths → byte-stable there. Reason tiers, SHARP → MILD (mirrors surface's
     family_topology_annotation_unconfirmed vs clinically_precedented_cspa_unconfirmed):
+    The tiers MIRROR the v1.8.0 confidence ruler (_orthogonal_check) — a contradiction wins first, then a
+    corroboration, then single-arm — so the caveat and the confidence badge cannot drift:
       * bulk_fraction_til_discordant        — the orthogonal absolute H&E-DL TIL (Saltz) CONTRADICTS the
                                               relative CD8-share call (til_cibersort_agreement is False):
                                               CD8-rich SHARE but low ABSOLUTE lymphocyte density (the PRAD
-                                              case) — the sharpest over-call.
-      * bulk_fraction_spatially_unconfirmed — a positive read with NO orthogonal absolute-TIL check for this
-                                              indication (til_cibersort_agreement is None) → looks-hot-but-
-                                              SPATIALLY-UNCONFIRMED, the immune-EXCLUDED / desert risk.
-      * orthogonally_corroborated           — the MILDER false-demote-guard tier: the absolute H&E-DL TIL
-                                              CORROBORATES the CIBERSORT call (til_cibersort_agreement is
-                                              True) → NOT an over-call (an independent morphology platform
-                                              agrees; spares a genuinely-inflamed, ICI-validated indication
-                                              like melanoma / MSI-H — the SKCM/DLL3 analog)."""
+                                              case) — the sharpest DENSITY over-call.
+      * bulk_fraction_spatially_discordant  — the orthogonal SPATIAL co-localization reads IMMUNE-EXCLUDED
+                                              (spatial_immune_phenotype == "excluded") on a positive read:
+                                              effectors in the leukocyte compartment but DEPLETED from the
+                                              target-positive nest (the ACACA-COADREAD case). Matches the
+                                              severity-3 spatial-excluded top_tension / `conflict` / weak.
+      * orthogonally_corroborated           — the MILDER false-demote-guard tier, granted ONLY where the
+                                              ruler grants corroboration: til_cibersort_agreement is True
+                                              (absolute density agrees) OR spatial is `inflamed`. NEVER fires
+                                              on agree is None (the ruler reads that single_arm→weak). Spares
+                                              a genuinely-inflamed, ICI-validated indication (the SKCM/DLL3
+                                              analog).
+      * bulk_fraction_spatially_unconfirmed — a positive read that is CIBERSORT-only: no orthogonal
+                                              absolute-TIL check (agree None) and no decisive spatial read →
+                                              looks-hot-but-SPATIALLY-UNCONFIRMED, the immune-EXCLUDED /
+                                              desert risk (the ruler's single_arm→weak)."""
     v = headline.get("immune_context_verdict")
     if v not in _POSITIVE_IMMUNE:
         return None
@@ -313,39 +330,61 @@ def _immune_confirmation_caveat(headline: dict) -> "dict | None":
     cd8 = headline.get("median_cd8_fraction")
     tcls = headline.get("til_fraction_class")
     tpct = headline.get("median_til_percentage")
+    spatial = headline.get("spatial_immune_phenotype")
     til_measured = tcls not in (None, "data_unavailable")
     til_tail = f"absolute H&E-DL TIL={tcls}" + (f" (median {tpct}%)" if tpct is not None else "")
     base = (
         f"immune_context_class={icls} (median CD8 share={cd8}) is a bulk CIBERSORT LM22 deconvolution "
         f"FRACTION — relative, reference-model-dependent, non-spatial and function-blind"
     )
-    # The tier keys on whether the orthogonal absolute-TIL (Saltz) is MEASURED and whether it contradicts —
-    # NOT on the raw agreement flag alone (a hot call + til_intermediate reads agreement=None yet Saltz IS
-    # measured and does NOT contradict, so it must SPARE, not sharp-flag — the SKCM/MSI-H false-demote guard).
+    # v1.8.0 ORTHOGONAL-RULER ALIGNMENT: the tier MIRRORS the confidence ruler (_orthogonal_check in
+    # immune_context_claims.py). A CONTRADICTION wins first — absolute-TIL (density) then SPATIAL
+    # (localization) — THEN a corroboration, THEN single-arm. Corroboration is granted ONLY when the ruler
+    # grants it: til_cibersort_agreement is True, or spatial is inflamed. It is NOT granted on agree is None
+    # (Saltz measured but not directionally comparable — e.g. a hot call + til_intermediate) — the ruler
+    # reads that as single_arm→weak, so orthogonally_corroborated must NOT fire there (it would over-claim
+    # the SKCM-sparing tier where confidence simultaneously reads weak). The SPATIAL branch is the F1 fix:
+    # spatial_immune_phenotype was never read here even though it is the sharpest positive-read contradiction.
     if til_measured and agree is False:
         reason = "bulk_fraction_til_discordant"
         detail = (
             f"{base}; the orthogonal {til_tail} CONTRADICTS it — CD8-rich SHARE but low ABSOLUTE "
             f"lymphocyte density. The TCE-favourable effector read OVER-CALLS tumour infiltration."
         )
-    elif til_measured:
-        reason = "orthogonally_corroborated"
-        strength = "CORROBORATES" if agree is True else "does NOT contradict"
+    elif spatial == "excluded":
+        reason = "bulk_fraction_spatially_discordant"
         detail = (
-            f"{base}, and the orthogonal {til_tail} {strength} it — an independent morphology platform "
-            f"agrees the tumour is infiltrated, so this is NOT an over-call of DENSITY (the false-demote "
-            f"guard: a genuinely-inflamed, ICI-validated indication is spared). BUT absolute TIL is a "
-            f"density/morphology read, NOT spatial localization: it cannot confirm tumour-NEST (vs "
-            f"stroma-EXCLUDED / margin-restricted) CD8, nor CD8 function — an IMMUNE-EXCLUDED tumour can "
-            f"read high on both bulk platforms (see spatial_localization_caveat)."
+            f"{base}, but the orthogonal SPATIAL co-localization reads IMMUNE-EXCLUDED — the CD8 effectors "
+            f"are in the leukocyte compartment but DEPLETED from the target-positive malignant "
+            f"neighbourhood, so a TCE has nothing to redirect in the nest. This is the inflamed-vs-EXCLUDED "
+            f"distinction a bulk fraction structurally cannot make; the TCE-favourable read OVER-CALLS "
+            f"tumour-nest infiltration."
         )
-    else:  # Saltz unmeasured for this indication — no orthogonal absolute-TIL check at all
+    elif agree is True or spatial == "inflamed":
+        reason = "orthogonally_corroborated"
+        if agree is True:
+            corr = (
+                f"the orthogonal {til_tail} CORROBORATES it — an independent absolute-density morphology "
+                f"platform agrees the tumour is infiltrated"
+            )
+        else:
+            corr = (
+                "the orthogonal SPATIAL co-localization reads an IMMUNE-RICH niche around the "
+                "target-positive malignant cells"
+            )
+        detail = (
+            f"{base}, and {corr}, so this is NOT an over-call of DENSITY (the false-demote guard: a "
+            f"genuinely-inflamed, ICI-validated indication is spared). BUT density/adjacency is NOT the "
+            f"whole story: a bulk fraction cannot confirm tumour-NEST (vs stroma-EXCLUDED / "
+            f"margin-restricted) CD8, nor CD8 function (see spatial_localization_caveat)."
+        )
+    else:  # agree None/absent AND spatial not decisive — CIBERSORT is the ONLY arm (single_arm→weak)
         reason = "bulk_fraction_spatially_unconfirmed"
         detail = (
             f"{base}, with NO orthogonal absolute-TIL corroboration for this indication (Saltz "
-            f"unmeasured / non-comparable). Looks-hot-but-SPATIALLY-UNCONFIRMED — the bulk fraction "
-            f"cannot tell an INFLAMED tumour (nest CD8, TCE-favourable) from an IMMUNE-EXCLUDED one "
-            f"(stroma/margin CD8) or a DESERT."
+            f"unmeasured / non-comparable) and no spatial co-localization read. "
+            f"Looks-hot-but-SPATIALLY-UNCONFIRMED — the bulk fraction cannot tell an INFLAMED tumour "
+            f"(nest CD8, TCE-favourable) from an IMMUNE-EXCLUDED one (stroma/margin CD8) or a DESERT."
         )
     if icls in _HOT_CLASSES:
         detail += (
