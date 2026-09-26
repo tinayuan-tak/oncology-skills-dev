@@ -40,6 +40,14 @@ R = load_run_py(SCRIPTS.parent, "ce_run_drift")
 GOLDEN = Path(__file__).resolve().parent / "fixtures" / "golden"
 CASES = sorted(p.name for p in GOLDEN.iterdir() if (p / "expected_spine.json").exists()) if GOLDEN.exists() else []
 
+# Anti-vacuity cardinality floor: the drift-guard's real teeth (test_provenance_pins_frozen,
+# test_deterministic_spine_no_drift, ...) are all skipif(not CASES)-gated, so a deleted/relocated
+# /mis-pathed golden dir would silently skip them ALL and leave the pin green-while-blind. Assert the
+# two shipped goldens (KRAS-COADREAD, MARK2-PAAD) are discovered so their absence REDS collection
+# rather than fails open. Mirrors the standard siblings (skills/tests/test_version_parity.py `assert
+# _PAIRS`, test_evidence_graph_invariants.py `assert len(_SKILLS) >= 14`).
+assert len(CASES) >= 2, f"expected >= 2 frozen golden cases (KRAS-COADREAD, MARK2-PAAD); found {CASES}"
+
 DRIFT_FLOAT_TOL = 1e-9
 
 
