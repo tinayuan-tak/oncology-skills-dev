@@ -414,6 +414,13 @@ _CORROBORATION_READERS = {
     "skills/_skills_common/signals_first.py": "PASS-THROUGH (prose line)",
     "skills/_skills_common/skill_report.py": "PASS-THROUGH (copied verbatim into the report atom)",
     "skills/_skills_common/subgroup_derivation.py": "PASS-THROUGH (copied verbatim into the per-stratum atom)",
+    "skills/_skills_common/evidence_frame.py": (
+        "PASS-THROUGH — the L3 typed-evidence frame (design G) reads a consumed canonical-property "
+        "claim's `corroboration` tier only to gauge decision confidence (a weak tier adds a reservation "
+        "that down-ranks the frame's OWN decision). No map, no projection: an unrecognised rung is not a "
+        "member of _WEAK_CORROBORATION and reads as itself. ADDITIVE / verdict-INERT to every existing "
+        "skill (routes nothing back into any claim_vector / question_table / resolver)."
+    ),
     "skills/cross-evidence-hypothesis/scripts/run.py": "PASS-THROUGH (prose; the gate reads `signal`, not this)",
     "skills/example-gallery/scripts/generate_example_gallery.py": "PASS-THROUGH (gallery prose)",
     "skills/target-profile/scripts/tp_synthesis_prompt.py": "PASS-THROUGH (prompt prose)",
