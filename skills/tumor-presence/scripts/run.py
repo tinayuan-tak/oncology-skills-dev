@@ -1484,6 +1484,70 @@ _ORTHOGONAL_HIGH_ANCHOR_CLASSES = ("top_1pct", "top_decile")
 # ones the issue warns not to overstate (FOLR1 20.8 / DLL3 25.7) — a class-level check cannot (both `mid`).
 _SURFACE_PROCAN_ADEQUATE_PCTILE = 50.0
 
+# Cross-platform protein-abundance concordance bars (SK#1514, VERDICT-INERT). The two cell-line protein
+# platforms (Gygi TMT `cellline-protein-abundance` + ProCan DIA `cellline-protein-abundance-procan`) each
+# emit a raw all-gene percentile; a LEVEL concordance is read off those RANKS (a within-panel percentile
+# is the commensurate axis — the raw log-abundances are NOT comparable across the two platforms' scales).
+# The RAW percentile, not the coarse `allgene_percentile_class`, is used deliberately: the `mid` class
+# spans ~10th-90th percentile, so EPCAM (ProCan 79.7) and FOLR1 (ProCan 20.8) are BOTH `mid` and the class
+# cannot tell a real Gygi-low/ProCan-high discordance (EPCAM) from a genuinely-low-on-both target (FOLR1)
+# — the same reason #980 preferred the raw percentile for the surface re-anchor. A platform reads LOW below
+# the bottom-decile bar (10) and HIGH at or above the median/adequate bar (50, reusing
+# _SURFACE_PROCAN_ADEQUATE_PCTILE); MID between. Only an OPPOSITE-EXTREME split (one HIGH, one LOW) is a
+# discordance — the clean disagreement signal ProCan's own card exists to surface ("disagreement is a real
+# assay/panel signal, not noise"). NOT the abundance breadth class `protein_expression_class`: breadth !=
+# level (Principle 2), so a `broadly_high` detected-everywhere protein can still be bottom-decile abundance
+# and must not be read as a HIGH level here.
+_PROTEIN_PLATFORM_BOTTOM_DECILE_PCTILE = 10.0
+
+
+def _protein_platform_level(pct):
+    """LOW / MID / HIGH abundance-rank level for one platform's raw all-gene percentile, or None when the
+    platform did not read a numeric percentile (untested / data_unavailable)."""
+    if not isinstance(pct, (int, float)) or isinstance(pct, bool):
+        return None
+    if pct < _PROTEIN_PLATFORM_BOTTOM_DECILE_PCTILE:
+        return "low"
+    if pct >= _SURFACE_PROCAN_ADEQUATE_PCTILE:
+        return "high"
+    return "mid"
+
+
+def _protein_platform_concordance(cards):
+    """VERDICT-INERT facet (SK#1514): SYMMETRIC cross-platform cell-line protein-abundance concordance.
+
+    ProCan was added as an ORTHOGONAL 2nd protein platform whose own card states "agreement corroborates
+    presence; disagreement is a real assay/panel signal, not noise" — but the skill used it in ONE
+    direction only (an UPWARD rescue of a lone Gygi bottom-decile in `_abundance_floor`). A Gygi-high /
+    ProCan-low conflict — exactly the disagreement the second platform exists to surface — produced no
+    datum anywhere. This computes the missing symmetric signal from the two platforms' RAW all-gene
+    percentiles (the commensurate rank axis; see the bars above). Display/narrator facet only — it feeds
+    no rule and touches no ladder, so the presence spine is byte-stable.
+
+    Returns one of:
+      concordant                       — both platforms read, no opposite-extreme split (same level, or a
+                                         mid neighbour) — e.g. FOLR1 low-on-both, or both mid/high
+      discordant_gygi_high_procan_low  — Gygi HIGH (>=50 %ile) while ProCan LOW (<10 %ile): the previously
+                                         INVISIBLE direction (a Gygi-panel over-read the 2nd platform
+                                         contradicts downward)
+      discordant_gygi_low_procan_high  — Gygi LOW while ProCan HIGH: the Gygi TMT surface-class under-read
+                                         the #980 re-anchor already rescues upward (EPCAM et al.), now named
+      single_platform                  — exactly one platform read a numeric percentile
+      None                             — neither platform read a numeric percentile (no protein-panel level)
+    """
+    _sc = {c["card_id"]: (c.get("summary") or {}) for c in cards}
+    gygi = _protein_platform_level((_sc.get("cellline-protein-abundance") or {}).get("allgene_percentile"))
+    procan = _protein_platform_level((_sc.get("cellline-protein-abundance-procan") or {}).get("allgene_percentile"))
+    if gygi is None and procan is None:
+        return None
+    if gygi is None or procan is None:
+        return "single_platform"
+    if gygi == "high" and procan == "low":
+        return "discordant_gygi_high_procan_low"
+    if gygi == "low" and procan == "high":
+        return "discordant_gygi_low_procan_high"
+    return "concordant"
+
 
 def _abundance_floor(cards, collapsed_verdict, is_surface=False):
     """VERDICT-INERT (Principle 2 — breadth != level): a presence-POSITIVE call whose absolute abundance
@@ -1500,6 +1564,19 @@ def _abundance_floor(cards, collapsed_verdict, is_surface=False):
     downstream `== present_low_abundance` checks treat as NOT a hard floor (so it neither caps claim-A
     corroboration nor forces abundance_level=low, nor becomes the headline top-tension). Both the low
     lens(es) and the overriding evidence are recorded so the observation is surfaced, not hidden.
+
+    F8a (SK#1514, NOTE-ONLY — no behaviour change): the audit asked whether a lone Gygi `bottom_decile` →
+    hard floor over-reads for NON-surface targets (Gygi TMT under-reads membrane/low-solubility peptides),
+    and whether a ProCan `concordant`/higher reading should temper it the way the #980 re-anchor does for
+    surface targets. It ALREADY does, generically: the single-low-lens branch below reads ProCan for a
+    Gygi-protein low lens for EVERY target (surface or not) and, when ProCan is not bottom-decile (or HPA-
+    IHC is detected_high), DEMOTES the hard floor to the SOFT `present_low_abundance_single_lens` flag.
+    So a non-surface lone-Gygi-low WITH an orthogonal ProCan reading is already tempered. The only residual
+    HARD-floor cases are `single_lens_unopposed` — genuinely NO orthogonal protein evidence (ProCan absent,
+    or itself bottom_decile = concordant-low, and no IHC) — where there is nothing to temper WITH and
+    tempering would be unsound. The new symmetric `protein_platform_concordance` facet makes that residual
+    (and the opposite Gygi-high/ProCan-low conflict) legible without moving the floor. Expanding the floor's
+    verdict reach was NOT taken here (it would be verdict-affecting and needs a separate gated proposal).
 
     Returns (flag_or_None, [low_lens_dicts])."""
     if not _is_presence_positive(collapsed_verdict):
@@ -2148,6 +2225,12 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
         "abundance_floor_flag": _abundance_floor_flag,
         "abundance_floor_low_lenses": _abundance_low_lenses,
         "presence_abundance_is_relative": True,
+        # protein_platform_concordance (SK#1514): SYMMETRIC cross-platform cell-line protein-abundance
+        # agreement/disagreement between the Gygi TMT and ProCan DIA panels, read off their raw all-gene
+        # percentiles. ProCan was previously used ONLY as an upward rescue of a lone Gygi bottom-decile
+        # (abundance_floor); a Gygi-high/ProCan-low conflict — the disagreement the 2nd platform exists to
+        # surface — was invisible. This names both directions. Verdict-inert (facet/narrator only).
+        "protein_platform_concordance": _protein_platform_concordance(cards),
         # protein_confirmation_state: is a PRESENT call protein-confirmed, protein-measured-
         # absent, or protein-UNTESTED (RNA-only)? Verdict-inert legibility of the confidence behind the
         # one-word headline — most indications lack CPTAC/cell-line-MS, so a positive-RNA target commonly
@@ -2548,6 +2631,9 @@ _SYNTHESIS_FACET_KEYS = (
     "abundance_floor_flag",
     "abundance_floor_low_lenses",
     "presence_abundance_is_relative",
+    # symmetric cross-platform (Gygi TMT × ProCan DIA) cell-line protein-abundance concordance — the
+    # disagreement the 2nd platform exists to surface, in BOTH directions (SK#1514). Verdict-inert.
+    "protein_platform_concordance",
     "protein_confirmation_state",  # confirmed / measured_absent / untested (RNA-only) / not_applicable
     # CONSOLIDATED confirmation call + provenance quorum + compartment attribution — the single
     # consumer-facing "is the malignant-cell presence CONFIRMED, or does it rest on bulk-RNA / cell-line
