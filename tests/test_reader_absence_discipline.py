@@ -661,3 +661,465 @@ def test_detector_semantics(case):
                 continue
             found = True
     assert found is expect
+
+
+# ============================================================================================
+# SIBLING DETECTOR: benign VERDICT-CLASS token laundered from a broad except (the #796/#822 class)
+# ============================================================================================
+#
+# THE SUB-CLASS (distinct from the empty-return detector above)
+# -------------------------------------------------------------
+# The detector above catches a broad `except` over an S3-read path that returns an EMPTY payload
+# ({}, [], None, DataFrame()). A sibling shape escapes it entirely: the handler returns a NON-empty
+# dict/`.update`/assignment that sets a ``*_class`` VERDICT field to a benign "no concern / not
+# measured" token (``data_unavailable``, ``unknown``, ``indeterminate``, ...). A transient
+# S3/creds/import blip then reads downstream as an honest measured-absence verdict instead of being
+# penalized — silently dropping a rung or flipping a lane favorably. Filed archetype: analysis-methods
+# #796 (marrow-HPA drops the essential-window KILL), #822 (SIGNOR reclassifies errors as benign);
+# skills #1556 / #1560 (recurrent_snv_driver -> undetermined); #723.
+#
+# WHY A SEPARATE DETECTOR (not the empty-return one, not a new file)
+# -----------------------------------------------------------------
+#   * The empty-return detector keys on ``_handler_returns_empty`` — a ``return {"x_class":
+#     "data_unavailable", ...}`` is NON-empty, so it is invisible there.
+#   * It also gates on ``_try_reads_s3``. The strongest instance here
+#     (``gdc_somatic_hotspot._pooled_recurrence_fields``) does no DIRECT S3 read — it lazily
+#     ``import``s + calls ``pooled_recurrence_for_gene`` — so an S3-gated scan misses it. This
+#     detector gates on the VERDICT-TOKEN anchor instead, not the read.
+#   * It lives in THIS file and REUSES the shared AST discipline helpers (``_is_broad_handler``,
+#     ``_handler_reraises``, ``_handler_discriminates``, ``_qualname_by_node_id``,
+#     ``_handler_span_lines``, ``_EXEMPT_MARKER``) so the two detectors cannot drift.
+#
+# DISCLAIMER PROSE IS NOT A SUPPRESSOR (the #796 lesson)
+# ------------------------------------------------------
+# #796 sat on a handler whose own comment said "graceful data_unavailable". So a nearby prose
+# disclaimer NEVER drops a finding here. The ONLY things that clear a handler are: it re-raises, it
+# discriminates definitive-absence from transient (``_handler_discriminates`` — and a bare
+# ``type(e).__name__`` BREADCRUMB does NOT count, see ``_type_check_drives_control_flow`` above), it
+# carries the machine-checkable ``# absence-discipline: exempt`` marker, or it is enumerated in the
+# frozen baseline below WITH A REASON. Every allowlisted handler is therefore justified in-repo.
+
+# Benign verdict-class tokens: a ``*_class`` value that reads downstream as "no concern / not
+# measured / unavailable". Laundering a transient failure into one of these is the bug.
+_BENIGN_CLASS_TOKENS = frozenset(
+    {
+        "data_unavailable",
+        "unavailable",
+        "not_available",
+        "no_data",
+        "unknown",
+        "undetermined",
+        "not_determined",
+        "indeterminate",
+        "absent",
+        "not_detected",
+        "undetected",
+        "insufficient_data",
+        "no_evidence",
+        "insufficient_evidence",
+        "tolerant",
+        "benign",
+        "not_dependent",
+        "no_dependency",
+        "not_essential",
+    }
+)
+
+
+def _handler_class_token_keys(handler: ast.ExceptHandler) -> set[str]:
+    """Return the set of ``*_class`` field names this handler assigns a benign token to.
+
+    Covers three shapes: a dict literal ``{"x_class": "data_unavailable"}`` (incl. one passed to
+    ``base.update({...})``, reached via ``ast.walk``), a subscript assign ``d["x_class"] = "..."``,
+    and an attribute assign ``obj.x_class = "..."``.
+    """
+    keys: set[str] = set()
+    for n in ast.walk(handler):
+        if isinstance(n, ast.Dict):
+            for k, v in zip(n.keys, n.values):
+                if (
+                    isinstance(k, ast.Constant)
+                    and isinstance(k.value, str)
+                    and k.value.endswith("_class")
+                    and isinstance(v, ast.Constant)
+                    and v.value in _BENIGN_CLASS_TOKENS
+                ):
+                    keys.add(k.value)
+        elif isinstance(n, ast.Assign):
+            v = n.value
+            if not (isinstance(v, ast.Constant) and v.value in _BENIGN_CLASS_TOKENS):
+                continue
+            for tgt in n.targets:
+                key = None
+                if (
+                    isinstance(tgt, ast.Subscript)
+                    and isinstance(tgt.slice, ast.Constant)
+                    and isinstance(tgt.slice.value, str)
+                ):
+                    key = tgt.slice.value
+                elif isinstance(tgt, ast.Attribute):
+                    key = tgt.attr
+                if key and key.endswith("_class"):
+                    keys.add(key)
+    return keys
+
+
+def _handler_launders_class_token(handler: ast.ExceptHandler) -> bool:
+    """A broad, non-reraising, non-discriminating, non-exempt handler that sets a benign ``*_class``.
+
+    (Exemption via the inline marker is applied by the caller, which has the source span.)
+    """
+    if not _is_broad_handler(handler):
+        return False
+    if not _handler_class_token_keys(handler):
+        return False
+    if _handler_reraises(handler) or _handler_discriminates(handler):
+        return False
+    return True
+
+
+def find_class_token_violations() -> tuple[list[str], int, int]:
+    """Scan ``methods/*/*.py`` for the benign-verdict-class-token-on-broad-except sub-class.
+
+    Returns ``(sorted violation keys ``"<module>/<file>::<qualified_function>"``, n_files, n_handlers)``.
+    The cardinality counts back the anti-vacuity floor: a guard that silently scans zero files or
+    zero handlers is worse than none (see the #1648 anti-vacuity ratchet; #1639/#1640 silent-skip).
+    """
+    root = _methods_root()
+    assert root.is_dir(), f"methods/ not found at {root}"
+    violations: list[str] = []
+    n_files = 0
+    n_handlers = 0
+    for rel in sorted(root.glob("*/*.py")):
+        source = rel.read_text()
+        source_lines = source.splitlines()
+        tree = ast.parse(source, filename=str(rel))
+        qmap = _qualname_by_node_id(tree)
+        relkey = rel.relative_to(root).as_posix()
+        n_files += 1
+        for handler in ast.walk(tree):
+            if not isinstance(handler, ast.ExceptHandler):
+                continue
+            n_handlers += 1
+            if not _handler_launders_class_token(handler):
+                continue
+            span = "\n".join(_handler_span_lines(handler, source_lines))
+            if _EXEMPT_MARKER in span:  # inline escape hatch (shared with the empty-return detector)
+                continue
+            fn = qmap.get(id(handler), "<module>")
+            violations.append(f"{relkey}::{fn}")
+    return sorted(set(violations)), n_files, n_handlers
+
+
+# --------------------------------------------------------------------------------------------
+# Frozen baseline (2026-09-26). 27 pre-existing handlers that launder a transient/broken-env failure
+# into a benign ``*_class`` token. Recorded so CI is GREEN and the debt is enumerable; the guard
+# RATCHETS against any NEW un-allowlisted handler. Key = "<module>/<file>::<qualified_function>"
+# (LINE-INDEPENDENT so reader edits do not churn it). BURN THIS DOWN — convert each to the
+# is_definitively_absent discipline (swallow only definitive absence, re-raise the rest) or add an
+# inline ``# absence-discipline: exempt -- <reason>`` where genuinely benign, then delete its entry
+# (a stale entry is reported by ``test_class_token_baseline_not_stale``).
+# --------------------------------------------------------------------------------------------
+_CLASS_TOKEN_BASELINE_REASON = (
+    "pre-existing residual: a broad `except` assigns a benign verdict token to a *_class field "
+    "without discriminating genuine absence (404/NoSuchKey) from a transient/creds/broken-env "
+    "failure — the RD-class fail-toward-absence expressed via a class token instead of an empty "
+    "return. Recorded so CI is green and the debt is enumerable; the ratchet arms against NEW "
+    "seams. Burn down via methods.target_id_sidecar.is_definitively_absent or an inline exempt marker."
+)
+
+_CLASS_TOKEN_BASELINE: dict[str, str] = {
+    # -- CONSUMER-CONFIRMED FAIL-SAFE (2026-09-26): the #796 scanner surfaced these; the downstream
+    #    trace shows the token is consumed as a GAP, never as a clean token that drops a veto/KILL, so
+    #    they are NOT shipped fail-opens. Kept as residuals for discipline-hardening (adopt
+    #    is_definitively_absent) + one observability-parity nit, tracked but not verdict-urgent. ------
+    "gdc_somatic_hotspot/read.py::_pooled_recurrence_fields": (
+        "FAIL-SAFE (consumer-confirmed 2026-09-26): the recurrent_snv_driver rung is a POSITIVE rescue "
+        "keyed on equals:top_1pct (intracellular-intrinsic.rules.yaml:701, 'NOT a killer'); on "
+        "data_unavailable it simply does NOT fire, and genomic_alteration.resolver.yaml:185-186 "
+        "explicitly refuses to demote drivers on unmeasured recurrence — so a transient failure "
+        "under-calls (safe), never flips a verdict. Residual: unlike the abundance arm it does NOT set "
+        "_live_read_error, so a transient read is indistinguishable from honest no-cohort (observability "
+        "nit, filed MEDIUM). Burndown: is_definitively_absent + set _live_read_error."
+    ),
+    "gdc_somatic_hotspot/read.py::_genie_recurrence_fields": (
+        "FAIL-SAFE (consumer-confirmed 2026-09-26): sibling GENIE leg of the same positive-only "
+        "SNV-recurrence rescue lane; identical fail-safe posture and the same _live_read_error "
+        "observability nit. Fix with the pooled leg."
+    ),
+    "abundance_dependency/read.py::read_abundance_dependency": (
+        "FAIL-SAFE (consumer-confirmed 2026-09-26): abundance_dependency_class=data_unavailable routes "
+        "to the abundance-dependency-data-unavailable-insufficient rung "
+        "(intracellular-intrinsic.rules.yaml:2329, 'not used as opposing evidence'); positive-only "
+        "lane. It ALSO sets _live_read_error, which IS consumed (skills _skills_common/__init__.py:253, "
+        "310) to route a transient load failure to _missing rather than a verdict. Reference-good "
+        "observability shape. Kept as a residual for is_definitively_absent hardening only."
+    ),
+    # -- CONFIRMED BENIGN / verdict-inert or low-blast per-item (do NOT file; burn down to an exempt) -
+    "resistance_emergence/read.py::resistance_mediators_for_gene": (
+        "VERDICT-INERT orthogonal facet: tahoe_adaptation_class NEVER alters the resistance_emergence "
+        "verdict (see module comment above the handler); attached Tahoe sub-signal only. Benign "
+        "degrade — ideal resolution is an inline `# absence-discipline: exempt -- verdict-inert facet`."
+    ),
+    "shed_ectodomain_liability/media.py::classify_measured_shed": (
+        "Author-correct facet: 'infra failure is data_unavailable, not a negative'; the real measured "
+        "negative is not_on_secreted_panel. measured_shed_class is a parallel facet. Benign — ideal "
+        "resolution is an inline exempt marker."
+    ),
+    "depmap_partner_conditional_dependency/read.py::read_partner_conditional_dependency": (
+        "PER-PARTNER degrade inside a loop: records partner_stratification_class=data_unavailable + "
+        "_live_read_error for THIS partner and continues; not a whole-verdict drop. Low blast radius; "
+        "discriminate transient vs absent on burndown."
+    ),
+    # -- Pre-existing residuals pending triage (shared reason) ----------------------------------------
+    "dependency_controls/read.py::control_position_dependency": _CLASS_TOKEN_BASELINE_REASON,
+    "depmap_chronos/cli.py::_lineage_omnibus": _CLASS_TOKEN_BASELINE_REASON,
+    "depmap_predictability/cli.py::main": _CLASS_TOKEN_BASELINE_REASON,
+    "depmap_predictability/read.py::read_predictability": _CLASS_TOKEN_BASELINE_REASON,
+    "depmap_protein_abundance/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
+    "expression_clinical_association/read.py::read_expression_clinical_association": _CLASS_TOKEN_BASELINE_REASON,
+    "expression_purity_confound/read.py::read_expression_purity_confound": _CLASS_TOKEN_BASELINE_REASON,
+    "gnomad_constraint/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
+    "hpa_normal_tissue_liability/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
+    "imvigor210_ici_response/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
+    "pathway_node_leverage/cli.py::read_node_leverage": _CLASS_TOKEN_BASELINE_REASON,
+    "patient_model_expression_correspondence/read.py::read_recommended_models": _CLASS_TOKEN_BASELINE_REASON,
+    "pharos_tdl/cli.py::read_pharos_tdl": _CLASS_TOKEN_BASELINE_REASON,
+    "procan_protein_abundance/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
+    "shed_ectodomain_liability/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
+    "shet_selection/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
+    "signor_mechanism_network/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
+    "tcga_gtex_expression_distribution/read.py::_tumor_allgene_percentile": _CLASS_TOKEN_BASELINE_REASON,
+    "tcga_gtex_expression_distribution/read.py::_tumor_control_position": _CLASS_TOKEN_BASELINE_REASON,
+    "tumor_presence_controls/read.py::control_position_cellline": _CLASS_TOKEN_BASELINE_REASON,
+    "tumor_presence_controls/read.py::control_position_tumor": _CLASS_TOKEN_BASELINE_REASON,
+}
+
+
+# --------------------------------------------------------------------------------------------
+# Tests (sibling detector)
+# --------------------------------------------------------------------------------------------
+
+
+def test_class_token_scan_cardinality_floor():
+    """ANTI-VACUITY: the scan must actually see files and handlers, else it fails OPEN itself.
+
+    A guard that silently scans zero files (broken glob / moved root) is worse than none. Assert a
+    hard N>0 floor on both, plus a soft floor to catch a partial-collection regression (526 files /
+    611 handlers at freeze).
+    """
+    _, n_files, n_handlers = find_class_token_violations()
+    assert n_files > 0, "class-token scan found ZERO methods/*/*.py files — glob/root broken"
+    assert n_handlers > 0, "class-token scan found ZERO except-handlers — parse/collection broken"
+    assert n_files >= 100, f"class-token scan saw only {n_files} files (<100) — partial collection?"
+    assert n_handlers >= 100, f"class-token scan saw only {n_handlers} handlers (<100) — partial?"
+
+
+def test_no_new_class_token_absence_violations():
+    """RATCHET: no reader may introduce a NEW broad-except that launders a benign *_class token.
+
+    Fix it (route through methods.target_id_sidecar.is_definitively_absent — swallow only genuine
+    absence, re-raise transient/creds/broken-env) or, if genuinely benign, mark it with
+    `# absence-discipline: exempt -- <reason>` on the except line.
+    """
+    current, _, _ = find_class_token_violations()
+    new = sorted(set(current) - set(_CLASS_TOKEN_BASELINE))
+    assert not new, (
+        "NEW benign-verdict-class-token fail-open(s) — a broad `except` sets a *_class field to a "
+        "benign token (data_unavailable/unknown/...) without distinguishing genuine absence from a "
+        "transient/creds/broken-env failure, so a blip reads downstream as an honest measured-absence "
+        "verdict. Route through methods.target_id_sidecar.is_definitively_absent (re-raise the "
+        "non-definitive branch), or add `# absence-discipline: exempt -- <reason>` if benign:\n  " + "\n  ".join(new)
+    )
+
+
+def test_class_token_baseline_not_stale():
+    """Baseline hygiene: every allowlisted key must still be a live violation.
+
+    A stale entry means a reader was fixed (good!) but its baseline entry was left behind. Remove the
+    listed keys from ``_CLASS_TOKEN_BASELINE`` to keep the debt ledger honest.
+    """
+    current, _, _ = find_class_token_violations()
+    stale = sorted(set(_CLASS_TOKEN_BASELINE) - set(current))
+    assert not stale, (
+        "Stale class-token baseline entrie(s) — no longer detected as violations. Delete them from "
+        "`_CLASS_TOKEN_BASELINE`:\n  " + "\n  ".join(stale)
+    )
+
+
+def test_class_token_allowlist_entries_have_reasons():
+    """Every baseline entry must carry a non-empty reason string (documentation discipline)."""
+    missing = sorted(k for k, v in _CLASS_TOKEN_BASELINE.items() if not (v and v.strip()))
+    assert not missing, f"Class-token baseline entries missing a reason: {missing}"
+
+
+@pytest.mark.parametrize(
+    "case",
+    [
+        # (source, expect_violation)
+        # 1. Naive: broad except sets a benign *_class token in a dict literal -> VIOLATION.
+        (
+            """
+def r():
+    try:
+        return {"x_class": ok(target)}
+    except Exception:
+        return {"x_class": "data_unavailable", "v": None}
+""",
+            True,
+        ),
+        # 2. is_definitively_absent + raise -> OK (disciplined).
+        (
+            """
+def r():
+    try:
+        return classify(target)
+    except Exception as e:
+        if not is_definitively_absent(e):
+            raise
+        return {"x_class": "data_unavailable"}
+""",
+            False,
+        ),
+        # 3. Inline definitive-vs-transient latch (boto Error Code) -> OK.
+        (
+            """
+def r():
+    try:
+        return classify(target)
+    except Exception as e:
+        code = getattr(e, "response", {}).get("Error", {}).get("Code")
+        if code not in ("404", "NoSuchKey"):
+            raise
+        return {"x_class": "data_unavailable"}
+""",
+            False,
+        ),
+        # 4. Narrow except -> never flagged.
+        (
+            """
+def r():
+    try:
+        return classify(target)
+    except (ValueError, TypeError):
+        return {"x_class": "data_unavailable"}
+""",
+            False,
+        ),
+        # 5. Inline escape-hatch marker -> suppressed.
+        (
+            """
+def r():
+    try:
+        return classify(target)
+    except Exception:  # absence-discipline: exempt -- verdict-inert facet
+        return {"x_class": "data_unavailable"}
+""",
+            False,
+        ),
+        # 6. Subscript assign (the abundance_dependency `base["x_class"] = ...` shape) -> VIOLATION.
+        (
+            """
+def r():
+    base = {}
+    try:
+        base["x_class"] = classify(target)
+        return base
+    except Exception as e:
+        base["x_class"] = "data_unavailable"
+        base["_live_read_error"] = str(e)
+        return base
+""",
+            True,
+        ),
+        # 7. `base.update({...})` with the token (reached via ast.walk into the call) -> VIOLATION.
+        (
+            """
+def r():
+    base = {}
+    try:
+        return classify(target)
+    except Exception as e:
+        base.update({"x_class": "data_unavailable", "_live_read_error": str(e)})
+        return base
+""",
+            True,
+        ),
+        # 8. THE #796 LESSON: the ONLY exception inspection is a `type(e).__name__` BREADCRUMB in an
+        #    f-string (no branch) -> must NOT count as discrimination -> still a VIOLATION.
+        (
+            """
+def r():
+    try:
+        return classify(target)
+    except Exception as e:
+        return {"x_class": "data_unavailable", "_err": f"failed:{type(e).__name__}"}
+""",
+            True,
+        ),
+        # 9. type() DRIVING control flow (guard of an `if`) -> genuine discrimination -> OK (no over-fire).
+        (
+            """
+def r():
+    try:
+        return classify(target)
+    except Exception as e:
+        if type(e) is FileNotFoundError:
+            return {"x_class": "data_unavailable"}
+        raise
+""",
+            False,
+        ),
+        # 10. Benign token but NOT on a *_class key (a plain note field) -> NOT flagged (anchor is the
+        #     verdict field, not the token alone).
+        (
+            """
+def r():
+    try:
+        return classify(target)
+    except Exception:
+        return {"note": "data_unavailable", "x_class": "measured_negative"}
+""",
+            False,
+        ),
+        # 11. Non-benign *_class token (a real measured verdict) -> NOT flagged.
+        (
+            """
+def r():
+    try:
+        return classify(target)
+    except Exception:
+        return {"x_class": "strong_dependency"}
+""",
+            False,
+        ),
+        # 12. Handler re-raises -> OK regardless of the token also being present.
+        (
+            """
+def r():
+    try:
+        return classify(target)
+    except Exception:
+        record({"x_class": "data_unavailable"})
+        raise
+""",
+            False,
+        ),
+    ],
+)
+def test_class_token_detector_semantics(case):
+    """Guard the sibling detector itself against regressions (fixtures, not the live tree)."""
+    source, expect = case
+    tree = ast.parse(source)
+    lines = source.splitlines()
+    found = False
+    for handler in ast.walk(tree):
+        if not isinstance(handler, ast.ExceptHandler):
+            continue
+        if not _handler_launders_class_token(handler):
+            continue
+        span = "\n".join(_handler_span_lines(handler, lines))
+        if _EXEMPT_MARKER in span:
+            continue
+        found = True
+    assert found is expect
