@@ -4270,14 +4270,26 @@ rules:
   # ----------------------------------------------------------------------------
   # The expression analogue of subtype-non-dependence, but with a CRUCIAL semantic
   # difference: expression is PRESENCE, not efficacy. A subtype-specific expression
-  # signal is CONTEXT for patient-selection — it must NEVER veto or hold. So these
-  # rules emit `subtype_fit_expression: neutral` ("informational, no fit-level
-  # effect", per the signal_vocabulary) on a channel the nomination gate has NO
-  # mapping for → they surface in the panorama render + reach the LLM as context,
-  # but cannot ratchet the verdict. This preserves the one-directional gate exactly:
-  #   - dependency subtype signal CAN hold (a measured efficacy gap forecloses a subtype)
-  #   - expression subtype signal CANNOT — lower/higher presence in a subtype is a
-  #     patient-selection nuance, not an efficacy verdict.
+  # signal is a patient-selection handle — it must NEVER veto or hold, but a POWERED
+  # differential is a real, first-class selection input (claude-oncology-skills#1624).
+  # So the enriched / restricted rules emit `subtype_fit_expression: supportive` and
+  # the depleted rule stays `neutral` (a de-selection nuance we deliberately keep from
+  # ever opposing — lower presence is not an efficacy verdict). The consumer chain is
+  # ONE-DIRECTIONAL by construction:
+  #   - the supportive signal is read SKILLS-SIDE (tp_fanout `_subtype_verdict`), and
+  #     only when the tumor-rna subtype axis is `powered` (is_differential_axis, the
+  #     ≥2-stratum n-floor grade) does it mint the `subtype_powered_differential`
+  #     subtype_fit verdict — a LOWEST-priority, additive verdict that never displaces
+  #     the existing subtype dependency / selectivity verdicts;
+  #   - that verdict is a DOMINANT positive_signal in nomination_verdict_gate.yaml, so
+  #     it can raise the recommendation bin ONLY inside the no-kill else-branch (a kill
+  #     gate — veto/hold — always runs first and cannot be masked by a positive);
+  #   - it still CANNOT hold or veto. dependency subtype signal CAN hold (a measured
+  #     efficacy gap forecloses a subtype); an expression subtype signal only ever adds.
+  # The powered gate is applied SKILLS-SIDE, not in `in_record`: these rules fire on any
+  # MEASURED + floor-cleared stratum, and the ≥2-stratum `powered` axis-quality check
+  # that distinguishes a real differential from a single-stratum hypothesis lives in the
+  # is_differential_axis predicate the skills producer applies before minting.
   # All three fire only on a MEASURED + floor-cleared stratum (in_record admissibility
   # guard: an underpowered row fails the match → INADMISSIBLE by construction, the
   # same discipline as subtype-non-dependence). subtype_uniform deliberately gets NO
@@ -4291,7 +4303,7 @@ rules:
         evidence_state: measured
         subgroup_n_floor_met: true
     signals:
-      subtype_fit_expression: neutral
+      subtype_fit_expression: supportive
     tier: subtype
     subgroup_metadata_declared:
       subtype_defining_data: expression
@@ -4300,10 +4312,15 @@ rules:
     rationale: |
       The target's RNA is ENRICHED in this molecular subtype vs the indication's
       pooled distribution (stratum median ≥ pooled + the enrichment delta, on a
-      cohort that clears the subgroup-n floor of 30). Context for PATIENT SELECTION —
-      the subtype is a candidate enriched-expression population. NOT verdict-affecting:
-      expression is presence, not efficacy, so a subtype-specific abundance signal
-      raises where-to-look, never the nomination itself (one-directional gate).
+      cohort that clears the subgroup-n floor of 30). A first-class PATIENT-SELECTION
+      handle — the subtype is a candidate enriched-expression population
+      (claude-oncology-skills#1624). SUPPORTIVE, consumed SKILLS-SIDE: only on a
+      `powered` subtype axis (≥2 strata clear the n-floor, is_differential_axis) does
+      _subtype_verdict mint the additive `subtype_powered_differential` verdict, a
+      DOMINANT positive nomination signal that can raise the recommendation bin ONLY in
+      the no-kill else-branch. Still ONE-DIRECTIONAL: expression is presence, not
+      efficacy, so this signal only ever ADDS — it never holds, vetoes, or displaces
+      the existing subtype dependency / selectivity verdicts.
 
   - rule_id: subtype-expression-restricted-context
     when:
@@ -4314,7 +4331,7 @@ rules:
         evidence_state: measured
         subgroup_n_floor_met: true
     signals:
-      subtype_fit_expression: neutral
+      subtype_fit_expression: supportive
     tier: subtype
     subgroup_metadata_declared:
       subtype_defining_data: expression
@@ -4323,9 +4340,13 @@ rules:
     rationale: |
       The target is DETECTABLE in this subtype while broadly absent in the pooled
       indication (present in the stratum, off pooled). The strongest patient-selection
-      context this card produces — a subtype-restricted presence population. Still
-      CONTEXT only (subtype_fit_expression: neutral): it sharpens who to treat, it
-      does not mint or oppose a nomination. Efficacy remains the dependency gate's job.
+      handle this card produces — a subtype-restricted presence population. SUPPORTIVE,
+      consumed SKILLS-SIDE like the enriched rule: on a `powered` axis
+      (is_differential_axis) _subtype_verdict mints the additive
+      `subtype_powered_differential` verdict (a DOMINANT positive nomination signal that
+      raises the bin only in the no-kill else-branch). It sharpens who to treat and only
+      ever ADDS — it never mints against, holds, or opposes a nomination. Efficacy
+      remains the dependency gate's job (claude-oncology-skills#1624).
 
   - rule_id: subtype-expression-depleted-context
     when:
