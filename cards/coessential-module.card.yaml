@@ -38,7 +38,7 @@ applies_when:
   - "target.depmap_screened == true"
 
 required_inputs:
-  - product_id: depmap-coessentiality-26q1-v1
+  - product_id: depmap-coessentiality-26q3-v1
 
 methods:
   - call: coessential-module

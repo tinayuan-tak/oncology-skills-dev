@@ -38,7 +38,7 @@ required_inputs:
   - product_id: depmap-consortium-26q1
     release_pin: "{release_pin}"
   - product_id: depmap-isoform-expression-per-gene-v1   # isoform facet (methods: depmap-isoform-expression)
-  - product_id: allgene-depmap-rank-26q1-v1             # all-gene percentile facet (read.py depmap_allgene_percentile); read on every run — was under-pinned in the lockfile
+  - product_id: allgene-depmap-rank-26q3-v1             # all-gene percentile facet (read.py depmap_allgene_percentile); read on every run — was under-pinned in the lockfile. Repointed 26q1->26q3 (data-catalog#654 / #935; old id still resolves)
 
 methods:
   - call: depmap-expression-distribution

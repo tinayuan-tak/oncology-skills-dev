@@ -3,9 +3,9 @@ _doc: 'I.3 wiring reconciliation: per card, READS (AST over the dispatch closure
   no opaque call, >0 reads, no bespoke read primitive); other routed cards are READS_UNDETERMINED (a dimension,
   not a finding). Regenerate with validators/build_wiring_reconciliation.py; --self-check gates drift.'
 sibling_shas:
-  analysis-methods: ef48e66
-  skills: 7ae3138d
-  data-catalog: a90cc45
+  analysis-methods: 162c738
+  skills: ce49fecf
+  data-catalog: a34240e
 n_dispatcher_routed_cards: 68
 counts:
   sound: 14
@@ -23,7 +23,7 @@ sound_cards_not_in_emission_ledger:
 - target-identity-summary
 - tumor-vs-normal-percentile-crossing-by-subtype
 known_violations:
-  as_of: '2026-09-25'
+  as_of: '2026-09-26'
   keys: []
 by_card:
   abundance-dependency:
@@ -77,7 +77,7 @@ by_card:
   cellline-rna-distribution:
     confidence: undetermined
     declares:
-    - allgene-depmap-rank-26q1-v1
+    - allgene-depmap-rank-26q3-v1
     - depmap-consortium-26q1
     - depmap-isoform-expression-per-gene-v1
     modules:

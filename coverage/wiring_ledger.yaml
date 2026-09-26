@@ -6,22 +6,22 @@ _doc: 'I.4 wiring ledger: every data-catalog manifest id by wiring status -- rea
   reads, declares, OR names it; the wiring worklist). `dark` is the number I.4 moves, a sound lower bound
   on the truly-unwired set. Regenerate with validators/build_wiring_ledger.py; --self-check gates drift.'
 sibling_shas:
-  analysis-methods: ef48e66
-  skills: 7ae3138d
-  data-catalog: a90cc45
-n_catalog_datasets: 544
+  analysis-methods: 162c738
+  skills: ce49fecf
+  data-catalog: a34240e
+n_catalog_datasets: 547
 counts:
-  read: 150
+  read: 152
   declared_only: 246
-  referenced_only: 29
-  dark: 119
-n_literal_reads: 70
+  referenced_only: 31
+  dark: 118
+n_literal_reads: 71
 dark_by_source_family:
   cbioportal: 17
   genie: 10
   geo: 9
-  depmap: 8
   sc: 8
+  depmap: 7
   prism: 6
   3ca: 3
   loveless: 3
@@ -72,7 +72,7 @@ dark_by_source_family:
   vandewetering: 1
   williams: 1
 read:
-- allgene-depmap-rank-26q1-v1
+- allgene-depmap-rank-26q3-v1
 - allgene-tumor-rank-v1
 - alphafold-db-2025
 - alphafold-disorder-per-protein-v1
@@ -124,11 +124,13 @@ read:
 - cryptobench-cryptic-sites-per-protein-v1
 - cryptobench-osf-2025
 - depmap-26q1-parquet-v1
-- depmap-coessentiality-26q1-v1
+- depmap-26q3-parquet-v1
+- depmap-coessentiality-26q3-v1
 - depmap-consortium-26q1
 - depmap-consortium-26q1-paralogs
 - depmap-consortium-26q1-proteomics
 - depmap-consortium-26q1-rnai
+- depmap-consortium-26q3
 - depmap-consortium-26q3-crispr-supplementary
 - depmap-consortium-ccle-2019
 - depmap-drug-anchor-combination-per-target-26q3-v1
@@ -470,11 +472,13 @@ declared_only:
 - zeng-shet-genebayes-snapshot-2026-08-28
 - zenodo-luca-salcher-nsclc-snapshot-2026-08-13
 referenced_only:
+- allgene-depmap-rank-26q1-v1
 - ccle-rrbs-promoter-methylation-mean-per-gene-v1
 - coadread-dge-adj-vs-gtex-v1
 - coadread-dge-adj-vs-gtex-xenatoil-v1
 - coadread-dge-df06320
 - coadread-dge-tumor-vs-normal-sensitivity-xenatoil-v1
+- depmap-coessentiality-26q1-v1
 - depmap-drug-anchor-combination-per-target-v1
 - depmap-drug-anchor-resistance-per-target-v1
 - depmap-predictability-26q1-v2
@@ -537,7 +541,6 @@ dark:
 - depmap-consortium-25q3
 - depmap-consortium-26q1-crispr-supplementary
 - depmap-consortium-26q1-perturbation-screens
-- depmap-consortium-26q3
 - dgv-gold-standard-hg38-snapshot-2026-08-28
 - dream-menden-2019-snapshot-2026-07-23
 - ensembl-coords-release-116-snapshot-2026-06-22
