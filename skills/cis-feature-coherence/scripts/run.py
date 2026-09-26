@@ -150,7 +150,15 @@ def _cis_availability(v) -> str:
         return "not_wired"
     if v == "insufficient_cis_coherence":
         return "insufficient"
-    return "measured_positive"  # a measured coherence pattern
+    # Polarity-preserving: only the coherent-chain verdicts are a measured POSITIVE
+    # (locus→expression→dependency coherence). The measured non-coherent patterns —
+    # notably the explicitly-uncoupled cis_uncoupled_no_dependency, plus
+    # dependency_without_cis_dosage / expressed_cis_coupled_inert — are measured
+    # NEGATIVE (measured & explicitly not-coherent), so a consumer can distinguish
+    # "measured & coherent" from "measured & uncoupled". insufficient_* stays unmeasured.
+    if v in _CIS_COHERENT:
+        return "measured_positive"
+    return "measured_negative"
 
 
 def _cis_certainty(v) -> dict:

@@ -39,10 +39,24 @@ def test_coherent_lof_supports():
     assert rec["finding"]["availability"] == "measured_positive"
 
 
-def test_uncoupled_is_neutral_measured():
+def test_uncoupled_is_measured_negative_not_positive():
+    """cis_uncoupled_no_dependency is a MEASURED but explicitly-uncoupled (negative) outcome
+    — it must not report measured_positive (that token asserts a coherent chain). It carries
+    the NEUTRAL direction of the descriptive lens (this skill opposes nothing) but the
+    availability token preserves polarity so a consumer can tell it from a coherent call."""
     rec = cis._claim_record([], fired=[], verdict_pair=("cis_uncoupled_no_dependency", None))
     assert rec["finding"]["direction"] == "neutral"
-    assert rec["finding"]["availability"] == "measured_positive"
+    assert rec["finding"]["availability"] == "measured_negative"
+
+
+@pytest.mark.parametrize(
+    "token",
+    ["dependency_without_cis_dosage", "expressed_cis_coupled_inert"],
+)
+def test_other_non_coherent_measured_patterns_are_measured_negative(token):
+    """The remaining measured non-coherent patterns are likewise polarity-negative, not positive."""
+    rec = cis._claim_record([], fired=[], verdict_pair=(token, None))
+    assert rec["finding"]["availability"] == "measured_negative"
 
 
 def test_insufficient_underpowered():
