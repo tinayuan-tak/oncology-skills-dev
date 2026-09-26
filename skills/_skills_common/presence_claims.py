@@ -23,6 +23,7 @@ composed target-profile fan-out reads.
 
 from __future__ import annotations
 
+import math
 import re
 from typing import Optional
 
@@ -47,7 +48,11 @@ CLAIM_INFORMS = {
 
 from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
 from _skills_common.subgroup_derivation import _SUBGROUP_N_FLOOR  # single-source per-stratum power floor (#1625)
-from _skills_common.subtype_axis import is_differential_axis  # SK#1518 shared axis-quality gate
+from _skills_common.subtype_axis import (  # SK#1518 shared axis-quality gate
+    SUBTYPE_DIFFERENTIAL_CLASSES,
+    is_differential_axis,
+    is_powered_axis,
+)
 
 
 def _patom(card_id, summary, keys, entity, read):
@@ -1361,6 +1366,368 @@ def _multiplicity_discount(rel: str, k) -> str:
     return _CERT3_INV[max(0, _CERT3[rel] - 1)]
 
 
+# ── L2b CROSS-SOURCE integration claim: subtype_restriction_concordance ────────────────────────────
+# The tumor SUBTYPE-RESTRICTION property (`subtype_restriction`, one of the three `fleet_deferred`
+# expression properties in target-contracts/vocabularies/expression_property.enum.yaml) resolved from
+# >=2 TRULY INDEPENDENT sources, conforming to docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md (the
+# coverage/essentiality/safety/abundance/recurrence/selectivity family). The DEFINITIONAL independent
+# pair: the BULK-RNA-by-subtype axis (recount3 TCGA, `tumor-rna-distribution-by-subtype`, patient grain)
+# x the PROTEIN-MS-by-subtype axis (CPTAC TMT whole-cell-lysate, `tumor-protein-distribution-by-subtype`,
+# patient grain). These are independent COHORTS and independent ASSAYS/MODALITIES (bulk-RNA transcript vs
+# MS-protein) at the SAME patient-tumor sample-context grain on the SAME subtype axis — the exact
+# structural twin of selectivity_concordance (RNA×protein tumor-vs-normal WINDOW, SK#1752), applied to
+# the orthogonal subtype-restriction property. `cellline-rna-distribution-by-subtype` (DepMap model RNA)
+# is a SAME-MODALITY (RNA) DEPENDENT sibling of the tumor-RNA arm — cross-grain (cell line vs patient),
+# `corroboration_eligible: False`: it may supply the RNA arm's value when the tumor-RNA axis is a gap, but
+# two RNA reads are ONE modality arm, NEVER a third independent replication (the #1667/#1673/#1674
+# arm-commensurability lesson made structural). Verdict-INERT (no `signal` key; feeds no rule/veto/
+# resolver rung; the by-subtype claim vector is display-only and the pooled presence_verdict is
+# byte-stable). Key OMITTED (byte-stable) when NEITHER independent arm resolves.
+
+
+def _fin(v):
+    """Demote a NON-FINITE numeric anchor (NaN/±Inf) to None before it enters retained_quantitative:
+    ±Inf/NaN are NUMBERS that pass isinstance/isna-style guards and would leak into claim_vectors (the
+    emission-invariants non-finite rule). A subtype variance-explained fraction is the realistic source
+    of a NaN here. A legitimate None stays None; a finite value passes through unchanged (verdict-inert)."""
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else None
+
+
+def _subtype_restriction_call(axis_quality, stratification_class):
+    """One arm's OWN subtype-restriction call. Returns (resolved: bool, has_restriction: bool|None).
+    A restriction CONCLUSION is only supportable on a `powered` axis (#1518 shared gate): a `powered`
+    axis carrying a differential `subtype_stratification_class` resolves has_restriction=True; a
+    `powered` axis with a non-differential class (e.g. pan_subtype_uniform) is a MEASURED no-restriction
+    (resolved, has_restriction=False). Every weaker grade (exploratory/underpowered/unevaluable/empty/
+    unavailable/None) is a coverage/power gap — unresolved (has_restriction=None), never read as either a
+    restriction or a clean no-restriction."""
+    if not is_powered_axis(axis_quality):
+        return False, None
+    return True, stratification_class in SUBTYPE_DIFFERENTIAL_CLASSES
+
+
+def _subtype_restriction_concordance_claim(c: dict) -> "dict | None":
+    """L2b CROSS-SOURCE integration claim: `subtype_restriction_concordance` — the tumor SUBTYPE-
+    RESTRICTION property integrated from >=2 INDEPENDENT sources (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md),
+    the qualifying remaining `fleet_deferred` expression-property family for the M3 growth ladder.
+
+    Integrates the two INDEPENDENT arms — BULK-RNA-by-subtype (`tumor-rna-distribution-by-subtype`
+    subtype axis) x PROTEIN-MS-by-subtype (`tumor-protein-distribution-by-subtype` CPTAC axis) — by an
+    EXPLICIT DETERMINISTIC rule (no LLM; L2b is reproducible by contract), emitting one of:
+      * subtype_restriction_concordant   — both INDEPENDENT arms resolve and AGREE (both a powered
+        subtype-restriction differential, or both a powered no-restriction / pan-subtype-uniform floor);
+        the agreed direction is carried, never collapsed;
+      * protein_masks_subtype_restriction — the RNA axis resolves a subtype-restriction differential but
+        the PROTEIN-MS layer does NOT corroborate it (transcript-level restriction not manifest at
+        protein — post-transcriptional regulation, a real biological signal not necessarily error);
+      * rna_masks_subtype_restriction     — the mirror: protein sees a restriction RNA does not;
+      * single_source_only                — exactly ONE independent arm (RNA layer or protein layer)
+        resolves — a degraded read that names the resolved layer, NOT a concordance claim.
+
+    DEPENDENCE (the slot this family exercises): the RNA arm is one INDEPENDENT arm supplied by a
+    MULTI-MEMBER same-modality group `{tumor_rna, cellline_rna}`. tumor-RNA-by-subtype (patient) is the
+    primary; cellline-RNA-by-subtype (DepMap model RNA) is a SAME-MODALITY CROSS-GRAIN sibling —
+    `resolved`/`quality_eligible` yes (it may supply the RNA arm's value when the tumor axis is a gap),
+    but `corroboration_eligible: False`: two RNA reads are ONE modality arm, never a third independent
+    replication. It is preserved in `source_support` and counted in `resolved_source_count` (evidence),
+    but NEVER in `corroborating_independent_arm_count` and NEVER resurrects an independent arm beyond the
+    RNA layer.
+
+    Corroboration is on the shared MEASURED-ARM frame over the two INDEPENDENT arms only (RNA + protein):
+    two agreeing arms -> high, a disagreement -> low, one measured arm -> single_arm. A single-arm
+    mutation only DEGRADES to `single_source_only`; ERASING the claim (key omitted, byte-stable) takes
+    defeating BOTH independent arms — and the RNA arm survives on EITHER RNA source, so defeating the RNA
+    layer means defeating BOTH the tumor and the cell-line subtype axes.
+
+    GRAIN is first-class: the two INDEPENDENT arms share sample-context grain (patient tumor) but differ
+    in assay-modality (bulk-RNA transcript vs MS-protein) — carried per-source in `source_support` and in
+    `provenance.independence_note`. VERDICT-INERT: carries NO `signal` key, reads no verdict, feeds no
+    rule/veto. Returns None — key omitted, byte-stable — when NEITHER independent arm resolves."""
+    rna_s = c.get("tumor-rna-distribution-by-subtype", {}) or {}
+    cl_s = c.get("cellline-rna-distribution-by-subtype", {}) or {}
+    pr_s = c.get("tumor-protein-distribution-by-subtype", {}) or {}
+
+    rna_q, rna_cls = rna_s.get("subtype_axis_quality"), rna_s.get("subtype_stratification_class")
+    cl_q, cl_cls = cl_s.get("subtype_axis_quality"), cl_s.get("subtype_stratification_class")
+    pr_q, pr_cls = pr_s.get("subtype_axis_quality"), pr_s.get("subtype_stratification_class")
+
+    rna_res, rna_restr = _subtype_restriction_call(rna_q, rna_cls)
+    cl_res, cl_restr = _subtype_restriction_call(cl_q, cl_cls)
+    pr_res, pr_restr = _subtype_restriction_call(pr_q, pr_cls)
+
+    # The RNA arm = one independent arm vs protein, supplied by the RNA-modality group. tumor-RNA is the
+    # primary; cell-line RNA (a same-modality cross-grain dependent sibling) may supply the arm's value
+    # when the tumor axis is a gap, but adding it NEVER makes a second independent arm — the RNA arm
+    # count stays 1 for the RNA layer.
+    if rna_res:
+        rna_layer_res, rna_layer_restr = True, rna_restr
+    elif cl_res:
+        rna_layer_res, rna_layer_restr = True, cl_restr
+    else:
+        rna_layer_res, rna_layer_restr = False, None
+    prot_layer_res, prot_layer_restr = pr_res, pr_restr
+
+    # Emit iff >=1 INDEPENDENT arm resolves (RNA layer or protein layer).
+    resolved_indep = [
+        (name, restr)
+        for name, restr, res in (
+            ("rna", rna_layer_restr, rna_layer_res),
+            ("protein", prot_layer_restr, prot_layer_res),
+        )
+        if res
+    ]
+    if not resolved_indep:
+        return None  # neither independent arm resolves → key omitted (byte-stable)
+
+    if len(resolved_indep) == 1:
+        concordance = "single_source_only"
+    elif rna_layer_restr == prot_layer_restr:
+        concordance = "subtype_restriction_concordant"
+    elif rna_layer_restr:  # RNA sees a restriction, protein does not
+        concordance = "protein_masks_subtype_restriction"
+    else:  # protein sees a restriction, RNA does not
+        concordance = "rna_masks_subtype_restriction"
+
+    # Corroboration over the two INDEPENDENT arms ONLY. A disagreement points the arms opposite
+    # ([True, False] → low); a concordance both agree ([True, True] → high); one arm unresolved leaves
+    # the measured arm unopposed ([True, None] → single_arm).
+    if concordance in ("protein_masks_subtype_restriction", "rna_masks_subtype_restriction"):
+        rna_arm, prot_arm = True, False
+    else:
+        rna_arm = True if rna_layer_res else None
+        prot_arm = True if prot_layer_res else None
+    corroboration = _corr_from_arms([rna_arm, prot_arm])
+
+    # ── the envelope's TWO COUNTS ──────────────────────────────────────────────────────────────────
+    corroborating_independent_arm_count = len(resolved_indep)  # RNA + protein layer only, max 2
+    # resolved_source_count counts ALL THREE sources — tumor-RNA + cell-line-RNA + CPTAC-protein — so the
+    # "cell-line RNA is evidence, not a third independent arm" fact is legible in the gap between the two
+    # counts (max 3 vs max 2).
+    resolved_source_count = (1 if rna_res else 0) + (1 if cl_res else 0) + (1 if pr_res else 0)
+
+    _res = {"tumor_rna": rna_res, "cellline_rna": cl_res, "cptac_protein": pr_res}
+    _restr = {"tumor_rna": rna_restr, "cellline_rna": cl_restr, "cptac_protein": pr_restr}
+    _cls = {"tumor_rna": rna_cls, "cellline_rna": cl_cls, "cptac_protein": pr_cls}
+    _grain = {
+        "tumor_rna": "bulk_rna_transcript (patient tumor)",
+        "cellline_rna": "bulk_rna_transcript (cell line)",
+        "cptac_protein": "ms_protein (patient tumor)",
+    }
+    _cohort = {
+        "tumor_rna": "recount3 TCGA bulk-RNA by molecular subtype",
+        "cellline_rna": "DepMap cell-line RNA by driver subtype",
+        "cptac_protein": "CPTAC TMT-MS whole-cell-lysate protein by molecular subtype",
+    }
+    _field = {"tumor_rna": rna_q, "cellline_rna": cl_q, "cptac_protein": pr_q}
+    _quant = {
+        "tumor_rna": {
+            "subtype_variance_explained": _fin(rna_s.get("subtype_variance_explained")),
+            "n_subtypes_enriched": _fin(rna_s.get("n_subtypes_enriched")),
+            "n_subtypes_restricted": _fin(rna_s.get("n_subtypes_restricted")),
+            "n_subtypes_measured": _fin(rna_s.get("n_subtypes_measured")),
+        },
+        "cellline_rna": {
+            "n_subtypes_enriched": _fin(cl_s.get("n_subtypes_enriched")),
+            "n_subtypes_measured": _fin(cl_s.get("n_subtypes_measured")),
+        },
+        "cptac_protein": {
+            "n_subtypes_enriched": _fin(pr_s.get("n_subtypes_enriched")),
+            "n_subtypes_measured": _fin(pr_s.get("n_subtypes_measured")),
+        },
+    }
+
+    def _label(source):
+        if not _res[source]:
+            return "axis_not_powered" if _cls[source] is not None else "data_unavailable"
+        return "subtype_restricted" if _restr[source] else "no_subtype_restriction"
+
+    def _support(source, group, corroboration_eligible):
+        r = _res[source]
+        return {
+            "source": source,
+            "dependence_group": group,
+            "grain": _grain[source],  # FIRST-CLASS: the independent arms DIFFER in assay-modality
+            "value": _label(source),
+            "stratification_class": _cls[source],
+            "has_restriction": _restr[source],
+            # THREE separate source notions — no single overloaded boolean smuggles two meanings.
+            "resolved": r,
+            "quality_eligible": r,  # a resolved read is usable evidence (may supply its group's arm value)
+            "corroboration_eligible": corroboration_eligible,  # eligible to count as INDEPENDENT replication?
+            "provenance": {"axis_quality_field": _field[source], "cohort": _cohort[source]},
+            "retained_quantitative": _quant[source],
+        }
+
+    # Both independent arms ALWAYS appear (the definitional concordance pair — an absent arm shows as
+    # resolved:False, keeping the two-count / dependence structure legible). Cell-line RNA appears ONLY
+    # when it resolves, as the worked same-modality cross-grain dependent-sibling case.
+    source_support = [
+        _support("tumor_rna", "rna", corroboration_eligible=True),
+        _support("cptac_protein", "protein", corroboration_eligible=True),
+    ]
+    if cl_res:
+        source_support.append(_support("cellline_rna", "rna", corroboration_eligible=False))
+    evidence_dependence = {
+        "groups": [
+            {
+                "members": ["tumor_rna"] + (["cellline_rna"] if cl_res else []),
+                "relationship": "same_modality_cross_grain",
+                "note": (
+                    "tumor-RNA-by-subtype (recount3 TCGA, patient) and cellline-RNA-by-subtype (DepMap "
+                    "model RNA, cell line) are BOTH bulk-RNA reads of the subtype axis — ONE independent "
+                    "RNA arm, NOT two. Cell-line RNA is corroboration-ineligible (it cannot buy a third "
+                    "independent arm); it may supply the RNA arm's value as evidence (dependent != ignore)."
+                ),
+            },
+            {"members": ["cptac_protein"], "relationship": "independent_modality"},
+        ],
+        "derived_sources": {},
+    }
+
+    # which-arm payload — the disagreement or the degraded single arm is NAMED, never collapsed/averaged.
+    if concordance in ("protein_masks_subtype_restriction", "rna_masks_subtype_restriction"):
+        restr_arm = "rna" if rna_layer_restr else "protein"
+        no_arm = "protein" if restr_arm == "rna" else "rna"
+        concordance_support = {"restriction_in": restr_arm, "no_restriction_in": no_arm}
+    elif concordance == "single_source_only":
+        name, restr = resolved_indep[0]
+        resolved_via = (
+            "tumor_rna" if name == "rna" and rna_res else ("cellline_rna" if name == "rna" else "cptac_protein")
+        )
+        concordance_support = {
+            "resolved_by": name,
+            "resolved_call": "subtype_restricted" if restr else "no_subtype_restriction",
+            "resolved_via_source": resolved_via,
+            "resolved_has_restriction": restr,
+        }
+    else:
+        concordance_support = {
+            "agreed_direction": "subtype_restricted" if rna_layer_restr else "no_subtype_restriction"
+        }
+
+    _PHRASE = {
+        "subtype_restriction_concordant": "AGREE on the subtype-restriction call",
+        "protein_masks_subtype_restriction": (
+            "DISAGREE — bulk-RNA sees a subtype-restriction differential, the protein-MS layer does NOT "
+            "(RNA-only restriction)"
+        ),
+        "rna_masks_subtype_restriction": (
+            "DISAGREE — the protein-MS layer sees a subtype-restriction differential, bulk-RNA does NOT"
+        ),
+        "single_source_only": "only one independent modality arm resolves",
+    }
+    _ARM_NAME = {"rna": "bulk-RNA-by-subtype (recount3 TCGA)", "protein": "protein-MS-by-subtype (CPTAC TMT)"}
+
+    # ── PRESENTATION-SUPPORT fields (L2b->L3) — surface-consumption, NOT verdict-routing ─────────────
+    boundary_sensitive = corroboration != "high"
+    if concordance == "subtype_restriction_concordant":
+        _dir_text = (
+            "a subtype-restriction differential" if rna_layer_restr else "NO subtype restriction (pan-subtype-uniform)"
+        )
+        positive_signal = {
+            "statement": (
+                f"Both INDEPENDENT modalities AGREE on {_dir_text} (bulk-RNA {rna_cls or 'n/a'} x "
+                f"CPTAC protein {pr_cls or 'n/a'}) — a cross-modality-corroborated subtype read."
+            ),
+            "source": "tumor_rna",
+            "provenance_ref": "tumor_rna",
+        }
+        qualifying_signal = None
+    elif concordance in ("protein_masks_subtype_restriction", "rna_masks_subtype_restriction"):
+        restr_arm = concordance_support["restriction_in"]
+        no_arm = concordance_support["no_restriction_in"]
+        positive_signal = {
+            "statement": (
+                f"{_ARM_NAME[restr_arm]} reports a subtype-restriction differential — a subtype-selective "
+                "signal in this modality."
+            ),
+            "source": restr_arm,
+            "provenance_ref": restr_arm,
+        }
+        qualifying_signal = {
+            "statement": (
+                f"{_ARM_NAME[no_arm]} does NOT corroborate the restriction — the modalities DISAGREE. A "
+                "transcript-level subtype restriction need not manifest at the protein layer (post-"
+                "transcriptional regulation); an RNA-only restriction is the subtype false-positive this "
+                "cross-source check exists to surface."
+            ),
+            "source": no_arm,
+            "provenance_ref": no_arm,
+        }
+    else:  # single_source_only
+        name = concordance_support["resolved_by"]
+        gap = "protein" if name == "rna" else "rna"
+        positive_signal = {
+            "statement": (
+                f"{_ARM_NAME[name]} reports "
+                f"{'a subtype-restriction differential' if concordance_support['resolved_has_restriction'] else 'no subtype restriction (pan-subtype-uniform)'} "
+                "— the sole independent modality arm that resolves (powered axis)."
+            ),
+            "source": name,
+            "provenance_ref": name,
+        }
+        qualifying_signal = {
+            "statement": (
+                f"Only {_ARM_NAME[name]} resolves on a powered axis; {_ARM_NAME[gap]} is a gap "
+                "(unpowered/unresolved) — a degraded single-modality read, NOT cross-source corroboration."
+            ),
+            "source": gap,
+            "provenance_ref": gap,
+        }
+
+    return {
+        "concordance_class": concordance,
+        "corroboration": corroboration,
+        "integration_method": "explicit_deterministic",
+        "grain": "subtype_restriction (cross-modality: bulk-RNA transcript x MS-protein, same patient grain)",
+        "resolved_source_count": resolved_source_count,
+        "corroborating_independent_arm_count": corroborating_independent_arm_count,
+        "concordance_support": concordance_support,
+        "source_support": source_support,
+        "positive_signal": positive_signal,
+        "qualifying_signal": qualifying_signal,
+        "boundary_sensitive": boundary_sensitive,
+        "boundary_note": (
+            "concordance class rests on a single measured modality arm (single_arm / low corroboration) — "
+            "treat as near-boundary, not a flat cross-modality assertion"
+            if boundary_sensitive
+            else "concordance corroborated by BOTH independent modality arms agreeing"
+        ),
+        "evidence_dependence": evidence_dependence,
+        "informs": (
+            "cross-source subtype-restriction concordance — a subtype-restriction two INDEPENDENT "
+            "molecular layers (bulk-RNA recount3 TCGA + MS-protein CPTAC TMT, same patient grain + subtype "
+            "axis) agree on is far more credible than an RNA-only restriction; cell-line RNA is a "
+            "same-modality cross-grain sibling preserved as evidence but never double-counted as a third "
+            "independent arm"
+        ),
+        "evidence": (
+            f"bulk-RNA {rna_cls or 'data_unavailable'} x protein-MS {pr_cls or 'data_unavailable'}: "
+            + _PHRASE[concordance]
+        ),
+        "provenance": {
+            "sources": source_support,
+            "independence_note": (
+                "Bulk-RNA-by-subtype (recount3 TCGA) and CPTAC TMT-MS protein-by-subtype are genuinely "
+                "INDEPENDENT molecular layers, cohorts and assays at the SAME patient-tumor sample-context "
+                "grain and the SAME subtype axis, so their agreement is real cross-source corroboration. "
+                "cellline-RNA-by-subtype (DepMap model RNA) is a SAME-MODALITY CROSS-GRAIN sibling of the "
+                "tumor-RNA arm (two RNA reads are ONE modality arm), so it is corroboration-ineligible — "
+                "never an independent third arm. GRAIN CAVEAT: the independent arms differ in assay-"
+                "modality (transcript vs MS-protein); a transcript-level subtype restriction need not "
+                "manifest at the protein layer (post-transcriptional regulation), so a discordance is a "
+                "real biological signal, not necessarily measurement error. RESTRICTION conclusions are "
+                "read only off a `powered` subtype axis (#1518)."
+            ),
+        },
+        "_disclaimer": (
+            "L2b CROSS-SOURCE integration claim (deterministic, no LLM) — verdict-INERT provenance: never "
+            "a signal tier, never averaged into a claim, never feeds the presence_verdict, the subtype "
+            "stratification class, or any resolver rung."
+        ),
+    }
+
+
 def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
     """Per-stratum claim vector (A abundance + distributional B + protein confirmation) from
     per_subgroup_metrics. Returns None when the indication has no subtype axis. Claim C (single-cell
@@ -1503,7 +1870,7 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
         ),
         key=lambda e: (e["median_log2tpm"] is None, -(e["median_log2tpm"] or 0.0)),
     )
-    return {
+    out = {
         "stratification_class": s.get("subtype_stratification_class"),
         "subtype_variance_explained": s.get("subtype_variance_explained"),
         "subtype_effect_size_class": s.get("subtype_effect_size_class"),
@@ -1530,6 +1897,15 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
             "trusted; small-n strata are additionally low by power. Read certainty, not just signal."
         ),
     }
+    # L2b CROSS-SOURCE integration claim (SK#1830): bulk-RNA-by-subtype x protein-MS-by-subtype
+    # subtype-restriction concordance. Carries NO `signal` key → not a chip, not a tier; OMITTED
+    # (byte-stable) unless >=1 independent modality arm resolves on a powered axis. Reads only the
+    # ALREADY-RESOLVED subtype-axis grades/classes off the three by-subtype cards, so it perturbs no
+    # verdict. Mirrors the selectivity/abundance/coverage L2b concordance pattern.
+    _src = _subtype_restriction_concordance_claim(c)
+    if _src is not None:
+        out["subtype_restriction_concordance"] = _src
+    return out
 
 
 __all__ = [

@@ -848,3 +848,266 @@ def test_no_axis_returns_none_and_empty_enrichment_is_a_list():
     ]
     cv = presence_claim_vector_by_subtype(cards)
     assert cv["enriched_subtypes"] == [] and cv["top_enriched_subtype"] is None  # uniform → empty, never None list
+
+
+# ── L2b subtype_restriction_concordance (SK#1830) — cross-source SUBTYPE-RESTRICTION ────────────────
+from _skills_common.claim_vector_core import cards_by_id as _by_id_for_test  # noqa: E402
+from _skills_common.presence_claims import (  # noqa: E402
+    _subtype_restriction_concordance_claim,
+)
+
+
+def _minimal_rna_row():
+    # a MEASURED, floor-met stratum so presence_claim_vector_by_subtype builds a real strata dict.
+    return {
+        "stratum_id": "A",
+        "evidence_state": "measured",
+        "subtype_signal": "subtype_uniform",
+        "median_log2tpm": 1.0,
+        "n_tumor_samples": 50,
+        "fraction_tumor_above_normal_p95": 0.1,
+    }
+
+
+def _sr_cards(
+    rna_q="powered",
+    rna_cls="subtype_restricted",
+    prot_q=None,
+    prot_cls=None,
+    cl_q=None,
+    cl_cls=None,
+    rna_var=0.34,
+):
+    """Build the three by-subtype cards exercising the subtype_restriction_concordance builder's arms.
+    Any arm with axis_quality=None is an absent/unresolved arm (its card summary carries no grade)."""
+    cards = [
+        {
+            "card_id": "tumor-rna-distribution-by-subtype",
+            "summary": {
+                "subtype_axis_available": True,
+                "subtype_axis_quality": rna_q,
+                "subtype_stratification_class": rna_cls,
+                "subtype_variance_explained": rna_var,
+                "subtype_effect_size_class": "large",
+                "n_subtypes_measured": 4,
+                "n_subtypes_enriched": 2,
+                "n_subtypes_restricted": 1,
+                "per_subgroup_metrics": [_minimal_rna_row()],
+            },
+        },
+        {
+            "card_id": "tumor-protein-distribution-by-subtype",
+            "summary": {
+                "subtype_axis_available": True,
+                "subtype_axis_quality": prot_q,
+                "subtype_stratification_class": prot_cls,
+                "n_subtypes_measured": 3,
+                "n_subtypes_enriched": 1,
+            },
+        },
+        {
+            "card_id": "cellline-rna-distribution-by-subtype",
+            "summary": {
+                "subtype_axis_available": True,
+                "subtype_axis_quality": cl_q,
+                "subtype_stratification_class": cl_cls,
+                "n_subtypes_measured": 2,
+                "n_subtypes_enriched": 0,
+            },
+        },
+    ]
+    return cards
+
+
+def _sr(**kw):
+    return _subtype_restriction_concordance_claim(_by_id_for_test(_sr_cards(**kw)))
+
+
+def test_subtype_restriction_concordance_both_arms_agree_restricted():
+    c = _sr(rna_q="powered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="subtype_enriched")
+    assert c["concordance_class"] == "subtype_restriction_concordant"
+    assert c["corroboration"] == "high"
+    assert c["integration_method"] == "explicit_deterministic"
+    assert c["concordance_support"]["agreed_direction"] == "subtype_restricted"
+    assert c["corroborating_independent_arm_count"] == 2
+    assert c["resolved_source_count"] == 2  # tumor RNA + protein (no cell line)
+    assert c["boundary_sensitive"] is False
+    assert c["qualifying_signal"] is None
+
+
+def test_subtype_restriction_concordance_both_arms_agree_no_restriction():
+    # both powered but pan_subtype_uniform → both agree NO restriction.
+    c = _sr(rna_q="powered", rna_cls="pan_subtype_uniform", prot_q="powered", prot_cls="pan_subtype_uniform")
+    assert c["concordance_class"] == "subtype_restriction_concordant"
+    assert c["concordance_support"]["agreed_direction"] == "no_subtype_restriction"
+    assert c["corroboration"] == "high"
+
+
+def test_subtype_restriction_concordance_protein_masks_rna_only_restriction():
+    # RNA sees a restriction, protein powered but uniform → the RNA-only false positive.
+    c = _sr(rna_q="powered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="pan_subtype_uniform")
+    assert c["concordance_class"] == "protein_masks_subtype_restriction"
+    assert c["corroboration"] == "low"
+    assert c["concordance_support"] == {"restriction_in": "rna", "no_restriction_in": "protein"}
+    assert c["boundary_sensitive"] is True
+    assert c["qualifying_signal"]["source"] == "protein"
+
+
+def test_subtype_restriction_concordance_rna_masks_protein_restriction():
+    c = _sr(rna_q="powered", rna_cls="pan_subtype_uniform", prot_q="powered", prot_cls="subtype_restricted")
+    assert c["concordance_class"] == "rna_masks_subtype_restriction"
+    assert c["concordance_support"] == {"restriction_in": "protein", "no_restriction_in": "rna"}
+    assert c["corroboration"] == "low"
+
+
+def test_subtype_restriction_concordance_single_source_only_rna():
+    # protein axis not powered (exploratory) → unresolved; only the RNA arm resolves.
+    c = _sr(rna_q="powered", rna_cls="subtype_restricted", prot_q="exploratory", prot_cls="subtype_restricted")
+    assert c["concordance_class"] == "single_source_only"
+    assert c["corroboration"] == "single_arm"
+    assert c["concordance_support"]["resolved_by"] == "rna"
+    assert c["concordance_support"]["resolved_via_source"] == "tumor_rna"
+    assert c["corroborating_independent_arm_count"] == 1
+    assert c["resolved_source_count"] == 1
+
+
+def test_subtype_restriction_concordance_single_source_only_protein():
+    # RNA axis not powered → unresolved; only the protein arm resolves.
+    c = _sr(rna_q="underpowered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="subtype_restricted")
+    assert c["concordance_class"] == "single_source_only"
+    assert c["concordance_support"]["resolved_by"] == "protein"
+    assert c["concordance_support"]["resolved_via_source"] == "cptac_protein"
+
+
+def test_subtype_restriction_concordance_cellline_supplies_rna_arm_but_never_a_third_arm():
+    # tumor-RNA axis unpowered, cell-line RNA powered → the RNA arm resolves VIA the cell-line sibling,
+    # but it is still ONE RNA arm — never an independent third arm.
+    c = _sr(
+        rna_q="underpowered",
+        rna_cls="subtype_restricted",
+        prot_q="powered",
+        prot_cls="subtype_restricted",
+        cl_q="powered",
+        cl_cls="subtype_restricted",
+    )
+    assert c["concordance_class"] == "subtype_restriction_concordant"
+    assert c["corroborating_independent_arm_count"] == 2  # RNA layer (via cell line) + protein — NOT 3
+    assert c["resolved_source_count"] == 2  # cell-line RNA + protein (tumor RNA unresolved)
+    by = {s["source"]: s for s in c["source_support"]}
+    assert by["cellline_rna"]["corroboration_eligible"] is False
+    assert by["cellline_rna"]["dependence_group"] == "rna"
+    # both independent arms resolve → concordant (NOT single_source_only), so the concordance_support
+    # carries the agreed direction, not a which-arm split.
+    assert c["concordance_support"] == {"agreed_direction": "subtype_restricted"}
+    # the tumor-RNA arm shows resolved:False (supplied by the cell-line sibling instead).
+    assert by["tumor_rna"]["resolved"] is False
+
+
+def test_subtype_restriction_concordance_all_supply_paths_mutation():
+    # full concordant read.
+    full = _sr(
+        rna_q="powered",
+        rna_cls="subtype_restricted",
+        prot_q="powered",
+        prot_cls="subtype_restricted",
+        cl_q="powered",
+        cl_cls="subtype_restricted",
+    )
+    assert full["concordance_class"] == "subtype_restriction_concordant"
+    # defeat the tumor-RNA axis only — cell-line still supplies the RNA arm → NOT degraded.
+    no_tumor = _sr(
+        rna_q="underpowered",
+        rna_cls="subtype_restricted",
+        prot_q="powered",
+        prot_cls="subtype_restricted",
+        cl_q="powered",
+        cl_cls="subtype_restricted",
+    )
+    assert no_tumor["corroborating_independent_arm_count"] == 2
+    # defeat BOTH RNA sources — only the protein arm survives → degrade to single_source_only.
+    no_rna = _sr(
+        rna_q="underpowered",
+        rna_cls="subtype_restricted",
+        prot_q="powered",
+        prot_cls="subtype_restricted",
+        cl_q="underpowered",
+        cl_cls="subtype_restricted",
+    )
+    assert no_rna["concordance_class"] == "single_source_only"
+    # defeat the protein arm too — EVERY independent supply path defeated → key omitted (byte-stable).
+    none = _sr(
+        rna_q="underpowered",
+        rna_cls="subtype_restricted",
+        prot_q="underpowered",
+        prot_cls="subtype_restricted",
+        cl_q="underpowered",
+        cl_cls="subtype_restricted",
+    )
+    assert none is None
+
+
+def test_subtype_restriction_concordance_key_omitted_when_neither_independent_arm_resolves():
+    cv = presence_claim_vector_by_subtype(
+        _sr_cards(rna_q="exploratory", rna_cls="subtype_restricted", prot_q=None, cl_q=None)
+    )
+    assert "subtype_restriction_concordance" not in cv  # byte-stable omission
+
+
+def test_subtype_restriction_concordance_grain_is_first_class_and_differs_across_independent_arms():
+    c = _sr(rna_q="powered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="subtype_restricted")
+    by = {s["source"]: s for s in c["source_support"]}
+    assert by["tumor_rna"]["grain"] == "bulk_rna_transcript (patient tumor)"
+    assert by["cptac_protein"]["grain"] == "ms_protein (patient tumor)"  # arms DIFFER in assay-modality
+
+
+def test_subtype_restriction_concordance_retained_quantitative_recoverable():
+    c = _sr(
+        rna_q="powered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="subtype_restricted", rna_var=0.42
+    )
+    by = {s["source"]: s for s in c["source_support"]}
+    assert by["tumor_rna"]["retained_quantitative"]["subtype_variance_explained"] == 0.42
+    assert by["tumor_rna"]["retained_quantitative"]["n_subtypes_restricted"] == 1
+
+
+def test_subtype_restriction_concordance_non_finite_quant_demoted_to_none():
+    # a NaN variance-explained must NOT leak into claim_vectors (emission-invariants non-finite rule).
+    c = _sr(
+        rna_q="powered",
+        rna_cls="subtype_restricted",
+        prot_q="powered",
+        prot_cls="subtype_restricted",
+        rna_var=float("nan"),
+    )
+    by = {s["source"]: s for s in c["source_support"]}
+    assert by["tumor_rna"]["retained_quantitative"]["subtype_variance_explained"] is None
+
+
+def _sr_signal_shape_ok(sig):
+    return isinstance(sig, dict) and set(sig) == {"statement", "source", "provenance_ref"}
+
+
+def test_subtype_restriction_concordance_presentation_signal_shape():
+    conc = _sr(rna_q="powered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="subtype_restricted")
+    assert _sr_signal_shape_ok(conc["positive_signal"])
+    assert conc["qualifying_signal"] is None
+    masks = _sr(rna_q="powered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="pan_subtype_uniform")
+    assert _sr_signal_shape_ok(masks["positive_signal"]) and _sr_signal_shape_ok(masks["qualifying_signal"])
+
+
+def test_subtype_restriction_concordance_is_verdict_inert_and_purely_additive():
+    # NO `signal` key, and PURELY ADDITIVE: every pre-existing by-subtype vector key is byte-identical;
+    # subtype_restriction_concordance is the ONLY delta.
+    cards = _sr_cards(rna_q="powered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="subtype_restricted")
+    cv = presence_claim_vector_by_subtype(cards)
+    claim = cv["subtype_restriction_concordance"]
+    assert "signal" not in claim
+    assert "verdict-INERT" in claim["_disclaimer"]
+    # rebuild WITHOUT any resolving arm (unpowered everything) → the claim is omitted and every other
+    # key of the by-subtype vector is byte-identical to the with-claim vector.
+    bare = presence_claim_vector_by_subtype(
+        _sr_cards(rna_q="powered", rna_cls="subtype_restricted", prot_q="exploratory", cl_q="exploratory")
+    )
+    # single_source_only here (RNA powered) → still present; strip it to compare the spine.
+    common = {k: v for k, v in cv.items() if k != "subtype_restriction_concordance"}
+    common_bare = {k: v for k, v in bare.items() if k != "subtype_restriction_concordance"}
+    assert common == common_bare  # the rest of the by-subtype vector is untouched by the claim

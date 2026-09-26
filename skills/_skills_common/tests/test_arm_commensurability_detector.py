@@ -592,6 +592,16 @@ _DECLARED_PRESENCE_CORROBORATION_BUILDERS = {
         "and compared on WITHIN-POPULATION rank CLASS not raw TMT-vs-TPM (#1512); the second grain is an "
         "independent cross-grain corroborating arm — commensurate by construction"
     ),
+    "_subtype_restriction_concordance_claim": (
+        "bulk-RNA-by-subtype subtype-restriction (recount3 TCGA, `tumor-rna-distribution-by-subtype`) × "
+        "protein-MS-by-subtype subtype-restriction (CPTAC TMT, `tumor-protein-distribution-by-subtype`) — "
+        "the two INDEPENDENT arms of the L2b subtype_restriction_concordance family (SK#1830). Two reads "
+        "of the SAME subtype-restriction property at DIFFERENT molecular layers at the SAME patient-tumor "
+        "grain and subtype axis (commensurate by same-property, cross-modality). The RNA arm is one arm "
+        "supplied by a same-modality group {tumor_rna, cellline_rna}; cellline-RNA-by-subtype is "
+        "corroboration-INELIGIBLE (a same-modality cross-grain sibling, never a third independent arm), so "
+        "corroboration_from_arms folds EXACTLY [rna_arm, protein_arm] — never a cell-line RNA third arm."
+    ),
 }
 
 
