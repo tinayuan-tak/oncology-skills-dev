@@ -111,6 +111,49 @@ def test_druggability_insufficient_coverage_gap_is_med_not_high():
         assert deterministic_bins(pkg, "small_molecule")["druggability"]["bin"] == "MED", v
 
 
+def test_surface_druggability_foreclosed_arms_are_high_not_med_default():
+    """#1602: surface tokens with NO viable arm read HIGH, not the fail-OPEN MED default. tce_unsafe_normal_
+    liability (194/504; TCE unsafe, NO ADC arm asserted — contrast adc_preferred_tce_unsafe which keeps the
+    ADC arm at MED), tce_escape_risk (TCE efficacy foreclosed, no ADC arm) and shed_dominant_opposed (shed
+    antigen opposes all surface biologics; an excluded_modality_scoped KILL) are siblings of neither_viable."""
+    for v in ("tce_unsafe_normal_liability", "tce_escape_risk", "shed_dominant_opposed", "neither_viable"):
+        for mod in ("adc", "tce", "bite_tce", "antibody"):
+            assert deterministic_bins(_pkg({"surface_modality": v}), mod)["druggability"]["bin"] == "HIGH", (v, mod)
+
+
+def test_surface_druggability_clean_arm_is_low_not_med_default():
+    """#1602: a clean dominant surface arm reads LOW, mirroring both_viable — it must not be under-credited
+    to the MED default. adc_preferred / tce_preferred (3/504) are the surface positives added after the map
+    was frozen."""
+    for v in ("both_viable", "adc_preferred", "tce_preferred"):
+        assert deterministic_bins(_pkg({"surface_modality": v}), "adc")["druggability"]["bin"] == "LOW", v
+
+
+def test_surface_druggability_viable_arm_survivors_and_gaps_stay_med():
+    """#1602: a caveated-moderate rung where a viable arm SURVIVES, plus ambiguity/coverage gaps, stay MED —
+    pinned in the map (not left to the default) so the choice is governance-citable."""
+    for v in (
+        "adc_preferred_tce_unsafe",
+        "adc_preferred_tce_escape_risk",
+        "adc_preferred_tce_patient_variable",
+        "tce_patient_variable",
+        "surface_viable_density_caveated",
+        "pmhc_tce_supported",
+        "surface_annotation_only_unconfirmed",
+        "modality_ambiguous",
+        "isoform_dependent_undefined",
+        "insufficient",
+    ):
+        assert deterministic_bins(_pkg({"surface_modality": v}), "adc")["druggability"]["bin"] == "MED", v
+
+
+def test_surface_druggability_leg_is_inert_on_small_molecule():
+    """The surface leg is read only for SURFACE modalities; a small-molecule render never touches it (it
+    reads the SM tractability map instead), so a foreclosed surface token cannot leak into an SM verdict."""
+    pkg = _pkg({"surface_modality": "tce_unsafe_normal_liability", "tractability_sm": "well_covered"})
+    assert deterministic_bins(pkg, "small_molecule")["druggability"]["bin"] == "LOW"
+
+
 def test_clinical_bin_from_precedent_card():
     hi = _pkg({}, [{"card_id": "clinical-precedent", "summary": {"notable_failures": True}}])
     assert deterministic_bins(hi, "small_molecule")["clinical"]["bin"] == "HIGH"

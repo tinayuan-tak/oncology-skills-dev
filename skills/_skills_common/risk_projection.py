@@ -26,6 +26,123 @@ RANK = {"LOW": 0, "MED": 1, "HIGH": 2}
 INV = {0: "LOW", 1: "MED", 2: "HIGH"}
 SURFACE = {"adc", "bite_tce", "tce", "antibody"}
 
+# ── deterministic_bins keyed-verdict maps + their INTENTIONALLY-DEFAULTED token sets ──────────────
+# The governance-citable risk dims read a resolver-verdict → ordinal-bin lookup with a `.get(v, D)`
+# default. These maps are module-level (not inline) so Guard-A
+# (skills/tests/test_resolver_verdict_consumers.py::test_deterministic_bin_maps_cover_their_resolver_vocab)
+# can assert, against the LIVE map object deterministic_bins actually uses, that
+#   keyed ∪ intentionally-defaulted == the resolver's live verdict vocab   and   keyed ∩ defaulted == ∅.
+# That closes the fail-OPEN where a resolver token added AFTER a map was frozen silently falls to the
+# `.get()` default — the bug this cluster has hit five times (#1547/#1555/#1568/#1573/#1602). A token is
+# either KEYED (a deliberate bin) or in the leg's *_DEFAULTED frozenset (a deliberate route-to-default,
+# e.g. a coverage gap); it may not be in neither. Register a leg in DETERMINISTIC_BIN_COMPLETENESS below
+# ONLY once its mapping is adjudicated (see the note there for the two legs deliberately NOT registered).
+
+# SAFETY (on-target) — `.get(v, 0)` LOW default. data_unavailable / insufficient are coverage GAPS
+# (not concerns), so they are deliberately routed to the LOW default rather than escalated (#1573).
+_SAFETY_BINS = {
+    "highly_constrained_safety_concern": 2,
+    "pan_essential_broad_tox_concern": 2,
+    "normal_tissue_protein_safety_concern": 2,
+    "human_genetics_safety_concern": 1,
+    "moderately_constrained_safety": 1,
+    "tolerant_reduced_safety_risk": 0,
+}
+_SAFETY_DEFAULTED = frozenset({"data_unavailable", "insufficient"})
+
+# DEPENDENCY (biological, non-surface) — `.get(v, 1)` MED default. NOT registered in the completeness
+# map: its unmapped indication-scoped tokens (dependent_in_indication / not_dependent_in_indication /
+# lineage_selective_in_indication / the insufficient_underpowered* family / broadly_dependent) are the
+# still-OPEN adjudication of #1555, and `biomarker_stratified_dependency` is a STALE key no longer in the
+# resolver vocab. Registering it now would either force an un-adjudicated mapping or red the guard; it
+# rides #1555. Kept module-level for parity so #1555 can register it by adding one line + a defaulted set.
+_DEPENDENCY_BINS = {
+    "non_dependent": 2,
+    "pan_essential_killer": 1,
+    "discordant": 1,
+    "insufficient": 1,
+    "concordant_dependent": 0,
+    "lineage_selective": 0,
+    "selective_dependent": 0,
+    "biomarker_stratified_dependency": 0,
+    "partner_conditional_dependent": 0,
+    "chemical_genetic_confirmed_dependent": 0,
+    "non_dependent_paralog_buffered": 1,
+}
+
+# DRUGGABILITY / SURFACE (surface modalities) — `.get(v, 1)` MED default, now EXHAUSTIVE over the
+# 17-token surface_modality resolver vocab (#1602). Before this fix the map keyed only 4 tokens
+# (both_viable / adc_preferred_tce_unsafe / surface_viable_density_caveated / neither_viable) and the
+# other 13 — added to the resolver after the map was frozen — fell to the MED default, fail-OPEN on
+# foreclosed arms and under-crediting strong positives. Polarity, mirroring the SM leg below:
+#   LOW(0)  — a CLEAN viable surface arm (sibling of both_viable): a dominant ADC or TCE arm with no
+#             foreclosing liability. adc_preferred / tce_preferred.
+#   HIGH(2) — ALL surface arms foreclosed/opposed (sibling of neither_viable): tce_unsafe_normal_
+#             liability (TCE unsafe, NO ADC arm asserted — contrast adc_preferred_tce_unsafe which
+#             KEEPS the ADC arm at MED), tce_escape_risk (TCE efficacy foreclosed, no ADC arm),
+#             shed_dominant_opposed (shed antigen opposes all surface biologics; an excluded_modality_
+#             scoped KILL in the gate).
+#   MED(1)  — a VIABLE ARM SURVIVES (a caveated-moderate rung) OR a coverage/ambiguity gap; pinned here
+#             (not left to the default) so the choice is governance-citable, mirroring the SM leg's
+#             explicit `insufficient`: adc_preferred_tce_unsafe / adc_preferred_tce_escape_risk /
+#             adc_preferred_tce_patient_variable (ADC arm preserved), tce_patient_variable (TCE arm
+#             demoted dominant→supportive, NOT foreclosed), surface_viable_density_caveated (topology
+#             viable, density caveat), pmhc_tce_supported (positive pMHC-TCE route survives),
+#             surface_annotation_only_unconfirmed (confidence demotion of an unconfirmed positive),
+#             modality_ambiguous / isoform_dependent_undefined / insufficient (ambiguity / coverage
+#             gaps, NOT negative findings — not escalated to HIGH).
+_DRUGGABILITY_SURFACE_BINS = {
+    "both_viable": 0,
+    "adc_preferred": 0,
+    "tce_preferred": 0,
+    "neither_viable": 2,
+    "tce_unsafe_normal_liability": 2,
+    "tce_escape_risk": 2,
+    "shed_dominant_opposed": 2,
+    "adc_preferred_tce_unsafe": 1,
+    "adc_preferred_tce_escape_risk": 1,
+    "adc_preferred_tce_patient_variable": 1,
+    "tce_patient_variable": 1,
+    "surface_viable_density_caveated": 1,
+    "pmhc_tce_supported": 1,
+    "surface_annotation_only_unconfirmed": 1,
+    "modality_ambiguous": 1,
+    "isoform_dependent_undefined": 1,
+    "insufficient": 1,
+}
+_DRUGGABILITY_SURFACE_DEFAULTED: frozenset = frozenset()  # exhaustive — nothing rides the .get() default
+
+# DRUGGABILITY / SM (non-surface) — `.get(v, 1)` MED default. STRONG-positive tractability → LOW(0);
+# negatives (incl. annotation_only_indirect, the CASE-008 biologics-only / undruggable-TF token) →
+# HIGH(2); `insufficient` is a coverage GAP pinned EXPLICITLY at MED (#1568). The caveated-moderate
+# rungs (structurally_ligandable / clinical_precedent_only / tool_compound_only / weakly_active) stay
+# MED via the default and are DECLARED here so the guard sees them as a deliberate route-to-default.
+_DRUGGABILITY_SM_BINS = {
+    "well_covered": 0,
+    "chemically_confirmed_genetic": 0,
+    "chemically_active": 0,
+    "measured_potent_ligand": 0,
+    "discordant": 1,
+    "insufficient": 1,
+    "chemically_unhit": 2,
+    "structurally_intractable": 2,
+    "annotation_only_indirect": 2,
+}
+_DRUGGABILITY_SM_DEFAULTED = frozenset(
+    {"structurally_ligandable", "clinical_precedent_only", "tool_compound_only", "weakly_active"}
+)
+
+# Completeness registry read by Guard-A: resolver gate -> (live bin map, intentionally-defaulted tokens).
+# Only ADJUDICATED legs appear. NOT registered: `dependency` (unmapped indication tokens = OPEN #1555,
+# plus a stale key — see _DEPENDENCY_BINS) and the card-field maps (competitor_class / translational
+# readiness classes / clinical stage) whose vocabularies live in the CARD schemas, not a resolver, and
+# so need a card-vocab source (and clinical is stage-logic, not a keyed map) — a separate follow-up.
+DETERMINISTIC_BIN_COMPLETENESS = {
+    "safety": (_SAFETY_BINS, _SAFETY_DEFAULTED),
+    "surface_modality": (_DRUGGABILITY_SURFACE_BINS, _DRUGGABILITY_SURFACE_DEFAULTED),
+    "tractability_small_molecule": (_DRUGGABILITY_SM_BINS, _DRUGGABILITY_SM_DEFAULTED),
+}
+
 # grounded axis -> the risk dim it augments. The 12 subskills map many-to-few onto the 6 risk dims
 # (5R-style decomposition): the target-biology axes (dependency + mechanism/genomic/SL/combinatorial/
 # expression) all escalate the BIOLOGICAL (Right Target) dim; safety/selectivity escalate SAFETY; the
@@ -596,15 +713,9 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
     # precedence — they were silently absent, so both fell through the `.get(...,0)` default to LOW
     # (fail-toward-safe on a governance-citable axis; #1573). The retired v2.0.0 downgrade tokens
     # (wt_*_mechanism_mismatch) and the phantom moderately_constrained_safety_concern are dropped;
-    # data_unavailable / insufficient are gaps, not concerns, and stay at the 0 default.
-    ots = {
-        "highly_constrained_safety_concern": 2,
-        "pan_essential_broad_tox_concern": 2,
-        "normal_tissue_protein_safety_concern": 2,
-        "human_genetics_safety_concern": 1,
-        "moderately_constrained_safety": 1,
-        "tolerant_reduced_safety_risk": 0,
-    }.get(sv.get("safety"), 0)
+    # data_unavailable / insufficient are gaps, not concerns, and stay at the 0 default (_SAFETY_DEFAULTED).
+    # Map hoisted to _SAFETY_BINS (module level) so Guard-A checks the LIVE object for vocab completeness.
+    ots = _SAFETY_BINS.get(sv.get("safety"), 0)
     _loeuf = _q(pkg, "gnomad-lof-constraint", "loeuf_score")
     sig = max(sig, ots)
     chain.append(("on-target-safety", f"{sv.get('safety')} [LOEUF={_loeuf}; <0.35 LoF-intolerant]", INV[ots]))
@@ -656,20 +767,9 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
     sig, chain = 0, []
     if not surf:
         # pan_essential_killer = a dependency but NOT tumor-selective -> its tox routes to SAFETY (not a
-        # target-validity failure) -> MED, not HIGH. Only non_dependent is HIGH biological risk.
-        dep = {
-            "non_dependent": 2,
-            "pan_essential_killer": 1,
-            "discordant": 1,
-            "insufficient": 1,
-            "concordant_dependent": 0,
-            "lineage_selective": 0,
-            "selective_dependent": 0,
-            "biomarker_stratified_dependency": 0,
-            "partner_conditional_dependent": 0,
-            "chemical_genetic_confirmed_dependent": 0,
-            "non_dependent_paralog_buffered": 1,
-        }.get(sv.get("dependency"), 1)
+        # target-validity failure) -> MED, not HIGH. Only non_dependent is HIGH biological risk. Map is
+        # _DEPENDENCY_BINS (module level); NOT in the completeness registry — see its note re: OPEN #1555.
+        dep = _DEPENDENCY_BINS.get(sv.get("dependency"), 1)
         _chr = _q(pkg, "dependency-lineage-selectivity", "median_chronos_panel")
         sig = max(sig, dep)
         chain.append(
@@ -695,40 +795,16 @@ def deterministic_bins(pkg: dict, modality: str) -> dict:
     # DRUGGABILITY — SM tractability (SM/degrader) or surface fit (biologics)
     sig, chain = 0, []
     if surf:
-        r = {
-            "both_viable": 0,
-            "adc_preferred_tce_unsafe": 1,
-            "surface_viable_density_caveated": 1,
-            "neither_viable": 2,
-        }.get(sv.get("surface_modality"), 1)
+        # Map is _DRUGGABILITY_SURFACE_BINS (module level, EXHAUSTIVE over the surface_modality vocab —
+        # #1602); see its rationale block for the LOW/MED/HIGH polarity. Guard-A pins the exhaustiveness.
+        r = _DRUGGABILITY_SURFACE_BINS.get(sv.get("surface_modality"), 1)
         chain.append(("surface-modality-fit", sv.get("surface_modality"), INV[r]))
         blind = ["ADC linker/payload", "internalization"]
     else:
-        # LOW-risk = a viable chemical start point. The lookup previously omitted the STRONG-positive
-        # tractability verdicts (measured_potent_ligand, chemically_confirmed_genetic) — so the strongest
-        # druggability calls silently defaulted to MED (the USP8/NSCLC symptom: measured_potent_ligand →
-        # MED). Aligned with tractability-small-molecule's polarity: _TRACT_STRONG → LOW(0); the caveated
-        # moderate rungs (structurally_ligandable / clinical_precedent_only / tool_compound_only /
-        # weakly_active) stay MED(1) via the default; negatives → HIGH(2).
-        # #1568: annotation_only_indirect is a NEGATIVE-polarity token (_TRACTABILITY_NEGATIVE in the
-        # resolver, added v1.5.0→1.7.0 AFTER this map was frozen — the CASE-008 modality gate mints it
-        # to mark a biologics-only approved antigen / undruggable TF with NO direct SM binder). It is a
-        # sibling of chemically_unhit / structurally_intractable and must read HIGH(2), not silently
-        # default to MED. `insufficient` is a resolver COVERAGE GAP ("never a verdict"), not a negative
-        # finding: it is keyed EXPLICITLY at MED(1) — the same value as the default, but pinned so a
-        # coverage gap is a governance-citable choice and is NOT escalated to HIGH. INV has no
-        # data-unavailable bin, so a full abstention treatment is out of scope for this single-leg map.
-        r = {
-            "well_covered": 0,
-            "chemically_confirmed_genetic": 0,
-            "chemically_active": 0,
-            "measured_potent_ligand": 0,
-            "discordant": 1,
-            "insufficient": 1,
-            "chemically_unhit": 2,
-            "structurally_intractable": 2,
-            "annotation_only_indirect": 2,
-        }.get(sv.get("tractability_sm"), 1)
+        # Map is _DRUGGABILITY_SM_BINS (module level; see its rationale block — STRONG→LOW, negatives incl.
+        # annotation_only_indirect→HIGH, `insufficient` pinned MED, #1568). The caveated-moderate rungs are
+        # declared in _DRUGGABILITY_SM_DEFAULTED so Guard-A treats their route-to-default as deliberate.
+        r = _DRUGGABILITY_SM_BINS.get(sv.get("tractability_sm"), 1)
         _tdl = _q(pkg, "target-development-level", "tdl_class")  # raw Pharos tier (Tclin>Tchem>Tbio>Tdark)
         chain.append(("tractability-SM", f"{sv.get('tractability_sm')} [Pharos TDL={_tdl}]", INV[r]))
         blind = ["PK/exposure", "CNS penetration", "synthesis"]

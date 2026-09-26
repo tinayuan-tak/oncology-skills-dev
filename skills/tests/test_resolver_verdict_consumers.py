@@ -100,3 +100,55 @@ def test_cis_coherence_verdicts_are_exhaustively_registered():
     assert set(cis._CIS_COHERENT) <= _CIS, (
         f"_CIS_COHERENT lists verdict(s) not emitted by cis_coherence.resolver.yaml: {sorted(set(cis._CIS_COHERENT) - _CIS)}"
     )
+
+
+# ── deterministic_bins all-legs completeness (the consolidated guard #1547/#1555/#1568/#1573/#1602) ──
+# The recurring bug: a keyed verdict→bin map in `deterministic_bins` is frozen, the resolver later grows
+# a token, and that token silently falls to the `.get(v, D)` default — fail-OPEN on a governance-citable
+# risk dim. This asserts, for every ADJUDICATED leg, that the LIVE map object + its declared
+# route-to-default set exactly PARTITION the resolver's live verdict vocab, so a new resolver token can
+# no longer reach a default without a deliberate map/defaulted-set edit that this guard forces.
+from _skills_common.risk_projection import DETERMINISTIC_BIN_COMPLETENESS  # noqa: E402
+
+
+def _completeness_gaps(keyed: set, defaulted: set, vocab: set):
+    """Returns (uncovered, unknown, overlap): tokens in vocab covered by neither keyed nor defaulted;
+    tokens declared but not in the vocab (stale); and tokens in BOTH keyed and defaulted (ambiguous)."""
+    covered = set(keyed) | set(defaulted)
+    return (set(vocab) - covered, covered - set(vocab), set(keyed) & set(defaulted))
+
+
+@pytest.mark.parametrize("gate", sorted(DETERMINISTIC_BIN_COMPLETENESS))
+def test_deterministic_bin_maps_cover_their_resolver_vocab(gate):
+    vocab = _resolver_verdicts(gate)
+    if vocab is None:
+        pytest.skip(f"{gate}.resolver.yaml unavailable (target-contracts not checked out)")
+    bin_map, defaulted = DETERMINISTIC_BIN_COMPLETENESS[gate]
+    uncovered, unknown, overlap = _completeness_gaps(set(bin_map), defaulted, vocab)
+    assert not uncovered, (
+        f"deterministic_bins '{gate}' leg fails OPEN: resolver token(s) {sorted(uncovered)} are neither "
+        f"keyed nor in the leg's *_DEFAULTED set — they silently hit the .get() default. Key them or "
+        f"declare them as intentionally-defaulted."
+    )
+    assert not unknown, (
+        f"deterministic_bins '{gate}' leg declares token(s) {sorted(unknown)} not in the resolver vocab (stale)."
+    )
+    assert not overlap, f"deterministic_bins '{gate}' leg lists token(s) {sorted(overlap)} as BOTH keyed and defaulted."
+
+
+def test_completeness_guard_has_teeth():
+    """The guard must FAIL when a leg fails open. Take a registered leg, drop one keyed token from the
+    map copy (simulating a resolver token that was never mapped), and assert the check flags it."""
+    gate = "surface_modality"
+    vocab = _resolver_verdicts(gate)
+    if vocab is None:
+        pytest.skip("surface_modality.resolver.yaml unavailable")
+    bin_map, defaulted = DETERMINISTIC_BIN_COMPLETENESS[gate]
+    assert not _completeness_gaps(set(bin_map), defaulted, vocab)[0]  # baseline: really complete
+    dropped = set(bin_map) - {sorted(bin_map)[0]}  # simulate one unmapped token
+    uncovered, _, _ = _completeness_gaps(dropped, defaulted, vocab)
+    assert uncovered, "completeness guard is toothless: an unmapped resolver token was not detected"
+    # a stale declaration and a keyed∩defaulted overlap must also be caught
+    assert _completeness_gaps(set(bin_map) | {"__phantom__"}, defaulted, vocab)[1] == {"__phantom__"}
+    a_token = sorted(bin_map)[0]
+    assert _completeness_gaps(set(bin_map), defaulted | {a_token}, vocab)[2] == {a_token}
