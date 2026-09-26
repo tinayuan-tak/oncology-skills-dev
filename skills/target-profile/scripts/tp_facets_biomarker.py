@@ -3,6 +3,7 @@ Re-exported by tp_facets, so `from tp_facets import *` and existing imports are 
 
 from __future__ import annotations
 
+from _skills_common.subtype_axis import is_differential_axis  # SK#1518 shared axis-quality gate (#1623)
 from tp_common import _first_card_summary_field
 
 _BIOMARKER_INPUTS = {
@@ -23,6 +24,7 @@ _BIOMARKER_INPUTS = {
     "expression": [
         ("rna_as_biomarker", "stratification"),  # Q5 preferred-assay input
         ("subtype_stratification_class", "stratification"),  # subtype patient-selection (2026-08-04)
+        ("subtype_axis_quality", "stratification"),  # the GRADE — gates the subtyping hypothesis (#1623)
         ("purity_confound_class", "corroboration"),
     ],  # Q9 signal-is-tumor-intrinsic
     # phospho_activity_class RE-HOMED 2026-08-05: it now surfaces under the mechanism sub-result
@@ -222,7 +224,14 @@ def _classify_biomarker_best_roles(corroboration: dict, stratification: dict, qu
                 "(a class-defining event need not predict a specific drug's response).",
             }
         )
-    if subtype in ("subtype_restricted", "subtype_enriched"):
+    # Gate the subtyping hypothesis on the GRADE (#1623): `subtype_stratification_class` is derived from
+    # the MEASURED strata alone, so a single measured-enriched stratum in an `exploratory` (or weaker)
+    # family yields a differential class while `subtype_axis_quality` says the axis is not powered. Only a
+    # `powered` axis (is_differential_axis) may mint a diagnostic_subtyping / patient-selection hypothesis;
+    # otherwise it is a hypothesis-grade axis, not a real cross-subtype differential.
+    if subtype in ("subtype_restricted", "subtype_enriched") and is_differential_axis(
+        stratification.get("subtype_axis_quality")
+    ):
         hyps.append(
             {
                 "intended_use": "diagnostic_subtyping",

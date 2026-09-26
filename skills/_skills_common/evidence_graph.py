@@ -272,6 +272,10 @@ from _skills_common.evidence_salience import (  # noqa: E402
     sig_round,
     spec_for,
 )
+from _skills_common.subtype_axis import (  # noqa: E402  SK#1518 shared axis-quality gate (#1623)
+    SUBTYPE_DIFFERENTIAL_CLASSES,
+    is_differential_axis,
+)
 
 _KE_R = 4
 _KE_ROLE = {"INDICATION": "indication", "extreme_strongest": "strongest", "extreme_weakest": "weakest"}
@@ -290,9 +294,29 @@ def _is_num(v):
     return isinstance(v, (int, float)) and not isinstance(v, bool)
 
 
+def _graded_restriction_class(summary: dict, restriction_class):
+    """Gate the surfaced `restriction_class` on the axis-quality GRADE (#1623). `restriction_class`
+    (the `subtype_stratification_class` family) is derived from the MEASURED strata alone, so a single
+    measured-enriched stratum in an `exploratory` (or weaker) family yields a differential class while
+    `subtype_axis_quality` says the axis is not powered — a combination the downstream narrator/synthesis
+    consumers (`subtype:{restriction_class}`) would present as a real cross-subtype differential. When the
+    class asserts a differential but the axis is not `powered` (is_differential_axis False), drop it to
+    None so it is omitted rather than read as a differential — matching the two reader consumers that
+    already honor the grade (presence_cardboard_figure, presence_question_table). Any non-differential
+    class (e.g. pan_subtype_uniform) or a powered axis is passed through unchanged. Verdict-inert;
+    key_evidence feeds no gate."""
+    if restriction_class in SUBTYPE_DIFFERENTIAL_CLASSES and not is_differential_axis(
+        (summary or {}).get("subtype_axis_quality")
+    ):
+        return None
+    return restriction_class
+
+
 def _build_subtype_axis(summary: dict) -> Optional[dict]:
     """Project the subtype-stratified evidence (§3.16, F8) into key_evidence.subtype_axis. Null when the
-    card carries no subtype axis (--subtypes off) so standard-run graphs stay byte-stable. Fail-soft."""
+    card carries no subtype axis (--subtypes off) so standard-run graphs stay byte-stable. Fail-soft.
+    The surfaced `restriction_class` is grade-gated (#1623): a differential class on a not-`powered` axis
+    is dropped so the narrative never presents a hypothesis-grade axis as a real cross-subtype differential."""
     s = summary or {}
     # (a) multi-axis omnibus (presence): subtype_omnibus_by_axis, one row per molecular axis
     axes = s.get("subtype_omnibus_by_axis")
@@ -302,7 +326,7 @@ def _build_subtype_axis(summary: dict) -> Optional[dict]:
         drow = next((a for a in axes if a.get(sp["axis_field"]) == driving), None) or axes[0]
         out = {
             "driving_axis": driving or drow.get(sp["axis_field"]),
-            "restriction_class": s.get(sp["restriction_class_field"]),
+            "restriction_class": _graded_restriction_class(s, s.get(sp["restriction_class_field"])),
         }
         if _is_num(drow.get(sp["omnibus_field"])):
             out["omnibus"] = {"stat": sp["omnibus_field"], "value": sig_round(drow[sp["omnibus_field"]])}
@@ -336,7 +360,11 @@ def _build_subtype_axis(summary: dict) -> Optional[dict]:
             for r in rows
         ][:3]
         return (
-            {"driving_axis": None, "restriction_class": s.get(sp["restriction_class_field"]), "top_subtypes": top}
+            {
+                "driving_axis": None,
+                "restriction_class": _graded_restriction_class(s, s.get(sp["restriction_class_field"])),
+                "top_subtypes": top,
+            }
             if top
             else None
         )

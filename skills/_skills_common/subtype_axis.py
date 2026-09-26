@@ -17,10 +17,15 @@ Only `powered` supports a differential. `subtype_stratification_class` is derive
 strata alone, so a single measured-enriched stratum in an `exploratory`-graded family yields
 `subtype_stratification_class == "subtype_enriched"` WHILE `subtype_axis_quality == "exploratory"` —
 a combination that reads as a real differential to any consumer keying on the class without the grade
-(claude-oncology-skills#1518). Two consumers already gate correctly — `run.py:_subtype_layer_concordance`
-(joins only strata whose `subtype_signal` the reader left non-null) and
-`subgroup_derivation.py` (per-stratum `evidence_state == "measured" and n >= n_floor`) — this predicate
-converges the remaining display consumers on that same reading.
+(claude-oncology-skills#1518). The reader-side consumers gate at the source — `run.py:_subtype_layer_concordance`
+(joins only strata whose `subtype_signal` the reader left non-null) and `subgroup_derivation.py`
+(per-stratum `evidence_state == "measured" and n >= n_floor`). Every DISPLAY consumer that surfaces the
+class now routes through `is_differential_axis` so it cannot re-introduce the gap: the card-board figure
+(`presence_cardboard_figure.py`) and question table (`presence_question_table.py`) (#1518/#1521/#1553), the
+protein cousin (`presence_claims.py`) (#1521), the target-profile biomarker facet
+(`tp_facets_biomarker.py`, `diagnostic_subtyping` hypothesis) and the key-evidence subtype axis
+(`evidence_graph.py:_build_subtype_axis`, which grade-gates the surfaced `restriction_class` feeding the
+narrator + synthesis narrative) (#1623).
 
 Verdict-INERT: `tumor-rna-distribution-by-subtype` is display-only and feeds no ladder, so routing a
 grade through this predicate must leave the pooled `presence_verdict` (the replay golden) byte-stable.
