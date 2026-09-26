@@ -92,3 +92,40 @@ def test_structured_citations_anchors_validated():
     }
     audit = tp.validate_synthesis_anchors(out, _NBA, _SUB)
     assert audit["invented_by_field"]["citations"] == ["phantom-rule-xyz"]
+
+
+def test_groundedness_summary_forwards_invented_tokens_and_fields():
+    """The renderer summary must forward invented_anchors/invented_by_field to the reader (not just the
+    aggregate count) so the offending token + field is locatable. Verdict-inert display telemetry."""
+    from _skills_common.report_render import ir  # noqa: PLC0415
+
+    out = {
+        "executive_summary": _wrap("Selective [lineage-selective-supportive] but note [made-up-rule-id]."),
+        "tension_analysis": _wrap("RNAi discordant [crispr-rnai-dependency-concordance]."),
+        "top_arguments_for": _wrap([]),
+        "top_arguments_against": _wrap([]),
+    }
+    audit = tp.validate_synthesis_anchors(out, _NBA, _SUB)
+    nomination = {"llm_synthesis": {"_anchor_validation": audit}}
+    gr = ir._groundedness_summary(nomination)
+    assert gr is not None
+    assert gr["n_invented"] == 1
+    assert gr["invented_anchors"] == ["made-up-rule-id"]
+    assert gr["invented_by_field"]["executive_summary"] == ["made-up-rule-id"]
+
+
+def test_groundedness_summary_clean_run_forwards_empty_collections():
+    from _skills_common.report_render import ir  # noqa: PLC0415
+
+    out = {
+        "executive_summary": _wrap("Selective [lineage-selective-supportive]."),
+        "tension_analysis": _wrap(""),
+        "top_arguments_for": _wrap([]),
+        "top_arguments_against": _wrap([]),
+    }
+    audit = tp.validate_synthesis_anchors(out, _NBA, _SUB)
+    gr = ir._groundedness_summary({"llm_synthesis": {"_anchor_validation": audit}})
+    assert gr is not None
+    assert gr["n_invented"] == 0
+    assert gr["invented_anchors"] == []
+    assert gr["invented_by_field"] == {}

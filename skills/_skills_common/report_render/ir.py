@@ -2269,7 +2269,16 @@ def _groundedness_summary(nomination: dict) -> Optional[dict]:
     av = llm.get("_anchor_validation") if isinstance(llm, dict) else None
     if not isinstance(av, dict) or av.get("n_cited") is None:
         return None
-    return {"n_cited": av.get("n_cited"), "n_invented": av.get("n_invented") or 0}
+    # Forward the invented tokens + their fields (not just the aggregate count) so the reader can locate
+    # WHICH anchor/field carries a possible hallucination. Verdict-INERT display telemetry — never gates.
+    inv_anchors = av.get("invented_anchors") if isinstance(av.get("invented_anchors"), list) else []
+    inv_by_field = av.get("invented_by_field") if isinstance(av.get("invented_by_field"), dict) else {}
+    return {
+        "n_cited": av.get("n_cited"),
+        "n_invented": av.get("n_invented") or 0,
+        "invented_anchors": list(inv_anchors),
+        "invented_by_field": dict(inv_by_field),
+    }
 
 
 def _clinical_precedent_card(skill_reports: dict) -> Optional[dict]:

@@ -1160,10 +1160,28 @@ class HtmlBackend:
                 center.append(f"<div class='vconf'>confidence <b>{_esc(ct)}</b></div>")
             gr = p.get("groundedness") if isinstance(p.get("groundedness"), dict) else None
             if gr and gr.get("n_cited") is not None:
-                center.append(
+                n_inv = gr.get("n_invented") or 0
+                trust = (
                     f"<div class='trust'>✓ <b>{_esc(gr['n_cited'])} synthesis claims grounded</b>, "
-                    f"{_esc(gr.get('n_invented') or 0)} invented</div>"
+                    f"{_esc(n_inv)} invented"
                 )
+                # Surface WHICH tokens/fields were invented (not just the count) so the reader can locate
+                # the offending anchor. Verdict-inert display telemetry — flag-only, never strips prose.
+                by_field = gr.get("invented_by_field") if isinstance(gr.get("invented_by_field"), dict) else {}
+                if n_inv and by_field:
+                    parts = []
+                    for field, anchors in by_field.items():
+                        toks = ", ".join(f"<code>[{_esc(a)}]</code>" for a in anchors if isinstance(a, str))
+                        if toks:
+                            parts.append(f"{toks} in {_esc(field)}")
+                    if parts:
+                        trust += (
+                            "<details class='invented-detail'><summary>invented anchors</summary>"
+                            + "; ".join(parts)
+                            + "</details>"
+                        )
+                trust += "</div>"
+                center.append(trust)
         center_html = f"<div class='vblock'>{''.join(center)}</div>" if center else ""
         # RIGHT: the 6-dimension glance (reads the same risk_6dim dims as the assessment spine).
         right_html = self._dimmini(p.get("risk_dims") or [])
