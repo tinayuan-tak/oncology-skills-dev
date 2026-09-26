@@ -266,7 +266,17 @@ def _q4_subtype(h, c, cv, sv=None):
         conf = "unmeasured"
     else:
         conf = "high" if isinstance(nmeas, int) and nmeas >= 5 else "moderate" if nmeas else "unmeasured"
-    return _row("Q4", "Do subtypes differ (from each other / normals)?", primary, support, sig, _conf(conf))
+    r = _row("Q4", "Do subtypes differ (from each other / normals)?", primary, support, sig, _conf(conf))
+    # SK#1840 L2b->L3 surface: SURFACE the L2b subtype_restriction_concordance signal (built by #1830 on the
+    # by-subtype claim vector, read by nothing until now) as a first-class cross-source annotation on this
+    # question's answer — the cross-modality (bulk-RNA x MS-protein) subtype-restriction agreement, distinct
+    # from the row's within-cohort enrichment read. Read off the BY-SUBTYPE vector `sv`, NOT the pooled `cv`.
+    # Attached only when the claim resolves (key omitted otherwise -> row byte-stable). Verdict-inert: the
+    # row's `signal`/`confidence` meter cells are UNCHANGED — this adds an annotation, never a tier.
+    integ = sv.get("subtype_restriction_concordance")
+    if integ:
+        r["integrated_signal"] = _subtype_restriction_concordance_integrated_signal(integ)
+    return r
 
 
 # allgene percentile class → signal tier (LEVEL ranks); effect ranks are supporting only.
@@ -492,6 +502,45 @@ def _abundance_concordance_integrated_signal(claim: dict) -> dict:
         "source_support": claim.get("source_support"),
         "headline": headline,
         "provenance_ref": "claim_vector.abundance_concordance",
+    }
+
+
+def _subtype_restriction_concordance_integrated_signal(claim: dict) -> dict:
+    """Project the L2b `subtype_restriction_concordance` claim (presence_claims.py, built by #1830) into
+    the Q4 by-subtype row's `integrated_signal` surface — a verdict-INERT, two-directional presentation
+    payload. Surfaces both directions (the cross-modality-corroborated subtype-restriction read + the
+    RNA-vs-protein discordance / single-arm caveat when the two independent molecular layers disagree),
+    the honest corroboration/boundary-sensitivity annotation, and the uniform per-arm source_support map
+    so a consumer renders the integrated cross-source read WITHOUT prose-parsing. Carries NO signal tier /
+    polarity / fill — it never routes the verdict; it is the answer's cross-source annotation, not a meter
+    cell. Mirrors the sibling `_coverage_concordance_integrated_signal` / `_abundance_concordance_integrated_signal`
+    projectors (SK#1803 selectivity precedent)."""
+    qual = claim.get("qualifying_signal")
+    pos = claim.get("positive_signal") or {}
+    boundary = bool(claim.get("boundary_sensitive"))
+    # A one-line human headline that always names BOTH directions (or the concordant confirmation),
+    # flagged boundary-sensitive when the class rests on a lone measured modality arm.
+    if qual:
+        headline = f"{pos.get('statement', '')} However — {qual.get('statement', '')}"
+    else:
+        headline = (
+            f"{pos.get('statement', '')} Both INDEPENDENT modality arms AGREE on the subtype-restriction "
+            "call (no RNA-only subtype false-positive)."
+        )
+    if boundary:
+        headline += f" [boundary-sensitive: {claim.get('boundary_note', '')}]"
+    return {
+        "kind": "subtype_restriction_concordance",
+        "concordance_class": claim.get("concordance_class"),
+        "corroboration": claim.get("corroboration"),
+        "grain": claim.get("grain"),
+        "boundary_sensitive": boundary,
+        "boundary_note": claim.get("boundary_note"),
+        "positive_signal": pos or None,
+        "qualifying_signal": qual,
+        "source_support": claim.get("source_support"),
+        "headline": headline,
+        "provenance_ref": "claim_vector_by_subtype.subtype_restriction_concordance",
     }
 
 

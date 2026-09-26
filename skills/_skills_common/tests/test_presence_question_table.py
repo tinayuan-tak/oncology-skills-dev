@@ -793,3 +793,148 @@ def test_q6_defeat_every_protein_supply_omits_the_row_signal_cleanly():
     r = _by_id(presence_question_table(h, cards, None))["Q6"]
     assert "integrated_signal" not in r
     assert r["question"] == "Do RNA and protein agree?"
+
+
+# ── Q4: SURFACE the L2b subtype_restriction_concordance signal (SK#1840 L2b->L3) ────────────────────
+#
+# The L2b `subtype_restriction_concordance` claim (presence_claims.py, built by #1830 on the BY-SUBTYPE
+# claim vector) was read by NOTHING until now — a dead-end carrier. SK#1840 SURFACES it as an
+# `integrated_signal` annotation on the Q4 ("Do subtypes differ?") answer — the cross-modality (bulk-RNA
+# x MS-protein) subtype-restriction agreement, distinct from Q4's within-cohort enrichment read.
+# Verdict-INERT (the row's signal/confidence meter is untouched), attached only when the claim resolves.
+# The claim is built by the REAL builder so the presentation logic is exercised end-to-end. Read off the
+# BY-SUBTYPE vector `sv` (derived inside presence_question_table via presence_claim_vector_by_subtype),
+# NOT the pooled `cv`; the injection tests patch the RESOLVING namespace so ONLY the claim key differs.
+
+from _skills_common.claim_vector_core import cards_by_id as _by_id_for_test  # noqa: E402
+from _skills_common.presence_claims import (  # noqa: E402
+    _subtype_restriction_concordance_claim,
+    presence_claim_vector_by_subtype,
+)
+
+
+def _sr_by_subtype_cards(rna_q="powered", rna_cls="subtype_restricted", prot_q=None, prot_cls=None):
+    """The three by-subtype cards exercising the subtype_restriction_concordance builder's arms (mirror
+    of test_presence_claims._sr_cards). An arm with axis_quality=None is absent/unresolved."""
+    return [
+        {
+            "card_id": "tumor-rna-distribution-by-subtype",
+            "summary": {
+                "subtype_axis_available": True,
+                "subtype_axis_quality": rna_q,
+                "subtype_stratification_class": rna_cls,
+                "subtype_variance_explained": 0.34,
+                "subtype_effect_size_class": "large",
+                "n_subtypes_measured": 4,
+                "n_subtypes_enriched": 2,
+                "n_subtypes_restricted": 1,
+                "per_subgroup_metrics": [
+                    {
+                        "stratum_id": "A",
+                        "evidence_state": "measured",
+                        "subtype_signal": "subtype_uniform",
+                        "median_log2tpm": 1.0,
+                        "n_tumor_samples": 50,
+                        "fraction_tumor_above_normal_p95": 0.1,
+                    }
+                ],
+            },
+        },
+        {
+            "card_id": "tumor-protein-distribution-by-subtype",
+            "summary": {
+                "subtype_axis_available": True,
+                "subtype_axis_quality": prot_q,
+                "subtype_stratification_class": prot_cls,
+                "n_subtypes_measured": 3,
+                "n_subtypes_enriched": 1,
+            },
+        },
+    ]
+
+
+def _sr_claim(**kw):
+    return _subtype_restriction_concordance_claim(_by_id_for_test(_sr_by_subtype_cards(**kw)))
+
+
+def _q4_with_injected_sv(monkeypatch, claim):
+    """Isolate the delta: patch the resolving namespace so the by-subtype vector is the fixture's REAL sv
+    with ONLY `subtype_restriction_concordance` added (or absent) — Q4's row content is unchanged, so any
+    meter-cell difference would be the claim's doing, and there is none."""
+    import _skills_common.presence_claims as pc
+
+    h, cards, cv = _fixture()
+    base_sv = presence_claim_vector_by_subtype(cards) or {}
+    assert "subtype_restriction_concordance" not in base_sv  # the base fixture does NOT resolve it
+
+    def _patched(_cards):
+        sv = dict(base_sv)
+        if claim is not None:
+            sv["subtype_restriction_concordance"] = claim
+        return sv
+
+    monkeypatch.setattr(pc, "presence_claim_vector_by_subtype", _patched)
+    return _by_id(presence_question_table(h, cards, cv))["Q4"], base_sv
+
+
+def test_q4_omits_integrated_signal_when_the_claim_is_absent():
+    # Byte-stability: the base fixture's by-subtype axis does not resolve subtype_restriction_concordance,
+    # so Q4 carries no integrated_signal key at all — the row is unchanged, meter cells untouched.
+    r = _by_id(presence_question_table(*_fixture()))["Q4"]
+    assert "integrated_signal" not in r
+
+
+def test_q4_surfaces_subtype_restriction_concordant_both_directions_no_meter_change(monkeypatch):
+    # baseline row (claim absent from sv) vs enriched row (claim injected into sv): the meter cells must be
+    # BYTE-IDENTICAL — the surface adds an annotation, never a tier.
+    base, _ = _q4_with_injected_sv(monkeypatch, None)
+    assert "integrated_signal" not in base
+    claim = _sr_claim(rna_q="powered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="subtype_enriched")
+    r, _ = _q4_with_injected_sv(monkeypatch, claim)
+    assert r["signal"] == base["signal"] and r["confidence"] == base["confidence"]
+    isig = r["integrated_signal"]
+    assert isig["kind"] == "subtype_restriction_concordance"
+    assert isig["concordance_class"] == "subtype_restriction_concordant"
+    assert isig["provenance_ref"] == "claim_vector_by_subtype.subtype_restriction_concordance"
+    # verdict-INERT annotation: no signal tier / polarity / fill on the integrated_signal itself
+    assert "tier" not in isig and "polarity" not in isig and "fill" not in isig
+    # both directions surfaced: encouraging cross-modality read present, qualifying caveat NULL (concordant)
+    assert isig["positive_signal"] is not None
+    assert isig["qualifying_signal"] is None
+    assert "agree" in isig["headline"].lower() and isig["boundary_sensitive"] is False
+
+
+def test_q4_surfaces_the_qualifying_direction_for_protein_masks_rna_only(monkeypatch):
+    # RNA sees a restriction, protein powered but uniform → the RNA-only false positive. BOTH directions
+    # must be surfaced — the encouraging in-modality read AND the "However" discordance caveat.
+    claim = _sr_claim(rna_q="powered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="pan_subtype_uniform")
+    isig = _q4_with_injected_sv(monkeypatch, claim)[0]["integrated_signal"]
+    assert isig["concordance_class"] == "protein_masks_subtype_restriction"
+    assert isig["qualifying_signal"] is not None
+    assert "However" in isig["headline"]
+
+
+def test_q4_integrated_signal_flags_boundary_sensitivity_when_class_rests_on_a_lone_arm(monkeypatch):
+    # A concordance class resting on a SINGLE resolved arm (no cross-modality corroboration) must be
+    # surfaced as boundary-sensitive, never asserted flat — the headline carries the flag.
+    claim = _sr_claim(rna_q="powered", rna_cls="subtype_restricted", prot_q=None, prot_cls=None)
+    isig = _q4_with_injected_sv(monkeypatch, claim)[0]["integrated_signal"]
+    assert isig["boundary_sensitive"] is True
+    assert "boundary-sensitive" in isig["headline"]
+
+
+def test_q4_derives_and_surfaces_the_signal_end_to_end_from_cards():
+    # Enter where run.py enters: replace the fixture's by-subtype cards with powered arms and pass NO
+    # pre-built vector, so presence_question_table DERIVES the by-subtype vector itself and attaches the
+    # integrated_signal on Q4. Proves the surface is wired end-to-end, not merely on hand-injected sv.
+    h, cards, _cv = _fixture()
+    cards = [c for c in cards if c["card_id"] != "tumor-rna-distribution-by-subtype"]
+    cards.extend(
+        _sr_by_subtype_cards(
+            rna_q="powered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="subtype_enriched"
+        )
+    )
+    h = {k: v for k, v in h.items() if k != "claim_vector"}
+    r = _by_id(presence_question_table(h, cards, None))["Q4"]
+    assert r["integrated_signal"]["concordance_class"] == "subtype_restriction_concordant"
+    assert r["integrated_signal"]["kind"] == "subtype_restriction_concordance"
