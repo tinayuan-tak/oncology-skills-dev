@@ -145,6 +145,7 @@ Advisory / verdict-inert. Read via `_llm_val` (unwraps `{value}`). Producer = up
 | `.overall_statement`/`.headline` | `build_ir` hero | ○ | 2163 |
 | `.overall_recommendation`/`.recommendation` | `_synthesis_banner_block` | ★ | 1311 — compared to `target_call.recommendation` (mismatch banner) |
 | `._anchor_validation.{n_cited,n_invented,invented_anchors,invented_by_field}` | `_groundedness_summary` | ○ | 2066-2069 — invented tokens/fields forwarded to the trust badge (verdict-inert flag-only telemetry) |
+| `._malformed_fields` / `._recovered_fields` / `._truncated` | `_synthesis_degradation` | ○ | salvage/recovery/max_tokens-truncation trail (`llm.synthesize_structured`) → "⚠ synthesis degraded" note beside the trust badge; verdict-inert flag-only telemetry, None when clean |
 
 ## Artifact 3 — `hypothesis` (cross-evidence)
 Read only by `_cross_evidence_summary`. `None` under `--no-hypothesis`.

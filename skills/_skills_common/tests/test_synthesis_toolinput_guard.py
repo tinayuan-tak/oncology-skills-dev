@@ -234,3 +234,46 @@ def test_full_loop_recovers_on_persistent_rich_malformation():
     assert out["overall_recommendation"]["value"] == "hold"
     assert "_malformed_fields" not in out  # nothing left to salvage
     assert "top_arguments_for" in out["_recovered_fields"]
+
+
+# ---- max_tokens truncation detection -------------------------------------------
+# A response cut off at the max_tokens cap carries a (partial) tool_use block that often validates as
+# merely-thin content, so it is otherwise indistinguishable from a genuinely short answer. The loop
+# must record `_truncated` from response.stop_reason regardless.
+
+
+def _run_with_stop_reasons(sequence, max_retries=2):
+    """Like `_run_with_sequence` but each item is a (tool_input, stop_reason) pair."""
+    responses = [
+        SimpleNamespace(content=[SimpleNamespace(type="tool_use", input=ti)], stop_reason=sr) for ti, sr in sequence
+    ]
+    fake_client = SimpleNamespace(messages=SimpleNamespace(create=lambda **kw: responses.pop(0)))
+    fake_cfg = SimpleNamespace(synthesis_model="test-model")
+    ModelConfig = SimpleNamespace(from_env=staticmethod(lambda: fake_cfg))
+    with (
+        patch.object(LLM, "_import_bedrock_client", return_value=(lambda: fake_client, ModelConfig, RuntimeError)),
+        patch.object(LLM, "_bedrock_profile"),
+    ):
+        return LLM.synthesize_structured(
+            system_prompt="s", user_prompt="u", tool_name="t", tool_schema=_SCHEMA, max_retries=max_retries
+        )
+
+
+def test_truncated_response_is_flagged_even_when_schema_valid():
+    # A clean (schema-valid) but token-truncated response: no defects, but _truncated must be set.
+    out = _run_with_stop_reasons([(_CLEAN, "max_tokens")])
+    assert out["_truncated"] is True
+    assert "_malformed_fields" not in out  # validated fine; only truncation flagged
+
+
+def test_clean_untruncated_response_carries_no_truncation_flag():
+    # A normal completion stays byte-stable — no _truncated key at all.
+    out = _run_with_stop_reasons([(_CLEAN, "tool_use")])
+    assert "_truncated" not in out
+
+
+def test_truncation_and_salvage_are_both_recorded():
+    # Persistent malformation AND a max_tokens stop: both the salvage trail and _truncated surface.
+    out = _run_with_stop_reasons([(_MALFORMED, "max_tokens")] * 3)
+    assert out["_truncated"] is True
+    assert "top_arguments_for" in out["_malformed_fields"]

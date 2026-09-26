@@ -465,8 +465,10 @@ def synthesize_structured(
         # leaked markup.
         payload: Optional[dict] = None
         defects: list[str] = []
+        stop_reason: Optional[str] = None
         for attempt in range(max_retries + 1):
             response = client.messages.create(**create_kwargs)
+            stop_reason = getattr(response, "stop_reason", None)
             tool_use_block = None
             for block in response.content:
                 if getattr(block, "type", None) == "tool_use":
@@ -496,6 +498,20 @@ def synthesize_structured(
         defects = _tool_input_defects(payload, tool_schema)
     if defects:
         payload = _salvage_tool_input(payload, tool_schema, defects)
+
+    # DETECT max_tokens truncation. The retry loop above accepts the FIRST response whose tool_input
+    # validates — but a response cut off at the `max_tokens` cap mid-tool-use carries a (partial)
+    # tool_use block that often validates as merely-thin content (or is salvaged to empties), so it is
+    # otherwise indistinguishable from a genuinely short answer. Record `_truncated` so a token-truncated
+    # narration is AUDITABLE (mirrors the `_malformed_fields` salvage trail). Framework meta, passed
+    # through untagged by `_stamp_llm_provenance`; set only when true so a clean run stays byte-stable.
+    if stop_reason == "max_tokens":
+        payload["_truncated"] = True
+        print(
+            f"[llm.synthesize_structured] tool {tool_name!r} response hit the max_tokens cap "
+            f"({max_tokens}); output was truncated mid-generation and may be incomplete.",
+            file=sys.stderr,
+        )
 
     return _stamp_llm_provenance(
         payload=payload,

@@ -81,3 +81,35 @@ def test_v6_verdict_inert_header_payload_unchanged_shape():
     for k in ("recommendation", "confidence", "deciding_axis", "gate"):
         assert k in p, f"decision field {k} dropped from header payload"
     assert "risk_dims" in p and isinstance(p["risk_dims"], list)
+
+
+def test_synthesis_degradation_reader_none_when_trail_clean():
+    """A run whose narration validated cleanly (no salvage/recovery/truncation) surfaces NO degradation
+    telemetry — the report stays byte-stable and the note never renders."""
+    from _skills_common.report_render.ir import _synthesis_degradation
+
+    assert _synthesis_degradation(make_nomination()) is None
+    assert build_ir(make_nomination(), resolve_spec("full")).header.payload["synthesis_degradation"] is None
+    h = render_report(make_nomination(), preset="full", backend="html")
+    assert "synthesis degraded" not in h
+
+
+def test_synthesis_degradation_reader_surfaces_salvage_and_truncation():
+    """A salvaged/truncated narration must reach the reader — the degradation note is rendered beside the
+    trust badge (mirroring the JSON's fail-visible salvage trail). Verdict-inert display telemetry."""
+    from _skills_common.report_render.ir import _synthesis_degradation
+
+    nom = make_nomination()
+    nom["llm_synthesis"]["_malformed_fields"] = ["top_arguments_for"]
+    nom["llm_synthesis"]["_recovered_fields"] = ["top_arguments_against"]
+    nom["llm_synthesis"]["_truncated"] = True
+    deg = _synthesis_degradation(nom)
+    assert deg == {
+        "truncated": True,
+        "malformed_fields": ["top_arguments_for"],
+        "recovered_fields": ["top_arguments_against"],
+    }
+    h = render_report(nom, preset="full", backend="html")
+    assert "synthesis degraded" in h
+    assert "output truncated at token cap" in h
+    assert "1 field salvaged" in h

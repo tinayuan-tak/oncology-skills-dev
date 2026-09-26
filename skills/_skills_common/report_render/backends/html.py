@@ -519,6 +519,8 @@ details.fold .foldbody .card { border:0; padding:4px 0 10px; }
 .trust { font-size:10.5px; color:var(--muted); margin-top:7px; }
 .trust .k { color:var(--muted); text-transform:uppercase; font-size:9px; letter-spacing:.04em; margin-right:4px; }
 .trust .ok { color:var(--good); font-weight:650; } .trust .warn { color:var(--serious); font-weight:650; }
+.degraded { font-size:10.5px; color:var(--serious); margin-top:5px; } .degraded b { color:var(--serious); }
+.degraded-detail summary { cursor:pointer; color:var(--muted); } .degraded-detail { margin-top:3px; }
 .litctx { border:1px dashed var(--border); border-radius:10px; background:var(--t-neutral); padding:9px 12px; font-size:11.5px; color:var(--ink2); }
 .litctx .lh { font-size:9.5px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); font-weight:700; }
 .litchip { display:inline-flex; gap:4px; font-size:10px; color:var(--muted); background:var(--surface); border:1px dashed var(--border); border-radius:999px; padding:0 7px; margin:3px 3px 0 0; }
@@ -1182,6 +1184,38 @@ class HtmlBackend:
                         )
                 trust += "</div>"
                 center.append(trust)
+            # Fail-visible degradation note, BESIDE the groundedness badge: a salvaged/truncated
+            # narration otherwise renders as ordinary absence (empty bullets + a clean badge), so the
+            # reader cannot tell a dropped/truncated answer from a genuinely thin one. Verdict-inert
+            # display telemetry — flag-only, never strips prose.
+            deg = p.get("synthesis_degradation") if isinstance(p.get("synthesis_degradation"), dict) else None
+            if deg:
+                notes = []
+                if deg.get("truncated"):
+                    notes.append("output truncated at token cap")
+                malformed = [f for f in (deg.get("malformed_fields") or []) if isinstance(f, str)]
+                if malformed:
+                    notes.append(f"{len(malformed)} field{'s' if len(malformed) != 1 else ''} salvaged")
+                recovered = [f for f in (deg.get("recovered_fields") or []) if isinstance(f, str)]
+                if recovered:
+                    notes.append(f"{len(recovered)} field{'s' if len(recovered) != 1 else ''} recovered")
+                if notes:
+                    detail_parts = []
+                    if malformed:
+                        detail_parts.append("salvaged: " + ", ".join(f"<code>{_esc(f)}</code>" for f in malformed))
+                    if recovered:
+                        detail_parts.append("recovered: " + ", ".join(f"<code>{_esc(f)}</code>" for f in recovered))
+                    degraded = "<div class='degraded'>⚠ <b>synthesis degraded</b> — " + "; ".join(
+                        _esc(n) for n in notes
+                    )
+                    if detail_parts:
+                        degraded += (
+                            "<details class='degraded-detail'><summary>affected fields</summary>"
+                            + "; ".join(detail_parts)
+                            + "</details>"
+                        )
+                    degraded += "</div>"
+                    center.append(degraded)
         center_html = f"<div class='vblock'>{''.join(center)}</div>" if center else ""
         # RIGHT: the 6-dimension glance (reads the same risk_6dim dims as the assessment spine).
         right_html = self._dimmini(p.get("risk_dims") or [])

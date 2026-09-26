@@ -2281,6 +2281,30 @@ def _groundedness_summary(nomination: dict) -> Optional[dict]:
     }
 
 
+def _synthesis_degradation(nomination: dict) -> Optional[dict]:
+    """Fail-visible surfacing of an LLM narration that DEGRADED during synthesis — read from the
+    salvage/truncation trail `synthesize_structured` stamps on the synthesis output: `_malformed_fields`
+    (fields coerced to schema-valid empties by `_salvage_tool_input` after the XML-`<parameter>` leak),
+    `_recovered_fields` (fields parsed back out of leaked markup), and `_truncated` (the response hit the
+    `max_tokens` cap mid-generation). Verdict-INERT display telemetry: a salvaged/truncated narration
+    otherwise renders as ordinary ABSENCE (empty bullets + a clean groundedness badge), so the reader
+    cannot tell 'the model's answer was malformed/truncated and dropped' from 'there was little to say'.
+    None when the run carried no synthesis or the trail is clean (keeps a clean report byte-stable)."""
+    llm = (nomination or {}).get("llm_synthesis") or (nomination or {}).get("llm_output") or {}
+    if not isinstance(llm, dict):
+        return None
+    malformed = [f for f in (llm.get("_malformed_fields") or []) if isinstance(f, str)]
+    recovered = [f for f in (llm.get("_recovered_fields") or []) if isinstance(f, str)]
+    truncated = bool(llm.get("_truncated"))
+    if not (malformed or recovered or truncated):
+        return None
+    return {
+        "truncated": truncated,
+        "malformed_fields": malformed,
+        "recovered_fields": recovered,
+    }
+
+
 def _clinical_precedent_card(skill_reports: dict) -> Optional[dict]:
     """The differentiation-landscape `clinical-precedent` evidence-graph card — the source of the concrete
     trial detail (trial count / active / agents-engaging-target / highest phase / drug names) for the v6
@@ -2443,6 +2467,7 @@ def build_ir(
             "literature": _lit_comention,
             "clinical_precedent": _clinical_precedent_summary(_risk_dims, skill_reports),
             "groundedness": _groundedness_summary(nomination),
+            "synthesis_degradation": _synthesis_degradation(nomination),
         },
     )
 
