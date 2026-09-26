@@ -70,7 +70,7 @@ pixi run python eval/build_discordance_ledger.py \
 | `calibration_gap` | verified `contradicts` on a **ground-truth** target | add a `known_gap_expected_fail` assertion, then fix |
 | `verdict_rule_gap` | verified `contradicts` (≥1 verified citation) | resolver ladder / card class-vocab / method threshold |
 | `blind_spot_gap` | `omics_blind` / `omics_unavailable` / a `blind_spots[]` entry | data-catalog / new card / new axis |
-| `staleness_gap` | blind-spot on an axis the frozen atlas has no anchor for | **atlas session** (`atlas-rebuild`) |
+| `staleness_gap` | blind-spot on an axis the frozen atlas has no anchor for | **atlas session** (`atlas-rebuild`, currently deferred) |
 | `confabulation_or_unverified` | `contradicts` with **no verified citation** | discard (non-reproducible LLM read) |
 | `concordant_over_flag` | verified `contradicts` on a MEASURED axis, but the lane's OWN `overall_consistency == concordant` | demote (internal over-flag; non-sharp) |
 

@@ -1,4 +1,4 @@
-"""Synthetic-lethal-partners QUESTION TABLE — the LEADING hero for the synthetic-lethal-partners skill.
+"""Synthetic-lethal-partners QUESTION TABLE — consumed by example-gallery and composed under the combination-and-vulnerability skill (the synthetic-lethal-partners skill is retired).
 
 Canonical question (target_profiling_axes.yaml → home_skill combination-and-vulnerability family):
 "Does {target} have a curated synthetic-lethal partner, and how strong is the support?" This is a

@@ -120,7 +120,7 @@ A full profile walks A → K; a focused question invokes a single skill.
 | **A** Presence | Is the target expressed in the tumor (RNA + protein, cell-line + patient)? | [`tumor-presence`](skills/tumor-presence/) |
 | **B** Selectivity | Is it tumor-selective vs normal tissue, robustly across comparators? | [`tumor-selectivity`](skills/tumor-selectivity/) |
 | **C** Requirement | Is it a genetic dependency (CRISPR + RNAi + lineage), and is a null read a context-conditional false negative? | [`functional-requirement`](skills/functional-requirement/) |
-| **C** Combination & vulnerability | What does it depend on / combine with — SL partners, measured dual-KO co-dependencies, combo co-targets, resistance mediators? | [`combination-and-vulnerability`](skills/combination-and-vulnerability/) *(consolidates the retired `synthetic-lethal-partners` + `combinatorial-dependency` (runnable standalone) and the archived `combo-and-resistance`)* |
+| **C** Combination & vulnerability | What does it depend on / combine with — SL partners, measured dual-KO co-dependencies, combo co-targets, resistance mediators? | [`combination-and-vulnerability`](skills/combination-and-vulnerability/) *(consolidates the retired `synthetic-lethal-partners` + `combinatorial-dependency` and the archived `combo-and-resistance`)* |
 | **A/E** Genomic alteration | How is it altered — SNV/indel, copy-number, fusion — and which class drives? | [`genomic-alteration-profile`](skills/genomic-alteration-profile/) |
 | **D** Mechanism | What upstream/downstream signaling context and candidate MoA hooks exist? | [`mechanism-and-pharmacology`](skills/mechanism-and-pharmacology/) |
 | **E** Differentiation | What co-mutation / mutual-exclusivity landscape frames patient selection? | [`differentiation-landscape`](skills/differentiation-landscape/) |
@@ -189,8 +189,8 @@ envelope via `run_wired_skill --emit-envelope` + `_skills_common/envelope.py`
 | [`tumor-selectivity`](skills/tumor-selectivity/) | 1.23.0 | B | `derived_read` | wired — 4-cell tumor-vs-normal sensitivity |
 | [`functional-requirement`](skills/functional-requirement/) | 1.9.0 | C | `derived_read` | wired — CRISPR + RNAi + lineage + paralog + subtype panorama |
 | [`combination-and-vulnerability`](skills/combination-and-vulnerability/) | 0.5.1 | C | `derived_read` | partial — consolidated relational annex: SL (SynLethDB v3) + measured dual-KO + combo co-targets + resistance mediators; ranked-partner-table output, gateless (verdict=None) |
-| [`synthetic-lethal-partners`](skills/synthetic-lethal-partners/) | 1.1.0 | C | `derived_read` | **deprecated** — retired from fan-out 2026-08-20; runnable standalone. SL cards now compose under `combination-and-vulnerability` |
-| [`combinatorial-dependency`](skills/combinatorial-dependency/) | 1.1.0 | C | `derived_read` | **deprecated** — retired from fan-out 2026-08-20; runnable standalone. Dual-KO card now composes under `combination-and-vulnerability` |
+| `synthetic-lethal-partners` | 1.1.0 | C | `derived_read` | **RETIRED 2026-08-20 — deleted from git (#1254).** SL cards now compose under `combination-and-vulnerability` |
+| `combinatorial-dependency` | 1.1.0 | C | `derived_read` | **RETIRED 2026-08-20 — deleted from git (#1254).** Dual-KO card now composes under `combination-and-vulnerability` |
 | [`genomic-alteration-profile`](skills/genomic-alteration-profile/) | 2.16.0 | A, E | `derived_read` | wired — SNV/indel + copy-number + fusion [LIVE, additive] |
 | [`mechanism-and-pharmacology`](skills/mechanism-and-pharmacology/) | 1.10.0 | D | `derived_read` | wired — SIGNOR/CollecTRI/Reactome MoA network + phospho-pathway-activity (re-homed from tumor-presence 2026-08-05) |
 | [`differentiation-landscape`](skills/differentiation-landscape/) | 1.10.0 | E | `derived_read` | partial — co-mutation + clinical-precedent (public-domain AACT) + competitor-landscape (OT 26.06) wired; only patent-landscape placeholder |

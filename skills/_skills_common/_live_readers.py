@@ -1,4 +1,4 @@
-"""compose-dashboard phase-2 live-mode DISPATCHER (thin shim).
+"""Framework-wide shared live-mode DISPATCHER (rehomed off the retired compose-dashboard).
 
 Per the framework's layer-distinction discipline (plan § Dashboard, Interpretation,
 Inference Layers), data extraction is *compute*, not *orchestration*. Extraction

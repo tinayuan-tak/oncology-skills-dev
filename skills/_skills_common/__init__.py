@@ -7,7 +7,8 @@ each skill assemble a projection of the framework's machinery in ~30 lines.
 
 Public API:
   1. `resolve_cards`     — pull live summaries for a card_id list, via
-                            compose-dashboard's already-wired dispatchers.
+                            the already-wired dispatchers (rehomed into
+                            _skills_common off the retired compose-dashboard).
   2. `fired_rules`       — apply the axis interpretation-rules to those
                             summaries, returning a flat biology-first list
                             of matched rules.
@@ -17,7 +18,8 @@ Public API:
   4. `make_decision_json` — build the decision.json payload.
 
 Zero new dispatcher code, zero new rule content — skills are PROJECTIONS
-over the same layers Macro (compose-dashboard) uses.
+over the same layers Macro (the retired compose-dashboard, now in
+_skills_common) used.
 
 Design principles:
 - Biology-first output. Modality is a post-hoc lens, not a native output
@@ -396,8 +398,9 @@ def resolve_cards(
     plot_data_root: Optional[Path] = None,
     trace: Optional[Any] = None,
 ) -> list[dict]:
-    """Fetch live summaries for a list of card_ids via the compose-dashboard
-    dispatcher registry. Returns one card_output dict per card_id.
+    """Fetch live summaries for a list of card_ids via the shared
+    dispatcher registry (rehomed off the retired compose-dashboard).
+    Returns one card_output dict per card_id.
 
     Cards that are missing (dispatcher returns None), errored
     (`_live_read_error`), or explicitly data-unavailable are all tagged
@@ -595,9 +598,9 @@ def fired_rules(
     them (biology-first skills) or project onto a modality lens / signal matrix.
 
     THE ONE shared rule-`when` matcher (gap #5 step 5): target-profile calls it (→ per-gate
-    verdict via the resolver) and compose-dashboard's _build_signal_matrix calls it (→ per-
-    modality matrix via a pivot). Pass `rules=` to match against a PRE-LOADED rules list
-    (compose-dashboard already resolves them with its own contracts_root); omit it to
+    verdict via the resolver) and the retired compose-dashboard's _build_signal_matrix
+    called it (→ per-modality matrix via a pivot). Pass `rules=` to match against a
+    PRE-LOADED rules list (that path resolved them with its own contracts_root); omit it to
     load-by-axis (target-profile's path). Either way the matching semantics are identical:
     - when.card_id + when.field required
     - when.equals takes precedence; when.in falls back; when.in_record for list fields

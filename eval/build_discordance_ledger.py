@@ -67,8 +67,8 @@ _SEVERITY = {
 
 # Axes the frozen target-archetype atlas has no anchor for (sourced from the atlas-rebuild
 # exclusion allowlist: literature_context / translational_readiness / genomic SPL /
-# safety PHARMACOVIGILANCE). A blind-spot on one of these routes to the atlas session, not a
-# card/rule fix here.
+# safety PHARMACOVIGILANCE). A blind-spot on one of these routes to the atlas session
+# (`atlas-rebuild`, currently deferred — #1399), not a card/rule fix here.
 #
 # ★★CASE-033: this was a SUBSTRING MATCH ON PROSE — `_ATLAS_EXCLUDED_HINTS = ("pharmacovig",
 # "splice", "exon skip", "exon-skip")` tested against `f"{assertion} {axis_key}"`. For a
@@ -206,7 +206,7 @@ def _classify(
         if atlas_excluded:
             return (
                 GAP_STALENESS,
-                "literature signal on an axis the frozen atlas has no anchor for (route to atlas session)",
+                "literature signal on an axis the frozen atlas has no anchor for (route to atlas session; currently deferred)",
             )
         return GAP_BLIND_SPOT, "literature reports a signal the omics in this package cannot measure (data/axis need)"
     if agreement == "contradicts":
