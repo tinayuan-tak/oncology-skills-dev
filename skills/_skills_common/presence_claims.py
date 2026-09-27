@@ -469,6 +469,133 @@ def _expression_property_atom(c):
     )
 
 
+# ── per-source QUALIFIER: cell-line-panel heterogeneity is CROSS-LINEAGE, not within-tumour escape ──
+# The M2 "context-blind" trap (prototype concept #6, preregistration M2 mutation trap): a lossy reader
+# that sees the cell-line-RNA panel's `heterogeneity=high` / `prevalence=subset` IN ISOLATION fabricates
+# a within-tumour antigen-negative-ESCAPE concern. But the cell-line-RNA panel spans MANY lineages
+# (n_lineages_evaluated), so its bimodality / high dispersion tracks EPITHELIAL-vs-NON-EPITHELIAL LINEAGE
+# IDENTITY across the pan-lineage panel — NOT intra-indication (within-CRC) variation. The within-tumour
+# malignant-coverage / antigen-escape question is answered by the SINGLE-CELL source
+# (`bulk_vs_singlecell_coverage_concordance`), NEVER by this panel.
+#
+# This qualifier BINDS the heterogeneity read + the lineage census into that caveat so the misleading
+# fields can never be surfaced BARE — the qualifier's presence is exactly what defuses the M2 trap. It
+# names the misread it guards against (`within_tumour_antigen_negative_escape`) and points at the source
+# that DOES answer the escape question, so a downstream reader cannot re-derive the fabrication.
+#
+# Mirrors the analysis-methods P2 resolver (methods/expression_properties/resolve.py) rules for
+# heterogeneity + lineage_restriction so the qualifier is consistent whether the resolved
+# `expression_properties` object is present (preferred, read verbatim) or absent (re-derived from the
+# card's raw distribution/lineage-census fields — the path the corpus + committed EPCAM golden take).
+_CELLLINE_BIMODAL_PATTERNS = frozenset({"bimodal", "long_tail"})
+_CELLLINE_CV_HIGH = 0.75  # bimodal cell-line panels sit well above this (resolve.py:87)
+_CELLLINE_CV_MODERATE = 0.35
+_CELLLINE_LINEAGE_RESTRICTED_MAX_SHARE = 0.5
+
+
+def _cellline_heterogeneity_class(crd, ep):
+    """Heterogeneity of the cell-line RNA panel: the resolved `expression_properties.heterogeneity` when
+    present, else RE-DERIVED from the raw distribution shape by the SAME rule the P2 resolver uses
+    (bimodal/long_tail OR CoV ≥ _CV_HIGH → high; CoV ≥ _CV_MODERATE → moderate; else uniform)."""
+    if isinstance(ep, dict) and ep.get("heterogeneity"):
+        return ep["heterogeneity"]
+    pattern = crd.get("distribution_pattern")
+    cv = crd.get("coefficient_of_variation")
+    if pattern is None and cv is None:
+        return "unmeasured"
+    if pattern in _CELLLINE_BIMODAL_PATTERNS or (isinstance(cv, (int, float)) and cv >= _CELLLINE_CV_HIGH):
+        return "high"
+    if isinstance(cv, (int, float)) and cv >= _CELLLINE_CV_MODERATE:
+        return "moderate"
+    return "uniform"
+
+
+def _cellline_lineage_restriction_class(crd, ep):
+    """Degree of lineage restriction: the resolved `expression_properties.lineage_restriction` when
+    present, else RE-DERIVED from the raw lineage census by the SAME rule the P2 resolver uses
+    (nlr≤0 → diffuse; share ≤ 0.5 → restricted; else intermediate; no census → unmeasured)."""
+    if isinstance(ep, dict) and ep.get("lineage_restriction"):
+        return ep["lineage_restriction"]
+    nlr = crd.get("n_lineage_restricted_lineages")
+    n_eval = crd.get("n_lineages_evaluated")
+    if not n_eval or nlr is None:
+        return "unmeasured"
+    if nlr <= 0:
+        return "diffuse"
+    if (nlr / n_eval) <= _CELLLINE_LINEAGE_RESTRICTED_MAX_SHARE:
+        return "restricted"
+    return "intermediate"
+
+
+def _lineage_dilution_qualifier(c):
+    """Per-source verdict-INERT qualifier binding the cell-line-RNA panel's heterogeneity + lineage
+    census into the "cross-lineage identity, NOT within-tumour heterogeneity" caveat (the prototype M2
+    trap). Fires ONLY on the MISLEADING read — a `heterogeneity=high` (bimodal / high-CoV) or
+    `prevalence=subset` cell-line-panel signal a lossy reader would misattribute to within-tumour
+    antigen-negative escape. Returns None (key omitted → byte-stable) otherwise, matching the A/B/C/D +
+    expression_properties + concordance atom discipline.
+
+    Carries NO `signal`/`corroboration` key: never a chip, never a tier, never averaged, reads no verdict,
+    feeds no rule. Pure PRESENTATION-support so a question_table answer can surface the heterogeneity read
+    WITH its lineage context rather than bare."""
+    crd = c.get("cellline-rna-distribution", {}) or {}
+    if not crd:
+        return None
+    ep = crd.get("expression_properties")
+    het = _cellline_heterogeneity_class(crd, ep)
+    prev = ep.get("prevalence") if isinstance(ep, dict) else None
+    # The misleading combination: a lossy reader takes a heterogeneous / subset-prevalence cell-line-panel
+    # read as evidence of a within-tumour antigen-negative escape. Any other read (uniform panel, broad
+    # prevalence, unmeasured) → no trap to defuse → no key.
+    if het != "high" and prev != "subset":
+        return None
+    lin = _cellline_lineage_restriction_class(crd, ep)
+    n_eval = crd.get("n_lineages_evaluated")
+    bound_fields = {
+        "heterogeneity": het,
+        "prevalence": prev,
+        "lineage_restriction": lin,
+        "distribution_pattern": crd.get("distribution_pattern"),
+        "coefficient_of_variation": _fin(crd.get("coefficient_of_variation")),
+        "n_lineage_restricted_lineages": crd.get("n_lineage_restricted_lineages"),
+        "n_lineages_evaluated": n_eval,
+    }
+    lineage_phrase = (
+        f"across the {n_eval}-lineage cell-line panel"
+        if isinstance(n_eval, int) and n_eval > 0
+        else "across the pan-lineage cell-line panel"
+    )
+    return {
+        "qualifier_class": "cellline_heterogeneity_is_cross_lineage",
+        "applies_to": "cellline_rna_panel",
+        # The bound raw + resolved fields, so the caveat is RECOVERABLE (not merely prose).
+        "bound_fields": bound_fields,
+        # The concrete fabrication this qualifier's PRESENCE defuses — a downstream reader that sees the
+        # bound heterogeneity/prevalence must read this caveat, not invent a within-tumour escape concern.
+        "guards_misread": "within_tumour_antigen_negative_escape",
+        "caveat": (
+            f"Cell-line-RNA panel heterogeneity ({het}"
+            + (f", prevalence {prev}" if prev else "")
+            + f", lineage_restriction {lin}) is computed {lineage_phrase}: its bimodality/dispersion "
+            "tracks epithelial-vs-non-epithelial LINEAGE IDENTITY, NOT intra-indication (within-tumour) "
+            "variation. Do NOT read it as a within-tumour antigen-negative-escape signal — the "
+            "within-tumour malignant-coverage question is answered by the single-cell source."
+        ),
+        # Where the within-tumour escape question IS legitimately answered (present only when that source
+        # resolved into the vector; a pointer, not a re-statement).
+        "escape_read_source": "bulk_vs_singlecell_coverage_concordance",
+        "provenance": {
+            "property": "cellline_expression_heterogeneity",
+            "card_id": "cellline-rna-distribution",
+            "fields": {k: v for k, v in bound_fields.items()},
+        },
+        "_disclaimer": (
+            "Per-source verdict-INERT qualifier (deterministic, no LLM) — never a signal tier, never "
+            "averaged into a claim, never feeds the presence_verdict; PRESENTATION-support only."
+        ),
+    }
+
+
 # ── L2b-1: bulk × single-cell coverage concordance (SK#1517, evidence-property architecture #1507) ─
 # The FIRST cross-source INTEGRATED claim (L2b). L2a properties re-state a single measurement; L2b
 # INTEGRATES two ORTHOGONAL assays into a claim neither could make alone — the target-independent
@@ -1053,6 +1180,14 @@ def presence_claim_vector(headline: dict, cards: list) -> dict:
     _ac = _abundance_concordance_claim(c)
     if _ac is not None:
         vec["abundance_concordance"] = _ac
+    # Per-source lineage-dilution QUALIFIER (SK#1869, epic #1507 Arm B): binds the cell-line-RNA panel's
+    # heterogeneity + lineage census into the "cross-lineage identity, NOT within-tumour escape" caveat
+    # (the prototype M2 trap). Carries NO `signal` key → not a chip, not a tier; OMITTED unless the panel
+    # actually reports the misleading heterogeneous/subset read, keeping every other run byte-stable —
+    # matching the A/B/C/D + expression_properties + concordance atom discipline above.
+    _ld = _lineage_dilution_qualifier(c)
+    if _ld is not None:
+        vec["cellline_heterogeneity_lineage_qualifier"] = _ld
     return vec
 
 

@@ -158,6 +158,85 @@ def test_expression_properties_omitted_when_field_absent():
     assert "expression_properties" not in vec
 
 
+# ── SK#1869: the lineage-dilution QUALIFIER defuses the prototype M2 "context-blind" trap ─────────
+# The M2 trap: a lossy reader that sees `heterogeneity=high / prevalence=subset` from the pan-lineage
+# CELL-LINE panel in isolation fabricates a within-tumour antigen-negative-ESCAPE concern. The qualifier
+# binds the heterogeneity read + the lineage census into the "cross-lineage identity, NOT within-tumour"
+# caveat so the misleading fields can never be surfaced bare. Store the RAW cell-line fields and re-derive
+# the qualifier in-test (a derived fixture cannot fail; the raw distribution/census is the input).
+_M2_TRAP_CELLLINE = {
+    # EPCAM-shaped: a bimodal, high-dispersion pan-lineage panel — the exact shape that looks like
+    # within-tumour antigen escape to a reader blind to the lineage confound.
+    "distribution_pattern": "bimodal",
+    "coefficient_of_variation": 1.646,
+    "n_lineage_restricted_lineages": 0,
+    "n_lineages_evaluated": 28,
+    "expression_class": "broadly_moderate",
+}
+
+
+def _cards_with_m2_trap_cellline(summary=_M2_TRAP_CELLLINE):
+    cards = _cards()
+    cards.append({"card_id": "cellline-rna-distribution", "summary": dict(summary)})
+    return cards
+
+
+def test_lineage_dilution_qualifier_defuses_m2_trap():
+    vec = presence_claim_vector(_headline(), _cards_with_m2_trap_cellline())
+    assert "cellline_heterogeneity_lineage_qualifier" in vec, (
+        "the M2 trap shape (bimodal pan-lineage cell-line panel) must emit the lineage-dilution qualifier"
+    )
+    q = vec["cellline_heterogeneity_lineage_qualifier"]
+    # Verdict-INERT: no signal/corroboration → never a chip, never a tier, never averaged.
+    assert "signal" not in q and "corroboration" not in q
+    # It BINDS both load-bearing facets — the misleading heterogeneity read AND the lineage context that
+    # explains it — so the caveat is recoverable, not merely prose.
+    bf = q["bound_fields"]
+    assert bf["heterogeneity"] == "high"  # re-derived from the raw bimodal / high-CoV shape
+    assert bf["lineage_restriction"] == "diffuse"  # re-derived from the raw lineage census (nlr=0/28)
+    assert bf["n_lineages_evaluated"] == 28
+    # It NAMES the concrete fabrication it guards against and points at the source that DOES answer the
+    # within-tumour escape question — so a downstream reader cannot re-derive the M2 fabrication.
+    assert q["guards_misread"] == "within_tumour_antigen_negative_escape"
+    assert q["escape_read_source"] == "bulk_vs_singlecell_coverage_concordance"
+    assert "LINEAGE IDENTITY" in q["caveat"]
+    assert "within-tumour" in q["caveat"]
+
+
+def test_lineage_dilution_qualifier_is_verdict_inert():
+    # Surfacing the qualifier must not perturb the four claims, homogeneity, or the disclaimer.
+    base = presence_claim_vector(_headline(), _cards())
+    withq = presence_claim_vector(_headline(), _cards_with_m2_trap_cellline())
+    for ax in ("A", "B", "C", "D", "homogeneity", "_disclaimer"):
+        assert withq[ax] == base[ax], f"surfacing the lineage-dilution qualifier perturbed {ax}"
+
+
+def test_lineage_dilution_qualifier_omitted_on_a_uniform_panel():
+    # MUTATION (fire direction): defeat the misleading read — a uniform, low-dispersion panel has NO trap
+    # to defuse → the KEY is omitted (byte-stable), so the qualifier tracks the real heterogeneity signal
+    # rather than being always-on.
+    uniform = dict(_M2_TRAP_CELLLINE, distribution_pattern="unimodal", coefficient_of_variation=0.2)
+    vec = presence_claim_vector(_headline(), _cards_with_m2_trap_cellline(uniform))
+    assert "cellline_heterogeneity_lineage_qualifier" not in vec
+
+
+def test_lineage_dilution_qualifier_binds_the_live_census_not_a_constant():
+    # MUTATION (bind direction): move the lineage census so a MAJORITY of lineages are restricted-drivers
+    # → the bound lineage_restriction must FOLLOW to `intermediate` (not a hardcoded label), proving the
+    # qualifier binds the live census. The heterogeneity trigger (bimodal) is unchanged, so it still fires.
+    restricted = dict(_M2_TRAP_CELLLINE, n_lineage_restricted_lineages=20, n_lineages_evaluated=28)
+    vec = presence_claim_vector(_headline(), _cards_with_m2_trap_cellline(restricted))
+    q = vec["cellline_heterogeneity_lineage_qualifier"]
+    assert q["bound_fields"]["lineage_restriction"] == "intermediate"
+
+
+def test_lineage_dilution_qualifier_omitted_when_cellline_card_absent():
+    # No cellline-rna-distribution card at all → the KEY is omitted (byte-stable), matching the atom
+    # discipline. This is the path the committed replay fixtures without a cell-line panel take.
+    vec = presence_claim_vector(_headline(), _cards())
+    assert "cellline_heterogeneity_lineage_qualifier" not in vec
+
+
 def test_homogeneity_unmeasured_not_null_without_scrna():
     # No single-cell card (SCLC / NECTIN4-BRCA-pair scRNA = data_unavailable) → homogeneity must be
     # the STRING sentinel "unmeasured", never null. null fails the evidence_package claim_vector schema

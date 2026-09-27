@@ -652,6 +652,36 @@
           "independence_note": "RNA abundance (transcript-level) and mass-spec protein abundance are measured on INDEPENDENT assays with different molecular readouts and reference spaces; the comparison is on WITHIN-POPULATION rank CLASS, never raw magnitude (CPTAC/Gygi/ProCan mass-spec percentiles are pooled-reference-relative ratios, NOT scale-comparable to RNA TPM percentiles \u2014 #1512). Their rank agreement is a genuine cross-modality corroboration, not a within-assay restatement."
         },
         "_disclaimer": "L2b CROSS-SOURCE integration claim (deterministic, no LLM) \u2014 verdict-INERT provenance: never a signal tier, never averaged into a claim, never feeds the presence_verdict."
+      },
+      "cellline_heterogeneity_lineage_qualifier": {
+        "qualifier_class": "cellline_heterogeneity_is_cross_lineage",
+        "applies_to": "cellline_rna_panel",
+        "bound_fields": {
+          "heterogeneity": "high",
+          "prevalence": null,
+          "lineage_restriction": "diffuse",
+          "distribution_pattern": "bimodal",
+          "coefficient_of_variation": 1.6460286952394432,
+          "n_lineage_restricted_lineages": 0,
+          "n_lineages_evaluated": 28
+        },
+        "guards_misread": "within_tumour_antigen_negative_escape",
+        "caveat": "Cell-line-RNA panel heterogeneity (high, lineage_restriction diffuse) is computed across the 28-lineage cell-line panel: its bimodality/dispersion tracks epithelial-vs-non-epithelial LINEAGE IDENTITY, NOT intra-indication (within-tumour) variation. Do NOT read it as a within-tumour antigen-negative-escape signal \u2014 the within-tumour malignant-coverage question is answered by the single-cell source.",
+        "escape_read_source": "bulk_vs_singlecell_coverage_concordance",
+        "provenance": {
+          "property": "cellline_expression_heterogeneity",
+          "card_id": "cellline-rna-distribution",
+          "fields": {
+            "heterogeneity": "high",
+            "prevalence": null,
+            "lineage_restriction": "diffuse",
+            "distribution_pattern": "bimodal",
+            "coefficient_of_variation": 1.6460286952394432,
+            "n_lineage_restricted_lineages": 0,
+            "n_lineages_evaluated": 28
+          }
+        },
+        "_disclaimer": "Per-source verdict-INERT qualifier (deterministic, no LLM) \u2014 never a signal tier, never averaged into a claim, never feeds the presence_verdict; PRESENTATION-support only."
       }
     },
     "key_signals": {
