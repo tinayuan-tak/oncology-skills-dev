@@ -712,6 +712,14 @@ def _sel_cards(sel_class, cells_ran=3, n_tumor=50, direction="up", prot_eff=1.5,
         },
         {"card_id": "modality-therapeutic-window", "summary": {"therapeutic_window_class": "adequate_window"}},
         {"card_id": "sc-normal-celltype-expression", "summary": {"sc_normal_safety_essential_class": "no_liability"}},
+        # #1776: the tphp normal-protein + sc-tumor stromal veto arms are MEASURED here so the default
+        # clean-positive case is `veto_coverage.fully_vetted` — these tests exercise the coverage /
+        # corroboration mechanics, not the veto-coverage demotion (covered in test_selectivity_signals_first).
+        {
+            "card_id": "normal-tissue-protein-abundance-tphp",
+            "summary": {"tphp_normal_protein_liability_class": "not_broadly_normal"},
+        },
+        {"card_id": "tumor-scrna-celltype-expression", "summary": {"stromal_confound_class": "not_confounded"}},
     ]
     if protein:
         c.append(

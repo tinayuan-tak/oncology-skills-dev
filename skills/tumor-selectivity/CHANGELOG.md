@@ -4,6 +4,25 @@ The `version` in [SKILL.md](SKILL.md) and `SKILL_VERSION` in
 [scripts/run.py](scripts/run.py) must always match (guarded by
 `skills/tests/test_version_parity.py`); bump both together and add an entry here.
 
+## 1.29.0
+- **Veto-coverage certainty demotion + structured flag (VERDICT-INERT; #1776).** The normal-breadth /
+  stromal vetoes are one-directional (downgrade-only) and no-op when their card is `data_unavailable`,
+  so a target that is axis-A selective but whose window / sc-normal / tphp / sc-tumor veto card could
+  not look was reported as confidently tumor-selective as one measured clean — the unassessed arms were
+  surfaced only narratively (`_selectivity_tension_extra`) and numerically (`_sel_unknown_mass`), moving
+  neither the verdict nor the reported certainty. `_strength_certainty` now attaches a structured
+  `certainty.veto_coverage` census (`status` ∈ {`fully_vetted`, `unvetted_for_normal_breadth_stromal_confound`,
+  `not_applicable`} + the named blind arms), computed by the new `_sel_veto_coverage`, and DEMOTES
+  `certainty.level` by one band (high→medium→low, floored at low) when a clean axis-A positive rests on
+  ≥1 unmeasured veto arm. A clean pass on MISSING evidence is therefore distinguishable — in the
+  reported-certainty object — from a clean pass on MEASURED evidence.
+- **Fail-open direction preserved.** The census is read AFTER the resolver + veto walk; it only ever
+  LOWERS certainty on a clean axis-A positive (a fired veto puts the verdict ∉ `_AXIS_A_SELECTIVE`, so
+  `status` is `not_applicable` and nothing is demoted) and can neither clear nor fabricate a KILL. No
+  rule, card, resolver, ledger, schema or golden reads the new field; the `selectivity_class` spine and
+  the veto walk are byte-stable (the flag surfaces in the composed target-profile
+  `certainty_by_axis.selectivity`, mirroring where `_sel_unknown_mass` already lives).
+
 ## 1.25.0
 - **The sc-normal essential SEVERITY ladder is realigned with analysis-methods (VERDICT-INERT).**
   `_sc_normal_essential_severity` is a hand-copy of `_essential_severity` in analysis-methods
