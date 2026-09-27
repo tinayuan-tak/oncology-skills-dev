@@ -159,9 +159,11 @@ tumor-rna-vs-adjacent:
   base_mean:
     role: context
     reason: "DESeq2 mean normalized expression across the tumor-vs-adjacent contrast; an abundance/power qualifier
-      (cf. n_tumor/n_adjacent/gtex_q_value), not itself a presence signal. Arrived on tumor-rna-vs-adjacent via the
-      DGE-modernization additions; the #807 TC-pin bump is the first to cross it. Promotion to a read is a
-      data-utilization question deferred to the tumor-presence data audit."
+      (cf. n_tumor/n_adjacent/gtex_q_value), not itself a presence signal. READ (SK#1874) by presence_claims._claim_B
+      as an absolute-expression-floor qualifier on the fold-change (_BASE_MEAN_FLOOR): a large log2FC on near-floor
+      base_mean is a low-abundance artifact that caps the tumor-elevation corroboration. Role stays `context` — it
+      qualifies the fold-change, it is not itself the elevation signal."
+    reviewed: true
   expression_call_class:
     role: signal
     reason: "the tumor-vs-adjacent-normal expression call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
@@ -174,17 +176,20 @@ tumor-rna-vs-adjacent:
     role: context
     reason: power / statistical qualifier
   is_significant_provider_call:
-    role: provenance
-    reason: "the DGE provider's own significance flag (passthrough audit token, cf. allgene_percentile_context);
-      the presence call here is carried by expression_call_class/log2_fc/q_value, so this upstream boolean is
-      redundant provenance rather than a re-read signal. Arrived via the DGE-modernization additions; promotion to
-      a read is deferred to the tumor-presence data audit."
+    role: signal
+    reason: "the DGE provider's own significance flag. READ (SK#1874) by presence_claims._claim_B as an INDEPENDENT
+      corroboration of the effect-size-aware re-derived expression_call_class: a purely-statistical (q<alpha) call
+      that, when it disagrees with the re-derived elevation, caps the tumor-elevation corroboration and raises a
+      conflict. Role promoted provenance→signal because it is now a re-read corroboration input, not a passthrough
+      audit token."
+    reviewed: true
   is_upregulated_provider_call:
-    role: provenance
-    reason: "the DGE provider's own up/down direction flag (passthrough audit token, cf. allgene_percentile_context);
-      direction is already carried by log2_fc/expression_call_class, so this upstream boolean is redundant
-      provenance rather than a re-read signal. Arrived via the DGE-modernization additions; promotion to a read is
-      deferred to the tumor-presence data audit."
+    role: signal
+    reason: "the DGE provider's own up/down direction flag. READ (SK#1874) by presence_claims._claim_B together with
+      is_significant_provider_call to classify provider-vs-rederived concordance (concordant / direction_discordant /
+      provider_only_significant / rederived_only_significant / both_not_significant). Role promoted
+      provenance→signal because direction is now a re-read corroboration input, not a passthrough audit token."
+    reviewed: true
   log2_fc:
     role: signal
     reason: "tumor-vs-adjacent log2 fold-change; the continuous presence effect size; role:signal reach-confirmed via {claim_passthrough, figure, salience, skill_code} (census 2026-09-19, blind to ledger)"

@@ -562,7 +562,16 @@ def test_census_reaches_some_fields_but_not_all():
 #       not re-bank the ceiling (it stayed within slack), taking 765 → 761 on the merged tree. Re-measured
 #       and banked here per the SERIAL-LAND directive (an un-tightened ceiling silently re-opens the ratchet).
 # Skills-side code readers → no contracts reader moved → no pin bump entangled.
-APERTURE_CEILING = 761
+# ── BANKED 2026-09-27 761 → 755 (SK#1874, provider-call corroboration + base_mean floor, epic #1507
+# Arm B). Measured against the CI aperture pin target-contracts 09102dc8 (skills-validate.yml L412),
+# domain 1821. Trunk had already improved 761 → 758 under this ceiling (prior within-slack wiring never
+# re-banked); THIS BRANCH wires the three previously-orphan tumor-rna-vs-adjacent fields —
+# is_significant_provider_call, is_upregulated_provider_call, base_mean — as reads in
+# _skills_common/presence_claims.py::_claim_B (the claim_passthrough census reader), taking 758 → 755.
+# SET-DIFFERENCE-pinned below in test_provider_call_corroboration_is_read_exact. 755 <= ceiling and
+# 755 - 755 = 0 <= APERTURE_SLACK 20. Skills-side code reader → no contracts reader moved → the pin bump
+# to include #943 (owned by #1624, already on main) is the separate half of this unit; NO pin move here.
+APERTURE_CEILING = 755
 
 # Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
 # into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of
@@ -716,6 +725,42 @@ def test_mouse_ko_lethality_cluster_is_read_exact():
         assert "skill_code" in exact, (
             f"{pair} is not an EXACT skill_code read (exact={sorted(exact)}) — the mouse-ko IMPC-lethality "
             "reader in on-target-safety-liability/scripts/run.py has regressed and the pair is orphaned again"
+        )
+
+
+# The tumor-rna-vs-adjacent provider-DE-call corroboration cluster wired 2026-09-27 (the 758 → 755 bank
+# above, SK#1874 / epic #1507 Arm B). Pinned as a SET DIFFERENCE — each pair must have LEFT the orphan set
+# into an EXACT claim_passthrough read — because the ceiling assertion alone counts pairs and cannot tell
+# "wired these 3" from "wired 3 unrelated pairs while these regressed". These are the DE provider's OWN
+# significance/direction call plus the DESeq2 base_mean floor, previously declared-but-DISCARDED; they are
+# now read in presence_claims.py::_claim_B (surfaced as a provider-call corroboration arm of the re-derived
+# expression_call_class). Remove those reads and this reds, even if some other wiring keeps the count at 755.
+_PROVIDER_CALL_WIRED_PAIRS = frozenset(
+    ("tumor-rna-vs-adjacent", f)
+    for f in (
+        "is_significant_provider_call",
+        "is_upregulated_provider_call",
+        "base_mean",
+    )
+)
+
+
+@needs_contracts
+def test_provider_call_corroboration_is_read_exact():
+    """SET-DIFFERENCE pin for the 758 → 755 bank: the three tumor-rna-vs-adjacent provider-call fields — the
+    DE provider's own significance/direction call and the DESeq2 base_mean floor, previously discarded — must
+    each be an EXACT claim_passthrough read (they left the orphan set), and none may be an orphan.
+    presence_claims.py::_claim_B (`_provider_call_corroboration`) reads them; their removal reds this test
+    regardless of what happens to the aggregate ceiling."""
+    cen = fd.census(SKILLS_ROOT)
+    for pair in sorted(_PROVIDER_CALL_WIRED_PAIRS):
+        assert pair in cen, (
+            f"{pair} is no longer declared — re-pin this test on the current tumor-rna-vs-adjacent fields"
+        )
+        exact = cen[pair]["exact"]
+        assert "claim_passthrough" in exact, (
+            f"{pair} is not an EXACT claim_passthrough read (exact={sorted(exact)}) — the provider-call "
+            "corroboration reader in presence_claims.py::_claim_B has regressed and the pair is orphaned again"
         )
 
 

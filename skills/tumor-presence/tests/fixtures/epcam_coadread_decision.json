@@ -374,7 +374,7 @@
       "B": {
         "signal": "absent",
         "corroboration": "moderate",
-        "evidence": "RNA-DGE:flat(fc/eff=-0.36,q=1e-06); CPTAC:flat(fc/eff=0.06,q=3e-01) [flat vs adjacent but elevated vs GTEx-population \u2014 comparator-dependent]",
+        "evidence": "RNA-DGE:flat(fc/eff=-0.36,q=1e-06); CPTAC:flat(fc/eff=0.06,q=3e-01) [flat vs adjacent but elevated vs GTEx-population \u2014 comparator-dependent] | provider-DE: provider_only_significant",
         "conflict": null,
         "informs": "tumor-elevation \u2014 context for the selectivity / therapeutic-window lens",
         "comparator_detail": "vs matched-adjacent -0.36 log2FC; vs GTEx-population 2.09 log2FC (q=2e-72); 74% tumours > matched-normal p95",
@@ -412,6 +412,20 @@
             "log2_fc": "signal",
             "q_value": "context",
             "n_tumor": "context"
+          }
+        },
+        "provider_call": {
+          "concordance": "provider_only_significant",
+          "provider_significant": true,
+          "provider_direction": "down",
+          "base_mean": 40704.55729340963,
+          "low_absolute_expression": false,
+          "uncorroborated_up": false,
+          "edge": {
+            "from_source": "rederived_expression_call",
+            "to_source": "provider_de_call",
+            "relation": "qualifies",
+            "basis": "provider DE significance/direction vs effect-size-aware re-derived expression_call_class"
           }
         }
       },
@@ -2014,7 +2028,7 @@
           "signal": "absent",
           "corroboration": "moderate",
           "conflict": null,
-          "evidence": "RNA-DGE:flat(fc/eff=-0.36,q=1e-06); CPTAC:flat(fc/eff=0.06,q=3e-01) [flat vs adjacent but elevated vs GTEx-population \u2014 comparator-dependent]",
+          "evidence": "RNA-DGE:flat(fc/eff=-0.36,q=1e-06); CPTAC:flat(fc/eff=0.06,q=3e-01) [flat vs adjacent but elevated vs GTEx-population \u2014 comparator-dependent] | provider-DE: provider_only_significant",
           "cites": [
             {
               "role": "signal",

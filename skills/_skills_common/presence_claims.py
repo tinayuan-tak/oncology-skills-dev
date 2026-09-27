@@ -204,11 +204,81 @@ def _dir(cls):
     return None
 
 
+# SK#1874 (epic #1507 Arm B / L1-extraction): absolute-expression floor (DESeq2 `base_mean` = mean
+# normalized counts across the contrast) below which a fold-change is a low-abundance artifact rather than
+# a presence signal. DESeq2's own independent-filtering drops the very-low-count genes; 10 is the
+# conventional expressed-gene floor. A QUALIFIER on the fold-change, never a hard gate.
+_BASE_MEAN_FLOOR = 10.0
+
+
+def _provider_call_corroboration(dge, prov_sig, prov_up, base_mean):
+    """Independent provider-DE-call corroboration of the re-derived `expression_call_class` (SK#1874).
+
+    tumor-presence historically DISCARDED the DE provider's OWN significance/direction call on the
+    tumor-vs-adjacent contrast (`is_significant_provider_call` / `is_upregulated_provider_call`) in favour
+    of the effect-size-aware re-derived `expression_call_class`. Surface it as an INDEPENDENT corroboration
+    rather than dropping it: the provider flag is a purely-STATISTICAL (q<alpha, sign) call, so
+    provider-vs-rederived agreement distinguishes a genuine elevation from a statistically-significant-but-
+    effect-small one (e.g. EPCAM/CEACAM5 COADREAD: provider `significant` on a −0.36 log2FC the re-derivation
+    correctly classes `not_informative`). `base_mean` qualifies the fold-change (near-floor absolute
+    expression = low-abundance artifact).
+
+    `dge` is `_dir(expression_call_class)` = (direction, magnitude) or None. Returns None when the provider
+    call is absent (the non-COADREAD sensitivity path emits no provider flags) → the arm degrades to no
+    annotation and the claim stays byte-stable. Otherwise a typed record:
+      concordance ∈ {concordant, direction_discordant, provider_only_significant,
+                     rederived_only_significant, both_not_significant}
+    plus a typed dependence edge, an absolute-expression-floor flag, and `uncorroborated_up` — True when a
+    POSITIVE (up) re-derived elevation is NOT corroborated by the provider (fails its significance test,
+    opposite direction, or rests on near-floor absolute expression), which the caller uses to cap
+    corroboration + raise a conflict on that elevation."""
+    if not isinstance(prov_sig, bool):
+        return None
+    rederived_dir = dge[0] if dge else None
+    rederived_significant = rederived_dir in ("up", "down")
+    if rederived_significant:
+        if prov_sig:
+            prov_dir = "up" if prov_up else "down"
+            concordance = "concordant" if prov_dir == rederived_dir else "direction_discordant"
+        else:
+            concordance = "rederived_only_significant"
+    else:
+        concordance = "provider_only_significant" if prov_sig else "both_not_significant"
+    low_abs = isinstance(base_mean, (int, float)) and base_mean < _BASE_MEAN_FLOOR
+    uncorroborated_up = rederived_dir == "up" and (
+        concordance in ("rederived_only_significant", "direction_discordant") or low_abs
+    )
+    return {
+        "concordance": concordance,
+        "provider_significant": prov_sig,
+        "provider_direction": ("up" if prov_up else "down") if prov_sig else "not_significant",
+        "base_mean": base_mean,
+        "low_absolute_expression": low_abs,
+        "uncorroborated_up": uncorroborated_up,
+        "edge": _concordance_edge(
+            "rederived_expression_call",
+            "provider_de_call",
+            concordant=concordance == "concordant",
+            opposed=concordance == "direction_discordant",
+            basis="provider DE significance/direction vs effect-size-aware re-derived expression_call_class",
+        ),
+    }
+
+
 def _claim_B(h, c):
     tva = c.get("tumor-rna-vs-adjacent", {})
     cp = c.get("tumor-protein-abundance-cptac", {})
     dge = _dir(tva.get("expression_call_class"))
     cpt = _dir(cp.get("protein_expression_class"))
+    # SK#1874: read the DE provider's OWN call (previously declared-but-discarded) and corroborate the
+    # re-derived class against it. Reads is_significant_provider_call / is_upregulated_provider_call /
+    # base_mean off the tumor-rna-vs-adjacent card (populated only on the COADREAD DGE path today).
+    provider_call = _provider_call_corroboration(
+        dge,
+        tva.get("is_significant_provider_call"),
+        tva.get("is_upregulated_provider_call"),
+        tva.get("base_mean"),
+    )
     arms = []
     if dge:
         arms.append(("RNA-DGE", dge, tva.get("log2_fc"), tva.get("q_value")))
@@ -240,6 +310,22 @@ def _claim_B(h, c):
             flat_names = "/".join(a[0] for a in flats)
             conflict = f"comparator discordance: {up_names} elevated but {flat_names} flat"
             rel = "moderate" if rel == "high" else rel
+        # SK#1874: an up-elevation the provider's INDEPENDENT DE call does not corroborate — it fails the
+        # provider's own significance test, calls the opposite direction, or rests on near-floor absolute
+        # expression — is capped one corroboration step and surfaced as a conflict. The discarded provider
+        # call is decision-relevant skepticism exactly here: a re-derived "up" the provider will not
+        # second is the elevation most likely to be a threshold artifact.
+        if provider_call and provider_call["uncorroborated_up"]:
+            rel = {"high": "moderate", "moderate": "low"}.get(rel, rel)
+            _why = (
+                f"near-floor absolute expression (base_mean {_f(provider_call['base_mean'], 0)} "
+                f"< {_f(_BASE_MEAN_FLOOR, 0)})"
+                if provider_call["low_absolute_expression"]
+                else f"provider DE call {provider_call['concordance']}"
+            )
+            conflict = ((conflict + "; ") if conflict else "") + (
+                f"re-derived elevation not corroborated by provider DE call ({_why})"
+            )
     else:
         sig, rel = "absent", "moderate"
     ev = "; ".join(
@@ -266,7 +352,10 @@ def _claim_B(h, c):
     comparator_detail = "; ".join(_cbits) or None
     if sig == "absent" and isinstance(gtex_fc, (int, float)) and gtex_fc >= 1.0:
         ev += " [flat vs adjacent but elevated vs GTEx-population — comparator-dependent]"
-    return {
+    # SK#1874: surface the provider DE call alongside the re-derived call rather than discarding it.
+    if provider_call:
+        ev += f" | provider-DE: {provider_call['concordance']}"
+    result = {
         "signal": sig,
         "corroboration": rel,
         "evidence": ev,
@@ -283,6 +372,11 @@ def _claim_B(h, c):
             tva.get("expression_call_class"),
         ),
     }
+    # Attach the typed provider-call corroboration only when the provider emitted a call (COADREAD path);
+    # omitted entirely otherwise so every non-COADREAD claim-B object stays byte-identical.
+    if provider_call is not None:
+        result["provider_call"] = provider_call
+    return result
 
 
 def _claim_C(h, c):
