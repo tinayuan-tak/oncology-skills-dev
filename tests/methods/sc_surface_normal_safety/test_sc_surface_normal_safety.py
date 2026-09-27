@@ -74,6 +74,59 @@ def test_product_missing_vs_gene_absent(monkeypatch):
     assert "not surface-profiled" in s["_data_note"]
 
 
+def _rows_support(triples):
+    # triples: list of (cell_type, mean_clr, n_donors, n_cells)
+    return pd.DataFrame(
+        [
+            {
+                "gene_symbol": "CD8A",
+                "hgnc_id": "HGNC:1706",
+                "adt_proteins": "CD8",
+                "cell_type": ct,
+                "compartment_scope": "immune_pbmc",
+                "n_cells": nc,
+                "n_donors": nd,
+                "adt_mean_clr_median": clr,
+                "adt_positive_fraction_median": 0.9,
+            }
+            for ct, clr, nd, nc in triples
+        ]
+    )
+
+
+def test_thin_support_high_peak_demotes(monkeypatch):
+    # A thin cell type (1 donor / 5 cells) with peak CLR clearing _HIGH must NOT set the class;
+    # the well-supported lineage below it (moderate CLR) drives the verdict instead.
+    monkeypatch.setattr(
+        R,
+        "read_gene_rows",
+        lambda t: _rows_support([("Rare thin", 4.5, 1, 5), ("CD8 Naive", 1.0, 8, 500)]),
+    )
+    s = R.read_sc_surface_normal_safety("CD8A")
+    assert s["sc_surface_normal_class"] == "moderate_surface_on_normal_immune"
+    assert s["max_surface_cell_type"] == "CD8 Naive"
+    assert s["max_surface_n_donors"] == 8 and s["max_surface_n_cells"] == 500
+    assert s["n_cell_types_supported"] == 1 and s["n_cell_types_assessed"] == 2
+
+
+def test_no_cell_type_meets_floor_is_data_unavailable(monkeypatch):
+    monkeypatch.setattr(
+        R,
+        "read_gene_rows",
+        lambda t: _rows_support([("Rare thin", 4.5, 1, 5), ("Rare thin 2", 3.0, 2, 8)]),
+    )
+    s = R.read_sc_surface_normal_safety("CD8A")
+    assert s["sc_surface_normal_class"] == "data_unavailable"
+    assert "support floor" in s["_data_note"]
+
+
+def test_well_supported_high_peak_unchanged(monkeypatch):
+    # boundary: exactly the floor (3 donors / 10 cells) passes → class is preserved.
+    monkeypatch.setattr(R, "read_gene_rows", lambda t: _rows_support([("CD8 Naive", 4.0, 3, 10)]))
+    s = R.read_sc_surface_normal_safety("CD8A")
+    assert s["sc_surface_normal_class"] == "high_surface_on_normal_immune"
+
+
 def test_cli_stamps_version(monkeypatch):
     monkeypatch.setattr(R, "read_gene_rows", lambda t: _rows([("CD8 Naive", 0.9, 4.0)]))
     s = C.build_summary("CD8A", indication="NSCLC")

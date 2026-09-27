@@ -54,6 +54,16 @@ _LOW = 0.0  # peak mean-CLR at/above the cell's own protein average somewhere
 # a cell type "displays" the antigen (breadth count) at/above this absolute mean-CLR floor
 _DISPLAY_CLR = 1.0
 
+# Minimum-support floor for a cell type to be eligible to SET the safety class (argmax/breadth).
+# Matches the avidity normal-gate contract (data-catalog specs/sc-normal-samecell-coexpr.md §6.3):
+# a thin cell type (single donor / a handful of cells) whose peak CLR clears _HIGH via ADT spillover
+# would otherwise mint an unearned off-tumor safety hazard. Dropout biases surface abundance DOWN, so
+# the un-floored MAX is NOT conservative — a thin, noisy lineage produces a FALSE hazard. Cell types
+# below the floor are dropped from class derivation; if NONE pass, the target is under-powered
+# (data_unavailable), never a measured safety pass.
+_MIN_DONORS = 3
+_MIN_CELLS = 10
+
 
 def _s3fs():
     profile = os.environ.get("AWS_PROFILE", DEFAULT_AWS_PROFILE)
@@ -123,9 +133,20 @@ def read_sc_surface_normal_safety(target: str, indication: Optional[str] = None)
         return _data_unavailable(
             target, note=f"{target} not surface-profiled by ADT in the immune panel (not measured; not a safety pass)."
         )
-    top = rows.loc[rows["adt_mean_clr_median"].idxmax()]  # peak-display lineage (by mean CLR)
+    # Minimum-support floor: only cell types backed by >= _MIN_DONORS donors AND >= _MIN_CELLS cells
+    # are eligible to set the safety class. A thin/noisy lineage clearing _HIGH via ADT spillover would
+    # otherwise mint a FALSE off-tumor hazard (dropout biases surface abundance DOWN → un-floored MAX is
+    # not conservative). See _MIN_DONORS/_MIN_CELLS.
+    supported = rows[(rows["n_donors"] >= _MIN_DONORS) & (rows["n_cells"] >= _MIN_CELLS)]
+    if supported.empty:
+        return _data_unavailable(
+            target,
+            note=f"{target} surface-profiled but NO cell type meets the support floor "
+            f"(>= {_MIN_DONORS} donors AND >= {_MIN_CELLS} cells) — under-powered, not a safety pass.",
+        )
+    top = supported.loc[supported["adt_mean_clr_median"].idxmax()]  # peak-display lineage (by mean CLR)
     peak_clr = float(top["adt_mean_clr_median"])
-    n_display = int((rows["adt_mean_clr_median"] >= _DISPLAY_CLR).sum())
+    n_display = int((supported["adt_mean_clr_median"] >= _DISPLAY_CLR).sum())
     return {
         "target": target,
         "compartment_scope": str(top["compartment_scope"]),
@@ -133,7 +154,10 @@ def read_sc_surface_normal_safety(target: str, indication: Optional[str] = None)
         "max_surface_cell_type": str(top["cell_type"]),
         "max_mean_clr": round(peak_clr, 4),
         "max_positive_fraction": round(float(top["adt_positive_fraction_median"]), 4),
+        "max_surface_n_donors": int(top["n_donors"]),  # support behind the class-driving lineage
+        "max_surface_n_cells": int(top["n_cells"]),
         "n_celltypes_surface_displaying": n_display,  # cell types with mean-CLR >= 1.0 (broad off-tumor breadth)
-        "n_cell_types_assessed": int(len(rows)),
+        "n_cell_types_assessed": int(len(rows)),  # all cell types read (pre-floor)
+        "n_cell_types_supported": int(len(supported)),  # cell types passing the support floor
         "compartments_assessed": sorted(rows["compartment_scope"].astype(str).unique().tolist()),
     }
