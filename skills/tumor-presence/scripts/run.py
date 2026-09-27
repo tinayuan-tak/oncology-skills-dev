@@ -40,6 +40,7 @@ from pathlib import Path
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # local sibling: presence_l3d_story
 
 from _skills_common import card_summary, get_card_field, resolve_cards
 from _skills_common._live_readers import _load_surface_secreted_antigens
@@ -66,6 +67,7 @@ from _skills_common.presence_question_table import presence_question_table
 from _skills_common.presence_subtype_figure import emit_subtype_refinement_figure
 from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report
 from _skills_common.subgroup_figure import emit_subgroup_figure
+from presence_l3d_story import build_tumor_expression_biology_story
 
 # ── --subtypes panorama (opt-in, verdict-INERT) ───────────────────────────────────────────────────
 # Power floor mirroring subgroup_common/panorama.py SUBGROUP_N_FLOOR + the card's min_n_required.
@@ -2579,6 +2581,20 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
     # Projects A + distributional-B per stratum from the already-resolved per_subgroup_metrics; None when
     # the indication has no subtype axis. Verdict-inert, like the pooled vector.
     hl["claim_vector_by_subtype"] = _enrich("claim_vector_by_subtype", presence_claim_vector_by_subtype, cards)
+    # L3d WITHIN-DOMAIN "tumor-expression biology story" (SK#1940): a DETERMINISTIC template/traversal
+    # synthesis over the L2b concordance islands already on the pooled claim_vector + the by-subtype vector
+    # (coverage / abundance / protein_presence / the central tumor_presence_concordance node #1867 /
+    # subtype_restriction). Every chapter cites the L2b claim ID it rests on (reconstructable downward), and
+    # the story stays STRICTLY inside the presence domain — no cross-domain (selectivity/safety) conclusion.
+    # Runs AFTER the pooled + by-subtype vectors (it reads them). VERDICT-INERT / additive: no LLM, feeds no
+    # rule, never moves presence_verdict / per_modality / resolver golden; the key is OMITTED (byte-stable)
+    # when no island resolves. The opt-in --synthesize LLM narration is a SEPARATE view ABOVE this layer.
+    hl["tumor_expression_biology_story"] = _enrich(
+        "tumor_expression_biology_story",
+        build_tumor_expression_biology_story,
+        hl.get("claim_vector"),
+        hl.get("claim_vector_by_subtype"),
+    )
     # The 7-question (data · signal · confidence) summary rows — a projection over the just-built
     # headline + card fields (Signal from the claim_vector, Confidence from corroboration). Verdict-inert;
     # carried through _synthesis_facet so the composed target-profile dashboard renders the same table.

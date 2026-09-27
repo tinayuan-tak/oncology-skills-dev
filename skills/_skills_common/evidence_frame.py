@@ -103,6 +103,12 @@ class ClaimType:
 
     OBSERVATIONAL_PROPERTY = "observational_property"
     INTEGRATED_PROPERTY = "integrated_property"
+    # L3d — a WITHIN-DOMAIN interpretation that packages a domain's L2b integrated properties into a
+    # coherent, claim-ID-traceable story (SK#1940). It sits STRICTLY between the L2b integrated_property
+    # layer and the L3f decision_frame layer: it consumes L2 and is itself consumable by a decision frame
+    # (frames consume L2 + L3d — see docs/EVIDENCE_PROPERTY_ARCHITECTURE_L1_L4.md), never the reverse. It
+    # is an L3 interpretation, NOT an L2 fact, so it may never be consumed as a property (R3 below).
+    DOMAIN_INTERPRETATION = "domain_interpretation"
     DECISION_FRAME = "decision_frame"
     SYNTHESIS = "synthesis"
 
@@ -115,8 +121,9 @@ UNRESOLVED = "unresolved"
 CLAIM_TYPE_LAYER = {
     ClaimType.OBSERVATIONAL_PROPERTY: 0,
     ClaimType.INTEGRATED_PROPERTY: 1,
-    ClaimType.DECISION_FRAME: 2,
-    ClaimType.SYNTHESIS: 3,
+    ClaimType.DOMAIN_INTERPRETATION: 2,
+    ClaimType.DECISION_FRAME: 3,
+    ClaimType.SYNTHESIS: 4,
 }
 
 # Emitted-type strength rank (adds UNRESOLVED below everything). "Consumed as stronger than emitted"
@@ -125,8 +132,9 @@ _EMITTED_RANK = {
     UNRESOLVED: -1,
     ClaimType.OBSERVATIONAL_PROPERTY: 0,
     ClaimType.INTEGRATED_PROPERTY: 1,
-    ClaimType.DECISION_FRAME: 2,
-    ClaimType.SYNTHESIS: 3,
+    ClaimType.DOMAIN_INTERPRETATION: 2,
+    ClaimType.DECISION_FRAME: 3,
+    ClaimType.SYNTHESIS: 4,
 }
 
 # The emitted layer each INPUT KIND asserts the object holds. A canonical-property-claim asserts an
@@ -295,7 +303,9 @@ def check_input_integrity(kind: str, ev: TypedEvidence) -> None:
         return
 
     # R3: an L3+ object may never enter a property-layer slot (acyclicity at the consumption boundary).
-    if ev.emitted_type in (ClaimType.DECISION_FRAME, ClaimType.SYNTHESIS):
+    # A DOMAIN_INTERPRETATION (L3d) is an interpretation, not an L2 fact, so it is refused here too — a
+    # frame that wants the domain story must declare it as an L3d input, never as a property claim.
+    if ev.emitted_type in (ClaimType.DOMAIN_INTERPRETATION, ClaimType.DECISION_FRAME, ClaimType.SYNTHESIS):
         raise TypeIntegrityError(
             f"{ev.property_id}: an {ev.emitted_type} (L3) may not be consumed as a property "
             f"({kind}) — L3 interpretation != L2 fact"
@@ -623,6 +633,16 @@ NORMAL_LIABILITY_PROPERTY = "normal_liability_concordance"
 COVERAGE_CONCORDANCE_PROPERTY = "bulk_vs_singlecell_coverage_concordance"
 ABUNDANCE_CONCORDANCE_PROPERTY = "abundance_concordance"
 SUBTYPE_RESTRICTION_PROPERTY = "subtype_restriction_concordance"
+
+# The tumor-presence L3d "tumor-expression biology story" (SK#1940) — a READABLE emitted layer, NOT a
+# frame. It is the within-domain synthesis that packages the presence L2b islands (coverage / abundance /
+# protein_presence / the central tumor_presence_concordance node #1867 / subtype_restriction) into a
+# claim-ID-traceable interpretation. Its emitted key on the presence headline is the SAME string
+# (kept in lockstep with skills/tumor-presence/scripts/presence_l3d_story.L3D_STORY_PROPERTY_ID; a test
+# pins the equality). It is declared in reference_emitted_layers() below at the DOMAIN_INTERPRETATION
+# layer so the layer ladder carries an L3d rung; it is DELIBERATELY not a member of FRAME_REGISTRY (L3f
+# presence decision frames are separate and consume the L2 claims directly).
+TUMOR_EXPRESSION_BIOLOGY_STORY_L3D = "tumor_expression_biology_story"
 
 # The three rung-4 canonical property families this L3 bridge must demonstrably reach.
 RUNG4_CANONICAL_PROPERTIES = (ESSENTIALITY_PROPERTY, RECURRENCE_PROPERTY, SELECTIVITY_PROPERTY)
@@ -1153,6 +1173,14 @@ def reference_emitted_layers() -> dict:
         # bulk purity-residual + sc compartment arms, NOT an L2b integrated property, so it is an
         # OBSERVATIONAL-layer object strictly below the decision_frame layer (the frame stays a DAG).
         MALIGNANT_INTRINSIC_COMPOSITE: ClaimType.OBSERVATIONAL_PROPERTY,
+        # The SK#1940 tumor-presence L3d domain interpretation — the readable within-domain "tumor-
+        # expression biology story" that packages the presence L2b islands. It is a DOMAIN_INTERPRETATION
+        # (L3d): strictly ABOVE the L2b integrated_property layer (it consumes those islands) and strictly
+        # BELOW the L3f decision_frame layer (a frame consumes L2 + L3d — see the architecture doc). It is
+        # a READABLE emitted layer only: no frame in FRAME_REGISTRY declares it as an input, so it never
+        # participates in the acyclicity monotonicity loop — declaring its layer here keeps the layer
+        # ladder complete and its emitted type honest (an L3 interpretation, refused as a property by R3).
+        TUMOR_EXPRESSION_BIOLOGY_STORY_L3D: ClaimType.DOMAIN_INTERPRETATION,
     }
     for f in FRAME_REGISTRY:
         layers[f.frame_id] = f.claim_type

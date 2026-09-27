@@ -1069,3 +1069,31 @@ def test_malignant_intrinsic_composite_is_decision_inert_on_the_priority_frame()
         # genuinely consumed (resolved), not silently dropped, and never a veto
         assert enriched["resolved_inputs"].get(ef.MALIGNANT_INTRINSIC_COMPOSITE) == "malignant_intrinsic_corroborated"
         assert not any(ef.MALIGNANT_INTRINSIC_COMPOSITE in v for v in enriched["vetoes_applied"])
+
+
+# ==================================================================================================
+# L3d readable layer (SK#1940) — the DOMAIN_INTERPRETATION rung between L2b and L3f
+# ==================================================================================================
+def test_l3d_domain_interpretation_layer_is_declared_and_ordered():
+    """The tumor-presence L3d story is declared as a READABLE emitted layer at DOMAIN_INTERPRETATION,
+    strictly between L2b integrated_property and L3f decision_frame, and is NOT a frame."""
+    layers = ef.reference_emitted_layers()
+    assert layers[ef.TUMOR_EXPRESSION_BIOLOGY_STORY_L3D] == ClaimType.DOMAIN_INTERPRETATION
+    lyr = ef.CLAIM_TYPE_LAYER
+    assert lyr[ClaimType.INTEGRATED_PROPERTY] < lyr[ClaimType.DOMAIN_INTERPRETATION] < lyr[ClaimType.DECISION_FRAME]
+    assert ef.TUMOR_EXPRESSION_BIOLOGY_STORY_L3D not in {f.frame_id for f in ef.FRAME_REGISTRY}
+    # declaring the readable layer keeps the registry acyclic (no frame consumes it as an input here)
+    ef.assert_acyclic(ef.FRAME_REGISTRY, layers)
+
+
+def test_l3d_domain_interpretation_is_refused_as_a_property_input():
+    """Type-integrity teeth: an L3d interpretation may never be consumed as an L2 property (R3), just
+    like a decision_frame / synthesis object — L3 interpretation != L2 fact."""
+    l3d = TypedEvidence(
+        property_id=ef.TUMOR_EXPRESSION_BIOLOGY_STORY_L3D,
+        claim_type=ClaimType.DOMAIN_INTERPRETATION,
+        resolved=True,
+    )
+    for kind in (InputKind.CANONICAL_PROPERTY_CLAIM, InputKind.MEASUREMENT):
+        with pytest.raises(TypeIntegrityError, match="may not be consumed as a property"):
+            ef.check_input_integrity(kind, l3d)

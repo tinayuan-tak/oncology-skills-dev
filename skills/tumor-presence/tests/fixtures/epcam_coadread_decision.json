@@ -1554,6 +1554,104 @@
       "_indication_grain_claims": "C (single-cell malignant) and protein-confirmation are NOT stratified (single-cell pooled; CPTAC whole-cohort) \u2014 read them from the pooled claim_vector.",
       "_disclaimer": "Per-stratum claim vector \u2014 verdict-INERT (the pooled presence_verdict is byte-stable). Only claims A (abundance) and a distributional B (fraction > GTEx-normal p95) are live per subtype (from per_subgroup_metrics); a pooled indication read can flatten a subtype-concentrated signal (cf. CD274/MSI-H), so a per-stratum POSITIVE is surfaced here rather than suppressed. Certainty is MULTIPLICITY-AWARE: with 14 strata scanned, each per-stratum corroboration takes a 1-tier haircut (k>=5) so a single stratum is not over-trusted; small-n strata are additionally low by power. Read certainty, not just signal."
     },
+    "tumor_expression_biology_story": {
+      "layer": "L3d",
+      "domain": "tumor_presence",
+      "title": "tumor-expression biology story",
+      "coherence": "cross_source_corroborated",
+      "headline": "3 INDEPENDENT measurement groups AGREE on the antigen is PRESENT in tumor (bulk-RNA (tumor RNA-seq distribution), single-cell malignant RNA (tumor scRNA compartment), antibody-IHC (HPA Pathology)) \u2014 a cross-source-corroborated tumor-presence read, far more credible than any single-assay call.",
+      "chapters": [
+        {
+          "aspect": "tumor_presence",
+          "aspect_question": "cross-source tumor PRESENCE integrated across bulk-RNA x single-cell malignant RNA x antibody-IHC",
+          "claim_id": "tumor_presence_concordance",
+          "reconstructable_from": "pooled_claim_vector",
+          "concordance_class": "tumor_presence_concordant",
+          "corroboration": "high",
+          "reads": "3 INDEPENDENT measurement groups AGREE on the antigen is PRESENT in tumor (bulk-RNA (tumor RNA-seq distribution), single-cell malignant RNA (tumor scRNA compartment), antibody-IHC (HPA Pathology)) \u2014 a cross-source-corroborated tumor-presence read, far more credible than any single-assay call.",
+          "caveat": null,
+          "boundary_sensitive": false,
+          "within_domain_role": "the headline cross-source tumor-presence property \u2014 an antigen that bulk RNA-seq, single-cell malignant RNA and antibody-IHC all detect is far more credible than a single-layer call; the three groups are genuinely independent (distinct technology, grain and failure mode), so their agreement is real corroboration and their disagreement is a surfaced caveat, never a negation"
+        },
+        {
+          "aspect": "coverage",
+          "aspect_question": "within-tumour COVERAGE \u2014 does bulk presence carry through to single-cell malignant coverage, or is a fraction bulk-masked?",
+          "claim_id": "bulk_vs_singlecell_coverage_concordance",
+          "reconstructable_from": "pooled_claim_vector",
+          "concordance_class": "coverage_concordant",
+          "corroboration": "high",
+          "reads": "Bulk RNA reports broadly_high tumour presence (continuous) \u2014 the antigen is broadly detected in the population-averaged read.",
+          "caveat": null,
+          "boundary_sensitive": false,
+          "within_domain_role": "cross-source coverage concordance \u2014 informs tumor-cell-targeted modalities (ADC/TCE/CAR): a bulk-masked LOW-coverage antigen risks efficacy escape the population-averaged bulk read hides"
+        },
+        {
+          "aspect": "abundance",
+          "aspect_question": "ABUNDANCE agreement between the RNA transcript level and the protein antigen level",
+          "claim_id": "abundance_concordance",
+          "reconstructable_from": "pooled_claim_vector",
+          "concordance_class": "rna_high_protein_low",
+          "corroboration": "high",
+          "reads": "Both independent RNA and mass-spec protein assays detect the target (tumor grain: RNA rank high, MS-protein rank moderate).",
+          "caveat": "MS-protein abundance ranks BELOW RNA (tumor grain: RNA high vs MS-protein moderate) \u2014 a post-transcriptional attenuation / low proxy-quality signal: the presented protein is scarcer than the transcript implies, tempering RNA-based abundance expectations for abundance-dependent modalities (ADC/degrader payload delivery).",
+          "boundary_sensitive": false,
+          "within_domain_role": "cross-source abundance-magnitude concordance \u2014 whether independent RNA and mass-spec protein reads agree the target sits at the same within-population abundance rank. A directional split (RNA rank above protein) flags post-transcriptional attenuation / low proxy-quality, informing proxy choice for abundance-dependent modalities (ADC/degrader payload delivery)."
+        },
+        {
+          "aspect": "protein_presence",
+          "aspect_question": "PROTEIN presence folded across independent antibody-IHC and mass-spec arms",
+          "claim_id": "protein_presence_concordance",
+          "reconstructable_from": "pooled_claim_vector",
+          "concordance_class": "protein_presence_concordant",
+          "corroboration": "high",
+          "reads": "Both INDEPENDENT protein modalities AGREE on the protein is PRESENT (antibody-IHC ihc_detected_high x mass-spec mid) \u2014 a cross-assay-corroborated protein-presence read.",
+          "caveat": null,
+          "boundary_sensitive": false,
+          "within_domain_role": "cross-source protein-presence concordance \u2014 a protein two INDEPENDENT detection technologies (antibody-IHC immunostaining + mass-spec peptide detection) both detect is far more credible than a single-assay call; the cell-line mass-spec reads are same-modality cross-grain siblings preserved as evidence but never double-counted as a second independent arm"
+        }
+      ],
+      "caveats": [
+        {
+          "aspect": "abundance",
+          "claim_id": "abundance_concordance",
+          "caveat": "MS-protein abundance ranks BELOW RNA (tumor grain: RNA high vs MS-protein moderate) \u2014 a post-transcriptional attenuation / low proxy-quality signal: the presented protein is scarcer than the transcript implies, tempering RNA-based abundance expectations for abundance-dependent modalities (ADC/degrader payload delivery)."
+        }
+      ],
+      "cross_domain_claims": [],
+      "scope": {
+        "within_domain": "tumor_presence",
+        "excludes": [
+          "tumor_selectivity",
+          "on_target_safety",
+          "tractability",
+          "therapeutic_window"
+        ],
+        "note": "L3d domain interpretation \u2014 stays strictly inside tumor-presence's semantic scope (presence / abundance / coverage-heterogeneity / subtype-restriction / protein confirmation). It does NOT conclude anything that requires another domain's evidence; that cross-domain implication is reserved for an L3f decision frame."
+      },
+      "integration_method": "deterministic_template_traversal",
+      "provenance": {
+        "claim_ids": [
+          {
+            "claim_id": "tumor_presence_concordance",
+            "vector": "pooled_claim_vector"
+          },
+          {
+            "claim_id": "bulk_vs_singlecell_coverage_concordance",
+            "vector": "pooled_claim_vector"
+          },
+          {
+            "claim_id": "abundance_concordance",
+            "vector": "pooled_claim_vector"
+          },
+          {
+            "claim_id": "protein_presence_concordance",
+            "vector": "pooled_claim_vector"
+          }
+        ],
+        "reconstructable": "each chapter's claim_id indexes back into the named presence claim vector (pooled) or by-subtype claim vector for the full L2b integration claim; the L3d story asserts nothing the L2 claims do not already carry"
+      },
+      "_disclaimer": "L3d WITHIN-DOMAIN interpretation (SK#1940) \u2014 DETERMINISTIC template/traversal assembly (no LLM authorship, reproducible by contract), verdict-INERT: never a signal tier, never averaged, never feeds the presence_verdict, presence_verdict_by_modality, certainty.level, or any resolver rung. The opt-in --synthesize LLM narration is a SEPARATE view above this layer. Traceable back to the L2b claim IDs it cites; makes NO cross-domain conclusion."
+    },
     "question_table": [
       {
         "id": "Q1",
