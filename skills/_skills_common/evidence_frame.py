@@ -721,7 +721,124 @@ PRESENCE_FRAME = Frame(
     ),
 )
 
-FRAME_REGISTRY = (REFERENCE_FRAME, PRESENCE_FRAME)
+# --------------------------------------------------------------------------------------------------
+# Per-MODALITY decision frames — the deferred modality-fit territory (SK#1844, G3.4, epic #1749 M2)
+# --------------------------------------------------------------------------------------------------
+# G3.4 is the modality-fit frame that #1753 deliberately DEFERRED: it re-derives surface-modality-fit
+# territory (the biologics-substrate call) and so carries the highest verdict-collision risk — it lands
+# LAST and gated HARDEST. It is the FIRST place the typed interface mints MORE THAN ONE frame over the
+# SAME domain: a per-MODALITY family of decision surfaces (ADC / TCE today; the SM / degrader analog is
+# a small-molecule surface the biologics ladder never sees, filed separately), because the DECISION-
+# IMPLICATIONS of the same surface evidence DIFFER by modality — a clinically-shed ectodomain is an
+# ADC antigen sink (a veto for the ADC frame) while within-tumour antigen ESCAPE is the TCE reservoir
+# risk (a veto for the TCE frame). These are lossy-by-design L3 decision objects on the "verdict-
+# follows" side — a DIFFERENT KIND of object from the L2 properties they read — NOT a re-derivation of
+# the surface-modality-fit verdict, which stays byte-stable (owned by the shared resolver).
+#
+# Every input is a WITHIN-SKILL composite classifier the surface-modality-fit headline already carries
+# (a class token bundling several card measurements — surface_density_class from copies/cell estimates,
+# topology_class from tm_pass_count, shed_liability_class / tce_antigen_escape_class from multi-axis
+# reads), so each is honestly consumed as a LOCAL_COMPOSITE_CLAIM (observational layer, is_composite),
+# strictly below the decision_frame layer → the two new frames stay inside the existing DAG acyclicity
+# proof. normal_liability is the SAME deliberately-absent critical_unknown specimen as the other two
+# production frames: a surface-modality surface never carries the cross-source safety concordance, so
+# the unresolved critical routes each modality frame to an L4 forward QUESTION (never a kill).
+SURFACE_DENSITY_CLASS = "surface_density_class"
+SURFACE_TOPOLOGY_CLASS = "topology_class"
+SHED_LIABILITY_CLASS = "shed_liability_class"
+TCE_ANTIGEN_ESCAPE_CLASS = "tce_antigen_escape_class"
+
+# Surface topologies that mean "there is a cell-surface protein to engineer a binder against" — the
+# supportive membrane-presence read shared by both modality frames (a no_transmembrane / data_unavailable
+# read is NOT positive; its absence is fine — supportive, never a kill).
+_SURFACE_TOPOLOGY_POSITIVE = frozenset(
+    {
+        "single_pass_type_1",
+        "single_pass_type_2",
+        "single_pass_type_other",
+        "multi_pass",
+        "gpi_anchored",
+        "beta_barrel",
+    }
+)
+# A density class at or above the ADC/TCE payload floor (a viable antigen abundance for either modality).
+_SURFACE_DENSITY_POSITIVE = frozenset({"high", "moderate"})
+
+ADC_MODALITY_FRAME = Frame(
+    frame_id="adc_surface_modality_fit",
+    inputs=(
+        FrameInput(
+            property_id=SURFACE_DENSITY_CLASS,
+            kind=InputKind.LOCAL_COMPOSITE_CLAIM,
+            role=Role.REQUIRED,
+            positive_states=_SURFACE_DENSITY_POSITIVE,
+        ),
+        FrameInput(
+            property_id=SURFACE_TOPOLOGY_CLASS,
+            kind=InputKind.LOCAL_COMPOSITE_CLAIM,
+            role=Role.SUPPORTIVE,
+            positive_states=_SURFACE_TOPOLOGY_POSITIVE,
+        ),
+        FrameInput(
+            property_id=SHED_LIABILITY_CLASS,
+            kind=InputKind.LOCAL_COMPOSITE_CLAIM,
+            role=Role.VETO_CAPABLE,
+            adverse_states=frozenset({"clinically_shed"}),
+        ),
+        FrameInput(
+            property_id=NORMAL_LIABILITY_PROPERTY,
+            kind=InputKind.MISSING_UNRESOLVED,
+            role=Role.CRITICAL_UNKNOWN,
+        ),
+    ),
+)
+
+TCE_MODALITY_FRAME = Frame(
+    frame_id="tce_surface_modality_fit",
+    inputs=(
+        FrameInput(
+            property_id=SURFACE_DENSITY_CLASS,
+            kind=InputKind.LOCAL_COMPOSITE_CLAIM,
+            role=Role.REQUIRED,
+            positive_states=_SURFACE_DENSITY_POSITIVE,
+        ),
+        FrameInput(
+            property_id=TCE_ANTIGEN_ESCAPE_CLASS,
+            kind=InputKind.LOCAL_COMPOSITE_CLAIM,
+            role=Role.VETO_CAPABLE,
+            adverse_states=frozenset({"escape_risk_high", "escape_risk_patient_variable"}),
+        ),
+        FrameInput(
+            property_id=SURFACE_TOPOLOGY_CLASS,
+            kind=InputKind.LOCAL_COMPOSITE_CLAIM,
+            role=Role.SUPPORTIVE,
+            positive_states=_SURFACE_TOPOLOGY_POSITIVE,
+        ),
+        FrameInput(
+            property_id=NORMAL_LIABILITY_PROPERTY,
+            kind=InputKind.MISSING_UNRESOLVED,
+            role=Role.CRITICAL_UNKNOWN,
+        ),
+    ),
+)
+
+# The per-modality frames (SK#1844). A family over ONE domain, keyed by modality — the interface's first
+# multi-frame-per-domain surface.
+MODALITY_FIT_FRAMES = (ADC_MODALITY_FRAME, TCE_MODALITY_FRAME)
+
+# The surface-modality composite families the modality frames declare as typed inputs. Every member must
+# demonstrably reach a frame (the decision-reach ratchet, lifted to the modality set): density + topology
+# reach BOTH modality frames, shed reaches only ADC, escape only TCE, and normal_liability is the shared
+# absent critical on every production frame.
+MODALITY_FIT_PROPERTIES = (
+    SURFACE_DENSITY_CLASS,
+    SURFACE_TOPOLOGY_CLASS,
+    SHED_LIABILITY_CLASS,
+    TCE_ANTIGEN_ESCAPE_CLASS,
+    NORMAL_LIABILITY_PROPERTY,
+)
+
+FRAME_REGISTRY = (REFERENCE_FRAME, PRESENCE_FRAME, ADC_MODALITY_FRAME, TCE_MODALITY_FRAME)
 
 
 def reference_emitted_layers() -> dict:
@@ -744,6 +861,14 @@ def reference_emitted_layers() -> dict:
         COVERAGE_CONCORDANCE_PROPERTY: ClaimType.INTEGRATED_PROPERTY,
         ABUNDANCE_CONCORDANCE_PROPERTY: ClaimType.INTEGRATED_PROPERTY,
         SUBTYPE_RESTRICTION_PROPERTY: ClaimType.INTEGRATED_PROPERTY,
+        # The four surface-modality composite families the per-modality frames consume (SK#1844). Each is
+        # a WITHIN-SKILL composite classifier — an OBSERVATIONAL-layer bundle, NOT an L2b integrated
+        # property — so each sits strictly below the decision_frame layer and the modality frames stay a
+        # DAG (their honest InputKind is LOCAL_COMPOSITE_CLAIM, which asserts only the observational layer).
+        SURFACE_DENSITY_CLASS: ClaimType.OBSERVATIONAL_PROPERTY,
+        SURFACE_TOPOLOGY_CLASS: ClaimType.OBSERVATIONAL_PROPERTY,
+        SHED_LIABILITY_CLASS: ClaimType.OBSERVATIONAL_PROPERTY,
+        TCE_ANTIGEN_ESCAPE_CLASS: ClaimType.OBSERVATIONAL_PROPERTY,
     }
     for f in FRAME_REGISTRY:
         layers[f.frame_id] = f.claim_type
@@ -831,3 +956,63 @@ def tumor_presence_frame(claim_vector: Optional[Mapping] = None, by_subtype_vect
         bundle[SUBTYPE_RESTRICTION_PROPERTY] = from_concordance(SUBTYPE_RESTRICTION_PROPERTY, sub)
     # NORMAL_LIABILITY_PROPERTY intentionally omitted -> unresolved critical_unknown -> L4 question.
     return evaluate_frame(PRESENCE_FRAME, bundle)
+
+
+# --------------------------------------------------------------------------------------------------
+# Per-modality production entries — the deferred modality-fit L3 surfaces (SK#1844, G3.4)
+# --------------------------------------------------------------------------------------------------
+# A surface_density_class token that is a data GAP rather than a measured density class — an unmeasured
+# density is NOT a resolved observational read, so it is left OUT of the bundle (the REQUIRED anchor then
+# routes the frame to an L4 QUESTION, never a HOLD on a phantom "measured very-low").
+DENSITY_GAP_TOKENS = frozenset(
+    {"unmeasured", "data_unavailable", "not_surface_density_whole_cell_estimate", "no_absolute_measurement"}
+)
+
+
+def _surface_modality_bundle(frame: Frame, headline: Optional[Mapping]) -> dict:
+    """Adapt a surface-modality-fit headline's ALREADY-EMITTED composite class tokens into typed evidence
+    for ``frame``. Every consumed field is a within-skill composite classifier → wrapped as a read-only
+    ``local_composite`` (never over-claimed as a canonical property), so the source headline stays byte-
+    stable. A field absent / a density GAP token is simply not supplied (auto-resolves to unresolved inside
+    ``evaluate_frame``). ``normal_liability`` is DELIBERATELY never supplied — the surface-modality surface
+    never carries the cross-source safety concordance, so the critical_unknown routes to an L4 question."""
+    h = headline or {}
+    bundle: dict = {}
+    for inp in frame.inputs:
+        if inp.kind != InputKind.LOCAL_COMPOSITE_CLAIM:
+            continue  # the critical_unknown / any non-composite slot is left for evaluate_frame to route
+        token = h.get(inp.property_id)
+        if inp.property_id == SURFACE_DENSITY_CLASS and token in DENSITY_GAP_TOKENS:
+            continue  # a density GAP is unresolved, not a measured non-positive
+        if token is not None:
+            bundle[inp.property_id] = local_composite(inp.property_id, token)
+    return bundle
+
+
+def adc_modality_fit_frame(headline: Optional[Mapping] = None) -> dict:
+    """Evaluate the ``adc_surface_modality_fit`` ADC_MODALITY_FRAME over a surface-modality-fit skill's
+    ALREADY-EMITTED composite class tokens, returning the frame's OWN L3 decision object.
+
+    The ADC decision-implications view (SK#1844, G3.4, epic #1749 Milestone-2): surface antigen abundance
+    is the payload-floor anchor (REQUIRED), an engineerable surface topology strengthens it (SUPPORTIVE),
+    and a clinically-shed ectodomain is an ADC antigen sink that DOWN-RANKS one notch (VETO_CAPABLE, never
+    a kill). Purely ADDITIVE / verdict-INERT: it consumes the emitted headline as typed inputs and produces
+    a NEW decision surface; it routes NOTHING back into the surface-modality-fit verdict (``fit_class``),
+    the claim_vector, any question_table row's meter cell, ``safety_verdict_by_modality``, ``modality_rubric``,
+    or a resolver. The absent safety critical routes the frame to an L4 forward QUESTION (never a kill)."""
+    return evaluate_frame(ADC_MODALITY_FRAME, _surface_modality_bundle(ADC_MODALITY_FRAME, headline))
+
+
+def tce_modality_fit_frame(headline: Optional[Mapping] = None) -> dict:
+    """Evaluate the ``tce_surface_modality_fit`` TCE_MODALITY_FRAME over a surface-modality-fit skill's
+    ALREADY-EMITTED composite class tokens, returning the frame's OWN L3 decision object.
+
+    The TCE decision-implications view (SK#1844, G3.4, epic #1749 Milestone-2): the SAME surface antigen
+    abundance is the engager-floor anchor (REQUIRED) and an engineerable topology strengthens it
+    (SUPPORTIVE), but the modality-specific liability is DIFFERENT — within-tumour antigen ESCAPE
+    (escape_risk_high / escape_risk_patient_variable) is the TCE efficacy-escape reservoir that DOWN-RANKS
+    one notch (VETO_CAPABLE, never a kill), where the ADC frame instead vetoes on shedding. This is why the
+    per-modality decision surface is a family, not one frame. Purely ADDITIVE / verdict-INERT: routes
+    NOTHING back into any surface verdict, claim_vector, meter cell, ``safety_verdict_by_modality``,
+    ``modality_rubric``, or resolver. The absent safety critical routes to an L4 forward QUESTION."""
+    return evaluate_frame(TCE_MODALITY_FRAME, _surface_modality_bundle(TCE_MODALITY_FRAME, headline))

@@ -79,6 +79,54 @@ def test_tce_escape_bands_track_verdict_polarity_1738():
     assert high["TCE"]["signal"]["tier"] == "absent"
 
 
+_BASE_ROW_KEYS = {"id", "question", "primary", "support", "signal", "confidence"}
+
+
+def test_modality_frames_attach_l3_annotations_on_adc_and_tce_rows_when_density_measured():
+    # SK#1844 (G3.4): when the MEASURED surface density anchor resolves, each per-modality decision frame
+    # surfaces on its home row under DISTINCT `l3_*` keys — the ADC frame on the ADC row, the TCE frame on
+    # the TCE row — while leaving Surface/Density rows (no modality home) untouched.
+    rows = {r["id"]: r for r in surface_modality_question_table(_headline())}
+    for modality, frame_id in (("ADC", "adc_surface_modality_fit"), ("TCE", "tce_surface_modality_fit")):
+        sig = rows[modality]["l3_integrated_signal"]
+        assert sig["claim_type"] == "decision_frame"
+        assert sig["frame_id"] == frame_id and sig["modality"] == modality
+        assert sig["provenance_ref"] == f"evidence_frame.{frame_id}"
+        # the absent safety critical routes each modality frame to an L4 forward question (never a kill)
+        assert rows[modality]["l3_forward_question"]["kind"] == "l4_forward_question"
+        assert sig["decision"] == "question"
+    # Surface / Density rows are NOT a modality home -> byte-stable base keys only
+    assert set(rows["Surface"]) == _BASE_ROW_KEYS
+    assert set(rows["Density"]) == _BASE_ROW_KEYS
+    # the escape reservoir on _headline (escape_risk_high) is the TCE frame's measured-adverse veto
+    assert rows["TCE"]["l3_integrated_signal"]["vetoes_applied"]
+
+
+def test_modality_annotations_omitted_when_density_unmeasured_rows_byte_stable():
+    # No measured density anchor -> no frame fires -> every row keeps ONLY the base keys (byte-stable).
+    rows = surface_modality_question_table({"fit_class": "ADC_preferred", "surface_density_class": "unmeasured"})
+    for r in rows:
+        assert set(r) == _BASE_ROW_KEYS, r["id"]
+    # a gap density token is likewise not a measured anchor
+    rows = surface_modality_question_table({"surface_density_class": "no_absolute_measurement"})
+    for r in rows:
+        assert set(r) == _BASE_ROW_KEYS, r["id"]
+
+
+def test_modality_annotation_is_verdict_inert_signal_meter_cell_unchanged():
+    # The l3 annotation never touches the row's own signal/confidence meter cell (verdict-inert).
+    base = {r["id"]: r for r in surface_modality_question_table({"shed_liability_class": "clinically_shed"})}
+    withd = {
+        r["id"]: r
+        for r in surface_modality_question_table(
+            {"shed_liability_class": "clinically_shed", "surface_density_class": "high"}
+        )
+    }
+    # adding a measured density fires the frames but must not perturb the ADC row's own signal meter cell
+    assert base["ADC"]["signal"] == withd["ADC"]["signal"]
+    assert "l3_integrated_signal" not in base["ADC"] and "l3_integrated_signal" in withd["ADC"]
+
+
 def test_renders_html_via_shared_renderer():
     html = render_question_table_html(
         surface_modality_question_table(_headline()), verdict="ADC_preferred", title="Surface modality"

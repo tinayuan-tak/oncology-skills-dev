@@ -431,11 +431,13 @@ def test_presence_frame_shape_covers_the_roles_it_exercises():
 
 
 def test_registry_with_the_presence_frame_is_still_acyclic():
-    """Two decision frames sharing property leaves (normal_liability) but no cross-frame edge stay a DAG."""
+    """All production frames share property leaves (normal_liability) but no cross-frame edge -> a DAG."""
     ef.assert_acyclic(ef.FRAME_REGISTRY, ef.reference_emitted_layers())
     assert set(f.frame_id for f in ef.FRAME_REGISTRY) == {
         "corroborated_dependency_priority",
         "corroborated_tumor_presence",
+        "adc_surface_modality_fit",
+        "tce_surface_modality_fit",
     }
 
 
@@ -445,11 +447,11 @@ def test_reach_audit_every_surfaced_family_reaches_a_frame():
     assert audit["unreached"] == []
     for pid in (ef.COVERAGE_CONCORDANCE_PROPERTY, ef.ABUNDANCE_CONCORDANCE_PROPERTY, ef.SUBTYPE_RESTRICTION_PROPERTY):
         assert ef.PRESENCE_FRAME.frame_id in audit["reached"][pid]
-    # normal_liability is the shared absent critical on BOTH frames
-    assert set(audit["reached"][ef.NORMAL_LIABILITY_PROPERTY]) == {
-        ef.REFERENCE_FRAME.frame_id,
-        ef.PRESENCE_FRAME.frame_id,
-    }
+    # normal_liability is the shared absent critical on EVERY production frame (the dependency + presence
+    # frames plus the per-modality frames added in SK#1844).
+    assert {ef.REFERENCE_FRAME.frame_id, ef.PRESENCE_FRAME.frame_id} <= set(
+        audit["reached"][ef.NORMAL_LIABILITY_PROPERTY]
+    )
 
 
 def test_presence_frame_type_integrity_teeth_composite_may_not_be_a_canonical_property():
@@ -554,3 +556,183 @@ def test_forward_question_projector_returns_none_when_the_frame_did_not_ask():
     forward-question — the projector attaches nothing, keeping the answer surface byte-stable."""
     decided = {"frame_id": "x", "unresolved_critical": [], "unresolved_required": []}
     assert ef.forward_question_from_frame(decided) is None
+
+
+# ==================================================================================================
+# 10. Per-MODALITY decision frames — the deferred modality-fit territory (SK#1844, G3.4)
+# ==================================================================================================
+def test_modality_frames_are_a_family_over_one_domain_with_distinct_liabilities():
+    """G3.4 mints MORE THAN ONE frame over the SAME (surface-modality) domain — a per-modality family —
+    because the decision-implications of the same surface evidence DIFFER by modality: the ADC frame vetoes
+    on a shed ectodomain (antigen sink), the TCE frame vetoes on within-tumour antigen ESCAPE (reservoir)."""
+    assert {f.frame_id for f in ef.MODALITY_FIT_FRAMES} == {"adc_surface_modality_fit", "tce_surface_modality_fit"}
+    for f in ef.MODALITY_FIT_FRAMES:
+        assert f.claim_type == ClaimType.DECISION_FRAME
+        # both anchor on the SAME required surface-density payload/engager floor
+        req = [i.property_id for i in f.inputs if i.role == Role.REQUIRED]
+        assert req == [ef.SURFACE_DENSITY_CLASS]
+        # the critical_unknown is the shared deliberately-absent safety concordance specimen
+        crit = [i for i in f.inputs if i.role == Role.CRITICAL_UNKNOWN]
+        assert len(crit) == 1 and crit[0].property_id == ef.NORMAL_LIABILITY_PROPERTY
+        assert crit[0].kind == InputKind.MISSING_UNRESOLVED
+    # the veto axis is what makes the family DISTINCT per modality
+    adc_veto = {i.property_id for i in ef.ADC_MODALITY_FRAME.inputs if i.role == Role.VETO_CAPABLE}
+    tce_veto = {i.property_id for i in ef.TCE_MODALITY_FRAME.inputs if i.role == Role.VETO_CAPABLE}
+    assert adc_veto == {ef.SHED_LIABILITY_CLASS}
+    assert tce_veto == {ef.TCE_ANTIGEN_ESCAPE_CLASS}
+
+
+def test_modality_inputs_are_honest_local_composites_at_the_observational_layer():
+    """Every consumed surface class token is a WITHIN-SKILL composite classifier — it is DECLARED as a
+    LOCAL_COMPOSITE_CLAIM and carries the OBSERVATIONAL emitted layer (strictly below decision_frame), so
+    the modality frames stay inside the DAG acyclicity proof."""
+    layers = ef.reference_emitted_layers()
+    for f in ef.MODALITY_FIT_FRAMES:
+        for inp in f.inputs:
+            if inp.role == Role.CRITICAL_UNKNOWN:
+                continue
+            assert inp.kind == InputKind.LOCAL_COMPOSITE_CLAIM
+            assert layers[inp.property_id] == ClaimType.OBSERVATIONAL_PROPERTY
+
+
+def test_registry_with_the_modality_frames_is_acyclic():
+    ef.assert_acyclic(ef.FRAME_REGISTRY, ef.reference_emitted_layers())
+
+
+def test_modality_acyclicity_rejects_a_broken_modality_frame_monotonicity():
+    """MUTATION (strict-layer monotonicity): a deliberately-broken modality frame that consumes ANOTHER
+    decision_frame as an input violates monotonicity (a decision claim may only feed a STRICTLY higher
+    layer) — the checker must reject it."""
+    broken = Frame(
+        frame_id="adc_surface_modality_fit_BROKEN",
+        claim_type=ClaimType.DECISION_FRAME,
+        inputs=(
+            FrameInput(ef.SURFACE_DENSITY_CLASS, InputKind.LOCAL_COMPOSITE_CLAIM, Role.REQUIRED),
+            # a decision_frame fed in as if it were a lower-layer property — the back-edge into L3
+            FrameInput("tce_surface_modality_fit", InputKind.CANONICAL_PROPERTY_CLAIM, Role.SUPPORTIVE),
+        ),
+    )
+    layers = dict(ef.reference_emitted_layers())
+    layers["adc_surface_modality_fit_BROKEN"] = ClaimType.DECISION_FRAME
+    with pytest.raises(FrameCycleError, match="STRICTLY higher layer"):
+        ef.assert_acyclic((broken,), layers)
+
+
+def test_modality_acyclicity_rejects_a_real_back_edge_cycle():
+    """MUTATION (DFS back-edge): two modality decision frames each declaring the OTHER as an input is a
+    real dependency cycle — the depth-first search must refuse it."""
+    a = Frame(
+        frame_id="adc_cyc",
+        claim_type=ClaimType.SYNTHESIS,
+        inputs=(FrameInput("tce_cyc", InputKind.CANONICAL_PROPERTY_CLAIM, Role.REQUIRED),),
+    )
+    b = Frame(
+        frame_id="tce_cyc",
+        claim_type=ClaimType.DECISION_FRAME,
+        inputs=(FrameInput("adc_cyc", InputKind.CANONICAL_PROPERTY_CLAIM, Role.REQUIRED),),
+    )
+    layers = {"adc_cyc": ClaimType.SYNTHESIS, "tce_cyc": ClaimType.DECISION_FRAME}
+    with pytest.raises(FrameCycleError):
+        ef.assert_acyclic((a, b), layers)
+
+
+def test_modality_type_integrity_teeth_l3_may_not_feed_a_modality_slot():
+    """MUTATION TEETH (type-integrity): feeding an L3 decision_frame object into a modality frame's
+    LOCAL_COMPOSITE property slot violates L3 != L2 fact — evaluate_frame must FAIL. Falsification: the
+    honest composite passes."""
+    l3 = TypedEvidence(property_id=ef.SURFACE_DENSITY_CLASS, claim_type=ClaimType.DECISION_FRAME, resolved=True)
+    with pytest.raises(TypeIntegrityError, match="L3 interpretation != L2 fact"):
+        ef.evaluate_frame(ef.ADC_MODALITY_FRAME, {ef.SURFACE_DENSITY_CLASS: l3})
+    # the honest local-composite passes through evaluate_frame
+    honest = {ef.SURFACE_DENSITY_CLASS: ef.local_composite(ef.SURFACE_DENSITY_CLASS, "high")}
+    assert ef.evaluate_frame(ef.ADC_MODALITY_FRAME, honest)["claim_type"] == ClaimType.DECISION_FRAME
+
+
+def test_modality_reach_audit_every_modality_family_reaches_a_frame():
+    """Reach ratchet lifted to the modality set: density + topology reach BOTH modality frames, shed only
+    the ADC frame, escape only the TCE frame, and normal_liability is the shared absent critical."""
+    audit = ef.decision_reach_audit(ef.FRAME_REGISTRY, ef.MODALITY_FIT_PROPERTIES)
+    assert set(ef.MODALITY_FIT_PROPERTIES) == {
+        "surface_density_class",
+        "topology_class",
+        "shed_liability_class",
+        "tce_antigen_escape_class",
+        "normal_liability_concordance",
+    }
+    assert audit["unreached"] == []
+    for pid in (ef.SURFACE_DENSITY_CLASS, ef.SURFACE_TOPOLOGY_CLASS):
+        assert {"adc_surface_modality_fit", "tce_surface_modality_fit"} <= set(audit["reached"][pid])
+    assert audit["reached"][ef.SHED_LIABILITY_CLASS] == ["adc_surface_modality_fit"]
+    assert audit["reached"][ef.TCE_ANTIGEN_ESCAPE_CLASS] == ["tce_surface_modality_fit"]
+    assert {"adc_surface_modality_fit", "tce_surface_modality_fit"} <= set(
+        audit["reached"][ef.NORMAL_LIABILITY_PROPERTY]
+    )
+
+
+def test_adc_modality_fit_frame_synthesizes_and_routes_to_a_question_on_absent_safety():
+    """The ADC production entry consumes the surface headline's already-emitted composite tokens and routes
+    to an L4 QUESTION on the deliberately-absent safety critical (never a kill)."""
+    h = {
+        "surface_density_class": "high",
+        "topology_class": "single_pass_type_1",
+        "shed_liability_class": "not_shed_membrane_retained",
+    }
+    result = ef.adc_modality_fit_frame(h)
+    assert result["claim_type"] == ClaimType.DECISION_FRAME
+    assert result["resolved_inputs"].get("surface_density_class") == "high"
+    assert result["decision"] == ef.DECISION_QUESTION
+    assert result["unresolved_critical"] == [ef.NORMAL_LIABILITY_PROPERTY]
+    assert result["decision"] != ef.DECISION_HOLD
+    assert result["vetoes_applied"] == []  # not_shed is not adverse
+
+
+def test_adc_modality_fit_frame_vetoes_on_a_shed_ectodomain():
+    """A clinically-shed ectodomain is an ADC antigen sink — the ADC frame records the measured-adverse
+    veto (never a kill; the absent safety critical still routes the frame to a question)."""
+    h = {"surface_density_class": "high", "shed_liability_class": "clinically_shed"}
+    result = ef.adc_modality_fit_frame(h)
+    assert result["vetoes_applied"] and "clinically_shed" in result["vetoes_applied"][0]
+    assert result["decision"] == ef.DECISION_QUESTION  # critical unresolved -> question, never a kill
+
+
+def test_tce_modality_fit_frame_vetoes_on_antigen_escape_not_shedding():
+    """The TCE frame's modality-specific liability is within-tumour antigen ESCAPE (reservoir), NOT
+    shedding — proving the per-modality family reads DIFFERENT liabilities off the same surface."""
+    h = {"surface_density_class": "moderate", "tce_antigen_escape_class": "escape_risk_high"}
+    result = ef.tce_modality_fit_frame(h)
+    assert result["resolved_inputs"].get("surface_density_class") == "moderate"
+    assert result["vetoes_applied"] and "escape_risk_high" in result["vetoes_applied"][0]
+    assert result["decision"] == ef.DECISION_QUESTION
+    # a shed read is NOT even declared on the TCE frame
+    assert ef.SHED_LIABILITY_CLASS not in {i.property_id for i in ef.TCE_MODALITY_FRAME.inputs}
+
+
+def test_modality_density_gap_token_is_unresolved_not_a_measured_hold():
+    """A GAP density token (e.g. no_absolute_measurement) is NOT a measured non-positive -> the REQUIRED
+    anchor is left unresolved and routes to a QUESTION (never a HOLD on a phantom measured density)."""
+    result = ef.adc_modality_fit_frame({"surface_density_class": "no_absolute_measurement"})
+    assert result["decision"] == ef.DECISION_QUESTION
+    assert ef.SURFACE_DENSITY_CLASS in result["unresolved_required"]
+    assert "surface_density_class" not in result["resolved_inputs"]
+
+
+def test_modality_frames_verdict_inert_disclaimer_and_empty_is_a_question():
+    for entry in (ef.adc_modality_fit_frame, ef.tce_modality_fit_frame):
+        result = entry({})
+        assert "routes NOTHING back" in result["_disclaimer"]
+        assert result["decision"] == ef.DECISION_QUESTION
+        assert ef.NORMAL_LIABILITY_PROPERTY in result["unresolved_critical"]
+
+
+def test_forward_question_projector_reused_for_both_modality_frames():
+    """The SAME #1843 shared projector serves the modality domain: each modality frame's forward question
+    derives its own provenance from its frame_id — no per-modality rendering code."""
+    for entry, fid in (
+        (ef.adc_modality_fit_frame, "adc_surface_modality_fit"),
+        (ef.tce_modality_fit_frame, "tce_surface_modality_fit"),
+    ):
+        fq = ef.forward_question_from_frame(entry({}))
+        assert fq["kind"] == "l4_forward_question"
+        assert fq["role"] == "critical_unknown"
+        assert fq["provenance_ref"] == f"evidence_frame.{fid}"
+        assert "never a kill" in fq["_disclaimer"]

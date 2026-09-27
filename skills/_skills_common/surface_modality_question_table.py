@@ -17,6 +17,10 @@ from __future__ import annotations
 
 from typing import Optional
 
+from _skills_common.evidence_frame import DENSITY_GAP_TOKENS
+from _skills_common.evidence_frame import adc_modality_fit_frame as _adc_modality_fit_frame
+from _skills_common.evidence_frame import forward_question_from_frame as _forward_question_from_frame
+from _skills_common.evidence_frame import tce_modality_fit_frame as _tce_modality_fit_frame
 from _skills_common.question_table_core import conf as _conf
 from _skills_common.question_table_core import row as _row
 from _skills_common.question_table_core import sig as _sig  # shared Signal/Confidence vocab
@@ -85,6 +89,58 @@ def _tier(mapping: dict, val) -> str:
     return mapping.get(str(val), "weak")  # an unrecognized value is a measured-but-weak signal
 
 
+# ── SK#1844 L3→production (G3.4): the PER-MODALITY surface_modality_fit decision frames ──────────────
+# The THIRD domain the L3 typed-evidence interface (evidence_frame.py, design G) reaches a production
+# answer surface — after the dependency beachhead (#1841) and the presence domain (#1842) — and the FIRST
+# that mints MORE THAN ONE frame over the same domain: a per-MODALITY family (ADC / TCE), because the
+# DECISION-IMPLICATIONS of the same surface evidence differ by modality (a shed ectodomain vetoes the ADC
+# frame; within-tumour antigen escape vetoes the TCE frame). Each frame consumes the ALREADY-EMITTED
+# composite class tokens on the headline and produces its OWN L3 decision object; this module only RENDERS
+# it as a verdict-INERT annotation on the modality's home row (the ADC frame on the "ADC" row, the TCE
+# frame on the "TCE" row). Rendered under the DISTINCT keys `l3_integrated_signal` / `l3_forward_question`
+# (mirrors #1842's presence Q7 wiring) so it never touches an existing meter cell, and routes NOTHING back
+# into the surface verdict (`fit_class`) / claim_vector / safety_verdict_by_modality / modality_rubric /
+# resolver. It is NOT a re-derivation of the surface-modality-fit verdict.
+def _surface_modality_frame_signal(fr: dict, modality: str) -> dict:
+    """Project a per-modality frame's L3 decision object into a row's `l3_integrated_signal` surface
+    (verdict-inert). `modality` names which modality-fit family this frame is (ADC / TCE)."""
+    resolved = sorted(fr.get("resolved_inputs") or {})
+    decision = fr.get("decision")
+    vetoes = fr.get("vetoes_applied") or []
+    headline = (
+        f"L3 {modality} modality-fit decision frame `{fr.get('frame_id')}` → {decision}: synthesized over "
+        f"{len(resolved)} resolved typed input(s)"
+        + (f" ({', '.join(resolved)})" if resolved else "")
+        + (f"; measured-adverse read down-ranked ({'; '.join(vetoes)})" if vetoes else "")
+        + "; the safety critical is unresolved on this surface → an L4 forward question (never a kill)."
+    )
+    return {
+        "kind": fr.get("frame_id"),
+        "modality": modality,
+        "frame_id": fr.get("frame_id"),
+        "claim_type": fr.get("claim_type"),  # decision_frame (L3)
+        "decision": decision,
+        "integration_method": fr.get("integration_method"),
+        "resolved_inputs": fr.get("resolved_inputs"),
+        "rationale": fr.get("rationale"),
+        "reservations": fr.get("reservations"),
+        "vetoes_applied": fr.get("vetoes_applied"),
+        "unresolved_critical": fr.get("unresolved_critical"),
+        "unresolved_required": fr.get("unresolved_required"),
+        "headline": headline,
+        "provenance_ref": f"evidence_frame.{fr.get('frame_id')}",
+        "_disclaimer": fr.get("_disclaimer"),
+    }
+
+
+# The modality → (home row id, production frame entry) wiring. The ADC frame surfaces on the "ADC" row,
+# the TCE frame on the "TCE" row — each modality's home sub-question.
+_MODALITY_FRAME_ROWS = (
+    ("ADC", _adc_modality_fit_frame),
+    ("TCE", _tce_modality_fit_frame),
+)
+
+
 def surface_modality_question_table(headline: dict, cards: Optional[list] = None) -> list:
     """Per-surface-sub-question rows from the surface-modality-fit headline class fields. Verdict-inert;
     tolerant of missing fields (an absent field → an unmeasured row, never omitted, so the hero always
@@ -104,6 +160,23 @@ def surface_modality_question_table(headline: dict, cards: Optional[list] = None
                 _conf("unmeasured" if tier == "unmeasured" else "moderate"),
             )
         )
+    # SK#1844 L3→production (G3.4): when the MEASURED surface antigen density resolves (the modality
+    # frames' REQUIRED payload/engager-floor anchor), evaluate each per-modality decision frame over the
+    # already-emitted composite class tokens and SURFACE its synthesis as a verdict-INERT `l3_integrated_
+    # signal` on that modality's home row (ADC / TCE), plus the frame's CRITICAL_UNKNOWN role as an L4
+    # `l3_forward_question` via the shared #1843 projector. Attached only when the anchor resolves (keys
+    # omitted otherwise → row byte-stable); the distinct `l3_*` keys never touch an existing meter cell.
+    if h.get("surface_density_class") not in (None, "") and h.get("surface_density_class") not in DENSITY_GAP_TOKENS:
+        by_id = {r.get("id"): r for r in rows}
+        for modality, frame_entry in _MODALITY_FRAME_ROWS:
+            row = by_id.get(modality)
+            if row is None:
+                continue
+            fr = frame_entry(h)
+            row["l3_integrated_signal"] = _surface_modality_frame_signal(fr, modality)
+            fq = _forward_question_from_frame(fr)
+            if fq is not None:
+                row["l3_forward_question"] = fq
     return rows
 
 
