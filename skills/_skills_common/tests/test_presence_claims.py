@@ -1511,8 +1511,11 @@ def test_protein_presence_concordance_is_verdict_inert_and_purely_additive():
     # other claim-vector key is byte-identical to the with-claim vector.
     bare = presence_claim_vector(_headline(), _pp_cards(ihc_cls=None, cptac_cls=None, gygi_cls=None, procan_cls=None))
     assert "protein_presence_concordance" not in bare
-    common = {k: v for k, v in cv.items() if k != "protein_presence_concordance"}
-    common_bare = {k: v for k, v in bare.items() if k != "protein_presence_concordance"}
+    # The IHC card also feeds the HEADLINE tumor_presence_concordance node (SK#1867, single_source_only via
+    # the antibody arm), so BOTH additive L2b keys are the delta — strip both to compare the spine.
+    _l2b = {"protein_presence_concordance", "tumor_presence_concordance"}
+    common = {k: v for k, v in cv.items() if k not in _l2b}
+    common_bare = {k: v for k, v in bare.items() if k not in _l2b}
     assert common == common_bare
 
 
@@ -1540,3 +1543,201 @@ def test_protein_presence_concordance_edge_endpoint_is_the_resolving_ms_source()
     assert e["to_source"] == "gygi_protein" and e["from_source"] == "antibody_ihc"
     nodes = {s["source"] for s in c["source_support"]}
     assert {e["from_source"], e["to_source"]} <= nodes
+
+
+# ── HEADLINE L2b tumor_presence_concordance (SK#1867) — the central 3-independent-source presence node ──
+# bulk-RNA (tumor-rna-distribution) x single-cell malignant RNA (tumor-scrna-celltype-expression) x
+# antibody-IHC (hpa-pathology-cancer-ihc). Three INDEPENDENT measurement groups → independence-group
+# corroboration ("3 independent groups → HIGH"). Verdict-inert, additive.
+from _skills_common.presence_claims import _tumor_presence_concordance_claim  # noqa: E402
+
+
+def _tpc_cards(
+    bulk_cls="broadly_high",
+    sc_cls="malignant_broadly_detected",
+    ihc_cls="ihc_detected_high",
+    ihc_n_high=12,
+):
+    """Build the three tumor-presence cards exercising the builder's three INDEPENDENT arms. bulk_cls=None
+    / sc_cls=None / ihc_cls=None are absent (unresolved) arms; broadly_low (bulk), microenvironment_dominant
+    or broadly_low (sc), ihc_not_detected are MEASURED non-detections."""
+    return [
+        {
+            "card_id": "tumor-rna-distribution",
+            "summary": {
+                "tumor_expression_class": bulk_cls,
+                "high_fraction": 0.82,
+                "n_tumor_samples": 300,
+                "median_tpm": 45.0,
+            },
+        },
+        {
+            "card_id": "tumor-scrna-celltype-expression",
+            "summary": {
+                "sc_expression_class": sc_cls,
+                "malignant_detection_fraction": 0.88,
+                "malignant_n_donors": 24,
+                "malignant_n_cells": 50912,
+            },
+        },
+        {
+            "card_id": "hpa-pathology-cancer-ihc",
+            "summary": {
+                "protein_presence_class": ihc_cls,
+                "fraction_detected": (
+                    1.0
+                    if ihc_cls in ("ihc_detected_high", "ihc_detected_moderate")
+                    else (0.0 if ihc_cls == "ihc_not_detected" else 0.1)
+                ),
+                "staining_score": 3.0,
+                "n_high": ihc_n_high,
+                "n_medium": 0,
+                "n_low": 0,
+                "n_not_detected": 0,
+                "n_patients_total": max(ihc_n_high, 1),
+                "hpa_cancer_type": "colorectal cancer",
+            },
+        },
+    ]
+
+
+def _tpc(**kw):
+    return _tumor_presence_concordance_claim(_by_id_for_test(_tpc_cards(**kw)))
+
+
+def test_tumor_presence_concordance_three_independent_groups_agree_present():
+    c = _tpc(bulk_cls="broadly_high", sc_cls="malignant_broadly_detected", ihc_cls="ihc_detected_high")
+    assert c["concordance_class"] == "tumor_presence_concordant"
+    assert c["corroboration"] == "high"  # 3 INDEPENDENT groups agree → HIGH
+    assert c["integration_method"] == "explicit_deterministic"
+    assert c["concordance_support"]["agreed_direction"] == "present"
+    assert set(c["concordance_support"]["agreeing_arms"]) == {"bulk_rna", "sc_malignant", "antibody_ihc"}
+    assert c["corroborating_independent_arm_count"] == 3
+    assert c["resolved_source_count"] == 3  # no dependent siblings → the two counts coincide
+    assert c["boundary_sensitive"] is False
+    assert c["qualifying_signal"] is None  # all three resolve → no gap caveat
+    assert "signal" not in c
+    # three fully-independent groups → three pairwise corroborates edges.
+    rels = [e["relation"] for e in c["dependence_edges"]]
+    assert rels == ["corroborates", "corroborates", "corroborates"]
+
+
+def test_tumor_presence_concordance_three_groups_agree_absent():
+    c = _tpc(bulk_cls="broadly_low", sc_cls="microenvironment_dominant", ihc_cls="ihc_not_detected")
+    assert c["concordance_class"] == "tumor_presence_concordant"
+    assert c["concordance_support"]["agreed_direction"] == "measured_not_present"
+    assert c["corroboration"] == "high"
+
+
+def test_tumor_presence_concordance_discordant_when_groups_disagree():
+    # bulk + antibody detect, single-cell malignant compartment a MEASURED non-detection → discordant.
+    c = _tpc(bulk_cls="broadly_high", sc_cls="microenvironment_dominant", ihc_cls="ihc_detected_high")
+    assert c["concordance_class"] == "tumor_presence_discordant"
+    assert c["corroboration"] == "low"  # any disagreement → low
+    assert set(c["concordance_support"]["detected_in"]) == {"bulk_rna", "antibody_ihc"}
+    assert c["concordance_support"]["not_detected_in"] == ["sc_malignant"]
+    assert c["boundary_sensitive"] is True
+    # pairwise edges: the two detecting arms corroborate; each vs the dissenter qualifies.
+    rels = sorted(e["relation"] for e in c["dependence_edges"])
+    assert rels == ["corroborates", "qualifies", "qualifies"]
+
+
+def test_tumor_presence_concordance_two_groups_agree_is_corroborated_with_gap_caveat():
+    # exactly two INDEPENDENT arms resolve and agree (>= the arm floor) → concordant + high, with the
+    # unresolved arm surfaced as a gap in the qualifying signal.
+    c = _tpc(bulk_cls="broadly_high", sc_cls="malignant_broadly_detected", ihc_cls=None)
+    assert c["concordance_class"] == "tumor_presence_concordant"
+    assert c["corroboration"] == "high"
+    assert c["corroborating_independent_arm_count"] == 2
+    assert c["qualifying_signal"] is not None and c["qualifying_signal"]["source"] == "antibody_ihc"
+    e = _only_edge(c)  # exactly one pairwise edge among the two resolved arms
+    assert e["relation"] == "corroborates"
+    assert {e["from_source"], e["to_source"]} == {"bulk_rna", "sc_malignant"}
+
+
+def test_tumor_presence_concordance_single_source_only():
+    # only the bulk-RNA arm resolves → a degraded single-group read, never a corroborated presence claim.
+    c = _tpc(bulk_cls="broadly_high", sc_cls=None, ihc_cls=None)
+    assert c["concordance_class"] == "single_source_only"
+    assert c["corroboration"] == "single_arm"
+    assert c["concordance_support"]["resolved_by"] == "bulk_rna"
+    assert c["concordance_support"]["resolved_present"] is True
+    assert c["corroborating_independent_arm_count"] == 1
+    assert c["resolved_source_count"] == 1
+    assert c["dependence_edges"] == []  # a single resolved arm relates no two sources
+
+
+def test_tumor_presence_concordance_erasing_the_claim_takes_defeating_all_three_arms():
+    # defeat two arms — the third alone still emits (degraded).
+    assert _tpc(bulk_cls="broadly_high", sc_cls=None, ihc_cls=None)["concordance_class"] == "single_source_only"
+    # defeat ALL THREE independent arms → key omitted (byte-stable).
+    assert _tpc(bulk_cls=None, sc_cls=None, ihc_cls=None) is None
+    assert _tpc(bulk_cls="data_unavailable", sc_cls="data_unavailable", ihc_cls=None) is None
+
+
+def test_tumor_presence_concordance_key_omitted_when_no_arm_resolves():
+    cv = presence_claim_vector(_headline(), _tpc_cards(bulk_cls=None, sc_cls=None, ihc_cls=None))
+    assert "tumor_presence_concordance" not in cv  # byte-stable omission
+
+
+def test_tumor_presence_concordance_grain_is_first_class_and_differs_across_arms():
+    c = _tpc()
+    by = {s["source"]: s for s in c["source_support"]}
+    assert by["bulk_rna"]["grain"] == "bulk_rna (population-averaged tumor transcriptome)"
+    assert by["sc_malignant"]["grain"] == "sc_rna (single-cell MALIGNANT-compartment transcriptome)"
+    assert by["antibody_ihc"]["grain"] == "antibody_ihc (patient tissue-microarray immunostaining)"
+    # all three arms are INDEPENDENT modalities — every one corroboration-eligible, own group.
+    assert all(s["corroboration_eligible"] for s in c["source_support"])
+    groups = c["evidence_dependence"]["groups"]
+    assert all(g["relationship"] == "independent_modality" for g in groups) and len(groups) == 3
+
+
+def test_tumor_presence_concordance_retained_quantitative_recoverable():
+    c = _tpc()
+    by = {s["source"]: s for s in c["source_support"]}
+    assert by["bulk_rna"]["retained_quantitative"]["high_fraction"] == 0.82
+    assert by["sc_malignant"]["retained_quantitative"]["malignant_n_donors"] == 24
+    assert by["antibody_ihc"]["retained_quantitative"]["n_patients_total"] == 12
+
+
+def test_tumor_presence_concordance_non_finite_quant_demoted_to_none():
+    cards = _tpc_cards()
+    cards[0]["summary"]["high_fraction"] = float("inf")
+    c = _tumor_presence_concordance_claim(_by_id_for_test(cards))
+    by = {s["source"]: s for s in c["source_support"]}
+    assert by["bulk_rna"]["retained_quantitative"]["high_fraction"] is None
+
+
+def test_tumor_presence_concordance_presentation_signal_shape():
+    conc = _tpc()
+    assert _sr_signal_shape_ok(conc["positive_signal"])
+    assert conc["qualifying_signal"] is None
+    disagree = _tpc(bulk_cls="broadly_high", sc_cls="microenvironment_dominant", ihc_cls="ihc_detected_high")
+    assert _sr_signal_shape_ok(disagree["positive_signal"]) and _sr_signal_shape_ok(disagree["qualifying_signal"])
+
+
+def test_tumor_presence_concordance_typed_edges_reference_only_declared_source_nodes():
+    c = _tpc()
+    nodes = {s["source"] for s in c["source_support"]}
+    for e in c["dependence_edges"]:
+        assert {e["from_source"], e["to_source"]} <= nodes
+        assert e["relation"] in DEPENDENCE_RELATIONS
+
+
+def test_tumor_presence_concordance_is_verdict_inert_additive_key():
+    # The headline node is a NET-NEW additive L2b key that carries NO `signal` (never a chip/tier), reads no
+    # verdict and feeds no rule → the disclaimer names the verdict-inert contract. Unlike the protein family
+    # its three arms READ THE SAME CARDS as the base A-D letter claims (bulk RNA / single-cell), so a
+    # "defeat every arm and diff the spine" comparison is inapplicable (it would also blank claim A/C); the
+    # integration-level byte-stability of presence_verdict / presence_verdict_by_modality / the resolver
+    # goldens is proven by the epcam golden replay, not this unit.
+    cards = _tpc_cards()
+    cv = presence_claim_vector(_headline(), cards)
+    claim = cv["tumor_presence_concordance"]
+    assert "signal" not in claim
+    assert "verdict-INERT" in claim["_disclaimer"]
+    # the key is a pure ADDITION: absent from the vector when NO independent arm resolves (byte-stable
+    # omission), present only as the extra key when one does.
+    bare = presence_claim_vector(_headline(), _tpc_cards(bulk_cls=None, sc_cls=None, ihc_cls=None))
+    assert "tumor_presence_concordance" not in bare
+    assert "tumor_presence_concordance" in cv

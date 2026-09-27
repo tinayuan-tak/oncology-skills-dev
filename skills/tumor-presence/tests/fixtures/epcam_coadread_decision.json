@@ -915,6 +915,204 @@
         },
         "_disclaimer": "L2b CROSS-SOURCE integration claim (deterministic, no LLM) \u2014 verdict-INERT provenance: never a signal tier, never averaged into a claim, never feeds the presence_verdict, the presence_verdict_by_modality, or any resolver rung."
       },
+      "tumor_presence_concordance": {
+        "concordance_class": "tumor_presence_concordant",
+        "corroboration": "high",
+        "integration_method": "explicit_deterministic",
+        "grain": "tumor_presence (cross-source: bulk-RNA population average x single-cell malignant RNA x antibody-IHC protein)",
+        "resolved_source_count": 3,
+        "corroborating_independent_arm_count": 3,
+        "concordance_support": {
+          "agreed_direction": "present",
+          "agreeing_arms": [
+            "bulk_rna",
+            "sc_malignant",
+            "antibody_ihc"
+          ]
+        },
+        "source_support": [
+          {
+            "source": "bulk_rna",
+            "dependence_group": "bulk_rna",
+            "grain": "bulk_rna (population-averaged tumor transcriptome)",
+            "value": "present",
+            "presence_class": "broadly_high",
+            "present": true,
+            "resolved": true,
+            "quality_eligible": true,
+            "corroboration_eligible": true,
+            "provenance": {
+              "card_id": "tumor-rna-distribution",
+              "cohort": "bulk RNA-seq tumor cohort (population-averaged expression)"
+            },
+            "retained_quantitative": {
+              "high_fraction": 0.9970104633781763,
+              "n_tumor_samples": 669,
+              "median_tpm": null
+            }
+          },
+          {
+            "source": "sc_malignant",
+            "dependence_group": "sc_malignant",
+            "grain": "sc_rna (single-cell MALIGNANT-compartment transcriptome)",
+            "value": "present",
+            "presence_class": "malignant_broadly_detected",
+            "present": true,
+            "resolved": true,
+            "quality_eligible": true,
+            "corroboration_eligible": true,
+            "provenance": {
+              "card_id": "tumor-scrna-celltype-expression",
+              "cohort": "single-cell RNA malignant-compartment cohort (per-cell resolution)"
+            },
+            "retained_quantitative": {
+              "malignant_detection_fraction": 0.89476,
+              "malignant_n_donors": 361,
+              "malignant_n_cells": 509583
+            }
+          },
+          {
+            "source": "antibody_ihc",
+            "dependence_group": "antibody_ihc",
+            "grain": "antibody_ihc (patient tissue-microarray immunostaining)",
+            "value": "present",
+            "presence_class": "ihc_detected_high",
+            "present": true,
+            "resolved": true,
+            "quality_eligible": true,
+            "corroboration_eligible": true,
+            "provenance": {
+              "card_id": "hpa-pathology-cancer-ihc",
+              "cohort": "HPA Pathology antibody-IHC (patient tissue microarrays)"
+            },
+            "retained_quantitative": {
+              "fraction_detected": 1.0,
+              "staining_score": 3.0,
+              "n_patients_total": 12
+            }
+          }
+        ],
+        "dependence_edges": [
+          {
+            "from_source": "bulk_rna",
+            "to_source": "sc_malignant",
+            "relation": "corroborates",
+            "basis": "tumor_presence_concordant"
+          },
+          {
+            "from_source": "bulk_rna",
+            "to_source": "antibody_ihc",
+            "relation": "corroborates",
+            "basis": "tumor_presence_concordant"
+          },
+          {
+            "from_source": "sc_malignant",
+            "to_source": "antibody_ihc",
+            "relation": "corroborates",
+            "basis": "tumor_presence_concordant"
+          }
+        ],
+        "positive_signal": {
+          "statement": "3 INDEPENDENT measurement groups AGREE on the antigen is PRESENT in tumor (bulk-RNA (tumor RNA-seq distribution), single-cell malignant RNA (tumor scRNA compartment), antibody-IHC (HPA Pathology)) \u2014 a cross-source-corroborated tumor-presence read, far more credible than any single-assay call.",
+          "source": "bulk_rna",
+          "provenance_ref": "bulk_rna"
+        },
+        "qualifying_signal": null,
+        "boundary_sensitive": false,
+        "boundary_note": "tumor-presence corroborated by >=2 INDEPENDENT measurement groups agreeing",
+        "evidence_dependence": {
+          "groups": [
+            {
+              "members": [
+                "bulk_rna"
+              ],
+              "relationship": "independent_modality"
+            },
+            {
+              "members": [
+                "sc_malignant"
+              ],
+              "relationship": "independent_modality"
+            },
+            {
+              "members": [
+                "antibody_ihc"
+              ],
+              "relationship": "independent_modality"
+            }
+          ],
+          "note": "Three genuinely INDEPENDENT measurement groups: bulk RNA-seq (population-averaged transcriptome), single-cell MALIGNANT-compartment RNA (per-cell resolution, blind to the microenvironment bulk cannot separate) and antibody-IHC protein immunostaining. They differ in detection technology, grain and failure mode, so their agreement is real cross-source corroboration (3 independent groups \u2192 HIGH corroboration), not a within-assay restatement.",
+          "derived_sources": {}
+        },
+        "informs": "the headline cross-source tumor-presence property \u2014 an antigen that bulk RNA-seq, single-cell malignant RNA and antibody-IHC all detect is far more credible than a single-layer call; the three groups are genuinely independent (distinct technology, grain and failure mode), so their agreement is real corroboration and their disagreement is a surfaced caveat, never a negation",
+        "evidence": "bulk-RNA broadly_high x sc-malignant malignant_broadly_detected x antibody-IHC ihc_detected_high: AGREE on the tumor-presence call",
+        "provenance": {
+          "sources": [
+            {
+              "source": "bulk_rna",
+              "dependence_group": "bulk_rna",
+              "grain": "bulk_rna (population-averaged tumor transcriptome)",
+              "value": "present",
+              "presence_class": "broadly_high",
+              "present": true,
+              "resolved": true,
+              "quality_eligible": true,
+              "corroboration_eligible": true,
+              "provenance": {
+                "card_id": "tumor-rna-distribution",
+                "cohort": "bulk RNA-seq tumor cohort (population-averaged expression)"
+              },
+              "retained_quantitative": {
+                "high_fraction": 0.9970104633781763,
+                "n_tumor_samples": 669,
+                "median_tpm": null
+              }
+            },
+            {
+              "source": "sc_malignant",
+              "dependence_group": "sc_malignant",
+              "grain": "sc_rna (single-cell MALIGNANT-compartment transcriptome)",
+              "value": "present",
+              "presence_class": "malignant_broadly_detected",
+              "present": true,
+              "resolved": true,
+              "quality_eligible": true,
+              "corroboration_eligible": true,
+              "provenance": {
+                "card_id": "tumor-scrna-celltype-expression",
+                "cohort": "single-cell RNA malignant-compartment cohort (per-cell resolution)"
+              },
+              "retained_quantitative": {
+                "malignant_detection_fraction": 0.89476,
+                "malignant_n_donors": 361,
+                "malignant_n_cells": 509583
+              }
+            },
+            {
+              "source": "antibody_ihc",
+              "dependence_group": "antibody_ihc",
+              "grain": "antibody_ihc (patient tissue-microarray immunostaining)",
+              "value": "present",
+              "presence_class": "ihc_detected_high",
+              "present": true,
+              "resolved": true,
+              "quality_eligible": true,
+              "corroboration_eligible": true,
+              "provenance": {
+                "card_id": "hpa-pathology-cancer-ihc",
+                "cohort": "HPA Pathology antibody-IHC (patient tissue microarrays)"
+              },
+              "retained_quantitative": {
+                "fraction_detected": 1.0,
+                "staining_score": 3.0,
+                "n_patients_total": 12
+              }
+            }
+          ],
+          "independence_note": "Bulk RNA-seq (population-averaged tumor transcriptome), single-cell MALIGNANT-compartment RNA (per-cell resolution, resolving the malignant fraction bulk cannot separate from the microenvironment) and antibody-IHC protein immunostaining (HPA Pathology) are three genuinely INDEPENDENT tumor-presence layers: different detection technology (RNA sequencing vs single-cell RNA vs antibody immunostaining), different grain (population-average vs single-cell vs per-patient stain) and different failure modes, so their agreement is real cross-source corroboration, not a within-assay restatement. There are NO same-modality dependent siblings in this family \u2014 all three arms are independent modalities, so resolved_source_count == corroborating_independent_arm_count. The antibody-IHC arm reuses the single-patient noise-floor gap (a lone stained patient is not a resolved detection)."
+        },
+        "_disclaimer": "L2b CROSS-SOURCE integration claim (deterministic, no LLM) \u2014 verdict-INERT provenance: never a signal tier, never averaged into a claim, never feeds the presence_verdict, the presence_verdict_by_modality, certainty.level, or any resolver rung."
+      },
       "cellline_heterogeneity_lineage_qualifier": {
         "qualifier_class": "cellline_heterogeneity_is_cross_lineage",
         "applies_to": "cellline_rna_panel",

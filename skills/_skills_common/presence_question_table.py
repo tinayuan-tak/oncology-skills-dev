@@ -612,6 +612,48 @@ def _protein_presence_concordance_integrated_signal(claim: dict) -> dict:
     }
 
 
+def _tumor_presence_concordance_integrated_signal(claim: dict) -> dict:
+    """Project the HEADLINE L2b `tumor_presence_concordance` claim (presence_claims.py, built by SK#1867)
+    into a verdict-INERT, two-directional presentation payload for the Q1 (headline) row. This is the
+    CENTRAL tumor-presence concept of the Arm-B prototype — the tumor-presence property integrated across
+    the THREE INDEPENDENT measurement groups (bulk-RNA / single-cell malignant RNA / antibody-IHC) with
+    real independence-group corroboration. Surfaces both directions (the cross-source-corroborated presence
+    read + the discordance / single-group caveat), the honest corroboration/boundary-sensitivity
+    annotation, and the source_support so a consumer renders the integrated read WITHOUT prose-parsing.
+    Carries NO signal tier / polarity / fill — it never routes the verdict; it is the answer's cross-source
+    annotation, not a meter cell. Mirrors the sibling `_protein_presence_concordance_integrated_signal`.
+    Attached under the DISTINCT key `l2b_integrated_signal` — Q1 already carries the priority-frame
+    `integrated_signal` (#1854) and the `forward_question` (#1855), so this NET-NEW key never touches
+    either."""
+    qual = claim.get("qualifying_signal")
+    pos = claim.get("positive_signal") or {}
+    boundary = bool(claim.get("boundary_sensitive"))
+    if qual:
+        headline = f"{pos.get('statement', '')} However — {qual.get('statement', '')}"
+    else:
+        headline = (
+            f"{pos.get('statement', '')} All resolved INDEPENDENT measurement groups AGREE on the "
+            "tumor-presence call (cross-source corroboration)."
+        )
+    if boundary:
+        headline += f" [boundary-sensitive: {claim.get('boundary_note', '')}]"
+    return {
+        "kind": "tumor_presence_concordance",
+        "concordance_class": claim.get("concordance_class"),
+        "corroboration": claim.get("corroboration"),
+        "grain": claim.get("grain"),
+        "resolved_source_count": claim.get("resolved_source_count"),
+        "corroborating_independent_arm_count": claim.get("corroborating_independent_arm_count"),
+        "boundary_sensitive": boundary,
+        "boundary_note": claim.get("boundary_note"),
+        "positive_signal": pos or None,
+        "qualifying_signal": qual,
+        "source_support": claim.get("source_support"),
+        "headline": headline,
+        "provenance_ref": "claim_vector.tumor_presence_concordance",
+    }
+
+
 def _q7_intrinsic(h, c, cv):
     cc = cv.get("C", {})
     tier, corr = cc.get("signal", "unmeasured"), cc.get("corroboration", "unmeasured")
@@ -738,6 +780,20 @@ def presence_question_table(headline: dict, cards: list, claim_vector: Optional[
         _q6_concordance(headline, c, cv),
         _q7_intrinsic(headline, c, cv),
     ]
+    # SK#1867 HEADLINE L2b: SURFACE the `tumor_presence_concordance` claim (the central tumor-presence
+    # concept — bulk-RNA x single-cell malignant RNA x antibody-IHC, integrated with real independence-
+    # group corroboration) as a verdict-INERT cross-source annotation on the Q1 (headline) row, under the
+    # DISTINCT key `l2b_integrated_signal`. Q1 already carries the priority-frame `integrated_signal`
+    # (#1854) and the L4 `forward_question` (#1855); this NET-NEW key never touches either. Gated on MY
+    # claim resolving (>=1 independent arm) — NOT on the coverage anchor — and attached only then (key
+    # omitted otherwise → row byte-stable). Reads only the ALREADY-BUILT claim vector, so it perturbs no
+    # meter cell and no verdict.
+    _tpi = (cv or {}).get("tumor_presence_concordance")
+    if _tpi:
+        for r in rows:
+            if r.get("id") == "Q1":
+                r["l2b_integrated_signal"] = _tumor_presence_concordance_integrated_signal(_tpi)
+                break
     # SK#1842 L3→production (2nd domain): when the L2b `bulk_vs_singlecell_coverage_concordance` claim
     # resolves (the frame's REQUIRED anchor input), evaluate the `corroborated_tumor_presence` L3
     # PRESENCE_FRAME over the already-emitted presence typed evidence (coverage + abundance on the pooled

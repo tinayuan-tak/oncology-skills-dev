@@ -616,6 +616,20 @@ _DECLARED_PRESENCE_CORROBORATION_BUILDERS = {
         "so corroboration_from_arms folds EXACTLY [antibody_arm, mass_spec_arm] — never a cell-line MS "
         "third arm."
     ),
+    "_tumor_presence_concordance_claim": (
+        "bulk-RNA tumor presence (`tumor-rna-distribution.tumor_expression_class`, population-averaged "
+        "transcriptome) × single-cell MALIGNANT-compartment presence "
+        "(`tumor-scrna-celltype-expression.sc_expression_class`, per-cell resolution) × antibody-IHC "
+        "protein presence (`hpa-pathology-cancer-ihc`, per-patient staining, reusing `_ihc_presence_call`) "
+        "— the THREE INDEPENDENT arms of the HEADLINE L2b tumor_presence_integration family (SK#1867, the "
+        "Arm-B prototype's central `tumor_presence = tumor_rna + sc_malignant + ihc` node). Three reads of "
+        "the SAME tumor-presence property at DIFFERENT detection layers (population-averaged RNA vs single-"
+        "cell malignant RNA vs antibody immunostaining), different grain and independent failure modes — "
+        "commensurate by same-property, cross-source. Each arm is its OWN independent modality group; there "
+        "are NO same-modality dependent siblings in this family, so corroboration_from_arms folds EXACTLY "
+        "[bulk_rna_arm, sc_malignant_arm, antibody_ihc_arm] — three genuinely independent groups → HIGH "
+        "corroboration when they agree."
+    ),
 }
 
 

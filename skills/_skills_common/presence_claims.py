@@ -1286,6 +1286,16 @@ def presence_claim_vector(headline: dict, cards: list) -> dict:
     _pp = _protein_presence_concordance_claim(c)
     if _pp is not None:
         vec["protein_presence_concordance"] = _pp
+    # HEADLINE L2b integrated node (SK#1867, epic #1507 Arm B gap b): the central tumor_presence concept
+    # from the prototype preregistration — the tumor-PRESENCE property integrated across the THREE
+    # INDEPENDENT measurement groups (bulk-RNA / single-cell malignant RNA / protein antibody-IHC), with
+    # real independence-group corroboration ("N independent groups agree → HIGH corroboration"). Carries
+    # NO `signal` key → not a chip, not a tier; OMITTED unless >=1 independent arm resolves, keeping a
+    # card-absent run byte-stable — matching the A/B/C/D + expression_properties + concordance atom
+    # discipline above.
+    _tpi = _tumor_presence_concordance_claim(c)
+    if _tpi is not None:
+        vec["tumor_presence_concordance"] = _tpi
     # Per-source lineage-dilution QUALIFIER (SK#1869, epic #1507 Arm B): binds the cell-line-RNA panel's
     # heterogeneity + lineage census into the "cross-lineage identity, NOT within-tumour escape" caveat
     # (the prototype M2 trap). Carries NO `signal` key → not a chip, not a tier; OMITTED unless the panel
@@ -2049,6 +2059,16 @@ def _subtype_restriction_concordance_claim(c: dict) -> "dict | None":
 # tumor-presence/scripts/run.py::_IHC_PRESENT_VERDICTS / _IHC_ABSENT_VERDICT).
 _IHC_PRESENT_CLASSES = frozenset({"ihc_detected_high", "ihc_detected_moderate", "ihc_detected_low"})
 _IHC_ABSENT_CLASS = "ihc_not_detected"
+# BULK-RNA arm partition of tumor-rna-distribution.tumor_expression_class. PRESENT = any tumor-detected
+# class (broad or subset); broadly_low is a MEASURED non-detection; data_unavailable/absent → unresolved.
+_BULK_RNA_PRESENT_CLASSES = frozenset({"broadly_high", "broadly_detected", "broadly_moderate", "subset_high"})
+_BULK_RNA_ABSENT_CLASS = "broadly_low"
+# SINGLE-CELL MALIGNANT arm partition of tumor-scrna-celltype-expression.sc_expression_class. The PRESENT
+# set MIRRORS run.py `_SC_MALIGNANT_CONFIRMED` (kept as a local literal to avoid a reverse import of the
+# tumor-presence skill's run.py into _skills_common — the #1851 idiom for _IHC_PRESENT_CLASSES). The
+# measured-absent set is a malignant-compartment non-detection (the antigen sits off the malignant cells).
+_SC_MALIGNANT_PRESENT_CLASSES = frozenset({"malignant_broadly_detected", "malignant_subset_detected"})
+_SC_MALIGNANT_ABSENT_CLASSES = frozenset({"microenvironment_dominant", "broadly_low"})
 # CPTAC (tumor) primary + cell-line MS siblings, in MS-arm preference order. All three are mass-spec (ONE
 # modality); CPTAC supplies the arm value, the cell-line siblings are corroboration-ineligible.
 _MS_PRESENCE_SOURCES = (
@@ -2429,6 +2449,377 @@ def _protein_presence_concordance_claim(c: dict) -> "dict | None":
             "L2b CROSS-SOURCE integration claim (deterministic, no LLM) — verdict-INERT provenance: never "
             "a signal tier, never averaged into a claim, never feeds the presence_verdict, the "
             "presence_verdict_by_modality, or any resolver rung."
+        ),
+    }
+
+
+def _bulk_rna_presence_call(s: dict):
+    """The BULK-RNA arm's OWN tumor-presence call from tumor-rna-distribution.tumor_expression_class.
+    Returns (resolved: bool, present: bool|None). A tumor-detected class (broadly_high / broadly_detected /
+    broadly_moderate / subset_high) is a MEASURED detection (present=True); `broadly_low` is a MEASURED
+    population-averaged non-detection (present=False); data_unavailable / absent is unresolved (None)."""
+    cls = s.get("tumor_expression_class")
+    if cls in _BULK_RNA_PRESENT_CLASSES:
+        return True, True
+    if cls == _BULK_RNA_ABSENT_CLASS:
+        return True, False
+    return False, None
+
+
+def _sc_malignant_presence_call(s: dict):
+    """The SINGLE-CELL MALIGNANT arm's OWN tumor-presence call from
+    tumor-scrna-celltype-expression.sc_expression_class. Returns (resolved: bool, present: bool|None). A
+    malignant-detected class (malignant_broadly_detected / malignant_subset_detected) is a MEASURED
+    malignant-cell detection (present=True); microenvironment_dominant / broadly_low are MEASURED malignant
+    non-detections (present=False — the antigen is off the malignant compartment, a genuinely different
+    read from bulk-RNA presence); data_unavailable / absent is unresolved (None)."""
+    cls = s.get("sc_expression_class")
+    if cls in _SC_MALIGNANT_PRESENT_CLASSES:
+        return True, True
+    if cls in _SC_MALIGNANT_ABSENT_CLASSES:
+        return True, False
+    return False, None
+
+
+# The three INDEPENDENT tumor-presence measurement groups of the Arm-B prototype, in a stable arm order.
+# key → (card_id, present-call helper, grain label, cohort label).
+_TPI_ARMS = (
+    (
+        "bulk_rna",
+        "tumor-rna-distribution",
+        _bulk_rna_presence_call,
+        "bulk_rna (population-averaged tumor transcriptome)",
+        "bulk RNA-seq tumor cohort (population-averaged expression)",
+    ),
+    (
+        "sc_malignant",
+        "tumor-scrna-celltype-expression",
+        _sc_malignant_presence_call,
+        "sc_rna (single-cell MALIGNANT-compartment transcriptome)",
+        "single-cell RNA malignant-compartment cohort (per-cell resolution)",
+    ),
+    (
+        "antibody_ihc",
+        "hpa-pathology-cancer-ihc",
+        _ihc_presence_call,
+        "antibody_ihc (patient tissue-microarray immunostaining)",
+        "HPA Pathology antibody-IHC (patient tissue microarrays)",
+    ),
+)
+_TPI_ARM_NAME = {
+    "bulk_rna": "bulk-RNA (tumor RNA-seq distribution)",
+    "sc_malignant": "single-cell malignant RNA (tumor scRNA compartment)",
+    "antibody_ihc": "antibody-IHC (HPA Pathology)",
+}
+_TPI_ARM_CLASS_FIELD = {
+    "bulk_rna": "tumor_expression_class",
+    "sc_malignant": "sc_expression_class",
+    "antibody_ihc": "protein_presence_class",
+}
+# The retained_quantitative companions each arm carries (verdict-inert numeric context, NaN/Inf → None).
+_TPI_ARM_QUANT = {
+    "bulk_rna": ("high_fraction", "n_tumor_samples", "median_tpm"),
+    "sc_malignant": ("malignant_detection_fraction", "malignant_n_donors", "malignant_n_cells"),
+    "antibody_ihc": ("fraction_detected", "staining_score", "n_patients_total"),
+}
+
+
+def _tumor_presence_concordance_claim(c: dict) -> "dict | None":
+    """HEADLINE L2b CROSS-SOURCE integration claim: `tumor_presence_concordance` — the central
+    tumor-PRESENCE property of the Arm-B prototype (`preregistration.md`:
+    `tumor_presence = broadly_homogeneously_present <- tumor_rna + sc_malignant + ihc [corroborates; 3
+    independent groups (bulk-RNA / sc-RNA / protein-IHC) -> HIGH corroboration]`).
+
+    Integrates THREE genuinely INDEPENDENT measurement groups by an EXPLICIT DETERMINISTIC rule (no LLM;
+    L2b is reproducible by contract — docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md):
+      * BULK-RNA        — tumor-rna-distribution.tumor_expression_class (population-averaged transcriptome);
+      * SC-MALIGNANT    — tumor-scrna-celltype-expression.sc_expression_class (single-cell MALIGNANT
+        compartment — a genuinely different detection layer from bulk, blind to the microenvironment);
+      * PROTEIN-IHC     — hpa-pathology-cancer-ihc antibody immunostaining (reuses `_ihc_presence_call`,
+        including the single-patient noise-floor gap).
+
+    Each is its OWN independent modality group (transcriptome population-average vs single-cell malignant
+    transcriptome vs antibody immunostaining differ in detection technology, grain and failure mode), so
+    all three arms are corroboration-eligible — there are NO same-modality dependent siblings here (the
+    pure 3-independent-arm realization the prototype names).
+
+    Concordance class:
+      * tumor_presence_concordant  — >=2 independent arms resolve and ALL agree on the presence direction
+        (the agreed direction is carried, never collapsed);
+      * tumor_presence_discordant  — >=2 independent arms resolve and they DISAGREE (>=1 detects, >=1 a
+        MEASURED non-detection) — a caveat to surface (bulk-RNA presence, single-cell malignant escape and
+        antibody detectability are distinct failure modes), NEVER a present/absent negation;
+      * single_source_only         — exactly ONE independent arm resolves — a degraded read that NAMES the
+        resolved layer, not a corroborated presence claim.
+
+    Corroboration is the shared MEASURED-ARM frame over the independent arms: all resolved arms agreeing ->
+    high (needs >=2), any disagreement -> low, one measured arm -> single_arm, none -> unmeasured. A
+    single-arm mutation only DEGRADES to `single_source_only`; ERASING the claim (key omitted, byte-stable)
+    takes defeating ALL THREE independent arms.
+
+    VERDICT-INERT (epic #1507, the point of the L2b layer): carries NO `signal` key (never a chip, never a
+    tier, never averaged), reads no verdict, feeds NO rule / veto / resolver rung and NEVER moves
+    presence_verdict, presence_verdict_by_modality, or certainty.level. Returns None — key omitted,
+    byte-stable — when NO independent arm resolves."""
+    # per-arm (resolved, present, raw-summary), preserving the stable arm order.
+    arm_state = {}
+    for key, card_id, call, _grain, _cohort in _TPI_ARMS:
+        s = c.get(card_id, {}) or {}
+        r, p = call(s)
+        arm_state[key] = (r, p, s)
+
+    resolved = [(key, arm_state[key][1]) for key, *_ in _TPI_ARMS if arm_state[key][0]]
+    if not resolved:
+        return None  # no independent arm resolves → key omitted (byte-stable)
+
+    present_values = {p for _k, p in resolved}
+    all_agree = len(present_values) == 1
+
+    if len(resolved) == 1:
+        concordance = "single_source_only"
+    elif all_agree:
+        concordance = "tumor_presence_concordant"
+    else:
+        concordance = "tumor_presence_discordant"
+
+    # ── corroboration over the INDEPENDENT arms via the shared measured-arm frame ────────────────────
+    # Agreement encoding: unresolved arm -> None (dropped); when the resolved arms all agree, each is True;
+    # on a split the majority-direction arms read True and the dissenter(s) False (any False -> low). The
+    # majority pick only decides WHICH arm is labelled the dissenter — the tier is invariant to it (a
+    # single disagreement lands at low regardless), so a tie is resolved deterministically toward present.
+    if all_agree:
+        agreement = [True if arm_state[key][0] else None for key, *_ in _TPI_ARMS]
+    else:
+        n_present = sum(1 for _k, p in resolved if p is True)
+        n_absent = sum(1 for _k, p in resolved if p is False)
+        majority_present = n_present >= n_absent  # tie → present is the reference direction
+        agreement = []
+        for key, *_ in _TPI_ARMS:
+            r, p, _s = arm_state[key]
+            if not r:
+                agreement.append(None)
+            else:
+                agreement.append(p is majority_present)
+    corroboration = _corr_from_arms(agreement)
+
+    # ── the envelope's TWO COUNTS ────────────────────────────────────────────────────────────────────
+    # Every arm is an INDEPENDENT modality (no dependent same-modality siblings in this family), so the two
+    # counts coincide: the count of resolved independent arms IS the count of resolved sources. Both are
+    # emitted (the shared envelope shape) so the "no dependent siblings here" fact is legible as gap == 0.
+    corroborating_independent_arm_count = len(resolved)
+    resolved_source_count = len(resolved)
+
+    def _present_label(present):
+        return "present" if present else ("measured_not_present" if present is False else "data_unavailable")
+
+    _arm_meta = {k: (card_id, g, ch) for k, card_id, _call, g, ch in _TPI_ARMS}
+
+    def _arm_support(key):
+        card_id, grain, cohort = _arm_meta[key]
+        r, p, s = arm_state[key]
+        qa, qb, qc = _TPI_ARM_QUANT[key]
+        return {
+            "source": key,
+            "dependence_group": key,  # each arm is its own independent modality group
+            "grain": grain,
+            "value": _present_label(p) if r else "data_unavailable",
+            "presence_class": s.get(_TPI_ARM_CLASS_FIELD[key]),
+            "present": p,
+            "resolved": r,
+            "quality_eligible": r,
+            "corroboration_eligible": True,  # all three arms are independent modalities
+            "provenance": {"card_id": card_id, "cohort": cohort},
+            "retained_quantitative": {
+                qa: _fin(s.get(qa)),
+                qb: _fin(s.get(qb)),
+                qc: _fin(s.get(qc)),
+            },
+        }
+
+    # All three arms ALWAYS appear (the definitional independent triad — an absent arm shows resolved:False),
+    # matching the protein_presence_concordance discipline of surfacing the full arm set.
+    source_support = [_arm_support(key) for key, *_ in _TPI_ARMS]
+    evidence_dependence = {
+        "groups": [{"members": [key], "relationship": "independent_modality"} for key, *_ in _TPI_ARMS],
+        "note": (
+            "Three genuinely INDEPENDENT measurement groups: bulk RNA-seq (population-averaged "
+            "transcriptome), single-cell MALIGNANT-compartment RNA (per-cell resolution, blind to the "
+            "microenvironment bulk cannot separate) and antibody-IHC protein immunostaining. They differ "
+            "in detection technology, grain and failure mode, so their agreement is real cross-source "
+            "corroboration (3 independent groups → HIGH corroboration), not a within-assay restatement."
+        ),
+        "derived_sources": {},
+    }
+
+    # ── TYPED cross-source dependence edges (SK#1866) ─────────────────────────────────────────────────
+    # Pairwise edges among the RESOLVED independent arms only: `corroborates` when the pair agrees on the
+    # presence call, `qualifies` when they disagree (assay/layer divergence — a caveat, not a negation).
+    # A single resolved arm relates no two sources → NO edge. Verdict-inert.
+    dependence_edges = []
+    for i in range(len(resolved)):
+        for j in range(i + 1, len(resolved)):
+            a_key, a_present = resolved[i]
+            b_key, b_present = resolved[j]
+            dependence_edges.append(
+                _concordance_edge(a_key, b_key, concordant=(a_present == b_present), basis=concordance)
+            )
+
+    # ── which-arm payload — the disagreement / degraded single arm is NAMED, never collapsed ──────────
+    if concordance == "tumor_presence_concordant":
+        agreed_present = next(iter(present_values))
+        concordance_support = {
+            "agreed_direction": _present_label(agreed_present),
+            "agreeing_arms": [k for k, _p in resolved],
+        }
+    elif concordance == "tumor_presence_discordant":
+        concordance_support = {
+            "detected_in": [k for k, p in resolved if p is True],
+            "not_detected_in": [k for k, p in resolved if p is False],
+        }
+    else:  # single_source_only
+        name, present = resolved[0]
+        concordance_support = {
+            "resolved_by": name,
+            "resolved_call": _present_label(present),
+            "resolved_present": present,
+        }
+
+    # ── PRESENTATION-SUPPORT fields (L2b→L3) — surface-consumption, NOT verdict-routing ───────────────
+    boundary_sensitive = corroboration != "high"
+    gaps = [k for k, *_ in _TPI_ARMS if not arm_state[k][0]]
+    _gap_text = (
+        ", ".join(_TPI_ARM_NAME[k] for k in gaps) + (" is a gap" if len(gaps) == 1 else " are gaps")
+        if gaps
+        else "all three independent arms resolve"
+    )
+
+    if concordance == "tumor_presence_concordant":
+        agreed_present = next(iter(present_values))
+        _dir_text = "the antigen is PRESENT in tumor" if agreed_present else "a MEASURED tumor non-detection"
+        positive_signal = {
+            "statement": (
+                f"{len(resolved)} INDEPENDENT measurement groups AGREE on {_dir_text} "
+                f"({', '.join(_TPI_ARM_NAME[k] for k, _p in resolved)}) — a cross-source-corroborated "
+                "tumor-presence read, far more credible than any single-assay call."
+            ),
+            "source": resolved[0][0],
+            "provenance_ref": resolved[0][0],
+        }
+        qualifying_signal = (
+            None
+            if not gaps
+            else {
+                "statement": (
+                    f"{_gap_text} (unmeasured/unresolved) — the corroboration rests on the resolved arms; "
+                    "the missing arm(s) are not counted for or against."
+                ),
+                "source": gaps[0],
+                "provenance_ref": gaps[0],
+            }
+        )
+    elif concordance == "tumor_presence_discordant":
+        det = concordance_support["detected_in"]
+        absent = concordance_support["not_detected_in"]
+        positive_signal = {
+            "statement": (
+                f"{', '.join(_TPI_ARM_NAME[k] for k in det)} detect(s) the antigen — a tumor-present signal "
+                "in these independent measurement group(s)."
+            ),
+            "source": det[0],
+            "provenance_ref": det[0],
+        }
+        qualifying_signal = {
+            "statement": (
+                f"{', '.join(_TPI_ARM_NAME[k] for k in absent)} report(s) a MEASURED non-detection — the "
+                "independent groups DISAGREE. Bulk-RNA population averaging, single-cell malignant-"
+                "compartment escape and antibody detectability are distinct failure modes, so a group-"
+                "specific detection is a caveat to surface, not a tumor-absent conclusion."
+            ),
+            "source": absent[0],
+            "provenance_ref": absent[0],
+        }
+    else:  # single_source_only
+        name, present = resolved[0]
+        positive_signal = {
+            "statement": (
+                f"{_TPI_ARM_NAME[name]} reports "
+                f"{'the antigen is PRESENT in tumor' if present else 'a MEASURED tumor non-detection'} — the "
+                "sole independent measurement group that resolves."
+            ),
+            "source": name,
+            "provenance_ref": name,
+        }
+        qualifying_signal = {
+            "statement": (
+                f"Only {_TPI_ARM_NAME[name]} resolves; {_gap_text} — a degraded single-group read, NOT "
+                "cross-source corroboration."
+            ),
+            "source": gaps[0] if gaps else name,
+            "provenance_ref": gaps[0] if gaps else name,
+        }
+
+    _PHRASE = {
+        "tumor_presence_concordant": "AGREE on the tumor-presence call",
+        "tumor_presence_discordant": "DISAGREE on the tumor-presence call (assay/layer divergence)",
+        "single_source_only": "only one independent measurement group resolves",
+    }
+
+    def _cls_or(key):
+        return arm_state[key][2].get(_TPI_ARM_CLASS_FIELD[key]) or "data_unavailable"
+
+    return {
+        "concordance_class": concordance,
+        "corroboration": corroboration,
+        "integration_method": "explicit_deterministic",
+        "grain": (
+            "tumor_presence (cross-source: bulk-RNA population average x single-cell malignant RNA x "
+            "antibody-IHC protein)"
+        ),
+        "resolved_source_count": resolved_source_count,
+        "corroborating_independent_arm_count": corroborating_independent_arm_count,
+        "concordance_support": concordance_support,
+        "source_support": source_support,
+        "dependence_edges": dependence_edges,
+        "positive_signal": positive_signal,
+        "qualifying_signal": qualifying_signal,
+        "boundary_sensitive": boundary_sensitive,
+        "boundary_note": (
+            "tumor-presence integration rests on fewer than two agreeing independent arms (single_arm / "
+            "low corroboration) — treat as near-boundary, not a flat cross-source assertion"
+            if boundary_sensitive
+            else "tumor-presence corroborated by >=2 INDEPENDENT measurement groups agreeing"
+        ),
+        "evidence_dependence": evidence_dependence,
+        "informs": (
+            "the headline cross-source tumor-presence property — an antigen that bulk RNA-seq, single-cell "
+            "malignant RNA and antibody-IHC all detect is far more credible than a single-layer call; the "
+            "three groups are genuinely independent (distinct technology, grain and failure mode), so their "
+            "agreement is real corroboration and their disagreement is a surfaced caveat, never a negation"
+        ),
+        "evidence": (
+            f"bulk-RNA {_cls_or('bulk_rna')} x sc-malignant {_cls_or('sc_malignant')} x antibody-IHC "
+            f"{_cls_or('antibody_ihc')}: {_PHRASE[concordance]}"
+        ),
+        "provenance": {
+            "sources": source_support,
+            "independence_note": (
+                "Bulk RNA-seq (population-averaged tumor transcriptome), single-cell MALIGNANT-compartment "
+                "RNA (per-cell resolution, resolving the malignant fraction bulk cannot separate from the "
+                "microenvironment) and antibody-IHC protein immunostaining (HPA Pathology) are three "
+                "genuinely INDEPENDENT tumor-presence layers: different detection technology (RNA "
+                "sequencing vs single-cell RNA vs antibody immunostaining), different grain "
+                "(population-average vs single-cell vs per-patient stain) and different failure modes, so "
+                "their agreement is real cross-source corroboration, not a within-assay restatement. There "
+                "are NO same-modality dependent siblings in this family — all three arms are independent "
+                "modalities, so resolved_source_count == corroborating_independent_arm_count. The "
+                "antibody-IHC arm reuses the single-patient noise-floor gap (a lone stained patient is not "
+                "a resolved detection)."
+            ),
+        },
+        "_disclaimer": (
+            "L2b CROSS-SOURCE integration claim (deterministic, no LLM) — verdict-INERT provenance: never "
+            "a signal tier, never averaged into a claim, never feeds the presence_verdict, the "
+            "presence_verdict_by_modality, certainty.level, or any resolver rung."
         ),
     }
 
