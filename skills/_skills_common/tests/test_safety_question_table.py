@@ -26,6 +26,7 @@ def _safe_headline():
         "dosage_sensitivity_class": "dosage_sufficient",
         "mouse_ko_phenotype_class": "no_phenotype",
         "clinvar_pathogenic_class": "no_pathogenic_signal",
+        "dependency_class": "non_dependent",  # not broadly essential → window exists → safe-valence strong
         "essential_tissue_flag": "absent",  # measured clean → safe-valence strong
     }
 
@@ -39,13 +40,22 @@ def _liability_headline():
         "dosage_sensitivity_class": "autosomal_dominant_loss",
         "mouse_ko_phenotype_class": "lethal_ko",
         "clinvar_pathogenic_class": "germline_pathogenic",
+        "dependency_class": "common_essential",  # broadly essential → broad-tox liability → absent
         "essential_tissue_flag": "present",  # essential-tissue protein → liability → absent
     }
 
 
 def test_rows_in_order():
     rows = safety_question_table(_safe_headline())
-    assert [r["id"] for r in rows] == ["Constraint", "Burden", "Dosage", "Mouse-KO", "ClinVar", "Normal-tissue"]
+    assert [r["id"] for r in rows] == [
+        "Constraint",
+        "Burden",
+        "Dosage",
+        "Mouse-KO",
+        "ClinVar",
+        "Pan-essential",
+        "Normal-tissue",
+    ]
 
 
 def test_safe_target_all_strong():
@@ -65,6 +75,7 @@ def test_indeterminate_and_missing_are_unmeasured():
     assert rows["Constraint"]["signal"]["tier"] == "unmeasured"
     assert rows["Burden"]["signal"]["tier"] == "unmeasured"
     assert rows["ClinVar"]["signal"]["tier"] == "unmeasured"  # missing field → named gap
+    assert rows["Pan-essential"]["signal"]["tier"] == "unmeasured"  # missing dependency_class → named gap
     assert rows["Normal-tissue"]["signal"]["tier"] == "unmeasured"  # no flag/breadth → named gap
     assert "integrated_signal" not in rows["Normal-tissue"]  # no claim → no annotation (row byte-stable)
 

@@ -76,6 +76,20 @@ _NORMAL_TISSUE = {
 }
 _NORMAL_TISSUE_BREADTH = {"broad_normal_expression": "weak"}  # measured moderate off-tumour liability
 
+# PAN-ESSENTIAL broad-tox leg. SAFE-valence, INVERTED from the claim vector's liability-valence
+# (safety_claims._PANESS_SIGNAL): a broadly/commonly-essential gene is a broad-tox on-target liability
+# (concern → `absent`); a selective/non-dependent read means a therapeutic window exists (safe → `strong`);
+# underpowered/unavailable → an unmeasured named gap.
+_PAN_ESSENTIAL = {
+    "common_essential": "absent",  # broad-tox liability (concern)
+    "broadly_dependent": "weak",  # dependent in many (not pan) lineages → partial-breadth liability
+    "common_essential_underpowered": "weak",
+    "strongly_selective": "strong",  # MEASURED: selective → a window exists (safe)
+    "non_dependent": "strong",  # MEASURED: not dependent → safe
+    "non_dependent_underpowered": "unmeasured",
+    "data_unavailable": "unmeasured",
+}
+
 # (row id, sub-question [framed as tolerant/safe], headline field, value→tier map)
 _ROWS = [
     ("Constraint", "LoF-tolerant in gnomAD (not constrained)?", "constraint_class", _CONSTRAINT),
@@ -83,13 +97,14 @@ _ROWS = [
     ("Dosage", "Dosage-tolerant (not ClinGen haploinsufficient)?", "dosage_sensitivity_class", _DOSAGE),
     ("Mouse-KO", "Mouse knockout viable (not lethal)?", "mouse_ko_phenotype_class", _MOUSE),
     ("ClinVar", "No germline pathogenic variants?", "clinvar_pathogenic_class", _CLINVAR),
+    ("Pan-essential", "Not broadly essential (a dependency window exists)?", "dependency_class", _PAN_ESSENTIAL),
 ]
 
 
 def _tier(mapping: dict, val) -> str:
     if val in (None, "", "indeterminate", "insufficient"):
         return "unmeasured"
-    return mapping.get(str(val), "weak")
+    return mapping.get(str(val), "unmeasured")
 
 
 def _normal_tissue_leg(h: dict) -> "tuple[str, str]":
@@ -139,7 +154,11 @@ def safety_question_table(headline: dict, cards: Optional[list] = None) -> list:
     an unmeasured row (never omitted), so the hero always shows the full axis + which leg is a named gap.
     strong = LoF-tolerant (safe); absent = a safety liability.
 
-    SK#1582 G3.2: a 6th Normal-tissue row presents the HPA-IHC essential-tissue leg and — when the L2b-3
+    #1574: the hero now covers all 7 verdict-driving legs (HeadlineSpec.axis_keys) — a Pan-essential row
+    (`dependency_class`, broad-tox liability, safe-valence inverted from safety_claims._PANESS_SIGNAL) and
+    the Normal-tissue row below, so a verdict resolving on either omitted leg is no longer shown fully SAFE.
+
+    SK#1582 G3.2: a Normal-tissue row presents the HPA-IHC essential-tissue leg and — when the L2b-3
     `normal_liability_concordance` claim resolves on `headline['claim_vector']` — SURFACES it as a
     first-class cross-source `integrated_signal` annotation (emitted by SK#1546, read by nothing until
     now). Verdict-inert: the row's signal/confidence meter cells carry no tier from the claim; the
