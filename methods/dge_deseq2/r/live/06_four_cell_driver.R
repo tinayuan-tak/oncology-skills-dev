@@ -73,6 +73,30 @@ counts  <- dat$counts
 coldata <- dat$coldata
 min_n   <- opts$`min-normals`
 
+# --- additive gene-id annotation (analysis-methods#835, #761 S1; verdict-NEUTRAL) ---
+# Carry the loader's rowdata gene_id (versioned Ensembl, e.g. ENSG00000133703.13)
+# and its unversioned gene_stem onto an emitted per-gene frame by LEFT-joining on
+# gene_symbol. Purely ADDITIVE provenance columns: the loader already collapsed
+# counts to ONE row per gene_symbol (rowsum), and every downstream vote / parquet
+# filter still keys on gene_symbol, so gene_symbol / log2FC / padj stay
+# byte-identical. The join uses match() on the frame's OWN gene_symbol, so row
+# order is preserved (no re-sort). A bundle that predates rowdata (or lacks the
+# columns) gets explicit NA columns, keeping the emitted schema stable across
+# substrates / vintages.
+rowdata <- dat$rowdata
+annotate_gene_ids <- function(df) {
+  if (is.null(rowdata) ||
+      !all(c("gene_symbol", "gene_id", "gene_stem") %in% names(rowdata))) {
+    df$gene_id   <- NA_character_
+    df$gene_stem <- NA_character_
+    return(df)
+  }
+  mi <- match(df$gene_symbol, rowdata$gene_symbol)
+  df$gene_id   <- as.character(rowdata$gene_id)[mi]
+  df$gene_stem <- as.character(rowdata$gene_stem)[mi]
+  df
+}
+
 # The four-cell compute (prefilter / deseq2_fit / run_cell / assemble_sensitivity)
 # is sourced from _four_cell_lib.R above and shared with
 # 07_stratified_four_cell_driver.R. run_cell is called with (out_dir, min_n,
@@ -179,6 +203,8 @@ if (length(cells) == 0) stop("No cells ran — check sample availability.")
 # is exposed downstream via _family_direction (dge_deseq2/read.py).
 lab_ran <- names(cells)
 sens <- assemble_sensitivity(cells)
+# Additive provenance: gene_id / gene_stem alongside the gene_symbol key (#835).
+sens <- annotate_gene_ids(sens)
 
 # --- write outputs ----------------------------------------------------------
 sens_path <- file.path(opts$`out-dir`, "sensitivity.parquet")
@@ -209,6 +235,9 @@ write_contrast <- function(cell, lab, fname, n_normal_desc,
     df$positive_group  <- positive_group
     df$reference_group <- reference_group
   }
+  # Additive gene_id / gene_stem provenance (#835) — keyed on gene_symbol, so the
+  # verdict-bearing columns (log2FoldChange / padj / gene_symbol) are unchanged.
+  df <- annotate_gene_ids(df)
   df <- df[order(df$gene_symbol), ]
   p <- file.path(opts$`out-dir`, fname)
   arrow::write_parquet(df, p, chunk_size = 1024, compression = "snappy")

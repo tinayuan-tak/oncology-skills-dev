@@ -689,6 +689,9 @@ def read_tumor_vs_normal_selectivity(
     row = read_tumor_vs_normal_sensitivity_gene_row(target, indication)
     if row:
         return {
+            # Additive gene-id provenance forwarded from the gene_row reader (#835).
+            "gene_id": row.get("gene_id"),
+            "gene_stem": row.get("gene_stem"),
             "cells_ran": row.get("cells_ran"),
             "cells_supporting": row.get("cells_supporting"),
             "dominant_direction": row.get("dominant_direction"),
@@ -964,6 +967,11 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
     pct_c, _ = _dge_sensitivity_cell_percentile(manifest_id, s3_uri, "log2fc_C", raw.get("log2fc_C"))
     out = {
         "gene_symbol": raw.get("gene_symbol"),
+        # Additive gene-id provenance (analysis-methods#835, #761 S1). Present on
+        # products emitted after the driver carries rowdata; .get() → None on
+        # older products lacking the columns (verdict-neutral passthrough).
+        "gene_id": raw.get("gene_id"),
+        "gene_stem": raw.get("gene_stem"),
         "selectivity_allgene_percentile": pct_a,  # cell-A (TCGA tumor-vs-adjacent) — PRIMARY
         "selectivity_allgene_percentile_class": pct_a_class,
         "selectivity_allgene_percentile_context": f"{manifest_id} metric=log2fc_A(tumor-vs-adjacent, primary)",
