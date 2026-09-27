@@ -386,3 +386,136 @@ def test_dependency_priority_frame_verdict_inert_disclaimer():
     # with nothing supplied the required essentiality is also unresolved -> still a question, never a kill
     assert result["decision"] == ef.DECISION_QUESTION
     assert ef.NORMAL_LIABILITY_PROPERTY in result["unresolved_critical"]
+
+
+# ==================================================================================================
+# 9. Second domain — the PRESENCE frame + the four surfaced concordance families (SK#1842)
+# ==================================================================================================
+def test_the_four_surfaced_families_are_declared_typed_inputs_with_correct_types():
+    """The interface now DECLARES the four remaining built/surfaced concordance families as typed inputs
+    (not just the three rung-4 families). Each carries its correct emitted layer (INTEGRATED_PROPERTY) and
+    is consumed under a valid InputKind by a frame."""
+    assert set(ef.SURFACED_CONCORDANCE_PROPERTIES) == {
+        "bulk_vs_singlecell_coverage_concordance",
+        "abundance_concordance",
+        "subtype_restriction_concordance",
+        "normal_liability_concordance",
+    }
+    layers = ef.reference_emitted_layers()
+    for pid in ef.SURFACED_CONCORDANCE_PROPERTIES:
+        # correct emitted layer: every surfaced family is an L2b integrated_property
+        assert layers[pid] == ClaimType.INTEGRATED_PROPERTY
+    # the three presence families are consumed as canonical property claims on PRESENCE_FRAME
+    canon = {i.property_id for i in ef.PRESENCE_FRAME.inputs if i.kind == InputKind.CANONICAL_PROPERTY_CLAIM}
+    assert canon == {
+        ef.COVERAGE_CONCORDANCE_PROPERTY,
+        ef.ABUNDANCE_CONCORDANCE_PROPERTY,
+        ef.SUBTYPE_RESTRICTION_PROPERTY,
+    }
+    # normal_liability is the deliberately-absent critical on BOTH frames (missing/unresolved kind)
+    crit = [i for i in ef.PRESENCE_FRAME.inputs if i.role == Role.CRITICAL_UNKNOWN]
+    assert len(crit) == 1
+    assert crit[0].property_id == ef.NORMAL_LIABILITY_PROPERTY
+    assert crit[0].kind == InputKind.MISSING_UNRESOLVED
+
+
+def test_presence_frame_shape_covers_the_roles_it_exercises():
+    """The PRESENCE_FRAME exercises required / supportive / veto_capable / critical_unknown over the
+    presence + safety families."""
+    by_role = {i.role: i.property_id for i in ef.PRESENCE_FRAME.inputs}
+    assert by_role[Role.REQUIRED] == ef.COVERAGE_CONCORDANCE_PROPERTY
+    assert by_role[Role.SUPPORTIVE] == ef.ABUNDANCE_CONCORDANCE_PROPERTY
+    assert by_role[Role.VETO_CAPABLE] == ef.SUBTYPE_RESTRICTION_PROPERTY
+    assert by_role[Role.CRITICAL_UNKNOWN] == ef.NORMAL_LIABILITY_PROPERTY
+    assert ef.PRESENCE_FRAME.claim_type == ClaimType.DECISION_FRAME
+
+
+def test_registry_with_the_presence_frame_is_still_acyclic():
+    """Two decision frames sharing property leaves (normal_liability) but no cross-frame edge stay a DAG."""
+    ef.assert_acyclic(ef.FRAME_REGISTRY, ef.reference_emitted_layers())
+    assert set(f.frame_id for f in ef.FRAME_REGISTRY) == {
+        "corroborated_dependency_priority",
+        "corroborated_tumor_presence",
+    }
+
+
+def test_reach_audit_every_surfaced_family_reaches_a_frame():
+    """Reach ratchet lifted to the surfaced set: each of the four families is declared by >=1 frame."""
+    audit = ef.decision_reach_audit(ef.FRAME_REGISTRY, ef.SURFACED_CONCORDANCE_PROPERTIES)
+    assert audit["unreached"] == []
+    for pid in (ef.COVERAGE_CONCORDANCE_PROPERTY, ef.ABUNDANCE_CONCORDANCE_PROPERTY, ef.SUBTYPE_RESTRICTION_PROPERTY):
+        assert ef.PRESENCE_FRAME.frame_id in audit["reached"][pid]
+    # normal_liability is the shared absent critical on BOTH frames
+    assert set(audit["reached"][ef.NORMAL_LIABILITY_PROPERTY]) == {
+        ef.REFERENCE_FRAME.frame_id,
+        ef.PRESENCE_FRAME.frame_id,
+    }
+
+
+def test_presence_frame_type_integrity_teeth_composite_may_not_be_a_canonical_property():
+    """MUTATION TEETH (SK#1842): the PRESENCE_FRAME declares coverage as a CANONICAL_PROPERTY_CLAIM. Feeding
+    a within-skill LOCAL-COMPOSITE classifier into that slot must FAIL evaluate_frame — an object may not be
+    consumed as a STRONGER epistemic type than it was emitted as (local-composite != atomic/canonical)."""
+    # a composite masquerading as the coverage canonical property
+    masquerade = {
+        ef.COVERAGE_CONCORDANCE_PROPERTY: ef.local_composite(ef.COVERAGE_CONCORDANCE_PROPERTY, "coverage_concordant")
+    }
+    with pytest.raises(TypeIntegrityError, match="atomic/canonical|stronger epistemic type"):
+        ef.evaluate_frame(ef.PRESENCE_FRAME, masquerade)
+    # the honest canonical property passes through evaluate_frame (falsification)
+    honest = {ef.COVERAGE_CONCORDANCE_PROPERTY: _canonical(ef.COVERAGE_CONCORDANCE_PROPERTY, "coverage_concordant")}
+    assert ef.evaluate_frame(ef.PRESENCE_FRAME, honest)["claim_type"] == ClaimType.DECISION_FRAME
+
+
+def _real_coverage_concordant_claim():
+    """A REAL `bulk_vs_singlecell_coverage_concordance` claim (coverage_concordant) via its own builder."""
+    from _skills_common.presence_claims import _coverage_concordance_claim  # noqa: PLC0415
+
+    cards = {
+        "tumor-rna-distribution": {"tumor_expression_class": "broadly_high", "distribution_pattern": "diffuse"},
+        "tumor-scrna-celltype-expression": {
+            "within_tumor_coverage_class": "high",
+            "tce_antigen_escape_class": "escape_risk_low",
+        },
+    }
+    return _coverage_concordance_claim(cards)
+
+
+def test_tumor_presence_frame_synthesizes_over_emitted_presence_vectors():
+    """The presence production entry consumes a tumor-presence claim vector's already-emitted coverage
+    concordance claim as a typed input and routes to an L4 QUESTION on the absent safety critical."""
+    cov = _real_coverage_concordant_claim()
+    assert cov is not None and cov["integration_method"] == "explicit_deterministic"
+    assert cov["concordance_class"] == "coverage_concordant"
+
+    result = ef.tumor_presence_frame({"bulk_vs_singlecell_coverage_concordance": cov})
+    # the coverage claim resolved as a typed input the frame synthesized over
+    assert result["resolved_inputs"].get("bulk_vs_singlecell_coverage_concordance") == "coverage_concordant"
+    assert result["claim_type"] == ClaimType.DECISION_FRAME
+    # the absent safety critical routes to an L4 QUESTION (never a kill)
+    assert result["decision"] == ef.DECISION_QUESTION
+    assert result["unresolved_critical"] == [ef.NORMAL_LIABILITY_PROPERTY]
+    assert ef.NORMAL_LIABILITY_PROPERTY in result["l4_question"]
+    assert result["decision"] != ef.DECISION_HOLD
+
+
+def test_tumor_presence_frame_reads_subtype_from_the_by_subtype_vector():
+    """subtype_restriction_concordance is keyed on the BY-SUBTYPE vector, not the pooled one — the
+    production entry reads it there and synthesizes over it as the veto_capable input."""
+    cov = _real_coverage_concordant_claim()
+    sub = {"concordance_class": "subtype_restriction_concordant", "integration_method": "explicit_deterministic"}
+    result = ef.tumor_presence_frame(
+        {"bulk_vs_singlecell_coverage_concordance": cov},
+        {"subtype_restriction_concordance": sub},
+    )
+    assert result["resolved_inputs"].get("subtype_restriction_concordance") == "subtype_restriction_concordant"
+    # a concordant (non-adverse) subtype restriction applies no veto
+    assert result["vetoes_applied"] == []
+
+
+def test_tumor_presence_frame_verdict_inert_disclaimer_and_empty_is_a_question():
+    result = ef.tumor_presence_frame({}, {})
+    assert "routes NOTHING back" in result["_disclaimer"]
+    # nothing supplied: the required coverage anchor is also unresolved -> still a question, never a kill
+    assert result["decision"] == ef.DECISION_QUESTION
+    assert ef.NORMAL_LIABILITY_PROPERTY in result["unresolved_critical"]

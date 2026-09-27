@@ -27,6 +27,7 @@ import math
 from typing import Optional
 
 from _skills_common.claim_vector_core import select_breadth_class as _select_breadth_class
+from _skills_common.evidence_frame import tumor_presence_frame as _tumor_presence_frame
 from _skills_common.question_table_core import _SIG_META
 from _skills_common.question_table_core import cbyid as _cbyid
 from _skills_common.question_table_core import conf as _conf
@@ -567,6 +568,65 @@ def _q7_intrinsic(h, c, cv):
     return r
 
 
+# ── SK#1842 L3→production: the corroborated_tumor_presence PRESENCE_FRAME (2nd domain) ───────────────
+# The SECOND place the L3 typed-evidence interface (evidence_frame.py, design G) reaches a production
+# answer surface — after the dependency beachhead (#1841) — proving the interface spans >1 domain. The
+# frame consumes the ALREADY-EMITTED presence typed evidence and produces its OWN L3 decision object; this
+# module only RENDERS it as a verdict-INERT annotation on the Q7 (malignant-cell-intrinsic) row — the home
+# row of the frame's REQUIRED coverage anchor. Rendered under the DISTINCT keys `l3_integrated_signal` /
+# `l3_forward_question` so it NEVER clobbers the existing L2b `integrated_signal` coverage projection on
+# that row. Carries NO signal tier / polarity / fill (an annotation, never a meter cell) and routes NOTHING
+# back into the presence_verdict / claim_vector / resolver.
+def _tumor_presence_frame_signal(fr: dict) -> dict:
+    """Project the presence frame's L3 decision object into the Q7 row's `l3_integrated_signal` surface
+    (verdict-inert)."""
+    resolved = sorted(fr.get("resolved_inputs") or {})
+    decision = fr.get("decision")
+    headline = (
+        f"L3 decision frame `{fr.get('frame_id')}` → {decision}: synthesized over "
+        f"{len(resolved)} resolved typed input(s)"
+        + (f" ({', '.join(resolved)})" if resolved else "")
+        + "; the safety critical is unresolved on this presence surface → an L4 forward question (never a kill)."
+    )
+    return {
+        "kind": "corroborated_tumor_presence",
+        "frame_id": fr.get("frame_id"),
+        "claim_type": fr.get("claim_type"),  # decision_frame (L3)
+        "decision": decision,
+        "integration_method": fr.get("integration_method"),
+        "resolved_inputs": fr.get("resolved_inputs"),
+        "rationale": fr.get("rationale"),
+        "reservations": fr.get("reservations"),
+        "vetoes_applied": fr.get("vetoes_applied"),
+        "unresolved_critical": fr.get("unresolved_critical"),
+        "unresolved_required": fr.get("unresolved_required"),
+        "headline": headline,
+        "provenance_ref": "evidence_frame.corroborated_tumor_presence",
+        "_disclaimer": fr.get("_disclaimer"),
+    }
+
+
+def _tumor_presence_forward_question(fr: dict) -> Optional[dict]:
+    """Render the presence frame's CRITICAL_UNKNOWN role as an L4 FORWARD QUESTION — never a kill. Returns
+    None when the frame did not route to a question."""
+    q = fr.get("l4_question")
+    if not q:
+        return None
+    return {
+        "kind": "l4_forward_question",
+        "role": "critical_unknown",
+        "question": q,
+        "unresolved_critical": fr.get("unresolved_critical"),
+        "unresolved_required": fr.get("unresolved_required"),
+        "provenance_ref": "evidence_frame.corroborated_tumor_presence",
+        "_disclaimer": (
+            "L4 FORWARD QUESTION (design G, roles-not-weights): an unresolved CRITICAL_UNKNOWN routes to a "
+            "QUESTION, never a kill; verdict-INERT — routes nothing back into any verdict / claim_vector / "
+            "resolver."
+        ),
+    }
+
+
 def presence_question_table(headline: dict, cards: list, claim_vector: Optional[dict] = None) -> list:
     """The 7 question rows (each: id, question, primary read, supporting/caveat line, signal, confidence).
     Verdict-inert. `claim_vector` defaults to the one on the headline (`headline['claim_vector']`)."""
@@ -580,7 +640,7 @@ def presence_question_table(headline: dict, cards: list, claim_vector: Optional[
     # is the two-files-route-the-same-axis drift trap. `None` (no by-subtype card) degrades to `{}`,
     # and every consumer below treats an absent identity as "not named", never as "none enriched".
     sv = presence_claim_vector_by_subtype(cards) or {}
-    return [
+    rows = [
         _q1_abundance(headline, c, cv),
         _q2_generality(headline, c, cv),
         _q3_vs_normal(headline, c, cv),
@@ -589,6 +649,24 @@ def presence_question_table(headline: dict, cards: list, claim_vector: Optional[
         _q6_concordance(headline, c, cv),
         _q7_intrinsic(headline, c, cv),
     ]
+    # SK#1842 L3→production (2nd domain): when the L2b `bulk_vs_singlecell_coverage_concordance` claim
+    # resolves (the frame's REQUIRED anchor input), evaluate the `corroborated_tumor_presence` L3
+    # PRESENCE_FRAME over the already-emitted presence typed evidence (coverage + abundance on the pooled
+    # `cv`, subtype_restriction on the by-subtype `sv`) and SURFACE its synthesis as a verdict-INERT
+    # `l3_integrated_signal` on the Q7 (malignant-cell-intrinsic) row, plus the frame's CRITICAL_UNKNOWN
+    # role as an L4 `l3_forward_question`. Attached only when the anchor claim resolves (keys omitted
+    # otherwise → row byte-stable). Reads only the ALREADY-BUILT claim vectors, so it perturbs no meter
+    # cell and no verdict; distinct `l3_*` keys never touch the existing L2b coverage `integrated_signal`.
+    if (cv or {}).get("bulk_vs_singlecell_coverage_concordance"):
+        fr = _tumor_presence_frame(cv, sv)
+        for r in rows:
+            if r.get("id") == "Q7":
+                r["l3_integrated_signal"] = _tumor_presence_frame_signal(fr)
+                fq = _tumor_presence_forward_question(fr)
+                if fq is not None:
+                    r["l3_forward_question"] = fq
+                break
+    return rows
 
 
 # ── shared HTML renderer (so the example-gallery page AND the composed target-profile dashboard render

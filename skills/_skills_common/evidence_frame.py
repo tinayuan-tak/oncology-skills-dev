@@ -52,6 +52,16 @@ The reference frame (``REFERENCE_FRAME``): corroborated_dependency_priority
       * normal-tissue safety liability (deliberately absent)   missing/unresolved       / critical_unknown
     The absent critical drives the missing/unresolved -> L4 QUESTION path.
 
+A second, PRESENCE-domain frame (``PRESENCE_FRAME``): corroborated_tumor_presence (SK#1842)
+    The interface now spans >1 domain. It also DECLARES the four remaining built/surfaced concordance
+    families as typed inputs (``SURFACED_CONCORDANCE_PROPERTIES``) — the three presence families as
+    canonical property claims on this frame, and normal_liability as the shared absent critical:
+      * coverage    (bulk_vs_singlecell_coverage_concordance)  canonical-property-claim / required
+      * abundance   (abundance_concordance)                    canonical-property-claim / supportive
+      * subtype     (subtype_restriction_concordance)          canonical-property-claim / veto_capable
+      * normal-tissue safety liability (deliberately absent)   missing/unresolved       / critical_unknown
+    Its production entry ``tumor_presence_frame`` mirrors ``dependency_priority_frame``.
+
 Reach audit
     Frame deps are declared ON the frame; the reverse index (property -> frames) is DERIVED
     (``build_reverse_index``) so the property layer stays decision-agnostic. ``decision_reach_audit``
@@ -565,8 +575,31 @@ COMPOSITE_SELECTIVITY_CLASS = "composite_selectivity_class"
 # (a functional-requirement surface never carries a safety claim), so this is name-correctness, not presence.
 NORMAL_LIABILITY_PROPERTY = "normal_liability_concordance"
 
+# ── The four remaining built/surfaced concordance families (SK#1842, epic #1749 Milestone-2) ────────
+# Until now the typed interface referenced only the three rung-4 families above (as canonical property
+# claims on the REFERENCE_FRAME) — the other four surfaced/built L2b `*_concordance` families were not
+# reachable by the interface at all. These are their EMITTED keys (the presence trio is emitted onto the
+# tumor-presence claim vector / by-subtype vector; normal_liability onto the safety vector) so a frame can
+# consume them BY NAME. Each is an L2b integrated_property (`integration_method == explicit_deterministic`
+# + a `concordance_class`), so a frame declares each as a CANONICAL_PROPERTY_CLAIM where it consumes its
+# resolved value, or (for a surface that structurally never carries it) as MISSING_UNRESOLVED.
+COVERAGE_CONCORDANCE_PROPERTY = "bulk_vs_singlecell_coverage_concordance"
+ABUNDANCE_CONCORDANCE_PROPERTY = "abundance_concordance"
+SUBTYPE_RESTRICTION_PROPERTY = "subtype_restriction_concordance"
+
 # The three rung-4 canonical property families this L3 bridge must demonstrably reach.
 RUNG4_CANONICAL_PROPERTIES = (ESSENTIALITY_PROPERTY, RECURRENCE_PROPERTY, SELECTIVITY_PROPERTY)
+
+# The four remaining built/surfaced concordance families the interface now declares as typed inputs
+# (SK#1842). Every member must demonstrably reach a frame (the decision-reach ratchet, lifted to the
+# surfaced set): the presence trio reaches PRESENCE_FRAME as canonical property claims, normal_liability
+# reaches BOTH frames as the deliberately-absent critical_unknown specimen.
+SURFACED_CONCORDANCE_PROPERTIES = (
+    COVERAGE_CONCORDANCE_PROPERTY,
+    ABUNDANCE_CONCORDANCE_PROPERTY,
+    SUBTYPE_RESTRICTION_PROPERTY,
+    NORMAL_LIABILITY_PROPERTY,
+)
 
 REFERENCE_FRAME = Frame(
     frame_id="corroborated_dependency_priority",
@@ -607,16 +640,60 @@ REFERENCE_FRAME = Frame(
     ),
 )
 
-FRAME_REGISTRY = (REFERENCE_FRAME,)
+# --------------------------------------------------------------------------------------------------
+# Second reference frame — a PRESENCE-domain decision frame over the typed interface (SK#1842)
+# --------------------------------------------------------------------------------------------------
+# The SECOND domain the L3 typed-evidence interface reaches (epic #1749 Milestone-2): a NEW additive
+# presence-priority decision surface — NOT a re-derivation of the tumor-presence verdict — asking "is this
+# a well-corroborated, cross-source-consistent tumor-presence signal worth prioritizing?". It exercises the
+# three surfaced PRESENCE concordance families as canonical property claims plus the safety critical:
+#   * coverage    (bulk_vs_singlecell_coverage_concordance)  canonical-property-claim / required
+#   * abundance   (abundance_concordance)                     canonical-property-claim / supportive
+#   * subtype     (subtype_restriction_concordance)           canonical-property-claim / veto_capable
+#     (a MEASURED cross-modality restriction MASK — protein/rna_masks_subtype_restriction — down-ranks one
+#      notch, never a kill)
+#   * normal-tissue safety liability (deliberately absent)    missing/unresolved       / critical_unknown
+# The presence surface never carries the safety claim, so the unresolved critical routes the frame to an
+# L4 QUESTION (never a kill) — the same roles-not-weights forward-question path as the reference frame.
+PRESENCE_FRAME = Frame(
+    frame_id="corroborated_tumor_presence",
+    inputs=(
+        FrameInput(
+            property_id=COVERAGE_CONCORDANCE_PROPERTY,
+            kind=InputKind.CANONICAL_PROPERTY_CLAIM,
+            role=Role.REQUIRED,
+            positive_states=frozenset({"coverage_concordant"}),
+        ),
+        FrameInput(
+            property_id=ABUNDANCE_CONCORDANCE_PROPERTY,
+            kind=InputKind.CANONICAL_PROPERTY_CLAIM,
+            role=Role.SUPPORTIVE,
+            positive_states=frozenset({"abundance_concordant"}),
+        ),
+        FrameInput(
+            property_id=SUBTYPE_RESTRICTION_PROPERTY,
+            kind=InputKind.CANONICAL_PROPERTY_CLAIM,
+            role=Role.VETO_CAPABLE,
+            adverse_states=frozenset({"protein_masks_subtype_restriction", "rna_masks_subtype_restriction"}),
+        ),
+        FrameInput(
+            property_id=NORMAL_LIABILITY_PROPERTY,
+            kind=InputKind.MISSING_UNRESOLVED,
+            role=Role.CRITICAL_UNKNOWN,
+        ),
+    ),
+)
+
+FRAME_REGISTRY = (REFERENCE_FRAME, PRESENCE_FRAME)
 
 
 def reference_emitted_layers() -> dict:
     """Emitted layer for every node in the reference registry — the acyclicity check's ground truth.
 
-    The reference frame's inputs are all property-layer claims; the frame itself is a decision_frame.
-    (A canonical/local-composite/measurement input all sit strictly below decision_frame, so the graph
-    is trivially a DAG at n=1 — ``assert_acyclic`` is exercised against a synthetic cyclic registry in
-    the tests to prove it has teeth.)
+    Both reference frames' inputs are property-layer claims; each frame itself is a decision_frame.
+    (A canonical/local-composite/measurement input all sit strictly below decision_frame, so the two
+    frames are each a trivial DAG that shares no cross-frame edge — ``assert_acyclic`` is exercised
+    against a synthetic cyclic registry in the tests to prove it has teeth.)
     """
     layers = {
         ESSENTIALITY_PROPERTY: ClaimType.INTEGRATED_PROPERTY,
@@ -625,6 +702,11 @@ def reference_emitted_layers() -> dict:
         DEPENDENCY_EFFECT_MEASUREMENT: ClaimType.OBSERVATIONAL_PROPERTY,
         COMPOSITE_SELECTIVITY_CLASS: ClaimType.OBSERVATIONAL_PROPERTY,
         NORMAL_LIABILITY_PROPERTY: ClaimType.INTEGRATED_PROPERTY,
+        # The three surfaced PRESENCE concordance families PRESENCE_FRAME consumes (SK#1842) — each an
+        # L2b integrated_property, strictly below the decision_frame layer, so the graph stays a DAG.
+        COVERAGE_CONCORDANCE_PROPERTY: ClaimType.INTEGRATED_PROPERTY,
+        ABUNDANCE_CONCORDANCE_PROPERTY: ClaimType.INTEGRATED_PROPERTY,
+        SUBTYPE_RESTRICTION_PROPERTY: ClaimType.INTEGRATED_PROPERTY,
     }
     for f in FRAME_REGISTRY:
         layers[f.frame_id] = f.claim_type
@@ -670,3 +752,45 @@ def dependency_priority_frame(claim_vector: Optional[Mapping] = None, headline: 
         bundle[COMPOSITE_SELECTIVITY_CLASS] = local_composite(COMPOSITE_SELECTIVITY_CLASS, comp)
     # NORMAL_LIABILITY_PROPERTY intentionally omitted -> unresolved critical_unknown -> L4 question.
     return evaluate_frame(REFERENCE_FRAME, bundle)
+
+
+# --------------------------------------------------------------------------------------------------
+# Second production entry — the PRESENCE-domain L3 surface (SK#1842)
+# --------------------------------------------------------------------------------------------------
+def tumor_presence_frame(claim_vector: Optional[Mapping] = None, by_subtype_vector: Optional[Mapping] = None) -> dict:
+    """Evaluate the ``corroborated_tumor_presence`` PRESENCE_FRAME over a tumor-presence skill's
+    ALREADY-EMITTED typed evidence, returning the frame's OWN L3 decision object.
+
+    This is the SECOND domain the L3 typed-evidence interface reaches (SK#1842, epic #1749 Milestone-2),
+    proving the interface spans >1 domain, not just dependency. Purely ADDITIVE / verdict-INERT: it
+    consumes the emitted claim vectors as typed inputs and produces a NEW decision surface; it routes
+    NOTHING back into the presence_verdict, the claim_vector, any question_table row's meter cell, or a
+    resolver. Every source claim is read through the read-only adapters, so every emitted family stays
+    byte-stable.
+
+    Bundle construction (an input NOT supplied auto-resolves to ``unresolved`` inside ``evaluate_frame``):
+      * COVERAGE (required)   <- the L2b ``bulk_vs_singlecell_coverage_concordance`` claim on the POOLED
+        presence vector — the anchor cross-source presence property this surface natively carries.
+      * ABUNDANCE (supportive) <- the L2b ``abundance_concordance`` claim on the pooled vector, adapted
+        only IF present (a second modality-pair strengthens when it agrees; its absence is fine).
+      * SUBTYPE_RESTRICTION (veto_capable) <- the L2b ``subtype_restriction_concordance`` claim on the
+        BY-SUBTYPE vector (it is keyed there, not on the pooled vector — see presence_claims.py). A
+        MEASURED cross-modality restriction MASK down-ranks one notch, never a kill; its absence is fine.
+      * NORMAL_LIABILITY (critical_unknown) is DELIBERATELY never supplied: a tumor-presence surface never
+        carries the safety claim, so the unresolved critical routes the frame to an L4 forward QUESTION
+        (never a kill) — the roles-not-weights forward-question path.
+    """
+    cv = claim_vector or {}
+    sv = by_subtype_vector or {}
+    bundle: dict = {}
+    cov = cv.get(COVERAGE_CONCORDANCE_PROPERTY)
+    if cov is not None:
+        bundle[COVERAGE_CONCORDANCE_PROPERTY] = from_concordance(COVERAGE_CONCORDANCE_PROPERTY, cov)
+    ab = cv.get(ABUNDANCE_CONCORDANCE_PROPERTY)
+    if ab is not None:
+        bundle[ABUNDANCE_CONCORDANCE_PROPERTY] = from_concordance(ABUNDANCE_CONCORDANCE_PROPERTY, ab)
+    sub = sv.get(SUBTYPE_RESTRICTION_PROPERTY)
+    if sub is not None:
+        bundle[SUBTYPE_RESTRICTION_PROPERTY] = from_concordance(SUBTYPE_RESTRICTION_PROPERTY, sub)
+    # NORMAL_LIABILITY_PROPERTY intentionally omitted -> unresolved critical_unknown -> L4 question.
+    return evaluate_frame(PRESENCE_FRAME, bundle)

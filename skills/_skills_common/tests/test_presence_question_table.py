@@ -17,8 +17,10 @@ COMMON = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(COMMON.parent))  # skills/
 
 from _skills_common.presence_question_table import (
+    _cbyid,  # noqa: E402
     _fmt_r,  # noqa: E402
     _proxy_class,  # noqa: E402
+    _q7_intrinsic,  # noqa: E402
     _top_labels,  # noqa: E402
     presence_question_table,  # noqa: E402
 )
@@ -938,3 +940,75 @@ def test_q4_derives_and_surfaces_the_signal_end_to_end_from_cards():
     r = _by_id(presence_question_table(h, cards, None))["Q4"]
     assert r["integrated_signal"]["concordance_class"] == "subtype_restriction_concordant"
     assert r["integrated_signal"]["kind"] == "subtype_restriction_concordance"
+
+
+# ── SK#1842 L3→production (2nd domain): corroborated_tumor_presence frame surfacing ─────────────────
+def _l3_coverage_claim(state="coverage_concordant", corr="high"):
+    """A valid L2b bulk_vs_singlecell_coverage_concordance envelope claim (explicit_deterministic)."""
+    return {
+        "concordance_class": state,
+        "corroboration": corr,
+        "integration_method": "explicit_deterministic",
+        "positive_signal": {"statement": "bulk reads broadly present"},
+        "qualifying_signal": None,
+        "boundary_sensitive": False,
+        "source_support": {},
+    }
+
+
+def test_l3_presence_frame_signal_attaches_to_q7_when_coverage_resolves():
+    """When the L2b coverage concordance anchor resolves, the corroborated_tumor_presence L3 PRESENCE_FRAME
+    synthesis surfaces as a verdict-INERT l3_integrated_signal on the Q7 row."""
+    h, cards, cv = _fixture()
+    cv["bulk_vs_singlecell_coverage_concordance"] = _l3_coverage_claim()
+    q7 = _by_id(presence_question_table(h, cards, cv))["Q7"]
+    isig = q7["l3_integrated_signal"]
+    assert isig["kind"] == "corroborated_tumor_presence"
+    assert isig["frame_id"] == "corroborated_tumor_presence"
+    assert isig["claim_type"] == "decision_frame"  # L3
+    assert isig["provenance_ref"] == "evidence_frame.corroborated_tumor_presence"
+    assert isig["integration_method"] == "explicit_deterministic"
+    # the anchor coverage claim is a resolved typed input the frame synthesized over
+    assert isig["resolved_inputs"].get("bulk_vs_singlecell_coverage_concordance") == "coverage_concordant"
+    # verdict-INERT annotation: NEVER a meter cell.
+    assert "tier" not in isig and "polarity" not in isig and "fill" not in isig
+
+
+def test_l3_presence_frame_forward_question_is_the_absent_safety_critical_and_never_a_kill():
+    """The frame's CRITICAL_UNKNOWN role (the safety normal_liability_concordance, structurally absent on a
+    tumor-presence surface) renders as an L4 forward question — never a kill."""
+    h, cards, cv = _fixture()
+    cv["bulk_vs_singlecell_coverage_concordance"] = _l3_coverage_claim()
+    q7 = _by_id(presence_question_table(h, cards, cv))["Q7"]
+    fq = q7["l3_forward_question"]
+    assert fq["kind"] == "l4_forward_question"
+    assert fq["role"] == "critical_unknown"
+    assert fq["unresolved_critical"] == ["normal_liability_concordance"]
+    assert "normal_liability_concordance" in fq["question"]
+    # the frame routed to a QUESTION (never a HOLD/kill), and the annotation says so.
+    assert q7["l3_integrated_signal"]["decision"] == "question"
+    assert q7["l3_integrated_signal"]["unresolved_critical"] == ["normal_liability_concordance"]
+
+
+def test_l3_presence_annotation_omitted_when_coverage_absent_and_never_clobbers_the_l2b_signal():
+    """Byte-stable: with no coverage concordance claim on the vector the Q7 row carries neither the L3
+    l3_integrated_signal nor the l3_forward_question; and when the claim IS present, attaching the L3 frame
+    leaves the row's meter cells AND the existing L2b coverage `integrated_signal` byte-identical to what
+    _q7_intrinsic (which knows nothing of the L3 frame) produces."""
+    h, cards, cv = _fixture()
+    assert "bulk_vs_singlecell_coverage_concordance" not in cv
+    bare_q7 = _by_id(presence_question_table(h, cards, cv))["Q7"]
+    assert "l3_integrated_signal" not in bare_q7 and "l3_forward_question" not in bare_q7
+
+    cv2 = dict(cv)
+    cv2["bulk_vs_singlecell_coverage_concordance"] = _l3_coverage_claim()
+    framed_q7 = _by_id(presence_question_table(h, cards, cv2))["Q7"]
+    # the L3-augmented row's meter cells + the L2b coverage integrated_signal match the bare _q7_intrinsic
+    # output (no L3 knowledge) — the L3 attach added ONLY the distinct l3_* keys.
+    ref_q7 = _q7_intrinsic(h, _cbyid(cards), cv2)
+    assert framed_q7["signal"] == ref_q7["signal"]
+    assert framed_q7["confidence"] == ref_q7["confidence"]
+    assert framed_q7["primary"] == ref_q7["primary"] and framed_q7["support"] == ref_q7["support"]
+    # the pre-existing L2b coverage projection is untouched (distinct key, never clobbered)
+    assert framed_q7["integrated_signal"] == ref_q7["integrated_signal"]
+    assert framed_q7["integrated_signal"]["kind"] == "bulk_vs_singlecell_coverage_concordance"
