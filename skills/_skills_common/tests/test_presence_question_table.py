@@ -20,6 +20,7 @@ from _skills_common.presence_question_table import (
     _cbyid,  # noqa: E402
     _fmt_r,  # noqa: E402
     _proxy_class,  # noqa: E402
+    _q1_abundance,  # noqa: E402
     _q7_intrinsic,  # noqa: E402
     _top_labels,  # noqa: E402
     presence_question_table,  # noqa: E402
@@ -1037,6 +1038,68 @@ def test_l3_presence_frame_forward_question_is_the_absent_safety_critical_and_ne
     # the frame routed to a QUESTION (never a HOLD/kill), and the annotation says so.
     assert q7["l3_integrated_signal"]["decision"] == "question"
     assert q7["l3_integrated_signal"]["unresolved_critical"] == ["normal_liability_concordance"]
+
+
+# ── SK#1854 L3→production (epic #1848-C1): present_targetable_antigen_priority frame on Q1 ──────────
+def test_l3_antigen_priority_frame_signal_attaches_to_q1_when_coverage_resolves():
+    """When the L2b coverage anchor resolves, the present_targetable_antigen_priority L3 frame synthesis
+    surfaces as a verdict-INERT `integrated_signal` on the Q1 (headline) row, distinct from #1842's Q7
+    render. It synthesizes over the emitted coverage claim PLUS the tumor-RNA all-gene percentile
+    MEASUREMENT (off the tumor-rna-distribution card) and the presence_strength LOCAL-COMPOSITE."""
+    h, cards, cv = _fixture()
+    cv["bulk_vs_singlecell_coverage_concordance"] = _l3_coverage_claim()
+    q1 = _by_id(presence_question_table(h, cards, cv))["Q1"]
+    isig = q1["integrated_signal"]
+    assert isig["kind"] == "present_targetable_antigen_priority"
+    assert isig["frame_id"] == "present_targetable_antigen_priority"
+    assert isig["claim_type"] == "decision_frame"  # L3
+    assert isig["provenance_ref"] == "evidence_frame.present_targetable_antigen_priority"
+    assert isig["integration_method"] == "explicit_deterministic"
+    ri = isig["resolved_inputs"]
+    assert ri.get("bulk_vs_singlecell_coverage_concordance") == "coverage_concordant"
+    # the two NEW typed inputs resolved in production: the raw measurement value + the composite token
+    assert ri.get("tumor_rna_allgene_percentile") == 99.9  # off the tumor-rna-distribution card fixture
+    assert ri.get("presence_strength_class") is not None
+    # verdict-INERT annotation: NEVER a meter cell.
+    assert "tier" not in isig and "polarity" not in isig and "fill" not in isig
+
+
+def test_l3_antigen_priority_no_forward_question_rendered_in_c1():
+    """Per epic #1848-C1 the frame DECLARES its critical_unknown role but NO forward-question is rendered
+    here — that endpoint is the separate #1855. The Q1 row carries the integrated_signal but neither a
+    `forward_question` nor an `l3_forward_question` key."""
+    h, cards, cv = _fixture()
+    cv["bulk_vs_singlecell_coverage_concordance"] = _l3_coverage_claim()
+    q1 = _by_id(presence_question_table(h, cards, cv))["Q1"]
+    assert "integrated_signal" in q1
+    assert "forward_question" not in q1 and "l3_forward_question" not in q1
+    # the synthesis still routes to a QUESTION on the absent safety critical (never a kill) — recorded, not rendered.
+    assert q1["integrated_signal"]["decision"] == "question"
+    assert q1["integrated_signal"]["unresolved_critical"] == ["normal_liability_concordance"]
+
+
+def test_l3_antigen_priority_omitted_when_coverage_absent_and_is_verdict_inert_on_q1():
+    """Byte-stable-by-construction: with no coverage claim on the vector the Q1 row carries no
+    integrated_signal; and when the claim IS present, attaching the L3 frame leaves the row's meter cells,
+    primary, and support byte-identical to what _q1_abundance (which knows nothing of the L3 frame)
+    produces, and NEVER touches #1842's Q7 l3_* render (which stays on Q7)."""
+    h, cards, cv = _fixture()
+    assert "bulk_vs_singlecell_coverage_concordance" not in cv
+    rows_bare = _by_id(presence_question_table(h, cards, cv))
+    assert "integrated_signal" not in rows_bare["Q1"]
+
+    cv2 = dict(cv)
+    cv2["bulk_vs_singlecell_coverage_concordance"] = _l3_coverage_claim()
+    rows_framed = _by_id(presence_question_table(h, cards, cv2))
+    framed_q1 = rows_framed["Q1"]
+    ref_q1 = _q1_abundance(h, _cbyid(cards), cv2)
+    # the L3 attach added ONLY the integrated_signal key — every meter/text cell is unchanged.
+    assert framed_q1["signal"] == ref_q1["signal"]
+    assert framed_q1["confidence"] == ref_q1["confidence"]
+    assert framed_q1["primary"] == ref_q1["primary"] and framed_q1["support"] == ref_q1["support"]
+    assert set(framed_q1) - set(ref_q1) == {"integrated_signal"}
+    # #1842's Q7 L3 render is on Q7 (distinct row + distinct l3_* keys) — Q1 never carries the l3_* keys.
+    assert "l3_integrated_signal" not in framed_q1 and "l3_integrated_signal" in rows_framed["Q7"]
 
 
 def test_l3_presence_annotation_omitted_when_coverage_absent_and_never_clobbers_the_l2b_signal():

@@ -27,7 +27,10 @@ import math
 from typing import Optional
 
 from _skills_common.claim_vector_core import select_breadth_class as _select_breadth_class
+from _skills_common.evidence_frame import PRESENCE_STRENGTH_CLASS as _PRESENCE_STRENGTH_CLASS
+from _skills_common.evidence_frame import TUMOR_RNA_ALLGENE_PERCENTILE as _TUMOR_RNA_ALLGENE_PERCENTILE
 from _skills_common.evidence_frame import forward_question_from_frame as _forward_question_from_frame
+from _skills_common.evidence_frame import presence_priority_frame as _presence_priority_frame
 from _skills_common.evidence_frame import tumor_presence_frame as _tumor_presence_frame
 from _skills_common.question_table_core import _SIG_META
 from _skills_common.question_table_core import cbyid as _cbyid
@@ -621,6 +624,48 @@ def _tumor_presence_frame_signal(fr: dict) -> dict:
     }
 
 
+# ── SK#1854 L3→production (epic #1848-C1): the present_targetable_antigen_priority PRESENCE_PRIORITY_FRAME ──
+# The THIRD place the L3 typed-evidence interface reaches a production answer surface, and the SECOND over
+# the presence domain (after #1842's Q7 corroborated_tumor_presence render) — a distinct antigen-PRIORITY
+# decision surface that weights the SAME presence evidence differently (abundance is the veto lever here;
+# subtype-restriction is contextual). The frame consumes the ALREADY-EMITTED presence typed evidence and
+# produces its OWN L3 decision object; this module only RENDERS it as a verdict-INERT `integrated_signal`
+# on the Q1 (headline / "expressed at all?") row — the presence headline row that anchors the frame's
+# REQUIRED coverage input. Q1 carries NO existing integrated_signal, so this is a NET-NEW additive key that
+# NEVER touches #1842's Q7 `l3_integrated_signal` / `l3_forward_question` render. Carries NO signal tier /
+# polarity / fill (an annotation, never a meter cell) and routes NOTHING back into the presence_verdict /
+# claim_vector / resolver. Per SK#1854 (epic #1848-C1) the frame's CRITICAL_UNKNOWN role is DECLARED but its
+# forward-question is NOT rendered here — that endpoint is the separate #1855.
+def _presence_priority_frame_signal(fr: dict) -> dict:
+    """Project the antigen-priority frame's L3 decision object into the Q1 row's `integrated_signal`
+    surface (verdict-inert)."""
+    resolved = sorted(fr.get("resolved_inputs") or {})
+    decision = fr.get("decision")
+    headline = (
+        f"L3 decision frame `{fr.get('frame_id')}` → {decision}: synthesized over "
+        f"{len(resolved)} resolved typed input(s)"
+        + (f" ({', '.join(resolved)})" if resolved else "")
+        + "; the safety critical is unresolved on this presence surface → an L4 forward question "
+        "(never a kill; rendered separately, not on this row)."
+    )
+    return {
+        "kind": "present_targetable_antigen_priority",
+        "frame_id": fr.get("frame_id"),
+        "claim_type": fr.get("claim_type"),  # decision_frame (L3)
+        "decision": decision,
+        "integration_method": fr.get("integration_method"),
+        "resolved_inputs": fr.get("resolved_inputs"),
+        "rationale": fr.get("rationale"),
+        "reservations": fr.get("reservations"),
+        "vetoes_applied": fr.get("vetoes_applied"),
+        "unresolved_critical": fr.get("unresolved_critical"),
+        "unresolved_required": fr.get("unresolved_required"),
+        "headline": headline,
+        "provenance_ref": "evidence_frame.present_targetable_antigen_priority",
+        "_disclaimer": fr.get("_disclaimer"),
+    }
+
+
 def presence_question_table(headline: dict, cards: list, claim_vector: Optional[dict] = None) -> list:
     """The 7 question rows (each: id, question, primary read, supporting/caveat line, signal, confidence).
     Verdict-inert. `claim_vector` defaults to the one on the headline (`headline['claim_vector']`)."""
@@ -659,6 +704,29 @@ def presence_question_table(headline: dict, cards: list, claim_vector: Optional[
                 fq = _forward_question_from_frame(fr)
                 if fq is not None:
                     r["l3_forward_question"] = fq
+                break
+    # SK#1854 L3→production (epic #1848-C1): the SECOND presence-domain frame — the antigen-PRIORITY surface.
+    # Gated on the SAME REQUIRED coverage anchor resolving, evaluate `present_targetable_antigen_priority`
+    # over the already-emitted presence typed evidence (coverage + abundance on the pooled `cv`,
+    # subtype_restriction on the by-subtype `sv`, plus the tumor-RNA all-gene percentile MEASUREMENT off the
+    # `tumor-rna-distribution` card and the within-skill presence_strength LOCAL-COMPOSITE) and SURFACE its
+    # synthesis as a verdict-INERT `integrated_signal` on the Q1 (headline) row. Q1 carries no existing
+    # integrated_signal, so the key is NET-NEW and never touches #1842's Q7 `l3_*` render; it is attached
+    # only when the coverage anchor resolves (omitted otherwise → row byte-stable). Per epic #1848-C1 NO
+    # forward-question is rendered here (the frame declares its critical_unknown role but the forward-question
+    # endpoint is the separate #1855). Reads only ALREADY-BUILT vectors + emitted card/composite reads, so it
+    # perturbs no meter cell and no verdict.
+    if (cv or {}).get("bulk_vs_singlecell_coverage_concordance"):
+        from _skills_common.presence_claims import derive_presence_state, presence_strength_from_state
+
+        frame_headline = {
+            _TUMOR_RNA_ALLGENE_PERCENTILE: c.get("tumor-rna-distribution", {}).get("allgene_percentile"),
+            _PRESENCE_STRENGTH_CLASS: presence_strength_from_state(derive_presence_state(headline), cv),
+        }
+        pfr = _presence_priority_frame(cv, frame_headline, sv)
+        for r in rows:
+            if r.get("id") == "Q1":
+                r["integrated_signal"] = _presence_priority_frame_signal(pfr)
                 break
     return rows
 

@@ -722,6 +722,80 @@ PRESENCE_FRAME = Frame(
 )
 
 # --------------------------------------------------------------------------------------------------
+# Third PRESENCE-domain frame — the targetable-antigen PRIORITY surface (SK#1854, epic #1848 C1)
+# --------------------------------------------------------------------------------------------------
+# The THIRD frame the L3 typed-evidence interface mints, and the SECOND over the presence domain (after
+# PRESENCE_FRAME, #1842) — proving the interface carries MORE THAN ONE decision surface over one domain
+# whose decision-implications differ (mirroring the per-modality family, #1844). This is the antigen-
+# PRIORITY view — NOT a re-derivation of the tumor-presence verdict — asking "is this a well-corroborated
+# tumor-presence signal worth PRIORITIZING as a targetable antigen?". It weights the SAME presence
+# evidence differently from PRESENCE_FRAME: here the cross-modality ABUNDANCE agreement is the down-rank
+# lever (an rna_high_protein_low split means the transcript is present but the PROTEIN antigen is lower —
+# a real targeting-abundance caveat that DOWN-RANKS one notch, never a kill), while subtype-restriction is
+# merely CONTEXTUAL annotation on this surface. It also exercises the two remaining input KINDS the
+# presence frame did not: a raw tumor-RNA all-gene percentile MEASUREMENT (contextual) and the within-skill
+# presence_strength LOCAL-COMPOSITE classifier (supportive):
+#   * coverage             (bulk_vs_singlecell_coverage_concordance) canonical-property-claim / required
+#   * abundance            (abundance_concordance)                    canonical-property-claim / veto_capable
+#     (a MEASURED rna_high_protein_low cross-modality split down-ranks one notch, never a kill)
+#   * subtype_restriction  (subtype_restriction_concordance)         canonical-property-claim / contextual
+#   * tumor-RNA percentile (tumor_rna_allgene_percentile)            measurement              / contextual
+#   * presence_strength    (presence_strength_class)                 local-composite-claim    / supportive
+#   * normal-tissue safety liability (deliberately absent)           missing/unresolved       / critical_unknown
+# normal_liability is the SAME deliberately-absent critical_unknown specimen as the other production frames:
+# a tumor-presence surface never carries the cross-source safety concordance, so the unresolved critical
+# routes the frame to an L4 QUESTION (never a kill). Per SK#1854 (epic #1848-C1) the frame DECLARES that
+# critical_unknown role but does NOT render its forward-question here — the forward-question endpoint is the
+# separate #1855 (C-endpoint); this frame only surfaces its synthesis as a verdict-inert annotation.
+TUMOR_RNA_ALLGENE_PERCENTILE = "tumor_rna_allgene_percentile"
+PRESENCE_STRENGTH_CLASS = "presence_strength_class"
+
+# The two genuinely-NEW typed inputs this frame adds beyond the surfaced concordance families (SK#1854):
+# a raw observed all-gene percentile MEASUREMENT and a within-skill presence_strength LOCAL-COMPOSITE
+# classifier — each an OBSERVATIONAL-layer object (strictly below the decision_frame layer, so the frame
+# stays inside the DAG). The three concordance families it also consumes (coverage / abundance / subtype)
+# are the ALREADY-DECLARED SURFACED_CONCORDANCE_PROPERTIES (#1842) — reused, NOT re-declared.
+PRESENCE_PRIORITY_OBSERVATIONAL_INPUTS = (TUMOR_RNA_ALLGENE_PERCENTILE, PRESENCE_STRENGTH_CLASS)
+
+PRESENCE_PRIORITY_FRAME = Frame(
+    frame_id="present_targetable_antigen_priority",
+    inputs=(
+        FrameInput(
+            property_id=COVERAGE_CONCORDANCE_PROPERTY,
+            kind=InputKind.CANONICAL_PROPERTY_CLAIM,
+            role=Role.REQUIRED,
+            positive_states=frozenset({"coverage_concordant"}),
+        ),
+        FrameInput(
+            property_id=ABUNDANCE_CONCORDANCE_PROPERTY,
+            kind=InputKind.CANONICAL_PROPERTY_CLAIM,
+            role=Role.VETO_CAPABLE,
+            adverse_states=frozenset({"rna_high_protein_low"}),
+        ),
+        FrameInput(
+            property_id=SUBTYPE_RESTRICTION_PROPERTY,
+            kind=InputKind.CANONICAL_PROPERTY_CLAIM,
+            role=Role.CONTEXTUAL,
+        ),
+        FrameInput(
+            property_id=TUMOR_RNA_ALLGENE_PERCENTILE,
+            kind=InputKind.MEASUREMENT,
+            role=Role.CONTEXTUAL,
+        ),
+        FrameInput(
+            property_id=PRESENCE_STRENGTH_CLASS,
+            kind=InputKind.LOCAL_COMPOSITE_CLAIM,
+            role=Role.SUPPORTIVE,
+        ),
+        FrameInput(
+            property_id=NORMAL_LIABILITY_PROPERTY,
+            kind=InputKind.MISSING_UNRESOLVED,
+            role=Role.CRITICAL_UNKNOWN,
+        ),
+    ),
+)
+
+# --------------------------------------------------------------------------------------------------
 # Per-MODALITY decision frames — the deferred modality-fit territory (SK#1844, G3.4, epic #1749 M2)
 # --------------------------------------------------------------------------------------------------
 # G3.4 is the modality-fit frame that #1753 deliberately DEFERRED: it re-derives surface-modality-fit
@@ -838,7 +912,13 @@ MODALITY_FIT_PROPERTIES = (
     NORMAL_LIABILITY_PROPERTY,
 )
 
-FRAME_REGISTRY = (REFERENCE_FRAME, PRESENCE_FRAME, ADC_MODALITY_FRAME, TCE_MODALITY_FRAME)
+FRAME_REGISTRY = (
+    REFERENCE_FRAME,
+    PRESENCE_FRAME,
+    PRESENCE_PRIORITY_FRAME,
+    ADC_MODALITY_FRAME,
+    TCE_MODALITY_FRAME,
+)
 
 
 def reference_emitted_layers() -> dict:
@@ -869,6 +949,13 @@ def reference_emitted_layers() -> dict:
         SURFACE_TOPOLOGY_CLASS: ClaimType.OBSERVATIONAL_PROPERTY,
         SHED_LIABILITY_CLASS: ClaimType.OBSERVATIONAL_PROPERTY,
         TCE_ANTIGEN_ESCAPE_CLASS: ClaimType.OBSERVATIONAL_PROPERTY,
+        # The two genuinely-NEW typed inputs the antigen-priority frame adds (SK#1854): a raw tumor-RNA
+        # all-gene percentile MEASUREMENT and the within-skill presence_strength LOCAL-COMPOSITE classifier.
+        # Each is an OBSERVATIONAL-layer object (a measurement / a within-skill composite, NOT an L2b
+        # integrated property), strictly below the decision_frame layer, so PRESENCE_PRIORITY_FRAME stays a
+        # DAG. (Its three concordance inputs reuse the INTEGRATED_PROPERTY layers already mapped above.)
+        TUMOR_RNA_ALLGENE_PERCENTILE: ClaimType.OBSERVATIONAL_PROPERTY,
+        PRESENCE_STRENGTH_CLASS: ClaimType.OBSERVATIONAL_PROPERTY,
     }
     for f in FRAME_REGISTRY:
         layers[f.frame_id] = f.claim_type
@@ -956,6 +1043,67 @@ def tumor_presence_frame(claim_vector: Optional[Mapping] = None, by_subtype_vect
         bundle[SUBTYPE_RESTRICTION_PROPERTY] = from_concordance(SUBTYPE_RESTRICTION_PROPERTY, sub)
     # NORMAL_LIABILITY_PROPERTY intentionally omitted -> unresolved critical_unknown -> L4 question.
     return evaluate_frame(PRESENCE_FRAME, bundle)
+
+
+# --------------------------------------------------------------------------------------------------
+# Third production entry — the targetable-antigen PRIORITY L3 surface (SK#1854, epic #1848 C1)
+# --------------------------------------------------------------------------------------------------
+def presence_priority_frame(
+    claim_vector: Optional[Mapping] = None,
+    headline: Optional[Mapping] = None,
+    by_subtype_vector: Optional[Mapping] = None,
+) -> dict:
+    """Evaluate the ``present_targetable_antigen_priority`` PRESENCE_PRIORITY_FRAME over a tumor-presence
+    skill's ALREADY-EMITTED typed evidence, returning the frame's OWN L3 decision object.
+
+    The THIRD production frame (SK#1854, epic #1848-C1) and the SECOND over the presence domain — a NEW
+    additive antigen-PRIORITY decision surface, NOT a re-derivation of the presence_verdict. Purely
+    ADDITIVE / verdict-INERT: it consumes the emitted claim vectors + headline reads as typed inputs and
+    produces a NEW decision surface; it routes NOTHING back into the presence_verdict, the claim_vector, any
+    question_table row's meter cell, or a resolver. Every source claim is read through the read-only
+    adapters, so every emitted family stays byte-stable.
+
+    Bundle construction (an input NOT supplied auto-resolves to ``unresolved`` inside ``evaluate_frame``):
+      * COVERAGE (required)    <- the L2b ``bulk_vs_singlecell_coverage_concordance`` claim on the POOLED
+        presence vector — the anchor cross-source presence property this surface natively carries.
+      * ABUNDANCE (veto_capable) <- the L2b ``abundance_concordance`` claim on the pooled vector. On THIS
+        surface a MEASURED ``rna_high_protein_low`` cross-modality split (transcript present, protein antigen
+        lower) DOWN-RANKS one notch (never a kill); its absence is fine. (This is where the priority view
+        weights the same evidence differently from PRESENCE_FRAME, where abundance is merely supportive.)
+      * SUBTYPE_RESTRICTION (contextual) <- the L2b ``subtype_restriction_concordance`` claim on the
+        BY-SUBTYPE vector (it is keyed there, not on the pooled vector — see presence_claims.py); annotation
+        only, never gates.
+      * TUMOR_RNA_ALLGENE_PERCENTILE (measurement, contextual) <- an optional raw all-gene percentile read
+        off ``headline`` (a single observed measurement; annotation only).
+      * PRESENCE_STRENGTH_CLASS (local-composite, supportive) <- the within-skill presence_strength composite
+        classifier read off ``headline`` (a bundle of the A/B/C/D signals floored by presence_state — NOT an
+        atomic canonical property, so honestly consumed as a local-composite; absence is fine).
+      * NORMAL_LIABILITY (critical_unknown) is DELIBERATELY never supplied: a tumor-presence surface never
+        carries the safety claim, so the unresolved critical routes the frame to an L4 QUESTION (never a
+        kill). Per SK#1854 (epic #1848-C1) this role is DECLARED but its forward-question is NOT rendered
+        here — that endpoint is the separate #1855.
+    """
+    cv = claim_vector or {}
+    h = headline or {}
+    sv = by_subtype_vector or {}
+    bundle: dict = {}
+    cov = cv.get(COVERAGE_CONCORDANCE_PROPERTY)
+    if cov is not None:
+        bundle[COVERAGE_CONCORDANCE_PROPERTY] = from_concordance(COVERAGE_CONCORDANCE_PROPERTY, cov)
+    ab = cv.get(ABUNDANCE_CONCORDANCE_PROPERTY)
+    if ab is not None:
+        bundle[ABUNDANCE_CONCORDANCE_PROPERTY] = from_concordance(ABUNDANCE_CONCORDANCE_PROPERTY, ab)
+    sub = sv.get(SUBTYPE_RESTRICTION_PROPERTY)
+    if sub is not None:
+        bundle[SUBTYPE_RESTRICTION_PROPERTY] = from_concordance(SUBTYPE_RESTRICTION_PROPERTY, sub)
+    pct = h.get(TUMOR_RNA_ALLGENE_PERCENTILE)
+    if pct is not None:
+        bundle[TUMOR_RNA_ALLGENE_PERCENTILE] = measurement(TUMOR_RNA_ALLGENE_PERCENTILE, pct)
+    strength = h.get(PRESENCE_STRENGTH_CLASS)
+    if strength is not None:
+        bundle[PRESENCE_STRENGTH_CLASS] = local_composite(PRESENCE_STRENGTH_CLASS, strength)
+    # NORMAL_LIABILITY_PROPERTY intentionally omitted -> unresolved critical_unknown -> L4 question.
+    return evaluate_frame(PRESENCE_PRIORITY_FRAME, bundle)
 
 
 # --------------------------------------------------------------------------------------------------

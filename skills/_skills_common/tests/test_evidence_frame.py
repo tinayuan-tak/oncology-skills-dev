@@ -436,6 +436,7 @@ def test_registry_with_the_presence_frame_is_still_acyclic():
     assert set(f.frame_id for f in ef.FRAME_REGISTRY) == {
         "corroborated_dependency_priority",
         "corroborated_tumor_presence",
+        "present_targetable_antigen_priority",
         "adc_surface_modality_fit",
         "tce_surface_modality_fit",
     }
@@ -736,3 +737,124 @@ def test_forward_question_projector_reused_for_both_modality_frames():
         assert fq["role"] == "critical_unknown"
         assert fq["provenance_ref"] == f"evidence_frame.{fid}"
         assert "never a kill" in fq["_disclaimer"]
+
+
+# ==================================================================================================
+# 11. Third production frame — the targetable-antigen PRIORITY presence surface (SK#1854, epic #1848-C1)
+# ==================================================================================================
+def test_antigen_priority_frame_shape_and_roles():
+    """The antigen-priority frame is a SECOND presence-domain surface that weights the same evidence
+    differently: abundance is the VETO lever (not supportive as on PRESENCE_FRAME) and subtype-restriction
+    is CONTEXTUAL. It also adds the two input KINDS the presence frame did not exercise — a raw MEASUREMENT
+    and a within-skill LOCAL-COMPOSITE."""
+    f = ef.PRESENCE_PRIORITY_FRAME
+    assert f.frame_id == "present_targetable_antigen_priority"
+    assert f.claim_type == ClaimType.DECISION_FRAME
+    by_pid = {i.property_id: i for i in f.inputs}
+    assert by_pid[ef.COVERAGE_CONCORDANCE_PROPERTY].role == Role.REQUIRED
+    assert by_pid[ef.COVERAGE_CONCORDANCE_PROPERTY].kind == InputKind.CANONICAL_PROPERTY_CLAIM
+    # abundance is the DOWN-RANK lever on this priority surface (veto_capable, not supportive)
+    assert by_pid[ef.ABUNDANCE_CONCORDANCE_PROPERTY].role == Role.VETO_CAPABLE
+    assert "rna_high_protein_low" in by_pid[ef.ABUNDANCE_CONCORDANCE_PROPERTY].adverse_states
+    # subtype-restriction is contextual annotation here (it is the veto on PRESENCE_FRAME)
+    assert by_pid[ef.SUBTYPE_RESTRICTION_PROPERTY].role == Role.CONTEXTUAL
+    # the two NEW input kinds
+    assert by_pid[ef.TUMOR_RNA_ALLGENE_PERCENTILE].kind == InputKind.MEASUREMENT
+    assert by_pid[ef.TUMOR_RNA_ALLGENE_PERCENTILE].role == Role.CONTEXTUAL
+    assert by_pid[ef.PRESENCE_STRENGTH_CLASS].kind == InputKind.LOCAL_COMPOSITE_CLAIM
+    assert by_pid[ef.PRESENCE_STRENGTH_CLASS].role == Role.SUPPORTIVE
+    # normal_liability is the shared deliberately-absent critical
+    assert by_pid[ef.NORMAL_LIABILITY_PROPERTY].role == Role.CRITICAL_UNKNOWN
+    assert by_pid[ef.NORMAL_LIABILITY_PROPERTY].kind == InputKind.MISSING_UNRESOLVED
+
+
+def test_antigen_priority_frame_new_inputs_are_observational_layer_and_registry_acyclic():
+    """The two new inputs are OBSERVATIONAL-layer (a measurement / a within-skill composite, NOT an L2b
+    integrated property), so the frame stays strictly inside the DAG; the whole registry is acyclic."""
+    layers = ef.reference_emitted_layers()
+    assert layers[ef.TUMOR_RNA_ALLGENE_PERCENTILE] == ClaimType.OBSERVATIONAL_PROPERTY
+    assert layers[ef.PRESENCE_STRENGTH_CLASS] == ClaimType.OBSERVATIONAL_PROPERTY
+    ef.assert_acyclic(ef.FRAME_REGISTRY, layers)
+    # the frame is reachable via the reverse index for BOTH new inputs and the reused concordance families
+    idx = ef.build_reverse_index(ef.FRAME_REGISTRY)
+    for pid in (ef.TUMOR_RNA_ALLGENE_PERCENTILE, ef.PRESENCE_STRENGTH_CLASS, ef.COVERAGE_CONCORDANCE_PROPERTY):
+        assert ef.PRESENCE_PRIORITY_FRAME.frame_id in idx[pid]
+
+
+def test_presence_priority_frame_synthesizes_and_routes_to_a_question_on_absent_safety():
+    """The production entry consumes the emitted coverage claim + a headline percentile MEASUREMENT + the
+    presence_strength LOCAL-COMPOSITE, resolves them as typed inputs, and routes to an L4 QUESTION on the
+    absent safety critical (never a kill)."""
+    cov = _real_coverage_concordant_claim()
+    result = ef.presence_priority_frame(
+        {"bulk_vs_singlecell_coverage_concordance": cov},
+        {ef.TUMOR_RNA_ALLGENE_PERCENTILE: 99.9, ef.PRESENCE_STRENGTH_CLASS: "strong_positive"},
+    )
+    ri = result["resolved_inputs"]
+    assert ri.get("bulk_vs_singlecell_coverage_concordance") == "coverage_concordant"
+    assert ri.get(ef.TUMOR_RNA_ALLGENE_PERCENTILE) == 99.9  # a raw measurement value, not a class token
+    assert ri.get(ef.PRESENCE_STRENGTH_CLASS) == "strong_positive"
+    assert result["claim_type"] == ClaimType.DECISION_FRAME
+    assert result["decision"] == ef.DECISION_QUESTION
+    assert result["unresolved_critical"] == [ef.NORMAL_LIABILITY_PROPERTY]
+    assert result["decision"] != ef.DECISION_HOLD  # unresolved critical is a question, never a kill
+
+
+def test_presence_priority_frame_abundance_veto_records_on_rna_high_protein_low():
+    """On the priority surface a MEASURED rna_high_protein_low abundance split is the veto lever — it is
+    RECORDED as a measured-adverse veto (down-rank, never a kill), where a concordant abundance is not."""
+    cov = _real_coverage_concordant_claim()
+    split = {"concordance_class": "rna_high_protein_low", "integration_method": "explicit_deterministic"}
+    result = ef.presence_priority_frame(
+        {"bulk_vs_singlecell_coverage_concordance": cov, "abundance_concordance": split}
+    )
+    assert any("abundance_concordance" in v for v in result["vetoes_applied"])
+    # a concordant abundance applies no veto
+    ok = {"concordance_class": "abundance_concordant", "integration_method": "explicit_deterministic"}
+    result_ok = ef.presence_priority_frame(
+        {"bulk_vs_singlecell_coverage_concordance": cov, "abundance_concordance": ok}
+    )
+    assert result_ok["vetoes_applied"] == []
+
+
+def test_presence_priority_frame_reads_subtype_from_the_by_subtype_vector():
+    """subtype_restriction_concordance is keyed on the BY-SUBTYPE vector; the production entry reads it
+    there and resolves it as the CONTEXTUAL input (annotation only, applies no veto here)."""
+    cov = _real_coverage_concordant_claim()
+    sub = {"concordance_class": "protein_masks_subtype_restriction", "integration_method": "explicit_deterministic"}
+    result = ef.presence_priority_frame(
+        {"bulk_vs_singlecell_coverage_concordance": cov},
+        None,
+        {"subtype_restriction_concordance": sub},
+    )
+    assert result["resolved_inputs"].get("subtype_restriction_concordance") == "protein_masks_subtype_restriction"
+    # subtype is CONTEXTUAL on this frame, so even a mask token applies no veto (it is the veto on PRESENCE_FRAME)
+    assert result["vetoes_applied"] == []
+
+
+def test_presence_priority_frame_verdict_inert_disclaimer_and_empty_is_a_question():
+    result = ef.presence_priority_frame({}, {})
+    assert "routes NOTHING back" in result["_disclaimer"]
+    assert result["decision"] == ef.DECISION_QUESTION
+    assert ef.NORMAL_LIABILITY_PROPERTY in result["unresolved_critical"]
+
+
+def test_antigen_priority_type_integrity_teeth_local_composite_declared_canonical_is_refused():
+    """MUTATION TEETH (SK#1854): presence_strength is a within-skill LOCAL-COMPOSITE. Declaring it as a
+    CANONICAL_PROPERTY_CLAIM and feeding the honest composite MUST FAIL evaluate_frame — a local-composite
+    may not be consumed as a stronger/atomic epistemic type than it was emitted as."""
+    mutant = Frame(
+        frame_id="present_targetable_antigen_priority__MUTANT",
+        inputs=(
+            FrameInput(
+                property_id=ef.PRESENCE_STRENGTH_CLASS,
+                kind=InputKind.CANONICAL_PROPERTY_CLAIM,  # over-claim: composite masquerading as canonical
+                role=Role.SUPPORTIVE,
+            ),
+        ),
+    )
+    honest_composite = {ef.PRESENCE_STRENGTH_CLASS: ef.local_composite(ef.PRESENCE_STRENGTH_CLASS, "strong_positive")}
+    with pytest.raises(TypeIntegrityError, match="atomic/canonical|stronger epistemic type"):
+        ef.evaluate_frame(mutant, honest_composite)
+    # falsification: the REAL frame declares it as a LOCAL_COMPOSITE_CLAIM, so the honest composite passes
+    assert ef.evaluate_frame(ef.PRESENCE_PRIORITY_FRAME, honest_composite)["claim_type"] == ClaimType.DECISION_FRAME
