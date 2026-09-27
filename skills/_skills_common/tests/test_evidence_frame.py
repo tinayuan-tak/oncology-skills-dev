@@ -519,3 +519,38 @@ def test_tumor_presence_frame_verdict_inert_disclaimer_and_empty_is_a_question()
     # nothing supplied: the required coverage anchor is also unresolved -> still a question, never a kill
     assert result["decision"] == ef.DECISION_QUESTION
     assert ef.NORMAL_LIABILITY_PROPERTY in result["unresolved_critical"]
+
+
+# --------------------------------------------------------------------------------------------------
+# The shared G3.3 L4 forward-question projector (generalizes #1841/#1842 hand-rolled renderers)
+# --------------------------------------------------------------------------------------------------
+def test_forward_question_projector_renders_a_frame_that_routed_to_a_question():
+    """`forward_question_from_frame` renders a frame's CRITICAL_UNKNOWN role as an L4 forward question —
+    never a kill. The provenance_ref is DERIVED from the frame's own frame_id, so the ONE projector serves
+    every production domain (dependency + presence today) without per-domain code."""
+    result = ef.dependency_priority_frame({})
+    fq = ef.forward_question_from_frame(result)
+    assert fq["kind"] == "l4_forward_question"
+    assert fq["role"] == "critical_unknown"
+    assert fq["unresolved_critical"] == [ef.NORMAL_LIABILITY_PROPERTY]
+    assert ef.NORMAL_LIABILITY_PROPERTY in fq["question"]
+    # provenance is derived from the frame_id, not a per-domain literal
+    assert fq["provenance_ref"] == f"evidence_frame.{result['frame_id']}"
+    assert fq["provenance_ref"] == "evidence_frame.corroborated_dependency_priority"
+    # roles-not-weights: an unresolved critical routes to a QUESTION, the disclaimer says never a kill
+    assert "never a kill" in fq["_disclaimer"]
+
+
+def test_forward_question_projector_derives_provenance_per_domain():
+    """The SAME projector serves a second domain: the presence frame's forward question derives its own
+    provenance from its frame_id — proving the generalization extends cleanly to future frames."""
+    fq = ef.forward_question_from_frame(ef.tumor_presence_frame({}, {}))
+    assert fq["kind"] == "l4_forward_question"
+    assert fq["provenance_ref"] == "evidence_frame.corroborated_tumor_presence"
+
+
+def test_forward_question_projector_returns_none_when_the_frame_did_not_ask():
+    """A frame result carrying no `l4_question` (it decided, rather than routing to a question) yields no
+    forward-question — the projector attaches nothing, keeping the answer surface byte-stable."""
+    decided = {"frame_id": "x", "unresolved_critical": [], "unresolved_required": []}
+    assert ef.forward_question_from_frame(decided) is None

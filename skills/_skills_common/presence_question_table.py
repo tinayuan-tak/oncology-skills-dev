@@ -27,6 +27,7 @@ import math
 from typing import Optional
 
 from _skills_common.claim_vector_core import select_breadth_class as _select_breadth_class
+from _skills_common.evidence_frame import forward_question_from_frame as _forward_question_from_frame
 from _skills_common.evidence_frame import tumor_presence_frame as _tumor_presence_frame
 from _skills_common.question_table_core import _SIG_META
 from _skills_common.question_table_core import cbyid as _cbyid
@@ -606,27 +607,6 @@ def _tumor_presence_frame_signal(fr: dict) -> dict:
     }
 
 
-def _tumor_presence_forward_question(fr: dict) -> Optional[dict]:
-    """Render the presence frame's CRITICAL_UNKNOWN role as an L4 FORWARD QUESTION — never a kill. Returns
-    None when the frame did not route to a question."""
-    q = fr.get("l4_question")
-    if not q:
-        return None
-    return {
-        "kind": "l4_forward_question",
-        "role": "critical_unknown",
-        "question": q,
-        "unresolved_critical": fr.get("unresolved_critical"),
-        "unresolved_required": fr.get("unresolved_required"),
-        "provenance_ref": "evidence_frame.corroborated_tumor_presence",
-        "_disclaimer": (
-            "L4 FORWARD QUESTION (design G, roles-not-weights): an unresolved CRITICAL_UNKNOWN routes to a "
-            "QUESTION, never a kill; verdict-INERT — routes nothing back into any verdict / claim_vector / "
-            "resolver."
-        ),
-    }
-
-
 def presence_question_table(headline: dict, cards: list, claim_vector: Optional[dict] = None) -> list:
     """The 7 question rows (each: id, question, primary read, supporting/caveat line, signal, confidence).
     Verdict-inert. `claim_vector` defaults to the one on the headline (`headline['claim_vector']`)."""
@@ -662,7 +642,7 @@ def presence_question_table(headline: dict, cards: list, claim_vector: Optional[
         for r in rows:
             if r.get("id") == "Q7":
                 r["l3_integrated_signal"] = _tumor_presence_frame_signal(fr)
-                fq = _tumor_presence_forward_question(fr)
+                fq = _forward_question_from_frame(fr)
                 if fq is not None:
                     r["l3_forward_question"] = fq
                 break

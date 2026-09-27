@@ -562,6 +562,43 @@ def _frame_result(
 
 
 # --------------------------------------------------------------------------------------------------
+# L4 forward-question projector (G3.3) — shared over the typed interface
+# --------------------------------------------------------------------------------------------------
+def forward_question_from_frame(frame_result: Mapping) -> Optional[dict]:
+    """Render a frame's CRITICAL_UNKNOWN role (an unresolved-critical typed input) as an L4 FORWARD
+    QUESTION on the relevant skill's answer surface — never a kill. Returns None when the frame did not
+    route to a question (no ``l4_question`` on the result).
+
+    This is the SHARED G3.3 projector over the typed interface (epic #1749 Milestone-2). It generalizes
+    the CRITICAL_UNKNOWN -> forward-question rendering that #1841 (dependency Q4) and #1842 (presence Q7)
+    each hand-rolled, so every production frame routes through ONE projector rather than each diverging.
+    It emits one forward-question per frame that routed to a question, and extends cleanly as Draft-2
+    adds frames: the ``provenance_ref`` is DERIVED from the frame's own ``frame_id`` (``evidence_frame.
+    <frame_id>``), so no per-domain rendering code is needed. Per roles-not-weights, an unresolved
+    CRITICAL_UNKNOWN routes to a QUESTION (never a kill); a MEASURED-adverse veto DOWN-RANKS instead
+    (handled in ``evaluate_frame``). The forward-question is an ADDITIVE answer, verdict-INERT — never a
+    verdict input; it routes nothing back into any skill verdict, claim_vector, question_table meter
+    cell, or resolver.
+    """
+    q = frame_result.get("l4_question")
+    if not q:
+        return None
+    return {
+        "kind": "l4_forward_question",
+        "role": "critical_unknown",
+        "question": q,
+        "unresolved_critical": frame_result.get("unresolved_critical"),
+        "unresolved_required": frame_result.get("unresolved_required"),
+        "provenance_ref": f"evidence_frame.{frame_result.get('frame_id')}",
+        "_disclaimer": (
+            "L4 FORWARD QUESTION (design G, roles-not-weights): an unresolved CRITICAL_UNKNOWN routes to a "
+            "QUESTION, never a kill; verdict-INERT — routes nothing back into any verdict / claim_vector / "
+            "resolver."
+        ),
+    }
+
+
+# --------------------------------------------------------------------------------------------------
 # The FIRST reference frame + registry
 # --------------------------------------------------------------------------------------------------
 ESSENTIALITY_PROPERTY = "crispr_rnai_essentiality_concordance"
