@@ -343,6 +343,14 @@ kill_capable_verdicts:
     - {verdict: selective_but_stromal_confound,   disposition: contradiction}   # axis-A signal is in stroma/CAF, not malignant cells
     # NOTE: selective_with_normal_liability is selectivity-PRESERVING (a named-organ liability, not a
     # contradiction) → deliberately NOT listed; it does not block `strong`.
+    # POST-RESOLVER marrow-coverage ABSTAIN (#796; selectivity_veto.apply_marrow_coverage_abstain,
+    # declared in selectivity.resolver.yaml marrow_coverage_abstain). `uncorroborated`, NOT
+    # `contradiction`: the marrow safety denominator was TRANSIENTLY incomplete on a marrow-plausible
+    # target, so the confident selective call is WITHHELD pending a re-run — an absence of resolution,
+    # not a measurement AGAINST the target (mirrors discordant_across_comparators above). It blocks
+    # `strong` (an incomplete safety denominator cannot support a confident selective nomination) but is
+    # not labelled opposing, and it is deliberately absent from positive_contradictions.
+    - {verdict: selective_pending_marrow_coverage, disposition: uncorroborated}
   surface_modality:
     - {verdict: neither_viable,                   disposition: excluded_modality_scoped}
     - {verdict: adc_preferred_tce_unsafe,         disposition: excluded_modality_scoped}
@@ -1313,6 +1321,11 @@ positive_uncorroborated:
   # Two comparator arms disagree on the tumour-vs-normal window (rung tvn-discordant-neutral-flagged;
   # the resolver's own `upgrade:` block groups this verdict with `not_informative` as RESCUABLE).
   - {sub_skill: selectivity,     verdict: discordant_across_comparators}
+  # #796 marrow-coverage ABSTAIN: the marrow safety denominator was TRANSIENTLY unavailable on a
+  # marrow-plausible target, so the confident selective call is withheld pending a re-run — an absence
+  # of resolution, not a measurement against the target (selectivity_veto.apply_marrow_coverage_abstain;
+  # declared in selectivity.resolver.yaml marrow_coverage_abstain). Blocks `strong`; NOT opposing.
+  - {sub_skill: selectivity,     verdict: selective_pending_marrow_coverage}
   # CRISPR and RNAi pooled channels disagree (the dependency resolver's rung comment: "an absence
   # of resolution, not a measurement against the target").
   - {sub_skill: dependency,      verdict: discordant}

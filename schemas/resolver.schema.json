@@ -167,6 +167,81 @@
         }
       }
     },
+    "marrow_coverage_abstain": {
+      "type": "object",
+      "description": "OPTIONAL. DECLARATION (not executed by this interpreter) of a SECOND, orthogonal post-resolver clamp stage applied AFTER `post_resolver_clamp` — a substrate-conditioned ABSTAIN, NOT a veto arm. Unlike `post_resolver_clamp.precedence` it is not driven by any fired rule_id: it withholds a still-selective axis-A verdict when a producing-side substrate is TRANSIENTLY unavailable (#796, marrow-HPA transient read failure) AND the target is plausibly affected, so the confident call is deferred ('re-run to resolve') rather than fabricated or cleared. Declared here so the abstain's trigger conditions are PR-reviewable with the same legibility as the rungs and the veto precedence; the executor (skills/_skills_common/selectivity_veto.py) is kept in lockstep by a skills-side guard test. Its `verdict` MUST also appear in `clamp_verdicts`.",
+      "additionalProperties": false,
+      "required": ["module", "direction", "verdict", "applies_to_input_verdicts", "requires_marrow_substrate", "requires_marrow_plausible"],
+      "properties": {
+        "module": {
+          "type": "string",
+          "description": "Repo-relative path of the Python executor that applies this abstain (for traceability)."
+        },
+        "applied_after": {
+          "enum": ["post_resolver_clamp"],
+          "description": "Ordering guarantee: this stage runs on the OUTPUT verdict of `post_resolver_clamp` (the veto walk). If a veto already fired the verdict is a KILL/liability ∉ `applies_to_input_verdicts`, so this stage is a no-op — that is how 'never clears a KILL' is enforced by construction."
+        },
+        "direction": {
+          "enum": ["withhold_only"],
+          "description": "One-directional guarantee. `withhold_only`: the abstain can only REPLACE a still-selective axis-A verdict with the withhold verdict; it never fabricates a KILL, never upgrades, and is a NO-OP on any input verdict not in `applies_to_input_verdicts`."
+        },
+        "verdict": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "The abstain verdict this stage mints (MUST also be listed in `clamp_verdicts`)."
+        },
+        "disposition": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "OPTIONAL. The nomination_verdict_gate disposition this verdict carries (e.g. `uncorroborated`: blocks a `strong` call without being a measured contradiction). Documented here for reviewer legibility; the authoritative registration lives in vocabularies/nomination_verdict_gate.yaml."
+        },
+        "applies_to_input_verdicts": {
+          "type": "array",
+          "description": "The resolver-output (post-veto) verdicts the withhold may act on (the guard). A no-op unless the current verdict is one of these.",
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]*$"},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "requires_marrow_substrate": {
+          "type": "object",
+          "description": "PRECONDITION 1: the transient-substrate token, read from the named card's summary. Anything outside `one_of` (including the DEFINITIVE unavailable token or a missing field) does NOT trigger the abstain — fail-open on the withhold.",
+          "additionalProperties": false,
+          "required": ["card_id", "field", "one_of"],
+          "properties": {
+            "card_id": {"type": "string", "description": "The card whose summary carries the substrate field."},
+            "field": {"type": "string", "description": "The summary field name to read."},
+            "one_of": {
+              "type": "array",
+              "description": "The ONLY field values that trigger the abstain (e.g. the transient token).",
+              "items": {"type": "string"},
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        },
+        "requires_marrow_plausible": {
+          "type": "object",
+          "description": "PRECONDITION 2: marrow-plausibility derived from an INDEPENDENT substrate (NOT the transiently-missing value), so the withhold cannot scope-creep to all targets during a process-wide transient. Anything outside `one_of` (including a missing field) does NOT trigger the abstain — fail-open on the withhold.",
+          "additionalProperties": false,
+          "required": ["card_id", "field", "one_of"],
+          "properties": {
+            "card_id": {"type": "string", "description": "The card whose summary carries the independent plausibility field."},
+            "field": {"type": "string", "description": "The summary field name to read."},
+            "one_of": {
+              "type": "array",
+              "description": "The ONLY field values that count as plausible.",
+              "items": {"type": "string"},
+              "minItems": 1,
+              "uniqueItems": true
+            }
+          }
+        },
+        "driver_label": {
+          "type": "string",
+          "description": "OPTIONAL provenance label recorded when the abstain fires (NOT a resolver rung / fired rule_id)."
+        }
+      }
+    },
     "resolve": {
       "type": "array",
       "description": "ORDERED precedence ladder — first matching rung wins (the precedence, now visible). Each rung fires a verdict when its fired-set predicate matches.",

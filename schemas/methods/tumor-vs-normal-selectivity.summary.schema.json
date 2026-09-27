@@ -124,6 +124,7 @@
         "selective_but_broadly_normal",
         "selective_with_normal_liability",
         "selective_but_stromal_confound",
+        "selective_pending_marrow_coverage",
         "field_effect_tumor_selective",
         "discordant_across_comparators",
         "not_selective",
