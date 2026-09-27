@@ -336,6 +336,16 @@
             "p95_log2tpm": 10.38471279144287,
             "distribution_pattern": "continuous"
           },
+          "numeric": {
+            "allgene_percentile": 99.74150466918945,
+            "median_log2tpm": 9.622452735900879,
+            "p95_log2tpm": 10.38471279144287
+          },
+          "categorical": {
+            "tumor_expression_class": "broadly_high",
+            "control_position_class": "within_positives",
+            "distribution_pattern": "continuous"
+          },
           "cite": {
             "card_id": "tumor-rna-distribution",
             "fields": [
@@ -368,6 +378,14 @@
             "q_value": 1.2282737206350781e-06,
             "n_tumor": 624
           },
+          "numeric": {
+            "log2_fc": -0.3620304616558291,
+            "q_value": 1.2282737206350781e-06,
+            "n_tumor": 624
+          },
+          "categorical": {
+            "expression_call_class": "not_informative"
+          },
           "cite": {
             "card_id": "tumor-rna-vs-adjacent",
             "fields": [
@@ -396,6 +414,15 @@
             "sc_expression_class": "malignant_broadly_detected",
             "malignant_detection_fraction": 0.89476,
             "malignant_n_donors": 361,
+            "caf_vs_malignant_class": "caf_low",
+            "top_microenvironment_compartment": "stromal"
+          },
+          "numeric": {
+            "malignant_detection_fraction": 0.89476,
+            "malignant_n_donors": 361
+          },
+          "categorical": {
+            "sc_expression_class": "malignant_broadly_detected",
             "caf_vs_malignant_class": "caf_low",
             "top_microenvironment_compartment": "stromal"
           },
@@ -431,6 +458,16 @@
             "n_cohorts_tested": 9,
             "rna_n_indications_elevated": 10,
             "rna_n_indications_tested": 26
+          },
+          "numeric": {
+            "n_cohorts_elevated": 4,
+            "n_cohorts_tested": 9,
+            "rna_n_indications_elevated": 10,
+            "rna_n_indications_tested": 26
+          },
+          "categorical": {
+            "tumor_elevation_breadth_class": "multi_tumor_elevated",
+            "rna_tumor_elevation_breadth_class": "multi_tumor_elevated"
           },
           "cite": {
             "card_id": "tumor-elevation-breadth",
@@ -1262,6 +1299,16 @@
                 "p95_log2tpm": 10.38471279144287,
                 "distribution_pattern": "continuous"
               },
+              "numeric": {
+                "allgene_percentile": 99.74150466918945,
+                "median_log2tpm": 9.622452735900879,
+                "p95_log2tpm": 10.38471279144287
+              },
+              "categorical": {
+                "tumor_expression_class": "broadly_high",
+                "control_position_class": "within_positives",
+                "distribution_pattern": "continuous"
+              },
               "cite": {
                 "card_id": "tumor-rna-distribution",
                 "fields": [
@@ -1410,6 +1457,16 @@
                 "rna_n_indications_elevated": 10,
                 "rna_n_indications_tested": 26
               },
+              "numeric": {
+                "n_cohorts_elevated": 4,
+                "n_cohorts_tested": 9,
+                "rna_n_indications_elevated": 10,
+                "rna_n_indications_tested": 26
+              },
+              "categorical": {
+                "tumor_elevation_breadth_class": "multi_tumor_elevated",
+                "rna_tumor_elevation_breadth_class": "multi_tumor_elevated"
+              },
               "cite": {
                 "card_id": "tumor-elevation-breadth",
                 "fields": [
@@ -1459,6 +1516,15 @@
                 "sc_expression_class": "malignant_broadly_detected",
                 "malignant_detection_fraction": 0.89476,
                 "malignant_n_donors": 361,
+                "caf_vs_malignant_class": "caf_low",
+                "top_microenvironment_compartment": "stromal"
+              },
+              "numeric": {
+                "malignant_detection_fraction": 0.89476,
+                "malignant_n_donors": 361
+              },
+              "categorical": {
+                "sc_expression_class": "malignant_broadly_detected",
                 "caf_vs_malignant_class": "caf_low",
                 "top_microenvironment_compartment": "stromal"
               },

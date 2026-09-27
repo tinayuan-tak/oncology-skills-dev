@@ -1336,6 +1336,12 @@
         "corroboration": "single_arm",
         "evidence": "domain-modality-relevance: context_dependent (basis=curated)",
         "evidence_atom": {
+          "categorical": {
+            "modality_context": "EGFR has documented KINASE-INDEPENDENT pro-survival functions (glucose transporter stabilization, autophagy modulation) beyond its catalytic activity, so full removal (degrader / antibody-mediated downregulation) can differ from TKI inhibition in some contexts. But the dominant oncogenic driver in EGFR-mutant NSCLC IS the kinase, where TKIs are validated \u2014 hence context_dependent, not removal_required.",
+            "modality_implication_basis": "curated",
+            "modality_implication_class": "context_dependent",
+            "scaffolding_function": false
+          },
           "cite": {
             "card_id": "domain-modality-relevance",
             "fields": [
@@ -1349,6 +1355,7 @@
             "grain": "target",
             "measurement_type": "domain_modality_relevance"
           },
+          "numeric": {},
           "read": "context_dependent",
           "values": {
             "modality_context": "EGFR has documented KINASE-INDEPENDENT pro-survival functions (glucose transporter stabilization, autophagy modulation) beyond its catalytic activity, so full removal (degrader / antibody-mediated downregulation) can differ from TKI inhibition in some contexts. But the dominant oncogenic driver in EGFR-mutant NSCLC IS the kinase, where TKIs are validated \u2014 hence context_dependent, not removal_required.",
@@ -1365,6 +1372,11 @@
         "corroboration": "single_arm",
         "evidence": "target-development-level: Tclin",
         "evidence_atom": {
+          "categorical": {
+            "target_family": "Kinase",
+            "tdl_class": "Tclin",
+            "tdl_meaning": "clinically drugged (approved drug acts via this target's mode)"
+          },
           "cite": {
             "card_id": "target-development-level",
             "fields": [
@@ -1377,6 +1389,9 @@
           "entity": {
             "grain": "target",
             "measurement_type": "target_development_level"
+          },
+          "numeric": {
+            "novelty_score": 7.274e-05
           },
           "read": "Tclin",
           "values": {
@@ -4502,6 +4517,12 @@
             "corroboration": "single_arm",
             "evidence": "domain-modality-relevance: context_dependent (basis=curated)",
             "evidence_atom": {
+              "categorical": {
+                "modality_context": "EGFR has documented KINASE-INDEPENDENT pro-survival functions (glucose transporter stabilization, autophagy modulation) beyond its catalytic activity, so full removal (degrader / antibody-mediated downregulation) can differ from TKI inhibition in some contexts. But the dominant oncogenic driver in EGFR-mutant NSCLC IS the kinase, where TKIs are validated \u2014 hence context_dependent, not removal_required.",
+                "modality_implication_basis": "curated",
+                "modality_implication_class": "context_dependent",
+                "scaffolding_function": false
+              },
               "cite": {
                 "card_id": "domain-modality-relevance",
                 "fields": [
@@ -4515,6 +4536,7 @@
                 "grain": "target",
                 "measurement_type": "domain_modality_relevance"
               },
+              "numeric": {},
               "read": "context_dependent",
               "values": {
                 "modality_context": "EGFR has documented KINASE-INDEPENDENT pro-survival functions (glucose transporter stabilization, autophagy modulation) beyond its catalytic activity, so full removal (degrader / antibody-mediated downregulation) can differ from TKI inhibition in some contexts. But the dominant oncogenic driver in EGFR-mutant NSCLC IS the kinase, where TKIs are validated \u2014 hence context_dependent, not removal_required.",
@@ -4616,6 +4638,11 @@
             "corroboration": "single_arm",
             "evidence": "target-development-level: Tclin",
             "evidence_atom": {
+              "categorical": {
+                "target_family": "Kinase",
+                "tdl_class": "Tclin",
+                "tdl_meaning": "clinically drugged (approved drug acts via this target's mode)"
+              },
               "cite": {
                 "card_id": "target-development-level",
                 "fields": [
@@ -4628,6 +4655,9 @@
               "entity": {
                 "grain": "target",
                 "measurement_type": "target_development_level"
+              },
+              "numeric": {
+                "novelty_score": 7.274e-05
               },
               "read": "Tclin",
               "values": {

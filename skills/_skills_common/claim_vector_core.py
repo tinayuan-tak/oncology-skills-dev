@@ -303,23 +303,55 @@ def signal_from_class(card, field, smap):
 
 
 # ── the shared evidence-atom builder ───────────────────────────────────────────────────────────────
+def split_measurement_values(vals):
+    """Partition an atom's flat `values` into RAW numeric scalars vs DERIVED categorical values,
+    mirroring the capsule's `numeric_anchors` / `categorical_anchors` separation (#1861, Arm A gap 2).
+
+    The prototype's raw layer is "numbers + computed distribution only; no classes/verdicts" — so a
+    consumer reconstructs a pure raw layer by reading the `numeric` sub-map directly, with no manual
+    strip of the class-valued keys. `numeric` = int/float scalars; `categorical` = everything else
+    (the derived `*_class` labels, distribution patterns, and any non-scalar value). A bool is a flag/
+    label, not a raw measurement number, so it routes to `categorical`.
+
+    The split is TOTAL and order-preserving: every key lands in exactly one sub-map in `vals` order, so
+    `{**numeric, **categorical}` (mod ordering) reconstructs `values`. Insertion order matters because
+    JSON key order is part of the byte output."""
+    numeric, categorical = {}, {}
+    for k, v in vals.items():
+        if not isinstance(v, bool) and isinstance(v, (int, float)):
+            numeric[k] = v
+        else:
+            categorical[k] = v
+    return numeric, categorical
+
+
 def build_atom(*, card_id, values, read, entity, exclude_fields=()):
     """The SINGLE canonical CITABLE evidence atom — one shared shape for every axis's atom_fn,
     replacing the ~13 per-module hand-rolled `_atom`/`_patom`/`_mk_atom` builders (which had drifted
     only in their `fields`-exclusion + entity handling → a drift risk with no structural guard).
 
-    Returns {read, values, cite:{card_id, fields}, entity}, or None when `values` is empty (an
-    absent-card axis stays byte-stable — no `evidence_atom` key). `values` insertion order is
-    PRESERVED (JSON key order is part of the byte output) and None values are dropped. `fields` is the
-    sorted value keys minus `exclude_fields` — the list-valued keys some axes omit from the citation
-    (combination's `partners`/`top_partners`/`sl_partner_symbols`, immune's `tumor_studies`)."""
+    Returns {read, values, numeric, categorical, cite:{card_id, fields}, entity}, or None when
+    `values` is empty (an absent-card axis stays byte-stable — no `evidence_atom` key). `values`
+    insertion order is PRESERVED (JSON key order is part of the byte output) and None values are
+    dropped. `fields` is the sorted value keys minus `exclude_fields` — the list-valued keys some axes
+    omit from the citation (combination's `partners`/`top_partners`/`sl_partner_symbols`, immune's
+    `tumor_studies`).
+
+    RAW-vs-DERIVED boundary (#1861, Arm A gap 2): `values` stays the flat co-mingled map for existing
+    readers (byte-stable), and the additive `numeric` / `categorical` sub-maps carry the
+    measurement/interpretation split the capsule already has — so a raw layer no longer requires a
+    manual strip of the class-valued keys. `cite.fields` stays the full sorted union (each sub-map's
+    own field list is its keys, in `values` order)."""
     vals = {k: v for k, v in values.items() if v is not None}
     if not vals:
         return None
     excl = set(exclude_fields)
+    numeric, categorical = split_measurement_values(vals)
     return {
         "read": read,
         "values": vals,
+        "numeric": numeric,
+        "categorical": categorical,
         "cite": {"card_id": card_id, "fields": sorted(k for k in vals if k not in excl)},
         "entity": entity,
     }
@@ -446,6 +478,7 @@ __all__ = [
     "CORROBORATION_ORD",
     "ClaimSpec",
     "build_atom",
+    "split_measurement_values",
     "build_summary_atom",
     "build_claim_vector",
     "build_key_signals",

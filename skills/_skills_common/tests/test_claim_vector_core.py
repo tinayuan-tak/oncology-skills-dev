@@ -43,6 +43,9 @@ def test_build_atom_shape_and_citation_integrity():
     # CITATION-INTEGRITY CONTRACT: the atom always cites its OWN source card_id (never a phantom), and
     # fields are exactly the (sorted) value keys — so a consumer's cite.card_id resolves to a real card.
     assert a["cite"] == {"card_id": "crispr", "fields": ["chronos", "n"]}
+    # RAW-vs-DERIVED boundary (#1861): all-numeric here → numeric holds both, categorical empty
+    assert a["numeric"] == {"chronos": -1.2, "n": 300}
+    assert a["categorical"] == {}
 
 
 def test_build_atom_drops_none_and_returns_none_when_empty():
@@ -79,9 +82,43 @@ def test_build_summary_atom_matches_the_legacy_standard_archetype():
     assert a == {
         "read": "r",
         "values": {"k1": 5, "k3": "hi"},
+        # #1861 additive raw-vs-derived split: k1 (int) → numeric, k3 (str class) → categorical
+        "numeric": {"k1": 5},
+        "categorical": {"k3": "hi"},
         "cite": {"card_id": "c", "fields": ["k1", "k3"]},
         "entity": _ENTITY,
     }
+
+
+def test_build_atom_splits_raw_scalars_from_derived_classes():
+    # #1861 Arm A gap 2: the flat `values` co-mingles raw numbers with derived *_class labels; the
+    # additive numeric/categorical sub-maps give the measurement/interpretation boundary the capsule
+    # already has, so a pure raw layer is `evidence_atom.numeric` — no manual strip of class keys.
+    a = build_atom(
+        card_id="tumor-rna-distribution",
+        values={
+            "tumor_expression_class": "broadly_high",  # derived class
+            "allgene_percentile": 99.74,  # raw number
+            "median_log2tpm": 9.62,  # raw number
+            "distribution_pattern": "continuous",  # derived class
+            "n_flag": True,  # a bool is a flag/label, not a raw number → categorical
+        },
+        read="r",
+        entity=_ENTITY,
+    )
+    assert a["numeric"] == {"allgene_percentile": 99.74, "median_log2tpm": 9.62}
+    assert a["categorical"] == {
+        "tumor_expression_class": "broadly_high",
+        "distribution_pattern": "continuous",
+        "n_flag": True,
+    }
+    # TOTAL, order-preserving partition: the two sub-maps reconstruct `values` exactly.
+    assert {**a["numeric"], **a["categorical"]} == a["values"]
+    # each sub-map preserves `values` insertion order (JSON byte-order is part of the output)
+    assert list(a["numeric"]) == ["allgene_percentile", "median_log2tpm"]
+    assert list(a["categorical"]) == ["tumor_expression_class", "distribution_pattern", "n_flag"]
+    # `cite.fields` stays the full sorted union (byte-stable); each sub-map's field list is its keys
+    assert a["cite"]["fields"] == sorted(a["values"])
 
 
 # ── ordinal / gap≠absent invariants ───────────────────────────────────────────────────────────────
