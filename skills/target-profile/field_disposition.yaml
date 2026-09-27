@@ -1,0 +1,2300 @@
+# CAPSTONE ledger for the target-profile ORCHESTRATOR. A row is a HUMAN JUDGEMENT only when it
+# carries `reviewed: true` — EVERY row here does. Roles are INHERITED VERBATIM from the 15 landed
+# sibling evidence-skill ledgers (the home owner of each of the 37 cards_used), because target-profile
+# is a fan-out composer whose nomination is a function of each sub-skill's SUB-VERDICT, not of raw card
+# fields read here directly. See _meta.inheritance and _meta.multi_owner_resolution. Completeness (every
+# summary_field of every card) and reach for role:signal are CI-enforced by the fleet guard
+# skills/tests/test_field_disposition_ledgers.py.
+_meta:
+  description: "Field-disposition ledger for target-profile (the composite ORCHESTRATOR / capstone) — every emitted summary_field of all 37 cards_used carries an explicit role so nothing is dropped SILENTLY. Enforced by skills/tests/test_field_disposition_ledgers.py (fleet guard: wellformedness + the reach ratchet over role:signal rows)."
+  roles:
+    signal: "feeds a claim / verdict / the target-profile NOMINATION (must be reader-reached or explicitly waived)"
+    context: qualifies a signal (power, certainty, statistical qualifier, cross-axis pointer)
+    provenance: audit / identity / method token — surfaced, never a signal
+    display: human-facing detail or large container; verdict-inert by design
+  generated_from: "target-contracts/cards/<card>.card.yaml outputs.summary_fields (37 cards_used from SKILL.md composition)"
+  inheritance: "target-profile is a FAN-OUT-OVER-SUB-SKILLS composer: its nomination is a function of each sub-skill's SUB-VERDICT plus the LLM synthesis, not of raw card fields read directly here. Every one of these 37 cards is the HOME card of one of the 15 landed evidence-skill ledgers, which already made the reviewed role judgement. Roles/reasons are therefore INHERITED VERBATIM from those home ledgers: a field that is role:signal in its home skill feeds that skill's sub-verdict, which feeds the nomination, so it stays role:signal here; a field the home owner deemed verdict-inert (context/provenance/display) is not newly gated by the orchestrator. Reach is measured by the SAME global census, so signals reach the same readers. This ledger is CENSUS-NEUTRAL and VERDICT-INERT (ledger-only, no code/reader change)."
+  multi_owner_resolution: "9 fields are covered by >1 home ledger with differing roles (cards composed under multiple lenses). Resolved by signal>context>provenance>display priority — signal wins where ANY gating consumer exists, per the orchestrator's definitive-gating perspective."
+  reviewed: "true == the role was authored deliberately (here: inherited from the reviewed home-skill ledger and confirmed against target-profile's orchestrator perspective). EVERY row in this capstone carries reviewed: true."
+  waived_because: "only legal on role:signal. Records WHY a signal that no declared reader reaches is kept signal rather than relabelled inert; inherited verbatim from the home ledger (surface-modality-fit) for the 8 adc-tce-modality-fit grade/topology signals."
+cellline-rna-distribution:
+  n_cell_lines_evaluated:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  median_log2tpm_panel:
+    role: signal
+    reason: "panel-median log2 TPM magnitude behind the cell-line RNA call; role:signal reach-confirmed via {salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  p25_log2tpm_panel:
+    role: display
+    reason: "lower-quartile of the panel log2 TPM distribution; verdict-inert distribution shape; no exact reader (census 2026-09-19)"
+    reviewed: true
+  p75_log2tpm_panel:
+    role: display
+    reason: "upper-quartile of the panel log2 TPM distribution; verdict-inert distribution shape; no exact reader (census 2026-09-19)"
+    reviewed: true
+  p5_log2tpm_panel:
+    role: display
+    reason: "5th-percentile of the panel log2 TPM distribution; verdict-inert distribution shape; no exact reader (census 2026-09-19)"
+    reviewed: true
+  p95_log2tpm_panel:
+    role: context
+    reason: "panel dispersion around the READ median_log2tpm_panel; its p5/p25/p75 siblings were already labelled display, so the auto-draft split ONE percentile ladder across two roles"
+    reviewed: true
+  log2tpm_iqr:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  fraction_expressed:
+    role: context
+    reason: "within-cohort breadth magnitude behind the READ expression_class; _abundance_floor's docstring states the presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
+    reviewed: true
+  fraction_highly_expressed:
+    role: context
+    reason: "within-cohort breadth magnitude behind the READ expression_class; _abundance_floor's docstring states the presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
+    reviewed: true
+  fraction_not_expressed:
+    role: context
+    reason: "within-cohort breadth magnitude behind the READ expression_class; _abundance_floor's docstring states the presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
+    reviewed: true
+  expression_class:
+    role: signal
+    reason: "headline DepMap cell-line RNA expression call; role:signal reach-confirmed via {capsule, display_rule, question_table, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  n_lineages_evaluated:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  per_lineage_stats:
+    role: display
+    reason: human-facing detail / large container
+    reviewed: true
+  n_lineage_restricted_lineages:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  allgene_percentile:
+    role: signal
+    reason: "pan-gene expression percentile of the DepMap cell-line panel; continuous magnitude behind allgene_percentile_class; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  allgene_percentile_class:
+    role: signal
+    reason: "categorical pan-gene percentile call for cell-line RNA; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  allgene_percentile_context:
+    role: provenance
+    reason: provenance/audit token
+    reviewed: true
+  control_position_class:
+    role: signal
+    reason: "cell-line RNA position vs the housekeeping-control band, as a call; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  control_position:
+    role: context
+    reason: "position of the housekeeping-control band vs the target; reference qualifier behind control_position_class; no exact reader (census 2026-09-19)"
+    reviewed: true
+  control_positives:
+    role: display
+    reason: human-facing detail / large container
+    reviewed: true
+  control_negatives:
+    role: display
+    reason: human-facing detail / large container
+    reviewed: true
+  control_position_context:
+    role: provenance
+    reason: provenance/audit token
+    reviewed: true
+  isoform_expression_class:
+    role: signal
+    reason: "dominant-isoform expression call for the cell-line RNA arm; role:signal reach-confirmed via {capsule} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  dominant_isoform_fraction:
+    role: context
+    reason: "magnitude behind the READ isoform_expression_class (capsule); name_only credit only, because tumor-splice-dysregulation declares the same field name"
+    reviewed: true
+  n_expressed_isoforms:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  dominant_isoform:
+    role: context
+    reason: "names which isoform isoform_expression_class refers to; cross-axis pointer; no exact reader (census 2026-09-19)"
+    reviewed: true
+  isoform_n_models:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  isoform_context:
+    role: provenance
+    reason: provenance/audit token
+    reviewed: true
+  expression_properties:
+    role: signal
+    reason: "shared L2 expression-property facet object {presence, magnitude, prevalence, heterogeneity, lineage_restriction, + fleet-deferred selectivity/localization/subtype_restriction} resolved by the P2 property resolver (analysis-methods/methods/expression_properties, #720) from the same measurements that drive expression_class. Surfaced as a citable evidence atom on the presence claim vector (_skills_common/presence_claims.py `_expression_property_atom`, via the `_patom` claim_passthrough seam). P5 (issue #1509): promoted to role:signal on the DATA-DRIVEN basis that it is the one field of the distribution_pattern/coefficient_of_variation/expression_properties trio with EXACT, census-visible, skills-side SIGNAL reach — claim_passthrough (a code read into the claim vector; a capsule cannot credit an object). It is the resolved PROPERTY the evidence-property ontology attaches the signal to (its raw-measurement inputs distribution_pattern/coefficient_of_variation stay context). STILL VERDICT-INERT at the replay layer: it is a citable atom on the claim vector, not averaged into any claim or the presence_verdict — the reach ratchet is satisfied by the claim_passthrough reader, and the replay golden is byte-stable. Evidence-property architecture epic claude-oncology-skills#1507 / audit #1506 (P4, issue #1508; P5, issue #1509)"
+    reviewed: true
+  coefficient_of_variation:
+    role: context
+    reason: "distribution dispersion on linear TPM. P5 data-driven basis (issue #1509): its only skills-visible exact reach is `capsule` (a numeric_anchor, TC #873) — capsule reach cannot separate a decisive call from a context input, so it is a review candidate, not an auto-signal. Kept context because it is a raw measurement INPUT to the cross-repo P2 property resolver (analysis-methods methods/expression_properties/resolve.py:180 `_heterogeneity` reads it alongside distribution_pattern), NOT an independent signal: in the evidence-property ontology the signal attaches to the resolved PROPERTY (`expression_properties`, role:signal), never to the raw measurement. Whether the census should count that cross-repo resolver read is the split-out follow-up (must be gated with the analysis-methods sibling present and pin the resolver commit it scrapes). Capsule-wired so the fleet-aperture census reaches it (P3, issue #862)"
+    reviewed: true
+  distribution_pattern:
+    role: context
+    reason: "shape of the log2(TPM+1) distribution (unimodal/bimodal/long_tail); capsule-wired as a categorical_field (TC #873) so the fleet-aperture census reaches it. P5 resolution (issue #1509): STAYS role:context. Its only skills-visible exact reach is `capsule` — census- and descriptor-indistinguishable from the coefficient_of_variation sibling, so capsule reach cannot promote it. It is a raw measurement INPUT to the cross-repo P2 property resolver (analysis-methods methods/expression_properties/resolve.py:180 `_heterogeneity` reads distribution_pattern AND coefficient_of_variation as its two supplies), NOT an independent signal: the biological signal is carried by the RESOLVED property `expression_properties` (role:signal), which the evidence-property ontology attaches to the property rather than the raw measurement. The P3 note anticipated a P5 promotion, but the resolver read is cross-repo (the skills census scrapes the skills tree only, field_disposition.py:547), so promoting it is not a skills-visible reach fact — it is deferred to the split-out follow-up (teach the census to read the analysis-methods tree, AM-sibling-gated, pinning the resolver commit) (P3, issue #862; epic claude-oncology-skills#1507)"
+    reviewed: true
+tumor-rna-vs-adjacent:
+  log2_fc:
+    role: signal
+    reason: "tumor-vs-adjacent log2 fold-change; the continuous presence effect size; role:signal reach-confirmed via {claim_passthrough, figure, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  q_value:
+    role: context
+    reason: "multiple-testing-adjusted significance qualifier on log2_fc; a statistical qualifier, not itself a presence claim; reached via {claim_passthrough, figure, salience, skill_code} (census 2026-09-19)"
+    reviewed: true
+  n_tumor:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  n_adjacent:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  is_significant_provider_call:
+    role: provenance
+    reason: "the DGE provider's own significance flag (passthrough audit token, cf. allgene_percentile_context); the presence call here is carried by expression_call_class/log2_fc/q_value, so this upstream boolean is redundant provenance rather than a re-read signal. Arrived via the DGE-modernization additions; promotion to a read is deferred to the tumor-presence data audit."
+    reviewed: true
+  is_upregulated_provider_call:
+    role: provenance
+    reason: "the DGE provider's own up/down direction flag (passthrough audit token, cf. allgene_percentile_context); direction is already carried by log2_fc/expression_call_class, so this upstream boolean is redundant provenance rather than a re-read signal. Arrived via the DGE-modernization additions; promotion to a read is deferred to the tumor-presence data audit."
+    reviewed: true
+  base_mean:
+    role: context
+    reason: "DESeq2 mean normalized expression across the tumor-vs-adjacent contrast; an abundance/power qualifier (cf. n_tumor/n_adjacent/gtex_q_value), not itself a presence signal. Arrived on tumor-rna-vs-adjacent via the DGE-modernization additions; the #807 TC-pin bump is the first to cross it. Promotion to a read is a data-utilization question deferred to the tumor-presence data audit."
+    reviewed: true
+  expression_call_class:
+    role: signal
+    reason: "the tumor-vs-adjacent-normal expression call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  gtex_log2_fc:
+    role: context
+    reason: "vs-GTEx-normal contrast = SELECTIVITY axis; context pointer to tumor-selectivity, not a presence signal"
+    reviewed: true
+  gtex_q_value:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  allgene_percentile:
+    role: signal
+    reason: "pan-gene percentile of tumor vs adjacent-normal RNA; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  allgene_percentile_class:
+    role: signal
+    reason: "categorical pan-gene percentile call for tumor-vs-adjacent RNA; role:signal reach-confirmed via {capsule} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  allgene_percentile_context:
+    role: provenance
+    reason: provenance/audit token
+    reviewed: true
+tumor-vs-normal-selectivity:
+  cells_ran:
+    role: context
+    reason: count of comparator cell contexts evaluated; power/denominator for the aggregate call
+    reviewed: true
+  cells_supporting:
+    role: context
+    reason: count of cells supporting the aggregate direction; support-fraction qualifier
+    reviewed: true
+  dominant_direction:
+    role: signal
+    reason: "up/down polarity of the selectivity claim (tumor-selective-high vs -low); part of the verdict, reach=exact"
+    reviewed: true
+  sig_all_cells:
+    role: context
+    reason: whether the effect is significant across all cells; statistical qualifier on the aggregate
+    reviewed: true
+  discordant:
+    role: context
+    reason: cells-disagree flag; qualifies aggregate confidence
+    reviewed: true
+  max_abs_log2fc:
+    role: signal
+    reason: "peak tumor-vs-normal effect magnitude behind selectivity_class; read in _claim_record knife-edge distance, reach=exact"
+    reviewed: true
+  log2fc_cell_a:
+    role: context
+    reason: per-cell effect measurement (primary comparator) behind the aggregate; reach=exact
+    reviewed: true
+  q_value_cell_a:
+    role: context
+    reason: per-cell BH q-value (primary comparator); statistical qualifier
+    reviewed: true
+  log2fc_cell_b:
+    role: context
+    reason: per-cell effect (2nd comparator); reach=name_only
+    reviewed: true
+  q_value_cell_b:
+    role: context
+    reason: per-cell q-value (2nd comparator); reach=orphan
+    reviewed: true
+  log2fc_cell_c:
+    role: context
+    reason: per-cell effect (3rd comparator); reach=name_only
+    reviewed: true
+  q_value_cell_c:
+    role: context
+    reason: per-cell q-value (3rd comparator); reach=name_only
+    reviewed: true
+  n_tumor:
+    role: context
+    reason: tumor sample denominator; power qualifier; reach=name_only
+    reviewed: true
+  n_adjacent:
+    role: context
+    reason: adjacent-normal sample denominator; power qualifier; reach=orphan
+    reviewed: true
+  n_gtex_normal:
+    role: context
+    reason: GTEx-normal sample denominator; power qualifier; reach=orphan
+    reviewed: true
+  selectivity_class:
+    role: signal
+    reason: THE aggregate axis-A verdict spine; resolver-keyed, reach=exact
+    reviewed: true
+  comparator_concordance:
+    role: signal
+    reason: cross-comparator agreement corroboration call; feeds claim vector, reach=exact
+    reviewed: true
+  selectivity_allgene_percentile:
+    role: signal
+    reason: "continuous pan-gene selectivity percentile behind the class; sibling of cptac allgene_percentile (signal), reach=exact"
+    reviewed: true
+  selectivity_allgene_percentile_class:
+    role: signal
+    reason: "categorical pan-gene selectivity percentile call; sibling of cptac allgene_percentile_class (signal), reach=exact"
+    reviewed: true
+  selectivity_allgene_percentile_context:
+    role: provenance
+    reason: audit/context token for the percentile basis; reach=orphan
+    reviewed: true
+  selectivity_allgene_percentile_cell_b:
+    role: context
+    reason: per-cell (2nd comparator) selectivity percentile; qualifier; reach=orphan
+    reviewed: true
+  selectivity_allgene_percentile_cell_c:
+    role: context
+    reason: per-cell (3rd comparator) selectivity percentile; qualifier; reach=orphan
+    reviewed: true
+  comparator_families_ran:
+    role: context
+    reason: count of normal comparator families evaluated; denominator/breadth qualifier
+    reviewed: true
+  comparator_families_supporting:
+    role: context
+    reason: count of comparator families supporting the call; corroboration-breadth qualifier
+    reviewed: true
+  adjacent_arm_measured:
+    role: context
+    reason: whether the adjacent-normal arm was measured; coverage qualifier on the verdict
+    reviewed: true
+  selectivity_evidence_independence:
+    role: context
+    reason: "independence grade of the supporting evidence; qualifies corroboration strength, reach=exact"
+    reviewed: true
+  selectivity_substrate_basis:
+    role: provenance
+    reason: which substrate/basis the selectivity call rests on; method/identity token, reach=exact
+    reviewed: true
+  selectivity_substrate_caveat:
+    role: context
+    reason: caveat qualifying the substrate basis; reach=orphan
+    reviewed: true
+  per_subgroup_metrics:
+    role: display
+    reason: large per-subgroup metrics container; human-facing detail, reach=exact
+    reviewed: true
+  subgroup_axis:
+    role: provenance
+    reason: which axis the subgroups split on; identity/method token; reach=orphan
+    reviewed: true
+  n_subgroups_with_data:
+    role: context
+    reason: count of subgroups with data; denominator for the subtype panorama; reach=name_only
+    reviewed: true
+  max_subgroup_log2fc:
+    role: context
+    reason: max per-subgroup effect magnitude; reconciliation qualifier; reach=orphan
+    reviewed: true
+  min_subgroup_log2fc:
+    role: context
+    reason: min per-subgroup effect magnitude; reconciliation qualifier; reach=orphan
+    reviewed: true
+  cross_subgroup_delta_log2fc:
+    role: context
+    reason: cross-subgroup effect spread; divergence qualifier; reach=name_only
+    reviewed: true
+  selectivity_class_by_subgroup:
+    role: context
+    reason: "per-subgroup selectivity calls; verdict-INERT subtype reconciliation by design (run.py 1.26.0: reconciled against pooled crossing, no rule/golden reads it); reach=name_only"
+    reviewed: true
+  cross_subgroup_selectivity_divergence:
+    role: context
+    reason: "whether subgroups diverge from pooled selectivity; verdict-inert reconciliation qualifier; reach=name_only"
+    reviewed: true
+  any_subgroup_strong_selective:
+    role: context
+    reason: "flag: any subgroup strongly selective; verdict-inert reconciliation qualifier; reach=name_only"
+    reviewed: true
+tumor-protein-abundance-cptac:
+  protein_expression_class:
+    role: signal
+    reason: "headline CPTAC tumor protein presence call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, gating_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  protein_median_log2_tumor:
+    role: context
+    reason: "OPERAND of the READ protein_effect_size (= median_log2_tumor - median_log2_normal, documented at tumor-selectivity/scripts/run.py:145); the level axis is read via allgene_percentile"
+    reviewed: true
+  protein_median_log2_normal:
+    role: context
+    reason: "OPERAND of the READ protein_effect_size (= median_log2_tumor - median_log2_normal, documented at tumor-selectivity/scripts/run.py:145); the level axis is read via allgene_percentile"
+    reviewed: true
+  protein_effect_size:
+    role: signal
+    reason: "tumor-vs-normal protein effect-size magnitude; role:signal reach-confirmed via {claim_passthrough, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  protein_p_value:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  protein_bh_q_value:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  n_tumor_samples:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  n_normal_samples:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  protein_effect_size_se:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  protein_effect_standardized_t:
+    role: signal
+    reason: "standardized t-statistic magnitude of the protein effect; role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  protein_effect_cohens_d:
+    role: signal
+    reason: "Cohen's d effect size for tumor-vs-normal protein; role:signal reach-confirmed via {salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  protein_effect_standardized_class:
+    role: signal
+    reason: "standardized protein-effect call; role:signal reach-confirmed via {capsule, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  protein_effect_standardized_method:
+    role: provenance
+    reason: provenance/audit token
+    reviewed: true
+  stat_test_used:
+    role: provenance
+    reason: provenance/audit token
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: provenance/audit token
+    reviewed: true
+  allgene_percentile:
+    role: signal
+    reason: "pan-gene percentile of CPTAC tumor protein abundance; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  allgene_percentile_class:
+    role: signal
+    reason: "categorical pan-gene percentile call for CPTAC tumor protein; role:signal reach-confirmed via {capsule} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  allgene_percentile_context:
+    role: provenance
+    reason: provenance/audit token
+    reviewed: true
+pan-cancer-crispr-dependency-distribution:
+  n_cell_lines_evaluated:
+    role: context
+    reason: count of cell lines screened; power / statistical qualifier
+    reviewed: true
+  median_chronos_panel:
+    role: signal
+    reason: "panel-median Chronos magnitude behind the dependency call (mirrors tumor-presence median_log2tpm_panel:signal); role:signal reach-confirmed via {salience}"
+    reviewed: true
+  p25_chronos_panel:
+    role: display
+    reason: "lower-quartile of the panel Chronos distribution; verdict-inert distribution shape (tumor-presence p25 precedent)"
+    reviewed: true
+  p75_chronos_panel:
+    role: display
+    reason: "upper-quartile of the panel Chronos distribution; verdict-inert distribution shape (tumor-presence p75 precedent)"
+    reviewed: true
+  p5_chronos_panel:
+    role: display
+    reason: "5th-percentile of the panel Chronos distribution; verdict-inert distribution shape (tumor-presence p5 precedent)"
+    reviewed: true
+  p95_chronos_panel:
+    role: context
+    reason: "upper-tail Chronos dispersion around the READ median_chronos_panel; qualifier (tumor-presence p95 precedent)"
+    reviewed: true
+  chronos_iqr:
+    role: context
+    reason: "inter-quartile spread of the panel Chronos distribution; dispersion / power qualifier, not a call"
+    reviewed: true
+  fraction_strongly_dependent:
+    role: signal
+    reason: "fraction of the CRISPR panel strongly dependent — the core dependency-breadth magnitude, read by _crispr_lof_dependency_support (modality twin of rnai_fraction_strongly_dependent); role:signal reach-confirmed via {skill_code}"
+    reviewed: true
+  fraction_moderately_dependent:
+    role: context
+    reason: "within-panel breadth fraction at the moderate-dependency tier; magnitude behind the READ dependency_class"
+    reviewed: true
+  fraction_non_essential:
+    role: context
+    reason: "within-panel fraction below the dependency floor; breadth magnitude behind the READ dependency_class"
+    reviewed: true
+  distribution_shape:
+    role: context
+    reason: "shape of the Chronos distribution (uni/bimodal/long-tail); capsule-narrated qualifier behind dependency_class. Kept context on the tumor-presence cellline distribution_pattern precedent (capsule reach cannot separate a decisive call from a context input); NOTE the rnai twin rnai_distribution_shape gained a skill_code reader in #1892 and is signal — a display-vs-verdict asymmetry, not a re-read here"
+    reviewed: true
+  pan_essential_score:
+    role: signal
+    reason: "pan-essentiality score (safety-liability axis) read by _crispr_lof_dependency_support (modality twin of rnai_pan_essential_score); role:signal reach-confirmed via {skill_code}"
+    reviewed: true
+  selectivity_index:
+    role: signal
+    reason: "dependency selectivity index — how selective the killer is across the panel; role:signal reach-confirmed via {question_table, salience}"
+    reviewed: true
+  dependency_class:
+    role: signal
+    reason: "headline pan-cancer CRISPR dependency call — the verdict-bearing killer the dependency resolver matches; role:signal reach-confirmed via {capsule, gating_rule, skill_code}"
+    reviewed: true
+  depmap_curated_common_essential:
+    role: context
+    reason: "DepMap AchillesCommonEssentialControls membership flag qualifying the pan-essential value of dependency_class; the verdict reads dependency_class, so this is a qualifier, not an independent signal; no exact reader"
+    reviewed: true
+  pan_essential_fraction_call:
+    role: context
+    reason: "fraction-based pan-essential call feeding into dependency_class; the verdict reads dependency_class, so this is a qualifier input, not an independent signal; no exact reader"
+    reviewed: true
+  top_dependent_lineages:
+    role: display
+    reason: human-facing named list of the most-dependent lineages; verdict-inert container
+    reviewed: true
+  dep_control_position_class:
+    role: signal
+    reason: "categorical call of the target's Chronos position vs the control band (mirrors tumor-presence control_position_class:signal); role:signal reach-confirmed via {capsule, question_table, salience}"
+    reviewed: true
+  dep_control_position:
+    role: context
+    reason: "the target's position within the non-essential..pan-essential control band; reference qualifier behind the READ dep_control_position_class; no exact reader"
+    reviewed: true
+  dep_control_target_chronos:
+    role: context
+    reason: "the target's raw Chronos value operand behind dep_control_position_class; magnitude behind the READ class, no exact reader"
+    reviewed: true
+  dep_control_positives:
+    role: display
+    reason: human-facing container of the pan-essential control genes; verdict-inert detail
+    reviewed: true
+  dep_control_negatives:
+    role: display
+    reason: human-facing container of the non-essential control genes; verdict-inert detail
+    reviewed: true
+  dep_control_pan_essential_ceiling:
+    role: context
+    reason: "pan-essential reference-band ceiling the target Chronos is read against; reference qualifier behind dep_control_position_class"
+    reviewed: true
+  dep_control_non_essential_floor:
+    role: context
+    reason: "non-essential reference-band floor the target Chronos is read against; reference qualifier behind dep_control_position_class"
+    reviewed: true
+  dep_control_position_context:
+    role: provenance
+    reason: provenance/audit token describing the control-band basis; surfaced, never a signal
+    reviewed: true
+pan-cancer-rnai-dependency-distribution:
+  rnai_n_cell_lines_evaluated:
+    role: context
+    reason: count of RNAi-screened cell lines; power / statistical qualifier
+    reviewed: true
+  rnai_median_dep_score:
+    role: signal
+    reason: "panel-median RNAi dependency-score magnitude behind the call (modality twin of median_chronos_panel:signal); role:signal reach-confirmed via {salience}"
+    reviewed: true
+  rnai_p25_dep_score:
+    role: display
+    reason: lower-quartile of the RNAi dependency-score distribution; verdict-inert distribution shape
+    reviewed: true
+  rnai_p75_dep_score:
+    role: display
+    reason: upper-quartile of the RNAi dependency-score distribution; verdict-inert distribution shape
+    reviewed: true
+  rnai_p5_dep_score:
+    role: display
+    reason: 5th-percentile of the RNAi dependency-score distribution; verdict-inert distribution shape
+    reviewed: true
+  rnai_p95_dep_score:
+    role: context
+    reason: "upper-tail RNAi dependency-score dispersion around the READ rnai_median_dep_score; qualifier"
+    reviewed: true
+  rnai_dep_score_iqr:
+    role: context
+    reason: "inter-quartile spread of the RNAi dependency-score distribution; dispersion / power qualifier"
+    reviewed: true
+  rnai_fraction_strongly_dependent:
+    role: signal
+    reason: "fraction of the RNAi panel strongly dependent; READ via _rnai_lof_dependency_support (#1892); role:signal reach-confirmed via {skill_code}"
+    reviewed: true
+  rnai_fraction_moderately_dependent:
+    role: context
+    reason: "within-panel RNAi breadth fraction at the moderate tier; magnitude behind the READ rnai_dependency_class"
+    reviewed: true
+  rnai_fraction_non_dependent:
+    role: context
+    reason: "within-panel RNAi fraction below the dependency floor; breadth magnitude behind the READ rnai_dependency_class"
+    reviewed: true
+  rnai_distribution_shape:
+    role: signal
+    reason: "shape of the RNAi dependency-score distribution; READ via _rnai_lof_dependency_support in scripts/run.py (#1892); role:signal reach-confirmed via {skill_code}"
+    reviewed: true
+  rnai_pan_essential_score:
+    role: signal
+    reason: "RNAi pan-essentiality score (safety-liability axis); READ via _rnai_lof_dependency_support (#1892); role:signal reach-confirmed via {skill_code}"
+    reviewed: true
+  rnai_selectivity_index:
+    role: signal
+    reason: "RNAi dependency selectivity index; READ via _rnai_lof_dependency_support (#1892); role:signal reach-confirmed via {skill_code}"
+    reviewed: true
+  rnai_dependency_class:
+    role: signal
+    reason: "headline pan-cancer RNAi dependency call (orthogonal LoF modality); role:signal reach-confirmed via {display_rule, gating_rule, salience, skill_code}"
+    reviewed: true
+  rnai_top_dependent_lineages:
+    role: display
+    reason: human-facing named list of the most RNAi-dependent lineages; verdict-inert container
+    reviewed: true
+  rnai_screens_contributing:
+    role: context
+    reason: count of RNAi screens contributing to the aggregate; power / coverage qualifier
+    reviewed: true
+crispr-rnai-dependency-concordance:
+  n_in_both:
+    role: context
+    reason: count of lines screened by both modalities (concordance denominator); power qualifier
+    reviewed: true
+  n_crispr_only:
+    role: context
+    reason: count of CRISPR-only lines; power / coverage qualifier
+    reviewed: true
+  n_rnai_only:
+    role: context
+    reason: count of RNAi-only lines; power / coverage qualifier
+    reviewed: true
+  n_total:
+    role: context
+    reason: total lines considered across modalities; power denominator
+    reviewed: true
+  n_agree_dependent:
+    role: context
+    reason: count of lines both modalities call dependent; power / cross-tab count
+    reviewed: true
+  n_agree_non_dependent:
+    role: context
+    reason: count of lines both modalities call non-dependent; power / cross-tab count
+    reviewed: true
+  n_disagree_crispr_dependent:
+    role: context
+    reason: count of disagreements where CRISPR is dependent; power / cross-tab count
+    reviewed: true
+  n_disagree_rnai_dependent:
+    role: context
+    reason: count of disagreements where RNAi is dependent; power / cross-tab count
+    reviewed: true
+  fraction_agree:
+    role: signal
+    reason: "fraction of lines where the two modalities agree — the concordance magnitude the class keys on; role:signal reach-confirmed via {question_table, salience}"
+    reviewed: true
+  fraction_dependent_in_both:
+    role: context
+    reason: "fraction dependent under both modalities; magnitude behind the READ concordance_class; no exact reader"
+    reviewed: true
+  n_crispr_only_dependent:
+    role: context
+    reason: count of CRISPR-only lines called dependent; power / cross-tab count
+    reviewed: true
+  n_crispr_only_non_dependent:
+    role: context
+    reason: count of CRISPR-only lines called non-dependent; power / cross-tab count
+    reviewed: true
+  n_rnai_only_dependent:
+    role: context
+    reason: count of RNAi-only lines called dependent; power / cross-tab count
+    reviewed: true
+  n_rnai_only_non_dependent:
+    role: context
+    reason: count of RNAi-only lines called non-dependent; power / cross-tab count
+    reviewed: true
+  concordance_class:
+    role: signal
+    reason: "the CRISPR-vs-RNAi cross-modality concordance call; gates dependency interpretation; role:signal reach-confirmed via {display_rule, gating_rule, question_table, skill_code}"
+    reviewed: true
+  per_line_concordance:
+    role: display
+    reason: human-facing per-cell-line concordance container; verdict-inert detail
+    reviewed: true
+dependency-lineage-selectivity:
+  n_cell_lines_panel:
+    role: context
+    reason: count of cell lines in the lineage panel; power / statistical qualifier
+    reviewed: true
+  median_chronos_panel:
+    role: signal
+    reason: "panel-median Chronos magnitude behind the lineage-selectivity call (mirrors the distribution card's median_chronos_panel); role:signal reach-confirmed via {salience}"
+    reviewed: true
+  per_lineage_stats:
+    role: display
+    reason: human-facing per-lineage statistics container; verdict-inert detail
+    reviewed: true
+  n_lineages_evaluated:
+    role: context
+    reason: count of lineages evaluated; power / coverage qualifier
+    reviewed: true
+  per_oncotree_code_stats:
+    role: display
+    reason: human-facing per-OncoTree-code statistics container; verdict-inert detail
+    reviewed: true
+  n_oncotree_codes_evaluated:
+    role: context
+    reason: count of OncoTree codes evaluated; power / coverage qualifier
+    reviewed: true
+  enriched_lineages:
+    role: display
+    reason: "human-facing named list of enriched lineages (salience-surfaced for display); verdict-inert container"
+    reviewed: true
+  n_enriched_lineages:
+    role: context
+    reason: count of enriched lineages; power qualifier behind enrichment_class
+    reviewed: true
+  relative_only_enriched_lineages:
+    role: display
+    reason: human-facing named list of relative-only enriched lineages; verdict-inert container
+    reviewed: true
+  n_relative_only_enriched_lineages:
+    role: context
+    reason: count of relative-only enriched lineages; power qualifier
+    reviewed: true
+  enrichment_class:
+    role: signal
+    reason: "the lineage-selectivity call (lineage_selective if ANY lineage is enriched); role:signal reach-confirmed via {display_rule, gating_rule, skill_code}"
+    reviewed: true
+  indication_dependency_class:
+    role: signal
+    reason: "the queried indication's own dependency call within the lineage panel; role:signal reach-confirmed via {gating_rule}"
+    reviewed: true
+  lineage_omnibus_effect_size_class:
+    role: context
+    reason: "effect-size grade of the cross-lineage omnibus test; statistical qualifier grading enrichment_class, not an independent call; no exact reader"
+    reviewed: true
+  lineage_variance_explained:
+    role: context
+    reason: variance in Chronos explained by lineage; statistical qualifier behind enrichment_class
+    reviewed: true
+  lineage_omnibus_kruskal_h:
+    role: context
+    reason: Kruskal-Wallis omnibus H across lineages; statistical qualifier
+    reviewed: true
+  lineage_omnibus_p:
+    role: context
+    reason: cross-lineage omnibus p-value; statistical qualifier (salience-surfaced)
+    reviewed: true
+  which_lineages_separate:
+    role: display
+    reason: human-facing named list naming which lineages separate; verdict-inert container
+    reviewed: true
+  n_lineages_omnibus_tested:
+    role: context
+    reason: count of lineages entering the omnibus test; power qualifier
+    reviewed: true
+paralog-buffering:
+  paralog_buffering_class:
+    role: signal
+    reason: "the paralog-buffering call — degrader-preferred veto-suppressor that rescues a non-dependent veto via the when_all rung; role:signal reach-confirmed via {display_rule, gating_rule, salience, skill_code}"
+    reviewed: true
+  n_paralogs_annotated:
+    role: context
+    reason: count of paralogs annotated; power / coverage qualifier
+    reviewed: true
+  n_paralogs_functionally_buffering:
+    role: context
+    reason: count of functionally-buffering paralogs; power qualifier behind paralog_buffering_class
+    reviewed: true
+  functional_paralogs:
+    role: display
+    reason: human-facing named list of functional paralogs; verdict-inert container
+    reviewed: true
+  strongest_paralog_symbol:
+    role: context
+    reason: names the strongest buffering paralog; identifies the subject of the buffering call
+    reviewed: true
+  strongest_paralog_ohnolog:
+    role: context
+    reason: "whether the strongest paralog is an ohnolog; evolutionary-origin qualifier behind the buffering call"
+    reviewed: true
+  strongest_paralog_ohnolog_status:
+    role: context
+    reason: ohnolog-status token qualifying the strongest paralog; qualifier behind the buffering call
+    reviewed: true
+  strongest_paralog_delta:
+    role: context
+    reason: "buffering effect-size magnitude behind the READ paralog_buffering_class (salience-surfaced); qualifier, not an independent call"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: method-version audit token; surfaced, never a signal
+    reviewed: true
+combinatorial-dependency:
+  combinatorial_dependency_class:
+    role: signal
+    reason: "headline measured paralog dual-KO co-dependency call (DepMap ParalogV2 + published GI); the card's sub-verdict; reach-confirmed exact via {display_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_paralog_partners_screened:
+    role: context
+    reason: "count of paralog partners screened; power / denominator behind combinatorial_dependency_class (ORPHAN)"
+    reviewed: true
+  n_interacting_partners:
+    role: context
+    reason: "count of interacting partners detected; power qualifier behind the class; reach name_only {skill_code}"
+    reviewed: true
+  strongest_partner:
+    role: display
+    reason: "named identity of the strongest co-dependent partner; human-facing driver identity; verdict-inert label (ORPHAN)"
+    reviewed: true
+  strongest_partner_mean_gi:
+    role: context
+    reason: "genetic-interaction effect-size magnitude of the strongest partner behind combinatorial_dependency_class; reach exact {salience}"
+    reviewed: true
+  strongest_partner_class:
+    role: context
+    reason: "interaction class of the single strongest partner; per-partner categorical qualifier feeding the ranked_partner_table row, subsumed by the aggregate combinatorial_dependency_class (ORPHAN)"
+    reviewed: true
+  top_partners:
+    role: display
+    reason: "ranked partner list feeding the ranked_partner_table annex (partner_table.py); large container (ORPHAN)"
+    reviewed: true
+  combinatorial_context:
+    role: provenance
+    reason: "audit/context provenance token describing the co-dependency basis; surfaced, never a signal (ORPHAN)"
+    reviewed: true
+mutation-type-counts:
+  mut_n_cell_lines_total:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  mut_n_cell_lines_mutated:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  mut_mutation_rate:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  mut_total_mutations:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  mut_n_missense:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  mut_n_nonsense:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  mut_n_frameshift:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  mut_n_splice:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  mut_n_inframe_indel:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  mut_n_synonymous:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  mut_n_other:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  mut_fraction_missense:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  mut_fraction_lof:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  mut_fraction_inframe_indel:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  mut_dominant_mutation_class:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  mutation_landscape_class:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,display_rule,figure,gating_rule,salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  mut_top_mutated_lineages:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+  mut_per_class_counts:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+mutation-stratified-dependency:
+  n_cell_lines_evaluated:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  n_hotspot_mutant:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  n_hotspot_wildtype:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  median_chronos_hotspot_mutant:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  median_chronos_hotspot_wildtype:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  delta_chronos_hotspot_mut_vs_wt:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  hotspot_mannwhitney_p:
+    role: context
+    reason: statistical-significance qualifier (p/q) behind the driving class
+    reviewed: true
+  hotspot_mannwhitney_q:
+    role: context
+    reason: statistical-significance qualifier (p/q) behind the driving class
+    reviewed: true
+  hotspot_effect_size:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  n_damaging_mutant:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  n_damaging_wildtype:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  median_chronos_damaging_mutant:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  median_chronos_damaging_wildtype:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  delta_chronos_damaging_mut_vs_wt:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  damaging_mannwhitney_p:
+    role: context
+    reason: statistical-significance qualifier (p/q) behind the driving class
+    reviewed: true
+  damaging_mannwhitney_q:
+    role: context
+    reason: statistical-significance qualifier (p/q) behind the driving class
+    reviewed: true
+  damaging_effect_size:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  n_any_mutant:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  n_any_wildtype:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  delta_chronos_any_mut_vs_wt:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  any_mannwhitney_q:
+    role: context
+    reason: statistical-significance qualifier (p/q) behind the driving class
+    reviewed: true
+  per_hotspot_stats:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+  mutation_stratification_class:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,display_rule,gating_rule,salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  evidence_scope:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  lineage_context_divergent:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  pan_lineage_mutation_stratification_class:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  indication_lineage:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  pan_fallback_strong_capped_to_moderate:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  hotspot_dependency_ppv:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  hotspot_dependency_sensitivity:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  hotspot_dependency_specificity:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  hotspot_dependency_base_rate:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  hotspot_dependency_ppv_lift:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+mutation-hotspot-frequency:
+  overall_mutation_frequency:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  n_samples_in_indication:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  n_samples_mutated:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  driver_recurrence_percentile:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  driver_recurrence_class:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  driver_recurrence_context:
+    role: provenance
+    reason: audit/context provenance token — surfaced, never a signal
+    reviewed: true
+  genie_driver_recurrence_percentile:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  genie_driver_recurrence_class:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  genie_mutation_frequency:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  genie_recurrence_context:
+    role: provenance
+    reason: audit/context provenance token — surfaced, never a signal
+    reviewed: true
+  pooled_driver_recurrence_class:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,gating_rule,salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  pooled_driver_recurrence_percentile:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  pooled_mutation_frequency:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  n_covered_pooled:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  n_mutated_pooled:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  cohorts_contributing:
+    role: provenance
+    reason: method / dataset / version provenance token
+    reviewed: true
+  pooled_recurrence_context:
+    role: provenance
+    reason: audit/context provenance token — surfaced, never a signal
+    reviewed: true
+  hotspot_frequencies:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+  top_cooccurring_genes:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+  top_mutually_exclusive_genes:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+copy-number-distribution:
+  cn_n_cell_lines_evaluated:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  cn_assay_used:
+    role: provenance
+    reason: method / dataset / version provenance token
+    reviewed: true
+  cn_median_panel:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  cn_p25_panel:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  cn_p75_panel:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  cn_p5_panel:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  cn_p95_panel:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  cn_iqr:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  cn_fraction_deep_deletion:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  cn_fraction_shallow_deletion:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  cn_fraction_neutral:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  cn_fraction_shallow_amplification:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  cn_fraction_focal_amplification:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  cn_fraction_high_amplification:
+    role: context
+    reason: "qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)"
+    reviewed: true
+  cn_distribution_shape:
+    role: context
+    reason: "secondary/comparator categorical call; qualifies the primary target-alteration signal, not itself the reconciled verdict"
+    reviewed: true
+  cn_recurrent_amplification_score:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  cn_recurrent_deletion_score:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  copy_number_class:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,display_rule,gating_rule,salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  cn_homozygous_deletion_recurrent:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,gating_rule,salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  cn_top_amplified_lineages:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+  cn_top_deleted_lineages:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+  patient_copy_number_class:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  patient_focal_cn_class:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,display_rule,gating_rule,salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  patient_amplified_fraction:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  patient_high_amp_fraction:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  patient_deleted_fraction:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  patient_homdel_fraction:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  patient_cn_context:
+    role: provenance
+    reason: audit/context provenance token — surfaced, never a signal
+    reviewed: true
+fusion-rearrangement-landscape:
+  n_samples_with_fusion:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  fusion_frequency:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  recurrent_partners:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+  fusion_class:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,display_rule,gating_rule,salience,skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  fusion_recurrence_confidence:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,gating_rule,salience,skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  genie_sv_recurrence_class:
+    role: signal
+    reason: "target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  genie_sv_recurrence_percentile:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  genie_sv_frequency:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  n_sv_samples:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  n_sv_covered:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  genie_sv_recurrent_partners:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+co-mutation-and-mutual-exclusivity:
+  cooccurrence_class:
+    role: signal
+    reason: "headline co-occurrence/mutual-exclusivity call and the sole differentiation.resolver-gating categorical for this skill; role:signal reach-confirmed exact via {gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  cooccurrence_class_prefloor:
+    role: context
+    reason: "raw pre-floor class emitted for AUDIT only (differs from cooccurrence_class solely when the significance floor demotes it); verdict-inert qualifier of the floored call; read exact by run.py headline (skill_code)"
+    reviewed: true
+  top_cooccurring:
+    role: display
+    reason: "per-partner Fisher q-value table (nested container) emitted as tables/top_cooccurring.csv for human/governance filtering by pooled_eligible; verdict-inert large container (resolver reads only the class + driver flags). Surfaced by the evidence capsule (salience) + run.py (skill_code)"
+    reviewed: true
+  top_mutually_exclusive:
+    role: display
+    reason: "per-partner mutual-exclusivity Fisher q-value table (nested container) emitted as tables/top_mutually_exclusive.csv; verdict-inert large container; read exact by run.py headline (skill_code)"
+    reviewed: true
+  n_significant_cooccurring:
+    role: context
+    reason: "count of significant co-occurring partners; statistical qualifier behind the class call; read exact by run.py (skill_code)"
+    reviewed: true
+  n_significant_mutually_exclusive:
+    role: context
+    reason: "count of significant mutually-exclusive partners; statistical qualifier behind the class call; read exact by run.py (skill_code)"
+    reviewed: true
+  n_pairs_panel_intersect_eligible:
+    role: context
+    reason: "pooled-eligible pair count; power/eligibility qualifier feeding _strength_certainty; read exact by run.py (skill_code)"
+    reviewed: true
+  n_pairs_per_source_only:
+    role: context
+    reason: "panel-ineligible (per-source-only) pair count; power/eligibility qualifier; read exact by run.py (skill_code)"
+    reviewed: true
+  has_cooccurring_driver:
+    role: signal
+    reason: "boolean driver flag the co-mutation resolver rung consumes (SKILL.md: rules engine consumes has_cooccurring_driver); role:signal reach-confirmed exact via {display_rule, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  has_mutually_exclusive_driver:
+    role: signal
+    reason: "boolean mutual-exclusivity driver flag the co-mutation resolver input builder consumes; role:signal reach-confirmed exact via {skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "cooccurrence_fisher_pancohort method-version token; audit/provenance, never a signal; name_only reach"
+    reviewed: true
+pathway-node-leverage:
+  node_leverage_class:
+    role: signal
+    reason: "comparative node-leverage call; emits soft axis_fit signals + fired_rule_ids for the cross-evidence hypothesis agent (feeds NO differentiation resolver -> verdict byte-stable); role:signal reach-confirmed exact via {display_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  evidence_scope:
+    role: context
+    reason: "scope qualifier of the node-leverage evidence (which lenses/comparators were available); read exact by the capsule + run.py (salience, skill_code)"
+    reviewed: true
+  paralog_buffering_class:
+    role: signal
+    reason: "paralog-buffering categorical; the buffering signal was re-homed to functional-requirement (Phase C-adjacent) which consumes this call; role:signal reach-confirmed exact via {salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  strongest_buffering_paralog:
+    role: context
+    reason: "names the strongest buffering paralog behind paralog_buffering_class; cross-axis pointer; no exact reader (census)"
+    reviewed: true
+  single_ko_leverage_understated:
+    role: context
+    reason: "boolean caveat flag qualifying node_leverage_class (single-KO leverage understated by paralog buffering); read exact by display_rule + capsule (display_rule, salience)"
+    reviewed: true
+  lenses:
+    role: display
+    reason: "per-lens comparative detail (nested container); verdict-inert large container for human rendering; no exact reader (census)"
+    reviewed: true
+signaling-network-mechanism:
+  network_class:
+    role: signal
+    reason: "PRIMARY categorical the mechanism_verdict spine keys on; the ONLY verdict-bearing field of this card. Drives 4 per-modality rules (small_molecule/degrader) in interpretation-rules/intracellular-intrinsic.rules.yaml. role:signal reach-confirmed exact via run.py get_card_field + capsule/salience (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_upstream_regulators:
+    role: context
+    reason: "count of distinct upstream partners; magnitude/power behind network_class, surfaced in the headline (exact reader, census 2026-09-27). Not a rule predicate — verdict-inert qualifier"
+    reviewed: true
+  n_downstream_effectors:
+    role: context
+    reason: "count of distinct downstream partners; magnitude/power behind has_pd_marker, surfaced in the headline (exact reader, census 2026-09-27). Not a rule predicate — verdict-inert qualifier"
+    reviewed: true
+  upstream_regulators:
+    role: display
+    reason: "list<struct: partner_uniprot_ac, gene_symbol, raw_mechanism, moa_class, modality_relevance> — the source rows for the moa_opportunities.csv table; a large per-partner container, human-facing and verdict-inert. No exact reader by field name (census 2026-09-27; consumed structurally into the table)"
+    reviewed: true
+  downstream_effectors:
+    role: display
+    reason: "list<struct: partner_uniprot_ac, gene_symbol, raw_mechanism, moa_class, pd_marker_relevance> — source rows for pd_marker_opportunities.csv; large per-partner container, verdict-inert. No exact reader by field name (census 2026-09-27)"
+    reviewed: true
+  moa_classes_present:
+    role: context
+    reason: "list<string> — unique MoA classes hit by upstream partners; read by run.py into the headline/opportunities table and the inflation caveat, not by any rule. Names the MoA classes behind has_actionable_moa (qualifier), verdict-inert (exact reader, census 2026-09-27)"
+    reviewed: true
+  pd_marker_classes_present:
+    role: context
+    reason: "list<string> — unique MoA classes hit by downstream partners; parallel to moa_classes_present. Read into the headline (exact, census 2026-09-27), not a rule; qualifies the has_pd_marker signal, verdict-inert"
+    reviewed: true
+  has_actionable_moa:
+    role: context
+    reason: "bool — >=1 upstream partner with actionable modality relevance. NO rule predicate reads it (mechanism resolver keys only on network_class); feeds ONLY the verdict-INERT actionable-MoA-inflation caveat (run.py _actionable_moa_inflation_note) that flags when a True call may be over-stated. Qualifies the network_class signal, does not bear a verdict"
+    reviewed: true
+  has_pd_marker:
+    role: signal
+    reason: "bool — >=1 downstream effector; feeds the has-pd-marker-supportive rule (interpretation-rules/intracellular-intrinsic.rules.yaml) emitting small_molecule/degrader:supportive. The mechanism_verdict-spine rung was retired 2026-09-07 (keys only on network_class) but the per-modality claim signal is LIVE, so this is verdict/claim-bearing. Exact reader confirmed (run.py headline get_card_field, census 2026-09-27)"
+    reviewed: true
+  moa_ontology_version:
+    role: provenance
+    reason: "string — MoA ontology pin for reproducibility; stamped into provenance.yaml (SKILL.md provenance discipline). Method/version token, never a signal (exact reader, census 2026-09-27)"
+    reviewed: true
+  moa_ontology_unmapped_fraction:
+    role: context
+    reason: fraction of MoA terms unmapped to the ontology; QC/certainty qualifier
+    reviewed: true
+  high_confidence_edges_count:
+    role: context
+    reason: "int — curated edges supported by >=2 sources (the quorum measure); read by run.py into the mechanism_provenance quorum summary (exact, census 2026-09-27). Card comment: None feeds a resolver rung — verdict byte-stable. Qualifies the CONFIDENCE of network_class"
+    reviewed: true
+  source_counts:
+    role: provenance
+    reason: "map<source,int> — per-source curated + prediction/functional edge counts (signor/collectri/reactome/kinome_atlas/coessentiality); the network-composition audit. Read into mechanism_provenance (run.py, exact, census 2026-09-27). Audit token, not a signal"
+    reviewed: true
+  sources_wired:
+    role: provenance
+    reason: "list<string> — which sources contributed edges for this target; composition-audit token read into mechanism_provenance (run.py, exact, census 2026-09-27). Never a signal"
+    reviewed: true
+  kinome_atlas_predictions:
+    role: context
+    reason: "struct — the kinome-atlas PWM PREDICTION lane, carried ALONGSIDE and NEVER merged into network_class/has_actionable_moa. Read by run.py into the verdict-INERT prediction_lane_caveat (materiality gate compares lane vs curated-network size). Qualifies network_class, exact reader (census 2026-09-27)"
+    reviewed: true
+  coessentiality_context:
+    role: context
+    reason: "struct — the DepMap co-essentiality FUNCTIONAL lane (correlational, not a curated edge), carried alongside network_class. Read into the verdict-INERT prediction_lane_caveat (run.py). Qualifies network_class, exact reader (census 2026-09-27)"
+    reviewed: true
+prism-compound-activity:
+  prism_activity_class:
+    role: signal
+    reason: "headline PRISM small-molecule activity call; fires the prism-*-supportive-sm resolver rungs; reach-confirmed exact via {display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_compounds_targeting:
+    role: context
+    reason: "count of compounds hitting the target; power / denominator behind the activity class (ORPHAN)"
+    reviewed: true
+  highest_clinical_phase:
+    role: context
+    reason: "max clinical phase among PRISM compounds; clinical-maturity qualifier behind the activity class (the real clinical-phase signal lives on measured-potency-tractability) (ORPHAN)"
+    reviewed: true
+  median_log2auc_across_compounds:
+    role: context
+    reason: "aggregate PRISM viability effect magnitude behind prism_activity_class; qualifies the call, not itself the verdict; reach exact {salience}"
+    reviewed: true
+  top_compounds:
+    role: display
+    reason: named-compound list; human-facing detail / large container; reach exact {salience}
+    reviewed: true
+  per_lineage_activity:
+    role: display
+    reason: per-lineage activity container; large container; verdict-inert by design (ORPHAN)
+    reviewed: true
+  prism_lineage_selectivity:
+    role: context
+    reason: "lineage-selectivity qualifier of the PRISM activity signal; read by a display rule only, fires no gating rung; reach exact {display_rule}"
+    reviewed: true
+prism-crispr-concordance:
+  crispr_prism_concordance_class:
+    role: signal
+    reason: "the chemical-genetic confirmation call — fires triangulated-target-engaged which the resolver reads as chemical_genetic_confirmed_dependent; role:signal reach-confirmed via {display_rule, gating_rule, salience, skill_code}"
+    reviewed: true
+  n_compounds_evaluated:
+    role: context
+    reason: count of PRISM compounds evaluated; power / coverage qualifier
+    reviewed: true
+  best_spearman_r_crispr:
+    role: context
+    reason: "best CRISPR-vs-PRISM Spearman r; correlation magnitude behind the READ crispr_prism_concordance_class (salience-surfaced); qualifier"
+    reviewed: true
+  best_spearman_r_rnai:
+    role: context
+    reason: "best RNAi-vs-PRISM Spearman r; correlation magnitude behind the READ concordance class; qualifier"
+    reviewed: true
+  per_compound_concordance:
+    role: display
+    reason: human-facing per-compound concordance container (salience-surfaced); verdict-inert detail
+    reviewed: true
+  n_dual_responders:
+    role: context
+    reason: count of dual-responder compounds; power qualifier behind the concordance call
+    reviewed: true
+  dual_responders:
+    role: display
+    reason: human-facing named list of dual-responder compounds; verdict-inert container
+    reviewed: true
+dependency-predictability:
+  pred_n_cell_lines_evaluated:
+    role: context
+    reason: count of cell lines in the predictability model; power / statistical qualifier
+    reviewed: true
+  pearson_r_rf:
+    role: context
+    reason: "random-forest Pearson r of the predictability model; predictive-accuracy magnitude behind predictability_class; no exact reader"
+    reviewed: true
+  pearson_r_squared_rf:
+    role: context
+    reason: "random-forest R^2 of the predictability model; predictive-accuracy magnitude behind the READ predictability_class (salience-surfaced); qualifier"
+    reviewed: true
+  pearson_r_squared_rf_ci_lo:
+    role: context
+    reason: lower CI bound of the predictability R^2; statistical qualifier
+    reviewed: true
+  pearson_r_squared_rf_ci_hi:
+    role: context
+    reason: upper CI bound of the predictability R^2; statistical qualifier
+    reviewed: true
+  pred_top_features_rf:
+    role: display
+    reason: human-facing named list of top predictive features; verdict-inert container
+    reviewed: true
+  pred_dominant_feature:
+    role: display
+    reason: "named identity of the dominant predictive feature (human-facing driver identity); verdict-inert label"
+    reviewed: true
+  pred_dominant_feature_class:
+    role: signal
+    reason: "the dominant-predictor-class call (which omics feature best predicts the dependency); feeds the dependency_confidence_note; role:signal reach-confirmed via {capsule, salience, skill_code}"
+    reviewed: true
+  predictability_class:
+    role: signal
+    reason: "the dependency-predictability meta-call feeding the dependency_confidence_note (never the verdict); role:signal reach-confirmed via {capsule, display_rule, salience, skill_code}"
+    reviewed: true
+  per_lineage_predictability:
+    role: display
+    reason: "human-facing per-lineage predictability container (salience-surfaced); verdict-inert detail"
+    reviewed: true
+surface-topology-and-ptm:
+  topology_class:
+    role: signal
+    reason: "headline surface-topology call; fires topology_class rules on the surface_intrinsic axis (ADC/TCE ectodomain accessibility); reach-confirmed exact via {capsule, display_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  tm_pass_count:
+    role: context
+    reason: transmembrane-pass count; membrane-geometry magnitude qualifying topology_class
+    reviewed: true
+  has_tm_beta:
+    role: context
+    reason: "beta-barrel TM flag; topology component behind topology_class (ORPHAN — the class carries the call)"
+    reviewed: true
+  extracellular_residue_count:
+    role: context
+    reason: ECD size magnitude behind ecd_engineerability_class
+    reviewed: true
+  ecd_engineerability_class:
+    role: signal
+    reason: "ectodomain-engineerability call; fires ecd_engineerability_class rules (ADC/TCE binder-buildability); reach-confirmed exact via {capsule, display_rule, salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  ecd_orientation:
+    role: context
+    reason: type-I/II/multipass orientation; geometry qualifier behind ecd_engineerability_class
+    reviewed: true
+  signal_peptide_present:
+    role: context
+    reason: signal-peptide presence; topology/secretion feature qualifying the ECD reads
+    reviewed: true
+  signal_peptide_length:
+    role: context
+    reason: signal-peptide length magnitude; topology feature (ORPHAN)
+    reviewed: true
+  n_glycosylation_sites:
+    role: context
+    reason: N-glycosylation site count; PTM qualifier relevant to ADC payload/epitope (ORPHAN)
+    reviewed: true
+  n_ubiquitination_sites:
+    role: context
+    reason: ubiquitination site count; PTM/internalization qualifier (name_only)
+    reviewed: true
+  endocytosis_motif_count:
+    role: context
+    reason: "endocytosis-motif count; magnitude behind the ADC internalization read (endocytosis_confidence) (ORPHAN)"
+    reviewed: true
+  endocytosis_motif_count_high_confidence:
+    role: context
+    reason: "high-confidence endocytosis-motif count; power/certainty qualifier of the internalization read (name_only)"
+    reviewed: true
+  endocytosis_motif_types:
+    role: display
+    reason: list of matched endocytosis motif types; human-facing detail (ORPHAN)
+    reviewed: true
+  isoform_selective_warning:
+    role: signal
+    reason: "isoform-selective-targeting warning; fires isoform_selective_warning rules and drives fit_class isoform-suppression; reach-confirmed exact via {display_rule, salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  isoform_selective_dominant_isoform:
+    role: display
+    reason: "names the dominant isoform the selectivity warning refers to; human-facing identity label (ORPHAN)"
+    reviewed: true
+  tmbed_model_version:
+    role: provenance
+    reason: TMbed topology-predictor model version; method/provenance token (ORPHAN)
+    reviewed: true
+  vocabulary_version_isoform:
+    role: provenance
+    reason: isoform vocabulary version pin; provenance token (ORPHAN)
+    reviewed: true
+surfaceome-family-classification:
+  family_class:
+    role: signal
+    reason: "surfaceome family-class call; fires family_class rules and feeds surface_family_class / surface_confirmation_state; reach-confirmed exact via {display_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  surface_protein_family:
+    role: context
+    reason: "names the specific surface-protein family behind family_class; cross-axis pointer / qualifier"
+    reviewed: true
+  is_surface_protein:
+    role: context
+    reason: "surfaceome-membership boolean; the categorical family_class carries the framework's read (name_only)"
+    reviewed: true
+  surfaceome_confidence_score:
+    role: context
+    reason: "surfaceome-membership confidence magnitude; certainty qualifier behind family_class (name_only)"
+    reviewed: true
+  source_surfy_positive:
+    role: provenance
+    reason: SURFY predictor source flag; evidence-source provenance token (name_only)
+    reviewed: true
+  source_hpa_plasma_membrane:
+    role: provenance
+    reason: HPA plasma-membrane annotation source flag; provenance token (name_only)
+    reviewed: true
+  source_uniprot_ec_number:
+    role: provenance
+    reason: UniProt EC-number source flag; provenance token (ORPHAN)
+    reviewed: true
+  source_iuphar_family:
+    role: provenance
+    reason: IUPHAR family source flag; provenance token (ORPHAN)
+    reviewed: true
+  fusion_provenance:
+    role: provenance
+    reason: source-fusion provenance for the surfaceome call; provenance token (ORPHAN)
+    reviewed: true
+  hpa_protein_class_verbatim:
+    role: provenance
+    reason: verbatim HPA protein-class string; provenance/audit token (ORPHAN)
+    reviewed: true
+structure-features-static:
+  hotspot_pocket_adjacency_call:
+    role: signal
+    reason: "hotspot/druggable-pocket adjacency call; fires hotspot_pocket_adjacency_call rules on the surface_intrinsic axis; reach-confirmed exact via {capsule, display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  mutation_hotspot_in_druggable_pocket:
+    role: context
+    reason: boolean component behind hotspot_pocket_adjacency_call
+    reviewed: true
+  pdb_coverage_class:
+    role: context
+    reason: "experimental-structure coverage class; structural-certainty qualifier behind the ligandability call"
+    reviewed: true
+  alphafold_confidence_class:
+    role: context
+    reason: "AlphaFold model-confidence class; structural-certainty qualifier behind the ligandability call"
+    reviewed: true
+  pdb_ids_available:
+    role: provenance
+    reason: list of available PDB IDs; identity/provenance token (ORPHAN)
+    reviewed: true
+  pdb_best_resolution_angstrom:
+    role: context
+    reason: best crystallographic resolution; structure-quality qualifier (ORPHAN)
+    reviewed: true
+  pdb_best_method:
+    role: provenance
+    reason: best experimental structure method (X-ray/cryo-EM); provenance token (ORPHAN)
+    reviewed: true
+  alphafold_plddt_mean:
+    role: context
+    reason: mean pLDDT magnitude behind alphafold_confidence_class
+    reviewed: true
+  alphafold_plddt_min:
+    role: context
+    reason: min pLDDT magnitude; structural-certainty qualifier (ORPHAN)
+    reviewed: true
+  alphafold_plddt_min_domain:
+    role: display
+    reason: names the lowest-confidence domain; human-facing detail (ORPHAN)
+    reviewed: true
+  n_domains_low_plddt:
+    role: context
+    reason: count of low-confidence domains; power/certainty qualifier (ORPHAN)
+    reviewed: true
+  disordered_fraction:
+    role: context
+    reason: "disordered-residue fraction; structural qualifier behind ligandability_disorder_class (name_only)"
+    reviewed: true
+  structural_ligandability_class:
+    role: signal
+    reason: "structural-ligandability call (the SM tractability signal read by tractability-small-molecule); reach is global via census; reach-confirmed exact via {capsule, display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_ligandability_axes:
+    role: context
+    reason: "count of satisfied ligandability axes; magnitude behind structural_ligandability_class (name_only)"
+    reviewed: true
+  has_experimental_cocrystal:
+    role: context
+    reason: cocrystal-evidence boolean; ligandability-axis component behind the class
+    reviewed: true
+  has_druggable_pocket:
+    role: context
+    reason: druggable-pocket boolean; ligandability-axis component behind the class
+    reviewed: true
+  has_virtual_screen_hit:
+    role: context
+    reason: virtual-screen-hit boolean; ligandability-axis component (name_only)
+    reviewed: true
+  has_cryptic_site:
+    role: context
+    reason: cryptic-site boolean; ligandability-axis component behind the class
+    reviewed: true
+  has_annotated_binding_site:
+    role: context
+    reason: annotated-binding-site boolean; ligandability-axis component (ORPHAN)
+    reviewed: true
+  is_foldable:
+    role: context
+    reason: foldability boolean; structural qualifier (ORPHAN)
+    reviewed: true
+  ligandability_disorder_class:
+    role: signal
+    reason: "disorder-adjusted ligandability class; read by tractability-small-molecule as a structural call (reach global via census); reach-confirmed exact via {skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: structure-method version; provenance token (name_only)
+    reviewed: true
+surface-abundance-density:
+  surface_density_class:
+    role: signal
+    reason: "surface antigen-density call; fires surface_density_class rules and feeds the density floor (ADC-payload/TCE viability); reach-confirmed exact via {capsule, display_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  estimated_copies_per_cell_median:
+    role: context
+    reason: estimated copies/cell (median); density magnitude behind surface_density_class (ORPHAN)
+    reviewed: true
+  estimated_copies_per_cell_lower:
+    role: context
+    reason: estimated copies/cell lower bound; CI-bound qualifier (ORPHAN)
+    reviewed: true
+  estimated_copies_per_cell_upper:
+    role: context
+    reason: estimated copies/cell upper bound; CI-bound qualifier (ORPHAN)
+    reviewed: true
+  hpa_ihc_anchor_used:
+    role: provenance
+    reason: which HPA-IHC anchor calibrated the density estimate; method/provenance token (ORPHAN)
+    reviewed: true
+  hpa_ihc_intensity_class:
+    role: signal
+    reason: "HPA-IHC intensity call; fires hpa_ihc_intensity_class rules (density anchor); reach-confirmed exact via {capsule, display_rule, gating_rule} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  is_tce_viable:
+    role: signal
+    reason: "TCE density-viability boolean; verdict-bearing density-floor input for the TCE arm; reach-confirmed exact via {capsule, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  is_adc_high_payload_viable:
+    role: signal
+    reason: "ADC high-payload density-viability boolean; verdict-bearing density-floor input for the ADC arm; reach-confirmed exact via {capsule, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  absolute_density_class:
+    role: signal
+    reason: "absolute (copies/cell) surface-density call; density signal read into the floor; reach-confirmed exact via {capsule, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  absolute_copies_per_cell:
+    role: signal
+    reason: "absolute measured copies/cell magnitude; read as the absolute-density signal; reach-confirmed exact via {salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  absolute_density_grade:
+    role: signal
+    reason: "graded absolute-density call; density signal; reach-confirmed exact via {skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  absolute_measurement_semantics:
+    role: provenance
+    reason: semantics tag for the absolute measurement (what was measured); provenance token (ORPHAN)
+    reviewed: true
+  absolute_n_measurements:
+    role: context
+    reason: count of absolute density measurements; power qualifier (ORPHAN)
+    reviewed: true
+  absolute_abundance_proxy_class:
+    role: context
+    reason: "proxy-abundance class used when absolute copies are unavailable; fallback qualifier (name_only)"
+    reviewed: true
+  absolute_abundance_proxy_percentile:
+    role: context
+    reason: proxy-abundance percentile; magnitude qualifier (name_only)
+    reviewed: true
+  absolute_abundance_proxy_source:
+    role: provenance
+    reason: proxy-abundance data source; provenance token (name_only)
+    reviewed: true
+  absolute_abundance_proxy_note:
+    role: display
+    reason: human-readable proxy note; display detail (name_only)
+    reviewed: true
+  density_floor_verdict:
+    role: signal
+    reason: "the resolver density-floor verdict; a surface_modality resolver key (verdict-bearing); reach-confirmed exact via {capsule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: density-method version; provenance token (name_only)
+    reviewed: true
+adc-tce-modality-fit:
+  fit_class:
+    role: signal
+    reason: "PRIMARY biology-agnostic modality-fit categorical; the surface_modality resolver keys the whole verdict on it; reach-confirmed exact via {gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  fit_rationale:
+    role: display
+    reason: human-readable rationale list behind fit_class; display detail (ORPHAN)
+    reviewed: true
+  is_adc_topology_favorable:
+    role: signal
+    reason: biology-only ADC topology-favorability boolean
+    waived_because: "biology-only topology-favorability boolean for the modality arm; ORPHAN in census — the composed fit_class already folds topology, so no skill code reads the raw boolean. Track-B: surface as the per-arm topology rationale behind fit_class (owning repo claude-oncology-skills; adc-tce-modality-fit card)."
+    reviewed: true
+  is_tce_topology_favorable:
+    role: signal
+    reason: biology-only TCE topology-favorability boolean
+    waived_because: "biology-only topology-favorability boolean for the modality arm; ORPHAN in census — the composed fit_class already folds topology, so no skill code reads the raw boolean. Track-B: surface as the per-arm topology rationale behind fit_class (owning repo claude-oncology-skills; adc-tce-modality-fit card)."
+    reviewed: true
+  endocytosis_confidence:
+    role: signal
+    reason: "ADC internalization-confidence tier; feeds the clinically_internalizing rung of surface_confirmation_state; reach-confirmed exact via {salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  biologics_precedented:
+    role: signal
+    reason: "biologics-precedent boolean (validated ADC/TCE/CAR/mAb); feeds the clinically_precedented tier of surface_confirmation_state; reach-confirmed exact via {skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  surface_confirmation_state:
+    role: signal
+    reason: "cross-card surface-confirmation state (confirmed/precedented/annotation_only); fires the surface-annotation-only-unconfirmed verdict rung; reach-confirmed exact via {gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  surface_family_class:
+    role: signal
+    reason: "surfaceome family-class projected onto the fit card; read into surface_confirmation_state derivation; reach-confirmed exact via {salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  isoform_selective_suppressed:
+    role: context
+    reason: "boolean: letter grades were suppressed for an in-context isoform; qualifies the (unread) grade emission (ORPHAN)"
+    reviewed: true
+  isoform_selective_offcontext:
+    role: context
+    reason: "boolean: curated alt isoform exists but not in this indication → fit_class not suppressed, caveat only; qualifier of fit_class"
+    reviewed: true
+  isoform_mechanism_caveat:
+    role: context
+    reason: mechanism-aware isoform caveat string; qualifies fit_class without suppressing it
+    reviewed: true
+  isoform_epitope_caveat:
+    role: context
+    reason: minority-species epitope-loss caveat; qualifies fit_class without suppressing it
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: modality-fit method version; provenance token (name_only)
+    reviewed: true
+  adc_grade:
+    role: signal
+    reason: ADC letter grade (A-D) from modality_rubric.yaml
+    waived_because: "lens-conditional (--modality) ADC/TCE decision grade; ORPHAN in census — no skill code reads it. surface-modality-fit narrates fit_class, not the letter grades/scores/stability. Track-B: wire the graded rubric readout into the modality-fit headline + governance reproduction path (owning repo claude-oncology-skills; adc-tce-modality-fit card; modality_rubric.yaml)."
+    reviewed: true
+  adc_score:
+    role: signal
+    reason: ADC raw score 0-100; magnitude behind the letter grade
+    waived_because: "lens-conditional (--modality) ADC/TCE decision grade; ORPHAN in census — no skill code reads it. surface-modality-fit narrates fit_class, not the letter grades/scores/stability. Track-B: wire the graded rubric readout into the modality-fit headline + governance reproduction path (owning repo claude-oncology-skills; adc-tce-modality-fit card; modality_rubric.yaml)."
+    reviewed: true
+  adc_grade_stability:
+    role: signal
+    reason: ADC grade bootstrap stability (stable/sensitive/unstable)
+    waived_because: "lens-conditional (--modality) ADC/TCE decision grade; ORPHAN in census — no skill code reads it. surface-modality-fit narrates fit_class, not the letter grades/scores/stability. Track-B: wire the graded rubric readout into the modality-fit headline + governance reproduction path (owning repo claude-oncology-skills; adc-tce-modality-fit card; modality_rubric.yaml)."
+    reviewed: true
+  tce_grade:
+    role: signal
+    reason: TCE letter grade (A-D) from modality_rubric.yaml
+    waived_because: "lens-conditional (--modality) ADC/TCE decision grade; ORPHAN in census — no skill code reads it. surface-modality-fit narrates fit_class, not the letter grades/scores/stability. Track-B: wire the graded rubric readout into the modality-fit headline + governance reproduction path (owning repo claude-oncology-skills; adc-tce-modality-fit card; modality_rubric.yaml)."
+    reviewed: true
+  tce_score:
+    role: signal
+    reason: TCE raw score 0-100; magnitude behind the letter grade
+    waived_because: "lens-conditional (--modality) ADC/TCE decision grade; ORPHAN in census — no skill code reads it. surface-modality-fit narrates fit_class, not the letter grades/scores/stability. Track-B: wire the graded rubric readout into the modality-fit headline + governance reproduction path (owning repo claude-oncology-skills; adc-tce-modality-fit card; modality_rubric.yaml)."
+    reviewed: true
+  tce_grade_stability:
+    role: signal
+    reason: TCE grade bootstrap stability under weight perturbation
+    waived_because: "lens-conditional (--modality) ADC/TCE decision grade; ORPHAN in census — no skill code reads it. surface-modality-fit narrates fit_class, not the letter grades/scores/stability. Track-B: wire the graded rubric readout into the modality-fit headline + governance reproduction path (owning repo claude-oncology-skills; adc-tce-modality-fit card; modality_rubric.yaml)."
+    reviewed: true
+  rubric_version:
+    role: provenance
+    reason: modality_rubric.yaml version pin for grade reproduction; provenance token (ORPHAN)
+    reviewed: true
+  modality_lens_provenance:
+    role: provenance
+    reason: "structured lens-conditional emission provenance {rubric_version, weights, inputs}; provenance token (ORPHAN)"
+    reviewed: true
+gnomad-lof-constraint:
+  constraint_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  pli_score:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  loeuf_score:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  mis_z_score:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  syn_z_score:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  obs_lof_count:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  exp_lof_count:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  gene_length_bp:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  human_ko_observed_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  obs_hom_lof_count:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  exp_hom_lof_count:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  human_ko_context:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+cis-feature-expression-coherence:
+  n_cell_lines_evaluated:
+    role: context
+    reason: cells with both relative CN and expression coverage; power/sample-size qualifier
+    reviewed: true
+  cn_expr_spearman_r:
+    role: signal
+    reason: "primary robust CN-vs-log2TPM cis-dosage correlation; the decisive continuous magnitude behind cis_dosage_class; reach-confirmed exact (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  cn_expr_spearman_p:
+    role: context
+    reason: significance qualifier behind the pan-panel cis-dosage correlation
+    reviewed: true
+  cn_expr_pearson_r:
+    role: context
+    reason: "secondary Pearson estimator alongside the primary Spearman correlation; corroborating, not the reached primary"
+    reviewed: true
+  cn_expr_pearson_p:
+    role: context
+    reason: "significance of the secondary (non-robust) Pearson estimator; qualifier, not the primary metric"
+    reviewed: true
+  cn_expr_slope_log2tpm_per_cn:
+    role: provenance
+    reason: "OLS slope log2TPM per unit relative CN; audit magnitude (card annotates provenance), surfaced not gated"
+    reviewed: true
+  relative_cn_p10_p90_spread:
+    role: context
+    reason: "p90-p10 CN spread, the invariant-panel testability gate; a certainty/testability qualifier (cis-dosage is untestable without CN variation), not itself the call"
+    reviewed: true
+  relative_cn_iqr:
+    role: provenance
+    reason: "middle-50% CN spread; card marks provenance ONLY (blind to the amplified tail, explicitly NOT the gate)"
+    reviewed: true
+  log2tpm_iqr:
+    role: context
+    reason: expression dispersion; distribution qualifier behind the correlation reliability
+    reviewed: true
+  median_relative_cn:
+    role: context
+    reason: panel median relative CN; distribution qualifier
+    reviewed: true
+  median_log2tpm:
+    role: context
+    reason: panel median expression; distribution qualifier
+    reviewed: true
+  n_amplified:
+    role: context
+    reason: "count of amplified cells (relative CN > threshold); power/sample-size qualifier for the amplified arm"
+    reviewed: true
+  mean_log2tpm_amplified:
+    role: context
+    reason: mean expression in amplified cells; component of the interpretability contrast
+    reviewed: true
+  mean_log2tpm_neutral:
+    role: context
+    reason: mean expression in neutral cells; component of the interpretability contrast
+    reviewed: true
+  delta_log2tpm_amplified_vs_neutral:
+    role: context
+    reason: "mean-based amplified-vs-neutral contrast; card marks it an interpretability aid, NOT the class driver (the subset/within-lineage deltas are)"
+    reviewed: true
+  amplification_threshold_relative_cn:
+    role: provenance
+    reason: FOCAL_AMP relative-CN cutoff used; audit token recording the threshold, not a call
+    reviewed: true
+  subset_delta_log2tpm_amplified_vs_neutral:
+    role: signal
+    reason: "median log2TPM (amplified - neutral); the focal-amplification subset driver of the coupled call (the amplified-tail path the pan-panel Spearman dilutes); reach-confirmed exact (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  subset_mannwhitney_p:
+    role: context
+    reason: one-sided Mann-Whitney significance qualifier on the amplified-subset escape
+    reviewed: true
+  subset_within_lineage_delta_log2tpm:
+    role: signal
+    reason: "pooled within-lineage median delta (amplified - neutral); the escape GATE that controls the subset driver for lineage confounding; reach-confirmed exact (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  subset_n_lineages_compared:
+    role: context
+    reason: lineages jointly powered in the within-lineage pooling; power qualifier
+    reviewed: true
+  amplified_dominant_lineage_fraction:
+    role: context
+    reason: "largest single lineage's share of the amplified group; confound-exposure qualifier on the subset escape"
+    reviewed: true
+  n_deleted:
+    role: context
+    reason: "count of deleted cells (relative CN < threshold); power/sample-size qualifier for the deletion arm"
+    reviewed: true
+  deleted_subset_delta_log2tpm:
+    role: signal
+    reason: "median log2TPM (deleted - mid-CN) deletion-arm effect; the direction discriminator and driver of the deletion-coupled call; reach-confirmed exact (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  deleted_within_lineage_delta_log2tpm:
+    role: signal
+    reason: "within-lineage counterpart of the deletion-arm delta (same lineage control as the amplified arm); the confound-controlled deletion driver; reach-confirmed exact (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  deleted_subset_mannwhitney_p:
+    role: context
+    reason: one-sided Mann-Whitney significance qualifier on the deletion-arm contrast
+    reviewed: true
+  deletion_threshold_relative_cn:
+    role: provenance
+    reason: DELETION relative-CN cutoff used; audit token
+    reviewed: true
+  cis_dosage_direction:
+    role: context
+    reason: "which CN arm carries the coupling (amplification_coupled|deletion_coupled); qualifies/refines the cis_dosage_class call, not itself the headline verdict"
+    reviewed: true
+  cis_dosage_direction_basis:
+    role: provenance
+    reason: "how the direction was decided (amplified_vs_deleted_contrast|cn_distribution_asymmetry); method/audit token"
+    reviewed: true
+  cis_dosage_driver:
+    role: provenance
+    reason: "which path drove the coupled call (pan_panel_correlation|focal_amplification_subset); method/audit token"
+    reviewed: true
+  cis_dosage_class:
+    role: signal
+    reason: "PRIMARY Tier-2 categorical; drives cis-coherence.rules.yaml (cis-dosage-* rungs) and the cis_coherence verdict; reach-confirmed exact (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  evidence_scope:
+    role: context
+    reason: "indication-conditioning scope (within_indication through pan_no_indication); qualifies where the cis call was measured"
+    reviewed: true
+target-identity-summary:
+  input_value:
+    role: provenance
+    reason: raw target identifier as supplied; audit/identity token
+    reviewed: true
+  resolved_hgnc_symbol:
+    role: provenance
+    reason: resolved HGNC symbol; canonical identity token
+    reviewed: true
+  resolved_hgnc_id:
+    role: provenance
+    reason: resolved HGNC id; canonical identity token
+    reviewed: true
+  resolved_ensembl_id:
+    role: provenance
+    reason: resolved Ensembl gene id; canonical identity token
+    reviewed: true
+  resolved_uniprot_canonical:
+    role: provenance
+    reason: resolved canonical UniProt accession; identity token (uniprot_ac)
+    reviewed: true
+  resolution_status:
+    role: provenance
+    reason: resolver status token; audit/identity
+    reviewed: true
+  redirects_applied:
+    role: provenance
+    reason: resolver redirect audit trail; identity/provenance token
+    reviewed: true
+  resolver_release_pin:
+    role: provenance
+    reason: resolver release/manifest version pin; provenance token
+    reviewed: true
+  biology_axis_curated:
+    role: provenance
+    reason: curated biology-axis annotation of the target; identity/annotation token
+    reviewed: true
+  biology_axis_source:
+    role: provenance
+    reason: source of the biology-axis annotation; provenance token
+    reviewed: true
+target-development-level:
+  tdl_class:
+    role: signal
+    reason: "Pharos/IDG Target Development Level call; the TRACTABILITY_PRECEDENT signal in target-intrinsic's own claim vector (target_intrinsic_claims.py); reach-confirmed exact via {salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  tdl_meaning:
+    role: display
+    reason: human-readable gloss of tdl_class; verdict-inert display detail carried in the TDL atom
+    reviewed: true
+  target_family:
+    role: context
+    reason: Pharos target-family classification; cross-axis pointer carried in the TDL atom
+    reviewed: true
+  novelty_score:
+    role: context
+    reason: Pharos novelty-score magnitude; qualifier carried in the TDL atom
+    reviewed: true
+protein-domains-class:
+  protein_features_class:
+    role: signal
+    reason: "integrated protein-features class call; a distinct mechanism/actionability signal; reach-confirmed exact via {capsule, salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_domains:
+    role: context
+    reason: annotated domain count; magnitude qualifier (salience)
+    reviewed: true
+  domain_names:
+    role: display
+    reason: list of domain names; human-facing detail container
+    reviewed: true
+  domain_architecture:
+    role: display
+    reason: domain-architecture string; human-facing detail
+    reviewed: true
+  protein_class:
+    role: signal
+    reason: "protein-class call from domain architecture; a mechanism/class signal surfaced across the framework; reach-confirmed exact via {capsule, salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  protein_class_primary:
+    role: context
+    reason: primary protein-class refinement behind protein_class (capsule)
+    reviewed: true
+  uniprot_ac:
+    role: provenance
+    reason: UniProt accession; identity token (uniprot_ac)
+    reviewed: true
+  domain_evidence:
+    role: context
+    reason: domain-evidence tier; certainty qualifier behind the domain calls (capsule, salience)
+    reviewed: true
+  interpro_n_domains:
+    role: context
+    reason: InterPro domain count; magnitude qualifier
+    reviewed: true
+  interpro_domain_names:
+    role: display
+    reason: list of InterPro domain names; human-facing detail container
+    reviewed: true
+  interpro_domain_architecture:
+    role: display
+    reason: InterPro domain-architecture string; human-facing detail
+    reviewed: true
+domain-modality-relevance:
+  modality_implication_class:
+    role: signal
+    reason: "domain->modality implication call; the MODALITY_ROUTING signal in target-intrinsic's own claim vector (target_intrinsic_claims.py); reach-confirmed exact via {display_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  modality_implication_basis:
+    role: context
+    reason: "basis of the routing call (curated vs heuristic); corroboration/certainty qualifier - target_intrinsic_claims._modality_corr treats it as a property of the single arm, not a second arm (salience)"
+    reviewed: true
+  scaffolding_function:
+    role: display
+    reason: "named scaffolding function behind the routing direction; mechanistic detail carried in the modality atom"
+    reviewed: true
+  protein_class:
+    role: context
+    reason: protein-class pointer echoed from the domains axis; cross-axis qualifier
+    reviewed: true
+  functional_domains:
+    role: display
+    reason: list of functional domains; human-facing detail container
+    reviewed: true
+  n_domains:
+    role: context
+    reason: annotated domain count; magnitude qualifier (salience)
+    reviewed: true
+  modality_context:
+    role: provenance
+    reason: modality context/audit token carried in the modality atom
+    reviewed: true
+ppi-interactome:
+  interactome_class:
+    role: signal
+    reason: "PPI interactome hubness call (hub/connected/sparse); a mechanism signal tiered in run.py _TARGET_INTRINSIC_VALUE_TIERS; reach-confirmed exact via {salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_high_confidence_interactors:
+    role: context
+    reason: count of high-confidence interactors; magnitude behind interactome_class (salience)
+    reviewed: true
+  top_interactors:
+    role: display
+    reason: list of top interactors; human-facing detail container
+    reviewed: true
+  n_corum_complexes:
+    role: context
+    reason: count of CORUM complexes; magnitude qualifier
+    reviewed: true
+  corum_complexes:
+    role: display
+    reason: list of CORUM complexes; human-facing detail container
+    reviewed: true
+  in_protein_complex:
+    role: context
+    reason: boolean protein-complex membership; qualifier
+    reviewed: true
+  string_protein_id:
+    role: provenance
+    reason: STRING protein id; identity token
+    reviewed: true
+  physical_interactome_class:
+    role: signal
+    reason: "physical-only interactome call; a distinct mechanism signal; reach-confirmed exact via {salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_physical_interactors:
+    role: context
+    reason: count of physical interactors; magnitude behind physical_interactome_class
+    reviewed: true
+  top_physical_partners:
+    role: display
+    reason: list of top physical partners; human-facing detail container
+    reviewed: true
+gene-ontology-annotation:
+  annotation_class:
+    role: signal
+    reason: "GO annotation-depth class call; a mechanism/annotation signal surfaced across the framework; reach-confirmed exact via {salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_go_terms_total:
+    role: context
+    reason: total GO-term count; magnitude behind annotation_class (salience)
+    reviewed: true
+  n_go_terms_experimental:
+    role: context
+    reason: count of experimentally-evidenced GO terms; magnitude/certainty qualifier
+    reviewed: true
+  n_biological_process:
+    role: context
+    reason: count of biological-process terms; magnitude qualifier
+    reviewed: true
+  n_molecular_function:
+    role: context
+    reason: count of molecular-function terms; magnitude qualifier
+    reviewed: true
+  n_cellular_component:
+    role: context
+    reason: count of cellular-component terms; magnitude qualifier
+    reviewed: true
+  top_biological_process:
+    role: display
+    reason: named top biological-process term; human-facing detail
+    reviewed: true
+  top_molecular_function:
+    role: display
+    reason: named top molecular-function term; human-facing detail
+    reviewed: true
+  top_cellular_component:
+    role: display
+    reason: named top cellular-component term; human-facing detail
+    reviewed: true
+  uniprot_ac_resolved:
+    role: provenance
+    reason: resolved UniProt accession; identity token (uniprot_ac)
+    reviewed: true
+reactome-pathway-membership:
+  pathway_class:
+    role: signal
+    reason: "Reactome pathway-membership class call; a mechanism signal surfaced across the framework; reach-confirmed exact via {capsule, salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  pathway_count:
+    role: context
+    reason: count of member pathways; magnitude behind pathway_class (capsule, salience)
+    reviewed: true
+  top_level_pathways:
+    role: display
+    reason: list of top-level pathways; human-facing detail container
+    reviewed: true
+  specific_pathways:
+    role: display
+    reason: list of specific pathways; human-facing detail container
+    reviewed: true
+  is_signaling:
+    role: context
+    reason: boolean signaling-pathway membership; mechanism qualifier (capsule)
+    reviewed: true
+  uniprot_ac_resolved:
+    role: provenance
+    reason: resolved UniProt accession; identity token (uniprot_ac)
+    reviewed: true
+subgroup-stratified-dependency:
+  per_subgroup_metrics:
+    role: display
+    reason: "human-facing per-subgroup metrics container rendered by a display rule on the --subtypes panorama path; verdict-inert detail"
+    reviewed: true
+  n_subgroups_with_data:
+    role: context
+    reason: count of subgroups with data; power / coverage qualifier on the panorama path
+    reviewed: true
+  max_subgroup_dependency:
+    role: context
+    reason: "highest per-subgroup dependency on the panorama path; verdict-inert magnitude, no exact reader"
+    reviewed: true
+  min_subgroup_dependency:
+    role: context
+    reason: "lowest per-subgroup dependency on the panorama path; verdict-inert magnitude, no exact reader"
+    reviewed: true
+  cross_subgroup_delta_dependency:
+    role: context
+    reason: "max cross-subgroup dependency delta on the DESCRIPTIVE --subtypes panorama path; verdict-inert magnitude (touches no rung), no exact reader"
+    reviewed: true
+subgroup-stratified-mutation-frequency:
+  per_subgroup_metrics:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+  n_subgroups_with_data:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  max_subgroup_frequency:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  min_subgroup_frequency:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  cross_subgroup_delta_frequency:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
