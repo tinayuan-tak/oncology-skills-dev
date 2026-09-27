@@ -1,0 +1,610 @@
+# FULLY REVIEWED. Every row carries `reviewed: true` — a human read the field's producers and
+# consumers and chose the role. Completeness (every emitted summary_field present) and reader-reach
+# for `role: signal` are CI-enforced (skills/tests/test_field_disposition_ledgers.py). Reach was
+# measured BLIND to this ledger via the census; every `role: signal` row below is exact-reached, so
+# none required a `waived_because`.
+_meta:
+  description: "Field-disposition ledger for cis-feature-coherence — every emitted summary_field\
+    \ carries an explicit role so nothing is dropped SILENTLY. Enforced by\
+    \ skills/tests/test_field_disposition_ledgers.py (fleet reach + wellformedness)."
+  roles:
+    signal: feeds a claim / verdict (must be wired or explicitly waived)
+    context: qualifies a signal (power, certainty, statistical qualifier, cross-axis pointer)
+    provenance: "audit / identity / method token — surfaced, never a signal"
+    display: human-facing detail or large container; verdict-inert by design
+  generated_from: target-contracts/cards/<card>.card.yaml outputs.summary_fields
+  # -- provenance of the ROLE itself --------------------------------------------
+  # Roles were assigned NORMATIVELY: the categorical *_class calls that the cis_coherence resolver /
+  # interpretation-rules read (cis_dosage_class, methylation_silencing_class, correlation_class,
+  # amp_expr_stratification_class) plus the reach-confirmed decisive effect magnitudes (primary
+  # correlation r, class-driver / lineage-controlled deltas) are `signal`; significance qualifiers
+  # (p/q), sample sizes/denominators, medians, IQRs, thresholds, evidence_scope, guard ratios and
+  # secondary estimators are `context`; slopes / abundance_layer / *_driver-of-method / release_pin /
+  # isoform identity are `provenance`; large list containers are `display`. Reach was measured by the
+  # census, blind to this file. `amp-expr-stratified-dependency` is SHARED with genomic-alteration-
+  # profile; its roles are reused from that reviewed ledger (sibling test).
+  reviewed: "true == a human read the field's producers and consumers and chose this role. Absent ==
+    auto-drafted from the field NAME; treat as a draft, not a decision."
+  waived_because: "only legal on `role: signal`. Records WHY a signal no declared reader reaches is
+    being left unwired. A waiver must name the missing consumer or the owning repo; it is not a way to
+    silence the guard."
+
+cis-feature-expression-coherence:
+  amplification_threshold_relative_cn:
+    role: provenance
+    reason: FOCAL_AMP relative-CN cutoff used; audit token recording the threshold, not a call
+    reviewed: true
+  amplified_dominant_lineage_fraction:
+    role: context
+    reason: largest single lineage's share of the amplified group; confound-exposure qualifier on the subset escape
+    reviewed: true
+  cis_dosage_class:
+    role: signal
+    reason: PRIMARY Tier-2 categorical; drives cis-coherence.rules.yaml (cis-dosage-* rungs) and the cis_coherence verdict; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  cis_dosage_direction:
+    role: context
+    reason: which CN arm carries the coupling (amplification_coupled|deletion_coupled); qualifies/refines the cis_dosage_class call, not itself the headline verdict
+    reviewed: true
+  cis_dosage_direction_basis:
+    role: provenance
+    reason: how the direction was decided (amplified_vs_deleted_contrast|cn_distribution_asymmetry); method/audit token
+    reviewed: true
+  cis_dosage_driver:
+    role: provenance
+    reason: which path drove the coupled call (pan_panel_correlation|focal_amplification_subset); method/audit token
+    reviewed: true
+  cn_expr_pearson_p:
+    role: context
+    reason: significance of the secondary (non-robust) Pearson estimator; qualifier, not the primary metric
+    reviewed: true
+  cn_expr_pearson_r:
+    role: context
+    reason: secondary Pearson estimator alongside the primary Spearman correlation; corroborating, not the reached primary
+    reviewed: true
+  cn_expr_slope_log2tpm_per_cn:
+    role: provenance
+    reason: OLS slope log2TPM per unit relative CN; audit magnitude (card annotates provenance), surfaced not gated
+    reviewed: true
+  cn_expr_spearman_p:
+    role: context
+    reason: significance qualifier behind the pan-panel cis-dosage correlation
+    reviewed: true
+  cn_expr_spearman_r:
+    role: signal
+    reason: primary robust CN-vs-log2TPM cis-dosage correlation; the decisive continuous magnitude behind cis_dosage_class; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  deleted_subset_delta_log2tpm:
+    role: signal
+    reason: median log2TPM (deleted - mid-CN) deletion-arm effect; the direction discriminator and driver of the deletion-coupled call; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  deleted_subset_mannwhitney_p:
+    role: context
+    reason: one-sided Mann-Whitney significance qualifier on the deletion-arm contrast
+    reviewed: true
+  deleted_within_lineage_delta_log2tpm:
+    role: signal
+    reason: within-lineage counterpart of the deletion-arm delta (same lineage control as the amplified arm); the confound-controlled deletion driver; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  deletion_threshold_relative_cn:
+    role: provenance
+    reason: DELETION relative-CN cutoff used; audit token
+    reviewed: true
+  delta_log2tpm_amplified_vs_neutral:
+    role: context
+    reason: mean-based amplified-vs-neutral contrast; card marks it an interpretability aid, NOT the class driver (the subset/within-lineage deltas are)
+    reviewed: true
+  evidence_scope:
+    role: context
+    reason: indication-conditioning scope (within_indication through pan_no_indication); qualifies where the cis call was measured
+    reviewed: true
+  log2tpm_iqr:
+    role: context
+    reason: expression dispersion; distribution qualifier behind the correlation reliability
+    reviewed: true
+  mean_log2tpm_amplified:
+    role: context
+    reason: mean expression in amplified cells; component of the interpretability contrast
+    reviewed: true
+  mean_log2tpm_neutral:
+    role: context
+    reason: mean expression in neutral cells; component of the interpretability contrast
+    reviewed: true
+  median_log2tpm:
+    role: context
+    reason: panel median expression; distribution qualifier
+    reviewed: true
+  median_relative_cn:
+    role: context
+    reason: panel median relative CN; distribution qualifier
+    reviewed: true
+  n_amplified:
+    role: context
+    reason: count of amplified cells (relative CN > threshold); power/sample-size qualifier for the amplified arm
+    reviewed: true
+  n_cell_lines_evaluated:
+    role: context
+    reason: cells with both relative CN and expression coverage; power/sample-size qualifier
+    reviewed: true
+  n_deleted:
+    role: context
+    reason: count of deleted cells (relative CN < threshold); power/sample-size qualifier for the deletion arm
+    reviewed: true
+  relative_cn_iqr:
+    role: provenance
+    reason: middle-50% CN spread; card marks provenance ONLY (blind to the amplified tail, explicitly NOT the gate)
+    reviewed: true
+  relative_cn_p10_p90_spread:
+    role: context
+    reason: p90-p10 CN spread, the invariant-panel testability gate; a certainty/testability qualifier (cis-dosage is untestable without CN variation), not itself the call
+    reviewed: true
+  subset_delta_log2tpm_amplified_vs_neutral:
+    role: signal
+    reason: median log2TPM (amplified - neutral); the focal-amplification subset driver of the coupled call (the amplified-tail path the pan-panel Spearman dilutes); reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  subset_mannwhitney_p:
+    role: context
+    reason: one-sided Mann-Whitney significance qualifier on the amplified-subset escape
+    reviewed: true
+  subset_n_lineages_compared:
+    role: context
+    reason: lineages jointly powered in the within-lineage pooling; power qualifier
+    reviewed: true
+  subset_within_lineage_delta_log2tpm:
+    role: signal
+    reason: pooled within-lineage median delta (amplified - neutral); the escape GATE that controls the subset driver for lineage confounding; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+
+cis-feature-protein-coherence:
+  abundance_layer:
+    role: provenance
+    reason: protein_gygi_ms; measurement-source/method token (Gygi-only, no Olink fallback)
+    reviewed: true
+  amplification_threshold_relative_cn:
+    role: provenance
+    reason: FOCAL_AMP relative-CN cutoff used; audit token
+    reviewed: true
+  cis_protein_dosage_class:
+    role: signal
+    reason: PRIMARY protein cis-dosage categorical call surfaced as the dosage-buffering fingerprint; VERDICT-INERT (fires no resolver rung) but claim-bearing and reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  cn_prot_pearson_p:
+    role: context
+    reason: significance of the secondary (non-robust) Pearson estimator
+    reviewed: true
+  cn_prot_pearson_r:
+    role: context
+    reason: secondary Pearson estimator alongside the primary Spearman correlation
+    reviewed: true
+  cn_prot_slope_log2abundance_per_cn:
+    role: context
+    reason: OLS slope log2 abundance per unit relative CN; the numerator of the cross-leg buffering ratio (protein-slope over mRNA-slope), a magnitude input to the buffering fingerprint
+    reviewed: true
+  cn_prot_spearman_p:
+    role: context
+    reason: significance qualifier behind the protein cis-dosage correlation
+    reviewed: true
+  cn_prot_spearman_r:
+    role: signal
+    reason: primary robust CN-vs-protein cis-dosage correlation; the decisive continuous magnitude behind cis_protein_dosage_class; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  delta_log2abundance_amplified_vs_neutral:
+    role: context
+    reason: mean-based amplified-vs-neutral abundance contrast; card marks it an interpretability aid, NOT the class driver
+    reviewed: true
+  evidence_scope:
+    role: context
+    reason: pan_no_indication (protein cis-dosage is pan-panel); scope qualifier
+    reviewed: true
+  log2abundance_iqr:
+    role: context
+    reason: protein-abundance dispersion; distribution qualifier
+    reviewed: true
+  mean_log2abundance_amplified:
+    role: context
+    reason: mean protein abundance in amplified cells; component of the interpretability contrast
+    reviewed: true
+  mean_log2abundance_neutral:
+    role: context
+    reason: mean protein abundance in neutral cells; component of the interpretability contrast
+    reviewed: true
+  median_log2abundance:
+    role: context
+    reason: panel median protein abundance; distribution qualifier
+    reviewed: true
+  median_relative_cn:
+    role: context
+    reason: panel median relative CN; distribution qualifier
+    reviewed: true
+  mrna_arm_card:
+    role: context
+    reason: cross-axis pointer to cis-feature-expression-coherence (the mRNA leg the skill divides slopes against for the buffering ratio)
+    reviewed: true
+  n_amplified:
+    role: context
+    reason: count of amplified cells; power/sample-size qualifier
+    reviewed: true
+  n_paired_models_cn_protein:
+    role: context
+    reason: cells with both relative CN and Gygi protein coverage; power/sample-size qualifier
+    reviewed: true
+  n_protein_detected_models:
+    role: context
+    reason: cells with Gygi protein detection for the target; denominator/power qualifier
+    reviewed: true
+  protein_panel_size:
+    role: context
+    reason: total Gygi MS lines; detection denominator qualifier
+    reviewed: true
+  relative_cn_iqr:
+    role: provenance
+    reason: middle-50% CN spread; provenance ONLY (blind to the amplified tail)
+    reviewed: true
+  relative_cn_p10_p90_spread:
+    role: context
+    reason: p90-p10 CN spread, the invariant-panel testability gate; certainty/testability qualifier, not the call
+    reviewed: true
+
+cellline-methylation-expression-coherence:
+  broad_quartile_delta_log2tpm:
+    role: signal
+    reason: top-vs-bottom methylation-quartile median log2TPM delta; the effect-size floor that drives the broad (pan-panel) silencing path; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  broad_quartile_within_lineage_delta_log2tpm:
+    role: signal
+    reason: within-lineage counterpart of the broad-path quartile delta (same lineage-collapse guard); the confound-controlled broad-path driver; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  delta_log2tpm_hyper_vs_unmethylated:
+    role: context
+    reason: mean-based hyper-vs-unmethylated contrast; card marks it interpretability, not the subset class driver
+    reviewed: true
+  evidence_scope:
+    role: context
+    reason: indication-conditioning scope; qualifies where the silencing call was measured
+    reviewed: true
+  hypermethylated_dominant_lineage_fraction:
+    role: context
+    reason: largest single lineage's share of the hypermethylated group; confound-exposure qualifier
+    reviewed: true
+  hypermethylation_threshold:
+    role: provenance
+    reason: fractional-methylation cut used to define the hypermethylated subset; audit token
+    reviewed: true
+  lineage_collapse_ratio:
+    role: context
+    reason: absolute within-lineage delta over absolute pan-panel delta; the collapse-guard discriminator that qualifies whether the silencing contrast survives lineage conditioning
+    reviewed: true
+  log2tpm_iqr:
+    role: context
+    reason: expression dispersion; distribution qualifier
+    reviewed: true
+  mean_log2tpm_hypermethylated:
+    role: context
+    reason: mean expression in hypermethylated cells; component of the interpretability contrast
+    reviewed: true
+  mean_log2tpm_unmethylated:
+    role: context
+    reason: mean expression in unmethylated cells; component of the interpretability contrast
+    reviewed: true
+  median_log2tpm:
+    role: context
+    reason: panel median expression; distribution qualifier
+    reviewed: true
+  median_methylation:
+    role: context
+    reason: panel median promoter methylation; distribution qualifier
+    reviewed: true
+  methyl_expr_pearson_p:
+    role: context
+    reason: significance of the secondary (non-robust) Pearson estimator on the broad path
+    reviewed: true
+  methyl_expr_pearson_r:
+    role: context
+    reason: secondary Pearson estimator alongside the primary Spearman on the broad path
+    reviewed: true
+  methyl_expr_slope_log2tpm_per_methyl:
+    role: provenance
+    reason: OLS slope; audit magnitude (card marks provenance, may be null if the SVD did not converge)
+    reviewed: true
+  methyl_expr_spearman_p:
+    role: context
+    reason: significance qualifier behind the broad-path methylation-expression correlation
+    reviewed: true
+  methyl_expr_spearman_r:
+    role: signal
+    reason: primary robust methylation-vs-expression correlation for the broad (pan-panel) silencing path (negative = methylation predicts low expression); reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  methylation_p10_p90_spread:
+    role: context
+    reason: p90-p10 methylation spread; broad-path testability gate / certainty qualifier
+    reviewed: true
+  methylation_silencing_class:
+    role: signal
+    reason: PRIMARY Tier-2 categorical; drives cis-coherence.rules.yaml silencing rungs and the cis_coherence verdict; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  n_cell_lines_evaluated:
+    role: context
+    reason: cells with both promoter methylation and expression; power/sample-size qualifier
+    reviewed: true
+  n_hypermethylated:
+    role: context
+    reason: count of hypermethylated cells; power/sample-size qualifier for the subset arm
+    reviewed: true
+  n_unmethylated:
+    role: context
+    reason: count of unmethylated cells; power/sample-size qualifier for the comparator arm
+    reviewed: true
+  silencing_driver:
+    role: provenance
+    reason: which path (subset vs broad) drove the silencing call; card marks provenance
+    reviewed: true
+  subset_mannwhitney_p:
+    role: context
+    reason: one-sided Mann-Whitney significance qualifier on the hypermethylated-subset contrast
+    reviewed: true
+  subset_median_delta_log2tpm:
+    role: signal
+    reason: median(hyper) minus median(rest); the primary subset class driver (<= 0 = silencing); reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  subset_n_lineages_compared:
+    role: context
+    reason: lineages jointly powered in the within-lineage pooling; power qualifier
+    reviewed: true
+  subset_within_lineage_delta_log2tpm:
+    role: signal
+    reason: pooled within-lineage median delta (hyper - rest); the lineage-collapse-controlled subset driver; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+
+expression-dependency-correlation:
+  chronos_at_high_expression:
+    role: context
+    reason: median Chronos in top-quartile expressers; component of the stratification contrast
+    reviewed: true
+  chronos_at_low_expression:
+    role: context
+    reason: median Chronos in bottom-quartile expressers; component of the stratification contrast
+    reviewed: true
+  chronos_iqr:
+    role: context
+    reason: dependency dispersion across the panel; distribution qualifier
+    reviewed: true
+  correlation_class:
+    role: signal
+    reason: PRIMARY Tier-2 categorical; drives cis-coherence.rules.yaml (the leg-2 expression-dependency rungs); reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  delta_chronos_top_vs_bottom_quartile:
+    role: signal
+    reason: top-minus-bottom expression-quartile Chronos delta (large negative = strong stratification); the decisive stratification effect behind correlation_class; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  mean_chronos:
+    role: context
+    reason: panel mean Chronos; distribution qualifier
+    reviewed: true
+  mean_tpm_logp1:
+    role: context
+    reason: panel mean expression; distribution qualifier
+    reviewed: true
+  n_cell_lines_evaluated:
+    role: context
+    reason: panel size for the expression-dependency correlation; power/sample-size qualifier
+    reviewed: true
+  pearson_r:
+    role: signal
+    reason: primary expression-vs-dependency correlation magnitude behind correlation_class; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  pearson_p:
+    role: context
+    reason: two-sided significance qualifier behind the correlation
+    reviewed: true
+  spearman_r:
+    role: context
+    reason: rank-based robust estimator corroborating the reached Pearson correlation; secondary estimator, not the reached primary
+    reviewed: true
+  spearman_p:
+    role: context
+    reason: significance of the secondary rank-based estimator
+    reviewed: true
+  top_lineages_by_dependence_high_expression:
+    role: display
+    reason: list of lineage/n_high_expr/mean_chronos_high_expr records; large human-facing biomarker-context container, verdict-inert
+    reviewed: true
+  tpm_iqr:
+    role: context
+    reason: expression range across the panel (narrow IQR = correlation unreliable); reliability/certainty qualifier
+    reviewed: true
+
+abundance-dependency:
+  abundance_dependency_class:
+    role: signal
+    reason: PRIMARY protein-abundance-dependency categorical; VERDICT-INERT in this skill (fires no cis_coherence rung) but the claim-bearing call surfaced as the protein leg-2; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  n_dependent_models:
+    role: context
+    reason: count of dependent models (Chronos <= -0.5); power/sample-size qualifier
+    reviewed: true
+  n_paired_models:
+    role: context
+    reason: models with both protein and Chronos; power/sample-size qualifier
+    reviewed: true
+  n_protein_detected_models:
+    role: context
+    reason: models with protein detection; denominator/power qualifier
+    reviewed: true
+  protein_dependency_pearson_p:
+    role: context
+    reason: significance qualifier behind the abundance-dependency correlation
+    reviewed: true
+  protein_dependency_pearson_r:
+    role: signal
+    reason: primary protein-abundance-vs-dependency correlation (negative = high abundance dependent); the decisive magnitude behind abundance_dependency_class; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  protein_dependency_spearman_r:
+    role: context
+    reason: rank-based robust estimator corroborating the Pearson correlation; secondary estimator
+    reviewed: true
+  protein_panel_size:
+    role: context
+    reason: total protein-detected panel; detection denominator qualifier
+    reviewed: true
+  abundance_layer:
+    role: provenance
+    reason: protein_gygi_ms; measurement-source/method token
+    reviewed: true
+  rna_arm_card:
+    role: context
+    reason: cross-axis pointer to the RNA sibling (expression-dependency-correlation) for the protein-vs-RNA comparison
+    reviewed: true
+  release_pin:
+    role: provenance
+    reason: DepMap release pin; version/provenance token
+    reviewed: true
+
+amp-expr-stratified-dependency:
+  amp_expr_effect_size:
+    role: signal
+    reason: rank-biserial effect size of the conjoint amp+overexpr dependency stratification; decisive magnitude; role reused from genomic-alteration-profile reviewed ledger (shared card, sibling test); reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  amp_expr_mannwhitney_p:
+    role: context
+    reason: statistical-significance qualifier (p) behind the stratification class; role reused from genomic-alteration-profile reviewed ledger (shared card)
+    reviewed: true
+  amp_expr_mannwhitney_q:
+    role: context
+    reason: statistical-significance qualifier (q == p, single test) behind the stratification class; role reused from genomic-alteration-profile reviewed ledger (shared card)
+    reviewed: true
+  amp_expr_stratification_class:
+    role: signal
+    reason: PRIMARY conjoint amp+overexpr stratification categorical; drives cis-coherence.rules.yaml conjoint-dependent rungs; role reused from genomic-alteration-profile reviewed ledger (shared card, sibling test); reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  amplification_threshold_relative_cn:
+    role: context
+    reason: FOCAL_AMP cutoff used; magnitude behind the driving class, qualifies it; role reused from genomic-alteration-profile reviewed ledger (shared card)
+    reviewed: true
+  delta_chronos_amp_expr_vs_rest:
+    role: signal
+    reason: amp+overexpr minus rest Chronos delta (negative = conjoint more dependent); decisive stratification magnitude; role reused from genomic-alteration-profile reviewed ledger (shared card, sibling test); reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  evidence_scope:
+    role: context
+    reason: indication-conditioning scope of the stratified call; qualifier / cross-axis pointer; role reused from genomic-alteration-profile reviewed ledger (shared card)
+    reviewed: true
+  high_expression_log2tpm_threshold:
+    role: context
+    reason: top-tertile TPM cut among evaluated lines; magnitude behind the driving class; role reused from genomic-alteration-profile reviewed ledger (shared card)
+    reviewed: true
+  lineage_context_divergent:
+    role: context
+    reason: True when within-lineage and pan-DepMap disagree in direction; qualifier / cross-axis pointer; role reused from genomic-alteration-profile reviewed ledger (shared card)
+    reviewed: true
+  median_chronos_amp_expr:
+    role: context
+    reason: median Chronos in the amp+overexpr group; magnitude behind the driving class; role reused from genomic-alteration-profile reviewed ledger (shared card)
+    reviewed: true
+  median_chronos_comparator:
+    role: context
+    reason: median Chronos in the comparator group; magnitude behind the driving class; role reused from genomic-alteration-profile reviewed ledger (shared card)
+    reviewed: true
+  n_amplified_overexpressed:
+    role: context
+    reason: cells amplified AND high-expression; power/sample-size qualifier; role reused from genomic-alteration-profile reviewed ledger (shared card)
+    reviewed: true
+  n_cell_lines_evaluated:
+    role: context
+    reason: cells with Chronos, CN and expression coverage; power/sample-size qualifier; role reused from genomic-alteration-profile reviewed ledger (shared card)
+    reviewed: true
+  n_comparator:
+    role: context
+    reason: all other evaluated cells (not-both); power/sample-size qualifier; role reused from genomic-alteration-profile reviewed ledger (shared card)
+    reviewed: true
+  pan_lineage_amp_expr_stratification_class:
+    role: signal
+    reason: the pan-DepMap stratification class (audit of the within-indication call); role reused from genomic-alteration-profile reviewed ledger (shared card); reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+
+patient-cis-coherence:
+  cn_expr_spearman_p:
+    role: context
+    reason: significance qualifier behind the patient CN-expression correlation
+    reviewed: true
+  cn_expr_spearman_r:
+    role: signal
+    reason: patient (TCGA) CN-vs-expression cis-dosage correlation; the decisive magnitude of the patient amplification leg (VERDICT-INERT corroboration facet); reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  delta_log2tpm_amplified_vs_neutral:
+    role: context
+    reason: patient amplified-vs-neutral expression contrast; qualifies the patient_cis_dosage_class call (matches the cell-line ledger role for this field)
+    reviewed: true
+  delta_log2tpm_methylated_vs_unmethylated:
+    role: context
+    reason: patient methylated-minus-unmethylated expression delta (<= -1.0 log2 = silencing); qualifies the patient_methylation_silencing_class call
+    reviewed: true
+  evidence_scope:
+    role: context
+    reason: patient_indication; scope qualifier for the patient corroboration facet
+    reviewed: true
+  mean_log2tpm_methylated:
+    role: context
+    reason: mean expression in methylated patients; component of the silencing contrast
+    reviewed: true
+  mean_log2tpm_unmethylated:
+    role: context
+    reason: mean expression in unmethylated patients; component of the silencing contrast
+    reviewed: true
+  n_amplified:
+    role: context
+    reason: count of amplified patient cases; power/sample-size qualifier
+    reviewed: true
+  n_cases_copy_number:
+    role: context
+    reason: patient cases with copy-number coverage; join-coverage denominator (honest attrition)
+    reviewed: true
+  n_cases_expression:
+    role: context
+    reason: patient cases with expression coverage; join-coverage denominator (honest attrition)
+    reviewed: true
+  n_cases_methylation:
+    role: context
+    reason: patient cases with methylation coverage; join-coverage denominator (honest attrition)
+    reviewed: true
+  n_methylated:
+    role: context
+    reason: count of promoter-methylated patient cases; power/sample-size qualifier
+    reviewed: true
+  n_patients_cn_expr:
+    role: context
+    reason: patients with paired CN and expression; power/sample-size qualifier for the amplification leg
+    reviewed: true
+  n_unmethylated:
+    role: context
+    reason: count of unmethylated patient cases; power/sample-size qualifier
+    reviewed: true
+  patient_cis_dosage_class:
+    role: signal
+    reason: patient (TCGA) amplification cis-dosage class; VERDICT-INERT cross-grain corroboration call (does the cell-line call replicate in patients?); reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  patient_methylation_silencing_class:
+    role: signal
+    reason: patient (TCGA) epigenetic-silencing class; VERDICT-INERT cross-grain corroboration call; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+
+cellline-isoform-expression:
+  dominant_isoform:
+    role: display
+    reason: modal top-isoform ENST across the panel; human-facing molecular-form identity detail, verdict-inert
+    reviewed: true
+  dominant_isoform_fraction:
+    role: context
+    reason: cohort-median top-isoform TPM / gene-total TPM; magnitude behind the isoform_expression_class call
+    reviewed: true
+  isoform_expression_class:
+    role: signal
+    reason: molecular-form categorical call (R10 facet); VERDICT-INERT display facet but the claim-bearing call surfaced for the cis read; reach-confirmed exact (census 2026-09-27, blind to ledger)
+    reviewed: true
+  n_expressed_isoforms:
+    role: context
+    reason: cohort-median count of expressed isoforms per model; qualifies the dominance call
+    reviewed: true
+  n_models:
+    role: context
+    reason: cell lines expressing the gene; facet denominator / power qualifier
+    reviewed: true
