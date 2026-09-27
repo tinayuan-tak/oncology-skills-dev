@@ -413,12 +413,26 @@ def _q6_concordance(h, c, cv):
     cltxt, clnote = _proxy_corr(cl_spear, cl_pear)
     bits = [f"cell-line: {clbio}{cltxt}"] if clbio else []
     bits += [f"⚠ {arm} {note}" for note, arm in ((rnote, "tumor"), (clnote, "cell-line")) if note]
+    # #1382 (8bd8b67c) owner decision, restored here after #1532 (7915a8b0) briefly wired it as a bare
+    # rate: the RNA-high/protein-low discordant-quadrant fraction has its NO-INFORMATION value pinned at
+    # 0.10 BY CONSTRUCTION (eligibility is "protein <= the 10th percentile of the SAME protein vector";
+    # measured corpus median is exactly 0.1000, 228/374 non-null values within ±0.005 of it, full range
+    # 0.0000–0.1333). A bare "RNA misleads in X%" therefore reads as alarming at the value independence
+    # alone produces, and the statistic has almost no headroom to RISE, so it cannot falsify a positive
+    # proxy call. Cite it ONLY as a one-sided DOWNWARD departure from the labelled 0.10 null — i.e. as
+    # CONCORDANCE evidence (as at AR 0.0000) — never as a bare rate. So fire only below the null's ±0.005
+    # noise band, and frame it as concordance labelled with the construction null.
+    RNA_PROT_DISCORDANCE_NULL = 0.10  # construction no-information value; see field_disposition.yaml waiver
+    RNA_PROT_DISCORDANCE_NULL_BAND = 0.005  # ±band the corpus null occupies (228/374 non-null within it)
     if (
         isinstance(cl_rna_high_prot_low, (int, float))
         and not isinstance(cl_rna_high_prot_low, bool)
-        and cl_rna_high_prot_low > 0
+        and cl_rna_high_prot_low < RNA_PROT_DISCORDANCE_NULL - RNA_PROT_DISCORDANCE_NULL_BAND
     ):
-        bits.append(f"⚠ RNA misleads in {cl_rna_high_prot_low:.0%} of cell lines (RNA-high, protein-low)")
+        bits.append(
+            f"RNA↔protein concordant: {cl_rna_high_prot_low:.0%} RNA-high/protein-low vs "
+            f"{RNA_PROT_DISCORDANCE_NULL:.0%} independence null"
+        )
     support = " · ".join(bits) if bits else "—"
     conf = "high" if isinstance(n, int) and n >= 50 else "moderate" if n else "unmeasured"
     r = _row("Q6", "Do RNA and protein agree?", primary, support, _sig(tier, tier), _conf(conf))

@@ -557,6 +557,55 @@ def test_fmt_r_keeps_the_common_case_at_two_dp():
     assert _fmt_r(0.41) == "0.41" and _fmt_r(0.14) == "0.14" and _fmt_r(0.86) == "0.86"
 
 
+# ── Q6: rna_high_protein_low_fraction cited ONLY as a downward departure from the 0.10 null (#1824) ──
+#
+# The field's NO-INFORMATION value is 0.10 by construction (protein <= the 10th percentile of the SAME
+# protein vector; corpus median exactly 0.1000). #1382 (8bd8b67c) decided it may be cited ONLY as a
+# one-sided DOWNWARD departure from that labelled null — as concordance evidence — never as a bare
+# "RNA misleads in X%" rate. #1532 (7915a8b0) briefly wired it the opposite way; #1824 restores #1382.
+
+_CL_CARD = "cellline-rna-protein-concordance"
+
+
+def _q6_support_with_cl(cl_summary):
+    """Run the real question table with the cell-line concordance card set to `cl_summary` (None ⇒ card
+    absent). `cl_summary` is the ONLY supply path reaching the discordant-quadrant caveat, so mutating
+    it here defeats every route to the fire condition on line 409/421."""
+    h, cards, cv = _fixture()
+    cards = [c for c in cards if c["card_id"] != _CL_CARD]
+    if cl_summary is not None:
+        cards.append({"card_id": _CL_CARD, "summary": cl_summary})
+    return _by_id(presence_question_table(h, cards, cv))["Q6"]["support"]
+
+
+def test_q6_discordance_caveat_does_not_fire_at_the_010_construction_null():
+    """The construction null (0.10) and the ±0.005 noise band around it are what independence alone
+    gives — the OLD bare-rate consumer fired an alarming "⚠ RNA misleads in 10%" on essentially every
+    card at exactly this value. It must now stay silent."""
+    for null_ish in (0.10, 0.0999, 0.095, 0.11, 0.1333):  # at / just-below-within-band / above the null
+        support = _q6_support_with_cl({"rna_as_biomarker": "adequate_proxy", "rna_high_protein_low_fraction": null_ish})
+        assert "misleads" not in support, (null_ish, support)
+        assert "RNA↔protein concordant" not in support, f"{null_ish} is not a downward departure: {support}"
+
+
+def test_q6_discordance_caveat_fires_as_concordance_below_the_null_labelled_with_it():
+    """A genuine one-sided DOWNWARD departure (as at AR 0.0000) reads as CONCORDANCE evidence, labelled
+    with the 0.10 construction null, and NEVER as a bare 'RNA misleads' rate."""
+    for below in (0.0, 0.03, 0.089):  # clearly below the null's ±0.005 band
+        support = _q6_support_with_cl({"rna_as_biomarker": "adequate_proxy", "rna_high_protein_low_fraction": below})
+        assert "RNA↔protein concordant" in support, (below, support)
+        assert "10% independence null" in support, f"must label the construction null: {support}"
+        assert "misleads" not in support and "⚠ RNA" not in support, f"never a bare alarming rate: {support}"
+
+
+def test_q6_discordance_caveat_omits_cleanly_when_the_field_or_card_is_absent():
+    """Defeat the remaining supply routes: field None, field missing, and card absent — none may fire
+    the caveat or raise."""
+    for cl in ({"rna_high_protein_low_fraction": None}, {"rna_as_biomarker": "adequate_proxy"}, None):
+        support = _q6_support_with_cl(cl)
+        assert "misleads" not in support and "RNA↔protein concordant" not in support, (cl, support)
+
+
 # ── Q7: SURFACE the L2b bulk×single-cell coverage-concordance signal (SK#1507 G3.1) ─────────────────
 #
 # The L2b `bulk_vs_singlecell_coverage_concordance` claim (presence_claims.py, emitted by #1517) was
