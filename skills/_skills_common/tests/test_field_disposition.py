@@ -547,7 +547,22 @@ def test_census_reaches_some_fields_but_not_all():
 # earn EXACT skill_code credit (the same shape the CRISPR twin at :633 uses). Skills-side code readers → no
 # contracts reader moved → no pin bump entangled. Prior banked ceiling was 774 (SK#1850/#1884 presence
 # frame, measured @ 28e992cd); against the bumped pin d9b4d37e origin/main measures 773 orphans.
-APERTURE_CEILING = 769
+#
+# 769 → 761 (2026-09-27, Track-B #2 orphan-aperture wire, #1893, measured on the MERGED tree against the
+# same pin d9b4d37e): domain 1821, candidate_orphans 761. Two contributions bank here:
+#   (a) THIS PR wires the four IMPC-lethality SIGNAL fields on mouse-ko-phenotype — n_adult_lethal,
+#       n_developmental_lethal, lethal_stages, impc_top_level_systems — the finer lethality/organ-system
+#       bins behind the read fraction on-target-safety-liability already consumes (ko_phenotype_class /
+#       top_lethal_label / organ_classes / impc_viability_class). All four are now
+#       get_card_field(cards, "mouse-ko-phenotype", "<field>") reads in on-target-safety-liability/scripts/
+#       run.py folded into the MOUSE_KO claim evidence (safety_claims._mouseko_signal). This alone is
+#       769 → 765 (SET-DIFFERENCE-pinned below in test_mouse_ko_lethality_cluster_is_read_exact).
+#   (b) the sibling per-source lineage-dilution presence qualifier that landed as #1894 (#1869, 703385d3)
+#       wired a further 4 previously-orphan presence fields via _skills_common/presence_claims.py but did
+#       not re-bank the ceiling (it stayed within slack), taking 765 → 761 on the merged tree. Re-measured
+#       and banked here per the SERIAL-LAND directive (an un-tightened ceiling silently re-opens the ratchet).
+# Skills-side code readers → no contracts reader moved → no pin bump entangled.
+APERTURE_CEILING = 761
 
 # Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
 # into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of
@@ -666,6 +681,41 @@ def test_rnai_dependency_distribution_cluster_is_read_exact():
         assert "skill_code" in exact, (
             f"{pair} is not an EXACT skill_code read (exact={sorted(exact)}) — the RNAi distribution "
             "reader in functional-requirement/scripts/run.py has regressed and the pair is orphaned again"
+        )
+
+
+# The mouse-ko-phenotype IMPC-lethality SIGNAL cluster wired 2026-09-27 (the 769 → 765 bank above, Track-B
+# #2 / #1893). Pinned as a SET DIFFERENCE — each pair must have LEFT the orphan set into exact skill_code
+# credit — because the ceiling assertion alone counts pairs and cannot tell "wired these 4" from "wired 4
+# unrelated pairs while these regressed". These are the finer lethality/organ-system bins behind the read
+# fraction on-target-safety-liability already consumes (ko_phenotype_class / top_lethal_label /
+# organ_classes / impc_viability_class). Remove the reads in on-target-safety-liability/scripts/run.py and
+# this reds, even if some other wiring keeps the aggregate count at 765.
+_MOUSE_KO_LETHALITY_WIRED_PAIRS = frozenset(
+    ("mouse-ko-phenotype", f)
+    for f in (
+        "n_adult_lethal",
+        "n_developmental_lethal",
+        "lethal_stages",
+        "impc_top_level_systems",
+    )
+)
+
+
+@needs_contracts
+def test_mouse_ko_lethality_cluster_is_read_exact():
+    """SET-DIFFERENCE pin for the 769 → 765 bank: the four mouse-ko-phenotype IMPC-lethality fields — the
+    finer lethality/organ-system bins behind the mouse-KO safety read fraction already consumed — must each
+    be EXACT skill_code reads (they left the orphan set), and none may be an orphan.
+    on-target-safety-liability/scripts/run.py::_headline reads them; their removal reds this test regardless
+    of what happens to the aggregate ceiling."""
+    cen = fd.census(SKILLS_ROOT)
+    for pair in sorted(_MOUSE_KO_LETHALITY_WIRED_PAIRS):
+        assert pair in cen, f"{pair} is no longer declared — re-pin this test on the current mouse-ko fields"
+        exact = cen[pair]["exact"]
+        assert "skill_code" in exact, (
+            f"{pair} is not an EXACT skill_code read (exact={sorted(exact)}) — the mouse-ko IMPC-lethality "
+            "reader in on-target-safety-liability/scripts/run.py has regressed and the pair is orphaned again"
         )
 
 

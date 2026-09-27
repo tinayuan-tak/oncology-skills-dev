@@ -269,6 +269,22 @@ def _mouseko_signal(h, c):
     organs = h.get("mouse_ko_organ_systems")
     if organs:
         ev += f", organ-systems={list(organs) if not isinstance(organs, str) else organs}"
+    # Finer lethality bins beneath the coarse class (#1893 signal-wire): the adult vs developmental
+    # lethal-row COUNTS and the distinct lethal STAGES that drive `top_lethal_label`. Adult/postnatal
+    # lethality is the dosing-relevant liability; developmental-only lethality is less relevant to adult
+    # dosing (mirrors the _MOUSEKO_SIGNAL 'developmental_only' -> moderate weighting). Additive display.
+    n_adult = h.get("mouse_ko_n_adult_lethal")
+    n_dev = h.get("mouse_ko_n_developmental_lethal")
+    if n_adult or n_dev:
+        ev += f", lethal-rows(adult={n_adult or 0}/developmental={n_dev or 0})"
+    stages = h.get("mouse_ko_lethal_stages")
+    if stages:
+        ev += f", lethal-stages={list(stages) if not isinstance(stages, str) else stages}"
+    # IMPC top-level organ systems — the IMPC-direct twin of the OT-MGI organ_classes above (the finer
+    # organ-system profile behind the coarse IMPC viability class read just below).
+    impc_systems = h.get("mouse_ko_impc_top_level_systems")
+    if impc_systems:
+        ev += f", IMPC-systems={list(impc_systems) if not isinstance(impc_systems, str) else impc_systems}"
     sig = _MOUSEKO_SIGNAL.get(cls, "unmeasured")
     conflict = None
     # #1001: surface the IMPC preweaning-viability read. The coarse ko_phenotype_class collapses a

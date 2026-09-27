@@ -575,6 +575,16 @@ def _headline(cards, fired, verdict_pair):
         # (-> no_phenotype / insufficient), so the highest-WT-loss-liability genes read as a coverage GAP.
         # Surfaced into the MOUSE_KO claim so the gap is not mistaken for "no phenotype". VERDICT-INERT.
         "impc_viability_class": get_card_field(cards, "mouse-ko-phenotype", "impc_viability_class"),
+        # Finer lethality/organ-system bins beneath the coarse ko_phenotype_class (2026-09-27, #1893
+        # orphan-aperture wire) — the complementary granularity behind the read fraction: adult vs
+        # developmental lethal-row COUNTS + the distinct lethal STAGES that drive top_lethal_label, and
+        # the IMPC top-level organ systems (the IMPC-direct twin of the OT-MGI organ_classes above).
+        # Folded into the MOUSE_KO claim evidence so the narrator can name WHICH lethal stage/system a full
+        # KO perturbs beside the bare class. VERDICT-INERT (no warning_predicate keys on these; sig unchanged).
+        "mouse_ko_n_adult_lethal": get_card_field(cards, "mouse-ko-phenotype", "n_adult_lethal"),
+        "mouse_ko_n_developmental_lethal": get_card_field(cards, "mouse-ko-phenotype", "n_developmental_lethal"),
+        "mouse_ko_lethal_stages": get_card_field(cards, "mouse-ko-phenotype", "lethal_stages"),
+        "mouse_ko_impc_top_level_systems": get_card_field(cards, "mouse-ko-phenotype", "impc_top_level_systems"),
         # ClinVar germline-pathogenicity
         "clinvar_pathogenic_class": get_card_field(cards, "clinvar-pathogenicity-safety", "clinvar_pathogenic_class"),
         "clinvar_top_disease": get_card_field(cards, "clinvar-pathogenicity-safety", "top_disease"),
