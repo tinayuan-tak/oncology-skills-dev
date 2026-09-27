@@ -530,7 +530,24 @@ def test_census_reaches_some_fields_but_not_all():
 # fraction_moderate_strong / n_subtypes_{restricted,enriched,measured} / breadth_layer_concordance were
 # already exact-reached, so consuming them is aperture-inert. The reads are skills-side code readers, so
 # this is a pure skills-only reduction (no contracts reader moved) → no pin bump entangled.
-APERTURE_CEILING = 774
+# ── BANKED 2026-09-27 773 → 769, measured against contracts d9b4d37e (the CI aperture pin,
+# skills-validate.yml). SKILLS-ONLY, no pin move: the -4 is THIS BRANCH wiring a real code reader for the
+# stranded RNAi dependency-distribution SIGNAL cluster — a pure MODALITY ASYMMETRY closed. The CRISPR twin
+# card (pan-cancer-crispr-dependency-distribution) already had its identical distribution fields read
+# (fraction_strongly_dependent at functional-requirement/scripts/run.py:633 via get_card_field, plus
+# distribution_shape/pan_essential_score/selectivity_index via capsule/skill_code/salience), while the RNAi
+# twin's four fields reached NO reader. functional-requirement/scripts/run.py now consumes them
+# symmetrically in _rnai_lof_dependency_support() — a VERDICT-INERT RNAi LoF-distribution corroboration
+# facet surfaced beside rnai_call in _headline (fires no resolver rung). Measured EXACTLY 4 previously-orphan
+# (card, field) pairs cleared, 0 newly orphaned (census diff origin/main → this branch, both against
+# d9b4d37e: domain 1821 unchanged, orphans 773 → 769, reached_exact 852 → 856):
+#   -4  pan-cancer-rnai-dependency-distribution :: rnai_fraction_strongly_dependent, rnai_distribution_shape,
+#       rnai_selectivity_index, rnai_pan_essential_score  (all four via get_card_field code reads → skill_code)
+# All four are get_card_field(cards, "pan-cancer-rnai-dependency-distribution", "<field>") reads, so they
+# earn EXACT skill_code credit (the same shape the CRISPR twin at :633 uses). Skills-side code readers → no
+# contracts reader moved → no pin bump entangled. Prior banked ceiling was 774 (SK#1850/#1884 presence
+# frame, measured @ 28e992cd); against the bumped pin d9b4d37e origin/main measures 773 orphans.
+APERTURE_CEILING = 769
 
 # Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
 # into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of
@@ -618,6 +635,38 @@ def test_fleet_aperture_does_not_grow():
         f"aperture is now {orphans}, {APERTURE_CEILING - orphans} below the ceiling — bank it: set "
         f"APERTURE_CEILING = {orphans}. An un-tightened ceiling silently re-opens the ratchet."
     )
+
+
+# The RNAi dependency-distribution SIGNAL cluster wired 2026-09-27 (the 773 → 769 bank above). Pinned as
+# a SET DIFFERENCE — each pair must have LEFT the orphan set into exact skill_code credit — because the
+# ceiling assertion alone counts pairs and cannot tell "wired the 4 targets" from "wired 4 unrelated pairs
+# while these regressed". This is the falsifiable half of that bank: remove _rnai_lof_dependency_support's
+# reads and this reds, even if some other wiring keeps the count at 769.
+_RNAI_DISTRIBUTION_WIRED_PAIRS = frozenset(
+    ("pan-cancer-rnai-dependency-distribution", f)
+    for f in (
+        "rnai_fraction_strongly_dependent",
+        "rnai_distribution_shape",
+        "rnai_selectivity_index",
+        "rnai_pan_essential_score",
+    )
+)
+
+
+@needs_contracts
+def test_rnai_dependency_distribution_cluster_is_read_exact():
+    """SET-DIFFERENCE pin for the 773 → 769 bank: the four RNAi distribution fields — the modality twin of
+    the CRISPR distribution fields already read — must each be EXACT skill_code reads (they left the orphan
+    set), and none may be an orphan. functional-requirement/scripts/run.py::_rnai_lof_dependency_support is
+    the reader; its removal reds this test regardless of what happens to the aggregate ceiling."""
+    cen = fd.census(SKILLS_ROOT)
+    for pair in sorted(_RNAI_DISTRIBUTION_WIRED_PAIRS):
+        assert pair in cen, f"{pair} is no longer declared — re-pin this test on the current RNAi fields"
+        exact = cen[pair]["exact"]
+        assert "skill_code" in exact, (
+            f"{pair} is not an EXACT skill_code read (exact={sorted(exact)}) — the RNAi distribution "
+            "reader in functional-requirement/scripts/run.py has regressed and the pair is orphaned again"
+        )
 
 
 @needs_contracts

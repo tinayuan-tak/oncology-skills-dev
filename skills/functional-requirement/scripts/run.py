@@ -676,6 +676,90 @@ def _strength_certainty(cards, fired=None, verdict_pair=None):
     return _dependency_strength_certainty(cards, v, cross_consortium_class)
 
 
+# ── RNAi loss-of-function distribution CORROBORATION (orthogonal-perturbation twin of the CRISPR
+#    distribution read by _dependency_strength_certainty) ────────────────────────────────────────────
+# The RNAi (DEMETER2) distribution independently characterises the LoF-dependency arm's MAGNITUDE and
+# SHAPE — the modality twin of the CRISPR distribution fields _dependency_strength_certainty reads at
+# :632-633. RNAi never carries a positive dependency call ON ITS OWN (seed/off-target-prone — the
+# concordance card is the cross-check, see _measurement_caveat), so this is a CORROBORATION facet, not
+# a verdict input: it says whether the RNAi arm's own distribution AGREES with a dependency signature,
+# so a consumer keying on rnai_call (a single categorical) can also see WHY that class was assigned and
+# how strong the orthogonal signal is. VERDICT-INERT: a render facet surfaced beside rnai_call; it fires
+# no resolver rung and never enters `fired`. Reads the four distribution fields the CRISPR twin already
+# consumes (fraction_strongly_dependent → :633, distribution_shape/pan_essential_score/selectivity_index
+# read on the CRISPR card via skill_code/capsule/salience) — the pure modality asymmetry this closes.
+#
+# Thresholds mirror the RNAi card's own declared cuts (pan-cancer-rnai-dependency-distribution.card.yaml
+# thresholds:): pan_essential_fraction_threshold 0.85, selective_fraction_min 0.05, selective_fraction_max
+# 0.60. DEMETER2 strong-dependency cut is score ≤ -0.5, so rnai_fraction_strongly_dependent is the
+# fraction of lines below that cut. The RNAi distribution_shape vocabulary matches the CRISPR one exactly
+# (pan_essential / bimodal_selective / shifted_dependent / non_essential / unclassified).
+_RNAI_PAN_ESSENTIAL_FRACTION_THRESHOLD = 0.85
+_RNAI_SELECTIVE_FRACTION_MIN = 0.05
+_RNAI_SELECTIVE_SHAPES = frozenset({"bimodal_selective", "shifted_dependent"})
+
+
+def _rnai_lof_dependency_support(cards) -> dict:
+    """VERDICT-INERT RNAi LoF-distribution corroboration facet (orthogonal-perturbation twin of the CRISPR
+    distribution read by _dependency_strength_certainty). Reads the four RNAi distribution fields and
+    classifies the RNAi arm's OWN dependency signature so it can corroborate (never carry) the call:
+
+      rnai_pan_essential_signature   — shape pan_essential OR pan_essential_score ≥ 0.85: RNAi reads a
+                                       broad/common-essential dependency (magnitude is strong; the
+                                       non-selective TOXICITY downside is a SAFETY-axis concern, not a
+                                       negation — mirrors _DEP_STRENGTH broad_nonselective).
+      rnai_selective_dependency_signature — a bimodal_selective / shifted_dependent shape with a
+                                       fraction_strongly_dependent above the selective floor: RNAi
+                                       corroborates a SELECTIVE dependency (the KRAS/COADREAD shape).
+      rnai_non_dependent_signature   — shape non_essential OR fraction below the selective floor: the
+                                       RNAi arm reads no dependency.
+      rnai_signature_unclassified    — the card ran but the shape is unclassified/ambiguous.
+      unmeasured                     — the RNAi distribution card is absent/blind this run.
+
+    `corroborates_dependency` is True for either dependency signature, False for non_dependent, None when
+    unclassified/unmeasured (absence raises ignorance, it never manufactures agreement — mirrors
+    _corroboration_from_cross_consortium). The four field values ride along (provenance + the numeric
+    selectivity_index the narrator cites), so nothing is a bare unused read."""
+    frac = get_card_field(cards, "pan-cancer-rnai-dependency-distribution", "rnai_fraction_strongly_dependent")
+    shape = get_card_field(cards, "pan-cancer-rnai-dependency-distribution", "rnai_distribution_shape")
+    selectivity_index = get_card_field(cards, "pan-cancer-rnai-dependency-distribution", "rnai_selectivity_index")
+    pan_essential_score = get_card_field(cards, "pan-cancer-rnai-dependency-distribution", "rnai_pan_essential_score")
+
+    frac_num = frac if isinstance(frac, (int, float)) and not isinstance(frac, bool) else None
+    pan_num = (
+        pan_essential_score
+        if isinstance(pan_essential_score, (int, float)) and not isinstance(pan_essential_score, bool)
+        else None
+    )
+    shape_s = str(shape) if isinstance(shape, str) else None
+
+    # Blind run: no distribution shape AND no numeric magnitude to reason over.
+    if shape_s in (None, "data_unavailable", "unclassified") and frac_num is None and pan_num is None:
+        signature = "rnai_signature_unclassified" if shape_s == "unclassified" else "unmeasured"
+        corroborates = None
+    elif shape_s == "pan_essential" or (pan_num is not None and pan_num >= _RNAI_PAN_ESSENTIAL_FRACTION_THRESHOLD):
+        signature, corroborates = "rnai_pan_essential_signature", True
+    elif shape_s == "non_essential" or (frac_num is not None and frac_num < _RNAI_SELECTIVE_FRACTION_MIN):
+        signature, corroborates = "rnai_non_dependent_signature", False
+    elif shape_s in _RNAI_SELECTIVE_SHAPES:
+        signature, corroborates = "rnai_selective_dependency_signature", True
+    else:
+        signature, corroborates = "rnai_signature_unclassified", None
+
+    return {
+        "signature": signature,
+        "corroborates_dependency": corroborates,
+        "rnai_fraction_strongly_dependent": frac,
+        "rnai_distribution_shape": shape,
+        "rnai_selectivity_index": selectivity_index,
+        "rnai_pan_essential_score": pan_essential_score,
+        "_basis": (
+            "orthogonal RNAi/DEMETER2 LoF distribution — corroboration only (RNAi never carries a "
+            "positive call alone); magnitude/shape read symmetrically with the CRISPR distribution"
+        ),
+    }
+
+
 # ── FACTORED-RECORD SHADOW (M1) — the DEPENDENCY per-axis builder. VERDICT-INERT: surfaced by the
 #    fan-out into decision.claim_record_shadow.dependency, consumed by NOTHING. Maps the dependency
 #    verdict onto the record; reuses the reference _strength_certainty (guarded — it reads cards via
@@ -1165,6 +1249,12 @@ def _headline(cards, fired, verdict_pair):
     # unmeasured arm (POLR2A: CRISPR data_unavailable + RNAi common_essential). Neither touches the spine.
     hl["measurement_caveat"] = _measurement_caveat(v, hl["crispr_call"], hl["rnai_call"])
     hl["concordance_scope_note"] = _concordance_scope_note(hl["concordance_call"], hl["crispr_call"], hl["rnai_call"])
+    # RNAi LoF-distribution corroboration (2026-09-27): the orthogonal-perturbation twin of the CRISPR
+    # distribution _dependency_strength_certainty reads above — surfaces the RNAi arm's OWN magnitude/shape
+    # signature (from the four rnai_* distribution fields, previously stranded/unread) so a consumer keying
+    # on rnai_call sees WHY the class was assigned and how strongly the orthogonal arm corroborates it.
+    # VERDICT-INERT: a render facet beside rnai_call; fires no rung, never enters the resolver.
+    hl["rnai_lof_support"] = _rnai_lof_dependency_support(cards)
     # Additive, verdict-INERT (2026-08-18): the modality-blind claim vector (DEP/SEL/COND/CHEM
     # signal×reliability) + a brief cited key-signals read — the WITHIN-lens evidence integration this
     # subskill owns, built on the SHARED claim_vector_core contract (dependency is the second concrete
