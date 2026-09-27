@@ -242,6 +242,13 @@ _HEADLINE_SPEC = [
     ("clinvar_pathogenic_class", "clinvar-pathogenicity-safety", "clinvar_pathogenic_class"),
     ("gene_burden_safety_class", "gene-burden-safety", "burden_safety_class"),
     ("mouse_ko_phenotype_class", "mouse-ko-phenotype", "ko_phenotype_class"),
+    # IMPC second-source corroboration block (IMPC release-24.0, a DISTINCT data source from the MGI
+    # rollup above — direct KO phenotyping, not literature-curated). Billed but stranded: the dossier
+    # surfaced only the MGI class token, dropping the independent IMPC viability/orthology corroboration.
+    ("impc_ko_phenotype_class", "mouse-ko-phenotype", "impc_ko_phenotype_class"),
+    ("impc_viability_class", "mouse-ko-phenotype", "impc_viability_class"),
+    ("impc_top_level_systems", "mouse-ko-phenotype", "impc_top_level_systems"),
+    ("impc_orthology_confidence", "mouse-ko-phenotype", "impc_orthology_confidence"),
     # target-safety-prioritisation is ORIENTATION-ONLY (safety dim overlaps constraint + mouse-KO)
     ("target_safety_prioritisation", "target-safety-prioritisation", "prioritisation_status"),
     # OT composite bands — surfaced to make the DOUBLE-COUNT explicit: genetic_constraint_band mirrors the
@@ -313,12 +320,34 @@ _HEADLINE_SPEC = [
     ("n_high_confidence_interactors", "ppi-interactome", "n_high_confidence_interactors"),
     ("n_corum_complexes", "ppi-interactome", "n_corum_complexes"),
     ("in_protein_complex", "ppi-interactome", "in_protein_complex"),
-    # paralogs (gene-family redundancy)
+    # BioGRID PHYSICAL interactome arm (billed at SKILL.md:113 "BioGRID physical") — a source distinct
+    # from the STRING functional network above. Stranded: the dossier surfaced only the STRING+CORUM
+    # class, dropping the physical-interactor evidence entirely.
+    ("physical_interactome_class", "ppi-interactome", "physical_interactome_class"),
+    ("n_physical_interactors", "ppi-interactome", "n_physical_interactors"),
+    ("top_physical_partners", "ppi-interactome", "top_physical_partners"),
+    # paralogs (gene-family redundancy) — the namesake quantitative buffering signals, not just the
+    # class token. strongest_paralog_delta (dep_delta_paired_vs_max_single) is the signal that DEFINES
+    # the class; strongest_paralog_ohnolog[_status] carries the ohnolog escape-confidence flag the
+    # card's own warning rules key on; functional_paralogs is the ranked per-partner list<struct>.
     ("paralog_buffering_class", "paralog-buffering", "paralog_buffering_class"),
     ("n_paralogs_annotated", "paralog-buffering", "n_paralogs_annotated"),
+    ("n_paralogs_functionally_buffering", "paralog-buffering", "n_paralogs_functionally_buffering"),
     ("strongest_paralog_symbol", "paralog-buffering", "strongest_paralog_symbol"),
-    # normal (non-disease) expression
+    ("strongest_paralog_delta", "paralog-buffering", "strongest_paralog_delta"),
+    ("strongest_paralog_ohnolog", "paralog-buffering", "strongest_paralog_ohnolog"),
+    ("strongest_paralog_ohnolog_status", "paralog-buffering", "strongest_paralog_ohnolog_status"),
+    ("functional_paralogs", "paralog-buffering", "functional_paralogs"),
+    # normal (non-disease) expression — the on-target-tox liability signals, not just the breadth class.
+    # safety_tissue_flags + essential-tissue detail are the actual on-target-off-tumor read; hpa
+    # distribution/specificity are the raw HPA values the class is derived from.
     ("normal_tissue_breadth_class", "normal-tissue-liability", "normal_tissue_breadth_class"),
+    ("safety_tissue_flags", "normal-tissue-liability", "safety_tissue_flags"),
+    ("essential_tissue_flag", "normal-tissue-liability", "essential_tissue_flag"),
+    ("essential_tissues_flagged", "normal-tissue-liability", "essential_tissues_flagged"),
+    ("n_essential_tissues_with_expression", "normal-tissue-liability", "n_essential_tissues_with_expression"),
+    ("normal_hpa_tissue_distribution", "normal-tissue-liability", "hpa_tissue_distribution"),
+    ("normal_hpa_tissue_specificity", "normal-tissue-liability", "hpa_tissue_specificity"),
 ]
 
 

@@ -1323,7 +1323,7 @@
       "value": "present"
     }
   ],
-  "generated_at": "2026-09-27T00:00:42+00:00",
+  "generated_at": "2026-09-27T00:29:30+00:00",
   "headline": {
     "alphafold_confidence_class": "moderate",
     "best_measured_potency_neglog_m": 11.699,
@@ -1394,6 +1394,8 @@
     "clingen_dosage_class": "autosomal_dominant_loss",
     "clinvar_pathogenic_class": "germline_pathogenic",
     "domain_architecture": "Protein kinase",
+    "essential_tissue_flag": "present",
+    "essential_tissues_flagged": [],
     "evidence_capsules": {
       "capsules": {
         "clingen-dosage": {
@@ -3998,6 +4000,80 @@
         "top_tension": null
       }
     },
+    "functional_paralogs": [
+      {
+        "buffering_class": "strong",
+        "dep_delta_paired_vs_max_single": 0.7349442161035772,
+        "median_dual_ko_effect": -0.8979129739110495,
+        "ohnolog": false,
+        "partner_gene_symbol": "PTK2",
+        "single_ko_effect": -0.16296875780747233
+      },
+      {
+        "buffering_class": "partial",
+        "dep_delta_paired_vs_max_single": 0.4973844358502384,
+        "median_dual_ko_effect": -0.3964497513615337,
+        "ohnolog": false,
+        "partner_gene_symbol": "ZAP70",
+        "single_ko_effect": -0.16296875780747233
+      },
+      {
+        "buffering_class": "partial",
+        "dep_delta_paired_vs_max_single": 0.4545778325199577,
+        "median_dual_ko_effect": -0.5928219832843642,
+        "ohnolog": true,
+        "partner_gene_symbol": "ERBB3",
+        "single_ko_effect": -0.16296875780747233
+      },
+      {
+        "buffering_class": "partial",
+        "dep_delta_paired_vs_max_single": 0.4367834299414943,
+        "median_dual_ko_effect": -0.4475496025175254,
+        "ohnolog": false,
+        "partner_gene_symbol": "TNK1",
+        "single_ko_effect": -0.16296875780747233
+      },
+      {
+        "buffering_class": "partial",
+        "dep_delta_paired_vs_max_single": 0.3651534343949944,
+        "median_dual_ko_effect": -0.42637551657675415,
+        "ohnolog": true,
+        "partner_gene_symbol": "ERBB2",
+        "single_ko_effect": -0.16296875780747233
+      },
+      {
+        "buffering_class": "partial",
+        "dep_delta_paired_vs_max_single": 0.32977034560395013,
+        "median_dual_ko_effect": -0.2761391128118623,
+        "ohnolog": false,
+        "partner_gene_symbol": "TNK2",
+        "single_ko_effect": -0.16296875780747233
+      },
+      {
+        "buffering_class": "partial",
+        "dep_delta_paired_vs_max_single": 0.311762440764819,
+        "median_dual_ko_effect": -0.2188417813949904,
+        "ohnolog": false,
+        "partner_gene_symbol": "SYK",
+        "single_ko_effect": -0.16296875780747233
+      },
+      {
+        "buffering_class": "partial",
+        "dep_delta_paired_vs_max_single": 0.2994439319259597,
+        "median_dual_ko_effect": -0.3814786483756866,
+        "ohnolog": true,
+        "partner_gene_symbol": "ERBB4",
+        "single_ko_effect": -0.16296875780747233
+      },
+      {
+        "buffering_class": "partial",
+        "dep_delta_paired_vs_max_single": 0.28725901915876617,
+        "median_dual_ko_effect": -0.27017318088618997,
+        "ohnolog": false,
+        "partner_gene_symbol": "PTK2B",
+        "single_ko_effect": -0.16296875780747233
+      }
+    ],
     "gene_burden_safety_class": "insufficient",
     "gnomad_constraint_class": "moderately_constrained",
     "go_annotation_class": "well_annotated",
@@ -4085,6 +4161,10 @@
         "polarity": "neutral"
       }
     },
+    "impc_ko_phenotype_class": "severe_organ_phenotype",
+    "impc_orthology_confidence": 1.0,
+    "impc_top_level_systems": "immune system phenotype,hematopoietic system phenotype",
+    "impc_viability_class": "unknown",
     "in_protein_complex": true,
     "interactome_class": "hub",
     "intrinsic_confirmation_caveat": {
@@ -4139,11 +4219,16 @@
     "n_corum_complexes": 43,
     "n_domains": 1,
     "n_downstream_effectors": 74,
+    "n_essential_tissues_with_expression": 0,
     "n_high_confidence_interactors": 506,
     "n_ligandability_axes": 5,
     "n_paralogs_annotated": 9,
+    "n_paralogs_functionally_buffering": 9,
+    "n_physical_interactors": 1736,
     "n_upstream_regulators": 147,
     "network_class": "well_characterized",
+    "normal_hpa_tissue_distribution": "Detected in all",
+    "normal_hpa_tissue_specificity": "Low tissue specificity",
     "normal_tissue_breadth_class": "broad_normal_expression",
     "ot_genetic_constraint_band": "unfavorable",
     "ot_has_safety_event_band": "unfavorable",
@@ -4152,6 +4237,7 @@
     "pathway_class": "well_annotated",
     "pathway_count": 82,
     "pdb_coverage_class": "strong",
+    "physical_interactome_class": "physical_hub",
     "protein_class": [
       "kinase",
       "receptor",
@@ -4193,6 +4279,10 @@
         },
         "support": ""
       }
+    ],
+    "safety_tissue_flags": [
+      "essential_from_broad_detection",
+      "broad"
     ],
     "shed_liability_class": "secretome_proxy_shed",
     "skill_report": {
@@ -4356,6 +4446,9 @@
       "subgroup_signals": null,
       "top_tension": null
     },
+    "strongest_paralog_delta": 0.7349442161035772,
+    "strongest_paralog_ohnolog": false,
+    "strongest_paralog_ohnolog_status": "annotated",
     "strongest_paralog_symbol": "PTK2",
     "structural_ligandability_class": "experimental_ligandable",
     "structure_disordered_fraction": 0.2281,
@@ -4550,6 +4643,83 @@
       "Gene expression (Transcription)",
       "Signal Transduction",
       "Vesicle-mediated transport"
+    ],
+    "top_physical_partners": [
+      {
+        "n_experiments": 130,
+        "n_publications": 110,
+        "partner": "CBL"
+      },
+      {
+        "n_experiments": 69,
+        "n_publications": 56,
+        "partner": "GRB2"
+      },
+      {
+        "n_experiments": 48,
+        "n_publications": 41,
+        "partner": "SHC1"
+      },
+      {
+        "n_experiments": 29,
+        "n_publications": 22,
+        "partner": "ERBB2"
+      },
+      {
+        "n_experiments": 28,
+        "n_publications": 21,
+        "partner": "SRC"
+      },
+      {
+        "n_experiments": 24,
+        "n_publications": 18,
+        "partner": "STAT3"
+      },
+      {
+        "n_experiments": 16,
+        "n_publications": 14,
+        "partner": "CBLB"
+      },
+      {
+        "n_experiments": 17,
+        "n_publications": 13,
+        "partner": "ERRFI1"
+      },
+      {
+        "n_experiments": 14,
+        "n_publications": 13,
+        "partner": "PIK3R1"
+      },
+      {
+        "n_experiments": 13,
+        "n_publications": 13,
+        "partner": "SOS1"
+      },
+      {
+        "n_experiments": 15,
+        "n_publications": 12,
+        "partner": "CAV1"
+      },
+      {
+        "n_experiments": 13,
+        "n_publications": 12,
+        "partner": "EGF"
+      },
+      {
+        "n_experiments": 11,
+        "n_publications": 11,
+        "partner": "PTPN11"
+      },
+      {
+        "n_experiments": 12,
+        "n_publications": 10,
+        "partner": "SH3KBP1"
+      },
+      {
+        "n_experiments": 12,
+        "n_publications": 10,
+        "partner": "GAB1"
+      }
     ]
   },
   "indication": "PANCANCER",
@@ -4722,7 +4892,7 @@
       }
     },
     "resolver_release_pin": "resolver_v0.1.0-alpha",
-    "skills_repo_sha": "6839674"
+    "skills_repo_sha": "a92c720"
   },
   "question": "What is known about EGFR INDEPENDENT of indication \u2014 its identity, on-target-safety genetics, protein-class/structure/modality biophysics, functional annotation, mechanism + pathway role, interactome, domain architecture + domain\u2192modality implication, and paralog buffering?",
   "run_health": {
@@ -4740,7 +4910,7 @@
     ],
     "cards_missing": [],
     "cards_skipped_a4": [],
-    "compute_secs": 0.6985,
+    "compute_secs": 0.5506,
     "n_cards_consumed": 20,
     "n_cards_fired": 10,
     "n_cards_resolved": 20,
@@ -4750,11 +4920,11 @@
         "family": "target-id-resolver-release"
       }
     ],
-    "read_secs": 0.4805,
+    "read_secs": 0.357,
     "skill_name": "target-intrinsic",
     "skill_version": "1.6.1",
     "status": "ok",
-    "total_secs": 5.6251
+    "total_secs": 5.9111
   },
   "skill": "target-intrinsic",
   "target": "EGFR"
