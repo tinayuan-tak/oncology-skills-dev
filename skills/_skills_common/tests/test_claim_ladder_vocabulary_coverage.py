@@ -383,7 +383,14 @@ _CORROBORATION_READERS = {
     # --- delegate to question_table_core.conf, so covered by CONF_DOTS above -----------------------
     "skills/_skills_common/dependency_question_table.py": "DELEGATES to question_table_core.conf",
     "skills/_skills_common/differentiation_question_table.py": "DELEGATES to question_table_core.conf",
-    "skills/_skills_common/presence_question_table.py": "DELEGATES to question_table_core.conf",
+    "skills/_skills_common/presence_question_table.py": (
+        "DELEGATES row confidence to question_table_core.conf; also PASS-THROUGH — copies the L2b "
+        "coverage / abundance / subtype_restriction concordance claims' `corroboration` token VERBATIM "
+        "into each family's `integrated_signal` annotation (no map, nothing to keep in step; an "
+        "unrecognised rung reads as itself — honest). This is the G3.1 coverage annotation the "
+        "safety/selectivity/genomic question_table entries reference as the mirror of their own L2b "
+        "surface pass-through (SK#1856)."
+    ),
     "skills/_skills_common/safety_question_table.py": (
         "DELEGATES row confidence to question_table_core.conf; also PASS-THROUGH — copies the L2b-3 "
         "claim's `corroboration` token VERBATIM into the Normal-tissue row's integrated_signal annotation "
@@ -419,7 +426,10 @@ _CORROBORATION_READERS = {
         "claim's `corroboration` tier only to gauge decision confidence (a weak tier adds a reservation "
         "that down-ranks the frame's OWN decision). No map, no projection: an unrecognised rung is not a "
         "member of _WEAK_CORROBORATION and reads as itself. ADDITIVE / verdict-INERT to every existing "
-        "skill (routes nothing back into any claim_vector / question_table / resolver)."
+        "skill (routes nothing back into any claim_vector / question_table / resolver). The single "
+        "`from_concordance` adapter feeds EVERY production frame (dependency / presence / "
+        "presence_priority_frame / per-modality), so minting a new frame adds NO new corroboration reader "
+        "here (SK#1856)."
     ),
     "skills/cross-evidence-hypothesis/scripts/run.py": "PASS-THROUGH (prose; the gate reads `signal`, not this)",
     "skills/example-gallery/scripts/generate_example_gallery.py": "PASS-THROUGH (gallery prose)",

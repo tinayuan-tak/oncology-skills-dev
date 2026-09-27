@@ -455,6 +455,44 @@ def test_reach_audit_every_surfaced_family_reaches_a_frame():
     )
 
 
+def test_presence_frame_canonical_inputs_declared_set_matches_the_frame():
+    """The declared reach group must track the frame's ACTUAL canonical-property inputs, both directions.
+
+    PRESENCE_FRAME_CANONICAL_PROPERTIES is the FLOOR the standing-guard audits (SK#1856). If the frame
+    grows or drops a CANONICAL_PROPERTY_CLAIM input, this reds and forces the group to be reconciled
+    deliberately — the group cannot silently narrow to a subset the audit still passes on. normal_liability
+    is excluded on purpose: it is the MISSING_UNRESOLVED critical, not a canonical property claim."""
+    assert set(ef.PRESENCE_FRAME_CANONICAL_PROPERTIES) == {
+        ef.COVERAGE_CONCORDANCE_PROPERTY,
+        ef.ABUNDANCE_CONCORDANCE_PROPERTY,
+        ef.SUBTYPE_RESTRICTION_PROPERTY,
+    }
+    frame_canonical = {i.property_id for i in ef.PRESENCE_FRAME.inputs if i.kind == InputKind.CANONICAL_PROPERTY_CLAIM}
+    assert set(ef.PRESENCE_FRAME_CANONICAL_PROPERTIES) == frame_canonical
+
+
+def test_reach_audit_every_presence_frame_canonical_input_reaches_a_frame():
+    """The field-reach ratchet lifted to the frame layer (SK#1856): each canonical-property input the
+    presence frame declares must demonstrably reach a frame in the registry (mirrors the rung-4 audit for
+    the reference frame). A declared input that reaches no frame is a hole flagged in ``unreached``."""
+    audit = ef.decision_reach_audit(ef.FRAME_REGISTRY, ef.PRESENCE_FRAME_CANONICAL_PROPERTIES)
+    assert audit["unreached"] == []
+    for pid in ef.PRESENCE_FRAME_CANONICAL_PROPERTIES:
+        assert ef.PRESENCE_FRAME.frame_id in audit["reached"][pid]
+
+
+def test_presence_frame_canonical_reach_audit_fails_loudly_on_an_unreached_input():
+    """TEETH: the ratchet must FAIL LOUDLY when a declared canonical input reaches no frame. The presence
+    trio is consumed by BOTH presence-domain frames (PRESENCE_FRAME + PRESENCE_PRIORITY_FRAME), so audited
+    against a registry with BOTH removed, every presence canonical property is flagged ``unreached`` —
+    proving the guard above is not vacuously green (SK#1856)."""
+    presence_domain = {ef.PRESENCE_FRAME.frame_id, ef.PRESENCE_PRIORITY_FRAME.frame_id}
+    registry_without_presence = tuple(f for f in ef.FRAME_REGISTRY if f.frame_id not in presence_domain)
+    audit = ef.decision_reach_audit(registry_without_presence, ef.PRESENCE_FRAME_CANONICAL_PROPERTIES)
+    assert audit["unreached"] == sorted(ef.PRESENCE_FRAME_CANONICAL_PROPERTIES)
+    assert audit["reached"] == {}
+
+
 def test_presence_frame_type_integrity_teeth_composite_may_not_be_a_canonical_property():
     """MUTATION TEETH (SK#1842): the PRESENCE_FRAME declares coverage as a CANONICAL_PROPERTY_CLAIM. Feeding
     a within-skill LOCAL-COMPOSITE classifier into that slot must FAIL evaluate_frame — an object may not be

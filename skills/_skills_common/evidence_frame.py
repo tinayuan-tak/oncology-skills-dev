@@ -638,6 +638,19 @@ SURFACED_CONCORDANCE_PROPERTIES = (
     NORMAL_LIABILITY_PROPERTY,
 )
 
+# The presence frame's declared CANONICAL_PROPERTY_CLAIM inputs — the field-reach ratchet lifted to the
+# frame layer (SK#1856, standing guard, child of #1848). Mirrors RUNG4_CANONICAL_PROPERTIES for the
+# reference frame: the three cross-source presence concordance families PRESENCE_FRAME consumes as
+# canonical property claims (coverage / abundance / subtype_restriction — normal_liability is the
+# deliberately-absent MISSING_UNRESOLVED critical, NOT a canonical property claim, so it is excluded).
+# Every member must demonstrably reach a frame in FRAME_REGISTRY via decision_reach_audit; a canonical
+# property the presence frame declares but that reaches NO frame is a hole that fails loudly.
+PRESENCE_FRAME_CANONICAL_PROPERTIES = (
+    COVERAGE_CONCORDANCE_PROPERTY,
+    ABUNDANCE_CONCORDANCE_PROPERTY,
+    SUBTYPE_RESTRICTION_PROPERTY,
+)
+
 REFERENCE_FRAME = Frame(
     frame_id="corroborated_dependency_priority",
     inputs=(
