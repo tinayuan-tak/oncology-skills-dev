@@ -57,7 +57,6 @@ def read_target_summary(target: str, indication: Optional[str] = None, plot_data
             "n_cell_lines_evaluated": 0,
             "fraction_detected": 0.0,
             "median_log2_abundance_panel": None,
-            "protein_effect_size": None,
             "per_lineage_stats": [],
             "method_version": _cli.METHOD_VERSION,
         }

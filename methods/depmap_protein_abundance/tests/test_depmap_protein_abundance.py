@@ -196,12 +196,15 @@ def test_card_contract_fields_present():
         "n_cell_lines_in_panel",
         "fraction_detected",
         "median_log2_abundance_panel",
-        "protein_effect_size",
         "n_lineages_evaluated",
         "per_lineage_stats",
         "method_version",
     ):
         assert f in s, f"missing card-contract field: {f}"
+    # protein_effect_size REMOVED (#1853): it was a verbatim duplicate of
+    # median_log2_abundance_panel (a tumor-vs-normal contrast name on a normal-arm-less
+    # cell-line panel); the summary no longer emits it.
+    assert "protein_effect_size" not in s
 
 
 # --- per-lineage groupby honors min-lineage-size --------------------------

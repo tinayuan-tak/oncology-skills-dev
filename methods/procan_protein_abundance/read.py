@@ -42,7 +42,6 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
             "n_cell_lines_in_panel": None,
             "fraction_detected": 0.0,
             "median_log2_abundance_panel": None,
-            "protein_effect_size": None,
             "per_lineage_stats": [],
             "allgene_percentile": None,
             "allgene_percentile_class": "data_unavailable",

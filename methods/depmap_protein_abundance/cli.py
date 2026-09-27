@@ -528,7 +528,6 @@ def compute_summary(
             "n_cell_lines_in_panel": n_panel,
             "fraction_detected": 0.0,
             "median_log2_abundance_panel": None,
-            "protein_effect_size": None,
             "n_lineages_evaluated": 0,
             "per_lineage_stats": [],
             "n_lineage_restricted_lineages": 0,
@@ -594,7 +593,10 @@ def compute_summary(
         "log2_abundance_iqr": (pcts.get("p75") - pcts.get("p25"))
         if (pcts.get("p75") is not None and pcts.get("p25") is not None)
         else None,
-        "protein_effect_size": median_abund,  # parity w/ tumor-protein-abundance-cptac field
+        # protein_effect_size REMOVED (#1853): it duplicated median_log2_abundance_panel verbatim —
+        # a field named for a tumor-vs-normal contrast a cell-line panel (no normal arm) cannot
+        # compute. This compute_summary is shared with the ProCan sibling, so both cell-line cards
+        # drop the field. (Unchanged on the tumor cards, where a real normal arm exists.)
         "n_lineages_evaluated": len(per_lineage),
         "per_lineage_stats": per_lineage,
         "n_lineage_restricted_lineages": n_lineage_restricted,
