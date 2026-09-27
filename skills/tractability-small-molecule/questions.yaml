@@ -10,15 +10,16 @@
 # Consumed by _skills_common/evidence_graph.py (build_evidence_graph). VERDICT-INERT and display-only:
 # nothing here feeds a rule, resolver, or gate. It is joined onto the already-emitted
 # headline.question_table (matched by `legacy_id` = the row id the tractability_sm_question_table builder
-# emits: Compound / Concordance / Structure / Known-drug) — the emitted question_table itself is NOT
-# modified (byte-stable). POTENCY and DEGRADER have no emitted question_table row today (the leading table
-# ships only the 4 rows above), so those two questions carry no legacy_id: their per-question signal comes
-# from the joined card capsules, not a question_table row — build_evidence_graph fail-softs (empty signal).
+# emits: Potency / Compound / Concordance / Structure / Known-drug). DEGRADER has no emitted question_table
+# row today (it drives the separate per-modality degrader arm, not the SM-spine verdict), so its question
+# carries no legacy_id: its per-question signal comes from the joined card capsules, not a question_table
+# row — build_evidence_graph fail-softs (empty signal). (POTENCY gained its emitted row in #1646 — the
+# FIRST declared critical axis, ~16% of SM verdicts driven by a measured-binding/ChEMBL rung.)
 #
 # Per-question fields (identical contract to skills/functional-requirement/questions.yaml):
 #   id              stable semantic slug (the join key every graph edge references; NOT "Compound")
-#   legacy_id       the row id tractability_sm_question_table emits (Compound|Concordance|Structure|
-#                   Known-drug); omitted for POTENCY/DEGRADER (no emitted row yet)
+#   legacy_id       the row id tractability_sm_question_table emits (Potency|Compound|Concordance|
+#                   Structure|Known-drug); omitted for DEGRADER (no emitted row — per-modality arm)
 #   seq             1-based display order (follows the lens axis_keys order POTENCY->…->DEGRADER)
 #   text            human question text
 #   axis_id         unified claim/literature axis (POTENCY|ACTIVITY|STRUCT|DRUG|DEGRADER); null = no axis
@@ -46,6 +47,7 @@ axis_vocabulary:
   DEGRADER: degrader handle
 questions:
 - id: measured_binding_potency
+  legacy_id: Potency
   seq: 1
   text: Is there measured binding potency (a compound that binds the target)?
   axis_id: POTENCY

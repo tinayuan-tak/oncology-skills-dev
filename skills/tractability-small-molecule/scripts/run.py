@@ -810,6 +810,16 @@ def _headline(cards, fired, verdict_pair, target=None):
         # the correct field names directly via the rule engine).
         "prism_activity_class": get_card_field(cards, "prism-compound-activity", "prism_activity_class"),
         "prism_crispr_concord": get_card_field(cards, "prism-crispr-concordance", "crispr_prism_concordance_class"),
+        # POTENCY leg (#1646, verdict-INERT display debt-fix, mirrors structural_ligandability_class):
+        # the MEASURED binding-potency axis (ChEMBL/BindingDB) — the FIRST declared critical axis. The
+        # claim_vector POTENCY axis + the measured-potency rules already read this field DIRECTLY from the
+        # measured-potency-tractability card via the rule engine, so surfacing it in the headline is purely
+        # additive/display — VERDICT-INERT (druggability_snapshot spine byte-stable). Feeds the new Potency
+        # hero row so a measured_potent_ligand / clinical_precedent_only verdict has a visible explaining leg.
+        # NOT in _SYNTHESIS_FACET_KEYS → the composed claim_vector/facet stay byte-stable.
+        "measured_bioactivity_class": get_card_field(
+            cards, "measured-potency-tractability", "measured_bioactivity_class"
+        ),
         # GDSC 2nd-platform ORTHOGONAL corroboration (2026-08-25): Sanger GDSC1+GDSC2 drug-response,
         # a DIFFERENT lab/assay/library than Broad PRISM. VERDICT-INERT display — the card fires no
         # rule + feeds no resolver rung, so these fields never move druggability_snapshot; a headline-

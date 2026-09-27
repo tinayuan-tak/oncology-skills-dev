@@ -470,6 +470,23 @@
   },
   "question_table": [
    {
+    "id": "Potency",
+    "question": "Is there measured binding potency (a compound that binds the target)?",
+    "primary": "\u2014",
+    "support": "",
+    "signal": {
+     "tier": "unmeasured",
+     "fill": 0,
+     "polarity": "none",
+     "label": "not measured"
+    },
+    "confidence": {
+     "tier": "unmeasured",
+     "dots": 0,
+     "label": "unmeasured"
+    }
+   },
+   {
     "id": "Compound",
     "question": "Is there an active small-molecule compound (PRISM)?",
     "primary": "clinical_precedent_only",
@@ -952,6 +969,7 @@
      }
     ]
    }
-  }
+  },
+  "measured_bioactivity_class": null
  }
 }

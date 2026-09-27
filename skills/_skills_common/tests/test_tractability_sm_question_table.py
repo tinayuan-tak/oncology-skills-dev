@@ -15,6 +15,7 @@ from _skills_common.tractability_sm_question_table import tractability_sm_questi
 def _headline():
     return {
         "druggability_snapshot": "chemically_active_concordant",
+        "measured_bioactivity_class": "potent_measured_ligand",  # measured potent ligand → strong
         "prism_activity_class": "clinically_active",  # active compound → strong
         "prism_crispr_concord": "triangulated_target_engaged",  # engaged → strong
         "pdb_coverage_class": "partial",  # partial structure → moderate
@@ -24,24 +25,36 @@ def _headline():
 
 def test_rows_in_order():
     rows = tractability_sm_question_table(_headline())
-    assert [r["id"] for r in rows] == ["Compound", "Concordance", "Structure", "Known-drug"]
+    assert [r["id"] for r in rows] == ["Potency", "Compound", "Concordance", "Structure", "Known-drug"]
 
 
 def test_signal_tiers():
     rows = {r["id"]: r for r in tractability_sm_question_table(_headline())}
+    assert rows["Potency"]["signal"]["tier"] == "strong"  # potent measured ligand
     assert rows["Compound"]["signal"]["tier"] == "strong"
     assert rows["Concordance"]["signal"]["tier"] == "strong"
     assert rows["Structure"]["signal"]["tier"] == "moderate"  # partial
     assert rows["Known-drug"]["signal"]["tier"] == "strong"
 
 
+def test_potency_leg_surfaces_measured_binding_axis():
+    # the ~16% of SM verdicts minted by a measured-binding/ChEMBL rung must show an explaining leg
+    rows = {r["id"]: r for r in tractability_sm_question_table({"measured_bioactivity_class": "weak_measured_ligand"})}
+    assert rows["Potency"]["signal"]["tier"] == "moderate"  # weak measured ligand
+    # absent potency field → an unmeasured named-gap row (never omitted)
+    rows_gap = {r["id"]: r for r in tractability_sm_question_table({"prism_activity_class": "clinically_active"})}
+    assert rows_gap["Potency"]["signal"]["tier"] == "unmeasured"
+
+
 def test_negative_and_gap():
     h = {
+        "measured_bioactivity_class": "no_measured_activity",
         "prism_activity_class": "no_compounds_found",
         "prism_crispr_concord": "discordant_off_target_likely",
         "pdb_coverage_class": "none",
     }  # known_drug field absent → named gap
     rows = {r["id"]: r for r in tractability_sm_question_table(h)}
+    assert rows["Potency"]["signal"]["tier"] == "absent"  # no measured activity
     assert rows["Compound"]["signal"]["tier"] == "absent"  # no compound
     assert rows["Concordance"]["signal"]["tier"] == "absent"  # discordant → off-target
     assert rows["Structure"]["signal"]["tier"] == "absent"  # none

@@ -4,12 +4,18 @@ skill (the chemical-genetic analog of the presence / genomic / surface heroes).
 Canonical question (target_profiling_axes.yaml → home_skill tractability-small-molecule): "Is the
 target druggable by a small molecule (a compound exists AND agrees with the genetic dependency)?"
 decomposes into:
+  Potency      — is there MEASURED binding potency (a potent ChEMBL/BindingDB ligand series)?
   Compound     — is there an active small-molecule compound (PRISM)?
   Concordance  — does compound-kill agree with the CRISPR/RNAi dependency (chemical-genetic)?
   Structure    — is there a ligandable pocket (PDB / AlphaFold coverage)?
   Known-drug   — known-drug / druggable-genome prior (Finan / Open Targets)?
 Signal maps each contributing card's OWN class vocabulary via an EXPLICIT map. Verdict-INERT: a
 one-way projection over decision['headline']; reuses the shared Signal/Confidence vocab + renderer.
+
+Potency is the FIRST DECLARED CRITICAL axis (run.py `critical_axes=("POTENCY","ACTIVITY")`): ~16% of
+SM verdicts (measured_potent_ligand / clinical_precedent_only over the 504-dir corpus) are minted by a
+measured-binding/ChEMBL rung, so the hero must surface the `measured_bioactivity_class` leg or a
+potency-driven positive verdict shows no explaining leg (display↔spine parity, #1646 / cf. #1574, #1569).
 """
 
 from __future__ import annotations
@@ -20,6 +26,15 @@ from _skills_common.question_table_core import conf as _conf
 from _skills_common.question_table_core import row as _row
 from _skills_common.question_table_core import sig as _sig  # shared Signal/Confidence vocab
 
+# POTENCY axis — measured binding potency (ChEMBL / BindingDB), `measured_bioactivity_class` from the
+# measured-potency-tractability card (vocab: methods/measured_potency_tractability). The FIRST declared
+# critical axis; its rungs (measured_potent_ligand / clinical_precedent_only) mint the SM verdict.
+_POTENCY = {
+    "potent_measured_ligand": "strong",
+    "weak_measured_ligand": "moderate",
+    "no_measured_activity": "absent",
+    "data_unavailable": "unmeasured",
+}
 _PRISM = {
     "clinically_active": "strong",
     "clinical_precedent_only": "strong",
@@ -49,6 +64,12 @@ _KNOWN = {
 
 # (row id, sub-question, headline field, value→tier map)
 _ROWS = [
+    (
+        "Potency",
+        "Is there measured binding potency (a compound that binds the target)?",
+        "measured_bioactivity_class",
+        _POTENCY,
+    ),
     ("Compound", "Is there an active small-molecule compound (PRISM)?", "prism_activity_class", _PRISM),
     (
         "Concordance",
@@ -70,7 +91,7 @@ def _tier(mapping: dict, val) -> str:
 def tractability_sm_question_table(headline: dict, cards: Optional[list] = None) -> list:
     """Per-sub-question rows from the tractability-small-molecule headline class fields. Verdict-inert;
     an absent field → an unmeasured row (never omitted), so the hero always shows the full
-    Compound / Concordance / Structure / Known-drug ladder + which leg is a named gap."""
+    Potency / Compound / Concordance / Structure / Known-drug ladder + which leg is a named gap."""
     h = headline or {}
     rows = []
     for qid, question, field, mapping in _ROWS:

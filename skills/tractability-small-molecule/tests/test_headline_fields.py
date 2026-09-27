@@ -26,6 +26,7 @@ _ALL_CARD_IDS = [
     "dependency-predictability",
     "structure-features-static",
     "known-drug-tractability",
+    "measured-potency-tractability",  # #1646: _headline now reads the POTENCY measured-binding leg
     "degradation-feasibility",
     "gdsc-drug-activity",
     "mutation-hotspot-frequency",  # #993 pt1: read by _minority_allele_coverage_caveat

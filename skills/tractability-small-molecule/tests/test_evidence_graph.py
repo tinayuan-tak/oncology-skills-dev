@@ -96,10 +96,10 @@ def test_questions_registry_loads_seven(eg_questions):
     # (narrator_lenses.TRACTABILITY_SM.axis_labels + tractability_claims.SMALL_MOLECULE_CLAIM_SPEC)
     axes = {q["axis_id"] for q in eg_questions if q.get("axis_id")}
     assert axes == {"POTENCY", "ACTIVITY", "STRUCT", "DRUG", "DEGRADER"}
-    # legacy_id join keys mirror the emitted tractability_sm_question_table rows (Compound / Concordance /
-    # Structure / Known-drug); POTENCY + DEGRADER + the corroboration row carry no emitted row (None).
+    # legacy_id join keys mirror the emitted tractability_sm_question_table rows (Potency / Compound /
+    # Concordance / Structure / Known-drug); DEGRADER + the corroboration row carry no emitted row (None).
     assert [q.get("legacy_id") for q in eg_questions] == [
-        None,
+        "Potency",
         "Compound",
         "Concordance",
         "Structure",
@@ -129,8 +129,12 @@ def test_reconstruct_questions_signal_confidence_and_cards(eg_graph):
     assert qs["has_active_compound"]["confidence"]["level"] == "moderate"
     # the Concordance row (triangulated_target_engaged) → strong/supportive
     assert qs["chemically_agrees_with_dependency"]["signal"]["polarity"] == "supportive"
-    # POTENCY / DEGRADER / corroboration carry no emitted question_table row → empty signal (fail-soft)
-    assert qs["measured_binding_potency"]["signal"]["polarity"] is None
+    # POTENCY now carries an emitted question_table row (#1646). In this fixture the measured-potency card
+    # is empty → measured_bioactivity_class unmeasured → the Potency leg reads unmeasured/not-applicable
+    # (a named gap, never omitted), still not a supports/opposes signal for KRAS/COADREAD.
+    assert qs["measured_binding_potency"]["signal"]["tier"] == "unmeasured"
+    assert qs["measured_binding_potency"]["signal"]["polarity"] == "not_applicable"
+    # DEGRADER / corroboration carry no emitted question_table row → empty signal (fail-soft)
     assert qs["degrader_handle"]["signal"]["polarity"] is None
     # the many-to-many card join (measurement_type membership)
     assert set(qs["has_active_compound"]["card_ids"]) == {"prism-compound-activity", "gdsc-drug-activity"}
