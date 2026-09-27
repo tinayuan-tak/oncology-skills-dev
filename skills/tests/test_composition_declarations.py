@@ -55,6 +55,22 @@ def _discover_compositional_skills() -> list[str]:
     return compositional
 
 
+def test_compositional_skill_discovery_is_not_vacuous():
+    """Anti-vacuity floor for the parametrized guard below. It parametrizes over
+    ``_discover_compositional_skills()`` — an ``iterdir`` + ``composition:`` peek. If the iterdir
+    matches nothing (skills relocated) or the peek stops recognizing the key, the parametrize
+    collapses to ZERO cases and test_composition_declaration_valid validates nothing (0 cases is
+    invisible under -q). Pin the discovered roster to a member count. 19 compositional skills today;
+    15 is a slack floor."""
+    # Floor references the discovery helper DIRECTLY (not a local alias) so it pins the module-level
+    # subject the parametrize also draws from — a floor over a function-local alias would not tie to the
+    # discovered set (see test_discovery_guards_carry_floors.py::_subject_names scope note).
+    assert len(_discover_compositional_skills()) >= 15, (
+        f"only {len(_discover_compositional_skills())} compositional skills discovered via iterdir — the "
+        "discovery broke; test_composition_declaration_valid would validate zero skills."
+    )
+
+
 @pytest.mark.parametrize("skill_name", _discover_compositional_skills())
 def test_composition_declaration_valid(skill_name: str):
     """Every compositional skill's SKILL.md validates against the schema.

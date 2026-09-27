@@ -83,6 +83,21 @@ def _literal_field_reads():
 _WAIVERS: set[tuple[str, str]] = set()  # {(card_id, field), ...}
 
 
+def test_field_read_discovery_is_not_vacuous():
+    """Anti-vacuity floor for the conformance guard below. That guard iterates
+    ``_literal_field_reads()`` — a ``SKILLS.glob("*/scripts/run.py")`` + AST scrape. If the glob
+    matches nothing (skills relocated) or the scraper is refactored to return ``[]``, the loop asserts
+    over zero reads and the guard passes GREEN having proven nothing (``collected`` stays 1, so the
+    collapse is invisible). Pin the corpus to a member count so an emptied discovery goes RED here.
+    ~357 reads today; 300 is a slack floor. Independent of target-contracts (reads come from this
+    repo's run.py files), so this floor runs even when the conformance guard skips."""
+    n = len(_literal_field_reads())
+    assert n >= 300, (
+        f"only {n} literal get_card_field reads discovered across skills/*/scripts/run.py — the glob "
+        "or the AST scraper broke; test_skill_field_reads_are_declared_by_the_card would pass vacuously."
+    )
+
+
 @pytest.mark.skipif(_CARDS_DIR is None, reason="target-contracts cards/ not available")
 def test_skill_field_reads_are_declared_by_the_card():
     unknown_card, undeclared = [], []

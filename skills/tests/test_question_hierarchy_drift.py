@@ -19,6 +19,25 @@ TOOL = SKILLS_DIR / "tools" / "sync_question_hierarchies.py"
 _sync = load_module(TOOL, "_sync_qh")
 
 
+@pytest.mark.skipif(not _sync.contracts_available(), reason="target-contracts absent")
+def test_source_and_mirrors_are_not_vacuous():
+    """Anti-vacuity floor. ``contracts_available()`` only checks the AXES *file* exists, NOT that the
+    ``question_hierarchies`` KEY is present — a key rename/removal empties ``load_source()`` so
+    ``check()`` returns ``[]`` and ``test_mirrors_match_contracts_source`` passes GREEN over zero
+    skills (drift undetectable). Pin BOTH the governed source and the committed mirror glob to a member
+    count, mirroring the sibling floor in test_questions_yaml_hierarchy_agreement.py. 13 skills today."""
+    assert _sync.load_source(), (
+        "question_hierarchies source is empty though target-contracts is present — the "
+        "`question_hierarchies` key was renamed/removed in target_profiling_axes.yaml; the drift "
+        "guard would pass vacuously."
+    )
+    mirrors = list(SKILLS_DIR.glob("*/question_hierarchy.yaml"))
+    assert len(mirrors) >= 13, (
+        f"only {len(mirrors)} committed question_hierarchy.yaml mirrors discovered — the glob broke; "
+        "the drift guard would compare zero mirrors."
+    )
+
+
 @pytest.mark.skipif(
     not _sync.contracts_available(), reason="target-contracts absent (question_hierarchies source lives there)"
 )

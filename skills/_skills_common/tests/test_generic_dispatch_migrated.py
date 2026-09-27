@@ -60,11 +60,24 @@ def _generic_routed_cards() -> list[str]:
 
 _ROUTED = _generic_routed_cards()
 
-pytestmark = pytest.mark.skipif(
-    len(_ROUTED) < 35,
-    reason=f"expected >=37 generic-routed cards (T11 collapse); found {len(_ROUTED)} "
-    "— target-contracts checkout likely predates the module/entrypoint wiring (#329)",
-)
+# Gate the suite on genuine ABSENCE (cards/ not checked out), NOT on the roster size. A count-based
+# skipif (`len(_ROUTED) < 35`) green-SKIPS when the *.card.yaml glob returns nothing — an empty glob →
+# empty parametrize → silent skip, so a broken discovery reads as "passed" under CI's -q. Distinguish
+# absence (skip) from a populated-but-empty roster (hard fail, see the floor below).
+pytestmark = pytest.mark.skipif(not _CARDS.is_dir(), reason="target-contracts cards/ not available")
+
+
+def test_generic_routed_roster_is_not_vacuous():
+    """Anti-vacuity floor. cards/ IS present (pytestmark), so the glob MUST discover the generic-routed
+    roster; an empty/tiny _ROUTED means the *.card.yaml glob or the methods[].entrypoint read broke,
+    which would make the parametrized resolve-check below run over zero cards. Hard-fail rather than
+    green-skip. ~73 today (was ~37 at T11); 35 is a slack floor (a checkout predating the #329
+    module/entrypoint wiring is no longer supported — CI carries current contracts)."""
+    assert len(_ROUTED) >= 35, (
+        f"cards/ present but only {len(_ROUTED)} generic-routed cards discovered (expected >=37) — the "
+        "*.card.yaml glob or the module/entrypoint wiring read drifted, not genuine absence; the "
+        "generic-dispatch resolve guard would pass vacuously."
+    )
 
 
 def test_collapse_removed_the_passthrough_dispatchers():

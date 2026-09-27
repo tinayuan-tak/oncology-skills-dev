@@ -117,6 +117,27 @@ def test_every_referenced_rule_id_exists():
     assert not problems, "dangling rule_id references:\n  " + "\n  ".join(problems)
 
 
+def test_referenced_rule_id_scrape_is_not_vacuous():
+    """Anti-vacuity floor for the SUBJECT of test_every_referenced_rule_id_exists.
+
+    That guard's ``assert known`` / ``assert card_ids`` floors protect the CORPUS (the rules/cards
+    globs), not the set it actually iterates: the ``_referenced_rule_ids(run_py)`` regex scrape. If
+    both Pattern A and Pattern B stop matching (a verdict refactor to a new reference form, or a
+    regex typo), the scrape returns ``set()`` for every skill and the dangling-rule-id guard passes
+    over zero references — green while blind. Pin the aggregate scrape to a member count. ~71 today
+    across the 9 verdict skills; 40 is a slack floor. Independent of target-contracts."""
+    total = sum(
+        len(_referenced_rule_ids(SKILLS_DIR / skill / "scripts" / "run.py"))
+        for skill in _VERDICT_SKILLS
+        if (SKILLS_DIR / skill / "scripts" / "run.py").exists()
+    )
+    assert total >= 40, (
+        f"only {total} rule-id references scraped across {len(_VERDICT_SKILLS)} verdict skills — the "
+        "Pattern A/B regexes in _referenced_rule_ids stopped matching; "
+        "test_every_referenced_rule_id_exists would pass vacuously."
+    )
+
+
 def _load_target_profile():
     return load_run_py(SKILLS_DIR / "target-profile", "tp_run_guard")
 

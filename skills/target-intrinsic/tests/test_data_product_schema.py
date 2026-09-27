@@ -56,6 +56,19 @@ def test_schema_is_wellformed():
     assert schema.get("version"), "data-product schema must carry a contract `version`"
 
 
+def test_golden_fixture_discovery_is_not_vacuous():
+    """Anti-vacuity floor. ``_GOLDENS`` globs ``tests/fixtures/*_decision.json`` at import; the
+    conformance test below iterates it and skips when it finds no FULL decision. If the
+    glob matches NOTHING (fixtures relocated/renamed), that test skips silently rather than checking
+    anything — a vacuous green. Pin the glob to require at least one committed decision fixture (2
+    today); this is independent of whether any is a full decision (the load-bearing conformance is the
+    replay emit)."""
+    assert _GOLDENS, (
+        "no *_decision.json fixtures discovered under tests/fixtures/ — the glob broke; "
+        "test_static_golden_conforms_if_full would skip vacuously."
+    )
+
+
 def test_static_golden_conforms_if_full():
     """Validate any committed golden that is a FULL decision; a trimmed / pre-skill_report golden is
     skipped (the fresh replay emit is the load-bearing conformance target)."""
