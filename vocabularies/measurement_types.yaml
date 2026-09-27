@@ -116,6 +116,42 @@ evidence_substrates:
       DEMETER2 RNAi (depmap-consortium-26q1-rnai — the orthogonal LOF assay crispr_rnai_concordance
       trusts), the ParalogV2 dual-KO GI screens (paralog_buffering / combinatorial_ko_dependency),
       and the drug-anchor screens (drug_anchored_combination / drug_anchored_resistance).
+  depmap_cell_line_rna:
+    description: >-
+      DepMap cell-line bulk RNA-seq expression (data-catalog source depmap-consortium-26q1 / -26q3
+      OmicsExpression matrices). The gene-level expression distribution (cell_line_rna_expression)
+      and the transcript-level isoform read (cellline_isoform_expression) are the gene- and
+      transcript-PROJECTIONS of the SAME cell-line RNA-seq reads — a correlated re-read, not two
+      independent measurements. DISTINCT from the DepMap DNA assays on the same panel (mutation /
+      copy-number / fusion calls are different measurement platforms, kept independent) and from
+      recount3 PATIENT bulk RNA (a different platform AND population).
+  cptac_tmt_tumor_proteome:
+    description: >-
+      CPTAC-PDC harmonized TMT mass-spec tumour proteome (data-catalog snapshot
+      cptac-pdc-snapshot-2026-07-01). The tumour-vs-normal total-protein differential
+      (tumor_protein_abundance, via cptac-protein-tumor-vs-normal-per-cohort-v1) and the
+      phospho-activity read (phospho_pathway_activity) are the global- and phosphopeptide-enriched
+      TMT fractions of the SAME CPTAC-PDC MS runs on the SAME discovery-cohort tumours — correlated
+      re-reads of one proteomic platform. DISTINCT from the TPHP DIA-MS proteome (a different MS
+      platform + cohorts) and from HPA-IHC protein presence (antibody staining, not MS).
+  tphp_dia_ms_proteome:
+    description: >-
+      TPHP body + cancer DIA-NN MaxLFQ mass-spec proteome (data-catalog snapshot
+      tphp-body-proteome-snapshot-2026-08-24, one TPHP_swissprot1025_report.pg_matrix). The
+      tumour-vs-adjacent-normal carcinoma differential (tumor_vs_normal_protein_abundance) and the
+      normal-tissue abundance baseline (normal_tissue_protein_abundance) are two slices of the SAME
+      DIA-MS pg_matrix — a correlated re-read, not two independent proteomes. DISTINCT from the
+      CPTAC-PDC TMT proteome (a different MS platform + cohorts).
+  broad_prism_drug_response:
+    description: >-
+      Broad PRISM cell-line small-molecule drug-response viability (data-catalog source
+      depmap-prism-activity-v3, Log2AUC / OncRef + Repurposing). The compound-activity call
+      (prism_compound_activity — dominant PRISM leg; the GDSC provider is an auxiliary corroborator)
+      and the genotype-stratified drug-sensitivity read (mutation_drug_response — a mutant-vs-WT
+      PRISM contrast where mutation_status only PARTITIONS the PRISM signal) are correlated re-reads
+      of the SAME PRISM viability matrix. DISTINCT from the Chronos CRISPR-KO dependency substrate
+      (chemical vs genetic perturbation, kept independent — the chemical_genetic_concordance
+      cross-substrate check).
 
 # ============================================================================
 # DATASET types — a source+method measures the claim directly.
@@ -131,6 +167,7 @@ measurement_types:
 
   cell_line_rna_expression:
     claim: "How is target mRNA distributed across DepMap cell lines, and is it lineage-stratified?"
+    evidence_substrate: depmap_cell_line_rna   # DepMap OmicsExpression gene-level TPM — the SAME cell-line RNA-seq reads as cellline_isoform_expression (transcript projection)
     entity_grains: [target, target_lineage, target_subtype]   # target_subtype: DepMap driver-mutation strata (cellline-rna-distribution-by-subtype)
     cards: [cellline-rna-distribution, cellline-rna-distribution-by-subtype]
     providers:
@@ -261,6 +298,7 @@ measurement_types:
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
     modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
     claim: "Is target present at protein level in tumor vs matched normal (CPTAC MS)?"
+    evidence_substrate: cptac_tmt_tumor_proteome   # cptac-protein-tumor-vs-normal-per-cohort-v1 (CPTAC-PDC TMT) — the total-protein fraction of the same MS platform as phospho_pathway_activity
     entity_grains: [target_indication, target_subtype]   # pooled + subtype sibling (target_subtype, LIVE 2026-08-21)
     cards: [tumor-protein-abundance-cptac, tumor-protein-distribution-by-subtype]  # pooled + subtype sibling
     providers:
@@ -280,6 +318,7 @@ measurement_types:
     # TUMOR-vs-normal CONTRAST (sample_context=tumor). ENFORCE — declares modality_relevance (routing only).
     modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
     claim: "Does target's tumor-vs-adjacent-normal PROTEIN differential hold at the protein layer across the TPHP DIA-MS carcinoma cohorts (the RNA->protein corroboration of tumor-vs-normal selectivity)?"
+    evidence_substrate: tphp_dia_ms_proteome   # tphp-tumor-vs-normal-protein-per-cohort-v1 — same TPHP DIA-MS pg_matrix as normal_tissue_protein_abundance (tumour slice)
     entity_grains: [target_indication]
     cards: [tumor-vs-normal-protein-abundance-tphp]
     providers:
@@ -287,6 +326,7 @@ measurement_types:
 
   phospho_pathway_activity:
     claim: "Is target phosphorylated (a pathway-activity proxy) in the indication's tumors, beyond its total abundance (CPTAC phospho)?"
+    evidence_substrate: cptac_tmt_tumor_proteome   # cptac-pdc-snapshot-2026-07-01 phospho fraction — same CPTAC-PDC TMT-MS runs/tumours as tumor_protein_abundance (total-protein fraction)
     # Q8 — CPTAC phosphoproteomics. DISTINCT from tumor_protein_abundance (total protein presence):
     # this is the PHOSPHO-level activity readout (activated phosphosites, phospho-vs-total), the
     # sharpest presence signal for kinases/signaling proteins where phosphorylation ≠ abundance.
@@ -382,6 +422,7 @@ measurement_types:
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
     modality_relevance: [small_molecule]
     claim: "Does an annotated compound hit target in cancer cell lines (Broad PRISM + Sanger GDSC drug-response panels), and is its activity lineage-selective or pan-cancer?"
+    evidence_substrate: broad_prism_drug_response   # dominant leg = Broad PRISM Log2AUC (depmap-prism-activity-v3); GDSC is the auxiliary corroborator. Shared by mutation_drug_response (genotype-stratified PRISM contrast)
     entity_grains: [target, target_lineage]
     cards: [prism-compound-activity, gdsc-drug-activity]
     # Two orthogonal cell-line drug-response platforms for the SAME claim (2026-08-25): Broad PRISM
@@ -1043,6 +1084,7 @@ measurement_types:
 
   antigen_pair_selectivity:
     claim: "For a target antigen, which partner antigen makes the most tumor-vs-NORMAL selective logic-gated (AND/OR/NOT) bispecific pair (bulk per-sample RNA)?"
+    evidence_substrate: recount3_tcga_gtex_bulk_rna   # bispecific-bulk-pair-selectivity-per-indication-v1 = per-sample TCGA-tumor vs GTEx-normal recount3 TPM — the pair-gated re-read of the same selectivity counts
     # BULK tumor-vs-normal pair-selectivity from per-sample TCGA-tumor vs GTEx-normal TPM (AND/OR/NOT
     # logic gates over the 52 clinical-seed surface antigens). DISTINCT from antigen_pair_coexpression
     # (single-cell same-cell avidity): this is the tissue-level NECESSITY screen (is the gated pair
@@ -1183,6 +1225,7 @@ measurement_types:
     # biologics on-target-off-tumor window; no rule keys it).
     modality_relevance: [adc, bite_tce, antibody]
     claim: "How broad is target's quantitative normal-tissue protein footprint (TPHP DIA-MS across adult + fetal tissues), and where is it highest — the normal-protein comparator for tumor-vs-normal selectivity?"
+    evidence_substrate: tphp_dia_ms_proteome   # normal-tissue-protein-abundance-per-gene-v1 — same TPHP DIA-MS pg_matrix as tumor_vs_normal_protein_abundance (normal-baseline slice)
     entity_grains: [target]
     cards: [normal-tissue-protein-abundance-tphp]
     providers:
@@ -1595,6 +1638,7 @@ measurement_types:
     # (Log2AUC), not CRISPR-KO dependency. Verdict-inert facet (v1). Thread 4, 2026-08-09.
     modality_relevance: [small_molecule]
     claim: "Are cell lines carrying an alteration in target more SENSITIVE to a drug that targets it (PRISM Log2AUC)?"
+    evidence_substrate: broad_prism_drug_response   # the PRISM Log2AUC signal IS prism_compound_activity; mutation_status only PARTITIONS it (mutant-vs-WT) — same PRISM matrix, not independent
     entity_grains: [target]
     cards: [mutation-drug-response]
     providers:
@@ -1761,6 +1805,7 @@ measurement_types:
     # ratio surfaces the CEACAM5 paradox (huge window yet strict-TCE liability) neither answers.
     modality_relevance: [adc, bite_tce, antibody]
     claim: "Is tumor expression high enough relative to the worst essential normal organ to open a therapeutic window at this modality tier?"
+    evidence_substrate: recount3_tcga_gtex_bulk_rna   # tcga-gtex-tpm-tissue-quantiles-v1 = recount3 TCGA+GTEx harmonization; the tumor/essential-normal ratio is another statistic on the same recount3 counts
     entity_grains: [target_indication]
     cards: [modality-therapeutic-window]
     providers:
@@ -1774,6 +1819,7 @@ measurement_types:
     # Reads tcga-gtex-exon-tpm-quantiles-v1 (surfaceome-scoped). Scores exon INCLUSION not SKIPPING.
     modality_relevance: [adc, bite_tce, antibody]
     claim: "Does the target's tumor-dominant exon show within-gene heterogeneity + a clean window suggesting an isoform-resolved epitope worth junction-level follow-up?"
+    evidence_substrate: recount3_tcga_gtex_bulk_rna   # tcga-gtex-exon-tpm-quantiles-v1 = exon-level recount3 TCGA+GTEx (same Monorail substrate as modality_window and the tumor-vs-normal contrasts)
     entity_grains: [target_indication]
     cards: [modality-exon-window]
     providers:
@@ -1967,6 +2013,7 @@ measurement_types:
 
   coessential_module:
     claim: "Is {target}'s CRISPR dependency embedded in a COHERENT co-essential module (complex/pathway partners co-essential across the same cell lines), or an ISOLATED hit? A module-anchored dependency is a more credible, mechanism-anchored call."
+    evidence_substrate: depmap_crispr_chronos   # depmap-coessentiality-26q1-v1 = Pearson r ACROSS the DepMap Chronos profiles — a Chronos-correlated confidence axis (invariant 8: never independently raises certainty)
     # CONFIDENCE facet (verdict-INERT), the sibling of cross_consortium_dependency + dependency_predictability:
     # a dependency sitting in a coherent co-essential module is more credible than an isolated one. Genome-
     # wide co-essentiality (Pearson r across DepMap Chronos profiles), gene-grain, pan-cancer. tier_dominant:
@@ -1981,6 +2028,7 @@ measurement_types:
 
   cellline_isoform_expression:
     claim: "Which transcript isoform carries {target}'s expression across cancer cell lines — single-isoform-dominant or isoform-diverse?"
+    evidence_substrate: depmap_cell_line_rna   # depmap-isoform-expression-per-gene-v1 = transcript-level TPM from the SAME DepMap RNA-seq reads as cell_line_rna_expression (gene projection)
     # MOLECULAR-FORM (isoform) facet, MODEL arm (2026-08-19; conditioner axis molecular_form). Verdict-inert:
     # WHICH transcript (not how MUCH). Also emitted as a sub-call inside cellline-rna-distribution (additive).
     entity_grains: [target]
