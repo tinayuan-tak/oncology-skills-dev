@@ -1142,6 +1142,186 @@
           }
         },
         "_disclaimer": "Per-source verdict-INERT qualifier (deterministic, no LLM) \u2014 never a signal tier, never averaged into a claim, never feeds the presence_verdict; PRESENTATION-support only."
+      },
+      "source_properties": {
+        "patient_tumor_abundance": {
+          "card_id": "tumor-rna-distribution",
+          "property": "broadly_high",
+          "anchors": [
+            {
+              "field": "allgene_percentile",
+              "value": 99.74150466918945,
+              "scale": "pan_gene_percentile",
+              "semantic_role": "signal",
+              "interpretation_reach": "skills_local"
+            },
+            {
+              "field": "median_log2tpm",
+              "value": 9.622452735900879,
+              "scale": "log2_tpm",
+              "semantic_role": "signal",
+              "interpretation_reach": "skills_local"
+            },
+            {
+              "field": "p95_log2tpm",
+              "value": 10.38471279144287,
+              "scale": "log2_tpm",
+              "semantic_role": "signal",
+              "interpretation_reach": "skills_local"
+            },
+            {
+              "field": "fraction_tumor_above_normal_p95",
+              "value": 0.7369207772795217,
+              "scale": "fraction",
+              "semantic_role": "context",
+              "interpretation_reach": "skills_local"
+            }
+          ],
+          "comparability": {
+            "measurement_type": "tumor_rna_expression",
+            "sample_context": "tumor",
+            "grain": "bulk"
+          }
+        },
+        "tumor_normal_selectivity": {
+          "card_id": "tumor-rna-vs-adjacent",
+          "property": "not_informative",
+          "anchors": [
+            {
+              "field": "log2_fc",
+              "value": -0.3620304616558291,
+              "scale": "log2_fold_change",
+              "semantic_role": "signal",
+              "interpretation_reach": "skills_local"
+            },
+            {
+              "field": "q_value",
+              "value": 1.2282737206350781e-06,
+              "scale": "bh_q_value",
+              "semantic_role": "context",
+              "interpretation_reach": "skills_local"
+            },
+            {
+              "field": "gtex_log2_fc",
+              "value": 2.085965449060126,
+              "scale": "log2_fold_change",
+              "semantic_role": "context",
+              "interpretation_reach": "skills_local"
+            },
+            {
+              "field": "gtex_q_value",
+              "value": 1.6321039340096234e-72,
+              "scale": "bh_q_value",
+              "semantic_role": "context",
+              "interpretation_reach": "skills_local"
+            }
+          ],
+          "comparability": {
+            "measurement_type": "tumor_rna_dge_vs_adjacent",
+            "sample_context": "tumor",
+            "grain": "bulk"
+          }
+        },
+        "tumor_protein_abundance": {
+          "card_id": "tumor-protein-abundance-cptac",
+          "property": "not_significant",
+          "anchors": [
+            {
+              "field": "allgene_percentile",
+              "value": 58.283904017255324,
+              "scale": "pan_gene_percentile",
+              "semantic_role": "signal",
+              "interpretation_reach": "skills_local"
+            },
+            {
+              "field": "protein_effect_size",
+              "value": 0.0647570698633509,
+              "scale": "standardized_effect",
+              "semantic_role": "signal",
+              "interpretation_reach": "skills_local"
+            },
+            {
+              "field": "protein_bh_q_value",
+              "value": 0.303219701368917,
+              "scale": "bh_q_value",
+              "semantic_role": "context",
+              "interpretation_reach": "skills_local"
+            }
+          ],
+          "comparability": {
+            "measurement_type": "tumor_protein_expression",
+            "sample_context": "tumor",
+            "grain": "bulk_protein"
+          }
+        },
+        "malignant_cell_coverage": {
+          "card_id": "tumor-scrna-celltype-expression",
+          "property": "malignant_broadly_detected",
+          "anchors": [
+            {
+              "field": "malignant_detection_fraction",
+              "value": 0.89476,
+              "scale": "fraction",
+              "semantic_role": "signal",
+              "interpretation_reach": "skills_local"
+            },
+            {
+              "field": "malignant_n_donors",
+              "value": 361,
+              "scale": "donor_count",
+              "semantic_role": "context",
+              "interpretation_reach": "skills_local"
+            }
+          ],
+          "comparability": {
+            "measurement_type": "sc_tumor_celltype_expression",
+            "sample_context": "tumor",
+            "grain": "single_cell"
+          }
+        },
+        "tumor_elevation_breadth": {
+          "card_id": "tumor-elevation-breadth",
+          "property": "multi_tumor_elevated",
+          "anchors": [
+            {
+              "field": "n_cohorts_elevated",
+              "value": 4,
+              "scale": "cohort_count",
+              "semantic_role": "context",
+              "interpretation_reach": "skills_local"
+            },
+            {
+              "field": "n_cohorts_tested",
+              "value": 9,
+              "scale": "cohort_count",
+              "semantic_role": "context",
+              "interpretation_reach": "skills_local"
+            }
+          ],
+          "comparability": {
+            "measurement_type": "tumor_elevation_breadth",
+            "sample_context": "tumor",
+            "grain": "target"
+          }
+        },
+        "model_expression_structure": {
+          "card_id": "cellline-rna-distribution",
+          "property": "broadly_moderate",
+          "anchors": [
+            {
+              "field": "allgene_percentile",
+              "value": 52.54228591918945,
+              "scale": "pan_gene_percentile",
+              "semantic_role": "signal",
+              "interpretation_reach": "cross_repo_resolver"
+            }
+          ],
+          "comparability": {
+            "measurement_type": "cellline_rna_expression",
+            "sample_context": "cell_line",
+            "grain": "bulk"
+          }
+        }
       }
     },
     "key_signals": {

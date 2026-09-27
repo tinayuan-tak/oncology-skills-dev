@@ -1741,3 +1741,96 @@ def test_tumor_presence_concordance_is_verdict_inert_additive_key():
     bare = presence_claim_vector(_headline(), _tpc_cards(bulk_cls=None, sc_cls=None, ihc_cls=None))
     assert "tumor_presence_concordance" not in bare
     assert "tumor_presence_concordance" in cv
+
+
+# ── L2a NAMED source_properties map (SK#1939) ──────────────────────────────────────────────────────
+def _cards_with_cptac_and_cellline():
+    """The base cards + a CPTAC protein arm and a cell-line RNA arm (with a resolved expression_properties
+    object) so every one of the six source_properties recipes can resolve."""
+    return _cards() + [
+        {
+            "card_id": "tumor-protein-abundance-cptac",
+            "summary": {
+                "protein_expression_class": "significant_up",
+                "allgene_percentile": 74.1,
+                "protein_effect_size": 0.9,
+                "protein_bh_q_value": 1e-4,
+            },
+        },
+        {
+            "card_id": "cellline-rna-distribution",
+            "summary": {
+                "expression_class": "broadly_moderate",
+                "allgene_percentile": 52.5,
+                "expression_properties": {"heterogeneity": "high", "prevalence": "subset"},
+            },
+        },
+    ]
+
+
+def test_source_properties_surfaces_named_per_source_map():
+    """The lifted L2a map surfaces one entry per resolved source/grain, each with card_id + resolved
+    property + retained anchors + comparability metadata — the architecture's source_properties shape."""
+    vec = presence_claim_vector(_headline(), _cards_with_cptac_and_cellline())
+    assert "source_properties" in vec, "the named L2a source_properties map must surface on the claim vector"
+    sp = vec["source_properties"]
+    # all six source/grain recipes resolve on this maximal fixture
+    assert set(sp) == {
+        "patient_tumor_abundance",
+        "tumor_normal_selectivity",
+        "tumor_protein_abundance",
+        "malignant_cell_coverage",
+        "tumor_elevation_breadth",
+        "model_expression_structure",
+    }
+    pta = sp["patient_tumor_abundance"]
+    assert pta["card_id"] == "tumor-rna-distribution"
+    assert pta["property"] == "broadly_detected"  # the resolved observational class, read from the card
+    assert pta["comparability"] == {
+        "measurement_type": "tumor_rna_expression",
+        "sample_context": "tumor",
+        "grain": "bulk",
+    }
+
+
+def test_source_properties_anchors_are_recoverable_and_two_axis_typed():
+    """Each retained anchor binds {field, value, scale} — reconstructable to its L1 card field — and
+    carries the two-axis field-disposition typing (semantic_role + interpretation_reach, SK#1525)."""
+    vec = presence_claim_vector(_headline(), _cards_with_cptac_and_cellline())
+    anchors = {a["field"]: a for a in vec["source_properties"]["patient_tumor_abundance"]["anchors"]}
+    # value is the RAW L1 card value (recoverable), not a re-derived tier
+    assert anchors["median_log2tpm"]["value"] == 3.97
+    assert anchors["median_log2tpm"]["scale"] == "log2_tpm"
+    # two-axis disposition typing is sourced from the tumor-presence ledger
+    assert anchors["allgene_percentile"]["semantic_role"] in ("signal", "context", "provenance", "display")
+    assert anchors["allgene_percentile"]["interpretation_reach"] in (
+        "unreached",
+        "skills_local",
+        "cross_repo_resolver",
+    )
+
+
+def test_source_properties_retains_resolved_expression_properties_object():
+    """The cell-line source retains the shared resolved expression_properties object when present
+    (recoverable structured property), mirroring the _expression_property_atom passthrough."""
+    vec = presence_claim_vector(_headline(), _cards_with_cptac_and_cellline())
+    model = vec["source_properties"]["model_expression_structure"]
+    assert model["resolved_expression_properties"] == {"heterogeneity": "high", "prevalence": "subset"}
+
+
+def test_source_properties_is_verdict_inert_and_carries_no_signal_tier():
+    """Surfacing source_properties is a PURE ADDITION: it perturbs none of the A/B/C/D claim tiers and
+    carries no `signal` key (not a chip, not a tier)."""
+    base = presence_claim_vector(_headline(), _cards())
+    withsp = presence_claim_vector(_headline(), _cards())
+    for ax in ("A", "B", "C", "D", "homogeneity"):
+        assert withsp[ax] == base[ax], f"surfacing source_properties perturbed {ax}"
+    for entry in withsp["source_properties"].values():
+        assert "signal" not in entry and "corroboration" not in entry
+
+
+def test_source_properties_omitted_when_no_source_resolves():
+    """No presence source card ⇒ no entry ⇒ the whole key is omitted, keeping a card-absent run
+    byte-stable (matching the A/B/C/D + expression_properties + concordance atom discipline)."""
+    vec = presence_claim_vector(_headline(), [])
+    assert "source_properties" not in vec

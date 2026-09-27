@@ -23,6 +23,7 @@ composed target-profile fan-out reads.
 
 from __future__ import annotations
 
+import functools
 import math
 import re
 from typing import Optional
@@ -565,6 +566,170 @@ def _expression_property_atom(c):
         {"measurement_type": "cellline_rna_expression", "sample_context": "cell_line"},
         "shared L2 expression properties (presence/magnitude/prevalence/heterogeneity/lineage) — verdict-inert provenance",
     )
+
+
+# ── L2a NAMED source_properties map (SK#1939, epic #1507 Arm B / tumor-presence reference vertical) ──
+# The per-source observational (L2a) properties existed only IMPLICITLY, embedded inside the four claim
+# signal blocks (_claim_A/_B/_C/_D) and _expression_property_atom. This lifts them into a NAMED, typed
+# map — one entry per source/grain — matching the architecture's export shape
+# (docs/EVIDENCE_PROPERTY_ARCHITECTURE_L1_L4.md, the `source_properties:` block). Each entry carries the
+# card it resolves from, the resolved observational property class (the SAME L2a class the A/B/C/D
+# claims read from that source), the RETAINED quantitative anchors (value + scale/unit + two-axis
+# disposition typing), and comparability metadata (measurement_type + sample_context + grain) so a
+# downstream reader can tell which entries are commensurable. It is a PURE PROJECTION over the already-
+# computed card summaries: no LLM, no new measurement, no re-derivation, and — like every other L2a/L2b
+# facet on this vector — it carries NO `signal` key, is read by no rule/verdict/ladder, and every
+# property is reconstructable to its L1 card field via {card_id, field, value}. VERDICT-INERT.
+#
+# The scale/unit slot for each retained quantitative anchor (envelope-v0: a raw value + its declared
+# scale, never a `decision_weight`/`modality_relevance`). Absent → "raw".
+_ANCHOR_SCALE = {
+    "allgene_percentile": "pan_gene_percentile",
+    "median_log2tpm": "log2_tpm",
+    "p95_log2tpm": "log2_tpm",
+    "fraction_tumor_above_normal_p95": "fraction",
+    "log2_fc": "log2_fold_change",
+    "gtex_log2_fc": "log2_fold_change",
+    "q_value": "bh_q_value",
+    "gtex_q_value": "bh_q_value",
+    "protein_effect_size": "standardized_effect",
+    "protein_bh_q_value": "bh_q_value",
+    "malignant_detection_fraction": "fraction",
+    "malignant_n_donors": "donor_count",
+    "n_cohorts_elevated": "cohort_count",
+    "n_cohorts_tested": "cohort_count",
+}
+
+# Data-driven recipe (keyed by the L2a property name from the architecture's source_properties shape).
+# `property_field` is the resolved observational class of that source; `anchors` are its retained
+# quantitative anchors, in reading order. A source whose card is absent (or whose property class does
+# not resolve) emits NO entry, and the whole `source_properties` key is omitted when nothing resolves —
+# keeping a card-absent run byte-stable, matching the A/B/C/D + expression_properties + concordance
+# discipline on this vector.
+_SOURCE_PROPERTY_RECIPES = (
+    {
+        "name": "patient_tumor_abundance",
+        "card_id": "tumor-rna-distribution",
+        "property_field": "tumor_expression_class",
+        "anchors": ("allgene_percentile", "median_log2tpm", "p95_log2tpm", "fraction_tumor_above_normal_p95"),
+        "comparability": {"measurement_type": "tumor_rna_expression", "sample_context": "tumor", "grain": "bulk"},
+    },
+    {
+        "name": "tumor_normal_selectivity",
+        "card_id": "tumor-rna-vs-adjacent",
+        "property_field": "expression_call_class",
+        "anchors": ("log2_fc", "q_value", "gtex_log2_fc", "gtex_q_value"),
+        "comparability": {
+            "measurement_type": "tumor_rna_dge_vs_adjacent",
+            "sample_context": "tumor",
+            "grain": "bulk",
+        },
+    },
+    {
+        "name": "tumor_protein_abundance",
+        "card_id": "tumor-protein-abundance-cptac",
+        "property_field": "protein_expression_class",
+        "anchors": ("allgene_percentile", "protein_effect_size", "protein_bh_q_value"),
+        "comparability": {
+            "measurement_type": "tumor_protein_expression",
+            "sample_context": "tumor",
+            "grain": "bulk_protein",
+        },
+    },
+    {
+        "name": "malignant_cell_coverage",
+        "card_id": "tumor-scrna-celltype-expression",
+        "property_field": "sc_expression_class",
+        "anchors": ("malignant_detection_fraction", "malignant_n_donors"),
+        "comparability": {
+            "measurement_type": "sc_tumor_celltype_expression",
+            "sample_context": "tumor",
+            "grain": "single_cell",
+        },
+    },
+    {
+        "name": "tumor_elevation_breadth",
+        "card_id": "tumor-elevation-breadth",
+        "property_field": "tumor_elevation_breadth_class",
+        "anchors": ("n_cohorts_elevated", "n_cohorts_tested"),
+        "comparability": {"measurement_type": "tumor_elevation_breadth", "sample_context": "tumor", "grain": "target"},
+    },
+    {
+        "name": "model_expression_structure",
+        "card_id": "cellline-rna-distribution",
+        "property_field": "expression_class",
+        "anchors": ("allgene_percentile",),
+        "comparability": {
+            "measurement_type": "cellline_rna_expression",
+            "sample_context": "cell_line",
+            "grain": "bulk",
+        },
+    },
+)
+
+
+@functools.lru_cache(maxsize=None)
+def _presence_reach_map() -> dict:
+    """{(card_id, field): interpretation_reach} for the tumor-presence ledger — the SECOND disposition
+    axis (SK#1525), read-only, sourced the same way `role_for` sources the first axis. Empty when the
+    ledger is absent, so anchor typing stays additive/byte-stable where the source is missing."""
+    from _skills_common.field_disposition_contract import INTERPRETATION_REACH
+    from _skills_common.field_disposition_ledger import LEDGER_NAME, _default_skills_root, iter_rows, load_ledger
+
+    path = _default_skills_root() / "tumor-presence" / LEDGER_NAME
+    if not path.exists():
+        return {}
+    doc = load_ledger(path)
+    return {
+        (cid, field): spec["interpretation_reach"]
+        for cid, field, spec in iter_rows(doc)
+        if spec.get("interpretation_reach") in INTERPRETATION_REACH
+    }
+
+
+def _typed_anchor(card_id, field, value):
+    """One retained quantitative anchor: {field, value, scale} + the two-axis field-disposition typing
+    (semantic_role via the ledger's role axis, interpretation_reach via its reach axis, #1525) when the
+    ledger declares them. Typing keys are OMITTED when the ledger does not classify the field, so the
+    anchor never fabricates a disposition it cannot source."""
+    from _skills_common.field_disposition_ledger import role_for
+
+    anchor = {"field": field, "value": value, "scale": _ANCHOR_SCALE.get(field, "raw")}
+    role = role_for(card_id, field, "tumor-presence")
+    if role is not None:
+        anchor["semantic_role"] = role
+    reach = _presence_reach_map().get((card_id, field))
+    if reach is not None:
+        anchor["interpretation_reach"] = reach
+    return anchor
+
+
+def _source_properties(c) -> "dict | None":
+    """The NAMED, typed L2a source_properties map (SK#1939): one entry per source/grain, lifting the
+    per-source observational properties out of the A/B/C/D + expression_properties claim blocks into an
+    explicit, recoverable object. Returns None when no source resolves (whole key omitted → byte-stable),
+    matching the atom discipline on this vector. Pure projection, verdict-inert, carries no signal tier."""
+    out = {}
+    for recipe in _SOURCE_PROPERTY_RECIPES:
+        summ = c.get(recipe["card_id"], {}) or {}
+        prop = summ.get(recipe["property_field"])
+        # A source with no card / no resolved observational class emits no entry (byte-stable).
+        if not prop or prop == "data_unavailable":
+            continue
+        anchors = [_typed_anchor(recipe["card_id"], f, summ[f]) for f in recipe["anchors"] if summ.get(f) is not None]
+        entry = {
+            "card_id": recipe["card_id"],
+            "property": prop,
+            "anchors": anchors,
+            "comparability": dict(recipe["comparability"]),
+        }
+        # Cell-line RNA: when the shared resolved expression_properties object is present, retain it
+        # (recoverable structured property), mirroring the _expression_property_atom passthrough. Omitted
+        # when the card lacks it (the committed EPCAM golden path), keeping that run byte-stable.
+        if recipe["name"] == "model_expression_structure" and isinstance(summ.get("expression_properties"), dict):
+            entry["resolved_expression_properties"] = summ["expression_properties"]
+        out[recipe["name"]] = entry
+    return out or None
 
 
 # ── per-source QUALIFIER: cell-line-panel heterogeneity is CROSS-LINEAGE, not within-tumour escape ──
@@ -1268,6 +1433,14 @@ def presence_claim_vector(headline: dict, cards: list) -> dict:
     _ep_atom = _expression_property_atom(c)
     if _ep_atom is not None:
         vec["expression_properties"] = {"evidence_atom": _ep_atom}
+    # L2a NAMED source_properties map (SK#1939): the per-source observational properties lifted out of
+    # the A/B/C/D + expression_properties claim blocks into an explicit, typed, per-source/grain object
+    # (architecture export shape). Carries NO `signal` key → not a chip, not a tier; OMITTED when no
+    # source resolves, keeping a card-absent run byte-stable — matching the A/B/C/D + expression_properties
+    # + concordance atom discipline above. Verdict-inert.
+    _sp = _source_properties(c)
+    if _sp is not None:
+        vec["source_properties"] = _sp
     # L2b-1 cross-source integration claim (SK#1517): bulk presence × single-cell malignant coverage.
     # Carries NO `signal` key → not a chip, not a tier; OMITTED unless BOTH source properties resolve
     # (bulk broadly-present AND sc coverage high|low), keeping a card-absent / non-broad / unmeasured-
