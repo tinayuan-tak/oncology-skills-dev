@@ -32,6 +32,9 @@ SKILL_DIR = Path(__file__).resolve().parent.parent
 SKILLS_ROOT = SKILL_DIR.parent
 RUN_PY = SKILL_DIR / "scripts" / "run.py"
 FIXTURE = SKILL_DIR / "tests" / "fixtures" / "egfr.yaml"
+# The committed FULL-decision golden that freeze_golden_decision.py writes from THIS SAME offline
+# replay path (json.dumps(indent=2, sort_keys=True)). Byte-compared below.
+GOLDEN = SKILL_DIR / "tests" / "fixtures" / "target_intrinsic_egfr_full_decision.json"
 
 # run.py resolves _skills_common by inserting SKILLS_ROOT on sys.path; do it here too so the test
 # can import + monkeypatch the SAME module object run.py will use (sys.modules cache).
@@ -261,3 +264,76 @@ def test_replay_intrinsic_confirmation_caveat_guards_egfr(egfr_decision):
     prov = h.get("intrinsic_provenance") or {}
     assert prov.get("experimentally_confirmed_actionable_property") is True
     assert prov.get("ot_composite_double_counts_dedicated_cards") is True
+
+
+# ---------------------------------------------------------------------------
+# Committed-golden byte-drift guard (credential-less → runs in PR CI, never skips)
+# ---------------------------------------------------------------------------
+# Fields that legitimately vary run-to-run (wall-clock stamp, timings, and the git-HEAD provenance
+# stamp). These are the ONLY nondeterministic leaves in a fresh replay: generated_at + run_health
+# timings are wall-clock; provenance.skills_repo_sha records the repo HEAD at freeze/replay time, so
+# it necessarily differs between the freeze commit and CI's HEAD. Normalizing exactly these lets the
+# guard fail on EMIT-SHAPE drift while staying stable across runs and commits.
+_VOLATILE_TOP = ("generated_at",)
+_VOLATILE_RUN_HEALTH = ("compute_secs", "read_secs", "total_secs")
+_VOLATILE_PROVENANCE = ("skills_repo_sha",)
+
+
+def _strip_volatile(decision: dict) -> dict:
+    d = copy.deepcopy(decision)
+    for k in _VOLATILE_TOP:
+        d.pop(k, None)
+    rh = d.get("run_health")
+    if isinstance(rh, dict):
+        for k in _VOLATILE_RUN_HEALTH:
+            rh.pop(k, None)
+    prov = d.get("provenance")
+    if isinstance(prov, dict):
+        for k in _VOLATILE_PROVENANCE:
+            prov.pop(k, None)
+    return d
+
+
+def _leaves(obj, prefix=""):
+    if isinstance(obj, dict):
+        for k, v in obj.items():
+            yield from _leaves(v, f"{prefix}.{k}")
+    elif isinstance(obj, list):
+        for i, v in enumerate(obj):
+            yield from _leaves(v, f"{prefix}[{i}]")
+    else:
+        yield prefix, obj
+
+
+def _drift(committed, rebuilt) -> list[str]:
+    a, b = dict(_leaves(committed)), dict(_leaves(rebuilt))
+    return sorted(
+        f"{k}: committed={a.get(k, '<absent>')!r} rebuilt={b.get(k, '<absent>')!r}"
+        for k in set(a) | set(b)
+        if a.get(k, "<absent>") != b.get(k, "<absent>")
+    )
+
+
+def test_committed_full_golden_matches_a_fresh_replay(egfr_decision):
+    """THE FIX for #1672's silent staleness: the committed FULL-decision golden must byte-equal a fresh
+    offline replay (modulo wall-clock stamp + timings). This runs credential-less in PR CI, so — unlike
+    the LIVE golden (test_target_intrinsic_golden.py, which SKIPs without S3) — it NEVER skips: any
+    emit-shape drift that lands without a refreeze reds here loudly instead of accumulating unseen.
+    To fix a RED: refreeze via `pixi run python skills/target-intrinsic/tests/freeze_golden_decision.py`
+    and commit the diff (that diff IS the review artifact for an output-shape change)."""
+    assert GOLDEN.exists(), (
+        f"committed golden missing at {GOLDEN} — regenerate with "
+        f"`pixi run python skills/target-intrinsic/tests/freeze_golden_decision.py`"
+    )
+    committed = _strip_volatile(json.loads(GOLDEN.read_text()))
+    fresh = _strip_volatile(egfr_decision)
+    # Canonicalize through the same serializer freeze_golden_decision.py uses, so the comparison is on
+    # exactly the committed bytes (types coalesced: a tuple → list once dumped).
+    committed = json.loads(json.dumps(committed, sort_keys=True))
+    fresh = json.loads(json.dumps(fresh, sort_keys=True))
+    drift = _drift(committed, fresh)
+    assert not drift, (
+        f"{GOLDEN.name} is STALE vs a fresh offline replay ({len(drift)} leaves drifted). "
+        f"Refreeze: `pixi run python skills/target-intrinsic/tests/freeze_golden_decision.py`.\n"
+        + "\n".join(drift[:20])
+    )
