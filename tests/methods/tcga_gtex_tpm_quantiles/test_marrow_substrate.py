@@ -59,7 +59,10 @@ def test_definitive_absence_returns_none_not_zero():
 
 def test_read_failure_returns_unavailable_not_zero_and_not_gene_absent(monkeypatch):
     """A broken environment must NOT be reported as biology. Manifest resolution is inside the
-    module's try block precisely so this degrades instead of raising through the dispatcher."""
+    module's try block precisely so this degrades instead of raising through the dispatcher.
+
+    A bare RuntimeError from catalog resolution is treated as a DEFINITIVE config miss (a
+    renamed/removed manifest raises here) → plain `unavailable`, not the transient flavour."""
 
     def _boom(_manifest_id):
         raise RuntimeError("catalog unreachable")
@@ -69,7 +72,102 @@ def test_read_failure_returns_unavailable_not_zero_and_not_gene_absent(monkeypat
     assert tpm is None
     assert substrate == marrow.SUBSTRATE_UNAVAILABLE
     assert substrate != marrow.SUBSTRATE_GENE_ABSENT
+    assert substrate != marrow.SUBSTRATE_UNAVAILABLE_TRANSIENT
     assert "catalog unreachable" in note
+
+
+def test_transient_network_failure_is_flagged_unavailable_transient(monkeypatch):
+    """#796: a TRANSIENT outage (network/creds/throttle/5xx/parse) must be DISTINGUISHABLE from a
+    definitive config miss, so the selectivity clamp can withhold a marrow-plausible selective call
+    rather than silently drop the essential-window KILL. A builtin ConnectionError is transient."""
+
+    def _boom(_manifest_id):
+        raise ConnectionError("connection reset by peer")
+
+    monkeypatch.setattr(marrow, "bucket_prefix_for", _boom)
+    tpm, substrate, note = marrow.primary_marrow_tpm("CD33")
+    assert tpm is None
+    assert substrate == marrow.SUBSTRATE_UNAVAILABLE_TRANSIENT
+    assert substrate != marrow.SUBSTRATE_UNAVAILABLE
+    assert substrate != marrow.SUBSTRATE_GENE_ABSENT
+
+
+def test_botocore_endpoint_connection_error_is_transient(monkeypatch):
+    from botocore.exceptions import EndpointConnectionError
+
+    def _boom(_manifest_id):
+        raise EndpointConnectionError(endpoint_url="https://s3.amazonaws.com")
+
+    monkeypatch.setattr(marrow, "bucket_prefix_for", _boom)
+    assert marrow.primary_marrow_tpm("CD33")[1] == marrow.SUBSTRATE_UNAVAILABLE_TRANSIENT
+
+
+def test_missing_credentials_is_transient(monkeypatch):
+    """An expired/absent role is an environment fault, not biology — recoverable on re-run."""
+    from botocore.exceptions import NoCredentialsError
+
+    def _boom(_manifest_id):
+        raise NoCredentialsError()
+
+    monkeypatch.setattr(marrow, "bucket_prefix_for", _boom)
+    assert marrow.primary_marrow_tpm("CD33")[1] == marrow.SUBSTRATE_UNAVAILABLE_TRANSIENT
+
+
+def test_client_error_5xx_is_transient_but_4xx_is_definitive(monkeypatch):
+    """A boto ClientError throttling/5xx is transient; a 4xx (NoSuchKey/AccessDenied) is a
+    DEFINITIVE absence/config state and keeps the plain `unavailable`."""
+    from botocore.exceptions import ClientError
+
+    def _server_error(_manifest_id):
+        raise ClientError(
+            {"Error": {"Code": "InternalError"}, "ResponseMetadata": {"HTTPStatusCode": 503}},
+            "GetObject",
+        )
+
+    monkeypatch.setattr(marrow, "bucket_prefix_for", _server_error)
+    assert marrow.primary_marrow_tpm("CD33")[1] == marrow.SUBSTRATE_UNAVAILABLE_TRANSIENT
+
+    marrow._reset_cache_for_tests()
+
+    def _not_found(_manifest_id):
+        raise ClientError(
+            {"Error": {"Code": "NoSuchKey"}, "ResponseMetadata": {"HTTPStatusCode": 404}},
+            "GetObject",
+        )
+
+    monkeypatch.setattr(marrow, "bucket_prefix_for", _not_found)
+    assert marrow.primary_marrow_tpm("CD33")[1] == marrow.SUBSTRATE_UNAVAILABLE
+
+
+def test_definitive_states_keep_plain_unavailable(monkeypatch):
+    """The tissue-vocabulary-drift (`bm.empty`) path is DEFINITIVE, not transient."""
+    import io
+
+    import pandas as pd
+
+    tsv = "Gene name\tTissue\tnTPM\nCD33\tliver\t1.0\n"
+
+    class _Body:
+        def read(self):
+            return tsv.encode()
+
+    class _Client:
+        def get_object(self, Bucket, Key):  # noqa: N803
+            return {"Body": _Body()}
+
+    class _Session:
+        def __init__(self, **_kw):
+            pass
+
+        def client(self, _name):
+            return _Client()
+
+    import boto3
+
+    real_read_csv = pd.read_csv
+    monkeypatch.setattr(boto3, "Session", _Session)
+    monkeypatch.setattr(pd, "read_csv", lambda *a, **k: real_read_csv(io.StringIO(tsv), sep="\t"))  # noqa: ARG005
+    assert marrow.primary_marrow_tpm("CD33")[1] == marrow.SUBSTRATE_UNAVAILABLE
 
 
 def test_failure_is_cached_so_a_panel_run_does_not_retry_per_gene(monkeypatch):

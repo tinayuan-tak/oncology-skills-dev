@@ -392,7 +392,9 @@ _BASELINE_RESIDUALS: dict[str, str] = {
     # `return {}, "<err>"` non-empty-tuple gap in `_is_empty_return_value` — newly SURFACES the
     # residuals below. They masked before purely via those holes (no allowlist entry). Recorded so CI
     # stays green and the ratchet is ARMED against net-new seams; tracked for burndown, NOT fixed here
-    # (scope = the guard only). Burndown: #809 (four seams) and #796 (marrow-HPA).
+    # (scope = the guard only). Burndown: #809 (four seams). #796 (marrow-HPA) BURNED DOWN 2026-09-27 —
+    # marrow._load now discriminates transient (isinstance(_TRANSIENT_LOAD_ERRORS)/5xx) from definitive
+    # config misses, so its handler is no longer a violation and its residual entry was removed.
     "depmap_methylation_silencing/read.py::_load_ccle_methylation_for_gene": '#809 — live CCLE gzip fallback: `except Exception → return {}, f"s3_read_failed: {e}"` '
     "over `s3.get_object` masks a transient/creds blip into methylation_silencing_class="
     "data_unavailable (VERDICT-DRIVING). Sibling _load_methylation_from_product is the reference-good "
@@ -408,10 +410,6 @@ _BASELINE_RESIDUALS: dict[str, str] = {
     "is an inline `# absence-discipline: exempt -- figure-only, post-verdict` on the except line "
     "(reader-scoped follow-up), then delete this entry — recorded here only because this PR is "
     "guard-file-scoped and cannot edit the reader.",
-    "tcga_gtex_tpm_quantiles/marrow.py::_load": '#796 — marrow-HPA: `except Exception → _LOAD_ERROR = f"{type(exc).__name__}: {exc}"; '
-    "_TABLE = None; return` over an S3 get_object/read_csv. The type() breadcrumb previously satisfied "
-    "the discriminator (hole 2); it swallows any read failure into an unavailable marrow denominator, "
-    "dropping the essential-window KILL on myeloid-argmax targets (VERDICT-DRIVING).",
 }
 
 _ALLOWLIST: dict[str, str] = {**_DEFERRED_ALLOWLIST, **_BASELINE_RESIDUALS}

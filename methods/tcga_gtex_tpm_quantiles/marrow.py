@@ -74,11 +74,102 @@ MARROW_PLATFORM_OFFSET_MEDIAN = 1.19  # measured HPA/GTEx; see module docstring 
 # substrate states (emitted verbatim as the window scorer's `marrow_substrate`)
 SUBSTRATE_PRIMARY = "hpa_primary_marrow"
 SUBSTRATE_GENE_ABSENT = "gene_absent_from_hpa_consensus"
+# DEFINITIVE config states (renamed/removed manifest, tissue-vocabulary drift → `bm.empty`): the
+# marrow denominator is legitimately withheld and re-running will not recover it.
 SUBSTRATE_UNAVAILABLE = "unavailable"
+# TRANSIENT outage (network / creds / throttling / 5xx / pandas parse): the marrow denominator is
+# INCOMPLETE, not definitively missing — a re-run should recover it. Kept DISTINCT from `unavailable`
+# (2026-09-27, #796) so the selectivity veto clamp can WITHHOLD a marrow-plausible selective call
+# rather than silently drop the essential-window KILL when a transient inflates the window ratio.
+# The transient is process-wide (a shared cache), so it hits EVERY target in a run, not just
+# myeloid-argmax ones — the consumer scopes the withholding by marrow-plausibility, not by this token.
+SUBSTRATE_UNAVAILABLE_TRANSIENT = "unavailable_transient"
+
+
+def _transient_load_error_types() -> tuple:
+    """Exception classes whose escape from `_load` is a TRANSIENT read failure (recoverable on
+    re-run), not a definitive config miss. Built once; import-guarded so botocore/pandas shape drift
+    degrades to the builtin set rather than raising at import."""
+    types: list = [ConnectionError, TimeoutError]  # builtin network/timeout
+    try:
+        from botocore.exceptions import (
+            ConnectionClosedError,
+            ConnectTimeoutError,
+            CredentialRetrievalError,
+            EndpointConnectionError,
+            NoCredentialsError,
+            PartialCredentialsError,
+            ReadTimeoutError,
+            TokenRetrievalError,
+        )
+
+        types += [
+            EndpointConnectionError,
+            ConnectTimeoutError,
+            ReadTimeoutError,
+            ConnectionClosedError,
+            NoCredentialsError,
+            PartialCredentialsError,
+            CredentialRetrievalError,
+            TokenRetrievalError,
+        ]
+    except Exception:  # noqa: BLE001 — botocore layout drift: fall back to the builtin transient set
+        pass
+    try:
+        from pandas.errors import EmptyDataError, ParserError
+
+        types += [ParserError, EmptyDataError]
+    except Exception:  # noqa: BLE001 — pandas layout drift
+        pass
+    return tuple(types)
+
+
+_TRANSIENT_LOAD_ERRORS = _transient_load_error_types()
+
+# botocore ClientError codes that are TRANSIENT (throttling / rate-limit) rather than a definitive
+# 4xx (NoSuchKey / NoSuchBucket / AccessDenied → config/absence, kept as `unavailable`).
+_TRANSIENT_CLIENT_ERROR_CODES = frozenset(
+    {
+        "Throttling",
+        "ThrottlingException",
+        "ThrottledException",
+        "RequestThrottled",
+        "RequestThrottledException",
+        "RequestLimitExceeded",
+        "SlowDown",
+        "TooManyRequestsException",
+        "ProvisionedThroughputExceededException",
+        "ServiceUnavailable",
+        "InternalError",
+    }
+)
+
+
+def _is_transient_client_error(exc: BaseException) -> bool:
+    """A botocore ``ClientError`` is transient when its error ``Code`` is a throttling code or its
+    HTTP status is 5xx. A 4xx (``NoSuchKey`` / ``NoSuchBucket`` / ``AccessDenied`` / 404 / 403) is a
+    DEFINITIVE config/absence state and stays ``unavailable``. Reads the boto ``response`` dict; any
+    non-ClientError (no ``response`` mapping) returns False."""
+    resp = getattr(exc, "response", None)
+    if not isinstance(resp, dict):
+        return False
+    code = str((resp.get("Error") or {}).get("Code") or "")
+    if code in _TRANSIENT_CLIENT_ERROR_CODES:
+        return True
+    status = (resp.get("ResponseMetadata") or {}).get("HTTPStatusCode")
+    try:
+        return int(status) >= 500
+    except (TypeError, ValueError):
+        return False
+
 
 _LOCK = threading.Lock()
 _TABLE: Optional[dict] = None
 _LOAD_ERROR: Optional[str] = None
+# The unavailable *flavour* the last `_load` recorded — `SUBSTRATE_UNAVAILABLE` (definitive config)
+# or `SUBSTRATE_UNAVAILABLE_TRANSIENT` (recoverable outage). Read by `primary_marrow_tpm` when the
+# table is absent so the caller reports the RIGHT flavour rather than a flat `unavailable`.
+_LOAD_SUBSTRATE: str = SUBSTRATE_UNAVAILABLE
 
 
 def _load() -> None:
@@ -87,7 +178,7 @@ def _load() -> None:
     On failure leaves `_TABLE` None and records `_LOAD_ERROR`, so the caller can report an HONEST
     `unavailable` substrate instead of a fabricated marrow == 0 (which would read as a clean window).
     """
-    global _TABLE, _LOAD_ERROR
+    global _TABLE, _LOAD_ERROR, _LOAD_SUBSTRATE
     import io
 
     import boto3
@@ -106,9 +197,19 @@ def _load() -> None:
             compression="zip",
             usecols=["Gene name", "Tissue", "nTPM"],
         )
-    except Exception as exc:  # noqa: BLE001 — any read failure must degrade to `unavailable`, not 0
+    except Exception as exc:  # noqa: BLE001 — any read failure DEGRADES (never 0); flavour recorded below
         _LOAD_ERROR = f"{type(exc).__name__}: {exc}"
         _TABLE = None
+        # DISCRIMINATE definitive-vs-transient (#796): a TRANSIENT outage (network / creds /
+        # throttling / 5xx / pandas parse) leaves the marrow denominator INCOMPLETE and recoverable,
+        # so it is flagged `unavailable_transient` for the selectivity clamp to withhold on. A
+        # DEFINITIVE config miss (renamed/removed manifest → `bucket_prefix_for` raises, a 4xx
+        # NoSuchKey/AccessDenied) keeps the plain `unavailable`. Still degrades — never re-raises,
+        # never scores marrow == 0 — so replay stays byte-stable (no live transient occurs offline).
+        if isinstance(exc, _TRANSIENT_LOAD_ERRORS) or _is_transient_client_error(exc):
+            _LOAD_SUBSTRATE = SUBSTRATE_UNAVAILABLE_TRANSIENT
+        else:
+            _LOAD_SUBSTRATE = SUBSTRATE_UNAVAILABLE
         return
     bm = df[df["Tissue"] == HPA_TISSUE_LABEL]
     if bm.empty:
@@ -117,6 +218,8 @@ def _load() -> None:
             f"(tissue vocabulary changed upstream?) — marrow denominator withheld"
         )
         _TABLE = None
+        # DEFINITIVE tissue-vocabulary drift, not a transient outage — a re-run will not recover it.
+        _LOAD_SUBSTRATE = SUBSTRATE_UNAVAILABLE
         return
     # a symbol may map to >1 Ensembl gene id; take the MAX (conservative for a safety denominator)
     _TABLE = {
@@ -125,23 +228,28 @@ def _load() -> None:
         if v == v  # drop NaN
     }
     _LOAD_ERROR = None
+    _LOAD_SUBSTRATE = SUBSTRATE_UNAVAILABLE
 
 
 def primary_marrow_tpm(symbol: str) -> tuple[Optional[float], str, Optional[str]]:
     """Primary bone-marrow expression for one gene symbol, in nTPM (TPM-family; see module docstring).
 
     Returns `(tpm, substrate, note)`:
-      (float, "hpa_primary_marrow", None)              — value found
-      (None,  "gene_absent_from_hpa_consensus", note)  — DEFINITIVE absence (non-coding locus, etc.)
-      (None,  "unavailable", note)                     — TRANSIENT: substrate could not be read
+      (float, "hpa_primary_marrow", None)               — value found
+      (None,  "gene_absent_from_hpa_consensus", note)   — DEFINITIVE absence (non-coding locus, etc.)
+      (None,  "unavailable", note)                      — DEFINITIVE config miss (renamed/removed
+                                                          manifest, tissue-vocabulary drift)
+      (None,  "unavailable_transient", note)            — TRANSIENT outage (network / creds /
+                                                          throttling / 5xx / parse): denominator
+                                                          INCOMPLETE, recoverable on re-run (#796)
     """
     global _TABLE
     with _LOCK:
         if _TABLE is None and _LOAD_ERROR is None:
             _load()
-        table, err = _TABLE, _LOAD_ERROR
+        table, err, substrate = _TABLE, _LOAD_ERROR, _LOAD_SUBSTRATE
     if table is None:
-        return None, SUBSTRATE_UNAVAILABLE, f"primary-marrow substrate unavailable ({err})"
+        return None, substrate, f"primary-marrow substrate unavailable ({err})"
     val = table.get(str(symbol).upper().strip())
     if val is None:
         return (
@@ -155,7 +263,8 @@ def primary_marrow_tpm(symbol: str) -> tuple[Optional[float], str, Optional[str]
 
 def _reset_cache_for_tests() -> None:
     """Clear the process-level substrate cache (tests inject their own table)."""
-    global _TABLE, _LOAD_ERROR
+    global _TABLE, _LOAD_ERROR, _LOAD_SUBSTRATE
     with _LOCK:
         _TABLE = None
         _LOAD_ERROR = None
+        _LOAD_SUBSTRATE = SUBSTRATE_UNAVAILABLE
