@@ -9,6 +9,7 @@ when target-contracts is absent. Mirror of surface-modality-fit / genomic-altera
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
@@ -16,7 +17,9 @@ import pytest
 yaml = pytest.importorskip("yaml")
 
 SKILL_MD = Path(__file__).resolve().parent.parent / "SKILL.md"
-TARGET_CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+TARGET_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 VOCAB = TARGET_CONTRACTS / "vocabularies" / "measurement_types.yaml"
 
 

@@ -17,6 +17,7 @@ This is Bedrock-free — it only parses the CARDS/SUB_SKILL_CARDS literals via a
 from __future__ import annotations
 
 import ast
+import os
 import re
 from pathlib import Path
 
@@ -192,7 +193,9 @@ def test_foreign_composer_waivers_are_still_real():
 # ─────────────────────────────────────────────────────────────────────────────
 import yaml  # noqa: E402
 
-CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 # sub-skill dir -> the resolver gate it calls (resolve_verdict_for_gate(fired, "<gate>")).
 # Only tumor-presence has a genuinely inline verdict (no resolver) and is intentionally absent.

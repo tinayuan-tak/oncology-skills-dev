@@ -1198,7 +1198,9 @@ def test_hard_gates_status_reconciled_not_opposing(monkeypatch):
 # biology does not live on the dependency axis. Verified hermetically (no Bedrock, no packages) against
 # the governed nomination_verdict_gate.thesis_axis_relevance block. Skips until contracts 2b lands.
 # ---------------------------------------------------------------------------
-_CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 _HAS_THESIS_ROUTING = bool(tp._load_thesis_axis_relevance(_CONTRACTS))
 _thesis_skip = pytest.mark.skipif(
     not _HAS_THESIS_ROUTING, reason="contracts thesis_axis_relevance absent (land 2b-contracts)"

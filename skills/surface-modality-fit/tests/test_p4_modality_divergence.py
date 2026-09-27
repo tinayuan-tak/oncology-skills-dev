@@ -9,6 +9,7 @@ byte-stable). Reads the LIVE target-contracts rules; graceful-skips if not check
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -18,7 +19,9 @@ SKILLS_DIR = Path(__file__).resolve().parents[2]
 if str(SKILLS_DIR) not in sys.path:
     sys.path.insert(0, str(SKILLS_DIR))
 
-_CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 from _skills_common import fired_rules  # noqa: E402
 

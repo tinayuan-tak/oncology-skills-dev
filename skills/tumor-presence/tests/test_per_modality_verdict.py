@@ -21,6 +21,7 @@ target-profile consumer reads as `verdict`) stays byte-stable. These tests pin:
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import yaml
@@ -396,7 +397,9 @@ def test_card_context_map_covers_all_skill_cards():
         assert cid in tp.CARD_CONTEXT, f"{cid} missing from CARD_CONTEXT"
 
 
-_CONTRACTS = Path("/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+_CONTRACTS = Path(
+    os.environ.get("TARGET_CONTRACTS_ROOT", "/home/sagemaker-user/rnd-computational-biology-oncology-target-contracts")
+)
 
 
 def test_card_context_matches_target_contracts_specs():
