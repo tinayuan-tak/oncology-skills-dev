@@ -1010,15 +1010,18 @@ def parse_subtype_resolved(pkg: dict) -> dict:
 # 0.5 = "the substrate lens can see at least half the cards"; production packages sit near 0.11.
 #
 # ★ F17: this floor is currently UNREACHABLE, and that is a property of the VOCABULARY, not of any target.
-# `evidence_substrate` is declared on MEASUREMENT_TYPES (target-contracts vocabularies/measurement_types.yaml),
-# and as of 2026-09-12 the `evidence_substrates` vocab has exactly TWO entries
-# (recount3_tcga_gtex_bulk_rna, depmap_crispr_chronos) carried by 16 of 140 types, reaching 24 of 147 cards.
-# So `tagged_fraction` tops out near 0.14 and `tagging_sparse` is hardwired True on every target the panel
-# has ever run (15/15). A flag that cannot be False is not a flag — the same vacuous-constant defect the
-# rest of this module exists to remove, one level up.
+# `evidence_substrate` is declared on MEASUREMENT_TYPES (target-contracts vocabularies/measurement_types.yaml).
+# As of target-contracts #944 (db86db99) the `evidence_substrates` vocab has SIX entries
+# (recount3_tcga_gtex_bulk_rna, depmap_crispr_chronos, depmap_cell_line_rna, cptac_tmt_tumor_proteome,
+# tphp_dia_ms_proteome, broad_prism_drug_response), carried by 28 of 140 measurement types — up from the
+# two-platform / 16-type state this comment used to describe. That roughly doubles the substrate reach, so
+# `tagged_fraction` now tops out near ~0.225 on the panel (measured on measurement-type/card coverage; the
+# exact per-run figure varies with the present-card set). It is STILL well under the 0.5 floor, so
+# `tagging_sparse` remains True on every target the panel has run. A flag that cannot be False is not a
+# flag — the same vacuous-constant defect the rest of this module exists to remove, one level up.
 #
-# The fix is NOT to lower the floor (that would fabricate confidence in a lens that genuinely sees 14% of
-# the package) and NOT to read the registry from here (this module is the reproducible spine; a
+# The fix is NOT to lower the floor (that would fabricate confidence in a lens that genuinely sees only
+# ~22% of the package) and NOT to read the registry from here (this module is the reproducible spine; a
 # TARGET_CONTRACTS_ROOT read would make these fields env-dependent and the drift goldens flaky). It is to
 # make the sparsity ATTRIBUTABLE from the package alone, so a reader can tell the two remedies apart:
 #   * the card carries a `measurement_type` but that type declares no substrate → VOCABULARY debt, fixed in
