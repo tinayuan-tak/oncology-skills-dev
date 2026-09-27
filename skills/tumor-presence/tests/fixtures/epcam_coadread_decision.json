@@ -480,6 +480,14 @@
             }
           }
         },
+        "dependence_edges": [
+          {
+            "from_source": "single_cell_malignant_coverage",
+            "to_source": "bulk_tumor_presence",
+            "relation": "corroborates",
+            "basis": "coverage_concordant"
+          }
+        ],
         "boundary_sensitive": false,
         "boundary_note": "concordance class corroborated by the orthogonal antigen-escape facet",
         "integration_method": "explicit_deterministic",
@@ -545,6 +553,14 @@
             }
           }
         },
+        "dependence_edges": [
+          {
+            "from_source": "ms_protein_abundance",
+            "to_source": "rna_abundance",
+            "relation": "qualifies",
+            "basis": "rna_high_protein_low"
+          }
+        ],
         "boundary_sensitive": false,
         "boundary_note": "concordance class corroborated by the independent cross-grain abundance read",
         "grain": "tumor",

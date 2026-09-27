@@ -1111,3 +1111,119 @@ def test_subtype_restriction_concordance_is_verdict_inert_and_purely_additive():
     common = {k: v for k, v in cv.items() if k != "subtype_restriction_concordance"}
     common_bare = {k: v for k, v in bare.items() if k != "subtype_restriction_concordance"}
     assert common == common_bare  # the rest of the by-subtype vector is untouched by the claim
+
+
+# ── SK#1866: each L2b concordance object carries TYPED dependence edges backing its stance strings ──
+from _skills_common.dependence_edges import DEPENDENCE_RELATIONS  # noqa: E402
+
+
+def _only_edge(claim):
+    edges = claim["dependence_edges"]
+    assert isinstance(edges, list) and len(edges) == 1, edges
+    e = edges[0]
+    # a typed edge is a from_source→to_source link carrying a relation from the CLOSED vocabulary.
+    assert e["relation"] in DEPENDENCE_RELATIONS
+    assert set(e) <= {"from_source", "to_source", "relation", "basis"}
+    assert {"from_source", "to_source", "relation"} <= set(e)
+    return e
+
+
+def test_coverage_concordance_carries_typed_edge_corroborates_when_concordant():
+    claim = presence_claim_vector(_headline(), _l2b_cards(**_RAW_EPCAM))["bulk_vs_singlecell_coverage_concordance"]
+    e = _only_edge(claim)
+    # single-cell malignant-coverage source CORROBORATES the anchoring bulk-presence source; the typed
+    # edge backs the source_support `concordant` stance without re-encoding it as a string.
+    assert e == {
+        "from_source": "single_cell_malignant_coverage",
+        "to_source": "bulk_tumor_presence",
+        "relation": "corroborates",
+        "basis": "coverage_concordant",
+    }
+    assert claim["source_support"]["single_cell_malignant_coverage"]["stance"] == "concordant"
+
+
+def test_coverage_concordance_carries_typed_edge_qualifies_when_bulk_masks():
+    claim = presence_claim_vector(_headline(), _l2b_cards(**_RAW_TACSTD2))["bulk_vs_singlecell_coverage_concordance"]
+    e = _only_edge(claim)
+    # bulk_masks_low_coverage → the single-cell coverage read QUALIFIES the broad bulk read (a caveat on
+    # a dimension the population-averaged bulk read is blind to), NOT a present/absent contradiction.
+    assert e["relation"] == "qualifies"
+    assert e["from_source"] == "single_cell_malignant_coverage" and e["to_source"] == "bulk_tumor_presence"
+    assert e["basis"] == "bulk_masks_low_coverage"
+    # the typed edge is the first-class backing of the bespoke `qualifying` stance string.
+    assert claim["source_support"]["single_cell_malignant_coverage"]["stance"] == "qualifying"
+
+
+def test_abundance_concordance_carries_typed_edge_over_the_two_modalities():
+    conc = presence_claim_vector(_headline(), _abund_cards(**_RAW_ABUND_CONCORDANT))["abundance_concordance"]
+    e = _only_edge(conc)
+    assert e == {
+        "from_source": "ms_protein_abundance",
+        "to_source": "rna_abundance",
+        "relation": "corroborates",
+        "basis": "abundance_concordant",
+    }
+    # a directional rank split QUALIFIES (tempers) the RNA-implied abundance — never a negation.
+    split = presence_claim_vector(_headline(), _abund_cards(**_RAW_ABUND_RNA_HIGH_PROTEIN_LOW))["abundance_concordance"]
+    es = _only_edge(split)
+    assert es["relation"] == "qualifies" and es["basis"] == "rna_high_protein_low"
+    assert es["from_source"] == "ms_protein_abundance" and es["to_source"] == "rna_abundance"
+
+
+def test_subtype_restriction_concordance_typed_edges_across_dispositions():
+    # both independent arms agree → the protein arm CORROBORATES the RNA arm.
+    conc = _sr(rna_q="powered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="subtype_enriched")
+    e = _only_edge(conc)
+    assert e == {
+        "from_source": "cptac_protein",
+        "to_source": "tumor_rna",
+        "relation": "corroborates",
+        "basis": "subtype_restriction_concordant",
+    }
+    # protein masks an RNA-only restriction → protein QUALIFIES the RNA restriction (from protein→rna).
+    pmask = _sr(rna_q="powered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="pan_subtype_uniform")
+    ep = _only_edge(pmask)
+    assert ep["relation"] == "qualifies"
+    assert ep["from_source"] == "cptac_protein" and ep["to_source"] == "tumor_rna"
+    assert ep["basis"] == "protein_masks_subtype_restriction"
+    # the MIRROR: RNA masks a protein-only restriction → RNA qualifies the protein restriction (rna→prot).
+    rmask = _sr(rna_q="powered", rna_cls="pan_subtype_uniform", prot_q="powered", prot_cls="subtype_restricted")
+    er = _only_edge(rmask)
+    assert er["relation"] == "qualifies"
+    assert er["from_source"] == "tumor_rna" and er["to_source"] == "cptac_protein"
+    assert er["basis"] == "rna_masks_subtype_restriction"
+
+
+def test_subtype_restriction_single_source_only_carries_no_cross_source_edge():
+    # only one independent arm resolves → the other is a gap → NO edge between two resolved sources.
+    c = _sr(rna_q="powered", rna_cls="subtype_restricted", prot_q="exploratory", prot_cls="subtype_restricted")
+    assert c["concordance_class"] == "single_source_only"
+    assert c["dependence_edges"] == []
+
+
+def test_subtype_restriction_edge_endpoint_is_the_resolving_rna_source():
+    # tumor-RNA unpowered but cell-line RNA supplies the RNA arm → the edge endpoint is the source that
+    # actually resolved the RNA layer (cellline_rna), never a resolved:False node.
+    c = _sr(
+        rna_q="underpowered",
+        rna_cls="subtype_restricted",
+        prot_q="powered",
+        prot_cls="subtype_restricted",
+        cl_q="powered",
+        cl_cls="subtype_restricted",
+    )
+    assert c["concordance_class"] == "subtype_restriction_concordant"
+    e = _only_edge(c)
+    assert e["to_source"] == "cellline_rna" and e["from_source"] == "cptac_protein"
+
+
+def test_typed_edges_reference_only_declared_source_nodes():
+    # every edge endpoint must resolve to a source node the claim actually declares in source_support.
+    cov = presence_claim_vector(_headline(), _l2b_cards(**_RAW_EPCAM))["bulk_vs_singlecell_coverage_concordance"]
+    cov_nodes = set(cov["source_support"])
+    for edge in cov["dependence_edges"]:
+        assert {edge["from_source"], edge["to_source"]} <= cov_nodes
+    sr = _sr(rna_q="powered", rna_cls="subtype_restricted", prot_q="powered", prot_cls="subtype_restricted")
+    sr_nodes = {s["source"] for s in sr["source_support"]}
+    for edge in sr["dependence_edges"]:
+        assert {edge["from_source"], edge["to_source"]} <= sr_nodes

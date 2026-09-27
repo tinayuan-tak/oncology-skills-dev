@@ -37,6 +37,12 @@ from _skills_common.claim_vector_core import corroboration_from_arms as _corr_fr
 from _skills_common.claim_vector_core import fmt as _f
 from _skills_common.claim_vector_core import select_breadth_class as _select_breadth_class
 
+# Typed cross-source DEPENDENCE EDGES (SK#1866, epic #1507 Arm B gap a): the shared
+# {corroborates | contradicts | qualifies} vocabulary + edge constructor the L2b concordance claims
+# route through, so each concordance object references its sources as TYPED relations rather than
+# bespoke `stance` strings — and the class→relation mapping is centralised, never re-implemented.
+from _skills_common.dependence_edges import concordance_edge as _concordance_edge
+
 # light-touch routing (which downstream lens each claim informs) — NOT a gate.
 CLAIM_INFORMS = {
     "A": "abundance — informs every modality (a degrader/SM needs the protein present)",
@@ -609,6 +615,19 @@ def _coverage_concordance_claim(c):
         "positive_signal": positive_signal,
         "qualifying_signal": qualifying_signal,
         "source_support": source_support,
+        # TYPED cross-source dependence edges (SK#1866): the single-cell malignant-coverage source
+        # relates to the anchoring bulk-presence source by an explicit relation — `corroborates` when
+        # the coverage read AGREES (coverage_concordant), else `qualifies` (bulk_masks_low_coverage: a
+        # low-coverage caveat on a dimension the population-averaged bulk read is blind to, never a
+        # present/absent negation). Backs the `stance` strings above; verdict-inert, routes NOTHING.
+        "dependence_edges": [
+            _concordance_edge(
+                "single_cell_malignant_coverage",
+                "bulk_tumor_presence",
+                concordant=concordant,
+                basis=concordance,
+            )
+        ],
         "boundary_sensitive": boundary_sensitive,
         "boundary_note": (
             "concordance class rests on a single uncorroborated/contradicted scRNA coverage token "
@@ -935,6 +954,19 @@ def _abundance_concordance_claim(c):
         "positive_signal": positive_signal,
         "qualifying_signal": qualifying_signal,
         "source_support": source_support,
+        # TYPED cross-source dependence edges (SK#1866): the MS-protein abundance source relates to the
+        # anchoring RNA abundance source by an explicit relation — `corroborates` when both land on the
+        # same within-population magnitude rank (abundance_concordant), else `qualifies` (a directional
+        # rank split — rna_high_protein_low / rna_low_protein_high — that tempers the RNA-implied
+        # abundance, never a present/absent negation). Backs the `stance` strings; verdict-inert.
+        "dependence_edges": [
+            _concordance_edge(
+                "ms_protein_abundance",
+                "rna_abundance",
+                concordant=concordant,
+                basis=concordance,
+            )
+        ],
         "boundary_sensitive": boundary_sensitive,
         "boundary_note": (
             "concordance class rests on a single grain's RNA-vs-protein rank comparison with no "
@@ -1620,6 +1652,28 @@ def _subtype_restriction_concordance_claim(c: dict) -> "dict | None":
 
     # ── PRESENTATION-SUPPORT fields (L2b->L3) — surface-consumption, NOT verdict-routing ─────────────
     boundary_sensitive = corroboration != "high"
+    # TYPED cross-source dependence edges (SK#1866): link the two INDEPENDENT modality arms (bulk-RNA
+    # layer x CPTAC-protein layer) by an explicit relation, backing the concordance class. The RNA
+    # layer's node is the source that actually resolved it (tumor-RNA preferred, else the cell-line
+    # cross-grain sibling). `corroborates` when both arms AGREE on the restriction call; `qualifies`
+    # when one arm MASKS the other's restriction (post-transcriptional divergence — a caveat/false-
+    # positive to surface, never a present/absent negation). single_source_only relates no two
+    # resolved independent sources (the other arm is a gap), so it carries NO edge. Verdict-inert.
+    _rna_node = "tumor_rna" if rna_res else "cellline_rna"
+    _arm_node = {"rna": _rna_node, "protein": "cptac_protein"}
+    if concordance == "subtype_restriction_concordant":
+        dependence_edges = [_concordance_edge("cptac_protein", _rna_node, concordant=True, basis=concordance)]
+    elif concordance in ("protein_masks_subtype_restriction", "rna_masks_subtype_restriction"):
+        dependence_edges = [
+            _concordance_edge(
+                _arm_node[concordance_support["no_restriction_in"]],
+                _arm_node[concordance_support["restriction_in"]],
+                concordant=False,
+                basis=concordance,
+            )
+        ]
+    else:  # single_source_only — only one independent arm resolves; no cross-source dependence edge
+        dependence_edges = []
     if concordance == "subtype_restriction_concordant":
         _dir_text = (
             "a subtype-restriction differential" if rna_layer_restr else "NO subtype restriction (pan-subtype-uniform)"
@@ -1684,6 +1738,7 @@ def _subtype_restriction_concordance_claim(c: dict) -> "dict | None":
         "corroborating_independent_arm_count": corroborating_independent_arm_count,
         "concordance_support": concordance_support,
         "source_support": source_support,
+        "dependence_edges": dependence_edges,
         "positive_signal": positive_signal,
         "qualifying_signal": qualifying_signal,
         "boundary_sensitive": boundary_sensitive,
