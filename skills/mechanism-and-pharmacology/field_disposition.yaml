@@ -1,0 +1,365 @@
+# FULLY REVIEWED. Every row carries `reviewed: true` — a human read the field's producers
+# (scripts/run.py + SKILL.md) and consumers (the census, blind to this ledger; target-contracts
+# interpretation-rules; the narrator/capsule) and chose the role. Completeness (that this ledger
+# covers exactly the cards run.py reads) plus reach-for-signal are CI-enforced by
+# skills/tests/test_field_disposition_ledgers.py; role CORRECTNESS is the human judgement recorded here.
+#
+# VERDICT ARCHITECTURE (why so few signals): the mechanism_verdict spine keys ONLY on network_class
+# (scripts/run.py resolver note; replay guard test_mechanism_replay.py). The per-modality
+# small_molecule/degrader claim signals are emitted by interpretation-rules/intracellular-intrinsic.rules.yaml
+# off network_class + has_pd_marker (has-pd-marker-supportive rule). Tier-2 rules key on
+# phospho_activity_class + predictability_class. tahoe-drug-perturbation and pathway-activity-context are
+# DISPLAY-ONLY facets (SKILL.md: feed NO resolver; mechanism_verdict byte-stable) — their primary
+# categorical is a mechanism-CONTEXT call, NOT a gated signal. has_actionable_moa feeds ONLY the
+# verdict-inert actionable-MoA-inflation caveat (no rule predicate reads it), so it is context, not signal.
+_meta:
+  description: "Field-disposition ledger for mechanism-and-pharmacology — every emitted summary_field
+    carries an explicit role so nothing is dropped SILENTLY. Enforced by
+    skills/tests/test_field_disposition_ledgers.py (fleet wellformedness + reach ratchet)."
+  roles:
+    signal: feeds a claim / verdict (must be wired or explicitly waived)
+    context: qualifies a signal (power, certainty, statistical qualifier, cross-axis pointer)
+    provenance: "audit / identity / method token — surfaced, never a signal"
+    display: human-facing detail or large container; verdict-inert by design
+  generated_from: target-contracts/cards/<card>.card.yaml outputs.summary_fields
+  reviewed: "true == a human read the field's producers and consumers and chose this role. Every row in
+    this ledger is reviewed: true (authored deliberately, not auto-drafted from field names)."
+  waived_because: "only legal on `role: signal`. Records WHY a signal no declared reader reaches is
+    left unwired, naming the missing consumer or owning repo. No waivers are present: all 5 signal rows
+    are reader-reached (exact census hit, 2026-09-27)."
+
+signaling-network-mechanism:
+  network_class:
+    role: signal
+    reason: "PRIMARY categorical the mechanism_verdict spine keys on; the ONLY verdict-bearing field of
+      this card. Drives 4 per-modality rules (small_molecule/degrader) in
+      interpretation-rules/intracellular-intrinsic.rules.yaml. role:signal reach-confirmed exact via
+      run.py get_card_field + capsule/salience (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  has_pd_marker:
+    role: signal
+    reason: "bool — >=1 downstream effector; feeds the has-pd-marker-supportive rule
+      (interpretation-rules/intracellular-intrinsic.rules.yaml) emitting small_molecule/degrader:supportive.
+      The mechanism_verdict-spine rung was retired 2026-09-07 (keys only on network_class) but the
+      per-modality claim signal is LIVE, so this is verdict/claim-bearing. Exact reader confirmed
+      (run.py headline get_card_field, census 2026-09-27)"
+    reviewed: true
+  has_actionable_moa:
+    role: context
+    reason: "bool — >=1 upstream partner with actionable modality relevance. NO rule predicate reads it
+      (mechanism resolver keys only on network_class); feeds ONLY the verdict-INERT
+      actionable-MoA-inflation caveat (run.py _actionable_moa_inflation_note) that flags when a True
+      call may be over-stated. Qualifies the network_class signal, does not bear a verdict"
+    reviewed: true
+  moa_classes_present:
+    role: context
+    reason: "list<string> — unique MoA classes hit by upstream partners; read by run.py into the
+      headline/opportunities table and the inflation caveat, not by any rule. Names the MoA classes
+      behind has_actionable_moa (qualifier), verdict-inert (exact reader, census 2026-09-27)"
+    reviewed: true
+  pd_marker_classes_present:
+    role: context
+    reason: "list<string> — unique MoA classes hit by downstream partners; parallel to
+      moa_classes_present. Read into the headline (exact, census 2026-09-27), not a rule; qualifies the
+      has_pd_marker signal, verdict-inert"
+    reviewed: true
+  n_upstream_regulators:
+    role: context
+    reason: "count of distinct upstream partners; magnitude/power behind network_class, surfaced in the
+      headline (exact reader, census 2026-09-27). Not a rule predicate — verdict-inert qualifier"
+    reviewed: true
+  n_downstream_effectors:
+    role: context
+    reason: "count of distinct downstream partners; magnitude/power behind has_pd_marker, surfaced in
+      the headline (exact reader, census 2026-09-27). Not a rule predicate — verdict-inert qualifier"
+    reviewed: true
+  high_confidence_edges_count:
+    role: context
+    reason: "int — curated edges supported by >=2 sources (the quorum measure); read by run.py into the
+      mechanism_provenance quorum summary (exact, census 2026-09-27). Card comment: None feeds a
+      resolver rung — verdict byte-stable. Qualifies the CONFIDENCE of network_class"
+    reviewed: true
+  kinome_atlas_predictions:
+    role: context
+    reason: "struct — the kinome-atlas PWM PREDICTION lane, carried ALONGSIDE and NEVER merged into
+      network_class/has_actionable_moa. Read by run.py into the verdict-INERT prediction_lane_caveat
+      (materiality gate compares lane vs curated-network size). Qualifies network_class, exact reader
+      (census 2026-09-27)"
+    reviewed: true
+  coessentiality_context:
+    role: context
+    reason: "struct — the DepMap co-essentiality FUNCTIONAL lane (correlational, not a curated edge),
+      carried alongside network_class. Read into the verdict-INERT prediction_lane_caveat (run.py).
+      Qualifies network_class, exact reader (census 2026-09-27)"
+    reviewed: true
+  moa_ontology_version:
+    role: provenance
+    reason: "string — MoA ontology pin for reproducibility; stamped into provenance.yaml (SKILL.md
+      provenance discipline). Method/version token, never a signal (exact reader, census 2026-09-27)"
+    reviewed: true
+  moa_ontology_unmapped_fraction:
+    role: provenance
+    reason: "float — fraction of curated edges that fell to 'unmapped' class; a data-quality/audit
+      metric stamped into provenance.yaml and CI-enforced (<5% target, SKILL.md). No exact reader
+      (census 2026-09-27); surfaced as a reproducibility QC token"
+    reviewed: true
+  source_counts:
+    role: provenance
+    reason: "map<source,int> — per-source curated + prediction/functional edge counts
+      (signor/collectri/reactome/kinome_atlas/coessentiality); the network-composition audit. Read into
+      mechanism_provenance (run.py, exact, census 2026-09-27). Audit token, not a signal"
+    reviewed: true
+  sources_wired:
+    role: provenance
+    reason: "list<string> — which sources contributed edges for this target; composition-audit token
+      read into mechanism_provenance (run.py, exact, census 2026-09-27). Never a signal"
+    reviewed: true
+  upstream_regulators:
+    role: display
+    reason: "list<struct: partner_uniprot_ac, gene_symbol, raw_mechanism, moa_class, modality_relevance>
+      — the source rows for the moa_opportunities.csv table; a large per-partner container, human-facing
+      and verdict-inert. No exact reader by field name (census 2026-09-27; consumed structurally into
+      the table)"
+    reviewed: true
+  downstream_effectors:
+    role: display
+    reason: "list<struct: partner_uniprot_ac, gene_symbol, raw_mechanism, moa_class, pd_marker_relevance>
+      — source rows for pd_marker_opportunities.csv; large per-partner container, verdict-inert. No
+      exact reader by field name (census 2026-09-27)"
+    reviewed: true
+
+phospho-pathway-activity:
+  phospho_activity_class:
+    role: signal
+    reason: "PRIMARY categorical; drives 5 Tier-2 rule predicates in
+      interpretation-rules/intracellular-intrinsic.rules.yaml. Verdict/claim-bearing. role:signal
+      reach-confirmed exact via run.py get_card_field + capsule/salience (census 2026-09-27, blind to
+      ledger)"
+    reviewed: true
+  n_phosphosites:
+    role: context
+    reason: "count of the target's phosphosites in the CPTAC panel; power qualifier behind
+      phospho_activity_class, surfaced in the headline (exact reader, census 2026-09-27)"
+    reviewed: true
+  n_phosphosites_frequent:
+    role: context
+    reason: "sites detected in >= active-fraction of tumors; power/coverage qualifier behind the phospho
+      call. No exact reader (census 2026-09-27); verdict-inert qualifier"
+    reviewed: true
+  max_site_detection_fraction:
+    role: context
+    reason: "detection fraction of the most-detected site; magnitude/certainty qualifier behind
+      phospho_activity_class, surfaced in the headline (exact reader, census 2026-09-27)"
+    reviewed: true
+  phospho_exceeds_abundance:
+    role: context
+    reason: "bool — phosphorylated beyond total protein (the pathway-active residual-direction call
+      behind phospho_activity_class). The categorical class carries the verdict; this underlying bool
+      qualifies it. No exact reader (census 2026-09-27)"
+    reviewed: true
+  top_site_phospho_minus_protein:
+    role: context
+    reason: "top site's mean phospho-minus-protein log-ratio residual; magnitude behind the phospho call.
+      No exact reader (census 2026-09-27); verdict-inert qualifier"
+    reviewed: true
+  n_phospho_protein_paired:
+    role: context
+    reason: "paired tumors backing the top site's phospho-vs-protein residual; statistical-power
+      qualifier. No exact reader (census 2026-09-27)"
+    reviewed: true
+  total_protein_detected_in_cohort:
+    role: context
+    reason: "bool (null = probe unavailable) — whether the target's total protein is detected in this
+      cohort's MS; a data-availability qualifier that conditions the phospho residual. No exact reader
+      (census 2026-09-27)"
+    reviewed: true
+  n_cohorts_with_phosphosites:
+    role: context
+    reason: "how many of the 10 CPTAC cohorts carry >=1 phosphosite for the target; coverage qualifier.
+      No exact reader (census 2026-09-27)"
+    reviewed: true
+  phosphoprotein_detected_in_other_cohorts:
+    role: context
+    reason: "bool — the target IS a phosphoprotein elsewhere in CPTAC, so this cohort's zero is a
+      detection gap; disambiguates the data_unavailable call (qualifier). No exact reader (census
+      2026-09-27)"
+    reviewed: true
+  phospho_axis_uninformative_reason:
+    role: context
+    reason: "string — why data_unavailable when it is not a missing cohort (e.g.
+      total_protein_not_detected_in_cohort); names the reason behind the class call. No exact reader
+      (census 2026-09-27); verdict-inert qualifier"
+    reviewed: true
+  n_tumors:
+    role: context
+    reason: "cohort tumor count; statistical-power qualifier for the phospho readout. No exact reader
+      (census 2026-09-27)"
+    reviewed: true
+  top_phosphosites:
+    role: display
+    reason: "top sites by detection (record list); human-facing per-site detail container, verdict-inert.
+      No exact reader (census 2026-09-27)"
+    reviewed: true
+  cptac_cohort:
+    role: provenance
+    reason: "string — the CPTAC cohort the phospho readout was drawn from; identity/scope key. No exact
+      reader (census 2026-09-27)"
+    reviewed: true
+  substrate:
+    role: provenance
+    reason: "string — the target/substrate identity the phospho panel is keyed on; identity key, never a
+      signal. No exact reader (census 2026-09-27)"
+    reviewed: true
+
+pathway-activity-context:
+  pathway_activity_class:
+    role: context
+    reason: "PRIMARY categorical (relatively_high | profiled | data_unavailable) of the PROGENy
+      pathway-activity facet. NO rule predicate reads it — SKILL.md/composition: pathway-activity-context
+      is DISPLAY-ONLY, feeds NO resolver, mechanism_verdict byte-stable. A mechanism-CONTEXT call
+      (indication-level pathway activity), NOT a gated signal. Exact reader via run.py (census
+      2026-09-27)"
+    reviewed: true
+  relatively_high_pathways:
+    role: display
+    reason: "pathways at cross-indication z >= +1 (named-pathway list); human-facing detail behind the
+      pathway_activity facet, verdict-inert. No exact reader (census 2026-09-27)"
+    reviewed: true
+  relatively_low_pathways:
+    role: display
+    reason: "pathways at z <= -1 (named-pathway list); human-facing detail, verdict-inert. No exact
+      reader (census 2026-09-27)"
+    reviewed: true
+  n_pathways_profiled:
+    role: context
+    reason: "pathways with data for this indication (<=14); coverage/power qualifier behind
+      pathway_activity_class. Census reaches it name_only (not exact), so not credited as a signal
+      reader (census 2026-09-27)"
+    reviewed: true
+  target_pathway_membership:
+    role: context
+    reason: "PROGENy pathway(s) the target is a responsive gene of; cross-axis pointer relating the
+      target to the profiled pathways. No exact reader (census 2026-09-27); verdict-inert"
+    reviewed: true
+  per_pathway:
+    role: display
+    reason: "per-pathway {pathway, activity_z, median_activity, relative_class}; large per-pathway
+      container, human-facing and verdict-inert. Exact reader via run.py (census 2026-09-27) but a
+      display detail block, not a signal"
+    reviewed: true
+  pooled_from:
+    role: provenance
+    reason: "TCGA codes pooled (e.g. [COAD, READ] for COADREAD); scope/identity key describing which
+      cohorts back the pathway activity. No exact reader (census 2026-09-27)"
+    reviewed: true
+
+tahoe-drug-perturbation:
+  tahoe_perturbation_class:
+    role: context
+    reason: "PRIMARY categorical, but the card names it a DISPLAY facet driving NO resolver rung
+      (SKILL.md: mechanism_verdict byte-stable). No rule predicate reads it. A drug-perturbation
+      mechanism-CONTEXT call (which drugs move the target's expression), NOT a gated signal. Read into
+      the headline (exact, census 2026-09-27)"
+    reviewed: true
+  n_perturbing_drugs:
+    role: context
+    reason: "distinct drugs with a significant DE row for the gene; count qualifying the perturbation
+      facet, read into the headline (exact reader, census 2026-09-27). Verdict-inert"
+    reviewed: true
+  n_cancer_lines:
+    role: context
+    reason: "cancer lines contributing; coverage/power qualifier for the Tahoe readout. No exact reader
+      (census 2026-09-27); verdict-inert"
+    reviewed: true
+  n_strong_movers:
+    role: context
+    reason: "drugs moving the gene >=2-fold (median); magnitude/count qualifier. No exact reader (census
+      2026-09-27); verdict-inert"
+    reviewed: true
+  strongest_mover_drug:
+    role: display
+    reason: "named drug driving the largest expression move; human-facing named-entity detail read into
+      the headline (exact, census 2026-09-27). Verdict-inert identity, not a signal"
+    reviewed: true
+  strongest_mover_log2fc:
+    role: context
+    reason: "magnitude of the strongest mover's effect; qualifier behind strongest_mover_drug, read into
+      the headline (exact reader, census 2026-09-27). Verdict-inert"
+    reviewed: true
+  top_suppressing_drugs:
+    role: display
+    reason: "ranked list<struct> — drugs driving the gene DOWN; large ranked container, human-facing and
+      verdict-inert. Exact reader via run.py headline (census 2026-09-27)"
+    reviewed: true
+  top_inducing_drugs:
+    role: display
+    reason: "ranked list<struct> — drugs driving the gene UP; large ranked container, verdict-inert.
+      Exact reader via run.py headline (census 2026-09-27)"
+    reviewed: true
+  perturbation_context:
+    role: display
+    reason: "narrative summary (mechanism-framed, explicitly verdict-inert per the card); human-facing
+      prose. No exact reader (census 2026-09-27)"
+    reviewed: true
+
+# dependency-predictability is SHARED with skills/genomic-alteration-profile — roles reuse that
+# reviewed ledger's assignments via the sibling test (predictability_class + pred_dominant_feature_class
+# = signal there; the r-squared/CI scalars = context; feature-attribution containers = display; cell-line
+# count = provenance). In this skill predictability_class is additionally rule-fed (5 Tier-2 predicates
+# in intracellular-intrinsic.rules.yaml) and pred_dominant_feature_class is read by run.py (line ~200).
+dependency-predictability:
+  predictability_class:
+    role: signal
+    reason: "DESCRIPTIVE categorical driving 5 Tier-2 rule predicates
+      (interpretation-rules/intracellular-intrinsic.rules.yaml); sibling-test role:signal in
+      genomic-alteration-profile. Exact reader via run.py get_card_field + capsule/salience/skill_code
+      (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  pred_dominant_feature_class:
+    role: signal
+    reason: "feature-class of the top-1 predictive feature; sibling-test role:signal in
+      genomic-alteration-profile. Read by run.py into the headline (get_card_field), exact reader
+      confirmed (census 2026-09-27)"
+    reviewed: true
+  pearson_r_rf:
+    role: context
+    reason: "Pearson r of OOF preds vs truth (RF); comparator/quality qualifier behind
+      predictability_class. Sibling-test role:context (genomic-alteration-profile). No exact reader
+      (census 2026-09-27)"
+    reviewed: true
+  pearson_r_squared_rf:
+    role: context
+    reason: "r_rf squared (primary DepMap-parity scalar); magnitude qualifier behind predictability_class.
+      Sibling-test role:context. Exact reader via run.py (census 2026-09-27); verdict-inert qualifier"
+    reviewed: true
+  pearson_r_squared_rf_ci_lo:
+    role: context
+    reason: "bootstrap 95% CI lower bound; statistical qualifier. Sibling-test role:context
+      (genomic-alteration-profile). No exact reader (census 2026-09-27)"
+    reviewed: true
+  pearson_r_squared_rf_ci_hi:
+    role: context
+    reason: "bootstrap 95% CI upper bound; statistical qualifier. Sibling-test role:context
+      (genomic-alteration-profile). No exact reader (census 2026-09-27)"
+    reviewed: true
+  pred_top_features_rf:
+    role: display
+    reason: "top-10 features by mean(|SHAP|) (struct list); large feature-attribution container,
+      human-facing and verdict-inert. Sibling-test role:display. Read by run.py (exact, census
+      2026-09-27) but a detail block, not a signal"
+    reviewed: true
+  pred_dominant_feature:
+    role: display
+    reason: "top-1 feature name; human-facing named-entity detail, verdict-inert. Sibling-test
+      role:display (genomic-alteration-profile). No exact reader (census 2026-09-27)"
+    reviewed: true
+  per_lineage_predictability:
+    role: display
+    reason: "RF-only per-lineage r-squared + top-feature table; large per-lineage container, verdict-inert.
+      Sibling-test role:display. No exact reader (census 2026-09-27)"
+    reviewed: true
+  pred_n_cell_lines_evaluated:
+    role: provenance
+    reason: "n cells with complete-case features; provenance/scope token for the predictability model.
+      Sibling-test role:provenance (genomic-alteration-profile). No exact reader (census 2026-09-27)"
+    reviewed: true
