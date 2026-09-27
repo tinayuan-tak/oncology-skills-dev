@@ -1,0 +1,429 @@
+# MOSTLY HUMAN-AUTHORED. A row is a HUMAN JUDGEMENT when it carries `reviewed: true`; every row in this
+# ledger does. Completeness (every emitted summary_field present) and reader-reach for `role: signal`
+# are CI-enforced (skills/tests/test_field_disposition_ledgers.py). Reach is measured BLIND to this file.
+# differentiation-landscape: 1 verdict-driving card (co-mutation-and-mutual-exclusivity) + 8 verdict-inert
+# render-facet cards; `signal` rows on the facet cards feed CLAIM atoms, not the differentiation verdict.
+_meta:
+  description: Field-disposition ledger for differentiation-landscape — every emitted summary_field carries
+    an explicit role so nothing is dropped SILENTLY. Enforced by skills/tests/test_field_disposition_ledgers.py.
+    Only co-mutation-and-mutual-exclusivity is verdict-driving (its class + driver flags gate the differentiation
+    resolver); the other 8 cards are ADDITIVE, VERDICT-INERT render facets, so their `signal` rows feed
+    CLAIM atoms (evidence capsule / salience / display), not the differentiation_verdict spine (byte-stable).
+  roles:
+    signal: feeds a claim / verdict (must be wired or explicitly waived)
+    context: qualifies a signal (power, certainty, statistical qualifier, cross-axis pointer)
+    provenance: audit / identity / method token — surfaced, never a signal
+    display: human-facing detail or large container; verdict-inert by design
+  generated_from: target-contracts/cards/<card>.card.yaml outputs.summary_fields
+  reviewed: 'true == a human read the field''s producers and consumers and chose this role. Every row
+    here is reviewed: true (authored deliberately, not name-shape drafted).'
+  waived_because: 'only legal on `role: signal`. Records WHY a signal no declared reader reaches is left
+    unwired. None are needed here: every role:signal row is reach-confirmed exact by the blind census
+    2026-09-27.'
+co-mutation-and-mutual-exclusivity:
+  cooccurrence_class:
+    role: signal
+    reason: headline co-occurrence/mutual-exclusivity call and the sole differentiation.resolver-gating
+      categorical for this skill; role:signal reach-confirmed exact via {gating_rule, salience, skill_code}
+      (census 2026-09-27, blind to ledger)
+    reviewed: true
+  cooccurrence_class_prefloor:
+    role: context
+    reason: raw pre-floor class emitted for AUDIT only (differs from cooccurrence_class solely when the
+      significance floor demotes it); verdict-inert qualifier of the floored call; read exact by run.py
+      headline (skill_code)
+    reviewed: true
+  top_cooccurring:
+    role: display
+    reason: per-partner Fisher q-value table (nested container) emitted as tables/top_cooccurring.csv
+      for human/governance filtering by pooled_eligible; verdict-inert large container (resolver reads
+      only the class + driver flags). Surfaced by the evidence capsule (salience) + run.py (skill_code)
+    reviewed: true
+  top_mutually_exclusive:
+    role: display
+    reason: per-partner mutual-exclusivity Fisher q-value table (nested container) emitted as tables/top_mutually_exclusive.csv;
+      verdict-inert large container; read exact by run.py headline (skill_code)
+    reviewed: true
+  n_significant_cooccurring:
+    role: context
+    reason: count of significant co-occurring partners; statistical qualifier behind the class call; read
+      exact by run.py (skill_code)
+    reviewed: true
+  n_significant_mutually_exclusive:
+    role: context
+    reason: count of significant mutually-exclusive partners; statistical qualifier behind the class call;
+      read exact by run.py (skill_code)
+    reviewed: true
+  n_pairs_panel_intersect_eligible:
+    role: context
+    reason: pooled-eligible pair count; power/eligibility qualifier feeding _strength_certainty; read
+      exact by run.py (skill_code)
+    reviewed: true
+  n_pairs_per_source_only:
+    role: context
+    reason: panel-ineligible (per-source-only) pair count; power/eligibility qualifier; read exact by
+      run.py (skill_code)
+    reviewed: true
+  has_cooccurring_driver:
+    role: signal
+    reason: 'boolean driver flag the co-mutation resolver rung consumes (SKILL.md: rules engine consumes
+      has_cooccurring_driver); role:signal reach-confirmed exact via {display_rule, skill_code} (census
+      2026-09-27, blind to ledger)'
+    reviewed: true
+  has_mutually_exclusive_driver:
+    role: signal
+    reason: boolean mutual-exclusivity driver flag the co-mutation resolver input builder consumes; role:signal
+      reach-confirmed exact via {skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: cooccurrence_fisher_pancohort method-version token; audit/provenance, never a signal; name_only
+      reach
+    reviewed: true
+stemness-context:
+  stemness_class:
+    role: signal
+    reason: tumor-stemness (mRNAsi) categorical prior surfaced as a verdict-inert prognostic/aggressiveness
+      claim atom; role:signal reach-confirmed exact via {salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  median_mrnasi:
+    role: context
+    reason: indication median mRNAsi; continuous magnitude behind stemness_class; no exact reader (census)
+    reviewed: true
+  pan_cancer_median_mrnasi:
+    role: context
+    reason: pan-cancer median mRNAsi reference; comparison qualifier behind stemness_class; no exact reader
+      (census)
+    reviewed: true
+  pan_cancer_q3_mrnasi:
+    role: context
+    reason: pan-cancer Q3 mRNAsi reference threshold; comparison qualifier; no exact reader (census)
+    reviewed: true
+  n_samples:
+    role: context
+    reason: cohort sample count backing the stemness prior; power qualifier; read exact by the capsule
+      (salience)
+    reviewed: true
+  pooled_from:
+    role: provenance
+    reason: names the Malta 2018 cohort(s) the mRNAsi was pooled from; identity/provenance token; no exact
+      reader (census)
+    reviewed: true
+expression-clinical-association:
+  survival_association_class:
+    role: signal
+    reason: expression->survival prognostic call surfaced as a verdict-inert claim atom / biomarker-facet
+      stratification input; role:signal reach-confirmed exact via {display_rule, figure, salience, skill_code}
+      (census 2026-09-27, blind to ledger)
+    reviewed: true
+  logrank_p:
+    role: context
+    reason: log-rank p-value; statistical qualifier behind survival_association_class; read exact by figure
+      + capsule (figure, salience, skill_code)
+    reviewed: true
+  logrank_chi2:
+    role: context
+    reason: log-rank chi-square statistic; statistical qualifier; read exact by the capsule (salience)
+    reviewed: true
+  n_patients:
+    role: context
+    reason: patients in the survival fit; power qualifier; read exact by the capsule (salience)
+    reviewed: true
+  n_events:
+    role: context
+    reason: death/event count; power qualifier behind the survival call; no exact reader (census)
+    reviewed: true
+  n_high_expr:
+    role: context
+    reason: high-expression arm size; power qualifier; no exact reader (census)
+    reviewed: true
+  n_low_expr:
+    role: context
+    reason: low-expression arm size; power qualifier; no exact reader (census)
+    reviewed: true
+  median_split_log2tpm:
+    role: context
+    reason: median-split expression threshold used to dichotomise arms; method qualifier; no exact reader
+      (census)
+    reviewed: true
+  high_expr_hazard_direction:
+    role: context
+    reason: direction (protective/adverse) qualifier of survival_association_class; no exact reader (census)
+    reviewed: true
+  median_ostime_high_days:
+    role: context
+    reason: median OS of the high-expression arm; descriptive qualifier; read exact by the capsule (salience)
+    reviewed: true
+  median_ostime_low_days:
+    role: context
+    reason: median OS of the low-expression arm; descriptive qualifier; read exact by the capsule (salience)
+    reviewed: true
+  endpoint:
+    role: provenance
+    reason: survival endpoint identity (e.g. OS); method/identity token; no exact reader (census)
+    reviewed: true
+  survival_source:
+    role: provenance
+    reason: survival dataset source token; provenance/audit; no exact reader (census)
+    reviewed: true
+precog-prognostic-association:
+  prognostic_class:
+    role: signal
+    reason: PRECOG indication-approx prognostic call surfaced as a verdict-inert claim atom (the better-powered
+      corroboration of expression-clinical-association); role:signal reach-confirmed exact via {capsule,
+      salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  pan_cancer_prognostic_class:
+    role: signal
+    reason: PRECOG pan-cancer prognostic call surfaced as a verdict-inert claim atom; role:signal reach-confirmed
+      exact via {capsule, salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  meta_z:
+    role: context
+    reason: indication-approx meta-Z magnitude behind prognostic_class; statistical qualifier; read exact
+      by run.py (skill_code)
+    reviewed: true
+  meta_z_significance_cut:
+    role: context
+    reason: meta-Z significance threshold used for the class; method qualifier; no exact reader (census)
+    reviewed: true
+  pan_cancer_meta_z:
+    role: context
+    reason: pan-cancer meta-Z magnitude behind pan_cancer_prognostic_class; statistical qualifier; read
+      exact by run.py (skill_code)
+    reviewed: true
+  precog_source_column:
+    role: provenance
+    reason: PRECOG source-column identifier the meta-Z was read from; provenance/audit token; no exact
+      reader (census)
+    reviewed: true
+  precog_indication_approx:
+    role: provenance
+    reason: the PRECOG indication label approximately matched to the query indication; mapping/identity
+      token; read exact by the capsule + run.py (capsule, skill_code)
+    reviewed: true
+  n_precog_datasets:
+    role: context
+    reason: number of PRECOG datasets behind the meta-Z; power qualifier; read exact by the capsule (salience)
+    reviewed: true
+pathway-node-leverage:
+  node_leverage_class:
+    role: signal
+    reason: comparative node-leverage call; emits soft axis_fit signals + fired_rule_ids for the cross-evidence
+      hypothesis agent (feeds NO differentiation resolver -> verdict byte-stable); role:signal reach-confirmed
+      exact via {display_rule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  paralog_buffering_class:
+    role: signal
+    reason: paralog-buffering categorical; the buffering signal was re-homed to functional-requirement
+      (Phase C-adjacent) which consumes this call; role:signal reach-confirmed exact via {salience} (census
+      2026-09-27, blind to ledger)
+    reviewed: true
+  evidence_scope:
+    role: context
+    reason: scope qualifier of the node-leverage evidence (which lenses/comparators were available); read
+      exact by the capsule + run.py (salience, skill_code)
+    reviewed: true
+  single_ko_leverage_understated:
+    role: context
+    reason: boolean caveat flag qualifying node_leverage_class (single-KO leverage understated by paralog
+      buffering); read exact by display_rule + capsule (display_rule, salience)
+    reviewed: true
+  strongest_buffering_paralog:
+    role: context
+    reason: names the strongest buffering paralog behind paralog_buffering_class; cross-axis pointer;
+      no exact reader (census)
+    reviewed: true
+  lenses:
+    role: display
+    reason: per-lens comparative detail (nested container); verdict-inert large container for human rendering;
+      no exact reader (census)
+    reviewed: true
+alteration-clinical-association:
+  alteration_survival_association_class:
+    role: signal
+    reason: mutation-status->survival prognostic call surfaced as a verdict-inert claim atom (alteration
+      arm of the prognostic question); role:signal reach-confirmed exact via {display_rule, salience}
+      (census 2026-09-27, blind to ledger)
+    reviewed: true
+  logrank_p:
+    role: context
+    reason: log-rank p-value; statistical qualifier behind the class; read exact by the capsule (salience)
+    reviewed: true
+  logrank_chi2:
+    role: context
+    reason: log-rank chi-square statistic; statistical qualifier; read exact by the capsule (salience)
+    reviewed: true
+  n_patients:
+    role: context
+    reason: patients in the survival fit; power qualifier; read exact by the capsule (salience)
+    reviewed: true
+  n_events:
+    role: context
+    reason: death/event count; power qualifier; no exact reader (census)
+    reviewed: true
+  n_mutated:
+    role: context
+    reason: mutated-arm size; power qualifier; no exact reader (census)
+    reviewed: true
+  n_wildtype:
+    role: context
+    reason: wild-type-arm size; power qualifier; no exact reader (census)
+    reviewed: true
+  mutated_hazard_direction:
+    role: context
+    reason: direction (protective/adverse) qualifier of the class; no exact reader (census)
+    reviewed: true
+  mutated_frequency:
+    role: context
+    reason: mutation frequency in the cohort; prevalence qualifier; no exact reader (census)
+    reviewed: true
+  median_ostime_mutated_days:
+    role: context
+    reason: median OS of the mutated arm; descriptive qualifier; read exact by the capsule (salience)
+    reviewed: true
+  median_ostime_wildtype_days:
+    role: context
+    reason: median OS of the wild-type arm; descriptive qualifier; read exact by the capsule (salience)
+    reviewed: true
+  endpoint:
+    role: provenance
+    reason: survival endpoint identity (e.g. OS); method/identity token; no exact reader (census)
+    reviewed: true
+  survival_source:
+    role: provenance
+    reason: survival dataset source token; provenance/audit; no exact reader (census)
+    reviewed: true
+  alteration_type:
+    role: provenance
+    reason: which alteration type defines the mutated group (e.g. nonsynonymous); method/identity token;
+      no exact reader (census)
+    reviewed: true
+subtype-survival-association:
+  subtype_survival_association_class:
+    role: signal
+    reason: OS-across-molecular-subtypes call surfaced as a verdict-inert target-independent patient-selection
+      claim atom; role:signal reach-confirmed exact via {display_rule, salience, skill_code} (census 2026-09-27,
+      blind to ledger)
+    reviewed: true
+  logrank_p:
+    role: context
+    reason: multi-stratum log-rank p-value; statistical qualifier behind the class; read exact by the
+      capsule (salience)
+    reviewed: true
+  logrank_chi2:
+    role: context
+    reason: log-rank chi-square statistic; statistical qualifier; read exact by the capsule (salience)
+    reviewed: true
+  logrank_df:
+    role: context
+    reason: log-rank degrees of freedom; statistical qualifier; read exact by the capsule (salience)
+    reviewed: true
+  n_patients:
+    role: context
+    reason: patients across admissible strata; power qualifier; read exact by the capsule (salience)
+    reviewed: true
+  n_events:
+    role: context
+    reason: death/event count; power qualifier; no exact reader (census)
+    reviewed: true
+  n_admissible_strata:
+    role: context
+    reason: number of subtype strata that cleared the power floor; power qualifier; read exact by the
+      capsule (salience)
+    reviewed: true
+  per_stratum:
+    role: display
+    reason: per-subtype survival breakdown (nested container) for human rendering; verdict-inert large
+      container; surfaced by the capsule (salience)
+    reviewed: true
+  dropped_underpowered_strata:
+    role: context
+    reason: names strata dropped below the power floor; QC/power qualifier explaining n_admissible_strata;
+      no exact reader (census)
+    reviewed: true
+  endpoint:
+    role: provenance
+    reason: survival endpoint identity (e.g. OS); method/identity token; no exact reader (census)
+    reviewed: true
+  survival_source:
+    role: provenance
+    reason: survival dataset source token; provenance/audit; no exact reader (census)
+    reviewed: true
+clinical-precedent:
+  highest_clinical_stage:
+    role: signal
+    reason: highest clinical development stage for a target-engaging agent; the translational-maturity
+      call surfaced as a verdict-inert claim atom (card emits no separate _class field); role:signal reach-confirmed
+      exact via {salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  approved_agents:
+    role: context
+    reason: list of approved target-engaging agents; evidentiary detail behind highest_clinical_stage;
+      read exact by run.py (skill_code)
+    reviewed: true
+  n_active_trials:
+    role: context
+    reason: count of active trials; maturity qualifier behind the stage call; read exact by the capsule
+      + run.py (salience, skill_code)
+    reviewed: true
+  modality_precedent:
+    role: context
+    reason: which modality has clinical precedent; qualifies the precedent call; read exact by the capsule
+      (salience)
+    reviewed: true
+  notable_failures:
+    role: context
+    reason: list of notable clinical failures; translational-risk qualifier; read exact by run.py (skill_code)
+    reviewed: true
+  resistance_mechanisms_reported:
+    role: display
+    reason: list of reported resistance mechanisms (human-facing detail); verdict-inert; no exact reader
+      (census)
+    reviewed: true
+competitor-landscape:
+  competitor_class:
+    role: signal
+    reason: competitive-positioning call (crowdedness/whitespace) surfaced as a verdict-inert claim atom;
+      role:signal reach-confirmed exact via {salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  highest_clinical_stage:
+    role: context
+    reason: highest clinical stage among competitor programs; qualifies competitor_class; read exact by
+      the capsule + run.py (salience, skill_code)
+    reviewed: true
+  approved_agents:
+    role: context
+    reason: list of approved competitor agents; evidentiary detail behind competitor_class; read exact
+      by run.py (skill_code)
+    reviewed: true
+  late_stage_non_approved_agents:
+    role: context
+    reason: list of late-stage non-approved competitor agents; evidentiary detail; read exact by run.py
+      (skill_code)
+    reviewed: true
+  withdrawn_agents:
+    role: display
+    reason: list of withdrawn competitor agents (human-facing detail); verdict-inert; no exact reader
+      (census)
+    reviewed: true
+  modalities_in_development:
+    role: context
+    reason: list of competitor modalities in development; competitive qualifier; read exact by run.py
+      (skill_code)
+    reviewed: true
+  modality_landscape:
+    role: display
+    reason: per-modality competitor breakdown (nested container) for human rendering; verdict-inert large
+      container; read exact by run.py (skill_code)
+    reviewed: true
+  n_competitor_programs:
+    role: context
+    reason: count of competitor programs; crowdedness qualifier behind competitor_class; read exact by
+      the capsule + run.py (salience, skill_code)
+    reviewed: true
+  indication_scope:
+    role: context
+    reason: scope of competitor indications considered; scope qualifier; read exact by the capsule + run.py
+      (salience, skill_code)
+    reviewed: true
