@@ -445,17 +445,13 @@ cellline-protein-abundance:
   per_lineage_stats:
     role: display
     reason: human-facing detail / large container
-  protein_effect_size:
-    role: signal
-    reason:
-      MISNAMED duplicate of median_log2_abundance_panel (no normal arm on a cell-line panel); WAIVED, see waived_because
-    reviewed: true
-    waived_because: "CONTRACT DEFECT, not a wiring gap: on this card protein_effect_size equals median_log2_abundance_panel to the
-      last digit (EPCAM fixture -0.417446428676658), i.e. a field named for a tumor-vs-normal contrast that a
-      cell-line panel does not have, carrying a verbatim copy of a field already read. display_gloss.gloss() is
-      keyed by FIELD NAME with no card_id, so METRIC_GLOSS would render 'tumor-vs-normal protein effect size' here.
-      Kept as signal-with-waiver rather than relabelled, so the defect stays in the queue instead of being laundered
-      into a tidy role. Owner: target-contracts."
+  # protein_effect_size waiver REMOVED (#1853): the underlying CONTRACT DEFECT is fixed upstream —
+  # target-contracts #939 dropped protein_effect_size from this card's outputs.summary_fields (it was
+  # a verbatim copy of median_log2_abundance_panel wearing a tumor-vs-normal contrast's name, which a
+  # cell-line panel with no normal arm cannot compute). The field no longer emits, so there is nothing
+  # to waive; leaving the disposition here would be a STALE ledger row (test_field_disposition_complete
+  # ::test_ledger_matches_emitted_fields). The TC pin bump in .github/workflows/skills-validate.yml is
+  # forced-atomic with this drop.
   protein_expression_class:
     role: signal
     reason: "headline cell-line protein presence call; role:signal reach-confirmed via {capsule, display_rule, question_table, salience} (census 2026-09-19, blind to ledger)"
@@ -980,14 +976,9 @@ cellline-protein-abundance-procan:
     role: provenance
     reason: "categorical MS-platform / dataset tag (e.g. procan_dia_swath) naming the ProCan protein-abundance source; provenance/audit token, not a signal"
     reviewed: true
-  protein_effect_size:
-    role: signal
-    reason:
-      MISNAMED duplicate of median_log2_abundance_panel (no normal arm on a cell-line panel); WAIVED, see waived_because
-    reviewed: true
-    waived_because: "CONTRACT DEFECT, same as the Gygi arm: protein_effect_size equals median_log2_abundance_panel to the last
-      digit (EPCAM fixture 4.3326138624278006) on a panel with no normal arm, and the name-keyed METRIC_GLOSS would
-      mis-label it. Kept as signal-with-waiver so it stays in the queue. Owner: target-contracts."
+  # protein_effect_size waiver REMOVED (#1853): same fix as the Gygi arm — target-contracts #939
+  # dropped protein_effect_size from this ProCan card's outputs.summary_fields, so the field no longer
+  # emits and there is nothing to waive. Forced-atomic with the TC pin bump in skills-validate.yml.
   protein_expression_class:
     role: signal
     reason: "headline ProCan cell-line protein presence call; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"

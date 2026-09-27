@@ -190,7 +190,6 @@
         "p75_log2_abundance_panel",
         "p95_log2_abundance_panel",
         "per_lineage_stats",
-        "protein_effect_size",
         "protein_expression_class"
       ],
       "cellline-protein-abundance-procan": [
@@ -211,7 +210,6 @@
         "p95_log2_abundance_panel",
         "per_lineage_stats",
         "protein_abundance_source",
-        "protein_effect_size",
         "protein_expression_class"
       ],
       "cellline-rna-distribution": [
@@ -2155,7 +2153,7 @@
     "n_no_reads_detected": 7,
     "n_reads_detected": 531,
     "n_roster_cards": 148,
-    "n_roster_fields": 1825,
+    "n_roster_fields": 1823,
     "n_undeclared_pairs": 4,
     "n_units": 23,
     "n_units_with_undeclared_reads": 2

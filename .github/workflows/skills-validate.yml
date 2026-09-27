@@ -352,7 +352,26 @@ jobs:
           #     walks gate->resolver one-way, so the TC gate row must precede this producer/pin. The skills
           #     producer (tp_fanout `_subtype_verdict` + tp_gates `_RECOGNIZED_GATING_VERDICTS`) lands in the
           #     same PR as this bump.
-          ref: 759bea80894924023039db4aa3e433f29f0ee499
+          # ── BUMPED 759bea8 -> 28e992c (SK#1853, TC PR#939 merge, child of #1848): REMOVES
+          #     protein_effect_size from outputs.summary_fields on the two cell-line protein cards
+          #     (cellline-protein-abundance / -procan). It was a verbatim copy of median_log2_abundance_panel
+          #     wearing a tumor-vs-normal contrast's name a normal-arm-less cell-line panel cannot compute.
+          #     FORCED-ATOMIC with the two field_disposition.yaml waiver-drops (see the WHY-FORCED-ATOMIC note
+          #     above), and it is the REMOVAL direction of that same anti-diagonal:
+          #       - drop 2 waiver rows x OLD pin (card still emits the field): field UNCLASSIFIED -> RED.
+          #       - drop 2 waiver rows x NEW pin (card no longer emits):        set-equal -> GREEN.
+          #       - keep 2 waiver rows x NEW pin:                               STALE ledger rows -> RED.
+          #     So the pin and the ledger move in one commit. field_read_health.json is regenerated in the
+          #     same PR so its pinned roster matches (n_roster_fields 1825 -> 1823).
+          #     APERTURE: MEASURED (census(SKILLS_ROOT) x git-archive of BOTH pins + TARGET_CONTRACTS_ROOT):
+          #       old pin 759bea8: domain 1825, candidate_orphans 779
+          #       new pin 28e992c: domain 1823, candidate_orphans 779
+          #     The census is disposition-blind and this PR changes no reader, so only the contracts axis
+          #     moves: orphans 779 -> 779 (protein_effect_size was credited by field-name via the tumor card,
+          #     never a cell-line orphan), domain -2 (the two removed pairs). 779 <= APERTURE_CEILING 781 and
+          #     781 - 779 = 2 <= APERTURE_SLACK 20, so THE CEILING DOES NOT MOVE and the pin bump is
+          #     aperture-inert.
+          ref: 28e992cd09a178fd36439fe65506315f2a614e38
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
