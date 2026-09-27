@@ -223,3 +223,107 @@ def test_hash_stable():
     a = json.dumps(EC.emit_capsules(_cards(), "COADREAD"), sort_keys=True, default=str)
     b = json.dumps(EC.emit_capsules(_cards(), "COADREAD"), sort_keys=True, default=str)
     assert a == b
+
+
+# ── L2a per-source CONCEPT (#1868, epic #1507 Arm B) ──────────────────────────────────────────────
+def _presence_cards():
+    """Two verdict-bearing presence source cards + one non-registered card."""
+    return [
+        {
+            "card_id": "tumor-rna-distribution",
+            "measurement_type": "tumor_expression_distribution",
+            "summary": {
+                "tumor_expression_class": "broadly_high",
+                "distribution_pattern": "continuous",
+                "allgene_percentile_class": "top_1pct",
+                "allgene_percentile": 99.7415,
+                "fraction_tumor_above_normal_p95": 0.7369,
+                "detectable_fraction": 1.0,
+            },
+        },
+        {
+            "card_id": "tumor-scrna-celltype-expression",
+            "measurement_type": "sc_tumor_celltype_expression",
+            "summary": {
+                "sc_expression_class": "malignant_broadly_detected",
+                "within_tumor_coverage_class": "high",
+                "tce_homogeneity_class": "homogeneous",
+                "tce_antigen_escape_class": "escape_risk_low",
+                "malignant_detection_fraction": 0.8948,
+                "fraction_donors_broadly_detecting": 0.9529,
+            },
+        },
+        {
+            "card_id": "b-dist",  # not in _SOURCE_CONCEPTS → no concept key
+            "summary": {"dependency_class": "strongly_selective", "median_chronos_panel": -0.457},
+        },
+    ]
+
+
+def test_source_concept_composes_multiple_dimensions_distinct_from_class():
+    caps = EC.emit_capsules(_presence_cards(), "COADREAD")["capsules"]
+    tr = caps["tumor-rna-distribution"]
+    # coarse class is a SINGLE *_class VALUE; the concept COMPOSES several orthogonal dimensions
+    assert tr["class"] in ("broadly_high", "top_1pct"), "sanity: coarse class is a single *_class value"
+    con = tr["concept"]
+    assert con["source"] == "tumor_rna"
+    assert con["token"] == "broadly_high_continuous_top_1pct"
+    assert con["token"] != tr["class"], "concept must be DISTINCT from the coarse verdict class"
+    assert [d["field"] for d in con["dimensions"]] == [
+        "tumor_expression_class",
+        "distribution_pattern",
+        "allgene_percentile_class",
+    ]
+    # curated retained-attr selection carries a declared scale (no bare numbers)
+    assert {a["metric"] for a in con["retained_attrs"]} == {
+        "allgene_percentile",
+        "fraction_tumor_above_normal_p95",
+        "detectable_fraction",
+    }
+    assert all("scale" in a for a in con["retained_attrs"])
+    sc = caps["tumor-scrna-celltype-expression"]["concept"]
+    assert sc["token"] == "malignant_broadly_detected_high_homogeneous_escape_risk_low"
+
+
+def test_source_concept_omitted_for_unregistered_and_thin_cards():
+    # non-registered card → no concept key (byte-stable for every non-presence skill)
+    caps = EC.emit_capsules(_presence_cards(), "COADREAD")["capsules"]
+    assert "concept" not in caps["b-dist"]
+    # thin (non-verdict-bearing) presence card → no concept (matches the full-only tail)
+    thin = EC.emit_capsules(_presence_cards(), "COADREAD", verdict_card_ids={"b-dist"})["capsules"]
+    assert "concept" not in thin["tumor-rna-distribution"]
+
+
+def test_source_concept_drops_unmeasured_dimensions_and_attrs():
+    # MUTATION: an unmeasured dimension must not fabricate a token segment; a missing attr is dropped.
+    cards = [
+        {
+            "card_id": "tumor-rna-distribution",
+            "measurement_type": "tumor_expression_distribution",
+            "summary": {
+                "tumor_expression_class": "broadly_high",
+                "distribution_pattern": "data_unavailable",  # unmeasured → skipped
+                "allgene_percentile": 99.7415,  # only this attr present
+            },
+        }
+    ]
+    con = EC.emit_capsules(cards, "COADREAD")["capsules"]["tumor-rna-distribution"]["concept"]
+    assert con["token"] == "broadly_high", "unmeasured dimension leaked into the token"
+    assert [a["metric"] for a in con["retained_attrs"]] == ["allgene_percentile"]
+    # MUTATION: ALL dimensions unmeasured → no concept key at all (byte-stable)
+    cards2 = [
+        {
+            "card_id": "tumor-rna-distribution",
+            "summary": {"allgene_percentile": 99.7, "tumor_expression_class": None},
+        }
+    ]
+    assert "concept" not in EC.emit_capsules(cards2, "COADREAD")["capsules"]["tumor-rna-distribution"]
+
+
+def test_source_concept_is_verdict_inert_and_hash_stable():
+    a = json.dumps(EC.emit_capsules(_presence_cards(), "COADREAD"), sort_keys=True, default=str)
+    b = json.dumps(EC.emit_capsules(_presence_cards(), "COADREAD"), sort_keys=True, default=str)
+    assert a == b
+    # concept carries NO signal/tier/corroboration key — pure presentation-support
+    con = EC.emit_capsules(_presence_cards(), "COADREAD")["capsules"]["tumor-rna-distribution"]["concept"]
+    assert not ({"signal", "tier", "corroboration", "verdict"} & set(con))

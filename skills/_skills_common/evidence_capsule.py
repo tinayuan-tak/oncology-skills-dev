@@ -530,6 +530,135 @@ def _conflict_pairs(cards, classify):
     return out
 
 
+# ── L2a per-source CONCEPT: a curated, multi-dimensional per-source concept token + retained-attr
+# selection, DISTINCT from the coarse verdict-derived `class` token (evidence-property architecture
+# #1507, Arm B gap (c) / #1868). The capsule `class` is ONE interpretation label — a single `*_class`
+# value the alphabetical/primary-class heuristic surfaces (e.g. tumor-RNA `broadly_high`, single-cell
+# `malignant_broadly_detected`) — so the capsule cannot express the AUTHORED per-source concept the
+# prototype names (tumor_rna → `broadly_high_homogeneous`; sc_malignant → `broadly_detected_
+# homogeneous_low_escape`), which COMPOSE several orthogonal class dimensions of the SAME source
+# (magnitude + distribution/homogeneity + escape/coverage). This layer emits, per verdict-bearing
+# source card, a `concept` object whose `token` is the deterministic composition of that source's
+# curated salient class dimensions and whose `retained_attrs` is a CURATED backing-number selection —
+# the per-concept counterpart to the alphabetical, cap-of-4 `_ANCHOR_HINTS` scan the coarse
+# numeric_anchors still uses.
+#
+# The vocabulary is CURATED-BY-SOURCE (which dimensions, in what reading order; which numbers back the
+# concept), keyed by card_id, mirroring the prototype's Arm-B L2a claim graph. It is a data-driven
+# PATTERN, not a per-instance branch: a source with no entry emits NO concept key (byte-stable), and a
+# declared dimension/attr absent from THIS run's summary is simply dropped (never back-filled), so the
+# token/attrs degrade gracefully rather than fabricating a phrase from fields a run did not measure.
+#
+# VERDICT-INERT: `concept` is a NEW capsule key read by no verdict/rule/ladder; the coarse `class`,
+# numeric_anchors, categorical_anchors and every other capsule field are byte-identical. Emitted only
+# on FULL (verdict-bearing) capsules, matching the top_k_strata / conflict_pairs / sibling_caveats tail.
+_SOURCE_CONCEPTS = {
+    # tumor bulk-RNA presence: magnitude (top1%/broadly-high) + distribution homogeneity
+    "tumor-rna-distribution": {
+        "source": "tumor_rna",
+        "dimensions": ("tumor_expression_class", "distribution_pattern", "allgene_percentile_class"),
+        "retained_attrs": ("allgene_percentile", "fraction_tumor_above_normal_p95", "detectable_fraction"),
+    },
+    # cell-line RNA panel: magnitude + pan-lineage distribution shape (bimodal) + isoform read
+    "cellline-rna-distribution": {
+        "source": "cellline_rna",
+        "dimensions": ("expression_class", "distribution_pattern", "isoform_expression_class"),
+        "retained_attrs": ("allgene_percentile", "fraction_expressed", "dominant_isoform_fraction"),
+    },
+    # cell-line MS protein abundance (Gygi): magnitude class + all-gene rank band
+    "cellline-protein-abundance": {
+        "source": "cellline_protein_ms",
+        "dimensions": ("protein_expression_class", "allgene_percentile_class"),
+        "retained_attrs": ("allgene_percentile", "fraction_detected"),
+    },
+    # cell-line MS protein abundance (ProCan): the independent MS reference
+    "cellline-protein-abundance-procan": {
+        "source": "cellline_protein_ms_procan",
+        "dimensions": ("protein_expression_class", "allgene_percentile_class"),
+        "retained_attrs": ("allgene_percentile", "fraction_detected"),
+    },
+    # tumor-vs-adjacent DGE: the tumor-vs-normal selectivity read
+    "tumor-rna-vs-adjacent": {
+        "source": "tumor_vs_normal",
+        "dimensions": ("expression_call_class", "allgene_percentile_class"),
+        "retained_attrs": ("log2_fc", "gtex_log2_fc", "gtex_q_value"),
+    },
+    # single-cell malignant: coverage + within-tumor homogeneity + antigen escape
+    "tumor-scrna-celltype-expression": {
+        "source": "sc_malignant",
+        "dimensions": (
+            "sc_expression_class",
+            "within_tumor_coverage_class",
+            "tce_homogeneity_class",
+            "tce_antigen_escape_class",
+        ),
+        "retained_attrs": ("malignant_detection_fraction", "fraction_donors_broadly_detecting"),
+    },
+    # protein IHC tumor: staining presence class
+    "hpa-pathology-cancer-ihc": {
+        "source": "protein_ihc_tumor",
+        "dimensions": ("protein_presence_class",),
+        "retained_attrs": ("fraction_detected", "fraction_moderate_strong"),
+    },
+    # single-cell NORMAL liability: normal-tissue on-target/off-tumor safety read
+    "sc-normal-celltype-expression": {
+        "source": "sc_normal",
+        "dimensions": ("sc_normal_expression_class", "sc_normal_safety_essential_class"),
+        "retained_attrs": ("max_detection_fraction", "expressing_donor_fraction_max"),
+    },
+    # HPA normal-tissue breadth
+    "normal-tissue-liability": {
+        "source": "normal_tissue_hpa",
+        "dimensions": ("normal_tissue_breadth_class",),
+        "retained_attrs": (),
+    },
+}
+
+# Class values that carry NO concept information — a dimension resolving to one of these is skipped in
+# the token (an unmeasured/absent axis must not fabricate a phrase segment) rather than back-filled.
+_CONCEPT_EMPTY_VALUES = frozenset({None, "", "data_unavailable", "unmeasured", "not_available", "unknown"})
+
+
+def _source_concept(card_id, summary, measurement_type=None):
+    """The curated per-source L2a concept for a verdict-bearing card, or None (key omitted → byte-stable)
+    for any card with no `_SOURCE_CONCEPTS` recipe or whose recipe dimensions are all unmeasured this run.
+
+    `token` is the deterministic underscore-composition (lower-cased, reading order preserved) of the
+    source's curated salient class DIMENSIONS — a multi-dimensional per-source concept distinct from the
+    single coarse `class` value. `dimensions` carries each contributing (field, value) so the token is
+    RECOVERABLE, not merely prose. `retained_attrs` is the CURATED backing-number selection (each carrying
+    its declared `scale` unit slot, like numeric_anchors), replacing the alphabetical `_ANCHOR_HINTS` guess
+    for the concept's evidence. Pure selection over the card's already-computed fields — no LLM, no new
+    computation, hash-stable, VERDICT-INERT."""
+    recipe = _SOURCE_CONCEPTS.get(card_id)
+    if not recipe or not isinstance(summary, dict):
+        return None
+    dims = []
+    for f in recipe["dimensions"]:
+        v = summary.get(f)
+        if isinstance(v, str) and v not in _CONCEPT_EMPTY_VALUES:
+            dims.append({"field": f, "value": v})
+    if not dims:
+        return None
+    token = "_".join(str(d["value"]).lower() for d in dims)
+    attrs = []
+    for f in recipe["retained_attrs"]:
+        v = summary.get(f)
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            attrs.append({"metric": f, "value": _num(v), "scale": _scale_for(measurement_type, f)})
+    return {
+        "source": recipe["source"],
+        "token": token,
+        "dimensions": dims,
+        "retained_attrs": attrs or None,
+        "_disclaimer": (
+            "Curated per-source L2a concept (deterministic composition of the source's salient class "
+            "dimensions) — DISTINCT from the coarse verdict `class`; never a signal/tier, never averaged "
+            "into a claim, never feeds the verdict; presentation-support only (#1868)."
+        ),
+    }
+
+
 def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, classify=default_classify, skill=None):
     """Return {'capsules': {card_id: capsule}, 'manifest': [...]}. Field selection is CONTRACTS-FIRST: a
     card's optional `capsule:` block (primary_class + categorical_fields + numeric_anchors, read via
@@ -607,6 +736,13 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
                     "cited_statements": _cited_statements(summ),
                 }
             )
+            # Curated per-source L2a CONCEPT (#1868, epic #1507 Arm B): a multi-dimensional per-source
+            # concept token + curated retained-attr selection, DISTINCT from the coarse verdict `class`.
+            # Key omitted (byte-stable) for any card with no `_SOURCE_CONCEPTS` recipe (e.g. every
+            # non-presence skill) or whose recipe dimensions are unmeasured this run. Verdict-inert.
+            _concept = _source_concept(cid, summ, mt)
+            if _concept is not None:
+                cap["concept"] = _concept
         manifest.append({"card_id": cid, "status": "full" if full else "thin"})
         capsules[cid] = cap
     return {"capsules": capsules, "manifest": sorted(manifest, key=lambda m: m["card_id"])}

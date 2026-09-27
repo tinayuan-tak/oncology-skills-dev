@@ -2124,7 +2124,34 @@
               "value": "gygi_ms"
             }
           ],
-          "data_quality_flags": null
+          "data_quality_flags": null,
+          "concept": {
+            "source": "cellline_protein_ms",
+            "token": "broadly_moderate_bottom_decile",
+            "dimensions": [
+              {
+                "field": "protein_expression_class",
+                "value": "broadly_moderate"
+              },
+              {
+                "field": "allgene_percentile_class",
+                "value": "bottom_decile"
+              }
+            ],
+            "retained_attrs": [
+              {
+                "metric": "allgene_percentile",
+                "value": 8.6041,
+                "scale": "%ile"
+              },
+              {
+                "metric": "fraction_detected",
+                "value": 1.0,
+                "scale": "fraction"
+              }
+            ],
+            "_disclaimer": "Curated per-source L2a concept (deterministic composition of the source's salient class dimensions) \u2014 DISTINCT from the coarse verdict `class`; never a signal/tier, never averaged into a claim, never feeds the verdict; presentation-support only (#1868)."
+          }
         },
         "cellline-protein-abundance-procan": {
           "card_id": "cellline-protein-abundance-procan",
@@ -2218,7 +2245,34 @@
               "value": "procan_dia_swath"
             }
           ],
-          "data_quality_flags": null
+          "data_quality_flags": null,
+          "concept": {
+            "source": "cellline_protein_ms_procan",
+            "token": "lineage_restricted_mid",
+            "dimensions": [
+              {
+                "field": "protein_expression_class",
+                "value": "lineage_restricted"
+              },
+              {
+                "field": "allgene_percentile_class",
+                "value": "mid"
+              }
+            ],
+            "retained_attrs": [
+              {
+                "metric": "allgene_percentile",
+                "value": 79.6928,
+                "scale": "%ile"
+              },
+              {
+                "metric": "fraction_detected",
+                "value": 0.4879,
+                "scale": "fraction"
+              }
+            ],
+            "_disclaimer": "Curated per-source L2a concept (deterministic composition of the source's salient class dimensions) \u2014 DISTINCT from the coarse verdict `class`; never a signal/tier, never averaged into a claim, never feeds the verdict; presentation-support only (#1868)."
+          }
         },
         "cellline-rna-distribution": {
           "card_id": "cellline-rna-distribution",
@@ -2320,7 +2374,43 @@
               "value": "allgene-depmap-rank-26q1-v1"
             }
           ],
-          "data_quality_flags": null
+          "data_quality_flags": null,
+          "concept": {
+            "source": "cellline_rna",
+            "token": "broadly_moderate_bimodal_single_isoform_dominant",
+            "dimensions": [
+              {
+                "field": "expression_class",
+                "value": "broadly_moderate"
+              },
+              {
+                "field": "distribution_pattern",
+                "value": "bimodal"
+              },
+              {
+                "field": "isoform_expression_class",
+                "value": "single_isoform_dominant"
+              }
+            ],
+            "retained_attrs": [
+              {
+                "metric": "allgene_percentile",
+                "value": 52.5423,
+                "scale": "%ile"
+              },
+              {
+                "metric": "fraction_expressed",
+                "value": 0.6308,
+                "scale": "fraction"
+              },
+              {
+                "metric": "dominant_isoform_fraction",
+                "value": 0.8354,
+                "scale": "fraction"
+              }
+            ],
+            "_disclaimer": "Curated per-source L2a concept (deterministic composition of the source's salient class dimensions) \u2014 DISTINCT from the coarse verdict `class`; never a signal/tier, never averaged into a claim, never feeds the verdict; presentation-support only (#1868)."
+          }
         },
         "cellline-rna-distribution-by-subtype": {
           "card_id": "cellline-rna-distribution-by-subtype",
@@ -2572,7 +2662,30 @@
               "value": "hpa-pathology-cancer-ihc-per-gene-v1"
             }
           ],
-          "data_quality_flags": null
+          "data_quality_flags": null,
+          "concept": {
+            "source": "protein_ihc_tumor",
+            "token": "ihc_detected_high",
+            "dimensions": [
+              {
+                "field": "protein_presence_class",
+                "value": "ihc_detected_high"
+              }
+            ],
+            "retained_attrs": [
+              {
+                "metric": "fraction_detected",
+                "value": 1.0,
+                "scale": "fraction"
+              },
+              {
+                "metric": "fraction_moderate_strong",
+                "value": 1.0,
+                "scale": "fraction"
+              }
+            ],
+            "_disclaimer": "Curated per-source L2a concept (deterministic composition of the source's salient class dimensions) \u2014 DISTINCT from the coarse verdict `class`; never a signal/tier, never averaged into a claim, never feeds the verdict; presentation-support only (#1868)."
+          }
         },
         "normal-tissue-liability": {
           "card_id": "normal-tissue-liability",
@@ -2591,7 +2704,19 @@
           "conflict_pairs": null,
           "sibling_caveats": null,
           "provenance_keys": null,
-          "data_quality_flags": null
+          "data_quality_flags": null,
+          "concept": {
+            "source": "normal_tissue_hpa",
+            "token": "broad_normal_expression",
+            "dimensions": [
+              {
+                "field": "normal_tissue_breadth_class",
+                "value": "broad_normal_expression"
+              }
+            ],
+            "retained_attrs": null,
+            "_disclaimer": "Curated per-source L2a concept (deterministic composition of the source's salient class dimensions) \u2014 DISTINCT from the coarse verdict `class`; never a signal/tier, never averaged into a claim, never feeds the verdict; presentation-support only (#1868)."
+          }
         },
         "rna-protein-concordance-tumor": {
           "card_id": "rna-protein-concordance-tumor",
@@ -2664,7 +2789,34 @@
           "conflict_pairs": null,
           "sibling_caveats": null,
           "provenance_keys": null,
-          "data_quality_flags": null
+          "data_quality_flags": null,
+          "concept": {
+            "source": "sc_normal",
+            "token": "high_liability_critical_organ_liability",
+            "dimensions": [
+              {
+                "field": "sc_normal_expression_class",
+                "value": "HIGH_LIABILITY"
+              },
+              {
+                "field": "sc_normal_safety_essential_class",
+                "value": "critical_organ_liability"
+              }
+            ],
+            "retained_attrs": [
+              {
+                "metric": "max_detection_fraction",
+                "value": 1.0,
+                "scale": "fraction"
+              },
+              {
+                "metric": "expressing_donor_fraction_max",
+                "value": 1.0,
+                "scale": "fraction"
+              }
+            ],
+            "_disclaimer": "Curated per-source L2a concept (deterministic composition of the source's salient class dimensions) \u2014 DISTINCT from the coarse verdict `class`; never a signal/tier, never averaged into a claim, never feeds the verdict; presentation-support only (#1868)."
+          }
         },
         "tumor-elevation-breadth": {
           "card_id": "tumor-elevation-breadth",
@@ -2999,7 +3151,43 @@
               "value": "allgene-tumor-rank-v1"
             }
           ],
-          "data_quality_flags": null
+          "data_quality_flags": null,
+          "concept": {
+            "source": "tumor_rna",
+            "token": "broadly_high_continuous_top_1pct",
+            "dimensions": [
+              {
+                "field": "tumor_expression_class",
+                "value": "broadly_high"
+              },
+              {
+                "field": "distribution_pattern",
+                "value": "continuous"
+              },
+              {
+                "field": "allgene_percentile_class",
+                "value": "top_1pct"
+              }
+            ],
+            "retained_attrs": [
+              {
+                "metric": "allgene_percentile",
+                "value": 99.7415,
+                "scale": "%ile"
+              },
+              {
+                "metric": "fraction_tumor_above_normal_p95",
+                "value": 0.7369,
+                "scale": "fraction"
+              },
+              {
+                "metric": "detectable_fraction",
+                "value": 1.0,
+                "scale": "fraction"
+              }
+            ],
+            "_disclaimer": "Curated per-source L2a concept (deterministic composition of the source's salient class dimensions) \u2014 DISTINCT from the coarse verdict `class`; never a signal/tier, never averaged into a claim, never feeds the verdict; presentation-support only (#1868)."
+          }
         },
         "tumor-rna-distribution-by-subtype": {
           "card_id": "tumor-rna-distribution-by-subtype",
@@ -3149,7 +3337,39 @@
               "value": "coadread-dge-df06320"
             }
           ],
-          "data_quality_flags": null
+          "data_quality_flags": null,
+          "concept": {
+            "source": "tumor_vs_normal",
+            "token": "not_informative_mid",
+            "dimensions": [
+              {
+                "field": "expression_call_class",
+                "value": "not_informative"
+              },
+              {
+                "field": "allgene_percentile_class",
+                "value": "mid"
+              }
+            ],
+            "retained_attrs": [
+              {
+                "metric": "log2_fc",
+                "value": -0.362,
+                "scale": "log2FC"
+              },
+              {
+                "metric": "gtex_log2_fc",
+                "value": 2.086,
+                "scale": "log2FC"
+              },
+              {
+                "metric": "gtex_q_value",
+                "value": 1.632e-72,
+                "scale": "q"
+              }
+            ],
+            "_disclaimer": "Curated per-source L2a concept (deterministic composition of the source's salient class dimensions) \u2014 DISTINCT from the coarse verdict `class`; never a signal/tier, never averaged into a claim, never feeds the verdict; presentation-support only (#1868)."
+          }
         },
         "tumor-scrna-celltype-expression": {
           "card_id": "tumor-scrna-celltype-expression",
@@ -3266,7 +3486,42 @@
               "value": "sc-pseudobulk-tumor-crc-coadread-v1"
             }
           ],
-          "data_quality_flags": null
+          "data_quality_flags": null,
+          "concept": {
+            "source": "sc_malignant",
+            "token": "malignant_broadly_detected_high_homogeneous_escape_risk_low",
+            "dimensions": [
+              {
+                "field": "sc_expression_class",
+                "value": "malignant_broadly_detected"
+              },
+              {
+                "field": "within_tumor_coverage_class",
+                "value": "high"
+              },
+              {
+                "field": "tce_homogeneity_class",
+                "value": "homogeneous"
+              },
+              {
+                "field": "tce_antigen_escape_class",
+                "value": "escape_risk_low"
+              }
+            ],
+            "retained_attrs": [
+              {
+                "metric": "malignant_detection_fraction",
+                "value": 0.8948,
+                "scale": "fraction"
+              },
+              {
+                "metric": "fraction_donors_broadly_detecting",
+                "value": 0.9529,
+                "scale": "fraction"
+              }
+            ],
+            "_disclaimer": "Curated per-source L2a concept (deterministic composition of the source's salient class dimensions) \u2014 DISTINCT from the coarse verdict `class`; never a signal/tier, never averaged into a claim, never feeds the verdict; presentation-support only (#1868)."
+          }
         }
       },
       "manifest": [

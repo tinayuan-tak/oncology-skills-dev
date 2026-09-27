@@ -1323,7 +1323,7 @@
       "value": "present"
     }
   ],
-  "generated_at": "2026-09-27T04:07:26+00:00",
+  "generated_at": "2026-09-27T15:42:49+00:00",
   "headline": {
     "alphafold_confidence_class": "moderate",
     "best_measured_potency_neglog_m": 11.699,
@@ -1643,6 +1643,18 @@
           "categorical_anchors": null,
           "cited_statements": null,
           "class": "broad_normal_expression",
+          "concept": {
+            "_disclaimer": "Curated per-source L2a concept (deterministic composition of the source's salient class dimensions) \u2014 DISTINCT from the coarse verdict `class`; never a signal/tier, never averaged into a claim, never feeds the verdict; presentation-support only (#1868).",
+            "dimensions": [
+              {
+                "field": "normal_tissue_breadth_class",
+                "value": "broad_normal_expression"
+              }
+            ],
+            "retained_attrs": null,
+            "source": "normal_tissue_hpa",
+            "token": "broad_normal_expression"
+          },
           "conflict_pairs": null,
           "data_quality_flags": null,
           "evidence_state": "measured",
@@ -4967,7 +4979,7 @@
       }
     },
     "resolver_release_pin": "resolver_v0.1.0-alpha",
-    "skills_repo_sha": "edadeae"
+    "skills_repo_sha": "d498cb3"
   },
   "question": "What is known about EGFR INDEPENDENT of indication \u2014 its identity, on-target-safety genetics, protein-class/structure/modality biophysics, functional annotation, mechanism + pathway role, interactome, domain architecture + domain\u2192modality implication, and paralog buffering?",
   "run_health": {
@@ -4985,7 +4997,7 @@
     ],
     "cards_missing": [],
     "cards_skipped_a4": [],
-    "compute_secs": 1.4018,
+    "compute_secs": 0.9847,
     "n_cards_consumed": 20,
     "n_cards_fired": 10,
     "n_cards_resolved": 20,
@@ -4995,11 +5007,11 @@
         "family": "target-id-resolver-release"
       }
     ],
-    "read_secs": 0.9195,
+    "read_secs": 0.3547,
     "skill_name": "target-intrinsic",
     "skill_version": "1.6.1",
     "status": "ok",
-    "total_secs": 10.3067
+    "total_secs": 6.2391
   },
   "skill": "target-intrinsic",
   "target": "EGFR"
