@@ -26,138 +26,203 @@ _meta:
     being left unwired -- the review queue _meta.roles already promised (`must be wired or explicitly
     waived`) but never had a key for. A waiver must name the missing consumer or the owning repo; it
     is not a way to silence the guard."
+  interpretation_reach: "SECOND AXIS (added 2026-09-27, SK#1525 -- the two-axis field-disposition
+    contract, _skills_common/field_disposition_contract.py). Orthogonal to `role`: role says WHAT the
+    field is (signal/context/provenance/display), interpretation_reach says HOW FAR its interpretation
+    travels -- `unreached` (no declared reader: a candidate orphan, a review queue, never a delete
+    list), `skills_local` (read by a rule/capsule/salience/code/figure inside this repo), or
+    `cross_repo_resolver` (read by the analysis-methods property resolver, e.g. the cellline-rna
+    _heterogeneity inputs). A cross-repo resolver INPUT is role:context AND reach:cross_repo_resolver --
+    it is consumed (not an orphan) yet the signal attaches to the RESOLVED property in analysis-methods,
+    not to this raw measurement, so reach does not promote role. Values are MACHINE-DERIVED from the
+    field_disposition census (blind to this ledger)."
+  review_pass_1525: "SK#1525 reviewed EVERY previously-unreviewed auto-draft row via the reach census +
+    the 4-case migration audit (legacy_role x is-it-an-L2-input). 13 display rows with an exact INPUT
+    reader were reclassified display->context (the auto-draft fallback was display, never a judgement);
+    display rows whose only reach is a figure/name-only render, and the query-echo/projection subtype
+    fields whose prior reasons already argue display-by-design, were CONFIRMED display. All rows now
+    carry reviewed:true and interpretation_reach. Verdict-inert: no promoted field is role-tagged in an
+    emitted anchor/claim atom, so the replay golden is byte-stable."
 cellline-rna-distribution:
   allgene_percentile:
     role: signal
+    interpretation_reach: cross_repo_resolver
     reason: "pan-gene expression percentile of the DepMap cell-line panel; continuous magnitude behind allgene_percentile_class; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   allgene_percentile_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "categorical pan-gene percentile call for cell-line RNA; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   allgene_percentile_context:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: provenance/audit token
   coefficient_of_variation:
     role: context
+    interpretation_reach: cross_repo_resolver
     reason: "distribution dispersion on linear TPM. P5 data-driven basis (issue #1509): its only skills-visible exact reach is `capsule` (a numeric_anchor, TC #873) — capsule reach cannot separate a decisive call from a context input, so it is a review candidate, not an auto-signal. Kept context because it is a raw measurement INPUT to the cross-repo P2 property resolver (analysis-methods methods/expression_properties/resolve.py:180 `_heterogeneity` reads it alongside distribution_pattern), NOT an independent signal: in the evidence-property ontology the signal attaches to the resolved PROPERTY (`expression_properties`, role:signal), never to the raw measurement. Whether the census should count that cross-repo resolver read is the split-out follow-up (must be gated with the analysis-methods sibling present and pin the resolver commit it scrapes). Capsule-wired so the fleet-aperture census reaches it (P3, issue #862)"
     reviewed: true
   control_negatives:
     role: display
+    interpretation_reach: unreached
+    reviewed: true
     reason: human-facing detail / large container
   control_position:
     role: context
+    interpretation_reach: skills_local
     reason: "position of the housekeeping-control band vs the target; reference qualifier behind control_position_class; no exact reader (census 2026-09-19)"
     reviewed: true
   control_position_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "cell-line RNA position vs the housekeeping-control band, as a call; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   control_position_context:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: provenance/audit token
   control_positives:
     role: display
+    interpretation_reach: unreached
+    reviewed: true
     reason: human-facing detail / large container
   distribution_pattern:
     role: context
+    interpretation_reach: cross_repo_resolver
     reason: "shape of the log2(TPM+1) distribution (unimodal/bimodal/long_tail); capsule-wired as a categorical_field (TC #873) so the fleet-aperture census reaches it. P5 resolution (issue #1509): STAYS role:context. Its only skills-visible exact reach is `capsule` — census- and descriptor-indistinguishable from the coefficient_of_variation sibling, so capsule reach cannot promote it. It is a raw measurement INPUT to the cross-repo P2 property resolver (analysis-methods methods/expression_properties/resolve.py:180 `_heterogeneity` reads distribution_pattern AND coefficient_of_variation as its two supplies), NOT an independent signal: the biological signal is carried by the RESOLVED property `expression_properties` (role:signal), which the evidence-property ontology attaches to the property rather than the raw measurement. The P3 note anticipated a P5 promotion, but the resolver read is cross-repo (the skills census scrapes the skills tree only, field_disposition.py:547), so promoting it is not a skills-visible reach fact — it is deferred to the split-out follow-up (teach the census to read the analysis-methods tree, AM-sibling-gated, pinning the resolver commit) (P3, issue #862; epic claude-oncology-skills#1507)"
     reviewed: true
   dominant_isoform:
     role: context
+    interpretation_reach: skills_local
     reason: "names which isoform isoform_expression_class refers to; cross-axis pointer; no exact reader (census 2026-09-19)"
     reviewed: true
   dominant_isoform_fraction:
     role: context
+    interpretation_reach: skills_local
     reason: "magnitude behind the READ isoform_expression_class (capsule); name_only credit only, because
       tumor-splice-dysregulation declares the same field name"
     reviewed: true
   expression_class:
     role: signal
+    interpretation_reach: cross_repo_resolver
     reason: "headline DepMap cell-line RNA expression call; role:signal reach-confirmed via {capsule, display_rule, question_table, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   expression_properties:
     role: signal
+    interpretation_reach: skills_local
     reason: "shared L2 expression-property facet object {presence, magnitude, prevalence, heterogeneity, lineage_restriction, + fleet-deferred selectivity/localization/subtype_restriction} resolved by the P2 property resolver (analysis-methods/methods/expression_properties, #720) from the same measurements that drive expression_class. Surfaced as a citable evidence atom on the presence claim vector (_skills_common/presence_claims.py `_expression_property_atom`, via the `_patom` claim_passthrough seam). P5 (issue #1509): promoted to role:signal on the DATA-DRIVEN basis that it is the one field of the distribution_pattern/coefficient_of_variation/expression_properties trio with EXACT, census-visible, skills-side SIGNAL reach — claim_passthrough (a code read into the claim vector; a capsule cannot credit an object). It is the resolved PROPERTY the evidence-property ontology attaches the signal to (its raw-measurement inputs distribution_pattern/coefficient_of_variation stay context). STILL VERDICT-INERT at the replay layer: it is a citable atom on the claim vector, not averaged into any claim or the presence_verdict — the reach ratchet is satisfied by the claim_passthrough reader, and the replay golden is byte-stable. Evidence-property architecture epic claude-oncology-skills#1507 / audit #1506 (P4, issue #1508; P5, issue #1509)"
     reviewed: true
   fraction_expressed:
     role: context
+    interpretation_reach: cross_repo_resolver
     reason: "within-cohort breadth magnitude behind the READ expression_class; _abundance_floor's docstring states the
       presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
     reviewed: true
   fraction_highly_expressed:
     role: context
+    interpretation_reach: cross_repo_resolver
     reason: "within-cohort breadth magnitude behind the READ expression_class; _abundance_floor's docstring states the
       presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
     reviewed: true
   fraction_not_expressed:
     role: context
+    interpretation_reach: unreached
     reason: "within-cohort breadth magnitude behind the READ expression_class; _abundance_floor's docstring states the
       presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
     reviewed: true
   isoform_context:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: provenance/audit token
   isoform_expression_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "dominant-isoform expression call for the cell-line RNA arm; role:signal reach-confirmed via {capsule} (census 2026-09-19, blind to ledger)"
     reviewed: true
   isoform_n_models:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   log2tpm_iqr:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   median_log2tpm_panel:
     role: signal
+    interpretation_reach: cross_repo_resolver
     reason: "panel-median log2 TPM magnitude behind the cell-line RNA call; role:signal reach-confirmed via {salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   n_cell_lines_evaluated:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_expressed_isoforms:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_lineage_restricted_lineages:
     role: context
+    interpretation_reach: cross_repo_resolver
+    reviewed: true
     reason: power / statistical qualifier
   n_lineages_evaluated:
     role: context
+    interpretation_reach: cross_repo_resolver
+    reviewed: true
     reason: power / statistical qualifier
   p25_log2tpm_panel:
     role: display
+    interpretation_reach: unreached
     reason: "lower-quartile of the panel log2 TPM distribution; verdict-inert distribution shape; no exact reader (census 2026-09-19)"
     reviewed: true
   p5_log2tpm_panel:
     role: display
+    interpretation_reach: unreached
     reason: "5th-percentile of the panel log2 TPM distribution; verdict-inert distribution shape; no exact reader (census 2026-09-19)"
     reviewed: true
   p75_log2tpm_panel:
     role: display
+    interpretation_reach: unreached
     reason: "upper-quartile of the panel log2 TPM distribution; verdict-inert distribution shape; no exact reader (census 2026-09-19)"
     reviewed: true
   p95_log2tpm_panel:
     role: context
+    interpretation_reach: unreached
     reason: "panel dispersion around the READ median_log2tpm_panel; its p5/p25/p75 siblings were already labelled display,
       so the auto-draft split ONE percentile ladder across two roles"
     reviewed: true
   per_lineage_stats:
-    role: display
-    reason: human-facing detail / large container
+    role: context
+    interpretation_reach: cross_repo_resolver
+    reviewed: true
+    reason: "#1525 two-axis migration audit (legacy display was the auto-draft fallback, never a judgement): reclassified display->context. Reach-confirmed as an L2 INPUT via exact {resolver_input} reader(s) (census, blind to ledger; interpretation_reach=cross_repo_resolver) - it is consumed as an input, not a display-only detail. Verdict-inert / byte-stable: this field is not role-tagged in any emitted numeric_anchor or claim atom, so the replay golden is unchanged."
 tumor-rna-vs-adjacent:
   allgene_percentile:
     role: signal
+    interpretation_reach: skills_local
     reason: "pan-gene percentile of tumor vs adjacent-normal RNA; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   allgene_percentile_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "categorical pan-gene percentile call for tumor-vs-adjacent RNA; role:signal reach-confirmed via {capsule} (census 2026-09-19, blind to ledger)"
     reviewed: true
   allgene_percentile_context:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: provenance/audit token
   base_mean:
     role: context
+    interpretation_reach: skills_local
     reason: "DESeq2 mean normalized expression across the tumor-vs-adjacent contrast; an abundance/power qualifier
       (cf. n_tumor/n_adjacent/gtex_q_value), not itself a presence signal. READ (SK#1874) by presence_claims._claim_B
       as an absolute-expression-floor qualifier on the fold-change (_BASE_MEAN_FLOOR): a large log2FC on near-floor
@@ -166,17 +231,23 @@ tumor-rna-vs-adjacent:
     reviewed: true
   expression_call_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "the tumor-vs-adjacent-normal expression call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   gtex_log2_fc:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: vs-GTEx-normal contrast = SELECTIVITY axis; context pointer to tumor-selectivity, not a presence
       signal
   gtex_q_value:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   is_significant_provider_call:
     role: signal
+    interpretation_reach: skills_local
     reason: "the DGE provider's own significance flag. READ (SK#1874) by presence_claims._claim_B as an INDEPENDENT
       corroboration of the effect-size-aware re-derived expression_call_class: a purely-statistical (q<alpha) call
       that, when it disagrees with the re-derived elevation, caps the tumor-elevation corroboration and raises a
@@ -185,6 +256,7 @@ tumor-rna-vs-adjacent:
     reviewed: true
   is_upregulated_provider_call:
     role: signal
+    interpretation_reach: skills_local
     reason: "the DGE provider's own up/down direction flag. READ (SK#1874) by presence_claims._claim_B together with
       is_significant_provider_call to classify provider-vs-rederived concordance (concordant / direction_discordant /
       provider_only_significant / rederived_only_significant / both_not_significant). Role promoted
@@ -192,81 +264,115 @@ tumor-rna-vs-adjacent:
     reviewed: true
   log2_fc:
     role: signal
+    interpretation_reach: skills_local
     reason: "tumor-vs-adjacent log2 fold-change; the continuous presence effect size; role:signal reach-confirmed via {claim_passthrough, figure, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   n_adjacent:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   n_tumor:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   q_value:
     role: context
+    interpretation_reach: skills_local
     reason: "multiple-testing-adjusted significance qualifier on log2_fc; a statistical qualifier, not itself a presence claim; reached via {claim_passthrough, figure, salience, skill_code} (census 2026-09-19)"
     reviewed: true
 tumor-rna-distribution:
   allgene_percentile:
     role: signal
+    interpretation_reach: skills_local
     reason: "pan-gene percentile of the TCGA tumor RNA distribution; role:signal reach-confirmed via {claim_passthrough, salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   allgene_percentile_by_study:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: provenance/audit token
   allgene_percentile_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "categorical pan-gene percentile call for TCGA tumor RNA; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   allgene_percentile_context:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: provenance/audit token
   coefficient_of_variation:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   control_negatives:
     role: display
+    interpretation_reach: unreached
+    reviewed: true
     reason: human-facing detail / large container
   control_negatives_excluded_lineage_conflict:
     role: display
+    interpretation_reach: unreached
+    reviewed: true
     reason: human-facing detail / large container
   control_position:
     role: context
+    interpretation_reach: skills_local
     reason: "position of the housekeeping-control band vs the target; reference qualifier behind control_position_class; reached via {claim_passthrough} (census 2026-09-19)"
     reviewed: true
   control_position_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "tumor RNA position vs the housekeeping-control band, as a call; role:signal reach-confirmed via {capsule, claim_passthrough, salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   control_position_context:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: provenance/audit token
   control_positives:
     role: display
+    interpretation_reach: unreached
+    reviewed: true
     reason: human-facing detail / large container
   detectable_fraction:
     role: context
+    interpretation_reach: skills_local
     reason: "within-cohort breadth magnitude behind the READ tumor_expression_class; _abundance_floor's docstring states
       the presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
     reviewed: true
   distribution_overlap_tumor_normal:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   distribution_pattern:
     role: signal
+    interpretation_reach: skills_local
     reason: "shape of the tumor RNA distribution (uni/bi-modal etc.); feeds the presence narrative; role:signal reach-confirmed via {capsule, claim_passthrough} (census 2026-09-19, blind to ledger)"
     reviewed: true
   dominant_event_splice_type:
     role: display
+    interpretation_reach: unreached
     reason: "names the dominant splice event; descriptive detail of the verdict-inert splicing arm; no exact reader (census 2026-09-19)"
     reviewed: true
   fraction_tumor_above_normal_p95:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: vs-normal window = SELECTIVITY axis (Gate B); surfaced as context pointing to tumor-selectivity,
       NOT scored in presence
   fraction_tumor_above_normal_p99:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: vs-normal window = SELECTIVITY axis (Gate B); context pointer to tumor-selectivity
   high_fraction:
     role: context
+    interpretation_reach: skills_local
     reason: "PREVALENCE qualifier, now reader-reached: carried onto the headline + _synthesis_facet as
       tumor_high_fraction. Stays `context` (it qualifies a signal; no rule reads it) but the PREVIOUS reason
       here -- 'the class is where the framework reads breadth' -- is MEASURED FALSE for one class value:
@@ -276,59 +382,84 @@ tumor-rna-distribution:
     reviewed: true
   matched_normal_tissue:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: identity/scope key
   max_event_psi_std:
     role: display
+    interpretation_reach: unreached
     reason: "max across-event PSI dispersion; verdict-inert splicing detail; no exact reader (census 2026-09-19)"
     reviewed: true
   median_event_psi_std:
     role: display
+    interpretation_reach: unreached
     reason: "median across-event PSI dispersion; verdict-inert splicing detail; no exact reader (census 2026-09-19)"
     reviewed: true
   median_log2tpm:
     role: signal
+    interpretation_reach: skills_local
     reason: "tumor-cohort median log2 TPM magnitude behind the presence call; role:signal reach-confirmed via {claim_passthrough, salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   moderate_fraction:
     role: context
+    interpretation_reach: unreached
     reason: "within-cohort breadth magnitude behind the READ tumor_expression_class; _abundance_floor's docstring states
       the presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
     reviewed: true
   n_normal_samples:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   n_splice_events:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_tumor_samples:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_tumor_shifted_events:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   n_variable_events:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   p95_log2tpm:
     role: signal
+    interpretation_reach: skills_local
     reason: "upper-tail (p95) log2 TPM magnitude of the tumor distribution; role:signal reach-confirmed via {claim_passthrough} (census 2026-09-19, blind to ledger)"
     reviewed: true
   p99_log2tpm:
     role: context
+    interpretation_reach: unreached
     reason: "tail rung beyond the p95_log2tpm that claim A's evidence atom already cites"
     reviewed: true
   splicing_context:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: provenance/audit token
   splicing_dysregulation_class:
     role: display
+    interpretation_reach: unreached
+    reviewed: true
     reason: "verdict-inert BY DESIGN \u2014 pan-cohort splicing, isoform-targets only; not a presence\
       \ signal"
   studies:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: identity/scope key
   tumor_expression_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "VERDICT-BEARING, and the most load-bearing field on this card: its value is what
       interpretation-rules matches to fire a tumor-expression-* rule_id, which _EXPRESSION_RANK maps to
       the collapsed presence_verdict. Reviewed 2026-09-18 during the subset_high split: the declared
@@ -343,130 +474,181 @@ tumor-rna-distribution:
 tumor-protein-abundance-cptac:
   allgene_percentile:
     role: signal
+    interpretation_reach: skills_local
     reason: "pan-gene percentile of CPTAC tumor protein abundance; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   allgene_percentile_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "categorical pan-gene percentile call for CPTAC tumor protein; role:signal reach-confirmed via {capsule} (census 2026-09-19, blind to ledger)"
     reviewed: true
   allgene_percentile_context:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: provenance/audit token
   method_version:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: provenance/audit token
   n_normal_samples:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   n_tumor_samples:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   protein_bh_q_value:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   protein_effect_cohens_d:
     role: signal
+    interpretation_reach: skills_local
     reason: "Cohen's d effect size for tumor-vs-normal protein; role:signal reach-confirmed via {salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   protein_effect_size:
     role: signal
+    interpretation_reach: skills_local
     reason: "tumor-vs-normal protein effect-size magnitude; role:signal reach-confirmed via {claim_passthrough, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   protein_effect_size_se:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   protein_effect_standardized_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "standardized protein-effect call; role:signal reach-confirmed via {capsule, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   protein_effect_standardized_method:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: provenance/audit token
   protein_effect_standardized_t:
     role: signal
+    interpretation_reach: skills_local
     reason: "standardized t-statistic magnitude of the protein effect; role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   protein_expression_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "headline CPTAC tumor protein presence call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, gating_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   protein_median_log2_normal:
     role: context
+    interpretation_reach: unreached
     reason: "OPERAND of the READ protein_effect_size (= median_log2_tumor - median_log2_normal, documented at
       tumor-selectivity/scripts/run.py:145); the level axis is read via allgene_percentile"
     reviewed: true
   protein_median_log2_tumor:
     role: context
+    interpretation_reach: unreached
     reason: "OPERAND of the READ protein_effect_size (= median_log2_tumor - median_log2_normal, documented at
       tumor-selectivity/scripts/run.py:145); the level axis is read via allgene_percentile"
     reviewed: true
   protein_p_value:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   stat_test_used:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: provenance/audit token
 cellline-protein-abundance:
   allgene_percentile:
     role: signal
+    interpretation_reach: skills_local
     reason: "pan-gene percentile of DepMap/CCLE cell-line protein abundance; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   allgene_percentile_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "categorical pan-gene percentile call for cell-line protein; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   allgene_percentile_context:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: provenance/audit token
   fraction_detected:
     role: context
+    interpretation_reach: skills_local
     reason: "within-cohort breadth magnitude behind the READ protein_expression_class; _abundance_floor's docstring states
       the presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
     reviewed: true
   log2_abundance_iqr:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   median_log2_abundance_panel:
     role: signal
+    interpretation_reach: skills_local
     reason: "panel-median log2 protein abundance magnitude; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   method_version:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: provenance/audit token
   n_cell_lines_evaluated:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_cell_lines_in_panel:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   n_lineage_restricted_lineages:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_lineages_evaluated:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   p25_log2_abundance_panel:
     role: context
+    interpretation_reach: unreached
     reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
       allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder"
     reviewed: true
   p5_log2_abundance_panel:
     role: context
+    interpretation_reach: unreached
     reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
       allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder"
     reviewed: true
   p75_log2_abundance_panel:
     role: context
+    interpretation_reach: unreached
     reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
       allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder"
     reviewed: true
   p95_log2_abundance_panel:
     role: context
+    interpretation_reach: unreached
     reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
       allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder"
     reviewed: true
   per_lineage_stats:
     role: display
+    interpretation_reach: skills_local
+    reviewed: true
     reason: human-facing detail / large container
   # protein_effect_size waiver REMOVED (#1853): the underlying CONTRACT DEFECT is fixed upstream —
   # target-contracts #939 dropped protein_effect_size from this card's outputs.summary_fields (it was
@@ -477,206 +659,288 @@ cellline-protein-abundance:
   # forced-atomic with this drop.
   protein_expression_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "headline cell-line protein presence call; role:signal reach-confirmed via {capsule, display_rule, question_table, salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
 tumor-elevation-breadth:
   breadth_layer_concordance:
     role: signal
+    interpretation_reach: skills_local
     reason: "agreement between the RNA and protein breadth layers; feeds the breadth narrative; role:signal reach-confirmed via {capsule, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   cohorts_tested:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: identity/scope key
   fraction_elevated:
     role: signal
+    interpretation_reach: skills_local
     reason: "protein-arm fraction of cohorts with elevated expression; the breadth magnitude surfaced as salient; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   median_effect_across_elevated:
     role: context
+    interpretation_reach: unreached
     reason: "median effect size across elevated cohorts; magnitude behind tumor_elevation_breadth_class; no exact reader (census 2026-09-19)"
     reviewed: true
   most_elevated_cohorts:
-    role: display
-    reason: human-facing detail / large container
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "#1525 two-axis migration audit (legacy display was the auto-draft fallback, never a judgement): reclassified display->context. Reach-confirmed as an L2 INPUT via exact {question_table} reader(s) (census, blind to ledger; interpretation_reach=skills_local) - it is consumed as an input, not a display-only detail. Verdict-inert / byte-stable: this field is not role-tagged in any emitted numeric_anchor or claim atom, so the replay golden is unchanged."
   n_cohorts_elevated:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_cohorts_tested:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   rna_fraction_elevated:
     role: context
+    interpretation_reach: unreached
     reason: "RNA-arm fraction of cohorts elevated; magnitude behind rna_tumor_elevation_breadth_class (only the class is surfaced, unlike the protein-arm fraction_elevated which run.py lists as salient); no exact reader (census 2026-09-19)"
     reviewed: true
   rna_median_max_log2fc_across_elevated:
     role: context
+    interpretation_reach: unreached
     reason: "magnitude behind the READ rna_tumor_elevation_breadth_class; its protein-arm twin
       median_effect_across_elevated was already labelled display — the auto-draft split the two arms"
     reviewed: true
   rna_most_elevated_indications:
-    role: display
-    reason: human-facing detail / large container
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "#1525 two-axis migration audit (legacy display was the auto-draft fallback, never a judgement): reclassified display->context. Reach-confirmed as an L2 INPUT via exact {question_table} reader(s) (census, blind to ledger; interpretation_reach=skills_local) - it is consumed as an input, not a display-only detail. Verdict-inert / byte-stable: this field is not role-tagged in any emitted numeric_anchor or claim atom, so the replay golden is unchanged."
   rna_n_indications_elevated:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   rna_n_indications_tested:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   rna_tumor_elevation_breadth_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "RNA-arm tumor elevation-breadth call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   tumor_elevation_breadth_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "protein-arm tumor elevation-breadth call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
 tumor-scrna-celltype-expression:
   ambient_contamination_risk:
     role: signal
+    interpretation_reach: skills_local
     reason: "QC (ambient soup-leakage) — tempers claim-C corroboration (#984 Tier-1)"
     reviewed: true
   caf_abundance_log1p_cp10k:
     role: signal
+    interpretation_reach: skills_local
     reason: "CAF-compartment abundance in the same log1p CP10K units as the READ malignant_abundance_log1p_cp10k, behind
       caf_vs_malignant_class / stromal_confound_class; WIRED onto the headline as sc_caf_abundance_log1p_cp10k — it
       was the only one of this card's 29 declared fields left unlifted"
     reviewed: true
   caf_compartment_available:
     role: context
+    interpretation_reach: skills_local
     reason: "whether the CAF compartment was resolvable; availability qualifier on the stromal-confound reads; reached via {skill_code} (census 2026-09-19)"
     reviewed: true
   caf_detection_fraction:
     role: signal
+    interpretation_reach: skills_local
     reason: "CAF-compartment detection fraction; stromal-confound magnitude; role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   caf_vs_malignant_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "malignant-vs-CAF specificity call (stromal confound); role:signal reach-confirmed via {capsule, claim_passthrough, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   compartment_detection:
-    role: display
-    reason: human-facing detail / large container
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "#1525 two-axis migration audit (legacy display was the auto-draft fallback, never a judgement): reclassified display->context. Reach-confirmed as an L2 INPUT via exact {skill_code} reader(s) (census, blind to ledger; interpretation_reach=skills_local) - it is consumed as an input, not a display-only detail. Verdict-inert / byte-stable: this field is not role-tagged in any emitted numeric_anchor or claim atom, so the replay golden is unchanged."
   entity_purity:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: cube entity purity — confidence qualifier for claim-C (#984 Tier-1)
   fraction_donors_broadly_detecting:
     role: signal
+    interpretation_reach: skills_local
     reason: "cross-donor breadth-of-detection fraction; role:signal reach-confirmed via {claim_passthrough, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   indication:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: identity/scope key
   inter_donor_consistency_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "inter-donor consistency call for the single-cell read; role:signal reach-confirmed via {capsule, claim_passthrough, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   malignant_annotation_method:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: malignant-label provenance — tempers claim-C corroboration (#984 Tier-1)
   malignant_abundance_log1p_cp10k:
     role: signal
+    interpretation_reach: skills_local
     reason: "malignant-cell abundance magnitude (log1p CP10K); role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   malignant_compartment_available:
     role: context
+    interpretation_reach: skills_local
     reason: "whether the malignant compartment was resolvable; availability qualifier on the malignant reads; reached via {skill_code} (census 2026-09-19)"
     reviewed: true
   malignant_detection_donor_iqr:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   malignant_detection_fraction:
     role: signal
+    interpretation_reach: skills_local
     reason: "fraction of malignant cells detecting the target; the core single-cell presence magnitude; role:signal reach-confirmed via {claim_passthrough, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   malignant_n_cells:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   malignant_n_donors:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_compartments_measured:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_datasets:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_donor_groups:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   per_compartment:
-    role: display
-    reason: human-facing detail / large container
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "#1525 two-axis migration audit (legacy display was the auto-draft fallback, never a judgement): reclassified display->context. Reach-confirmed as an L2 INPUT via exact {skill_code} reader(s) (census, blind to ledger; interpretation_reach=skills_local) - it is consumed as an input, not a display-only detail. Verdict-inert / byte-stable: this field is not role-tagged in any emitted numeric_anchor or claim atom, so the replay golden is unchanged."
   product_id:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: provenance/audit token
   sc_expression_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "headline single-cell malignant expression call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, figure, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   stromal_confound_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "stromal-confound severity call; gates single-cell interpretation; role:signal reach-confirmed via {gating_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   tce_antigen_escape_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "TCE antigen-escape-risk call from single-cell heterogeneity; fires a gate; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, gating_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   tce_homogeneity_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "within-tumor TCE target-homogeneity call; role:signal reach-confirmed via {capsule, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   top_microenvironment_compartment:
     role: context
+    interpretation_reach: skills_local
     reason: "names the top microenvironment cell type top_microenvironment_detection_fraction refers to; cross-axis pointer; reached via {claim_passthrough, skill_code} (census 2026-09-19)"
     reviewed: true
   top_microenvironment_detection_fraction:
     role: signal
+    interpretation_reach: skills_local
     reason: "detection fraction in the top microenvironment compartment; role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   within_tumor_coverage_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "within-tumor coverage call (how completely the target is sampled); role:signal reach-confirmed via {capsule, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
 tumor-rna-distribution-by-subtype:
   assignment_manifest:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: provenance/audit token
   matched_normal_tissue:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: identity/scope key
   n_subtypes_clearing_normal_window:
     role: context
+    interpretation_reach: skills_local
     reason: "count of subtypes clearing the normal-expression window; power / statistical qualifier behind the subtype signal; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
     reviewed: true
   n_subtypes_clearing_proxy_window_by_tissue:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   n_subtypes_enriched:
     role: context
+    interpretation_reach: skills_local
     reason: "count of enriched subtypes; power / statistical qualifier behind the subtype signal; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input (also read by Q4), annotation only (SK#1850)"
     reviewed: true
   n_subtypes_measured:
     role: context
+    interpretation_reach: skills_local
     reason: "count of measured subtypes; power / statistical qualifier behind the subtype signal; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input (also read by Q4), annotation only (SK#1850)"
     reviewed: true
   n_subtypes_restricted:
     role: context
+    interpretation_reach: skills_local
     reason: "count of restricted subtypes; power / statistical qualifier behind the subtype signal; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
     reviewed: true
   normal_comparator_type:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: identity/scope key
   per_subgroup_metrics:
-    role: display
-    reason: human-facing detail / large container
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "#1525 two-axis migration audit (legacy display was the auto-draft fallback, never a judgement): reclassified display->context. Reach-confirmed as an L2 INPUT via exact {claim_passthrough} reader(s) (census, blind to ledger; interpretation_reach=skills_local) - it is consumed as an input, not a display-only detail. Verdict-inert / byte-stable: this field is not role-tagged in any emitted numeric_anchor or claim atom, so the replay golden is unchanged."
   proxy_normal_tissues:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: identity/scope key
   purity_source:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: provenance/audit token
   spotlight_subtype:
     role: display
+    interpretation_reach: skills_local
     reason: "QUERY ECHO of the CLI --subtype, NOT a data-driven highlight: tcga_gtex_expression_distribution/read.py
       assigns the requested subtype verbatim, so it is null on every whole-cohort run and no invocation path in this
       repo passes --subtype. MEASURED BLIND AXIS (0 of 504 packages carry a value while the field IS reader-reached):
@@ -687,72 +951,99 @@ tumor-rna-distribution-by-subtype:
     reviewed: true
   subtype_axis_available:
     role: context
+    interpretation_reach: skills_local
     reason: "whether a subtype stratification axis exists for this indication; availability qualifier on the subtype signal; reached via {claim_passthrough, figure, skill_code} (census 2026-09-19)"
     reviewed: true
   subtype_axis_quality:
     role: context
+    interpretation_reach: skills_local
     reason: "power grade of the subtype axis (powered/exploratory/unavailable); certainty qualifier on the subtype signal; reached via {capsule, question_table, skill_code} (census 2026-09-19)"
     reviewed: true
   subtype_effect_size_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "per-subtype RNA effect-size call for the tumor arm; role:signal reach-confirmed via {capsule, claim_passthrough} (census 2026-09-19, blind to ledger)"
     reviewed: true
   subtype_omnibus_kruskal_h:
     role: context
+    interpretation_reach: unreached
     reason: "Kruskal-Wallis omnibus H across subgroups; statistical qualifier; no exact reader (census 2026-09-19)"
     reviewed: true
   subtype_omnibus_p:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   subtype_purity_spread:
     role: context
+    interpretation_reach: skills_local
     reason: "spread of tumor purity across subgroups; confound qualifier on the subtype signal; reached via {question_table, skill_code} (census 2026-09-19)"
     reviewed: true
   subtype_stratification_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "per-subtype tumor-RNA stratification call; role:signal reach-confirmed via {capsule, claim_passthrough, question_table, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   subtype_variance_explained:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   which_subtypes_separate:
-    role: display
-    reason: human-facing detail / large container
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "#1525 two-axis migration audit (legacy display was the auto-draft fallback, never a judgement): reclassified display->context. Reach-confirmed as an L2 INPUT via exact {claim_passthrough} reader(s) (census, blind to ledger; interpretation_reach=skills_local) - it is consumed as an input, not a display-only detail. Verdict-inert / byte-stable: this field is not role-tagged in any emitted numeric_anchor or claim atom, so the replay golden is unchanged."
 cellline-rna-distribution-by-subtype:
   cross_subgroup_delta_expression:
     role: context
+    interpretation_reach: unreached
     reason: "max cross-subgroup expression delta; magnitude behind subtype_stratification_class; no exact reader (census 2026-09-19)"
     reviewed: true
   max_subgroup_expression:
     role: context
+    interpretation_reach: unreached
     reason: "highest per-subgroup expression; magnitude behind the subtype call; no exact reader (census 2026-09-19)"
     reviewed: true
   min_subgroup_expression:
     role: context
+    interpretation_reach: unreached
     reason: "lowest per-subgroup expression; magnitude behind the subtype call; no exact reader (census 2026-09-19)"
     reviewed: true
   n_subgroups_with_data:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_subtypes_depleted:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   n_subtypes_enriched:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_subtypes_measured:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   per_subgroup_metrics:
     role: display
+    interpretation_reach: skills_local
+    reviewed: true
     reason: human-facing detail / large container
   pooled_lineage_median_log2tpm:
     role: context
+    interpretation_reach: unreached
     reason: "whole-lineage baseline the per-subgroup deltas are measured against; this card's READ surface is the class +
       axis-quality + spotlight lift at run.py::_headline"
     reviewed: true
   spotlight_subtype:
     role: display
+    interpretation_reach: skills_local
     reason: "DATA-DRIVEN argmax, unlike the identically named field on the tumour sibling card:
       depmap_expression_distribution/read.py::_subtype_rollup takes max(enriched, key=median_log2tpm)['stratum'], so it
       is null exactly when no stratum clears the enrichment bar. MEASURED BLIND AXIS explained by MISSING DATA, not by
@@ -763,44 +1054,59 @@ cellline-rna-distribution-by-subtype:
     reviewed: true
   subtype_axis_available:
     role: context
+    interpretation_reach: skills_local
     reason: "whether a DepMap subtype axis exists for this indication; availability qualifier; reached via {skill_code} (census 2026-09-19)"
     reviewed: true
   subtype_axis_quality:
     role: context
+    interpretation_reach: skills_local
     reason: "power grade of the DepMap subtype axis; certainty qualifier; reached via {skill_code} (census 2026-09-19)"
     reviewed: true
   subtype_stratification_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "per-subtype cell-line-RNA stratification call; role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
 tumor-protein-distribution-by-subtype:
   n_subtypes_depleted:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   n_subtypes_enriched:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_subtypes_measured:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   per_subgroup_metrics:
-    role: display
-    reason: human-facing detail / large container
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "#1525 two-axis migration audit (legacy display was the auto-draft fallback, never a judgement): reclassified display->context. Reach-confirmed as an L2 INPUT via exact {claim_passthrough} reader(s) (census, blind to ledger; interpretation_reach=skills_local) - it is consumed as an input, not a display-only detail. Verdict-inert / byte-stable: this field is not role-tagged in any emitted numeric_anchor or claim atom, so the replay golden is unchanged."
   pooled_cohort_median_log2_ratio:
     role: display
+    interpretation_reach: unreached
     reason: "SKILL.md:75 declares this card DISPLAY-ONLY / verdict-inert (CPTAC-protein subtype panorama, MSI_H/MSS
       COADREAD); the auto-drafted role:signal contradicted the skill's own declared design"
     reviewed: true
   subtype_axis_available:
     role: context
+    interpretation_reach: skills_local
     reason: "whether a CPTAC protein subtype axis exists; availability qualifier; reached via {skill_code} (census 2026-09-19)"
     reviewed: true
   subtype_axis_quality:
     role: context
+    interpretation_reach: skills_local
     reason: "power grade of the CPTAC protein subtype axis; certainty qualifier; reached via {skill_code} (census 2026-09-19)"
     reviewed: true
   subtype_stratification_class:
     role: display
+    interpretation_reach: skills_local
     reason: "SKILL.md:75 declares this card DISPLAY-ONLY / verdict-inert; Stage 5 now PROJECTS this arm onto the headline
       (protein_subtype_stratification_class) mirroring its cell-line twin, but it stays verdict-inert — it feeds no
       ladder rung and the pooled presence_verdict is byte-stable"
@@ -808,55 +1114,78 @@ tumor-protein-distribution-by-subtype:
 expression-purity-confound:
   cellular_source:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: provenance/audit token
   expression_purity_pearson_p:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   expression_purity_pearson_r:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   expression_purity_spearman_r:
     role: context
+    interpretation_reach: skills_local
     reason: "Spearman r of expression vs tumor purity; statistical qualifier behind purity_confound_class. Now consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input — the malignant-intrinsic confound magnitude, annotation only, never gates (SK#1850; supersedes the 'no exact reader' census-2026-09-19 note)"
     reviewed: true
   median_purity:
     role: context
+    interpretation_reach: skills_local
     reason: "median tumor purity of the paired cohort; magnitude behind purity_confound_class; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
     reviewed: true
   n_expr_samples:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   n_paired_samples:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   purity_confound_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "tumor-purity confound-severity call on the RNA signal; role:signal reach-confirmed via {display_rule, figure, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   purity_source:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: provenance/audit token
 cellline-rna-protein-concordance:
   n_paired_models:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   protein_detection_fraction:
     role: context
+    interpretation_reach: unreached
     reason: "marginal detection rate qualifying the READ rna_protein_r / rna_as_biomarker (question-table Q6)"
     reviewed: true
   release_pin:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: provenance/audit token
   rna_as_biomarker:
     role: signal
+    interpretation_reach: skills_local
     reason: "whether cell-line RNA tracks protein well enough to serve as a biomarker, as a call; role:signal reach-confirmed via {display_rule, figure, question_table, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   rna_expressed_fraction:
     role: context
+    interpretation_reach: unreached
     reason: "marginal expressed rate qualifying the READ rna_protein_r / rna_as_biomarker (question-table Q6)"
     reviewed: true
   rna_high_protein_low_fraction:
     role: signal
+    interpretation_reach: skills_local
     reason: "RNA-high / protein-low discordant-quadrant fraction, cell-line arm only; SELF-NORMALIZED, NO-INFORMATION
       value pinned at 0.10 by construction (eligibility is 'protein <= the 10th percentile OF THE SAME protein vector';
       measured median is exactly 0.1000, 228 of 374 non-null values within +/-0.005 of it, full range 0.0000-0.1333, so
@@ -870,132 +1199,178 @@ cellline-rna-protein-concordance:
     reviewed: true
   rna_protein_r:
     role: context
+    interpretation_reach: skills_local
     reason: "RNA-protein correlation coefficient; statistical qualifier behind rna_as_biomarker; reached via {question_table, salience, skill_code} (census 2026-09-19)"
     reviewed: true
   rna_protein_r_ci95_high:
     role: context
+    interpretation_reach: unreached
     reason: "Fisher-z 95% CI upper bound of the cell-line classifying correlation; statistical qualifier behind rna_as_biomarker; no consumer wired — the #1650 boundary-fragile corroboration down-weight reads the TUMOR arm only"
     reviewed: true
   rna_protein_r_ci95_low:
     role: context
+    interpretation_reach: unreached
     reason: "Fisher-z 95% CI lower bound of the cell-line classifying correlation; statistical qualifier behind rna_as_biomarker; no consumer wired — the #1650 boundary-fragile corroboration down-weight reads the TUMOR arm only"
     reviewed: true
   rna_protein_spearman:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   rna_proxy_class_boundary_fragile:
     role: context
+    interpretation_reach: unreached
     reason: "bool: the cell-line classifying-correlation 95% CI straddles an rna_as_biomarker class cut; qualifies the cell-line proxy call but no consumer is wired (the #1650 corroboration down-weight consumes the TUMOR arm only)"
     reviewed: true
   rna_proxy_classified_on:
     role: provenance
+    interpretation_reach: unreached
     reason: "'spearman' | 'pearson_fallback' — names which correlation statistic the cell-line rna_as_biomarker class was computed on; method/provenance token"
     reviewed: true
 rna-protein-concordance-tumor:
   cptac_cohort:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: identity/scope key
   n_paired_tumors:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   rna_as_biomarker:
     role: signal
+    interpretation_reach: skills_local
     reason: "whether tumor RNA tracks protein well enough to serve as a biomarker, as a call; role:signal reach-confirmed via {display_rule, figure, question_table, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   rna_protein_r:
     role: context
+    interpretation_reach: skills_local
     reason: "RNA-protein correlation coefficient; statistical qualifier behind rna_as_biomarker; reached via {question_table, salience, skill_code} (census 2026-09-19)"
     reviewed: true
   rna_protein_r_ci95_high:
     role: signal
+    interpretation_reach: skills_local
     reason: "Fisher-z 95% CI upper bound of the classifying RNA-protein correlation (tumor arm); read by run.py _strength_certainty via get_card_field and surfaced as the audit reason for the boundary-fragile corroboration demotion (#1650); role:signal reach-confirmed via {skill_code}"
     reviewed: true
   rna_protein_r_ci95_low:
     role: signal
+    interpretation_reach: skills_local
     reason: "Fisher-z 95% CI lower bound of the classifying RNA-protein correlation (tumor arm); read by run.py _strength_certainty via get_card_field and surfaced as the audit reason for the boundary-fragile corroboration demotion (#1650); role:signal reach-confirmed via {skill_code}"
     reviewed: true
   rna_protein_spearman:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   rna_proxy_class_boundary_fragile:
     role: signal
+    interpretation_reach: skills_local
     reason: "bool: the classifying-correlation 95% CI straddles an rna_as_biomarker class cut, so the adequate/partial/poor tumor proxy call can flip by sampling alone; consumed by _pres_corroboration/_strength_certainty to demote corroboration one ordinal level when the TUMOR arm is fragile (verdict-token-inert — moves only the certainty/composite sidecar; presence_verdict byte-stable) (#1650); role:signal reach-confirmed via {skill_code}"
     reviewed: true
   rna_proxy_classified_on:
     role: provenance
+    interpretation_reach: unreached
     reason: "'spearman' | 'pearson_fallback' — names which correlation statistic the tumor rna_as_biomarker class was computed on; method/provenance token, not a signal (the Pearson-vs-Spearman corpus-staleness concern is a separate corpus-regen item, #1650 guard-rail)"
     reviewed: true
   substrate:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: identity/scope key
 cellline-protein-abundance-procan:
   allgene_percentile:
     role: signal
+    interpretation_reach: skills_local
     reason: "pan-gene percentile of ProCan cell-line protein abundance; role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   allgene_percentile_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "categorical pan-gene percentile call for ProCan cell-line protein; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   allgene_percentile_context:
     role: provenance
+    interpretation_reach: unreached
+    reviewed: true
     reason: provenance/audit token
   fraction_detected:
     role: context
+    interpretation_reach: skills_local
     reason: "within-cohort breadth magnitude behind the READ protein_expression_class; _abundance_floor's docstring states
       the presence classes are breadth-of-detection DOMINANT, so the class is where the framework reads breadth"
     reviewed: true
   log2_abundance_iqr:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   median_log2_abundance_panel:
     role: signal
+    interpretation_reach: skills_local
     reason: "panel-median log2 protein abundance magnitude (ProCan); role:signal reach-confirmed via {salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
   method_version:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: provenance/audit token
   n_cell_lines_evaluated:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_cell_lines_in_panel:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier
   n_lineage_restricted_lineages:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_lineages_evaluated:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   p25_log2_abundance_panel:
     role: context
+    interpretation_reach: unreached
     reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
       allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder; card is DISPLAY-ONLY /
       verdict-inert per SKILL.md:78"
     reviewed: true
   p5_log2_abundance_panel:
     role: context
+    interpretation_reach: unreached
     reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
       allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder; card is DISPLAY-ONLY /
       verdict-inert per SKILL.md:78"
     reviewed: true
   p75_log2_abundance_panel:
     role: context
+    interpretation_reach: unreached
     reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
       allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder; card is DISPLAY-ONLY /
       verdict-inert per SKILL.md:78"
     reviewed: true
   p95_log2_abundance_panel:
     role: context
+    interpretation_reach: unreached
     reason: "panel dispersion around the READ median_log2_abundance_panel; this card's absolute-LEVEL axis is consumed via
       allgene_percentile{,_class} (run.py::_LEVEL_ANCHOR_CARDS), not the raw ladder; card is DISPLAY-ONLY /
       verdict-inert per SKILL.md:78"
     reviewed: true
   per_lineage_stats:
     role: display
+    interpretation_reach: skills_local
+    reviewed: true
     reason: human-facing detail / large container
   protein_abundance_source:
     role: provenance
+    interpretation_reach: unreached
     reason: "categorical MS-platform / dataset tag (e.g. procan_dia_swath) naming the ProCan protein-abundance source; provenance/audit token, not a signal"
     reviewed: true
   # protein_effect_size waiver REMOVED (#1853): same fix as the Gygi arm — target-contracts #939
@@ -1003,130 +1378,181 @@ cellline-protein-abundance-procan:
   # emits and there is nothing to waive. Forced-atomic with the TC pin bump in skills-validate.yml.
   protein_expression_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "headline ProCan cell-line protein presence call; role:signal reach-confirmed via {capsule, salience} (census 2026-09-19, blind to ledger)"
     reviewed: true
 hpa-pathology-cancer-ihc:
   protein_presence_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "primary antibody-IHC protein-presence-in-tumor readout (protein_ihc/tumor bucket)"
     reviewed: true
   fraction_detected:
     role: signal
+    interpretation_reach: skills_local
     reason: "(High+Medium+Low)/total — the continuous presence signal the class keys on"
     reviewed: true
   fraction_moderate_strong:
     role: context
+    interpretation_reach: skills_local
     reason: "(High+Medium)/total \u2014 moderate-or-strong staining fraction; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input \u2014 MS-independent antibody-IHC protein prevalence, annotation only, never gates (SK#1850)"
     reviewed: true
   staining_score:
     role: context
+    interpretation_reach: skills_local
     reason: "0-3 weighted intensity across patients; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
     reviewed: true
   n_high:
     role: context
+    interpretation_reach: skills_local
     reason: "component staining count; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
     reviewed: true
   n_medium:
     role: context
+    interpretation_reach: skills_local
     reason: "component staining count; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
     reviewed: true
   n_low:
     role: context
+    interpretation_reach: skills_local
     reason: "component staining count; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
     reviewed: true
   n_not_detected:
     role: context
+    interpretation_reach: skills_local
     reason: "component staining count; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
     reviewed: true
   n_patients_total:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: "power / detection denominator"
   hpa_cancer_type:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: "the HPA broad cancer type the OncoTree indication mapped to (granularity provenance)"
   prognostic_type:
     role: display
+    interpretation_reach: unreached
+    reviewed: true
     reason: "HPA survival-association direction (favorable/unfavorable) \u2014 display context, not a presence signal"
   prognostic_is_significant:
     role: display
+    interpretation_reach: unreached
+    reviewed: true
     reason: "HPA prognostic significance flag \u2014 display context"
   prognostic_p_value:
     role: display
+    interpretation_reach: unreached
+    reviewed: true
     reason: "HPA prognostic association p-value \u2014 display context"
   method_version:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: provenance/audit token
 
 normal-tissue-liability:
   essential_tissue_flag:
     role: signal
+    interpretation_reach: skills_local
     reason: "boolean essential-normal-tissue safety flag; fires a gating rule and is surfaced as salient; a heuristic mis-bucket into display, corrected here (does not move presence_verdict); role:signal reach-confirmed via {display_rule, gating_rule, salience, skill_code} (census 2026-09-19)"
     reviewed: true
   essential_tissues_flagged:
     role: context
+    interpretation_reach: skills_local
     reason: "list naming which essential tissues drove essential_tissue_flag; identifies the subject of the flag; reached via {skill_code} (census 2026-09-19)"
     reviewed: true
   hpa_tissue_distribution:
     role: display
+    interpretation_reach: unreached
     reason: "per-tissue HPA distribution container; verdict-inert human-facing detail; no exact reader (census 2026-09-19)"
     reviewed: true
   hpa_tissue_specificity:
     role: context
+    interpretation_reach: skills_local
     reason: "HPA tissue-specificity category; cross-axis selectivity qualifier surfaced in presence; reached via {salience} (census 2026-09-19)"
     reviewed: true
   method_version:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: provenance/audit token
   n_essential_tissues_with_expression:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   n_specific_tissues:
     role: display
+    interpretation_reach: unreached
+    reviewed: true
     reason: human-facing detail / large container
   normal_tissue_breadth_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "breadth of normal-tissue expression; the selectivity-liability call surfaced in presence; role:signal reach-confirmed via {display_rule, question_table, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   safety_tissue_flags:
-    role: display
-    reason: human-facing detail / large container
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "#1525 two-axis migration audit (legacy display was the auto-draft fallback, never a judgement): reclassified display->context. Reach-confirmed as an L2 INPUT via exact {skill_code} reader(s) (census, blind to ledger; interpretation_reach=skills_local) - it is consumed as an input, not a display-only detail. Verdict-inert / byte-stable: this field is not role-tagged in any emitted numeric_anchor or claim atom, so the replay golden is unchanged."
   specific_tissues:
-    role: display
-    reason: human-facing detail / large container
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "#1525 two-axis migration audit (legacy display was the auto-draft fallback, never a judgement): reclassified display->context. Reach-confirmed as an L2 INPUT via exact {question_table} reader(s) (census, blind to ledger; interpretation_reach=skills_local) - it is consumed as an input, not a display-only detail. Verdict-inert / byte-stable: this field is not role-tagged in any emitted numeric_anchor or claim atom, so the replay golden is unchanged."
 sc-normal-celltype-expression:
   expressing_donor_fraction_max:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   sc_normal_abundance_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "normal-tissue abundance at the liability-anchor cell — sharpens window breadcrumb (#984 Tier-2)"
     reviewed: true
   sc_normal_peak_median_abund:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: magnitude behind sc_normal_abundance_class (#984 Tier-2)
   max_detection_cell_type:
     role: context
+    interpretation_reach: skills_local
     reason: "names the normal cell type with peak detection that max_detection_fraction refers to; cross-axis pointer; reached via {skill_code} (census 2026-09-19)"
     reviewed: true
   max_detection_fraction:
     role: signal
+    interpretation_reach: skills_local
     reason: "peak normal single-cell detection fraction; magnitude behind the normal-expression call; role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   method_version:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: provenance/audit token
   n_cell_types_above_20pct:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier
   safety_essential_flags:
-    role: display
-    reason: human-facing detail / large container
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "#1525 two-axis migration audit (legacy display was the auto-draft fallback, never a judgement): reclassified display->context. Reach-confirmed as an L2 INPUT via exact {skill_code} reader(s) (census, blind to ledger; interpretation_reach=skills_local) - it is consumed as an input, not a display-only detail. Verdict-inert / byte-stable: this field is not role-tagged in any emitted numeric_anchor or claim atom, so the replay golden is unchanged."
   sc_normal_expression_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "normal single-cell expression call (selectivity liability); role:signal reach-confirmed via {capsule, display_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   sc_normal_safety_essential_class:
     role: signal
+    interpretation_reach: skills_local
     reason: "binary essential-cell safety call; fires the BiTE/TCE killer gate; read at run.py:1960 and salient at :2153 (graded successor is sc_normal_essential_veto_grade below); role:signal reach-confirmed via {capsule, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
   # The GRADED successor to sc_normal_safety_essential_class (analysis-methods #647 + target-contracts
@@ -1145,12 +1571,15 @@ sc-normal-celltype-expression:
   # close in the skills projection layer, NOT a reason to under-declare the role here.
   sc_normal_essential_veto_grade:
     role: signal
+    interpretation_reach: skills_local
     reason: "graded essential-cell veto (compartment x severity) — gates the dominant BiTE/TCE killer via
       surface-intrinsic.rules.yaml; supersedes sc_normal_safety_essential_class, which tumor-presence still
       reads at run.py:1960 while this field is unread by any skill code (see comment above)"
     reviewed: true
   tissues_queried:
     role: provenance
+    interpretation_reach: skills_local
+    reviewed: true
     reason: identity/scope key
   # sc-normal selectivity-optimization emit (W1a, 2026-09-04): the named essential-cell driver + its
   # per-cell-type magnitudes/coverage. Verdict-INERT in tumor-presence — NONE of these are read by any
@@ -1159,31 +1588,49 @@ sc-normal-celltype-expression:
   # label→display, coverage/power→context). The sc-normal owner may refine context-vs-display, but the
   # roles are verdict-safe as-is (no field here drives the presence verdict).
   sc_normal_essential_max_cell_type:
-    role: display
-    reason: named essential cell-type label (human-facing driver identity)
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "#1525 two-axis migration audit (legacy display was the auto-draft fallback, never a judgement): reclassified display->context. Reach-confirmed as an L2 INPUT via exact {skill_code} reader(s) (census, blind to ledger; interpretation_reach=skills_local) - it is consumed as an input, not a display-only detail. Verdict-inert / byte-stable: this field is not role-tagged in any emitted numeric_anchor or claim atom, so the replay golden is unchanged."
   sc_normal_essential_max_tissue:
-    role: display
-    reason: named essential tissue label (human-facing driver identity)
+    role: context
+    interpretation_reach: skills_local
+    reviewed: true
+    reason: "#1525 two-axis migration audit (legacy display was the auto-draft fallback, never a judgement): reclassified display->context. Reach-confirmed as an L2 INPUT via exact {skill_code} reader(s) (census, blind to ledger; interpretation_reach=skills_local) - it is consumed as an input, not a display-only detail. Verdict-inert / byte-stable: this field is not role-tagged in any emitted numeric_anchor or claim atom, so the replay golden is unchanged."
   sc_normal_essential_max_detection_fraction:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: detection magnitude behind the named essential driver
   sc_normal_essential_median_abund:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: abundance magnitude behind the named essential driver (cf. sc_normal_peak_median_abund)
   sc_normal_essential_donor_fraction:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: power / statistical qualifier for the essential read
   sc_normal_essential_n_datasets_reliable:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: dataset-coverage / power qualifier for the essential read
   sc_normal_ceiling_detection_fraction:
     role: context
+    interpretation_reach: skills_local
+    reviewed: true
     reason: detection-ceiling magnitude behind the essential read
   n_reliable_cell_types:
     role: context
+    interpretation_reach: unreached
+    reviewed: true
     reason: power / statistical qualifier (cf. n_cell_types_above_20pct)
   per_cell_type_top:
     role: display
+    interpretation_reach: unreached
+    reviewed: true
     reason: human-facing detail / large per-cell-type container (cf. safety_essential_flags)
   # scRNA off-origin-split echo (TC#882/F12, surfaced by 468c3dc). Pure provenance, verdict-INERT:
   # these echo the basis of the scRNA `origin_tissue_liability` ABSTAIN (essential-cell expression
@@ -1192,11 +1639,13 @@ sc-normal-celltype-expression:
   # (literal card-id subscript alias → census-visible, blind to this ledger); routes no signal/tier/rule.
   origin_tissues:
     role: provenance
+    interpretation_reach: skills_local
     reason: "tumor tissue(s)-of-origin used for the scRNA off-origin split; echoed as off_origin_split
       provenance by safety_claims.py (#1770), never a signal — identity/scope key"
     reviewed: true
   indication:
     role: provenance
+    interpretation_reach: skills_local
     reason: "the indication resolved to origin_tissues for the scRNA off-origin split; echoed as
       off_origin_split provenance by safety_claims.py (#1770), never a signal — identity/scope key"
     reviewed: true

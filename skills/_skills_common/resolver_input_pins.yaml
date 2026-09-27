@@ -1,0 +1,51 @@
+# Cross-repo resolver-input reach pins (issue #1525 — the interpretation_reach axis of the
+# two-axis field-disposition contract; see field_disposition_contract.py).
+#
+# WHAT. The census (field_disposition.py) scrapes the SKILLS tree only, so a field whose only
+# interpreter is the analysis-methods property resolver is census-INVISIBLE to a skills-side scan and
+# was surfaced as a REVIEW candidate rather than credited with reach. This artifact records, per card,
+# the raw `summary.get("<field>")` literals that the pinned analysis-methods property-resolver module
+# reads — the cross-repo reach the local scan cannot see. `resolver_input_readers()` loads this file
+# and intersects the literals with the card's DECLARED summary_fields (narrow, never widen), crediting
+# each surviving pair with the `resolver_input` reach kind.
+#
+# WHY COMMITTED (not a live scrape). Skills CI checks out the analysis-methods sibling at a PINNED
+# commit (skills-validate.yml), and a skills-only / credential-less checkout has no sibling at all.
+# Committing the pins makes the census DETERMINISTIC in every environment and keeps a skills-only
+# checkout from going dark (mirrors field_read_health_sidecar's committed-roster pattern). The live
+# AM tree is read only by the AM-sibling-gated freshness test (test_field_disposition.py
+# ::test_resolver_input_pins_match_am_tree), which re-derives these literals from `analysis_methods_commit`
+# and asserts equality — and SKIPS when the sibling or that commit object is absent.
+#
+# WHY PINNED. Without a pinned commit the census would silently re-baseline on every analysis-methods
+# landing (the "pinned triple" problem). `analysis_methods_commit` is the AM commit these literals were
+# scraped from; the freshness test reads the resolver file AT that commit (`git show <sha>:<module>`),
+# independent of whatever the sibling's HEAD is. NOTE: this commit is DELIBERATELY newer than the AM
+# commit skills CI checks out (skills-validate.yml pins 22dff19b, 2026-09-19, which PREDATES the
+# resolver module — added 2026-09-24 in #720 / 82c39041). So the freshness test skips in CI (the shallow
+# CI checkout lacks this object) and runs locally against a full clone. Regenerate with
+# _skills_common/regenerate_resolver_input_pins.py after an AM resolver change, then re-bank the aperture.
+
+analysis_methods_commit: 82c39041575ac65a09e8292e5953d55b0a8e9da2
+
+# card_id -> { analysis-methods module path -> [raw summary.get() literals it reads] }.
+# Literals are the RAW reads; the census intersects them with the card's declared summary_fields, so a
+# read of a field the card does not declare (e.g. `_no_data`, `control_target_percentile`) contributes
+# nothing. The card<->module binding is by the resolver's single caller (the method module that computes
+# these fields imports resolve_expression_properties) — declared here, not inferred at the read site,
+# because the resolver names its functions by PROPERTY (_heterogeneity, _prevalence), never by card.
+resolver_reads:
+  cellline-rna-distribution:
+    methods/expression_properties/resolve.py:
+      - _no_data
+      - allgene_percentile
+      - coefficient_of_variation
+      - control_target_percentile
+      - distribution_pattern
+      - expression_class
+      - fraction_expressed
+      - fraction_highly_expressed
+      - median_log2tpm_panel
+      - n_lineage_restricted_lineages
+      - n_lineages_evaluated
+      - per_lineage_stats

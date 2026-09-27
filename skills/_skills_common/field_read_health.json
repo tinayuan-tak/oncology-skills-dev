@@ -2138,6 +2138,7 @@
       "metric_gloss",
       "narrative",
       "question_table",
+      "resolver_input",
       "salience",
       "skill_code"
     ]

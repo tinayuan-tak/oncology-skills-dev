@@ -58,6 +58,7 @@ if str(_SKILLS_ROOT) not in sys.path:
 
 from _skills_common import field_descriptor as fdesc  # noqa: E402
 from _skills_common import field_disposition as fd  # noqa: E402
+from _skills_common import field_disposition_contract as fdc  # noqa: E402
 from _skills_common import field_disposition_ledger as fdl  # noqa: E402
 
 _CARD1 = "cellline-rna-distribution"
@@ -109,13 +110,28 @@ def classify_card(card_id: str, cen: dict, sig_salience: set, card_mt: dict) -> 
         readers = cen.get((card_id, field)) or {"exact": set(), "name_only": set()}
         exact = set(readers.get("exact") or ())
         auto = exact & AUTO_SIGNAL_KINDS
+        cross = exact & set(fd.CROSS_REPO_KINDS)
         sig_sal = (card_id, field) in sig_salience
         signal_reach = sorted(auto) + (["salience(signal-slot)"] if sig_sal else [])
         descriptor_role = fdesc.classify_field(field, mt)
+        reach_axis = fdc.interpretation_reach_for(readers)
 
         if signal_reach:
             proposal, review = "signal", False
             basis = "exact signal-bearing reach: " + ", ".join(signal_reach)
+        elif cross:
+            # CROSS-REPO resolver input (issue #1525). The field IS consumed — by the analysis-methods
+            # property resolver — so it is NEITHER an orphan NOR a review candidate; it earns cross-repo
+            # interpretation_reach. But the raw measurement is a context INPUT, not itself a signal: the
+            # signal attaches to the RESOLVED property (`expression_properties`), never to the raw skills
+            # field. So propose `context`, decided (review=False). This replaces the old REVIEW-candidate
+            # fallback that a cross-repo-only field previously fell into.
+            proposal, review = "context", False
+            basis = (
+                f"cross-repo reach via {sorted(cross)} (analysis-methods property resolver) — the raw "
+                "measurement is a context input; the signal attaches to the resolved property, so "
+                "role=context, NOT signal"
+            )
         elif exact:
             # reached, but only by kinds that cannot decide signal-vs-context on their own.
             proposal = _DESCRIPTOR_FALLBACK.get(descriptor_role, "context")
@@ -149,6 +165,7 @@ def classify_card(card_id: str, cen: dict, sig_salience: set, card_mt: dict) -> 
                 "name_only_reach": sorted(readers.get("name_only") or ()),
                 "descriptor_role": descriptor_role,
                 "proposed": proposal,
+                "interpretation_reach": reach_axis,
                 "review_candidate": review,
                 "basis": basis,
             }

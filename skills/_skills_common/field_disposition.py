@@ -59,7 +59,14 @@ _ISO_DAY_RE = re.compile(r"20\d\d-\d\d-\d\d")
 # records whether the kind can bind a field to a SPECIFIC card, or only to a field NAME.
 DECLARATIVE_KINDS = ("gating_rule", "display_rule", "capsule", "salience", "metric_gloss")
 CODE_KINDS = ("claim_passthrough", "question_table", "narrative", "figure", "skill_code")
-READER_KINDS = DECLARATIVE_KINDS + CODE_KINDS
+# ★ CROSS-REPO kinds credit reach realised OUTSIDE the skills tree — the interpretation_reach axis of
+# the two-axis disposition contract (issue #1525). `resolver_input`: a field read by the
+# analysis-methods property resolver (methods/expression_properties/resolve.py). The census cannot see
+# that from a skills-side scan, so the reach is sourced from a committed, AM-commit-PINNED artifact
+# (`resolver_input_pins.yaml`) rather than a live scrape — deterministic in CI and safe in a skills-only
+# checkout. See field_disposition_contract.py for how this maps to interpretation_reach=cross_repo.
+CROSS_REPO_KINDS = ("resolver_input",)
+READER_KINDS = DECLARATIVE_KINDS + CODE_KINDS + CROSS_REPO_KINDS
 
 # Kinds that can only ever credit a field NAME (they carry no card_id in their declaration).
 NAME_ONLY_KINDS = frozenset({"metric_gloss"})
@@ -101,6 +108,11 @@ READER_SOURCES = {
     "contracts_declarations": frozenset({"gating_rule", "display_rule", "capsule", "salience"}),
     "skills_tree_ast": frozenset({"claim_passthrough", "question_table", "narrative", "figure", "skill_code"}),
     "gloss_table": frozenset({"metric_gloss"}),
+    # A fourth independent input: the committed cross-repo resolver-input pins (issue #1525). Its
+    # liveness is the committed artifact, NOT the analysis-methods sibling — so it stays alive in a
+    # credential-less / skills-only checkout, and `reader_sources_alive` does not red one. The live AM
+    # tree is consulted only by the AM-gated freshness test.
+    "analysis_methods_resolver": frozenset({"resolver_input"}),
 }
 
 
@@ -315,6 +327,118 @@ def gloss_readers() -> set:
     from _skills_common.display_gloss import METRIC_GLOSS
 
     return set(METRIC_GLOSS)
+
+
+# ── cross-repo reader: the analysis-methods property resolver (issue #1525) ─────────────────────────
+#: The committed pins artifact recording which (card, field) pairs the analysis-methods property
+#: resolver reads. Committed on purpose — see the header of the file itself. Lives beside this module.
+RESOLVER_INPUT_PINS_NAME = "resolver_input_pins.yaml"
+
+
+def _resolver_input_pins_path(skills_root: Path | None = None) -> Path:
+    """Path to the committed resolver-input pins. Resolved beside this module by default so the census
+    reads the SAME artifact whether invoked from the repo, a worktree, or an installed tree; a
+    ``skills_root`` is honoured when given so a caller can point at an alternate tree."""
+    if skills_root is not None:
+        return Path(skills_root) / "_skills_common" / RESOLVER_INPUT_PINS_NAME
+    return Path(__file__).resolve().parent / RESOLVER_INPUT_PINS_NAME
+
+
+@functools.lru_cache(maxsize=4)
+def load_resolver_input_pins(skills_root: Path | None = None) -> dict:
+    """The committed pins doc, or ``{}`` when the artifact is absent (a skills tree that never adopted
+    the cross-repo axis). Absence yields NO reach, never an error — the census must degrade, not red."""
+    path = _resolver_input_pins_path(skills_root)
+    if not path.exists():
+        return {}
+    return yaml.safe_load(path.read_text()) or {}
+
+
+def resolver_input_readers(skills_root: Path | None = None, contracts_repo: Path | None = None) -> set:
+    """``{(card_id, field)}`` credited with cross-repo ``resolver_input`` reach.
+
+    Reads the COMMITTED pins (not a live analysis-methods scrape), so this is deterministic and
+    identical in CI, in a worktree, and in a credential-less checkout. Each raw resolver-read literal is
+    intersected with the card's DECLARED ``summary_fields`` — narrow, never widen: a resolver read of a
+    field the card does not declare (a scratch key like ``_no_data``, or an input the resolver derives
+    from a sibling method such as ``control_target_percentile``) contributes nothing, exactly as the
+    figure dispatch-table join filters by declaration.
+    """
+    doc = load_resolver_input_pins(skills_root)
+    reads = doc.get("resolver_reads") or {}
+    declared = declared_fields(contracts_repo)
+    pairs: set = set()
+    for card_id, modules in reads.items():
+        card_declared = set(declared.get(card_id) or ())
+        if not card_declared:
+            continue
+        for _module, literals in (modules or {}).items():
+            for field in literals or ():
+                if field in card_declared:
+                    pairs.add((card_id, field))
+    return pairs
+
+
+def scrape_am_resolver_reads(am_root: Path, doc: dict) -> dict | None:
+    """Re-derive ``{card_id: {module: sorted[literals]}}`` from the analysis-methods tree at the PINNED
+    commit — the freshness/regeneration path, NOT a census input.
+
+    Returns ``None`` (degrade gracefully) when the sibling is absent, is not a git repo, or does not
+    contain the pinned commit object — which is the normal state of skills CI's shallow checkout, so a
+    caller gates a freshness assertion on a non-None result. Reads each module's content with
+    ``git show <commit>:<module>`` so it binds to the pinned commit regardless of the sibling's HEAD.
+    """
+    import subprocess
+
+    am_root = Path(am_root)
+    commit = (doc or {}).get("analysis_methods_commit")
+    reads = (doc or {}).get("resolver_reads") or {}
+    if not (am_root / ".git").exists() or not commit:
+        return None
+    # The pinned object must be present in this checkout; a shallow CI clone at an older ref will not
+    # have it. Probe once, cheaply, and degrade to None if it is missing.
+    probe = subprocess.run(
+        ["git", "-C", str(am_root), "cat-file", "-e", f"{commit}^{{commit}}"],
+        capture_output=True,
+    )
+    if probe.returncode != 0:
+        return None
+    out: dict = {}
+    for card_id, modules in reads.items():
+        out[card_id] = {}
+        for module in modules or {}:
+            blob = subprocess.run(
+                ["git", "-C", str(am_root), "show", f"{commit}:{module}"],
+                capture_output=True,
+                text=True,
+            )
+            if blob.returncode != 0:
+                return None
+            out[card_id][module] = sorted(_summary_get_literals(blob.stdout))
+    return out
+
+
+def _summary_get_literals(source: str) -> set:
+    """Every string literal read as ``summary.get("<literal>")`` in ``source`` (AST, never regex).
+
+    The analysis-methods resolver reads every raw field this uniform way; there is no declared list to
+    parse. Bound to the receiver named ``summary`` so an unrelated ``.get`` on some other dict cannot
+    fabricate a field.
+    """
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return set()
+    out: set = set()
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "get"):
+            continue
+        recv = node.func.value
+        if isinstance(recv, ast.Name) and recv.id == "summary" and node.args:
+            lit = _literal(node.args[0])
+            if lit:
+                out.add(lit)
+    return out
 
 
 # ── code readers (AST, never regex) ───────────────────────────────────────────────────────────────
@@ -733,6 +857,7 @@ def census(skills_root: Path, contracts_repo: Path | None = None) -> dict:
     exact: dict[str, set] = dict(rule_readers(contracts_repo))
     exact["capsule"] = capsule_readers(contracts_repo)
     exact["salience"] = salience_readers(contracts_repo)
+    exact["resolver_input"] = resolver_input_readers(skills_root, contracts_repo)
     code_exact, code_name_only = code_readers(skills_root, contracts_repo)
     exact.update(code_exact)
 

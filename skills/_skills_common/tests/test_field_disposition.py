@@ -571,7 +571,27 @@ def test_census_reaches_some_fields_but_not_all():
 # SET-DIFFERENCE-pinned below in test_provider_call_corroboration_is_read_exact. 755 <= ceiling and
 # 755 - 755 = 0 <= APERTURE_SLACK 20. Skills-side code reader → no contracts reader moved → the pin bump
 # to include #943 (owned by #1624, already on main) is the separate half of this unit; NO pin move here.
-APERTURE_CEILING = 755
+# ── BANKED 2026-09-27 755 → 754 (SK#1525, the interpretation_reach axis of the two-axis field-disposition
+# contract — field_disposition_contract.py). Measured against the SAME CI aperture pin target-contracts
+# 09102dc8 (skills-validate.yml L412), domain 1821. THIS BRANCH adds the cross-repo `resolver_input` reader
+# kind + the `analysis_methods_resolver` census source: a field read by the analysis-methods property
+# resolver (methods/expression_properties/resolve.py) now earns reach via the COMMITTED pins artifact
+# (_skills_common/resolver_input_pins.yaml), so it is neither a census-invisible orphan nor mis-promoted to
+# signal (its role stays context — the signal attaches to the resolved property, not the raw measurement).
+#
+# The bank is a 2×2 over (skills trunk vs THIS branch) × (old AM pin 22dff19b vs the pinned 82c39041), and
+# only ONE cell moves the counter:
+#   * (trunk, either AM pin)  → 755. Trunk has no `resolver_input` source at all.
+#   * (branch, either AM pin) → 754. The reach credit is read from the COMMITTED pins, NOT the live AM
+#     tree, so it is INVARIANT to which AM commit CI checks out (CI's 22dff19b even PREDATES the resolver
+#     module). The AM pin only gates the freshness test (test_resolver_input_pins_match_am_tree), which
+#     SKIPS unless the sibling has the pinned object — it never moves this ceiling.
+# So the AM-pin axis is inert here by construction; the only live edge is trunk→branch = 755→754. The
+# `resolver_input` kind credits 10 declared cellline-rna-distribution pairs, but 9 already carried
+# name_only reach; exactly ONE (`fraction_highly_expressed`) LEFT the orphan set — SET-DIFFERENCE-pinned
+# below in test_resolver_input_reach_clears_the_lone_orphan. 754 <= ceiling and 755 - 754 = 1 <=
+# APERTURE_SLACK 20. Verdict-inert / byte-stable: adds a reach dimension, moves no verdict, touches no golden.
+APERTURE_CEILING = 754
 
 # Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
 # into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of
@@ -762,6 +782,90 @@ def test_provider_call_corroboration_is_read_exact():
             f"{pair} is not an EXACT claim_passthrough read (exact={sorted(exact)}) — the provider-call "
             "corroboration reader in presence_claims.py::_claim_B has regressed and the pair is orphaned again"
         )
+
+
+# The cross-repo resolver-input cluster wired 2026-09-27 (the 755 → 754 bank above, SK#1525). Pinned as a
+# SET DIFFERENCE: the census must credit EVERY declared cellline-rna-distribution field the pinned
+# analysis-methods resolver reads with the `resolver_input` reach kind, and the ONE that was a true orphan
+# (`fraction_highly_expressed`) must have LEFT the orphan set. The ceiling assertion alone counts pairs and
+# cannot tell "credited the resolver family" from "credited 1 unrelated pair while this regressed". Remove
+# the `resolver_input` wiring in census() / delete the committed pins and this reds, independent of the count.
+# NOTE: `resolver_input` reach is `context`, NOT `signal` — the signal attaches to the resolved property in
+# analysis-methods, never to the raw skills measurement. So this pins REACH (axis 2), not role (axis 1).
+_RESOLVER_INPUT_CARD = "cellline-rna-distribution"
+_RESOLVER_INPUT_DECLARED_READS = frozenset(
+    {
+        # the raw resolver reads (resolver_input_pins.yaml) that ALSO appear in the card's declared
+        # summary_fields — the census intersects, so scratch keys (_no_data) and sibling-derived inputs
+        # (control_target_percentile) that the card does not declare are deliberately absent here.
+        "allgene_percentile",
+        "coefficient_of_variation",
+        "distribution_pattern",
+        "expression_class",
+        "fraction_expressed",
+        "fraction_highly_expressed",
+        "median_log2tpm_panel",
+        "n_lineage_restricted_lineages",
+        "n_lineages_evaluated",
+        "per_lineage_stats",
+    }
+)
+# The lone member that was a candidate_orphan before the reach axis (no exact AND no name_only reader); its
+# departure from the orphan set is the entire 755 → 754 bank.
+_RESOLVER_INPUT_CLEARED_ORPHAN = "fraction_highly_expressed"
+
+
+@needs_contracts
+def test_resolver_input_reach_clears_the_lone_orphan():
+    """SET-DIFFERENCE pin for the 755 → 754 bank (SK#1525): every declared cellline-rna-distribution field
+    the pinned analysis-methods resolver reads must carry EXACT `resolver_input` reach, and
+    `fraction_highly_expressed` — the one that had no skills-side reader at all — must no longer be an
+    orphan. Removing the `resolver_input` credit in census() reds this regardless of the aggregate ceiling."""
+    cen = fd.census(SKILLS_ROOT)
+    credited = {
+        field
+        for (card, field), r in cen.items()
+        if card == _RESOLVER_INPUT_CARD and "resolver_input" in (r.get("exact") or set())
+    }
+    assert credited == _RESOLVER_INPUT_DECLARED_READS, (
+        "resolver_input reach drifted: "
+        f"missing={sorted(_RESOLVER_INPUT_DECLARED_READS - credited)}, "
+        f"unexpected={sorted(credited - _RESOLVER_INPUT_DECLARED_READS)} — the committed pins "
+        "(resolver_input_pins.yaml) or the census wiring changed; re-pin and re-bank the aperture"
+    )
+    # the cleared orphan: reached NOW, and by resolver_input specifically (nothing skills-side reads it).
+    pair = (_RESOLVER_INPUT_CARD, _RESOLVER_INPUT_CLEARED_ORPHAN)
+    r = cen[pair]
+    assert "resolver_input" in (r.get("exact") or set()), (
+        f"{pair} lost its resolver_input reach — it is a candidate orphan again and the 754 bank is invalid"
+    )
+    assert not (set(r.get("exact") or set()) - {"resolver_input"}) and not (r.get("name_only") or set()), (
+        f"{pair} unexpectedly gained a skills-side reader ({r}) — re-pin: it is no longer the resolver-ONLY "
+        "field this bank was measured against"
+    )
+
+
+def test_resolver_input_pins_match_am_tree():
+    """AM-SIBLING-GATED FRESHNESS: re-derive the resolver reads from the analysis-methods tree AT THE PINNED
+    COMMIT (`git show <sha>:<module>`) and assert they still equal the committed pins. This is the ONLY test
+    that touches the live AM tree; it SKIPS when the sibling is absent or lacks the pinned object — which is
+    the normal state of skills CI's shallow checkout (pinned to an AM ref that predates the resolver), so the
+    census's determinism is never at the mercy of a credential or a sibling. Runs against a full local clone."""
+    from _skills_common.paths import analysis_methods_root
+
+    doc = fd.load_resolver_input_pins(SKILLS_ROOT)
+    assert doc.get("resolver_reads"), "resolver_input_pins.yaml is missing or has no resolver_reads block"
+    scraped = fd.scrape_am_resolver_reads(analysis_methods_root(), doc)
+    if scraped is None:
+        pytest.skip("analysis-methods sibling absent or pinned commit object unavailable (e.g. CI shallow checkout)")
+    for card, modules in (doc.get("resolver_reads") or {}).items():
+        for module, pinned in modules.items():
+            live = set(scraped.get(card, {}).get(module) or ())
+            assert set(pinned) == live, (
+                f"resolver_input pins are STALE for {card}:{module}: pinned={sorted(pinned)} vs "
+                f"live-at-{doc['analysis_methods_commit'][:8]}={sorted(live)} — regenerate the pins "
+                "(_skills_common/regenerate_resolver_input_pins.py) and re-bank the aperture in the SAME PR"
+            )
 
 
 @needs_contracts

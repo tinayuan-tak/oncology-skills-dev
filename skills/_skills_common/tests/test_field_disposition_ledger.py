@@ -145,24 +145,35 @@ def test_a_reached_signal_is_never_flagged():
 
 def test_dark_reach_sources_names_each_half_independently():
     """The point of returning SOURCES rather than a bool: a partially degraded census keeps most reach
-    and flips only a few fields, so a total cannot see it. Contracts-only reach must report the skills
-    side dark, and vice versa."""
+    and flips only a few fields, so a total cannot see it. Each independent census input must report
+    dark when it alone finds nothing: contracts-only reach reports the skills side (and, per #1525, the
+    cross-repo resolver side) dark, and vice versa."""
     assert fdl.dark_reach_sources({}) == sorted(fd.exact_capable_sources())
     contracts_only = {("c", "f"): {"gating_rule", "capsule"}}
-    assert fdl.dark_reach_sources(contracts_only) == ["skills_tree_ast"]
+    assert fdl.dark_reach_sources(contracts_only) == ["analysis_methods_resolver", "skills_tree_ast"]
     code_only = {("c", "f"): {"skill_code", "figure"}}
-    assert fdl.dark_reach_sources(code_only) == ["contracts_declarations"]
-    both = {("c", "f"): {"salience"}, ("c", "g"): {"question_table"}}
-    assert fdl.dark_reach_sources(both) == []
+    assert fdl.dark_reach_sources(code_only) == ["analysis_methods_resolver", "contracts_declarations"]
+    # #1525: the analysis-methods property resolver is a third independent census input (cross-repo
+    # reach, kind `resolver_input`); resolver-only reach must report BOTH skills-side inputs dark.
+    resolver_only = {("c", "f"): {"resolver_input"}}
+    assert fdl.dark_reach_sources(resolver_only) == ["contracts_declarations", "skills_tree_ast"]
+    all_three = {
+        ("c", "f"): {"salience"},
+        ("c", "g"): {"question_table"},
+        ("c", "h"): {"gating_rule"},
+        ("c", "i"): {"resolver_input"},
+    }
+    assert fdl.dark_reach_sources(all_three) == []
 
 
 def test_exact_capable_sources_excludes_name_only_kinds():
     """`gloss_table` holds only `metric_gloss`, a NAME_ONLY kind, so it can never appear in `exact`
     evidence. Asserting it alive against exact reach would be a condition false by construction — the
-    reason this set is derived rather than hand-listed."""
+    reason this set is derived rather than hand-listed. `analysis_methods_resolver` (#1525) IS exact-
+    capable — its `resolver_input` kind is a literal cross-repo read — so it belongs in this set."""
     srcs = fd.exact_capable_sources()
     assert "gloss_table" not in srcs
-    assert set(srcs) == {"contracts_declarations", "skills_tree_ast"}
+    assert set(srcs) == {"analysis_methods_resolver", "contracts_declarations", "skills_tree_ast"}
     for kinds in srcs.values():
         assert not (kinds & fd.NAME_ONLY_KINDS)
 
