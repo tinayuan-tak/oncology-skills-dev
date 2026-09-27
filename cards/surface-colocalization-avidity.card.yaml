@@ -82,6 +82,7 @@ caveats:
   - "Cross-donor median over the malignant compartment (donor = replicate); pooled/pan-subtype malignant denominators for the 3CA indications (PAAD/HNSC/KIRC/OV)."
   - "SELECTIVITY WINDOW (window_verdict): the AND-gate is a CONTRAST — tumor same-cell co-positivity (high) vs normal same-cell co-positivity (~0). window_open = tumor coordinated AND no well-powered normal cell type co-expresses both; no_window = a normal cell type DOES (the SAFETY negative bulk + tumor-only avidity both miss)."
   - "selectivity_unproven = normal coverage too thin to clear (>=3 donors & >=10 cells) — conservatively NOT a pass. normal_max_both is a LOWER BOUND on risk (scRNA dropout biases co-detection down), so a clean window is necessary, not sufficient; absence in the Census atlases is not proof of absence in the body. Protein-level tumor co-positivity (tumor CITE-seq) remains a standing gap."
+  - "DOUBLET CONFOUND (dual to the dropout lower bound). A droplet doublet reads as A+B+ even when the two antigens are on different cells, biasing both_fraction UPWARD — false-avidity (over-nominates the AND-gate) and a second normal-gate false-positive. So tumor engagement is an UPPER bound (doublet direction) while normal_max_both stays a LOWER bound (dropout). No doublet control today (no doublet field in Census obs / 3CA Cells.csv); a per-dataset caller is deferred (data-catalog #665 Step 2)."
 
 measurement: sc_rna
 sample_context: tumor          # malignant cells (single-cell same-cell coexpression)
