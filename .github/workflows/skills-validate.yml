@@ -385,7 +385,20 @@ jobs:
           #     ceiling move (the 774 was banked by #1850, not by #807) and the pin bump is aperture-safe.
           #     field_read_health.json / descriptor_coverage.json / warning_calibration.json regenerated in
           #     this PR so their pinned rosters match.
-          ref: d9b4d37e85bbc4b147dcd4d734ebf4a675cf8b2f
+          #
+          # ============================================================================================
+          # BUMP d9b4d37 -> 8c4bba3, "main @ 2026-09-27 (#796, TC PR#946)". This is the VOCAB+RESOLVER half
+          # of the #796 marrow-coverage fix; THIS skills branch is its consumer (selectivity_veto.py
+          # apply_marrow_coverage_abstain + the tp_gates fallbacks + the test_verdict clamp-set guard), so
+          # the pin and the consumer MUST move in ONE commit — a lone bump would red the skills-side
+          # clamp_verdicts lockstep guard (test_verdict.py reads the LIVE selectivity.resolver.yaml
+          # clamp_verdicts and asserts it == selectivity_veto._CLAMP_VERDICTS), and a lone consumer would
+          # red against a contracts tree that does not yet declare the abstain verdict.
+          # APERTURE: the d9b4d37..8c4bba3 delta is EXACTLY and ONLY PR#946 (one commit) and it adds NO
+          # card fields (a resolver clamp verdict + a nomination-gate registration + schema enum entries),
+          # so the aperture census (domain / candidate_orphans) is UNCHANGED — this bump needs no ceiling
+          # move and is aperture-inert.
+          ref: 8c4bba3ba54d837d1f538500833d6043408985a8
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

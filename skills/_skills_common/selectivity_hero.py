@@ -51,6 +51,9 @@ _VERDICT_STATUS = [
     ("selective_but_broadly_normal", ("bad", "selective BUT broadly normal — window closed")),
     ("selective_but_stromal_confound", ("bad", "stroma-driven — NOT tumor-cell-intrinsic (false window)")),
     ("selective_with_normal_liability", ("warn", "selective — normal-tissue liability")),
+    # #796 ABSTAIN: marrow denominator transiently unavailable — the selective call is WITHHELD, not
+    # decided (re-run to resolve). Caution, not a KILL and not a clean pass.
+    ("selective_pending_marrow_coverage", ("warn", "selective — pending marrow coverage (transient)")),
     ("discordant_across_comparators", ("warn", "discordant across comparators")),
     ("not_selective", ("off", "not selective")),
     ("data_unavailable", ("na", "data unavailable")),

@@ -128,6 +128,53 @@ _SELECTIVITY_VETO_PRECEDENCE = (
 _VETO_OUTCOMES = frozenset(_VETO_RULE_VERDICT.values())
 
 
+# ── #796: MARROW-COVERAGE TRANSIENT ABSTAIN ──────────────────────────────────────────────────────────
+# A SECOND, orthogonal post-resolver clamp stage, applied AFTER apply_normal_breadth_veto (see
+# run.py::_verdict). NOT a veto arm: it is not driven by any fired rule_id and its output is NOT a
+# _VETO_OUTCOME. It is an ABSTAIN, not a KILL.
+#
+# THE BUG (#796): the primary-marrow reader (analysis-methods tcga_gtex_tpm_quantiles/marrow.py) caches
+# a read failure for the whole process. A TRANSIENT outage (network / creds / throttle / 5xx / parse)
+# used to be indistinguishable from a definitive config miss — both surfaced marrow_substrate ==
+# "unavailable". When marrow drops out of the essential-organ denominator, window_ratio_essential
+# INFLATES, therapeutic_window_class moves OFF no_therapeutic_window, tvn-no-therapeutic-window-veto
+# never fires, and the essential-window KILL SILENTLY VANISHES for myeloid-argmax targets
+# (CD33 / CLEC12A / IL3RA / FLT3). analysis-methods now mints a DISTINCT marrow_substrate ==
+# "unavailable_transient" token for transient causes (definitive misses keep "unavailable").
+#
+# THE ABSTAIN: when the marrow substrate is transiently unavailable AND the target is marrow-PLAUSIBLE
+# (could plausibly have marrow as its essential-window argmax), a still-selective axis-A call is
+# WITHHELD as `selective_pending_marrow_coverage` — "the safety denominator is transiently incomplete;
+# re-run to resolve". It does NOT fabricate a KILL and does NOT clear a KILL that fired on other
+# grounds: it runs AFTER the veto walk, so if any veto fired the verdict is already a KILL/liability
+# ∉ _AXIS_A_SELECTIVE and this stage is a no-op (that is how "never clears a KILL" is enforced by
+# construction). withhold_only: the ONLY transition it makes is selective-axis-A → the abstain.
+#
+# MARROW-PLAUSIBILITY is derived WITHOUT the missing marrow value — the transient is process-wide and
+# hits every target, so the signal MUST come from an INDEPENDENT substrate. It reads the
+# sc-normal-celltype-expression card's sc_normal_essential_max_tissue (CELLxGENE single-cell atlas,
+# unaffected by the HPA bulk-marrow outage): a target whose single-cell normal essential-organ argmax
+# is bone marrow is exactly one whose bulk-marrow denominator, had it loaded, could have been the
+# essential-window argmax. Absent that signal the abstain does NOT fire (fail-open on the withhold —
+# a transient with no independent marrow evidence leaves the call unchanged, never scope-creeps to all
+# targets).
+SUBSTRATE_UNAVAILABLE_TRANSIENT = "unavailable_transient"
+_MARROW_SUBSTRATE_CARD = "modality-therapeutic-window"
+_MARROW_SUBSTRATE_FIELD = "marrow_substrate"
+_MARROW_PLAUSIBLE_CARD = "sc-normal-celltype-expression"
+_MARROW_PLAUSIBLE_FIELD = "sc_normal_essential_max_tissue"
+_MARROW_PLAUSIBLE_VALUES = frozenset({"bone marrow"})  # note the SPACE (CELLxGENE tissue label), not an underscore
+_MARROW_COVERAGE_ABSTAIN_VERDICT = "selective_pending_marrow_coverage"
+_MARROW_COVERAGE_ABSTAIN_DRIVER = "tvn-marrow-coverage-transient-abstain"  # provenance label (NOT a fired rule_id)
+
+# The FULL post-resolver clamp verdict set = the rule-fired veto OUTCOMES ∪ the substrate-conditioned
+# abstain. Kept in lockstep with target-contracts resolvers/selectivity.resolver.yaml `clamp_verdicts`
+# by a skills-side guard test (tumor-selectivity/tests/test_verdict.py). The abstain is deliberately
+# NOT a _VETO_OUTCOME (not driven by a fired rule_id, absent from precedence / never-suppressed math),
+# so all veto-precedence logic stays on _VETO_OUTCOMES unchanged.
+_CLAMP_VERDICTS = _VETO_OUTCOMES | {_MARROW_COVERAGE_ABSTAIN_VERDICT}
+
+
 # ── MODALITY-CONDITIONAL KILL SUPPRESSION (2026-09-12) ───────────────────────────────────────────────
 # The veto rules in target-contracts already carry a per-modality lens in their `signals:` block, and
 # the KILL arms are NOT uniformly opposing: `tvn-no-full-normal-window-veto` declares `adc: neutral`
@@ -295,3 +342,46 @@ def apply_normal_breadth_veto(verdict, driving_rule_id, fired, modality=None, wi
             continue
         return _VETO_RULE_VERDICT[veto_rule], veto_rule
     return verdict, driving_rule_id
+
+
+def marrow_substrate_class(cards) -> str | None:
+    """The marrow_substrate token from the ``modality-therapeutic-window`` card (``None`` when the card
+    is absent). #796: analysis-methods mints ``"unavailable_transient"`` for a transient marrow-HPA read
+    failure vs ``"unavailable"`` for a definitive config miss. ``cards`` is the resolved card list
+    (``[{card_id, summary}, …]``)."""
+    for card in cards or []:
+        if card.get("card_id") == _MARROW_SUBSTRATE_CARD:
+            return (card.get("summary") or {}).get(_MARROW_SUBSTRATE_FIELD)
+    return None
+
+
+def marrow_plausible_from_cards(cards) -> bool:
+    """True when the target is marrow-PLAUSIBLE per an INDEPENDENT substrate: the
+    ``sc-normal-celltype-expression`` card's ``sc_normal_essential_max_tissue`` is bone marrow (the
+    CELLxGENE single-cell atlas, unaffected by the HPA bulk-marrow transient). Derived WITHOUT the
+    missing marrow value so the abstain cannot scope-creep to all targets during a process-wide
+    transient. Fail-open (returns False) when the card or field is absent."""
+    for card in cards or []:
+        if card.get("card_id") == _MARROW_PLAUSIBLE_CARD:
+            return (card.get("summary") or {}).get(_MARROW_PLAUSIBLE_FIELD) in _MARROW_PLAUSIBLE_VALUES
+    return False
+
+
+def apply_marrow_coverage_abstain(verdict, driving_rule_id, marrow_substrate, marrow_plausible):
+    """Post-resolver ABSTAIN clamp (#796), applied AFTER apply_normal_breadth_veto. WITHHOLDS a
+    still-selective axis-A ``(verdict, driving_rule_id)`` as ``selective_pending_marrow_coverage`` when
+    the marrow substrate is TRANSIENTLY unavailable (``marrow_substrate == "unavailable_transient"``)
+    AND the target is marrow-PLAUSIBLE. Returns the input pair unchanged otherwise.
+
+    withhold_only: it never fabricates a KILL and never clears a KILL that fired on other grounds — it
+    only acts on a verdict that is STILL a selective axis-A class, so if apply_normal_breadth_veto
+    already downgraded to a KILL/liability (∉ _AXIS_A_SELECTIVE) this is a no-op. The DEFINITIVE
+    ``"unavailable"`` token does NOT trigger it, and a non-plausible target is left unchanged (no
+    scope-creep to all targets during a process-wide transient)."""
+    if verdict not in _AXIS_A_SELECTIVE:
+        return verdict, driving_rule_id
+    if marrow_substrate != SUBSTRATE_UNAVAILABLE_TRANSIENT:
+        return verdict, driving_rule_id
+    if not marrow_plausible:
+        return verdict, driving_rule_id
+    return _MARROW_COVERAGE_ABSTAIN_VERDICT, _MARROW_COVERAGE_ABSTAIN_DRIVER

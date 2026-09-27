@@ -245,6 +245,10 @@ _FALLBACK_KILL_CAPABLE_VERDICTS: dict[tuple[str, str], str] = {
     ("selectivity", "discordant_across_comparators"): "uncorroborated",
     ("selectivity", "selective_but_broadly_normal"): "contradiction",  # post-resolver clamp KILL (gate v1.10.0)
     ("selectivity", "selective_but_stromal_confound"): "contradiction",  # post-resolver clamp KILL (gate v1.10.0)
+    # #796 ABSTAIN: marrow substrate transiently unavailable on a marrow-plausible target — `uncorroborated`,
+    # not `contradiction`: it WITHHOLDS the selective call (blocks `strong`) but is not a measured
+    # opposing finding. Mirrors the registry (nomination_verdict_gate.yaml positive_uncorroborated).
+    ("selectivity", "selective_pending_marrow_coverage"): "uncorroborated",
     ("surface_modality", "neither_viable"): "excluded_modality_scoped",
     ("surface_modality", "adc_preferred_tce_unsafe"): "excluded_modality_scoped",
     ("surface_modality", "tce_unsafe_normal_liability"): "excluded_modality_scoped",
@@ -1777,6 +1781,7 @@ def _load_positive_signals(
 # BY CONSTRUCTION, on either checkout. Only the LABEL moves — see `_gate_scorecard`.
 _FALLBACK_POSITIVE_UNCORROBORATED: set[tuple[str, str]] = {
     ("selectivity", "discordant_across_comparators"),
+    ("selectivity", "selective_pending_marrow_coverage"),  # #796 marrow-coverage transient ABSTAIN — blocks `strong`
     ("dependency", "discordant"),
 }
 

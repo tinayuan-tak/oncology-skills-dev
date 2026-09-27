@@ -362,13 +362,14 @@ def _contracts_yaml(rel):
 
 
 def test_emitted_verdict_enum_equals_resolver_rungs_plus_declared_clamp():
-    """tumor-selectivity emits 11 verdicts: 8 from the resolver (7 rungs + default) + 3 minted by the
-    POST-RESOLVER Python clamp (selectivity_veto.py). Pin that _SELECTIVITY_VERDICT_PHRASE ==
+    """tumor-selectivity emits 12 verdicts: 8 from the resolver (7 rungs + default) + 4 minted by the
+    POST-RESOLVER Python clamp (selectivity_veto.py) — the 3 rule-fired veto outcomes PLUS the #796
+    substrate-conditioned marrow-coverage abstain. Pin that _SELECTIVITY_VERDICT_PHRASE ==
     resolver(resolve[].verdict ∪ default) ∪ selectivity.resolver.yaml `clamp_verdicts`, and that the
-    resolver's declared clamp_verdicts == selectivity_veto._VETO_OUTCOMES — so the dead constant is now
-    load-bearing and a reviewer reading the resolver sees the COMPLETE emitted enum. (Skips until the
-    contracts-first clamp_verdicts block has landed.)"""
-    from _skills_common.selectivity_veto import _VETO_OUTCOMES
+    resolver's declared clamp_verdicts == selectivity_veto._CLAMP_VERDICTS (= _VETO_OUTCOMES ∪ the
+    abstain) — so the constant is load-bearing and a reviewer reading the resolver sees the COMPLETE
+    emitted enum. (Skips until the contracts-first clamp_verdicts block has landed.)"""
+    from _skills_common.selectivity_veto import _CLAMP_VERDICTS
 
     spec = _contracts_yaml("resolvers/selectivity.resolver.yaml")
     if spec is None:
@@ -376,7 +377,7 @@ def test_emitted_verdict_enum_equals_resolver_rungs_plus_declared_clamp():
     clamp = set(spec.get("clamp_verdicts") or [])
     if not clamp:
         pytest.skip("contracts predates selectivity.resolver.yaml clamp_verdicts (land contracts-first)")
-    assert clamp == set(_VETO_OUTCOMES), f"resolver clamp_verdicts {clamp} != _VETO_OUTCOMES {set(_VETO_OUTCOMES)}"
+    assert clamp == set(_CLAMP_VERDICTS), f"resolver clamp_verdicts {clamp} != _CLAMP_VERDICTS {set(_CLAMP_VERDICTS)}"
     resolver_enum = {r["verdict"] for r in spec["resolve"]} | {spec["default"]}
     assert set(ts._SELECTIVITY_VERDICT_PHRASE) == resolver_enum | clamp, (
         f"emitted enum drift: phrase={set(ts._SELECTIVITY_VERDICT_PHRASE)} vs resolver∪clamp={resolver_enum | clamp}"
@@ -414,6 +415,171 @@ def test_declared_post_resolver_clamp_matches_selectivity_veto():
     assert set(up["applies_to_input_verdicts"]) == set(sv._RESCUE_ELIGIBLE)
     assert up["verdict"] == "field_effect_tumor_selective"
     assert {frozenset(g) for g in up["requires"]} == {frozenset(sv._CPTAC_UP_RULES), frozenset(sv._POP_NORMAL_UP_RULES)}
+
+
+def test_declared_marrow_coverage_abstain_matches_selectivity_veto():
+    """#796: the resolver declares a SECOND post-resolver clamp stage, marrow_coverage_abstain, applied
+    AFTER the veto walk. Pin the executor (selectivity_veto.apply_marrow_coverage_abstain) byte-for-byte
+    to that declaration — verdict, driver label, the withhold guard (applies_to_input_verdicts), and both
+    card-read preconditions (the transient substrate token + the INDEPENDENT marrow-plausibility signal).
+    Also assert the abstain verdict is in `clamp_verdicts` but NOT in post_resolver_clamp.precedence — it
+    is not rule-fired, so it must stay out of the veto precedence math. Skips until contracts land."""
+    import _skills_common.selectivity_veto as sv
+
+    spec = _contracts_yaml("resolvers/selectivity.resolver.yaml")
+    if spec is None:
+        pytest.skip("target-contracts checkout absent")
+    mca = spec.get("marrow_coverage_abstain")
+    if not mca:
+        pytest.skip("contracts predates the marrow_coverage_abstain block (land contracts-first)")
+
+    assert mca["direction"] == "withhold_only"
+    assert mca["applied_after"] == "post_resolver_clamp"
+    assert mca["verdict"] == sv._MARROW_COVERAGE_ABSTAIN_VERDICT
+    assert mca["driver_label"] == sv._MARROW_COVERAGE_ABSTAIN_DRIVER
+    # withhold guard — only a STILL-selective axis-A call can be withheld
+    assert set(mca["applies_to_input_verdicts"]) == set(sv._AXIS_A_SELECTIVE)
+    # precondition 1: the TRANSIENT substrate token, read from the therapeutic-window card
+    sub = mca["requires_marrow_substrate"]
+    assert sub["card_id"] == sv._MARROW_SUBSTRATE_CARD
+    assert sub["field"] == sv._MARROW_SUBSTRATE_FIELD
+    assert set(sub["one_of"]) == {sv.SUBSTRATE_UNAVAILABLE_TRANSIENT}
+    # precondition 2: INDEPENDENT marrow-plausibility (sc-normal single-cell atlas, unaffected by the outage)
+    pla = mca["requires_marrow_plausible"]
+    assert pla["card_id"] == sv._MARROW_PLAUSIBLE_CARD
+    assert pla["field"] == sv._MARROW_PLAUSIBLE_FIELD
+    assert set(pla["one_of"]) == set(sv._MARROW_PLAUSIBLE_VALUES)
+    # the abstain is a clamp verdict, but NOT a rule-fired precedence arm
+    assert sv._MARROW_COVERAGE_ABSTAIN_VERDICT in set(spec.get("clamp_verdicts") or [])
+    prc = spec.get("post_resolver_clamp") or {}
+    assert sv._MARROW_COVERAGE_ABSTAIN_VERDICT not in {a["verdict"] for a in prc.get("precedence", [])}
+
+
+# --- #796 MARROW-COVERAGE TRANSIENT ABSTAIN — hermetic TEETH ---------------------------------------
+# A transient marrow-HPA read failure (analysis-methods marrow.py mints marrow_substrate ==
+# "unavailable_transient", distinct from the DEFINITIVE "unavailable" config miss) used to drop marrow
+# from the essential-organ denominator, inflate the window and silently VANISH the essential-window KILL
+# for myeloid-argmax targets. The abstain WITHHOLDS the confident selective call instead. These force the
+# transient token on synthetic cards (it never occurs in hermetic replay) and mutation-check both
+# directions + the marrow-plausibility scope + "never clears a KILL".
+_MARROW_ABSTAIN_VERDICT = "selective_pending_marrow_coverage"
+_MARROW_ABSTAIN_DRIVER = "tvn-marrow-coverage-transient-abstain"
+_TRANSIENT = "unavailable_transient"
+_STRONG_SEL = "tvn-strong-selective-supportive"
+
+
+def _marrow_cards(substrate, essential_max_tissue):
+    return [
+        {"card_id": "modality-therapeutic-window", "summary": {"marrow_substrate": substrate}},
+        {
+            "card_id": "sc-normal-celltype-expression",
+            "summary": {"sc_normal_essential_max_tissue": essential_max_tissue},
+        },
+    ]
+
+
+def test_marrow_transient_on_plausible_target_abstains():
+    """TEETH (a): a transient marrow read on a marrow-PLAUSIBLE target (single-cell essential argmax is
+    bone marrow) WITHHOLDS the call as selective_pending_marrow_coverage instead of emitting the
+    falsely-confident strong call the #796 bug produced when the essential-window KILL vanished."""
+    v, d = ts._verdict([{"rule_id": _STRONG_SEL}], cards=_marrow_cards(_TRANSIENT, "bone marrow"))
+    assert v == _MARROW_ABSTAIN_VERDICT
+    assert d == _MARROW_ABSTAIN_DRIVER
+
+
+def test_marrow_transient_on_non_plausible_target_is_unchanged():
+    """TEETH (c) + MUTATION on plausibility: the SAME transient on a NON-marrow-plausible target
+    (single-cell essential argmax is liver) leaves the verdict UNCHANGED — the transient is process-wide,
+    so without the INDEPENDENT marrow signal the abstain must NOT scope-creep to every target."""
+    v, d = ts._verdict([{"rule_id": _STRONG_SEL}], cards=_marrow_cards(_TRANSIENT, "liver"))
+    assert v == "strong_tumor_selective"
+    assert d == _STRONG_SEL
+
+
+def test_definitive_unavailable_does_not_abstain():
+    """MUTATION on the substrate token: the DEFINITIVE 'unavailable' (a config miss, not transient) does
+    NOT trigger the abstain even on a marrow-plausible target — only 'unavailable_transient' does."""
+    v, _ = ts._verdict([{"rule_id": _STRONG_SEL}], cards=_marrow_cards("unavailable", "bone marrow"))
+    assert v == "strong_tumor_selective"
+
+
+def test_marrow_abstain_fails_open_when_plausibility_card_absent():
+    """MUTATION: a transient with NO independent plausibility card leaves the verdict unchanged
+    (fail-open on the withhold — never withholds without corroborating marrow evidence)."""
+    v, _ = ts._verdict(
+        [{"rule_id": _STRONG_SEL}],
+        cards=[{"card_id": "modality-therapeutic-window", "summary": {"marrow_substrate": _TRANSIENT}}],
+    )
+    assert v == "strong_tumor_selective"
+
+
+def test_marrow_abstain_does_not_clear_a_fired_kill():
+    """TEETH (b): the abstain runs AFTER the veto walk and NEVER clears a KILL that fired on other
+    grounds. With the essential-window veto ALSO fired, the verdict stays selective_but_broadly_normal
+    even under a transient marrow on a plausible target — the abstain no-ops on a post-veto verdict that
+    is no longer a selective axis-A class."""
+    v, d = ts._verdict(
+        [{"rule_id": _STRONG_SEL}, {"rule_id": "tvn-no-therapeutic-window-veto"}],
+        cards=_marrow_cards(_TRANSIENT, "bone marrow"),
+    )
+    assert v == "selective_but_broadly_normal"
+    assert d == "tvn-no-therapeutic-window-veto"
+
+
+def test_marrow_abstain_does_not_fabricate_a_selective_call():
+    """TEETH (b'): withhold_only — with NO axis-A selective rule fired, a transient+plausible marrow does
+    NOT manufacture the abstain; it only withholds an already-selective call."""
+    v, _ = ts._verdict([{"rule_id": "tvn-not-selective-neutral"}], cards=_marrow_cards(_TRANSIENT, "bone marrow"))
+    assert v == "not_selective"
+
+
+def test_apply_marrow_coverage_abstain_unit_mutation_grid():
+    """Unit-level MUTATION grid on the executor: fires ONLY for (still-selective axis-A, transient,
+    plausible); a no-op if ANY of the three conditions is off."""
+    from _skills_common.selectivity_veto import (
+        _MARROW_COVERAGE_ABSTAIN_DRIVER as DRV,
+    )
+    from _skills_common.selectivity_veto import (
+        _MARROW_COVERAGE_ABSTAIN_VERDICT as ABST,
+    )
+    from _skills_common.selectivity_veto import (
+        SUBSTRATE_UNAVAILABLE_TRANSIENT as T,
+    )
+    from _skills_common.selectivity_veto import (
+        apply_marrow_coverage_abstain as f,
+    )
+
+    assert f("strong_tumor_selective", "r", T, True) == (ABST, DRV)  # all three on → abstain
+    assert f("modest_tumor_selective", "r", T, True) == (ABST, DRV)
+    assert f("field_effect_tumor_selective", "r", T, True) == (ABST, DRV)
+    assert f("strong_tumor_selective", "r", T, False) == ("strong_tumor_selective", "r")  # not plausible
+    assert f("strong_tumor_selective", "r", "unavailable", True) == ("strong_tumor_selective", "r")  # definitive
+    assert f("strong_tumor_selective", "r", None, True) == ("strong_tumor_selective", "r")  # substrate absent
+    assert f("selective_but_broadly_normal", "r", T, True) == (
+        "selective_but_broadly_normal",
+        "r",
+    )  # post-KILL, not axis-A
+    assert f("not_selective", "r", T, True) == ("not_selective", "r")  # not axis-A
+
+
+def test_declared_marrow_abstain_is_registered_uncorroborated_in_the_nomination_gate():
+    """The abstain must be in the nomination gate as an `uncorroborated` verdict (blocks `strong`, NOT a
+    measured contradiction) and in positive_uncorroborated — mirrors the tp_gates fallback. NOT in
+    positive_contradictions (it does not oppose, it withholds). Skips until contracts land."""
+    g = _contracts_yaml("vocabularies/nomination_verdict_gate.yaml")
+    if g is None:
+        pytest.skip("target-contracts checkout absent")
+    pos_unc = {(c["sub_skill"], c["verdict"]) for c in g.get("positive_uncorroborated", [])}
+    if ("selectivity", _MARROW_ABSTAIN_VERDICT) not in pos_unc:
+        pytest.skip("contracts predates the #796 marrow-coverage abstain gate entries (land contracts-first)")
+    kcv = {
+        (sk, e["verdict"]): e.get("disposition")
+        for sk, es in (g.get("kill_capable_verdicts") or {}).items()
+        for e in es
+    }
+    assert kcv.get(("selectivity", _MARROW_ABSTAIN_VERDICT)) == "uncorroborated"
+    contra = {(c["sub_skill"], c["verdict"]) for c in g.get("positive_contradictions", [])}
+    assert ("selectivity", _MARROW_ABSTAIN_VERDICT) not in contra
 
 
 def test_declared_modality_conditional_block_matches_the_executor():

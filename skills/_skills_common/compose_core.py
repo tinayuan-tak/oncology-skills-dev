@@ -111,8 +111,11 @@ def resolve_gate_spine(
     from _skills_common.card_preprocessors import preprocess_cards_for_gate
     from _skills_common.selectivity_veto import (
         SELECTIVITY_GATE,
+        apply_marrow_coverage_abstain,
         apply_normal_breadth_veto,
         apply_protein_population_rescue,
+        marrow_plausible_from_cards,
+        marrow_substrate_class,
     )
 
     normed = [dict(c, _missing=True) if c.get("excluded_by_applies_when") else c for c in card_outputs]
@@ -148,6 +151,12 @@ def resolve_gate_spine(
             # addition — so the rescue is currently a no-op here, identical to standalone on current data.)
             verdict, driving = apply_protein_population_rescue(verdict, driving, fired)
             verdict, driving = apply_normal_breadth_veto(verdict, driving, fired)
+            # #796 marrow-coverage transient ABSTAIN — mirrors run.py::_verdict (applied AFTER the veto)
+            # so composed == standalone. Byte-stable offline: marrow_substrate == "unavailable_transient"
+            # never occurs in replay, so both readers return the no-op path. Never fabricates/clears a KILL.
+            verdict, driving = apply_marrow_coverage_abstain(
+                verdict, driving, marrow_substrate_class(normed), marrow_plausible_from_cards(normed)
+            )
         return GateVerdict(
             gate=gate,
             verdict=verdict,

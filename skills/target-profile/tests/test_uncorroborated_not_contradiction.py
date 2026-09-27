@@ -42,9 +42,20 @@ tp = load_run_py(Path(__file__).resolve().parents[1], "tp_run")
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "polarity_surface_projection.json"
 
-# The two relabelled verdicts. Pinned BY VALUE: this is the set the whole file is about, and a third
-# member arriving in the vocab must land here (and in the reader's mirror) rather than be discovered.
-UNCORROBORATED = {("dependency", "discordant"), ("selectivity", "discordant_across_comparators")}
+# The uncorroborated positive verdicts. Pinned BY VALUE: this is the set the whole file is about, and a
+# new member arriving in the vocab must land here (and in the reader's mirror) rather than be discovered.
+#   * the two RELABELLED discordant verdicts (dependency CRISPR-vs-RNAi, selectivity two comparator
+#     arms) — moved from `positive_contradictions` to `positive_uncorroborated` in vocab v1.20.0;
+#   * `selectivity/selective_pending_marrow_coverage` (#796) — born uncorroborated, never a
+#     contradiction: a transient marrow-HPA read WITHHOLDS a selective call ("re-run to resolve"), which
+#     blocks `strong` on the same coverage-gap footing. It never appears in the offline witness corpus
+#     (a transient cannot occur in hermetic replay), so it is dormant across every corpus assertion
+#     below and exercised only by the declaration/mirror-lockstep checks.
+UNCORROBORATED = {
+    ("dependency", "discordant"),
+    ("selectivity", "discordant_across_comparators"),
+    ("selectivity", "selective_pending_marrow_coverage"),
+}
 
 # `tractability_sm/discordant` deliberately STAYS a contradiction — two ligandability methods
 # disagreeing IS a statement about the target, not about coverage. It is the control that proves the
