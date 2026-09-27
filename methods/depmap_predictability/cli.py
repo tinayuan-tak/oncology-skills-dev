@@ -99,6 +99,20 @@ FEATURE_CLASS_COLORS = {
 }
 
 
+def _importance_axis_label(summary: dict) -> str:
+    """Axis/label text for the plotted `importance` values, derived from the
+    resolved pin. v4+ pins carry mean(|SHAP|) TreeExplainer attributions; the
+    legacy v1-v3 pins used RF impurity / XGB gain. Default to the SHAP wording
+    when the pin is absent (the default pin is 26q1-v4)."""
+    pin = summary.get("_release_pin") or ""
+    ver = pin.rsplit("-v", 1)[-1] if "-v" in pin else ""
+    try:
+        is_shap = int(ver) >= 4
+    except ValueError:
+        is_shap = True
+    return "mean(|SHAP|) attribution" if is_shap else "feature importance (RF impurity)"
+
+
 # DepMap high-confidence r² floor (Pearson r >= 0.4). Mirrors
 # depmap_predictability_precompute.cli.R2_DEPMAP_HIGH_CONF, which is the authoritative copy — this
 # is a thin reader and must not import the precompute (heavy sklearn/xgboost dependency chain), so
@@ -238,7 +252,8 @@ def emit_feature_importance_bar(
         plt.close(fig)
         return out_path
 
-    # Top 10 importance-ranked (RF impurity; see module docstring on the _shap suffix)
+    # Top 10 importance-ranked by the pin's attribution basis (mean(|SHAP|) under the
+    # default 26q1-v4 pin; RF impurity / XGB gain for legacy v1-v3 — see module docstring).
     names = [t["feature"] for t in top]
     imps = [t["importance"] for t in top]
     classes = [t["feature_class"] for t in top]
@@ -251,7 +266,7 @@ def emit_feature_importance_bar(
     ax.set_yticks(range(len(names)))
     ax.set_yticklabels(names, fontsize=8)
     ax.invert_yaxis()
-    ax.set_xlabel("feature importance (RF impurity)")
+    ax.set_xlabel(_importance_axis_label(summary))
 
     r_rf = summary.get("pearson_r_rf")
     r2_rf = summary.get("pearson_r_squared_rf")
@@ -417,7 +432,7 @@ def emit_plotly_specs(
             subtitle = f"  |  RF↔XGB divergent (Δr²={summary['delta_r2']:+.2f})"
         fig.update_layout(
             title=f"{target} — predictability ({r2_txt}, {pred_class}){subtitle}",
-            xaxis_title="feature importance (RF impurity)",
+            xaxis_title=_importance_axis_label(summary),
             yaxis=dict(tickmode="array", tickvals=list(range(len(names))), ticktext=names),
             template="plotly_white",
             showlegend=False,
@@ -480,6 +495,7 @@ def main(target, release_pin, parquet_uri, out):
             "predictability_class": "data_unavailable",
             "pred_dominant_feature_class": "data_unavailable",
         }
+    summary.setdefault("_release_pin", release_pin)
     (out / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
     emit_feature_importance_bar(summary, target, out)
     emit_lineage_conditional_panel(summary, target, out)
