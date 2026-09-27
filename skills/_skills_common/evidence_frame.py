@@ -770,6 +770,66 @@ PRESENCE_STRENGTH_CLASS = "presence_strength_class"
 # are the ALREADY-DECLARED SURFACED_CONCORDANCE_PROPERTIES (#1842) — reused, NOT re-declared.
 PRESENCE_PRIORITY_OBSERVATIONAL_INPUTS = (TUMOR_RNA_ALLGENE_PERCENTILE, PRESENCE_STRENGTH_CLASS)
 
+# ── SK#1850 (epic #1848): push the full presence INFORMATION RESERVOIR into the frame ───────────────
+# 61% of presence's disposed fields (140 context + 38 display of 293) surfaced and STOPPED — they never
+# reached a claim. The roles-not-weights design makes it SAFE to push far more forward: a CONTEXTUAL input
+# never gates and a SUPPORTIVE one only strengthens the rationale, so the conservative "verdict-inert ⇒
+# withhold" posture strands information for no safety benefit. These are the high-value parked fields now
+# DECLARED as typed inputs so the L3 synthesis REASONS OVER them, each at a decision-INERT role:
+#   * IHC per-patient staining distribution (n_high / n_medium / n_low / n_not_detected / staining_score /
+#     fraction_moderate_strong, hpa-pathology-cancer-ihc) — MS-independent antibody-IHC protein prevalence,
+#     each a raw MEASUREMENT consumed CONTEXTUALLY (annotation only).
+#   * purity continuous (expression_purity_spearman_r, median_purity, expression-purity-confound) — the
+#     malignant-intrinsic confound MAGNITUDE behind purity_confound_class, MEASUREMENT / contextual.
+#   * subtype heterogeneity counts (n_subtypes_restricted / enriched / measured / clearing_normal_window,
+#     tumor-rna-distribution-by-subtype) — the raw stratum tallies behind the subtype signal, MEASUREMENT /
+#     contextual.
+#   * RNA↔protein breadth-layer agreement (breadth_layer_concordance, tumor-elevation-breadth) — a
+#     within-skill composite classifier, honestly a LOCAL_COMPOSITE consumed SUPPORTIVELY (absence is fine).
+# EVERY one is decision-INERT BY ROLE: `evaluate_frame`'s `decision` moves only on a REQUIRED non-positive
+# (→ hold), a VETO_CAPABLE measured-adverse value (→ down-rank), or a weak-corroboration reservation on a
+# REQUIRED input — never on a contextual or supportive input. So the frame's `decision` /
+# `presence_verdict` / `presence_verdict_by_modality` are BYTE-IDENTICAL with vs without each reservoir
+# input (proven in test_presence_priority_frame_reservoir_inputs_are_decision_inert); they enrich only the
+# rationale / resolved_inputs annotation surface.
+IHC_N_HIGH = "ihc_n_high"
+IHC_N_MEDIUM = "ihc_n_medium"
+IHC_N_LOW = "ihc_n_low"
+IHC_N_NOT_DETECTED = "ihc_n_not_detected"
+IHC_STAINING_SCORE = "ihc_staining_score"
+IHC_FRACTION_MODERATE_STRONG = "ihc_fraction_moderate_strong"
+EXPRESSION_PURITY_SPEARMAN_R = "expression_purity_spearman_r"
+MEDIAN_PURITY = "median_purity"
+N_SUBTYPES_RESTRICTED = "n_subtypes_restricted"
+N_SUBTYPES_ENRICHED = "n_subtypes_enriched"
+N_SUBTYPES_MEASURED = "n_subtypes_measured"
+N_SUBTYPES_CLEARING_NORMAL_WINDOW = "n_subtypes_clearing_normal_window"
+BREADTH_LAYER_CONCORDANCE = "breadth_layer_concordance"
+
+# The raw MEASUREMENT reservoir inputs (each an atomic observed count / score / fraction / continuous r),
+# all consumed at the CONTEXTUAL role — they annotate the synthesis, never gate it.
+PRESENCE_PRIORITY_CONTEXT_MEASUREMENTS = (
+    IHC_N_HIGH,
+    IHC_N_MEDIUM,
+    IHC_N_LOW,
+    IHC_N_NOT_DETECTED,
+    IHC_STAINING_SCORE,
+    IHC_FRACTION_MODERATE_STRONG,
+    EXPRESSION_PURITY_SPEARMAN_R,
+    MEDIAN_PURITY,
+    N_SUBTYPES_RESTRICTED,
+    N_SUBTYPES_ENRICHED,
+    N_SUBTYPES_MEASURED,
+    N_SUBTYPES_CLEARING_NORMAL_WINDOW,
+)
+# The within-skill RNA↔protein breadth-layer composite classifier — a LOCAL_COMPOSITE consumed SUPPORTIVELY.
+PRESENCE_PRIORITY_SUPPORTIVE_COMPOSITES = (BREADTH_LAYER_CONCORDANCE,)
+# The full reservoir (SK#1850) — every member is an OBSERVATIONAL-layer object (a measurement / a within-
+# skill composite, NOT an L2b integrated property), strictly below the decision_frame layer, so the frame
+# stays inside the DAG. NONE is on any decision_reach_audit must-reach set (a frame may read more than the
+# audited sets); they extend the antigen-priority frame's inputs additively.
+PRESENCE_PRIORITY_RESERVOIR_INPUTS = PRESENCE_PRIORITY_CONTEXT_MEASUREMENTS + PRESENCE_PRIORITY_SUPPORTIVE_COMPOSITES
+
 PRESENCE_PRIORITY_FRAME = Frame(
     frame_id="present_targetable_antigen_priority",
     inputs=(
@@ -797,6 +857,17 @@ PRESENCE_PRIORITY_FRAME = Frame(
         ),
         FrameInput(
             property_id=PRESENCE_STRENGTH_CLASS,
+            kind=InputKind.LOCAL_COMPOSITE_CLAIM,
+            role=Role.SUPPORTIVE,
+        ),
+        # SK#1850 information-reservoir inputs — each decision-INERT (contextual measurement / supportive
+        # composite), so the frame's decision is byte-identical with vs without them.
+        *(
+            FrameInput(property_id=pid, kind=InputKind.MEASUREMENT, role=Role.CONTEXTUAL)
+            for pid in PRESENCE_PRIORITY_CONTEXT_MEASUREMENTS
+        ),
+        FrameInput(
+            property_id=BREADTH_LAYER_CONCORDANCE,
             kind=InputKind.LOCAL_COMPOSITE_CLAIM,
             role=Role.SUPPORTIVE,
         ),
@@ -969,6 +1040,10 @@ def reference_emitted_layers() -> dict:
         # DAG. (Its three concordance inputs reuse the INTEGRATED_PROPERTY layers already mapped above.)
         TUMOR_RNA_ALLGENE_PERCENTILE: ClaimType.OBSERVATIONAL_PROPERTY,
         PRESENCE_STRENGTH_CLASS: ClaimType.OBSERVATIONAL_PROPERTY,
+        # The SK#1850 information-reservoir inputs the antigen-priority frame adds — each an OBSERVATIONAL-
+        # layer object (a raw measurement / a within-skill composite, NOT an L2b integrated property),
+        # strictly below the decision_frame layer, so PRESENCE_PRIORITY_FRAME stays a DAG.
+        **{pid: ClaimType.OBSERVATIONAL_PROPERTY for pid in PRESENCE_PRIORITY_RESERVOIR_INPUTS},
     }
     for f in FRAME_REGISTRY:
         layers[f.frame_id] = f.claim_type
@@ -1115,6 +1190,17 @@ def presence_priority_frame(
     strength = h.get(PRESENCE_STRENGTH_CLASS)
     if strength is not None:
         bundle[PRESENCE_STRENGTH_CLASS] = local_composite(PRESENCE_STRENGTH_CLASS, strength)
+    # SK#1850 information reservoir: each high-value parked field is supplied off `headline` and consumed
+    # as a CONTEXTUAL measurement (annotation only) or a SUPPORTIVE within-skill composite. A field NOT
+    # supplied auto-resolves to unresolved inside evaluate_frame (a contextual/supportive absence is fine).
+    # None of these can move the decision (see the frame declaration) — they enrich the synthesis surface.
+    for pid in PRESENCE_PRIORITY_CONTEXT_MEASUREMENTS:
+        val = h.get(pid)
+        if val is not None:
+            bundle[pid] = measurement(pid, val)
+    breadth = h.get(BREADTH_LAYER_CONCORDANCE)
+    if breadth is not None:
+        bundle[BREADTH_LAYER_CONCORDANCE] = local_composite(BREADTH_LAYER_CONCORDANCE, breadth)
     # NORMAL_LIABILITY_PROPERTY intentionally omitted -> unresolved critical_unknown -> L4 question.
     return evaluate_frame(PRESENCE_PRIORITY_FRAME, bundle)
 

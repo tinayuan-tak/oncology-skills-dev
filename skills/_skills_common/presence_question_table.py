@@ -26,6 +26,7 @@ from __future__ import annotations
 import math
 from typing import Optional
 
+from _skills_common import evidence_frame as _ef
 from _skills_common.claim_vector_core import select_breadth_class as _select_breadth_class
 from _skills_common.evidence_frame import PRESENCE_STRENGTH_CLASS as _PRESENCE_STRENGTH_CLASS
 from _skills_common.evidence_frame import TUMOR_RNA_ALLGENE_PERCENTILE as _TUMOR_RNA_ALLGENE_PERCENTILE
@@ -731,9 +732,30 @@ def presence_question_table(headline: dict, cards: list, claim_vector: Optional[
     if (cv or {}).get("bulk_vs_singlecell_coverage_concordance"):
         from _skills_common.presence_claims import derive_presence_state, presence_strength_from_state
 
+        # SK#1850: read the high-value parked presence fields off their cards and hand them to the frame so
+        # the L3 synthesis reasons over the FULL information reservoir, not just the 3 canonical claims. Each
+        # is consumed at a decision-INERT role (contextual measurement / supportive composite), so the
+        # frame's decision — and the presence_verdict — stay byte-stable; this only enriches the annotation.
+        ihc = c.get("hpa-pathology-cancer-ihc", {})
+        epc = c.get("expression-purity-confound", {})
+        sub_card = c.get("tumor-rna-distribution-by-subtype", {})
+        teb = c.get("tumor-elevation-breadth", {})
         frame_headline = {
             _TUMOR_RNA_ALLGENE_PERCENTILE: c.get("tumor-rna-distribution", {}).get("allgene_percentile"),
             _PRESENCE_STRENGTH_CLASS: presence_strength_from_state(derive_presence_state(headline), cv),
+            _ef.IHC_N_HIGH: ihc.get("n_high"),
+            _ef.IHC_N_MEDIUM: ihc.get("n_medium"),
+            _ef.IHC_N_LOW: ihc.get("n_low"),
+            _ef.IHC_N_NOT_DETECTED: ihc.get("n_not_detected"),
+            _ef.IHC_STAINING_SCORE: ihc.get("staining_score"),
+            _ef.IHC_FRACTION_MODERATE_STRONG: ihc.get("fraction_moderate_strong"),
+            _ef.EXPRESSION_PURITY_SPEARMAN_R: epc.get("expression_purity_spearman_r"),
+            _ef.MEDIAN_PURITY: epc.get("median_purity"),
+            _ef.N_SUBTYPES_RESTRICTED: sub_card.get("n_subtypes_restricted"),
+            _ef.N_SUBTYPES_ENRICHED: sub_card.get("n_subtypes_enriched"),
+            _ef.N_SUBTYPES_MEASURED: sub_card.get("n_subtypes_measured"),
+            _ef.N_SUBTYPES_CLEARING_NORMAL_WINDOW: sub_card.get("n_subtypes_clearing_normal_window"),
+            _ef.BREADTH_LAYER_CONCORDANCE: teb.get("breadth_layer_concordance"),
         }
         pfr = _presence_priority_frame(cv, frame_headline, sv)
         for r in rows:

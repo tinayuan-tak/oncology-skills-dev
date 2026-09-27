@@ -515,7 +515,22 @@ def test_census_reaches_some_fields_but_not_all():
 # docstring it credits every card declaring the name — the accepted mechanism the salience banks above
 # also used; the runtime read is correctly scoped to emitted_cards. Prior vintage: 821 @ 18b0e8d2 was
 # 15 below the 836 ceiling (within slack), so trunk was green before this branch.
-APERTURE_CEILING = 781
+# ── BANKED 2026-09-27 781 → 774, same method, measured against contracts 28e992c (the CI aperture pin,
+# skills-validate.yml). SKILLS-ONLY, no pin move: the -5 is THIS BRANCH (SK#1850, epic #1848) wiring the
+# presence antigen-priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME) to consume the full presence
+# information reservoir as decision-INERT contextual/supportive inputs — presence_question_table.py now
+# reads the parked card fields off their cards to feed it. Measured EXACTLY 5 previously-orphan (card,
+# field) pairs cleared, 0 newly orphaned (census diff main → this branch, both against 28e992c: domain
+# 1823 unchanged, orphans 779 → 774):
+#   -3  hpa-pathology-cancer-ihc :: n_medium, n_low, n_not_detected  (IHC per-patient staining counts)
+#   -1  expression-purity-confound :: expression_purity_spearman_r    (purity-confound magnitude)
+#   -1  tumor-rna-distribution-by-subtype :: n_subtypes_clearing_normal_window  (subtype heterogeneity)
+# The frame ALSO now reads n_high / median_purity, but those were already name-only-reached (not orphans),
+# so they moved name_only → exact (+2 reached_exact) without changing the orphan count; staining_score /
+# fraction_moderate_strong / n_subtypes_{restricted,enriched,measured} / breadth_layer_concordance were
+# already exact-reached, so consuming them is aperture-inert. The reads are skills-side code readers, so
+# this is a pure skills-only reduction (no contracts reader moved) → no pin bump entangled.
+APERTURE_CEILING = 774
 
 # Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
 # into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of

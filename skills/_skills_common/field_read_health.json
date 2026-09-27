@@ -1,10 +1,10 @@
 {
   "attribution": {
-    "per_unit_read_credits": 582,
-    "per_unit_union_pairs": 531,
+    "per_unit_read_credits": 593,
+    "per_unit_union_pairs": 542,
     "reconciled": true,
     "unattributed": [],
-    "whole_tree_pairs": 531
+    "whole_tree_pairs": 542
   },
   "note": "Reads MINUS declarations, per unit, for the target-contracts framework-health dashboard. TRENDING, never a gate: a populated queue is a review queue and this tool returns 0 however long it is. The queue is NOT split into read_of_None vs emitted_but_undeclared here \u2014 that needs observed-package evidence this producer cannot see, so the contracts side resolves emission_undetermined against the data-products root. no_reads_detected means the scraper's five shapes matched nothing, NOT that the unit is clean.",
   "rosters": {
@@ -2151,7 +2151,7 @@
     "n_emission_undetermined": 3,
     "n_meta_key": 1,
     "n_no_reads_detected": 7,
-    "n_reads_detected": 531,
+    "n_reads_detected": 542,
     "n_roster_cards": 148,
     "n_roster_fields": 1823,
     "n_undeclared_pairs": 4,
@@ -2200,11 +2200,11 @@
     "_skills_common": {
       "disposition": "clean",
       "kind": "shared_library",
-      "n_reads": 111,
+      "n_reads": 122,
       "reads_by_kind": {
         "claim_passthrough": 45,
         "figure": 32,
-        "question_table": 29,
+        "question_table": 40,
         "skill_code": 5
       },
       "undeclared": []

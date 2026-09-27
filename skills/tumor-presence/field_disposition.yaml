@@ -623,19 +623,23 @@ tumor-rna-distribution-by-subtype:
     reason: identity/scope key
   n_subtypes_clearing_normal_window:
     role: context
-    reason: power / statistical qualifier
+    reason: "count of subtypes clearing the normal-expression window; power / statistical qualifier behind the subtype signal; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
+    reviewed: true
   n_subtypes_clearing_proxy_window_by_tissue:
     role: context
     reason: power / statistical qualifier
   n_subtypes_enriched:
     role: context
-    reason: power / statistical qualifier
+    reason: "count of enriched subtypes; power / statistical qualifier behind the subtype signal; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input (also read by Q4), annotation only (SK#1850)"
+    reviewed: true
   n_subtypes_measured:
     role: context
-    reason: power / statistical qualifier
+    reason: "count of measured subtypes; power / statistical qualifier behind the subtype signal; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input (also read by Q4), annotation only (SK#1850)"
+    reviewed: true
   n_subtypes_restricted:
     role: context
-    reason: power / statistical qualifier
+    reason: "count of restricted subtypes; power / statistical qualifier behind the subtype signal; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
+    reviewed: true
   normal_comparator_type:
     role: provenance
     reason: identity/scope key
@@ -790,11 +794,12 @@ expression-purity-confound:
     reason: power / statistical qualifier
   expression_purity_spearman_r:
     role: context
-    reason: "Spearman r of expression vs tumor purity; statistical qualifier behind purity_confound_class; no exact reader (census 2026-09-19)"
+    reason: "Spearman r of expression vs tumor purity; statistical qualifier behind purity_confound_class. Now consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input — the malignant-intrinsic confound magnitude, annotation only, never gates (SK#1850; supersedes the 'no exact reader' census-2026-09-19 note)"
     reviewed: true
   median_purity:
     role: context
-    reason: power / statistical qualifier
+    reason: "median tumor purity of the paired cohort; magnitude behind purity_confound_class; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
+    reviewed: true
   n_expr_samples:
     role: context
     reason: power / statistical qualifier
@@ -988,22 +993,28 @@ hpa-pathology-cancer-ihc:
     reviewed: true
   fraction_moderate_strong:
     role: context
-    reason: "(High+Medium)/total \u2014 moderate-or-strong staining fraction"
+    reason: "(High+Medium)/total \u2014 moderate-or-strong staining fraction; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input \u2014 MS-independent antibody-IHC protein prevalence, annotation only, never gates (SK#1850)"
+    reviewed: true
   staining_score:
     role: context
-    reason: "0-3 weighted intensity across patients"
+    reason: "0-3 weighted intensity across patients; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
+    reviewed: true
   n_high:
     role: context
-    reason: "component staining count"
+    reason: "component staining count; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
+    reviewed: true
   n_medium:
     role: context
-    reason: "component staining count"
+    reason: "component staining count; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
+    reviewed: true
   n_low:
     role: context
-    reason: "component staining count"
+    reason: "component staining count; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
+    reviewed: true
   n_not_detected:
     role: context
-    reason: "component staining count"
+    reason: "component staining count; consumed by the present_targetable_antigen_priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME via presence_priority_frame) as a contextual measurement input, annotation only (SK#1850)"
+    reviewed: true
   n_patients_total:
     role: context
     reason: "power / detection denominator"

@@ -804,6 +804,12 @@ def test_antigen_priority_frame_shape_and_roles():
     # normal_liability is the shared deliberately-absent critical
     assert by_pid[ef.NORMAL_LIABILITY_PROPERTY].role == Role.CRITICAL_UNKNOWN
     assert by_pid[ef.NORMAL_LIABILITY_PROPERTY].kind == InputKind.MISSING_UNRESOLVED
+    # SK#1850 information reservoir: 12 raw MEASUREMENTs consumed CONTEXTUALly + 1 SUPPORTIVE local-composite
+    for pid in ef.PRESENCE_PRIORITY_CONTEXT_MEASUREMENTS:
+        assert by_pid[pid].kind == InputKind.MEASUREMENT
+        assert by_pid[pid].role == Role.CONTEXTUAL
+    assert by_pid[ef.BREADTH_LAYER_CONCORDANCE].kind == InputKind.LOCAL_COMPOSITE_CLAIM
+    assert by_pid[ef.BREADTH_LAYER_CONCORDANCE].role == Role.SUPPORTIVE
 
 
 def test_antigen_priority_frame_new_inputs_are_observational_layer_and_registry_acyclic():
@@ -868,6 +874,63 @@ def test_presence_priority_frame_reads_subtype_from_the_by_subtype_vector():
     assert result["resolved_inputs"].get("subtype_restriction_concordance") == "protein_masks_subtype_restriction"
     # subtype is CONTEXTUAL on this frame, so even a mask token applies no veto (it is the veto on PRESENCE_FRAME)
     assert result["vetoes_applied"] == []
+
+
+def test_presence_priority_frame_reservoir_inputs_are_decision_inert():
+    """SK#1850: the full presence information reservoir (12 CONTEXTUAL measurements + the SUPPORTIVE
+    breadth-layer composite) is consumed as typed frame inputs, but at decision-INERT roles — so supplying
+    ALL of them must leave the frame's decision / vetoes / unresolved_critical BYTE-IDENTICAL to the same
+    frame with none of them supplied, across every decision branch. Falsification: the values are still
+    RESOLVED (they annotate resolved_inputs), so consumption is real, not a no-op read."""
+    cov = _real_coverage_concordant_claim()
+    reservoir = {
+        ef.IHC_N_HIGH: 12,
+        ef.IHC_N_MEDIUM: 7,
+        ef.IHC_N_LOW: 3,
+        ef.IHC_N_NOT_DETECTED: 1,
+        ef.IHC_STAINING_SCORE: 2.4,
+        ef.IHC_FRACTION_MODERATE_STRONG: 0.83,
+        ef.EXPRESSION_PURITY_SPEARMAN_R: -0.42,
+        ef.MEDIAN_PURITY: 0.71,
+        ef.N_SUBTYPES_RESTRICTED: 2,
+        ef.N_SUBTYPES_ENRICHED: 4,
+        ef.N_SUBTYPES_MEASURED: 6,
+        ef.N_SUBTYPES_CLEARING_NORMAL_WINDOW: 3,
+        ef.BREADTH_LAYER_CONCORDANCE: "breadth_layer_concordant",
+    }
+    # exercise every decision branch: the unresolved-critical QUESTION path AND the abundance down-rank veto
+    split = {"concordance_class": "rna_high_protein_low", "integration_method": "explicit_deterministic"}
+    scenarios = (
+        {"cv": {"bulk_vs_singlecell_coverage_concordance": cov}},
+        {"cv": {"bulk_vs_singlecell_coverage_concordance": cov, "abundance_concordance": split}},
+    )
+    for sc in scenarios:
+        base = ef.presence_priority_frame(dict(sc["cv"]))
+        enriched = ef.presence_priority_frame(dict(sc["cv"]), dict(reservoir))
+        assert enriched["decision"] == base["decision"]
+        assert enriched["vetoes_applied"] == base["vetoes_applied"]
+        assert enriched["unresolved_critical"] == base["unresolved_critical"]
+        # the reservoir values were genuinely CONSUMED (resolved), not silently dropped
+        ri = enriched["resolved_inputs"]
+        assert ri.get(ef.IHC_N_HIGH) == 12
+        assert ri.get(ef.EXPRESSION_PURITY_SPEARMAN_R) == -0.42
+        assert ri.get(ef.N_SUBTYPES_CLEARING_NORMAL_WINDOW) == 3
+        assert ri.get(ef.BREADTH_LAYER_CONCORDANCE) == "breadth_layer_concordant"
+        # and none of them registered as a veto
+        assert not any(pid in v for pid in ef.PRESENCE_PRIORITY_RESERVOIR_INPUTS for v in enriched["vetoes_applied"])
+
+
+def test_presence_priority_reservoir_inputs_are_observational_layer_and_registry_acyclic():
+    """Every reservoir input is OBSERVATIONAL-layer (a measurement / a within-skill composite, NOT an L2b
+    integrated property), so the frame stays strictly inside the DAG; the whole registry is acyclic and the
+    frame is reverse-index-reachable from each new input."""
+    layers = ef.reference_emitted_layers()
+    for pid in ef.PRESENCE_PRIORITY_RESERVOIR_INPUTS:
+        assert layers[pid] == ClaimType.OBSERVATIONAL_PROPERTY
+    ef.assert_acyclic(ef.FRAME_REGISTRY, layers)
+    idx = ef.build_reverse_index(ef.FRAME_REGISTRY)
+    for pid in ef.PRESENCE_PRIORITY_RESERVOIR_INPUTS:
+        assert ef.PRESENCE_PRIORITY_FRAME.frame_id in idx[pid]
 
 
 def test_presence_priority_frame_verdict_inert_disclaimer_and_empty_is_a_question():
