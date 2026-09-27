@@ -198,6 +198,56 @@ resolve_xena_site_and_studies <- function(ind, cfg_indications) {
   )
 }
 
+# --- gene-id re-key collapse (github analysis-methods#761 S4) ----------------
+# The four-cell loaders collapse the aligned count matrix (rows = versioned
+# Ensembl ids) to ONE row per gene before DESeq2. The PRODUCTION key is the HGNC
+# gene_symbol (sum every Ensembl gene sharing a symbol; DROP the symbol-less),
+# applied INLINE in 00_load_recount3.R. This is the ALTERNATIVE re-key the S4
+# verdict backtest measures: collapse on the unversioned Ensembl gene_stem
+# instead — each gene_stem stays its OWN row (a symbol backing >1 stem is NOT
+# summed) and symbol-less genes are RETAINED. It is OPT-IN (00_load_recount3.R
+# --collapse-key gene_stem); the default symbol path is UNTOUCHED and
+# byte-identical, so this ADDS a capability without moving any shipped verdict.
+# Making a stem-keyed product SYMBOL-readable for the verdict reader (the
+# ensg_ambiguous pick-policy + drift relabel) is the verdict-affecting loader
+# rewire S5 owns — deliberately NOT done here.
+#
+# `counts_mat`: integer matrix; rownames = versioned Ensembl ids (common_genes).
+# `common_genes`: the versioned ids (== rownames(counts_mat)), in row order.
+# `ens2hgnc`: named char vector unversioned-stem -> HGNC symbol; symbol-less
+#   stems are absent, so ens2hgnc[stem] is NA for them (symbol retained as NA).
+# Returns list(counts, rowdata = data.frame(gene_symbol, gene_id, gene_stem)),
+# rownames(counts) == gene_stem. FAIL-LOUD on an empty result — a degenerate
+# re-key join must never emit a silent zero-row product.
+collapse_counts_by_stem <- function(counts_mat, common_genes, ens2hgnc) {
+  gene_stem <- sub("\\..*$", "", common_genes)
+  if (anyDuplicated(gene_stem)) {
+    # rare: >1 versioned id sharing a stem — sum them (same gene identity).
+    counts_mat <- rowsum(counts_mat, gene_stem)
+    storage.mode(counts_mat) <- "integer"
+    stem_keys <- rownames(counts_mat)
+    first_idx <- !duplicated(gene_stem)
+    gi <- setNames(common_genes[first_idx], gene_stem[first_idx])
+    rowdata <- data.frame(
+      gene_symbol = unname(ens2hgnc[stem_keys]),   # NA where symbol-less (retained)
+      gene_id     = unname(gi[stem_keys]),
+      gene_stem   = stem_keys,
+      stringsAsFactors = FALSE)
+  } else {
+    rownames(counts_mat) <- gene_stem
+    rowdata <- data.frame(
+      gene_symbol = unname(ens2hgnc[gene_stem]),
+      gene_id     = common_genes,
+      gene_stem   = gene_stem,
+      stringsAsFactors = FALSE)
+  }
+  if (nrow(counts_mat) == 0L) {
+    stop("[collapse_counts_by_stem] 0 genes after gene_stem collapse — the re-key ",
+         "join is degenerate; refusing to emit a silent empty product", call. = FALSE)
+  }
+  list(counts = counts_mat, rowdata = rowdata)
+}
+
 # Pre-filter low-count genes on a per-cell sample subset. recount3 G026 carries
 # ~64K genes, a large fraction of which are lncRNA/pseudogene with near-zero
 # counts — these inflate DESeq2's dispersion-fit time (O(genes)) without adding

@@ -55,10 +55,22 @@ option_list <- list(
               help = "Override GTEx tissue code (else derived from config)."),
   make_option("--out", type = "character", help = "Output .rds path"),
   make_option("--limit", type = "integer", default = NA_integer_,
-              help = "Cap samples per group (smoke-testing). Default: no cap.")
+              help = "Cap samples per group (smoke-testing). Default: no cap."),
+  # Gene-id re-key backtest (#761 S4). Which identity the count matrix collapses
+  # to before DESeq2. Default "gene_symbol" == the shipped, byte-identical path.
+  # "gene_stem" is the OPT-IN re-key the S4 verdict backtest measures (each
+  # unversioned Ensembl gene stays its own row; symbol-less genes retained). It
+  # is VERDICT-AFFECTING, so it is never the default and is emitted only to a
+  # scratch prefix by rekey_backtest.emit_shadow_products — never a prod product.
+  make_option("--collapse-key", type = "character", default = "gene_symbol",
+              help = "Collapse identity: 'gene_symbol' (default, shipped) or 'gene_stem' (opt-in re-key).")
 )
 opts <- parse_args(OptionParser(option_list = option_list))
 stopifnot(!is.null(opts$config), !is.null(opts$out))
+collapse_key <- opts$`collapse-key`
+if (!collapse_key %in% c("gene_symbol", "gene_stem")) {
+  stop("--collapse-key must be 'gene_symbol' or 'gene_stem', got ", collapse_key)
+}
 
 cfg <- yaml::read_yaml(opts$config)
 bucket <- opts$bucket
@@ -320,36 +332,50 @@ if (any(empty)) {
 }
 
 # --- map gene_id → HGNC symbol; collapse duplicates by sum ------------------
-gene_stem <- sub("\\..*$", "", common_genes)
-gene_symbol <- ens2hgnc[gene_stem]
-keep <- !is.na(gene_symbol)
-message(sprintf("[00_load_recount3] HGNC-mappable: %d/%d genes",
-                sum(keep), length(common_genes)))
-counts_mat  <- counts_mat[keep, , drop = FALSE]
-gene_id_kept <- common_genes[keep]
-gene_stem_kept <- gene_stem[keep]
-gene_symbol <- gene_symbol[keep]
-
-# Collapse multiple gene_ids → one gene_symbol by summing counts (tximport
-# gene-level convention; matches 00_load_counts.R behaviour).
-dup <- duplicated(gene_symbol) | duplicated(gene_symbol, fromLast = TRUE)
-if (any(dup)) {
-  message("[00_load_recount3]   collapsing ", sum(dup), " rows across ",
-          length(unique(gene_symbol[dup])), " duplicate symbols (sum)")
-  counts_mat <- rowsum(counts_mat, gene_symbol)
-  storage.mode(counts_mat) <- "integer"
-  rowdata <- data.frame(gene_symbol = rownames(counts_mat),
-                        stringsAsFactors = FALSE)
-  # keep first gene_id/stem seen per symbol for provenance
-  first_idx <- !duplicated(gene_symbol)
-  gi <- setNames(gene_id_kept[first_idx], gene_symbol[first_idx])
-  gsm <- setNames(gene_stem_kept[first_idx], gene_symbol[first_idx])
-  rowdata$gene_id   <- unname(gi[rowdata$gene_symbol])
-  rowdata$gene_stem <- unname(gsm[rowdata$gene_symbol])
+if (collapse_key == "gene_stem") {
+  # OPT-IN re-key (#761 S4): collapse on the unversioned Ensembl gene_stem — each
+  # gene stays its own row (symbols backing >1 stem are NOT summed) and
+  # symbol-less genes are retained. Verdict-affecting; scratch-only. The shared
+  # pure helper (tested hermetically) does the collapse + fail-loud empty check.
+  message("[00_load_recount3] RE-KEY MODE: collapsing by unversioned gene_stem ",
+          "(opt-in, verdict-affecting; #761 S4 backtest — never a prod product)")
+  collapsed  <- collapse_counts_by_stem(counts_mat, common_genes, ens2hgnc)
+  counts_mat <- collapsed$counts
+  rowdata    <- collapsed$rowdata
+  message(sprintf("[00_load_recount3]   gene_stem collapse: %d genes (symbol-less retained)",
+                  nrow(counts_mat)))
 } else {
-  rownames(counts_mat) <- gene_symbol
-  rowdata <- data.frame(gene_symbol = gene_symbol, gene_id = gene_id_kept,
-                        gene_stem = gene_stem_kept, stringsAsFactors = FALSE)
+  gene_stem <- sub("\\..*$", "", common_genes)
+  gene_symbol <- ens2hgnc[gene_stem]
+  keep <- !is.na(gene_symbol)
+  message(sprintf("[00_load_recount3] HGNC-mappable: %d/%d genes",
+                  sum(keep), length(common_genes)))
+  counts_mat  <- counts_mat[keep, , drop = FALSE]
+  gene_id_kept <- common_genes[keep]
+  gene_stem_kept <- gene_stem[keep]
+  gene_symbol <- gene_symbol[keep]
+
+  # Collapse multiple gene_ids → one gene_symbol by summing counts (tximport
+  # gene-level convention; matches 00_load_counts.R behaviour).
+  dup <- duplicated(gene_symbol) | duplicated(gene_symbol, fromLast = TRUE)
+  if (any(dup)) {
+    message("[00_load_recount3]   collapsing ", sum(dup), " rows across ",
+            length(unique(gene_symbol[dup])), " duplicate symbols (sum)")
+    counts_mat <- rowsum(counts_mat, gene_symbol)
+    storage.mode(counts_mat) <- "integer"
+    rowdata <- data.frame(gene_symbol = rownames(counts_mat),
+                          stringsAsFactors = FALSE)
+    # keep first gene_id/stem seen per symbol for provenance
+    first_idx <- !duplicated(gene_symbol)
+    gi <- setNames(gene_id_kept[first_idx], gene_symbol[first_idx])
+    gsm <- setNames(gene_stem_kept[first_idx], gene_symbol[first_idx])
+    rowdata$gene_id   <- unname(gi[rowdata$gene_symbol])
+    rowdata$gene_stem <- unname(gsm[rowdata$gene_symbol])
+  } else {
+    rownames(counts_mat) <- gene_symbol
+    rowdata <- data.frame(gene_symbol = gene_symbol, gene_id = gene_id_kept,
+                          gene_stem = gene_stem_kept, stringsAsFactors = FALSE)
+  }
 }
 
 out <- list(
