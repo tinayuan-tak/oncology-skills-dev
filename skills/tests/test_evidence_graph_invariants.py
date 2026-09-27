@@ -93,6 +93,10 @@ def test_fail_soft_without_optional_inputs(skill):
     g = build_evidence_graph(stripped, questions=q)
     assert g["literature"] == {} and g["citations"] == [] and g["narrative"] == {}, skill
     assert len(g["cards"]) == len(full["cards"]), skill
+    # Per-graph anti-vacuity floor: a zero-card / zero-question graph would satisfy both the
+    # count-EQUALITY above (0 == 0) and the loop below vacuously. The registry is present on this
+    # path, so both collections must be non-empty.
+    assert g["cards"] and g["questions"], skill
     for qq in g["questions"]:
         assert qq["literature_axis_ids"] == [], (skill, qq["id"])
 
@@ -102,6 +106,9 @@ def test_graph_without_registry_is_referentially_intact(skill):
     d, _ = _load(skill)
     g = build_evidence_graph(d, questions=[])
     assert g["questions"] == [], skill
+    # Per-graph anti-vacuity floor: questions is empty by construction here (no registry), but the
+    # card loop below would pass vacuously on a zero-card graph. Cards must still be present.
+    assert g["cards"], skill
     d_ids = {x["id"] for x in g["datasets"]}
     for c in g["cards"]:
         assert c["question_ids"] == [], (skill, c["id"])

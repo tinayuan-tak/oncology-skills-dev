@@ -361,7 +361,21 @@ def _card_has_generic_wiring(card_id: str) -> bool:
     return any(isinstance(m, dict) and m.get("entrypoint") for m in (spec.get("methods") or []))
 
 
-@pytest.mark.parametrize("skill,card_id", list(_iter_skill_card_pairs()))
+_SKILL_CARD_PAIRS = list(_iter_skill_card_pairs())
+
+
+def test_skill_card_pairs_discovered():
+    """Anti-vacuity floor for the INVERSE dispatcher guard below. If the `*/scripts/run.py` glob
+    matches nothing, every parse errors, or the `CARDS` assignment shape changes, _iter_skill_card_pairs
+    collapses to [] → 0 parametrized cases → the far-more-important inverse guard passes vacuously.
+    This floor makes that collapse go RED. Currently 178 pairs from 20 run.py files; 150 is a slack floor."""
+    assert len(_SKILL_CARD_PAIRS) >= 150, (
+        f"only {len(_SKILL_CARD_PAIRS)} skill/card pairs discovered — the run.py glob or CARDS parsing "
+        f"broke; the inverse dispatcher guard would pass vacuously."
+    )
+
+
+@pytest.mark.parametrize("skill,card_id", _SKILL_CARD_PAIRS)
 def test_every_skill_card_has_a_dispatcher(skill, card_id):
     """Every card_id in any shipped skill's CARDS roster must be routable — via a bespoke
     CARD_DISPATCHERS/PANORAMA_DISPATCHERS entry, OR (T11) via the generic dispatcher when the
