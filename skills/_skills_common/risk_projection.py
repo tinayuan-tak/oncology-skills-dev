@@ -598,17 +598,23 @@ def evidence_coverage_by_axis(pkg: dict) -> dict:
     out: dict = {}
     for axis, (used, missing) in _axis_card_provenance(pkg).items():
         resolved = [cards[cid] for cid in used if cid in cards]
-        n_described = n_measured = 0
+        n_described = n_measured = n_undescribed = 0
         for card in resolved:
             # the stamped measurement_type when the writer stamped it, else the SAME registry back-ref
             # the stamp itself is resolved from (envelope._stamp_evidence_substrate) — one derivation.
             mt = card.get("measurement_type") or card_measurement_type(card.get("card_id") or "")
-            if not mt:
-                continue
-            descriptors = descriptors_for(mt)
+            # A card with no measurement_type carries no descriptor at all, so none of its summary fields
+            # can be measurement-role — they are all `undescribed`. Formerly this `continue`d past the card
+            # entirely, so those materialized fields were invisible to the instrument (issue #1645 mutation
+            # (i): a field with no SALIENCE_SPEC descriptor left n_described byte-identical). Iterate anyway
+            # with an empty descriptor map so they land in n_fields_undescribed.
+            descriptors = descriptors_for(mt) if mt else {}
             for field, value in (card.get("summary") or {}).items():
                 d = descriptors.get(field)
                 if not d or d.get("role") not in MEASUREMENT_ROLES:
+                    # a materialized field with no measurement-role descriptor: counted, not dropped. This
+                    # is ADDITIVE — n_described / n_measured (and therefore `state`) are untouched.
+                    n_undescribed += 1
                     continue
                 n_described += 1
                 if is_measured(value):
@@ -630,6 +636,9 @@ def evidence_coverage_by_axis(pkg: dict) -> dict:
             "n_cards_missing": len(missing),
             "n_fields_described": n_described,
             "n_fields_measured": n_measured,
+            # materialized summary fields with no measurement-role descriptor (issue #1645): the denominator
+            # the descriptor-covered `n_fields_described` cannot see. ADDITIVE / display-only.
+            "n_fields_undescribed": n_undescribed,
         }
     return out
 
@@ -669,8 +678,36 @@ def evidence_coverage_by_dim(pkg: dict) -> dict:
             "undescribed_axes": [a for a in reported if axes[a]["state"] == STATE_UNDESCRIBED],
             "n_cards_resolved": sum(axes[a]["n_cards_resolved"] for a in reported),
             "n_cards_missing": sum(axes[a]["n_cards_missing"] for a in reported),
+            # materialized-but-undescribed fields rolled up (issue #1645) — ADDITIVE, no bin reads it.
+            "n_fields_undescribed": sum(axes[a]["n_fields_undescribed"] for a in reported),
         }
     return out
+
+
+def materialized_card_coverage(pkg: dict) -> dict:
+    """`{n_materialized, n_billed, n_stranded, stranded_card_ids}` — the PACKAGE-level card aperture.
+
+    The per-dim / per-axis coverage above enumerates only cards a subskill BILLED (its
+    `provenance.cards_used`). But the materialized set (`pkg["cards"]`) is a UNION-by-card_id flat list
+    with no producing-axis field (issue #1645): a card materialized by a run but listed in NO axis's
+    `cards_used` never enters `resolved` and is invisible to the instrument meant to surface stranding —
+    ~18-35 cards/pkg corpus-wide (ABL1-CML: 134 materialized, 99 billed, 35 stranded). Because a stranded
+    card belongs to no axis it CANNOT be attributed to a dim (the flat list drops that provenance), so the
+    honest home is this single PACKAGE-level census rather than the per-dim rollup — attributing it per-dim
+    would over-count it once under every dim. DISPLAY-ONLY: no bin reads this; it gives the field-level
+    declares-consumed guard a denominator to gate on. Not every stranded card is a bug — many are
+    context/latent-by-contract; establish load-bearingness before promoting any single card."""
+    materialized = list(dict.fromkeys(c.get("card_id") for c in (pkg.get("cards") or []) if c.get("card_id")))
+    billed: set = set()
+    for used, _missing in _axis_card_provenance(pkg).values():
+        billed.update(used)
+    stranded = [cid for cid in materialized if cid not in billed]
+    return {
+        "n_materialized": len(materialized),
+        "n_billed": len(materialized) - len(stranded),  # materialized ∩ billed — the coverage denominator
+        "n_stranded": len(stranded),
+        "stranded_card_ids": stranded,
+    }
 
 
 def _attach_evidence_coverage(dims: dict, pkg: dict) -> None:

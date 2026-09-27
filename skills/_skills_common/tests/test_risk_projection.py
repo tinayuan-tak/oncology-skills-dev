@@ -570,6 +570,72 @@ def _phrase(cov):
     return coverage_phrase(cov)
 
 
+def test_undescribed_fields_are_counted_not_dropped():
+    """Issue #1645 mutation (i): a materialized summary field with no measurement-role descriptor was
+    dropped at the role filter, so the instrument was BLIND to it. It must now land in
+    `n_fields_undescribed` while leaving `n_fields_described` / `n_fields_measured` / `state` byte-identical
+    (ADDITIVE). Uses a real spec (loeuf_score is gnomad_lof_constraint's effect field) plus one field with
+    no descriptor."""
+    from _skills_common.risk_projection import STATE_MEASURED, evidence_coverage_by_axis, evidence_coverage_by_dim
+
+    card = {
+        "card_id": "gnomad-lof-constraint",
+        "measurement_type": "gnomad_lof_constraint",
+        "summary": {"loeuf_score": 0.19, "some_unspecced_field": 7.0},  # 1 measured + 1 undescribed
+    }
+    pkg = _cov_pkg("safety", ["gnomad-lof-constraint"], cards=[card])
+    ax = evidence_coverage_by_axis(pkg)["safety"]
+    # the measured/described counts (hence state) are untouched by the new field
+    assert ax["state"] == STATE_MEASURED
+    assert ax["n_fields_described"] == 1 and ax["n_fields_measured"] == 1
+    # the previously-invisible field is now counted
+    assert ax["n_fields_undescribed"] == 1
+    # and it rolls up per dim (selectivity/safety etc.), also additive
+    assert evidence_coverage_by_dim(pkg)["safety"]["n_fields_undescribed"] == 1
+
+
+def test_no_measurement_type_card_fields_count_as_undescribed():
+    """A resolved card with NO measurement_type formerly `continue`d past the whole card, so its summary
+    fields were invisible. They must now count as undescribed (they carry no descriptor), while the axis
+    still reads `undescribed` (n_described == 0) exactly as before."""
+    from _skills_common.risk_projection import STATE_UNDESCRIBED, evidence_coverage_by_axis
+
+    card = {"card_id": "no-mt-card", "summary": {"a": 1, "b": 2, "c": 3}}
+    ax = evidence_coverage_by_axis(_cov_pkg("safety", ["no-mt-card"], cards=[card]))["safety"]
+    assert ax["state"] == STATE_UNDESCRIBED and ax["n_fields_described"] == 0
+    assert ax["n_fields_undescribed"] == 3
+
+
+def test_materialized_card_coverage_sees_stranded_cards():
+    """Issue #1645 mutation (ii): a fully-materialized card left out of EVERY `provenance.cards_used` never
+    enters the per-axis `resolved` set, so the per-dim instrument cannot see it. The package-level census
+    counts it as stranded. Byte-stable: no bin reads this function."""
+    from _skills_common.risk_projection import materialized_card_coverage
+
+    pkg = _cov_pkg(
+        "safety",
+        ["billed-card"],
+        cards=[
+            {"card_id": "billed-card", "measurement_type": "gnomad_lof_constraint", "summary": {"loeuf_score": 0.2}},
+            {"card_id": "stranded-card", "measurement_type": "cell_line_rna_expression", "summary": {"tpm": 4.0}},
+        ],
+    )
+    cov = materialized_card_coverage(pkg)
+    assert cov["n_materialized"] == 2 and cov["n_billed"] == 1
+    assert cov["n_stranded"] == 1 and cov["stranded_card_ids"] == ["stranded-card"]
+
+    # a package where every materialized card is billed -> nothing stranded
+    all_billed = _cov_pkg(
+        "safety",
+        ["billed-card"],
+        cards=[
+            {"card_id": "billed-card", "measurement_type": "gnomad_lof_constraint", "summary": {"loeuf_score": 0.2}}
+        ],
+    )
+    clean = materialized_card_coverage(all_billed)
+    assert clean["n_stranded"] == 0 and clean["stranded_card_ids"] == []
+
+
 def test_coverage_is_additive_and_bins_are_untouched():
     """ADDITIVE contract: every pre-existing key of every dim is byte-identical to the same run with the
     coverage payload stripped — `evidence_coverage` is the ONLY new key on a dim."""
