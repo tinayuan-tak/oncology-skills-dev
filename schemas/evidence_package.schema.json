@@ -241,6 +241,32 @@
     "subtype_resolved": {
       "$ref": "#/$defs/subtype_resolved",
       "description": "OPTIONAL first-class subtype-resolved EVIDENCE block (subtype-first-class-evidence-axis spec, Option A). Present only for runs scoped to molecular strata (target-profile `--subtypes`); ABSENT for default (no-strata) runs, which stay byte-stable. This block makes the per-stratum subtype SIGNALS machine-readable so the cross-evidence integrator can reason at subtype resolution WITHOUT changing the deterministic spine's deliberate 'subtype = context, not a gate' treatment. It is SOFT integrator context: it never raises certainty beyond what a stratum's n supports, never overrides a gate, and a stratum below its n-floor carries no weight. No positive subtype signal here enters any hard gate."
+    },
+    "source_properties": {
+      "type": "object",
+      "description": "OPTIONAL L2a section (evidence-property architecture L1→L4, § 'The subskill as a bounded biological evidence package'; SK#1941). Present only for a subskill emitting a bounded evidence package (tumor-presence reference vertical); ABSENT for compose-dashboard/other packages, which stay byte-stable. A map of per-SOURCE biological properties (resolvers translate card measurements into bounded properties, e.g. patient_tumor_abundance / malignant_cell_coverage / tumor_protein_abundance). Reconstructable DOWNWARD to L1: each property entry carries the `card_id` of the card it resolved from. VIEW over content already on the decision headline (verdict-INERT): declaring/consuming it moves no verdict. additionalProperties stays open — the emitting skill owns each property's shape.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {"card_id": {"type": "string"}}
+      }
+    },
+    "integrated_properties": {
+      "type": "object",
+      "description": "OPTIONAL L2b section (evidence-property architecture L1→L4; SK#1941). Present only for a subskill emitting a bounded evidence package; ABSENT otherwise (byte-stable). The domain's property ISLANDS — cross-source integrations keyed by their claim_id (e.g. tumor_presence_concordance, abundance_concordance, bulk_vs_singlecell_coverage_concordance, protein_presence_concordance). Reconstructable DOWNWARD to L1: each island carries `provenance.sources[*].provenance.card_id`. VIEW over content already on the decision headline (verdict-INERT). additionalProperties stays open — the emitting skill owns each island's shape.",
+      "additionalProperties": {"type": "object"}
+    },
+    "local_composites": {
+      "type": "object",
+      "description": "OPTIONAL section for composites that stay INSIDE the subskill (evidence-property architecture L1→L4, 'Local composites … carried with their epistemic type declared'; SK#1941). Present only for a subskill emitting a bounded evidence package; ABSENT otherwise (byte-stable). Carries the domain-local claim axes with their epistemic type declared; each carried claim is reconstructable DOWNWARD to L1 via its `evidence_atom.cite.card_id`. VIEW over content already on the decision headline (verdict-INERT).",
+      "properties": {
+        "epistemic_type": {"type": "string"},
+        "claims": {"type": "object"}
+      },
+      "additionalProperties": true
+    },
+    "l3d": {
+      "type": "object",
+      "description": "OPTIONAL within-domain interpretation section (L3d — DOMAIN_INTERPRETATION, strictly between L2b integrated_property and L3f decision_frame; SK#1940/#1941). Present only when a within-domain story resolves for a subskill emitting a bounded evidence package; ABSENT otherwise (byte-stable). A DETERMINISTIC (no-LLM) claim-ID-traceable synthesis over the L2b islands, staying strictly inside the subskill's semantic domain (never a cross-domain conclusion). Reconstructable DOWNWARD to the L2 claims via `provenance.claim_ids`. VIEW over content already on the decision headline (verdict-INERT). additionalProperties stays open — the emitting skill owns the story's shape."
     }
   },
   "$defs": {
