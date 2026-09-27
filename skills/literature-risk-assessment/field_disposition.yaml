@@ -1,0 +1,132 @@
+# MOSTLY HUMAN-AUTHORED. Every row here carries `reviewed: true`: a human read the field's
+# producer (target-contracts card contract) and its consumers (the census, blind to this ledger)
+# and chose the role. Roles were NOT auto-drafted from field names (the tumor-presence _meta explains
+# why that heuristic is noise). Completeness (every emitted summary_field covered) and reader-reach for
+# `role: signal` are CI-enforced by skills/tests/test_field_disposition_ledgers.py (fleet glob guard).
+#
+# CONSUMER LEDGER — this skill EMITS NO CARD. literature-risk-assessment is context-tier: it retrieves
+# literature and produces risk_assessment.json (a data_package, not a card/rule/sub-verdict). It READS
+# two deterministic cards from an OPTIONAL evidence-package to (a) build the engine-blind clinical /
+# commercial dimension anchors (run.py:_load_card_anchors) and (b) resolve the target's drugs for the
+# openFDA pharmacovigilance annotation (run.py:_drugs_from_package). So the cards covered here are the
+# cards this skill CONSUMES, not cards it produces. SKILL.md composition.cards_used:[] means "declares
+# no card DEPENDENCY" (the reads are best-effort, absent-package-tolerant); the field-level consumption
+# is real and ledgered here so nothing is dropped SILENTLY.
+#
+# SHARED CARDS: neither clinical-precedent nor competitor-landscape appears as a card key in any landed
+# sibling ledger (checked 2026-09-27), so there are no reviewed roles to reuse — these roles are set
+# fresh and are the canonical roles a future sibling ledger should reuse (the sibling-reuse convention).
+# Reach is GLOBAL (census walks the whole tree), so a field marked `signal` counts as reader-reached if
+# ANY declared reader (salience / gating_rule / skill_code) exact-reaches it — including a sibling skill.
+#
+# ROLE lens for this consumer: `signal` is reserved for the framework's headline class/stage CALLS
+# (fields other consumers fire salience rungs on); the counts and named-agent lists this skill reads to
+# resolve drugs / build anchors are `context` (magnitude / substrate qualifiers), consistent with the
+# sibling convention (named lists + counts = context, class/stage calls = signal). This skill's own use
+# is context-tier and never a verdict, so no field is `signal` BECAUSE this skill reads it.
+_meta:
+  description: Field-disposition ledger for literature-risk-assessment (a CONSUMER, context-tier skill)
+    — every summary_field of the two cards it reads from an evidence-package carries an explicit role so
+    nothing is dropped SILENTLY. Enforced by skills/tests/test_field_disposition_ledgers.py.
+  roles:
+    signal: feeds a claim / verdict (must be wired or explicitly waived) — the framework's headline
+      class / stage call
+    context: qualifies a signal (count / denominator / magnitude / named-agent or modality list /
+      scope qualifier), incl. the drug-resolution + anchor substrate this skill consumes
+    provenance: audit / identity / method / version token — surfaced, never a signal
+    display: human-facing detail or large container; verdict-inert by design
+  generated_from: target-contracts/cards/<card>.card.yaml outputs.summary_fields
+  reviewed: true == a human read the field's producer and consumers and chose this role.
+  waived_because: only legal on role:signal. Records WHY a signal no declared reader reaches is left
+    unwired. Must name the missing consumer or owning repo. (None needed here — every signal is
+    reach-confirmed exact.)
+  consumed_by_this_skill: >-
+    clinical-precedent {highest_clinical_stage, n_active_trials, notable_failures, approved_agents};
+    competitor-landscape {competitor_class, n_competitor_programs, approved_agents}. NOTE run.py also
+    reads competitor-landscape.n_approved, which the card does NOT declare (a phantom read that always
+    resolves None) — not ledgered here because the ledger covers only DECLARED summary_fields; filed as
+    a finding for the producing skill / target-contracts.
+clinical-precedent:
+  highest_clinical_stage:
+    role: signal
+    reason: headline clinical-maturity CALL for the target's own precedent (AACT); fires the salience
+      rungs and is the clinical-dimension anchor this skill reads; reach-confirmed exact via
+      {salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  approved_agents:
+    role: context
+    reason: named list of approved agents engaging the target; not itself the stage call — it is the
+      drug->openFDA resolution substrate (_drugs_from_package) and a supporting detail of the precedent;
+      reach exact {skill_code}
+    reviewed: true
+  n_active_trials:
+    role: context
+    reason: count of active trials; power / denominator behind the highest_clinical_stage signal and a
+      component of this skill's clinical anchor; reach exact {salience, skill_code}
+    reviewed: true
+  modality_precedent:
+    role: context
+    reason: modality-precedent qualifier of the clinical picture (which modality has reached the clinic);
+      not read by this skill; reach exact {salience}
+    reviewed: true
+  notable_failures:
+    role: context
+    reason: named list of notable clinical failures; a de-risking qualifier of the precedent, consumed
+      by this skill both as the anchor's notable_failures bool and as drug->openFDA resolution substrate
+      (failed agents still carry AE signal); reach exact {skill_code}
+    reviewed: true
+  resistance_mechanisms_reported:
+    role: context
+    reason: reported resistance-mechanism qualifier (durability of the precedent); no declared reader
+      reaches it (ORPHAN) — left as an unread qualifier in the review queue, not asserted verdict-inert
+      by design
+    reviewed: true
+competitor-landscape:
+  competitor_class:
+    role: signal
+    reason: headline competitor-intensity CALL; fires the salience rungs and is the commercial-dimension
+      anchor this skill reads; reach-confirmed exact via {salience, skill_code} (census 2026-09-27,
+      blind to ledger)
+    reviewed: true
+  highest_clinical_stage:
+    role: signal
+    reason: highest clinical-stage CALL across the competitor field (how mature the competition is);
+      a headline stage determination, not read by this skill; reach-confirmed exact via
+      {salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  approved_agents:
+    role: context
+    reason: named list of approved competitor agents; drug->openFDA resolution substrate
+      (_drugs_from_package) and a supporting detail of the landscape, not the class call itself; reach
+      exact {skill_code}
+    reviewed: true
+  late_stage_non_approved_agents:
+    role: context
+    reason: named list of late-stage non-approved competitor agents; a maturity qualifier of the
+      competitor landscape; not read by this skill; reach exact {skill_code}
+    reviewed: true
+  withdrawn_agents:
+    role: context
+    reason: named list of withdrawn competitor agents; a de-risking / attrition qualifier of the
+      landscape; no declared reader reaches it (ORPHAN) — left as an unread qualifier in the review queue
+    reviewed: true
+  modalities_in_development:
+    role: context
+    reason: list of modalities in competitive development; a modality-diversity qualifier of the
+      landscape; not read by this skill; reach exact {skill_code}
+    reviewed: true
+  modality_landscape:
+    role: context
+    reason: structured competitor-modality landscape; a modality qualifier of the competitor picture;
+      not read by this skill; reach exact {skill_code}
+    reviewed: true
+  n_competitor_programs:
+    role: context
+    reason: count of competitor programs; power / magnitude behind competitor_class and a component of
+      this skill's commercial anchor; reach exact {salience, skill_code}
+    reviewed: true
+  indication_scope:
+    role: context
+    reason: indication-scope qualifier of the competitor programs (in-indication vs broader); not read
+      by this skill; reach exact {salience, skill_code}
+    reviewed: true
