@@ -1,0 +1,1489 @@
+_meta:
+  description: Field-disposition ledger for surface-modality-fit — every emitted summary_field carries
+    an explicit role so nothing is dropped SILENTLY. Enforced by skills/tests/test_field_disposition_ledgers.py.
+  roles:
+    signal: feeds a claim / verdict (must be wired or explicitly waived)
+    context: qualifies a signal (power, certainty, statistical qualifier, cross-axis pointer)
+    provenance: audit / identity / method token — surfaced, never a signal
+    display: human-facing detail or large container; verdict-inert by design
+  generated_from: target-contracts/cards/<card>.card.yaml outputs.summary_fields
+  reviewed: true == a human read the field's producers and consumers and chose this role.
+  waived_because: 'only legal on role: signal. Records WHY a signal no declared reader reaches is left
+    unwired (Track-B queue); names the missing consumer / owning repo.'
+  shared_cards_note: normal-tissue-liability, sc-normal-celltype-expression, tumor-scrna-celltype-expression
+    and rna-protein-concordance-tumor are composed by both tumor-presence and surface-modality-fit; their
+    rows mirror the reviewed tumor-presence ledger (role is card-intrinsic; census reach is fleet-global).
+surface-topology-and-ptm:
+  topology_class:
+    role: signal
+    reason: headline surface-topology call; fires topology_class rules on the surface_intrinsic axis (ADC/TCE
+      ectodomain accessibility); reach-confirmed exact via {capsule, display_rule, salience, skill_code}
+      (census 2026-09-27, blind to ledger)
+    reviewed: true
+  tm_pass_count:
+    role: context
+    reason: transmembrane-pass count; membrane-geometry magnitude qualifying topology_class
+    reviewed: true
+  has_tm_beta:
+    role: context
+    reason: beta-barrel TM flag; topology component behind topology_class (ORPHAN — the class carries
+      the call)
+    reviewed: true
+  extracellular_residue_count:
+    role: context
+    reason: ECD size magnitude behind ecd_engineerability_class
+    reviewed: true
+  ecd_engineerability_class:
+    role: signal
+    reason: ectodomain-engineerability call; fires ecd_engineerability_class rules (ADC/TCE binder-buildability);
+      reach-confirmed exact via {capsule, display_rule, salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  ecd_orientation:
+    role: context
+    reason: type-I/II/multipass orientation; geometry qualifier behind ecd_engineerability_class
+    reviewed: true
+  signal_peptide_present:
+    role: context
+    reason: signal-peptide presence; topology/secretion feature qualifying the ECD reads
+    reviewed: true
+  signal_peptide_length:
+    role: context
+    reason: signal-peptide length magnitude; topology feature (ORPHAN)
+    reviewed: true
+  n_glycosylation_sites:
+    role: context
+    reason: N-glycosylation site count; PTM qualifier relevant to ADC payload/epitope (ORPHAN)
+    reviewed: true
+  n_ubiquitination_sites:
+    role: context
+    reason: ubiquitination site count; PTM/internalization qualifier (name_only)
+    reviewed: true
+  endocytosis_motif_count:
+    role: context
+    reason: endocytosis-motif count; magnitude behind the ADC internalization read (endocytosis_confidence)
+      (ORPHAN)
+    reviewed: true
+  endocytosis_motif_count_high_confidence:
+    role: context
+    reason: high-confidence endocytosis-motif count; power/certainty qualifier of the internalization
+      read (name_only)
+    reviewed: true
+  endocytosis_motif_types:
+    role: display
+    reason: list of matched endocytosis motif types; human-facing detail (ORPHAN)
+    reviewed: true
+  isoform_selective_warning:
+    role: signal
+    reason: isoform-selective-targeting warning; fires isoform_selective_warning rules and drives fit_class
+      isoform-suppression; reach-confirmed exact via {display_rule, salience} (census 2026-09-27, blind
+      to ledger)
+    reviewed: true
+  isoform_selective_dominant_isoform:
+    role: display
+    reason: names the dominant isoform the selectivity warning refers to; human-facing identity label
+      (ORPHAN)
+    reviewed: true
+  tmbed_model_version:
+    role: provenance
+    reason: TMbed topology-predictor model version; method/provenance token (ORPHAN)
+    reviewed: true
+  vocabulary_version_isoform:
+    role: provenance
+    reason: isoform vocabulary version pin; provenance token (ORPHAN)
+    reviewed: true
+surfaceome-family-classification:
+  family_class:
+    role: signal
+    reason: surfaceome family-class call; fires family_class rules and feeds surface_family_class / surface_confirmation_state;
+      reach-confirmed exact via {display_rule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  surface_protein_family:
+    role: context
+    reason: names the specific surface-protein family behind family_class; cross-axis pointer / qualifier
+    reviewed: true
+  is_surface_protein:
+    role: context
+    reason: surfaceome-membership boolean; the categorical family_class carries the framework's read (name_only)
+    reviewed: true
+  surfaceome_confidence_score:
+    role: context
+    reason: surfaceome-membership confidence magnitude; certainty qualifier behind family_class (name_only)
+    reviewed: true
+  source_surfy_positive:
+    role: provenance
+    reason: SURFY predictor source flag; evidence-source provenance token (name_only)
+    reviewed: true
+  source_hpa_plasma_membrane:
+    role: provenance
+    reason: HPA plasma-membrane annotation source flag; provenance token (name_only)
+    reviewed: true
+  source_uniprot_ec_number:
+    role: provenance
+    reason: UniProt EC-number source flag; provenance token (ORPHAN)
+    reviewed: true
+  source_iuphar_family:
+    role: provenance
+    reason: IUPHAR family source flag; provenance token (ORPHAN)
+    reviewed: true
+  fusion_provenance:
+    role: provenance
+    reason: source-fusion provenance for the surfaceome call; provenance token (ORPHAN)
+    reviewed: true
+  hpa_protein_class_verbatim:
+    role: provenance
+    reason: verbatim HPA protein-class string; provenance/audit token (ORPHAN)
+    reviewed: true
+structure-features-static:
+  hotspot_pocket_adjacency_call:
+    role: signal
+    reason: hotspot/druggable-pocket adjacency call; fires hotspot_pocket_adjacency_call rules on the
+      surface_intrinsic axis; reach-confirmed exact via {capsule, display_rule, gating_rule, salience,
+      skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  mutation_hotspot_in_druggable_pocket:
+    role: context
+    reason: boolean component behind hotspot_pocket_adjacency_call
+    reviewed: true
+  pdb_coverage_class:
+    role: context
+    reason: experimental-structure coverage class; structural-certainty qualifier behind the ligandability
+      call
+    reviewed: true
+  alphafold_confidence_class:
+    role: context
+    reason: AlphaFold model-confidence class; structural-certainty qualifier behind the ligandability
+      call
+    reviewed: true
+  pdb_ids_available:
+    role: provenance
+    reason: list of available PDB IDs; identity/provenance token (ORPHAN)
+    reviewed: true
+  pdb_best_resolution_angstrom:
+    role: context
+    reason: best crystallographic resolution; structure-quality qualifier (ORPHAN)
+    reviewed: true
+  pdb_best_method:
+    role: provenance
+    reason: best experimental structure method (X-ray/cryo-EM); provenance token (ORPHAN)
+    reviewed: true
+  alphafold_plddt_mean:
+    role: context
+    reason: mean pLDDT magnitude behind alphafold_confidence_class
+    reviewed: true
+  alphafold_plddt_min:
+    role: context
+    reason: min pLDDT magnitude; structural-certainty qualifier (ORPHAN)
+    reviewed: true
+  alphafold_plddt_min_domain:
+    role: display
+    reason: names the lowest-confidence domain; human-facing detail (ORPHAN)
+    reviewed: true
+  n_domains_low_plddt:
+    role: context
+    reason: count of low-confidence domains; power/certainty qualifier (ORPHAN)
+    reviewed: true
+  disordered_fraction:
+    role: context
+    reason: disordered-residue fraction; structural qualifier behind ligandability_disorder_class (name_only)
+    reviewed: true
+  structural_ligandability_class:
+    role: signal
+    reason: structural-ligandability call (the SM tractability signal read by tractability-small-molecule);
+      reach is global via census; reach-confirmed exact via {capsule, display_rule, gating_rule, salience,
+      skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  n_ligandability_axes:
+    role: context
+    reason: count of satisfied ligandability axes; magnitude behind structural_ligandability_class (name_only)
+    reviewed: true
+  has_experimental_cocrystal:
+    role: context
+    reason: cocrystal-evidence boolean; ligandability-axis component behind the class
+    reviewed: true
+  has_druggable_pocket:
+    role: context
+    reason: druggable-pocket boolean; ligandability-axis component behind the class
+    reviewed: true
+  has_virtual_screen_hit:
+    role: context
+    reason: virtual-screen-hit boolean; ligandability-axis component (name_only)
+    reviewed: true
+  has_cryptic_site:
+    role: context
+    reason: cryptic-site boolean; ligandability-axis component behind the class
+    reviewed: true
+  has_annotated_binding_site:
+    role: context
+    reason: annotated-binding-site boolean; ligandability-axis component (ORPHAN)
+    reviewed: true
+  is_foldable:
+    role: context
+    reason: foldability boolean; structural qualifier (ORPHAN)
+    reviewed: true
+  ligandability_disorder_class:
+    role: signal
+    reason: disorder-adjusted ligandability class; read by tractability-small-molecule as a structural
+      call (reach global via census); reach-confirmed exact via {skill_code} (census 2026-09-27, blind
+      to ledger)
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: structure-method version; provenance token (name_only)
+    reviewed: true
+surface-abundance-density:
+  surface_density_class:
+    role: signal
+    reason: surface antigen-density call; fires surface_density_class rules and feeds the density floor
+      (ADC-payload/TCE viability); reach-confirmed exact via {capsule, display_rule, salience, skill_code}
+      (census 2026-09-27, blind to ledger)
+    reviewed: true
+  estimated_copies_per_cell_median:
+    role: context
+    reason: estimated copies/cell (median); density magnitude behind surface_density_class (ORPHAN)
+    reviewed: true
+  estimated_copies_per_cell_lower:
+    role: context
+    reason: estimated copies/cell lower bound; CI-bound qualifier (ORPHAN)
+    reviewed: true
+  estimated_copies_per_cell_upper:
+    role: context
+    reason: estimated copies/cell upper bound; CI-bound qualifier (ORPHAN)
+    reviewed: true
+  hpa_ihc_anchor_used:
+    role: provenance
+    reason: which HPA-IHC anchor calibrated the density estimate; method/provenance token (ORPHAN)
+    reviewed: true
+  hpa_ihc_intensity_class:
+    role: signal
+    reason: HPA-IHC intensity call; fires hpa_ihc_intensity_class rules (density anchor); reach-confirmed
+      exact via {capsule, display_rule, gating_rule} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  is_tce_viable:
+    role: signal
+    reason: TCE density-viability boolean; verdict-bearing density-floor input for the TCE arm; reach-confirmed
+      exact via {capsule, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  is_adc_high_payload_viable:
+    role: signal
+    reason: ADC high-payload density-viability boolean; verdict-bearing density-floor input for the ADC
+      arm; reach-confirmed exact via {capsule, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  absolute_density_class:
+    role: signal
+    reason: absolute (copies/cell) surface-density call; density signal read into the floor; reach-confirmed
+      exact via {capsule, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  absolute_copies_per_cell:
+    role: signal
+    reason: absolute measured copies/cell magnitude; read as the absolute-density signal; reach-confirmed
+      exact via {salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  absolute_density_grade:
+    role: signal
+    reason: graded absolute-density call; density signal; reach-confirmed exact via {skill_code} (census
+      2026-09-27, blind to ledger)
+    reviewed: true
+  absolute_measurement_semantics:
+    role: provenance
+    reason: semantics tag for the absolute measurement (what was measured); provenance token (ORPHAN)
+    reviewed: true
+  absolute_n_measurements:
+    role: context
+    reason: count of absolute density measurements; power qualifier (ORPHAN)
+    reviewed: true
+  absolute_abundance_proxy_class:
+    role: context
+    reason: proxy-abundance class used when absolute copies are unavailable; fallback qualifier (name_only)
+    reviewed: true
+  absolute_abundance_proxy_percentile:
+    role: context
+    reason: proxy-abundance percentile; magnitude qualifier (name_only)
+    reviewed: true
+  absolute_abundance_proxy_source:
+    role: provenance
+    reason: proxy-abundance data source; provenance token (name_only)
+    reviewed: true
+  absolute_abundance_proxy_note:
+    role: display
+    reason: human-readable proxy note; display detail (name_only)
+    reviewed: true
+  density_floor_verdict:
+    role: signal
+    reason: the resolver density-floor verdict; a surface_modality resolver key (verdict-bearing); reach-confirmed
+      exact via {capsule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: density-method version; provenance token (name_only)
+    reviewed: true
+adc-tce-modality-fit:
+  fit_class:
+    role: signal
+    reason: PRIMARY biology-agnostic modality-fit categorical; the surface_modality resolver keys the
+      whole verdict on it; reach-confirmed exact via {gating_rule, salience, skill_code} (census 2026-09-27,
+      blind to ledger)
+    reviewed: true
+  fit_rationale:
+    role: display
+    reason: human-readable rationale list behind fit_class; display detail (ORPHAN)
+    reviewed: true
+  is_adc_topology_favorable:
+    role: signal
+    reason: biology-only ADC topology-favorability boolean
+    reviewed: true
+    waived_because: 'biology-only topology-favorability boolean for the modality arm; ORPHAN in census
+      — the composed fit_class already folds topology, so no skill code reads the raw boolean. Track-B:
+      surface as the per-arm topology rationale behind fit_class (owning repo claude-oncology-skills;
+      adc-tce-modality-fit card).'
+  is_tce_topology_favorable:
+    role: signal
+    reason: biology-only TCE topology-favorability boolean
+    reviewed: true
+    waived_because: 'biology-only topology-favorability boolean for the modality arm; ORPHAN in census
+      — the composed fit_class already folds topology, so no skill code reads the raw boolean. Track-B:
+      surface as the per-arm topology rationale behind fit_class (owning repo claude-oncology-skills;
+      adc-tce-modality-fit card).'
+  endocytosis_confidence:
+    role: signal
+    reason: ADC internalization-confidence tier; feeds the clinically_internalizing rung of surface_confirmation_state;
+      reach-confirmed exact via {salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  biologics_precedented:
+    role: signal
+    reason: biologics-precedent boolean (validated ADC/TCE/CAR/mAb); feeds the clinically_precedented
+      tier of surface_confirmation_state; reach-confirmed exact via {skill_code} (census 2026-09-27, blind
+      to ledger)
+    reviewed: true
+  surface_confirmation_state:
+    role: signal
+    reason: cross-card surface-confirmation state (confirmed/precedented/annotation_only); fires the surface-annotation-only-unconfirmed
+      verdict rung; reach-confirmed exact via {gating_rule, salience, skill_code} (census 2026-09-27,
+      blind to ledger)
+    reviewed: true
+  surface_family_class:
+    role: signal
+    reason: surfaceome family-class projected onto the fit card; read into surface_confirmation_state
+      derivation; reach-confirmed exact via {salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  isoform_selective_suppressed:
+    role: context
+    reason: 'boolean: letter grades were suppressed for an in-context isoform; qualifies the (unread)
+      grade emission (ORPHAN)'
+    reviewed: true
+  isoform_selective_offcontext:
+    role: context
+    reason: 'boolean: curated alt isoform exists but not in this indication → fit_class not suppressed,
+      caveat only; qualifier of fit_class'
+    reviewed: true
+  isoform_mechanism_caveat:
+    role: context
+    reason: mechanism-aware isoform caveat string; qualifies fit_class without suppressing it
+    reviewed: true
+  isoform_epitope_caveat:
+    role: context
+    reason: minority-species epitope-loss caveat; qualifies fit_class without suppressing it
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: modality-fit method version; provenance token (name_only)
+    reviewed: true
+  adc_grade:
+    role: signal
+    reason: ADC letter grade (A-D) from modality_rubric.yaml
+    reviewed: true
+    waived_because: 'lens-conditional (--modality) ADC/TCE decision grade; ORPHAN in census — no skill
+      code reads it. surface-modality-fit narrates fit_class, not the letter grades/scores/stability.
+      Track-B: wire the graded rubric readout into the modality-fit headline + governance reproduction
+      path (owning repo claude-oncology-skills; adc-tce-modality-fit card; modality_rubric.yaml).'
+  adc_score:
+    role: signal
+    reason: ADC raw score 0-100; magnitude behind the letter grade
+    reviewed: true
+    waived_because: 'lens-conditional (--modality) ADC/TCE decision grade; ORPHAN in census — no skill
+      code reads it. surface-modality-fit narrates fit_class, not the letter grades/scores/stability.
+      Track-B: wire the graded rubric readout into the modality-fit headline + governance reproduction
+      path (owning repo claude-oncology-skills; adc-tce-modality-fit card; modality_rubric.yaml).'
+  adc_grade_stability:
+    role: signal
+    reason: ADC grade bootstrap stability (stable/sensitive/unstable)
+    reviewed: true
+    waived_because: 'lens-conditional (--modality) ADC/TCE decision grade; ORPHAN in census — no skill
+      code reads it. surface-modality-fit narrates fit_class, not the letter grades/scores/stability.
+      Track-B: wire the graded rubric readout into the modality-fit headline + governance reproduction
+      path (owning repo claude-oncology-skills; adc-tce-modality-fit card; modality_rubric.yaml).'
+  tce_grade:
+    role: signal
+    reason: TCE letter grade (A-D) from modality_rubric.yaml
+    reviewed: true
+    waived_because: 'lens-conditional (--modality) ADC/TCE decision grade; ORPHAN in census — no skill
+      code reads it. surface-modality-fit narrates fit_class, not the letter grades/scores/stability.
+      Track-B: wire the graded rubric readout into the modality-fit headline + governance reproduction
+      path (owning repo claude-oncology-skills; adc-tce-modality-fit card; modality_rubric.yaml).'
+  tce_score:
+    role: signal
+    reason: TCE raw score 0-100; magnitude behind the letter grade
+    reviewed: true
+    waived_because: 'lens-conditional (--modality) ADC/TCE decision grade; ORPHAN in census — no skill
+      code reads it. surface-modality-fit narrates fit_class, not the letter grades/scores/stability.
+      Track-B: wire the graded rubric readout into the modality-fit headline + governance reproduction
+      path (owning repo claude-oncology-skills; adc-tce-modality-fit card; modality_rubric.yaml).'
+  tce_grade_stability:
+    role: signal
+    reason: TCE grade bootstrap stability under weight perturbation
+    reviewed: true
+    waived_because: 'lens-conditional (--modality) ADC/TCE decision grade; ORPHAN in census — no skill
+      code reads it. surface-modality-fit narrates fit_class, not the letter grades/scores/stability.
+      Track-B: wire the graded rubric readout into the modality-fit headline + governance reproduction
+      path (owning repo claude-oncology-skills; adc-tce-modality-fit card; modality_rubric.yaml).'
+  rubric_version:
+    role: provenance
+    reason: modality_rubric.yaml version pin for grade reproduction; provenance token (ORPHAN)
+    reviewed: true
+  modality_lens_provenance:
+    role: provenance
+    reason: structured lens-conditional emission provenance {rubric_version, weights, inputs}; provenance
+      token (ORPHAN)
+    reviewed: true
+normal-tissue-liability:
+  normal_tissue_breadth_class:
+    role: signal
+    reason: breadth of normal-tissue expression; the selectivity-liability call surfaced in presence;
+      role:signal reach-confirmed via {display_rule, question_table, salience, skill_code} (census 2026-09-19,
+      blind to ledger)
+    reviewed: true
+  essential_tissue_flag:
+    role: signal
+    reason: boolean essential-normal-tissue safety flag; fires a gating rule and is surfaced as salient;
+      a heuristic mis-bucket into display, corrected here (does not move presence_verdict); role:signal
+      reach-confirmed via {display_rule, gating_rule, salience, skill_code} (census 2026-09-19)
+    reviewed: true
+  hpa_tissue_distribution:
+    role: display
+    reason: per-tissue HPA distribution container; verdict-inert human-facing detail; no exact reader
+      (census 2026-09-19)
+    reviewed: true
+  hpa_tissue_specificity:
+    role: context
+    reason: HPA tissue-specificity category; cross-axis selectivity qualifier surfaced in presence; reached
+      via {salience} (census 2026-09-19)
+    reviewed: true
+  n_essential_tissues_with_expression:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  essential_tissues_flagged:
+    role: context
+    reason: list naming which essential tissues drove essential_tissue_flag; identifies the subject of
+      the flag; reached via {skill_code} (census 2026-09-19)
+    reviewed: true
+  n_specific_tissues:
+    role: display
+    reason: human-facing detail / large container
+    reviewed: true
+  specific_tissues:
+    role: display
+    reason: human-facing detail / large container
+    reviewed: true
+  safety_tissue_flags:
+    role: display
+    reason: human-facing detail / large container
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: provenance/audit token
+    reviewed: true
+sc-normal-celltype-expression:
+  sc_normal_expression_class:
+    role: signal
+    reason: normal single-cell expression call (selectivity liability); role:signal reach-confirmed via
+      {capsule, display_rule, salience, skill_code} (census 2026-09-19, blind to ledger)
+    reviewed: true
+  sc_normal_safety_essential_class:
+    role: signal
+    reason: binary essential-cell safety call; fires the BiTE/TCE killer gate; read at run.py:1960 and
+      salient at :2153 (graded successor is sc_normal_essential_veto_grade below); role:signal reach-confirmed
+      via {capsule, salience, skill_code} (census 2026-09-19, blind to ledger)
+    reviewed: true
+  max_detection_cell_type:
+    role: context
+    reason: names the normal cell type with peak detection that max_detection_fraction refers to; cross-axis
+      pointer; reached via {skill_code} (census 2026-09-19)
+    reviewed: true
+  max_detection_fraction:
+    role: signal
+    reason: peak normal single-cell detection fraction; magnitude behind the normal-expression call; role:signal
+      reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)
+    reviewed: true
+  expressing_donor_fraction_max:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  safety_essential_flags:
+    role: display
+    reason: human-facing detail / large container
+    reviewed: true
+  n_cell_types_above_20pct:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  sc_normal_abundance_class:
+    role: signal
+    reason: normal-tissue abundance at the liability-anchor cell — sharpens window breadcrumb (#984 Tier-2)
+    reviewed: true
+  sc_normal_peak_median_abund:
+    role: context
+    reason: magnitude behind sc_normal_abundance_class (#984 Tier-2)
+    reviewed: true
+  sc_normal_essential_max_cell_type:
+    role: display
+    reason: named essential cell-type label (human-facing driver identity)
+    reviewed: true
+  sc_normal_essential_max_tissue:
+    role: display
+    reason: named essential tissue label (human-facing driver identity)
+    reviewed: true
+  sc_normal_essential_max_detection_fraction:
+    role: context
+    reason: detection magnitude behind the named essential driver
+    reviewed: true
+  sc_normal_essential_donor_fraction:
+    role: context
+    reason: power / statistical qualifier for the essential read
+    reviewed: true
+  sc_normal_essential_n_datasets_reliable:
+    role: context
+    reason: dataset-coverage / power qualifier for the essential read
+    reviewed: true
+  sc_normal_essential_median_abund:
+    role: context
+    reason: abundance magnitude behind the named essential driver (cf. sc_normal_peak_median_abund)
+    reviewed: true
+  sc_normal_essential_veto_grade:
+    role: signal
+    reason: graded essential-cell veto (compartment x severity) — gates the dominant BiTE/TCE killer via
+      surface-intrinsic.rules.yaml; supersedes sc_normal_safety_essential_class, which tumor-presence
+      still reads at run.py:1960 while this field is unread by any skill code (see comment above)
+    reviewed: true
+  sc_normal_ceiling_detection_fraction:
+    role: context
+    reason: detection-ceiling magnitude behind the essential read
+    reviewed: true
+  n_reliable_cell_types:
+    role: context
+    reason: power / statistical qualifier (cf. n_cell_types_above_20pct)
+    reviewed: true
+  per_cell_type_top:
+    role: display
+    reason: human-facing detail / large per-cell-type container (cf. safety_essential_flags)
+    reviewed: true
+  tissues_queried:
+    role: provenance
+    reason: identity/scope key
+    reviewed: true
+  origin_tissues:
+    role: provenance
+    reason: tumor tissue(s)-of-origin used for the scRNA off-origin split; echoed as off_origin_split
+      provenance by safety_claims.py (#1770), never a signal — identity/scope key
+    reviewed: true
+  indication:
+    role: provenance
+    reason: the indication resolved to origin_tissues for the scRNA off-origin split; echoed as off_origin_split
+      provenance by safety_claims.py (#1770), never a signal — identity/scope key
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: provenance/audit token
+    reviewed: true
+sc-surface-normal-safety:
+  sc_surface_normal_class:
+    role: signal
+    reason: single-cell CITE-seq surface footprint on normal immune cells; fires sc_surface_normal_class
+      rules (surface-protein safety sibling); reach-confirmed exact via {display_rule, salience} (census
+      2026-09-27, blind to ledger)
+    reviewed: true
+  max_surface_cell_type:
+    role: display
+    reason: names the normal cell type with peak surface display; human-facing identity (ORPHAN)
+    reviewed: true
+  max_mean_clr:
+    role: context
+    reason: peak mean CLR surface signal; magnitude behind sc_surface_normal_class
+    reviewed: true
+  n_celltypes_surface_displaying:
+    role: context
+    reason: count of normal cell types surface-displaying the target; breadth qualifier
+    reviewed: true
+  compartment_scope:
+    role: provenance
+    reason: which normal compartment set was queried; scope/provenance token (ORPHAN)
+    reviewed: true
+sc-surface-rna-protein-concordance:
+  rna_as_biomarker:
+    role: signal
+    reason: single-cell RNA-vs-surface-protein proxy-adequacy call; fires rna_as_biomarker surface rules
+      (is scRNA an adequate surface proxy); reach-confirmed exact via {display_rule, salience} (census
+      2026-09-27, blind to ledger)
+    reviewed: true
+  rna_protein_r:
+    role: context
+    reason: single-cell RNA-protein correlation; statistical qualifier behind rna_as_biomarker
+    reviewed: true
+  rna_protein_spearman:
+    role: context
+    reason: single-cell RNA-protein Spearman correlation; statistical qualifier (ORPHAN)
+    reviewed: true
+  n_cell_types:
+    role: context
+    reason: count of cell types in the concordance estimate; power qualifier (ORPHAN)
+    reviewed: true
+  compartment_scope:
+    role: provenance
+    reason: compartment set queried; scope/provenance token (ORPHAN)
+    reviewed: true
+  adt_proteins:
+    role: display
+    reason: list of CITE-seq ADT proteins used; human-facing detail (ORPHAN)
+    reviewed: true
+  substrate:
+    role: provenance
+    reason: measurement substrate identity; scope/provenance token (ORPHAN)
+    reviewed: true
+copy-number-distribution:
+  cn_n_cell_lines_evaluated:
+    role: context
+    reason: cell lines evaluated for CN; power qualifier
+    reviewed: true
+  cn_assay_used:
+    role: provenance
+    reason: CN assay identity; method/provenance token
+    reviewed: true
+  cn_median_panel:
+    role: context
+    reason: panel-median copy number; magnitude behind copy_number_class
+    reviewed: true
+  cn_p25_panel:
+    role: context
+    reason: CN 25th-percentile; distribution qualifier (ORPHAN)
+    reviewed: true
+  cn_p75_panel:
+    role: context
+    reason: CN 75th-percentile; distribution qualifier (ORPHAN)
+    reviewed: true
+  cn_p5_panel:
+    role: context
+    reason: CN 5th-percentile; distribution qualifier (ORPHAN)
+    reviewed: true
+  cn_p95_panel:
+    role: context
+    reason: CN 95th-percentile; distribution qualifier (ORPHAN)
+    reviewed: true
+  cn_iqr:
+    role: context
+    reason: CN interquartile range; dispersion qualifier (ORPHAN)
+    reviewed: true
+  cn_fraction_deep_deletion:
+    role: context
+    reason: fraction deep-deletion; magnitude qualifier behind copy_number_class
+    reviewed: true
+  cn_fraction_shallow_deletion:
+    role: context
+    reason: fraction shallow-deletion; distribution qualifier (ORPHAN)
+    reviewed: true
+  cn_fraction_neutral:
+    role: context
+    reason: fraction CN-neutral; distribution qualifier (ORPHAN)
+    reviewed: true
+  cn_fraction_shallow_amplification:
+    role: context
+    reason: fraction shallow-amplification; distribution qualifier (ORPHAN)
+    reviewed: true
+  cn_fraction_focal_amplification:
+    role: context
+    reason: fraction focal-amplification; distribution qualifier (ORPHAN)
+    reviewed: true
+  cn_fraction_high_amplification:
+    role: context
+    reason: fraction high-amplification; magnitude behind the amplification-density argument
+    reviewed: true
+  cn_distribution_shape:
+    role: context
+    reason: CN distribution shape; shape qualifier behind copy_number_class
+    reviewed: true
+  cn_recurrent_amplification_score:
+    role: context
+    reason: recurrent-amplification score; magnitude qualifier
+    reviewed: true
+  cn_recurrent_deletion_score:
+    role: context
+    reason: recurrent-deletion score; magnitude qualifier
+    reviewed: true
+  copy_number_class:
+    role: signal
+    reason: cell-line copy-number call; fires copy_number_class rules (cn-amplified-surface-antigen-supportive,
+      surface antigen-density argument); reach-confirmed exact via {capsule, display_rule, gating_rule,
+      salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  cn_homozygous_deletion_recurrent:
+    role: context
+    reason: recurrent homozygous-deletion flag; qualifier behind copy_number_class
+    reviewed: true
+  cn_top_amplified_lineages:
+    role: display
+    reason: names top amplified lineages; human-facing detail (ORPHAN)
+    reviewed: true
+  cn_top_deleted_lineages:
+    role: display
+    reason: names top deleted lineages; human-facing detail (ORPHAN)
+    reviewed: true
+  patient_copy_number_class:
+    role: signal
+    reason: patient-cohort copy-number call; fires copy_number_class rules on the patient grain; reach-confirmed
+      exact via {capsule, salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  patient_focal_cn_class:
+    role: signal
+    reason: patient focal-CN call; verdict-bearing patient-grain CN signal; reach-confirmed exact via
+      {capsule, display_rule, gating_rule, salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  patient_amplified_fraction:
+    role: context
+    reason: patient amplified fraction; magnitude behind patient_copy_number_class (ORPHAN)
+    reviewed: true
+  patient_high_amp_fraction:
+    role: context
+    reason: patient high-amplification fraction; magnitude behind the density argument
+    reviewed: true
+  patient_deleted_fraction:
+    role: context
+    reason: patient deleted fraction; magnitude behind patient_copy_number_class (ORPHAN)
+    reviewed: true
+  patient_homdel_fraction:
+    role: context
+    reason: patient homozygous-deletion fraction; magnitude qualifier
+    reviewed: true
+  patient_cn_context:
+    role: provenance
+    reason: patient CN cohort/context descriptor; provenance token (ORPHAN)
+    reviewed: true
+rna-protein-concordance-tumor:
+  rna_as_biomarker:
+    role: signal
+    reason: whether tumor RNA tracks protein well enough to serve as a biomarker, as a call; role:signal
+      reach-confirmed via {display_rule, figure, question_table, salience, skill_code} (census 2026-09-19,
+      blind to ledger)
+    reviewed: true
+  rna_protein_r:
+    role: context
+    reason: RNA-protein correlation coefficient; statistical qualifier behind rna_as_biomarker; reached
+      via {question_table, salience, skill_code} (census 2026-09-19)
+    reviewed: true
+  rna_protein_spearman:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  n_paired_tumors:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  cptac_cohort:
+    role: provenance
+    reason: identity/scope key
+    reviewed: true
+  substrate:
+    role: provenance
+    reason: identity/scope key
+    reviewed: true
+  rna_proxy_classified_on:
+    role: provenance
+    reason: '''spearman'' | ''pearson_fallback'' — names which correlation statistic the tumor rna_as_biomarker
+      class was computed on; method/provenance token, not a signal (the Pearson-vs-Spearman corpus-staleness
+      concern is a separate corpus-regen item, #1650 guard-rail)'
+    reviewed: true
+  rna_protein_r_ci95_low:
+    role: signal
+    reason: Fisher-z 95% CI lower bound of the classifying RNA-protein correlation (tumor arm); read by
+      run.py _strength_certainty via get_card_field and surfaced as the audit reason for the boundary-fragile
+      corroboration demotion (#1650); role:signal reach-confirmed via {skill_code}
+    reviewed: true
+  rna_protein_r_ci95_high:
+    role: signal
+    reason: Fisher-z 95% CI upper bound of the classifying RNA-protein correlation (tumor arm); read by
+      run.py _strength_certainty via get_card_field and surfaced as the audit reason for the boundary-fragile
+      corroboration demotion (#1650); role:signal reach-confirmed via {skill_code}
+    reviewed: true
+  rna_proxy_class_boundary_fragile:
+    role: signal
+    reason: 'bool: the classifying-correlation 95% CI straddles an rna_as_biomarker class cut, so the
+      adequate/partial/poor tumor proxy call can flip by sampling alone; consumed by _pres_corroboration/_strength_certainty
+      to demote corroboration one ordinal level when the TUMOR arm is fragile (verdict-token-inert — moves
+      only the certainty/composite sidecar; presence_verdict byte-stable) (#1650); role:signal reach-confirmed
+      via {skill_code}'
+    reviewed: true
+protein-surface-evidence:
+  surface_confirmation_class:
+    role: signal
+    reason: CSPA wet-lab surface-confirmation call; fires surface_confirmation_class rules and feeds surface_confirmation_state
+      (confirmed_protein tier); reach-confirmed exact via {capsule, display_rule, salience, skill_code}
+      (census 2026-09-27, blind to ledger)
+    reviewed: true
+  cspa_category:
+    role: context
+    reason: CSPA evidence category; qualifier behind surface_confirmation_class
+    reviewed: true
+  n_celllines_detected:
+    role: context
+    reason: count of cell lines with detected surface protein; power/breadth qualifier
+    reviewed: true
+  measured_in_cspa:
+    role: context
+    reason: 'boolean: target present in the CSPA panel; availability qualifier of the surface-confirmation
+      read'
+    reviewed: true
+  evidence_tier:
+    role: context
+    reason: surface-evidence tier; certainty qualifier behind surface_confirmation_class
+    reviewed: true
+  hpa_if_surface_class:
+    role: signal
+    reason: HPA immunofluorescence surface-localization call; multimodal surface-confirmation signal;
+      reach-confirmed exact via {capsule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  hpa_if_plasma_membrane:
+    role: context
+    reason: HPA-IF plasma-membrane boolean; component behind hpa_if_surface_class
+    reviewed: true
+  hpa_if_reliability:
+    role: context
+    reason: HPA-IF reliability grade; certainty qualifier (ORPHAN)
+    reviewed: true
+  surface_multimodal_support:
+    role: signal
+    reason: multimodal surface-support call (CSPA + HPA-IF corroboration); feeds surface_confirmation_state
+      corroborated_surface; reach-confirmed exact via {capsule, salience, skill_code} (census 2026-09-27,
+      blind to ledger)
+    reviewed: true
+shed-ectodomain-liability:
+  shed_liability_class:
+    role: signal
+    reason: shed-ectodomain antigen-sink liability call; fires shed_liability_class rules (OPPOSING for
+      adc/bite_tce/antibody); reach-confirmed exact via {capsule, display_rule, gating_rule, salience,
+      skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  shed_evidence_tier:
+    role: context
+    reason: shed-evidence tier; certainty qualifier behind shed_liability_class
+    reviewed: true
+  serum_marker:
+    role: display
+    reason: named clinical serum marker (e.g. CA125); human-facing identity detail
+    reviewed: true
+  shed_product:
+    role: display
+    reason: named shed ectodomain product; human-facing identity detail
+    reviewed: true
+  shedding_protease:
+    role: display
+    reason: named sheddase protease; human-facing mechanistic detail
+    reviewed: true
+  hpa_secretome_location:
+    role: provenance
+    reason: HPA secretome location annotation; provenance token (ORPHAN)
+    reviewed: true
+  source_citation:
+    role: provenance
+    reason: curation source citation; provenance token (ORPHAN)
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: shed-method version; provenance token (name_only)
+    reviewed: true
+  measured_shed_class:
+    role: signal
+    reason: measured Olink conditioned-media shed call; fires measured_shed_class rules (shed-ectodomain-measured-media-opposing);
+      reach-confirmed exact via {capsule, display_rule, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  media_mean_npx:
+    role: context
+    reason: conditioned-media mean NPX; magnitude behind measured_shed_class
+    reviewed: true
+  media_n_lines_detected:
+    role: context
+    reason: count of cell lines with media-detected shedding; power qualifier
+    reviewed: true
+  media_panel_high_npx:
+    role: context
+    reason: panel-high NPX reference; magnitude qualifier behind measured_shed_class
+    reviewed: true
+  media_uniprot:
+    role: provenance
+    reason: UniProt AC for the media measurement; identity/provenance token (ORPHAN)
+    reviewed: true
+tumor-scrna-celltype-expression:
+  sc_expression_class:
+    role: signal
+    reason: headline single-cell malignant expression call; role:signal reach-confirmed via {capsule,
+      claim_passthrough, display_rule, figure, salience, skill_code} (census 2026-09-19, blind to ledger)
+    reviewed: true
+  tce_homogeneity_class:
+    role: signal
+    reason: within-tumor TCE target-homogeneity call; role:signal reach-confirmed via {capsule, skill_code}
+      (census 2026-09-19, blind to ledger)
+    reviewed: true
+  malignant_detection_fraction:
+    role: signal
+    reason: fraction of malignant cells detecting the target; the core single-cell presence magnitude;
+      role:signal reach-confirmed via {claim_passthrough, salience, skill_code} (census 2026-09-19, blind
+      to ledger)
+    reviewed: true
+  malignant_abundance_log1p_cp10k:
+    role: signal
+    reason: malignant-cell abundance magnitude (log1p CP10K); role:signal reach-confirmed via {skill_code}
+      (census 2026-09-19, blind to ledger)
+    reviewed: true
+  malignant_compartment_available:
+    role: context
+    reason: whether the malignant compartment was resolvable; availability qualifier on the malignant
+      reads; reached via {skill_code} (census 2026-09-19)
+    reviewed: true
+  malignant_n_donors:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  malignant_n_cells:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  top_microenvironment_compartment:
+    role: context
+    reason: names the top microenvironment cell type top_microenvironment_detection_fraction refers to;
+      cross-axis pointer; reached via {claim_passthrough, skill_code} (census 2026-09-19)
+    reviewed: true
+  top_microenvironment_detection_fraction:
+    role: signal
+    reason: detection fraction in the top microenvironment compartment; role:signal reach-confirmed via
+      {skill_code} (census 2026-09-19, blind to ledger)
+    reviewed: true
+  n_compartments_measured:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  n_donor_groups:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  n_datasets:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  compartment_detection:
+    role: display
+    reason: human-facing detail / large container
+    reviewed: true
+  per_compartment:
+    role: display
+    reason: human-facing detail / large container
+    reviewed: true
+  caf_vs_malignant_class:
+    role: signal
+    reason: malignant-vs-CAF specificity call (stromal confound); role:signal reach-confirmed via {capsule,
+      claim_passthrough, salience, skill_code} (census 2026-09-19, blind to ledger)
+    reviewed: true
+  caf_detection_fraction:
+    role: signal
+    reason: CAF-compartment detection fraction; stromal-confound magnitude; role:signal reach-confirmed
+      via {skill_code} (census 2026-09-19, blind to ledger)
+    reviewed: true
+  caf_abundance_log1p_cp10k:
+    role: signal
+    reason: CAF-compartment abundance in the same log1p CP10K units as the READ malignant_abundance_log1p_cp10k,
+      behind caf_vs_malignant_class / stromal_confound_class; WIRED onto the headline as sc_caf_abundance_log1p_cp10k
+      — it was the only one of this card's 29 declared fields left unlifted
+    reviewed: true
+  caf_compartment_available:
+    role: context
+    reason: whether the CAF compartment was resolvable; availability qualifier on the stromal-confound
+      reads; reached via {skill_code} (census 2026-09-19)
+    reviewed: true
+  stromal_confound_class:
+    role: signal
+    reason: stromal-confound severity call; gates single-cell interpretation; role:signal reach-confirmed
+      via {gating_rule, salience, skill_code} (census 2026-09-19, blind to ledger)
+    reviewed: true
+  within_tumor_coverage_class:
+    role: signal
+    reason: within-tumor coverage call (how completely the target is sampled); role:signal reach-confirmed
+      via {capsule, skill_code} (census 2026-09-19, blind to ledger)
+    reviewed: true
+  inter_donor_consistency_class:
+    role: signal
+    reason: inter-donor consistency call for the single-cell read; role:signal reach-confirmed via {capsule,
+      claim_passthrough, skill_code} (census 2026-09-19, blind to ledger)
+    reviewed: true
+  tce_antigen_escape_class:
+    role: signal
+    reason: TCE antigen-escape-risk call from single-cell heterogeneity; fires a gate; role:signal reach-confirmed
+      via {capsule, claim_passthrough, display_rule, gating_rule, salience, skill_code} (census 2026-09-19,
+      blind to ledger)
+    reviewed: true
+  malignant_detection_donor_iqr:
+    role: context
+    reason: power / statistical qualifier
+    reviewed: true
+  fraction_donors_broadly_detecting:
+    role: signal
+    reason: cross-donor breadth-of-detection fraction; role:signal reach-confirmed via {claim_passthrough,
+      skill_code} (census 2026-09-19, blind to ledger)
+    reviewed: true
+  ambient_contamination_risk:
+    role: signal
+    reason: QC (ambient soup-leakage) — tempers claim-C corroboration (#984 Tier-1)
+    reviewed: true
+  malignant_annotation_method:
+    role: provenance
+    reason: malignant-label provenance — tempers claim-C corroboration (#984 Tier-1)
+    reviewed: true
+  entity_purity:
+    role: provenance
+    reason: cube entity purity — confidence qualifier for claim-C (#984 Tier-1)
+    reviewed: true
+  indication:
+    role: provenance
+    reason: identity/scope key
+    reviewed: true
+  product_id:
+    role: provenance
+    reason: provenance/audit token
+    reviewed: true
+modality-therapeutic-window:
+  window_class:
+    role: signal
+    reason: therapeutic-window call (tumor / max-essential-normal); fires window_class rules (essential-tissue
+      liability → bite_tce opposing, adc neutral); reach-confirmed exact via {capsule, display_rule, gating_rule,
+      salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  therapeutic_window_class:
+    role: signal
+    reason: essential-normal therapeutic-window call; verdict-bearing window signal; reach-confirmed exact
+      via {capsule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  full_normal_window_class:
+    role: signal
+    reason: full-normal therapeutic-window call; verdict-bearing window signal (full-normal denominator);
+      reach-confirmed exact via {capsule, gating_rule, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  tumor_tpm:
+    role: context
+    reason: tumor TPM; numerator magnitude behind the window ratio (ORPHAN)
+    reviewed: true
+  max_essential_normal_tpm:
+    role: context
+    reason: max essential-normal TPM; denominator magnitude behind window_ratio_essential
+    reviewed: true
+  max_essential_normal_organ:
+    role: display
+    reason: names the max essential-normal organ; human-facing identity detail
+    reviewed: true
+  max_full_normal_tpm:
+    role: context
+    reason: max full-normal TPM; denominator magnitude behind window_ratio_full_normal
+    reviewed: true
+  max_full_normal_organ:
+    role: display
+    reason: names the max full-normal organ; human-facing identity detail (ORPHAN)
+    reviewed: true
+  window_ratio_essential:
+    role: context
+    reason: essential-normal window ratio; magnitude behind window_class
+    reviewed: true
+  window_ratio_full_normal:
+    role: context
+    reason: full-normal window ratio; magnitude behind full_normal_window_class
+    reviewed: true
+  modality_tier_threshold_tpm:
+    role: context
+    reason: modality-tiered TPM threshold used; method/parameter qualifier (ORPHAN)
+    reviewed: true
+  tumor_studies:
+    role: provenance
+    reason: tumor studies used for the window; scope/provenance token (name_only)
+    reviewed: true
+  modality:
+    role: provenance
+    reason: which modality tier the window was computed for; scope/provenance token
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: window-method version; provenance token (name_only)
+    reviewed: true
+pmhc-presentation:
+  pmhc_presentation_class:
+    role: signal
+    reason: benign-immunopeptidome pMHC-presentation call; fires pmhc_presentation_class rules (TCR-mimetic
+      TCE reach + normal-presentation safety); reach-confirmed exact via {capsule, display_rule, gating_rule,
+      salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  n_presented_peptides:
+    role: context
+    reason: count of presented peptides; power/breadth qualifier behind pmhc_presentation_class
+    reviewed: true
+  n_normal_tissues_presented:
+    role: context
+    reason: count of normal tissues presenting the epitope; on-target/off-tumor breadth qualifier
+    reviewed: true
+  normal_tissues_presented:
+    role: display
+    reason: names the normal tissues presenting the epitope; human-facing detail read for the intermediate-breadth
+      caveat
+    reviewed: true
+  hla_class:
+    role: context
+    reason: HLA class (I/II) of the presentation; scope qualifier behind pmhc_presentation_class
+    reviewed: true
+  n_strong_binder_peptides:
+    role: context
+    reason: count of strong-binder peptides; power qualifier (ORPHAN)
+    reviewed: true
+  n_weak_binder_peptides:
+    role: context
+    reason: count of weak-binder peptides; power qualifier (ORPHAN)
+    reviewed: true
+  uniprot_ac:
+    role: provenance
+    reason: UniProt AC identity; provenance token (ORPHAN)
+    reviewed: true
+modality-exon-window:
+  exon_window_class:
+    role: signal
+    reason: exon-level therapeutic-window call; fires exon_window_class rules (isoform/exon-resolved surface
+      window); reach-confirmed exact via {display_rule, gating_rule, salience, skill_code} (census 2026-09-27,
+      blind to ledger)
+    reviewed: true
+  n_exons:
+    role: context
+    reason: count of exons evaluated; power qualifier behind exon_window_class
+    reviewed: true
+  best_exon_id:
+    role: display
+    reason: names the best-window exon; human-facing identity detail
+    reviewed: true
+  best_exon_tumor_tpm:
+    role: context
+    reason: best-exon tumor TPM; numerator magnitude (ORPHAN)
+    reviewed: true
+  best_exon_max_essential_tpm:
+    role: context
+    reason: best-exon max essential-normal TPM; denominator magnitude (ORPHAN)
+    reviewed: true
+  best_exon_window_ratio:
+    role: context
+    reason: best-exon window ratio; magnitude behind exon_window_class
+    reviewed: true
+  exon_heterogeneity_log2:
+    role: context
+    reason: across-exon expression heterogeneity; dispersion qualifier
+    reviewed: true
+  median_exon_tumor_log2tpm:
+    role: context
+    reason: median exon tumor log2 TPM; magnitude qualifier (ORPHAN)
+    reviewed: true
+  modality_tier_threshold_tpm:
+    role: context
+    reason: modality-tiered TPM threshold; parameter qualifier (ORPHAN)
+    reviewed: true
+  tumor_studies:
+    role: provenance
+    reason: tumor studies used; scope/provenance token (name_only)
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: exon-window method version; provenance token (name_only)
+    reviewed: true
+mutation-stratified-surface:
+  mutant_stratified_surface_class:
+    role: signal
+    reason: mutant-subset surface-elevation call; fires mutant_stratified_surface_class rules (mutant-up-surface-antigen-supportive);
+      reach-confirmed exact via {display_rule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  driver_gene:
+    role: provenance
+    reason: names the stratifying driver gene; scope/identity token
+    reviewed: true
+  indication:
+    role: provenance
+    reason: indication the stratification was computed in; scope/identity token (name_only)
+    reviewed: true
+  delta_log2:
+    role: context
+    reason: mutant-vs-WT log2 delta; effect-size magnitude behind mutant_stratified_surface_class
+    reviewed: true
+  q_value:
+    role: context
+    reason: multiple-testing-adjusted significance; statistical qualifier on delta_log2
+    reviewed: true
+  n_mutant:
+    role: context
+    reason: mutant-subset sample count; power qualifier
+    reviewed: true
+  n_wt:
+    role: context
+    reason: wild-type-subset sample count; power qualifier (ORPHAN)
+    reviewed: true
+  mutation_stratified_context:
+    role: provenance
+    reason: stratification cohort/context descriptor; provenance token (ORPHAN)
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: stratification method version; provenance token (name_only)
+    reviewed: true
+pathway-stratified-surface:
+  pathway_stratified_surface_class:
+    role: signal
+    reason: pathway/stress-HIGH subset surface-elevation call; fires pathway_stratified_surface_class
+      rules (pathway-high-up-surface-antigen-supportive); reach-confirmed exact via {display_rule, salience,
+      skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  signature:
+    role: provenance
+    reason: names the stratifying pathway signature (e.g. HALLMARK_HYPOXIA); scope/identity token
+    reviewed: true
+  indication:
+    role: provenance
+    reason: indication the stratification was computed in; scope/identity token (name_only)
+    reviewed: true
+  delta_log2:
+    role: context
+    reason: high-vs-low log2 delta; effect-size magnitude behind pathway_stratified_surface_class
+    reviewed: true
+  q_value:
+    role: context
+    reason: multiple-testing-adjusted significance; statistical qualifier on delta_log2
+    reviewed: true
+  n_high:
+    role: context
+    reason: pathway-high subset count; power qualifier
+    reviewed: true
+  n_low:
+    role: context
+    reason: pathway-low subset count; power qualifier (ORPHAN)
+    reviewed: true
+  pathway_stratified_context:
+    role: provenance
+    reason: stratification cohort/context descriptor; provenance token (ORPHAN)
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: stratification method version; provenance token (name_only)
+    reviewed: true
+cd-antigen-backbone:
+  cd_antigen_backbone_class:
+    role: signal
+    reason: CD-antigen / IO-backbone class; fires cd_antigen_backbone_class rules and feeds surface_confirmation_state
+      (clinically_precedented); reach-confirmed exact via {display_rule, salience, skill_code} (census
+      2026-09-27, blind to ledger)
+    reviewed: true
+  on_cd_roster:
+    role: context
+    reason: 'boolean: target on the CD roster; membership qualifier behind cd_antigen_backbone_class (ORPHAN)'
+    reviewed: true
+  cd_number:
+    role: provenance
+    reason: the CD number identity (e.g. CD19); identity/provenance token
+    reviewed: true
+  cd_roster_uniprot:
+    role: provenance
+    reason: UniProt AC from the CD roster; identity/provenance token (ORPHAN)
+    reviewed: true
+  cd_gene_groups:
+    role: display
+    reason: HGNC CD gene-group memberships; human-facing detail (ORPHAN)
+    reviewed: true
+  established_io_precedent:
+    role: signal
+    reason: established IO/biologics-precedent boolean; feeds the clinically_precedented surface-confirmation
+      tier; reach-confirmed exact via {skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: CD-backbone method version; provenance token (name_only)
+    reviewed: true
+surface-colocalization-avidity:
+  samecell_avidity_class:
+    role: signal
+    reason: same-cell co-localization avidity call; fires samecell_avidity_class rules (bispecific avidity
+      handle); reach-confirmed exact via {display_rule, salience, skill_code} (census 2026-09-27, blind
+      to ledger)
+    reviewed: true
+  best_partner:
+    role: display
+    reason: names the best avidity co-target partner; human-facing identity detail
+    reviewed: true
+  best_enrichment_median:
+    role: context
+    reason: median co-expression enrichment of the best partner; magnitude behind samecell_avidity_class
+    reviewed: true
+  best_both_fraction_median:
+    role: context
+    reason: median fraction of cells co-expressing both; magnitude qualifier
+    reviewed: true
+  n_partners_tested:
+    role: context
+    reason: count of partners tested; power qualifier
+    reviewed: true
+  n_coordinated_partners:
+    role: context
+    reason: count of coordinated partners; breadth qualifier
+    reviewed: true
+  window_verdict:
+    role: signal
+    reason: bispecific selectivity-window verdict; verdict-bearing avidity-window call; reach-confirmed
+      exact via {display_rule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  window_best_partner:
+    role: display
+    reason: names the best window partner; human-facing identity detail
+    reviewed: true
+  selectivity_margin:
+    role: context
+    reason: selectivity margin magnitude behind window_verdict
+    reviewed: true
+  n_window_open:
+    role: context
+    reason: count of partners with an open window; breadth qualifier
+    reviewed: true
+  normal_liability_locus:
+    role: display
+    reason: names the normal-tissue liability locus; human-facing detail
+    reviewed: true
+surfaceome-cohort-ranking:
+  cohort_rank_class:
+    role: signal
+    reason: cross-surfaceome cohort-ranking class; fires cohort_rank_class rules (relative surface-antigen
+      priority); reach-confirmed exact via {display_rule, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  tissue_rank:
+    role: context
+    reason: tissue-level rank; magnitude behind cohort_rank_class
+    reviewed: true
+  n_total_ranked:
+    role: context
+    reason: count of ranked targets; denominator/power qualifier (ORPHAN)
+    reviewed: true
+  tissue_percentile_rna:
+    role: context
+    reason: RNA tissue percentile; magnitude behind cohort_rank_class
+    reviewed: true
+  tissue_percentile_protein:
+    role: context
+    reason: protein tissue percentile; magnitude qualifier (ORPHAN)
+    reviewed: true
+  rna_protein_concordance:
+    role: context
+    reason: RNA-protein rank concordance; qualifier behind cohort_rank_class
+    reviewed: true
+  ranking_score:
+    role: context
+    reason: composite ranking score; magnitude behind cohort_rank_class (ORPHAN)
+    reviewed: true
+  cells_supporting:
+    role: context
+    reason: cells/datasets supporting the rank; power qualifier (name_only)
+    reviewed: true
+  max_abs_log2fc:
+    role: context
+    reason: max absolute log2FC; magnitude qualifier (name_only)
+    reviewed: true
+  surface_protein_family:
+    role: context
+    reason: surface-protein family qualifier for the ranking; cross-axis pointer (name_only)
+    reviewed: true
+  is_in_surfaceome:
+    role: context
+    reason: boolean surfaceome membership; availability qualifier for the ranking (ORPHAN)
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: ranking method version; provenance token (name_only)
+    reviewed: true
+surface-bulk-pair-selectivity:
+  best_and_partner:
+    role: display
+    reason: names the best AND-gate partner; human-facing identity detail
+    reviewed: true
+  best_and_selectivity:
+    role: context
+    reason: best AND-gate selectivity magnitude behind best_and_call_class
+    reviewed: true
+  best_and_call:
+    role: signal
+    reason: best AND-gate pair-selectivity call; verdict-bearing AND-gate signal; reach-confirmed exact
+      via {skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  best_and_call_class:
+    role: signal
+    reason: best AND-gate pair-selectivity class; fires best_and_call_class rules (bispecific AND-gate
+      selectivity); reach-confirmed exact via {display_rule, salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  best_and_max_essential_normal_tissue:
+    role: display
+    reason: names the max essential-normal tissue for the AND pair; human-facing detail (ORPHAN)
+    reviewed: true
+  best_not_partner:
+    role: display
+    reason: names the best NOT-gate partner; human-facing identity detail
+    reviewed: true
+  best_not_selectivity:
+    role: context
+    reason: best NOT-gate selectivity magnitude; qualifier (ORPHAN)
+    reviewed: true
+  best_or_partner:
+    role: display
+    reason: names the best OR-gate partner; human-facing identity detail (ORPHAN)
+    reviewed: true
+  best_or_selectivity:
+    role: context
+    reason: best OR-gate selectivity magnitude; qualifier (ORPHAN)
+    reviewed: true
+  n_partners_scanned:
+    role: context
+    reason: count of partners scanned; power qualifier
+    reviewed: true
+pmhc-epitope-evidence-iedb:
+  epitope_evidence_class:
+    role: signal
+    reason: IEDB epitope-evidence class; fires epitope_evidence_class rules (immunogenicity/presentation
+      corroboration for TCR-mimetic TCE); reach-confirmed exact via {gating_rule, salience, skill_code}
+      (census 2026-09-27, blind to ledger)
+    reviewed: true
+  n_epitopes:
+    role: context
+    reason: count of IEDB epitopes; power/breadth qualifier behind epitope_evidence_class
+    reviewed: true
+  n_mhc_class_i_epitopes:
+    role: context
+    reason: count of MHC-I epitopes; breadth qualifier (ORPHAN)
+    reviewed: true
+  n_mhc_class_ii_epitopes:
+    role: context
+    reason: count of MHC-II epitopes; breadth qualifier (ORPHAN)
+    reviewed: true
+  n_hla_alleles:
+    role: context
+    reason: count of HLA alleles with evidence; breadth qualifier behind epitope_evidence_class
+    reviewed: true
+  has_tcell_positive:
+    role: context
+    reason: 'boolean: positive T-cell assay evidence; qualifier behind epitope_evidence_class'
+    reviewed: true
+  has_cancer_context:
+    role: context
+    reason: 'boolean: cancer-context epitope evidence; qualifier (ORPHAN)'
+    reviewed: true
+  example_hla_alleles:
+    role: display
+    reason: names example HLA alleles; human-facing detail (ORPHAN)
+    reviewed: true
+  uniprot_ac:
+    role: provenance
+    reason: UniProt AC identity; provenance token (ORPHAN)
+    reviewed: true
