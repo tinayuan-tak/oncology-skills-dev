@@ -419,7 +419,7 @@ _KNOWN_DEFAULTING = {
             "very_low",
         }
     ),
-    # functional-requirement: 30 unmapped (21 invert a present signal to `absent` = under-reads)
+    # functional-requirement: 34 unmapped (25 invert a present signal to `absent` = under-reads)
     "functional-requirement": frozenset(
         {
             "broadly_dependent",
@@ -452,6 +452,22 @@ _KNOWN_DEFAULTING = {
             "strongly_concordant_non_dependent",
             "thin_evidence",
             "well_modeled_off_lineage",
+            # genomic-event-model-match::patient_functional_state_class (#948, TC PR#949 declared the
+            # vocab). These are patient functional-STATE calls (tumor-suppressor biallelic-inactivation
+            # prevalence), re-emitted verbatim from functional-gene-state's headline. They are NOT
+            # functional-REQUIREMENT (dependency) magnitude signals: recurrent biallelic inactivation of
+            # a tumor suppressor is loss-of-function, the opposite of a realized dependency, so none maps
+            # to a strong/moderate/weak DEPENDENCY tier — genomic-alteration-profile tiers them under its
+            # ALTERATION lens (rarely_altered=weak, sporadic=moderate), which does not transfer here.
+            # FR's own reviewed field_disposition marks this field role=context ("qualifier not an
+            # independent signal; no exact reader; the correspondence class integrates it"), and FR
+            # consumes only event_correspondence_class from this card. The `absent` default is therefore
+            # correct (no dependency signal), so these are LEDGERED not mapped. Verdict-inert: the
+            # subgroup panel is --figures-gated and this field is a context qualifier, never a spine input.
+            "predominantly_monoallelic",
+            "rarely_altered",
+            "recurrent_biallelic_inactivation",
+            "sporadic_biallelic_inactivation",
         }
     ),
     "target-intrinsic": frozenset(),  # map is COMPLETE against its live card vocab (#1550)

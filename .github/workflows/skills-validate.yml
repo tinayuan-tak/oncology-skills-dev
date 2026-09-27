@@ -398,7 +398,18 @@ jobs:
           # card fields (a resolver clamp verdict + a nomination-gate registration + schema enum entries),
           # so the aperture census (domain / candidate_orphans) is UNCHANGED — this bump needs no ceiling
           # move and is aperture-inert.
-          ref: 8c4bba3ba54d837d1f538500833d6043408985a8
+          # ============================================================================================
+          # BUMP 8c4bba3 -> 09102dc, "main @ 2026-09-27 (#948, TC PR#949)". Declares the
+          # summary_fields_vocabulary for patient_functional_state_class on genomic-event-model-match
+          # (identical to functional-gene-state's functional_state_class enum). THIS skills branch is its
+          # consumer: the declaration makes the #1644 fleet vocab-exhaustiveness guard non-vacuous for the
+          # functional-requirement panel (previously []), so the 4 newly-visible tokens must be resolved in
+          # the SAME commit — a lone bump would red test_value_tiers_partition_producer_vocab[functional-
+          # requirement]. Resolved LEDGER-only (context qualifier, not a dependency signal; see the FR
+          # _KNOWN_DEFAULTING note). APERTURE: adds ONE card field's vocab (a summary_fields_vocabulary
+          # entry, not a new summary_field / required_input), so the aperture census is UNCHANGED —
+          # aperture-inert, no ceiling move.
+          ref: 09102dc8e9c1b148ad9018f51995ad1bc889b8d9
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
