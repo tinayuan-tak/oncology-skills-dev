@@ -132,6 +132,124 @@ def test_q3_liability_assembler(monkeypatch):
     assert R.read_normal_tissue_liability("GHOST")["liability_class"] == "data_unavailable"
 
 
+# ---- #821: min-donor power floor (stats) ----
+def test_liability_donor_floor_marks_thin_tissue_unavailable():
+    # BRAIN is well-sampled and high; LIVER has only 2 samples (< MIN_DONORS_LIABILITY) → it must NOT
+    # contribute a thin median; it is recorded below-floor (named), not silently scored.
+    atlas = {"BRAIN": [8.0] * 20, "LIVER": [7.5, 7.9], "SKIN": [0.1] * 20}
+    r = S.normal_tissue_liability(atlas)
+    assert r["min_donors_floor"] == S.MIN_DONORS_LIABILITY
+    assert "LIVER" in r["tissues_below_donor_floor"]
+    assert r["n_tissues_below_donor_floor"] == 1
+    assert r["n_tissues_tested"] == 2  # BRAIN + SKIN only
+    # LIVER (a critical organ) is thin, so it must not set the critical-organ max on 2 samples
+    assert r["critical_organ_argmax"] == "BRAIN"
+
+
+def test_liability_donor_floor_exempts_consensus_substrate():
+    # A single-value tissue that IS a pre-aggregated consensus (e.g. repointed HPA marrow) is exempt
+    # from the per-sample floor — it is floored at its own substrate, not dropped here.
+    atlas = {"BRAIN": [0.1] * 20, "BONE_MARROW": [8.0]}
+    r = S.normal_tissue_liability(atlas, donor_exempt_tissues=frozenset({"BONE_MARROW"}))
+    assert "BONE_MARROW" not in r["tissues_below_donor_floor"]
+    assert r["critical_organ_argmax"] == "BONE_MARROW"  # counted despite n=1
+    assert r["n_tissues_below_donor_floor"] == 0
+    # anti-vacuity: WITHOUT the exemption the same n=1 marrow IS dropped below the floor
+    r2 = S.normal_tissue_liability(atlas)
+    assert "BONE_MARROW" in r2["tissues_below_donor_floor"]
+
+
+# ---- #821: graded critical-organ signal (additive; binary verdict unchanged) ----
+def test_critical_organ_grade_tiers():
+    assert S._critical_organ_grade(None) == "no_critical_tissue_measured"
+    assert S._critical_organ_grade(S.HIGH_LOG2TPM + 0.5) == "high"
+    assert S._critical_organ_grade(S.MODERATE_LOG2TPM + 0.1) == "moderate"
+    assert S._critical_organ_grade(S.DETECTABLE_LOG2TPM + 0.1) == "low"
+    assert S._critical_organ_grade(0.2) == "not_detected"
+
+
+def test_critical_organ_grade_moderate_is_visible_without_flipping_verdict(monkeypatch):
+    # A gene at MODERATE level in a critical organ does NOT clear the absolute high cutoff, so the
+    # binary verdict stays non-critical — but the graded field surfaces the moderate signal for the
+    # downstream (skills#1791) safety consumer.
+    atlas = {"BRAIN": [S.MODERATE_LOG2TPM + 0.1] * 20, "SKIN": [0.1] * 20}
+    r = S.normal_tissue_liability(atlas)
+    assert r["critical_organ_grade"] == "moderate"
+    assert (
+        R._classify_normal_liability(r["critical_organ_max"], r["highest_tissue_median"], r["tissue_breadth_fraction"])
+        != "critical_organ_liability"
+    )
+
+
+# ---- #821: marrow K-562 exclusion + HPA primary-marrow repoint (read.read_all_normal_tissues) ----
+def test_read_all_normal_tissues_repoints_marrow_off_k562(monkeypatch):
+    import math
+
+    import pandas as pd
+
+    from methods.tcga_gtex_tpm_quantiles import marrow
+
+    # recount3 GTEx `BONE_MARROW` group is K-562 (myeloid markers ~0). Fake the gtex long-product read.
+    fake = pd.DataFrame(
+        {
+            "tissue": ["BRAIN"] * 5 + ["BONE_MARROW"] * 5,
+            "log2_tpm": [0.2] * 5 + [0.05] * 5,  # K-562: CD33 reads ~0
+        }
+    )
+    monkeypatch.setattr(R, "_read_gene", lambda which, target: fake)
+    # inject an HPA primary-marrow value (nTPM, TPM-family) for the gene — high, as CD33 truly is
+    marrow._reset_cache_for_tests()
+    marrow._TABLE = {"CD33": 300.0}
+    marrow._LOAD_ERROR = None
+    try:
+        atlas = R.read_all_normal_tissues("CD33")
+    finally:
+        marrow._reset_cache_for_tests()
+    # the K-562 rows are gone; marrow is the repointed HPA value on the log2(TPM+1) axis
+    assert atlas["BONE_MARROW"] == [pytest.approx(math.log2(300.0 + 1.0))]
+    assert atlas["BONE_MARROW"][0] > S.HIGH_LOG2TPM  # no longer a clean-marrow ~0
+
+
+def test_marrow_repoint_makes_myeloid_gene_fire_critical_organ_liability(monkeypatch):
+    import pandas as pd
+
+    from methods.tcga_gtex_tpm_quantiles import marrow
+
+    fake = pd.DataFrame({"tissue": ["SKIN"] * 5 + ["BONE_MARROW"] * 5, "log2_tpm": [0.1] * 5 + [0.05] * 5})
+    monkeypatch.setattr(R, "_read_gene", lambda which, target: fake)
+    marrow._reset_cache_for_tests()
+    marrow._TABLE = {"CD33": 300.0}
+    marrow._LOAD_ERROR = None
+    try:
+        out = R.read_normal_tissue_liability("CD33")
+    finally:
+        marrow._reset_cache_for_tests()
+    assert out["liability_class"] == "critical_organ_liability"
+    assert out["critical_organ_argmax"] == "BONE_MARROW"
+    assert out["marrow_substrate"] == "hpa_primary_marrow"
+    assert out["excluded_cell_line_groups"] == ["BONE_MARROW"]
+
+
+def test_marrow_absent_is_not_fabricated_clean_marrow(monkeypatch):
+    import pandas as pd
+
+    from methods.tcga_gtex_tpm_quantiles import marrow
+
+    fake = pd.DataFrame({"tissue": ["SKIN"] * 5 + ["BONE_MARROW"] * 5, "log2_tpm": [0.1] * 5 + [0.05] * 5})
+    monkeypatch.setattr(R, "_read_gene", lambda which, target: fake)
+    marrow._reset_cache_for_tests()
+    marrow._TABLE = {"OTHERGENE": 12.0}  # target CD33 absent from HPA table → definitive gene-absence
+    marrow._LOAD_ERROR = None
+    try:
+        atlas = R.read_all_normal_tissues("CD33")
+        out = R.read_normal_tissue_liability("CD33")
+    finally:
+        marrow._reset_cache_for_tests()
+    # marrow is NOT present as a fabricated K-562 ~0 clean value — it is simply absent (honest)
+    assert "BONE_MARROW" not in atlas
+    assert out["marrow_substrate"] == "unavailable_or_gene_absent"
+
+
 def test_q2_q3_cli_build_and_liability_figure(tmp_path, monkeypatch):
     """CLI build_* entry points + the Q3 liability atlas figure (monkeypatched, no S3)."""
     import importlib

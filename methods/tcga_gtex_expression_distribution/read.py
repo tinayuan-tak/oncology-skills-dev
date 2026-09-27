@@ -566,13 +566,54 @@ def read_normal_samples(target: str, indication: str):
     return df[df["tissue"] == tissue]["log2_tpm"].dropna().astype(float).tolist(), tissue
 
 
+# recount3's GTEx `BONE_MARROW` group is the K-562 erythroleukemia CELL LINE, not primary marrow
+# (2026-09-12 marker audit — see tcga_gtex_tpm_quantiles/marrow.py: every neutrophil/granulocyte
+# marker ~0, fetal haemoglobin 5 orders high). AM#796 excluded it + repointed to HPA primary marrow
+# in the WINDOW card only; #821 ports the same exclusion + repoint HERE, the liability card feeding
+# the on-target-safety skill, so a myeloid-essential gene (CD33/FLT3/MPO) can no longer read clean
+# marrow via K-562 and silently miss a myelosuppression liability.
+_CELL_LINE_GTEX_TISSUES = frozenset({"BONE_MARROW"})
+# The atlas key under which the repointed PRIMARY-marrow value is injected. Deliberately the same
+# `BONE_MARROW` label the shared critical-organ set (GTEX_ESSENTIAL_TISSUES) already carries, so the
+# repointed value counts toward the critical-organ liability and the single-source coverage guard
+# (test_essential_organ_coverage) stays intact — the substrate swap is recorded in the summary's
+# `marrow_substrate` provenance rather than by mutating the shared organ vocabulary.
+_MARROW_TISSUE_LABEL = "BONE_MARROW"
+
+
 def read_all_normal_tissues(target: str) -> dict:
     """Per-GTEx-tissue log2(TPM+1) for target across ALL tissues — the Q3 normal-tissue-liability
-    substrate (the atlas the existing readers collapse to one tissue). {tissue: [values]}."""
+    substrate (the atlas the existing readers collapse to one tissue). {tissue: [values]}.
+
+    The recount3 GTEx `BONE_MARROW` group (K-562 cell line) is DROPPED and replaced with the
+    repointed HPA primary-marrow value (see `_repoint_marrow` / #821)."""
     df = _read_gene("gtex", target)
     if df.empty:
         return {}
-    return {t: sub["log2_tpm"].dropna().astype(float).tolist() for t, sub in df.groupby("tissue")}
+    atlas = {t: sub["log2_tpm"].dropna().astype(float).tolist() for t, sub in df.groupby("tissue")}
+    return _repoint_marrow(target, atlas)
+
+
+def _repoint_marrow(target: str, atlas: dict) -> dict:
+    """Drop the K-562 `BONE_MARROW` group and substitute the repointed HPA primary-marrow value.
+
+    Mirrors tcga_gtex_tpm_quantiles.window's substrate gate. The marrow value arrives from
+    `marrow.primary_marrow_tpm` as HPA-consensus nTPM (TPM-family) and is projected onto this atlas'
+    log2(TPM+1) axis. The measured ~1.19x HPA/GTEx platform offset is NOT applied (see marrow.py):
+    it errs ~1.2x HIGH, inflating the marrow denominator — the conservative direction for a safety
+    liability. A marrow read failure / gene-absence leaves marrow OUT of the atlas (honest absence,
+    surfaced as `marrow_substrate` by the caller), never a fabricated marrow == 0 that would read as
+    a clean marrow. `primary_marrow_tpm` handles its own S3 degradation and never raises."""
+    import math
+
+    from methods.tcga_gtex_tpm_quantiles.marrow import primary_marrow_tpm
+
+    for cell_line_group in _CELL_LINE_GTEX_TISSUES:
+        atlas.pop(cell_line_group, None)
+    marrow_ntpm, _substrate, _note = primary_marrow_tpm(target)
+    if marrow_ntpm is not None:
+        atlas[_MARROW_TISSUE_LABEL] = [math.log2(float(marrow_ntpm) + 1.0)]
+    return atlas
 
 
 def _distribution_summary(values: list) -> dict:
@@ -726,10 +767,17 @@ def read_normal_tissue_liability(
             )
         except Exception:  # noqa: BLE001 — persistence best-effort; never break the verdict read
             pass
-    summ = _stats.normal_tissue_liability(atlas)
+    summ = _stats.normal_tissue_liability(atlas, donor_exempt_tissues=frozenset({_MARROW_TISSUE_LABEL}))
     summ["liability_class"] = _classify_normal_liability(
         summ["critical_organ_max"], summ["highest_tissue_median"], summ["tissue_breadth_fraction"]
     )
+    # Marrow substrate provenance (#821): the K-562 `BONE_MARROW` group is excluded and the primary
+    # marrow value is repointed in `_repoint_marrow`. Derived from the atlas (S3-free — no second
+    # marrow read): the repointed value is present iff the HPA lookup returned a value. A reader of an
+    # archived summary can thus tell the repointed primary-marrow denominator apart from the
+    # discredited cell-line label (which no longer reaches the atlas).
+    summ["excluded_cell_line_groups"] = sorted(_CELL_LINE_GTEX_TISSUES)
+    summ["marrow_substrate"] = "hpa_primary_marrow" if _MARROW_TISSUE_LABEL in atlas else "unavailable_or_gene_absent"
     return summ
 
 

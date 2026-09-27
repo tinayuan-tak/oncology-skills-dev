@@ -145,8 +145,46 @@ def fraction_above_normal_percentile(tumor_log2tpm, normal_log2tpm, percentile=9
 # entry (never a GTEx tissue label; the arteries live under BLOOD_VESSEL).
 CRITICAL_NORMAL_TISSUES = GTEX_ESSENTIAL_TISSUES
 
+# Min-donor power floor for a per-tissue median (2026-09-27, #821). A per-tissue median is only kept
+# when the tissue has at least this many (non-NaN) samples; below the floor the tissue is reported as
+# UNAVAILABLE (named + counted) rather than contributing a thin 1-sample median that can silently set
+# or miss a critical-organ liability. 3 matches the framework-wide normal-tissue donor floor
+# (pair_selectivity_gate.MIN_DONORS_NORMAL, essential_organs' MIN_SAMPLES_MEASURABLE). A repointed
+# primary-marrow value is a pre-aggregated cross-donor CONSENSUS (HPA), not a 1-donor observation, so
+# the caller exempts it via `donor_exempt_tissues` — it is floored at its substrate, not here.
+MIN_DONORS_LIABILITY = 3
 
-def normal_tissue_liability(tissue_to_values: dict, high=HIGH_LOG2TPM, critical=CRITICAL_NORMAL_TISSUES) -> dict:
+
+def _critical_organ_grade(critical_organ_max) -> str:
+    """Graded critical-organ signal (#821), ADDITIVE to the binary liability verdict.
+
+    The binary `critical_organ_liability` verdict fires only at the ABSOLUTE high cutoff
+    (critical_organ_max >= HIGH_LOG2TPM ≈ TPM 50). That absolute anchor is deliberate: it is the
+    DepMap-convention "high" threshold, kept absolute (not tumour/cohort-relative) so a critical-organ
+    liability is COMPARABLE across targets and indications — a relative cutoff would make the safety
+    SCREEN target-specific and incomparable, defeating its purpose. But an absolute high cutoff is
+    blind to a genuinely essential gene expressed at MODERATE level in a critical organ. This graded
+    field surfaces that tier so a moderate critical-organ signal is visible to the safety consumer
+    WITHOUT moving the existing binary verdict; whether the safety RULE should treat `moderate` as a
+    weaker liability is a downstream interpretation decision (skills#1791)."""
+    if critical_organ_max is None:
+        return "no_critical_tissue_measured"
+    if critical_organ_max >= HIGH_LOG2TPM:
+        return "high"
+    if critical_organ_max >= MODERATE_LOG2TPM:
+        return "moderate"
+    if critical_organ_max >= DETECTABLE_LOG2TPM:
+        return "low"
+    return "not_detected"
+
+
+def normal_tissue_liability(
+    tissue_to_values: dict,
+    high=HIGH_LOG2TPM,
+    critical=CRITICAL_NORMAL_TISSUES,
+    min_donors: int = MIN_DONORS_LIABILITY,
+    donor_exempt_tissues=frozenset(),
+) -> dict:
     """Q3 normal-tissue-liability summary over the GTEx atlas (per-tissue log2(TPM+1) vectors).
 
     The therapeutic-window question: WHERE is the target expressed in normal tissue, and does
@@ -155,29 +193,51 @@ def normal_tissue_liability(tissue_to_values: dict, high=HIGH_LOG2TPM, critical=
     Returns:
       highest_tissue / highest_tissue_median      — the top-expressing normal tissue
       critical_organ_max / critical_organ_argmax  — max median among CRITICAL tissues + which
+      critical_organ_grade                         — graded critical-organ tier (high|moderate|low|
+                                                     not_detected|no_critical_tissue_measured; #821)
       n_tissues_high                               — # tissues with median >= HIGH cutoff
       n_tissues_detectable                         — # tissues with median >= DETECTABLE
-      n_tissues_tested
+      n_tissues_tested                             — # tissues clearing the donor-power floor
+      n_tissues_below_donor_floor                  — # tissues DROPPED for < min_donors samples (#821)
+      tissues_below_donor_floor                    — those tissue labels (named, not silently dropped)
+      min_donors_floor                             — the applied floor
       tissue_breadth_fraction                      — n_detectable / n_tested (0..1; breadth of normal expression)
+
+    Donor-power floor (#821): a tissue with fewer than `min_donors` non-NaN samples is NOT scored on a
+    thin median — it is recorded as below-floor (explicit unavailable) so a 1-sample tissue can no
+    longer silently set or miss a critical-organ call. Tissues in `donor_exempt_tissues` (a
+    pre-aggregated cross-donor consensus, e.g. the repointed HPA primary-marrow value) bypass the
+    floor — they are floored at their own substrate, not by per-sample count here.
     data-gap-safe: empty atlas → all-None."""
     import numpy as np
 
+    exempt = {str(t).upper() for t in (donor_exempt_tissues or ())}
     rows = []
+    below_floor = []
     for tissue, vals in (tissue_to_values or {}).items():
         arr = np.asarray(vals, dtype=float)
         arr = arr[~np.isnan(arr)]
         if arr.size == 0:
             continue
-        rows.append((str(tissue).upper(), float(np.median(arr)), int(arr.size)))
+        t_up = str(tissue).upper()
+        if arr.size < min_donors and t_up not in exempt:
+            below_floor.append(t_up)
+            continue
+        rows.append((t_up, float(np.median(arr)), int(arr.size)))
+    below_sorted = sorted(below_floor)
     if not rows:
         return {
             "highest_tissue": None,
             "highest_tissue_median": None,
             "critical_organ_max": None,
             "critical_organ_argmax": None,
+            "critical_organ_grade": _critical_organ_grade(None),
             "n_tissues_high": None,
             "n_tissues_detectable": None,
             "n_tissues_tested": 0,
+            "n_tissues_below_donor_floor": len(below_sorted),
+            "tissues_below_donor_floor": below_sorted,
+            "min_donors_floor": int(min_donors),
             "tissue_breadth_fraction": None,
         }
     rows.sort(key=lambda r: r[1], reverse=True)
@@ -186,14 +246,19 @@ def normal_tissue_liability(tissue_to_values: dict, high=HIGH_LOG2TPM, critical=
     crit_max = max(crit, key=lambda x: x[1]) if crit else None
     n_high = sum(1 for _, m, _ in rows if m >= high)
     n_detect = sum(1 for _, m, _ in rows if m >= DETECTABLE_LOG2TPM)
+    critical_organ_max = round(crit_max[1], 4) if crit_max else None
     return {
         "highest_tissue": top_tissue,
         "highest_tissue_median": round(top_med, 4),
-        "critical_organ_max": (round(crit_max[1], 4) if crit_max else None),
+        "critical_organ_max": critical_organ_max,
         "critical_organ_argmax": (crit_max[0] if crit_max else None),
+        "critical_organ_grade": _critical_organ_grade(critical_organ_max),
         "n_tissues_high": n_high,
         "n_tissues_detectable": n_detect,
         "n_tissues_tested": len(rows),
+        "n_tissues_below_donor_floor": len(below_sorted),
+        "tissues_below_donor_floor": below_sorted,
+        "min_donors_floor": int(min_donors),
         "tissue_breadth_fraction": round(n_detect / len(rows), 4),
     }
 
