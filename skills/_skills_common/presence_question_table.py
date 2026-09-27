@@ -751,6 +751,16 @@ def presence_question_table(headline: dict, cards: list, claim_vector: Optional[
             _ef.IHC_FRACTION_MODERATE_STRONG: ihc.get("fraction_moderate_strong"),
             _ef.EXPRESSION_PURITY_SPEARMAN_R: epc.get("expression_purity_spearman_r"),
             _ef.MEDIAN_PURITY: epc.get("median_purity"),
+            # SK#1852: a within-presence MALIGNANT-INTRINSIC LOCAL COMPOSITE built from the (previously
+            # stranded) bulk purity-residual continuous reads x the sc compartment arm, consumed by the frame
+            # as a SUPPORTIVE local-composite (decision-INERT). Reads only already-emitted card fields — the
+            # bulk arm off `expression-purity-confound`, the sc arm off the presence headline (sc_ keys).
+            _ef.MALIGNANT_INTRINSIC_COMPOSITE: _ef.malignant_intrinsic_composite_class(
+                expression_purity_spearman_r=epc.get("expression_purity_spearman_r"),
+                median_purity=epc.get("median_purity"),
+                caf_vs_malignant_class=headline.get("sc_caf_vs_malignant_class"),
+                malignant_detection_fraction=headline.get("sc_malignant_detection_fraction"),
+            ),
             _ef.N_SUBTYPES_RESTRICTED: sub_card.get("n_subtypes_restricted"),
             _ef.N_SUBTYPES_ENRICHED: sub_card.get("n_subtypes_enriched"),
             _ef.N_SUBTYPES_MEASURED: sub_card.get("n_subtypes_measured"),

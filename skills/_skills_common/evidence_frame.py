@@ -830,6 +830,102 @@ PRESENCE_PRIORITY_SUPPORTIVE_COMPOSITES = (BREADTH_LAYER_CONCORDANCE,)
 # audited sets); they extend the antigen-priority frame's inputs additively.
 PRESENCE_PRIORITY_RESERVOIR_INPUTS = PRESENCE_PRIORITY_CONTEXT_MEASUREMENTS + PRESENCE_PRIORITY_SUPPORTIVE_COMPOSITES
 
+# ── SK#1852 (epic #1848-C1; cross-links #1665): a within-presence MALIGNANT-INTRINSIC LOCAL COMPOSITE ──
+# Claim C's malignant-intrinsic leg is the weakest (flag-only / TCGA-only; #1665 tracks the UPSTREAM
+# bulk-deconvolution deepening). But presence ALREADY emits continuous purity-confound reads that were
+# stranded: `expression_purity_spearman_r` (0 consumers) and `median_purity` (behind purity_confound_class).
+# Rather than wait on #1665, this bundles the data ON HAND into a single within-skill classifier that reads
+# the malignant-intrinsic question off TWO arms:
+#   * BULK purity-residual arm  <- expression_purity_spearman_r + median_purity (the stranded continuous
+#     confound reads on the `expression-purity-confound` card). A significant POSITIVE Spearman r means bulk
+#     expression RISES with tumor purity → malignant-intrinsic; a significant NEGATIVE r means it rises in
+#     LOW-purity tumors → a stroma/immune (microenvironment) confound. The sign convention + cutpoints mirror
+#     the card's own classify_purity_confound (INTRINSIC_R=+0.3 / CONFOUND_R=-0.3). median_purity is a
+#     load-bearing context qualifier: a non-significant correlation in a HIGH-purity cohort has little
+#     contamination headroom, so bulk expression is largely malignant-intrinsic by construction.
+#   * SINGLE-CELL compartment arm <- caf_vs_malignant_class (compartment specificity) + malignant_detection_
+#     fraction (malignant-cell detection prevalence) on the `tumor-scrna-celltype-expression` card. A
+#     malignant-dominant / caf-low compartment with a detection fraction above the malignant-compartment
+#     floor is a direct malignant-intrinsic read; a caf-dominant compartment is a stromal confound.
+# This is deliberately a LOCAL COMPOSITE, NOT a canonical atomic property: it BUNDLES ≥2 measurements from
+# ≥2 cards, so its honest emitted layer is OBSERVATIONAL / is_composite and it may only be consumed as a
+# LOCAL_COMPOSITE_CLAIM at a decision-INERT (SUPPORTIVE) role. It is the type-integrity TEETH specimen — the
+# check_input_integrity R1/R2 guards MUST refuse it if it is ever declared a CANONICAL_PROPERTY_CLAIM /
+# MEASUREMENT (mutation test in test_evidence_frame.py). Per SK#1852 M3 discipline it stays a local composite
+# (the honest classification given the shared bulk substrate); it is NOT counted as an independent-source M3
+# family unless a separate independence analysis is posted to #1507.
+MALIGNANT_INTRINSIC_COMPOSITE = "malignant_intrinsic_composite"
+
+# Cutpoints mirror methods/expression_purity_confound/read.py::classify_purity_confound (single-sourced by
+# value, not imported — skills does not depend on analysis-methods at runtime).
+_MALIGNANT_INTRINSIC_R = 0.3  # Spearman r at/above → bulk expression tracks tumor purity (intrinsic)
+_MICROENVIRONMENT_CONFOUND_R = -0.3  # r at/below → expression higher in low-purity tumors (stromal confound)
+_HIGH_PURITY_FLOOR = 0.7  # a non-significant correlation in a >= this-purity cohort has little contamination
+#                           headroom, so bulk expression is largely malignant-intrinsic
+_MALIGNANT_FRACTION_FLOOR = 0.25  # sc malignant-cell detection fraction floor for a malignant-compartment call
+_CAF_MALIGNANT_STATES = frozenset({"malignant_dominant", "caf_low"})  # compartment specificity: malignant-intrinsic
+_CAF_STROMAL_STATES = frozenset({"caf_dominant"})  # compartment specificity: stromal confound
+
+
+def malignant_intrinsic_composite_class(
+    expression_purity_spearman_r: Optional[float] = None,
+    median_purity: Optional[float] = None,
+    caf_vs_malignant_class: Optional[str] = None,
+    malignant_detection_fraction: Optional[float] = None,
+) -> Optional[str]:
+    """A within-presence MALIGNANT-INTRINSIC LOCAL COMPOSITE classifier (SK#1852) — pure, no I/O.
+
+    Bundles the BULK purity-residual arm (``expression_purity_spearman_r`` + ``median_purity``) with the
+    SINGLE-CELL compartment arm (``caf_vs_malignant_class`` + ``malignant_detection_fraction``) into ONE
+    within-skill classifier token. NOT an atomic canonical property (it bundles ≥2 measurements from ≥2
+    cards) → consumed only as a ``local_composite`` at a SUPPORTIVE role. Returns ``None`` when NEITHER arm
+    resolves (an absent supportive composite is fine — the frame simply does not annotate it).
+
+    Tokens:
+      * ``malignant_intrinsic_corroborated``   — BOTH arms read malignant-intrinsic (independent agreement).
+      * ``malignant_intrinsic_single_arm``     — exactly one arm reads malignant-intrinsic, the other absent.
+      * ``purity_or_compartment_confounded``   — either arm reads a stromal / microenvironment confound.
+      * ``malignant_intrinsic_indeterminate``  — arm(s) present but neither malignant-intrinsic nor confounded.
+    """
+    bulk = None
+    if expression_purity_spearman_r is not None:
+        r = float(expression_purity_spearman_r)
+        if r >= _MALIGNANT_INTRINSIC_R:
+            bulk = "intrinsic"
+        elif r <= _MICROENVIRONMENT_CONFOUND_R:
+            bulk = "confounded"
+        elif median_purity is not None and float(median_purity) >= _HIGH_PURITY_FLOOR:
+            # no significant purity correlation AND a high-purity cohort → little contamination headroom,
+            # so bulk expression is largely malignant-intrinsic (median_purity consumed here, not just carried).
+            bulk = "intrinsic"
+        else:
+            bulk = "independent"
+
+    sc = None
+    if caf_vs_malignant_class in _CAF_STROMAL_STATES:
+        sc = "stromal"
+    elif caf_vs_malignant_class in _CAF_MALIGNANT_STATES:
+        if (
+            malignant_detection_fraction is not None
+            and float(malignant_detection_fraction) >= _MALIGNANT_FRACTION_FLOOR
+        ):
+            sc = "malignant"
+        else:
+            sc = "malignant_low_fraction"
+
+    if bulk is None and sc is None:
+        return None
+    if bulk == "confounded" or sc == "stromal":
+        return "purity_or_compartment_confounded"
+    bulk_intrinsic = bulk == "intrinsic"
+    sc_malignant = sc == "malignant"
+    if bulk_intrinsic and sc_malignant:
+        return "malignant_intrinsic_corroborated"
+    if bulk_intrinsic or sc_malignant:
+        return "malignant_intrinsic_single_arm"
+    return "malignant_intrinsic_indeterminate"
+
+
 PRESENCE_PRIORITY_FRAME = Frame(
     frame_id="present_targetable_antigen_priority",
     inputs=(
@@ -868,6 +964,15 @@ PRESENCE_PRIORITY_FRAME = Frame(
         ),
         FrameInput(
             property_id=BREADTH_LAYER_CONCORDANCE,
+            kind=InputKind.LOCAL_COMPOSITE_CLAIM,
+            role=Role.SUPPORTIVE,
+        ),
+        # SK#1852 within-presence MALIGNANT-INTRINSIC composite — bundles the stranded bulk purity-residual
+        # continuous reads (expression_purity_spearman_r + median_purity) with the sc compartment arm
+        # (caf_vs_malignant_class + malignant_detection_fraction). Honestly a LOCAL_COMPOSITE consumed
+        # SUPPORTIVELY (no positive_states → decision-INERT: it annotates the synthesis, never gates it).
+        FrameInput(
+            property_id=MALIGNANT_INTRINSIC_COMPOSITE,
             kind=InputKind.LOCAL_COMPOSITE_CLAIM,
             role=Role.SUPPORTIVE,
         ),
@@ -1044,6 +1149,10 @@ def reference_emitted_layers() -> dict:
         # layer object (a raw measurement / a within-skill composite, NOT an L2b integrated property),
         # strictly below the decision_frame layer, so PRESENCE_PRIORITY_FRAME stays a DAG.
         **{pid: ClaimType.OBSERVATIONAL_PROPERTY for pid in PRESENCE_PRIORITY_RESERVOIR_INPUTS},
+        # The SK#1852 within-presence malignant-intrinsic composite — a within-skill classifier bundling the
+        # bulk purity-residual + sc compartment arms, NOT an L2b integrated property, so it is an
+        # OBSERVATIONAL-layer object strictly below the decision_frame layer (the frame stays a DAG).
+        MALIGNANT_INTRINSIC_COMPOSITE: ClaimType.OBSERVATIONAL_PROPERTY,
     }
     for f in FRAME_REGISTRY:
         layers[f.frame_id] = f.claim_type
@@ -1201,6 +1310,12 @@ def presence_priority_frame(
     breadth = h.get(BREADTH_LAYER_CONCORDANCE)
     if breadth is not None:
         bundle[BREADTH_LAYER_CONCORDANCE] = local_composite(BREADTH_LAYER_CONCORDANCE, breadth)
+    # SK#1852: the within-presence malignant-intrinsic composite (bulk purity-residual x sc compartment).
+    # Supplied off `headline` as an already-built classifier token; consumed as a SUPPORTIVE local-composite
+    # (decision-INERT). Absent (None) → not supplied → unresolved supportive (fine).
+    mic = h.get(MALIGNANT_INTRINSIC_COMPOSITE)
+    if mic is not None:
+        bundle[MALIGNANT_INTRINSIC_COMPOSITE] = local_composite(MALIGNANT_INTRINSIC_COMPOSITE, mic)
     # NORMAL_LIABILITY_PROPERTY intentionally omitted -> unresolved critical_unknown -> L4 question.
     return evaluate_frame(PRESENCE_PRIORITY_FRAME, bundle)
 

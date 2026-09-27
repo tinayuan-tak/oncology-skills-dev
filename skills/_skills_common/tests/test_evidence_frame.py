@@ -810,6 +810,12 @@ def test_antigen_priority_frame_shape_and_roles():
         assert by_pid[pid].role == Role.CONTEXTUAL
     assert by_pid[ef.BREADTH_LAYER_CONCORDANCE].kind == InputKind.LOCAL_COMPOSITE_CLAIM
     assert by_pid[ef.BREADTH_LAYER_CONCORDANCE].role == Role.SUPPORTIVE
+    # SK#1852 within-presence malignant-intrinsic composite: a SUPPORTIVE local-composite (decision-inert)
+    assert by_pid[ef.MALIGNANT_INTRINSIC_COMPOSITE].kind == InputKind.LOCAL_COMPOSITE_CLAIM
+    assert by_pid[ef.MALIGNANT_INTRINSIC_COMPOSITE].role == Role.SUPPORTIVE
+    # honestly a SUPPORTIVE composite with NO positive_states → it can never gate the decision
+    assert not by_pid[ef.MALIGNANT_INTRINSIC_COMPOSITE].positive_states
+    assert not by_pid[ef.MALIGNANT_INTRINSIC_COMPOSITE].adverse_states
 
 
 def test_antigen_priority_frame_new_inputs_are_observational_layer_and_registry_acyclic():
@@ -959,3 +965,107 @@ def test_antigen_priority_type_integrity_teeth_local_composite_declared_canonica
         ef.evaluate_frame(mutant, honest_composite)
     # falsification: the REAL frame declares it as a LOCAL_COMPOSITE_CLAIM, so the honest composite passes
     assert ef.evaluate_frame(ef.PRESENCE_PRIORITY_FRAME, honest_composite)["claim_type"] == ClaimType.DECISION_FRAME
+
+
+# --------------------------------------------------------------------------------------------------
+# SK#1852 — within-presence MALIGNANT-INTRINSIC local composite
+# --------------------------------------------------------------------------------------------------
+def test_malignant_intrinsic_composite_classifier_two_arm_agreement_and_confound():
+    """The within-presence malignant-intrinsic composite reads TWO arms (bulk purity-residual + sc
+    compartment) and reports corroboration / confound / single-arm / absence deterministically. The bulk
+    arm's sign mirrors the card classifier (positive Spearman r → intrinsic, negative → confound)."""
+    mic = ef.malignant_intrinsic_composite_class
+    # both arms malignant-intrinsic → corroborated
+    assert (
+        mic(
+            expression_purity_spearman_r=0.55,
+            median_purity=0.6,
+            caf_vs_malignant_class="malignant_dominant",
+            malignant_detection_fraction=0.7,
+        )
+        == "malignant_intrinsic_corroborated"
+    )
+    # a NEGATIVE r is a microenvironment confound (sign matters) even if the sc arm reads malignant
+    assert (
+        mic(
+            expression_purity_spearman_r=-0.5,
+            median_purity=0.6,
+            caf_vs_malignant_class="malignant_dominant",
+            malignant_detection_fraction=0.7,
+        )
+        == "purity_or_compartment_confounded"
+    )
+    # a caf-dominant compartment is a stromal confound even with a positive bulk r
+    assert (
+        mic(expression_purity_spearman_r=0.55, caf_vs_malignant_class="caf_dominant")
+        == "purity_or_compartment_confounded"
+    )
+    # only the bulk arm resolves malignant-intrinsic → single-arm
+    assert mic(expression_purity_spearman_r=0.55) == "malignant_intrinsic_single_arm"
+    # only the sc arm resolves malignant-intrinsic → single-arm
+    assert (
+        mic(caf_vs_malignant_class="malignant_dominant", malignant_detection_fraction=0.4)
+        == "malignant_intrinsic_single_arm"
+    )
+    # median_purity is LOAD-BEARING: a non-significant r in a high-purity cohort leans intrinsic ...
+    assert mic(expression_purity_spearman_r=0.05, median_purity=0.85) == "malignant_intrinsic_single_arm"
+    # ... but the SAME non-significant r in a low-purity cohort is indeterminate (median_purity flips it)
+    assert mic(expression_purity_spearman_r=0.05, median_purity=0.4) == "malignant_intrinsic_indeterminate"
+    # a malignant-dominant compartment BELOW the detection-fraction floor does not clear the malignant call
+    assert (
+        mic(caf_vs_malignant_class="malignant_dominant", malignant_detection_fraction=0.1)
+        == "malignant_intrinsic_indeterminate"
+    )
+    # neither arm present → None (an absent supportive composite is fine)
+    assert mic() is None
+
+
+def test_malignant_intrinsic_composite_is_observational_layer_reachable_and_type_integrity_teeth():
+    """The composite is an OBSERVATIONAL-layer within-skill classifier reachable from the antigen-priority
+    frame, and — the TEETH — declaring it a CANONICAL_PROPERTY_CLAIM / MEASUREMENT must be REFUSED (a
+    local-composite may not be consumed as a stronger/atomic epistemic type than it was emitted as)."""
+    layers = ef.reference_emitted_layers()
+    assert layers[ef.MALIGNANT_INTRINSIC_COMPOSITE] == ClaimType.OBSERVATIONAL_PROPERTY
+    ef.assert_acyclic(ef.FRAME_REGISTRY, layers)
+    idx = ef.build_reverse_index(ef.FRAME_REGISTRY)
+    assert ef.PRESENCE_PRIORITY_FRAME.frame_id in idx[ef.MALIGNANT_INTRINSIC_COMPOSITE]
+
+    honest = ef.local_composite(ef.MALIGNANT_INTRINSIC_COMPOSITE, "malignant_intrinsic_corroborated")
+    # consumed at its honest layer → passes
+    ef.check_input_integrity(InputKind.LOCAL_COMPOSITE_CLAIM, honest)
+    # declared as a canonical atomic property → REFUSED (the type-integrity teeth this issue specifies)
+    with pytest.raises(TypeIntegrityError, match="atomic/canonical|stronger epistemic type"):
+        ef.check_input_integrity(InputKind.CANONICAL_PROPERTY_CLAIM, honest)
+    with pytest.raises(TypeIntegrityError, match="atomic/canonical"):
+        ef.check_input_integrity(InputKind.MEASUREMENT, honest)
+    # and via a full mutant frame that over-claims it as canonical
+    mutant = Frame(
+        frame_id="present_targetable_antigen_priority__MIC_MUTANT",
+        inputs=(FrameInput(ef.MALIGNANT_INTRINSIC_COMPOSITE, InputKind.CANONICAL_PROPERTY_CLAIM, Role.SUPPORTIVE),),
+    )
+    with pytest.raises(TypeIntegrityError, match="atomic/canonical|stronger epistemic type"):
+        ef.evaluate_frame(mutant, {ef.MALIGNANT_INTRINSIC_COMPOSITE: honest})
+
+
+def test_malignant_intrinsic_composite_is_decision_inert_on_the_priority_frame():
+    """Supplying the malignant-intrinsic composite as the SUPPORTIVE input leaves the antigen-priority
+    frame's decision / vetoes / unresolved lists BYTE-IDENTICAL to the frame without it (verdict-inert),
+    across the QUESTION and abundance-down-rank branches — yet the token is genuinely RESOLVED (consumed)."""
+    cov = _real_coverage_concordant_claim()
+    split = {"concordance_class": "rna_high_protein_low", "integration_method": "explicit_deterministic"}
+    scenarios = (
+        {"bulk_vs_singlecell_coverage_concordance": cov},
+        {"bulk_vs_singlecell_coverage_concordance": cov, "abundance_concordance": split},
+    )
+    for cv in scenarios:
+        base = ef.presence_priority_frame(dict(cv))
+        enriched = ef.presence_priority_frame(
+            dict(cv), {ef.MALIGNANT_INTRINSIC_COMPOSITE: "malignant_intrinsic_corroborated"}
+        )
+        assert enriched["decision"] == base["decision"]
+        assert enriched["vetoes_applied"] == base["vetoes_applied"]
+        assert enriched["unresolved_critical"] == base["unresolved_critical"]
+        assert enriched["unresolved_required"] == base["unresolved_required"]
+        # genuinely consumed (resolved), not silently dropped, and never a veto
+        assert enriched["resolved_inputs"].get(ef.MALIGNANT_INTRINSIC_COMPOSITE) == "malignant_intrinsic_corroborated"
+        assert not any(ef.MALIGNANT_INTRINSIC_COMPOSITE in v for v in enriched["vetoes_applied"])
