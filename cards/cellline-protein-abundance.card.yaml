@@ -66,7 +66,11 @@ outputs:
     - p95_log2_abundance_panel
     - log2_abundance_iqr
     - protein_expression_class                    # CATEGORICAL — same vocab the Slice-Y protein rules consume
-    - protein_effect_size                         # panel median (relative abundance) — parity with tumor-protein-abundance-cptac field name
+    # protein_effect_size REMOVED (#1853): it was a verbatim copy of median_log2_abundance_panel — a
+    # field named for a tumor-vs-normal contrast a cell-line panel (no normal arm) cannot compute. The
+    # name-keyed METRIC_GLOSS would mislabel it as "tumor-vs-normal protein effect size"; the panel
+    # level axis is already carried by median_log2_abundance_panel + allgene_percentile. (Field is
+    # UNCHANGED on the tumor cards cptac/tphp/elevation-breadth, where a real normal arm exists.)
     - n_lineages_evaluated
     - per_lineage_stats                           # list of {lineage, n, median_log2_abundance, fraction_detected}
     - n_lineage_restricted_lineages               # lineages with >50% detected but panel <30%

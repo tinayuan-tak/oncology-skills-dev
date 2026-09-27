@@ -72,7 +72,9 @@ outputs:
     - p95_log2_abundance_panel
     - log2_abundance_iqr
     - protein_expression_class                    # CATEGORICAL — same distribution vocab as the Gygi sibling
-    - protein_effect_size                         # panel median (relative abundance) — parity with the sibling field name
+    # protein_effect_size REMOVED (#1853): same defect as the Gygi sibling — a verbatim copy of
+    # median_log2_abundance_panel wearing a tumor-vs-normal contrast's name, which this DIA panel (no
+    # normal arm) cannot compute; the name-keyed METRIC_GLOSS would mislabel it.
     - n_lineages_evaluated                        # always 0 here: no SIDM->OncotreeLineage crosswalk yet
     - per_lineage_stats                            # empty here (lineage stratification is a v2 — SIDM->ACH map)
     - n_lineage_restricted_lineages
@@ -127,7 +129,6 @@ outputs:
     p5_log2_abundance_panel: number
     p95_log2_abundance_panel: number
     log2_abundance_iqr: number
-    protein_effect_size: number
     n_lineages_evaluated: integer
     n_lineage_restricted_lineages: integer
     method_version: string
