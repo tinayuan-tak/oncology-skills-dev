@@ -8,8 +8,9 @@ Per-gene predictability precompute for the E5 v2 build:
     (See features.py for construction; ~60k features per gene.)
   - Per-fold `SelectKBest(f_regression, k=1000)` avoids leakage while matching
     DepMap Daintree's `KFilteredForest` reduction.
-  - Dual model: RandomForestRegressor + XGBRegressor. Both fit on the same
-    per-fold selected features. Delta-r² surfaced as a divergence diagnostic.
+  - Model: RandomForestRegressor (DepMap-parity). NOTE (#807): a companion
+    XGBRegressor + RF↔XGB delta-r²/agreement diagnostic was retired — it was
+    never consumed by any resolver rung, and the recompute no longer pays for it.
   - Cross-validation: **3-fold QuantileKFold** (quantile-stratified) matching
     DepMap's CV splitter. Report Pearson r + Pearson² r² on out-of-fold
     predictions.
@@ -182,45 +183,40 @@ def bootstrap_r2_ci(y_oof: np.ndarray, y_true: np.ndarray, n: int = BOOTSTRAP_N,
 
 
 # ---------------------------------------------------------------------------
-# Per-fold pipeline: SelectKBest → RF + XGB → OOF predictions
+# Per-fold pipeline: SelectKBest → RandomForest → OOF predictions
 # ---------------------------------------------------------------------------
 
 
-def _train_dual_model_cv(X: np.ndarray, y: np.ndarray, feature_names: list, random_state: int = 42) -> dict:
-    """Run 3-fold QuantileKFold with per-fold KBest → RF + XGB. Return dict
-    with y_oof arrays, aggregated SHAP means, and RF feature_importances_ means.
+def _train_model_cv(X: np.ndarray, y: np.ndarray, feature_names: list, random_state: int = 42) -> dict:
+    """Run 3-fold QuantileKFold with per-fold KBest → RandomForest. Return dict
+    with the y_oof array, aggregated SHAP means, and RF feature_importances_ means.
+
+    #807: the retired XGBoost companion model — a second per-fold fit whose r²/SHAP
+    and RF↔XGB agreement were never consumed by any resolver rung — has been dropped
+    so the genome-wide recompute no longer pays for it. RF outputs are unchanged
+    (RF's RNG and per-fold pipeline are untouched), so this is verdict-inert and the
+    committed RF columns are byte-stable on re-run.
     """
     from sklearn.ensemble import RandomForestRegressor
     from sklearn.feature_selection import SelectKBest, f_regression
 
     n = len(y)
     y_oof_rf = np.full(n, np.nan, dtype=np.float32)
-    y_oof_xgb = np.full(n, np.nan, dtype=np.float32)
 
     # Per-feature aggregators — shape (n_features,)
     rf_importances_sum = np.zeros(X.shape[1], dtype=np.float64)
     shap_rf_abs_sum = np.zeros(X.shape[1], dtype=np.float64)
-    shap_xgb_abs_sum = np.zeros(X.shape[1], dtype=np.float64)
-    xgb_importances_sum = np.zeros(X.shape[1], dtype=np.float64)
 
     # Per-FOLD attempt counters (scalars), NOT per-feature selection counts. See the reduction at the
     # end of this function for why the distinction is the whole point: a fold in which a feature was
-    # not selected still MEASURED that feature — as zero — whereas a fold in which SHAP or XGB raised
+    # not selected still MEASURED that feature — as zero — whereas a fold in which SHAP raised
     # measured nothing at all. Only the second kind may shrink a denominator.
     n_folds = 0
     n_folds_shap_rf = 0
-    n_folds_xgb = 0
-    n_folds_shap_xgb = 0
 
     k = min(SELECT_K_BEST, X.shape[1])
 
-    # Lazy-import XGBoost + SHAP so import failures don't kill single-model runs
-    try:
-        from xgboost import XGBRegressor
-
-        _has_xgb = True
-    except ImportError:
-        _has_xgb = False
+    # Lazy-import SHAP so an import failure still yields RF importances.
     try:
         import shap
 
@@ -266,40 +262,6 @@ def _train_dual_model_cv(X: np.ndarray, y: np.ndarray, feature_names: list, rand
             except Exception:
                 pass
 
-        # Fit XGBoost
-        if _has_xgb:
-            try:
-                xgb = XGBRegressor(
-                    n_estimators=100,
-                    max_depth=6,
-                    learning_rate=0.1,
-                    random_state=random_state,
-                    n_jobs=1,
-                    verbosity=0,
-                    objective="reg:squarederror",
-                )
-                xgb.fit(X_tr, y[train_idx])
-                y_oof_xgb[test_idx] = xgb.predict(X_te)
-                n_folds_xgb += 1
-                # XGBoost's OWN gain-based importances. Accumulated so that the xgb-ranked feature
-                # table has an xgb-derived ranking to fall back on when SHAP is unavailable, instead
-                # of silently borrowing RF's (see train_gene).
-                xgb_imp = np.asarray(xgb.feature_importances_, dtype=np.float64)
-                for i, src_idx in enumerate(selected_idx):
-                    xgb_importances_sum[src_idx] += xgb_imp[i]
-                if _has_shap:
-                    try:
-                        expl_xgb = shap.TreeExplainer(xgb)
-                        shap_vals = expl_xgb.shap_values(X_te, check_additivity=False)
-                        mean_abs = np.abs(shap_vals).mean(axis=0)
-                        for i, src_idx in enumerate(selected_idx):
-                            shap_xgb_abs_sum[src_idx] += mean_abs[i]
-                        n_folds_shap_xgb += 1
-                    except Exception:
-                        pass
-            except Exception:
-                pass
-
     # Reduce accumulators → per-feature means over the folds that MEASURED each quantity.
     #
     # The denominator is a per-fold ATTEMPT count, not a per-feature SELECTION count. The former
@@ -312,29 +274,21 @@ def _train_dual_model_cv(X: np.ndarray, y: np.ndarray, feature_names: list, rand
     # selection stable) and dominant in the lineage-conditional refit, which is where it surfaced as
     # a consumer-visible defect: noise features beating a biomarker with p=1e-10 within its lineage.
     #
-    # SHAP and XGB keep their OWN denominators because a fold in which shap/xgboost RAISED genuinely
-    # measured nothing — that is an absent observation, and shrinking the denominator is correct.
+    # SHAP keeps its OWN denominator because a fold in which shap RAISED genuinely measured nothing —
+    # that is an absent observation, and shrinking the denominator is correct.
     def _mean_over_folds(total: np.ndarray, n: int) -> np.ndarray:
         return total / n if n > 0 else np.zeros_like(total)
 
     rf_importances_mean = _mean_over_folds(rf_importances_sum, n_folds)
     shap_rf_mean = _mean_over_folds(shap_rf_abs_sum, n_folds_shap_rf)
-    shap_xgb_mean = _mean_over_folds(shap_xgb_abs_sum, n_folds_shap_xgb)
-    xgb_importances_mean = _mean_over_folds(xgb_importances_sum, n_folds_xgb)
 
     return {
         "y_oof_rf": y_oof_rf,
-        "y_oof_xgb": y_oof_xgb,
         "rf_importances_mean": rf_importances_mean,
-        "xgb_importances_mean": xgb_importances_mean,
         "shap_rf_mean_abs": shap_rf_mean,
-        "shap_xgb_mean_abs": shap_xgb_mean,
-        "has_xgb": _has_xgb,
         "has_shap": _has_shap,
         "n_folds": n_folds,
         "n_folds_shap_rf": n_folds_shap_rf,
-        "n_folds_xgb": n_folds_xgb,
-        "n_folds_shap_xgb": n_folds_shap_xgb,
     }
 
 
@@ -451,7 +405,7 @@ def _lineage_fit(X: np.ndarray, y: np.ndarray, feature_names: list) -> tuple[flo
         n_folds += 1
     r = _pearson_r(y_oof, y)
     # Denominator is the fold count, not the per-feature selection count — see the reduction in
-    # _train_dual_model_cv for the full argument. This is the site where the difference mattered.
+    # _train_model_cv for the full argument. This is the site where the difference mattered.
     imp = imp_sum / n_folds if n_folds else imp_sum
     top_idx = int(np.argmax(imp))
     return r * r, feature_names[top_idx]
@@ -471,54 +425,21 @@ def train_gene(gene: str, omics: dict) -> Optional[dict]:
     X, y, names, mids = fm["X"], fm["y"], fm["feature_names"], fm["model_ids"]
     t0 = time.time()
 
-    trained = _train_dual_model_cv(X, y, names)
+    trained = _train_model_cv(X, y, names)
     r_rf = _pearson_r(trained["y_oof_rf"], y)
     r2_rf = r_rf * r_rf
     r2_rf_ci = bootstrap_r2_ci(trained["y_oof_rf"], y)
 
-    if trained["has_xgb"]:
-        r_xgb = _pearson_r(trained["y_oof_xgb"], y)
-        r2_xgb = r_xgb * r_xgb
-        r2_xgb_ci = bootstrap_r2_ci(trained["y_oof_xgb"], y)
-    else:
-        r_xgb = float("nan")
-        r2_xgb = float("nan")
-        r2_xgb_ci = (float("nan"), float("nan"))
-
     # SHAP-ranked top features for RF (fall back to RF's own importances if SHAP absent)
     rf_rank = trained["shap_rf_mean_abs"] if trained["has_shap"] else trained["rf_importances_mean"]
     top_rf = _top_features(names, rf_rank, k=10)
-    if trained["has_xgb"]:
-        # Fall back to XGBOOST's own gain importances, not RF's. The former fallback ranked the
-        # "xgb" table by trained["rf_importances_mean"], so with SHAP unavailable this column was
-        # RF's ranking wearing an XGB label — byte-identical to top_features_rf_shap, and the
-        # rf_importance=0.0 fill below hid the one signal that would have exposed it. A fallback
-        # that silently changes what a field MEANS has to change what the field CONTAINS.
-        xgb_rank = trained["shap_xgb_mean_abs"] if trained["has_shap"] else trained["xgb_importances_mean"]
-        # An all-zero ranking means NO fold ever produced one: has_xgb records that the `xgboost`
-        # IMPORT succeeded, not that any fit did, and every per-fold fit is wrapped in `except
-        # Exception: pass`. Ranking an all-zero vector would emit the 10 alphabetically-first
-        # features at importance 0.0 — a table with no measurement behind it, which is the same
-        # defect the r² gate in _fit_lineage_conditional exists to prevent. Emit nothing instead;
-        # `top_features_xgb_shap == []` is already the has_xgb=False shape, so consumers handle it.
-        # (The previous fallback could not hit this, because RF's importances are never all zero.)
-        top_xgb = _top_features(names, xgb_rank, k=10) if float(np.abs(xgb_rank).sum()) > 0 else []
-    else:
-        top_xgb = []
 
-    # Also attach the RF importance beside SHAP for parity/comparison. For the xgb table this is the
-    # REAL RF mean for the same feature, which makes the two tables comparable; it was previously
-    # hard-coded to 0.0.
-    for entry in top_rf + top_xgb:
+    # Attach the RF importance beside SHAP for parity/comparison.
+    for entry in top_rf:
         entry["rf_importance"] = float(trained["rf_importances_mean"][names.index(entry["feature"])])
 
     top_class = top_rf[0]["feature_class"] if top_rf else "unpredictable"
     pred_class, dom_class = _classify(r2_rf, r2_rf_ci[0], top_class)
-
-    delta_r2 = (r2_rf - r2_xgb) if trained["has_xgb"] else float("nan")
-    model_agreement = "single_model"
-    if trained["has_xgb"]:
-        model_agreement = "concordant" if abs(delta_r2) < 0.1 else "divergent"
 
     # Lineage-conditional companion (RF-only, per-lineage r² + top feature)
     lineage_results = _fit_lineage_conditional(X, y, mids, omics["model_df"], names)
@@ -531,14 +452,7 @@ def train_gene(gene: str, omics: dict) -> Optional[dict]:
         "pearson_r_squared_rf": float(r2_rf),
         "pearson_r_squared_rf_ci_lo": float(r2_rf_ci[0]),
         "pearson_r_squared_rf_ci_hi": float(r2_rf_ci[1]),
-        "pearson_r_xgb": float(r_xgb),
-        "pearson_r_squared_xgb": float(r2_xgb),
-        "pearson_r_squared_xgb_ci_lo": float(r2_xgb_ci[0]),
-        "pearson_r_squared_xgb_ci_hi": float(r2_xgb_ci[1]),
-        "model_agreement": model_agreement,
-        "delta_r2": float(delta_r2) if trained["has_xgb"] else 0.0,
         "top_features_rf_shap": top_rf,
-        "top_features_xgb_shap": top_xgb,
         "dominant_feature_class": dom_class,
         "predictability_class": pred_class,
         "per_lineage_predictability": lineage_results,
@@ -586,14 +500,7 @@ def write_parquet(records: list, out_path: Path) -> Path:
             pa.field("pearson_r_squared_rf", pa.float32()),
             pa.field("pearson_r_squared_rf_ci_lo", pa.float32()),
             pa.field("pearson_r_squared_rf_ci_hi", pa.float32()),
-            pa.field("pearson_r_xgb", pa.float32()),
-            pa.field("pearson_r_squared_xgb", pa.float32()),
-            pa.field("pearson_r_squared_xgb_ci_lo", pa.float32()),
-            pa.field("pearson_r_squared_xgb_ci_hi", pa.float32()),
-            pa.field("model_agreement", pa.string()),
-            pa.field("delta_r2", pa.float32()),
             pa.field("top_features_rf_shap", pa.list_(top_struct)),
-            pa.field("top_features_xgb_shap", pa.list_(top_struct)),
             pa.field("dominant_feature_class", pa.string()),
             pa.field("predictability_class", pa.string()),
             pa.field("per_lineage_predictability", pa.list_(lineage_struct)),
@@ -1002,9 +909,6 @@ def main(
             "rf_n_estimators": 100,
             "rf_max_depth": 8,
             "rf_min_samples_leaf": 5,
-            "xgb_n_estimators": 100,
-            "xgb_max_depth": 6,
-            "xgb_learning_rate": 0.1,
             "random_state": 42,
         },
     }

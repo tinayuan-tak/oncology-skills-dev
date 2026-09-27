@@ -179,7 +179,9 @@ def test_compute_summary_populated(tmp_path):
     assert s["predictability_class"] == "own_omics_driven"
     assert s["pred_dominant_feature"] == "own_mut_hotspot"
     assert s["pred_dominant_feature_class"] == "own_mut_hotspot"
-    assert s["model_agreement"] == "concordant"
+    # #807: XGB dual-model retired — reader must NOT surface model_agreement even
+    # when reading a frozen v4 parquet that still carries the legacy XGB columns.
+    assert "model_agreement" not in s
     assert len(s["per_lineage_predictability"]) == 1
 
 

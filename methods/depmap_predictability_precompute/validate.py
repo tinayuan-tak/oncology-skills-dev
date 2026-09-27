@@ -107,8 +107,6 @@ def build_anchor_table(ours_df, depmap_df, anchors=ANCHOR_TARGETS):
             row["ours_class"] = "MISSING"
             row["ours_top_feature"] = None
             row["ours_top_class"] = None
-            row["ours_xgb_r"] = None
-            row["ours_model_agreement"] = None
         else:
             r = our_row.iloc[0]
             row["ours_r"] = float(r["pearson_r_rf"]) if r["pearson_r_rf"] is not None else None
@@ -124,8 +122,6 @@ def build_anchor_table(ours_df, depmap_df, anchors=ANCHOR_TARGETS):
                 top = []
             row["ours_top_feature"] = top[0]["feature"] if len(top) > 0 else None
             row["ours_top_class"] = top[0]["feature_class"] if len(top) > 0 else None
-            row["ours_xgb_r"] = float(r.get("pearson_r_xgb", 0.0)) if r.get("pearson_r_xgb") is not None else None
-            row["ours_model_agreement"] = r.get("model_agreement")
         # DepMap side
         if depmap_df is not None:
             dep_row = depmap_df[depmap_df["gene"] == gene]
@@ -201,8 +197,8 @@ def build_report_md(rows: list, has_depmap: bool) -> str:
         [
             "## Per-anchor results",
             "",
-            "| Gene | ours r (RF) | ours r² [CI] | ours class | ours top feature | ours XGB r | agreement | depmap r | Δr | Expected hint |",
-            "|------|-------------|--------------|------------|------------------|-----------|-----------|----------|------|---------------|",
+            "| Gene | ours r (RF) | ours r² [CI] | ours class | ours top feature | depmap r | Δr | Expected hint |",
+            "|------|-------------|--------------|------------|------------------|----------|------|---------------|",
         ]
     )
     for r in rows:
@@ -212,7 +208,6 @@ def build_report_md(rows: list, has_depmap: bool) -> str:
         lines.append(
             f"| {r['gene']} | {_fmt_num(r['ours_r'])} | {ci_txt} | "
             f"{r['ours_class'] or '—'} | {r['ours_top_feature'] or '—'} | "
-            f"{_fmt_num(r['ours_xgb_r'])} | {r['ours_model_agreement'] or '—'} | "
             f"{_fmt_num(r['depmap_r'])} | {_fmt_num(r['abs_delta_r'], 3)} | "
             f"{r['expected_class_hint']} |"
         )

@@ -355,26 +355,12 @@ def test_write_parquet_v2_schema(tmp_path):
         "pearson_r_squared_rf": 0.38,
         "pearson_r_squared_rf_ci_lo": 0.31,
         "pearson_r_squared_rf_ci_hi": 0.44,
-        "pearson_r_xgb": 0.65,
-        "pearson_r_squared_xgb": 0.42,
-        "pearson_r_squared_xgb_ci_lo": 0.35,
-        "pearson_r_squared_xgb_ci_hi": 0.49,
-        "model_agreement": "concordant",
-        "delta_r2": -0.04,
         "top_features_rf_shap": [
             {
                 "feature": "own_mut_hotspot",
                 "feature_class": "own_mut_hotspot",
                 "importance": 0.15,
                 "rf_importance": 0.12,
-            },
-        ],
-        "top_features_xgb_shap": [
-            {
-                "feature": "own_mut_hotspot",
-                "feature_class": "own_mut_hotspot",
-                "importance": 0.18,
-                "rf_importance": 0.0,
             },
         ],
         "dominant_feature_class": "own_mut_hotspot",
@@ -389,6 +375,9 @@ def test_write_parquet_v2_schema(tmp_path):
     tbl = pq.read_table(out)
     assert "pearson_r_squared_rf_ci_lo" in tbl.column_names
     assert "per_lineage_predictability" in tbl.column_names
+    # #807: retired XGB dual-model columns must not be in the schema.
+    for retired in ("pearson_r_xgb", "pearson_r_squared_xgb", "model_agreement", "delta_r2", "top_features_xgb_shap"):
+        assert retired not in tbl.column_names
     # Predicate pushdown works
     krastable = pq.read_table(out, filters=[("gene_symbol", "=", "KRAS")])
     assert krastable.num_rows == 1

@@ -107,7 +107,7 @@ def test_rf_importance_means_sum_to_one_like_the_per_fold_importances_they_avera
     n, p = 90, 200
     X = rng.normal(0, 1, (n, p)).astype(np.float32)
     y = (0.8 * X[:, 0] + rng.normal(0, 0.6, n)).astype(np.float32)
-    trained = e5cli._train_dual_model_cv(X, y, [f"f{i}" for i in range(p)])
+    trained = e5cli._train_model_cv(X, y, [f"f{i}" for i in range(p)])
 
     assert trained["n_folds"] == e5cli.CV_N_SPLITS, "every fold fits an RF, so all of them measured every feature"
     total = float(trained["rf_importances_mean"].sum())
@@ -121,14 +121,14 @@ def test_a_fold_whose_shap_never_ran_shrinks_only_the_shap_denominator(monkeypat
     """The asymmetry the fix turns on, stated as a test.
 
     An unselected feature was MEASURED as zero, so it must not shrink a denominator. A fold in which
-    shap/xgboost RAISED measured nothing at all, so it must. Conflating the two is what made the old
+    shap RAISED measured nothing at all, so it must. Conflating the two is what made the old
     code wrong; keeping them separate is what stops the fix from over-correcting.
     """
     monkeypatch.setattr(e5cli, "SELECT_K_BEST", 20)
     rng = np.random.default_rng(0)
     X = rng.normal(0, 1, (60, 80)).astype(np.float32)
     y = (0.7 * X[:, 0] + rng.normal(0, 0.5, 60)).astype(np.float32)
-    trained = e5cli._train_dual_model_cv(X, y, [f"f{i}" for i in range(80)])
+    trained = e5cli._train_model_cv(X, y, [f"f{i}" for i in range(80)])
 
     assert trained["n_folds"] == e5cli.CV_N_SPLITS
     # shap is an optional lazy import; whether it is installed decides which branch is live, so
@@ -219,109 +219,3 @@ def test_the_withheld_status_survives_the_parquet_round_trip(tmp_path):
     assert by_lin["Bowel"]["top_feature"] is None
     assert by_lin["Bowel"]["top_feature_status"] == "withheld_r2_below_high_conf_floor"
     assert by_lin["Pancreas"]["top_feature_status"] == "reported"
-
-
-# --------------------------------------------------------------------------------------------------
-# 3. The xgb feature table must not be the RF table wearing an xgb label
-# --------------------------------------------------------------------------------------------------
-
-
-def test_the_xgb_fallback_ranks_by_xgboosts_own_importances(monkeypatch):
-    """With shap absent, the xgb table used trained["rf_importances_mean"] — RF's ranking under an
-    xgb name, byte-identical scores and all — and the rf_importance=0.0 fill hid the duplication.
-
-    Skipped when xgboost is unavailable, because then there is no xgb table to be wrong about.
-    """
-    monkeypatch.setattr(e5cli, "SELECT_K_BEST", 20)
-    rng = np.random.default_rng(1)
-    n, p = 90, 120
-    X = rng.normal(0, 1, (n, p)).astype(np.float32)
-    y = (0.9 * X[:, 0] + 0.5 * X[:, 1] + rng.normal(0, 0.5, n)).astype(np.float32)
-    names = [f"f{i}" for i in range(p)]
-    trained = e5cli._train_dual_model_cv(X, y, names)
-    if not trained["has_xgb"]:
-        pytest.skip("xgboost not installed — no xgb ranking exists to mislabel")
-
-    assert "xgb_importances_mean" in trained, "xgb's own gain importances must be accumulated"
-    rf_rank = trained["rf_importances_mean"]
-    xgb_rank = trained["xgb_importances_mean"]
-    assert float(xgb_rank.sum()) > 0, "xgb gain importances must actually be populated"
-    assert not np.allclose(rf_rank, xgb_rank), (
-        "the two models' importance vectors are identical, so one of them is not being measured"
-    )
-
-
-def test_the_xgb_table_carries_the_real_rf_importance_not_a_zero_fill():
-    """rf_importance was hard-coded to 0.0 for xgb entries with the comment "XGBoost has its own
-    importances; we skip" — false in the fallback case, and it zeroed the one column a reader could
-    have used to notice the two tables were the same."""
-    omics = _make_small_omics(n_lines=150)
-    rec = e5cli.train_gene("KRAS", omics)
-    assert rec is not None
-    if not rec["top_features_xgb_shap"]:
-        pytest.skip("xgboost not installed — no xgb table emitted")
-    assert any(e["rf_importance"] != 0.0 for e in rec["top_features_xgb_shap"]), (
-        "every xgb entry still reports rf_importance == 0.0, so the parity column is uninformative"
-    )
-
-
-def test_an_xgb_ranking_no_fold_produced_emits_no_table_rather_than_ten_zeros(monkeypatch):
-    """A regression guard on THIS fix, not on trunk.
-
-    has_xgb records that `import xgboost` succeeded, not that any fit did — every per-fold fit sits
-    inside `except Exception: pass`. So xgb_importances_mean can be all zeros while has_xgb is True.
-    _top_features would then rank an all-zero vector and return the 10 alphabetically-first features
-    at importance 0.0: a published ranking with no measurement behind it. The old fallback could not
-    reach this state because RF's importances are never all zero, so switching the fallback to xgb's
-    own importances is what created the hazard.
-    """
-    real = e5cli._train_dual_model_cv
-
-    def _no_xgb_signal(X, y, feature_names, random_state=42):
-        out = real(X, y, feature_names, random_state)
-        out["has_xgb"] = True  # import succeeded ...
-        out["has_shap"] = False  # ... no SHAP, so the xgb table falls back to xgb's own importances
-        out["xgb_importances_mean"] = np.zeros_like(out["xgb_importances_mean"])  # ... but every fit raised
-        out["n_folds_xgb"] = 0
-        return out
-
-    monkeypatch.setattr(e5cli, "_train_dual_model_cv", _no_xgb_signal)
-    rec = e5cli.train_gene("KRAS", _make_small_omics(n_lines=150))
-    assert rec is not None
-    assert rec["top_features_xgb_shap"] == [], (
-        f"emitted {len(rec['top_features_xgb_shap'])} xgb features from an all-zero ranking: "
-        f"{[e['feature'] for e in rec['top_features_xgb_shap']]}"
-    )
-    assert rec["top_features_rf_shap"], "the RF table must be unaffected — only the xgb leg was blind"
-
-
-def _make_small_omics(n_lines=150):
-    """A minimal omics bundle (mirrors test_synthetic_predictability._make_omics_bundle) with enough
-    lines to clear MIN_CELL_LINES_PER_GENE and one strong own-omics signal."""
-    from depmap_predictability_precompute import features as feat
-
-    rng = np.random.default_rng(0)
-    model_ids = [f"ACH-{i:06d}" for i in range(n_lines)]
-    lineages = (["A"] * (n_lines // 2)) + ["B"] * (n_lines - n_lines // 2)
-    model_df = pd.DataFrame({"ModelID": model_ids, "OncotreeLineage": lineages})
-    idx = pd.Index(model_ids, name="ModelID")
-    expr_kras = rng.normal(3, 1, n_lines).astype(np.float32)
-    y = (-2.0 + 0.5 * expr_kras + rng.normal(0, 0.1, n_lines)).astype(np.float32)
-    frame = lambda **kw: pd.DataFrame(kw, index=idx)  # noqa: E731
-    chronos = frame(KRAS=y, TP53=rng.normal(-0.3, 0.3, n_lines).astype(np.float32))
-    expression = frame(KRAS=expr_kras, TP53=rng.normal(4, 1, n_lines).astype(np.float32))
-    cn = frame(
-        KRAS=rng.normal(1.0, 0.1, n_lines).astype(np.float32), TP53=rng.normal(1.0, 0.1, n_lines).astype(np.float32)
-    )
-    mh = frame(KRAS=np.zeros(n_lines, dtype="int8"), TP53=np.zeros(n_lines, dtype="int8"))
-    return {
-        "chronos": chronos,
-        "expression": expression,
-        "copy_number": cn,
-        "mut_hotspot": mh,
-        "mut_damaging": mh.copy(),
-        "lineage_one_hot": feat.build_lineage_one_hot(model_df, min_lines_per_lineage=5),
-        "arm_level_cn": pd.DataFrame(index=idx),
-        "driver_flags": pd.DataFrame(index=idx),
-        "model_df": model_df,
-    }

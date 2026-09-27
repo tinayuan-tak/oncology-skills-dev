@@ -60,7 +60,6 @@ def _summary():
         "pearson_r_squared_rf": 0.55,
         "pearson_r_squared_rf_ci_lo": 0.4,
         "pearson_r_squared_rf_ci_hi": 0.7,
-        "model_agreement": "concordant",
         "pred_top_features_rf": feats,
     }
 

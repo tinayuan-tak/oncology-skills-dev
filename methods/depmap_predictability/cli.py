@@ -10,21 +10,18 @@ CV with real SHAP attributions; v3 widened the gene-set gate 0.30 → 0.15 over 
 
 v2 schema exposes:
   - pearson_r_rf + r² + bootstrap 95% CI (primary DepMap-parity scalar)
-  - pearson_r_xgb + r² + CI (XGBoost companion)
-  - model_agreement + delta_r2 (dual-model divergence diagnostic)
-  - top_features_rf_shap + top_features_xgb_shap: top-ranked features by mean(|SHAP|)
+  - top_features_rf_shap: top-ranked features by mean(|SHAP|)
     TreeExplainer attribution in the default 26q1-v4 pin, which ran with `shap` 0.52.0
-    installed — so the RF and XGB tables are INDEPENDENT second-model opinions (verified
-    against the shipped bytes: xgb == rf in 0/9,240 genes). 26q3-v4 (the #786 recompute build)
-    shares this SHAP treatment and is selectable via --release-pin.
+    installed. 26q3-v4 (the #786 recompute build) shares this SHAP treatment and is
+    selectable via --release-pin.
     ⚠ VINTAGE CAVEAT: older pins (26q1-v1/v2/v3, materialized BEFORE 2026-09-16) are
     NOT SHAP. The precompute lazy-imported `shap`, found it absent, and took its
-    documented fallback path: both columns carry RF impurity importances, so
-    top_features_xgb_shap is top_features_rf_shap under another name (identical features
-    AND identical scores) with per-entry rf_importance hard-coded to 0.0, which concealed
-    the duplication. Compare the two lists before treating an older pin's columns as
-    independent models. Human-facing figure labels for those pins say "feature importance"
-    accordingly.
+    documented fallback path: the column carries RF impurity importances. Human-facing
+    figure labels for those pins say "feature importance" accordingly.
+    NOTE (#807): the frozen v1–v4 parquets still carry the retired XGBoost dual-model
+    columns (pearson_r_xgb, pearson_r_squared_xgb, model_agreement, delta_r2,
+    top_features_xgb_shap); this reader no longer surfaces them and the 26q3 recompute
+    stops producing them.
   - per_lineage_predictability (RF-only lineage-conditional table). top_feature is
     NULL where the within-lineage r² fell below the DepMap high-confidence floor
     (0.16); top_feature_status distinguishes "reported" from
@@ -115,7 +112,7 @@ def _importance_axis_label(summary: dict) -> str:
 
 # DepMap high-confidence r² floor (Pearson r >= 0.4). Mirrors
 # depmap_predictability_precompute.cli.R2_DEPMAP_HIGH_CONF, which is the authoritative copy — this
-# is a thin reader and must not import the precompute (heavy sklearn/xgboost dependency chain), so
+# is a thin reader and must not import the precompute (heavy sklearn dependency chain), so
 # the value is duplicated deliberately. The lineage figure both DRAWS this line and now gates its
 # top-feature labels on it, so the two uses cannot drift apart.
 R2_LINEAGE_LABEL_FLOOR = 0.16
@@ -164,19 +161,13 @@ def compute_summary(row: Optional[dict], target: str) -> dict:
             "pearson_r_squared_rf": None,
             "pearson_r_squared_rf_ci_lo": None,
             "pearson_r_squared_rf_ci_hi": None,
-            "pearson_r_xgb": None,
-            "pearson_r_squared_xgb": None,
-            "model_agreement": "data_unavailable",
-            "delta_r2": None,
             "pred_top_features_rf": [],
-            "pred_top_features_xgb": [],
             "pred_dominant_feature": None,
             "pred_dominant_feature_class": "data_unavailable",
             "predictability_class": "data_unavailable",
             "per_lineage_predictability": [],
         }
     top_rf = row.get("top_features_rf_shap") or []
-    top_xgb = row.get("top_features_xgb_shap") or []
     top_feature_name = top_rf[0]["feature"] if top_rf else None
     return {
         "pred_n_cell_lines_evaluated": int(row.get("n_cell_lines_evaluated") or 0),
@@ -184,12 +175,7 @@ def compute_summary(row: Optional[dict], target: str) -> dict:
         "pearson_r_squared_rf": row.get("pearson_r_squared_rf"),
         "pearson_r_squared_rf_ci_lo": row.get("pearson_r_squared_rf_ci_lo"),
         "pearson_r_squared_rf_ci_hi": row.get("pearson_r_squared_rf_ci_hi"),
-        "pearson_r_xgb": row.get("pearson_r_xgb"),
-        "pearson_r_squared_xgb": row.get("pearson_r_squared_xgb"),
-        "model_agreement": row.get("model_agreement"),
-        "delta_r2": row.get("delta_r2"),
         "pred_top_features_rf": top_rf,
-        "pred_top_features_xgb": top_xgb,
         "pred_dominant_feature": top_feature_name,
         "pred_dominant_feature_class": row.get("dominant_feature_class"),
         "predictability_class": row.get("predictability_class"),
@@ -212,8 +198,8 @@ def _load_takeda_palette(target_contracts_dir: Path):
 def emit_feature_importance_bar(
     summary: dict, target: str, out_dir: Path, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS
 ) -> Path:
-    """Multi-panel v2 figure: RF feature importance bar (primary) + optional
-    XGBoost comparison + lineage-conditional r² tile. Falls back to a
+    """Multi-panel v2 figure: RF feature importance bar (primary) +
+    lineage-conditional r² tile. Falls back to a
     placeholder SVG when predictability_class is data_unavailable.
     """
     import matplotlib
@@ -278,14 +264,7 @@ def emit_feature_importance_bar(
     r_txt = f", r={r_rf:.2f}" if isinstance(r_rf, (int, float)) and r_rf is not None else ""
     pred_class = (summary.get("predictability_class") or "unknown").replace("_", " ")
 
-    # XGBoost delta caveat: subtitle if divergent
-    agreement = summary.get("model_agreement") or ""
-    delta = summary.get("delta_r2")
-    subtitle = ""
-    if agreement == "divergent" and isinstance(delta, (int, float)):
-        subtitle = f"  |  RF↔XGB divergent (Δr²={delta:+.2f})"
-
-    ax.set_title(f"{target} — predictability ({r2_txt}{r_txt}, {pred_class}){subtitle}", fontsize=9)
+    ax.set_title(f"{target} — predictability ({r2_txt}{r_txt}, {pred_class})", fontsize=9)
 
     # Legend (unique feature classes)
     seen = []
@@ -389,8 +368,8 @@ def emit_plotly_specs(
 
     Interactive twin of emit_feature_importance_bar: horizontal bar of the top-10 importance-ranked RF
     features (pred_top_features_rf), colored by feature_class (SAME FEATURE_CLASS_COLORS as the SVG),
-    per-feature hover (name / class / importance), title with r² + 95% CI + predictability_class +
-    RF↔XGB divergence caveat. Built from the SAME summary the SVG + v2 parquet use (no drift).
+    per-feature hover (name / class / importance), title with r² + 95% CI + predictability_class.
+    Built from the SAME summary the SVG + v2 parquet use (no drift).
     Writes figure_feature_importance_bar.plotly.json. Best-effort (Plotly optional → SVG guaranteed);
     no feature data → no-op."""
     try:
@@ -427,11 +406,8 @@ def emit_plotly_specs(
         if ci_lo is not None and ci_hi is not None:
             r2_txt += f" [95% CI {ci_lo:.2f}, {ci_hi:.2f}]"
         pred_class = (summary.get("predictability_class") or "unknown").replace("_", " ")
-        subtitle = ""
-        if summary.get("model_agreement") == "divergent" and isinstance(summary.get("delta_r2"), (int, float)):
-            subtitle = f"  |  RF↔XGB divergent (Δr²={summary['delta_r2']:+.2f})"
         fig.update_layout(
-            title=f"{target} — predictability ({r2_txt}, {pred_class}){subtitle}",
+            title=f"{target} — predictability ({r2_txt}, {pred_class})",
             xaxis_title=_importance_axis_label(summary),
             yaxis=dict(tickmode="array", tickvals=list(range(len(names))), ticktext=names),
             template="plotly_white",
@@ -466,7 +442,6 @@ def emit_manifest(target: str, release_pin: str, summary: dict, out_dir: Path, p
             summary.get("pearson_r_squared_rf_ci_lo"),
             summary.get("pearson_r_squared_rf_ci_hi"),
         ],
-        "model_agreement": summary.get("model_agreement"),
         "pred_dominant_feature_class": summary.get("pred_dominant_feature_class"),
     }
     out_file = out_dir / "manifest.yaml"
