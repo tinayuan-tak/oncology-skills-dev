@@ -188,3 +188,84 @@ def test_median_effect_even_count(monkeypatch):
     b = r.read_tumor_elevation_breadth("Z")
     assert b["n_cohorts_elevated"] == 2
     assert b["median_effect_across_elevated"] == 1.5  # (1.0 + 2.0)/2
+
+
+# --- #1664 F2: read-time pan-cohort BH/FDR under the K-of-N breadth panel --------------------------
+# The gate must have TEETH: a cohort that is significance-gated-up AND non-negligible by Cohen's d but
+# whose RAW p fails Benjamini-Hochberg over the breadth panel is STRIPPED from n_cohorts_elevated (a
+# real demotion, not a vacuous pass), while a genuinely broad target is left UNCHANGED. The two strips
+# (negligible-Cohen's-d, G6; pan-cohort-FDR, F2) are exercised independently so neither masks the other.
+
+
+def test_pan_cohort_fdr_strips_chance_up_calls_demotes_broadly_F2(monkeypatch):
+    # 5 cohorts, ALL significance-gated strong_up with a LARGE (non-negligible) Cohen's d, so WITHOUT
+    # the pan-cohort FDR this is broadly_tumor_elevated (5/5). Two carry a genuinely tiny raw p; three
+    # carry a marginal raw p (0.048/0.049/0.060 at small n) that FAILS BH over the 5-cohort panel
+    # (BH step-up: largest rank k with p_(k) <= (k/5)*0.05 is k=2). The FDR must strip those three:
+    # n_elevated 5 -> 2 -> multi_tumor_elevated. If the gate were vacuous this would stay broadly.
+    rows = [
+        _prow("BRCA", "T", "strong_up", 2.5, 1e-8, 100, 20),  # tiny p -> passes BH, large d
+        _prow("LUAD", "T", "strong_up", 2.4, 1e-8, 100, 20),  # tiny p -> passes BH, large d
+        _prow("COAD", "T", "strong_up", 2.0, 0.048, 8, 8),  # marginal p, small n -> d large, FAILS BH
+        _prow("GBM", "T", "strong_up", 2.0, 0.049, 8, 8),  # FAILS BH
+        _prow("OV", "T", "strong_up", 2.0, 0.060, 8, 8),  # FAILS BH
+    ]
+    _patch(monkeypatch, rows)
+    b = r.read_tumor_elevation_breadth("T")
+    assert b["n_cohorts_tested"] == 5
+    # sanity: none stripped by the G6 negligible strip (all three marginal cohorts are large-d)
+    assert b["n_cohorts_sig_up_effect_negligible"] == 0
+    assert b["n_cohorts_elevated"] == 2  # 3 chance up-calls stripped by the pan-cohort BH
+    assert b["n_cohorts_sig_up_pan_cohort_fdr_fail"] == 3
+    assert b["tumor_elevation_breadth_class"] == "multi_tumor_elevated"  # demoted from broadly
+    assert {c["cohort"] for c in b["most_elevated_cohorts"]} == {"BRCA", "LUAD"}
+
+
+def test_pan_cohort_fdr_leaves_genuine_breadth_unchanged_F2(monkeypatch):
+    # MUTATION COMPLEMENT: 4 strong_up cohorts, ALL with a genuinely tiny raw p -> all pass BH ->
+    # broadly_tumor_elevated is UNCHANGED and nothing is recorded as an FDR strip.
+    rows = [
+        _prow("BRCA", "U", "strong_up", 2.5, 1e-8, 100, 20),
+        _prow("LUAD", "U", "strong_up", 2.4, 1e-8, 100, 20),
+        _prow("COAD", "U", "strong_up", 2.3, 1e-7, 100, 20),
+        _prow("GBM", "U", "strong_up", 2.2, 1e-7, 100, 20),
+    ]
+    _patch(monkeypatch, rows)
+    b = r.read_tumor_elevation_breadth("U")
+    assert b["n_cohorts_elevated"] == 4
+    assert b["n_cohorts_sig_up_pan_cohort_fdr_fail"] == 0
+    assert b["tumor_elevation_breadth_class"] == "broadly_tumor_elevated"
+
+
+def test_pan_cohort_fdr_missing_raw_p_falls_back_not_stripped_F2(monkeypatch):
+    # A strong_up cohort with NO raw p must NOT be stripped by the pan-cohort FDR (absent from the
+    # pass-map -> significance-gated fallback), mirroring the data_unavailable-standardized fallback in
+    # _cohort_elevated. Missing metadata never fabricates NOR silently strips an elevated call.
+    rows = [
+        _prow("BRCA", "V", "strong_up", 2.5, 1e-8, 100, 20),
+        {
+            "cohort": "LUAD",
+            "gene_symbol": "V",
+            "protein_effect_size": 2.0,
+            "protein_bh_q_value": None,
+            "protein_p_value": None,
+            "n_tumor_samples": 100,
+            "n_normal_samples": 20,
+            "protein_expression_class": "strong_up",
+        },
+    ]
+    _patch(monkeypatch, rows)
+    b = r.read_tumor_elevation_breadth("V")
+    assert b["n_cohorts_elevated"] == 2  # LUAD kept via the missing-p fallback
+    assert b["n_cohorts_sig_up_pan_cohort_fdr_fail"] == 0
+
+
+def test_bh_reject_helper_matches_textbook():
+    # Direct unit check of the BH step-up so the gate's arithmetic is pinned independently of the reader.
+    # [1e-8, 1e-8, 0.048, 0.049, 0.060] @ alpha=0.05, m=5: kmax=2 -> only the two tiny p reject.
+    assert r._bh_reject([1e-8, 1e-8, 0.048, 0.049, 0.060], 0.05) == [True, True, False, False, False]
+    # A rescue at a higher rank rejects everything below it (BH step-up property):
+    assert r._bh_reject([1e-8, 0.04, 0.045, 0.05], 0.05) == [True, True, True, True]
+    assert r._bh_reject([], 0.05) == []
+    # Order-independence: the same multiset in any order yields the same per-element verdict.
+    assert r._bh_reject([0.060, 0.048, 1e-8, 0.049, 1e-8], 0.05) == [False, False, True, False, True]

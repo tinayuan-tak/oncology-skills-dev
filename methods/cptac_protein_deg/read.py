@@ -54,6 +54,36 @@ def _finite_effect_or_nan(row) -> float:
     return abs(float(v)) if _is_finite_num(v) else -1.0
 
 
+def _finite_cohens_d_or_nan(row) -> float:
+    """|Cohen's d| for CROSS-COHORT ranking on the COMPARABLE standardized axis (#1664 F1).
+
+    `protein_effect_size` is a within-cohort, reference-pool-relative TMT log2 ratio; the product
+    manifest states its magnitude is NOT cross-cohort comparable (per-plex reference pool, per-cohort
+    Tumor-Normal contrast) and to treat cross-cohort magnitude comparisons as unreliable. Ranking
+    cohorts by |raw effect| to pick a single "representative" therefore compares a quantity the producer
+    says is not comparable. Cohen's d (variance-standardized, sample-size-INDEPENDENT) is the sound
+    cross-cohort currency, so the representative-cohort pick ranks on it. A non-finite / unstandardizable
+    effect ranks LAST (never wins an argmax), mirroring `_finite_effect_or_nan`. The Cohen's d is
+    recomputed from the raw df row via `_standardized_effect` (raw p is materialized per gene x cohort,
+    so d is computable for every ESTIMABLE row without a product rebuild)."""
+    d = _standardized_effect(
+        row.get("protein_effect_size"),
+        row.get("protein_p_value"),
+        row.get("protein_effect_size_se"),
+        row.get("n_tumor_samples"),
+        row.get("n_normal_samples"),
+    ).get("protein_effect_cohens_d")
+    return abs(float(d)) if _is_finite_num(d) else -1.0
+
+
+def _cohens_d_rank_key(row):
+    """Cross-cohort representative-pick key (#1664 F1): rank by |Cohen's d| (the comparable axis),
+    with |raw effect| as a DETERMINISTIC tiebreak. The tiebreak only decides ties on the standardized
+    axis (incl. the degenerate all-unstandardizable case where every d is -1), so the pick reduces to
+    the prior raw-|effect| behaviour ONLY when the standardized axis cannot separate the cohorts."""
+    return (_finite_cohens_d_or_nan(row), _finite_effect_or_nan(row))
+
+
 def _cohens_d_class(d: float) -> str:
     ad = abs(d)
     if ad >= 0.8:
@@ -431,8 +461,9 @@ def read_target_summary(target: str, indication: str = None) -> dict:
     Args:
         target: HGNC gene symbol.
         indication: If given, restrict to the CPTAC cohort mapped from this
-            indication. Otherwise return the largest-|effect_size| row
-            across cohorts.
+            indication. Otherwise return the representative row across cohorts,
+            chosen on the COMPARABLE standardized axis (largest |Cohen's d|,
+            #1664 F1), not the non-comparable raw |protein_effect_size|.
     """
     # Do NOT wrap _load_indexed in a broad except -> _empty: a broken-env / corrupt-cache failure
     # would then be re-swallowed as data_unavailable, defeating the raise-on-broken-env discipline
@@ -463,16 +494,21 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         present = [(c, cohort_gene_idx[(c, sym)]) for c in cohorts if (c, sym) in cohort_gene_idx]
         if not present:
             return _empty(f"target_not_in_cptac_cohort_{'+'.join(cohorts)}")
-        # Rank by |effect| with UNESTIMABLE rows last (_finite_effect_or_nan): +Inf otherwise wins every
-        # argmax. Matters for a multi-cohort umbrella (NSCLC -> LUAD+LSCC); harmless for a single cohort.
-        best_c, best_idx = max(present, key=lambda ci: _finite_effect_or_nan(df.iloc[ci[1]]))
-        row = df.iloc[best_idx].to_dict()
+        # Rank on the COMPARABLE standardized axis (largest |Cohen's d|, #1664 F1) with UNESTIMABLE /
+        # unstandardizable rows last (_cohens_d_rank_key): the raw |effect| is a within-cohort TMT ratio the
+        # producer flags as NOT cross-cohort comparable. |raw effect| remains only as a deterministic
+        # tiebreak. Matters for a multi-cohort umbrella (NSCLC -> LUAD+LSCC); harmless for a single cohort.
+        # Rank over `.to_dict()` rows (NOT the raw Series): an object-dtype row carries numpy scalars that
+        # _is_num rejects, so Cohen's d would silently vanish and the pick would collapse to raw |effect| —
+        # the same Python-native construction path _row_to_summary uses.
+        present_rows = [(c, df.iloc[idx].to_dict()) for c, idx in present]
+        best_c, row = max(present_rows, key=lambda cr: _cohens_d_rank_key(cr[1]))
         pct, pct_class = _allgene_effect_percentile(cohort_effect_null, best_c, row.get("protein_effect_size"))
         summ = _row_to_summary(row, matched_cohort=best_c, allgene_percentile=pct, allgene_percentile_class=pct_class)
         if len(cohorts) > 1:
             summ["_data_note"] = (
                 f"{indication.upper().strip()} umbrella → {'+'.join(cohorts)}; "
-                f"reporting {best_c} (largest |protein_effect_size|)"
+                f"reporting {best_c} (largest |Cohen's d|, cross-cohort-comparable)"
             )
         return summ
 
@@ -485,16 +521,18 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         return _empty(f"indication_not_in_cptac_{indication.upper().strip()}")
 
     # Fallback (NO indication supplied — target-only / pan-cancer query): aggregate across all
-    # cohorts, return the "best-effect" row (largest |effect_size|). Never reached when an indication
-    # is supplied (that path is resolved or data_unavailable above).
+    # cohorts, return the representative row on the COMPARABLE standardized axis (largest |Cohen's d|,
+    # #1664 F1). Never reached when an indication is supplied (that path is resolved or data_unavailable
+    # above).
     indices = gene_idx.get(sym, [])
     if not indices:
         return _empty("target_not_in_any_cptac_cohort")
 
     rows = df.iloc[indices].to_dict(orient="records")
-    # Unestimable rows rank LAST — this is the path where +Inf did the most damage (1,564 genes reported
-    # BRCA/unestimable instead of their real best cohort; see _finite_effect_or_nan).
-    best_row = max(rows, key=_finite_effect_or_nan)
+    # Rank on |Cohen's d| (comparable) with |raw effect| as a deterministic tiebreak; unestimable /
+    # unstandardizable rows rank LAST (this is also the path where +Inf did the most damage — 1,564
+    # genes reported BRCA/unestimable instead of their real best cohort; see _finite_effect_or_nan).
+    best_row = max(rows, key=_cohens_d_rank_key)
     best_cohort = str(best_row.get("cohort", "")).upper()
     pct, pct_class = _allgene_effect_percentile(cohort_effect_null, best_cohort, best_row.get("protein_effect_size"))
     return _row_to_summary(
@@ -721,6 +759,62 @@ def _cohort_elevated(row: dict) -> bool:
     return row.get("protein_effect_standardized_class") != "negligible"
 
 
+# --- pan-cohort FDR under the K-of-N breadth panel (#1664 F2) ---------------------------------
+# Default family-wise alpha for the pan-cohort BH. Mirrors the per-cohort BH threshold baked into
+# protein_expression_class (q<0.05), so the breadth panel is corrected at the same level the
+# per-cohort significance call used — only the FAMILY differs (the K cohorts this ONE target is
+# counted across, vs the ~10k proteins within one cohort).
+_PAN_COHORT_FDR_ALPHA = 0.05
+
+
+def _bh_reject(pvals: list, alpha: float) -> list:
+    """Benjamini-Hochberg step-up on a list of p-values. Returns a boolean list aligned with `pvals`:
+    True = the null is rejected at FDR `alpha` (the cohort PASSES the pan-cohort significance gate).
+
+    Standard BH: sort ascending, find the largest rank k with p_(k) <= (k/m)*alpha, reject all p_(i)
+    with rank <= k. Ties on p are handled by stable rank assignment (a tie cannot make a smaller p
+    fail while a larger one passes because rejection is by rank threshold, not per-p). Empty input ->
+    empty output."""
+    m = len(pvals)
+    if m == 0:
+        return []
+    order = sorted(range(m), key=lambda i: pvals[i])
+    kmax = 0
+    for rank, i in enumerate(order, start=1):
+        if pvals[i] <= (rank / m) * alpha:
+            kmax = rank
+    reject = [False] * m
+    for rank, i in enumerate(order, start=1):
+        if rank <= kmax:
+            reject[i] = True
+    return reject
+
+
+def _pan_cohort_fdr_pass(estimable_rows: list, alpha: float = _PAN_COHORT_FDR_ALPHA) -> dict:
+    """Read-time pan-cohort BH/FDR over the K cohorts a target was tested in (#1664 F2).
+
+    Per-cohort `protein_bh_q_value` corrects across the ~10k proteins WITHIN one cohort; it does NOT
+    control the family-wise error over the BREADTH PANEL — the K cohorts this ONE target is counted
+    across in the K-of-N `tumor_elevation_breadth_class` roll-up. Without it a target significant-up in
+    a few cohorts by chance inflates the breadth class with no multiplicity control over the panel.
+
+    Applies BH to the K raw `protein_p_value`s (materialized per gene x cohort, so this is read-side —
+    NO republish). Returns {cohort_upper: passes_pan_cohort_fdr} ONLY for cohorts that carry a finite
+    raw p. A cohort with a missing / non-finite raw p is ABSENT from the map (not False): the caller
+    then falls back to the significance-gated call for it, so missing metadata never fabricates an
+    elevated call NOR silently strips one — exactly mirroring the `data_unavailable`-standardized
+    fallback in `_cohort_elevated`."""
+    pairs = [
+        (str(row.get("cohort", "")).strip().upper(), float(row["protein_p_value"]))
+        for row in estimable_rows
+        if _is_finite_num(row.get("protein_p_value"))
+    ]
+    if not pairs:
+        return {}
+    rejects = _bh_reject([p for _c, p in pairs], alpha)
+    return {c: bool(rej) for (c, _p), rej in zip(pairs, rejects)}
+
+
 def read_tumor_elevation_breadth(target: str) -> dict:
     """Pan-cancer tumor-elevation breadth for a target across all CPTAC cohorts.
 
@@ -732,8 +826,12 @@ def read_tumor_elevation_breadth(target: str) -> dict:
           n_cohorts_elevated,              # of those, significance-gated-up (strong_up/modest_up) AND
                                            # not effect-negligible by Cohen's d (see _cohort_elevated, G6)
           n_cohorts_sig_up_effect_negligible,  # sig-up cohorts STRIPPED as power artifacts (Cohen's d negligible)
+          n_cohorts_sig_up_pan_cohort_fdr_fail,  # sig-up+non-negligible cohorts STRIPPED by the pan-cohort FDR (#1664 F2)
           fraction_elevated,               # n_elevated / n_tested (None if n_tested == 0)
-          median_effect_across_elevated,   # median protein_effect_size over elevated cohorts
+          median_effect_across_elevated,   # median RAW protein_effect_size over elevated cohorts (within-cohort,
+                                           #   NOT cross-cohort comparable — retained for provenance; see #1664 F1)
+          median_standardized_effect_across_elevated,  # median Cohen's d over elevated cohorts — the CROSS-COHORT
+                                           #   COMPARABLE aggregate (#1664 F1); None when no elevated cohort has a d
           most_elevated_cohorts,           # [{cohort, protein_expression_class, protein_effect_size,
                                            #   protein_bh_q_value}] effect-desc, elevated only
           cohorts_tested,                  # sorted cohort codes with an ESTIMATED contrast (the denominator)
@@ -748,6 +846,13 @@ def read_tumor_elevation_breadth(target: str) -> dict:
         data_unavailable        -> n_cohorts_tested == 0 (target absent, product unavailable, OR every
                                    cohort row present is an UNESTIMABLE contrast — `not_tumor_elevated`
                                    would be a positive claim of non-elevation drawn from no test)
+
+    A cohort enters `n_cohorts_elevated` only if it is (a) significance-gated-up and not
+    effect-negligible by Cohen's d (`_cohort_elevated`, G6) AND (b) passes the read-time pan-cohort
+    BH/FDR over the K cohorts this target was tested in (`_pan_cohort_fdr_pass`, #1664 F2). (b)
+    controls the family-wise error over the breadth PANEL that the per-cohort BH (multiplicity across
+    proteins WITHIN a cohort) does not, so a target significant-up in a few cohorts by chance no longer
+    inflates the breadth class.
     """
     rows = read_all_cohorts(target)
     # DENOMINATOR = cohorts where the contrast was actually ESTIMATED. A cohort row whose contrast is
@@ -765,12 +870,23 @@ def read_tumor_elevation_breadth(target: str) -> dict:
             "n_cohorts_elevated": 0,
             "fraction_elevated": None,
             "median_effect_across_elevated": None,
+            "median_standardized_effect_across_elevated": None,
             "most_elevated_cohorts": [],
             "cohorts_tested": [],
             "cohorts_unestimable": sorted(str(row.get("cohort")) for row in unestimable),
         }
 
-    elevated = [row for row in estimable if _cohort_elevated(row)]
+    # #1664 F2: read-time pan-cohort BH/FDR over the K cohorts this target was tested in (the breadth
+    # PANEL). A cohort counts as elevated only if it clears the significance+effect bar (_cohort_elevated,
+    # G6) AND passes the pan-cohort FDR. A cohort with no finite raw p is ABSENT from the pass-map and
+    # falls back to the significance-gated call (never stripped for missing metadata) — mirroring the
+    # data_unavailable-standardized fallback in _cohort_elevated.
+    fdr_pass = _pan_cohort_fdr_pass(estimable)
+
+    def _pan_cohort_ok(row) -> bool:
+        return fdr_pass.get(str(row.get("cohort", "")).strip().upper(), True)
+
+    elevated = [row for row in estimable if _cohort_elevated(row) and _pan_cohort_ok(row)]
     n_elevated = len(elevated)
     fraction = n_elevated / n_tested
     # Legibility (G6, no silent cap): cohorts that WERE significance-gated-up but were stripped from the
@@ -781,13 +897,25 @@ def read_tumor_elevation_breadth(target: str) -> dict:
         if row.get("protein_expression_class") in _ELEVATED_CLASSES
         and row.get("protein_effect_standardized_class") == "negligible"
     )
+    # Legibility (#1664 F2, no silent cap): cohorts that cleared the significance+effect bar but were
+    # stripped from the elevated set ONLY by the pan-cohort FDR (a chance up-call over the breadth panel).
+    n_sig_up_pan_cohort_fdr_fail = sum(1 for row in estimable if _cohort_elevated(row) and not _pan_cohort_ok(row))
 
-    # median effect over the ELEVATED cohorts only (None when none elevated)
+    # median effect over the ELEVATED cohorts only (None when none elevated). TWO aggregates:
+    #  - median_effect: RAW within-cohort TMT log2 ratio — NOT cross-cohort comparable, kept for provenance.
+    #  - median_standardized_effect: median Cohen's d — the CROSS-COHORT COMPARABLE aggregate (#1664 F1).
     median_effect = None
     if elevated:
         effs = sorted(float(row.get("protein_effect_size") or 0.0) for row in elevated)
         m = len(effs)
         median_effect = effs[m // 2] if m % 2 else (effs[m // 2 - 1] + effs[m // 2]) / 2.0
+    median_standardized_effect = None
+    dvals = sorted(
+        float(row["protein_effect_cohens_d"]) for row in elevated if _is_finite_num(row.get("protein_effect_cohens_d"))
+    )
+    if dvals:
+        md = len(dvals)
+        median_standardized_effect = dvals[md // 2] if md % 2 else (dvals[md // 2 - 1] + dvals[md // 2]) / 2.0
 
     if fraction >= 0.5 and n_elevated >= 3:
         cls = "broadly_tumor_elevated"
@@ -818,8 +946,10 @@ def read_tumor_elevation_breadth(target: str) -> dict:
         "n_cohorts_tested": n_tested,
         "n_cohorts_elevated": n_elevated,
         "n_cohorts_sig_up_effect_negligible": n_sig_up_effect_negligible,  # stripped power artifacts (G6)
+        "n_cohorts_sig_up_pan_cohort_fdr_fail": n_sig_up_pan_cohort_fdr_fail,  # stripped by pan-cohort FDR (#1664 F2)
         "fraction_elevated": fraction,
         "median_effect_across_elevated": median_effect,
+        "median_standardized_effect_across_elevated": median_standardized_effect,
         "most_elevated_cohorts": most_elevated,
         "cohorts_tested": sorted(str(row.get("cohort")) for row in estimable),
         "cohorts_unestimable": sorted(str(row.get("cohort")) for row in unestimable),
