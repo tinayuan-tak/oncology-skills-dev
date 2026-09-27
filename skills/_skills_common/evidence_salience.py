@@ -1949,6 +1949,41 @@ def spec_for(measurement_type):
     return SALIENCE_SPECS.get(measurement_type) if measurement_type else None
 
 
+def _frame_scales(spec) -> dict:
+    """Map every NUMERIC summary field a measurement_type's reference_frame(s) reference → its `scale`
+    (the ruler's unit token: log2FC, loeuf, copies_per_cell, percentile, fraction, …). A field is scaled
+    when it is a frame `value_field` OR a frame `anchor` field (floor/ceiling/comparator — the same unit
+    as the value they bracket). `position_field` is a categorical *_class, never numeric, so it is skipped.
+    Primary frame wins on a collision (it is walked first), so the atlas-minting value_field keeps its own
+    scale even when a later cohort/secondary frame re-reads the same field in the same unit."""
+    rf = (spec or {}).get("reference_frame")
+    frames = rf if isinstance(rf, list) else ([rf] if isinstance(rf, dict) else [])
+    out: dict = {}
+    for f in frames:
+        if not isinstance(f, dict):
+            continue
+        sc = f.get("scale")
+        if not sc:
+            continue
+        vf = f.get("value_field")
+        if vf and vf not in out:
+            out[vf] = sc
+        for a in f.get("anchors") or []:
+            if isinstance(a, dict) and a.get("field") and a["field"] not in out:
+                out[a["field"]] = sc
+    return out
+
+
+def scale_for_field(measurement_type, field):
+    """The FIRST-CLASS unit (machine `scale` token) for an emitted measurement `field` of `measurement_type`,
+    sourced from that type's salience reference-frame ruler(s) — the un-wired first-class units of Arm A
+    gap 1 (#1860). None when no ruler references the field (the caller layers a display-units backstop, then
+    an explicit null 'unit not yet first-class', so a value is never SILENTLY bare)."""
+    if not (measurement_type and field):
+        return None
+    return _frame_scales(SALIENCE_SPECS.get(measurement_type)).get(field)
+
+
 # ── Stage-2 interpretation rulers (key_evidence.interpretation[]) ─────────────────────────────────────
 # build_interpretation projects a spec's `reference_frame` into a list of gauged_value rulers. It NAMES
 # summary fields (never recomputes), reads ordinal position VERBATIM from a resolver *_class field, and

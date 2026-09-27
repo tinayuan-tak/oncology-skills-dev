@@ -26,9 +26,11 @@ plus data_quality_flags — generic mis-bind / direction-inversion contradiction
 
 from __future__ import annotations
 
+from _skills_common.display_gloss import gloss
 from _skills_common.evidence_salience import (
     indication_stratum_aliases,
     round_keep_tiny,
+    scale_for_field,
     sig_round,
     spec_for,
 )
@@ -237,7 +239,23 @@ def _top_k_strata(summary, indication, cfg, spec=None, label_aliases=frozenset()
     return rows
 
 
-def _numeric_anchors(summary, cfg, contract_anchors=()):
+def _scale_for(measurement_type, field):
+    """The machine-readable unit (`scale`) for an emitted numeric-anchor `field`, so the number is NEVER a
+    bare scalar whose unit is knowable only from the metric NAME (Arm A gap 1, #1860). Resolution, most-
+    authoritative first:
+      1. the salience reference-frame RULER `scale` — the first-class unit token (log2FC, loeuf, percentile,
+         copies_per_cell, fraction, …) the display graph already gauges against, wired here onto the emitted
+         value (`evidence_salience.scale_for_field`);
+      2. the `display_gloss` units hint — the framework's existing field→units registry for the L3 tail the
+         rulers do not reach (a fraction/percentile/count/q-value whose unit is unambiguous from convention);
+      3. `None` — an EXPLICIT 'unit not yet first-class' for the residual (e.g. a `median_*` effect the gloss
+         deliberately leaves unitless). The `scale` KEY is still emitted, so the value carries a declared unit
+         SLOT rather than being silently bare — the capsule-grain form of the claim_record no-bare-numbers
+         invariant, enforced by `assert_no_bare_numbers`."""
+    return scale_for_field(measurement_type, field) or gloss(field)[1] or None
+
+
+def _numeric_anchors(summary, cfg, contract_anchors=(), measurement_type=None):
     """The capsule's numbers, in PRECEDENCE order: a per-card `config['anchor_fields']` runtime override
     first, then the card contract's `capsule.numeric_anchors` declaration, then the `_ANCHOR_HINTS`
     substring scan as the guess of last resort.
@@ -271,7 +289,23 @@ def _numeric_anchors(summary, cfg, contract_anchors=()):
             for k, v in summary.items()
             if isinstance(v, (int, float)) and not _denied(k) and any(h in k.lower() for h in _ANCHOR_HINTS)
         )[:4]
-    return [{"metric": f, "value": _num(summary.get(f))} for f in picked]
+    return [{"metric": f, "value": _num(summary.get(f)), "scale": _scale_for(measurement_type, f)} for f in picked]
+
+
+def assert_no_bare_numbers(numeric_anchors):
+    """The capsule-grain form of the claim_record schema's no-bare-numbers invariant (`magnitude.value`
+    non-null ⇒ a unit is declared): every emitted numeric anchor that carries a `value` MUST also carry a
+    `scale` KEY (its declared unit slot — a resolved token, or an explicit null for the not-yet-first-class
+    tail). A `{metric, value}` entry with no `scale` key at all is a BARE NUMBER and is refused. Returns the
+    anchors unchanged so it can wrap an emission; raises ValueError on the first bare number."""
+    for a in numeric_anchors or ():
+        if not isinstance(a, dict):
+            continue
+        if a.get("value") is not None and "scale" not in a:
+            raise ValueError(
+                f"capsule numeric_anchor {a.get('metric')!r} carries a value with no scale (no bare numbers)"
+            )
+    return numeric_anchors
 
 
 def _n_basis(summary):
@@ -468,7 +502,7 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
             "tier": tier,
             "evidence_state": "measured",
             "class": cls,
-            "numeric_anchors": (_numeric_anchors(summ, cfg, contract_anchors) or None),
+            "numeric_anchors": (assert_no_bare_numbers(_numeric_anchors(summ, cfg, contract_anchors, mt)) or None),
             "categorical_anchors": _categorical_anchors(summ, cat_fields),
             "n_basis": (_n_basis(summ) or None),
             "_complete": True,

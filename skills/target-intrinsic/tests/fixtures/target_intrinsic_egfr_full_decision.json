@@ -1323,7 +1323,7 @@
       "value": "present"
     }
   ],
-  "generated_at": "2026-09-27T00:29:30+00:00",
+  "generated_at": "2026-09-27T02:10:51+00:00",
   "headline": {
     "alphafold_confidence_class": "moderate",
     "best_measured_potency_neglog_m": 11.699,
@@ -1478,6 +1478,7 @@
           "numeric_anchors": [
             {
               "metric": "pvalue_cutoff",
+              "scale": null,
               "value": 1e-06
             }
           ],
@@ -1558,6 +1559,7 @@
           "numeric_anchors": [
             {
               "metric": "chembl_best_pchembl",
+              "scale": "pChEMBL",
               "value": 11.0
             }
           ],
@@ -1762,6 +1764,7 @@
           "numeric_anchors": [
             {
               "metric": "pathway_count",
+              "scale": "count",
               "value": 82
             }
           ],
@@ -1838,6 +1841,7 @@
           "numeric_anchors": [
             {
               "metric": "moa_ontology_unmapped_fraction",
+              "scale": "fraction",
               "value": 0.0422
             }
           ],
@@ -1898,6 +1902,7 @@
           "numeric_anchors": [
             {
               "metric": "disordered_fraction",
+              "scale": "fraction",
               "value": 0.2281
             }
           ],
@@ -4892,7 +4897,7 @@
       }
     },
     "resolver_release_pin": "resolver_v0.1.0-alpha",
-    "skills_repo_sha": "a92c720"
+    "skills_repo_sha": "51d10ad"
   },
   "question": "What is known about EGFR INDEPENDENT of indication \u2014 its identity, on-target-safety genetics, protein-class/structure/modality biophysics, functional annotation, mechanism + pathway role, interactome, domain architecture + domain\u2192modality implication, and paralog buffering?",
   "run_health": {
@@ -4910,7 +4915,7 @@
     ],
     "cards_missing": [],
     "cards_skipped_a4": [],
-    "compute_secs": 0.5506,
+    "compute_secs": 0.5886,
     "n_cards_consumed": 20,
     "n_cards_fired": 10,
     "n_cards_resolved": 20,
@@ -4920,11 +4925,11 @@
         "family": "target-id-resolver-release"
       }
     ],
-    "read_secs": 0.357,
+    "read_secs": 0.4025,
     "skill_name": "target-intrinsic",
     "skill_version": "1.6.1",
     "status": "ok",
-    "total_secs": 5.9111
+    "total_secs": 5.5856
   },
   "skill": "target-intrinsic",
   "target": "EGFR"

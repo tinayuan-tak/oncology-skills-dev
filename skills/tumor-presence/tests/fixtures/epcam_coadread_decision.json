@@ -1893,19 +1893,23 @@
           "numeric_anchors": [
             {
               "metric": "allgene_percentile",
-              "value": 8.6041
+              "value": 8.6041,
+              "scale": "percentile"
             },
             {
               "metric": "fraction_detected",
-              "value": 1.0
+              "value": 1.0,
+              "scale": "fraction"
             },
             {
               "metric": "median_log2_abundance_panel",
-              "value": -0.4174
+              "value": -0.4174,
+              "scale": "log2_abundance"
             },
             {
               "metric": "protein_effect_size",
-              "value": -0.4174
+              "value": -0.4174,
+              "scale": "effect size"
             }
           ],
           "categorical_anchors": [
@@ -1944,19 +1948,23 @@
           "numeric_anchors": [
             {
               "metric": "allgene_percentile",
-              "value": 79.6928
+              "value": 79.6928,
+              "scale": "percentile"
             },
             {
               "metric": "fraction_detected",
-              "value": 0.4879
+              "value": 0.4879,
+              "scale": "fraction"
             },
             {
               "metric": "median_log2_abundance_panel",
-              "value": 4.3326
+              "value": 4.3326,
+              "scale": "log2_abundance"
             },
             {
               "metric": "protein_effect_size",
-              "value": 4.3326
+              "value": 4.3326,
+              "scale": "effect size"
             }
           ],
           "categorical_anchors": [
@@ -1995,19 +2003,23 @@
           "numeric_anchors": [
             {
               "metric": "allgene_percentile",
-              "value": 52.5423
+              "value": 52.5423,
+              "scale": "percentile"
             },
             {
               "metric": "control_target_percentile",
-              "value": 52.5423
+              "value": 52.5423,
+              "scale": "%ile"
             },
             {
               "metric": "dominant_isoform_fraction",
-              "value": 0.8354
+              "value": 0.8354,
+              "scale": "fraction"
             },
             {
               "metric": "fraction_expressed",
-              "value": 0.6308
+              "value": 0.6308,
+              "scale": "fraction"
             }
           ],
           "categorical_anchors": [
@@ -2054,7 +2066,8 @@
           "numeric_anchors": [
             {
               "metric": "pooled_lineage_median_log2tpm",
-              "value": 9.8646
+              "value": 9.8646,
+              "scale": "log2 TPM"
             }
           ],
           "categorical_anchors": null,
@@ -2084,15 +2097,18 @@
           "numeric_anchors": [
             {
               "metric": "protein_detection_fraction",
-              "value": 0.1533
+              "value": 0.1533,
+              "scale": "fraction"
             },
             {
               "metric": "rna_expressed_fraction",
-              "value": 0.7919
+              "value": 0.7919,
+              "scale": "fraction"
             },
             {
               "metric": "rna_high_protein_low_fraction",
-              "value": 0.0717
+              "value": 0.0717,
+              "scale": "fraction"
             }
           ],
           "categorical_anchors": null,
@@ -2124,15 +2140,18 @@
           "numeric_anchors": [
             {
               "metric": "expression_purity_pearson_r",
-              "value": 0.1293
+              "value": 0.1293,
+              "scale": "pearson_r"
             },
             {
               "metric": "expression_purity_spearman_r",
-              "value": 0.1235
+              "value": 0.1235,
+              "scale": "correlation r"
             },
             {
               "metric": "median_purity",
-              "value": 0.66
+              "value": 0.66,
+              "scale": null
             }
           ],
           "categorical_anchors": null,
@@ -2173,11 +2192,13 @@
           "numeric_anchors": [
             {
               "metric": "fraction_detected",
-              "value": 1.0
+              "value": 1.0,
+              "scale": "fraction"
             },
             {
               "metric": "fraction_moderate_strong",
-              "value": 1.0
+              "value": 1.0,
+              "scale": "fraction"
             }
           ],
           "categorical_anchors": null,
@@ -2248,11 +2269,13 @@
           "numeric_anchors": [
             {
               "metric": "expressing_donor_fraction_max",
-              "value": 1.0
+              "value": 1.0,
+              "scale": "fraction"
             },
             {
               "metric": "max_detection_fraction",
-              "value": 1.0
+              "value": 1.0,
+              "scale": "fraction"
             }
           ],
           "categorical_anchors": null,
@@ -2277,19 +2300,23 @@
           "numeric_anchors": [
             {
               "metric": "fraction_elevated",
-              "value": 0.4444
+              "value": 0.4444,
+              "scale": "fraction"
             },
             {
               "metric": "median_effect_across_elevated",
-              "value": 1.0234
+              "value": 1.0234,
+              "scale": null
             },
             {
               "metric": "rna_fraction_elevated",
-              "value": 0.3846
+              "value": 0.3846,
+              "scale": "fraction"
             },
             {
               "metric": "rna_median_max_log2fc_across_elevated",
-              "value": 3.4539
+              "value": 3.4539,
+              "scale": "log2FC"
             }
           ],
           "categorical_anchors": [
@@ -2327,19 +2354,23 @@
           "numeric_anchors": [
             {
               "metric": "allgene_percentile",
-              "value": 58.2839
+              "value": 58.2839,
+              "scale": "percentile"
             },
             {
               "metric": "protein_bh_q_value",
-              "value": 0.3032
+              "value": 0.3032,
+              "scale": "q"
             },
             {
               "metric": "protein_effect_cohens_d",
-              "value": 0.1592
+              "value": 0.1592,
+              "scale": "cohens_d"
             },
             {
               "metric": "protein_effect_size",
-              "value": 0.0648
+              "value": 0.0648,
+              "scale": "protein_effect"
             }
           ],
           "categorical_anchors": [
@@ -2386,7 +2417,8 @@
           "numeric_anchors": [
             {
               "metric": "pooled_cohort_median_log2_ratio",
-              "value": -0.0352
+              "value": -0.0352,
+              "scale": null
             }
           ],
           "categorical_anchors": null,
@@ -2411,19 +2443,23 @@
           "numeric_anchors": [
             {
               "metric": "allgene_percentile",
-              "value": 99.7415
+              "value": 99.7415,
+              "scale": "percentile"
             },
             {
               "metric": "control_target_percentile",
-              "value": 99.7415
+              "value": 99.7415,
+              "scale": "%ile"
             },
             {
               "metric": "detectable_fraction",
-              "value": 1.0
+              "value": 1.0,
+              "scale": "fraction"
             },
             {
               "metric": "fraction_tumor_above_normal_p95",
-              "value": 0.7369
+              "value": 0.7369,
+              "scale": "fraction"
             }
           ],
           "categorical_anchors": [
@@ -2470,7 +2506,8 @@
           "numeric_anchors": [
             {
               "metric": "subtype_variance_explained",
-              "value": 0.0863
+              "value": 0.0863,
+              "scale": "variance_explained"
             }
           ],
           "categorical_anchors": [
@@ -2519,19 +2556,23 @@
           "numeric_anchors": [
             {
               "metric": "allgene_percentile",
-              "value": 25.4424
+              "value": 25.4424,
+              "scale": "percentile"
             },
             {
               "metric": "gtex_log2_fc",
-              "value": 2.086
+              "value": 2.086,
+              "scale": "log2FC"
             },
             {
               "metric": "gtex_q_value",
-              "value": 0.0
+              "value": 0.0,
+              "scale": "q"
             },
             {
               "metric": "log2_fc",
-              "value": -0.362
+              "value": -0.362,
+              "scale": "log2FC"
             }
           ],
           "categorical_anchors": [
@@ -2569,19 +2610,23 @@
           "numeric_anchors": [
             {
               "metric": "caf_detection_fraction",
-              "value": 0.0769
+              "value": 0.0769,
+              "scale": "fraction"
             },
             {
               "metric": "fraction_donors_broadly_detecting",
-              "value": 0.9529
+              "value": 0.9529,
+              "scale": "fraction"
             },
             {
               "metric": "malignant_detection_fraction",
-              "value": 0.8948
+              "value": 0.8948,
+              "scale": "detection_fraction"
             },
             {
               "metric": "top_microenvironment_detection_fraction",
-              "value": 0.0769
+              "value": 0.0769,
+              "scale": "detection_fraction"
             }
           ],
           "categorical_anchors": [
