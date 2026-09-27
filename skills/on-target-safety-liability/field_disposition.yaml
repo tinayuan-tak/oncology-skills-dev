@@ -1,0 +1,942 @@
+# MOSTLY HAND-REVIEWED. Every row carries `reviewed: true`: a human read the field's producers and
+# consumers (this skill's run.py + the fleet census, blind to this ledger) and chose the role. Roles for
+# cards SHARED with a landed sibling ledger were reused for fleet consistency (see per-row reason);
+# the four cards with no sibling ledger (normal-tissue-liability-gtex, shet-lof-intolerance,
+# drug-warning-safety, onsides-adverse-event-safety) were judged fresh. Completeness (every emitted
+# summary_field present) and reader-reach for `role: signal` are CI-enforced (see
+# skills/tests/test_field_disposition_ledgers.py).
+_meta:
+  description: "Field-disposition ledger for on-target-safety-liability \u2014 every emitted summary_field carries an explicit role so nothing is dropped SILENTLY. Enforced by skills/tests/test_field_disposition_ledgers.py."
+  roles:
+    signal: feeds a claim / verdict (must be wired or explicitly waived)
+    context: qualifies a signal (power, certainty, statistical qualifier, cross-axis pointer)
+    provenance: "audit / identity / method token \u2014 surfaced, never a signal"
+    display: human-facing detail or large container; verdict-inert by design
+  generated_from: target-contracts/cards/<card>.card.yaml outputs.summary_fields
+  reviewed: "true == a human read the field's producers and consumers and chose this role. Absent == auto-drafted from the field NAME; treat as a draft, not a decision."
+  waived_because: "only legal on `role: signal`. Records WHY a signal no declared reader reaches is being left unwired. A waiver must name the missing consumer or the owning repo; it is not a way to silence the guard."
+gnomad-lof-constraint:
+  constraint_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  exp_hom_lof_count:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  exp_lof_count:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  gene_length_bp:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  human_ko_context:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  human_ko_observed_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  loeuf_score:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  mis_z_score:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  obs_hom_lof_count:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  obs_lof_count:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  pli_score:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  syn_z_score:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+shet-lof-intolerance:
+  exp_lof_count:
+    role: context
+    reason: "expected LoF count behind the s_het estimate (consistent with gnomad-lof-constraint exp_lof_count=context)"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "method-version audit token"
+    reviewed: true
+  obs_lof_count:
+    role: context
+    reason: "observed LoF count behind the s_het estimate (consistent with gnomad-lof-constraint obs_lof_count=context)"
+    reviewed: true
+  shet_class:
+    role: context
+    reason: "continuous GeneBayes s_het dominant-LoF selection class; VERDICT-INERT here (fires no rule, not in the safety resolver) — a corroboration/confidence qualifier of the gnomAD constraint_class signal, not an independent verdict; verdict-bearing rung is a deferred backtest-gated follow-up"
+    reviewed: true
+  shet_context:
+    role: provenance
+    reason: "audit / method token"
+    reviewed: true
+  shet_lower_95:
+    role: context
+    reason: "s_het 95% CI lower bound; statistical qualifier"
+    reviewed: true
+  shet_score:
+    role: context
+    reason: "continuous s_het point estimate behind shet_class (corroboration input)"
+    reviewed: true
+  shet_upper_95:
+    role: context
+    reason: "s_het 95% CI upper bound; statistical qualifier"
+    reviewed: true
+target-safety-prioritisation:
+  ensembl_gene_id:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  genetic_constraint_band:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  has_safety_event_band:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  mouse_ko_score_band:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  ot_scores:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  prioritisation_status:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+normal-tissue-liability-gtex:
+  critical_organ_argmax:
+    role: context
+    reason: "which critical organ drives the liability call; qualifies liability_class"
+    reviewed: true
+  critical_organ_max:
+    role: context
+    reason: "max normal expression in the critical organ (continuous magnitude behind liability_class)"
+    reviewed: true
+  highest_tissue:
+    role: context
+    reason: "top-expressing normal tissue; qualifies the liability reading"
+    reviewed: true
+  highest_tissue_median:
+    role: context
+    reason: "median expression in the top normal tissue (continuous qualifier)"
+    reviewed: true
+  liability_class:
+    role: signal
+    reason: "GTEx normal-tissue critical-organ liability CALL; the normal-liability-* rules key on critical_organ_liability (SM/degrader opposing) — verdict-bearing categorical; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_tissues_detectable:
+    role: context
+    reason: "count of normal tissues with detectable expression; breadth qualifier"
+    reviewed: true
+  n_tissues_high:
+    role: context
+    reason: "count of normal tissues with high expression; breadth qualifier (no exact reader — context, not gated)"
+    reviewed: true
+  n_tissues_tested:
+    role: provenance
+    reason: "GTEx tissue-panel denominator / method scope token"
+    reviewed: true
+  tissue_breadth_fraction:
+    role: context
+    reason: "continuous normal-tissue breadth behind the restricted_normal / breadth reasoning (the class carries the signal)"
+    reviewed: true
+alteration-role:
+  alteration_role:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  functional_direction:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  intogen_cancer_types:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  intogen_max_pct_samples:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  intogen_min_qvalue:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  intogen_role:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  intogen_scope:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  oncokb_gene_type:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  sources:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency"
+    reviewed: true
+clinvar-pathogenicity-safety:
+  clinvar_pathogenic_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_pathogenic_germline:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_pathogenic_germline_confident:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_pathogenic_somatic:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_rows:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  top_disease:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+mouse-ko-phenotype:
+  evidence_tier:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  impc_ko_phenotype_class:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  impc_orthology_confidence:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  impc_top_level_systems:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  impc_viability_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger); READ by this skill's run.py via get_card_field (Track-B mouse-ko IMPC-lethality wire, PR #1898) — reader-reached, not waived"
+    reviewed: true
+  ko_phenotype_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger); READ by this skill's run.py via get_card_field (Track-B mouse-ko IMPC-lethality wire, PR #1898) — reader-reached, not waived"
+    reviewed: true
+  lethal_stages:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; READ by this skill's run.py via get_card_field (Track-B mouse-ko IMPC-lethality wire, PR #1898) — reader-reached, not waived"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_adult_lethal:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; READ by this skill's run.py via get_card_field (Track-B mouse-ko IMPC-lethality wire, PR #1898) — reader-reached, not waived"
+    reviewed: true
+  n_developmental_lethal:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; READ by this skill's run.py via get_card_field (Track-B mouse-ko IMPC-lethality wire, PR #1898) — reader-reached, not waived"
+    reviewed: true
+  n_lethal:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_rows:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  organ_classes:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; READ by this skill's run.py via get_card_field (Track-B mouse-ko IMPC-lethality wire, PR #1898) — reader-reached, not waived"
+    reviewed: true
+  top_lethal_label:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; READ by this skill's run.py via get_card_field (Track-B mouse-ko IMPC-lethality wire, PR #1898) — reader-reached, not waived"
+    reviewed: true
+clingen-dosage:
+  allelic_requirements:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  dosage_sensitivity_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  germline_inheritance_mode:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  inheritance_allelic_requirements:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_autosomal_dominant:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_autosomal_recessive:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_high_confidence:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_total_rows:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  top_confidence:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  top_disease:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+gene-burden-safety:
+  burden_safety_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  direction_on_target:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  directions:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  min_pvalue:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_protect:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_risk:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_significant:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_total_rows:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  top_ancestry:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  top_disease:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+copy-number-distribution:
+  cn_assay_used:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_distribution_shape:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_fraction_deep_deletion:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_fraction_focal_amplification:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_fraction_high_amplification:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_fraction_neutral:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_fraction_shallow_amplification:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_fraction_shallow_deletion:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_homozygous_deletion_recurrent:
+    role: context
+    reason: "recurrent homozygous-deletion flag; copy-number-distribution is amplification/deletion CONTEXT in this safety skill (near-dead composition). Sibling ledgers split context/signal on this field; kept context here since no safety reader consumes deletion recurrence decisively"
+    reviewed: true
+  cn_iqr:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_median_panel:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_n_cell_lines_evaluated:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_p25_panel:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_p5_panel:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_p75_panel:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_p95_panel:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_recurrent_amplification_score:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_recurrent_deletion_score:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_top_amplified_lineages:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  cn_top_deleted_lineages:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  copy_number_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  patient_amplified_fraction:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  patient_cn_context:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  patient_copy_number_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  patient_deleted_fraction:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  patient_focal_cn_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  patient_high_amp_fraction:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  patient_homdel_fraction:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['genomic-alteration-profile', 'surface-modality-fit'] for this shared card, reused for fleet consistency"
+    reviewed: true
+functional-gene-state:
+  functional_state_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  model:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  patient:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  vocabulary_phase:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['genomic-alteration-profile'] for this shared card, reused for fleet consistency"
+    reviewed: true
+pan-cancer-crispr-dependency-distribution:
+  chronos_iqr:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  dep_control_negatives:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  dep_control_non_essential_floor:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  dep_control_pan_essential_ceiling:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  dep_control_position:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  dep_control_position_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  dep_control_position_context:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  dep_control_positives:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  dep_control_target_chronos:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  dependency_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  depmap_curated_common_essential:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  distribution_shape:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  fraction_moderately_dependent:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  fraction_non_essential:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  fraction_strongly_dependent:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  median_chronos_panel:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_cell_lines_evaluated:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  p25_chronos_panel:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  p5_chronos_panel:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  p75_chronos_panel:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  p95_chronos_panel:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  pan_essential_fraction_call:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  pan_essential_score:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  selectivity_index:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  top_dependent_lineages:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['functional-requirement'] for this shared card, reused for fleet consistency"
+    reviewed: true
+normal-tissue-liability:
+  essential_tissue_flag:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'target-intrinsic', 'tumor-presence'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  essential_tissues_flagged:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'target-intrinsic', 'tumor-presence'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  hpa_tissue_distribution:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'target-intrinsic', 'tumor-presence'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  hpa_tissue_specificity:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'target-intrinsic', 'tumor-presence'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_essential_tissues_with_expression:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_specific_tissues:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  normal_tissue_breadth_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'target-intrinsic', 'tumor-presence'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  safety_tissue_flags:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  specific_tissues:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'target-intrinsic'] for this shared card, reused for fleet consistency"
+    reviewed: true
+sc-normal-celltype-expression:
+  expressing_donor_fraction_max:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  indication:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-presence', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  max_detection_cell_type:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-presence', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  max_detection_fraction:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-presence', 'tumor-selectivity'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_cell_types_above_20pct:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_reliable_cell_types:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  origin_tissues:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-presence', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  per_cell_type_top:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  safety_essential_flags:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  sc_normal_abundance_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-presence', 'tumor-selectivity'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  sc_normal_ceiling_detection_fraction:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  sc_normal_essential_donor_fraction:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  sc_normal_essential_max_cell_type:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  sc_normal_essential_max_detection_fraction:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  sc_normal_essential_max_tissue:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  sc_normal_essential_median_abund:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  sc_normal_essential_n_datasets_reliable:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  sc_normal_essential_veto_grade:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-presence', 'tumor-selectivity'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  sc_normal_expression_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-presence', 'tumor-selectivity'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  sc_normal_peak_median_abund:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  sc_normal_safety_essential_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-presence', 'tumor-selectivity'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  tissues_queried:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['surface-modality-fit', 'tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+drug-warning-safety:
+  drug_warning_class:
+    role: context
+    reason: "OT pharmacovigilance warning class of target-engaging drugs; VERDICT-INERT CONTEXT (read by run.py, NOT in rules_scope) — orients the reader, not a verdict"
+    reviewed: true
+  ensembl_gene_id:
+    role: provenance
+    reason: "gene identity token"
+    reviewed: true
+  evidence_tier:
+    role: context
+    reason: "evidence-tier confidence token (consistent with mouse-ko-phenotype evidence_tier=context)"
+    reviewed: true
+  has_black_box:
+    role: context
+    reason: "boolean: any black-box warning among target-engaging drugs; verdict-inert flag surfaced by run.py"
+    reviewed: true
+  has_withdrawn:
+    role: context
+    reason: "boolean: any withdrawn target-engaging drug; verdict-inert flag"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "method-version audit token"
+    reviewed: true
+  n_targeted_drugs:
+    role: context
+    reason: "count of target-engaging drugs (denominator qualifier)"
+    reviewed: true
+  n_targeted_warned_drugs:
+    role: context
+    reason: "count of target-engaging drugs carrying a warning (qualifier)"
+    reviewed: true
+  toxicity_classes:
+    role: display
+    reason: "list of toxicity classes across target-engaging drugs; human-facing detail"
+    reviewed: true
+  warning_types:
+    role: display
+    reason: "list of warning types; human-facing detail"
+    reviewed: true
+onsides-adverse-event-safety:
+  example_boxed_warning_terms:
+    role: display
+    reason: "example MedDRA boxed-warning terms; human-facing detail surfaced by run.py"
+    reviewed: true
+  example_drugs:
+    role: display
+    reason: "example target-engaging drug names; human-facing detail"
+    reviewed: true
+  example_terms:
+    role: display
+    reason: "example MedDRA ADE terms; human-facing detail"
+    reviewed: true
+  has_boxed_warning:
+    role: context
+    reason: "boolean: any boxed-warning ADE among target-engaging drugs; verdict-inert flag surfaced by run.py"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "method-version audit token"
+    reviewed: true
+  n_boxed_warning_terms:
+    role: context
+    reason: "count of boxed-warning MedDRA terms (qualifier)"
+    reviewed: true
+  n_drugs_mapped:
+    role: context
+    reason: "count of drugs fuzzily mapped to the gene (join-coverage qualifier)"
+    reviewed: true
+  n_high_confidence_terms:
+    role: context
+    reason: "count of high-confidence ADE terms (qualifier)"
+    reviewed: true
+  n_meddra_terms:
+    role: context
+    reason: "count of MedDRA ADE terms (qualifier)"
+    reviewed: true
+  onsides_ade_class:
+    role: context
+    reason: "OnSIDES drug-label ADE class of target-engaging drugs; VERDICT-INERT CONTEXT (read by run.py, NOT in rules_scope)"
+    reviewed: true
+normal-tissue-protein-abundance-tphp:
+  abundance_floor_log2:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  fetal_vs_adult_flag:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  highest_abundance_tissue:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  highest_abundance_tissue_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  max_detection_rate:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  max_median_log2_abundance:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  median_across_tissues_log2_abundance:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_adult_tissues_above_abundance_floor:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_adult_tissues_detected:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_adult_tissues_detected_low_support:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_adult_tissues_total:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_fetal_groups_detected:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_fetal_groups_total:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_solid_adult_tissues_above_abundance_floor:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_solid_adult_tissues_detected:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_solid_adult_tissues_total:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_tissues_detected:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_vital_organs_above_abundance_floor:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_vital_organs_measurable:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  n_vital_organs_unmeasurable:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  normal_protein_breadth_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  per_tissue_abundance:
+    role: display
+    reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  tphp_normal_protein_liability_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  tphp_vital_organ_abundance:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  tphp_vital_organ_liability_class:
+    role: signal
+    reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  uniprot_ac:
+    role: provenance
+    reason: "role:provenance (audit / identity / method token); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  vital_organ_min_samples:
+    role: context
+    reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
