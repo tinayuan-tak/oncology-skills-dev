@@ -1,0 +1,70 @@
+# Field-disposition ledger for literature-context. Every row carries `reviewed: true` — a HUMAN read
+# the field's producers (scripts/run.py) and consumers and chose the role. Unlike the auto-drafted
+# tumor-presence baseline, no row here came from a name-shape heuristic.
+#
+# literature-context is a VERDICT-INERT descriptive fan-out member: verdict_fn=None, fires NO resolver
+# rung, drives NO gate (RISK_ASSESSMENT_INTEGRATION.md §4 — literature is CONTEXT/CONFIDENCE, never a
+# nomination-gate input; the card's own caveats say the same). Consequently NO field is `role: signal`:
+# nothing here feeds a claim/verdict. The substantive literature measurements are `context` (they
+# qualify the confidence surface + populate the descriptive claim_vector / key_signals / question_table,
+# and are read by the VERDICT-INERT confidence-caveat layer), the scoping/method token is `provenance`,
+# and the large human-facing citation container is `display`. Every field is read (census 2026-09-27,
+# blind to this ledger: all 10 EXACT, 0 orphans).
+_meta:
+  description: "Field-disposition ledger for literature-context — every emitted summary_field of the one\
+    \ composed card (cited-literature-evidence) carries an explicit role so nothing is dropped SILENTLY.\
+    \ Enforced by skills/tests/test_field_disposition_ledgers.py (well-formedness + reach ratchet)."
+  roles:
+    signal: feeds a claim / verdict (must be wired or explicitly waived)
+    context: qualifies a signal (volume, recency, scope-count, direction) or populates the descriptive claim_vector / key_signals / confidence caveats — verdict-inert here
+    provenance: "audit / identity / method token — surfaced, never a signal"
+    display: human-facing detail or large container; verdict-inert by design
+  generated_from: target-contracts/cards/<card>.card.yaml outputs.summary_fields
+  reviewed: "true == a human read the field's producers and consumers and chose this role. This ledger is\
+    \ fully reviewed: every row is reviewed:true."
+  waived_because: "only legal on `role: signal`. No signal rows exist in this ledger (the skill is\
+    \ verdict-inert), so no waiver is present or needed."
+  note: "VERDICT-INERT skill (verdict_fn=None, no resolver rung, no gate). No field is role:signal by\
+    \ design — every summary_field is context/provenance/display. All 10 fields are EXACT-read\
+    \ (scripts/run.py _headline + the confidence-caveat layer); 0 orphans (census 2026-09-27)."
+cited-literature-evidence:
+  cited_evidence_status:
+    role: context
+    reason: "PRIMARY categorical literature-evidence state (ok | insufficient | no_evidence | data_unavailable). VERDICT-INERT — read by _cited_positive_substrate (only 'ok' with nonzero volume/relation support gates the confidence caveat ON) and surfaced into key_signals; it qualifies the whole dossier's confidence, never a nomination-gate. context, not signal, because the skill fires no rule and drives no gate (census 2026-09-27, exact)."
+    reviewed: true
+  literature_scope:
+    role: provenance
+    reason: "OT co-occurrence disease-scoping method token: indication | target_level | target_level_fallback. Records HOW the read was scoped (disease-scoped vs fell back to target-level when the indication has no EFO/MeSH scope), so it is provenance/method, not a measured signal. Surfaced in the headline block (census 2026-09-27, exact)."
+    reviewed: true
+  paper_disease_mentions:
+    role: context
+    reason: "OT co-occurrence VOLUME (summed paper×disease mentions). Core magnitude behind the cited-literature context; read by _cited_positive_substrate and the volume/recency confidence caveats. VERDICT-INERT (volume != validation — citation/attention bias), so context not signal (census 2026-09-27, exact)."
+    reviewed: true
+  recent_mentions:
+    role: context
+    reason: "Co-occurrence mentions in the recent window (RECENCY qualifier). Read by _stale_literature_note (measured volume but zero recent mentions => stale flag) and surfaced in claim_vector. Verdict-inert recency context (census 2026-09-27, exact)."
+    reviewed: true
+  n_diseases:
+    role: context
+    reason: "Number of indication-scoped disease subtypes summed into the mention counts. Qualifies paper_disease_mentions/recent_mentions inflation (a paper co-occurring with N subtypes counts N times) and drives the pleiotropy caveat (n_diseases >= _PLEIOTROPY_MIN_DISEASES => promiscuous-hub note). Verdict-inert context (census 2026-09-27, exact)."
+    reviewed: true
+  earliest_year:
+    role: context
+    reason: "First co-occurrence year (literature AGE). Surfaced in the headline/claim_vector as a temporal qualifier of the cited literature; verdict-inert, drives no gate (census 2026-09-27, exact)."
+    reviewed: true
+  latest_year:
+    role: context
+    reason: "Most recent co-occurrence year (CURRENCY qualifier). Read by _stale_literature_note (latest_year <= _STALE_BEFORE_YEAR => stale-literature recency note). Verdict-inert context, not a gate input (census 2026-09-27, exact)."
+    reviewed: true
+  top_cited:
+    role: display
+    reason: "Top cited statements (pmid/pmc/year/section/sentence), English surfaced first — a large human-facing container of citation detail. Iterated only to render the headline citations and counted (n_top_cited); verdict-inert by design (census 2026-09-27, exact)."
+    reviewed: true
+  relation_types:
+    role: context
+    reason: "PubTator3 BioREx typed-relation labels present, ordered by publication support (relation DIRECTION). Read by _relation_conflict (UP+DOWN polarity conflict) and surfaced in claim_vector/key_signals; the BioREx direction is automated + context-free (~1-in-5 mislabeled) so it is verdict-inert context, never a gate (census 2026-09-27, exact)."
+    reviewed: true
+  total_relation_publications:
+    role: context
+    reason: "Total PubTator publications supporting the typed relations (support depth). Read by _relation_single_paper (<= _SINGLE_PAPER_MAX => thin single-/few-paper assertion caveat) and _cited_positive_substrate. Verdict-inert support-count context (census 2026-09-27, exact)."
+    reviewed: true
