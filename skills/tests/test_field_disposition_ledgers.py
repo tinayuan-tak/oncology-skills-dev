@@ -34,12 +34,33 @@ SKILLS_ROOT = Path(__file__).resolve().parents[1]
 # Without this, discovery makes the fleet guard trivially satisfiable by DELETING the file it checks:
 # the sweep would find nothing to complain about and go green. Frozen 2026-09-13. Grow it when a skill
 # gains a ledger; removing a name needs a reason in the PR body, not a quiet edit.
-LEDGERED_SKILLS_FLOOR = frozenset({"tumor-presence"})
+LEDGERED_SKILLS_FLOOR = frozenset(
+    {
+        "cis-feature-coherence",
+        "combination-and-vulnerability",
+        "differentiation-landscape",
+        "functional-requirement",
+        "genomic-alteration-profile",
+        "immune-context",
+        "literature-context",
+        "literature-risk-assessment",
+        "mechanism-and-pharmacology",
+        "on-target-safety-liability",
+        "surface-modality-fit",
+        "target-intrinsic",
+        "target-profile",
+        "tractability-small-molecule",
+        "translational-readiness",
+        "tumor-presence",
+        "tumor-selectivity",
+    }
+)
 
 # Total `role: signal` rows across all ledgers. A floor, so a ledger that loses its signal rows (or a
 # loader change that stops seeing them) cannot make the reach ratchet below pass by measuring nothing.
-# 93 on trunk today; 60 leaves room for re-triage without leaving room for a collapse.
-MIN_FLEET_SIGNAL_ROWS = 60
+# 550 on trunk today (17 ledgers, 2026-09-27); 400 leaves room for re-triage without leaving room
+# for a collapse (e.g. a loader change that stops seeing an entire ledger's signals).
+MIN_FLEET_SIGNAL_ROWS = 400
 
 
 def _contracts_absent() -> bool:
