@@ -216,10 +216,28 @@ resolve_xena_site_and_studies <- function(ind, cfg_indications) {
 # `common_genes`: the versioned ids (== rownames(counts_mat)), in row order.
 # `ens2hgnc`: named char vector unversioned-stem -> HGNC symbol; symbol-less
 #   stems are absent, so ens2hgnc[stem] is NA for them (symbol retained as NA).
+# `gene_universe`: which stems enter the fit (github analysis-methods#847, the
+#   GATE-A v2 identity-vs-universe DECOMPOSITION toggle):
+#     "all"        (default) — retain symbol-less stems (the C2 arm = proposed
+#                  prod: ENSG grain + full universe). Preserves the shipped stem
+#                  path exactly, so no measured verdict moves for existing callers.
+#     "has_symbol" — restrict to stems carrying an HGNC symbol, i.e. the SAME
+#                  gene set the production gene_symbol collapse keeps (C0), but at
+#                  ENSG grain with distinct genes NO LONGER summed (the C1 arm).
+#   The C0->C1 diff isolates the PURE IDENTITY correction (un-summing distinct
+#   genes that shared a symbol + ENSG relabel); the C1->C2 diff isolates the
+#   gene-universe / normalization effect of re-admitting symbol-less genes. The
+#   filter is applied AFTER the stem collapse so the two arms share the same
+#   collapse semantics and differ only in the retained gene set.
 # Returns list(counts, rowdata = data.frame(gene_symbol, gene_id, gene_stem)),
 # rownames(counts) == gene_stem. FAIL-LOUD on an empty result — a degenerate
 # re-key join must never emit a silent zero-row product.
-collapse_counts_by_stem <- function(counts_mat, common_genes, ens2hgnc) {
+collapse_counts_by_stem <- function(counts_mat, common_genes, ens2hgnc,
+                                     gene_universe = "all") {
+  if (!gene_universe %in% c("all", "has_symbol")) {
+    stop("[collapse_counts_by_stem] gene_universe must be 'all' or 'has_symbol', got ",
+         gene_universe, call. = FALSE)
+  }
   gene_stem <- sub("\\..*$", "", common_genes)
   if (anyDuplicated(gene_stem)) {
     # rare: >1 versioned id sharing a stem — sum them (same gene identity).
@@ -241,9 +259,19 @@ collapse_counts_by_stem <- function(counts_mat, common_genes, ens2hgnc) {
       gene_stem   = gene_stem,
       stringsAsFactors = FALSE)
   }
+  if (gene_universe == "has_symbol") {
+    # C1 arm: keep ONLY the stems the production symbol collapse would keep
+    # (has an HGNC symbol), still one row per distinct stem (no summing). Row
+    # order of counts_mat and rowdata stay aligned (same logical filter).
+    keep <- !is.na(rowdata$gene_symbol) & rowdata$gene_symbol != ""
+    counts_mat <- counts_mat[keep, , drop = FALSE]
+    rowdata    <- rowdata[keep, , drop = FALSE]
+    rownames(rowdata) <- NULL
+  }
   if (nrow(counts_mat) == 0L) {
-    stop("[collapse_counts_by_stem] 0 genes after gene_stem collapse — the re-key ",
-         "join is degenerate; refusing to emit a silent empty product", call. = FALSE)
+    stop("[collapse_counts_by_stem] 0 genes after gene_stem collapse (gene_universe=",
+         gene_universe, ") — the re-key join is degenerate; refusing to emit a ",
+         "silent empty product", call. = FALSE)
   }
   list(counts = counts_mat, rowdata = rowdata)
 }

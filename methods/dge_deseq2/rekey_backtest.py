@@ -361,13 +361,74 @@ def summarize_report(report: pd.DataFrame) -> dict:
     moved_targets = sorted({str(t) for t in report["target"]}) if n_moves else []
     by_cause = report["attributed_cause"].value_counts().to_dict() if n_moves else {}
     by_field = report["field"].value_counts().to_dict() if n_moves else {}
-    return {
+    summary = {
         "n_moved_fields": n_moves,
         "n_moved_targets": len(moved_targets),
         "moved_targets": moved_targets,
         "moves_by_cause": {str(k): int(v) for k, v in by_cause.items()},
         "moves_by_field": {str(k): int(v) for k, v in by_field.items()},
     }
+    summary["selectivity_class_transitions"] = transition_counts(report)
+    return summary
+
+
+# --- (5) transition decomposition (#847 GATE-A v2) --------------------------
+# The verdict-delta report enumerates every MOVED field. For the S5 decision the
+# sharper cut is what KIND of move a target's headline selectivity_class made:
+#   appear       — was absent/data_unavailable, now a real verdict (a gene the
+#                  arm newly resolves);
+#   disappear    — was a real verdict, now absent/data_unavailable (e.g. an
+#                  ambiguous symbol stripped by a no-pick re-key);
+#   change_class — a real verdict changed to a DIFFERENT real verdict
+#                  (a genuine re-classification, not a subtraction).
+# These are counted per arm-diff (C0->C1 identity, C1->C2 universe) so the report
+# can say how much of each cause is subtractive vs re-classifying.
+CLASS_APPEAR = "appear"
+CLASS_DISAPPEAR = "disappear"
+CLASS_CHANGE = "change_class"
+CLASS_OTHER = "other"
+
+
+def _is_non_verdict(v) -> bool:
+    """True iff a selectivity_class value is NOT a real verdict (absent /
+    data_unavailable / not_applicable)."""
+    return _is_na(v) or v in _NON_VERDICT_CLASSES
+
+
+def classify_class_transition(baseline_value, shadow_value) -> str:
+    """Bucket a selectivity_class move into appear / disappear / change_class."""
+    b_nv = _is_non_verdict(baseline_value)
+    s_nv = _is_non_verdict(shadow_value)
+    if b_nv and not s_nv:
+        return CLASS_APPEAR
+    if s_nv and not b_nv:
+        return CLASS_DISAPPEAR
+    if not b_nv and not s_nv:
+        return CLASS_CHANGE
+    return CLASS_OTHER  # non-verdict -> non-verdict (should not surface as a move)
+
+
+def transition_counts(moves: pd.DataFrame) -> dict:
+    """Count selectivity_class transitions in a moves/report frame.
+
+    Returns {appear, disappear, change_class, other} and, when the frame carries
+    the ``attributed_cause`` column, a nested ``by_cause`` cross-tab
+    {cause: {transition: n}}. Non-selectivity_class fields are ignored (they are
+    reported separately by ``moves_by_field``)."""
+    base = {CLASS_APPEAR: 0, CLASS_DISAPPEAR: 0, CLASS_CHANGE: 0, CLASS_OTHER: 0}
+    if len(moves) == 0 or "field" not in moves.columns:
+        return {**base, "by_cause": {}}
+    sel = moves[moves["field"] == "selectivity_class"]
+    by_cause: dict[str, dict[str, int]] = {}
+    has_cause = "attributed_cause" in sel.columns
+    for _, row in sel.iterrows():
+        t = classify_class_transition(row["baseline_value"], row["shadow_value"])
+        base[t] += 1
+        if has_cause:
+            c = str(row["attributed_cause"])
+            by_cause.setdefault(c, dict.fromkeys(base, 0))
+            by_cause[c][t] += 1
+    return {**base, "by_cause": {k: {kk: int(vv) for kk, vv in v.items()} for k, v in by_cause.items()}}
 
 
 # --- (2) shadow generation — LOCAL scratch only, NEVER prod -----------------
@@ -398,16 +459,25 @@ def rekey_loader_argv(
     config: str,
     out_rds: str,
     collapse_key: str = "gene_stem",
+    gene_universe: str = "all",
     rscript: str = "Rscript",
     extra: Sequence[str] = (),
 ) -> list[str]:
     """Argv for the re-keyed recount3 loader (00_load_recount3.R --collapse-key).
 
     ``collapse_key='gene_stem'`` is the re-key under test; the loader's default
-    ('gene_symbol') is byte-identical to production. Pure (builds argv only) so
-    the wiring is unit-testable without invoking R."""
+    ('gene_symbol') is byte-identical to production. ``gene_universe`` is the
+    #847 GATE-A-v2 decomposition toggle, consulted only on the stem path:
+    ``'all'`` (default, shipped stem behaviour = symbol-less retained = the C2
+    arm) or ``'has_symbol'`` (restrict to the production gene_symbol gene set at
+    ENSG grain, distinct genes NOT summed = the C1 arm). Emitting it explicitly
+    on every argv keeps the arm self-documenting; the default preserves prior
+    behaviour on both keys. Pure (builds argv only) so the wiring is
+    unit-testable without invoking R."""
     if collapse_key not in ("gene_symbol", "gene_stem"):
         raise RekeyBacktestError(f"collapse_key must be 'gene_symbol' or 'gene_stem', got {collapse_key!r}")
+    if gene_universe not in ("all", "has_symbol"):
+        raise RekeyBacktestError(f"gene_universe must be 'all' or 'has_symbol', got {gene_universe!r}")
     assert_scratch_prefix(out_rds)
     return [
         rscript,
@@ -419,6 +489,8 @@ def rekey_loader_argv(
         out_rds,
         "--collapse-key",
         collapse_key,
+        "--gene-universe",
+        gene_universe,
         *extra,
     ]
 
@@ -449,20 +521,25 @@ def emit_shadow_products(
     config: str,
     scratch_dir,
     collapse_key: str = "gene_stem",
+    gene_universe: str = "all",
     rscript: str = "Rscript",
     check: bool = True,
 ) -> Path:
     """Run the re-keyed loader + four-cell driver to a LOCAL scratch dir.
 
     GATE-A orchestration (heavy: DESeq2 is R-only). Returns the product dir under
-    ``scratch_dir``. Guarded by ``assert_scratch_prefix`` so it can never write a
-    prod object. Not exercised in CI (needs the R/Bioconductor env + real
-    substrate); its argv construction and the prod-write guard ARE tested."""
+    ``scratch_dir``. ``gene_universe`` selects the stem-path gene set (C1
+    'has_symbol' vs C2 'all'; #847). Guarded by ``assert_scratch_prefix`` so it
+    can never write a prod object. Not exercised in CI (needs the R/Bioconductor
+    env + real substrate); its argv construction and the prod-write guard ARE
+    tested."""
     root = assert_scratch_prefix(scratch_dir)
     root.mkdir(parents=True, exist_ok=True)
     out_rds = str(root / "bundle.rds")
     out_dir = str(root / "products")
-    load_cmd = rekey_loader_argv(config=config, out_rds=out_rds, collapse_key=collapse_key, rscript=rscript)
+    load_cmd = rekey_loader_argv(
+        config=config, out_rds=out_rds, collapse_key=collapse_key, gene_universe=gene_universe, rscript=rscript
+    )
     subprocess.run(load_cmd, check=check)
     drive_cmd = driver_argv(in_rds=out_rds, out_dir=out_dir, rscript=rscript)
     subprocess.run(drive_cmd, check=check)

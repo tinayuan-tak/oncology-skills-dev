@@ -19,6 +19,19 @@ def test_manifest_id_for():
     assert drv.manifest_id_for("COADREAD") == "coadread-dge-tumor-vs-normal-sensitivity-v1"
 
 
+def test_arms_spec_is_the_three_arm_decomposition():
+    labels = [a[0] for a in drv.ARMS]
+    assert labels == ["C0", "C1", "C2"]
+    # C0 = shipped symbol collapse; C1 = identity (has_symbol); C2 = universe (all)
+    assert drv.ARM_BY_LABEL["C0"][1:3] == ("gene_symbol", "all")
+    assert drv.ARM_BY_LABEL["C1"][1:3] == ("gene_stem", "has_symbol")
+    assert drv.ARM_BY_LABEL["C2"][1:3] == ("gene_stem", "all")
+    # C0/C2 reuse the #844 scratch dir names; C1 gets its own so all three coexist.
+    keys = {a[0]: a[3] for a in drv.ARMS}
+    assert keys == {"C0": "gene_symbol", "C1": "gene_stem__has_symbol", "C2": "gene_stem"}
+    assert len({a[3] for a in drv.ARMS}) == 3  # distinct scratch dirs
+
+
 def _toy_authority() -> pd.DataFrame:
     # SYM1 backed by ONE stem (clean 1:1); SYM2 backed by TWO stems (ambiguous);
     # a symbol-less stem (symbol_hgnc NaN) must be excluded from the map.

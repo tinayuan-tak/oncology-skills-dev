@@ -63,13 +63,26 @@ option_list <- list(
   # is VERDICT-AFFECTING, so it is never the default and is emitted only to a
   # scratch prefix by rekey_backtest.emit_shadow_products — never a prod product.
   make_option("--collapse-key", type = "character", default = "gene_symbol",
-              help = "Collapse identity: 'gene_symbol' (default, shipped) or 'gene_stem' (opt-in re-key).")
+              help = "Collapse identity: 'gene_symbol' (default, shipped) or 'gene_stem' (opt-in re-key)."),
+  # Gene-universe toggle for the gene_stem re-key (#847 GATE-A v2 decomposition).
+  # Only consulted when --collapse-key gene_stem. "all" (default) keeps the shipped
+  # stem behaviour (symbol-less genes retained = the C2 arm). "has_symbol" restricts
+  # to the SAME gene set the production gene_symbol collapse keeps, at ENSG grain
+  # with distinct genes NOT summed (the C1 arm) — isolating the identity correction
+  # (C0->C1) from the gene-universe/normalization effect (C1->C2). Verdict-neutral
+  # for the shipped path: default preserves prior behaviour on both keys.
+  make_option("--gene-universe", type = "character", default = "all",
+              help = "Stem re-key gene universe: 'all' (default, shipped stem behaviour) or 'has_symbol'.")
 )
 opts <- parse_args(OptionParser(option_list = option_list))
 stopifnot(!is.null(opts$config), !is.null(opts$out))
 collapse_key <- opts$`collapse-key`
 if (!collapse_key %in% c("gene_symbol", "gene_stem")) {
   stop("--collapse-key must be 'gene_symbol' or 'gene_stem', got ", collapse_key)
+}
+gene_universe <- opts$`gene-universe`
+if (!gene_universe %in% c("all", "has_symbol")) {
+  stop("--gene-universe must be 'all' or 'has_symbol', got ", gene_universe)
 }
 
 cfg <- yaml::read_yaml(opts$config)
@@ -338,12 +351,15 @@ if (collapse_key == "gene_stem") {
   # symbol-less genes are retained. Verdict-affecting; scratch-only. The shared
   # pure helper (tested hermetically) does the collapse + fail-loud empty check.
   message("[00_load_recount3] RE-KEY MODE: collapsing by unversioned gene_stem ",
-          "(opt-in, verdict-affecting; #761 S4 backtest — never a prod product)")
-  collapsed  <- collapse_counts_by_stem(counts_mat, common_genes, ens2hgnc)
+          "(opt-in, verdict-affecting; #761 S4 backtest — never a prod product) ",
+          "| gene_universe=", gene_universe)
+  collapsed  <- collapse_counts_by_stem(counts_mat, common_genes, ens2hgnc,
+                                        gene_universe = gene_universe)
   counts_mat <- collapsed$counts
   rowdata    <- collapsed$rowdata
-  message(sprintf("[00_load_recount3]   gene_stem collapse: %d genes (symbol-less retained)",
-                  nrow(counts_mat)))
+  message(sprintf("[00_load_recount3]   gene_stem collapse: %d genes (universe=%s%s)",
+                  nrow(counts_mat), gene_universe,
+                  if (gene_universe == "all") ", symbol-less retained" else ", has-symbol only"))
 } else {
   gene_stem <- sub("\\..*$", "", common_genes)
   gene_symbol <- ens2hgnc[gene_stem]

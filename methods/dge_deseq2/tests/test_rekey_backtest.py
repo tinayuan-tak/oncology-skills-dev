@@ -275,11 +275,90 @@ def test_rekey_loader_argv_wires_collapse_key(tmp_path):
     assert argv_sym[argv_sym.index("--collapse-key") + 1] == "gene_symbol"
 
 
+def test_rekey_loader_argv_wires_gene_universe(tmp_path):
+    out = tmp_path / "bundle.rds"
+    # default gene_universe = "all" (shipped stem behaviour, the C2 arm)
+    argv = rb.rekey_loader_argv(config="/c.yaml", out_rds=str(out))
+    assert argv[argv.index("--gene-universe") + 1] == "all"
+    # the C1 (identity) arm restricts to the has-symbol gene set
+    argv_c1 = rb.rekey_loader_argv(config="/c.yaml", out_rds=str(out), gene_universe="has_symbol")
+    assert argv_c1[argv_c1.index("--gene-universe") + 1] == "has_symbol"
+
+
 def test_rekey_loader_argv_rejects_bad_key_and_prod(tmp_path):
     with pytest.raises(rb.RekeyBacktestError):
         rb.rekey_loader_argv(config="/c.yaml", out_rds=str(tmp_path / "b.rds"), collapse_key="ensg")
     with pytest.raises(rb.RekeyBacktestError):
+        rb.rekey_loader_argv(config="/c.yaml", out_rds=str(tmp_path / "b.rds"), gene_universe="mito")
+    with pytest.raises(rb.RekeyBacktestError):
         rb.rekey_loader_argv(config="/c.yaml", out_rds="s3://onc-compbio/x.rds")
+
+
+def test_classify_class_transition():
+    assert rb.classify_class_transition("data_unavailable", "strong_tumor_selective") == rb.CLASS_APPEAR
+    assert rb.classify_class_transition(None, "not_selective") == rb.CLASS_APPEAR
+    assert rb.classify_class_transition("strong_tumor_selective", "data_unavailable") == rb.CLASS_DISAPPEAR
+    assert rb.classify_class_transition("not_selective", None) == rb.CLASS_DISAPPEAR
+    assert rb.classify_class_transition("modest_tumor_selective", "strong_tumor_selective") == rb.CLASS_CHANGE
+    # non-verdict -> non-verdict is not a real move
+    assert rb.classify_class_transition("data_unavailable", "not_applicable") == rb.CLASS_OTHER
+
+
+def test_transition_counts_buckets_and_crosstabs_by_cause():
+    moves = pd.DataFrame(
+        [
+            # a disappear attributed to ensg_ambiguous (no-pick strips it)
+            {
+                "target": "AMB",
+                "indication": "ACC",
+                "field": "selectivity_class",
+                "baseline_value": "strong_tumor_selective",
+                "shadow_value": "data_unavailable",
+                "attributed_cause": "ensg_ambiguous",
+            },
+            # a change_class attributed to unattributed (normalization shift)
+            {
+                "target": "CLN",
+                "indication": "ACC",
+                "field": "selectivity_class",
+                "baseline_value": "modest_tumor_selective",
+                "shadow_value": "strong_tumor_selective",
+                "attributed_cause": "unattributed",
+            },
+            # an appear
+            {
+                "target": "NEW",
+                "indication": "ACC",
+                "field": "selectivity_class",
+                "baseline_value": "data_unavailable",
+                "shadow_value": "not_selective",
+                "attributed_cause": "unattributed",
+            },
+            # a non-selectivity_class field move is ignored by the transition tally
+            {
+                "target": "CLN",
+                "indication": "ACC",
+                "field": "comparator_concordance",
+                "baseline_value": "concordant",
+                "shadow_value": "discordant",
+                "attributed_cause": "unattributed",
+            },
+        ]
+    )
+    tc = rb.transition_counts(moves)
+    assert tc[rb.CLASS_APPEAR] == 1
+    assert tc[rb.CLASS_DISAPPEAR] == 1
+    assert tc[rb.CLASS_CHANGE] == 1
+    assert tc["by_cause"]["ensg_ambiguous"][rb.CLASS_DISAPPEAR] == 1
+    assert tc["by_cause"]["unattributed"][rb.CLASS_CHANGE] == 1
+    assert tc["by_cause"]["unattributed"][rb.CLASS_APPEAR] == 1
+
+
+def test_transition_counts_empty_is_typed():
+    empty = pd.DataFrame(columns=["target", "indication", "field", "baseline_value", "shadow_value"])
+    tc = rb.transition_counts(empty)
+    assert tc[rb.CLASS_APPEAR] == 0 and tc[rb.CLASS_DISAPPEAR] == 0 and tc[rb.CLASS_CHANGE] == 0
+    assert tc["by_cause"] == {}
 
 
 def test_driver_argv_points_at_driver_and_guards_prod(tmp_path):

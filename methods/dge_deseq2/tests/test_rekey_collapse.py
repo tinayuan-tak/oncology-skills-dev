@@ -113,6 +113,28 @@ err <- tryCatch({collapse_counts_by_stem(empty, character(0), ens2hgnc); NA},
                 error = function(e) conditionMessage(e))
 ok(is.character(err) && grepl("0 genes", err), "empty collapse must stop() loudly")
 
+# --- scenario 4: gene_universe="has_symbol" drops symbol-less stems (C1 arm) --
+# Same input as scenario 1 (KRAS, TP53, one symbol-less stem). The C1 arm keeps
+# ONLY the has-symbol stems (the production gene_symbol gene set) at ENSG grain,
+# distinct genes STILL not summed; default "all" retains the symbol-less stem.
+res_all <- collapse_counts_by_stem(counts, common_genes, ens2hgnc, gene_universe = "all")
+ok(nrow(res_all$counts) == 3, "gene_universe='all' must retain symbol-less stems")
+res_hs <- collapse_counts_by_stem(counts, common_genes, ens2hgnc, gene_universe = "has_symbol")
+ok(nrow(res_hs$counts) == 2, "gene_universe='has_symbol' must drop the symbol-less stem (3 -> 2)")
+ok(!("ENSG00000999999" %in% res_hs$rowdata$gene_stem),
+   "symbol-less stem must be ABSENT under has_symbol")
+ok(all(!is.na(res_hs$rowdata$gene_symbol)),
+   "every retained has_symbol row must carry a non-NA symbol")
+ok(identical(sort(res_hs$rowdata$gene_symbol), c("KRAS", "TP53")),
+   "has_symbol universe must be exactly the symbol-bearing stems")
+# distinct genes are STILL not summed under has_symbol (2 distinct symbols -> 2 rows)
+ok(all(res_hs$counts[res_hs$rowdata$gene_stem == "ENSG00000133703", ] == c(10L, 20L)),
+   "has_symbol must not sum distinct stems")
+# an invalid gene_universe FAILS LOUD.
+err_u <- tryCatch({collapse_counts_by_stem(counts, common_genes, ens2hgnc, gene_universe = "mito"); NA},
+                  error = function(e) conditionMessage(e))
+ok(is.character(err_u) && grepl("has_symbol", err_u), "bad gene_universe must stop() loudly")
+
 cat("ALL_OK\n")
 """
 
@@ -148,10 +170,22 @@ def test_load_recount3_wires_collapse_key():
     assert re.search(r'if\s*\(collapse_key\s*==\s*"gene_stem"\)', src), (
         "the re-key must be gated behind collapse_key == 'gene_stem'"
     )
-    assert "collapse_counts_by_stem(counts_mat, common_genes, ens2hgnc)" in src, (
-        "the gene_stem branch must call the shared collapse_counts_by_stem helper"
-    )
+    assert re.search(
+        r"collapse_counts_by_stem\(counts_mat,\s*common_genes,\s*ens2hgnc,\s*"
+        r"gene_universe\s*=\s*gene_universe\)",
+        src,
+        re.S,
+    ), "the gene_stem branch must call collapse_counts_by_stem with the gene_universe toggle"
     # The DEFAULT branch still performs the shipped symbol collapse (unchanged).
     assert re.search(r"counts_mat\s*<-\s*rowsum\(counts_mat,\s*gene_symbol\)", src), (
         "the default gene_symbol collapse (rowsum by gene_symbol) must be preserved"
+    )
+    # --gene-universe toggle exists, DEFAULTS to the shipped stem behaviour ("all"),
+    # and is validated against the closed set {all, has_symbol} (#847).
+    assert re.search(r'make_option\(\s*"--gene-universe"', src), "--gene-universe option missing"
+    assert re.search(r'"--gene-universe".*?default\s*=\s*"all"', src, re.S), (
+        "--gene-universe must default to 'all' (shipped stem behaviour, verdict-neutral)"
+    )
+    assert re.search(r'gene_universe\s*%in%\s*c\("all",\s*"has_symbol"\)', src), (
+        "gene_universe must be validated against {all, has_symbol}"
     )
