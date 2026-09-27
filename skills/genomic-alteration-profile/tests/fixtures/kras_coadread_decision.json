@@ -491,10 +491,6 @@
           "class": "own_omics_driven",
           "numeric_anchors": [
             {
-              "metric": "delta_r2",
-              "value": 0.0232
-            },
-            {
               "metric": "pearson_r_rf",
               "value": 0.6841
             },
@@ -515,10 +511,6 @@
             {
               "field": "pred_dominant_feature_class",
               "value": "own_mut_hotspot"
-            },
-            {
-              "field": "model_agreement",
-              "value": "concordant"
             }
           ],
           "n_basis": {

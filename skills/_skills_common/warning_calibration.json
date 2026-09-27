@@ -186,11 +186,6 @@
       "fired": 0,
       "rate": 0.0
     },
-    "dependency-predictability::predictability_model_divergent": {
-      "evaluable": 384,
-      "fired": 1,
-      "rate": 0.0026
-    },
     "dependency-predictability::predictability_wide_ci": {
       "evaluable": 384,
       "fired": 5,
@@ -840,10 +835,6 @@
     [
       "dependency-predictability",
       "predictability_low_cell_line_count"
-    ],
-    [
-      "dependency-predictability",
-      "predictability_model_divergent"
     ],
     [
       "domain-modality-relevance",

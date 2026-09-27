@@ -18,14 +18,10 @@ degradation-feasibility:
   n_e3_predicted_confident: 67
   surface_location_excluded: false
 dependency-predictability:
-  delta_r2: 0.11359727382659912
-  model_agreement: divergent
   pearson_r_rf: 0.5808413028717041
   pearson_r_squared_rf: 0.33737659454345703
   pearson_r_squared_rf_ci_hi: 0.43856534361839294
   pearson_r_squared_rf_ci_lo: 0.24027733504772186
-  pearson_r_squared_xgb: 0.2237793207168579
-  pearson_r_xgb: 0.4730531871318817
   per_lineage_predictability:
   - lineage: Breast
     n_cell_lines: 73
@@ -143,47 +139,6 @@ dependency-predictability:
     feature_class: cross_gene_copy_number
     importance: 0.013173682615160942
     rf_importance: 0.013173682615160942
-  pred_top_features_xgb:
-  - feature: expr_SPDEF
-    feature_class: cross_gene_expression
-    importance: 0.27361464500427246
-    rf_importance: 0.0
-  - feature: own_expression
-    feature_class: own_expression
-    importance: 0.13727985322475433
-    rf_importance: 0.0
-  - feature: cn_KRT8P34
-    feature_class: cross_gene_copy_number
-    importance: 0.041364721953868866
-    rf_importance: 0.0
-  - feature: expr_LRRC26
-    feature_class: cross_gene_expression
-    importance: 0.030952213332057
-    rf_importance: 0.0
-  - feature: expr_AR
-    feature_class: cross_gene_expression
-    importance: 0.022054823115468025
-    rf_importance: 0.0
-  - feature: methyl_KLHL21
-    feature_class: methylation_tss
-    importance: 0.017821960151195526
-    rf_importance: 0.0
-  - feature: expr_CREB3L4
-    feature_class: cross_gene_expression
-    importance: 0.017641467973589897
-    rf_importance: 0.0
-  - feature: expr_DEFB132
-    feature_class: cross_gene_expression
-    importance: 0.016337411478161812
-    rf_importance: 0.0
-  - feature: expr_EPN3
-    feature_class: cross_gene_expression
-    importance: 0.013430134393274784
-    rf_importance: 0.0
-  - feature: cn_RARA
-    feature_class: cross_gene_copy_number
-    importance: 0.013173682615160942
-    rf_importance: 0.0
   predictability_class: weakly_predictable
 gdsc-drug-activity:
   _data_note: "Target 'FOXA1' matches no GDSC putative-target token (direct or via\

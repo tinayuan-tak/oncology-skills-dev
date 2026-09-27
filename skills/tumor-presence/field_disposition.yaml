@@ -156,6 +156,12 @@ tumor-rna-vs-adjacent:
   allgene_percentile_context:
     role: provenance
     reason: provenance/audit token
+  base_mean:
+    role: context
+    reason: "DESeq2 mean normalized expression across the tumor-vs-adjacent contrast; an abundance/power qualifier
+      (cf. n_tumor/n_adjacent/gtex_q_value), not itself a presence signal. Arrived on tumor-rna-vs-adjacent via the
+      DGE-modernization additions; the #807 TC-pin bump is the first to cross it. Promotion to a read is a
+      data-utilization question deferred to the tumor-presence data audit."
   expression_call_class:
     role: signal
     reason: "the tumor-vs-adjacent-normal expression call; role:signal reach-confirmed via {capsule, claim_passthrough, display_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
@@ -167,6 +173,18 @@ tumor-rna-vs-adjacent:
   gtex_q_value:
     role: context
     reason: power / statistical qualifier
+  is_significant_provider_call:
+    role: provenance
+    reason: "the DGE provider's own significance flag (passthrough audit token, cf. allgene_percentile_context);
+      the presence call here is carried by expression_call_class/log2_fc/q_value, so this upstream boolean is
+      redundant provenance rather than a re-read signal. Arrived via the DGE-modernization additions; promotion to
+      a read is deferred to the tumor-presence data audit."
+  is_upregulated_provider_call:
+    role: provenance
+    reason: "the DGE provider's own up/down direction flag (passthrough audit token, cf. allgene_percentile_context);
+      direction is already carried by log2_fc/expression_call_class, so this upstream boolean is redundant
+      provenance rather than a re-read signal. Arrived via the DGE-modernization additions; promotion to a read is
+      deferred to the tumor-presence data audit."
   log2_fc:
     role: signal
     reason: "tumor-vs-adjacent log2 fold-change; the continuous presence effect size; role:signal reach-confirmed via {claim_passthrough, figure, salience, skill_code} (census 2026-09-19, blind to ledger)"

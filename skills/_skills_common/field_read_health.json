@@ -569,20 +569,15 @@
         "which_lineages_separate"
       ],
       "dependency-predictability": [
-        "delta_r2",
-        "model_agreement",
         "pearson_r_rf",
         "pearson_r_squared_rf",
         "pearson_r_squared_rf_ci_hi",
         "pearson_r_squared_rf_ci_lo",
-        "pearson_r_squared_xgb",
-        "pearson_r_xgb",
         "per_lineage_predictability",
         "pred_dominant_feature",
         "pred_dominant_feature_class",
         "pred_n_cell_lines_evaluated",
         "pred_top_features_rf",
-        "pred_top_features_xgb",
         "predictability_class"
       ],
       "domain-modality-relevance": [
@@ -1972,9 +1967,12 @@
         "allgene_percentile",
         "allgene_percentile_class",
         "allgene_percentile_context",
+        "base_mean",
         "expression_call_class",
         "gtex_log2_fc",
         "gtex_q_value",
+        "is_significant_provider_call",
+        "is_upregulated_provider_call",
         "log2_fc",
         "n_adjacent",
         "n_tumor",
@@ -2153,7 +2151,7 @@
     "n_no_reads_detected": 7,
     "n_reads_detected": 542,
     "n_roster_cards": 148,
-    "n_roster_fields": 1823,
+    "n_roster_fields": 1821,
     "n_undeclared_pairs": 4,
     "n_units": 23,
     "n_units_with_undeclared_reads": 2

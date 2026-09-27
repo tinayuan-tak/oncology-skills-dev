@@ -22,14 +22,10 @@ degradation-feasibility:
   n_e3_predicted_confident: 98
   surface_location_excluded: false
 dependency-predictability:
-  delta_r2: 0.07550691068172455
-  model_agreement: concordant
   pearson_r_rf: 0.6999973654747009
   pearson_r_squared_rf: 0.4899962842464447
   pearson_r_squared_rf_ci_hi: 0.5622678995132446
   pearson_r_squared_rf_ci_lo: 0.41575589776039124
-  pearson_r_squared_xgb: 0.41448935866355896
-  pearson_r_xgb: 0.6438084840774536
   per_lineage_predictability:
   - lineage: Skin
     n_cell_lines: 78
@@ -147,47 +143,6 @@ dependency-predictability:
     feature_class: cross_gene_expression
     importance: 0.012005461379885674
     rf_importance: 0.012005461379885674
-  pred_top_features_xgb:
-  - feature: own_mut_hotspot
-    feature_class: own_mut_hotspot
-    importance: 0.3344031274318695
-    rf_importance: 0.0
-  - feature: molsig_SBS7a
-    feature_class: mol_signature
-    importance: 0.09625635296106339
-    rf_importance: 0.0
-  - feature: expr_CPN1
-    feature_class: cross_gene_expression
-    importance: 0.0448358878493309
-    rf_importance: 0.0
-  - feature: expr_FARP2
-    feature_class: cross_gene_expression
-    importance: 0.03951837867498398
-    rf_importance: 0.0
-  - feature: molsig_SBS67
-    feature_class: mol_signature
-    importance: 0.03337504342198372
-    rf_importance: 0.0
-  - feature: expr_BIN3
-    feature_class: cross_gene_expression
-    importance: 0.02963782288134098
-    rf_importance: 0.0
-  - feature: expr_SOX10
-    feature_class: cross_gene_expression
-    importance: 0.01704937405884266
-    rf_importance: 0.0
-  - feature: fusion_RP11-500M10.1
-    feature_class: fusion
-    importance: 0.015418291091918945
-    rf_importance: 0.0
-  - feature: expr_SPACA3
-    feature_class: cross_gene_expression
-    importance: 0.015257191844284534
-    rf_importance: 0.0
-  - feature: expr_OR5J2
-    feature_class: cross_gene_expression
-    importance: 0.012005461379885674
-    rf_importance: 0.0
   predictability_class: own_omics_driven
 gdsc-drug-activity:
   datasets: GDSC1|GDSC2

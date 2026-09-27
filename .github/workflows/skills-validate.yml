@@ -111,7 +111,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
-          # PINNED — main @ 2026-09-18T11:36:00Z (#807). Bumped BY HAND; see SIBLING PINS above.
+          # PINNED — main @ 2026-09-27 (#807, TC PR#945: drop the retired XGBoost dual-model half of the
+          # dependency-predictability card). Bumped BY HAND; see SIBLING PINS above.
           #
           # BUMPED BY HAND HERE, not by the bump PR, because this pin and APERTURE_CEILING in
           # skills/_skills_common/tests/test_field_disposition.py are two halves of ONE fact and the
@@ -371,7 +372,20 @@ jobs:
           #     never a cell-line orphan), domain -2 (the two removed pairs). 779 <= APERTURE_CEILING 781 and
           #     781 - 779 = 2 <= APERTURE_SLACK 20, so THE CEILING DOES NOT MOVE and the pin bump is
           #     aperture-inert.
-          ref: 28e992cd09a178fd36439fe65506315f2a614e38
+          # ── BUMPED 28e992c -> d9b4d37 (#807, TC PR#945): drops the retired XGBoost dual-model half of
+          #     dependency-predictability — 5 display-only summary_fields (pearson_r_xgb,
+          #     pearson_r_squared_xgb, model_agreement, delta_r2, pred_top_features_xgb), the model_agreement
+          #     capsule categorical, and the predictability_model_divergent warning. The card adds NO reader,
+          #     so removal can only lower the domain and (for these unread fields) the orphan count.
+          #     APERTURE: MEASURED (census(SKILLS_ROOT) x TARGET_CONTRACTS_ROOT @ new pin, on this branch
+          #     rebased onto main db915c8c which lowered APERTURE_CEILING 781 -> 774 for the tumor-presence
+          #     presence-reservoir PR #1850):
+          #       new pin d9b4d37: domain 1821, candidate_orphans 773
+          #     773 <= APERTURE_CEILING 774 and 774 - 773 = 1 <= APERTURE_SLACK 20, so THIS bump needs NO
+          #     ceiling move (the 774 was banked by #1850, not by #807) and the pin bump is aperture-safe.
+          #     field_read_health.json / descriptor_coverage.json / warning_calibration.json regenerated in
+          #     this PR so their pinned rosters match.
+          ref: d9b4d37e85bbc4b147dcd4d734ebf4a675cf8b2f
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

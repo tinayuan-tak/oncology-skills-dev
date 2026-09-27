@@ -41,10 +41,10 @@ Kinome-atlas predictions + DepMap co-essentiality are carried **alongside** (`ki
 - **SIGNOR** quarterly release `signor-jul2026` (Oct2026 will supersede); derived per-gene = 33,083 human
   rows → ~44,996 dual-emitted edges (~4.2% unmapped). **CollecTRI** = `collectri-tf-regulon-per-gene-v1`.
 - **Phospho** ceiling = CPTAC 10-cohort set (`applies_when`). **PROGENy** = 33 indications × 14 pathways.
-- **Predictability** = 26q1-v4, 9,240 genes, RF+XGB — **SHAP computed** (`shap_computed: true`;
-  `top_features_rf_shap` / `top_features_xgb_shap` carry mean(|SHAP|) TreeExplainer attributions.
+- **Predictability** = 26q1-v4, 9,240 genes, RF — **SHAP computed** (`shap_computed: true`;
+  `top_features_rf_shap` carries mean(|SHAP|) TreeExplainer attributions.
   v4 re-materializes v3's exact gene set / model / CV with `shap` 0.52.0; the older v1/v2/v3 pins
-  fell back to RF-impurity / XGB-gain).
+  fell back to RF-impurity).
 
 ---
 
