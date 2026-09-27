@@ -1,0 +1,398 @@
+# FULLY HUMAN-REVIEWED. Every row carries `reviewed: true`: a human read the field's producers
+# (target-contracts card outputs.summary_fields) and its consumers (skills/immune-context/scripts/run.py
+# + the framework readers the census sees) and chose the role. immune-context is a GATELESS,
+# effector-axis skill: the immune_context_verdict is a DIRECT read of immune_context_class (run.py
+# _verdict; no resolver, no rule mapped into _RULE_TO_VERDICT), so the verdict SPINE is byte-stable and
+# every card beyond the primary immune-context card is VERDICT-INERT display/facet by design. `role:
+# signal` therefore records a field that feeds a claim/verdict SOMEWHERE in the framework -- reach is
+# measured BLIND to this ledger, globally, by _skills_common.field_disposition.census (only `exact`
+# evidence counts). Four fields carry a defensible signal: immune-context.immune_context_class (the
+# verdict token), tcga-til-fraction-saltz.til_fraction_class (the orthogonal absolute-TIL corroborator
+# the confidence RULER reads -- CONTRADICTS/CORROBORATES the CIBERSORT call and raises a first-class
+# conflict, v1.8.0), and the two spatial-tumor-normal-colocalization signals REUSED verbatim from the
+# reviewed tumor-selectivity ledger via the sibling test (spatial_coloc_class caps bite_tce at
+# `conditional` here -- v1.7.0/v1.8.0 -- and normal_epithelium_adjacency_fraction carries its
+# bystander-safety signal in tumor-selectivity). All four are exact-reached, so no `waived_because` is
+# needed. Well-formedness and reader-reach for `role: signal` are the CI-enforced properties
+# (skills/tests/test_field_disposition_ledgers.py); role CORRECTNESS is the human judgement `reviewed`
+# marks.
+_meta:
+  description: "Field-disposition ledger for immune-context -- every emitted summary_field carries an explicit role so nothing is dropped SILENTLY. Enforced by skills/tests/test_field_disposition_ledgers.py."
+  roles:
+    signal: feeds a claim / verdict (must be wired or explicitly waived)
+    context: qualifies a signal (power, certainty, statistical qualifier, cross-axis pointer)
+    provenance: "audit / identity / method token -- surfaced, never a signal"
+    display: human-facing detail or large container; verdict-inert by design
+  generated_from: target-contracts/cards/<card>.card.yaml outputs.summary_fields
+  reviewed: "true == a human read the field's producers and consumers and chose this role. Absent == auto-drafted from the field NAME; treat as a draft, not a decision."
+  waived_because: "only legal on `role: signal`. Records WHY a signal no declared reader reaches is being left unwired. A waiver must name the missing consumer or the owning repo; it is not a way to silence the guard. (No signal in this ledger needs one: all four are exact-reached.)"
+
+immune-context:
+  immune_context_class:
+    role: signal
+    reason: "headline pan-cancer rank of the CD8 SHARE of the leukocyte compartment; the gateless immune_context_verdict is a DIRECT read of this token (run.py _verdict), so it is the skill's one true verdict-bearing field; reach=exact"
+    reviewed: true
+  median_cd8_fraction:
+    role: context
+    reason: "median CD8 share of the leukocyte compartment; continuous magnitude the class RANKS -- the verdict reads the class/rank, not the raw share (reference_frame), so it qualifies rather than decides; reach=exact"
+    reviewed: true
+  median_total_t_cell_fraction:
+    role: context
+    reason: "median total T-cell fraction; abundance qualifier surfaced beside the CD8-share call on the headline; reach=exact"
+    reviewed: true
+  n_samples:
+    role: context
+    reason: "cohort sample count; power qualifier (also a NOT-READ 0-sentinel under the lymphoid-denominator guard, never rendered as a size -- v1.9.1); reach=exact"
+    reviewed: true
+  tumor_studies:
+    role: provenance
+    reason: "TCGA study codes composing the cohort; identity token cited by reference_frame (what the 'a cohort exists' claim rests on); reach=exact"
+    reviewed: true
+  cd8_hot_sample_fraction:
+    role: context
+    reason: "prevalence of strongly-infiltrated samples at the pan-cancer cut; heterogeneity_frame qualifier for the pooled median (bimodal-cohort blind spot); DESCRIPTIVE / non-gating by design (v1.9.0); reach=exact"
+    reviewed: true
+  cd8_treg_ratio:
+    role: context
+    reason: "CD8:Treg suppression ratio; suppression_frame qualifier (inflamed-but-SUPPRESSED != a bare hot call); non-gating (v1.9.0); reach=exact"
+    reviewed: true
+  cd8_m2_ratio:
+    role: context
+    reason: "CD8:M2-macrophage suppression ratio; suppression_frame qualifier; non-gating (v1.9.0); reach=exact"
+    reviewed: true
+  median_treg_fraction:
+    role: context
+    reason: "median Treg fraction; compartment magnitude behind cd8_treg_ratio and the leukocyte-composition figure; reach=name_only"
+    reviewed: true
+  median_m2_macrophage_fraction:
+    role: context
+    reason: "median M2-macrophage fraction; compartment magnitude behind cd8_m2_ratio; reach=name_only"
+    reviewed: true
+  median_m1_macrophage_fraction:
+    role: context
+    reason: "median M1-macrophage fraction; TME-composition magnitude for the leukocyte-composition figure; reach=name_only"
+    reviewed: true
+  antigen_conditioned_call:
+    role: context
+    reason: "target-DEPENDENT effector-escape call -- are the antigen-HIGH patients T-cell-poorer; v1.6.1 VERDICT-INERT display that qualifies the cohort-median hot call with antigen conditioning; reach=exact"
+    reviewed: true
+  antigen_high_immune_context_class:
+    role: context
+    reason: "immune-context class among the antigen-high patients; antigen-conditioned qualifier of the pooled class; verdict-inert (v1.6.1); reach=exact"
+    reviewed: true
+  cd8_high_minus_low:
+    role: context
+    reason: "CD8-share difference antigen-high minus antigen-low; effector-escape magnitude (negative => antigen-high patients poorer); the weaker of the two antigen-conditioning instruments (v1.10.0); reach=exact"
+    reviewed: true
+  cd8_fraction_antigen_high:
+    role: context
+    reason: "CD8 share in the antigen-high arm; raw arm behind cd8_high_minus_low; reach=orphan"
+    reviewed: true
+  cd8_fraction_antigen_low:
+    role: context
+    reason: "CD8 share in the antigen-low arm; raw arm behind cd8_high_minus_low; reach=orphan"
+    reviewed: true
+  n_patients_joined:
+    role: context
+    reason: "patients retained by the antigen-immune join; power qualifier for the antigen-conditioned read (data_unavailable when the join is thin); reach=exact"
+    reviewed: true
+  join_fraction:
+    role: context
+    reason: "fraction of the cohort retained by the antigen-conditioned join; join-quality / power qualifier; reach=orphan"
+    reviewed: true
+
+tcga-til-fraction-saltz:
+  til_fraction_class:
+    role: signal
+    reason: "absolute H&E-DL TIL corroborator (Saltz 2018); the confidence RULER reads it -- til_cibersort_agreement CONTRADICTS/CORROBORATES the relative CIBERSORT CD8 call and raises a first-class `conflict` that caps confidence (run.py _immune_corr, v1.8.0); reach=exact"
+    reviewed: true
+  median_til_percentage:
+    role: context
+    reason: "median TIL percentage; continuous magnitude behind til_fraction_class; reach=exact"
+    reviewed: true
+  n_samples:
+    role: context
+    reason: "Saltz cohort sample count; power qualifier surfaced as til_n_samples; reach=exact"
+    reviewed: true
+  median_number_of_clusters:
+    role: context
+    reason: "coarse spatial-aggregation hint (clustered-vs-dispersed TIL) -- a first spatial proxy the bulk CD8 fraction lacks; qualifier surfaced in immune_provenance (v1.6.1); reach=exact"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "Saltz method/pipeline version; audit / method token; reach=name_only"
+    reviewed: true
+  tcga_studies:
+    role: provenance
+    reason: "TCGA study codes for the Saltz cohort; identity token; reach=name_only"
+    reviewed: true
+  til_context:
+    role: provenance
+    reason: "audit / context token surfaced beside the TIL read; never a signal; reach=orphan"
+    reviewed: true
+
+spatial-tumor-normal-colocalization:
+  spatial_coloc_class:
+    role: signal
+    reason: in-situ spatial colocalization call; normal-epithelium bystander-adjacency signal, reach=exact
+    reviewed: true
+  top_enriched_compartment:
+    role: context
+    reason: named top enriched compartment; cross-pointer qualifier; reach=orphan
+    reviewed: true
+  top_enriched_value:
+    role: context
+    reason: top enriched-compartment value; magnitude qualifier; reach=orphan
+    reviewed: true
+  immune_adjacency_fraction:
+    role: context
+    reason: immune-compartment adjacency fraction; adjacency qualifier; reach=orphan
+    reviewed: true
+  stromal_adjacency_fraction:
+    role: context
+    reason: stromal-compartment adjacency fraction; adjacency qualifier; reach=orphan
+    reviewed: true
+  normal_epithelium_adjacency_fraction:
+    role: signal
+    reason: normal-epithelium adjacency fraction; bystander-safety magnitude, reach=exact
+    reviewed: true
+  target_pos_fraction_median:
+    role: context
+    reason: median target-positive fraction; positivity qualifier; reach=orphan
+    reviewed: true
+  n_donors:
+    role: context
+    reason: spatial donor count; power qualifier, reach=exact
+    reviewed: true
+  n_datasets:
+    role: context
+    reason: spatial dataset count; power qualifier; reach=name_only
+    reviewed: true
+
+myeloid-compartment-expression-cheng:
+  myeloid_expression_class:
+    role: context
+    reason: "pan-cancer tumour-infiltrating myeloid-state expression call; suppressive-TME cross-axis pointer; VERDICT-INERT display card (fires no rule; immune_context spine byte-stable); reach=exact"
+    reviewed: true
+  myeloid_target_family_flag:
+    role: context
+    reason: "flags a myeloid-target family; cross-axis modality pointer; reach=orphan"
+    reviewed: true
+  n_myeloid_subtypes_expressing:
+    role: context
+    reason: "count of expressing myeloid subtypes; breadth / power qualifier; reach=exact"
+    reviewed: true
+  n_myeloid_groups_measured:
+    role: context
+    reason: "myeloid groups measured; denominator / power qualifier; reach=orphan"
+    reviewed: true
+  n_cancer_types_expressing:
+    role: context
+    reason: "cancer types expressing; breadth qualifier; reach=orphan"
+    reviewed: true
+  expressing_myeloid_subtypes:
+    role: display
+    reason: "list of expressing myeloid subtypes; large container; verdict-inert; reach=orphan"
+    reviewed: true
+  max_detection_myeloid_subtype:
+    role: display
+    reason: "named max-detection myeloid subtype; human-facing detail; reach=orphan"
+    reviewed: true
+  max_detection_cancer_type:
+    role: display
+    reason: "named max-detection cancer type; human-facing detail; reach=orphan"
+    reviewed: true
+  max_detection_fraction:
+    role: context
+    reason: "max detection fraction across myeloid subtypes; magnitude qualifier; reach=name_only"
+    reviewed: true
+  median_detection_fraction:
+    role: context
+    reason: "median detection fraction across myeloid subtypes; magnitude qualifier; reach=orphan"
+    reviewed: true
+  max_abundance_log1p_cp10k:
+    role: context
+    reason: "max abundance (log1p CP10K); magnitude qualifier; reach=orphan"
+    reviewed: true
+  indication:
+    role: provenance
+    reason: "indication identity token; reach=name_only"
+    reviewed: true
+  product_id:
+    role: provenance
+    reason: "data-product identity token; reach=name_only"
+    reviewed: true
+
+caf-compartment-expression-luo:
+  caf_expression_class:
+    role: context
+    reason: "pan-cancer CAF-state expression call; stromal cross-axis pointer (stroma-vs-malignant denominator lens); VERDICT-INERT display card (fires no rule); reach=exact"
+    reviewed: true
+  n_caf_subtypes_expressing:
+    role: context
+    reason: "count of expressing CAF subtypes; breadth / power qualifier; reach=exact"
+    reviewed: true
+  n_caf_groups_measured:
+    role: context
+    reason: "CAF groups measured; denominator / power qualifier; reach=orphan"
+    reviewed: true
+  n_cancer_types_expressing:
+    role: context
+    reason: "cancer types expressing; breadth qualifier; reach=orphan"
+    reviewed: true
+  expressing_caf_subtypes:
+    role: display
+    reason: "list of expressing CAF subtypes; large container; verdict-inert; reach=orphan"
+    reviewed: true
+  max_detection_caf_subtype:
+    role: display
+    reason: "named max-detection CAF subtype; human-facing detail; reach=orphan"
+    reviewed: true
+  max_detection_cancer_type:
+    role: display
+    reason: "named max-detection cancer type; human-facing detail; reach=orphan"
+    reviewed: true
+  max_detection_fraction:
+    role: context
+    reason: "max detection fraction across CAF subtypes; magnitude qualifier; reach=name_only"
+    reviewed: true
+  median_detection_fraction:
+    role: context
+    reason: "median detection fraction across CAF subtypes; magnitude qualifier; reach=orphan"
+    reviewed: true
+  max_abundance_log1p_cp10k:
+    role: context
+    reason: "max abundance (log1p CP10K); magnitude qualifier; reach=orphan"
+    reviewed: true
+  indication:
+    role: provenance
+    reason: "indication identity token; reach=name_only"
+    reviewed: true
+  product_id:
+    role: provenance
+    reason: "data-product identity token; reach=name_only"
+    reviewed: true
+
+ici-response-association:
+  ici_response_class:
+    role: context
+    reason: "per-gene ICI (anti-PD-1) responder-vs-non-responder association call; melanoma-scoped cross-axis IO pointer; VERDICT-INERT display card; reach=exact"
+    reviewed: true
+  direction_higher_in:
+    role: context
+    reason: "direction of the responder-vs-non-responder difference; sign qualifier; reach=exact"
+    reviewed: true
+  n_cohorts:
+    role: context
+    reason: "number of ICI cohorts aggregated; power qualifier; reach=exact"
+    reviewed: true
+  n_cohorts_concordant:
+    role: context
+    reason: "count of concordant cohorts; consistency / power qualifier; reach=orphan"
+    reviewed: true
+  any_cohort_significant:
+    role: context
+    reason: "whether any cohort reaches significance; significance qualifier; reach=orphan"
+    reviewed: true
+  median_log2fc_resp_vs_nonresp:
+    role: context
+    reason: "median log2FC responder vs non-responder; effect-size magnitude; reach=orphan"
+    reviewed: true
+  min_mannwhitney_p:
+    role: context
+    reason: "minimum Mann-Whitney p across cohorts; statistical qualifier; reach=orphan"
+    reviewed: true
+  rollup_stouffer_p:
+    role: context
+    reason: "Stouffer roll-up p across cohorts; statistical qualifier; reach=orphan"
+    reviewed: true
+  rollup_stouffer_z:
+    role: context
+    reason: "Stouffer roll-up z across cohorts; statistical qualifier; reach=orphan"
+    reviewed: true
+  ici_agents:
+    role: provenance
+    reason: "ICI agents assayed; method / identity token; reach=orphan"
+    reviewed: true
+  cohorts:
+    role: display
+    reason: "list of contributing cohorts; large container; verdict-inert; reach=name_only"
+    reviewed: true
+  indication:
+    role: provenance
+    reason: "indication identity token; reach=name_only"
+    reviewed: true
+  indication_scope:
+    role: provenance
+    reason: "cohort scope token (melanoma-scoped); provenance / identity; reach=name_only"
+    reviewed: true
+  product_id:
+    role: provenance
+    reason: "data-product identity token; reach=name_only"
+    reviewed: true
+
+ici-response-imvigor210:
+  ici_response_class:
+    role: context
+    reason: "urothelial ICI-response call (IMvigor210); cross-axis IO pointer; VERDICT-INERT display card; reach=exact"
+    reviewed: true
+  immune_phenotype_enriched_in:
+    role: context
+    reason: "IHC-stratum argmax (desert / excluded / inflamed) of the target gene; wired as the antigen_phenotype_frame effector-escape scalar (v1.10.0); NON-GATING, modality-specific TCE-efficacy caveat; reach=name_only"
+    reviewed: true
+  kw_p_phenotype:
+    role: context
+    reason: "Kruskal-Wallis p for the phenotype stratification; statistical qualifier gating the antigen_phenotype_frame at 0.05 (v1.10.0); reach=name_only"
+    reviewed: true
+  indication_scope:
+    role: provenance
+    reason: "IMvigor210 cohort scope (BLCA / urothelial); identity token attributed in prose rather than used to abstain (v1.10.0); reach=name_only"
+    reviewed: true
+  log2fc_resp_vs_nonresp:
+    role: context
+    reason: "log2FC responder vs non-responder; effect-size magnitude; reach=orphan"
+    reviewed: true
+  mwu_p:
+    role: context
+    reason: "Mann-Whitney p (responder vs non-responder); statistical qualifier; reach=orphan"
+    reviewed: true
+  bh_q:
+    role: context
+    reason: "BH-adjusted q; statistical qualifier; reach=orphan"
+    reviewed: true
+  mean_logcpm_desert:
+    role: display
+    reason: "mean logCPM in the immune-desert stratum; per-stratum detail; reach=orphan"
+    reviewed: true
+  mean_logcpm_excluded:
+    role: display
+    reason: "mean logCPM in the immune-excluded stratum; per-stratum detail; reach=orphan"
+    reviewed: true
+  mean_logcpm_inflamed:
+    role: display
+    reason: "mean logCPM in the inflamed stratum; per-stratum detail; reach=orphan"
+    reviewed: true
+  mean_logcpm_responder:
+    role: display
+    reason: "mean logCPM in responders; per-group detail; reach=orphan"
+    reviewed: true
+  mean_logcpm_nonresponder:
+    role: display
+    reason: "mean logCPM in non-responders; per-group detail; reach=orphan"
+    reviewed: true
+  n_responder:
+    role: context
+    reason: "responder count; power qualifier; reach=name_only"
+    reviewed: true
+  n_nonresponder:
+    role: context
+    reason: "non-responder count; power qualifier; reach=name_only"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "IMvigor210 method/pipeline version; audit / method token; reach=name_only"
+    reviewed: true
+  ici_response_context:
+    role: provenance
+    reason: "audit / context token surfaced beside the ICI read; never a signal; reach=orphan"
+    reviewed: true
