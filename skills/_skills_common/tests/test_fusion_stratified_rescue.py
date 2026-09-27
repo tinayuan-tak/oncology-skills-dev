@@ -26,18 +26,31 @@ def _rules(*ids):
 
 
 def _skip_if_rung_absent():
-    """Skip gracefully if the A1-fusion-2 resolver rungs aren't present in the resolved contracts
-    (e.g. running against a target-contracts checkout without #208) — this test asserts the
-    NEW behavior, so an absent rung means the contract half hasn't landed here yet."""
-    v = resolve_verdict_for_gate(_rules("fusion-positive-strongly-dependent-supportive"), "genomic_alteration")
+    """Skip gracefully ONLY if the A1-fusion-2 resolver rungs aren't present in the resolved
+    contracts (e.g. running against a target-contracts checkout without #208) — this test asserts
+    the NEW behavior, so a genuinely absent rung means the contract half hasn't landed here yet.
+
+    The probe fires the rung WITH its required ``fusion-positive-indication-scoped-context`` gate:
+    scope-coherence Phase 1 made ``biomarker_stratified_dependency`` require that co-fire
+    (resolver priority 6), so an ISOLATED fire now resolves to ``insufficient`` (the resolver
+    ``default:``) even when the rung is fully present. Probing in isolation would conflate
+    "rung absent from contract" with "rung present but my probe is stale" and SKIP the whole
+    suite blind — the fail-open this suite exists to prevent."""
+    v = resolve_verdict_for_gate(
+        _rules("fusion-positive-strongly-dependent-supportive", "fusion-positive-indication-scoped-context"),
+        "genomic_alteration",
+    )
     if not v or v[0] != "biomarker_stratified_dependency":
         pytest.skip("A1-fusion-2 fusion-stratified resolver rung not present in resolved contracts")
 
 
 def test_fusion_strong_fires_biomarker_stratified_dependency():
     _skip_if_rung_absent()
+    # scope-coherence Phase 1: the biomarker rung requires the indication-scope gate co-fire
+    # (fusion-positive-indication-scoped-context, resolver priority 6).
     verdict, driving = resolve_verdict_for_gate(
-        _rules("fusion-positive-strongly-dependent-supportive"), "genomic_alteration"
+        _rules("fusion-positive-strongly-dependent-supportive", "fusion-positive-indication-scoped-context"),
+        "genomic_alteration",
     )
     assert verdict == "biomarker_stratified_dependency"
     # distinct driving_rule preserves auditability (NOT the mutation/CN rule)
@@ -47,7 +60,8 @@ def test_fusion_strong_fires_biomarker_stratified_dependency():
 def test_fusion_moderate_fires_moderate_biomarker_dependency():
     _skip_if_rung_absent()
     verdict, driving = resolve_verdict_for_gate(
-        _rules("fusion-positive-moderately-dependent-supportive"), "genomic_alteration"
+        _rules("fusion-positive-moderately-dependent-supportive", "fusion-positive-indication-scoped-context"),
+        "genomic_alteration",
     )
     assert verdict == "moderate_biomarker_dependency"
     assert driving == "fusion-positive-moderately-dependent-supportive"
@@ -58,7 +72,12 @@ def test_mutation_wins_first_match_over_fusion():
     before 2c)."""
     _skip_if_rung_absent()
     verdict, driving = resolve_verdict_for_gate(
-        _rules("mutant-strongly-dependent-supportive", "fusion-positive-strongly-dependent-supportive"),
+        _rules(
+            "mutant-strongly-dependent-supportive",
+            "mutant-indication-scoped-context",
+            "fusion-positive-strongly-dependent-supportive",
+            "fusion-positive-indication-scoped-context",
+        ),
         "genomic_alteration",
     )
     assert verdict == "biomarker_stratified_dependency"
@@ -69,7 +88,12 @@ def test_cn_wins_first_match_over_fusion():
     """CN precedes fusion (section 2b before 2c): amp+fusion both fire → driving names the CN path."""
     _skip_if_rung_absent()
     verdict, driving = resolve_verdict_for_gate(
-        _rules("cn-amplified-strongly-dependent-supportive", "fusion-positive-strongly-dependent-supportive"),
+        _rules(
+            "cn-amplified-strongly-dependent-supportive",
+            "cn-amplified-indication-scoped-context",
+            "fusion-positive-strongly-dependent-supportive",
+            "fusion-positive-indication-scoped-context",
+        ),
         "genomic_alteration",
     )
     assert verdict == "biomarker_stratified_dependency"
