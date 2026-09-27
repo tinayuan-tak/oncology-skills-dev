@@ -1,0 +1,895 @@
+# MOSTLY HUMAN-REVIEWED. Every row in this ledger carries `reviewed: true`: a human read the
+# field's producers and consumers and chose the role. target-intrinsic is a GATELESS, verdict-INERT
+# `tier: target` dossier (rules_scope: [], synthesis: none, verdict_fn=None): its safety / structure /
+# mechanism facts are HOME'd and claim-decomposed under their OWNING subskills, so `role: signal` here
+# records a field that feeds a claim/verdict SOMEWHERE in the framework (reach is measured BLIND to
+# this ledger, globally, by _skills_common.field_disposition.census). Only the two fields UNIQUE to
+# target-intrinsic that carry a defensible signal are projected into its own claim vector
+# (target_intrinsic_claims.py): domain-modality-relevance modality_implication_class (MODALITY_ROUTING)
+# and target-development-level tdl_class (TRACTABILITY_PRECEDENT). Completeness (exactly this skill's
+# run.py CARDS x each card's outputs.summary_fields) and reader-reach for `role: signal` are the two
+# CI-enforced properties. Roles for the four cards SHARED with the surface-modality-fit / tumor-presence
+# ledgers (surfaceome-family-classification, structure-features-static, shed-ectodomain-liability,
+# normal-tissue-liability) are REUSED verbatim from those reviewed ledgers via the sibling test.
+_meta:
+  description: "Field-disposition ledger for target-intrinsic \u2014 every emitted summary_field carries an explicit role so nothing is dropped SILENTLY. Enforced by skills/tests/test_field_disposition_ledgers.py."
+  roles:
+    signal: feeds a claim / verdict (must be wired or explicitly waived)
+    context: qualifies a signal (power, certainty, statistical qualifier, cross-axis pointer)
+    provenance: "audit / identity / method token \u2014 surfaced, never a signal"
+    display: human-facing detail or large container; verdict-inert by design
+  generated_from: target-contracts/cards/<card>.card.yaml outputs.summary_fields
+  reviewed: "true == a human read the fields producers and consumers and chose this role. Absent == auto-drafted from the field NAME; treat as a draft, not a decision."
+  waived_because: "only legal on `role: signal`. Records WHY a signal no declared reader reaches is being left unwired. A waiver must name the missing consumer or the owning repo; it is not a way to silence the guard. (No signal in this ledger needs one: all are exact-reached.)"
+target-identity-summary:
+  input_value:
+    role: provenance
+    reason: "raw target identifier as supplied; audit/identity token"
+    reviewed: true
+  resolution_status:
+    role: provenance
+    reason: "resolver status token; audit/identity"
+    reviewed: true
+  redirects_applied:
+    role: provenance
+    reason: "resolver redirect audit trail; identity/provenance token"
+    reviewed: true
+  resolved_hgnc_symbol:
+    role: provenance
+    reason: "resolved HGNC symbol; canonical identity token"
+    reviewed: true
+  resolved_hgnc_id:
+    role: provenance
+    reason: "resolved HGNC id; canonical identity token"
+    reviewed: true
+  resolved_ensembl_id:
+    role: provenance
+    reason: "resolved Ensembl gene id; canonical identity token"
+    reviewed: true
+  resolved_uniprot_canonical:
+    role: provenance
+    reason: "resolved canonical UniProt accession; identity token (uniprot_ac)"
+    reviewed: true
+  resolver_release_pin:
+    role: provenance
+    reason: "resolver release/manifest version pin; provenance token"
+    reviewed: true
+  biology_axis_curated:
+    role: provenance
+    reason: "curated biology-axis annotation of the target; identity/annotation token"
+    reviewed: true
+  biology_axis_source:
+    role: provenance
+    reason: "source of the biology-axis annotation; provenance token"
+    reviewed: true
+gnomad-lof-constraint:
+  constraint_class:
+    role: signal
+    reason: "gnomAD LoF-constraint call; the germline-constraint signal read by the safety subskills; reach-confirmed exact via {gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  human_ko_observed_class:
+    role: signal
+    reason: "categorical call for whether human homozygous-LoF (natural knockout) is observed; a distinct LoF-tolerance safety signal read in code; reach-confirmed exact via {skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  loeuf_score:
+    role: context
+    reason: "LOEUF magnitude behind constraint_class; continuous constraint qualifier (salience)"
+    reviewed: true
+  pli_score:
+    role: context
+    reason: "pLI magnitude behind constraint_class; continuous constraint qualifier (salience)"
+    reviewed: true
+  mis_z_score:
+    role: context
+    reason: "missense-constraint z-score magnitude; continuous qualifier (salience)"
+    reviewed: true
+  syn_z_score:
+    role: context
+    reason: "synonymous-constraint z-score; QC/calibration magnitude"
+    reviewed: true
+  obs_lof_count:
+    role: context
+    reason: "observed LoF-variant count; statistical input behind the constraint metrics"
+    reviewed: true
+  exp_lof_count:
+    role: context
+    reason: "expected LoF-variant count; statistical input / denominator behind the constraint metrics"
+    reviewed: true
+  obs_hom_lof_count:
+    role: context
+    reason: "observed homozygous-LoF count; statistical input behind human_ko_observed_class"
+    reviewed: true
+  exp_hom_lof_count:
+    role: context
+    reason: "expected homozygous-LoF count; statistical input"
+    reviewed: true
+  gene_length_bp:
+    role: context
+    reason: "gene length in bp; normaliser/denominator for the constraint counts"
+    reviewed: true
+  human_ko_context:
+    role: provenance
+    reason: "human-KO context/audit token"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "gnomAD-constraint method version; provenance token"
+    reviewed: true
+gene-burden-safety:
+  burden_safety_class:
+    role: signal
+    reason: "gene-burden safety call; the rare-variant burden signal read by the safety subskills; reach-confirmed exact via {display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  min_pvalue:
+    role: context
+    reason: "minimum association p-value; statistical-significance qualifier (salience)"
+    reviewed: true
+  n_significant:
+    role: context
+    reason: "count of significant burden associations; power qualifier (salience)"
+    reviewed: true
+  n_risk:
+    role: context
+    reason: "count of risk-direction associations; power qualifier (salience)"
+    reviewed: true
+  n_protect:
+    role: context
+    reason: "count of protective-direction associations; power qualifier (salience)"
+    reviewed: true
+  n_total_rows:
+    role: context
+    reason: "total burden rows evaluated; power/denominator qualifier (salience)"
+    reviewed: true
+  direction_on_target:
+    role: context
+    reason: "net direction of effect on the target; qualifier of the burden call"
+    reviewed: true
+  directions:
+    role: display
+    reason: "per-association direction container; human-facing detail"
+    reviewed: true
+  top_disease:
+    role: display
+    reason: "named strongest-associated disease; human-facing detail"
+    reviewed: true
+  top_ancestry:
+    role: display
+    reason: "named strongest-signal ancestry; human-facing detail"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "gene-burden method version; provenance token"
+    reviewed: true
+clingen-dosage:
+  dosage_sensitivity_class:
+    role: signal
+    reason: "ClinGen dosage-sensitivity call; the haploinsufficiency/triplosensitivity signal read by the safety subskills; reach-confirmed exact via {display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  germline_inheritance_mode:
+    role: signal
+    reason: "germline inheritance-mode call (AD/AR); a distinct dosage/mechanism safety signal that fires a gating rule; reach-confirmed exact via {gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_autosomal_dominant:
+    role: context
+    reason: "count of autosomal-dominant records; power qualifier (salience)"
+    reviewed: true
+  n_autosomal_recessive:
+    role: context
+    reason: "count of autosomal-recessive records; power qualifier (salience)"
+    reviewed: true
+  n_high_confidence:
+    role: context
+    reason: "count of high-confidence dosage records; power qualifier (salience)"
+    reviewed: true
+  n_total_rows:
+    role: context
+    reason: "total dosage rows evaluated; power/denominator qualifier (salience)"
+    reviewed: true
+  top_confidence:
+    role: context
+    reason: "strongest curation-confidence level; certainty qualifier (salience)"
+    reviewed: true
+  top_disease:
+    role: display
+    reason: "named strongest-associated disease; human-facing detail"
+    reviewed: true
+  allelic_requirements:
+    role: display
+    reason: "allelic-requirement container; human-facing detail"
+    reviewed: true
+  inheritance_allelic_requirements:
+    role: display
+    reason: "inheritance/allelic-requirement container; human-facing detail"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "ClinGen-dosage method version; provenance token"
+    reviewed: true
+clinvar-pathogenicity-safety:
+  clinvar_pathogenic_class:
+    role: signal
+    reason: "ClinVar germline-pathogenicity call; the pathogenic-variant safety signal read by the safety subskills; reach-confirmed exact via {gating_rule, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_pathogenic_germline:
+    role: context
+    reason: "count of pathogenic germline variants; power qualifier (salience)"
+    reviewed: true
+  n_pathogenic_germline_confident:
+    role: context
+    reason: "count of high-confidence pathogenic germline variants; power qualifier"
+    reviewed: true
+  n_pathogenic_somatic:
+    role: context
+    reason: "count of pathogenic somatic variants; power qualifier"
+    reviewed: true
+  n_rows:
+    role: context
+    reason: "total ClinVar rows evaluated; power/denominator qualifier"
+    reviewed: true
+  top_disease:
+    role: display
+    reason: "named strongest-associated disease; human-facing detail"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "ClinVar method version; provenance token"
+    reviewed: true
+mouse-ko-phenotype:
+  ko_phenotype_class:
+    role: signal
+    reason: "integrated mouse-KO phenotype call; the KO-phenotype safety signal read by the safety subskills; reach-confirmed exact via {capsule, display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  impc_viability_class:
+    role: signal
+    reason: "IMPC KO viability call (embryonic-lethal/subviable/viable); a distinct essentiality safety signal read in code; reach-confirmed exact via {skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  impc_ko_phenotype_class:
+    role: context
+    reason: "IMPC-source arm of the phenotype call behind the integrated ko_phenotype_class"
+    reviewed: true
+  evidence_tier:
+    role: context
+    reason: "KO-evidence tier; certainty qualifier behind ko_phenotype_class (capsule, salience)"
+    reviewed: true
+  n_lethal:
+    role: context
+    reason: "count of lethal phenotype records; power qualifier (salience)"
+    reviewed: true
+  impc_orthology_confidence:
+    role: context
+    reason: "IMPC orthology confidence; certainty qualifier for the mouse-human mapping"
+    reviewed: true
+  n_adult_lethal:
+    role: context
+    reason: "count of adult-lethal records; power qualifier"
+    reviewed: true
+  n_developmental_lethal:
+    role: context
+    reason: "count of developmental-lethal records; power qualifier"
+    reviewed: true
+  n_rows:
+    role: context
+    reason: "total KO rows evaluated; power/denominator qualifier"
+    reviewed: true
+  organ_classes:
+    role: display
+    reason: "list of affected organ-system classes; human-facing detail container"
+    reviewed: true
+  top_lethal_label:
+    role: display
+    reason: "named strongest lethal phenotype label; human-facing detail"
+    reviewed: true
+  impc_top_level_systems:
+    role: display
+    reason: "IMPC top-level affected systems container; human-facing detail"
+    reviewed: true
+  lethal_stages:
+    role: display
+    reason: "list of lethal developmental stages; human-facing detail container"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "mouse-KO method version; provenance token"
+    reviewed: true
+target-safety-prioritisation:
+  prioritisation_status:
+    role: signal
+    reason: "integrated OpenTargets safety-prioritisation call; the rolled-up safety signal read by the safety subskills; reach-confirmed exact via {capsule, salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  genetic_constraint_band:
+    role: context
+    reason: "genetic-constraint band; component rolled into prioritisation_status (capsule, salience)"
+    reviewed: true
+  has_safety_event_band:
+    role: context
+    reason: "safety-event band; component rolled into prioritisation_status (capsule, salience)"
+    reviewed: true
+  mouse_ko_score_band:
+    role: context
+    reason: "mouse-KO score band; component rolled into prioritisation_status (capsule)"
+    reviewed: true
+  ensembl_gene_id:
+    role: provenance
+    reason: "Ensembl gene id; identity token"
+    reviewed: true
+  ot_scores:
+    role: display
+    reason: "per-axis OpenTargets score container; human-facing detail"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "safety-prioritisation method version; provenance token"
+    reviewed: true
+surfaceome-family-classification:
+  family_class:
+    role: signal
+    reason: "surfaceome family-class call; fires family_class rules and feeds surface_family_class / surface_confirmation_state; reach-confirmed exact via {display_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  surface_protein_family:
+    role: context
+    reason: "names the specific surface-protein family behind family_class; cross-axis pointer / qualifier"
+    reviewed: true
+  is_surface_protein:
+    role: context
+    reason: "surfaceome-membership boolean; the categorical family_class carries the framework's read (name_only)"
+    reviewed: true
+  surfaceome_confidence_score:
+    role: context
+    reason: "surfaceome-membership confidence magnitude; certainty qualifier behind family_class (name_only)"
+    reviewed: true
+  source_surfy_positive:
+    role: provenance
+    reason: "SURFY predictor source flag; evidence-source provenance token (name_only)"
+    reviewed: true
+  source_hpa_plasma_membrane:
+    role: provenance
+    reason: "HPA plasma-membrane annotation source flag; provenance token (name_only)"
+    reviewed: true
+  source_uniprot_ec_number:
+    role: provenance
+    reason: "UniProt EC-number source flag; provenance token (ORPHAN)"
+    reviewed: true
+  source_iuphar_family:
+    role: provenance
+    reason: "IUPHAR family source flag; provenance token (ORPHAN)"
+    reviewed: true
+  fusion_provenance:
+    role: provenance
+    reason: "source-fusion provenance for the surfaceome call; provenance token (ORPHAN)"
+    reviewed: true
+  hpa_protein_class_verbatim:
+    role: provenance
+    reason: "verbatim HPA protein-class string; provenance/audit token (ORPHAN)"
+    reviewed: true
+structure-features-static:
+  hotspot_pocket_adjacency_call:
+    role: signal
+    reason: "hotspot/druggable-pocket adjacency call; fires hotspot_pocket_adjacency_call rules on the surface_intrinsic axis; reach-confirmed exact via {capsule, display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  mutation_hotspot_in_druggable_pocket:
+    role: context
+    reason: "boolean component behind hotspot_pocket_adjacency_call"
+    reviewed: true
+  pdb_coverage_class:
+    role: context
+    reason: "experimental-structure coverage class; structural-certainty qualifier behind the ligandability call"
+    reviewed: true
+  alphafold_confidence_class:
+    role: context
+    reason: "AlphaFold model-confidence class; structural-certainty qualifier behind the ligandability call"
+    reviewed: true
+  pdb_ids_available:
+    role: provenance
+    reason: "list of available PDB IDs; identity/provenance token (ORPHAN)"
+    reviewed: true
+  pdb_best_resolution_angstrom:
+    role: context
+    reason: "best crystallographic resolution; structure-quality qualifier (ORPHAN)"
+    reviewed: true
+  pdb_best_method:
+    role: provenance
+    reason: "best experimental structure method (X-ray/cryo-EM); provenance token (ORPHAN)"
+    reviewed: true
+  alphafold_plddt_mean:
+    role: context
+    reason: "mean pLDDT magnitude behind alphafold_confidence_class"
+    reviewed: true
+  alphafold_plddt_min:
+    role: context
+    reason: "min pLDDT magnitude; structural-certainty qualifier (ORPHAN)"
+    reviewed: true
+  alphafold_plddt_min_domain:
+    role: display
+    reason: "names the lowest-confidence domain; human-facing detail (ORPHAN)"
+    reviewed: true
+  n_domains_low_plddt:
+    role: context
+    reason: "count of low-confidence domains; power/certainty qualifier (ORPHAN)"
+    reviewed: true
+  disordered_fraction:
+    role: context
+    reason: "disordered-residue fraction; structural qualifier behind ligandability_disorder_class (name_only)"
+    reviewed: true
+  structural_ligandability_class:
+    role: signal
+    reason: "structural-ligandability call (the SM tractability signal read by tractability-small-molecule); reach is global via census; reach-confirmed exact via {capsule, display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_ligandability_axes:
+    role: context
+    reason: "count of satisfied ligandability axes; magnitude behind structural_ligandability_class (name_only)"
+    reviewed: true
+  has_experimental_cocrystal:
+    role: context
+    reason: "cocrystal-evidence boolean; ligandability-axis component behind the class"
+    reviewed: true
+  has_druggable_pocket:
+    role: context
+    reason: "druggable-pocket boolean; ligandability-axis component behind the class"
+    reviewed: true
+  has_virtual_screen_hit:
+    role: context
+    reason: "virtual-screen-hit boolean; ligandability-axis component (name_only)"
+    reviewed: true
+  has_cryptic_site:
+    role: context
+    reason: "cryptic-site boolean; ligandability-axis component behind the class"
+    reviewed: true
+  has_annotated_binding_site:
+    role: context
+    reason: "annotated-binding-site boolean; ligandability-axis component (ORPHAN)"
+    reviewed: true
+  is_foldable:
+    role: context
+    reason: "foldability boolean; structural qualifier (ORPHAN)"
+    reviewed: true
+  ligandability_disorder_class:
+    role: signal
+    reason: "disorder-adjusted ligandability class; read by tractability-small-molecule as a structural call (reach global via census); reach-confirmed exact via {skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "structure-method version; provenance token (name_only)"
+    reviewed: true
+shed-ectodomain-liability:
+  shed_liability_class:
+    role: signal
+    reason: "shed-ectodomain antigen-sink liability call; fires shed_liability_class rules (OPPOSING for adc/bite_tce/antibody); reach-confirmed exact via {capsule, display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  shed_evidence_tier:
+    role: context
+    reason: "shed-evidence tier; certainty qualifier behind shed_liability_class"
+    reviewed: true
+  serum_marker:
+    role: display
+    reason: "named clinical serum marker (e.g. CA125); human-facing identity detail"
+    reviewed: true
+  shed_product:
+    role: display
+    reason: "named shed ectodomain product; human-facing identity detail"
+    reviewed: true
+  shedding_protease:
+    role: display
+    reason: "named sheddase protease; human-facing mechanistic detail"
+    reviewed: true
+  hpa_secretome_location:
+    role: provenance
+    reason: "HPA secretome location annotation; provenance token (ORPHAN)"
+    reviewed: true
+  source_citation:
+    role: provenance
+    reason: "curation source citation; provenance token (ORPHAN)"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "shed-method version; provenance token (name_only)"
+    reviewed: true
+  measured_shed_class:
+    role: signal
+    reason: "measured Olink conditioned-media shed call; fires measured_shed_class rules (shed-ectodomain-measured-media-opposing); reach-confirmed exact via {capsule, display_rule, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  media_mean_npx:
+    role: context
+    reason: "conditioned-media mean NPX; magnitude behind measured_shed_class"
+    reviewed: true
+  media_n_lines_detected:
+    role: context
+    reason: "count of cell lines with media-detected shedding; power qualifier"
+    reviewed: true
+  media_panel_high_npx:
+    role: context
+    reason: "panel-high NPX reference; magnitude qualifier behind measured_shed_class"
+    reviewed: true
+  media_uniprot:
+    role: provenance
+    reason: "UniProt AC for the media measurement; identity/provenance token (ORPHAN)"
+    reviewed: true
+gene-ontology-annotation:
+  annotation_class:
+    role: signal
+    reason: "GO annotation-depth class call; a mechanism/annotation signal surfaced across the framework; reach-confirmed exact via {salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_go_terms_total:
+    role: context
+    reason: "total GO-term count; magnitude behind annotation_class (salience)"
+    reviewed: true
+  n_biological_process:
+    role: context
+    reason: "count of biological-process terms; magnitude qualifier"
+    reviewed: true
+  n_cellular_component:
+    role: context
+    reason: "count of cellular-component terms; magnitude qualifier"
+    reviewed: true
+  n_molecular_function:
+    role: context
+    reason: "count of molecular-function terms; magnitude qualifier"
+    reviewed: true
+  n_go_terms_experimental:
+    role: context
+    reason: "count of experimentally-evidenced GO terms; magnitude/certainty qualifier"
+    reviewed: true
+  top_biological_process:
+    role: display
+    reason: "named top biological-process term; human-facing detail"
+    reviewed: true
+  top_cellular_component:
+    role: display
+    reason: "named top cellular-component term; human-facing detail"
+    reviewed: true
+  top_molecular_function:
+    role: display
+    reason: "named top molecular-function term; human-facing detail"
+    reviewed: true
+  uniprot_ac_resolved:
+    role: provenance
+    reason: "resolved UniProt accession; identity token (uniprot_ac)"
+    reviewed: true
+signaling-network-mechanism:
+  network_class:
+    role: signal
+    reason: "signaling-network class call; the network-mechanism signal that fires a gating rule; reach-confirmed exact via {gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  has_actionable_moa:
+    role: context
+    reason: "boolean actionable-MoA flag; mechanism qualifier read in code"
+    reviewed: true
+  has_pd_marker:
+    role: context
+    reason: "boolean PD-marker-present flag; mechanism qualifier that drives a display rule"
+    reviewed: true
+  moa_classes_present:
+    role: display
+    reason: "set of MoA classes present; human-facing detail container"
+    reviewed: true
+  pd_marker_classes_present:
+    role: display
+    reason: "set of PD-marker classes present; human-facing detail container"
+    reviewed: true
+  kinome_atlas_predictions:
+    role: display
+    reason: "kinome-atlas prediction container; human-facing detail"
+    reviewed: true
+  coessentiality_context:
+    role: provenance
+    reason: "co-essentiality context/audit token"
+    reviewed: true
+  high_confidence_edges_count:
+    role: context
+    reason: "count of high-confidence network edges; magnitude behind network_class"
+    reviewed: true
+  n_downstream_effectors:
+    role: context
+    reason: "count of downstream effectors; magnitude qualifier (salience)"
+    reviewed: true
+  n_upstream_regulators:
+    role: context
+    reason: "count of upstream regulators; magnitude qualifier (salience)"
+    reviewed: true
+  moa_ontology_unmapped_fraction:
+    role: context
+    reason: "fraction of MoA terms unmapped to the ontology; QC/certainty qualifier"
+    reviewed: true
+  moa_ontology_version:
+    role: provenance
+    reason: "MoA ontology version; provenance token"
+    reviewed: true
+  source_counts:
+    role: provenance
+    reason: "per-source contribution counts; provenance/audit token"
+    reviewed: true
+  sources_wired:
+    role: provenance
+    reason: "which evidence sources were wired; provenance/audit token"
+    reviewed: true
+  downstream_effectors:
+    role: display
+    reason: "list of downstream effectors; human-facing detail container"
+    reviewed: true
+  upstream_regulators:
+    role: display
+    reason: "list of upstream regulators; human-facing detail container"
+    reviewed: true
+reactome-pathway-membership:
+  pathway_class:
+    role: signal
+    reason: "Reactome pathway-membership class call; a mechanism signal surfaced across the framework; reach-confirmed exact via {capsule, salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  is_signaling:
+    role: context
+    reason: "boolean signaling-pathway membership; mechanism qualifier (capsule)"
+    reviewed: true
+  pathway_count:
+    role: context
+    reason: "count of member pathways; magnitude behind pathway_class (capsule, salience)"
+    reviewed: true
+  top_level_pathways:
+    role: display
+    reason: "list of top-level pathways; human-facing detail container"
+    reviewed: true
+  specific_pathways:
+    role: display
+    reason: "list of specific pathways; human-facing detail container"
+    reviewed: true
+  uniprot_ac_resolved:
+    role: provenance
+    reason: "resolved UniProt accession; identity token (uniprot_ac)"
+    reviewed: true
+ppi-interactome:
+  interactome_class:
+    role: signal
+    reason: "PPI interactome hubness call (hub/connected/sparse); a mechanism signal tiered in run.py _TARGET_INTRINSIC_VALUE_TIERS; reach-confirmed exact via {salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  physical_interactome_class:
+    role: signal
+    reason: "physical-only interactome call; a distinct mechanism signal; reach-confirmed exact via {salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  n_high_confidence_interactors:
+    role: context
+    reason: "count of high-confidence interactors; magnitude behind interactome_class (salience)"
+    reviewed: true
+  n_physical_interactors:
+    role: context
+    reason: "count of physical interactors; magnitude behind physical_interactome_class"
+    reviewed: true
+  n_corum_complexes:
+    role: context
+    reason: "count of CORUM complexes; magnitude qualifier"
+    reviewed: true
+  in_protein_complex:
+    role: context
+    reason: "boolean protein-complex membership; qualifier"
+    reviewed: true
+  corum_complexes:
+    role: display
+    reason: "list of CORUM complexes; human-facing detail container"
+    reviewed: true
+  top_interactors:
+    role: display
+    reason: "list of top interactors; human-facing detail container"
+    reviewed: true
+  top_physical_partners:
+    role: display
+    reason: "list of top physical partners; human-facing detail container"
+    reviewed: true
+  string_protein_id:
+    role: provenance
+    reason: "STRING protein id; identity token"
+    reviewed: true
+protein-domains-class:
+  protein_class:
+    role: signal
+    reason: "protein-class call from domain architecture; a mechanism/class signal surfaced across the framework; reach-confirmed exact via {capsule, salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  protein_features_class:
+    role: signal
+    reason: "integrated protein-features class call; a distinct mechanism/actionability signal; reach-confirmed exact via {capsule, salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  protein_class_primary:
+    role: context
+    reason: "primary protein-class refinement behind protein_class (capsule)"
+    reviewed: true
+  domain_evidence:
+    role: context
+    reason: "domain-evidence tier; certainty qualifier behind the domain calls (capsule, salience)"
+    reviewed: true
+  n_domains:
+    role: context
+    reason: "annotated domain count; magnitude qualifier (salience)"
+    reviewed: true
+  domain_architecture:
+    role: display
+    reason: "domain-architecture string; human-facing detail"
+    reviewed: true
+  domain_names:
+    role: display
+    reason: "list of domain names; human-facing detail container"
+    reviewed: true
+  interpro_domain_architecture:
+    role: display
+    reason: "InterPro domain-architecture string; human-facing detail"
+    reviewed: true
+  interpro_domain_names:
+    role: display
+    reason: "list of InterPro domain names; human-facing detail container"
+    reviewed: true
+  interpro_n_domains:
+    role: context
+    reason: "InterPro domain count; magnitude qualifier"
+    reviewed: true
+  uniprot_ac:
+    role: provenance
+    reason: "UniProt accession; identity token (uniprot_ac)"
+    reviewed: true
+target-development-level:
+  tdl_class:
+    role: signal
+    reason: "Pharos/IDG Target Development Level call; the TRACTABILITY_PRECEDENT signal in target-intrinsic's own claim vector (target_intrinsic_claims.py); reach-confirmed exact via {salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  tdl_meaning:
+    role: display
+    reason: "human-readable gloss of tdl_class; verdict-inert display detail carried in the TDL atom"
+    reviewed: true
+  target_family:
+    role: context
+    reason: "Pharos target-family classification; cross-axis pointer carried in the TDL atom"
+    reviewed: true
+  novelty_score:
+    role: context
+    reason: "Pharos novelty-score magnitude; qualifier carried in the TDL atom"
+    reviewed: true
+measured-potency-tractability:
+  measured_bioactivity_class:
+    role: signal
+    reason: "measured chemical-matter bioactivity call (ChEMBL/BindingDB); the measured-tractability signal read across the framework; reach-confirmed exact via {capsule, gating_rule, salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  chembl_clinical_phase_class:
+    role: signal
+    reason: "ChEMBL clinical-phase precedent call; a distinct drug-development-precedent signal that fires a gating rule; reach-confirmed exact via {capsule, gating_rule, salience} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  chembl_approved_engagement_class:
+    role: signal
+    reason: "ChEMBL approved-drug engagement call; a distinct precedent signal that fires a gating rule; reach-confirmed exact via {gating_rule} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  best_measured_potency_neglog_m:
+    role: context
+    reason: "best measured potency (neglog M); continuous magnitude behind measured_bioactivity_class (salience)"
+    reviewed: true
+  chembl_best_pchembl:
+    role: context
+    reason: "best ChEMBL pChEMBL value; continuous potency magnitude (salience)"
+    reviewed: true
+  chembl_n_potent_ligands:
+    role: context
+    reason: "count of ChEMBL potent ligands; power qualifier (name_only)"
+    reviewed: true
+  chembl_max_clinical_phase:
+    role: context
+    reason: "max clinical phase reached; magnitude behind chembl_clinical_phase_class"
+    reviewed: true
+  bindingdb_best_p_affinity:
+    role: context
+    reason: "best BindingDB p-affinity; continuous potency magnitude"
+    reviewed: true
+  bindingdb_n_potent_ligands:
+    role: context
+    reason: "count of BindingDB potent ligands; power qualifier"
+    reviewed: true
+  n_direct_interactions:
+    role: context
+    reason: "count of direct target-ligand interactions; power qualifier"
+    reviewed: true
+  measured_potency_context:
+    role: provenance
+    reason: "measured-potency context/audit token"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "measured-potency method version; provenance token"
+    reviewed: true
+domain-modality-relevance:
+  modality_implication_class:
+    role: signal
+    reason: "domain->modality implication call; the MODALITY_ROUTING signal in target-intrinsic's own claim vector (target_intrinsic_claims.py); reach-confirmed exact via {display_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  modality_implication_basis:
+    role: context
+    reason: "basis of the routing call (curated vs heuristic); corroboration/certainty qualifier - target_intrinsic_claims._modality_corr treats it as a property of the single arm, not a second arm (salience)"
+    reviewed: true
+  scaffolding_function:
+    role: display
+    reason: "named scaffolding function behind the routing direction; mechanistic detail carried in the modality atom"
+    reviewed: true
+  modality_context:
+    role: provenance
+    reason: "modality context/audit token carried in the modality atom"
+    reviewed: true
+  functional_domains:
+    role: display
+    reason: "list of functional domains; human-facing detail container"
+    reviewed: true
+  protein_class:
+    role: context
+    reason: "protein-class pointer echoed from the domains axis; cross-axis qualifier"
+    reviewed: true
+  n_domains:
+    role: context
+    reason: "annotated domain count; magnitude qualifier (salience)"
+    reviewed: true
+paralog-buffering:
+  paralog_buffering_class:
+    role: signal
+    reason: "paralog-buffering call; the genetic-redundancy signal read across the framework; reach-confirmed exact via {display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)"
+    reviewed: true
+  strongest_paralog_delta:
+    role: context
+    reason: "strongest paralog buffering delta; continuous magnitude behind paralog_buffering_class (salience)"
+    reviewed: true
+  strongest_paralog_symbol:
+    role: context
+    reason: "names the strongest buffering paralog; identifies the subject of the buffering call"
+    reviewed: true
+  n_paralogs_annotated:
+    role: context
+    reason: "count of annotated paralogs; power qualifier (salience)"
+    reviewed: true
+  n_paralogs_functionally_buffering:
+    role: context
+    reason: "count of functionally-buffering paralogs; power qualifier"
+    reviewed: true
+  functional_paralogs:
+    role: display
+    reason: "list of functional paralogs; human-facing detail container"
+    reviewed: true
+  strongest_paralog_ohnolog:
+    role: context
+    reason: "ohnolog flag for the strongest paralog; evolutionary qualifier"
+    reviewed: true
+  strongest_paralog_ohnolog_status:
+    role: context
+    reason: "ohnolog-status detail for the strongest paralog; evolutionary qualifier"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "paralog method version; provenance token"
+    reviewed: true
+normal-tissue-liability:
+  normal_tissue_breadth_class:
+    role: signal
+    reason: "breadth of normal-tissue expression; the selectivity-liability call surfaced in presence; role:signal reach-confirmed via {display_rule, question_table, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reviewed: true
+  essential_tissue_flag:
+    role: signal
+    reason: "boolean essential-normal-tissue safety flag; fires a gating rule and is surfaced as salient; a heuristic mis-bucket into display, corrected here (does not move presence_verdict); role:signal reach-confirmed via {display_rule, gating_rule, salience, skill_code} (census 2026-09-19)"
+    reviewed: true
+  hpa_tissue_distribution:
+    role: display
+    reason: "per-tissue HPA distribution container; verdict-inert human-facing detail; no exact reader (census 2026-09-19)"
+    reviewed: true
+  hpa_tissue_specificity:
+    role: context
+    reason: "HPA tissue-specificity category; cross-axis selectivity qualifier surfaced in presence; reached via {salience} (census 2026-09-19)"
+    reviewed: true
+  n_essential_tissues_with_expression:
+    role: context
+    reason: "power / statistical qualifier"
+    reviewed: true
+  essential_tissues_flagged:
+    role: context
+    reason: "list naming which essential tissues drove essential_tissue_flag; identifies the subject of the flag; reached via {skill_code} (census 2026-09-19)"
+    reviewed: true
+  n_specific_tissues:
+    role: display
+    reason: "human-facing detail / large container"
+    reviewed: true
+  specific_tissues:
+    role: display
+    reason: "human-facing detail / large container"
+    reviewed: true
+  safety_tissue_flags:
+    role: display
+    reason: "human-facing detail / large container"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: "provenance/audit token"
+    reviewed: true
