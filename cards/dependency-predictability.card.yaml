@@ -7,12 +7,9 @@
 #   1. Bootstrap 95% CI on r² for calibration
 #   2. Feature attributions alongside RF importances (mean(|SHAP|) TreeExplainer values
 #      when the `shap` lib is present. The canonical 26q1-v4 precompute ran with shap
-#      installed, so top_features_rf_shap and top_features_xgb_shap are TRUE SHAP and
-#      independent second-model opinions; the older v1/v2/v3 pins took the documented
-#      fallback path — shap_computed:false — where attribution = RF impurity and the two
-#      columns are byte-identical duplicates.)
-#   3. RF + XGBoost dual-model with agreement/divergence diagnostic
-#   4. Lineage-conditional companion table (per-lineage r² + top feature)
+#      installed, so top_features_rf_shap is TRUE SHAP; the older v1/v2/v3 pins took the
+#      documented fallback path — shap_computed:false — where attribution = RF impurity.)
+#   3. Lineage-conditional companion table (per-lineage r² + top feature)
 #
 # DEPMAP-PARITY (Broad's cds-daintree):
 #   Model:         RandomForestRegressor(n_estimators=100, max_depth=8,
@@ -41,7 +38,7 @@
 #   - DepMap's dynamic MatchRelated related-entity lookup
 
 card_id: dependency-predictability
-version: 2.1.0
+version: 2.2.0
 question: "How well can {target.symbol}'s Chronos dependency be predicted from a genome-wide multi-omics + lineage feature set? Is the dependency biomarker-anchored (target-own omics dominate), context/driver-dependent (lineage/arm/co-driver flags dominate), or unpredictable (standard features don't explain Chronos)?"
 
 # Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
@@ -52,7 +49,6 @@ capsule:
   categorical_fields:
     - predictability_class
     - pred_dominant_feature_class
-    - model_agreement
 
 applies_when:
   - "context.data_sources.depmap_predictability_available == true"
@@ -77,15 +73,10 @@ outputs:
     - pearson_r_squared_rf              # r_rf² (primary DepMap-parity scalar)
     - pearson_r_squared_rf_ci_lo        # bootstrap 95% CI lower bound
     - pearson_r_squared_rf_ci_hi        # bootstrap 95% CI upper bound
-    - pearson_r_xgb                     # XGBoost companion
-    - pearson_r_squared_xgb
-    - model_agreement                   # 'concordant' | 'divergent' | 'single_model'
-    - delta_r2                          # r²_rf - r²_xgb (dual-model divergence)
     # Feature-attribution outputs
     - pred_top_features_rf              # top-10 features by mean(|SHAP|) in canonical 26q1-v4
                                           # (RF impurity fallback in the older v1/v2/v3 pins)
                                           # struct{feature, feature_class, importance, rf_importance}
-    - pred_top_features_xgb             # same for XGBoost
     - pred_dominant_feature             # top-1 feature name
     - pred_dominant_feature_class       # feature-class of the top-1 feature
     - predictability_class              # DESCRIPTIVE (drives Tier-2 rules)
@@ -121,16 +112,11 @@ outputs:
       - metabolomics
       - unpredictable
       - data_unavailable
-    model_agreement:
-      - concordant                      # |delta_r2| < 0.1
-      - divergent                       # |delta_r2| ≥ 0.1
-      - single_model                    # XGBoost unavailable at precompute time
-      - data_unavailable
 
   figures:
     - id: feature_importance_bar
       type: horizontal_bar
-      description: "Horizontal bar of top-10 importance-ranked features (RF; mean(|SHAP|) in the canonical 26q1-v4 build, impurity-importance fallback in the older v1/v2/v3 pins), colored by feature_class. Reads as: dominant navy/red = own-omic biomarker; dominant slate = cross-gene expression / arm-level CN; dominant gray = lineage-context. Title carries r² + bootstrap CI + predictability_class + optional RF↔XGB divergence caveat."
+      description: "Horizontal bar of top-10 importance-ranked features (RF; mean(|SHAP|) in the canonical 26q1-v4 build, impurity-importance fallback in the older v1/v2/v3 pins), colored by feature_class. Reads as: dominant navy/red = own-omic biomarker; dominant slate = cross-gene expression / arm-level CN; dominant gray = lineage-context. Title carries r² + bootstrap CI + predictability_class."
       preferred_surfaces: [markdown, ppt, decision_memo]
       primary: true
     - id: lineage_predictability
@@ -149,9 +135,6 @@ thresholds:
   rf_n_estimators: 100
   rf_max_depth: 8
   rf_min_samples_leaf: 5
-  xgb_n_estimators: 100
-  xgb_max_depth: 6
-  xgb_learning_rate: 0.1
 
 warning_predicates:
   - warning_id: predictability_low_cell_line_count
@@ -160,9 +143,6 @@ warning_predicates:
   - warning_id: predictability_wide_ci
     if: "(pearson_r_squared_rf_ci_hi - pearson_r_squared_rf_ci_lo) > 0.20"
     message: "95% CI on r² spans more than 0.20 — high uncertainty; a single-run r² point estimate over-states confidence in the biomarker class call."
-  - warning_id: predictability_model_divergent
-    if: "model_agreement == 'divergent'"
-    message: "RF and XGBoost disagree on r² by more than 0.10 — feature-attribution structure differs between tree types. Inspect the top_features_xgb list; a divergent XGBoost identifies an interaction structure RF misses."
   - warning_id: predictability_lineage_collapsed
     if: "predictability_class == 'context_or_driver_dependent' && pred_dominant_feature_class == 'lineage'"
     message: "Lineage one-hot dominates; the model has essentially learned a per-lineage baseline. Patient-selection beyond indication unlikely from standard omics."
@@ -194,9 +174,8 @@ threshold_roles:
   # in the training build depmap_predictability_precompute/cli.py — the bands at :85 (R2_HIGH_CI_LO=0.35)
   # applied in _classify at :365-376 and baked into the parquet's predictability_class at :543; the
   # CV/model constants at :88+ (CV_N_SPLITS, SELECT_K_BEST, BOOTSTRAP_N, MIN_CELL_LINES_PER_GENE,
-  # LINEAGE_MIN_LINES, RF n_estimators=100/max_depth=8/min_samples_leaf=5, XGB n_estimators=100/
-  # max_depth=6/learning_rate=0.1) applied in the per-fold pipeline (:231-275) and echoed into the
-  # derived manifest (:998+). Declared method_parameter/consumed_by the card's own read call so
+  # LINEAGE_MIN_LINES, RF n_estimators=100/max_depth=8/min_samples_leaf=5) applied in the per-fold
+  # pipeline and echoed into the derived manifest. Declared method_parameter/consumed_by the card's own read call so
   # THRESHOLD_UNUSED stops asking for numbers that live in the frozen substrate the method consumes.
   r2_high_ci_lo:
     role: method_parameter
@@ -223,14 +202,5 @@ threshold_roles:
     role: method_parameter
     consumed_by: depmap-predictability
   rf_min_samples_leaf:
-    role: method_parameter
-    consumed_by: depmap-predictability
-  xgb_n_estimators:
-    role: method_parameter
-    consumed_by: depmap-predictability
-  xgb_max_depth:
-    role: method_parameter
-    consumed_by: depmap-predictability
-  xgb_learning_rate:
     role: method_parameter
     consumed_by: depmap-predictability

@@ -966,10 +966,6 @@
         ],
         "data": [
           {
-            "field": "delta_r2",
-            "value": 0.0232
-          },
-          {
             "field": "pearson_r_rf",
             "value": 0.6841
           },
@@ -987,7 +983,6 @@
         "is_driving": false
       },
       "key_fields": {
-        "delta_r2": 0.0232,
         "pearson_r_rf": 0.6841,
         "pearson_r_squared_rf": 0.4679,
         "pearson_r_squared_rf_ci_hi": 0.5228
