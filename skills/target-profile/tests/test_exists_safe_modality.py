@@ -198,3 +198,130 @@ def test_new_favorable_tokens_clear_wt_loss_hold(token):
     survives, supp = _survives_surface(_AMP, token)
     assert not survives, f"{token} is a viable surface arm → WT-loss hold should clear (not fail-closed)"
     assert any(s.get("suppressed_by", {}).get("kind") == "exists_safe_modality" for s in supp)
+
+
+# --- SK #1863 (epic #1749 Milestone-2 PR2): the per-modality decision_frame as a one-directional
+# RESERVATION reader on the B2 clear. A frame that reports a MEASURED shed (ADC) / within-tumour
+# antigen-escape (TCE) veto means the biologics arm that would clear the WT-loss hold is compromised,
+# so the hold SURVIVES as a hold-with-reservation instead of being fully suppressed. This is the SOLE
+# INTENTIONAL VERDICT MOVE of #1863 (the ERBB2/TROP2 favorable-surface + shed/escape case).
+
+_SURF_FIXTURES = Path(__file__).resolve().parents[2] / "surface-modality-fit" / "tests" / "fixtures"
+
+
+def _surface_cards_from_fixture(name: str) -> list[dict]:
+    """Build a surface-modality-fit `cards` list (the shape the fan-out stores on the surface sub_result)
+    from a frozen dispatcher fixture (card_id -> summary map). Gives the real surface `_headline`
+    reconstruction the FULL card set it reads via get_card_field — the honest production reconstruction."""
+    import yaml
+
+    data = yaml.safe_load((_SURF_FIXTURES / f"{name}.yaml").read_text())
+    return [{"card_id": cid, "summary": summary} for cid, summary in data.items() if isinstance(summary, dict)]
+
+
+def _survives_surface_cards(fired, surface_verdict, surface_cards, modality=None):
+    subs = {
+        "safety": {"fired": fired, "verdict": ("highly_constrained_safety_concern", "x")},
+        "surface_modality": {"verdict": (surface_verdict, "adc-tce-fit"), "cards": surface_cards, "fired": []},
+    }
+    survivors, supp = tp_gates._suppressed_gate_hits(list(_HIT), subs, modality)
+    safety = [h for h in survivors if h["short"] == "safety"]
+    return safety, supp
+
+
+def test_erbb2_shed_and_escape_survives_with_reservation():
+    """THE INTENTIONAL MOVE. ERBB2/COADREAD: amp-driven (no allele-selective SM escape) with a FAVORABLE
+    surface fit — pre-PR2 the WT-loss hold cleared via the biologics arm. But the real surface headline
+    reports a clinically-shed ectodomain (ADC frame veto) AND within-tumour antigen escape (TCE frame
+    veto), so both biologics arms are compromised: the WT-loss hold now SURVIVES as a hold-with-
+    reservation. The action stays `hold` (no new kill/token)."""
+    cards = _surface_cards_from_fixture("erbb2_coadread")
+    safety, supp = _survives_surface_cards(_AMP, "both_viable", cards)
+    assert safety, "shed ectodomain + antigen escape compromise the clearing biologics arms → hold must SURVIVE"
+    res = safety[0].get("_reservation")
+    assert res and res["kind"] == "modality_fit_veto_reservation", "surviving hit must carry the reservation"
+    assert res["reserved_channels"] == ["adc", "bite_tce"], res
+    assert safety[0]["action"] == "hold", "the reservation tempers a clear; it never escalates the action"
+    # NOT recorded as a full exists_safe_modality clear (the clear was tempered, not applied).
+    assert not any(s.get("suppressed_by", {}).get("kind") == "exists_safe_modality" for s in supp)
+
+
+def test_favorable_surface_without_shed_or_escape_clears_byte_stable():
+    """Byte-stability boundary: the SAME favorable ERBB2 surface but with a membrane-retained ectodomain
+    and low antigen escape reports NO frame veto → the WT-loss hold clears exactly as pre-PR2
+    (exists_safe_modality). Only a MEASURED shed/escape veto moves the verdict."""
+    cards = _surface_cards_from_fixture("erbb2_coadread")
+    for c in cards:
+        if c["card_id"] == "shed-ectodomain-liability":
+            c["summary"]["shed_liability_class"] = "not_shed_membrane_retained"
+        if c["card_id"] == "tumor-scrna-celltype-expression":
+            c["summary"]["tce_antigen_escape_class"] = "escape_risk_low"
+    safety, supp = _survives_surface_cards(_AMP, "both_viable", cards)
+    assert not safety, "no shed/escape veto → the WT-loss hold clears exactly as pre-PR2"
+    assert any(s.get("suppressed_by", {}).get("kind") == "exists_safe_modality" for s in supp)
+
+
+def test_shed_only_reserves_adc_arm_only():
+    """A clinically-shed ectodomain with LOW antigen escape reserves ONLY the ADC arm (the ADC frame
+    vetoes on shed; the TCE frame is clean on escape_risk_low)."""
+    cards = _surface_cards_from_fixture("erbb2_coadread")
+    for c in cards:
+        if c["card_id"] == "tumor-scrna-celltype-expression":
+            c["summary"]["tce_antigen_escape_class"] = "escape_risk_low"
+    safety, _ = _survives_surface_cards(_AMP, "both_viable", cards)
+    assert safety, "a shed ectodomain compromises the ADC clearing arm → hold survives"
+    assert safety[0]["_reservation"]["reserved_channels"] == ["adc"]
+
+
+def test_reservation_never_fires_without_a_b2_clear():
+    """ONE-DIRECTIONAL invariant: the reservation only TEMPERS a clear that would otherwise happen. A
+    non-GoF constrained target with the SAME shed/escape surface but NO viable biologics arm (the hold
+    was never being cleared by B2) is unaffected — the hold stands as it always did, with NO reservation
+    (the reservation must never invent a kill for a target not already being cleared)."""
+    cards = _surface_cards_from_fixture("erbb2_coadread")
+    # _NONGOF: only the constraint warning fired → no allele-selective escape AND, with neither_viable,
+    # no viable biologics arm → B2 never reaches a clear.
+    safety, supp = _survives_surface_cards(_NONGOF, "neither_viable", cards)
+    assert safety, "no viable arm → the WT-loss hold stands (unchanged)"
+    assert "_reservation" not in safety[0], "no B2 clear → the reservation must not fire"
+
+
+def test_modality_frame_reservations_reads_frame_vetoes(monkeypatch):
+    """Unit: the reader consults the real per-modality frames over a reconstructed headline and returns
+    the biologics channels whose frame reports a MEASURED veto. A clinically-shed headline reserves the
+    ADC arm; escape_risk_low leaves the TCE arm clean; `antibody` (no frame) is never reserved."""
+    import tp_fanout
+
+    headline = {
+        "surface_density_class": "high",
+        "topology_class": "single_pass_type_1",
+        "shed_liability_class": "clinically_shed",
+        "tce_antigen_escape_class": "escape_risk_low",
+    }
+    monkeypatch.setattr(tp_fanout, "_load_sub_skill_headline_fn", lambda name: lambda cards, fired, vp: headline)
+    subs = {"surface_modality": {"cards": [{"card_id": "x", "summary": {}}], "fired": [], "verdict": None}}
+    reserved = tp_gates._modality_frame_reservations(subs, ["adc", "bite_tce", "antibody"])
+    assert set(reserved) == {"adc"}, reserved
+    assert reserved["adc"], "the reserved channel must carry the frame's veto reason(s)"
+
+
+def test_modality_frame_reservations_clean_headline_is_empty(monkeypatch):
+    """A membrane-retained, low-escape headline yields NO frame veto → no reservation."""
+    import tp_fanout
+
+    headline = {
+        "surface_density_class": "high",
+        "topology_class": "single_pass_type_1",
+        "shed_liability_class": "not_shed_membrane_retained",
+        "tce_antigen_escape_class": "escape_risk_low",
+    }
+    monkeypatch.setattr(tp_fanout, "_load_sub_skill_headline_fn", lambda name: lambda cards, fired, vp: headline)
+    subs = {"surface_modality": {"cards": [{"card_id": "x", "summary": {}}], "fired": [], "verdict": None}}
+    assert tp_gates._modality_frame_reservations(subs, ["adc", "bite_tce"]) == {}
+
+
+def test_modality_frame_reservations_verdict_inert_on_missing_inputs():
+    """Verdict-inert fallbacks: no surface cards, and non-biologics channels, both yield {} (the hold
+    clears exactly as pre-PR2 wherever the frame cannot speak)."""
+    assert tp_gates._modality_frame_reservations({"surface_modality": {}}, ["adc"]) == {}
+    assert tp_gates._modality_frame_reservations({}, ["small_molecule", "antibody"]) == {}

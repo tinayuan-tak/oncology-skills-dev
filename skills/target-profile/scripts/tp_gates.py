@@ -521,6 +521,64 @@ def _reconciled_contradiction_keys(sub_results: dict, contracts_repo: Path | Non
     return out
 
 
+# The biologics channels each per-modality decision_frame speaks for (SK#1863, epic #1749 M2 PR2). Only
+# these are consulted as a one-directional reservation reader in the B2 clear: a MEASURED shed veto
+# compromises the ADC arm, a within-tumour antigen-escape veto the TCE arm. `antibody` has NO modality-fit
+# frame, so it is never reserved (an antibody arm is not qualified/disqualified by these two vetoes).
+_MODALITY_FRAME_BY_CHANNEL = {"adc": "adc", "bite_tce": "tce"}
+
+
+def _modality_frame_reservations(sub_results: dict, channels) -> dict:
+    """Best-effort / VERDICT-INERT-on-failure reservation reader (SK#1863, epic #1749 Milestone-2 PR2).
+
+    Reconstruct the surface-modality-fit headline (via the tp_fanout reconstruction path) and consult the
+    per-modality L3 decision_frame(s) — ``adc_modality_fit_frame`` / ``tce_modality_fit_frame`` — for the
+    biologics channels in ``channels``. Returns ``{channel: [veto reasons]}`` for each consulted channel
+    whose frame reports a MEASURED veto (ADC: a clinically-shed ectodomain antigen sink; TCE: within-tumour
+    antigen escape / reservoir).
+
+    ROLES-NOT-WEIGHTS / ACYCLICITY: this reads the frame's OUTPUT dict (an L3 decision object) as a GATE
+    READER ONLY — the result is never fed back into any frame input, L2 property, claim_vector, or resolver.
+    It consumes ``vetoes_applied`` (populated even on the frame's production ``question`` result, because the
+    veto loop in ``evaluate_frame`` runs before the unresolved-critical early return); it NEVER forces the
+    frame token off ``question`` and NEVER supplies ``normal_liability`` into the MISSING_UNRESOLVED slot.
+
+    Any failure (no surface cards, a reconstruction error, a frame import/eval failure) → ``{}`` (no
+    reservation), so the WT-loss hold clears exactly as it did pre-PR2 wherever the frame cannot speak
+    (byte-stable). Mirrors the ``safety_verdict_by_modality`` best-effort stamp pattern."""
+    relevant = [ch for ch in channels if ch in _MODALITY_FRAME_BY_CHANNEL]
+    if not relevant:
+        return {}
+    try:
+        surf = sub_results.get("surface_modality") or {}
+        cards = surf.get("cards")
+        if not cards:
+            return {}
+        from tp_fanout import _load_sub_skill_headline_fn
+
+        hook = _load_sub_skill_headline_fn("surface-modality-fit")
+        if hook is None:
+            return {}
+        headline = hook(cards, surf.get("fired") or [], surf.get("verdict")) or {}
+
+        from _skills_common.evidence_frame import adc_modality_fit_frame, tce_modality_fit_frame
+
+        reserved: dict = {}
+        for ch in relevant:
+            frame_fn = adc_modality_fit_frame if _MODALITY_FRAME_BY_CHANNEL[ch] == "adc" else tce_modality_fit_frame
+            vetoes = (frame_fn(headline) or {}).get("vetoes_applied") or []
+            if vetoes:
+                reserved[ch] = list(vetoes)
+        return reserved
+    except Exception as e:  # noqa: BLE001 — a reservation reader must never break the gate
+        print(
+            f"[target-profile] modality-frame reservation reader failed ({type(e).__name__}); the WT-loss "
+            f"hold clears without a modality-fit reservation (verdict-inert fallback).",
+            file=sys.stderr,
+        )
+        return {}
+
+
 def _suppressed_gate_hits(
     hits: list[dict],
     sub_results: dict,
@@ -648,6 +706,26 @@ def _suppressed_gate_hits(
             else:
                 _chans = sorted(ch for ch, c in _vbm.items() if _channel_is_safe(ch, c.get("action")))
             if _chans:
+                # PR2 (SK#1863, epic #1749 Milestone-2): consult the per-modality decision_frame(s) as a
+                # one-directional RESERVATION reader before clearing. A frame reporting a MEASURED shed
+                # (ADC) / within-tumour antigen-escape (TCE) veto means the biologics arm that would clear
+                # this WT-loss hold is itself compromised — so the hold SURVIVES as a hold-with-reservation
+                # instead of being fully suppressed (the ERBB2/TROP2 favorable-surface + shed/escape case).
+                # STRICTLY one-directional: fires ONLY inside this already-clearing branch (it never invents
+                # a veto/kill for a target not already being cleared by B2), keeps the hit's OWN `hold`
+                # action (no new gate token, no escalation), and reads the frame's OUTPUT dict as a gate
+                # reader only (never fed back into a frame input / L2 property / claim_vector / resolver —
+                # acyclicity holds). Verdict-inert on any reconstruction/frame failure → clears as pre-PR2.
+                _reserved = _modality_frame_reservations(sub_results, _chans)
+                if _reserved:
+                    _reservation = {
+                        "kind": "modality_fit_veto_reservation",
+                        "reserved_channels": sorted(_reserved),
+                        "cleared_channels_considered": _chans,
+                        "frame_vetoes": {ch: _reserved[ch] for ch in sorted(_reserved)},
+                    }
+                    survivors.append({**h, "_reservation": _reservation})
+                    continue
                 suppressed_by = {"kind": "exists_safe_modality", "safe_channels": _chans}
         if suppressed_by:
             suppressions.append({**h, "suppressed_by": suppressed_by, "policy_source": src})
