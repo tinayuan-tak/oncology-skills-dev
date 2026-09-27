@@ -1,0 +1,241 @@
+# MOSTLY AUTHORED, NOT auto-drafted. Every row carries `reviewed: true` == a human read the field's
+# producers (target-contracts card) and consumers (scripts/run.py _headline + the verdict-inert
+# confidence/provenance projections) and chose the role. translational-readiness is GATELESS
+# (verdict_fn=None) + TOKENLESS (no resolver): a role:signal feeds the DESCRIPTIVE claim_vector /
+# key_signals / headline (the only 'claim'), never a nomination verdict. Completeness + signal-reach
+# are CI-enforced by skills/tests/test_field_disposition_ledgers.py. organoid-crispr-dependency is
+# HOME'd under functional-requirement; its reviewed roles are REUSED here (sibling-test consistency).
+_meta:
+  description: 'Field-disposition ledger for translational-readiness — every emitted summary_field carries
+    an explicit role so nothing is dropped SILENTLY. translational-readiness is a GATELESS DESCRIPTIVE
+    skill (verdict_fn=None, no resolver): all four legs are VERDICT-INERT translational context, so a
+    role:signal here means the field feeds the descriptive claim_vector / key_signals / headline (the
+    skill''s only ''claim''), not a nomination verdict. Enforced by skills/tests/test_field_disposition_ledgers.py.'
+  roles:
+    signal: feeds a claim / verdict (must be wired or explicitly waived)
+    context: qualifies a signal (power, certainty, statistical qualifier, cross-axis pointer)
+    provenance: audit / identity / method token — surfaced, never a signal
+    display: human-facing detail or large container; verdict-inert by design
+  generated_from: target-contracts/cards/<card>.card.yaml outputs.summary_fields
+  reviewed: true == a human read the field's producers and consumers and chose this role. Absent == auto-drafted
+    from the field NAME; treat as a draft, not a decision. Every row in this ledger is reviewed:true (authored,
+    not auto-drafted).
+  waived_because: 'only legal on `role: signal`. Records WHY a signal no declared reader reaches is being
+    left unwired. A waiver must name the missing consumer or the owning repo; it is not a way to silence
+    the guard. No waivers are needed in this ledger: all four leg *_class signals are exact-reached (census
+    2026-09-27).'
+target-model-availability:
+  model_availability_class:
+    role: signal
+    reason: MODEL leg readiness class (per-indication HCMI patient-derived model coverage) — the critical
+      translational axis (can I preclinically validate a nomination here at all?); feeds claim_vector
+      / key_signals / headline critical_axes=MODEL. role:signal reach-confirmed via EXACT get_card_field
+      read in scripts/run.py _headline (census 2026-09-27, blind to ledger).
+    reviewed: true
+  n_patient_derived_models:
+    role: context
+    reason: count of patient-derived models available in the indication; power / coverage qualifier behind
+      model_availability_class — gates _tr_positive_substrate. Read EXACT in scripts/run.py _headline;
+      a count, not the categorical call.
+    reviewed: true
+  primary_site_breakdown:
+    role: display
+    reason: per-primary-site model-count container; human-facing detail carried only to the cross-modal
+      synthesis facet; verdict-inert by design.
+    reviewed: true
+  source:
+    role: provenance
+    reason: data-source audit token (HCMI catalog); surfaced, never a signal.
+    reviewed: true
+target-genotype-matched-model:
+  genotype_matched_class:
+    role: signal
+    reason: GENOTYPE leg class (does an available HCMI model carry a functional coding alteration in THIS
+      target?); feeds claim_vector + _tr_positive_substrate. role:signal reach-confirmed via EXACT get_card_field
+      read in scripts/run.py _headline (census 2026-09-27, blind to ledger).
+    reviewed: true
+  n_models_with_alteration:
+    role: context
+    reason: count of models carrying the target's alteration; power qualifier behind genotype_matched_class.
+      Read EXACT in scripts/run.py _headline; a count, not the call.
+    reviewed: true
+  n_models_with_recurrent_hotspot:
+    role: context
+    reason: count of models carrying a recurrent hotspot alteration; specificity / power qualifier behind
+      genotype_matched_class. No exact reader in-skill.
+    reviewed: true
+  n_models_in_indication:
+    role: context
+    reason: indication-scoped model denominator; coverage / power qualifier behind genotype_matched_class.
+      No exact reader in-skill.
+    reviewed: true
+  variant_classes_present:
+    role: context
+    reason: which variant classes back the genotype match (functional-coding qualifier distinguishing
+      a driver-type alteration from a passenger); qualifies genotype_matched_class. No exact reader in-skill.
+    reviewed: true
+  hgvsp_examples:
+    role: display
+    reason: example HGVSp protein-change strings; human-facing illustrative detail; verdict-inert by design.
+    reviewed: true
+  source:
+    role: provenance
+    reason: data-source audit token (HCMI WXS MAF join); surfaced, never a signal.
+    reviewed: true
+target-pdx-drug-response:
+  pdx_drug_response_class:
+    role: signal
+    reason: PDX (in-vivo) leg class (Novartis PDXE objective-response); feeds claim_vector + _tr_positive_substrate
+      + the PDX-attribution confound detector. role:signal reach-confirmed via EXACT get_card_field read
+      in scripts/run.py _headline (census 2026-09-27, blind to ledger).
+    reviewed: true
+  responder_fraction:
+    role: context
+    reason: PDXE objective-responder fraction; power / magnitude qualifier behind pdx_drug_response_class
+      — drives the low-fraction (<0.15) attribution-confound flag. Read EXACT in scripts/run.py _headline.
+    reviewed: true
+  most_active_treatment:
+    role: context
+    reason: identity of the most-active PDXE treatment; read to detect a COMBINATION-attribution confound
+      (' + ' in name) that qualifies pdx_drug_response_class. Read EXACT in scripts/run.py _headline;
+      a qualifier input, not an independent call.
+    reviewed: true
+  most_active_treatment_median_best_avg_response:
+    role: context
+    reason: median best-avg response for the most-active treatment; response magnitude behind pdx_drug_response_class.
+      No exact reader in-skill.
+    reviewed: true
+  median_best_avg_response:
+    role: context
+    reason: cohort median best-avg PDX response; magnitude behind pdx_drug_response_class. No exact reader
+      in-skill.
+    reviewed: true
+  min_best_avg_response:
+    role: context
+    reason: strongest (min) best-avg PDX response; tail magnitude behind pdx_drug_response_class. No exact
+      reader in-skill.
+    reviewed: true
+  n_treatments:
+    role: context
+    reason: count of treatments tested; coverage / power qualifier behind pdx_drug_response_class.
+    reviewed: true
+  n_models_tested:
+    role: context
+    reason: count of PDX models tested; power qualifier behind pdx_drug_response_class. No exact reader
+      in-skill.
+    reviewed: true
+  n_response_records:
+    role: context
+    reason: count of drug-response records; power qualifier behind pdx_drug_response_class. No exact reader
+      in-skill.
+    reviewed: true
+  treatment_types:
+    role: context
+    reason: modality categories of the treatments tested; coverage qualifier behind pdx_drug_response_class.
+      No exact reader in-skill.
+    reviewed: true
+  source:
+    role: provenance
+    reason: data-source audit token (Novartis PDXE, Gao 2015); surfaced, never a signal.
+    reviewed: true
+organoid-crispr-dependency:
+  frac_dependent:
+    role: context
+    reason: organoid-cohort dependent fraction; breadth magnitude behind organoid_dependency_class. REUSED
+      reviewed role from functional-requirement (this card's HOME).
+    reviewed: true
+  frac_strongly_dependent:
+    role: context
+    reason: organoid-cohort strongly-dependent fraction; breadth magnitude behind organoid_dependency_class.
+      REUSED reviewed role from functional-requirement (home).
+    reviewed: true
+  mean_gene_effect:
+    role: context
+    reason: mean organoid gene-effect; magnitude behind organoid_dependency_class. REUSED reviewed role
+      from functional-requirement (home).
+    reviewed: true
+  median_gene_effect:
+    role: context
+    reason: median organoid gene-effect; magnitude behind organoid_dependency_class. REUSED reviewed role
+      from functional-requirement (home).
+    reviewed: true
+  min_gene_effect:
+    role: context
+    reason: minimum organoid gene-effect (strongest dependency); tail magnitude behind organoid_dependency_class.
+      REUSED reviewed role from functional-requirement (home).
+    reviewed: true
+  n_dependent:
+    role: context
+    reason: count of dependent organoid models; power qualifier. REUSED reviewed role from functional-requirement
+      (home).
+    reviewed: true
+  n_strongly_dependent:
+    role: context
+    reason: count of strongly-dependent organoid models; power qualifier. REUSED reviewed role from functional-requirement
+      (home).
+    reviewed: true
+  n_models_screened:
+    role: context
+    reason: count of organoid models screened; power / coverage qualifier. REUSED reviewed role from functional-requirement
+      (home).
+    reviewed: true
+  n_models_total:
+    role: context
+    reason: total organoid models available; power / coverage qualifier. REUSED reviewed role from functional-requirement
+      (home).
+    reviewed: true
+  n_lineages_evaluated:
+    role: context
+    reason: count of organoid lineages evaluated; power / coverage qualifier. REUSED reviewed role from
+      functional-requirement (home).
+    reviewed: true
+  organoid_dependency_class:
+    role: signal
+    reason: organoid ex-vivo (DepMap 3D CRISPR) dependency-reproduction class; read here as TRANSLATIONAL
+      validation-readiness (card HOME'd under functional-requirement, composed there; read gracefully
+      via card_summary here). role:signal reach-confirmed EXACT tree-wide (census 2026-09-27, blind to
+      ledger). REUSED reviewed role from functional-requirement.
+    reviewed: true
+  organoid_dependency_context:
+    role: provenance
+    reason: provenance / audit token describing the organoid-dependency basis; surfaced, never a signal.
+      REUSED reviewed role from functional-requirement (home).
+    reviewed: true
+  organoid_dependency_percentile:
+    role: context
+    reason: organoid dependency percentile; magnitude behind organoid_dependency_class. REUSED reviewed
+      role from functional-requirement (home).
+    reviewed: true
+  organoid_lineage:
+    role: provenance
+    reason: identity / scope key naming the indication-matched organoid lineage (read into the provenance
+      quorum here); not a signal. REUSED reviewed role from functional-requirement (home).
+    reviewed: true
+  organoid_lineage_class:
+    role: context
+    reason: indication-matched organoid lineage-selectivity class qualifying organoid_dependency_class;
+      read here (via card_summary) to key _tr_positive_substrate / the confidence caveat — an inert-but-read
+      qualifier, not an independent signal. REUSED reviewed role from functional-requirement (home).
+    reviewed: true
+  organoid_lineage_frac_dependent:
+    role: context
+    reason: within-lineage dependent fraction (the strongest indication-matched translational read per
+      run.py); magnitude behind organoid_lineage_class; read via card_summary + carried to the synthesis
+      facet. REUSED reviewed role from functional-requirement (home).
+    reviewed: true
+  organoid_lineage_n_screened:
+    role: context
+    reason: count of organoid models screened within the matched lineage; power qualifier — read here
+      to derive the small-cohort reliability flag (n < min_organoid_models=20). REUSED reviewed role from
+      functional-requirement (home).
+    reviewed: true
+  per_lineage_stats:
+    role: display
+    reason: human-facing per-lineage organoid statistics container; verdict-inert detail. REUSED reviewed
+      role from functional-requirement (home).
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: method-version audit token; surfaced, never a signal. REUSED reviewed role from functional-requirement
+      (home).
+    reviewed: true
