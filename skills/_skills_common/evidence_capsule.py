@@ -34,6 +34,7 @@ from _skills_common.evidence_salience import (
     sig_round,
     spec_for,
 )
+from _skills_common.measurement_types import substrate_for_card
 from _skills_common.subgroup_derivation import (
     _TIERV,
     _card_capsule_contract,
@@ -255,7 +256,33 @@ def _scale_for(measurement_type, field):
     return scale_for_field(measurement_type, field) or gloss(field)[1] or None
 
 
-def _numeric_anchors(summary, cfg, contract_anchors=(), measurement_type=None):
+def _measurement_provenance(card_id, measurement_type, summary):
+    """The VALUE-GRAIN provenance tuple `{source_product_id, n_basis, method_version}` attached to every
+    emitted numeric anchor, so a single emitted measurement is a SELF-CONTAINED provenanced datum rather
+    than a value whose n / source / method must be JOINED back across three sibling structures
+    (`capsules[cid].n_basis` + the card-grain `provenance_keys` + the top-level `provenance.versions`) —
+    Arm A gap 3, #1862. Card-grained provenance cannot attribute a card that emits MULTIPLE values to each
+    value's own dataset/n/method; carrying the tuple at the anchor grain is the structural room for that
+    (today the card's values share one tuple, resolved once and stamped onto each — correct, and the room
+    exists the moment a value diverges). Resolution:
+      • source_product_id — the GOVERNED evidence_substrate the value's card is a view of, resolved through
+        the measurement_types registry (card_id → measurement_type → evidence_substrate), so a value's
+        source resolves to a governed data product rather than a free-text `*_source` scrape. None when the
+        registry is unreachable (a skills-only checkout) or the type carries no substrate tag — an EXPLICIT
+        'not governed here', never silently bare. Registry-pinned: byte-identical to the target-contracts
+        pin CI checks out (freeze the goldens against that pin, as with method_version).
+      • n_basis — the card's sample-size basis (`_n_basis`), the n behind the measurement.
+      • method_version — the card method fingerprint from the summary (the same field `_l2_method_versions`
+        folds into the L2 record_revision_id), or None."""
+    _mt, substrate = substrate_for_card(card_id)
+    return {
+        "source_product_id": substrate,
+        "n_basis": (_n_basis(summary) or None),
+        "method_version": summary.get("method_version") or summary.get("_method_version"),
+    }
+
+
+def _numeric_anchors(summary, cfg, contract_anchors=(), measurement_type=None, card_id=None):
     """The capsule's numbers, in PRECEDENCE order: a per-card `config['anchor_fields']` runtime override
     first, then the card contract's `capsule.numeric_anchors` declaration, then the `_ANCHOR_HINTS`
     substring scan as the guess of last resort.
@@ -289,7 +316,36 @@ def _numeric_anchors(summary, cfg, contract_anchors=(), measurement_type=None):
             for k, v in summary.items()
             if isinstance(v, (int, float)) and not _denied(k) and any(h in k.lower() for h in _ANCHOR_HINTS)
         )[:4]
-    return [{"metric": f, "value": _num(summary.get(f)), "scale": _scale_for(measurement_type, f)} for f in picked]
+    prov = _measurement_provenance(card_id, measurement_type, summary)
+    return [
+        {
+            "metric": f,
+            "value": _num(summary.get(f)),
+            "scale": _scale_for(measurement_type, f),
+            # A FRESH copy per anchor: the tuple is card-grain today, but each value OWNS its provenance
+            # (an aliased dict would couple a future per-value divergence to its siblings).
+            "provenance": dict(prov),
+        }
+        for f in picked
+    ]
+
+
+def assert_measurement_provenanced(numeric_anchors):
+    """The value-grain companion of `assert_no_bare_numbers` (#1862): every emitted numeric anchor that
+    carries a `value` MUST also carry a `provenance` KEY — its self-contained `{source_product_id, n_basis,
+    method_version}` slot (resolved tokens, or explicit nulls for the ungoverned/un-fingerprinted tail).
+    A `{metric, value}` entry with no `provenance` key is UN-ATTRIBUTED and is refused, so provenance can
+    never silently regress to the card grain. Returns the anchors unchanged so it can wrap an emission;
+    raises ValueError on the first un-provenanced value."""
+    for a in numeric_anchors or ():
+        if not isinstance(a, dict):
+            continue
+        if a.get("value") is not None and "provenance" not in a:
+            raise ValueError(
+                f"capsule numeric_anchor {a.get('metric')!r} carries a value with no provenance "
+                f"(measurement-grained provenance invariant)"
+            )
+    return numeric_anchors
 
 
 def assert_no_bare_numbers(numeric_anchors):
@@ -502,7 +558,12 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
             "tier": tier,
             "evidence_state": "measured",
             "class": cls,
-            "numeric_anchors": (assert_no_bare_numbers(_numeric_anchors(summ, cfg, contract_anchors, mt)) or None),
+            "numeric_anchors": (
+                assert_measurement_provenanced(
+                    assert_no_bare_numbers(_numeric_anchors(summ, cfg, contract_anchors, mt, cid))
+                )
+                or None
+            ),
             "categorical_anchors": _categorical_anchors(summ, cat_fields),
             "n_basis": (_n_basis(summ) or None),
             "_complete": True,

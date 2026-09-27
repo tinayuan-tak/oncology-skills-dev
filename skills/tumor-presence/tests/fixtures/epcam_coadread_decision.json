@@ -1894,22 +1894,58 @@
             {
               "metric": "allgene_percentile",
               "value": 8.6041,
-              "scale": "percentile"
+              "scale": "percentile",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_detected": 1.0,
+                  "median_log2_abundance_panel": -0.417446428676658,
+                  "n_cell_lines_evaluated": 375
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "fraction_detected",
               "value": 1.0,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_detected": 1.0,
+                  "median_log2_abundance_panel": -0.417446428676658,
+                  "n_cell_lines_evaluated": 375
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "median_log2_abundance_panel",
               "value": -0.4174,
-              "scale": "log2_abundance"
+              "scale": "log2_abundance",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_detected": 1.0,
+                  "median_log2_abundance_panel": -0.417446428676658,
+                  "n_cell_lines_evaluated": 375
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "protein_effect_size",
               "value": -0.4174,
-              "scale": "effect size"
+              "scale": "effect size",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_detected": 1.0,
+                  "median_log2_abundance_panel": -0.417446428676658,
+                  "n_cell_lines_evaluated": 375
+                },
+                "method_version": "0.1.0"
+              }
             }
           ],
           "categorical_anchors": [
@@ -1949,22 +1985,58 @@
             {
               "metric": "allgene_percentile",
               "value": 79.6928,
-              "scale": "percentile"
+              "scale": "percentile",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_detected": 0.4879,
+                  "median_log2_abundance_panel": 4.3326138624278006,
+                  "n_cell_lines_evaluated": 463
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "fraction_detected",
               "value": 0.4879,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_detected": 0.4879,
+                  "median_log2_abundance_panel": 4.3326138624278006,
+                  "n_cell_lines_evaluated": 463
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "median_log2_abundance_panel",
               "value": 4.3326,
-              "scale": "log2_abundance"
+              "scale": "log2_abundance",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_detected": 0.4879,
+                  "median_log2_abundance_panel": 4.3326138624278006,
+                  "n_cell_lines_evaluated": 463
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "protein_effect_size",
               "value": 4.3326,
-              "scale": "effect size"
+              "scale": "effect size",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_detected": 0.4879,
+                  "median_log2_abundance_panel": 4.3326138624278006,
+                  "n_cell_lines_evaluated": 463
+                },
+                "method_version": "0.1.0"
+              }
             }
           ],
           "categorical_anchors": [
@@ -2004,22 +2076,58 @@
             {
               "metric": "allgene_percentile",
               "value": 52.5423,
-              "scale": "percentile"
+              "scale": "percentile",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_expressed": 0.6308258381030254,
+                  "fraction_highly_expressed": 0.4345870809484873,
+                  "fraction_not_expressed": 0.36917416189697466
+                },
+                "method_version": null
+              }
             },
             {
               "metric": "control_target_percentile",
               "value": 52.5423,
-              "scale": "%ile"
+              "scale": "%ile",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_expressed": 0.6308258381030254,
+                  "fraction_highly_expressed": 0.4345870809484873,
+                  "fraction_not_expressed": 0.36917416189697466
+                },
+                "method_version": null
+              }
             },
             {
               "metric": "dominant_isoform_fraction",
               "value": 0.8354,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_expressed": 0.6308258381030254,
+                  "fraction_highly_expressed": 0.4345870809484873,
+                  "fraction_not_expressed": 0.36917416189697466
+                },
+                "method_version": null
+              }
             },
             {
               "metric": "fraction_expressed",
               "value": 0.6308,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_expressed": 0.6308258381030254,
+                  "fraction_highly_expressed": 0.4345870809484873,
+                  "fraction_not_expressed": 0.36917416189697466
+                },
+                "method_version": null
+              }
             }
           ],
           "categorical_anchors": [
@@ -2067,7 +2175,16 @@
             {
               "metric": "pooled_lineage_median_log2tpm",
               "value": 9.8646,
-              "scale": "log2 TPM"
+              "scale": "log2 TPM",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "min_subgroup_expression": 9.9714,
+                  "n_subgroups_measured": 1,
+                  "n_subgroups_with_data": 2
+                },
+                "method_version": null
+              }
             }
           ],
           "categorical_anchors": null,
@@ -2098,17 +2215,44 @@
             {
               "metric": "protein_detection_fraction",
               "value": 0.1533,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "n_paired_models": 370,
+                  "protein_detection_fraction": 0.1533,
+                  "rna_high_protein_low_fraction": 0.0717
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "rna_expressed_fraction",
               "value": 0.7919,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "n_paired_models": 370,
+                  "protein_detection_fraction": 0.1533,
+                  "rna_high_protein_low_fraction": 0.0717
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "rna_high_protein_low_fraction",
               "value": 0.0717,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "n_paired_models": 370,
+                  "protein_detection_fraction": 0.1533,
+                  "rna_high_protein_low_fraction": 0.0717
+                },
+                "method_version": "0.1.0"
+              }
             }
           ],
           "categorical_anchors": null,
@@ -2141,17 +2285,44 @@
             {
               "metric": "expression_purity_pearson_r",
               "value": 0.1293,
-              "scale": "pearson_r"
+              "scale": "pearson_r",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "expression_purity_pearson_p": 0.0029,
+                  "expression_purity_pearson_r": 0.1293,
+                  "expression_purity_spearman_r": 0.1235
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "expression_purity_spearman_r",
               "value": 0.1235,
-              "scale": "correlation r"
+              "scale": "correlation r",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "expression_purity_pearson_p": 0.0029,
+                  "expression_purity_pearson_r": 0.1293,
+                  "expression_purity_spearman_r": 0.1235
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "median_purity",
               "value": 0.66,
-              "scale": null
+              "scale": null,
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "expression_purity_pearson_p": 0.0029,
+                  "expression_purity_pearson_r": 0.1293,
+                  "expression_purity_spearman_r": 0.1235
+                },
+                "method_version": "0.1.0"
+              }
             }
           ],
           "categorical_anchors": null,
@@ -2193,12 +2364,30 @@
             {
               "metric": "fraction_detected",
               "value": 1.0,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_detected": 1.0,
+                  "fraction_moderate_strong": 1.0,
+                  "n_high": 12
+                },
+                "method_version": "1.0.0"
+              }
             },
             {
               "metric": "fraction_moderate_strong",
               "value": 1.0,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_detected": 1.0,
+                  "fraction_moderate_strong": 1.0,
+                  "n_high": 12
+                },
+                "method_version": "1.0.0"
+              }
             }
           ],
           "categorical_anchors": null,
@@ -2270,12 +2459,30 @@
             {
               "metric": "expressing_donor_fraction_max",
               "value": 1.0,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "expressing_donor_fraction_max": 1.0,
+                  "max_detection_fraction": 1.0,
+                  "n_cell_types_above_20pct": 143
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "max_detection_fraction",
               "value": 1.0,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "expressing_donor_fraction_max": 1.0,
+                  "max_detection_fraction": 1.0,
+                  "n_cell_types_above_20pct": 143
+                },
+                "method_version": "0.1.0"
+              }
             }
           ],
           "categorical_anchors": null,
@@ -2301,22 +2508,58 @@
             {
               "metric": "fraction_elevated",
               "value": 0.4444,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_elevated": 0.4444444444444444,
+                  "median_effect_across_elevated": 1.023427338047685,
+                  "n_cohorts_elevated": 4
+                },
+                "method_version": null
+              }
             },
             {
               "metric": "median_effect_across_elevated",
               "value": 1.0234,
-              "scale": null
+              "scale": null,
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_elevated": 0.4444444444444444,
+                  "median_effect_across_elevated": 1.023427338047685,
+                  "n_cohorts_elevated": 4
+                },
+                "method_version": null
+              }
             },
             {
               "metric": "rna_fraction_elevated",
               "value": 0.3846,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_elevated": 0.4444444444444444,
+                  "median_effect_across_elevated": 1.023427338047685,
+                  "n_cohorts_elevated": 4
+                },
+                "method_version": null
+              }
             },
             {
               "metric": "rna_median_max_log2fc_across_elevated",
               "value": 3.4539,
-              "scale": "log2FC"
+              "scale": "log2FC",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "fraction_elevated": 0.4444444444444444,
+                  "median_effect_across_elevated": 1.023427338047685,
+                  "n_cohorts_elevated": 4
+                },
+                "method_version": null
+              }
             }
           ],
           "categorical_anchors": [
@@ -2355,22 +2598,58 @@
             {
               "metric": "allgene_percentile",
               "value": 58.2839,
-              "scale": "percentile"
+              "scale": "percentile",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "n_normal_samples": 100,
+                  "n_tumor_samples": 97,
+                  "protein_bh_q_value": 0.303219701368917
+                },
+                "method_version": "1.2.0"
+              }
             },
             {
               "metric": "protein_bh_q_value",
               "value": 0.3032,
-              "scale": "q"
+              "scale": "q",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "n_normal_samples": 100,
+                  "n_tumor_samples": 97,
+                  "protein_bh_q_value": 0.303219701368917
+                },
+                "method_version": "1.2.0"
+              }
             },
             {
               "metric": "protein_effect_cohens_d",
               "value": 0.1592,
-              "scale": "cohens_d"
+              "scale": "cohens_d",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "n_normal_samples": 100,
+                  "n_tumor_samples": 97,
+                  "protein_bh_q_value": 0.303219701368917
+                },
+                "method_version": "1.2.0"
+              }
             },
             {
               "metric": "protein_effect_size",
               "value": 0.0648,
-              "scale": "protein_effect"
+              "scale": "protein_effect",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "n_normal_samples": 100,
+                  "n_tumor_samples": 97,
+                  "protein_bh_q_value": 0.303219701368917
+                },
+                "method_version": "1.2.0"
+              }
             }
           ],
           "categorical_anchors": [
@@ -2418,7 +2697,16 @@
             {
               "metric": "pooled_cohort_median_log2_ratio",
               "value": -0.0352,
-              "scale": null
+              "scale": null,
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "n_subtypes_depleted": 0,
+                  "n_subtypes_enriched": 0,
+                  "n_subtypes_measured": 1
+                },
+                "method_version": null
+              }
             }
           ],
           "categorical_anchors": null,
@@ -2444,22 +2732,58 @@
             {
               "metric": "allgene_percentile",
               "value": 99.7415,
-              "scale": "percentile"
+              "scale": "percentile",
+              "provenance": {
+                "source_product_id": "recount3_tcga_gtex_bulk_rna",
+                "n_basis": {
+                  "distribution_overlap_tumor_normal": 0.27958168308729664,
+                  "fraction_tumor_above_normal_p95": 0.7369207772795217,
+                  "fraction_tumor_above_normal_p99": 0.5082212257100149
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "control_target_percentile",
               "value": 99.7415,
-              "scale": "%ile"
+              "scale": "%ile",
+              "provenance": {
+                "source_product_id": "recount3_tcga_gtex_bulk_rna",
+                "n_basis": {
+                  "distribution_overlap_tumor_normal": 0.27958168308729664,
+                  "fraction_tumor_above_normal_p95": 0.7369207772795217,
+                  "fraction_tumor_above_normal_p99": 0.5082212257100149
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "detectable_fraction",
               "value": 1.0,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": "recount3_tcga_gtex_bulk_rna",
+                "n_basis": {
+                  "distribution_overlap_tumor_normal": 0.27958168308729664,
+                  "fraction_tumor_above_normal_p95": 0.7369207772795217,
+                  "fraction_tumor_above_normal_p99": 0.5082212257100149
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "fraction_tumor_above_normal_p95",
               "value": 0.7369,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": "recount3_tcga_gtex_bulk_rna",
+                "n_basis": {
+                  "distribution_overlap_tumor_normal": 0.27958168308729664,
+                  "fraction_tumor_above_normal_p95": 0.7369207772795217,
+                  "fraction_tumor_above_normal_p99": 0.5082212257100149
+                },
+                "method_version": "0.1.0"
+              }
             }
           ],
           "categorical_anchors": [
@@ -2507,7 +2831,16 @@
             {
               "metric": "subtype_variance_explained",
               "value": 0.0863,
-              "scale": "variance_explained"
+              "scale": "variance_explained",
+              "provenance": {
+                "source_product_id": "recount3_tcga_gtex_bulk_rna",
+                "n_basis": {
+                  "n_subtypes_clearing_normal_window": 13,
+                  "n_subtypes_enriched": 0,
+                  "n_subtypes_measured": 14
+                },
+                "method_version": "0.1.0"
+              }
             }
           ],
           "categorical_anchors": [
@@ -2557,22 +2890,54 @@
             {
               "metric": "allgene_percentile",
               "value": 25.4424,
-              "scale": "percentile"
+              "scale": "percentile",
+              "provenance": {
+                "source_product_id": "recount3_tcga_gtex_bulk_rna",
+                "n_basis": {
+                  "n_adjacent": 51,
+                  "n_tumor": 624
+                },
+                "method_version": null
+              }
             },
             {
               "metric": "gtex_log2_fc",
               "value": 2.086,
-              "scale": "log2FC"
+              "scale": "log2FC",
+              "provenance": {
+                "source_product_id": "recount3_tcga_gtex_bulk_rna",
+                "n_basis": {
+                  "n_adjacent": 51,
+                  "n_tumor": 624
+                },
+                "method_version": null
+              }
             },
             {
               "metric": "gtex_q_value",
               "value": 0.0,
-              "scale": "q"
+              "scale": "q",
+              "provenance": {
+                "source_product_id": "recount3_tcga_gtex_bulk_rna",
+                "n_basis": {
+                  "n_adjacent": 51,
+                  "n_tumor": 624
+                },
+                "method_version": null
+              }
             },
             {
               "metric": "log2_fc",
               "value": -0.362,
-              "scale": "log2FC"
+              "scale": "log2FC",
+              "provenance": {
+                "source_product_id": "recount3_tcga_gtex_bulk_rna",
+                "n_basis": {
+                  "n_adjacent": 51,
+                  "n_tumor": 624
+                },
+                "method_version": null
+              }
             }
           ],
           "categorical_anchors": [
@@ -2611,22 +2976,58 @@
             {
               "metric": "caf_detection_fraction",
               "value": 0.0769,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "caf_detection_fraction": 0.07692,
+                  "fraction_donors_broadly_detecting": 0.952909,
+                  "malignant_detection_donor_iqr": 0.17676
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "fraction_donors_broadly_detecting",
               "value": 0.9529,
-              "scale": "fraction"
+              "scale": "fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "caf_detection_fraction": 0.07692,
+                  "fraction_donors_broadly_detecting": 0.952909,
+                  "malignant_detection_donor_iqr": 0.17676
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "malignant_detection_fraction",
               "value": 0.8948,
-              "scale": "detection_fraction"
+              "scale": "detection_fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "caf_detection_fraction": 0.07692,
+                  "fraction_donors_broadly_detecting": 0.952909,
+                  "malignant_detection_donor_iqr": 0.17676
+                },
+                "method_version": "0.1.0"
+              }
             },
             {
               "metric": "top_microenvironment_detection_fraction",
               "value": 0.0769,
-              "scale": "detection_fraction"
+              "scale": "detection_fraction",
+              "provenance": {
+                "source_product_id": null,
+                "n_basis": {
+                  "caf_detection_fraction": 0.07692,
+                  "fraction_donors_broadly_detecting": 0.952909,
+                  "malignant_detection_donor_iqr": 0.17676
+                },
+                "method_version": "0.1.0"
+              }
             }
           ],
           "categorical_anchors": [

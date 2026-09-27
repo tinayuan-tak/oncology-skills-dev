@@ -1323,7 +1323,7 @@
       "value": "present"
     }
   ],
-  "generated_at": "2026-09-27T02:10:51+00:00",
+  "generated_at": "2026-09-27T04:07:26+00:00",
   "headline": {
     "alphafold_confidence_class": "moderate",
     "best_measured_potency_neglog_m": 11.699,
@@ -1478,6 +1478,11 @@
           "numeric_anchors": [
             {
               "metric": "pvalue_cutoff",
+              "provenance": {
+                "method_version": "0.1.0",
+                "n_basis": null,
+                "source_product_id": null
+              },
               "scale": null,
               "value": 1e-06
             }
@@ -1559,6 +1564,15 @@
           "numeric_anchors": [
             {
               "metric": "chembl_best_pchembl",
+              "provenance": {
+                "method_version": "0.3.0",
+                "n_basis": {
+                  "best_measured_potency_neglog_m": 11.699,
+                  "bindingdb_n_potent_ligands": 22078,
+                  "chembl_n_potent_ligands": 16683
+                },
+                "source_product_id": null
+              },
               "scale": "pChEMBL",
               "value": 11.0
             }
@@ -1764,6 +1778,11 @@
           "numeric_anchors": [
             {
               "metric": "pathway_count",
+              "provenance": {
+                "method_version": null,
+                "n_basis": null,
+                "source_product_id": null
+              },
               "scale": "count",
               "value": 82
             }
@@ -1841,6 +1860,14 @@
           "numeric_anchors": [
             {
               "metric": "moa_ontology_unmapped_fraction",
+              "provenance": {
+                "method_version": null,
+                "n_basis": {
+                  "n_downstream_effectors": 74,
+                  "n_upstream_regulators": 147
+                },
+                "source_product_id": null
+              },
               "scale": "fraction",
               "value": 0.0422
             }
@@ -1902,6 +1929,15 @@
           "numeric_anchors": [
             {
               "metric": "disordered_fraction",
+              "provenance": {
+                "method_version": "0.2.0",
+                "n_basis": {
+                  "alphafold_plddt_min_domain": 36.69,
+                  "has_virtual_screen_hit": true,
+                  "mutation_hotspot_in_druggable_pocket": true
+                },
+                "source_product_id": null
+              },
               "scale": "fraction",
               "value": 0.2281
             }
@@ -4897,7 +4933,7 @@
       }
     },
     "resolver_release_pin": "resolver_v0.1.0-alpha",
-    "skills_repo_sha": "51d10ad"
+    "skills_repo_sha": "edadeae"
   },
   "question": "What is known about EGFR INDEPENDENT of indication \u2014 its identity, on-target-safety genetics, protein-class/structure/modality biophysics, functional annotation, mechanism + pathway role, interactome, domain architecture + domain\u2192modality implication, and paralog buffering?",
   "run_health": {
@@ -4915,7 +4951,7 @@
     ],
     "cards_missing": [],
     "cards_skipped_a4": [],
-    "compute_secs": 0.5886,
+    "compute_secs": 1.4018,
     "n_cards_consumed": 20,
     "n_cards_fired": 10,
     "n_cards_resolved": 20,
@@ -4925,11 +4961,11 @@
         "family": "target-id-resolver-release"
       }
     ],
-    "read_secs": 0.4025,
+    "read_secs": 0.9195,
     "skill_name": "target-intrinsic",
     "skill_version": "1.6.1",
     "status": "ok",
-    "total_secs": 5.5856
+    "total_secs": 10.3067
   },
   "skill": "target-intrinsic",
   "target": "EGFR"

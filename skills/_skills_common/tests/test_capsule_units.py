@@ -87,7 +87,8 @@ def test_emitted_numeric_anchors_all_carry_a_scale_key():
     assert anchors, "anti-vacuity: the genomic card must emit numeric_anchors"
     for a in anchors:
         assert "scale" in a, f"{a['metric']} emitted as a BARE number — no scale slot"
-        assert set(a) == {"metric", "value", "scale"}
+        # + "provenance" since #1862 (value-grain provenance tuple); scale + value are the units concern here.
+        assert set(a) == {"metric", "value", "scale", "provenance"}
 
 
 def test_scale_addition_is_verdict_inert_metric_and_value_unchanged():
@@ -100,7 +101,7 @@ def test_scale_addition_is_verdict_inert_metric_and_value_unchanged():
     a = anchors[0]
     # the metric/value pair a consumer already reads is byte-for-byte unchanged; only a scale slot is added.
     assert a["metric"] == "cn_recurrent_deletion_score" and a["value"] == 0.2016
-    assert set(a) == {"metric", "value", "scale"}
+    assert set(a) == {"metric", "value", "scale", "provenance"}  # + provenance since #1862 (additive)
 
 
 # ── the no-bare-numbers invariant, at capsule grain ───────────────────────────────────────────────────
