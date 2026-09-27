@@ -1184,6 +1184,14 @@ def presence_claim_vector(headline: dict, cards: list) -> dict:
     _ac = _abundance_concordance_claim(c)
     if _ac is not None:
         vec["abundance_concordance"] = _ac
+    # L2b cross-source integration claim (SK#1851, epic #1507): PROTEIN-PRESENCE folded from two
+    # INDEPENDENT protein arms — antibody-IHC (HPA per-patient staining) x mass-spec (CPTAC TMT primary,
+    # Gygi/ProCan cell-line MS siblings). Carries NO `signal` key → not a chip, not a tier; OMITTED unless
+    # >=1 independent arm resolves, keeping a card-absent run byte-stable — matching the A/B/C/D +
+    # expression_properties + concordance atom discipline above.
+    _pp = _protein_presence_concordance_claim(c)
+    if _pp is not None:
+        vec["protein_presence_concordance"] = _pp
     # Per-source lineage-dilution QUALIFIER (SK#1869, epic #1507 Arm B): binds the cell-line-RNA panel's
     # heterogeneity + lineage census into the "cross-lineage identity, NOT within-tumour escape" caveat
     # (the prototype M2 trap). Carries NO `signal` key → not a chip, not a tier; OMITTED unless the panel
@@ -1918,6 +1926,415 @@ def _subtype_restriction_concordance_claim(c: dict) -> "dict | None":
             "L2b CROSS-SOURCE integration claim (deterministic, no LLM) — verdict-INERT provenance: never "
             "a signal tier, never averaged into a claim, never feeds the presence_verdict, the subtype "
             "stratification class, or any resolver rung."
+        ),
+    }
+
+
+# ── L2b CROSS-SOURCE integration claim: protein_presence_concordance ───────────────────────────────
+# The tumor PROTEIN-PRESENCE property resolved from >=2 TRULY INDEPENDENT PROTEIN sources, conforming to
+# docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md. The DEFINITIONAL independent pair:
+#   * ANTIBODY arm — HPA Pathology antibody-IHC (`hpa-pathology-cancer-ihc`): per-patient antibody
+#     staining distribution (n_high/n_medium/n_low/n_not_detected, fraction_detected, staining_score)
+#     collapsed to a per-patient DETECTION call. Antibody immunodetection, a patient-cohort assay.
+#   * MASS-SPEC arm — CPTAC TMT-MS (`tumor-protein-abundance-cptac`, patient tumor) as the primary, with
+#     DepMap-Gygi (`cellline-protein-abundance`, gygi_ms) and ProCan (`cellline-protein-abundance-procan`,
+#     dia_swath) as SAME-MODALITY CROSS-GRAIN dependent siblings (cell-line MS): TMT/DIA mass-spectrometry.
+# ANTIBODY-IHC is genuinely INDEPENDENT of mass-spec — a DIFFERENT detection technology (immunostaining vs
+# peptide MS), a DIFFERENT cohort (HPA patient tissue microarrays vs CPTAC/DepMap), and a DIFFERENT failure
+# mode (antibody specificity vs peptide detectability) — so their agreement is real cross-assay
+# corroboration, the structural twin of selectivity/subtype concordance applied to bare protein PRESENCE.
+# The three MS sources are ONE modality arm (all mass-spec): CPTAC supplies the arm value; Gygi/ProCan are
+# corroboration-ineligible cross-grain siblings that may supply the MS arm when CPTAC is a gap but NEVER
+# buy a second independent arm (the #1667/#1673/#1674 arm-commensurability lesson made structural).
+# #1512: MS presence is read off the WITHIN-POPULATION rank CLASS (`allgene_percentile_class`), never a
+# raw TMT-vs-IHC comparison. Verdict-INERT (no `signal` key; feeds no rule/veto/resolver rung; the pooled
+# presence_verdict + presence_verdict_by_modality are byte-stable). Key OMITTED (byte-stable) when NEITHER
+# independent arm resolves.
+
+# HPA antibody-IHC presence classes (target-contracts hpa-pathology-cancer-ihc product; mirror of
+# tumor-presence/scripts/run.py::_IHC_PRESENT_VERDICTS / _IHC_ABSENT_VERDICT).
+_IHC_PRESENT_CLASSES = frozenset({"ihc_detected_high", "ihc_detected_moderate", "ihc_detected_low"})
+_IHC_ABSENT_CLASS = "ihc_not_detected"
+# CPTAC (tumor) primary + cell-line MS siblings, in MS-arm preference order. All three are mass-spec (ONE
+# modality); CPTAC supplies the arm value, the cell-line siblings are corroboration-ineligible.
+_MS_PRESENCE_SOURCES = (
+    ("cptac_protein", "tumor-protein-abundance-cptac", "CPTAC TMT-MS whole-cell-lysate (patient tumor)"),
+    ("gygi_protein", "cellline-protein-abundance", "DepMap-Gygi TMT-MS panel (cell line)"),
+    ("procan_protein", "cellline-protein-abundance-procan", "ProCan DIA-SWATH MS panel (cell line)"),
+)
+
+
+def _ihc_presence_call(s: dict):
+    """The ANTIBODY arm's OWN protein-presence call from the HPA-IHC per-patient staining distribution.
+    Returns (resolved: bool, present: bool|None). A detected class resolves present=True — EXCEPT a
+    single-patient `ihc_detected_low` (n_detected < 2), the HPA antibody-specificity noise floor
+    (tumor-presence run.py v1.24.0: 48.6% of ihc_detected_low cells rest on ONE stained patient), which
+    is a gap, not a resolved detection. `ihc_not_detected` is a MEASURED absence (resolved, present=False).
+    Any other/absent class is unresolved (present=None)."""
+    cls = s.get("protein_presence_class")
+    if cls in _IHC_PRESENT_CLASSES:
+        if cls == "ihc_detected_low":
+            n_det = sum(
+                v
+                for v in (s.get("n_high"), s.get("n_medium"), s.get("n_low"))
+                if isinstance(v, (int, float)) and not isinstance(v, bool)
+            )
+            if n_det < 2:
+                return False, None  # single-patient antibody noise floor — not a resolved detection
+        return True, True
+    if cls == _IHC_ABSENT_CLASS:
+        return True, False
+    return False, None
+
+
+def _ms_presence_call(s: dict):
+    """One MASS-SPEC source's OWN protein-presence call. Returns (resolved: bool, present: bool|None). A
+    resolved within-population abundance rank class (`allgene_percentile_class` → any magnitude level) is
+    a MEASURED detection (present=True) — #1512: the rank CLASS, never a raw TMT magnitude. A panel-wide
+    `fraction_detected == 0` is a MEASURED non-detection (present=False). Otherwise unresolved."""
+    lvl = _MAGNITUDE_BY_PCTILE_CLASS.get(s.get("allgene_percentile_class"))
+    if lvl is not None:
+        return True, True
+    frac = s.get("fraction_detected")
+    if isinstance(frac, (int, float)) and not isinstance(frac, bool) and frac == 0:
+        return True, False
+    return False, None
+
+
+def _protein_presence_concordance_claim(c: dict) -> "dict | None":
+    """L2b CROSS-SOURCE integration claim: `protein_presence_concordance` — the tumor PROTEIN-PRESENCE
+    property integrated from >=2 INDEPENDENT PROTEIN sources (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md).
+
+    Integrates two INDEPENDENT protein arms — ANTIBODY-IHC (HPA `hpa-pathology-cancer-ihc` per-patient
+    staining distribution) x MASS-SPEC (CPTAC TMT-MS primary, DepMap-Gygi/ProCan cell-line MS siblings) —
+    by an EXPLICIT DETERMINISTIC rule (no LLM; L2b is reproducible by contract), emitting one of:
+      * protein_presence_concordant   — both INDEPENDENT arms resolve and AGREE (both detect the protein,
+        or both a measured non-detection); the agreed direction is carried, never collapsed;
+      * antibody_detects_ms_absent    — antibody-IHC detects the protein but the mass-spec layer reports a
+        MEASURED non-detection (antibody-only presence — antibody cross-reactivity or MS peptide-
+        detectability limits — a caveat to surface, never a present/absent negation);
+      * ms_detects_antibody_negative  — the mirror: mass-spec detects the protein, antibody-IHC does not;
+      * single_source_only            — exactly ONE independent arm resolves — a degraded read that names
+        the resolved layer, NOT a concordance claim.
+
+    DEPENDENCE (the slot this family exercises): the MASS-SPEC arm is one INDEPENDENT arm supplied by a
+    MULTI-MEMBER same-modality group `{cptac_protein, gygi_protein, procan_protein}`. CPTAC-TMT (patient)
+    is the primary; DepMap-Gygi and ProCan (cell-line MS) are SAME-MODALITY CROSS-GRAIN siblings —
+    `resolved`/`quality_eligible` yes (either may supply the MS arm's value when CPTAC is a gap), but
+    `corroboration_eligible: False`: three mass-spec reads are ONE modality arm, never a second/third
+    independent replication. They are preserved in `source_support` and counted in `resolved_source_count`
+    (evidence), but NEVER in `corroborating_independent_arm_count` and NEVER resurrect an independent arm
+    beyond the mass-spec layer. The ANTIBODY-IHC arm is the single INDEPENDENT modality on the other side.
+
+    Corroboration is on the shared MEASURED-ARM frame over the two INDEPENDENT arms only (antibody + mass-
+    spec): two agreeing arms -> high, a disagreement -> low, one measured arm -> single_arm. A single-arm
+    mutation only DEGRADES to `single_source_only`; ERASING the claim (key omitted, byte-stable) takes
+    defeating BOTH independent arms — and the MS arm survives on ANY mass-spec source, so defeating the MS
+    layer means defeating CPTAC AND Gygi AND ProCan.
+
+    GRAIN + technology are first-class: the two INDEPENDENT arms differ in DETECTION TECHNOLOGY (antibody
+    immunostaining vs peptide mass-spectrometry) and cohort — carried per-source in `source_support` and in
+    `provenance.independence_note`. VERDICT-INERT: carries NO `signal` key, reads no verdict, feeds no
+    rule/veto. Returns None — key omitted, byte-stable — when NEITHER independent arm resolves."""
+    ihc_s = c.get("hpa-pathology-cancer-ihc", {}) or {}
+    ab_res, ab_present = _ihc_presence_call(ihc_s)
+
+    # MASS-SPEC layer: CPTAC (patient) primary, else Gygi, else ProCan (same-modality cross-grain
+    # siblings). The FIRST that resolves supplies the MS arm's value; every resolved MS source is still
+    # recorded as evidence, but only the arm value is folded.
+    ms_srcs = {}  # source_key → (resolved, present, summary)
+    for key, card_id, _label in _MS_PRESENCE_SOURCES:
+        s = c.get(card_id, {}) or {}
+        r, p = _ms_presence_call(s)
+        ms_srcs[key] = (r, p, s)
+    ms_layer_res, ms_layer_present, ms_layer_key = False, None, None
+    for key, _card_id, _label in _MS_PRESENCE_SOURCES:
+        r, p, _s = ms_srcs[key]
+        if r:
+            ms_layer_res, ms_layer_present, ms_layer_key = True, p, key
+            break
+
+    # Emit iff >=1 INDEPENDENT arm resolves (antibody layer or mass-spec layer).
+    resolved_indep = [
+        (name, present)
+        for name, present, res in (
+            ("antibody", ab_present, ab_res),
+            ("mass_spec", ms_layer_present, ms_layer_res),
+        )
+        if res
+    ]
+    if not resolved_indep:
+        return None  # neither independent arm resolves → key omitted (byte-stable)
+
+    if len(resolved_indep) == 1:
+        concordance = "single_source_only"
+    elif ab_present == ms_layer_present:
+        concordance = "protein_presence_concordant"
+    elif ab_present:  # antibody detects, mass-spec measured-absent
+        concordance = "antibody_detects_ms_absent"
+    else:  # mass-spec detects, antibody measured-negative
+        concordance = "ms_detects_antibody_negative"
+
+    # Corroboration over the two INDEPENDENT arms ONLY. A disagreement points the arms opposite
+    # ([True, False] → low); a concordance both agree ([True, True] → high); one arm unresolved leaves
+    # the measured arm unopposed ([True, None] → single_arm).
+    if concordance in ("antibody_detects_ms_absent", "ms_detects_antibody_negative"):
+        ab_arm, ms_arm = True, False
+    else:
+        ab_arm = True if ab_res else None
+        ms_arm = True if ms_layer_res else None
+    corroboration = _corr_from_arms([ab_arm, ms_arm])
+
+    # ── the envelope's TWO COUNTS ──────────────────────────────────────────────────────────────────
+    corroborating_independent_arm_count = len(resolved_indep)  # antibody + mass-spec layer only, max 2
+    # resolved_source_count counts ALL sources — antibody + EACH resolved mass-spec source (CPTAC, Gygi,
+    # ProCan) — so "the extra mass-spec reads are evidence, not extra independent arms" is legible in the
+    # gap between the two counts (max 4 vs max 2).
+    resolved_source_count = (1 if ab_res else 0) + sum(1 for (r, _p, _s) in ms_srcs.values() if r)
+
+    _MS_GRAIN = {
+        "cptac_protein": "ms_protein (patient tumor)",
+        "gygi_protein": "ms_protein (cell line)",
+        "procan_protein": "ms_protein (cell line)",
+    }
+    _MS_COHORT = {
+        "cptac_protein": "CPTAC TMT-MS whole-cell-lysate protein (patient tumor)",
+        "gygi_protein": "DepMap-Gygi TMT-MS panel protein (cell line)",
+        "procan_protein": "ProCan DIA-SWATH MS panel protein (cell line)",
+    }
+    _MS_CARD = {k: card_id for k, card_id, _l in _MS_PRESENCE_SOURCES}
+
+    def _present_label(present):
+        return "protein_detected" if present else ("protein_not_detected" if present is False else "data_unavailable")
+
+    def _ihc_support():
+        return {
+            "source": "antibody_ihc",
+            "dependence_group": "antibody",
+            "grain": "antibody_ihc (patient tissue microarray)",  # FIRST-CLASS: a DIFFERENT detection technology
+            "value": _present_label(ab_present) if ab_res else "data_unavailable",
+            "protein_presence_class": ihc_s.get("protein_presence_class"),
+            "present": ab_present,
+            "resolved": ab_res,
+            "quality_eligible": ab_res,
+            "corroboration_eligible": True,  # the sole INDEPENDENT antibody arm
+            "provenance": {"card_id": "hpa-pathology-cancer-ihc", "cohort": ihc_s.get("hpa_cancer_type")},
+            "retained_quantitative": {
+                "fraction_detected": _fin(ihc_s.get("fraction_detected")),
+                "staining_score": _fin(ihc_s.get("staining_score")),
+                "n_high": _fin(ihc_s.get("n_high")),
+                "n_medium": _fin(ihc_s.get("n_medium")),
+                "n_low": _fin(ihc_s.get("n_low")),
+                "n_not_detected": _fin(ihc_s.get("n_not_detected")),
+                "n_patients_total": _fin(ihc_s.get("n_patients_total")),
+            },
+        }
+
+    def _ms_support(key):
+        r, p, s = ms_srcs[key]
+        return {
+            "source": key,
+            "dependence_group": "mass_spec",
+            "grain": _MS_GRAIN[key],
+            "value": _present_label(p) if r else "data_unavailable",
+            "allgene_percentile_class": s.get("allgene_percentile_class"),
+            "present": p,
+            "resolved": r,
+            "quality_eligible": r,  # a resolved MS read may supply the MS arm's value
+            # ONLY CPTAC is the arm-supplying primary; the cell-line siblings are corroboration-ineligible
+            "corroboration_eligible": key == "cptac_protein",
+            "provenance": {"card_id": _MS_CARD[key], "cohort": _MS_COHORT[key]},
+            "retained_quantitative": {
+                "allgene_percentile": _fin(s.get("allgene_percentile")),
+                "fraction_detected": _fin(s.get("fraction_detected")),
+            },
+        }
+
+    # The antibody arm ALWAYS appears (the definitional independent pair — an absent arm shows as
+    # resolved:False). The MS sources appear: CPTAC always (the arm primary), the cell-line siblings ONLY
+    # when they resolve (the worked same-modality cross-grain dependent-sibling case).
+    source_support = [_ihc_support(), _ms_support("cptac_protein")]
+    for key in ("gygi_protein", "procan_protein"):
+        if ms_srcs[key][0]:
+            source_support.append(_ms_support(key))
+    _ms_group_members = ["cptac_protein"] + [k for k in ("gygi_protein", "procan_protein") if ms_srcs[k][0]]
+    evidence_dependence = {
+        "groups": [
+            {"members": ["antibody_ihc"], "relationship": "independent_modality"},
+            {
+                "members": _ms_group_members,
+                "relationship": "same_modality_cross_grain",
+                "note": (
+                    "CPTAC TMT-MS (patient), DepMap-Gygi TMT-MS and ProCan DIA-SWATH (cell line) are ALL "
+                    "mass-spectrometry reads of protein presence — ONE independent MS arm, NOT two or "
+                    "three. CPTAC supplies the arm value; the cell-line MS siblings are corroboration-"
+                    "ineligible (they cannot buy a second independent arm) but may supply the MS arm's "
+                    "value as evidence when CPTAC is a gap (dependent != ignore)."
+                ),
+            },
+        ],
+        "derived_sources": {},
+    }
+
+    # which-arm payload — the disagreement or the degraded single arm is NAMED, never collapsed/averaged.
+    if concordance in ("antibody_detects_ms_absent", "ms_detects_antibody_negative"):
+        detect_arm = "antibody" if ab_present else "mass_spec"
+        absent_arm = "mass_spec" if detect_arm == "antibody" else "antibody"
+        concordance_support = {"detected_in": detect_arm, "not_detected_in": absent_arm}
+    elif concordance == "single_source_only":
+        name, present = resolved_indep[0]
+        resolved_via = "antibody_ihc" if name == "antibody" else ms_layer_key
+        concordance_support = {
+            "resolved_by": name,
+            "resolved_call": _present_label(present),
+            "resolved_via_source": resolved_via,
+            "resolved_present": present,
+        }
+    else:
+        concordance_support = {"agreed_direction": _present_label(ab_present)}
+
+    _PHRASE = {
+        "protein_presence_concordant": "AGREE on the protein-presence call",
+        "antibody_detects_ms_absent": (
+            "DISAGREE — antibody-IHC detects the protein, the mass-spec layer reports a measured "
+            "non-detection (antibody-only presence)"
+        ),
+        "ms_detects_antibody_negative": ("DISAGREE — the mass-spec layer detects the protein, antibody-IHC does NOT"),
+        "single_source_only": "only one independent protein modality arm resolves",
+    }
+    _ARM_NAME = {
+        "antibody": "antibody-IHC (HPA Pathology)",
+        "mass_spec": "mass-spec protein (CPTAC/DepMap TMT-MS)",
+    }
+
+    # ── PRESENTATION-SUPPORT fields (L2b->L3) — surface-consumption, NOT verdict-routing ─────────────
+    boundary_sensitive = corroboration != "high"
+    # TYPED cross-source dependence edges (SK#1866): link the two INDEPENDENT modality arms (antibody-IHC
+    # x the resolved mass-spec source). `corroborates` when both arms AGREE on the presence call;
+    # `qualifies` when one arm detects the other does not (assay-divergence — a caveat to surface, never a
+    # present/absent negation). single_source_only relates no two resolved independent sources, so it
+    # carries NO edge. Verdict-inert.
+    if concordance == "protein_presence_concordant":
+        dependence_edges = [_concordance_edge("antibody_ihc", ms_layer_key, concordant=True, basis=concordance)]
+    elif concordance in ("antibody_detects_ms_absent", "ms_detects_antibody_negative"):
+        _ARM_NODE = {"antibody": "antibody_ihc", "mass_spec": ms_layer_key}
+        dependence_edges = [
+            _concordance_edge(
+                _ARM_NODE[concordance_support["not_detected_in"]],
+                _ARM_NODE[concordance_support["detected_in"]],
+                concordant=False,
+                basis=concordance,
+            )
+        ]
+    else:  # single_source_only — only one independent arm resolves; no cross-source dependence edge
+        dependence_edges = []
+
+    if concordance == "protein_presence_concordant":
+        _dir_text = "the protein is PRESENT" if ab_present else "a MEASURED protein non-detection"
+        positive_signal = {
+            "statement": (
+                f"Both INDEPENDENT protein modalities AGREE on {_dir_text} (antibody-IHC "
+                f"{ihc_s.get('protein_presence_class') or 'n/a'} x mass-spec "
+                f"{(ms_srcs[ms_layer_key][2] or {}).get('allgene_percentile_class') or 'n/a'}) — a "
+                "cross-assay-corroborated protein-presence read."
+            ),
+            "source": "antibody_ihc",
+            "provenance_ref": "antibody_ihc",
+        }
+        qualifying_signal = None
+    elif concordance in ("antibody_detects_ms_absent", "ms_detects_antibody_negative"):
+        detect_arm = concordance_support["detected_in"]
+        absent_arm = concordance_support["not_detected_in"]
+        positive_signal = {
+            "statement": (
+                f"{_ARM_NAME[detect_arm]} detects the protein — a protein-present signal in this independent modality."
+            ),
+            "source": detect_arm,
+            "provenance_ref": "antibody_ihc" if detect_arm == "antibody" else ms_layer_key,
+        }
+        qualifying_signal = {
+            "statement": (
+                f"{_ARM_NAME[absent_arm]} reports a MEASURED non-detection — the two independent protein "
+                "assays DISAGREE. Antibody cross-reactivity and mass-spec peptide-detectability limits are "
+                "distinct failure modes, so an assay-specific detection is a caveat to surface, not a "
+                "protein-absent conclusion."
+            ),
+            "source": absent_arm,
+            "provenance_ref": "antibody_ihc" if absent_arm == "antibody" else ms_layer_key,
+        }
+    else:  # single_source_only
+        name, present = resolved_indep[0]
+        gap = "mass_spec" if name == "antibody" else "antibody"
+        _resolved_ref = "antibody_ihc" if name == "antibody" else ms_layer_key
+        positive_signal = {
+            "statement": (
+                f"{_ARM_NAME[name]} reports "
+                f"{'the protein is PRESENT' if present else 'a MEASURED protein non-detection'} — the "
+                "sole independent protein modality arm that resolves."
+            ),
+            "source": name,
+            "provenance_ref": _resolved_ref,
+        }
+        qualifying_signal = {
+            "statement": (
+                f"Only {_ARM_NAME[name]} resolves; {_ARM_NAME[gap]} is a gap (unmeasured/unresolved) — a "
+                "degraded single-modality read, NOT cross-assay corroboration."
+            ),
+            "source": gap,
+            "provenance_ref": "antibody_ihc" if gap == "antibody" else (ms_layer_key or "cptac_protein"),
+        }
+
+    return {
+        "concordance_class": concordance,
+        "corroboration": corroboration,
+        "integration_method": "explicit_deterministic",
+        "grain": "protein_presence (cross-technology: antibody-IHC immunostaining x mass-spec peptide)",
+        "resolved_source_count": resolved_source_count,
+        "corroborating_independent_arm_count": corroborating_independent_arm_count,
+        "concordance_support": concordance_support,
+        "source_support": source_support,
+        "dependence_edges": dependence_edges,
+        "positive_signal": positive_signal,
+        "qualifying_signal": qualifying_signal,
+        "boundary_sensitive": boundary_sensitive,
+        "boundary_note": (
+            "concordance class rests on a single measured modality arm (single_arm / low corroboration) — "
+            "treat as near-boundary, not a flat cross-assay assertion"
+            if boundary_sensitive
+            else "concordance corroborated by BOTH independent protein modality arms agreeing"
+        ),
+        "evidence_dependence": evidence_dependence,
+        "informs": (
+            "cross-source protein-presence concordance — a protein two INDEPENDENT detection technologies "
+            "(antibody-IHC immunostaining + mass-spec peptide detection) both detect is far more credible "
+            "than a single-assay call; the cell-line mass-spec reads are same-modality cross-grain siblings "
+            "preserved as evidence but never double-counted as a second independent arm"
+        ),
+        "evidence": (
+            f"antibody-IHC {ihc_s.get('protein_presence_class') or 'data_unavailable'} x mass-spec "
+            f"{(ms_srcs.get(ms_layer_key, (None, None, {}))[2] or {}).get('allgene_percentile_class') if ms_layer_key else 'data_unavailable'}"
+            f": {_PHRASE[concordance]}"
+        ),
+        "provenance": {
+            "sources": source_support,
+            "independence_note": (
+                "Antibody-IHC (HPA Pathology per-patient immunostaining) and mass-spec protein detection "
+                "(CPTAC TMT-MS) are genuinely INDEPENDENT protein layers: a DIFFERENT detection technology "
+                "(immunostaining vs peptide mass-spectrometry), a DIFFERENT cohort (HPA tissue microarrays "
+                "vs CPTAC), and DIFFERENT failure modes (antibody specificity vs peptide detectability), so "
+                "their agreement is real cross-assay corroboration, not a within-assay restatement. "
+                "DepMap-Gygi and ProCan (cell-line MS) are SAME-MODALITY CROSS-GRAIN siblings of the CPTAC "
+                "mass-spec arm (all three are mass-spectrometry — ONE modality arm), so they are "
+                "corroboration-ineligible — never a second independent arm. #1512: mass-spec presence is "
+                "read off the WITHIN-POPULATION rank CLASS (allgene_percentile_class), never a raw TMT-vs-"
+                "IHC magnitude comparison. A single-patient ihc_detected_low is treated as a gap (the HPA "
+                "antibody-specificity noise floor), not a resolved antibody detection."
+            ),
+        },
+        "_disclaimer": (
+            "L2b CROSS-SOURCE integration claim (deterministic, no LLM) — verdict-INERT provenance: never "
+            "a signal tier, never averaged into a claim, never feeds the presence_verdict, the "
+            "presence_verdict_by_modality, or any resolver rung."
         ),
     }
 

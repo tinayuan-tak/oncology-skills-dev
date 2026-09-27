@@ -318,7 +318,16 @@ def _q5_absolute(h, c, cv):
     primary = "level: " + ("; ".join(level_bits) if level_bits else "unavailable")
     support = ("effect: " + "; ".join(effect_bits)) if effect_bits else "no effect-rank"
     conf = "high" if level_bits else ("moderate" if effect_bits else "unmeasured")
-    return _row("Q5", "Absolute abundance vs all genes?", primary, support, _sig(lvl_tier, lvl_tier), _conf(conf))
+    r = _row("Q5", "Absolute abundance vs all genes?", primary, support, _sig(lvl_tier, lvl_tier), _conf(conf))
+    # SK#1851 L2b surface: SURFACE the L2b protein-presence cross-assay concordance (antibody-IHC x
+    # mass-spec, built in presence_claims.py) as a first-class cross-source annotation. Attached only when
+    # the claim resolves (key omitted otherwise → row byte-stable). Q5 carries no existing
+    # integrated_signal, so this is a NET-NEW additive key. Verdict-inert: the row's `signal`/`confidence`
+    # meter cells are UNCHANGED — this adds an annotation, never a tier.
+    integ = cv.get("protein_presence_concordance")
+    if integ:
+        r["integrated_signal"] = _protein_presence_concordance_integrated_signal(integ)
+    return r
 
 
 # `rna_as_biomarker`'s class cuts, mirrored from the producer for ONE read-only purpose: saying when
@@ -561,6 +570,45 @@ def _subtype_restriction_concordance_integrated_signal(claim: dict) -> dict:
         "source_support": claim.get("source_support"),
         "headline": headline,
         "provenance_ref": "claim_vector_by_subtype.subtype_restriction_concordance",
+    }
+
+
+def _protein_presence_concordance_integrated_signal(claim: dict) -> dict:
+    """Project the L2b `protein_presence_concordance` claim (presence_claims.py, built by SK#1851) into
+    the Q5 row's `integrated_signal` surface — a verdict-INERT, two-directional presentation payload.
+    Surfaces both directions (the cross-assay-corroborated protein-presence read + the antibody-vs-mass-
+    spec detection-disagreement / single-arm caveat), the honest corroboration/boundary-sensitivity
+    annotation, and the source_support list so a consumer renders the integrated cross-source read WITHOUT
+    prose-parsing. Carries NO signal tier / polarity / fill — it never routes the verdict; it is the
+    answer's cross-source annotation, not a meter cell. Mirrors the sibling
+    `_abundance_concordance_integrated_signal` / `_subtype_restriction_concordance_integrated_signal`
+    projectors. Q5 carries NO existing integrated_signal, so this is a NET-NEW additive key."""
+    qual = claim.get("qualifying_signal")
+    pos = claim.get("positive_signal") or {}
+    boundary = bool(claim.get("boundary_sensitive"))
+    # A one-line human headline that always names BOTH directions (or the concordant confirmation),
+    # flagged boundary-sensitive when the class rests on a lone measured protein modality arm.
+    if qual:
+        headline = f"{pos.get('statement', '')} However — {qual.get('statement', '')}"
+    else:
+        headline = (
+            f"{pos.get('statement', '')} Both INDEPENDENT protein assays (antibody-IHC + mass-spec) AGREE "
+            "on the protein-presence call (cross-assay corroboration)."
+        )
+    if boundary:
+        headline += f" [boundary-sensitive: {claim.get('boundary_note', '')}]"
+    return {
+        "kind": "protein_presence_concordance",
+        "concordance_class": claim.get("concordance_class"),
+        "corroboration": claim.get("corroboration"),
+        "grain": claim.get("grain"),
+        "boundary_sensitive": boundary,
+        "boundary_note": claim.get("boundary_note"),
+        "positive_signal": pos or None,
+        "qualifying_signal": qual,
+        "source_support": claim.get("source_support"),
+        "headline": headline,
+        "provenance_ref": "claim_vector.protein_presence_concordance",
     }
 
 

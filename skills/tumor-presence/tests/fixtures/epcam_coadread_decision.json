@@ -682,6 +682,225 @@
         },
         "_disclaimer": "L2b CROSS-SOURCE integration claim (deterministic, no LLM) \u2014 verdict-INERT provenance: never a signal tier, never averaged into a claim, never feeds the presence_verdict."
       },
+      "protein_presence_concordance": {
+        "concordance_class": "protein_presence_concordant",
+        "corroboration": "high",
+        "integration_method": "explicit_deterministic",
+        "grain": "protein_presence (cross-technology: antibody-IHC immunostaining x mass-spec peptide)",
+        "resolved_source_count": 4,
+        "corroborating_independent_arm_count": 2,
+        "concordance_support": {
+          "agreed_direction": "protein_detected"
+        },
+        "source_support": [
+          {
+            "source": "antibody_ihc",
+            "dependence_group": "antibody",
+            "grain": "antibody_ihc (patient tissue microarray)",
+            "value": "protein_detected",
+            "protein_presence_class": "ihc_detected_high",
+            "present": true,
+            "resolved": true,
+            "quality_eligible": true,
+            "corroboration_eligible": true,
+            "provenance": {
+              "card_id": "hpa-pathology-cancer-ihc",
+              "cohort": "colorectal cancer"
+            },
+            "retained_quantitative": {
+              "fraction_detected": 1.0,
+              "staining_score": 3.0,
+              "n_high": 12,
+              "n_medium": 0,
+              "n_low": 0,
+              "n_not_detected": 0,
+              "n_patients_total": 12
+            }
+          },
+          {
+            "source": "cptac_protein",
+            "dependence_group": "mass_spec",
+            "grain": "ms_protein (patient tumor)",
+            "value": "protein_detected",
+            "allgene_percentile_class": "mid",
+            "present": true,
+            "resolved": true,
+            "quality_eligible": true,
+            "corroboration_eligible": true,
+            "provenance": {
+              "card_id": "tumor-protein-abundance-cptac",
+              "cohort": "CPTAC TMT-MS whole-cell-lysate protein (patient tumor)"
+            },
+            "retained_quantitative": {
+              "allgene_percentile": 58.283904017255324,
+              "fraction_detected": null
+            }
+          },
+          {
+            "source": "gygi_protein",
+            "dependence_group": "mass_spec",
+            "grain": "ms_protein (cell line)",
+            "value": "protein_detected",
+            "allgene_percentile_class": "bottom_decile",
+            "present": true,
+            "resolved": true,
+            "quality_eligible": true,
+            "corroboration_eligible": false,
+            "provenance": {
+              "card_id": "cellline-protein-abundance",
+              "cohort": "DepMap-Gygi TMT-MS panel protein (cell line)"
+            },
+            "retained_quantitative": {
+              "allgene_percentile": 8.604077082337952,
+              "fraction_detected": 1.0
+            }
+          },
+          {
+            "source": "procan_protein",
+            "dependence_group": "mass_spec",
+            "grain": "ms_protein (cell line)",
+            "value": "protein_detected",
+            "allgene_percentile_class": "mid",
+            "present": true,
+            "resolved": true,
+            "quality_eligible": true,
+            "corroboration_eligible": false,
+            "provenance": {
+              "card_id": "cellline-protein-abundance-procan",
+              "cohort": "ProCan DIA-SWATH MS panel protein (cell line)"
+            },
+            "retained_quantitative": {
+              "allgene_percentile": 79.69283276450511,
+              "fraction_detected": 0.4879
+            }
+          }
+        ],
+        "dependence_edges": [
+          {
+            "from_source": "antibody_ihc",
+            "to_source": "cptac_protein",
+            "relation": "corroborates",
+            "basis": "protein_presence_concordant"
+          }
+        ],
+        "positive_signal": {
+          "statement": "Both INDEPENDENT protein modalities AGREE on the protein is PRESENT (antibody-IHC ihc_detected_high x mass-spec mid) \u2014 a cross-assay-corroborated protein-presence read.",
+          "source": "antibody_ihc",
+          "provenance_ref": "antibody_ihc"
+        },
+        "qualifying_signal": null,
+        "boundary_sensitive": false,
+        "boundary_note": "concordance corroborated by BOTH independent protein modality arms agreeing",
+        "evidence_dependence": {
+          "groups": [
+            {
+              "members": [
+                "antibody_ihc"
+              ],
+              "relationship": "independent_modality"
+            },
+            {
+              "members": [
+                "cptac_protein",
+                "gygi_protein",
+                "procan_protein"
+              ],
+              "relationship": "same_modality_cross_grain",
+              "note": "CPTAC TMT-MS (patient), DepMap-Gygi TMT-MS and ProCan DIA-SWATH (cell line) are ALL mass-spectrometry reads of protein presence \u2014 ONE independent MS arm, NOT two or three. CPTAC supplies the arm value; the cell-line MS siblings are corroboration-ineligible (they cannot buy a second independent arm) but may supply the MS arm's value as evidence when CPTAC is a gap (dependent != ignore)."
+            }
+          ],
+          "derived_sources": {}
+        },
+        "informs": "cross-source protein-presence concordance \u2014 a protein two INDEPENDENT detection technologies (antibody-IHC immunostaining + mass-spec peptide detection) both detect is far more credible than a single-assay call; the cell-line mass-spec reads are same-modality cross-grain siblings preserved as evidence but never double-counted as a second independent arm",
+        "evidence": "antibody-IHC ihc_detected_high x mass-spec mid: AGREE on the protein-presence call",
+        "provenance": {
+          "sources": [
+            {
+              "source": "antibody_ihc",
+              "dependence_group": "antibody",
+              "grain": "antibody_ihc (patient tissue microarray)",
+              "value": "protein_detected",
+              "protein_presence_class": "ihc_detected_high",
+              "present": true,
+              "resolved": true,
+              "quality_eligible": true,
+              "corroboration_eligible": true,
+              "provenance": {
+                "card_id": "hpa-pathology-cancer-ihc",
+                "cohort": "colorectal cancer"
+              },
+              "retained_quantitative": {
+                "fraction_detected": 1.0,
+                "staining_score": 3.0,
+                "n_high": 12,
+                "n_medium": 0,
+                "n_low": 0,
+                "n_not_detected": 0,
+                "n_patients_total": 12
+              }
+            },
+            {
+              "source": "cptac_protein",
+              "dependence_group": "mass_spec",
+              "grain": "ms_protein (patient tumor)",
+              "value": "protein_detected",
+              "allgene_percentile_class": "mid",
+              "present": true,
+              "resolved": true,
+              "quality_eligible": true,
+              "corroboration_eligible": true,
+              "provenance": {
+                "card_id": "tumor-protein-abundance-cptac",
+                "cohort": "CPTAC TMT-MS whole-cell-lysate protein (patient tumor)"
+              },
+              "retained_quantitative": {
+                "allgene_percentile": 58.283904017255324,
+                "fraction_detected": null
+              }
+            },
+            {
+              "source": "gygi_protein",
+              "dependence_group": "mass_spec",
+              "grain": "ms_protein (cell line)",
+              "value": "protein_detected",
+              "allgene_percentile_class": "bottom_decile",
+              "present": true,
+              "resolved": true,
+              "quality_eligible": true,
+              "corroboration_eligible": false,
+              "provenance": {
+                "card_id": "cellline-protein-abundance",
+                "cohort": "DepMap-Gygi TMT-MS panel protein (cell line)"
+              },
+              "retained_quantitative": {
+                "allgene_percentile": 8.604077082337952,
+                "fraction_detected": 1.0
+              }
+            },
+            {
+              "source": "procan_protein",
+              "dependence_group": "mass_spec",
+              "grain": "ms_protein (cell line)",
+              "value": "protein_detected",
+              "allgene_percentile_class": "mid",
+              "present": true,
+              "resolved": true,
+              "quality_eligible": true,
+              "corroboration_eligible": false,
+              "provenance": {
+                "card_id": "cellline-protein-abundance-procan",
+                "cohort": "ProCan DIA-SWATH MS panel protein (cell line)"
+              },
+              "retained_quantitative": {
+                "allgene_percentile": 79.69283276450511,
+                "fraction_detected": 0.4879
+              }
+            }
+          ],
+          "independence_note": "Antibody-IHC (HPA Pathology per-patient immunostaining) and mass-spec protein detection (CPTAC TMT-MS) are genuinely INDEPENDENT protein layers: a DIFFERENT detection technology (immunostaining vs peptide mass-spectrometry), a DIFFERENT cohort (HPA tissue microarrays vs CPTAC), and DIFFERENT failure modes (antibody specificity vs peptide detectability), so their agreement is real cross-assay corroboration, not a within-assay restatement. DepMap-Gygi and ProCan (cell-line MS) are SAME-MODALITY CROSS-GRAIN siblings of the CPTAC mass-spec arm (all three are mass-spectrometry \u2014 ONE modality arm), so they are corroboration-ineligible \u2014 never a second independent arm. #1512: mass-spec presence is read off the WITHIN-POPULATION rank CLASS (allgene_percentile_class), never a raw TMT-vs-IHC magnitude comparison. A single-patient ihc_detected_low is treated as a gap (the HPA antibody-specificity noise floor), not a resolved antibody detection."
+        },
+        "_disclaimer": "L2b CROSS-SOURCE integration claim (deterministic, no LLM) \u2014 verdict-INERT provenance: never a signal tier, never averaged into a claim, never feeds the presence_verdict, the presence_verdict_by_modality, or any resolver rung."
+      },
       "cellline_heterogeneity_lineage_qualifier": {
         "qualifier_class": "cellline_heterogeneity_is_cross_lineage",
         "applies_to": "cellline_rna_panel",
@@ -1027,6 +1246,105 @@
           "tier": "high",
           "dots": 3,
           "label": "high"
+        },
+        "integrated_signal": {
+          "kind": "protein_presence_concordance",
+          "concordance_class": "protein_presence_concordant",
+          "corroboration": "high",
+          "grain": "protein_presence (cross-technology: antibody-IHC immunostaining x mass-spec peptide)",
+          "boundary_sensitive": false,
+          "boundary_note": "concordance corroborated by BOTH independent protein modality arms agreeing",
+          "positive_signal": {
+            "statement": "Both INDEPENDENT protein modalities AGREE on the protein is PRESENT (antibody-IHC ihc_detected_high x mass-spec mid) \u2014 a cross-assay-corroborated protein-presence read.",
+            "source": "antibody_ihc",
+            "provenance_ref": "antibody_ihc"
+          },
+          "qualifying_signal": null,
+          "source_support": [
+            {
+              "source": "antibody_ihc",
+              "dependence_group": "antibody",
+              "grain": "antibody_ihc (patient tissue microarray)",
+              "value": "protein_detected",
+              "protein_presence_class": "ihc_detected_high",
+              "present": true,
+              "resolved": true,
+              "quality_eligible": true,
+              "corroboration_eligible": true,
+              "provenance": {
+                "card_id": "hpa-pathology-cancer-ihc",
+                "cohort": "colorectal cancer"
+              },
+              "retained_quantitative": {
+                "fraction_detected": 1.0,
+                "staining_score": 3.0,
+                "n_high": 12,
+                "n_medium": 0,
+                "n_low": 0,
+                "n_not_detected": 0,
+                "n_patients_total": 12
+              }
+            },
+            {
+              "source": "cptac_protein",
+              "dependence_group": "mass_spec",
+              "grain": "ms_protein (patient tumor)",
+              "value": "protein_detected",
+              "allgene_percentile_class": "mid",
+              "present": true,
+              "resolved": true,
+              "quality_eligible": true,
+              "corroboration_eligible": true,
+              "provenance": {
+                "card_id": "tumor-protein-abundance-cptac",
+                "cohort": "CPTAC TMT-MS whole-cell-lysate protein (patient tumor)"
+              },
+              "retained_quantitative": {
+                "allgene_percentile": 58.283904017255324,
+                "fraction_detected": null
+              }
+            },
+            {
+              "source": "gygi_protein",
+              "dependence_group": "mass_spec",
+              "grain": "ms_protein (cell line)",
+              "value": "protein_detected",
+              "allgene_percentile_class": "bottom_decile",
+              "present": true,
+              "resolved": true,
+              "quality_eligible": true,
+              "corroboration_eligible": false,
+              "provenance": {
+                "card_id": "cellline-protein-abundance",
+                "cohort": "DepMap-Gygi TMT-MS panel protein (cell line)"
+              },
+              "retained_quantitative": {
+                "allgene_percentile": 8.604077082337952,
+                "fraction_detected": 1.0
+              }
+            },
+            {
+              "source": "procan_protein",
+              "dependence_group": "mass_spec",
+              "grain": "ms_protein (cell line)",
+              "value": "protein_detected",
+              "allgene_percentile_class": "mid",
+              "present": true,
+              "resolved": true,
+              "quality_eligible": true,
+              "corroboration_eligible": false,
+              "provenance": {
+                "card_id": "cellline-protein-abundance-procan",
+                "cohort": "ProCan DIA-SWATH MS panel protein (cell line)"
+              },
+              "retained_quantitative": {
+                "allgene_percentile": 79.69283276450511,
+                "fraction_detected": 0.4879
+              }
+            }
+          ],
+          "headline": "Both INDEPENDENT protein modalities AGREE on the protein is PRESENT (antibody-IHC ihc_detected_high x mass-spec mid) \u2014 a cross-assay-corroborated protein-presence read. Both INDEPENDENT protein assays (antibody-IHC + mass-spec) AGREE on the protein-presence call (cross-assay corroboration).",
+          "provenance_ref": "claim_vector.protein_presence_concordance"
         }
       },
       {
@@ -1873,6 +2191,105 @@
             "tier": "high",
             "dots": 3,
             "label": "high"
+          },
+          "integrated_signal": {
+            "kind": "protein_presence_concordance",
+            "concordance_class": "protein_presence_concordant",
+            "corroboration": "high",
+            "grain": "protein_presence (cross-technology: antibody-IHC immunostaining x mass-spec peptide)",
+            "boundary_sensitive": false,
+            "boundary_note": "concordance corroborated by BOTH independent protein modality arms agreeing",
+            "positive_signal": {
+              "statement": "Both INDEPENDENT protein modalities AGREE on the protein is PRESENT (antibody-IHC ihc_detected_high x mass-spec mid) \u2014 a cross-assay-corroborated protein-presence read.",
+              "source": "antibody_ihc",
+              "provenance_ref": "antibody_ihc"
+            },
+            "qualifying_signal": null,
+            "source_support": [
+              {
+                "source": "antibody_ihc",
+                "dependence_group": "antibody",
+                "grain": "antibody_ihc (patient tissue microarray)",
+                "value": "protein_detected",
+                "protein_presence_class": "ihc_detected_high",
+                "present": true,
+                "resolved": true,
+                "quality_eligible": true,
+                "corroboration_eligible": true,
+                "provenance": {
+                  "card_id": "hpa-pathology-cancer-ihc",
+                  "cohort": "colorectal cancer"
+                },
+                "retained_quantitative": {
+                  "fraction_detected": 1.0,
+                  "staining_score": 3.0,
+                  "n_high": 12,
+                  "n_medium": 0,
+                  "n_low": 0,
+                  "n_not_detected": 0,
+                  "n_patients_total": 12
+                }
+              },
+              {
+                "source": "cptac_protein",
+                "dependence_group": "mass_spec",
+                "grain": "ms_protein (patient tumor)",
+                "value": "protein_detected",
+                "allgene_percentile_class": "mid",
+                "present": true,
+                "resolved": true,
+                "quality_eligible": true,
+                "corroboration_eligible": true,
+                "provenance": {
+                  "card_id": "tumor-protein-abundance-cptac",
+                  "cohort": "CPTAC TMT-MS whole-cell-lysate protein (patient tumor)"
+                },
+                "retained_quantitative": {
+                  "allgene_percentile": 58.283904017255324,
+                  "fraction_detected": null
+                }
+              },
+              {
+                "source": "gygi_protein",
+                "dependence_group": "mass_spec",
+                "grain": "ms_protein (cell line)",
+                "value": "protein_detected",
+                "allgene_percentile_class": "bottom_decile",
+                "present": true,
+                "resolved": true,
+                "quality_eligible": true,
+                "corroboration_eligible": false,
+                "provenance": {
+                  "card_id": "cellline-protein-abundance",
+                  "cohort": "DepMap-Gygi TMT-MS panel protein (cell line)"
+                },
+                "retained_quantitative": {
+                  "allgene_percentile": 8.604077082337952,
+                  "fraction_detected": 1.0
+                }
+              },
+              {
+                "source": "procan_protein",
+                "dependence_group": "mass_spec",
+                "grain": "ms_protein (cell line)",
+                "value": "protein_detected",
+                "allgene_percentile_class": "mid",
+                "present": true,
+                "resolved": true,
+                "quality_eligible": true,
+                "corroboration_eligible": false,
+                "provenance": {
+                  "card_id": "cellline-protein-abundance-procan",
+                  "cohort": "ProCan DIA-SWATH MS panel protein (cell line)"
+                },
+                "retained_quantitative": {
+                  "allgene_percentile": 79.69283276450511,
+                  "fraction_detected": 0.4879
+                }
+              }
+            ],
+            "headline": "Both INDEPENDENT protein modalities AGREE on the protein is PRESENT (antibody-IHC ihc_detected_high x mass-spec mid) \u2014 a cross-assay-corroborated protein-presence read. Both INDEPENDENT protein assays (antibody-IHC + mass-spec) AGREE on the protein-presence call (cross-assay corroboration).",
+            "provenance_ref": "claim_vector.protein_presence_concordance"
           }
         },
         {

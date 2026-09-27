@@ -134,6 +134,24 @@ ENVELOPE_FAMILIES: dict[str, dict] = {
         },
         "none": {},
     },
+    "protein_presence": {
+        "builder": presence_claims._protein_presence_concordance_claim,
+        "name": "_protein_presence_concordance_claim",
+        "resolving": {
+            "hpa-pathology-cancer-ihc": {
+                "protein_presence_class": "ihc_detected_high",
+                "fraction_detected": 1.0,
+                "n_high": 12,
+                "n_medium": 0,
+                "n_low": 0,
+                "n_not_detected": 0,
+                "n_patients_total": 12,
+            },
+            "tumor-protein-abundance-cptac": {"allgene_percentile_class": "mid"},
+            "cellline-protein-abundance": {"allgene_percentile_class": "bottom_decile"},
+        },
+        "none": {},
+    },
     "essentiality": {
         "builder": dependency_claims._essentiality_concordance_claim,
         "name": "_essentiality_concordance_claim",
@@ -158,7 +176,7 @@ ENVELOPE_FAMILIES: dict[str, dict] = {
 # The known family count. An anti-vacuity floor: if the registry (or the codebase discovery it is pinned
 # against) ever collapses to a subset, the `== _EXPECTED_FAMILY_COUNT` assertions catch it rather than a
 # shrunken population passing silently.
-_EXPECTED_FAMILY_COUNT = 7
+_EXPECTED_FAMILY_COUNT = 8
 _EXPECTED_FRAME_COUNT = 5
 
 

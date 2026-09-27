@@ -1306,3 +1306,237 @@ def test_typed_edges_reference_only_declared_source_nodes():
     sr_nodes = {s["source"] for s in sr["source_support"]}
     for edge in sr["dependence_edges"]:
         assert {edge["from_source"], edge["to_source"]} <= sr_nodes
+
+
+# ── L2b protein_presence_concordance (SK#1851) — cross-source PROTEIN PRESENCE ──────────────────────
+# ANTIBODY-IHC (HPA per-patient staining) x MASS-SPEC (CPTAC TMT primary + Gygi/ProCan cell-line siblings).
+from _skills_common.presence_claims import _protein_presence_concordance_claim  # noqa: E402
+
+
+def _pp_cards(
+    ihc_cls="ihc_detected_high",
+    ihc_n_high=12,
+    ihc_n_medium=0,
+    ihc_n_low=0,
+    cptac_cls="mid",
+    cptac_frac=None,
+    gygi_cls=None,
+    gygi_frac=None,
+    procan_cls=None,
+    procan_frac=None,
+):
+    """Build the four protein-presence cards exercising the builder's two independent arms. An MS source
+    with allgene_percentile_class=None and fraction_detected=None is an absent/unresolved arm; a
+    fraction_detected==0 is a MEASURED MS non-detection. ihc_cls=None is an absent antibody arm."""
+    return [
+        {
+            "card_id": "hpa-pathology-cancer-ihc",
+            "summary": {
+                "protein_presence_class": ihc_cls,
+                "fraction_detected": 1.0 if ihc_cls in ("ihc_detected_high", "ihc_detected_moderate") else 0.1,
+                "staining_score": 3.0,
+                "n_high": ihc_n_high,
+                "n_medium": ihc_n_medium,
+                "n_low": ihc_n_low,
+                "n_not_detected": 0,
+                "n_patients_total": max(ihc_n_high + ihc_n_medium + ihc_n_low, 1),
+                "hpa_cancer_type": "colorectal cancer",
+            },
+        },
+        {
+            "card_id": "tumor-protein-abundance-cptac",
+            "summary": {
+                "allgene_percentile_class": cptac_cls,
+                "allgene_percentile": 58.3,
+                "fraction_detected": cptac_frac,
+            },
+        },
+        {
+            "card_id": "cellline-protein-abundance",
+            "summary": {
+                "allgene_percentile_class": gygi_cls,
+                "allgene_percentile": 8.6,
+                "fraction_detected": gygi_frac,
+            },
+        },
+        {
+            "card_id": "cellline-protein-abundance-procan",
+            "summary": {
+                "allgene_percentile_class": procan_cls,
+                "allgene_percentile": 79.7,
+                "fraction_detected": procan_frac,
+            },
+        },
+    ]
+
+
+def _pp(**kw):
+    return _protein_presence_concordance_claim(_by_id_for_test(_pp_cards(**kw)))
+
+
+def test_protein_presence_concordance_both_arms_agree_present():
+    c = _pp(ihc_cls="ihc_detected_high", cptac_cls="mid")
+    assert c["concordance_class"] == "protein_presence_concordant"
+    assert c["corroboration"] == "high"
+    assert c["integration_method"] == "explicit_deterministic"
+    assert c["concordance_support"]["agreed_direction"] == "protein_detected"
+    assert c["corroborating_independent_arm_count"] == 2
+    assert c["boundary_sensitive"] is False
+    assert c["qualifying_signal"] is None
+    assert "signal" not in c
+
+
+def test_protein_presence_concordance_both_arms_agree_absent():
+    # antibody not_detected + MS panel-wide fraction_detected==0 → both agree NO detection.
+    c = _pp(ihc_cls="ihc_not_detected", cptac_cls=None, cptac_frac=0)
+    assert c["concordance_class"] == "protein_presence_concordant"
+    assert c["concordance_support"]["agreed_direction"] == "protein_not_detected"
+    assert c["corroboration"] == "high"
+
+
+def test_protein_presence_concordance_antibody_detects_ms_absent():
+    # antibody detects, mass-spec measured non-detection → antibody-only presence.
+    c = _pp(ihc_cls="ihc_detected_high", cptac_cls=None, cptac_frac=0)
+    assert c["concordance_class"] == "antibody_detects_ms_absent"
+    assert c["corroboration"] == "low"
+    assert c["concordance_support"] == {"detected_in": "antibody", "not_detected_in": "mass_spec"}
+    assert c["boundary_sensitive"] is True
+    assert c["qualifying_signal"]["source"] == "mass_spec"
+
+
+def test_protein_presence_concordance_ms_detects_antibody_negative():
+    c = _pp(ihc_cls="ihc_not_detected", cptac_cls="mid")
+    assert c["concordance_class"] == "ms_detects_antibody_negative"
+    assert c["concordance_support"] == {"detected_in": "mass_spec", "not_detected_in": "antibody"}
+    assert c["corroboration"] == "low"
+
+
+def test_protein_presence_concordance_single_source_only_antibody():
+    # MS arm entirely a gap (no rank, no fraction) → only the antibody arm resolves.
+    c = _pp(ihc_cls="ihc_detected_high", cptac_cls=None)
+    assert c["concordance_class"] == "single_source_only"
+    assert c["corroboration"] == "single_arm"
+    assert c["concordance_support"]["resolved_by"] == "antibody"
+    assert c["concordance_support"]["resolved_via_source"] == "antibody_ihc"
+    assert c["corroborating_independent_arm_count"] == 1
+    assert c["resolved_source_count"] == 1
+
+
+def test_protein_presence_concordance_single_source_only_mass_spec():
+    # antibody a gap (data_unavailable class) → only the MS arm resolves, via CPTAC.
+    c = _pp(ihc_cls=None, cptac_cls="mid")
+    assert c["concordance_class"] == "single_source_only"
+    assert c["concordance_support"]["resolved_by"] == "mass_spec"
+    assert c["concordance_support"]["resolved_via_source"] == "cptac_protein"
+
+
+def test_protein_presence_concordance_single_patient_ihc_low_is_noise_floor():
+    # a single-patient ihc_detected_low (n_detected < 2) is the HPA antibody noise floor → NOT a resolved
+    # antibody detection; with MS also a gap the whole claim is omitted.
+    assert _pp(ihc_cls="ihc_detected_low", ihc_n_high=0, ihc_n_medium=0, ihc_n_low=1, cptac_cls=None) is None
+    # two detected patients clears the floor → antibody resolves present.
+    c = _pp(ihc_cls="ihc_detected_low", ihc_n_high=0, ihc_n_medium=0, ihc_n_low=2, cptac_cls="mid")
+    assert c["concordance_class"] == "protein_presence_concordant"
+
+
+def test_protein_presence_concordance_gygi_supplies_ms_arm_but_never_a_second_arm():
+    # CPTAC a gap, DepMap-Gygi resolves → the MS arm resolves VIA the cell-line sibling, still ONE MS arm.
+    c = _pp(ihc_cls="ihc_detected_high", cptac_cls=None, gygi_cls="bottom_decile")
+    assert c["concordance_class"] == "protein_presence_concordant"
+    assert c["corroborating_independent_arm_count"] == 2  # antibody + MS layer (via Gygi) — NOT 3
+    by = {s["source"]: s for s in c["source_support"]}
+    assert by["gygi_protein"]["corroboration_eligible"] is False
+    assert by["gygi_protein"]["dependence_group"] == "mass_spec"
+    assert by["cptac_protein"]["resolved"] is False  # CPTAC unresolved; Gygi supplied the arm
+
+
+def test_protein_presence_concordance_all_supply_paths_mutation():
+    # full concordant read (all MS sources present).
+    full = _pp(ihc_cls="ihc_detected_high", cptac_cls="mid", gygi_cls="bottom_decile", procan_cls="mid")
+    assert full["concordance_class"] == "protein_presence_concordant"
+    assert full["resolved_source_count"] == 4  # antibody + CPTAC + Gygi + ProCan
+    assert full["corroborating_independent_arm_count"] == 2
+    # defeat CPTAC only — Gygi still supplies the MS arm → NOT degraded.
+    no_cptac = _pp(ihc_cls="ihc_detected_high", cptac_cls=None, gygi_cls="bottom_decile", procan_cls="mid")
+    assert no_cptac["corroborating_independent_arm_count"] == 2
+    # defeat EVERY mass-spec source — only the antibody arm survives → degrade to single_source_only.
+    no_ms = _pp(ihc_cls="ihc_detected_high", cptac_cls=None, gygi_cls=None, procan_cls=None)
+    assert no_ms["concordance_class"] == "single_source_only"
+    # defeat the antibody arm too → EVERY independent supply path defeated → key omitted (byte-stable).
+    assert _pp(ihc_cls=None, cptac_cls=None, gygi_cls=None, procan_cls=None) is None
+
+
+def test_protein_presence_concordance_key_omitted_when_neither_arm_resolves():
+    cv = presence_claim_vector(_headline(), _pp_cards(ihc_cls=None, cptac_cls=None, gygi_cls=None, procan_cls=None))
+    assert "protein_presence_concordance" not in cv  # byte-stable omission
+
+
+def test_protein_presence_concordance_grain_is_first_class_and_differs_across_arms():
+    c = _pp(ihc_cls="ihc_detected_high", cptac_cls="mid")
+    by = {s["source"]: s for s in c["source_support"]}
+    assert by["antibody_ihc"]["grain"] == "antibody_ihc (patient tissue microarray)"
+    assert by["cptac_protein"]["grain"] == "ms_protein (patient tumor)"  # arms DIFFER in detection technology
+
+
+def test_protein_presence_concordance_retained_quantitative_recoverable():
+    c = _pp(ihc_cls="ihc_detected_high", ihc_n_high=12, cptac_cls="mid")
+    by = {s["source"]: s for s in c["source_support"]}
+    assert by["antibody_ihc"]["retained_quantitative"]["n_high"] == 12
+    assert by["antibody_ihc"]["retained_quantitative"]["fraction_detected"] == 1.0
+
+
+def test_protein_presence_concordance_non_finite_quant_demoted_to_none():
+    cards = _pp_cards(ihc_cls="ihc_detected_high", cptac_cls="mid")
+    cards[0]["summary"]["staining_score"] = float("nan")
+    c = _protein_presence_concordance_claim(_by_id_for_test(cards))
+    by = {s["source"]: s for s in c["source_support"]}
+    assert by["antibody_ihc"]["retained_quantitative"]["staining_score"] is None
+
+
+def test_protein_presence_concordance_presentation_signal_shape():
+    conc = _pp(ihc_cls="ihc_detected_high", cptac_cls="mid")
+    assert _sr_signal_shape_ok(conc["positive_signal"])
+    assert conc["qualifying_signal"] is None
+    disagree = _pp(ihc_cls="ihc_detected_high", cptac_cls=None, cptac_frac=0)
+    assert _sr_signal_shape_ok(disagree["positive_signal"]) and _sr_signal_shape_ok(disagree["qualifying_signal"])
+
+
+def test_protein_presence_concordance_is_verdict_inert_and_purely_additive():
+    cards = _pp_cards(ihc_cls="ihc_detected_high", cptac_cls="mid")
+    cv = presence_claim_vector(_headline(), cards)
+    claim = cv["protein_presence_concordance"]
+    assert "signal" not in claim
+    assert "verdict-INERT" in claim["_disclaimer"]
+    # rebuild from the SAME card set with every protein arm defeated → the claim is omitted and every
+    # other claim-vector key is byte-identical to the with-claim vector.
+    bare = presence_claim_vector(_headline(), _pp_cards(ihc_cls=None, cptac_cls=None, gygi_cls=None, procan_cls=None))
+    assert "protein_presence_concordance" not in bare
+    common = {k: v for k, v in cv.items() if k != "protein_presence_concordance"}
+    common_bare = {k: v for k, v in bare.items() if k != "protein_presence_concordance"}
+    assert common == common_bare
+
+
+def test_protein_presence_concordance_typed_edges_across_dispositions():
+    # concordant → corroborates edge antibody→(resolving MS source); disagree → qualifies; single → none.
+    conc = _pp(ihc_cls="ihc_detected_high", cptac_cls="mid")
+    e = _only_edge(conc)
+    assert e == {
+        "from_source": "antibody_ihc",
+        "to_source": "cptac_protein",
+        "relation": "corroborates",
+        "basis": "protein_presence_concordant",
+    }
+    disagree = _pp(ihc_cls="ihc_detected_high", cptac_cls=None, cptac_frac=0)
+    ed = _only_edge(disagree)
+    assert ed["relation"] == "qualifies"
+    # single_source_only carries NO cross-source edge (the other arm is a gap).
+    assert _pp(ihc_cls="ihc_detected_high", cptac_cls=None)["dependence_edges"] == []
+
+
+def test_protein_presence_concordance_edge_endpoint_is_the_resolving_ms_source():
+    # CPTAC unresolved but Gygi supplies the MS arm → the edge endpoint is the source that resolved it.
+    c = _pp(ihc_cls="ihc_detected_high", cptac_cls=None, gygi_cls="bottom_decile")
+    e = _only_edge(c)
+    assert e["to_source"] == "gygi_protein" and e["from_source"] == "antibody_ihc"
+    nodes = {s["source"] for s in c["source_support"]}
+    assert {e["from_source"], e["to_source"]} <= nodes

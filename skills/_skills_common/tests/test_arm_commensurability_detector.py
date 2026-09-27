@@ -602,6 +602,20 @@ _DECLARED_PRESENCE_CORROBORATION_BUILDERS = {
         "corroboration-INELIGIBLE (a same-modality cross-grain sibling, never a third independent arm), so "
         "corroboration_from_arms folds EXACTLY [rna_arm, protein_arm] — never a cell-line RNA third arm."
     ),
+    "_protein_presence_concordance_claim": (
+        "antibody-IHC protein presence (HPA Pathology `hpa-pathology-cancer-ihc` per-patient staining "
+        "distribution) × mass-spec protein presence (CPTAC TMT `tumor-protein-abundance-cptac`) — the two "
+        "INDEPENDENT arms of the L2b protein_presence_concordance family (SK#1851). Two reads of the SAME "
+        "protein-presence property at DIFFERENT detection TECHNOLOGIES (antibody immunostaining vs peptide "
+        "mass-spectrometry), independent cohorts and independent failure modes — commensurate by same-"
+        "property, cross-technology (MS presence read off the WITHIN-POPULATION rank CLASS, never a raw "
+        "TMT-vs-IHC magnitude, #1512). The mass-spec arm is one arm supplied by a same-modality group "
+        "{cptac_protein, gygi_protein, procan_protein}; DepMap-Gygi (`cellline-protein-abundance`) and "
+        "ProCan (`cellline-protein-abundance-procan`) are corroboration-INELIGIBLE same-modality cross-"
+        "grain siblings (all three are mass-spectrometry — ONE arm, never a second independent replication), "
+        "so corroboration_from_arms folds EXACTLY [antibody_arm, mass_spec_arm] — never a cell-line MS "
+        "third arm."
+    ),
 }
 
 
