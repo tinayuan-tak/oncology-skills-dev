@@ -634,8 +634,9 @@ def _tumor_presence_frame_signal(fr: dict) -> dict:
 # REQUIRED coverage input. Q1 carries NO existing integrated_signal, so this is a NET-NEW additive key that
 # NEVER touches #1842's Q7 `l3_integrated_signal` / `l3_forward_question` render. Carries NO signal tier /
 # polarity / fill (an annotation, never a meter cell) and routes NOTHING back into the presence_verdict /
-# claim_vector / resolver. Per SK#1854 (epic #1848-C1) the frame's CRITICAL_UNKNOWN role is DECLARED but its
-# forward-question is NOT rendered here — that endpoint is the separate #1855.
+# claim_vector / resolver. The frame's CRITICAL_UNKNOWN role is DECLARED here (recorded on this
+# integrated_signal as `unresolved_critical`) and RENDERED as the Q1 `forward_question` by the L4 endpoint
+# SK#1855 (epic #1848-C2) — see the presence_question_table render block below.
 def _presence_priority_frame_signal(fr: dict) -> dict:
     """Project the antigen-priority frame's L3 decision object into the Q1 row's `integrated_signal`
     surface (verdict-inert)."""
@@ -646,7 +647,7 @@ def _presence_priority_frame_signal(fr: dict) -> dict:
         f"{len(resolved)} resolved typed input(s)"
         + (f" ({', '.join(resolved)})" if resolved else "")
         + "; the safety critical is unresolved on this presence surface → an L4 forward question "
-        "(never a kill; rendered separately, not on this row)."
+        "(never a kill; rendered as this row's `forward_question`)."
     )
     return {
         "kind": "present_targetable_antigen_priority",
@@ -712,10 +713,21 @@ def presence_question_table(headline: dict, cards: list, claim_vector: Optional[
     # `tumor-rna-distribution` card and the within-skill presence_strength LOCAL-COMPOSITE) and SURFACE its
     # synthesis as a verdict-INERT `integrated_signal` on the Q1 (headline) row. Q1 carries no existing
     # integrated_signal, so the key is NET-NEW and never touches #1842's Q7 `l3_*` render; it is attached
-    # only when the coverage anchor resolves (omitted otherwise → row byte-stable). Per epic #1848-C1 NO
-    # forward-question is rendered here (the frame declares its critical_unknown role but the forward-question
-    # endpoint is the separate #1855). Reads only ALREADY-BUILT vectors + emitted card/composite reads, so it
-    # perturbs no meter cell and no verdict.
+    # only when the coverage anchor resolves (omitted otherwise → row byte-stable). Reads only ALREADY-BUILT
+    # vectors + emitted card/composite reads, so it perturbs no meter cell and no verdict.
+    #
+    # SK#1855 L4 ENDPOINT (epic #1848-C2, THE FINAL ENDPOINT of #1848): render the SAME frame's
+    # CRITICAL_UNKNOWN role — the deliberately-absent safety `normal_liability_concordance` (a tumor-presence
+    # surface never carries the cross-source safety concordance) — as an L4 FORWARD-QUESTION on this same Q1
+    # headline row, via the SHARED #1843 projector `forward_question_from_frame` (never a hand-rolled copy).
+    # Per roles-not-weights the forward-question is NEVER a kill: because the critical input is UNRESOLVED on
+    # a presence surface, the frame routed to a QUESTION, and the projector renders it as the normal-tissue
+    # expression-window question (e.g. "what is the normal-tissue expression window for this antigen?").
+    # Rendered under the DISTINCT key `forward_question` — mirroring #1841's dependency-Q4 endpoint — so it
+    # NEVER touches #1842's Q7 `l3_forward_question` or #1844's per-modality frames. Attached only when the
+    # coverage anchor resolves (omitted otherwise → row byte-stable). Additive / verdict-INERT: routes
+    # nothing back into presence_verdict, presence_verdict_by_modality, the claim_vector, a meter cell, or a
+    # resolver.
     if (cv or {}).get("bulk_vs_singlecell_coverage_concordance"):
         from _skills_common.presence_claims import derive_presence_state, presence_strength_from_state
 
@@ -727,6 +739,9 @@ def presence_question_table(headline: dict, cards: list, claim_vector: Optional[
         for r in rows:
             if r.get("id") == "Q1":
                 r["integrated_signal"] = _presence_priority_frame_signal(pfr)
+                fq = _forward_question_from_frame(pfr)
+                if fq is not None:
+                    r["forward_question"] = fq
                 break
     return rows
 

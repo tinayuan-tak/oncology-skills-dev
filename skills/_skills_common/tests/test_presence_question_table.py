@@ -1064,18 +1064,81 @@ def test_l3_antigen_priority_frame_signal_attaches_to_q1_when_coverage_resolves(
     assert "tier" not in isig and "polarity" not in isig and "fill" not in isig
 
 
-def test_l3_antigen_priority_no_forward_question_rendered_in_c1():
-    """Per epic #1848-C1 the frame DECLARES its critical_unknown role but NO forward-question is rendered
-    here — that endpoint is the separate #1855. The Q1 row carries the integrated_signal but neither a
-    `forward_question` nor an `l3_forward_question` key."""
+def test_l3_antigen_priority_renders_the_forward_question_on_q1_endpoint_1855():
+    """SK#1855 L4 ENDPOINT (epic #1848-C2): the frame's CRITICAL_UNKNOWN role — the deliberately-absent
+    safety `normal_liability_concordance` — is RENDERED as an L4 forward-question on the Q1 headline row,
+    via the shared #1843 projector, under the DISTINCT key `forward_question` (mirroring #1841's dependency
+    Q4). NEVER a kill: it asks the normal-tissue expression-window question rather than gating. This flips
+    the C1 (#1854) placeholder that recorded but did not render the role."""
     h, cards, cv = _fixture()
     cv["bulk_vs_singlecell_coverage_concordance"] = _l3_coverage_claim()
     q1 = _by_id(presence_question_table(h, cards, cv))["Q1"]
     assert "integrated_signal" in q1
-    assert "forward_question" not in q1 and "l3_forward_question" not in q1
-    # the synthesis still routes to a QUESTION on the absent safety critical (never a kill) — recorded, not rendered.
+    fq = q1["forward_question"]
+    assert fq["kind"] == "l4_forward_question"
+    assert fq["role"] == "critical_unknown"  # roles-not-weights — a question, never a kill
+    # the forward-question names the absent safety critical, sourced from THIS frame via the shared projector
+    assert fq["unresolved_critical"] == ["normal_liability_concordance"]
+    assert "normal_liability_concordance" in fq["question"]
+    assert fq["provenance_ref"] == "evidence_frame.present_targetable_antigen_priority"
+    # DISTINCT key: #1842's Q7 render (l3_forward_question) is never on Q1 (endpoint is distinct-keyed).
+    assert "l3_forward_question" not in q1
+    # the recorded integrated_signal still shows the frame routed to a QUESTION on the absent safety critical.
     assert q1["integrated_signal"]["decision"] == "question"
     assert q1["integrated_signal"]["unresolved_critical"] == ["normal_liability_concordance"]
+
+
+def test_l3_antigen_priority_forward_question_fires_on_unresolved_and_not_on_resolved_1855():
+    """SK#1855 MUTATION TEST: the forward-question FIRES iff the critical input (`normal_liability_
+    concordance`) is UNRESOLVED, and does NOT fire when it resolves — NOT the reverse.
+
+    On the production presence surface the safety critical is DELIBERATELY absent (a MISSING_UNRESOLVED
+    slot — R4 forbids ever supplying it resolved there), so the frame always routes to a QUESTION and the
+    projector fires. The resolved half is shown against a synthetic frame variant that makes the same
+    critical a RESOLVABLE canonical property and supplies it resolved: with no unresolved critical the
+    frame carries no `l4_question`, so the shared projector returns None (does not fire)."""
+    import dataclasses
+
+    from _skills_common import evidence_frame as ef
+
+    # UNRESOLVED (production): normal_liability absent -> frame routes to a QUESTION -> projector FIRES.
+    h, cards, cv = _fixture()
+    cv["bulk_vs_singlecell_coverage_concordance"] = _l3_coverage_claim()
+    from _skills_common.presence_claims import derive_presence_state, presence_strength_from_state
+
+    frame_headline = {
+        ef.TUMOR_RNA_ALLGENE_PERCENTILE: _cbyid(cards).get("tumor-rna-distribution", {}).get("allgene_percentile"),
+        ef.PRESENCE_STRENGTH_CLASS: presence_strength_from_state(derive_presence_state(h), cv),
+    }
+    unresolved_fr = ef.presence_priority_frame(cv, frame_headline, {})
+    assert unresolved_fr["unresolved_critical"] == ["normal_liability_concordance"]
+    assert "l4_question" in unresolved_fr
+    assert ef.forward_question_from_frame(unresolved_fr) is not None  # FIRES on unresolved
+
+    # RESOLVED: make the same critical a resolvable canonical property and supply it resolved -> the frame
+    # has no unresolved critical/required -> no l4_question -> the projector does NOT fire (returns None).
+    resolvable_inputs = tuple(
+        dataclasses.replace(i, kind=ef.InputKind.CANONICAL_PROPERTY_CLAIM, role=ef.Role.SUPPORTIVE)
+        if i.property_id == ef.NORMAL_LIABILITY_PROPERTY
+        else i
+        for i in ef.PRESENCE_PRIORITY_FRAME.inputs
+    )
+    resolvable_frame = dataclasses.replace(ef.PRESENCE_PRIORITY_FRAME, inputs=resolvable_inputs)
+    resolved_bundle = {
+        ef.COVERAGE_CONCORDANCE_PROPERTY: ef.from_concordance(ef.COVERAGE_CONCORDANCE_PROPERTY, _l3_coverage_claim()),
+        ef.NORMAL_LIABILITY_PROPERTY: ef.from_concordance(
+            ef.NORMAL_LIABILITY_PROPERTY,
+            {
+                "integration_method": "explicit_deterministic",
+                "concordance_class": "normal_liability_low",
+                "corroboration": "high",
+            },
+        ),
+    }
+    resolved_fr = ef.evaluate_frame(resolvable_frame, resolved_bundle)
+    assert resolved_fr["unresolved_critical"] == []
+    assert "l4_question" not in resolved_fr
+    assert ef.forward_question_from_frame(resolved_fr) is None  # does NOT fire when resolved
 
 
 def test_l3_antigen_priority_omitted_when_coverage_absent_and_is_verdict_inert_on_q1():
@@ -1093,11 +1156,12 @@ def test_l3_antigen_priority_omitted_when_coverage_absent_and_is_verdict_inert_o
     rows_framed = _by_id(presence_question_table(h, cards, cv2))
     framed_q1 = rows_framed["Q1"]
     ref_q1 = _q1_abundance(h, _cbyid(cards), cv2)
-    # the L3 attach added ONLY the integrated_signal key — every meter/text cell is unchanged.
+    # the L3 attach added ONLY the integrated_signal + the SK#1855 L4 forward_question keys — every
+    # meter/text cell is unchanged (both are additive answer-surface annotations, never meter cells).
     assert framed_q1["signal"] == ref_q1["signal"]
     assert framed_q1["confidence"] == ref_q1["confidence"]
     assert framed_q1["primary"] == ref_q1["primary"] and framed_q1["support"] == ref_q1["support"]
-    assert set(framed_q1) - set(ref_q1) == {"integrated_signal"}
+    assert set(framed_q1) - set(ref_q1) == {"integrated_signal", "forward_question"}
     # #1842's Q7 L3 render is on Q7 (distinct row + distinct l3_* keys) — Q1 never carries the l3_* keys.
     assert "l3_integrated_signal" not in framed_q1 and "l3_integrated_signal" in rows_framed["Q7"]
 
