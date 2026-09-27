@@ -89,6 +89,11 @@ outputs:
   summary_fields_vocabulary:
     event_correspondence_class: [event_matched_dependent_in_lineage, event_matched_dependent_off_lineage, event_matched_not_dependent, no_event_match, no_target_event, data_unavailable]
     patient_event_state: [biallelic-genetic, monoallelic, activating_mutation]
+    # Re-emitted verbatim from functional-gene-state's headline (genomic_event_model_match/read.py:135
+    # → fgs.get("functional_state_class")); identical closed set to functional-gene-state.card.yaml
+    # functional_state_class. Declared so the #1644 fleet vocab-exhaustiveness guard is non-vacuous for
+    # the panels that bind this field (functional-requirement / genomic-alteration-profile). See #948.
+    patient_functional_state_class: [recurrent_biallelic_inactivation, sporadic_biallelic_inactivation, predominantly_monoallelic, rarely_altered, data_unavailable]
   figure: genomic_event_model_match_card       # tumor event + correspondence class + top matched models
 
 thresholds:

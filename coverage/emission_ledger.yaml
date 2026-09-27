@@ -19,11 +19,11 @@ provenance: 'heterogeneous: packages were produced by different code'
 counts:
   cards_declaring_vocabulary: 136
   cards_with_observations: 132
-  declared_pairs: 294
-  pairs: 287
+  declared_pairs: 295
+  pairs: 288
   out_of_vocab: 0
   never_observed_pairs: 8
-  dead_tokens: 349
+  dead_tokens: 350
 ungated_absences:
   "orphan: declared on no field \u2014 already gated by validate_cards":
   - functional-gene-state::sample_state
@@ -2267,6 +2267,30 @@ by_card:
       never_emitted: []
       top: monoallelic
       saturation: 0.8807
+    patient_functional_state_class:
+      grain: scalar
+      arity: scalar
+      status: observed
+      declared:
+      - data_unavailable
+      - predominantly_monoallelic
+      - rarely_altered
+      - recurrent_biallelic_inactivation
+      - sporadic_biallelic_inactivation
+      observed:
+        sporadic_biallelic_inactivation: 328
+        rarely_altered: 85
+        recurrent_biallelic_inactivation: 46
+        predominantly_monoallelic: 42
+      n_non_null: 501
+      n_null: 0
+      n_absent: 0
+      n_packages_with_card: 501
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      top: sporadic_biallelic_inactivation
+      saturation: 0.6547
   genomic-instability-state:
     aneuploidy_burden_class:
       grain: scalar
