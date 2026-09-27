@@ -1,0 +1,515 @@
+# MOSTLY HUMAN-AUTHORED. Every row here carries `reviewed: true`: a human read the field's
+# producers (target-contracts card contract) and its consumers (the census, blind to this ledger)
+# and chose the role. Roles were NOT auto-drafted from field names (the tumor-presence _meta explains
+# why that heuristic is noise). Completeness (every emitted summary_field covered) and reader-reach for
+# `role: signal` are CI-enforced by skills/tests/test_field_disposition_ledgers.py.
+#
+# SHARED CARDS reuse the roles already reviewed in the sibling ledgers (the sibling test):
+# dependency-predictability + mutation-hotspot-frequency are verbatim from
+# skills/genomic-alteration-profile/field_disposition.yaml; structure-features-static is verbatim from
+# skills/surface-modality-fit/field_disposition.yaml. Reach is global (census walks the whole tree), so
+# a structural signal read only by the sibling skill still counts as reader-reached here.
+_meta:
+  description: Field-disposition ledger for tractability-small-molecule — every emitted summary_field
+    carries an explicit role so nothing is dropped SILENTLY. Enforced by
+    skills/tests/test_field_disposition_ledgers.py.
+  roles:
+    signal: feeds a claim / verdict (must be wired or explicitly waived)
+    context: qualifies a signal (power, certainty, statistical qualifier, magnitude behind a class,
+      denominator, cross-axis / cross-platform pointer)
+    provenance: audit / identity / method / version token — surfaced, never a signal
+    display: human-facing detail or large container; verdict-inert by design
+  generated_from: target-contracts/cards/<card>.card.yaml outputs.summary_fields
+  reviewed: true == a human read the field's producers and consumers and chose this role.
+  waived_because: only legal on role:signal. Records WHY a signal no declared reader reaches is left
+    unwired (the Track-B wiring queue). Must name the missing consumer or owning repo.
+prism-compound-activity:
+  prism_activity_class:
+    role: signal
+    reason: headline PRISM small-molecule activity call; fires the prism-*-supportive-sm resolver rungs; reach-confirmed exact via {display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  median_log2auc_across_compounds:
+    role: context
+    reason: aggregate PRISM viability effect magnitude behind prism_activity_class; qualifies the call, not itself the verdict; reach exact {salience}
+    reviewed: true
+  n_compounds_targeting:
+    role: context
+    reason: count of compounds hitting the target; power / denominator behind the activity class (ORPHAN)
+    reviewed: true
+  highest_clinical_phase:
+    role: context
+    reason: max clinical phase among PRISM compounds; clinical-maturity qualifier behind the activity class (the real clinical-phase signal lives on measured-potency-tractability) (ORPHAN)
+    reviewed: true
+  top_compounds:
+    role: display
+    reason: named-compound list; human-facing detail / large container; reach exact {salience}
+    reviewed: true
+  per_lineage_activity:
+    role: display
+    reason: per-lineage activity container; large container; verdict-inert by design (ORPHAN)
+    reviewed: true
+  prism_lineage_selectivity:
+    role: context
+    reason: lineage-selectivity qualifier of the PRISM activity signal; read by a display rule only, fires no gating rung; reach exact {display_rule}
+    reviewed: true
+prism-crispr-concordance:
+  crispr_prism_concordance_class:
+    role: signal
+    reason: chemical-genetic (PRISM-vs-CRISPR) concordance call; fires the e7 concordance rungs; reach-confirmed exact via {display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  best_spearman_r_crispr:
+    role: context
+    reason: peak PRISM-vs-CRISPR correlation magnitude behind the concordance class; reach exact {salience}
+    reviewed: true
+  best_spearman_r_rnai:
+    role: context
+    reason: peak PRISM-vs-RNAi correlation magnitude behind the concordance class; reach exact {salience}
+    reviewed: true
+  n_compounds_evaluated:
+    role: context
+    reason: count of compounds in the concordance test; power qualifier; reach exact {skill_code}
+    reviewed: true
+  per_compound_concordance:
+    role: display
+    reason: per-compound correlation container; large container; verdict-inert by design; reach exact {salience}
+    reviewed: true
+  n_dual_responders:
+    role: context
+    reason: count of compounds responsive in both assays; power qualifier (ORPHAN)
+    reviewed: true
+  dual_responders:
+    role: display
+    reason: named-compound list of dual responders; large container; verdict-inert by design (ORPHAN)
+    reviewed: true
+dependency-predictability:
+  pearson_r_rf:
+    role: context
+    reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)
+    reviewed: true
+  pearson_r_squared_rf:
+    role: context
+    reason: qualifier / cross-axis pointer behind a signal (secondary arm, availability or comparator measurement)
+    reviewed: true
+  pearson_r_squared_rf_ci_hi:
+    role: context
+    reason: confidence-interval bound; statistical qualifier
+    reviewed: true
+  pearson_r_squared_rf_ci_lo:
+    role: context
+    reason: confidence-interval bound; statistical qualifier
+    reviewed: true
+  per_lineage_predictability:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+  pred_dominant_feature:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+  pred_dominant_feature_class:
+    role: signal
+    reason: predictability dominant-feature signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,salience,skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  pred_n_cell_lines_evaluated:
+    role: provenance
+    reason: "provenance / audit / identity token — surfaced, never a signal"
+    reviewed: true
+  pred_top_features_rf:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+  predictability_class:
+    role: signal
+    reason: dependency-predictability signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,display_rule,salience,skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+structure-features-static:
+  hotspot_pocket_adjacency_call:
+    role: signal
+    reason: hotspot/druggable-pocket adjacency call; fires hotspot_pocket_adjacency_call rules; reach-confirmed exact via {capsule, display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  mutation_hotspot_in_druggable_pocket:
+    role: context
+    reason: boolean component behind hotspot_pocket_adjacency_call
+    reviewed: true
+  pdb_coverage_class:
+    role: context
+    reason: experimental-structure coverage class; structural-certainty qualifier behind the ligandability call
+    reviewed: true
+  alphafold_confidence_class:
+    role: context
+    reason: AlphaFold model-confidence class; structural-certainty qualifier behind the ligandability call
+    reviewed: true
+  pdb_ids_available:
+    role: provenance
+    reason: list of available PDB IDs; identity/provenance token (ORPHAN)
+    reviewed: true
+  pdb_best_resolution_angstrom:
+    role: context
+    reason: best crystallographic resolution; structure-quality qualifier (ORPHAN)
+    reviewed: true
+  pdb_best_method:
+    role: provenance
+    reason: best experimental structure method (X-ray/cryo-EM); provenance token (ORPHAN)
+    reviewed: true
+  alphafold_plddt_mean:
+    role: context
+    reason: mean pLDDT magnitude behind alphafold_confidence_class
+    reviewed: true
+  alphafold_plddt_min:
+    role: context
+    reason: min pLDDT magnitude; structural-certainty qualifier (ORPHAN)
+    reviewed: true
+  alphafold_plddt_min_domain:
+    role: display
+    reason: names the lowest-confidence domain; human-facing detail (ORPHAN)
+    reviewed: true
+  n_domains_low_plddt:
+    role: context
+    reason: count of low-confidence domains; power/certainty qualifier (ORPHAN)
+    reviewed: true
+  disordered_fraction:
+    role: context
+    reason: disordered-residue fraction; structural qualifier behind ligandability_disorder_class (name_only)
+    reviewed: true
+  structural_ligandability_class:
+    role: signal
+    reason: structural-ligandability call (the SM forward-ligandability signal this skill reads); reach is global via census; reach-confirmed exact via {capsule, display_rule, gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  n_ligandability_axes:
+    role: context
+    reason: count of satisfied ligandability axes; magnitude behind structural_ligandability_class (name_only)
+    reviewed: true
+  has_experimental_cocrystal:
+    role: context
+    reason: cocrystal-evidence boolean; ligandability-axis component behind the class
+    reviewed: true
+  has_druggable_pocket:
+    role: context
+    reason: druggable-pocket boolean; ligandability-axis component behind the class
+    reviewed: true
+  has_virtual_screen_hit:
+    role: context
+    reason: virtual-screen-hit boolean; ligandability-axis component (name_only)
+    reviewed: true
+  has_cryptic_site:
+    role: context
+    reason: cryptic-site boolean; ligandability-axis component behind the class
+    reviewed: true
+  has_annotated_binding_site:
+    role: context
+    reason: annotated-binding-site boolean; ligandability-axis component (ORPHAN)
+    reviewed: true
+  is_foldable:
+    role: context
+    reason: foldability boolean; structural qualifier (ORPHAN)
+    reviewed: true
+  ligandability_disorder_class:
+    role: signal
+    reason: disorder-adjusted ligandability class; read by this skill as a structural call (reach global via census); reach-confirmed exact via {skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: structure-method version; provenance token (name_only)
+    reviewed: true
+known-drug-tractability:
+  known_drug_tractability_class:
+    role: signal
+    reason: headline DGIdb known-drug tractability call; fires the known-drug resolver rungs; reach-confirmed exact via {gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  druggability_tier:
+    role: signal
+    reason: DGIdb-native druggability tier passthrough (clinically_actionable/approved_drug/...) — a verdict-shaped tractability call; the skill derives its OWN known_drug_tractability_class and never reads this native tier, so it is a signal-but-unread candidate
+    waived_because: no exact reader in census 2026-09-27; the skill consumes its own derived known_drug_tractability_class instead of the DGIdb-native tier — Track-B wiring queue, owning repo claude-oncology-skills
+    reviewed: true
+  is_druggable_genome:
+    role: context
+    reason: DGIdb druggable-genome category boolean; component behind the tractability tier/class (ORPHAN)
+    reviewed: true
+  is_clinically_actionable:
+    role: context
+    reason: DGIdb clinically-actionable category boolean; component behind the tractability tier/class (ORPHAN)
+    reviewed: true
+  has_approved_drug:
+    role: context
+    reason: ">=1-approved-drug boolean; modality-blind component behind approved_drug_engagement_class, consumed by the modality gate; reach exact {skill_code}"
+    reviewed: true
+  n_drug_interactions:
+    role: context
+    reason: count of DGIdb drug-gene interactions; magnitude qualifier; reach exact {salience}
+    reviewed: true
+  n_approved_drug_interactions:
+    role: context
+    reason: count of approved-drug interactions; magnitude qualifier (ORPHAN)
+    reviewed: true
+  n_antineoplastic_interactions:
+    role: context
+    reason: count of antineoplastic (oncology-relevant) interactions; magnitude surfaced in the approved-drug rung message; reach exact {skill_code}
+    reviewed: true
+  gene_categories:
+    role: display
+    reason: "'|'-joined DGIdb category names; large container / list; verdict-inert by design (ORPHAN)"
+    reviewed: true
+  n_direct_interactions:
+    role: context
+    reason: count of DIRECT drug-gene interactions; magnitude behind direct_engagement_class (ORPHAN)
+    reviewed: true
+  direct_engagement_class:
+    role: signal
+    reason: DGIdb directness call; the resolver v1.5.0 directness gate routes an indirect/sparse roster to annotation_only_indirect (verdict-moving); reach-confirmed exact via {salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  approved_drug_engagement_class:
+    role: signal
+    reason: approved-drug engagement/modality class; the resolver v1.6.0 modality gate keys on approved_biologic_only to route the DRUG axis to annotation_only_indirect (verdict-moving, CASE-008); reach-confirmed exact via {gating_rule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  approved_drug_modality:
+    role: context
+    reason: authoritative approved-drug modality (small_molecule/biologic); qualifies approved_drug_engagement_class and is read by the verdict-inert sm_modality_mismatch_caveat; reach exact {salience, skill_code}
+    reviewed: true
+  approved_drug_modality_tag:
+    role: context
+    reason: raw crosswalk modality tag (adc/tce/car/...); fallback modality qualifier behind approved_drug_modality; reach exact {skill_code}
+    reviewed: true
+  known_drug_context:
+    role: provenance
+    reason: "known-drug audit/context provenance token — surfaced, never a signal (ORPHAN)"
+    reviewed: true
+  directness_context:
+    role: provenance
+    reason: "directness audit/context provenance token — surfaced, never a signal (ORPHAN)"
+    reviewed: true
+  modality_context:
+    role: provenance
+    reason: "modality audit/context provenance token — surfaced, never a signal (ORPHAN)"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: method/version provenance token (name_only)
+    reviewed: true
+measured-potency-tractability:
+  measured_bioactivity_class:
+    role: signal
+    reason: measured binding-potency call (ChEMBL/BindingDB); fires the measured-potent-ligand rung; reach-confirmed exact via {capsule, gating_rule, salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  best_measured_potency_neglog_m:
+    role: context
+    reason: peak measured potency (-log M) magnitude behind measured_bioactivity_class; reach exact {salience}
+    reviewed: true
+  chembl_best_pchembl:
+    role: context
+    reason: best ChEMBL pchembl magnitude behind the bioactivity class; reach exact {salience}
+    reviewed: true
+  chembl_n_potent_ligands:
+    role: context
+    reason: count of potent ChEMBL ligands; magnitude qualifier (name_only)
+    reviewed: true
+  chembl_max_clinical_phase:
+    role: context
+    reason: max ChEMBL clinical phase; magnitude behind chembl_clinical_phase_class (ORPHAN)
+    reviewed: true
+  chembl_clinical_phase_class:
+    role: signal
+    reason: ChEMBL clinical-phase call; fires the measured-chembl-approved / clinical-precedent rungs; reach-confirmed exact via {capsule, gating_rule, salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  chembl_approved_engagement_class:
+    role: signal
+    reason: ChEMBL approved-engagement call; fires the measured-chembl-approved-sm rung (verdict-moving); reach-confirmed exact via {gating_rule} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  n_direct_interactions:
+    role: context
+    reason: count of direct interactions; magnitude qualifier (ORPHAN)
+    reviewed: true
+  bindingdb_best_p_affinity:
+    role: context
+    reason: best BindingDB binding affinity magnitude behind measured_bioactivity_class (ORPHAN)
+    reviewed: true
+  bindingdb_n_potent_ligands:
+    role: context
+    reason: count of potent BindingDB ligands; magnitude qualifier (ORPHAN)
+    reviewed: true
+  measured_potency_context:
+    role: provenance
+    reason: "measured-potency audit/context provenance token — surfaced, never a signal (ORPHAN)"
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: method/version provenance token (name_only)
+    reviewed: true
+degradation-feasibility:
+  degradability_feasibility_class:
+    role: signal
+    reason: target degradability call (degrader lens); fires the degrader-channel rules (verdict-inert for the SM top-line, but claim-bearing on the degrader channel); reach-confirmed exact via {display_rule, salience, skill_code} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  e3_substrate_evidence:
+    role: context
+    reason: E3-substrate evidence boolean; component behind degradability_feasibility_class; reach exact {salience, skill_code}
+    reviewed: true
+  n_e3_ligases_literature:
+    role: context
+    reason: count of literature-reported E3 ligases; magnitude qualifier; reach exact {salience}
+    reviewed: true
+  e3_ligases_literature:
+    role: display
+    reason: named E3-ligase list; large container; verdict-inert by design (ORPHAN)
+    reviewed: true
+  e3_types_literature:
+    role: display
+    reason: named E3-type list; large container; verdict-inert by design (ORPHAN)
+    reviewed: true
+  n_e3_predicted_confident:
+    role: context
+    reason: count of confidently predicted E3s; magnitude qualifier (ORPHAN)
+    reviewed: true
+  degrader_precedent:
+    role: context
+    reason: degrader-precedent boolean; component behind the feasibility class; reach exact {skill_code}
+    reviewed: true
+  degrader_precedent_examples:
+    role: display
+    reason: named degrader-precedent examples; large container; verdict-inert by design (ORPHAN)
+    reviewed: true
+  degrader_precedent_modality:
+    role: context
+    reason: modality of the degrader precedent (protac/molecular-glue); qualifier behind the class; reach exact {salience}
+    reviewed: true
+  degrader_recruited_e3:
+    role: context
+    reason: which E3 the precedent degrader recruits; cross-axis pointer / qualifier; reach exact {salience}
+    reviewed: true
+  surface_location_excluded:
+    role: context
+    reason: surface-location exclusion flag gating degrader feasibility; qualifier (ORPHAN)
+    reviewed: true
+  degradability_context:
+    role: provenance
+    reason: "degradability audit/context provenance token — surfaced, never a signal (ORPHAN)"
+    reviewed: true
+gdsc-drug-activity:
+  gdsc_activity_class:
+    role: context
+    reason: Sanger GDSC drug-activity call; ORTHOGONAL cross-platform corroboration of prism_activity_class. The card is DISPLAY-ONLY / verdict-INERT (fires no rule, not in rules_scope, druggability_snapshot byte-stable), so it qualifies confidence in the PRISM signal rather than being a verdict itself; read into the headline via {skill_code}
+    reviewed: true
+  n_drugs:
+    role: context
+    reason: count of GDSC drugs tested; power qualifier (ORPHAN)
+    reviewed: true
+  n_cell_lines_tested:
+    role: context
+    reason: count of GDSC cell lines tested; power qualifier (ORPHAN)
+    reviewed: true
+  median_ln_ic50:
+    role: context
+    reason: median GDSC ln(IC50) magnitude behind gdsc_activity_class (ORPHAN)
+    reviewed: true
+  median_auc:
+    role: context
+    reason: median GDSC AUC magnitude behind gdsc_activity_class (ORPHAN)
+    reviewed: true
+  min_median_ln_ic50:
+    role: context
+    reason: most-sensitive median GDSC ln(IC50) magnitude behind gdsc_activity_class (ORPHAN)
+    reviewed: true
+  most_sensitive_drug_name:
+    role: display
+    reason: named most-sensitive GDSC drug; human-facing detail; reach exact {skill_code}
+    reviewed: true
+  datasets:
+    role: provenance
+    reason: GDSC1/GDSC2 dataset provenance token (name_only)
+    reviewed: true
+  looks_like_gene_symbol:
+    role: provenance
+    reason: target-resolution audit flag; provenance token (ORPHAN)
+    reviewed: true
+  gdsc_target_token:
+    role: provenance
+    reason: resolved GDSC target token; identity/provenance token (ORPHAN)
+    reviewed: true
+  resolved_via:
+    role: provenance
+    reason: how the GDSC target was resolved; provenance token (ORPHAN)
+    reviewed: true
+  method_version:
+    role: provenance
+    reason: method/version provenance token (name_only)
+    reviewed: true
+mutation-hotspot-frequency:
+  cohorts_contributing:
+    role: provenance
+    reason: method / dataset / version provenance token
+    reviewed: true
+  driver_recurrence_class:
+    role: signal
+    reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  driver_recurrence_context:
+    role: provenance
+    reason: "audit/context provenance token — surfaced, never a signal"
+    reviewed: true
+  driver_recurrence_percentile:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  genie_driver_recurrence_class:
+    role: signal
+    reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  genie_driver_recurrence_percentile:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  genie_mutation_frequency:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  genie_recurrence_context:
+    role: provenance
+    reason: "audit/context provenance token — surfaced, never a signal"
+    reviewed: true
+  hotspot_frequencies:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+  n_covered_pooled:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  n_mutated_pooled:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  n_samples_in_indication:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  n_samples_mutated:
+    role: context
+    reason: power / sample-size qualifier
+    reviewed: true
+  overall_mutation_frequency:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  pooled_driver_recurrence_class:
+    role: signal
+    reason: target-genomic-alteration signal (verdict/claim-bearing call or its salient magnitude); role:signal reach-confirmed via {capsule,gating_rule,salience} (census 2026-09-27, blind to ledger)
+    reviewed: true
+  pooled_driver_recurrence_percentile:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  pooled_mutation_frequency:
+    role: context
+    reason: magnitude / measurement behind the driving class; qualifies it, not itself the call
+    reviewed: true
+  pooled_recurrence_context:
+    role: provenance
+    reason: "audit/context provenance token — surfaced, never a signal"
+    reviewed: true
+  top_cooccurring_genes:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
+  top_mutually_exclusive_genes:
+    role: display
+    reason: human-facing detail, large container, or named-entity list; verdict-inert by design
+    reviewed: true
