@@ -54,6 +54,15 @@ outputs:
     # medians (never computed; the reader had hard-coded them to None). See card-review sweep.
     - n_tumor
     - n_adjacent
+    # Upstream DE provider's OWN verdict (2026-09-27, #942): the DESeq2-style reader EMITS its own
+    # significance + direction call and an absolute-expression floor, but they were previously UNDECLARED
+    # — so outside the skill's disposition/census/capsule system (not even in the utilization denominator)
+    # and read by ZERO skill code. Declared so the skill can consume the provider's INDEPENDENT call as a
+    # corroboration arm rather than re-deriving expression_call_class from log2_fc + q_value. VERDICT-INERT
+    # here (no interpretation rule keys on them); scalar types declared in summary_fields_scalar_types below.
+    - is_significant_provider_call              # provider's own significance verdict (bool)
+    - is_upregulated_provider_call              # provider's own direction verdict (bool)
+    - base_mean                                 # absolute expression floor (DESeq2 baseMean) that qualifies a fold-change (float)
     - expression_call_class                     # DESCRIPTIVE CATEGORICAL (drives Tier-2 rules)
     # GTEx-normal contrast (additive DISPLAY facet, 2026-08-17): the sensitivity product's cell C
     # (tumor vs GTEx population-normal, raw) surfaced ALONGSIDE the adjacent contrast so the DEG card
@@ -71,6 +80,15 @@ outputs:
     - allgene_percentile                        # float 0-100 (or null)
     - allgene_percentile_class                  # categorical (drives rules if wired)
     - allgene_percentile_context                # string — the DGE manifest + metric the null was drawn from
+
+  # Scalar (non-categorical) provider-call + expression-floor fields (#942). Booleans are the provider's
+  # own significance/direction verdict, not string categoricals (so scalar_types, not vocabulary — the
+  # synthetic-lethal-partners has_experimental_partner convention). A runtime null is permitted (provider
+  # call absent / target unquantified); the schema types the non-null case.
+  summary_fields_scalar_types:
+    is_significant_provider_call: boolean
+    is_upregulated_provider_call: boolean
+    base_mean: number
 
   summary_fields_vocabulary:
     expression_call_class:
