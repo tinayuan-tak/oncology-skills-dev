@@ -360,6 +360,14 @@
           "entity": {
             "measurement_type": "tumor_rna_expression",
             "sample_context": "tumor"
+          },
+          "roles": {
+            "tumor_expression_class": "signal",
+            "control_position_class": "signal",
+            "allgene_percentile": "signal",
+            "median_log2tpm": "signal",
+            "p95_log2tpm": "signal",
+            "distribution_pattern": "signal"
           }
         }
       },
@@ -398,6 +406,12 @@
           "entity": {
             "measurement_type": "tumor_rna_dge_vs_adjacent",
             "sample_context": "tumor"
+          },
+          "roles": {
+            "expression_call_class": "signal",
+            "log2_fc": "signal",
+            "q_value": "context",
+            "n_tumor": "context"
           }
         }
       },
@@ -440,6 +454,13 @@
             "measurement_type": "sc_tumor_celltype_expression",
             "sample_context": "tumor",
             "grain": "single_cell"
+          },
+          "roles": {
+            "sc_expression_class": "signal",
+            "malignant_detection_fraction": "signal",
+            "malignant_n_donors": "context",
+            "caf_vs_malignant_class": "signal",
+            "top_microenvironment_compartment": "context"
           }
         }
       },
@@ -483,6 +504,14 @@
           "entity": {
             "measurement_type": "tumor_elevation_breadth",
             "grain": "target"
+          },
+          "roles": {
+            "tumor_elevation_breadth_class": "signal",
+            "rna_tumor_elevation_breadth_class": "signal",
+            "n_cohorts_elevated": "context",
+            "n_cohorts_tested": "context",
+            "rna_n_indications_elevated": "context",
+            "rna_n_indications_tested": "context"
           }
         }
       },
@@ -1353,6 +1382,14 @@
               "entity": {
                 "measurement_type": "tumor_rna_expression",
                 "sample_context": "tumor"
+              },
+              "roles": {
+                "tumor_expression_class": "signal",
+                "control_position_class": "signal",
+                "allgene_percentile": "signal",
+                "median_log2tpm": "signal",
+                "p95_log2tpm": "signal",
+                "distribution_pattern": "signal"
               }
             }
           }
@@ -1511,6 +1548,14 @@
               "entity": {
                 "measurement_type": "tumor_elevation_breadth",
                 "grain": "target"
+              },
+              "roles": {
+                "tumor_elevation_breadth_class": "signal",
+                "rna_tumor_elevation_breadth_class": "signal",
+                "n_cohorts_elevated": "context",
+                "n_cohorts_tested": "context",
+                "rna_n_indications_elevated": "context",
+                "rna_n_indications_tested": "context"
               }
             }
           }
@@ -1572,6 +1617,13 @@
                 "measurement_type": "sc_tumor_celltype_expression",
                 "sample_context": "tumor",
                 "grain": "single_cell"
+              },
+              "roles": {
+                "sc_expression_class": "signal",
+                "malignant_detection_fraction": "signal",
+                "malignant_n_donors": "context",
+                "caf_vs_malignant_class": "signal",
+                "top_microenvironment_compartment": "context"
               }
             }
           }
@@ -1999,7 +2051,8 @@
                   "n_cell_lines_evaluated": 375
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "fraction_detected",
@@ -2013,7 +2066,8 @@
                   "n_cell_lines_evaluated": 375
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "median_log2_abundance_panel",
@@ -2027,7 +2081,8 @@
                   "n_cell_lines_evaluated": 375
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "protein_effect_size",
@@ -2090,7 +2145,8 @@
                   "n_cell_lines_evaluated": 463
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "fraction_detected",
@@ -2104,7 +2160,8 @@
                   "n_cell_lines_evaluated": 463
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "median_log2_abundance_panel",
@@ -2118,7 +2175,8 @@
                   "n_cell_lines_evaluated": 463
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "protein_effect_size",
@@ -2181,7 +2239,8 @@
                   "fraction_not_expressed": 0.36917416189697466
                 },
                 "method_version": null
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "control_target_percentile",
@@ -2209,7 +2268,8 @@
                   "fraction_not_expressed": 0.36917416189697466
                 },
                 "method_version": null
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "fraction_expressed",
@@ -2223,7 +2283,8 @@
                   "fraction_not_expressed": 0.36917416189697466
                 },
                 "method_version": null
-              }
+              },
+              "role": "context"
             }
           ],
           "categorical_anchors": [
@@ -2280,7 +2341,8 @@
                   "n_subgroups_with_data": 2
                 },
                 "method_version": null
-              }
+              },
+              "role": "context"
             }
           ],
           "categorical_anchors": null,
@@ -2320,7 +2382,8 @@
                   "rna_high_protein_low_fraction": 0.0717
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "rna_expressed_fraction",
@@ -2334,7 +2397,8 @@
                   "rna_high_protein_low_fraction": 0.0717
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "rna_high_protein_low_fraction",
@@ -2348,7 +2412,8 @@
                   "rna_high_protein_low_fraction": 0.0717
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "signal"
             }
           ],
           "categorical_anchors": null,
@@ -2390,7 +2455,8 @@
                   "expression_purity_spearman_r": 0.1235
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "expression_purity_spearman_r",
@@ -2404,7 +2470,8 @@
                   "expression_purity_spearman_r": 0.1235
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "median_purity",
@@ -2418,7 +2485,8 @@
                   "expression_purity_spearman_r": 0.1235
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "context"
             }
           ],
           "categorical_anchors": null,
@@ -2469,7 +2537,8 @@
                   "n_high": 12
                 },
                 "method_version": "1.0.0"
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "fraction_moderate_strong",
@@ -2483,7 +2552,8 @@
                   "n_high": 12
                 },
                 "method_version": "1.0.0"
-              }
+              },
+              "role": "context"
             }
           ],
           "categorical_anchors": null,
@@ -2564,7 +2634,8 @@
                   "n_cell_types_above_20pct": 143
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "max_detection_fraction",
@@ -2578,7 +2649,8 @@
                   "n_cell_types_above_20pct": 143
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "signal"
             }
           ],
           "categorical_anchors": null,
@@ -2613,7 +2685,8 @@
                   "n_cohorts_elevated": 4
                 },
                 "method_version": null
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "median_effect_across_elevated",
@@ -2627,7 +2700,8 @@
                   "n_cohorts_elevated": 4
                 },
                 "method_version": null
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "rna_fraction_elevated",
@@ -2641,7 +2715,8 @@
                   "n_cohorts_elevated": 4
                 },
                 "method_version": null
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "rna_median_max_log2fc_across_elevated",
@@ -2655,7 +2730,8 @@
                   "n_cohorts_elevated": 4
                 },
                 "method_version": null
-              }
+              },
+              "role": "context"
             }
           ],
           "categorical_anchors": [
@@ -2703,7 +2779,8 @@
                   "protein_bh_q_value": 0.303219701368917
                 },
                 "method_version": "1.2.0"
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "protein_bh_q_value",
@@ -2717,7 +2794,8 @@
                   "protein_bh_q_value": 0.303219701368917
                 },
                 "method_version": "1.2.0"
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "protein_effect_cohens_d",
@@ -2731,7 +2809,8 @@
                   "protein_bh_q_value": 0.303219701368917
                 },
                 "method_version": "1.2.0"
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "protein_effect_size",
@@ -2745,7 +2824,8 @@
                   "protein_bh_q_value": 0.303219701368917
                 },
                 "method_version": "1.2.0"
-              }
+              },
+              "role": "signal"
             }
           ],
           "categorical_anchors": [
@@ -2802,7 +2882,8 @@
                   "n_subtypes_measured": 1
                 },
                 "method_version": null
-              }
+              },
+              "role": "display"
             }
           ],
           "categorical_anchors": null,
@@ -2837,7 +2918,8 @@
                   "fraction_tumor_above_normal_p99": 0.5082212257100149
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "control_target_percentile",
@@ -2865,7 +2947,8 @@
                   "fraction_tumor_above_normal_p99": 0.5082212257100149
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "fraction_tumor_above_normal_p95",
@@ -2879,7 +2962,8 @@
                   "fraction_tumor_above_normal_p99": 0.5082212257100149
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "context"
             }
           ],
           "categorical_anchors": [
@@ -2936,7 +3020,8 @@
                   "n_subtypes_measured": 14
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "context"
             }
           ],
           "categorical_anchors": [
@@ -2994,7 +3079,8 @@
                   "n_tumor": 624
                 },
                 "method_version": null
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "gtex_log2_fc",
@@ -3007,7 +3093,8 @@
                   "n_tumor": 624
                 },
                 "method_version": null
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "gtex_q_value",
@@ -3020,7 +3107,8 @@
                   "n_tumor": 624
                 },
                 "method_version": null
-              }
+              },
+              "role": "context"
             },
             {
               "metric": "log2_fc",
@@ -3033,7 +3121,8 @@
                   "n_tumor": 624
                 },
                 "method_version": null
-              }
+              },
+              "role": "signal"
             }
           ],
           "categorical_anchors": [
@@ -3081,7 +3170,8 @@
                   "malignant_detection_donor_iqr": 0.17676
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "fraction_donors_broadly_detecting",
@@ -3095,7 +3185,8 @@
                   "malignant_detection_donor_iqr": 0.17676
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "malignant_detection_fraction",
@@ -3109,7 +3200,8 @@
                   "malignant_detection_donor_iqr": 0.17676
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "signal"
             },
             {
               "metric": "top_microenvironment_detection_fraction",
@@ -3123,7 +3215,8 @@
                   "malignant_detection_donor_iqr": 0.17676
                 },
                 "method_version": "0.1.0"
-              }
+              },
+              "role": "signal"
             }
           ],
           "categorical_anchors": [

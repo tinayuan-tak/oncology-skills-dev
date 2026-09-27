@@ -282,7 +282,21 @@ def _measurement_provenance(card_id, measurement_type, summary):
     }
 
 
-def _numeric_anchors(summary, cfg, contract_anchors=(), measurement_type=None, card_id=None):
+def _field_role(card_id, field, skill):
+    """The consuming ``skill``'s ledger-declared role for ``(card_id, field)``, or None (#1870).
+
+    Thin lazy-import wrapper over ``field_disposition_ledger.role_for`` so the capsule emitter carries a
+    machine-readable role on each anchor sourced from the ledger, rather than leaving a consumer to
+    reconstruct it from the slot-shape heuristics. Verdict-inert: None when the skill is unknown / has
+    no ledger / does not classify the field."""
+    if not skill:
+        return None
+    from _skills_common.field_disposition_ledger import role_for
+
+    return role_for(card_id, field, skill)
+
+
+def _numeric_anchors(summary, cfg, contract_anchors=(), measurement_type=None, card_id=None, skill=None):
     """The capsule's numbers, in PRECEDENCE order: a per-card `config['anchor_fields']` runtime override
     first, then the card contract's `capsule.numeric_anchors` declaration, then the `_ANCHOR_HINTS`
     substring scan as the guess of last resort.
@@ -317,8 +331,9 @@ def _numeric_anchors(summary, cfg, contract_anchors=(), measurement_type=None, c
             if isinstance(v, (int, float)) and not _denied(k) and any(h in k.lower() for h in _ANCHOR_HINTS)
         )[:4]
     prov = _measurement_provenance(card_id, measurement_type, summary)
-    return [
-        {
+    rows = []
+    for f in picked:
+        row = {
             "metric": f,
             "value": _num(summary.get(f)),
             "scale": _scale_for(measurement_type, f),
@@ -326,8 +341,16 @@ def _numeric_anchors(summary, cfg, contract_anchors=(), measurement_type=None, c
             # (an aliased dict would couple a future per-value divergence to its siblings).
             "provenance": dict(prov),
         }
-        for f in picked
-    ]
+        # Ledger-DECLARED disposition role (signal/context/provenance/display) for THIS skill, appended
+        # last so it is purely additive (#1870). Sourced from the consuming skill's field_disposition
+        # ledger — a READ, not the NAME-SHAPE _ANCHOR_HINTS guess above — so a consumer can tell a
+        # verdict-driving signal from a context basis without re-deriving the factoring. One-way VIEW:
+        # omitted when the skill is unknown / un-laddered / does not classify the field (byte-stable).
+        role = _field_role(card_id, f, skill)
+        if role is not None:
+            row["role"] = role
+        rows.append(row)
+    return rows
 
 
 def assert_measurement_provenanced(numeric_anchors):
@@ -507,13 +530,15 @@ def _conflict_pairs(cards, classify):
     return out
 
 
-def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, classify=default_classify):
+def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, classify=default_classify, skill=None):
     """Return {'capsules': {card_id: capsule}, 'manifest': [...]}. Field selection is CONTRACTS-FIRST: a
     card's optional `capsule:` block (primary_class + categorical_fields + numeric_anchors, read via
     _card_capsule_contract) drives the class-pick, the categorical_anchors AND the numeric_anchors; the hint
     heuristics + `config` overrides are the fallback for un-migrated cards. `config` maps card_id -> per-card selector overrides (strata_array/label/metric,
     anchor_fields, caveat_fields, categorical_fields, dq_checks). `verdict_card_ids` (set) get FULL capsules;
-    others get THIN (signal + one anchor). Deterministic + hash-stable."""
+    others get THIN (signal + one anchor). Deterministic + hash-stable. `skill` (the emitting skill's
+    dir name) sources the per-anchor `field_disposition` role from that skill's ledger (#1870); None ->
+    no role tags (byte-stable)."""
     config = config or {}
     _aliases = indication_stratum_aliases(indication)  # crosswalk-resolved indication stratum labels (F2)
     cards_sorted = sorted((c for c in cards if isinstance(c, dict)), key=lambda c: c.get("card_id") or "")
@@ -560,7 +585,7 @@ def emit_capsules(cards, indication=None, verdict_card_ids=None, config=None, cl
             "class": cls,
             "numeric_anchors": (
                 assert_measurement_provenanced(
-                    assert_no_bare_numbers(_numeric_anchors(summ, cfg, contract_anchors, mt, cid))
+                    assert_no_bare_numbers(_numeric_anchors(summ, cfg, contract_anchors, mt, cid, skill))
                 )
                 or None
             ),

@@ -1588,6 +1588,7 @@
                 },
                 "source_product_id": null
               },
+              "role": "context",
               "scale": "pChEMBL",
               "value": 11.0
             }
@@ -1798,6 +1799,7 @@
                 "n_basis": null,
                 "source_product_id": null
               },
+              "role": "context",
               "scale": "count",
               "value": 82
             }
@@ -1883,6 +1885,7 @@
                 },
                 "source_product_id": null
               },
+              "role": "context",
               "scale": "fraction",
               "value": 0.0422
             }
@@ -1953,6 +1956,7 @@
                 },
                 "source_product_id": null
               },
+              "role": "context",
               "scale": "fraction",
               "value": 0.2281
             }

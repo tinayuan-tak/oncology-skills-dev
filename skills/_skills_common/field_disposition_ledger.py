@@ -29,6 +29,7 @@ so no check here can be satisfied by editing the file it is checking.
 
 from __future__ import annotations
 
+import functools
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -47,6 +48,40 @@ VALID_ROLES = frozenset({"signal", "context", "provenance", "display"})
 # name would be a check on WORDING, and matching on prose is the failure mode that produced 17/17
 # atlas misroutes. What is enforceable mechanically is that the field is not a shrug.
 MIN_WAIVER_CHARS = 20
+
+
+def _default_skills_root() -> Path:
+    """The ``skills/`` tree this module lives under (``<skills>/_skills_common/…`` → ``parents[1]``)."""
+    return Path(__file__).resolve().parents[1]
+
+
+@functools.lru_cache(maxsize=None)
+def _skill_role_map(skills_root_str: str, skill: str) -> dict:
+    """``{(card_id, field): role}`` for ONE skill's ledger, or ``{}`` when the skill has none.
+
+    Cached per ``(root, skill)``. Only rows whose role is in ``VALID_ROLES`` are kept, so a malformed
+    row cannot inject a junk tag onto an emitted anchor.
+    """
+    path = Path(skills_root_str) / skill / LEDGER_NAME
+    if not path.exists():
+        return {}
+    doc = load_ledger(path)
+    return {(cid, field): spec["role"] for cid, field, spec in iter_rows(doc) if spec.get("role") in VALID_ROLES}
+
+
+def role_for(card_id: str, field: str, skill: str | None, *, skills_root: Path | None = None) -> str | None:
+    """The ledger-DECLARED role of ``(card_id, field)`` in ``skill``'s field-disposition ledger, or None.
+
+    Per-SKILL by design: the same card field is a *different* role in different skills' verdicts (e.g.
+    ``modality-therapeutic-window.window_ratio_essential`` is ``signal`` for tumor-selectivity but
+    ``context`` for surface-modality-fit), so the role MUST be sourced from the CONSUMING skill's
+    ledger, never a global card-keyed map. Returns None when ``skill`` is falsy/unknown, has no ledger,
+    or does not classify the field — an ADDITIVE, one-way view whose absence never moves a verdict.
+    """
+    if not skill:
+        return None
+    root = skills_root or _default_skills_root()
+    return _skill_role_map(str(root), skill).get((card_id, field))
 
 
 def discover_ledgers(skills_root: Path) -> dict:

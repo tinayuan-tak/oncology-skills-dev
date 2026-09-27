@@ -66,7 +66,11 @@ def _patom(card_id, summary, keys, entity, read):
     fields} + entity keys. Presence builds its claims MANUALLY (not via ClaimSpec.atom_fn), so this is
     called inline in each _claim_*. Returns None when the source card is absent → the claim stays
     byte-stable (no evidence_atom key), matching the other axes' atom discipline."""
-    return build_summary_atom(card_id=card_id, summary=summary, keys=keys, read=read, entity=entity)
+    # skill="tumor-presence" sources each atom field's disposition role from the presence ledger (#1870,
+    # additive/verdict-inert): every presence evidence_atom flows through this one wrapper.
+    return build_summary_atom(
+        card_id=card_id, summary=summary, keys=keys, read=read, entity=entity, skill="tumor-presence"
+    )
 
 
 # ── the four claims (each returns {signal, corroboration, evidence, conflict}) ───────────────────

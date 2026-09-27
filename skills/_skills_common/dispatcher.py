@@ -1058,7 +1058,7 @@ def run_wired_skill(
         try:
             from _skills_common.evidence_capsule import emit_capsules
 
-            headline["evidence_capsules"] = emit_capsules(card_outputs, _indication)
+            headline["evidence_capsules"] = emit_capsules(card_outputs, _indication, skill=skill_name)
         except Exception:  # noqa: BLE001 — verdict-inert projection; never break the spine
             pass
 

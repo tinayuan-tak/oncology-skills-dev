@@ -325,7 +325,7 @@ def split_measurement_values(vals):
     return numeric, categorical
 
 
-def build_atom(*, card_id, values, read, entity, exclude_fields=()):
+def build_atom(*, card_id, values, read, entity, exclude_fields=(), skill=None):
     """The SINGLE canonical CITABLE evidence atom — one shared shape for every axis's atom_fn,
     replacing the ~13 per-module hand-rolled `_atom`/`_patom`/`_mk_atom` builders (which had drifted
     only in their `fields`-exclusion + entity handling → a drift risk with no structural guard).
@@ -347,7 +347,7 @@ def build_atom(*, card_id, values, read, entity, exclude_fields=()):
         return None
     excl = set(exclude_fields)
     numeric, categorical = split_measurement_values(vals)
-    return {
+    atom = {
         "read": read,
         "values": vals,
         "numeric": numeric,
@@ -355,9 +355,22 @@ def build_atom(*, card_id, values, read, entity, exclude_fields=()):
         "cite": {"card_id": card_id, "fields": sorted(k for k in vals if k not in excl)},
         "entity": entity,
     }
+    # Per-field disposition role (#1870): the emitting `skill`'s ledger-declared role for each value
+    # field, in `values` order and appended last so it is purely additive. Makes the atom's raw/derived
+    # (numeric/categorical) split ALSO role-separable — a consumer reads signal-vs-context off the tag
+    # instead of reconstructing the factoring the downstream claim_record already carries. One-way
+    # VIEW: omitted entirely when `skill` is None / un-laddered / classifies none of these fields, so an
+    # atom stays byte-stable everywhere the role source is absent (verdict-inert).
+    if skill:
+        from _skills_common.field_disposition_ledger import role_for
+
+        roles = {k: r for k in vals if (r := role_for(card_id, k, skill)) is not None}
+        if roles:
+            atom["roles"] = roles
+    return atom
 
 
-def build_summary_atom(*, card_id, summary, keys, read, entity, exclude_fields=()):
+def build_summary_atom(*, card_id, summary, keys, read, entity, exclude_fields=(), skill=None):
     """Standard archetype: derive `values` from `summary` over `keys` (non-None, in `keys` order) then
     delegate to build_atom. Reproduces the former per-module `_atom(card_id, summary, keys, entity,
     read)` byte-for-byte (same comprehension, order, None-return)."""
@@ -367,6 +380,7 @@ def build_summary_atom(*, card_id, summary, keys, read, entity, exclude_fields=(
         read=read,
         entity=entity,
         exclude_fields=exclude_fields,
+        skill=skill,
     )
 
 
