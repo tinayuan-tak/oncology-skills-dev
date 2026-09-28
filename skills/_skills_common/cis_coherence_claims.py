@@ -342,6 +342,41 @@ _CIS_DOSAGE_FIELD = {
     "patient_tumour": "patient_cis_dosage_class",
 }
 
+# ── SK#1783 A3: the PROTEIN cis-dosage arm — an assay-MODALITY facet WITHIN the cell-line grain ──────
+# CN→PROTEIN cis-dosage read off `cis-feature-protein-coherence`.`cis_protein_dosage_class` (DepMap-Gygi
+# mass-spec). It is a SECOND ASSAY MODALITY of the SAME cell-line sample-context grain as the RNA arm
+# (bulk-RNA), NOT a third independent GRAIN: protein ⊥ mRNA at the MODALITY level, but they SHARE the
+# cell-line grain. So the protein arm and the cell-line-RNA arm are ONE `dependence_group`
+# (`cell_line_model`); only the patient arm is the cross-GRAIN corroborator. A same-grain modality
+# restatement must NOT inflate `corroborating_independent_arm_count` the way a truly independent grain
+# does — that count stays GRAIN-based; the protein modality only grows `resolved_source_count`.
+_CIS_PROTEIN_CARD = "cis-feature-protein-coherence"
+_CIS_PROTEIN_FIELD = "cis_protein_dosage_class"
+# The mRNA-vs-protein slope RATIO is the dosage-BUFFERING fingerprint (classified into
+# `cis_protein_dosage_class`): a PRESERVED slope (`prot_dosage_coupled_*`) → the protein CORROBORATES the
+# RNA cis-dosage call; a strongly BUFFERED slope (`prot_dosage_uncoupled` — protein flat while mRNA tracks
+# CN) is a QUALIFIED / non-corroborating arm surfaced as retained_quantitative, NEVER a silent agree (real
+# biology: post-transcriptional buffering tempers ADC / degrader payload expectations, not a failure).
+_CIS_PROTEIN_COUPLED = frozenset({"prot_dosage_coupled_strong", "prot_dosage_coupled_moderate"})
+_CIS_PROTEIN_BUFFERED = frozenset({"prot_dosage_uncoupled"})
+
+
+def _mrna_vs_protein_slope_ratio(protein_slope, mrna_slope):
+    """mRNA-vs-protein dosage-buffering ratio = protein_slope / mrna_slope (verdict-inert fingerprint;
+    mirrors cis-feature-coherence run.py `_slope_ratio`). None when either slope is missing or the mRNA
+    slope is ~0 (ratio undefined / uninformative). ~1 = dosage preserved (genuine cis-driver); ≪1 =
+    post-transcriptionally BUFFERED."""
+    if protein_slope is None or mrna_slope is None:
+        return None
+    try:
+        m = float(mrna_slope)
+        p = float(protein_slope)
+    except (TypeError, ValueError):
+        return None
+    if abs(m) < 1e-6:
+        return None
+    return round(p / m, 4)
+
 
 def _cis_dosage_concordance_claim(c: dict) -> "dict | None":
     """L2b CROSS-GRAIN integration claim: `cis_dosage_concordance` — the FIRST envelope-v0 concordance
@@ -383,6 +418,14 @@ def _cis_dosage_concordance_claim(c: dict) -> "dict | None":
     # card binding below so they are NOT mistaken for a third arm.
     cl_class = (c.get("cis-feature-expression-coherence") or {}).get("cis_dosage_class")
     pt_class = (c.get("patient-cis-coherence") or {}).get("patient_cis_dosage_class")
+    # ── SK#1783 A3: the PROTEIN cis-dosage arm — a SECOND ASSAY MODALITY of the SAME cell-line grain. ──
+    # Read the protein cis-dosage CLASS via the inline arm idiom so the #1704 oracle counts it as the
+    # THIRD (card, field) arm — a DISTINCT card + DISTINCT modality, NEVER a re-read of the RNA card. The
+    # raw protein metrics (slope etc.) are pulled off a LOCAL binding below, so they are NOT read as arms.
+    prot_class = (c.get("cis-feature-protein-coherence") or {}).get("cis_protein_dosage_class")
+    prot_coupled = prot_class in _CIS_PROTEIN_COUPLED  # preserved slope → protein CORROBORATES the RNA call
+    prot_buffered = prot_class in _CIS_PROTEIN_BUFFERED  # flat protein slope → QUALIFIED, never a false agree
+    prot_resolved = prot_coupled or prot_buffered  # a MEASURED protein read (coupled OR buffered); else drops
 
     # Resolve each grain's token → coupled(True) / uncoupled(False) / unresolved(None) via the shared
     # arm reader (handles the truthy `data_unavailable` sentinel + off-roster/`cn_invariant_panel` → None).
@@ -410,11 +453,13 @@ def _cis_dosage_concordance_claim(c: dict) -> "dict | None":
         pt_arm = True if pt is not None else None
     corroboration = corroboration_from_arms([cl_arm, pt_arm])
 
-    # The envelope's TWO COUNTS. Both grains are genuinely INDEPENDENT (no pooled / derived superset here),
-    # so the counts coincide — but they are emitted separately to keep the envelope shape uniform with the
-    # families that DO carry a dependent source (e.g. recurrence's pooled arm).
+    # The envelope's TWO COUNTS. `corroborating_independent_arm_count` is the count of INDEPENDENT GRAINS
+    # consulted (cell-line model / patient tumour) — the protein arm SHARES the cell-line grain (a same-
+    # grain modality restatement), so it NEVER adds an independent replicate here (the #1783 crux).
+    # `resolved_source_count` counts DISTINCT RESOLVED SOURCES, so a measured protein modality (a genuinely
+    # second source) grows it by one — keeping independent arms a strict subset of resolved sources.
     corroborating_independent_arm_count = len(resolved)
-    resolved_source_count = corroborating_independent_arm_count
+    resolved_source_count = corroborating_independent_arm_count + (1 if prot_resolved else 0)
 
     def _dir(v):
         return "coupled" if v is True else ("uncoupled" if v is False else None)
@@ -482,9 +527,90 @@ def _cis_dosage_concordance_claim(c: dict) -> "dict | None":
     # Both grains ALWAYS appear (an absent grain shows resolved:False), keeping the two-count / grain
     # structure legible; they are genuinely independent sample contexts (no derived superset).
     source_support = [_support("cell_line_model"), _support("patient_tumour")]
+
+    # ── SK#1783 A3: the protein MODALITY arm — ADDITIVE, appended ONLY when the protein source resolves,
+    # so the protein-absent path stays BYTE-STABLE to the #1781 two-arm claim. It shares the cell-line
+    # grain with the RNA arm (dependence_group `cell_line_model`) — independent by MODALITY, NOT a second
+    # independent grain — so it enriches the read WITHOUT inflating corroborating_independent_arm_count.
+    protein_modality_corroboration = None
+    if prot_resolved:
+        _prot_card = c.get("cis-feature-protein-coherence") or {}
+        _prot_slope_ratio = _mrna_vs_protein_slope_ratio(
+            _prot_card.get("cn_prot_slope_log2abundance_per_cn"),
+            _cl_card.get("cn_expr_slope_log2tpm_per_cn"),
+        )
+        source_support.append(
+            {
+                "source": "cell_line_protein",
+                "grain": "cell_line_model",  # SAME first-class sample-context grain as the RNA arm
+                "dependence_group": "cell_line_model",  # same group as cell-line RNA — NOT an independent replicate
+                "assay_modality": "ms_protein",  # the axis of independence: MS-protein vs bulk-RNA
+                "value": prot_class,
+                "dosage_direction": "coupled" if prot_coupled else "buffered",
+                "resolved": True,  # a MEASURED protein read (coupled OR buffered) — buffering is real biology
+                "quality_eligible": True,
+                # a COUPLED protein modality corroborates WITHIN the grain; a BUFFERED one is a QUALIFIED
+                # quantitative view (retained_quantitative), NEVER counted as agreement (never a false agree).
+                "corroboration_eligible": prot_coupled,
+                "independent_replicate": False,  # same-grain modality — never a third independent grain-arm
+                "provenance": {
+                    "card_id": _CIS_PROTEIN_CARD,
+                    "field": _CIS_PROTEIN_FIELD,
+                    "grain_context": _CIS_DOSAGE_GRAIN["cell_line_model"],
+                    "modality": "DepMap-Gygi mass-spec protein (CN->own-protein cis-dosage)",
+                },
+                "retained_quantitative": {
+                    "cis_protein_dosage_class": prot_class,
+                    "cn_prot_spearman_r": _prot_card.get("cn_prot_spearman_r"),
+                    "cn_prot_slope_log2abundance_per_cn": _prot_card.get("cn_prot_slope_log2abundance_per_cn"),
+                    "delta_log2abundance_amplified_vs_neutral": _prot_card.get(
+                        "delta_log2abundance_amplified_vs_neutral"
+                    ),
+                    "n_paired_models_cn_protein": _prot_card.get("n_paired_models_cn_protein"),
+                    "mrna_vs_protein_dosage_slope_ratio": _prot_slope_ratio,  # the dosage-buffering fingerprint
+                },
+            }
+        )
+        if prot_coupled:
+            protein_modality_corroboration = {
+                "status": "protein_corroborates",
+                "statement": (
+                    "MS-protein cis-dosage AGREES with the cell-line RNA call: copy number drives own PROTEIN "
+                    "abundance (slope preserved). A WITHIN-cell-line-grain SECOND-MODALITY corroboration "
+                    "(independent by ASSAY MODALITY, MS-protein vs bulk-RNA), NOT a second independent grain — "
+                    "it strengthens the cell-line reading WITHOUT adding to corroborating_independent_arm_count."
+                ),
+                "source": "cell_line_protein",
+                "dependence_group": "cell_line_model",
+                "mrna_vs_protein_dosage_slope_ratio": _prot_slope_ratio,
+            }
+        else:  # prot_buffered
+            protein_modality_corroboration = {
+                "status": "protein_buffered_qualified",
+                "statement": (
+                    "MS-protein cis-dosage is BUFFERED: mRNA tracks copy number but protein stays flat "
+                    "(post-transcriptional buffering). A QUALIFIED quantitative view — REAL BIOLOGY that tempers "
+                    "ADC / degrader payload expectations, NOT a measurement failure — surfaced as "
+                    "retained_quantitative and DELIBERATELY NOT counted as agreement (never a false agree)."
+                ),
+                "source": "cell_line_protein",
+                "dependence_group": "cell_line_model",
+                "mrna_vs_protein_dosage_slope_ratio": _prot_slope_ratio,
+            }
+
+    # The cell-line dependence GROUP folds in the protein modality (same grain, distinct assay) ONLY when
+    # protein resolves; absent protein, the groups are byte-identical to the #1781 two-arm claim.
+    _cell_line_group = (
+        {
+            "members": ["cell_line_model", "cell_line_protein"],
+            "relationship": "shared_cell_line_grain_distinct_modality",
+        }
+        if prot_resolved
+        else {"members": ["cell_line_model"], "relationship": "independent_sample_context"}
+    )
     evidence_dependence = {
         "groups": [
-            {"members": ["cell_line_model"], "relationship": "independent_sample_context"},
+            _cell_line_group,
             {"members": ["patient_tumour"], "relationship": "independent_sample_context"},
         ],
         "derived_sources": {},
@@ -557,6 +683,13 @@ def _cis_dosage_concordance_claim(c: dict) -> "dict | None":
         }
 
     return {
+        # SK#1783: the protein-modality descriptor is ADDITIVE — present ONLY when the protein arm resolves,
+        # so the protein-absent path stays byte-stable to the #1781 two-arm claim.
+        **(
+            {"protein_modality_corroboration": protein_modality_corroboration}
+            if protein_modality_corroboration is not None
+            else {}
+        ),
         "property_id": "cis_dosage_coupling",
         "concordance_class": concordance,
         "corroboration": corroboration,

@@ -1496,11 +1496,14 @@ def test_detector_bites_a_combination_arm_repointed_to_the_other_consortium():
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
 # EIGHTH FAMILY — the CIS-COHERENCE (cis-dosage cross-grain) builder in cis_coherence_claims.py (SK#1781)
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
-# `_cis_dosage_concordance_claim` (L2b #1781, epic #1779) folds
-# `corroboration_from_arms([cellline_arm, patient_arm])`, where each arm is the resolved coupling direction
-# of the SAME cis-dosage-coupling property measured at a DIFFERENT sample-context GRAIN:
-#   * cell-line MODEL grain — cis-feature-expression-coherence.cis_dosage_class       (DepMap panel)
-#   * patient TUMOUR grain  — patient-cis-coherence.patient_cis_dosage_class          (TCGA cohort)
+# `_cis_dosage_concordance_claim` (L2b #1781, epic #1779; protein arm SK#1783) folds
+# `corroboration_from_arms([cellline_arm, patient_arm])` over the SAME cis-dosage-coupling property, plus a
+# THIRD same-grain MODALITY arm (protein) surfaced as graded corroboration. The arms:
+#   * cell-line MODEL grain, bulk-RNA — cis-feature-expression-coherence.cis_dosage_class    (DepMap panel)
+#   * patient TUMOUR grain, bulk-RNA  — patient-cis-coherence.patient_cis_dosage_class       (TCGA cohort)
+#   * cell-line MODEL grain, MS-protein — cis-feature-protein-coherence.cis_protein_dosage_class (DepMap-Gygi)
+#     (independent by MODALITY only — SAME cell-line grain/dependence_group as the RNA arm, NOT a third
+#     independent grain-replicate; a DISTINCT card, not a re-read of the RNA card)
 #
 # AUDIT VERDICT (SK#1781): COMMENSURATE by design — a detector-oracle EXTENSION (first cis-domain family).
 #   * SAME CONSTRUCT: both resolve the SAME cis-dosage-coupling property (does the target's copy number
@@ -1517,10 +1520,11 @@ def test_detector_bites_a_combination_arm_repointed_to_the_other_consortium():
 #     grain with the other unresolved → `single_arm`. Carries NO `signal` key, reads no verdict, feeds no
 #     rule (VERDICT-INERT, key omitted/byte-stable when neither grain resolves). Declaration moves no
 #     decision.json — a pure detector extension.
-# The commensurability invariant this block pins: `_cis_dosage_concordance_claim` folds EXACTLY the two
-# declared cross-grain card/field arms — two DISTINCT cis-coherence cards (model vs patient). Re-pointing
-# one arm to read the OTHER grain's card (collapsing the two independent grains into one — a same-grain
-# double-count, the #1667 shape) reds the commensurability assertion; the mutation test drives that red.
+# The commensurability invariant this block pins: `_cis_dosage_concordance_claim` folds EXACTLY the three
+# declared card/field arms — three DISTINCT cis-coherence cards across two grains. Re-pointing the patient
+# arm to the cell-line card (collapsing two independent GRAINS into one — the #1667 shape) OR re-pointing
+# the protein arm to the RNA card (collapsing the distinct MODALITY into a same-card double-count) reds the
+# commensurability assertion; the two mutation tests drive those reds.
 
 _CIS_COHERENCE_CLAIMS = pathlib.Path(__file__).resolve().parents[1] / "cis_coherence_claims.py"
 
@@ -1529,11 +1533,16 @@ _CIS_COHERENCE_CLAIMS = pathlib.Path(__file__).resolve().parents[1] / "cis_coher
 # `corroboration_from_arms` in cis_coherence_claims.py must appear here with its pairing.
 _DECLARED_CIS_CORROBORATION_BUILDERS = {
     "_cis_dosage_concordance_claim": (
-        "cell-line `cis_dosage_class` (DepMap model panel) × patient `patient_cis_dosage_class` (TCGA "
-        "cohort) — the SAME cis-dosage-coupling property (same compute_cis_dosage kernel / same token "
-        "vocabulary) measured at two DIFFERENT sample-context GRAINS (model vs patient, grain first-class); "
-        "neither a subset/superset nor derived from the other (commensurate by same-construct/same-"
-        "granularity/independent-grain; see _CIS_COMMENSURATE_ARM_PAIRS)"
+        "cell-line `cis_dosage_class` (DepMap model panel, bulk-RNA) × patient `patient_cis_dosage_class` "
+        "(TCGA cohort, bulk-RNA) × cell-line `cis_protein_dosage_class` (DepMap-Gygi MS-protein, SK#1783) — "
+        "the SAME cis-dosage-coupling property (same compute_cis_dosage construct) read on THREE (card, "
+        "field) arms across TWO sample-context GRAINS. The protein arm is a SECOND ASSAY MODALITY of the "
+        "cell-line grain (MS-protein vs bulk-RNA): independent by MODALITY but SAME grain as the cell-line "
+        "RNA arm — a DISTINCT card, NOT a re-read of the RNA card — so it shares the cell-line "
+        "dependence_group and never counts as a third independent grain-replicate; only the patient arm is "
+        "the cross-GRAIN corroborator. None a subset/superset nor derived from another (commensurate by "
+        "same-construct/same-granularity; grain+modality first-class; see _CIS_COMMENSURATE_ARM_PAIRS / "
+        "_CIS_ARM_STRUCTURE)"
     ),
     "_methylation_silencing_concordance_claim": (
         "cell-line `methylation_silencing_class` (DepMap model panel) × patient "
@@ -1547,15 +1556,40 @@ _DECLARED_CIS_CORROBORATION_BUILDERS = {
     ),
 }
 
-# The (card_id, field) arms the fold reads. Two DISTINCT cis-coherence cards (model grain vs patient grain)
-# — the set is what makes the two arms commensurate-yet-independent. A re-pointed arm (reading the OTHER
-# grain's card) changes this set and fails the assertion below.
+# The (card_id, field) arms the fold reads. Three DISTINCT cis-coherence cards across two grains (cell-line
+# RNA + cell-line protein share the model grain but differ in modality; patient is the cross-grain arm) —
+# the set is what makes the arms commensurate-yet-independent. A re-pointed arm (reading another grain's or
+# modality's card) changes this set and fails the assertion below.
 _CIS_COMMENSURATE_ARM_PAIRS = frozenset(
     {
-        ("cis-feature-expression-coherence", "cis_dosage_class"),
-        ("patient-cis-coherence", "patient_cis_dosage_class"),
+        ("cis-feature-expression-coherence", "cis_dosage_class"),  # cell-line grain, bulk-RNA modality
+        ("patient-cis-coherence", "patient_cis_dosage_class"),  # patient grain, bulk-RNA modality (cross-grain)
+        ("cis-feature-protein-coherence", "cis_protein_dosage_class"),  # cell-line grain, MS-protein modality (SK#1783)
     }
 )
+
+# SK#1783 — the independence STRUCTURE of the three arms: each (card, field) carries a sample-context
+# GRAIN and an assay MODALITY. cell-line-RNA and protein SHARE the cell-line grain but differ in MODALITY
+# (bulk-RNA vs MS-protein) → ONE dependence_group `cell_line_model` (independent by modality only, NEVER a
+# second independent grain-replicate). The patient arm is the cross-GRAIN corroborator (its own group).
+# This is what stops a same-grain modality restatement inflating corroborating_independent_arm_count.
+_CIS_ARM_STRUCTURE = {
+    ("cis-feature-expression-coherence", "cis_dosage_class"): {
+        "grain": "cell_line_model",
+        "modality": "bulk_rna",
+        "dependence_group": "cell_line_model",
+    },
+    ("cis-feature-protein-coherence", "cis_protein_dosage_class"): {
+        "grain": "cell_line_model",
+        "modality": "ms_protein",
+        "dependence_group": "cell_line_model",
+    },
+    ("patient-cis-coherence", "patient_cis_dosage_class"): {
+        "grain": "patient_tumour",
+        "modality": "bulk_rna",
+        "dependence_group": "patient_tumour",
+    },
+}
 
 
 def _cis_tree() -> ast.Module:
@@ -1563,9 +1597,10 @@ def _cis_tree() -> ast.Module:
 
 
 def assert_cis_arms_are_commensurate(tree: ast.Module) -> None:
-    """Raise AssertionError unless `_cis_dosage_concordance_claim` folds EXACTLY the declared two
-    cis-coherence card/field arms — no incommensurate card pulled in, none dropped, and the two arms read
-    two DISTINCT grain cards. The predicate the cis-family mutation drives red. (Raw dosage metrics are read
+    """Raise AssertionError unless `_cis_dosage_concordance_claim` folds EXACTLY the declared three
+    cis-coherence card/field arms — no incommensurate card pulled in, none dropped, and the arms read three
+    DISTINCT cards across two grains (the protein arm a distinct MODALITY of the cell-line grain, not a
+    re-read of the RNA card). The predicate the cis-family mutations drive red. (Raw dosage metrics are read
     off a LOCAL card binding, not the inline `c.get(...) or {}).get(...)` idiom, so they are correctly NOT
     counted as arms.)"""
     funcs = _functions(tree)
@@ -1575,8 +1610,8 @@ def assert_cis_arms_are_commensurate(tree: ast.Module) -> None:
     pairs = _card_field_get_pairs(funcs["_cis_dosage_concordance_claim"])
     declared = set(_CIS_COMMENSURATE_ARM_PAIRS)
     assert pairs == declared, (
-        f"_cis_dosage_concordance_claim folds card/field arms {sorted(pairs)} — expected EXACTLY the two "
-        f"commensurate cross-grain arms {sorted(declared)}. An arm reading a DIFFERENT card mixes an "
+        f"_cis_dosage_concordance_claim folds card/field arms {sorted(pairs)} — expected EXACTLY the "
+        f"declared commensurate cis-dosage arms {sorted(declared)}. An arm reading a DIFFERENT card mixes an "
         f"incommensurate construct into the cis-dosage fold, and an arm reading the OTHER grain's card "
         f"collapses the two independent grains into one (a same-grain double-count, the #1667 shape). "
         f"undeclared = {sorted(pairs - declared)}; gone = {sorted(declared - pairs)}."
@@ -1597,23 +1632,43 @@ def test_cis_multi_arm_builders_are_declared():
     )
 
 
-def test_cis_oracle_is_two_distinct_grain_cards():
-    """The declared table itself encodes the commensurability rule: the two arms are two DISTINCT
-    cis-coherence cards (model vs patient grain), same cis-dosage-coupling construct. Guards the oracle
-    against a typo that would make the detector assert the wrong pairing (e.g. one card read twice)."""
+def test_cis_oracle_is_three_distinct_cards_across_two_grains():
+    """The declared table encodes the commensurability + independence rule (SK#1783): the THREE arms read
+    three DISTINCT cis-coherence cards spanning TWO sample-context grains. cell-line-RNA and protein SHARE
+    the cell-line grain but differ in ASSAY MODALITY (bulk-RNA vs MS-protein) — the protein arm is a
+    DISTINCT card, NOT a re-read of the RNA card — while the patient arm is the cross-GRAIN corroborator.
+    Guards the oracle against (a) a typo collapsing an arm onto another card, and (b) the modality arm
+    being mistaken for a third independent grain."""
     cards = {card for (card, _f) in _CIS_COMMENSURATE_ARM_PAIRS}
-    assert len(cards) == 2, (
-        f"the two cis arms must read two DISTINCT grain cards (cell-line model vs patient tumour), not one "
-        f"card twice (which would be a same-grain double-count); got cards {sorted(cards)}"
+    assert len(cards) == 3, (
+        f"the cis arms must read three DISTINCT cards (cell-line RNA, cell-line protein, patient), not one "
+        f"card re-read (which would be a same-grain double-count); got cards {sorted(cards)}"
     )
     assert all("cis" in card for card in cards), (
-        f"both cis arms must read a cis-coherence card (the SAME cis-dosage-coupling construct); got {sorted(cards)}"
+        f"all cis arms must read a cis-coherence card (the SAME cis-dosage-coupling construct); got {sorted(cards)}"
     )
+    # the arm-STRUCTURE table must cover exactly the declared arms, one grain+modality+group per arm.
+    assert set(_CIS_ARM_STRUCTURE) == set(_CIS_COMMENSURATE_ARM_PAIRS), (
+        "the arm-structure table must declare grain/modality/dependence_group for EXACTLY the folded arms"
+    )
+    grains = {v["grain"] for v in _CIS_ARM_STRUCTURE.values()}
+    groups = {v["dependence_group"] for v in _CIS_ARM_STRUCTURE.values()}
+    assert grains == {"cell_line_model", "patient_tumour"}, f"expected two grains, got {sorted(grains)}"
+    # TWO independent dependence groups (not three) — the protein modality shares the cell-line group.
+    assert len(groups) == 2, (
+        f"three arms must fold into TWO dependence groups (cell-line RNA+protein share a grain), got {sorted(groups)}"
+    )
+    rna = _CIS_ARM_STRUCTURE[("cis-feature-expression-coherence", "cis_dosage_class")]
+    prot = _CIS_ARM_STRUCTURE[("cis-feature-protein-coherence", "cis_protein_dosage_class")]
+    # the crux: protein is a DISTINCT card + DISTINCT modality but the SAME grain / SAME dependence group.
+    assert prot["grain"] == rna["grain"] == "cell_line_model", "protein must share the cell-line RNA grain"
+    assert prot["dependence_group"] == rna["dependence_group"], "protein must share the cell-line RNA dependence group"
+    assert prot["modality"] != rna["modality"], "protein must be a DISTINCT assay modality from the cell-line RNA arm"
 
 
 def test_cis_folds_the_commensurate_cross_grain_arms():
-    """GREEN on today's cis_coherence_claims.py: `_cis_dosage_concordance_claim` folds exactly the two
-    commensurate cross-grain arms. Also anti-vacuity — the declared arm set is non-empty."""
+    """GREEN on today's cis_coherence_claims.py: `_cis_dosage_concordance_claim` folds exactly the three
+    commensurate arms (cell-line RNA + protein + patient). Also anti-vacuity — the declared arm set is non-empty."""
     assert _CIS_COMMENSURATE_ARM_PAIRS, "the declared cis arm set is empty — the test would pin nothing"
     assert_cis_arms_are_commensurate(_cis_tree())
 
@@ -1637,10 +1692,39 @@ def test_detector_bites_a_cis_arm_repointed_to_the_other_grain_card():
     `assert_cis_arms_are_commensurate` FAILS. Confirms both the RED (on the mutant) and — via
     `test_cis_folds_the_commensurate_cross_grain_arms` — the GREEN on real source."""
     mutant = _parse(_mutant_cis_repoints_patient_arm_to_cellline_card(_CIS_COHERENCE_CLAIMS.read_text()))
-    # sanity: the mutant genuinely collapses the two arms onto one card
+    # sanity: the mutant genuinely collapses the patient grain onto the cell-line RNA card (the protein
+    # modality arm is untouched, so it survives — but the independent PATIENT grain is gone).
     pairs = _card_field_get_pairs(_functions(mutant)["_cis_dosage_concordance_claim"])
     cards = {card for (card, _f) in pairs}
-    assert cards == {"cis-feature-expression-coherence"}, "the mutation did not collapse the arms as intended"
+    assert "patient-cis-coherence" not in cards, "the mutation did not collapse the patient grain as intended"
+    assert "cis-feature-expression-coherence" in cards, "the RNA card should now carry the re-pointed patient field"
+    # …and the detector rejects it
+    with pytest.raises(AssertionError, match="_cis_dosage_concordance_claim"):
+        assert_cis_arms_are_commensurate(mutant)
+
+
+# The SECOND cis mutation (SK#1783): the PROTEIN arm re-pointed to read the cell-line-RNA card — which
+# collapses the DISTINCT-modality distinction (protein masquerading as a re-read of the RNA card, a
+# same-card double-count within one grain). The detector must bite this too.
+def _mutant_cis_repoints_protein_arm_to_rna_card(source: str) -> str:
+    mutated = source.replace(
+        '(c.get("cis-feature-protein-coherence") or {}).get("cis_protein_dosage_class")',
+        '(c.get("cis-feature-expression-coherence") or {}).get("cis_protein_dosage_class")',
+    )
+    assert mutated != source, "mutation was a no-op — the protein arm inline card read is no longer present to re-point"
+    return mutated
+
+
+def test_detector_bites_the_protein_arm_repointed_to_the_rna_card():
+    """MUTATION TEST for the SK#1783 protein modality arm. Re-pointing the protein arm to read the
+    cell-line-RNA card collapses the distinct-modality construct into a same-card double-count — the
+    folded card set loses the protein card — and `assert_cis_arms_are_commensurate` FAILS. Confirms the
+    detector defends the modality distinction, not merely the two-grain distinction."""
+    mutant = _parse(_mutant_cis_repoints_protein_arm_to_rna_card(_CIS_COHERENCE_CLAIMS.read_text()))
+    # sanity: the mutant genuinely drops the protein card off the fold
+    pairs = _card_field_get_pairs(_functions(mutant)["_cis_dosage_concordance_claim"])
+    cards = {card for (card, _f) in pairs}
+    assert "cis-feature-protein-coherence" not in cards, "the mutation did not collapse the protein modality arm"
     # …and the detector rejects it
     with pytest.raises(AssertionError, match="_cis_dosage_concordance_claim"):
         assert_cis_arms_are_commensurate(mutant)

@@ -200,6 +200,7 @@ ENVELOPE_FAMILIES: dict[str, dict] = {
                 "cis_dosage_class": "cn_dosage_coupled_strong",
                 "cn_expr_spearman_r": 0.78,
                 "cn_expr_spearman_p": 1e-9,
+                "cn_expr_slope_log2tpm_per_cn": 0.62,
                 "delta_log2tpm_amplified_vs_neutral": 2.1,
                 "n_amplified": 24,
             },
@@ -210,6 +211,15 @@ ENVELOPE_FAMILIES: dict[str, dict] = {
                 "delta_log2tpm_amplified_vs_neutral": 1.4,
                 "n_amplified": 60,
                 "n_cases_expression": 310,
+            },
+            # SK#1783 — the same-grain PROTEIN modality arm (DepMap-Gygi MS). NOT a new family (count stays
+            # 11); it exercises the resolving 3-arm fold (resolved_source_count 3 > independent grains 2).
+            "cis-feature-protein-coherence": {
+                "cis_protein_dosage_class": "prot_dosage_coupled_strong",
+                "cn_prot_spearman_r": 0.61,
+                "cn_prot_slope_log2abundance_per_cn": 0.47,
+                "delta_log2abundance_amplified_vs_neutral": 1.6,
+                "n_paired_models_cn_protein": 210,
             },
         },
         "none": {},
