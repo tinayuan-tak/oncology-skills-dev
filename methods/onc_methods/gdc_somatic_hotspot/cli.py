@@ -909,16 +909,20 @@ def emit_mutation_frequency_stacked(
         x_positions = np.arange(len(genes))
         frequencies = [f for _, f in genes]
 
+        # Green color scheme for mutations, red highlight for target
+        color_target = "#B22222"  # Red for target gene highlight
+        color_other = "#A5D6A7"   # Light green for other genes
+
         colors = []
         target_in_panel = False
         target_idx = None
         for i, (gene, freq) in enumerate(genes):
             if gene == target or abs(freq - target_freq) < 1e-9:
-                colors.append("#B22222")
+                colors.append(color_target)
                 target_in_panel = True
                 target_idx = i
             else:
-                colors.append("#A9C5DB")
+                colors.append(color_other)
 
         ax.bar(x_positions, frequencies, color=colors, edgecolor="none", width=bar_width, zorder=2)
 
@@ -932,7 +936,7 @@ def emit_mutation_frequency_stacked(
                     textcoords="offset points",
                     fontsize=7,
                     fontweight="bold",
-                    color="#B22222",
+                    color=color_target,
                     ha="center",
                     va="bottom",
                     rotation=90,
@@ -955,8 +959,8 @@ def emit_mutation_frequency_stacked(
                 0.5, 0.85,
                 f"{target} ({target_freq*100:.1f}%) — below {min_freq*100:.0f}% threshold",
                 ha="center", va="top", transform=ax.transAxes,
-                fontsize=8, fontweight="bold", color="#B22222",
-                bbox=dict(boxstyle="round,pad=0.5", facecolor="#FFEEEE", edgecolor="#B22222", linewidth=1),
+                fontsize=8, fontweight="bold", color=color_target,
+                bbox=dict(boxstyle="round,pad=0.5", facecolor="#E8F5E9", edgecolor=color_target, linewidth=1),
             )
 
         ax.axhline(y=min_freq, **REFLINE_NEUTRAL, zorder=1)
@@ -1106,12 +1110,16 @@ def emit_mutation_frequency_pie(
     ax_pie_pan = fig.add_axes([0.54, 0.35, 0.38, 0.50])
 
     # === Draw Pie Charts ===
-    # Indication pie chart (red)
+    # Green color scheme for mutations
+    color_ind = "#2E7D32"   # Dark green for indication
+    color_pan = "#66BB6A"   # Medium green for pan-cancer
+
+    # Indication pie chart (dark green)
     if target_frequency_indication is not None:
         ind_pct = target_frequency_indication * 100
         ind_not_mutated = 100 - ind_pct
 
-        pie_colors_ind = ["#B22222", "#E8E8E8"]
+        pie_colors_ind = [color_ind, "#E8E8E8"]
         ax_pie_ind.pie(
             [ind_pct, ind_not_mutated],
             colors=pie_colors_ind,
@@ -1123,24 +1131,24 @@ def emit_mutation_frequency_pie(
             0, 0,
             f"{ind_pct:.1f}%",
             ha="center", va="center",
-            fontsize=12, fontweight="bold", color="#B22222",
+            fontsize=12, fontweight="bold", color=color_ind,
         )
 
         ax_pie_ind.text(
             0, -1.1,
             f"{indication}",
             ha="center", va="top",
-            fontsize=9, fontweight="bold", color="#B22222",
+            fontsize=9, fontweight="bold", color=color_ind,
         )
 
         ax_pie_ind.set_aspect("equal")
 
-    # Pan-cancer pie chart (black)
+    # Pan-cancer pie chart (medium green)
     if target_frequency_pancancer is not None:
         pan_pct = target_frequency_pancancer * 100
         pan_not_mutated = 100 - pan_pct
 
-        pie_colors_pan = ["#333333", "#E8E8E8"]
+        pie_colors_pan = [color_pan, "#E8E8E8"]
         ax_pie_pan.pie(
             [pan_pct, pan_not_mutated],
             colors=pie_colors_pan,
@@ -1152,14 +1160,14 @@ def emit_mutation_frequency_pie(
             0, 0,
             f"{pan_pct:.1f}%",
             ha="center", va="center",
-            fontsize=12, fontweight="bold", color="#333333",
+            fontsize=12, fontweight="bold", color=color_pan,
         )
 
         ax_pie_pan.text(
             0, -1.1,
             f"Pan-Cancer",
             ha="center", va="top",
-            fontsize=9, fontweight="bold", color="#333333",
+            fontsize=9, fontweight="bold", color=color_pan,
         )
 
         ax_pie_pan.set_aspect("equal")
@@ -1203,25 +1211,25 @@ def emit_mutation_frequency_pie(
     caption_y = 0.28
     line_spacing = 0.05
 
-    # Indication caption - rank highlighted in red bold
+    # Indication caption - rank highlighted in dark green bold
     if ind_rank:
         fig.text(0.5, caption_y,
                  f"{target} is the {ordinal(ind_rank)} most frequently mutated gene in {indication}",
-                 ha="center", va="top", fontsize=10, color="#B22222", fontweight="bold")
+                 ha="center", va="top", fontsize=10, color=color_ind, fontweight="bold")
     else:
         fig.text(0.5, caption_y,
                  f"{target} mutation frequency in {indication}: {target_frequency_indication*100:.1f}%",
-                 ha="center", va="top", fontsize=10, color="#B22222", fontweight="bold")
+                 ha="center", va="top", fontsize=10, color=color_ind, fontweight="bold")
 
-    # Pan-cancer caption - rank highlighted in black bold
+    # Pan-cancer caption - rank highlighted in medium green bold
     if pan_rank:
         fig.text(0.5, caption_y - line_spacing,
                  f"{target} is the {ordinal(pan_rank)} most frequently mutated gene pan-cancer",
-                 ha="center", va="top", fontsize=10, color="#333333", fontweight="bold")
+                 ha="center", va="top", fontsize=10, color=color_pan, fontweight="bold")
     else:
         fig.text(0.5, caption_y - line_spacing,
                  f"{target} mutation frequency pan-cancer: {target_frequency_pancancer*100:.1f}%",
-                 ha="center", va="top", fontsize=10, color="#333333", fontweight="bold")
+                 ha="center", va="top", fontsize=10, color=color_pan, fontweight="bold")
 
     svg_path = out_path / "figure_mutation_frequency_pie.svg"
     fig.savefig(svg_path)

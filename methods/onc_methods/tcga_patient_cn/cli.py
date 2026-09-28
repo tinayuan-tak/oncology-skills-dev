@@ -299,14 +299,14 @@ def emit_cn_frequency_stacked(
     if not ind_genes and not pan_genes:
         return None
 
-    # Color scheme
+    # Color scheme - red highlight for target in all charts
     if cn_type == "deletion":
-        color_target = "#2166AC"  # Blue for deletion
-        color_other = "#92C5DE"
+        color_target = "#B22222"  # Red for target gene highlight
+        color_other = "#92C5DE"   # Light blue for other genes
         label = "deleted"
     else:
-        color_target = "#B22222"  # Red for amplification
-        color_other = "#FFCCCC"
+        color_target = "#B22222"  # Red for target gene highlight
+        color_other = "#FFCCCC"   # Light red/pink for other genes
         label = "amplified"
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7.0, 6.5))

@@ -102,23 +102,37 @@ def render_from_plot_data(
 
     figures = []
 
+    # Helper to look up target frequency from gene list
+    def _lookup_target_freq(gene_list, target):
+        for gene, freq in gene_list:
+            if gene == target:
+                return freq
+        return None
+
+    # Limit gene lists to 85 to prevent label crowding
+    amp_genes = data.get("amp_genes", [])[:85]
+    del_genes = data.get("del_genes", [])[:85]
+    amp_genes_pan = data.get("amp_genes_pancancer", amp_genes)[:85]
+    del_genes_pan = data.get("del_genes_pancancer", del_genes)[:85]
+
     # Emit amplification pie chart
-    if data.get("amp_freq") is not None and data.get("amp_genes"):
-        # Note: emit_cn_frequency_pie expects both any-level and focal-level frequencies
-        # For offline rendering, we use the stored frequency as "any" level
-        # Focal level would need to be stored separately in plot_data for full support
+    if data.get("amp_freq") is not None and amp_genes:
+        # Use any-level from plot_data (target_summary row), focal from summary
         amp_any = data["amp_freq"]
         amp_focal = summary.get("patient_focal_amplification_freq", 0.0)
+        # Use pan-cancer any-level and focal from summary (gene lists have focal only)
+        amp_any_pan = summary.get("pancancer_amp_freq", 0.0)
+        amp_focal_pan = summary.get("pancancer_focal_amp_freq", 0.0)
 
         svg = _cli.emit_cn_frequency_pie(
             target,
             indication,
             target_any_indication=amp_any,
             target_focal_indication=amp_focal,
-            indication_gene_frequencies=data["amp_genes"],
-            target_any_pancancer=summary.get("pancancer_amp_freq", amp_any),
-            target_focal_pancancer=summary.get("pancancer_focal_amp_freq", amp_focal),
-            pancancer_gene_frequencies=data.get("amp_genes_pancancer", data["amp_genes"]),
+            indication_gene_frequencies=amp_genes,
+            target_any_pancancer=amp_any_pan,
+            target_focal_pancancer=amp_focal_pan,
+            pancancer_gene_frequencies=amp_genes_pan,
             out_path=out_dir,
             contracts_root=tcd,
             cn_type="amplification",
@@ -132,19 +146,23 @@ def render_from_plot_data(
             })
 
     # Emit deletion pie chart
-    if data.get("del_freq") is not None and data.get("del_genes"):
+    if data.get("del_freq") is not None and del_genes:
+        # Use any-level from plot_data (target_summary row), focal from summary
         del_any = data["del_freq"]
         del_focal = summary.get("patient_focal_deletion_freq", 0.0)
+        # Use pan-cancer any-level and focal from summary (gene lists have focal only)
+        del_any_pan = summary.get("pancancer_del_freq", 0.0)
+        del_focal_pan = summary.get("pancancer_focal_del_freq", 0.0)
 
         svg = _cli.emit_cn_frequency_pie(
             target,
             indication,
             target_any_indication=del_any,
             target_focal_indication=del_focal,
-            indication_gene_frequencies=data["del_genes"],
-            target_any_pancancer=summary.get("pancancer_del_freq", del_any),
-            target_focal_pancancer=summary.get("pancancer_focal_del_freq", del_focal),
-            pancancer_gene_frequencies=data.get("del_genes_pancancer", data["del_genes"]),
+            indication_gene_frequencies=del_genes,
+            target_any_pancancer=del_any_pan,
+            target_focal_pancancer=del_focal_pan,
+            pancancer_gene_frequencies=del_genes_pan,
             out_path=out_dir,
             contracts_root=tcd,
             cn_type="deletion",
@@ -157,15 +175,22 @@ def render_from_plot_data(
                 "primary": False,
             })
 
-    # Emit amplification stacked bar
-    if data.get("amp_freq") is not None and data.get("amp_genes"):
+    # Emit amplification stacked bar (focal events only - GISTIC ≥2)
+    if data.get("amp_freq") is not None and amp_genes:
+        # Use focal frequencies for stacked bar (gene lists already have focal)
+        amp_focal_ind = summary.get("patient_focal_amplification_freq", 0.0)
+        # Look up target's pan-cancer focal frequency from gene list, fallback to summary
+        amp_focal_pan = _lookup_target_freq(data.get("amp_genes_pancancer", []), target)
+        if amp_focal_pan is None:
+            amp_focal_pan = summary.get("pancancer_focal_amp_freq", 0.0)
+
         svg = _cli.emit_cn_frequency_stacked(
             target,
             indication,
-            target_freq_indication=data["amp_freq"],
-            indication_gene_frequencies=data["amp_genes"],
-            target_freq_pancancer=summary.get("pancancer_amp_freq", data["amp_freq"]),
-            pancancer_gene_frequencies=data.get("amp_genes_pancancer", data["amp_genes"]),
+            target_freq_indication=amp_focal_ind,
+            indication_gene_frequencies=amp_genes,
+            target_freq_pancancer=amp_focal_pan,
+            pancancer_gene_frequencies=amp_genes_pan,
             out_path=out_dir,
             contracts_root=tcd,
             cn_type="amplification",
@@ -179,15 +204,22 @@ def render_from_plot_data(
                 "primary": False,
             })
 
-    # Emit deletion stacked bar
-    if data.get("del_freq") is not None and data.get("del_genes"):
+    # Emit deletion stacked bar (focal events only - GISTIC ≤-2)
+    if data.get("del_freq") is not None and del_genes:
+        # Use focal frequencies for stacked bar (gene lists already have focal)
+        del_focal_ind = summary.get("patient_focal_deletion_freq", 0.0)
+        # Look up target's pan-cancer focal frequency from gene list, fallback to summary
+        del_focal_pan = _lookup_target_freq(data.get("del_genes_pancancer", []), target)
+        if del_focal_pan is None:
+            del_focal_pan = summary.get("pancancer_focal_del_freq", 0.0)
+
         svg = _cli.emit_cn_frequency_stacked(
             target,
             indication,
-            target_freq_indication=data["del_freq"],
-            indication_gene_frequencies=data["del_genes"],
-            target_freq_pancancer=summary.get("pancancer_del_freq", data["del_freq"]),
-            pancancer_gene_frequencies=data.get("del_genes_pancancer", data["del_genes"]),
+            target_freq_indication=del_focal_ind,
+            indication_gene_frequencies=del_genes,
+            target_freq_pancancer=del_focal_pan,
+            pancancer_gene_frequencies=del_genes_pan,
             out_path=out_dir,
             contracts_root=tcd,
             cn_type="deletion",

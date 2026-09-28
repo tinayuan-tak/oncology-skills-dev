@@ -137,6 +137,51 @@ def render_mutation_frequency_stacked_from_plot_data(
     ]
 
 
+def render_mutation_frequency_pie_from_plot_data(
+    plot_data_indication: Union[str, Path, object],
+    plot_data_pancancer: Union[str, Path, object],
+    summary: dict,
+    out_dir: Union[str, Path],
+    target: str,
+    indication: Optional[str] = None,
+    *,
+    target_contracts_dir: Optional[Union[str, Path]] = None,
+) -> list[dict]:
+    """Render the mutation frequency pie chart OFFLINE from persisted plot_data. NO live read."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tcd = Path(target_contracts_dir) if target_contracts_dir else _cli.DEFAULT_TARGET_CONTRACTS
+
+    _, freq_ind, genes_ind, data_target, data_indication = _reconstruct_data(plot_data_indication)
+    _, freq_pan, genes_pan, _, _ = _reconstruct_data(plot_data_pancancer)
+
+    target = target or data_target
+    indication = indication or data_indication
+
+    svg_path = _cli.emit_mutation_frequency_pie(
+        target,
+        indication,
+        freq_ind,
+        genes_ind,
+        freq_pan,
+        genes_pan,
+        out_dir,
+        tcd,
+    )
+
+    if svg_path is None:
+        return []
+
+    return [
+        {
+            "id": "mutation_frequency_pie",
+            "path": "figure_mutation_frequency_pie.svg",
+            "type": "mutation_frequency_pie",
+            "primary": True,
+        },
+    ]
+
+
 def render_from_plot_data(
     plot_data: Union[str, Path, object],
     summary: dict,
@@ -145,21 +190,45 @@ def render_from_plot_data(
     indication: Optional[str] = None,
     *,
     target_contracts_dir: Optional[Union[str, Path]] = None,
+    plot_data_pancancer: Optional[Union[str, Path, object]] = None,
 ) -> list[dict]:
     """Render gdc_somatic_hotspot figures OFFLINE from persisted plot_data.
 
-    Note: For the stacked mutation frequency figure, use render_mutation_frequency_stacked_from_plot_data
-    which requires both indication and pan-cancer plot data.
+    Args:
+        plot_data: Path to indication-level plot_data.parquet
+        summary: Card summary dict
+        out_dir: Output directory for figures
+        target: Gene symbol
+        indication: Indication code
+        target_contracts_dir: Path to target-contracts repo
+        plot_data_pancancer: Optional path to pan-cancer plot_data.parquet
+            (required for pie and stacked figures)
 
     Returns:
         list of figure spec dicts for rendered figures
     """
     specs = []
 
+    # Always render lollipop (only needs indication data)
     specs.extend(
         render_hotspot_lollipop_from_plot_data(
             plot_data, summary, out_dir, target, indication, target_contracts_dir=target_contracts_dir
         )
     )
+
+    # Render pie and stacked if pan-cancer data is available
+    if plot_data_pancancer is not None:
+        specs.extend(
+            render_mutation_frequency_pie_from_plot_data(
+                plot_data, plot_data_pancancer, summary, out_dir, target, indication,
+                target_contracts_dir=target_contracts_dir
+            )
+        )
+        specs.extend(
+            render_mutation_frequency_stacked_from_plot_data(
+                plot_data, plot_data_pancancer, summary, out_dir, target, indication,
+                target_contracts_dir=target_contracts_dir
+            )
+        )
 
     return specs

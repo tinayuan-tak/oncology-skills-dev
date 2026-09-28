@@ -274,13 +274,13 @@ def emit_fusion_frequency_stacked(
         return None
 
     # Purple color scheme for fusions
-    color_target = "#7B2D8E"  # Purple for target
+    color_target = "#B22222"  # Red for target gene highlight
     color_other = "#D4B8E0"   # Light purple for others
 
     fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(7.0, 6.5))
     fig.subplots_adjust(top=0.88, bottom=0.08, left=0.12, right=0.95, hspace=0.35)
 
-    def plot_panel(ax, genes, target_freq, panel_title, total_genes):
+    def plot_panel(ax, genes, target_freq, panel_title, total_genes, label_fontsize=5):
         if not genes:
             ax.text(0.5, 0.5, f"No genes ≥{min_frequency*100:.1f}% threshold",
                     ha="center", va="center", transform=ax.transAxes, fontsize=10, color="#888888")
@@ -315,7 +315,7 @@ def emit_fusion_frequency_stacked(
                     xy=(i, freq),
                     xytext=(0, 4),
                     textcoords="offset points",
-                    fontsize=5,
+                    fontsize=label_fontsize,
                     color="#888888",
                     ha="center",
                     va="bottom",
@@ -340,8 +340,8 @@ def emit_fusion_frequency_stacked(
         ax.set_title(f"{panel_title} ({len(genes)} genes ≥{min_frequency*100:.1f}%)",
                      fontsize=10, fontweight="bold", loc="left", color="#33383D")
 
-    plot_panel(ax1, ind_genes, target_freq_indication, indication, ind_total)
-    plot_panel(ax2, pan_genes, target_freq_pancancer, "Pan-Cancer", pan_total)
+    plot_panel(ax1, ind_genes, target_freq_indication, indication, ind_total, label_fontsize=5)
+    plot_panel(ax2, pan_genes, target_freq_pancancer, "Pan-Cancer", pan_total, label_fontsize=4)
 
     figure_title(fig, target, None, "fusion frequency", y=0.96)
     provenance_tag(fig, f"TCGA Fusion Consensus (3-caller) · genes fused in ≥{min_frequency*100:.1f}% of samples", y=0.93)
@@ -374,3 +374,185 @@ def emit_fusion_frequency_stacked(
     fig.savefig(svg_path)
     plt.close(fig)
     return svg_path
+
+
+def emit_plot_data(
+    target: str,
+    indication: str,
+    target_freq_indication: float,
+    n_samples_indication: int,
+    n_assayed_indication: int,
+    indication_gene_frequencies: list,
+    target_freq_pancancer: float,
+    n_samples_pancancer: int,
+    n_assayed_pancancer: int,
+    pancancer_gene_frequencies: list,
+    out_path: Path,
+) -> Path:
+    """Emit plot_data_fusion.parquet for offline figure re-rendering."""
+    import pandas as pd
+
+    rows = []
+
+    # Target summary - indication
+    rows.append({
+        "target": target,
+        "indication": indication,
+        "gene_symbol": target,
+        "frequency": target_freq_indication,
+        "n_samples": n_samples_indication,
+        "n_assayed": n_assayed_indication,
+        "scope": "indication",
+        "row_type": "target_summary",
+    })
+
+    # Target summary - pan-cancer
+    rows.append({
+        "target": target,
+        "indication": indication,
+        "gene_symbol": target,
+        "frequency": target_freq_pancancer,
+        "n_samples": n_samples_pancancer,
+        "n_assayed": n_assayed_pancancer,
+        "scope": "pancancer",
+        "row_type": "target_summary",
+    })
+
+    # All genes context - indication
+    if indication_gene_frequencies:
+        for gene, freq in indication_gene_frequencies:
+            rows.append({
+                "target": target,
+                "indication": indication,
+                "gene_symbol": gene,
+                "frequency": freq,
+                "n_samples": None,
+                "n_assayed": None,
+                "scope": "indication",
+                "row_type": "all_genes_context",
+            })
+
+    # All genes context - pan-cancer
+    if pancancer_gene_frequencies:
+        for gene, freq in pancancer_gene_frequencies:
+            rows.append({
+                "target": target,
+                "indication": indication,
+                "gene_symbol": gene,
+                "frequency": freq,
+                "n_samples": None,
+                "n_assayed": None,
+                "scope": "pancancer",
+                "row_type": "all_genes_context",
+            })
+
+    df = pd.DataFrame(rows)
+    parquet_path = out_path / "plot_data_fusion.parquet"
+    df.to_parquet(parquet_path, index=False)
+    return parquet_path
+
+
+def _reconstruct(plot_data) -> dict:
+    """Rebuild figure data from plot_data_fusion.parquet."""
+    import pandas as pd
+
+    df = plot_data if hasattr(plot_data, "columns") else pd.read_parquet(Path(plot_data))
+
+    result = {
+        "target": df["target"].iloc[0] if "target" in df.columns else None,
+        "indication": df["indication"].iloc[0] if "indication" in df.columns else None,
+    }
+
+    # Target summary
+    target_rows = df[df["row_type"] == "target_summary"]
+    ind_target = target_rows[target_rows["scope"] == "indication"]
+    pan_target = target_rows[target_rows["scope"] == "pancancer"]
+
+    if len(ind_target) > 0:
+        result["target_freq_indication"] = float(ind_target["frequency"].iloc[0])
+        result["n_samples_indication"] = int(ind_target["n_samples"].iloc[0]) if pd.notna(ind_target["n_samples"].iloc[0]) else 0
+        result["n_assayed_indication"] = int(ind_target["n_assayed"].iloc[0]) if pd.notna(ind_target["n_assayed"].iloc[0]) else 0
+
+    if len(pan_target) > 0:
+        result["target_freq_pancancer"] = float(pan_target["frequency"].iloc[0])
+        result["n_samples_pancancer"] = int(pan_target["n_samples"].iloc[0]) if pd.notna(pan_target["n_samples"].iloc[0]) else 0
+        result["n_assayed_pancancer"] = int(pan_target["n_assayed"].iloc[0]) if pd.notna(pan_target["n_assayed"].iloc[0]) else 0
+
+    # All genes context
+    context_rows = df[df["row_type"] == "all_genes_context"]
+    ind_context = context_rows[context_rows["scope"] == "indication"]
+    pan_context = context_rows[context_rows["scope"] == "pancancer"]
+
+    result["indication_gene_frequencies"] = [(row["gene_symbol"], row["frequency"])
+                                              for _, row in ind_context.iterrows()]
+    result["pancancer_gene_frequencies"] = [(row["gene_symbol"], row["frequency"])
+                                             for _, row in pan_context.iterrows()]
+
+    return result
+
+
+def render_from_plot_data(
+    plot_data,
+    summary: dict,
+    out_dir,
+    target: str,
+    indication: Optional[str] = None,
+    *,
+    target_contracts_dir = None,
+) -> list[dict]:
+    """Render fusion figures OFFLINE from persisted plot_data_fusion.parquet."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+    tcd = Path(target_contracts_dir) if target_contracts_dir else DEFAULT_TARGET_CONTRACTS
+
+    data = _reconstruct(plot_data)
+    target = data.get("target") or target
+    indication = data.get("indication") or indication
+
+    figures = []
+
+    # Emit pie chart
+    if data.get("indication_gene_frequencies"):
+        svg = emit_fusion_frequency_pie(
+            target,
+            indication,
+            data.get("target_freq_indication", 0),
+            data.get("n_samples_indication", 0),
+            data.get("n_assayed_indication", 0),
+            data.get("indication_gene_frequencies", []),
+            data.get("target_freq_pancancer", 0),
+            data.get("n_samples_pancancer", 0),
+            data.get("n_assayed_pancancer", 0),
+            data.get("pancancer_gene_frequencies", []),
+            out_dir,
+            tcd,
+        )
+        if svg:
+            figures.append({
+                "id": "fusion_frequency_pie",
+                "path": "figure_fusion_frequency_pie.svg",
+                "type": "fusion_frequency_pie",
+                "primary": True,
+            })
+
+    # Emit stacked bar
+    if data.get("indication_gene_frequencies"):
+        svg = emit_fusion_frequency_stacked(
+            target,
+            indication,
+            data.get("target_freq_indication", 0),
+            data.get("indication_gene_frequencies", []),
+            data.get("target_freq_pancancer", 0),
+            data.get("pancancer_gene_frequencies", []),
+            out_dir,
+            tcd,
+        )
+        if svg:
+            figures.append({
+                "id": "fusion_frequency_stacked",
+                "path": "figure_fusion_frequency_stacked.svg",
+                "type": "fusion_frequency_stacked",
+                "primary": False,
+            })
+
+    return figures
