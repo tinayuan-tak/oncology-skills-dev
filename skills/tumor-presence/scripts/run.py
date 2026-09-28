@@ -674,18 +674,25 @@ _PROTEIN_RANK: list[tuple[str, str]] = [
 # multi_entity_pooled now down-weights corroboration like phenotype_proxy). Capping the sc verdict at a
 # lower rung (option F1b) is deliberately declined for those two reasons.
 #
-# #1516 F2 — KNOWN GAP, verdict-affecting, TC-coordinated (NOT fixed here). target-contracts split the
-# subset call onto its OWN rule `sc-expression-malignant-subset-detected-supportive` (equals
-# malignant_subset_detected; 2026-09-18, TC main) — pre-split a subset call fired the broadly rule below
-# and reached `sc_malignant_detected`. That new rule_id is NOT mapped in this ladder, so a MEASURED
-# malignant_subset_detected now fires a rule _rank_verdict does not recognise → the sc_rna/tumor bucket
-# falls through to `insufficient` (a false absence) even though claim-C credits it (weak) and
-# _SC_MALIGNANT_CONFIRMED treats it as a real detection. Folding it in (add the subset rule_id → a
-# supportive rung, restoring the TC-intended verdict-neutral split) is verdict-affecting (replay + golden
-# + panel) and the rung mapping coordinates with the companion target-contracts issue, so it is surfaced
-# on #1516 for a coordinated follow-up rather than forced here.
+# #1516 F2 — FIXED (verdict-affecting, TC-coordinated). target-contracts split the subset call onto its
+# OWN rule `sc-expression-malignant-subset-detected-supportive` (equals malignant_subset_detected;
+# 2026-09-18) — pre-split a subset call fired the broadly rule below and reached `sc_malignant_detected`.
+# Before this fix that new rule_id was NOT mapped in this ladder, so a MEASURED malignant_subset_detected
+# fired a rule _rank_verdict did not recognise → the sc_rna/tumor bucket fell through to `insufficient`
+# (a false absence) even though claim-C credited it (weak) and _SC_MALIGNANT_CONFIRMED treats it as a real
+# detection. The subset rung below now restores the TC-intended verdict-neutral split: a distinct
+# lower-confidence output token (sc_malignant_subset_detected) ranked BELOW broadly-detected. Its
+# declaration in the pinned presence_verdict_enum (target-contracts #874, merged 3a12d62) and the
+# skills-validate.yml `ref:` bump land in this same commit — the forced-atomic write/read pairing.
 _SC_RNA_RANK: list[tuple[str, str]] = [
     ("sc-expression-malignant-broadly-detected-supportive", "sc_malignant_detected"),
+    # #1516 F2 (LANDED). The 2026-09-18 TC split (target-contracts #874, enum + rung mapping
+    # coordinated) routed a malignant SUBSET call onto its own rule; a distinct lower-confidence
+    # rung, ranked BELOW broadly-detected (a NARROWER malignant population, so it must not
+    # outrank it) and ABOVE the neutral sc rungs. Its output token sc_malignant_subset_detected
+    # is declared in the pinned presence_verdict_enum (skills-validate.yml `ref:` bumped in the
+    # same commit as this rung — the forced-atomic write/read pairing).
+    ("sc-expression-malignant-subset-detected-supportive", "sc_malignant_subset_detected"),
     ("sc-expression-microenvironment-dominant-neutral", "sc_microenvironment_dominant"),
     ("sc-expression-broadly-low-neutral", "sc_broadly_low"),
     ("sc-expression-data-unavailable-insufficient", "data_unavailable"),
@@ -894,6 +901,10 @@ _PRES_MOD_POS = {
     # Membership in one of the three _PRES_*_POS sets is MANDATORY for any positive rung, not decorative:
     # _pres_direction() returns "neutral" and _presence_strength() returns "none" for an unlisted token.
     "tumor_subset_high_expression",
+    # sc malignant SUBSET detection (#1516 F2): moderate_positive, one rung below the STRONG
+    # sc_malignant_detected (broadly). Membership here is MANDATORY — _pres_direction()/
+    # _presence_strength() read an unlisted positive token as neutral/none.
+    "sc_malignant_subset_detected",
     "modestly_upregulated_in_tumor",
     "tumor_moderately_expressed",
     "lineage_restricted",

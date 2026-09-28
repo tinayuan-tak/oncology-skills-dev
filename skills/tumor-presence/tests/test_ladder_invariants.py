@@ -380,6 +380,113 @@ def test_restoring_the_broad_overlap_collapses_the_subset_verdict():
     assert _idx(_BROAD_RID, tp._EXPRESSION_RANK) < _idx(_SUBSET_RID, tp._EXPRESSION_RANK)
 
 
+# ── sc MALIGNANT-SUBSET rung (#1516 F2 / target-contracts #874) ─────────────────────────────────────
+# Companion to the bulk-RNA subset_high split above, one measurement layer down. The 2026-09-18 TC split
+# routed a single-cell MALIGNANT-SUBSET call onto its OWN rule (equals malignant_subset_detected),
+# distinct from the broadly-detected rule. Pre-fix that rule_id was ABSENT from _SC_RNA_RANK, so a
+# MEASURED subset call fell through _rank_verdict to `insufficient` — a false absence for a target the
+# atlas actually detected in a malignant sub-population. #1516 F2 maps it to its own lower-confidence
+# token, ranked BELOW broadly-detected and carried at moderate_positive (broadly is strong_positive).
+_SC_SUBSET_RID = "sc-expression-malignant-subset-detected-supportive"
+_SC_BROAD_RID = "sc-expression-malignant-broadly-detected-supportive"
+_SC_SUBSET_VERDICT = "sc_malignant_subset_detected"
+_SC_BROAD_VERDICT = "sc_malignant_detected"
+
+
+def _sc_card(cls):
+    """Raw producer card for the sc rule — the class value is the ONLY input; the rung it reaches is
+    RE-DERIVED through fired_rules + _verdict, never fixtured."""
+    return {"card_id": "tumor-scrna-celltype-expression", "summary": {"sc_expression_class": cls}}
+
+
+def test_sc_malignant_subset_detected_reaches_a_positive_rung_not_insufficient():
+    """PRIMARY behavioural guard, RED before #1516 F2. A MEASURED single-cell malignant-SUBSET call must
+    reach its own positive rung, not fall through to `insufficient`. Pre-fix _SC_RNA_RANK did not list
+    the subset rule, so _rank_verdict returned ('insufficient', None) for a target the atlas detected —
+    the false absence this fix removes. Runs the raw card through the LIVE contracts rules."""
+    rules = _live_rules()
+    if rules is None:
+        pytest.skip("target-contracts checkout absent — live-rules arm not applicable")
+    v, drv, fired = _verdict_for(_sc_card("malignant_subset_detected"), rules)
+    assert _SC_SUBSET_RID in fired, (
+        f"{_SC_SUBSET_RID} did not fire (fired {fired}). The contracts tree in use predates the TC#874 "
+        f"split — bump the `ref:` in .github/workflows/skills-validate.yml / fetch the sibling checkout."
+    )
+    assert v == _SC_SUBSET_VERDICT and drv == _SC_SUBSET_RID, (
+        f"a measured malignant_subset_detected resolved to {v!r} via {drv!r}, expected "
+        f"{_SC_SUBSET_VERDICT!r} — the subset rule_id is not mapped in _SC_RNA_RANK (false absence)."
+    )
+    assert v != "insufficient", "a MEASURED subset call collapsed to insufficient — the #1516 F2 defect"
+
+
+def test_sc_malignant_subset_facets_are_moderate_positive_not_neutral():
+    """The verdict-keyed facet maps must all agree, RED before the fix. An unlisted positive token reads
+    as `neutral`/`none` (a measured detection presented with no direction/strength). The subset token
+    must be a measured-POSITIVE at MODERATE strength — NOT strong (that is the broadly rung) and NOT the
+    neutral/none of an unlisted token."""
+    v = _SC_SUBSET_VERDICT
+    assert tp._is_presence_positive(v), "the sc-subset rung must be a measured-POSITIVE, not a gap"
+    assert v in tp._PRES_MOD_POS and v not in tp._PRES_STRONG_POS, (
+        "sc-subset detection is moderate_positive — one rung below the STRONG broadly-detected token; "
+        "classing it strong would erase the subset/broadly confidence split TC#874 introduced."
+    )
+    assert tp._presence_strength(v) == "moderate_positive"
+    assert tp._pres_direction(v) == "supports"
+    assert v not in tp._MEASURED_NEGATIVE_VERDICTS and v not in tp._COLLAPSE_GAP_VERDICTS
+
+
+def test_sc_broadly_detected_still_outranks_the_subset_rung():
+    """The confidence ORDER between the two sc malignant tokens: broadly-detected (whole-tumor signal)
+    must sit ABOVE the narrower subset call in _SC_RNA_RANK and in the collapsed ladder, and stay the
+    STRONGER of the two. A reorder or a strength swap that inverted this would over-credit a minority
+    detection and fails here."""
+    assert _idx(_SC_BROAD_RID, tp._SC_RNA_RANK) < _idx(_SC_SUBSET_RID, tp._SC_RNA_RANK), (
+        "the sc-subset rung outranks broadly-detected in _SC_RNA_RANK"
+    )
+    assert _idx(_SC_BROAD_RID, tp._VERDICT_RANK) < _idx(_SC_SUBSET_RID, tp._VERDICT_RANK), (
+        "the sc-subset rung outranks broadly-detected in the collapsed ladder"
+    )
+    assert _SC_BROAD_VERDICT in tp._PRES_STRONG_POS and _SC_SUBSET_VERDICT in tp._PRES_MOD_POS, (
+        "broadly-detected is strong_positive, subset is moderate_positive — the confidence split"
+    )
+    rules = _live_rules()
+    if rules is None:
+        pytest.skip("target-contracts checkout absent — live-rules arm not applicable")
+    vb, drvb, _ = _verdict_for(_sc_card("malignant_broadly_detected"), rules)
+    vs, drvs, _ = _verdict_for(_sc_card("malignant_subset_detected"), rules)
+    assert (vb, drvb) == (_SC_BROAD_VERDICT, _SC_BROAD_RID)
+    assert (vs, drvs) == (_SC_SUBSET_VERDICT, _SC_SUBSET_RID)
+    assert vb != vs, "the two sc malignant classes must resolve to DISTINCT verdicts post-split"
+
+
+def test_unmeasured_sc_still_collapses_to_insufficient():
+    """Anti-over-reach control — PASSES before AND after #1516 F2. Folding in the subset rung must not
+    make an UN-measured target read positive: an empty fired-set (no sc card emitted) still collapses to
+    `insufficient`, and a data-unavailable sc call is not a presence-positive."""
+    v_empty, drv_empty = tp._verdict([])
+    assert v_empty == "insufficient" and drv_empty is None
+    rules = _live_rules()
+    if rules is None:
+        pytest.skip("target-contracts checkout absent — live-rules arm not applicable")
+    v, _drv, _fired = _verdict_for(_sc_card("data_unavailable"), rules)
+    assert not tp._is_presence_positive(v), f"an unmeasured sc call resolved positive ({v!r})"
+
+
+def test_sc_subset_pres_mod_pos_membership_is_load_bearing():
+    """Proves the _PRES_MOD_POS entry is not decorative (mutation arm for facet coherence): with the
+    token discarded from the set, _presence_strength degrades to `none` and _pres_direction to
+    `neutral` — exactly the pre-fix false-neutral this membership removes. Restored in finally."""
+    v = _SC_SUBSET_VERDICT
+    assert v in tp._PRES_MOD_POS
+    tp._PRES_MOD_POS.discard(v)
+    try:
+        assert tp._presence_strength(v) == "none", "membership in _PRES_MOD_POS is what confers strength"
+        assert tp._pres_direction(v) == "neutral", "membership in _PRES_MOD_POS is what confers direction"
+    finally:
+        tp._PRES_MOD_POS.add(v)
+    assert tp._presence_strength(v) == "moderate_positive", "restore failed — set left mutated"
+
+
 def _values_reaching_a_rung(vocab, rules, ladder):
     """Per class value: does anything it fires appear in `ladder`? Factored out so the guard below can be
     shown to DISCRIMINATE against a synthetic ladder, rather than only ever being asserted true."""
