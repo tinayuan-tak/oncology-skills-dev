@@ -20,6 +20,7 @@ from ._dependency import (
     _emit_cis_feature_expression_coherence,
     _emit_cn_stratified_dependency,
     _emit_dependency_predictability,
+    _emit_fusion_stratified_dependency,
     _emit_organoid_crispr_dependency,
     _emit_prism_compound_activity,
     _emit_prism_crispr_concordance,
@@ -114,6 +115,8 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     "tumor-splice-dysregulation": _emit_tumor_splice_dysregulation,
     # CN-stratified dependency (2026-09-28): Chronos strip plot by CN category
     "copy-number-stratified-dependency": _emit_cn_stratified_dependency,
+    # Fusion-stratified dependency (2026-09-28): Chronos strip plot by fusion status
+    "fusion-stratified-dependency": _emit_fusion_stratified_dependency,
 }
 
 
