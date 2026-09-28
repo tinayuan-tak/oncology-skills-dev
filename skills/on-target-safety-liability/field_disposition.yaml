@@ -844,6 +844,14 @@ normal-tissue-protein-abundance-tphp:
     role: signal
     reason: "role:signal (verdict-bearing categorical/score); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency; reach-confirmed EXACT reader (census 2026-09-27, blind to ledger)"
     reviewed: true
+  hpa_blind_vital_organs_above_floor:
+    role: context
+    reason: "role:context (names WHICH HPA-blind vital organs sit at/above the abundance floor — the organ-naming qualifier of the #1793 verdict-bearing tphp_hpa_blind_vital_organ_liability_class; read by the headline / NORMAL_TISSUE claim evidence + atom / key-signals label)"
+    reviewed: true
+  hpa_blind_vital_organs_uncovered:
+    role: context
+    reason: "role:context (the EXPLICIT organ-coverage GAP — HPA-blind vital organs covered by NO verdict-bearing protein arm, pituitary today, the whole blind set when data_unavailable; #1793 'never silent absence' datum, read by the headline / claim evidence + atom)"
+    reviewed: true
   max_detection_rate:
     role: context
     reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
@@ -884,6 +892,10 @@ normal-tissue-protein-abundance-tphp:
     role: context
     reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
     reviewed: true
+  n_hpa_blind_vital_organs_above_abundance_floor:
+    role: context
+    reason: "role:context (count qualifier of the #1793 verdict-bearing tphp_hpa_blind_vital_organ_liability_class; read by the headline)"
+    reviewed: true
   n_solid_adult_tissues_above_abundance_floor:
     role: context
     reason: "role:context (qualifies a signal / statistical or count qualifier); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
@@ -919,6 +931,10 @@ normal-tissue-protein-abundance-tphp:
   per_tissue_abundance:
     role: display
     reason: "role:display (human-facing detail / large container; verdict-inert by design); role adjudicated by sibling ledger(s) ['tumor-selectivity'] for this shared card, reused for fleet consistency"
+    reviewed: true
+  tphp_hpa_blind_vital_organ_liability_class:
+    role: signal
+    reason: "role:signal (VERDICT-BEARING categorical, #1793 organ-coverage spine: vital_organ_abundant fires tphp-hpa-blind-vital-organ-protein-safety-warning -> safety.resolver 2.3.0 rung -> normal_tissue_protein_safety_concern HOLD; also promotes the NORMAL_TISSUE claim signal + question-table leg); reach: capsule categorical_field (TC card 1.3.0) + EXACT skill_code headline read + claim_passthrough atom (this PR)"
     reviewed: true
   tphp_normal_protein_liability_class:
     role: signal

@@ -344,12 +344,33 @@ def _paness_corr(h, c):
 # moderate); tumor-restricted / not-detected-in-normal is the clean case (owned by the `absent` flag).
 _NORMALTISSUE_BREADTH_FALLBACK = {"broad_normal_expression": "moderate"}
 
+# ★ #1793 (organ-coverage spine, pin-coupled with TC safety.resolver 2.3.0): the TPHP DIA-MS HPA-BLIND
+# vital-organ read — the vital-organ protein view SCOPED to the organs HPA-IHC structurally CANNOT
+# represent (nerve / blood / adrenal_gland / thyroid / pituitary; HPA's closed 16-name vocabulary has
+# no name for them). `vital_organ_abundant` is a MEASURED essential-organ protein liability carried by
+# the ONE protein panel that covers those organs, and it fires a verdict-bearing resolver rung
+# (tphp-hpa-blind-vital-organ-protein-safety-warning → normal_tissue_protein_safety_concern), so the
+# claim axis must not read "clean"/"unmeasured" where the resolver HOLDs. It PROMOTES the signal to
+# `strong` even over an HPA `absent` read — not a contradiction: the organ sets are DISJOINT, so the
+# HPA measured-clear is scope-limited to HPA-representable organs (disclosed as `conflict`). Absence
+# claims stay owned by the HPA flag: `no_vital_organ_signal` / `vital_organ_low` / `data_unavailable`
+# NEVER count as a clean corroborator (no_vital_organ_signal is not a clean sweep — coverage is the
+# whole point of hpa_blind_vital_organs_uncovered). None-stable: field absent → behavior byte-identical.
+_TPHP_BLIND_LIABILITY = "vital_organ_abundant"
+
+
+def _tphp_blind_liability(h) -> bool:
+    return h.get("tphp_hpa_blind_vital_organ_liability_class") == _TPHP_BLIND_LIABILITY
+
 
 def _normaltissue_sig(h) -> str:
-    """Resolved NORMAL_TISSUE liability signal: essential-tissue flag first, else measured breadth."""
+    """Resolved NORMAL_TISSUE liability signal: essential-tissue flag first, else measured breadth;
+    a measured TPHP HPA-blind vital-organ liability (#1793) lifts the resolved signal to `strong`."""
     sig = _NORMALTISSUE_SIGNAL.get(h.get("essential_tissue_flag"), "unmeasured")
     if sig == "unmeasured":
         sig = _NORMALTISSUE_BREADTH_FALLBACK.get(h.get("normal_tissue_breadth_class"), "unmeasured")
+    if _tphp_blind_liability(h) and not sig_ge(sig, "strong"):
+        sig = "strong"
     return sig
 
 
@@ -358,7 +379,23 @@ def _normaltissue_signal(h, c):
         f"HPA-IHC: essential_tissue_flag={h.get('essential_tissue_flag') or 'data_unavailable'}, "
         f"tissues={h.get('essential_tissues_flagged')}, breadth={h.get('normal_tissue_breadth_class')}"
     )
-    return _normaltissue_sig(h), ev, None
+    conflict = None
+    tphp_cls = h.get("tphp_hpa_blind_vital_organ_liability_class")
+    if tphp_cls:
+        ev += (
+            f"; TPHP DIA-MS (HPA-blind vital organs, #1793): {tphp_cls}"
+            f", above_floor={h.get('hpa_blind_vital_organs_above_floor')}"
+            f", uncovered={h.get('hpa_blind_vital_organs_uncovered')}"
+        )
+    if tphp_cls == _TPHP_BLIND_LIABILITY and h.get("essential_tissue_flag") == "absent":
+        conflict = (
+            "HPA-IHC reads measured-clear over its closed 16-name tissue vocabulary, but TPHP DIA-MS "
+            "quantifies the protein at/above the abundance floor in HPA-blind vital organ(s) "
+            f"{h.get('hpa_blind_vital_organs_above_floor')} — DISJOINT organ sets, not a contradiction: "
+            "the HPA clear is scope-limited to HPA-representable organs, and the measured blind-organ "
+            "liability drives the resolver HOLD (tphp-hpa-blind-vital-organ-protein-safety-warning)"
+        )
+    return _normaltissue_sig(h), ev, conflict
 
 
 # GTEx normal-tissue liability_class directions (independent RNA atlas) vs the HPA-IHC protein call.
@@ -802,7 +839,29 @@ def _paness_atom(h, c):
 
 
 def _normaltissue_atom(h, c):
+    # ★ #1793: when the TPHP HPA-BLIND vital-organ arm is what carries the measured liability (HPA flag
+    # NOT `present` — the HPA arm never saw those organs), the axis's citable atom must bind the values
+    # that actually drive the signal/resolver rung to THEIR source card, not to the HPA card. When the
+    # HPA arm fires (or the TPHP field is absent — every pre-0.5.0 package), the atom is byte-identical
+    # to the pre-#1793 HPA-IHC atom.
     cid = "normal-tissue-liability"
+    tphp = c.get("normal-tissue-protein-abundance-tphp") or {}
+    if (
+        tphp.get("tphp_hpa_blind_vital_organ_liability_class") == _TPHP_BLIND_LIABILITY
+        and (c.get(cid) or {}).get("essential_tissue_flag") != "present"
+    ):
+        return _atom(
+            "normal-tissue-protein-abundance-tphp",
+            tphp,
+            (
+                "tphp_hpa_blind_vital_organ_liability_class",
+                "n_hpa_blind_vital_organs_above_abundance_floor",
+                "hpa_blind_vital_organs_above_floor",
+                "hpa_blind_vital_organs_uncovered",
+            ),
+            {"measurement_type": "normal_tissue_protein_abundance", "grain": "target", "valence": "liability"},
+            tphp.get("tphp_hpa_blind_vital_organ_liability_class"),
+        )
     return _atom(
         cid,
         c.get(cid) or {},
@@ -937,7 +996,15 @@ def safety_key_signals(headline: dict, cards: list) -> dict:
             "CLINVAR": f"Germline-pathogenic variants ({h.get('clinvar_top_disease')}) [clinvar-pathogenicity-safety]",
             "MOUSE_KO": f"KO phenotype: {h.get('mouse_ko_phenotype_class')} ({h.get('mouse_ko_top_lethal')}) [mouse-ko-phenotype]",
             "PAN_ESSENTIAL": f"Pan-essential: {h.get('dependency_class')} (broad normal-tissue tox) [pan-cancer-crispr-dependency-distribution]",
-            "NORMAL_TISSUE": f"Essential-tissue protein ({h.get('essential_tissues_flagged')}) [normal-tissue-liability]",
+            # #1793: when the TPHP HPA-blind arm carries the liability (HPA flag not `present`), the
+            # leading label must NAME the blind organs and cite the card that measured them; the HPA
+            # label (and its citation) is byte-stable whenever the HPA arm fires or the field is absent.
+            "NORMAL_TISSUE": (
+                f"Vital-organ protein in HPA-blind organ(s) {h.get('hpa_blind_vital_organs_above_floor')} "
+                "[normal-tissue-protein-abundance-tphp]"
+                if _tphp_blind_liability(h) and h.get("essential_tissue_flag") != "present"
+                else f"Essential-tissue protein ({h.get('essential_tissues_flagged')}) [normal-tissue-liability]"
+            ),
             "PHARMACOVIGILANCE": f"On-target clinical warnings: {h.get('drug_warning_class')} ({h.get('drug_warning_toxicity_classes')}) [drug-warning-safety]",
         }
         return lambda claim: lbl.get(k)

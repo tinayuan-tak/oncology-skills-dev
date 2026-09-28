@@ -29,7 +29,7 @@ description: |
   because two axes remain placeholder (see status note).
 
 metadata:
-  version: 1.21.0    # 1.21.0 (2026-09-28, SK#1792): whole-axis coverage gating on the SURFACED confidence — critical_axes broadened to all 7 legs (a clean verdict measured on gnomAD-tolerant alone is capped `weak`, 'capped by thin coverage', instead of reading strong/moderate); question-table per-leg confidence graded from claim-vector corroboration instead of flat moderate. Verdict-INERT: resolver/scalar verdict byte-stable; only headline_block.confidence + question_table confidence cells move. # 1.20.0 (2026-09-24, L2b-3 / SK#1546): +sc-normal-celltype-expression card feeding a VERDICT-INERT cross-source claim normal_liability_concordance (GTEx bulk × scRNA-normal × HPA-IHC, deterministic). sc-normal veto enters fired list but is not a resolver rung nor in wt_loss_safety_conditioning ⇒ scalar + per-modality verdict byte-stable. Epic #1507 M3 2→3. # 1.19.0 (2026-09-10, T0-3): +normal-tissue-protein-abundance-tphp — TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN (tphp_vital_organ_liability_class), the quantitative-protein leg the safety substrate lacked (RNA+categorical-IHC only); resolves the endocrine/vascular/CNS organs HPA-IHC is blind to. VERDICT-INERT display CONTEXT (card rules are on the tumor-selectivity axis, NOT intracellular_intrinsic rules_scope) — scalar verdict byte-stable. # 1.18.0 (2026-09-07, CASE-009): +VERDICT-INERT pharmacovigilance_scope_caveat (drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity — mechanism-based dose-limiting tox often not boxed; byte-stable). # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature
+  version: 1.22.0    # 1.22.0 (2026-09-28, SK#1793 organ-coverage spine, PIN-COUPLED with TC b2e19734 / safety.resolver 2.3.0 + AM ae94fb3e tphp 0.5.0): the TPHP HPA-BLIND vital-organ view goes VERDICT-BEARING — consumes the 4 new fields (tphp_hpa_blind_vital_organ_liability_class + count/names/uncovered): census-visible headline reads, synthesis facet, NORMAL_TISSUE claim signal/evidence/conflict/atom + key-signals label, question-table normal-tissue leg. vital_organ_abundant fires tphp-hpa-blind-vital-organ-protein-safety-warning (intracellular_intrinsic) → resolver rung → normal_tissue_protein_safety_concern HOLD; closes the thyroid/adrenal/pituitary/nerve/blood hole where HPA-absent + gnomAD-tolerant read REASSURING. hpa_blind_vital_organs_uncovered = the explicit coverage GAP (pituitary today), never silent absence. None-stable on pre-0.5.0 packages (replay byte-stable). # 1.21.0 (2026-09-28, SK#1792): whole-axis coverage gating on the SURFACED confidence — critical_axes broadened to all 7 legs (a clean verdict measured on gnomAD-tolerant alone is capped `weak`, 'capped by thin coverage', instead of reading strong/moderate); question-table per-leg confidence graded from claim-vector corroboration instead of flat moderate. Verdict-INERT: resolver/scalar verdict byte-stable; only headline_block.confidence + question_table confidence cells move. # 1.20.0 (2026-09-24, L2b-3 / SK#1546): +sc-normal-celltype-expression card feeding a VERDICT-INERT cross-source claim normal_liability_concordance (GTEx bulk × scRNA-normal × HPA-IHC, deterministic). sc-normal veto enters fired list but is not a resolver rung nor in wt_loss_safety_conditioning ⇒ scalar + per-modality verdict byte-stable. Epic #1507 M3 2→3. # 1.19.0 (2026-09-10, T0-3): +normal-tissue-protein-abundance-tphp — TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN (tphp_vital_organ_liability_class), the quantitative-protein leg the safety substrate lacked (RNA+categorical-IHC only); resolves the endocrine/vascular/CNS organs HPA-IHC is blind to. VERDICT-INERT display CONTEXT (card rules are on the tumor-selectivity axis, NOT intracellular_intrinsic rules_scope) — scalar verdict byte-stable. # 1.18.0 (2026-09-07, CASE-009): +VERDICT-INERT pharmacovigilance_scope_caveat (drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity — mechanism-based dose-limiting tox often not boxed; byte-stable). # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature
                      # synthesis, Europe-PMC-grounded + PMID-verified via _skills_common.literature_synthesis;
                      # run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968.
                      # + VERDICT-INERT signal-surfacing of rich safety sub-fields the capsule projection
@@ -89,11 +89,16 @@ composition:
                                        # axis so it enters the fired list, but it is NOT a safety.resolver rung
                                        # nor in wt_loss_safety_conditioning ⇒ scalar + per-modality verdict
                                        # byte-stable. NOT in rules_scope; NOT in _SAFETY_DECISION_CARDS.
-    - normal-tissue-protein-abundance-tphp  # (T0-3, 2026-09-10) TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN —
-                                       # VERDICT-INERT display CONTEXT (NOT in rules_scope). The safety skill had
-                                       # RNA (GTEx) + categorical IHC (HPA) but no quantitative protein; this adds
-                                       # tphp_vital_organ_liability_class, resolving the endocrine/vascular/CNS organs
-                                       # HPA-IHC is blind to (nerve/muscle/blood/adrenal/thyroid).
+    - normal-tissue-protein-abundance-tphp  # (T0-3, 2026-09-10; VERDICT-BEARING since #1793) TPHP DIA-MS
+                                       # QUANTITATIVE vital-organ PROTEIN. The safety skill had RNA (GTEx) +
+                                       # categorical IHC (HPA) but no quantitative protein; resolves the
+                                       # endocrine/vascular/CNS organs HPA-IHC is blind to. #1793: the HPA-BLIND
+                                       # vital-organ view (tphp_hpa_blind_vital_organ_liability_class ==
+                                       # vital_organ_abundant) fires tphp-hpa-blind-vital-organ-protein-safety-
+                                       # warning → normal_tissue_protein_safety_concern HOLD (safety.resolver
+                                       # 2.3.0, priority directly below the HPA rung) — now IN rules_scope. The
+                                       # full vital-organ view (tphp_vital_organ_liability_class) stays display
+                                       # context.
     # NOTE: protein-surface-evidence was DROPPED from this skill — re-homed to
     # surface-modality-fit (LIVE there as surface_confirmation via the CSPA reader).
   # DATA_TO_SKILL_CONTRACT Rule 3 — the DISTINCT measurement_type claims this skill pulls, ONE per
@@ -143,6 +148,7 @@ composition:
     - functional-gene-state            # functional-gene-state-rarely-altered-neutral — ORPHAN (GROUP-0b guard retired; disqualifier now per-modality)
     - pan-cancer-crispr-dependency-distribution  # pan-essential-broad-tox-safety-warning → pan_essential_broad_tox_concern (data-util expansion 2026-08-21)
     - normal-tissue-liability          # normal-tissue-protein-liability-safety-warning → normal_tissue_protein_safety_concern (data-util expansion 2026-08-21)
+    - normal-tissue-protein-abundance-tphp  # tphp-hpa-blind-vital-organ-protein-safety-warning → normal_tissue_protein_safety_concern (#1793 organ-coverage twin of the HPA rung; safety.resolver 2.3.0)
     # NOTE: clingen-dosage (above) ALSO fires clingen-recessive-only-safety-favorable →
     # tolerant_reduced_safety_risk reassurance (data-util expansion 2026-08-21) — no separate list entry.
   synthesis:

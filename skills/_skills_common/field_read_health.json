@@ -1,10 +1,10 @@
 {
   "attribution": {
-    "per_unit_read_credits": 622,
-    "per_unit_union_pairs": 570,
+    "per_unit_read_credits": 633,
+    "per_unit_union_pairs": 581,
     "reconciled": true,
     "unattributed": [],
-    "whole_tree_pairs": 570
+    "whole_tree_pairs": 581
   },
   "note": "Reads MINUS declarations, per unit, for the target-contracts framework-health dashboard. TRENDING, never a gate: a populated queue is a review queue and this tool returns 0 however long it is. The queue is NOT split into read_of_None vs emitted_but_undeclared here \u2014 that needs observed-package evidence this producer cannot see, so the contracts side resolves emission_undetermined against the data-products root. no_reads_detected means the scraper's five shapes matched nothing, NOT that the unit is clean.",
   "rosters": {
@@ -1111,6 +1111,8 @@
         "fetal_vs_adult_flag",
         "highest_abundance_tissue",
         "highest_abundance_tissue_class",
+        "hpa_blind_vital_organs_above_floor",
+        "hpa_blind_vital_organs_uncovered",
         "max_detection_rate",
         "max_median_log2_abundance",
         "median_across_tissues_log2_abundance",
@@ -1121,6 +1123,7 @@
         "n_adult_tissues_total",
         "n_fetal_groups_detected",
         "n_fetal_groups_total",
+        "n_hpa_blind_vital_organs_above_abundance_floor",
         "n_solid_adult_tissues_above_abundance_floor",
         "n_solid_adult_tissues_detected",
         "n_solid_adult_tissues_total",
@@ -1130,6 +1133,7 @@
         "n_vital_organs_unmeasurable",
         "normal_protein_breadth_class",
         "per_tissue_abundance",
+        "tphp_hpa_blind_vital_organ_liability_class",
         "tphp_normal_protein_liability_class",
         "tphp_vital_organ_abundance",
         "tphp_vital_organ_liability_class",
@@ -2155,9 +2159,9 @@
     "n_emission_undetermined": 3,
     "n_meta_key": 1,
     "n_no_reads_detected": 7,
-    "n_reads_detected": 570,
+    "n_reads_detected": 581,
     "n_roster_cards": 148,
-    "n_roster_fields": 1826,
+    "n_roster_fields": 1830,
     "n_undeclared_pairs": 4,
     "n_units": 23,
     "n_units_with_undeclared_reads": 2
@@ -2204,9 +2208,9 @@
     "_skills_common": {
       "disposition": "clean",
       "kind": "shared_library",
-      "n_reads": 125,
+      "n_reads": 129,
       "reads_by_kind": {
-        "claim_passthrough": 48,
+        "claim_passthrough": 52,
         "figure": 32,
         "question_table": 40,
         "skill_code": 5
@@ -2325,9 +2329,9 @@
     "on-target-safety-liability": {
       "disposition": "clean",
       "kind": "skill",
-      "n_reads": 42,
+      "n_reads": 49,
       "reads_by_kind": {
-        "skill_code": 42
+        "skill_code": 49
       },
       "undeclared": []
     },

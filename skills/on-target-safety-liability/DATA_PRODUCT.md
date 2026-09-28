@@ -6,7 +6,7 @@ history live in SKILL.md / run.py; this file is the data-product spec.
 | | |
 |---|---|
 | **Skill** | `on-target-safety-liability` |
-| **Skill code version** | 1.21.0 |
+| **Skill code version** | 1.22.0 |
 | **Contract version** | 1.0.0 (emitted-output schema; versioned independently — see §4) |
 | **Role** | `gating` (the 4 concern verdicts force `action: hold`; polarity dynamic display-only; **no scalar killer** — safety is a HOLD, not a veto) |
 | **Verdict fields** | `headline.safety_verdict` (scalar = the honest raw WT-loss concern; `skill_report.call`) + `safety_verdict_by_modality` (the modality-conditional GoF-downgrade layer) |
@@ -16,19 +16,24 @@ history live in SKILL.md / run.py; this file is the data-product spec.
 
 ---
 
-## 1. Inputs — wired data (15 cards)
+## 1. Inputs — wired data (17 cards)
 
-Every card traces card → method → data-catalog manifest → materialized S3 product. **All 15 products LIVE**;
+Every card traces card → method → data-catalog manifest → materialized S3 product. **All products LIVE**;
 no placeholders, no stale refs, no card-status skew. `run.py` has no `CARD_CONTEXT` map.
 
-**Verdict-driving (7 → `safety.resolver.yaml`):** `gnomad-lof-constraint` (`gnomad-constraint-per-gene-v1`),
+**Verdict-driving (8 → `safety.resolver.yaml`):** `gnomad-lof-constraint` (`gnomad-constraint-per-gene-v1`),
 `gene-burden-safety`, `clingen-dosage`, `clinvar-pathogenicity-safety`, `mouse-ko-phenotype` (INFERRED
 tier — never a measured killer) [all reading the `opentargets-26-06` legs], `pan-cancer-crispr-dependency-distribution`
-(`depmap-consortium-26q1`, common-essential broad-tox), `normal-tissue-liability` (`hpa-v25-1`, HPA-IHC).
+(`depmap-consortium-26q1`, common-essential broad-tox), `normal-tissue-liability` (`hpa-v25-1`, HPA-IHC),
+`normal-tissue-protein-abundance-tphp` (`normal-tissue-protein-abundance-per-gene-v2`, TPHP DIA-MS — the
+#1793 HPA-BLIND vital-organ rung: `tphp_hpa_blind_vital_organ_liability_class == vital_organ_abundant` →
+`normal_tissue_protein_safety_concern`; the full vital-organ view on the same card stays display context).
 
-**Display-only / verdict-inert (5):** `shet-lof-intolerance` (`shet-selection-per-gene-v1`),
+**Display-only / verdict-inert (6):** `shet-lof-intolerance` (`shet-selection-per-gene-v1`),
 `target-safety-prioritisation`, `normal-tissue-liability-gtex` (`gtex-tpm-recount3-long-v1`, RNA breadth —
-additive, fires no safety rung), `drug-warning-safety`, `onsides-adverse-event-safety`.
+additive, fires no safety rung), `drug-warning-safety`, `onsides-adverse-event-safety`,
+`sc-normal-celltype-expression` (scRNA normal-tissue leg of the L2b-3 `normal_liability_concordance`
+cross-source claim; its veto rule enters the fired list but is not a resolver rung).
 
 **Orphan-rule (3, feed ONLY the per-modality layer + claim_vector, not the scalar):** `alteration-role`
 (allele-selective eligibility), `copy-number-distribution` (amplified-oncogene disqualifier),
@@ -43,7 +48,14 @@ additive, fires no safety rung), `drug-warning-safety`, `onsides-adverse-event-s
   ClinVar germline-only; mouse-KO INFERRED (developmental-vs-adult guardrail); prioritisation verdict-inert.
 - **GTEx breadth** = bulk RNA only (not protein), additive — fires no safety-resolver rung.
 - **DepMap pan-essentiality** = Chronos ~1500 lines, co-requires curated core-essential membership; cell-line, not in-vivo.
-- **HPA-IHC essential-tissue** = categorical IHC breadth; `essential_tissue_flag=unknown` is a data gap, not reassurance.
+- **HPA-IHC essential-tissue** = categorical IHC breadth over a closed 16-name tissue vocabulary —
+  structurally blind to nerve/blood/adrenal_gland/thyroid/pituitary; an `absent` measured-clear is
+  scope-limited to the representable organs.
+- **TPHP HPA-blind vital-organ view (#1793)** = DIA-MS protein over exactly that blind set, same
+  abundance floor as the full vital-organ view; liability fail-CLOSED (an above-floor hit on a thin arm
+  counts; measurability gates ABSENCE claims only). `pituitary` is covered by NO protein panel —
+  `hpa_blind_vital_organs_uncovered` + the card's coverage-gap warning carry it explicitly, and
+  `data_unavailable` widens the uncovered set to all 5 (a gap, never reassurance).
 - **OnSIDES / drug-warning** = confounded on-target joins (~63% fuzzy match), verdict-inert.
 
 ---

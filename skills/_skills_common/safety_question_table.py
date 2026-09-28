@@ -128,8 +128,18 @@ def _leg_conf(h: dict, axis: str, tier: str) -> dict:
 def _normal_tissue_leg(h: dict) -> "tuple[str, str]":
     """Resolve the normal-tissue leg's (safe-valence tier, primary label) from the headline: the HPA-IHC
     essential-tissue flag first, else a measured normal-tissue breadth fallback (mirrors
-    safety_claims._normaltissue_sig, INVERTED to safe-valence). `unknown`/missing → an unmeasured gap."""
+    safety_claims._normaltissue_sig, INVERTED to safe-valence). `unknown`/missing → an unmeasured gap.
+
+    ★ #1793: a measured TPHP HPA-BLIND vital-organ liability (tphp_hpa_blind_vital_organ_liability_class
+    == vital_organ_abundant) is the SAME essential-organ concern carried by the one protein panel that
+    covers the organs HPA cannot see, and it drives a resolver HOLD — so it overrides every
+    non-concerning HPA read (incl. the `absent` measured-clear, which is scope-limited to HPA's closed
+    16-name vocabulary) down to `absent` (concern). An HPA `present` read keeps its own label/tier
+    (already the concern). Only the liability class overrides: low/no-signal/data_unavailable NEVER
+    reassure this leg (absence claims stay owned by the HPA flag). None-stable on pre-0.5.0 packages."""
     flag = h.get("essential_tissue_flag")
+    if h.get("tphp_hpa_blind_vital_organ_liability_class") == "vital_organ_abundant" and flag != "present":
+        return "absent", "vital_organ_abundant (HPA-blind organs)"
     if flag not in (None, "", "unknown", "indeterminate"):
         return _NORMAL_TISSUE.get(str(flag), "weak"), str(flag)
     breadth = h.get("normal_tissue_breadth_class")

@@ -423,7 +423,7 @@ jobs:
           # 8167c82 also folds intervening TC #959 (benign card-wording fix), included transitively.
           # APERTURE: PR#958 adds only two answered_by list entries (question-hierarchy anchors, not
           # summary_field / required_input declarations), so the aperture census is UNCHANGED — aperture-inert.
-          ref: d7cf3f9f0b3369532a2db018fe25f3e6e9b2e80b
+          ref: b2e197344f980c5cb642fd54e93a46bfbb3c470c
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
