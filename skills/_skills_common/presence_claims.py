@@ -56,6 +56,9 @@ CLAIM_INFORMS = {
 from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
 from _skills_common.presence_tiers import (  # single-source abundance ladder + power buckets (#1742)
     ABUNDANCE_STRONG_PCT,
+    BREADTH_ABSENCE_N_FLOOR,  # #1743 absence-emission floor (breadth grain)
+    MIN_MALIGNANT_CELLS_TOTAL,  # #1743 absence-emission floor (sc malignant cells)
+    MIN_RELIABLE_DONORS,  # #1743 absence-emission floor (sc donors)
     POWER_HIGH_N,
     POWER_MODERATE_N,
     abundance_tier_from_median,
@@ -388,6 +391,25 @@ def _claim_B(h, c):
     return result
 
 
+def _sc_absence_powered(n_donors, n_cells) -> bool:
+    """True only when a single-cell study is adequately powered to assert a MEASURED-ABSENCE call
+    (issue #1743). Requires BOTH the donor floor (``n_donors`` >= ``MIN_RELIABLE_DONORS``) AND the
+    total-malignant-cell floor (``n_cells`` >= ``MIN_MALIGNANT_CELLS_TOTAL``) — a target below EITHER
+    floor is under-powered, mirroring the upstream reader
+    (analysis-methods/methods/sc_tumor_expression_celltype/stats.py) whose OR-gate emits
+    ``data_unavailable`` on the same two constants.
+
+    A MISSING or NON-FINITE count (``None`` / ``nan`` / ``±Inf``) reads as UNDER-powered (``False``):
+    ``pd.isna(Inf)`` is ``False`` and ``Inf >= 100`` is ``True``, so a non-finite sentinel would
+    otherwise slip past a bare ``>=`` and manufacture confidence — it must be excluded explicitly. A
+    bool is likewise rejected (``True`` would satisfy ``>= 1`` for a count)."""
+
+    def _ok(v, floor):
+        return isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) and v >= floor
+
+    return _ok(n_donors, MIN_RELIABLE_DONORS) and _ok(n_cells, MIN_MALIGNANT_CELLS_TOTAL)
+
+
 def _claim_C(h, c):
     cls = h.get("sc_expression_class") or c.get("tumor-scrna-celltype-expression", {}).get("sc_expression_class")
     # INV-4: the malignant detection fraction is computed over the MALIGNANT-compartment donors
@@ -408,6 +430,16 @@ def _claim_C(h, c):
         "microenvironment_dominant": "negative",
         "broadly_low": "absent",
     }.get(cls, "weak")
+    # #1743 power-gate MEASURED-ABSENCE: `broadly_low` -> absent and `microenvironment_dominant` ->
+    # negative assert a confident single-cell NEGATIVE. A study below the donor/cell power floor cannot
+    # support that (gap != absent) — route it to `underpowered` (measured, but under the statistical-
+    # power floor: a gap WITH intent, ordinal None in SIGNAL_ORD, never a driver). The confident negative
+    # is reachable ONLY when BOTH floors are met; the conservative value sits on the fall-through, and a
+    # missing/non-finite n reads as under-powered. Positive detection classes (strong/weak) are NOT gated
+    # here — this only prevents a thinly-sampled study asserting measured-absence.
+    n_cells = h.get("sc_malignant_n_cells")
+    if sig in ("absent", "negative") and not _sc_absence_powered(n, n_cells):
+        sig = "underpowered"
     # #1742 SSOT: single-cell donor-group grain -> moderate at POWER_MODERATE_N (20).
     rel = (
         "high"
@@ -458,7 +490,10 @@ def _claim_C(h, c):
     qc_detail = "; ".join(_qc) or None
     return {
         "signal": sig,
-        "corroboration": rel,
+        # #1743: a signal gated to `underpowered` carries no measured corroboration rung — the arm RAN
+        # but lacked power, so corroboration is off-scale (`underpowered`, ordinal None) too, matching
+        # the signal rather than shipping a measured donor-count tier for a negative we declined to assert.
+        "corroboration": "underpowered" if sig == "underpowered" else rel,
         "conflict": None,
         "informs": CLAIM_INFORMS["C"],
         "homogeneity_detail": homogeneity_detail,
@@ -498,8 +533,12 @@ def _claim_D(h, c):
     # Corroboration scales with HOW MANY cohorts/indications the breadth was tested over (was hardcoded
     # `moderate`, which over-stated a 2-cohort breadth). Uses the larger of the protein-cohort and
     # RNA-indication test counts the breadth card reports.
+    # `_fin` demotes a NON-FINITE count (nan/±Inf) to None before `or 0` floors it, so a non-finite
+    # sentinel cannot slip through max()/the comparisons below as a spuriously-large power (#1743,
+    # feedback_nonfinite_sentinel_is_a_number: pd.isna(Inf) is False, Inf >= 5 is True).
     n_tested = max(
-        h.get("tumor_elevation_n_cohorts_tested") or 0, h.get("rna_tumor_elevation_n_indications_tested") or 0
+        _fin(h.get("tumor_elevation_n_cohorts_tested")) or 0,
+        _fin(h.get("rna_tumor_elevation_n_indications_tested")) or 0,
     )
     # A corroboration tier for a claim we DECLINED TO STATE is not a coverage statement, it is a tier
     # attached to nothing — so the tier INHERITS the signal's unmeasured state. `n_tested` is a property of
@@ -514,9 +553,22 @@ def _claim_D(h, c):
     # measured features, on a claim never made. Post-fix the column is honestly CONSTANT (n_classes 1,
     # every target's breadth genuinely tested over the same roster) instead of deceptively near-constant.
     # `_homogeneity` below normalises the identical `data_unavailable` sentinel; this is the same move.
+    #
+    # #1743 power-gate MEASURED-ABSENCE: `not_tumor_elevated` -> absent asserts the target is elevated
+    # in NO tested tumor cohort — a confident breadth-negative. Asserting that over too few tested
+    # cohorts/indications is a coverage gap dressed as a negative (gap != absent). Require at least
+    # BREADTH_ABSENCE_N_FLOOR cohorts/indications (5 — the moderate corroboration rung below) before the
+    # confident breadth-absent; below it route to `underpowered`. The confident negative is reachable
+    # ONLY above the floor; the conservative value sits on the fall-through.
+    if sig == "absent" and n_tested < BREADTH_ABSENCE_N_FLOOR:
+        sig = "underpowered"
     rel = (
         "unmeasured"
         if sig == "unmeasured"
+        # #1743: an `underpowered` breadth-absent RAN but lacked cohort power — corroboration is off-scale
+        # (`underpowered`, ordinal None) to match the signal, not a measured n_tested tier for an unmade call.
+        else "underpowered"
+        if sig == "underpowered"
         else "high"
         if n_tested >= 10
         else "moderate"

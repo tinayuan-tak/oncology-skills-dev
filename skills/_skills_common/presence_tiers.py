@@ -100,3 +100,35 @@ POWER_HIGH_N = 100
 POWER_VERY_HIGH_N = 100_000
 SUBGROUP_N_FLOOR = 30
 POWER_MODERATE_N = 20
+
+
+# ── Absence-emission power floors (issue #1743) ────────────────────────────────
+# A MEASURED-ABSENCE call — single-cell `broadly_low`/`microenvironment_dominant`
+# (Claim C) or breadth `not_tumor_elevated` (Claim D) — asserts a confident
+# NEGATIVE. Under the codebase's gap!=absent discipline (claim_vector_core
+# SIGNAL_ORD: unmeasured/underpowered -> None) such a negative must NOT be
+# asserted from an under-powered study: too few donors/cells/cohorts cannot
+# distinguish "measured and absent" from "barely looked". These floors gate
+# absence emission at the CLAIM layer (presence_claims._claim_C/_claim_D) —
+# defense-in-depth, since a stale or ungated headline could otherwise slip a
+# confident measured-absence through.
+#
+# SINGLE-CELL malignant grain. MIN_RELIABLE_DONORS / MIN_MALIGNANT_CELLS_TOTAL
+# mirror EXACTLY the upstream reader
+#   analysis-methods/methods/sc_tumor_expression_celltype/stats.py
+# which emits `data_unavailable` when malignant n_donors < 5 OR total malignant
+# cells < 100 (a cross-donor median resting on 1-2 donors, or a pooled cube with
+# single-digit cells per donor, is a false-confidence call). The claim layer
+# re-applies the SAME floor so the confident sc negative is reachable only when
+# BOTH are satisfied.
+MIN_RELIABLE_DONORS = 5
+MIN_MALIGNANT_CELLS_TOTAL = 100
+
+# BULK BREADTH grain — a COUNT of tumor cohorts/indications the breadth axis was
+# tested over (NOT donors; a distinct, coarser unit). The minimum roster size
+# before a confident `not_tumor_elevated` (elevated in NO tested cohort) may be
+# asserted. Set to the MODERATE rung of _claim_D's existing n_tested
+# corroboration ladder (>=5): below it the breadth-absent call rests on too few
+# cohorts to distinguish "elevated nowhere" from "barely looked", so it reads
+# `underpowered` instead.
+BREADTH_ABSENCE_N_FLOOR = 5
