@@ -19,11 +19,11 @@ provenance: 'heterogeneous: packages were produced by different code'
 counts:
   cards_declaring_vocabulary: 136
   cards_with_observations: 132
-  declared_pairs: 295
-  pairs: 288
+  declared_pairs: 296
+  pairs: 289
   out_of_vocab: 0
-  never_observed_pairs: 8
-  dead_tokens: 350
+  never_observed_pairs: 9
+  dead_tokens: 354
 ungated_absences:
   "orphan: declared on no field \u2014 already gated by validate_cards":
   - functional-gene-state::sample_state
@@ -31,10 +31,10 @@ ungated_absences:
   - prism-compound-activity::metric_source
   - variant-level-interpretation::resistance_class
 known_out_of_vocab:
-  as_of: '2026-09-27'
+  as_of: '2026-09-28'
   keys: []
 known_never_observed:
-  as_of: '2026-09-27'
+  as_of: '2026-09-28'
   keys:
   - antigen-internalization::internalization_class
   - antigen-internalization::internalization_evidence_tier
@@ -43,6 +43,7 @@ known_never_observed:
   - sc-surface-normal-safety-solid::sc_surface_safety_essential_class
   - surface-topology-and-ptm::endocytosis_motif_types
   - temporal-setting-expression-shift::temporal_shift_class
+  - tumor-scrna-celltype-expression::malignant_expresser_bimodality_class
   - tumor-vs-normal-percentile-crossing-by-subtype::percentile_crossing_class
   reasons:
     antigen-internalization::internalization_class: card_never_emitted
@@ -52,6 +53,7 @@ known_never_observed:
     sc-surface-normal-safety-solid::sc_surface_safety_essential_class: card_never_emitted
     surface-topology-and-ptm::endocytosis_motif_types: always_empty_array
     temporal-setting-expression-shift::temporal_shift_class: card_never_emitted
+    tumor-scrna-celltype-expression::malignant_expresser_bimodality_class: field_absent
     tumor-vs-normal-percentile-crossing-by-subtype::percentile_crossing_class: card_never_emitted
 by_card:
   abundance-dependency:
@@ -6562,6 +6564,31 @@ by_card:
       never_emitted: []
       top: curated
       saturation: 0.44
+    malignant_expresser_bimodality_class:
+      grain: scalar
+      arity: none
+      status: field_absent
+      declared:
+      - bimodal
+      - data_unavailable
+      - underpowered
+      - unimodal
+      observed: {}
+      n_non_null: 0
+      n_null: 0
+      n_absent: 300
+      n_packages_with_card: 300
+      out_of_vocab: []
+      never_emitted:
+      - bimodal
+      - data_unavailable
+      - underpowered
+      - unimodal
+      top: null
+      saturation: null
+      saturation_na: 'arity=none: top/total is a token share, not a package share'
+      n_emissions: 0
+      n_empty_array: 0
     sc_expression_class:
       grain: scalar
       arity: scalar
