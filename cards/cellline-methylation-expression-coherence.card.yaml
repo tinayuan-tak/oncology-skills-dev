@@ -33,9 +33,15 @@ applies_when:
   - "target.depmap_expression_measured == true"
 
 required_inputs:
-  - product_id: depmap-consortium-ccle-2019
+  # PRIMARY methylation matrix (parquet-storage-standard): the reader predicate-pushes ONE gene's rows
+  # from this precomputed per-(gene, CCLE-column) MEAN product instead of streaming the whole ~40 MB CCLE
+  # RRBS gzip each call. It is derived_from depmap-consortium-ccle-2019 (lineage in the manifest);
+  # declaring the derived product here keeps the resolve_cards provenance stamp equal to what is actually
+  # read (F6 / DATA_TO_SKILL derived_from discipline, #1788).
+  - product_id: ccle-rrbs-promoter-methylation-mean-per-gene-v1
+  - product_id: depmap-consortium-ccle-2019   # SOURCE (lineage root + the live whole-gzip fallback read)
     release_pin: "{release_pin}"
-  - product_id: depmap-consortium-26q1
+  - product_id: depmap-consortium-26q1         # Model.csv bridge + log2TPM own-expression term
     release_pin: "{release_pin}"
 
 methods:

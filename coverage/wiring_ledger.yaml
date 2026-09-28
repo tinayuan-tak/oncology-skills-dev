@@ -12,8 +12,8 @@ sibling_shas:
 n_catalog_datasets: 547
 counts:
   read: 152
-  declared_only: 246
-  referenced_only: 31
+  declared_only: 247
+  referenced_only: 30
   dark: 118
 n_literal_reads: 71
 dark_by_source_family:
@@ -238,6 +238,7 @@ declared_only:
 - biogrid-release-5-0-259
 - blca-dge-tumor-vs-normal-sensitivity-v1
 - brca-dge-tumor-vs-normal-sensitivity-v1
+- ccle-rrbs-promoter-methylation-mean-per-gene-v1
 - cellxgene-census-pointer-snapshot-2026-07-09
 - cellxgene-crc-atlas-snapshot-2026-08-13
 - cesc-dge-tumor-vs-normal-sensitivity-v1
@@ -473,7 +474,6 @@ declared_only:
 - zenodo-luca-salcher-nsclc-snapshot-2026-08-13
 referenced_only:
 - allgene-depmap-rank-26q1-v1
-- ccle-rrbs-promoter-methylation-mean-per-gene-v1
 - coadread-dge-adj-vs-gtex-v1
 - coadread-dge-adj-vs-gtex-xenatoil-v1
 - coadread-dge-df06320
