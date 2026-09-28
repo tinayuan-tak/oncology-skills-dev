@@ -1834,3 +1834,65 @@ def test_source_properties_omitted_when_no_source_resolves():
     byte-stable (matching the A/B/C/D + expression_properties + concordance atom discipline)."""
     vec = presence_claim_vector(_headline(), [])
     assert "source_properties" not in vec
+
+
+# ── #1516 F1: multi_entity_pooled down-weights claim-C corroboration SYMMETRICALLY with phenotype_proxy ──
+# The single-cell reader records its own data-quality tier (malignant_annotation_method / entity_purity).
+# claim-C folds it into the (verdict-inert) corroboration. Before #1516, phenotype_proxy/ambient
+# DOWN-WEIGHTED corroboration but multi_entity_pooled was a NOTE ONLY — a pooled call (which cannot
+# attribute the malignant signal to THIS entity) kept full-strength corroboration. These tests store the
+# RAW headline + cards and RE-DERIVE claim-C via the production path (presence_claim_vector); the pooled
+# case FAILS on the pre-fix code (pooled corroboration == entity_specific, above phenotype_proxy) and
+# PASSES after (pooled corroboration == phenotype_proxy, both a rung below entity_specific).
+
+
+def _claim_c_corroboration(annotation_method=None, entity_purity=None):
+    """Re-derive claim-C corroboration via the production path for a given sc data-quality tier.
+    n_donors=362 (>= POWER_HIGH_N=100) so the base reliability is `high`, leaving room for a one-rung
+    down-weight to be observable (a base `low` would make _CORR_DOWN a no-op and the test vacuous)."""
+    sc_summary = {
+        "sc_expression_class": "malignant_broadly_detected",
+        "malignant_detection_fraction": 0.72,
+        "malignant_n_donors": 362,
+        "caf_vs_malignant_class": "malignant_dominant",
+    }
+    if annotation_method is not None:
+        sc_summary["malignant_annotation_method"] = annotation_method
+    if entity_purity is not None:
+        sc_summary["entity_purity"] = entity_purity
+    cards = [{"card_id": "tumor-scrna-celltype-expression", "summary": sc_summary}]
+    headline = {
+        "sc_expression_class": "malignant_broadly_detected",
+        "sc_malignant_detection_fraction": 0.72,
+        "sc_malignant_n_donors": 362,
+        "sc_malignant_n_cells": 4000,
+    }
+    return presence_claim_vector(headline, cards)["C"]["corroboration"]
+
+
+def test_claim_c_base_corroboration_is_high_for_a_clean_curated_entity_specific_call():
+    # The instrument's baseline: a curated, entity-specific, well-powered call is high — so a down-weight
+    # to `moderate` is a real, observable move (not masked by an already-floored `low`).
+    assert _claim_c_corroboration(annotation_method="curated", entity_purity="entity_specific") == "high"
+
+
+def test_claim_c_multi_entity_pooled_downweights_symmetrically_with_phenotype_proxy():
+    # THE MUTATION TOOTH. Pre-fix: pooled was note-only → corroboration stayed `high` (== entity_specific),
+    # ABOVE the phenotype_proxy `moderate`. Post-fix: pooled down-weights the SAME degree as phenotype_proxy.
+    pooled = _claim_c_corroboration(annotation_method="curated", entity_purity="multi_entity_pooled")
+    phenotype = _claim_c_corroboration(annotation_method="phenotype_proxy", entity_purity="entity_specific")
+    entity_specific = _claim_c_corroboration(annotation_method="curated", entity_purity="entity_specific")
+    assert pooled == phenotype == "moderate", (
+        f"multi_entity_pooled ({pooled}) must down-weight claim-C corroboration symmetrically with "
+        f"phenotype_proxy ({phenotype}) — #1516 F1"
+    )
+    assert pooled != entity_specific, "pooled must sit BELOW an entity-specific call's corroboration"
+
+
+def test_claim_c_phenotype_proxy_downweight_is_unchanged_guard():
+    # GUARD: the pre-existing phenotype_proxy down-weight (high → moderate) is not regressed by the F1 edit.
+    phenotype = _claim_c_corroboration(annotation_method="phenotype_proxy", entity_purity="entity_specific")
+    clean = _claim_c_corroboration(annotation_method="curated", entity_purity="entity_specific")
+    assert clean == "high" and phenotype == "moderate", (
+        "phenotype_proxy must still down-weight claim-C corroboration one rung below a curated call"
+    )

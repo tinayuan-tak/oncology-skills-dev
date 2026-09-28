@@ -741,11 +741,12 @@ tumor-scrna-celltype-expression:
     reason: "QC (ambient soup-leakage) — tempers claim-C corroboration (#984 Tier-1)"
     reviewed: true
   caf_abundance_log1p_cp10k:
-    role: signal
+    role: display
     interpretation_reach: skills_local
-    reason: "CAF-compartment abundance in the same log1p CP10K units as the READ malignant_abundance_log1p_cp10k, behind
-      caf_vs_malignant_class / stromal_confound_class; WIRED onto the headline as sc_caf_abundance_log1p_cp10k — it
-      was the only one of this card's 29 declared fields left unlifted"
+    reason: "#1516 F5 signal->display: CAF-compartment abundance (log1p CP10K) is LIFTED onto the headline as
+      sc_caf_abundance_log1p_cp10k (get_card_field) but no reader CONSUMES it — the exact-evidence reach the census
+      credits IS that bare emission, which over-states load-bearingness (the fleet-wide reach-confirmation gap). It is
+      human-facing magnitude detail alongside malignant_abundance_log1p_cp10k, verdict-inert by design — not a signal."
     reviewed: true
   caf_compartment_available:
     role: context
@@ -753,9 +754,11 @@ tumor-scrna-celltype-expression:
     reason: "whether the CAF compartment was resolvable; availability qualifier on the stromal-confound reads; reached via {skill_code} (census 2026-09-19)"
     reviewed: true
   caf_detection_fraction:
-    role: signal
+    role: display
     interpretation_reach: skills_local
-    reason: "CAF-compartment detection fraction; stromal-confound magnitude; role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
+    reason: "#1516 F5 signal->display: CAF-compartment detection fraction is LIFTED onto the headline as
+      sc_caf_detection_fraction (get_card_field) but no reader consumes it — the census exact-reach ({skill_code}) IS
+      that bare emission, not a downstream consumer. Human-facing stromal-confound magnitude detail, verdict-inert."
     reviewed: true
   caf_vs_malignant_class:
     role: signal
@@ -793,9 +796,11 @@ tumor-scrna-celltype-expression:
     reviewed: true
     reason: malignant-label provenance — tempers claim-C corroboration (#984 Tier-1)
   malignant_abundance_log1p_cp10k:
-    role: signal
+    role: display
     interpretation_reach: skills_local
-    reason: "malignant-cell abundance magnitude (log1p CP10K); role:signal reach-confirmed via {skill_code} (census 2026-09-19, blind to ledger)"
+    reason: "#1516 F5 signal->display: malignant-cell abundance magnitude (log1p CP10K) is LIFTED onto the headline as
+      sc_malignant_abundance_log1p_cp10k (get_card_field) but no reader consumes it — the census exact-reach
+      ({skill_code}) IS that bare emission, not a downstream consumer. Human-facing magnitude detail, verdict-inert."
     reviewed: true
   malignant_compartment_available:
     role: context
@@ -855,7 +860,14 @@ tumor-scrna-celltype-expression:
   stromal_confound_class:
     role: signal
     interpretation_reach: skills_local
-    reason: "stromal-confound severity call; gates single-cell interpretation; role:signal reach-confirmed via {gating_rule, salience, skill_code} (census 2026-09-19, blind to ledger)"
+    reason: "#1516 F5 cross-skill: stromal-confound severity call. Its {gating_rule} reach is the tumor-SELECTIVITY
+      critical-confound veto (tumor-selectivity/run.py + _skills_common/selectivity_veto.py/selectivity_hero.py) and
+      {salience} is shared _skills_common — both LOAD-BEARING there. Within THIS skill (tumor-presence) it is UNREAD:
+      only a comment at run.py (no rule/claim/figure consumes it). The census (blind to the ledger, whole-tree) cannot
+      distinguish per-skill reach, so it credits the cross-skill reads to this card's tumor-presence disposition."
+    waived_because: "load-bearing in tumor-selectivity (critical-confound veto), verdict-inert in tumor-presence where
+      no local reader reaches it; the shared field_disposition census needs a per-skill reach view to avoid crediting
+      a sibling skill's consumption here (#1516 F5). Owning consumer: skills/tumor-selectivity."
     reviewed: true
   tce_antigen_escape_class:
     role: signal

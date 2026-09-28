@@ -487,6 +487,14 @@ def _claim_C(h, c):
         _qc.append(f"malignant-annotation:{annot}")  # curated/infercnv — provenance note, no downgrade
     if purity == "multi_entity_pooled":
         _qc.append("entity:multi_entity_pooled")
+        # #1516 F1: a multi-entity POOLED call cannot attribute the malignant-detection signal to THIS
+        # entity — the same trust deficit phenotype_proxy/ambient carry — so down-weight the (verdict-
+        # inert) corroboration the SAME degree as those, closing the note-only asymmetry (before #1516
+        # pooling was surfaced as a qc note but left corroboration at full strength while phenotype_proxy
+        # demoted it). Still VERDICT-INERT: this only moves the claim-vector corroboration + qc_detail;
+        # the sc ladder / presence_verdict is untouched (see _SC_RNA_RANK in tumor-presence/run.py for
+        # WHY the tier is deliberately NOT wired into the verdict).
+        rel = _CORR_DOWN.get(rel, rel)
     qc_detail = "; ".join(_qc) or None
     return {
         "signal": sig,

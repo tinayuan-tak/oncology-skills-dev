@@ -661,6 +661,29 @@ _PROTEIN_RANK: list[tuple[str, str]] = [
 # presence). microenvironment_dominant is NEUTRAL (present in the tumor but not malignant-cell-intrinsic
 # — a caveat, not an absence). NO killer: a per-indication single-cell read cannot kill a target-wide
 # nomination (same discipline as the bulk tumor-RNA rules).
+# #1516 F1 — DELIBERATE verdict no-op on the sc data-quality tier. The single-cell reader emits
+# malignant_annotation_method {curated|infercnv|phenotype_proxy|unspecified} + entity_purity
+# {entity_specific|multi_entity_pooled|unspecified} — the data package records its own weakness — and
+# claim-C (presence_claims._claim_C) consumes them to down-weight its (verdict-inert) corroboration. The
+# tier is INTENTIONALLY NOT wired into this ladder / the collapsed presence_verdict: (1) the sc leg is
+# SUPPORTIVE-ONLY (no killer rung; _SC_POS ranks after RNA+protein), so a weak-tier call can only fail to
+# lift the sc bucket, never falsely veto presence — the harm a tier-cap would guard against is bounded to
+# over-crediting, not a false negative; and (2) the collapsed single-word presence_verdict is a
+# soon-to-be-DEPRECATED consumer (data-package > verdict), so routing new tier logic THROUGH it is the
+# wrong direction. The correction that matters is the CLAIM-layer symmetry fix (#1516 F1 in _claim_C:
+# multi_entity_pooled now down-weights corroboration like phenotype_proxy). Capping the sc verdict at a
+# lower rung (option F1b) is deliberately declined for those two reasons.
+#
+# #1516 F2 — KNOWN GAP, verdict-affecting, TC-coordinated (NOT fixed here). target-contracts split the
+# subset call onto its OWN rule `sc-expression-malignant-subset-detected-supportive` (equals
+# malignant_subset_detected; 2026-09-18, TC main) — pre-split a subset call fired the broadly rule below
+# and reached `sc_malignant_detected`. That new rule_id is NOT mapped in this ladder, so a MEASURED
+# malignant_subset_detected now fires a rule _rank_verdict does not recognise → the sc_rna/tumor bucket
+# falls through to `insufficient` (a false absence) even though claim-C credits it (weak) and
+# _SC_MALIGNANT_CONFIRMED treats it as a real detection. Folding it in (add the subset rule_id → a
+# supportive rung, restoring the TC-intended verdict-neutral split) is verdict-affecting (replay + golden
+# + panel) and the rung mapping coordinates with the companion target-contracts issue, so it is surfaced
+# on #1516 for a coordinated follow-up rather than forced here.
 _SC_RNA_RANK: list[tuple[str, str]] = [
     ("sc-expression-malignant-broadly-detected-supportive", "sc_malignant_detected"),
     ("sc-expression-microenvironment-dominant-neutral", "sc_microenvironment_dominant"),
