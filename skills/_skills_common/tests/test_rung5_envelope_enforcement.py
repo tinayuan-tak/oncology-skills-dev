@@ -214,12 +214,36 @@ ENVELOPE_FAMILIES: dict[str, dict] = {
         },
         "none": {},
     },
+    "methylation_silencing": {
+        # SK#1782 — SECOND envelope-v0 concordance family for the cis_coherence domain: cross-GRAIN
+        # cell-line model (DepMap) × patient tumour (TCGA) epigenetic-silencing replication. The two grain
+        # vocabularies DIFFER, so each token is routed through an explicit class→arm mapping.
+        "builder": cis_coherence_claims._methylation_silencing_concordance_claim,
+        "name": "_methylation_silencing_concordance_claim",
+        "resolving": {
+            "cellline-methylation-expression-coherence": {
+                "methylation_silencing_class": "silencing_coupled_strong",
+                "subset_median_delta_log2tpm": -1.8,
+                "subset_mannwhitney_p": 1e-12,
+                "lineage_collapse_ratio": 0.72,
+                "n_hypermethylated": 34,
+            },
+            "patient-cis-coherence": {
+                "patient_methylation_silencing_class": "epigenetic_silencing",
+                "delta_log2tpm_methylated_vs_unmethylated": -1.4,
+                "n_methylated": 40,
+                "n_unmethylated": 210,
+                "n_cases_methylation": 250,
+            },
+        },
+        "none": {},
+    },
 }
 
 # The known family count. An anti-vacuity floor: if the registry (or the codebase discovery it is pinned
 # against) ever collapses to a subset, the `== _EXPECTED_FAMILY_COUNT` assertions catch it rather than a
 # shrunken population passing silently.
-_EXPECTED_FAMILY_COUNT = 10
+_EXPECTED_FAMILY_COUNT = 11
 _EXPECTED_FRAME_COUNT = 5
 
 

@@ -10,16 +10,15 @@ of separable legs), so the claim_vector is the LEG DECOMPOSITION — NOT a verdi
   EXPR_DEP     leg-2:     expression → dependency correlation    (expression-dependency-correlation)
   CONJOINT     leg-2:     amp∩overexpr conjoint addiction        (amp-expr-stratified-dependency)
 
-DISTINCTIVE — a REAL corroboration arm: unlike the flat "moderate-if-measured" of other concretes,
-SILENCING draws corroboration from the pre-computed cross-grain PATIENT agreement boolean (does the
-TCGA patient arm replicate the cell-line call?) — a genuine second evidence leg.
-
-CIS_DOSAGE's cross-grain corroboration was MIGRATED (SK#1781, epic #1779 / parent #1507): its LEG axis
-now scores plain single-source corroboration (the cell-line cis_dosage_class alone), and the cross-grain
-cell-line × patient integration lives in the FIRST envelope-v0 concordance claim for this domain,
-`_cis_dosage_concordance_claim` → the verdict-INERT `cis_dosage_concordance` key on the claim_vector
-(docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md). The pre-envelope `patient_dosage_agrees_with_cellline` boolean
-still feeds run.py's caveats; only its use AS the CIS_DOSAGE fold was retired.
+CROSS-GRAIN corroboration MIGRATED to envelope-v0 concordance claims (SK#1781 CIS_DOSAGE, SK#1782
+SILENCING; epic #1779 / parent #1507): the CIS_DOSAGE and SILENCING LEG axes now score PLAIN single-
+source corroboration (the cell-line class alone, like EXPR_DEP / CONJOINT — one arm is never
+corroboration), and the principled cross-grain cell-line × patient integration for each property lives in
+its OWN verdict-INERT envelope concordance claim on the claim_vector (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md):
+  * `_cis_dosage_concordance_claim`            → `cis_dosage_concordance`            (property cis_dosage_coupling)
+  * `_methylation_silencing_concordance_claim` → `methylation_silencing_concordance` (property methylation_silencing_coupling)
+The pre-envelope `patient_dosage_agrees_with_cellline` / `patient_silencing_agrees_with_cellline` booleans
+still feed run.py's caveats; only their use AS the leg-axis folds was retired.
 
 VALENCE: CIS_DOSAGE / EXPR_DEP / CONJOINT are positive (cis-driven addiction); SILENCING is DESCRIPTIVE
 (a coherent silencing signal is therapeutically INVERSE — LoF / SL-reactivation, not direct inhibition;
@@ -217,9 +216,16 @@ CIS_COHERENCE_CLAIM_SPEC = [
         "SILENCING",
         "methylation→low-expression",
         _sig(_C_METH, "methylation_silencing_class", _SILENCING_SIGNAL),
-        _patient_corr(
-            _C_METH, "methylation_silencing_class", _SILENCING_SIGNAL, "patient_silencing_agrees_with_cellline"
-        ),
+        # RETIRED (SK#1782, mirroring #1781's CIS_DOSAGE migration): the bespoke `_patient_corr` cross-grain
+        # fold — a boolean that reached `high` from ONE `patient_silencing_agrees_with_cellline` flag — is the
+        # pre-envelope anti-pattern (one arm is never corroboration). The principled cross-grain (model ×
+        # patient) silencing corroboration now lives in the dedicated `_methylation_silencing_concordance`
+        # envelope claim (measured-arm frame, ARM_FLOOR-aware, key-omitted when neither grain resolves, with
+        # the third `silencing_lineage_confounded` state routed to NO rung). The SILENCING leg axis reverts to
+        # plain single-source corroboration (`single_arm` when the cell-line class is measured, else
+        # `unmeasured`) like CIS_DOSAGE / EXPR_DEP / CONJOINT. The run.py `patient_silencing_agrees_with_cellline`
+        # boolean is untouched (still feeds its verdict-inert caveats).
+        _plain_corr(_C_METH, "methylation_silencing_class", _SILENCING_SIGNAL),
         _INFORMS["SILENCING"],
         _mk_atom(
             _C_METH,
@@ -304,8 +310,10 @@ _DISCLAIMER = (
     "Modality-blind, verdict-INERT LEG DECOMPOSITION of the cis-coherence cross-tab into orthogonal claims "
     "(CIS_DOSAGE / SILENCING / EXPR_DEP / CONJOINT), each signal×corroboration. The cis_coherence VERDICT is "
     "an INTERACTION of these legs (owned by the resolver) — this is the decomposition + citable atoms, NOT a "
-    "verdict echo. CIS_DOSAGE/SILENCING corroboration draws on the cross-grain TCGA patient-agreement arm "
-    "(a real second leg). SILENCING is therapeutically INVERSE (LoF/reactivation). `absent` = measured "
+    "verdict echo. Each leg axis scores PLAIN single-source corroboration; the principled cross-grain "
+    "cell-line × patient integration lives in the verdict-INERT envelope concordance claims "
+    "(cis_dosage_concordance / methylation_silencing_concordance). SILENCING is therapeutically INVERSE "
+    "(LoF/reactivation). `absent` = measured "
     "uncoupled/no-correlation; `negative` = a measured WRONG-direction read; `unmeasured` = invariant/untestable "
     "or gap (the resolver abstains, never `absent`). Claims are NOT averaged; never feeds the verdict."
 )
@@ -598,6 +606,349 @@ def _cis_dosage_concordance_claim(c: dict) -> "dict | None":
     }
 
 
+# ── L2b CROSS-GRAIN concordance claim (SK#1782, epic #1779 / parent #1507) ──────────────────────────
+# The SECOND cis-domain concordance property: promoter-methylation → own-LOW-expression SILENCING measured
+# at two DIFFERENT sample-context grains —
+#   * cell-line MODEL grain — `cellline-methylation-expression-coherence`.`methylation_silencing_class`
+#   * patient TUMOUR grain  — `patient-cis-coherence`.`patient_methylation_silencing_class`
+#
+# ★★ EXPLICIT CLASS→ARM MAPPING (the correctness crux). Unlike the cis-dosage arm (a single SHARED
+# coupled/uncoupled vocabulary on both grains), the two SILENCING vocabularies DIFFER and each carries
+# state(s) that are MEASURED-BUT-UNINTERPRETABLE or UNCOVERED and must route to NO rung — neither
+# corroborating NOR disagreeing. So each grain enumerates EVERY vocabulary member to one of THREE arm
+# outcomes; the DROP set is DELIBERATELY enumerated (not left to `arm_from_class`'s off-roster fall-through)
+# so a new/renamed token fails LOUD in `test_silencing_concordance_vocab_is_fully_mapped` rather than
+# silently leaving the arm frame:
+#   * SILENCED     (agrees=True)  — a coupled methylation→low-expression call.
+#   * NOT_SILENCED (disagrees=False) — a MEASURED not-silenced floor (tested, no silencing separation).
+#   * DROP (None)  — routed to NO rung. `silencing_lineage_confounded` (a large pan-panel contrast that
+#     COLLAPSES within lineage — measured, but NOT interpretable as cis silencing, per SKILL.md Boundaries:
+#     it must read as evidence NEITHER for NOR against silencing; mapping it to `disagrees` would falsely
+#     drive corroboration to `low`), `methylation_invariant_panel` (untestable — no hypermethylated subset),
+#     patient `insufficient_methylation_data` (uncovered/underpowered cohort, indication-scoped), and
+#     `data_unavailable` (a TRUTHY string — mapped EXPLICITLY, never via falsiness;
+#     feedback_nonfinite_sentinel_is_a_number).
+_SILENCING_SILENCED = "silenced"
+_SILENCING_NOT_SILENCED = "not_silenced"
+_SILENCING_DROP = "drop"  # routed to NO rung — neither corroborates nor disagrees (leaves the arm frame)
+
+# Cell-line vocabulary (cellline-methylation-expression-coherence.methylation_silencing_class, card v1.1.0).
+_CELLLINE_SILENCING_ARM = {
+    "silencing_coupled_strong": _SILENCING_SILENCED,
+    "silencing_coupled_moderate": _SILENCING_SILENCED,
+    "methylation_uncoupled": _SILENCING_NOT_SILENCED,  # MEASURED: tested within lineage, not silenced
+    "silencing_lineage_confounded": _SILENCING_DROP,  # measured, NOT interpretable as cis silencing
+    "methylation_invariant_panel": _SILENCING_DROP,  # untestable — no hypermethylated subset
+    "data_unavailable": _SILENCING_DROP,  # TRUTHY sentinel — mapped explicitly
+}
+# Patient vocabulary (patient-cis-coherence.patient_methylation_silencing_class) — a DIFFERENT, indication-
+# scoped roster. `insufficient_methylation_data` (< 5 methylated OR < 5 unmethylated cases) DROPS.
+_PATIENT_SILENCING_ARM = {
+    "epigenetic_silencing": _SILENCING_SILENCED,  # methylated cases express >= 1 log2 unit LOWER
+    "no_silencing_signal": _SILENCING_NOT_SILENCED,  # MEASURED: no silencing separation
+    "insufficient_methylation_data": _SILENCING_DROP,  # uncovered/underpowered cohort
+    "data_unavailable": _SILENCING_DROP,  # TRUTHY sentinel — mapped explicitly (not in the card enum, safe)
+}
+
+
+def _silencing_arms(mapping: dict) -> "tuple[frozenset, frozenset]":
+    """Derive (agrees, disagrees) frozensets from an explicit class→arm mapping — the DROP-mapped tokens
+    are in NEITHER set, so `arm_from_class` returns None (they leave the arm frame). The mapping is the
+    single source of truth the vocab-coverage test pins."""
+    agrees = frozenset(k for k, v in mapping.items() if v == _SILENCING_SILENCED)
+    disagrees = frozenset(k for k, v in mapping.items() if v == _SILENCING_NOT_SILENCED)
+    return agrees, disagrees
+
+
+_CL_SILENCING_AGREES, _CL_SILENCING_DISAGREES = _silencing_arms(_CELLLINE_SILENCING_ARM)
+_PT_SILENCING_AGREES, _PT_SILENCING_DISAGREES = _silencing_arms(_PATIENT_SILENCING_ARM)
+
+_C_PATIENT = "patient-cis-coherence"
+_SILENCING_GRAIN = {
+    "cell_line_model": "cell-line model (DepMap panel)",
+    "patient_tumour": "patient tumour cohort (TCGA)",
+}
+_SILENCING_CARD = {
+    "cell_line_model": _C_METH,
+    "patient_tumour": _C_PATIENT,
+}
+_SILENCING_FIELD = {
+    "cell_line_model": "methylation_silencing_class",
+    "patient_tumour": "patient_methylation_silencing_class",
+}
+
+
+def _methylation_silencing_concordance_claim(c: dict) -> "dict | None":
+    """L2b CROSS-GRAIN integration claim: `methylation_silencing_concordance` — the SECOND envelope-v0
+    concordance claim for the cis_coherence domain (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md), property_id
+    `methylation_silencing_coupling`.
+
+    Integrates the two cross-GRAIN arms of the SAME epigenetic-silencing property by an EXPLICIT
+    DETERMINISTIC rule (no LLM; L2b is reproducible by contract):
+      * cell-line MODEL grain — `cellline-methylation-expression-coherence`.`methylation_silencing_class`;
+      * patient TUMOUR grain  — `patient-cis-coherence`.`patient_methylation_silencing_class` (TCGA cohort).
+    Both resolve whether promoter methylation drives own LOW expression (epigenetic silencing), emitting:
+      * methylation_silencing_concordant_silenced   — both grains resolve and AGREE silencing holds;
+      * methylation_silencing_concordant_unsilenced  — both resolve and AGREE a MEASURED not-silenced floor;
+      * methylation_silencing_grain_discordant        — one grain is silenced, the other a measured not-
+        silenced floor (a which-grain-silences payload — INFORMATIVE, never collapsed/averaged);
+      * methylation_silencing_single_grain_only       — exactly ONE grain resolves, the other a gap: the
+        degraded read that names the resolved grain, NOT a concordance claim.
+
+    ★★ The two silencing vocabularies are NOT identical, so the arms are read through an EXPLICIT per-grain
+    class→arm mapping (`_CELLLINE_SILENCING_ARM` / `_PATIENT_SILENCING_ARM`). Crucially the cell-line
+    `silencing_lineage_confounded` (measured but NOT interpretable as cis silencing) + `methylation_invariant_
+    panel` and the patient `insufficient_methylation_data` (uncovered cohort) route to NO rung — they DROP
+    (None arm), they do NOT fabricate a disagreeing arm (which would falsely drive corroboration to `low`).
+
+    GRAIN is FIRST-CLASS (model vs patient), recorded per source in `source_support[].grain`; a same-grain
+    restatement is never a second arm — the #1704 arm-commensurability oracle pins the two DISTINCT (card,
+    field) arms so a re-pointed arm reds.
+
+    Corroboration is on the shared MEASURED-ARM frame: two agreeing grains → high, a disagreement → low, one
+    measured grain with the other unresolved → single_arm (below CORROBORATION_ARM_FLOOR). A single-grain
+    mutation only DEGRADES to `methylation_silencing_single_grain_only`; ERASING the claim (key omitted,
+    byte-stable) takes defeating BOTH grain supplies. There is NO dependent/derived source (the two grains
+    are genuinely independent), so nothing resurrects the claim once both arms are gone.
+
+    VERDICT-INERT: carries NO `signal` key, reads no verdict, feeds no rule; the `cis_coherence_verdict` +
+    resolver golden stay byte-stable. Returns None — key omitted — when NEITHER grain resolves."""
+    # ARM READS — the INLINE `(c.get("<card>") or {}).get("<field>")` idiom the #1704 oracle pins as the two
+    # commensurate arms. Raw metrics are pulled off a LOCAL card binding below (never this idiom) so they are
+    # NOT mistaken for a third arm.
+    cl_class = (c.get("cellline-methylation-expression-coherence") or {}).get("methylation_silencing_class")
+    pt_class = (c.get("patient-cis-coherence") or {}).get("patient_methylation_silencing_class")
+
+    # Resolve each grain's token → silenced(True) / not_silenced(False) / drop-or-unresolved(None) via the
+    # shared arm reader over the EXPLICIT per-grain agrees/disagrees sets (DROP tokens are in NEITHER set).
+    cl = arm_from_class(cl_class, agrees=_CL_SILENCING_AGREES, disagrees=_CL_SILENCING_DISAGREES)
+    pt = arm_from_class(pt_class, agrees=_PT_SILENCING_AGREES, disagrees=_PT_SILENCING_DISAGREES)
+
+    resolved = [(name, v) for name, v in (("cell_line_model", cl), ("patient_tumour", pt)) if v is not None]
+    if not resolved:
+        return None  # neither grain resolves (or both DROP) → key omitted (byte-stable)
+
+    if len(resolved) == 1:
+        concordance = "methylation_silencing_single_grain_only"
+    elif cl == pt:
+        concordance = (
+            "methylation_silencing_concordant_silenced" if cl else "methylation_silencing_concordant_unsilenced"
+        )
+    else:
+        concordance = "methylation_silencing_grain_discordant"
+
+    # Corroboration over the two grains. A discordance is [True, False] → low; a concordance [True, True] or
+    # [False, False] → high; one grain unresolved is [x, None] → single_arm (below the arm floor).
+    if concordance == "methylation_silencing_grain_discordant":
+        cl_arm, pt_arm = True, False
+    else:
+        cl_arm = True if cl is not None else None
+        pt_arm = True if pt is not None else None
+    corroboration = corroboration_from_arms([cl_arm, pt_arm])
+
+    # The envelope's TWO COUNTS. Both grains are genuinely INDEPENDENT (no pooled / derived superset), so the
+    # counts coincide — emitted separately to keep the envelope shape uniform with families that DO carry a
+    # dependent source.
+    corroborating_independent_arm_count = len(resolved)
+    resolved_source_count = corroborating_independent_arm_count
+
+    def _dir(v):
+        return "silenced" if v is True else ("not_silenced" if v is False else None)
+
+    _class = {"cell_line_model": cl_class, "patient_tumour": pt_class}
+    _val = {"cell_line_model": cl, "patient_tumour": pt}
+
+    # which-grain payload — the disagreement or the degraded single grain is NAMED, never collapsed.
+    if concordance == "methylation_silencing_grain_discordant":
+        silenced_in = "cell_line_model" if cl else "patient_tumour"
+        unsilenced_in = "patient_tumour" if cl else "cell_line_model"
+        concordance_support = {"silenced_in": silenced_in, "unsilenced_in": unsilenced_in}
+    elif concordance == "methylation_silencing_single_grain_only":
+        name, v = resolved[0]
+        concordance_support = {"resolved_by": name, "resolved_call": _class[name], "resolved_direction": _dir(v)}
+    else:
+        concordance_support = {"agreed_direction": _dir(cl)}
+
+    # ── uniform per-source support + retained_quantitative (raw metrics DEMOTED, not dropped) ──────────
+    # Raw metrics off a LOCAL card binding (NOT the inline `c.get(...)` arm idiom) so the #1704 oracle sees
+    # exactly the two class-field arms and no incommensurate third pair.
+    _cl_card = c.get("cellline-methylation-expression-coherence") or {}
+    _pt_card = c.get("patient-cis-coherence") or {}
+    _retained = {
+        "cell_line_model": {
+            "subset_median_delta_log2tpm": _cl_card.get("subset_median_delta_log2tpm"),
+            "subset_within_lineage_delta_log2tpm": _cl_card.get("subset_within_lineage_delta_log2tpm"),
+            "lineage_collapse_ratio": _cl_card.get("lineage_collapse_ratio"),
+            "subset_mannwhitney_p": _cl_card.get("subset_mannwhitney_p"),
+            "methyl_expr_spearman_r": _cl_card.get("methyl_expr_spearman_r"),
+            "broad_quartile_delta_log2tpm": _cl_card.get("broad_quartile_delta_log2tpm"),
+            "n_hypermethylated": _cl_card.get("n_hypermethylated"),
+        },
+        "patient_tumour": {
+            "delta_log2tpm_methylated_vs_unmethylated": _pt_card.get("delta_log2tpm_methylated_vs_unmethylated"),
+            "n_methylated": _pt_card.get("n_methylated"),
+            "n_unmethylated": _pt_card.get("n_unmethylated"),
+            "mean_log2tpm_methylated": _pt_card.get("mean_log2tpm_methylated"),
+            "mean_log2tpm_unmethylated": _pt_card.get("mean_log2tpm_unmethylated"),
+            "n_cases_methylation": _pt_card.get("n_cases_methylation"),
+            "n_cases_expression": _pt_card.get("n_cases_expression"),
+        },
+    }
+
+    def _support(source):
+        v = _val[source]
+        return {
+            "source": source,
+            "grain": source,  # first-class sample-context grain (cell_line_model | patient_tumour)
+            "dependence_group": source,
+            "value": _class[source],
+            "silencing_direction": _dir(v),
+            # THREE separate source notions — no single overloaded boolean smuggles two meanings.
+            "resolved": v is not None,
+            "quality_eligible": v is not None,
+            "corroboration_eligible": True,  # both grains are independent replication arms
+            "provenance": {
+                "card_id": _SILENCING_CARD[source],
+                "field": _SILENCING_FIELD[source],
+                "grain_context": _SILENCING_GRAIN[source],
+            },
+            # retained_quantitative: the raw silencing metrics DEMOTED not deleted (fidelity/recoverability) —
+            # the bespoke fold's numbers are preserved here rather than dropped when it is retired.
+            "retained_quantitative": _retained[source],
+        }
+
+    # Both grains ALWAYS appear (an absent/dropped grain shows resolved:False), keeping the two-count / grain
+    # structure legible; they are genuinely independent sample contexts (no derived superset).
+    source_support = [_support("cell_line_model"), _support("patient_tumour")]
+    evidence_dependence = {
+        "groups": [
+            {"members": ["cell_line_model"], "relationship": "independent_sample_context"},
+            {"members": ["patient_tumour"], "relationship": "independent_sample_context"},
+        ],
+        "derived_sources": {},
+    }
+
+    _PHRASE = {
+        "methylation_silencing_concordant_silenced": "AGREE promoter methylation silences own expression",
+        "methylation_silencing_concordant_unsilenced": "AGREE it is a measured NOT-silenced floor",
+        "methylation_silencing_grain_discordant": "DISAGREE — silencing replicates in only one grain",
+        "methylation_silencing_single_grain_only": "only one grain resolves",
+    }
+
+    # ── PRESENTATION-SUPPORT (SK#1782 L2b surface) — two-directional structured fields + a deterministic
+    # boundary-sensitivity flag so a question_table answer can SURFACE the cross-grain read WITHOUT
+    # prose-parsing `evidence`. NONE route a verdict, name a signal tier (no `signal` key), or feed a rule.
+    boundary_sensitive = corroboration != "high"
+    if concordance == "methylation_silencing_concordant_silenced":
+        _pos_source, _pos = (
+            "cell_line_model",
+            (
+                "Both the cell-line MODEL and patient TUMOUR grains AGREE promoter methylation silences the "
+                "target's own expression — a cross-grain-corroborated epigenetic-silencing read (therapeutically "
+                "INVERSE: LoF / reactivation hypothesis, not direct inhibition)."
+            ),
+        )
+    elif concordance == "methylation_silencing_concordant_unsilenced":
+        _pos_source, _pos = (
+            "cell_line_model",
+            (
+                "Both grains AGREE methylation does NOT silence expression (a measured NOT-silenced floor across "
+                "model and patient) — cross-grain corroborated."
+            ),
+        )
+    elif concordance == "methylation_silencing_grain_discordant":
+        _pos_source = concordance_support["silenced_in"]
+        _pos = (
+            f"{_SILENCING_GRAIN[_pos_source]} reports epigenetic SILENCING — methylation→low-expression is "
+            "present in this grain."
+        )
+    else:  # methylation_silencing_single_grain_only
+        _pos_source = concordance_support["resolved_by"]
+        _pos = (
+            f"{_SILENCING_GRAIN[_pos_source]} reports {concordance_support['resolved_direction']} silencing "
+            f"({concordance_support['resolved_call']}) — the sole grain that resolves."
+        )
+    positive_signal = {"statement": _pos, "source": _pos_source, "provenance_ref": _pos_source}
+
+    if concordance in ("methylation_silencing_concordant_silenced", "methylation_silencing_concordant_unsilenced"):
+        qualifying_signal = None
+    elif concordance == "methylation_silencing_grain_discordant":
+        _neg = concordance_support["unsilenced_in"]
+        qualifying_signal = {
+            "statement": (
+                f"{_SILENCING_GRAIN[_neg]} does NOT replicate the silencing — the grains DISAGREE. This is "
+                "INFORMATIVE (culture vs tumour-microenvironment, purity, cohort composition differ), not an "
+                "error, and never equated with a biological absence."
+            ),
+            "source": _neg,
+            "provenance_ref": _neg,
+        }
+    else:  # single_grain_only
+        _gap = "patient_tumour" if concordance_support["resolved_by"] == "cell_line_model" else "cell_line_model"
+        qualifying_signal = {
+            "statement": (
+                f"Only {_SILENCING_GRAIN[concordance_support['resolved_by']]} resolves; "
+                f"{_SILENCING_GRAIN[_gap]} is a gap (unmeasured, lineage-confounded, or an uncovered cohort) — a "
+                "degraded single-grain read, NOT cross-grain corroboration."
+            ),
+            "source": _gap,
+            "provenance_ref": _gap,
+        }
+
+    return {
+        "property_id": "methylation_silencing_coupling",
+        "concordance_class": concordance,
+        "corroboration": corroboration,
+        # DETERMINISTIC, reproducible-by-contract: an explicit rule over the two grain tokens, never an LLM.
+        "integration_method": "explicit_deterministic",
+        # GRAIN first-class: the integration SPANS grains; the per-grain sample-context is on each source.
+        "grain": "cross_grain_model_vs_patient",
+        "resolved_source_count": resolved_source_count,
+        "corroborating_independent_arm_count": corroborating_independent_arm_count,
+        "concordance_support": concordance_support,
+        "source_support": source_support,
+        "positive_signal": positive_signal,
+        "qualifying_signal": qualifying_signal,
+        "boundary_sensitive": boundary_sensitive,
+        "boundary_note": (
+            "concordance class rests on a single measured grain (single_arm / low corroboration) — treat as "
+            "near-boundary, not a flat cross-grain assertion"
+            if boundary_sensitive
+            else "concordance corroborated by BOTH the model and patient grains agreeing"
+        ),
+        "evidence_dependence": evidence_dependence,
+        "informs": (
+            "cross-grain epigenetic-silencing concordance — a promoter-methylation→low-expression call that "
+            "BOTH the DepMap cell-line model and the TCGA patient tumour agree on is far more credible than a "
+            "single-grain call; a grain disagreement is the informative datum, never averaged. Silencing is "
+            "therapeutically INVERSE (SL / reactivation), not a direct-inhibition claim."
+        ),
+        "evidence": (
+            f"cell-line {cl_class or 'data_unavailable'} × patient {pt_class or 'data_unavailable'}: "
+            + _PHRASE[concordance]
+        ),
+        "provenance": {
+            "sources": source_support,
+            "independence_note": (
+                "The cell-line methylation_silencing_class (DepMap model panel) and patient "
+                "patient_methylation_silencing_class (TCGA cohort) are measured on genuinely INDEPENDENT sample "
+                "contexts, so their agreement is real cross-grain corroboration of the SAME epigenetic-silencing "
+                "property. VOCABULARY CAVEAT: the two silencing rosters are NOT identical — the cell-line "
+                "silencing_lineage_confounded / methylation_invariant_panel and the patient "
+                "insufficient_methylation_data states are measured-but-uninterpretable / uncovered and route to "
+                "NO rung (they DROP, never fabricating a disagreeing arm). GRAIN CAVEAT: culture vs tumour-"
+                "microenvironment / purity / cohort composition differ; the two are comparable in DIRECTION "
+                "(silenced vs not), not exact thresholds. Grain is first-class so a same-grain restatement is "
+                "never counted as a second arm."
+            ),
+        },
+        "_disclaimer": (
+            "L2b CROSS-GRAIN integration claim (deterministic, no LLM) — verdict-INERT provenance: never a "
+            "signal tier, never averaged into a claim, never feeds the cis_coherence_verdict."
+        ),
+    }
+
+
 def cis_coherence_claim_vector(headline: dict, cards: list) -> dict:
     vec = build_claim_vector(CIS_COHERENCE_CLAIM_SPEC, headline, cards, _DISCLAIMER)
     # L2b CROSS-GRAIN integration claim (SK#1781, epic #1779 / parent #1507): cell-line × patient
@@ -606,9 +957,17 @@ def cis_coherence_claim_vector(headline: dict, cards: list) -> dict:
     # Reads the two source cards directly (the CIS_DOSAGE/... leg axes read their signals off the card
     # summaries too, so this never perturbs them). Mirrors the dependency L2b-2
     # (`crispr_rnai_essentiality_concordance`) attach pattern EXACTLY.
-    _cd = _cis_dosage_concordance_claim(cards_by_id(cards))
+    _by_id = cards_by_id(cards)
+    _cd = _cis_dosage_concordance_claim(_by_id)
     if _cd is not None:
         vec["cis_dosage_concordance"] = _cd
+    # L2b CROSS-GRAIN integration claim (SK#1782, epic #1779 / parent #1507): cell-line × patient
+    # methylation-silencing concordance. Same verdict-INERT/byte-stable/key-omitted contract as
+    # cis_dosage_concordance; OMITTED unless at least one grain resolves (the FULL read requires BOTH),
+    # and each grain token is routed through an EXPLICIT class→arm mapping (DROP states leave the frame).
+    _ms = _methylation_silencing_concordance_claim(_by_id)
+    if _ms is not None:
+        vec["methylation_silencing_concordance"] = _ms
     return vec
 
 

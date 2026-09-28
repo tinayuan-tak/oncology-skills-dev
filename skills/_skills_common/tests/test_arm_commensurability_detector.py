@@ -1535,6 +1535,16 @@ _DECLARED_CIS_CORROBORATION_BUILDERS = {
         "neither a subset/superset nor derived from the other (commensurate by same-construct/same-"
         "granularity/independent-grain; see _CIS_COMMENSURATE_ARM_PAIRS)"
     ),
+    "_methylation_silencing_concordance_claim": (
+        "cell-line `methylation_silencing_class` (DepMap model panel) × patient "
+        "`patient_methylation_silencing_class` (TCGA cohort) — the SAME epigenetic-silencing property "
+        "(promoter methylation → own LOW expression) measured at two DIFFERENT sample-context GRAINS (model "
+        "vs patient, grain first-class); neither a subset/superset nor derived from the other. UNLIKE "
+        "cis-dosage, the two silencing vocabularies DIFFER, so each token is routed through an EXPLICIT "
+        "per-grain class→arm mapping (silencing_lineage_confounded / methylation_invariant_panel / patient "
+        "insufficient_methylation_data route to NO rung — they DROP, never fabricating a disagreeing arm); "
+        "commensurate by same-construct/same-granularity/independent-grain, see _SILENCING_COMMENSURATE_ARM_PAIRS"
+    ),
 }
 
 # The (card_id, field) arms the fold reads. Two DISTINCT cis-coherence cards (model grain vs patient grain)
@@ -1637,6 +1647,118 @@ def test_detector_bites_a_cis_arm_repointed_to_the_other_grain_card():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# NINTH FAMILY — the CIS-COHERENCE (methylation-silencing cross-grain) builder in cis_coherence_claims.py
+# (SK#1782)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# `_methylation_silencing_concordance_claim` (L2b #1782, epic #1779) folds
+# `corroboration_from_arms([cellline_arm, patient_arm])`, where each arm is the resolved SILENCING direction
+# of the SAME epigenetic-silencing property (promoter methylation → own LOW expression) at a DIFFERENT
+# sample-context GRAIN:
+#   * cell-line MODEL grain — cellline-methylation-expression-coherence.methylation_silencing_class (DepMap)
+#   * patient TUMOUR grain  — patient-cis-coherence.patient_methylation_silencing_class            (TCGA)
+#
+# AUDIT VERDICT (SK#1782): COMMENSURATE by design, WITH an explicit vocabulary-mapping precondition.
+#   * SAME CONSTRUCT: both resolve whether promoter methylation silences the target's own expression.
+#   * SAME GRANULARITY, DIFFERENT GRAIN (first-class): per-target silencing class, one model / one patient.
+#   * ★★ NON-IDENTICAL VOCABULARIES → EXPLICIT CLASS→ARM MAPPING (the crux distinguishing this family from
+#     cis-dosage, which shares one vocabulary). Each grain enumerates EVERY token to silenced / not_silenced
+#     / DROP. The cell-line `silencing_lineage_confounded` (measured but NOT interpretable as cis silencing)
+#     + `methylation_invariant_panel` (untestable) and the patient `insufficient_methylation_data`
+#     (uncovered cohort) route to NO rung — they DROP (None arm), they do NOT fabricate a disagreeing arm
+#     (which would falsely drive corroboration to `low`). This mapping soundness is pinned at the CLAIM
+#     level in test_cis_coherence_claims.py; here we pin the ARM-COMMENSURABILITY (two distinct grain cards).
+#   * INDEPENDENT: DepMap cell-line panel vs TCGA patient cohort; neither a subset/superset nor derived.
+#   * MEASURED (no vote flip): two agreeing grains → high; a discordance → low; one measured grain → single_
+#     arm. Carries NO `signal` key, reads no verdict, feeds no rule (VERDICT-INERT, key omitted/byte-stable).
+# The invariant this block pins: `_methylation_silencing_concordance_claim` folds EXACTLY the two declared
+# cross-grain card/field arms (two DISTINCT cards — model vs patient). Re-pointing the patient arm to read
+# the cell-line card (collapsing the two grains into one — the #1667 same-grain double-count shape) reds the
+# assertion; the mutation test drives that red.
+
+# The (card_id, field) arms the SILENCING fold reads. NOTE: unlike _CIS_COMMENSURATE_ARM_PAIRS these two
+# cards do NOT both contain the "cis" substring (the cell-line card is `cellline-methylation-expression-
+# coherence`), so the silencing family has its OWN distinct-grain assertion below rather than reusing the
+# cis "cis"-substring check.
+_SILENCING_COMMENSURATE_ARM_PAIRS = frozenset(
+    {
+        ("cellline-methylation-expression-coherence", "methylation_silencing_class"),
+        ("patient-cis-coherence", "patient_methylation_silencing_class"),
+    }
+)
+
+
+def assert_silencing_arms_are_commensurate(tree: ast.Module) -> None:
+    """Raise AssertionError unless `_methylation_silencing_concordance_claim` folds EXACTLY the declared two
+    silencing card/field arms — no incommensurate card pulled in, none dropped, two DISTINCT grain cards.
+    (Raw silencing metrics are read off a LOCAL card binding, not the inline `(c.get(...) or {}).get(...)`
+    idiom, so they are correctly NOT counted as arms.)"""
+    funcs = _functions(tree)
+    assert "_methylation_silencing_concordance_claim" in funcs, (
+        "_methylation_silencing_concordance_claim vanished from cis_coherence_claims.py"
+    )
+    pairs = _card_field_get_pairs(funcs["_methylation_silencing_concordance_claim"])
+    declared = set(_SILENCING_COMMENSURATE_ARM_PAIRS)
+    assert pairs == declared, (
+        f"_methylation_silencing_concordance_claim folds card/field arms {sorted(pairs)} — expected EXACTLY "
+        f"the two commensurate cross-grain arms {sorted(declared)}. An arm reading a DIFFERENT card mixes an "
+        f"incommensurate construct into the silencing fold, and an arm reading the OTHER grain's card "
+        f"collapses the two independent grains into one (a same-grain double-count, the #1667 shape). "
+        f"undeclared = {sorted(pairs - declared)}; gone = {sorted(declared - pairs)}."
+    )
+
+
+# ── the silencing-family tests ─────────────────────────────────────────────────────────────────────
+def test_silencing_oracle_is_two_distinct_grain_cards():
+    """The declared silencing table encodes the commensurability rule: two DISTINCT grain cards (cell-line
+    MODEL methylation card vs patient TUMOUR cis card), same epigenetic-silencing construct. The cell-line
+    card is NOT a `*cis*` card, so this pins the exact two expected cards rather than a substring."""
+    cards = {card for (card, _f) in _SILENCING_COMMENSURATE_ARM_PAIRS}
+    assert cards == {
+        "cellline-methylation-expression-coherence",
+        "patient-cis-coherence",
+    }, (
+        f"the two silencing arms must read the cell-line MODEL methylation card and the patient TUMOUR cis "
+        f"card (two DISTINCT grains), not one card twice (a same-grain double-count); got {sorted(cards)}"
+    )
+
+
+def test_silencing_folds_the_commensurate_cross_grain_arms():
+    """GREEN on today's cis_coherence_claims.py: `_methylation_silencing_concordance_claim` folds exactly
+    the two commensurate cross-grain arms. Also anti-vacuity — the declared arm set is non-empty."""
+    assert _SILENCING_COMMENSURATE_ARM_PAIRS, "the declared silencing arm set is empty — the test pins nothing"
+    assert_silencing_arms_are_commensurate(_cis_tree())
+
+
+# The mutation the silencing detector exists to catch: the PATIENT arm re-pointed to read the cell-line
+# card — collapsing the two independent grains into one card (a same-grain double-count, #1667 shape).
+def _mutant_silencing_repoints_patient_arm_to_cellline_card(source: str) -> str:
+    mutated = source.replace(
+        '(c.get("patient-cis-coherence") or {}).get("patient_methylation_silencing_class")',
+        '(c.get("cellline-methylation-expression-coherence") or {}).get("patient_methylation_silencing_class")',
+    )
+    assert mutated != source, (
+        "mutation was a no-op — the patient silencing arm inline card read is no longer present to re-point"
+    )
+    return mutated
+
+
+def test_detector_bites_a_silencing_arm_repointed_to_the_other_grain_card():
+    """MUTATION TEST for the silencing family — the corpus alone has no teeth here, so prove the detector
+    bites. With the patient arm re-pointed to the cell-line card, the folded card set collapses to a single
+    card (the two independent grains become one — a same-grain double-count) and
+    `assert_silencing_arms_are_commensurate` FAILS. Confirms both the RED (on the mutant) and — via
+    `test_silencing_folds_the_commensurate_cross_grain_arms` — the GREEN on real source."""
+    mutant = _parse(_mutant_silencing_repoints_patient_arm_to_cellline_card(_CIS_COHERENCE_CLAIMS.read_text()))
+    # sanity: the mutant genuinely collapses the two arms onto one card
+    pairs = _card_field_get_pairs(_functions(mutant)["_methylation_silencing_concordance_claim"])
+    cards = {card for (card, _f) in pairs}
+    assert cards == {"cellline-methylation-expression-coherence"}, "the mutation did not collapse the arms as intended"
+    # …and the detector rejects it
+    with pytest.raises(AssertionError, match="_methylation_silencing_concordance_claim"):
+        assert_silencing_arms_are_commensurate(mutant)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
 # FLEET-COMPLETENESS META-GUARD — every multi-arm fold-builder in _skills_common must belong to a
 # declared commensurability family (SK#1704, tracking #1703, epic #1507)
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1707,10 +1829,12 @@ _COVERED_FAMILY_FILES = {
         "independent consortia, no inflating sentinel, no double-count); #1703 row: combination [x]"
     ),
     "cis_coherence_claims.py": (
-        "cis-coherence — detector SK#1781 (_DECLARED_CIS_CORROBORATION_BUILDERS + _CIS_COMMENSURATE_ARM_"
-        "PAIRS: cell-line model `cis_dosage_class` × patient tumour `patient_cis_dosage_class` — the SAME "
-        "cis-dosage-coupling construct at two DISTINCT sample-context grains, grain first-class, "
-        "independent; epic #1779, first cis-domain concordance family)"
+        "cis-coherence — detector SK#1781/#1782 (_DECLARED_CIS_CORROBORATION_BUILDERS covers BOTH cis "
+        "families: cis-dosage (_CIS_COMMENSURATE_ARM_PAIRS: cell-line `cis_dosage_class` × patient "
+        "`patient_cis_dosage_class`) and methylation-silencing (_SILENCING_COMMENSURATE_ARM_PAIRS: cell-line "
+        "`methylation_silencing_class` × patient `patient_methylation_silencing_class`, with an explicit "
+        "per-grain class→arm mapping since the two silencing vocabularies differ) — each the SAME cis-domain "
+        "construct at two DISTINCT sample-context grains, grain first-class, independent; epic #1779)"
     ),
 }
 
