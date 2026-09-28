@@ -794,6 +794,180 @@ def emit_lineage_strip(
     plt.close(fig)
 
 
+# ============================================================================
+# SUBTYPE-STRATIFIED DEPENDENCY STRIP PLOT
+# ============================================================================
+# S3 paths for DepMap subgroup assignments by indication
+SUBTYPE_ASSIGNMENTS_S3 = {
+    "COADREAD": "s3://onc-compbio/data-catalog/derived/subgroup-assignments/COADREAD/depmap/cms-classifier/2026-Q3/assignments.parquet",
+    "NSCLC": "s3://onc-compbio/data-catalog/derived/subgroup-assignments/NSCLC/depmap/2026-Q3/assignments.parquet",
+    "SCLC": "s3://onc-compbio/data-catalog/derived/subgroup-assignments/SCLC/depmap/classifier/2026-Q3/assignments.parquet",
+    "PAAD": "s3://onc-compbio/data-catalog/derived/subgroup-assignments/PAAD/depmap/2026-Q3/assignments.parquet",
+    "STAD": "s3://onc-compbio/data-catalog/derived/subgroup-assignments/STAD/depmap/2026-Q3/assignments.parquet",
+    "ESCA": "s3://onc-compbio/data-catalog/derived/subgroup-assignments/ESCA/depmap/2026-Q3/assignments.parquet",
+    "HNSC": "s3://onc-compbio/data-catalog/derived/subgroup-assignments/HNSC/depmap/2026-Q3/assignments.parquet",
+}
+
+# Signal colors for subtype dependency (matches expression subtype figure)
+_SUBTYPE_SIGNAL_COLORS = {
+    "strong_dependency": ("#184f95", "#0a2a50"),      # dark blue — strong
+    "moderate_dependency": ("#5a9bd4", "#2a6a9e"),    # medium blue — moderate
+    "not_dependent": ("#c9ccd1", "#8a8d91"),          # gray — not dependent
+    "insufficient": ("#e8e8e8", "#aaaaaa"),           # light gray — insufficient n
+    None: ("#e8e8e8", "#aaaaaa"),
+}
+
+
+def load_subtype_assignments(indication: str) -> dict:
+    """Load DepMap subtype assignments for an indication from S3.
+
+    Returns dict mapping ModelID (sample_id) to stratum_id for members only.
+    Returns empty dict if indication has no subtype catalog or load fails.
+    """
+    s3_uri = SUBTYPE_ASSIGNMENTS_S3.get(indication.upper())
+    if not s3_uri:
+        return {}
+
+    try:
+        import boto3
+        import pandas as pd
+        from io import BytesIO
+        from urllib.parse import urlparse
+
+        parsed = urlparse(s3_uri)
+        bucket = parsed.netloc
+        key = parsed.path.lstrip("/")
+
+        s3 = boto3.client("s3")
+        obj = s3.get_object(Bucket=bucket, Key=key)
+        df = pd.read_parquet(BytesIO(obj["Body"].read()))
+
+        # Filter to members only
+        members = df[df["is_member"] == True]
+        return dict(zip(members["sample_id"], members["stratum_id"]))
+    except Exception as e:
+        print(f"[depmap_chronos] subtype assignments load failed for {indication}: {e}", file=sys.stderr)
+        return {}
+
+
+def emit_subtype_strip(
+    chronos_by_model: dict,
+    target_symbol: str,
+    indication: str,
+    out_path: Path,
+    contracts_root: Path,
+    strong_threshold: float = -1.0,
+    moderate_threshold: float = -0.5,
+) -> Path | None:
+    """Emit subtype-stratified dependency strip plot if subtypes exist for indication.
+
+    Shows Chronos score distribution per molecular subtype (e.g., CMS1-4 for COADREAD).
+    Returns path to SVG or None if no subtypes available.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+
+    # Load subtype assignments
+    subtype_map = load_subtype_assignments(indication)
+    if not subtype_map:
+        return None
+
+    style_path = contracts_root / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+    sys.path.insert(0, str(contracts_root / "plot_styles"))
+    try:
+        from takeda_palette import CHRONOS_STRONG_DEPENDENCY
+    except ImportError:
+        CHRONOS_STRONG_DEPENDENCY = -1.0
+
+    # Build per-subtype data
+    subtype_data = {}
+    for model_id, chronos in chronos_by_model.items():
+        stratum = subtype_map.get(model_id)
+        if stratum:
+            subtype_data.setdefault(stratum, []).append(chronos)
+
+    if not subtype_data:
+        return None
+
+    # Compute stats per subtype
+    strata = []
+    for stratum_id, values in subtype_data.items():
+        arr = np.array(values)
+        median = float(np.median(arr))
+        n = len(arr)
+        # Classify dependency signal
+        if n < 3:
+            signal = "insufficient"
+        elif median <= strong_threshold:
+            signal = "strong_dependency"
+        elif median <= moderate_threshold:
+            signal = "moderate_dependency"
+        else:
+            signal = "not_dependent"
+        strata.append({
+            "stratum_id": stratum_id,
+            "values": values,
+            "median": median,
+            "n": n,
+            "signal": signal,
+        })
+
+    # Sort by median (most dependent first)
+    strata.sort(key=lambda s: s["median"])
+
+    # Create figure
+    fig, ax = plt.subplots(figsize=(7.6, max(3.0, 0.6 * len(strata) + 1.2)))
+
+    groups = [s["values"] for s in strata]
+    bp = ax.boxplot(
+        groups,
+        orientation="horizontal",
+        widths=0.6,
+        patch_artist=True,
+        showfliers=False,
+        medianprops={"color": "#222", "linewidth": 1.2},
+    )
+
+    rng = np.random.default_rng(seed=42)
+    labels = []
+    for i, s in enumerate(strata):
+        fill, line = _SUBTYPE_SIGNAL_COLORS.get(s["signal"], _SUBTYPE_SIGNAL_COLORS[None])
+        bp["boxes"][i].set(facecolor=fill, edgecolor=line, alpha=0.55, linewidth=1.0)
+        # Jitter points
+        yy = rng.uniform(i + 1 - 0.16, i + 1 + 0.16, size=len(s["values"]))
+        ax.scatter(s["values"], yy, s=12, color=line, alpha=0.5, edgecolor="none", zorder=3)
+        # Clean up stratum label (remove _depmap suffix if present)
+        clean_label = s["stratum_id"].replace("_depmap", "")
+        sig_label = s["signal"].replace("_", " ")
+        labels.append(f"{clean_label}\n(n={s['n']}, {sig_label})")
+
+    # Reference lines
+    ax.axvline(0, color="#999999", linewidth=0.8, alpha=0.5, zorder=1)
+    ax.axvline(moderate_threshold, color="#666666", linestyle="--", linewidth=1.0, alpha=0.7, zorder=1)
+    ax.axvline(CHRONOS_STRONG_DEPENDENCY, color="#B22222", linestyle="--", linewidth=1.5, alpha=0.9, zorder=1)
+
+    # Pooled median reference
+    all_values = [v for s in strata for v in s["values"]]
+    pooled_median = float(np.median(all_values))
+    ax.axvline(pooled_median, color="#444", linewidth=1.0, linestyle=":", zorder=1)
+    ax.text(pooled_median, len(strata) + 0.5, f"pooled median {pooled_median:.2f}",
+            color="#444", fontsize=7, ha="center", va="bottom")
+
+    ax.set_yticks(range(1, len(labels) + 1))
+    ax.set_yticklabels(labels, fontsize=8)
+    ax.set_xlabel("Chronos score (more dependent = lower)")
+    ax.set_title(f"{target_symbol} in {indication}: dependency by molecular subtype")
+    ax.grid(axis="x", alpha=0.25, linewidth=0.4)
+
+    out_file = out_path / "figure_subtype_strip.svg"
+    fig.tight_layout()
+    fig.savefig(out_file, bbox_inches="tight")
+    plt.close(fig)
+    return out_file
+
+
 def emit_plotly_specs(
     per_lineage_records: list,
     target_lineage: str,
