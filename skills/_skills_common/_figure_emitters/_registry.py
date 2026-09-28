@@ -18,6 +18,7 @@ from ._dependency import (
     _emit_card3_mutation_stratified_dependency,
     _emit_card4_expression_dependency_correlation,
     _emit_cis_feature_expression_coherence,
+    _emit_cn_stratified_dependency,
     _emit_dependency_predictability,
     _emit_organoid_crispr_dependency,
     _emit_prism_compound_activity,
@@ -45,8 +46,11 @@ from ._genomic import (
     _emit_abundance_dependency,
     _emit_alteration_role,
     _emit_functional_gene_state,
+    _emit_fusion_rearrangement_landscape,
     _emit_genomic_event_model_match,
+    _emit_mutation_hotspot_frequency,
     _emit_phospho_pathway_activity,
+    _emit_tumor_splice_dysregulation,
 )
 from ._protein_safety import (
     _emit_gnomad_lof_constraint,
@@ -98,6 +102,13 @@ CARD_FIGURE_EMITTERS: dict[str, Callable[[dict, Path, str, str], list[dict]]] = 
     # ORGANOID tier (2026-08-19): per-lineage dependency bar from the organoid card's
     # per_lineage_stats (no method re-run — self-contained on the summary).
     "organoid-crispr-dependency": _emit_organoid_crispr_dependency,
+    # GENOMIC ALTERATION figures (2026-09-25): mutation hotspot, fusion, splice
+    # (patient CN figures are rendered as part of copy-number-distribution above)
+    "mutation-hotspot-frequency": _emit_mutation_hotspot_frequency,
+    "fusion-rearrangement-landscape": _emit_fusion_rearrangement_landscape,
+    "tumor-splice-dysregulation": _emit_tumor_splice_dysregulation,
+    # CN-stratified dependency (2026-09-28): Chronos strip plot by CN category
+    "copy-number-stratified-dependency": _emit_cn_stratified_dependency,
 }
 
 
