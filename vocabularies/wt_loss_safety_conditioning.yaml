@@ -29,7 +29,11 @@
 # allele-selectivity from alteration-role instead of from the actual modality.
 
 vocab_id: wt_loss_safety_conditioning
-version: 1.0.0
+version: 1.1.0   # 1.1.0 (skills #1793): +tphp-hpa-blind-vital-organ-protein-safety-warning in
+                 # concern_rules — the TPHP DIA-MS twin of the HPA essential-tissue rule, covering the
+                 # vital organs HPA-IHC cannot represent (nerve/blood/adrenal_gland/thyroid). Same
+                 # WT-loss/full-KO conditioning as its HPA sibling: measured protein presence in a
+                 # dose-limiting organ opposes engages_wt agents; an allele-selective agent spares WT.
 conditioning_property: wt_engagement    # defined in modality.enum.yaml
 
 # WT-loss / full-KO liabilities: opposing for engages_wt agents; nullified by allele-selectivity.
@@ -43,6 +47,7 @@ concern_rules:
   - pan-essential-killer                           # pan-essential CRISPR (broad tox for full inhibition/degradation)
   - rnai-pan-essential-killer                      # pan-essential RNAi (orthogonal broad tox)
   - normal-tissue-protein-liability-safety-warning # HPA-IHC essential-tissue protein (on-target-off-tumor for full-KO)
+  - tphp-hpa-blind-vital-organ-protein-safety-warning # TPHP DIA-MS protein in the vital organs HPA-IHC cannot see (skills #1793)
 
 # INVERTED: LoF is population-protective => full knockout is safety-DE-RISKING (supportive),
 # most informative for engages_wt modalities (degrader / RNA / pan-inhibitor).

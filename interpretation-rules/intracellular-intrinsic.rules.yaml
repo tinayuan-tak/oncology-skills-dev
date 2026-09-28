@@ -10,7 +10,11 @@
 # defensible against biology + therapeutic-development practice.
 
 rules_id: intracellular-intrinsic
-version: 1.2.0   # +known-drug-approved-biologic-only-sm-not-supportive (CASE-008 modality gate)
+version: 1.3.0   # 1.3.0 (skills #1793): +tphp-hpa-blind-vital-organ-protein-safety-warning — TPHP protein
+                 # liability in the vital organs HPA-IHC cannot represent (endocrine/CNS-nerve/vascular-blood),
+                 # resolver-routed to normal_tissue_protein_safety_concern (organ-COVERAGE extension of the
+                 # HPA arm, not a new concern kind).
+                 # 1.2.0: +known-drug-approved-biologic-only-sm-not-supportive (CASE-008 modality gate)
 axis: intracellular_intrinsic
 schema_version: 1
 
@@ -5684,6 +5688,46 @@ rules:
       inert); this leg adds the protein-level critical-organ read the surface-modality skill already
       used. No mutant-selective downgrade: full-KO SM/degrader engages the WT protein regardless of
       any activating mutation, so the essential-tissue concern is not spared by allele selectivity.
+
+  # (3b) TPHP DIA-MS protein liability in the vital organs HPA-IHC CANNOT SEE (skills #1793 fail-open
+  #      closure). Rule (3) above is the only verdict-bearing PROTEIN safety arm, and it is
+  #      structurally blind to thyroid / adrenal_gland / pituitary / nerve / blood: HPA's closed
+  #      16-name grouped-intensity vocabulary has no name for them (a data-substrate gap — see
+  #      essential_organs.HPA_CROSSWALK in analysis-methods). So an endocrine/CNS/vascular on-target
+  #      liability could not move the safety verdict at all: the organ-covering TPHP card was resolved
+  #      by the safety skill since 1.19.0 but consumed for DISPLAY only. This rule keys on the
+  #      HPA-BLIND-SCOPED vital-organ class (analysis-methods tphp_normal_protein 0.5.0): abundant
+  #      (>= the calibrated p75 floor) in >=1 vital organ HPA cannot represent. Deliberately NOT the
+  #      full vital-organ class: for HPA-representable organs rule (3) is already the verdict arm, so
+  #      a full-set rung would double-fire the same organ liability through two cards. Fire rates
+  #      measured on the full TPHP v2 product (13,009 genes): this predicate 21.0% — narrower than
+  #      rule (3) itself (essential_tissue_flag==present: 45.2% of the HPA panel); incremental verdict
+  #      reach (this fires, rule (3) silent) = 491 genes (3.8%), 258 of which read HPA `absent` — the
+  #      exact population whose "measured clear" previously overclaimed organs HPA never looked at.
+  - rule_id: tphp-hpa-blind-vital-organ-protein-safety-warning
+    when:
+      card_id: normal-tissue-protein-abundance-tphp
+      field: tphp_hpa_blind_vital_organ_liability_class
+      equals: vital_organ_abundant
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    dominant: true
+    rationale: |
+      TPHP DIA mass-spec quantifies the target protein at/above the calibrated abundance floor
+      (product p75) in >=1 canonical DOSE-LIMITING organ that HPA immunohistochemistry structurally
+      cannot see (nerve / blood / adrenal gland / thyroid — HPA's closed 16-name vocabulary has no
+      name for them). A systemically-delivered full-KO modality abrogates the protein there too, so
+      this is the SAME on-target-off-tumor essential-organ concern as
+      normal-tissue-protein-liability-safety-warning, carried by the one protein panel that covers
+      those organs. OPPOSING + dominant, resolver-routed to the SAME verdict
+      (normal_tissue_protein_safety_concern) — the rung extends organ COVERAGE, it does not add a new
+      kind of concern. No mutant-selective downgrade, as for the HPA arm: full-KO SM/degrader engages
+      the WT protein regardless of any activating mutation. Liability detection is fail-CLOSED
+      upstream: an above-floor hit on a thin arm (thyroid gland n=2, blood n=1) still fires; the
+      measurability labels gate ABSENCE claims only. `pituitary` is covered by NEITHER protein panel
+      and is surfaced as an explicit coverage gap (hpa_blind_vital_organs_uncovered + card caveat),
+      never silent absence.
 
   # ============================================================================
   # SAFETY-AXIS MEASURED-CLEAR WITNESSES (2026-09-25, TC#895 fail-open closure).

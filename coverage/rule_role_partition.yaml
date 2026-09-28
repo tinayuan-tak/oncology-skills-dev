@@ -12,8 +12,8 @@ attribution_keypaths:
 - post_resolver_clamp/modality_conditional/expected_inert_arms/[]/rule_id
 - resolve/[]/driving_rule
 counts:
-  total: 450
-  gating: 151
+  total: 451
+  gating: 152
   display: 299
 gating:
 - adc-preferred-supportive
@@ -154,6 +154,7 @@ gating:
 - surface-density-below-tce-floor-measured-downgrade
 - tce-preferred-supportive
 - tolerant-safety-supportive
+- tphp-hpa-blind-vital-organ-protein-safety-warning
 - tumor-vs-normal-crossing-strong-supportive
 - tvn-data-unavailable-insufficient
 - tvn-discordant-neutral-flagged

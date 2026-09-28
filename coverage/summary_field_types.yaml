@@ -3,15 +3,15 @@
 # boolean/record/array/string/unknown). NOT the editorial signal/context/provenance/display
 # disposition (that is skills-side). --self-check gates drift.
 counts:
-  categorical: 129
-  numeric: 448
+  categorical: 134
+  numeric: 466
   boolean: 37
   record: 13
-  array: 57
-  string: 169
-  unknown: 23
-n_cards: 50
-n_fields: 876
+  array: 59
+  string: 173
+  unknown: 26
+n_cards: 51
+n_fields: 908
 by_card:
   adc-tce-modality-fit:
     adc_grade: unknown
@@ -612,6 +612,39 @@ by_card:
     normal_tissue_breadth_class: categorical
     safety_tissue_flags: array
     specific_tissues: array
+  normal-tissue-protein-abundance-tphp:
+    abundance_floor_log2: numeric
+    fetal_vs_adult_flag: categorical
+    highest_abundance_tissue: string
+    highest_abundance_tissue_class: string
+    hpa_blind_vital_organs_above_floor: unknown
+    hpa_blind_vital_organs_uncovered: unknown
+    max_detection_rate: numeric
+    max_median_log2_abundance: numeric
+    median_across_tissues_log2_abundance: numeric
+    method_version: string
+    n_adult_tissues_above_abundance_floor: numeric
+    n_adult_tissues_detected: numeric
+    n_adult_tissues_detected_low_support: numeric
+    n_adult_tissues_total: numeric
+    n_fetal_groups_detected: numeric
+    n_fetal_groups_total: numeric
+    n_hpa_blind_vital_organs_above_abundance_floor: unknown
+    n_solid_adult_tissues_above_abundance_floor: numeric
+    n_solid_adult_tissues_detected: numeric
+    n_solid_adult_tissues_total: numeric
+    n_tissues_detected: numeric
+    n_vital_organs_above_abundance_floor: numeric
+    n_vital_organs_measurable: numeric
+    n_vital_organs_unmeasurable: numeric
+    normal_protein_breadth_class: categorical
+    per_tissue_abundance: array
+    tphp_hpa_blind_vital_organ_liability_class: categorical
+    tphp_normal_protein_liability_class: categorical
+    tphp_vital_organ_abundance: array
+    tphp_vital_organ_liability_class: categorical
+    uniprot_ac: string
+    vital_organ_min_samples: numeric
   pan-cancer-crispr-dependency-distribution:
     bimodality_coefficient: numeric
     chronos_iqr: numeric

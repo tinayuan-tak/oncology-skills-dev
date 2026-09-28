@@ -32,6 +32,7 @@ resolver_consumed_cards:
 - mutation-stratified-dependency
 - mutation-type-counts
 - normal-tissue-liability
+- normal-tissue-protein-abundance-tphp
 - pan-cancer-crispr-dependency-distribution
 - pan-cancer-rnai-dependency-distribution
 - paralog-buffering
@@ -250,6 +251,11 @@ detail:
     - normal-tissue-essential-bite-killer
     - normal-tissue-essential-tissue-measured-clear
     - normal-tissue-protein-liability-safety-warning
+  normal-tissue-protein-abundance-tphp:
+    resolvers:
+    - safety
+    rules:
+    - tphp-hpa-blind-vital-organ-protein-safety-warning
   pan-cancer-crispr-dependency-distribution:
     resolvers:
     - dependency

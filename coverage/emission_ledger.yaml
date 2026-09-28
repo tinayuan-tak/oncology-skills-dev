@@ -19,11 +19,11 @@ provenance: 'heterogeneous: packages were produced by different code'
 counts:
   cards_declaring_vocabulary: 136
   cards_with_observations: 132
-  declared_pairs: 296
-  pairs: 289
+  declared_pairs: 297
+  pairs: 290
   out_of_vocab: 0
-  never_observed_pairs: 9
-  dead_tokens: 354
+  never_observed_pairs: 10
+  dead_tokens: 358
 ungated_absences:
   "orphan: declared on no field \u2014 already gated by validate_cards":
   - functional-gene-state::sample_state
@@ -39,6 +39,7 @@ known_never_observed:
   - antigen-internalization::internalization_class
   - antigen-internalization::internalization_evidence_tier
   - antigen-internalization::surface_turnover_class
+  - normal-tissue-protein-abundance-tphp::tphp_hpa_blind_vital_organ_liability_class
   - sc-surface-normal-safety-solid::sc_surface_normal_solid_class
   - sc-surface-normal-safety-solid::sc_surface_safety_essential_class
   - surface-topology-and-ptm::endocytosis_motif_types
@@ -49,6 +50,7 @@ known_never_observed:
     antigen-internalization::internalization_class: card_never_emitted
     antigen-internalization::internalization_evidence_tier: card_never_emitted
     antigen-internalization::surface_turnover_class: card_never_emitted
+    normal-tissue-protein-abundance-tphp::tphp_hpa_blind_vital_organ_liability_class: field_absent
     sc-surface-normal-safety-solid::sc_surface_normal_solid_class: card_never_emitted
     sc-surface-normal-safety-solid::sc_surface_safety_essential_class: card_never_emitted
     surface-topology-and-ptm::endocytosis_motif_types: always_empty_array
@@ -3567,6 +3569,31 @@ by_card:
       - non_tissue
       - solid_tissue
       - unassignable
+      top: null
+      saturation: null
+      saturation_na: 'arity=none: top/total is a token share, not a package share'
+      n_emissions: 0
+      n_empty_array: 0
+    tphp_hpa_blind_vital_organ_liability_class:
+      grain: scalar
+      arity: none
+      status: field_absent
+      declared:
+      - data_unavailable
+      - no_vital_organ_signal
+      - vital_organ_abundant
+      - vital_organ_low
+      observed: {}
+      n_non_null: 0
+      n_null: 0
+      n_absent: 448
+      n_packages_with_card: 448
+      out_of_vocab: []
+      never_emitted:
+      - data_unavailable
+      - no_vital_organ_signal
+      - vital_organ_abundant
+      - vital_organ_low
       top: null
       saturation: null
       saturation_na: 'arity=none: top/total is a token share, not a package share'

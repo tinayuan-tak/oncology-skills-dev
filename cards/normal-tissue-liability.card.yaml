@@ -20,7 +20,10 @@
 # tissue name set, NOT TPM.
 
 card_id: normal-tissue-liability
-version: 2.0.0
+version: 2.1.0   # 2.1.0 (skills #1793): + essential_tissue_vocab_scope warning predicate — an
+                 # `absent` (measured-clear) read now DISCLOSES that it spans HPA's 16 nameable
+                 # groups only (no thyroid/adrenal/pituitary/nerve/blood); the TPHP HPA-blind view
+                 # is the verdict-bearing arm for those organs. Additive; no field/vocab change.
 question: "How broad is {target.symbol}'s normal-tissue protein footprint (HPA IHC), and does it hit essential tissues — the on-target-off-tumor liability for biologics?"
 
 tier: target   # normal-tissue protein footprint is a property of the gene, not a tumor subgroup. Never stratifies.
@@ -120,6 +123,18 @@ warning_predicates:
   - warning_id: normal_tissue_data_unavailable
     if: "normal_tissue_breadth_class == 'data_unavailable'"
     message: "{target.symbol} has no HPA IHC tissue-distribution call — normal-tissue liability UNKNOWN (coverage gap), not low. Do not read absence as a favorable window."
+  - warning_id: essential_tissue_vocab_scope
+    if: "essential_tissue_flag == 'absent'"
+    # ORGAN-COVERAGE DISCLOSURE (skills #1793). `absent` is a genuine measured-negative — but only
+    # over the organs HPA's closed 16-name grouped-intensity vocabulary can NAME. It structurally
+    # cannot see thyroid / adrenal gland / pituitary / peripheral nerve / blood, so a clean read here
+    # must not be extended to those organs (the prior silent-absence fail-open: an endocrine-organ
+    # liability read as "essentials clear"). The organs are covered instead by the TPHP DIA-MS
+    # HPA-blind view (normal-tissue-protein-abundance-tphp.tphp_hpa_blind_vital_organ_liability_class,
+    # verdict-bearing), except pituitary, which NO protein panel covers. The organ list here mirrors
+    # HPA_UNREPRESENTABLE_VITAL_ORGANS (analysis-methods essential_organs.py), pinned by value there —
+    # if that set shrinks (an AM#744-style promotion), update this prose.
+    message: "{target.symbol} essential-tissue 'absent' is measured over HPA's 16 nameable groups ONLY — thyroid, adrenal gland, pituitary, nerve and blood are invisible here. Consult the TPHP HPA-blind vital-organ view for those organs; pituitary is covered by NO protein panel."
 
 caveats:
   - |

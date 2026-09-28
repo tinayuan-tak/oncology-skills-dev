@@ -1,4 +1,5 @@
-# Card — NORMAL-TISSUE PROTEIN ABUNDANCE  (TPHP DIA-MS)  [MOSTLY DISPLAY; 1 VERDICT-BEARING FIELD]
+# Card — NORMAL-TISSUE PROTEIN ABUNDANCE  (TPHP DIA-MS)  [MOSTLY DISPLAY; 2 VERDICT-BEARING FIELDS —
+# the tvn breadth veto arm + the skills#1793 HPA-blind vital-organ safety rung]
 #
 # The quantitative NORMAL-tissue PROTEIN comparator the tumor-selectivity skill lacked. The skill
 # already carried normal-tissue RNA (GTEx/recount3) + categorical protein-IHC breadth (HPA), but no
@@ -39,7 +40,16 @@
 # DIA MaxLFQ abundance is a panel-relative log2 intensity, NOT absolute copies-per-cell.
 
 card_id: normal-tissue-protein-abundance-tphp
-version: 1.2.0   # 1.2.0: the ABUNDANCE read-out (max / median / highest_abundance_tissue + its class) is
+version: 1.3.0   # 1.3.0 (skills #1793): + the HPA-BLIND vital-organ view (analysis-methods
+                 # tphp_normal_protein 0.5.0) — tphp_hpa_blind_vital_organ_liability_class (+count/
+                 # names/uncovered): the vital-organ read SCOPED to the organs the HPA-IHC
+                 # essential-tissue killer structurally cannot represent (nerve/blood/adrenal_gland/
+                 # thyroid; pituitary covered by NEITHER protein panel → emitted as uncovered). The
+                 # class is VERDICT-BEARING: tphp-hpa-blind-vital-organ-protein-safety-warning fires a
+                 # safety.resolver rung (v2.3.0) reusing normal_tissue_protein_safety_concern — this
+                 # card now ENTERS card_resolver_consumption. Closes the endocrine/CNS/vascular
+                 # safety fail-open (a liability there previously could not move the safety verdict).
+# 1.2.0: the ABUNDANCE read-out (max / median / highest_abundance_tissue + its class) is
                  # ORGANS ONLY — body fluids, blood compartments, hair and unassignable parts excluded.
                  # Display-only fields, no rule reads them, so the verdict spine is unmoved.
 # 1.1.0: v2 substrate — tissue_category/solid-tissue counts + vital-organ MEASURABILITY labels.
@@ -53,6 +63,7 @@ capsule:
   categorical_fields:
     - tphp_normal_protein_liability_class
     - normal_protein_breadth_class
+    - tphp_hpa_blind_vital_organ_liability_class
     - fetal_vs_adult_flag
     - highest_abundance_tissue_class
 
@@ -93,6 +104,20 @@ outputs:
     - abundance_floor_log2                        # the global per-tissue abundance floor used (log2 MaxLFQ; cached p75)
     - tphp_vital_organ_liability_class            # T0-3 SAFETY view — is the target abundant in ANY dose-limiting organ (via TPHP_CROSSWALK)
     - n_vital_organs_above_abundance_floor        # # canonical vital organs with representative-tissue median_log2_abundance >= floor
+    # ★ HPA-BLIND vital-organ view (skills #1793) — the vital-organ read SCOPED to the organs the
+    # verdict-bearing HPA-IHC essential-tissue killer structurally CANNOT represent (its closed
+    # 16-name vocabulary has no name for nerve / blood / adrenal_gland / thyroid / pituitary; the
+    # blind set is derived single-source in analysis-methods essential_organs.py and pinned there).
+    # Same abundance floor + measurability discipline as the full vital-organ view — no new cuts.
+    - tphp_hpa_blind_vital_organ_liability_class  # VERDICT-BEARING — fires tphp-hpa-blind-vital-organ-protein-safety-warning
+                                                  # → safety.resolver rung (normal_tissue_protein_safety_concern). The organ-
+                                                  # coverage extension of the HPA arm, not a new concern kind.
+    - n_hpa_blind_vital_organs_above_abundance_floor  # # HPA-blind vital organs at/above the abundance floor
+    - hpa_blind_vital_organs_above_floor          # WHICH HPA-blind organs are at/above the floor (canonical names) — lets a
+                                                  # consumer NAME the implicated organ, not just report a class
+    - hpa_blind_vital_organs_uncovered            # HPA-blind organs with NO TPHP arm either (pituitary today; the WHOLE blind
+                                                  # set when the gene is data_unavailable) — covered by NO verdict-bearing
+                                                  # protein arm: the explicit coverage-gap datum, never silent absence
     # ★ v2 MEASURABILITY LABELS — the fail-CLOSED alternative to a sample-support GATE. Read a "clean
     # sweep" of the vital-organ loop against n_vital_organs_unmeasurable: organs are never dropped, so
     # absence of a liability is only informative where the organ was measurable in the first place.
@@ -160,6 +185,20 @@ outputs:
                                                   # floor). Does NOT fire the veto.
       - restricted                                # narrow footprint (detected in <35 adult tissues). Does NOT fire the veto.
       - data_unavailable                          # gene absent / couldn't read — coverage gap, NOT a favorable window.
+    tphp_hpa_blind_vital_organ_liability_class:   # VERDICT-BEARING (skills #1793) — the vital-organ read over the HPA-blind
+                                                  # organ subset only (nerve/blood/adrenal_gland/thyroid via TPHP crosswalk)
+      - vital_organ_abundant                      # ABUNDANT (>= abundance_floor_log2) in >=1 HPA-blind vital organ — a
+                                                  # dose-limiting-organ liability the HPA-IHC killer structurally cannot see.
+                                                  # FIRES tphp-hpa-blind-vital-organ-protein-safety-warning → safety HOLD.
+                                                  # Fail-CLOSED: an above-floor hit on a thin arm (thyroid n=2, blood n=1)
+                                                  # still counts — measurability gates ABSENCE claims only.
+      - vital_organ_low                           # detected in >=1 HPA-blind organ but NONE at/above the floor (trace-only).
+      - no_vital_organ_signal                     # not detected in any HPA-blind organ TPHP carries. NOT a clean sweep:
+                                                  # blood/thyroid arms are below vital_organ_min_samples, and pituitary has
+                                                  # no arm at all — read against hpa_blind_vital_organs_uncovered + the
+                                                  # measurable flags before treating this as reassurance.
+      - data_unavailable                          # gene absent / couldn't read — coverage gap over the WHOLE blind set
+                                                  # (hpa_blind_vital_organs_uncovered widens to all 5), NOT a favorable window.
     tphp_vital_organ_liability_class:             # T0-3 SAFETY view — dose-limiting-organ PROTEIN presence, orthogonal to breadth
       - vital_organ_abundant                      # ABUNDANT (>= abundance_floor_log2) in >=1 canonical vital organ — a therapeutic-
                                                   # window liability the breadth class misses (e.g. CEACAM5: narrow breadth, abundant in liver/adrenal).
@@ -248,6 +287,12 @@ warning_predicates:
   - warning_id: tphp_normal_protein_data_unavailable
     if: "normal_protein_breadth_class == 'data_unavailable'"
     message: "{target.symbol} has no TPHP normal-tissue protein quantification (absent from the DIA-MS proteome) — normal-protein footprint UNKNOWN (coverage gap), not low. Do not read absence as a favorable window; consult the GTEx-RNA + HPA-IHC normal comparators."
+  - warning_id: tphp_hpa_blind_vital_organ_liability
+    if: "tphp_hpa_blind_vital_organ_liability_class == 'vital_organ_abundant'"
+    message: "{target.symbol} protein is at/above the TPHP abundance floor in >=1 dose-limiting organ HPA-IHC cannot see (names in hpa_blind_vital_organs_above_floor) — an on-target-off-tumor full-KO liability; fires the safety normal_tissue_protein_safety_concern hold (skills #1793)."
+  - warning_id: tphp_hpa_blind_organ_coverage_gap
+    if: "tphp_hpa_blind_vital_organ_liability_class == 'data_unavailable'"
+    message: "{target.symbol} has no TPHP read, so the organs HPA-IHC cannot represent (thyroid, adrenal gland, pituitary, nerve, blood) are covered by NO verdict-bearing protein arm — an organ-coverage GAP on the safety axis, not a clean read (see hpa_blind_vital_organs_uncovered)."
 
 caveats:
   - |
@@ -291,11 +336,19 @@ caveats:
     likewise the organism-part grain. breadth is keyed on ADULT tissues (fetal is developmental
     context surfaced via fetal_vs_adult_flag, not the safety-relevant adult footprint).
   - |
-    MIXED ROLE: most fields are additive DISPLAY, but tphp_normal_protein_liability_class is VERDICT-BEARING.
-    Its broad_and_abundant class fires tvn-tphp-broad-abundant-normal-protein-veto; the skills-side clamp
-    downgrades an axis-A-selective call to selective_with_normal_liability (selectivity-PRESERVING flag, NOT
-    a KILL — as the sc-normal critical-organ arm). No resolver rung, so the rule is `display` and this card
-    stays out of card_resolver_consumption. ADC neutral; SM/degrader/BiTE-TCE oppose.
+    MIXED ROLE: two VERDICT-BEARING fields. (a) tphp_normal_protein_liability_class ==
+    broad_and_abundant fires tvn-tphp-broad-abundant-normal-protein-veto (skills-side clamp ->
+    selective_with_normal_liability; ADC neutral, SM/degrader/BiTE-TCE oppose). (b)
+    tphp_hpa_blind_vital_organ_liability_class == vital_organ_abundant fires
+    tphp-hpa-blind-vital-organ-protein-safety-warning -> safety rung ->
+    normal_tissue_protein_safety_concern HOLD (skills #1793); the card is resolver-consumed.
+  - |
+    ORGAN-COVERAGE SEAM (skills #1793): HPA-IHC, the other verdict-bearing protein arm, cannot
+    represent thyroid/adrenal gland/pituitary/nerve/blood. The HPA-blind view here closes that
+    hole for the four organs TPHP carries. Pituitary is covered by NEITHER panel: surfaced in
+    hpa_blind_vital_organs_uncovered + the coverage-gap warning, never silent absence. Blind set
+    single-sourced from HPA_CROSSWALK (analysis-methods) and pinned by value; re-check this
+    prose if it shrinks (AM#744).
 
 measurement: bulk_protein_ms
 sample_context: normal        # the TPHP abundance is measured on NORMAL tissue — the normal comparator arm.
