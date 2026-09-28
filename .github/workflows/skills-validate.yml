@@ -423,7 +423,20 @@ jobs:
           # 8167c82 also folds intervening TC #959 (benign card-wording fix), included transitively.
           # APERTURE: PR#958 adds only two answered_by list entries (question-hierarchy anchors, not
           # summary_field / required_input declarations), so the aperture census is UNCHANGED — aperture-inert.
-          ref: b2e197344f980c5cb642fd54e93a46bfbb3c470c
+          # ============================================================================================
+          # BUMP b2e19734 -> c0aac19, "#2015 / TC PR#964". MINIMAL bump: c0aac19's parent is EXACTLY
+          # b2e19734 (the #1793/#963 safety pin already on skills main), so the delta is EXACTLY one
+          # commit = PR#964, which DECLARES capsule.numeric_anchors (rna_protein_r + Fisher-z 95% CI
+          # bounds) on cards/rna-protein-concordance-tumor.card.yaml. This is the TC counterpart of the
+          # skills-side word-boundary _n_basis fix on THIS branch: the fix stops laundering rna_protein_r
+          # through the n_basis substring match, and PR#964 re-declares it as a proper numeric anchor so
+          # the statistic stays in the package. Forced-atomic pin unit (#2015); TC half already merged.
+          # APERTURE: MEASURED 2x2 (aperture suite run from this branch against git-archive of BOTH pins
+          # via TARGET_CONTRACTS_ROOT): test_fleet_aperture_does_not_grow GREEN at b2e19734 AND at c0aac19,
+          # ceiling 729 holds on both — a numeric_anchors declaration earns EXACT credit (never a new
+          # orphan), so the orphan census is UNCHANGED. Aperture-inert, no ceiling move; the two-sided
+          # ratchet (this pin <-> APERTURE_CEILING in test_field_disposition.py) stays balanced.
+          ref: c0aac1956e6fe2da5e74e78e4adc2a891325176a
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

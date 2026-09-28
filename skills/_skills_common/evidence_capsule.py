@@ -387,12 +387,36 @@ def assert_no_bare_numbers(numeric_anchors):
     return numeric_anchors
 
 
+def _matches_n_hint(k):
+    """WORD-BOUNDARY match of a field name against `_N_HINTS` (#2015). The pre-#2015 test was a raw
+    substring containment (`any(h in k.lower() ...)`), so the 2-char tokens `"n_"` / `"_n"` matched
+    INSIDE unrelated field names — `fractio·n_·detected`, `media·n_·log2_abundance_panel`,
+    `rna_protei·n_·r`, `expressio·n_·purity_pearson_p`, a `protei·n_·bh_q_value` — laundering a
+    measurement / p-value / correlation into the sample-size basis. We anchor each hint on `_`-token
+    boundaries instead:
+      • a hint that does NOT start with `_` (`"n_"`, `"n_patient"`, `"n_compounds"`, `"n_ligands"`) is a
+        PREFIX hint — the field must START with it (a real `n_*` count field: n_paired_tumors, n_samples,
+        n_cell_lines_evaluated, n_high, …);
+      • a hint that starts with `_` (`"_n"`, `"_samples"`, `"_lines"`, `"_cells"`, `"_donors"`,
+        `"_models"`, `"_evaluated"`, `"_paired"`) matches only as a WHOLE non-initial token
+        (`samples_n`, `n_cells`, `paired_lines`), never as a mid-token substring.
+    This is provably a SUBSET of the old substring match (every anchored match was also a substring
+    match), so the correction can only REMOVE laundered entries, never admit a new one — the corpus
+    invariant behind the #2015 spot-check. (The declared-per-card n-field list is the preferred fuller
+    fix; word-boundary anchoring is the self-contained shared-builder correction.)"""
+    kl = k.lower()
+    toks = kl.split("_")
+    for h in _N_HINTS:
+        if h.startswith("_"):
+            if h[1:] in toks[1:]:  # whole token, non-initial (preceded by a `_` boundary)
+                return True
+        elif kl.startswith(h):  # prefix hint on a real n_* field
+            return True
+    return False
+
+
 def _n_basis(summary):
-    ns = sorted(
-        k
-        for k, v in summary.items()
-        if isinstance(v, (int, float)) and not _denied(k) and any(h in k.lower() for h in _N_HINTS)
-    )
+    ns = sorted(k for k, v in summary.items() if isinstance(v, (int, float)) and not _denied(k) and _matches_n_hint(k))
     return {k: summary[k] for k in ns[:3]}
 
 

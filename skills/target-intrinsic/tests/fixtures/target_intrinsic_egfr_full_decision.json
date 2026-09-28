@@ -1323,7 +1323,7 @@
       "value": "present"
     }
   ],
-  "generated_at": "2026-09-27T15:42:49+00:00",
+  "generated_at": "2026-09-28T23:40:46+00:00",
   "headline": {
     "alphafold_confidence_class": "moderate",
     "best_measured_potency_neglog_m": 11.699,
@@ -1543,9 +1543,7 @@
           "data_quality_flags": null,
           "evidence_state": "measured",
           "measurement_type": "gnomad_lof_constraint",
-          "n_basis": {
-            "syn_z_score": -0.45414
-          },
+          "n_basis": null,
           "numeric_anchors": null,
           "provenance_keys": null,
           "sibling_caveats": null,
@@ -1572,9 +1570,9 @@
           "evidence_state": "measured",
           "measurement_type": "measured_potency_tractability",
           "n_basis": {
-            "best_measured_potency_neglog_m": 11.699,
             "bindingdb_n_potent_ligands": 22078,
-            "chembl_n_potent_ligands": 16683
+            "chembl_n_potent_ligands": 16683,
+            "n_direct_interactions": 157
           },
           "numeric_anchors": [
             {
@@ -1582,9 +1580,9 @@
               "provenance": {
                 "method_version": "0.3.0",
                 "n_basis": {
-                  "best_measured_potency_neglog_m": 11.699,
                   "bindingdb_n_potent_ligands": 22078,
-                  "chembl_n_potent_ligands": 16683
+                  "chembl_n_potent_ligands": 16683,
+                  "n_direct_interactions": 157
                 },
                 "source_product_id": null
               },
@@ -1712,9 +1710,9 @@
           "evidence_state": "measured",
           "measurement_type": "ppi_interactome",
           "n_basis": {
-            "in_protein_complex": true,
             "n_corum_complexes": 43,
-            "n_high_confidence_interactors": 506
+            "n_high_confidence_interactors": 506,
+            "n_physical_interactors": 1736
           },
           "numeric_anchors": null,
           "provenance_keys": [
@@ -1858,9 +1856,7 @@
           "evidence_state": "measured",
           "measurement_type": "shed_ectodomain_liability",
           "n_basis": {
-            "media_mean_npx": 0.835,
-            "media_n_lines_detected": 390,
-            "media_panel_high_npx": 1.358
+            "media_n_lines_detected": 390
           },
           "numeric_anchors": null,
           "provenance_keys": null,
@@ -1952,9 +1948,8 @@
           "evidence_state": "measured",
           "measurement_type": "structure_druggability",
           "n_basis": {
-            "alphafold_plddt_min_domain": 36.69,
-            "has_virtual_screen_hit": true,
-            "mutation_hotspot_in_druggable_pocket": true
+            "n_domains_low_plddt": 7,
+            "n_ligandability_axes": 5
           },
           "numeric_anchors": [
             {
@@ -1962,9 +1957,8 @@
               "provenance": {
                 "method_version": "0.2.0",
                 "n_basis": {
-                  "alphafold_plddt_min_domain": 36.69,
-                  "has_virtual_screen_hit": true,
-                  "mutation_hotspot_in_druggable_pocket": true
+                  "n_domains_low_plddt": 7,
+                  "n_ligandability_axes": 5
                 },
                 "source_product_id": null
               },
@@ -2295,9 +2289,6 @@
                 "value": 0.5047
               }
             ],
-            "n_basis": {
-              "syn_z_score": -0.45414
-            },
             "significance": {
               "stat": "pli_score",
               "value": 0.3891
@@ -2727,10 +2718,10 @@
               "metric": "disordered_fraction",
               "value": 0.2281
             },
+            "n": 7,
             "n_basis": {
-              "alphafold_plddt_min_domain": 36.69,
-              "has_virtual_screen_hit": true,
-              "mutation_hotspot_in_druggable_pocket": true
+              "n_domains_low_plddt": 7,
+              "n_ligandability_axes": 5
             }
           },
           "key_fields": {
@@ -2800,9 +2791,7 @@
             },
             "n": 390,
             "n_basis": {
-              "media_mean_npx": 0.835,
-              "media_n_lines_detected": 390,
-              "media_panel_high_npx": 1.358
+              "media_n_lines_detected": 390
             }
           },
           "key_fields": {},
@@ -3051,9 +3040,9 @@
             ],
             "n": 506,
             "n_basis": {
-              "in_protein_complex": true,
               "n_corum_complexes": 43,
-              "n_high_confidence_interactors": 506
+              "n_high_confidence_interactors": 506,
+              "n_physical_interactors": 1736
             }
           },
           "key_fields": {},
@@ -3273,10 +3262,11 @@
                 "value": 11.7
               }
             ],
+            "n": 157,
             "n_basis": {
-              "best_measured_potency_neglog_m": 11.699,
               "bindingdb_n_potent_ligands": 22078,
-              "chembl_n_potent_ligands": 16683
+              "chembl_n_potent_ligands": 16683,
+              "n_direct_interactions": 157
             }
           },
           "key_fields": {
@@ -4979,7 +4969,7 @@
       }
     },
     "resolver_release_pin": "resolver_v0.1.0-alpha",
-    "skills_repo_sha": "d498cb3"
+    "skills_repo_sha": "a562681"
   },
   "question": "What is known about EGFR INDEPENDENT of indication \u2014 its identity, on-target-safety genetics, protein-class/structure/modality biophysics, functional annotation, mechanism + pathway role, interactome, domain architecture + domain\u2192modality implication, and paralog buffering?",
   "run_health": {
@@ -4997,7 +4987,7 @@
     ],
     "cards_missing": [],
     "cards_skipped_a4": [],
-    "compute_secs": 0.9847,
+    "compute_secs": 2.9244,
     "n_cards_consumed": 20,
     "n_cards_fired": 10,
     "n_cards_resolved": 20,
@@ -5007,11 +4997,11 @@
         "family": "target-id-resolver-release"
       }
     ],
-    "read_secs": 0.3547,
+    "read_secs": 0.967,
     "skill_name": "target-intrinsic",
     "skill_version": "1.6.1",
     "status": "ok",
-    "total_secs": 6.2391
+    "total_secs": 17.1154
   },
   "skill": "target-intrinsic",
   "target": "EGFR"
