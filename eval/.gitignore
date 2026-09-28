@@ -1,6 +1,10 @@
 scorecard.json
 known_target_panel_report.json
 known-target-packages/
+# A0b panel runner (#2000): generated per-target evidence-package dumps + its report — same
+# treatment as known-target-packages/ above (large, live-derived, re-emittable via --emit).
+scorecard_panel_report.json
+scorecard-panel-packages/
 # Live harvest artifacts — non-reproducible Opus lane output + derived ledgers.
 # Snapshots are pinned corpora produced on demand (harvest_literature.py), not source.
 literature-snapshots/
