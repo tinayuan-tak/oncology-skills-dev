@@ -258,6 +258,136 @@ def _substrate_fields(manifest_id: Optional[str]) -> dict:
     return {"selectivity_substrate_basis": basis, "selectivity_substrate_caveat": caveat}
 
 
+# ── ADJACENT-ARM ADEQUACY (2026-09-28, DGE product review #865) ───────────────────────────────────
+# The tumor-vs-ADJACENT arm (cell A) is only trustworthy when the adjacent-normal cohort is BOTH a
+# true tissue-of-origin normal AND adequately powered. Those are two ORTHOGONAL failure modes and are
+# handled separately, because they are not the same axis (mirrors why _substrate_provenance is
+# orthogonal to _independence_fields):
+#
+#  1. BIOLOGY (curated, indication-keyed — the INDICATION_NORMAL_CAVEAT / LAML precedent in
+#     surfaceome_cohort_ranking.derive): the TCGA "adjacent normals" are not the right tissue. PAAD's
+#     4 Solid-Tissue-Normal samples are duct/islet-biased, not acinar-rich pancreas — corr(log2fc_A,
+#     log2fc_C)=0.14 (every other cohort >=0.3), canonical markers non-significant in A (MSLN +0.03
+#     ns; CEACAM5 +7.4 padj 0.48) and PRSS1 SIGN-REVERSED (+8.46 in A vs -3.81 in C). This is NOT an
+#     n problem — CESC/PCPG have n_adjacent=3 < PAAD's 4 yet their adjacent DIRECTION is correct — so
+#     it cannot be keyed on n; it is a per-indication biology judgment, hence a hardcoded dict like
+#     the LAML precedent. Cell A is EXCLUDED from the classification: the row is rebuilt as
+#     GTEx-population-only (`_rebuild_gtex_only_row`), which routes through the SAME FIX-4b machinery
+#     an intrinsically population_normal_only product uses — so a formerly-`strong` PAAD call caps at
+#     `modest` (strong may not rest on an untrustworthy adjacent arm; here we make it literally
+#     absent) instead of silently keeping a strong call that leaned on a spurious A/C agreement.
+#
+#  2. POWER (n-keyed, sourced from the product's OWN manifest cohort block — never a hardcoded
+#     indication->n map): a small adjacent arm makes cell-A SIGNIFICANCE underpowered, but the
+#     DIRECTION may still stand. These get an ADDITIVE power caveat and NO classification change.
+#     Threshold: min_normals (the producer's fit floor, 3) <= n_adjacent <= 10 — exactly the review's
+#     fragile set (CESC 3, PCPG 3, GBM 5, READ 10, ESCA 10). The next-larger adjacent arm (BLCA n=19)
+#     is `adequate` and its classification is byte-identical. Below the fit floor (SKCM n=1, and the
+#     n=0 GTEx-only cohorts) the adjacent arm was never fit at all → `no_adjacent_arm` (population-
+#     normal-only by construction; nothing to caveat).
+#
+# n_adjacent / min_normals are read from the data-catalog manifest (`cohort.n_adjacent`,
+# `parameters.min_normals` — the producer transcribes provenance.yaml at publish time), so the tier
+# cannot drift from the product it describes and a re-emitted cohort re-tiers automatically.
+_ADJACENT_ARM_UNRELIABLE = {
+    "PAAD": (
+        "adjacent-normal arm (cell A) EXCLUDED: the 4 TCGA PAAD Solid-Tissue-Normal samples are not "
+        "true acinar-rich pancreas — corr(log2fc_A,log2fc_C)=0.14, canonical markers non-significant "
+        "in A (MSLN, CEACAM5) and PRSS1 sign-reversed vs GTEx. Selectivity is classified "
+        "GTEx-population-only (population_normal_only); a strong call cannot rest on this adjacent "
+        "arm. Read the GTEx cell C (selectivity_allgene_percentile_cell_c + log2fc_cell_c), which "
+        "carries the product for PAAD."
+    ),
+}
+_ADJACENT_ARM_POWER_CEILING = 10  # n_adjacent <= this (and >= the fit floor) => power_limited caveat
+
+
+@lru_cache(maxsize=64)
+def _adjacent_cohort_meta(manifest_id: str) -> tuple:
+    """(n_adjacent, min_normals) for a sensitivity product, from its data-catalog manifest.
+
+    n_adjacent := cohort.n_adjacent (the producer transcribes provenance.yaml at publish time);
+    min_normals := parameters.min_normals (the adjacent-arm fit floor — cell A is not fit below it).
+    Read from the manifest, never a hardcoded indication->n map, so the adequacy tier cannot drift
+    from the bytes it describes. Fail-soft to (None, None) — an unresolvable manifest yields the
+    `unknown` tier and never breaks the data read it annotates."""
+    from methods.catalog_query.read import load_manifest
+
+    try:
+        doc = load_manifest(manifest_id) or {}
+        cohort = doc.get("cohort") or {}
+        params = doc.get("parameters") or {}
+        n = cohort.get("n_adjacent")
+        floor = params.get("min_normals")
+        return (int(n) if n is not None else None, int(floor) if floor is not None else None)
+    except (
+        Exception
+    ):  # absence-discipline: exempt -- provenance annotation only; unknown n => `unknown` tier, never blocks the read.
+        return (None, None)
+
+
+def _adjacent_arm_adequacy(manifest_id: Optional[str], indication: Optional[str]) -> tuple:
+    """(adequacy_tier, caveat, exclude_adjacent) for a sensitivity product's adjacent (cell A) arm.
+
+    adequacy_tier vocabulary (kept closed + reachable by test_adjacent_arm_adequacy.py):
+      unreliable_excluded — indication in _ADJACENT_ARM_UNRELIABLE (curated biology); cell A dropped
+                            from classification (exclude_adjacent=True) → population_normal_only.
+      power_limited       — fit-floor <= n_adjacent <= 10; cell-A significance underpowered, direction
+                            may stand. exclude_adjacent=False; classification UNCHANGED (additive caveat).
+      no_adjacent_arm     — n_adjacent below the producer's fit floor (arm never fit / GTEx-only cohort).
+      adequate            — n_adjacent > 10.
+      unknown             — n_adjacent unreadable from the manifest.
+    """
+    ind = (indication or "").upper()
+    if ind in _ADJACENT_ARM_UNRELIABLE:
+        return "unreliable_excluded", _ADJACENT_ARM_UNRELIABLE[ind], True
+    if not manifest_id:
+        return "unknown", None, False
+    n_adj, floor = _adjacent_cohort_meta(manifest_id)
+    if n_adj is None:
+        return "unknown", None, False
+    floor = floor if floor is not None else 3
+    if n_adj < floor:
+        return "no_adjacent_arm", None, False
+    if n_adj <= _ADJACENT_ARM_POWER_CEILING:
+        return (
+            "power_limited",
+            (
+                f"adjacent-normal arm (cell A) is small (n_adjacent={n_adj}, at or below the n<=10 "
+                f"power-limited threshold): cell-A significance is underpowered, so a non-significant "
+                f"cell A is NOT evidence of absence — its direction may stand but read the GTEx cell C "
+                f"(selectivity_allgene_percentile_cell_c + log2fc_cell_c) for corroboration."
+            ),
+            False,
+        )
+    return "adequate", None, False
+
+
+def _rebuild_gtex_only_row(raw: dict) -> None:
+    """In-place: recast a raw sensitivity parquet row as GTEx-population-only (cell A excluded).
+
+    Nulls the cell-A columns AND rebuilds the producer's cross-cell aggregate fields
+    (dominant_direction / discordant / sig_all_cells / cells_ran / cells_supporting) from cell C
+    alone, so the row is shaped exactly like a product that never ran an adjacent arm
+    (population_normal_only) and every downstream helper (_family_ran / _independent_support /
+    _classify_selectivity_from_sensitivity / _comparator_concordance / _independence_fields) reads it
+    that way with no special-casing. Without rebuilding the aggregates, the producer's A+C-derived
+    `discordant` / `dominant_direction` would still reflect the EXCLUDED arm and mislead the
+    classifier — a real A/C conflict would route to discordant_across_comparators instead of a clean
+    GTEx-only call."""
+    raw["log2fc_A"] = None
+    raw["padj_A"] = None
+    lfc_c = raw.get("log2fc_C")
+    q_c = raw.get("padj_C")
+    c_ran = isinstance(lfc_c, (int, float)) and lfc_c == lfc_c
+    c_sig = c_ran and isinstance(q_c, (int, float)) and q_c == q_c and q_c < 0.05
+    raw["discordant"] = False
+    raw["dominant_direction"] = ("up" if lfc_c > 0 else "down" if lfc_c < 0 else "none") if c_ran else "none"
+    raw["sig_all_cells"] = bool(c_sig)
+    raw["cells_ran"] = 1 if c_ran else 0
+    raw["cells_supporting"] = 1 if c_sig else 0
+
+
 def _dge_sensitivity_cell_percentile(manifest_id: str, s3_uri: str, column: str, log2fc, cutoffs: dict = None):
     """Percentile + class of one cell's log2FC among all genes in the SAME sensitivity product,
     keyed to the SAME comparator column (never pooled across cells)."""
@@ -705,8 +835,14 @@ def read_tumor_vs_normal_selectivity(
             "log2fc_cell_d": row.get("log2fc_cell_d"),
             "q_value_cell_d": row.get("q_value_cell_d"),
             "n_tumor": None,  # cohort-level n lives in provenance.yaml, not per-gene
-            "n_adjacent": None,
+            # n_adjacent is now sourced from the manifest cohort block by the gene_row reader (#865),
+            # so the adjacent-arm adequacy tier below can be keyed on it. Forwarded, not re-read.
+            "n_adjacent": row.get("n_adjacent"),
             "n_gtex_normal": None,
+            # Adjacent-arm adequacy (#865): PAAD reads unreliable_excluded (population_normal_only,
+            # capped at modest); small-n cohorts read power_limited (classification unchanged + caveat).
+            "adjacent_arm_adequacy": row.get("adjacent_arm_adequacy"),
+            "adjacent_arm_caveat": row.get("adjacent_arm_caveat"),
             # Forward the SEL-1 selectivity all-gene percentile the gene_row reader computes.
             # The card dispatcher calls THIS composite (not the gene_row reader directly), so an
             # explicit field-map here silently dropped the percentile — the orphaned-signal pattern
@@ -773,6 +909,15 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
     lfc_c = (gtex or {}).get("log2_fc")
     q_c = (gtex or {}).get("q_value")
 
+    # Adjacent-arm adequacy (#865). Keyed on the adjacent product's manifest (adj_manifest); an
+    # indication whose adjacent normals are the wrong tissue (biology-keyed) has cell A EXCLUDED here
+    # too, so a formerly-strong call caps to modest exactly as on the v3 path. This branch only runs
+    # for indications lacking a landed sensitivity product (today: COADREAD, which is adequate), so it
+    # is defensive-consistency rather than a live PAAD path — PAAD's sensitivity product exists.
+    adjacent_arm_adequacy, adjacent_arm_caveat, _exclude_adjacent = _adjacent_arm_adequacy(adj_manifest, indication)
+    if _exclude_adjacent:
+        lfc_a = q_a = None
+
     # supporting = # of the 2 available contrasts sig<0.05 in the dominant dir
     sig = []
     if lfc_a is not None and q_a is not None and q_a == q_a:
@@ -821,6 +966,9 @@ def _read_tvn_selectivity_v2_fallback(target: str, indication: str) -> dict:
         "n_tumor": (gtex or {}).get("n_tumor") or (adj or {}).get("n_tumor"),
         "n_adjacent": (adj or {}).get("n_adjacent"),
         "n_gtex_normal": (gtex or {}).get("n_gtex_normal"),
+        # Adjacent-arm adequacy (#865) — same schema as the v3 path.
+        "adjacent_arm_adequacy": adjacent_arm_adequacy,
+        "adjacent_arm_caveat": adjacent_arm_caveat,
         # The v2 fallback reads legacy per-product rows that lack the sensitivity product's
         # all-gene columns, so the SEL-1 selectivity percentile is genuinely uncomputable here —
         # emit data_unavailable/None honestly (the field always exists, distinct from a real value).
@@ -955,6 +1103,15 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
     if table.num_rows == 0:
         return None
     raw = {col: table[col][0].as_py() for col in table.column_names}
+    # ADJACENT-ARM ADEQUACY (#865): before any classification, decide whether the tumor-vs-adjacent
+    # arm (cell A) is trustworthy for THIS product. An indication whose adjacent normals are the wrong
+    # tissue (PAAD — biology-keyed) has cell A EXCLUDED: the row is rebuilt GTEx-population-only so the
+    # class comes off cell C alone and FIX-4b caps a former `strong` at `modest`. A small-but-honest
+    # adjacent arm (n<=10) is left untouched and only carries an additive power caveat.
+    adjacent_arm_adequacy, adjacent_arm_caveat, _exclude_adjacent = _adjacent_arm_adequacy(manifest_id, indication)
+    n_adjacent_cohort = _adjacent_cohort_meta(manifest_id)[0]
+    if _exclude_adjacent:
+        _rebuild_gtex_only_row(raw)  # nulls cell A + rebuilds C-only aggregates in place
     # SELECTIVITY all-gene percentile (SEL-1, 2026-08-05) — the Axis-1 analog for the
     # tumor-vs-normal CONTRAST: where does this gene's log2FC sit among ALL genes in this
     # sensitivity product? Answers "is +1.9 an unusually selective fold-change here, or middling?"
@@ -989,6 +1146,12 @@ def read_tumor_vs_normal_sensitivity_gene_row(target: str, indication: str) -> O
         "q_value_cell_c": raw.get("padj_C"),
         "log2fc_cell_d": raw.get("log2fc_D"),
         "q_value_cell_d": raw.get("padj_D"),
+        # Adjacent-arm adequacy (#865). Cohort-level n_adjacent, now sourced from the manifest cohort
+        # block (previously None with a "lives in provenance, not per-gene" TODO). adjacent_arm_adequacy
+        # names the tier; adjacent_arm_caveat is None unless the arm is excluded (PAAD) or power-limited.
+        "n_adjacent": n_adjacent_cohort,
+        "adjacent_arm_adequacy": adjacent_arm_adequacy,
+        "adjacent_arm_caveat": adjacent_arm_caveat,
         "_data_source": f"{indication.lower()}-dge-tumor-vs-normal-sensitivity-v1",
         "_data_s3_uri": s3_uri,
     }
