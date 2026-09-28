@@ -183,6 +183,51 @@ def test_integrated_signal_helper_is_pure_projection():
     assert integ["boundary_note"] == claim["boundary_note"]
 
 
+# ── SK#1792: per-leg confidence graded from the claim vector's corroboration, never flat `moderate` ──
+def test_leg_confidence_graded_from_claim_vector_corroboration():
+    """Mutation teeth: each measured leg's confidence cell carries the claim vector's OWN corroboration
+    tier for that leg (with its dots), not the former flat `moderate`. Reverting `_leg_conf` to the flat
+    constant RED-fails on every non-moderate rung here."""
+    h = _safe_headline()
+    h["claim_vector"] = {
+        "CONSTRAINT": {"corroboration": "high"},  # s_het-corroborated, two arms agree
+        "BURDEN": {"corroboration": "single_arm"},  # one unopposed arm
+        "DOSAGE": {"corroboration": "low"},  # arms compared and disagreed
+        "MOUSE_KO": {"corroboration": "moderate"},
+    }
+    rows = {r["id"]: r for r in safety_question_table(h)}
+    assert rows["Constraint"]["confidence"] == {"tier": "high", "dots": 3, "label": "corroboration: high"}
+    assert rows["Burden"]["confidence"] == {"tier": "single_arm", "dots": 1, "label": "corroboration: single_arm"}
+    assert rows["Dosage"]["confidence"] == {"tier": "low", "dots": 1, "label": "corroboration: low"}
+    assert rows["Mouse-KO"]["confidence"]["tier"] == "moderate"
+
+
+def test_leg_confidence_conservative_fallthrough_when_claim_atom_absent():
+    """A MEASURED leg whose claim atom is absent (or carries no corroboration) degrades to `unmeasured`
+    confidence (0 dots) — absence never reassures. Under the reverted flat `moderate` every one of these
+    measured legs would render 2 reassuring dots with no claim support at all — RED."""
+    h = _safe_headline()  # every leg measured, NO claim_vector attached
+    for row in safety_question_table(h):
+        assert row["signal"]["tier"] == "strong"  # the legs ARE measured...
+        assert row["confidence"]["tier"] == "unmeasured" and row["confidence"]["dots"] == 0  # ...support unknown
+
+
+def test_unmeasured_leg_confidence_stays_unmeasured_regardless_of_claim():
+    """An unmeasured leg never borrows confidence from a (stale/foreign) claim atom."""
+    h = {"constraint_class": "indeterminate", "claim_vector": {"CONSTRAINT": {"corroboration": "high"}}}
+    rows = {r["id"]: r for r in safety_question_table(h)}
+    assert rows["Constraint"]["signal"]["tier"] == "unmeasured"
+    assert rows["Constraint"]["confidence"]["tier"] == "unmeasured"
+
+
+def test_normal_tissue_leg_confidence_graded_from_normal_tissue_axis():
+    """The Normal-tissue row grades from the NORMAL_TISSUE claim axis like the other six."""
+    h = {"essential_tissue_flag": "absent", "claim_vector": {"NORMAL_TISSUE": {"corroboration": "moderate"}}}
+    row = {r["id"]: r for r in safety_question_table(h)}["Normal-tissue"]
+    assert row["signal"]["tier"] == "strong"
+    assert row["confidence"] == {"tier": "moderate", "dots": 2, "label": "corroboration: moderate"}
+
+
 def test_renders_html_via_shared_renderer():
     html = render_question_table_html(
         safety_question_table(_safe_headline()), verdict="lof_tolerant_low_concern", title="On-target safety"

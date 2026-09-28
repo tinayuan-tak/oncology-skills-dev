@@ -90,14 +90,20 @@ _PAN_ESSENTIAL = {
     "data_unavailable": "unmeasured",
 }
 
-# (row id, sub-question [framed as tolerant/safe], headline field, value→tier map)
+# (row id, sub-question [framed as tolerant/safe], headline field, value→tier map, claim_vector axis)
 _ROWS = [
-    ("Constraint", "LoF-tolerant in gnomAD (not constrained)?", "constraint_class", _CONSTRAINT),
-    ("Burden", "No population LoF rare-variant burden?", "burden_safety_class", _BURDEN),
-    ("Dosage", "Dosage-tolerant (not ClinGen haploinsufficient)?", "dosage_sensitivity_class", _DOSAGE),
-    ("Mouse-KO", "Mouse knockout viable (not lethal)?", "mouse_ko_phenotype_class", _MOUSE),
-    ("ClinVar", "No germline pathogenic variants?", "clinvar_pathogenic_class", _CLINVAR),
-    ("Pan-essential", "Not broadly essential (a dependency window exists)?", "dependency_class", _PAN_ESSENTIAL),
+    ("Constraint", "LoF-tolerant in gnomAD (not constrained)?", "constraint_class", _CONSTRAINT, "CONSTRAINT"),
+    ("Burden", "No population LoF rare-variant burden?", "burden_safety_class", _BURDEN, "BURDEN"),
+    ("Dosage", "Dosage-tolerant (not ClinGen haploinsufficient)?", "dosage_sensitivity_class", _DOSAGE, "DOSAGE"),
+    ("Mouse-KO", "Mouse knockout viable (not lethal)?", "mouse_ko_phenotype_class", _MOUSE, "MOUSE_KO"),
+    ("ClinVar", "No germline pathogenic variants?", "clinvar_pathogenic_class", _CLINVAR, "CLINVAR"),
+    (
+        "Pan-essential",
+        "Not broadly essential (a dependency window exists)?",
+        "dependency_class",
+        _PAN_ESSENTIAL,
+        "PAN_ESSENTIAL",
+    ),
 ]
 
 
@@ -105,6 +111,18 @@ def _tier(mapping: dict, val) -> str:
     if val in (None, "", "indeterminate", "insufficient"):
         return "unmeasured"
     return mapping.get(str(val), "unmeasured")
+
+
+def _leg_conf(h: dict, axis: str, tier: str) -> dict:
+    """#1792: the per-leg confidence cell, graded from the claim vector's OWN corroboration for that leg
+    (high / moderate / single_arm / low — the same vocab CONF_DOTS renders) instead of the former flat
+    `moderate` on every measured leg (which rendered a single-armed gnomAD read with the same dots as a
+    cross-source-corroborated one). CONSERVATIVE fall-through: a measured leg whose claim atom is absent
+    (or carries no corroboration) degrades to `unmeasured` (0 dots) — absence never reassures."""
+    if tier == "unmeasured":
+        return _conf("unmeasured")
+    corr = ((h.get("claim_vector") or {}).get(axis) or {}).get("corroboration") or "unmeasured"
+    return _conf(corr, f"corroboration: {corr}")
 
 
 def _normal_tissue_leg(h: dict) -> "tuple[str, str]":
@@ -162,10 +180,13 @@ def safety_question_table(headline: dict, cards: Optional[list] = None) -> list:
     `normal_liability_concordance` claim resolves on `headline['claim_vector']` — SURFACES it as a
     first-class cross-source `integrated_signal` annotation (emitted by SK#1546, read by nothing until
     now). Verdict-inert: the row's signal/confidence meter cells carry no tier from the claim; the
-    annotation routes nothing (key omitted when the claim is absent → row byte-stable)."""
+    annotation routes nothing (key omitted when the claim is absent → row byte-stable).
+
+    SK#1792: per-leg confidence is GRADED from the claim vector's corroboration for that leg (see
+    `_leg_conf`) — no longer a flat `moderate` on every measured leg."""
     h = headline or {}
     rows = []
-    for qid, question, field, mapping in _ROWS:
+    for qid, question, field, mapping, axis in _ROWS:
         val = h.get(field)
         tier = _tier(mapping, val)
         rows.append(
@@ -175,7 +196,7 @@ def safety_question_table(headline: dict, cards: Optional[list] = None) -> list:
                 str(val if val not in (None, "") else "—"),
                 "",
                 _sig(tier, "not measured" if tier == "unmeasured" else str(val)),
-                _conf("unmeasured" if tier == "unmeasured" else "moderate"),
+                _leg_conf(h, axis, tier),
             )
         )
     # 6th leg: normal-tissue liability. Always emitted (full-axis contract); the integrated_signal
@@ -187,7 +208,7 @@ def safety_question_table(headline: dict, cards: Optional[list] = None) -> list:
         nt_label,
         "",
         _sig(nt_tier, "not measured" if nt_tier == "unmeasured" else nt_label),
-        _conf("unmeasured" if nt_tier == "unmeasured" else "moderate"),
+        _leg_conf(h, "NORMAL_TISSUE", nt_tier),
     )
     claim = (h.get("claim_vector") or {}).get("normal_liability_concordance")
     if claim:

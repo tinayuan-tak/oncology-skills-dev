@@ -70,7 +70,7 @@ from _skills_common.narrative import build_narrative
 from _skills_common.resolver import resolve_or_raise
 
 SKILL_NAME = "on-target-safety-liability"
-SKILL_VERSION = "1.20.0"  # 1.20.0 (2026-09-24, L2b-3 / SK#1546): +sc-normal-celltype-expression card to feed a new VERDICT-INERT cross-source claim `normal_liability_concordance` (GTEx bulk × scRNA-normal × HPA-IHC normal-tissue liability, deterministic/no-LLM, on safety_claim_vector). The sc-normal veto enters the fired list but is NOT a safety.resolver rung nor in wt_loss_safety_conditioning ⇒ scalar + per-modality verdict byte-stable (test_safety_replay). Advances the evidence-property epic #1507 scorecard M3 (vocabulary reuse 2→3).   # 1.19.0 (2026-09-10, T0-3): +normal-tissue-protein-abundance-tphp (TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN — tphp_vital_organ_liability_class). The safety substrate had RNA (GTEx) + categorical IHC (HPA) but NO quantitative protein; this fills the endocrine/vascular/CNS organs HPA-IHC is blind to (nerve/muscle/blood/adrenal/thyroid). VERDICT-INERT display CONTEXT: the card's rules live on the tumor-selectivity axis, not this skill's intracellular_intrinsic rules_scope, so it fires no safety rung and the scalar verdict is byte-stable. Backtested SM/degrader gate rule is a deliberate follow-on.   # 1.18.0 (2026-09-07, CASE-009 literature-discordance loop): +VERDICT-INERT pharmacovigilance_scope_caveat — clarifies drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity (mechanism-based dose-limiting tox — TLS/cytopenias/neuropathy — often not boxed). Fires only on the measured-negative no_warning state; verdict/resolver/golden/replay byte-stable.
+SKILL_VERSION = "1.21.0"  # 1.21.0 (2026-09-28, SK#1792): whole-axis coverage gating on the SURFACED confidence — critical_axes broadened from ("CONSTRAINT",) to all 7 legs, so a clean verdict measured on gnomAD-tolerant alone is confidence-capped `weak` ("capped by thin coverage") instead of reading `strong`/`moderate`; question-table per-leg confidence graded from the claim-vector corroboration (high/moderate/single_arm/low) instead of a flat `moderate` (safety_question_table.py). Verdict-INERT: resolver/scalar verdict byte-stable (test_safety_replay); only headline_block.confidence + question_table confidence cells move.   # 1.20.0 (2026-09-24, L2b-3 / SK#1546): +sc-normal-celltype-expression card to feed a new VERDICT-INERT cross-source claim `normal_liability_concordance` (GTEx bulk × scRNA-normal × HPA-IHC normal-tissue liability, deterministic/no-LLM, on safety_claim_vector). The sc-normal veto enters the fired list but is NOT a safety.resolver rung nor in wt_loss_safety_conditioning ⇒ scalar + per-modality verdict byte-stable (test_safety_replay). Advances the evidence-property epic #1507 scorecard M3 (vocabulary reuse 2→3).   # 1.19.0 (2026-09-10, T0-3): +normal-tissue-protein-abundance-tphp (TPHP DIA-MS QUANTITATIVE vital-organ PROTEIN — tphp_vital_organ_liability_class). The safety substrate had RNA (GTEx) + categorical IHC (HPA) but NO quantitative protein; this fills the endocrine/vascular/CNS organs HPA-IHC is blind to (nerve/muscle/blood/adrenal/thyroid). VERDICT-INERT display CONTEXT: the card's rules live on the tumor-selectivity axis, not this skill's intracellular_intrinsic rules_scope, so it fires no safety rung and the scalar verdict is byte-stable. Backtested SM/degrader gate rule is a deliberate follow-on.   # 1.18.0 (2026-09-07, CASE-009 literature-discordance loop): +VERDICT-INERT pharmacovigilance_scope_caveat — clarifies drug_warning_class='no_warning' = no OT-registered FDA warning among engaging drugs, NOT absence of on-target toxicity (mechanism-based dose-limiting tox — TLS/cytopenias/neuropathy — often not boxed). Fires only on the measured-negative no_warning state; verdict/resolver/golden/replay byte-stable.
 # 1.17.0 (2026-09-04): +OPTIONAL --literature lane (verdict-INERT LLM literature synthesis, Europe-PMC-grounded + PMID-verified via the shared _skills_common.literature_synthesis; run_wired_skill one-liner) mirroring genomic #982 / FR #987 / TP #965 / TS #968. + VERDICT-INERT signal-surfacing of the rich safety sub-fields the capsule projection ignored: a new PHARMACOVIGILANCE claim axis (on-target FDA warnings + toxicity classes of target-engaging drugs — OT drug-warning ⋈ MoA + OnSIDES boxed ADEs; confounded CONTEXT, corroboration capped, orients-not-holds), MOUSE_KO claim evidence += affected organ systems (organ_classes), CLINVAR claim evidence += confident germline-pathogenic variant count. PHARMACOVIGILANCE is LEFT OUT of the safety HeadlineSpec.axis_keys so headline_block/confidence/hero + the golden-oracle resolver + test_safety_replay verdict fixtures stay BYTE-STABLE. Verdict spine untouched.   # 1.16.0 (2026-08-28): + shet-lof-intolerance (continuous GeneBayes s_het, VERDICT-INERT complement to gnomAD constraint).   # 1.15.0: NET-NEW capsule-driven narrator (had none). Verdict-INERT.   # 1.14.0 (2026-08-27): tuned signals-first sub-group reader. Verdict-INERT.  # 1.13.0 (2026-08-26): emit per-verdict `narrative` (movers/dissenters/
 # flip_conditions/rule_sentences) in the headline — VERDICT-INERT, best-effort
 # (Stage B of the interpretability workstream; safety pilot). Verdict byte-stable.
@@ -343,7 +343,18 @@ _SAFETY_HEADLINE_SPEC = HeadlineSpec(
         "NORMAL_TISSUE": "normal-tissue protein (HPA-IHC)",
     },
     axis_keys=("CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO", "PAN_ESSENTIAL", "NORMAL_TISSUE"),
-    critical_axes=("CONSTRAINT",),
+    # #1792 whole-axis coverage gating: every safety leg can independently drive a concern HOLD, so ALL
+    # 7 legs are decision-critical — a single critical axis made headline_core's thin-coverage floor
+    # (`n_crit_measured*2 < len(crit)`) unfireable on any measured-CONSTRAINT gene, letting a clean verdict
+    # read `strong` on gnomAD-tolerant alone while BURDEN/DOSAGE/CLINVAR/MOUSE_KO/PAN_ESSENTIAL/
+    # NORMAL_TISSUE were entirely unmeasured. With all 7 critical, <4 measured legs caps confidence at
+    # `weak` ("capped by thin coverage"). This is the claim-level equivalent of `_safety_certainty`'s
+    # card-presence coverage reaching the SURFACED confidence (it previously fed only the dead
+    # claim_record_shadow); we deliberately do NOT pass `_safety_certainty` as the `certainty=` sidecar —
+    # the sidecar WINS outright in derive_confidence, which would replace the corroboration weakest-link
+    # + conflict cap with card-presence-only coverage (confidence INFLATION on a covered-but-conflicted
+    # gene, the same dishonesty in the opposite direction).
+    critical_axes=("CONSTRAINT", "BURDEN", "DOSAGE", "CLINVAR", "MOUSE_KO", "PAN_ESSENTIAL", "NORMAL_TISSUE"),
     verdict_label=lambda v: _SAFETY_VERDICT_PHRASE.get(v, str(v).replace("_", " ").strip().capitalize()),
     tension_extra=_safety_tension_extra,
 )
@@ -351,8 +362,10 @@ _SAFETY_HEADLINE_SPEC = HeadlineSpec(
 
 def _build_headline_block(headline: dict) -> dict:
     """Build the canonical Headline block from the already-computed safety headline. Reads the resolved
-    verdict + the verdict-inert claim_vector / key_signals; never moves the spine. No CERTAINTY_MODEL
-    sidecar is emitted by this skill, so confidence is derived from the claim vector's corroboration."""
+    verdict + the verdict-inert claim_vector / key_signals; never moves the spine. Confidence is derived
+    from the claim vector's corroboration, floored by whole-axis coverage over ALL 7 legs (#1792 — the
+    CERTAINTY_MODEL sidecar `_safety_certainty` is deliberately NOT passed: sidecar-wins would discard
+    the corroboration weakest-link + conflict cap for card-presence-only coverage)."""
     v = headline.get("safety_verdict")
     return build_headline(
         headline,
