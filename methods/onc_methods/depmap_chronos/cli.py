@@ -714,6 +714,453 @@ def emit_forest_plot(
     plt.close(fig)
 
 
+def emit_oncotree_forest_plot(
+    per_oncotree_code_stats: list,
+    target_lineage: str,
+    target_symbol: str,
+    indication: str,
+    out_path: Path,
+    contracts_root: Path,
+    top_k_lineages: int = 15,
+) -> Path | None:
+    """Emit forest plot by OncotreeCode, grouped by lineage with right-side annotations.
+
+    Groups codes by their parent lineage, draws horizontal separators between groups,
+    and shows lineage summary (name, median, n) in a right-side annotation area.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from collections import defaultdict
+
+    style_path = contracts_root / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+    sys.path.insert(0, str(contracts_root / "plot_styles"))
+    try:
+        from takeda_palette import CHRONOS_STRONG_DEPENDENCY, get_lineage_color
+    except ImportError:
+        CHRONOS_STRONG_DEPENDENCY = -1.0
+        get_lineage_color = lambda x: "#56B4E9"
+
+    if not per_oncotree_code_stats:
+        return None
+
+    # Group codes by lineage
+    lineage_codes = defaultdict(list)
+    for rec in per_oncotree_code_stats:
+        lineage_codes[rec["oncotree_lineage"]].append(rec)
+
+    # Compute lineage-level stats
+    lineage_stats = {}
+    for lineage, codes in lineage_codes.items():
+        total_n = sum(c["n"] for c in codes)
+        if total_n > 0:
+            weighted_med = sum(c["median_chronos"] * c["n"] for c in codes) / total_n
+            lineage_stats[lineage] = {"median": weighted_med, "n": total_n}
+        else:
+            lineage_stats[lineage] = {"median": 0, "n": 0}
+
+    # Sort lineages by their median (most dependent first), take top_k
+    sorted_lineages = sorted(lineage_stats.keys(), key=lambda x: lineage_stats[x]["median"])[:top_k_lineages]
+
+    # Build flat list of codes with their lineage info and compressed y-positions
+    plot_items = []
+    lineage_spans = []  # (start_y, end_y, lineage) for drawing group boxes
+    y_positions = []
+
+    row_spacing = 0.6  # Compressed spacing within groups
+    group_gap = 0.7    # Extra gap between groups (includes separator line space)
+    current_y = 0
+
+    for lineage_idx, lineage in enumerate(sorted_lineages):
+        codes = sorted(lineage_codes[lineage], key=lambda x: x["median_chronos"])
+
+        # Add gap before group (except first)
+        if lineage_idx > 0:
+            current_y += group_gap
+
+        start_y = current_y
+        for i, rec in enumerate(codes):
+            plot_items.append({
+                "code": rec["oncotree_code"],
+                "rec": rec,
+                "lineage": lineage,
+            })
+            y_positions.append(current_y)
+            if i < len(codes) - 1:
+                current_y += row_spacing
+
+        end_y = current_y
+        lineage_spans.append((start_y, end_y, lineage))
+        current_y += row_spacing  # Move to next position
+
+    y_positions = np.array(y_positions)
+    n = len(plot_items)
+    fig_h = max(4.0, current_y * 0.22 + 1.2)
+    fig, ax = plt.subplots(figsize=(6.5, fig_h))
+
+    # Draw codes
+    for i, item in enumerate(plot_items):
+        rec = item["rec"]
+        is_target = item["lineage"] == target_lineage
+        color = "#B22222" if is_target else get_lineage_color(item["lineage"])
+
+        # IQR bar
+        ax.plot(
+            [rec["p25_chronos"], rec["p75_chronos"]],
+            [y_positions[i], y_positions[i]],
+            color=color,
+            linewidth=2.0 if is_target else 1.2,
+            alpha=0.85,
+            zorder=2,
+        )
+        # Median point
+        ax.plot(
+            rec["median_chronos"],
+            y_positions[i],
+            marker="o",
+            markersize=6 if is_target else 4,
+            color=color,
+            markeredgecolor="white",
+            markeredgewidth=0.6,
+            zorder=3,
+        )
+
+    # Y-axis labels (code names with n)
+    labels = [f"{item['code']} (n={item['rec']['n']})" for item in plot_items]
+    ax.set_yticks(y_positions)
+    ax.set_yticklabels(labels, fontsize=8)
+
+    # Color target lineage labels
+    for i, item in enumerate(plot_items):
+        if item["lineage"] == target_lineage:
+            ax.get_yticklabels()[i].set_color("#B22222")
+            ax.get_yticklabels()[i].set_fontweight("bold")
+
+    # Reference lines
+    ax.axvline(x=0, color="#999999", linestyle="-", linewidth=0.8, alpha=0.5, zorder=1)
+    ax.axvline(x=CHRONOS_STRONG_DEPENDENCY, color="#B22222", linestyle="--", linewidth=1.5, alpha=0.9, zorder=1)
+
+    ax.invert_yaxis()
+    ax.set_xlabel("Chronos score (more dependent = lower)")
+    ax.set_title(f"{target_symbol}: dependency by cancer type ({indication} highlighted)", fontsize=10, pad=12)
+    ax.grid(axis="x", alpha=0.3)
+
+    # Get x-axis limits for positioning annotations
+    x_min, x_max = ax.get_xlim()
+    annot_x = x_max + 0.02 * (x_max - x_min)  # Position annotations closer to the right edge
+
+    # Draw group separators and right-side lineage annotations
+    for i, (start_y, end_y, lineage) in enumerate(lineage_spans):
+        is_target = lineage == target_lineage
+        color = "#B22222" if is_target else "#666666"
+        stats = lineage_stats[lineage]
+
+        # Draw horizontal separator line above group (except first)
+        # Position at middle of gap for even spacing above and below
+        if i > 0:
+            prev_end_y = lineage_spans[i-1][1]
+            sep_y = (prev_end_y + start_y) / 2
+            ax.axhline(y=sep_y, color="#CCCCCC", linewidth=1.0, linestyle="-", zorder=0)
+
+        # Lineage label: name and median
+        y_mid = (start_y + end_y) / 2
+        ax.text(annot_x, y_mid, f"{lineage} (med = {stats['median']:.2f})",
+                fontsize=7.5, va="center", ha="left", color=color, clip_on=False)
+
+    # Expand x-axis to make room for annotations (reduced padding)
+    ax.set_xlim(x_min, x_max + 0.45 * (x_max - x_min))
+
+    out_file = out_path / "figure_oncotree_forest_plot.svg"
+    fig.savefig(out_file, bbox_inches="tight")
+    plt.close(fig)
+    return out_file
+
+
+def emit_oncotree_faceted_bars(
+    per_oncotree_code_stats: list,
+    target_lineage: str,
+    target_symbol: str,
+    indication: str,
+    out_path: Path,
+    contracts_root: Path,
+    top_k_lineages: int = 12,
+) -> Path | None:
+    """Emit faceted horizontal bar chart by lineage.
+
+    One small panel per lineage, codes as horizontal bars within each.
+    Lineages sorted by their median dependency.
+    """
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from collections import defaultdict
+
+    style_path = contracts_root / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+    sys.path.insert(0, str(contracts_root / "plot_styles"))
+    try:
+        from takeda_palette import CHRONOS_STRONG_DEPENDENCY
+    except ImportError:
+        CHRONOS_STRONG_DEPENDENCY = -1.0
+
+    if not per_oncotree_code_stats:
+        return None
+
+    # Group codes by lineage
+    lineage_codes = defaultdict(list)
+    for rec in per_oncotree_code_stats:
+        lineage_codes[rec["oncotree_lineage"]].append(rec)
+
+    # Compute lineage-level median
+    lineage_medians = {}
+    for lineage, codes in lineage_codes.items():
+        total_n = sum(c["n"] for c in codes)
+        if total_n > 0:
+            weighted_med = sum(c["median_chronos"] * c["n"] for c in codes) / total_n
+            lineage_medians[lineage] = weighted_med
+
+    # Sort lineages and take top_k
+    sorted_lineages = sorted(lineage_medians.keys(), key=lambda x: lineage_medians[x])[:top_k_lineages]
+
+    # Determine grid layout
+    n_lineages = len(sorted_lineages)
+    n_cols = 3
+    n_rows = (n_lineages + n_cols - 1) // n_cols
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(10, 2.2 * n_rows), squeeze=False)
+
+    # Find global x limits
+    all_medians = [r["median_chronos"] for r in per_oncotree_code_stats]
+    x_min = min(min(all_medians), CHRONOS_STRONG_DEPENDENCY) - 0.2
+    x_max = max(all_medians) + 0.3
+
+    for idx, lineage in enumerate(sorted_lineages):
+        row, col = idx // n_cols, idx % n_cols
+        ax = axes[row, col]
+
+        codes = sorted(lineage_codes[lineage], key=lambda x: x["median_chronos"])
+        is_target = lineage == target_lineage
+
+        y_pos = np.arange(len(codes))
+        medians = [c["median_chronos"] for c in codes]
+        labels = [f"{c['oncotree_code']} (n={c['n']})" for c in codes]
+
+        # Bar color
+        color = "#B22222" if is_target else "#5a9bd4"
+
+        ax.barh(y_pos, medians, color=color, alpha=0.8, height=0.7, zorder=2)
+
+        # Reference lines
+        ax.axvline(x=0, color="#999999", linestyle="-", linewidth=0.6, alpha=0.5, zorder=1)
+        ax.axvline(x=CHRONOS_STRONG_DEPENDENCY, color="#B22222", linestyle="--", linewidth=1.0, alpha=0.7, zorder=1)
+
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(labels, fontsize=7)
+        ax.set_xlim(x_min, x_max)
+        ax.invert_yaxis()
+
+        # Panel title
+        lineage_n = sum(c["n"] for c in codes)
+        title_color = "#B22222" if is_target else "#333333"
+        ax.set_title(f"{lineage} (n={lineage_n})", fontsize=9, fontweight="bold", color=title_color)
+        ax.grid(axis="x", alpha=0.3, linewidth=0.5)
+
+    # Hide empty subplots
+    for idx in range(n_lineages, n_rows * n_cols):
+        row, col = idx // n_cols, idx % n_cols
+        axes[row, col].axis("off")
+
+    # Add common x-label
+    fig.text(0.5, 0.02, "Median Chronos score (more dependent = lower)", ha="center", fontsize=10)
+    fig.suptitle(f"{target_symbol}: dependency by cancer type ({indication} highlighted)", fontsize=11, y=0.98)
+
+    plt.tight_layout(rect=[0, 0.04, 1, 0.96])
+
+    out_file = out_path / "figure_oncotree_faceted_bars.svg"
+    fig.savefig(out_file, bbox_inches="tight")
+    plt.close(fig)
+    return out_file
+
+
+def emit_oncotree_table_bars(
+    per_oncotree_code_stats: list,
+    target_lineage: str,
+    target_symbol: str,
+    indication: str,
+    out_path: Path,
+    contracts_root: Path,
+    top_k_lineages: int = 15,
+) -> Path | None:
+    """Emit summary table with embedded inline bars.
+
+    Table with columns: Lineage | Code | N | Median | [inline bar]
+    Target lineage rows highlighted.
+    """
+    import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+    import numpy as np
+    from collections import defaultdict
+
+    style_path = contracts_root / "plot_styles" / "takeda_oncology.mplstyle"
+    if style_path.exists():
+        plt.style.use(str(style_path))
+    sys.path.insert(0, str(contracts_root / "plot_styles"))
+    try:
+        from takeda_palette import CHRONOS_STRONG_DEPENDENCY
+    except ImportError:
+        CHRONOS_STRONG_DEPENDENCY = -1.0
+
+    if not per_oncotree_code_stats:
+        return None
+
+    # Group codes by lineage
+    lineage_codes = defaultdict(list)
+    for rec in per_oncotree_code_stats:
+        lineage_codes[rec["oncotree_lineage"]].append(rec)
+
+    # Compute lineage-level median
+    lineage_medians = {}
+    for lineage, codes in lineage_codes.items():
+        total_n = sum(c["n"] for c in codes)
+        if total_n > 0:
+            weighted_med = sum(c["median_chronos"] * c["n"] for c in codes) / total_n
+            lineage_medians[lineage] = weighted_med
+
+    # Sort lineages and take top_k
+    sorted_lineages = sorted(lineage_medians.keys(), key=lambda x: lineage_medians[x])[:top_k_lineages]
+
+    # Build table data
+    table_rows = []
+    for lineage in sorted_lineages:
+        codes = sorted(lineage_codes[lineage], key=lambda x: x["median_chronos"])
+        is_target = lineage == target_lineage
+        for i, rec in enumerate(codes):
+            table_rows.append({
+                "lineage": lineage if i == 0 else "",  # Only show lineage on first row
+                "lineage_full": lineage,
+                "code": rec["oncotree_code"],
+                "n": rec["n"],
+                "median": rec["median_chronos"],
+                "is_target": is_target,
+                "is_first": i == 0,
+            })
+
+    # Calculate figure size
+    n_rows = len(table_rows)
+    row_height = 0.3
+    fig_height = max(4, n_rows * row_height + 1.5)
+    fig_width = 9
+
+    fig, ax = plt.subplots(figsize=(fig_width, fig_height))
+    ax.axis("off")
+
+    # Column positions (as fractions of width)
+    col_x = [0.02, 0.22, 0.36, 0.44, 0.52]  # Lineage, Code, N, Median, Bar
+    col_widths = [0.18, 0.12, 0.06, 0.08, 0.42]
+
+    # Find bar scale
+    all_medians = [r["median"] for r in table_rows]
+    bar_min = min(min(all_medians), CHRONOS_STRONG_DEPENDENCY) - 0.1
+    bar_max = max(0.2, max(all_medians) + 0.1)
+    bar_range = bar_max - bar_min
+
+    # Header
+    header_y = 1 - 0.06
+    headers = ["Lineage", "Code", "N", "Median", ""]
+    for i, (x, header) in enumerate(zip(col_x, headers)):
+        ax.text(x, header_y, header, fontsize=9, fontweight="bold", va="center",
+                transform=ax.transAxes)
+
+    # Draw header line
+    ax.plot([0.01, 0.98], [header_y - 0.02, header_y - 0.02], color="#CCCCCC", linewidth=1,
+            transform=ax.transAxes)
+
+    # Data rows
+    for idx, row in enumerate(table_rows):
+        y = header_y - 0.06 - (idx * row_height / fig_height * 3)
+
+        # Row background for target lineage
+        if row["is_target"]:
+            rect = mpatches.FancyBboxPatch(
+                (0.01, y - 0.015), 0.97, 0.035,
+                boxstyle="round,pad=0.002,rounding_size=0.01",
+                facecolor="#FFEEEE", edgecolor="none",
+                transform=ax.transAxes, zorder=0
+            )
+            ax.add_patch(rect)
+
+        # Lineage separator line
+        if row["is_first"] and idx > 0:
+            ax.plot([0.01, 0.98], [y + 0.018, y + 0.018], color="#EEEEEE", linewidth=0.8,
+                    transform=ax.transAxes)
+
+        # Text color
+        text_color = "#B22222" if row["is_target"] else "#333333"
+        weight = "bold" if row["is_first"] else "normal"
+
+        # Lineage
+        ax.text(col_x[0], y, row["lineage"], fontsize=8, va="center",
+                fontweight="bold" if row["lineage"] else "normal",
+                color=text_color, transform=ax.transAxes)
+
+        # Code
+        ax.text(col_x[1], y, row["code"], fontsize=8, va="center",
+                color=text_color, transform=ax.transAxes)
+
+        # N
+        ax.text(col_x[2], y, str(row["n"]), fontsize=8, va="center",
+                color=text_color, transform=ax.transAxes)
+
+        # Median
+        ax.text(col_x[3], y, f"{row['median']:.2f}", fontsize=8, va="center",
+                color=text_color, transform=ax.transAxes)
+
+        # Inline bar
+        bar_x_start = col_x[4]
+        bar_width = col_widths[4]
+        bar_height = 0.018
+
+        # Zero line position
+        zero_pos = bar_x_start + (0 - bar_min) / bar_range * bar_width
+
+        # Draw bar from zero to median
+        bar_color = "#B22222" if row["is_target"] else "#5a9bd4"
+        median_pos = bar_x_start + (row["median"] - bar_min) / bar_range * bar_width
+
+        if row["median"] < 0:
+            bar_rect = mpatches.Rectangle(
+                (median_pos, y - bar_height/2), zero_pos - median_pos, bar_height,
+                facecolor=bar_color, alpha=0.8,
+                transform=ax.transAxes, zorder=2
+            )
+        else:
+            bar_rect = mpatches.Rectangle(
+                (zero_pos, y - bar_height/2), median_pos - zero_pos, bar_height,
+                facecolor=bar_color, alpha=0.8,
+                transform=ax.transAxes, zorder=2
+            )
+        ax.add_patch(bar_rect)
+
+        # Zero line (draw once per row area)
+        ax.plot([zero_pos, zero_pos], [y - bar_height, y + bar_height],
+                color="#999999", linewidth=0.5, transform=ax.transAxes, zorder=1)
+
+    # Strong dependency reference line in bar area
+    strong_dep_pos = col_x[4] + (CHRONOS_STRONG_DEPENDENCY - bar_min) / bar_range * col_widths[4]
+    ax.plot([strong_dep_pos, strong_dep_pos], [0.02, header_y - 0.04], color="#B22222",
+            linestyle="--", linewidth=1, alpha=0.5, transform=ax.transAxes)
+
+    # Title
+    ax.set_title(f"{target_symbol}: dependency by cancer type ({indication} highlighted)",
+                 fontsize=11, pad=10, loc="left")
+
+    out_file = out_path / "figure_oncotree_table_bars.svg"
+    fig.savefig(out_file, bbox_inches="tight", dpi=150)
+    plt.close(fig)
+    return out_file
+
+
 def emit_lineage_strip(
     merged_data: list, target_lineage: str, target_symbol: str, indication: str, out_path: Path, contracts_root: Path
 ) -> None:
@@ -808,10 +1255,10 @@ SUBTYPE_ASSIGNMENTS_S3 = {
     "HNSC": "s3://onc-compbio/data-catalog/derived/subgroup-assignments/HNSC/depmap/2026-Q3/assignments.parquet",
 }
 
-# Signal colors for subtype dependency (matches expression subtype figure)
+# Signal colors for subtype dependency (Takeda red for dependent, gray for not)
 _SUBTYPE_SIGNAL_COLORS = {
-    "strong_dependency": ("#184f95", "#0a2a50"),      # dark blue — strong
-    "moderate_dependency": ("#5a9bd4", "#2a6a9e"),    # medium blue — moderate
+    "strong_dependency": ("#B22222", "#8B0000"),      # Takeda red — strong
+    "moderate_dependency": ("#D46A6A", "#A04040"),    # lighter red — moderate
     "not_dependent": ("#c9ccd1", "#8a8d91"),          # gray — not dependent
     "insufficient": ("#e8e8e8", "#aaaaaa"),           # light gray — insufficient n
     None: ("#e8e8e8", "#aaaaaa"),
@@ -917,8 +1364,13 @@ def emit_subtype_strip(
     # Sort by median (most dependent first)
     strata.sort(key=lambda s: s["median"])
 
-    # Create figure
-    fig, ax = plt.subplots(figsize=(7.6, max(3.0, 0.6 * len(strata) + 1.2)))
+    # Compute pooled median
+    all_values = [v for s in strata for v in s["values"]]
+    pooled_median = float(np.median(all_values))
+    pooled_n = len(all_values)
+
+    # Create figure with extra height for table
+    fig, ax = plt.subplots(figsize=(7.6, max(4.0, 0.6 * len(strata) + 2.5)))
 
     groups = [s["values"] for s in strata]
     bp = ax.boxplot(
@@ -940,29 +1392,62 @@ def emit_subtype_strip(
         ax.scatter(s["values"], yy, s=12, color=line, alpha=0.5, edgecolor="none", zorder=3)
         # Clean up stratum label (remove _depmap suffix if present)
         clean_label = s["stratum_id"].replace("_depmap", "")
-        sig_label = s["signal"].replace("_", " ")
-        labels.append(f"{clean_label}\n(n={s['n']}, {sig_label})")
+        labels.append(clean_label)
 
-    # Reference lines
+    # Reference lines (0 and strong dependency threshold only)
     ax.axvline(0, color="#999999", linewidth=0.8, alpha=0.5, zorder=1)
-    ax.axvline(moderate_threshold, color="#666666", linestyle="--", linewidth=1.0, alpha=0.7, zorder=1)
     ax.axvline(CHRONOS_STRONG_DEPENDENCY, color="#B22222", linestyle="--", linewidth=1.5, alpha=0.9, zorder=1)
 
-    # Pooled median reference
-    all_values = [v for s in strata for v in s["values"]]
-    pooled_median = float(np.median(all_values))
+    # Pooled median reference line with text annotation at top of plot
     ax.axvline(pooled_median, color="#444", linewidth=1.0, linestyle=":", zorder=1)
-    ax.text(pooled_median, len(strata) + 0.5, f"pooled median {pooled_median:.2f}",
+    ax.text(pooled_median, len(strata) + 0.6, f"pooled median = {pooled_median:.2f}",
             color="#444", fontsize=7, ha="center", va="bottom")
 
     ax.set_yticks(range(1, len(labels) + 1))
-    ax.set_yticklabels(labels, fontsize=8)
+    ax.set_yticklabels(labels, fontsize=9)
     ax.set_xlabel("Chronos score (more dependent = lower)")
-    ax.set_title(f"{target_symbol} in {indication}: dependency by molecular subtype")
+    ax.set_title(f"{target_symbol} in {indication}: dependency by molecular subtype", pad=24)
     ax.grid(axis="x", alpha=0.25, linewidth=0.4)
 
+    # Table with subtype medians - positioned below x-axis label
+    col_labels = ["Subtype", "N", "Median Chronos", "Signal"]
+    table_data = []
+    for s in strata:
+        clean_label = s["stratum_id"].replace("_depmap", "")
+        sig_label = s["signal"].replace("_", " ")
+        table_data.append([clean_label, str(s["n"]), f"{s['median']:.2f}", sig_label])
+    # Add pooled row
+    table_data.append(["Pooled", str(pooled_n), f"{pooled_median:.2f}", "—"])
+
+    # Calculate table height based on number of rows
+    n_rows = len(table_data) + 1  # +1 for header
+    table_height = 0.045 * n_rows
+    table = ax.table(
+        cellText=table_data,
+        colLabels=col_labels,
+        loc="bottom",
+        cellLoc="center",
+        bbox=[0.0, -table_height - 0.18, 1.0, table_height],
+        colWidths=[0.30, 0.15, 0.30, 0.25],
+    )
+    table.auto_set_font_size(False)
+    table.set_fontsize(8)
+
+    for (row, col), cell in table.get_celld().items():
+        cell.set_edgecolor("#CCCCCC")
+        cell.set_linewidth(0.5)
+        if row == 0:
+            cell.set_text_props(fontweight="bold")
+            cell.set_facecolor("#F0F0F0")
+        elif row == len(table_data):  # Pooled row
+            cell.set_facecolor("#F8F8F8")
+            cell.set_text_props(fontweight="bold")
+        else:
+            cell.set_facecolor("white")
+
+    fig.subplots_adjust(bottom=0.30)
+
     out_file = out_path / "figure_subtype_strip.svg"
-    fig.tight_layout()
     fig.savefig(out_file, bbox_inches="tight")
     plt.close(fig)
     return out_file
