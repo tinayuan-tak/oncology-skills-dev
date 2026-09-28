@@ -530,7 +530,8 @@
         "not_informative",
         "data_unavailable",
         "insufficient",
-        "tumor_subset_high_expression"
+        "tumor_subset_high_expression",
+        "sc_malignant_subset_detected"
       ]
     }
   },
