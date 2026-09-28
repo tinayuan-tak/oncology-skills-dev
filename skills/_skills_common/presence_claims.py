@@ -54,6 +54,13 @@ CLAIM_INFORMS = {
 
 
 from _skills_common.claim_vector_core import build_summary_atom  # shared atom builder (Group D)
+from _skills_common.presence_tiers import (  # single-source abundance ladder + power buckets (#1742)
+    ABUNDANCE_STRONG_PCT,
+    POWER_HIGH_N,
+    POWER_MODERATE_N,
+    abundance_tier_from_median,
+    abundance_tier_from_percentile,
+)
 from _skills_common.subgroup_derivation import _SUBGROUP_N_FLOOR  # single-source per-stratum power floor (#1625)
 from _skills_common.subtype_axis import (  # SK#1518 shared axis-quality gate
     SUBTYPE_DIFFERENTIAL_CLASSES,
@@ -93,7 +100,7 @@ def _claim_A(h, c):
             # top-pct within-positives target (e.g. EPCAM: 99.7th all-gene pct → was capped at moderate).
             # Let the calibrated all-gene percentile LEAD when it is stronger than the anchor; the anchor
             # remains the floor for mid/low percentiles. VERDICT-INERT (claim_vector never feeds the spine).
-            if isinstance(pct, (int, float)) and pct >= 95:
+            if isinstance(pct, (int, float)) and pct >= ABUNDANCE_STRONG_PCT:
                 band, sig = f"within positives ({npos}/{mpos}); {pct:.0f}th all-gene pct (percentile-led)", "strong"
             else:
                 band, sig = f"within positives ({npos}/{mpos})", "moderate"
@@ -101,11 +108,12 @@ def _claim_A(h, c):
             band, sig = "mid (above negatives, below positives)", "weak"
         else:
             band, sig = "floor", "absent"
-    elif isinstance(pct, (int, float)):
-        sig = "strong" if pct >= 95 else "moderate" if pct >= 75 else "weak"
+    elif isinstance(pct, (int, float)) and math.isfinite(pct):
+        sig = abundance_tier_from_percentile(pct)  # #1742 SSOT: 95 / 75 percentile ladder
         band = f"{pct:.0f}th all-gene pct"
-    elif isinstance(med, (int, float)):
-        sig = "strong" if med >= 5 else "moderate" if med >= 3.46 else "weak"
+    elif isinstance(med, (int, float)) and math.isfinite(med):
+        # #1742 SSOT: 3-tier median ladder (no absent floor on a bare raw median with no anchor).
+        sig = abundance_tier_from_median(med, absent_floor=False)
         band = f"raw median {med:.1f} log2TPM (anchor n/a)"
     else:
         return {
@@ -400,7 +408,14 @@ def _claim_C(h, c):
         "microenvironment_dominant": "negative",
         "broadly_low": "absent",
     }.get(cls, "weak")
-    rel = "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 20 else "low"
+    # #1742 SSOT: single-cell donor-group grain -> moderate at POWER_MODERATE_N (20).
+    rel = (
+        "high"
+        if isinstance(n, int) and n >= POWER_HIGH_N
+        else "moderate"
+        if isinstance(n, int) and n >= POWER_MODERATE_N
+        else "low"
+    )
     # P2: the single-cell card carries antigen-ESCAPE risk + inter-donor consistency + the fraction of donors
     # broadly detecting — decision-critical for a TCE/CAR read but collapsed to one `homogeneity` string
     # elsewhere. Surface them here as a homogeneity_detail so the malignant-intrinsic claim is not read as a
@@ -1785,9 +1800,9 @@ def render_presence_label(state: dict) -> str:
 # fraction). Claim C (single-cell malignant) stays INDICATION-grain (single-cell pooled) — carried +
 # labelled, never faked per stratum. Verdict-inert, like the pooled vector.
 def _tier_from_median(med):
-    if not isinstance(med, (int, float)):
-        return "unmeasured"
-    return "strong" if med >= 5 else "moderate" if med >= 3.46 else "weak" if med >= 1 else "absent"
+    # #1742 SSOT: 4-tier median ladder; a non-finite median reads "unmeasured".
+    tier = abundance_tier_from_median(med)
+    return tier if tier is not None else "unmeasured"
 
 
 def _tier_from_fraction_above_normal(fa):
@@ -3055,8 +3070,12 @@ def presence_claim_vector_by_subtype(cards: list) -> Optional[dict]:
         # Verdict-INERT (this vector feeds no ladder); the NAMED enriched picks below already filter
         # `evidence_state == "measured"`, so this converges the per-stratum legs on that same reading.
         measured = r.get("evidence_state") == "measured" and isinstance(n, int) and n >= _SUBGROUP_N_FLOOR
-        rel_base = (
-            "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 30 else "low"
+        rel_base = (  # #1742 SSOT: bulk tumor-sample grain (high=100, moderate=SUBGROUP_N_FLOOR=30)
+            "high"
+            if isinstance(n, int) and n >= POWER_HIGH_N
+            else "moderate"
+            if isinstance(n, int) and n >= _SUBGROUP_N_FLOOR
+            else "low"
         )
         rel = _multiplicity_discount(rel_base, k_tested)  # multiplicity haircut
         fb = "moderate" if isinstance(fa, (int, float)) else "unmeasured"

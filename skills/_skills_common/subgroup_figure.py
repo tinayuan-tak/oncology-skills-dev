@@ -13,6 +13,11 @@ import json
 from pathlib import Path
 
 from _skills_common.figure_palette import esc as _esc
+from _skills_common.presence_tiers import (  # single-source n-power buckets (#1742)
+    POWER_HIGH_N,
+    POWER_MODERATE_N,
+    POWER_VERY_HIGH_N,
+)
 
 _TIER = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "unmeasured": None}
 # Deliberately NOT the shared figure_palette.TIER_FILL: tier-0 (absent) is NEUTRAL gray here, not red —
@@ -24,13 +29,15 @@ _RANK = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "unmeasured": -1}
 
 
 def _rad(n):
+    # #1742 SSOT: marker radius encodes the generic n-power bucket
+    # (very high / high / moderate / low -> 8 / 7 / 6 / 5).
     return (
         8
-        if isinstance(n, (int, float)) and n >= 1e5
+        if isinstance(n, (int, float)) and n >= POWER_VERY_HIGH_N
         else 7
-        if isinstance(n, (int, float)) and n >= 100
+        if isinstance(n, (int, float)) and n >= POWER_HIGH_N
         else 6
-        if isinstance(n, (int, float)) and n >= 20
+        if isinstance(n, (int, float)) and n >= POWER_MODERATE_N
         else 5
     )
 

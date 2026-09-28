@@ -65,13 +65,19 @@ from _skills_common.presence_claims_figure import emit_claim_vector_figure
 from _skills_common.presence_matrix import emit_presence_matrix
 from _skills_common.presence_question_table import presence_question_table
 from _skills_common.presence_subtype_figure import emit_subtype_refinement_figure
+from _skills_common.presence_tiers import (  # single-source n-power buckets (#1742)
+    POWER_HIGH_N,
+)
+from _skills_common.presence_tiers import (
+    SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR,
+)
 from _skills_common.skill_report import ROLE_DESCRIPTIVE, build_skill_report
 from _skills_common.subgroup_figure import emit_subgroup_figure
 from presence_l3d_story import build_tumor_expression_biology_story
 
 # ── --subtypes panorama (opt-in, verdict-INERT) ───────────────────────────────────────────────────
-# Power floor mirroring subgroup_common/panorama.py SUBGROUP_N_FLOOR + the card's min_n_required.
-_SUBGROUP_N_FLOOR = 30
+# Power floor (SUBGROUP_N_FLOOR=30, the card's min_n_required) single-sourced from
+# _skills_common.presence_tiers via the import above (#1742).
 # The presence-by-subtype PANORAMA card. Like functional-requirement's subgroup-stratified-dependency,
 # it needs externally-resolved strata (subgroup_context.resolved_strata_ids) and resolves on a SEPARATE,
 # --subtypes-gated path (the dispatcher's subtype_panorama_fn hook), NEVER on the whole-cohort spine.
@@ -959,9 +965,9 @@ def _pres_coverage(cards) -> str:
     best = max([n for n in ns if isinstance(n, (int, float))], default=0)
     present = {c["card_id"] for c in (cards or [])}
     breadth = sum(1 for layer in _PRES_LAYERS if any(cid in present for cid in layer))
-    if best >= 100 and breadth >= 2:
+    if best >= POWER_HIGH_N and breadth >= 2:  # #1742 SSOT: well-powered = POWER_HIGH_N (100)
         return "high"
-    if best >= 5:
+    if best >= 5:  # coverage-specific "any real signal" floor (NOT a power-bucket cut)
         return "medium"
     return "low"
 

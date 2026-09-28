@@ -17,6 +17,7 @@ from pathlib import Path
 
 from _skills_common.figure_palette import TIER_FILL as _FILL
 from _skills_common.figure_palette import esc as _esc
+from _skills_common.presence_tiers import SUBGROUP_N_FLOOR  # single-source bulk power floor (#1742)
 
 _TIER = {"strong": 3, "moderate": 2, "weak": 1, "absent": 0, "unmeasured": None}
 # _FILL is the shared signal palette (figure_palette.TIER_FILL), imported above — this figure uses the
@@ -69,7 +70,8 @@ def render_subtype_refinement_svg(cvbs: dict, target: str, indication: str) -> s
     for sid in ordered:
         st = strata[sid]
         n = st.get("n_tumor_samples")
-        dim = ' opacity="0.5"' if not (isinstance(n, int) and n >= 30) else ""
+        # #1742 SSOT: bulk tumor-sample power floor (SUBGROUP_N_FLOOR=30) gates the dim.
+        dim = ' opacity="0.5"' if not (isinstance(n, int) and n >= SUBGROUP_N_FLOOR) else ""
         mk = " ◀hi" if sid == sep.get("highest") else (" ◀lo" if sid == sep.get("lowest") else "")
         s.append(f"<g{dim}>")
         s.append(f'<text x="{x0}" y="{y + 10}" font-size="10" font-weight="600" fill="#1a1a19">{_esc(sid)}{mk}</text>')

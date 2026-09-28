@@ -17,6 +17,15 @@ import re
 from typing import Callable
 
 from _skills_common.paths import target_contracts_root
+from _skills_common.presence_tiers import (  # single-source abundance ladder + n-power buckets (#1742)
+    POWER_HIGH_N,
+    POWER_MODERATE_N,
+    POWER_VERY_HIGH_N,
+    abundance_tier_from_median,
+)
+from _skills_common.presence_tiers import (
+    SUBGROUP_N_FLOOR as _SUBGROUP_N_FLOOR_SSOT,
+)
 
 _CT = target_contracts_root()
 # The PRESENCE ordinal. Every member is a MEASURED read of how much signal there is.
@@ -145,9 +154,19 @@ def make_value_classifier(value_tiers: dict, default: Callable = default_classif
 
 
 def _nbucket(n) -> str:
+    # #1742 SSOT: generic descriptive power tier — moderate opens at POWER_MODERATE_N (20),
+    # the single-cell/generic-reader grain (NOT the bulk SUBGROUP_N_FLOOR of 30; see presence_tiers).
     if not isinstance(n, (int, float)):
         return "low"
-    return "very high" if n >= 1e5 else "high" if n >= 100 else "moderate" if n >= 20 else "low"
+    return (
+        "very high"
+        if n >= POWER_VERY_HIGH_N
+        else "high"
+        if n >= POWER_HIGH_N
+        else "moderate"
+        if n >= POWER_MODERATE_N
+        else "low"
+    )
 
 
 # DEFAULT heuristic reader — so fleet wiring needs no per-skill reader spec. Picks the primary signal
@@ -337,7 +356,9 @@ _CERT_INV = {0: "low", 1: "moderate", 2: "high"}
 _STRATUM_ID_FIELDS = ("stratum_id", "stratum")
 _STRATUM_N_FIELDS = ("n_tumor_samples", "subgroup_n", "n_cell_lines", "n")
 _STRATUM_CLASS_FIELDS = ("tumor_expression_class", "protein_expression_class", "class", "expression_class")
-_SUBGROUP_N_FLOOR = 30
+# #1742 SSOT: bulk sample-count power floor (30), re-exported so existing
+# `from _skills_common.subgroup_derivation import _SUBGROUP_N_FLOOR` importers are unchanged.
+_SUBGROUP_N_FLOOR = _SUBGROUP_N_FLOOR_SSOT
 
 
 def _multiplicity_haircut(cert: str, k: int) -> str:
@@ -351,8 +372,9 @@ def _stratum_tier(row: dict, classify) -> str:
         if row.get(f) is not None:
             return classify(row.get(f))
     med = row.get("median_log2tpm")
-    if isinstance(med, (int, float)):
-        return "strong" if med >= 5 else "moderate" if med >= 3.46 else "weak" if med >= 1 else "absent"
+    tier = abundance_tier_from_median(med)  # #1742 SSOT: 4-tier median ladder
+    if tier is not None:
+        return tier
     # No class field and no median = nothing to read off this row. `absent` here claimed the stratum was
     # measured and empty; it was not measured at all.
     return UNMEASURED
@@ -403,9 +425,9 @@ def derive_stratified(hierarchy: dict, cards: list, classify=default_classify) -
                 n_any = next((x["n"] for x in reads if isinstance(x["n"], (int, float))), None)
                 best = {"tier": UNMEASURED, "n": n_any}
             n = best["n"]
-            base = (
+            base = (  # #1742 SSOT: per-stratum power — bulk grain (high=100, moderate=SUBGROUP_N_FLOOR)
                 "high"
-                if isinstance(n, (int, float)) and n >= 100
+                if isinstance(n, (int, float)) and n >= POWER_HIGH_N
                 else "moderate"
                 if isinstance(n, (int, float)) and n >= _SUBGROUP_N_FLOOR
                 else "low"

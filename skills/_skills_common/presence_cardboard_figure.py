@@ -19,6 +19,11 @@ import json
 from pathlib import Path
 
 from _skills_common.figure_palette import esc as _esc
+from _skills_common.presence_tiers import (  # single-source n-power buckets (#1742)
+    POWER_HIGH_N,
+    POWER_MODERATE_N,
+    SUBGROUP_N_FLOOR,
+)
 from _skills_common.subtype_axis import SUBTYPE_DIFFERENTIAL_CLASSES, is_differential_axis
 
 # card_id -> (claim, primary field, role). role: signal | reliability | comparator.
@@ -259,18 +264,34 @@ def _reliability(cid, s, h):
     def bq(q, n=None):
         if not isinstance(q, (int, float)):
             return "low"
-        return "high" if (q < 1e-10 and (n is None or n >= 20)) else "moderate" if q < 0.05 else "low"
+        # POWER_MODERATE_N here is a minimal-sample SANITY floor on calling a strongly-significant
+        # q "high" — distinct from (though numerically equal to) the power-bucket moderate floor below.
+        return "high" if (q < 1e-10 and (n is None or n >= POWER_MODERATE_N)) else "moderate" if q < 0.05 else "low"
 
     if cid == "tumor-rna-vs-adjacent":
         return bq(s.get("q_value"))
     if cid == "tumor-protein-abundance-cptac":
         return bq(s.get("protein_bh_q_value"), s.get("n_tumor_samples"))
     if cid == "tumor-scrna-celltype-expression":
+        # #1742 SSOT: single-cell donor-group grain -> moderate at POWER_MODERATE_N (20).
         n = h.get("sc_n_donor_groups") or s.get("n_donor_groups")
-        return "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 20 else "low"
+        return (
+            "high"
+            if isinstance(n, int) and n >= POWER_HIGH_N
+            else "moderate"
+            if isinstance(n, int) and n >= POWER_MODERATE_N
+            else "low"
+        )
     if cid == "tumor-rna-distribution":
+        # #1742 SSOT: bulk tumor-sample grain -> moderate at SUBGROUP_N_FLOOR (30), NOT 20.
         n = s.get("n_tumor_samples")
-        return "high" if isinstance(n, int) and n >= 100 else "moderate" if isinstance(n, int) and n >= 30 else "low"
+        return (
+            "high"
+            if isinstance(n, int) and n >= POWER_HIGH_N
+            else "moderate"
+            if isinstance(n, int) and n >= SUBGROUP_N_FLOOR
+            else "low"
+        )
     return "moderate"
 
 
