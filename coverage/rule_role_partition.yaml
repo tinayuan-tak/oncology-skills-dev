@@ -12,8 +12,8 @@ attribution_keypaths:
 - post_resolver_clamp/modality_conditional/expected_inert_arms/[]/rule_id
 - resolve/[]/driving_rule
 counts:
-  total: 451
-  gating: 152
+  total: 454
+  gating: 155
   display: 299
 gating:
 - adc-preferred-supportive
@@ -24,6 +24,7 @@ gating:
 - amp-expr-moderately-dependent-supportive
 - amp-expr-strongly-dependent-supportive
 - both-viable-supportive
+- broad-dependency-partial-tox-safety-warning
 - broadly-dependent-neutral
 - cis-conjoint-dependent-supportive
 - cis-dosage-amplification-coupled-supportive
@@ -47,6 +48,7 @@ gating:
 - cn-patient-focal-deleted-supportive
 - cn-recurrent-homozygous-deletion-supportive
 - cn-recurrently-amplified-supportive
+- common-essential-unanchored-insufficient
 - common-essential-underpowered-insufficient
 - concordance-data-unavailable-insufficient
 - concordance-discordant-warning
@@ -121,6 +123,7 @@ gating:
 - pan-essential-broad-tox-safety-warning
 - pan-essential-killer
 - pan-essential-safety-axis-measured-clear
+- pan-essential-unanchored-broad-tox-safety-warning
 - partner-conditional-moderately-dependent-supportive
 - partner-conditional-strongly-dependent-supportive
 - pmhc-broadly-presented-normal-tce-opposing

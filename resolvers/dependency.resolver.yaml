@@ -21,7 +21,16 @@
 # the analysis-methods classifier; the labels live in the cards).
 
 gate: dependency
-version: 1.6.0   # 1.6.0 (2026-09-18): PARALOG TWIN FOR THE INDICATION KILLER — a v1.5.0 regression fix, and the
+version: 1.7.0   # 1.7.0 (2026-09-28, skills #1794): the priority-0 pan-essential ADMISSIBILITY rung
+                #        also consumes common-essential-unanchored-insufficient — the NEW
+                #        common_essential_unanchored class (well-powered >=85% fraction, curated
+                #        core-essential anchor UNREACHABLE; split out of common_essential_underpowered)
+                #        keeps the SAME dependency verdict (insufficient_underpowered_pan_essential:
+                #        no fraction-only veto, the T3 direction) — byte-equivalent outcome for the
+                #        re-routed population, NO new verdict token (a new dependency token would
+                #        fail-close skills tp_gates to a forced VETO). The class's CONSERVATIVE
+                #        safety reading lives in safety.resolver.yaml v2.4.0, not here.
+                # 1.6.0 (2026-09-18): PARALOG TWIN FOR THE INDICATION KILLER — a v1.5.0 regression fix, and the
                 #        4th and last compound rescue of `not-dependent-in-indication-killer`. v1.5.0 mirrored
                 #        three of the pooled ladder's FOUR escapes from `non-dependent-killer` (partner-
                 #        conditional strong + moderate, chemical-genetic) but not the paralog relabel, so the
@@ -106,6 +115,10 @@ resolve:
     when_any_fired:
       - common-essential-underpowered-insufficient
       - rnai-common-essential-underpowered-insufficient
+      # skills #1794: anchor-UNREACHABLE well-powered >=85% call — trusted fraction, missing curated
+      # corroboration. Same admissibility routing (no fraction-only veto); the safety axis holds the
+      # conservative broad-tox concern via its own resolver (pan-essential-unanchored-...-warning).
+      - common-essential-unanchored-insufficient
 
   # pan_essential_killer — CRISPR-DRIVEN only (2026-08-08 RNAi-asymmetry fix). RNAi (DEMETER2) has
   # well-documented seed-effect off-target toxicity → FALSE pan-essential signals, so RNAi-ALONE must

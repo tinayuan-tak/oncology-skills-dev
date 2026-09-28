@@ -261,7 +261,9 @@ detail:
     - dependency
     - safety
     rules:
+    - broad-dependency-partial-tox-safety-warning
     - broadly-dependent-neutral
+    - common-essential-unanchored-insufficient
     - common-essential-underpowered-insufficient
     - data-unavailable-insufficient
     - non-dependent-killer
@@ -269,6 +271,7 @@ detail:
     - pan-essential-broad-tox-safety-warning
     - pan-essential-killer
     - pan-essential-safety-axis-measured-clear
+    - pan-essential-unanchored-broad-tox-safety-warning
     - strongly-selective-supportive
   pan-cancer-rnai-dependency-distribution:
     resolvers:

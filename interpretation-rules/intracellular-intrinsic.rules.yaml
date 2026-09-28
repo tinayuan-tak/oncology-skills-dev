@@ -10,7 +10,14 @@
 # defensible against biology + therapeutic-development practice.
 
 rules_id: intracellular-intrinsic
-version: 1.3.0   # 1.3.0 (skills #1793): +tphp-hpa-blind-vital-organ-protein-safety-warning — TPHP protein
+version: 1.4.0   # 1.4.0 (skills #1794): SAFETY fail-open closure on the pan-essential broad-tox arm —
+                 # +common-essential-unanchored-insufficient (dependency-gate twin of the underpowered
+                 # guard for the NEW common_essential_unanchored class: no fraction-only veto),
+                 # +pan-essential-unanchored-broad-tox-safety-warning (an UNVERIFIABLE >=85% call —
+                 # curated anchor unreachable — is a conservative broad-tox concern, never clean),
+                 # +broad-dependency-partial-tox-safety-warning (the 0.60-0.85 partial_broad_band is
+                 # a GRADED broad-tox liability; it previously read clean on the safety axis).
+                 # 1.3.0 (skills #1793): +tphp-hpa-blind-vital-organ-protein-safety-warning — TPHP protein
                  # liability in the vital organs HPA-IHC cannot represent (endocrine/CNS-nerve/vascular-blood),
                  # resolver-routed to normal_tissue_protein_safety_concern (organ-COVERAGE extension of the
                  # HPA arm, not a new concern kind).
@@ -63,6 +70,26 @@ rules:
       (an underpowered positive is a coverage gap, not a measured pan-essential).
       Checked as a distinct verdict so the functional-requirement _verdict routes it to
       insufficient before the pan-essential killer. Measured-vs-null discipline.
+
+  - rule_id: common-essential-unanchored-insufficient
+    when:
+      card_id: pan-cancer-crispr-dependency-distribution
+      field: dependency_class
+      equals: common_essential_unanchored
+    signals:
+      small_molecule: insufficient
+      degrader: insufficient
+    rationale: |
+      skills #1794 (2026-09-28): a WELL-POWERED >=85% strongly-dependent fraction whose curated
+      core-essential anchor (AchillesCommonEssentialControls) was UNREACHABLE at read time
+      (offline / creds fail). Without the anchor we cannot distinguish a true core-essential from
+      a high-fraction context-essential oncogene (the CD19 / KRAS-CRISPRInferred trap), so the
+      DEPENDENCY gate must not fire a fraction-only pan-essential VETO — same insufficient
+      routing as the underpowered guard above (the resolver's priority-0 admissibility rung
+      consumes this rule alongside it). The SAFETY reading is DIFFERENT and deliberately
+      conservative: pan-essential-unanchored-broad-tox-safety-warning (below) raises the
+      broad-tox concern, because an unverifiable pan-essential is a liability that cannot be
+      cleared by the anchor's absence (absence of corroboration is not evidence of safety).
 
   - rule_id: strongly-selective-supportive
     when:
@@ -5636,6 +5663,65 @@ rules:
       driver spares the WT protein normal cells depend on — the resolver's mechanism-conditioning
       downgrade nullifies it (when_all_fired with activating-driver-role-safety-context), while the
       amplification guard keeps the HOLD when the WT protein itself is the drugged target.
+
+  # (1b) UNANCHORED pan-essential as a CONSERVATIVE broad-tox concern (skills #1794). The
+  #      dependency_class common_essential_unanchored means: strongly dependent in >=85% of a
+  #      well-powered panel, but the curated core-essential anchor list was UNREACHABLE — the
+  #      pan-essential call is UNVERIFIED, not refuted. Before this rule the class (then conflated
+  #      into common_essential_underpowered) fired NOTHING on the safety axis, so a transient
+  #      anchor outage on a genuine core-essential (PLK1-class) produced a CLEAN safety verdict —
+  #      fail-open in the liability direction. OPPOSING + dominant, mirroring the curated sibling:
+  #      the resolver reuses pan_essential_broad_tox_concern (driving_rule distinguishes the arms),
+  #      so the HOLD stands until a re-run with anchor access resolves the class to
+  #      common_essential (concern confirmed) or broadly_dependent (T3-cleared oncogene).
+  - rule_id: pan-essential-unanchored-broad-tox-safety-warning
+    when:
+      card_id: pan-cancer-crispr-dependency-distribution
+      field: dependency_class
+      equals: common_essential_unanchored
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    dominant: true
+    rationale: |
+      DepMap measured the target strongly dependent in >=85% of a well-powered panel, but the
+      curated core-essential control set (AchillesCommonEssentialControls) was unreachable at
+      read time — so the pan-essential broad-tox call is UNVERIFIABLE, not absent. A full-KO
+      modality against a possible core-essential is the same on-target broad-toxicity liability
+      the curated arm holds on; the missing anchor must DEGRADE the verdict conservatively, never
+      relax it to clean (the measured fraction alone would have raised the concern pre-T3; the
+      anchor exists to REMOVE false killers for context-essential oncogenes, and its absence
+      removes the exculpatory evidence, not the liability). Resolver: same
+      pan_essential_broad_tox_concern HOLD, provenance-distinguished; resolves on re-run.
+
+  # (1c) PARTIAL broad-dependency band as a GRADED broad-tox liability (skills #1794). The
+  #      0.60-0.85 strongly-dependent band classifies broadly_dependent — below the pan-essential
+  #      veto threshold, but "a broad-toxicity liability nearly as severe as a common-essential"
+  #      (finding #2, 2026-08-13). It previously raised NO safety signal (the warning keys only on
+  #      common_essential) and — worse — corroborated the TC#895 tolerant reassurance via
+  #      pan-essential-safety-axis-measured-clear. OPPOSING, NOT dominant: a graded concern
+  #      (resolver verdict broad_dependency_partial_tox_concern, NOT the pan-essential HOLD) —
+  #      corpus-measured 12/504 carriers (AURKA x4, GAPDH, ATP1A1, PRMT5, MTOR x2, ATR, MAT2A,
+  #      RAD51), several of them managed clinical-stage targets, so a full HOLD would over-fire;
+  #      reading them CLEAN is the fail-open this rule closes.
+  - rule_id: broad-dependency-partial-tox-safety-warning
+    when:
+      card_id: pan-cancer-crispr-dependency-distribution
+      field: broad_dependency_band
+      equals: partial_broad_band
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      DepMap measured the target strongly dependent in 60-85% of the pan-cancer panel
+      (broad_dependency_band == partial_broad_band). That is a PARTIAL broad-toxicity liability
+      for any full-KO systemic modality: most normal-adjacent cellular contexts depend on the
+      gene, even though the fraction sits below the 0.85 pan-essential veto floor. Graded, not
+      dominant — the resolver emits broad_dependency_partial_tox_concern (a caution verdict that
+      outranks the soft gnomAD rungs and blocks the tolerant reassurance) rather than the
+      pan-essential HOLD, matching the band's intermediate severity. The therapeutic-window
+      question stays on the dependency axis (broadly-dependent-neutral is unchanged); this rule
+      only stops the band from reading CLEAN on the safety axis.
 
   # (2) ClinGen recessive-only inheritance as full-KO REASSURANCE. germline_inheritance_mode ==
   #     recessive_only = disease requires loss of BOTH alleles; carriers (single-allele loss) are

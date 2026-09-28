@@ -29,7 +29,12 @@
 # allele-selectivity from alteration-role instead of from the actual modality.
 
 vocab_id: wt_loss_safety_conditioning
-version: 1.1.0   # 1.1.0 (skills #1793): +tphp-hpa-blind-vital-organ-protein-safety-warning in
+version: 1.2.0   # 1.2.0 (skills #1794): +pan-essential-unanchored-broad-tox-safety-warning +
+                 # broad-dependency-partial-tox-safety-warning in concern_rules — both are WT-loss/
+                 # full-KO broad-toxicity concerns on the DepMap dependency axis (same conditioning
+                 # as their curated pan-essential sibling: opposing for engages_wt agents; an
+                 # allele-selective agent spares the WT protein normal cells depend on).
+                 # 1.1.0 (skills #1793): +tphp-hpa-blind-vital-organ-protein-safety-warning in
                  # concern_rules — the TPHP DIA-MS twin of the HPA essential-tissue rule, covering the
                  # vital organs HPA-IHC cannot represent (nerve/blood/adrenal_gland/thyroid). Same
                  # WT-loss/full-KO conditioning as its HPA sibling: measured protein presence in a
@@ -44,6 +49,8 @@ concern_rules:
   - mouse-ko-lethal-safety-warning                 # mouse adult-KO lethal (inferred)
   - clinvar-germline-pathogenic-safety-warning     # ClinVar germline pathogenic
   - pan-essential-broad-tox-safety-warning         # DepMap common-essential broad normal-tissue tox
+  - pan-essential-unanchored-broad-tox-safety-warning # UNVERIFIABLE >=85% pan-essential (curated anchor unreachable) — conservative twin (skills #1794)
+  - broad-dependency-partial-tox-safety-warning    # 0.60-0.85 partial broad-dependency band — graded WT-loss/full-KO liability (skills #1794)
   - pan-essential-killer                           # pan-essential CRISPR (broad tox for full inhibition/degradation)
   - rnai-pan-essential-killer                      # pan-essential RNAi (orthogonal broad tox)
   - normal-tissue-protein-liability-safety-warning # HPA-IHC essential-tissue protein (on-target-off-tumor for full-KO)

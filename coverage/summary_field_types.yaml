@@ -3,7 +3,7 @@
 # boolean/record/array/string/unknown). NOT the editorial signal/context/provenance/display
 # disposition (that is skills-side). --self-check gates drift.
 counts:
-  categorical: 134
+  categorical: 135
   numeric: 466
   boolean: 37
   record: 13
@@ -11,7 +11,7 @@ counts:
   string: 173
   unknown: 26
 n_cards: 51
-n_fields: 908
+n_fields: 909
 by_card:
   adc-tce-modality-fit:
     adc_grade: unknown
@@ -647,6 +647,7 @@ by_card:
     vital_organ_min_samples: numeric
   pan-cancer-crispr-dependency-distribution:
     bimodality_coefficient: numeric
+    broad_dependency_band: categorical
     chronos_iqr: numeric
     dep_control_method_version: string
     dep_control_negatives: record
