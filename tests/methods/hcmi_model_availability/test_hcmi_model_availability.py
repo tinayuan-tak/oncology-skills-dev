@@ -374,3 +374,144 @@ def test_genotype_leaf_code_resolves_via_normalization(genotype_product):
     r = read_genotype_matched_model(target="KRAS", indication="STAD", product_path=genotype_product)
     assert r["genotype_matched_class"] == "matched_sparse"
     assert r["n_models_with_alteration"] == 2
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+# #762: manifest-resolved key + pyarrow S3FS pushdown transport + schema-drift guard (replaces the
+# hardcoded s3:// constants + `aws s3 cp` whole-object subprocess read).
+# ══════════════════════════════════════════════════════════════════════════════════════════════════
+import methods.hcmi_model_availability.read as R
+
+
+def test_no_hardcoded_s3_uri_constants():
+    """The two `s3://...` constants this issue flags must be gone — the reader resolves both product
+    keys from the manifest (bucket_key_for), not a hand-typed URI that can drift from the catalog."""
+    assert not hasattr(R, "_DERIVED_S3")
+    assert not hasattr(R, "_GENOTYPE_DERIVED_S3")
+    assert R.MANIFEST_ID_AVAILABILITY == "hcmi-model-availability-per-indication-v1"
+    assert R.MANIFEST_ID_GENOTYPE == "hcmi-genotype-matched-model-per-gene-v1"
+
+
+def test_availability_resolves_key_via_manifest_and_pushes_down_columns(monkeypatch):
+    """The S3 path resolves the manifest key (catalog_query.bucket_key_for), not a hardcoded URI, and
+    reads through pyarrow with column projection — never `aws s3 cp` / a whole-object subprocess."""
+    import pandas as pd
+    import pyarrow as pa
+
+    calls = {}
+
+    def fake_bucket_key_for(manifest_id):
+        calls["manifest_id"] = manifest_id
+        return "onc-compbio", "data-catalog/derived/hcmi-model-availability-per-indication-v1/x.parquet"
+
+    class FakeS3FS:
+        def __init__(self, region=None):
+            calls["region"] = region
+
+    def fake_read_table(path, filesystem=None, columns=None, filters=None):
+        calls["path"] = path
+        calls["columns"] = columns
+        calls["filesystem"] = filesystem
+        df = pd.DataFrame(
+            [
+                {
+                    "indication": "COADREAD",
+                    "n_patient_derived_models": 209,
+                    "model_availability_class": "deep_model_coverage",
+                    "source": "HCMI-CMDC-DR45",
+                    "primary_site_breakdown": "x",
+                }
+            ]
+        )
+        return pa.Table.from_pandas(df)
+
+    monkeypatch.setattr(R, "bucket_key_for", fake_bucket_key_for)
+    monkeypatch.setattr(R, "ensure_aws_profile", lambda: None)
+    import pyarrow.fs as fs
+    import pyarrow.parquet as pq
+
+    monkeypatch.setattr(fs, "S3FileSystem", FakeS3FS)
+    monkeypatch.setattr(pq, "read_table", fake_read_table)
+    R._load_availability_table.cache_clear()
+
+    r = read_model_availability("COADREAD")
+
+    assert calls["manifest_id"] == "hcmi-model-availability-per-indication-v1"
+    assert calls["path"] == "onc-compbio/data-catalog/derived/hcmi-model-availability-per-indication-v1/x.parquet"
+    assert calls["columns"] == R._AVAILABILITY_COLS
+    assert r["model_availability_class"] == "deep_model_coverage"
+    R._load_availability_table.cache_clear()
+
+
+def test_genotype_resolves_key_via_manifest_with_gene_predicate_pushdown(monkeypatch):
+    """The genotype reader pushes the gene_symbol predicate down to pyarrow (the product's sort key),
+    rather than reading the whole 80k-row product and filtering in pandas."""
+    import pandas as pd
+    import pyarrow as pa
+
+    calls = {}
+
+    def fake_bucket_key_for(manifest_id):
+        calls["manifest_id"] = manifest_id
+        return "onc-compbio", "data-catalog/derived/hcmi-genotype-matched-model-per-gene-v1/x.parquet"
+
+    class FakeS3FS:
+        def __init__(self, region=None):
+            pass
+
+    def fake_read_table(path, filesystem=None, columns=None, filters=None):
+        calls["columns"] = columns
+        calls["filters"] = filters
+        df = pd.DataFrame(
+            [
+                {
+                    "gene_symbol": "KRAS",
+                    "indication": "PAAD",
+                    "n_models_in_indication": 115,
+                    "n_models_with_alteration": 71,
+                    "n_models_with_recurrent_hotspot": 68,
+                    "variant_classes_present": "Missense_Mutation",
+                    "hgvsp_examples": "p.G12D",
+                    "genotype_matched_class": "matched_deep",
+                    "source": "HCMI-CMDC-DR45",
+                }
+            ]
+        )
+        return pa.Table.from_pandas(df)
+
+    monkeypatch.setattr(R, "bucket_key_for", fake_bucket_key_for)
+    monkeypatch.setattr(R, "ensure_aws_profile", lambda: None)
+    import pyarrow.fs as fs
+    import pyarrow.parquet as pq
+
+    monkeypatch.setattr(fs, "S3FileSystem", FakeS3FS)
+    monkeypatch.setattr(pq, "read_table", fake_read_table)
+    R._load_genotype_rows.cache_clear()
+
+    r = read_genotype_matched_model(target="KRAS", indication="PAAD")
+
+    assert calls["manifest_id"] == "hcmi-genotype-matched-model-per-gene-v1"
+    assert calls["filters"] == [("gene_symbol", "==", "KRAS")]
+    assert calls["columns"] == R._GENOTYPE_COLS
+    assert r["genotype_matched_class"] == "matched_deep"
+    R._load_genotype_rows.cache_clear()
+
+
+def test_availability_schema_drift_raises(tmp_path):
+    """A schema-drifted product (missing an expected column) must raise, not silently mis-read."""
+    import pandas as pd
+
+    p = tmp_path / "drifted.parquet"
+    pd.DataFrame([{"indication": "COADREAD", "n_patient_derived_models": 1}]).to_parquet(p)
+    with pytest.raises(ValueError, match="schema drift"):
+        read_model_availability("COADREAD", product_path=str(p))
+
+
+def test_genotype_schema_drift_raises(tmp_path):
+    """A schema-drifted genotype product (missing an expected column) must raise, not silently mis-read."""
+    import pandas as pd
+
+    p = tmp_path / "drifted_genotype.parquet"
+    pd.DataFrame([{"gene_symbol": "KRAS", "indication": "PAAD"}]).to_parquet(p)
+    with pytest.raises(ValueError, match="schema drift"):
+        read_genotype_matched_model(target="KRAS", indication="PAAD", product_path=str(p))

@@ -5,24 +5,47 @@ translational model-availability summary the target-model-availability card cons
 INDICATION-level signal (target-INDEPENDENT — "how many patient-derived HCMI organoid/cell models exist
 for indication Y to preclinically validate any target"), so only `indication` filters. Graceful
 data_unavailable when the indication is not in the HCMI crosswalk (no mapped models) or the product is
-absent. Mirrors pancan_mutation_ccf.read's S3-resolve pattern (aws s3 cp -> pandas).
+absent.
+
+Resolves both derived products through the manifest (`catalog_query.bucket_key_for`) rather than a
+hardcoded S3 URI — a bucket/key move fails loud (FileNotFoundError -> data_unavailable) instead of
+silently stranding the reader. Reads through pyarrow's S3FileSystem with predicate pushdown + column
+projection (mirrors pdxe_drug_response.read / organoid_dependency_precompute.lookup), not a whole-object
+`aws s3 cp`. Asserts the expected product columns at the read boundary (schema-drift guard, mirrors
+target_id_sidecar.read_resolver_sidecar_map) instead of trusting an unpinned upstream schema.
 """
 
 from __future__ import annotations
 
-import io
-import subprocess
 from functools import lru_cache
 from typing import Optional
 
-_DERIVED_S3 = (
-    "s3://onc-compbio/data-catalog/derived/"
-    "hcmi-model-availability-per-indication-v1/hcmi_model_availability_per_indication.parquet"
-)
+from methods.catalog_query.read import bucket_key_for
+from methods.target_id_sidecar import ensure_aws_profile
 
-_GENOTYPE_DERIVED_S3 = (
-    "s3://onc-compbio/data-catalog/derived/hcmi-genotype-matched-model-per-gene-v1/hcmi_genotype_matched_model.parquet"
-)
+MANIFEST_ID_AVAILABILITY = "hcmi-model-availability-per-indication-v1"
+MANIFEST_ID_GENOTYPE = "hcmi-genotype-matched-model-per-gene-v1"
+_S3_REGION = "us-east-1"  # default cred chain honours AWS_PROFILE=cbg
+
+_AVAILABILITY_COLS = [
+    "indication",
+    "n_patient_derived_models",
+    "model_availability_class",
+    "source",
+    "primary_site_breakdown",
+]
+
+_GENOTYPE_COLS = [
+    "gene_symbol",
+    "indication",
+    "n_models_in_indication",
+    "n_models_with_alteration",
+    "n_models_with_recurrent_hotspot",
+    "variant_classes_present",
+    "hgvsp_examples",
+    "genotype_matched_class",
+    "source",
+]
 
 _UNAVAILABLE = {
     "model_availability_class": "data_unavailable",
@@ -75,36 +98,127 @@ def normalize_indication(indication: "Optional[str]") -> "Optional[str]":
     return _INDICATION_ALIAS.get(indication.strip().upper(), indication)
 
 
-from methods.target_id_sidecar import ensure_aws_profile
+def _assert_schema(df, expected_cols: "list[str]", manifest_id: str) -> None:
+    """Fail loud on a schema-drifted product instead of KeyError-ing (or silently mis-reading) downstream.
+    Mirrors target_id_sidecar.read_resolver_sidecar_map's boundary assert."""
+    missing = [c for c in expected_cols if c not in df.columns]
+    if missing:
+        raise ValueError(
+            f"{manifest_id} product missing expected columns {missing} "
+            f"(present: {list(df.columns)[:10]}) — schema drift"
+        )
 
 
-@lru_cache(maxsize=4)
-def _load_parquet(s3_uri: str, product_path: "Optional[str]" = None):
-    """Load a derived parquet (local product_path override for tests, else `aws s3 cp` from s3_uri)."""
+def _is_absent(e: Exception) -> bool:
+    from methods.target_id_sidecar import is_definitively_absent
+
+    return is_definitively_absent(e) or isinstance(e, FileNotFoundError)
+
+
+@lru_cache(maxsize=8)
+def _load_availability_table(product_path: "Optional[str]" = None):
+    """Load the (small, 12-row) per-indication model-availability product. Local override for tests;
+    else resolves the manifest key + reads through pyarrow S3FS with column projection (no `aws s3 cp`,
+    no whole-object subprocess transport)."""
     import pandas as pd
 
-    if product_path:
+    if product_path is not None:
         from pathlib import Path
 
-        return pd.read_parquet(product_path) if Path(product_path).exists() else None
-    ensure_aws_profile()
-    try:
-        raw = subprocess.run(["aws", "s3", "cp", s3_uri, "-"], capture_output=True, timeout=120).stdout
-        return pd.read_parquet(io.BytesIO(raw)) if raw else None
-    except Exception as e:  # noqa: BLE001
-        # descriptive-inert product. A genuine absence surfaces above as empty stdout (→ None); the
-        # except only catches broken-env (missing pandas) / corrupt parquet / subprocess timeout —
-        # those must surface, not be masked as data_unavailable. Re-raise.
-        from methods.target_id_sidecar import is_definitively_absent
+        if not Path(product_path).exists():
+            return None
+        df = pd.read_parquet(product_path)
+    else:
+        try:
+            bucket, key = bucket_key_for(MANIFEST_ID_AVAILABILITY)
+        except FileNotFoundError:
+            return None
+        ensure_aws_profile()
+        import pyarrow.fs as fs
+        import pyarrow.parquet as pq
 
-        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+        s3fs = fs.S3FileSystem(region=_S3_REGION)
+        try:
+            tbl = pq.read_table(f"{bucket}/{key}", filesystem=s3fs, columns=_AVAILABILITY_COLS)
+        except Exception as e:  # noqa: BLE001 — genuine absence -> None; broken-env/transient propagates
+            if not _is_absent(e):
+                raise
+            return None
+        df = tbl.to_pandas()
+    if df.empty:
+        return df
+    _assert_schema(df, _AVAILABILITY_COLS, MANIFEST_ID_AVAILABILITY)
+    return df
+
+
+@lru_cache(maxsize=2)
+def _covered_genotype_indications(product_path: "Optional[str]" = None):
+    """The set of indications the genotype-matched product actually carries rows for (used to
+    distinguish an honest 'none' — indication covered, gene just absent — from 'data_unavailable' —
+    indication not in the crosswalk at all). A single-column projection (no gene filter), not a
+    whole-object read: touches only the `indication` column across the 80k-row product."""
+    import pandas as pd
+
+    if product_path is not None:
+        from pathlib import Path
+
+        if not Path(product_path).exists():
+            return None
+        df = pd.read_parquet(product_path, columns=["indication"])
+        return set(df["indication"].unique())
+    try:
+        bucket, key = bucket_key_for(MANIFEST_ID_GENOTYPE)
+    except FileNotFoundError:
+        return None
+    ensure_aws_profile()
+    import pyarrow.fs as fs
+    import pyarrow.parquet as pq
+
+    s3fs = fs.S3FileSystem(region=_S3_REGION)
+    try:
+        tbl = pq.read_table(f"{bucket}/{key}", filesystem=s3fs, columns=["indication"])
+    except Exception as e:  # noqa: BLE001
+        if not _is_absent(e):
             raise
         return None
+    return set(tbl.to_pandas()["indication"].unique())
 
 
-def _load_product(product_path: "Optional[str]" = None):
-    """Load the per-indication model-availability product."""
-    return _load_parquet(_DERIVED_S3, product_path)
+@lru_cache(maxsize=256)
+def _load_genotype_rows(gene: "Optional[str]", product_path: "Optional[str]" = None):
+    """Rows for a single gene_symbol from the genotype-matched product. Local override for tests; else
+    resolves the manifest key + reads through pyarrow S3FS with predicate pushdown on `gene_symbol`
+    (the product's sort key) + column projection."""
+    import pandas as pd
+
+    if product_path is not None:
+        from pathlib import Path
+
+        if not Path(product_path).exists():
+            return None
+        df = pd.read_parquet(product_path)
+        df = df[df["gene_symbol"] == gene] if gene is not None else df
+    else:
+        try:
+            bucket, key = bucket_key_for(MANIFEST_ID_GENOTYPE)
+        except FileNotFoundError:
+            return None
+        ensure_aws_profile()
+        import pyarrow.fs as fs
+        import pyarrow.parquet as pq
+
+        s3fs = fs.S3FileSystem(region=_S3_REGION)
+        filters = [("gene_symbol", "==", gene)] if gene is not None else None
+        try:
+            tbl = pq.read_table(f"{bucket}/{key}", filesystem=s3fs, filters=filters, columns=_GENOTYPE_COLS)
+        except Exception as e:  # noqa: BLE001
+            if not _is_absent(e):
+                raise
+            return None
+        df = tbl.to_pandas()
+    if not df.empty:
+        _assert_schema(df, _GENOTYPE_COLS, MANIFEST_ID_GENOTYPE)
+    return df
 
 
 def read_model_availability(
@@ -115,7 +229,7 @@ def read_model_availability(
     `target` is accepted (and IGNORED) to satisfy the compose-dashboard generic-dispatch contract
     (_live_readers._generic_dispatch calls every reader as fn(target=, indication=)): model
     availability is INDICATION-level / target-INDEPENDENT, so the target symbol is irrelevant here."""
-    df = _load_product(product_path)
+    df = _load_availability_table(product_path)
     if df is None or df.empty:
         return dict(_UNAVAILABLE, _missing_reason="no HCMI model-availability product materialized/reachable")
     norm = normalize_indication(indication)
@@ -147,22 +261,27 @@ def read_genotype_matched_model(
     honest NEGATIVE (`none`, no altered model), NOT `data_unavailable` (which means the product itself
     is absent/unreachable). Accepts fn(target=, indication=) for the compose-dashboard generic-dispatch
     contract."""
-    df = _load_parquet(_GENOTYPE_DERIVED_S3, product_path)
-    if df is None or df.empty:
+    if not target:
+        return dict(_GENOTYPE_UNAVAILABLE, _missing_reason="no target gene supplied")
+    df = _load_genotype_rows(target, product_path)
+    if df is None:
         return dict(
             _GENOTYPE_UNAVAILABLE, _missing_reason="no HCMI genotype-matched-model product materialized/reachable"
         )
-    if not target:
-        return dict(_GENOTYPE_UNAVAILABLE, _missing_reason="no target gene supplied")
     ind = normalize_indication(indication) or "ALL"
     # Disambiguate the two honest-negative-vs-gap cases (previously both collapsed to 'none'):
     #   - the indication IS covered by the HCMI crosswalk but no model carries a functional alteration in
     #     the target  → genotype_matched_class 'none' (a real translational negative);
     #   - the indication is NOT in the HCMI crosswalk at all → 'data_unavailable' (a coverage gap, not a
     #     negative — a 'none' here would falsely assert "no model carries the alteration").
-    covered = set(df["indication"].unique())
-    hit = df[(df["gene_symbol"] == target) & (df["indication"] == ind)]
+    hit = df[df["indication"] == ind] if not df.empty else df
     if hit.empty:
+        covered = _covered_genotype_indications(product_path)
+        if covered is None:
+            return dict(
+                _GENOTYPE_UNAVAILABLE,
+                _missing_reason="no HCMI genotype-matched-model product materialized/reachable",
+            )
         if ind not in covered:
             _via = f" (normalized {indication}→{ind})" if ind != (indication or "ALL") else ""
             return dict(
