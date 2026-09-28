@@ -35,7 +35,7 @@ from _skills_common.narrator_engine import make_synthesize_fn
 from _skills_common.narrator_lenses import FUNCTIONAL_REQUIREMENT as _FR_LENS
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.skill_report import ROLE_GATING, build_skill_report
-from _skills_common.subgroup_derivation import make_value_classifier
+from _skills_common.subgroup_derivation import _SUBGROUP_N_FLOOR, make_value_classifier
 
 SKILL_NAME = "functional-requirement"
 SKILL_VERSION = "1.9.0"  # 1.9.0 (2026-09-04): verdict-INERT surfacing — indication_scope_note (target-grain positive enriched outside the queried indication) + partial-paralog caveat on absence verdicts.   # 1.8.0 (2026-09-03): --literature lane + verdict-INERT signal enrichment (measurement_caveat, concordance_scope_note, PRISM DEP-quorum, paralog caveat, polarity_note).   # 1.7.0 (2026-08-28): migrate narrator to generic capsule-driven engine. Verdict-INERT.   # 1.6.0 (2026-08-27): tuned signals-first sub-group reader (dependency-vocab
@@ -185,9 +185,9 @@ _CARD_MEANINGFUL_SUBGROUP_DELTA = contract_threshold("subgroup-stratified-depend
 _MEANINGFUL_SUBGROUP_DELTA = (
     _MEANINGFUL_SUBGROUP_DELTA_FALLBACK if _CARD_MEANINGFUL_SUBGROUP_DELTA is None else _CARD_MEANINGFUL_SUBGROUP_DELTA
 )
-# Power floor mirroring the card + subgroup_common/panorama.py SUBGROUP_N_FLOOR: DepMap per-indication
-# molecular strata below this are UNDERPOWERED and must never be read as a subtype-specific call.
-_SUBGROUP_N_FLOOR = 30
+# Power floor SINGLE-SOURCED from _skills_common.subgroup_derivation._SUBGROUP_N_FLOOR (imported above):
+# DepMap per-indication molecular strata below this are UNDERPOWERED and must never be read as a
+# subtype-specific call. Was previously a duplicated literal here (silent-drift hazard) mirroring the card.
 # subgroup-stratified-dependency per-stratum `class` → subtype-scope verdict term (Phase 4). A powered,
 # MEASURED stratum yields a real call; everything else is inadmissible (underpowered / insufficient).
 _SUBGROUP_CLASS_TO_VERDICT = {
@@ -592,7 +592,12 @@ def _corroboration_from_cross_consortium(cross_consortium_class) -> str:
     if c == "discordant":
         return "low"
     if c == "single_consortium_only":
-        return "medium"
+        # A single consortium supplies the PRIMARY dependency signal (which feeds strength/coverage),
+        # but provides NO cross-consortium comparator — so the corroboration axis (which is ABOUT
+        # independent-replication agreement) is `unmeasured`, never a fabricated `medium`. This matches
+        # the docstring above and the sibling _dependency_confidence_note (single_consortium_only = an
+        # uncorroborated caveat, never a confidence lift).
+        return "unmeasured"
     return "unmeasured"  # data_unavailable / absent → no verdict-disjoint comparator this run
 
 
@@ -1212,6 +1217,12 @@ def _headline(cards, fired, verdict_pair):
         # review #1; was orphaned). Folded into dependency_confidence above (in_coherent_module RAISES;
         # isolated adds a caveat) AND surfaced here for the narrative. VERDICT-INERT — no resolver rung.
         "coessential_module_class": coessential_module_class,
+        # NB: n_coessential_partners is not yet read by an FR surface (question-table/hero/claim/resolver/
+        # veto) — a half-wired sibling of strongest_coessential_partner (consumed by question_table Q7).
+        # RETAINED (not dropped) because it is the sole reader of coessential-module.n_strong_partners:
+        # removing it turns that summary_field into a declared-but-unread aperture orphan (the census is
+        # disposition-blind and its ceiling is fixed). Follow-up #1557: wire it into Q7 ("N strong
+        # coessential partners incl. X") rather than drop, to keep the field credited AND consumed.
         "n_coessential_partners": get_card_field(cards, "coessential-module", "n_strong_partners"),
         "strongest_coessential_partner": get_card_field(cards, "coessential-module", "strongest_partner_symbol"),
         "dependency_confidence": confidence["confidence"],
@@ -1225,6 +1236,12 @@ def _headline(cards, fired, verdict_pair):
         # interpretation rule in any lane reads event_correspondence_class (verified 2026-09-12), so it
         # is UNINTERPRETED rather than interpreted in the genomic lane, as this comment used to imply.
         "event_correspondence_class": get_card_field(cards, "genomic-event-model-match", "event_correspondence_class"),
+        # Q7 RNA expression → dependency (render facet) — the RNA arm of the biomarker-assay comparison.
+        # Surfaced alongside its protein sibling below so the RNA-vs-protein preferred-assay read the two
+        # arms exist to enable is not defeated by the RNA class being stranded. VERDICT-INERT.
+        "rna_dependency_correlation_class": get_card_field(
+            cards, "expression-dependency-correlation", "correlation_class"
+        ),
         # Q7 protein abundance → dependency (render facet, biomarker-assay comparison vs the RNA arm):
         "abundance_dependency_class": get_card_field(cards, "abundance-dependency", "abundance_dependency_class"),
         "protein_dependency_pearson_r": get_card_field(cards, "abundance-dependency", "protein_dependency_pearson_r"),
@@ -1354,6 +1371,8 @@ _SYNTHESIS_FACET_KEYS = (
     # biomarker render facets (patient-selection context)
     "model_correspondence_class",
     "event_correspondence_class",
+    # RNA-vs-protein preferred-assay comparison: RNA arm (correlation_class) beside its protein sibling
+    "rna_dependency_correlation_class",
     "abundance_dependency_class",
     # the modality-blind claim vector SIGNAL decomposition + brief cited read (this subskill's
     # within-lens integration; the cross-lens layer reads the per-claim SIGNALS, not a certainty)

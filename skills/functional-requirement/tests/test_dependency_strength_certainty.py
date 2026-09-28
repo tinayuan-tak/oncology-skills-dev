@@ -29,11 +29,13 @@ def test_coverage_and_corroboration_thresholds():
     assert rc._coverage_from_n(None) == "low"
     # corroboration is now VERDICT-DISJOINT Broad↔Sanger cross-consortium (CERTAINTY_MODEL),
     # NOT CRISPR↔RNAi concordance. Independent consortia agreeing (dependent OR non-dependent) → high;
-    # discordant → low; single consortium → medium; absent → unmeasured (never a fabricated medium).
+    # discordant → low; single consortium OR absent → unmeasured (a lone consortium supplies the primary
+    # signal but NO cross-consortium comparator, so the corroboration axis is unmeasured — never a
+    # fabricated medium, matching _corroboration_from_cross_consortium's docstring, #1557).
     assert rc._corroboration_from_cross_consortium("concordant_dependent") == "high"
     assert rc._corroboration_from_cross_consortium("concordant_non_dependent") == "high"
     assert rc._corroboration_from_cross_consortium("discordant") == "low"
-    assert rc._corroboration_from_cross_consortium("single_consortium_only") == "medium"
+    assert rc._corroboration_from_cross_consortium("single_consortium_only") == "unmeasured"
     assert rc._corroboration_from_cross_consortium("data_unavailable") == "unmeasured"
     assert rc._corroboration_from_cross_consortium(None) == "unmeasured"
 
