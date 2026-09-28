@@ -78,6 +78,15 @@ def read_coessential_partners(
             columns=["gene_symbol", "partner_symbol", "pearson_r", "abs_rank", "n_cell_lines"],
         )
     except Exception as exc:
+        # honest-loud absence discipline (#822): only a GENUINE product absence (NoSuchKey/404/NoSuchBucket
+        # or a missing local file) is an honest data_unavailable; a transient S3/creds/parse fault must
+        # RE-RAISE so mechanism_composed's honest-loud guard surfaces it (fail-loud) rather than silently
+        # masking it as a substrate gap. (A gene simply absent from the substrate is handled by the
+        # len(table)==0 branch below, not this catch.) Mirrors collectri_tf_regulon/read.py:177-198.
+        from methods.target_id_sidecar import is_definitively_absent
+
+        if not (isinstance(exc, FileNotFoundError) or is_definitively_absent(exc)):
+            raise
         return {
             "gene_symbol": target,
             "partners": [],

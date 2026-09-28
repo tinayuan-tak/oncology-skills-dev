@@ -886,7 +886,6 @@ _CLASS_TOKEN_BASELINE: dict[str, str] = {
     "procan_protein_abundance/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
     "shed_ectodomain_liability/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
     "shet_selection/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
-    "signor_mechanism_network/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
     "tcga_gtex_expression_distribution/read.py::_tumor_allgene_percentile": _CLASS_TOKEN_BASELINE_REASON,
     "tcga_gtex_expression_distribution/read.py::_tumor_control_position": _CLASS_TOKEN_BASELINE_REASON,
     "tumor_presence_controls/read.py::control_position_cellline": _CLASS_TOKEN_BASELINE_REASON,

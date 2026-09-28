@@ -362,7 +362,21 @@ def read_target_summary(target: str, indication: str = None) -> dict:
         edges, total, unmapped = _compute_edges_for_target(target)
         return _aggregate_edges_to_summary(edges, total, unmapped)
     except Exception as e:
-        # Path 3: fail gracefully
+        # Path 3: honest-loud absence discipline (#822). SIGNOR is the ONLY verdict-driving lane feeding
+        # mechanism_composed, and its verdict keys on network_class alone. A data_unavailable classification
+        # here drops mechanism_verdict off its rung and — via risk_projection.py — manufactures a false
+        # 'Right Target' biological-risk escalation (see oncology-skills#1562). So only a GENUINE source
+        # absence (NoSuchKey/404/NoSuchBucket on the SIGNOR release object, or a missing local cache file)
+        # may be encoded as data_unavailable; a transient S3/creds/parse fault must RE-RAISE so that
+        # mechanism_composed._is_genuine_absence fires (fail-loud) instead of silently masking it as a
+        # benign coverage gap. Mirrors the derived-parquet path (:322-329) and the CollecTRI reader
+        # (collectri_tf_regulon/read.py:177-198). Note: a target simply not present in SIGNOR is NOT an
+        # exception — it flows through _compute_edges_for_target as an empty edge set and is classified
+        # data_unavailable by _aggregate_edges_to_summary above, so this catch fires only on infra faults.
+        from methods.target_id_sidecar import is_definitively_absent
+
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
         return {
             "network_class": "data_unavailable",
             "n_upstream_regulators": 0,

@@ -342,6 +342,16 @@ def read_target_summary(
             "_data_source_upstream": REACTOME_SOURCE_MANIFEST_ID,
         }
     except Exception as e:
+        # honest-loud absence discipline (#822): only a GENUINE product/source absence
+        # (NoSuchKey/404/NoSuchBucket or a missing local file) is an honest data_unavailable; a transient
+        # S3/creds/parse fault must RE-RAISE (fail-loud) rather than being masked as a benign
+        # pathway-context gap. (A target genuinely not in Reactome is handled by the
+        # 'target_not_in_reactome_human' / 'target_symbol_not_resolvable' branches, not this catch.)
+        # Mirrors collectri_tf_regulon/read.py:177-198.
+        from methods.target_id_sidecar import is_definitively_absent
+
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            raise
         return _empty_result(f"compute_failed: {type(e).__name__}: {e}")
 
 
