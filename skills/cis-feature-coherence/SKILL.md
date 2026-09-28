@@ -156,8 +156,9 @@ case barcode through `tcga-sample-id-crosswalk-v1` (R4). ERBB2/BRCA and CDKN2A/H
 cell-line coupling in patient tumours. (The patient methylation leg is indication-scoped: the shared
 promoter-methylation reader spans all TCGA cohorts, and the patient engine restricts it to the
 indication's cohorts before contrasting — so a covered cohort like STAD/HNSC gives a clean
-hypermethylated-vs-rest silencing contrast, e.g. MLH1/STAD; an uncovered indication like COADREAD
-returns insufficient rather than borrowing other cohorts' methylation.) This skill is VERDICT-INERT —
+hypermethylated-vs-rest silencing contrast, e.g. MLH1/STAD. The SeSAMe product now spans 8 TCGA
+cohorts including COADREAD (COAD+READ, added 2026-09-11), so that hole is FILLED; a genuinely
+uncovered indication returns insufficient rather than borrowing other cohorts' methylation.) This skill is VERDICT-INERT —
 it never blocks a nomination.
 
 ## How Claude invokes this skill

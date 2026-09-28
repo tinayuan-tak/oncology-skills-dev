@@ -32,8 +32,10 @@ CCLE-2019 RRBS), `expression-dependency-correlation` (leg-2 RNA→dep), `amp-exp
 
 ## 2. Coverage & capability ceilings (contractual)
 
-- **Patient methylation** (`tcga-sesame-promoter-methylation-v1`) covers 6 cohorts (LUAD/LUSC/HNSC/PAAD/STAD/ESCA)
-  — **no COADREAD** → the patient silencing leg returns `insufficient` there.
+- **Patient methylation** (`tcga-sesame-promoter-methylation-v1`) covers 8 cohorts
+  (LUAD/LUSC/HNSC/PAAD/STAD/ESCA + **COAD/READ = COADREAD**, added 2026-09-11 from GDC Data Release 46.0)
+  — the COADREAD hole is now FILLED, so the indication-scoped patient silencing leg returns a clean
+  hypermethylated-vs-rest contrast there where covered (was previously `insufficient`).
 - **Cell-line legs are `pan_no_indication`** (decoupled from indication by design).
 - Isoform product maps ~83% of DepMap ENST columns to GENCODE-v26 genes; crosswalk attrition ~88% CN / 95% meth / 98% MC3.
 
@@ -60,6 +62,10 @@ spine key → SHARED source (coordinate; major on rename); new facet → no sche
 
 ## 5. Known gaps & notes (non-blocking)
 
+- **DepMap release pin drift (tracked in #1786):** several DepMap legs have drifted to `26q3` while the
+  cards / this doc / the frozen `fixtures/cis_full_emit.json` still declare `26q1`. The single-pin
+  reconciliation (thread ONE declared release through all six readers + refreeze the fixture) is owned by
+  **#1786** — NOT fixed here; cross-referenced so this note is not mistaken for a clean pin.
 - **CN matrix — WGS-primary (migrated #598/#704 6a, 2026-09-11):** the CN-consuming cards (#1 cis-dosage,
   #2 cis-protein-dosage, #6 amp-expr) now read the DepMap-CANONICAL `OmicsCNGeneWGS` matrix as primary via
   `depmap_cn_distribution.load_cn_files` (legacy `OmicsCNGeneMC_WES` is fallback-only for genes absent from
@@ -88,5 +94,9 @@ spine key → SHARED source (coordinate; major on rename); new facet → no sche
 - **Undeclared derived input:** `cellline-methylation-expression-coherence`'s reader uses derived
   `ccle-rrbs-promoter-methylation-mean-per-gene-v1` as primary, but the card `required_inputs` names only the
   source `depmap-consortium-ccle-2019` (lineage consistent; card understates wiring).
-- **Protein product-id inconsistency:** #2 declares derived `depmap-gygi-protein-abundance-per-protein-v1`; #5
-  declares source `depmap-consortium-26q1-proteomics` (same Gygi data) — granularity-convention mismatch.
+- **Protein product-id (largely resolved):** both protein legs now declare the derived
+  `depmap-gygi-protein-abundance-per-protein-v1` as the live Gygi read — `cis-feature-protein-coherence`
+  (`required_inputs` = `depmap-consortium-26q1` + the derived Gygi product) and `abundance-dependency`
+  (which lists the derived Gygi product first, matching `cis-feature-protein-coherence`). `abundance-dependency`
+  additionally retains the source `depmap-consortium-26q1-proteomics` — no longer a granularity-convention
+  mismatch but a deliberate, documented dependency for its Olink-NPX fallback path + uniprot map.
