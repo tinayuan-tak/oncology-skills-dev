@@ -442,6 +442,13 @@ _CORROBORATION_READERS = {
         "that reads the already-computed L2 claims and routes nothing back into any claim_vector / "
         "question_table / resolver."
     ),
+    "skills/cis-feature-coherence/scripts/cis_coherence_l3d_story.py": (
+        "PASS-THROUGH — the L3d within-domain cis-regulatory coherence biology story (SK#1981) copies each "
+        "traversed L2b concordance island's `corroboration` token VERBATIM into that chapter (no map, no "
+        "projection; an unrecognised rung reads as itself — honest). The exact cis analog of "
+        "presence_l3d_story.py above. VERDICT-INERT: a pure deterministic traversal that reads the "
+        "already-computed L2 claims and routes nothing back into any claim_vector / question_table / resolver."
+    ),
     # --- OUTSIDE `skills/`, and invisible to every guard on this axis until the sweep root moved. The
     #     eval harness carries its OWN vocabulary — 8 literal token sets, and it imports no canonical
     #     ladder — so nothing here is kept in step by construction. Both entries are MEMBERSHIP TESTS

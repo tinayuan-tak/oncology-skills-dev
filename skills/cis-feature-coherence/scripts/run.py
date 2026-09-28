@@ -20,6 +20,7 @@ from pathlib import Path
 
 SKILLS_DIR = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
+sys.path.insert(0, str(Path(__file__).resolve().parent))  # local sibling: cis_coherence_l3d_story
 
 from _skills_common import card_summary
 from _skills_common.cis_coherence_claims import (
@@ -42,6 +43,7 @@ from _skills_common.narrator_lenses import CIS_FEATURE_COHERENCE as _LENS
 from _skills_common.resolver import resolve_or_raise
 from _skills_common.skill_report import ROLE_INERT, build_skill_report
 from _skills_common.subgroup_derivation import make_value_classifier
+from cis_coherence_l3d_story import build_cis_coherence_biology_story
 
 # Signals-first sub-group reader (VERDICT-INERT). Thesis: cis locus→expression→dependency coherence.
 # default_classify is the fallback for unmapped values.
@@ -795,6 +797,17 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
     # verdict echo, so it stays verdict-inert (byte-stable).
     hl["claim_vector"] = cis_coherence_claim_vector(hl, cards)
     hl["key_signals"] = cis_coherence_key_signals(hl, cards)
+    # L3d WITHIN-DOMAIN "cis-regulatory coherence biology story" (SK#1981, epic #1779 B2 / parent #1507) —
+    # a DETERMINISTIC template/traversal over the L2b concordance islands just built on the claim_vector
+    # (cis_dosage / methylation_silencing / expression_dependency concordance), re-using their OWN prose and
+    # claim IDs. Verdict-INERT / additive: reads no verdict, feeds no resolver → cis_coherence_verdict +
+    # driving_rule_id + resolver golden byte-stable; returns None (key omitted) when no island resolves.
+    # Built AFTER the claim_vector (it is a pure projection over it). Best-effort (never abort the spine).
+    try:
+        hl["cis_coherence_biology_story"] = build_cis_coherence_biology_story(hl.get("claim_vector"))
+    except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
+        hl.setdefault("_enrichment_errors", {})["cis_coherence_biology_story"] = f"{type(exc).__name__}: {exc}"
+        hl["cis_coherence_biology_story"] = None
     # ── VERDICT-INERT cis-coherence CONFIDENCE surface (v1.4.0) ─────────────────────────────────────
     # Each best-effort: a fault in one enrichment field must NEVER discard the cis-coherence spine already
     # built in `hl` (same degrade discipline as differentiation / tumor-presence). Gates on already-emitted
@@ -927,6 +940,9 @@ _SYNTHESIS_FACET_KEYS = (
     "question_table",
     # the canonical headline (verdict + confidence + top tension) — text + hero payload for every consumer
     "headline_block",
+    # the L3d within-domain "cis-regulatory coherence biology story" (SK#1981) — a verdict-INERT
+    # deterministic traversal over the claim_vector's L2b concordance islands, claim-ID-traceable downward
+    "cis_coherence_biology_story",
     # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — Wave-3 inert-role adoption
     "skill_report",
 )

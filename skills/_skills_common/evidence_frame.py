@@ -644,6 +644,17 @@ SUBTYPE_RESTRICTION_PROPERTY = "subtype_restriction_concordance"
 # presence decision frames are separate and consume the L2 claims directly).
 TUMOR_EXPRESSION_BIOLOGY_STORY_L3D = "tumor_expression_biology_story"
 
+# The cis-feature-coherence L3d "cis-regulatory coherence biology story" (SK#1981, epic #1779 B2 /
+# parent #1507) — a READABLE emitted layer, NOT a frame. It is the within-domain synthesis that packages
+# the cis L2b islands (cis_dosage_concordance #1781 / methylation_silencing_concordance #1782 /
+# expression_dependency_concordance #1784) on the single cis claim vector into a claim-ID-traceable
+# interpretation. Its emitted key on the cis-coherence headline is the SAME string (kept in lockstep with
+# skills/cis-feature-coherence/scripts/cis_coherence_l3d_story.L3D_STORY_PROPERTY_ID; a test pins the
+# equality). It is declared in reference_emitted_layers() below at the DOMAIN_INTERPRETATION layer so the
+# layer ladder carries an L3d rung; it is DELIBERATELY not a member of FRAME_REGISTRY (the exact analog of
+# TUMOR_EXPRESSION_BIOLOGY_STORY_L3D — an L3d readable story, not an L3f decision frame).
+CIS_COHERENCE_BIOLOGY_STORY_L3D = "cis_coherence_biology_story"
+
 # The three rung-4 canonical property families this L3 bridge must demonstrably reach.
 RUNG4_CANONICAL_PROPERTIES = (ESSENTIALITY_PROPERTY, RECURRENCE_PROPERTY, SELECTIVITY_PROPERTY)
 
@@ -1181,6 +1192,14 @@ def reference_emitted_layers() -> dict:
         # participates in the acyclicity monotonicity loop — declaring its layer here keeps the layer
         # ladder complete and its emitted type honest (an L3 interpretation, refused as a property by R3).
         TUMOR_EXPRESSION_BIOLOGY_STORY_L3D: ClaimType.DOMAIN_INTERPRETATION,
+        # The SK#1981 cis-feature-coherence L3d domain interpretation — the readable within-domain
+        # "cis-regulatory coherence biology story" that packages the cis L2b islands. Like its
+        # tumor-presence analog above it is a DOMAIN_INTERPRETATION (L3d): strictly ABOVE the L2b
+        # integrated_property layer (it consumes those islands) and strictly BELOW the L3f decision_frame
+        # layer. It is a READABLE emitted layer only: no frame in FRAME_REGISTRY declares it as an input,
+        # so it never participates in the acyclicity monotonicity loop — declaring its layer here keeps the
+        # layer ladder complete and its emitted type honest (an L3 interpretation, refused as a property by R3).
+        CIS_COHERENCE_BIOLOGY_STORY_L3D: ClaimType.DOMAIN_INTERPRETATION,
     }
     for f in FRAME_REGISTRY:
         layers[f.frame_id] = f.claim_type
