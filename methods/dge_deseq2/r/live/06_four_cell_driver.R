@@ -15,9 +15,15 @@
 # cell C block below).
 #
 # A gene's `cells_supporting` = count of cells where padj<0.05 in the same
-# direction as the dominant sign. `sig_all_cells` = padj<0.05 same-direction in
-# all cells that ran (the gold-standard call). Cell A is skipped when TCGA
-# adjacent-normal < min_normals; cell C is skipped when no GTEx tissue.
+# direction as the dominant sign. `sig_all_cells` = padj<0.05 SAME-DIRECTION in
+# every cell whose FIT RAN for the gene (the gold-standard call — it requires
+# both significance AND directional concordance, cells_supporting==cells_ran).
+# `cells_ran` counts cells whose fit ran for the gene (it carries a baseMean),
+# NOT cells that produced a non-NA padj — a gene independent-filtered (padj=NA)
+# in one comparator but tested in the other still ran in BOTH, so it cannot
+# masquerade as confirmed-in-all (analysis-methods#863(a)). `cells_tested` is the
+# per-gene non-NA-padj count. Cell A is skipped when TCGA adjacent-normal <
+# min_normals; cell C is skipped when no GTEx tissue.
 #
 # Cell AG (adjacent-vs-GTEx, analysis-methods#695) is a NORMAL-vs-NORMAL QC
 # contrast, not a selectivity vote — it measures the combined TCGA-vs-GTEx
@@ -256,9 +262,20 @@ write_contrast(cellAG, "AG", "adj_vs_gtex.parquet",
 # provenance sidecar
 #
 # schema_version 2 (analysis-methods#695): adds the `adj_vs_gtex` byproduct
-# block below. `cells_ran` continues to list ONLY the sensitivity-vote cells
-# (A/C) — the AG diagnostic is recorded separately so a consumer that reads
-# cells_ran for the concordance grid never mistakes AG for a comparator.
+# block below. `cells_ran` (this run-level field) continues to list ONLY the
+# sensitivity-vote cells (A/C) — the AG diagnostic is recorded separately so a
+# consumer that reads cells_ran for the concordance grid never mistakes AG for a
+# comparator. NB this run-level `cells_ran` (the roster of cells that ran) is a
+# DIFFERENT datum from the per-gene `cells_ran` COLUMN in sensitivity.parquet
+# (documented in `sensitivity_schema` below).
+#
+# schema_version 3 (analysis-methods#863): corrects the per-gene sensitivity.parquet
+# fusion columns — `cells_ran` now counts cells whose FIT RAN for the gene (not
+# cells that produced a non-NA padj), a new `cells_tested` column carries the
+# per-gene non-NA-padj count, and `sig_all_cells` requires significance +
+# directional concordance in every cell whose fit ran. The `sensitivity_schema`
+# block is the authoritative per-column wording the data-catalog manifest inherits
+# at the next (separately-authorized) re-materialization.
 prov <- list(
   substrate      = dat$metadata$substrate,
   tcga_studies   = dat$metadata$tcga_studies,
@@ -268,6 +285,27 @@ prov <- list(
   n_adjacent     = length(adjacent_ids),
   n_gtex         = length(gtex_ids),
   min_normals    = min_n,
+  # Authoritative per-gene column semantics for sensitivity.parquet (#863). A
+  # consumer/manifest MUST NOT read `sig_all_cells` as "every cell that ran hit
+  # padj<0.05": it ALSO requires the calls to agree in direction.
+  sensitivity_schema = list(
+    cells_ran        = paste("per gene: number of comparator cells whose DESeq2 FIT RAN for this",
+                             "gene (the gene was in the contrast's tested universe, i.e. it carries",
+                             "a baseMean). TRUE even when independent filtering / a Cook's outlier",
+                             "set padj=NA: the fit ran, the gene was simply not called. A gene",
+                             "absent from a cell's fit entirely is the only 'cell did not run' case."),
+    cells_tested     = paste("per gene: number of comparator cells that produced a usable adjusted",
+                             "p (padj non-NA) for this gene. <= cells_ran; the two differ exactly by",
+                             "the cells that ran but independent-filtered/Cook's-dropped the gene."),
+    cells_supporting = paste("per gene: number of cells with padj<0.05 in the same direction as",
+                             "dominant_direction."),
+    sig_all_cells    = paste("per gene: TRUE iff the gene is padj<0.05 AND in the same direction as",
+                             "dominant_direction in EVERY cell whose fit ran (cells_supporting ==",
+                             "cells_ran, cells_ran > 0). Requires BOTH significance and directional",
+                             "concordance — a gene ran-but-filtered in any comparator is FALSE."),
+    discordant       = paste("per gene: TRUE iff at least one cell is significantly up and another",
+                             "significantly down (a comparator-direction conflict).")
+  ),
   adj_vs_gtex    = list(
     ran             = !is.null(cellAG),
     byproduct       = "adj_vs_gtex.parquet",
@@ -284,7 +322,7 @@ prov <- list(
   deseq2_version = as.character(packageVersion("DESeq2")),
   apeglm_version = as.character(packageVersion("apeglm")),
   sva_version    = as.character(packageVersion("sva")),
-  schema_version = "2"
+  schema_version = "3"
 )
 writeLines(yaml::as.yaml(prov), file.path(opts$`out-dir`, "provenance.yaml"))
 

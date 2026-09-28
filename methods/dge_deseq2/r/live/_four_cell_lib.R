@@ -578,18 +578,43 @@ run_cell <- function(label, mat, cd, out_dir, min_n, flog,
 # per-cell fits (cells that ran, e.g. list(A=cellA, C=cellC)). This is the exact
 # block that lived inline in 06 after the cells ran — moved verbatim so the
 # whole-cohort and per-subgroup products share concordance semantics. Returns a
-# gene-sorted data.frame with cells_ran / cells_supporting / dominant_direction
-# / sig_all_cells / discordant / per-cell log2fc+padj / max_abs_log2fc.
+# gene-sorted data.frame with cells_ran / cells_tested / cells_supporting /
+# dominant_direction / sig_all_cells / discordant / per-cell log2fc+padj /
+# max_abs_log2fc.
+#
+# cells_ran vs cells_tested (github analysis-methods#863(a)): DESeq2 independent
+# filtering is PER-CONTRAST (baseMean, hence the optimized alpha filter, differs
+# between comparators), so a boundary gene is routinely padj=NA in one cell and
+# tested in the other. The two facts must NOT be conflated:
+#   cells_ran    = # cells whose FIT RAN for this gene, i.e. the gene was in that
+#                  contrast's tested universe (it carries a baseMean). This is
+#                  TRUE even when the gene is padj=NA (independent-filtered /
+#                  Cook's outlier): the fit ran, the gene simply was not called.
+#                  The ONLY "cell didn't run this gene" case is a gene absent
+#                  from a cell's fit entirely (merge-fill -> NA baseMean).
+#   cells_tested = # cells that produced a usable adjusted p (padj non-NA) for
+#                  this gene — the pre-#863 `cells_ran`.
+# `sig_all_cells` is then "significant + directionally concordant in EVERY cell
+# whose fit RAN" (tested-in-all-ran-cells): a gene NA-filtered in one comparator
+# but significant in the other reads cells_ran=2 / cells_supporting=1 =>
+# sig_all_cells=FALSE, no longer indistinguishable from a gene confirmed in BOTH.
 assemble_sensitivity <- function(cells) {
   if (length(cells) == 0) stop("assemble_sensitivity: no cells ran")
   merged <- Reduce(function(x, y) merge(x, y, by = "gene_symbol", all = TRUE), cells)
 
   lab_ran   <- names(cells)
-  lfc_cols  <- paste0("log2fc_", lab_ran)
-  padj_cols <- paste0("padj_",   lab_ran)
+  lfc_cols  <- paste0("log2fc_",   lab_ran)
+  padj_cols <- paste0("padj_",     lab_ran)
+  bm_cols   <- paste0("baseMean_", lab_ran)
 
   lfc_mat  <- as.matrix(merged[, lfc_cols,  drop = FALSE])
   padj_mat <- as.matrix(merged[, padj_cols, drop = FALSE])
+  # "Fit ran for this gene in this cell" == the gene was in the cell's DESeq2
+  # output universe, which is exactly "it carries a baseMean". run_cell() always
+  # renames a baseMean_<label> column into each fit, so an NA here can only be a
+  # merge-fill for a gene the cell never fit (see the header note above).
+  bm_mat   <- as.matrix(merged[, bm_cols,   drop = FALSE])
+  ran_mat  <- !is.na(bm_mat)
 
   sig_mat  <- !is.na(padj_mat) & padj_mat < 0.05
   sign_mat <- sign(lfc_mat); sign_mat[is.na(sign_mat)] <- 0
@@ -603,7 +628,11 @@ assemble_sensitivity <- function(cells) {
               ifelse(dominant_direction == "down", -1, 0))
   supporting <- rowSums(sig_mat & (sign_mat == dom_sign), na.rm = TRUE)
 
-  cells_ran_per_gene <- rowSums(!is.na(padj_mat))
+  cells_ran_per_gene    <- rowSums(ran_mat)
+  cells_tested_per_gene <- rowSums(!is.na(padj_mat))
+  # sig_all_cells: sig + concordant in EVERY cell whose fit ran (NOT merely in
+  # every cell that produced a non-NA padj — see #863(a)). A gene ran-but-filtered
+  # in any comparator therefore fails this bar even if another comparator called it.
   sig_all <- (supporting == cells_ran_per_gene) & (cells_ran_per_gene > 0)
 
   any_up   <- rowSums(sig_mat & sign_mat > 0, na.rm = TRUE) > 0
@@ -613,6 +642,7 @@ assemble_sensitivity <- function(cells) {
   sens <- data.frame(
     gene_symbol        = merged$gene_symbol,
     cells_ran          = cells_ran_per_gene,
+    cells_tested       = cells_tested_per_gene,
     cells_supporting   = supporting,
     dominant_direction = dominant_direction,
     sig_all_cells      = sig_all,
