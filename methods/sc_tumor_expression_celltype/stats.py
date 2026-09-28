@@ -407,6 +407,50 @@ def malignant_heterogeneity_readout(comp_summary: dict) -> dict:
     }
 
 
+def per_compartment_heterogeneity_vector(comp_summary: dict) -> list:
+    """INERT descriptive per-compartment INTER-DONOR heterogeneity vector (Option-A) — surfaces the
+    inter-donor detection-fraction dispersion (p25 / p75 / IQR + the fraction of donors broadly
+    detecting) that compartment_summary ALREADY computes for EVERY compartment but that only
+    malignant_heterogeneity_readout surfaced (malignant compartment only, as the TCE antigen-escape
+    lens). This is the same substrate — the per-donor detection_fraction array behind the cross-donor
+    median — described for the WHOLE compartment cube, so a consumer can see that a compartment's
+    presence call rests on donors that agree (tight IQR) or disagree (wide IQR), for stroma / immune /
+    endothelial / normal-epithelial too, not just malignant.
+
+    Purely descriptive: it makes NO class call and reuses ONLY fields already present on comp_summary
+    (NO new pseudobulk columns). Verdict-inert — the presence spine and every gate are untouched.
+
+    Each entry (ordered by COMPARTMENT_ORDER, measured compartments only, unknown compartments appended
+    alphabetically — mirrors per_compartment_vector):
+      {compartment, n_donors, median_detection_fraction, detection_fraction_donor_p25,
+       detection_fraction_donor_p75, detection_fraction_donor_iqr, fraction_donors_broadly_detecting,
+       dispersion_available}
+    dispersion_available is False (and the four dispersion fields None) when the compartment has fewer
+    than MIN_DONORS_FOR_DISPERSION reliable donors — an honest under-powered gap, never a fabricated 0.
+    Empty summary → [] (honest gap)."""
+    if not comp_summary:
+        return []
+    ordered = [c for c in COMPARTMENT_ORDER if c in comp_summary]
+    ordered += sorted(c for c in comp_summary if c not in COMPARTMENT_ORDER)
+    vec = []
+    for c in ordered:
+        s = comp_summary[c]
+        iqr = s.get("detection_fraction_donor_iqr")
+        vec.append(
+            {
+                "compartment": c,
+                "n_donors": s["n_donors"],
+                "median_detection_fraction": s["median_detection_fraction"],
+                "detection_fraction_donor_p25": s.get("detection_fraction_donor_p25"),
+                "detection_fraction_donor_p75": s.get("detection_fraction_donor_p75"),
+                "detection_fraction_donor_iqr": iqr,
+                "fraction_donors_broadly_detecting": s.get("fraction_donors_broadly_detecting"),
+                "dispersion_available": iqr is not None,
+            }
+        )
+    return vec
+
+
 def classify_sc_expression(
     comp_summary: dict,
     malignant_broadly=MALIGNANT_BROADLY_DETECTED_MIN,

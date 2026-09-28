@@ -205,6 +205,11 @@ def read_sc_expression_presence(target: str, indication: str) -> dict:
         # v1 sc-presence depth (additive; presence ladder above untouched): the FULL per-compartment
         # vector + an explicit CAF/stromal readout (the deck's tumor-vs-CAF dual-target axis).
         "per_compartment": _stats.per_compartment_vector(comp_summary),
+        # Option-A INERT descriptive per-compartment inter-donor heterogeneity vector: the inter-donor
+        # detection-fraction dispersion (p25/p75/IQR + fraction of donors broadly detecting) that
+        # compartment_summary already computes for EVERY compartment but that only the malignant-only
+        # TCE readout surfaced. Reuses existing fields — NO new pseudobulk columns. Verdict-inert.
+        "per_compartment_heterogeneity": _stats.per_compartment_heterogeneity_vector(comp_summary),
         "indication": str(indication).upper().strip(),
         "product_id": INDICATION_TO_PRODUCT.get(str(indication).upper().strip()),
         # G11: malignant-annotation provenance (how the malignant compartment was called + whether it is
@@ -289,6 +294,7 @@ def _data_unavailable(target: str, indication: str, note: str) -> dict:
         "n_datasets": 0,
         "compartment_detection": {},
         "per_compartment": [],
+        "per_compartment_heterogeneity": [],  # Option-A inert descriptive readout (empty on the gap path)
         "caf_detection_fraction": None,
         "caf_abundance_log1p_cp10k": None,
         "caf_compartment_available": False,
