@@ -50,25 +50,46 @@ _SAFETY_BINS = {
 }
 _SAFETY_DEFAULTED = frozenset({"data_unavailable", "insufficient"})
 
-# DEPENDENCY (biological, non-surface) — `.get(v, 1)` MED default. NOT registered in the completeness
-# map: its unmapped indication-scoped tokens (dependent_in_indication / not_dependent_in_indication /
-# lineage_selective_in_indication / the insufficient_underpowered* family / broadly_dependent) are the
-# still-OPEN adjudication of #1555, and `biomarker_stratified_dependency` is a STALE key no longer in the
-# resolver vocab. Registering it now would either force an un-adjudicated mapping or red the guard; it
-# rides #1555. Kept module-level for parity so #1555 can register it by adding one line + a defaulted set.
+# DEPENDENCY (biological, non-surface) — `.get(v, 1)` MED default, now EXHAUSTIVE over the 17-token
+# dependency resolver vocab (#1555) and registered in DETERMINISTIC_BIN_COMPLETENESS below. Before this
+# fix the map keyed only 11 tokens; the three indication-scoped rungs fell to the MED default even though
+# `dependency_indication.py::_dependency_preprocess` ALWAYS writes indication_dependency_class when the
+# indication card is present, so any composed-with-indication run reaches them — a silent drift. The three
+# indication tokens MIRROR their non-indication counterparts (the resolver treats them as the same call,
+# scoped to the indication):
+#   not_dependent_in_indication  -> HIGH(2)  mirror non_dependent      — 325/504 corpus; was the FAIL-OPEN
+#                                                                        (a bad target shown MED, not HIGH)
+#   dependent_in_indication      -> LOW(0)   mirror concordant_dependent
+#   lineage_selective_in_indication -> LOW(0) mirror lineage_selective
+# The insufficient_underpowered* family and `broadly_dependent` intentionally ride the MED default and are
+# DECLARED in _DEPENDENCY_DEFAULTED so the completeness guard sees them as a deliberate route-to-default:
+# the insufficient_* tokens are coverage GAPS (matching the keyed `insufficient`=MED), and broadly_dependent
+# is a dependency-but-non-selective call whose tox routes to Safety (mirrors pan_essential_killer=MED) — a
+# documented NON-defect. The former phantom key `biomarker_stratified_dependency` (a genomic_alteration
+# token, never in the dependency vocab, 0 on the corpus) is removed.
 _DEPENDENCY_BINS = {
     "non_dependent": 2,
+    "not_dependent_in_indication": 2,
     "pan_essential_killer": 1,
     "discordant": 1,
     "insufficient": 1,
     "concordant_dependent": 0,
+    "dependent_in_indication": 0,
     "lineage_selective": 0,
+    "lineage_selective_in_indication": 0,
     "selective_dependent": 0,
-    "biomarker_stratified_dependency": 0,
     "partner_conditional_dependent": 0,
     "chemical_genetic_confirmed_dependent": 0,
     "non_dependent_paralog_buffered": 1,
 }
+_DEPENDENCY_DEFAULTED = frozenset(
+    {
+        "broadly_dependent",
+        "insufficient_underpowered",
+        "insufficient_underpowered_pan_essential",
+        "insufficient_underpowered_in_indication",
+    }
+)
 
 # DRUGGABILITY / SURFACE (surface modalities) — `.get(v, 1)` MED default, now EXHAUSTIVE over the
 # 17-token surface_modality resolver vocab (#1602). Before this fix the map keyed only 4 tokens
@@ -133,12 +154,12 @@ _DRUGGABILITY_SM_DEFAULTED = frozenset(
 )
 
 # Completeness registry read by Guard-A: resolver gate -> (live bin map, intentionally-defaulted tokens).
-# Only ADJUDICATED legs appear. NOT registered: `dependency` (unmapped indication tokens = OPEN #1555,
-# plus a stale key — see _DEPENDENCY_BINS) and the card-field maps (competitor_class / translational
+# Only ADJUDICATED legs appear. NOT registered: the card-field maps (competitor_class / translational
 # readiness classes / clinical stage) whose vocabularies live in the CARD schemas, not a resolver, and
 # so need a card-vocab source (and clinical is stage-logic, not a keyed map) — a separate follow-up.
 DETERMINISTIC_BIN_COMPLETENESS = {
     "safety": (_SAFETY_BINS, _SAFETY_DEFAULTED),
+    "dependency": (_DEPENDENCY_BINS, _DEPENDENCY_DEFAULTED),
     "surface_modality": (_DRUGGABILITY_SURFACE_BINS, _DRUGGABILITY_SURFACE_DEFAULTED),
     "tractability_small_molecule": (_DRUGGABILITY_SM_BINS, _DRUGGABILITY_SM_DEFAULTED),
 }
