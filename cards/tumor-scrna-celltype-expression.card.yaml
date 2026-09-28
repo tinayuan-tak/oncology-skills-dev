@@ -113,18 +113,22 @@ outputs:
     - malignant_detection_donor_iqr              # inter-donor IQR of malignant detection fraction (None if <3 donors)
     - fraction_donors_broadly_detecting          # fraction of donors with malignant detection >= 0.5 (None if <3 donors)
     # WITHIN-EXPRESSER SHAPE / BIMODALITY headline (#695, consumes #668 within-expressing-cell shape
-    # stats). Sarle's bimodality coefficient BC = (skewness^2 + 1) / (excess_kurtosis + 3) over the
-    # per-cell log1p(CP10K) distribution of the MALIGNANT cells that DETECT the target (denominator
-    # = malignant_n_detected, NOT malignant_n_cells). Answers what the mean + detection fraction
-    # cannot: among expressing tumor cells, is the target level UNIMODAL or split into an antigen-high
-    # vs antigen-low mode (a TCE-escape-relevant reservoir). Display-only / VERDICT-INERT here (no
-    # ladder rung keys off it); the emitting reader lands separately (#695), so it is absent until
-    # the within-expresser shape emit is republished + wired.
+    # stats). Sarle's bimodality coefficient BC = (skewness^2 + 1) / (excess_kurtosis + 3), computed
+    # NOT over one pooled per-cell distribution but from the CROSS-DONOR MEDIAN of each donor's
+    # within-expresser (detecting-malignant-cell) skewness and excess-kurtosis — a donor-is-replicate
+    # summary, consistent with every other statistic on this card (a strictly pooled per-cell
+    # distribution is not reconstructable at read time: the product stores per-donor derived shape
+    # moments, not sum-mergeable power sums). malignant_n_detected (the gate denominator) is the total
+    # detecting/expressing malignant cells summed over reliable donors, NOT malignant_n_cells (the
+    # total cells). Answers what the mean + detection fraction cannot: among expressing tumor cells, is
+    # the target level UNIMODAL or split into an antigen-high vs antigen-low mode (a TCE-escape-relevant
+    # reservoir). Display-only / VERDICT-INERT here (no ladder rung keys off it); the emitting reader
+    # lands separately (#695), so it is absent until the within-expresser shape emit is republished + wired.
     - malignant_expresser_bimodality_class       # PRIMARY new categorical — the within-expresser shape headline
-    - malignant_expresser_bimodality_coefficient # Sarle's BC over the within-expresser log1p(CP10K) distribution (the headline score; None below the n_detected floor / null shape stats)
-    - malignant_expresser_skewness               # within-expresser skewness (source 3rd moment; None if <3 expressers or zero among-expresser variance)
-    - malignant_expresser_excess_kurtosis        # within-expresser EXCESS kurtosis (Pearson - 3; source 4th moment; None as above)
-    - malignant_n_detected                       # detected (expressing) malignant cells backing the shape call — the gate denominator for the bimodality headline (distinct from malignant_n_cells, the total)
+    - malignant_expresser_bimodality_coefficient # Sarle's BC formed from the cross-donor median within-expresser skewness/excess-kurtosis (the headline score; None below the n_detected floor / null shape stats)
+    - malignant_expresser_skewness               # cross-donor median of the per-donor within-expresser skewness (source 3rd moment; a donor is null if <3 expressers or zero among-expresser variance)
+    - malignant_expresser_excess_kurtosis        # cross-donor median of the per-donor within-expresser EXCESS kurtosis (Pearson - 3; source 4th moment; null per-donor as above)
+    - malignant_n_detected                       # total detecting (expressing) malignant cells summed over reliable donors — the gate denominator for the bimodality headline (distinct from malignant_n_cells, the total malignant cells, and from any per-donor count)
     # QC + malignant-annotation PROVENANCE (2026-09-03, #984 Tier-1) — reader-emitted trust qualifiers that
     # temper how much a malignant-DETECTION call should be believed. Display/confidence-only here (consumed
     # by tumor-presence claim-C corroboration + caveat, VERDICT-INERT — no ladder rung keys off them).
@@ -187,17 +191,19 @@ outputs:
       - coverage_high_donor_underpowered        # high coverage but too few donors to test consistency (honest gap)
       - data_unavailable                        # no malignant compartment / detection
     malignant_expresser_bimodality_class:        # WITHIN-EXPRESSER shape headline (#695): the SHAPE of the
-                                                 # target-expression distribution AMONG the malignant cells that
-                                                 # detect it, from Sarle's bimodality coefficient (BC). Distinct
-                                                 # from coverage (detection fraction) and from inter-donor
-                                                 # consistency — those ask HOW MANY / HOW REPRODUCIBLE; this asks
-                                                 # whether the expressing cells sit in ONE mode or split into an
-                                                 # antigen-high vs antigen-low mode the mean cannot see. Split at
-                                                 # BC = 5/9 (~0.556, the uniform-distribution value; the standard
-                                                 # Sarle/SAS cutoff). Display-only / VERDICT-INERT.
-      - bimodal                                 # BC > ~0.556 over >= min_detected_for_shape detected malignant cells — a separable antigen-high vs antigen-low expresser split (a within-tumor escape reservoir the mean hides)
+                                                 # within-expresser (detecting-malignant-cell) target-expression
+                                                 # distribution, from Sarle's bimodality coefficient (BC) built on
+                                                 # the CROSS-DONOR MEDIAN of each donor's within-expresser skewness
+                                                 # and excess-kurtosis (donor-is-replicate, NOT one pooled per-cell
+                                                 # distribution). Distinct from coverage (detection fraction) and
+                                                 # from inter-donor consistency — those ask HOW MANY / HOW
+                                                 # REPRODUCIBLE; this asks whether the expressing cells sit in ONE
+                                                 # mode or split into an antigen-high vs antigen-low mode the mean
+                                                 # cannot see. Split at BC = 5/9 (~0.556, the uniform-distribution
+                                                 # value; the standard Sarle/SAS cutoff). Display-only / VERDICT-INERT.
+      - bimodal                                 # BC > ~0.556, gated on malignant_n_detected >= min_detected_for_shape — a separable antigen-high vs antigen-low expresser split (a within-tumor escape reservoir the mean hides)
       - unimodal                                # BC <= ~0.556 — a single expresser mode (no separable antigen-low subpopulation on this axis)
-      - underpowered                            # too few detected malignant cells (< min_detected_for_shape) OR null shape stats (< 3 expressers / zero among-expresser variance) — shape untestable (honest gap, never a measured unimodal/bimodal call)
+      - underpowered                            # too few detecting malignant cells (malignant_n_detected < min_detected_for_shape) OR null shape stats (a donor's per-donor moments null at < 3 expressers / zero among-expresser variance) — shape untestable (honest gap, never a measured unimodal/bimodal call)
       - data_unavailable                        # no malignant compartment / detection — abstain (never a measured zero)
     ambient_contamination_risk:                  # G8 soup-leakage QC on a malignant-subset detection call
       - possible                                # detection may be ambient/soup leakage — trust-tempering
@@ -270,9 +276,9 @@ caveats:
   - "Not every covered malignant call is entity-pure or inferCNV-anchored: KIRC is a 3CA pan-renal pooled cube (ccRCC-dominant, includes papillary/chromophobe/Wilms) and OV is 3CA pan-gynecologic pooled (not HGSOC-pure); NSCLC and LUAD share the one LuCA cube (not LUAD-pure); and STAD malignant is a phenotype PROXY (Epithelial ∩ gastric-cancer phenotype, no inferCNV) — the malignant_annotation_method / entity_purity fields carry the per-cube detail."
   - "tce_homogeneity_class is the LEGACY within-tumour homogeneity readout (a single malignant-detection-fraction bin at a lenient 0.5 bar) and is SUPERSEDED by the two-axis readout — within_tumor_coverage_class (0.75 bar) x inter_donor_consistency_class, combined as tce_antigen_escape_class. It is still emitted for back-compat and the two can disagree; a consumer making a TCE antigen-escape call should trust tce_antigen_escape_class."
   - "RNA detection does not imply protein presence; pair with the CPTAC protein cards for ADC/TCE decisions. The microenvironment-vs-intrinsic attribution here is a presence-axis readout; the ADC/TCE antigen-reality modality-gate interpretation is a deferred (P4) follow-up."
-  - "malignant_expresser_bimodality_class reflects TRANSCRIPTIONAL STATE, not clonal or genetic structure: it is the shape of the target's expression AMONG the malignant cells that detect it, so a bimodal call is an antigen-high vs antigen-low expression-STATE split. scRNA here carries no per-cell clone/CNA label, so it is NOT evidence of genetically distinct subclones."
-  - "Sarle's bimodality coefficient is built on the 3rd/4th moments (skewness, excess kurtosis) of the within-expresser distribution and is OUTLIER-SENSITIVE: a heavy right tail inflates kurtosis and deflates BC, so a few very-high-expressing cells can mask or fake a mode. Read it alongside malignant_detection_fraction (coverage), never as a standalone shape verdict."
-  - "The shape headline GATES on n_detected: it fires only when enough malignant cells detect the target (malignant_n_detected >= min_detected_for_shape). Below that floor, or when the emitter returns null shape stats (< 3 expressers or zero among-expresser variance), the class resolves underpowered — an honest power gap, never a measured unimodal/bimodal call."
+  - "malignant_expresser_bimodality_class reflects TRANSCRIPTIONAL STATE, not clonal or genetic structure: it summarises the shape of target expression among the detecting (expressing) malignant cells as a cross-donor median of each donor's within-expresser shape (not one pooled distribution), so a bimodal call is an antigen-high vs antigen-low expression-STATE split. scRNA here carries no per-cell clone/CNA label, so it is NOT evidence of genetically distinct subclones."
+  - "Sarle's bimodality coefficient is built on the 3rd/4th moments (skewness, excess kurtosis) of each donor's within-expresser distribution — taken as the cross-donor MEDIAN before BC is formed — and is OUTLIER-SENSITIVE: a heavy right tail inflates kurtosis and deflates BC, so a few very-high-expressing cells in a donor can mask or fake a mode. Read it alongside malignant_detection_fraction (coverage), never as a standalone shape verdict."
+  - "The shape headline GATES on n_detected: it fires only when enough malignant cells detect the target — malignant_n_detected (the total detecting cells summed over reliable donors) >= min_detected_for_shape. Below that floor, or when the per-donor shape stats are all null (a donor is nulled at < 3 expressers or zero among-expresser variance), the class resolves underpowered — an honest power gap, never a measured unimodal/bimodal call."
 
 measurement: sc_rna
 sample_context: tumor         # patient tumor single-cell (CELLxGENE Census) — orthogonal to measurement
