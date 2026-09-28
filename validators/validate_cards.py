@@ -1999,6 +1999,15 @@ def validate_verdict_card_summary_schema_coverage(cards_dir: Path) -> list[str]:
 # genuinely different things by their differing tokens — not a mute button. Keep the reason specific
 # enough that the next reader can tell whether it still holds.
 _VOCABULARY_DIVERGENCE_ALLOWED = {
+    ("cell_line_protein_abundance", "protein_abundance_source"): (
+        "protein_abundance_source is the MS-PLATFORM tag, divergent BY DESIGN: it is the field whose whole "
+        "job is to disambiguate which platform produced the record (cellline-protein-abundance emits no such "
+        "field; cellline-protein-abundance-procan emits procan_dia_swath; cellline-surfaceome-abundance emits "
+        "depmap_surfaceome_dia_ms — #965). The only SHARED token is data_unavailable (the absent/error path). "
+        "Aligning the platform tokens would be wrong: each card's reader hard-codes its own source token, and "
+        "the divergence is exactly the signal a consumer wants. This type is verdict-inert — no rule keys on "
+        "protein_abundance_source — so the dead-rule risk the check guards against does not apply here."
+    ),
     ("rna_protein_concordance", "rna_as_biomarker"): (
         "the divergent tokens are SOURCE-SPECIFIC insufficiency reasons — insufficient_paired_models "
         "(cell lines), insufficient_paired_tumors (tumors), indeterminate (single-cell surface). The "

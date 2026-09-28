@@ -6,15 +6,15 @@ _doc: 'I.4 wiring ledger: every data-catalog manifest id by wiring status -- rea
   reads, declares, OR names it; the wiring worklist). `dark` is the number I.4 moves, a sound lower bound
   on the truly-unwired set. Regenerate with validators/build_wiring_ledger.py; --self-check gates drift.'
 sibling_shas:
-  analysis-methods: 162c738
-  skills: ce49fecf
-  data-catalog: a34240e
-n_catalog_datasets: 547
+  analysis-methods: ec229e9
+  skills: f30b6131
+  data-catalog: c8a6e57
+n_catalog_datasets: 552
 counts:
-  read: 152
-  declared_only: 247
-  referenced_only: 30
-  dark: 118
+  read: 153
+  declared_only: 250
+  referenced_only: 29
+  dark: 120
 n_literal_reads: 71
 dark_by_source_family:
   cbioportal: 17
@@ -29,6 +29,7 @@ dark_by_source_family:
   ucsc: 3
   arm: 2
   crc: 2
+  hnsc: 2
   horlbeck: 2
   hpvneg: 2
   htan: 2
@@ -41,12 +42,12 @@ dark_by_source_family:
   dgv: 1
   dream: 1
   ensembl: 1
+  esca: 1
   gao: 1
   gastric: 1
   gdc: 1
   gencode: 1
   gnomad: 1
-  hnsc: 1
   hnscc: 1
   hpa: 1
   lee: 1
@@ -58,6 +59,7 @@ dark_by_source_family:
   ncbi: 1
   omnipath: 1
   ov: 1
+  paad: 1
   pancanatlas: 1
   pelka: 1
   peng: 1
@@ -66,7 +68,6 @@ dark_by_source_family:
   rancho: 1
   replogle: 1
   schutte: 1
-  tcga: 1
   tempus: 1
   tflink: 1
   vandewetering: 1
@@ -166,6 +167,7 @@ read:
 - hla-ligand-atlas-presentation-per-protein-v1
 - hotpocket-pockets-per-protein-v1
 - hotpocket-zenodo-2025-11-19
+- hpa-rna-tissue-consensus-v25-1
 - hpa-v25-1
 - impc-ko-phenotype-per-gene-v1
 - impc-release-24-0
@@ -255,6 +257,7 @@ declared_only:
 - cspa-surface-confirmation-per-uniprot-v1
 - dede-2020-paralog-sl
 - dede-paralog-genetic-interaction-per-pair-v1
+- depmap-consortium-26q3-surfaceome
 - depmap-paralog-buffering-per-gene-v1
 - depmap-prism-activity-v4
 - depmap-subgroup-assignments-coadread-v1
@@ -264,6 +267,7 @@ declared_only:
 - depmap-subgroup-assignments-paad-v1
 - depmap-subgroup-assignments-sclc-v1
 - depmap-subgroup-assignments-stad-v1
+- depmap-surfaceome-paired-per-protein-v1
 - esca-dge-tumor-vs-normal-sensitivity-v1
 - gastric-integrated-scatlas-golim-2026
 - gbm-dge-tumor-vs-normal-sensitivity-v1
@@ -446,6 +450,7 @@ declared_only:
 - synlethdb-sl-partners-per-gene-v1
 - synlethdb-v3-snapshot-2026-06-30
 - tcga-fusion-consensus-per-sample-v1
+- tcga-maf-subgroup-assignments-coadread-v1
 - tcga-marker-papers-subtypes-2018
 - tcga-mc3-mutational-signatures-per-indication-v1
 - tcga-patient-cn-per-sample-v1
@@ -491,7 +496,6 @@ referenced_only:
 - genie-bpc-subgroup-assignments-nsclc-v1
 - go-annotation-per-uniprot-v1
 - gtex-v10-gene-tpm
-- hpa-rna-tissue-consensus-v25-1
 - kinome-atlas-pwm-lookup-v1
 - normal-tissue-protein-abundance-per-gene-v1
 - opentargets-literature-per-target-v1
@@ -544,6 +548,7 @@ dark:
 - dgv-gold-standard-hg38-snapshot-2026-08-28
 - dream-menden-2019-snapshot-2026-07-23
 - ensembl-coords-release-116-snapshot-2026-06-22
+- esca-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
 - gao-gc-spatial-atlas-2026
 - gastric-tcell-dynamics-2025-gse315928
 - gdc-dr45-alchemist-nsclc-hotspot-v1
@@ -569,6 +574,7 @@ dark:
 - geo-gse323365-egfri-cell-death-dependencies-snapshot-2026-09-15
 - gnomad-constraint-snapshot-2026-07-02
 - hnsc-conde-lopez-scatlas-2026
+- hnsc-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
 - hnscc-ifn-mhcii-2026-gse301741
 - horlbeck-2018-gi-map
 - horlbeck-genetic-interaction-per-pair-v1
@@ -592,6 +598,7 @@ dark:
 - omicsoft-oncoland-tcga-b38-gc33-2025r3
 - omnipath-snapshot-2026-06-29
 - ov-tumor-vs-gtex-poc-v1
+- paad-dge-tumor-vs-normal-sensitivity-by-subgroup-v1
 - pancanatlas-driver-tools-bailey-2018
 - pelka-2021-crc-gse178341
 - peng-2021-oscc-tcf7-gse172577
@@ -614,7 +621,6 @@ dark:
 - sc-samecell-coexpr-coadread-v1
 - sc-samecell-coexpr-hnsc-bu-v1
 - schutte-2017-crc-models-pmc-snapshot-2026-09-14
-- tcga-maf-subgroup-assignments-coadread-v1
 - tempus-crc-2026-03-17
 - tflink-human-v1-0-snapshot-2026-06-30
 - ucsc-cytoband-hg19-snapshot-2026-09-15

@@ -1,0 +1,312 @@
+# Card E3b-Surfaceome — SURFACE-CONFIRMED PROTEIN ABUNDANCE across the DepMap Surfaceome 26Q3 panel  (pure-data)
+#
+# The THIRD, surface-scoped cell-line protein-abundance platform, sibling of cellline-protein-abundance
+# (Gygi TMT MS) and cellline-protein-abundance-procan (ProCan DIA/SWATH MaxLFQ). Same distribution
+# claim (`cell_line_protein_abundance`), same distribution vocabulary, DIFFERENT assay + panel, PLUS a
+# surface-vs-wholecell ENRICHMENT lens that is the unique value of the PAIRED assay:
+#   - cellline-protein-abundance:         DepMap Gygi TMT MS (~375 lines, DUA-gated, isobaric-labelled)
+#   - cellline-protein-abundance-procan:  ProCan-DepMapSanger DIA/SWATH MaxLFQ (949 lines, CC-BY-4.0)
+#   - cellline-surfaceome-abundance:      DepMap Consortium Surfaceome 26Q3 PAIRED whole-cell +
+#                                         surface-enriched DIA-MS (DIA-NN v2.5, 64 gastric/eso lines)
+# The abundance layer classified here is the SURFACE-enriched layer (surface_log2). Beyond the shared
+# distribution facet, this card SURFACES the paired-assay surface-localization lens: per (gene, line)
+# surface-vs-wholecell enrichment (enrichment_log2ratio) gated by the Hu-2021 Cancer Surfaceome Atlas
+# SVM call (proteomics_predicted_enriched / proteomics_pr_auc), rolled up across the panel — orthogonal
+# MS evidence that a target is genuinely surface-LOCALIZED, not merely expressed.
+#
+# VERDICT-INERT display initially (interpretation: rules_pending): no interpretation rule and no
+# resolver rung keys card_id cellline-surfaceome-abundance, so every verdict is byte-stable with or
+# without it. Both facets (the abundance distribution AND the surface-localization rollup) are
+# descriptive; therapeutic interpretation is a deliberate later pass (out of scope this issue).
+#
+# Substrate: depmap-surfaceome-paired-per-protein-v1 — a long/tidy, UniProt-pushdown reshape of
+# 26q3_dia_ms_paired_full_table.csv, columns uniprot_base / model_id / surface_log2 / wholecell_log2 /
+# enrichment_log2ratio / proteomics_predicted_enriched / proteomics_pr_auc (+ per-layer filter status).
+# The reader pyarrow-column-pushdowns one protein and REUSES the Gygi compute_summary + classifier +
+# symbol->UniProt path (single source of truth).
+#
+# DIA-MS surface-enriched abundance is a normalized RELATIVE log2 intensity (protein-level), NOT an
+# absolute concentration. "Detected" = a non-null quantified value; percentiles are panel-relative.
+
+card_id: cellline-surfaceome-abundance
+version: 1.0.0
+# interpretation (rules_pending): class is a substantive target claim; no axis reads it yet.
+interpretation: rules_pending
+question: "Across the DepMap Surfaceome 26Q3 paired DIA-MS panel, what is the surface-antigen protein-abundance distribution of {target.symbol}, and is the protein surface-ENRICHED (surface-vs-wholecell) across the panel?"
+
+# Evidence-capsule projection contract — the alphabetical-first *_class heuristic mis-picks a
+# non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
+# VERDICT-INERT projection (see capsule contract migration). surface_localization_class is the
+# unique surface-localization facet categorical a numeric selector would drop.
+capsule:
+  primary_class: protein_expression_class
+  categorical_fields:
+    - protein_expression_class
+    - allgene_percentile_class
+    - surface_localization_class
+
+tier: target   # cell-line surface protein abundance is a per-ModelID property; not indication-scoped. The 64-line panel is gastric/esophageal by release scope (carried in the source manifest). Per-lineage stratification is unavailable (no OncotreeLineage crosswalk in this product).
+
+applies_when:
+  - "context.data_sources.depmap_surfaceome_proteomics_available == true"
+
+required_inputs:
+  # Consumed via the derived long/tidy pushdown product (parquet-storage-standard): the reader
+  # pyarrow-column-pushdowns one protein (filters=[("uniprot_base","=",accession)]) instead of
+  # downloading the whole paired DIA-MS table. The product carries BOTH abundance layers AND the
+  # enrichment lens in ONE manifest. Declaring the derived product keeps the resolve_cards provenance
+  # stamp equal to what is actually read. Must match the data-catalog manifest id exactly.
+  - product_id: depmap-surfaceome-paired-per-protein-v1
+
+methods:
+  # The GENERIC skills dispatcher (_live_readers._generic_dispatch) resolves module + entrypoint from
+  # this block and invokes methods/depmap_surfaceome_protein_abundance/read.py::read_target_summary(
+  # target=, indication=). No bespoke dispatcher needed. `indication` is accepted for the dispatch
+  # contract but NOT consumed (protein abundance is a per-cell-line property).
+  - call: depmap-surfaceome-protein-abundance
+    module: depmap_surfaceome_protein_abundance
+    entrypoint: read_target_summary
+    args:
+      target: "{target.symbol}"
+
+outputs:
+  # The abundance-distribution summary_fields are IDENTICAL to the Gygi / ProCan siblings (the reader
+  # REUSES the Gygi compute_summary + classifier, so the field NAMES — including the
+  # `*_log2_abundance_panel` labels — are shared for cross-platform parity even though the surface
+  # layer's scale is Surfaceome 26Q3 DIA-MS log2; see caveats). The surface-localization rollup fields
+  # are the paired-assay ADDITION.
+  summary_fields:
+    - n_cell_lines_evaluated                      # cell lines with a quantified SURFACE value for this protein
+    - n_cell_lines_in_panel                       # total lines in the surfaceome panel (detection denominator = 64)
+    - fraction_detected                           # n_evaluated / n_in_panel — DIA detection is sparse; load-bearing
+    - median_log2_abundance_panel                 # panel median surface log2-abundance (field name shared with siblings)
+    - p25_log2_abundance_panel
+    - p75_log2_abundance_panel
+    - p5_log2_abundance_panel
+    - p95_log2_abundance_panel
+    - log2_abundance_iqr
+    - protein_expression_class                    # CATEGORICAL — same distribution vocab as the Gygi / ProCan siblings
+    - n_lineages_evaluated                        # always 0 here: no ModelID->OncotreeLineage crosswalk in this product
+    - per_lineage_stats                            # empty here (an EMPTY lineage map is passed by the reader — honest)
+    - n_lineage_restricted_lineages
+    - method_version
+    # All-gene percentile null — computed ON-READ (no null sidecar): where median_log2_abundance_panel
+    # falls among ALL proteins' panel medians in the surfaceome matrix. One-directional display facet;
+    # never moves protein_expression_class.
+    - allgene_percentile                          # float 0-100 (or null)
+    - allgene_percentile_class                    # categorical
+    - allgene_percentile_context                  # string — panel/metric the null was drawn from (audit)
+    # Which MS platform produced this record — the field that PREVENTS the cross-assay scale confusion
+    # the caveats warn about (surfaceome 26Q3 DIA-MS log2 vs the Gygi TMT log2-ratio vs ProCan DIA
+    # MaxLFQ). The reader always tags it (cli.py:357 on the read path, :318 on the absent path,
+    # read.py:41 on the error path), so it is load-bearing; declared here so the completeness ratchet
+    # sees it.
+    - protein_abundance_source                    # CATEGORICAL — MS platform tag (depmap_surfaceome_dia_ms)
+    # --- SURFACE-vs-WHOLECELL ENRICHMENT rollup (the paired-assay value; VERDICT-INERT display) ---
+    # Per (gene, line) enrichment_log2ratio (= surface_log2 - wholecell_log2, null unless BOTH layers
+    # detected) gated by the Hu-2021 Cancer Surfaceome Atlas SVM call, rolled up across the 64 lines.
+    # DESCRIPTIVE — no rule/rung reads any of these fields this issue.
+    - n_lines_enrichment_evaluated                # lines with a non-null enrichment_log2ratio (BOTH layers detected)
+    - median_enrichment_log2ratio                 # median surface-vs-wholecell enrichment (log2), or null
+    - fraction_lines_predicted_enriched           # share of classifier-called lines called predicted-enriched, or null
+    - median_pr_auc                               # median Hu-2021 SVM PR-AUC confidence, or null
+    - surface_localization_class                  # CATEGORICAL — descriptive surface-localization summary
+
+  summary_fields_vocabulary:
+    protein_expression_class:
+      - broadly_high                              # detected in >70% of panel AND high median abundance (panel-relative)
+      - broadly_moderate                          # detected in >70% but not high abundance
+      - lineage_restricted                        # detected in 10-70% AND measured to cluster in a minority of
+                                                  # lineages. NOT REACHABLE on this card: it requires a non-empty
+                                                  # per_lineage_stats, and this product has no ModelID->OncotreeLineage
+                                                  # crosswalk, so the breakdown is always empty. Retained because the
+                                                  # classifier is SHARED with the Gygi sibling (where it IS reachable).
+      - sub_broad_detection                       # detected in 30-70% with no per-lineage breakdown: a detection-band
+                                                  # statement only, asserting neither lineage restriction nor
+                                                  # pan-lineage spread. THIS is the middle-band label on this card.
+      - broadly_low                               # detected in <30% of panel (DIA-absent across most lines)
+      - data_unavailable                          # protein not in the surfaceome panel / symbol unresolvable / couldn't read
+    allgene_percentile_class:
+      - top_1pct
+      - top_decile
+      - mid
+      - bottom_decile
+      - data_unavailable
+    protein_abundance_source:
+      - depmap_surfaceome_dia_ms                  # the only live-read platform tag on this card
+      - data_unavailable                          # absent/error paths (cli.py:318, read.py:41)
+    surface_localization_class:
+      - surface_confirmed                         # median enrichment > 0 AND >= half of classifier-called lines
+                                                  # predicted-enriched: surface-localized, not a contaminant
+      - intracellular_contaminant                 # < half predicted-enriched AND median enrichment <= 0
+      - mixed                                     # everything in between (heterogeneous surface localization)
+      - insufficient                              # fewer than 3 lines with a non-null enrichment ratio (lens too sparse)
+
+  # Scalar (non-categorical) summary fields — types for the completeness/ledger triad. A runtime null
+  # (e.g. an unquantified protein's percentiles, or a null enrichment rollup when the lens is sparse)
+  # is permitted; the schema types the non-null case (parity with the Gygi / ProCan / cptac convention).
+  summary_fields_scalar_types:
+    n_cell_lines_evaluated: integer
+    n_cell_lines_in_panel: integer
+    fraction_detected: number
+    median_log2_abundance_panel: number
+    p25_log2_abundance_panel: number
+    p75_log2_abundance_panel: number
+    p5_log2_abundance_panel: number
+    p95_log2_abundance_panel: number
+    log2_abundance_iqr: number
+    n_lineages_evaluated: integer
+    n_lineage_restricted_lineages: integer
+    method_version: string
+    allgene_percentile: number
+    allgene_percentile_context: string
+    n_lines_enrichment_evaluated: integer
+    median_enrichment_log2ratio: number
+    fraction_lines_predicted_enriched: number
+    median_pr_auc: number
+
+  # per_lineage_stats is ALWAYS [] on this card (no ModelID->OncotreeLineage crosswalk in the product),
+  # so the shape is moot in practice; declared for triad completeness and to match the sibling per-lineage
+  # record shape, which is what the list would carry once a crosswalk lands.
+  summary_fields_record_schemas:
+    per_lineage_stats:
+      lineage: string
+      n: integer
+      median_log2_abundance: number
+      fraction_detected: number
+
+  # No figures: block (mirrors the ProCan sibling). Figure emitters live in the skills compose-dashboard
+  # (CARD_FIGURE_EMITTERS); declaring a figure with no registered emitter is a FIGURE_DECLARED_NOT_EMITTED
+  # error. Any figure for this card lands with the skill wiring (surface-modality-fit integration), not
+  # in this verdict-inert card-contract issue.
+
+thresholds:
+  # Detection-fraction + abundance bands (DIA is sparse — detection is a first-class signal; mirrors the
+  # Gygi / ProCan siblings). Applied UPSTREAM by the reader (which reuses the shared Gygi compute), never
+  # by a card predicate.
+  broadly_detected_fraction_threshold: 0.70
+  low_detection_fraction_threshold: 0.30
+  lineage_restricted_min_fraction: 0.10
+  lineage_restricted_max_fraction: 0.70
+  high_abundance_percentile: 0.70
+  min_lineage_size: 5
+  # all-gene percentile-class cutoffs (method bins allgene_percentile -> allgene_percentile_class)
+  allgene_top_1_percentile: 99.0
+  allgene_top_decile: 90.0
+  allgene_bottom_decile: 10.0
+  # surface-localization rollup cutoffs (verdict-INERT display; the class is a DESCRIPTIVE summary of the
+  # Hu-2021 SVM enrichment call across the panel, gating nothing). Module constants in the reader.
+  localization_min_lines: 3
+  localization_enriched_fraction_hi: 0.5
+  localization_enriched_fraction_lo: 0.5
+
+warning_predicates:
+  - warning_id: sparse_surfaceome_detection
+    if: "fraction_detected < 0.30"
+    message: "{target.symbol} quantified in <30% of the Surfaceome 26Q3 lines. Low surface DIA-MS detection may reflect genuine low surface abundance OR DIA sensitivity limits. Cross-reference the Gygi / ProCan platforms and RNA (cellline-rna-distribution)."
+  - warning_id: protein_absent_data_unavailable
+    if: "protein_expression_class == 'data_unavailable'"
+    message: "{target.symbol} not in the DepMap Surfaceome 26Q3 paired DIA-MS matrix (not quantified in any line, or symbol did not resolve to a measured UniProt accession). A COVERAGE GAP, not evidence of surface-protein absence. Consult the Gygi / ProCan siblings."
+  - warning_id: enrichment_lens_insufficient
+    if: "surface_localization_class == 'insufficient'"
+    message: "Fewer than 3 lines carry a paired surface-vs-wholecell enrichment ratio for {target.symbol}, so the surface-localization lens is too sparse to characterize. surface_localization_class is 'insufficient' — absence of the enrichment read is NOT evidence against surface localization."
+
+caveats:
+  - |
+    THIRD, surface-scoped platform: DepMap Consortium Surfaceome 26Q3 PAIRED whole-cell +
+    surface-enriched DIA-MS (DIA-NN v2.5, 64 gastric/eso lines), complementing the Gygi TMT
+    (cellline-protein-abundance) and ProCan DIA (cellline-protein-abundance-procan) whole-cell
+    platforms. Its unique value is the PAIRED assay: the surface-vs-wholecell enrichment lens
+    (enrichment_log2ratio + the Hu-2021 SVM call) is orthogonal evidence a target is genuinely
+    surface-LOCALIZED, not merely expressed.
+  - |
+    Surfaceome 26Q3 DIA-MS abundance is a normalized RELATIVE log2 intensity, not absolute
+    copies-per-cell; percentiles are panel-relative. Emitted field names retain the Gygi sibling's
+    `*_log2_abundance_panel` labels for cross-platform field parity, but values are on the surfaceome
+    surface-enriched DIA-MS log2 scale (distinct from Gygi's harmonized TMT log2-ratio and ProCan's DIA
+    MaxLFQ log scale) — compare only distribution CLASS and panel-relative percentile across platforms,
+    never raw values.
+  - |
+    Per-lineage stratification is UNAVAILABLE: this product carries no ModelID->OncotreeLineage
+    crosswalk, so per_lineage_stats is empty and n_lineages_evaluated is 0 (an empty lineage map is
+    passed to the shared classifier). No lineage token is reachable: a middle-band (30-70%) detection
+    fraction emits sub_broad_detection, stating the band and making no lineage claim. It is also this
+    card's capsule.primary_class, so it reaches interpretation_call.
+  - |
+    surface_localization_class + the enrichment rollup are DESCRIPTIVE summaries of the Hu-2021 SVM
+    surface-vs-wholecell call across the panel; they gate nothing. VERDICT-INERT display: this card
+    feeds no interpretation rule and no resolver rung, so every verdict is byte-stable with or without
+    it. Promotion of the surface-localization facet to a deciding axis is a deliberate later pass.
+
+measurement: bulk_protein_ms
+sample_context: cell_line     # DepMap Surfaceome 26Q3 cell lines (paired DIA-MS) — orthogonal to measurement
+
+# DATA_TO_SKILL_CONTRACT Rule 1 — a 3rd-platform (surface-scoped) view of the `cell_line_protein_abundance`
+# claim. measurement_type REUSE (not a surface-specific mint): the shared vocab in
+# vocabularies/measurement_types.yaml is piggybacked (cheapest), which avoids the TC#962
+# evidence_substrate gap that a newly-minted type would open (a new type MUST carry an evidence_substrate
+# or substrate_independence goes vacuous). The surface-localization facet is verdict-INERT display here —
+# no rung consumes it — so it does not DEMAND its own type; the abundance distribution IS a
+# cell_line_protein_abundance measurement, surface-scoped. Reuse per issue #965 recommendation.
+measurement_type: cell_line_protein_abundance
+modality_relevance: [adc, bite_tce, antibody]   # surface set — NOT small_molecule/degrader (the intracellular siblings' set)
+entity_grains: [target]     # target-grain only: no lineage crosswalk, so target_lineage is NOT emittable on this platform
+schema_version: 1
+
+# All declared cutoffs are applied UPSTREAM by the method (depmap-surfaceome-protein-abundance), never
+# by a card predicate: the detection/abundance bands live as module constants in the shared Gygi compute
+# the reader reuses (depmap_protein_abundance/cli.py); the allgene percentile-class cutoffs live in
+# depmap_surfaceome_protein_abundance/cli.py `_PCT_CUTOFFS = dict(DEFAULT_CUTOFFS)` (shared percentile_null
+# helper); and the surface-localization cutoffs are that module's `_MIN_LINES_FOR_LOCALIZATION` /
+# `_ENRICHED_FRACTION_HI` / `_ENRICHED_FRACTION_LO` constants. Editing the card changes nothing; the
+# values document what the method applies. Roled here so THRESHOLD_UNUSED does not fire on a live read
+# (parity with the Gygi / ProCan siblings' threshold_roles block).
+threshold_roles:
+  broadly_detected_fraction_threshold:
+    role: method_parameter
+    consumed_by: depmap-surfaceome-protein-abundance
+    note: 'Detection-band cutoff applied by the shared Gygi compute the reader reuses (module constant), not by a card predicate.'
+  low_detection_fraction_threshold:
+    role: method_parameter
+    consumed_by: depmap-surfaceome-protein-abundance
+    note: 'Detection-band cutoff applied by the shared Gygi compute the reader reuses (module constant), not by a card predicate.'
+  lineage_restricted_min_fraction:
+    role: method_parameter
+    consumed_by: depmap-surfaceome-protein-abundance
+    note: 'Lineage-restriction band cutoff applied by the shared Gygi compute (module constant), not by a card predicate. Unreachable in practice here (per_lineage_stats always empty), but the classifier still reads it.'
+  lineage_restricted_max_fraction:
+    role: method_parameter
+    consumed_by: depmap-surfaceome-protein-abundance
+    note: 'Lineage-restriction band cutoff applied by the shared Gygi compute (module constant), not by a card predicate. Unreachable in practice here (per_lineage_stats always empty), but the classifier still reads it.'
+  high_abundance_percentile:
+    role: method_parameter
+    consumed_by: depmap-surfaceome-protein-abundance
+    note: 'Panel-relative high-abundance cutoff applied by the shared Gygi compute (module constant), not by a card predicate.'
+  min_lineage_size:
+    role: method_parameter
+    consumed_by: depmap-surfaceome-protein-abundance
+    note: 'Minimum lineage size applied by the shared Gygi compute (module constant), not by a card predicate. Moot here (no lineage breakdown), but read by the reused classifier.'
+  allgene_top_1_percentile:
+    role: method_parameter
+    consumed_by: depmap-surfaceome-protein-abundance
+    note: 'Bins allgene_percentile -> allgene_percentile_class via `_PCT_CUTOFFS = dict(DEFAULT_CUTOFFS)` (shared percentile_null helper), not by a card predicate.'
+  allgene_top_decile:
+    role: method_parameter
+    consumed_by: depmap-surfaceome-protein-abundance
+    note: 'Bins allgene_percentile -> allgene_percentile_class via `_PCT_CUTOFFS = dict(DEFAULT_CUTOFFS)` (shared percentile_null helper), not by a card predicate.'
+  allgene_bottom_decile:
+    role: method_parameter
+    consumed_by: depmap-surfaceome-protein-abundance
+    note: 'Bins allgene_percentile -> allgene_percentile_class via `_PCT_CUTOFFS = dict(DEFAULT_CUTOFFS)` (shared percentile_null helper), not by a card predicate.'
+  localization_min_lines:
+    role: method_parameter
+    consumed_by: depmap-surfaceome-protein-abundance
+    note: 'Minimum lines with a non-null enrichment ratio below which surface_localization_class is `insufficient`; the module `_MIN_LINES_FOR_LOCALIZATION` constant, applied upstream, never by a card predicate.'
+  localization_enriched_fraction_hi:
+    role: method_parameter
+    consumed_by: depmap-surfaceome-protein-abundance
+    note: 'Predicted-enriched-fraction cutoff (with median enrichment > 0) at/above which surface_localization_class is `surface_confirmed`; the module `_ENRICHED_FRACTION_HI` constant, applied upstream, never by a card predicate.'
+  localization_enriched_fraction_lo:
+    role: method_parameter
+    consumed_by: depmap-surfaceome-protein-abundance
+    note: 'Predicted-enriched-fraction cutoff (with median enrichment <= 0) below which surface_localization_class is `intracellular_contaminant`; the module `_ENRICHED_FRACTION_LO` constant, applied upstream, never by a card predicate.'

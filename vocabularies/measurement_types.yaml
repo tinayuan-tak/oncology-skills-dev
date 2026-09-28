@@ -339,20 +339,29 @@ measurement_types:
   cell_line_protein_abundance:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance
     # (validate_cards MODALITY_RELEVANCE_MISSING errors otherwise). Routing metadata only.
-    modality_relevance: [small_molecule, degrader]
-    claim: "What is target's mass-spec protein abundance across cancer cell lines (Gygi TMT + ProCan DIA panels)?"
+    # The set is the UNION over the type's cards (the MODALITY_RELEVANCE_DRIFT check requires each card's
+    # modality_relevance ⊆ this set): the whole-cell Gygi/ProCan cards inform the intracellular modalities
+    # (small_molecule, degrader — the protein must be present), and the surface-scoped Surfaceome 26Q3
+    # card (#965) informs the surface set (adc, bite_tce, antibody). Declaration-only routing; this type
+    # is verdict-inert (no gate merges the providers or reads this set to move a verdict).
+    modality_relevance: [small_molecule, degrader, adc, bite_tce, antibody]
+    claim: "What is target's mass-spec protein abundance across cancer cell lines (Gygi TMT + ProCan DIA + Surfaceome 26Q3 surface-scoped DIA panels)?"
     # Distinct from cell_line_rna_expression: RNA vs MS protein are orthogonal layers whose
     # disagreement is diagnostic (never averaged) — the concordance-test signal for two types.
     entity_grains: [target, target_lineage]
-    cards: [cellline-protein-abundance, cellline-protein-abundance-procan]
-    # Two orthogonal MS platforms for the SAME claim (2026-08-25): Gygi TMT (DUA-gated, ~375 lines) +
-    # ProCan-DepMapSanger DIA/SWATH MaxLFQ (CC-BY-4.0, 949 lines). Both `measured` tier; policy is
-    # behaviorally inert here (this type is verdict-inert — each card resolves independently in
+    cards: [cellline-protein-abundance, cellline-protein-abundance-procan, cellline-surfaceome-abundance]
+    # Three MS platforms for the SAME cell-line protein-abundance claim: Gygi TMT (DUA-gated, ~375 lines,
+    # 2026-08-25) + ProCan-DepMapSanger DIA/SWATH MaxLFQ (CC-BY-4.0, 949 lines) + DepMap Consortium
+    # Surfaceome 26Q3 SURFACE-scoped paired DIA-MS (64 gastric/eso lines, #965). All `measured` tier;
+    # policy is behaviorally inert here (this type is verdict-inert — each card resolves independently in
     # tumor-presence, no gate merges the providers), declared to satisfy the >1-provider governance rule.
+    # The surfaceome card carries the surface-set modality_relevance [adc, bite_tce, antibody] (card-level,
+    # independent of this type's routing modality_relevance) plus a verdict-inert surface-localization facet.
     multi_provider_policy: tier_dominant
     providers:
       - {kind: dataset, source: depmap-consortium-26q1-proteomics, evidence_tier: measured}
       - {kind: dataset, source: procan-depmapsanger-proteome-snapshot-2026-08-24, evidence_tier: measured}
+      - {kind: dataset, source: depmap-consortium-26q3-surfaceome, evidence_tier: measured}
 
   crispr_lof_dependency:
     # P4 Tier-3 (2026-07-24): ENFORCE — every card of this type must declare modality_relevance

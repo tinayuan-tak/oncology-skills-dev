@@ -17,12 +17,12 @@ producing_shas:
   472bf767d060c8dc502add4f14bdffae4ddcddc1: 16
 provenance: 'heterogeneous: packages were produced by different code'
 counts:
-  cards_declaring_vocabulary: 136
+  cards_declaring_vocabulary: 137
   cards_with_observations: 132
-  declared_pairs: 297
+  declared_pairs: 301
   pairs: 290
   out_of_vocab: 0
-  never_observed_pairs: 10
+  never_observed_pairs: 14
   dead_tokens: 358
 ungated_absences:
   "orphan: declared on no field \u2014 already gated by validate_cards":
@@ -39,6 +39,10 @@ known_never_observed:
   - antigen-internalization::internalization_class
   - antigen-internalization::internalization_evidence_tier
   - antigen-internalization::surface_turnover_class
+  - cellline-surfaceome-abundance::allgene_percentile_class
+  - cellline-surfaceome-abundance::protein_abundance_source
+  - cellline-surfaceome-abundance::protein_expression_class
+  - cellline-surfaceome-abundance::surface_localization_class
   - normal-tissue-protein-abundance-tphp::tphp_hpa_blind_vital_organ_liability_class
   - sc-surface-normal-safety-solid::sc_surface_normal_solid_class
   - sc-surface-normal-safety-solid::sc_surface_safety_essential_class
@@ -50,6 +54,10 @@ known_never_observed:
     antigen-internalization::internalization_class: card_never_emitted
     antigen-internalization::internalization_evidence_tier: card_never_emitted
     antigen-internalization::surface_turnover_class: card_never_emitted
+    cellline-surfaceome-abundance::protein_expression_class: card_never_emitted
+    cellline-surfaceome-abundance::allgene_percentile_class: card_never_emitted
+    cellline-surfaceome-abundance::protein_abundance_source: card_never_emitted
+    cellline-surfaceome-abundance::surface_localization_class: card_never_emitted
     normal-tissue-protein-abundance-tphp::tphp_hpa_blind_vital_organ_liability_class: field_absent
     sc-surface-normal-safety-solid::sc_surface_normal_solid_class: card_never_emitted
     sc-surface-normal-safety-solid::sc_surface_safety_essential_class: card_never_emitted
