@@ -12,14 +12,28 @@ new-vintage product runs cells A+C (cells_ran=2), some only C (1, e.g. OV). (The
 was removed in analysis-methods#727; older materialized products may still carry log2fc_B/padj_B
 — cells_ran=3 — and are read unchanged.) Column sets differ accordingly (log2fc_A/padj_A,
 log2fc_C/padj_C, and on an older product log2fc_B/padj_B — any subset present). So the compute is
-schema-adaptive: it discovers whichever `log2fc_*`/`padj_*` pairs exist and uses the pre-computed
-robustness fields (`cells_ran`, `cells_supporting`, `dominant_direction`).
+schema-adaptive: it discovers whichever `log2fc_*`/`padj_*` pairs exist and RE-DERIVES its robustness
+inputs from those per-cell columns directly (see `_arms_ran` / `_cells_supporting`) rather than trusting
+the shipped `cells_ran`/`cells_supporting` fusion columns (the tumor-up direction gate still reads the
+shipped `dominant_direction` — re-deriving direction is the upstream fusion-semantics problem, out of
+scope for this ranking-credit fix).
+
+Why re-derive (analysis-methods#864): the shipped `cells_ran` counts non-NaN padj, which conflates
+"the comparator arm did not run for this product" (a genuine 1-arm product, e.g. OV/LAML vs GTEx) with
+"the arm ran but NA-filtered THIS gene" (a 2-arm product where one arm's padj is NaN). Under the old
+consumer a gene significant in ONE arm only because the other arm filtered it read `cells_ran=1` ->
+robustness `1/1=1.0` and passed `>= min(threshold, 1)=1`, out-ranking a gene genuinely measured in both
+arms but supported in one (`1/2=0.5`, dropped). The re-derivation sets `cells_ran` = the number of arms
+the PRODUCT actually ran — `(log2fc, padj)` pairs whose padj carries any non-NaN value (a NaN padj for a
+gene is a run-then-filtered arm that still counts; a column that is all-NaN, e.g. SCLC's carried-but-unrun
+padj_A/padj_B, does not) — and `cells_supporting` = up-significant MEASURED arms for the gene.
 
 The original scaffold assumed a fixed 4-cell layout and filtered `cells_supporting >= 3` — that is
 STALE: it returns zero rows against the real 1-2 cell products (and excludes single-cell indications
-entirely). The robustness filter here is RELATIVE: keep genes tumor-up and supported by
+entirely). The robustness filter here is RELATIVE: keep genes up-supported by
 `>= min(min_cells_supporting, cells_ran)` comparator cells — which scales from 1-cell (OV) to
-multi-cell products without dropping any wired indication.
+multi-cell products without dropping any wired indication, and holds a 2-arm product's
+single-arm-supported genes to the same bar as any other two-arm gene.
 
 ## Ranking
 
@@ -117,8 +131,60 @@ def _cell_pairs(columns) -> list[tuple[str, str]]:
     return pairs
 
 
-def _ranking_score(row, pairs) -> float:
-    """cells_supporting-weighted mean of log2fc * -log10(padj) over present, up-significant cells."""
+def _arms_ran(sensitivity_df: pd.DataFrame, pairs) -> int:
+    """Number of comparator arms the PRODUCT actually ran — the robustness DENOMINATOR
+    (analysis-methods#864). It is the count of `(log2fc, padj)` column pairs whose padj
+    column carries at least one non-NaN value across the product.
+
+    This is deliberately NOT the shipped per-gene `cells_ran` (which counts a single
+    gene's non-NaN padj cells) and NOT the raw column-pair count `len(pairs)`:
+      * The shipped `cells_ran` CONFLATES "the arm never ran for this product" with "the
+        arm ran but NA-filtered THIS gene". Trusting it let a gene significant in ONE arm
+        only because the other filtered it read `cells_ran=1` -> robustness `1/1=1.0` and
+        pass `>= min(threshold, 1)=1`, out-ranking a gene measured in both arms but
+        supported in one (`1/2=0.5`). A gene NA-filtered in an arm the product DID run
+        must keep that arm in its denominator, so it earns partial (not full) robustness.
+      * `len(pairs)` over-counts the other way: a product can CARRY an arm's columns while
+        that arm ran for no gene at all (e.g. SCLC ships `padj_A`/`padj_B` entirely NaN;
+        only cell C ran). Counting such a carried-but-unrun column would wrongly demand
+        2-arm support and drop every gene. Requiring at least one non-NaN value excludes
+        those unrun arms, so a de-facto 1-arm product reads `arms_ran=1` and its cell-C
+        hits survive exactly as OV/LAML (genuine 1-arm) do.
+    """
+    n = 0
+    for _lc, pc in pairs:
+        if pc in sensitivity_df.columns and sensitivity_df[pc].notna().any():
+            n += 1
+    return n
+
+
+def _cells_supporting(row, pairs) -> int:
+    """Comparator arms where THIS gene is measured (non-NaN padj) AND up-significant
+    (log2fc > 0, padj < _SIG_Q) — the robustness numerator, re-derived from the per-cell
+    columns rather than the shipped `cells_supporting` fusion column."""
+    n = 0
+    for lc, pc in pairs:
+        lf = row.get(lc)
+        pj = row.get(pc)
+        if lf is None or pj is None:
+            continue
+        if isinstance(lf, float) and math.isnan(lf):
+            continue
+        if isinstance(pj, float) and math.isnan(pj):
+            continue
+        if lf > 0 and pj < _SIG_Q:
+            n += 1
+    return n
+
+
+def _ranking_score(row, pairs, cells_ran: int, cells_supporting: int) -> float:
+    """robustness-weighted mean of log2fc * -log10(padj) over present, up-significant cells.
+
+    `robustness = cells_supporting / cells_ran` uses the re-derived inputs (product
+    arms-ran denominator, per-gene up-significant numerator; see `_arms_ran` /
+    `_cells_supporting`), NOT the shipped fusion columns, so a gene supported in one arm
+    of an N-arm product is weighted 1/N rather than an inflated 1.0.
+    """
     terms = []
     for lc, pc in pairs:
         lf = row.get(lc)
@@ -134,9 +200,7 @@ def _ranking_score(row, pairs) -> float:
     if not terms:
         return 0.0
     mean_term = sum(terms) / len(terms)
-    cr = row.get("cells_ran") or 0
-    cs = row.get("cells_supporting") or 0
-    robustness = (cs / cr) if cr else 0.0
+    robustness = (cells_supporting / cells_ran) if cells_ran else 0.0
     return float(mean_term * robustness)
 
 
@@ -189,17 +253,40 @@ def rank_indication(
     df["gene_symbol"] = df["gene_symbol"].astype(str).str.upper()
     df = df[df["gene_symbol"].isin(surf_map.index)]
 
-    # Relative robustness filter: tumor-up + supported by all-or-min(threshold, cells_ran) cells.
-    cells_ran = df["cells_ran"].fillna(0)
-    cells_sup = df["cells_supporting"].fillna(0)
-    eff_min = np.minimum(cells_ran, float(min_cells_supporting))
-    keep = (df["dominant_direction"] == "up") & (cells_sup >= eff_min) & (cells_sup >= 1)
+    if df.empty:
+        return pd.DataFrame(columns=OUTPUT_COLUMNS)
+
+    # Re-derive the robustness inputs from the per-cell padj/log2fc columns directly
+    # (analysis-methods#864) instead of trusting the shipped cells_ran/cells_supporting
+    # fusion columns, whose NA-conflation credits single-arm-supported genes. cells_ran is
+    # the product's arms-RAN count (constant within the indication; see `_arms_ran`);
+    # cells_supporting is per-gene up-significant measured arms.
+    #
+    # The tumor-up DIRECTION gate still reads the shipped `dominant_direction`. Per-cell
+    # log2fc>0 is NOT a sufficient direction test on its own: a gene can be up-significant
+    # in the adjacent-normal arms (A/B) yet strongly DOWN vs GTEx (cell C) — a discordant
+    # gene whose dominant contrast is down. Re-deriving the dominant direction is the
+    # upstream cells_ran/sig fusion semantics problem (this issue's SOFT dep), out of scope
+    # here; trusting the shipped direction keeps the tumor-up filter unchanged while only
+    # the robustness CREDIT is corrected.
+    arms_ran = _arms_ran(sensitivity_df, pairs)
+    df["cells_ran"] = arms_ran
+    df["cells_supporting"] = df.apply(lambda r: _cells_supporting(r, pairs), axis=1)
+
+    # Relative robustness filter: tumor-up AND up-supported by >= min(threshold, arms_ran)
+    # arms. Because arms_ran is the product's arm count, a gene supported in one arm of a
+    # 2-arm product (whether the other arm NA-filtered it or tested it non-significant) is
+    # held to eff_min=2 and dropped — symmetric with any two-arm-measured gene — while a
+    # de-facto 1-arm product (arms_ran=1, e.g. OV/LAML or an all-NaN-A/B product like SCLC)
+    # keeps eff_min=1 and its single-arm hits survive.
+    eff_min = min(arms_ran, min_cells_supporting)
+    keep = (df["dominant_direction"] == "up") & (df["cells_supporting"] >= eff_min) & (df["cells_supporting"] >= 1)
     df = df[keep].copy()
 
     if df.empty:
         return pd.DataFrame(columns=OUTPUT_COLUMNS)
 
-    df["ranking_score"] = df.apply(lambda r: _ranking_score(r, pairs), axis=1)
+    df["ranking_score"] = df.apply(lambda r: _ranking_score(r, pairs, arms_ran, int(r["cells_supporting"])), axis=1)
     df = df[df["ranking_score"] > 0].copy()
     if df.empty:
         return pd.DataFrame(columns=OUTPUT_COLUMNS)

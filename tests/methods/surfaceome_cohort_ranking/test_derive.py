@@ -338,3 +338,133 @@ def test_caveat_map_scope():
     # Only LAML is currently caveated; keep the map from silently growing/emptying.
     assert set(INDICATION_NORMAL_CAVEAT) == {"LAML"}
     assert INDICATION_NORMAL_CAVEAT["LAML"]
+
+
+def _sens_single_arm_conflation():
+    """A 2-arm (A+C) product with three surface genes exercising the NA-conflation bug
+    (analysis-methods#864). The SHIPPED cells_ran/cells_supporting columns are set to the
+    conflated values a real product ships (cells_ran = per-gene non-NaN padj count); the
+    fixed consumer must IGNORE them and re-derive from padj_A/padj_C directly.
+      (i)   SURF1 — sig in BOTH arms.
+      (ii)  SURF2 — sig in C only because A NA-filtered it (padj_A = NaN). The shipped
+            cells_ran conflates this to 1, which used to earn robustness 1/1 = 1.0.
+      (iii) SURF3 — sig in C only; A ran and tested NON-significant (padj_A present, > q).
+    """
+    return pd.DataFrame(
+        [
+            {
+                "gene_symbol": "SURF1",
+                # shipped (deliberately trusted-nothing): both arms non-NaN
+                "cells_ran": 2,
+                "cells_supporting": 2,
+                "dominant_direction": "up",
+                "log2fc_A": 3.0,
+                "padj_A": 1e-10,
+                "log2fc_C": 3.0,
+                "padj_C": 1e-10,
+                "max_abs_log2fc": 3.0,
+            },
+            {
+                "gene_symbol": "SURF2",
+                # shipped conflation: A NA-filtered -> non-NaN padj count == 1
+                "cells_ran": 1,
+                "cells_supporting": 1,
+                "dominant_direction": "up",
+                "log2fc_A": np.nan,
+                "padj_A": np.nan,
+                "log2fc_C": 2.5,
+                "padj_C": 1e-9,
+                "max_abs_log2fc": 2.5,
+            },
+            {
+                "gene_symbol": "SURF3",
+                # A ran and was non-significant -> shipped cells_ran == 2, supporting == 1
+                "cells_ran": 2,
+                "cells_supporting": 1,
+                "dominant_direction": "up",
+                "log2fc_A": 0.3,
+                "padj_A": 0.6,
+                "log2fc_C": 2.5,
+                "padj_C": 1e-9,
+                "max_abs_log2fc": 2.5,
+            },
+        ]
+    )
+
+
+def test_single_arm_support_does_not_outrank_two_arm():
+    # min_cells_supporting=1 keeps all three so the ORDER is observable. The fix must:
+    #   - re-derive cells_ran = product arm count (2) for the A-filtered gene, NOT the
+    #     conflated 1 -> robustness 0.5, not an inflated 1.0;
+    #   - order sig-in-both (i) strictly above sig-in-C-only (ii);
+    #   - give the A-filtered (ii) and A-tested-nonsig (iii) genes the SAME robustness
+    #     (both 1/2), so neither out-ranks a two-arm-measured gene via an inflated ratio.
+    out = rank_indication("COADREAD", _sens_single_arm_conflation(), _surface_df(), min_cells_supporting=1).set_index(
+        "gene_symbol"
+    )
+    assert set(out.index) == {"SURF1", "SURF2", "SURF3"}
+
+    # cells_ran re-derived to the product arm count for every gene (the A-filtered gene's
+    # shipped 1 is discarded).
+    assert out.loc["SURF1", "cells_ran"] == 2
+    assert out.loc["SURF2", "cells_ran"] == 2  # was conflated to 1 by the shipped column
+    assert out.loc["SURF3", "cells_ran"] == 2
+    assert out.loc["SURF1", "cells_supporting"] == 2
+    assert out.loc["SURF2", "cells_supporting"] == 1
+    assert out.loc["SURF3", "cells_supporting"] == 1
+
+    # (i) > (ii): sig-in-both ranks first; sig-in-one-arm does not tie it.
+    assert out.loc["SURF1", "tissue_rank"] == 1
+    assert out.loc["SURF1", "ranking_score"] > out.loc["SURF2", "ranking_score"]
+    assert out.loc["SURF1", "ranking_score"] > out.loc["SURF3", "ranking_score"]
+
+    # (ii) and (iii) carry the same (0.5) robustness weight; the A-filtered gene gets no
+    # inflated credit over the A-tested-nonsig gene (same C evidence, same weighting).
+    assert out.loc["SURF2", "ranking_score"] == out.loc["SURF3", "ranking_score"]
+
+
+def test_single_arm_support_dropped_at_default_threshold():
+    # At the default min_cells_supporting=2 the crux fix is symmetry: in a 2-arm product a
+    # gene supported in ONE arm is dropped whether the other arm NA-filtered it (SURF2) or
+    # tested it non-significant (SURF3) — the conflated gene no longer sneaks past the
+    # filter that a genuinely two-arm-measured single-supported gene is denied.
+    out = rank_indication("COADREAD", _sens_single_arm_conflation(), _surface_df(), min_cells_supporting=2)
+    assert set(out.gene_symbol) == {"SURF1"}
+
+
+def test_carried_but_unrun_arm_not_counted_in_denominator():
+    # SCLC-style: the product CARRIES log2fc_A/padj_A columns but that arm ran for no gene
+    # (padj_A entirely NaN) — only cell C ran. cells_ran must read 1 (arms that RAN), not 2
+    # (columns present), so a cell-C-significant gene survives the default threshold exactly
+    # as a genuine 1-arm product does. Counting the carried-but-unrun column would demand
+    # 2-arm support and wipe every gene (the SCLC 1558->0 regression).
+    sens = pd.DataFrame(
+        [
+            {
+                "gene_symbol": "SURF1",
+                "cells_ran": 1,  # shipped (per-gene non-NaN) — must be ignored
+                "cells_supporting": 1,
+                "dominant_direction": "up",
+                "log2fc_A": np.nan,
+                "padj_A": np.nan,  # arm A carried but all-NaN across the frame
+                "log2fc_C": 2.5,
+                "padj_C": 1e-7,
+                "max_abs_log2fc": 2.5,
+            },
+            {
+                "gene_symbol": "SURF2",
+                "cells_ran": 1,
+                "cells_supporting": 1,
+                "dominant_direction": "up",
+                "log2fc_A": np.nan,
+                "padj_A": np.nan,
+                "log2fc_C": 2.0,
+                "padj_C": 1e-6,
+                "max_abs_log2fc": 2.0,
+            },
+        ]
+    )
+    out = rank_indication("SCLC", sens, _surface_df(), min_cells_supporting=2).set_index("gene_symbol")
+    assert set(out.index) == {"SURF1", "SURF2"}  # survive: arms_ran=1 -> eff_min=1
+    assert (out["cells_ran"] == 1).all()
+    assert (out["cells_supporting"] == 1).all()
