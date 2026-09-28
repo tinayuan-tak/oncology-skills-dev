@@ -175,7 +175,7 @@ verdict-inert detail:
   it as context.
 
 Wired indications (method `INDICATION_TO_PRODUCT`): COADREAD, NSCLC/LUAD, LUSC, PAAD,
-HNSC, KIRC, OV, **STAD**. Other indications read `data_unavailable` — an honest capability
+HNSC, KIRC, OV, **STAD**, **BRCA**. Other indications read `data_unavailable` — an honest capability
 ceiling, never a coarser fall-back.
 
 The `sc_rna/normal` comparator (`sc-normal-celltype-expression`) covers each indication's

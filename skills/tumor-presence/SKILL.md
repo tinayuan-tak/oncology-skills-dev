@@ -189,7 +189,7 @@ tumor-context presence signal a target-only query gets.
 
 The **`sc_rna/tumor`** bucket is card-backed by `tumor-scrna-celltype-expression`. It reads `measured`
 for the indications with a landed single-cell pseudobulk product carrying a per-cell malignant
-annotation (**COADREAD, NSCLC, LUSC, PAAD, HNSC, KIRC, OV, STAD** — see `INDICATION_TO_PRODUCT` in
+annotation (**COADREAD, NSCLC, LUSC, PAAD, HNSC, KIRC, OV, STAD, BRCA** — see `INDICATION_TO_PRODUCT` in
 `methods/sc_tumor_expression_celltype/read.py`) and `data_unavailable` for every other indication (an
 honest capability ceiling, never a coarser fall-back). The matching `sc_rna/normal` comparator
 (`sc-normal-celltype-expression`) covers each indication's tumor-of-origin tissue PLUS an always-on
