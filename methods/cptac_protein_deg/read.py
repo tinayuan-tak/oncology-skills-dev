@@ -590,6 +590,7 @@ def read_all_cohorts(target: str) -> list[dict]:
 _PER_SAMPLE_COLS = ["gene_symbol", "cohort", "aliquot_submitter_id", "sample_type", "condition", "log2_ratio"]
 
 
+@lru_cache(maxsize=128)
 def read_per_sample(target: str):
     """Per-aliquot CPTAC protein log-ratios for one target, all cohorts.
 
@@ -598,26 +599,54 @@ def read_per_sample(target: str):
     row-groups (row_group_size 16384) and transfers only those column chunks, WITHOUT downloading the
     127 MB / ~15M-row product. Bucket/key resolved from the derived manifest (single source of truth).
     Returns a DataFrame with columns (gene_symbol, cohort, aliquot_submitter_id, sample_type,
-    condition, log2_ratio); empty DataFrame when the target is absent / product unavailable."""
+    condition, log2_ratio); empty DataFrame when the target is absent / product unavailable.
+
+    Memoized on `target` (AM#726 F10): `build_protein_subtype_panorama` calls the fan-out reader once
+    for the pooled baseline and once per subgroup stratum, and each hop re-invokes this function — an
+    N+1 identical S3 predicate-pushdown read of the same target's rows for an N-stratum panorama.
+    Mirrors the sibling `per_cohort_distribution_stats` cache. Callers treat the returned DataFrame as
+    read-only (they filter into a new frame rather than mutating in place), so sharing the cached
+    object across callers is safe. cache_clear() in tests."""
     sym = target.upper().strip()
+    bucket, key = bucket_key_for(PER_SAMPLE_MANIFEST_ID)
+    uri = f"{bucket}/{key}"
     try:
         import pyarrow.parquet as pq
 
-        bucket, key = bucket_key_for(PER_SAMPLE_MANIFEST_ID)
-        tbl = pq.read_table(f"{bucket}/{key}", filesystem=_get_s3fs(), filters=[("gene_symbol", "=", sym)])
+        tbl = pq.read_table(uri, filesystem=_get_s3fs(), filters=[("gene_symbol", "=", sym)])
         return tbl.to_pandas()
     except Exception as e:  # noqa: BLE001
-        # Absence discipline: swallow ONLY a genuine no-object (S3 NoSuchKey/404 or pyarrow
-        # FileNotFoundError) as an honest data_unavailable (empty frame); RE-RAISE transient / creds
-        # (AccessDenied) / broken-env (missing pyarrow) so the live-read seam surfaces a real
-        # _live_read_error instead of a silent dead axis.
+        # Absence discipline: swallow ONLY a genuine no-object as an honest data_unavailable (empty
+        # frame); RE-RAISE transient / creds (AccessDenied) / broken-env (missing pyarrow) so the
+        # live-read seam surfaces a real _live_read_error instead of a silent dead axis.
         from methods.target_id_sidecar import is_definitively_absent
 
-        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
-            raise
-        import pandas as pd
+        if is_definitively_absent(e):
+            import pandas as pd
 
-        return pd.DataFrame(columns=_PER_SAMPLE_COLS)
+            return pd.DataFrame(columns=_PER_SAMPLE_COLS)
+        if isinstance(e, FileNotFoundError):
+            # AM#726 F9: a bare `isinstance(e, FileNotFoundError)` is LOOSER than the discipline
+            # `_ensure_derived_cached` uses above — a version-dependent 403-masquerade (S3 returns 403
+            # for a missing-or-forbidden key when the caller lacks s3:ListBucket, and some pyarrow
+            # versions surface that as a "Path does not exist" FileNotFoundError) would otherwise be
+            # laundered into a false data_unavailable, silently fabricating absence for a target that
+            # was never actually checked. Probe existence directly (get_file_info returns a NotFound
+            # FileInfo with no raise for a genuinely-missing key) before trusting the FileNotFoundError
+            # as absence; only a definitive NotFound is swallowed, everything else re-raises the
+            # ORIGINAL exception so a masqueraded 403 surfaces as an honest _live_read_error.
+            import pyarrow.fs as pafs
+
+            try:
+                info = _get_s3fs().get_file_info(uri)
+            except Exception:  # noqa: BLE001
+                raise e from None
+            if info.type == pafs.FileType.NotFound:
+                import pandas as pd
+
+                return pd.DataFrame(columns=_PER_SAMPLE_COLS)
+            raise e from None
+        raise
 
 
 @lru_cache(maxsize=64)
