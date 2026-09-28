@@ -1254,6 +1254,15 @@ def _headline(cards, fired, verdict_pair):
         _used = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and not c.get("_missing")]
         _missing = [c.get("card_id") for c in (cards or []) if isinstance(c, dict) and c.get("_missing")]
         _v = hl.get("fit_class")
+        # The killer polarity override must key on the RESOLVED surface_modality_verdict's polarity
+        # class, not raw fit_class alone: pmhc_tce_supported (and any positive route) sits on a
+        # neither_viable fit_class BY CONSTRUCTION (folded surface is neither-viable; the pMHC route is
+        # the inverse positive), so keying on fit_class ∈ _FIT_CLASS_NEGATIVE renders that positive as a
+        # surface-axis KILL on the spine/evidence-graph (issue #1572, 195/195 corpus rows). Suppress the
+        # override when the resolved verdict is a positive route; a genuine neither_viable veto (verdict
+        # == neither_viable ∉ _SM_MOD_POS/_SM_STRONG_POS) still keeps its killer.
+        _smv = hl.get("surface_modality_verdict")
+        _kill = _v in _FIT_CLASS_NEGATIVE and _smv not in _SM_MOD_POS and _smv not in _SM_STRONG_POS
         hl["skill_report"] = build_skill_report(
             role=ROLE_GATING,
             verdict=_v,
@@ -1268,7 +1277,7 @@ def _headline(cards, fired, verdict_pair):
             # verdict's native per-biologic-modality preference), so target_report.modality_fit rolls
             # up the ADC/TCE channels FROM the report, not a reach-in.
             modality_scope=_sm_modality_scope(_v),
-            canonical_polarity_override=("killer" if _v in _FIT_CLASS_NEGATIVE else None),
+            canonical_polarity_override=("killer" if _kill else None),
         )
     except Exception as exc:  # noqa: BLE001 — verdict-inert projection; never abort the spine
         hl.setdefault("_enrichment_errors", {})["skill_report"] = f"{type(exc).__name__}: {exc}"
