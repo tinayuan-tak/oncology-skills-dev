@@ -516,14 +516,22 @@ skill_objectives:
     objective: "Is the target differentiated (co-mutation landscape, precedent, biomarker definability)?"
     primary_axis: differentiation
     questions:
-      - {q: "Co-mutation / mutual-exclusivity partners?", answered_by: [co-mutation-and-mutual-exclusivity]}
+      # mutational-signature-context wired as a patient-selection render facet of the co-mutation
+      # landscape (#1815 / #954 completion): differentiation-landscape's run.py now consumes it, so it
+      # is anchored here as an answered_by (already a question SOURCE via f73eae9; this closes the
+      # skill_objective anchoring gap that reds test_every_consumed_card_is_anchored_in_a_question).
+      - {q: "Co-mutation / mutual-exclusivity partners?", answered_by: [co-mutation-and-mutual-exclusivity, mutational-signature-context]}
       # PROGNOSTIC ASSOCIATION — a THREE-ARM question (user 2026-08-19). All three arms are now BUILT
       # (2026-08-20): expression (Q11), alteration-status (Q11-alteration), and by-subtype (Q2-subtype).
       - {q: "Prognostic association — does the target's EXPRESSION stratify survival?", answered_by: [expression-clinical-association, precog-prognostic-association], arms: {expression: built, alteration_status: "built → alteration-clinical-association", by_subtype: "built → subtype-survival-association"}}
       - {q: "Prognostic association — does the target's ALTERATION (mutation) status stratify survival?", answered_by: [alteration-clinical-association], arms: {alteration_status: built}}
       - {q: "Prognostic association — does survival differ ACROSS the indication's molecular subtypes?", answered_by: [subtype-survival-association], arms: {by_subtype: built}}
       - {q: "Stemness / aggressiveness context?", answered_by: [stemness-context]}
-      - {q: "Comparative pathway node-leverage?", answered_by: [pathway-node-leverage]}
+      # oncogenic-pathway-alteration is the orthogonal genomic pathway-alteration-frequency lens
+      # complementing the dependency-only node-leverage read (#1816 / #954 completion): consumed by
+      # differentiation-landscape's run.py, so anchored here as an answered_by (already a question
+      # SOURCE via f73eae9).
+      - {q: "Comparative pathway node-leverage?", answered_by: [pathway-node-leverage, oncogenic-pathway-alteration]}
       # Clinical-trial precedent (2026-08-21): the objective's "precedent" arm, now BUILT via
       # public-domain AACT (clinical-precedent card, generic-dispatched). Verdict-inert render facet.
       - {q: "Clinical-trial precedent — has a drug that ENGAGES the target been trialed in this indication (highest stage / approved agents / notable failures)?", answered_by: [clinical-precedent]}
