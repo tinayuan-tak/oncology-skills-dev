@@ -792,6 +792,7 @@ question_hierarchies:
       context_types:
       - clinical_precedent
       - competitor_landscape
+      - mutational_signature_context     # #1815: TCGA MC3 per-indication mutational-process patient-selection context (MMR-deficiency/HRD/APOBEC/POLE/TMB proxies); verdict-inert facet
     - id: SURVIVAL
       questions:
       - id: survival_read
@@ -810,6 +811,8 @@ question_hierarchies:
         measurement_types:
         - pathway_node_leverage
         - stemness_context
+      context_types:
+      - oncogenic_pathway_alteration     # #1816: Sanchez-Vega per-indication genomic pathway-alteration frequency lens complementing the dependency-only node axis; verdict-inert facet
   functional-requirement:
     axis: dependency
     sub_groups:
