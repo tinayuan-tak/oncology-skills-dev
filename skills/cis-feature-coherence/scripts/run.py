@@ -871,12 +871,24 @@ _SYNTHESIS_FACET_KEYS = (
     "driving_rule_id",
     "cis_dosage_class",
     "cis_dosage_driver",
+    # GoF mRNA leg-1 NUMERIC provenance (VERDICT-INERT): the primary effect sizes backing cis_dosage_class,
+    # mirroring the protein-leg numerics restored in #1598 (cn_prot_spearman_r / delta_log2abundance / …).
+    # Previously lifted into `hl` but dropped from the facet — a consumer that saw only cis_dosage_class
+    # could not read the pan-panel rank correlation, the CN→mRNA slope, or the amplified-vs-neutral delta
+    # that drove the call (facet-parity gap, #1787).
+    "cn_expr_spearman_r",
+    "cn_expr_slope_log2tpm_per_cn",
+    "delta_log2tpm_amplified_vs_neutral",
     # DIRECTION travels with the class in the synthesis facet: a consumer that sees only
     # cn_dosage_coupled_* cannot tell an amplicon driver from a deleted suppressor (resolver v1.3.0).
     "cis_dosage_direction",
     "cis_dosage_direction_basis",
     "methylation_silencing_class",
     "expression_dependency_correlation_class",
+    # leg-2 mRNA effect size + conjoint ΔCHRONOS (VERDICT-INERT provenance backing the two classes above;
+    # mirrors abundance-dependency's protein_dependency_pearson_r restored in #1598) — #1787 facet-parity.
+    "expression_dependency_pearson_r",
+    "amp_expr_delta_chronos",
     "amp_expr_stratification_class",
     # protein legs (VERDICT-INERT): CN→protein dosage + the mRNA-vs-protein buffering ratio, and protein→dep
     "cis_protein_dosage_class",
@@ -917,6 +929,45 @@ _SYNTHESIS_FACET_KEYS = (
     "headline_block",
     # the UNIFIED cross-skill output object (docs/UNIFIED_OUTPUT_CONTRACT.md) — Wave-3 inert-role adoption
     "skill_report",
+)
+
+# Numeric provenance emitted into `hl` that is DELIBERATELY excluded from the compact synthesis facet
+# (facet-parity accounting, #1787). The facet carries the PRIMARY effect size of each leg (spearman /
+# slope / delta / pearson / ΔCHRONOS); these are SECONDARY / significance / lineage-collapse / distribution
+# sub-provenance that stay in full `hl` for a consumer that drills in, but would bloat the compact facet.
+# `test_facet_parity_hl_numeric_reconciliation` asserts every numeric `hl` key is in the facet OR listed
+# here — so this set can never silently omit a NEW numeric.
+_FACET_EXCLUDED_HL_NUMERICS = frozenset(
+    {
+        # secondary significance / distribution context on the GoF mRNA leg
+        "cn_expr_spearman_p",
+        "relative_cn_iqr",
+        "subset_delta_log2tpm_amplified_vs_neutral",
+        "n_amplified",
+        "n_cell_lines_evaluated",
+        # lineage-collapse guard sub-provenance (GoF mRNA leg)
+        "subset_within_lineage_delta_log2tpm",
+        "subset_n_lineages_compared",
+        "amplified_dominant_lineage_fraction",
+        # the DELETED CN arm (direction contrast detail)
+        "n_deleted",
+        "deleted_subset_delta_log2tpm",
+        "deleted_within_lineage_delta_log2tpm",
+        "deleted_subset_mannwhitney_p",
+        # protein leg-1 slope (the RATIO mrna_vs_protein_dosage_slope_ratio is in the facet; its raw
+        # constituent slope is drill-in detail)
+        "cn_prot_slope_log2abundance_per_cn",
+        # methylation-silencing (LoF) leg sub-provenance — the class is in the facet; the pan/subset
+        # deltas + lineage-collapse guard numerics stay in full `hl`
+        "methylation_subset_median_delta_log2tpm",
+        "n_hypermethylated",
+        "methylation_subset_within_lineage_delta_log2tpm",
+        "methylation_subset_n_lineages_compared",
+        "hypermethylated_dominant_lineage_fraction",
+        "lineage_collapse_ratio",
+        "broad_quartile_delta_log2tpm",
+        "broad_quartile_within_lineage_delta_log2tpm",
+    }
 )
 
 
