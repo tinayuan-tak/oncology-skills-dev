@@ -159,7 +159,7 @@ def classify_measured_shed(
     """
     try:
         per, panel_high = _load_media(media_path)
-    except Exception as e:  # noqa: BLE001 — infra failure is data_unavailable, not a negative
+    except Exception as e:  # noqa: BLE001 -- absence-discipline: exempt -- infra failure is data_unavailable, not a negative; the real measured negative is not_on_secreted_panel
         return {
             "measured_shed_class": "data_unavailable",
             "media_mean_npx": None,

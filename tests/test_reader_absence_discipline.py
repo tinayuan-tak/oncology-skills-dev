@@ -845,25 +845,6 @@ _CLASS_TOKEN_BASELINE: dict[str, str] = {
         "SNV-recurrence rescue lane; identical fail-safe posture and the same _live_read_error "
         "observability nit. Fix with the pooled leg."
     ),
-    "abundance_dependency/read.py::read_abundance_dependency": (
-        "FAIL-SAFE (consumer-confirmed 2026-09-26): abundance_dependency_class=data_unavailable routes "
-        "to the abundance-dependency-data-unavailable-insufficient rung "
-        "(intracellular-intrinsic.rules.yaml:2329, 'not used as opposing evidence'); positive-only "
-        "lane. It ALSO sets _live_read_error, which IS consumed (skills _skills_common/__init__.py:253, "
-        "310) to route a transient load failure to _missing rather than a verdict. Reference-good "
-        "observability shape. Kept as a residual for is_definitively_absent hardening only."
-    ),
-    # -- CONFIRMED BENIGN / verdict-inert or low-blast per-item (do NOT file; burn down to an exempt) -
-    "resistance_emergence/read.py::resistance_mediators_for_gene": (
-        "VERDICT-INERT orthogonal facet: tahoe_adaptation_class NEVER alters the resistance_emergence "
-        "verdict (see module comment above the handler); attached Tahoe sub-signal only. Benign "
-        "degrade — ideal resolution is an inline `# absence-discipline: exempt -- verdict-inert facet`."
-    ),
-    "shed_ectodomain_liability/media.py::classify_measured_shed": (
-        "Author-correct facet: 'infra failure is data_unavailable, not a negative'; the real measured "
-        "negative is not_on_secreted_panel. measured_shed_class is a parallel facet. Benign — ideal "
-        "resolution is an inline exempt marker."
-    ),
     "depmap_partner_conditional_dependency/read.py::read_partner_conditional_dependency": (
         "PER-PARTNER degrade inside a loop: records partner_stratification_class=data_unavailable + "
         "_live_read_error for THIS partner and continues; not a whole-verdict drop. Low blast radius; "
@@ -876,8 +857,13 @@ _CLASS_TOKEN_BASELINE: dict[str, str] = {
     "depmap_predictability/read.py::read_predictability": _CLASS_TOKEN_BASELINE_REASON,
     "depmap_protein_abundance/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
     "expression_clinical_association/read.py::read_expression_clinical_association": _CLASS_TOKEN_BASELINE_REASON,
+    "gnomad_constraint/read.py::read_target_summary": (
+        "Pinned-contract test test_read_target_summary_graceful_on_unreadable_source (gnomad_constraint/"
+        "tests/test_gnomad_constraint.py) asserts graceful data_unavailable on ANY unreadable source, not "
+        "just genuine absence (RuntimeError injection reds an is_definitively_absent conversion) — a "
+        "design decision on the reader's degradation contract, out of scope for this burndown pass."
+    ),
     "expression_purity_confound/read.py::read_expression_purity_confound": _CLASS_TOKEN_BASELINE_REASON,
-    "gnomad_constraint/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
     "hpa_normal_tissue_liability/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
     "imvigor210_ici_response/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
     "pathway_node_leverage/cli.py::read_node_leverage": _CLASS_TOKEN_BASELINE_REASON,

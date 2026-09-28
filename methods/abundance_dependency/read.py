@@ -19,7 +19,7 @@ MIN_PAIRED_MODELS = 20
 SIGNIFICANCE_ALPHA = 0.05
 
 
-from methods.target_id_sidecar import ensure_aws_profile
+from methods.target_id_sidecar import ensure_aws_profile, is_definitively_absent
 
 
 def classify_abundance_dependency(pearson_r: Optional[float], pearson_p: Optional[float], n_paired: int) -> str:
@@ -64,6 +64,8 @@ def read_abundance_dependency(target: str, indication: Optional[str] = None, rel
         if accession:
             abundance_by_model, panel_size = _prot.load_abundance_column(accession)
     except Exception as e:  # noqa: BLE001
+        if not is_definitively_absent(e):
+            raise  # transient/creds/broken-env -> surface, don't launder as a benign class token
         base.update(
             {
                 "abundance_dependency_class": "data_unavailable",

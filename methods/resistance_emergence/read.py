@@ -230,7 +230,7 @@ def resistance_mediators_for_gene(
             from methods.resistance_emergence.tahoe_adaptation import tahoe_adaptation_for_target
 
             ta = tahoe_adaptation_for_target(sym)
-        except Exception:  # noqa: BLE001
+        except Exception:  # noqa: BLE001 -- absence-discipline: exempt -- verdict-inert facet: tahoe_adaptation_class never alters resistance_emergence_class
             ta = {"tahoe_adaptation_class": "data_unavailable", "induced_programs": []}
         out["tahoe_adaptation_class"] = ta.get("tahoe_adaptation_class")
         out["tahoe_induced_programs"] = ta.get("induced_programs", [])
