@@ -739,6 +739,7 @@ question_hierarchies:
         - cis_protein_dosage_coupling
       context_types:
       - cellline_isoform_expression
+      - tumor_splice_dysregulation   # patient TCGA-SpliceSeq splice complement to the cell-line isoform arm above; homed under genomic-alteration-profile SPL but ALSO context here for the cis isoform_splice_concordance claim (skills #1785). Binds its measurement_type so cis-feature-coherence can consume the card without orphaning it.
     - id: SILENCING
       questions:
       - id: silencing_read
