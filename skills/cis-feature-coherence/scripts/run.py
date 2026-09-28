@@ -1005,6 +1005,69 @@ def _synthesis_facet(cards, fired, verdict_pair, target=None, indication=None):
     )
 
 
+# ─── Bounded exported evidence-package sections (SK#1982, epic #1779 B3 / parent #1507) ─────────────
+# The cis-feature-coherence analog of the tumor-presence reference-vertical export (#1941): under
+# --emit-envelope the dispatcher splices these NAMED, bounded top-level sections into
+# evidence_package.json right after `cards`, so a consumer reads the L1→L3d layering as STRUCTURE (named
+# keys) rather than by convention over synthesis.headline.claim_vector (see
+# docs/EVIDENCE_PROPERTY_ARCHITECTURE_L1_L4.md :259-275). Each section is a pure VIEW over content ALREADY
+# on the decision headline; nothing is recomputed. VERDICT-INERT: it feeds no rule and never touches
+# cis_coherence_verdict / driving_rule_id / the resolver golden (the replay harness #1780 pins this).
+#
+# This domain names ONLY the layers it has actually realized. `integrated_properties` carries the THREE
+# landed L2b concordance islands; `l3d` carries the within-domain biology story (#1981). A typed L2a
+# `source_properties` map and a `local_composites` section do NOT yet exist for cis-coherence — the
+# LEG-decomposition axes (CIS_DOSAGE/SILENCING/EXPR_DEP/CONJOINT) are the resolver's verdict-leg
+# decomposition, not a typed carried-composite layer — so those two section keys are DELIBERATELY OMITTED
+# (never fabricated). A future L2a issue can add them; the export names only realized layers.
+#
+# The L2b concordance islands this domain has earned (#1781/#1782/#1784), keyed by their REAL claim_id so a
+# consumer reconstructs claim_id → island → provenance.sources[*].provenance.card_id downward to L1.
+_INTEGRATED_ISLAND_KEYS = (
+    "cis_dosage_concordance",  # cell-line × patient cis-dosage coupling (#1781)
+    "methylation_silencing_concordance",  # cell-line × patient epigenetic silencing (#1782)
+    "expression_dependency_concordance",  # bulk-RNA × MS-protein expression→dependency coupling (#1784)
+)
+
+
+def _evidence_sections(headline: dict) -> "dict | None":
+    """Build the NAMED, bounded top-level evidence-package sections from the cis-coherence decision headline.
+
+    Pure read-projection over the already-built `headline`: it names the layers this domain has realized —
+    `integrated_properties` (the 3 L2b concordance islands on the cis claim vector) and `l3d` (the
+    within-domain cis-regulatory coherence biology story, #1981). Nothing is recomputed and nothing is
+    dropped a consumer could not already read on the headline; the export simply makes the layering
+    STRUCTURE (top-level keys) instead of a convention over `synthesis.headline.claim_vector`. Every emitted
+    section reconstructs downward to L1:
+      * integrated_properties[*].provenance.sources[*].provenance.card_id
+      * l3d.provenance.claim_ids → the integrated_properties islands
+    `source_properties` (L2a) and `local_composites` are OMITTED — those layers are not realized for
+    cis-coherence (see the module note above), so the export does not fabricate them. Returns None when no
+    L2b island resolves and no story exists, so the dispatcher passes evidence_sections=None and the emitted
+    package is byte-identical to the pre-#1982 shape. VERDICT-INERT throughout."""
+    if not isinstance(headline, dict):
+        return None
+    cv = headline.get("claim_vector")
+    if not isinstance(cv, dict):
+        return None
+
+    sections: dict = {}
+
+    # L2b — the concordance property islands (reconstructable to card_ids via
+    # provenance.sources[*].provenance.card_id).
+    integrated = {k: cv[k] for k in _INTEGRATED_ISLAND_KEYS if cv.get(k) is not None}
+    if integrated:
+        sections["integrated_properties"] = integrated
+
+    # L3d — the within-domain cis-regulatory coherence biology story (#1981); OMITTED when no island
+    # resolved (mirrors the headline key's own byte-stable omission).
+    story = headline.get("cis_coherence_biology_story")
+    if story is not None:
+        sections["l3d"] = story
+
+    return sections or None
+
+
 if __name__ == "__main__":
     sys.exit(
         run_wired_skill(
@@ -1025,5 +1088,10 @@ if __name__ == "__main__":
             skill_figures_fn=emit_headline_hero,
             # Signals-first: tuned sub-group reader for the cis-coherence vocabulary. Verdict-INERT.
             subgroup_classify=make_value_classifier(_CIS_VALUE_TIERS),
+            # SK#1982: under --emit-envelope, splice the NAMED bounded evidence-package sections
+            # (integrated_properties L2b / l3d) in as top-level keys of evidence_package.json — a VIEW over
+            # the same headline content, each reconstructable downward to its claim IDs / L1 card_ids.
+            # Verdict-INERT (decision.json spine untouched); default None path keeps existing callers byte-identical.
+            evidence_sections_fn=_evidence_sections,
         )
     )
