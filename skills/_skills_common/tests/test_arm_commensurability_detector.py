@@ -1494,6 +1494,149 @@ def test_detector_bites_a_combination_arm_repointed_to_the_other_consortium():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# EIGHTH FAMILY — the CIS-COHERENCE (cis-dosage cross-grain) builder in cis_coherence_claims.py (SK#1781)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# `_cis_dosage_concordance_claim` (L2b #1781, epic #1779) folds
+# `corroboration_from_arms([cellline_arm, patient_arm])`, where each arm is the resolved coupling direction
+# of the SAME cis-dosage-coupling property measured at a DIFFERENT sample-context GRAIN:
+#   * cell-line MODEL grain — cis-feature-expression-coherence.cis_dosage_class       (DepMap panel)
+#   * patient TUMOUR grain  — patient-cis-coherence.patient_cis_dosage_class          (TCGA cohort)
+#
+# AUDIT VERDICT (SK#1781): COMMENSURATE by design — a detector-oracle EXTENSION (first cis-domain family).
+#   * SAME CONSTRUCT: both resolve the SAME cis-dosage-coupling property (does the target's copy number
+#     drive its own expression?) via the SAME `compute_cis_dosage` kernel and the SAME shared token
+#     vocabulary; the fold agrees/disagrees on the SAME cis-coupling question.
+#   * SAME GRANULARITY, DIFFERENT GRAIN (first-class): each arm is the per-target cis-dosage class — one at
+#     the cell-line MODEL grain, one at the patient TUMOUR grain. Grain is a FIRST-CLASS axis, recorded in
+#     source_support[].grain; a same-grain restatement would NOT be a second arm. The patient amplified
+#     edge (GISTIC +1) is coarser than the cell-line focal-amp cut, so the arms are comparable in
+#     DIRECTION not thresholds — carried in provenance.independence_note.
+#   * INDEPENDENT: two genuinely distinct sample contexts (DepMap cell-line panel vs TCGA patient cohort);
+#     neither arm is a subset/superset of the other and neither is DERIVED from the other.
+#   * MEASURED (no vote flip): two agreeing grains → `high`; a grain discordance → `low`; one measured
+#     grain with the other unresolved → `single_arm`. Carries NO `signal` key, reads no verdict, feeds no
+#     rule (VERDICT-INERT, key omitted/byte-stable when neither grain resolves). Declaration moves no
+#     decision.json — a pure detector extension.
+# The commensurability invariant this block pins: `_cis_dosage_concordance_claim` folds EXACTLY the two
+# declared cross-grain card/field arms — two DISTINCT cis-coherence cards (model vs patient). Re-pointing
+# one arm to read the OTHER grain's card (collapsing the two independent grains into one — a same-grain
+# double-count, the #1667 shape) reds the commensurability assertion; the mutation test drives that red.
+
+_CIS_COHERENCE_CLAIMS = pathlib.Path(__file__).resolve().parents[1] / "cis_coherence_claims.py"
+
+
+# The DECLARED oracle for the cis-coherence family. Every function that folds arms via
+# `corroboration_from_arms` in cis_coherence_claims.py must appear here with its pairing.
+_DECLARED_CIS_CORROBORATION_BUILDERS = {
+    "_cis_dosage_concordance_claim": (
+        "cell-line `cis_dosage_class` (DepMap model panel) × patient `patient_cis_dosage_class` (TCGA "
+        "cohort) — the SAME cis-dosage-coupling property (same compute_cis_dosage kernel / same token "
+        "vocabulary) measured at two DIFFERENT sample-context GRAINS (model vs patient, grain first-class); "
+        "neither a subset/superset nor derived from the other (commensurate by same-construct/same-"
+        "granularity/independent-grain; see _CIS_COMMENSURATE_ARM_PAIRS)"
+    ),
+}
+
+# The (card_id, field) arms the fold reads. Two DISTINCT cis-coherence cards (model grain vs patient grain)
+# — the set is what makes the two arms commensurate-yet-independent. A re-pointed arm (reading the OTHER
+# grain's card) changes this set and fails the assertion below.
+_CIS_COMMENSURATE_ARM_PAIRS = frozenset(
+    {
+        ("cis-feature-expression-coherence", "cis_dosage_class"),
+        ("patient-cis-coherence", "patient_cis_dosage_class"),
+    }
+)
+
+
+def _cis_tree() -> ast.Module:
+    return _parse(_CIS_COHERENCE_CLAIMS.read_text())
+
+
+def assert_cis_arms_are_commensurate(tree: ast.Module) -> None:
+    """Raise AssertionError unless `_cis_dosage_concordance_claim` folds EXACTLY the declared two
+    cis-coherence card/field arms — no incommensurate card pulled in, none dropped, and the two arms read
+    two DISTINCT grain cards. The predicate the cis-family mutation drives red. (Raw dosage metrics are read
+    off a LOCAL card binding, not the inline `c.get(...) or {}).get(...)` idiom, so they are correctly NOT
+    counted as arms.)"""
+    funcs = _functions(tree)
+    assert "_cis_dosage_concordance_claim" in funcs, (
+        "_cis_dosage_concordance_claim vanished from cis_coherence_claims.py"
+    )
+    pairs = _card_field_get_pairs(funcs["_cis_dosage_concordance_claim"])
+    declared = set(_CIS_COMMENSURATE_ARM_PAIRS)
+    assert pairs == declared, (
+        f"_cis_dosage_concordance_claim folds card/field arms {sorted(pairs)} — expected EXACTLY the two "
+        f"commensurate cross-grain arms {sorted(declared)}. An arm reading a DIFFERENT card mixes an "
+        f"incommensurate construct into the cis-dosage fold, and an arm reading the OTHER grain's card "
+        f"collapses the two independent grains into one (a same-grain double-count, the #1667 shape). "
+        f"undeclared = {sorted(pairs - declared)}; gone = {sorted(declared - pairs)}."
+    )
+
+
+# ── the cis-coherence-family tests ─────────────────────────────────────────────────────────────────
+def test_cis_multi_arm_builders_are_declared():
+    """ENUMERATION / anti-drift for the cis-coherence family: every function that folds arms via
+    `corroboration_from_arms` in cis_coherence_claims.py must be declared. A NEW multi-arm builder fails
+    here until its arm pairing is declared in `_DECLARED_CIS_CORROBORATION_BUILDERS`."""
+    discovered = _corroboration_builders(_cis_tree())
+    declared = set(_DECLARED_CIS_CORROBORATION_BUILDERS)
+    assert discovered == declared, (
+        f"cis-coherence multi-arm corroboration builders drifted from the declared oracle: "
+        f"undeclared (add its arm pairing) = {sorted(discovered - declared)}; "
+        f"declared-but-gone (remove it) = {sorted(declared - discovered)}"
+    )
+
+
+def test_cis_oracle_is_two_distinct_grain_cards():
+    """The declared table itself encodes the commensurability rule: the two arms are two DISTINCT
+    cis-coherence cards (model vs patient grain), same cis-dosage-coupling construct. Guards the oracle
+    against a typo that would make the detector assert the wrong pairing (e.g. one card read twice)."""
+    cards = {card for (card, _f) in _CIS_COMMENSURATE_ARM_PAIRS}
+    assert len(cards) == 2, (
+        f"the two cis arms must read two DISTINCT grain cards (cell-line model vs patient tumour), not one "
+        f"card twice (which would be a same-grain double-count); got cards {sorted(cards)}"
+    )
+    assert all("cis" in card for card in cards), (
+        f"both cis arms must read a cis-coherence card (the SAME cis-dosage-coupling construct); got {sorted(cards)}"
+    )
+
+
+def test_cis_folds_the_commensurate_cross_grain_arms():
+    """GREEN on today's cis_coherence_claims.py: `_cis_dosage_concordance_claim` folds exactly the two
+    commensurate cross-grain arms. Also anti-vacuity — the declared arm set is non-empty."""
+    assert _CIS_COMMENSURATE_ARM_PAIRS, "the declared cis arm set is empty — the test would pin nothing"
+    assert_cis_arms_are_commensurate(_cis_tree())
+
+
+# The mutation the cis detector exists to catch: the PATIENT arm re-pointed to read the SAME cell-line
+# card — collapsing the two independent grains into one card (a same-grain double-count, the #1667 shape).
+# Applied to a COPY of the source string.
+def _mutant_cis_repoints_patient_arm_to_cellline_card(source: str) -> str:
+    mutated = source.replace(
+        '(c.get("patient-cis-coherence") or {}).get("patient_cis_dosage_class")',
+        '(c.get("cis-feature-expression-coherence") or {}).get("patient_cis_dosage_class")',
+    )
+    assert mutated != source, "mutation was a no-op — the patient arm inline card read is no longer present to re-point"
+    return mutated
+
+
+def test_detector_bites_a_cis_arm_repointed_to_the_other_grain_card():
+    """MUTATION TEST for the cis family — the corpus alone has no teeth here, so prove the detector bites.
+    With the patient arm re-pointed to the cell-line card, the folded card set collapses to a single
+    cis-coherence card (the two independent grains become one — a same-grain double-count) and
+    `assert_cis_arms_are_commensurate` FAILS. Confirms both the RED (on the mutant) and — via
+    `test_cis_folds_the_commensurate_cross_grain_arms` — the GREEN on real source."""
+    mutant = _parse(_mutant_cis_repoints_patient_arm_to_cellline_card(_CIS_COHERENCE_CLAIMS.read_text()))
+    # sanity: the mutant genuinely collapses the two arms onto one card
+    pairs = _card_field_get_pairs(_functions(mutant)["_cis_dosage_concordance_claim"])
+    cards = {card for (card, _f) in pairs}
+    assert cards == {"cis-feature-expression-coherence"}, "the mutation did not collapse the arms as intended"
+    # …and the detector rejects it
+    with pytest.raises(AssertionError, match="_cis_dosage_concordance_claim"):
+        assert_cis_arms_are_commensurate(mutant)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
 # FLEET-COMPLETENESS META-GUARD — every multi-arm fold-builder in _skills_common must belong to a
 # declared commensurability family (SK#1704, tracking #1703, epic #1507)
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1562,6 +1705,12 @@ _COVERED_FAMILY_FILES = {
         "combination — detector SK#1709 (_DECLARED_COMBINATION_CORROBORATION_BUILDERS + "
         "_COMBINATION_CONSORTIUM_ARM_FIELDS: one confirmed-positive DepMap primary arm + Dede/in4mer two "
         "independent consortia, no inflating sentinel, no double-count); #1703 row: combination [x]"
+    ),
+    "cis_coherence_claims.py": (
+        "cis-coherence — detector SK#1781 (_DECLARED_CIS_CORROBORATION_BUILDERS + _CIS_COMMENSURATE_ARM_"
+        "PAIRS: cell-line model `cis_dosage_class` × patient tumour `patient_cis_dosage_class` — the SAME "
+        "cis-dosage-coupling construct at two DISTINCT sample-context grains, grain first-class, "
+        "independent; epic #1779, first cis-domain concordance family)"
     ),
 }
 

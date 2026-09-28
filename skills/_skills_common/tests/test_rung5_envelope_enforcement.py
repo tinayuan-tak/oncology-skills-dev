@@ -44,7 +44,8 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[2]))  # skills/ 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))  # tests/ -> sibling detector module
 
 from _skills_common import (  # noqa: E402
-    dependency_claims,  # noqa: E402
+    cis_coherence_claims,  # noqa: E402
+    dependency_claims,
     genomic_claims,
     presence_claims,
     safety_claims,
@@ -189,12 +190,36 @@ ENVELOPE_FAMILIES: dict[str, dict] = {
         },
         "none": {},
     },
+    "cis_dosage": {
+        # SK#1781 — FIRST envelope-v0 concordance family for the cis_coherence domain: cross-GRAIN
+        # cell-line model (DepMap) × patient tumour (TCGA) cis-dosage-coupling replication.
+        "builder": cis_coherence_claims._cis_dosage_concordance_claim,
+        "name": "_cis_dosage_concordance_claim",
+        "resolving": {
+            "cis-feature-expression-coherence": {
+                "cis_dosage_class": "cn_dosage_coupled_strong",
+                "cn_expr_spearman_r": 0.78,
+                "cn_expr_spearman_p": 1e-9,
+                "delta_log2tpm_amplified_vs_neutral": 2.1,
+                "n_amplified": 24,
+            },
+            "patient-cis-coherence": {
+                "patient_cis_dosage_class": "cn_dosage_coupled_moderate",
+                "cn_expr_spearman_r": 0.55,
+                "cn_expr_spearman_p": 1e-6,
+                "delta_log2tpm_amplified_vs_neutral": 1.4,
+                "n_amplified": 60,
+                "n_cases_expression": 310,
+            },
+        },
+        "none": {},
+    },
 }
 
 # The known family count. An anti-vacuity floor: if the registry (or the codebase discovery it is pinned
 # against) ever collapses to a subset, the `== _EXPECTED_FAMILY_COUNT` assertions catch it rather than a
 # shrunken population passing silently.
-_EXPECTED_FAMILY_COUNT = 9
+_EXPECTED_FAMILY_COUNT = 10
 _EXPECTED_FRAME_COUNT = 5
 
 

@@ -60,19 +60,71 @@ def test_leg_tiers():
     assert vec["CONJOINT"]["signal"] == "strong"
 
 
-def test_patient_agreement_corroboration_bump_and_cap():
+def _patient_card(patient_cis_dosage_class="cn_dosage_coupled_moderate"):
+    return {
+        "card_id": "patient-cis-coherence",
+        "summary": {
+            "patient_cis_dosage_class": patient_cis_dosage_class,
+            "cn_expr_spearman_r": 0.55,
+            "cn_expr_spearman_p": 1e-6,
+            "delta_log2tpm_amplified_vs_neutral": 1.4,
+            "n_amplified": 60,
+            "n_cases_expression": 310,
+        },
+    }
+
+
+def test_cis_dosage_leg_is_plain_single_arm_after_migration():
+    # SK#1781: CIS_DOSAGE's LEG corroboration was MIGRATED to plain single-source — the cross-grain
+    # patient agreement no longer bumps/caps the leg (it now lives in the `cis_dosage_concordance` claim).
+    # A measured cell-line arm reads `single_arm` REGARDLESS of the (now-irrelevant-to-the-leg) headline.
     cards = _cards()
-    # patient arm AGREES → CIS_DOSAGE corroboration bumps to high
-    hi = cis_coherence_claim_vector({"patient_dosage_agrees_with_cellline": True}, cards)
-    assert hi["CIS_DOSAGE"]["corroboration"] == "high"
-    # patient arm DISAGREES → capped low
-    lo = cis_coherence_claim_vector({"patient_dosage_agrees_with_cellline": False}, cards)
-    assert lo["CIS_DOSAGE"]["corroboration"] == "low"
-    # No patient arm → `single_arm`: the cell-line call stands alone. This used to read `moderate`, which
-    # asserted partial agreement with an arm that was never read; `low` would be the opposite error, since
-    # the eval ledger reads `low` as a sharp DISAGREEMENT and nothing here disagreed.
-    mid = cis_coherence_claim_vector({}, cards)
-    assert mid["CIS_DOSAGE"]["corroboration"] == "single_arm"
+    for hl in ({}, {"patient_dosage_agrees_with_cellline": True}, {"patient_dosage_agrees_with_cellline": False}):
+        assert cis_coherence_claim_vector(hl, cards)["CIS_DOSAGE"]["corroboration"] == "single_arm"
+
+
+def test_cis_dosage_concordance_cross_grain_claim():
+    # FIRST envelope-v0 concordance claim for the cis_coherence domain (0 → 1).
+    # Both grains coupled → high corroboration, concordant_coupled.
+    both = cis_coherence_claim_vector({}, _cards() + [_patient_card("cn_dosage_coupled_strong")])
+    cd = both["cis_dosage_concordance"]
+    assert cd["property_id"] == "cis_dosage_coupling"
+    assert cd["integration_method"] == "explicit_deterministic"
+    assert cd["concordance_class"] == "cis_dosage_concordant_coupled"
+    assert cd["corroboration"] == "high"
+    assert cd["corroborating_independent_arm_count"] == 2 and cd["resolved_source_count"] == 2
+    assert "signal" not in cd  # verdict-INERT: never a tier/chip
+    # raw dosage metrics DEMOTED not dropped
+    _cl = next(s for s in cd["source_support"] if s["source"] == "cell_line_model")
+    assert _cl["retained_quantitative"]["cn_expr_spearman_r"] == 0.78
+
+    # grains DISAGREE (cell-line coupled, patient uncoupled) → low, discordant.
+    disc = cis_coherence_claim_vector({}, _cards() + [_patient_card("cn_dosage_uncoupled")])
+    assert disc["cis_dosage_concordance"]["concordance_class"] == "cis_dosage_grain_discordant"
+    assert disc["cis_dosage_concordance"]["corroboration"] == "low"
+
+    # only the cell-line grain resolves (no patient card) → single_grain_only, single_arm.
+    lone = cis_coherence_claim_vector({}, _cards())
+    assert lone["cis_dosage_concordance"]["concordance_class"] == "cis_dosage_single_grain_only"
+    assert lone["cis_dosage_concordance"]["corroboration"] == "single_arm"
+
+
+def test_cis_dosage_concordance_key_omitted_when_neither_grain_resolves():
+    # cell-line invariant/untestable (→ None) and NO patient card → BOTH arms gone → key omitted (byte-stable).
+    vec = cis_coherence_claim_vector(
+        {},
+        [{"card_id": "cis-feature-expression-coherence", "summary": {"cis_dosage_class": "cn_invariant_panel"}}],
+    )
+    assert "cis_dosage_concordance" not in vec
+    # a patient grain that ALSO does not resolve keeps the key omitted.
+    vec2 = cis_coherence_claim_vector(
+        {},
+        [
+            {"card_id": "cis-feature-expression-coherence", "summary": {"cis_dosage_class": "data_unavailable"}},
+            _patient_card("data_unavailable"),
+        ],
+    )
+    assert "cis_dosage_concordance" not in vec2
 
 
 def test_wrong_direction_is_negative_with_conflict():
