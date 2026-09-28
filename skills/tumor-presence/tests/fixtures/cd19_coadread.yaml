@@ -1,0 +1,768 @@
+cellline-protein-abundance:
+  allgene_percentile: 2.6477146042363433
+  allgene_percentile_class: bottom_decile
+  allgene_percentile_context: depmap-proteomics-26q1 panel-wide metric=median_log2_abundance
+    source=gygi_ms
+  fraction_detected: 0.144
+  log2_abundance_iqr: 1.4261685633767263
+  median_log2_abundance_panel: -0.6375391038358325
+  method_version: 0.1.0
+  n_cell_lines_evaluated: 54
+  n_cell_lines_in_panel: 375
+  n_lineage_restricted_lineages: 0
+  n_lineages_evaluated: 2
+  p25_log2_abundance_panel: -1.3995599609223526
+  p5_log2_abundance_panel: -2.435168157978882
+  p75_log2_abundance_panel: 0.026608602454373624
+  p95_log2_abundance_panel: 4.944473692104221
+  per_lineage_stats:
+  - lineage: Lymphoid
+    median_log2_abundance: 3.42761005613693
+    n: 9
+  - lineage: Lung
+    median_log2_abundance: -0.3208800866492245
+    n: 6
+  protein_abundance_source: gygi_ms
+  protein_expression_class: lineage_restricted
+cellline-protein-abundance-procan:
+  allgene_percentile: 50.77674473343533
+  allgene_percentile_class: mid
+  allgene_percentile_context: procan-cellline-protein-abundance-per-protein-v1 panel-wide
+    metric=median_log_abundance source=procan_dia_swath
+  fraction_detected: 0.1096
+  log2_abundance_iqr: 2.1303186904519493
+  median_log2_abundance_panel: 2.871238806458882
+  method_version: 0.1.0
+  n_cell_lines_evaluated: 104
+  n_cell_lines_in_panel: 949
+  n_lineage_restricted_lineages: 0
+  n_lineages_evaluated: 0
+  p25_log2_abundance_panel: 1.6662309303994838
+  p5_log2_abundance_panel: 0.7136203426084914
+  p75_log2_abundance_panel: 3.796549620851433
+  p95_log2_abundance_panel: 4.77516194250943
+  per_lineage_stats: []
+  protein_abundance_source: procan_dia_swath
+  protein_expression_class: broadly_low
+cellline-rna-distribution:
+  allgene_percentile: 22.869184494018555
+  allgene_percentile_class: mid
+  allgene_percentile_context: DepMap 26q3 pan-cancer panel all-gene median rank (allgene-depmap-rank-26q3-v1;
+    rank 14824/19218)
+  coefficient_of_variation: 4.3702701973961515
+  control_negatives:
+    ACTB: 99.82
+    GAPDH: 99.92
+    GYPA: 8.89
+    PRM1: 8.89
+    SFTPC: 8.89
+  control_negatives_excluded_lineage_conflict: []
+  control_percentile_source: allgene-depmap-rank-26q3-v1
+  control_position: above 0/4 positive control(s); above 3/5 negative control(s)
+  control_position_class: above_negatives_below_positives
+  control_position_context: DepMap pan-cancer panel vs curated controls (tumor_presence_controls
+    v1.0.0; allgene-depmap-rank-26q3-v1)
+  control_position_method_version: 0.1.0
+  control_positives:
+    CEACAM5: 29.46
+    EPCAM: 53.52
+    ERBB2: 77.8
+    MSLN: 32.72
+  control_target_class: mid
+  control_target_percentile: 22.869184494018555
+  distribution_pattern: long_tail
+  dominant_isoform: ENST00000538922.8
+  dominant_isoform_fraction: 0.8906126022338867
+  expression_class: lineage_restricted
+  expression_properties:
+    heterogeneity: high
+    lineage_restriction: restricted
+    localization: unmeasured
+    magnitude: low
+    presence: weak
+    prevalence: subset
+    selectivity: unmeasured
+    subtype_restriction: unmeasured
+  fraction_expressed: 0.11796246648793565
+  fraction_highly_expressed: 0.05630026809651475
+  fraction_not_expressed: 0.8820375335120644
+  isoform_context: "CD19: median dominant-isoform fraction 0.89 across 340 DepMap\
+    \ cell lines (3 expressed isoforms median; top ENST00000538922.8) \u2014 MODEL\
+    \ isoform-expression, verdict-inert."
+  isoform_expression_class: single_isoform_dominant
+  isoform_n_models: 340
+  log2tpm_iqr: 0.27109430730342865
+  median_log2tpm_panel: 0.03824511915445328
+  n_cell_lines_evaluated: 2611
+  n_expressed_isoforms: 3
+  n_lineage_restricted_lineages: 1
+  n_lineages_evaluated: 28
+  p25_log2tpm_panel: 0.0
+  p5_log2tpm_panel: 0.0
+  p75_log2tpm_panel: 0.27109430730342865
+  p95_log2tpm_panel: 5.281844615936279
+  per_lineage_stats:
+  - fraction_expressed: 0.6323529411764706
+    lineage: Lymphoid
+    median_log2tpm: 5.018807649612427
+    n: 272
+  - fraction_expressed: 0.36363636363636365
+    lineage: Testis
+    median_log2tpm: 0.689762532711029
+    n: 11
+  - fraction_expressed: 0.25961538461538464
+    lineage: Myeloid
+    median_log2tpm: 0.44360435009002686
+    n: 104
+  - fraction_expressed: 0.17391304347826086
+    lineage: Ovary/Fallopian Tube
+    median_log2tpm: 0.11903807893395424
+    n: 92
+  - fraction_expressed: 0.05925925925925926
+    lineage: Bowel
+    median_log2tpm: 0.10142148286104202
+    n: 135
+  - fraction_expressed: 0.1111111111111111
+    lineage: Ampulla of Vater
+    median_log2tpm: 0.10133004188537598
+    n: 9
+  - fraction_expressed: 0.14
+    lineage: Uterus
+    median_log2tpm: 0.08089563250541687
+    n: 50
+  - fraction_expressed: 0.047619047619047616
+    lineage: Esophagus/Stomach
+    median_log2tpm: 0.07300852984189987
+    n: 189
+  - fraction_expressed: 0.13725490196078433
+    lineage: Bone
+    median_log2tpm: 0.06512407213449478
+    n: 102
+  - fraction_expressed: 0.05862068965517241
+    lineage: Lung
+    median_log2tpm: 0.05747373774647713
+    n: 290
+  - fraction_expressed: 0.0
+    lineage: Fibroblast
+    median_log2tpm: 0.05321694165468216
+    n: 46
+  - fraction_expressed: 0.03571428571428571
+    lineage: Liver
+    median_log2tpm: 0.04738158918917179
+    n: 28
+  - fraction_expressed: 0.04
+    lineage: Thyroid
+    median_log2tpm: 0.02620232291519642
+    n: 25
+  - fraction_expressed: 0.007874015748031496
+    lineage: Pancreas
+    median_log2tpm: 0.02606772817671299
+    n: 127
+  - fraction_expressed: 0.02702702702702703
+    lineage: Bladder/Urinary Tract
+    median_log2tpm: 0.0196919534355402
+    n: 37
+  - fraction_expressed: 0.015384615384615385
+    lineage: Kidney
+    median_log2tpm: 0.019363170489668846
+    n: 65
+  - fraction_expressed: 0.03125
+    lineage: Breast
+    median_log2tpm: 0.013186347670853138
+    n: 128
+  - fraction_expressed: 0.018518518518518517
+    lineage: Biliary Tract
+    median_log2tpm: 0.0
+    n: 54
+  - fraction_expressed: 0.0313588850174216
+    lineage: CNS/Brain
+    median_log2tpm: 0.0
+    n: 287
+  - fraction_expressed: 0.0
+    lineage: Cervix
+    median_log2tpm: 0.0
+    n: 21
+cellline-rna-distribution-by-subtype:
+  _data_source: DepMap-26q3 expression (subgroup-stratified)
+  assignment_manifest: depmap-subgroup-assignments-coadread-v1
+  cross_subgroup_delta_expression: 0.0
+  indication: COADREAD
+  max_subgroup_expression: 0.1346
+  min_subgroup_expression: 0.1346
+  n_subgroups_measured: 1
+  n_subgroups_with_data: 2
+  n_subtypes_depleted: 0
+  n_subtypes_enriched: 0
+  n_subtypes_measured: 1
+  per_subgroup_metrics:
+  - class: broadly_low
+    evidence_state: exploratory
+    fraction_expressed: 0.0714
+    median_log2tpm: 0.0264
+    source_cohort: DepMap-26q3
+    stratum: MSI_H
+    subgroup_n: 28
+    subgroup_n_floor_met: false
+    subtype_defining_data: genomic
+    subtype_enrich_log2_delta: null
+    subtype_signal: null
+  - class: broadly_low
+    evidence_state: measured
+    fraction_expressed: 0.06
+    median_log2tpm: 0.1346
+    source_cohort: DepMap-26q3
+    stratum: MSS
+    subgroup_n: 100
+    subgroup_n_floor_met: true
+    subtype_defining_data: genomic
+    subtype_enrich_log2_delta: 1.0
+    subtype_signal: subtype_uniform
+  pooled_lineage_median_log2tpm: 0.1132
+  spotlight_subtype: null
+  subtype_axis_available: true
+  subtype_axis_quality: exploratory
+  subtype_stratification_class: pan_subtype_uniform
+  target: CD19
+cellline-rna-protein-concordance:
+  method_version: 0.1.0
+  n_paired_models: 53
+  protein_detection_fraction: 0.0207
+  release_pin: 26q3
+  rna_as_biomarker: poor_proxy
+  rna_expressed_fraction: 0.1887
+  rna_high_protein_low_fraction: 0.0
+  rna_protein_r: 0.8422
+  rna_protein_r_ci95_high: 0.5681
+  rna_protein_r_ci95_low: 0.0569
+  rna_protein_spearman: 0.3371
+  rna_proxy_class_boundary_fragile: true
+  rna_proxy_classified_on: spearman
+  rna_proxy_detection_limited: true
+  rna_proxy_underpowered: false
+  target: CD19
+expression-purity-confound:
+  cellular_source: unresolved_from_bulk
+  expression_purity_pearson_p: 5.5e-32
+  expression_purity_pearson_r: -0.481
+  expression_purity_spearman_r: -0.4878
+  indication: COADREAD
+  median_purity: 0.66
+  method_version: 0.1.0
+  n_expr_samples: 624
+  n_paired_samples: 529
+  purity_confound_class: microenvironment_confounded
+  purity_range_iqr: 0.24
+  purity_source: pancanatlas_absolute
+  purity_spread_underpowered: false
+  target: CD19
+hpa-pathology-cancer-ihc:
+  _data_source: hpa-pathology-cancer-ihc-per-gene-v1
+  fraction_detected: 0.0
+  fraction_moderate_strong: 0.0
+  hpa_cancer_type: colorectal cancer
+  indication: COADREAD
+  method_version: 1.0.0
+  n_high: 0
+  n_low: 0
+  n_medium: 0
+  n_not_detected: 9
+  n_patients_total: 9
+  presence_context: hpa-pathology-cancer-ihc antibody staining; indication COADREAD
+    -> HPA type 'colorectal cancer' (HPA cancer axis is coarser than OncoTree)
+  prognostic_is_significant: false
+  prognostic_p_value: null
+  prognostic_type: none
+  protein_presence_class: ihc_not_detected
+  staining_score: 0.0
+normal-tissue-liability:
+  essential_tissue_flag: absent
+  essential_tissue_low_reliability: false
+  essential_tissues_flagged: []
+  hpa_ihc_reliability: enhanced
+  hpa_tissue_distribution: Detected in single
+  hpa_tissue_specificity: Tissue enriched
+  method_version: 0.2.0
+  n_essential_tissues_with_expression: 0
+  n_specific_tissues: 1
+  normal_tissue_breadth_class: restricted_normal_expression
+  safety_tissue_flags: []
+  specific_tissues:
+  - intensity: 2075914.7
+    tissue: lymphoid tissue
+rna-protein-concordance-tumor:
+  _data_note: 'coad: 0 tumors with matched RNA+protein for CD19 (floor 20)'
+  cptac_cohort: coad
+  indication: COADREAD
+  method_version: 0.1.0
+  n_paired_tumors: 0
+  rna_as_biomarker: data_unavailable
+  rna_protein_r: null
+  substrate: cptac_tumor
+  target: CD19
+sc-normal-celltype-expression:
+  essential_tissues_missing: []
+  expressing_donor_fraction_max: 1.0
+  indication: COADREAD
+  max_detection_cell_type: B-1a B cell
+  max_detection_fraction: 0.9166666666666666
+  method_version: 0.1.0
+  n_cell_types_above_20pct: 62
+  n_reliable_cell_types: 132
+  origin_tissues:
+  - colon
+  per_cell_type_top: __omitted_from_fixture__ (list, 15 items)
+  safety_essential_flags:
+    blood vessel endothelial cell: 0.09433962264150944
+  sc_normal_abundance_class: high_abundance
+  sc_normal_breadth_null_fraction: 0.4696969696969697
+  sc_normal_ceiling_detection_fraction: 0.9166666666666666
+  sc_normal_detection_caveat: '1 off-origin safety-essential cell type(s) detected
+    in the 0.05-0.20 scRNA dropout-ambiguous band below the critical-organ veto floor
+    (worst: blood vessel endothelial cell in brain at median_det 0.094); technical
+    dropout can mask low-copy expression, so this is not confident absence of an off-origin
+    safety liability.'
+  sc_normal_essential_donor_fraction: null
+  sc_normal_essential_max_cell_type: null
+  sc_normal_essential_max_detection_fraction: null
+  sc_normal_essential_max_tissue: null
+  sc_normal_essential_median_abund: null
+  sc_normal_essential_n_datasets_reliable: null
+  sc_normal_essential_veto_grade: not_applicable
+  sc_normal_expression_class: HIGH_LIABILITY
+  sc_normal_peak_median_abund: 1.289997335523367
+  sc_normal_safety_detection_confidence: detection_limited
+  sc_normal_safety_essential_class: none
+  tissues_loaded:
+  - colon
+  - heart
+  - liver
+  - kidney
+  - bone_marrow
+  - brain
+  - adrenal_gland
+  - lung
+  - pancreas
+  tissues_missing: []
+  tissues_queried:
+  - colon
+  - heart
+  - liver
+  - kidney
+  - bone_marrow
+  - brain
+  - adrenal_gland
+  - lung
+  - pancreas
+tumor-elevation-breadth:
+  breadth_layer_concordance: concordant
+  cohorts_tested:
+  - LSCC
+  cohorts_unestimable: []
+  fraction_elevated: 1.0
+  indications_tested:
+  - ACC
+  - BLCA
+  - BRCA
+  - CESC
+  - COAD
+  - ESCA
+  - GBM
+  - HNSC
+  - KICH
+  - KIRC
+  - KIRP
+  - LAML
+  - LGG
+  - LIHC
+  - LUAD
+  - LUSC
+  - OV
+  - PAAD
+  - PCPG
+  - PRAD
+  - READ
+  - SKCM
+  - STAD
+  - TGCT
+  - THCA
+  - UCEC
+  - UCS
+  median_effect_across_elevated: 0.971313549916324
+  median_standardized_effect_across_elevated: 0.7549
+  most_elevated_cohorts:
+  - cohort: LSCC
+    n_normal_samples: 88
+    protein_bh_q_value: 3.60399374094465e-06
+    protein_effect_size: 0.971313549916324
+    protein_effect_standardized_class: medium
+    protein_expression_class: modest_up
+  n_cohorts_elevated: 1
+  n_cohorts_sig_up_effect_negligible: 0
+  n_cohorts_sig_up_pan_cohort_fdr_fail: 0
+  n_cohorts_tested: 1
+  rna_fraction_elevated: 0.14814814814814814
+  rna_median_max_log2fc_across_elevated: 1.8579538609451036
+  rna_most_elevated_indications:
+  - cells_supporting: 2.0
+    dominant_direction: up
+    indication: UCEC
+    max_abs_log2fc: 2.3181549995200923
+  - cells_supporting: 3.0
+    dominant_direction: up
+    indication: BRCA
+    max_abs_log2fc: 2.276577132254914
+  - cells_supporting: 3.0
+    dominant_direction: up
+    indication: LUAD
+    max_abs_log2fc: 1.439330589635293
+  - cells_supporting: 3.0
+    dominant_direction: up
+    indication: LUSC
+    max_abs_log2fc: 1.3797953588782284
+  rna_n_indications_elevated: 4
+  rna_n_indications_tested: 27
+  rna_tumor_elevation_breadth_class: multi_tumor_elevated
+  tumor_elevation_breadth_class: single_tumor_elevated
+tumor-protein-abundance-cptac:
+  _data_note: target_not_in_cptac_cohort_COAD
+  cohort: null
+  method_version: 1.0.0
+  n_normal_samples: null
+  n_tumor_samples: null
+  protein_bh_q_value: null
+  protein_contrast_estimable: null
+  protein_effect_cohens_d: null
+  protein_effect_size: null
+  protein_effect_size_se: null
+  protein_effect_standardized_class: data_unavailable
+  protein_effect_standardized_method: data_unavailable
+  protein_effect_standardized_t: null
+  protein_expression_class: data_unavailable
+  protein_median_log2_normal: null
+  protein_median_log2_tumor: null
+  protein_p_value: null
+  stat_test_used: skipped_low_n
+tumor-protein-distribution-by-subtype:
+  assignment_manifest: cptac-subgroup-assignments-coadread-v1
+  indication: COADREAD
+  n_subtypes_depleted: 0
+  n_subtypes_enriched: 0
+  n_subtypes_measured: 0
+  per_subgroup_metrics:
+  - class: insufficient
+    detectable_fraction: null
+    evidence_state: absent
+    median_log2_ratio: null
+    source_cohort: CPTAC-COAD
+    stratum: MSI_H
+    subgroup_n: 0
+    subgroup_n_floor_met: false
+    subtype_enrich_log2_delta: null
+    subtype_signal: null
+  - class: insufficient
+    detectable_fraction: null
+    evidence_state: absent
+    median_log2_ratio: null
+    source_cohort: CPTAC-COAD
+    stratum: MSS
+    subgroup_n: 0
+    subgroup_n_floor_met: false
+    subtype_enrich_log2_delta: null
+    subtype_signal: null
+  pooled_cohort_median_log2_ratio: null
+  subtype_axis_available: true
+  subtype_axis_quality: empty
+  subtype_stratification_class: pan_subtype_uniform
+  target: CD19
+tumor-rna-distribution:
+  allgene_percentile: 55.038291931152344
+  allgene_percentile_by_study:
+    COAD: 55.22
+    READ: 54.85
+  allgene_percentile_class: mid
+  allgene_percentile_context: tcga_tumor:COAD,READ all-gene median rank (allgene-tumor-rank-v1;
+    mean of 2 study null(s))
+  assignment_manifest: tcga-subgroup-assignments-coadread-v1
+  coefficient_of_variation: 2.025091249030473
+  control_negatives:
+    ACTB: 99.94
+    GAPDH: 99.9
+    GYPA: 18.0
+    PRM1: 18.0
+    SFTPC: 18.0
+  control_negatives_excluded_lineage_conflict: []
+  control_percentile_source: allgene-tumor-rank-v1
+  control_position: above 0/4 positive control(s); above 3/5 negative control(s)
+  control_position_class: above_negatives_below_positives
+  control_position_context: tumor:COAD,READ vs curated controls (tumor_presence_controls
+    v1.0.0; indication_normal_tissue=Colon; allgene-tumor-rank-v1)
+  control_position_method_version: 0.1.0
+  control_positives:
+    CEACAM5: 99.91
+    EPCAM: 99.74
+    ERBB2: 94.28
+    MSLN: 89.29
+  control_target_class: mid
+  control_target_percentile: 55.038291931152344
+  detectable_fraction: 0.23617339312406577
+  distribution_overlap_tumor_normal: 0.7574983906691544
+  distribution_pattern: continuous
+  dominant_event_splice_type: null
+  fraction_tumor_above_normal_p95: 0.01195814648729447
+  fraction_tumor_above_normal_p99: 0.0014947683109118087
+  high_fraction: 0.0
+  matched_normal_tissue: COLON
+  max_event_psi_std: null
+  max_log2tpm: 4.9461894035339355
+  median_event_psi_std: null
+  median_log2tpm: 0.5959142446517944
+  method_version: 0.1.0
+  min_log2tpm: 0.0
+  moderate_fraction: 0.01046337817638266
+  n_normal_samples: 822
+  n_splice_events: null
+  n_subtypes_enriched: 0
+  n_subtypes_measured: 14
+  n_tumor_samples: 669
+  n_tumor_shifted_events: null
+  n_variable_events: null
+  normal_p95_log2tpm: 3.3265343785285912
+  normal_p99_log2tpm: 4.3664824485778775
+  p95_log2tpm: 1.8125612974166871
+  p99_log2tpm: 3.4617666149139414
+  splicing_context: null
+  splicing_dysregulation_class: data_unavailable
+  spotlight_subtype: null
+  studies:
+  - COAD
+  - READ
+  subtype_axis_available: true
+  subtype_signals_nonuniform: []
+  tumor_expression_class: broadly_low
+tumor-rna-distribution-by-subtype:
+  assignment_manifest: tcga-subgroup-assignments-coadread-v1
+  indication: COADREAD
+  matched_normal_tissue: COLON
+  method_version: 0.1.0
+  n_subtypes_clearing_normal_window: 0
+  n_subtypes_clearing_proxy_window_by_tissue: null
+  n_subtypes_enriched: 0
+  n_subtypes_measured: 14
+  n_subtypes_restricted: 0
+  normal_comparator_type: matched
+  per_subgroup_metrics: __omitted_from_fixture__ (list, 14 items)
+  proxy_normal_tissues: []
+  purity_source: pancanatlas_absolute
+  spotlight_subtype: null
+  subtype_axis_available: true
+  subtype_axis_quality: powered
+  subtype_effect_size_class: negligible
+  subtype_omnibus_by_axis:
+  - axis: CIMP
+    n_samples_tested: 520
+    n_subtypes_tested: 3
+    strata:
+    - CIMP_High
+    - CIMP_Low
+    - CIMP_Neg
+    subtype_effect_size_class: negligible
+    subtype_omnibus_kruskal_h: 2.1064065416434516
+    subtype_omnibus_p: 0.3488185971604051
+    subtype_variance_explained: 0.000205815361012479
+    which_subtypes_separate:
+      highest: CIMP_Neg
+      lowest: CIMP_Low
+  - axis: CMS
+    n_samples_tested: 552
+    n_subtypes_tested: 4
+    strata:
+    - CMS1
+    - CMS2
+    - CMS3
+    - CMS4
+    subtype_effect_size_class: negligible
+    subtype_omnibus_kruskal_h: 18.750497956445102
+    subtype_omnibus_p: 0.00030787142376522894
+    subtype_variance_explained: 0.028741784592053107
+    which_subtypes_separate: &id001
+      highest: CMS4
+      lowest: CMS3
+  - axis: MSI
+    n_samples_tested: 252
+    n_subtypes_tested: 2
+    strata:
+    - MSI_H
+    - MSS
+    subtype_effect_size_class: negligible
+    subtype_omnibus_kruskal_h: 0.4639673130488958
+    subtype_omnibus_p: 0.4957756575521668
+    subtype_variance_explained: 0.0
+    which_subtypes_separate:
+      highest: MSS
+      lowest: MSI_H
+  - axis: sidedness
+    n_samples_tested: 292
+    n_subtypes_tested: 2
+    strata:
+    - left_sided
+    - right_sided
+    subtype_effect_size_class: negligible
+    subtype_omnibus_kruskal_h: 0.31948274265170334
+    subtype_omnibus_p: 0.5719186635847306
+    subtype_variance_explained: 0.0
+    which_subtypes_separate:
+      highest: right_sided
+      lowest: left_sided
+  - axis: stage
+    n_samples_tested: 176
+    n_subtypes_tested: 2
+    strata:
+    - stage_I
+    - stage_II
+    subtype_effect_size_class: negligible
+    subtype_omnibus_kruskal_h: 0.31893042092745916
+    subtype_omnibus_p: 0.5722511328431061
+    subtype_variance_explained: 0.0
+    which_subtypes_separate:
+      highest: stage_I
+      lowest: stage_II
+  subtype_omnibus_driving_axis: CMS
+  subtype_omnibus_kruskal_h: 18.750497956445102
+  subtype_omnibus_p: 0.00030787142376522894
+  subtype_purity_spread:
+    delta: 0.26
+    max_median_purity: 0.79
+    min_median_purity: 0.53
+  subtype_stratification_class: pan_subtype_uniform
+  subtype_variance_explained: 0.028741784592053107
+  target: CD19
+  which_subtypes_separate: *id001
+tumor-rna-vs-adjacent:
+  _data_s3_uri: s3://onc-compbio/data-catalog/derived/COADREAD-dge/df06320/tumor_vs_adjacent.parquet
+  _data_source: coadread-dge-df06320
+  allgene_percentile: 4.4467290260924965
+  allgene_percentile_class: bottom_decile
+  allgene_percentile_context: coadread-dge-df06320 metric=log2FoldChange
+  base_mean: 56.642500686279426
+  expression_call_class: strong_downregulation
+  gtex_log2_fc: -1.2454673784817702
+  gtex_q_value: 3.1027789229363227e-40
+  is_actionable_provider_call: true
+  is_significant_provider_call: true
+  is_upregulated_provider_call: false
+  log2_fc: -2.073022089091264
+  n_adjacent: 51
+  n_tumor: 624
+  q_value: 2.435981809327819e-21
+tumor-scrna-celltype-expression:
+  ambient_contamination_risk: low
+  caf_abundance_log1p_cp10k: 0.0032
+  caf_compartment_available: true
+  caf_detection_fraction: 0.0048850000000000005
+  caf_vs_malignant_class: caf_low
+  compartment_detection:
+    epithelial_normal: 0.38889
+    immune: 0.04005
+    malignant: 0.00315
+    other: 0.00988
+    stromal: 0.0048850000000000005
+  entity_purity: entity_specific
+  fraction_donors_broadly_detecting: 0.004329
+  indication: COADREAD
+  inter_donor_consistency_class: variable
+  malignant_abundance_log1p_cp10k: 0.00145
+  malignant_annotation_method: curated
+  malignant_compartment_available: true
+  malignant_detection_donor_iqr: 0.005635
+  malignant_detection_fraction: 0.00315
+  malignant_expresser_bimodality_class: underpowered
+  malignant_expresser_bimodality_coefficient: null
+  malignant_expresser_excess_kurtosis: null
+  malignant_expresser_skewness: null
+  malignant_n_cells: 398412
+  malignant_n_detected: 1811
+  malignant_n_donors: 231
+  method_version: 0.1.0
+  n_compartments_measured: 5
+  n_datasets: 43
+  n_donor_groups: 409
+  per_compartment:
+  - compartment: malignant
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.00145
+    median_detection_fraction: 0.00315
+    n_cells_total: 398412
+    n_donors: 231
+  - compartment: stromal
+    is_caf: true
+    median_abundance_log1p_cp10k: 0.0032
+    median_detection_fraction: 0.0048850000000000005
+    n_cells_total: 97849
+    n_donors: 114
+  - compartment: immune
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.04831
+    median_detection_fraction: 0.04005
+    n_cells_total: 1106284
+    n_donors: 379
+  - compartment: epithelial_normal
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.04333
+    median_detection_fraction: 0.38889
+    n_cells_total: 54
+    n_donors: 1
+  - compartment: other
+    is_caf: false
+    median_abundance_log1p_cp10k: 0.013685
+    median_detection_fraction: 0.00988
+    n_cells_total: 3874
+    n_donors: 22
+  per_compartment_heterogeneity:
+  - compartment: malignant
+    detection_fraction_donor_iqr: 0.005635
+    detection_fraction_donor_p25: 0.00148
+    detection_fraction_donor_p75: 0.007115
+    dispersion_available: true
+    fraction_donors_broadly_detecting: 0.004329
+    median_detection_fraction: 0.00315
+    n_donors: 231
+  - compartment: stromal
+    detection_fraction_donor_iqr: 0.00586
+    detection_fraction_donor_p25: 0.0027425
+    detection_fraction_donor_p75: 0.008602499999999999
+    dispersion_available: true
+    fraction_donors_broadly_detecting: 0.0
+    median_detection_fraction: 0.0048850000000000005
+    n_donors: 114
+  - compartment: immune
+    detection_fraction_donor_iqr: 0.059805
+    detection_fraction_donor_p25: 0.01653
+    detection_fraction_donor_p75: 0.076335
+    dispersion_available: true
+    fraction_donors_broadly_detecting: 0.005277
+    median_detection_fraction: 0.04005
+    n_donors: 379
+  - compartment: epithelial_normal
+    detection_fraction_donor_iqr: null
+    detection_fraction_donor_p25: null
+    detection_fraction_donor_p75: null
+    dispersion_available: false
+    fraction_donors_broadly_detecting: null
+    median_detection_fraction: 0.38889
+    n_donors: 1
+  - compartment: other
+    detection_fraction_donor_iqr: 0.011875
+    detection_fraction_donor_p25: 0.005307500000000001
+    detection_fraction_donor_p75: 0.0171825
+    dispersion_available: true
+    fraction_donors_broadly_detecting: 0.0
+    median_detection_fraction: 0.00988
+    n_donors: 22
+  product_id: sc-pseudobulk-tumor-crc-coadread-v1
+  sc_expression_class: broadly_low
+  stromal_confound_class: not_stromal_confounded
+  tce_antigen_escape_class: escape_risk_high
+  tce_homogeneity_class: heterogeneous
+  top_microenvironment_compartment: immune
+  top_microenvironment_detection_fraction: 0.04005
+  within_tumor_coverage_class: low
