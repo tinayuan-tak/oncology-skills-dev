@@ -1463,6 +1463,39 @@ def _any_modality_presence_positive(per_modality: dict | None) -> bool:
     )
 
 
+def _gate_abundance_concordance_on_presence(claim_vector: dict | None, per_modality: dict | None) -> dict | None:
+    """PRESENCE GATE for the L2b `abundance_concordance` ISLAND (SK#2019, umbrella #1740).
+
+    The abundance island integrates two INDEPENDENT abundance reads (RNA transcript × mass-spec protein),
+    tumor-grain-preferred but FALLING BACK to the cell-line grain when the tumor arm is unavailable. On a
+    target measured-ABSENT in the tumor (e.g. CD19/COADREAD: claim A absent, malignant fraction 0.00, IHC
+    not_detected), that fallback still emitted an `rna_high_protein_low` cell-line split and its
+    ADC/degrader PAYLOAD-delivery caveat — a modality/payload narrative for an antigen that is not in the
+    tumor at all (and, via PRESENCE_PRIORITY_FRAME's veto_capable ABUNDANCE slot, a one-notch down-rank of
+    an antigen-priority surface it should not touch).
+
+    Fix: gate the island on tumor-presence-positivity read from the per-modality MATRIX
+    (`presence_verdict_by_modality`), EXACTLY as `_abundance_floor` was gated in PR-A (#1999 / afbdb3c4)
+    via the same `_any_modality_presence_positive` predicate — so the two abundance islands are gated
+    consistently. When NOT presence-positive (measured-negative / coverage-gap), the island is SUPPRESSED:
+    the `abundance_concordance` key is dropped, mirroring `_abundance_floor`'s `return None` and the
+    island's OWN pre-existing byte-stable key-omission discipline (`single_modality_only` → key omitted).
+
+    VERDICT-INERT: reads no verdict/rule and never moves the spine (presence_verdict,
+    presence_verdict_by_modality, resolver goldens). It only removes a verdict-inert PRESENTATION island
+    (and, downstream, the additive PRESENCE_PRIORITY_FRAME veto input) from a measured-absent target — the
+    cell-line abundance datum is real, but surfaced as a tumor/payload narrative for an antigen absent in
+    the tumor it is the misapplied datum this gate withholds (data_package_over_verdict). Returns the
+    claim_vector unchanged (same object) when the island is retained or absent, so a presence-positive
+    target is BYTE-STABLE."""
+    if not isinstance(claim_vector, dict) or "abundance_concordance" not in claim_vector:
+        return claim_vector
+    if _any_modality_presence_positive(per_modality):
+        return claim_vector
+    claim_vector.pop("abundance_concordance", None)
+    return claim_vector
+
+
 def _presence_signal_strength(driving_rule_id: str | None, verdict: str | None) -> str:
     """VERDICT-INERT legibility of the evidence BEHIND a presence call (M1). `_is_presence_positive`
     alone cannot tell a strong present call from one resting only on a NEUTRAL/low rung (the sole-signal
@@ -2597,6 +2630,13 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
             return None
 
     hl["claim_vector"] = _enrich("claim_vector", presence_claim_vector, hl, cards)
+    # PRESENCE GATE for the L2b abundance_concordance island (SK#2019): suppress the island (and its
+    # ADC/degrader payload caveat + downstream PRESENCE_PRIORITY_FRAME veto input) on a measured-absent
+    # target, mirroring _abundance_floor's PR-A gate (#1999) on the SAME per-modality-matrix predicate.
+    # Runs on the SAME per-modality matrix that already drives _abundance_floor above; verdict-inert —
+    # a presence-positive target is byte-identical (the island is retained untouched).
+    if isinstance(hl.get("claim_vector"), dict):
+        _gate_abundance_concordance_on_presence(hl["claim_vector"], per_modality)
     hl["key_signals"] = _enrich("key_signals", presence_key_signals, hl, cards)
     # TYPED presence_state (verdict-INERT): a structured re-projection of the claim_vector A/B/C/D + the
     # protein_confirmation_state / abundance_floor_flag / sc facets already on `hl`, so each biological
