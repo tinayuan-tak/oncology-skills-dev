@@ -111,9 +111,11 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
-          # PINNED — main @ 2026-09-27 (#807, TC PR#945: drop the retired XGBoost dual-model half of the
-          # dependency-predictability card). Bumped BY HAND; see SIBLING PINS above.
-          #
+          # PINNED — main @ 2026-09-28 (#1941, TC PR#951: declare 4 optional evidence_package
+          # sections; gap over prior pin = TC#950 nomination-gate annotation_only_indirect→
+          # tractability_sm contradiction). Bumped BY HAND; measured aperture-inert (ceiling
+          # unchanged); see SIBLING PINS above.
+
           # BUMPED BY HAND HERE, not by the bump PR, because this pin and APERTURE_CEILING in
           # skills/_skills_common/tests/test_field_disposition.py are two halves of ONE fact and the
           # aperture ratchet is TWO-SIDED: a lone bump can red the SLACK half and a lone ceiling move the
@@ -409,7 +411,7 @@ jobs:
           # _KNOWN_DEFAULTING note). APERTURE: adds ONE card field's vocab (a summary_fields_vocabulary
           # entry, not a new summary_field / required_input), so the aperture census is UNCHANGED —
           # aperture-inert, no ceiling move.
-          ref: 09102dc8e9c1b148ad9018f51995ad1bc889b8d9
+          ref: fdfa379777262e739655a8c63b9ed2b1b9f6b4a1
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
