@@ -129,7 +129,11 @@ def test_assembly_target_above_all_positives(contracts, monkeypatch):
     )
     out = CP.control_position_tumor("TARGET", "COADREAD", contracts_dir=contracts)
     assert out["control_position_class"] == "above_all_positives"
-    assert out["control_target_percentile"] == pytest.approx(99.9)
+    # Mutation teeth (#862): control_target_percentile/_class must NOT be echoed — there is no
+    # distinct control-target measurement, only allgene_percentile/_class from the same lookup
+    # (surfaced separately by control_position_tumor's caller, not by this summary block).
+    assert "control_target_percentile" not in out
+    assert "control_target_class" not in out
     assert set(out["control_positives"]) == {"POS_HI", "POS_MID"}
     assert "LUNGMARK" in out["control_negatives"]  # applicable in COLON
     assert out["control_negatives_excluded_lineage_conflict"] == []

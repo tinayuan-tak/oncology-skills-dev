@@ -147,11 +147,16 @@ def _assemble(target_pct, target_class, pos_pcts, neg_detail, excluded, source_l
     if n_neg:
         parts.append(f"above {n_neg_below}/{n_neg} negative control(s)")
     position = "; ".join(parts) if parts else "no applicable controls ranked"
+    # NOTE: target_class is accepted for call-site symmetry with target_pct but is no longer
+    # echoed here — control_target_percentile/_class were removed (#862): they unconditionally
+    # byte-duplicated allgene_percentile/_class from the same lookup (see control_position_tumor
+    # / control_position_cellline below), with no distinct control-target measurement behind
+    # them. Undeclared in the target-contracts card (cellline-rna-distribution.card.yaml lists
+    # them as reverted runtime orphans) — AM-only, no pin bump.
+    del target_class
     return {
         "control_position_class": klass,
         "control_position": position,
-        "control_target_percentile": target_pct,
-        "control_target_class": target_class,
         "control_positives": {k: round(v, 2) for k, v in pos_pcts.items() if v is not None},
         "control_negatives": {k: round(v["pct"], 2) for k, v in neg_detail.items() if v["pct"] is not None},
         "control_negatives_excluded_lineage_conflict": sorted(excluded.keys()),
