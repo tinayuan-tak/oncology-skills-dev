@@ -129,6 +129,34 @@ def test_rna_backbone_precedes_protein_precedes_sc_in_positive_tier():
     assert last_prot < first_sc, "a single-cell positive precedes a protein positive"
 
 
+def test_each_measurement_ladder_is_positive_first():
+    """Every PER-MEASUREMENT ladder (_EXPRESSION_RANK / _PROTEIN_RANK / _SC_RNA_RANK, used RAW by
+    _MEASUREMENT_RANK in _per_modality_verdicts) lists all its presence-POSITIVE rungs strictly above
+    any measured-negative or coverage-gap rung. This is the load-bearing invariant for the SK#1984
+    Stage-2 thinning: because _rank_verdict returns the first fired rung, positive-first makes a matrix
+    bucket resolve to a positive verdict IFF a positive rung fired in it — so `any ladder bucket
+    positive` (`_any_modality_presence_positive`, the rule-free gate now feeding `_abundance_floor`) is
+    byte-identical to `_is_presence_positive(_rank_verdict(fired))` (the old collapsed-scalar gate). A
+    reorder that sinks a positive below a negative WITHIN one ladder would silently break that
+    equivalence, so it must red here."""
+    for name, ladder in (
+        ("_EXPRESSION_RANK", tp._EXPRESSION_RANK),
+        ("_PROTEIN_RANK", tp._PROTEIN_RANK),
+        ("_SC_RNA_RANK", tp._SC_RNA_RANK),
+    ):
+        pos_idx, nongap_neg_idx = [], []
+        for i, (_, v) in enumerate(ladder):
+            if v in tp._MEASURED_NEGATIVE_VERDICTS or v in tp._COLLAPSE_GAP_VERDICTS:
+                nongap_neg_idx.append(i)
+            elif tp._is_presence_positive(v):
+                pos_idx.append(i)
+        if pos_idx and nongap_neg_idx:
+            assert max(pos_idx) < min(nongap_neg_idx), (
+                f"{name}: a measured-negative/gap rung outranks a positive — breaks the "
+                "_any_modality_presence_positive == collapsed-scalar equivalence (SK#1984)"
+            )
+
+
 def test_protein_absence_is_a_measured_negative():
     """Principle: a measured protein-absence is a presence-NEGATIVE, so it lands in the negative tier and
     trips presence_headline_conflict — never treated as a coverage gap. The ONLY reachable protein-absence

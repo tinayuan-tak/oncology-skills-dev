@@ -1443,6 +1443,26 @@ def _is_presence_positive(verdict: str | None) -> bool:
     )
 
 
+def _any_modality_presence_positive(per_modality: dict | None) -> bool:
+    """Rule-free equivalent of `_is_presence_positive(collapsed_verdict)`, read from the per-modality
+    MATRIX (`presence_verdict_by_modality`) instead of the Route-A collapsed scalar (SK#1984 Stage-2
+    thinning, Step 2a — sever the claim-vector's transitive dependence on the layer-orphan verdict).
+
+    A LADDER bucket (driving_rule_id present) is presence-positive iff its top-fired rung is a positive
+    one; because every ladder is POSITIVE-FIRST (test_ladder_invariants pins this — no measured-negative
+    rung ever outranks a positive within a ladder), that is equivalent to "any positive rung fired in the
+    bucket". So `any ladder bucket positive` == `any positive ladder rung fired anywhere` ==
+    `_is_presence_positive(_rank_verdict(fired))` — byte-identical to the old scalar gate (the collapse's
+    post-rank protein-absence demotion preserves positivity too: PRESENT_RNA_ONLY_PROTEIN_ABSENT is not a
+    measured-negative token). Comparator / measured-unruled buckets (driving_rule_id None) are excluded —
+    they fire no ladder rule and never entered the collapse either."""
+    return any(
+        _is_presence_positive(b.get("verdict"))
+        for b in (per_modality or {}).values()
+        if isinstance(b, dict) and b.get("driving_rule_id")
+    )
+
+
 def _presence_signal_strength(driving_rule_id: str | None, verdict: str | None) -> str:
     """VERDICT-INERT legibility of the evidence BEHIND a presence call (M1). `_is_presence_positive`
     alone cannot tell a strong present call from one resting only on a NEUTRAL/low rung (the sole-signal
@@ -1608,7 +1628,7 @@ def _protein_platform_concordance(cards):
     return "concordant"
 
 
-def _abundance_floor(cards, collapsed_verdict, is_surface=False):
+def _abundance_floor(cards, per_modality, is_surface=False):
     """VERDICT-INERT (Principle 2 — breadth != level): a presence-POSITIVE call whose absolute abundance
     LEVEL reads bottom-decile (allgene percentile) in at least one lens. The presence classes are
     breadth-of-detection dominant (e.g. a protein detected in 100% of cell lines but bottom-decile
@@ -1638,7 +1658,10 @@ def _abundance_floor(cards, collapsed_verdict, is_surface=False):
     verdict reach was NOT taken here (it would be verdict-affecting and needs a separate gated proposal).
 
     Returns (flag_or_None, [low_lens_dicts])."""
-    if not _is_presence_positive(collapsed_verdict):
+    # POSITIVITY GATE (SK#1984 Stage-2 thinning, Step 2a): read presence-positivity from the per-modality
+    # MATRIX, not the Route-A collapsed scalar. Byte-identical (see _any_modality_presence_positive) — the
+    # floor is a level check on card-native percentiles; the gate only decides whether to compute it.
+    if not _any_modality_presence_positive(per_modality):
         return None, []
     low, high = [], []
     for card_id, label in _LEVEL_ANCHOR_CARDS:
@@ -2248,7 +2271,7 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
     # (Principle 1), and a presence-positive whose absolute abundance level reads bottom-decile
     # (Principle 2). Both are additive legibility guards; neither touches v / drv / per_modality.
     _hl_conflict, _hl_conflict_note, _hl_conflict_buckets = _headline_conflict(v, per_modality, fired)
-    _abundance_floor_flag, _abundance_low_lenses = _abundance_floor(cards, v, is_surface=_is_surface)
+    _abundance_floor_flag, _abundance_low_lenses = _abundance_floor(cards, per_modality, is_surface=_is_surface)
     # RNA→protein proxy quality: prefer the tumor arm (the disease-context proxy), fall back to cell-line.
     _rna_biomarker = get_card_field(cards, "cellline-rna-protein-concordance", "rna_as_biomarker")
     _rna_biomarker_tumor = get_card_field(cards, "rna-protein-concordance-tumor", "rna_as_biomarker")

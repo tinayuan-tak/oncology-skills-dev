@@ -86,6 +86,23 @@ def _cards(**pct_by_card):
     return [{"card_id": cid, "summary": {"allgene_percentile_class": klass}} for cid, klass in pct_by_card.items()]
 
 
+def _pm(verdict, rule_id="tumor-expression-broadly-high-supportive"):
+    """Minimal per-modality MATRIX holding ONE ladder bucket (driving_rule_id set) at `verdict`.
+
+    `_abundance_floor` reads its positivity gate from this matrix, not from the Route-A collapsed
+    scalar (SK#1984 Stage-2 thinning, Step 2a). `driving_rule_id` must be truthy — a comparator /
+    measured-unruled bucket fires no ladder rung and is excluded from the gate by design."""
+    return {
+        "bulk_rna/tumor": {
+            "measurement": "bulk_rna",
+            "sample_context": "tumor",
+            "verdict": verdict,
+            "driving_rule_id": rule_id,
+            "evidence_state": "measured",
+        }
+    }
+
+
 def test_abundance_floor_fires_on_bottom_decile_level_lens():
     """UNOPPOSED single-lens case: presence-positive, cell-line PROTEIN bottom-decile, and NO orthogonal
     protein contradiction (no ProCan / IHC in this minimal card set). A high RNA anchor does NOT override
@@ -97,7 +114,7 @@ def test_abundance_floor_fires_on_bottom_decile_level_lens():
             "cellline-protein-abundance": "bottom_decile",
         }
     )
-    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed")
+    flag, lenses = tp._abundance_floor(cards, _pm("tumor_broadly_expressed"))
     assert flag == "present_low_abundance"
     assert [x["card_id"] for x in lenses] == ["cellline-protein-abundance"]
     assert lenses[0]["quorum"] == "single_lens_unopposed"
@@ -115,7 +132,7 @@ def test_abundance_floor_single_lens_demoted_by_orthogonal_protein():
             "cellline-protein-abundance-procan": "mid",
         }
     )
-    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed")
+    flag, lenses = tp._abundance_floor(cards, _pm("tumor_broadly_expressed"))
     assert flag == "present_low_abundance_single_lens"
     assert lenses[0]["card_id"] == "cellline-protein-abundance"
     assert lenses[0]["quorum"] == "single_lens_overridden"
@@ -133,7 +150,7 @@ def test_abundance_floor_multi_lens_stays_hard():
             "cellline-protein-abundance-procan": "mid",
         }
     )
-    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed")
+    flag, lenses = tp._abundance_floor(cards, _pm("tumor_broadly_expressed"))
     assert flag == "present_low_abundance"
     assert {x["quorum"] for x in lenses} == {"multi_lens"}
 
@@ -146,7 +163,7 @@ def test_abundance_floor_adequate_when_no_bottom_decile_level():
             "cellline-protein-abundance": "mid",
         }
     )
-    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed")
+    flag, lenses = tp._abundance_floor(cards, _pm("tumor_broadly_expressed"))
     assert flag == "adequate_abundance" and lenses == []
 
 
@@ -176,7 +193,7 @@ def test_surface_class_reanchors_lone_gygi_low_when_procan_at_least_median():
             "cellline-protein-abundance": "bottom_decile",
         }
     ) + [_procan_card(79.7)]
-    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
+    flag, lenses = tp._abundance_floor(cards, _pm("tumor_broadly_expressed"), is_surface=True)
     assert flag == "adequate_abundance" and lenses == []
 
 
@@ -190,7 +207,7 @@ def test_non_surface_gygi_low_procan_recovers_stays_soft_flag_byte_stable():
             "cellline-protein-abundance": "bottom_decile",
         }
     ) + [_procan_card(79.7)]
-    flag, _ = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=False)
+    flag, _ = tp._abundance_floor(cards, _pm("tumor_broadly_expressed"), is_surface=False)
     assert flag == "present_low_abundance_single_lens"
 
 
@@ -207,7 +224,7 @@ def test_surface_class_does_NOT_rescue_folr1_shape_procan_below_median():
             "cellline-protein-abundance": "bottom_decile",
         }
     ) + [_procan_card(20.8)]
-    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
+    flag, lenses = tp._abundance_floor(cards, _pm("tumor_broadly_expressed"), is_surface=True)
     assert flag == "present_low_abundance_single_lens"
     assert lenses[0]["quorum"] == "single_lens_overridden"
 
@@ -222,7 +239,7 @@ def test_surface_class_ihc_high_carries_reanchor_when_procan_missing():
             "cellline-protein-abundance": "bottom_decile",
         }
     ) + [_ihc_card("ihc_detected_high")]
-    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
+    flag, lenses = tp._abundance_floor(cards, _pm("tumor_broadly_expressed"), is_surface=True)
     assert flag == "adequate_abundance" and lenses == []
 
 
@@ -238,7 +255,7 @@ def test_surface_class_keeps_hard_floor_when_procan_also_bottom_decile_no_ihc():
             "cellline-protein-abundance-procan": "bottom_decile",
         }
     )
-    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
+    flag, lenses = tp._abundance_floor(cards, _pm("tumor_broadly_expressed"), is_surface=True)
     assert flag == "present_low_abundance"
     assert lenses[0]["quorum"] == "single_lens_unopposed"
 
@@ -253,7 +270,7 @@ def test_surface_class_does_not_rescue_a_multi_lens_low():
             "cellline-protein-abundance": "bottom_decile",
         }
     ) + [_procan_card(79.7)]
-    flag, lenses = tp._abundance_floor(cards, "tumor_broadly_expressed", is_surface=True)
+    flag, lenses = tp._abundance_floor(cards, _pm("tumor_broadly_expressed"), is_surface=True)
     assert flag == "present_low_abundance"
     assert {x["quorum"] for x in lenses} == {"multi_lens"}
 
@@ -277,9 +294,15 @@ def test_abundance_floor_none_when_not_positive():
             "cellline-protein-abundance": "bottom_decile",
         }
     )
+    # A matrix whose only ladder bucket is a measured-negative / gap read is non-positive → gated out.
     for v in ("broadly_low_expression", "data_unavailable", "insufficient"):
-        flag, lenses = tp._abundance_floor(cards, v)
+        flag, lenses = tp._abundance_floor(cards, _pm(v))
         assert flag is None and lenses == []
+    # And an EMPTY / all-non-ladder matrix is likewise non-positive (nothing to qualify).
+    assert tp._abundance_floor(cards, {}) == (None, [])
+    assert tp._abundance_floor(
+        cards, {"protein_ihc/tumor": {"verdict": "ihc_detected_high", "driving_rule_id": None}}
+    ) == (None, [])
 
 
 def test_presence_positive_predicate_matches_partition():
@@ -291,9 +314,82 @@ def test_presence_positive_predicate_matches_partition():
     assert all(not tp._is_presence_positive(v) for _, v in gap)
 
 
+# ── SK#1984 Stage-2 thinning, Step 2a: matrix-derived positivity gate ────────────────────────────
+def test_any_modality_presence_positive_reads_only_ladder_buckets():
+    """The rule-free gate now feeding _abundance_floor is True iff SOME LADDER bucket (driving_rule_id
+    set) is presence-positive, and it IGNORES comparator / measured-unruled buckets (driving_rule_id
+    None) — those fire no ladder rung and never entered the collapse."""
+    assert tp._any_modality_presence_positive(_pm("tumor_broadly_expressed")) is True
+    assert tp._any_modality_presence_positive(_pm("broadly_low_expression")) is False  # measured-negative
+    assert tp._any_modality_presence_positive(_pm("data_unavailable")) is False  # coverage gap
+    assert tp._any_modality_presence_positive({}) is False
+    assert tp._any_modality_presence_positive(None) is False
+    # A comparator/unruled bucket whose token would pass _is_presence_positive must NOT count as positive
+    # (driving_rule_id None → excluded) — otherwise a normal-tissue HIGH_LIABILITY or IHC-detected read
+    # would spuriously gate the tumor abundance floor open.
+    assert (
+        tp._any_modality_presence_positive(
+            {
+                "sc_rna/normal": {"verdict": "HIGH_LIABILITY", "driving_rule_id": None},
+                "protein_ihc/tumor": {"verdict": "ihc_detected_high", "driving_rule_id": None},
+            }
+        )
+        is False
+    )
+    # …but a positive ladder bucket alongside those non-ladder buckets DOES count.
+    mixed = {"protein_ihc/normal": {"verdict": "broad_normal_expression", "driving_rule_id": None}}
+    mixed.update(_pm("tumor_broadly_expressed"))
+    assert tp._any_modality_presence_positive(mixed) is True
+
+
+# A representative card_id per ladder measurement, so a fired rung lands in the right matrix bucket
+# (CARD_CONTEXT keys buckets off card_id; _rank_verdict then ranks within that measurement's ladder).
+_MEAS_CARD = {
+    "bulk_rna": "tumor-rna-distribution",
+    "bulk_protein_ms": "tumor-protein-abundance-cptac",
+    "sc_rna": "tumor-scrna-celltype-expression",
+}
+_RUNG_MEAS = {
+    **{rid: "bulk_rna" for rid, _ in tp._EXPRESSION_RANK},
+    **{rid: "bulk_protein_ms" for rid, _ in tp._PROTEIN_RANK},
+    **{rid: "sc_rna" for rid, _ in tp._SC_RNA_RANK},
+}
+
+
+def test_matrix_gate_equals_collapsed_scalar_gate_over_fired_sets():
+    """Behavioural equivalence (the whole point of Step 2a): for any fired set, reading presence-
+    positivity from the per-modality MATRIX is byte-identical to reading it from the collapsed scalar
+    `_verdict(fired)`. Adversarial coverage: each single ladder rung, plus mixed positive+negative pairs
+    across measurements (where a within-bucket ladder that was NOT positive-first could diverge)."""
+    all_rungs = [rid for rid, _ in tp._VERDICT_RANK]
+    singles = [[r] for r in all_rungs]
+    # mixed pairs: one positive rung + one negative/gap rung (the divergence-prone shape)
+    pos_rids = [rid for rid, v in tp._VERDICT_RANK if tp._is_presence_positive(v)]
+    neg_rids = [
+        rid for rid, v in tp._VERDICT_RANK if v in tp._MEASURED_NEGATIVE_VERDICTS or v in tp._COLLAPSE_GAP_VERDICTS
+    ]
+    pairs = [[p, n] for p in pos_rids[:6] for n in neg_rids]
+    for combo in singles + pairs + [[], all_rungs]:
+        fired = [_fr(r) for r in combo]
+        collapsed, _ = tp._verdict(fired)
+        per_modality = tp._per_modality_verdicts(fired)
+        assert tp._any_modality_presence_positive(per_modality) == tp._is_presence_positive(collapsed), (
+            f"gate divergence for fired={combo}: matrix={per_modality} vs collapsed={collapsed!r}"
+        )
+
+
 # ── obs-1: WITHIN-bucket buried measured-negative ────────────────────────────────────────────────
-def _fr(rule_id, card_id):
-    return {"rule_id": rule_id, "card_id": card_id, "field": "x", "value": "y", "signals": {}}
+def _fr(rule_id, card_id=None):
+    # card_id defaults to a representative card in the rung's ladder measurement, so the rung buckets
+    # correctly in _per_modality_verdicts (CARD_CONTEXT keys off card_id); pass it explicitly to place
+    # a rung in a specific (measurement, sample_context) bucket.
+    return {
+        "rule_id": rule_id,
+        "card_id": card_id or _MEAS_CARD[_RUNG_MEAS[rule_id]],
+        "field": "x",
+        "value": "y",
+        "signals": {},
+    }
 
 
 def test_conflict_surfaces_within_bucket_buried_negative():
