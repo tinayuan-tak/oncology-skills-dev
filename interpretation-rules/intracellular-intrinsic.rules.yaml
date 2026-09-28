@@ -3406,17 +3406,33 @@ rules:
       corpus is not safe by contract, which is why it is declared rather than trimmed.
 
       WHAT NO LONGER CLAMPS, AND WHERE IT GOES. accessible_moderate_severity /
-      accessible_low_confidence / bbb_protected no longer reach this clamp. They are NOT silent here:
-      interpretation rules are selected by card_id, not by file, and sc-normal-celltype-expression is
-      in tumor-selectivity's cards_used — so the three graded companions added in #786
-      (sc-normal-graded-accessible-{moderate,low-confidence}-bite-opposing,
-      sc-normal-graded-bbb-protected-bite-opposing, all display-partition) already fire in THIS gate's
-      fired_rule_ids and carry the retained liability into the narrative and per-modality tally.
-      No selectivity-side duplicates are minted: doing so would double-count the same signal and
-      drift coverage/rule_role_partition.yaml for no gain. NOTE THE RESIDUAL FAIL-OPEN, recorded
-      rather than engineered away: 5 of the 23 relieved pairs are relieved on
-      accessible_low_confidence, which means "we could barely look" (det < 0.30 OR a single atlas),
-      not "we looked and it is safe". The companions are what keep those visible.
+      accessible_low_confidence / bbb_protected no longer reach this clamp. They must NOT go silent —
+      and #886 CORRECTS the reachability claim this note previously made. The retracted claim was:
+      "interpretation rules are selected by card_id, not by file … so the three graded companions
+      added in #786 (surface-intrinsic sc-normal-graded-*-bite-opposing) already fire in THIS gate's
+      fired_rule_ids." That is FALSE. `_skills_common/rules_loader.load_interpretation_rules(axis)`
+      loads exactly ONE axis file per call ({axis-kebab}.rules.yaml) and filter_rules_by_card_ids then
+      filters WITHIN it — so an INTRACELLULAR target resolves on intracellular-intrinsic.rules.yaml,
+      where the #786 companions were absent (they live only in surface-intrinsic.rules.yaml and, being
+      bite_tce-only, would be the wrong lens here anyway). The residual critical-organ liability was
+      therefore SILENTLY DROPPED on this axis for the relieved grades — a fail-open, and precisely on
+      the modality it bites: bbb_protected is a BBB-penetrant small_molecule / degrader concern, and a
+      systemically dosed T-cell engager (the surface companions' only channel) cannot reach parenchyma
+      behind an intact blood-brain barrier at all.
+      #886 mirrors the three companions INTO this file as intracellular-lensed display rules
+      (sc-normal-graded-accessible-{moderate,low-confidence}-sm-degrader-opposing,
+      sc-normal-graded-bbb-protected-sm-degrader-opposing — defined immediately below, all
+      display-partition), lensing small_molecule / degrader OPPOSING (the systemic, BBB-crossing
+      modalities), NOT bite_tce. They carry the retained liability into THIS axis's fired_rule_ids /
+      narrative / per-modality tally without minting a verdict rung — the same restraint the surface
+      companions keep, and the verdict-rung decision stays parked (a display companion, not a
+      re-broadened clamp; escalating bbb_protected to a hard SM/degrader clamp is that separate,
+      still-parked architectural call). No selectivity-side duplicates are minted; the clamp predicate
+      is unchanged, so this addition is verdict-inert (display, unwired) and leaves the resolver golden
+      byte-stable. NOTE THE RESIDUAL FAIL-OPEN, recorded rather than engineered away: 5 of the 23
+      relieved pairs are relieved on accessible_low_confidence, which means "we could barely look"
+      (det < 0.30 OR a single atlas), not "we looked and it is safe". The companions are what keep
+      those visible.
 
       DESIGN NOTES, re-measured live 2026-09-18 rather than carried forward — two claims this
       rationale previously made are FALSE today and are retracted here:
@@ -3444,6 +3460,83 @@ rules:
       coverage/rule_role_partition.yaml's `gating_keypaths` walks
       post_resolver_clamp/precedence/[]/when_fired and post_resolver_clamp/upgrade/requires/[]/[],
       which is why THIS arm is correctly in that snapshot's `gating` partition.
+
+  # --- graded companions to tvn-sc-normal-critical-organ-veto (2026-09-28, #886) ---------------
+  # INTRACELLULAR-axis mirror of the three surface-intrinsic sc-normal graded companions. The #786
+  # narrowing of the veto above relieved accessible_moderate_severity / accessible_low_confidence /
+  # bbb_protected from the hard clamp on the promise that graded companions carry the retained
+  # liability. Those companions were defined ONLY in surface-intrinsic.rules.yaml and lens bite_tce;
+  # rules_loader.load_interpretation_rules(axis) loads exactly ONE axis file, so an intracellular
+  # target resolves on THIS file, where they were absent — the residual critical-organ liability was
+  # silently dropped (#886 fail-open). These three restore the safety net on the axis where it bites:
+  # small_molecule / degrader OPPOSING (the systemic, BBB-crossing modalities), NOT bite_tce (a
+  # surface modality handled surface-side; a systemic TCE cannot reach an intact-BBB compartment).
+  # Like their surface siblings they are OPPOSING, not killers, and NOT wired into any resolver gate
+  # (rule_role_partition: display): they make the retained liability visible in the narrative and
+  # per-modality tally WITHOUT minting a verdict rung. That restraint is deliberate and matches the
+  # surface axis — adding verdict rungs (or re-broadening the clamp to include these grades) is a
+  # separate architectural decision, still PARKED, not a side effect of closing this fail-open.
+
+  - rule_id: sc-normal-graded-accessible-moderate-sm-degrader-opposing
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_essential_veto_grade
+      equals: accessible_moderate_severity
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      INTRACELLULAR mirror of sc-normal-graded-accessible-moderate-bite-opposing (#886).
+      REPLICATED essential-cell expression in a systemically accessible non-origin critical organ,
+      but below the HIGH bar (det >= 0.50 AND donor >= 0.70 AND >= 2 atlases). For a systemically
+      dosed small_molecule / degrader this is a real on-target-off-tumor liability that requires a
+      therapeutic-window justification — not an automatic veto (the hard clamp was narrowed off this
+      grade in #786). OPPOSING on the SM/degrader channels, which are the intracellular axis's
+      modalities; bite_tce is carried by the surface-axis companion, not here. CAVEAT worth carrying:
+      the HIGH bar is a CONJUNCTION, so a heavily replicated hit can land here on the det conjunct
+      alone (MSLN-PAAD grades moderate at det 0.413 / donor 0.881 / 26 independent atlases). Read the
+      named sc_normal_essential_max_* driver fields before treating this rung as reassuring.
+
+  - rule_id: sc-normal-graded-accessible-low-confidence-sm-degrader-opposing
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_essential_veto_grade
+      equals: accessible_low_confidence
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      INTRACELLULAR mirror of sc-normal-graded-accessible-low-confidence-bite-opposing (#886).
+      Essential-cell expression in a systemically accessible non-origin critical organ resting on
+      THIN evidence: det < 0.30 OR a single atlas. OPPOSING on small_molecule / degrader because the
+      liability may well be real; not a killer, because one atlas cannot support a dominant modality
+      veto. NOTE THE ASYMMETRY WITH accessible_ungraded, which keeps the hard veto above:
+      low_confidence means the replication was MEASURED and came back thin, whereas ungraded means it
+      was not measurable at all. A measured weakness may lower a rung; missing data may not. This is
+      the residual the #886 note flags: "barely looked", not "looked and safe" — kept visible, not
+      dropped.
+
+  - rule_id: sc-normal-graded-bbb-protected-sm-degrader-opposing
+    when:
+      card_id: sc-normal-celltype-expression
+      field: sc_normal_essential_veto_grade
+      equals: bbb_protected
+    signals:
+      small_molecule: opposing
+      degrader: opposing
+    rationale: |
+      INTRACELLULAR mirror of sc-normal-graded-bbb-protected-bite-opposing (#886), and the sharpest
+      reason this axis needed its own companions. bbb_protected means every above-floor off-origin
+      essential hit is brain parenchyma. On the SURFACE axis that RELIEVES the veto for a T-cell
+      engager on the compartment argument — a systemically dosed TCE is the modality least able to
+      reach parenchyma behind an intact blood-brain barrier. That argument does NOT transfer to the
+      intracellular axis: a BBB-CROSSING small_molecule / degrader is precisely the modality that CAN
+      reach the compartment, so bbb_protected is a genuine SM/degrader liability here, not a free
+      pass (GD2 / B7-H3 are proof brain is not a free pass). OPPOSING on small_molecule / degrader so
+      the retained liability stays visible on the axis where it bites — closing the #886 fail-open in
+      which this residual was silently dropped. Whether to escalate this grade from a display
+      companion to a hard SM/degrader clamp is the separate, still-parked verdict-rung decision; this
+      change only restores visibility, it does not re-broaden the clamp.
 
   - rule_id: tvn-tphp-broad-abundant-normal-protein-veto
     when:

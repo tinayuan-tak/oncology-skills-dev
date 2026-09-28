@@ -12,9 +12,9 @@ attribution_keypaths:
 - post_resolver_clamp/modality_conditional/expected_inert_arms/[]/rule_id
 - resolve/[]/driving_rule
 counts:
-  total: 447
+  total: 450
   gating: 151
-  display: 296
+  display: 299
 gating:
 - adc-preferred-supportive
 - alteration-role-gof-driver-supportive
@@ -399,8 +399,11 @@ display:
 - sc-expression-microenvironment-dominant-neutral
 - sc-normal-data-unavailable-insufficient
 - sc-normal-graded-accessible-low-confidence-bite-opposing
+- sc-normal-graded-accessible-low-confidence-sm-degrader-opposing
 - sc-normal-graded-accessible-moderate-bite-opposing
+- sc-normal-graded-accessible-moderate-sm-degrader-opposing
 - sc-normal-graded-bbb-protected-bite-opposing
+- sc-normal-graded-bbb-protected-sm-degrader-opposing
 - sc-normal-high-liability-adc-antibody-opposing
 - sc-normal-low-supportive
 - sc-normal-moderate-opposing
