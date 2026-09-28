@@ -24,6 +24,21 @@ question: "Does {target.symbol} RNA predict its PROTEIN in {indication.label} TU
 
 tier: indication   # tumor concordance is cohort/indication-specific
 
+# Evidence-capsule projection contract (#2015). The headline statistic of this card — the
+# per-tumor Pearson concordance rna_protein_r (+ its Fisher-z 95% CI bounds) — matched NO
+# _ANCHOR_HINTS token, so the capsule's numeric-anchor scan could not reach it; it surfaced
+# ONLY because "rna_protei·n_·r" contains the substring "n_" and was mis-swept into n_basis by
+# the pre-#2015 substring heuristic (a decisive correlation laundered as a fake sample size).
+# With that substring bug fixed skills-side, the statistic would vanish from the package
+# entirely, so we DECLARE it as a numeric_anchor here (mirroring the tumor-vs-normal-selectivity
+# declared-anchors precedent, TC#780). VERDICT-INERT projection: the 0.4/0.7 concordance frame
+# is a skill-side reader over rna_protein_r (threshold_roles below), not a card predicate.
+capsule:
+  numeric_anchors:                             # replaces the unreachable _ANCHOR_HINTS scan
+    - rna_protein_r                            # headline Pearson concordance (paired per-tumor)
+    - rna_protein_r_ci95_low                   # Fisher-z 95% CI low of the classifying correlation
+    - rna_protein_r_ci95_high                  # Fisher-z 95% CI high
+
 applies_when:
   # the indications with a CPTAC cohort in the matched product (10 cohorts).
   - "context.indication in ['BRCA', 'CCRCC', 'KIRC', 'COADREAD', 'COAD', 'READ', 'GBM', 'HNSC', 'HNSCC', 'LUSC', 'LSCC', 'LUAD', 'OV', 'PAAD', 'PDAC', 'UCEC']"
