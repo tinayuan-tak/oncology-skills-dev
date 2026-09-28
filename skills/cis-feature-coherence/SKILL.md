@@ -55,6 +55,7 @@ composition:
     - amp-expr-stratified-dependency         # leg-2 (reuse): conjoint amp∩overexpr dependency
     - patient-cis-coherence                  # VERDICT-INERT patient (TCGA) corroboration facet (fires no rule)
     - cellline-isoform-expression            # R10 molecular-form facet (verdict-inert display)
+    - tumor-splice-dysregulation             # patient splice-form facet (TCGA SpliceSeq); feeds L2b isoform_splice_concordance (verdict-inert)
   # DATA_TO_SKILL_CONTRACT Rule 3 — the measurement_type claims this skill PULLs.
   measurement_types_pulled:
     - cis_dosage_coupling
@@ -65,6 +66,7 @@ composition:
     - amp_expr_stratified_dependency
     - patient_cis_coherence
     - cellline_isoform_expression
+    - tumor_splice_dysregulation
   rules_scope:
     - cis-coherence
   # Verdict via the SHARED declarative resolver (resolvers/cis_coherence.resolver.yaml) on a

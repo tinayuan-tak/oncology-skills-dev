@@ -1568,6 +1568,19 @@ _DECLARED_CIS_CORROBORATION_BUILDERS = {
         "disagreeing arm). Neither a subset/superset nor derived from the other; commensurate by same-"
         "construct/same-granularity/independent-MODALITY, see _EXPRDEP_COMMENSURATE_ARM_PAIRS / _EXPRDEP_ARM_STRUCTURE"
     ),
+    "_isoform_splice_concordance_claim": (
+        "cell-line `isoform_expression_class` (cellline-isoform-expression, DepMap panel dominant-isoform "
+        "fraction) × patient `splicing_dysregulation_class` (tumor-splice-dysregulation, TCGA SpliceSeq PSI) "
+        "— the SAME transcript-FORM-complexity property (a clean single-form target vs an alternatively-"
+        "spliced / splice-variable one) measured at two DIFFERENT sample-context GRAINS (model vs patient, "
+        "grain first-class; SK#1785, epic #1779 B1). UNLIKE cis-dosage the two form vocabularies are RELATED-"
+        "BUT-DISTINCT (a cell-line dominant-isoform FRACTION vs a patient per-event PSI dysregulation — "
+        "comparable in DIRECTION not thresholds), so each token is routed through an EXPLICIT per-grain "
+        "class→arm mapping (the cell-line `balanced` intermediate band and both `data_unavailable` sentinels "
+        "route to NO rung — they DROP, never fabricating a disagreeing arm). Neither a subset/superset nor "
+        "derived from the other; commensurate by same-construct/same-granularity/independent-GRAIN, see "
+        "_ISOFORM_SPLICE_COMMENSURATE_ARM_PAIRS / _ISOFORM_SPLICE_ARM_STRUCTURE"
+    ),
 }
 
 # The (card_id, field) arms the fold reads. Three DISTINCT cis-coherence cards across two grains (cell-line
@@ -2010,6 +2023,115 @@ def test_detector_bites_an_exprdep_arm_repointed_to_the_other_modality_card():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# `_isoform_splice_concordance_claim` (L2b #1785, epic #1779 B1) folds
+# `corroboration_from_arms([cl_arm, pt_arm])`, where each arm is the resolved transcript-FORM-complexity
+# direction of the SAME property measured at a DIFFERENT sample-context GRAIN:
+#   * cell-line MODEL grain — cellline-isoform-expression.isoform_expression_class  (DepMap dominant-isoform)
+#   * patient TUMOUR grain  — tumor-splice-dysregulation.splicing_dysregulation_class (TCGA SpliceSeq PSI)
+#
+# AUDIT VERDICT (SK#1785): COMMENSURATE by design, cross-GRAIN (like #1782), WITH an explicit vocabulary-
+# mapping precondition (the two form vocabularies are RELATED-BUT-DISTINCT — a cell-line dominant-isoform
+# FRACTION vs a patient per-event PSI dysregulation — comparable in DIRECTION not thresholds).
+#   * SAME CONSTRUCT: both resolve whether the target's transcript form is COMPLEX (isoform-diverse / splice-
+#     dysregulated) vs a MEASURED SIMPLE floor (single dominant isoform / stable splicing).
+#   * SAME GRANULARITY, DIFFERENT GRAIN (model panel vs patient cohort) → grain first-class; the two arms
+#     are two independent sample contexts. corroborating_independent_arm_count counts INDEPENDENT GRAINS.
+#   * ★★ NON-IDENTICAL VOCABULARIES → EXPLICIT CLASS→ARM MAPPING. Each grain enumerates EVERY token to
+#     complex / simple / DROP. The cell-line `balanced` intermediate band + both `data_unavailable` sentinels
+#     route to NO rung — they DROP (None arm), never fabricating a disagreeing arm (which would falsely drive
+#     corroboration to `low`). Mapping soundness is pinned at the CLAIM level in test_cis_coherence_claims.py;
+#     here we pin the ARM-COMMENSURABILITY (two distinct grain cards).
+#   * INDEPENDENT: DepMap cell-line panel vs TCGA patient cohort; neither a subset/superset nor derived.
+#   * MEASURED (no vote flip): two agreeing grains → high; a discordance → low; one measured grain → single_
+#     arm. Carries NO `signal` key, reads no verdict, feeds no rule (VERDICT-INERT, key omitted/byte-stable).
+# The invariant this block pins: `_isoform_splice_concordance_claim` folds EXACTLY the two declared cross-
+# grain card/field arms (two DISTINCT cards — model vs patient). Re-pointing the patient arm to read the
+# cell-line card (collapsing the two grains into one — the #1667 same-grain double-count shape) reds the
+# assertion; the mutation test drives that red.
+
+# The (card_id, field) arms the isoform-splice fold reads. Two DISTINCT grain cards — the set is what makes
+# the arms commensurate-yet-independent. A re-pointed arm (reading the OTHER grain's card) collapses this
+# set and fails the assertion below.
+_ISOFORM_SPLICE_COMMENSURATE_ARM_PAIRS = frozenset(
+    {
+        ("cellline-isoform-expression", "isoform_expression_class"),  # cell-line MODEL grain
+        ("tumor-splice-dysregulation", "splicing_dysregulation_class"),  # patient TUMOUR grain
+    }
+)
+
+
+def assert_isoform_splice_arms_are_commensurate(tree: ast.Module) -> None:
+    """Raise AssertionError unless `_isoform_splice_concordance_claim` folds EXACTLY the declared two
+    isoform-splice card/field arms — no incommensurate card pulled in, none dropped, two DISTINCT grain
+    cards. (Raw transcript-form metrics are read off a LOCAL card binding, not the inline
+    `(c.get(...) or {}).get(...)` idiom, so they are correctly NOT counted as arms.)"""
+    funcs = _functions(tree)
+    assert "_isoform_splice_concordance_claim" in funcs, (
+        "_isoform_splice_concordance_claim vanished from cis_coherence_claims.py"
+    )
+    pairs = _card_field_get_pairs(funcs["_isoform_splice_concordance_claim"])
+    declared = set(_ISOFORM_SPLICE_COMMENSURATE_ARM_PAIRS)
+    assert pairs == declared, (
+        f"_isoform_splice_concordance_claim folds card/field arms {sorted(pairs)} — expected EXACTLY "
+        f"the two commensurate cross-grain arms {sorted(declared)}. An arm reading a DIFFERENT card mixes an "
+        f"incommensurate construct into the fold, and an arm reading the OTHER grain's card collapses the two "
+        f"independent grains into one (a same-grain double-count, the #1667 shape). "
+        f"undeclared = {sorted(pairs - declared)}; gone = {sorted(declared - pairs)}."
+    )
+
+
+# ── the isoform-splice-family tests ──────────────────────────────────────────────────────────────────
+def test_isoform_splice_oracle_is_two_distinct_grain_cards():
+    """The declared table encodes the commensurability rule: two DISTINCT grain cards (cell-line MODEL
+    isoform card vs patient TUMOUR splice card), the same transcript-FORM-complexity construct. Neither is a
+    `*cis*` card, so this pins the exact two expected cards rather than a substring."""
+    cards = {card for (card, _f) in _ISOFORM_SPLICE_COMMENSURATE_ARM_PAIRS}
+    assert cards == {
+        "cellline-isoform-expression",
+        "tumor-splice-dysregulation",
+    }, (
+        f"the two isoform-splice arms must read the cell-line MODEL isoform card and the patient TUMOUR splice "
+        f"card (two DISTINCT grains), not one card twice (a same-grain double-count); got {sorted(cards)}"
+    )
+
+
+def test_isoform_splice_folds_the_commensurate_cross_grain_arms():
+    """GREEN on today's cis_coherence_claims.py: `_isoform_splice_concordance_claim` folds exactly the two
+    commensurate cross-grain arms. Also anti-vacuity — the declared arm set is non-empty."""
+    assert _ISOFORM_SPLICE_COMMENSURATE_ARM_PAIRS, "the declared isoform-splice arm set is empty — pins nothing"
+    assert_isoform_splice_arms_are_commensurate(_cis_tree())
+
+
+# The mutation the isoform-splice detector exists to catch: the PATIENT arm re-pointed to read the cell-line
+# card — collapsing the two independent grains into one card (a same-grain double-count, #1667 shape).
+def _mutant_isoform_splice_repoints_patient_arm_to_cellline_card(source: str) -> str:
+    mutated = source.replace(
+        '(c.get("tumor-splice-dysregulation") or {}).get("splicing_dysregulation_class")',
+        '(c.get("cellline-isoform-expression") or {}).get("splicing_dysregulation_class")',
+    )
+    assert mutated != source, (
+        "mutation was a no-op — the patient isoform-splice arm inline card read is no longer present to re-point"
+    )
+    return mutated
+
+
+def test_detector_bites_an_isoform_splice_arm_repointed_to_the_other_grain_card():
+    """MUTATION TEST for the isoform-splice family — the corpus alone has no teeth here, so prove the
+    detector bites. With the patient arm re-pointed to the cell-line card, the folded card set collapses to
+    a single card (the two independent grains become one — a same-grain double-count) and
+    `assert_isoform_splice_arms_are_commensurate` FAILS. Confirms both the RED (on the mutant) and — via
+    `test_isoform_splice_folds_the_commensurate_cross_grain_arms` — the GREEN on real source."""
+    mutant = _parse(_mutant_isoform_splice_repoints_patient_arm_to_cellline_card(_CIS_COHERENCE_CLAIMS.read_text()))
+    # sanity: the mutant genuinely collapses the two arms onto one card
+    pairs = _card_field_get_pairs(_functions(mutant)["_isoform_splice_concordance_claim"])
+    cards = {card for (card, _f) in pairs}
+    assert cards == {"cellline-isoform-expression"}, "the mutation did not collapse the arms as intended"
+    # …and the detector rejects it
+    with pytest.raises(AssertionError, match="_isoform_splice_concordance_claim"):
+        assert_isoform_splice_arms_are_commensurate(mutant)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
 # FLEET-COMPLETENESS META-GUARD — every multi-arm fold-builder in _skills_common must belong to a
 # declared commensurability family (SK#1704, tracking #1703, epic #1507)
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -2080,7 +2202,8 @@ _COVERED_FAMILY_FILES = {
         "independent consortia, no inflating sentinel, no double-count); #1703 row: combination [x]"
     ),
     "cis_coherence_claims.py": (
-        "cis-coherence — detector SK#1781/#1782/#1784 (_DECLARED_CIS_CORROBORATION_BUILDERS covers THREE cis "
+        "cis-coherence — detector SK#1781/#1782/#1784/#1785 (_DECLARED_CIS_CORROBORATION_BUILDERS covers FOUR "
+        "cis "
         "families: cis-dosage (_CIS_COMMENSURATE_ARM_PAIRS: cell-line `cis_dosage_class` × patient "
         "`patient_cis_dosage_class`) and methylation-silencing (_SILENCING_COMMENSURATE_ARM_PAIRS: cell-line "
         "`methylation_silencing_class` × patient `patient_methylation_silencing_class`, with an explicit "
@@ -2090,7 +2213,11 @@ _COVERED_FAMILY_FILES = {
         "`abundance_dependency_class`) — the SAME expression/abundance→DepMap-dependency-coupling construct at "
         "the SAME cell_line_model grain but two DISTINCT assay MODALITIES, so independence is MODALITY-only "
         "(weaker than cross-grain; shared panel confounds NOT broken), with an explicit per-modality class→arm "
-        "mapping since the two modality vocabularies differ; epic #1779)"
+        "mapping since the two modality vocabularies differ; PLUS isoform-splice transcript-FORM "
+        "(_ISOFORM_SPLICE_COMMENSURATE_ARM_PAIRS: cell-line `isoform_expression_class` × patient "
+        "`splicing_dysregulation_class`) — the SAME transcript-FORM-complexity construct at two DISTINCT "
+        "sample-context grains, grain first-class, independent, with an explicit per-grain class→arm mapping "
+        "since the two form vocabularies are related-but-distinct; epic #1779)"
     ),
 }
 

@@ -6,10 +6,10 @@
       "dim_displayed_context": "biological",
       "dim_verdict_member": null,
       "gate_short": null,
-      "n_declared_cards": 8,
-      "n_declared_types": 8,
-      "n_measurement_descriptor_fields": 52,
-      "n_types_with_measurement_descriptor": 8,
+      "n_declared_cards": 9,
+      "n_declared_types": 9,
+      "n_measurement_descriptor_fields": 54,
+      "n_types_with_measurement_descriptor": 9,
       "skill_dir": "cis-feature-coherence",
       "static_state": "descriptor_covered",
       "types_without_measurement_descriptor": [],
@@ -411,7 +411,8 @@
         "cis-feature-expression-coherence",
         "cis-feature-protein-coherence",
         "expression-dependency-correlation",
-        "patient-cis-coherence"
+        "patient-cis-coherence",
+        "tumor-splice-dysregulation"
       ],
       "combination_vulnerability": [
         "combinatorial-dependency",
@@ -651,7 +652,8 @@
         "cis_protein_dosage_coupling",
         "expression_dependency_correlation",
         "methylation_silencing_coupling",
-        "patient_cis_coherence"
+        "patient_cis_coherence",
+        "tumor_splice_dysregulation"
       ],
       "combination_vulnerability": [
         "chemical_combination_synergy",

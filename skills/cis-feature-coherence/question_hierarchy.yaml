@@ -11,6 +11,7 @@ sub_groups:
     - cis_protein_dosage_coupling
   context_types:
   - cellline_isoform_expression
+  - tumor_splice_dysregulation
 - id: SILENCING
   questions:
   - id: silencing_read

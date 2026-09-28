@@ -275,12 +275,40 @@ ENVELOPE_FAMILIES: dict[str, dict] = {
         },
         "none": {},
     },
+    "isoform_splice": {
+        # SK#1785 — FOURTH envelope-v0 concordance family for the cis_coherence domain: CROSS-GRAIN
+        # cell-line isoform-dominance × patient splice-dysregulation transcript-FORM coupling. The two
+        # vocabularies DIFFER, so each token is routed through an explicit class→arm mapping (the
+        # `balanced` intermediate + both `data_unavailable` sentinels DROP, leaving the arm frame).
+        "builder": cis_coherence_claims._isoform_splice_concordance_claim,
+        "name": "_isoform_splice_concordance_claim",
+        "resolving": {
+            "cellline-isoform-expression": {
+                "isoform_expression_class": "isoform_diverse",
+                "dominant_isoform_fraction": 0.41,
+                "n_expressed_isoforms": 6,
+                "dominant_isoform": "ENST00000256078",
+                "n_models": 120,
+            },
+            "tumor-splice-dysregulation": {
+                "splicing_dysregulation_class": "tumor_shifted",
+                "n_splice_events": 14,
+                "max_event_psi_std": 0.28,
+                "median_event_psi_std": 0.12,
+                "n_variable_events": 5,
+                "n_tumor_shifted_events": 4,
+                "dominant_event_splice_type": "exon_skip",
+                "splicing_context": "PAAD (TCGA SpliceSeq)",
+            },
+        },
+        "none": {},
+    },
 }
 
 # The known family count. An anti-vacuity floor: if the registry (or the codebase discovery it is pinned
 # against) ever collapses to a subset, the `== _EXPECTED_FAMILY_COUNT` assertions catch it rather than a
 # shrunken population passing silently.
-_EXPECTED_FAMILY_COUNT = 12
+_EXPECTED_FAMILY_COUNT = 13
 _EXPECTED_FRAME_COUNT = 5
 
 

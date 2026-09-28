@@ -591,7 +591,14 @@ def test_census_reaches_some_fields_but_not_all():
 # name_only reach; exactly ONE (`fraction_highly_expressed`) LEFT the orphan set — SET-DIFFERENCE-pinned
 # below in test_resolver_input_reach_clears_the_lone_orphan. 754 <= ceiling and 755 - 754 = 1 <=
 # APERTURE_SLACK 20. Verdict-inert / byte-stable: adds a reach dimension, moves no verdict, touches no golden.
-APERTURE_CEILING = 754
+#
+# 754 → 729 (2026-09-28, #1785 isoform_splice_concordance, measured on the MERGED tree against pin d7cf3f9):
+# the FOURTH cis L2b concordance family wires the tumor-splice-dysregulation card into cis-feature-coherence
+# (run.py CARDS + question routing in target-contracts) and declares its fields with a reader (the isoform_splice
+# claim in _skills_common/cis_coherence_claims.py), so the census REACHES +13 previously-orphan (card, field)
+# pairs: reached_any 1084 → 1097, candidate_orphans 742 → 729, domain unchanged (1826). CI and local agree at
+# 729. Verdict-inert / byte-stable; banked per the ratchet (orphans may only fall).
+APERTURE_CEILING = 729
 
 # Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
 # into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of
@@ -678,6 +685,55 @@ def test_fleet_aperture_does_not_grow():
     assert APERTURE_CEILING - orphans <= APERTURE_SLACK, (
         f"aperture is now {orphans}, {APERTURE_CEILING - orphans} below the ceiling — bank it: set "
         f"APERTURE_CEILING = {orphans}. An un-tightened ceiling silently re-opens the ratchet."
+    )
+
+
+# The 13 (card, field) pairs the SK#1785 isoform_splice_concordance claim moved OUT of the orphan set
+# (candidate_orphans 742 → 729), banking APERTURE_CEILING 754 → 729. All are splice/PSI fields reached by
+# NAME (`claim_passthrough`) once the claim reads them: the 6 on tumor-splice-dysregulation (the patient arm
+# now consumed by cis-feature-coherence) plus the 7 same-named fields on tumor-rna-distribution that the
+# name-keyed passthrough credit clears alongside them.
+_ISOFORM_SPLICE_CLEARED_ORPHANS = frozenset(
+    {
+        ("tumor-splice-dysregulation", f)
+        for f in (
+            "dominant_event_splice_type",
+            "max_event_psi_std",
+            "median_event_psi_std",
+            "n_tumor_shifted_events",
+            "n_variable_events",
+            "splicing_context",
+        )
+    }
+    | {
+        ("tumor-rna-distribution", f)
+        for f in (
+            "dominant_event_splice_type",
+            "max_event_psi_std",
+            "median_event_psi_std",
+            "n_tumor_shifted_events",
+            "n_variable_events",
+            "splicing_context",
+            "splicing_dysregulation_class",
+        )
+    }
+)
+
+
+def test_isoform_splice_reach_clears_the_splice_orphans():
+    """SET-DIFFERENCE pin for the 754 → 729 bank (SK#1785): every splice/PSI field the isoform_splice
+    concordance claim reaches must carry reach (here `claim_passthrough` name_only), so none is a candidate
+    orphan. If the claim stops reading these fields the pairs become orphans again and this reds regardless of
+    the aggregate ceiling — the banking is not green-for-the-wrong-reason."""
+    cen = fd.census(SKILLS_ROOT)
+    still_orphan = {
+        pair
+        for pair in _ISOFORM_SPLICE_CLEARED_ORPHANS
+        if not (cen.get(pair, {}).get("exact") or set()) and not (cen.get(pair, {}).get("name_only") or set())
+    }
+    assert not still_orphan, (
+        f"splice fields fell back to orphan — the isoform_splice claim stopped reaching them: "
+        f"{sorted(still_orphan)}. Re-measure and re-bank APERTURE_CEILING."
     )
 
 

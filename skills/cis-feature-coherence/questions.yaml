@@ -57,7 +57,7 @@ questions:
   axis_id: CIS_DOSAGE
   role: verdict_bearing
   measurement_types: [cis_dosage_coupling, cis_protein_dosage_coupling,
-    cellline_isoform_expression]
+    cellline_isoform_expression, tumor_splice_dysregulation]
 - id: silencing_read
   legacy_id: Q2
   seq: 2

@@ -608,3 +608,36 @@ cellline-isoform-expression:
     role: context
     reason: cell lines expressing the gene; facet denominator / power qualifier
     reviewed: true
+tumor-splice-dysregulation:
+  splicing_dysregulation_class:
+    role: signal
+    reason: patient splice-form categorical call (TCGA SpliceSeq, SK#1785 B1 facet); VERDICT-INERT display but the claim-bearing arm consumed by the L2b isoform_splice_concordance cross-grain claim; reach-confirmed
+    reviewed: true
+  n_splice_events:
+    role: context
+    reason: count of SpliceSeq events scored for the gene; power / coverage qualifier behind the class call
+    reviewed: true
+  max_event_psi_std:
+    role: context
+    reason: max per-event PSI standard deviation across the cohort; magnitude behind the highly_variable band
+    reviewed: true
+  median_event_psi_std:
+    role: context
+    reason: median per-event PSI standard deviation across the cohort; central variability behind the class call
+    reviewed: true
+  n_variable_events:
+    role: context
+    reason: count of events flagged highly variable; qualifies the dysregulation call
+    reviewed: true
+  n_tumor_shifted_events:
+    role: context
+    reason: count of events with a tumour-vs-normal PSI shift; qualifies the tumor_shifted call
+    reviewed: true
+  dominant_event_splice_type:
+    role: display
+    reason: modal splice-event type (e.g. exon skipping) across the gene; human-facing molecular-form detail, verdict-inert
+    reviewed: true
+  splicing_context:
+    role: display
+    reason: free-text indication / cohort context string for the splice read; human-facing provenance detail
+    reviewed: true

@@ -13,8 +13,10 @@ if str(SKILLS) not in sys.path:
     sys.path.insert(0, str(SKILLS))
 
 from _skills_common.cis_coherence_claims import (  # noqa: E402
+    _CELLLINE_ISOFORM_ARM,
     _CELLLINE_SILENCING_ARM,
     _PATIENT_SILENCING_ARM,
+    _PATIENT_SPLICE_ARM,
     _PROTEIN_EXPRDEP_ARM,
     _RNA_EXPRDEP_ARM,
     cis_coherence_claim_vector,
@@ -579,5 +581,167 @@ def test_expression_dependency_concordance_vocab_is_fully_mapped():
     assert set(_RNA_EXPRDEP_ARM.values()) | set(_PROTEIN_EXPRDEP_ARM.values()) <= {
         "predictive",
         "not_predictive",
+        "drop",
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# FOURTH envelope-v0 concordance family for cis_coherence (SK#1785, epic #1779 B1): isoform-splice
+# transcript-FORM concordance. Folds the SAME transcript-FORM-complexity property measured at two DISTINCT
+# sample-context GRAINS — cell-line MODEL isoform-dominance (cellline-isoform-expression.
+# isoform_expression_class) × patient TUMOUR splice-dysregulation (tumor-splice-dysregulation.
+# splicing_dysregulation_class). CROSS-GRAIN independence; the two form vocabularies are related-but-
+# distinct, so each token is routed through an explicit class→arm mapping (the `balanced` intermediate +
+# `data_unavailable` sentinels DROP).
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+def _isoform_card(isoform_expression_class="isoform_diverse"):
+    return {
+        "card_id": "cellline-isoform-expression",
+        "summary": {
+            "isoform_expression_class": isoform_expression_class,
+            "dominant_isoform_fraction": 0.41,
+            "n_expressed_isoforms": 6,
+            "dominant_isoform": "ENST00000256078",
+            "n_models": 120,
+        },
+    }
+
+
+def _splice_card(splicing_dysregulation_class="tumor_shifted"):
+    return {
+        "card_id": "tumor-splice-dysregulation",
+        "summary": {
+            "splicing_dysregulation_class": splicing_dysregulation_class,
+            "n_splice_events": 14,
+            "max_event_psi_std": 0.28,
+            "median_event_psi_std": 0.12,
+            "n_variable_events": 5,
+            "n_tumor_shifted_events": 4,
+            "dominant_event_splice_type": "exon_skip",
+            "splicing_context": "PAAD (TCGA SpliceSeq)",
+        },
+    }
+
+
+def _isoform_splice_cards(cl="isoform_diverse", pt="tumor_shifted"):
+    """A minimal card list with ONLY the two transcript-form grain cards. Either grain may be omitted (None)."""
+    cards = []
+    if cl is not None:
+        cards.append(_isoform_card(cl))
+    if pt is not None:
+        cards.append(_splice_card(pt))
+    return cards
+
+
+def test_isoform_splice_concordance_cross_grain_claim():
+    # FOURTH envelope-v0 concordance claim for the cis_coherence domain — CROSS-GRAIN transcript FORM.
+    # Both grains complex → high corroboration, concordant_complex.
+    both = cis_coherence_claim_vector({}, _isoform_splice_cards())
+    isc = both["isoform_splice_concordance"]
+    assert isc["property_id"] == "isoform_splice_form_coupling"
+    assert isc["integration_method"] == "explicit_deterministic"
+    assert isc["grain"] == "cross_grain_model_vs_patient"
+    assert isc["concordance_class"] == "isoform_splice_concordant_complex"
+    assert isc["corroboration"] == "high"
+    assert isc["corroborating_independent_arm_count"] == 2 and isc["resolved_source_count"] == 2
+    assert "signal" not in isc  # verdict-INERT: never a tier/chip
+    _cl = next(s for s in isc["source_support"] if s["source"] == "cell_line_model")
+    _pt = next(s for s in isc["source_support"] if s["source"] == "patient_tumour")
+    assert _cl["grain"] == "cell_line_model" and _pt["grain"] == "patient_tumour"
+    # raw transcript-form metrics DEMOTED not dropped (fidelity/recoverability)
+    assert _cl["retained_quantitative"]["dominant_isoform_fraction"] == 0.41
+    assert _pt["retained_quantitative"]["n_tumor_shifted_events"] == 4
+
+    # both grains a MEASURED simple floor → high, concordant_simple.
+    simple = cis_coherence_claim_vector({}, _isoform_splice_cards(cl="single_isoform_dominant", pt="stable"))
+    assert simple["isoform_splice_concordance"]["concordance_class"] == "isoform_splice_concordant_simple"
+    assert simple["isoform_splice_concordance"]["corroboration"] == "high"
+
+    # highly_variable is ALSO a complex patient arm → concordant_complex with a diverse cell-line arm.
+    hv = cis_coherence_claim_vector({}, _isoform_splice_cards(cl="isoform_diverse", pt="highly_variable"))
+    assert hv["isoform_splice_concordance"]["concordance_class"] == "isoform_splice_concordant_complex"
+
+    # grains DISAGREE (cell-line diverse=complex, patient stable=simple) → low, grain_discordant.
+    disc = cis_coherence_claim_vector({}, _isoform_splice_cards(cl="isoform_diverse", pt="stable"))
+    assert disc["isoform_splice_concordance"]["concordance_class"] == "isoform_splice_grain_discordant"
+    assert disc["isoform_splice_concordance"]["corroboration"] == "low"
+    assert disc["isoform_splice_concordance"]["concordance_support"]["complex_in"] == "cell_line_model"
+    assert disc["isoform_splice_concordance"]["concordance_support"]["simple_in"] == "patient_tumour"
+
+    # only the cell-line grain resolves (no patient card) → single_grain_only, single_arm.
+    lone = cis_coherence_claim_vector({}, _isoform_splice_cards(pt=None))
+    assert lone["isoform_splice_concordance"]["concordance_class"] == "isoform_splice_single_grain_only"
+    assert lone["isoform_splice_concordance"]["corroboration"] == "single_arm"
+    assert lone["isoform_splice_concordance"]["concordance_support"]["resolved_by"] == "cell_line_model"
+
+
+def test_isoform_splice_balanced_band_drops_it_does_not_disagree():
+    # ★★ THE CORRECTNESS CRUX (mirrors the silencing/exprdep DROP crux). The cell-line `balanced` band
+    # (0.50-0.80: a dominant isoform WITH meaningful secondaries) is a MEASURED INTERMEDIATE that resolves
+    # NEITHER pole — it must route to NO rung (DROP), NEVER fabricate a disagreeing arm. With the patient arm
+    # COMPLEX (tumor_shifted), a wrong `disagree` mapping would drive corroboration to `low` / grain_discordant;
+    # the CORRECT DROP leaves only the patient arm → single_grain_only / single_arm.
+    vec = cis_coherence_claim_vector({}, _isoform_splice_cards(cl="balanced", pt="tumor_shifted"))
+    isc = vec["isoform_splice_concordance"]
+    assert isc["concordance_class"] == "isoform_splice_single_grain_only", (
+        "the balanced intermediate band must DROP (no rung), not be read as a disagreeing arm"
+    )
+    assert isc["corroboration"] == "single_arm"
+    assert isc["concordance_support"]["resolved_by"] == "patient_tumour"
+
+
+def test_isoform_splice_concordance_key_omitted_when_neither_grain_resolves():
+    # cell-line unavailable (→ drop) and NO patient card → BOTH arms gone → key omitted (byte-stable).
+    vec = cis_coherence_claim_vector({}, _isoform_splice_cards(cl="data_unavailable", pt=None))
+    assert "isoform_splice_concordance" not in vec
+    # a patient grain that ALSO does not resolve (data_unavailable) keeps the key omitted.
+    vec2 = cis_coherence_claim_vector({}, _isoform_splice_cards(cl="data_unavailable", pt="data_unavailable"))
+    assert "isoform_splice_concordance" not in vec2
+    # both DROP-band tokens (balanced + data_unavailable) also omit the key — neither pole resolves.
+    vec3 = cis_coherence_claim_vector({}, _isoform_splice_cards(cl="balanced", pt="data_unavailable"))
+    assert "isoform_splice_concordance" not in vec3
+
+
+def test_isoform_splice_discordant_patient_never_a_false_agree():
+    # A stable-splicing (simple) patient grain with a diverse (complex) cell-line grain must be reported as a
+    # DISAGREEMENT (informative — culture vs tumour-microenvironment; the two readouts measure related-but-
+    # distinct form facets), never collapsed into a false agree.
+    vec = cis_coherence_claim_vector({}, _isoform_splice_cards(cl="isoform_diverse", pt="stable"))
+    isc = vec["isoform_splice_concordance"]
+    assert isc["concordance_class"] == "isoform_splice_grain_discordant"
+    assert isc["concordance_support"]["complex_in"] == "cell_line_model"
+    assert isc["concordance_support"]["simple_in"] == "patient_tumour"
+    assert isc["qualifying_signal"]["source"] == "patient_tumour"
+
+
+def test_isoform_splice_concordance_vocab_is_fully_mapped():
+    # FAIL-LOUD completeness pin: EVERY declared vocabulary member of each grain is explicitly routed in the
+    # class→arm mapping (no token left to an implicit fall-through). A card that grows/renames a token without
+    # a matching mapping entry reds here. `data_unavailable` (a TRUTHY sentinel) is mapped explicitly on both
+    # grains, never handled via falsiness.
+    expected_cellline = {
+        "isoform_diverse",
+        "single_isoform_dominant",
+        "balanced",
+        "data_unavailable",
+    }
+    assert set(_CELLLINE_ISOFORM_ARM) == expected_cellline, (
+        "cell-line isoform_expression_class vocabulary drifted from the explicit arm mapping — every token must "
+        "be mapped to form_complex/form_simple/drop (see cellline-isoform-expression card)"
+    )
+    expected_patient = {
+        "tumor_shifted",
+        "highly_variable",
+        "stable",
+        "data_unavailable",
+    }
+    assert set(_PATIENT_SPLICE_ARM) == expected_patient, (
+        "patient splicing_dysregulation_class vocabulary drifted from the explicit arm mapping "
+        "(see tumor-splice-dysregulation card)"
+    )
+    # every value is one of the three defined arm outcomes (no stray/typo outcome)
+    assert set(_CELLLINE_ISOFORM_ARM.values()) | set(_PATIENT_SPLICE_ARM.values()) <= {
+        "form_complex",
+        "form_simple",
         "drop",
     }

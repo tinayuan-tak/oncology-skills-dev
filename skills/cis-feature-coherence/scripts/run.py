@@ -116,6 +116,14 @@ CARDS = [
     # its measurement×sample_context taxonomy) or target-intrinsic (excludes cell-line observations).
     # (The duplicate cellline-isoform-dominance was consolidated into this card 2026-09-10 — #704 6b.)
     "cellline-isoform-expression",
+    # ── MOLECULAR-FORM facet (2) — VERDICT-INERT display (SK#1785, epic #1779 B1) ─────────────────
+    # PATIENT complement to cellline-isoform-expression: TCGA SpliceSeq per-event PSI dysregulation
+    # (tumour-shifted / highly-variable / stable). Reuses the existing tumor-splice-dysregulation reader
+    # (tcga_spliceseq_psi) — NO new ingest; its derived product tcga-spliceseq-psi-per-gene-v1 is declared
+    # a required_input on the TC card. Wired in solely to feed the L2b `isoform_splice_concordance` cross-
+    # grain claim (cell-line isoform-dominance × patient splice-dysregulation transcript-FORM coupling).
+    # Fires NO cis_coherence rule → verdict byte-stable.
+    "tumor-splice-dysregulation",
 ]
 
 QUESTION = (
