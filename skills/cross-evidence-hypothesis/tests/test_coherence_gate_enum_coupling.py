@@ -83,6 +83,16 @@ def test_negative_signal_verdicts_cover_gate_enum():
     assert hc.is_negative_verdict("discordant_across_comparators") is False
 
 
+def test_annotation_only_indirect_is_recognised_negative():
+    """`annotation_only_indirect` (target-contracts #893/#950, gate v1.24.0) is a MEASURED-negative
+    tractability_sm read (an approved agent catalogued but NO direct SM binder; sibling of
+    chemically_unhit), added to the gate's kill_capable_verdicts as a `contradiction`. Pin its
+    coherence-layer recognition DIRECTLY here — independent of the committed TC pin — so the coverage
+    holds even while the token is not yet live on skills-validate.yml's pinned gate enum, and so
+    test_negative_signal_verdicts_cover_gate_enum cannot silently fail-OPEN once the pin advances."""
+    assert hc.is_negative_verdict("annotation_only_indirect") is True
+
+
 # ============================ phantom kill: contradicted_by values are live enum tokens ============
 def test_intrinsic_contradiction_values_are_live_enum_tokens():
     """Every INTRINSIC_CONTRADICTIONS.contradicted_by value must be a real enum token on the card it

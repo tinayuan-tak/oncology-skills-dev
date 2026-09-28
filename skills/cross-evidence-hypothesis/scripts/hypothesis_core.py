@@ -398,6 +398,12 @@ NEGATIVE_SIGNAL_VERDICTS = {
     # tractability (small molecule)
     "structurally_intractable",
     "chemically_unhit",
+    # annotation_only_indirect (target-contracts #893/#950, gate v1.24.0): an approved agent is
+    # catalogued but there is NO direct small-molecule binder (biologic-only / undruggable-TF) — a
+    # MEASURED negative SM-tractability read, sibling of chemically_unhit, carried as a gate
+    # `contradiction` (blocks `strong`, not a veto). Explicit exact-match entry (NOT a substring stem)
+    # so it cannot over-match unrelated tokens.
+    "annotation_only_indirect",
     "discordant",
     # cis-coherence
     "expressed_cis_coupled_inert",
