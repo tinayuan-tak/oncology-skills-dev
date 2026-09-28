@@ -17,16 +17,22 @@ rule-firing + the shared safety resolver (incl. the Group-1 mechanism-mismatch d
 1.4.0 human-genetics precedence fix) all execute exactly as in a real run. It fails deterministically,
 credential-less, on the SAME reader drift a live run would.
 
-Four curated fixtures pin all four non-trivial verdict classes AND both conditioning directions:
-  - BRAF / COADREAD — GoF activating driver, highly-constrained gnomAD → wt_constraint_mechanism_mismatch
-    (the gnomAD-constraint downgrade). Guards the crown-jewel false-HOLD: if alteration-role drifts, BRAF
-    flips to highly_constrained_safety_concern and this test goes red.
-  - EGFR / COADREAD — GoF activating driver, P5 human-genetics warning → wt_human_genetics_mechanism_mismatch
-    (the SECOND downgrade verdict; exercises the gene-burden/dosage/mouse-ko/clinvar warning path).
+Five curated fixtures pin the distinct verdict classes AND both alteration directions (refreshed
+2026-09-28 against post-AM#821 live S3 — see the freeze note below):
+  - BRAF / COADREAD — GoF activating driver, highly-constrained gnomAD → highly_constrained_safety_concern
+    with small_molecule=conditional (the allele-selective escape). Guards the crown-jewel false-HOLD: if
+    alteration-role drifts, small_molecule flips to 'hold' and exists-safe-modality can no longer rescue
+    the raw concern → false nomination HOLD, and this test goes red.
+  - EGFR / COADREAD — GoF activating driver carrying an HPA-IHC essential-tissue PROTEIN liability →
+    normal_tissue_protein_safety_concern (safety resolver GROUP-2a+, v1.5.0), small_molecule=hold. The
+    essential-tissue protein concern has NO allele-selective escape (resolver: "normal-tissue stands"),
+    so a GoF driver here is held despite wt_engagement=conditional — distinct from the BRAF rescue path.
   - TP53 / COADREAD — LoF tumor-suppressor, highly-constrained → highly_constrained_safety_concern
     (raw constraint HOLD; the downgrade must NOT over-fire on a non-activating gene).
-  - VHL / COADREAD — LoF, TOLERANT gnomAD but a human-genetics HOLD → human_genetics_safety_concern
-    (guards the 1.4.0 precedence fix: the P5 HOLD must fire ABOVE the soft/tolerant gnomAD rungs).
+  - VHL / COADREAD — LoF gene carrying the same HPA-IHC essential-tissue PROTEIN liability →
+    normal_tissue_protein_safety_concern (the protein concern dominates regardless of GoF/LoF direction).
+  - ERBB2 / BRCA — activating oncogene, AMPLIFICATION-driven → human_genetics_safety_concern kept as a
+    raw HOLD (amplification → no selectable point mutation → small_molecule=hold, not rescued).
 
 The frozen fixtures are refreshed by the nightly-live re-freeze (card-behavior-matrix-nightly). Mirror of
 tumor-selectivity's replay.
@@ -115,12 +121,18 @@ def _decision(pair_id: str, target: str, indication: str) -> dict:
 # ── the four curated fixtures (pair_id, target, indication, expected_verdict) ─────────────────────
 # RETIRED 2026-08-24: the scalar mutant-selective downgrade is gone — the resolver now emits the RAW
 # WT-loss concern for a GoF driver; the modality-conditional downgrade moved to the per-modality safety
-# verdict + tp_gates exists-safe-modality. So BRAF/EGFR now resolve to the raw concern (and are re-rescued
-# at the gate via small_molecule=conditional — see test_gof_driver_rescued_by_per_modality_verdict).
+# verdict + tp_gates exists-safe-modality. BRAF resolves to the raw gnomAD-constraint concern and is
+# re-rescued at the gate via small_molecule=conditional (see test_gof_driver_rescued_by_per_modality_verdict).
+# REFRESHED 2026-09-28 (skills#1955, post-AM#821): a full live re-freeze grew the roster 10→17 cards. The
+# HPA-IHC essential-tissue-protein card (normal-tissue-protein-abundance-tphp) + its resolver rung
+# (normal_tissue_protein_safety_concern, GROUP-2a+, v1.5.0 2026-08-21) now outrank human_genetics for EGFR
+# and VHL, which the stale 10-card fixtures had never exercised — so both flip OFF human_genetics_safety_concern.
+# AM#821's marrow-K562 repoint / donor floor / graded critical-organ ARE present in normal-tissue-liability-gtex
+# but are verdict-INERT for all five curated targets (the flips are roster-driven, not #821-driven).
 BRAF = ("braf_coadread", "BRAF", "COADREAD", "highly_constrained_safety_concern")
-EGFR = ("egfr_coadread", "EGFR", "COADREAD", "human_genetics_safety_concern")
+EGFR = ("egfr_coadread", "EGFR", "COADREAD", "normal_tissue_protein_safety_concern")
 TP53 = ("tp53_coadread", "TP53", "COADREAD", "highly_constrained_safety_concern")
-VHL = ("vhl_coadread", "VHL", "COADREAD", "human_genetics_safety_concern")
+VHL = ("vhl_coadread", "VHL", "COADREAD", "normal_tissue_protein_safety_concern")
 # (cards review 2026-08-17): an ACTIVATING GoF ONCOGENE that is AMPLIFICATION-driven. Unlike the
 # DOWNGRADE cases (activating -> mutant-selective downgrade), the amplification guard KEEPS the raw HOLD
 # because a drug hits the WILD-TYPE (amplified) protein — the mutant-selective-sparing logic fails.
@@ -146,8 +158,17 @@ def test_replay_conforms_to_data_product_schema(pair_id, target, indication, _ex
     )
 
 
-DOWNGRADE = [BRAF, EGFR]
-CONCERN = [TP53, VHL]
+# BRAF is the canonical GoF driver RESCUED at the per-modality layer (small_molecule=conditional). EGFR
+# left this group at the 2026-09-28 refresh: it now carries an essential-tissue protein liability that
+# holds small_molecule (no allele-selective escape), so it is a PROTEIN_CONCERN case, not a rescue case.
+DOWNGRADE = [BRAF]
+# TP53 is the LoF raw-constraint concern (the downgrade must not over-fire on a non-activating gene). VHL
+# left this group at the refresh (it flipped to the essential-tissue protein concern → PROTEIN_CONCERN).
+CONCERN = [TP53]
+# The essential-tissue PROTEIN-liability HOLDs, new at the 2026-09-28 refresh (roster expansion). The
+# HPA-IHC essential-tissue protein concern dominates human-genetics AND has no allele-selective escape,
+# so it holds every full-KO modality regardless of the alteration's GoF (EGFR) / LoF (VHL) direction.
+PROTEIN_CONCERN = [EGFR, VHL]
 
 
 @pytest.mark.parametrize("pair_id,target,indication,_exp", ALL, ids=[p[1].lower() for p in ALL])
@@ -229,6 +250,37 @@ def test_non_gof_concern_is_not_downgraded(pair_id, target, indication, expected
     )
     assert h.get("mechanism_conditioning_note") is None, (
         f"{target} is a raw concern but carries a mechanism_conditioning_note (note should be downgrade-only)."
+    )
+
+
+@pytest.mark.parametrize(
+    "pair_id,target,indication,expected", PROTEIN_CONCERN, ids=[p[1].lower() for p in PROTEIN_CONCERN]
+)
+def test_essential_tissue_protein_concern_holds_regardless_of_direction(pair_id, target, indication, expected):
+    """ESSENTIAL-TISSUE PROTEIN HOLD (new at the 2026-09-28 refresh, skills#1955). An HPA-IHC essential-
+    tissue protein liability fires normal-tissue-protein-liability-safety-warning, which the safety
+    resolver (GROUP-2a+, v1.5.0) ranks ABOVE the P5 human-genetics HOLD. It is a MEASURED on-target-off-
+    tumor tox with NO allele-selective escape, so small_molecule=hold — a GoF driver (EGFR) is NOT rescued
+    here the way BRAF is. This holds for both an activating (EGFR) and a loss-of-function (VHL) alteration:
+    the protein concern dominates regardless of direction. Guards the roster-driven flip that the stale
+    10-card fixtures hid (both targets previously read human_genetics_safety_concern)."""
+    d = _decision(pair_id, target, indication)
+    h = d.get("headline") or {}
+    assert h.get("safety_verdict") == expected, (
+        f"{target} resolved {h.get('safety_verdict')!r}, expected {expected!r} (the essential-tissue "
+        f"protein concern must outrank the human-genetics HOLD — resolver GROUP-2a+)."
+    )
+    assert h.get("driving_rule_id") == "normal-tissue-protein-liability-safety-warning", (
+        f"{target} driving_rule_id={h.get('driving_rule_id')!r}, expected the essential-tissue protein warning."
+    )
+    assert h.get("safety_verdict") not in _MISMATCH, f"{target} was mechanism-mismatch downgraded — over-fire."
+    vbm = h.get("safety_verdict_by_modality") or {}
+    assert vbm.get("small_molecule", {}).get("action") == "hold", (
+        f"{target} small_molecule={vbm.get('small_molecule')!r}, expected 'hold' — the essential-tissue "
+        f"protein concern has no allele-selective escape, so exists-safe-modality must NOT clear it."
+    )
+    assert vbm.get("degrader", {}).get("action") == "hold", (
+        f"{target} degrader={vbm.get('degrader')!r}, expected 'hold' — a degrader depletes the WT protein."
     )
 
 

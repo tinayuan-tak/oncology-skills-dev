@@ -10,7 +10,7 @@ alteration-role:
   intogen_min_qvalue: 5.08e-43
   intogen_role: LoF
   intogen_scope: pan_cancer
-  method_version: 0.1.0
+  method_version: 0.2.0
   oncokb_gene_type: TSG
   sources:
   - oncokb
@@ -45,51 +45,61 @@ clinvar-pathogenicity-safety:
   target: VHL
   top_disease: Chuvash polycythemia
 copy-number-distribution:
-  cn_assay_used: wes
+  cn_assay_used: wgs
   cn_distribution_shape: del_dominant
-  cn_fraction_deep_deletion: 0.012
-  cn_fraction_focal_amplification: 0.016
-  cn_fraction_high_amplification: 0.0024
-  cn_fraction_neutral: 0.42
-  cn_fraction_shallow_amplification: 0.1904
-  cn_fraction_shallow_deletion: 0.3592
+  cn_fraction_deep_deletion: 0.015873015873015872
+  cn_fraction_focal_amplification: 0.02702702702702703
+  cn_fraction_high_amplification: 0.000858000858000858
+  cn_fraction_neutral: 0.4161304161304161
+  cn_fraction_shallow_amplification: 0.19262119262119262
+  cn_fraction_shallow_deletion: 0.3474903474903475
   cn_homozygous_deletion_recurrent: not_recurrent_homozygous_deletion
-  cn_iqr: 0.23628754913806915
-  cn_median_panel: 0.9887872338294983
-  cn_n_cell_lines_evaluated: 1250
-  cn_p25_panel: 0.8126138597726822
-  cn_p5_panel: 0.5807338684797287
-  cn_p75_panel: 1.0489014089107513
-  cn_p95_panel: 1.3420211911201476
-  cn_recurrent_amplification_score: 0.0184
-  cn_recurrent_deletion_score: 0.37120000000000003
-  cn_top_amplified_lineages: []
+  cn_iqr: 0.22263258695602417
+  cn_median_panel: 0.971110999584198
+  cn_n_cell_lines_evaluated: 2331
+  cn_p25_panel: 0.8331574201583862
+  cn_p5_panel: 0.5776664018630981
+  cn_p75_panel: 1.0557900071144104
+  cn_p95_panel: 1.3573198318481445
+  cn_recurrent_amplification_score: 0.027885027885027888
+  cn_recurrent_deletion_score: 0.3633633633633634
+  cn_top_amplified_lineages:
+  - fraction_focal_amplified: 0.125
+    fraction_of_amp_tail: 0.015384615384615385
+    lineage: Fibroblast
+    median_cn: 0.9594925045967102
+    n_in_lineage: 8
+  - fraction_focal_amplified: 0.11382113821138211
+    fraction_of_amp_tail: 0.2153846153846154
+    lineage: Breast
+    median_cn: 0.9799750447273254
+    n_in_lineage: 123
   cn_top_deleted_lineages:
-  - fraction_deleted: 0.717391304347826
-    fraction_of_del_tail: 0.07112068965517242
+  - fraction_deleted: 0.6753246753246753
+    fraction_of_del_tail: 0.06139315230224321
     lineage: Head and Neck
-    median_cn: 0.7024138569831848
-    n_in_lineage: 46
-  - fraction_deleted: 0.6842105263157895
-    fraction_of_del_tail: 0.05603448275862069
-    lineage: Kidney
-    median_cn: 0.6782819628715515
-    n_in_lineage: 38
-  - fraction_deleted: 0.6702702702702703
-    fraction_of_del_tail: 0.2672413793103448
+    median_cn: 0.7488158941268921
+    n_in_lineage: 77
+  - fraction_deleted: 0.6666666666666666
+    fraction_of_del_tail: 0.0070838252656434475
+    lineage: Ampulla of Vater
+    median_cn: 0.9103132486343384
+    n_in_lineage: 9
+  - fraction_deleted: 0.6422764227642277
+    fraction_of_del_tail: 0.18654073199527746
     lineage: Lung
-    median_cn: 0.8288397192955017
-    n_in_lineage: 185
-  - fraction_deleted: 0.6
-    fraction_of_del_tail: 0.00646551724137931
-    lineage: Vulva/Vagina
-    median_cn: 0.7559035420417786
-    n_in_lineage: 5
-  - fraction_deleted: 0.5416666666666666
-    fraction_of_del_tail: 0.05603448275862069
+    median_cn: 0.8208826184272766
+    n_in_lineage: 246
+  - fraction_deleted: 0.6074766355140186
+    fraction_of_del_tail: 0.07674144037780402
     lineage: Pancreas
-    median_cn: 0.8640101253986359
-    n_in_lineage: 48
+    median_cn: 0.840083122253418
+    n_in_lineage: 107
+  - fraction_deleted: 0.5636363636363636
+    fraction_of_del_tail: 0.03659976387249114
+    lineage: Kidney
+    median_cn: 0.8763007521629333
+    n_in_lineage: 55
   copy_number_class: recurrently_deleted
   patient_amplified_fraction: 0.09797297297297297
   patient_cn_context: "COADREAD: 10% of 592 TCGA GISTIC samples amplify VHL (0% high-level\
@@ -100,6 +110,65 @@ copy-number-distribution:
   patient_focal_cn_class: focal_neutral
   patient_high_amp_fraction: 0.0016891891891891893
   patient_homdel_fraction: 0.0
+drug-warning-safety:
+  _note: no OT mechanism-of-action drug engages ENSG00000134086 (coverage gap, not
+    evidence of safety)
+  drug_warning_class: no_targeted_drug
+  ensembl_gene_id: ENSG00000134086
+  evidence_tier: inferred
+  has_black_box: false
+  has_withdrawn: false
+  method_version: 0.1.0
+  n_targeted_drugs: 0
+  n_targeted_warned_drugs: 0
+  source: opentargets-26-06/drug_warning + drug_mechanism_of_action
+  target: VHL
+  toxicity_classes: []
+  warning_types: []
+functional-gene-state:
+  functional_state_class: predominantly_monoallelic
+  indication: COADREAD
+  method_version: 0.1.0
+  model:
+    _arm: model
+    cn_source: depmap_omicscngenewgs_relative
+    fraction_any_alteration: 0.35950704225352115
+    fraction_biallelic: 0.049680624556423
+    loh_note: genome_wide_only_not_per_gene
+    n_determinable: 2818
+    n_samples: 2840
+    state_counts:
+      biallelic+epigenetic: 122
+      biallelic-genetic: 18
+      epigenetic: 617
+      monoallelic: 242
+      uncertain: 22
+      wt: 1819
+  patient:
+    _arm: patient
+    _read_path: two_hit_product_v1
+    cn_source: gistic_thresholded_per_gene
+    fraction_any_alteration: 0.1347068145800317
+    fraction_biallelic: 0.0
+    fraction_mutated: 0.006339144215530904
+    indication: COADREAD
+    loh_source: pancanatlas_absolute_point_in_interval
+    methylation_source: pancanatlas_hm450_promoter_v1
+    n_determinable: 627
+    n_mutated: 4
+    n_samples: 631
+    state_counts:
+      biallelic+epigenetic: 0
+      biallelic-genetic: 0
+      epigenetic: 0
+      monoallelic: 81
+      uncertain: 4
+      wt: 546
+    tcga_projects:
+    - COAD
+    - READ
+  target: VHL
+  vocabulary_phase: genetic_epigenetic_full_phase2b
 gene-burden-safety:
   burden_safety_class: lof_risk_phenotype
   direction_on_target: LoF
@@ -137,6 +206,10 @@ gnomad-lof-constraint:
 mouse-ko-phenotype:
   ensembl_gene_id: ENSG00000134086
   evidence_tier: inferred
+  impc_ko_phenotype_class: no_phenotype
+  impc_orthology_confidence: null
+  impc_top_level_systems: null
+  impc_viability_class: unmeasured
   ko_phenotype_class: developmental_only
   lethal_stages:
   - developmental
@@ -154,17 +227,213 @@ mouse-ko-phenotype:
   source: opentargets-26-06/mouse_phenotype
   target: VHL
   top_lethal_label: prenatal lethality, incomplete penetrance
+normal-tissue-liability:
+  essential_tissue_flag: present
+  essential_tissue_low_reliability: true
+  essential_tissues_flagged:
+  - bone marrow
+  hpa_ihc_reliability: approved
+  hpa_tissue_distribution: Detected in some
+  hpa_tissue_specificity: Group enriched
+  method_version: 0.2.0
+  n_essential_tissues_with_expression: 1
+  n_specific_tissues: 2
+  normal_tissue_breadth_class: moderate_normal_expression
+  safety_tissue_flags:
+  - essential_tissue
+  specific_tissues:
+  - intensity: 85902.6
+    tissue: bone marrow
+  - intensity: 61608.5
+    tissue: lymphoid tissue
 normal-tissue-liability-gtex:
   critical_organ_argmax: BONE_MARROW
-  critical_organ_max: 5.9828
+  critical_organ_grade: moderate
+  critical_organ_max: 4.591
+  excluded_cell_line_groups:
+  - BONE_MARROW
   highest_tissue: BONE_MARROW
-  highest_tissue_median: 5.9828
-  liability_class: critical_organ_liability
+  highest_tissue_median: 4.591
+  liability_class: broadly_expressed_normal
+  marrow_substrate: hpa_primary_marrow
   method_version: 0.1.0
+  min_donors_floor: 3
+  n_tissues_below_donor_floor: 0
   n_tissues_detectable: 31
-  n_tissues_high: 1
+  n_tissues_high: 0
   n_tissues_tested: 31
   tissue_breadth_fraction: 1.0
+  tissues_below_donor_floor: []
+normal-tissue-protein-abundance-tphp:
+  abundance_floor_log2: 15.076
+  fetal_vs_adult_flag: adult_and_fetal
+  highest_abundance_tissue: pancreas
+  highest_abundance_tissue_class: adult_normal
+  max_detection_rate: 1.0
+  max_median_log2_abundance: 13.405274448806429
+  median_across_tissues_log2_abundance: 11.799278
+  method_version: 0.4.0
+  n_adult_tissues_above_abundance_floor: 0
+  n_adult_tissues_detected: 9
+  n_adult_tissues_detected_low_support: 3
+  n_adult_tissues_total: 70
+  n_fetal_groups_detected: 4
+  n_fetal_groups_total: 4
+  n_solid_adult_tissues_above_abundance_floor: 0
+  n_solid_adult_tissues_detected: 7
+  n_solid_adult_tissues_total: 60
+  n_tissues_detected: 13
+  n_vital_organs_above_abundance_floor: 0
+  n_vital_organs_measurable: 13
+  n_vital_organs_unmeasurable: 2
+  normal_protein_breadth_class: restricted_normal_protein
+  per_tissue_abundance: __omitted_from_fixture__ (list, 13 items)
+  tphp_normal_protein_liability_class: restricted
+  tphp_vital_organ_abundance: __omitted_from_fixture__ (list, 15 items)
+  tphp_vital_organ_liability_class: vital_organ_low
+  uniprot_ac: P40337
+  vital_organ_min_samples: 3
+onsides-adverse-event-safety:
+  _data_source: onsides-adverse-event-per-gene-v1
+  example_boxed_warning_terms: null
+  example_drugs: null
+  example_terms: null
+  has_boxed_warning: false
+  method_version: 0.1.0
+  n_boxed_warning_terms: 0
+  n_drugs_mapped: 0
+  n_high_confidence_terms: 0
+  n_meddra_terms: 0
+  onsides_ade_class: no_mapped_drug_ade
+  onsides_ade_context: "VHL: no drug fuzzy-mapped to this gene in the OnSIDES per-gene\
+    \ ADE product (the drug-name->gene join found no mapped drug). A coverage gap\
+    \ \u2014 NOT evidence of safety."
+pan-cancer-crispr-dependency-distribution:
+  bimodality_coefficient: 0.2857895015478667
+  chronos_iqr: 0.5077917575836182
+  dep_control_method_version: 0.1.0
+  dep_control_negatives:
+    MYH2: -0.019
+    OR2T4: 0.051
+    OR51E2: 0.024
+    PRM1: 0.089
+  dep_control_non_essential_floor: -0.019
+  dep_control_pan_essential_ceiling: -1.476
+  dep_control_position: as/more essential than 0/6 pan-essential control(s); more
+    dependent than 4/4 non-essential control(s)
+  dep_control_position_class: between_controls
+  dep_control_position_context: 'DepMap 26q3 pan-panel median Chronos vs curated dependency
+    controls (dependency_controls v1.0.0; pan_essential_ceiling=-1.476; non_essential_floor=-0.019).
+    INVERTED: at/below the ceiling = pan-essential tox liability; between = selective
+    dependency window; at/above the floor = non-dependent.'
+  dep_control_positives:
+    EEF2: -2.692
+    PCNA: -2.915
+    PSMB2: -1.79
+    RPL3: -2.49
+    RPS11: -2.733
+    SF3B1: -1.476
+  dep_control_target_chronos: -0.74
+  dependency_class: broadly_dependent
+  depmap_curated_common_essential: false
+  distribution_shape: shifted_dependent
+  fraction_moderately_dependent: 0.4921334172435494
+  fraction_non_essential: 0.25739458779106356
+  fraction_strongly_dependent: 0.250471994965387
+  median_chronos_panel: -0.7395654320716858
+  n_cell_lines_evaluated: 1589
+  p25_chronos_panel: -1.0002130270004272
+  p5_chronos_panel: -1.4290690183639527
+  p75_chronos_panel: -0.4924212694168091
+  p95_chronos_panel: -0.09061905443668385
+  pan_essential_fraction_call: broadly_dependent
+  pan_essential_score: 0.250471994965387
+  selectivity_index: 0.8325638134097016
+  top_dependent_lineages:
+  - fraction_of_dependent_tail: 0.04271356783919598
+    fraction_strongly_dependent: 0.4473684210526316
+    lineage: Uterus
+    median_chronos: -0.8669189810752869
+    n_in_lineage: 38
+  - fraction_of_dependent_tail: 0.005025125628140704
+    fraction_strongly_dependent: 0.4
+    lineage: Testis
+    median_chronos: -0.5661982893943787
+    n_in_lineage: 5
+  - fraction_of_dependent_tail: 0.02512562814070352
+    fraction_strongly_dependent: 0.38461538461538464
+    lineage: Liver
+    median_chronos: -0.8987132608890533
+    n_in_lineage: 26
+  - fraction_of_dependent_tail: 0.07537688442211055
+    fraction_strongly_dependent: 0.38461538461538464
+    lineage: Skin
+    median_chronos: -0.7983103394508362
+    n_in_lineage: 78
+  - fraction_of_dependent_tail: 0.032663316582914576
+    fraction_strongly_dependent: 0.38235294117647056
+    lineage: Bladder/Urinary Tract
+    median_chronos: -0.9128499627113342
+    n_in_lineage: 34
+sc-normal-celltype-expression:
+  essential_tissues_missing: []
+  expressing_donor_fraction_max: 1.0
+  indication: COADREAD
+  max_detection_cell_type: neuron of the forebrain
+  max_detection_fraction: 0.6932123655913979
+  method_version: 0.1.0
+  n_cell_types_above_20pct: 163
+  n_reliable_cell_types: 843
+  origin_tissues:
+  - colon
+  per_cell_type_top: __omitted_from_fixture__ (list, 15 items)
+  safety_essential_flags: __omitted_from_fixture__ (dict, 122 items)
+  sc_normal_abundance_class: moderate_abundance
+  sc_normal_breadth_null_fraction: 0.1933570581257414
+  sc_normal_ceiling_detection_fraction: 0.6932123655913979
+  sc_normal_detection_caveat: null
+  sc_normal_essential_donor_fraction: 1.0
+  sc_normal_essential_max_cell_type: megakaryocyte-erythroid progenitor cell
+  sc_normal_essential_max_detection_fraction: 0.588539104771274
+  sc_normal_essential_max_tissue: lung
+  sc_normal_essential_median_abund: 0.2296439608389681
+  sc_normal_essential_n_datasets_reliable: 4
+  sc_normal_essential_veto_grade: accessible_high_severity
+  sc_normal_expression_class: HIGH_LIABILITY
+  sc_normal_peak_median_abund: 0.39082685603288825
+  sc_normal_safety_detection_confidence: confident
+  sc_normal_safety_essential_class: critical_organ_liability
+  tissues_loaded:
+  - colon
+  - heart
+  - liver
+  - kidney
+  - bone_marrow
+  - brain
+  - adrenal_gland
+  - lung
+  - pancreas
+  tissues_missing: []
+  tissues_queried:
+  - colon
+  - heart
+  - liver
+  - kidney
+  - bone_marrow
+  - brain
+  - adrenal_gland
+  - lung
+  - pancreas
+shet-lof-intolerance:
+  exp_lof_count: 8.3604
+  method_version: 1.0.0
+  obs_lof_count: 3.0
+  shet_class: moderate_intolerance
+  shet_context: GeneBayes s_het=0.0114 (moderate_intolerance); dominant-LoF selection
+    coefficient (Zeng 2024)
+  shet_lower_95: 0.00162061
+  shet_score: 0.0113625
+  shet_upper_95: 0.0306721
 target-safety-prioritisation:
   _encoding_note: OT-normalized prioritisation scores (~[-1,1], higher=more favorable);
     NOT raw facts. Authoritative per-fact reads live in the dedicated cards.
@@ -192,20 +461,3 @@ target-safety-prioritisation:
   prioritisation_status: scored
   source: opentargets-26-06/target_prioritisation
   target: VHL
-
-# onsides-adverse-event-safety — verdict-INERT display card (2026-08-25). Frozen from
-# onsides-adverse-event-per-gene-v1; read is byte-inert to the safety verdict.
-onsides-adverse-event-safety:
-  onsides_ade_class: no_mapped_drug_ade
-  n_drugs_mapped: 0
-  n_meddra_terms: 0
-  has_boxed_warning: false
-  n_boxed_warning_terms: 0
-  n_high_confidence_terms: 0
-  example_terms: null
-  example_boxed_warning_terms: null
-  example_drugs: null
-  onsides_ade_context: 'VHL: no drug fuzzy-mapped to this gene in the OnSIDES per-gene ADE product (the
-    drug-name->gene join found no mapped drug). A coverage gap — NOT evidence of safety.'
-  method_version: 0.1.0
-  _data_source: onsides-adverse-event-per-gene-v1

@@ -10,7 +10,7 @@ alteration-role:
   intogen_min_qvalue: 4.31e-06
   intogen_role: Act
   intogen_scope: indication
-  method_version: 0.1.0
+  method_version: 0.2.0
   oncokb_gene_type: ONCOGENE
   sources:
   - oncokb
@@ -45,76 +45,76 @@ clinvar-pathogenicity-safety:
   target: EGFR
   top_disease: EGFR-related lung cancer
 copy-number-distribution:
-  cn_assay_used: wes
+  cn_assay_used: wgs
   cn_distribution_shape: amp_dominant
-  cn_fraction_deep_deletion: 0.0024
-  cn_fraction_focal_amplification: 0.1984
-  cn_fraction_high_amplification: 0.0152
-  cn_fraction_neutral: 0.2528
-  cn_fraction_shallow_amplification: 0.4608
-  cn_fraction_shallow_deletion: 0.0704
+  cn_fraction_deep_deletion: 0.007722007722007722
+  cn_fraction_focal_amplification: 0.2097812097812098
+  cn_fraction_high_amplification: 0.024024024024024024
+  cn_fraction_neutral: 0.3003003003003003
+  cn_fraction_shallow_amplification: 0.37794937794937794
+  cn_fraction_shallow_deletion: 0.08022308022308022
   cn_homozygous_deletion_recurrent: not_recurrent_homozygous_deletion
-  cn_iqr: 0.4140825569629669
-  cn_median_panel: 1.1762893199920654
-  cn_n_cell_lines_evaluated: 1250
-  cn_p25_panel: 1.0451196134090424
-  cn_p5_panel: 0.8675649553537369
-  cn_p75_panel: 1.4592021703720093
-  cn_p95_panel: 1.9728902280330658
-  cn_recurrent_amplification_score: 0.21359999999999998
-  cn_recurrent_deletion_score: 0.0728
+  cn_iqr: 0.4660852551460266
+  cn_median_panel: 1.1637603044509888
+  cn_n_cell_lines_evaluated: 2331
+  cn_p25_panel: 1.0127399563789368
+  cn_p5_panel: 0.8499509394168854
+  cn_p75_panel: 1.4788252115249634
+  cn_p95_panel: 2.189186692237854
+  cn_recurrent_amplification_score: 0.23380523380523383
+  cn_recurrent_deletion_score: 0.08794508794508794
   cn_top_amplified_lineages:
-  - fraction_focal_amplified: 0.5
-    fraction_of_amp_tail: 0.011235955056179775
-    lineage: Testis
-    median_cn: 1.4950932264328003
-    n_in_lineage: 6
-  - fraction_focal_amplified: 0.4782608695652174
-    fraction_of_amp_tail: 0.08239700374531835
-    lineage: Head and Neck
-    median_cn: 1.4294528365135193
-    n_in_lineage: 46
-  - fraction_focal_amplified: 0.4430379746835443
-    fraction_of_amp_tail: 0.13108614232209737
+  - fraction_focal_amplified: 0.45555555555555555
+    fraction_of_amp_tail: 0.22568807339449543
     lineage: CNS/Brain
-    median_cn: 1.4702332019805908
-    n_in_lineage: 79
-  - fraction_focal_amplified: 0.3707865168539326
-    fraction_of_amp_tail: 0.12359550561797752
-    lineage: Esophagus/Stomach
-    median_cn: 1.384199619293213
-    n_in_lineage: 89
-  - fraction_focal_amplified: 0.34210526315789475
-    fraction_of_amp_tail: 0.04868913857677903
-    lineage: Kidney
-    median_cn: 1.3477229475975037
-    n_in_lineage: 38
-  cn_top_deleted_lineages:
-  - fraction_deleted: 0.3333333333333333
-    fraction_of_del_tail: 0.07692307692307693
-    lineage: Thyroid
-    median_cn: 1.0581836700439453
-    n_in_lineage: 21
-  - fraction_deleted: 0.20833333333333334
-    fraction_of_del_tail: 0.10989010989010989
-    lineage: Myeloid
-    median_cn: 1.0305665731430054
-    n_in_lineage: 48
-  - fraction_deleted: 0.2
-    fraction_of_del_tail: 0.01098901098901099
-    lineage: Vulva/Vagina
-    median_cn: 1.138664722442627
-    n_in_lineage: 5
-  - fraction_deleted: 0.19047619047619047
-    fraction_of_del_tail: 0.08791208791208792
-    lineage: Ovary/Fallopian Tube
-    median_cn: 1.1203004717826843
-    n_in_lineage: 42
-  - fraction_deleted: 0.16666666666666666
-    fraction_of_del_tail: 0.01098901098901099
+    median_cn: 1.4547898173332214
+    n_in_lineage: 270
+  - fraction_focal_amplified: 0.44155844155844154
+    fraction_of_amp_tail: 0.062385321100917435
+    lineage: Head and Neck
+    median_cn: 1.3821804523468018
+    n_in_lineage: 77
+  - fraction_focal_amplified: 0.4
+    fraction_of_amp_tail: 0.007339449541284404
     lineage: Testis
-    median_cn: 1.4950932264328003
-    n_in_lineage: 6
+    median_cn: 1.3527950644493103
+    n_in_lineage: 10
+  - fraction_focal_amplified: 0.37423312883435583
+    fraction_of_amp_tail: 0.11192660550458716
+    lineage: Esophagus/Stomach
+    median_cn: 1.3552706241607666
+    n_in_lineage: 163
+  - fraction_focal_amplified: 0.35294117647058826
+    fraction_of_amp_tail: 0.022018348623853212
+    lineage: Bladder/Urinary Tract
+    median_cn: 1.2954851388931274
+    n_in_lineage: 34
+  cn_top_deleted_lineages:
+  - fraction_deleted: 0.3592233009708738
+    fraction_of_del_tail: 0.18048780487804877
+    lineage: Myeloid
+    median_cn: 0.9507139921188354
+    n_in_lineage: 103
+  - fraction_deleted: 0.3
+    fraction_of_del_tail: 0.014634146341463415
+    lineage: Testis
+    median_cn: 1.3527950644493103
+    n_in_lineage: 10
+  - fraction_deleted: 0.19047619047619047
+    fraction_of_del_tail: 0.01951219512195122
+    lineage: Pleura
+    median_cn: 1.155310034751892
+    n_in_lineage: 21
+  - fraction_deleted: 0.1685823754789272
+    fraction_of_del_tail: 0.2146341463414634
+    lineage: Lymphoid
+    median_cn: 1.0001499652862549
+    n_in_lineage: 261
+  - fraction_deleted: 0.1511627906976744
+    fraction_of_del_tail: 0.06341463414634146
+    lineage: Ovary/Fallopian Tube
+    median_cn: 1.1292951703071594
+    n_in_lineage: 86
   copy_number_class: recurrently_amplified
   patient_amplified_fraction: 0.5675675675675675
   patient_cn_context: "COADREAD: 57% of 592 TCGA GISTIC samples amplify EGFR (1% high-level\
@@ -125,12 +125,74 @@ copy-number-distribution:
   patient_focal_cn_class: focal_neutral
   patient_high_amp_fraction: 0.006756756756756757
   patient_homdel_fraction: 0.0
+drug-warning-safety:
+  drug_warning_class: black_box_warned
+  ensembl_gene_id: ENSG00000146648
+  evidence_tier: inferred
+  has_black_box: true
+  has_withdrawn: false
+  method_version: 0.1.0
+  n_targeted_drugs: 87
+  n_targeted_warned_drugs: 8
+  source: opentargets-26-06/drug_warning + drug_mechanism_of_action
+  target: EGFR
+  toxicity_classes:
+  - cardiotoxicity
+  - dermatological toxicity
+  - hematological toxicity
+  - hepatotoxicity
+  - metabolic toxicity
+  warning_types:
+  - black box warning
+functional-gene-state:
+  functional_state_class: rarely_altered
+  indication: COADREAD
+  method_version: 0.1.0
+  model:
+    _arm: model
+    cn_source: depmap_omicscngenewgs_relative
+    fraction_any_alteration: 0.08274647887323944
+    fraction_biallelic: 0.0018076644974692696
+    loh_note: genome_wide_only_not_per_gene
+    n_determinable: 2766
+    n_samples: 2840
+    state_counts:
+      biallelic+epigenetic: 5
+      biallelic-genetic: 0
+      epigenetic: 97
+      monoallelic: 59
+      uncertain: 74
+      wt: 2605
+  patient:
+    _arm: patient
+    _read_path: two_hit_product_v1
+    cn_source: gistic_thresholded_per_gene
+    fraction_any_alteration: 0.07290015847860538
+    fraction_biallelic: 0.0
+    fraction_mutated: 0.022187004754358162
+    indication: COADREAD
+    loh_source: pancanatlas_absolute_point_in_interval
+    methylation_source: pancanatlas_hm450_promoter_v1
+    n_determinable: 617
+    n_mutated: 14
+    n_samples: 631
+    state_counts:
+      biallelic+epigenetic: 0
+      biallelic-genetic: 0
+      epigenetic: 30
+      monoallelic: 2
+      uncertain: 14
+      wt: 585
+    tcga_projects:
+    - COAD
+    - READ
+  target: EGFR
+  vocabulary_phase: genetic_epigenetic_full_phase2b
 gene-burden-safety:
-  _note: ENSG00000146648 has no rare-variant burden rows in OT 26.06
-  burden_safety_class: no_burden_signal
+  _note: evidence_gene_burden entity not available
+  burden_safety_class: insufficient
   ensembl_gene_id: ENSG00000146648
   method_version: 0.1.0
-  n_total_rows: 0
   pvalue_cutoff: 1.0e-06
   source: opentargets-26-06/evidence_gene_burden
   target: EGFR
@@ -153,6 +215,10 @@ gnomad-lof-constraint:
 mouse-ko-phenotype:
   ensembl_gene_id: ENSG00000146648
   evidence_tier: inferred
+  impc_ko_phenotype_class: severe_organ_phenotype
+  impc_orthology_confidence: 1.0
+  impc_top_level_systems: immune system phenotype,hematopoietic system phenotype
+  impc_viability_class: unknown
   ko_phenotype_class: lethal_ko
   lethal_stages:
   - adult
@@ -175,17 +241,212 @@ mouse-ko-phenotype:
   source: opentargets-26-06/mouse_phenotype
   target: EGFR
   top_lethal_label: postnatal lethality, complete penetrance
+normal-tissue-liability:
+  essential_tissue_flag: present
+  essential_tissue_low_reliability: false
+  essential_tissues_flagged: []
+  hpa_ihc_reliability: enhanced
+  hpa_tissue_distribution: Detected in all
+  hpa_tissue_specificity: Low tissue specificity
+  method_version: 0.2.0
+  n_essential_tissues_with_expression: 0
+  n_specific_tissues: 0
+  normal_tissue_breadth_class: broad_normal_expression
+  safety_tissue_flags:
+  - essential_from_broad_detection
+  - broad
+  specific_tissues: []
 normal-tissue-liability-gtex:
   critical_organ_argmax: NERVE
+  critical_organ_grade: moderate
   critical_organ_max: 5.1189
+  excluded_cell_line_groups:
+  - BONE_MARROW
   highest_tissue: SKIN
   highest_tissue_median: 5.8291
   liability_class: broadly_expressed_normal
+  marrow_substrate: hpa_primary_marrow
   method_version: 0.1.0
+  min_donors_floor: 3
+  n_tissues_below_donor_floor: 0
   n_tissues_detectable: 29
   n_tissues_high: 1
   n_tissues_tested: 31
   tissue_breadth_fraction: 0.9355
+  tissues_below_donor_floor: []
+normal-tissue-protein-abundance-tphp:
+  abundance_floor_log2: 15.076
+  fetal_vs_adult_flag: adult_and_fetal
+  highest_abundance_tissue: seminal vesicle
+  highest_abundance_tissue_class: adult_normal
+  max_detection_rate: 1.0
+  max_median_log2_abundance: 15.445797300879624
+  median_across_tissues_log2_abundance: 14.371651
+  method_version: 0.4.0
+  n_adult_tissues_above_abundance_floor: 4
+  n_adult_tissues_detected: 65
+  n_adult_tissues_detected_low_support: 16
+  n_adult_tissues_total: 70
+  n_fetal_groups_detected: 4
+  n_fetal_groups_total: 4
+  n_solid_adult_tissues_above_abundance_floor: 4
+  n_solid_adult_tissues_detected: 59
+  n_solid_adult_tissues_total: 60
+  n_tissues_detected: 69
+  n_vital_organs_above_abundance_floor: 0
+  n_vital_organs_measurable: 13
+  n_vital_organs_unmeasurable: 2
+  normal_protein_breadth_class: broad_normal_protein
+  per_tissue_abundance: __omitted_from_fixture__ (list, 69 items)
+  tphp_normal_protein_liability_class: detected_not_abundant
+  tphp_vital_organ_abundance: __omitted_from_fixture__ (list, 15 items)
+  tphp_vital_organ_liability_class: vital_organ_low
+  uniprot_ac: P00533
+  vital_organ_min_samples: 3
+onsides-adverse-event-safety:
+  _data_source: onsides-adverse-event-per-gene-v1
+  example_boxed_warning_terms: Hepatotoxicity|Torsades de pointes
+  example_drugs: acalabrutinib|afatinib|amivantamab|brigatinib|dacomitinib|erlotinib|gefitinib|ibrutinib
+  example_terms: Rash|Stomatitis|Nausea|Interstitial lung disease|Pruritus|Dry skin|Infection|Fatigue
+  has_boxed_warning: true
+  method_version: 0.1.0
+  n_boxed_warning_terms: 2
+  n_drugs_mapped: 16
+  n_high_confidence_terms: 4
+  n_meddra_terms: 528
+  onsides_ade_class: boxed_warning_ade
+  onsides_ade_context: "EGFR: 16 mapped drug(s), 528 labeled MedDRA ADE term(s), 2\
+    \ in a BOXED WARNING (e.g. Hepatotoxicity|Torsades de pointes). Mapped drugs:\
+    \ acalabrutinib|afatinib|amivantamab|brigatinib|dacomitinib|erlotinib|gefitinib|ibrutinib.\
+    \ Drug-level, class-wide via a fuzzy drug-name join (recall-union over every gene\
+    \ a drug engages) \u2014 CANNOT separate on-target from off-target; context only,\
+    \ not a verdict input."
+pan-cancer-crispr-dependency-distribution:
+  bimodality_coefficient: 0.6018625844451717
+  chronos_iqr: 0.3838754650205374
+  dep_control_method_version: 0.1.0
+  dep_control_negatives:
+    MYH2: -0.019
+    OR2T4: 0.051
+    OR51E2: 0.024
+    PRM1: 0.089
+  dep_control_non_essential_floor: -0.019
+  dep_control_pan_essential_ceiling: -1.476
+  dep_control_position: as/more essential than 0/6 pan-essential control(s); more
+    dependent than 4/4 non-essential control(s)
+  dep_control_position_class: between_controls
+  dep_control_position_context: 'DepMap 26q3 pan-panel median Chronos vs curated dependency
+    controls (dependency_controls v1.0.0; pan_essential_ceiling=-1.476; non_essential_floor=-0.019).
+    INVERTED: at/below the ceiling = pan-essential tox liability; between = selective
+    dependency window; at/above the floor = non-dependent.'
+  dep_control_positives:
+    EEF2: -2.692
+    PCNA: -2.915
+    PSMB2: -1.79
+    RPL3: -2.49
+    RPS11: -2.733
+    SF3B1: -1.476
+  dep_control_target_chronos: -0.142
+  dependency_class: strongly_selective
+  depmap_curated_common_essential: false
+  distribution_shape: bimodal_selective
+  fraction_moderately_dependent: 0.14663310258023915
+  fraction_non_essential: 0.78980490874764
+  fraction_strongly_dependent: 0.06356198867212083
+  median_chronos_panel: -0.14159519970417023
+  n_cell_lines_evaluated: 1589
+  p25_chronos_panel: -0.4077732563018799
+  p5_chronos_panel: -1.14532413482666
+  p75_chronos_panel: -0.023897791281342506
+  p95_chronos_panel: 0.14324189722537992
+  pan_essential_fraction_call: strongly_selective
+  pan_essential_score: 0.06356198867212083
+  selectivity_index: 0.9343040283168735
+  top_dependent_lineages:
+  - fraction_of_dependent_tail: 0.0594059405940594
+    fraction_strongly_dependent: 0.2608695652173913
+    lineage: Prostate
+    median_chronos: -0.3562185764312744
+    n_in_lineage: 23
+  - fraction_of_dependent_tail: 0.019801980198019802
+    fraction_strongly_dependent: 0.2222222222222222
+    lineage: Ampulla of Vater
+    median_chronos: -0.5988584756851196
+    n_in_lineage: 9
+  - fraction_of_dependent_tail: 0.1485148514851485
+    fraction_strongly_dependent: 0.189873417721519
+    lineage: Head and Neck
+    median_chronos: -0.6302493214607239
+    n_in_lineage: 79
+  - fraction_of_dependent_tail: 0.13861386138613863
+    fraction_strongly_dependent: 0.15555555555555556
+    lineage: Bowel
+    median_chronos: -0.35298725962638855
+    n_in_lineage: 90
+  - fraction_of_dependent_tail: 0.12871287128712872
+    fraction_strongly_dependent: 0.13402061855670103
+    lineage: Esophagus/Stomach
+    median_chronos: -0.38618138432502747
+    n_in_lineage: 97
+sc-normal-celltype-expression:
+  essential_tissues_missing: []
+  expressing_donor_fraction_max: 1.0
+  indication: COADREAD
+  max_detection_cell_type: lamp5 GABAergic cortical interneuron
+  max_detection_fraction: 0.9661495063469676
+  method_version: 0.1.0
+  n_cell_types_above_20pct: 151
+  n_reliable_cell_types: 410
+  origin_tissues:
+  - colon
+  per_cell_type_top: __omitted_from_fixture__ (list, 15 items)
+  safety_essential_flags: __omitted_from_fixture__ (dict, 94 items)
+  sc_normal_abundance_class: high_abundance
+  sc_normal_breadth_null_fraction: 0.36829268292682926
+  sc_normal_ceiling_detection_fraction: 0.9661495063469676
+  sc_normal_detection_caveat: null
+  sc_normal_essential_donor_fraction: 0.9165009940357853
+  sc_normal_essential_max_cell_type: pulmonary alveolar type 1 cell
+  sc_normal_essential_max_detection_fraction: 0.40816326530612246
+  sc_normal_essential_max_tissue: lung
+  sc_normal_essential_median_abund: 0.616329030195872
+  sc_normal_essential_n_datasets_reliable: 26
+  sc_normal_essential_veto_grade: accessible_high_severity
+  sc_normal_expression_class: HIGH_LIABILITY
+  sc_normal_peak_median_abund: 1.5647358505498796
+  sc_normal_safety_detection_confidence: confident
+  sc_normal_safety_essential_class: critical_organ_liability
+  tissues_loaded:
+  - colon
+  - heart
+  - liver
+  - kidney
+  - bone_marrow
+  - brain
+  - adrenal_gland
+  - lung
+  - pancreas
+  tissues_missing: []
+  tissues_queried:
+  - colon
+  - heart
+  - liver
+  - kidney
+  - bone_marrow
+  - brain
+  - adrenal_gland
+  - lung
+  - pancreas
+shet-lof-intolerance:
+  exp_lof_count: 66.249
+  method_version: 1.0.0
+  obs_lof_count: 15.0
+  shet_class: moderate_intolerance
+  shet_context: GeneBayes s_het=0.0694 (moderate_intolerance); dominant-LoF selection
+    coefficient (Zeng 2024)
+  shet_lower_95: 0.046289
+  shet_score: 0.0693613
+  shet_upper_95: 0.099255
 target-safety-prioritisation:
   _encoding_note: OT-normalized prioritisation scores (~[-1,1], higher=more favorable);
     NOT raw facts. Authoritative per-fact reads live in the dedicated cards.
@@ -213,22 +474,3 @@ target-safety-prioritisation:
   prioritisation_status: scored
   source: opentargets-26-06/target_prioritisation
   target: EGFR
-
-# onsides-adverse-event-safety — verdict-INERT display card (2026-08-25). Frozen from
-# onsides-adverse-event-per-gene-v1; read is byte-inert to the safety verdict.
-onsides-adverse-event-safety:
-  onsides_ade_class: boxed_warning_ade
-  n_drugs_mapped: 16
-  n_meddra_terms: 528
-  has_boxed_warning: true
-  n_boxed_warning_terms: 2
-  n_high_confidence_terms: 4
-  example_terms: Rash|Stomatitis|Nausea|Interstitial lung disease|Pruritus|Dry skin|Infection|Fatigue
-  example_boxed_warning_terms: Hepatotoxicity|Torsades de pointes
-  example_drugs: acalabrutinib|afatinib|amivantamab|brigatinib|dacomitinib|erlotinib|gefitinib|ibrutinib
-  onsides_ade_context: 'EGFR: 16 mapped drug(s), 528 labeled MedDRA ADE term(s), 2 in a BOXED WARNING
-    (e.g. Hepatotoxicity|Torsades de pointes). Mapped drugs: acalabrutinib|afatinib|amivantamab|brigatinib|dacomitinib|erlotinib|gefitinib|ibrutinib.
-    Drug-level, class-wide via a fuzzy drug-name join (recall-union over every gene a drug engages) —
-    CANNOT separate on-target from off-target; context only, not a verdict input.'
-  method_version: 0.1.0
-  _data_source: onsides-adverse-event-per-gene-v1
