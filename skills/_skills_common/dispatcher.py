@@ -361,6 +361,7 @@ def _emit_subskill_envelope(
     verdict_pair: "Optional[tuple[str, Optional[str]]]",
     fired: list[dict],
     claim_record_fn: "Optional[Callable[[list, list, Optional[tuple]], dict]]" = None,
+    evidence_sections_fn: "Optional[Callable[[dict], Optional[dict]]]" = None,
 ) -> Path:
     """Assemble + write evidence_package.json around a subskill's resolver verdict (opt-in).
 
@@ -371,6 +372,13 @@ def _emit_subskill_envelope(
     When `claim_record_fn` is supplied AND this is the tumor-presence L2 pilot, the assembled package
     also carries a `claim_record` with the DORMANT #804 context+identity join key populated (see
     `_attach_l2_claim_record`).
+
+    When `evidence_sections_fn` is supplied (SK#1941 — the tumor-presence reference vertical), it is
+    called with the rich decision `headline` to build the NAMED bounded top-level evidence sections
+    (source_properties L2a / integrated_properties L2b / local_composites / l3d). These are spliced in as
+    top-level package keys by `assemble_evidence_package` — a VIEW over content already on the headline,
+    each reconstructable downward to its claim IDs / L1 card_ids. Best-effort: a fault leaves the additive
+    envelope otherwise intact. Verdict-INERT (decision.json spine untouched).
     """
     from .envelope import assemble_evidence_package
     from .gitmeta import skills_repo_sha
@@ -451,6 +459,19 @@ def _emit_subskill_envelope(
     }
     from . import FRAMEWORK_VERSION as _fv
 
+    # SK#1941: build the NAMED bounded evidence sections from the rich decision headline (best-effort —
+    # a fault leaves the additive envelope otherwise intact, matching the claim_record discipline below).
+    evidence_sections = None
+    if evidence_sections_fn is not None:
+        try:
+            evidence_sections = evidence_sections_fn(headline)
+        except Exception as e:  # noqa: BLE001 — the sections are additive; never break the envelope
+            print(
+                f"[dispatcher] --emit-envelope: evidence-sections build skipped "
+                f"({type(e).__name__}: {e}); evidence_package.json emitted without named sections.",
+                file=sys.stderr,
+            )
+
     ep = assemble_evidence_package(
         input_context=input_context,
         dashboard_spec_ref=f"skill:{skill_name}",
@@ -461,6 +482,7 @@ def _emit_subskill_envelope(
         deterministic_timestamps=False,
         framework_version=_fv,
         generated_by=f"skills/{skill_name}@{skills_repo_sha()}",
+        evidence_sections=evidence_sections,
     )
 
     # L2 identity pilot (contracts #804, decision #4): populate + serialize the DORMANT
@@ -760,6 +782,7 @@ def run_wired_skill(
     subtype_panorama_fn: Optional["SubtypePanoramaFn"] = None,
     subtype_merge_fn: Optional[Callable[[dict, dict], None]] = None,
     claim_record_fn: Optional[Callable[[list, list, Optional[tuple]], dict]] = None,
+    evidence_sections_fn: Optional[Callable[[dict], "Optional[dict]"]] = None,
     extra_axes: Optional[list[str]] = None,
     verdict_cards: Optional[list[str]] = None,
     skill_figures_fn: Optional[Callable[[dict, Path], list]] = None,
@@ -814,6 +837,12 @@ def run_wired_skill(
             a fault degrades to {'_shadow_error': ...} and never breaks the spine. Default None =>
             no standalone shadow (every existing caller — the shadow is otherwise assembled only by
             the composed target-profile fan-out).
+        evidence_sections_fn: OPTIONAL (headline) -> dict|None hook (SK#1941). Under --emit-envelope its
+            result is spliced into evidence_package.json as NAMED top-level sections
+            (source_properties L2a / integrated_properties L2b / local_composites / l3d) — a VIEW over
+            content already on the headline, reconstructable downward to claim IDs / L1 card_ids.
+            Best-effort; VERDICT-INERT (decision.json spine untouched). Default None => the emitted
+            package is byte-identical to its pre-#1941 shape.
         verdict_cards: OPTIONAL subset of `cards` that can MOVE the verdict — the resolver's
             referenced cards, from reachability.verdict_relevant_cards(gate). When --verdict-only is
             passed AND this is a non-empty SUBSET of `cards`, ONLY these cards are read: the verdict
@@ -1317,6 +1346,7 @@ def run_wired_skill(
                 verdict_pair=verdict_pair,
                 fired=fired,
                 claim_record_fn=claim_record_fn,
+                evidence_sections_fn=evidence_sections_fn,
             )
             print(f"  emitted evidence_package.json → {_ep_path}")
         except Exception as e:  # noqa: BLE001 — envelope is additive; never break the spine

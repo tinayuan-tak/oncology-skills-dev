@@ -350,6 +350,7 @@ def assemble_evidence_package(
     unavailable_cards: "list[dict] | None" = None,
     refine_product_id_staleness: bool = False,
     stamp_evidence_substrate: bool = False,
+    evidence_sections: "dict | None" = None,
 ) -> dict:
     """Build the evidence_package envelope from phase outputs.
 
@@ -383,7 +384,22 @@ def assemble_evidence_package(
     (compose-dashboard byte-golden, target-profile --emit, subskill --emit-envelope) is byte-identical
     AND keeps validating against the un-updated evidence_package.schema until the target-contracts
     substrate schema (the sibling PR) lands. Best-effort: unresolved type/substrate keys are simply
-    omitted; a skills-only checkout stamps nothing and never raises."""
+    omitted; a skills-only checkout stamps nothing and never raises.
+
+    `evidence_sections` (2026-09-27, SK#1941 — the tumor-presence reference-vertical export boundary):
+    a pre-built {section_name: section_object} map of the NAMED, bounded top-level evidence sections
+    (source_properties L2a, integrated_properties L2b, local_composites, l3d — see
+    docs/EVIDENCE_PROPERTY_ARCHITECTURE_L1_L4.md :259-275). When supplied, each entry is spliced in as a
+    TOP-LEVEL package key right after `cards`, so a consumer reads L2a/L2b/local/L3d as STRUCTURE, not by
+    convention over synthesis.headline.claim_vector. The section objects carry the SAME content already
+    computed in the decision headline, each entry reconstructable downward to its claim IDs / L1 card_ids
+    (source_properties[*].card_id, the islands' provenance.sources[*].provenance.card_id, the claim axes'
+    evidence_atom.cite.card_id, l3d.provenance.claim_ids). DEFAULT None so every existing caller
+    (compose-dashboard byte-golden, functional-requirement/other --emit, subskill envelope) is
+    byte-identical; the emitting skill (tumor-presence) owns the section shapes and the schema declares
+    them (evidence_package.schema top-level unevaluatedProperties:false). Verdict-INERT: additive
+    structure over the same content — presence_verdict / presence_verdict_by_modality / resolver goldens
+    are untouched."""
     ctx = input_context
     target = ctx["target_symbol"]
     indication = ctx["indication"]
@@ -512,7 +528,7 @@ def assemble_evidence_package(
         if deterministic_timestamps
         else (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"))
     )
-    return {
+    package = {
         "package_id": package_id,
         "framework_version": framework_version,
         "generated_at": timestamp,
@@ -521,11 +537,19 @@ def assemble_evidence_package(
         "governance": governance,
         "dashboard_spec_ref": dashboard_spec_ref,
         "cards": cards,
-        "synthesis": synthesis_block,
-        # 2026-08-10 fix: the pointer said "renderings/dashboard.md" but main() writes
-        # the rendering to the package ROOT (out / "dashboard.md") — no renderings/ subdir is ever
-        # created, so the self-describing pointer was wrong on every emitted package. Point at the
-        # actual file. (Keeping the file at root; only the pointer was inconsistent.)
-        "renderings": {"markdown": "dashboard.md"},
-        "schema_version": 1,
     }
+    # SK#1941: splice the NAMED bounded evidence sections in as top-level keys right after `cards`
+    # (source_properties L2a / integrated_properties L2b / local_composites / l3d) so the layered
+    # export shape is STRUCTURE, not a convention over synthesis.headline.claim_vector. The emitting
+    # skill owns the shapes; DEFAULT None => every existing caller stays byte-identical.
+    if evidence_sections:
+        for _section_name, _section_obj in evidence_sections.items():
+            package[_section_name] = _section_obj
+    package["synthesis"] = synthesis_block
+    # 2026-08-10 fix: the pointer said "renderings/dashboard.md" but main() writes
+    # the rendering to the package ROOT (out / "dashboard.md") — no renderings/ subdir is ever
+    # created, so the self-describing pointer was wrong on every emitted package. Point at the
+    # actual file. (Keeping the file at root; only the pointer was inconsistent.)
+    package["renderings"] = {"markdown": "dashboard.md"}
+    package["schema_version"] = 1
+    return package
