@@ -109,7 +109,9 @@ CARDS = [
     "co-mutation-and-mutual-exclusivity",
     "stemness-context",  # Malta 2018 (2026-08-10): per-indication tumor-stemness (mRNAsi) cohort prior
     # — dedifferentiation/aggressiveness prognostic context. ADDITIVE, VERDICT-INERT
-    # (its rules feed NO resolver; differentiation verdict byte-stable). reads stemness_index.
+    # (its rules feed NO resolver; differentiation verdict byte-stable). stemness_class is
+    # surfaced in cards[]; consumed by the shared salience/evidence-graph layer, not this
+    # skill's headline (see #1580).
     "expression-clinical-association",  # Q11 (2026-07-23 composition) — does target expression
     # stratify SURVIVAL (prognostic context)? A patient-selection /
     # clinical-context render facet + biomarker-facet stratification
@@ -131,11 +133,14 @@ CARDS = [
     # stratify OS (prognostic context)? The alteration analog of
     # expression-clinical-association. ADDITIVE, VERDICT-INERT (its
     # alteration-* rules feed NO resolver; differentiation verdict
-    # byte-stable). reads alteration_survival_association_class.
+    # byte-stable). alteration_survival_association_class is surfaced in cards[]; consumed by
+    # the shared salience/evidence-graph layer, not this skill's headline (see #1580).
     "subtype-survival-association",  # Q2-subtype (2026-08-20): does OS differ ACROSS the indication's
     # molecular subtypes? Target-independent patient-selection context.
     # ADDITIVE, VERDICT-INERT (subtype-* rules feed NO resolver;
-    # differentiation verdict byte-stable). reads subtype_survival_association_class.
+    # differentiation verdict byte-stable). subtype_survival_association_class is surfaced in
+    # cards[]; consumed by the shared salience/evidence-graph layer, not this skill's headline
+    # (see #1580).
     "clinical-precedent",  # (2026-08-21): AACT clinical-trial precedent for (target, indication) —
     # highest stage / active trials / approved agents / notable failures for a
     # drug that ENGAGES the target. WIRED via public-domain AACT (was the

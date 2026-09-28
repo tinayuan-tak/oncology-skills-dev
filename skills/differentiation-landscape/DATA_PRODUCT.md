@@ -41,11 +41,14 @@ licensing unresolved). Absent from `CARDS` + `cards_used`; it is the sole reason
 
 ## 2. Coverage & capability ceilings (contractual)
 
-- **Pooled Fisher panel-intersect (the verdict):** pooled q-values only when BOTH target+partner sit on
-  ALL contributing GENIE panels (166 panels); else per-source only (`pooled_eligible: false`). run.py
-  deterministically fires a `_panel_absent_signal` (top_tension severity 3) when the pooled-eligible pair
-  count is 0 but per-source > 0. Sources: TCGA MC3 (~10k aliquots / 33 types) + GENIE 19.0-public.
-  Per-subgroup co-mutation is **BLOCKED** (`blocked_needs_per_sample_reader`).
+- **Per-source, indication-scoped class (the verdict):** NO cross-source pooling is performed — there is
+  no pooled q-value column. The verdict-driving fields are computed from the indication-matched cohort rows
+  of each source (TCGA MC3, GENIE 19.0-public) SEPARATELY, with a TCGA-WES-only passenger floor.
+  `pooled_eligible` is DISPLAY/interpretation metadata marking pairs where both target+partner sit on the
+  166-gene GENIE panel-intersect; it does NOT gate a pooled statistic (none exists). run.py deterministically
+  fires a `_panel_absent_signal` (top_tension severity 3) when the pooled-eligible pair count is 0 but
+  per-source > 0. Sources: TCGA MC3 (~10k aliquots / 33 types) + GENIE 19.0-public. Per-subgroup co-mutation
+  is **BLOCKED** (`blocked_needs_per_sample_reader`).
 - **Clinical-association facets:** ~20 OncoTree codes (`applies_when`); off-list → data_unavailable.
 - **subtype-survival-association:** needs a registered TCGA subtype shard (COADREAD/NSCLC/ESCA/HNSC/PAAD).
   <!-- #1272: STAD dropped to match the reader's INDICATION_TO_TCGA_SUBTYPE_SHARD. A tcga-subgroup-assignments-stad-v1

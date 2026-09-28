@@ -18,11 +18,14 @@ description: |
   across TCGA MC3 + GENIE 19.0-public, and what patient-selection or
   combination-biology hypotheses does the pattern support?
 
-  Reviewer-driven BLOCKER FIX (2026-07-08): pooled Fisher analysis is
-  restricted to the panel-intersect gene set. Genes absent from GENIE
-  panels get per-source q-values only (`pooled_eligible: false`),
-  preventing the naive-pooling failure mode that would produce
-  artifactual mutual-exclusivity signals for panel-absent genes.
+  Reviewer-driven BLOCKER FIX (2026-07-08): the verdict is a PER-SOURCE,
+  indication-scoped co-mutation class — NO cross-source pooling is performed
+  (there is no pooled q-value column). `pooled_eligible` is DISPLAY/interpretation
+  metadata flagging pairs where both genes fall in the 166-gene GENIE
+  panel-intersect; it does NOT gate a pooled statistic (none exists). The
+  naive-pooling failure mode (artifactual mutual-exclusivity for panel-absent
+  genes) is prevented by NOT pooling at all, plus a TCGA-WES-only passenger
+  floor and a panel-absence caveat.
 
 metadata:
   version: 1.12.0
@@ -126,9 +129,12 @@ figures a caller places in the dir, and this skill wires no emitter. Invoke
 
 Every emitted decision.json carries `panel_intersect_mode: strict` in
 provenance + `pooled_eligible: bool` per top_cooccurring / top_mutually_
-exclusive row. Governance readers can filter to pooled_eligible=True for
-maximum-cohort claims; per-source (TCGA MC3 only OR GENIE only) claims
-are always available for panel-ineligible genes.
+exclusive row. `pooled_eligible` is DISPLAY/interpretation metadata — it flags
+pairs where both genes sit on the 166-gene GENIE panel-intersect; it does NOT
+gate a pooled statistic (no cross-source pooling is performed and no pooled
+q-value column is emitted). The verdict is always per-source (TCGA MC3 and
+GENIE scored separately) and indication-scoped, with a TCGA-WES-only passenger
+floor; per-source claims are available for panel-ineligible genes.
 
 ## Iter-2 roadmap
 
