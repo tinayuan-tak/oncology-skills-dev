@@ -1,0 +1,63 @@
+# RAW card-reader summaries (dispatcher outputs) for the cis-coherence replay harness — NOT derived
+# headline values. The claim_vector + cis_coherence_verdict are RE-DERIVED from these raw fields by the
+# real run.py in the test (a fixture of derived values can never fail). See test_cis_coherence_replay.py.
+#
+# ERBB2 / BRCA — the canonical amplification-driven oncogene addiction (17q12). Leg-1 coupled via the
+# AMPLIFIED arm, leg-2 dependency present (both the correlation leg AND the conjoint amp∩overexpr leg) →
+# a coherent cis-driver chain. ERBB2 is a validated cis-driver, the ground truth the passenger trap is
+# calibrated against.
+target: ERBB2
+indication: BRCA
+expected_cis_coherence_verdict: coherent_cis_driver
+expected_driving_rule_id: cis-dosage-coupled-supportive
+cards:
+  cis-feature-expression-coherence:
+    cis_dosage_class: cn_dosage_coupled_strong
+    cis_dosage_driver: focal_amplification_subset
+    cis_dosage_direction: amplification_coupled
+    cis_dosage_direction_basis: amplified_vs_deleted_contrast
+    cn_expr_spearman_r: 0.58
+    cn_expr_spearman_p: 1.0e-14
+    cn_expr_slope_log2tpm_per_cn: 0.91
+    relative_cn_iqr: 1.24
+    delta_log2tpm_amplified_vs_neutral: 2.41
+    subset_delta_log2tpm_amplified_vs_neutral: 2.63
+    subset_within_lineage_delta_log2tpm: 2.10
+    subset_n_lineages_compared: 6
+    amplified_dominant_lineage_fraction: 0.42
+    n_amplified: 45
+    n_deleted: 4
+    deleted_subset_delta_log2tpm: -0.12
+    deleted_within_lineage_delta_log2tpm: -0.05
+    deleted_subset_mannwhitney_p: 0.61
+    evidence_scope: within_indication
+    n_cell_lines_evaluated: 820
+  expression-dependency-correlation:
+    correlation_class: moderate_negative
+    pearson_r: -0.34
+    pearson_p: 2.0e-09
+  amp-expr-stratified-dependency:
+    amp_expr_stratification_class: amplified_overexpressed_strongly_dependent
+    delta_chronos_amp_expr_vs_rest: -0.62
+    evidence_scope: within_indication
+  cellline-methylation-expression-coherence:
+    methylation_silencing_class: methylation_uncoupled
+    silencing_driver: null
+  cis-feature-protein-coherence:
+    cis_protein_dosage_class: prot_dosage_coupled_strong
+    cn_prot_spearman_r: 0.51
+    cn_prot_slope_log2abundance_per_cn: 0.74
+    delta_log2abundance_amplified_vs_neutral: 1.9
+    n_paired_models_cn_protein: 210
+  abundance-dependency:
+    abundance_dependency_class: protein_predicts_dependency
+    protein_dependency_pearson_r: -0.33
+  patient-cis-coherence:
+    patient_cis_dosage_class: cn_dosage_coupled_moderate
+    patient_methylation_silencing_class: insufficient_methylation_data
+    n_cases_expression: 980
+  cellline-isoform-expression:
+    isoform_expression_class: single_isoform_dominant
+    dominant_isoform_fraction: 0.88
+    n_expressed_isoforms: 3
+    dominant_isoform: ENST00000269571

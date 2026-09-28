@@ -1,0 +1,57 @@
+# RAW card-reader summaries for the cis-coherence replay harness — NOT derived values (see the sibling
+# fixtures' header + test_cis_coherence_replay.py).
+#
+# MLH1 / COADREAD — the canonical epigenetically-silenced tumour suppressor: promoter methylation
+# coherently explains LOW expression (subset Δ -4.62, survives within-lineage conditioning), with no
+# copy-number cis-dosage leg (CN invariant) and no self-dependency. The silencing rung fires standalone
+# (resolver priority 7) → coherent_epigenetic_silencing. MLH1 is a validated silencing gene (MLH1→MSI).
+target: MLH1
+indication: COADREAD
+expected_cis_coherence_verdict: coherent_epigenetic_silencing
+expected_driving_rule_id: cis-silencing-coupled-supportive
+cards:
+  cis-feature-expression-coherence:
+    cis_dosage_class: cn_invariant_panel
+    cis_dosage_driver: null
+    cis_dosage_direction: null
+    cis_dosage_direction_basis: null
+    cn_expr_spearman_r: null
+    n_amplified: 2
+    n_deleted: 3
+    evidence_scope: pan_no_indication
+    n_cell_lines_evaluated: 790
+  cellline-methylation-expression-coherence:
+    methylation_silencing_class: silencing_coupled_strong
+    silencing_driver: subset_hypermethylation
+    subset_median_delta_log2tpm: -4.62
+    subset_within_lineage_delta_log2tpm: -3.94
+    subset_n_lineages_compared: 7
+    hypermethylated_dominant_lineage_fraction: 0.28
+    lineage_collapse_ratio: 0.85
+    n_hypermethylated: 25
+    broad_quartile_delta_log2tpm: -2.8
+    broad_quartile_within_lineage_delta_log2tpm: -2.1
+    evidence_scope: within_indication
+  expression-dependency-correlation:
+    correlation_class: no_correlation
+    pearson_r: 0.06
+    pearson_p: 0.44
+  amp-expr-stratified-dependency:
+    amp_expr_stratification_class: insufficient_amp_expr_rate
+    delta_chronos_amp_expr_vs_rest: null
+    evidence_scope: pan_no_indication
+  cis-feature-protein-coherence:
+    cis_protein_dosage_class: data_unavailable
+    n_paired_models_cn_protein: 0
+  abundance-dependency:
+    abundance_dependency_class: insufficient_paired_models
+    protein_dependency_pearson_r: null
+  patient-cis-coherence:
+    patient_cis_dosage_class: cn_invariant_panel
+    patient_methylation_silencing_class: epigenetic_silencing
+    n_cases_expression: 610
+  cellline-isoform-expression:
+    isoform_expression_class: single_isoform_dominant
+    dominant_isoform_fraction: 0.79
+    n_expressed_isoforms: 2
+    dominant_isoform: ENST00000231790

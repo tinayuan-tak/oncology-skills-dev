@@ -1,0 +1,48 @@
+# RAW card-reader summaries for the cis-coherence replay harness — NOT derived values (see the sibling
+# fixtures' header + test_cis_coherence_replay.py).
+#
+# NRAS / SKCM — every coherence leg is untestable/unmeasured: no CN variation to test cis-dosage
+# (cn_invariant_panel → no leg-1 token), no methylation subset (methylation_invariant_panel), and the
+# dependency correlation leg fires only its absent-neutral token which matches no rung on its own. No
+# rung matches → the honest-abstention default insufficient_cis_coherence (driving_rule_id null).
+target: NRAS
+indication: SKCM
+expected_cis_coherence_verdict: insufficient_cis_coherence
+expected_driving_rule_id: null
+cards:
+  cis-feature-expression-coherence:
+    cis_dosage_class: cn_invariant_panel
+    cis_dosage_driver: null
+    cis_dosage_direction: null
+    cis_dosage_direction_basis: null
+    cn_expr_spearman_r: null
+    n_amplified: 3
+    n_deleted: 1
+    evidence_scope: pan_no_indication
+    n_cell_lines_evaluated: 760
+  expression-dependency-correlation:
+    correlation_class: no_correlation
+    pearson_r: 0.11
+    pearson_p: 0.33
+  amp-expr-stratified-dependency:
+    amp_expr_stratification_class: insufficient_amp_expr_rate
+    delta_chronos_amp_expr_vs_rest: null
+    evidence_scope: pan_no_indication
+  cellline-methylation-expression-coherence:
+    methylation_silencing_class: methylation_invariant_panel
+    silencing_driver: null
+  cis-feature-protein-coherence:
+    cis_protein_dosage_class: data_unavailable
+    n_paired_models_cn_protein: 0
+  abundance-dependency:
+    abundance_dependency_class: insufficient_paired_models
+    protein_dependency_pearson_r: null
+  patient-cis-coherence:
+    patient_cis_dosage_class: cn_invariant_panel
+    patient_methylation_silencing_class: insufficient_methylation_data
+    n_cases_expression: 410
+  cellline-isoform-expression:
+    isoform_expression_class: data_unavailable
+    dominant_isoform_fraction: null
+    n_expressed_isoforms: null
+    dominant_isoform: null

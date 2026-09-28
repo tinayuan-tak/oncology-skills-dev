@@ -1,0 +1,53 @@
+# RAW card-reader summaries for the cis-coherence replay harness — NOT derived values (see the sibling
+# fixtures' header + test_cis_coherence_replay.py).
+#
+# AR / PRAD — copy-number VARIES across the panel but does NOT predict expression (leg-1 uncoupled,
+# trans/lineage-regulated), and expression does not track dependency (leg-2 absent), with methylation
+# tested-and-not-silenced. No coherent cis chain → cis_uncoupled_no_dependency (resolver priority 9).
+target: AR
+indication: PRAD
+expected_cis_coherence_verdict: cis_uncoupled_no_dependency
+expected_driving_rule_id: cis-dosage-uncoupled-neutral
+cards:
+  cis-feature-expression-coherence:
+    cis_dosage_class: cn_dosage_uncoupled
+    cis_dosage_driver: null
+    cis_dosage_direction: null
+    cis_dosage_direction_basis: null
+    cn_expr_spearman_r: 0.08
+    cn_expr_spearman_p: 0.22
+    cn_expr_slope_log2tpm_per_cn: 0.06
+    relative_cn_iqr: 0.71
+    delta_log2tpm_amplified_vs_neutral: 0.12
+    n_amplified: 22
+    n_deleted: 9
+    evidence_scope: pan_no_indication
+    n_cell_lines_evaluated: 805
+  expression-dependency-correlation:
+    correlation_class: no_correlation
+    pearson_r: -0.04
+    pearson_p: 0.58
+  amp-expr-stratified-dependency:
+    amp_expr_stratification_class: not_amp_expr_stratified
+    delta_chronos_amp_expr_vs_rest: -0.02
+    evidence_scope: pan_no_indication
+  cellline-methylation-expression-coherence:
+    methylation_silencing_class: methylation_uncoupled
+    silencing_driver: null
+    n_hypermethylated: 41
+  cis-feature-protein-coherence:
+    cis_protein_dosage_class: prot_dosage_uncoupled
+    cn_prot_spearman_r: 0.05
+    n_paired_models_cn_protein: 150
+  abundance-dependency:
+    abundance_dependency_class: no_protein_dependency_link
+    protein_dependency_pearson_r: -0.02
+  patient-cis-coherence:
+    patient_cis_dosage_class: cn_dosage_uncoupled
+    patient_methylation_silencing_class: no_silencing_signal
+    n_cases_expression: 495
+  cellline-isoform-expression:
+    isoform_expression_class: isoform_diverse
+    dominant_isoform_fraction: 0.46
+    n_expressed_isoforms: 4
+    dominant_isoform: ENST00000374690

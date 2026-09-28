@@ -1,0 +1,59 @@
+# RAW card-reader summaries for the cis-coherence replay harness — NOT derived values (see the sibling
+# fixtures' header + test_cis_coherence_replay.py).
+#
+# MDM4 / BRCA — 1q32 amplification drives expression (leg-1 coupled, AMPLIFIED arm) but the target is
+# NOT more depended-on where it is more abundant (leg-2 absent). The abundance-laundering guard: present
+# + cis-driven, yet dependency-inert. Drives the expressed_cis_coupled_inert rung (resolver priority 6),
+# which the bare abundance steer would otherwise launder as "expected non-dependency".
+target: MDM4
+indication: BRCA
+expected_cis_coherence_verdict: expressed_cis_coupled_inert
+expected_driving_rule_id: cis-expr-dependency-absent-neutral
+cards:
+  cis-feature-expression-coherence:
+    cis_dosage_class: cn_dosage_coupled_strong
+    cis_dosage_driver: pan_panel_correlation
+    cis_dosage_direction: amplification_coupled
+    cis_dosage_direction_basis: amplified_vs_deleted_contrast
+    cn_expr_spearman_r: 0.47
+    cn_expr_spearman_p: 3.0e-11
+    cn_expr_slope_log2tpm_per_cn: 0.63
+    relative_cn_iqr: 0.98
+    delta_log2tpm_amplified_vs_neutral: 1.55
+    subset_delta_log2tpm_amplified_vs_neutral: 1.62
+    subset_within_lineage_delta_log2tpm: 1.31
+    subset_n_lineages_compared: 5
+    amplified_dominant_lineage_fraction: 0.31
+    n_amplified: 38
+    n_deleted: 6
+    evidence_scope: pan_no_indication
+    n_cell_lines_evaluated: 815
+  expression-dependency-correlation:
+    correlation_class: no_correlation
+    pearson_r: 0.03
+    pearson_p: 0.71
+  amp-expr-stratified-dependency:
+    amp_expr_stratification_class: not_amp_expr_stratified
+    delta_chronos_amp_expr_vs_rest: -0.04
+    evidence_scope: pan_no_indication
+  cellline-methylation-expression-coherence:
+    methylation_silencing_class: methylation_uncoupled
+    silencing_driver: null
+  cis-feature-protein-coherence:
+    cis_protein_dosage_class: prot_dosage_uncoupled
+    cn_prot_spearman_r: 0.09
+    cn_prot_slope_log2abundance_per_cn: 0.05
+    delta_log2abundance_amplified_vs_neutral: 0.1
+    n_paired_models_cn_protein: 180
+  abundance-dependency:
+    abundance_dependency_class: no_protein_dependency_link
+    protein_dependency_pearson_r: 0.01
+  patient-cis-coherence:
+    patient_cis_dosage_class: cn_dosage_coupled_moderate
+    patient_methylation_silencing_class: insufficient_methylation_data
+    n_cases_expression: 940
+  cellline-isoform-expression:
+    isoform_expression_class: isoform_diverse
+    dominant_isoform_fraction: 0.41
+    n_expressed_isoforms: 5
+    dominant_isoform: ENST00000367182
