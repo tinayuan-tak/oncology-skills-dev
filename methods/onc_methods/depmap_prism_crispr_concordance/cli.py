@@ -64,6 +64,56 @@ CONCORDANCE_DATA_UNAVAILABLE = "data_unavailable"
 CONCORDANCE_STRONG_SPEARMAN = 0.30
 CONCORDANCE_WEAK_SPEARMAN = 0.10
 
+# PRISM compound metadata
+PRISM_COMPOUND_LIST_S3 = "s3://onc-compbio/data-catalog/sources/depmap-consortium/dmc-26q3/PRISMOncologyReferenceCompoundList.csv"
+_COMPOUND_METADATA_CACHE: dict = {}
+
+
+def load_prism_compound_metadata() -> dict:
+    """Load PRISM compound metadata from S3 or cache.
+
+    Returns dict mapping SampleID (PRC-xxx) to metadata dict with:
+    - CompoundName: common drug name
+    - GeneSymbolOfTargets: target genes (semicolon-separated)
+    - TargetOrMechanism: MOA description
+    """
+    global _COMPOUND_METADATA_CACHE
+    if _COMPOUND_METADATA_CACHE:
+        return _COMPOUND_METADATA_CACHE
+
+    try:
+        import boto3
+        import pandas as pd
+        from io import BytesIO
+
+        # Try local cache first
+        local_cache = Path.home() / ".cache" / "framework-prism" / "PRISMOncologyReferenceCompoundList.csv"
+        if local_cache.exists():
+            df = pd.read_csv(local_cache)
+        else:
+            # Download from S3
+            bucket, key = _parse_s3_uri(PRISM_COMPOUND_LIST_S3)
+            s3 = boto3.client("s3")
+            obj = s3.get_object(Bucket=bucket, Key=key)
+            df = pd.read_csv(BytesIO(obj["Body"].read()))
+            # Cache locally
+            local_cache.parent.mkdir(parents=True, exist_ok=True)
+            df.to_csv(local_cache, index=False)
+
+        # Build lookup dict
+        for _, row in df.iterrows():
+            sample_id = row.get("SampleID")
+            if sample_id:
+                _COMPOUND_METADATA_CACHE[sample_id] = {
+                    "CompoundName": row.get("CompoundName") or sample_id,
+                    "GeneSymbolOfTargets": row.get("GeneSymbolOfTargets") or "",
+                    "TargetOrMechanism": row.get("TargetOrMechanism") or "",
+                }
+    except Exception as e:
+        print(f"[prism-crispr-concordance] Failed to load compound metadata: {e}", file=sys.stderr)
+
+    return _COMPOUND_METADATA_CACHE
+
 
 def _parse_s3_uri(uri: str) -> tuple[str, str]:
     p = urlparse(uri)
@@ -176,7 +226,8 @@ def _placeholder_svg(msg_lines: list[str], out_path: Path, pal) -> Path:
 
 
 def emit_concordance_scatter(
-    summary: dict, target: str, out_dir: Path, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS
+    summary: dict, target: str, out_dir: Path, target_contracts_dir: Path = DEFAULT_TARGET_CONTRACTS,
+    *, top_compounds_meta: list = None,
 ) -> Path:
     """2D scatter: rho_crispr on x, rho_rnai on y. One point per compound.
 
@@ -188,6 +239,7 @@ def emit_concordance_scatter(
 
     Dashed reference lines at 0.10 (weak) and 0.30 (strong) on both axes.
     Named point labels for top-K compounds by |rho|.
+    Table at bottom with top 5 positively correlated compounds and their MOAs.
     """
     import matplotlib
 
@@ -233,7 +285,27 @@ def emit_concordance_scatter(
 
     colors = [_color(x, y) for x, y in zip(xs, ys)]
 
-    fig, ax = plt.subplots(figsize=pal.FIGSIZE_DOUBLE_COLUMN)
+    # Load compound metadata from PRISMOncologyReferenceCompoundList.csv
+    compound_meta = load_prism_compound_metadata()
+
+    def get_drug_name(compound_id):
+        """Get common name from compound metadata, falling back to compound_id."""
+        meta = compound_meta.get(compound_id, {})
+        return meta.get("CompoundName") or compound_id
+
+    def get_targets(compound_id):
+        """Get target genes from compound metadata."""
+        meta = compound_meta.get(compound_id, {})
+        return meta.get("GeneSymbolOfTargets") or ""
+
+    def get_moa(compound_id):
+        """Get mechanism of action from compound metadata."""
+        meta = compound_meta.get(compound_id, {})
+        return meta.get("TargetOrMechanism") or ""
+
+    # Square figure with extra height for table
+    fig, ax = plt.subplots(figsize=(6.5, 8.5))
+
     # Shade triangulated quadrant lightly
     ax.axhspan(
         CONCORDANCE_STRONG_SPEARMAN, 1.0, xmin=(CONCORDANCE_STRONG_SPEARMAN + 1) / 2, alpha=0.06, color="#0a2540"
@@ -247,13 +319,23 @@ def emit_concordance_scatter(
     ax.axvline(0, color="#333", linewidth=0.5)
 
     ax.scatter(xs, ys, c=colors, s=48, edgecolor="white", linewidth=0.6, zorder=3)
-    # Label top compounds by |rho_crispr + rho_rnai|
+    # Label top compounds by |rho_crispr + rho_rnai| using common names
     for c, x, y in sorted(zip(points, xs, ys), key=lambda t: -(abs(t[1]) + abs(t[2])))[:8]:
-        drug = c.get("drug_name") or c.get("compound_id")
+        compound_id = c.get("compound_id")
+        drug = get_drug_name(compound_id)
         ax.annotate(drug, (x, y), xytext=(4, 4), textcoords="offset points", fontsize=7, color="#333")
 
-    ax.set_xlim(-0.5, 1.0)
-    ax.set_ylim(-0.5, 1.0)
+    # Auto-scale axes to data range with 10% padding, keeping aspect square
+    x_min, x_max = min(xs), max(xs)
+    y_min, y_max = min(ys), max(ys)
+    data_min = min(x_min, y_min)
+    data_max = max(x_max, y_max)
+    padding = (data_max - data_min) * 0.10
+    axis_min = data_min - padding
+    axis_max = data_max + padding
+    ax.set_xlim(axis_min, axis_max)
+    ax.set_ylim(axis_min, axis_max)
+    ax.set_aspect('equal')
     ax.set_xlabel("Spearman ρ  vs  CRISPR Chronos  (per-line KO effect)")
     ax.set_ylabel("Spearman ρ  vs  RNAi DEMETER2  (per-line KD effect)")
 
@@ -264,13 +346,65 @@ def emit_concordance_scatter(
         plt.Line2D([], [], marker="o", linestyle="", color="#f0a020", label="Mixed"),
         plt.Line2D([], [], marker="o", linestyle="", color="#bbbbbb", label="Discordant / off-target"),
     ]
-    ax.legend(handles=handles, loc="lower right", fontsize=6, framealpha=0.9)
+    ax.legend(handles=handles, loc="lower right", fontsize=8, framealpha=0.9)
 
     cls = summary.get("crispr_prism_concordance_class") or "unknown"
     n = summary.get("n_compounds_evaluated", 0)
     ax.set_title(f"{target} — chemical-genetic concordance ({n} compounds · {cls.replace('_', ' ')})", fontsize=9)
-    fig.tight_layout()
-    fig.savefig(out_path)
+
+    # Table: top 5 positively correlated compounds by max(rho_crispr, rho_rnai)
+    def max_rho(c, x, y):
+        return max(x, y)
+
+    top5_positive = sorted(
+        [(c, x, y) for c, x, y in zip(points, xs, ys) if max(x, y) > 0],
+        key=lambda t: -max_rho(*t)
+    )[:5]
+
+    if top5_positive:
+        import textwrap
+
+        def wrap_text(text, width=30):
+            if not text:
+                return "—"
+            return "\n".join(textwrap.wrap(text, width=width))
+
+        col_labels = ["Drug", "ρ CRISPR", "ρ RNAi", "Target Genes"]
+        table_data = []
+        for c, x, y in top5_positive:
+            compound_id = c.get("compound_id")
+            drug = get_drug_name(compound_id)
+            targets = get_targets(compound_id)
+            table_data.append([
+                wrap_text(drug, 20),
+                f"{x:.2f}",
+                f"{y:.2f}",
+                wrap_text(targets, 35),
+            ])
+
+        table = ax.table(
+            cellText=table_data,
+            colLabels=col_labels,
+            loc="bottom",
+            cellLoc="left",
+            bbox=[0.0, -0.32, 1.0, 0.20],
+            colWidths=[0.25, 0.12, 0.12, 0.51],
+        )
+        table.auto_set_font_size(False)
+        table.set_fontsize(7)
+
+        for (row, col), cell in table.get_celld().items():
+            cell.set_edgecolor("#CCCCCC")
+            cell.set_linewidth(0.5)
+            if row == 0:
+                cell.set_text_props(fontweight="bold")
+                cell.set_facecolor("#F0F0F0")
+            else:
+                cell.set_facecolor("white")
+
+        fig.subplots_adjust(bottom=0.22)
+
+    fig.savefig(out_path, bbox_inches="tight")
     plt.close(fig)
     return out_path
 
@@ -527,6 +661,7 @@ def emit_manifest(target: str, release_pin: str, summary: dict, out_dir: Path, p
 def main(target, release_pin, parquet_uri, out):
     out.mkdir(parents=True, exist_ok=True)
     parquet_uri = parquet_uri or RELEASE_PIN_TO_PARQUET[release_pin]
+    row = None
     try:
         row = fetch_concordance_row(parquet_uri, target)
         summary = compute_summary(row, target)
@@ -543,7 +678,8 @@ def main(target, release_pin, parquet_uri, out):
             "dual_responders": [],
         }
     (out / "summary.json").write_text(json.dumps(summary, indent=2, default=str))
-    emit_concordance_scatter(summary, target, out)
+    top_compounds_meta = row.get("top_compounds") if row else None
+    emit_concordance_scatter(summary, target, out, top_compounds_meta=top_compounds_meta)
     emit_dual_responders_bar(summary, target, out)
     emit_concordance_vocabulary_panel(summary, target, out)
     emit_manifest(target, release_pin, summary, out, parquet_uri)
