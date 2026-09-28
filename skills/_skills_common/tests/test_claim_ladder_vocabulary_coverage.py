@@ -82,7 +82,14 @@ sys.path.insert(0, str(_SKILLS_ROOT))
 # by the ROOT, one level above every filter. Asserted as a floor by
 # `test_the_reader_population_covers_every_first_party_source_dir`, so the next reorg reds rather than
 # re-narrowing in silence.
-_FIRST_PARTY_SOURCE_DIRS = ("skills/", "eval/", "batch/")
+#
+# `scripts/` ADDED DELIBERATELY (2026-09-28, #1987): `scripts/regenerate_scorecard.py` is the first
+# tracked `.py` under `scripts/`. The sweep genuinely reaches it — the population is `git ls-files
+# '*.py'` at the repo root with no per-directory filter, so the tuple here is the declared FLOOR the
+# equality test pins, not a root the walk depends on. The script reads no `corroboration` field, so the
+# classified reader set is unchanged; if a future scripts/ module ever reads one, the sweep will surface
+# it for triage exactly as for skills/ and eval/.
+_FIRST_PARTY_SOURCE_DIRS = ("skills/", "eval/", "batch/", "scripts/")
 
 from _skills_common import figure_palette, headline_core, question_table_core  # noqa: E402
 from _skills_common.archetype_core import (  # noqa: E402

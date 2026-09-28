@@ -1,0 +1,116 @@
+{
+  "cells": {
+    "L1": {
+      "built": null,
+      "criteria": {
+        "accuracy": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "fail_open": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "panel_consistency": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "utilization": {
+          "evidence": null,
+          "status": "NULL"
+        }
+      },
+      "notes": null
+    },
+    "L2a": {
+      "built": null,
+      "criteria": {
+        "accuracy": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "fail_open": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "panel_consistency": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "utilization": {
+          "evidence": null,
+          "status": "NULL"
+        }
+      },
+      "notes": null
+    },
+    "L2b": {
+      "built": null,
+      "criteria": {
+        "accuracy": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "fail_open": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "panel_consistency": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "utilization": {
+          "evidence": null,
+          "status": "NULL"
+        }
+      },
+      "notes": null
+    },
+    "L3": {
+      "built": null,
+      "criteria": {
+        "accuracy": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "fail_open": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "panel_consistency": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "utilization": {
+          "evidence": null,
+          "status": "NULL"
+        }
+      },
+      "notes": null
+    },
+    "L4": {
+      "built": null,
+      "criteria": {
+        "accuracy": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "fail_open": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "panel_consistency": {
+          "evidence": null,
+          "status": "NULL"
+        },
+        "utilization": {
+          "evidence": null,
+          "status": "NULL"
+        }
+      },
+      "notes": null
+    }
+  },
+  "schema_version": 1,
+  "skill": "tumor-presence"
+}
