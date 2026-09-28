@@ -323,6 +323,31 @@ TPHP_CROSSWALK = {
     "pituitary": None,
 }
 
+# --- HPA vocabulary blindness (the organ-coverage seam; skills #1793). ---
+# The canonical vital organs HPA's closed 16-name grouped-intensity vocabulary CANNOT represent
+# (crosswalk None) — the organs the verdict-bearing HPA-IHC essential-tissue killer is structurally
+# blind to. `small_intestine` is deliberately EXCLUDED even though its crosswalk value is None:
+# that None means "not representable SEPARATELY — `intestine` (the `gut` anchor) already covers it"
+# (see the HPA_CROSSWALK comment), so the organ is NOT unguarded in HPA and a TPHP rung scoped by
+# this set must not double-claim it as an HPA hole.
+#
+# Consumer: tphp_normal_protein.read emits `tphp_hpa_blind_vital_organ_liability_class` over exactly
+# this organ subset — the quantitative-protein arm covering the organs the HPA-IHC arm cannot see —
+# and target-contracts routes THAT class into a verdict-bearing safety-resolver rung. Before #1793 a
+# thyroid/adrenal/nerve/blood-restricted liability could not move the safety verdict at all: the only
+# verdict-bearing protein rung (normal-tissue-protein-liability-safety-warning) keys on the HPA card,
+# whose vocabulary has no name for those organs.
+#
+# DERIVED from HPA_CROSSWALK, not hand-listed: a future promotion (as `muscle` in AM#744, when a
+# real HPA name is found for an organ) automatically SHRINKS this set, so the TPHP rung stops
+# claiming an organ HPA can newly see. The composition is pinned in
+# tests/methods/normal_tissue_safety_common/test_essential_organ_coverage.py — if it moves, the
+# target-contracts caveat prose naming these organs (normal-tissue-liability +
+# normal-tissue-protein-abundance-tphp cards) must be re-checked by hand.
+HPA_UNREPRESENTABLE_VITAL_ORGANS = frozenset(
+    o for o, v in HPA_CROSSWALK.items() if v is None and o != "small_intestine"
+)
+
 # --- Derived per-source essential sets (what each card imports). ---
 GTEX_ESSENTIAL_TISSUES = frozenset(v for v in GTEX_CROSSWALK.values() if v)
 HPA_ESSENTIAL_TISSUES = frozenset(v for v in HPA_CROSSWALK.values() if v)

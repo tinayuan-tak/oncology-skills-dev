@@ -27,10 +27,18 @@ import threading
 from typing import Optional
 
 from methods.catalog_query.read import bucket_key_for
-from methods.normal_tissue_safety_common.essential_organs import TPHP_CROSSWALK
+from methods.normal_tissue_safety_common.essential_organs import (
+    HPA_UNREPRESENTABLE_VITAL_ORGANS,
+    TPHP_CROSSWALK,
+)
 
 DERIVED_MANIFEST_ID = "normal-tissue-protein-abundance-per-gene-v2"
-METHOD_VERSION = "0.4.0"  # 0.4.0: abundance read-out is ORGANS ONLY (NON_TISSUE_ABUNDANCE_CATEGORIES)
+METHOD_VERSION = "0.5.0"  # 0.5.0 (skills #1793): + HPA-blind vital-organ view (tphp_hpa_blind_vital_organ_*)
+# — the vital-organ liability read SCOPED to the organs the verdict-bearing HPA-IHC arm cannot
+# represent (thyroid/adrenal/nerve/blood; pituitary is uncovered by BOTH panels and emitted as such).
+# target-contracts routes the scoped class into a safety-resolver rung, closing the endocrine/CNS/
+# vascular fail-open (a liability there previously could not move the safety verdict).
+# 0.4.0: abundance read-out is ORGANS ONLY (NON_TISSUE_ABUNDANCE_CATEGORIES)
 # 0.3.0: v2 substrate — tissue_category + solid-tissue counts + vital-organ MEASURABILITY
 # 0.2.0: + vital-organ safety read (tphp_vital_organ_* via TPHP_CROSSWALK), for T0-3 (on-target-safety wiring)
 
@@ -301,6 +309,12 @@ def _empty_summary() -> dict:
         "normal_protein_breadth_class": "data_unavailable",
         "tphp_normal_protein_liability_class": "data_unavailable",
         "tphp_vital_organ_liability_class": "data_unavailable",
+        # HPA-blind view (skills #1793): the gene was never read, so the coverage gap spans the WHOLE
+        # HPA-blind organ set — with no TPHP row, NO verdict-bearing protein arm covers any of them.
+        "tphp_hpa_blind_vital_organ_liability_class": "data_unavailable",
+        "n_hpa_blind_vital_organs_above_abundance_floor": 0,
+        "hpa_blind_vital_organs_above_floor": [],
+        "hpa_blind_vital_organs_uncovered": sorted(HPA_UNREPRESENTABLE_VITAL_ORGANS),
         "n_vital_organs_above_abundance_floor": 0,
         # 0 measurable / 0 unmeasurable: the gene was never read, so NO organ was assessed. Reporting
         # 2 unmeasurable here would claim a panel property from a row that does not exist.
@@ -337,6 +351,58 @@ def _empty_summary() -> dict:
 # abundant in a vital organ (a therapeutic-window flag the breadth class misses). TPHP fills nerve /
 # muscle / blood / adrenal / thyroid — organs HPA-IHC is blind to.
 _VITAL_ORGAN_TISSUE = {organ: tissue for organ, tissue in TPHP_CROSSWALK.items() if tissue}
+
+# HPA-BLIND subset of the vital-organ view (skills #1793). HPA_UNREPRESENTABLE_VITAL_ORGANS are the
+# canonical vital organs the verdict-bearing HPA-IHC essential-tissue killer is structurally blind
+# to (its closed 16-name vocabulary has no name for them). TPHP covers 4 of the 5 (nerve / blood /
+# adrenal_gland / thyroid); `pituitary` has no TPHP organism-part either, so it is covered by
+# NEITHER protein panel and is emitted per-read in `hpa_blind_vital_organs_uncovered` — the explicit
+# coverage-gap datum the contracts-side caveat surfaces instead of silent absence.
+#
+# Fire-rate, measured on the full v2 product (13,009 genes, 2026-09-28): abundant (>= floor) in >=1
+# HPA-blind organ = 2,738 genes (21.0%) — NARROWER than the existing HPA verdict rung
+# (essential_tissue_flag == present fires for 45.2% of the 20,151-gene HPA panel). The INCREMENTAL
+# verdict reach (HPA-blind-abundant genes whose HPA flag is NOT `present`) is 491 genes (3.8%), of
+# which 258 read HPA `absent` — i.e. the exact population whose "measured clear" previously
+# overclaimed organs HPA never looked at.
+_HPA_BLIND_ORGANS_WITH_TPHP_ARM = frozenset(HPA_UNREPRESENTABLE_VITAL_ORGANS) & set(_VITAL_ORGAN_TISSUE)
+_HPA_BLIND_ORGANS_WITHOUT_ANY_ARM = frozenset(HPA_UNREPRESENTABLE_VITAL_ORGANS) - set(_VITAL_ORGAN_TISSUE)
+
+
+def _hpa_blind_organ_summary(vital_rows: list[dict]) -> tuple[str, int, list, list]:
+    """The vital-organ liability read SCOPED to the HPA-blind organs, from the already-computed
+    per-organ rows (same floor, same measurability discipline — no new thresholds).
+
+    Same trichotomy as _vital_organ_summary, over the subset:
+      * vital_organ_abundant  — >=1 HPA-blind vital organ at/above the abundance floor. THE
+                                VERDICT-BEARING VALUE: target-contracts fires the safety rung on it.
+      * vital_organ_low       — detected in >=1 HPA-blind organ, none at/above the floor.
+      * no_vital_organ_signal — not detected in any HPA-blind organ TPHP carries. NOT a clean
+                                sweep: blood (n=1) and thyroid gland (n=2) are below
+                                MIN_SAMPLES_MEASURABLE, so absence there is uninformative — read
+                                against the `measurable` flags in tphp_vital_organ_abundance.
+
+    Deliberately scoped to the HPA-blind subset rather than re-routing the FULL vital-organ class:
+    for HPA-representable organs the HPA-IHC killer is already the verdict-bearing arm, so a full-set
+    rung would double-fire the same organ liability through two cards; this subset is exactly the
+    coverage HPA cannot provide (measured: the full-set class fires for 32.0% of the product vs
+    21.0% for this subset).
+
+    Returns (class, n_above_floor, organs_above_floor, organs_uncovered) where organs_uncovered are
+    the HPA-blind canonical organs with NO TPHP organism-part (pituitary today) — the organs covered
+    by NO verdict-bearing protein arm at all, i.e. the coverage caveat's subject.
+    """
+    blind_rows = [r for r in vital_rows if r.get("organ") in _HPA_BLIND_ORGANS_WITH_TPHP_ARM]
+    above = sorted(r["organ"] for r in blind_rows if r.get("above_abundance_floor"))
+    n_detected = sum(1 for r in blind_rows if r.get("detected"))
+    if above:
+        cls = "vital_organ_abundant"
+    elif n_detected >= 1:
+        cls = "vital_organ_low"
+    else:
+        cls = "no_vital_organ_signal"
+    return cls, len(above), above, sorted(_HPA_BLIND_ORGANS_WITHOUT_ANY_ARM)
+
 
 # Panel ARM SIZE (n_samples) per vital-organ representative part. The product stores DETECTED-only
 # rows, so a per-gene pushdown sees NO row for an organ where the target was not quantified — and then
@@ -586,10 +652,31 @@ def compute_summary(gene: str, rows: list[dict]) -> dict:
         n_vital_unmeasurable,
     ) = _vital_organ_summary(per_tissue)
 
+    # HPA-blind subset of the vital-organ view (skills #1793) — same rows, same floor, scoped to the
+    # organs the verdict-bearing HPA-IHC arm cannot represent. The CLASS is the verdict-bearing field.
+    (
+        hpa_blind_class,
+        n_hpa_blind_above,
+        hpa_blind_above,
+        hpa_blind_uncovered,
+    ) = _hpa_blind_organ_summary(vital_organ_abundance)
+
     return {
         "normal_protein_breadth_class": _breadth_class(n_adult),
         "tphp_normal_protein_liability_class": _liability_class(n_adult, n_adult_above_floor),
         "tphp_vital_organ_liability_class": vital_organ_liability_class,
+        # VERDICT-BEARING (skills #1793): abundance-floor liability over the HPA-blind vital organs
+        # only. `vital_organ_abundant` here means a dose-limiting-organ protein liability in an organ
+        # the HPA-IHC essential-tissue killer is structurally blind to — target-contracts routes it
+        # into the safety resolver (normal_tissue_protein_safety_concern).
+        "tphp_hpa_blind_vital_organ_liability_class": hpa_blind_class,
+        "n_hpa_blind_vital_organs_above_abundance_floor": n_hpa_blind_above,
+        # WHICH HPA-blind organs are at/above the floor (canonical names) — lets a consumer name the
+        # implicated organ instead of reporting a bare class.
+        "hpa_blind_vital_organs_above_floor": hpa_blind_above,
+        # HPA-blind canonical organs with NO TPHP organism-part either (pituitary today): covered by
+        # NO verdict-bearing protein arm — the explicit coverage-gap datum (never silent absence).
+        "hpa_blind_vital_organs_uncovered": hpa_blind_uncovered,
         "n_vital_organs_above_abundance_floor": n_vital_above,
         # Qualifies the class above: how many dose-limiting organs the panel can actually SUPPORT a call
         # in. A no_vital_organ_signal over 11 measurable + 2 unmeasurable organs is not a clean sweep.

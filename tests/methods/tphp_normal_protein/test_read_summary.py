@@ -73,6 +73,15 @@ _V2_DECLARATION_FIELDS = {
     "vital_organ_min_samples",
 }
 
+# HPA-blind vital-organ view (skills #1793) — emitted by the reader; declared on the card by the
+# target-contracts leg of the same arc. The CLASS is verdict-bearing there (safety-resolver rung).
+_HPA_BLIND_FIELDS = {
+    "tphp_hpa_blind_vital_organ_liability_class",
+    "n_hpa_blind_vital_organs_above_abundance_floor",
+    "hpa_blind_vital_organs_above_floor",
+    "hpa_blind_vital_organs_uncovered",
+}
+
 _COLS = [
     "gene_symbol",
     "uniprot_ac",
@@ -355,6 +364,84 @@ def test_vital_organ_data_unavailable(tmp_path):
     assert out["tphp_vital_organ_liability_class"] == "data_unavailable"
     assert out["n_vital_organs_above_abundance_floor"] == 0
     assert out["tphp_vital_organ_abundance"] == []
+
+
+# ── HPA-blind vital-organ view (skills #1793) ─────────────────────────────────────────────────────
+# The vital-organ liability read SCOPED to the organs the verdict-bearing HPA-IHC essential-tissue
+# killer cannot represent (nerve/blood/adrenal_gland/thyroid via TPHP; pituitary covered by NEITHER
+# panel). The class is routed into a safety-resolver rung in target-contracts, so these tests are the
+# methods-side mutation teeth: each fails RED if the subset scoping (or the emit) is reverted.
+
+
+def test_hpa_blind_abundant_fires_on_thyroid(tmp_path):
+    """A target abundant ONLY in an HPA-blind organ (the motivating thyroid case): the blind class
+    must read vital_organ_abundant and NAME the organ."""
+    rows = [
+        _row("TSHRLIKE", "thyroid gland", "adult_normal", _FLOOR + 2.0, n_samples=2, n_detected=2),
+        _row("TSHRLIKE", "skin", "adult_normal", _FLOOR - 1.0),
+    ]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("TSHRLIKE", product_path=prod)
+    assert out["tphp_hpa_blind_vital_organ_liability_class"] == "vital_organ_abundant"
+    assert out["n_hpa_blind_vital_organs_above_abundance_floor"] == 1
+    assert out["hpa_blind_vital_organs_above_floor"] == ["thyroid"]
+    # the thin thyroid arm (n=2 < MIN_SAMPLES_MEASURABLE) must NOT suppress the liability — the
+    # measurability label gates ABSENCE claims, never a detected above-floor presence (fail-closed).
+    va = {r["organ"]: r for r in out["tphp_vital_organ_abundance"]}
+    assert va["thyroid"]["measurable"] is False and va["thyroid"]["above_abundance_floor"] is True
+
+
+def test_hpa_blind_class_is_scoped_not_the_full_vital_set(tmp_path):
+    """THE SUBSET DISCRIMINATOR: abundant in heart (HPA-representable — its killer already covers it)
+    must fire the FULL vital class but NOT the HPA-blind class. Reverting the scoping to the full
+    organ set (the tempting 'simpler' rung) turns this RED."""
+    rows = [_row("HEARTONLY", "heart", "adult_normal", _FLOOR + 4.0)]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("HEARTONLY", product_path=prod)
+    assert out["tphp_vital_organ_liability_class"] == "vital_organ_abundant"
+    assert out["tphp_hpa_blind_vital_organ_liability_class"] == "no_vital_organ_signal"
+    assert out["n_hpa_blind_vital_organs_above_abundance_floor"] == 0
+    assert out["hpa_blind_vital_organs_above_floor"] == []
+
+
+def test_hpa_blind_low_when_detected_below_floor(tmp_path):
+    rows = [_row("NERVETRACE", "nerve", "adult_normal", _FLOOR - 2.0)]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("NERVETRACE", product_path=prod)
+    assert out["tphp_hpa_blind_vital_organ_liability_class"] == "vital_organ_low"
+    assert out["n_hpa_blind_vital_organs_above_abundance_floor"] == 0
+
+
+def test_hpa_blind_uncovered_names_pituitary(tmp_path):
+    """pituitary has NO organism-part in TPHP and no HPA name: covered by NO verdict-bearing protein
+    arm. The reader must SAY so (the coverage-caveat datum), never leave it as silent absence."""
+    rows = [_row("ANYGENE", "liver", "adult_normal", _FLOOR + 1.0)]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("ANYGENE", product_path=prod)
+    assert out["hpa_blind_vital_organs_uncovered"] == ["pituitary"]
+
+
+def test_hpa_blind_data_unavailable_uncovers_the_whole_blind_set(tmp_path):
+    """Gene absent from TPHP: the blind class is data_unavailable and the uncovered list widens to
+    the WHOLE HPA-blind set — with no TPHP read, no verdict-bearing protein arm covers ANY of them."""
+    rows = [_row("EGFR", "liver", "adult_normal", 9.0)]
+    prod = _write_product(tmp_path, rows)
+    out = read.read_target_summary("GHOSTGENE", product_path=prod)
+    assert out["tphp_hpa_blind_vital_organ_liability_class"] == "data_unavailable"
+    assert out["n_hpa_blind_vital_organs_above_abundance_floor"] == 0
+    assert out["hpa_blind_vital_organs_above_floor"] == []
+    assert out["hpa_blind_vital_organs_uncovered"] == sorted(
+        {"nerve", "blood", "adrenal_gland", "pituitary", "thyroid"}
+    )
+
+
+def test_hpa_blind_fields_present_in_both_paths(tmp_path):
+    """Emit-shape guard: all four HPA-blind fields present on the data path AND the empty path."""
+    prod = _write_product(tmp_path, [_row("EGFR", "liver", "adult_normal", 9.0)])
+    for gene in ("EGFR", "GHOSTGENE"):
+        out = read.read_target_summary(gene, product_path=prod)
+        missing = _HPA_BLIND_FIELDS - set(out)
+        assert not missing, f"{gene}: missing HPA-blind fields: {sorted(missing)}"
 
 
 # ── v2 substrate: tissue_category + solid-tissue counts ──────────────────────────────────────────

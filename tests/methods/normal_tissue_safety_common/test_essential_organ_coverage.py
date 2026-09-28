@@ -54,6 +54,25 @@ def test_hpa_covers_blood_vessel_and_flags_endocrine_substrate_gap():
         assert eo.HPA_CROSSWALK[organ] is None
 
 
+def test_hpa_unrepresentable_vital_organs_pinned():
+    """The HPA-blind vital-organ set (skills #1793) — the organs the verdict-bearing HPA-IHC
+    essential-tissue killer cannot see, which the TPHP HPA-blind safety rung must cover instead.
+
+    Pinned by VALUE on purpose: target-contracts caveat prose (normal-tissue-liability +
+    normal-tissue-protein-abundance-tphp cards) and the safety-resolver rung rationale NAME these
+    organs. If this set moves (e.g. an HPA_CROSSWALK promotion like muscle/#744), that prose and the
+    rung scoping must be re-checked BY HAND — this failure is the tripwire, not a formality."""
+    assert eo.HPA_UNREPRESENTABLE_VITAL_ORGANS == {"nerve", "blood", "adrenal_gland", "pituitary", "thyroid"}
+    # derivation properties: every member IS an HPA substrate gap...
+    for organ in eo.HPA_UNREPRESENTABLE_VITAL_ORGANS:
+        assert eo.HPA_CROSSWALK[organ] is None
+    # ...and small_intestine is EXCLUDED despite its None: `intestine` (the gut anchor) covers it in
+    # HPA, so it is not an unguarded organ and the TPHP rung must not double-claim it.
+    assert eo.HPA_CROSSWALK["small_intestine"] is None
+    assert "small_intestine" not in eo.HPA_UNREPRESENTABLE_VITAL_ORGANS
+    assert "intestine" in eo.HPA_ESSENTIAL_TISSUES
+
+
 def test_sc_normal_covers_brain_and_adrenal():
     assert "brain" in eo.SC_NORMAL_ESSENTIAL_TISSUES  # the advertised-but-unqueried CNS shard
     assert "adrenal_gland" in eo.SC_NORMAL_ESSENTIAL_TISSUES
