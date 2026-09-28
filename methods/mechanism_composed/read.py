@@ -176,6 +176,20 @@ def _union_edges(signor_edges: list[dict], collectri_edges: list[dict]) -> list[
     return result
 
 
+def _coessentiality_source_note(coessentiality_result: dict) -> str:
+    """Build the co-essentiality provenance note from the live pin + read counts.
+
+    SK#1810: the note previously hardcoded "DepMap 26Q1 CRISPR Chronos ... (1,538
+    cell lines)" while the reader (methods/depmap_coessentiality/read.py) resolves
+    `depmap-coessentiality-26q3-v1`, so the emitted n_cell_lines could disagree with
+    the hardcoded count. Derive both the release label and the cell-line count from
+    the actual resolved manifest / read result instead.
+    """
+    manifest_id = getattr(coessentiality_read, "MANIFEST_ID", "depmap-coessentiality")
+    n_cell_lines = coessentiality_result.get("n_cell_lines", 0) or 0
+    return f"DepMap ({manifest_id}) CRISPR Chronos pan-cancer co-essentiality ({n_cell_lines} cell lines)"
+
+
 def _classify_network(n_up: int, n_down: int) -> str:
     """Classify network shape from DEDUPED union counts (distinct (partner, direction)).
 
@@ -374,7 +388,10 @@ def read_target_summary(target: str, indication: str = None) -> dict:
             "top_partners": coessentiality_result.get("partners", []),
             "method_version": coessentiality_result.get("method_version", ""),
             "substrate_uri": coessentiality_result.get("substrate_uri", ""),
-            "source_note": "DepMap 26Q1 CRISPR Chronos pan-cancer co-essentiality (1,538 cell lines)",
+            # Provenance drift fix (SK#1810): derive the note from the live pin +
+            # the actually-read cell-line count instead of a hardcoded release/count
+            # (was stale "26Q1 ... 1,538 cell lines" while the reader resolves 26q3).
+            "source_note": _coessentiality_source_note(coessentiality_result),
         },
         # Honest provenance (2026-08-11): there is NO `mechanism-composed-per-gene-v1` derived
         # manifest in the catalog — this product is COMPOSED ON READ from the upstream source readers

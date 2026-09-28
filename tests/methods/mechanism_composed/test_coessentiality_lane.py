@@ -161,9 +161,14 @@ class TestCoessentialityContextShape:
         assert partners[0]["direction"] == "co-essential"
 
     def test_source_note_contains_depmap(self):
+        # SK#1810: the note must derive from the live pin + read n_cell_lines,
+        # not a hardcoded release/count — assert against the stub's own value
+        # rather than a literal so it can't silently re-drift.
         result = _run("UBA3", _stub_coessentiality_ok)
         note = result["coessentiality_context"]["source_note"]
-        assert "DepMap" in note and "1,538" in note
+        assert "DepMap" in note
+        assert "26q3" in note
+        assert str(_stub_coessentiality_ok("UBA3")["n_cell_lines"]) in note
 
 
 # ---------------------------------------------------------------------------
