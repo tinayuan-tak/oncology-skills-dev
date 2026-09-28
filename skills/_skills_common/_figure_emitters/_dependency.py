@@ -721,3 +721,66 @@ def _emit_organoid_crispr_dependency(
             "primary": True,
         }
     ]
+
+
+def _emit_cn_stratified_dependency(
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
+) -> list[dict]:
+    """Emit CN stratified dependency figures.
+
+    Primary figure: strip plot showing Chronos scores stratified by 4 CN categories:
+      - Focal amp (GISTIC ≥2)
+      - Shallow gain (GISTIC 1-2)
+      - Shallow del (GISTIC -2 to -1)
+      - Deep del (GISTIC ≤-2)
+
+    With indication-specific cell lines highlighted with black outlines and
+    dual medians (pan-DepMap solid, indication dashed).
+    """
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    from methods.depmap_chronos_distribution import cli as c1cli
+    from methods.depmap_cn_dependency import cli as cncli
+    from methods.depmap_cn_distribution import cli as cn_dist_cli
+
+    chronos_by_model, model_metadata, load_errors = c1cli.load_depmap_files(release_pin="26q1", target_symbol=target)
+    if load_errors or not chronos_by_model:
+        return []
+
+    cn_by_model, _, _, cn_errs = cn_dist_cli.load_cn_files("26q1", target)
+    if cn_errs or not cn_by_model:
+        return []
+
+    figures_created = cncli.emit_cn_stratified_strip_plot(
+        chronos_by_model,
+        cn_by_model,
+        target,
+        summary,
+        out_dir,
+        TARGET_CONTRACTS,
+        model_metadata=model_metadata,
+        indication=indication,
+    )
+
+    result = []
+    if "figure_cn_amplification_strip.svg" in figures_created:
+        result.append({
+            "id": "cn_amplification_strip",
+            "path": "figure_cn_amplification_strip.svg",
+            "type": "cn_amplification_dependency_strip",
+            "primary": True,
+        })
+    if "figure_cn_deletion_strip.svg" in figures_created:
+        result.append({
+            "id": "cn_deletion_strip",
+            "path": "figure_cn_deletion_strip.svg",
+            "type": "cn_deletion_dependency_strip",
+            "primary": False,
+        })
+    return result
