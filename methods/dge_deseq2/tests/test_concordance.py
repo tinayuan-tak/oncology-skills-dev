@@ -303,6 +303,6 @@ def test_real_coadread_reproduces_adhoc_spearman_signal():
         assert r.n_gated >= C.DEFAULT_MIN_GATED
         assert r.reproducibility_only is True
     # The GTEx tissue-composition confound (epithelial-marker discordance) concentrates
-    # in cell C (tumor vs whole-tissue GTEx colon), not cell A (tumor vs paired-adjacent):
+    # in cell C (tumor vs whole-tissue GTEx colon), not cell A (tumor vs adjacent-normal):
     # cell C carries materially more sign-discordant significant genes across substrates.
     assert by_cell["C"].n_sign_discordant > by_cell["A"].n_sign_discordant

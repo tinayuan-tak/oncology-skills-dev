@@ -6,24 +6,26 @@ Part of the `dge_deseq2` modernization arc
 this file describes the module as it stands after S0
 ([#692](https://github.com/oneTakeda/rnd-computational-biology-oncology-analysis-methods/issues/692)).
 
-## The live design: a three-cell sensitivity grid
+## The live design: a two-comparator sensitivity grid
 
-The production pipeline runs up to three DESeq2 contrasts ("cells") per indication, all from
+The production pipeline runs up to two DESeq2 contrasts ("cells") per indication, both from
 the SAME loaded substrate, so a gene's call can be checked for robustness across comparator
-type and batch-correction choice:
+type:
 
 | cell | contrast | correction | status |
 |------|----------|------------|--------|
-| A | TCGA tumor vs TCGA adjacent-normal | raw | live |
-| B | TCGA tumor vs TCGA adjacent-normal | ComBat-seq (TSS covariate) | live, de-weighted (see `read/`) |
+| A | TCGA tumor vs TCGA adjacent-normal (unpaired model) | raw | live |
 | C | TCGA tumor vs GTEx normal (population) | raw | live |
+| B | TCGA tumor vs TCGA adjacent-normal | ComBat-seq (TSS covariate) | **retired**, analysis-methods#727 |
 | D | TCGA tumor vs GTEx normal (joint, ComBat source-correction) | — | **retired** |
 | Cr | RUVg-corrected re-run | — | diagnostic-only, `method_development/` |
 | AG | TCGA adjacent-normal vs GTEx normal | raw | diagnostic-only, `adj_vs_gtex.parquet` (S2, #695) |
 
-Cell A is the trust anchor; cell C is the population-normal cross-check; cell B corroborates
-direction but is excluded from the magnitude gate (ComBat inflates/sign-flips log2FC for some
-genes — see the calibration notes in `read/__init__.py`). Cell D was retired for carrying an
+Cell A is the trust anchor; cell C is the population-normal cross-check. Cell B (ComBat-seq
+re-run of cell A on the identical samples) was removed in analysis-methods#727 — it was a
+robustness re-run rather than an independent comparator, and its ComBat-seq step both
+inflated/sign-flipped log2FC and was the pipeline's perf cliff; newly-emitted products carry
+no `log2fc_B`/`padj_B` columns. Cell D was retired for carrying an
 unresolved platform/batch confound between the two comparator families; it is no longer
 computed. `cells_ran` / `comparator_families_ran` on the emitted `sensitivity.parquet`
 records which cells actually ran for a given indication (adjacent-normal is absent for
@@ -61,11 +63,11 @@ adjacent-normal and a GTEx arm — see analysis-methods#690 for the indication-c
   product carries a **`-xenatoil` id infix** (`<ind>-dge-tumor-vs-normal-sensitivity-xenatoil-v1`)
   so it lands on a distinct S3 key/catalog id and is invisible to the pancan discovery glob and
   the sensitivity read path — the classifier only ever reads the recount3 product. On this
-  substrate only **cells A and C run** — cell B (ComBat-seq batch-correction on TCGA
-  tissue-source-site) is skipped (`SKIP_CELL_B=1`, set by the `xena_toil` branch of
-  `run_pipeline.R`): it is verdict-inert even on recount3, and the Toil matrix carries no
-  `tcga_tss` batch structure to correct on. The emitted `sensitivity.parquet` therefore has no
-  `log2fc_B`/`padj_B` columns and `cells_ran` is at most 2. Both
+  substrate, as on recount3, only **cells A and C run** (cell B was removed pipeline-wide in
+  analysis-methods#727 — see above; the Toil matrix never carried the `tcga_tss` batch
+  structure cell B corrected on, so this held true before #727 too). The emitted
+  `sensitivity.parquet` therefore has no `log2fc_B`/`padj_B` columns and `cells_ran` is at
+  most 2. Both
   substrates are fed **offset-free** (plain counts; Toil ships `expected_count` with no
   effective-length matrix, so no length offset is possible — see the loader header). Gene rows
   are keyed on HGNC symbol via the substrate's native GENCODE v23 probemap; the cross-substrate

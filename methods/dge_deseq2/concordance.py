@@ -4,7 +4,7 @@ The four-cell DESeq2 pipeline runs on two count substrates for the same tumor
 cohort: the primary **recount3** (GENCODE v26, the verdict substrate) and the
 secondary/diagnostic **Xena/Toil** (GENCODE v23, S1b #694). This module measures
 how well the per-gene effect sizes agree BETWEEN the two substrates for the same
-contrast cell — cell A (tumor vs paired-adjacent) and cell C (tumor vs GTEx).
+contrast cell — cell A (tumor vs adjacent-normal, unpaired model) and cell C (tumor vs GTEx).
 
 ⚠️ **REPRODUCIBILITY-ONLY, NOT biological validation.** The two substrates are
 reprocessed from largely the SAME raw TCGA/GTEx reads, so agreement measures
