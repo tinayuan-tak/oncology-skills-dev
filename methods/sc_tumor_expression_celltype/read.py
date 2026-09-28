@@ -125,6 +125,14 @@ _PARQUET_COLS = [
     "abundance_log1p_cp10k",
 ]
 
+# #695: within-EXPRESSER shape columns (the #668 emit). These are OPTIONAL — present only on the
+# republished pseudobulk products; the not-yet-republished cubes carry the 7 base columns only. They are
+# read defensively (only when the file schema carries them) so we do NOT extend the REQUIRED _PARQUET_COLS
+# — hard-requiring a column absent from a live product would break the read. When absent, the malignant
+# within-expresser shape resolves underpowered/None (honest gap); the same reader populates the real BC on
+# the next corpus regen once the shape emit is republished.
+_OPTIONAL_SHAPE_COLS = ["expressing_skewness", "expressing_kurtosis"]
+
 
 def _product_key(indication: str) -> Optional[str]:
     prod = INDICATION_TO_PRODUCT.get(str(indication).upper().strip())
@@ -149,8 +157,17 @@ def read_gene_compartment_rows(target: str, indication: str):
     s3fs = fs.S3FileSystem(region="us-east-1")  # default cred chain honors AWS_PROFILE=cbg
     # predicate-pushdown on the physical sort key (gene_symbol) — touches few row-groups.
     filters = [("gene_symbol", "==", str(target).upper().strip())]
+    path = f"{S3_BUCKET}/{key}"
+    # #695: include the #668 within-expresser shape columns ONLY when this product carries them (post-
+    # republish); requiring them unconditionally would break the read of a not-yet-republished cube.
+    cols = list(_PARQUET_COLS)
     try:
-        tbl = pq.read_table(f"{S3_BUCKET}/{key}", filesystem=s3fs, filters=filters, columns=_PARQUET_COLS)
+        available = set(pq.read_schema(path, filesystem=s3fs).names)
+    except FileNotFoundError:
+        return None
+    cols += [c for c in _OPTIONAL_SHAPE_COLS if c in available]
+    try:
+        tbl = pq.read_table(path, filesystem=s3fs, filters=filters, columns=cols)
     except FileNotFoundError:
         return None
     return tbl.to_pandas()
@@ -245,6 +262,12 @@ def read_sc_expression_presence(target: str, indication: str) -> dict:
             )
         }
     )
+    # WITHIN-EXPRESSER malignant shape / bimodality headline (#695): the SHAPE of the target among the
+    # malignant cells that DETECT it (Sarle's BC over the within-expresser log1p(CP10K) distribution),
+    # gated on malignant_n_detected. Field names match the target-contracts card (tumor-scrna-celltype-
+    # expression #955) exactly. Verdict-inert / display-only (no ladder rung keys off it). Resolves
+    # underpowered/None until the #668 within-expresser shape emit is republished into the product.
+    out.update(_stats.malignant_expresser_shape_readout(comp_summary))
     return out
 
 
@@ -304,6 +327,12 @@ def _data_unavailable(target: str, indication: str, note: str) -> dict:
         "tce_antigen_escape_class": "data_unavailable",
         "malignant_detection_donor_iqr": None,
         "fraction_donors_broadly_detecting": None,
+        # #695 within-expresser shape headline — data_unavailable/None on the coverage-gap path.
+        "malignant_expresser_bimodality_class": "data_unavailable",
+        "malignant_expresser_bimodality_coefficient": None,
+        "malignant_expresser_skewness": None,
+        "malignant_expresser_excess_kurtosis": None,
+        "malignant_n_detected": 0,
         "indication": str(indication).upper().strip(),
         "product_id": INDICATION_TO_PRODUCT.get(str(indication).upper().strip()),
         **_malignant_annotation_provenance(indication),  # G11 (present even on the coverage-gap path)

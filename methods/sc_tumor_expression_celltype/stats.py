@@ -96,6 +96,23 @@ DONOR_BROAD_DETECTION_MIN = 0.5  # a donor "broadly detects" at >=50% malignant 
 DONOR_CONSISTENCY_FRACTION_MIN = 0.5  # consistent if >=50% of donors broadly detect
 MIN_DONORS_FOR_DISPERSION = 3  # IQR on 1-2 donors is meaningless -> report None, flag it
 
+# ── WITHIN-EXPRESSER malignant shape / bimodality (#695, consumes the #668 within-expressing-cell shape) ──
+# Sarle's bimodality coefficient over the per-cell log1p(CP10K) distribution of the MALIGNANT cells that
+# DETECT the target (denominator = malignant_n_detected, NOT the total malignant cells):
+#   BC = (skewness^2 + 1) / (excess_kurtosis + 3)    [excess_kurtosis = Pearson kurtosis - 3]
+# Answers what the mean + detection fraction cannot — among expressing tumour cells, is the target level
+# UNIMODAL or split into an antigen-high vs antigen-low mode (a TCE-escape-relevant reservoir the mean
+# hides). Split at 5/9 (~0.556, the uniform-distribution value; the standard Sarle/SAS cutoff — the
+# target-contracts card surfaces it as 0.5556). The 3rd/4th within-expresser moments come from the
+# pseudobulk product's per-donor `expressing_skewness` / `expressing_kurtosis` columns (the #668 emit,
+# computed with the same log1p(x*1e4) transform + excess-kurtosis convention); aggregated CROSS-DONOR
+# here (donor-is-replicate), consistent with every other statistic in this module. The shape headline
+# fires only when malignant_n_detected >= MIN_DETECTED_FOR_SHAPE (the 4th moment is outlier-sensitive and
+# noisy below this); below that floor, or with null shape stats, it is underpowered. Verdict-INERT
+# descriptive readout — no ladder rung / gate / veto keys off it (mirrors malignant_heterogeneity_readout).
+MALIGNANT_EXPRESSER_BIMODALITY_MIN = 5.0 / 9.0  # BC > 5/9 => bimodal (uniform=0.556, normal->0.33, bimodal->1.0)
+MIN_DETECTED_FOR_SHAPE = 20  # detected malignant cells required before the shape headline fires
+
 
 def compartment_summary(rows) -> dict:
     """Roll the per-(donor, compartment) pseudobulk rows up to ONE stat block per compartment,
@@ -110,16 +127,26 @@ def compartment_summary(rows) -> dict:
     df = rows if isinstance(rows, pd.DataFrame) else pd.DataFrame(rows)
     if df.empty:
         return {}
+    # #695: the within-EXPRESSER shape columns (#668 emit) are present ONLY on the republished products
+    # (pre-republish cubes carry just detection_fraction + mean abundance). Aggregate them when present;
+    # otherwise the per-compartment shape fields stay None (an honest gap, never a fabricated value).
+    has_shape = {"expressing_skewness", "expressing_kurtosis"}.issubset(df.columns)
     out: dict = {}
     for comp, g in df.groupby("compartment"):
         # donor is the replicate: one value per (dataset_id, donor_id), then median ACROSS donors.
         # n_cells is SUMMED per donor first so the cell-count floor is applied to the donor's total
         # (a donor split across >1 input row is still one replicate).
-        per_donor = g.groupby(["dataset_id", "donor_id"]).agg(
+        agg_spec = dict(
             detection_fraction=("detection_fraction", "mean"),
             abundance_log1p_cp10k=("abundance_log1p_cp10k", "mean"),
             n_cells=("n_cells", "sum"),
         )
+        if has_shape:
+            # per-donor within-expresser skewness / EXCESS kurtosis (#668): one value per (donor,
+            # compartment) group, so `mean` is a pass-through when a donor has a single input row.
+            agg_spec["expressing_skewness"] = ("expressing_skewness", "mean")
+            agg_spec["expressing_kurtosis"] = ("expressing_kurtosis", "mean")
+        per_donor = g.groupby(["dataset_id", "donor_id"]).agg(**agg_spec)
         n_donors_raw = int(per_donor.shape[0])
         # Drop under-powered donor strata (< MIN_CELLS_PER_DONOR cells) BEFORE the cross-donor median /
         # IQR: a per-donor detection_fraction on a handful of cells is a quantized, unreliable replicate
@@ -139,6 +166,20 @@ def compartment_summary(rows) -> dict:
             frac_broad = round(float((det >= DONOR_BROAD_DETECTION_MIN).mean()), 6)
         else:
             p25 = p75 = donor_iqr = frac_broad = None
+        # #695: detected (EXPRESSING) cells over the reliable donors — the power behind any within-
+        # expresser shape call (the gate denominator, distinct from n_cells_total). detection_fraction
+        # is the per-donor expressing fraction; * the donor's cell count = that donor's expressing-cell
+        # count; summed across reliable donors and rounded to a whole cell count.
+        n_detected = int(round(float((det * reliable["n_cells"]).sum())))
+        # #695: cross-donor MEDIAN within-expresser shape (donor-is-replicate), over reliable donors
+        # whose per-donor shape is non-null (the #668 emit returns null skew/kurt for a donor with <3
+        # expressers / zero among-expresser variance). None when no shape columns / no non-null donor.
+        expresser_skewness = expresser_excess_kurtosis = None
+        if has_shape:
+            shp = reliable[reliable["expressing_skewness"].notna() & reliable["expressing_kurtosis"].notna()]
+            if not shp.empty:
+                expresser_skewness = round(float(np.median(shp["expressing_skewness"])), 6)
+                expresser_excess_kurtosis = round(float(np.median(shp["expressing_kurtosis"])), 6)
         out[str(comp)] = {
             "n_donors": n_donors,  # RELIABLE donors (>= MIN_CELLS_PER_DONOR)
             "n_donors_dropped_low_cells": n_donors_raw - n_donors,  # transparency: strata below the floor
@@ -151,6 +192,12 @@ def compartment_summary(rows) -> dict:
             "detection_fraction_donor_p75": p75,
             "detection_fraction_donor_iqr": donor_iqr,
             "fraction_donors_broadly_detecting": frac_broad,
+            # #695 within-expresser shape substrate (verdict-inert; None when the product lacks the
+            # #668 columns or every donor's shape is null): the cross-donor median within-expresser
+            # skewness / EXCESS kurtosis, plus the detected-cell power behind them.
+            "n_detected": n_detected,
+            "expresser_skewness": expresser_skewness,
+            "expresser_excess_kurtosis": expresser_excess_kurtosis,
         }
     return out
 
@@ -404,6 +451,79 @@ def malignant_heterogeneity_readout(comp_summary: dict) -> dict:
         "malignant_detection_donor_iqr": iqr,
         "fraction_donors_broadly_detecting": frac_broad,
         "n_donors": n_donors,
+    }
+
+
+def _bimodality_coefficient(skewness, excess_kurtosis):
+    """Sarle's bimodality coefficient BC = (skewness^2 + 1) / (excess_kurtosis + 3) from the within-
+    expresser 3rd/4th standardized moments (excess_kurtosis = Pearson kurtosis - 3). Uniform -> 5/9,
+    normal -> 1/3, a separated two-mode split -> toward 1.0. Returns None when either moment is None or
+    the denominator is non-positive (excess_kurtosis <= -3 is out of range for a real distribution, but
+    guarded so a degenerate aggregate never divides by zero)."""
+    if skewness is None or excess_kurtosis is None:
+        return None
+    denom = excess_kurtosis + 3.0
+    if denom <= 0:
+        return None
+    return (skewness * skewness + 1.0) / denom
+
+
+def malignant_expresser_shape_readout(comp_summary: dict) -> dict:
+    """WITHIN-EXPRESSER malignant shape / bimodality headline (#695) — verdict-INERT descriptive.
+
+    The SHAPE of the target's expression AMONG the malignant cells that DETECT it (denominator =
+    malignant_n_detected, NOT the total malignant cells), from Sarle's bimodality coefficient. Distinct
+    from coverage (detection_fraction) and inter-donor consistency (malignant_heterogeneity_readout):
+    those ask HOW MANY / HOW REPRODUCIBLE; this asks whether the expressing cells sit in ONE mode or
+    split into an antigen-high vs antigen-low mode the mean cannot see (a within-tumour escape reservoir).
+
+    Reads the malignant compartment's cross-donor median within-expresser skewness / EXCESS kurtosis +
+    the detected-cell power that compartment_summary now surfaces (from the #668 emit columns). Returns:
+      malignant_expresser_skewness            cross-donor median within-expresser skewness (None if null shape)
+      malignant_expresser_excess_kurtosis     cross-donor median within-expresser EXCESS kurtosis (None if null shape)
+      malignant_expresser_bimodality_coefficient  Sarle BC (None below the n_detected floor / null shape)
+      malignant_n_detected                    detected malignant cells backing the shape call (the gate denominator)
+      malignant_expresser_bimodality_class    bimodal / unimodal / underpowered / data_unavailable
+
+    Class discipline (mirrors the measured-vs-data_unavailable doctrine):
+      data_unavailable  no malignant compartment / detection (abstain — never a measured zero)
+      underpowered      malignant_n_detected < MIN_DETECTED_FOR_SHAPE, OR null shape stats (skew/kurt
+                        None; the #668 emit nulls a donor with <3 expressers / zero variance) — shape
+                        untestable (an honest power gap, never a measured unimodal/bimodal call)
+      bimodal           BC > MALIGNANT_EXPRESSER_BIMODALITY_MIN (5/9)
+      unimodal          BC <= MALIGNANT_EXPRESSER_BIMODALITY_MIN
+    """
+    mal = comp_summary.get("malignant") if isinstance(comp_summary, dict) else None
+    if not mal or mal.get("median_detection_fraction") is None:
+        return {
+            "malignant_expresser_skewness": None,
+            "malignant_expresser_excess_kurtosis": None,
+            "malignant_expresser_bimodality_coefficient": None,
+            "malignant_n_detected": int((mal or {}).get("n_detected") or 0),
+            "malignant_expresser_bimodality_class": "data_unavailable",
+        }
+    n_detected = int(mal.get("n_detected") or 0)
+    skew = mal.get("expresser_skewness")
+    kurt = mal.get("expresser_excess_kurtosis")
+    bc = _bimodality_coefficient(skew, kurt)
+    # The shape headline gates on n_detected: the 4th moment is outlier-sensitive and noisy below the
+    # floor. Below it — or with null shape stats (bc None) — the class is underpowered and the headline
+    # BC is withheld (None), though the source skew/kurt moments are still surfaced when available.
+    if n_detected < MIN_DETECTED_FOR_SHAPE or bc is None:
+        cls = "underpowered"
+        bc_out = None
+    elif bc > MALIGNANT_EXPRESSER_BIMODALITY_MIN:
+        cls = "bimodal"
+        bc_out = round(bc, 6)
+    else:
+        cls = "unimodal"
+        bc_out = round(bc, 6)
+    return {
+        "malignant_expresser_skewness": skew,
+        "malignant_expresser_excess_kurtosis": kurt,
+        "malignant_expresser_bimodality_coefficient": bc_out,
+        "malignant_n_detected": n_detected,
+        "malignant_expresser_bimodality_class": cls,
     }
 
 
