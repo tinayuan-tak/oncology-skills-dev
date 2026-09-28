@@ -18,8 +18,9 @@ biology), so it is deliberately CAPPED at `moderate` — never `strong`. `absent
 target's total protein IS detected: a MEASURED no-signal, not a coverage gap);
 `unmeasured` = a coverage gap. No axis has a natural `negative` tier.
 
-Verdict-INERT: the mechanism resolver keys ONLY on signaling-network-mechanism (network_class +
-has_pd_marker); this projection reads the already-computed cards and never feeds it.
+Verdict-INERT: the mechanism resolver keys ONLY on signaling-network-mechanism's `network_class`
+(the `has_pd_marker` rung was removed as structurally dead in resolver v1.2.0); this projection
+reads the already-computed cards and never feeds it.
 """
 
 from __future__ import annotations

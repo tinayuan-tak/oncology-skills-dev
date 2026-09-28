@@ -110,6 +110,8 @@ def _verdict(fired: list[dict]) -> tuple[str, str | None]:
 #    surfaced by the fan-out into decision.claim_record_shadow.mechanism, consumed by NOTHING.
 #    Mechanism has no verdict-disjoint corroborator (CERTAINTY_MODEL: unmeasured) → minimal coverage-only
 #    certainty. Mirrors the other axes' hook.
+# `data_unavailable` and `insufficient` are intentionally omitted → they fall through
+# `.get(v, "none")` to magnitude level "none" (verdict-inert; feeds only claim_record_shadow).
 _MECH_LEVEL = {"well_characterized": "strong", "partial": "moderate", "sparse": "weak"}
 
 
