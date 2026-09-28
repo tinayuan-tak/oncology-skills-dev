@@ -121,17 +121,20 @@ def emit_cn_stratified_strip_plot(
     *,
     model_metadata: dict = None,
     indication: str = None,
-) -> None:
-    """Primary figure: Chronos strip plot grouped by CN status.
+) -> list:
+    """Emit two separate CN stratified strip plots: amplification and deletion.
 
-    Shows 4 CN categories:
-    - Focal amp (GISTIC ≥2): relative CN > 2.0
-    - Shallow gain (GISTIC 1-2): 1.5 < relative CN ≤ 2.0
-    - Shallow del (GISTIC -2 to -1): 0.5 ≤ relative CN < 0.92
-    - Deep del (GISTIC ≤-2): relative CN < 0.5
+    Amplification figure (figure_cn_amplification_strip.svg):
+    - Focal amp (GISTIC >=2): relative CN > 2.0
+    - Shallow gain (GISTIC 1-2): 1.5 < relative CN <= 2.0
+    - No gain (GISTIC <=1): relative CN <= 1.5 (comparator)
 
-    When model_metadata and indication are provided, highlights indication-specific
-    cell lines and shows dual statistics (pan-DepMap vs indication-only).
+    Deletion figure (figure_cn_deletion_strip.svg):
+    - Deep del (GISTIC <=-2): relative CN < 0.5
+    - Shallow del (GISTIC -2 to -1): 0.5 <= relative CN < 0.92
+    - No del (GISTIC >=-1): relative CN >= 0.92 (comparator)
+
+    Returns list of figure filenames created.
     """
     import sys
     from pathlib import Path
@@ -164,19 +167,8 @@ def emit_cn_stratified_strip_plot(
     if indication and model_metadata:
         indication_lineage = _resolve_indication_lineage(indication)
 
-    # Increase height when showing indication table at bottom
-    base_figsize = FIGSIZE_DOUBLE_COLUMN if isinstance(FIGSIZE_DOUBLE_COLUMN, tuple) else (8.0, 5.5)
-    if indication_lineage:
-        fig_height = base_figsize[1] + 1.2
-    else:
-        fig_height = base_figsize[1]
-    fig, ax = plt.subplots(figsize=(base_figsize[0], fig_height))
-
     if not chronos_by_model or not cn_by_model:
-        ax.text(0.5, 0.5, "No data", ha="center", va="center", transform=ax.transAxes, color="#666666")
-        fig.savefig(out_path / "figure_cn_stratified_strip.svg", bbox_inches="tight")
-        plt.close(fig)
-        return
+        return []
 
     rng = np.random.default_rng(seed=42)
 
@@ -198,7 +190,12 @@ def emit_cn_stratified_strip_plot(
 
     # Build groups with model IDs for indication highlighting
     def build_group(label, category, color):
-        models = [m for m in chronos_by_model if get_cn_category(m) == category]
+        if category == "no_gain":
+            models = [m for m in chronos_by_model if m in cn_by_model and cn_by_model[m] <= SHALLOW_GAIN]
+        elif category == "no_del":
+            models = [m for m in chronos_by_model if m in cn_by_model and cn_by_model[m] >= SHALLOW_DEL]
+        else:
+            models = [m for m in chronos_by_model if get_cn_category(m) == category]
         scores = [chronos_by_model[m] for m in models]
         if indication_lineage and model_metadata:
             is_indication = [
@@ -209,145 +206,169 @@ def emit_cn_stratified_strip_plot(
             is_indication = [False] * len(models)
         return label, models, scores, is_indication, color, category
 
-    # Define groups: amplifications on left, deletions on right
-    groups = [
-        build_group("focal\namp\n(≥+2)", "focal_amp", "#B22222"),      # Dark red
+    def get_scores_for_group(category):
+        if category == "no_gain":
+            models = [m for m in chronos_by_model if m in cn_by_model and cn_by_model[m] <= SHALLOW_GAIN]
+        elif category == "no_del":
+            models = [m for m in chronos_by_model if m in cn_by_model and cn_by_model[m] >= SHALLOW_DEL]
+        else:
+            models = [m for m in chronos_by_model if get_cn_category(m) == category]
+        scores_pan = [chronos_by_model[m] for m in models]
+        scores_ind = [chronos_by_model[m] for m in models
+                      if (model_metadata.get(m) or {}).get("OncotreeLineage") == indication_lineage] if indication_lineage else []
+        return scores_pan, scores_ind
+
+    def compute_median(scores):
+        return float(np.median(scores)) if scores else None
+
+    def compute_qvalue(test_scores, comparator_scores):
+        from scipy import stats as scipy_stats
+        if len(test_scores) >= 3 and len(comparator_scores) >= 3:
+            try:
+                _, p = scipy_stats.mannwhitneyu(test_scores, comparator_scores, alternative='less')
+                return p
+            except Exception:
+                pass
+        return None
+
+    def fmt_med(v):
+        return f"{v:.2f}" if v is not None else "—"
+
+    def fmt_q(v):
+        return f"{v:.1e}" if v is not None else "—"
+
+    def plot_strip(ax, groups, title):
+        for i, (label, models, scores, is_ind, color, category) in enumerate(groups):
+            if not scores:
+                ax.axvline(x=i, color="#EEEEEE", linewidth=20, alpha=0.3, zorder=0)
+                continue
+
+            scores_arr = np.array(scores)
+            is_ind_arr = np.array(is_ind)
+            xs = i + rng.uniform(-0.25, 0.25, size=len(scores_arr))
+
+            if indication_lineage:
+                non_ind_mask = ~is_ind_arr
+                if np.any(non_ind_mask):
+                    ax.scatter(xs[non_ind_mask], scores_arr[non_ind_mask], s=30, alpha=0.4,
+                               color=color, edgecolor="white", linewidth=0.3, zorder=2)
+                ind_mask = is_ind_arr
+                if np.any(ind_mask):
+                    ax.scatter(xs[ind_mask], scores_arr[ind_mask], s=50, alpha=0.9,
+                               color=color, edgecolor="black", linewidth=0.8, zorder=3)
+                med_all = float(np.median(scores_arr))
+                ax.plot([i - 0.35, i + 0.35], [med_all, med_all], color="#222222",
+                        linewidth=2.0, zorder=4, linestyle="-")
+                if np.any(ind_mask):
+                    med_ind = float(np.median(scores_arr[ind_mask]))
+                    ax.plot([i - 0.35, i + 0.35], [med_ind, med_ind], color="#222222",
+                            linewidth=2.0, zorder=5, linestyle="--")
+            else:
+                ax.scatter(xs, scores_arr, s=14, alpha=0.55, color=color, edgecolor="white", linewidth=0.3, zorder=2)
+                med = float(np.median(scores_arr))
+                ax.plot([i - 0.35, i + 0.35], [med, med], color="#222222", linewidth=1.5, zorder=3)
+
+        ax.axhline(y=0, **REFLINE_NOMINAL, zorder=1)
+        ax.axhline(y=CHRONOS_STRONG_DEPENDENCY, **REFLINE_KILLER, zorder=1)
+        ax.set_xticks(range(len(groups)))
+        ax.set_xticklabels([label for label, _, _, _, _, _ in groups], fontsize=9)
+        ax.set_ylabel("Chronos score (more dependent = lower)")
+        cls = summary.get("cn_stratification_class", "?")
+        ax.set_title(f"{target_symbol}: {title}  ({cls})")
+        ax.grid(axis="y")
+
+    figures_created = []
+    base_figsize = FIGSIZE_DOUBLE_COLUMN if isinstance(FIGSIZE_DOUBLE_COLUMN, tuple) else (8.0, 5.5)
+
+    # === AMPLIFICATION FIGURE ===
+    amp_groups = [
+        build_group("focal\namp\n(>=+2)", "focal_amp", "#B22222"),      # Dark red
         build_group("shallow\ngain\n(+1 to +2)", "shallow_gain", "#E69F00"),  # Orange
-        build_group("shallow\ndel\n(-2 to -1)", "shallow_del", "#56B4E9"),    # Light blue
-        build_group("deep\ndel\n(≤-2)", "deep_del", "#0072B2"),        # Dark blue
+        build_group("no\ngain\n(<=+1)", "no_gain", "#888888"),          # Gray (comparator)
     ]
 
-    # Plot each group
-    for i, (label, models, scores, is_ind, color, category) in enumerate(groups):
-        if not scores:
-            # Draw empty column marker
-            ax.axvline(x=i, color="#EEEEEE", linewidth=20, alpha=0.3, zorder=0)
-            continue
+    fig_height = base_figsize[1] + 1.5 if indication_lineage else base_figsize[1]
+    fig, ax = plt.subplots(figsize=(base_figsize[0], fig_height))
+    plot_strip(ax, amp_groups, "amplification dependency")
 
-        scores_arr = np.array(scores)
-        is_ind_arr = np.array(is_ind)
-        xs = i + rng.uniform(-0.25, 0.25, size=len(scores_arr))
-
-        if indication_lineage:
-            # Plot non-indication points (no outline, smaller)
-            non_ind_mask = ~is_ind_arr
-            if np.any(non_ind_mask):
-                ax.scatter(xs[non_ind_mask], scores_arr[non_ind_mask], s=30, alpha=0.4,
-                           color=color, edgecolor="white", linewidth=0.3, zorder=2)
-
-            # Plot indication points with black outline
-            ind_mask = is_ind_arr
-            if np.any(ind_mask):
-                ax.scatter(xs[ind_mask], scores_arr[ind_mask], s=50, alpha=0.9,
-                           color=color, edgecolor="black", linewidth=0.8, zorder=3)
-
-            # Pan-lineage median (solid black line)
-            med_all = float(np.median(scores_arr))
-            ax.plot([i - 0.35, i + 0.35], [med_all, med_all], color="#222222",
-                    linewidth=2.0, zorder=4, linestyle="-")
-
-            # Indication-specific median (dashed black line)
-            if np.any(ind_mask):
-                med_ind = float(np.median(scores_arr[ind_mask]))
-                ax.plot([i - 0.35, i + 0.35], [med_ind, med_ind], color="#222222",
-                        linewidth=2.0, zorder=5, linestyle="--")
-        else:
-            # Original behavior: no indication highlighting
-            ax.scatter(xs, scores_arr, s=14, alpha=0.55, color=color, edgecolor="white", linewidth=0.3, zorder=2)
-            med = float(np.median(scores_arr))
-            ax.plot([i - 0.35, i + 0.35], [med, med], color="#222222", linewidth=1.5, zorder=3)
-
-    # Reference lines
-    ax.axhline(y=0, **REFLINE_NOMINAL, zorder=1)
-    ax.axhline(y=CHRONOS_STRONG_DEPENDENCY, **REFLINE_KILLER, zorder=1)
-
-    ax.set_xticks(range(len(groups)))
-    ax.set_xticklabels([label for label, _, _, _, _, _ in groups], fontsize=9)
-    ax.set_ylabel("Chronos score (more dependent = lower)")
-    cls = summary.get("cn_stratification_class", "?")
-    ax.set_title(f"{target_symbol}: dependency stratified by copy number  ({cls})")
-    ax.grid(axis="y")
-
-    # Statistics display
     if indication_lineage and indication:
-        from scipy import stats as scipy_stats
+        focal_pan, focal_ind = get_scores_for_group("focal_amp")
+        shallow_gain_pan, shallow_gain_ind = get_scores_for_group("shallow_gain")
+        no_gain_pan, no_gain_ind = get_scores_for_group("no_gain")
 
-        # Compute stats for each category
-        def get_category_stats(category):
-            models_cat = [m for m in chronos_by_model if get_cn_category(m) == category]
-            scores_pan = [chronos_by_model[m] for m in models_cat]
-            scores_ind = [chronos_by_model[m] for m in models_cat
-                          if (model_metadata.get(m) or {}).get("OncotreeLineage") == indication_lineage]
-            med_pan = float(np.median(scores_pan)) if scores_pan else None
-            med_ind = float(np.median(scores_ind)) if scores_ind else None
-            return len(scores_pan), len(scores_ind), med_pan, med_ind
-
-        focal_n_pan, focal_n_ind, focal_med_pan, focal_med_ind = get_category_stats("focal_amp")
-        shallow_gain_n_pan, shallow_gain_n_ind, shallow_gain_med_pan, shallow_gain_med_ind = get_category_stats("shallow_gain")
-        shallow_del_n_pan, shallow_del_n_ind, shallow_del_med_pan, shallow_del_med_ind = get_category_stats("shallow_del")
-        deep_del_n_pan, deep_del_n_ind, deep_del_med_pan, deep_del_med_ind = get_category_stats("deep_del")
-
-        # Table at bottom
-        col_labels = ["", "Focal Amp", "Shallow Gain", "Shallow Del", "Deep Del", ""]
-        table_data = [
-            ["Pan-DepMap (n)",
-             f"{focal_n_pan}" if focal_n_pan else "—",
-             f"{shallow_gain_n_pan}" if shallow_gain_n_pan else "—",
-             f"{shallow_del_n_pan}" if shallow_del_n_pan else "—",
-             f"{deep_del_n_pan}" if deep_del_n_pan else "—",
-             "— solid"],
-            ["Pan-DepMap (med)",
-             f"{focal_med_pan:.2f}" if focal_med_pan is not None else "—",
-             f"{shallow_gain_med_pan:.2f}" if shallow_gain_med_pan is not None else "—",
-             f"{shallow_del_med_pan:.2f}" if shallow_del_med_pan is not None else "—",
-             f"{deep_del_med_pan:.2f}" if deep_del_med_pan is not None else "—",
-             ""],
-            [f"{indication} (n)",
-             f"{focal_n_ind}" if focal_n_ind else "—",
-             f"{shallow_gain_n_ind}" if shallow_gain_n_ind else "—",
-             f"{shallow_del_n_ind}" if shallow_del_n_ind else "—",
-             f"{deep_del_n_ind}" if deep_del_n_ind else "—",
-             "-- dashed"],
-            [f"{indication} (med)",
-             f"{focal_med_ind:.2f}" if focal_med_ind is not None else "—",
-             f"{shallow_gain_med_ind:.2f}" if shallow_gain_med_ind is not None else "—",
-             f"{shallow_del_med_ind:.2f}" if shallow_del_med_ind is not None else "—",
-             f"{deep_del_med_ind:.2f}" if deep_del_med_ind is not None else "—",
-             "● outlined"],
+        amp_col_labels = ["Amplification", "Median\n(Focal)", "Median\n(Shallow)", "Median\n(No Gain)",
+                          "q (Focal)", "q (Shallow)", ""]
+        amp_table_data = [
+            ["Pan-DepMap", fmt_med(compute_median(focal_pan)), fmt_med(compute_median(shallow_gain_pan)),
+             fmt_med(compute_median(no_gain_pan)), fmt_q(compute_qvalue(focal_pan, no_gain_pan)),
+             fmt_q(compute_qvalue(shallow_gain_pan, no_gain_pan)), "— solid"],
+            [indication, fmt_med(compute_median(focal_ind)), fmt_med(compute_median(shallow_gain_ind)),
+             fmt_med(compute_median(no_gain_ind)), fmt_q(compute_qvalue(focal_ind, no_gain_ind)),
+             fmt_q(compute_qvalue(shallow_gain_ind, no_gain_ind)), "-- dashed, o outlined"],
         ]
 
-        table = ax.table(
-            cellText=table_data,
-            colLabels=col_labels,
-            loc="bottom",
-            cellLoc="center",
-            bbox=[0.0, -0.45, 1.0, 0.30],
-        )
-        table.auto_set_font_size(False)
-        table.set_fontsize(8)
-
-        for (row, col), cell in table.get_celld().items():
+        amp_table = ax.table(cellText=amp_table_data, colLabels=amp_col_labels, loc="bottom",
+                             cellLoc="center", bbox=[0.0, -0.42, 1.0, 0.18])
+        amp_table.auto_set_font_size(False)
+        amp_table.set_fontsize(7)
+        for (row, col), cell in amp_table.get_celld().items():
             cell.set_edgecolor("#CCCCCC")
             cell.set_linewidth(0.5)
             if row == 0:
                 cell.set_text_props(fontweight="bold")
                 cell.set_facecolor("#F0F0F0")
+                cell.set_height(cell.get_height() * 1.8)
             else:
                 cell.set_facecolor("white")
+        fig.subplots_adjust(bottom=0.28)
 
-        fig.subplots_adjust(bottom=0.30)
-    else:
-        # Simple stats annotation
-        n_focal = sum(1 for m in cn_by_model if cn_by_model[m] > FOCAL_AMP and m in chronos_by_model)
-        n_deep = sum(1 for m in cn_by_model if cn_by_model[m] < DEEP_DEL and m in chronos_by_model)
-        parts = [f"n(focal amp)={n_focal}", f"n(deep del)={n_deep}"]
-        ax.text(
-            0.02, 0.98, "  ·  ".join(parts),
-            transform=ax.transAxes, ha="left", va="top", fontsize=9,
-            family="monospace",
-            bbox=dict(facecolor="white", edgecolor="#888888", alpha=0.92, pad=4, boxstyle="round,pad=0.4"),
-            zorder=5,
-        )
-
-    fig.savefig(out_path / "figure_cn_stratified_strip.svg", bbox_inches="tight")
+    fig.savefig(out_path / "figure_cn_amplification_strip.svg", bbox_inches="tight")
     plt.close(fig)
+    figures_created.append("figure_cn_amplification_strip.svg")
+
+    # === DELETION FIGURE ===
+    del_groups = [
+        build_group("deep\ndel\n(<=-2)", "deep_del", "#0072B2"),        # Blue
+        build_group("shallow\ndel\n(-2 to -1)", "shallow_del", "#2E7D32"),  # Green
+        build_group("no\ndel\n(>=-1)", "no_del", "#888888"),            # Gray (comparator)
+    ]
+
+    fig, ax = plt.subplots(figsize=(base_figsize[0], fig_height))
+    plot_strip(ax, del_groups, "deletion dependency")
+
+    if indication_lineage and indication:
+        deep_del_pan, deep_del_ind = get_scores_for_group("deep_del")
+        shallow_del_pan, shallow_del_ind = get_scores_for_group("shallow_del")
+        no_del_pan, no_del_ind = get_scores_for_group("no_del")
+
+        del_col_labels = ["Deletion", "Median\n(Deep)", "Median\n(Shallow)", "Median\n(No Del)",
+                          "q (Deep)", "q (Shallow)", ""]
+        del_table_data = [
+            ["Pan-DepMap", fmt_med(compute_median(deep_del_pan)), fmt_med(compute_median(shallow_del_pan)),
+             fmt_med(compute_median(no_del_pan)), fmt_q(compute_qvalue(deep_del_pan, no_del_pan)),
+             fmt_q(compute_qvalue(shallow_del_pan, no_del_pan)), "— solid"],
+            [indication, fmt_med(compute_median(deep_del_ind)), fmt_med(compute_median(shallow_del_ind)),
+             fmt_med(compute_median(no_del_ind)), fmt_q(compute_qvalue(deep_del_ind, no_del_ind)),
+             fmt_q(compute_qvalue(shallow_del_ind, no_del_ind)), "-- dashed, o outlined"],
+        ]
+
+        del_table = ax.table(cellText=del_table_data, colLabels=del_col_labels, loc="bottom",
+                             cellLoc="center", bbox=[0.0, -0.42, 1.0, 0.18])
+        del_table.auto_set_font_size(False)
+        del_table.set_fontsize(7)
+        for (row, col), cell in del_table.get_celld().items():
+            cell.set_edgecolor("#CCCCCC")
+            cell.set_linewidth(0.5)
+            if row == 0:
+                cell.set_text_props(fontweight="bold")
+                cell.set_facecolor("#F0F0F0")
+                cell.set_height(cell.get_height() * 1.8)
+            else:
+                cell.set_facecolor("white")
+        fig.subplots_adjust(bottom=0.28)
+
+    fig.savefig(out_path / "figure_cn_deletion_strip.svg", bbox_inches="tight")
+    plt.close(fig)
+    figures_created.append("figure_cn_deletion_strip.svg")
+
+    return figures_created
