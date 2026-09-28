@@ -248,12 +248,39 @@ ENVELOPE_FAMILIES: dict[str, dict] = {
         },
         "none": {},
     },
+    "expression_dependency": {
+        # SK#1784 — THIRD envelope-v0 concordance family for the cis_coherence domain: SAME-GRAIN
+        # CROSS-MODALITY bulk-RNA × MS-protein own-omics→dependency-coupling replication. Both arms share
+        # the cell-line grain; independence is by ASSAY MODALITY only (WEAKER than #1781's cross-grain).
+        # The two vocabularies DIFFER, so each token is routed through an explicit class→arm mapping.
+        "builder": cis_coherence_claims._expression_dependency_concordance_claim,
+        "name": "_expression_dependency_concordance_claim",
+        "resolving": {
+            "expression-dependency-correlation": {
+                "correlation_class": "strong_negative",
+                "pearson_r": -0.62,
+                "pearson_p": 1e-9,
+                "spearman_r": -0.58,
+                "n_cell_lines_evaluated": 640,
+                "delta_chronos_top_vs_bottom_quartile": -0.44,
+            },
+            "abundance-dependency": {
+                "abundance_dependency_class": "protein_predicts_dependency",
+                "protein_dependency_pearson_r": -0.55,
+                "protein_dependency_pearson_p": 1e-6,
+                "protein_dependency_spearman_r": -0.51,
+                "n_paired_models": 210,
+                "n_dependent_models": 48,
+            },
+        },
+        "none": {},
+    },
 }
 
 # The known family count. An anti-vacuity floor: if the registry (or the codebase discovery it is pinned
 # against) ever collapses to a subset, the `== _EXPECTED_FAMILY_COUNT` assertions catch it rather than a
 # shrunken population passing silently.
-_EXPECTED_FAMILY_COUNT = 11
+_EXPECTED_FAMILY_COUNT = 12
 _EXPECTED_FRAME_COUNT = 5
 
 

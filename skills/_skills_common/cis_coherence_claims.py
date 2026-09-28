@@ -1082,6 +1082,374 @@ def _methylation_silencing_concordance_claim(c: dict) -> "dict | None":
     }
 
 
+# ── L2b SAME-GRAIN CROSS-MODALITY concordance claim (SK#1784, epic #1779 A4 / parent #1507) ─────────
+# The THIRD cis-domain concordance property: does the target's own EXPRESSION / ABUNDANCE predict its
+# DepMap dependency (higher own-omics ⇒ more dependent)? measured by TWO independent ASSAY MODALITIES of
+# the SAME cell-line sample-context grain —
+#   * mRNA modality    — `expression-dependency-correlation`.`correlation_class`   (bulk-RNA vs Chronos)
+#   * protein modality — `abundance-dependency`.`abundance_dependency_class`       (MS-protein vs Chronos)
+#
+# ★★ SAME-GRAIN, MODALITY-ONLY INDEPENDENCE (the #1784 crux, WEAKER than #1781's cross-grain). Both arms
+# are DepMap cell-line correlations against the SAME Chronos dependency readout, so they SHARE the
+# cell-line sample-context grain — culture / lineage / panel-composition confounds are NOT broken by their
+# agreement. Their independence is by ASSAY MODALITY ONLY (bulk-RNA expression measurement ⊥ MS-protein
+# abundance measurement). So two agreeing modalities corroborate that own-omics predicts dependency ACROSS
+# assay platforms (not a single-measurement artefact), but establish NO patient-context generalisation.
+# `grain` is `cell_line_model` on BOTH arms (first-class); `dependence_group` is the MODALITY, so the two
+# arms are two INDEPENDENT-BY-MODALITY groups — and a same-MODALITY restatement (re-reading the mRNA card)
+# is NEVER counted as a second arm (the #1704 oracle pins the two DISTINCT (card, field) modality arms; a
+# re-pointed protein arm reds).
+#
+# ★★ EXPLICIT CLASS→ARM MAPPING (mirrors SK#1782 — the two vocabularies DIFFER). Each modality enumerates
+# EVERY token to predictive(True) / not_predictive(False, a MEASURED not-predictive floor) / DROP(None).
+# DROP = routed to NO rung: protein `insufficient_paired_models` (< 20 paired CN/protein models) is
+# UNDERPOWERED, and `data_unavailable` (a TRUTHY sentinel) is mapped EXPLICITLY — never via falsiness. A
+# dropped / absent modality never fabricates a disagreeing arm (which would falsely drive corroboration to
+# `low`). The mRNA `positive_anomaly` (a MEASURED WRONG-direction read — higher expression ⇒ LESS
+# dependent, e.g. paralog compensation) is a MEASURED not-predictive floor: it genuinely refutes the
+# predictive coupling, so it disagrees, it does NOT drop.
+_EXPRDEP_PREDICTIVE = "predictive"  # own-omics predicts dependency (agrees)
+_EXPRDEP_NOT_PREDICTIVE = "not_predictive"  # MEASURED not-predictive floor (disagrees)
+_EXPRDEP_DROP = "drop"  # routed to NO rung — neither corroborates nor disagrees (leaves the arm frame)
+
+# mRNA vocabulary (expression-dependency-correlation.correlation_class). Mirrors _EXPR_DEP_SIGNAL's
+# measured/gap split but resolves to the predictive/not-predictive/drop arm frame.
+_RNA_EXPRDEP_ARM = {
+    "strong_negative": _EXPRDEP_PREDICTIVE,
+    "moderate_negative": _EXPRDEP_PREDICTIVE,
+    "weak_negative": _EXPRDEP_PREDICTIVE,  # a weak but real expression→dependency link
+    "no_correlation": _EXPRDEP_NOT_PREDICTIVE,  # MEASURED: tested across the panel, no link
+    "positive_anomaly": _EXPRDEP_NOT_PREDICTIVE,  # MEASURED WRONG direction — refutes the coupling
+    "data_unavailable": _EXPRDEP_DROP,  # TRUTHY sentinel — mapped explicitly
+}
+# protein vocabulary (abundance-dependency.abundance_dependency_class) — a DIFFERENT roster; the buffered/
+# underpowered floor (`insufficient_paired_models`, < min_paired_models=20) DROPS.
+_PROTEIN_EXPRDEP_ARM = {
+    "protein_predicts_dependency": _EXPRDEP_PREDICTIVE,
+    "weak_protein_dependency_link": _EXPRDEP_PREDICTIVE,  # a weak but real link (mirrors weak_negative)
+    "no_protein_dependency_link": _EXPRDEP_NOT_PREDICTIVE,  # MEASURED: no link
+    "insufficient_paired_models": _EXPRDEP_DROP,  # < 20 paired CN/protein models — underpowered
+    "data_unavailable": _EXPRDEP_DROP,  # TRUTHY sentinel — mapped explicitly
+}
+
+
+def _exprdep_arms(mapping: dict) -> "tuple[frozenset, frozenset]":
+    """Derive (agrees, disagrees) frozensets from an explicit class→arm mapping — the DROP-mapped tokens
+    are in NEITHER set, so `arm_from_class` returns None (they leave the arm frame). The mapping is the
+    single source of truth the vocab-coverage test pins."""
+    agrees = frozenset(k for k, v in mapping.items() if v == _EXPRDEP_PREDICTIVE)
+    disagrees = frozenset(k for k, v in mapping.items() if v == _EXPRDEP_NOT_PREDICTIVE)
+    return agrees, disagrees
+
+
+_RNA_EXPRDEP_AGREES, _RNA_EXPRDEP_DISAGREES = _exprdep_arms(_RNA_EXPRDEP_ARM)
+_PROT_EXPRDEP_AGREES, _PROT_EXPRDEP_DISAGREES = _exprdep_arms(_PROTEIN_EXPRDEP_ARM)
+
+_C_EXPRDEP_PROTEIN = "abundance-dependency"
+_EXPRDEP_MODALITY = {
+    "cell_line_rna": "cell-line bulk-RNA expression (DepMap panel, correlated vs Chronos dependency)",
+    "cell_line_protein": "cell-line MS-protein abundance (DepMap-Gygi, correlated vs Chronos dependency)",
+}
+_EXPRDEP_ASSAY = {
+    "cell_line_rna": "bulk_rna",
+    "cell_line_protein": "ms_protein",
+}
+_EXPRDEP_CARD = {
+    "cell_line_rna": _C_CORR,
+    "cell_line_protein": _C_EXPRDEP_PROTEIN,
+}
+_EXPRDEP_FIELD = {
+    "cell_line_rna": "correlation_class",
+    "cell_line_protein": "abundance_dependency_class",
+}
+
+
+def _expression_dependency_concordance_claim(c: dict) -> "dict | None":
+    """L2b SAME-GRAIN CROSS-MODALITY integration claim: `expression_dependency_concordance` — the THIRD
+    envelope-v0 concordance claim for the cis_coherence domain (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md),
+    property_id `expression_abundance_dependency_coupling`.
+
+    Integrates the two ASSAY-MODALITY arms of the SAME expression/abundance→dependency-coupling property by
+    an EXPLICIT DETERMINISTIC rule (no LLM; L2b is reproducible by contract):
+      * mRNA modality    — `expression-dependency-correlation`.`correlation_class` (bulk-RNA vs Chronos);
+      * protein modality — `abundance-dependency`.`abundance_dependency_class`     (MS-protein vs Chronos).
+    Both correlate the target's own-omics abundance against the SAME DepMap Chronos dependency readout on the
+    SAME cell-line panel, emitting one of:
+      * expression_dependency_concordant_coupled     — both modalities resolve and AGREE own-omics predicts
+        dependency (a cross-assay-corroborated expression-biomarker-of-dependency read);
+      * expression_dependency_concordant_uncoupled   — both resolve and AGREE a MEASURED not-predictive floor;
+      * expression_dependency_modality_discordant     — one modality predicts, the other a measured not-
+        predictive floor (a which-assay-predicts payload — INFORMATIVE: the RNA-vs-protein disagreement is
+        exactly what picks the preferred dependency-biomarker assay, never collapsed / averaged);
+      * expression_dependency_single_modality_only    — exactly ONE modality resolves, the other a gap: the
+        degraded read that names the resolved modality, NOT a concordance claim.
+
+    ★★ SAME-GRAIN, MODALITY-ONLY INDEPENDENCE (WEAKER than #1781's cross-grain). Both arms SHARE the
+    cell-line sample-context grain (`grain` = `cell_line_model` on BOTH), so shared culture / lineage /
+    panel-composition confounds are NOT broken by their agreement; independence is by ASSAY MODALITY ONLY
+    (bulk-RNA vs MS-protein), recorded per source in `source_support[].dependence_group`. `corroborating_
+    independent_arm_count` counts INDEPENDENT MODALITIES — 2 legitimately when both resolve — but a same-
+    MODALITY restatement (re-reading the mRNA card) is never a second arm: the #1704 oracle pins the two
+    DISTINCT (card, field) modality arms so a re-pointed protein arm reds.
+
+    ★★ The two vocabularies DIFFER, so each modality token is routed through an EXPLICIT class→arm mapping
+    (`_RNA_EXPRDEP_ARM` / `_PROTEIN_EXPRDEP_ARM`). The protein `insufficient_paired_models` (underpowered
+    cohort) DROPS (None arm) — it does NOT fabricate a disagreeing arm (which would falsely drive
+    corroboration to `low`); a BUFFERED / discordant protein modality never fabricates a false agree.
+
+    Corroboration is on the shared MEASURED-ARM frame: two agreeing modalities → high, a disagreement →
+    low, one measured modality with the other unresolved → single_arm (below CORROBORATION_ARM_FLOOR). A
+    single-modality mutation only DEGRADES to `expression_dependency_single_modality_only`; ERASING the
+    claim (key omitted, byte-stable) takes defeating BOTH modality supplies. There is NO dependent / derived
+    source (the two modalities are genuinely independent measurements), so nothing resurrects the claim once
+    both arms are gone.
+
+    VERDICT-INERT: carries NO `signal` key, reads no verdict, feeds no rule; the `cis_coherence_verdict` +
+    resolver golden stay byte-stable. Returns None — key omitted — when NEITHER modality resolves."""
+    # ARM READS — the INLINE `(c.get("<card>") or {}).get("<field>")` idiom the #1704 oracle pins as the two
+    # commensurate modality arms. Raw metrics are pulled off a LOCAL card binding below (never this idiom) so
+    # they are NOT mistaken for a third arm.
+    rna_class = (c.get("expression-dependency-correlation") or {}).get("correlation_class")
+    prot_class = (c.get("abundance-dependency") or {}).get("abundance_dependency_class")
+
+    # Resolve each modality's token → predictive(True) / not_predictive(False) / drop-or-unresolved(None) via
+    # the shared arm reader over the EXPLICIT per-modality agrees/disagrees sets (DROP tokens are in NEITHER).
+    rna = arm_from_class(rna_class, agrees=_RNA_EXPRDEP_AGREES, disagrees=_RNA_EXPRDEP_DISAGREES)
+    prot = arm_from_class(prot_class, agrees=_PROT_EXPRDEP_AGREES, disagrees=_PROT_EXPRDEP_DISAGREES)
+
+    resolved = [(name, v) for name, v in (("cell_line_rna", rna), ("cell_line_protein", prot)) if v is not None]
+    if not resolved:
+        return None  # neither modality resolves (or both DROP) → key omitted (byte-stable)
+
+    if len(resolved) == 1:
+        concordance = "expression_dependency_single_modality_only"
+    elif rna == prot:
+        concordance = (
+            "expression_dependency_concordant_coupled" if rna else "expression_dependency_concordant_uncoupled"
+        )
+    else:
+        concordance = "expression_dependency_modality_discordant"
+
+    # Corroboration over the two modalities. A discordance is [True, False] → low; a concordance [True, True]
+    # or [False, False] → high; one modality unresolved is [x, None] → single_arm (below the arm floor).
+    if concordance == "expression_dependency_modality_discordant":
+        rna_arm, prot_arm = True, False
+    else:
+        rna_arm = True if rna is not None else None
+        prot_arm = True if prot is not None else None
+    corroboration = corroboration_from_arms([rna_arm, prot_arm])
+
+    # The envelope's TWO COUNTS. `corroborating_independent_arm_count` counts INDEPENDENT MODALITIES (bulk-RNA
+    # / MS-protein) consulted — the two arms are genuinely independent assays (no pooled / derived superset),
+    # so the counts coincide. They are emitted separately to keep the envelope shape uniform with families
+    # that DO carry a dependent source, and — crucially here — because independence is MODALITY-only: a same-
+    # modality restatement would never lift this count (it is not a second measurement of a distinct assay).
+    corroborating_independent_arm_count = len(resolved)
+    resolved_source_count = corroborating_independent_arm_count
+
+    def _dir(v):
+        return "predictive" if v is True else ("not_predictive" if v is False else None)
+
+    _class = {"cell_line_rna": rna_class, "cell_line_protein": prot_class}
+    _val = {"cell_line_rna": rna, "cell_line_protein": prot}
+
+    # which-modality payload — the disagreement or the degraded single modality is NAMED, never collapsed.
+    if concordance == "expression_dependency_modality_discordant":
+        predictive_in = "cell_line_rna" if rna else "cell_line_protein"
+        not_predictive_in = "cell_line_protein" if rna else "cell_line_rna"
+        concordance_support = {"predictive_in": predictive_in, "not_predictive_in": not_predictive_in}
+    elif concordance == "expression_dependency_single_modality_only":
+        name, v = resolved[0]
+        concordance_support = {"resolved_by": name, "resolved_call": _class[name], "resolved_direction": _dir(v)}
+    else:
+        concordance_support = {"agreed_direction": _dir(rna)}
+
+    # ── uniform per-source support + retained_quantitative (raw metrics DEMOTED, not dropped) ──────────
+    # Raw metrics off a LOCAL card binding (NOT the inline `c.get(...)` arm idiom) so the #1704 oracle sees
+    # exactly the two class-field modality arms and no incommensurate third pair.
+    _rna_card = c.get("expression-dependency-correlation") or {}
+    _prot_card = c.get("abundance-dependency") or {}
+    _retained = {
+        "cell_line_rna": {
+            "pearson_r": _rna_card.get("pearson_r"),
+            "pearson_p": _rna_card.get("pearson_p"),
+            "spearman_r": _rna_card.get("spearman_r"),
+            "spearman_p": _rna_card.get("spearman_p"),
+            "n_cell_lines_evaluated": _rna_card.get("n_cell_lines_evaluated"),
+            "delta_chronos_top_vs_bottom_quartile": _rna_card.get("delta_chronos_top_vs_bottom_quartile"),
+        },
+        "cell_line_protein": {
+            "protein_dependency_pearson_r": _prot_card.get("protein_dependency_pearson_r"),
+            "protein_dependency_pearson_p": _prot_card.get("protein_dependency_pearson_p"),
+            "protein_dependency_spearman_r": _prot_card.get("protein_dependency_spearman_r"),
+            "n_paired_models": _prot_card.get("n_paired_models"),
+            "n_dependent_models": _prot_card.get("n_dependent_models"),
+        },
+    }
+
+    def _support(source):
+        v = _val[source]
+        return {
+            "source": source,
+            "grain": "cell_line_model",  # first-class: BOTH modalities share the cell-line grain
+            "dependence_group": source,  # the axis of independence is the ASSAY MODALITY (rna vs protein)
+            "assay_modality": _EXPRDEP_ASSAY[source],
+            "value": _class[source],
+            "dependency_direction": _dir(v),
+            # THREE separate source notions — no single overloaded boolean smuggles two meanings.
+            "resolved": v is not None,
+            "quality_eligible": v is not None,
+            "corroboration_eligible": True,  # both modalities are independent replication arms (by assay)
+            "provenance": {
+                "card_id": _EXPRDEP_CARD[source],
+                "field": _EXPRDEP_FIELD[source],
+                "modality": _EXPRDEP_MODALITY[source],
+            },
+            # retained_quantitative: the raw correlation metrics DEMOTED not deleted (fidelity/recoverability).
+            "retained_quantitative": _retained[source],
+        }
+
+    # Both modalities ALWAYS appear (an absent / dropped modality shows resolved:False), keeping the two-count
+    # structure legible. They SHARE the cell-line grain — independence is by MODALITY only (NOT an independent
+    # sample context), so the dependence relationship names that explicitly (weaker than #1781's cross-grain).
+    source_support = [_support("cell_line_rna"), _support("cell_line_protein")]
+    evidence_dependence = {
+        "groups": [
+            {"members": ["cell_line_rna"], "relationship": "independent_assay_modality_shared_cell_line_grain"},
+            {"members": ["cell_line_protein"], "relationship": "independent_assay_modality_shared_cell_line_grain"},
+        ],
+        "derived_sources": {},
+    }
+
+    _PHRASE = {
+        "expression_dependency_concordant_coupled": "AGREE own-omics abundance predicts dependency",
+        "expression_dependency_concordant_uncoupled": "AGREE it is a measured NOT-predictive floor",
+        "expression_dependency_modality_discordant": "DISAGREE — the link replicates in only one assay",
+        "expression_dependency_single_modality_only": "only one assay modality resolves",
+    }
+
+    # ── PRESENTATION-SUPPORT (SK#1784 L2b surface) — two-directional structured fields + a deterministic
+    # boundary-sensitivity flag so a question_table answer can SURFACE the cross-modality read WITHOUT
+    # prose-parsing `evidence`. NONE route a verdict, name a signal tier (no `signal` key), or feed a rule.
+    boundary_sensitive = corroboration != "high"
+    if concordance == "expression_dependency_concordant_coupled":
+        _pos_source, _pos = (
+            "cell_line_rna",
+            (
+                "Both the bulk-RNA and MS-protein assay modalities AGREE the target's own-omics abundance "
+                "predicts its DepMap dependency (higher abundance ⇒ more dependent) — a cross-ASSAY-corroborated "
+                "expression-biomarker-of-dependency read on the shared cell-line panel."
+            ),
+        )
+    elif concordance == "expression_dependency_concordant_uncoupled":
+        _pos_source, _pos = (
+            "cell_line_rna",
+            (
+                "Both modalities AGREE own-omics abundance does NOT predict dependency (a measured NOT-predictive "
+                "floor across the RNA and protein assays) — cross-assay corroborated."
+            ),
+        )
+    elif concordance == "expression_dependency_modality_discordant":
+        _pos_source = concordance_support["predictive_in"]
+        _pos = (
+            f"{_EXPRDEP_MODALITY[_pos_source]} reports own-omics PREDICTS dependency — the expression→dependency "
+            "link is present in this assay."
+        )
+    else:  # expression_dependency_single_modality_only
+        _pos_source = concordance_support["resolved_by"]
+        _pos = (
+            f"{_EXPRDEP_MODALITY[_pos_source]} reports {concordance_support['resolved_direction']} "
+            f"({concordance_support['resolved_call']}) — the sole assay modality that resolves."
+        )
+    positive_signal = {"statement": _pos, "source": _pos_source, "provenance_ref": _pos_source}
+
+    if concordance in (
+        "expression_dependency_concordant_coupled",
+        "expression_dependency_concordant_uncoupled",
+    ):
+        qualifying_signal = None
+    elif concordance == "expression_dependency_modality_discordant":
+        _neg = concordance_support["not_predictive_in"]
+        qualifying_signal = {
+            "statement": (
+                f"{_EXPRDEP_MODALITY[_neg]} does NOT replicate the link — the assays DISAGREE. This is "
+                "INFORMATIVE — it is exactly the RNA-vs-protein disagreement that picks the preferred "
+                "dependency-biomarker assay (post-transcriptional buffering, MS coverage), never an error and "
+                "never equated with a biological absence."
+            ),
+            "source": _neg,
+            "provenance_ref": _neg,
+        }
+    else:  # single_modality_only
+        _gap = "cell_line_protein" if concordance_support["resolved_by"] == "cell_line_rna" else "cell_line_rna"
+        qualifying_signal = {
+            "statement": (
+                f"Only {_EXPRDEP_MODALITY[concordance_support['resolved_by']]} resolves; "
+                f"{_EXPRDEP_MODALITY[_gap]} is a gap (unmeasured or an underpowered paired-model cohort) — a "
+                "degraded single-assay read, NOT cross-modality corroboration."
+            ),
+            "source": _gap,
+            "provenance_ref": _gap,
+        }
+
+    return {
+        "property_id": "expression_abundance_dependency_coupling",
+        "concordance_class": concordance,
+        "corroboration": corroboration,
+        # DETERMINISTIC, reproducible-by-contract: an explicit rule over the two modality tokens, never an LLM.
+        "integration_method": "explicit_deterministic",
+        # GRAIN first-class: the integration is SAME-GRAIN (both cell-line model), spanning ASSAY MODALITIES.
+        "grain": "same_cell_line_grain_cross_modality",
+        "resolved_source_count": resolved_source_count,
+        "corroborating_independent_arm_count": corroborating_independent_arm_count,
+        "concordance_support": concordance_support,
+        "source_support": source_support,
+        "positive_signal": positive_signal,
+        "qualifying_signal": qualifying_signal,
+        "boundary_sensitive": boundary_sensitive,
+        "boundary_note": (
+            "concordance class rests on a single measured assay modality (single_arm / low corroboration) — "
+            "treat as near-boundary, not a flat cross-assay assertion"
+            if boundary_sensitive
+            else "concordance corroborated by BOTH the bulk-RNA and MS-protein assay modalities agreeing"
+        ),
+        "evidence_dependence": evidence_dependence,
+        "informs": (
+            "same-grain cross-MODALITY expression/abundance→dependency-coupling concordance — an own-omics-"
+            "predicts-dependency call that BOTH the bulk-RNA and MS-protein assays agree on is more credible "
+            "than a single-assay call (not a single-measurement artefact); an assay disagreement is the "
+            "informative datum (which biomarker assay to prefer), never averaged. Independence is by ASSAY "
+            "MODALITY only — the shared cell-line grain means this is NOT patient-context generalisation."
+        ),
+        "evidence": (
+            f"RNA {rna_class or 'data_unavailable'} × protein {prot_class or 'data_unavailable'}: "
+            + _PHRASE[concordance]
+        ),
+        "provenance": {
+            "sources": source_support,
+            "independence_note": (
+                "The mRNA arm (expression-dependency-correlation.correlation_class, bulk-RNA) and the protein "
+                "arm (abundance-dependency.abundance_dependency_class, DepMap-Gygi MS) are BOTH measured on the "
+                "SAME cell-line sample-context grain (DepMap panel), each correlated against the SAME Chronos "
+                "dependency readout. Their independence is by ASSAY MODALITY ONLY (bulk-RNA expression vs "
+                "MS-protein abundance) — WEAKER than the cross-GRAIN independence of a model-vs-patient "
+                "replication: a shared cell-line grain means shared culture / lineage / panel-composition "
+                "confounds are NOT broken by this corroboration. So two agreeing modalities corroborate that "
+                "own-omics predicts dependency ACROSS assay platforms (not one measurement artefact), but do "
+                "NOT establish patient-context generalisation. GRAIN is first-class (both cell_line_model); a "
+                "same-MODALITY restatement (re-reading the mRNA card) is NEVER counted as a second arm — the "
+                "two arms are two DISTINCT (card, field) modalities. VOCABULARY CAVEAT: the two rosters differ; "
+                "protein insufficient_paired_models (underpowered) routes to NO rung (DROP), never a false "
+                "disagreement, and a discordant / buffered protein modality never fabricates a false agree."
+            ),
+        },
+        "_disclaimer": (
+            "L2b SAME-GRAIN CROSS-MODALITY integration claim (deterministic, no LLM) — verdict-INERT "
+            "provenance: never a signal tier, never averaged into a claim, never feeds the cis_coherence_verdict."
+        ),
+    }
+
+
 def cis_coherence_claim_vector(headline: dict, cards: list) -> dict:
     vec = build_claim_vector(CIS_COHERENCE_CLAIM_SPEC, headline, cards, _DISCLAIMER)
     # L2b CROSS-GRAIN integration claim (SK#1781, epic #1779 / parent #1507): cell-line × patient
@@ -1101,6 +1469,15 @@ def cis_coherence_claim_vector(headline: dict, cards: list) -> dict:
     _ms = _methylation_silencing_concordance_claim(_by_id)
     if _ms is not None:
         vec["methylation_silencing_concordance"] = _ms
+    # L2b SAME-GRAIN CROSS-MODALITY integration claim (SK#1784, epic #1779 A4 / parent #1507): bulk-RNA ×
+    # MS-protein own-omics→dependency-coupling concordance. Same verdict-INERT/byte-stable/key-omitted
+    # contract as the other two concordance claims; OMITTED unless at least one modality resolves (the FULL
+    # read requires BOTH). Independence is by ASSAY MODALITY only (both share the cell-line grain), and each
+    # modality token is routed through an EXPLICIT class→arm mapping (DROP states leave the frame). Does NOT
+    # touch the EXPR_DEP leg (plain single-source `_plain_corr`, its 5-key output byte-stability-pinned).
+    _ed = _expression_dependency_concordance_claim(_by_id)
+    if _ed is not None:
+        vec["expression_dependency_concordance"] = _ed
     return vec
 
 

@@ -1554,6 +1554,20 @@ _DECLARED_CIS_CORROBORATION_BUILDERS = {
         "insufficient_methylation_data route to NO rung — they DROP, never fabricating a disagreeing arm); "
         "commensurate by same-construct/same-granularity/independent-grain, see _SILENCING_COMMENSURATE_ARM_PAIRS"
     ),
+    "_expression_dependency_concordance_claim": (
+        "cell-line `correlation_class` (expression-dependency-correlation, bulk-RNA) × cell-line "
+        "`abundance_dependency_class` (abundance-dependency, DepMap-Gygi MS-protein) — the SAME own-omics→"
+        "dependency-coupling property (does the target's own expression/abundance predict its DepMap Chronos "
+        "dependency?) measured by two independent ASSAY MODALITIES of the SAME cell-line sample-context grain "
+        "(SK#1784, epic #1779 A4). Independence is by ASSAY MODALITY ONLY (bulk-RNA vs MS-protein) — WEAKER "
+        "than cis-dosage's cross-GRAIN independence: BOTH arms share the cell_line_model grain, so grain is "
+        "first-class and identical while dependence_group is the modality. A same-MODALITY restatement "
+        "(re-reading the mRNA card) is NEVER a second arm; the two silencing/expression vocabularies DIFFER, "
+        "so each token is routed through an EXPLICIT per-modality class→arm mapping (protein "
+        "insufficient_paired_models / data_unavailable route to NO rung — they DROP, never fabricating a "
+        "disagreeing arm). Neither a subset/superset nor derived from the other; commensurate by same-"
+        "construct/same-granularity/independent-MODALITY, see _EXPRDEP_COMMENSURATE_ARM_PAIRS / _EXPRDEP_ARM_STRUCTURE"
+    ),
 }
 
 # The (card_id, field) arms the fold reads. Three DISTINCT cis-coherence cards across two grains (cell-line
@@ -1843,6 +1857,159 @@ def test_detector_bites_a_silencing_arm_repointed_to_the_other_grain_card():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# TENTH FAMILY — the CIS-COHERENCE (expression/abundance→dependency SAME-GRAIN CROSS-MODALITY) builder in
+# cis_coherence_claims.py (SK#1784)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# `_expression_dependency_concordance_claim` (L2b #1784, epic #1779 A4) folds
+# `corroboration_from_arms([rna_arm, protein_arm])`, where each arm is the resolved own-omics→dependency
+# direction of the SAME expression/abundance→dependency-coupling property measured by a DIFFERENT ASSAY
+# MODALITY of the SAME cell-line sample-context grain:
+#   * mRNA modality    — expression-dependency-correlation.correlation_class    (DepMap bulk-RNA vs Chronos)
+#   * protein modality — abundance-dependency.abundance_dependency_class        (DepMap-Gygi MS vs Chronos)
+#
+# AUDIT VERDICT (SK#1784): COMMENSURATE by design, WITH an explicit vocabulary-mapping precondition AND a
+# MODALITY-only (not grain) independence axis — the crux distinguishing this family from #1781/#1782.
+#   * SAME CONSTRUCT: both resolve whether the target's own-omics abundance predicts its DepMap dependency.
+#   * SAME GRANULARITY, SAME GRAIN, DIFFERENT MODALITY (★★ the #1784 crux). BOTH arms are cell-line-panel
+#     correlations against the SAME Chronos readout → they SHARE the cell_line_model grain (grain is
+#     first-class and IDENTICAL). Independence is by ASSAY MODALITY ONLY (bulk-RNA vs MS-protein), recorded
+#     as the per-arm dependence_group — WEAKER than #1781's cross-grain independence (shared culture/lineage/
+#     panel confounds are NOT broken). corroborating_independent_arm_count counts INDEPENDENT MODALITIES (2
+#     when both resolve); a same-MODALITY restatement never inflates it.
+#   * ★★ NON-IDENTICAL VOCABULARIES → EXPLICIT CLASS→ARM MAPPING. Each modality enumerates EVERY token to
+#     predictive / not_predictive / DROP. The protein `insufficient_paired_models` (underpowered) +
+#     `data_unavailable` route to NO rung — they DROP (None arm), never fabricating a disagreeing arm (which
+#     would falsely drive corroboration to `low`). This mapping soundness is pinned at the CLAIM level in
+#     test_cis_coherence_claims.py; here we pin the ARM-COMMENSURABILITY (two distinct MODALITY cards).
+#   * INDEPENDENT (by modality): distinct assay platforms; neither a subset/superset nor derived.
+#   * MEASURED (no vote flip): two agreeing modalities → high; a discordance → low; one measured modality →
+#     single_arm. Carries NO `signal` key, reads no verdict, feeds no rule (VERDICT-INERT, key omitted/byte-
+#     stable). Declaration moves no decision.json — a pure detector extension.
+# The invariant this block pins: `_expression_dependency_concordance_claim` folds EXACTLY the two declared
+# cross-MODALITY card/field arms (two DISTINCT cards — bulk-RNA vs MS-protein). Re-pointing the protein arm
+# to read the mRNA card (collapsing the two independent MODALITIES into one card — the #1667 same-source
+# double-count shape) reds the assertion; the mutation test drives that red.
+
+# The (card_id, field) arms the expression/abundance→dependency fold reads. Two DISTINCT cards, one per
+# assay MODALITY, both at the SAME cell_line_model grain — the set is what makes the two arms commensurate-
+# yet-independent-by-modality. A re-pointed arm (reading the OTHER modality's card) collapses this set and
+# fails the assertion below.
+_EXPRDEP_COMMENSURATE_ARM_PAIRS = frozenset(
+    {
+        ("expression-dependency-correlation", "correlation_class"),  # cell-line grain, bulk-RNA modality
+        ("abundance-dependency", "abundance_dependency_class"),  # cell-line grain, MS-protein modality
+    }
+)
+
+# SK#1784 — the independence STRUCTURE of the two arms: each (card, field) carries a sample-context GRAIN
+# and an assay MODALITY. BOTH arms SHARE the cell_line_model grain but differ in MODALITY (bulk-RNA vs
+# MS-protein) → TWO independent-by-MODALITY dependence_groups on ONE grain. This is what makes the
+# independence axis MODALITY (not grain), and what stops a same-modality restatement counting twice.
+_EXPRDEP_ARM_STRUCTURE = {
+    ("expression-dependency-correlation", "correlation_class"): {
+        "grain": "cell_line_model",
+        "modality": "bulk_rna",
+        "dependence_group": "cell_line_rna",
+    },
+    ("abundance-dependency", "abundance_dependency_class"): {
+        "grain": "cell_line_model",
+        "modality": "ms_protein",
+        "dependence_group": "cell_line_protein",
+    },
+}
+
+
+def assert_exprdep_arms_are_commensurate(tree: ast.Module) -> None:
+    """Raise AssertionError unless `_expression_dependency_concordance_claim` folds EXACTLY the declared two
+    expression/abundance→dependency card/field arms — no incommensurate card pulled in, none dropped, two
+    DISTINCT MODALITY cards. (Raw correlation metrics are read off a LOCAL card binding, not the inline
+    `(c.get(...) or {}).get(...)` idiom, so they are correctly NOT counted as arms.)"""
+    funcs = _functions(tree)
+    assert "_expression_dependency_concordance_claim" in funcs, (
+        "_expression_dependency_concordance_claim vanished from cis_coherence_claims.py"
+    )
+    pairs = _card_field_get_pairs(funcs["_expression_dependency_concordance_claim"])
+    declared = set(_EXPRDEP_COMMENSURATE_ARM_PAIRS)
+    assert pairs == declared, (
+        f"_expression_dependency_concordance_claim folds card/field arms {sorted(pairs)} — expected EXACTLY "
+        f"the two commensurate cross-modality arms {sorted(declared)}. An arm reading a DIFFERENT card mixes "
+        f"an incommensurate construct into the fold, and an arm reading the OTHER modality's card collapses "
+        f"the two independent MODALITIES into one (a same-source double-count, the #1667 shape). "
+        f"undeclared = {sorted(pairs - declared)}; gone = {sorted(declared - pairs)}."
+    )
+
+
+# ── the expression-dependency-family tests ──────────────────────────────────────────────────────────
+def test_exprdep_oracle_is_two_distinct_modality_cards_one_grain():
+    """The declared table encodes the commensurability + independence rule (SK#1784): the TWO arms read two
+    DISTINCT cards — one bulk-RNA, one MS-protein — BOTH at the SAME cell_line_model grain. Guards the
+    oracle against (a) a typo collapsing an arm onto the other card, and (b) the modality independence being
+    mistaken for a second independent GRAIN."""
+    cards = {card for (card, _f) in _EXPRDEP_COMMENSURATE_ARM_PAIRS}
+    assert cards == {
+        "expression-dependency-correlation",
+        "abundance-dependency",
+    }, (
+        f"the two exprdep arms must read the bulk-RNA correlation card and the MS-protein abundance card "
+        f"(two DISTINCT modalities), not one card twice (a same-modality double-count); got {sorted(cards)}"
+    )
+    # the arm-STRUCTURE table must cover exactly the declared arms, one grain+modality+group per arm.
+    assert set(_EXPRDEP_ARM_STRUCTURE) == set(_EXPRDEP_COMMENSURATE_ARM_PAIRS), (
+        "the arm-structure table must declare grain/modality/dependence_group for EXACTLY the folded arms"
+    )
+    grains = {v["grain"] for v in _EXPRDEP_ARM_STRUCTURE.values()}
+    modalities = {v["modality"] for v in _EXPRDEP_ARM_STRUCTURE.values()}
+    groups = {v["dependence_group"] for v in _EXPRDEP_ARM_STRUCTURE.values()}
+    # ★★ the crux: ONE shared grain, TWO distinct modalities, TWO distinct dependence groups.
+    assert grains == {"cell_line_model"}, (
+        f"both exprdep arms must SHARE the cell_line_model grain (independence is by modality, not grain); "
+        f"got grains {sorted(grains)}"
+    )
+    assert len(modalities) == 2 and len(groups) == 2, (
+        f"the two arms must be two DISTINCT assay modalities / dependence groups on the one grain; got "
+        f"modalities {sorted(modalities)}, groups {sorted(groups)}"
+    )
+
+
+def test_exprdep_folds_the_commensurate_cross_modality_arms():
+    """GREEN on today's cis_coherence_claims.py: `_expression_dependency_concordance_claim` folds exactly
+    the two commensurate cross-modality arms. Also anti-vacuity — the declared arm set is non-empty."""
+    assert _EXPRDEP_COMMENSURATE_ARM_PAIRS, "the declared exprdep arm set is empty — the test pins nothing"
+    assert_exprdep_arms_are_commensurate(_cis_tree())
+
+
+# The mutation the exprdep detector exists to catch: the PROTEIN arm re-pointed to read the mRNA
+# (expression-dependency-correlation) card — collapsing the two independent MODALITIES into one card (a
+# same-modality double-count, #1667 shape; exactly the "same-modality restatement" the brief forbids).
+def _mutant_exprdep_repoints_protein_arm_to_rna_card(source: str) -> str:
+    mutated = source.replace(
+        '(c.get("abundance-dependency") or {}).get("abundance_dependency_class")',
+        '(c.get("expression-dependency-correlation") or {}).get("abundance_dependency_class")',
+    )
+    assert mutated != source, (
+        "mutation was a no-op — the protein exprdep arm inline card read is no longer present to re-point"
+    )
+    return mutated
+
+
+def test_detector_bites_an_exprdep_arm_repointed_to_the_other_modality_card():
+    """MUTATION TEST for the expression-dependency family — the corpus alone has no teeth here, so prove the
+    detector bites. With the protein arm re-pointed to the mRNA card, the folded card set collapses to a
+    single card (the two independent MODALITIES become one — a same-modality double-count, the very "same-
+    modality restatement counted as a second arm" the #1784 brief forbids) and
+    `assert_exprdep_arms_are_commensurate` FAILS. Confirms both the RED (on the mutant) and — via
+    `test_exprdep_folds_the_commensurate_cross_modality_arms` — the GREEN on real source."""
+    mutant = _parse(_mutant_exprdep_repoints_protein_arm_to_rna_card(_CIS_COHERENCE_CLAIMS.read_text()))
+    # sanity: the mutant genuinely collapses the two modality arms onto one card
+    pairs = _card_field_get_pairs(_functions(mutant)["_expression_dependency_concordance_claim"])
+    cards = {card for (card, _f) in pairs}
+    assert cards == {"expression-dependency-correlation"}, "the mutation did not collapse the arms as intended"
+    # …and the detector rejects it
+    with pytest.raises(AssertionError, match="_expression_dependency_concordance_claim"):
+        assert_exprdep_arms_are_commensurate(mutant)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
 # FLEET-COMPLETENESS META-GUARD — every multi-arm fold-builder in _skills_common must belong to a
 # declared commensurability family (SK#1704, tracking #1703, epic #1507)
 # ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -1913,12 +2080,17 @@ _COVERED_FAMILY_FILES = {
         "independent consortia, no inflating sentinel, no double-count); #1703 row: combination [x]"
     ),
     "cis_coherence_claims.py": (
-        "cis-coherence — detector SK#1781/#1782 (_DECLARED_CIS_CORROBORATION_BUILDERS covers BOTH cis "
+        "cis-coherence — detector SK#1781/#1782/#1784 (_DECLARED_CIS_CORROBORATION_BUILDERS covers THREE cis "
         "families: cis-dosage (_CIS_COMMENSURATE_ARM_PAIRS: cell-line `cis_dosage_class` × patient "
         "`patient_cis_dosage_class`) and methylation-silencing (_SILENCING_COMMENSURATE_ARM_PAIRS: cell-line "
         "`methylation_silencing_class` × patient `patient_methylation_silencing_class`, with an explicit "
         "per-grain class→arm mapping since the two silencing vocabularies differ) — each the SAME cis-domain "
-        "construct at two DISTINCT sample-context grains, grain first-class, independent; epic #1779)"
+        "construct at two DISTINCT sample-context grains, grain first-class, independent; PLUS expression/"
+        "abundance→dependency (_EXPRDEP_COMMENSURATE_ARM_PAIRS: bulk-RNA `correlation_class` × MS-protein "
+        "`abundance_dependency_class`) — the SAME expression/abundance→DepMap-dependency-coupling construct at "
+        "the SAME cell_line_model grain but two DISTINCT assay MODALITIES, so independence is MODALITY-only "
+        "(weaker than cross-grain; shared panel confounds NOT broken), with an explicit per-modality class→arm "
+        "mapping since the two modality vocabularies differ; epic #1779)"
     ),
 }
 

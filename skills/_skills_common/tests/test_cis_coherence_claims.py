@@ -15,6 +15,8 @@ if str(SKILLS) not in sys.path:
 from _skills_common.cis_coherence_claims import (  # noqa: E402
     _CELLLINE_SILENCING_ARM,
     _PATIENT_SILENCING_ARM,
+    _PROTEIN_EXPRDEP_ARM,
+    _RNA_EXPRDEP_ARM,
     cis_coherence_claim_vector,
 )
 
@@ -411,5 +413,171 @@ def test_silencing_concordance_vocab_is_fully_mapped():
     assert set(_CELLLINE_SILENCING_ARM.values()) | set(_PATIENT_SILENCING_ARM.values()) <= {
         "silenced",
         "not_silenced",
+        "drop",
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+# THIRD envelope-v0 concordance family for cis_coherence (SK#1784, epic #1779 A4): expression/abundance→
+# dependency concordance. Folds the SAME own-omics→DepMap-Chronos-dependency-coupling property measured by
+# two independent ASSAY MODALITIES of the SAME cell-line grain — bulk-RNA (expression-dependency-correlation.
+# correlation_class) × MS-protein (abundance-dependency.abundance_dependency_class). Independence is
+# MODALITY-only (both share the cell_line_model grain); a same-modality restatement never counts twice.
+# ═══════════════════════════════════════════════════════════════════════════════════════════════════
+def _rna_dep_card(correlation_class="strong_negative"):
+    return {
+        "card_id": "expression-dependency-correlation",
+        "summary": {
+            "correlation_class": correlation_class,
+            "pearson_r": -0.61,
+            "pearson_p": 1e-8,
+            "spearman_r": -0.58,
+            "spearman_p": 3e-8,
+            "n_cell_lines_evaluated": 42,
+            "delta_chronos_top_vs_bottom_quartile": -0.47,
+        },
+    }
+
+
+def _protein_dep_card(abundance_dependency_class="protein_predicts_dependency"):
+    return {
+        "card_id": "abundance-dependency",
+        "summary": {
+            "abundance_dependency_class": abundance_dependency_class,
+            "protein_dependency_pearson_r": -0.55,
+            "protein_dependency_pearson_p": 4e-6,
+            "protein_dependency_spearman_r": -0.52,
+            "n_paired_models": 33,
+            "n_dependent_models": 12,
+        },
+    }
+
+
+def _exprdep_cards(rna="strong_negative", prot="protein_predicts_dependency"):
+    """A minimal card list with ONLY the two expression/abundance→dependency modality cards (the dosage/
+    silencing legs are irrelevant to this concordance claim). Either modality card may be omitted (None)."""
+    cards = []
+    if rna is not None:
+        cards.append(_rna_dep_card(rna))
+    if prot is not None:
+        cards.append(_protein_dep_card(prot))
+    return cards
+
+
+def test_expression_dependency_concordance_cross_modality_claim():
+    # THIRD envelope-v0 concordance claim for the cis_coherence domain — SAME-GRAIN CROSS-MODALITY.
+    # Both modalities predictive → high corroboration, concordant_coupled.
+    both = cis_coherence_claim_vector({}, _exprdep_cards())
+    ed = both["expression_dependency_concordance"]
+    assert ed["property_id"] == "expression_abundance_dependency_coupling"
+    assert ed["integration_method"] == "explicit_deterministic"
+    # ★★ #1784 crux: SAME grain, cross-MODALITY (NOT cross-grain).
+    assert ed["grain"] == "same_cell_line_grain_cross_modality"
+    assert ed["concordance_class"] == "expression_dependency_concordant_coupled"
+    assert ed["corroboration"] == "high"
+    assert ed["corroborating_independent_arm_count"] == 2 and ed["resolved_source_count"] == 2
+    assert "signal" not in ed  # verdict-INERT: never a tier/chip
+    # BOTH arms share the cell-line grain; independence is by assay MODALITY (dependence_group).
+    _rna = next(s for s in ed["source_support"] if s["source"] == "cell_line_rna")
+    _prot = next(s for s in ed["source_support"] if s["source"] == "cell_line_protein")
+    assert _rna["grain"] == "cell_line_model" and _prot["grain"] == "cell_line_model"
+    assert _rna["dependence_group"] != _prot["dependence_group"]
+    # raw correlation metrics DEMOTED not dropped (fidelity/recoverability)
+    assert _rna["retained_quantitative"]["pearson_r"] == -0.61
+    assert _prot["retained_quantitative"]["protein_dependency_pearson_r"] == -0.55
+
+    # both modalities a MEASURED not-predictive floor → high, concordant_uncoupled.
+    unc = cis_coherence_claim_vector({}, _exprdep_cards(rna="no_correlation", prot="no_protein_dependency_link"))
+    assert unc["expression_dependency_concordance"]["concordance_class"] == "expression_dependency_concordant_uncoupled"
+    assert unc["expression_dependency_concordance"]["corroboration"] == "high"
+
+    # modalities DISAGREE (RNA predictive, protein a measured not-predictive floor) → low, modality_discordant.
+    disc = cis_coherence_claim_vector({}, _exprdep_cards(prot="no_protein_dependency_link"))
+    assert disc["expression_dependency_concordance"]["concordance_class"] == "expression_dependency_modality_discordant"
+    assert disc["expression_dependency_concordance"]["corroboration"] == "low"
+
+    # only the mRNA modality resolves (no protein card) → single_modality_only, single_arm.
+    lone = cis_coherence_claim_vector({}, _exprdep_cards(prot=None))
+    assert (
+        lone["expression_dependency_concordance"]["concordance_class"] == "expression_dependency_single_modality_only"
+    )
+    assert lone["expression_dependency_concordance"]["corroboration"] == "single_arm"
+
+
+def test_expression_dependency_positive_anomaly_is_a_measured_refutation_not_a_drop():
+    # `positive_anomaly` (measured WRONG direction) is a MEASURED not-predictive arm — with the protein arm
+    # predictive, the two modalities DISAGREE (low / modality_discordant), NOT a drop-to-single-arm.
+    vec = cis_coherence_claim_vector({}, _exprdep_cards(rna="positive_anomaly", prot="protein_predicts_dependency"))
+    ed = vec["expression_dependency_concordance"]
+    assert ed["concordance_class"] == "expression_dependency_modality_discordant"
+    assert ed["corroboration"] == "low"
+    assert ed["concordance_support"]["not_predictive_in"] == "cell_line_rna"
+
+
+def test_expression_dependency_concordance_key_omitted_when_neither_modality_resolves():
+    # mRNA unavailable (→ drop) and NO protein card → BOTH arms gone → key omitted (byte-stable).
+    vec = cis_coherence_claim_vector({}, _exprdep_cards(rna="data_unavailable", prot=None))
+    assert "expression_dependency_concordance" not in vec
+    # a protein modality that ALSO does not resolve (underpowered) keeps the key omitted.
+    vec2 = cis_coherence_claim_vector({}, _exprdep_cards(rna="data_unavailable", prot="insufficient_paired_models"))
+    assert "expression_dependency_concordance" not in vec2
+
+
+def test_protein_insufficient_paired_models_drops_it_does_not_disagree():
+    # ★★ THE CORRECTNESS CRUX (mirrors the silencing DROP crux). `insufficient_paired_models` (underpowered
+    # protein cohort) is MEASURED-but-uninterpretable — it must route to NO rung (DROP), NEVER fabricate a
+    # disagreeing arm. With the mRNA arm PREDICTIVE, a wrong `disagree` mapping would drive corroboration to
+    # `low` / modality_discordant; the CORRECT DROP leaves only the mRNA arm → single_modality_only / single_arm.
+    vec = cis_coherence_claim_vector({}, _exprdep_cards(rna="strong_negative", prot="insufficient_paired_models"))
+    ed = vec["expression_dependency_concordance"]
+    assert ed["concordance_class"] == "expression_dependency_single_modality_only", (
+        "insufficient_paired_models must DROP (no rung), not be read as a disagreeing arm"
+    )
+    assert ed["corroboration"] == "single_arm"
+    assert ed["concordance_support"]["resolved_by"] == "cell_line_rna"
+
+
+def test_expression_dependency_discordant_protein_never_a_false_agree():
+    # A buffered/discordant protein modality (no link) with a predictive mRNA arm must be reported as a
+    # DISAGREEMENT (informative — which biomarker assay to prefer), never collapsed into a false agree.
+    vec = cis_coherence_claim_vector({}, _exprdep_cards(rna="strong_negative", prot="no_protein_dependency_link"))
+    ed = vec["expression_dependency_concordance"]
+    assert ed["concordance_class"] == "expression_dependency_modality_discordant"
+    assert ed["concordance_support"]["predictive_in"] == "cell_line_rna"
+    assert ed["concordance_support"]["not_predictive_in"] == "cell_line_protein"
+    assert ed["qualifying_signal"]["source"] == "cell_line_protein"
+
+
+def test_expression_dependency_concordance_vocab_is_fully_mapped():
+    # FAIL-LOUD completeness pin: EVERY declared vocabulary member of each modality is explicitly routed in
+    # the class→arm mapping (no token left to an implicit fall-through). A card that grows/renames a token
+    # without a matching mapping entry reds here. `data_unavailable` (a TRUTHY sentinel) is mapped explicitly
+    # on both modalities, never handled via falsiness.
+    expected_rna = {
+        "strong_negative",
+        "moderate_negative",
+        "weak_negative",
+        "no_correlation",
+        "positive_anomaly",
+        "data_unavailable",
+    }
+    assert set(_RNA_EXPRDEP_ARM) == expected_rna, (
+        "mRNA correlation_class vocabulary drifted from the explicit arm mapping — every token must be mapped "
+        "to predictive/not_predictive/drop (see expression-dependency-correlation card)"
+    )
+    expected_protein = {
+        "protein_predicts_dependency",
+        "weak_protein_dependency_link",
+        "no_protein_dependency_link",
+        "insufficient_paired_models",
+        "data_unavailable",
+    }
+    assert set(_PROTEIN_EXPRDEP_ARM) == expected_protein, (
+        "protein abundance_dependency_class vocabulary drifted from the explicit arm mapping"
+    )
+    # every value is one of the three defined arm outcomes (no stray/typo outcome)
+    assert set(_RNA_EXPRDEP_ARM.values()) | set(_PROTEIN_EXPRDEP_ARM.values()) <= {
+        "predictive",
+        "not_predictive",
         "drop",
     }
