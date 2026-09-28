@@ -1,95 +1,231 @@
 {
   "cells": {
     "L1": {
-      "built": null,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "cards_covered": [
+              "cellline-rna-distribution",
+              "tumor-scrna-celltype-expression"
+            ],
+            "cards_not_yet_covered": [
+              "tumor-rna-vs-adjacent",
+              "tumor-rna-distribution",
+              "tumor-protein-abundance-cptac",
+              "cellline-protein-abundance",
+              "tumor-elevation-breadth"
+            ],
+            "method": "Independent raw-substrate re-derivation, reusing analysis-methods' T3 recomputation anchors (plan foamy-bird Stage I) one step further than analysis-methods' own tests: asserts the re-derived number ALSO equals the tumor-presence golden's card summary for the same target/indication, so two repos' independent captures must agree at full float64 precision.",
+            "raw_substrate": {
+              "cellline-rna-distribution": "analysis-methods anchor epcam_26q1.cellline_rna_distribution.json + expression_vectors/epcam_26q1.cellline_rna_distribution.parquet (2446-model raw log2(TPM+1) panel + resolved lineage)",
+              "tumor-scrna-celltype-expression": "analysis-methods anchor epcam_coadread.sc_celltype.json + sc_compartment_rows/sc_pseudobulk__compartment_rows.parquet (raw per-(dataset,donor,compartment) pseudobulk rows)"
+            },
+            "reconciliation": "fraction_expressed, fraction_highly_expressed, expression_class (cellline-rna-distribution) and sc_expression_class, malignant_detection_fraction, malignant_abundance_log1p_cp10k, malignant_n_donors, malignant_n_cells, top_microenvironment_compartment (tumor-scrna-celltype-expression) all match at full precision between the independent recompute and tests/fixtures/epcam_coadread_decision.json",
+            "status_as_of": "2026-09-28",
+            "teeth": "test_cellline_rna_distribution_teeth_mutated_input_breaks_the_golden_match and test_sc_celltype_teeth_dropping_malignant_rows_breaks_the_golden_match mutate the raw input and assert the match breaks \u2014 proving the reconciliation is a live function of substrate, not a self-echo",
+            "test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation.py"
+          },
+          "status": "GREEN"
         },
         "fail_open": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "method": "the shared open-world invariant (`_skills_common.claim_record`, 'ignorance != negation'): a data_unavailable/unreachable bucket forces state=unknown, direction=neutral, magnitude.level=none \u2014 never a manufactured directional finding.",
+            "status_as_of": "2026-09-28",
+            "tests": [
+              "skills/tumor-presence/tests/test_claim_record_shadow.py::test_data_unavailable_open_world (ordinary path, pre-existing)",
+              "skills/tumor-presence/tests/test_scorecard_l1_fail_open_probe.py::test_data_unavailable_degrades_conservatively_ordinary_path (ordinary path, re-asserted locally for this shard)",
+              "skills/tumor-presence/tests/test_scorecard_l1_fail_open_probe.py::test_teeth_defeating_the_open_world_guard_lets_the_raw_token_leak (TEETH \u2014 monkeypatches claim_record.OPEN_WORLD_AVAILABILITY to frozenset() and shows finding.state leaks the raw 'data_unavailable' token instead of 'unknown'; probe goes RED without the guard, GREEN with it)"
+            ]
+          },
+          "status": "GREEN"
         },
         "panel_consistency": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "capture_method": "scorecard_adapter.py::_load_package -> skills/tumor-presence/scripts/run.py --target <T> --indication <I> (direct, no --full-package fan-out; eval/run_scorecard_panel.py --emit timed out at 900s for EPCAM/HTR1D in this environment)",
+            "checks": {
+              "all_pass": true,
+              "all_roster_rows_present": true,
+              "cellline_class_not_constant": true,
+              "sc_class_not_constant": true,
+              "thin_coverage_control_degrades": true
+            },
+            "method": "per-target rows across the whole 5-target roster (not one flagship), COMPUTED live by collect_panel_rows() (see module docstring) rather than hand-typed: tumor-presence's verdict-bearing card classes must differ meaningfully across archetypes (flagship surface, flagship intrinsic driver, amplified surface, pan-essential control, thin-coverage abstention control) rather than collapsing to one constant reading, and the thin-coverage control must show the honest degraded/limited reads its archetype predicts.",
+            "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
+            "rows": [
+              {
+                "cellline_rna_expression_class": "broadly_moderate",
+                "indication": "COADREAD",
+                "sc_expression_class": "malignant_broadly_detected",
+                "source": "skills/tumor-presence/scripts/.panel_cache/EPCAM__coadread/decision.json",
+                "status": "OK",
+                "target": "EPCAM"
+              },
+              {
+                "cellline_rna_expression_class": "broadly_moderate",
+                "indication": "COADREAD",
+                "sc_expression_class": "malignant_subset_detected",
+                "source": "skills/tumor-presence/scripts/.panel_cache/KRAS__coadread/decision.json",
+                "status": "OK",
+                "target": "KRAS"
+              },
+              {
+                "cellline_rna_expression_class": "broadly_high",
+                "indication": "BRCA",
+                "sc_expression_class": "malignant_subset_detected",
+                "source": "skills/tumor-presence/scripts/.panel_cache/ERBB2__brca/decision.json",
+                "status": "OK",
+                "target": "ERBB2"
+              },
+              {
+                "cellline_rna_expression_class": "broadly_high",
+                "indication": "COADREAD",
+                "sc_expression_class": "malignant_subset_detected",
+                "source": "skills/tumor-presence/scripts/.panel_cache/PLK1__coadread/decision.json",
+                "status": "OK",
+                "target": "PLK1"
+              },
+              {
+                "cellline_rna_expression_class": "lineage_restricted",
+                "indication": "COADREAD",
+                "sc_expression_class": "broadly_low",
+                "source": "skills/tumor-presence/scripts/.panel_cache/HTR1D__coadread/decision.json",
+                "status": "OK",
+                "target": "HTR1D"
+              }
+            ],
+            "status_as_of": "2026-09-28"
+          },
+          "status": "GREEN"
         },
         "utilization": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "coverage": "all 17 cards ledgered; ledger's own card set == run.py CARDS (test-enforced equality)",
+            "method": "field_disposition.yaml ledger: every emitted summary_field of all 17 cards carries an explicit disposition (signal|context|provenance|display); the REACH tier further requires every role:signal field be reached by a declared reader or carry a waived_because.",
+            "status_as_of": "2026-09-28",
+            "tests": [
+              "skills/tumor-presence/tests/test_field_disposition_complete.py::test_ledger_wellformed (always runs)",
+              "skills/tumor-presence/tests/test_field_disposition_complete.py::test_ledger_matches_emitted (ratchet vs run.py CARDS' emitted summary_fields)",
+              "skills/tumor-presence/tests/test_field_disposition_complete.py::test_the_reach_measurement_is_not_vacuous (>= 60 role:signal rows measured)",
+              "skills/tumor-presence/tests/test_field_disposition_complete.py::test_signal_fields_are_reader_reached_or_waived (zero un-reached, un-waived signal fields)"
+            ]
+          },
+          "status": "GREEN"
         }
       },
-      "notes": null
+      "notes": "L1 = the 17 cards (OBSERVATIONAL_PROPERTY). accuracy measured for 2/7 verdict-bearing cards with a landed analysis-methods T3 anchor for EPCAM (cellline-rna-distribution, tumor-scrna-celltype-expression); the other 5 verdict-bearing + 8 display-only + 2 safety-comparator cards have no anchor yet (see accuracy evidence cards_not_yet_covered)."
     },
     "L2a": {
-      "built": null,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
+          "evidence": {
+            "reason": "deterministic re-projection/aggregation over L1's already-validated card summaries; no new arithmetic over raw substrate is performed at this layer, so an independent raw-substrate re-derivation here would duplicate L1's own accuracy check under a different name rather than add information. Left NULL per directive rather than fabricating a reading this layer's own logic cannot support; L1's accuracy evidence is the substrate-level proof this layer builds on."
+          },
           "status": "NULL"
         },
         "fail_open": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "method": "no claim vector resolved -> section omitted (byte-stable), never a fabricated empty/zero shape.",
+            "status_as_of": "2026-09-28",
+            "test": "skills/tumor-presence/tests/test_evidence_package_sections.py::test_no_claim_vector_yields_no_sections"
+          },
+          "status": "GREEN"
         },
         "panel_consistency": {
-          "evidence": null,
+          "evidence": {
+            "reason": "the SK#1941 envelope export (source_properties/integrated_properties/l3d) has only been exercised live for EPCAM/COADREAD (the committed golden `tests/fixtures/epcam_coadread_decision.json` via --emit-envelope) \u2014 extending the --emit-envelope run across the 5-target roster is future work, not yet measured. Left NULL rather than inferring panel behavior from a single target."
+          },
           "status": "NULL"
         },
         "utilization": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "method": "SK#1941 EXPORTED source_properties section reconstructs downward to L1 card_ids.",
+            "status_as_of": "2026-09-28",
+            "test": "skills/tumor-presence/tests/test_evidence_package_sections.py::test_sections_are_named_and_reconstruct_downward_to_l1"
+          },
+          "status": "GREEN"
         }
       },
-      "notes": null
+      "notes": "L2a = source_properties (SK#1941 EXPORTED section, --emit-envelope)."
     },
     "L2b": {
-      "built": null,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
+          "evidence": {
+            "reason": "deterministic re-projection/aggregation over L1's already-validated card summaries; no new arithmetic over raw substrate is performed at this layer, so an independent raw-substrate re-derivation here would duplicate L1's own accuracy check under a different name rather than add information. Left NULL per directive rather than fabricating a reading this layer's own logic cannot support; L1's accuracy evidence is the substrate-level proof this layer builds on."
+          },
           "status": "NULL"
         },
         "fail_open": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "method": "never-lift discipline: a stratum/arm with fewer than 2 measured arms yields None (nothing to reconcile), not a fabricated agree/disagree call; the section itself is omitted when no claim vector resolves.",
+            "status_as_of": "2026-09-28",
+            "tests": [
+              "skills/tumor-presence/tests/test_subtype_layer_concordance.py (single-arm strata resolve to None, not a fabricated concordance call)",
+              "skills/tumor-presence/tests/test_evidence_package_sections.py::test_no_claim_vector_yields_no_sections"
+            ]
+          },
+          "status": "GREEN"
         },
         "panel_consistency": {
-          "evidence": null,
+          "evidence": {
+            "reason": "the SK#1941 envelope export (source_properties/integrated_properties/l3d) has only been exercised live for EPCAM/COADREAD (the committed golden `tests/fixtures/epcam_coadread_decision.json` via --emit-envelope) \u2014 extending the --emit-envelope run across the 5-target roster is future work, not yet measured. Left NULL rather than inferring panel behavior from a single target."
+          },
           "status": "NULL"
         },
         "utilization": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "method": "SK#1941 EXPORTED integrated_properties section; each island's provenance.sources[*] reconstructs to L1 card_ids.",
+            "status_as_of": "2026-09-28",
+            "test": "skills/tumor-presence/tests/test_evidence_package_sections.py::test_sections_are_named_and_reconstruct_downward_to_l1"
+          },
+          "status": "GREEN"
         }
       },
-      "notes": null
+      "notes": "L2b = integrated_properties (SK#1941 EXPORTED section): the coverage/abundance/subtype_restriction concordance islands (#1517/#1578, #1589/#1594, #1830/#1840)."
     },
     "L3": {
-      "built": null,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
+          "evidence": {
+            "reason": "deterministic re-projection/aggregation over L1's already-validated card summaries; no new arithmetic over raw substrate is performed at this layer, so an independent raw-substrate re-derivation here would duplicate L1's own accuracy check under a different name rather than add information. Left NULL per directive rather than fabricating a reading this layer's own logic cannot support; L1's accuracy evidence is the substrate-level proof this layer builds on."
+          },
           "status": "NULL"
         },
         "fail_open": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "method": "no L2b island resolves -> the l3d key is OMITTED (byte-stable), never an empty-but-present story.",
+            "status_as_of": "2026-09-28",
+            "test": "skills/tumor-presence/tests/test_l3d_expression_biology_story.py::test_no_island_resolves_omits_the_story_byte_stable"
+          },
+          "status": "GREEN"
         },
         "panel_consistency": {
-          "evidence": null,
+          "evidence": {
+            "reason": "the SK#1941 envelope export (source_properties/integrated_properties/l3d) has only been exercised live for EPCAM/COADREAD (the committed golden `tests/fixtures/epcam_coadread_decision.json` via --emit-envelope) \u2014 extending the --emit-envelope run across the 5-target roster is future work, not yet measured. Left NULL rather than inferring panel behavior from a single target."
+          },
           "status": "NULL"
         },
         "utilization": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "method": "every l3d chapter cites the L2b claim ID it rests on and names the vector it reconstructs from; cross_domain_claims is an always-empty, machine-checked floor (the story never over-claims outside tumor-presence's own scope).",
+            "status_as_of": "2026-09-28",
+            "tests": [
+              "skills/tumor-presence/tests/test_l3d_expression_biology_story.py::test_every_chapter_cites_a_claim_id_present_on_its_named_vector",
+              "skills/tumor-presence/tests/test_l3d_expression_biology_story.py::test_story_makes_no_cross_domain_claim",
+              "skills/tumor-presence/tests/test_evidence_package_sections.py::test_sections_are_named_and_reconstruct_downward_to_l1"
+            ]
+          },
+          "status": "GREEN"
         }
       },
-      "notes": null
+      "notes": "L3 = l3d, the 'tumor-expression biology story' (SK#1940, DOMAIN_INTERPRETATION)."
     },
     "L4": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -108,7 +244,7 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "L4 (SYNTHESIS / decision views) is explicitly OUT OF SCOPE for the tumor-presence reference vertical per epic #1938 ('L4 facet synthesis + decision views (deferred horizontal epic)') \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
     }
   },
   "schema_version": 1,
