@@ -262,3 +262,63 @@ def test_gauge_string_empty_and_no_frame():
         }
     )
     assert "median CRISPR gene-effect (CHRONOS)" in s and "-1.2" in s
+
+
+# ── #1944: predictability class → prose + r² interpretation band ─────────────────────────────────────
+# Display-only gloss for the residual predictability surfaces #1943's headline does not reach.
+# Every enum value the dependency-predictability card declares maps to a phrase; the r² band reuses the
+# producer's own cuts (R2_HIGH_CI_LO=0.35, R2_DEPMAP_HIGH_CONF=0.16) — no new thresholds invented.
+
+
+def test_predictability_class_phrase_covers_every_enum_value():
+    expected = {
+        "own_omics_driven": "own-omics predictable",
+        "context_or_driver_dependent": "context/driver predictable",
+        "weakly_predictable": "weakly predictable",
+        "unpredictable": "not omics-predictable",
+        "data_unavailable": "not computed",
+    }
+    for token, phrase in expected.items():
+        assert dg.predictability_class_phrase(token) == phrase
+    # unknown / empty tokens yield None so the raw token renders unchanged
+    assert dg.predictability_class_phrase("some_future_class") is None
+    assert dg.predictability_class_phrase("") is None
+    assert dg.predictability_class_phrase(None) is None
+
+
+def test_r2_interpretation_matches_producer_cuts_at_boundaries():
+    # cuts mirror precompute cli.py: R2_HIGH_CI_LO=0.35, R2_DEPMAP_HIGH_CONF=0.16
+    assert dg.R2_HIGH_CI_LO == 0.35
+    assert dg.R2_DEPMAP_HIGH_CONF == 0.16
+    # boundaries are inclusive at the cut value
+    assert dg.r2_interpretation(0.35) == "well predicted"
+    assert dg.r2_interpretation(0.62) == "well predicted"
+    assert dg.r2_interpretation(0.3499) == "weak"
+    assert dg.r2_interpretation(0.16) == "weak"
+    assert dg.r2_interpretation(0.1599) == "not predictable"
+    assert dg.r2_interpretation(0.0) == "not predictable"
+    # non-numeric / bool → None
+    assert dg.r2_interpretation(None) is None
+    assert dg.r2_interpretation("0.4") is None
+    assert dg.r2_interpretation(True) is None
+
+
+def test_metric_reading_appends_r2_band_and_keeps_raw_number():
+    s = dg.metric_reading("pearson_r_squared_rf", 0.62, direction="higher_is_stronger")
+    assert "0.62" in s and "well predicted" in s
+    s2 = dg.metric_reading("r2", 0.1, direction="higher_is_stronger")
+    assert "0.1" in s2 and "not predictable" in s2
+
+
+def test_gauge_string_position_uses_class_gloss():
+    s = dg.gauge_string(
+        {
+            "metric": "pearson_r_squared_rf",
+            "value": 0.62,
+            "scale": "r2",
+            "direction": "higher_is_stronger",
+            "position": "own_omics_driven",
+            "frame": {"kind": "distance_to_cut", "anchors": [{"role": "cut", "value": 0.16}]},
+        }
+    )
+    assert s.startswith("own-omics predictable — ")

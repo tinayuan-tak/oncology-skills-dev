@@ -464,6 +464,47 @@ def humanize(s) -> str:
     return re.sub(r"_+", " ", str(s)).strip().capitalize()
 
 
+# ── depmap-predictability class → prose + r² interpretation band ─────────────────────────────────────
+# Display-only gloss for the predictability surfaces that #1943's integrated_signal headline does not
+# reach (residual card-panel / salience-band / metric-reading renders). Recoverability-preserving sugar:
+# callers keep the raw token/number alongside the phrase. Invents NO thresholds — the r² band reuses the
+# producer's OWN cuts, mirrored here from
+# analysis-methods/methods/depmap_predictability_precompute/cli.py:86-87 (whose comment reads "See card
+# YAML for the authoritative copy"), same values as the dependency-predictability card's classifier notes.
+PREDICTABILITY_CLASS_GLOSS: dict = {
+    "own_omics_driven": "own-omics predictable",
+    "context_or_driver_dependent": "context/driver predictable",
+    "weakly_predictable": "weakly predictable",
+    "unpredictable": "not omics-predictable",
+    "data_unavailable": "not computed",
+}
+
+R2_HIGH_CI_LO = 0.35  # mirrors precompute cli.py R2_HIGH_CI_LO — CI lo ≥ → strong-predictor bucket
+R2_DEPMAP_HIGH_CONF = 0.16  # mirrors precompute cli.py R2_DEPMAP_HIGH_CONF — DepMap high-conf floor
+
+# Metric fields whose value is a DepMap-predictability r² that gets an interpretation band appended.
+_R2_INTERPRETED_FIELDS = frozenset({"r2", "pearson_r_squared_rf"})
+
+
+def predictability_class_phrase(token) -> Optional[str]:
+    """Short prose for a `predictability_class` enum value; None for an empty/unknown token."""
+    if not token:
+        return None
+    return PREDICTABILITY_CLASS_GLOSS.get(str(token))
+
+
+def r2_interpretation(value) -> Optional[str]:
+    """Interpretation band for a DepMap-predictability r², using the producer cuts:
+    'well predicted' (≥0.35) / 'weak' (0.16–0.35) / 'not predictable' (<0.16). None if non-numeric."""
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return None
+    if value >= R2_HIGH_CI_LO:
+        return "well predicted"
+    if value >= R2_DEPMAP_HIGH_CONF:
+        return "weak"
+    return "not predictable"
+
+
 def gloss(field) -> tuple:
     """(label, units_hint) for a metric field. METRIC_GLOSS -> affix backstop -> snake->space fallback."""
     if not field:
@@ -514,6 +555,13 @@ def _anchor_label(a: dict) -> str:
     return str(a.get("label") or a.get("role") or "").replace("_", " ")
 
 
+def _position_phrase(pos) -> str:
+    """The banded-position prose for a gauge lead-in. Prefers the predictability_class gloss (so the
+    salience 'band READ VERBATIM' surface reads digestibly) and falls back to the generic
+    snake->sentence humanize for every other frame — identical output for non-predictability bands."""
+    return predictability_class_phrase(pos) or humanize(pos).lower()
+
+
 def gauge_string(gv: dict) -> str:
     """A plain-language, PRE-GAUGED reading of one interpretation ruler (a gauged_value), e.g.
     'median CHRONOS in hotspot-mutant lines -1.73 vs hotspot wildtype -0.59 (Δ-1.14, past the -0.5 cut)'
@@ -560,7 +608,7 @@ def gauge_string(gv: dict) -> str:
         if ps and cut.get("value") is not None:
             seg += f", {ps} the {_fmt_num(cut['value'])} cut"
         pos = gv.get("position")
-        return f"{humanize(pos).lower()} — {seg}" if pos else seg
+        return f"{_position_phrase(pos)} — {seg}" if pos else seg
 
     if kind == "distance_to_cut":
         seg = head
@@ -568,7 +616,7 @@ def gauge_string(gv: dict) -> str:
         if ps and cut.get("value") is not None:
             seg += f", {ps} the {_fmt_num(cut['value'])} cut"
         pos = gv.get("position")  # lead with the banded call when present (mirrors floor_cut_ceiling)
-        return f"{humanize(pos).lower()} — {seg}" if pos else seg
+        return f"{_position_phrase(pos)} — {seg}" if pos else seg
 
     if kind == "graded_band":
         # value read against a ladder of >=2 cut anchors: name the STRONGEST cut it clears (e.g. "past the
@@ -590,7 +638,7 @@ def gauge_string(gv: dict) -> str:
         elif cuts:
             seg += f", short of the {_fmt_num(cuts[0]['value'])} {_anchor_label(cuts[0])} cut"
         pos = gv.get("position")
-        return f"{humanize(pos).lower()} — {seg}" if pos else seg
+        return f"{_position_phrase(pos)} — {seg}" if pos else seg
 
     if kind == "count_of_total":
         total = anchors.get("total") or {}
@@ -601,7 +649,7 @@ def gauge_string(gv: dict) -> str:
         if ps and cut.get("value") is not None:
             seg += f", {ps} the {_fmt_num(cut['value'])} cut"
         pos = gv.get("position")
-        return f"{humanize(pos).lower()} — {seg}" if pos else seg
+        return f"{_position_phrase(pos)} — {seg}" if pos else seg
 
     if kind == "percentile":
         return f"{_fmt_num(value)}th percentile ({label})" if label else f"{_fmt_num(value)}th percentile"
@@ -626,6 +674,10 @@ def metric_reading(field, value, direction=None, include_direction: bool = True)
     extras = []
     if units:
         extras.append(units)
+    if field in _R2_INTERPRETED_FIELDS:
+        band = r2_interpretation(value)
+        if band:
+            extras.append(band)
     dp = direction_phrase(direction) if include_direction else None
     if dp:
         extras.append(dp)
@@ -708,6 +760,9 @@ __all__ = [
     "gauge_string",
     "humanize",
     "METRIC_GLOSS",
+    "PREDICTABILITY_CLASS_GLOSS",
+    "predictability_class_phrase",
+    "r2_interpretation",
     "card_question",
     "card_description",
     "fill_placeholders",

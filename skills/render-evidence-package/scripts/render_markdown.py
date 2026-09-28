@@ -695,6 +695,18 @@ def _is_tabular_list(v) -> bool:
     return True
 
 
+def _predictability_class_phrase(token) -> str | None:
+    """Fail-soft bridge to the shared display gloss (skills/ on sys.path in tests + orchestration).
+    A missing gloss module or an unknown token just yields None, so the raw token renders unchanged —
+    a gloss is display sugar and must never break the render."""
+    try:
+        from _skills_common.display_gloss import predictability_class_phrase
+
+        return predictability_class_phrase(token)
+    except Exception:  # noqa: BLE001 — display-only; never break the render
+        return None
+
+
 def _render_list_of_dicts_as_table(rows: list[dict]) -> list[str]:
     """Render a list of dicts as a markdown table. Columns are the union of all
     keys (preserving first-seen order). Float values rounded to _FLOAT_PRECISION."""
@@ -716,6 +728,9 @@ def _render_list_of_dicts_as_table(rows: list[dict]) -> list[str]:
                 cells.append(f"{v:.{_FLOAT_PRECISION}f}")
             elif isinstance(v, (list, dict)):
                 cells.append(json.dumps(v, default=str))
+            elif k == "predictability_class" and (phrase := _predictability_class_phrase(v)):
+                # digestible prose for the raw underscored class token; keep the raw for recoverability
+                cells.append(f"{phrase} ({v})")
             else:
                 cells.append(str(v))
         lines.append("| " + " | ".join(cells) + " |")
