@@ -55,7 +55,7 @@ questions:
   text: Co-mutation / mutual-exclusivity landscape (patient-selection + combination biology)?
   axis_id: COMUT
   role: verdict_bearing
-  measurement_types: [mutation_cooccurrence]
+  measurement_types: [mutation_cooccurrence, mutational_signature_context]
 - id: subtype_survival
   seq: 2
   text: Does survival differ across the indication's molecular subtypes?
@@ -76,7 +76,7 @@ questions:
   text: Pathway-node leverage — dominant vs dominated network node (+ stemness context)?
   axis_id: NODE
   role: display_only
-  measurement_types: [pathway_node_leverage, stemness_context]
+  measurement_types: [pathway_node_leverage, stemness_context, oncogenic_pathway_alteration]
 - id: clinical_precedent
   legacy_id: Q4
   seq: 5

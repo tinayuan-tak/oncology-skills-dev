@@ -141,7 +141,18 @@ DIFFERENTIATION_CLAIM_SPEC = [
         _mk_atom(
             _C_SURV,
             "survival_association_class",
-            ("survival_association_class", "logrank_p", "n_patients", "n_events", "n_high_expr", "n_low_expr"),
+            # (#1820 F4) + median_ostime_high/low_days — the KM EFFECT SIZE (magnitude), not just the
+            # class token; retained so the survival atom carries the arm-level median OS.
+            (
+                "survival_association_class",
+                "logrank_p",
+                "n_patients",
+                "n_events",
+                "n_high_expr",
+                "n_low_expr",
+                "median_ostime_high_days",
+                "median_ostime_low_days",
+            ),
         ),
     ),
     ClaimSpec(
@@ -150,7 +161,13 @@ DIFFERENTIATION_CLAIM_SPEC = [
         _sig(_C_PROG, "prognostic_class", _PROGNOSIS_SIGNAL),
         _corr(_C_PROG, "prognostic_class", _PROGNOSIS_SIGNAL),
         _INFORMS["PROGNOSIS"],
-        _mk_atom(_C_PROG, "prognostic_class", ("prognostic_class", "meta_z", "pan_cancer_meta_z", "n_precog_datasets")),
+        # (#1820 F5) + pan_cancer_prognostic_class — the clean independent pan-cancer prognostic arm,
+        # retained on the atom alongside the indication-approx class.
+        _mk_atom(
+            _C_PROG,
+            "prognostic_class",
+            ("prognostic_class", "pan_cancer_prognostic_class", "meta_z", "pan_cancer_meta_z", "n_precog_datasets"),
+        ),
     ),
     ClaimSpec(
         "NODE",
@@ -161,7 +178,15 @@ DIFFERENTIATION_CLAIM_SPEC = [
         _mk_atom(
             _C_NODE,
             "node_leverage_class",
-            ("node_leverage_class", "evidence_scope", "paralog_buffering_class", "strongest_buffering_paralog"),
+            # (#1820 F7) + single_ko_leverage_understated — the caveat flag qualifying node_leverage_class
+            # (single-KO leverage understated by paralog buffering); surfaced onto the NODE atom.
+            (
+                "node_leverage_class",
+                "evidence_scope",
+                "paralog_buffering_class",
+                "strongest_buffering_paralog",
+                "single_ko_leverage_understated",
+            ),
         ),
     ),
 ]

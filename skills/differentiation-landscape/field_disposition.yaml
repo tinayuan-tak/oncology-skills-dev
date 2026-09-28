@@ -377,9 +377,10 @@ clinical-precedent:
     reason: list of notable clinical failures; translational-risk qualifier; read exact by run.py (skill_code)
     reviewed: true
   resistance_mechanisms_reported:
-    role: display
-    reason: list of reported resistance mechanisms (human-facing detail); verdict-inert; no exact reader
-      (census)
+    role: context
+    reason: list of reported resistance mechanisms; serves the combination-biology-hypotheses half of the
+      skill's question; verdict-inert. Surfaced (#1820 F6) into the headline + Q4 question-table support
+      bit; read exact by run.py (skill_code)
     reviewed: true
 competitor-landscape:
   competitor_class:
@@ -403,9 +404,9 @@ competitor-landscape:
       (skill_code)
     reviewed: true
   withdrawn_agents:
-    role: display
-    reason: list of withdrawn competitor agents (human-facing detail); verdict-inert; no exact reader
-      (census)
+    role: context
+    reason: list of withdrawn competitor agents; a failed-precedent signal; verdict-inert. Surfaced
+      (#1820 F7) into the headline + Q4 question-table support bit; read exact by run.py (skill_code)
     reviewed: true
   modalities_in_development:
     role: context
@@ -426,4 +427,117 @@ competitor-landscape:
     role: context
     reason: scope of competitor indications considered; scope qualifier; read exact by the capsule + run.py
       (salience, skill_code)
+    reviewed: true
+mutational-signature-context:
+  dominant_process:
+    role: signal
+    reason: PRIMARY mutational-process call (top non-baseline mutagenic process) surfaced (#1815) as a
+      verdict-inert patient-selection facet — the canonical biomarker axis (MMR-deficiency→IO, HRD→PARP,
+      APOBEC, POLE, TMB proxies); reaches the headline + Q5 question-table row; read exact by run.py (skill_code)
+    reviewed: true
+  enriched_processes:
+    role: context
+    reason: comma-joined enriched non-baseline mutagenic processes; qualifies dominant_process; surfaced
+      into the Q5 question-table support bit; read exact by run.py (skill_code)
+    reviewed: true
+  mmr_deficiency_class:
+    role: context
+    reason: MMR-deficiency (dMMR/MSI) enrichment class; patient-selection qualifier (IO); surfaced into
+      the headline + Q5 support bit; read exact by run.py (skill_code)
+    reviewed: true
+  hrd_class:
+    role: context
+    reason: homologous-recombination-deficiency enrichment class; patient-selection qualifier (PARP);
+      surfaced into the headline + Q5 support bit; read exact by run.py (skill_code)
+    reviewed: true
+  apobec_class:
+    role: context
+    reason: APOBEC mutagenesis enrichment class; patient-selection qualifier; surfaced into the headline
+      + Q5 support bit; read exact by run.py (skill_code)
+    reviewed: true
+  pole_class:
+    role: context
+    reason: POLE/ultra-hypermutation enrichment class; patient-selection qualifier (TMB/IO); surfaced
+      into the headline + Q5 support bit; read exact by run.py (skill_code)
+    reviewed: true
+  tobacco_class:
+    role: context
+    reason: tobacco-signature enrichment class; mutagenic-process qualifier; no exact reader (census)
+    reviewed: true
+  uv_class:
+    role: context
+    reason: UV-signature enrichment class; mutagenic-process qualifier; no exact reader (census)
+    reviewed: true
+  clock_class:
+    role: context
+    reason: clock-like (age-associated) signature enrichment class; mutagenic-process qualifier; no exact
+      reader (census)
+    reviewed: true
+  n_samples:
+    role: context
+    reason: number of cohort samples behind the per-indication signature aggregation; power qualifier;
+      no exact reader (census)
+    reviewed: true
+  frac_apobec_high:
+    role: context
+    reason: fraction of cohort samples APOBEC-high; magnitude qualifier behind apobec_class; no exact
+      reader (census)
+    reviewed: true
+  frac_mmr_deficiency_high:
+    role: context
+    reason: fraction of cohort samples MMR-deficiency-high; magnitude qualifier behind mmr_deficiency_class;
+      no exact reader (census)
+    reviewed: true
+  frac_hrd_high:
+    role: context
+    reason: fraction of cohort samples HRD-high; magnitude qualifier behind hrd_class; no exact reader (census)
+    reviewed: true
+  frac_tobacco_high:
+    role: context
+    reason: fraction of cohort samples tobacco-high; magnitude qualifier behind tobacco_class; no exact
+      reader (census)
+    reviewed: true
+  frac_uv_high:
+    role: context
+    reason: fraction of cohort samples UV-high; magnitude qualifier behind uv_class; no exact reader (census)
+    reviewed: true
+  frac_pole_high:
+    role: context
+    reason: fraction of cohort samples POLE-high; magnitude qualifier behind pole_class; no exact reader (census)
+    reviewed: true
+oncogenic-pathway-alteration:
+  oncogenic_pathway_class:
+    role: signal
+    reason: PRIMARY genomic pathway-alteration frequency call (Sanchez-Vega 2018) surfaced (#1816) as a
+      verdict-inert lens — the orthogonal GENOMIC complement to the dependency-only pathway-node-leverage
+      NODE axis; reaches the headline + Q3 question-table support bit; read exact by run.py (skill_code)
+    reviewed: true
+  target_pathway_alteration:
+    role: context
+    reason: the target's own pathway(s) cohort alteration frequency/class; qualifies oncogenic_pathway_class
+      for the node-vs-frequency story; surfaced into the headline + Q3 support bit; read exact by run.py (skill_code)
+    reviewed: true
+  target_pathway_membership:
+    role: context
+    reason: which Sanchez-Vega pathway(s) the target belongs to; cross-axis pointer for the node story;
+      surfaced into the headline; read exact by run.py (skill_code)
+    reviewed: true
+  frequently_altered_pathways:
+    role: context
+    reason: pathways altered in >=50% of the cohort; cohort-context qualifier; surfaced into the headline;
+      read exact by run.py (skill_code)
+    reviewed: true
+  n_pathways_profiled:
+    role: context
+    reason: number of Sanchez-Vega pathways profiled in the cohort; coverage qualifier; no exact reader (census)
+    reviewed: true
+  per_pathway:
+    role: display
+    reason: per-pathway {pathway, frac_altered, class} breakdown (nested container) for human rendering;
+      verdict-inert large container; no exact reader (census)
+    reviewed: true
+  pooled_from:
+    role: provenance
+    reason: cohort/source provenance the per-indication pathway-alteration frequencies were pooled from;
+      provenance/audit token; no exact reader (census)
     reviewed: true

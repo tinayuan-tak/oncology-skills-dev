@@ -836,6 +836,12 @@ SUB_SKILL_CARDS = {
         # does not drop it. VERDICT-INERT (alteration-* rules feed NO resolver).
         "subtype-survival-association",  # Q2-subtype (2026-08-20): OS across molecular subtypes (target-
         # independent context). VERDICT-INERT (subtype-* rules feed NO resolver).
+        "mutational-signature-context",  # (#1815 / #954): patient-selection render facet of the co-mutation
+        # landscape (TCGA MC3 mutational processes). In differentiation-landscape/run.py CARDS; composed
+        # here so the fanout does not silently drop it. VERDICT-INERT render facet (no resolver rung).
+        "oncogenic-pathway-alteration",  # (#1816 / #954): orthogonal genomic pathway-alteration-frequency
+        # lens complementing the dependency-only node-leverage read. In differentiation-landscape/run.py
+        # CARDS; composed here so the fanout does not silently drop it. VERDICT-INERT render facet.
     ],
     "tractability-small-molecule": [  # split: SM chemical-genetic half
         "prism-compound-activity",

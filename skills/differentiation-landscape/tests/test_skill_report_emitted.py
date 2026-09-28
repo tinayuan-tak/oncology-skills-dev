@@ -28,9 +28,10 @@ def test_headline_emits_gating_skill_report():
     assert sr["call"] == "insufficient"  # verbatim verdict — no recompute
     assert sr["polarity"] in ("supportive", "neutral", "opposing", "insufficient", "not_applicable")
     assert sr["polarity"] != "killer"  # differentiation has no veto-killer verdict
-    # differentiation NOW has a question_table (component parity) — 4 rows (COMUT/SURVIVAL/NODE + precedent)
-    assert isinstance(sr["question_table"], list) and len(sr["question_table"]) == 4
-    assert [r["id"] for r in sr["question_table"]] == ["Q1", "Q2", "Q3", "Q4"]
+    # differentiation NOW has a question_table (component parity) — 5 rows (COMUT/SURVIVAL/NODE +
+    # precedent + #1815 mutational-process patient-selection Q5)
+    assert isinstance(sr["question_table"], list) and len(sr["question_table"]) == 5
+    assert [r["id"] for r in sr["question_table"]] == ["Q1", "Q2", "Q3", "Q4", "Q5"]
     assert sr["provenance"]["driving_rule_id"] == "differentiation-insufficient"
     assert "_enrichment_errors" not in hl
     assert "skill_report" in diff._SYNTHESIS_FACET_KEYS

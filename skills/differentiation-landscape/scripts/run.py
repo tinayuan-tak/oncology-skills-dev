@@ -61,7 +61,14 @@ from _skills_common.claim_record import assemble_claim_record
 from _skills_common.resolver import resolve_or_raise
 
 SKILL_NAME = "differentiation-landscape"
-SKILL_VERSION = "1.12.0"  # 1.12.0 (2026-09-07, CASE-010 literature-discordance loop): add verdict-INERT survival_direction_scope_caveat — the SURVIVAL axis is mRNA-EXPRESSION↔survival, NOT mutation-outcome; for a mutational driver the direction can differ/invert (KRAS-mutant CRC). Fires only on directional expression-survival classes; verdict/resolver/golden/replay byte-stable.
+SKILL_VERSION = "1.13.0"  # 1.13.0 (2026-09-28, #1815/#1816/#1820): wire mutational-signature-context
+#        (#1815, TCGA MC3 per-indication mutational-process patient-selection facet) + oncogenic-pathway-
+#        alteration (#1816, Sanchez-Vega genomic pathway-alteration frequency lens) as ADDITIVE VERDICT-INERT
+#        render facets (headline + synthesis facet + question-table Q5/Q3), and surface emitted-but-unread
+#        fields (#1820: KM median-OS effect size on the SURVIVAL atom, PRECOG pan_cancer_prognostic_class,
+#        clinical-precedent resistance_mechanisms_reported, competitor withdrawn_agents, node
+#        single_ko_leverage_understated). All feed NO resolver → differentiation_verdict spine byte-stable.
+# 1.12.0 (2026-09-07, CASE-010 literature-discordance loop): add verdict-INERT survival_direction_scope_caveat — the SURVIVAL axis is mRNA-EXPRESSION↔survival, NOT mutation-outcome; for a mutational driver the direction can differ/invert (KRAS-mutant CRC). Fires only on directional expression-survival classes; verdict/resolver/golden/replay byte-stable.
 # 1.11.0 (2026-09-07, CASE-007 literature-discordance loop): add verdict-INERT
 #        cooccurrence_temporal_context_caveat — a curated acquired-bypass (target,indication)
 #        co-occurring with a first-line-TKI driver (EGFR/ALK/ROS1) is flagged as likely
@@ -155,6 +162,16 @@ CARDS = [
     # positioning render facet. The value-add cross-ref vs the framework's own
     # modality-fit/biomarker verdicts is computed at the target-profile fan-out.
     # reads competitor_class + modality_landscape.
+    "mutational-signature-context",  # (#1815, 2026-09-28): TCGA MC3 per-indication mutational-process
+    # context — dominant SBS process + MMR-deficiency / HRD / APOBEC / POLE / tobacco / UV enrichment
+    # classes. The canonical patient-selection biomarker axis (MMR-deficiency→IO, HRD→PARP, TMB proxies)
+    # was absent from a differentiation skill. ADDITIVE, VERDICT-INERT (feeds NO resolver → differentiation
+    # verdict byte-stable). reads dominant_process + the per-process *_class fields.
+    "oncogenic-pathway-alteration",  # (#1816, 2026-09-28): Sanchez-Vega 2018 per-indication oncogenic
+    # pathway-alteration FREQUENCY lens — the orthogonal GENOMIC complement to the dependency-only
+    # pathway-node-leverage NODE axis (is the target's pathway both frequently altered in-cohort AND the
+    # best node to hit, or dominated?). ADDITIVE, VERDICT-INERT (no resolver rung → verdict byte-stable).
+    # reads oncogenic_pathway_class + target_pathway_alteration.
 ]
 
 QUESTION = (
@@ -850,6 +867,40 @@ def _headline(cards, fired, verdict_pair, target=None, indication=None):
             cards, "competitor-landscape", "modalities_in_development"
         ),
         "competitor_modality_landscape": get_card_field(cards, "competitor-landscape", "modality_landscape"),
+        # (#1820 F6) clinical-precedent resistance mechanisms — directly serves the combination-biology
+        # hypotheses half of this skill's question; was emitted-but-unread (Q4 support bit + facet).
+        "resistance_mechanisms_reported": get_card_field(cards, "clinical-precedent", "resistance_mechanisms_reported"),
+        # (#1820 F7) competitor withdrawn agents — a failed-precedent signal; was emitted-but-unread.
+        "competitor_withdrawn_agents": get_card_field(cards, "competitor-landscape", "withdrawn_agents"),
+        # (#1820 F7) pathway-node-leverage single-KO leverage-understated caveat — was emitted-but-unread
+        # by the reasoning layer; surfaced onto the NODE atom (see differentiation_claims NODE keys).
+        "node_single_ko_leverage_understated": get_card_field(
+            cards, "pathway-node-leverage", "single_ko_leverage_understated"
+        ),
+        # (#1820 F5) PRECOG pan-cancer prognostic CLASS — the clean independent prognostic arm; was
+        # emitted-but-unread (only pan_cancer_meta_z was surfaced). Verdict-inert render facet.
+        "precog_pan_cancer_prognostic_class": get_card_field(
+            cards, "precog-prognostic-association", "pan_cancer_prognostic_class"
+        ),
+        # (#1815) mutational-signature-context — TCGA MC3 per-indication mutational-process context. The
+        # canonical patient-selection biomarker axis (MMR-deficiency→IO, HRD→PARP, APOBEC, POLE, TMB
+        # proxies). Verdict-inert render facet (feeds NO resolver). dominant_process is the PRIMARY class.
+        "mutational_dominant_process": get_card_field(cards, "mutational-signature-context", "dominant_process"),
+        "mutational_enriched_processes": get_card_field(cards, "mutational-signature-context", "enriched_processes"),
+        "mutational_mmr_deficiency_class": get_card_field(
+            cards, "mutational-signature-context", "mmr_deficiency_class"
+        ),
+        "mutational_hrd_class": get_card_field(cards, "mutational-signature-context", "hrd_class"),
+        "mutational_apobec_class": get_card_field(cards, "mutational-signature-context", "apobec_class"),
+        "mutational_pole_class": get_card_field(cards, "mutational-signature-context", "pole_class"),
+        # (#1816) oncogenic-pathway-alteration — Sanchez-Vega per-indication genomic pathway-alteration
+        # FREQUENCY lens (orthogonal to the dependency-only NODE axis). Verdict-inert render facet.
+        "oncogenic_pathway_class": get_card_field(cards, "oncogenic-pathway-alteration", "oncogenic_pathway_class"),
+        "target_pathway_alteration": get_card_field(cards, "oncogenic-pathway-alteration", "target_pathway_alteration"),
+        "target_pathway_membership": get_card_field(cards, "oncogenic-pathway-alteration", "target_pathway_membership"),
+        "frequently_altered_pathways": get_card_field(
+            cards, "oncogenic-pathway-alteration", "frequently_altered_pathways"
+        ),
     }
     # verdict-INERT claim-vector projection (7th concrete) — COMUT/SURVIVAL/PROGNOSIS/NODE decomposition
     # + citable atoms the composed fan-out lifts to the cross-evidence agent.
@@ -960,11 +1011,30 @@ _SYNTHESIS_FACET_KEYS = (
     "cooccurrence_class",
     "survival_association_class",
     "precog_prognostic_class",
+    # (#1820 F5) PRECOG pan-cancer prognostic class — the clean independent prognostic arm (verdict-inert):
+    "precog_pan_cancer_prognostic_class",
     "node_leverage_class",
+    # (#1820 F7) single-KO leverage-understated caveat on the NODE axis (verdict-inert):
+    "node_single_ko_leverage_understated",
+    # (#1815) mutational-signature-context patient-selection facet (verdict-inert):
+    "mutational_dominant_process",
+    "mutational_enriched_processes",
+    "mutational_mmr_deficiency_class",
+    "mutational_hrd_class",
+    "mutational_apobec_class",
+    "mutational_pole_class",
+    # (#1816) oncogenic pathway-alteration genomic-frequency lens (verdict-inert):
+    "oncogenic_pathway_class",
+    "target_pathway_alteration",
+    "target_pathway_membership",
+    "frequently_altered_pathways",
     "highest_clinical_stage",
     "n_active_trials",
     "approved_agents",
     "notable_failures",
+    # (#1820 F6/F7) resistance mechanisms + withdrawn agents (combination-biology / failed-precedent bits):
+    "resistance_mechanisms_reported",
+    "competitor_withdrawn_agents",
     # Open Targets competitor field (verdict-inert) — the substrate for the target-profile cross-ref:
     "competitor_class",
     "competitor_highest_stage",

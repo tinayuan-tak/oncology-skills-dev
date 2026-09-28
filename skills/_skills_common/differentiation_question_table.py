@@ -14,6 +14,7 @@ Signal polarity is `informs` (never supports/opposes), matching the skill's DESC
   Q2 expression↔survival association?    primary claim SURVIVAL  support: PRECOG meta prognostic (PROGNOSIS)
   Q3 pathway-node leverage?              primary claim NODE      (dominant vs dominated network node)
   Q4 clinical / competitive precedent?   primary highest_clinical_stage + competitor_class (verdict-inert)
+  Q5 mutational-process patient-selection? primary dominant_process (#1815 MMR/HRD/APOBEC/POLE; verdict-inert)
 
 Signal reuses the claim_vector tier vocabulary (strong>moderate>weak>absent, unmeasured); Confidence
 reuses the corroboration vocabulary (high>moderate>low, unmeasured).
@@ -83,7 +84,23 @@ def differentiation_question_table(headline: dict, cards: Optional[list] = None)
             "Pathway-node leverage — dominant vs dominated network node?",
             cv,
             "NODE",
-            f"node leverage: {h.get('node_leverage_class') or '—'}",
+            " · ".join(
+                b
+                for b in (
+                    f"node leverage: {h.get('node_leverage_class') or '—'}",
+                    # (#1816) genomic pathway-alteration FREQUENCY lens — is the target's pathway both
+                    # frequently altered in-cohort AND the best node, or dominated? (verdict-inert)
+                    f"pathway-alteration: {h.get('oncogenic_pathway_class')}"
+                    if h.get("oncogenic_pathway_class")
+                    else "",
+                    f"target pathway alteration: {h.get('target_pathway_alteration')}"
+                    if h.get("target_pathway_alteration")
+                    else "",
+                    # (#1820 F7) single-KO leverage understated by paralog buffering
+                    "single-KO leverage understated" if h.get("node_single_ko_leverage_understated") else "",
+                )
+                if b
+            ),
         ),
     ]
     # Q4 — clinical / competitive precedent (no claim_vector axis; verdict-inert descriptive context)
@@ -96,6 +113,10 @@ def differentiation_question_table(headline: dict, cards: Optional[list] = None)
             f"competitor: {h.get('competitor_class')}" if h.get("competitor_class") else "",
             f"{h.get('n_active_trials')} active trials" if h.get("n_active_trials") else "",
             "notable failures" if h.get("notable_failures") else "",
+            # (#1820 F6) reported resistance mechanisms — the combination-biology-hypotheses bit
+            "resistance mechanisms reported" if h.get("resistance_mechanisms_reported") else "",
+            # (#1820 F7) withdrawn competitor agents — a failed-precedent signal
+            "withdrawn agents" if h.get("competitor_withdrawn_agents") else "",
         )
         if b
     ]
@@ -107,6 +128,34 @@ def differentiation_question_table(headline: dict, cards: Optional[list] = None)
             " · ".join(support_bits),
             _sig(tier, str(stage or "no precedent")),
             _conf("moderate" if has_stage else "unmeasured", "AACT + Open Targets (verdict-inert)"),
+        )
+    )
+    # (#1815) Q5 — mutational-process patient-selection context (TCGA MC3): the canonical patient-selection
+    # biomarker axis (MMR-deficiency→IO, HRD→PARP, APOBEC, POLE, TMB proxies). Verdict-inert descriptive
+    # context; a present dominant process INFORMS patient selection. Absent → an unmeasured row (never omitted).
+    dom = h.get("mutational_dominant_process")
+    has_dom = bool(dom) and dom not in ("none", "data_unavailable")
+    mut_support = [
+        b
+        for b in (
+            f"MMR-deficiency: {h.get('mutational_mmr_deficiency_class')}"
+            if h.get("mutational_mmr_deficiency_class")
+            else "",
+            f"HRD: {h.get('mutational_hrd_class')}" if h.get("mutational_hrd_class") else "",
+            f"APOBEC: {h.get('mutational_apobec_class')}" if h.get("mutational_apobec_class") else "",
+            f"POLE: {h.get('mutational_pole_class')}" if h.get("mutational_pole_class") else "",
+            f"enriched: {h.get('mutational_enriched_processes')}" if h.get("mutational_enriched_processes") else "",
+        )
+        if b
+    ]
+    rows.append(
+        _row(
+            "Q5",
+            "Mutational-process patient-selection context (MMR-deficiency / HRD / APOBEC / POLE / TMB proxies)?",
+            f"dominant process: {dom or '—'}",
+            " · ".join(mut_support),
+            _sig("moderate" if has_dom else "unmeasured", str(dom or "no dominant process")),
+            _conf("moderate" if has_dom else "unmeasured", "TCGA MC3 mutational signatures (verdict-inert)"),
         )
     )
     return rows

@@ -817,11 +817,48 @@ tumor-scrna-celltype-expression:
     interpretation_reach: skills_local
     reason: "fraction of malignant cells detecting the target; the core single-cell presence magnitude; role:signal reach-confirmed via {claim_passthrough, salience, skill_code} (census 2026-09-19, blind to ledger)"
     reviewed: true
+  malignant_expresser_bimodality_class:
+    role: display
+    interpretation_reach: skills_local
+    reason: "#695 within-expresser bimodality shape headline (categorical: unimodal/bimodal/underpowered) on
+      tumor-scrna-celltype-expression, surfaced by the skills pin advance (TC 8167c82). tumor-presence does not yet
+      consume or wire it — VERDICT-INERT pending an sc-shape consumer (#695/F2). role:display (not signal) because no
+      reader consumes it; reviewed:false is a name-shape draft — re-role to signal when a reader lands."
+    reviewed: false
+  malignant_expresser_bimodality_coefficient:
+    role: display
+    interpretation_reach: skills_local
+    reason: "#695 within-expresser Sarle bimodality coefficient (the headline score) on tumor-scrna-celltype-expression,
+      surfaced by the skills pin advance (TC 8167c82). Human-facing shape magnitude, VERDICT-INERT — no tumor-presence
+      reader consumes it. role:display; reviewed:false draft pending the sc-shape consumer (#695/F2)."
+    reviewed: false
+  malignant_expresser_excess_kurtosis:
+    role: display
+    interpretation_reach: skills_local
+    reason: "#695 cross-donor median within-expresser excess kurtosis (source 4th moment) on
+      tumor-scrna-celltype-expression, surfaced by the skills pin advance (TC 8167c82). Human-facing shape magnitude,
+      VERDICT-INERT — no reader consumes it. role:display; reviewed:false draft pending the sc-shape consumer (#695/F2)."
+    reviewed: false
+  malignant_expresser_skewness:
+    role: display
+    interpretation_reach: skills_local
+    reason: "#695 cross-donor median within-expresser skewness (source 3rd moment) on tumor-scrna-celltype-expression,
+      surfaced by the skills pin advance (TC 8167c82). Human-facing shape magnitude, VERDICT-INERT — no reader consumes
+      it. role:display; reviewed:false draft pending the sc-shape consumer (#695/F2)."
+    reviewed: false
   malignant_n_cells:
     role: context
     interpretation_reach: skills_local
     reviewed: true
     reason: power / statistical qualifier
+  malignant_n_detected:
+    role: context
+    interpretation_reach: skills_local
+    reason: "#695 bimodality-gate denominator (total detecting/expressing malignant cells summed over reliable donors)
+      on tumor-scrna-celltype-expression, surfaced by the skills pin advance (TC 8167c82). role:context power/statistical
+      qualifier mirroring malignant_n_cells; reviewed:false draft pending the sc-shape consumer (#695/F2). Forward-pointer:
+      candidate input to the #1743 measured-absence power gate (MIN_MALIGNANT_CELLS / n-floor in presence_tiers.py)."
+    reviewed: false
   malignant_n_donors:
     role: context
     interpretation_reach: skills_local

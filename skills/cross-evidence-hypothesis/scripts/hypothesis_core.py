@@ -111,6 +111,10 @@ DIMENSION_CARDS: dict[str, frozenset[str]] = {
             "subtype-survival-association",
             "clinical-precedent",  # (2026-08-21) added to SUB_SKILL_CARDS[differentiation-landscape]
             "competitor-landscape",
+            # (2026-09-28, #1815/#1816/#954) render facets added to SUB_SKILL_CARDS[differentiation-
+            # landscape]; mirror here (DIMENSION_CARDS drift guard). VERDICT-INERT.
+            "mutational-signature-context",
+            "oncogenic-pathway-alteration",
         }
     ),  # (2026-08-24) Open Targets competitor field; added to SUB_SKILL_CARDS[differentiation-landscape]
     "expression": frozenset(

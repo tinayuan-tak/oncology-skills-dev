@@ -11,6 +11,7 @@ sub_groups:
   context_types:
   - clinical_precedent
   - competitor_landscape
+  - mutational_signature_context
 - id: SURVIVAL
   questions:
   - id: survival_read
@@ -29,3 +30,5 @@ sub_groups:
     measurement_types:
     - pathway_node_leverage
     - stemness_context
+  context_types:
+  - oncogenic_pathway_alteration

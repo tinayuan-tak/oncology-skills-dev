@@ -28,7 +28,7 @@ description: |
   floor and a panel-absence caveat.
 
 metadata:
-  version: 1.12.0
+  version: 1.13.0
   owner: ryan.abo@takeda.com
   requires_preflight: false
 
@@ -45,6 +45,8 @@ composition:
     - subtype-survival-association          # Q2-subtype (2026-08-20): OS ACROSS molecular subtypes (target-independent patient-selection context); verdict-inert
     - clinical-precedent                    # (2026-08-21) AACT clinical-trial precedent (highest stage / active trials / approved agents / notable failures for a target-engaging drug); ADDITIVE, VERDICT-INERT translational-maturity render facet
     - competitor-landscape                  # (2026-08-24) Open Targets competitor field (who else is developing a drug against this target, at what MODALITY + clinical stage); ADDITIVE, VERDICT-INERT competitive-positioning render facet. The cross-ref vs the framework's own modality-fit/biomarker verdicts is a target-profile synthesis-layer step.
+    - mutational-signature-context          # (#1815, 2026-09-28) TCGA MC3 per-indication mutational-process context (dominant SBS + MMR-deficiency/HRD/APOBEC/POLE/tobacco/UV classes); the canonical patient-selection biomarker axis (MMR-deficiency→IO, HRD→PARP, TMB proxies). ADDITIVE, VERDICT-INERT render facet (feeds NO resolver — verdict byte-stable).
+    - oncogenic-pathway-alteration          # (#1816, 2026-09-28) Sanchez-Vega 2018 per-indication oncogenic pathway-alteration FREQUENCY lens (orthogonal GENOMIC complement to the dependency-only pathway-node-leverage NODE axis). ADDITIVE, VERDICT-INERT render facet (no resolver rung — verdict byte-stable).
     # patent-landscape intentionally NOT listed — stays unwired (PatBase-equivalent licensing
     # unresolved). See NOTE below.
   # DATA_TO_SKILL_CONTRACT Rule 3 — measurement_type claims pulled. patent-landscape has no card/type
@@ -64,6 +66,8 @@ composition:
     - pathway_node_leverage               # WS3 (2026-08-17): pathway-node-leverage card (comparative; verdict-inert soft differentiation context)
     - alteration_clinical_association     # alteration-clinical-association (Q11-alteration; verdict-inert prognostic render facet)
     - subtype_survival_association        # subtype-survival-association (Q2-subtype; verdict-inert)
+    - mutational_signature_context        # mutational-signature-context (#1815; TCGA MC3 per-indication mutational processes; verdict-inert patient-selection facet)
+    - oncogenic_pathway_alteration        # oncogenic-pathway-alteration (#1816; Sanchez-Vega genomic pathway-alteration frequency; verdict-inert lens)
   rules_scope:
     - co-mutation-and-mutual-exclusivity
     - pathway-node-leverage               # WS3: soft axis_fit signals, NOT wired to differentiation.resolver (additive; fired_rule_ids feed the hypothesis agent)
