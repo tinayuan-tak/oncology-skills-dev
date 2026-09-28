@@ -777,3 +777,53 @@ def _emit_cn_stratified_dependency(
             "primary": False,
         })
     return result
+
+
+def _emit_fusion_stratified_dependency(
+    summary: dict,
+    out_dir: Path,
+    target: str,
+    indication: str,
+) -> list[dict]:
+    """Emit fusion stratified dependency figure.
+
+    Strip plot showing Chronos scores for fusion-positive vs fusion-negative
+    cell lines, with indication-specific highlighting and dual medians.
+    """
+    if _has_live_read_error(summary):
+        return []
+    _ensure_methods_path()
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    from methods.depmap_chronos_distribution import cli as c1cli
+    from methods.depmap_fusion_dependency import cli as fuscli
+    from methods.depmap_fusion_dependency.read import _load_fusion_involvement
+
+    chronos_by_model, model_metadata, load_errors = c1cli.load_depmap_files(release_pin="26q1", target_symbol=target)
+    if load_errors or not chronos_by_model:
+        return []
+
+    fusion_by_model, fusion_errs = _load_fusion_involvement(target)
+    if fusion_errs or not fusion_by_model:
+        return []
+
+    figures_created = fuscli.emit_fusion_stratified_strip_plot(
+        chronos_by_model,
+        fusion_by_model,
+        target,
+        summary,
+        out_dir,
+        TARGET_CONTRACTS,
+        model_metadata=model_metadata,
+        indication=indication,
+    )
+
+    result = []
+    if "figure_fusion_stratified_strip.svg" in figures_created:
+        result.append({
+            "id": "fusion_stratified_strip",
+            "path": "figure_fusion_stratified_strip.svg",
+            "type": "fusion_stratified_dependency_strip",
+            "primary": True,
+        })
+    return result
