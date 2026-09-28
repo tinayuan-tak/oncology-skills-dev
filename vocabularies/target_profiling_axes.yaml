@@ -1039,6 +1039,8 @@ question_hierarchies:
         - surface_confirmation
         - rna_protein_concordance
         - sc_tumor_celltype_expression
+      context_types:
+      - cell_line_protein_abundance
     - id: SAFETY
       questions:
       - id: safety_read
