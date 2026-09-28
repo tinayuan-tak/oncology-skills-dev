@@ -44,7 +44,14 @@ import click
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 
 METHOD_DIR = Path(__file__).resolve().parent
-METHOD_VERSION = "0.2.0"  # 2026-08-08: bimodal_selective now gated on Sarle's bimodality coefficient
+METHOD_VERSION = "0.3.0"  # 2026-09-28 (skills #1794): SAFETY fail-open closure — (a) an unreachable
+# curated core-essential anchor on a well-powered >=85% fraction now classifies as the DISTINCT
+# `common_essential_unanchored` (was conflated into `common_essential_underpowered`, which reads
+# "tiny-panel artifact" and let a transient anchor outage relax the broad-tox liability to clean);
+# (b) NEW `broad_dependency_band` categorical grades the strongly-dependent fraction
+# (pan_essential_band >=0.85 / partial_broad_band 0.60-0.85 / below_band) so the silent 0.60-0.85
+# broad-tox band is surfaced to the safety rules instead of reading as clean `broadly_dependent`.
+# 0.2.0 2026-08-08: bimodal_selective gated on Sarle's bimodality coefficient
 # (BC > 0.555) over the in-memory score vector, replacing the median>-0.5 proxy.
 
 # Sarle's bimodality coefficient threshold. BC = (skew²+1)/(kurtosis_excess + 3(n-1)²/((n-2)(n-3))).
@@ -414,13 +421,31 @@ def compute_summary_stats(
     # re-anchoring is fully auditable, plus the anchor input itself (`depmap_curated_common_essential`).
     summary["depmap_curated_common_essential"] = curated_common_essential
     summary["pan_essential_fraction_call"] = _classify_dependency(**_classify_kwargs, curated_common_essential=None)
-    # OFFLINE-FALLBACK FIX (2026-09-01): when the curated anchor is unavailable (None), the real
-    # dependency_class routes a >=85% call to common_essential_underpowered (insufficient, no killer)
-    # rather than a fraction-only common_essential veto — the CD19-safe direction. The audit ladder
-    # field above intentionally keeps the raw fraction-only call for provenance.
+    # OFFLINE-FALLBACK FIX (2026-09-01, re-routed skills #1794 2026-09-28): when the curated anchor
+    # is unavailable (None), the real dependency_class routes a well-powered >=85% call to
+    # common_essential_unanchored (dependency gate: insufficient, no fraction-only killer; SAFETY
+    # axis: conservative broad-tox concern) rather than a fraction-only common_essential veto — the
+    # CD19-safe direction — and rather than common_essential_underpowered, whose safety-dark
+    # semantics let an anchor outage read as a clean safety verdict. The audit ladder field above
+    # intentionally keeps the raw fraction-only call for provenance.
     summary["dependency_class"] = _classify_dependency(
-        **_classify_kwargs, curated_common_essential=curated_common_essential, treat_missing_anchor_as_underpowered=True
+        **_classify_kwargs, curated_common_essential=curated_common_essential, treat_missing_anchor_as_unanchored=True
     )
+
+    # broad_dependency_band (skills #1794, 2026-09-28): SAFETY grading of the strongly-dependent
+    # fraction, orthogonal to dependency_class. The 0.60-0.85 band classifies broadly_dependent
+    # (finding #2, 2026-08-13: "a broad-toxicity liability nearly as severe as a common-essential")
+    # but the pan-essential broad-tox SAFETY warning fires only at >= pan_essential_fraction — so a
+    # genuine partial broad-tox band read as CLEAN on the safety axis. Emit the band as an explicit
+    # categorical so the Tier-2 safety rules can grade it (partial_broad_band ⇒ a graded liability
+    # caveat, never a fraction-only killer). Pure banding of the measured fraction — band edges
+    # mirror the classifier's own (> selective_max exclusive, >= pan_essential_fraction inclusive).
+    if frac_strong >= pan_essential_fraction:
+        summary["broad_dependency_band"] = "pan_essential_band"
+    elif frac_strong > selective_max:
+        summary["broad_dependency_band"] = "partial_broad_band"
+    else:
+        summary["broad_dependency_band"] = "below_band"
 
     return summary
 
@@ -453,11 +478,12 @@ def _classify_dependency(
     selective_min: float = 0.05,
     selective_max: float = 0.60,
     curated_common_essential: bool | None = None,
-    treat_missing_anchor_as_underpowered: bool = False,
+    treat_missing_anchor_as_unanchored: bool = False,
 ) -> str:
     """Map summary stats to a DepMap-convention dependency_class categorical.
 
     Returns one of: common_essential | common_essential_underpowered |
+                    common_essential_unanchored |
                     strongly_selective | broadly_dependent | non_dependent |
                     non_dependent_underpowered | data_unavailable
 
@@ -473,14 +499,23 @@ def _classify_dependency(
       - `common_essential_underpowered` (H fix 2026-07-20): a >=85% pan-essential call on
         a panel below PAN_ESSENTIAL_MIN_PANEL_N — a tiny-panel artifact, not a trusted
         pan-essential. Routes to insufficient instead of the pan-essential veto.
-      - `common_essential_underpowered` also covers a >=85% call whose curated core-essential
-        ANCHOR is unavailable (offline/creds fail) when `treat_missing_anchor_as_underpowered`
-        is set — see the T3 re-anchor note below.
+      - `common_essential_unanchored` (skills #1794, 2026-09-28): a WELL-POWERED >=85% call
+        whose curated core-essential ANCHOR is unavailable (offline/creds fail) when
+        `treat_missing_anchor_as_unanchored` is set — a DISTINCT class from underpowered,
+        because here the FRACTION is trusted (full panel) and only the curated corroboration
+        is missing. The dependency gate still treats it as insufficient (no fraction-only
+        veto, the T3 direction), but the SAFETY axis treats it CONSERVATIVELY (a broad-tox
+        liability that cannot be verified is NOT a clean verdict — absence of the anchor
+        must never RELAX the liability the measured fraction alone would raise).
 
-    `treat_missing_anchor_as_underpowered` (2026-09-01): when set, a >=85% fraction whose
-    `curated_common_essential` anchor is None (list unreachable) resolves to
-    `common_essential_underpowered` (→ insufficient, NO killer) rather than falling through to a
-    fraction-only `common_essential` KILLER. Set at the real `dependency_class` call site; the
+    `treat_missing_anchor_as_unanchored` (2026-09-01 as *_as_underpowered; renamed + re-routed
+    2026-09-28, skills #1794): when set, a >=85% fraction whose `curated_common_essential`
+    anchor is None (list unreachable) resolves to `common_essential_unanchored` rather than
+    falling through to a fraction-only `common_essential` KILLER. Between 2026-09-01 and this
+    change it resolved to `common_essential_underpowered`, which conflated "anchor unreachable"
+    with "tiny panel" and — because the underpowered class is deliberately DARK on the safety
+    axis — silently dropped the pan-essential broad-tox SAFETY warning on a transient/coverage
+    miss (the skills #1794 fail-open). Set at the real `dependency_class` call site; the
     audit/ladder field (`pan_essential_fraction_call`) leaves it False to preserve the raw
     fraction-only call. Default False keeps every caller's prior behavior byte-for-byte.
     """
@@ -495,16 +530,24 @@ def _classify_dependency(
         # REMOVES a killer relative to the fraction (the CD19-safe direction: it can never fabricate one).
         if curated_common_essential is False:
             return "broadly_dependent"
-        # OFFLINE-FALLBACK FIX (2026-09-01): curated_common_essential is None ⇒ the anchor list is
-        # unreachable (offline / creds fail). We CANNOT distinguish a true core-essential from a
-        # high-fraction context-essential oncogene (the CD19 / KRAS-CRISPRInferred trap) without the
-        # anchor — so a fraction-only `common_essential` KILLER here is exactly the unjustified veto the
-        # T3 re-anchor removed. At the real dependency_class call site we route it to the existing
-        # `common_essential_underpowered` (→ insufficient, no veto), the honest "can't-trust-this-pan-
-        # essential" bucket. The audit/ladder field (treat_missing_anchor_as_underpowered=False) still
-        # reports the raw fraction-only `common_essential`, so the degradation is fully auditable.
-        if curated_common_essential is None and treat_missing_anchor_as_underpowered:
-            return "common_essential_underpowered"
+        # OFFLINE-FALLBACK FIX (2026-09-01) + UNANCHORED SPLIT (skills #1794, 2026-09-28):
+        # curated_common_essential is None ⇒ the anchor list is unreachable (offline / creds fail).
+        # We CANNOT distinguish a true core-essential from a high-fraction context-essential oncogene
+        # (the CD19 / KRAS-CRISPRInferred trap) without the anchor — so a fraction-only
+        # `common_essential` KILLER here is exactly the unjustified veto the T3 re-anchor removed.
+        # But routing it to `common_essential_underpowered` (the 2026-09-01 fix) OVER-degraded on the
+        # SAFETY axis: underpowered means "the fraction itself is a tiny-panel artifact" and is
+        # deliberately DARK downstream, so a transient anchor outage on a genuine core-essential
+        # (PLK1-class) read as a CLEAN safety verdict — the broad-tox warning never fired (fail-open
+        # in the liability direction). The anchor-missing case is DIFFERENT EVIDENCE: the >=85%
+        # fraction is measured on a full panel and trusted; only the curated corroboration is absent.
+        # Emit the DISTINCT `common_essential_unanchored` so the dependency gate can keep treating it
+        # as insufficient (no fraction-only veto) while the safety axis treats it CONSERVATIVELY
+        # (unverifiable pan-essential ⇒ concern, never clean). The audit/ladder field
+        # (treat_missing_anchor_as_unanchored=False) still reports the raw fraction-only
+        # `common_essential`, so the degradation is fully auditable.
+        if curated_common_essential is None and treat_missing_anchor_as_unanchored:
+            return "common_essential_unanchored"
         return "common_essential"
     if fraction_strongly_dependent < selective_min:
         # Below the pooled floor. Admissibility check: is there a well-sampled lineage

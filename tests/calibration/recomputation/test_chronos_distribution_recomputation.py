@@ -208,8 +208,10 @@ def test_teeth_truncating_the_panel_changes_n(monkeypatch, anchor_path: Path):
 
 def test_teeth_dropping_the_curated_anchor_flips_the_essential_class(monkeypatch):
     """For a common_essential anchor, making the curated core-essential control set unreachable (None) must
-    drop the pan-essential KILLER — the class re-routes to common_essential_underpowered. Proves the
-    curated-anchor threading in read.py (not just the raw fraction) is load-bearing for the class."""
+    drop the pan-essential KILLER — the class re-routes to common_essential_unanchored (skills #1794:
+    a well-powered >=85% fraction with an unreachable anchor is a DISTINCT, safety-conservative class,
+    no longer conflated into the safety-dark common_essential_underpowered). Proves the curated-anchor
+    threading in read.py (not just the raw fraction) is load-bearing for the class."""
     essential = [
         _load_anchor(p)
         for p in ANCHOR_FILES
@@ -222,7 +224,8 @@ def test_teeth_dropping_the_curated_anchor_flips_the_essential_class(monkeypatch
         # curated=None → the reader threads curated_common_essential=None → offline-fallback routing.
         r = _rederive(monkeypatch, chronos, meta, anchor["target"], None)
         assert r["dependency_class"] != anchor["expected_dependency_class"]
-        assert r["dependency_class"] == "common_essential_underpowered", (
-            f"{anchor['target']}: dropping the curated anchor should route to common_essential_underpowered; "
+        assert r["dependency_class"] == "common_essential_unanchored", (
+            f"{anchor['target']}: dropping the curated anchor on a well-powered panel should route to "
+            f"common_essential_unanchored (never the safety-dark underpowered, never a clean class); "
             f"got {r['dependency_class']!r}"
         )
