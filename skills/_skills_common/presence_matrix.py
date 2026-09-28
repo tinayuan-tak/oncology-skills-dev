@@ -45,36 +45,56 @@ _ROWS = [
 _PRESENCE_COLS = [("cell_line", "Cell line"), ("tumor", "Tumor")]
 _WINDOW_COLS = [("normal", "Normal tissue")]
 
-# Presence-tier ORDINAL (order-preserving, NOT metric). Matched by substring against the verdict
-# string so a new-but-related verdict acquires the right tier; an unknown verdict → None (neutral,
-# never a fabricated rank). Keyed longest-first so specific tokens win.
-_TIER_SUBSTRINGS = [
+# Presence-tier ORDINAL (order-preserving, NOT metric), keyed by the EXACT bucket-verdict token,
+# case-normalized once. An unknown verdict → None (neutral, never a fabricated rank); the fall-through
+# is deliberately the CONSERVATIVE neutral gray, never an alarming high tier.
+#
+# This was a substring haystack (`token in verdict`) until 2026-09-27. That is the exact bug class the
+# sibling presence_cardboard_figure.py was rewritten to eliminate on 2026-09-15 — see its comment above
+# _SIGNAL for the three MEASURED failure modes of substring matching (fall-through onto a terminal
+# default, a short token colliding INSIDE an unrelated longer token — `ns` ⊂ `tumor_intri`ns`ic`, and a
+# case mismatch). On THIS module's vocabulary the collisions were LATENT (no corpus token actually
+# collided, so the conversion is byte-stable — see tests/test_presence_matrix.py), but the susceptibility
+# was real: e.g. any future verdict merely CONTAINING `broadly_high`, `absent`, or `not_detected` would
+# have borrowed that tier. Membership is now EXACT, so a token that merely contains another cannot borrow
+# its polarity, and a new verdict lands in None (neutral) rather than inheriting an optimistic tier.
+#
+# The token set is the FULL enumeration of every verdict that can populate the six presence-tier buckets
+# (bulk_rna, bulk_protein_ms {cell_line, tumor}, sc_rna/tumor, protein_ihc/tumor). It is authoritatively
+# the three ladders in tumor-presence/scripts/run.py (_EXPRESSION_RANK / _PROTEIN_RANK / _SC_RNA_RANK,
+# keyed by _MEASUREMENT_RANK) PLUS the _MEASURED_UNRULED_PRESENT map (CPTAC-flat + HPA antibody-IHC). The
+# `_expression`/`_in_tumor`/`protein_`/`sc_`/`ihc_` prefixes are part of the exact token. Each tier below
+# reproduces the pre-conversion substring result for the corresponding token (byte-stable on the corpus);
+# tokens that fell through to None under substrings (e.g. tumor_subset_high_expression, the *_downregulated
+# reads, the *_tumor_elevated breadth reads, sc_microenvironment_dominant, the ihc_detected_* reads) are
+# deliberately OMITTED so they keep rendering as neutral "measured" gray, unchanged.
+_TIER_BY_TOKEN = {
     # tier 3 — strong / broadly high
-    ("broadly_high", 3),
-    ("broadly_expressed", 3),
-    ("strongly_upregulated", 3),
-    ("malignant_broadly_detected", 3),
-    ("broadly_detected", 3),
+    "broadly_high_expression": 3,
+    "strongly_upregulated_in_tumor": 3,
+    "tumor_broadly_expressed": 3,
+    "protein_strongly_upregulated": 3,
+    "protein_broadly_high": 3,
     # tier 2 — moderate
-    ("broadly_moderate", 2),
-    ("modestly_upregulated", 2),
-    ("moderately_expressed", 2),
-    ("modestly_up", 2),
-    ("malignant_detected", 2),
-    ("sc_malignant_detected", 2),
+    "modestly_upregulated_in_tumor": 2,
+    "tumor_moderately_expressed": 2,
+    "broadly_moderate_expression": 2,
+    "protein_modestly_upregulated": 2,
+    "protein_broadly_moderate": 2,
+    "sc_malignant_detected": 2,
     # tier 1 — low / restricted / present-not-elevated
-    ("lineage_restricted", 1),
-    ("broadly_low", 1),
-    ("sparsely", 1),
-    ("present_not_elevated", 1),
-    ("modestly_detected", 1),
-    ("focally", 1),
-    # tier 0 — measured NEGATIVE (a real absence, distinct from data_unavailable)
-    ("not_expressed", 0),
-    ("protein_absent", 0),
-    ("not_detected", 0),
-    ("absent", 0),
-]
+    "lineage_restricted": 1,
+    "tumor_sparsely_expressed": 1,
+    "broadly_low_expression": 1,
+    "protein_lineage_restricted": 1,
+    "protein_broadly_low": 1,
+    "protein_present_not_elevated": 1,
+    "sc_broadly_low": 1,
+    # tier 0 — measured NEGATIVE (a real absence, distinct from data_unavailable). The only reachable
+    # tier-0 bucket verdict is HPA antibody-IHC not-detected; CPTAC/bulk-MS cannot assert per-gene
+    # absence (protein_not_detected was retired, target-contracts #467).
+    "ihc_not_detected": 0,
+}
 
 # Light-mode presence ramp (sequential blue, ordinal floor ≥ step 250 per the dataviz palette).
 # tier None → neutral "measured, un-ranked" gray (on-scale but no ramp position).
@@ -114,14 +134,11 @@ _OFFSCALE_INK = "#8a8d91"
 
 
 def _tier_of(verdict: Optional[str]) -> Optional[int]:
-    """Presence tier (3..0) or None (unknown → no fabricated rank). Substring match, most-specific first."""
+    """Presence tier (3..0) or None (unknown → no fabricated rank). EXACT membership on the
+    case-normalized bucket-verdict token — a token that merely CONTAINS another cannot borrow its tier."""
     if not verdict:
         return None
-    v = verdict.lower()
-    for token, tier in _TIER_SUBSTRINGS:
-        if token in v:
-            return tier
-    return None
+    return _TIER_BY_TOKEN.get(str(verdict).strip().lower())
 
 
 def _status_of(verdict: Optional[str]) -> Optional[str]:

@@ -84,20 +84,112 @@ def _headline():
 
 
 def test_tier_is_order_preserving_and_unknown_is_none():
+    # Real bucket verdicts, one per tier. `ihc_not_detected` (HPA antibody-IHC) is the sole reachable
+    # tier-0 bucket verdict — CPTAC/bulk-MS cannot assert per-gene absence (protein_not_detected retired,
+    # target-contracts #467). It replaces the never-emitted synthetic `protein_absent` this test used
+    # before the exact-membership conversion.
     assert _tier_of("tumor_broadly_expressed") == 3
     assert _tier_of("protein_broadly_moderate") == 2
     assert _tier_of("lineage_restricted") == 1
-    assert _tier_of("protein_absent") == 0
+    assert _tier_of("ihc_not_detected") == 0
     # order is preserved across the tiers
     assert (
         _tier_of("tumor_broadly_expressed")
         > _tier_of("protein_broadly_moderate")
         > _tier_of("lineage_restricted")
-        > _tier_of("protein_absent")
+        > _tier_of("ihc_not_detected")
     )
     # unknown verdict → NO fabricated rank
     assert _tier_of("some_new_unmapped_verdict") is None
     assert _tier_of(None) is None
+
+
+# ── Mutation teeth: the three substring failure modes the exact-membership conversion closes ──────────
+# Each input below is mis-tiered by the pre-2026-09-27 substring code (`token in verdict`) and correctly
+# handled by exact membership. Verified RED on the pre-fix `_TIER_SUBSTRINGS` code, GREEN after. The
+# expected tier is RE-DERIVED by calling `_tier_of` (the function under test) — no fixtured derived value.
+# These mirror the three MEASURED failures documented above presence_cardboard_figure._SIGNAL.
+
+
+def test_matrix_tier_fall_through_is_conservative_never_a_spurious_high_tier():
+    """Mode 1 — FALL-THROUGH. A token that is NOT a presence-level verdict must land on the conservative
+    neutral (None), never borrow an alarming tier. `broadly_high_confidence` merely CONTAINS the old
+    substring `broadly_high`, so the substring code returned tier 3 (the TOP presence tier) for a token
+    that is not a presence level at all. Exact membership returns None (rendered neutral gray)."""
+    assert _tier_of("broadly_high_confidence") is None
+
+
+def test_matrix_tier_short_substring_does_not_invert_polarity():
+    """Mode 2 — COLLISION (the `ns` ⊂ `tumor_intrinsic` analog). `tumor_present_not_absent` is a
+    present-meaning token, but it CONTAINS the tier-0 substring `absent`, so the substring code inverted
+    it to tier 0 (a fabricated measured-ABSENCE). Exact membership returns None — no borrowed polarity."""
+    assert _tier_of("tumor_present_not_absent") is None
+
+
+def test_matrix_tier_uppercase_variant_is_not_substring_matched():
+    """Mode 3 — CASE. Exact membership is case-normalized once, so a legitimate token tiers identically
+    regardless of case; but an uppercase token that merely CONTAINS a tier substring (which the substring
+    code caught after its own .lower()) no longer borrows that tier."""
+    # a real verdict tiers identically case-insensitively
+    assert _tier_of("BROADLY_HIGH_EXPRESSION") == 3
+    assert _tier_of("Lineage_Restricted") == 1
+    # an uppercase non-verdict that only embeds a tier substring → None, not the borrowed tier
+    assert _tier_of("BROADLY_HIGH_UNRELATED_FLAG") is None
+
+
+# Byte-stability spec: every verdict that can populate the six presence-tier buckets, with the tier the
+# pre-conversion substring code produced. Sourced from tumor-presence/scripts/run.py — the three ladders
+# (_EXPRESSION_RANK / _PROTEIN_RANK / _SC_RNA_RANK) + _MEASURED_UNRULED_PRESENT. `None` = neutral gray
+# (fall-through under substrings, preserved by omission from the exact map). This pins that the
+# substring→exact conversion is corpus byte-stable: change a tier here only for a deliberate reason.
+_BUCKET_VERDICT_TIERS = {
+    # bulk_rna (_EXPRESSION_RANK)
+    "broadly_high_expression": 3,
+    "strongly_upregulated_in_tumor": 3,
+    "tumor_broadly_expressed": 3,
+    "tumor_subset_high_expression": None,
+    "modestly_upregulated_in_tumor": 2,
+    "tumor_moderately_expressed": 2,
+    "lineage_restricted": 1,
+    "broadly_moderate_expression": 2,
+    "tumor_sparsely_expressed": 1,
+    "modestly_downregulated_in_tumor": None,
+    "strongly_downregulated_in_tumor": None,
+    "broadly_low_expression": 1,
+    "not_informative": None,
+    # bulk_protein_ms (_PROTEIN_RANK + _MEASURED_UNRULED_PRESENT)
+    "protein_strongly_upregulated": 3,
+    "protein_broadly_high": 3,
+    "protein_lineage_restricted": 1,
+    "protein_modestly_upregulated": 2,
+    "broadly_tumor_elevated": None,
+    "multi_tumor_elevated": None,
+    "protein_broadly_moderate": 2,
+    "single_tumor_elevated": None,
+    "not_tumor_elevated": None,
+    "protein_modestly_downregulated": None,
+    "protein_strongly_downregulated": None,
+    "protein_broadly_low": 1,
+    "protein_present_not_elevated": 1,
+    # sc_rna/tumor (_SC_RNA_RANK)
+    "sc_malignant_detected": 2,
+    "sc_microenvironment_dominant": None,
+    "sc_broadly_low": 1,
+    # protein_ihc/tumor (_MEASURED_UNRULED_PRESENT)
+    "ihc_detected_high": None,
+    "ihc_detected_moderate": None,
+    "ihc_detected_low": None,
+    "ihc_not_detected": 0,
+    # data_unavailable never reaches _tier_of (evidence_state gates it) but must be inert here too
+    "data_unavailable": None,
+}
+
+
+def test_every_bucket_verdict_tiers_byte_stable():
+    """The full enumeration of presence-bucket verdicts tiers exactly as before the exact-membership
+    conversion (no corpus value moved). A tier change here is a deliberate decision, not a silent drift."""
+    for token, expected in _BUCKET_VERDICT_TIERS.items():
+        assert _tier_of(token) == expected, (token, _tier_of(token), expected)
 
 
 def test_measured_cells_get_a_tier_missing_cells_are_off_scale():
