@@ -23,7 +23,7 @@ composed lanes) are LIVE.** `run.py` has no `CARD_CONTEXT` map (mechanism is ind
 
 | card_id | method / read path | catalog manifest(s) | role |
 |---|---|---|---|
-| `signaling-network-mechanism` | `mechanism_composed::read_target_summary` (SIGNOR lane reads the derived parquet first, TSV fallback) | `signor-jul2026` (src) + **`signor-mechanism-network-per-gene-v1`** (derived, primary read) + composed lanes `collectri-tf-regulon-per-gene-v1`, `reactome-pathway-per-uniprot-v1`, `kinome-atlas-long-edges-v1`, `depmap-coessentiality-26q1-v1` | **verdict-driving** (the only resolver card; keyed on `network_class`) |
+| `signaling-network-mechanism` | `mechanism_composed::read_target_summary` (SIGNOR lane reads the derived parquet first, TSV fallback) | `signor-jul2026` (src) + **`signor-mechanism-network-per-gene-v1`** (derived, primary read) + composed lanes `collectri-tf-regulon-per-gene-v1`, `reactome-pathway-per-uniprot-v1`, `kinome-atlas-long-edges-v1`, `depmap-coessentiality-26q3-v1` | **verdict-driving** (the only resolver card; keyed on `network_class`) |
 | `tahoe-drug-perturbation` | `tahoe_drug_perturbation` | `tahoe-drug-perturbation-per-gene-v1` (~5.3 GB) | display-only |
 | `phospho-pathway-activity` | `phospho_pathway_activity` (reads derived per-site) | `cptac-pdc-snapshot-2026-07-01` (src, declared) → reads `cptac-phospho-per-site-per-cohort-v1` (derived) | display-only |
 | `pathway-activity-context` | `progeny_pathway_activity` (PROGENy) | `progeny-pathway-activity-per-indication-v1` | display-only |

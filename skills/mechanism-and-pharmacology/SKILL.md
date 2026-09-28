@@ -4,7 +4,8 @@ description: |
   Phase-D skill — signaling-network mechanism + candidate MoA hooks + PD-
   marker suggestions for a target. Consumes the signaling-network-mechanism
   evidence card — a directed signaling network composed from curated sources
-  (SIGNOR + CollecTRI + Reactome) and classified into a 31-class MoA ontology.
+  (SIGNOR + CollecTRI edges, with Reactome layered as pathway context — not
+  counted in the edge total) and classified into a 31-class MoA ontology.
 
   The network is composed on-read (methods/mechanism_composed) from the SIGNOR
   Jul2026 source release plus the CollecTRI curated edge set; the `network_class`
