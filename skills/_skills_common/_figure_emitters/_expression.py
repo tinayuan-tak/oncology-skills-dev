@@ -15,6 +15,184 @@ from ._common import (  # shared emitter helpers/constants
     _plotly_from,
 )
 
+# Local cache for downloaded aggregates (non-SageMaker environments)
+_LOCAL_AGGREGATE_CACHE = Path.home() / ".cache" / "framework-genomic-aggregates"
+
+# Indication to TCGA study mapping
+_INDICATION_TO_TCGA = {
+    "COADREAD": ["COAD", "READ"], "COAD": ["COAD"], "READ": ["READ"],
+    "LUAD": ["LUAD"], "LUSC": ["LUSC"], "NSCLC": ["LUAD", "LUSC"],
+    "BRCA": ["BRCA"], "PAAD": ["PAAD"], "PDAC": ["PAAD"],
+    "SKCM": ["SKCM"], "MELANOMA": ["SKCM"], "STAD": ["STAD"], "GC": ["STAD"],
+    "PRAD": ["PRAD"], "OV": ["OV"], "KIRC": ["KIRC"], "GBM": ["GBM"], "LGG": ["LGG"],
+    "HNSC": ["HNSC"], "BLCA": ["BLCA"], "LIHC": ["LIHC"], "UCEC": ["UCEC"], "LAML": ["LAML"],
+}
+
+
+def _download_patient_cn_aggregate_if_missing() -> Path:
+    """Download TCGA patient CN aggregate from S3 if not available locally."""
+    local_path = _LOCAL_AGGREGATE_CACHE / "tcga_patient_cn" / "patient_cn_per_gene.parquet"
+    if local_path.exists():
+        return local_path
+
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        import boto3
+        s3 = boto3.client("s3")
+        print("  Downloading TCGA patient CN aggregate (~3MB)...", flush=True)
+        s3.download_file("onc-compbio", "data-catalog/derived/tcga-patient-cn-per-gene-v1/patient_cn_per_gene.parquet", str(local_path))
+        print(f"  Cached to {local_path}", flush=True)
+        return local_path
+    except Exception as e:
+        print(f"  Failed to download patient CN aggregate: {e}", flush=True)
+        return None
+
+
+def _load_oncokb_driver_genes() -> tuple[set, set]:
+    """Load OncoKB driver genes, returning (oncogenes, tsgs) sets.
+
+    Oncogenes are genes where amplification is likely causal.
+    TSGs are genes where deletion is likely causal.
+    """
+    try:
+        from methods.driver_role_overlay.read import _load_oncokb_roles
+        roles = _load_oncokb_roles()
+        oncogenes = {gene for gene, role in roles.items() if role in ("ONCOGENE", "BOTH")}
+        tsgs = {gene for gene, role in roles.items() if role in ("TSG", "BOTH")}
+        return oncogenes, tsgs
+    except Exception:
+        return set(), set()
+
+
+def _emit_patient_cn_from_aggregate(summary: dict, out_dir: Path, target: str, indication: str) -> list:
+    """Emit patient CN figures from the TCGA aggregate (legacy path when no plot_data)."""
+    import pyarrow.parquet as pq
+    from methods.tcga_patient_cn.figures import render_from_plot_data
+
+    # Try SageMaker path first, then download
+    aggregate_path = Path("/home/sagemaker-user/data-products-cache/tcga_patient_cn/patient_cn_per_gene.parquet")
+    if not aggregate_path.exists():
+        aggregate_path = _download_patient_cn_aggregate_if_missing()
+
+    if not aggregate_path or not aggregate_path.exists():
+        return []
+
+    # Load OncoKB driver genes for filtering
+    oncogenes, tsgs = _load_oncokb_driver_genes()
+
+    # Read INDICATION-SPECIFIC patient CN
+    # Column is 'indication', values are like 'COADREAD', 'BRCA', etc.
+    # Read both any-level (GISTIC ≥+1/≤-1) and focal (GISTIC ≥+2/≤-2) for pie chart breakdown
+    table_ind = pq.read_table(
+        aggregate_path,
+        filters=[("indication", "=", indication.upper())],
+        columns=["gene_symbol", "patient_amplified_fraction", "patient_high_amp_fraction",
+                 "patient_deleted_fraction", "patient_homdel_fraction"],
+    )
+
+    # Read PAN-CANCER patient CN (all indications)
+    table_pan = pq.read_table(
+        aggregate_path,
+        columns=["gene_symbol", "patient_amplified_fraction", "patient_high_amp_fraction",
+                 "patient_deleted_fraction", "patient_homdel_fraction"],
+    )
+
+    if table_ind is None or table_ind.num_rows == 0:
+        return []
+
+    df_ind = table_ind.to_pandas()
+    # Get per-gene frequencies for indication (focal events only)
+    gene_amp_ind = df_ind.groupby("gene_symbol")["patient_high_amp_fraction"].max()
+    gene_del_ind = df_ind.groupby("gene_symbol")["patient_homdel_fraction"].max()
+
+    # Filter to driver genes: oncogenes for amplifications, TSGs for deletions
+    amp_genes_ind = [(gene, freq) for gene, freq in gene_amp_ind.items()
+                     if freq is not None and freq > 0 and (gene in oncogenes or gene == target)]
+    del_genes_ind = [(gene, freq) for gene, freq in gene_del_ind.items()
+                     if freq is not None and freq > 0 and (gene in tsgs or gene == target)]
+    amp_genes_ind.sort(key=lambda x: x[1], reverse=True)
+    del_genes_ind.sort(key=lambda x: x[1], reverse=True)
+
+    # Compute pan-cancer frequencies (focal events only, filtered to drivers)
+    amp_genes_pan = amp_genes_ind  # Default fallback
+    del_genes_pan = del_genes_ind
+    if table_pan is not None and table_pan.num_rows > 0:
+        df_pan = table_pan.to_pandas()
+        gene_amp_pan = df_pan.groupby("gene_symbol")["patient_high_amp_fraction"].mean()  # Average across indications
+        gene_del_pan = df_pan.groupby("gene_symbol")["patient_homdel_fraction"].mean()
+        amp_genes_pan = [(gene, freq) for gene, freq in gene_amp_pan.items()
+                         if freq is not None and freq > 0 and (gene in oncogenes or gene == target)]
+        del_genes_pan = [(gene, freq) for gene, freq in gene_del_pan.items()
+                         if freq is not None and freq > 0 and (gene in tsgs or gene == target)]
+        amp_genes_pan.sort(key=lambda x: x[1], reverse=True)
+        del_genes_pan.sort(key=lambda x: x[1], reverse=True)
+
+    if not amp_genes_ind and not del_genes_ind:
+        return []
+
+    # Look up target's any-level and focal frequencies from indication and pan-cancer data
+    target_any_amp_ind = df_ind[df_ind["gene_symbol"] == target]["patient_amplified_fraction"].max() if target in df_ind["gene_symbol"].values else 0
+    target_focal_amp_ind = df_ind[df_ind["gene_symbol"] == target]["patient_high_amp_fraction"].max() if target in df_ind["gene_symbol"].values else 0
+    target_any_del_ind = df_ind[df_ind["gene_symbol"] == target]["patient_deleted_fraction"].max() if target in df_ind["gene_symbol"].values else 0
+    target_focal_del_ind = df_ind[df_ind["gene_symbol"] == target]["patient_homdel_fraction"].max() if target in df_ind["gene_symbol"].values else 0
+
+    target_any_amp_pan = df_pan.groupby("gene_symbol")["patient_amplified_fraction"].mean().get(target, 0) if table_pan is not None else 0
+    target_focal_amp_pan = df_pan.groupby("gene_symbol")["patient_high_amp_fraction"].mean().get(target, 0) if table_pan is not None else 0
+    target_any_del_pan = df_pan.groupby("gene_symbol")["patient_deleted_fraction"].mean().get(target, 0) if table_pan is not None else 0
+    target_focal_del_pan = df_pan.groupby("gene_symbol")["patient_homdel_fraction"].mean().get(target, 0) if table_pan is not None else 0
+
+    # Handle NaN values
+    import math
+    target_any_amp_ind = 0 if (target_any_amp_ind is None or (isinstance(target_any_amp_ind, float) and math.isnan(target_any_amp_ind))) else target_any_amp_ind
+    target_focal_amp_ind = 0 if (target_focal_amp_ind is None or (isinstance(target_focal_amp_ind, float) and math.isnan(target_focal_amp_ind))) else target_focal_amp_ind
+    target_any_del_ind = 0 if (target_any_del_ind is None or (isinstance(target_any_del_ind, float) and math.isnan(target_any_del_ind))) else target_any_del_ind
+    target_focal_del_ind = 0 if (target_focal_del_ind is None or (isinstance(target_focal_del_ind, float) and math.isnan(target_focal_del_ind))) else target_focal_del_ind
+    target_any_amp_pan = 0 if (target_any_amp_pan is None or (isinstance(target_any_amp_pan, float) and math.isnan(target_any_amp_pan))) else target_any_amp_pan
+    target_focal_amp_pan = 0 if (target_focal_amp_pan is None or (isinstance(target_focal_amp_pan, float) and math.isnan(target_focal_amp_pan))) else target_focal_amp_pan
+    target_any_del_pan = 0 if (target_any_del_pan is None or (isinstance(target_any_del_pan, float) and math.isnan(target_any_del_pan))) else target_any_del_pan
+    target_focal_del_pan = 0 if (target_focal_del_pan is None or (isinstance(target_focal_del_pan, float) and math.isnan(target_focal_del_pan))) else target_focal_del_pan
+
+    # Build a mock plot_data DataFrame and call render_from_plot_data
+    import pandas as pd
+
+    rows = []
+    # Use any-level frequencies for target summary (pie chart total), focal is passed via summary
+    rows.append({"target": target, "indication": indication, "gene_symbol": target,
+                 "frequency": target_any_amp_ind, "cn_type": "amplification", "row_type": "target_summary"})
+    rows.append({"target": target, "indication": indication, "gene_symbol": target,
+                 "frequency": target_any_del_ind, "cn_type": "deletion", "row_type": "target_summary"})
+
+    # Context rows - indication specific (focal events for stacked bar)
+    for gene, freq in amp_genes_ind[:100]:
+        rows.append({"target": target, "indication": indication, "gene_symbol": gene,
+                     "frequency": freq, "cn_type": "amplification", "row_type": "all_genes_context"})
+    for gene, freq in del_genes_ind[:100]:
+        rows.append({"target": target, "indication": indication, "gene_symbol": gene,
+                     "frequency": freq, "cn_type": "deletion", "row_type": "all_genes_context"})
+
+    # Context rows - pan-cancer (focal events for stacked bar)
+    for gene, freq in amp_genes_pan[:100]:
+        rows.append({"target": target, "indication": indication, "gene_symbol": gene,
+                     "frequency": freq, "cn_type": "amplification", "row_type": "all_genes_context_pancancer"})
+    for gene, freq in del_genes_pan[:100]:
+        rows.append({"target": target, "indication": indication, "gene_symbol": gene,
+                     "frequency": freq, "cn_type": "deletion", "row_type": "all_genes_context_pancancer"})
+
+    plot_df = pd.DataFrame(rows)
+
+    # Add any-level and focal frequencies to summary for pie chart rendering
+    summary_with_cn = dict(summary)
+    summary_with_cn["patient_amplified_fraction"] = target_any_amp_ind
+    summary_with_cn["patient_focal_amplification_freq"] = target_focal_amp_ind
+    summary_with_cn["patient_deleted_fraction"] = target_any_del_ind
+    summary_with_cn["patient_focal_deletion_freq"] = target_focal_del_ind
+    summary_with_cn["pancancer_amp_freq"] = target_any_amp_pan
+    summary_with_cn["pancancer_focal_amp_freq"] = target_focal_amp_pan
+    summary_with_cn["pancancer_del_freq"] = target_any_del_pan
+    summary_with_cn["pancancer_focal_del_freq"] = target_focal_del_pan
+
+    return render_from_plot_data(plot_df, summary_with_cn, out_dir, target, indication)
+
 
 def _emit_expression_distribution(
     summary: dict,
@@ -121,18 +299,44 @@ def _emit_cn_distribution(
 ) -> list[dict]:
     """Emit E3.b copy-number figures. Prefer the OFFLINE render seam (persisted plot_data → method
     render_from_plot_data, no live re-read, cannot diverge from the verdict); fall back to legacy live
-    re-execution when no persisted plot_data is present (migration-safe for every consumer)."""
+    re-execution when no persisted plot_data is present (migration-safe for every consumer).
+
+    Also renders TCGA patient CN figures (pie, stacked) when plot_data_patient_cn.parquet is present."""
     if _has_live_read_error(summary):
         return []
     _ensure_methods_path()
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # OFFLINE path: render from the persisted plot_data artifact when present.
+    figures = []
+
+    # OFFLINE path: render DepMap cell-line CN from the persisted plot_data artifact when present.
     pd_path = out_dir / "plot_data_cn.parquet"
     if pd_path.exists():
         from methods.depmap_cn_distribution.figures import render_from_plot_data
 
-        return render_from_plot_data(pd_path, summary, out_dir, target, indication)
+        figures.extend(render_from_plot_data(pd_path, summary, out_dir, target, indication))
+
+    # TCGA patient CN figures (pie, stacked) - render when patient plot_data is present
+    pd_patient_path = out_dir / "plot_data_patient_cn.parquet"
+    if pd_patient_path.exists():
+        try:
+            from methods.tcga_patient_cn.figures import render_from_plot_data as render_patient_cn
+
+            patient_figs = render_patient_cn(pd_patient_path, summary, out_dir, target, indication)
+            figures.extend(patient_figs)
+        except Exception:
+            pass  # patient CN figures are additive; failure doesn't break the card
+    else:
+        # Try legacy path: load from aggregate and emit patient CN figures
+        try:
+            patient_figs = _emit_patient_cn_from_aggregate(summary, out_dir, target, indication)
+            figures.extend(patient_figs)
+        except Exception:
+            pass  # patient CN figures are additive
+
+    # Return early if we got figures from offline path
+    if figures:
+        return figures
 
     # LEGACY fallback: re-execute the method against live data (pre-migration behavior).
     from methods.depmap_cn_distribution import cli as e3bcli
