@@ -73,6 +73,22 @@ source (coordinate; major on rename); new facet → no schema change.
 
 ## 5. Known gaps & notes (non-blocking)
 
+- **`role: gating` is intentional despite statically-neutral polarity (#1811).** `_mechanism_verdict_polarity()`
+  (`scripts/run.py`) returns `"neutral"` unconditionally — this skill can never move a nomination
+  positive or negative on its own, and `questions.yaml` already documents the skill as `mode: descriptive`
+  at the question/editorial-role level (every question row is `context`, not `verdict_bearing`). The
+  `role: gating` label on the `skill_report` spine is a SEPARATE, structural fact: it is schema-pinned
+  (`target-contracts/schemas/skills/mechanism-and-pharmacology.decision.schema.json` pins `role: gating`,
+  §4) and `_skills_common/risk_projection.py` structurally includes `mechanism` as one of its 6 gated
+  legs (the "6/6 reads + gated: dependency · mechanism · safety · selectivity · surface_modality ·
+  tractability_sm" set) — issue #1562 is the downstream consumer that reads this skill's `neutral`
+  verdict as an escalate-only, never-demote input to that gate math. Reclassifying the role to
+  `descriptive` would therefore require a coordinated schema change in target-contracts AND a change to
+  `risk_projection.py`'s leg set — both out of scope for a mechanism-and-pharmacology-only change. The
+  `gating` role denotes "wired into the gate-math spine," not "this skill's polarity can move the gate";
+  polarity (always neutral) is the separate, orthogonal fact that it never does. No verdict/polarity
+  values changed by this note.
+
 - **`phospho-pathway-activity` declares the CPTAC source** as `required_inputs` but reads the derived
   `cptac-phospho-per-site-per-cohort-v1` — a provenance-declaration gap (both materialized; not broken).
 - **`has_actionable_moa` / `has_pd_marker` are count-of-mapped-edge flags** (2026-09-12 method fix): True
