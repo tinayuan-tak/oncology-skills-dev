@@ -7,7 +7,7 @@ the data-product spec.
 | | |
 |---|---|
 | **Skill** | `tumor-selectivity` |
-| **Skill code version** | 1.29.0 |
+| **Skill code version** | 1.30.0 |
 | **Contract version** | 1.0.0 (emitted-output schema; versioned independently of the skill code — see §4) |
 | **Role** | `gating` (verdict moves the nomination; polarity is **dynamic** — the normal-breadth / stromal vetoes emit `canonical_polarity_override="killer"`) |
 | **Verdict field** | `headline.selectivity_class` (RESOLVED, post-veto) + `axis_a_selectivity_class` (raw pre-veto) |

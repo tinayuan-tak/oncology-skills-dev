@@ -143,3 +143,64 @@ def test_shared_renderer_emits_html():
     h["claim_vector"] = selectivity_claim_vector(h, [])
     html = render_question_table_html(selectivity_question_table(h, []), verdict=h["selectivity_class"])
     assert "<table" in html and "Q1" in html and "field_effect_tumor_selective" in html
+
+
+# ── #1831: Q2 must honour comparator_concordance, not the raw cell count ──────────────────────────
+def _q2(headline):
+    h = dict(headline)
+    h["claim_vector"] = selectivity_claim_vector(h, [])
+    return {r["id"]: r for r in selectivity_question_table(h, [])}["Q2"]
+
+
+def test_q2_single_comparator_capped_regardless_of_cell_count():
+    """An adjacent-only run (cells A raw + B ComBat = ONE comparison, GTEx never resolved) must NOT
+    render as high/'N/N independent comparators agree' even when every cell agrees and sig_all is set —
+    the cell-count path must not re-inflate the row when concordance says single-family."""
+    h = _ceacam5_headline()
+    h.update(
+        {
+            "cells_supporting": 3.0,
+            "cells_ran": 3.0,
+            "discordant": False,
+            "sig_all_cells": True,
+            "comparator_concordance": "single_comparator",
+        }
+    )
+    r = _q2(h)
+    assert r["confidence"]["tier"] != "high"
+    assert r["signal"]["tier"] != "strong"
+    assert "independent comparators agree" not in r["primary"]
+
+
+def test_q2_discordant_concordance_caps_and_opposes():
+    h = _ceacam5_headline()
+    h.update(
+        {
+            "cells_supporting": 3.0,
+            "cells_ran": 3.0,
+            "discordant": False,
+            "sig_all_cells": True,
+            "comparator_concordance": "discordant",
+        }
+    )
+    r = _q2(h)
+    assert r["confidence"]["tier"] != "high"
+    assert r["signal"]["polarity"] == "opposes"
+
+
+def test_q2_concordant_unchanged_positive_rendering():
+    """A genuine two-family concordant call keeps today's rendering (sig_all → high + N/N wording)."""
+    h = _ceacam5_headline()
+    h.update(
+        {
+            "cells_supporting": 3.0,
+            "cells_ran": 3.0,
+            "discordant": False,
+            "sig_all_cells": True,
+            "comparator_concordance": "concordant",
+        }
+    )
+    r = _q2(h)
+    assert r["confidence"]["tier"] == "high"
+    assert r["signal"]["tier"] == "strong"
+    assert "independent comparators agree" in r["primary"]

@@ -163,3 +163,28 @@ def test_emit_writes_svg_and_json(tmp_path):
 def test_emit_noop_without_verdict(tmp_path):
     """No selectivity_class → nothing emitted (best-effort, never fabricates a hero)."""
     assert emit_selectivity_hero({"target": "X", "headline": {}}, tmp_path) == []
+
+
+# ── #1831: hero Cross-comparator axis must honour comparator_concordance, not the raw cell count ──
+def _comparator_axis(headline):
+    return {a["key"]: a for a in build_selectivity_axes(headline)["axes"]}["comparators"]
+
+
+def test_hero_comparator_single_family_not_good():
+    h = _clean_headline()
+    h.update(
+        {"cells_supporting": 3.0, "cells_ran": 3.0, "discordant": False, "comparator_concordance": "single_comparator"}
+    )
+    assert _comparator_axis(h)["status"] == "warn"  # capped: one family, never "good"
+
+
+def test_hero_comparator_discordant_is_bad():
+    h = _clean_headline()
+    h.update({"cells_supporting": 3.0, "cells_ran": 3.0, "discordant": False, "comparator_concordance": "discordant"})
+    assert _comparator_axis(h)["status"] == "bad"
+
+
+def test_hero_comparator_concordant_unchanged_good():
+    h = _clean_headline()
+    h.update({"cells_supporting": 3.0, "cells_ran": 3.0, "discordant": False, "comparator_concordance": "concordant"})
+    assert _comparator_axis(h)["status"] == "good"

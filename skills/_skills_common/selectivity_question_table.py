@@ -69,8 +69,22 @@ def _q1_window(h, c, cv):
 def _q2_comparators(h, c, cv):
     cs, cr = h.get("cells_supporting"), h.get("cells_ran")
     disc, sig_all = h.get("discordant"), h.get("sig_all_cells")
+    # Count INDEPENDENT comparator FAMILIES (<=2: TCGA-adjacent, GTEx), never cells_ran: cells A (raw)
+    # and B (its ComBat re-run) are the SAME tumor-vs-adjacent comparison scored twice, so a 3/3 cell
+    # support count can rest on ONE independent family. comparator_concordance collapses A+B into one
+    # adjacent family and asks whether it agrees with the independent GTEx family — the same field the
+    # certainty tier (_sel_coverage) and the WIN-corroboration cap already use to discount
+    # adjacent-only-as-one-family. Cap tier/confidence/wording on it so this row (literally titled
+    # "Robust across independent comparators?") cannot over-state an adjacent-only run as N/N independent;
+    # fall back to the cell-count rendering only when concordance is unknown (older summaries), exactly
+    # as _sel_coverage does. The cell-count path must NOT be able to re-inflate a single_comparator row.
+    concordance = h.get("comparator_concordance")
     if not cr:
         tier, pol = "unmeasured", "none"
+    elif concordance == "single_comparator":
+        tier, pol = "moderate", "supports"  # only ONE independent family resolved — never "high"
+    elif concordance == "discordant":
+        tier, pol = "weak", "opposes"
     elif disc:
         tier, pol = "weak", "opposes"
     elif sig_all:
@@ -79,19 +93,30 @@ def _q2_comparators(h, c, cv):
         tier, pol = "moderate", "supports"
     else:
         tier, pol = "weak", "supports"
-    primary = f"{int(cs or 0)}/{int(cr or 0)} independent comparators agree"
-    support = (
-        "comparators DISAGREE on direction"
-        if disc
-        else ("significant in ALL cells" if sig_all else "TCGA-adjacent (raw+ComBat) + GTEx")
-    )
+
+    if concordance == "single_comparator":
+        primary = "1 independent comparator family (TCGA-adjacent raw+ComBat = one comparison); GTEx did not resolve"
+        support = "single comparator family — not corroborated by an independent normal reference"
+        conf = _conf("moderate")
+    elif concordance == "discordant":
+        primary = f"{int(cs or 0)}/{int(cr or 0)} cells ran but independent comparators DISAGREE on direction"
+        support = "TCGA-adjacent vs GTEx families discordant"
+        conf = _conf("moderate")
+    else:  # concordant, or unknown → legacy cell-count rendering (byte-stable)
+        primary = f"{int(cs or 0)}/{int(cr or 0)} independent comparators agree"
+        support = (
+            "comparators DISAGREE on direction"
+            if disc
+            else ("significant in ALL cells" if sig_all else "TCGA-adjacent (raw+ComBat) + GTEx")
+        )
+        conf = _conf("high" if sig_all else "moderate")
     return _row(
         "Q2",
         "Robust across independent comparators?",
         primary,
         support,
         _sig(tier, tier, pol),
-        _conf("high" if sig_all else "moderate"),
+        conf,
     )
 
 

@@ -244,7 +244,8 @@ modality-therapeutic-window:
     reviewed: true
   max_full_normal_organ:
     role: context
-    reason: names the full-normal organ driving the window; cross-pointer; reach=orphan
+    reason: names the full-normal organ driving the window; surfaced in headline + de-anonymizes the
+      selective_but_broadly_normal tension when tvn-no-full-normal-window-veto fires (#1669), reach=exact
     reviewed: true
   window_ratio_essential:
     role: signal

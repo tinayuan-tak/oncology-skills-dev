@@ -99,19 +99,42 @@ def build_selectivity_axes(headline: dict) -> dict:
     def add(key, label, status, value, note):
         axes.append({"key": key, "label": label, "status": status, "value": value, "note": note})
 
-    # 1. cross-comparator agreement (the four-cell DESeq2 sensitivity design)
+    # 1. cross-comparator agreement (the four-cell DESeq2 sensitivity design). Score independent
+    # comparator FAMILIES (<=2: TCGA-adjacent, GTEx), never the raw cell count: cells A (raw) and B (its
+    # ComBat re-run) are the SAME tumor-vs-adjacent comparison, so a 2/2 or 3/3 cell agreement can rest on
+    # ONE independent family. comparator_concordance is the honest breadth signal (the certainty tier and
+    # the WIN-corroboration cap already key on it) — cap the axis status on it so an adjacent-only run is
+    # not scored "good". Fall back to the cell-fraction rendering only when concordance is unknown.
     cs, cr = h.get("cells_supporting"), h.get("cells_ran")
     disc = h.get("discordant")
+    concordance = h.get("comparator_concordance")
     if cr:
         frac = (cs or 0) / cr if cr else 0
-        st = "bad" if disc else ("good" if frac >= 0.99 else ("warn" if frac > 0 else "off"))
-        add(
-            "comparators",
-            "Cross-comparator",
-            st,
-            f"{int(cs or 0)}/{int(cr)} agree" + (" · discordant" if disc else ""),
-            "independent tumor-vs-normal contrasts (TCGA-adjacent raw + ComBat, GTEx)",
-        )
+        if concordance == "single_comparator":
+            add(
+                "comparators",
+                "Cross-comparator",
+                "warn",
+                f"1 independent comparator family ({int(cs or 0)}/{int(cr)} cells)",
+                "TCGA-adjacent raw+ComBat = one comparison; GTEx did not resolve — not independently corroborated",
+            )
+        elif concordance == "discordant" or disc:
+            add(
+                "comparators",
+                "Cross-comparator",
+                "bad",
+                f"{int(cs or 0)}/{int(cr)} agree · discordant",
+                "independent tumor-vs-normal contrasts (TCGA-adjacent raw + ComBat, GTEx)",
+            )
+        else:  # concordant, or unknown → legacy cell-fraction rendering (byte-stable)
+            st = "good" if frac >= 0.99 else ("warn" if frac > 0 else "off")
+            add(
+                "comparators",
+                "Cross-comparator",
+                st,
+                f"{int(cs or 0)}/{int(cr)} agree",
+                "independent tumor-vs-normal contrasts (TCGA-adjacent raw + ComBat, GTEx)",
+            )
     else:
         add("comparators", "Cross-comparator", "na", "n/a", "no comparator cells ran")
 
