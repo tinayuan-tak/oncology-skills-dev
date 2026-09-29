@@ -55,10 +55,14 @@ _CN_SIGNAL = {
     "broadly_neutral": "absent",
     # Measured, but under the CN power floor (too few CN-covered samples to call recurrence) — a gap WITH
     # INTENT, distinct from `data_unavailable` (nobody looked → `unmeasured`). Reads as the off-scale
-    # `underpowered` tier (never `absent`/passenger, never a driver). Consumed by C3's `_classify_cn`
-    # (depmap_cn_distribution) + tcga `_classify` (tcga_patient_cn) below each classifier's power floor;
-    # forward-declared here so C3 need not re-touch this shared file, and BYTE-INERT until an emitter ships
-    # (no live fixture emits copy_number_class == "underpowered").
+    # `underpowered` tier (never `absent`/passenger, never a driver). Emitted LIVE (#1763, verified
+    # 2026-09-29) by depmap_cn_distribution/cli.py (`return "underpowered"` below MIN_COVERED_CN) and
+    # tcga_patient_cn/read.py (patient CN below its power floor). The prior "BYTE-INERT until an emitter
+    # ships (no live fixture emits copy_number_class == underpowered)" note is STALE/FALSE — the emitters
+    # shipped. It stays byte-inert on the FROZEN corpus-20260914 only because that corpus predates them (a
+    # 2026-09-29 re-measure of all 504 packages found 0 underpowered here); the tier mapping is proven by
+    # test_genomic_claims.py (off-scale, never absent/driver), and run.py._measured() folds it as not-
+    # measured so the resolver's cn-data-unavailable-insufficient guard routes it to `insufficient`.
     "underpowered": "underpowered",
     "data_unavailable": "unmeasured",
 }
@@ -81,11 +85,14 @@ _FUS_SIGNAL = {
     "no_recurrent_fusion": "absent",
     # Measured, but under the fusion power floor (too few SV-covered samples / null fusion_frequency to
     # call recurrence) — a gap WITH INTENT, distinct from `data_unavailable` (nobody looked → `unmeasured`).
-    # Reads as the off-scale `underpowered` tier (never `absent`/passenger, never a driver). Consumed by
-    # C3's fusion `fclass` (tcga_fusion_consensus), which kills the `recurrent_fusion_driver`-with-null-
-    # frequency case by emitting this token instead; forward-declared here so C3 need not re-touch this
-    # shared file, and BYTE-INERT until an emitter ships (no live fixture emits fusion_class ==
-    # "underpowered").
+    # Reads as the off-scale `underpowered` tier (never `absent`/passenger, never a driver). Emitted LIVE
+    # (#1763, verified 2026-09-29) by tcga_fusion_consensus/read.py (`fclass = "underpowered"`), which kills
+    # the `recurrent_fusion_driver`-with-null-frequency case by emitting this token instead. The prior
+    # "BYTE-INERT until an emitter ships (no live fixture emits fusion_class == underpowered)" note is
+    # STALE/FALSE — the emitter shipped. It stays byte-inert on the FROZEN corpus-20260914 only because
+    # that corpus predates it (a 2026-09-29 re-measure of all 504 packages found 0 underpowered here); the
+    # tier mapping is proven by test_genomic_claims.py, and run.py._measured() folds it as not-measured so
+    # the resolver's fusion-underpowered-insufficient guard routes it to `insufficient`.
     "underpowered": "underpowered",
     "data_unavailable": "unmeasured",
 }
