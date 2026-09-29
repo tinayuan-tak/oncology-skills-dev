@@ -562,8 +562,36 @@ def _producer_vocab(skill, run, reader_var):
     return vocab
 
 
+# The monorepo carries target-contracts IN-REPO as contracts/ (SK#2063); CI always has it, so this
+# guard must always RUN on CI. The skip path exists only for a local dev checkout that has somehow
+# lost the contracts/ tree — gated on the in-repo path being ABSENT, never on an env var alone, so a
+# CI shard (where contracts/cards is always present) can never take it.
 _SKIP_NO_CONTRACTS = not (CONTRACTS and (CONTRACTS / "cards").is_dir())
 _SKIP_REASON = "target-contracts not checked out; the fleet vocab-exhaustiveness guard is contract-driven"
+
+
+def test_skills_discovery_floor():
+    """Hard cardinality floor: exactly 12 subgroup-panel skills are wired into this guard, each with a
+    non-empty producer vocab. This is the #1648 discovery-floor discipline: an accidental truncation of
+    _SKILLS (or a skill whose panel-source binding silently resolves to nothing) must fail RED here,
+    rather than letting test_value_tiers_partition_producer_vocab partition 0 keys against 0 vocab and
+    pass vacuously green. Runs unconditionally (not contracts-gated) for the count; the per-skill
+    producer_vocab check requires contracts and is skipped with the rest when absent."""
+    assert len(_SKILLS) == 12, (
+        f"expected exactly 12 subgroup-panel skills wired into the fleet vocab-exhaustiveness guard, "
+        f"got {len(_SKILLS)}: {[s[0] for s in _SKILLS]}. A change here is a discovery-floor regression "
+        f"unless this guard's cardinality is being deliberately updated alongside it."
+    )
+    if _SKIP_NO_CONTRACTS:
+        pytest.skip(_SKIP_REASON)
+    for skill, tiervar, readervar in _SKILLS:
+        run = load_run_py(str(SKILLS_ROOT / skill), f"_vocabguard_floor_{skill.replace('-', '_')}")
+        vocab = _producer_vocab(skill, run, readervar)
+        assert vocab, (
+            f"{skill}: producer_vocab resolved EMPTY — a binding/resolution regression would make the "
+            f"partition test below pass vacuously (0 keys ⊇ 0 vocab). Check the skill's panel-source "
+            f"card binding (question_hierarchy measurement_types, reader spec, or card contracts)."
+        )
 
 
 @pytest.mark.skipif(_SKIP_NO_CONTRACTS, reason=_SKIP_REASON)
