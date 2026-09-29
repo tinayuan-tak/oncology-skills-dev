@@ -23,7 +23,7 @@ methods build the gene-sorted derived products that the per-target readers query
 four shared helpers (`io/`, `depmap_common`, `opentargets_common`, `subgroup_common`) hold code
 reused across a family of methods and are not invoked directly.
 
-> **Carved out (skills#2100, 2026-09-29):** `dataset_fitness_signals`, `depmap_parquet_precompute`,
+> **Carved out (skills#2100, 2026-09-29):** `depmap_parquet_precompute`,
 > `subgroup_assigner_cptac_mmr`, `tcga_tmb` and `gdc_dr45_pancohort` now live in the general
 > **analysis-methods** repo. They were never reached by a card binding or a skill/eval/batch import,
 > so nothing here calls them. **Seam rule:** the general repo and this framework communicate ONLY
@@ -31,6 +31,13 @@ reused across a family of methods and are not invoked directly.
 > needs framework/kernel behaviour does not get a fork or a pin; it stays here. The derived products
 > those methods publish (e.g. `tcga-tmb-per-sample-v1`) are still read here the normal way, by
 > pinned manifest ID.
+>
+> `dataset_fitness_signals` was carved with them and **restored here** the same day: it resolves the
+> governed `dataset_fitness_resolution` vocabulary out of `contracts/vocabularies/`, which is exactly
+> the framework-governed input the seam rule keeps monorepo-side. The alternative was a vendored copy
+> of a vocabulary that drifts silently — the failure this repo has already booked twice
+> (`subgroup_common/maf_vocab.py`, data-catalog#647). Publishing that vocabulary as a data-catalog
+> product, which *would* let the method live in the general repo, is tracked separately.
 
 **Presence & selectivity (expression, RNA + protein)**
 `dge_deseq2` · `dge_tcga_gtex_precompute` · `tcga_gtex_expression_distribution` ·
