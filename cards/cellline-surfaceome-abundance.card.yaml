@@ -38,12 +38,36 @@ question: "Across the DepMap Surfaceome 26Q3 paired DIA-MS panel, what is the su
 # non-verdict-driving field on this card; declare the rule-keyed primary + salient categoricals.
 # VERDICT-INERT projection (see capsule contract migration). surface_localization_class is the
 # unique surface-localization facet categorical a numeric selector would drop.
+#
+# Aperture-orphan remedy (skills #1794-SK cross-repo measurement, 2026-09-29): this card carries NO
+# resolver rung (interpretation: rules_pending), so every scalar summary_field is display-only rather
+# than merely unwired. `median_log2_abundance_panel`, `fraction_detected`, `allgene_percentile`,
+# `n_cell_lines_evaluated`, `median_enrichment_log2ratio`, `fraction_lines_predicted_enriched` already
+# read via other credited paths (measured on the live CI run, not re-derived here); the remaining 8
+# scalar fields were the actual (card, field) orphan set (739 vs the 729 ceiling) — exactly filling
+# numeric_anchors' 8-slot cap (schema maxItems). `allgene_percentile_context` (free-text audit string,
+# not numeric, not an enumerated vocab) and `protein_abundance_source` (categorical WITH a vocab, but
+# never declared here unlike its Gygi/ProCan siblings which share the same gap) go in
+# categorical_fields instead — that block has no cap and, per the numeric_anchors schema description,
+# is exactly the non-numeric-salient-field slot. Remedy per skills #1785/_APERTURE_REMEDY: "for a
+# display-only field, add it to the owning card's contracts-side capsule: block".
 capsule:
   primary_class: protein_expression_class
   categorical_fields:
     - protein_expression_class
     - allgene_percentile_class
     - surface_localization_class
+    - protein_abundance_source
+    - allgene_percentile_context
+  numeric_anchors:
+    - median_pr_auc
+    - n_cell_lines_in_panel
+    - n_lines_enrichment_evaluated
+    - log2_abundance_iqr
+    - p25_log2_abundance_panel
+    - p75_log2_abundance_panel
+    - p5_log2_abundance_panel
+    - p95_log2_abundance_panel
 
 tier: target   # cell-line surface protein abundance is a per-ModelID property; not indication-scoped. The 64-line panel is gastric/esophageal by release scope (carried in the source manifest). Per-lineage stratification is unavailable (no OncotreeLineage crosswalk in this product).
 
