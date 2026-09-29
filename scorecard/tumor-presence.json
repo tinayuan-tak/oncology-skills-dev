@@ -161,9 +161,135 @@
         },
         "panel_consistency": {
           "evidence": {
-            "reason": "the SK#1941 envelope export (source_properties/integrated_properties/l3d) has only been exercised live for EPCAM/COADREAD (the committed golden `tests/fixtures/epcam_coadread_decision.json` via --emit-envelope) \u2014 extending the --emit-envelope run across the 5-target roster is future work, not yet measured. Left NULL rather than inferring panel behavior from a single target."
+            "capture_method": "scorecard_adapter.py::_load_envelope -> skills/tumor-presence/scripts/run.py --target <T> --indication <I> --emit-envelope (shares the gitignored per-target scripts/.panel_cache/<T>__<i>/ directory with _load_package's decision.json, writing/reading the sibling evidence_package.json filename).",
+            "checks": {
+              "all_pass": true,
+              "all_roster_rows_present": true,
+              "source_properties_keys_not_constant": true,
+              "thin_coverage_control_narrower_source_properties": true
+            },
+            "method": "per-target rows across the whole 5-target roster of the SK#1941 --emit-envelope export's source_properties (L2a) section: the SET of populated source-property keys must differ meaningfully across archetypes rather than collapsing to one constant shape, and the thin-coverage control must populate no more (and strictly fewer than at least one other roster member's) source-property keys.",
+            "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
+            "rows": [
+              {
+                "indication": "COADREAD",
+                "integrated_properties_keys": [
+                  "abundance_concordance",
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "cellline_heterogeneity_lineage_qualifier",
+                  "protein_presence_concordance",
+                  "subtype_restriction_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 5,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/EPCAM__coadread/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_elevation_breadth",
+                  "tumor_normal_selectivity",
+                  "tumor_protein_abundance"
+                ],
+                "status": "OK",
+                "target": "EPCAM"
+              },
+              {
+                "indication": "COADREAD",
+                "integrated_properties_keys": [
+                  "abundance_concordance",
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "cellline_heterogeneity_lineage_qualifier",
+                  "protein_presence_concordance",
+                  "subtype_restriction_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 5,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/KRAS__coadread/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_elevation_breadth",
+                  "tumor_normal_selectivity",
+                  "tumor_protein_abundance"
+                ],
+                "status": "OK",
+                "target": "KRAS"
+              },
+              {
+                "indication": "BRCA",
+                "integrated_properties_keys": [
+                  "abundance_concordance",
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "cellline_heterogeneity_lineage_qualifier",
+                  "protein_presence_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 4,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/ERBB2__brca/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_elevation_breadth",
+                  "tumor_normal_selectivity",
+                  "tumor_protein_abundance"
+                ],
+                "status": "OK",
+                "target": "ERBB2"
+              },
+              {
+                "indication": "COADREAD",
+                "integrated_properties_keys": [
+                  "abundance_concordance",
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "protein_presence_concordance",
+                  "subtype_restriction_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 5,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/PLK1__coadread/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_elevation_breadth",
+                  "tumor_normal_selectivity",
+                  "tumor_protein_abundance"
+                ],
+                "status": "OK",
+                "target": "PLK1"
+              },
+              {
+                "indication": "COADREAD",
+                "integrated_properties_keys": [
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "cellline_heterogeneity_lineage_qualifier",
+                  "protein_presence_concordance",
+                  "subtype_restriction_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 4,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/HTR1D__coadread/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_normal_selectivity"
+                ],
+                "status": "OK",
+                "target": "HTR1D"
+              }
+            ],
+            "status_as_of": "2026-09-29"
           },
-          "status": "NULL"
+          "status": "GREEN"
         },
         "utilization": {
           "evidence": {
@@ -198,9 +324,135 @@
         },
         "panel_consistency": {
           "evidence": {
-            "reason": "the SK#1941 envelope export (source_properties/integrated_properties/l3d) has only been exercised live for EPCAM/COADREAD (the committed golden `tests/fixtures/epcam_coadread_decision.json` via --emit-envelope) \u2014 extending the --emit-envelope run across the 5-target roster is future work, not yet measured. Left NULL rather than inferring panel behavior from a single target."
+            "capture_method": "scorecard_adapter.py::_load_envelope -> skills/tumor-presence/scripts/run.py --target <T> --indication <I> --emit-envelope (shares the gitignored per-target scripts/.panel_cache/<T>__<i>/ directory with _load_package's decision.json, writing/reading the sibling evidence_package.json filename).",
+            "checks": {
+              "all_pass": true,
+              "all_roster_rows_present": true,
+              "integrated_properties_keys_not_constant": true,
+              "thin_coverage_control_narrower_integrated_properties": true
+            },
+            "method": "per-target rows across the whole 5-target roster of the SK#1941 --emit-envelope export's integrated_properties (L2b) section: the SET of populated concordance-island keys must differ meaningfully across archetypes rather than collapsing to one constant shape, and the thin-coverage control must populate no more (and strictly fewer than at least one other roster member's) island keys.",
+            "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
+            "rows": [
+              {
+                "indication": "COADREAD",
+                "integrated_properties_keys": [
+                  "abundance_concordance",
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "cellline_heterogeneity_lineage_qualifier",
+                  "protein_presence_concordance",
+                  "subtype_restriction_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 5,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/EPCAM__coadread/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_elevation_breadth",
+                  "tumor_normal_selectivity",
+                  "tumor_protein_abundance"
+                ],
+                "status": "OK",
+                "target": "EPCAM"
+              },
+              {
+                "indication": "COADREAD",
+                "integrated_properties_keys": [
+                  "abundance_concordance",
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "cellline_heterogeneity_lineage_qualifier",
+                  "protein_presence_concordance",
+                  "subtype_restriction_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 5,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/KRAS__coadread/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_elevation_breadth",
+                  "tumor_normal_selectivity",
+                  "tumor_protein_abundance"
+                ],
+                "status": "OK",
+                "target": "KRAS"
+              },
+              {
+                "indication": "BRCA",
+                "integrated_properties_keys": [
+                  "abundance_concordance",
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "cellline_heterogeneity_lineage_qualifier",
+                  "protein_presence_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 4,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/ERBB2__brca/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_elevation_breadth",
+                  "tumor_normal_selectivity",
+                  "tumor_protein_abundance"
+                ],
+                "status": "OK",
+                "target": "ERBB2"
+              },
+              {
+                "indication": "COADREAD",
+                "integrated_properties_keys": [
+                  "abundance_concordance",
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "protein_presence_concordance",
+                  "subtype_restriction_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 5,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/PLK1__coadread/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_elevation_breadth",
+                  "tumor_normal_selectivity",
+                  "tumor_protein_abundance"
+                ],
+                "status": "OK",
+                "target": "PLK1"
+              },
+              {
+                "indication": "COADREAD",
+                "integrated_properties_keys": [
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "cellline_heterogeneity_lineage_qualifier",
+                  "protein_presence_concordance",
+                  "subtype_restriction_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 4,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/HTR1D__coadread/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_normal_selectivity"
+                ],
+                "status": "OK",
+                "target": "HTR1D"
+              }
+            ],
+            "status_as_of": "2026-09-29"
           },
-          "status": "NULL"
+          "status": "GREEN"
         },
         "utilization": {
           "evidence": {
@@ -232,9 +484,135 @@
         },
         "panel_consistency": {
           "evidence": {
-            "reason": "the SK#1941 envelope export (source_properties/integrated_properties/l3d) has only been exercised live for EPCAM/COADREAD (the committed golden `tests/fixtures/epcam_coadread_decision.json` via --emit-envelope) \u2014 extending the --emit-envelope run across the 5-target roster is future work, not yet measured. Left NULL rather than inferring panel behavior from a single target."
+            "capture_method": "scorecard_adapter.py::_load_envelope -> skills/tumor-presence/scripts/run.py --target <T> --indication <I> --emit-envelope (shares the gitignored per-target scripts/.panel_cache/<T>__<i>/ directory with _load_package's decision.json, writing/reading the sibling evidence_package.json filename).",
+            "checks": {
+              "all_pass": true,
+              "all_roster_rows_present": true,
+              "l3d_presence_or_shape_not_constant": true,
+              "thin_coverage_control_narrower_l3d": true
+            },
+            "method": "per-target rows across the whole 5-target roster of the SK#1941 --emit-envelope export's l3d (L3) section: EITHER whether the story resolves at all OR its chapter count must differ meaningfully across archetypes rather than collapsing to one constant shape, and the thin-coverage control must resolve no richer a story (absent, or no more chapters, and strictly fewer than at least one other roster member's) than the richer archetypes.",
+            "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
+            "rows": [
+              {
+                "indication": "COADREAD",
+                "integrated_properties_keys": [
+                  "abundance_concordance",
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "cellline_heterogeneity_lineage_qualifier",
+                  "protein_presence_concordance",
+                  "subtype_restriction_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 5,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/EPCAM__coadread/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_elevation_breadth",
+                  "tumor_normal_selectivity",
+                  "tumor_protein_abundance"
+                ],
+                "status": "OK",
+                "target": "EPCAM"
+              },
+              {
+                "indication": "COADREAD",
+                "integrated_properties_keys": [
+                  "abundance_concordance",
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "cellline_heterogeneity_lineage_qualifier",
+                  "protein_presence_concordance",
+                  "subtype_restriction_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 5,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/KRAS__coadread/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_elevation_breadth",
+                  "tumor_normal_selectivity",
+                  "tumor_protein_abundance"
+                ],
+                "status": "OK",
+                "target": "KRAS"
+              },
+              {
+                "indication": "BRCA",
+                "integrated_properties_keys": [
+                  "abundance_concordance",
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "cellline_heterogeneity_lineage_qualifier",
+                  "protein_presence_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 4,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/ERBB2__brca/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_elevation_breadth",
+                  "tumor_normal_selectivity",
+                  "tumor_protein_abundance"
+                ],
+                "status": "OK",
+                "target": "ERBB2"
+              },
+              {
+                "indication": "COADREAD",
+                "integrated_properties_keys": [
+                  "abundance_concordance",
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "protein_presence_concordance",
+                  "subtype_restriction_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 5,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/PLK1__coadread/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_elevation_breadth",
+                  "tumor_normal_selectivity",
+                  "tumor_protein_abundance"
+                ],
+                "status": "OK",
+                "target": "PLK1"
+              },
+              {
+                "indication": "COADREAD",
+                "integrated_properties_keys": [
+                  "bulk_vs_singlecell_coverage_concordance",
+                  "cellline_heterogeneity_lineage_qualifier",
+                  "protein_presence_concordance",
+                  "subtype_restriction_concordance",
+                  "tumor_presence_concordance"
+                ],
+                "l3d_chapter_count": 4,
+                "l3d_present": true,
+                "source": "skills/tumor-presence/scripts/.panel_cache/HTR1D__coadread/evidence_package.json",
+                "source_properties_keys": [
+                  "malignant_cell_coverage",
+                  "model_expression_structure",
+                  "patient_tumor_abundance",
+                  "tumor_normal_selectivity"
+                ],
+                "status": "OK",
+                "target": "HTR1D"
+              }
+            ],
+            "status_as_of": "2026-09-29"
           },
-          "status": "NULL"
+          "status": "GREEN"
         },
         "utilization": {
           "evidence": {

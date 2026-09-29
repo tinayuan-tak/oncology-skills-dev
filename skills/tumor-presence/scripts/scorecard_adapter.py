@@ -412,6 +412,46 @@ def _load_package(target: str, indication: str, *, timeout: int = 300) -> tuple[
     return json.loads(cached.read_text()), str(cached.relative_to(REPO_ROOT))
 
 
+def _load_envelope(target: str, indication: str, *, timeout: int = 300) -> tuple[dict | None, str | None]:
+    """Load tumor-presence's evidence_package.json (the SK#1941 --emit-envelope export) for one
+    roster pair — from the on-disk cache if present, else a live `run.py --emit-envelope` invocation.
+    Shares the SAME gitignored per-target cache directory as `_load_package` (a bare decision.json
+    run there does not satisfy this — the envelope file is only written under --emit-envelope), so
+    the two loaders never race: each writes/reads its own filename inside the shared dest dir.
+    Returns (envelope_dict, source_str), or (None, None) if genuinely unavailable — absence is
+    reported (#2071), never silently substituted."""
+    dest = PANEL_CACHE_DIR / f"{target}__{indication.lower()}"
+    cached = dest / "evidence_package.json"
+    if cached.exists():
+        try:
+            return json.loads(cached.read_text()), str(cached.relative_to(REPO_ROOT))
+        except (OSError, json.JSONDecodeError):
+            pass
+    dest.mkdir(parents=True, exist_ok=True)
+    try:
+        r = subprocess.run(
+            [
+                sys.executable,
+                str(RUN_PY),
+                "--target",
+                target,
+                "--indication",
+                indication,
+                "--out",
+                str(dest),
+                "--emit-envelope",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return None, None
+    if r.returncode != 0 or not cached.exists():
+        return None, None
+    return json.loads(cached.read_text()), str(cached.relative_to(REPO_ROOT))
+
+
 def collect_panel_rows() -> tuple[list[dict], dict]:
     """The panel-consistency criterion's live computation: one row per roster pair (its two
     verdict-bearing card classes, or PACKAGE_MISSING) plus non-vacuity checks over the roster."""
@@ -569,19 +609,181 @@ _L3_FAIL_OPEN_EVIDENCE = {
     "status_as_of": "2026-09-28",
 }
 
-_L2_L3_PANEL_NULL_REASON = (
-    "the SK#1941 envelope export (source_properties/integrated_properties/l3d) has only been exercised "
-    "live for EPCAM/COADREAD (the committed golden `tests/fixtures/epcam_coadread_decision.json` via "
-    "--emit-envelope) — extending the --emit-envelope run across the 5-target roster is future work, "
-    "not yet measured. Left NULL rather than inferring panel behavior from a single target."
+# ── L2a / L2b / L3 panel_consistency: COMPUTED live from the --emit-envelope export (#2071) ────────
+# Extends the L1 panel-consistency pattern (collect_panel_rows/_panel_consistency_criterion above) one
+# layer up: instead of two verdict-bearing card classes, each row carries the SHAPE of the SK#1941
+# envelope export's three named sections (source_properties L2a / integrated_properties L2b / l3d L3)
+# — the set of source-property keys populated, the set of integrated-island keys populated, and
+# whether/how-many-chaptered the l3d story is. "Non-constancy" at this layer means the SHAPE differs
+# across archetypes (a richly-covered flagship should populate more source-properties/islands/chapters
+# than the thin-coverage control), mirroring L1's class-non-constancy + thin-coverage-degrades checks.
+
+
+def collect_envelope_rows() -> tuple[list[dict], dict]:
+    """The L2a/L2b/L3 panel_consistency criteria's shared live computation: one row per roster pair's
+    --emit-envelope export shape, plus non-vacuity + structural-shape checks over the roster. Each of
+    the three per-layer criterion builders below reads the relevant subset of `checks`."""
+    rows: list[dict] = []
+    for target, indication in ROSTER:
+        env, source = _load_envelope(target, indication)
+        if env is None:
+            rows.append({"target": target, "indication": indication, "status": "PACKAGE_MISSING", "source": None})
+            continue
+        sp = env.get("source_properties") or {}
+        ip = {k: v for k, v in (env.get("integrated_properties") or {}).items() if k != "_disclaimer"}
+        l3d = env.get("l3d")
+        rows.append(
+            {
+                "target": target,
+                "indication": indication,
+                "status": "OK",
+                "source": source,
+                "source_properties_keys": sorted(sp.keys()),
+                "integrated_properties_keys": sorted(ip.keys()),
+                "l3d_present": l3d is not None,
+                "l3d_chapter_count": (len(l3d.get("chapters") or []) if isinstance(l3d, dict) else None),
+            }
+        )
+
+    ok_rows = [r for r in rows if r["status"] == "OK"]
+    all_present = len(ok_rows) == len(ROSTER)
+
+    def _shape_not_constant(key: str) -> bool:
+        shapes = {tuple(r.get(key) or []) for r in ok_rows}
+        return len(shapes) > 1
+
+    htr1d = next((r for r in ok_rows if r["target"] == "HTR1D"), None)
+    others = [r for r in ok_rows if r["target"] != "HTR1D"]
+
+    def _thin_coverage_narrower(count_key: str) -> bool:
+        """HTR1D's export must be no richer than, and strictly narrower than at least one other
+        roster member's — the honest degrade its thin-coverage archetype predicts."""
+        if htr1d is None or not others:
+            return False
+        htr1d_n = len(htr1d.get(count_key) or [])
+        other_ns = [len(o.get(count_key) or []) for o in others]
+        return bool(other_ns) and htr1d_n <= min(other_ns) and any(n > htr1d_n for n in other_ns)
+
+    l3d_present_values = {r["l3d_present"] for r in ok_rows}
+    l3d_chapter_counts = {r["l3d_chapter_count"] for r in ok_rows if r["l3d_present"]}
+    l3d_narrower = False
+    if htr1d is not None and others:
+        htr1d_chapters = htr1d.get("l3d_chapter_count") or 0
+        other_chapters = [(o.get("l3d_chapter_count") or 0) for o in others]
+        l3d_narrower = (not htr1d["l3d_present"] and any(o["l3d_present"] for o in others)) or (
+            bool(other_chapters)
+            and htr1d_chapters <= min(other_chapters)
+            and any(c > htr1d_chapters for c in other_chapters)
+        )
+
+    checks = {
+        "all_roster_rows_present": all_present,
+        "source_properties_keys_not_constant": _shape_not_constant("source_properties_keys"),
+        "integrated_properties_keys_not_constant": _shape_not_constant("integrated_properties_keys"),
+        "l3d_presence_or_shape_not_constant": (len(l3d_present_values) > 1) or (len(l3d_chapter_counts) > 1),
+        "thin_coverage_control_narrower_source_properties": _thin_coverage_narrower("source_properties_keys"),
+        "thin_coverage_control_narrower_integrated_properties": _thin_coverage_narrower("integrated_properties_keys"),
+        "thin_coverage_control_narrower_l3d": l3d_narrower,
+    }
+    return rows, checks
+
+
+_ENVELOPE_CAPTURE_METHOD = (
+    "scorecard_adapter.py::_load_envelope -> skills/tumor-presence/scripts/run.py "
+    "--target <T> --indication <I> --emit-envelope (shares the gitignored per-target "
+    "scripts/.panel_cache/<T>__<i>/ directory with _load_package's decision.json, writing/reading "
+    "the sibling evidence_package.json filename)."
 )
 
 
+def _envelope_panel_criterion(
+    *,
+    rows: list[dict],
+    checks: dict,
+    layer_check_names: tuple[str, ...],
+    method: str,
+) -> cs.Criterion:
+    all_present = checks["all_roster_rows_present"]
+    layer_checks = {"all_roster_rows_present": all_present}
+    for name in layer_check_names:
+        layer_checks[name] = checks[name]
+    layer_checks["all_pass"] = all(layer_checks.values())
+    evidence = {
+        "method": method,
+        "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
+        "capture_method": _ENVELOPE_CAPTURE_METHOD,
+        "rows": rows,
+        "checks": layer_checks,
+        "status_as_of": time.strftime("%Y-%m-%d", time.gmtime()),
+    }
+    if not all_present:
+        missing = [f"{r['target']}/{r['indication']}" for r in rows if r["status"] == "PACKAGE_MISSING"]
+        evidence["null_reason"] = (
+            f"envelope(s) unavailable for {missing} (no cache, and a live --emit-envelope run "
+            "failed/timed out/lacked credentials) — left NULL rather than scoring a partial roster."
+        )
+        evidence["packages_missing"] = missing
+        return cs.Criterion(status=cs.NULL, evidence=evidence)
+    return cs.Criterion(status=(cs.GREEN if layer_checks["all_pass"] else cs.RED), evidence=evidence)
+
+
+def _l2a_panel_consistency_criterion(rows: list[dict], checks: dict) -> cs.Criterion:
+    return _envelope_panel_criterion(
+        rows=rows,
+        checks=checks,
+        layer_check_names=(
+            "source_properties_keys_not_constant",
+            "thin_coverage_control_narrower_source_properties",
+        ),
+        method=(
+            "per-target rows across the whole 5-target roster of the SK#1941 --emit-envelope export's "
+            "source_properties (L2a) section: the SET of populated source-property keys must differ "
+            "meaningfully across archetypes rather than collapsing to one constant shape, and the "
+            "thin-coverage control must populate no more (and strictly fewer than at least one other "
+            "roster member's) source-property keys."
+        ),
+    )
+
+
+def _l2b_panel_consistency_criterion(rows: list[dict], checks: dict) -> cs.Criterion:
+    return _envelope_panel_criterion(
+        rows=rows,
+        checks=checks,
+        layer_check_names=(
+            "integrated_properties_keys_not_constant",
+            "thin_coverage_control_narrower_integrated_properties",
+        ),
+        method=(
+            "per-target rows across the whole 5-target roster of the SK#1941 --emit-envelope export's "
+            "integrated_properties (L2b) section: the SET of populated concordance-island keys must "
+            "differ meaningfully across archetypes rather than collapsing to one constant shape, and "
+            "the thin-coverage control must populate no more (and strictly fewer than at least one "
+            "other roster member's) island keys."
+        ),
+    )
+
+
+def _l3_panel_consistency_criterion(rows: list[dict], checks: dict) -> cs.Criterion:
+    return _envelope_panel_criterion(
+        rows=rows,
+        checks=checks,
+        layer_check_names=("l3d_presence_or_shape_not_constant", "thin_coverage_control_narrower_l3d"),
+        method=(
+            "per-target rows across the whole 5-target roster of the SK#1941 --emit-envelope export's "
+            "l3d (L3) section: EITHER whether the story resolves at all OR its chapter count must "
+            "differ meaningfully across archetypes rather than collapsing to one constant shape, and "
+            "the thin-coverage control must resolve no richer a story (absent, or no more chapters, "
+            "and strictly fewer than at least one other roster member's) than the richer archetypes."
+        ),
+    )
+
+
 def build_shard() -> cs.SkillShard:
-    """Build the tumor-presence scorecard shard in memory. Calls `collect_panel_rows()` live (via
-    `_panel_consistency_criterion`), so re-running this script re-derives the panel evidence rather
-    than replaying a stale table."""
+    """Build the tumor-presence scorecard shard in memory. Calls `collect_panel_rows()` (L1) and
+    `collect_envelope_rows()` (L2a/L2b/L3, #2071) live, so re-running this script re-derives the
+    panel evidence rather than replaying a stale table."""
     shard = cs.baseline_shard(SKILL)
+    envelope_rows, envelope_checks = collect_envelope_rows()
 
     shard.cells["L1"] = cs.Cell(
         built=True,
@@ -617,7 +819,7 @@ def build_shard() -> cs.SkillShard:
             "accuracy": cs.Criterion(status=cs.NULL, evidence={"reason": _ACCURACY_NULL_REASON}),
             "utilization": cs.Criterion(status=cs.GREEN, evidence=_L2A_UTILIZATION_EVIDENCE),
             "fail_open": cs.Criterion(status=cs.GREEN, evidence=_L2A_FAIL_OPEN_EVIDENCE),
-            "panel_consistency": cs.Criterion(status=cs.NULL, evidence={"reason": _L2_L3_PANEL_NULL_REASON}),
+            "panel_consistency": _l2a_panel_consistency_criterion(envelope_rows, envelope_checks),
         },
         notes="L2a = source_properties (SK#1941 EXPORTED section, --emit-envelope).",
     )
@@ -628,7 +830,7 @@ def build_shard() -> cs.SkillShard:
             "accuracy": cs.Criterion(status=cs.NULL, evidence={"reason": _ACCURACY_NULL_REASON}),
             "utilization": cs.Criterion(status=cs.GREEN, evidence=_L2B_UTILIZATION_EVIDENCE),
             "fail_open": cs.Criterion(status=cs.GREEN, evidence=_L2B_FAIL_OPEN_EVIDENCE),
-            "panel_consistency": cs.Criterion(status=cs.NULL, evidence={"reason": _L2_L3_PANEL_NULL_REASON}),
+            "panel_consistency": _l2b_panel_consistency_criterion(envelope_rows, envelope_checks),
         },
         notes=(
             "L2b = integrated_properties (SK#1941 EXPORTED section): the coverage/abundance/"
@@ -642,7 +844,7 @@ def build_shard() -> cs.SkillShard:
             "accuracy": cs.Criterion(status=cs.NULL, evidence={"reason": _ACCURACY_NULL_REASON}),
             "utilization": cs.Criterion(status=cs.GREEN, evidence=_L3_UTILIZATION_EVIDENCE),
             "fail_open": cs.Criterion(status=cs.GREEN, evidence=_L3_FAIL_OPEN_EVIDENCE),
-            "panel_consistency": cs.Criterion(status=cs.NULL, evidence={"reason": _L2_L3_PANEL_NULL_REASON}),
+            "panel_consistency": _l3_panel_consistency_criterion(envelope_rows, envelope_checks),
         },
         notes="L3 = l3d, the 'tumor-expression biology story' (SK#1940, DOMAIN_INTERPRETATION).",
     )

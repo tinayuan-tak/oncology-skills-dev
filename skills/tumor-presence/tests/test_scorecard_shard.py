@@ -11,6 +11,9 @@ promises siblings:
      placeholder residue — a partial or hand-typed panel cannot ship as GREEN;
   3. the panel checks have TEETH: fed a doctored panel (every target emitting one constant class),
      `collect_panel_rows` reds its own checks — the GREEN is a live function of the package bytes.
+  4. (#2071) the SAME three guards apply one layer up to `collect_envelope_rows` — the L2a/L2b/L3
+     panel_consistency criteria computed over the --emit-envelope export's source_properties/
+     integrated_properties/l3d shape across the 5-pair roster.
 """
 
 from __future__ import annotations
@@ -140,3 +143,68 @@ def test_teeth_a_partial_panel_cannot_pass(monkeypatch):
     rows, checks = ad.collect_panel_rows()
     assert all(r["status"] == "PACKAGE_MISSING" for r in rows)
     assert checks["all_roster_rows_present"] is False and checks["all_pass"] is False
+
+
+# ── #2071: L2a/L2b/L3 panel_consistency (the --emit-envelope export shape, computed over the roster) ──
+
+
+def test_envelope_panel_evidence_is_complete_computed_and_placeholder_free():
+    """Mirrors test_panel_evidence_is_complete_computed_and_placeholder_free (L1) for the three
+    envelope-shape criteria: the evidence always carries the full 5-pair roster, never omits an
+    unavailable pair, and the shard status equals the computed checks."""
+    data = _shard_dict()
+    for layer in ("L2a", "L2b", "L3"):
+        crit = data["cells"][layer]["criteria"]["panel_consistency"]
+        ev = crit["evidence"]
+        status = crit["status"]
+        rows = ev["rows"]
+        assert isinstance(rows, list) and len(rows) == 5, f"{layer} panel evidence must carry the full roster"
+        assert {(r["target"], r["indication"]) for r in rows} == {
+            ("EPCAM", "COADREAD"),
+            ("KRAS", "COADREAD"),
+            ("ERBB2", "BRCA"),
+            ("PLK1", "COADREAD"),
+            ("HTR1D", "COADREAD"),
+        }
+        assert "PLACEHOLDER" not in json.dumps(ev)
+        checks = ev["checks"]
+        ok_rows = [r for r in rows if r["status"] == "OK"]
+        if len(ok_rows) == 5:
+            assert all(r["source"] for r in ok_rows)
+            assert status in (cs.GREEN, cs.RED)
+            assert (status == cs.GREEN) == bool(checks["all_pass"]), (
+                f"{layer} panel status must equal its computed checks"
+            )
+        else:
+            assert status == cs.NULL, f"{layer}: a partial panel must not carry a measured status"
+            assert ev.get("null_reason") and ev.get("packages_missing")
+            assert checks["all_pass"] is False
+
+
+def test_teeth_a_constant_envelope_panel_reds_the_checks(monkeypatch):
+    """Seed the failure the envelope-shape checks exist to catch: every roster target's export
+    reduces to the SAME shape (constant source_properties/integrated_properties keys, constant l3d
+    chapter count, no HTR1D degrade). `collect_envelope_rows` must red all three layers' checks."""
+    ad = _load_adapter()
+    constant_env = {
+        "source_properties": {"patient_tumor_abundance": {}, "tumor_normal_selectivity": {}},
+        "integrated_properties": {"tumor_presence_concordance": {}},
+        "l3d": {"chapters": [{}, {}, {}]},
+    }
+    monkeypatch.setattr(ad, "_load_envelope", lambda t, i: (constant_env, "doctored://constant"))
+    rows, checks = ad.collect_envelope_rows()
+    assert len(rows) == 5 and all(r["status"] == "OK" for r in rows)
+    assert checks["source_properties_keys_not_constant"] is False
+    assert checks["integrated_properties_keys_not_constant"] is False
+    assert checks["l3d_presence_or_shape_not_constant"] is False
+    assert checks["thin_coverage_control_narrower_source_properties"] is False
+    assert checks["thin_coverage_control_narrower_integrated_properties"] is False
+    assert checks["thin_coverage_control_narrower_l3d"] is False
+
+
+def test_teeth_a_partial_envelope_panel_cannot_pass(monkeypatch):
+    ad = _load_adapter()
+    monkeypatch.setattr(ad, "_load_envelope", lambda t, i: (None, None))
+    rows, checks = ad.collect_envelope_rows()
+    assert all(r["status"] == "PACKAGE_MISSING" for r in rows)
+    assert checks["all_roster_rows_present"] is False

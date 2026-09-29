@@ -31,7 +31,7 @@ built and all four criteria are GREEN. Cells are never scored by verdict movemen
 | target-profile | NULL | NULL | NULL | NULL | NULL |
 | tractability-small-molecule | NULL | NULL | NULL | NULL | NULL |
 | translational-readiness | NULL | NULL | NULL | NULL | NULL |
-| tumor-presence | GREEN (a:G u:G f:G p:G) | NULL (a:- u:G f:G p:-) | NULL (a:- u:G f:G p:-) | NULL (a:- u:G f:G p:-) | NOT_BUILT |
+| tumor-presence | GREEN (a:G u:G f:G p:G) | NULL (a:- u:G f:G p:G) | NULL (a:- u:G f:G p:G) | NULL (a:- u:G f:G p:G) | NOT_BUILT |
 | tumor-selectivity | RED (a:- u:G f:G p:R) | NOT_BUILT | NOT_BUILT | NOT_BUILT | NOT_BUILT |
 
 ## Summary
