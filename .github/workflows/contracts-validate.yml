@@ -104,6 +104,13 @@ on:
       - ".test_durations"
       - ".github/workflows/contracts-validate.yml"
 
+# Cancel a superseded run on the same PR/branch so a rapid-fire push doesn't run the
+# full matrix to completion pointlessly (#978). push:main runs must never be cancelled
+# mid-flight — cancel-in-progress is gated to pull_request events only.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # ── STATIC LEG ────────────────────────────────────────────────────────────────────────
   # The non-pytest source-contract validators + the committed-artifact self-checks. Not
