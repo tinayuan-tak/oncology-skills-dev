@@ -14,6 +14,7 @@ The catalog-sync checks are skipped gracefully if the sibling data-catalog repo 
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -23,7 +24,12 @@ yaml = pytest.importorskip("yaml")
 
 REPO = Path(__file__).resolve().parents[2]
 CROSSWALK = REPO / "vocabularies" / "subtype_crosswalk.yaml"
-DATA_CATALOG = REPO.parent / "rnd-computational-biology-oncology-data-catalog"
+# DATA_CATALOG_ROOT env honoured (#2090) — the same pattern validate_cards / test_products_registry_sync
+# use — so the data-catalog checkout wired into the contracts CI jobs resolves here (the monorepo layout
+# does not reproduce the old `REPO.parent/rnd-…-data-catalog` sibling adjacency).
+DATA_CATALOG = Path(
+    os.environ.get("DATA_CATALOG_ROOT", str(REPO.parent / "rnd-computational-biology-oncology-data-catalog"))
+)
 
 _REL_TYPES = {"enriched_in", "co_defining", "mutually_exclusive", "orthogonal"}
 _COHORTS = {"tcga", "depmap", "genie", "genie_bpc", "george_2015"}
@@ -541,7 +547,10 @@ def test_registered_strata_with_no_measurement_at_all_do_not_grow():
 # reader_routing -- registering a stratum is link 2 of 3, and this block says so
 # =================================================================================================
 
-SKILLS = REPO.parent / "rnd-computational-biology-oncology-claude-oncology-skills"
+# IN-TREE GEOMETRY (#2090, post-SK#2063): the skills TREE is `<repo>/skills`, so the skills-repo root
+# IS the monorepo root (REPO.parent) — there is no `rnd-…-claude-oncology-skills` sibling dir. methods
+# resolves through the committed root symlink `rnd-…-analysis-methods -> methods`.
+SKILLS = REPO.parent
 METHODS = REPO.parent / "rnd-computational-biology-oncology-analysis-methods"
 
 _LIVE_READER_REGISTRIES = r"_[A-Z0-9_]*ASSIGNMENTS[A-Z0-9_]*"

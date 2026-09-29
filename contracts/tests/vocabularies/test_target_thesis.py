@@ -58,16 +58,11 @@ def test_archetype_crosswalk_covers_the_anchor_labels():
     """The derivation reads `soft_membership`, whose keys are the atlas ANCHOR labels. The crosswalk
     must map every anchor label (else a real target could carry membership mass on a label with no
     thesis). Skipped when the sibling skills repo / atlas is not on disk."""
-    atlas = (
-        REPO.parent
-        / "rnd-computational-biology-oncology-claude-oncology-skills"
-        / "skills"
-        / "target-archetype"
-        / "atlas"
-        / "atlas.json"
-    )
+    # IN-TREE GEOMETRY (#2090, post-SK#2063): the skills tree is `<repo>/skills`, so the atlas lives at
+    # REPO.parent/skills/... — there is no `rnd-…-claude-oncology-skills` sibling dir.
+    atlas = REPO.parent / "skills" / "target-archetype" / "atlas" / "atlas.json"
     if not atlas.exists():
-        pytest.skip("sibling skills atlas absent")
+        pytest.skip("skills target-archetype atlas absent (deferred)")
     anchors = json.loads(atlas.read_text()).get("anchors") or []
     anchor_labels = {a.get("label") or a.get("archetype_label") for a in anchors if isinstance(a, dict)}
     anchor_labels = {lab for lab in anchor_labels if lab}

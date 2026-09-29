@@ -1,22 +1,24 @@
 """Tests for the field-read-health sidecar.
 
 The sidecar publishes reads MINUS declarations, per unit, as a committed `field_read_health.json`
-that target-contracts' framework-health probe reads as a trending DIMENSION. These guard the four
-things this particular feed can silently get wrong:
+that the framework-health probe (contracts/validators/framework_health) reads as a trending
+DIMENSION. These guard the four things this particular feed can silently get wrong:
 
-1. FRESHNESS THAT CAN FAIL — the committed file matches a rebuild, AND `--check` actually goes red
-   on a mutated / absent / roster-less file. A staleness guard nobody has seen fail is not a guard.
-2. THE ROSTER PIN HOLDS — a contracts-only card edit must NOT red `--check`. This is the whole
-   reason the roster is committed: a pytest freshness test over a sibling-repo input is a cross-repo
-   PR gate, and the handoff forbids exactly that. Tested by DRIFTING the live roster and asserting
-   `--check` still passes while REPORTING the drift, because a pin that silently rots is worse than
-   no pin.
+1. FRESHNESS THAT CAN FAIL — the committed file matches a LIVE rebuild, AND `--check` actually goes
+   red on a mutated / absent file. A staleness guard nobody has seen fail is not a guard.
+2. THE ROSTER IS LIVE, DE-PINNED (#2090) — contracts lives in THIS repo (SK#2063), so `--check`
+   rebuilds against the live in-tree `contracts/cards/` and a contracts card edit now REDS `--check`
+   until the sidecar is regenerated in the same PR. That is the atomic-PR behaviour the consolidation
+   enables; it retires the former committed-roster pin (which existed only so a sibling-repo card edit
+   could not red an unrelated skills PR — the pre-consolidation "no single CI job sees both repos"
+   era) and its live-vs-pinned drift advisory. Tested by drifting the live roster and asserting
+   `--check` DOES red.
 3. `no_reads_detected` IS NOT `clean` — a unit the scraper's five shapes never matched must not be
    reported as healthy. `target-profile` is the live witness: it names `n_approved` in a spec dict
    and scrapes to zero reads.
-4. THE CLASSIFICATION ONLY NARROWS — `meta_key` must be justified by the pinned roster itself (no
-   declared field starts with `_`), not by a hand-written suppression list, and the queue must never
-   change the exit code: a review queue is not a gate.
+4. THE CLASSIFICATION ONLY NARROWS — `meta_key` must be justified by the roster itself (no declared
+   field starts with `_`), not by a hand-written suppression list, and the queue must never change
+   the exit code: a review queue is not a gate.
 """
 
 from __future__ import annotations
@@ -36,9 +38,10 @@ COMMITTED = json.loads(S._OUT.read_text()) if S._OUT.exists() else {}
 # ── 1. freshness that can fail ────────────────────────────────────────────────────────────────────
 def test_committed_sidecar_is_fresh():
     assert S._OUT.exists(), f"{S._OUT.name} is not committed"
-    pinned = S._pinned_roster(COMMITTED)
-    assert pinned, "the committed census must ship the roster it was built against"
-    assert S._canonical(COMMITTED) == S._canonical(S.build(declared=pinned))
+    roster = (COMMITTED.get("rosters") or {}).get("declared_fields")
+    assert roster, "the committed census must publish the roster it was built against"
+    # De-pinned #2090: the committed file must match a LIVE rebuild against the in-tree contracts roster.
+    assert S._canonical(COMMITTED) == S._canonical(S.build())
 
 
 def test_check_returns_zero_on_the_committed_file(capsys):
@@ -64,70 +67,35 @@ def test_check_goes_red_when_the_census_is_absent(monkeypatch, tmp_path, capsys)
     assert "not committed" in capsys.readouterr().err
 
 
-def test_check_goes_red_when_the_pinned_roster_is_missing(monkeypatch, tmp_path, capsys):
-    """A census with no roster cannot be rebuilt deterministically, so it is STALE by definition —
-    it must not silently fall back to the live sibling, which is the coupling being avoided."""
-    without = json.loads(json.dumps(COMMITTED))
-    without["rosters"].pop("declared_fields")
-    target = tmp_path / "field_read_health.json"
-    target.write_text(json.dumps(without, indent=2, sort_keys=True))
-    monkeypatch.setattr(S, "_OUT", target)
-    assert S.main(["--check"]) == 1
-    assert "rosters.declared_fields" in capsys.readouterr().err
-
-
-# ── 2. the roster pin holds ───────────────────────────────────────────────────────────────────────
-def test_a_contracts_only_card_edit_does_not_red_the_check(monkeypatch, capsys):
-    """THE LOAD-BEARING TEST. `declared_fields` reads the target-contracts sibling, so without the
-    pin a card edit in another repo would fail an unrelated skills PR — a cross-repo PR gate. Drift
-    the live roster hard (drop a card, add one, change a field list) and `--check` must still pass."""
+# ── 2. the roster is live, de-pinned (#2090) ────────────────────────────────────────────────────────
+def test_a_contracts_card_edit_now_reds_the_check(monkeypatch):
+    """THE DESIGN CHANGE (#2090). `declared_fields` reads the in-tree contracts roster, and `--check`
+    now rebuilds LIVE against it, so a contracts card edit REDS `--check` until the sidecar is
+    regenerated — the atomic-PR behaviour the SK#2063 consolidation enables. This is the exact inverse
+    of the retired pin, which existed only because contracts was a separate repo no CI job saw
+    alongside skills. Drift the live roster and assert `--check` goes red."""
     live = fd.declared_fields()
     drifted = {c: list(fs) for c, fs in live.items()}
     dropped, kept = sorted(drifted)[0], sorted(drifted)[1]
     drifted.pop(dropped)
-    # Mutate a REAL card's field list, not the invented one — "a-card..." sorts first, so picking
-    # after the insert would have exercised only the added-card case.
     drifted[kept] = drifted[kept] + ["a_field_nobody_declares"]
     drifted["a-card-that-does-not-exist"] = ["invented_field"]
 
     monkeypatch.setattr(fd, "declared_fields", lambda *a, **k: drifted)
-    assert S.main(["--check"]) == 0, "the pin failed: a contracts-only edit reddened skills CI"
-
-
-def test_check_reports_roster_drift_it_cannot_fail_on(monkeypatch, capsys):
-    """The pin's cost is blindness to the roster going stale, so the drift MUST be printed. A pin
-    that rots invisibly is worse than no pin."""
-    live = fd.declared_fields()
-    drifted = {c: list(fs) for c, fs in live.items()}
-    drifted["a-card-that-does-not-exist"] = ["invented_field"]
-    monkeypatch.setattr(fd, "declared_fields", lambda *a, **k: drifted)
-    assert S.main(["--check"]) == 0
-    out = capsys.readouterr().out
-    assert "roster drift: 1 card(s) added" in out
-
-
-def test_roster_drift_says_none_when_the_roster_matches():
-    pinned = S._pinned_roster(COMMITTED)
-    assert "roster drift: none" in S._roster_drift(pinned), (
-        "the committed roster no longer matches the live contracts sibling — refresh it deliberately"
-    )
-
-
-def test_roster_drift_degrades_instead_of_crashing(monkeypatch):
-    monkeypatch.setattr(fd, "declared_fields", lambda *a, **k: {})
-    assert "NOT MEASURABLE" in S._roster_drift(S._pinned_roster(COMMITTED))
+    assert S.main(["--check"]) == 1, "a contracts card edit must red the live --check (de-pinned #2090)"
 
 
 def test_build_is_a_pure_function_of_the_injected_roster(monkeypatch):
-    """Injection must fully displace the sibling read — otherwise some path still reaches contracts
-    and the pin is only partial."""
-    pinned = S._pinned_roster(COMMITTED)
+    """`build(declared=...)` still accepts an injected roster (used by the freshness rebuild and by
+    tests), and injection must fully displace the sibling read — otherwise some path still reaches
+    contracts behind the caller's back."""
+    live = fd.declared_fields()
 
     def _boom(*a, **k):
         raise AssertionError("build(declared=...) still read the contracts sibling")
 
     monkeypatch.setattr(fd, "declared_fields", _boom)
-    assert S.build(declared=pinned)["summary"]["n_reads_detected"] > 0
+    assert S.build(declared=live)["summary"]["n_reads_detected"] > 0
 
 
 def test_code_readers_injection_matches_reading_the_sibling():
@@ -200,8 +168,8 @@ def test_skill_units_agree_with_the_skill_md_criterion():
 def test_the_meta_key_rule_is_justified_by_the_roster_not_by_a_waiver():
     """`meta_key` is sound only because NO declared field starts with `_`. If one ever does, the rule
     starts silently suppressing a real undeclared read and must be revisited."""
-    pinned = S._pinned_roster(COMMITTED)
-    underscored = [(c, f) for c, fs in pinned.items() for f in fs if f.startswith("_")]
+    roster = COMMITTED["rosters"]["declared_fields"]
+    underscored = [(c, f) for c, fs in roster.items() for f in fs if f.startswith("_")]
     assert underscored == [], f"the meta_key rule is no longer sound: {underscored[:5]}"
 
 
@@ -235,7 +203,7 @@ def test_every_queue_row_carries_the_evidence_a_reviewer_needs():
         assert row["unit"] in COMMITTED["units"]
         assert row["reader_kinds"], "a queue row with no reader kind cannot be triaged"
         assert set(row["reader_kinds"]) <= set(COMMITTED["rosters"]["reader_kinds"])
-        assert row["field"] not in (S._pinned_roster(COMMITTED).get(row["card"]) or ()), (
+        assert row["field"] not in (COMMITTED["rosters"]["declared_fields"].get(row["card"]) or ()), (
             "a declared field must never reach the undeclared queue"
         )
 

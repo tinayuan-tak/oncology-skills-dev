@@ -42,6 +42,12 @@ def skills_root():
     committed-artifact tests still run. Tries the build default, then the worktree sibling."""
     import build_architecture_explorer as A  # noqa: E402
 
+    # NOTE (#2090): the in-tree skills root is _REPO.parent (`<repo>/skills`), but these
+    # LIVE-EXTRACTION tests compare against committed goldens that have drifted from the live
+    # extraction (e.g. test_ladder_extract's rung `tier`s) — a separate golden re-baseline owned by
+    # the living-doc/framework-health maintainers, out of scope for the sibling-root un-pin. Left
+    # deliberately gated on the legacy sibling-checkout path so they stay a NAMED, pre-existing skip
+    # (checkout-only), never a false green, until that re-baseline lands.
     candidates = [Path(A.DEFAULTS["sk"]), _REPO.parent / _SKILLS_REPO]
     for c in candidates:
         if (c / "skills" / "tumor-presence" / "scripts" / "run.py").exists():

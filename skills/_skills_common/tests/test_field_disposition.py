@@ -415,27 +415,45 @@ def test_fleet_aperture_does_not_grow():
     )
 
 
-def test_resolver_input_pins_match_am_tree():
-    """AM-SIBLING-GATED FRESHNESS: re-derive the resolver reads from the analysis-methods tree AT THE PINNED
-    COMMIT (`git show <sha>:<module>`) and assert they still equal the committed pins. This is the ONLY test
-    that touches the live AM tree; it SKIPS when the sibling is absent or lacks the pinned object — which is
-    the normal state of skills CI's shallow checkout (pinned to an AM ref that predates the resolver), so the
-    census's determinism is never at the mercy of a credential or a sibling. Runs against a full local clone."""
+def test_resolver_input_reach_is_live_from_the_methods_tree():
+    """LIVE resolver-input reach (de-pinned #2090). Formerly `test_resolver_input_pins_match_am_tree`, an
+    AM-sibling-gated freshness check that re-derived the reads from the analysis-methods tree at a PINNED
+    commit (`git show <sha>:<module>`) and SKIPPED whenever the sibling or that commit object was absent
+    — which was the normal state of skills CI's shallow checkout, so it NEVER ran in CI by design. That
+    era ends here: `methods/` lives in this repo since SK#2063, the committed pins + AM commit + git-show
+    machinery are retired, and `resolver_input_readers` scrapes the bound resolver module LIVE. So this
+    test now RUNS in CI for the first time (a deliberate design change — see the PR body). It asserts the
+    live scrape credits the expected cross-repo reach for the bound card, which is the positive control
+    that the binding still resolves to a real module that reads DECLARED fields. If the resolver stops
+    reading a card's declared field the reach shrinks here — the correct signal, not a stale pin."""
     from _skills_common.paths import analysis_methods_root
 
-    doc = fd.load_resolver_input_pins(SKILLS_ROOT)
-    assert doc.get("resolver_reads"), "resolver_input_pins.yaml is missing or has no resolver_reads block"
-    scraped = fd.scrape_am_resolver_reads(analysis_methods_root(), doc)
-    if scraped is None:
-        pytest.skip("analysis-methods sibling absent or pinned commit object unavailable (e.g. CI shallow checkout)")
-    for card, modules in (doc.get("resolver_reads") or {}).items():
-        for module, pinned in modules.items():
-            live = set(scraped.get(card, {}).get(module) or ())
-            assert set(pinned) == live, (
-                f"resolver_input pins are STALE for {card}:{module}: pinned={sorted(pinned)} vs "
-                f"live-at-{doc['analysis_methods_commit'][:8]}={sorted(live)} — regenerate the pins "
-                "(_skills_common/regenerate_resolver_input_pins.py) and re-bank the aperture in the SAME PR"
+    assert fd.RESOLVER_INPUT_BINDINGS, "the card↔resolver-module binding must not be empty"
+    root = analysis_methods_root()
+    for card, modules in fd.RESOLVER_INPUT_BINDINGS.items():
+        for module in modules:
+            assert (root / module).exists(), (
+                f"bound resolver module {module} is absent under {root} — the binding is stale or "
+                f"methods/ is not in-tree; update RESOLVER_INPUT_BINDINGS"
             )
+
+    reach = fd.resolver_input_readers()
+    assert reach, (
+        "the live resolver-input scrape credited ZERO reach — the analysis-methods resolver stopped "
+        "reading any DECLARED field of a bound card, or the binding is stale (RESOLVER_INPUT_BINDINGS)"
+    )
+    # The bound card's declared fields the resolver reads are all attributed to it (narrow, never widen).
+    declared = fd.declared_fields()
+    for card in fd.RESOLVER_INPUT_BINDINGS:
+        credited = {f for (c, f) in reach if c == card}
+        assert credited <= set(declared.get(card) or ()), (
+            f"resolver_input credited {card} a field it does not declare — the intersect-with-declared "
+            "narrowing is broken"
+        )
+    assert ("cellline-rna-distribution", "expression_class") in reach, (
+        "cellline-rna-distribution.expression_class is read by methods/expression_properties/resolve.py "
+        "and is a declared field, so it must be credited resolver_input reach"
+    )
 
 
 def test_atom_passthrough_fields_are_not_reported_orphaned():

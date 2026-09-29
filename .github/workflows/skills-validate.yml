@@ -46,15 +46,19 @@ name: Skills Validate
 # distinguishes an EXPECTED skip (the change-filter said skip that leg) from a wrong one (a leg
 # that skipped when the filter said run it, or failed) — see the fan-in job at the bottom.
 # Skip rules (derived from the measured coupling map: skills → methods + contracts at runtime;
-# methods → contracts; contracts jobs are hermetic — *_ROOT pinned to /nonexistent):
-#   • skills-only / docs-only PR  → skip methods-pytest + contracts-static + contracts-pytest
-#   • methods-touching PR         → run methods-pytest (+ skills shards); contracts stays skipped
+# methods → contracts; contracts validators → skills + methods + contracts + data-catalog at
+# runtime, since #2090 RETIRED the /nonexistent shim and wired the contracts jobs to the in-tree
+# siblings — the contracts jobs are NO LONGER hermetic on skills/methods content):
+#   • docs-only PR                → skip methods-pytest + contracts-static + contracts-pytest
+#   • skills-only PR              → run contracts-static + contracts-pytest too (a skills edit to
+#                                   _live_readers.py / questions.yaml / the framework-health sidecars
+#                                   can change a live contracts validator's verdict); skip methods
+#   • methods-touching PR         → run methods-pytest AND both contracts legs (contracts reads methods)
 #   • contracts-touching PR       → run EVERYTHING (methods depends on contracts; skills on both)
 #   • push:main (or any non-PR)   → run EVERYTHING (the trunk-green signal must be complete)
-# The skills shards are NEVER skipped on a code PR — they are the always-on base leg. If #2090
-# (un-skip the contracts /nonexistent sibling shim) lands, the contracts jobs become non-hermetic
-# on skills/methods content and these skip rules must be re-derived (contracts would then need to
-# run on skills/methods changes too).
+# The skills shards are NEVER skipped on a code PR — they are the always-on base leg. The contracts
+# jobs run whenever skills/, methods/, or contracts/ changed (the `changes` job's `contracts_jobs`
+# output); the fan-in below gates them on that same output.
 on:
   pull_request:
   merge_group:            # GitHub merge queue: run the full gate on the prospective merged tree.
@@ -94,6 +98,10 @@ jobs:
     outputs:
       methods: ${{ steps.filter.outputs.methods }}
       contracts: ${{ steps.filter.outputs.contracts }}
+      # contracts_jobs (#2090): the contracts legs are no longer hermetic — their validators read
+      # skills + methods + contracts + data-catalog LIVE — so they must run when ANY of skills/,
+      # methods/, or contracts/ changed. Both contracts legs' `if:` and the fan-in gate on THIS.
+      contracts_jobs: ${{ steps.filter.outputs.contracts_jobs }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -107,8 +115,9 @@ jobs:
             # push:main / workflow_dispatch — no base to diff; run every leg (trunk-green signal
             # must exercise the whole matrix, never a scoped subset).
             echo "non-PR event (${{ github.event_name }}) — running all legs"
-            echo "methods=true"   >> "$GITHUB_OUTPUT"
-            echo "contracts=true" >> "$GITHUB_OUTPUT"
+            echo "methods=true"        >> "$GITHUB_OUTPUT"
+            echo "contracts=true"      >> "$GITHUB_OUTPUT"
+            echo "contracts_jobs=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
           base="${{ github.event.pull_request.base.ref }}"
@@ -119,14 +128,20 @@ jobs:
           echo "Changed files:"; echo "$changed"
           contracts=false
           methods=false
-          # contracts jobs are hermetic → they only need to run when contracts/ itself changed.
+          skills=false
           if echo "$changed" | grep -qE '^contracts/'; then contracts=true; fi
+          if echo "$changed" | grep -qE '^methods/';   then methods=true; fi
+          if echo "$changed" | grep -qE '^skills/';    then skills=true; fi
           # methods leg runs when methods/ changed OR contracts/ changed (methods imports contracts).
-          if echo "$changed" | grep -qE '^methods/'; then methods=true; fi
           if [ "$contracts" = "true" ]; then methods=true; fi
-          echo "Resolved legs: methods=$methods contracts=$contracts (skills shards always run)"
-          echo "methods=$methods"     >> "$GITHUB_OUTPUT"
-          echo "contracts=$contracts" >> "$GITHUB_OUTPUT"
+          # contracts legs (#2090, de-hermeticised): run when skills/, methods/, or contracts/ changed
+          # — a skills or methods edit can now change a live contracts validator's verdict.
+          contracts_jobs=false
+          if [ "$methods" = "true" ] || [ "$skills" = "true" ]; then contracts_jobs=true; fi
+          echo "Resolved legs: methods=$methods contracts=$contracts contracts_jobs=$contracts_jobs (skills shards always run)"
+          echo "methods=$methods"             >> "$GITHUB_OUTPUT"
+          echo "contracts=$contracts"         >> "$GITHUB_OUTPUT"
+          echo "contracts_jobs=$contracts_jobs" >> "$GITHUB_OUTPUT"
 
   pytest-shards:
     runs-on: ubuntu-latest
@@ -338,33 +353,50 @@ jobs:
   # ── CONTRACTS GATES (ported from target-contracts' contracts-validate.yml at the SK#2063
   # consolidation; target-contracts now lives in-tree at contracts/) ───────────────────────
   # Static leg unsharded: cheap (~1min) and each run: step gives ATTRIBUTED failure (its red
-  # names which contract broke). BEHAVIOR-PRESERVING sibling env: the old TC CI ran on a
-  # checkout-only runner where every sibling was absent, so its sibling-gated validators and
-  # test families skipped (the historical 15-skip baseline). In the merged tree the methods
-  # symlink WOULD resolve, so the *_ROOT vars are pinned to /nonexistent to keep the gate's
-  # scope byte-identical to pre-merge TC CI. Un-skipping the sibling-gated families (skills/
-  # is now ALWAYS present) is a deliberate follow-up decision, not a merge side effect.
+  # names which contract broke). SIBLING-WIRED (#2090): the *_ROOT env vars point at the in-tree
+  # siblings (skills/ and methods/ live in this repo since SK#2063 — the repo is checked out at the
+  # workspace ROOT, so `${{ github.workspace }}` IS the skills-repo root and `.../methods` the AM
+  # root; data-catalog is a PINNED sibling checkout below, wired by env). This RETIRES the
+  # /nonexistent shim that kept the gate byte-identical to the pre-merge checkout-only TC CI: the
+  # sibling-gated validators (validate_questions' skills scan, validate_cards' figure/method-
+  # routability checks, the wiring/emission ledgers' LIVE halves) now RUN. Checkout is at ROOT
+  # (not a named subdir like methods-pytest) on purpose: `working-directory: contracts` then resolves
+  # in-repo for the test_ci_covers_all_test_files coverage guard (a `rnd-…/contracts` working-dir
+  # would not). The consequence — path-driven `REPO.parent/rnd-…-data-catalog` tests self-skip
+  # (their sibling-checkout adjacency is not reproduced at root, exactly as on trunk) — is a named,
+  # pre-existing remainder; the DATA-CATALOG-dependent VALIDATORS resolve via DATA_CATALOG_ROOT env.
   contracts-static:
     needs: changes
-    # PATH-SCOPING (#2092): contracts jobs are hermetic (*_ROOT pinned to /nonexistent), so they
-    # only need to run when contracts/ itself changed (or any non-PR event). Skills-only /
-    # methods-only PRs skip both contracts legs; the fan-in accepts that skip because this output
-    # told it to. NOTE: if #2090 un-pins the /nonexistent shim these legs stop being hermetic and
-    # this condition must widen (see the header skip-rule note).
-    if: needs.changes.outputs.contracts == 'true'
+    # #2090: de-hermeticised — run when skills/, methods/, or contracts/ changed (see the
+    # `contracts_jobs` output). Docs-only PRs skip both contracts legs; the fan-in accepts that
+    # skip because this same output told it to.
+    if: needs.changes.outputs.contracts_jobs == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
     env:
-      DATA_CATALOG_ROOT: /nonexistent
-      CLAUDE_ONCOLOGY_SKILLS_ROOT: /nonexistent
-      ANALYSIS_METHODS_ROOT: /nonexistent
+      # In-tree siblings (#2090). The repo is checked out at the workspace root, so skills/ and
+      # methods/ live directly under it; data-catalog is the pinned sibling checkout below.
+      CLAUDE_ONCOLOGY_SKILLS_ROOT: ${{ github.workspace }}
+      ANALYSIS_METHODS_ROOT: ${{ github.workspace }}/methods
+      DATA_CATALOG_ROOT: ${{ github.workspace }}/data-catalog-pinned
     defaults:
       run:
         working-directory: contracts
     steps:
       - uses: actions/checkout@v4
+
+      - name: Checkout data-catalog (sibling — manifests / subgroup-catalogs / products registry)
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
+          # Same pin as the pytest-shards / methods-pytest jobs (workflow-level env.DATA_CATALOG_SHA).
+          # Distinct path (NOT the committed `rnd-…-data-catalog` root-symlink name) to avoid a
+          # checkout-vs-symlink collision; the DATA_CATALOG_ROOT env above points the validators here.
+          ref: ${{ env.DATA_CATALOG_SHA }}
+          path: data-catalog-pinned
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
       - uses: actions/setup-python@v5
         with:
@@ -412,9 +444,8 @@ jobs:
 
   contracts-pytest:
     needs: changes
-    # PATH-SCOPING (#2092): same rule as contracts-static — hermetic, runs only on a
-    # contracts-touching PR (or non-PR event).
-    if: needs.changes.outputs.contracts == 'true'
+    # #2090: de-hermeticised — same gating as contracts-static (skills/, methods/, or contracts/).
+    if: needs.changes.outputs.contracts_jobs == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -425,11 +456,27 @@ jobs:
         # 4 shards; contracts/.test_durations is 1-indexed (--group 1..4). Regen regime:
         # see the header of the retired contracts-validate.yml (contracts/ git history).
         group: [1, 2, 3, 4]
+    env:
+      # In-tree siblings (#2090) — same values/layout as contracts-static (checkout at root); the
+      # previously-skipped sibling-gated test families (card↔method wiring, products-registry sync,
+      # subgroup-catalog contract, wiring/ledger LIVE recomputes) now RUN. -rs in the pytest step
+      # keeps any remaining skip visible in the log.
+      CLAUDE_ONCOLOGY_SKILLS_ROOT: ${{ github.workspace }}
+      ANALYSIS_METHODS_ROOT: ${{ github.workspace }}/methods
+      DATA_CATALOG_ROOT: ${{ github.workspace }}/data-catalog-pinned
     defaults:
       run:
         working-directory: contracts
     steps:
       - uses: actions/checkout@v4
+
+      - name: Checkout data-catalog (sibling — manifests / subgroup-catalogs / products registry)
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
+          ref: ${{ env.DATA_CATALOG_SHA }}
+          path: data-catalog-pinned
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
       - uses: actions/setup-python@v5
         with:
@@ -438,18 +485,15 @@ jobs:
           cache-dependency-path: contracts/pyproject.toml
 
       # matplotlib rationale: plot_styles' module-level importorskip otherwise drops 10
-      # rendering-contract tests AT COLLECTION (measured in the old TC CI — see contracts/
-      # git history); the sibling roots are /nonexistent to preserve the historical
-      # checkout-only skip baseline exactly (see the CONTRACTS GATES banner above).
+      # rendering-contract tests AT COLLECTION (measured in the old TC CI — see contracts/ git history).
       - name: Install dependencies
         run: python -m pip install --upgrade pip pyyaml jsonschema pytest pytest-xdist pytest-split matplotlib
 
       - name: Whole-package test suite (shard ${{ matrix.group }}/4; the contracts pytest gate)
+        # -rs: named skip lines — a skip is "the check did not run" and must stay visible in the log,
+        # never summed into the green (see the methods-pytest step and the old methods-validate.yml).
         run: >
-          DATA_CATALOG_ROOT=/nonexistent
-          CLAUDE_ONCOLOGY_SKILLS_ROOT=/nonexistent
-          ANALYSIS_METHODS_ROOT=/nonexistent
-          python -m pytest -q -n auto
+          python -m pytest -q -rs -n auto
           --splits 4 --group ${{ matrix.group }}
           --durations-path .test_durations
           --splitting-algorithm least_duration
@@ -474,7 +518,7 @@ jobs:
       - name: Aggregate results (skills shards + methods + contracts, path-scope aware)
         env:
           RUN_METHODS: ${{ needs.changes.outputs.methods }}
-          RUN_CONTRACTS: ${{ needs.changes.outputs.contracts }}
+          RUN_CONTRACTS: ${{ needs.changes.outputs.contracts_jobs }}
           R_CHANGES: ${{ needs.changes.result }}
           R_SHARDS: ${{ needs.pytest-shards.result }}
           R_METHODS: ${{ needs.methods-pytest.result }}

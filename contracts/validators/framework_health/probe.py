@@ -29,19 +29,33 @@ import yaml
 
 # ---------------------------------------------------------------------------
 # Repo-root discovery. This module lives at
-#   <target-contracts>/validators/framework_health/probe.py
-# so the contracts repo is two parents up. Sibling repos are resolved relative
-# to that (all five repos are siblings under $HOME), overridable via CLI flags.
+#   <contracts>/validators/framework_health/probe.py
+# so the contracts repo is two parents up. IN-TREE GEOMETRY (#2090, post-SK#2063
+# consolidation): contracts/ and skills/ and methods/ live in ONE repo now.
+#   • skills   — the skills TREE is `<repo>/skills`, so the skills-repo root IS the
+#                monorepo root itself (CONTRACTS_REPO.parent); there is no
+#                `rnd-…-claude-oncology-skills` sibling dir to resolve.
+#   • methods  — the analysis-methods repo root maps to `<repo>/methods` (subtree
+#                merge target), which the committed root symlink
+#                `rnd-…-analysis-methods -> methods` resolves to.
+#   • catalog  — data-catalog STAYS a separate repo; the committed root symlink
+#                `rnd-…-data-catalog -> ../rnd-…-data-catalog` resolves to a sibling
+#                checkout (present in CI's contracts jobs since #2090).
+#   • products — data-products STAYS external (terminal output sink); absent in-tree,
+#                and its probes degrade to empty, exactly as before.
+# All overridable via CLI flags.
 # ---------------------------------------------------------------------------
 CONTRACTS_REPO = Path(__file__).resolve().parents[2]
 _SIBLINGS = CONTRACTS_REPO.parent
 
 
 def default_roots() -> dict[str, Path]:
-    """Default sibling-repo roots; the CLI overrides any of these via flags."""
+    """Default repo roots; the CLI overrides any of these via flags. See the in-tree geometry note
+    above — skills is the monorepo root itself, methods/catalog resolve via committed root symlinks,
+    data-products stays external."""
     return {
         "contracts": CONTRACTS_REPO,
-        "skills": _SIBLINGS / "rnd-computational-biology-oncology-claude-oncology-skills",
+        "skills": _SIBLINGS,
         "methods": _SIBLINGS / "rnd-computational-biology-oncology-analysis-methods",
         "products": _SIBLINGS / "rnd-computational-biology-oncology-data-products",
         "catalog": _SIBLINGS / "rnd-computational-biology-oncology-data-catalog",

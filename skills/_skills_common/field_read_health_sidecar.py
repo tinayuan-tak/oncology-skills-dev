@@ -9,19 +9,20 @@ subtraction is what found the one field in the tree that handed the model `None`
 (`clinical-precedent.n_agents_engaging_target`, fixed in #1405): nothing emitted it, nothing declared
 it, and one skill read it anyway.
 
-Consumed by target-contracts' framework-health probe as a TRENDING dimension, never a gate. It starts
-partial by design and a populated queue is a REVIEW QUEUE, so `--check` gates FRESHNESS only and
-`main()` returns 0 however long the queue is.
+Consumed by the framework-health probe (contracts/validators/framework_health/{probe,rollup}.py) as a
+TRENDING dimension, never a gate. It starts partial by design and a populated queue is a REVIEW QUEUE,
+so `--check` gates FRESHNESS only and `main()` returns 0 however long the queue is.
 
-★ WHY THE CARD ROSTER IS COMMITTED WITH THE CENSUS. The subtraction needs target-contracts'
-`outputs.summary_fields`, so a naive build is a function of a SIBLING REPO. Committing that build and
-freshness-testing it under pytest would make a contracts-only edit to any card red an unrelated
-skills PR — a cross-repo PR gate, which is precisely what this whole dimension exists to avoid ("no
-single CI job sees both repos, so any cross-repo dimension is dashboard-only"). So the roster used is
-recorded in `rosters.declared_fields` and `--check` rebuilds against THAT, pinned. Skills CI then
-depends on skills bytes alone. The cost is that `--check` is blind to the roster going stale, which
-is why it prints a live-vs-pinned advisory (rc unaffected) and why the contracts side re-measures the
-divergence itself — cross-repo staleness becomes a reported number instead of a red build.
+★ CARD ROSTER — LIVE, DE-PINNED (#2090). The subtraction needs each card's `outputs.summary_fields`,
+which lives in `contracts/`. Contracts is now part of THIS repo (SK#2063 consolidation), so `--check`
+rebuilds against the LIVE in-tree `contracts/cards/` and a single CI job sees both trees — a
+card+skill change is one atomic PR that reds together. This retires the former committed-roster pin
+(the build once fed `rosters.declared_fields` back into itself so a contracts-only edit could not red
+an unrelated skills PR — the pre-consolidation "no single CI job sees both repos" era) and its
+live-vs-pinned drift advisory. `rosters.declared_fields` is still PUBLISHED — it is the roster the
+census was built against, which the dashboard reconciles — but it is a live snapshot, no longer a pin
+fed back into `--check`; a contracts card edit now reds `--check` until the sidecar is regenerated in
+the same PR.
 
 ★ "NO READS DETECTED" IS NOT "CLEAN", and the distinction is load-bearing. `code_readers` recognises
 five call shapes; `target-profile` scrapes to zero reads while plainly naming `n_approved` in a spec
@@ -184,8 +185,9 @@ def build(declared: dict | None = None) -> dict:
             "unattributed": sorted([k, c, f] for k, (c, f) in (whole_pairs - union)),
         },
         "rosters": {
-            # The target-contracts roster this census was built against, committed so `--check`
-            # rebuilds against a PINNED input and skills CI never reds on a contracts-only edit.
+            # The live in-tree contracts roster this census was built against, PUBLISHED so the
+            # framework-health dashboard can reconcile against it. De-pinned #2090: `--check` rebuilds
+            # against the live roster (contracts is in-tree), so this is a snapshot, not a fed-back pin.
             "declared_fields": {c: sorted(fs) for c, fs in sorted(declared.items())},
             "reader_kinds": sorted(fd.READER_KINDS),
             "classification_rule": CLASSIFICATION_RULE,
@@ -206,38 +208,12 @@ def _canonical(report: dict) -> str:
     return json.dumps(report, indent=2, sort_keys=True, default=str)
 
 
-def _pinned_roster(committed: dict) -> dict | None:
-    roster = (committed.get("rosters") or {}).get("declared_fields")
-    return roster if isinstance(roster, dict) else None
-
-
-def _roster_drift(pinned: dict) -> str:
-    """Live-vs-pinned advisory. `--check` pins the roster, so it is BLIND to the roster going stale;
-    this is the line that keeps the pin from rotting invisibly. Never affects the exit code — a
-    contracts edit is not a skills regression."""
-    try:
-        live = fd.declared_fields()
-    except OSError:
-        return "roster drift: NOT MEASURABLE (contracts sibling not readable from this checkout)"
-    if not live:
-        return "roster drift: NOT MEASURABLE (contracts cards/ resolved empty)"
-    added = sorted(set(live) - set(pinned))
-    removed = sorted(set(pinned) - set(live))
-    changed = sorted(c for c in set(live) & set(pinned) if sorted(live[c]) != sorted(pinned[c]))
-    if not (added or removed or changed):
-        return f"roster drift: none ({len(live)} cards match the pinned roster)"
-    return (
-        f"roster drift: {len(added)} card(s) added, {len(removed)} removed, {len(changed)} with "
-        f"changed summary_fields — refresh with a deliberate rebuild (advisory, not a failure)"
-    )
-
-
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument(
         "--check",
         action="store_true",
-        help="compare the committed census against a rebuild using its OWN pinned roster; nonzero if stale",
+        help="compare the committed census against a LIVE rebuild (in-tree contracts/cards); nonzero if stale",
     )
     args = ap.parse_args(argv)
 
@@ -250,15 +226,13 @@ def main(argv: list[str] | None = None) -> int:
         except json.JSONDecodeError as exc:
             print(f"STALE {_OUT.name}: not valid JSON ({exc})", file=sys.stderr)
             return 1
-        pinned = _pinned_roster(committed)
-        if pinned is None:
-            print(f"STALE {_OUT.name}: no rosters.declared_fields to rebuild against", file=sys.stderr)
+        # De-pinned #2090: rebuild against the LIVE in-tree contracts roster (contracts is in this repo
+        # since SK#2063), so a contracts card edit reds this until the sidecar is regenerated in the
+        # same PR — the atomic-PR behaviour the consolidation enables.
+        if _canonical(committed) != _canonical(build()):
+            print(f"STALE {_OUT.name}: differs from a live rebuild — regenerate it", file=sys.stderr)
             return 1
-        if _canonical(committed) != _canonical(build(declared=pinned)):
-            print(f"STALE {_OUT.name}: differs from a rebuild — regenerate it", file=sys.stderr)
-            return 1
-        print(f"OK {_OUT.name} (fresh against its pinned roster)")
-        print(_roster_drift(pinned))
+        print(f"OK {_OUT.name} (fresh against the live in-tree contracts roster)")
         return 0
 
     report = build()
