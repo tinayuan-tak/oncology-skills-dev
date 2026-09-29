@@ -208,6 +208,21 @@ jobs:
       # order-dependence). BLOCKING-BY-DEFAULT: a non-zero rc from any non-denylisted suite fails its
       # shard, and the fan-in then fails the required `pytest` check. Denylisted skills only ::warning::.
       # Live-S3 tests self-skip on the credential-less runner (conftest skip_if_no_data).
+      #
+      # SKIP VISIBILITY + SKIP BUDGET (skills#2127). Every invocation below carries `-rs` so each
+      # skip is NAMED in the log, and — MEASURED, not assumed — the redundant CLI `-q` was REMOVED:
+      # pyproject's `addopts = "-q -rs …"` already supplies both, so a second `-q` pushed verbosity
+      # to -2, which suppresses the final `N passed, M skipped in Xs` COUNT line. Skip reasons were
+      # printed but the totals were not, leaving nothing to ratchet against and no cardinality
+      # instrument at all. One `-q` (from addopts) keeps the log quiet AND keeps the count line; do
+      # not re-add `-q` here. Each leg's output is also redirected to a log file that
+      # `scripts/check_skip_budget.py` then parses
+      # against the committed per-leg ceilings in `.github/skills-skip-budget.json`. That makes an
+      # INFLATION in skips RED: ~45 contract-driven guards skipif target-contracts is unresolvable
+      # and run here only because of the TARGET_CONTRACTS_ROOT export above — if that regresses the
+      # family goes silently dark, and SKIP != PASS. The checker carries its own cardinality floor
+      # (a leg reporting 0 outcomes fails) so the budget can never pass by measuring nothing.
+      # NOTE: redirect-then-`cat`, never `| tee` — a pipeline's rc is tee's, which would swallow a RED.
       - name: run shard (${{ matrix.shard }})
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         shell: bash
@@ -217,6 +232,11 @@ jobs:
         run: |
           set +e   # a failing suite must NOT stop the shard — every remaining suite still runs
           gate_fail=0
+          LOGDIR="${RUNNER_TEMP:-/tmp}/skip-budget"; mkdir -p "$LOGDIR"
+          logfile() { echo "$LOGDIR/$(echo "$1" | tr -c 'A-Za-z0-9._-' '_').log"; }
+          check_budget() {  # $1=leg label  $2=that leg's pytest output log
+            python3 scripts/check_skip_budget.py --label "$1" --log "$2" || gate_fail=1
+          }
           # Skills knowingly red for a reason outside this PR's control. Each MUST carry a WHY.
           # A denylisted skill's failure is downgraded to ::warning:: (does NOT gate the job).
           NON_BLOCKING_SKILLS=(
@@ -229,10 +249,13 @@ jobs:
             return 1
           }
           run_suite() {  # $1=label  $2=pytest args (intentionally word-split)
+            local log; log=$(logfile "$1")
             echo "::group::$1"
-            pixi run pytest $2
+            pixi run pytest $2 > "$log" 2>&1
             local rc=$?
+            cat "$log"
             echo "::endgroup::"
+            check_budget "$1" "$log"
             if [ "$rc" -ne 0 ]; then
               if is_nonblocking "$1"; then
                 echo "::warning title=skills-validate::$1 failed (rc=$rc) — non-blocking (denylisted, see NON_BLOCKING_SKILLS)"
@@ -249,21 +272,28 @@ jobs:
             # floor. Split off from the other three big suites so it no longer runs behind them.
             # LITERAL path: the coverage anchor test_ci_covers_all_test_files parses (also matched by
             # the skills/*/tests glob below, but kept explicit as its own blocking gate).
-            echo "::group::_skills_common"; pixi run pytest skills/_skills_common/tests/ -q -n auto; r=$?; echo "::endgroup::"
+            L=$(logfile _skills_common)
+            echo "::group::_skills_common"; pixi run pytest skills/_skills_common/tests/ -rs -n auto > "$L" 2>&1; r=$?; cat "$L"; echo "::endgroup::"
             [ "$r" -ne 0 ] && gate_fail=1
+            check_budget "_skills_common" "$L"
           elif [ "$SHARD" = "core-guards" ]; then
             # skills/tests cross-skill guards + eval/ — MEASURED to be the heaviest remaining group
             # (skills/tests, with its cross-skill guards + the end-to-end test_graduated run, was the
             # core-rest long pole at ~4m24s). LITERAL `pytest <path>` invocations (NOT via run_suite):
             # coverage anchors for skills/tests/ + eval/, which the skills/*/tests glob does not match.
-            echo "::group::skills-guards"; pixi run pytest skills/tests/ -q --import-mode=importlib -n auto; r1=$?; echo "::endgroup::"
-            echo "::group::eval"; pixi run pytest eval/ -q --import-mode=importlib -n auto; r2=$?; echo "::endgroup::"
+            LG=$(logfile skills-guards); LE=$(logfile eval)
+            echo "::group::skills-guards"; pixi run pytest skills/tests/ -rs --import-mode=importlib -n auto > "$LG" 2>&1; r1=$?; cat "$LG"; echo "::endgroup::"
+            echo "::group::eval"; pixi run pytest eval/ -rs --import-mode=importlib -n auto > "$LE" 2>&1; r2=$?; cat "$LE"; echo "::endgroup::"
             for r in "$r1" "$r2"; do [ "$r" -ne 0 ] && gate_fail=1; done
+            check_budget "skills-guards" "$LG"
+            check_budget "eval" "$LE"
           elif [ "$SHARD" = "core-profile" ]; then
             # target-profile (the composed nomination skill) on its own shard. LITERAL path — also
             # matched by the skills/*/tests glob, kept explicit as its own blocking gate.
-            echo "::group::target-profile"; pixi run pytest skills/target-profile/tests/ -q -n auto; r=$?; echo "::endgroup::"
+            L=$(logfile target-profile)
+            echo "::group::target-profile"; pixi run pytest skills/target-profile/tests/ -rs -n auto > "$L" 2>&1; r=$?; cat "$L"; echo "::endgroup::"
             [ "$r" -ne 0 ] && gate_fail=1
+            check_budget "target-profile" "$L"
           else
             # Remaining per-skill suites, round-robin across the numeric shards. The `for d in
             # skills/*/tests` glob is the coverage anchor for every per-skill dir.
@@ -274,7 +304,7 @@ jobs:
               case "$skill" in _skills_common|target-profile) continue ;; esac
               ls "$d"/test_*.py >/dev/null 2>&1 || continue   # skip dirs with no test files (e.g. deferred skills)
               if [ "$((i % NUM_LOOP_SHARDS))" = "$SHARD" ]; then
-                run_suite "$skill" "$d -q --import-mode=importlib"
+                run_suite "$skill" "$d -rs --import-mode=importlib"
               fi
               i=$((i + 1))
             done
