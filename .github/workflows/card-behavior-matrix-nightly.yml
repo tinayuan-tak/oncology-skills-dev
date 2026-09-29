@@ -31,13 +31,18 @@ name: Nightly Live Drift (card-behavior matrix + target-intrinsic + tumor-presen
 # tumor-selectivity all run in skills-validate's pytest-shards). So credential-less the job posts
 # the no-creds warning and exits green having done nothing PR CI didn't. The LIVE half (freezes +
 # breadth smoke + drift-fail) is untouched and still runs the instant the OIDC role lands.
+# EXCEPTION (SK#2097): the vendored-vocab sync guard below is credential-less by construction (a byte
+# diff of two checkouts) and is deliberately NOT gated on HAVE_AWS — so this nightly is no longer a
+# strict subset of PR CI even without creds: it compares against data-catalog `main`, which PR CI's
+# hand-bumped pin cannot see.
 #
-# DATA-CATALOG VINTAGE SKEW (decide when the OIDC role lands): this nightly (and discordance-monitor)
-# check out data-catalog at `ref: main` (UNPINNED), whereas PR CI (skills-validate.yml) pins
-# env.DATA_CATALOG_SHA. Once live freezes run, a manifest that moved on data-catalog main but not at
-# the PR pin could surface here as "drift" that PR CI cannot see. Decide then whether the nightly
-# should pin the same SHA (reproducible, but blind to catalog drift — arguably the thing a nightly
-# SHOULD catch) or stay on main (catches catalog drift, at the cost of a moving reference).
+# DATA-CATALOG VINTAGE SKEW — now load-bearing, not merely known. This nightly (and
+# discordance-monitor) check out data-catalog at `ref: main` (UNPINNED), whereas PR CI
+# (skills-validate.yml) pins env.DATA_CATALOG_SHA. For the vendored-vocab guard that skew IS THE
+# POINT (a pinned comparison alone is green-while-blind), so do NOT "fix" it by pinning this
+# workflow to the same SHA. The open question stays scoped to the LIVE freezes: once they run, a
+# manifest that moved on main but not at the pin could surface here as drift PR CI cannot see; decide
+# then whether to pin the FREEZE steps specifically, leaving this guard on main.
 
 on:
   schedule:
@@ -78,6 +83,53 @@ jobs:
           pixi-version: v0.70.2
           cache: true
           manifest-path: rnd-computational-biology-oncology-claude-oncology-skills/pixi.toml
+
+      # ── VENDORED-VOCAB SYNC vs data-catalog @ main (SK#2097) ────────────────────────────────
+      # PR CI (skills-validate `contracts-pytest`) runs this same module against the hand-bumped
+      # env.DATA_CATALOG_SHA pin. A pinned comparison ALONE is a closed-set pin that can be GREEN
+      # WHILE BLIND: data-catalog `main` moves, the pin does not, so a resync landed there (or a
+      # vendored copy edited there) is invisible to PR CI until someone bumps by hand. This job
+      # already checks data-catalog out at `ref: main` (see above), so running the guard here closes
+      # exactly that window — and it is deliberately NOT gated on HAVE_AWS: the comparison is a byte
+      # diff of two files in two checkouts, so it needs no credentials and gives this nightly real
+      # teeth in the current credential-less state (where every other assert is early-exited off).
+      #
+      # STEP DESIGN CREDIT: data-catalog PR#716 (the parked CROSS_REPO_TOKEN-based DC-side attempt) —
+      # log redirect so the diff survives a non-zero rc, an explicit grep for skip/no-tests strings,
+      # and a pinned passed-count assert. Only its cross-repo-secret checkout was unusable here.
+      #
+      # rootdir: invoking by PATH from the repo root makes pytest find contracts/pyproject.toml first
+      # (nearest ini ancestor of the arg), so the contracts addopts and the default PREPEND import
+      # mode apply — required, because the guard imports `require_data_catalog` from its sibling
+      # module and the ROOT pyproject's --import-mode=importlib would break that import.
+      # CI=true: makes require_data_catalog() FAIL (not skip) if the checkout is missing.
+      - name: Vendored-vocab sync guard vs data-catalog @ main (credential-less)
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills
+        env:
+          CI: "true"
+          # Pinned expected outcome count — a NON-VACUITY assert. If this guard's test count changes,
+          # bump this in the SAME PR; leaving it stale is how "the guard ran" degrades into "pytest
+          # exited 0 having collected nothing".
+          EXPECTED_PASSED: "3"
+        run: |
+          set -o pipefail
+          log=vendored-vocab-sync.log
+          rc=0
+          pixi run python -m pytest contracts/tests/schemas/test_vendored_vocab_sync.py -rs > "$log" 2>&1 || rc=$?
+          cat "$log"
+          if [ "$rc" -ne 0 ]; then
+            echo "::error title=vendored-vocab-drift::contracts/vocabularies/{measurement_types,indication_crosswalk}.yaml have DRIFTED from data-catalog main's vendored core-artifacts-schema copies. This package is the source of truth: resync data-catalog (scripts/refresh_vendored_vocab.py) and bump env.DATA_CATALOG_SHA in skills-validate.yml. Do NOT relax the guard."
+            exit "$rc"
+          fi
+          if grep -qE "skipped|no tests ran|collected 0 items" "$log"; then
+            echo "::error title=vendored-vocab-guard-vacuous::the sync guard SKIPPED or collected nothing — a skipping sync guard is precisely the DC#647 defect this replaces. Check the data-catalog checkout and DATA_CATALOG_ROOT."
+            exit 1
+          fi
+          if ! grep -qE "^${EXPECTED_PASSED} passed" "$log"; then
+            echo "::error title=vendored-vocab-guard-count::expected exactly ${EXPECTED_PASSED} passing checks; the log above disagrees. Either the guard lost tests (vacuous) or it gained some and EXPECTED_PASSED needs bumping in the same PR."
+            exit 1
+          fi
+          echo "vendored vocabularies byte-identical to data-catalog main (${EXPECTED_PASSED} checks)"
 
       - name: Configure AWS credentials (OIDC assume-role)
         if: env.HAVE_AWS == 'true'

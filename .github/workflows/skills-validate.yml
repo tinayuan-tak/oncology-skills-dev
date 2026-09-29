@@ -79,12 +79,30 @@ concurrency:
 env:
   # Single source of truth for the data-catalog checkout pin (hoisted 2026-09-29, #2092): the SHA
   # appeared verbatim in two checkout steps, kept in sync by comment only. Both reference
-  # ${{ env.DATA_CATALOG_SHA }} below so the two vintages cannot drift. PINNED — main @
-  # 2026-09-19T03:35:25Z; adds the depmap-predictability-26q1-v4 manifest so the v4-default reader
-  # resolves. Bump BY HAND (rarely; data-catalog moves slowly) and treat the bumping PR as the
-  # integration test. NOTE: the nightly + discordance-monitor workflows deliberately check out
-  # data-catalog `main` (UNPINNED) — a known vintage skew vs this pin, documented in their headers.
-  DATA_CATALOG_SHA: 13aef1944d4a4e417fbba5889690b1d2b16a04a4
+  # ${{ env.DATA_CATALOG_SHA }} below so the two vintages cannot drift. Bump BY HAND (rarely;
+  # data-catalog moves slowly) and treat the bumping PR as the integration test. NOTE: the nightly +
+  # discordance-monitor workflows deliberately check out data-catalog `main` (UNPINNED) — a known
+  # vintage skew vs this pin, documented in their headers.
+  #
+  # ⚠️ A PIN BUMP NOW CARRIES A SECOND FAILURE MODE (SK#2097): besides manifest resolution, the pin
+  # fixes the VINTAGE of data-catalog's VENDORED copies of two of our controlled vocabularies
+  # (core-artifacts-schema/{measurement_types,indication_crosswalk}.yaml), which
+  # contracts/tests/schemas/test_vendored_vocab_sync.py now byte-compares against
+  # contracts/vocabularies/. So a bump can red on VOCAB MISMATCH, and conversely a PR editing either
+  # vocabulary must land the data-catalog resync and bump this pin IN THE SAME PR — the pin, the
+  # guard and the consumer-read are one atomic unit. Never bump this pin in a PR that cannot run
+  # `contracts-pytest` (the leg that checks data-catalog out and exports DATA_CATALOG_ROOT).
+  #
+  # PINNED — data-catalog main @ 7783d39 (2026-09-29, DC#731 "resync vendored measurement_types.yaml
+  # from monorepo source of truth"). Bumped from 13aef194 (2026-09-19, depmap-predictability-26q1-v4
+  # manifest) by SK#2097: at 13aef194 the vendored measurement_types.yaml predates DC#731 and is
+  # missing `depmap_cell_line_rna` + 3 sibling families (102 differing lines), so the new byte-sync
+  # guard was born red against the old pin while data-catalog `main` was genuinely in sync. Bumped to
+  # the resync commit ITSELF, deliberately NOT to DC main HEAD (15acfb0): DC#725 landed after it and
+  # changes sibling-root resolution to a HARD ERROR on absence, which is a separate decision with a
+  # different blast radius (this repo installs data-catalog as an editable pixi dep). The residual
+  # 7783d39..main window is exactly what the nightly DC@main lane covers.
+  DATA_CATALOG_SHA: 7783d3947dea0f8ecd5f4eeab5e52f261be51814
 
 jobs:
   # CHANGE-DETECTION (#2092). Fast (~checkout-only) job that diffs the PR against its merge-base and
