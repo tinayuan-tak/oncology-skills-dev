@@ -34,7 +34,16 @@ version: 1.12.0  # 2026-09-23: PR-C2 CONSUME THE `underpowered` COVERAGE-GAP TOK
                  # guard rung @57 pairing it with mut-no-mutations-neutral → insufficient, the fusion analog of the CN
                  # guard. Priorities MUST be unique integers (validate_fold_migration), so the tail renumbered
                  # mixed_pattern 57→58 and passenger_pattern 58→59; RELATIVE order preserved so existing fixtures are
-                 # byte-stable (no live target emits underpowered until PR-C3 lands the classifier emitters). No new
+                 # byte-stable. [CORRECTED 2026-09-29, #1763 — the earlier "no live target emits underpowered until
+                 # PR-C3 lands the classifier emitters" claim is STALE/FALSE: the emitters HAVE shipped —
+                 # analysis-methods depmap_cn_distribution/cli.py + tcga_patient_cn/read.py (copy_number_class /
+                 # patient_copy_number_class) and tcga_fusion_consensus/read.py (fusion_class) all return
+                 # `underpowered` live. Goldens stay byte-stable NOT because the token is unemitted but because the
+                 # FROZEN target-archetype corpus-20260914 predates the emitters: a 2026-09-29 re-measure of all 504
+                 # packages found 0 `underpowered` on copy_number_class/fusion_class/patient_copy_number_class.
+                 # Routing (underpowered → cn-data-unavailable-insufficient / fusion-underpowered-insufficient → the
+                 # double-data-gap guard → insufficient, never passenger/driver) is now proven deterministically by
+                 # tests/validators/test_genomic_resolver_ordering.py, not by the byte-inert premise.] No new
                  # verdict token (insufficient pre-exists). Coverage regenerated (card_resolver_consumption.yaml,
                  # rule_role_partition.yaml — fusion-underpowered-insufficient is GATING).
                  # 2026-09-21: #8 HYBRID-SCOPE FAIL-OPEN DEMOTION (content-audit arc, backtest-gated). The four

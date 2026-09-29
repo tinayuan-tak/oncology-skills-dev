@@ -333,3 +333,74 @@ def test_moderate_hybrid_dependency_unchanged():
         "mutant-indication-scoped-context",
         "mutant-indication-scoped-fallback-context",
     ) == ("moderate_biomarker_dependency", "mutant-moderately-dependent-supportive")
+
+
+# --- #1763: `underpowered` VALUE→VERDICT teeth (emitters now live; no longer byte-inert) ----------
+# The stale "no live target emits underpowered until PR-C3" premise is corrected in the resolver +
+# genomic_claims.py comments. Because that premise was comment-only (no test asserted the token's
+# ABSENCE), correcting it must not leave the routing claim vacuously green. These pins prove the FULL
+# path an emitted `underpowered` value takes — value → rule matcher (intracellular-intrinsic.rules.yaml)
+# → resolver guard rung → verdict — so removing `underpowered` from a matcher OR dropping a guard rung
+# reds this test. Read-only over the rules file (not edited here — see #1763 scope / interpretation-rules
+# freeze). Emitters: depmap_cn_distribution/cli.py + tcga_patient_cn/read.py (copy_number_class),
+# tcga_fusion_consensus/read.py (fusion_class).
+
+RULES = yaml.safe_load((REPO / "interpretation-rules" / "intracellular-intrinsic.rules.yaml").read_text())
+
+
+def _rules_firing(card_id: str, field: str, value: str) -> list[str]:
+    """rule_ids whose `when` matcher (card_id+field, equals|in) admits the given value — mirrors the
+    engine's value→rule matching, so this test exercises the SAME predicate the live card output hits."""
+    hits = []
+    for r in RULES["rules"]:
+        w = r.get("when") or {}
+        if w.get("card_id") != card_id or w.get("field") != field:
+            continue
+        if "equals" in w and w["equals"] == value:
+            hits.append(r["rule_id"])
+        elif "in" in w and value in w["in"]:
+            hits.append(r["rule_id"])
+    return hits
+
+
+def test_underpowered_cn_value_fires_only_the_coverage_gap_rule():
+    """copy_number_class == 'underpowered' must fire cn-data-unavailable-insufficient and NOTHING that
+    reads as a driver or a measured passenger — the matcher was widened to in:[data_unavailable,
+    underpowered] for PR-C2, and the emitters now produce the value."""
+    fired = _rules_firing("copy-number-distribution", "copy_number_class", "underpowered")
+    assert fired == ["cn-data-unavailable-insufficient"], fired
+
+
+def test_underpowered_fusion_value_fires_only_the_coverage_gap_rule():
+    """fusion_class == 'underpowered' must fire fusion-underpowered-insufficient only."""
+    fired = _rules_firing("fusion-rearrangement-landscape", "fusion_class", "underpowered")
+    assert fired == ["fusion-underpowered-insufficient"], fired
+
+
+def test_underpowered_cn_routes_to_insufficient_never_passenger_or_driver():
+    """The emitted underpowered CN value, with a no-mutations gene, resolves to `insufficient` via the
+    double-data-gap guard — NEVER passenger_pattern and never any driver verdict."""
+    (rid,) = _rules_firing("copy-number-distribution", "copy_number_class", "underpowered")
+    verdict, drv = resolve("mut-no-mutations-neutral", rid)
+    assert verdict == "insufficient", verdict
+    assert verdict != "passenger_pattern"
+    assert drv == "cn-data-unavailable-insufficient"
+
+
+def test_underpowered_fusion_routes_to_insufficient_never_passenger_or_driver():
+    """The emitted underpowered fusion value, with a no-mutations gene, resolves to `insufficient` via the
+    fusion double-data-gap guard — NEVER passenger_pattern and never a driver rung."""
+    (rid,) = _rules_firing("fusion-rearrangement-landscape", "fusion_class", "underpowered")
+    verdict, drv = resolve("mut-no-mutations-neutral", rid)
+    assert verdict == "insufficient", verdict
+    assert verdict != "passenger_pattern"
+    assert drv == "fusion-underpowered-insufficient"
+
+
+def test_underpowered_never_reads_as_a_driver_when_alone():
+    """An underpowered axis ALONE (no other signal) is a coverage gap → the resolver default insufficient,
+    not a driver. Guards against a future rung ever promoting the gap token to a positive call."""
+    (cn_rid,) = _rules_firing("copy-number-distribution", "copy_number_class", "underpowered")
+    (fus_rid,) = _rules_firing("fusion-rearrangement-landscape", "fusion_class", "underpowered")
+    assert resolve(cn_rid)[0] == "insufficient"
+    assert resolve(fus_rid)[0] == "insufficient"
