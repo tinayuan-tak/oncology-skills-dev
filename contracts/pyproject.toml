@@ -11,7 +11,7 @@ dependencies = [
     "pyyaml",
 ]
 
-# Test-time only. The gate (scripts/preland.sh and .github/workflows/contracts-validate.yml's
+# Test-time only. The gate (scripts/preland.sh and .github/workflows/skills-validate.yml's
 # whole-repo net) fans the suite across cores with `pytest -n auto`; pytest-xdist supplies that
 # `-n` flag. jsonschema + matplotlib are also imported by the suite (schema validation; the
 # figure-emission tests). Declared here so `pip install -e .[test]` provisions a working gate
@@ -44,7 +44,7 @@ include = ["oncology_target_contracts*"]
 
 [tool.pytest.ini_options]
 # Declarative defaults for the many `python -m pytest <one file> -q` gate steps in
-# scripts/preland.sh / contracts-validate.yml (run from THIS dir). -rs/--tb=short match the
+# scripts/preland.sh / skills-validate.yml (run from THIS dir). -rs/--tb=short match the
 # skills-repo root default (SK#2093) so a red against the large resolver/vocabulary corpora
 # doesn't flood the context window with a long traceback.
 #

@@ -50,7 +50,7 @@ exclude = ["methods.*.steps", "methods.*.scripts"]
 
 [tool.pytest.ini_options]
 # Declarative defaults for `pytest methods/ tests/` (run from THIS dir — see
-# scripts/preland.sh / methods-validate.yml). --import-mode=importlib is REQUIRED: several
+# scripts/preland.sh / skills-validate.yml, the former methods-validate.yml). --import-mode=importlib is REQUIRED: several
 # method test files share a basename and collide under the default import mode. -q/-rs/--tb=short
 # match the skills-repo root default (SK#2093) so a direct `pixi run pytest` an agent types by
 # hand doesn't default to `--tb=long` + hidden skips.

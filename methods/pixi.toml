@@ -77,7 +77,8 @@ shap = ">=0.52.0,<0.53"
 # (target_id_resolver itself; installed as editable pip package once carved over)
 
 [tasks]
-# Mirrors .github/workflows/methods-validate.yml. --import-mode=importlib is REQUIRED: without it
+# Mirrors the methods leg of .github/workflows/skills-validate.yml (the former methods-validate.yml,
+# folded into the monorepo's single required check). --import-mode=importlib is REQUIRED: without it
 # the ~21 duplicate test basenames (test_plotly_spec.py, test_render_from_plot_data.py, ...) collide
 # on module name and collection aborts, so `pixi run test` could never run the suite CI runs.
 test = "pytest methods/ tests/ --import-mode=importlib"

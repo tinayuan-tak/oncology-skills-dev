@@ -206,6 +206,35 @@ python validators/validate_cards.py   # sanity-check the contracts
 
 This package is pure YAML + JSON + Python validators — no S3 access or AWS credentials required.
 
+### Regenerating `.test_durations`
+
+`contracts/.test_durations` balances the CI pytest matrix (`pytest-split`'s `least_duration`
+algorithm) across shards. It must be recorded in a **CI-faithful regime** — a plain local
+`pytest --store-durations` run (with the `analysis-methods` / `claude-oncology-skills` /
+`data-catalog` siblings present, pre-monorepo) times tests that are conditionally skipped on a
+checkout-only runner as if they were expensive, and mis-balances the shards (measured once: live
+shards 38/103/38/74s despite a "balanced" local recording). To regenerate correctly:
+
+1. Add a temporary `pull_request`-triggered workflow (scoped to its own path — `workflow_dispatch`
+   needs the workflow to already exist on the default branch) that runs, on `ubuntu-latest`, from
+   `contracts/`:
+   ```bash
+   DATA_CATALOG_ROOT=/nonexistent CLAUDE_ONCOLOGY_SKILLS_ROOT=/nonexistent \
+     ANALYSIS_METHODS_ROOT=/nonexistent python -m pytest -q -n auto \
+     --store-durations --durations-path .test_durations
+   ```
+   i.e. the same command the `contracts-pytest` job runs, minus `--splits`/`--group`, so
+   `pytest-split` gets real per-test timings for the whole checkout-only suite in one job. Upload
+   the file via `actions/upload-artifact` with `include-hidden-files: true` (v4 excludes dotfiles
+   by default and silently warns "no files found" otherwise).
+2. Download the artifact, commit it as `contracts/.test_durations`, delete the temporary workflow.
+
+Stale durations only degrade shard *balance*, never coverage — pytest-split still assigns every
+collected test to exactly one shard, so a newly-added test file is gated the day it lands.
+(This regen procedure previously lived only in the header of the now-retired
+`contracts-validate.yml`, folded into `skills-validate.yml` at the SK#2063 monorepo
+consolidation — see its git history, commit `6783c136`.)
+
 ---
 
 ## License

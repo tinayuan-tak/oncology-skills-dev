@@ -274,8 +274,9 @@ INDICATION_LINEAGE = {
     # pin — and the coverage guard folds the crosswalk's `aliases` into its supported set. So if the
     # crosswalk half landed first, `test_every_framework_indication_resolves_to_a_real_lineage` would
     # red on ['DLBCL', 'UM'] for every push until this landed. The reverse exposure does not exist:
-    # contracts-validate.yml checks out no siblings, so the contracts-side agreement guard SKIPS in its
-    # own CI and only bites locally. Only (this map NEW, crosswalk NEW) is green on both sides.
+    # contracts-validate.yml (now folded into skills-validate.yml) checks out no siblings, so the
+    # contracts-side agreement guard SKIPS in its own CI and only bites locally. Only (this map NEW,
+    # crosswalk NEW) is green on both sides.
     "DLBCL": "Lymphoid",  # oncotree_code of crosswalk canonical DLBC
     "UM": "Eye",  # oncotree_code of crosswalk canonical UVM; also its depmap_oncotree_codes member
 }

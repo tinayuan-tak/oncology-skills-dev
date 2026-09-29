@@ -1,4 +1,4 @@
-"""rename_card_id.py — word-boundary-safe card_id rename across the framework repos.
+"""rename_card_id.py — word-boundary-safe card_id rename across the monorepo's framework slices.
 
 A card_id is the highest-fan-out identifier in the framework (~26-90 live refs each across
 target-contracts cards+rules, claude-oncology-skills CARDS/SUB_SKILL_CARDS/dispatcher/tests,
@@ -9,7 +9,12 @@ by a non-id character (not [-a-z]) on both sides, so a preceding '-' blocks the 
 
 FORWARD-RENAME ONLY. It rewrites the LIVE vocabulary (cards/rules/skills/methods). It does NOT touch
 stored data-products evidence packages — those are immutable directory-keyed history; the vocabulary's
-card_id_aliases map (old→new) lets tooling resolve historical names. Pass --repos to scope.
+card_id_aliases map (old→new) lets tooling resolve historical names. Pass --dirs to scope.
+
+Post-monorepo-consolidation (2026-09): this used to walk sibling repo checkouts by name
+(target-contracts / claude-oncology-skills / analysis-methods live side-by-side under $HOME).
+They are now in-tree slices of one repo — contracts/, skills/, methods/ off the repo root — so
+this walks those directly instead of resolving sibling clones.
 
 Usage:
   # dry-run (default): report every file+line that WOULD change, no writes
@@ -27,11 +32,8 @@ import re
 import sys
 from pathlib import Path
 
-DEFAULT_REPOS = [
-    "rnd-computational-biology-oncology-target-contracts",
-    "rnd-computational-biology-oncology-claude-oncology-skills",
-    "rnd-computational-biology-oncology-analysis-methods",
-]
+# in-tree slices, relative to the monorepo root (this file lives at contracts/scripts/).
+DEFAULT_DIRS = ["contracts", "skills", "methods"]
 _EXTS = {".py", ".yaml", ".yml", ".md", ".json"}
 # skip generated / vendored / history dirs
 _SKIP_DIRS = {".git", "__pycache__", ".cache", "node_modules", "health"}
@@ -43,9 +45,9 @@ def _boundary_re(card_id: str) -> re.Pattern:
     return re.compile(rf"(?<![-a-z0-9]){re.escape(card_id)}(?![-a-z0-9])")
 
 
-def _iter_files(home: Path, repos: list[str]):
-    for repo in repos:
-        root = home / repo
+def _iter_files(monorepo_root: Path, dirs: list[str]):
+    for d in dirs:
+        root = monorepo_root / d
         if not root.exists():
             continue
         for p in root.rglob("*"):
@@ -70,17 +72,21 @@ def main(argv=None) -> int:
         "push by hand). Uses --message or a standard default.",
     )
     ap.add_argument("--message", default=None, help="commit message (with --commit)")
-    ap.add_argument("--home", default=str(Path.home()))
-    ap.add_argument("--repos", nargs="*", default=DEFAULT_REPOS)
+    ap.add_argument(
+        "--monorepo-root",
+        default=str(Path(__file__).resolve().parents[2]),
+        help="repo root containing contracts/, skills/, methods/ (default: inferred from this file's location)",
+    )
+    ap.add_argument("--dirs", nargs="*", default=DEFAULT_DIRS)
     args = ap.parse_args(argv)
     if args.commit and not args.apply:
         ap.error("--commit requires --apply")
 
     pat = _boundary_re(args.old)
-    home = Path(args.home)
+    monorepo_root = Path(args.monorepo_root)
     total_hits = total_files = 0
-    edited_by_repo: dict[str, list[Path]] = {r: [] for r in args.repos}
-    for p in _iter_files(home, args.repos):
+    edited_by_dir: dict[str, list[Path]] = {d: [] for d in args.dirs}
+    for p in _iter_files(monorepo_root, args.dirs):
         try:
             text = p.read_text()
         except (UnicodeDecodeError, OSError):
@@ -90,12 +96,12 @@ def main(argv=None) -> int:
             continue
         total_hits += hits
         total_files += 1
-        rel = p.relative_to(home)
+        rel = p.relative_to(monorepo_root)
         print(f"  {rel}: {hits} occurrence(s)")
         if args.apply:
             p.write_text(pat.sub(args.new, text))
-            repo = rel.parts[0]
-            edited_by_repo.setdefault(repo, []).append(p)
+            top_dir = rel.parts[0]
+            edited_by_dir.setdefault(top_dir, []).append(p)
 
     print(
         f"\n{'APPLIED' if args.apply else 'DRY-RUN'}: {total_hits} occurrence(s) across "
@@ -103,40 +109,36 @@ def main(argv=None) -> int:
     )
 
     # File renames (card YAML + design doc) — tracked so --commit stages the rename too.
-    renamed_by_repo: dict[str, list[tuple[Path, Path]]] = {r: [] for r in args.repos}
+    # Cards only live under contracts/, so this only ever fires for that slice.
+    renamed: list[tuple[Path, Path]] = []
     if args.rename_files and args.apply:
-        for repo in args.repos:
-            root = home / repo
-            for rel_dir in ("cards", "docs/design/cards"):
-                src = root / rel_dir / f"{args.old}.card.yaml"
-                if not src.exists():
-                    src = root / rel_dir / f"{args.old}.md"
-                dest = src.with_name(src.name.replace(args.old, args.new))
-                if src.exists():
-                    src.rename(dest)
-                    renamed_by_repo.setdefault(repo, []).append((src, dest))
-                    print(f"  renamed file: {src.relative_to(home)} -> {dest.name}")
+        for rel_dir in ("contracts/cards", "contracts/docs/design/cards"):
+            src = monorepo_root / rel_dir / f"{args.old}.card.yaml"
+            if not src.exists():
+                src = monorepo_root / rel_dir / f"{args.old}.md"
+            dest = src.with_name(src.name.replace(args.old, args.new))
+            if src.exists():
+                src.rename(dest)
+                renamed.append((src, dest))
+                print(f"  renamed file: {src.relative_to(monorepo_root)} -> {dest.name}")
 
     if args.commit and args.apply:
         import subprocess
 
-        for repo in args.repos:
-            root = home / repo
-            paths = [str(p.relative_to(root)) for p in edited_by_repo.get(repo, [])]
-            for src, dest in renamed_by_repo.get(repo, []):
-                paths += [str(src.relative_to(root)), str(dest.relative_to(root))]
-            if not paths:
-                continue
-            msg = args.message or (
-                f"rename card_id {args.old} -> {args.new} (word-boundary-safe; {repo.split('-')[-1]} slice)"
-            )
+        paths: list[str] = []
+        for d in args.dirs:
+            paths += [str(p.relative_to(monorepo_root)) for p in edited_by_dir.get(d, [])]
+        for src, dest in renamed:
+            paths += [str(src.relative_to(monorepo_root)), str(dest.relative_to(monorepo_root))]
+        if paths:
+            msg = args.message or f"rename card_id {args.old} -> {args.new} (word-boundary-safe)"
             # stage EXACTLY the tool's files (git add -A <paths> handles the deletions from renames)
-            subprocess.run(["git", "-C", str(root), "add", "-A", "--", *paths], check=True)
+            subprocess.run(["git", "-C", str(monorepo_root), "add", "-A", "--", *paths], check=True)
             subprocess.run(
                 [
                     "git",
                     "-C",
-                    str(root),
+                    str(monorepo_root),
                     "commit",
                     "-q",
                     "-m",
@@ -146,7 +148,7 @@ def main(argv=None) -> int:
                 ],
                 check=True,
             )
-            print(f"  [{repo}] committed {len(paths)} path(s) — NOT pushed (run guards + push by hand)")
+            print(f"  committed {len(paths)} path(s) — NOT pushed (run guards + push by hand)")
 
     if not args.apply:
         print("(re-run with --apply to write; --rename-files to move files; --commit to stage+commit)")
