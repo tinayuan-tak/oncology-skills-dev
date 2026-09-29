@@ -188,6 +188,14 @@ SMALL_MOLECULE_CLAIM_SPEC = [
                 "alphafold_plddt_mean",
                 "pdb_best_resolution_angstrom",
                 "hotspot_pocket_adjacency_call",
+                # cryptic/allosteric distinction + axis-breadth (#1739): the composite tier alone
+                # scores a cryptic/allosteric-only handle (KRAS switch-II, SHP2) identically to an
+                # ordinary orthosteric pocket. has_cryptic_site names the strategy; n_ligandability_axes
+                # (0-5) carries how many of the 6 independent structural sources agree, so breadth is
+                # not thrown away by the ordinal collapse. Verdict-INERT: the resolver still sees only
+                # structural_ligandability_class; these are claim-atom / display-layer additions.
+                "has_cryptic_site",
+                "n_ligandability_axes",
             ),
         ),
     ),

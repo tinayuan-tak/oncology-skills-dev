@@ -43,6 +43,8 @@ def _cards():
                 "pdb_coverage_class": "strong",
                 "alphafold_confidence_class": "high",
                 "alphafold_plddt_mean": 92.1,
+                "has_cryptic_site": False,
+                "n_ligandability_axes": 4,
             },
         },
         {
@@ -82,6 +84,46 @@ def test_atoms_present_and_citable():
     assert pot["values"]["chembl_best_pchembl"] == 8.4
     assert vec["STRUCT"]["evidence_atom"]["values"]["alphafold_plddt_mean"] == 92.1
     assert vec["DRUG"]["evidence_atom"]["values"]["druggability_tier"] == "Tclin"
+    # #1739: axis-breadth carried into the STRUCT atom alongside the collapsed ordinal tier.
+    assert vec["STRUCT"]["evidence_atom"]["values"]["n_ligandability_axes"] == 4
+    assert vec["STRUCT"]["evidence_atom"]["values"]["has_cryptic_site"] is False
+
+
+def test_struct_atom_distinguishes_cryptic_from_orthosteric():
+    """#1739: two targets that collapse to the SAME structural_ligandability_class tier (moderate
+    'predicted_ligandable' signal) must read DIFFERENTLY once the atom is inspected — a cryptic/
+    allosteric-only handle (KRAS switch-II / SHP2 archetype) is a distinct druggability STRATEGY from
+    an ordinary orthosteric predicted pocket, and the dropped axis-breadth must not be thrown away."""
+    cryptic_only = [
+        {
+            "card_id": "structure-features-static",
+            "summary": {
+                "structural_ligandability_class": "predicted_ligandable",
+                "has_cryptic_site": True,
+                "n_ligandability_axes": 1,
+            },
+        }
+    ]
+    orthosteric = [
+        {
+            "card_id": "structure-features-static",
+            "summary": {
+                "structural_ligandability_class": "predicted_ligandable",
+                "has_cryptic_site": False,
+                "n_ligandability_axes": 3,
+            },
+        }
+    ]
+    vec_cryptic = small_molecule_claim_vector({}, cryptic_only)
+    vec_ortho = small_molecule_claim_vector({}, orthosteric)
+    # same collapsed ordinal signal (the resolver-facing tier stays untouched)...
+    assert vec_cryptic["STRUCT"]["signal"] == vec_ortho["STRUCT"]["signal"] == "moderate"
+    # ...but the atom now distinguishes them.
+    assert vec_cryptic["STRUCT"]["evidence_atom"]["values"]["has_cryptic_site"] is True
+    assert vec_cryptic["STRUCT"]["evidence_atom"]["values"]["n_ligandability_axes"] == 1
+    assert vec_ortho["STRUCT"]["evidence_atom"]["values"]["has_cryptic_site"] is False
+    assert vec_ortho["STRUCT"]["evidence_atom"]["values"]["n_ligandability_axes"] == 3
+    assert vec_cryptic["STRUCT"]["evidence_atom"]["values"] != vec_ortho["STRUCT"]["evidence_atom"]["values"]
 
 
 def test_disordered_is_negative_and_gaps_unmeasured():
