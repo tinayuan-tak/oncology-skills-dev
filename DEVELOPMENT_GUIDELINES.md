@@ -28,8 +28,8 @@ repo-root/
 │   └── tests/                   # cross-skill invariant guards
 ├── methods/                     # the merged former analysis-methods repo (method CLIs)
 ├── contracts/                   # the merged former target-contracts repo (cards, rules,
-│                                 #   resolvers, schemas, vocabularies)
-├── core-artifacts-schema/       # shared JSON schemas for emitted artifacts
+│                                 #   resolvers, schemas — incl. the stored-artifact
+│                                 #   contract schemas — vocabularies)
 ├── docs/                        # design notes, scope reviews
 ├── batch/, configs/, notebooks/, libs/, eval/
 ├── pixi.toml / pixi.lock        # ONE environment for the whole repo (editable path deps

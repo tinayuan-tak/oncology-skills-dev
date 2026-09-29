@@ -31,8 +31,12 @@ import json
 import sys
 from pathlib import Path
 
-import boto3
 from botocore.exceptions import ClientError
+
+# Hardened client (adaptive retry + ProfileNotFound fallback to the ambient credential
+# chain) — the bare boto3.Session(profile_name=...) it replaces raised in any
+# environment without the `cbg` profile and had no throttling protection.
+from methods.target_id_sidecar import s3_client
 
 try:
     from jsonschema import Draft202012Validator
@@ -43,7 +47,7 @@ except ImportError:
 
 BUCKET = "onc-compbio"
 ARTIFACT_PREFIX = "core-artifacts"
-SCHEMA_PATH = Path(__file__).resolve().parents[3] / "core-artifacts-schema" / "evidence.schema.json"
+SCHEMA_PATH = Path(__file__).resolve().parents[3] / "contracts" / "schemas" / "evidence.schema.json"
 
 # Which batch job produces each dimension (for "missing artifact" guidance).
 # Eight dimensions (revised 2026-06-15). Naming convention: batch dir = the
@@ -59,10 +63,6 @@ DIMENSION_BATCH_JOB = {
     "literature": "batch/literature/run_pipeline.py",  # exists (Ming-Ju), v2 schema port pending
 }
 DIMENSIONS = list(DIMENSION_BATCH_JOB.keys())
-
-
-def s3_client(profile: str):
-    return boto3.Session(profile_name=profile).client("s3")
 
 
 def artifact_key(indication: str, subtype: str, gene: str, dimension: str) -> str:
@@ -149,7 +149,11 @@ def main() -> int:
     g = p.add_mutually_exclusive_group(required=True)
     g.add_argument("--dimension", choices=DIMENSIONS)
     g.add_argument("--all-dimensions", action="store_true")
-    p.add_argument("--profile", default="cbg")
+    p.add_argument(
+        "--profile",
+        default=None,
+        help="AWS profile (default: cbg when configured, else the ambient credential chain).",
+    )
     p.add_argument("--json", action="store_true", help="Emit machine-readable JSON.")
     args = p.parse_args()
 

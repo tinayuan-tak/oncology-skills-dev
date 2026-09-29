@@ -43,7 +43,7 @@ it has no analysis code, only an S3 read — recompute-on-call becomes impossibl
 Given a `--gene`, `--indication`, and `--dimension`, this skill:
 
 1. Reads `s3://onc-compbio/core-artifacts/{ONCOTREE_CODE}/{subtype}/{gene}/{dimension}/evidence.json`.
-2. Validates it against `core-artifacts-schema/evidence.schema.json`.
+2. Validates it against `contracts/schemas/evidence.schema.json`.
 3. Checks the `staleness` block (release-based, not time-based).
 4. Returns the artifact, OR:
    - **Missing** → reports the artifact does not exist and names the batch job that
@@ -76,7 +76,7 @@ pixi run python scripts/query_evidence.py --gene SCD1 --indication COADREAD --di
 
 ## What it returns
 
-The validated `evidence.json` (see `core-artifacts-schema/evidence.schema.json`), which
+The validated `evidence.json` (see `contracts/schemas/evidence.schema.json`), which
 always carries: `gene`, `indication`, `dimension`, `computed_date`, `provenance`
 (including `catalog_refs` — the data-catalog manifest IDs that trace back to a
 re-obtainable source), `result`, `summary`, `confidence`, and `label`
@@ -92,5 +92,5 @@ re-obtainable source), `result`, `summary`, `confidence`, and `label`
 ## Related
 
 - `batch/run_global_dge.py` — the compute job that produces `expression`-dimension artifacts.
-- `core-artifacts-schema/evidence.schema.json` — the artifact contract this skill enforces.
+- `contracts/schemas/evidence.schema.json` — the artifact contract this skill enforces.
 - The data-catalog repo — where `provenance.catalog_refs` IDs resolve to source datasets.

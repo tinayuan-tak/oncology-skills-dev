@@ -1,7 +1,7 @@
 """write_evidence.py — emit a per-gene evidence.json from the DGE Parquet.
 
 Reads one row of the DGE Parquet (per-gene predicate-pushdown), assembles an
-evidence.json conforming to core-artifacts-schema/evidence.schema.json,
+evidence.json conforming to contracts/schemas/evidence.schema.json,
 schema-validates it BEFORE upload, and writes it to:
 
   s3://onc-compbio/core-artifacts/{ONCOTREE_CODE}/{subtype}/{gene}/{dimension}/evidence.json
@@ -39,7 +39,7 @@ import yaml
 from jsonschema import Draft202012Validator
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
-SCHEMA_PATH = REPO_ROOT / "core-artifacts-schema" / "evidence.schema.json"
+SCHEMA_PATH = REPO_ROOT / "contracts" / "schemas" / "evidence.schema.json"
 
 BUCKET = "onc-compbio"
 ARTIFACT_PREFIX = "core-artifacts"

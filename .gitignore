@@ -18,6 +18,9 @@ uv.lock
 # Data caches
 data_cache/
 data/
+# catalog-query pickle cache (defaults to $TMPDIR/onc_catalog_index; a cwd override
+# during a corpus regen once leaked it into the repo root — never commit it)
+onc_catalog_index/
 
 # macOS
 .DS_Store
