@@ -24,79 +24,71 @@
         "panel_consistency": {
           "evidence": {
             "capture_method": "scorecard_adapter.py::_load_package -> skills/tumor-selectivity/scripts/run.py --target <T> --indication <I> (direct, no --full-package fan-out; per #2030, eval/run_scorecard_panel.py --emit times out at 900s)",
-            "card_data_unavailable_by_target": {
-              "EPCAM/COADREAD": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
-              "ERBB2/BRCA": "When getting information for key 'data-catalog/derived/brca-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
-              "HTR1D/COADREAD": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
-              "KRAS/COADREAD": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
-              "PLK1/COADREAD": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body."
-            },
             "checks": {
-              "all_card_data_unavailable": true,
+              "all_card_data_unavailable": false,
               "all_pass": false,
               "all_roster_rows_present": true,
-              "direction_class_not_constant": false,
+              "direction_class_not_constant": true,
               "thin_coverage_control_degrades": false,
-              "window_class_not_constant": false
+              "window_class_not_constant": true
             },
             "method": "per-target rows across the whole 5-target roster (not one flagship), COMPUTED live by collect_panel_rows() (see module docstring) rather than hand-typed: tumor-selectivity's verdict-bearing card classes must differ meaningfully across archetypes (flagship surface, flagship intrinsic driver, amplified surface, pan-essential control, thin-coverage abstention control) rather than collapsing to one constant reading, and the thin-coverage control must show the honest degraded/limited reads its archetype predicts.",
-            "null_reason": "the full 5-pair roster resolved a package for every target, but the two verdict-bearing cards (tumor-vs-normal-selectivity, modality-therapeutic-window) reported a live-read error for EVERY row in this environment \u2014 this credential context lacks S3 access to the underlying *-dge-tumor-vs-normal-sensitivity-v1 derived products (ACCESS_DENIED), not a genuine constant biological reading. Scoring a run this environment cannot actually reach would be a fabricated pass/fail, so panel_consistency is left NULL with this disposition rather than a false RED.",
             "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
             "rows": [
               {
-                "card_data_unavailable": true,
-                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
-                "dominant_direction": null,
+                "card_data_unavailable": false,
+                "card_data_unavailable_reason": null,
+                "dominant_direction": "up",
                 "indication": "COADREAD",
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/EPCAM__coadread/decision.json",
                 "status": "OK",
                 "target": "EPCAM",
-                "therapeutic_window_class": null
+                "therapeutic_window_class": "narrow_window"
               },
               {
-                "card_data_unavailable": true,
-                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
-                "dominant_direction": null,
+                "card_data_unavailable": false,
+                "card_data_unavailable_reason": null,
+                "dominant_direction": "down",
                 "indication": "COADREAD",
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/KRAS__coadread/decision.json",
                 "status": "OK",
                 "target": "KRAS",
-                "therapeutic_window_class": null
+                "therapeutic_window_class": "no_therapeutic_window"
               },
               {
-                "card_data_unavailable": true,
-                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/brca-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
-                "dominant_direction": null,
+                "card_data_unavailable": false,
+                "card_data_unavailable_reason": null,
+                "dominant_direction": "up",
                 "indication": "BRCA",
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/ERBB2__brca/decision.json",
                 "status": "OK",
                 "target": "ERBB2",
-                "therapeutic_window_class": null
+                "therapeutic_window_class": "narrow_window"
               },
               {
-                "card_data_unavailable": true,
-                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
-                "dominant_direction": null,
+                "card_data_unavailable": false,
+                "card_data_unavailable_reason": null,
+                "dominant_direction": "up",
                 "indication": "COADREAD",
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/PLK1__coadread/decision.json",
                 "status": "OK",
                 "target": "PLK1",
-                "therapeutic_window_class": null
+                "therapeutic_window_class": "no_therapeutic_window"
               },
               {
-                "card_data_unavailable": true,
-                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
-                "dominant_direction": null,
+                "card_data_unavailable": false,
+                "card_data_unavailable_reason": null,
+                "dominant_direction": "up",
                 "indication": "COADREAD",
                 "source": "skills/tumor-selectivity/scripts/.panel_cache/HTR1D__coadread/decision.json",
                 "status": "OK",
                 "target": "HTR1D",
-                "therapeutic_window_class": null
+                "therapeutic_window_class": "narrow_window"
               }
             ],
-            "status_as_of": "2026-09-28"
+            "status_as_of": "2026-09-29"
           },
-          "status": "NULL"
+          "status": "RED"
         },
         "utilization": {
           "evidence": {
