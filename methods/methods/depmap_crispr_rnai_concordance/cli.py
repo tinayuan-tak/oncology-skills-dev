@@ -30,7 +30,6 @@ Overall concordance_class (categorical, drives Tier-2 rules):
 from __future__ import annotations
 
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -38,14 +37,13 @@ from typing import Optional
 
 import click
 
+from methods.roots import contracts_root
+
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DEFAULT_TARGET_CONTRACTS = Path(contracts_root())
 
 
 def load_concordance_inputs(target_symbol: str, release_pin: str = "26q3") -> tuple[dict, dict, dict, list]:

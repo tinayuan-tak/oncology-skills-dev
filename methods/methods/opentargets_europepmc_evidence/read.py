@@ -31,21 +31,19 @@ data_unavailable-safe. Absence = coverage gap, never a silent fake-negative.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Optional
 
 import yaml
+
+from methods.roots import contracts_root
 
 EVIDENCE_MANIFEST = "opentargets-europepmc-evidence-per-target-v1"
 METHOD_VERSION = "0.1.0"
 DEFAULT_TOP_N = 12
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+TARGET_CONTRACTS = Path(contracts_root())
 
 # Finer OncoTree/panel subtype codes -> the indication_crosswalk `canonical_code` (see the identical
 # map in opentargets_literature_floor). Only 1:1 subtype->canonical aliases belong here.

@@ -22,8 +22,7 @@ reason: the guard now fires on a REAL query instead of being unreachable (see _L
 
 from __future__ import annotations
 
-import threading
-
+from methods._common.s3 import get_s3fs
 from methods.catalog_query.read import bucket_key_for
 
 from . import classify as _classify
@@ -66,22 +65,10 @@ INDICATION_TO_TCGA_STUDIES = {**_UMBRELLA_SUPPLEMENT, **_DGE_MAP}  # _DGE_MAP wi
 
 
 # ── streamed pushdown read (pyarrow S3FileSystem; no whole-file download) ─────────────────────
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
 
 
 def _get_s3fs():
-    """Process-wide pyarrow S3FileSystem singleton (region us-east-1, the onc-compbio bucket).
-    Built once, shared across threads (the parallel card-read pool relies on that). Mirrors
-    methods/dge_deseq2/read.py::_get_s3fs."""
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as pafs
-
-                _S3FS = pafs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 def _read_samples_for_studies(studies, product_path=None):

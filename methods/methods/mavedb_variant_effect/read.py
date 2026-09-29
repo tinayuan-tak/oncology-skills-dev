@@ -28,9 +28,9 @@ product manifest, not a gap).
 
 from __future__ import annotations
 
-import threading
 from typing import Optional
 
+from methods._common.s3 import get_s3fs
 from methods.catalog_query.read import bucket_key_for
 
 DERIVED_MANIFEST_ID = "mavedb-variant-effect-per-gene-v1"
@@ -42,22 +42,10 @@ WELL_CHARACTERIZED_SCORE_SETS = 2  # >=2 independent MAVE score sets → mave_we
 
 
 # ── streamed pushdown read (pyarrow S3FileSystem; no whole-file download) ─────────────────────
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
 
 
 def _get_s3fs():
-    """Process-wide pyarrow S3FileSystem singleton (region us-east-1, the onc-compbio bucket).
-    Built once and shared (safe for concurrent reads — the parallel card-read pool relies on that).
-    Mirrors methods/tphp_normal_protein/read.py::_get_s3fs."""
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as pafs
-
-                _S3FS = pafs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 def _read_rows_from_derived(gene: str, product_path=None) -> list[dict]:

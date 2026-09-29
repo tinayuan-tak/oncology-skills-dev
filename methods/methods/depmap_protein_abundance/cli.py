@@ -322,6 +322,8 @@ def load_abundance_column(accession: str, matrix_path=None, matrix_key: str = MA
 
 import functools
 
+from methods.roots import contracts_root
+
 
 @functools.lru_cache(maxsize=1)
 def _symbol_to_uniprot_map() -> dict:
@@ -605,10 +607,7 @@ def compute_summary(
 
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DEFAULT_TARGET_CONTRACTS = Path(contracts_root())
 
 
 def _load_takeda_style(target_contracts_dir: Path):

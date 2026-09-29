@@ -31,7 +31,6 @@ v3 (2026-07-01, PRISM metric-switch to Log2AUC):
 from __future__ import annotations
 
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,14 +39,13 @@ from urllib.parse import urlparse
 
 import click
 
+from methods.roots import contracts_root
+
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.3.0"
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DEFAULT_TARGET_CONTRACTS = Path(contracts_root())
 
 # Release-pin → parquet S3 URI. `prism-activity-v4` is the canonical framework pin
 # (v4 shares the parquet with E7 crispr-concordance card).

@@ -17,12 +17,13 @@ streamed-read pattern. Definitive-vs-transient absence discipline so a transient
 from __future__ import annotations
 
 import os
-import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from methods._common.s3 import get_s3fs
 from methods.catalog_query.read import bucket_key_for, bucket_prefix_for
+from methods.roots import contracts_root
 
 DEFAULT_AWS_PROFILE = "cbg"
 MANIFEST_ID = "tcga-gtex-tpm-tissue-quantiles-v1"
@@ -62,26 +63,8 @@ _TUMOR_FILL, _TUMOR_LINE = "#1f4e79", "#0a2540"
 _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"
 
 
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
-
-
 def _get_s3fs():
-    """Process-wide pyarrow S3FileSystem singleton. Constructing one costs ~0.4s (region probe +
-    client init) and read_pan_cancer_by_tissue fires several times per card render (the three figure
-    emitters share it), so we build it ONCE. pyarrow's S3FileSystem is safe to share across threads
-    for reads (the parallel card-read path since skills PR #515); double-checked locking so
-    concurrent first-callers build a single instance. Region pinned to us-east-1 (the onc-compbio
-    bucket) to skip the region-probe round-trip. Mirrors the sibling
-    tcga_gtex_expression_distribution reader's _get_s3fs."""
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as fs
-
-                _S3FS = fs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 @lru_cache(maxsize=64)
@@ -164,8 +147,7 @@ def _ordered_rows(df):
 def emit_by_tissue_distribution(
     target: str,
     out_dir: Path,
-    target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT")
-    or str(Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"),
+    target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT") or str(contracts_root()),
     *,
     presampled=None,
 ) -> Path:
@@ -272,8 +254,7 @@ def emit_plot_data(target: str, out_dir: Path) -> Path:
 def emit_plotly_specs(
     target: str,
     out_dir: Path,
-    target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT")
-    or str(Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"),
+    target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT") or str(contracts_root()),
     *,
     presampled=None,
 ) -> list:

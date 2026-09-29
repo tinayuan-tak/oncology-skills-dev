@@ -16,71 +16,51 @@ Consumers:
 
 from __future__ import annotations
 
-import os
-import threading
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
-import yaml
-
+from methods.catalog_query import read as cq_read
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
 from methods.dge_deseq2.config import (
     indication_to_gtex_tissue,
     indication_to_tcga_studies,
     substrate_source_manifest_id,
 )
+from methods.roots import data_catalog_root
 
-# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-# NOTE: this reader is a *package* (methods/dge_deseq2/read/__init__.py), one directory deeper
-# than the flat sibling readers (methods/<name>/read.py, e.g. catalog_query). So the anchor is
-# parents[3] (the analysis-methods repo root) .parent (the sibling-clone dir) — one more level up
-# than the flat readers' parents[2].parent. Must equal catalog_query.read.DATA_CATALOG; a
-# regression here is masked in CI (skip_if_no_data swallows the S3 error before the catalog lookup),
-# so it is pinned hermetically in tests/test_data_catalog_resolution.py. (#728, S0 reorg #692.)
-DATA_CATALOG = Path(
-    os.environ.get("DATA_CATALOG_ROOT")
-    or Path(__file__).resolve().parents[3].parent / "rnd-computational-biology-oncology-data-catalog"
-)
+# Must equal catalog_query.read.DATA_CATALOG (both now derive from the same
+# methods.roots.data_catalog_root(), anchored from roots.py's own location rather than either
+# caller's depth, so this package being one directory deeper than the flat sibling readers no
+# longer needs its own parents[...] count) — a regression here is masked in CI (skip_if_no_data
+# swallows the S3 error before the catalog lookup), so it is pinned hermetically in
+# tests/test_data_catalog_resolution.py. (#728, S0 reorg #692.)
+DATA_CATALOG = data_catalog_root()
 DEFAULT_AWS_PROFILE = "cbg"
 
 
+from methods._common.s3 import get_s3fs
 from methods.target_id_sidecar import ensure_aws_profile
-
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
 
 
 def _get_s3fs():
-    """Process-wide pyarrow S3FileSystem singleton. Constructing one costs ~0.4s (region probe +
-    client init) and this reader's functions fire several times per run for the cards it backs
-    (the tumor-vs-normal-selectivity verdict read + the all-gene-percentile null scans + the
-    GTEx-long facet), so we build it ONCE instead of per read. pyarrow's S3FileSystem is safe to
-    share across threads for reads (the parallel card-read path, skills PR #515); double-checked
-    locking so concurrent first-callers build a single instance. Region is pinned to us-east-1 (the
-    onc-compbio bucket) to skip the region-probe round-trip. Mirrors the sibling
-    tcga_gtex_expression_distribution reader's _get_s3fs."""
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as fs
-
-                _S3FS = fs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 def _load_manifest(manifest_id: str) -> dict:
-    """Load a derived manifest YAML from the data-catalog."""
-    candidates = list((DATA_CATALOG / "manifests" / "derived").glob(f"{manifest_id}.yaml"))
-    if not candidates:
-        raise FileNotFoundError(f"Derived manifest not found in data-catalog/manifests/derived/: {manifest_id!r}")
-    with candidates[0].open() as f:
-        return yaml.safe_load(f)
+    """Load a derived manifest YAML from the data-catalog.
+
+    Delegates to catalog_query's public ``load_manifest`` (searches sources/+derived/, a strict
+    superset of the derived-only glob this used to run directly -- no derived-manifest id here
+    collides with a sources/ id, so the search-scope widening is inert in practice) and raises
+    FileNotFoundError identically on a missing id, exactly as this reader's own local
+    implementation used to.
+    """
+    return cq_read.load_manifest(manifest_id, root=DATA_CATALOG)
 
 
 def _s3_uri_to_path(s3_uri: str) -> str:
-    return s3_uri[5:] if s3_uri.startswith("s3://") else s3_uri
+    return cq_read._s3_uri_to_path(s3_uri)
 
 
 @lru_cache(maxsize=8)

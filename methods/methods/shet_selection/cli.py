@@ -21,10 +21,8 @@ COL_GENE = "gene_symbol"
 HIGH_INTOLERANCE = 0.1  # Cassa 2017 / Zeng 2024 strong-constraint threshold (~15% of genes)
 MODERATE_INTOLERANCE = 0.01
 
-import threading
+from methods._common.s3 import get_s3fs
 
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
 _DERIVED_STATUS: Optional[bool] = None
 
 
@@ -41,15 +39,7 @@ def classify_shet(shet: Optional[float]) -> str:
 
 
 def _get_s3fs():
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                ensure_aws_profile()
-                import pyarrow.fs as fs
-
-                _S3FS = fs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs(pre_hook=ensure_aws_profile)
 
 
 def load_shet_row(gene_symbol: str) -> Optional[dict]:

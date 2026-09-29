@@ -36,7 +36,6 @@ Phase 2a.3 of iDAS Subtype Pipeline. NEW method — no prior version.
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 
@@ -44,6 +43,7 @@ import click
 import pandas as pd
 import yaml
 
+from methods.roots import data_catalog_root
 from methods.subgroup_common import lineage as _lineage
 from methods.subgroup_common.manifest import emit_assignment_manifest
 from methods.subgroup_common.paths import cache_root
@@ -516,10 +516,7 @@ def _run_cms_classifier(expression_df: pd.DataFrame, config: dict, run_dir: Path
 @click.option(
     "--catalog-repo",
     type=click.Path(file_okay=False, path_type=Path),
-    default=Path(
-        os.environ.get("DATA_CATALOG_ROOT")
-        or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
-    ),
+    default=data_catalog_root(),
     help="Path to the data-catalog repo.",
 )
 @click.option("--out", required=True, type=click.Path(file_okay=False, path_type=Path), help="Output directory.")

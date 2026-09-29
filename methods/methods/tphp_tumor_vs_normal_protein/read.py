@@ -54,8 +54,8 @@ protein footprint) so the live-read seam surfaces `_live_read_error` instead of 
 from __future__ import annotations
 
 import math
-import threading
 
+from methods._common.s3 import get_s3fs
 from methods.catalog_query.read import bucket_key_for
 
 DERIVED_MANIFEST_ID = "tphp-tumor-vs-normal-protein-per-cohort-v2"
@@ -171,22 +171,10 @@ def _abs_effect(row: dict) -> float:
 
 
 # ── streamed pushdown read (pyarrow S3FileSystem; no whole-file download) ──────────────────────────
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
 
 
 def _get_s3fs():
-    """Process-wide pyarrow S3FileSystem singleton (region us-east-1, the onc-compbio bucket).
-    Built once and shared (safe for concurrent reads — the parallel card-read pool relies on that).
-    Mirrors methods/tphp_normal_protein/read.py::_get_s3fs."""
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as pafs
-
-                _S3FS = pafs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 def _read_rows_from_derived(gene: str, product_path=None) -> list[dict]:

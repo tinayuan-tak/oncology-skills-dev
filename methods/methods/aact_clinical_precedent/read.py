@@ -32,21 +32,19 @@ data_unavailable-safe. Absence = coverage gap (measured-vs-null discipline).
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Optional
 
 import yaml
+
+from methods.roots import contracts_root
 
 DRUG_TARGET_MANIFEST = "dgidb-drug-target-directional-v1"
 AACT_MANIFEST = "aact-oncology-trial-precedent-per-condition-intervention-v1"
 METHOD_VERSION = "0.1.0"
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+TARGET_CONTRACTS = Path(contracts_root())
 
 # AACT phase string -> ordinal (for highest-stage), and ordinal -> clinical-stage class.
 _PHASE_ORD = {

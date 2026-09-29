@@ -26,15 +26,14 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from methods.roots import data_catalog_root
+
 S3_BUCKET = "onc-compbio"
 SOURCE_S3_KEY = "data-catalog/sources/cspa-bausch-fluck-2015/pone.0121314.s002.xlsx"
 DEFAULT_AWS_PROFILE = "cbg"
 DEFAULT_RESOLVER_RELEASE = "resolver_v1.0.0"
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DATA_CATALOG = Path(
-    os.environ.get("DATA_CATALOG_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
-)
+DATA_CATALOG = data_catalog_root()
 
 # CSPA confidence category (verbatim in Table_B) → surface_confirmation card vocab.
 _CATEGORY_TO_CLASS = {

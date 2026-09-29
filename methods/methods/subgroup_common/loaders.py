@@ -36,12 +36,13 @@ in Phase 2b/c manifest wire-in.
 
 from __future__ import annotations
 
-import os
 import sys
 from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
+
+from methods.roots import data_catalog_root
 
 # ---------- Cache infrastructure -------------------------------------------
 
@@ -234,10 +235,7 @@ def load_assignments(manifest_id: str, data_catalog_repo: Path | None = None) ->
     """
     if data_catalog_repo is None:
         # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-        data_catalog_repo = Path(
-            os.environ.get("DATA_CATALOG_ROOT")
-            or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
-        )
+        data_catalog_repo = data_catalog_root()
 
     # Resolution order mirrors the source loaders above: session cache first,
     # then the data-catalog derived manifest's S3 pointer (Phase 2b/c). The

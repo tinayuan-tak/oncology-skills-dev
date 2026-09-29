@@ -19,12 +19,12 @@ import os
 from pathlib import Path
 from typing import Optional, Union
 
+from methods.roots import contracts_root
+
 from . import emit as _emit
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-_DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT") or str(
-    Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+_DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT") or str(contracts_root())
 
 _REQUIRED_COLUMNS = ("group",)
 _SAMPLE_FIELDS = _emit._PLOT_DATA_SAMPLE_FIELDS

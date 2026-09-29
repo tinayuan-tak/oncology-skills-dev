@@ -8,13 +8,13 @@ import os
 import sys
 from pathlib import Path
 
+from methods.roots import contracts_root
+
 from . import read as _read
 
 METHOD_VERSION = "0.1.0"
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT") or str(
-    Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT") or str(contracts_root())
 
 _CLASS_COLORS = {
     "alteration_mutated_worse_survival": ("#a63d2e", "#7a2c20"),  # poor-prognosis alteration

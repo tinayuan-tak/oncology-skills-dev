@@ -30,16 +30,14 @@ rules on the card); the small-molecule verdict spine is untouched.
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from methods.roots import contracts_root
+
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DEFAULT_TARGET_CONTRACTS = Path(contracts_root())
 PRECEDENT_VOCAB_RELPATH = "vocabularies/degrader_precedent_targets.yaml"
 PRODUCT_MANIFEST_ID = "ubibrowser-e3-substrate-per-gene-v1"
 METHOD_VERSION = "0.1.0"

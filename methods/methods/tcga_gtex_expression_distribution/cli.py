@@ -20,14 +20,14 @@ import sys
 from pathlib import Path
 from typing import Optional
 
+from methods.roots import contracts_root
+
 from . import read as _read
 from . import stats as _stats
 
 METHOD_VERSION = "0.1.0"
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT") or str(
-    Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT") or str(contracts_root())
 
 _TUMOR_FILL, _TUMOR_LINE = "#1f4e79", "#0a2540"
 _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"

@@ -27,7 +27,6 @@ Graceful degradation via _live_read_error on AccessDenied.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from datetime import datetime, timezone
 from functools import lru_cache
@@ -37,19 +36,14 @@ from pathlib import Path
 import click
 
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
+from methods.roots import contracts_root, data_catalog_root
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "2.0.0"
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DEFAULT_CATALOG_REPO = Path(
-    os.environ.get("DATA_CATALOG_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
-)
-DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DEFAULT_CATALOG_REPO = data_catalog_root()
+DEFAULT_TARGET_CONTRACTS = contracts_root()
 DEPMAP_SOURCE_MANIFEST_ID = "depmap-consortium-26q3"
 # Resolved from the data-catalog manifest (single source of truth). DEPMAP_S3_PREFIX (s3://-form,
 # no trailing slash) feeds echo/provenance strings; _DEPMAP_KEY_PREFIX (bucket-relative) builds the

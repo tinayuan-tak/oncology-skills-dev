@@ -15,6 +15,8 @@ from __future__ import annotations
 
 from functools import lru_cache
 
+from methods._common.s3 import get_s3fs
+
 S3_BUCKET = "onc-compbio"
 PRODUCT_KEY = "data-catalog/derived/tcga-patient-cn-per-sample-v1/tcga_patient_cn_per_sample.parquet"
 DEFAULT_AWS_PROFILE = "cbg"
@@ -42,21 +44,8 @@ INDICATION_TO_TCGA = {
 }
 
 
-_S3FS = None
-
-
 def _get_s3fs():
-    """pyarrow S3FileSystem for HTTP-range row-group pushdown — reads only the 1-2 gene-sorted
-    row groups matching the gene, NOT the full 1.5 GB object. Mirrors tcga_gtex_expression_distribution."""
-    global _S3FS
-    if _S3FS is None:
-        import pyarrow.fs as fs
-
-        from methods.target_id_sidecar import ensure_aws_profile
-
-        ensure_aws_profile()
-        _S3FS = fs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 @lru_cache(maxsize=256)

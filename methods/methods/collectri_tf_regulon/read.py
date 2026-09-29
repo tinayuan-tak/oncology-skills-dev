@@ -23,12 +23,12 @@ downstream.
 from __future__ import annotations
 
 import sys
-import threading
 from pathlib import Path
 
 _METHODS_ROOT = Path(__file__).resolve().parent.parent
 if str(_METHODS_ROOT.parent) not in sys.path:
     sys.path.insert(0, str(_METHODS_ROOT.parent))
+from methods._common.s3 import get_s3fs
 from methods.catalog_query.read import bucket_key_for
 from methods.signor_mechanism_network.moa_ontology import ONTOLOGY_VERSION, classify_edge
 
@@ -36,22 +36,10 @@ DERIVED_MANIFEST_ID = "collectri-tf-regulon-per-gene-v1"
 
 
 # ── streamed pushdown read (pyarrow S3FileSystem; no whole-file download) ─────────────────────
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
 
 
 def _get_s3fs():
-    """Process-wide pyarrow S3FileSystem singleton (region us-east-1, the onc-compbio bucket).
-    Built once and shared (safe for concurrent reads — the parallel card-read pool relies on that).
-    Mirrors methods/dge_deseq2/read.py::_get_s3fs + methods/depmap_common/parquet.py."""
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as pafs
-
-                _S3FS = pafs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 def _weight_to_mechanism(weight: int) -> tuple[str, bool, bool, str]:

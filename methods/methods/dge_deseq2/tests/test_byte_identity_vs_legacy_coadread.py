@@ -68,6 +68,8 @@ from pathlib import Path
 
 import pytest
 
+from methods.roots import data_catalog_root
+
 METHODS_REPO = Path(__file__).resolve().parents[3]
 
 # Sibling repo roots are ENV-OVERRIDABLE, defaulting to the sibling checkout DERIVED from this
@@ -77,10 +79,7 @@ METHODS_REPO = Path(__file__).resolve().parents[3]
 # it is what lets the gate be verified against a data-catalog BRANCH (e.g. a fixed indication-config)
 # without editing the primary checkout to make a test pass. `or` rather than a two-arg .get() default
 # so an EMPTY value falls back too: .get(K, d) returns "" and Path("") is "." — the CWD.
-CATALOG_REPO = Path(
-    os.environ.get("DATA_CATALOG_ROOT")
-    or Path(__file__).resolve().parents[3].parent / "rnd-computational-biology-oncology-data-catalog"
-)
+CATALOG_REPO = data_catalog_root()
 # The `byte-identity-live-s3` job in methods-validate.yml clones claude-oncology-skills; the offline
 # `pytest` job deliberately does NOT (adding it there would un-skip this gate on a credential-less
 # runner and red the suite). Kept env-overridable so it is not machine-locked.

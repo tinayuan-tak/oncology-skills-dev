@@ -48,6 +48,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Optional
 
+from methods.roots import data_catalog_root
+
 _BUCKET = "onc-compbio"
 _HCMI_PREFIX = "data-catalog/sources/hcmi/cmdc-dr45-0/HCMI-CMDC/"
 
@@ -55,11 +57,7 @@ _HCMI_PREFIX = "data-catalog/sources/hcmi/cmdc-dr45-0/HCMI-CMDC/"
 # Canonical S3 home for the per-(gene, indication) genotype-matched-model product.
 _GENOTYPE_DERIVED_PREFIX = "data-catalog/derived/hcmi-genotype-matched-model-per-gene-v1/"
 _GENOTYPE_PARQUET_BASENAME = "hcmi_genotype_matched_model.parquet"
-# Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DATA_CATALOG_ROOT = Path(
-    os.environ.get("DATA_CATALOG_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
-)
+DATA_CATALOG_ROOT = data_catalog_root()
 DEFAULT_RESOLVER_RELEASE = "resolver_v1.0.0"
 
 # FUNCTIONAL coding Variant_Classification values kept for a COARSE alteration match (any one of these

@@ -20,12 +20,12 @@ import pandas as pd
 import pytest
 import yaml
 
+from methods.roots import data_catalog_root
+
 # Portable repo roots: were hardcoded to the author's /home/sagemaker-user checkout, so these
 # subprocess tests FileNotFoundError'd (cwd) the moment they ran anywhere else — including CI.
 METHODS_REPO = Path(__file__).resolve().parents[3]
-CATALOG_REPO = Path(
-    os.environ.get("DATA_CATALOG_ROOT") or METHODS_REPO.parent / "rnd-computational-biology-oncology-data-catalog"
-)
+CATALOG_REPO = data_catalog_root()
 
 
 def test_dry_run_on_coadread_tcga():

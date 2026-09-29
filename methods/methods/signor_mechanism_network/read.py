@@ -37,7 +37,6 @@ read_target_summary aggregates to per-target categorical:
 
 from __future__ import annotations
 
-import threading
 from pathlib import Path
 from typing import Optional
 
@@ -74,20 +73,9 @@ MAX_EDGES_SPARSE = 1
 
 from methods.target_id_sidecar import s3_client as _boto3_client
 
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
-
 
 def _get_s3fs():
-    """Process-wide pyarrow S3FileSystem singleton (region us-east-1). Mirrors dge_deseq2._get_s3fs."""
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as pafs
-
-                _S3FS = pafs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 def _ensure_signor_source_cached() -> Path:
@@ -102,6 +90,8 @@ def _ensure_signor_source_cached() -> Path:
 
 
 from functools import lru_cache
+
+from methods._common.s3 import get_s3fs
 
 
 @lru_cache(maxsize=1)

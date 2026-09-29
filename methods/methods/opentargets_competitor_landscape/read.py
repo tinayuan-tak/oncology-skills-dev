@@ -48,20 +48,18 @@ data_unavailable-safe. Absence = coverage gap, never a silent fake-negative.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Optional
 
 import yaml
 
+from methods.roots import contracts_root
+
 COMPETITOR_MANIFEST = "opentargets-target-competitor-drugs-per-gene-v1"
 METHOD_VERSION = "0.1.0"
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+TARGET_CONTRACTS = Path(contracts_root())
 
 # CD3 / immune-effector Ensembl gene ids — a competitor antibody engaging one of these has the
 # T-cell-engager (bispecific TCE) signature. CD3D / CD3E / CD3G / CD247(CD3zeta) + FCGR3A (NK engager).

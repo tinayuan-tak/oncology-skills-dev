@@ -74,21 +74,11 @@ def _release_prefix(release_pin: str = "26q3") -> str:
 # S3FileSystem singleton (construction costs a region-probe + client init, so build it once and
 # share it — pyarrow's S3FileSystem is safe for concurrent reads, which the parallel card-read pool
 # relies on). Region pinned to us-east-1 (the onc-compbio bucket) to skip the region round-trip.
-import threading
-
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
+from methods._common.s3 import get_s3fs
 
 
 def _get_s3fs():
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as pafs
-
-                _S3FS = pafs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 def _remote_uri(filename: str, release_pin: str = "26q3") -> str:

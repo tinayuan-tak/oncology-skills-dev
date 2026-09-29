@@ -9,9 +9,9 @@ Absence-safe: 404 / gene-miss → data_unavailable; transient/creds → _live_re
 
 from __future__ import annotations
 
-import threading
 from typing import Optional
 
+from methods._common.s3 import get_s3fs
 from methods.catalog_query.read import bucket_key_for
 from methods.target_id_sidecar import ensure_aws_profile, is_definitively_absent
 
@@ -64,20 +64,9 @@ _SUMMARY_FIELDS = (
     "mean_logcpm_inflamed",
 )
 
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
-
 
 def _get_s3fs():
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                ensure_aws_profile()
-                import pyarrow.fs as fs
-
-                _S3FS = fs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs(pre_hook=ensure_aws_profile)
 
 
 def _empty(note: str) -> dict:

@@ -47,8 +47,9 @@ Runtime discipline: process-wide S3FileSystem singleton + per-target read cache
 
 from __future__ import annotations
 
-import threading
 from typing import Optional
+
+from methods._common.s3 import get_s3fs
 
 DERIVED_MANIFEST_ID = "pancohort-cooccurrence-fisher-v1"
 
@@ -112,24 +113,9 @@ _DERIVED_STATUS: Optional[bool] = None
 # (mirrors methods/combo_drug_anchor).
 _ROWS_CACHE: dict = {}
 
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
-
 
 def _get_s3fs():
-    """Process-wide pyarrow S3FileSystem singleton (region pinned to us-east-1, the onc-compbio
-    bucket, to skip the region-probe round-trip). Constructing one costs ~0.4s and this reader can
-    fire for several targets per run (differentiation-landscape / target-profile fan-out), so build
-    it ONCE. Double-checked locking so concurrent first-callers build a single instance. Mirrors
-    the sibling dge_deseq2._get_s3fs / depmap_common.parquet._get_s3fs."""
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as fs
-
-                _S3FS = fs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 def _read_target_rows(sym: str) -> Optional[list]:

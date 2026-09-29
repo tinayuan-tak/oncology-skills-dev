@@ -322,6 +322,7 @@ INDICATION_TO_PROXY_NORMAL_TISSUES = {
 }
 
 
+from methods._common.s3 import get_s3fs
 from methods.target_id_sidecar import s3_client as _boto3_client
 
 
@@ -349,23 +350,8 @@ def _ensure_sidecar_cached() -> Optional[Path]:
     return None
 
 
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
-
-
 def _get_s3fs():
-    """Process-wide pyarrow S3FileSystem singleton. Constructing one costs ~0.4s (region probe +
-    client init) and _read_gene fires several times per run across the cards this reader backs, so
-    we build it once. pyarrow's S3FileSystem is safe to share across threads for reads (the parallel
-    card-read path since skills PR #515). Double-checked-locking so concurrent first-callers build one."""
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as fs
-
-                _S3FS = fs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 # Run-scoped memo of per-gene long-product reads, keyed by (which, normalized target). The SAME

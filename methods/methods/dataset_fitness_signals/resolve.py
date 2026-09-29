@@ -45,21 +45,19 @@ not_measured" are different facts and only one of them is about the data.
 from __future__ import annotations
 
 import math
-import os
 from pathlib import Path
 from typing import Any, Mapping
 
 import yaml
 
-CONTRACT_REL = "vocabularies/dataset_fitness_resolution.yaml"
+from methods.roots import contracts_root
 
-# The sibling checkout beside this repo: parents[2] is the repo root, so .parent is the
-# directory the sibling clones share.
-_SIBLING_DEFAULT = Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
+CONTRACT_REL = "vocabularies/dataset_fitness_resolution.yaml"
 
 
 def _default_target_contracts() -> Path:
-    """Resolve TARGET_CONTRACTS_ROOT, else the sibling checkout -- read at CALL time.
+    """Resolve TARGET_CONTRACTS_ROOT, else the sibling checkout -- read at CALL time (delegates
+    to ``methods.roots.contracts_root``, itself resolved fresh on every call).
 
     ``methods/dge_deseq2/figures.py`` caches this at import time; that is a latent bug rather
     than a convention to copy. A consumer that sets the env var after importing us (a CLI that
@@ -67,7 +65,7 @@ def _default_target_contracts() -> Path:
     failure mode is a contract read against the wrong checkout -- which looks like a stale
     contract, not like a misconfiguration.
     """
-    return Path(os.environ.get("TARGET_CONTRACTS_ROOT") or _SIBLING_DEFAULT)
+    return contracts_root()
 
 
 _REQUIRED_KEYS = ("resolution_id", "emits", "keyed_by", "evaluation", "reads", "thresholds", "resolve", "default")

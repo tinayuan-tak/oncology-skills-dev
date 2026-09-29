@@ -23,9 +23,9 @@ Graceful degradation: derived product unreachable → data_unavailable + _live_r
 
 from __future__ import annotations
 
-import threading
 from typing import Optional
 
+from methods._common.s3 import get_s3fs
 from methods.catalog_query.read import bucket_key_for
 
 METHOD_VERSION = "read-0.1.0"
@@ -41,19 +41,10 @@ PUSHDOWN_KEY = "gene_symbol"
 
 # Process-wide S3FileSystem singleton (double-checked lock), mirroring the
 # streamed-read exemplars (dge_deseq2._get_s3fs, depmap_common.parquet._get_s3fs).
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
 
 
 def _get_s3fs():
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as fs
-
-                _S3FS = fs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 def _read_gene_rows(target: str, parquet_path=None):

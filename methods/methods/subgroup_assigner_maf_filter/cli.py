@@ -27,7 +27,6 @@ target-contracts docs/design/SAMPLE_ANNOTATION_PLAN.md for Modality B design.
 
 from __future__ import annotations
 
-import os
 import re
 import sys
 from pathlib import Path
@@ -36,6 +35,7 @@ import click
 import pandas as pd
 import yaml
 
+from methods.roots import data_catalog_root
 from methods.subgroup_common import maf_vocab
 from methods.subgroup_common.manifest import emit_assignment_manifest
 from methods.subgroup_common.paths import cache_root
@@ -690,10 +690,7 @@ def _effect_vocabulary_guard(maf: pd.DataFrame, applicable: list[dict], data_sou
 @click.option(
     "--catalog-repo",
     type=click.Path(file_okay=False, path_type=Path),
-    default=Path(
-        os.environ.get("DATA_CATALOG_ROOT")
-        or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
-    ),
+    default=data_catalog_root(),
     help="Path to the data-catalog repo for input-manifest resolution.",
 )
 @click.option(

@@ -43,16 +43,14 @@ call is retained (a genuine no-pocket rationale).
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from methods.roots import contracts_root
+
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DEFAULT_TARGET_CONTRACTS = Path(contracts_root())
 VOCAB_RELPATH = "vocabularies/domain_modality_targets.yaml"
 
 METHOD_VERSION = "0.2.0"

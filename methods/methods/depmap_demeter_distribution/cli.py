@@ -28,7 +28,6 @@ Graceful degradation: if any file unreachable, emit _live_read_error dict.
 from __future__ import annotations
 
 import json
-import os
 import re
 import sys
 from datetime import datetime, timezone
@@ -39,19 +38,14 @@ from typing import Optional
 import click
 
 from methods.catalog_query.read import bucket_prefix_for, s3_uri_for
+from methods.roots import contracts_root, data_catalog_root
 
 METHOD_DIR = Path(__file__).resolve().parent
 METHOD_VERSION = "0.1.0"
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DEFAULT_CATALOG_REPO = Path(
-    os.environ.get("DATA_CATALOG_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
-)
-DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DEFAULT_CATALOG_REPO = data_catalog_root()
+DEFAULT_TARGET_CONTRACTS = contracts_root()
 RNAI_SOURCE_MANIFEST_ID = "depmap-consortium-26q1-rnai"
 CRISPR_SOURCE_MANIFEST_ID = "depmap-consortium-26q1"
 # Resolved from the data-catalog manifests (single source of truth). *_S3_PREFIX (s3://-form) feed

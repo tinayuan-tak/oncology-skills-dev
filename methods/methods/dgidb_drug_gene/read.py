@@ -30,10 +30,11 @@ but repackaged). See the data-catalog source manifest dgidb-2026-06b.
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
+
+from methods.roots import contracts_root
 
 PRODUCT_MANIFEST_ID = "dgidb-drug-gene-per-gene-v1"
 # DIRECTNESS metadata source (2026-09-04): the per-(gene,drug) directional product carries
@@ -67,10 +68,7 @@ METHOD_VERSION = "0.3.0"  # 0.3.0 (2026-09-07, CASE-008 verdict-moving): + MODAL
 # unreadable/absent crosswalk → prior modality-blind behaviour (byte-stable). So this reader can land
 # BEFORE the vocab is flagged with zero behaviour change.
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DEFAULT_TARGET_CONTRACTS = Path(contracts_root())
 BIOLOGICS_PRECEDENT_VOCAB_RELPATH = "vocabularies/biologics_precedent_targets.yaml"
 
 # The DGIdb interaction_type tokens that denote a DIRECT small-molecule engaging mechanism (the compound

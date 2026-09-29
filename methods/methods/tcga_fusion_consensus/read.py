@@ -79,24 +79,11 @@ _DEFAULT_MIN_CALLERS = 2
 # sort key anyway). The ~1 MB payload / ~0.12 MB coverage transit ONCE per process via the
 # lru_cache seam. Mirrors methods/dge_deseq2/read.py:_get_s3fs +
 # methods/depmap_common/parquet.py:_stream_table.
-import threading
-
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
+from methods._common.s3 import get_s3fs
 
 
 def _get_s3fs():
-    """Process-wide pyarrow S3FileSystem singleton (region us-east-1, the onc-compbio bucket).
-    Constructing one costs a region-probe + client init, so build it ONCE and share it — pyarrow's
-    S3FileSystem is safe for concurrent reads (the parallel card-read pool relies on that)."""
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as pafs
-
-                _S3FS = pafs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 def _stream_parquet(bucket: str, key: str):

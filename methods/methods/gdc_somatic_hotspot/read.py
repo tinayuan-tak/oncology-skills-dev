@@ -11,13 +11,11 @@ as a derived manifest in data-catalog).
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache, partial
 from pathlib import Path
 from typing import Optional
 
-import yaml
-
+from methods.catalog_query import read as cq_read
 from methods.subgroup_common.iteration import subgroup_iterable
 from methods.subgroup_common.panorama import (
     SUBGROUP_N_FLOOR,
@@ -67,6 +65,7 @@ INDICATION_TO_GDC_PROJECTS = {
 
 
 from methods.indication_aliases import to_cohort_canonical
+from methods.roots import data_catalog_root
 from methods.target_id_sidecar import ensure_aws_profile
 
 # --- Derived-manifest resolution ----------------------------------------------
@@ -78,10 +77,7 @@ from methods.target_id_sidecar import ensure_aws_profile
 # else fall back to the manifest's S3 payload. Both products carry an `indication`
 # column, so a single pushdown filter on (indication[, gene_symbol]) works either way.
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DATA_CATALOG = Path(
-    os.environ.get("DATA_CATALOG_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
-)
+DATA_CATALOG = data_catalog_root()
 
 _HOTSPOT_FREQUENCY_MANIFEST = "tcga-mc3-hotspot-frequency-v1"
 _PER_SAMPLE_MAF_MANIFEST = "tcga-mc3-per-sample-maf-v1"
@@ -89,12 +85,16 @@ _PER_SAMPLE_MAF_MANIFEST = "tcga-mc3-per-sample-maf-v1"
 
 def _load_manifest(manifest_id: str) -> dict:
     """Load a derived manifest YAML from the data-catalog (returns {} if absent, so the
-    local-cache fallback still works in an environment without the catalog checked out)."""
-    candidates = list((DATA_CATALOG / "manifests" / "derived").glob(f"{manifest_id}.yaml"))
-    if not candidates:
+    local-cache fallback still works in an environment without the catalog checked out).
+
+    Delegates to catalog_query's public ``load_manifest`` (searches sources/+derived/, a strict
+    superset of the derived-only glob this used to run directly) for the actual read, catching
+    its FileNotFoundError to preserve THIS reader's own return-{}-on-absence contract, which
+    catalog_query.load_manifest itself does not offer (it raises)."""
+    try:
+        return cq_read.load_manifest(manifest_id, root=DATA_CATALOG) or {}
+    except FileNotFoundError:
         return {}
-    with candidates[0].open() as f:
-        return yaml.safe_load(f) or {}
 
 
 def _manifest_s3_path(manifest_id: str) -> Optional[str]:

@@ -20,18 +20,16 @@ data_unavailable, never a raise (so this can land before the vocab is merged).
 
 from __future__ import annotations
 
-import os
 from functools import lru_cache
 from pathlib import Path
 from typing import Optional
 
+from methods.roots import contracts_root
+
 METHOD_VERSION = "0.1.0"
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DEFAULT_TARGET_CONTRACTS = Path(contracts_root())
 CONTROLS_VOCAB_RELPATH = "vocabularies/dependency_controls.yaml"
 
 

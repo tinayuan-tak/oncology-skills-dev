@@ -20,12 +20,12 @@ Mirroring tests/methods/depmap_chronos/test_lineage_map_single_source.py.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
 import pandas as pd
 import pytest
 
+from methods.roots import contracts_root
 from methods.subgroup_common.lineage import (
     INDICATION_TO_DEPMAP_ONCOTREE_CODES,
     INDICATION_TO_DEPMAP_ORGAN,
@@ -174,10 +174,7 @@ DECLARED_CROSSWALK_DIVERGENCES = {
 # Sibling REPO root: derived from this file, never from $HOME. Under a /tmp/wt worktree
 # Path.home() would reach past the worktree's own siblings into the home checkout, so the
 # guard would validate a different tree than the one under test.
-_TARGET_CONTRACTS_ROOT = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[3].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+_TARGET_CONTRACTS_ROOT = Path(contracts_root())
 CROSSWALK_PATH = _TARGET_CONTRACTS_ROOT / "vocabularies" / "indication_crosswalk.yaml"
 
 # Path.home() IS correct here: a per-user cache, not a sibling checkout.

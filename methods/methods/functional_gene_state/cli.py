@@ -12,6 +12,8 @@ import os
 import sys
 from pathlib import Path
 
+from methods.roots import contracts_root
+
 from . import read as _read
 
 METHOD_VERSION = "0.1.0"
@@ -26,9 +28,7 @@ _STATE_COLORS = {
 
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT") or str(
-    Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DEFAULT_TARGET_CONTRACTS = os.environ.get("TARGET_CONTRACTS_ROOT") or str(contracts_root())
 
 # per-sample-state → fill for the stacked composition bar (biallelic = deepest / strongest LoF).
 _STATE_FILL = {

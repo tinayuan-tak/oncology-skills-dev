@@ -34,11 +34,12 @@ data_unavailable-safe. Absence = coverage gap, never a silent fake-negative.
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from typing import Optional
 
 import yaml
+
+from methods.roots import contracts_root
 
 LITERATURE_MANIFEST = "opentargets-literature-per-target-v2"  # v2: top-100 + entity_lut sentences
 METHOD_VERSION = "0.2.0"  # 0.2.0: axis-aware re-ranking
@@ -66,10 +67,7 @@ def _axis_match(sentence, tokens: list[str]) -> int:
 
 
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+TARGET_CONTRACTS = Path(contracts_root())
 
 # Finer OncoTree/panel subtype codes -> the indication_crosswalk `canonical_code` that carries the
 # efo_ids lane. The framework often passes a fine OncoTree code (e.g. LUAD) while the crosswalk keys

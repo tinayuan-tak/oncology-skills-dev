@@ -19,22 +19,11 @@ COL_GENE = "target_gene"
 
 _CLASS_RANK = {"robust_synergy": 0, "supported_synergy": 1, "context_synergy": 2}
 
-import threading
-
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
+from methods._common.s3 import get_s3fs
 
 
 def _get_s3fs():
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                ensure_aws_profile()
-                import pyarrow.fs as fs
-
-                _S3FS = fs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs(pre_hook=ensure_aws_profile)
 
 
 def _read_rows(target: str) -> Optional[list]:

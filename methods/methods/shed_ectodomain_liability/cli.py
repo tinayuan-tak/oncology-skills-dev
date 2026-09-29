@@ -32,7 +32,6 @@ signal is inherently categorical clinical evidence).
 from __future__ import annotations
 
 import io
-import os
 import zipfile
 from pathlib import Path
 from typing import Optional
@@ -40,15 +39,13 @@ from typing import Optional
 import yaml
 
 from methods.catalog_query.read import bucket_prefix_for
+from methods.roots import contracts_root
 
 METHOD_VERSION = "0.2.0"  # + MEASURED Olink conditioned-media shed facet (media.py)
 
 # --- reliable tier: curated vocab in target-contracts ---
 # Portable sibling default; `or` so an empty env value falls back too (Path("") is the CWD).
-DEFAULT_TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DEFAULT_TARGET_CONTRACTS = Path(contracts_root())
 SHED_VOCAB_RELPATH = "vocabularies/shed_antigen_targets.yaml"
 
 # --- proxy tier: HPA v25-1 secretome (landed source hpa-v25-1) ---

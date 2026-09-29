@@ -48,6 +48,8 @@ from typing import Optional
 
 import yaml
 
+from methods.roots import contracts_root, data_catalog_root
+
 # Prefer the libyaml C loader — ~5x faster on the big source manifests (a few
 # have 10k+ files[] entries). Fall back to the pure-Python loader if libyaml
 # is not built into the local PyYAML. Same semantics either way.
@@ -127,14 +129,8 @@ def _lean_load_manifest(path):
 # it. `or` rather than a two-arg .get() default so an EMPTY value falls back too:
 # .get(K, d) returns "" and Path("") is "." — the CWD, a plausible wrong root that reads as
 # "manifests missing" rather than as a resolution failure.
-DATA_CATALOG = Path(
-    os.environ.get("DATA_CATALOG_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
-)
-TARGET_CONTRACTS = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+DATA_CATALOG = data_catalog_root()
+TARGET_CONTRACTS = contracts_root()
 
 # ---------------------------------------------------------------------------
 # Manifest primitives — the public generalization of dge_deseq2/read.py's

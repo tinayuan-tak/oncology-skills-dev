@@ -22,10 +22,10 @@ creds/broken-env failure PROPAGATES (surfaces as an honest _live_read_error, nev
 
 from __future__ import annotations
 
-import threading
 from functools import lru_cache
 from typing import Optional
 
+from methods._common.s3 import get_s3fs
 from methods.catalog_query.read import bucket_prefix_for
 
 # bucket + source-dir prefix resolved from the manifest (single source of truth);
@@ -44,19 +44,10 @@ _ENTITY_STATUS: dict[str, Optional[bool]] = {}
 # Process-wide pyarrow S3FileSystem singleton (double-checked lock; region pinned to us-east-1 to
 # skip the region-probe round-trip). Building one costs ~0.4s; the five OT safety cards each fire a
 # read per dossier run, so we build it ONCE. Mirrors dge_deseq2._get_s3fs / depmap_common.parquet.
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
 
 
 def _get_s3fs():
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as fs
-
-                _S3FS = fs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 def _entity_prefix(entity: str) -> str:

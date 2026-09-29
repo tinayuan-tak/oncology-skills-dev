@@ -173,29 +173,12 @@ INDICATION_TO_CPTAC = {
 }
 
 
-import threading
-
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
+from methods._common.s3 import get_s3fs
+from methods.roots import contracts_root
 
 
 def _get_s3fs():
-    """Process-wide pyarrow S3FileSystem singleton (region us-east-1 — the onc-compbio bucket).
-
-    Constructing one costs ~0.4s (client init + region probe) and the per-sample distribution path
-    fires several times per card render (the three figure emitters + per_cohort_distribution_stats),
-    so we build it ONCE instead of per read. pyarrow's S3FileSystem is safe to share across threads
-    for reads (the parallel card-read path); double-checked locking so concurrent first-callers build
-    a single instance. Region is pinned to skip the region-probe round-trip. Mirrors the sibling
-    methods/dge_deseq2/read.py::_get_s3fs."""
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as fs
-
-                _S3FS = fs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 def _ensure_derived_cached() -> Optional[str]:
@@ -1517,8 +1500,7 @@ _NORMAL_FILL, _NORMAL_LINE = "#a9c5db", "#5b7f99"
 def emit_per_cohort_panel(
     target: str,
     out_dir: Path,
-    target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT")
-    or str(Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"),
+    target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT") or str(contracts_root()),
     *,
     presampled=None,
 ) -> Path:
@@ -1690,8 +1672,7 @@ def emit_plot_data(target: str, out_dir: Path) -> Path:
 def emit_plotly_specs(
     target: str,
     out_dir: Path,
-    target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT")
-    or str(Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-target-contracts"),
+    target_contracts_dir=os.environ.get("TARGET_CONTRACTS_ROOT") or str(contracts_root()),
     *,
     presampled=None,
 ) -> list:

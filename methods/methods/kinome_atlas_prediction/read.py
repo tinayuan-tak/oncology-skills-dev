@@ -39,9 +39,9 @@ of the PWM log-odds score.
 from __future__ import annotations
 
 import os
-import threading
 from functools import lru_cache
 
+from methods._common.s3 import get_s3fs
 from methods.catalog_query.read import bucket_key_for
 from methods.signor_mechanism_network.moa_ontology import ONTOLOGY_VERSION
 
@@ -58,22 +58,8 @@ S3_BUCKET, DERIVED_S3_KEY = bucket_key_for(DERIVED_MANIFEST_ID)
 RUNTIME_PERCENTILE_THRESHOLD = float(os.environ.get("KINOME_ATLAS_PERCENTILE_THRESHOLD", "95"))
 
 
-_S3FS = None
-_S3FS_LOCK = threading.Lock()
-
-
 def _get_s3fs():
-    """Process-wide pyarrow S3FileSystem singleton. Region is pinned to us-east-1 (the
-    onc-compbio bucket) so construction skips the region-probe round-trip. pyarrow's
-    S3FileSystem is safe to share across threads; build it ONCE. Mirrors dge_deseq2._get_s3fs."""
-    global _S3FS
-    if _S3FS is None:
-        with _S3FS_LOCK:
-            if _S3FS is None:
-                import pyarrow.fs as fs
-
-                _S3FS = fs.S3FileSystem(region="us-east-1")
-    return _S3FS
+    return get_s3fs()
 
 
 def _read_atlas_df():

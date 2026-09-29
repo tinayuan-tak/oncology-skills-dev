@@ -13,6 +13,8 @@ import pandas as pd
 import pytest
 import yaml
 
+from methods.roots import data_catalog_root
+
 # Portable repo root: was hardcoded to the author's /home/sagemaker-user checkout, so every
 # path guard below read as "data missing" on a CI runner or in a worktree.
 METHODS_REPO = Path(__file__).resolve().parents[3]
@@ -20,9 +22,7 @@ METHODS_REPO = Path(__file__).resolve().parents[3]
 # guard below reported "not available" on every CI runner -- even though the workflow checks
 # this sibling out and exports its root. `or` rather than a .get() default, so an EMPTY value
 # falls back too instead of yielding Path("") == the CWD, which reads as a plausible wrong root.
-CATALOG_REPO = Path(
-    os.environ.get("DATA_CATALOG_ROOT") or METHODS_REPO.parent / "rnd-computational-biology-oncology-data-catalog"
-)
+CATALOG_REPO = data_catalog_root()
 
 
 def test_napy_classifier_argmax():

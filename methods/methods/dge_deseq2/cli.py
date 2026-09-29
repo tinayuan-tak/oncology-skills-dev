@@ -34,12 +34,13 @@ Contrasts / stratification:
 
 from __future__ import annotations
 
-import os
 import subprocess
 import sys
 from pathlib import Path
 
 import click
+
+from methods.roots import data_catalog_root
 
 METHOD_DIR = Path(__file__).resolve().parent
 RUN_PIPELINE = METHOD_DIR / "r" / "live" / "run_pipeline.R"
@@ -109,10 +110,7 @@ def compute_git_sha(repo_path: Path) -> str:
 @click.option(
     "--catalog-repo",
     type=click.Path(file_okay=False, path_type=Path),
-    default=Path(
-        os.environ.get("DATA_CATALOG_ROOT")
-        or Path(__file__).resolve().parents[2].parent / "rnd-computational-biology-oncology-data-catalog"
-    ),
+    default=data_catalog_root(),
     help="Path to the data-catalog repo for config resolution.",
 )
 @click.option(

@@ -9,23 +9,20 @@ strata_summary, variant discrimination, and the assigner-method enum mapping.
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 import pandas as pd
 import pytest
 import yaml
 
+from methods.roots import contracts_root
 from methods.subgroup_common import manifest as M
 
 # Portable sibling root: was hardcoded to the author's /home/sagemaker-user checkout, so the skipif
 # below fired on every CI runner -- even though the workflow checks target-contracts out and exports
 # TARGET_CONTRACTS_ROOT. `or` rather than a .get() default, so an EMPTY value falls back too instead
 # of yielding Path("") == the CWD, which reads as a plausible wrong root.
-_CONTRACTS_ROOT = Path(
-    os.environ.get("TARGET_CONTRACTS_ROOT")
-    or Path(__file__).resolve().parents[3].parent / "rnd-computational-biology-oncology-target-contracts"
-)
+_CONTRACTS_ROOT = Path(contracts_root())
 _SCHEMA_PATH = _CONTRACTS_ROOT / "schemas" / "subgroup_assignment.schema.json"
 
 
