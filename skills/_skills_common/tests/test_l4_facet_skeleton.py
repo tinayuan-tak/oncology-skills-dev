@@ -3,12 +3,18 @@
 The L4 layer is a DETERMINISTIC, verdict-INERT, facet-based VIEW over the already-emitted L2b/L3d/L3f
 evidence. These tests pin the properties C0a's acceptance requires:
 
-  * SCHEMA + REGISTRY — one module per facet builder; thesis_archetype BUILT, the rest declared stubs.
+  * SCHEMA + REGISTRY — one module per facet builder, each honoring the uniform build(ctx) contract;
+    thesis_archetype BUILT as the permanent floor. REGISTRY-DRIVEN, not membership-pinned: this file does
+    NOT assert which facets are built (that is each C0b-f child's own module, landing independently — see
+    #1996's facet-builder module map) — only that the registry invariant + thesis_archetype floor hold, so
+    C0b/C0c/C0d/... don't collide on a hard-coded exclusivity assertion when their own facets resolve on
+    this same golden.
   * FLAGSHIP END-TO-END — thesis+archetype emits for EPCAM/COADREAD, traces to claim IDs, is deterministic.
   * BYTE-STABLE / VERDICT-INERT — the assembler NEVER mutates the decision it reads (existing goldens
     byte-unchanged); it is not wired into emission.
   * CLAIM-ID TRACEABILITY TEETH — every emitted statement's claim IDs resolve into the envelope; a broken
-    claim ID RED-fails the assemble (mutation teeth).
+    claim ID RED-fails the assemble (mutation teeth) — enforced generically over EVERY declared facet
+    builder (test_every_built_facet_emits_traceable_statements_or_none), not just thesis_archetype.
   * COLLISION-FREE FAN-OUT — flipping a stub on (returning a facet) is picked up with no assembler edit.
 """
 
@@ -62,14 +68,20 @@ def test_schema_vocabularies_are_closed_and_sane():
 
 
 def test_one_module_per_facet_builder_registered():
-    """The module boundary is the deliverable: exactly one builder module per declared facet, thesis
-    built, the rest stubs — so C0b–C0f fan out collision-free."""
+    """The module boundary is the deliverable: exactly one builder module per declared facet, each
+    honoring the uniform build(ctx) contract, so C0b–C0f fan out collision-free.
+
+    Registry-driven: this does NOT pin WHICH facets are built (each child flips BUILT in its own module
+    over time, independently of this shared test) — it only asserts the module-boundary invariant holds
+    for every declared facet, and that thesis_archetype (C0a) is built as the permanent floor."""
     names = [n for n, _ in A.FACET_BUILDERS]
     assert names == list(S.FACET_NAMES)  # every facet declared, in order, no dupes
+    assert A.FACET_BUILDERS  # registry is non-empty (a loop over an empty registry would be vacuous)
     for name, module in A.FACET_BUILDERS:
         assert hasattr(module, "build") and hasattr(module, "BUILT")
+        assert callable(module.build)
     built = {n: m for n, m in A.FACET_BUILDERS if m.BUILT}
-    assert set(built) == {S.FACET_THESIS_ARCHETYPE}  # only C0a is built
+    assert S.FACET_THESIS_ARCHETYPE in built  # the C0a floor: always built, regardless of who else is
     assert facet_thesis_archetype.BUILT is True
 
 
@@ -78,6 +90,28 @@ def test_stub_builders_return_none():
     for name, module in A.FACET_BUILDERS:
         if not module.BUILT:
             assert module.build(ctx) is None, f"stub {name} must return None until built"
+
+
+def test_every_built_facet_emits_traceable_statements_or_none():
+    """Registry-driven traceability FLOOR (preserves the teeth that the two exclusivity assertions above
+    used to encode implicitly): for EVERY declared facet builder module — regardless of which ones are
+    BUILT — calling build() on the EPCAM flagship context must either return None (honest non-resolution)
+    or a facet-result with at least one statement, and every statement's claim_ids must be non-empty and
+    every ref must resolve into the envelope. A facet that fabricates an untraceable statement fails HERE
+    even before assemble_target_synthesis's own L4TraceabilityError gate runs."""
+    ctx = read_context(_golden())
+    for name, module in A.FACET_BUILDERS:
+        fr = module.build(ctx)
+        if fr is None:
+            continue
+        assert isinstance(fr, dict), f"facet {name} must return a dict or None"
+        stmts = list(S.iter_statements(fr))
+        assert stmts, f"facet {name} resolved but emitted no statements"
+        for st in stmts:
+            refs = st.get("claim_ids") or []
+            assert refs, f"facet {name} emitted an untraceable (no claim_ids) statement: {st}"
+            for ref in refs:
+                assert resolve_ref(ctx, ref), f"facet {name} cites an unresolvable ref {ref}"
 
 
 # ── flagship end-to-end ──────────────────────────────────────────────────────────────────────────
@@ -93,8 +127,12 @@ def test_thesis_archetype_emits_for_epcam_flagship():
     assert thesis["state"] == "supported"
     assert thesis["primary_coherence"] == "cross_source_corroborated"
     assert thesis["supported_by"]  # cites the L3d chapter claim refs
-    # thesis+archetype facet present; the others are absent (stubs) — honest, not fabricated.
-    assert set(syn["facets"]) == {S.FACET_THESIS_ARCHETYPE}
+    # thesis+archetype facet is always present (the C0a floor). This does NOT pin the full facet set —
+    # sibling facets (C0b–C0f) may additionally resolve on this golden as they land; the traceability
+    # teeth for whichever facets DO resolve are covered generically below
+    # (test_every_built_facet_emits_traceable_statements_or_none,
+    # test_every_emitted_statement_traces_to_a_resolvable_claim_id).
+    assert S.FACET_THESIS_ARCHETYPE in syn["facets"]
 
 
 def test_archetype_is_honestly_undetermined_when_only_presence_assessed():
