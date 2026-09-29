@@ -500,7 +500,8 @@
         "immune_hot",
         "immune_intermediate",
         "immune_cold",
-        "insufficient"
+        "insufficient",
+        "lymphoid_denominator_unreliable"
       ]
     }
   },

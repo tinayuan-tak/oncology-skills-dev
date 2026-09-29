@@ -1,5 +1,5 @@
 {
-  "$comment": "PER-SKILL PINS (source) for immune-context. VARIANT = descriptive-scalar (like tumor-presence): role:descriptive + polarity:not_scored const + a NON-NULL immune_context_verdict/call enum (gateless/additive TCE-effector CD8 read; inline _verdict, no shared resolver — absent from target-profile _SHORT_TO_GATE). Enum = _IMMUNE_VERDICT_PHRASE (run.py). NOTE: the verdict enum is {immune_hot, immune_intermediate, immune_cold, insufficient} — NOT data_unavailable (the CARD field immune_context_class emits data_unavailable, which fires no rule → the skill verdict becomes `insufficient`, never data_unavailable). Verdict is indication-level / target-independent. Append-only within contract major version.",
+  "$comment": "PER-SKILL PINS (source) for immune-context. VARIANT = descriptive-scalar (like tumor-presence): role:descriptive + polarity:not_scored const + a NON-NULL immune_context_verdict/call enum (gateless/additive TCE-effector CD8 read; inline _verdict, no shared resolver — absent from target-profile _SHORT_TO_GATE). Enum = _IMMUNE_VERDICT_PHRASE (run.py). NOTE: the verdict enum is {immune_hot, immune_intermediate, immune_cold, insufficient, lymphoid_denominator_unreliable} — NOT data_unavailable (the CARD field immune_context_class emits data_unavailable, which fires no rule → the skill verdict becomes `insufficient`, never data_unavailable). `lymphoid_denominator_unreliable` (v1.9.0, 2026-09-12) fires for lymphoid-lineage indications (e.g. DLBC/LAML/THYM) where the CIBERSORT leukocyte-fraction denominator is itself tumor-derived and unreliable. Verdict is indication-level / target-independent. Append-only within contract major version.",
   "skill": "immune-context",
   "role_variant": "descriptive_scalar",
   "$defs": {
@@ -9,7 +9,8 @@
         "immune_hot",
         "immune_intermediate",
         "immune_cold",
-        "insufficient"
+        "insufficient",
+        "lymphoid_denominator_unreliable"
       ]
     }
   },
