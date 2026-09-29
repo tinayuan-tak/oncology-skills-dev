@@ -1,0 +1,37 @@
+{
+  "target": "EPCAM",
+  "indication": "COADREAD",
+  "skill": "tumor-presence",
+  "card_id": "normal-tissue-liability",
+  "class_field": "normal_tissue_breadth_class",
+  "row_fixture": "hpa_normal_liability_rows/epcam.hpa_normal_tissue_liability.row.json",
+  "row_md5": "a3d83e4e5f342d91d1fd75f9def893c5",
+  "expected": {
+    "normal_tissue_breadth_class": "broad_normal_expression",
+    "essential_tissue_flag": "present",
+    "hpa_tissue_distribution": "Detected in many",
+    "hpa_tissue_specificity": "Tissue enhanced",
+    "hpa_ihc_reliability": "enhanced",
+    "essential_tissue_low_reliability": false,
+    "n_essential_tissues_with_expression": 1,
+    "essential_tissues_flagged": [
+      "intestine"
+    ],
+    "n_specific_tissues": 1,
+    "specific_tissues": [
+      {
+        "tissue": "intestine",
+        "intensity": 20770505.4
+      }
+    ],
+    "safety_tissue_flags": [
+      "essential_tissue",
+      "gi_tract",
+      "broad"
+    ],
+    "method_version": "0.2.0"
+  },
+  "boundary": "validates the READ path (gene-symbol lookup over the HPA master TSV row index + breadth classification + tissue-enrichment parse + essential/GI membership test + antibody-reliability qualifier + essential_tissue_flag trichotomy). The IHC distribution/specificity/reliability CALLS themselves are precomputed upstream by HPA (source manifest hpa-v25-1); no aggregation arithmetic exists in analysis-methods.",
+  "_captured_at": "2026-09-29T05:48:44.780604+00:00",
+  "_provenance": "live cbg read of hpa-v25-1 (methods.hpa_normal_tissue_liability.cli), gene index row for 'EPCAM'; fixture = the single raw HPA row; re-derive with methods.hpa_normal_tissue_liability.cli.compute_summary(gene, row) directly \u2014 no seam mock needed, compute_summary is pure."
+}
