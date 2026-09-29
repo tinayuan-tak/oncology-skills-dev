@@ -88,12 +88,16 @@ _L1_ACCURACY_EVIDENCE = {
         "target/indication, so two repos' independent captures must agree at full float64 precision."
     ),
     "test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation.py",
-    "cards_covered": ["cellline-rna-distribution", "tumor-scrna-celltype-expression"],
+    "batch_a_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_a.py",
+    "cards_covered": [
+        "cellline-rna-distribution",
+        "tumor-scrna-celltype-expression",
+        "tumor-rna-distribution",
+        "cellline-protein-abundance",
+    ],
     "cards_not_yet_covered": [
         "tumor-rna-vs-adjacent",
-        "tumor-rna-distribution",
         "tumor-protein-abundance-cptac",
-        "cellline-protein-abundance",
         "tumor-elevation-breadth",
     ],
     "raw_substrate": {
@@ -103,21 +107,36 @@ _L1_ACCURACY_EVIDENCE = {
         "tumor-scrna-celltype-expression": "analysis-methods anchor epcam_coadread.sc_celltype.json + "
         "sc_compartment_rows/sc_pseudobulk__compartment_rows.parquet (raw per-(dataset,donor,"
         "compartment) pseudobulk rows)",
+        "tumor-rna-distribution": "analysis-methods anchor epcam_coadread.tumor_rna_distribution.json "
+        "(batch A, #2043) — REUSES the already-committed tumor_normal_tpm/recount3_gtex__"
+        "percentile_crossing_vectors.parquet (the same raw per-sample tumor log2(TPM+1) vector the "
+        "tumor-vs-normal-percentile-crossing anchors freeze; read_tumor_expression_distribution and "
+        "read_tumor_vs_normal_percentile_crossing both read it through the identical read_tumor_samples)",
+        "cellline-protein-abundance": "analysis-methods anchor epcam_gygi.cellline_protein_abundance.json "
+        "(batch A, #2043) + protein_vectors/epcam_gygi.cellline_protein_abundance.parquet (375-model raw "
+        "Gygi TMT log2-abundance panel + resolved lineage) + the shared panel-wide all-protein median "
+        "null (protein_vectors/depmap_gygi_allgene_median_null.parquet)",
     },
     "reconciliation": (
-        "fraction_expressed, fraction_highly_expressed, expression_class (cellline-rna-distribution) "
-        "and sc_expression_class, malignant_detection_fraction, malignant_abundance_log1p_cp10k, "
+        "fraction_expressed, fraction_highly_expressed, expression_class (cellline-rna-distribution); "
+        "sc_expression_class, malignant_detection_fraction, malignant_abundance_log1p_cp10k, "
         "malignant_n_donors, malignant_n_cells, top_microenvironment_compartment "
-        "(tumor-scrna-celltype-expression) all match at full precision between the independent "
+        "(tumor-scrna-celltype-expression); median/p95/p99/min/max_log2tpm, coefficient_of_variation, "
+        "distribution_pattern, detectable/moderate/high_fraction, tumor_expression_class "
+        "(tumor-rna-distribution, batch A); fraction_detected, median/p5/p95_log2_abundance_panel, "
+        "n_lineages_evaluated, n_lineage_restricted_lineages, protein_expression_class "
+        "(cellline-protein-abundance, batch A) all match at full precision between the independent "
         "recompute and tests/fixtures/epcam_coadread_decision.json"
     ),
     "teeth": (
-        "test_cellline_rna_distribution_teeth_mutated_input_breaks_the_golden_match and "
-        "test_sc_celltype_teeth_dropping_malignant_rows_breaks_the_golden_match mutate the raw input "
-        "and assert the match breaks — proving the reconciliation is a live function of substrate, "
-        "not a self-echo"
+        "test_cellline_rna_distribution_teeth_mutated_input_breaks_the_golden_match, "
+        "test_sc_celltype_teeth_dropping_malignant_rows_breaks_the_golden_match, "
+        "test_tumor_rna_distribution_teeth_mutated_input_breaks_the_golden_match and "
+        "test_cellline_protein_abundance_teeth_mutated_input_breaks_the_golden_match mutate the raw "
+        "input and assert the match breaks — proving the reconciliation is a live function of "
+        "substrate, not a self-echo"
     ),
-    "status_as_of": "2026-09-28",
+    "status_as_of": "2026-09-29",
 }
 
 _L1_UTILIZATION_EVIDENCE = {
@@ -388,10 +407,11 @@ def build_shard() -> cs.SkillShard:
             "L1 = the 17 cards (OBSERVATIONAL_PROPERTY): 7 ladder-verdict-bearing + 3 L2b-island "
             "substrate + 3 corroboration/certainty-bearing + 1 verdict-adjacent (hpa-pathology-cancer-ihc) "
             "+ 2 safety-comparators + 1 (cellline-protein-abundance-procan, corroboration-bearing). "
-            "accuracy measured for 2/7 ladder-verdict-bearing cards with a landed analysis-methods T3 "
-            "anchor for EPCAM (cellline-rna-distribution, tumor-scrna-celltype-expression); the other "
-            "5 ladder-verdict-bearing + 10 non-ladder cards have no anchor yet (see accuracy evidence "
-            "cards_not_yet_covered)."
+            "accuracy measured for 4/7 ladder-verdict-bearing cards with a landed analysis-methods T3 "
+            "anchor for EPCAM (cellline-rna-distribution, tumor-scrna-celltype-expression, "
+            "tumor-rna-distribution, cellline-protein-abundance — the latter two landed batch A, "
+            "#2043); the other 3 ladder-verdict-bearing + 10 non-ladder cards have no anchor yet (see "
+            "accuracy evidence cards_not_yet_covered)."
         ),
     )
 
