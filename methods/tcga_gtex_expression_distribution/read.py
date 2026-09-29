@@ -630,6 +630,15 @@ def _distribution_summary(values: list) -> dict:
         "p99_log2tpm": fn["p99"],
         "min_log2tpm": fn["min"],
         "max_log2tpm": fn["max"],
+        # Five-number-summary SPREAD (AM#857): p5/q1/q3/mean/sd are computed by five_number() above
+        # and were being DROPPED here (recoverability-invariant violation). Retained now so the pooled
+        # tumor distribution carries the same spread its cell-line twin (depmap_expression_distribution)
+        # already emits. q1/q3 == p25/p75; the `<stat>_log2tpm` names match the card summary_fields.
+        "p5_log2tpm": fn["p5"],
+        "q1_log2tpm": fn["q1"],
+        "q3_log2tpm": fn["q3"],
+        "mean_log2tpm": fn["mean"],
+        "sd_log2tpm": fn["sd"],
         "coefficient_of_variation": _stats.coefficient_of_variation(values),
         "distribution_pattern": _stats.distribution_pattern(values),
         **fracs,
@@ -1148,9 +1157,11 @@ def read_tumor_expression_subtype_landscape(
         rec["median_purity"] = round(float(_median(_strat_purities)), 4) if _strat_purities else None
         if n > 0:
             summary = _distribution_summary(vals)
-            # Option 1 (2026-08-04): project the FULL distribution block per stratum (was 5 fields) so
-            # a per-subtype record has the same absolute-level depth as the pooled record — percentiles
-            # + spread. _distribution_summary already computes these; this just stops dropping them.
+            # Option 1 (2026-08-04): project the FULL distribution block per stratum so a per-subtype
+            # record has the same absolute-level depth as the pooled record — percentiles + spread.
+            # _distribution_summary already computes these; this just stops dropping them. AM#857
+            # (2026-09-29) completes the retention by adding the five-number SPREAD (p5/q1/q3/mean/sd),
+            # which was still being dropped here alongside the pooled projection.
             rec.update(
                 {
                     k: summary[k]
@@ -1160,6 +1171,11 @@ def read_tumor_expression_subtype_landscape(
                         "p99_log2tpm",
                         "min_log2tpm",
                         "max_log2tpm",
+                        "p5_log2tpm",
+                        "q1_log2tpm",
+                        "q3_log2tpm",
+                        "mean_log2tpm",
+                        "sd_log2tpm",
                         "coefficient_of_variation",
                         "detectable_fraction",
                         "high_fraction",
