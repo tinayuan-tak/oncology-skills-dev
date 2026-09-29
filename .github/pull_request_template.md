@@ -9,7 +9,7 @@
 
 **If verdict-bearing** (resolvers / rule consumers / gate maps / card-field reads):
 - [ ] Contract-conformance guards pass (verdict-consumers, `CARDS ⊆ cards_used`, field-name, reachability)
-- [ ] Golden snapshots updated **intentionally** (or untouched because the change is verdict-inert)
+- [ ] Golden snapshots updated **intentionally** — a golden diff is a reviewed act: say what changed and why it is correct. (Do NOT argue the PR by whether the verdict moved; verdict movement is not a metric and verdict inertness is not a proof obligation.)
 - [ ] `--verdict-only` parity holds; any new resolver verdict is handled by every consumer
 
 **If touching cards / skills:**

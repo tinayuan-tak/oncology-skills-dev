@@ -36,10 +36,14 @@ except Exception:  # pragma: no cover - bare-path fallback (matches sibling livi
 
 DEFAULT_SKILL = "tumor-presence"
 
-# The optional, verdict-INERT lanes a user can toggle around the deterministic spine. Curated from
-# the skill's SKILL.md command-line flags (the flag table is prose, not structured), each carrying
-# the byte-identical-spine guarantee the plan's optionality panel exists to make legible. Real flag
-# names; the assembler asserts every entry is tagged verdict_inert.
+# The optional lanes a user can toggle around the deterministic spine. Curated from the skill's
+# SKILL.md command-line flags (the flag table is prose, not structured). Real flag names.
+#
+# `verdict_inert` is CURATED DISPLAY METADATA rendered as a chip — it is NOT an enforced property.
+# The assembler used to hard-error unless every lane was tagged verdict_inert (SK#2091 removed it):
+# the tag is a hardcoded True in this very list, so the check asserted its own literal and could
+# never fail — a vacuous gate keyed on verdict-inertness. Whether a lane really is off the spine is
+# argued where it can bite, in each lane's own skill tests, not by re-reading this constant.
 _OPTIONALITY_LANES = [
     {
         "flag": "--synthesize",
@@ -311,7 +315,7 @@ def _panel_card_drilldown(skill_rec, cards, ledgers, health_cards, verdict_card_
 
 
 def _panel_optionality() -> dict:
-    """Panel 3 — the deterministic spine vs the optional verdict-inert lanes."""
+    """Panel 3 — the deterministic spine vs the optional, off-spine lanes."""
     return {
         "deterministic_spine": "cards → rules → ladder → presence_verdict (byte-stable)",
         "lanes": [dict(k) for k in _OPTIONALITY_LANES],

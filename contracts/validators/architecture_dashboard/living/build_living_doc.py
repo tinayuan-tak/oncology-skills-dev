@@ -292,8 +292,10 @@ def product_page_errors(graph: dict) -> list[str]:
       * a VERDICT-BEARING block (``verdict_source`` set AND a non-empty spine) resolves ≥1 verdict
         token per spine card, all within the pinned enum when one is present;
       * a NO-VERDICT-SOURCE block carries an EMPTY spine — a gateless skill must never fabricate a
-        verdict spine (the "no fabricated green" invariant);
-      * every optionality lane is verdict-inert, for every skill.
+        verdict spine (the "no fabricated green" invariant).
+
+    (SK#2091 dropped a fourth clause — "every optionality lane is verdict-inert" — which asserted a
+    hardcoded literal and so could never fail.)
     """
     errs: list[str] = []
     pp = graph.get("product_page")
@@ -339,10 +341,10 @@ def product_page_errors(graph: dict) -> list[str]:
                     f"product_page[{name}] has no verdict source but its spine lists "
                     f"{len(spine_cards)} card(s) — a fabricated verdict spine"
                 )
-        # optionality lanes are verdict-inert for every skill (byte-identical-spine guarantee).
-        for lane in panels["optionality"].get("lanes") or []:
-            if lane.get("verdict_inert") is not True:
-                errs.append(f"product_page[{name}] optionality lane {lane.get('flag')!r} is not verdict-inert")
+        # SK#2091: the "every optionality lane is tagged verdict_inert" error was REMOVED. The tag is
+        # a hardcoded True in product_page._OPTIONALITY_LANES, so the check read back its own literal
+        # and could never fail — a vacuous gate, and one keyed on verdict-inertness, which is no
+        # longer a proof obligation here. The tag survives as a rendered display chip.
     return errs
 
 

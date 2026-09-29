@@ -15,11 +15,14 @@ NEGATIVE decision semantics. These tests are the fail-closed, gate-complete teet
   * test_registry_covers_all_classified_negatives — every negative-classification pair whose
                                             sub_skill has a resolver MUST be in the registry, so a
                                             newly classified kill can never be silently omitted.
-  * test_vetoes_and_gates_unchanged_by_the_registry — the gates block, veto set included, is
-                                            unchanged by ADDING THE REGISTRY. (Renamed 2026-09-18
-                                            from test_two_vetoes_…: the cardinality was the control,
-                                            never the invariant, and naming it made a deliberate
-                                            third veto arm read as the defect the test guards.)
+  * test_registry_gated_set_equals_the_gates_block — the registry's `gated` disposition and the
+                                            `gates` block are the SAME set in both directions, so a
+                                            gate cannot exist unregistered nor a registry entry
+                                            unenforced. (SK#2091: the old name said "unchanged by
+                                            the registry" and carried a redundant veto-set
+                                            non-movement assert; verdict non-movement is not a proof
+                                            obligation, and the veto-set ratchet lives exactly once,
+                                            in test_nomination_verdict_gate.test_conservative_veto_set.)
   * test_uncorroborated_is_relabelled_not_dropped — the LABEL-NOT-DROP teeth for the 4th
                                             disposition (v1.20.0). An `uncorroborated` verdict is
                                             not opposing evidence (so it must NOT sit in
@@ -171,24 +174,20 @@ def test_registry_covers_all_classified_negatives():
     )
 
 
-def test_vetoes_and_gates_unchanged_by_the_registry():
-    """Adding the registry must NOT add a veto/hold — the active veto set stays exactly the
-    cross-target killers and the gates block is byte-stable (guards scope creep / over-veto).
+def test_registry_gated_set_equals_the_gates_block():
+    """BIDIRECTIONAL teeth: the registry's `gated` disposition and the `gates` block must be the
+    same (sub_skill, verdict) set — so a gate cannot exist unregistered (invisible to the registry's
+    completeness checks) and a registry `gated` entry cannot exist unenforced (fail-open).
 
-    RENAMED + WIDENED 2026-09-18 (Stage 2b): was `test_two_vetoes_and_gates_unchanged`, asserting a
-    literal two-element set. The count was never the invariant — this test's job is that INTRODUCING
-    THE REGISTRY did not add a kill, and it read the veto set only as the control for that. Baking
-    the cardinality into the NAME made a deliberate third arm look like the failure the test was
-    written to catch, so the name now says what is actually guarded. The set itself is asserted
-    exactly once, in test_nomination_verdict_gate.test_conservative_veto_set, which keeps the ratchet.
+    HISTORY (SK#2091, 2026-09-29): this test was `test_vetoes_and_gates_unchanged_by_the_registry`
+    and opened with a veto-set literal whose only job was to show that ADDING THE REGISTRY had not
+    moved the veto set. That is a non-movement control for a change that landed in 2026-09; verdict
+    non-movement is not a proof obligation, and the assert was redundant besides — the veto-set
+    RATCHET is asserted exactly once, by literal, in
+    test_nomination_verdict_gate.test_conservative_veto_set. Removing it leaves this test with the
+    set-equality above, which is the invariant it actually defends.
     """
     v = _load()
-    veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
-    assert veto == {
-        ("dependency", "pan_essential_killer"),
-        ("dependency", "non_dependent"),
-        ("dependency", "not_dependent_in_indication"),
-    }
     # Every registry `gated` entry is present in gates, and vice-versa for resolver-backed gates.
     gated = {(g["sub_skill"], g["verdict"]) for g in v["gates"]}
     reg_gated = {(s, verd) for s, verd, d in _registry_entries(v) if d == "gated"}

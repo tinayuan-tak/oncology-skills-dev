@@ -178,6 +178,25 @@ the shell exit code. SKIP ≠ PASS — a module-level `importorskip` or a missin
 guard can make a whole file silently skip; reconcile the collected-test count if in
 doubt.
 
+**Verdict movement is not a metric; verdict inertness is not a proof obligation.**
+(Owner directive 2026-09-29, SK#2091 — retired in BOTH directions.) Do not justify a
+change by "the verdict didn't move", and do not object to one because it did. "The
+spine is byte-stable" is not a defence of a wrong number, and a moved verdict is not
+by itself a defect — the deliverable is an accurate, fully-utilised data package, of
+which the verdict is one projection. Argue correctness at the **data/logic level with
+mutation teeth**: does this datum say what the measurement supports, is it read by the
+consumers that should read it, and does the test actually fail when the logic is wrong?
+So: no PR is gated on demonstrating inertness, no "verdict-inert ⇒ no golden diff"
+obligation (see `docs/DEFINITION_OF_DONE.md`), and no test whose ONLY content is that
+some landed change left the spine alone. Byte-stability assertions that carry
+independent teeth are a different thing and stay — an *additivity* contract ("this
+annotation must not clobber the existing meter cell"), an *absence-discipline* contract
+("a missing input degrades to `unmeasured`, never a fabricated signal"), a *purity*
+contract ("this projection must not mutate what it was handed"), or the `--verdict-only`
+two-read *agreement* parity guard. The test to apply: strip the inertness framing — is
+there still a claim here that can fail? If yes, keep it and say what it defends. If no,
+delete it outright and name it in the PR body; never leave it collecting zero cases.
+
 - Run pytest / the dispatcher under `pixi run` from THIS home checkout, never bare
   `python` (a bare env red-fails the resolver golden snapshots) and never from a
   `/tmp` worktree (pixi deep-copies a multi-GB env there → ENOSPC and a wedged

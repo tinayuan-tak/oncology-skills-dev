@@ -389,49 +389,36 @@ def test_modality_scoped_veto_suppression_biologics_only():
     }
 
 
-# The dependency veto set has ONE declared home for the two HISTORICAL inertness controls below.
-# Those tests do not assert what the veto set contains — each asserts that ITS OWN version's change
-# (v1.2.0 suppression, v1.4.0 contested_threshold) left the set alone. Re-stating the literal in
-# each made every later deliberate widening red in three places, which is noise, not signal: a
-# reviewer then cannot tell an accidental change from a declared one. test_conservative_veto_set
-# keeps its own inline literal, so the RATCHET is intact — widening this constant without widening
-# that literal still fails.
-_DEPENDENCY_VETO_SET = {
-    ("dependency", "pan_essential_killer"),
-    ("dependency", "non_dependent"),
-    ("dependency", "not_dependent_in_indication"),
-}
-
-
-def test_gates_still_unchanged_by_v1_2_0():
-    """v1.2.0 adds suppression + a positive; the `gates` veto set itself is byte-
-    stable (suppression is applied by the loader, not by removing a gate)."""
-    v = _load()
-    veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
-    assert veto == _DEPENDENCY_VETO_SET
+# The two HISTORICAL per-version "inertness controls" that used to live here
+# (`test_gates_still_unchanged_by_v1_2_0`, and the trailing veto-set clause of
+# `test_contested_threshold_well_formed_and_inert`) were REMOVED 2026-09-29 (SK#2091). Neither
+# asserted what the veto set contains — each asserted only that ITS OWN landed version bump
+# (v1.2.0 suppression, v1.4.0 contested_threshold) had left the set alone. Verdict non-movement is
+# not a proof obligation, so a per-version non-movement control is not a test. The RATCHET is
+# unaffected: `test_conservative_veto_set` above still asserts the veto set exactly, by literal, so
+# a fourth arm still requires a deliberate edit there.
 
 
 # ---------------------------------------------------------------------------
-# Contested threshold (v1.4.0, 2026-08-12) — verdict-INERT fragility banner
+# Contested threshold (v1.4.0, 2026-08-12) — fragility banner, off the kill/positive spine
 # ---------------------------------------------------------------------------
 
 
-def test_contested_threshold_well_formed_and_inert():
+def test_contested_threshold_well_formed_and_structurally_off_the_spine():
     """The contested_threshold stanza feeds the target-profile FRAGILITY facet ONLY. It must be a
-    well-formed numeric knob in [0,1] and must NOT smuggle a verdict into the kill/positive spine —
-    it is a verdict-inert banner, so its keys must be disjoint from the gate/positive/contradiction
-    (sub_skill, verdict) space (it carries no sub_skill/verdict at all)."""
+    well-formed numeric knob in [0,1] and must not smuggle a verdict into the kill/positive spine —
+    a STRUCTURAL claim: its keys are disjoint from the gate/positive/contradiction (sub_skill,
+    verdict) space because it carries no sub_skill/verdict at all. That disjointness is the teeth
+    here; the old trailing "and the veto set didn't move" clause was a non-movement control and is
+    gone (SK#2091)."""
     v = _load()
     ct = v.get("contested_threshold")
     assert isinstance(ct, dict), "contested_threshold must be a mapping"
     fim = ct.get("fragility_index_min")
     assert isinstance(fim, (int, float)) and 0.0 <= fim <= 1.0, "fragility_index_min must be a fraction in [0,1]"
-    # inert: it declares no (sub_skill, verdict) — it cannot participate in gate/positive resolution.
+    # structurally off the spine: it declares no (sub_skill, verdict) — it cannot participate in
+    # gate/positive resolution at all.
     assert "sub_skill" not in ct and "verdict" not in ct
-
-    # v1.4.0 adds ONLY this stanza; the kill veto set stays byte-stable (regression guard).
-    veto = {(g["sub_skill"], g["verdict"]) for g in v["gates"] if g["action"] == "veto"}
-    assert veto == _DEPENDENCY_VETO_SET
 
 
 # ---------------------------------------------------------------------------

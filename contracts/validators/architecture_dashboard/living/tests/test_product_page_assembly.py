@@ -60,10 +60,15 @@ def test_spine_verdict_bearing_cards_resolve_verdicts():
         )
 
 
-def test_optionality_lanes_all_verdict_inert():
+def test_optionality_lanes_present_and_flag_shaped():
+    """Non-vacuity + shape: the panel carries lanes and each names a real `--flag`.
+
+    SK#2091 dropped the third assert (`verdict_inert is True` for every lane): the tag is a
+    hardcoded True in product_page._OPTIONALITY_LANES, so it asserted its own literal and could
+    never fail. The two asserts kept here CAN fail (an empty panel, a malformed flag).
+    """
     lanes = _tumor_presence()["panels"]["optionality"]["lanes"]
     assert lanes, "no optionality lanes"
-    assert all(l.get("verdict_inert") is True for l in lanes), "every optionality lane must be verdict-inert"
     assert all(l.get("flag", "").startswith("--") for l in lanes)
 
 

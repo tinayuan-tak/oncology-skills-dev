@@ -89,11 +89,16 @@ def test_no_verdict_source_skills_have_empty_spine_no_fabricated_green():
     assert n_checked, "expected at least one no-verdict-source skill in the roster"
 
 
-def test_optionality_lanes_verdict_inert_for_every_skill():
+def test_optionality_lanes_present_for_every_skill():
+    """Every skill block carries a non-empty optionality panel whose lanes name real `--flag`s.
+
+    SK#2091 dropped the `verdict_inert is True` assert: that tag is a hardcoded True in
+    product_page._OPTIONALITY_LANES, so the assert read back its own literal and could never fail.
+    The remaining asserts CAN fail (a skill whose panel is empty, a lane with a malformed flag).
+    """
     for name, block in _skills().items():
         lanes = block["panels"]["optionality"].get("lanes") or []
         assert lanes, f"{name} has no optionality lanes"
-        assert all(l.get("verdict_inert") is True for l in lanes), f"{name} has a non-inert optionality lane"
         assert all(str(l.get("flag", "")).startswith("--") for l in lanes), f"{name} lane flag is not a --flag"
 
 

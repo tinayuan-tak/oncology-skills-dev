@@ -16,8 +16,13 @@ guards already enforce in CI; the list makes the contract explicit for authors a
       (`test_cards_used_declares_consumed`), field-name reads ⊆ card `outputs.summary_fields`
       (`test_card_field_conformance`), and resolver **reachability**.
 - [ ] **Golden snapshots updated INTENTIONALLY**, never blindly regenerated. A golden diff is a
-      reviewed act — explain *why* the spine changed, or the change is verdict-inert and shouldn't touch it.
-- [ ] `--verdict-only` / lean read stays **byte-identical** to the full-read verdict (parity guard).
+      reviewed act — explain *what* changed in the output and why that output is now correct.
+      **Do not argue the change by whether the verdict moved.** Verdict movement is not a metric and
+      verdict inertness is not a proof obligation (owner directive 2026-09-29, SK#2091): "the spine is
+      unchanged" is not a defence of a wrong number, and "the spine moved" is not an objection to a
+      right one. Correctness is argued at the data/logic level, with mutation teeth.
+- [ ] `--verdict-only` / lean read stays **byte-identical** to the full-read verdict (parity guard —
+      this is a two-read AGREEMENT contract, not a non-movement claim about a diff; it stays).
 - [ ] A new resolver verdict is **classified by every Python consumer** (add it to the relevant
       set/map, or waive with a documented reason — the guards fail otherwise).
 
