@@ -89,7 +89,13 @@ sys.path.insert(0, str(_SKILLS_ROOT))
 # equality test pins, not a root the walk depends on. The script reads no `corroboration` field, so the
 # classified reader set is unchanged; if a future scripts/ module ever reads one, the sweep will surface
 # it for triage exactly as for skills/ and eval/.
-_FIRST_PARTY_SOURCE_DIRS = ("skills/", "eval/", "batch/", "scripts/")
+# contracts/ and methods/ joined the tree in the SK#2063 consolidation (subtree-merged from the
+# former target-contracts / analysis-methods repos). They carry their own gates, but the reader
+# sweep below is deliberately REPO-WIDE — its whole point is that a map silently reinterpreting a
+# corroboration rung ANYWHERE in first-party code must surface, and "anywhere" now includes those
+# two packages. Swept, not excluded (excluding them would re-open the narrowed-population defect
+# this file exists to prevent, one level up). methods/ reads no corroboration field today.
+_FIRST_PARTY_SOURCE_DIRS = ("skills/", "eval/", "batch/", "scripts/", "contracts/", "methods/")
 
 from _skills_common import figure_palette, headline_core, question_table_core  # noqa: E402
 from _skills_common.archetype_core import (  # noqa: E402
@@ -479,6 +485,13 @@ _CORROBORATION_READERS = {
         "very set as the reason `low < single_arm`. NOT a projection: no map, no key coverage to keep."
     ),
     "eval/run_known_target_panel.py": "PASS-THROUGH (copied verbatim into the panel row)",
+    "contracts/validators/validate_claim_record.py": (
+        "CONSUMER, not a projection (SK#2063 consolidation — a target-contracts schema validator now "
+        "in-tree). Reads certainty.corroboration only to enforce the downgrade-only invariant "
+        "level <= ordinal-min(coverage, corroboration): the token is looked up in the certainty "
+        "ordinal _CERT_ORD (its OWN scale, not a new vocabulary) and 'unmeasured' drops out. No map "
+        "assigns it a fresh meaning, so there is no key-coverage to keep in _LIVE_CORROBORATION_PROJECTIONS."
+    ),
     "skills/_skills_common/l4_synthesis/facet_modality_implications.py": (
         "PASS-THROUGH — the L4 modality_implications facet (C0e #2008) reads each traversed L3d chapter's "
         "`corroboration` token to decide whether the chapter is corroborated enough to count as a "
