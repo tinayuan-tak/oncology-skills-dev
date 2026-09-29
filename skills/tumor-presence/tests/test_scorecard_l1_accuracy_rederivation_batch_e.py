@@ -159,7 +159,19 @@ def _rederive_sc(anchor_path: Path = SC_ANCHOR):
 def test_sc_normal_rederives_and_matches_anchor_and_golden():
     summary, anchor = _rederive_sc()
     for k, v in anchor["expected"].items():
-        assert summary.get(k) == v, f"sc-normal anchor mismatch on {k}: {summary.get(k)!r} != {v!r}"
+        got = summary.get(k)
+        if k == "per_cell_type_top":
+            # Intra-tie row ORDER is not part of the anchor contract: rows tied on
+            # median_detection_fraction (a whole block sits at exactly 1.0) come back in an
+            # environment-dependent order — the capture host and CI disagree while every VALUE is
+            # identical (first observed when the SK#2063 consolidation un-skipped this test's
+            # anchor+test pair in one CI for the first time). Canonicalize both sides by cell_type
+            # (unique within the top-N) so the assertion keeps full value teeth, order excluded —
+            # mirroring the golden comparison below, which is already keyed by cell_type.
+            # Producer-side deterministic tie-break is the real fix (follow-up filed).
+            v = sorted(v, key=lambda r: r["cell_type"])
+            got = sorted(got or [], key=lambda r: r["cell_type"])
+        assert got == v, f"sc-normal anchor mismatch on {k}: {got!r} != {v!r}"
     golden = _golden_card("sc-normal-celltype-expression")
     for f in _SC_STABLE:
         assert golden[f] == summary[f], f"golden vs re-derived mismatch on {f}: {golden[f]!r} != {summary[f]!r}"
