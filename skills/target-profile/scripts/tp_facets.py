@@ -1827,16 +1827,44 @@ def build_target_rollup(
     # constraint is escaped by a viable tumor-restricted channel; a non-mutant-selective SM does NOT
     # spare WT (drop it unless the necessity route is a driver/mutant-selective one). Pan-essential
     # broad-tox is escapable_by=null.
+    #
+    # Fall-through-direction fix (#2041): the old bare `else` swallowed EVERY non-HOLD measured
+    # safety state — including the equivocal `moderately_constrained_safety` mid-band AND (once
+    # packages regenerate with AM depmap_chronos 0.3.0 emissions) the graded
+    # `broad_dependency_partial_tox_concern` token — into ("clean", "favorable"). That is the
+    # conjunctive-label / fall-through-direction defect: "clean, favorable" asserts POSITIVE evidence
+    # of safety, so it must only be reachable by a state that actually measured low risk
+    # (`tolerant_reduced_safety_risk`), never by a measured mid-band concern, and never by an
+    # unmeasured/open-world token (`data_unavailable` / `insufficient` / None) — absence must
+    # DEGRADE, never reassure. `normal_tissue_protein_safety_concern` is also a concern-HOLD
+    # (same severity rung as highly_constrained/human_genetics in risk_projection._SAFETY_BINS) and
+    # was previously mis-swallowed into the same reassuring else-branch; it now shares the
+    # concern-HOLD escapability logic below.
+    _E_CONCERN_HOLD = (
+        "highly_constrained_safety_concern",
+        "human_genetics_safety_concern",
+        "normal_tissue_protein_safety_concern",
+    )
+    # measured-mid: a real signal was measured, but it is equivocal/partial rather than a HOLD-grade
+    # concern or a clean read — it must render as its OWN conditional facet, never as clean/favorable
+    # and never silently promoted to a HOLD.
+    _E_MEASURED_MID = ("moderately_constrained_safety", "broad_dependency_partial_tox_concern")
     if safe_v == "pan_essential_broad_tox_concern" or dep_v == "pan_essential_killer":
         E, E_escape, E_blocks = ("pan_essential_veto", "unfavorable"), [], True
-    elif safe_v in ("highly_constrained_safety_concern", "human_genetics_safety_concern"):
+    elif safe_v in _E_CONCERN_HOLD:
         E_escape = list(viable)
         if "small_molecule" in E_escape and A[0] not in ("lineage_dependency", "amplification_driven"):
             E_escape.remove("small_molecule")
         E = ("constrained_escapable", "conditional") if E_escape else ("constrained_pan_modality", "unfavorable")
         E_blocks = not E_escape
-    else:
+    elif safe_v in _E_MEASURED_MID:
+        E, E_escape, E_blocks = ("measured_mid_signal", "conditional"), [], False
+    elif safe_v == "tolerant_reduced_safety_risk":
         E, E_escape, E_blocks = ("clean", "favorable"), [], False
+    else:
+        # data_unavailable / insufficient / None / any unrecognized token: open-world — no
+        # measured evidence of a clean safety profile, so this must NOT read favorable.
+        E, E_escape, E_blocks = ("unmeasured", "insufficient"), [], False
 
     blocks: list = []
     if A[1] == "unfavorable" and bio == "intracellular_intrinsic":

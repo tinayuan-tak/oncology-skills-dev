@@ -105,6 +105,68 @@ def test_subtype_block_is_prominent():
 # it fed on is covered by the build_target_rollup subtype-block tests above + report_render's suite.)
 
 
+def test_e_axis_moderate_constraint_is_not_clean_favorable():
+    """#2041 — a measured `moderately_constrained_safety` state must NOT render as ('clean',
+    'favorable'): that pair asserts POSITIVE evidence of safety, and this state is a real
+    equivocal mid-band concern, not a clean read. Mutation teeth: reverting the fall-through fix
+    (restoring the bare `else: E = ("clean", "favorable")`) makes this RED."""
+    sr = _sr(
+        dependency=("lineage_selective", "r"),
+        surface_modality=("pmhc_tce_supported", "r"),
+        safety=("moderately_constrained_safety", "r"),
+    )
+    r = tf.build_target_rollup(sr, _mfc(small_molecule="conditional"))
+    E = r["axes"]["safety_liability"]
+    assert E["call"] != "clean" and E["band"] != "favorable"
+    assert E["call"] == "measured_mid_signal" and E["band"] == "conditional"
+
+
+def test_e_axis_normal_tissue_protein_concern_is_not_clean_favorable():
+    """#2041 — `normal_tissue_protein_safety_concern` is a concern-HOLD (same severity rung as
+    highly_constrained/human_genetics in risk_projection._SAFETY_BINS) and must join the
+    escapability-gated constrained bucket, not fall through to clean/favorable."""
+    sr = _sr(
+        dependency=("non_dependent", "r"),
+        surface_modality=("neither_viable", "r"),
+        safety=("normal_tissue_protein_safety_concern", "r"),
+    )
+    r = tf.build_target_rollup(sr, _mfc(small_molecule="unfavorable"))
+    E = r["axes"]["safety_liability"]
+    assert E["call"] != "clean" and E["band"] != "favorable"
+    assert E["call"] in ("constrained_escapable", "constrained_pan_modality")
+
+
+def test_e_axis_unmeasured_safety_does_not_reassure():
+    """#2041 — absence of a measured safety signal (no safety sub-result / data_unavailable /
+    insufficient) must DEGRADE to an explicit 'unmeasured'/'insufficient' facet, never reassure as
+    ('clean', 'favorable'). Only a genuinely measured tolerant_reduced_safety_risk earns clean."""
+    sr = _sr(dependency=("lineage_selective", "r"), surface_modality=("pmhc_tce_supported", "r"))  # no safety key
+    r = tf.build_target_rollup(sr, _mfc(small_molecule="conditional"))
+    E = r["axes"]["safety_liability"]
+    assert E["call"] == "unmeasured" and E["band"] == "insufficient"
+
+    sr2 = _sr(
+        dependency=("lineage_selective", "r"),
+        surface_modality=("pmhc_tce_supported", "r"),
+        safety=("data_unavailable", "r"),
+    )
+    r2 = tf.build_target_rollup(sr2, _mfc(small_molecule="conditional"))
+    assert r2["axes"]["safety_liability"]["call"] == "unmeasured"
+
+
+def test_e_axis_tolerant_reduced_safety_risk_is_still_clean_favorable():
+    """The one genuinely measured clean state keeps reading ('clean', 'favorable') — this is the
+    positive-evidence case the fall-through fix must NOT break."""
+    sr = _sr(
+        dependency=("lineage_selective", "r"),
+        surface_modality=("pmhc_tce_supported", "r"),
+        safety=("tolerant_reduced_safety_risk", "r"),
+    )
+    r = tf.build_target_rollup(sr, _mfc(small_molecule="conditional"))
+    E = r["axes"]["safety_liability"]
+    assert E["call"] == "clean" and E["band"] == "favorable"
+
+
 def test_assemblers_do_not_mutate_sub_results():
     sr = _sr(dependency=("lineage_selective", "r"), surface_modality=("pmhc_tce_supported", "r"))
     import copy
