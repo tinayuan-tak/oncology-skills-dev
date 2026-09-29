@@ -89,16 +89,17 @@ _L1_ACCURACY_EVIDENCE = {
     ),
     "test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation.py",
     "batch_a_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_a.py",
+    "batch_b_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_b.py",
     "cards_covered": [
         "cellline-rna-distribution",
         "tumor-scrna-celltype-expression",
         "tumor-rna-distribution",
         "cellline-protein-abundance",
+        "tumor-rna-vs-adjacent",
+        "tumor-elevation-breadth",
     ],
     "cards_not_yet_covered": [
-        "tumor-rna-vs-adjacent",
         "tumor-protein-abundance-cptac",
-        "tumor-elevation-breadth",
     ],
     "raw_substrate": {
         "cellline-rna-distribution": "analysis-methods anchor epcam_26q1.cellline_rna_distribution.json "
@@ -116,6 +117,20 @@ _L1_ACCURACY_EVIDENCE = {
         "(batch A, #2043) + protein_vectors/epcam_gygi.cellline_protein_abundance.parquet (375-model raw "
         "Gygi TMT log2-abundance panel + resolved lineage) + the shared panel-wide all-protein median "
         "null (protein_vectors/depmap_gygi_allgene_median_null.parquet)",
+        "tumor-rna-vs-adjacent": "analysis-methods anchor epcam_coadread.tumor_rna_vs_adjacent.json "
+        "(batch B, #2044) + dge_rows/coadread-dge-df06320__log2fc_null.parquet (the raw provider gene "
+        "row from the per-indication tumor-vs-adjacent DESeq2 product expression-rna-tumor-vs-adjacent, "
+        "plus the product's all-gene log2FoldChange null); re-derived through "
+        "methods.dge_deseq2.read.read_dge_gene_row. BOUNDARY: gtex_log2_fc/gtex_q_value come from a "
+        "separate GTEx reader (not read_dge_gene_row) and are NOT bridged; the adjacent-arm adequacy "
+        "logic (#864/#865) is sensitivity-family only and does NOT reach this path.",
+        "tumor-elevation-breadth": "analysis-methods anchor epcam.tumor_elevation_breadth.json "
+        "(batch B, #2044), two-layer: dge_rows/epcam.cptac_cohort_rows.parquet (per-cohort CPTAC rows "
+        "-> methods.cptac_protein_deg.read.read_tumor_elevation_breadth, the PRIMARY layer) + "
+        "dge_rows/epcam.rna_stack_rows.parquet (stacked pancan rows -> "
+        "methods.dge_deseq2.derive_pancan_stack.read_rna_tumor_elevation_breadth). Validates the "
+        "elevated-cohort counting + pan-cohort BH/FDR + composite-indication dedupe roll-ups, NOT the "
+        "upstream DEG runs.",
     },
     "reconciliation": (
         "fraction_expressed, fraction_highly_expressed, expression_class (cellline-rna-distribution); "
@@ -125,16 +140,36 @@ _L1_ACCURACY_EVIDENCE = {
         "distribution_pattern, detectable/moderate/high_fraction, tumor_expression_class "
         "(tumor-rna-distribution, batch A); fraction_detected, median/p5/p95_log2_abundance_panel, "
         "n_lineages_evaluated, n_lineage_restricted_lineages, protein_expression_class "
-        "(cellline-protein-abundance, batch A) all match at full precision between the independent "
+        "(cellline-protein-abundance, batch A); log2_fc, q_value, n_tumor, n_adjacent, base_mean, "
+        "is_significant/is_actionable/is_upregulated_provider_call, expression_call_class, "
+        "allgene_percentile(_class/_context) (tumor-rna-vs-adjacent, batch B); the protein-layer "
+        "roll-up tumor_elevation_breadth_class, n_cohorts_tested/elevated, fraction_elevated, "
+        "median_effect_across_elevated, most_elevated_cohorts, cohorts_tested + the RNA-layer "
+        "vintage-stable rna_tumor_elevation_breadth_class, rna_n_indications_elevated, "
+        "rna_median_max_log2fc_across_elevated, rna_most_elevated_indications "
+        "(tumor-elevation-breadth, batch B) all match at full precision between the independent "
         "recompute and tests/fixtures/epcam_coadread_decision.json"
+    ),
+    "boundary": (
+        "Anchors validate the read/aggregation path, NOT the upstream DESeq2/DEG runs (that provenance "
+        "belongs to data-catalog). #1663: no n-field is fabricated — only fields the readers emit are "
+        "asserted. DATA-LEVEL FINDING (honestly recorded, golden NOT regenerated): "
+        "tumor-elevation-breadth's RNA-layer denominator drifted — the committed golden's "
+        "rna_n_indications_tested=26 predates the current pancan-dge-tumor-vs-normal-v1 product's 27 "
+        "indications (one NON-elevated indication added upstream). The elevated numerator (10), the "
+        "elevated indication set, and the median max-log2fc are byte-identical, so only the denominator "
+        "and its dependent rna_fraction_elevated shifted; pinned as denominator-only by "
+        "test_elevation_breadth_rna_drift_is_denominator_only_and_non_elevated."
     ),
     "teeth": (
         "test_cellline_rna_distribution_teeth_mutated_input_breaks_the_golden_match, "
         "test_sc_celltype_teeth_dropping_malignant_rows_breaks_the_golden_match, "
-        "test_tumor_rna_distribution_teeth_mutated_input_breaks_the_golden_match and "
-        "test_cellline_protein_abundance_teeth_mutated_input_breaks_the_golden_match mutate the raw "
-        "input and assert the match breaks — proving the reconciliation is a live function of "
-        "substrate, not a self-echo"
+        "test_tumor_rna_distribution_teeth_mutated_input_breaks_the_golden_match, "
+        "test_cellline_protein_abundance_teeth_mutated_input_breaks_the_golden_match (batch A) and "
+        "test_tumor_rna_vs_adjacent_teeth_flipping_significance_breaks_the_golden_match + the two "
+        "batch-B elevation-breadth layer teeth (stripping elevated cohorts collapses the protein "
+        "breadth; flipping RNA direction collapses the RNA breadth) mutate the raw input and assert the "
+        "match breaks — proving the reconciliation is a live function of substrate, not a self-echo"
     ),
     "status_as_of": "2026-09-29",
 }
@@ -407,11 +442,11 @@ def build_shard() -> cs.SkillShard:
             "L1 = the 17 cards (OBSERVATIONAL_PROPERTY): 7 ladder-verdict-bearing + 3 L2b-island "
             "substrate + 3 corroboration/certainty-bearing + 1 verdict-adjacent (hpa-pathology-cancer-ihc) "
             "+ 2 safety-comparators + 1 (cellline-protein-abundance-procan, corroboration-bearing). "
-            "accuracy measured for 4/7 ladder-verdict-bearing cards with a landed analysis-methods T3 "
-            "anchor for EPCAM (cellline-rna-distribution, tumor-scrna-celltype-expression, "
-            "tumor-rna-distribution, cellline-protein-abundance — the latter two landed batch A, "
-            "#2043); the other 3 ladder-verdict-bearing + 10 non-ladder cards have no anchor yet (see "
-            "accuracy evidence cards_not_yet_covered)."
+            "accuracy measured for 6 of the 17 cards with a landed analysis-methods T3 anchor bridged to "
+            "the EPCAM/COADREAD golden (cellline-rna-distribution, tumor-scrna-celltype-expression; "
+            "tumor-rna-distribution + cellline-protein-abundance — batch A, #2043; tumor-rna-vs-adjacent "
+            "+ tumor-elevation-breadth — batch B, #2044). The remaining 11 of 17 have no anchor yet (see "
+            "accuracy evidence cards_covered / cards_not_yet_covered)."
         ),
     )
 
