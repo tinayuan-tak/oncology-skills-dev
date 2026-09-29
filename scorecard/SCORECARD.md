@@ -26,7 +26,7 @@ built and all four criteria are GREEN. Cells are never scored by verdict movemen
 | on-target-safety-liability | NULL | NULL | NULL | NULL | NULL |
 | query-target-evidence | NULL | NULL | NULL | NULL | NULL |
 | render-evidence-package | NULL | NULL | NULL | NULL | NULL |
-| surface-modality-fit | NULL | NULL | NULL | NULL | NULL |
+| surface-modality-fit | NULL (a:- u:G f:G p:G) | NOT_BUILT | NOT_BUILT | NOT_BUILT | NOT_BUILT |
 | target-intrinsic | NULL (a:- u:G f:G p:G) | NOT_BUILT | NOT_BUILT | NOT_BUILT | NOT_BUILT |
 | target-profile | NULL | NULL | NULL | NULL | NULL |
 | tractability-small-molecule | NULL | NULL | NULL | NULL | NULL |
@@ -39,5 +39,5 @@ built and all four criteria are GREEN. Cells are never scored by verdict movemen
 - cells: 110 (22 skills × 5 layers)
 - GREEN: 1
 - RED: 0
-- NULL: 100
-- NOT_BUILT: 9
+- NULL: 96
+- NOT_BUILT: 13

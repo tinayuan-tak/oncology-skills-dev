@@ -1,29 +1,101 @@
 {
   "cells": {
     "L1": {
-      "built": null,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
+          "evidence": {
+            "reason": "criterion (a) re-derivation from raw substrate is a SEPARATE issue per #1991's own ask ('do NOT fake it here: emit criterion (a) = NULL'). A fixture of already-derived values can never fail; left NULL rather than fabricating a reconciliation this adapter was not asked to build."
+          },
           "status": "NULL"
         },
         "fail_open": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "method": "the skill's own claim-record shadow builder (`run.py::_claim_record` -> `_skills_common.claim_record.assemble_claim_record`): `_sm_availability()` maps an unreachable/absent verdict token (data_unavailable/None) through this skill's own `_SM_OPEN_WORLD` set to availability='not_wired', which the shared assembler forces to state='unknown', direction='neutral', magnitude.level='none' \u2014 never a manufactured directional finding out of absence (the shared open-world invariant, 'ignorance != negation').",
+            "status_as_of": "2026-09-28",
+            "tests": [
+              "skills/surface-modality-fit/tests/test_claim_record_shadow.py::test_data_unavailable_is_open_world (ordinary path, pre-existing)",
+              "skills/surface-modality-fit/tests/test_scorecard_l1_fail_open_probe.py::test_data_unavailable_degrades_conservatively_ordinary_path (ordinary path, re-asserted locally for this shard)",
+              "skills/surface-modality-fit/tests/test_scorecard_l1_fail_open_probe.py::test_teeth_defeating_the_open_world_guard_lets_the_raw_token_leak (TEETH \u2014 monkeypatches run.py::_SM_OPEN_WORLD to frozenset() and shows the record leaks the raw 'data_unavailable' token as a manufactured measured_positive finding instead of unknown/not_wired; probe goes RED without the guard, GREEN with it)"
+            ]
+          },
+          "status": "GREEN"
         },
         "panel_consistency": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "capture_method": "scorecard_adapter.py::_load_package -> skills/surface-modality-fit/scripts/run.py --target <T> --indication <I> (direct, no --full-package fan-out; per #2030, eval/run_scorecard_panel.py --emit times out for the full-package composition)",
+            "checks": {
+              "all_pass": true,
+              "all_roster_rows_present": true,
+              "fit_class_not_constant": true
+            },
+            "method": "per-target rows across the whole 5-target roster (not one flagship), COMPUTED live by collect_panel_rows() (see module docstring) rather than hand-typed: this skill's verdict-bearing fit_class must differ meaningfully across archetypes (flagship surface, flagship intrinsic driver, amplified surface, pan-essential control, thin-coverage abstention control) rather than collapsing to one constant reading.",
+            "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
+            "rows": [
+              {
+                "fit_class": "both_viable",
+                "indication": "COADREAD",
+                "source": "skills/surface-modality-fit/scripts/.panel_cache/EPCAM__coadread/decision.json",
+                "status": "OK",
+                "surface_density_class": "very_low",
+                "target": "EPCAM"
+              },
+              {
+                "fit_class": "neither_viable",
+                "indication": "COADREAD",
+                "source": "skills/surface-modality-fit/scripts/.panel_cache/KRAS__coadread/decision.json",
+                "status": "OK",
+                "surface_density_class": "not_surface_density_whole_cell_estimate",
+                "target": "KRAS"
+              },
+              {
+                "fit_class": "both_viable",
+                "indication": "BRCA",
+                "source": "skills/surface-modality-fit/scripts/.panel_cache/ERBB2__brca/decision.json",
+                "status": "OK",
+                "surface_density_class": "high",
+                "target": "ERBB2"
+              },
+              {
+                "fit_class": "neither_viable",
+                "indication": "COADREAD",
+                "source": "skills/surface-modality-fit/scripts/.panel_cache/PLK1__coadread/decision.json",
+                "status": "OK",
+                "surface_density_class": "not_surface_density_whole_cell_estimate",
+                "target": "PLK1"
+              },
+              {
+                "fit_class": "modality_ambiguous",
+                "indication": "COADREAD",
+                "source": "skills/surface-modality-fit/scripts/.panel_cache/HTR1D__coadread/decision.json",
+                "status": "OK",
+                "surface_density_class": "unmeasured",
+                "target": "HTR1D"
+              }
+            ],
+            "status_as_of": "2026-09-28"
+          },
+          "status": "GREEN"
         },
         "utilization": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "coverage": "surface-modality-fit ledgered (on LEDGERED_SKILLS_FLOOR); fleet-wide MIN_FLEET_SIGNAL_ROWS floor",
+            "method": "field_disposition.yaml ledger (1489 lines, 79 role:signal rows, 9 waived_because rows): every emitted summary_field carries an explicit disposition (signal|context|provenance|display). The fleet-wide guard (skills/tests/test_field_disposition_ledgers.py) enforces, once for every ledgered skill, that the declaration is well-formed and that every role:signal row is reader-reached or explicitly waived \u2014 surface-modality-fit is on the frozen LEDGERED_SKILLS_FLOOR (may never quietly lose its ledger).",
+            "status_as_of": "2026-09-28",
+            "tests": [
+              "skills/tests/test_field_disposition_ledgers.py::test_ledgered_skills_only_grow",
+              "skills/tests/test_field_disposition_ledgers.py::test_every_ledger_is_wellformed",
+              "skills/tests/test_field_disposition_ledgers.py::test_the_fleet_reach_measurement_is_not_vacuous",
+              "skills/tests/test_field_disposition_ledgers.py::test_signal_fields_are_reader_reached_or_waived"
+            ]
+          },
+          "status": "GREEN"
         }
       },
-      "notes": null
+      "notes": "L1 = the 9 cards (run.py::CARDS) + their field_disposition.yaml ledger. accuracy = NULL by design per #1991 (re-derivation is a separate issue). NOTE: PR#2033 (open, issue #2025) is adding a 10th card (cellline-surfaceome-abundance) to this skill's live composition \u2014 file-disjoint from this adapter (own scripts/scorecard_adapter.py + scorecard/surface-modality-fit.json only); this shard inventories main as-of 2026-09-28 and does not race that PR."
     },
     "L2a": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -42,10 +114,10 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "not built for surface-modality-fit: this skill has no exported source_properties / integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
     },
     "L2b": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -64,10 +136,10 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "not built for surface-modality-fit: this skill has no exported source_properties / integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
     },
     "L3": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -86,10 +158,10 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "not built for surface-modality-fit: this skill has no exported source_properties / integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
     },
     "L4": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -108,7 +180,7 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "not built for surface-modality-fit: this skill has no exported source_properties / integrated_properties / l3d evidence-package sections (the SK#1941 grain tumor-presence's L2a/L2b/L3 rests on) and no L4 synthesis/decision-view layer \u2014 an architecture gap by design, not a defect. built=false; no criterion may be measured on an unbuilt layer."
     }
   },
   "schema_version": 1,
