@@ -19,43 +19,16 @@ name: Skills Validate
 # required name `pytest` MUST stay attached to the fan-in job or the required check would deadlock
 # (a bare matrix reports only `pytest-shards (N)` and `pytest` would never post).
 #
-# CROSS-REPO LAYOUT: this repo's pixi.toml editable-depends on THREE sibling repos via `../`
-# paths (analysis-methods, target-contracts, data-catalog/libs/target_id_resolver). CI must
-# lay them out adjacent under $GITHUB_WORKSPACE so `pixi install --locked` resolves them and
-# the tests can import the method/contract code. Checking out PRIVATE sibling repos needs a
-# token with read access: set repo/org secret `CROSS_REPO_TOKEN` (a PAT or GitHub App token
-# with contents:read on the three siblings). It falls back to the default GITHUB_TOKEN, which
-# only works if each sibling has granted this repo's Actions access (Settings → Actions →
-# Access) — otherwise the sibling-checkout steps 403 and CI cannot run.
-#
-# SIBLING PINS (2026-09-14): the three sibling checkouts below are pinned to explicit SHAs, not
-# `ref: main`. Measured reason: contracts 56 + methods 31 + catalog 15 commits per 72 h ≈ 34
-# re-baselining events/day, each silently changing what this suite tested on PRs that did not
-# cause the change. Measured live while authoring this pin: ALL THREE siblings moved within one
-# 9-minute window (methods 10f9b718→0006164e, contracts cd24888d→a716f923, catalog
-# 7fd03697→1addffdd), so a PR whose CI ran at 14:05Z and re-ran at 14:14Z was tested against
-# three different sibling trees with no diff of its own — a re-run stopped being a retry and
-# became a different experiment. `pixi install --locked` does NOT protect against this: the
-# siblings are EDITABLE PATH deps, so the lockfile pins their names, never their content.
-#
-# The property the pins buy is not "fewer reds" — it is that THE PINNED TRIPLE IS ALWAYS A
-# KNOWN-GREEN INTEGRATION STATE. Sibling breakage stops landing on an unrelated contributor's
-# PR and lands on the bump PR instead, quarantined there: a red bump PR does not merge, so the
-# pins do not advance past a break.
-#
-# The cost is real and points the other way: pins go stale SILENTLY, so the bump mechanism is
-# load-bearing rather than a convenience. `bump-sibling-pins.yml` runs daily, force-pushes the
-# single branch `chore/bump-sibling-pins`, and keeps exactly ONE open PR meaning "current
-# sibling mains vs. what we actually test against", with the per-sibling commit range in the
-# body so a red is attributable to a named sibling commit. Cadence is the knob: shorter =
-# better attribution, more PR noise. To bump by hand: Actions → Bump sibling CI pins → Run
-# workflow.
-#
-# Do NOT revert a pin to `ref: main` to "get the latest". That re-opens the ~34/day churn and
-# removes the last signal telling target-contracts it broke skills — contracts-validate never
-# checks out skills and graceful-skips its figure-emission check, and the only job that sees
-# both repos (framework-health-cross-repo.yml, in TARGET-CONTRACTS) is parked to
-# workflow_dispatch. Bump the pin instead; that is what the bump PR is for.
+# CONSOLIDATED LAYOUT (SK#2063, 2026-09-29): analysis-methods and target-contracts live IN
+# THIS REPO (methods/ and contracts/ — subtree merges, history preserved). Their old sibling
+# SHA pins and checkout steps are GONE: every PR is tested against its own tree, atomically,
+# which is the point of the consolidation — the pin + bump-PR choreography they required is
+# retired with bump-sibling-pins.yml. The ONE remaining sibling is data-catalog (deliberately
+# a separate repo; stable append-only manifest-ID interface). Its checkout below stays PINNED
+# to an explicit SHA for the same reason the old triple was pinned: an editable path dep's
+# content is not pinned by pixi.lock. Bump it BY HAND (rarely needed; it moves slowly) and
+# treat the bumping PR as the integration test. CROSS_REPO_TOKEN (falls back to github.token)
+# is needed only for that one private-repo checkout.
 
 # NOTE (2026-08-12): the pull_request trigger runs on ALL PRs — no `paths:` filter — because the
 # `pytest` check is a REQUIRED status check on main (branch protection). A required check
@@ -91,10 +64,11 @@ jobs:
       matrix:
         shard: [core-common, core-guards, core-profile, 0, 1, 2, 3]
     env:
-      # The skill readers resolve sibling code via these env vars (sys.path), in addition to the
-      # editable pixi installs. Point them at the CI checkouts, not the local-dev default path.
-      ANALYSIS_METHODS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-analysis-methods
-      TARGET_CONTRACTS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-target-contracts
+      # The skill readers resolve method/contract code via these env vars (sys.path), in
+      # addition to the editable pixi installs. methods/ and contracts/ are IN-TREE since the
+      # SK#2063 consolidation; only data-catalog is still a sibling checkout.
+      ANALYSIS_METHODS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-claude-oncology-skills/methods
+      TARGET_CONTRACTS_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-claude-oncology-skills/contracts
       DATA_CATALOG_ROOT: ${{ github.workspace }}/rnd-computational-biology-oncology-data-catalog
       # Thread the card readers (not the default process fork-pool). Harmless on credential-less CI
       # (forked readers hit no-data instantly) but defensive under `-n auto` if creds are ever added.
@@ -106,355 +80,12 @@ jobs:
         with:
           path: rnd-computational-biology-oncology-claude-oncology-skills
 
-      - name: Checkout analysis-methods (sibling — editable pixi dep)
-        uses: actions/checkout@v4
-        with:
-          repository: oneTakeda/rnd-computational-biology-oncology-analysis-methods
-          # PINNED — main @ 2026-09-19T11:47:03Z. Bumped BY HAND to include depmap-predictability v4:
-          # DEFAULT_RELEASE_PIN 26q1-v3→v4 (#670) + the provenance-stamping reader (#672); see SIBLING PINS above.
-          ref: 507439fc0e3c83d0db369377b411a2a3fcc861d2
-          path: rnd-computational-biology-oncology-analysis-methods
-          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
-
-      - name: Checkout target-contracts (sibling — editable pixi dep)
-        uses: actions/checkout@v4
-        with:
-          repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
-          # PINNED — main @ 2026-09-28 (#1941, TC PR#951: declare 4 optional evidence_package
-          # sections; gap over prior pin = TC#950 nomination-gate annotation_only_indirect→
-          # tractability_sm contradiction). Bumped BY HAND; measured aperture-inert (ceiling
-          # unchanged); see SIBLING PINS above.
-
-          # BUMPED BY HAND HERE, not by the bump PR, because this pin and APERTURE_CEILING in
-          # skills/_skills_common/tests/test_field_disposition.py are two halves of ONE fact and the
-          # aperture ratchet is TWO-SIDED: a lone bump can red the SLACK half and a lone ceiling move the
-          # CEILING half, so each can block the other, and whoever LOWERS the ceiling must move the pin in
-          # the same commit. (The full 2x2 derivation lives in this file's git history at the c88c6e04 pin.)
-          #
-          # THIS BUMP needs NO ceiling move, and that is MEASURED as a 2x2 over BOTH axes against the EXACT
-          # refs, not against a moving main — because a one-axis measurement cannot tell "the bump is inert"
-          # from "the bump and the branch cancelled out":
-          #                              contracts 2c322f8      contracts 6ff21f8 (this pin)
-          #   skills trunk (548a6a84)     orphans 886, gap 1     orphans 886, gap 1
-          #   skills this branch          orphans 885, gap 2     orphans 885, gap 2
-          # domain is 1808 in all four cells. Read the table by axis: the CONTRACTS axis moves NOTHING (886->886,
-          # 885->885), so this pin is aperture-inert; the -1 is entirely THIS BRANCH newly reading a
-          # declared-but-unread field (tumor-rna-distribution `high_fraction`, lifted onto the headline in
-          # tumor-presence 1.22.0). 885 <= 887 clears the CEILING half and 887 - 885 = 2 <= APERTURE_SLACK 20
-          # clears the SLACK half, so the ceiling stays 887 and this pin moves ALONE. Aperture suite: 69 passed.
-          # (The trunk x 2c322f8 cell reproducing the previous bump's 886 exactly is the instrument control —
-          # without it a changed number could be a broken census rather than a real movement.)
-          #
-          # WHY THIS BUMP IS NOT OPTIONAL — same ATOMIC-fix rule as the prior bump, in the OPPOSITE direction.
-          # TC#805 (6ff21f8) declared the rule `tumor-expression-subset-high-supportive`, and this branch adds
-          # the matching rung to run.py's `_EXPRESSION_RANK`. Two guards in
-          # skills/tumor-presence/tests/test_ladder_invariants.py evaluate that rule against the LIVE contracts
-          # rules file, so they pass against a tree that declares it and FAIL against one that does not.
-          # MEASURED, by substituting the tree CI actually checks out (`git archive <pin>` + TARGET_CONTRACTS_ROOT):
-          #   contracts 2c322f8: 2 failed, 272 passed   <- what CI would have reported
-          #   contracts 6ff21f8: 274 passed             <- what a clean trunk checkout reports
-          # So the RULE-READING GUARD AND THIS PIN MUST MOVE IN ONE COMMIT. Note the direction: the prior bump
-          # was GREEN in CI and RED on trunk; this one is GREEN on trunk and RED in CI. A local suite run reads
-          # whatever SHA the sibling checkout happens to sit on, so it CANNOT detect either direction — the pin
-          # is the declaration boundary that matters, NOT contracts `main`.
-          #
-          # PRIOR PIN, for the record: 2c322f89dbe8cbb38e3cfe3143eb8140e3a89868, "main @ 2026-09-18T03:59:38Z
-          # (#801)" — accurate as written. Its rationale was the mirror-image case: TC#786 (b92956e) declared
-          # `sc_normal_essential_veto_grade`, whose field-disposition ledger row asserts drift in BOTH
-          # directions (`orphans = emitted - ledger` AND `stale = ledger - emitted`), so no forward-compatible
-          # ledger shape exists and the row had to move with the pin. Full derivation in this file's git history.
-          #
-          # ============================================================================================
-          # BUMP 6ff21f8 -> 26eee89, "main @ 2026-09-18T11:35Z (#807)". THIRD hand bump in this arc, and the
-          # THIRD distinct direction — record it as such, because "the pin lags" is not one failure mode:
-          #   prior-prior (2c322f8): CI GREEN / trunk RED   — a ledger row had to move WITH the pin
-          #   prior      (6ff21f8): trunk GREEN / CI RED    — a rule-reading guard had to move WITH the pin
-          #   this one   (26eee89): local GREEN / CI RED    — an ALLOWLIST DELETION has to move WITH the pin
-          #
-          # WHY IT IS FORCED-ATOMIC. TC#807 (26eee89) appended `tumor_subset_high_expression` to
-          # `$defs.presence_verdict_enum` (33 -> 34 values, append-only, nothing else in that file changed).
-          # That is phase 3a of the subset_high split, and it is what finally DECLARES the verdict that skills
-          # #1441 already made emittable. `skills/tumor-presence/tests/test_ladder_invariants.py` held the gap
-          # open as a named `_UNDECLARED_LADDER_VERDICTS` allowlist whose paired assert fires when 3a lands;
-          # this commit deletes that allowlist. Deleting it against the OLD pin is red, keeping it against the
-          # NEW tree is red, so the two edits cannot be separated.
-          #
-          # MEASURED AS A 2x2 over the EXACT refs (`git archive <ref>` + TARGET_CONTRACTS_ROOT), skills
-          # trunk 22b89319 vs this branch, `pytest skills/tumor-presence/tests/ -q`:
-          #                              contracts 6ff21f8 (old pin)   contracts 26eee89 (this pin)
-          #   skills trunk (22b89319)     274 passed                    2 failed, 272 passed
-          #   skills this branch          2 failed, 272 passed          274 passed
-          # (First measured at trunk 08284392, then RE-MEASURED after a rebase onto 22b89319 moved trunk under
-          # it. Re-measuring rather than relabelling is the point: a 2x2 cell is a claim about a NAMED tree, so
-          # a rebase silently converts an accurate cell into a false one unless the label and the number move
-          # together. All four cells reproduced identically, so the argument survives the rebase intact.)
-          # COLLECTED is 274 in all four cells, so no cell is green by having dropped a test. The table is
-          # ANTI-DIAGONAL, which is the whole point: read either axis alone and you conclude the other side is
-          # fine. The same two tests fail in both red cells but for OPPOSITE reasons — token-not-declared on
-          # the branch/old-pin cell, token-declared-but-still-allowlisted on the trunk/new-pin cell.
-          #
-          # THIS BUMP ALSO CROSSES TC#806 (e21a8e8, three by-subtype cards), so the aperture ratchet was
-          # re-measured across the contracts axis rather than assumed: orphans 885, domain 1808 and ALL TEN
-          # per_kind reach counts are BYTE-IDENTICAL at 6ff21f8 and 26eee89 — ALONG THE CONTRACTS AXIS ONLY,
-          # which is the axis this pin moves. Those per_kind counts are NOT absolutes: rebasing this branch onto
-          # 22b89319 (peer #1444, minting a SALIENCE_SPEC) moved `salience` reach 327 -> 333 while
-          # candidate_orphans stayed 885, because orphans is a UNION over kinds and those 6 newly-reached fields
-          # already had reach from another kind. So a union total can absorb a movement its own component cannot,
-          # and a changed per_kind count is NOT by itself evidence of a broken census. Compare per_kind only
-          # within one base. So the bump is aperture-inert,
-          # APERTURE_CEILING stays 887, and 887 - 885 = 2 <= APERTURE_SLACK 20 clears the slack half — the pin
-          # moves without a ceiling move. That inertness is STRUCTURAL, not luck: #806 widened `evidence_state`
-          # ENUM VALUES and added `required_inputs` shards, and the census counts (card, field) PAIRS, which
-          # enum widening cannot create. A future contracts PR adding an `outputs.summary_fields` entry WILL
-          # move this axis — re-measure, do not cite this line.
-          #
-          # ============================================================================================
-          # BUMP 26eee89 -> c3eec12, "main @ 2026-09-18T15:23Z (#809)". FOURTH hand bump in this arc, and
-          # the FOURTH distinct direction. The running list, because "the pin lags" is not one failure mode:
-          #   (2c322f8): CI GREEN / trunk RED   — a ledger row had to move WITH the pin
-          #   (6ff21f8): trunk GREEN / CI RED   — a rule-reading guard had to move WITH the pin
-          #   (26eee89): local GREEN / CI RED   — an ALLOWLIST DELETION had to move WITH the pin
-          #   (c3eec12): local RED / CI GREEN   — a BEHAVIOUR CHANGE landed in contracts first, so the
-          #                                       guards asserting the OLD routing broke locally while CI,
-          #                                       reading the old pinned SHA, stayed green
-          # That fourth direction is the dangerous one: CI is green, `main` is green, and the only signal is
-          # a local red. Nothing in either repo's CI can see it, because the gating workflow reads a pinned
-          # SHA and so is structurally blind to a contracts landing.
-          #
-          # WHY IT IS FORCED-ATOMIC. TC#809 (c3eec12) is phase 3b: it removes `subset_high` from
-          # `tumor-expression-broadly-high-supportive`'s `in:` list — the arc's ONLY behaviour change. Three
-          # tests in skills/tumor-presence/tests/test_ladder_invariants.py assert the PRE-3b routing and are
-          # rewritten in this commit:
-          #   - test_subset_high_is_still_inert_against_the_live_rules  (asserted the broad rule still fires)
-          #       -> test_subset_high_drives_the_verdict_against_the_live_rules
-          #   - test_subset_high_becomes_the_verdict_once_the_overlap_is_removed
-          #       -> test_restoring_the_broad_overlap_collapses_the_subset_verdict  (control, now inverted)
-          #   - test_the_vocabulary_reach_guard_can_actually_fail  (collateral — see below)
-          # and the helper `_narrow_broad_rule` is inverted to `_restore_broad_overlap`: it SUBTRACTED
-          # subset_high to simulate a narrowing that had not happened, and now ADDS it back to reconstruct
-          # the pre-3b shape. Its `stripped == 1` control failed with `narrowed 0` against the new tree — a
-          # control that had quietly stopped controlling. The new body asserts the overlap is ABSENT before
-          # re-adding it, so it fails loudly against a pre-3b tree rather than silently no-op'ing.
-          #
-          # COUNT THE CALLERS, NOT THE HELPER. The 3b PR body predicted TWO guards would break. Measured:
-          # THREE tests failed, because `_narrow_broad_rule` had two callers and the third
-          # (test_the_vocabulary_reach_guard_can_actually_fail) never names subset_high in its own asserts.
-          # The mechanism count was right and the test count was wrong. A shared helper makes the blast
-          # radius of a contracts change wider than the guards that mention it by name.
-          #
-          # MEASURED AS A 2x2 over the EXACT refs, skills trunk 9e29d208 vs this branch,
-          # `pytest skills/tumor-presence/tests/test_ladder_invariants.py -q`:
-          #                              contracts 26eee89 (old pin)   contracts c3eec12 (this pin)
-          #   skills trunk (9e29d208)     19 passed                     3 failed, 16 passed
-          #   skills this branch          3 failed, 16 passed           19 passed
-          # COLLECTED is 19 in all four cells, so no cell is green by having dropped a test. ANTI-DIAGONAL,
-          # which is the point: read either axis alone and you conclude the other side is fine. Stronger than
-          # the counts: the two red cells fail DIFFERENTLY-NAMED tests — trunk/c_new fails the pre-3b names
-          # (..._is_still_inert_..., ..._becomes_the_verdict_once_the_overlap_is_removed) and branch/c_old
-          # fails the post-3b ones (..._drives_the_verdict_..., ..._restoring_the_broad_overlap_...). Equal
-          # counts for OPPOSITE reasons, which is what makes this a real 2x2 rather than one bug seen twice.
-          #
-          # HOW TO RE-MEASURE (the invocation is itself a trap). `git archive <ref> | tar -x` both contracts
-          # trees, then run the suite FROM THE HOME CHECKOUT with
-          #   TARGET_CONTRACTS_ROOT=<tree> PYTHONPATH=<side>/skills pixi run pytest <side>/<test path> -q
-          # Never `cd` into a /tmp worktree to run pixi (it deep-copies a multi-GB env -> ENOSPC), and the
-          # PYTHONPATH is not optional: pointing pytest at a worktree path from the home checkout fails
-          # COLLECTION with `ModuleNotFoundError: No module named '_test_support'`, which prints no pass
-          # count at all. Both branch cells first measured that way and read as blank, not as red.
-          #
-          # ============================================================================================
-          # BUMP c3eec12 -> ebdcdfb, "main @ 2026-09-19 (#830 HEAD)". FIFTH hand bump in this arc, and the
-          # SECOND instance of the FOURTH direction above (local RED / CI GREEN): a token PRODUCER landed
-          # in contracts first, so the skills guards asserting the OLD dependency verdict enum broke
-          # LOCALLY while CI, reading the stale pin, stayed green. Contracts dependency.resolver.yaml
-          # v1.4.0 -> v1.6.0 (#812/#818, paralog twin #830-era) minted 4 indication-conditioned verdicts —
-          # lineage_selective_in_indication / dependent_in_indication / not_dependent_in_indication /
-          # insufficient_underpowered_in_indication — plus their nomination_verdict_gate.yaml arms (#814).
-          # FORCED-ATOMIC with their skills-side consumption in this same commit: test_resolver_verdict_
-          # consumers.py asserts a BIDIRECTIONAL enum equality (consumer sets == resolver enum), so the pin
-          # and the consumer edits cannot go green independently (main is protected, neither half lands
-          # alone). Aperture ratchet inert (test_field_disposition unchanged at HEAD). This bump also
-          # carries the intervening skills-INERT contracts PRs #819-#830; the full skills fan-out on this
-          # branch reds ONLY the dependency-token guards, empirically confirming those PRs are skills-inert.
-          #
-          # ============================================================================================
-          # BUMP ebdcdfb -> 1863722c, "main @ 2026-09-23 (#873, over #869/#862)". SIXTH hand bump in this
-          # arc. Direction: local RED / CI GREEN again — a token PRODUCER (cellline-rna card fields) landed
-          # in contracts first, so the skills ledger guard broke LOCALLY while CI, reading the stale pin,
-          # stayed green. This is P3 of the evidence-property epic (#1507): TC #869 declared 8 Card-1
-          # `outputs.summary_fields`, TC #873 NARROWED that to the 2 the fleet actually reads —
-          # coefficient_of_variation (capsule numeric_anchor) and distribution_pattern (capsule
-          # categorical_field) — and reverted the other 6 (2 redundant echoes of allgene_percentile[_class],
-          # 3 provenance/version tokens, 1 display array) plus expression_properties (deferred to P4 with its
-          # claim/evidence reader). This commit narrows skills/tumor-presence/field_disposition.yaml to
-          # disposition exactly those 2 fields.
-          #
-          # WHY IT IS FORCED-ATOMIC. tumor-presence/tests/test_field_disposition_complete.py::
-          # test_ledger_matches_emitted_fields asserts SET EQUALITY (ledger card-section == card
-          # outputs.summary_fields) against the LIVE contracts tree. So the pin and the ledger cannot go
-          # green independently:
-          #   - branch ledger (2 P3 rows) x OLD pin ebdcdfb (card emits neither): the 2 rows are STALE -> RED.
-          #     MEASURED (git archive ebdcdfb + TARGET_CONTRACTS_ROOT): "STALE ledger fields (card no longer
-          #     emits): ['coefficient_of_variation', 'distribution_pattern']".
-          #   - branch ledger x NEW pin 1863722c (card emits both): set-equal -> GREEN (5 passed).
-          #   - trunk ledger (no P3 rows) x NEW pin: the 2 emitted fields are UNCLASSIFIED -> RED.
-          # Anti-diagonal: read either axis alone and the other looks fine. So pin + ledger move in one commit.
-          #
-          # APERTURE: MEASURED 781 on this branch x the new pin (domain 1813). 781 == APERTURE_CEILING, so
-          # 781 <= 781 clears the ceiling half and 781 - 781 = 0 <= APERTURE_SLACK 20 clears the slack half:
-          # THE CEILING DOES NOT MOVE and there is nothing to bank. Why declaring 2 new fields is aperture-
-          # inert: TC #873 WIRED both into the card `capsule:` block, so capsule_readers() credits both
-          # (verified: neither pair is in the orphan set) — a declared-AND-read field is not a candidate
-          # orphan. The 6 reverted #869 fields leave the (card, field) domain entirely. (test_field_disposition.py
-          # needs no edit; its vintage for this pin is recorded here, per this file's "a number that did not
-          # move still has a new vintage" rule.)
-          #
-          # ALSO FORCED-ATOMIC: the genomic mirror. The pinned range carries the genomic `underpowered`
-          # gap-with-intent tier (TC + skills #1504/#1505); moving the pin surfaces resolver guards that were
-          # green only against the stale SHA. This commit mirrors them skills-side (genomic_claims.py
-          # _cn_corroboration treats an underpowered patient-focal arm as a gap -> single_arm, not a fabricated
-          # `low`; two-arm axes + resolver golden rule_id coverage updated) and regenerates the pinned roster
-          # field_read_health.json against 1863722c (2 cellline fields, n=1813). Cross-repo live gate: none.
-          #
-          # ── BUMPED 1863722c -> 4f4866d4 (TC #876, P4 of the evidence-property architecture, SK#1508). TC #876
-          # RE-DECLARES expression_properties on cards/cellline-rna-distribution.card.yaml — the object facet
-          # #873 reverted "to return WITH its reader in P4". This commit lands that reader: presence_claims.py
-          # `_expression_property_atom` surfaces it as a citable claim-vector evidence atom (verdict-inert), and
-          # a field_disposition.yaml role:context row dispositions it. FORCED-ATOMIC for the same set-equality
-          # reason as the P3 bump above (test_ledger_matches_emitted_fields): the ledger row and the pin cannot
-          # go green independently — old pin x new ledger row = STALE; new pin x no row = UNCLASSIFIED.
-          # APERTURE: the reader is a `_patom` claim_passthrough (an EXACT census reader; a capsule cannot credit
-          # an object), so declaring the field is domain +1 AND reached +1 → orphan count UNCHANGED at 781 ==
-          # APERTURE_CEILING (measured on this branch x the new pin, domain 1814). Ceiling half 781 <= 781 and
-          # slack half 781 - 781 = 0 <= 20 both clear; THE CEILING DOES NOT MOVE. Verdict byte-inert: the
-          # tumor-presence replay golden and resolver golden are unchanged (the atom is provenance, never a tier).
-          # L2b-3 (#1546) BUMP -> c55602a6 (#890): pulls #887 (sc_normal_celltype_expression declared a
-          # NORMAL_TISSUE context_type) + #890 (same card anchored in the safety normal-tissue-breadth
-          # question answered_by). Needed by this branch: test_hierarchy_connectivity (context_type) and
-          # test_question_card_coverage reverse-coverage (answered_by) both read the LIVE contracts tree.
-          # Aperture-inert: measured the field_disposition suite (73 passed) against this branch x c55602a6 —
-          # orphans stay in [APERTURE_CEILING-APERTURE_SLACK, APERTURE_CEILING] = [761, 781], so the ceiling
-          # (781, in test_field_disposition.py) does not move and this pin bumps ALONE.
-          # #1719 BUMP -> 37b5728 (TC #902 = issue #882; forward from c55602a6): declares the dropped
-          # rna_proxy_class_boundary_fragile signal + its CI backing (rna_protein_r_ci95_low/high) +
-          # rna_proxy_classified_on on BOTH concordance cards — rna-protein-concordance-tumor (TC #896,
-          # issue #883, commit 026670f) and cellline-rna-protein-concordance (TC #902, issue #882, commit
-          # 37b5728). The intervening commit 499bb41 (#898, Card 11 procan) also lands, declaring one field
-          # (cellline-protein-abundance-procan.protein_abundance_source). Regenerated the pinned roster
-          # field_read_health.json against this tree: declared-pairs 1814 -> 1823 (+9, 0 removed) — exactly
-          # the 4 fields x 2 concordance cards + the 1 procan field; every other census row (units, reads,
-          # undeclared pairs=4, meta_key) byte-identical, and measured_axes_per_dim.json byte-stable (no new
-          # measurement_type axis).
-          # (#1719/#1650 landed via #1748, option B — the 9 fields above are now dispositioned + read.)
-          # ── BUMPED 37b5728 -> 468c3dc (skills PR chore/bump-tc-pin, 2026-09-26; 18 TC commits forward):
-          # unblocks #1624 (which bumps again to its own TC merge SHA later). Drift regenerated in THIS PR,
-          # each attributed to an already-merged TC arc:
-          #   • SAFETY (#934 = TC#895, resolver v2.2.0): tolerant_reduced_safety_risk fail-open CLOSURE.
-          #     The bare gnomAD-tolerant rung is replaced by 6 when_all_fired rungs, each co-conditioned on
-          #     a *-safety-axis-measured-clear witness (6 new NEUTRAL witness rules in
-          #     intracellular-intrinsic.rules.yaml). driving_rule pinned to tolerant-safety-supportive =>
-          #     corroborated verdicts BYTE-IDENTICAL; only an all-dark gnomAD-tolerant gene loses the
-          #     spurious "reduced safety risk" (falls through to insufficient — MORE conservative). Skills
-          #     safety resolver_golden regenerated + 6 witness rule_ids added to the safety gate rule_ids.
-          #   • DIFFERENTIATION (#922 = TC#897): both_patterns_present wired supportive in
-          #     nomination_verdict_gate.yaml (monotonicity fix; superset of strong_mutually_exclusive).
-          # ── BUMPED 468c3dc -> 759bea8 (SK#1624, TC PR#936 merge): activates the subtype_powered_differential
-          #     DOMINANT positive slot (vocab nomination_verdict_gate.yaml 1.22.0 -> 1.23.0 + the promoted
-          #     subtype-expression-enriched/restricted-context rules). Forced ordering: validate_verdict_tokens
-          #     walks gate->resolver one-way, so the TC gate row must precede this producer/pin. The skills
-          #     producer (tp_fanout `_subtype_verdict` + tp_gates `_RECOGNIZED_GATING_VERDICTS`) lands in the
-          #     same PR as this bump.
-          # ── BUMPED 759bea8 -> 28e992c (SK#1853, TC PR#939 merge, child of #1848): REMOVES
-          #     protein_effect_size from outputs.summary_fields on the two cell-line protein cards
-          #     (cellline-protein-abundance / -procan). It was a verbatim copy of median_log2_abundance_panel
-          #     wearing a tumor-vs-normal contrast's name a normal-arm-less cell-line panel cannot compute.
-          #     FORCED-ATOMIC with the two field_disposition.yaml waiver-drops (see the WHY-FORCED-ATOMIC note
-          #     above), and it is the REMOVAL direction of that same anti-diagonal:
-          #       - drop 2 waiver rows x OLD pin (card still emits the field): field UNCLASSIFIED -> RED.
-          #       - drop 2 waiver rows x NEW pin (card no longer emits):        set-equal -> GREEN.
-          #       - keep 2 waiver rows x NEW pin:                               STALE ledger rows -> RED.
-          #     So the pin and the ledger move in one commit. field_read_health.json is regenerated in the
-          #     same PR so its pinned roster matches (n_roster_fields 1825 -> 1823).
-          #     APERTURE: MEASURED (census(SKILLS_ROOT) x git-archive of BOTH pins + TARGET_CONTRACTS_ROOT):
-          #       old pin 759bea8: domain 1825, candidate_orphans 779
-          #       new pin 28e992c: domain 1823, candidate_orphans 779
-          #     The census is disposition-blind and this PR changes no reader, so only the contracts axis
-          #     moves: orphans 779 -> 779 (protein_effect_size was credited by field-name via the tumor card,
-          #     never a cell-line orphan), domain -2 (the two removed pairs). 779 <= APERTURE_CEILING 781 and
-          #     781 - 779 = 2 <= APERTURE_SLACK 20, so THE CEILING DOES NOT MOVE and the pin bump is
-          #     aperture-inert.
-          # ── BUMPED 28e992c -> d9b4d37 (#807, TC PR#945): drops the retired XGBoost dual-model half of
-          #     dependency-predictability — 5 display-only summary_fields (pearson_r_xgb,
-          #     pearson_r_squared_xgb, model_agreement, delta_r2, pred_top_features_xgb), the model_agreement
-          #     capsule categorical, and the predictability_model_divergent warning. The card adds NO reader,
-          #     so removal can only lower the domain and (for these unread fields) the orphan count.
-          #     APERTURE: MEASURED (census(SKILLS_ROOT) x TARGET_CONTRACTS_ROOT @ new pin, on this branch
-          #     rebased onto main db915c8c which lowered APERTURE_CEILING 781 -> 774 for the tumor-presence
-          #     presence-reservoir PR #1850):
-          #       new pin d9b4d37: domain 1821, candidate_orphans 773
-          #     773 <= APERTURE_CEILING 774 and 774 - 773 = 1 <= APERTURE_SLACK 20, so THIS bump needs NO
-          #     ceiling move (the 774 was banked by #1850, not by #807) and the pin bump is aperture-safe.
-          #     field_read_health.json / descriptor_coverage.json / warning_calibration.json regenerated in
-          #     this PR so their pinned rosters match.
-          #
-          # ============================================================================================
-          # BUMP d9b4d37 -> 8c4bba3, "main @ 2026-09-27 (#796, TC PR#946)". This is the VOCAB+RESOLVER half
-          # of the #796 marrow-coverage fix; THIS skills branch is its consumer (selectivity_veto.py
-          # apply_marrow_coverage_abstain + the tp_gates fallbacks + the test_verdict clamp-set guard), so
-          # the pin and the consumer MUST move in ONE commit — a lone bump would red the skills-side
-          # clamp_verdicts lockstep guard (test_verdict.py reads the LIVE selectivity.resolver.yaml
-          # clamp_verdicts and asserts it == selectivity_veto._CLAMP_VERDICTS), and a lone consumer would
-          # red against a contracts tree that does not yet declare the abstain verdict.
-          # APERTURE: the d9b4d37..8c4bba3 delta is EXACTLY and ONLY PR#946 (one commit) and it adds NO
-          # card fields (a resolver clamp verdict + a nomination-gate registration + schema enum entries),
-          # so the aperture census (domain / candidate_orphans) is UNCHANGED — this bump needs no ceiling
-          # move and is aperture-inert.
-          # ============================================================================================
-          # BUMP 8c4bba3 -> 09102dc, "main @ 2026-09-27 (#948, TC PR#949)". Declares the
-          # summary_fields_vocabulary for patient_functional_state_class on genomic-event-model-match
-          # (identical to functional-gene-state's functional_state_class enum). THIS skills branch is its
-          # consumer: the declaration makes the #1644 fleet vocab-exhaustiveness guard non-vacuous for the
-          # functional-requirement panel (previously []), so the 4 newly-visible tokens must be resolved in
-          # the SAME commit — a lone bump would red test_value_tiers_partition_producer_vocab[functional-
-          # requirement]. Resolved LEDGER-only (context qualifier, not a dependency signal; see the FR
-          # _KNOWN_DEFAULTING note). APERTURE: adds ONE card field's vocab (a summary_fields_vocabulary
-          # entry, not a new summary_field / required_input), so the aperture census is UNCHANGED —
-          # aperture-inert, no ceiling move.
-          # ============================================================================================
-          # BUMP fdfa379 -> 8167c82, "main @ 2026-09-28 (TC PR#958 + intervening #959)". PR#958 adds
-          # mutational-signature-context and oncogenic-pathway-alteration to differentiation-landscape's
-          # question_hierarchies answered_by anchors (the co-mutation and pathway-node-leverage questions).
-          # THIS skills branch is the consumer: differentiation-landscape/scripts/run.py now CONSUMES those
-          # two cards (and tp_fanout composes them as render facets), so test_every_consumed_card_is_anchored
-          # _in_a_question requires the anchoring declaration to land in the SAME commit — a lone consumer
-          # would red against a contracts tree that does not yet anchor them, and a lone bump has no consumer.
-          # This completes the #1815/#1816/#1820 reader-wiring (differentiation-landscape completion, #954).
-          # 8167c82 also folds intervening TC #959 (benign card-wording fix), included transitively.
-          # APERTURE: PR#958 adds only two answered_by list entries (question-hierarchy anchors, not
-          # summary_field / required_input declarations), so the aperture census is UNCHANGED — aperture-inert.
-          # ============================================================================================
-          # BUMP b2e19734 -> c0aac19, "#2015 / TC PR#964". MINIMAL bump: c0aac19's parent is EXACTLY
-          # b2e19734 (the #1793/#963 safety pin already on skills main), so the delta is EXACTLY one
-          # commit = PR#964, which DECLARES capsule.numeric_anchors (rna_protein_r + Fisher-z 95% CI
-          # bounds) on cards/rna-protein-concordance-tumor.card.yaml. This is the TC counterpart of the
-          # skills-side word-boundary _n_basis fix on THIS branch: the fix stops laundering rna_protein_r
-          # through the n_basis substring match, and PR#964 re-declares it as a proper numeric anchor so
-          # the statistic stays in the package. Forced-atomic pin unit (#2015); TC half already merged.
-          # APERTURE: MEASURED 2x2 (aperture suite run from this branch against git-archive of BOTH pins
-          # via TARGET_CONTRACTS_ROOT): test_fleet_aperture_does_not_grow GREEN at b2e19734 AND at c0aac19,
-          # ceiling 729 holds on both — a numeric_anchors declaration earns EXACT credit (never a new
-          # orphan), so the orphan census is UNCHANGED. Aperture-inert, no ceiling move; the two-sided
-          # ratchet (this pin <-> APERTURE_CEILING in test_field_disposition.py) stays balanced.
-          ref: 5855ff7913ae4cc72c8cfd3aae33d5b79436cb1f
-          path: rnd-computational-biology-oncology-target-contracts
-          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
-
       - name: Checkout data-catalog (sibling — target_id_resolver editable pixi dep)
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
           # PINNED — main @ 2026-09-19T03:35:25Z. Bumped BY HAND alongside analysis-methods: adds the
-          # depmap-predictability-26q1-v4 manifest so the v4-default reader can resolve; see SIBLING PINS above.
+          # depmap-predictability-26q1-v4 manifest so the v4-default reader can resolve; see CONSOLIDATED LAYOUT above.
           ref: 13aef1944d4a4e417fbba5889690b1d2b16a04a4
           path: rnd-computational-biology-oncology-data-catalog
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
@@ -564,17 +195,195 @@ jobs:
   # after every shard (if: always()) and fails unless ALL shards succeeded, so the required check
   # reflects the whole matrix. Renaming this job, or letting a bare matrix expose `pytest-shards (N)`
   # as the required name instead, would deadlock merges — keep the required check pointed here.
+  # ── METHODS SUITE (ported from analysis-methods' methods-validate.yml at the SK#2063
+  # consolidation; analysis-methods now lives in-tree at methods/) ─────────────────────────
+  # Offline suite; live-S3 tests self-skip (methods/conftest.py). Root resolution: methods/
+  # code derives sibling roots from __file__ (parent-of-AM-root), which the committed
+  # repo-root symlinks (rnd-...-target-contracts -> contracts, rnd-...-data-catalog ->
+  # ../rnd-...-data-catalog) satisfy — so the *_ROOT env vars stay deliberately UNSET,
+  # preserving the old AM CI's coverage of the derived fallback (AM#631/#632 rationale:
+  # exporting a value identical to the derivation makes the fallback branch unreachable
+  # on the one machine that gates merges). target-contracts is now the PR's OWN tree —
+  # a card/rule change and the methods change it pairs with are tested atomically.
+  methods-pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+    env:
+      SKILLS_SKIP_LIVE_DATA: "1"   # no AWS creds on the runner → live-S3 reads skip (conftest)
+    steps:
+      - name: Checkout (consolidated repo)
+        uses: actions/checkout@v4
+        with:
+          path: rnd-computational-biology-oncology-claude-oncology-skills
+
+      - name: Checkout data-catalog (sibling — manifests / catalog_query)
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
+          # Same pin as the pytest-shards job — ONE data-catalog vintage per workflow run.
+          ref: 13aef1944d4a4e417fbba5889690b1d2b16a04a4
+          path: rnd-computational-biology-oncology-data-catalog
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Install pixi binary (retried — hardens the transient download flake)
+        run: |
+          set -euo pipefail
+          export PIXI_VERSION=v0.70.2
+          for i in 1 2 3 4 5; do
+            if curl -fsSL https://pixi.sh/install.sh -o /tmp/pixi-install.sh; then
+              bash /tmp/pixi-install.sh && break
+            fi
+            echo "::warning::pixi binary install attempt $i failed; retrying in $((i * 10))s"
+            sleep $((i * 10))
+          done
+          "$HOME/.pixi/bin/pixi" --version
+          echo "$HOME/.pixi/bin" >> "$GITHUB_PATH"
+
+      - name: Set up pixi (methods env; reuses the pre-installed binary)
+        uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          # pixi-version deliberately UNSET → setup-pixi reuses the pre-installed binary.
+          manifest-path: rnd-computational-biology-oncology-claude-oncology-skills/methods/pixi.toml
+
+      - name: methods + tests suite (offline; live-S3 tests self-skip)
+        working-directory: rnd-computational-biology-oncology-claude-oncology-skills/methods
+        # -rs: named skip lines — a skip is "the check did not run" and must be visible in
+        # the log, never summed into the green (see the old methods-validate.yml history).
+        run: pixi run pytest methods/ tests/ -q -rs --import-mode=importlib -n auto
+
+  # ── CONTRACTS GATES (ported from target-contracts' contracts-validate.yml at the SK#2063
+  # consolidation; target-contracts now lives in-tree at contracts/) ───────────────────────
+  # Static leg unsharded: cheap (~1min) and each run: step gives ATTRIBUTED failure (its red
+  # names which contract broke). BEHAVIOR-PRESERVING sibling env: the old TC CI ran on a
+  # checkout-only runner where every sibling was absent, so its sibling-gated validators and
+  # test families skipped (the historical 15-skip baseline). In the merged tree the methods
+  # symlink WOULD resolve, so the *_ROOT vars are pinned to /nonexistent to keep the gate's
+  # scope byte-identical to pre-merge TC CI. Un-skipping the sibling-gated families (skills/
+  # is now ALWAYS present) is a deliberate follow-up decision, not a merge side effect.
+  contracts-static:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    env:
+      DATA_CATALOG_ROOT: /nonexistent
+      CLAUDE_ONCOLOGY_SKILLS_ROOT: /nonexistent
+      ANALYSIS_METHODS_ROOT: /nonexistent
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: contracts/pyproject.toml
+
+      # Install set is IDENTICAL across both contracts legs so they share one pip cache.
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip pyyaml jsonschema pytest pytest-xdist pytest-split matplotlib
+      - name: Validate card specs
+        run: python validators/validate_cards.py cards/
+      - name: Validate evidence_graph (schema + referential integrity)
+        run: python validators/validate_evidence_graph.py --self-check
+      - name: Validate skill question registries (questions.yaml schema; skips if skills root not wired)
+        run: python validators/validate_questions.py
+      - name: Validate measurement types
+        run: python validators/validate_measurement_types.py
+      - name: Validate interpretation rules (all rules files)
+        run: python validators/validate_interpretation_rules.py --rules interpretation-rules/ --cards cards/
+      - name: Validate resolvers (dangling-rung / rule-id reachability)
+        run: python validators/validate_resolvers.py --resolvers resolvers/ --rules interpretation-rules/
+      - name: Validate nomination-gate verdict tokens (resolver consistency)
+        run: python validators/validate_verdict_tokens.py --gate vocabularies/nomination_verdict_gate.yaml --resolvers resolvers/
+      - name: Validate certainty corroboration ⟂ verdict-precedence disjointness
+        run: python validators/validate_certainty_disjointness.py
+      - name: Validate card→resolver consumption (verdict-role snapshot)
+        run: python validators/validate_card_resolver_consumption.py
+      - name: Validate factored claim records (schema + invariants)
+        run: python validators/validate_claim_record.py --schema schemas/claim_record.schema.json --examples docs/design/examples/ --resolvers resolvers/
+      - name: Validate rule-role partition (gating vs display drift)
+        run: python validators/build_rule_role_partition.py --self-check
+      - name: Validate Fold migration (all resolvers folded)
+        run: python validators/validate_fold_migration.py --resolvers resolvers/
+      - name: Eval ledger committed-artifact self-check
+        run: python validators/build_eval_ledger.py --self-check
+      - name: Validate emission ledger (T1 reachability; hermetic half only)
+        run: python validators/build_emission_ledger.py --self-check
+      - name: Validate wiring reconciliation (I.3; hermetic half only)
+        run: python validators/build_wiring_reconciliation.py --self-check
+      - name: Validate wiring ledger (I.4; hermetic half only)
+        run: python validators/build_wiring_ledger.py --self-check
+      - name: Living doc self-check
+        run: python validators/architecture_dashboard/living/build_living_doc.py --self-check
+
+  contracts-pytest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        # 4 shards; contracts/.test_durations is 1-indexed (--group 1..4). Regen regime:
+        # see the header of the retired contracts-validate.yml (contracts/ git history).
+        group: [1, 2, 3, 4]
+    defaults:
+      run:
+        working-directory: contracts
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: contracts/pyproject.toml
+
+      # matplotlib rationale: plot_styles' module-level importorskip otherwise drops 10
+      # rendering-contract tests AT COLLECTION (measured in the old TC CI — see contracts/
+      # git history); the sibling roots are /nonexistent to preserve the historical
+      # checkout-only skip baseline exactly (see the CONTRACTS GATES banner above).
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip pyyaml jsonschema pytest pytest-xdist pytest-split matplotlib
+
+      - name: Whole-package test suite (shard ${{ matrix.group }}/4; the contracts pytest gate)
+        run: >
+          DATA_CATALOG_ROOT=/nonexistent
+          CLAUDE_ONCOLOGY_SKILLS_ROOT=/nonexistent
+          ANALYSIS_METHODS_ROOT=/nonexistent
+          python -m pytest -q -n auto
+          --splits 4 --group ${{ matrix.group }}
+          --durations-path .test_durations
+          --splitting-algorithm least_duration
+
+  # ── FAN-IN (the REQUIRED context) ────────────────────────────────────────────────────────
+  # Branch protection requires the context named EXACTLY `pytest`; this job re-exports it over
+  # every suite in the consolidated tree (skills shards + methods + contracts). `if: always()`
+  # so it reports even when an upstream job fails — a required check that never posts leaves
+  # the PR permanently "Expected — waiting for status" (the required-check deadlock).
   pytest:
-    needs: [pytest-shards]
+    needs: [pytest-shards, methods-pytest, contracts-static, contracts-pytest]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Aggregate shard results
+      - name: Aggregate results (skills shards + methods + contracts)
         run: |
-          result="${{ needs.pytest-shards.result }}"
-          echo "pytest-shards matrix result: $result"
-          if [ "$result" != "success" ]; then
-            echo "::error title=pytest::one or more pytest shards did not succeed (result=$result)"
-            exit 1
-          fi
-          echo "all pytest shards passed"
+          fail=0
+          check() {
+            echo "$1: $2"
+            if [ "$2" != "success" ]; then
+              echo "::error title=pytest::$1 did not succeed (result=$2)"
+              fail=1
+            fi
+          }
+          check "pytest-shards"    "${{ needs.pytest-shards.result }}"
+          check "methods-pytest"   "${{ needs.methods-pytest.result }}"
+          check "contracts-static" "${{ needs.contracts-static.result }}"
+          check "contracts-pytest" "${{ needs.contracts-pytest.result }}"
+          if [ "$fail" -ne 0 ]; then exit 1; fi
+          echo "all suites passed"

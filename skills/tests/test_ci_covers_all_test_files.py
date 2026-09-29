@@ -56,12 +56,21 @@ def _covered_dirs() -> set[Path]:
     body = _noncomment_lines(WORKFLOW.read_text())
 
     candidates: set[str] = set()
-    # explicit invocations: `pixi run pytest <path> -q ...`
-    for tok in re.findall(r"pytest\s+(\S+)", body):
-        candidates.add(tok)
+    # explicit invocations: `pixi run pytest <path> [<path>...] -q ...` — capture every path
+    # argument up to the first flag, not just the first token (the methods job passes two).
+    for args in re.findall(r"pytest\s+((?:[^\s-][^\s]*\s+)+)", body):
+        candidates.update(args.split())
     # glob-driven loop: `for d in skills/*/tests; do ... pytest "$d" ...`
     for src in re.findall(r"\bfor\s+\w+\s+in\s+([^\n;]+?)\s*;?\s*do\b", body):
         candidates.update(src.split())
+    # consolidated-package whole-tree nets (SK#2063): the contracts jobs pin their steps to
+    # the package dir via `working-directory:` and run a BARE `python -m pytest` (no path
+    # args) that collects the package's entire tree — the same whole-repo safety net the old
+    # target-contracts CI ran, relocated. A working-directory token only counts if it
+    # resolves to a real directory at the repo root (the resolution filter below), so the
+    # runner-workspace working-directories of other jobs drop out.
+    for tok in re.findall(r"working-directory:\s*(\S+)", body):
+        candidates.add(tok)
 
     covered: set[Path] = set()
     for raw in candidates:
