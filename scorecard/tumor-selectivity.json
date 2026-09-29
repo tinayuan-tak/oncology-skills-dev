@@ -1,29 +1,122 @@
 {
   "cells": {
     "L1": {
-      "built": null,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
+          "evidence": {
+            "reason": "criterion (a) re-derivation is a SEPARATE issue (#2001) per this issue's explicit directive \u2014 do NOT fake it here. No analysis-methods T3 raw-substrate re-derivation anchor has been wired into this shard yet for any of tumor-selectivity's cards. Left NULL rather than fabricating a reconciliation against already-derived numbers (a fixture of derived values can never fail)."
+          },
           "status": "NULL"
         },
         "fail_open": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "method": "the shared open-world invariant (`_skills_common.claim_record`, 'ignorance != negation'): a data_unavailable/unreachable bucket forces state=unknown, direction=neutral, magnitude.level=none \u2014 never a manufactured directional finding. tumor-selectivity's `_claim_record` (run.py) feeds this same shared assembler.",
+            "status_as_of": "2026-09-28",
+            "tests": [
+              "skills/tumor-selectivity/tests/test_claim_record_shadow.py::test_data_unavailable_is_open_world_noncommittal (ordinary path, pre-existing)",
+              "skills/tumor-selectivity/tests/test_scorecard_l1_fail_open_probe.py::test_data_unavailable_degrades_conservatively_ordinary_path (ordinary path, re-asserted locally for this shard)",
+              "skills/tumor-selectivity/tests/test_scorecard_l1_fail_open_probe.py::test_teeth_defeating_the_open_world_guard_lets_the_raw_token_leak (TEETH \u2014 monkeypatches claim_record.OPEN_WORLD_AVAILABILITY to frozenset() and shows finding.state leaks the raw 'data_unavailable' token instead of 'unknown'; probe goes RED without the guard, GREEN with it)"
+            ]
+          },
+          "status": "GREEN"
         },
         "panel_consistency": {
-          "evidence": null,
+          "evidence": {
+            "capture_method": "scorecard_adapter.py::_load_package -> skills/tumor-selectivity/scripts/run.py --target <T> --indication <I> (direct, no --full-package fan-out; per #2030, eval/run_scorecard_panel.py --emit times out at 900s)",
+            "card_data_unavailable_by_target": {
+              "EPCAM/COADREAD": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+              "ERBB2/BRCA": "When getting information for key 'data-catalog/derived/brca-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+              "HTR1D/COADREAD": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+              "KRAS/COADREAD": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+              "PLK1/COADREAD": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body."
+            },
+            "checks": {
+              "all_card_data_unavailable": true,
+              "all_pass": false,
+              "all_roster_rows_present": true,
+              "direction_class_not_constant": false,
+              "thin_coverage_control_degrades": false,
+              "window_class_not_constant": false
+            },
+            "method": "per-target rows across the whole 5-target roster (not one flagship), COMPUTED live by collect_panel_rows() (see module docstring) rather than hand-typed: tumor-selectivity's verdict-bearing card classes must differ meaningfully across archetypes (flagship surface, flagship intrinsic driver, amplified surface, pan-essential control, thin-coverage abstention control) rather than collapsing to one constant reading, and the thin-coverage control must show the honest degraded/limited reads its archetype predicts.",
+            "null_reason": "the full 5-pair roster resolved a package for every target, but the two verdict-bearing cards (tumor-vs-normal-selectivity, modality-therapeutic-window) reported a live-read error for EVERY row in this environment \u2014 this credential context lacks S3 access to the underlying *-dge-tumor-vs-normal-sensitivity-v1 derived products (ACCESS_DENIED), not a genuine constant biological reading. Scoring a run this environment cannot actually reach would be a fabricated pass/fail, so panel_consistency is left NULL with this disposition rather than a false RED.",
+            "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
+            "rows": [
+              {
+                "card_data_unavailable": true,
+                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+                "dominant_direction": null,
+                "indication": "COADREAD",
+                "source": "skills/tumor-selectivity/scripts/.panel_cache/EPCAM__coadread/decision.json",
+                "status": "OK",
+                "target": "EPCAM",
+                "therapeutic_window_class": null
+              },
+              {
+                "card_data_unavailable": true,
+                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+                "dominant_direction": null,
+                "indication": "COADREAD",
+                "source": "skills/tumor-selectivity/scripts/.panel_cache/KRAS__coadread/decision.json",
+                "status": "OK",
+                "target": "KRAS",
+                "therapeutic_window_class": null
+              },
+              {
+                "card_data_unavailable": true,
+                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/brca-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+                "dominant_direction": null,
+                "indication": "BRCA",
+                "source": "skills/tumor-selectivity/scripts/.panel_cache/ERBB2__brca/decision.json",
+                "status": "OK",
+                "target": "ERBB2",
+                "therapeutic_window_class": null
+              },
+              {
+                "card_data_unavailable": true,
+                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+                "dominant_direction": null,
+                "indication": "COADREAD",
+                "source": "skills/tumor-selectivity/scripts/.panel_cache/PLK1__coadread/decision.json",
+                "status": "OK",
+                "target": "PLK1",
+                "therapeutic_window_class": null
+              },
+              {
+                "card_data_unavailable": true,
+                "card_data_unavailable_reason": "When getting information for key 'data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet' in bucket 'onc-compbio': AWS Error ACCESS_DENIED during HeadObject operation: No response body.",
+                "dominant_direction": null,
+                "indication": "COADREAD",
+                "source": "skills/tumor-selectivity/scripts/.panel_cache/HTR1D__coadread/decision.json",
+                "status": "OK",
+                "target": "HTR1D",
+                "therapeutic_window_class": null
+              }
+            ],
+            "status_as_of": "2026-09-28"
+          },
           "status": "NULL"
         },
         "utilization": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "coverage": "field_disposition.yaml covers tumor-vs-normal-selectivity + the other 9 composed cards.",
+            "method": "field_disposition.yaml ledger: every emitted summary_field of tumor-selectivity's cards carries an explicit disposition (signal|context|provenance|display), mostly human-authored (reviewed: true on every row). Completeness (ledger == run.py CARDS' emitted summary_fields) and reader-reach for role:signal fields is enforced fleet-wide (not per-skill) by skills/tests/test_field_disposition_ledgers.py, which already lists 'tumor-selectivity' in its tracked skill set.",
+            "status_as_of": "2026-09-28",
+            "tests": [
+              "skills/tests/test_field_disposition_ledgers.py::test_ledgered_skills_only_grow",
+              "skills/tests/test_field_disposition_ledgers.py::test_every_ledger_is_wellformed",
+              "skills/tests/test_field_disposition_ledgers.py::test_the_fleet_reach_measurement_is_not_vacuous",
+              "skills/tests/test_field_disposition_ledgers.py::test_signal_fields_are_reader_reached_or_waived"
+            ]
+          },
+          "status": "GREEN"
         }
       },
-      "notes": null
+      "notes": "L1 = tumor-selectivity's 10 composed cards (2 verdict-driving + sc-normal-celltype-expression normal-breadth veto instrument; the rest additive/verdict-inert display \u2014 see run.py CARDS comments). accuracy left NULL per this issue's directive (re-derivation is separate issue #2001)."
     },
     "L2a": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -42,10 +135,10 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "L2a (source_properties) is NOT_BUILT: tumor-selectivity has not exported a SK#1941-style envelope section. run.py composes 10 cards straight into a headline/verdict with no named, reconstructable per-source export. Architecture gap, not a defect."
     },
     "L2b": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -64,10 +157,10 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "L2b (integrated_properties) is NOT_BUILT: no concordance-island section exists for this skill."
     },
     "L3": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -86,10 +179,10 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "L3 (l3d domain-interpretation story) is NOT_BUILT: no such section exists for this skill."
     },
     "L4": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -108,7 +201,7 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "L4 (SYNTHESIS / decision views) is NOT_BUILT, mirroring tumor-presence's L4 \u2014 out of scope for the whole reference-vertical wave per epic #1938."
     }
   },
   "schema_version": 1,
