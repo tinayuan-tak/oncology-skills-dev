@@ -1,18 +1,24 @@
-# rnd-computational-biology-oncology-analysis-methods
+# methods/ — analysis-methods
 
 Deterministic analytical methods for the Takeda v2 oncology target-evaluation framework.
+Formerly the standalone `analysis-methods` repo; merged into `claude-oncology-skills` as
+the `methods/` package (SK#2063, 2026-09-29) — see root [CLAUDE.md](../CLAUDE.md) for the
+process this package now follows.
 
-## What this repo provides
+## What this package provides
 
 Reusable, language-agnostic analytical code — packaged as CLIs (some R-driven, some Python, some containers). Methods are **skill-runtime-agnostic** — runnable from a Jupyter notebook, a SageMaker batch job, a Claude skill via subprocess, or directly from the command line.
 
-This repo is the third of the v2 framework's five repos. Sits between [target-contracts](https://github.com/oneTakeda/rnd-computational-biology-oncology-target-contracts) (governance) and [claude-oncology-skills](https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills) (orchestration) in the dependency graph. Skills *call* methods; methods don't know about skills.
+Sits between `contracts/` (governance) and `skills/` (orchestration) in this repo's
+dependency graph. Skills *call* methods; methods don't know about skills.
 
 ## Method inventory (102 methods + 4 shared helpers under `methods/`)
 
 Methods are grouped below by the biology gate / evidence axis they serve. Each is a self-contained
-module under `methods/<name>/` with a `read.py` library entry (consumed by the `compose-dashboard`
-dispatcher) and, where it emits figures, a `cli.py` (CLI + figure emitters). The `*_precompute`
+module under `methods/<name>/` with a `read.py` library entry (consumed by the shared
+`_skills_common` dispatcher — the retired `compose-dashboard` orchestrator's live-reader
+engine was rehomed there, 2026-08-20) and, where it emits figures, a `cli.py` (CLI + figure
+emitters). The `*_precompute`
 methods build the gene-sorted derived products that the per-target readers query by pushdown. The
 four shared helpers (`io/`, `depmap_common`, `opentargets_common`, `subgroup_common`) hold code
 reused across a family of methods and are not invoked directly.
@@ -101,7 +107,7 @@ methods/
 │   └── tests/
 ├── depmap_chronos/
 │   ├── cli.py                # CLI + figure helpers (emit_forest_plot, emit_lineage_strip, …)
-│   ├── read.py               # library entry called by compose-dashboard dispatcher
+│   ├── read.py               # library entry called by the shared skill dispatcher
 │   └── tests/
 ├── depmap_chronos_distribution/
 │   ├── cli.py                # CLI + figure helpers (emit_waterfall_plot, emit_histogram_kde_plot, …)
@@ -130,7 +136,7 @@ README.md
 
 ## API convention: public vs private helpers
 
-Method modules separate **library entry** (`read.py`) from **CLI + figure emission** (`cli.py`). The library entry returns a summary dict consumed by the compose-dashboard skill's dispatcher; figure emission helpers in `cli.py` are called BOTH by the CLI's Click entrypoint AND by the skill's figure-emitter registry.
+Method modules separate **library entry** (`read.py`) from **CLI + figure emission** (`cli.py`). The library entry returns a summary dict consumed by the shared `_skills_common` skill dispatcher; figure emission helpers in `cli.py` are called BOTH by the CLI's Click entrypoint AND by the skill's figure-emitter registry.
 
 To make this dual-caller pattern explicit, the following helpers are **public (no underscore prefix)**:
 
@@ -141,7 +147,7 @@ Internal-only helpers (used inside one method only) keep the `_` prefix.
 
 ## Method-output contracts
 
-Every iter-1 method has a corresponding output schema in `target-contracts/schemas/products/`:
+Every iter-1 method has a corresponding output schema in `contracts/schemas/products/`:
 
 - `expression-rna-tumor-vs-adjacent.result.schema.json`
 - `dependency-depmap-chronos.result.schema.json`
@@ -149,16 +155,15 @@ Every iter-1 method has a corresponding output schema in `target-contracts/schem
 - `target-biology-uniprot.result.schema.json`
 - (further per-method schemas land as those methods ship)
 
-A method's output validates against its schema before `compose-dashboard` curates it into a card emission. Output schema drift is caught at compose-time, not silently in the rendered evidence package.
+A method's output validates against its schema before a skill curates it into a card emission. Output schema drift is caught at compose-time, not silently in the rendered evidence package.
 
 ## Status
 
 **102 methods + 4 shared helpers**, spanning every biology gate of the framework (see inventory above). The
 dependency, expression, genomic-alteration, mechanism, PRISM-tractability, safety, and
-target-intrinsic methods are wired into `compose-dashboard` dispatchers with tests + figure
+target-intrinsic methods are wired into skill dispatchers with tests + figure
 emitters; the surface-density and structural-feature methods are partially wired (their upstream
 derived products are still landing in `data-catalog`). Individual method status is tracked per-card
-in `target-contracts` and in the framework-health dashboard there.
+in `contracts/` and in the framework-health dashboard there.
 
-See the [skills repo](https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills)
-for the framework overview and roadmap.
+See the root [README.md](../README.md) for the framework overview and roadmap.

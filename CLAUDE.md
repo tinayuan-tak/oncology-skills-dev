@@ -18,12 +18,9 @@ archived read-only). What this changes:
 - data-catalog is still a SEPARATE sibling repo (stable manifest-ID
   interface); CI checks it out at ONE pinned SHA (skills-validate.yml) —
   bump that pin by hand, rarely.
-- Suite invocation is per-package: skills suites as before; methods suite
-  from `methods/` (`pixi run pytest methods/ tests/ -q -rs
-  --import-mode=importlib -n auto`, needs `AWS_PROFILE=cbg` for live-data
-  tests); contracts gates from `contracts/` (`scripts/preland.sh` — plain
-  pytest does NOT run the validators). NEVER run a whole-tree `pytest` from
-  the repo root: duplicate test basenames kill collection.
+- Gating is per-package via one dispatcher, `scripts/preland.sh` — see the
+  Testing section below. NEVER run a whole-tree `pytest` from the repo root:
+  duplicate test basenames kill collection.
 - The three root symlinks `rnd-computational-biology-oncology-*` are a
   TEMPORARY geometry shim for parent-dir path resolution; do not add code
   that depends on them (package imports / `*_ROOT` env vars instead).
@@ -33,8 +30,8 @@ archived read-only). What this changes:
 Before starting a new workstream in this repo:
 
 1. **Read `~/.claude/wip-registry.md`.** Skills are the highest-level
-   consumers in the framework — a skill change often depends on
-   coordinated changes in analysis-methods and target-contracts.
+   consumers in the framework — a skill change often lands atomically with a
+   coordinated `methods/` or `contracts/` change in the SAME PR.
 
 2. **Reality check.** `gh pr list --author @me --state open` and
    `git branch --list`.
@@ -83,25 +80,31 @@ composes with the coordination ritual above.
 
 ## Directory scopes (grab-bag prevention)
 
-Top-level scope roots: `skills/`, `libs/`, `notebooks/`, `tests/`.
+Top-level scope roots: `skills/`, `methods/`, `contracts/`, `libs/`, `notebooks/`,
+`tests/`, `eval/`.
 
-Each branch's `.claude/branch-scope` should list the specific skill
-directories the branch is allowed to modify. Cross-skill refactors
-should either bundle the affected skills together (declared as multiple
-prefixes in branch-scope) OR — preferably — be done in stages, one
-skill per branch.
+Each branch's `.claude/branch-scope` should list the specific directories the
+branch is allowed to modify — e.g. `skills/tumor-presence/` for a skill change,
+`methods/depmap_chronos/` for a method change, `cards/adc-tce-modality-fit.card.yaml`
+(relative to `contracts/`) for a card change. Cross-skill or cross-package refactors
+should either bundle the affected paths together (declared as multiple prefixes in
+branch-scope) OR — preferably — be done in stages, one skill/package per branch. A
+card + rule + method + skill change that must land atomically (they usually do now —
+see Consolidated layout above) is the deliberate exception: declare all the touched
+prefixes across `skills/`, `methods/`, and `contracts/` in one `branch-scope`.
 
-## Cross-repo dependencies
+## Package dependencies
 
-`claude-oncology-skills` depends on:
-- **analysis-methods** — skills invoke method modules for tier-1 evidence
-- **target-contracts** — skills' `composition.cards_used` references
+`skills/` depends on:
+- **`methods/`** — skills invoke method modules for tier-1 evidence
+- **`contracts/`** — skills' `composition.cards_used` references
   card IDs; `composition.rules_scope` references rule IDs
-- **data-catalog** — indirectly, via analysis-methods
+- **`data-catalog`** (sibling repo) — indirectly, via `methods/`
 
-Before extending a skill's `cards_used`, check registry for active
-card-refactor work in target-contracts. Before wiring a skill to a
-new method, check for active method work in analysis-methods.
+Extending a skill's `cards_used` or wiring it to a new method now lands in the SAME
+PR as the card/method change (one atomic PR — see Consolidated layout above); check
+the WIP registry for an overlapping in-flight branch before starting, same as any
+other path.
 
 ## The trunk (exception to one-workstream-per-branch)
 
@@ -152,22 +155,40 @@ children first, or pass `--retarget-children` to move them onto the base.
 
 `--no-verify` bypass discouraged.
 
-## Testing & landing invariants
+## Testing
 
-- Run pytest under `pixi run` from THIS home checkout, never bare `python` (a bare
-  env red-fails the resolver golden snapshots) and never from a `/tmp` worktree
-  (pixi deep-copies a multi-GB env there → ENOSPC and a wedged `/tmp`). To gate code
-  living in a worktree, run from the home checkout against the worktree paths
-  (e.g. `pixi run pytest /tmp/wt/<branch>/skills/<skill>/tests/ -q`).
-- **Two required status checks gate `main`, and `scripts/preland.sh` mirrors only
-  one of them.** The required contexts are `pytest` (`.github/workflows/skills-validate.yml`)
-  and `ruff` (`.github/workflows/ruff.yml`), `strict: false`, with no rulesets on the branch.
-  `preland.sh` transcribes the `pytest` job's suite steps and runs **no** lint gate, so a green
-  `ALL GATES PASS` does not mean the PR goes green — run the two ruff gates yourself as printed
-  in that script's header. CodeQL / `Analyze (python)` also run on every PR (org-level default
-  setup) but are **not** required and do not gate. Four checks run; two gate. Re-measure rather
-  than trusting this line:
+**One command to memorize**: `scripts/preland.sh` (subcommands
+`skills|methods|contracts|all`; `all` is the default and the right choice for a
+cross-package change). It chains the three packages' prelands plus `ruff`, printing
+each step's PASS/FAIL. Pass a single package name when your change is scoped to it
+(`scripts/preland.sh skills`, `scripts/preland.sh methods`,
+`scripts/preland.sh contracts`) to skip the other two.
+
+**Never pipe a gate to `tail`/`head`.** The pipeline's exit code is the last
+command's, not the gate's — a RED silently reads as green. Redirect to a file
+(`cmd > /tmp/out 2>&1`) and read the script's own PASS/FAIL summary line, never just
+the shell exit code. SKIP ≠ PASS — a module-level `importorskip` or a missing-data
+guard can make a whole file silently skip; reconcile the collected-test count if in
+doubt.
+
+- Run pytest / the dispatcher under `pixi run` from THIS home checkout, never bare
+  `python` (a bare env red-fails the resolver golden snapshots) and never from a
+  `/tmp` worktree (pixi deep-copies a multi-GB env there → ENOSPC and a wedged
+  `/tmp`). To gate code living in a worktree, run from the home checkout against the
+  worktree paths (e.g. `pixi run pytest /tmp/wt/<branch>/skills/<skill>/tests/ -q`).
+- **Two required status checks gate `main`**: `pytest`
+  (`.github/workflows/skills-validate.yml` — fans in the skills shards, the methods
+  suite, and both contracts jobs) and `ruff` (`.github/workflows/ruff.yml`),
+  `strict: false`, no rulesets on the branch. CodeQL / `Analyze (python)` also runs on
+  every PR (org-level default setup) but is **not** required and does not gate. Three
+  checks run; two gate. Re-measure rather than trusting this line:
   `gh api 'repos/{owner}/{repo}/branches/main/protection' --jq .required_status_checks`
+- **Blast-radius exception — gate fully locally before pushing, don't lean on CI**:
+  any change under `cards/` | `interpretation-rules/` | `resolvers/` | `vocabularies/`
+  (inside `contracts/`), or any change that spans `skills/` + `methods/` + `contracts/`
+  in one PR. Run `scripts/preland.sh all` and read the summary before pushing — CI is
+  still authoritative, but a schema violation here can red trunk for every open PR
+  faster than CI catches it.
 - Trunk is `main`. (It was `v2-architecture` until 2026-09-16; anything still saying
   "never `main`" predates the promotion and is wrong.)
 - A resolver / verdict-contract change fans out into golden snapshots + synthetic
@@ -177,6 +198,11 @@ children first, or pass `--retarget-children` to move them onto the base.
   `-k` subset silently misses the fan-out. Regenerate the golden via
   `skills/_skills_common/tests/regenerate_resolver_golden.py` (manually append any NEW
   `rule_id` to the relevant `<gate>.rule_ids` first).
+- **`methods/`**: run `methods/ tests/` together under `--import-mode=importlib`
+  (several method test files share a basename); running `methods/` alone
+  under-collects. Live-data tests need `AWS_PROFILE=cbg` locally.
+- **`contracts/`**: bare python, no pixi (`python validators/validate_cards.py`, …) —
+  `scripts/preland.sh contracts` runs the validator pool plain pytest never touches.
 - Stale skills PR branches share no merge-base with the rewritten trunk, so reland via `gh pr diff <n> > /tmp/pr.patch` then `git apply --3way`
   (NOT a rebase), and push with `git push --force-with-lease`.
 - `--synthesize` needs system python + `BEDROCK_AWS_PROFILE=cmp-dev`. (The `compose-dashboard`

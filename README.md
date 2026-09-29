@@ -66,47 +66,40 @@ that changes the measured biology.
 
 ---
 
-## Prerequisites — these skills are not self-contained
+## Prerequisites — this repo is not self-contained
 
 A compute/compose skill run (`target-profile` and the question skills like
-`tumor-presence`) reaches into the **three sibling repos on the filesystem** and reads data from
-**S3**. Installing this repo alone is not enough. To run them you need:
+`tumor-presence`) reads `methods/` and `contracts/` **in this same tree** (they were
+merged in, SK#2063 — no separate clone needed) plus data-catalog manifests and
+**S3**. Installing this repo alone gets you the code; you still need:
 
-1. **All four repos cloned** — this repo plus
-   [`target-contracts`](https://github.com/oneTakeda/rnd-computational-biology-oncology-target-contracts)
-   (cards/rules/schemas), [`analysis-methods`](https://github.com/oneTakeda/rnd-computational-biology-oncology-analysis-methods)
-   (the `methods.*` modules skills import), and
+1. **`data-catalog` cloned as a sibling** —
    [`data-catalog`](https://github.com/oneTakeda/rnd-computational-biology-oncology-data-catalog)
-   (manifests + the `target_id_resolver` lib).
+   (manifests + the `target_id_resolver` lib) is the one remaining external repo
+   dependency.
 2. **AWS access** — the `cbg` profile for S3 data reads, and `cmp-dev` for the Bedrock LLM synthesis
    (see [AWS configuration](#aws-configuration)). No amount of cloning substitutes for S3 access.
-3. **Repo locations known to the skills** — see below.
 
-### Locating the sibling repos (env vars)
+### Locating `data-catalog` (env var)
 
-By **default** the skills expect the sibling repos at `/home/sagemaker-user/rnd-computational-biology-oncology-*`
-(the shared SageMaker layout that `bootstrap.sh` produces). If you clone them **anywhere else**, point
-the skills at your paths with these environment variables — each falls back to the default when unset,
-so an on-the-standard-layout setup needs nothing:
-
-| Env var | Repo it locates | Default |
-|---|---|---|
-| `TARGET_CONTRACTS_ROOT` | target-contracts | `/home/sagemaker-user/…-target-contracts` |
-| `ANALYSIS_METHODS_ROOT` | analysis-methods | `/home/sagemaker-user/…-analysis-methods` |
-| `DATA_CATALOG_ROOT` | data-catalog | `/home/sagemaker-user/…-data-catalog` |
-| `CLAUDE_ONCOLOGY_SKILLS_ROOT` | this repo (used by target-contracts' validators) | `/home/sagemaker-user/…-claude-oncology-skills` |
+By **default** the skills expect it at
+`/home/sagemaker-user/rnd-computational-biology-oncology-data-catalog` (the shared
+SageMaker layout `bootstrap.sh` produces). If you clone it **anywhere else**, point
+the skills at your path:
 
 ```bash
-# Example: repos cloned under ~/work instead of the default location
-export TARGET_CONTRACTS_ROOT=~/work/rnd-computational-biology-oncology-target-contracts
-export ANALYSIS_METHODS_ROOT=~/work/rnd-computational-biology-oncology-analysis-methods
 export DATA_CATALOG_ROOT=~/work/rnd-computational-biology-oncology-data-catalog
 ```
 
+`TARGET_CONTRACTS_ROOT` / `ANALYSIS_METHODS_ROOT` still exist as escape-hatch
+overrides (`skills/_skills_common/paths.py`) for the rare case you need to point a
+skill at a `contracts/` or `methods/` tree outside this checkout — their defaults
+now resolve to `./contracts` and `./methods` in this repo, not a sibling clone.
+
 > **Lighter footprint:** the retrieval-only [`query-target-evidence`](skills/query-target-evidence/)
-> skill reads a finished `evidence.json` from S3 and needs **only S3 access** — no sibling repos.
-> `render-evidence-package` needs only `target-contracts` (for schemas). The full dependency set
-> above applies to the compute/compose skills.
+> skill reads a finished `evidence.json` from S3 and needs **only S3 access** — no
+> `data-catalog` clone. `render-evidence-package` needs only the in-tree `contracts/`
+> schemas. The full dependency set above applies to the compute/compose skills.
 
 ---
 
@@ -247,23 +240,25 @@ envelope via `run_wired_skill --emit-envelope` + `_skills_common/envelope.py`
 
 ---
 
-## The four-repo ecosystem
+## The package layout (consolidated 2026-09-29, SK#2063)
 
-`claude-oncology-skills` is the top-level consumer. A skill change often needs coordinated
-changes downstream:
+`analysis-methods` and `target-contracts` were merged into this repo as `methods/`
+and `contracts/` — a card/rule/method/skill change is now ONE atomic PR, no sibling
+pins or bump PRs. `data-catalog` remains a separate sibling repo (stable manifest-ID
+interface).
 
-| Repo | Owns | This repo's dependency |
+| Package | Owns | This repo's dependency |
 |---|---|---|
-| **claude-oncology-skills** (here) | Skills — one biological question each; composition | — |
-| [`target-contracts`](https://github.com/oneTakeda/rnd-computational-biology-oncology-target-contracts) | Evidence **cards**, rules, dashboard specs, schemas, vocabularies | Skills' `cards_used` / `rules_scope` reference IDs here |
-| [`analysis-methods`](https://github.com/oneTakeda/rnd-computational-biology-oncology-analysis-methods) | **Method modules** — the actual compute | Skills invoke method CLIs for tier-1 evidence |
-| [`data-catalog`](https://github.com/oneTakeda/rnd-computational-biology-oncology-data-catalog) | Versioned source + derived-product **manifests** (GDC release + UUID + pipeline-version pins) | Indirectly, via `analysis-methods`; provenance flows through catalog manifest IDs |
+| `skills/` (here) | Skills — one biological question each; composition | — |
+| `contracts/` (here) | Evidence **cards**, rules, dashboard specs, schemas, vocabularies | Skills' `cards_used` / `rules_scope` reference IDs here |
+| `methods/` (here) | **Method modules** — the actual compute | Skills invoke method CLIs for tier-1 evidence |
+| [`data-catalog`](https://github.com/oneTakeda/rnd-computational-biology-oncology-data-catalog) (sibling) | Versioned source + derived-product **manifests** (GDC release + UUID + pipeline-version pins) | Indirectly, via `methods/`; provenance flows through catalog manifest IDs |
 
-`target-profile --emit evidence-package` writes the emitted evidence packages (the retired
-`compose-dashboard` formerly wrote them into a `data-products` repo).
+`target-profile --emit evidence-package` writes the emitted evidence packages (the
+retired `compose-dashboard` formerly wrote them into a separate `data-products` repo).
 
-See [CLAUDE.md](CLAUDE.md) for the cross-session coordination ritual and branch discipline —
-because multiple parallel sessions edit these repos, claim your workstream in
+See [CLAUDE.md](CLAUDE.md) — the sole process entry point — for the cross-session
+coordination ritual and branch discipline: claim your workstream in
 `~/.claude/wip-registry.md` before non-trivial writes.
 
 ---
@@ -327,10 +322,12 @@ cd rnd-computational-biology-oncology-claude-oncology-skills
 pixi install
 ```
 
-A fresh clone lands on `main`, which is the framework — no `git checkout` step. The three
-sibling repos (`analysis-methods`, `target-contracts`, `data-catalog`) are editable path
-dependencies and must be cloned **side by side** with this one; `pixi install` resolves them
-from `../rnd-computational-biology-oncology-*`.
+A fresh clone lands on `main`, which is the framework — no `git checkout` step.
+`methods/` and `contracts/` are in-tree editable path dependencies (`./methods`,
+`./contracts` in `pixi.toml`) — nothing to clone for them. `data-catalog` is the one
+remaining sibling repo (its `libs/target_id_resolver` is an editable path dependency)
+and must be cloned **side by side** with this one; `pixi install` resolves it from
+`../rnd-computational-biology-oncology-data-catalog`.
 
 Run a focused question skill against live S3 (example — dependency call for KRAS in CRC):
 
@@ -434,20 +431,25 @@ v1 `analysis-*` / `workflow-*` skills carry their own isolated `pixi.toml`.
 
 ## Continuous integration
 
-`.github/workflows/skills-validate.yml` runs on every PR touching `skills/**` (or the pixi
-env / the workflow file itself). Because this repo editable-depends on three siblings, CI
-checks them out adjacent under the workspace — using the `CROSS_REPO_TOKEN` repo/org secret
-(a PAT or GitHub App token with `contents:read` on the siblings), falling back to the default
-`GITHUB_TOKEN` — so `pixi install --locked` resolves the `../` paths.
+`.github/workflows/skills-validate.yml` runs on every PR (or `push: main`). Since
+`methods/` and `contracts/` are in-tree, CI only checks out one sibling —
+`data-catalog` (pinned by SHA, for its manifests / `target_id_resolver` editable
+pixi dep) — using the `CROSS_REPO_TOKEN` repo/org secret (a PAT or GitHub App token
+with `contents:read`), falling back to the default `GITHUB_TOKEN`.
 
-**Blocking gate** — three suites must pass:
+The workflow's required `pytest` check is a fan-in over four jobs: the skills
+`pytest-shards`, `methods-pytest`, and the two contracts jobs (`contracts-static`,
+`contracts-pytest`). Locally, `scripts/preland.sh all` mirrors this fan-in (see
+[CLAUDE.md](CLAUDE.md)'s Testing section for the dispatcher and the blast-radius
+cases you must gate fully locally before pushing).
+
+**Blocking, within the skills fan-in**:
 
 - `skills/_skills_common/tests/` — the shared harness
 - `skills/target-profile/tests/` — the composed nomination skill
 - `skills/tests/` — the cross-skill invariant guards: Guard B (`CARDS ⊆ cards_used`),
   composition-declarations, resolver-verdict-consumers, no-reference-drift, scope,
-  reviewer-driven-upgrades (this top-level dir is *not* matched by the per-skill
-  `skills/*/tests` glob, so these guards previously never ran in CI).
+  reviewer-driven-upgrades
 
 **Non-blocking coverage** — the remaining per-skill suites each run in their own pytest
 process (isolating each `run.py` import) and report failures as `::warning::` without gating.

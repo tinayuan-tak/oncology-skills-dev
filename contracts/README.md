@@ -1,29 +1,36 @@
-# rnd-computational-biology-oncology-target-contracts
+# contracts/ — target-contracts
 
 **The governance layer of the Takeda v2 oncology target-evaluation framework.**
+Formerly the standalone `target-contracts` repo; merged into `claude-oncology-skills`
+as the `contracts/` package (SK#2063, 2026-09-29) — see root [CLAUDE.md](../CLAUDE.md)
+for the process this package now follows.
 
-This repo holds the *contracts* — the declarative definitions that every downstream artifact
+This package holds the *contracts* — the declarative definitions that every downstream artifact
 must conform to. It contains **no analysis code and no data**: only the schemas, evidence-card
 definitions, interpretation rules, controlled vocabularies, and dashboard specs that pin down
 *what* a piece of evidence is, *how* it maps to a verdict, and *what vocabulary* the framework
-is allowed to speak. Analysis code lives in `analysis-methods`; data lives in `data-catalog`;
-generated outputs live in `data-products`. This repo is the shared language the other three agree on.
+is allowed to speak. Analysis code lives in `methods/`; data lives in the sibling `data-catalog`
+repo. This package is the shared language the rest of the repo agrees on.
 
 ---
 
-## The four-repo ecosystem
+## Package relationships
 
-| Repo | Owns | Relationship to this repo |
+| Package / repo | Owns | Relationship to this package |
 |---|---|---|
-| [`data-catalog`](https://github.com/oneTakeda/rnd-computational-biology-oncology-data-catalog) | Versioned source + derived-product **manifests** | Cards reference its manifest IDs as their data provenance |
-| [`analysis-methods`](https://github.com/oneTakeda/rnd-computational-biology-oncology-analysis-methods) | **Method modules** — the deterministic compute | Cards' `methods:` list names method modules; methods validate output against product schemas here |
-| **target-contracts** (here) | **Cards, rules, schemas, vocabularies, dashboard specs** | The governance spine — everything else conforms to it |
-| [`claude-oncology-skills`](https://github.com/oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills) | **Skills** — one biological question each; composition | Skills' `cards_used:` / `rules_scope:` reference IDs defined here |
-| [`data-products`](https://github.com/oneTakeda/rnd-computational-biology-oncology-data-products) | Generated **evidence packages** per target × indication | Emitted by `compose-dashboard` against a `dashboard_spec` from here |
+| [`data-catalog`](https://github.com/oneTakeda/rnd-computational-biology-oncology-data-catalog) (sibling repo) | Versioned source + derived-product **manifests** | Cards reference its manifest IDs as their data provenance |
+| `methods/` (this repo) | **Method modules** — the deterministic compute | Cards' `methods:` list names method modules; methods validate output against product schemas here |
+| **contracts/** (here) | **Cards, rules, schemas, vocabularies, dashboard specs** | The governance spine — everything else conforms to it |
+| `skills/` (this repo) | **Skills** — one biological question each; composition | Skills' `cards_used:` / `rules_scope:` reference IDs defined here |
 
-The dependency arrow points *into* this repo from `analysis-methods` and `claude-oncology-skills`.
-A card rename or deletion here is a breaking change for both — see [CLAUDE.md](CLAUDE.md) for the
-cross-session coordination ritual that must precede any card/rule ID change.
+`skills/target-profile --emit evidence-package` writes the generated evidence
+packages (the retired `compose-dashboard` orchestrator formerly wrote them into a
+separate `data-products` repo, retired 2026-08-20).
+
+The dependency arrow points *into* this package from `methods/` and `skills/`.
+A card rename or deletion here is a breaking change for both — see root
+[CLAUDE.md](../CLAUDE.md) for the cross-session coordination ritual that must
+precede any card/rule ID change.
 
 ---
 
@@ -82,9 +89,10 @@ Cards carry *numbers*; **interpretation rules** and **resolvers** turn them into
   producing a class label.
 - **`resolvers/*.resolver.yaml`** — one declarative resolver per gate (`dependency`, `selectivity`,
   `genomic_alteration`, `mechanism`, `safety`, `differentiation`, `surface_modality`,
-  `tractability_small_molecule`, `synthetic_lethal_partners`). A single shared interpreter executes these,
-  so both the skill engine and
-  `compose-dashboard` fire the *same* rule kernel. This is what keeps a verdict byte-stable across callers.
+  `tractability_small_molecule`, `synthetic_lethal_partners`). A single shared interpreter
+  (`skills/_skills_common/resolver.py`) executes these, so every caller — every focused
+  skill and the composed `target-profile` — fires the *same* rule kernel. This is what
+  keeps a verdict byte-stable across callers.
 
 ### Vocabularies — the controlled language
 
@@ -117,16 +125,18 @@ at compose-time, so schema drift is caught before it reaches a rendered evidence
 ## Validation
 
 Every contract type has a validator under `validators/`, run in CI (`.github/workflows/`) and via
-the pre-commit hook:
+the pre-commit hook. This package is **bare python — no pixi**:
 
 ```bash
-pixi install
-pixi run python validators/validate_cards.py                 # cards + biology_axis/modality_relevance enforcement
-pixi run python validators/validate_interpretation_rules.py  # rule sets vs rule schema
-pixi run python validators/validate_resolvers.py             # resolver sets vs resolver schema
-pixi run python validators/validate_measurement_types.py     # measurement_type registry consistency
-pixi run python validators/validate_subgroup_assignments.py  # subgroup catalog integrity
+python validators/validate_cards.py                 # cards + biology_axis/modality_relevance enforcement
+python validators/validate_interpretation_rules.py  # rule sets vs rule schema
+python validators/validate_resolvers.py             # resolver sets vs resolver schema
+python validators/validate_measurement_types.py     # measurement_type registry consistency
+python validators/validate_subgroup_assignments.py  # subgroup catalog integrity
 ```
+
+Or run the full validator pool plus ruff in one shot: `scripts/preland.sh` (from
+`contracts/`) — or `scripts/preland.sh contracts` from the repo root.
 
 The `validators/framework_health/` module derives component health from ground truth (does the card
 actually fire in a real package? does its dispatcher import?) and flags drift against declared status;
@@ -142,8 +152,8 @@ verdict` graph) and *what's live* (health, computed in-process via `framework_he
 shareable artifact for collaborators. `validators/output_registry/publish_dashboard.py` regenerates it
 fresh and publishes to both S3 (with a time-boxed presigned link) and a dated GitHub release.
 
-Two `make` targets wrap the flow (both read the three sibling repos — `target-contracts`,
-`claude-oncology-skills`, `data-catalog` — fresh, so keep them checked out and current):
+Two `make` targets wrap the flow (reads this consolidated repo plus the sibling
+`data-catalog` fresh, so keep the latter checked out and current):
 
 ```bash
 make dashboard-dry                       # assemble + stamp, NO S3 / gh writes (sanity check)
@@ -186,14 +196,15 @@ the presigned URL — not a static-website link — is how the live view is shar
 
 ## Local development
 
+`contracts/` is part of the `claude-oncology-skills` monorepo — no separate clone.
+From a checkout of that repo:
+
 ```bash
-git clone https://github.com/oneTakeda/rnd-computational-biology-oncology-target-contracts.git
-cd rnd-computational-biology-oncology-target-contracts
-pixi install
-pixi run python validators/validate_cards.py   # sanity-check the contracts
+cd contracts
+python validators/validate_cards.py   # sanity-check the contracts
 ```
 
-This repo is pure YAML + JSON + Python validators — no S3 access or AWS credentials required.
+This package is pure YAML + JSON + Python validators — no S3 access or AWS credentials required.
 
 ---
 
