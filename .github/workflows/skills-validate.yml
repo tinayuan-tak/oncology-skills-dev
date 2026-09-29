@@ -37,6 +37,24 @@ name: Skills Validate
 # required-check deadlock). Running the (fast, self-skipping-when-credential-less) suite on every PR
 # is the robust way to keep the required check from ever wedging a merge. Do NOT re-add `paths:` here
 # without first dropping `pytest` from the branch-protection required set.
+#
+# PATH-SCOPING (2026-09-29, #2092): every PR used to run all jobs. It now runs a fast `changes`
+# job first (git-diff vs the PR merge-base) that decides which of the heavier legs to run. The
+# scoping is done with job-level `if:` conditions keyed on that job's outputs — NOT an `on.paths`
+# filter, which would re-introduce the required-check deadlock above (a skipped-by-`on.paths`
+# workflow never posts its required context). The `pytest` fan-in ALWAYS runs and posts, and it
+# distinguishes an EXPECTED skip (the change-filter said skip that leg) from a wrong one (a leg
+# that skipped when the filter said run it, or failed) — see the fan-in job at the bottom.
+# Skip rules (derived from the measured coupling map: skills → methods + contracts at runtime;
+# methods → contracts; contracts jobs are hermetic — *_ROOT pinned to /nonexistent):
+#   • skills-only / docs-only PR  → skip methods-pytest + contracts-static + contracts-pytest
+#   • methods-touching PR         → run methods-pytest (+ skills shards); contracts stays skipped
+#   • contracts-touching PR       → run EVERYTHING (methods depends on contracts; skills on both)
+#   • push:main (or any non-PR)   → run EVERYTHING (the trunk-green signal must be complete)
+# The skills shards are NEVER skipped on a code PR — they are the always-on base leg. If #2090
+# (un-skip the contracts /nonexistent sibling shim) lands, the contracts jobs become non-hermetic
+# on skills/methods content and these skip rules must be re-derived (contracts would then need to
+# run on skills/methods changes too).
 on:
   pull_request:
   push:
@@ -51,7 +69,62 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+env:
+  # Single source of truth for the data-catalog checkout pin (hoisted 2026-09-29, #2092): the SHA
+  # appeared verbatim in two checkout steps, kept in sync by comment only. Both reference
+  # ${{ env.DATA_CATALOG_SHA }} below so the two vintages cannot drift. PINNED — main @
+  # 2026-09-19T03:35:25Z; adds the depmap-predictability-26q1-v4 manifest so the v4-default reader
+  # resolves. Bump BY HAND (rarely; data-catalog moves slowly) and treat the bumping PR as the
+  # integration test. NOTE: the nightly + discordance-monitor workflows deliberately check out
+  # data-catalog `main` (UNPINNED) — a known vintage skew vs this pin, documented in their headers.
+  DATA_CATALOG_SHA: 13aef1944d4a4e417fbba5889690b1d2b16a04a4
+
 jobs:
+  # CHANGE-DETECTION (#2092). Fast (~checkout-only) job that diffs the PR against its merge-base and
+  # decides which heavy legs to run. Consumed by the `if:` on methods-pytest / contracts-* and by the
+  # `pytest` fan-in (which treats a skip as OK ONLY when this job said skip that leg). On a non-PR
+  # event (push:main, workflow_dispatch) there is no base to diff → every leg runs. NEVER use an
+  # `on.paths` filter for this instead — that deadlocks the required `pytest` check (see header).
+  changes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      methods: ${{ steps.filter.outputs.methods }}
+      contracts: ${{ steps.filter.outputs.contracts }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # need the merge-base to diff the PR's changed files
+      - name: Compute changed-package filters
+        id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            # push:main / workflow_dispatch — no base to diff; run every leg (trunk-green signal
+            # must exercise the whole matrix, never a scoped subset).
+            echo "non-PR event (${{ github.event_name }}) — running all legs"
+            echo "methods=true"   >> "$GITHUB_OUTPUT"
+            echo "contracts=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          base="${{ github.event.pull_request.base.ref }}"
+          git fetch -q origin "$base"
+          # three-dot: compare HEAD against the merge-base with the target branch (what THIS PR
+          # changed). No `|| true` fail-open — a diff error must fail this job, not silently green.
+          changed=$(git diff --name-only --diff-filter=ACMRD "origin/$base"...HEAD)
+          echo "Changed files:"; echo "$changed"
+          contracts=false
+          methods=false
+          # contracts jobs are hermetic → they only need to run when contracts/ itself changed.
+          if echo "$changed" | grep -qE '^contracts/'; then contracts=true; fi
+          # methods leg runs when methods/ changed OR contracts/ changed (methods imports contracts).
+          if echo "$changed" | grep -qE '^methods/'; then methods=true; fi
+          if [ "$contracts" = "true" ]; then methods=true; fi
+          echo "Resolved legs: methods=$methods contracts=$contracts (skills shards always run)"
+          echo "methods=$methods"     >> "$GITHUB_OUTPUT"
+          echo "contracts=$contracts" >> "$GITHUB_OUTPUT"
+
   pytest-shards:
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -84,9 +157,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
-          # PINNED — main @ 2026-09-19T03:35:25Z. Bumped BY HAND alongside analysis-methods: adds the
-          # depmap-predictability-26q1-v4 manifest so the v4-default reader can resolve; see CONSOLIDATED LAYOUT above.
-          ref: 13aef1944d4a4e417fbba5889690b1d2b16a04a4
+          # PINNED via the workflow-level env.DATA_CATALOG_SHA (hoisted #2092) — single source of
+          # truth shared with the methods-pytest checkout so the two vintages cannot drift.
+          ref: ${{ env.DATA_CATALOG_SHA }}
           path: rnd-computational-biology-oncology-data-catalog
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
@@ -206,6 +279,11 @@ jobs:
   # on the one machine that gates merges). target-contracts is now the PR's OWN tree —
   # a card/rule change and the methods change it pairs with are tested atomically.
   methods-pytest:
+    needs: changes
+    # PATH-SCOPING (#2092): run when methods/ or contracts/ changed (methods imports contracts), or
+    # on any non-PR event (changes sets both outputs true). A skills-only/docs-only PR skips this;
+    # the fan-in accepts that skip ONLY because this same output told it to.
+    if: needs.changes.outputs.methods == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     permissions:
@@ -222,8 +300,9 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
-          # Same pin as the pytest-shards job — ONE data-catalog vintage per workflow run.
-          ref: 13aef1944d4a4e417fbba5889690b1d2b16a04a4
+          # Same pin as the pytest-shards job — ONE data-catalog vintage per workflow run, now
+          # enforced structurally by the shared workflow-level env.DATA_CATALOG_SHA (#2092).
+          ref: ${{ env.DATA_CATALOG_SHA }}
           path: rnd-computational-biology-oncology-data-catalog
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
@@ -263,6 +342,13 @@ jobs:
   # scope byte-identical to pre-merge TC CI. Un-skipping the sibling-gated families (skills/
   # is now ALWAYS present) is a deliberate follow-up decision, not a merge side effect.
   contracts-static:
+    needs: changes
+    # PATH-SCOPING (#2092): contracts jobs are hermetic (*_ROOT pinned to /nonexistent), so they
+    # only need to run when contracts/ itself changed (or any non-PR event). Skills-only /
+    # methods-only PRs skip both contracts legs; the fan-in accepts that skip because this output
+    # told it to. NOTE: if #2090 un-pins the /nonexistent shim these legs stop being hermetic and
+    # this condition must widen (see the header skip-rule note).
+    if: needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -322,6 +408,10 @@ jobs:
         run: python validators/architecture_dashboard/living/build_living_doc.py --self-check
 
   contracts-pytest:
+    needs: changes
+    # PATH-SCOPING (#2092): same rule as contracts-static — hermetic, runs only on a
+    # contracts-touching PR (or non-PR event).
+    if: needs.changes.outputs.contracts == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -367,23 +457,57 @@ jobs:
   # so it reports even when an upstream job fails — a required check that never posts leaves
   # the PR permanently "Expected — waiting for status" (the required-check deadlock).
   pytest:
-    needs: [pytest-shards, methods-pytest, contracts-static, contracts-pytest]
+    needs: [changes, pytest-shards, methods-pytest, contracts-static, contracts-pytest]
     if: always()
     runs-on: ubuntu-latest
     steps:
-      - name: Aggregate results (skills shards + methods + contracts)
+      # PER-LEG FAN-IN (#2092). The old aggregator demanded `success` from every leg, which would
+      # red the required check the moment path-scoping legitimately SKIPPED a leg. Blanket
+      # skipped-is-ok is the opposite trap: it would green a leg that skipped when it should have
+      # run (a mis-gate hiding a regression). So each gated leg is OK iff it SUCCEEDED, or it was
+      # SKIPPED **and the change-filter output said skip that leg**. The always-on legs (changes,
+      # pytest-shards) must succeed outright. cancelled/failure is never OK. `if: always()` so this
+      # required context always posts (a never-posting required check deadlocks the merge).
+      - name: Aggregate results (skills shards + methods + contracts, path-scope aware)
+        env:
+          RUN_METHODS: ${{ needs.changes.outputs.methods }}
+          RUN_CONTRACTS: ${{ needs.changes.outputs.contracts }}
+          R_CHANGES: ${{ needs.changes.result }}
+          R_SHARDS: ${{ needs.pytest-shards.result }}
+          R_METHODS: ${{ needs.methods-pytest.result }}
+          R_CSTATIC: ${{ needs.contracts-static.result }}
+          R_CPYTEST: ${{ needs.contracts-pytest.result }}
         run: |
+          set -uo pipefail
           fail=0
-          check() {
-            echo "$1: $2"
+          # An always-on leg must succeed.
+          check_always() {  # $1=name $2=result
+            echo "$1: $2 (must always run)"
             if [ "$2" != "success" ]; then
               echo "::error title=pytest::$1 did not succeed (result=$2)"
               fail=1
             fi
           }
-          check "pytest-shards"    "${{ needs.pytest-shards.result }}"
-          check "methods-pytest"   "${{ needs.methods-pytest.result }}"
-          check "contracts-static" "${{ needs.contracts-static.result }}"
-          check "contracts-pytest" "${{ needs.contracts-pytest.result }}"
+          # A path-scoped leg: success when selected to run; a clean skip ONLY when the filter said skip.
+          check_gated() {  # $1=name $2=result $3=should_run(true/false)
+            echo "$1: $2 (filter run=$3)"
+            if [ "$3" = "true" ]; then
+              if [ "$2" != "success" ]; then
+                echo "::error title=pytest::$1 was selected to run but result=$2"
+                fail=1
+              fi
+            else
+              # filter said skip → the ONLY acceptable non-success is a clean skip
+              if [ "$2" != "skipped" ]; then
+                echo "::error title=pytest::$1 filter said skip but result=$2 (expected 'skipped')"
+                fail=1
+              fi
+            fi
+          }
+          check_always "changes"       "$R_CHANGES"
+          check_always "pytest-shards" "$R_SHARDS"
+          check_gated  "methods-pytest"   "$R_METHODS"  "$RUN_METHODS"
+          check_gated  "contracts-static" "$R_CSTATIC"  "$RUN_CONTRACTS"
+          check_gated  "contracts-pytest" "$R_CPYTEST"  "$RUN_CONTRACTS"
           if [ "$fail" -ne 0 ]; then exit 1; fi
-          echo "all suites passed"
+          echo "all selected suites passed (any skipped leg matched the change-filter)"

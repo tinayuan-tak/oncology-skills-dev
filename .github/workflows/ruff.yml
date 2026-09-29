@@ -19,6 +19,14 @@ name: ruff
 on:
   pull_request:
 
+# CONCURRENCY (2026-09-29, #2092): mirror skills-validate.yml — group by workflow+ref and cancel
+# superseded runs on pull_request (push-amend churn re-ran the whole-tree format check + diff lint
+# needlessly). This workflow is pull_request-only, but the conditional is kept so a future push
+# trigger would not cancel a trunk run.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   ruff:
     runs-on: ubuntu-latest
@@ -36,7 +44,11 @@ jobs:
           set -euo pipefail
           base="${{ github.base_ref }}"
           git fetch -q origin "$base"
-          changed=$(git diff --name-only --diff-filter=ACMR "origin/$base"...HEAD -- '*.py' || true)
+          # NO `|| true` (#2092): a `git diff` ERROR (bad ref, missing base) must FAIL this step,
+          # not fall through to "No changed .py files" and green the required check (fail-open).
+          # `git diff --name-only` exits 0 on a clean diff and non-zero only on a real error, so
+          # under `set -e` a genuine error stops the step while an empty diff is handled below.
+          changed=$(git diff --name-only --diff-filter=ACMR "origin/$base"...HEAD -- '*.py')
           if [ -z "$changed" ]; then echo "No changed .py files."; exit 0; fi
           echo "Changed .py files:"; echo "$changed"
           echo "$changed" | xargs ruff check

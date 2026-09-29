@@ -22,9 +22,22 @@ name: Nightly Live Drift (card-behavior matrix + target-intrinsic + tumor-presen
 #
 # CREDENTIAL GATING (honest-scaffold): the live freeze needs AWS creds, which no other workflow in
 # this repo uses (all PR CI self-skips live-S3). Until an OIDC role is provisioned as the repo secret
-# AWS_ROLE_TO_ASSUME, the freeze steps are SKIPPED and the job simply re-verifies the COMMITTED
-# fixtures (green — same as the PR suite). Once the secret exists, the freezes run live and the job
-# goes red on real drift. This keeps the workflow from false-reddening before the role is wired.
+# AWS_ROLE_TO_ASSUME, the freeze steps are SKIPPED. Once the secret exists, the freezes run live and
+# the job goes red on real drift. This keeps the workflow from false-reddening before the role is wired.
+#
+# NO-CREDS EARLY-EXIT (#2092): when HAVE_AWS is false the four dossier asserts below are gated OFF —
+# without a live re-freeze they read the SAME committed fixtures the PR suite already asserts every
+# PR (a strict-subset re-run: card_behavior_matrix + target-intrinsic + tumor-presence +
+# tumor-selectivity all run in skills-validate's pytest-shards). So credential-less the job posts
+# the no-creds warning and exits green having done nothing PR CI didn't. The LIVE half (freezes +
+# breadth smoke + drift-fail) is untouched and still runs the instant the OIDC role lands.
+#
+# DATA-CATALOG VINTAGE SKEW (decide when the OIDC role lands): this nightly (and discordance-monitor)
+# check out data-catalog at `ref: main` (UNPINNED), whereas PR CI (skills-validate.yml) pins
+# env.DATA_CATALOG_SHA. Once live freezes run, a manifest that moved on data-catalog main but not at
+# the PR pin could surface here as "drift" that PR CI cannot see. Decide then whether the nightly
+# should pin the same SHA (reproducible, but blind to catalog drift — arguably the thing a nightly
+# SHOULD catch) or stay on main (catches catalog drift, at the cost of a moving reference).
 
 on:
   schedule:
@@ -160,6 +173,7 @@ jobs:
       # Assert the four-state matrix. When the freeze ran, this is against FRESH live data (drift →
       # red). When it didn't, it re-verifies the committed fixtures (same as the PR suite).
       - name: Assert card-behavior matrix (four-state)
+        if: env.HAVE_AWS == 'true'   # no-creds early-exit (#2092): PR CI already asserts this fixture
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         run: pixi run pytest skills/tests/card_behavior_matrix/ -q --import-mode=importlib
 
@@ -167,6 +181,7 @@ jobs:
       # FRESH fixture (drift → red via the >=12 headline drift floor); the live golden also runs
       # end-to-end. When creds are absent, this re-verifies the committed fixture (same as the PR suite).
       - name: Assert target-intrinsic dossier (drift floor + live golden)
+        if: env.HAVE_AWS == 'true'   # no-creds early-exit (#2092): PR CI already asserts this fixture
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         run: pixi run pytest skills/target-intrinsic/tests/ -q --import-mode=importlib
 
@@ -176,6 +191,7 @@ jobs:
       # absent, this re-verifies the committed fixture (same as the PR suite). Unlike target-intrinsic,
       # tumor-presence has NO live golden, so this re-freeze is its ONLY guard against snapshot staleness.
       - name: Assert tumor-presence dossier (verdict + bucket + headline drift floors)
+        if: env.HAVE_AWS == 'true'   # no-creds early-exit (#2092): PR CI already asserts this fixture
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         run: pixi run pytest skills/tumor-presence/tests/ -q --import-mode=importlib
 
@@ -185,6 +201,7 @@ jobs:
       # normal-breadth veto) + the >=20 non-null headline floor. When creds are absent, this
       # re-verifies the committed fixtures (same as the PR suite).
       - name: Assert tumor-selectivity dossier (verdict collapse + veto + headline drift floors)
+        if: env.HAVE_AWS == 'true'   # no-creds early-exit (#2092): PR CI already asserts this fixture
         working-directory: rnd-computational-biology-oncology-claude-oncology-skills
         run: pixi run pytest skills/tumor-selectivity/tests/ -q --import-mode=importlib
 
@@ -204,7 +221,9 @@ jobs:
           echo "no live drift across any dossier — nightly green"
 
       - name: Upload refreshed fixtures
-        if: always()
+        # always() so a red assert still archives the refreshed fixtures; gated on HAVE_AWS (#2092)
+        # because credential-less there is no re-freeze — nothing new to upload (no-creds early-exit).
+        if: always() && env.HAVE_AWS == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: nightly-live-drift-fixtures
