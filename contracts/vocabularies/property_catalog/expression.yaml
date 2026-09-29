@@ -1,0 +1,463 @@
+# expression.yaml — the shared expression-property family.
+#
+# Register (not engine) for the eight properties governed by vocabularies/expression_property.enum.yaml
+# v1.0.0 and resolved by methods/methods/expression_properties/resolve.py. See README.md for the entry
+# shape and the identifiability test that admits `role: estimator`.
+catalog_id: expression
+kind: l2a_property
+version: 1.0.0
+
+description: |
+  Expression is the most over-loaded word in the framework: "is it expressed" can mean
+  detected-at-all, high-relative-to-other-genes, expressed-in-most-samples, or
+  expressed-uniformly — four different latent quantities that a single `expression_class`
+  token collapses. This file names them separately so a measurement can say which one it
+  resolved, and so two skills asking "is it expressed" can tell whether they are asking the
+  same question.
+
+  Today all five resolvable properties are supplied by ONE observable card
+  (cellline-rna-distribution). That is a real limitation, not an omission: the tumour-grain
+  twins live in tumor_presence.yaml as separate properties precisely because a cell-line panel
+  and a patient cohort are different sample contexts and fail the identifiability test against
+  each other.
+
+governance:
+  role: |
+    Authoritative for: what each expression property MEANS, which observables estimate it, and
+    which numbers decide its value. NOT authoritative for the value vocabulary — that is
+    vocabularies/expression_property.enum.yaml, which owns the tokens and their signal_ord.
+  versioning: |
+    Semver. Adding a property or an observable is a MINOR bump. Correcting a rationale, a unit,
+    or a `source:` path is a PATCH bump. Removing a property, or changing an existing property's
+    `grain`, is BREAKING and requires a MAJOR bump plus coordination via the wip-registry —
+    `validate_property_catalog.py --additive-against <ref>` makes an un-bumped removal RED.
+  ownership: |
+    Epic #1507 (evidence-property architecture), arc #2210 Wave-0a. Threshold rationales are
+    filled by Wave-3 (#2218 docs sweep, #2220-#2223 the four confirmed divergences).
+  change_discipline: |
+    `property_id`s are published names referenced from outside this directory (#2228's
+    claim_axis registry `resolves:` field). Migrate by add -> consume -> remove, never a bare
+    rename.
+
+properties:
+
+  presence:
+    status: resolvable
+    definition: |
+      Is the target transcript detectable above the assay's detection floor in this sample
+      population at all? A breadth-above-floor question, deliberately not a level question.
+    grain:
+      measurement_type: rna_expression_distribution
+      sample_context: cell_line_panel
+      entity_grain: gene
+    observables:
+      - card_id: cellline-rna-distribution
+        field: fraction_expressed
+        role: estimator
+        dependence_group: depmap_rna
+        note: |
+          Primary supply: the fraction of the panel above the detection floor.
+      - card_id: cellline-rna-distribution
+        field: median_log2tpm_panel
+        role: estimator
+        dependence_group: depmap_rna
+        note: |
+          Corroborating supply, and the rescue path: a solidly-expressing median lifts a
+          subset-level fraction from `weak` to `supported`. Same dependence_group as
+          fraction_expressed — these are two summaries of ONE matrix, never two arms.
+    determinants:
+      - name: _PRESENCE_SUPPORTED_FRACTION
+        value: 0.50
+        unit: fraction_of_panel_above_detection_floor
+        source: methods/methods/expression_properties/resolve.py:78
+        rationale: |
+          A majority of the panel above the floor is the weakest claim that still supports
+          "expressed in this lineage" without qualification. A simple majority, not a tuned
+          number.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2218"
+      - name: _PRESENCE_SUPPORTED_MEDIAN_FRACTION
+        value: 0.30
+        unit: fraction_of_panel_above_detection_floor
+        source: methods/methods/expression_properties/resolve.py:79
+        rationale: |
+          UNKNOWN. This is the rescue arm's fraction floor, conjoined with an expressing
+          median. Why 0.30 and not 0.25 or 0.40 is not recorded anywhere, and it interacts with
+          _PRESENCE_FLOOR_FRACTION and the twin's `broadly_low` band — which is a DIFFERENT
+          unit (a median level, not a fraction). See the adjudication.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2222"
+      - name: _PRESENCE_FLOOR_FRACTION
+        value: 0.10
+        unit: fraction_of_panel_above_detection_floor
+        source: methods/methods/expression_properties/resolve.py:80
+        rationale: |
+          Below this AND with a non-expressing median, the resolver emits a MEASURED `absent`
+          rather than `unmeasured`. The distinction is the point: `absent` is a negative result,
+          `unmeasured` is a gap. The specific 0.10 is UNKNOWN and shares the #2222 adjudication.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2222"
+      - name: _EXPRESSED_LOG2TPM
+        value: 1.0
+        unit: log2_tpm_plus_1
+        source: methods/methods/expression_properties/resolve.py:62
+        rationale: |
+          DepMap's own detection floor, mirrored so this resolver and
+          methods/depmap_expression_distribution cannot drift apart. Inherited from the upstream
+          dataset convention, not chosen here.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
+    consumers:
+      - skill: tumor-presence
+        surface: source_properties.model_expression_structure.resolved_expression_properties
+
+  magnitude:
+    status: resolvable
+    definition: |
+      Conditional on being present, how high is the expression level relative to the rest of
+      the transcriptome? A position question, not a breadth question.
+    grain:
+      measurement_type: rna_expression_distribution
+      sample_context: cell_line_panel
+      entity_grain: gene
+    observables:
+      - card_id: cellline-rna-distribution
+        field: allgene_percentile
+        role: estimator
+        dependence_group: depmap_rna
+        note: |
+          The all-gene position (0-100). NOTE: expression_property.enum.yaml's
+          `magnitude.resolves_from.measurements` names `control_target_percentile`, which is NOT
+          a field on this card — the resolver reads it first and falls back to
+          `allgene_percentile`, which is the field that actually exists. The catalog records the
+          real field; the enum's stale reference is documentation-only (nothing machine-reads
+          `resolves_from`) and is tracked separately.
+      - card_id: cellline-rna-distribution
+        field: median_log2tpm_panel
+        role: estimator
+        dependence_group: depmap_rna
+        note: |
+          Absolute-level fallback when no percentile is available.
+      - card_id: cellline-rna-distribution
+        field: fraction_highly_expressed
+        role: estimator
+        dependence_group: depmap_rna
+      - card_id: cellline-rna-distribution
+        field: fraction_expressed
+        role: coupled
+        dependence_group: depmap_rna
+        estimates_property: presence
+        note: |
+          magnitude is CONDITIONAL on presence: presence=absent short-circuits magnitude to
+          `unmeasured`, because there is no level to grade. Recorded as `coupled`, not
+          `estimator` — breadth is not level, and counting it as one would double-count the
+          same fraction on two properties.
+    determinants:
+      - name: _MAGNITUDE_HIGH_PERCENTILE
+        value: 75.0
+        unit: all_gene_percentile_0_100
+        source: methods/methods/expression_properties/resolve.py:91
+        rationale: |
+          UNKNOWN. Upper-quartile position across all genes. A quartile is a conventional cut,
+          but no calibration against a curated high/low panel is recorded, and it is NOT the
+          same cut as the twin's protein path (panel-relative p70) — see #2223.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2223"
+      - name: _MAGNITUDE_MODERATE_PERCENTILE
+        value: 25.0
+        unit: all_gene_percentile_0_100
+        source: methods/methods/expression_properties/resolve.py:92
+        rationale: |
+          UNKNOWN. Lower-quartile mirror of _MAGNITUDE_HIGH_PERCENTILE; inherits its
+          adjudication.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2223"
+      - name: _HIGHLY_EXPRESSED_LOG2TPM
+        value: 5.0
+        unit: log2_tpm_plus_1
+        source: methods/methods/expression_properties/resolve.py:63
+        rationale: |
+          Mirrors methods/depmap_expression_distribution's `highly expressed` floor. CONFIRMED
+          divergence (measured 2026-09-29): the tumour path anchors "high" at
+          `HIGH_LOG2TPM = 5.6724` (tcga_gtex_expression_distribution/stats.py:24), derived as
+          log2(51) — a round number in LINEAR TPM (TPM 50). This 5.0 is a round number in LOG
+          space (TPM ~31). Two different rounding conventions, ~1.6x apart in linear TPM, both
+          labelled "highly expressed" — and both then fractioned at the same 0.5 bar to produce
+          the same `broadly_high` token. So the divergence is upstream of the fraction bar, in
+          what is being counted. Nothing records which convention is right.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2221"
+    consumers:
+      - skill: tumor-presence
+        surface: source_properties.model_expression_structure.resolved_expression_properties
+
+  prevalence:
+    status: resolvable
+    definition: |
+      Across how much of the sample population is the target expressed - broadly, in a distinct
+      subset, or only rarely? Distinct from `presence` (which asks whether it clears the floor
+      anywhere) and from `heterogeneity` (which asks about spread, not extent).
+    grain:
+      measurement_type: rna_expression_distribution
+      sample_context: cell_line_panel
+      entity_grain: gene
+    observables:
+      - card_id: cellline-rna-distribution
+        field: fraction_highly_expressed
+        role: estimator
+        dependence_group: depmap_rna
+        note: |
+          The subset-high / broadly-high supply.
+      - card_id: cellline-rna-distribution
+        field: fraction_expressed
+        role: estimator
+        dependence_group: depmap_rna
+      - card_id: cellline-rna-distribution
+        field: distribution_pattern
+        role: coupled
+        dependence_group: depmap_rna
+        estimates_property: heterogeneity
+        note: |
+          A called bimodal/long_tail shape lowers the subset-high bar
+          (_SUBSET_HIGH_FRACTION_MIN) because a shaped distribution is evidence that a small
+          high fraction is a real subpopulation rather than a tail artefact. The shape estimates
+          HETEROGENEITY, not prevalence — hence `coupled`.
+    determinants:
+      - name: _BROADLY_HIGH_FRACTION_MIN
+        value: 0.5
+        unit: fraction_of_panel_highly_expressing
+        source: methods/methods/expression_properties/resolve.py:70
+        rationale: |
+          A majority highly-expressing reads as `broad`. MEASURED 2026-09-29: the mirror HOLDS —
+          the tumour twin's `broadly_high` bar is also `high_fraction >= 0.5`
+          (tcga_gtex_expression_distribution/read.py:917). So the "0.5 vs 0.30" divergence as
+          framed in #2220 is a FALSE PREMISE: the 0.30 in the twin is the `broadly_low` bar on
+          `detectable_fraction` (read.py:927), a different fraction of a different thing.
+          The real divergence between these two `broadly_high` calls is NOT the 0.5 bar but the
+          definition of "high" being fractioned — see _HIGHLY_EXPRESSED_LOG2TPM and #2221.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2220"
+      - name: _SUBSET_HIGH_FRACTION_MIN
+        value: 0.1
+        unit: fraction_of_panel_highly_expressing
+        source: methods/methods/expression_properties/resolve.py:67
+        rationale: |
+          Mirrors methods/tcga_gtex_expression_distribution/read.py:862 (`high_fraction >= 0.1`)
+          — a genuine arm-agreement mirror, applied only on a shaped (bimodal/long_tail)
+          distribution.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
+      - name: _SUBSTANTIAL_SUBSET_HIGH_FRACTION
+        value: 0.20
+        unit: fraction_of_panel_highly_expressing
+        source: methods/methods/expression_properties/resolve.py:75
+        rationale: |
+          UNKNOWN. The shape-independent subset-high path: a fifth of the panel highly
+          expressing counts as a real subpopulation even when no bimodal/long_tail shape was
+          called. Chosen as 2x _SUBSET_HIGH_FRACTION_MIN, but that relationship is inferred from
+          the values, not stated in the code.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2218"
+      - name: _BROAD_EXPRESSED_FRACTION
+        value: 0.70
+        unit: fraction_of_panel_above_detection_floor
+        source: methods/methods/expression_properties/resolve.py:73
+        rationale: |
+          Mirrors cli._classify_expression's broadly_expressed_fraction and the tumour twin's
+          `>= 0.7`. NOTE the unit differs from _BROADLY_HIGH_FRACTION_MIN: this is fraction
+          above the DETECTION floor, that is fraction above the HIGH floor. Both are "fractions
+          of the panel" and they are not interchangeable.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
+      - name: _RARE_FRACTION
+        value: 0.10
+        unit: fraction_of_panel_above_detection_floor
+        source: methods/methods/expression_properties/resolve.py:82
+        rationale: |
+          UNKNOWN. Shares a numeric value with _PRESENCE_FLOOR_FRACTION and
+          _SUBSET_HIGH_FRACTION_MIN but a different meaning and (for the latter) a different
+          unit — exactly the collision the #2222 adjudication has to untangle.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2222"
+    consumers:
+      - skill: tumor-presence
+        surface: source_properties.model_expression_structure.resolved_expression_properties
+
+  heterogeneity:
+    status: resolvable
+    definition: |
+      How much does expression vary ACROSS the sample population — is the level roughly uniform,
+      or does the panel split? A spread question. Carries the therapeutic consequence that a
+      uniformly-expressing population is addressable where a split one leaves escapers.
+    grain:
+      measurement_type: rna_expression_distribution
+      sample_context: cell_line_panel
+      entity_grain: gene
+    observables:
+      - card_id: cellline-rna-distribution
+        field: coefficient_of_variation
+        role: estimator
+        dependence_group: depmap_rna
+        note: |
+          Linear-TPM CoV. The CONTINUOUS supply.
+      - card_id: cellline-rna-distribution
+        field: distribution_pattern
+        role: estimator
+        dependence_group: depmap_rna
+        note: |
+          The called shape (bimodal / long_tail / uniform). A SECOND, independent supply from
+          the same matrix — independent as a statistic, NOT as an arm, hence the shared
+          dependence_group.
+    determinants:
+      - name: _CV_HIGH
+        value: 0.75
+        unit: coefficient_of_variation_linear_tpm
+        source: methods/methods/expression_properties/resolve.py:87
+        rationale: |
+          Anchored empirically: the shape-metric tests show called-bimodal panels sitting well
+          above CoV 0.5, so 0.75 sits inside the bimodal regime rather than at its boundary.
+          This is the best-evidenced determinant in the file — it cites an observation.
+        calibration:
+          controls: methods/tests/methods/depmap_expression_distribution/test_shape_metrics.py
+          flip_matrix: null
+          adjudication: null
+      - name: _CV_MODERATE
+        value: 0.35
+        unit: coefficient_of_variation_linear_tpm
+        source: methods/methods/expression_properties/resolve.py:88
+        rationale: |
+          UNKNOWN. The uniform/moderate boundary has no cited observation, unlike _CV_HIGH.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2218"
+      - name: _BIMODAL_PATTERNS
+        value: "bimodal|long_tail"
+        unit: distribution_pattern_token_set
+        source: methods/methods/expression_properties/resolve.py:59
+        rationale: |
+          The shape tokens that count as "not uniform". A closed set mirroring the upstream
+          card's vocabulary; a new pattern token added upstream would fall through as uniform,
+          which is the fail-open risk worth watching.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
+    consumers:
+      - skill: tumor-presence
+        surface: source_properties.model_expression_structure.resolved_expression_properties
+
+  lineage_restriction:
+    status: resolvable
+    definition: |
+      Is expression concentrated in a minority of lineages, or diffuse across them? A
+      lineage-structure question about the panel's composition, not about level or breadth.
+    grain:
+      measurement_type: rna_expression_distribution
+      sample_context: cell_line_panel
+      entity_grain: gene
+    observables:
+      - card_id: cellline-rna-distribution
+        field: n_lineage_restricted_lineages
+        role: estimator
+        dependence_group: depmap_rna
+      - card_id: cellline-rna-distribution
+        field: per_lineage_stats
+        role: estimator
+        dependence_group: depmap_rna
+        note: |
+          Supplies the denominator — the count of EVALUATED lineages. The share is meaningless
+          without it, which is why both fields are estimators of this one property.
+    determinants:
+      - name: _LINEAGE_RESTRICTED_MAX_SHARE
+        value: 0.5
+        unit: share_of_evaluated_lineages
+        source: methods/methods/expression_properties/resolve.py:96
+        rationale: |
+          A minority of evaluated lineages carrying the expression reads as `restricted`; a
+          majority reads as `intermediate`. The enrichment bar per lineage (>= 0.4 above panel)
+          is the load-bearing knob and is NOT surfaced as a named constant — see the
+          adjudication.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2218"
+    consumers:
+      - skill: tumor-presence
+        surface: source_properties.model_expression_structure.resolved_expression_properties
+
+  selectivity:
+    status: fleet_deferred
+    definition: |
+      Is expression higher in the target population than in the normal tissues that would be
+      exposed? The therapeutic-window property.
+    grain:
+      measurement_type: rna_expression_distribution
+      sample_context: cell_line_panel
+      entity_grain: gene
+    deferred_pending: |
+      Needs a NORMAL-TISSUE comparator, which a cell-line panel cannot supply — there is no
+      normal arm inside DepMap. Declared here to reserve the shared name; the resolver emits
+      `unmeasured` unconditionally. The resolvable form of this property lives in the
+      selectivity domain (arc #2210 Wave-1d) at a different sample_context.
+    observables: []
+    determinants: []
+    consumers: []
+
+  localization:
+    status: fleet_deferred
+    definition: |
+      Where in or on the cell is the product? The property that decides whether a surface-directed
+      modality can reach it at all.
+    grain:
+      measurement_type: rna_expression_distribution
+      sample_context: cell_line_panel
+      entity_grain: gene
+    deferred_pending: |
+      Not resolvable from transcript abundance at any threshold — localization is a protein
+      property and needs a protein-localization observable (HPA IF / surface proteomics). Declared
+      to reserve the name; resolver emits `unmeasured`.
+    observables: []
+    determinants: []
+    consumers: []
+
+  subtype_restriction:
+    status: fleet_deferred
+    definition: |
+      Is expression confined to particular molecular subtypes within a lineage?
+    grain:
+      measurement_type: rna_expression_distribution
+      sample_context: cell_line_panel
+      entity_grain: gene
+    deferred_pending: |
+      Needs a powered subtype axis, which the unstratified panel does not carry. The resolvable
+      form is the `subtype_restriction` L2b family in integrated_families.yaml, which reads the
+      by-subtype cards and gates on `subtype_axis_quality`. Declared here to reserve the name;
+      resolver emits `unmeasured`.
+    observables: []
+    determinants: []
+    consumers: []

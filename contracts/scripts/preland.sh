@@ -90,6 +90,7 @@ run "build_emission_ledger --self-check" python validators/build_emission_ledger
 run "build_wiring_reconciliation --self-check" python validators/build_wiring_reconciliation.py --self-check
 run "build_wiring_ledger --self-check"   python validators/build_wiring_ledger.py --self-check
 run "living_doc --self-check"            python validators/architecture_dashboard/living/build_living_doc.py --self-check
+run "validate_property_catalog"          python validators/validate_property_catalog.py --catalog vocabularies/property_catalog --cards cards/
 
 # Drain the pool and print every gate's PASS/FAIL in launch (CI) order before the ruff/advisory
 # steps below, which stay SYNCHRONOUS (fast, and the ruff block has its own version-gate control
@@ -98,6 +99,21 @@ report_pool
 run() { local label="$1"; shift; local out
   if out=$("$@" 2>&1); then echo "PASS  $label"
   else echo "FAIL  $label"; echo "$out" | tail -n 30 | sed 's/^/      /'; fail=1; fi; }
+
+# --- property-catalog ADDITIVITY (vocabularies/property_catalog/) ---
+# The shape/referential clauses ran in the pool above. Additivity needs a git ref to compare against,
+# so it follows the ruff block's convention: resolve the PR BASE, and if it is not fetched emit a loud
+# WARN rather than a silent skip — a gate that did not run must not read as a gate that passed. The
+# validator itself goes RED on an unresolvable ref when the flag IS passed, so the guard here is only
+# about whether to pass it at all.
+pc_base="${PRELAND_BASE:-origin/main}"
+if git rev-parse --verify -q "$pc_base" >/dev/null; then
+  run "validate_property_catalog --additive-against $pc_base" \
+      python validators/validate_property_catalog.py --catalog vocabularies/property_catalog \
+             --cards cards/ --additive-against "$pc_base"
+else
+  echo "WARN  property-catalog additivity SKIPPED — '$pc_base' not fetched; set PRELAND_BASE or run 'git fetch origin main'"
+fi
 
 # --- ruff (.github/workflows/ruff.yml) ---
 # 2026-09-13: this script mirrored contracts-validate.yml and NOTHING ELSE, so "ALL GATES PASS" was

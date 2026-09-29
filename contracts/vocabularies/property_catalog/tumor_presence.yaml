@@ -1,0 +1,340 @@
+# tumor_presence.yaml — the tumour-presence domain's L2a per-source properties.
+#
+# This is the REFERENCE L2a implementation: `skills/_skills_common/presence_claims.py`'s
+# `_SOURCE_PROPERTY_RECIPES` (:694) emits exactly these six, and Wave-1 of arc #2210 replicates the
+# pattern onto the other five domains. Every entry here is transcribed from that tuple — the
+# catalog does not invent properties the code does not resolve.
+catalog_id: tumor_presence
+kind: l2a_property
+version: 1.0.0
+
+description: |
+  "Is the target present in the tumour" decomposes into six DIFFERENT questions, each answered by a
+  different source at a different grain. The tumour-presence vertical resolves all six and keeps
+  them separate rather than folding them into one presence verdict, because they fail the
+  identifiability test against each other: a bulk RNA cohort, a mass-spec proteome, and a
+  single-cell atlas would still disagree if all three were measured perfectly, since they are
+  measuring transcript abundance, protein abundance and malignant-cell occupancy respectively.
+
+  The pairwise agreements that ARE meaningful are registered as L2b concordance families in
+  integrated_families.yaml (abundance, coverage, tumor_presence, protein_presence,
+  subtype_restriction) — a family is where the cross-source comparison becomes legal, and it
+  carries the comparability gate that makes it legal.
+
+governance:
+  role: |
+    Authoritative for: which source resolves which presence property, at what grain, and which
+    quantitative anchors are retained alongside the class token. NOT authoritative for the class
+    VALUE vocabularies (those live with each card's interpretation rules) and NOT for the
+    concordance families (integrated_families.yaml).
+  versioning: |
+    Semver, additive-only. These six `name`s are emitted as KEYS in the exported
+    `source_properties` map, so an ID here is a published wire name — renaming one is breaking
+    for every downstream consumer of the evidence package, not just for this file.
+  ownership: |
+    Epic #1507. The two envelope-v1.1 additive fields this file does NOT yet record —
+    `interpretation.{function_id, version, disjunct_fired}` and island `comparability_state` —
+    are the subject of #2227, which is deliberately BLOCKED on #2061 + #1984 PR-B because it is
+    the one change that must regenerate the tumour-presence golden.
+  change_discipline: |
+    Byte-stable omission: a recipe whose card or property_field does not resolve emits NO entry,
+    and the whole `source_properties` key is omitted when nothing resolves. Any change here must
+    preserve that — a fabricated entry is worse than an absent one.
+
+properties:
+
+  patient_tumor_abundance:
+    status: resolvable
+    definition: |
+      How abundant is the target transcript across patient tumour samples, in absolute terms and
+      relative to the rest of the transcriptome?
+    grain:
+      measurement_type: tumor_rna_expression
+      sample_context: tumor
+      entity_grain: bulk
+    observables:
+      - card_id: tumor-rna-distribution
+        field: tumor_expression_class
+        role: estimator
+        emission: class_token
+        dependence_group: tcga_bulk_rna
+      - card_id: tumor-rna-distribution
+        field: allgene_percentile
+        role: estimator
+        emission: anchor
+        dependence_group: tcga_bulk_rna
+      - card_id: tumor-rna-distribution
+        field: median_log2tpm
+        role: estimator
+        emission: anchor
+        dependence_group: tcga_bulk_rna
+      - card_id: tumor-rna-distribution
+        field: p95_log2tpm
+        role: estimator
+        emission: anchor
+        dependence_group: tcga_bulk_rna
+      - card_id: tumor-rna-distribution
+        field: fraction_tumor_above_normal_p95
+        role: coupled
+        emission: anchor
+        dependence_group: tcga_bulk_rna
+        estimates_property: tumor_normal_selectivity
+        note: |
+          Retained on this entry as an anchor but it is a tumour-vs-NORMAL comparison, so it
+          estimates selectivity, not abundance. Marked `coupled` so nothing counts it as a
+          second abundance estimator.
+    determinants:
+      - name: HIGH_LOG2TPM
+        value: 5.6724
+        unit: log2_tpm_plus_1
+        source: methods/methods/tcga_gtex_expression_distribution/stats.py:24
+        rationale: |
+          log2(51), i.e. a round TPM 50 in LINEAR space. Diverges from the cell-line twin's 5.0
+          (round in LOG space, TPM ~31) — see expression.yaml::magnitude and #2221.
+        calibration:
+          controls: methods/methods/tumor_presence_controls/read.py
+          flip_matrix: null
+          adjudication: "#2221"
+      - name: MODERATE_LOG2TPM
+        value: 3.4594
+        unit: log2_tpm_plus_1
+        source: methods/methods/tcga_gtex_expression_distribution/stats.py:23
+        rationale: |
+          log2(11) ~ TPM 10. Same linear-TPM rounding convention as HIGH_LOG2TPM, internally
+          consistent with it.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
+      - name: BROADLY_DETECTED_MODERATE_FRACTION_MIN
+        value: 0.5
+        unit: fraction_of_tumors_above_moderate
+        source: methods/methods/tcga_gtex_expression_distribution/read.py:898
+        rationale: |
+          The detected-is-not-expressed guard (tumor-presence expert review, finding G4): a
+          target sitting at the TPM~1 transcriptional-background floor in most tumours is
+          "present but low-level", and must NOT inherit the `tumor_broadly_expressed` word that
+          the surface/ADC/degrader reads depend on. This is the best-justified determinant in
+          the presence domain — it names the failure it prevents.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: null
+      - name: broadly_low_detectable_fraction
+        value: 0.3
+        unit: fraction_of_tumors_above_detection_floor
+        source: methods/methods/tcga_gtex_expression_distribution/read.py:927
+        rationale: |
+          UNKNOWN as a value. Recorded here because it is the number #2220 mistakes for a
+          `broadly_high` divergence: it is the `broadly_low` bar on DETECTABLE fraction, not a
+          bar on HIGH fraction. The unit is the whole point — reconciling it against the
+          cell-line path's 0.30 (_PRESENCE_SUPPORTED_MEDIAN_FRACTION) compares two different
+          quantities that happen to share a numeral.
+        calibration:
+          controls: null
+          flip_matrix: null
+          adjudication: "#2222"
+    consumers:
+      - skill: tumor-presence
+        axis_key: A
+        note: |
+          Axis keys in this domain are the letters A/B/C/D — tumour-presence is the only skill of
+          15 using a letter scheme. #2229 proposes migrating them to mnemonics via
+          add -> consume -> remove; until that lands, the letters are the wire names.
+      - skill: target-profile
+        surface: tp_facets.modality_conjunction
+
+  tumor_normal_selectivity:
+    status: resolvable
+    definition: |
+      Is the target's transcript elevated in tumour relative to matched adjacent-normal tissue
+      (and to the GTEx normal reference)? The therapeutic-window question at transcript grain.
+    grain:
+      measurement_type: tumor_rna_dge_vs_adjacent
+      sample_context: tumor
+      entity_grain: bulk
+    observables:
+      - card_id: tumor-rna-vs-adjacent
+        field: expression_call_class
+        role: estimator
+        emission: class_token
+        dependence_group: tcga_bulk_rna_dge
+      - card_id: tumor-rna-vs-adjacent
+        field: log2_fc
+        role: estimator
+        emission: anchor
+        dependence_group: tcga_bulk_rna_dge
+      - card_id: tumor-rna-vs-adjacent
+        field: q_value
+        role: estimator
+        emission: anchor
+        dependence_group: tcga_bulk_rna_dge
+      - card_id: tumor-rna-vs-adjacent
+        field: gtex_log2_fc
+        role: estimator
+        emission: anchor
+        dependence_group: gtex_normal_reference
+        note: |
+          A DIFFERENT dependence_group from the adjacent-normal arm: GTEx is an independent
+          normal cohort, not the same patients' adjacent tissue. The two normal comparators can
+          legitimately corroborate each other.
+      - card_id: tumor-rna-vs-adjacent
+        field: gtex_q_value
+        role: estimator
+        emission: anchor
+        dependence_group: gtex_normal_reference
+    determinants: []
+    consumers:
+      - skill: tumor-presence
+        axis_key: B
+      - skill: tumor-selectivity
+        surface: selectivity_hero.axis_a
+
+  tumor_protein_abundance:
+    status: resolvable
+    definition: |
+      How abundant is the target PROTEIN across patient tumour samples? A distinct property from
+      transcript abundance, not a corroboration of it — see the README's identifiability test.
+    grain:
+      measurement_type: tumor_protein_expression
+      sample_context: tumor
+      entity_grain: bulk_protein
+    observables:
+      - card_id: tumor-protein-abundance-cptac
+        field: protein_expression_class
+        role: estimator
+        emission: class_token
+        dependence_group: protein_ms_tumor
+      - card_id: tumor-protein-abundance-cptac
+        field: allgene_percentile
+        role: estimator
+        emission: anchor
+        dependence_group: protein_ms_tumor
+      - card_id: tumor-protein-abundance-cptac
+        field: protein_effect_size
+        role: estimator
+        emission: anchor
+        dependence_group: protein_ms_tumor
+      - card_id: tumor-protein-abundance-cptac
+        field: protein_bh_q_value
+        role: estimator
+        emission: anchor
+        dependence_group: protein_ms_tumor
+    determinants: []
+    consumers:
+      - skill: tumor-presence
+        axis_key: A
+        note: |
+          Shares axis A with patient_tumor_abundance — the axis aggregates the abundance lens
+          across modalities. The `abundance` L2b family is where their AGREEMENT is computed;
+          the axis is where it is displayed.
+    dependence_note: |
+      dependence_group `protein_ms_tumor` is shared with TPHP
+      (tumor-vs-normal-protein-abundance-tphp) wherever both appear as arms: both are
+      mass-spectrometry tumour proteomics, so a CPTAC/TPHP agreement is one modality measured
+      twice, NOT two independent arms. This is the #1667 lesson and the reason the field is
+      mandatory.
+
+  malignant_cell_coverage:
+    status: resolvable
+    definition: |
+      In what fraction of MALIGNANT cells is the target detected, and across how many donors? The
+      occupancy property — what decides whether a tumour-cell-directed modality reaches the whole
+      population or leaves escapers.
+    grain:
+      measurement_type: sc_tumor_celltype_expression
+      sample_context: tumor
+      entity_grain: single_cell
+    observables:
+      - card_id: tumor-scrna-celltype-expression
+        field: sc_expression_class
+        role: estimator
+        emission: class_token
+        dependence_group: sc_tumor_atlas
+      - card_id: tumor-scrna-celltype-expression
+        field: malignant_detection_fraction
+        role: estimator
+        emission: anchor
+        dependence_group: sc_tumor_atlas
+      - card_id: tumor-scrna-celltype-expression
+        field: malignant_n_donors
+        role: estimator
+        emission: anchor
+        dependence_group: sc_tumor_atlas
+        note: |
+          The powering denominator. A detection fraction without a donor count is uninterpretable
+          — one donor's 90% is not a population claim.
+    determinants: []
+    consumers:
+      - skill: tumor-presence
+        axis_key: C
+      - skill: surface-modality-fit
+        surface: coverage_lens
+
+  tumor_elevation_breadth:
+    status: resolvable
+    definition: |
+      Across how many tumour cohorts is the target elevated, out of those tested? A
+      generality/portfolio property at target grain — pan-cancer reach rather than depth in one
+      indication.
+    grain:
+      measurement_type: tumor_elevation_breadth
+      sample_context: tumor
+      entity_grain: target
+    observables:
+      - card_id: tumor-elevation-breadth
+        field: tumor_elevation_breadth_class
+        role: estimator
+        emission: class_token
+        dependence_group: pancancer_elevation
+      - card_id: tumor-elevation-breadth
+        field: n_cohorts_elevated
+        role: estimator
+        emission: anchor
+        dependence_group: pancancer_elevation
+      - card_id: tumor-elevation-breadth
+        field: n_cohorts_tested
+        role: estimator
+        emission: anchor
+        dependence_group: pancancer_elevation
+        note: |
+          The denominator, and the reason this property is at `target` grain rather than per
+          indication: 3-of-4 and 3-of-30 are different claims and the class token alone cannot
+          distinguish them.
+    determinants: []
+    consumers:
+      - skill: tumor-presence
+        axis_key: D
+
+  model_expression_structure:
+    status: resolvable
+    definition: |
+      What is the SHAPE of the target's expression across a cell-line panel — level, breadth,
+      spread, lineage structure? A model-grain property, deliberately NOT a proxy for the patient
+      abundance property above.
+    grain:
+      measurement_type: cellline_rna_expression
+      sample_context: cell_line
+      entity_grain: bulk
+    observables:
+      - card_id: cellline-rna-distribution
+        field: expression_class
+        role: estimator
+        emission: class_token
+        dependence_group: depmap_rna
+      - card_id: cellline-rna-distribution
+        field: allgene_percentile
+        role: estimator
+        emission: anchor
+        dependence_group: depmap_rna
+    determinants: []
+    integration_note: |
+      This entry additionally carries the whole RESOLVED expression_properties object under
+      `resolved_expression_properties` (presence_claims.py:814) when the card supplies it — the
+      five resolvable properties in expression.yaml, recoverable rather than merely labelled. The
+      cross-grain patient-vs-model comparison is NOT an L2b family today; it is surfaced as the
+      display-level `cell_line_vs_tumor_discordant` facet, and whether it should be promoted is
+      the open question in #2226.
+    consumers:
+      - skill: tumor-presence
+        surface: source_properties.model_expression_structure

@@ -1,0 +1,608 @@
+# integrated_families.yaml — the 13 landed L2b concordance families.
+#
+# An L2b family is where a cross-source comparison becomes LEGAL: it names the arms, the
+# comparability basis that makes them commensurable, and the relation algebra it may emit. The
+# population is pinned at 13 by
+# skills/_skills_common/tests/test_rung5_envelope_enforcement.py:311 (_EXPECTED_FAMILY_COUNT).
+#
+# THIS FILE ADDS NO FAMILY. New families belong to peer epics #1730 / #1755 / #1779 / #1812; arc
+# #2210 registers what exists and must not bump that count.
+catalog_id: integrated_families
+kind: l2b_family
+version: 1.0.0
+
+description: |
+  The L2a properties in the sibling files are per-source: each says what ONE measurement resolved.
+  Agreement between two of them is a separate claim with its own preconditions, and those
+  preconditions are what this file records. Two things make a family more than a coincidence:
+
+  1. A COMPARABILITY basis — the arms must be measuring something commensurable before their
+     agreement means anything. Cross-grain families (cell-line x patient) and cross-modality
+     families (RNA x protein) rest on different bases and are not equally strong; the file says
+     which is which rather than letting them all read as "two arms agreed".
+  2. DEPENDENCE GROUPS — arms sharing a group share a supply chain and cannot corroborate each
+     other. The `selectivity` and `protein_presence` families both contain mass-spec proteomics
+     arms, and it is only the group field that stops a CPTAC/TPHP pair from being counted as
+     independent replication (#1667).
+
+  MEASURED (2026-09-29): the shipped population emits only `corroborates` and `qualifies`.
+  `contradicts` is a first-class member of the closed relation vocabulary but no landed builder
+  emits it — every non-concordant read the code models is framed as a qualifying refinement rather
+  than a head-to-head negation (dependence_edges.py:27-32). That is recorded per family below as
+  the relations it may emit, not as the relations that exist.
+
+governance:
+  role: |
+    Authoritative for: which arms each landed family integrates, on what comparability basis, and
+    which relations it may emit. NOT authoritative for the family COUNT (that is
+    _EXPECTED_FAMILY_COUNT), for the `concordance_class` token vocabularies (Wave-0b's
+    concordance_class.enum.yaml), or for the envelope schema (docs/EVIDENCE_PROPERTY_ENVELOPE_v0.md).
+  versioning: |
+    Semver, additive-only. Adding a family here is a MINOR bump and must accompany the owning
+    epic's code change — a family registered here but absent from the code is a FALSE claim of
+    coverage, which is worse than an absent entry.
+  ownership: |
+    The families themselves are owned by their epics (#1730 / #1755 / #1779 / #1812 and #1507).
+    This registration is arc #2210 Wave-0a.
+  change_discipline: |
+    `island_key` values are emitted KEYS in the claim vector and are string-matched by
+    evidence_frame.py frozensets, presence_l3d_story.py and the question tables' provenance_ref
+    paths. They are published wire names: add -> consume -> remove, never a bare rename.
+
+families:
+
+  recurrence:
+    status: resolvable
+    definition: |
+      Do independent mutation-calling cohorts agree on how recurrently the target is altered?
+    grain:
+      measurement_type: mutation_recurrence
+      sample_context: tumor
+      entity_grain: gene
+    arms:
+      - card_id: mutation-hotspot-frequency
+        field: driver_recurrence_class
+        dependence_group: primary_cohort_maf
+        lift: headline
+      - card_id: mutation-hotspot-frequency
+        field: genie_driver_recurrence_class
+        dependence_group: genie_panel
+        lift: headline
+      - card_id: mutation-hotspot-frequency
+        field: pooled_driver_recurrence_class
+        dependence_group: pooled_cohort
+        lift: headline
+    determinants: []   # thresholds live on the ARMS' properties, not on the fold
+    integration:
+      island_key: recurrence_concordance
+      builder: skills/_skills_common/genomic_claims.py
+      builder_function: _recurrence_concordance_claim
+      comparability: |
+        All three arms are mutation recurrence at gene grain, so the measurement type is shared.
+        Independence is by COHORT, not by assay: GENIE is targeted-panel clinical sequencing,
+        the pooled arm is aggregated cohorts, the primary arm is the indication's own MAF. A
+        panel's recurrence denominator is the panel's tested population, which is why the three
+        are separate dependence_groups despite living on one card.
+      relations: [corroborates, qualifies]
+      note: |
+        Only family whose arms all come from a SINGLE card, and one of two that read via
+        `lift: headline` — the builder is handed the headline dict, not card summaries.
+    consumers:
+      - skill: genomic-alteration-profile
+        axis_key: SNV
+
+  selectivity:
+    status: resolvable
+    definition: |
+      Do the transcript and protein tumour-vs-normal comparisons agree that a therapeutic window
+      exists?
+    grain:
+      measurement_type: tumor_vs_normal_selectivity
+      sample_context: tumor
+      entity_grain: gene
+    arms:
+      - card_id: tumor-vs-normal-selectivity
+        field: selectivity_class
+        dependence_group: tcga_bulk_rna_dge
+        lift: headline
+        property_id: tumor_normal_selectivity
+        note: |
+          Surfaces on the headline as `axis_a_selectivity_class` (tumor-selectivity
+          run.py:1047) — the raw pre-veto tumour-vs-origin class.
+      - card_id: tumor-protein-abundance-cptac
+        field: protein_effect_size
+        dependence_group: protein_ms_tumor
+        lift: headline
+      - card_id: tumor-protein-abundance-cptac
+        field: protein_bh_q_value
+        dependence_group: protein_ms_tumor
+        lift: headline
+      - card_id: tumor-vs-normal-protein-abundance-tphp
+        field: protein_effect_size
+        dependence_group: protein_ms_tumor
+        lift: headline
+      - card_id: tumor-vs-normal-protein-abundance-tphp
+        field: protein_bh_q_value
+        dependence_group: protein_ms_tumor
+        lift: headline
+    determinants: []   # thresholds live on the ARMS' properties, not on the fold
+    integration:
+      island_key: selectivity_concordance
+      builder: skills/_skills_common/selectivity_claims.py
+      builder_function: _selectivity_concordance_claim
+      comparability: |
+        CROSS-MODALITY at one grain: transcript log-fold-change vs protein effect size, both
+        tumour-vs-normal. Legal because both are DIRECTIONAL contrasts against a normal
+        comparator, so their signs are comparable even though their magnitudes are not on one
+        scale.
+      relations: [corroborates, qualifies]
+      note: |
+        THE #1667 CASE. CPTAC and TPHP are both mass-spectrometry tumour proteomics and share
+        `protein_ms_tumor`. Agreement between them is one modality measured twice and must never
+        be counted as two independent protein arms — only the RNA arm is independent of them.
+        Two distinct groups across five arms.
+    consumers:
+      - skill: tumor-selectivity
+        axis_key: WIN
+
+  coverage:
+    status: resolvable
+    definition: |
+      Does bulk tumour expression agree with single-cell malignant-compartment coverage — i.e. is
+      a high bulk signal actually sitting in the malignant cells?
+    grain:
+      measurement_type: tumor_expression_coverage
+      sample_context: tumor
+      entity_grain: gene
+    arms:
+      - card_id: tumor-rna-distribution
+        field: tumor_expression_class
+        dependence_group: tcga_bulk_rna
+        property_id: patient_tumor_abundance
+      - card_id: tumor-rna-distribution
+        field: distribution_pattern
+        dependence_group: tcga_bulk_rna
+      - card_id: tumor-scrna-celltype-expression
+        field: within_tumor_coverage_class
+        dependence_group: sc_tumor_atlas
+        property_id: malignant_cell_coverage
+      - card_id: tumor-scrna-celltype-expression
+        field: tce_antigen_escape_class
+        dependence_group: sc_tumor_atlas
+    determinants: []   # thresholds live on the ARMS' properties, not on the fold
+    integration:
+      island_key: bulk_vs_singlecell_coverage_concordance
+      builder: skills/_skills_common/presence_claims.py
+      builder_function: _coverage_concordance_claim
+      comparability: |
+        CROSS-RESOLUTION: a bulk average over a mixed cellular population vs a per-cell
+        measurement restricted to the malignant compartment. The comparison is legal in ONE
+        direction only — single-cell can explain away a bulk signal as stromal, but bulk cannot
+        adjudicate a single-cell call. This asymmetry is why the family is a coverage check and
+        not a mutual-corroboration claim.
+      relations: [corroborates, qualifies]
+    consumers:
+      - skill: tumor-presence
+        axis_key: C
+      - skill: surface-modality-fit
+        axis_key: DENSITY
+
+  abundance:
+    status: resolvable
+    definition: |
+      Across grain (patient / cell-line) and modality (RNA / protein), do the four abundance
+      measurements place the target at a consistent transcriptome-relative position?
+    grain:
+      measurement_type: abundance_percentile
+      sample_context: cross_grain
+      entity_grain: gene
+    arms:
+      - card_id: tumor-rna-distribution
+        field: allgene_percentile_class
+        dependence_group: tcga_bulk_rna
+        property_id: patient_tumor_abundance
+      - card_id: tumor-protein-abundance-cptac
+        field: allgene_percentile_class
+        dependence_group: protein_ms_tumor
+        property_id: tumor_protein_abundance
+      - card_id: cellline-rna-distribution
+        field: allgene_percentile_class
+        dependence_group: depmap_rna
+        property_id: model_expression_structure
+      - card_id: cellline-protein-abundance
+        field: allgene_percentile_class
+        dependence_group: protein_ms_cellline
+    determinants: []   # thresholds live on the ARMS' properties, not on the fold
+    integration:
+      island_key: abundance_concordance
+      builder: skills/_skills_common/presence_claims.py
+      builder_function: _abundance_concordance_claim
+      comparability: |
+        The percentile NORMALISATION is what makes this legal: an all-gene percentile within each
+        assay is comparable across assays in a way that raw TPM and raw MS intensity are not.
+        The family is a normalized_to_compare case, not a natively-comparable one.
+      relations: [corroborates, qualifies]
+      note: |
+        Emits the RNA-vs-protein discordance directions explicitly
+        (`rna_high_protein_low` / `rna_low_protein_high` / `abundance_concordant` /
+        `single_modality_only`) rather than collapsing them — which is the correct treatment
+        under the identifiability test, since RNA and protein abundance are two properties and
+        their disagreement is biology (translation, degradation), not noise.
+      grain_note: |
+        Four arms, four distinct dependence_groups — the strongest independence structure of any
+        family here.
+    consumers:
+      - skill: tumor-presence
+        axis_key: A
+
+  subtype_restriction:
+    status: resolvable
+    definition: |
+      Do independently-stratified cohorts agree that expression is confined to particular
+      molecular subtypes?
+    grain:
+      measurement_type: subtype_stratified_expression
+      sample_context: cross_grain
+      entity_grain: gene
+    arms:
+      - card_id: tumor-rna-distribution-by-subtype
+        field: subtype_stratification_class
+        dependence_group: tcga_bulk_rna
+      - card_id: tumor-rna-distribution-by-subtype
+        field: subtype_axis_quality
+        dependence_group: tcga_bulk_rna
+      - card_id: tumor-protein-distribution-by-subtype
+        field: subtype_stratification_class
+        dependence_group: protein_ms_tumor
+      - card_id: tumor-protein-distribution-by-subtype
+        field: subtype_axis_quality
+        dependence_group: protein_ms_tumor
+      - card_id: cellline-rna-distribution-by-subtype
+        field: subtype_stratification_class
+        dependence_group: depmap_rna
+      - card_id: cellline-rna-distribution-by-subtype
+        field: subtype_axis_quality
+        dependence_group: depmap_rna
+    determinants: []   # thresholds live on the ARMS' properties, not on the fold
+    integration:
+      island_key: subtype_restriction_concordance
+      builder: skills/_skills_common/presence_claims.py
+      builder_function: _subtype_restriction_concordance_claim
+      comparability: |
+        Gated on `subtype_axis_quality` being POWERED on each arm before its stratification class
+        is admitted. This is the family whose comparability gate is most explicit in code: an
+        underpowered subtype axis contributes nothing rather than contributing a weak signal.
+      relations: [corroborates, qualifies]
+      note: |
+        The `subtype_axis_quality` arm on each card is a POWERING gate, not a second measurement
+        of restriction — it shares its sibling's dependence_group precisely so it can never be
+        mistaken for extra corroboration.
+    consumers:
+      - skill: tumor-presence
+        surface: subtype_layer
+
+  protein_presence:
+    status: resolvable
+    definition: |
+      Do antibody-based staining and mass-spectrometry agree that the PROTEIN is present in tumour
+      tissue?
+    grain:
+      measurement_type: protein_presence
+      sample_context: tumor
+      entity_grain: protein
+    arms:
+      - card_id: hpa-pathology-cancer-ihc
+        field: protein_presence_class
+        dependence_group: hpa_ihc
+      - card_id: hpa-pathology-cancer-ihc
+        field: fraction_detected
+        dependence_group: hpa_ihc
+      - card_id: hpa-pathology-cancer-ihc
+        field: n_patients_total
+        dependence_group: hpa_ihc
+      - card_id: tumor-protein-abundance-cptac
+        field: allgene_percentile_class
+        dependence_group: protein_ms_tumor
+        property_id: tumor_protein_abundance
+      - card_id: cellline-protein-abundance
+        field: allgene_percentile_class
+        dependence_group: protein_ms_cellline
+    determinants: []   # thresholds live on the ARMS' properties, not on the fold
+    integration:
+      island_key: protein_presence_concordance
+      builder: skills/_skills_common/presence_claims.py
+      builder_function: _protein_presence_concordance_claim
+      comparability: |
+        TRULY CROSS-MODALITY: antibody affinity (IHC) vs peptide detection (MS). These have
+        genuinely independent failure modes — a bad antibody and a poorly-ionising peptide are
+        unrelated problems — which makes this one of the better-founded corroborations in the
+        fleet. Both are protein-grain, so no normalisation is needed to compare presence.
+      relations: [corroborates, qualifies]
+    consumers:
+      - skill: tumor-presence
+        axis_key: A
+      - skill: surface-modality-fit
+        axis_key: DENSITY
+
+  tumor_presence:
+    status: resolvable
+    definition: |
+      The central integrated claim: is the target present in the tumour, folded across transcript,
+      single-cell and protein evidence?
+    grain:
+      measurement_type: tumor_presence
+      sample_context: tumor
+      entity_grain: gene
+    arms:
+      - card_id: tumor-rna-distribution
+        field: tumor_expression_class
+        dependence_group: tcga_bulk_rna
+        property_id: patient_tumor_abundance
+      - card_id: tumor-scrna-celltype-expression
+        field: sc_expression_class
+        dependence_group: sc_tumor_atlas
+        property_id: malignant_cell_coverage
+      - card_id: hpa-pathology-cancer-ihc
+        field: protein_presence_class
+        dependence_group: hpa_ihc
+    determinants: []   # thresholds live on the ARMS' properties, not on the fold
+    integration:
+      island_key: tumor_presence_concordance
+      builder: skills/_skills_common/presence_claims.py
+      builder_function: _tumor_presence_concordance_claim
+      comparability: |
+        Three arms at three resolutions (bulk transcript / single-cell transcript / protein
+        staining) answering the coarsest question any of them can answer: is it there. The
+        comparison is legal BECAUSE the question is coarse — the same three arms could not be
+        folded on a LEVEL question, since their scales do not reconcile.
+      relations: [corroborates, qualifies]
+      note: |
+        The headline L2b node, and the closest thing the framework has to a single integrated
+        presence property. Three distinct dependence_groups.
+    consumers:
+      - skill: tumor-presence
+        surface: headline
+      - skill: target-profile
+        surface: tp_facets.presence_spine
+
+  essentiality:
+    status: resolvable
+    definition: |
+      Do loss-of-function screens using different perturbation chemistries agree that the target is
+      required for cell survival?
+    grain:
+      measurement_type: dependency_distribution
+      sample_context: cell_line_panel
+      entity_grain: gene
+    arms:
+      - card_id: pan-cancer-crispr-dependency-distribution
+        field: dependency_class
+        dependence_group: depmap_crispr
+      - card_id: pan-cancer-rnai-dependency-distribution
+        field: rnai_dependency_class
+        dependence_group: depmap_rnai
+    determinants: []   # thresholds live on the ARMS' properties, not on the fold
+    integration:
+      island_key: crispr_rnai_essentiality_concordance
+      builder: skills/_skills_common/dependency_claims.py
+      builder_function: _essentiality_concordance_claim
+      comparability: |
+        THE TEXTBOOK CASE for the identifiability test. Perfect CRISPR knockout and perfect RNAi
+        knockdown would agree, so these are two estimators of ONE property; the disagreements are
+        measurement error, off-target activity and incomplete knockdown. Their failure modes are
+        genuinely different (seed effects vs cutting toxicity), which is what makes agreement
+        informative.
+      relations: [corroborates, qualifies]
+      note: |
+        Caveat the arms do NOT capture: knockdown is hypomorphic where knockout is null, so a
+        target with a low-expression-threshold phenotype can read as CRISPR-dependent and
+        RNAi-independent for real biological reasons rather than technical ones.
+    consumers:
+      - skill: functional-requirement
+        axis_key: DEP
+
+  normal_liability:
+    status: resolvable
+    definition: |
+      Do independent normal-tissue sources agree that targeting this gene carries an on-target
+      normal-tissue liability?
+    grain:
+      measurement_type: normal_tissue_liability
+      sample_context: normal_tissue
+      entity_grain: gene
+    arms:
+      - card_id: normal-tissue-liability-gtex
+        field: liability_class
+        dependence_group: gtex_normal_reference
+      - card_id: sc-normal-celltype-expression
+        field: sc_normal_safety_essential_class
+        dependence_group: sc_normal_atlas
+      - card_id: normal-tissue-liability
+        field: essential_tissue_flag
+        dependence_group: curated_essential_tissue
+    determinants: []   # thresholds live on the ARMS' properties, not on the fold
+    integration:
+      island_key: normal_liability_concordance
+      builder: skills/_skills_common/safety_claims.py
+      builder_function: _normal_liability_concordance_claim
+      comparability: |
+        Bulk normal reference (GTEx) x single-cell normal atlas x curated essential-tissue call.
+        The third arm is CURATION, not a measurement, so it is not commensurable with the other
+        two in the same way — it can qualify them but an agreement with it is not independent
+        replication of a measurement.
+      relations: [corroborates, qualifies]
+      note: |
+        Polarity trap worth stating: on this family ALL arms are adverse-direction. Absence of
+        liability evidence is NOT evidence of safety, and a fold that reports "no arms resolved"
+        must not read as a clean safety call.
+    consumers:
+      - skill: on-target-safety-liability
+        axis_key: NORMAL_TISSUE
+      - skill: tumor-selectivity
+        axis_key: SAFE
+      - skill: surface-modality-fit
+        axis_key: SAFETY
+
+  cis_dosage:
+    status: resolvable
+    definition: |
+      Is expression coupled to copy number, and does that coupling replicate across cell-line
+      models and patient tumours?
+    grain:
+      measurement_type: cis_dosage_coupling
+      sample_context: cross_grain
+      entity_grain: gene
+    arms:
+      - card_id: cis-feature-expression-coherence
+        field: cis_dosage_class
+        dependence_group: depmap_rna
+      - card_id: cis-feature-expression-coherence
+        field: cn_expr_spearman_r
+        dependence_group: depmap_rna
+      - card_id: patient-cis-coherence
+        field: patient_cis_dosage_class
+        dependence_group: tcga_bulk_rna
+      - card_id: patient-cis-coherence
+        field: cn_expr_spearman_r
+        dependence_group: tcga_bulk_rna
+      - card_id: cis-feature-protein-coherence
+        field: cis_protein_dosage_class
+        dependence_group: protein_ms_cellline
+      - card_id: cis-feature-protein-coherence
+        field: cn_prot_spearman_r
+        dependence_group: protein_ms_cellline
+    determinants: []   # thresholds live on the ARMS' properties, not on the fold
+    integration:
+      island_key: cis_dosage_concordance
+      builder: skills/_skills_common/cis_coherence_claims.py
+      builder_function: _cis_dosage_concordance_claim
+      comparability: |
+        CROSS-GRAIN (SK#1781): the coupling COEFFICIENT is what replicates, not the expression
+        level. That is what makes cell-line and patient arms comparable here where they are not
+        comparable on abundance — a dose-response slope is a relationship, and relationships
+        transfer across grain better than levels do.
+      relations: [corroborates, qualifies]
+      note: |
+        Three arms across three dependence_groups; the protein arm (SK#1783) is SAME-grain as the
+        cell-line RNA arm but a different modality, so `resolved_source_count` 3 exceeds the 2
+        independent grains — the count and the independence are deliberately different numbers.
+    consumers:
+      - skill: cis-feature-coherence
+        axis_key: CIS_DOSAGE
+
+  methylation_silencing:
+    status: resolvable
+    definition: |
+      Is promoter hypermethylation coupled to expression loss, and does that replicate across
+      cell-line models and patient tumours?
+    grain:
+      measurement_type: methylation_expression_coupling
+      sample_context: cross_grain
+      entity_grain: gene
+    arms:
+      - card_id: cellline-methylation-expression-coherence
+        field: methylation_silencing_class
+        dependence_group: depmap_methylation
+      - card_id: cellline-methylation-expression-coherence
+        field: subset_median_delta_log2tpm
+        dependence_group: depmap_methylation
+      - card_id: patient-cis-coherence
+        field: patient_methylation_silencing_class
+        dependence_group: tcga_methylation
+      - card_id: patient-cis-coherence
+        field: delta_log2tpm_methylated_vs_unmethylated
+        dependence_group: tcga_methylation
+    determinants: []   # thresholds live on the ARMS' properties, not on the fold
+    integration:
+      island_key: methylation_silencing_concordance
+      builder: skills/_skills_common/cis_coherence_claims.py
+      builder_function: _methylation_silencing_concordance_claim
+      comparability: |
+        CROSS-GRAIN (SK#1782). The two grains' class VOCABULARIES differ, so each token is routed
+        through an explicit class -> arm mapping rather than compared as strings. That mapping is
+        the comparability gate: without it the family would be string-matching two vocabularies
+        that merely look similar.
+      relations: [corroborates, qualifies]
+    consumers:
+      - skill: cis-feature-coherence
+        axis_key: SILENCING
+
+  expression_dependency:
+    status: resolvable
+    definition: |
+      Does the target's own abundance predict dependency on it, and do the RNA and protein
+      readouts of that coupling agree?
+    grain:
+      measurement_type: abundance_dependency_coupling
+      sample_context: cell_line_panel
+      entity_grain: gene
+    arms:
+      - card_id: expression-dependency-correlation
+        field: correlation_class
+        dependence_group: depmap_rna
+      - card_id: expression-dependency-correlation
+        field: pearson_r
+        dependence_group: depmap_rna
+      - card_id: abundance-dependency
+        field: abundance_dependency_class
+        dependence_group: protein_ms_cellline
+      - card_id: abundance-dependency
+        field: protein_dependency_pearson_r
+        dependence_group: protein_ms_cellline
+    determinants: []   # thresholds live on the ARMS' properties, not on the fold
+    integration:
+      island_key: expression_dependency_concordance
+      builder: skills/_skills_common/cis_coherence_claims.py
+      builder_function: _expression_dependency_concordance_claim
+      comparability: |
+        SAME-GRAIN CROSS-MODALITY (SK#1784): both arms are cell-line, so independence rests on
+        ASSAY MODALITY alone. The code's own comment says this is WEAKER than #1781's cross-grain
+        independence, and the catalog keeps that assessment rather than flattening all families
+        to "two arms agreed". Both arms also share the same dependency screen as the y-variable,
+        so only the x-variable is independent between them.
+      relations: [corroborates, qualifies]
+      independence_waiver: |
+        NOT waived — the arms DO differ in dependence_group (depmap_rna vs protein_ms_cellline).
+        Recorded here only to note that the independence is narrower than the group count
+        suggests, because the shared dependency screen is a common input to both correlations.
+    consumers:
+      - skill: cis-feature-coherence
+        axis_key: EXPR_DEP
+
+  isoform_splice:
+    status: resolvable
+    definition: |
+      Is the dominant transcript FORM stable, and do cell-line isoform dominance and patient
+      splice dysregulation agree about it?
+    grain:
+      measurement_type: transcript_form_coupling
+      sample_context: cross_grain
+      entity_grain: transcript
+    arms:
+      - card_id: cellline-isoform-expression
+        field: isoform_expression_class
+        dependence_group: depmap_isoform
+      - card_id: cellline-isoform-expression
+        field: dominant_isoform_fraction
+        dependence_group: depmap_isoform
+      - card_id: tumor-splice-dysregulation
+        field: splicing_dysregulation_class
+        dependence_group: tcga_spliceseq
+      - card_id: tumor-splice-dysregulation
+        field: n_splice_events
+        dependence_group: tcga_spliceseq
+    determinants: []   # thresholds live on the ARMS' properties, not on the fold
+    integration:
+      island_key: isoform_splice_concordance
+      builder: skills/_skills_common/cis_coherence_claims.py
+      builder_function: _isoform_splice_concordance_claim
+      comparability: |
+        CROSS-GRAIN (SK#1785) at TRANSCRIPT rather than gene grain — the only family here that
+        leaves gene grain, which is the point: isoform identity is invisible at gene grain. The
+        two vocabularies differ and are routed through an explicit class -> arm mapping; the
+        `balanced` intermediate and both `data_unavailable` sentinels DROP rather than mapping to
+        a weak signal.
+      relations: [corroborates, qualifies]
+    consumers:
+      - skill: cis-feature-coherence
+        surface: isoform_lens
