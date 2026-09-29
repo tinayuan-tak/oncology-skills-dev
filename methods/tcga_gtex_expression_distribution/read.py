@@ -813,7 +813,7 @@ def _tumor_allgene_percentile(target: str, studies: list) -> dict:
 
         ensembl_ids = _symbol_to_ensembl_ids(target) or []
         return tumor_allgene_percentile(ensembl_ids, studies)
-    except Exception:  # noqa: BLE001 — enrichment best-effort
+    except Exception:  # noqa: BLE001  # absence-discipline: exempt -- additive/display enrichment layer that NEVER flips tumor_expression_class (see docstring); the allgene-percentile lookup is best-effort context, so any failure degrades the enrichment to None without touching the verdict
         return {
             "allgene_percentile": None,
             "allgene_percentile_class": "data_unavailable",
@@ -831,7 +831,7 @@ def _tumor_control_position(target: str, indication: str) -> dict:
         from methods.tumor_presence_controls.read import control_position_tumor
 
         return control_position_tumor(target, indication)
-    except Exception:  # noqa: BLE001 — enrichment best-effort
+    except Exception:  # noqa: BLE001  # absence-discipline: exempt -- additive/display control-benchmark enrichment that NEVER flips tumor_expression_class (see docstring); delegates to control_position_tumor (itself exempt), best-effort context only
         return {"control_position_class": "data_unavailable"}
 
 

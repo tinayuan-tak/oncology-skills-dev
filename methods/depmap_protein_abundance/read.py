@@ -19,6 +19,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Optional
 
+from methods.target_id_sidecar import is_definitively_absent
+
 from . import cli as _cli
 
 
@@ -45,7 +47,12 @@ def read_target_summary(target: str, indication: Optional[str] = None, plot_data
             f"depmap-proteomics-26q1 panel-wide metric=median_log2_abundance source={_source}"
         )
         return summary
-    except Exception as e:  # noqa: BLE001 — any load failure → graceful data_unavailable
+    except Exception as e:  # noqa: BLE001
+        # Absence discipline: swallow ONLY genuine absence (missing object / 404 / NoSuchKey from the
+        # boto3 substrate reads, or FileNotFoundError) as honest data_unavailable; re-raise transient /
+        # creds / broken-env so it surfaces as an honest _live_read_error at the compose seam.
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         return {
             "_live_read_error": "depmap_protein_abundance_read_failed",
             "_remediation": (

@@ -607,7 +607,7 @@ def _lineage_omnibus(lineage_vectors: dict, min_group_n: int = 5) -> dict:
         from methods.tcga_gtex_expression_distribution.stats import kruskal_epsilon_squared
 
         res = kruskal_epsilon_squared(lineage_vectors, min_group_n=min_group_n, min_groups=2)
-    except Exception:  # noqa: BLE001 — Axis-3 is a display facet; never break the lineage summary
+    except Exception:  # noqa: BLE001  # absence-discipline: exempt -- Axis-3 lineage-omnibus is a verdict-inert DISPLAY facet (never flips the dependency verdict); the guarded call is an in-memory Kruskal stats computation over already-loaded vectors (kruskal_epsilon_squared), NOT an S3 read, so there is no transient-read seam to mask -- a stats/degenerate-input failure must not break the lineage summary
         return {
             "lineage_omnibus_kruskal_h": None,
             "lineage_omnibus_p": None,

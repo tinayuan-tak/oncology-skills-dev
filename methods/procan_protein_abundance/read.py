@@ -19,6 +19,8 @@ from __future__ import annotations
 
 from typing import Optional
 
+from methods.target_id_sidecar import is_definitively_absent
+
 from . import cli as _cli
 
 
@@ -27,7 +29,12 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
     accepted for the generic-dispatch contract but NOT consumed."""
     try:
         return _cli.load_and_classify(target)
-    except Exception as e:  # noqa: BLE001 — any load failure → graceful data_unavailable
+    except Exception as e:  # noqa: BLE001
+        # Absence discipline: swallow ONLY genuine absence (missing product / 404 / NoSuchKey or
+        # FileNotFoundError) as honest data_unavailable; re-raise transient / creds / broken-env so it
+        # surfaces as an honest _live_read_error at the compose seam.
+        if not (is_definitively_absent(e) or isinstance(e, FileNotFoundError)):
+            raise
         try:
             bucket, key = _cli._derived_bucket_key()
             src = f"s3://{bucket}/{key}"

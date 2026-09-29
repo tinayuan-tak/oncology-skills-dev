@@ -88,7 +88,7 @@ def read_partner_conditional_dependency(
         dtype = entry["deficiency_type"]
         try:
             deficient_by_model = _cli.build_partner_deficiency_vector(release_pin, partner, dtype)
-        except Exception as e:  # loader failure for THIS partner → record, continue
+        except Exception as e:  # absence-discipline: exempt -- per-partner best-effort INSIDE a multi-partner loop: this records partner_stratification_class=data_unavailable AND sets _live_read_error for the SINGLE failing partner then continues, so the failure is OBSERVABLE (not the silent dead axis this ratchet targets) and the blast radius is one partner, never the whole verdict -- per-partner isolation is a deliberate resilience choice so one flaky partner cannot abort the whole panel
             all_results.append(
                 {
                     "partner": partner,

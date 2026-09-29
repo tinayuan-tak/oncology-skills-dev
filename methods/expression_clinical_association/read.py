@@ -154,18 +154,15 @@ def read_expression_clinical_association(target: str, indication: str) -> dict:
     base = {"target": target, "indication": indication, "endpoint": "OS", "survival_source": "pancanatlas_tcga_cdr"}
 
     # 1) per-sample tumor expression, case-bridged
-    try:
-        from methods.tcga_gtex_expression_distribution.read import read_tumor_samples_with_case
+    from methods.tcga_gtex_expression_distribution.read import read_tumor_samples_with_case
 
-        expr = read_tumor_samples_with_case(sym, indication)
-    except Exception as e:  # noqa: BLE001
-        base.update(
-            {
-                "survival_association_class": "data_unavailable",
-                "_live_read_error": f"expr_read_failed:{type(e).__name__}",
-            }
-        )
-        return base
+    # Absence discipline (#832): read_tumor_samples_with_case already applies the absence discipline
+    # internally (genuine NoSuchKey/404/FileNotFound -> EMPTY frame; transient/creds/broken-env
+    # re-raised), so genuine absence arrives here as an empty frame and is handled by the len(expr)==0
+    # guard below. A broad except here would only mask a transient fault as
+    # survival_association_class=data_unavailable — let it PROPAGATE (honest _live_read_error at the
+    # compose seam) instead.
+    expr = read_tumor_samples_with_case(sym, indication)
     if expr is None or len(expr) == 0:
         base.update(
             {

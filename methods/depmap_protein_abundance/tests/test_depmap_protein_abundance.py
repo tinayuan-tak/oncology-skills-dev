@@ -16,6 +16,8 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import pytest
+
 # Portable repo root: was hardcoded to the author's /home/sagemaker-user checkout, so every
 # path guard below read as "data missing" on a CI runner or in a worktree.
 METHODS_REPO = Path(__file__).resolve().parents[3]
@@ -262,11 +264,27 @@ def test_both_gygi_and_olink_miss_is_data_unavailable(monkeypatch):
     assert s["protein_abundance_source"] == "data_unavailable"
 
 
-def test_read_target_summary_graceful_on_failure(monkeypatch):
+def test_read_target_summary_genuine_absence_is_data_unavailable(monkeypatch):
+    """Absence discipline (#832): a GENUINE absence (missing object/product → FileNotFoundError)
+    degrades to a graceful data_unavailable summary (never crashes the compose path)."""
+
+    def _missing(*a, **k):
+        raise FileNotFoundError("product gone")
+
+    monkeypatch.setattr(pc, "load_and_classify", _missing)
+    out = pc_read.read_target_summary(target="KRAS", indication="COADREAD")
+    assert out["protein_expression_class"] == "data_unavailable"
+    assert out["_live_read_error"] == "depmap_protein_abundance_read_failed"
+
+
+def test_read_target_summary_transient_fault_propagates(monkeypatch):
+    """Absence discipline (#832): the OTHER side of the narrowing — a TRANSIENT / creds / broken-env
+    fault must PROPAGATE (an honest _live_read_error at the compose seam), NOT be masked as
+    protein_expression_class=data_unavailable."""
+
     def _boom(*a, **k):
         raise RuntimeError("s3 down")
 
     monkeypatch.setattr(pc, "load_and_classify", _boom)
-    out = pc_read.read_target_summary(target="KRAS", indication="COADREAD")
-    assert out["protein_expression_class"] == "data_unavailable"
-    assert out["_live_read_error"] == "depmap_protein_abundance_read_failed"
+    with pytest.raises(RuntimeError, match="s3 down"):
+        pc_read.read_target_summary(target="KRAS", indication="COADREAD")

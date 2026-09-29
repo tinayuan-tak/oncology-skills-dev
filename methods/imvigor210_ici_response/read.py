@@ -120,14 +120,13 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
     try:
         rows = _rows_for_candidates(cands)
     except FileNotFoundError:
+        # genuine absence: _rows_for_candidates converts ClientError NoSuchKey/404 (and an unknown
+        # manifest id) to FileNotFoundError -> honest data_unavailable.
         return _empty(f"{MANIFEST_ID} not found (404)")
-    except Exception as e:  # noqa: BLE001
-        return {
-            "ici_response_class": "data_unavailable",
-            "method_version": METHOD_VERSION,
-            "_data_source": MANIFEST_ID,
-            "_live_read_error": f"imvigor210_ici_response read failed for {sym}: {type(e).__name__}: {e}",
-        }
+    # Absence discipline (#832): transient / creds / broken-env now PROPAGATE (an honest _live_read_error
+    # at the compose seam) rather than being masked as ici_response_class=data_unavailable. Genuine
+    # absence is fully handled above (FileNotFoundError); a gene simply absent from the product returns
+    # empty rows and is handled by the `if not rows` guard below.
     if not rows:
         return _empty(f"{sym} absent from IMvigor210 product")
     r = rows[0]

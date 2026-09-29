@@ -827,55 +827,67 @@ _CLASS_TOKEN_BASELINE_REASON = (
 )
 
 _CLASS_TOKEN_BASELINE: dict[str, str] = {
-    # -- CONSUMER-CONFIRMED FAIL-SAFE (2026-09-26): the #796 scanner surfaced these; the downstream
-    #    trace shows the token is consumed as a GAP, never as a clean token that drops a veto/KILL, so
-    #    they are NOT shipped fail-opens. Kept as residuals for discipline-hardening (adopt
-    #    is_definitively_absent) + one observability-parity nit, tracked but not verdict-urgent. ------
+    # ============================================================================================
+    # SECOND-PASS BURNDOWN (#832, 2026-09-29). The 2026-09-26 freeze held 27 entries; PR #882 burned
+    # 3; this pass dispositioned the remaining ~20: 8 narrowed to the is_definitively_absent
+    # discipline (transient/creds now PROPAGATE; entries removed), 8 marked verdict-inert / deliberate
+    # graceful facets via inline `# absence-discipline: exempt` markers (entries removed). The 7 below
+    # are (c) — deliberately LEFT with a named blocker per the #832 disposition comment, so the ratchet
+    # records a DECISION, not a silent gap. Each remains a live violation (still masks); do NOT remove
+    # without addressing its blocker.
+    # ============================================================================================
+    # -- (c) CONSUMER-CONFIRMED FAIL-SAFE, tracked SEPARATELY as #831 (observability-parity burndown) ----
     "gdc_somatic_hotspot/read.py::_pooled_recurrence_fields": (
-        "FAIL-SAFE (consumer-confirmed 2026-09-26): the recurrent_snv_driver rung is a POSITIVE rescue "
-        "keyed on equals:top_1pct (intracellular-intrinsic.rules.yaml:701, 'NOT a killer'); on "
-        "data_unavailable it simply does NOT fire, and genomic_alteration.resolver.yaml:185-186 "
-        "explicitly refuses to demote drivers on unmeasured recurrence — so a transient failure "
-        "under-calls (safe), never flips a verdict. Residual: unlike the abundance arm it does NOT set "
-        "_live_read_error, so a transient read is indistinguishable from honest no-cohort (observability "
-        "nit, filed MEDIUM). Burndown: is_definitively_absent + set _live_read_error."
+        "(c) BLOCKED — tracked separately as #831 (observability-parity: adopt _live_read_error + "
+        "is_definitively_absent together). FAIL-SAFE (consumer-confirmed 2026-09-26): the "
+        "recurrent_snv_driver rung is a POSITIVE rescue keyed on equals:top_1pct "
+        "(intracellular-intrinsic.rules.yaml:701, 'NOT a killer'); on data_unavailable it simply does NOT "
+        "fire, and genomic_alteration.resolver.yaml:185-186 explicitly refuses to demote drivers on "
+        "unmeasured recurrence — so a transient failure under-calls (safe), never flips a verdict."
     ),
     "gdc_somatic_hotspot/read.py::_genie_recurrence_fields": (
-        "FAIL-SAFE (consumer-confirmed 2026-09-26): sibling GENIE leg of the same positive-only "
+        "(c) BLOCKED — tracked separately as #831. Sibling GENIE leg of the same positive-only "
         "SNV-recurrence rescue lane; identical fail-safe posture and the same _live_read_error "
-        "observability nit. Fix with the pooled leg."
+        "observability nit. Fix with the pooled leg under #831."
     ),
-    "depmap_partner_conditional_dependency/read.py::read_partner_conditional_dependency": (
-        "PER-PARTNER degrade inside a loop: records partner_stratification_class=data_unavailable + "
-        "_live_read_error for THIS partner and continues; not a whole-verdict drop. Low blast radius; "
-        "discriminate transient vs absent on burndown."
+    # -- (c) EXCLUDED: a genome-wide depmap_predictability daemon is running on this host (#832 second
+    #    pass) — do not perturb its readers mid-run. Consumer-confirmed fail-safe (predictability_class
+    #    is a CONFIDENCE annotation, not the dependency verdict). Adopt is_definitively_absent in a quiet
+    #    window. --------------------------------------------------------------------------------------
+    "depmap_predictability/cli.py::main": (
+        "(c) EXCLUDED (#832 second pass): a genome-wide depmap_predictability daemon is running on this "
+        "host — do not touch its readers mid-run. predictability_class is a confidence annotation, not the "
+        "verdict; consumer-confirmed fail-safe. Convert to is_definitively_absent in a quiet window."
     ),
-    # -- Pre-existing residuals pending triage (shared reason) ----------------------------------------
-    "dependency_controls/read.py::control_position_dependency": _CLASS_TOKEN_BASELINE_REASON,
-    "depmap_chronos/cli.py::_lineage_omnibus": _CLASS_TOKEN_BASELINE_REASON,
-    "depmap_predictability/cli.py::main": _CLASS_TOKEN_BASELINE_REASON,
-    "depmap_predictability/read.py::read_predictability": _CLASS_TOKEN_BASELINE_REASON,
-    "depmap_protein_abundance/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
-    "expression_clinical_association/read.py::read_expression_clinical_association": _CLASS_TOKEN_BASELINE_REASON,
+    "depmap_predictability/read.py::read_predictability": (
+        "(c) EXCLUDED (#832 second pass): sibling read-layer of depmap_predictability/cli.py::main; same "
+        "genome-wide-daemon exclusion — do not touch mid-run. Convert alongside the CLI leg."
+    ),
+    # -- (c) EXCLUDED: on-target-safety-liability triad (gnomad-lof-constraint / normal-tissue-liability /
+    #    shet-lof-intolerance cards). The skills-side safety wiring (#1794) is LIVE, so changing these
+    #    readers' degradation contract is a verdict-integrity decision on a live safety gate — out of
+    #    scope for a discipline-hardening pass. -----------------------------------------------------
     "gnomad_constraint/read.py::read_target_summary": (
-        "Pinned-contract test test_read_target_summary_graceful_on_unreadable_source (gnomad_constraint/"
-        "tests/test_gnomad_constraint.py) asserts graceful data_unavailable on ANY unreadable source, not "
-        "just genuine absence (RuntimeError injection reds an is_definitively_absent conversion) — a "
-        "design decision on the reader's degradation contract, out of scope for this burndown pass."
+        "(c) EXCLUDED (#832 second pass): on-target-safety reader (gnomad-lof-constraint card, cards/"
+        "gnomad-lof-constraint.card.yaml) feeding the on-target-safety-liability skill whose wiring "
+        "(#1794) is LIVE. Additionally its pinned-contract test "
+        "test_read_target_summary_graceful_on_unreadable_source (gnomad_constraint/tests/"
+        "test_gnomad_constraint.py) asserts graceful data_unavailable on ANY unreadable source (RuntimeError "
+        "injection reds an is_definitively_absent conversion) — narrowing is a degradation-contract "
+        "decision on a live safety gate, deferred to a safety-owned change."
     ),
-    "expression_purity_confound/read.py::read_expression_purity_confound": _CLASS_TOKEN_BASELINE_REASON,
-    "hpa_normal_tissue_liability/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
-    "imvigor210_ici_response/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
-    "pathway_node_leverage/cli.py::read_node_leverage": _CLASS_TOKEN_BASELINE_REASON,
-    "patient_model_expression_correspondence/read.py::read_recommended_models": _CLASS_TOKEN_BASELINE_REASON,
-    "pharos_tdl/cli.py::read_pharos_tdl": _CLASS_TOKEN_BASELINE_REASON,
-    "procan_protein_abundance/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
-    "shed_ectodomain_liability/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
-    "shet_selection/read.py::read_target_summary": _CLASS_TOKEN_BASELINE_REASON,
-    "tcga_gtex_expression_distribution/read.py::_tumor_allgene_percentile": _CLASS_TOKEN_BASELINE_REASON,
-    "tcga_gtex_expression_distribution/read.py::_tumor_control_position": _CLASS_TOKEN_BASELINE_REASON,
-    "tumor_presence_controls/read.py::control_position_cellline": _CLASS_TOKEN_BASELINE_REASON,
-    "tumor_presence_controls/read.py::control_position_tumor": _CLASS_TOKEN_BASELINE_REASON,
+    "hpa_normal_tissue_liability/read.py::read_target_summary": (
+        "(c) EXCLUDED (#832 second pass): on-target-safety reader (normal-tissue-liability card, cards/"
+        "normal-tissue-liability.card.yaml) feeding the on-target-safety-liability skill whose wiring "
+        "(#1794) is LIVE — degradation-contract change is a verdict-integrity decision on a live safety "
+        "gate, deferred to a safety-owned change."
+    ),
+    "shet_selection/read.py::read_target_summary": (
+        "(c) EXCLUDED (#832 second pass): on-target-safety reader (shet-lof-intolerance card, cards/"
+        "shet-lof-intolerance.card.yaml) feeding the on-target-safety-liability skill whose wiring (#1794) "
+        "is LIVE; also uses shet_class=indeterminate (not data_unavailable). Degradation-contract change "
+        "deferred to a safety-owned change."
+    ),
 }
 
 

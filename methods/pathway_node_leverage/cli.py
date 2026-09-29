@@ -54,7 +54,7 @@ from methods.depmap_common.parquet import (
     _stream_table,
 )
 from methods.depmap_paralog_aggregator.read import read_target_summary as _read_paralog_buffering
-from methods.target_id_sidecar import s3_client
+from methods.target_id_sidecar import is_definitively_absent, s3_client
 
 METHOD_VERSION = "0.1.0"
 
@@ -398,6 +398,11 @@ def read_node_leverage(target: str, indication: Optional[str] = None) -> dict:
     except ImportError:
         raise
     except Exception as e:
+        # Absence discipline: the lens loaders read via s3_client().get_object, so a genuinely-missing
+        # object raises ClientError NoSuchKey/404 -> honest data_unavailable; re-raise transient/creds so
+        # they surface as an honest _live_read_error at the compose seam.
+        if not is_definitively_absent(e):
+            raise
         return {"node_leverage_class": "data_unavailable", "_live_read_error": f"{type(e).__name__}: {e}"}
 
     headline = _headline_class(lenses)

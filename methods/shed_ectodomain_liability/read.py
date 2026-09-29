@@ -26,7 +26,7 @@ def read_target_summary(target: str, indication: Optional[str] = None) -> dict:
     accepted for the CARD_DISPATCHERS contract but NOT consumed."""
     try:
         return _cli.load_and_classify(target)
-    except Exception as e:  # noqa: BLE001 — any load failure → graceful data_unavailable
+    except Exception as e:  # noqa: BLE001  # absence-discipline: exempt -- author-correct: the honest measured NEGATIVE for this reader is not_on_secreted_panel / shed_evidence_tier=none from a SUCCESSFUL read, so shed_liability_class=data_unavailable is unambiguously a GAP token (never a favorable "no shed liability" flip); mirrors the classify_measured_shed media.py exempt landed in PR #882 (same module, same posture)
         return {
             "_live_read_error": "shed_ectodomain_read_failed",
             "_remediation": (

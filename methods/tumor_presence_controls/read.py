@@ -174,7 +174,7 @@ def control_position_tumor(target: str, indication: str, contracts_dir: str = st
 
     try:
         controls = _load_controls(contracts_dir)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # absence-discipline: exempt -- verdict-inert control-benchmark display facet; the guarded read is the target-contracts controls VOCAB (_load_controls), whose deliberate contract is to degrade when the vocab is not yet merged in the sibling checkout (cross-repo staleness tolerance), not an S3 data product -- observability preserved via _control_note
         return {
             "control_position_class": "data_unavailable",
             "_control_note": f"controls vocab unavailable: {type(e).__name__}",
@@ -213,7 +213,7 @@ def control_position_cellline(target: str, contracts_dir: str = str(DEFAULT_TARG
 
     try:
         controls = _load_controls(contracts_dir)
-    except Exception as e:  # noqa: BLE001
+    except Exception as e:  # noqa: BLE001  # absence-discipline: exempt -- verdict-inert control-benchmark display facet; the guarded read is the target-contracts controls VOCAB (_load_controls), whose deliberate contract is to degrade when the vocab is not yet merged in the sibling checkout (cross-repo staleness tolerance), not an S3 data product -- observability preserved via _control_note
         return {
             "control_position_class": "data_unavailable",
             "_control_note": f"controls vocab unavailable: {type(e).__name__}",

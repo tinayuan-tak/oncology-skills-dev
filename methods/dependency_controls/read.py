@@ -116,7 +116,7 @@ def control_position_dependency(
     """
     try:
         controls = _load_controls(contracts_dir)
-    except Exception as e:  # noqa: BLE001 — vocab may not be merged yet; degrade gracefully
+    except Exception as e:  # noqa: BLE001  # absence-discipline: exempt -- verdict-inert display-only control-benchmark facet (dep_control_* never flips the dependency verdict); the guarded read is the target-contracts controls VOCAB, whose deliberate contract is to degrade when the vocab is not yet merged (cross-repo staleness tolerance), not an S3 data product
         return {
             "dep_control_position_class": "data_unavailable",
             "_dep_control_note": f"controls vocab unavailable: {type(e).__name__}",

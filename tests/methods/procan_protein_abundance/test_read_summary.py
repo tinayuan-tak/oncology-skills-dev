@@ -7,7 +7,8 @@ No S3: a synthetic local long/tidy parquet (the derived product's schema) is rea
   * the distribution class + all-gene percentile are computed against the on-read all-protein null;
   * broadly_high is REACHABLE (proves the null wiring — the H3 fix the Gygi sibling carries);
   * absence discipline: unresolved symbol / accession-absent → data_unavailable (a coverage gap);
-  * read_target_summary degrades to _live_read_error on a load fault (never crashes the compose path);
+  * absence discipline (#832): read_target_summary degrades to data_unavailable on GENUINE absence
+    (NoSuchKey/404/FileNotFound) but a TRANSIENT/creds fault PROPAGATES (never masked as data_unavailable);
   * per-lineage stratification is empty (SIDM ids have no OncotreeLineage crosswalk yet).
 """
 
@@ -171,17 +172,42 @@ def test_accession_absent_from_panel_is_data_unavailable(tmp_path, monkeypatch):
     assert out["protein_expression_class"] == "data_unavailable"
 
 
-def test_read_target_summary_degrades_on_fault(monkeypatch):
-    def _boom(*a, **k):
-        raise RuntimeError("s3 down")
+def test_read_target_summary_genuine_absence_is_data_unavailable(monkeypatch):
+    """Absence discipline (#832): a GENUINE absence (missing product/object → ClientError NoSuchKey/404
+    or FileNotFoundError) degrades to a graceful data_unavailable summary (never crashes the compose
+    path). This is the FIRE-ABLE half of the narrowing — the absence branch must still be reachable."""
+    from botocore.exceptions import ClientError
 
-    monkeypatch.setattr(cli, "load_and_classify", _boom)
+    def _absent(*a, **k):
+        raise ClientError({"Error": {"Code": "NoSuchKey"}}, "GetObject")
+
+    monkeypatch.setattr(cli, "load_and_classify", _absent)
     out = read.read_target_summary("EGFR", indication="COADREAD")
     assert out["_live_read_error"] == "procan_protein_abundance_read_failed"
     assert out["protein_expression_class"] == "data_unavailable"
     assert out["protein_abundance_source"] == "data_unavailable"
     assert out["allgene_percentile"] is None and out["median_log2_abundance_panel"] is None
     assert out["per_lineage_stats"] == [] and out["method_version"] == cli.METHOD_VERSION
+
+    def _missing(*a, **k):
+        raise FileNotFoundError("product gone")
+
+    monkeypatch.setattr(cli, "load_and_classify", _missing)
+    assert read.read_target_summary("EGFR", indication="COADREAD")["protein_expression_class"] == "data_unavailable"
+
+
+def test_read_target_summary_transient_fault_propagates(monkeypatch):
+    """Absence discipline (#832): the OTHER side of the narrowing — a TRANSIENT / creds / broken-env
+    fault must PROPAGATE (an honest _live_read_error at the compose seam), NOT be masked as
+    protein_expression_class=data_unavailable (the RD-class silent-dead-axis bug). Before this pass the
+    reader swallowed ANY exception into data_unavailable; that breadth is exactly what is removed here."""
+
+    def _boom(*a, **k):
+        raise RuntimeError("s3 down")
+
+    monkeypatch.setattr(cli, "load_and_classify", _boom)
+    with pytest.raises(RuntimeError, match="s3 down"):
+        read.read_target_summary("EGFR", indication="COADREAD")
 
 
 def test_transient_null_scan_failure_not_memoized(monkeypatch):

@@ -103,21 +103,14 @@ def read_recommended_models(
         )
         return base
 
-    try:
-        chronos_by_model, tpm_by_model, meta, errs = _c4.load_depmap_files_for_card4(
-            release_pin=release_pin, target_symbol=target
-        )
-    except Exception as e:  # noqa: BLE001
-        base.update(
-            {
-                "correspondence_class": "data_unavailable",
-                "recommended_models": [],
-                "n_models_considered": 0,
-                "n_positive_models": 0,
-                "_data_note": f"DepMap load failed: {type(e).__name__}",
-            }
-        )
-        return base
+    # Absence discipline (#832): load_depmap_files_for_card4 converts genuine absence (missing
+    # object / target column absent) into its errs channel + empty returns (handled by the
+    # `if errs or not tpm_by_model` guard below), so a broad except here would only ever mask a
+    # transient / creds / broken-env fault as correspondence_class=data_unavailable. Let those
+    # PROPAGATE (an honest _live_read_error at the compose seam) instead.
+    chronos_by_model, tpm_by_model, meta, errs = _c4.load_depmap_files_for_card4(
+        release_pin=release_pin, target_symbol=target
+    )
     if errs or not tpm_by_model:
         base.update(
             {

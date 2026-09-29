@@ -18,6 +18,8 @@ import io
 from functools import lru_cache
 from typing import Optional
 
+from methods.target_id_sidecar import is_definitively_absent
+
 METHOD_VERSION = "0.1.1"  # 0.1.1: resolve source via the data-catalog manifest (catalog_query) instead of a hardcoded s3:// URI — same parquet, byte-identical output.
 
 # Source resolved through the data-catalog single-source-of-truth (catalog_query.bucket_prefix_for),
@@ -67,6 +69,12 @@ def read_pharos_tdl(target: str, indication: Optional[str] = None) -> dict:
     except ImportError:
         raise  # broken env (pandas/boto3) — never mask as a data gap
     except Exception as e:
+        # Absence discipline: the TCRD table is read via s3_client().get_object, so a genuinely-missing
+        # object raises ClientError NoSuchKey/404 -> honest data_unavailable; re-raise transient/creds so
+        # they surface as an honest _live_read_error at the compose seam. (Target-present/row-absent is
+        # handled separately below, outside the try.)
+        if not is_definitively_absent(e):
+            raise
         return {"tdl_class": "data_unavailable", "_live_read_error": f"{type(e).__name__}: {e}"}
     if target not in tbl.index:
         return {
