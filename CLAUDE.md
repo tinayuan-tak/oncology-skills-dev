@@ -131,6 +131,13 @@ land-pr then marks it ready and:
   - no checks / all green → squash-merges now
 Always `--squash --delete-branch`.
 
+**`main` is protected by a GitHub merge queue** (ruleset `merge-queue-main`,
+squash method). A queue-protected branch REJECTS a direct merge, so land-pr
+detects the queue and ENQUEUES the PR instead — it lands asynchronously after
+the queue re-runs the required checks on the *prospective merged tree* (the
+`merge_group` event), which is why "all green" no longer merges instantly. Re-run
+`land-pr <pr>` after it lands (or pass `--now`) to prune the worktree.
+
 It NEVER deletes a branch/worktree until it re-reads the PR and confirms
 `state == MERGED` — deleting a head branch before merge closes the PR
 UNMERGED (silent work loss). After a confirmed merge it prunes the
@@ -179,10 +186,14 @@ doubt.
 - **Two required status checks gate `main`**: `pytest`
   (`.github/workflows/skills-validate.yml` — fans in the skills shards, the methods
   suite, and both contracts jobs) and `ruff` (`.github/workflows/ruff.yml`),
-  `strict: false`, no rulesets on the branch. CodeQL / `Analyze (python)` also runs on
+  `strict: false`. Both also trigger on the `merge_group` event so the merge queue can
+  run them on the prospective merged tree. CodeQL / `Analyze (python)` also runs on
   every PR (org-level default setup) but is **not** required and does not gate. Three
-  checks run; two gate. Re-measure rather than trusting this line:
+  checks run; two gate. A `merge-queue-main` ruleset requires the queue (squash) — it
+  adds no status checks; the queue runs the two required contexts above. Re-measure
+  rather than trusting this line:
   `gh api 'repos/{owner}/{repo}/branches/main/protection' --jq .required_status_checks`
+  and `gh api 'repos/{owner}/{repo}/rules/branches/main' --jq '[.[].type]|unique'`
 - **Blast-radius exception — gate fully locally before pushing, don't lean on CI**:
   any change under `cards/` | `interpretation-rules/` | `resolvers/` | `vocabularies/`
   (inside `contracts/`), or any change that spans `skills/` + `methods/` + `contracts/`
