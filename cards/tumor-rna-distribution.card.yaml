@@ -71,6 +71,17 @@ outputs:
     - median_log2tpm                            # per-sample median (not a cohort aggregate)
     - p95_log2tpm
     - p99_log2tpm
+    # Five-number-summary SPREAD (AM#857, 2026-09-29): p5/q1/q3/mean/sd are computed by
+    # stats.five_number() and were being DROPPED at the reader projection (recoverability-invariant
+    # violation). Retained now so the pooled tumor distribution carries the same spread its cell-line
+    # twin (cellline-rna-distribution) already emits. VERDICT-INERT — display/context only; NEVER move
+    # tumor_expression_class. NAMING: q1/q3 (== p25/p75) deliberately diverges from the cell-line twin's
+    # p25/p75 for within-method consistency with the `<stat>_log2tpm` suffix + the five_number() primitive.
+    - p5_log2tpm                                # 5th percentile (spread; == the twin's p5_log2tpm_panel)
+    - q1_log2tpm                                # 25th percentile / lower quartile (== p25)
+    - q3_log2tpm                                # 75th percentile / upper quartile (== p75)
+    - mean_log2tpm                              # arithmetic mean on log2(TPM+1) (pairs with median for skew)
+    - sd_log2tpm                                # standard deviation on log2(TPM+1) (dispersion)
     - detectable_fraction                       # fraction of tumors >= detectable (log2TPM>=1 / TPM~1)
     - moderate_fraction                         # >= moderate (log2TPM>=3.46 / TPM~10)
     - high_fraction                             # >= high (log2TPM>=5.67 / TPM~50)

@@ -211,6 +211,14 @@ outputs:
       p99_log2tpm: number
       min_log2tpm: number
       max_log2tpm: number
+      # five-number-summary SPREAD retained per stratum (AM#857, 2026-09-29) — parity with the pooled
+      # card's summary_fields; same DROPPED-at-projection fix applied to the per-subtype grain. q1/q3 ==
+      # p25/p75, VERDICT-INERT. See the pooled card for the naming rationale.
+      p5_log2tpm: number
+      q1_log2tpm: number
+      q3_log2tpm: number
+      mean_log2tpm: number
+      sd_log2tpm: number
       coefficient_of_variation: number
       detectable_fraction: number
       high_fraction: number
