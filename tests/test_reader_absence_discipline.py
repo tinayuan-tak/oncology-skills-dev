@@ -836,20 +836,11 @@ _CLASS_TOKEN_BASELINE: dict[str, str] = {
     # records a DECISION, not a silent gap. Each remains a live violation (still masks); do NOT remove
     # without addressing its blocker.
     # ============================================================================================
-    # -- (c) CONSUMER-CONFIRMED FAIL-SAFE, tracked SEPARATELY as #831 (observability-parity burndown) ----
-    "gdc_somatic_hotspot/read.py::_pooled_recurrence_fields": (
-        "(c) BLOCKED — tracked separately as #831 (observability-parity: adopt _live_read_error + "
-        "is_definitively_absent together). FAIL-SAFE (consumer-confirmed 2026-09-26): the "
-        "recurrent_snv_driver rung is a POSITIVE rescue keyed on equals:top_1pct "
-        "(intracellular-intrinsic.rules.yaml:701, 'NOT a killer'); on data_unavailable it simply does NOT "
-        "fire, and genomic_alteration.resolver.yaml:185-186 explicitly refuses to demote drivers on "
-        "unmeasured recurrence — so a transient failure under-calls (safe), never flips a verdict."
-    ),
-    "gdc_somatic_hotspot/read.py::_genie_recurrence_fields": (
-        "(c) BLOCKED — tracked separately as #831. Sibling GENIE leg of the same positive-only "
-        "SNV-recurrence rescue lane; identical fail-safe posture and the same _live_read_error "
-        "observability nit. Fix with the pooled leg under #831."
-    ),
+    # gdc_somatic_hotspot/read.py::_pooled_recurrence_fields and ::_genie_recurrence_fields — FIXED
+    # under #831: both now adopt is_definitively_absent (genuine absence stays a clean
+    # data_unavailable record) and set `_live_read_error` on the transient/creds/broken-env degrade
+    # path, so a transient blip is no longer indistinguishable from an honest no-cohort. Entries
+    # removed from the baseline.
     # -- (c) EXCLUDED: a genome-wide depmap_predictability daemon is running on this host (#832 second
     #    pass) — do not perturb its readers mid-run. Consumer-confirmed fail-safe (predictability_class
     #    is a CONFIDENCE annotation, not the dependency verdict). Adopt is_definitively_absent in a quiet

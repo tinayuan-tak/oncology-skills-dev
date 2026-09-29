@@ -287,7 +287,17 @@ def _genie_recurrence_fields(target: str, indication: str) -> dict:
     """The GENIE panel-coverage-correct recurrence fields (genie_driver_recurrence_*) for the
     mutation-hotspot-frequency card — the higher-N sibling of the MC3 driver_recurrence_*. Lazily
     imports genie_panel_recurrence + always returns the 4 keys (graceful data_unavailable on any
-    failure/absence), so the card gains the GENIE comparator without ever breaking the MC3 path."""
+    failure/absence), so the card gains the GENIE comparator without ever breaking the MC3 path.
+
+    #831: a genuine absence (FileNotFoundError / a definitively-absent ClientError — mirrors the
+    genuine-vs-transient split genie_recurrence_for_gene itself already applies internally, and the
+    dge_deseq2 #797 `_read_tvn_selectivity_v2_fallback` composite pattern) degrades to a CLEAN
+    data_unavailable record with no `_live_read_error`. Anything else (transient/creds/broken-env,
+    or the lazy import itself failing) still degrades gracefully — this comparator is additive and
+    must never break the MC3 card — but now carries `_live_read_error` so the failure is a breadcrumb
+    instead of being laundered into an indistinguishable honest no-cohort."""
+    from methods.target_id_sidecar import is_definitively_absent
+
     keys = (
         "genie_driver_recurrence_percentile",
         "genie_driver_recurrence_class",
@@ -299,13 +309,16 @@ def _genie_recurrence_fields(target: str, indication: str) -> dict:
 
         g = genie_recurrence_for_gene(target, indication)
         return {k: g.get(k) for k in keys}
-    except Exception:
-        return {
+    except Exception as e:  # noqa: BLE001
+        out = {
             "genie_driver_recurrence_percentile": None,
             "genie_driver_recurrence_class": "data_unavailable",
             "genie_mutation_frequency": None,
             "genie_recurrence_context": None,
         }
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            out["_live_read_error"] = f"genie_recurrence_failed:{type(e).__name__}"
+        return out
 
 
 def _pooled_recurrence_fields(target: str, indication: str) -> dict:
@@ -313,7 +326,15 @@ def _pooled_recurrence_fields(target: str, indication: str) -> dict:
     mutation-hotspot-frequency card — the verdict-relevant SNV recurrence signal (scope-coherence
     Phase 2; fires the recurrent_snv_driver rung). Lazily imports pooled_snv_recurrence + always
     returns the keys (graceful data_unavailable on any failure/absence), so the card gains the pooled
-    comparator without ever breaking the MC3/GENIE path."""
+    comparator without ever breaking the MC3/GENIE path.
+
+    #831: same genuine-absence-vs-transient split as `_genie_recurrence_fields` above — a definitive
+    absence stays a clean data_unavailable record; anything else degrades gracefully too (this is a
+    non-killer positive rescue only — recurrent_snv_driver just doesn't fire — see
+    tests/test_reader_absence_discipline.py's consumer-confirmed fail-safe note) but now sets
+    `_live_read_error` so the degrade is distinguishable from an honest no-cohort."""
+    from methods.target_id_sidecar import is_definitively_absent
+
     keys = (
         "pooled_driver_recurrence_class",
         "pooled_driver_recurrence_percentile",
@@ -333,8 +354,8 @@ def _pooled_recurrence_fields(target: str, indication: str) -> dict:
 
         p = pooled_recurrence_for_gene(target, indication)
         return {k: p.get(k) for k in keys}
-    except Exception:
-        return {
+    except Exception as e:  # noqa: BLE001
+        out = {
             "pooled_driver_recurrence_class": "data_unavailable",
             "pooled_driver_recurrence_percentile": None,
             "pooled_mutation_frequency": None,
@@ -344,6 +365,9 @@ def _pooled_recurrence_fields(target: str, indication: str) -> dict:
             "n_ranked_genes": None,
             "pooled_recurrence_context": None,
         }
+        if not (isinstance(e, FileNotFoundError) or is_definitively_absent(e)):
+            out["_live_read_error"] = f"pooled_recurrence_failed:{type(e).__name__}"
+        return out
 
 
 def read_hotspot_summary(

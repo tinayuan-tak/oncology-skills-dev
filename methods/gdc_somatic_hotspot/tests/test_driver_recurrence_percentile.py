@@ -117,9 +117,35 @@ def test_missing_aggregate_is_data_unavailable(tmp_path, monkeypatch):
 # --- GENIE recurrence fields on the card (Phase 1e tail) ---------------------
 
 
-def test_genie_recurrence_fields_graceful_when_module_absent(monkeypatch):
-    """read_hotspot_summary always carries the 4 genie_driver_recurrence_* keys; if the GENIE
-    reader raises/absent, they degrade to data_unavailable rather than breaking the MC3 card."""
+def test_genie_recurrence_fields_graceful_when_genuinely_absent(monkeypatch):
+    """#831: a genuine absence (FileNotFoundError, mirrors genie_recurrence_for_gene's own
+    is_definitively_absent discrimination) degrades to a CLEAN data_unavailable record — no
+    `_live_read_error` breadcrumb, since this really is an honest no-cohort."""
+    from methods.gdc_somatic_hotspot import read as r
+
+    def _absent(*a, **k):
+        raise FileNotFoundError("no such object")
+
+    import methods.genie_panel_recurrence.read as gr
+
+    monkeypatch.setattr(gr, "genie_recurrence_for_gene", _absent)
+    fields = r._genie_recurrence_fields("KRAS", "NSCLC")
+    assert fields["genie_driver_recurrence_class"] == "data_unavailable"
+    assert fields["genie_driver_recurrence_percentile"] is None
+    assert "_live_read_error" not in fields
+    assert set(fields) == {
+        "genie_driver_recurrence_percentile",
+        "genie_driver_recurrence_class",
+        "genie_mutation_frequency",
+        "genie_recurrence_context",
+    }
+
+
+def test_genie_recurrence_fields_surfaces_live_read_error_on_transient_failure(monkeypatch):
+    """#831: a transient/creds/broken-env failure (NOT definitively absent) still degrades
+    gracefully — this comparator must never break the MC3 card — but now sets `_live_read_error`
+    so the failure is distinguishable from an honest no-cohort (was previously indistinguishable,
+    the bug this issue fixes)."""
     from methods.gdc_somatic_hotspot import read as r
 
     def _boom(*a, **k):
@@ -132,9 +158,62 @@ def test_genie_recurrence_fields_graceful_when_module_absent(monkeypatch):
     fields = r._genie_recurrence_fields("KRAS", "NSCLC")
     assert fields["genie_driver_recurrence_class"] == "data_unavailable"
     assert fields["genie_driver_recurrence_percentile"] is None
+    assert "_live_read_error" in fields
+    assert "RuntimeError" in fields["_live_read_error"]
     assert set(fields) == {
         "genie_driver_recurrence_percentile",
         "genie_driver_recurrence_class",
         "genie_mutation_frequency",
         "genie_recurrence_context",
+        "_live_read_error",
     }
+
+
+# --- pooled (MC3 + GENIE + MSK-CHORD) recurrence fields — the recurrent_snv_driver rescue lane ----
+
+_POOLED_KEYS = {
+    "pooled_driver_recurrence_class",
+    "pooled_driver_recurrence_percentile",
+    "pooled_mutation_frequency",
+    "n_covered_pooled",
+    "n_mutated_pooled",
+    "cohorts_contributing",
+    "n_ranked_genes",
+    "pooled_recurrence_context",
+}
+
+
+def test_pooled_recurrence_fields_graceful_when_genuinely_absent(monkeypatch):
+    """#831: mirrors the GENIE genuine-absence test — a FileNotFoundError degrades to a CLEAN
+    data_unavailable record, no `_live_read_error`."""
+    from methods.gdc_somatic_hotspot import read as r
+
+    def _absent(*a, **k):
+        raise FileNotFoundError("no such object")
+
+    import methods.pooled_snv_recurrence.read as pr
+
+    monkeypatch.setattr(pr, "pooled_recurrence_for_gene", _absent)
+    fields = r._pooled_recurrence_fields("KRAS", "NSCLC")
+    assert fields["pooled_driver_recurrence_class"] == "data_unavailable"
+    assert "_live_read_error" not in fields
+    assert set(fields) == _POOLED_KEYS
+
+
+def test_pooled_recurrence_fields_surfaces_live_read_error_on_transient_failure(monkeypatch):
+    """#831: a transient/creds/broken-env failure still degrades gracefully (this positive-only
+    rescue rung must never break the MC3 card) but now sets `_live_read_error` so it is
+    distinguishable from an honest no-cohort."""
+    from methods.gdc_somatic_hotspot import read as r
+
+    def _boom(*a, **k):
+        raise RuntimeError("pooled module unavailable")
+
+    import methods.pooled_snv_recurrence.read as pr
+
+    monkeypatch.setattr(pr, "pooled_recurrence_for_gene", _boom)
+    fields = r._pooled_recurrence_fields("KRAS", "NSCLC")
+    assert fields["pooled_driver_recurrence_class"] == "data_unavailable"
+    assert "_live_read_error" in fields
+    assert "RuntimeError" in fields["_live_read_error"]
+    assert set(fields) == _POOLED_KEYS | {"_live_read_error"}
