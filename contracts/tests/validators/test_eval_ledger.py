@@ -122,7 +122,7 @@ def test_by_manifest_id_links_scan_and_eval(tmp_path):
 
 
 def test_self_check_validates_by_manifest_id(tmp_path):
-    products, scans = tmp_path / "products", tmp_path / "scans_root"
+    scans = tmp_path / "scans_root"
     _mk_scan(scans, "ALL", ["m1"], ["X|Y"])
     rows = bel.build_rows({"scans": scans})
     ix = bel.build_indexes(rows)

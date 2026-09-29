@@ -84,7 +84,7 @@ def build_payload(links_local: Optional[str] = None, info_local: Optional[str] =
 
     rows = []
     with gzip.open(io.BytesIO(raw), "rt", encoding="utf-8", errors="replace") as fh:
-        header = fh.readline()  # protein1 protein2 combined_score
+        fh.readline()  # skip header: protein1 protein2 combined_score
         for line in fh:
             p1, p2, score = line.rstrip("\n").split(" ")
             s = int(score)

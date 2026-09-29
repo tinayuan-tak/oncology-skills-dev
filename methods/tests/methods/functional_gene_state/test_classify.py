@@ -135,7 +135,6 @@ def test_methylation_state_upgrade_logic():
         return {"ACH-A": True, "ACH-B": True, "ACH-C": True}
 
     orig_dam = fgs_read._read_depmap_mut_matrix
-    orig_hot = fgs_read._read_depmap_mut_matrix
     orig_cn = fgs_read._read_depmap_cn
     orig_meth = fgs_read._read_model_methylation
 

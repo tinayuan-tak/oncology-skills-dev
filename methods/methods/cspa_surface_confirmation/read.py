@@ -182,7 +182,6 @@ def _hpa_corroboration(target: str, cspa_class: str, hpa_if: Optional[dict]) -> 
     cspa_neg = cspa_class == "not_surface"
     hpa_surface = hpa_pm
     hpa_neg = hpa_class == "intracellular_only"
-    hpa_gap = hpa_class == "location_unavailable" or hpa_if is None
 
     if cspa_surface and hpa_surface:
         support = "corroborated_surface"

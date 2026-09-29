@@ -146,7 +146,6 @@ def run_aggregation(
     # underscore or hyphen on the CLI and normalize so the S3 keys always resolve.
     slug = tissue.strip().lower().replace("_", "-")
     tier2_uri = TIER2_PRODUCT_TEMPLATE.format(tissue=slug)
-    tier1_uri = TIER1_PRODUCT_TEMPLATE.format(tissue=slug)
 
     if out_override:
         local_out = out_override

@@ -87,7 +87,6 @@ _MARKER = "pushdown-discipline: exempt"
 def _enclosing_function(tree: ast.AST):
     """Map each ast node to the name of its nearest enclosing def/asyncdef (or '<module>')."""
     parent_fn = {}
-    stack = [("<module>", tree)]
 
     class V(ast.NodeVisitor):
         def _visit_scope(self, node, name):

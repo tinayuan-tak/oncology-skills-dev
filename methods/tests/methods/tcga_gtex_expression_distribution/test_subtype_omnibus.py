@@ -46,7 +46,7 @@ def test_kruskal_tie_correction_matches_scipy():
 
 # ---- ε² + effect-size class ----
 def test_epsilon_squared_closed_form_and_class():
-    sp = pytest.importorskip("scipy.stats")
+    pytest.importorskip("scipy.stats")
     rng = np.random.default_rng(1)
     groups = {"a": list(rng.normal(2, 1, 50)), "b": list(rng.normal(8, 1, 50))}
     out = S.kruskal_epsilon_squared(groups)

@@ -133,7 +133,6 @@ def build_long(wide_path: Path, sidecar_path: Path, out_path: Path, row_group_si
         # Read one row-group of the wide parquet at a time (each row-group in
         # v1 = 64 genes * 19,081 samples ~ 1.2M cells). Melt + append.
         BATCH = 512  # genes per melt-batch — bigger for fewer writer.write_table calls
-        wide_pf_read_kwargs = {}
         t0 = time.monotonic()
 
         # Read full parquet into memory once — 5 GB is manageable on this box
