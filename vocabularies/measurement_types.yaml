@@ -1398,6 +1398,23 @@ measurement_types:
     providers:
       - {kind: derived_from, inputs: [crispr_lof_dependency, rnai_lof_dependency], method: concordance, evidence_tier: measured}
 
+  surface_localization_concordance:
+    # P4 Tier-3 (ENFORCE): every card of this type declares modality_relevance (routing metadata).
+    modality_relevance: [adc, bite_tce, antibody]
+    claim: "Do the cell-line paired-assay surface-vs-wholecell enrichment call and the orthogonal wet-lab surface-confirmation evidence agree that target is genuinely surface-localized?"
+    # Surfaceome 26Q3 arc bridge (target-contracts#966). A DERIVED concordance FUSION of two distinct
+    # surface-localization substrates: the DepMap Surfaceome 26Q3 paired DIA-MS enrichment call
+    # (cell_line_protein_abundance surface arm — cellline-surfaceome-abundance.surface_localization_class)
+    # and the CSPA wet-lab MS + HPA-IF surface-confirmation read (surface_confirmation —
+    # protein-surface-evidence.surface_confirmation_class). Per the concordance-test governance a derived
+    # concordance-fusion type carries NO evidence_substrate — its value IS the cross-substrate agreement
+    # (mirrors crispr_rnai_concordance / rna_protein_concordance). Target grain (both arms are
+    # indication-independent). Routes: ADC/TCE surface-modality lens. VERDICT-INERT (rules_pending card).
+    entity_grains: [target]
+    cards: [surface-localization-concordance]
+    providers:
+      - {kind: derived_from, inputs: [cell_line_protein_abundance, surface_confirmation], method: concordance, evidence_tier: measured}
+
   pathway_node_leverage:
     # WS3 (cross-evidence, 2026-08-16). A COMPARATIVE claim: every other type asks "is target
     # dependent/altered/tractable?"; this asks "given the biology, is target the best NODE to hit

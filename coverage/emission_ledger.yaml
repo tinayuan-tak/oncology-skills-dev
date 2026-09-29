@@ -17,12 +17,12 @@ producing_shas:
   472bf767d060c8dc502add4f14bdffae4ddcddc1: 16
 provenance: 'heterogeneous: packages were produced by different code'
 counts:
-  cards_declaring_vocabulary: 137
+  cards_declaring_vocabulary: 138
   cards_with_observations: 132
-  declared_pairs: 302
+  declared_pairs: 305
   pairs: 291
   out_of_vocab: 0
-  never_observed_pairs: 15
+  never_observed_pairs: 18
   dead_tokens: 362
 ungated_absences:
   "orphan: declared on no field \u2014 already gated by validate_cards":
@@ -31,10 +31,10 @@ ungated_absences:
   - prism-compound-activity::metric_source
   - variant-level-interpretation::resistance_class
 known_out_of_vocab:
-  as_of: '2026-09-28'
+  as_of: '2026-09-29'
   keys: []
 known_never_observed:
-  as_of: '2026-09-28'
+  as_of: '2026-09-29'
   keys:
   - antigen-internalization::internalization_class
   - antigen-internalization::internalization_evidence_tier
@@ -47,6 +47,9 @@ known_never_observed:
   - pan-cancer-crispr-dependency-distribution::broad_dependency_band
   - sc-surface-normal-safety-solid::sc_surface_normal_solid_class
   - sc-surface-normal-safety-solid::sc_surface_safety_essential_class
+  - surface-localization-concordance::cellline_surface_localization_class
+  - surface-localization-concordance::orthogonal_surface_confirmation_class
+  - surface-localization-concordance::surface_context_concordance_class
   - surface-topology-and-ptm::endocytosis_motif_types
   - temporal-setting-expression-shift::temporal_shift_class
   - tumor-scrna-celltype-expression::malignant_expresser_bimodality_class
@@ -63,6 +66,9 @@ known_never_observed:
     pan-cancer-crispr-dependency-distribution::broad_dependency_band: field_absent
     sc-surface-normal-safety-solid::sc_surface_normal_solid_class: card_never_emitted
     sc-surface-normal-safety-solid::sc_surface_safety_essential_class: card_never_emitted
+    surface-localization-concordance::surface_context_concordance_class: card_never_emitted
+    surface-localization-concordance::cellline_surface_localization_class: card_never_emitted
+    surface-localization-concordance::orthogonal_surface_confirmation_class: card_never_emitted
     surface-topology-and-ptm::endocytosis_motif_types: always_empty_array
     temporal-setting-expression-shift::temporal_shift_class: card_never_emitted
     tumor-scrna-celltype-expression::malignant_expresser_bimodality_class: field_absent
