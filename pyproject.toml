@@ -1,0 +1,19 @@
+[tool.pytest.ini_options]
+# Declarative defaults for the skills-repo suites invoked from THIS root (skills/*/tests,
+# eval/, tests/): -q (quiet), -rs (show skip reasons), --tb=short (short tracebacks so a red
+# against the large resolver/golden corpora doesn't flood the context window), and
+# --import-mode=importlib (several per-skill test files share a basename across skills, so the
+# default prepend/rootdir import mode collides — importlib avoids that).
+#
+# skills/_skills_common/tests/ is the ONE exception: it breaks under --import-mode=importlib
+# (3 collection errors — test_card_output_emission.py, test_generic_dispatch.py,
+# test_live_reader_chain.py — verified 2026-09-29 via --collect-only parity check) so it carries
+# its OWN pytest.ini (skills/_skills_common/pytest.ini) without that flag; pytest's ini-file
+# discovery finds that file first (nearest ancestor of the invoked path) and does not fall
+# through to this one.
+#
+# These flags were previously CLI-only, repeated across 3 preland scripts, 1 workflow, 1 pixi
+# task, and 4 docs — so a direct `pixi run pytest ...` typed by hand got `--tb=long` and hidden
+# skips. The explicit CLI flags in those call sites are now redundant (not conflicting) with
+# this default and were left as-is.
+addopts = "-q -rs --tb=short --import-mode=importlib"

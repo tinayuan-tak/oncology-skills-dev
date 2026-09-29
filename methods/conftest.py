@@ -71,14 +71,8 @@ def pytest_runtest_makereport(item, call):
         rep.wasxfail = "live data unavailable on credential-less runner"
 
 
-def pytest_configure(config):
-    config.addinivalue_line(
-        "markers",
-        "requires_data: reads live S3 product data (e.g. drops its offline patches via "
-        "monkeypatch.undo(), or reads a governed corpus). Skipped when SKILLS_SKIP_LIVE_DATA is set "
-        "\u2014 the read degrades on a credential-less runner, so the assertion is then not a code "
-        "defect. Use this ONLY for tests that genuinely need data, never to paper over a stale patch.",
-    )
+# requires_data is now registered declaratively in pyproject.toml's [tool.pytest.ini_options]
+# markers list (SK#2093) rather than programmatically here.
 
 
 def pytest_runtest_setup(item):

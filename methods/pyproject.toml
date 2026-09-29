@@ -47,3 +47,16 @@ include = ["methods*"]
 # importable packages (no __init__.py, digit-leading names) and are auto-excluded
 # by find_packages. Listed here defensively so intent is explicit.
 exclude = ["methods.*.steps", "methods.*.scripts"]
+
+[tool.pytest.ini_options]
+# Declarative defaults for `pytest methods/ tests/` (run from THIS dir — see
+# scripts/preland.sh / methods-validate.yml). --import-mode=importlib is REQUIRED: several
+# method test files share a basename and collide under the default import mode. -q/-rs/--tb=short
+# match the skills-repo root default (SK#2093) so a direct `pixi run pytest` an agent types by
+# hand doesn't default to `--tb=long` + hidden skips.
+addopts = "-q -rs --tb=short --import-mode=importlib"
+# requires_data was previously registered programmatically in conftest.py's pytest_configure;
+# declared here so it shows in `pytest --markers` without importing conftest first.
+markers = [
+    "requires_data: reads live S3 product data (e.g. drops its offline patches via monkeypatch.undo(), or reads a governed corpus). Skipped when SKILLS_SKIP_LIVE_DATA is set — the read degrades on a credential-less runner, so the assertion is then not a code defect. Use this ONLY for tests that genuinely need data, never to paper over a stale patch.",
+]
