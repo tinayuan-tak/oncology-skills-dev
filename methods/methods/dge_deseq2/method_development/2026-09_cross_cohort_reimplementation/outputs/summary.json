@@ -1,0 +1,289 @@
+{
+  "matrix": {
+    "substrates": [
+      "recount3",
+      "xena-toil"
+    ],
+    "indications": [
+      "brca",
+      "paad"
+    ],
+    "methods": [
+      "naive-C",
+      "RUVg-Cr"
+    ],
+    "anchor": "cell A (within-TCGA)",
+    "k_ruvg": 2,
+    "sig_q": 0.05
+  },
+  "per_cell": {
+    "recount3/brca": {
+      "cells_ran": [
+        "A",
+        "C",
+        "Cr"
+      ],
+      "n_tested_A": 30747,
+      "sig_frac_A": 0.7414707125898462,
+      "median_abs_lfc_A": 0.581884268564966,
+      "n_tested_C": 30847,
+      "sig_frac_C": 0.9017408500016209,
+      "median_abs_lfc_C": 0.872010758204334,
+      "n_tested_Cr": 30847,
+      "sig_frac_Cr": 0.8987908062372354,
+      "median_abs_lfc_Cr": 0.830920160529003,
+      "n_A_sig": 22798,
+      "rho_A_C_all": 0.6559001281346365,
+      "rho_A_C_Asig": 0.7268431486743588,
+      "n_A_sig_shared_C": 22670,
+      "sign_agree_frac_C": 0.8087781208645788,
+      "sign_flip_n_C": 4335,
+      "rho_A_Cr_all": 0.604399761640909,
+      "rho_A_Cr_Asig": 0.6850636721006825,
+      "n_A_sig_shared_Cr": 22670,
+      "sign_agree_frac_Cr": 0.7830172033524482,
+      "sign_flip_n_Cr": 4919,
+      "rho_uplift_all": -0.05150036649372747,
+      "sign_agree_uplift": -0.02576091751213061
+    },
+    "recount3/paad": {
+      "cells_ran": [
+        "A",
+        "C",
+        "Cr"
+      ],
+      "n_tested_A": 29710,
+      "sig_frac_A": 0.023359138337260183,
+      "median_abs_lfc_A": 0.031343819489412256,
+      "n_tested_C": 29880,
+      "sig_frac_C": 0.8775100401606426,
+      "median_abs_lfc_C": 0.868992229196208,
+      "n_tested_Cr": 29879,
+      "sig_frac_Cr": 0.7983533585461361,
+      "median_abs_lfc_Cr": 0.7542162899899655,
+      "n_A_sig": 694,
+      "rho_A_C_all": 0.15854507192473444,
+      "rho_A_C_Asig": 0.5219333277449854,
+      "n_A_sig_shared_C": 581,
+      "sign_agree_frac_C": 0.6316695352839932,
+      "sign_flip_n_C": 214,
+      "rho_A_Cr_all": 0.197754538569505,
+      "rho_A_Cr_Asig": 0.5693285966985101,
+      "n_A_sig_shared_Cr": 581,
+      "sign_agree_frac_Cr": 0.657487091222031,
+      "sign_flip_n_Cr": 199,
+      "rho_uplift_all": 0.03920946664477057,
+      "sign_agree_uplift": 0.025817555938037806
+    },
+    "xena-toil/brca": {
+      "cells_ran": [
+        "A",
+        "C",
+        "Cr"
+      ],
+      "n_tested_A": 21850,
+      "sig_frac_A": 0.8180778032036613,
+      "median_abs_lfc_A": 0.5403152376788625,
+      "n_tested_C": 21759,
+      "sig_frac_C": 0.9034882117744382,
+      "median_abs_lfc_C": 0.80113459683569,
+      "n_tested_Cr": 21759,
+      "sig_frac_Cr": 0.9039018337239763,
+      "median_abs_lfc_Cr": 0.838958468780363,
+      "n_A_sig": 17875,
+      "rho_A_C_all": 0.709709734778252,
+      "rho_A_C_Asig": 0.7552000793150883,
+      "n_A_sig_shared_C": 17735,
+      "sign_agree_frac_C": 0.8103749647589512,
+      "sign_flip_n_C": 3363,
+      "rho_A_Cr_all": 0.7385320742984195,
+      "rho_A_Cr_Asig": 0.7776567499277633,
+      "n_A_sig_shared_Cr": 17735,
+      "sign_agree_frac_Cr": 0.8290950098674936,
+      "sign_flip_n_Cr": 3031,
+      "rho_uplift_all": 0.02882233952016744,
+      "sign_agree_uplift": 0.018720045108542416
+    },
+    "xena-toil/paad": {
+      "cells_ran": [
+        "A",
+        "C",
+        "Cr"
+      ],
+      "n_tested_A": 21387,
+      "sig_frac_A": 0.026324402674521907,
+      "median_abs_lfc_A": 0.0610188548538569,
+      "n_tested_C": 20970,
+      "sig_frac_C": 0.8872198378636147,
+      "median_abs_lfc_C": 0.773040489032202,
+      "n_tested_Cr": 20970,
+      "sig_frac_Cr": 0.8521697663328565,
+      "median_abs_lfc_Cr": 0.7668302317302025,
+      "n_A_sig": 563,
+      "rho_A_C_all": 0.17448578773437556,
+      "rho_A_C_Asig": 0.5127577516962875,
+      "n_A_sig_shared_C": 526,
+      "sign_agree_frac_C": 0.6634980988593155,
+      "sign_flip_n_C": 177,
+      "rho_A_Cr_all": 0.19369655440471556,
+      "rho_A_Cr_Asig": 0.5111204928432799,
+      "n_A_sig_shared_Cr": 526,
+      "sign_agree_frac_Cr": 0.6920152091254753,
+      "sign_flip_n_Cr": 162,
+      "rho_uplift_all": 0.019210766670339996,
+      "sign_agree_uplift": 0.028517110266159773
+    }
+  },
+  "cross_substrate_Cr": {
+    "brca": {
+      "n_shared_genes": 16941,
+      "rho_Cr_recount3_vs_xena": 0.881447824776247
+    },
+    "paad": {
+      "n_shared_genes": 16688,
+      "rho_Cr_recount3_vs_xena": 0.9419774576967087
+    }
+  },
+  "provenance": {
+    "recount3/brca": {
+      "substrate": "recount3",
+      "indication": "brca",
+      "n_tumor": 1127,
+      "n_adjacent": 114,
+      "n_gtex": 482,
+      "min_normals": 3,
+      "k": 2,
+      "cells": {
+        "A": {
+          "ran": true,
+          "n_genes": 30747,
+          "n_tumor": 1127,
+          "n_normal": 114
+        },
+        "C": {
+          "ran": true,
+          "n_genes": 30847,
+          "n_tumor": 1127,
+          "n_normal": 482
+        },
+        "Cr": {
+          "ran": true,
+          "n_genes": 30847,
+          "n_tumor": 1127,
+          "n_normal": 482,
+          "k": 2,
+          "control_strategy": "empirical top-5000 least-DE (naive ~group) \u222a 25 HK genes",
+          "n_control": 5022,
+          "n_empirical": 5000,
+          "n_hk_present": 25,
+          "n_hk_in_control": 3
+        }
+      }
+    },
+    "recount3/paad": {
+      "substrate": "recount3",
+      "indication": "paad",
+      "n_tumor": 178,
+      "n_adjacent": 4,
+      "n_gtex": 360,
+      "min_normals": 3,
+      "k": 2,
+      "cells": {
+        "A": {
+          "ran": true,
+          "n_genes": 30534,
+          "n_tumor": 178,
+          "n_normal": 4
+        },
+        "C": {
+          "ran": true,
+          "n_genes": 29880,
+          "n_tumor": 178,
+          "n_normal": 360
+        },
+        "Cr": {
+          "ran": true,
+          "n_genes": 29880,
+          "n_tumor": 178,
+          "n_normal": 360,
+          "k": 2,
+          "control_strategy": "empirical top-5000 least-DE (naive ~group) \u222a 25 HK genes",
+          "n_control": 5025,
+          "n_empirical": 5000,
+          "n_hk_present": 25,
+          "n_hk_in_control": 0
+        }
+      }
+    },
+    "xena-toil/brca": {
+      "substrate": "xena-toil",
+      "indication": "brca",
+      "n_tumor": 1092,
+      "n_adjacent": 113,
+      "n_gtex": 178,
+      "min_normals": 3,
+      "k": 2,
+      "cells": {
+        "A": {
+          "ran": true,
+          "n_genes": 21850,
+          "n_tumor": 1092,
+          "n_normal": 113
+        },
+        "C": {
+          "ran": true,
+          "n_genes": 21759,
+          "n_tumor": 1092,
+          "n_normal": 178
+        },
+        "Cr": {
+          "ran": true,
+          "n_genes": 21759,
+          "n_tumor": 1092,
+          "n_normal": 178,
+          "k": 2,
+          "control_strategy": "empirical top-5000 least-DE (naive ~group) \u222a 26 HK genes",
+          "n_control": 5021,
+          "n_empirical": 5000,
+          "n_hk_present": 26,
+          "n_hk_in_control": 5
+        }
+      }
+    },
+    "xena-toil/paad": {
+      "substrate": "xena-toil",
+      "indication": "paad",
+      "n_tumor": 178,
+      "n_adjacent": 4,
+      "n_gtex": 167,
+      "min_normals": 3,
+      "k": 2,
+      "cells": {
+        "A": {
+          "ran": true,
+          "n_genes": 21769,
+          "n_tumor": 178,
+          "n_normal": 4
+        },
+        "C": {
+          "ran": true,
+          "n_genes": 20970,
+          "n_tumor": 178,
+          "n_normal": 167
+        },
+        "Cr": {
+          "ran": true,
+          "n_genes": 20970,
+          "n_tumor": 178,
+          "n_normal": 167,
+          "k": 2,
+          "control_strategy": "empirical top-5000 least-DE (naive ~group) \u222a 26 HK genes",
+          "n_control": 5024,
+          "n_empirical": 5000,
+          "n_hk_present": 26,
+          "n_hk_in_control": 2
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "target": "KLK3",
+  "release_pin": "26q1",
+  "skill": "tumor-presence",
+  "card_id": "cellline-rna-distribution",
+  "class_field": "expression_class",
+  "vector_fixture": "expression_vectors/klk3_26q1.cellline_rna_distribution.parquet",
+  "n_cell_lines_evaluated": 2446,
+  "expected_class": "broadly_low",
+  "expected_fraction_expressed": 0.03188879803761243,
+  "expected_fraction_highly_expressed": 0.003270645952575634,
+  "expected_n_lineage_restricted_lineages": 0,
+  "snapshot_class_cross_ref": null,
+  "_captured_at": "2026-09-21T17:01:41.361778+00:00",
+  "_sibling_shas": {
+    "analysis-methods": "e13d0f2",
+    "data-catalog": "161d13e"
+  },
+  "_provenance": "live cbg read via load_expression_files('26q1', 'KLK3'); fixture = gene's log2(TPM+1) per DepMap cell line + resolved lineage (2446 models); re-derive with methods.depmap_expression_distribution.cli.compute_summary_stats."
+}

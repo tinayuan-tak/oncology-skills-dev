@@ -1,0 +1,39 @@
+{
+  "target": "TACSTD2",
+  "indication": "COADREAD",
+  "manifest_id": "coadread-dge-df06320",
+  "product_id": "expression-rna-tumor-vs-adjacent",
+  "raw_gene_row": {
+    "gene_symbol": "TACSTD2",
+    "baseMean": 1538.8618526579146,
+    "log2FoldChange": 4.963717378866792,
+    "lfcSE": 0.2871247677830313,
+    "pvalue": 3.2335856102237806e-69,
+    "padj": 2.9002323300425288e-67,
+    "is_significant": true,
+    "is_actionable": true,
+    "is_upregulated": true,
+    "n_tumor": 624,
+    "n_normal": 51
+  },
+  "null_fixture": "dge_rows/coadread-dge-df06320__log2fc_null.parquet",
+  "null_fixture_md5": "5701babacdde507c239e4d3f2525f851",
+  "expected_log2_fc": 4.963717378866792,
+  "expected_q_value": 2.9002323300425288e-67,
+  "expected_n_tumor": 624,
+  "expected_n_adjacent": 51,
+  "expected_base_mean": 1538.8618526579146,
+  "expected_is_significant_provider_call": true,
+  "expected_is_actionable_provider_call": true,
+  "expected_is_upregulated_provider_call": true,
+  "expected_expression_call_class": "strong_upregulation",
+  "expected_allgene_percentile": 98.51582635892386,
+  "expected_allgene_percentile_class": "top_decile",
+  "expected_allgene_percentile_context": "coadread-dge-df06320 metric=log2FoldChange",
+  "_source": {
+    "product": "coadread-dge-df06320 (expression-rna-tumor-vs-adjacent, TCGA tumor vs TCGA-adjacent DESeq2)",
+    "reader": "methods.dge_deseq2.read.read_dge_gene_row",
+    "captured_utc": "2026-09-29T02:47:35.405905+00:00",
+    "boundary": "validates the read/aggregation path (column normalization, expression_call_class derivation, all-gene percentile), NOT the upstream DESeq2 run. Adjacent-arm adequacy (#864/#865) is NOT on read_dge_gene_row's path (sensitivity-family only). gtex_log2_fc/gtex_q_value come from a separate GTEx reader and are not frozen here."
+  }
+}

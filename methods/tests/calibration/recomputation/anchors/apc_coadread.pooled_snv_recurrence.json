@@ -1,0 +1,31 @@
+{
+  "target": "APC",
+  "indication": "COADREAD",
+  "counts_fixture": "pooled_counts/coadread__per_cohort_counts.parquet",
+  "expected_pooled_freq": 0.6779463243873979,
+  "expected_percentile": 99.98107289638763,
+  "expected_class": "top_1pct",
+  "n_mutated_pooled": 19173,
+  "n_covered_pooled": 28281,
+  "n_ranked_genes": 18492,
+  "cohorts_contributing": [
+    "GENIE",
+    "MSK-CHORD",
+    "TCGA-MC3"
+  ],
+  "product_cross_ref": {
+    "pooled_mutation_frequency": 0.6779463243873979,
+    "pooled_driver_recurrence_percentile": 99.98107289638763,
+    "pooled_driver_recurrence_class": "top_1pct"
+  },
+  "_source": {
+    "pooled_product_id": "pooled-snv-recurrence-v2",
+    "cohort_source": {
+      "TCGA-MC3": "tcga-mc3-hotspot-frequency-v1 (gene-summary rows)",
+      "GENIE": "AACR Project GENIE coverage-correct panel frequencies (CC-BY 4.0)",
+      "MSK-CHORD": "MSK-CHORD / MSK-IMPACT panel coverage (upstream MAF removed \u2014 irreproducible)"
+    },
+    "captured_utc": "2026-09-21T10:51:49Z",
+    "counts_fixture_md5": "fa8b084542d1a34c3ab906a8adae5864"
+  }
+}

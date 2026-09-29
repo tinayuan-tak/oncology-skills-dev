@@ -1,0 +1,53 @@
+# Phase 2b/c shard matrix — 20 (source × indication) combinations.
+# Each row = one emit_subgroup_assignments.py invocation.
+# Consumed by scripts/run_subgroup_batch.sh via `while read`.
+#
+# Columns (tab-separated):
+#   source             — data source key (see scripts/emit_subgroup_assignments.py)
+#   indication         — iDAS canonical code
+#   release_pin        — catalog quarter (2026-Q2 for COADREAD anchor; 2026-Q3 for rest)
+#   classifier_config  — path relative to methods/subgroup_assigner_classifier/example-configs/
+#                        for Modality-C shards; "-" for others
+#
+# Sequencing per user 2026-07-15 direction:
+#   1. COADREAD end-to-end first (3 shards) — proven vertical slice
+#   2. Then remaining 17 across TCGA/DepMap/heme groupings
+
+# ===== COADREAD vertical slice (3 shards) =====
+tcga_marker_paper	COADREAD	2026-Q2	-
+tcga_maf	COADREAD	2026-Q2	-
+depmap_omics_inferred	COADREAD	2026-Q2	-
+
+# ===== TCGA-side (6 shards) =====
+tcga_marker_paper	NSCLC	2026-Q3	-
+tcga_marker_paper	HNSC	2026-Q3	-
+tcga_marker_paper	STAD	2026-Q3	-
+tcga_marker_paper	PAAD	2026-Q3	-
+tcga_marker_paper	AML	2026-Q3	-
+tcga_maf	NSCLC	2026-Q3	-
+tcga_maf	HNSC	2026-Q3	-
+tcga_maf	STAD	2026-Q3	-
+tcga_maf	ESCA	2026-Q3	-
+tcga_maf	PAAD	2026-Q3	-
+
+# ===== DepMap-side (5 shards) =====
+depmap_omics_inferred	NSCLC	2026-Q3	-
+depmap_omics_inferred	HNSC	2026-Q3	-
+depmap_omics_inferred	STAD	2026-Q3	-
+depmap_omics_inferred	PAAD	2026-Q3	-
+depmap_expression	SCLC	2026-Q3	sclc-napy-2026-q3.yaml
+
+# ===== Heme adjunct cohorts (2 shards) =====
+beataml_maf	AML	2026-Q3	-
+target_aml_maf	AML	2026-Q3	-
+
+# NOTE: ESCA-marker-paper shard SKIPPED — TCGA-ESCA marker-paper only carries
+# histology labels (ESCC vs EAC) which are also captured via TCGA-GDC clinical
+# in the tcga_maf shard's directly_tagged fallback. If needed, add explicit
+# tcga_marker_paper ESCA 2026-Q3 row.
+#
+# NOTE: SCLC has no TCGA cohort; only depmap_expression (Modality-C NAPY classifier).
+#
+# NOTE: STAD-MC3 shard is redundant if directly_tagged (Cristescu 2013 subtypes)
+# suffices — STAD MC3 hotspots per catalog PR #137 are minimal. Included here for
+# completeness; can be dropped if smoke-run shows zero net-new strata.

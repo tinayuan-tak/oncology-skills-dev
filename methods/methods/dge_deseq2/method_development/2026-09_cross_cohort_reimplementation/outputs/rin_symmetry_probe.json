@@ -1,0 +1,34 @@
+{
+  "probe": "RIN symmetry (Stage 1, plan piped-whistling-conway B2)",
+  "date": "2026-09-20",
+  "question": "Does the TCGA recount3 metadata expose an RNA-integrity field comparable to GTEx SMRIN, so RIN could span both cohorts and enter the cross-cohort GLM as an identifiable covariate?",
+  "substrate": "recount3/tcga-gtex-2023-01-04 (G026)",
+  "metadata_files_read": [
+    "data-catalog/sources/recount3/tcga-gtex-2023-01-04/gtex/BREAST/metadata/gtex.gtex.BREAST.MD.gz",
+    "data-catalog/sources/recount3/tcga-gtex-2023-01-04/gtex/PANCREAS/metadata/gtex.gtex.PANCREAS.MD.gz",
+    "data-catalog/sources/recount3/tcga-gtex-2023-01-04/tcga/BRCA/metadata/tcga.tcga.BRCA.MD.gz",
+    "data-catalog/sources/recount3/tcga-gtex-2023-01-04/tcga/PAAD/metadata/tcga.tcga.PAAD.MD.gz"
+  ],
+  "gtex": {
+    "rin_column": "SMRIN",
+    "ischemic_column": "SMTSISCH",
+    "fill": {
+      "BREAST": {"smrin": "482/482", "smrin_range": [5.5, 6.8, 9.9], "smtsisch": "482/482", "smtsisch_range_min_med_max": [92.0, 532.0, 1601.0]},
+      "PANCREAS": {"smrin": "360/360", "smrin_range": [5.2, 7.0, 9.4], "smtsisch": "360/360", "smtsisch_range_min_med_max": [49.0, 230.5, 1572.0]}
+    },
+    "note": "Ranges are [min, median, max]. SMRIN = RNA integrity number (Bioanalyzer). SMTSISCH = ischemic time (minutes). Both fully populated."
+  },
+  "tcga": {
+    "rna_integrity_field": null,
+    "rna_integrity_named_columns_found": ["xml_perineural_invasion_present (FALSE MATCH: peRINeural)", "xml_primary_pathology_perineural_invasion_present (FALSE MATCH)"],
+    "closest_quality_columns": {
+      "gdc_cases.samples.portions.analytes.a260_a280_ratio": {"BRCA": "1243/1256", "PAAD": "141/183"},
+      "gdc_cases.samples.portions.analytes.concentration": {"BRCA": "1246/1256", "PAAD": "183/183"}
+    },
+    "analyte_type": {"BRCA": {"RNA": 1256}, "PAAD": {"RNA": 183}},
+    "note": "a260_a280_ratio is a spectrophotometric PURITY ratio (protein/solvent contamination), not strand INTEGRITY (RIN). It is also absent from the GTEx metadata, so it is confounded in the opposite direction. No symmetric RNA-quality covariate exists across the two cohorts."
+  },
+  "verdict": "ASYMMETRIC — RIN is GTEx-only.",
+  "design_consequence": "Every RIN-bearing sample is a GTEx normal; no TCGA sample (tumor or adjacent-normal) carries RIN. In the cross-cohort contrast (cell C/Cr) RIN is therefore perfectly collinear with the group indicator -> NON-IDENTIFIABLE as a design covariate. RIN/ischemic are carried into colData as DIAGNOSTIC-ONLY columns (report the GTEx-arm RIN distribution; optional low-RIN QC filter), never a GLM design term. RUVg latent factors are the sole confound corrector — robust and counts-only, exactly the graceful-degradation path plan risk #8 anticipated.",
+  "calibration_impact": "The plan's RUVg+RIN-Cr calibration arm (B4, 'where the symmetry probe passed') is DROPPED — a non-identifiable term cannot be added to the design. The Stage-1 calibration matrix collapses to {recount3, xena-toil} x {naive-C, RUVg-Cr} vs the within-TCGA cell-A anchor."
+}

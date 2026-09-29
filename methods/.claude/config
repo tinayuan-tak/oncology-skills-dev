@@ -1,0 +1,15 @@
+# Per-repo config consumed by ~/.claude/git-hooks/pre-commit.
+#
+# Format: `key: value` (whitespace-separated values for multi-value keys).
+# Only the `prefixes:` key is currently read by hooks.
+
+# Approved branch prefixes for this repo.
+# See CLAUDE.md for scope-root guidance.
+prefixes: add- feat/ fix/ chore/
+
+# Default base branch for new-worktree / land-pr (override with --base).
+default_base: main
+
+# Human-readable top-level scope roots (for reference; not enforced by hooks —
+# hooks enforce against per-branch .claude/branch-scope declarations).
+scope_roots: methods/ libs/ tests/

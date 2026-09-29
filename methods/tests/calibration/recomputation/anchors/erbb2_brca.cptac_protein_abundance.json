@@ -1,0 +1,40 @@
+{
+  "target": "ERBB2",
+  "indication": "BRCA",
+  "matched_cohort": "BRCA",
+  "product_id": "cptac-protein-tumor-vs-normal-per-cohort-v1",
+  "reader": "methods.cptac_protein_deg.read.read_target_summary(target, indication)",
+  "target_rows_fixture": "dge_rows/erbb2.cptac_target_rows.parquet",
+  "target_rows_fixture_md5": "68bca97cc12dc914c3bef8a383985f74",
+  "allgene_effect_null_fixture": "dge_rows/erbb2_brca.cptac_allgene_effect_null.parquet",
+  "allgene_effect_null_fixture_md5": "5634ccdfa4406bec7c37d941d948cca3",
+  "n_cohort_rows": 10,
+  "n_allgene_null": 10491,
+  "expected": {
+    "cohort": "BRCA",
+    "protein_expression_class": "not_significant",
+    "protein_contrast_estimable": true,
+    "protein_effect_size": 0.56872124957413,
+    "allgene_percentile": 79.7645866186078,
+    "allgene_percentile_class": "mid",
+    "allgene_percentile_context": "cptac-protein-tumor-vs-normal cohort=BRCA metric=protein_effect_size",
+    "protein_bh_q_value": 0.319942210629478,
+    "protein_p_value": 0.261164811943211,
+    "protein_median_log2_tumor": -1.33017498914787,
+    "protein_median_log2_normal": -1.7175729051702,
+    "n_tumor_samples": 125,
+    "n_normal_samples": 18,
+    "protein_effect_size_se": 0.491605950807473,
+    "protein_effect_standardized_t": 1.1569,
+    "protein_effect_cohens_d": 0.2916,
+    "protein_effect_standardized_class": "small",
+    "protein_effect_standardized_method": "moderated_se_exact",
+    "stat_test_used": "msstatstmt_limma_ebayes_moderated",
+    "method_version": "1.2.0",
+    "_data_source": "cptac-protein-tumor-vs-normal-per-cohort-v1"
+  },
+  "_source": {
+    "captured_utc": "2026-09-29T04:21:12.135425+00:00",
+    "boundary": "validates the read/aggregation path (indication->CPTAC-cohort resolution, the representative-cohort pick on the |Cohen's d| axis, _row_to_summary, _standardized_effect, and the WITHIN-cohort all-gene effect percentile), NOT the upstream MSstatsTMT DEG run. #1664/#1512: CPTAC TMT effect sizes are pooled-reference-relative ratios; every anchored indication is a LEAF -> a single cohort, so no cross-cohort aggregation of non-comparable ratios occurs on this path. The all-gene percentile is a within-cohort rank."
+  }
+}

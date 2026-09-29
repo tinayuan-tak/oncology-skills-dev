@@ -1,0 +1,29 @@
+{
+  "target": "KRAS",
+  "release_pin": "26q1",
+  "skill": "tumor-presence",
+  "card_id": "cellline-rna-protein-concordance",
+  "class_field": "rna_as_biomarker",
+  "rna_vector_fixture": "rna_protein_concordance_vectors/kras_26q1.cellline_rna_protein_concordance.rna.parquet",
+  "protein_vector_fixture": "rna_protein_concordance_vectors/kras_26q1.cellline_rna_protein_concordance.protein.parquet",
+  "rna_vector_md5": "816cb40c6145632d0a85a92d49d0d028",
+  "protein_vector_md5": "5f535d7e9b19ff9e4a6bf82ab2d4e6d3",
+  "n_rna_models": 2446,
+  "n_protein_models": 312,
+  "n_paired_models": 308,
+  "expected": {
+    "rna_protein_r": 0.5524,
+    "rna_protein_spearman": 0.3154,
+    "n_paired_models": 308,
+    "protein_detection_fraction": 0.1276,
+    "rna_expressed_fraction": 1.0,
+    "rna_high_protein_low_fraction": 0.1006,
+    "rna_as_biomarker": "poor_proxy",
+    "rna_proxy_classified_on": "spearman",
+    "rna_protein_r_ci95_low": 0.2046,
+    "rna_protein_r_ci95_high": 0.4182,
+    "rna_proxy_class_boundary_fragile": true
+  },
+  "_captured_at": "2026-09-29T05:06:13.137806+00:00",
+  "_provenance": "live cbg read via _paired_rna_protein('KRAS', release_pin='26q1'); fixtures = the gene's full per-ModelID DepMap RNA log2(TPM+1) dict + the full Gygi TMT protein log2-abundance dict; re-derive with methods.depmap_rna_protein_concordance.read.read_rna_protein_concordance (mock _paired_rna_protein)."
+}

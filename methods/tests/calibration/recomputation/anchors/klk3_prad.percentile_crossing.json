@@ -1,0 +1,23 @@
+{
+  "target": "KLK3",
+  "indication": "PRAD",
+  "vectors_fixture": "tumor_normal_tpm/recount3_gtex__percentile_crossing_vectors.parquet",
+  "matched_normal_tissue": "PROSTATE",
+  "n_tumor_samples": 505,
+  "n_normal_samples": 263,
+  "expected_selectivity_class": "enriched_subset",
+  "expected_fraction_tumor_above_normal_p95": 0.3287128712871287,
+  "expected_fraction_tumor_above_normal_p99": 0.16435643564356436,
+  "expected_normal_p95_log2tpm": 13.389069557189941,
+  "expected_normal_p99_log2tpm": 13.731359462738038,
+  "expected_distribution_overlap_tumor_normal": 0.4892067914015737,
+  "snapshot_cross_ref": {
+    "source": "rnd-computational-biology-oncology-target-contracts/tests/calibration/snapshots/klk3_prad.tumor-selectivity.json",
+    "percentile_crossing_class": "enriched_subset"
+  },
+  "_source": {
+    "product": "recount3 TCGA/non-TCGA tumor long product + GTEx matched-normal (recount3/GENCODE-v26)",
+    "captured_utc": "2026-09-21T12:17:08.402134+00:00",
+    "vectors_fixture_md5": "e38f4a83b83c63792247666e6699aaea"
+  }
+}

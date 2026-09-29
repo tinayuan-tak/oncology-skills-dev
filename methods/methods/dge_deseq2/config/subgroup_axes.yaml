@@ -1,0 +1,56 @@
+# config/subgroup_axes.yaml — config-drive for the by-subgroup DGE driver (analysis-methods#738).
+#
+# Maps each by-subgroup indication -> an ORDERED list of subgroup axes, each axis binding a
+#   (axis label, assignment-manifest id, strata) triple.
+# The orchestrator (methods/dge_deseq2/run_subgroup_dge_batch.py) loads recount3 ONCE per
+# indication, then runs r/live/07_stratified_four_cell_driver.R once per axis on the cached
+# bundle, concatenating the per-axis parquets into
+#   <ind>-dge-tumor-vs-normal-sensitivity-by-subgroup-v1  (emit_subgroup_data_package.py).
+#
+# `strata` are EMISSION CANDIDATES. Member counts in the trailing comments are the assignment
+# products' PRE-recount3-join patient counts. A stratum whose recount3-matched tumor arm falls
+# below the emission floor (--min-subgroup-tumor=10) is SKIPPED by the driver (logged, recorded
+# in the manifest's strata_emitted). A stratum with 10 <= n < 30 emits but is marked
+# `underpowered` DOWNSTREAM via evidence_state (the n=30 admissibility floor). This exercises
+# SUBGROUP_N_FLOOR both ways.
+#
+# `assignments_manifest` ids here are RECONCILED against the data-catalog derived manifests
+# (config.subgroup_axis_reconciliation + build_run_ledger): a mapped-but-MISSING assignment
+# product must RED — mutation teeth, never green-on-empty (same fail-open discipline as S5 #698).
+#
+# CURATION (#738; surfaced for domain review on the issue):
+#   - COADREAD / NSCLC / STAD preserve their pre-#727 axis+strata structure EXACTLY, re-materialized
+#     cell-B-free (the live 07 driver runs cells A/C only). COADREAD gains a driver_mutation axis
+#     from its MAF shard (net-additive).
+#   - ESCA / HNSC / PAAD are NEW; each axis groups an assignment product's strata semantically.
+#   - Zero-member strata (PAAD FGFR2_fusion, RET_fusion_PAAD) and below-emission-floor strata
+#     (COADREAD-MAF KRAS_G12C=8; PAAD-MAF BRCA1/2_somatic=2) are excluded from `strata`.
+#     HNSC HPV_positive (7) is kept as a real biological stratum; the driver will skip it at the
+#     emission floor and the manifest will record it in strata_requested-but-not-emitted.
+
+subgroup_axes:
+  COADREAD:
+    - {axis: msi_status, assignments_manifest: tcga-subgroup-assignments-coadread-v1, strata: [MSI_H, MSS]}          # 47, 205
+    - {axis: cms, assignments_manifest: tcga-subgroup-assignments-coadread-v1, strata: [CMS1, CMS2, CMS3, CMS4]}     # 90,234,74,154
+    - {axis: driver_mutation, assignments_manifest: tcga-maf-subgroup-assignments-coadread-v1, strata: [KRAS_mut, BRAF_V600E]}  # 65,19 (KRAS_G12C=8 excluded)
+  NSCLC:
+    - {axis: histology, assignments_manifest: tcga-subgroup-assignments-nsclc-v1, strata: [histology_Adeno, histology_SCC]}  # 248,180
+    - {axis: tmb, assignments_manifest: tcga-subgroup-assignments-nsclc-v1, strata: [TMB_high]}                       # 88
+    - {axis: driver_mutation, assignments_manifest: tcga-subgroup-assignments-nsclc-maf-v1, strata: [KRAS_G12C, EGFR_mut_ex19del]}  # 36,10
+  STAD:
+    - {axis: tcga_molecular_subtype, assignments_manifest: tcga-subgroup-assignments-stad-v1, strata: [EBV_positive, MSI_H, GS, CIN]}  # 24,56,36,140
+  ESCA:
+    - {axis: histology, assignments_manifest: tcga-subgroup-assignments-esca-v1, strata: [histology_ESCC, histology_EAC]}  # 90,79
+    - {axis: amplification, assignments_manifest: tcga-subgroup-assignments-esca-v1, strata: [HER2_amp]}              # 28 (<30 underpowered)
+    - {axis: driver_mutation, assignments_manifest: tcga-subgroup-assignments-esca-maf-v1, strata: [TP53_mut]}        # 131
+  HNSC:
+    - {axis: hpv_status, assignments_manifest: tcga-subgroup-assignments-hnsc-v1, strata: [HPV_positive, HPV_negative]}  # 7 (skips <10), 45
+    - {axis: expression_subtype, assignments_manifest: tcga-subgroup-assignments-hnsc-v1, strata: [subtype_atypical, subtype_mesenchymal, subtype_basal, subtype_classical]}  # 68,75,87,49
+    - {axis: anatomic_site, assignments_manifest: tcga-subgroup-assignments-hnsc-v1, strata: [site_oropharyngeal, site_oral_cavity, site_larynx]}  # 33,122,72
+    - {axis: tmb, assignments_manifest: tcga-subgroup-assignments-hnsc-v1, strata: [TMB_high]}                        # 27 (<30 underpowered)
+    - {axis: amplification, assignments_manifest: tcga-subgroup-assignments-hnsc-v1, strata: [CCND1_amp]}             # 69
+    - {axis: driver_mutation, assignments_manifest: tcga-subgroup-assignments-hnsc-maf-v1, strata: [TP53_mut, PIK3CA_mut, NOTCH1_mut]}  # 181,38,20 (NOTCH1<30 underpowered)
+  PAAD:
+    - {axis: moffitt_subtype, assignments_manifest: tcga-subgroup-assignments-paad-v1, strata: [Moffitt_basal, Moffitt_classical]}  # 65,85 (FGFR2/RET fusions=0 excluded)
+    - {axis: kras_allele, assignments_manifest: tcga-subgroup-assignments-paad-maf-v1, strata: [KRAS_G12D, KRAS_G12V, KRAS_G12R, KRAS_WT]}  # 44,29,24,41 (G12R/G12V<30 underpowered)
+    - {axis: driver_mutation, assignments_manifest: tcga-subgroup-assignments-paad-maf-v1, strata: [TP53_mut]}        # 92 (BRCA1/2_somatic=2 excluded)

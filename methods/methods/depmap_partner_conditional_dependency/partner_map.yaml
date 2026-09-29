@@ -1,0 +1,159 @@
+# Curated partner-conditional-dependency map (Track PC, 2026-08-09).
+#
+# Each entry: a TARGET whose DepMap dependency is hypothesised to be CONDITIONAL on a
+# PARTNER gene's deficiency state. The map names BOTH the partner AND the alteration type
+# that defines "partner-deficient" — because partner deficiency is heterogeneous:
+#   - msi_signature   : partner deficiency is a genome signature (MSI-high), read from
+#                       OmicsInferredMolecularSubtypes.csv (the framework's CANONICAL MSI-H call,
+#                       same source subgroup_assigner_directly_tagged uses).
+#   - lof_mutation    : partner deficiency is a loss-of-function mutation, read from the
+#                       DepMap damaging-mutation matrix (reuse depmap_mutation_dependency.load).
+#   - (future) cn_loss / fusion — not yet wired; add the loader arm when a target needs it.
+#
+# SynLethDB is the CANDIDATE-GENERATION source for extending this map — NOT a blind auto-join
+# (SynLethDB does not name the alteration type, which the stratifier requires). New entries are
+# curated here after an empirical probe confirms the deficiency-type + a measurable signal.
+#
+# ANCHOR: WRN x MSI-high — proven on live DepMap 26q1 (canonical MSI boolean): delta Chronos
+# -0.41, p 8.8e-12, 91 MSI-high lines (validation gate #1, 2026-08-09). Concentrates in
+# Uterus/Bowel/Ovary/Stomach lineages (biologically correct).
+
+version: 1.0.0
+schema: {target: str, partner: str, deficiency_type: "msi_signature|lof_mutation|cn_loss", note: str}
+
+partners:
+  # ── Codeletion synthetic-lethality (cn_loss arm, 2026-08-19) ──────────────────────────────────────
+  # MTAP is co-deleted with CDKN2A (9p21) in ~15% of cancers; MTAP-deleted cells accumulate MTA, which
+  # partially inhibits PRMT5 → they become SELECTIVELY dependent on PRMT5 and its substrate supplier
+  # MAT2A. The marquee codeletion SL (clinical PRMT5/MAT2A programs). Only reachable via the cn_loss
+  # deficiency arm (MTAP loss is a deep DELETION, not a mutation/MSI signature).
+  PRMT5:
+    - partner: MTAP
+      deficiency_type: cn_loss
+      note: >
+        MTAP-deletion → PRMT5 dependency (Kryukov/Marjon 2016). MTAP-null cells accumulate MTA which
+        partially inhibits PRMT5, sensitizing to further PRMT5 loss. Expected STRONG partner-conditional.
+  MAT2A:
+    - partner: MTAP
+      deficiency_type: cn_loss
+      note: >
+        MTAP-deletion → MAT2A dependency (Marjon 2016; the SAM-supplier arm of the same axis). Paired
+        with PRMT5; MTAP-null selectively depends on MAT2A.
+
+  WRN:
+    - partner: MSI            # MSI-high genome state (mismatch-repair deficiency), NOT a single gene
+      deficiency_type: msi_signature
+      note: >
+        Textbook DepMap synthetic lethality (Chan/Behan 2019): MSI-high lines are selectively
+        WRN-dependent. ANCHOR case. Partner "gene" is the MSI genome signature, read from the
+        canonical OmicsInferredMolecularSubtypes.csv MSI boolean.
+
+  PARP1:
+    - partner: BRCA1
+      deficiency_type: lof_mutation
+      note: >
+        Clinical HRD synthetic lethality. HONEST NEGATIVE TEST: expected WEAK in mono-KO CRISPR
+        (probe delta -0.03) because PARPi works largely by TRAPPING, not loss-of-function, and
+        PARP2 buffers. Framework reports insufficient/weak faithfully; NOT forced to flip.
+    - partner: BRCA2
+      deficiency_type: lof_mutation
+      note: HRD partner (paired with BRCA1; either LoF flags the deficient arm).
+
+  SMARCA2:
+    - partner: SMARCA4
+      deficiency_type: lof_mutation
+      note: >
+        Paralog partner-conditional (calibration watchlist). Probe: delta -0.10, significant but
+        below MODERATE on LoF-mutation alone — may need the paralog-buffering signal alongside.
+        Wired as a real test; expected to read weak_partner_selectivity until buffering is combined.
+
+  # ── KEAP1-loss → NRF2 addiction (lof_mutation arm, 2026-08-25, round-1 gap T2a) ──────────────────
+  # KEAP1 loss-of-function stabilizes NFE2L2/NRF2 (KEAP1 is NRF2's degradation adaptor), so KEAP1-mutant
+  # cells become selectively NRF2-ADDICTED — the textbook KEAP1/NRF2-mutant NSCLC vulnerability. This is
+  # the KEAP1-as-conditioning-variable case round-1 flagged as missing. Curated AFTER a live DepMap 26q1
+  # probe over the KEAP1-LoF stratum (n=27 deficient / 1511 neutral) confirmed a MEASURABLE signal (same
+  # discipline as the WRN×MSI anchor):
+  #   NFE2L2:   delta -0.377, q 9.8e-5, rank-biserial 0.42 → partner_conditional_moderately_dependent
+  # Secondary probe hits NOT curated pending mechanism review (avoid a collateral/passenger row):
+  #   SLC33A1 (delta -0.34, q 1.3e-6, rb 0.53 — strong stats, weak mechanistic link) and
+  #   PGD (delta -0.21, q 5.9e-3 — borderline PPP/NRF2 collateral).
+  NFE2L2:
+    - partner: KEAP1
+      deficiency_type: lof_mutation
+      note: >
+        KEAP1-LoF → NRF2 stabilization → NRF2 addiction (textbook KEAP1/NRF2-mutant NSCLC). Live DepMap
+        26q1 probe over the KEAP1-LoF stratum: delta -0.377 Chronos, mann-whitney q 9.8e-5, rank-biserial
+        0.42, n=27 KEAP1-LoF / 1511 neutral → partner_conditional_moderately_dependent. Makes KEAP1 a
+        conditioning variable so an NFE2L2 profile in KEAP1-mutant context reads the conditional
+        dependency instead of a pooled non_dependent (which the gate would veto).
+
+  # ── VHL-loss → HIF-2α (EPAS1) addiction (lof_mutation arm, 2026-09-07, discordance-loop CASE-014) ──
+  # VHL loss-of-function stabilizes HIF-2α/EPAS1 (VHL is HIF-2α's E3-ligase substrate-adaptor), so
+  # VHL-null cells become selectively HIF-2α-ADDICTED — the canonical VHL-deficient ccRCC vulnerability,
+  # clinically validated by belzutifan. Surfaced by the literature↔deterministic discordance loop
+  # (skills eval/CASE_LOG.md CASE-014): pooled pan-line CRISPR reads EPAS1 non_dependent because the
+  # HIF-2α dependency is CONDITIONAL on VHL loss (ccRCC is near-uniformly VHL-null, so there is no
+  # in-RCC-panel contrast — the conditional signal is only visible pan-cancer). Curated AFTER a live
+  # DepMap 26q1 probe over the VHL-LoF stratum confirmed a MEASURABLE signal (same discipline as the
+  # WRN×MSI anchor + the NFE2L2×KEAP1 entry):
+  #   EPAS1:  delta -0.066, mann-whitney q 2.1e-3, rank-biserial 0.32, n=28 VHL-LoF / 1510 neutral
+  #           → partner_conditional_moderately_dependent (moderate via the rank-biserial arm; the
+  #           absolute delta is modest — HIF-2α addiction is context/in-vivo-heavy in 2D CRISPR).
+  EPAS1:
+    - partner: VHL
+      deficiency_type: lof_mutation
+      note: >
+        VHL-LoF → HIF-2α (EPAS1) stabilization → HIF-2α addiction (canonical VHL-deficient ccRCC; the
+        belzutifan target). Live DepMap 26q1 probe over the VHL-LoF stratum: delta -0.066 Chronos,
+        mann-whitney q 2.1e-3, rank-biserial 0.32, n=28 VHL-LoF / 1510 neutral →
+        partner_conditional_moderately_dependent. Makes VHL a conditioning variable so an EPAS1 profile
+        in VHL-null context (e.g. ccRCC) reads the conditional dependency instead of a pooled
+        non_dependent (which the gate would veto). Rescues the CASE-014 known-gap false-negative.
+
+  # ── WNT/β-catenin: APC-loss → CTNNB1 addiction (lof_mutation arm, 2026-09-07, conditional-dependency
+  # discovery sweep) ────────────────────────────────────────────────────────────────────────────────
+  # APC loss-of-function (the dominant CRC initiating lesion) removes the β-catenin destruction complex,
+  # so APC-null cells become selectively CTNNB1/β-catenin-ADDICTED — the marquee WNT dependency (tankyrase
+  # inhibitors, β-catenin/WNT-pathway degrader programs). Curated AFTER a live DepMap 26q1 probe over the
+  # APC-LoF stratum (WRN×MSI / NFE2L2×KEAP1 discipline):
+  #   CTNNB1: delta -0.881, mann-whitney q 3.2e-37, rank-biserial 0.76, n=100 APC-LoF / 1438 neutral
+  #           (median Chronos -1.004 in APC-LoF vs -0.123 neutral) → partner_conditional_strongly_dependent.
+  CTNNB1:
+    - partner: APC
+      deficiency_type: lof_mutation
+      note: >
+        APC-LoF → β-catenin (CTNNB1) stabilization → WNT/β-catenin addiction (marquee APC-mutant CRC
+        dependency). Live DepMap 26q1 probe over the APC-LoF stratum: delta -0.881 Chronos, mann-whitney
+        q 3.2e-37, rank-biserial 0.76, n=100 APC-LoF / 1438 neutral (median -1.004 vs -0.123) →
+        partner_conditional_strongly_dependent. NOTE: CTNNB1 already reads a genuine selective dependency
+        (crispr+rnai strongly_selective → lineage_selective) so this lane CORROBORATES rather than rescues;
+        it is the safety net if the selective signal weakens, and enriches the claim vector.
+
+  # ── Hippo/TEAD: NF2-loss → YAP/TAZ-TEAD addiction (lof_mutation arm, 2026-09-07, discovery sweep) ────
+  # NF2 (merlin) loss releases the Hippo brake, driving YAP/TAZ-TEAD transcriptional addiction — the
+  # NF2-mutant mesothelioma vulnerability that TEAD-palmitoylation inhibitors (VT3989, IK-930) target.
+  # Live DepMap 26q1 probe over the NF2-LoF stratum (n=36 NF2-LoF / 1502 neutral):
+  #   TEAD1:  delta -0.247, q 2.3e-4, rank-biserial 0.34 → partner_conditional_moderately_dependent
+  #   WWTR1:  delta -0.251, q 4.4e-4, rank-biserial 0.32 → partner_conditional_moderately_dependent
+  # NOT curated: YAP1×NF2 (delta -0.158, q 0.013, rb 0.22 → not_partner_stratified) — the YAP1 arm is
+  # paralog-buffered by WWTR1/TAZ (biologically correct; the signal lives on TAZ + the shared TEAD node).
+  TEAD1:
+    - partner: NF2
+      deficiency_type: lof_mutation
+      note: >
+        NF2-LoF → Hippo de-repression → YAP/TAZ-TEAD addiction (NF2-mutant mesothelioma; the druggable
+        Hippo node, TEAD-palmitoylation inhibitors VT3989/IK-930). Live DepMap 26q1 probe over the
+        NF2-LoF stratum: delta -0.247 Chronos, mann-whitney q 2.3e-4, rank-biserial 0.34, n=36 NF2-LoF /
+        1502 neutral → partner_conditional_moderately_dependent. NF2 is the conditioning variable. NOTE:
+        TEAD1/MESO already reads non-veto (rescued to lineage_selective by lineage-selectivity), so this
+        lane CORROBORATES rather than drives the verdict; the signal is real + additive.
+  WWTR1:
+    - partner: NF2
+      deficiency_type: lof_mutation
+      note: >
+        NF2-LoF → TAZ (WWTR1) addiction, the Hippo effector arm (paired with TEAD1; carries the signal
+        the paralog-buffered YAP1 arm does not). Live DepMap 26q1 probe over the NF2-LoF stratum: delta
+        -0.251 Chronos, mann-whitney q 4.4e-4, rank-biserial 0.32, n=36 NF2-LoF / 1502 neutral →
+        partner_conditional_moderately_dependent. NOTE: WWTR1/MESO already reads non-veto (rescued to
+        non_dependent_paralog_buffered by YAP1 paralog-buffering), so this lane CORROBORATES rather than
+        drives the verdict.

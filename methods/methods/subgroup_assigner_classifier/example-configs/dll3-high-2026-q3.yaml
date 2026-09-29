@@ -1,0 +1,17 @@
+# Example classifier config — DLL3-high SCLC (single-gene threshold).
+#
+# Companion file for data-catalog/subgroup-catalogs/SCLC/2026-Q3.yaml,
+# stratum id: DLL3_high.
+
+id: dll3-high-classifier-2026-q3
+version: 1.0.0
+classifier_method: single_gene_zscore_threshold
+reference_cohort: depmap_lung_sclc
+
+marker_gene: DLL3
+zscore_threshold: 1.0
+label_when_high: DLL3_high
+
+literature_anchor:
+  pmid: 32122759
+  note: "Rudin et al. 2020 — DLL3 SCLC therapeutic review (tarlatamab BiTE precedent)."

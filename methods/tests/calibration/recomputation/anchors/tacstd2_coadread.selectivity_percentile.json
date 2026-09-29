@@ -1,0 +1,22 @@
+{
+  "target": "TACSTD2",
+  "indication": "COADREAD",
+  "skill": "tumor-selectivity",
+  "field": "selectivity_allgene_percentile",
+  "class_field": "selectivity_allgene_percentile_class",
+  "manifest_id": "coadread-dge-tumor-vs-normal-sensitivity-v1",
+  "cell_column": "log2fc_A",
+  "null_fixture": "nulls/coadread-dge-tumor-vs-normal-sensitivity-v1__log2fc_A.parquet",
+  "n_null": 29431,
+  "target_log2fc": 5.017518713226957,
+  "expected_percentile": 98.56443885698754,
+  "expected_class": "top_decile",
+  "snapshot_class_cross_ref": "top_decile",
+  "_captured_at": "2026-09-21T04:00:48.704451+00:00",
+  "_sibling_shas": {
+    "analysis-methods": "d67ac70",
+    "data-catalog": "161d13e"
+  },
+  "_s3_uri": "s3://onc-compbio/data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet",
+  "_provenance": "live cbg read of s3://onc-compbio/data-catalog/derived/coadread-dge-tumor-vs-normal-sensitivity-v1/sensitivity.parquet; null = full log2fc_A column (29431 non-null genes); re-derive with methods.percentile_null.percentile_rank."
+}

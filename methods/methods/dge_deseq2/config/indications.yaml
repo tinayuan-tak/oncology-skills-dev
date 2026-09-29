@@ -1,0 +1,321 @@
+# dge_deseq2 indication rosters — single source of truth (S1, analysis-methods #693).
+#
+# PURE NO-OP consolidation of the rosters previously hard-coded in derive_pancan_stack.py,
+# emit_pan_tissue.py, and read/__init__.py. Each consumer reconstructs its prior structure by
+# PROJECTION over this file (see config/__init__.py) and is verdict-identical to the pre-S1
+# literals; the reconstruction is pinned byte-for-byte by tests/test_indication_config_rosters.py.
+#
+# The universe below is the UNION of every indication that appeared in ANY of those rosters:
+# the 28 PUBLISHED sensitivity products (derive_pancan_stack) plus the read-map-only NSCLC (a
+# pooled composite, no standalone product) and PDAC (an alias of PAAD).
+#
+# Count reconciliation (from the #693 plan-review comment — these are DIFFERENT sets with
+# different consumers, NOT one roster counted several ways):
+#   * published: true    -> 28  (derive_pancan_stack._PUBLISHED_INDICATIONS universe; +LAML in #734 Phase 2)
+#   * pan_tissue_render   -> 19  (emit_pan_tissue.PAN_TISSUE_INDICATIONS; an old comment said "18")
+#   * in_read_map: true   -> 22  (read.INDICATION_TO_TCGA_STUDIES; 21 have a GTEx tissue, HNSC null)
+#   * "24" was a STALE changelog vintage note (acb0179, 2026-07-15), never a live roster.
+# UNIVERSE EXPANSION toward the "~30" in the issue body (analysis-methods#734, the verdict-diff PR
+# of arc #690) proceeded in two phases. Phase 1 (#781) DEFINED the target universe with NO compute:
+# LAML/DLBC went in as `staged` (published: false + in_read_map: false) so they moved no projection.
+# Phase 2 (#734, THIS change) is the verdict-affecting publish, done ONLY after (a) explicit user
+# authorization AND (b) domain sign-off on the matched-normal contrast, PLUS a before/after verdict
+# diff. OUTCOME of the 2026-09-25 sign-off (after a literature-precedent review): LAML is PUBLISHED
+# (gtex_tissue BLOOD -- whole blood is the precedented normal; owkin/drl-eval, David et al.
+# shared-cancer-splicing, and CanDLE all pair TCGA-LAML with GTEx whole blood), and DLBC is DROPPED
+# (precedent leaves DLBC UNPAIRED -- those same tools assign it no GTEx normal; neither spleen nor
+# whole blood contains the nodal germinal-center B cells DLBC arises from). So the expansion lands
+# at 28, not the ~30 the issue body guessed. The `staged` mechanism remains for a future candidate
+# (e.g. CHOL) but the staged set is now empty.
+#
+# Fields per indication:
+#   tcga_studies        recount3 TCGA study codes (present iff in_read_map, or recorded on a staged
+#                       candidate for the Phase-2 run)
+#   gtex_tissue         matched recount3 GTEx tissue code, or null for no clean match (HNSC)
+#   published           in the 27 published *-dge-tumor-vs-normal-sensitivity-v1 products
+#   in_read_map         exposed via read.INDICATION_TO_{TCGA_STUDIES,GTEX_TISSUE}
+#   staged              #734 universe-expansion candidate: defined but NOT yet published
+#                       (published: false + in_read_map: false => verdict-inert). Requires a
+#                       non-null `caveat`. Consumed by config.staged_indications() only. The staged
+#                       set is currently EMPTY (LAML published in Phase 2, DLBC dropped); the field
+#                       stays for a future candidate.
+#   caveat              matched-normal / contrast confound. On a `staged` candidate it is the domain
+#                       question to sign off before publishing; on a PUBLISHED indication (LAML) it
+#                       is the accepted, signed-off confound that must be surfaced to the consumer
+#                       (Phase 2 carries it into the product's data-catalog manifest).
+#   composite_children  finer sibling cohorts this OncoTree parent is the union of
+#   xena_primary_site   {tcga, gtex} Xena/Toil `_primary_site` label(s) for the xena_toil
+#                       substrate (R-side roster consolidation, analysis-methods#733). A
+#                       TISSUE-level filter, not a TCGA-study filter (see 00_load_xena_toil.R's
+#                       header note): present only for the 15 indications the xena_toil
+#                       secondary/diagnostic substrate (S1b #694) actually loads. Xena has no
+#                       separate rectum normal, so READ's own gtex site is "Colon" too.
+#
+# (The per-indication `cell_b_semantics` vintage field was removed in analysis-methods#727
+#  when the ComBat-seq cell B was deleted from the four-cell pipeline.)
+
+# Ordered render roster for emit_pan_tissue's pan-indication figure. Order IS the figure row order
+# and must be preserved. A subset of the published universe (19 of 27; the 8 rarer
+# ACC/KICH/KIRP/PCPG/TGCT/THCA/UCS/UCEC were not produced by the figure batch).
+pan_tissue_render:
+  - COAD
+  - READ
+  - COADREAD
+  - LUAD
+  - LUSC
+  - BRCA
+  - PAAD
+  - SKCM
+  - STAD
+  - PRAD
+  - OV
+  - KIRC
+  - GBM
+  - LGG
+  - BLCA
+  - LIHC
+  - CESC
+  - ESCA
+  - HNSC
+
+# Run-ledger intent (S5, analysis-methods #698): the roster of dge_deseq2 catalogued derived
+# products the batch is INTENDED to have produced, declared per (family x substrate). It is the
+# NEW substrate axis the plan-review flagged (the per-indication config above carries no substrate
+# dimension). build_run_ledger.py projects this into the expected {catalog_id -> attrs} map and
+# reconciles it BIDIRECTIONALLY (mirror derive_pancan_stack.assert_roster_matches_published) against
+# (a) the S3 data-catalog/derived/ product prefixes and (b) the derived manifests whose
+# `notebook:` is under methods/dge_deseq2/ — reddening on ANY asymmetry (present-not-declared,
+# declared-not-present, manifest-without-config). This is a DECLARATION reconciled against actuality,
+# NOT the iteration driver: a product present on S3/catalog but absent here still reds (config alone
+# never bounds the universe), and a cell declared here but never produced also reds.
+#
+# recount3 four-cell sensitivity products are the `published: true` indications by projection; the
+# extra list adds 06-driver products that ship a sensitivity product WITHOUT a standalone `published`
+# flag (NSCLC is the pooled LUAD+LUSC composite — published: false for the pancan stack, yet it has a
+# landed sensitivity product on S3). Keeping the two apart is deliberate: the pancan-stack roster
+# must NOT gain NSCLC (it would double-count LUAD+LUSC), but the run-ledger universe must include it.
+# Sensitivity products that legitimately exist on S3 under the *-dge-tumor-vs-normal-sensitivity-v1
+# prefix but are NOT pancan-stack members (analysis-methods#791). derive_pancan_stack's
+# assert_roster_matches_published() must subtract this set from the live S3-published listing
+# before diffing against `_PUBLISHED_INDICATIONS`, or it false-positives "published-but-undeclared"
+# on a product that was deliberately kept out of the pancan roster.
+#   * NSCLC -> the pooled LUAD+LUSC composite (see run_ledger_intent.sensitivity_recount3_extra
+#     above); entering the pancan stack would double-count LUAD+LUSC.
+#   * SCLC  -> produced by a DIFFERENT method (all-NaN cell-A/B degeneracy handling), not a
+#     four-cell recount3 pancan member.
+# A genuinely new, undeclared S3 prefix (anything NOT in `_PUBLISHED_INDICATIONS` and NOT here)
+# must still fail the guard loud — this list is a conscious, reviewed exclusion, not a wildcard.
+pancan_stack_excluded_from_roster: [NSCLC, SCLC]
+
+run_ledger_intent:
+  sensitivity_recount3_extra: [NSCLC]
+  sensitivity_xena_toil: [COADREAD]
+  adj_vs_gtex_recount3: [COADREAD]
+  adj_vs_gtex_xena_toil: [COADREAD]
+  subgroup_recount3: [COADREAD, ESCA, HNSC, NSCLC, PAAD, STAD]
+  # Products with no (indication x substrate) axis of their own — declared by explicit id.
+  singletons:
+    - id: pancan-dge-tumor-vs-normal-v1                 # derive_pancan_stack roll-up
+      role: pancan_rollup
+      substrate: recount3
+    - id: dge-deseq2-qc-index-v1                        # build_qc_index cross-run QC index
+      role: qc_index
+      substrate: null
+    - id: gencode-v26-gene-lengths-union-of-exons-v1    # gene_lengths.py reference input
+      role: reference_gene_lengths
+      substrate: null
+
+indications:
+  # --- in the read maps (21): substrate lookups for INDICATION_TO_{TCGA_STUDIES,GTEX_TISSUE} ---
+  COADREAD:
+    tcga_studies: [COAD, READ]
+    gtex_tissue: COLON
+    published: true
+    in_read_map: true
+    composite_children: [COAD, READ]
+    xena_primary_site: {tcga: [Colon, Rectum], gtex: Colon}
+  COAD:
+    tcga_studies: [COAD]
+    gtex_tissue: COLON
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: Colon, gtex: Colon}
+  READ:
+    tcga_studies: [READ]
+    gtex_tissue: COLON
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: Rectum, gtex: Colon}  # Xena carries no separate rectum normal
+  NSCLC:
+    tcga_studies: [LUAD, LUSC]  # composite: pooled LUAD+LUSC (study-adjusted DGE, see 06_four_cell_driver.R)
+    gtex_tissue: LUNG
+    published: false  # pooled composite, no standalone published product
+    in_read_map: true
+    composite_children: [LUAD, LUSC]  # drop from breadth roll-up when LUAD+LUSC present
+  LUAD:
+    tcga_studies: [LUAD]
+    gtex_tissue: LUNG
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: Lung, gtex: Lung}  # tissue-level: conflates LUAD+LUSC
+  LUSC:
+    tcga_studies: [LUSC]
+    gtex_tissue: LUNG
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: Lung, gtex: Lung}  # tissue-level: conflates LUAD+LUSC
+  BRCA:
+    tcga_studies: [BRCA]
+    gtex_tissue: BREAST
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: Breast, gtex: Breast}
+  PAAD:
+    tcga_studies: [PAAD]
+    gtex_tissue: PANCREAS
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: Pancreas, gtex: Pancreas}
+  PDAC:
+    tcga_studies: [PAAD]  # alias of PAAD
+    gtex_tissue: PANCREAS
+    published: false  # alias, not a distinct published product
+    in_read_map: true
+  SKCM:
+    tcga_studies: [SKCM]
+    gtex_tissue: SKIN
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: Skin, gtex: Skin}
+  STAD:
+    tcga_studies: [STAD]
+    gtex_tissue: STOMACH
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: Stomach, gtex: Stomach}
+  PRAD:
+    tcga_studies: [PRAD]
+    gtex_tissue: PROSTATE
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: Prostate, gtex: Prostate}
+  OV:
+    tcga_studies: [OV]
+    gtex_tissue: OVARY
+    published: true
+    in_read_map: true
+  KIRC:
+    tcga_studies: [KIRC]
+    gtex_tissue: KIDNEY
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: Kidney, gtex: Kidney}  # tissue-level: conflates KIRC/KIRP/KICH
+  GBM:
+    tcga_studies: [GBM]
+    gtex_tissue: BRAIN
+    published: true
+    in_read_map: true
+  LGG:
+    tcga_studies: [LGG]
+    gtex_tissue: BRAIN
+    published: true
+    in_read_map: true
+  HNSC:
+    tcga_studies: [HNSC]
+    gtex_tissue: null  # no clean GTEx match -> deliberately absent from INDICATION_TO_GTEX_TISSUE
+    published: true
+    in_read_map: true
+  BLCA:
+    tcga_studies: [BLCA]
+    gtex_tissue: BLADDER
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: Bladder, gtex: Bladder}
+  LIHC:
+    tcga_studies: [LIHC]
+    gtex_tissue: LIVER
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: Liver, gtex: Liver}
+  CESC:
+    tcga_studies: [CESC]
+    gtex_tissue: CERVIX_UTERI
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: "Cervix Uteri", gtex: "Cervix Uteri"}
+  ESCA:
+    tcga_studies: [ESCA]
+    gtex_tissue: ESOPHAGUS
+    published: true
+    in_read_map: true
+    xena_primary_site: {tcga: Esophagus, gtex: Esophagus}
+  # LAML: published in #734 Phase 2 (2026-09-25, user-authorized + domain signed-off). The matched
+  # normal is GTEx whole blood -- the literature-precedented choice (owkin/drl-eval, David et al.,
+  # CanDLE). It is NOT `BONE_MARROW`: recount3's GTEx BONE_MARROW label is the K-562 erythroleukemia
+  # CELL LINE, not healthy marrow (see methods/tcga_gtex_tpm_quantiles/marrow.py), so pairing a
+  # leukemia against it would contrast tumor with a leukemia cell line. Not rendered by pan_tissue
+  # (heme has no solid-tissue box-plot peer), like the 8 rarer published indications below. The
+  # `caveat` is the accepted, signed-off maturation-state confound, surfaced to the consumer via the
+  # product's data-catalog manifest.
+  LAML:
+    tcga_studies: [LAML]
+    gtex_tissue: BLOOD
+    published: true
+    in_read_map: true
+    # Xena/Toil's own `_primary_site` vocabulary (not the recount3/GDC one above): the TCGA-LAML
+    # arm is labelled "White blood cell" (all 173 samples are `Primary Blood Derived Cancer -
+    # Peripheral Blood`, admitted by is_tcga_tumor_sample_type — Xena carries no LAML adjacent-
+    # normal rows), and GTEx whole blood is "Blood" (verified 2026-09-25 against the live
+    # TcgaTargetGTEX_phenotype.txt.gz on S3).
+    xena_primary_site: {tcga: "White blood cell", gtex: Blood}
+    caveat: >-
+      Maturation-state confound: TCGA LAML is immature peripheral-blood / bone-marrow blasts, but the
+      GTEx normal is mature, differentiated whole blood -- the tumor-vs-normal contrast conflates
+      malignancy with hematopoietic maturation, so the absolute log2FC direction/magnitude is not a
+      clean malignancy signal (read the selectivity rank, not the raw fold-change). Whole blood is the
+      literature-precedented normal; accepted at domain sign-off 2026-09-25.
+  # --- published but NOT in the read maps and NOT rendered by pan_tissue (the 8 rarer ---
+  # --- indications) ---
+  ACC:
+    published: true
+  KICH:
+    published: true
+  KIRP:
+    published: true
+  PCPG:
+    published: true
+  TGCT:
+    published: true
+  THCA:
+    published: true
+  UCS:
+    published: true
+  UCEC:
+    published: true
+
+  # --- STAGED universe-expansion candidates (analysis-methods #734) ----------------------------
+  # A staged entry is `published: false` + `in_read_map: false` + `staged: true` + a non-null
+  # `caveat`, so it is consumed by config.staged_indications() ONLY and moves NO projection
+  # (verdict-inert). It is the holding pen for a Phase-2 candidate awaiting sign-off. The set is
+  # currently EMPTY -- Phase 1 (#781) staged LAML + DLBC; Phase 2 (#734) resolved both:
+  #   * LAML   -> PUBLISHED above (gtex_tissue BLOOD). Whole blood is the literature-precedented
+  #              normal (owkin/drl-eval, David et al. shared-cancer-splicing, CanDLE); the accepted
+  #              maturation-state confound is recorded in its `caveat`. NOT paired to BONE_MARROW
+  #              (recount3's is the K-562 cell line, not healthy marrow).
+  #   * DLBC   -> DROPPED (not published, not staged). Literature precedent leaves DLBC UNPAIRED --
+  #              those same tools assign it no GTEx normal, because neither GTEx spleen nor whole
+  #              blood contains the nodal germinal-center B cells DLBC arises from. Forcing a spleen
+  #              or blood contrast would fabricate a mismatched normal, so DLBC joins the EXCLUDED
+  #              set below rather than shipping a misleading product.
+  #
+  # TCGA study triage (33 study codes - 26 covered by pre-#734 published products; LAML now the 27th
+  # single-study addition = the 28th published indication counting COADREAD):
+  #   UNCERTAIN : CHOL                -- cholangiocarcinoma (bile duct); GTEx has LIVER but no
+  #                                      bile-duct normal, so no clean matched contrast. NOT added;
+  #                                      needs a domain call before it can even be staged.
+  #   EXCLUDED  : DLBC, MESO, SARC, THYM, UVM -- no usable matched GTEx normal. MESO/SARC/THYM/UVM
+  #                                      have no GTEx normal at all (mesothelium, heterogeneous soft
+  #                                      tissue, thymus, uvea are absent from GTEx); DLBC has no
+  #                                      nodal-lymphoid normal (see above). Adding any would FABRICATE
+  #                                      a matched normal -- the failure the HNSC `gtex_tissue: null`
+  #                                      guard exists to prevent -- so they are deliberately omitted.

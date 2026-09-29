@@ -1,0 +1,288 @@
+name: Methods Validate
+
+# analysis-methods had NO CI (it is the EMITTER layer every skill reads through). This runs its
+# ~1,500 offline-deterministic tests credential-less. Live-S3 tests self-skip via the root
+# conftest.py (SKILLS_SKIP_LIVE_DATA) — by exception type, so genuine assertion failures stay RED.
+#
+# STATUS (re-measured 2026-09-15): `pytest` and `ruff` ARE now branch-protection REQUIRED checks on
+# main (`strict: true`, `enforce_admins: true`) and the offline suite is GREEN on trunk — the
+# "report-only, main carries pre-existing real failures" note this header used to carry was stale and
+# has been removed rather than softened, because a header claiming a gate is advisory invites the next
+# reader to land past a red. `byte-identity-live-s3` below is deliberately NOT required (it needs
+# credentials that do not exist yet; see its own header).
+# --import-mode=importlib is required: several method test files share a basename
+# (test_plotly_spec.py, …) and collide under the default import mode.
+#
+# TWO JOBS, and the split is load-bearing:
+#   * `pytest`               — offline, credential-less, ~3 min, runs on every PR. Checks out only the
+#                              two siblings whose code it needs. THE SKILLS SIBLING IS DELIBERATELY
+#                              ABSENT HERE (see byte-identity-live-s3 for why adding it would red it).
+#   * `byte-identity-live-s3` — the R4 byte-identity gate, which needs ~2.96 GB of credentialed S3 and
+#                              ~18 min. Separate so PR feedback stays at ~3 min, and non-PR-only so an
+#                              OIDC token is never issued for a pull_request event.
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:          # manual re-run of the live-S3 gate (e.g. right after the role is wired)
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read          # least privilege: the offline suite never needs an OIDC token
+    env:
+      SKILLS_SKIP_LIVE_DATA: "1"        # no AWS creds on the runner → skip live-S3 reads (conftest)
+      # ANALYSIS_METHODS_ROOT / TARGET_CONTRACTS_ROOT / DATA_CATALOG_ROOT are deliberately NOT set.
+      # AM#631/#632 made ~85 call sites derive each root from `__file__` (`os.environ.get(K) or
+      # <derived>`), and the checkout paths below place every repo at `<workspace>/<repo-name>`, which
+      # is exactly what the derivation computes — so exporting them pinned a value identical to the
+      # derived one. That made the `or` branch UNREACHABLE here: the fallback every non-CI checkout
+      # actually uses had zero coverage on the one machine that gates merges. Removing the exports is
+      # what gives it that coverage. Do NOT re-add them to "fix" a resolution failure — a red here
+      # means a site's `parents[N]` index is wrong, and pinning the env var would only re-hide it.
+    steps:
+      - name: Checkout analysis-methods
+        uses: actions/checkout@v4
+        with:
+          path: rnd-computational-biology-oncology-analysis-methods
+
+      - name: Checkout target-contracts (sibling — resolver / catalog_query)
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
+          ref: main
+          path: rnd-computational-biology-oncology-target-contracts
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Checkout data-catalog (sibling — manifests / catalog_query)
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
+          ref: main
+          path: rnd-computational-biology-oncology-data-catalog
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      # Pre-install the pixi BINARY in a retried step, then let setup-pixi REUSE it from PATH (by NOT
+      # pinning pixi-version) rather than doing its own download. setup-pixi's binary download has
+      # intermittently failed with `socket hang up` (transient CDN blip); as a REQUIRED check that would
+      # wedge unrelated PRs behind a network flake. The env install + cache-save still run inside
+      # setup-pixi (its post-step is intact), so env caching is preserved — only the flaky binary fetch
+      # moves into a retryable shell step. The env is pinned by pixi.lock regardless of binary version.
+      - name: Install pixi binary (retried — hardens the transient download flake)
+        run: |
+          set -euo pipefail
+          export PIXI_VERSION=v0.70.2
+          for i in 1 2 3 4 5; do
+            if curl -fsSL https://pixi.sh/install.sh -o /tmp/pixi-install.sh; then
+              bash /tmp/pixi-install.sh && break
+            fi
+            echo "::warning::pixi binary install attempt $i failed; retrying in $((i * 10))s"
+            sleep $((i * 10))
+          done
+          "$HOME/.pixi/bin/pixi" --version
+          echo "$HOME/.pixi/bin" >> "$GITHUB_PATH"
+
+      - name: Set up pixi (installs the locked env + editable siblings; reuses the pre-installed binary)
+        uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          # pixi-version deliberately UNSET → setup-pixi uses the pre-installed pixi found on PATH (see
+          # the retried install step above) instead of downloading its own. Do NOT re-add pixi-version.
+          manifest-path: rnd-computational-biology-oncology-analysis-methods/pixi.toml
+
+      - name: methods + tests suite (offline; live-S3 tests self-skip)
+        working-directory: rnd-computational-biology-oncology-analysis-methods
+        # -rs prints the short summary for SKIPPED tests (file:line + reason). Without it `-q` reports
+        # only a COUNT — "3327 passed, 10 skipped" — which cannot distinguish a test that self-skipped
+        # because it needs live S3 (expected, and what this step's name claims) from a load-bearing gate
+        # that skipped because its environment guard silently stopped resolving. That is not
+        # hypothetical: methods/dge_deseq2/tests/test_byte_identity_vs_legacy_coadread.py had never once
+        # executed on a runner — it needs a claude-oncology-skills sibling, which no job here checked out
+        # — and the skip was invisible for its whole lifetime. A skip is "the check did not run", so it
+        # must be NAMED in the log rather than summed into the green. That gate now has its own job
+        # below; here it skips on its `requires_data` marker, which reports the REAL requirement.
+        run: pixi run pytest methods/ tests/ -q -rs --import-mode=importlib -n auto
+
+  # ───────────────────────────────────────────────────────────────────────────────────────────────
+  # The R4 byte-identity gate, for real. Measured requirements (2026-09-15), each one checked rather
+  # than assumed:
+  #   * Rscript RESOLVES on a runner already — pixi.toml carries r-base >=4.3 + bioconductor-deseq2 /
+  #     apeglm / sva, and the trunk CI log prints only ONE skip line for this file, naming the skills
+  #     guard and not the Rscript guard. So the checkout below is the last mechanical blocker.
+  #   * DATA IS THE REAL BLOCKER. configs/COADREAD.yaml pins source.manifest_id tcga-gdc-dr45-0, whose
+  #     only location is s3://onc-compbio/data-catalog/sources/gdc/tcga-pancancer-dr45.0/ (11,507
+  #     objects; system_of_record: true). 00_load_counts.R:203 pulls each cohort file with
+  #     `system2("aws", c("s3","cp", ...))`: 701 manifest entries carry project_id TCGA-COAD/TCGA-READ
+  #     (~2.96 GB), and after sample-type filtering + one-aliquot-per-case dedup the loader downloads
+  #     675 of them (624 tumor + 51 normal, ~2.9 GB) — measured, not inferred, by running the legacy arm
+  #     against a stubbed `aws`. That loader has NO fixture path and NO offline switch, so the gate
+  #     cannot be made hermetic here.
+  #   * ~18 min (measured 1065.99 s locally at --threads=4), vs ~3 min for the offline job. Hence the
+  #     split; hence timeout-minutes below.
+  #
+  # WHY ADDING THE SKILLS CHECKOUT TO THE `pytest` JOB WOULD BE WRONG, not merely insufficient: it
+  # satisfies the skipif, the test body runs, `aws s3 cp` fails with no credentials, and the assertion
+  # `legacy_result.returncode == 0` fires. conftest.py's live-data net cannot rescue that — it matches
+  # botocore exception TYPE names, and here the credential failure happens in an R GRANDCHILD, so no
+  # botocore exception exists in the Python chain at all. An invisible skip would become a red on every
+  # PR. The test's `requires_data` marker is what makes the offline job's skip declarative instead of an
+  # accident of which repos happen to be checked out.
+  #
+  # ┌── EXTERNAL DEPENDENCY 2 of 2, found by the first trunk run: CROSS_REPO_TOKEN has NO grant on
+  # │   claude-oncology-skills. The checkout failed `remote: Write access to repository not granted`
+  # │   (it reads as a write error, but a `fetch` fails that way when the PAT simply cannot see the
+  # │   repo). The other two sibling checkouts use the same secret and succeed, so the token is valid —
+  # │   it is scoped to target-contracts + data-catalog only. This gate stays skipped until the token
+  # │   is re-scoped to include claude-oncology-skills (read is enough), INDEPENDENT of the role below.
+  # └──
+  # ┌── EXTERNAL DEPENDENCY 1 of 2: the AWS_ROLE_TO_ASSUME secret does not exist yet (absent from this repo's
+  # │   secrets AND from the org secrets visible to it, verified 2026-09-15). Until it is set, the
+  # │   credentialed steps below SKIP and this job is green-and-explicit rather than red — the same
+  # │   HAVE_AWS pattern the skills repo uses. The role needs, in account 557690623046 / us-east-1:
+  # │     trust:  the GitHub OIDC provider (token.actions.githubusercontent.com), aud sts.amazonaws.com,
+  # │             sub limited to repo:oneTakeda/rnd-computational-biology-oncology-analysis-methods:*
+  # │             (ref:refs/heads/main is enough — this job never runs on pull_request)
+  # │     policy: READ-ONLY. s3:GetObject on
+  # │               arn:aws:s3:::onc-compbio/data-catalog/sources/gdc/tcga-pancancer-dr45.0/TCGA-COAD/*
+  # │               arn:aws:s3:::onc-compbio/data-catalog/sources/gdc/tcga-pancancer-dr45.0/TCGA-READ/*
+  # │             plus s3:ListBucket on arn:aws:s3:::onc-compbio for those prefixes. No write is needed:
+  # │             the test passes a LOCAL --parquet-uri, so 04_write_parquet.R never touches S3.
+  # └──
+  # ───────────────────────────────────────────────────────────────────────────────────────────────
+  byte-identity-live-s3:
+    # Never on pull_request: issuing an OIDC token for PR-authored code is the classic escalation
+    # surface, and GitHub withholds secrets from fork PRs anyway, so it would be vacuous there.
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45         # measured ~18 min for the gate + ~5 min pixi env; headroom for a cold cache
+    permissions:
+      id-token: write           # OIDC assume-role
+      contents: read
+    env:
+      # The `secrets` context is NOT available in `jobs.<id>.if`, so the presence check has to be
+      # routed through job-level env and consumed by per-step `if:`. The job always starts; the
+      # credentialed steps do not. Do NOT set SKILLS_SKIP_LIVE_DATA here — that flag is exactly what
+      # makes the gate's `requires_data` marker skip, and running it is this job's whole purpose.
+      HAVE_AWS: ${{ secrets.AWS_ROLE_TO_ASSUME != '' }}
+      # ANALYSIS_METHODS_ROOT / TARGET_CONTRACTS_ROOT / DATA_CATALOG_ROOT / CLAUDE_ONCOLOGY_SKILLS_ROOT
+      # are deliberately NOT set, for the same reason as the pytest job above: the checkout paths below
+      # equal what `Path(__file__).parents[N].parent` derives, so exporting them would pin an identical
+      # value and leave the `or` fallback — the branch every developer checkout uses — with no coverage.
+    steps:
+      # ★★EVERY step in this job is gated on HAVE_AWS, not just the ones that touch AWS — including the
+      # plain checkouts. That is the fix for a real red: as first landed only the credentialed steps were
+      # gated, so with no role wired the job still ran four checkouts, and the skills one FAILED
+      # (`remote: Write access to repository not granted` — CROSS_REPO_TOKEN has no grant on that repo).
+      # The job I had described as "green-and-explicit when the role is absent" was RED on every push to
+      # main. A step that cannot contribute to a no-op job must not be able to fail it: when HAVE_AWS is
+      # false the only step that runs is the notice below.
+      - name: Checkout analysis-methods
+        if: env.HAVE_AWS == 'true'
+        uses: actions/checkout@v4
+        with:
+          path: rnd-computational-biology-oncology-analysis-methods
+
+      - name: Checkout target-contracts (sibling — resolver / catalog_query)
+        if: env.HAVE_AWS == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-target-contracts
+          ref: main
+          path: rnd-computational-biology-oncology-target-contracts
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      - name: Checkout data-catalog (sibling — the tcga-gdc-dr45-0 source manifest this gate resolves)
+        if: env.HAVE_AWS == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-data-catalog
+          ref: main
+          path: rnd-computational-biology-oncology-data-catalog
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      # ★ `ref: main` since 2026-09-16. This said `v2-architecture` for good reason at the time: the skills
+      # repo developed on a long-lived `v2-architecture` branch while its `main` held the dormant v1
+      # plugin, and `batch/expression_rna_COADREAD/` did not exist on that v1 `main` AT ALL (0 files,
+      # configs/COADREAD.yaml absent), so `ref: main` would have skipped this gate forever. The cutover
+      # promoted v2 to `main` and archived v1 at tag `v1-final` + branch `legacy/v1`, which INVERTED that
+      # premise: measured on the new trunk, `batch/expression_rna_COADREAD/` = 9 files and
+      # configs/COADREAD.yaml is PRESENT (on `legacy/v1`: 0 files, absent).
+      # ★★Do NOT put `v2-architecture` back — the ref was NOT preserved, so `actions/checkout` would
+      # HARD-FAIL (`couldn't find remote ref`). That hard failure is the good case: had the rename left the
+      # old name resolving as a redirect, this step would have silently pinned a frozen tree and drifted,
+      # green, forever. A pin that dies loudly beats a pin that goes stale quietly.
+      - name: Checkout claude-oncology-skills (sibling — the LEGACY arm, batch/expression_rna_COADREAD)
+        if: env.HAVE_AWS == 'true'
+        uses: actions/checkout@v4
+        with:
+          repository: oneTakeda/rnd-computational-biology-oncology-claude-oncology-skills
+          ref: main
+          path: rnd-computational-biology-oncology-claude-oncology-skills
+          token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
+
+      # Duplicated from the pytest job rather than extracted into a composite action: two call sites is
+      # below the threshold where the indirection pays, and the rationale comment there is the canonical
+      # copy. If a third job needs it, extract then.
+      - name: Install pixi binary (retried — hardens the transient download flake)
+        if: env.HAVE_AWS == 'true'
+        run: |
+          set -euo pipefail
+          export PIXI_VERSION=v0.70.2
+          for i in 1 2 3 4 5; do
+            if curl -fsSL https://pixi.sh/install.sh -o /tmp/pixi-install.sh; then
+              bash /tmp/pixi-install.sh && break
+            fi
+            echo "::warning::pixi binary install attempt $i failed; retrying in $((i * 10))s"
+            sleep $((i * 10))
+          done
+          "$HOME/.pixi/bin/pixi" --version
+          echo "$HOME/.pixi/bin" >> "$GITHUB_PATH"
+
+      - name: Explain why this job is a no-op (no role wired yet)
+        if: env.HAVE_AWS != 'true'
+        run: |
+          echo "::notice title=byte-identity gate did not run::AWS_ROLE_TO_ASSUME is not set for this repo, so no OIDC role could be assumed. The R4 byte-identity gate needs ~2.96 GB from s3://onc-compbio and cannot run credential-less. See the IAM requirements in .github/workflows/methods-validate.yml."
+          echo "Skipped: no AWS_ROLE_TO_ASSUME secret. This is expected until the read-only role is provisioned."
+
+      - name: Set up pixi (installs the locked env incl. R + DESeq2; reuses the pre-installed binary)
+        if: env.HAVE_AWS == 'true'
+        uses: prefix-dev/setup-pixi@v0.8.1
+        with:
+          # pixi-version deliberately UNSET — see the pytest job. Do NOT re-add it.
+          manifest-path: rnd-computational-biology-oncology-analysis-methods/pixi.toml
+
+      - name: Configure AWS credentials (OIDC assume-role)
+        if: env.HAVE_AWS == 'true'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-region: us-east-1
+
+      # A TOTAL credential failure already fails fast (measured: the legacy arm dies in ~7 s), so this
+      # step is not about speed — it is about ATTRIBUTION. It proves the exact capability the gate needs
+      # (LIST + GET on both project prefixes) rather than just "creds exist", so a role that can
+      # sts:GetCallerIdentity but cannot read the prefix reports as a ROLE problem here instead of as a
+      # pipeline failure 700 objects later. A policy scoped to only one of the two projects is the
+      # likeliest partial misconfiguration, and an identity check alone is blind to it.
+      - name: Preflight — the role can actually LIST and GET the release prefix
+        if: env.HAVE_AWS == 'true'
+        env:
+          PREFIX: s3://onc-compbio/data-catalog/sources/gdc/tcga-pancancer-dr45.0
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity
+          for project in TCGA-COAD TCGA-READ; do
+            key=$(aws s3 ls --recursive "$PREFIX/$project/" | head -1 | awk '{print $4}')
+            test -n "$key" || { echo "::error::cannot LIST $PREFIX/$project/ with the assumed role"; exit 1; }
+            aws s3 cp --quiet "s3://onc-compbio/$key" /dev/null
+            echo "  ok: LIST + GET verified for $project ($key)"
+          done
+
+      # SKILLS_SKIP_LIVE_DATA is unset in this job, so the requires_data marker does not skip. -rs still
+      # matters: if this somehow reports SKIPPED rather than passed/failed, the log must say why.
+      - name: R4 byte-identity gate (legacy R pipeline vs carved dge_deseq2, over live TCGA data)
+        if: env.HAVE_AWS == 'true'
+        working-directory: rnd-computational-biology-oncology-analysis-methods
+        run: >
+          pixi run pytest methods/dge_deseq2/tests/test_byte_identity_vs_legacy_coadread.py
+          -v -rs --import-mode=importlib

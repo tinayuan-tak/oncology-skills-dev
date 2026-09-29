@@ -1,0 +1,228 @@
+"""tcga_patient_cn — per-(gene, indication) PATIENT copy-number prevalence from GISTIC.
+
+Tests mock the GISTIC per-gene reader + the aliquot→cancer-type map (no S3), and force the product
+fast-path OFF (→ live-TSV path) to exercise the classification directly. Pin: amp/del classification
+mirroring the DepMap vocabulary, the indication scoping, and honest amplification (NOT LoF-collapsed).
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+REPO = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO))
+
+from methods.tcga_patient_cn import read as r  # noqa: E402
+
+
+def _setup(monkeypatch, gistic_by_aliquot, cancer_map):
+    """gistic_by_aliquot: {aliquot_barcode: int GISTIC discrete}. cancer_map: {patient_barcode: type}.
+    Force the product fast-path to miss so the live-TSV classification path runs."""
+    r._read_gistic_gene.cache_clear()
+    r._load_sample_cancer_types.cache_clear()
+    monkeypatch.setattr(r, "_read_from_product", lambda target, indication: None)  # force live path
+    monkeypatch.setattr(r, "_read_gistic_gene", lambda target: tuple(gistic_by_aliquot.items()))
+    monkeypatch.setattr(r, "_load_sample_cancer_types", lambda: cancer_map)
+
+
+def test_recurrently_amplified(monkeypatch):
+    # 40 of 100 BRCA samples amplified (>= +1) → 40% >= 20% amp, ~0% del → recurrently_amplified.
+    g = {f"TCGA-A1-{i:04d}-01A": (2 if i < 15 else 1 if i < 40 else 0) for i in range(100)}
+    cancer = {f"TCGA-A1-{i:04d}": "BRCA" for i in range(100)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("ERBB2", "BRCA")
+    assert out["n_samples"] == 100
+    assert out["patient_amplified_fraction"] == 0.40 and out["patient_high_amp_fraction"] == 0.15
+    assert out["patient_copy_number_class"] == "recurrently_amplified"
+
+
+def test_recurrently_deleted(monkeypatch):
+    # 67% deleted (CDKN2A-like), few amp → recurrently_deleted.
+    g = {f"TCGA-05-{i:04d}-01A": (-2 if i < 30 else -1 if i < 67 else 0) for i in range(100)}
+    cancer = {f"TCGA-05-{i:04d}": "LUAD" for i in range(100)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("CDKN2A", "NSCLC")
+    assert out["patient_copy_number_class"] == "recurrently_deleted"
+    assert out["patient_homdel_fraction"] == 0.30
+
+
+def test_amplification_not_collapsed_by_loss(monkeypatch):
+    # The two-hit product's "min-wins" bug would call this deleted; the raw-GISTIC method must NOT.
+    # 45 amplified, 22 deleted — both recurrent, amp dominates by >1.5x (0.45 >= 0.22*1.5) → amplified.
+    g = {}
+    for i in range(100):
+        g[f"TCGA-A1-{i:04d}-01A"] = 2 if i < 45 else (-1 if i < 67 else 0)
+    cancer = {f"TCGA-A1-{i:04d}": "BRCA" for i in range(100)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("ERBB2", "BRCA")
+    assert out["patient_amplified_fraction"] == 0.45 and out["patient_deleted_fraction"] == 0.22
+    assert out["patient_copy_number_class"] == "recurrently_amplified"  # NOT deleted (min-wins would)
+
+
+def test_mixed_when_balanced(monkeypatch):
+    # both amp+del recurrent, neither dominates by 1.5x → mixed.
+    g = {}
+    for i in range(100):
+        g[f"TCGA-A1-{i:04d}-01A"] = 1 if i < 30 else (-1 if i < 60 else 0)
+    cancer = {f"TCGA-A1-{i:04d}": "BRCA" for i in range(100)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("SOMEGENE", "BRCA")
+    assert out["patient_copy_number_class"] == "mixed"
+
+
+def test_broadly_neutral(monkeypatch):
+    # <20% amp and <20% del → broadly_neutral (mutation-driven gene like KRAS focal).
+    g = {f"TCGA-A6-{i:04d}-01A": (1 if i < 10 else 0) for i in range(100)}
+    cancer = {f"TCGA-A6-{i:04d}": "COAD" for i in range(100)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("KRAS", "COADREAD")
+    assert out["patient_copy_number_class"] == "broadly_neutral"
+
+
+def test_indication_scoping(monkeypatch):
+    # a STAD aliquot must not enter the COADREAD cohort.
+    g = {"TCGA-A6-0001-01A": 2, "TCGA-BR-0002-01A": 2}
+    cancer = {"TCGA-A6-0001": "COAD", "TCGA-BR-0002": "STAD"}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("ERBB2", "COADREAD")
+    assert out["n_samples"] == 1  # only the COAD aliquot
+
+
+def test_unmapped_indication_data_unavailable(monkeypatch):
+    _setup(monkeypatch, {"TCGA-A1-0001-01A": 2}, {"TCGA-A1-0001": "BRCA"})
+    out = r.patient_cn_summary_for_gene("ERBB2", "MADEUP")
+    assert out["patient_copy_number_class"] == "data_unavailable"
+
+
+def test_focal_amplification_gates_on_high_level(monkeypatch):
+    # 25% high-level (+2) → recurrent_focal_amplification (>= 10% focal bar). This is the verdict-consensus gate.
+    g = {f"TCGA-A1-{i:04d}-01A": (2 if i < 25 else 1 if i < 50 else 0) for i in range(100)}
+    cancer = {f"TCGA-A1-{i:04d}": "BRCA" for i in range(100)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("ERBB2", "BRCA")
+    assert out["patient_focal_cn_class"] == "recurrent_focal_amplification"
+
+
+def test_arm_level_gain_is_NOT_focal(monkeypatch):
+    # 23% any-gain but only 1% high-level (+2) — KRAS-arm-level pattern. patient_copy_number_class is
+    # recurrently_amplified (any-gain), but patient_focal_cn_class must be focal_neutral (NOT a focal driver).
+    g = {}
+    for i in range(100):
+        g[f"TCGA-A6-{i:04d}-01A"] = 2 if i < 1 else (1 if i < 23 else 0)
+    cancer = {f"TCGA-A6-{i:04d}": "COAD" for i in range(100)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("KRAS", "COADREAD")
+    assert out["patient_copy_number_class"] == "recurrently_amplified"  # any-gain class
+    assert out["patient_focal_cn_class"] == "focal_neutral"  # but NOT focal → verdict-safe
+
+
+def test_focal_deletion_gates_on_homdel(monkeypatch):
+    # 30% homdel (-2) → recurrent_focal_deletion (the TSG analog).
+    g = {f"TCGA-05-{i:04d}-01A": (-2 if i < 30 else -1 if i < 60 else 0) for i in range(100)}
+    cancer = {f"TCGA-05-{i:04d}": "LUAD" for i in range(100)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("CDKN2A", "NSCLC")
+    assert out["patient_focal_cn_class"] == "recurrent_focal_deletion"
+
+
+def test_underpowered_below_sample_floor(monkeypatch):
+    # PR-C3: fewer than _MIN_COVERED (20) GISTIC-covered samples in the cohort → the fractions are too
+    # thin to characterize a recurrence pattern. Both classifiers emit `underpowered` (coverage gap),
+    # NOT broadly_neutral / focal_neutral (which would read as a measured negative).
+    # 15 samples, ALL high-level amplified — a strong signal that must still be gated by n.
+    g = {f"TCGA-A1-{i:04d}-01A": 2 for i in range(15)}
+    cancer = {f"TCGA-A1-{i:04d}": "BRCA" for i in range(15)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("ERBB2", "BRCA")
+    assert out["n_samples"] == 15
+    assert out["patient_copy_number_class"] == "underpowered"
+    assert out["patient_focal_cn_class"] == "underpowered"
+
+
+def test_at_sample_floor_is_powered(monkeypatch):
+    # Exactly _MIN_COVERED (20) samples clears the floor — classification proceeds normally.
+    g = {f"TCGA-A1-{i:04d}-01A": (2 if i < 8 else 0) for i in range(20)}  # 40% high-level amp
+    cancer = {f"TCGA-A1-{i:04d}": "BRCA" for i in range(20)}
+    _setup(monkeypatch, g, cancer)
+    out = r.patient_cn_summary_for_gene("ERBB2", "BRCA")
+    assert out["n_samples"] == 20
+    assert out["patient_copy_number_class"] == "recurrently_amplified"
+    assert out["patient_focal_cn_class"] == "recurrent_focal_amplification"
+
+
+def test_gene_absent_data_unavailable(monkeypatch):
+    monkeypatch.setattr(r, "_read_from_product", lambda t, i: None)
+    r._read_gistic_gene.cache_clear()
+    monkeypatch.setattr(r, "_read_gistic_gene", lambda target: tuple())  # gene not in GISTIC
+    monkeypatch.setattr(r, "_load_sample_cancer_types", lambda: {"TCGA-A1-0001": "BRCA"})
+    out = r.patient_cn_summary_for_gene("MADEUPGENE", "BRCA")
+    assert out["patient_copy_number_class"] == "data_unavailable"
+
+
+# --- CASE-029: indication coverage. The map is the ONLY gate; an unmapped indication returns
+#     data_unavailable at the `if not codes` guard WITHOUT reaching the live-TSV fallback, so a
+#     cohort absent from the map is a silent false-negative on the whole patient-CN axis. ------------
+_GISTIC_COHORTS = {  # every TCGA cohort in the GDC PanCanAtlas GISTIC sample map (33)
+    "ACC",
+    "BLCA",
+    "BRCA",
+    "CESC",
+    "CHOL",
+    "COAD",
+    "DLBC",
+    "ESCA",
+    "GBM",
+    "HNSC",
+    "KICH",
+    "KIRC",
+    "KIRP",
+    "LAML",
+    "LGG",
+    "LIHC",
+    "LUAD",
+    "LUSC",
+    "MESO",
+    "OV",
+    "PAAD",
+    "PCPG",
+    "PRAD",
+    "READ",
+    "SARC",
+    "SKCM",
+    "STAD",
+    "TGCT",
+    "THCA",
+    "THYM",
+    "UCEC",
+    "UCS",
+    "UVM",
+}
+
+
+def test_every_gistic_cohort_is_reachable():
+    """Coverage floor: every TCGA cohort GISTIC actually carries must be reachable through the map,
+    else that cohort is blind (returns data_unavailable at the guard, never hitting the live TSV).
+    The pre-CASE-029 map covered 13 of 33, so EGFR/GBM (44% high-level focal amp) read
+    data_unavailable — a textbook driver invisible on the patient-CN axis."""
+    mapped_tcga = {code for codes in r.INDICATION_TO_TCGA.values() for code in codes}
+    missing = _GISTIC_COHORTS - mapped_tcga
+    assert not missing, f"GISTIC cohorts unreachable through INDICATION_TO_TCGA (blind axis): {sorted(missing)}"
+
+
+def test_aml_alias_maps_to_laml():
+    """The one non-identity alias: the framework indication AML resolves to TCGA project LAML."""
+    assert r.INDICATION_TO_TCGA.get("AML") == ("LAML",)
+
+
+def test_newly_mapped_cohort_resolves_via_live_fallback(monkeypatch):
+    """The fix is reachable end-to-end: a cohort added to the map but ABSENT from the materialized
+    product must still resolve, via the live-TSV fallback — proving the `if not codes` guard no longer
+    short-circuits GBM/LGG/LAML before the fallback runs. (EGFR/GBM on live data: 44% high-level amp.)"""
+    g = {f"TCGA-06-{i:04d}-01A": (2 if i < 44 else 0) for i in range(100)}  # 44% high-level amp, GBM-like
+    cancer = {f"TCGA-06-{i:04d}": "GBM" for i in range(100)}
+    _setup(monkeypatch, g, cancer)  # _setup forces _read_from_product -> None (product miss)
+    out = r.patient_cn_summary_for_gene("EGFR", "GBM")
+    assert out["_read_path"] == "live_tsv"
+    assert out["n_samples"] == 100
+    assert out["patient_focal_cn_class"] == "recurrent_focal_amplification"
