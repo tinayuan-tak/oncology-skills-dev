@@ -30,14 +30,16 @@ import yaml
 SKILLS_DIR = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(SKILLS_DIR))
 
-TARGET_CONTRACTS_ROOT = SKILLS_DIR.parent.parent / "rnd-computational-biology-oncology-target-contracts"
-DATA_CATALOG_ROOT = SKILLS_DIR.parent.parent / "rnd-computational-biology-oncology-data-catalog"
-# Honors the ANALYSIS_METHODS_ROOT env var CI sets (skills-validate.yml), else the adjacent
-# sibling checkout for local runs.
-ANALYSIS_METHODS_ROOT = Path(
+# SK#2063 consolidation: target-contracts + analysis-methods are IN-TREE (contracts/, methods/
+# under the repo root = SKILLS_DIR.parent). Honor the *_ROOT env vars CI sets, else resolve
+# in-tree. data-catalog is still a separate sibling repo (env var, else adjacent checkout).
+_REPO_ROOT = SKILLS_DIR.parent
+TARGET_CONTRACTS_ROOT = Path(os.environ.get("TARGET_CONTRACTS_ROOT", _REPO_ROOT / "contracts"))
+ANALYSIS_METHODS_ROOT = Path(os.environ.get("ANALYSIS_METHODS_ROOT", _REPO_ROOT / "methods"))
+DATA_CATALOG_ROOT = Path(
     os.environ.get(
-        "ANALYSIS_METHODS_ROOT",
-        SKILLS_DIR.parent.parent / "rnd-computational-biology-oncology-analysis-methods",
+        "DATA_CATALOG_ROOT",
+        SKILLS_DIR.parent.parent / "rnd-computational-biology-oncology-data-catalog",
     )
 )
 

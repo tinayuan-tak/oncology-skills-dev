@@ -27,7 +27,7 @@ SKILLS_DIR = Path(__file__).resolve().parent.parent
 CONTRACTS = Path(
     os.environ.get(
         "TARGET_CONTRACTS_ROOT",
-        str(SKILLS_DIR.parent.parent / "rnd-computational-biology-oncology-target-contracts"),
+        str(SKILLS_DIR.parent / "contracts"),  # SK#2063: target-contracts is in-tree
     )
 )
 AXES = CONTRACTS / "vocabularies" / "target_profiling_axes.yaml"

@@ -24,7 +24,7 @@ _SK = Path(__file__).resolve().parent.parent.parent  # .../claude-oncology-skill
 sys.path.insert(0, str(_SK))
 os.environ.setdefault(
     "TARGET_CONTRACTS_ROOT",
-    str(_SK.parent.parent / "rnd-computational-biology-oncology-target-contracts"),
+    str(_SK.parent / "contracts"),  # SK#2063: target-contracts is in-tree (repo_root/contracts)
 )
 
 from _skills_common.reachability import verdict_relevant_cards  # noqa: E402

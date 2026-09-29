@@ -15,6 +15,7 @@ target-contracts card YAML. Skips gracefully if target-contracts isn't checked o
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -23,7 +24,9 @@ import yaml
 
 SKILL_DIR = Path(__file__).resolve().parent.parent
 RUN_PY = SKILL_DIR / "scripts" / "run.py"
-CONTRACTS = SKILL_DIR.parent.parent.parent / "rnd-computational-biology-oncology-target-contracts"
+# SK#2063: target-contracts is in-tree at repo_root/contracts (SKILL_DIR.parent.parent);
+# honor the TARGET_CONTRACTS_ROOT env var CI sets, else resolve in-tree.
+CONTRACTS = Path(os.environ.get("TARGET_CONTRACTS_ROOT", SKILL_DIR.parent.parent / "contracts"))
 CARDS_DIR = CONTRACTS / "cards"
 
 
