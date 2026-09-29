@@ -1,0 +1,20 @@
+{
+  "target": "APC",
+  "accession": "P25054",
+  "skill": "tumor-presence",
+  "card_id": "cellline-protein-abundance",
+  "class_field": "protein_expression_class",
+  "vector_fixture": "protein_vectors/apc_gygi.cellline_protein_abundance.parquet",
+  "null_fixture": "protein_vectors/depmap_gygi_allgene_median_null.parquet",
+  "n_panel": 375,
+  "n_cell_lines_evaluated": 366,
+  "expected_class": "broadly_high",
+  "expected_fraction_detected": 0.976,
+  "expected_median_log2_abundance_panel": 0.033149191976902796,
+  "expected_p5_log2_abundance_panel": -0.924147835371716,
+  "expected_p95_log2_abundance_panel": 1.1773161417127327,
+  "expected_n_lineages_evaluated": 17,
+  "expected_n_lineage_restricted_lineages": 0,
+  "_captured_at": "2026-09-29T01:43:20.003670+00:00",
+  "_provenance": "live cbg read via resolve_accession('APC') -> load_abundance_column('P25054'); fixture = gene's log2-abundance per DepMap cell line (Gygi TMT MS, 366 models) + lineage; re-derive with methods.depmap_protein_abundance.cli.compute_summary."
+}

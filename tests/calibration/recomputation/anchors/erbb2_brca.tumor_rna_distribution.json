@@ -1,0 +1,23 @@
+{
+  "target": "ERBB2",
+  "indication": "BRCA",
+  "vectors_fixture": "tumor_normal_tpm/recount3_gtex__percentile_crossing_vectors.parquet",
+  "vectors_fixture_cohort": "tumor",
+  "n_tumor_samples": 1127,
+  "expected_tumor_expression_class": "broadly_high",
+  "expected_median_log2tpm": 6.271317958831787,
+  "expected_p95_log2tpm": 10.04163646697998,
+  "expected_p99_log2tpm": 11.055991497039795,
+  "expected_min_log2tpm": 0.679098904132843,
+  "expected_max_log2tpm": 11.871753692626953,
+  "expected_coefficient_of_variation": 2.1459192882864606,
+  "expected_distribution_pattern": "continuous",
+  "expected_detectable_fraction": 0.9991126885536823,
+  "expected_moderate_fraction": 0.9787045252883763,
+  "expected_high_fraction": 0.707187222715173,
+  "_source": {
+    "product": "recount3 TCGA/non-TCGA tumor long product (same slice as the percentile_crossing anchor for this pair)",
+    "captured_utc": "2026-09-29T01:41:59.862806+00:00",
+    "note": "reuses the percentile_crossing anchor's committed vectors_fixture; no new parquet"
+  }
+}
