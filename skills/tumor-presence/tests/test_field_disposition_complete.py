@@ -84,6 +84,132 @@ def _emitted(cid: str) -> list[str]:
     return [x for x in (((y.get("outputs") or {}).get("summary_fields")) or []) if isinstance(x, str)]
 
 
+# ── the EMIT-vs-DECLARED reconciliation (#2016; actions the deferred #1506 systemic-finding-2) ───────
+#
+# `_emitted` above is MISNAMED for history: it returns the card's DECLARED `outputs.summary_fields`, not
+# what a run actually EMITS. So `test_ledger_matches_emitted_fields` only ever reconciles the ledger
+# against the DECLARED set. A field a reader EMITS into the summary but the card never DECLARES is in
+# NEITHER the ledger nor the declared set, so it is invisible to the ledger, to the fleet-aperture
+# census (whose domain is likewise `declared_fields`, see _skills_common/tests/test_field_disposition.py),
+# and to CI, all at once. That is the census fail-open TC#863 landed only as a warning (fail-open) and
+# #1506 systemic-finding-2 documented and then deferred; it is the REVERSE direction of the open #1353
+# (declared-but-never-emitted) and the emitted-but-undeclared audit #1510.
+#
+# This closes it in the load-bearing direction: reconcile the OBSERVED emit — the summary keys of the
+# frozen maximal-run fixture the replay guard already ships (epcam_coadread.yaml, refreshed by the
+# card-behavior-matrix-nightly re-freeze) — against the declared contract, and go RED on any PUBLIC
+# (non-`_`-prefixed) emitted key the card does not declare.
+#
+# A RATCHET, NOT A HARD WALL — because clearing an emitted-but-undeclared field is the CROSS-REPO
+# declare-or-remove half (pin + TC `outputs.summary_fields` + a field_disposition.yaml row + a
+# census-visible reader = ONE atomic unit, land TC first) and the fleet already carries a backlog of
+# them. Mirroring the fleet-aperture ratchet and its SAFETY CONTRACT — an unremediated field is a
+# REVIEW QUEUE, never a delete list — the grandfathered set below is pinned as a set: a NEW
+# emitted-but-undeclared public field reds immediately (the fail-open is closed GOING FORWARD), while
+# the backlog is burned down field-by-field, each removal RE-BANKING this set (a stale entry reds too,
+# so the queue cannot silently rot). VERDICT-INERT: it reads the same frozen fixture the replay froze
+# and moves no verdict / no golden. The count is aperture-INERT: this measures emit − declared, the
+# opposite subtraction from the aperture's declared − reached, and touches no census code.
+_OBSERVED_EMIT_FIXTURE = SKILL_DIR / "tests" / "fixtures" / "epcam_coadread.yaml"
+
+
+def _load_observed_emit() -> dict:
+    """The frozen maximal-run reader summaries (the observed emit), keyed by card id; {} if absent."""
+    if not _OBSERVED_EMIT_FIXTURE.exists():
+        return {}
+    return yaml.safe_load(_OBSERVED_EMIT_FIXTURE.read_text()) or {}
+
+
+def _observed_public_keys(summary) -> set[str]:
+    """PUBLIC emitted keys of one card's frozen summary: real string keys, `_`-prefixed excluded by
+    convention (a run's own private/scratch keys), and only for a REAL reader summary — a freeze or
+    dispatcher error carries no emit to reconcile."""
+    if not isinstance(summary, dict) or summary.get("_freeze_error") or summary.get("_dispatcher_returned_none"):
+        return set()
+    return {k for k in summary if isinstance(k, str) and not k.startswith("_")}
+
+
+def emitted_but_undeclared(fixture: dict, declared_of) -> set:
+    """`{(card_id, field)}` for every PUBLIC key a card EMITS in `fixture` that it does not DECLARE.
+
+    Pure and injectable: `declared_of(card_id) -> iterable[str]` supplies the declared contract, so the
+    reconciliation can be exercised (mutation teeth) on a synthetic fixture with no target-contracts
+    checkout. A card the roster does not know declares nothing, so all its emits read as undeclared —
+    the safe direction for a completeness instrument."""
+    out: set = set()
+    for cid, summary in fixture.items():
+        if not isinstance(cid, str):
+            continue
+        emitted = _observed_public_keys(summary)
+        if not emitted:
+            continue
+        declared = set(declared_of(cid) or ())
+        out |= {(cid, f) for f in emitted - declared}
+    return out
+
+
+# The grandfathered emitted-but-undeclared PUBLIC (card, field) pairs, MEASURED on the frozen
+# epcam_coadread fixture against the target-contracts SHA skills-validate.yml pins (36cfd74, 2026-09-28)
+# — the tree CI actually reads, NOT contracts `main` (which carries #980/#981 the pin deliberately
+# excludes). Local `main` and the pin measure the SAME 39 pairs for these cards, so the set is robust to
+# the pin. This is the review queue for the deferred CROSS-REPO declare-or-remove (part b of #2016);
+# each field leaves via an atomic unit and RE-BANKS this set. Two clusters, decided per field at the
+# DATA level, NOT here (an instrument does not declare contracts):
+#   • run-provenance echoes the producers stamp on the summary — target / indication / method_version /
+#     cohort / control_position_method_version / control_percentile_source — candidates to either
+#     `_`-prefix at the producer or declare as provenance rows (I6 notes control_target_* are an
+#     unconditional echo);
+#   • genuine measurement blind-spots — control_target_percentile / control_target_class, the
+#     normal-relative overlay normal_p95_log2tpm / normal_p99_log2tpm, the min/max_log2tpm extremes,
+#     is_actionable_provider_call (TC#942 declared only 3 of 4 provider-call fields), the subtype
+#     spillover (n_subtypes_measured / n_subtypes_enriched / spotlight_subtype / subtype_axis_available
+#     / subtype_signals_nonuniform), assignment_manifest, adjacent_mean_tpm / tumor_mean_tpm,
+#     indications_tested.
+_KNOWN_EMITTED_BUT_UNDECLARED = frozenset(
+    {
+        ("cellline-rna-distribution", "control_negatives_excluded_lineage_conflict"),
+        ("cellline-rna-distribution", "control_percentile_source"),
+        ("cellline-rna-distribution", "control_position_method_version"),
+        ("cellline-rna-distribution", "control_target_class"),
+        ("cellline-rna-distribution", "control_target_percentile"),
+        ("cellline-rna-distribution-by-subtype", "indication"),
+        ("cellline-rna-distribution-by-subtype", "target"),
+        ("cellline-rna-protein-concordance", "method_version"),
+        ("cellline-rna-protein-concordance", "target"),
+        ("expression-purity-confound", "indication"),
+        ("expression-purity-confound", "method_version"),
+        ("expression-purity-confound", "target"),
+        ("rna-protein-concordance-tumor", "indication"),
+        ("rna-protein-concordance-tumor", "method_version"),
+        ("rna-protein-concordance-tumor", "target"),
+        ("tumor-elevation-breadth", "indications_tested"),
+        ("tumor-protein-abundance-cptac", "cohort"),
+        ("tumor-rna-distribution", "assignment_manifest"),
+        ("tumor-rna-distribution", "control_percentile_source"),
+        ("tumor-rna-distribution", "control_position_method_version"),
+        ("tumor-rna-distribution", "control_target_class"),
+        ("tumor-rna-distribution", "control_target_percentile"),
+        ("tumor-rna-distribution", "max_log2tpm"),
+        ("tumor-rna-distribution", "method_version"),
+        ("tumor-rna-distribution", "min_log2tpm"),
+        ("tumor-rna-distribution", "n_subtypes_enriched"),
+        ("tumor-rna-distribution", "n_subtypes_measured"),
+        ("tumor-rna-distribution", "normal_p95_log2tpm"),
+        ("tumor-rna-distribution", "normal_p99_log2tpm"),
+        ("tumor-rna-distribution", "spotlight_subtype"),
+        ("tumor-rna-distribution", "subtype_axis_available"),
+        ("tumor-rna-distribution", "subtype_signals_nonuniform"),
+        ("tumor-rna-distribution-by-subtype", "indication"),
+        ("tumor-rna-distribution-by-subtype", "method_version"),
+        ("tumor-rna-distribution-by-subtype", "target"),
+        ("tumor-rna-vs-adjacent", "adjacent_mean_tpm"),
+        ("tumor-rna-vs-adjacent", "is_actionable_provider_call"),
+        ("tumor-rna-vs-adjacent", "tumor_mean_tpm"),
+        ("tumor-scrna-celltype-expression", "method_version"),
+    }
+)
+
+
 def test_ledger_covers_exactly_run_py_cards():
     """The ledger's card set == this skill's `run.py` CARDS.
 
@@ -207,3 +333,72 @@ def test_signal_fields_are_reader_reached_or_waived(signal_reach):
         "carry no waived_because. Either wire a reader, or change the role with a reason that says "
         "what the field actually does, or add a waived_because naming the missing consumer:\n  " + "\n  ".join(unwired)
     )
+
+
+# ── the EMIT-vs-DECLARED ratchet: no NEW public field emitted without a declaration (#2016) ─────────
+
+
+@pytest.mark.skipif(
+    _contracts_root() is None,
+    reason="target-contracts not resolvable (set TARGET_CONTRACTS_ROOT) — emit reconciliation skipped",
+)
+def test_observed_emit_reconciles_against_the_contract():
+    """THE EMIT-vs-DECLARED RATCHET (#2016, the load-bearing half). Every PUBLIC field the frozen
+    maximal run EMITS must be DECLARED in the card's `outputs.summary_fields`, or be a grandfathered
+    member of the documented census fail-open backlog (`_KNOWN_EMITTED_BUT_UNDECLARED`).
+
+    A NEW emitted-but-undeclared public field reds here — the fail-open that the ledger-vs-declared
+    check (`test_ledger_matches_emitted_fields`) and the fleet-aperture census are BOTH structurally
+    blind to, because such a field is in neither the ledger nor the declared set. A backlog field the
+    frozen run no longer emits undeclared (it was declared or removed) also reds, forcing the set to be
+    re-banked rather than left to rot."""
+    fixture = _load_observed_emit()
+    if not fixture:
+        pytest.skip(f"no frozen fixture at {_OBSERVED_EMIT_FIXTURE} — run freeze_fixture.py against live S3")
+
+    gap = emitted_but_undeclared(fixture, _emitted)  # _emitted returns the DECLARED summary_fields
+
+    new = gap - _KNOWN_EMITTED_BUT_UNDECLARED
+    assert not new, (
+        "a reader EMITS these PUBLIC field(s) that the card does not DECLARE in outputs.summary_fields "
+        "— the census fail-open this instrument closes (#2016). Declare each (pin + TC "
+        "outputs.summary_fields + a field_disposition.yaml row + a census-visible reader = ONE atomic "
+        f"unit, land TC first) or remove it from the emit:\n  {sorted(new)}"
+    )
+    stale = _KNOWN_EMITTED_BUT_UNDECLARED - gap
+    assert not stale, (
+        "these were grandfathered emitted-but-undeclared but the frozen run no longer emits them "
+        "undeclared (declared or removed) — re-bank _KNOWN_EMITTED_BUT_UNDECLARED by dropping them:\n"
+        f"  {sorted(stale)}"
+    )
+
+
+def test_the_emit_reconciliation_has_teeth():
+    """MUTATION TEETH, credential-less. Inject a synthetic run that EMITS an undeclared public field and
+    prove the reconciliation FLAGS it — while a declared field, a `_`-prefixed private key, and a
+    non-summary (freeze/dispatcher error) are all correctly NOT flagged.
+
+    This is exactly the failure the pre-#2016 instrument is blind to: an emitted-but-undeclared field is
+    absent from both `_emitted` (the DECLARED set) and the ledger, so `test_ledger_matches_emitted_fields`
+    green-passes it (asserted below). `emitted_but_undeclared` is RED on it."""
+    fixture = {
+        "card-x": {"declared_f": 1, "SENTINEL_undeclared_emit": 2, "_private_scratch": 3},
+        "card-y": {"_freeze_error": "boom", "would_be_undeclared": 9},  # not a real summary → no emit
+    }
+    declared_map = {"card-x": {"declared_f"}}
+
+    def _declared_of(cid):
+        return declared_map.get(cid, set())
+
+    gap = emitted_but_undeclared(fixture, _declared_of)
+
+    assert ("card-x", "SENTINEL_undeclared_emit") in gap, (
+        "the reconciliation is blind to a NEW emitted-but-undeclared field — the #2016 census fail-open"
+    )
+    # the pre-#2016 view (declared-only, what the ledger reconciles against) cannot see it — the bug:
+    assert "SENTINEL_undeclared_emit" not in _declared_of("card-x"), (
+        "fixture assumption: the sentinel is UNDECLARED, so the declared-only comparison green-passes it"
+    )
+    assert ("card-x", "declared_f") not in gap, "a DECLARED field must not be flagged"
+    assert not any(f.startswith("_") for _c, f in gap), "a `_`-prefixed private key must be excluded by convention"
+    assert ("card-y", "would_be_undeclared") not in gap, "a freeze/dispatcher error carries no emit to reconcile"
