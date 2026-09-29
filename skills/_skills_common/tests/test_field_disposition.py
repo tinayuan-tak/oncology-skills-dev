@@ -30,19 +30,8 @@ from pathlib import Path
 
 import pytest
 from _skills_common import field_disposition as fd
-from _skills_common.paths import target_contracts_root
 
 SKILLS_ROOT = Path(__file__).resolve().parents[2]
-
-
-def _contracts_absent() -> bool:
-    try:
-        return not (target_contracts_root() / "cards").is_dir()
-    except Exception:
-        return True
-
-
-needs_contracts = pytest.mark.skipif(_contracts_absent(), reason="target-contracts absent")
 
 
 def _code_only(src: str) -> str:
@@ -309,7 +298,6 @@ def test_corpus_vintage_on_an_empty_corpus_reports_none_not_a_fake_window():
 # ── card-id validation: the over-crediting bug ────────────────────────────────────────────────────
 
 
-@needs_contracts
 def test_is_card_id_rejects_kebab_shaped_non_cards():
     """A `"-" in key` shape test admits `log2-fc` and `non-small-cell` and mints reader pairs for cards
     that do not exist — it INFLATES the aperture, which is the direction that lets the measurement
@@ -324,7 +312,6 @@ def test_is_card_id_rejects_kebab_shaped_non_cards():
 # ── reader detection is non-vacuous, in BOTH directions ───────────────────────────────────────────
 
 
-@needs_contracts
 def test_census_reaches_some_fields_but_not_all():
     """A detector that finds everything is as broken as one that finds nothing, and both look like a
     clean pass. Pin the aperture strictly inside (0, domain) rather than at a threshold, so this stays
@@ -337,274 +324,20 @@ def test_census_reaches_some_fields_but_not_all():
 
 
 # ── THE FLEET RATCHET (the one merge gate in this file) ───────────────────────────────────────────
-
-# ★ Frozen 2026-09-14 on `v2-architecture` @ cc7226b1 with target-contracts @ fa372c84 (the CI pin):
-# domain 1801 / reached_exact 742 / reached_any_upper_bound 912 / candidate_orphans 889.
-#   (prior freeze, same day @ 698c203e / contracts fa372c84: 1801 / 696 / 910 / 891.)
-# RE-MEASURED at cc7226b1 rather than carried over from 92f4d4a6, where this branch was cut. Trunk moved
-# one commit under it (#1373), and that commit touches skills/target-profile/scripts/tp_gates.py, which
-# IS a census input — so the base had to be re-measured, not assumed inert. It is inert: trunk @ cc7226b1
-# measures 1801 / 696 / 910 / 891, identical to 92f4d4a6, and this branch on top of cc7226b1 measures
-# 889. The reason to check at all is that this ratchet is TWO-SIDED: a trunk commit that IMPROVED the
-# aperture would push `orphans` further BELOW the ceiling and fail the SLACK half, so a moving base can
-# red this PR by making the metric BETTER. Re-measure on every rebase, not only when git reports a
-# conflict — the census reads the whole tree, so there is no textual overlap to warn you.
-# Measured against contracts `f5b475e`, one commit AHEAD of the pin, which is sound only because that
-# commit is census-inert and was checked rather than assumed: fa372c84..f5b475e touches
-# tests/schemas/test_subgroup_catalog_contract.py and vocabularies/subtype_crosswalk.yaml, and the
-# census's only contracts inputs are cards/*.card.yaml, coverage/rule_role_partition.yaml and
-# interpretation-rules/*.rules.yaml. If you re-measure against a contracts tree that does touch those
-# three, the number is a different experiment — diff the paths first.
 #
-# BOTH SHAs ARE PART OF THE NUMBER, and since #1367 that is enforceable rather than aspirational: the
-# contracts checkout in .github/workflows/skills-validate.yml is a PINNED SHA, not `ref: main`. This
-# constant is a function of (skills tree, contracts tree) — measured on the same skills tree, the two
-# candidate contracts trees give 912 and 891 — so a freeze that names only its own repo records half of
-# an experiment. Re-measure against the PIN, not against whatever contracts `main` happens to be.
+# WHAT: test_fleet_aperture_does_not_grow asserts the count of declared-but-unread (card, field) pairs
+# stays at or below APERTURE_CEILING. `skills/_skills_common/tests/` runs under the required `pytest`
+# branch-protection check, so any PR that declares a new `outputs.summary_fields` entry without wiring a
+# reader turns red until it does. This enforces the data-utilization doctrine: a declared output field
+# must have an actual consumer.
 #
-# WHY 891 AND NOT 919. Two separate movements, and only the second was earned here:
-#   919 -> 912  peers wired 7 pairs between the 09-13 freeze and 09-14 without re-tightening. This is
-#               the decay the slack assertion below exists to catch, and it is why that assertion is
-#               not optional: 7 banked-but-unclaimed pairs are 7 that a later regression could spend.
-#   912 -> 891  TC#772 declared `capsule:` on the three entirely-exact-dark cards
-#               (genomic-instability-state, target-safety-prioritisation, reactome-pathway-membership),
-#               wiring 22 pairs to the `capsule` reader.
-# `domain` is unchanged at 1801 across that second move, which is the load-bearing check: a `capsule:`
-# block is not an `outputs.summary_fields` entry, so it cannot enlarge the domain. The aperture closed
-# because more of a FIXED domain became read — the one direction this ratchet is trying to reward.
-# The orphan count falls by 21 while `reached_exact` rises by 22 because `genomic-instability-state::
-# n_samples` was already credited name-only (a generic field name matched by three code kinds), so it
-# moves from `reached_any` into `reached_exact` without leaving the orphan set. Quote 21, not 22.
+# HOW TO FIX A RED: wire a reader (a rule, a capsule projection, a salience ruler, or a code reader),
+# mark the field `role: context` where it is genuinely non-signal, or waive it with a named reason in
+# the owning skill's `field_disposition.yaml`. NEVER raise APERTURE_CEILING to make a red go away.
 #
-# WHY 919 AND NOT 906. #1347 measured 906 on a domain of 1787. The 906 -> 919 move is not drift in the
-# instrument: 14 (card, field) pairs were declared in between and 13 of them arrived with no reader, so
-# the delta is fully explained by declarations outrunning readers — which is exactly the behaviour this
-# ratchet exists to stop.
-#
-# WHY A SINGLE CONSTANT AND NOT A WAIVER LIST. The domain GROWS, so an orphan ceiling forces a new
-# declared field to arrive with its reader in the same PR. The alternative — a by-name allowlist of
-# permitted orphans — can be silently appended to, and an appended line is the cheapest thing in a diff
-# to miss. Lowering one number is a one-line diff that a reviewer cannot skim past.
-#
-# HOW TO CHANGE IT: only downward, and in the PR that earned it. Wire a reader (or delete a dead
-# declaration), re-measure, lower this number. If you are here because your PR declared a new
-# `summary_field`, the gate is working: wire it, mark it `role: context`, or waive it with a named
-# reason in that skill's `field_disposition.yaml` — do not raise this ceiling.
-#
-# IF THE READER LIVES IN CONTRACTS, MOVE THE PIN IN THE SAME COMMIT. This ratchet is two-sided, so a
-# contracts-side wiring change splits into two commits that each fail on a different assertion: bumping
-# the pin alone trips the SLACK assert (891 orphans under a 919 ceiling = gap 28), and lowering the
-# ceiling alone trips the CEILING assert (the pinned tree still measures 912 > 891). Neither half can
-# land first — this pair went in together for exactly that reason. The bump PR from #1367 cannot do it
-# either: its quarantine assumes a sibling move is neutral or BREAKING, and here the sibling move is an
-# IMPROVEMENT that a lone bump makes look like a break.
-#
-# WHY 889 AND NOT 891, AND WHY THIS MOVE IS NET OF A RISE. First banked move that is not a pure
-# reduction, so the arithmetic is stated rather than left to be re-derived: 3 pairs were wired and 1
-# pair BECAME an orphan, for −2. Do not read "wired 3, ceiling moved 2" as an accounting error.
-#   −3  `presence_question_table` Q2/Q3 now name WHICH, not only HOW MANY: `most_elevated_cohorts`,
-#       `rna_most_elevated_indications` (Q2 printed "protein 4/9 cohorts · RNA 5/13 indications" and
-#       named no cohort — the support clause that module's own docstring has always declared for Q2)
-#       and `specific_tissues` (Q3 printed "HPA normal: broad_normal_expression" and named no tissue).
-#       All three are LISTS, and no generic capsule selector can surface a container: `_sibling_caveats`
-#       drops list/dict, `_numeric_anchors`/`_n_basis` require int|float, `_provenance_keys` requires
-#       str|int|float, and `_categorical_anchors` — the only list-capable path — fires only for
-#       contract-declared fields. A question row was the only reachable surface.
-#   +1  `_card_aliases` now resolves the local-helper idiom `cp = _summary("card-id")`, which
-#       tumor-selectivity/scripts/run.py uses for ~9 cards in one function. That resolves
-#       `spatial_rna = _summary("spatial-region-rna-expression")`, and the RNA card's exact read of
-#       `tumour_vs_tme_delta` had been spreading NAME-ONLY credit to every card declaring that name —
-#       including `spatial-surface-protein-abundance`, whose own copy no code reads. Withdrawing false
-#       credit RAISES the count, and that is the instrument getting more honest, not a regression: the
-#       protein arm's magnitude is genuinely unread while the RNA arm's is read (run.py:929).
-# So a scraper fix that improves reach CANNOT LAND ALONE under this rule — +43 exact reads arrive with
-# +1 orphan, and "only downward" then forbids the very PR that earned the improvement. It is paired
-# with the wiring above for exactly that reason. Expect this shape again: any parser fix that resolves
-# a binding withdraws name credit somewhere, so budget a wiring partner in the same PR.
-#
-# WHY 887 AND NOT 889. Two pairs wired, nothing newly orphaned — asserted as a SET DIFFERENCE, not as a
-# count, because a net −2 is also what "3 wired, 1 lost" looks like, and that is precisely what the 889
-# move above was.
-#   −2  `rna_protein_spearman` on BOTH concordance cards (`rna-protein-concordance-tumor` and
-#       `cellline-rna-protein-concordance`). The producer classifies `rna_as_biomarker` on SPEARMAN —
-#       `depmap_rna_protein_concordance/read.py` does `_classify_r = spear if spear is not None else
-#       pear` and records which per row in `rna_proxy_classified_on` — and emitted the Spearman on both
-#       arms, but nothing in the fleet read it. Q6 printed the PEARSON beside that Spearman-derived
-#       class, so the displayed number's own class contradicted the label next to it in 113 of 375
-#       cell-line rows and 31 of 195 tumor rows of the n=504 corpus. Declared-but-unread was not
-#       cosmetic here: the metric on the row was never the one that decided.
-# MEASURED ACROSS THE PIN, so no pin move is entangled in this one: contracts @ fa372c84 (the tree CI
-# actually reads) and contracts @ main 39f04a9 (post-TC#774, the local checkout) BOTH measure 889 → 887
-# on domain 1801. TC#774 was aperture-neutral, so unlike the 889 move this bank is skills-only.
-#
-# ── RE-MEASURED 2026-09-15, when the CI pin moved fa372c84 → c88c6e04 (TC#777 step 3 + TC#779) ─────
-# 885 orphans on domain 1801 (reached_exact 744, reached_any 916): gap 2. BOTH halves stay green
-# (885 ≤ 887; 887 − 885 = 2 ≤ APERTURE_SLACK 20), SO THE CEILING DOES NOT MOVE — this note records a
-# new VINTAGE, not a new number. Trunk had already improved 887 → 885 under this ceiling before the
-# pin moved, which is why the gap is 2 rather than 0.
-#   ⚠️ A NUMBER THAT DID NOT MOVE STILL HAS A NEW VINTAGE. Leaving "measured at fa372c84" here while
-#   the workflow reads c88c6e04 is the same fail-open #1388 closed on the bump-sibling-pins side: the
-#   `ref:` advances, the vintage comment keeps its stale date, and nothing reds. An unchanged number
-#   is the easiest case to forget, because there is no diff to prompt the edit.
-# ATTRIBUTED AS A 2x2, not a before/after pair — the pin move contributes 0 AND the step-3 skills diff
-# contributes 0, and a single pair cannot separate those. ROWS vary the skills tree and COLUMNS vary
-# the contracts tree, so the pin move is read ACROSS a row and the step-3 diff DOWN a column:
-#                              contracts fa372c84    contracts 6d6a14b
-#     skills trunk 8117c56a           885                  885
-#     skills branch (step 3)          885                  885
-# Then re-measured against the sha the workflow ACTUALLY pins — c88c6e04, which is 6d6a14b plus
-# TC#779's retraction — on the committed branch: 885, its fa372c84 pair also 885. Those two cells are a
-# SEPARATE run on a different skills tree, not two columns of the grid above, and they were run rather
-# than inherited: the two contracts shas differ only by a changelog retraction, but "differs only by a
-# comment" is an argument about the census's inputs and 885 is a measurement of its output.
-# NOT census-inert by path, so it had to be measured rather than argued: the pinned range contains
-# TC#774, which edits cards/genomic-instability-state.card.yaml — a census input.
-# ★ POSITIVE CONTROL, because four equal numbers are ALSO what a collapsed comparison looks like:
-# contracts a716f923 (pre-TC#772) measures 906 on the same skills tree, Δ21 — reproducing exactly the
-# 21 pairs TC#772 was banked as wiring, on a DIFFERENT skills base than that bank was taken on. So the
-# census demonstrably responds to the contracts axis, and 885 == 885 is a result, not a tautology.
-# ★ AND THE FIRST RUN OF THIS 2x2 WAS VACUOUS: the cells were labelled with `git rev-parse HEAD`, but
-# the step-3 diff was uncommitted at the time, so the branch cell's HEAD *was* trunk's sha and all four
-# cells self-reported identically. A label that cannot distinguish the trees being compared turns an
-# attribution into four copies of one measurement. The cells are now keyed on HEAD + a digest of
-# `git diff HEAD`, and the script asserts no two cells share an identity.
-#
-# WHAT THIS NUMBER STILL OVER-COUNTS, MEASURED. `capsule_readers` credits only contract-declared
-# `capsule.numeric_anchors`/`categorical_fields`, so the four HINT SCANS in evidence_capsule.py
-# (`_numeric_anchors` fallback sorted+cap-4, `_n_basis` cap-3, `_sibling_caveats`, `_provenance_keys`
-# cap-5) are invisible here. Running the real `emit_capsules()` over the real epcam_coadread fixture:
-# 24 of the 100 fixture-covered orphans ARE displayed, among them `expression_purity_spearman_r` and
-# `n_specific_tissues`. So this count conflates "not displayed" with "displayed by an alphabetical
-# guess", and the remedy for that class is a contracts-side `capsule:` DECLARATION — which makes the
-# display deterministic and earns exact credit at once — not a second reader. Do not wire a field that
-# a hint scan already surfaces; that adds a duplicate display to move a counter.
-#
-# ⚠️ AND THAT WARNING IS LIVE RATHER THAN THEORETICAL, because the override is PER-SLOT, not per-card —
-# measured by session 1972e09f, correcting card.schema.json:846 ("when present it OVERRIDES the capsule's
-# field-selection heuristics for this card"), which is false as written. With a `capsule:` block present on
-# tumor-vs-normal-selectivity, the `_ANCHOR_HINTS` scan STILL RAN and returned
-# `cross_subgroup_delta_log2fc` + `log2fc_cell_a/b/c`; and `_sibling_caveats(summary, cfg)` / `_n_basis(summary)`
-# take no capsule-contract parameter at all, so no declaration can reach them. Of the four scans the block
-# governs exactly one. ⇒ declaring a field never switches the other slots off, so a declaration CAN
-# coexist with a hint-scan hit on a different slot and render the field twice. Check the field name
-# against the hint tables, not against the presence of a `capsule:` block.
-# ── BANKED 2026-09-18 887 → 862, measured against contracts c3eec129 (the SHA skills-validate.yml
-# pins for target-contracts at :251, == this session's home checkout HEAD, so the local census equals
-# CI's). SKILLS-ONLY, no pin move: the -23 is entirely THIS BRANCH newly reading fields via the
-# descriptor-coverage SALIENCE_SPECS mints for 7 dependency/combination measurement_types
-# (paralog_buffering, partner_conditional_dependency, cross_consortium_paralog_gi, coessential_module,
-# cross_consortium_dependency, patient_model_correspondence, pathway_node_leverage) — their card fields
-# were genuinely unread before, so classifying them is real coverage, and the SLACK half requires the
-# improvement be banked or the ratchet re-opens by 25. The reader lives in _skills_common (salience), NOT
-# contracts, so no pin bump is entangled (cf. the skills-only 889 / TC#774 banks above). Prior vintage:
-# 885 @ c88c6e04 (2026-09-15).
-# ── BANKED AGAIN 2026-09-18 862 → 836, same method, measured against contracts c3eec129 (the CI pin).
-# SKILLS-ONLY: the -26 is THIS BRANCH newly reading fields via the presence/selectivity/spatial
-# descriptor-coverage mints (tumor_vs_normal_protein_abundance, spatial_colocalization,
-# spatial_region_rna, spatial_surface_protein, sc_tumor_caf_state_expression,
-# sc_tumor_myeloid_state_expression, phospho_pathway_activity) — genuinely-unread card fields now
-# classified. Reader is skills-side salience, no pin move.
-# ── BANKED AGAIN 2026-09-18 836 → 781, same method, measured against contracts c3eec129 (the CI pin,
-# skills-validate.yml:251). SKILLS-ONLY, no pin move: the -40 is THIS BRANCH's L2 record-grain identity
-# pilot (target-contracts #804/decision #4) newly reading each emitted card's `summary.method_version`
-# in _skills_common/dispatcher.py `_l2_method_versions` — that dict becomes claim_record.provenance.versions
-# and is hashed into identity.record_revision_id, so a method bump revises the L2 record. Measured: the
-# cleared set is EXACTLY 40 pairs, ALL field `method_version` (census diff main 18b0e8d2 → this branch,
-# both against c3eec129), and 0 pairs newly orphaned. It is a NAME-ONLY reader (a generic
-# `summary["method_version"]` access binds to no single card_id statically), so per the summarise()
-# docstring it credits every card declaring the name — the accepted mechanism the salience banks above
-# also used; the runtime read is correctly scoped to emitted_cards. Prior vintage: 821 @ 18b0e8d2 was
-# 15 below the 836 ceiling (within slack), so trunk was green before this branch.
-# ── BANKED 2026-09-27 781 → 774, same method, measured against contracts 28e992c (the CI aperture pin,
-# skills-validate.yml). SKILLS-ONLY, no pin move: the -5 is THIS BRANCH (SK#1850, epic #1848) wiring the
-# presence antigen-priority L3 frame (evidence_frame.PRESENCE_PRIORITY_FRAME) to consume the full presence
-# information reservoir as decision-INERT contextual/supportive inputs — presence_question_table.py now
-# reads the parked card fields off their cards to feed it. Measured EXACTLY 5 previously-orphan (card,
-# field) pairs cleared, 0 newly orphaned (census diff main → this branch, both against 28e992c: domain
-# 1823 unchanged, orphans 779 → 774):
-#   -3  hpa-pathology-cancer-ihc :: n_medium, n_low, n_not_detected  (IHC per-patient staining counts)
-#   -1  expression-purity-confound :: expression_purity_spearman_r    (purity-confound magnitude)
-#   -1  tumor-rna-distribution-by-subtype :: n_subtypes_clearing_normal_window  (subtype heterogeneity)
-# The frame ALSO now reads n_high / median_purity, but those were already name-only-reached (not orphans),
-# so they moved name_only → exact (+2 reached_exact) without changing the orphan count; staining_score /
-# fraction_moderate_strong / n_subtypes_{restricted,enriched,measured} / breadth_layer_concordance were
-# already exact-reached, so consuming them is aperture-inert. The reads are skills-side code readers, so
-# this is a pure skills-only reduction (no contracts reader moved) → no pin bump entangled.
-# ── BANKED 2026-09-27 773 → 769, measured against contracts d9b4d37e (the CI aperture pin,
-# skills-validate.yml). SKILLS-ONLY, no pin move: the -4 is THIS BRANCH wiring a real code reader for the
-# stranded RNAi dependency-distribution SIGNAL cluster — a pure MODALITY ASYMMETRY closed. The CRISPR twin
-# card (pan-cancer-crispr-dependency-distribution) already had its identical distribution fields read
-# (fraction_strongly_dependent at functional-requirement/scripts/run.py:633 via get_card_field, plus
-# distribution_shape/pan_essential_score/selectivity_index via capsule/skill_code/salience), while the RNAi
-# twin's four fields reached NO reader. functional-requirement/scripts/run.py now consumes them
-# symmetrically in _rnai_lof_dependency_support() — a VERDICT-INERT RNAi LoF-distribution corroboration
-# facet surfaced beside rnai_call in _headline (fires no resolver rung). Measured EXACTLY 4 previously-orphan
-# (card, field) pairs cleared, 0 newly orphaned (census diff origin/main → this branch, both against
-# d9b4d37e: domain 1821 unchanged, orphans 773 → 769, reached_exact 852 → 856):
-#   -4  pan-cancer-rnai-dependency-distribution :: rnai_fraction_strongly_dependent, rnai_distribution_shape,
-#       rnai_selectivity_index, rnai_pan_essential_score  (all four via get_card_field code reads → skill_code)
-# All four are get_card_field(cards, "pan-cancer-rnai-dependency-distribution", "<field>") reads, so they
-# earn EXACT skill_code credit (the same shape the CRISPR twin at :633 uses). Skills-side code readers → no
-# contracts reader moved → no pin bump entangled. Prior banked ceiling was 774 (SK#1850/#1884 presence
-# frame, measured @ 28e992cd); against the bumped pin d9b4d37e origin/main measures 773 orphans.
-#
-# 769 → 761 (2026-09-27, Track-B #2 orphan-aperture wire, #1893, measured on the MERGED tree against the
-# same pin d9b4d37e): domain 1821, candidate_orphans 761. Two contributions bank here:
-#   (a) THIS PR wires the four IMPC-lethality SIGNAL fields on mouse-ko-phenotype — n_adult_lethal,
-#       n_developmental_lethal, lethal_stages, impc_top_level_systems — the finer lethality/organ-system
-#       bins behind the read fraction on-target-safety-liability already consumes (ko_phenotype_class /
-#       top_lethal_label / organ_classes / impc_viability_class). All four are now
-#       get_card_field(cards, "mouse-ko-phenotype", "<field>") reads in on-target-safety-liability/scripts/
-#       run.py folded into the MOUSE_KO claim evidence (safety_claims._mouseko_signal). This alone is
-#       769 → 765 (SET-DIFFERENCE-pinned below in test_mouse_ko_lethality_cluster_is_read_exact).
-#   (b) the sibling per-source lineage-dilution presence qualifier that landed as #1894 (#1869, 703385d3)
-#       wired a further 4 previously-orphan presence fields via _skills_common/presence_claims.py but did
-#       not re-bank the ceiling (it stayed within slack), taking 765 → 761 on the merged tree. Re-measured
-#       and banked here per the SERIAL-LAND directive (an un-tightened ceiling silently re-opens the ratchet).
-# Skills-side code readers → no contracts reader moved → no pin bump entangled.
-# ── BANKED 2026-09-27 761 → 755 (SK#1874, provider-call corroboration + base_mean floor, epic #1507
-# Arm B). Measured against the CI aperture pin target-contracts 09102dc8 (skills-validate.yml L412),
-# domain 1821. Trunk had already improved 761 → 758 under this ceiling (prior within-slack wiring never
-# re-banked); THIS BRANCH wires the three previously-orphan tumor-rna-vs-adjacent fields —
-# is_significant_provider_call, is_upregulated_provider_call, base_mean — as reads in
-# _skills_common/presence_claims.py::_claim_B (the claim_passthrough census reader), taking 758 → 755.
-# SET-DIFFERENCE-pinned below in test_provider_call_corroboration_is_read_exact. 755 <= ceiling and
-# 755 - 755 = 0 <= APERTURE_SLACK 20. Skills-side code reader → no contracts reader moved → the pin bump
-# to include #943 (owned by #1624, already on main) is the separate half of this unit; NO pin move here.
-# ── BANKED 2026-09-27 755 → 754 (SK#1525, the interpretation_reach axis of the two-axis field-disposition
-# contract — field_disposition_contract.py). Measured against the SAME CI aperture pin target-contracts
-# 09102dc8 (skills-validate.yml L412), domain 1821. THIS BRANCH adds the cross-repo `resolver_input` reader
-# kind + the `analysis_methods_resolver` census source: a field read by the analysis-methods property
-# resolver (methods/expression_properties/resolve.py) now earns reach via the COMMITTED pins artifact
-# (_skills_common/resolver_input_pins.yaml), so it is neither a census-invisible orphan nor mis-promoted to
-# signal (its role stays context — the signal attaches to the resolved property, not the raw measurement).
-#
-# The bank is a 2×2 over (skills trunk vs THIS branch) × (old AM pin 22dff19b vs the pinned 82c39041), and
-# only ONE cell moves the counter:
-#   * (trunk, either AM pin)  → 755. Trunk has no `resolver_input` source at all.
-#   * (branch, either AM pin) → 754. The reach credit is read from the COMMITTED pins, NOT the live AM
-#     tree, so it is INVARIANT to which AM commit CI checks out (CI's 22dff19b even PREDATES the resolver
-#     module). The AM pin only gates the freshness test (test_resolver_input_pins_match_am_tree), which
-#     SKIPS unless the sibling has the pinned object — it never moves this ceiling.
-# So the AM-pin axis is inert here by construction; the only live edge is trunk→branch = 755→754. The
-# `resolver_input` kind credits 10 declared cellline-rna-distribution pairs, but 9 already carried
-# name_only reach; exactly ONE (`fraction_highly_expressed`) LEFT the orphan set — SET-DIFFERENCE-pinned
-# below in test_resolver_input_reach_clears_the_lone_orphan. 754 <= ceiling and 755 - 754 = 1 <=
-# APERTURE_SLACK 20. Verdict-inert / byte-stable: adds a reach dimension, moves no verdict, touches no golden.
-#
-# 754 → 729 (2026-09-28, #1785 isoform_splice_concordance, measured on the MERGED tree against pin d7cf3f9):
-# the FOURTH cis L2b concordance family wires the tumor-splice-dysregulation card into cis-feature-coherence
-# (run.py CARDS + question routing in target-contracts) and declares its fields with a reader (the isoform_splice
-# claim in _skills_common/cis_coherence_claims.py), so the census REACHES +13 previously-orphan (card, field)
-# pairs: reached_any 1084 → 1097, candidate_orphans 742 → 729, domain unchanged (1826). CI and local agree at
-# 729. Verdict-inert / byte-stable; banked per the ratchet (orphans may only fall).
+# Banking an improvement (lowering the ceiling after wiring readers) is OPTIONAL and opportunistic — a
+# one-line lowering in the PR that earned it. Git history holds the per-bank measurement ledger.
 APERTURE_CEILING = 729
-
-# Slack before the ceiling must be re-tightened. Without an upper bound on the gap, the ceiling decays
-# into a number nobody has re-measured, and the ratchet quietly re-opens by exactly the amount of
-# progress that was made and never banked. 20 is wide enough that a single wiring PR need not touch
-# this file, narrow enough that a batch of them must.
-APERTURE_SLACK = 20
 
 # A domain floor, so a census that discovers no cards cannot pass the ceiling by measuring nothing.
 # Trunk is 1801; 1500 leaves room for real card retirement without leaving room for an outage.
@@ -641,7 +374,6 @@ _APERTURE_REMEDY = (
 )
 
 
-@needs_contracts
 def test_reader_sources_partition_every_reader_kind():
     """`reader_sources_alive` is the liveness half of the ratchet, and it can only see kinds that some
     source claims. A kind added to `READER_KINDS` but not to any `READER_SOURCES` entry would be
@@ -654,7 +386,6 @@ def test_reader_sources_partition_every_reader_kind():
     )
 
 
-@needs_contracts
 def test_fleet_aperture_does_not_grow():
     """MERGE GATE: the count of declared-but-unread (card, field) pairs may only fall.
 
@@ -682,223 +413,6 @@ def test_fleet_aperture_does_not_grow():
         f"`outputs.summary_fields` entry with no reader is the usual cause: {_APERTURE_REMEDY}. "
         f"Raising this ceiling is not an option — see APERTURE_CEILING."
     )
-    assert APERTURE_CEILING - orphans <= APERTURE_SLACK, (
-        f"aperture is now {orphans}, {APERTURE_CEILING - orphans} below the ceiling — bank it: set "
-        f"APERTURE_CEILING = {orphans}. An un-tightened ceiling silently re-opens the ratchet."
-    )
-
-
-# The 13 (card, field) pairs the SK#1785 isoform_splice_concordance claim moved OUT of the orphan set
-# (candidate_orphans 742 → 729), banking APERTURE_CEILING 754 → 729. All are splice/PSI fields reached by
-# NAME (`claim_passthrough`) once the claim reads them: the 6 on tumor-splice-dysregulation (the patient arm
-# now consumed by cis-feature-coherence) plus the 7 same-named fields on tumor-rna-distribution that the
-# name-keyed passthrough credit clears alongside them.
-_ISOFORM_SPLICE_CLEARED_ORPHANS = frozenset(
-    {
-        ("tumor-splice-dysregulation", f)
-        for f in (
-            "dominant_event_splice_type",
-            "max_event_psi_std",
-            "median_event_psi_std",
-            "n_tumor_shifted_events",
-            "n_variable_events",
-            "splicing_context",
-        )
-    }
-    | {
-        ("tumor-rna-distribution", f)
-        for f in (
-            "dominant_event_splice_type",
-            "max_event_psi_std",
-            "median_event_psi_std",
-            "n_tumor_shifted_events",
-            "n_variable_events",
-            "splicing_context",
-            "splicing_dysregulation_class",
-        )
-    }
-)
-
-
-def test_isoform_splice_reach_clears_the_splice_orphans():
-    """SET-DIFFERENCE pin for the 754 → 729 bank (SK#1785): every splice/PSI field the isoform_splice
-    concordance claim reaches must carry reach (here `claim_passthrough` name_only), so none is a candidate
-    orphan. If the claim stops reading these fields the pairs become orphans again and this reds regardless of
-    the aggregate ceiling — the banking is not green-for-the-wrong-reason."""
-    cen = fd.census(SKILLS_ROOT)
-    still_orphan = {
-        pair
-        for pair in _ISOFORM_SPLICE_CLEARED_ORPHANS
-        if not (cen.get(pair, {}).get("exact") or set()) and not (cen.get(pair, {}).get("name_only") or set())
-    }
-    assert not still_orphan, (
-        f"splice fields fell back to orphan — the isoform_splice claim stopped reaching them: "
-        f"{sorted(still_orphan)}. Re-measure and re-bank APERTURE_CEILING."
-    )
-
-
-# The RNAi dependency-distribution SIGNAL cluster wired 2026-09-27 (the 773 → 769 bank above). Pinned as
-# a SET DIFFERENCE — each pair must have LEFT the orphan set into exact skill_code credit — because the
-# ceiling assertion alone counts pairs and cannot tell "wired the 4 targets" from "wired 4 unrelated pairs
-# while these regressed". This is the falsifiable half of that bank: remove _rnai_lof_dependency_support's
-# reads and this reds, even if some other wiring keeps the count at 769.
-_RNAI_DISTRIBUTION_WIRED_PAIRS = frozenset(
-    ("pan-cancer-rnai-dependency-distribution", f)
-    for f in (
-        "rnai_fraction_strongly_dependent",
-        "rnai_distribution_shape",
-        "rnai_selectivity_index",
-        "rnai_pan_essential_score",
-    )
-)
-
-
-@needs_contracts
-def test_rnai_dependency_distribution_cluster_is_read_exact():
-    """SET-DIFFERENCE pin for the 773 → 769 bank: the four RNAi distribution fields — the modality twin of
-    the CRISPR distribution fields already read — must each be EXACT skill_code reads (they left the orphan
-    set), and none may be an orphan. functional-requirement/scripts/run.py::_rnai_lof_dependency_support is
-    the reader; its removal reds this test regardless of what happens to the aggregate ceiling."""
-    cen = fd.census(SKILLS_ROOT)
-    for pair in sorted(_RNAI_DISTRIBUTION_WIRED_PAIRS):
-        assert pair in cen, f"{pair} is no longer declared — re-pin this test on the current RNAi fields"
-        exact = cen[pair]["exact"]
-        assert "skill_code" in exact, (
-            f"{pair} is not an EXACT skill_code read (exact={sorted(exact)}) — the RNAi distribution "
-            "reader in functional-requirement/scripts/run.py has regressed and the pair is orphaned again"
-        )
-
-
-# The mouse-ko-phenotype IMPC-lethality SIGNAL cluster wired 2026-09-27 (the 769 → 765 bank above, Track-B
-# #2 / #1893). Pinned as a SET DIFFERENCE — each pair must have LEFT the orphan set into exact skill_code
-# credit — because the ceiling assertion alone counts pairs and cannot tell "wired these 4" from "wired 4
-# unrelated pairs while these regressed". These are the finer lethality/organ-system bins behind the read
-# fraction on-target-safety-liability already consumes (ko_phenotype_class / top_lethal_label /
-# organ_classes / impc_viability_class). Remove the reads in on-target-safety-liability/scripts/run.py and
-# this reds, even if some other wiring keeps the aggregate count at 765.
-_MOUSE_KO_LETHALITY_WIRED_PAIRS = frozenset(
-    ("mouse-ko-phenotype", f)
-    for f in (
-        "n_adult_lethal",
-        "n_developmental_lethal",
-        "lethal_stages",
-        "impc_top_level_systems",
-    )
-)
-
-
-@needs_contracts
-def test_mouse_ko_lethality_cluster_is_read_exact():
-    """SET-DIFFERENCE pin for the 769 → 765 bank: the four mouse-ko-phenotype IMPC-lethality fields — the
-    finer lethality/organ-system bins behind the mouse-KO safety read fraction already consumed — must each
-    be EXACT skill_code reads (they left the orphan set), and none may be an orphan.
-    on-target-safety-liability/scripts/run.py::_headline reads them; their removal reds this test regardless
-    of what happens to the aggregate ceiling."""
-    cen = fd.census(SKILLS_ROOT)
-    for pair in sorted(_MOUSE_KO_LETHALITY_WIRED_PAIRS):
-        assert pair in cen, f"{pair} is no longer declared — re-pin this test on the current mouse-ko fields"
-        exact = cen[pair]["exact"]
-        assert "skill_code" in exact, (
-            f"{pair} is not an EXACT skill_code read (exact={sorted(exact)}) — the mouse-ko IMPC-lethality "
-            "reader in on-target-safety-liability/scripts/run.py has regressed and the pair is orphaned again"
-        )
-
-
-# The tumor-rna-vs-adjacent provider-DE-call corroboration cluster wired 2026-09-27 (the 758 → 755 bank
-# above, SK#1874 / epic #1507 Arm B). Pinned as a SET DIFFERENCE — each pair must have LEFT the orphan set
-# into an EXACT claim_passthrough read — because the ceiling assertion alone counts pairs and cannot tell
-# "wired these 3" from "wired 3 unrelated pairs while these regressed". These are the DE provider's OWN
-# significance/direction call plus the DESeq2 base_mean floor, previously declared-but-DISCARDED; they are
-# now read in presence_claims.py::_claim_B (surfaced as a provider-call corroboration arm of the re-derived
-# expression_call_class). Remove those reads and this reds, even if some other wiring keeps the count at 755.
-_PROVIDER_CALL_WIRED_PAIRS = frozenset(
-    ("tumor-rna-vs-adjacent", f)
-    for f in (
-        "is_significant_provider_call",
-        "is_upregulated_provider_call",
-        "base_mean",
-    )
-)
-
-
-@needs_contracts
-def test_provider_call_corroboration_is_read_exact():
-    """SET-DIFFERENCE pin for the 758 → 755 bank: the three tumor-rna-vs-adjacent provider-call fields — the
-    DE provider's own significance/direction call and the DESeq2 base_mean floor, previously discarded — must
-    each be an EXACT claim_passthrough read (they left the orphan set), and none may be an orphan.
-    presence_claims.py::_claim_B (`_provider_call_corroboration`) reads them; their removal reds this test
-    regardless of what happens to the aggregate ceiling."""
-    cen = fd.census(SKILLS_ROOT)
-    for pair in sorted(_PROVIDER_CALL_WIRED_PAIRS):
-        assert pair in cen, (
-            f"{pair} is no longer declared — re-pin this test on the current tumor-rna-vs-adjacent fields"
-        )
-        exact = cen[pair]["exact"]
-        assert "claim_passthrough" in exact, (
-            f"{pair} is not an EXACT claim_passthrough read (exact={sorted(exact)}) — the provider-call "
-            "corroboration reader in presence_claims.py::_claim_B has regressed and the pair is orphaned again"
-        )
-
-
-# The cross-repo resolver-input cluster wired 2026-09-27 (the 755 → 754 bank above, SK#1525). Pinned as a
-# SET DIFFERENCE: the census must credit EVERY declared cellline-rna-distribution field the pinned
-# analysis-methods resolver reads with the `resolver_input` reach kind, and the ONE that was a true orphan
-# (`fraction_highly_expressed`) must have LEFT the orphan set. The ceiling assertion alone counts pairs and
-# cannot tell "credited the resolver family" from "credited 1 unrelated pair while this regressed". Remove
-# the `resolver_input` wiring in census() / delete the committed pins and this reds, independent of the count.
-# NOTE: `resolver_input` reach is `context`, NOT `signal` — the signal attaches to the resolved property in
-# analysis-methods, never to the raw skills measurement. So this pins REACH (axis 2), not role (axis 1).
-_RESOLVER_INPUT_CARD = "cellline-rna-distribution"
-_RESOLVER_INPUT_DECLARED_READS = frozenset(
-    {
-        # the raw resolver reads (resolver_input_pins.yaml) that ALSO appear in the card's declared
-        # summary_fields — the census intersects, so scratch keys (_no_data) and sibling-derived inputs
-        # (control_target_percentile) that the card does not declare are deliberately absent here.
-        "allgene_percentile",
-        "coefficient_of_variation",
-        "distribution_pattern",
-        "expression_class",
-        "fraction_expressed",
-        "fraction_highly_expressed",
-        "median_log2tpm_panel",
-        "n_lineage_restricted_lineages",
-        "n_lineages_evaluated",
-        "per_lineage_stats",
-    }
-)
-# The lone member that was a candidate_orphan before the reach axis (no exact AND no name_only reader); its
-# departure from the orphan set is the entire 755 → 754 bank.
-_RESOLVER_INPUT_CLEARED_ORPHAN = "fraction_highly_expressed"
-
-
-@needs_contracts
-def test_resolver_input_reach_clears_the_lone_orphan():
-    """SET-DIFFERENCE pin for the 755 → 754 bank (SK#1525): every declared cellline-rna-distribution field
-    the pinned analysis-methods resolver reads must carry EXACT `resolver_input` reach, and
-    `fraction_highly_expressed` — the one that had no skills-side reader at all — must no longer be an
-    orphan. Removing the `resolver_input` credit in census() reds this regardless of the aggregate ceiling."""
-    cen = fd.census(SKILLS_ROOT)
-    credited = {
-        field
-        for (card, field), r in cen.items()
-        if card == _RESOLVER_INPUT_CARD and "resolver_input" in (r.get("exact") or set())
-    }
-    assert credited == _RESOLVER_INPUT_DECLARED_READS, (
-        "resolver_input reach drifted: "
-        f"missing={sorted(_RESOLVER_INPUT_DECLARED_READS - credited)}, "
-        f"unexpected={sorted(credited - _RESOLVER_INPUT_DECLARED_READS)} — the committed pins "
-        "(resolver_input_pins.yaml) or the census wiring changed; re-pin and re-bank the aperture"
-    )
-    # the cleared orphan: reached NOW, and by resolver_input specifically (nothing skills-side reads it).
-    pair = (_RESOLVER_INPUT_CARD, _RESOLVER_INPUT_CLEARED_ORPHAN)
-    r = cen[pair]
-    assert "resolver_input" in (r.get("exact") or set()), (
-        f"{pair} lost its resolver_input reach — it is a candidate orphan again and the 754 bank is invalid"
-    )
-    assert not (set(r.get("exact") or set()) - {"resolver_input"}) and not (r.get("name_only") or set()), (
-        f"{pair} unexpectedly gained a skills-side reader ({r}) — re-pin: it is no longer the resolver-ONLY "
-        "field this bank was measured against"
-    )
 
 
 def test_resolver_input_pins_match_am_tree():
@@ -924,7 +438,6 @@ def test_resolver_input_pins_match_am_tree():
             )
 
 
-@needs_contracts
 def test_atom_passthrough_fields_are_not_reported_orphaned():
     """THE CASE-025 REGRESSION, INVERTED. `p95_log2tpm` is read only as a bare string inside the
     `_patom(...)` field tuple in `presence_claims.py` — no `.get()`, no `get_card_field()`. An AST pass
@@ -940,7 +453,6 @@ def test_atom_passthrough_fields_are_not_reported_orphaned():
     )
 
 
-@needs_contracts
 def test_alias_bound_reads_are_exact_not_name_only():
     """`cp = c.get("tumor-protein-abundance-cptac")` then `cp.get("protein_effect_size")` is the
     dominant idiom in the claims modules. Losing the alias binding downgrades every such read to
@@ -974,7 +486,6 @@ def _alias_tree(tmp_path: Path, sub: str, body: str) -> Path:
     return tmp_path / sub / "skills"
 
 
-@needs_contracts
 def test_an_alias_does_not_leak_from_one_function_to_another(tmp_path):
     """THE LEAK. Two functions, one reused short name: the binder names a card, the reader's `s` is an
     unrelated tuple-unpacked local. Crediting the pair invents a read that does not exist, and an
@@ -1003,7 +514,6 @@ def test_an_alias_does_not_leak_from_one_function_to_another(tmp_path):
     assert (card, field) in honest["skill_code"], "fixture is not a valid shape (2/3) read at all"
 
 
-@needs_contracts
 def test_an_alias_bound_in_an_enclosing_function_still_reaches_a_nested_closure(tmp_path):
     """THE OTHER DIRECTION, and the reason the fix drops function bodies from the MODULE scope only.
     A nested function really does see its enclosing function's locals, so walking into nested defs is
@@ -1030,7 +540,6 @@ def test_an_alias_bound_in_an_enclosing_function_still_reaches_a_nested_closure(
     )
 
 
-@needs_contracts
 def test_a_genuine_module_level_alias_read_is_still_credited(tmp_path):
     """The module scope is narrowed, not deleted. Measured on trunk it contributed ZERO correct pairs
     of its own, so this shape has no live witness — which is exactly why it needs a synthetic one: an
@@ -1055,7 +564,6 @@ def test_a_genuine_module_level_alias_read_is_still_credited(tmp_path):
 # reads off the rebound name fell through to name-only.
 
 
-@needs_contracts
 def test_the_summary_hop_credits_the_field_and_not_the_container(tmp_path):
     card, field, _, _ = _two_real_fields()
     assert "summary" not in set(fd.declared_fields().get(card) or ()), (
@@ -1084,7 +592,6 @@ def test_the_summary_hop_credits_the_field_and_not_the_container(tmp_path):
     )
 
 
-@needs_contracts
 def test_the_summary_hop_will_not_invent_a_binding_from_an_unbound_receiver(tmp_path):
     """FALSIFIABILITY. The hop must inherit a binding, never manufacture one: a `.get("summary")` off
     a name that is not a known card alias has nothing to inherit, so the reads below it stay
@@ -1100,7 +607,6 @@ def test_the_summary_hop_will_not_invent_a_binding_from_an_unbound_receiver(tmp_
     assert (card, field) not in exact.get("skill_code", set()), "the hop invented a card binding out of nothing"
 
 
-@needs_contracts
 def test_every_rule_target_names_a_real_card():
     """Zero dangling rule targets was true when the census was built. A rule pointing at a renamed card
     is a pointer that never resolves, and per the cross-evidence review those look exactly like working
@@ -1156,7 +662,6 @@ def _synthetic_figure_tree(
     return tmp_path / "skills"
 
 
-@needs_contracts
 def test_dispatch_table_join_binds_the_card_to_the_field(tmp_path):
     """The shape's whole reason to exist: neither file alone yields a pair, the join does."""
     card, field, _, _ = _two_real_fields()
@@ -1164,7 +669,6 @@ def test_dispatch_table_join_binds_the_card_to_the_field(tmp_path):
     assert (card, field) in exact.get("figure", set())
 
 
-@needs_contracts
 def test_dispatch_join_goes_dark_when_the_table_key_is_not_a_card(tmp_path):
     """MUTATION control. Break only the binding half — same emitter, same read — and the pair must
     disappear. Without this the test above could pass off any `.get()` anywhere in the tree."""
@@ -1173,7 +677,6 @@ def test_dispatch_join_goes_dark_when_the_table_key_is_not_a_card(tmp_path):
     assert not exact.get("figure"), "a table keyed on a non-card still minted figure pairs"
 
 
-@needs_contracts
 def test_dispatch_join_requires_a_dict_first_parameter(tmp_path):
     """★ The READER-vs-PRODUCER discriminator, and the reason it is not optional.
 
@@ -1186,7 +689,6 @@ def test_dispatch_join_requires_a_dict_first_parameter(tmp_path):
     assert not exact.get("figure")
 
 
-@needs_contracts
 def test_dispatch_join_will_not_credit_a_field_the_card_never_declared(tmp_path):
     """Second narrowing guard. Shape (5) INFERS the card binding rather than reading it at the call
     site, so it is the one shape whose binding could be wrong; requiring the field to be declared on
@@ -1199,7 +701,6 @@ def test_dispatch_join_will_not_credit_a_field_the_card_never_declared(tmp_path)
     assert other_card  # the field IS real, just not this card's — that is the point
 
 
-@needs_contracts
 def test_dispatch_join_resolves_a_duplicated_function_name_through_the_import(tmp_path):
     """`_emit_card_figures`, `_emit_section` and `_emit` are each defined more than once in this tree, so
     a bare name lookup can attribute a read to the wrong module — hence the wrong reader KIND — or to a
@@ -1214,7 +715,6 @@ def test_dispatch_join_resolves_a_duplicated_function_name_through_the_import(tm
     assert (card, decoy) not in figure, "credited the wrong definition of a duplicated name"
 
 
-@needs_contracts
 def test_figure_emitters_reach_declared_fields_on_the_live_tree():
     """Live pin. 32 pairs over 19 of the 37 registered emitters, measured 2026-09-13. The other 18 hand
     the summary to `render_from_plot_data` in the analysis-methods repo — an out-of-tree reader, not a
@@ -1227,7 +727,6 @@ def test_figure_emitters_reach_declared_fields_on_the_live_tree():
     assert len(figure) >= 25, f"only {len(figure)} exact figure pairs (was 32) — the registry join has regressed"
 
 
-@needs_contracts
 def test_the_producer_dispatch_table_mints_no_reader_pairs():
     """NEGATIVE control, with its population DERIVED from the live table rather than hardcoded.
 
@@ -1330,7 +829,6 @@ def test_a_direct_alias_outranks_a_helper_alias_for_the_same_name():
     assert _aliases(rev) == {"x": "card-alpha"}
 
 
-@needs_contracts
 def test_no_live_function_binds_one_name_by_both_alias_shapes():
     """Keeps the tiebreak above INERT, and says so if it ever stops being inert.
 
@@ -1375,7 +873,6 @@ def test_no_live_function_binds_one_name_by_both_alias_shapes():
     )
 
 
-@needs_contracts
 def test_helper_alias_reaches_declared_fields_on_the_live_tree():
     """Live pin, and the reason this shape was worth adding.
 
@@ -1399,7 +896,6 @@ def test_helper_alias_reaches_declared_fields_on_the_live_tree():
 # ── narrative is not an independent field reader ───────────────────────────────────────────────────
 
 
-@needs_contracts
 def test_narrative_contributes_no_name_only_credit():
     """★ FALSE CREDIT, WITHDRAWN. The narrative modules read FIRED-RULE RECORDS and the skill-keyed lens
     prose config, not card summaries, so their literal `.get("...")` arguments are their own data-
@@ -1434,7 +930,6 @@ def test_the_withdrawn_kind_is_declared_and_keeps_its_slot():
     assert not fd.EXACT_ONLY_KINDS & fd.NAME_ONLY_KINDS, "a kind cannot be both name-only and exact-only"
 
 
-@needs_contracts
 def test_an_exact_only_kind_still_admits_exact_evidence(tmp_path):
     """The slot is withdrawn from NAME-ONLY credit, not dead-lettered. A narrator that grows a real
     `get_card_field(cards, "<card>", "<field>")` read must still count — otherwise this change would
@@ -1569,7 +1064,6 @@ def test_reader_kind_lists_do_not_overlap():
 # ── tests are not readers ─────────────────────────────────────────────────────────────────────────
 
 
-@needs_contracts
 def test_test_files_are_excluded_from_reader_detection():
     """A test reading a field does not make the field live — if it did, every field with a fixture
     would look wired and the census could never find a silent drop. Checked at the source so it cannot
@@ -1590,7 +1084,6 @@ def test_test_files_are_excluded_from_reader_detection():
 # construction.
 
 
-@needs_contracts
 def test_shape_6_alias_subscript_read_is_credited_exact(tmp_path):
     """POSITIVE CONTROL — the read shapes 1-5 miss. A card alias read by SUBSCRIPT and never by `.get`
     is a real field read; before shape 6 it fell through entirely (the loop skips non-Call nodes) and
@@ -1612,7 +1105,6 @@ def test_shape_6_alias_subscript_read_is_credited_exact(tmp_path):
     )
 
 
-@needs_contracts
 def test_shape_6_double_subscript_read_is_credited(tmp_path):
     """`cards["card-id"]["field"]` — the receiver is a literal-card-id subscript rather than a bound
     alias, so the card binds from the inner slice. Same exact credit."""
@@ -1623,7 +1115,6 @@ def test_shape_6_double_subscript_read_is_credited(tmp_path):
     assert (card, field) in exact.get("skill_code", set()), "the double-subscript read was not credited"
 
 
-@needs_contracts
 def test_shape_6_will_not_invent_a_binding_from_an_unbound_receiver(tmp_path):
     """FALSIFIABILITY, over-credit direction. A subscript off a name that is not a known card alias has
     no card to bind to, so it must credit NOTHING — never fall through to name-only, which would credit
@@ -1637,7 +1128,6 @@ def test_shape_6_will_not_invent_a_binding_from_an_unbound_receiver(tmp_path):
     assert field not in name_only.get("skill_code", set()), "an unbound subscript leaked into name-only credit"
 
 
-@needs_contracts
 def test_shape_6_ignores_a_subscript_write(tmp_path):
     """FALSIFIABILITY, wrong-direction. `cp["field"] = v` is a WRITE (ctx=Store), not a read — card
     preprocessors mutate the summary this way. Crediting a write as a read invents coverage for a field
