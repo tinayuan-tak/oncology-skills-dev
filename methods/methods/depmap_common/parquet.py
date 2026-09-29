@@ -161,8 +161,10 @@ def _fetch_parquet(filename: str, release_pin: str = "26q3") -> Path:
     except Exception as e:
         raise FileNotFoundError(
             f"Failed to download parquet {filename} from s3://{DEPMAP_S3_BUCKET}/{key}: "
-            f"{type(e).__name__}: {e}. Run methods.depmap_parquet_precompute.cli first to "
-            f"produce this derived product."
+            f"{type(e).__name__}: {e}. This derived product is produced by the "
+            f"depmap_parquet_precompute method, which lives in the general analysis-methods "
+            f"repo (carved out of this repo under skills#2100) — run its CLI there, then "
+            f"re-run this read."
         )
     _log(f"    cached to {local_path} ({local_path.stat().st_size / 1e6:.1f} MB)")
     return local_path

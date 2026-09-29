@@ -98,7 +98,21 @@ def reader(tmp_path, monkeypatch):
     # covered separately in test_derived_product_path.py). _derived_parquet_uri → None makes
     # _read_from_derived_product return None → read_target_summary falls back to _read_from_raw_csv.
     monkeypatch.setattr(R, "_derived_parquet_uri", lambda: None)
-    return R
+
+    # Reset the reader's two PROCESS-GLOBAL caches, in both directions. `_load_paralog_indexed`
+    # is a ZERO-ARG lru_cache (nothing to key a synthetic CSV on) and `_PARALOG_STATUS` is a
+    # module-level latch, so both outlive a single test FILE: any earlier caller in the same
+    # process that resolved the CSV to None — e.g. tests/calibration/recomputation/
+    # test_paralog_buffering_recomputation.py — latches an EMPTY index, this fixture's synthetic
+    # CSV is then never parsed, and every assertion below reads `data_unavailable` instead of the
+    # computed class. Whether that happens depends on how xdist groups files onto a worker, which
+    # is why it presents as an intermittent flake rather than a stable red. test_derived_product_
+    # path.py already clears the cache around its reads; this fixture did not. See skills#2100.
+    R._load_paralog_indexed.cache_clear()
+    monkeypatch.setattr(R, "_PARALOG_STATUS", None)
+    yield R
+    # Don't hand OUR synthetic parse to whatever file this worker runs next, either.
+    R._load_paralog_indexed.cache_clear()
 
 
 def test_strong_buffering_pair(reader):

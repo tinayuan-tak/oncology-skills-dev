@@ -12,7 +12,7 @@ Reusable, language-agnostic analytical code — packaged as CLIs (some R-driven,
 Sits between `contracts/` (governance) and `skills/` (orchestration) in this repo's
 dependency graph. Skills *call* methods; methods don't know about skills.
 
-## Method inventory (102 methods + 4 shared helpers under `methods/`)
+## Method inventory (99 methods + 4 shared helpers under `methods/`)
 
 Methods are grouped below by the biology gate / evidence axis they serve. Each is a self-contained
 module under `methods/<name>/` with a `read.py` library entry (consumed by the shared
@@ -22,6 +22,15 @@ emitters). The `*_precompute`
 methods build the gene-sorted derived products that the per-target readers query by pushdown. The
 four shared helpers (`io/`, `depmap_common`, `opentargets_common`, `subgroup_common`) hold code
 reused across a family of methods and are not invoked directly.
+
+> **Carved out (skills#2100, 2026-09-29):** `dataset_fitness_signals`, `depmap_parquet_precompute`,
+> `subgroup_assigner_cptac_mmr`, `tcga_tmb` and `gdc_dr45_pancohort` now live in the general
+> **analysis-methods** repo. They were never reached by a card binding or a skill/eval/batch import,
+> so nothing here calls them. **Seam rule:** the general repo and this framework communicate ONLY
+> through data-catalog manifests — no runtime imports in either direction. A general method that
+> needs framework/kernel behaviour does not get a fork or a pin; it stays here. The derived products
+> those methods publish (e.g. `tcga-tmb-per-sample-v1`) are still read here the normal way, by
+> pinned manifest ID.
 
 **Presence & selectivity (expression, RNA + protein)**
 `dge_deseq2` · `dge_tcga_gtex_precompute` · `tcga_gtex_expression_distribution` ·
@@ -42,13 +51,13 @@ reused across a family of methods and are not invoked directly.
 `depmap_predictability` · `depmap_predictability_precompute` ·
 `depmap_paralog_aggregator` · `paralog_genetic_interaction` (combinatorial dual-KO genetic interaction) ·
 `combo_drug_anchor` (drug-anchored combination opportunities) · `synleth_partner_lookup` · `abundance_dependency` ·
-`depmap_parquet_precompute` · `depmap_common`
+`depmap_common`
 
 **Genomic alteration (SNV / CN / fusion)**
-`gdc_somatic_hotspot` · `gdc_dr45_pancohort` (DR45 non-TCGA MAF source) · `depmap_mutation_type_counts` · `depmap_cn_distribution` ·
+`gdc_somatic_hotspot` · `depmap_mutation_type_counts` · `depmap_cn_distribution` ·
 `tcga_patient_cn` (per-patient GISTIC CN prevalence) · `tcga_aneuploidy_burden` (per-indication genome instability) ·
 `cooccurrence_fisher_pancohort` · `genomic_event_model_match` · `functional_gene_state` ·
-`driver_role_overlay` · `civic_variant_interpretation` (per-variant clinical interpretation) · `tcga_fusion_consensus` · `tcga_tmb` ·
+`driver_role_overlay` · `civic_variant_interpretation` (per-variant clinical interpretation) · `tcga_fusion_consensus` ·
 `genie_panel_coverage` (panel-aware denominator) · `genie_panel_recurrence` (coverage-correct SNV recurrence) ·
 `genie_sv_recurrence` (coverage-correct SV recurrence + partners)
 
@@ -116,10 +125,6 @@ methods/
 ├── gdc_somatic_hotspot/
 │   ├── cli.py
 │   ├── read.py
-│   └── tests/
-├── tcga_tmb/
-│   ├── cli.py
-│   ├── compute.py
 │   └── tests/
 ├── subgroup_assigner_directly_tagged/
 │   └── ...
