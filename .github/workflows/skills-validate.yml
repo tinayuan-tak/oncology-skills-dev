@@ -69,6 +69,15 @@ on:
   push:
     branches: [main]
 
+# CONCURRENCY (2026-09-29): 230 Skills Validate runs in one 48h window (~15-18 job-min each ≈
+# 60-70 runner-hours) with no concurrency group — rapid push-amend runs the full 7-shard suite
+# to completion once per push, and duplicate back-to-back full runs on one PR were observed.
+# Group by workflow+ref and cancel superseded runs ONLY for pull_request events. push:main runs
+# must NEVER be cancelled (they are the trunk-green signal), hence the conditional.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   pytest-shards:
     runs-on: ubuntu-latest
