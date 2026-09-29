@@ -113,7 +113,7 @@
           "status": "GREEN"
         }
       },
-      "notes": "L1 = the 17 cards (OBSERVATIONAL_PROPERTY). accuracy measured for 2/7 verdict-bearing cards with a landed analysis-methods T3 anchor for EPCAM (cellline-rna-distribution, tumor-scrna-celltype-expression); the other 5 verdict-bearing + 8 display-only + 2 safety-comparator cards have no anchor yet (see accuracy evidence cards_not_yet_covered)."
+      "notes": "L1 = the 17 cards (OBSERVATIONAL_PROPERTY): 7 ladder-verdict-bearing + 3 L2b-island substrate + 3 corroboration/certainty-bearing + 1 verdict-adjacent (hpa-pathology-cancer-ihc) + 2 safety-comparators + 1 (cellline-protein-abundance-procan, corroboration-bearing). accuracy measured for 2/7 ladder-verdict-bearing cards with a landed analysis-methods T3 anchor for EPCAM (cellline-rna-distribution, tumor-scrna-celltype-expression); the other 5 ladder-verdict-bearing + 10 non-ladder cards have no anchor yet (see accuracy evidence cards_not_yet_covered)."
     },
     "L2a": {
       "built": true,
