@@ -172,7 +172,8 @@ def test_emitted_rows_classify_downstream(monkeypatch):
     """A cell-C-only up/sig row must land as MODEST (not strong — there is no adjacent arm to
     corroborate it, dge_deseq2 FIX 4b); a flat row as not_informative — via the real dge_deseq2
     classifier, in the tvn_gtex_only regime."""
-    read = pytest.importorskip("methods.dge_deseq2.read")
+    import methods.dge_deseq2.read as read
+
     tumor, gtex = _fixture_frames()
 
     def fake_read(manifest_id, s3fs, group_col, group_val):

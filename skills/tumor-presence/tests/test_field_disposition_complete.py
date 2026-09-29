@@ -292,7 +292,8 @@ def signal_reach():
     """
     if _contracts_root() is None:
         pytest.skip("target-contracts not resolvable (set TARGET_CONTRACTS_ROOT) — reach check skipped")
-    fd = pytest.importorskip("_skills_common.field_disposition")
+    import _skills_common.field_disposition as fd
+
     cen = fd.census(SKILL_DIR.parent, _contracts_root())
     return fdl.signal_reach(_load_ledger(), cen)
 

@@ -115,7 +115,8 @@ def test_floor_is_exactly_inclusive_at_min_n():
 def test_floor_matches_the_corroborating_saltz_reader():
     """The two readers corroborate each other on the immune-context headline (the orthogonal-platform
     confidence ruler), so an n one calls too thin must not be an n the other scores confidently."""
-    saltz = pytest.importorskip("methods.til_fraction_saltz.read")
+    import methods.til_fraction_saltz.read as saltz
+
     assert MIN_N_SAMPLES == saltz.MIN_N
 
 
