@@ -90,6 +90,7 @@ _L1_ACCURACY_EVIDENCE = {
     "test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation.py",
     "batch_a_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_a.py",
     "batch_b_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_b.py",
+    "batch_c_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_c.py",
     "cards_covered": [
         "cellline-rna-distribution",
         "tumor-scrna-celltype-expression",
@@ -97,10 +98,9 @@ _L1_ACCURACY_EVIDENCE = {
         "cellline-protein-abundance",
         "tumor-rna-vs-adjacent",
         "tumor-elevation-breadth",
-    ],
-    "cards_not_yet_covered": [
         "tumor-protein-abundance-cptac",
     ],
+    "cards_not_yet_covered": [],
     "raw_substrate": {
         "cellline-rna-distribution": "analysis-methods anchor epcam_26q1.cellline_rna_distribution.json "
         "+ expression_vectors/epcam_26q1.cellline_rna_distribution.parquet (2446-model raw log2(TPM+1) "
@@ -131,6 +131,14 @@ _L1_ACCURACY_EVIDENCE = {
         "methods.dge_deseq2.derive_pancan_stack.read_rna_tumor_elevation_breadth). Validates the "
         "elevated-cohort counting + pan-cohort BH/FDR + composite-indication dedupe roll-ups, NOT the "
         "upstream DEG runs.",
+        "tumor-protein-abundance-cptac": "analysis-methods anchor epcam_coad.cptac_protein_abundance.json "
+        "(batch C, #2045) + dge_rows/epcam.cptac_target_rows.parquet (the target's raw per-cohort CPTAC "
+        "df rows) + dge_rows/epcam_coad.cptac_allgene_effect_null.parquet (the matched cohort's all-gene "
+        "protein_effect_size null, the within-cohort percentile denominator); re-derived through "
+        "methods.cptac_protein_deg.read.read_target_summary (only the _load_indexed S3-load seam mocked). "
+        "WITHIN-COHORT SEMANTICS (#1512/#1664): COADREAD is a LEAF indication -> a single CPTAC cohort "
+        "(COAD), so the representative-cohort pick is over one candidate and NO cross-cohort aggregation "
+        "of non-comparable TMT ratios occurs on this path; the all-gene percentile is a within-cohort rank.",
     },
     "reconciliation": (
         "fraction_expressed, fraction_highly_expressed, expression_class (cellline-rna-distribution); "
@@ -147,7 +155,11 @@ _L1_ACCURACY_EVIDENCE = {
         "median_effect_across_elevated, most_elevated_cohorts, cohorts_tested + the RNA-layer "
         "vintage-stable rna_tumor_elevation_breadth_class, rna_n_indications_elevated, "
         "rna_median_max_log2fc_across_elevated, rna_most_elevated_indications "
-        "(tumor-elevation-breadth, batch B) all match at full precision between the independent "
+        "(tumor-elevation-breadth, batch B); cohort, protein_expression_class, protein_effect_size, "
+        "allgene_percentile(_class/_context), protein_bh_q_value, protein_p_value, "
+        "protein_median_log2_tumor/normal, n_tumor/normal_samples, protein_effect_size_se, "
+        "protein_effect_standardized_t/cohens_d/class/method (tumor-protein-abundance-cptac, batch C) "
+        "all match at full precision between the independent "
         "recompute and tests/fixtures/epcam_coadread_decision.json"
     ),
     "boundary": (
@@ -159,7 +171,18 @@ _L1_ACCURACY_EVIDENCE = {
         "indications (one NON-elevated indication added upstream). The elevated numerator (10), the "
         "elevated indication set, and the median max-log2fc are byte-identical, so only the denominator "
         "and its dependent rna_fraction_elevated shifted; pinned as denominator-only by "
-        "test_elevation_breadth_rna_drift_is_denominator_only_and_non_elevated."
+        "test_elevation_breadth_rna_drift_is_denominator_only_and_non_elevated. "
+        "#1664 CROSS-LINK (tumor-protein-abundance-cptac, batch C — honestly recorded, GREEN not RED): "
+        "#1664 flagged read_target_summary's cross-cohort aggregation (representative-cohort pick over "
+        "reference-pool-relative TMT ratios the manifest warns are NOT magnitude-comparable). The "
+        "flagship EPCAM/COADREAD re-derivation reproduces the golden BYTE-EXACT because COADREAD is a "
+        "LEAF indication -> a single CPTAC cohort (COAD): the representative-cohort pick is over one "
+        "candidate, so NO cross-cohort aggregation of non-comparable ratios occurs on this "
+        "verdict-bearing per-indication path, and the all-gene percentile is a within-cohort rank. The "
+        "#1664-flagged aggregation is confined to the umbrella (NSCLC->LUAD+LSCC) and indication-FREE "
+        "pan-cancer paths, where the #1664 F1 fix already ranks on the comparable |Cohen's d| axis "
+        "(read.py read_target_summary). This card's within-cohort semantics are therefore sound; the "
+        "#1664 concern does not bite the leaf-indication card path."
     ),
     "teeth": (
         "test_cellline_rna_distribution_teeth_mutated_input_breaks_the_golden_match, "
@@ -168,7 +191,10 @@ _L1_ACCURACY_EVIDENCE = {
         "test_cellline_protein_abundance_teeth_mutated_input_breaks_the_golden_match (batch A) and "
         "test_tumor_rna_vs_adjacent_teeth_flipping_significance_breaks_the_golden_match + the two "
         "batch-B elevation-breadth layer teeth (stripping elevated cohorts collapses the protein "
-        "breadth; flipping RNA direction collapses the RNA breadth) mutate the raw input and assert the "
+        "breadth; flipping RNA direction collapses the RNA breadth) and the two batch-C CPTAC teeth "
+        "(forcing the matched-cohort row's protein_effect_size to +Inf collapses the class to "
+        "data_unavailable; shifting the all-gene null moves the within-cohort percentile off the golden) "
+        "mutate the raw input and assert the "
         "match breaks — proving the reconciliation is a live function of substrate, not a self-echo"
     ),
     "status_as_of": "2026-09-29",
@@ -442,10 +468,12 @@ def build_shard() -> cs.SkillShard:
             "L1 = the 17 cards (OBSERVATIONAL_PROPERTY): 7 ladder-verdict-bearing + 3 L2b-island "
             "substrate + 3 corroboration/certainty-bearing + 1 verdict-adjacent (hpa-pathology-cancer-ihc) "
             "+ 2 safety-comparators + 1 (cellline-protein-abundance-procan, corroboration-bearing). "
-            "accuracy measured for 6 of the 17 cards with a landed analysis-methods T3 anchor bridged to "
+            "accuracy measured for 7 of the 17 cards with a landed analysis-methods T3 anchor bridged to "
             "the EPCAM/COADREAD golden (cellline-rna-distribution, tumor-scrna-celltype-expression; "
             "tumor-rna-distribution + cellline-protein-abundance — batch A, #2043; tumor-rna-vs-adjacent "
-            "+ tumor-elevation-breadth — batch B, #2044). The remaining 11 of 17 have no anchor yet (see "
+            "+ tumor-elevation-breadth — batch B, #2044; tumor-protein-abundance-cptac — batch C, #2045). "
+            "That completes ALL 7 ladder-verdict-bearing cards; the remaining 10 of 17 (non-ladder "
+            "corroboration/certainty/safety-comparator/verdict-adjacent cards) have no anchor yet (see "
             "accuracy evidence cards_covered / cards_not_yet_covered)."
         ),
     )
