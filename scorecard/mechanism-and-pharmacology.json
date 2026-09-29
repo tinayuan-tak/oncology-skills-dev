@@ -1,29 +1,102 @@
 {
   "cells": {
     "L1": {
-      "built": null,
+      "built": true,
       "criteria": {
         "accuracy": {
-          "evidence": null,
+          "evidence": {
+            "reason": "criterion (a) re-derivation is explicitly a SEPARATE issue, out of scope for #1993. Per the shared directive, an honest NULL beats a fake reconciliation \u2014 a fixture of derived values can never fail, so no accuracy reading is fabricated here."
+          },
           "status": "NULL"
         },
         "fail_open": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "method": "the shared token-classification guard (`_skills_common.subgroup_derivation.default_classify`, the fallback of this skill's own make_value_classifier(_MECHANISM_VALUE_TIERS), wired at run.py's subgroup_classify=): a coverage-gap token (data_unavailable/not_assessed/no_data/...) is checked against _UNMEASURED_TOKENS FIRST and forced to the off-axis `unmeasured` abstention \u2014 never falls through the keyword scan to a manufactured `absent` (a measured negative).",
+            "status_as_of": "2026-09-29",
+            "tests": [
+              "skills/mechanism-and-pharmacology/tests/test_scorecard_l1_fail_open_probe.py::test_data_unavailable_degrades_conservatively_ordinary_path (ordinary path)",
+              "skills/mechanism-and-pharmacology/tests/test_scorecard_l1_fail_open_probe.py::test_teeth_defeating_the_unmeasured_token_guard_leaks_a_fabricated_absent (TEETH \u2014 monkeypatches _UNMEASURED_TOKENS to () and shows default_classify('data_unavailable') leaks 'absent' instead of 'unmeasured'; probe goes RED without the guard, GREEN with it)"
+            ]
+          },
+          "status": "GREEN"
         },
         "panel_consistency": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "capture_method": "scorecard_adapter.py::_load_package -> skills/mechanism-and-pharmacology/scripts/run.py --target <T> (direct, no --indication [this skill is indication-independent], no --full-package fan-out; eval/run_scorecard_panel.py --emit timed out at 900s for EPCAM/HTR1D per #2030 in this environment)",
+            "checks": {
+              "all_pass": true,
+              "all_roster_rows_present": true,
+              "htr1d_uniquely_gap_shaped_INFORMATIONAL_not_gated": false,
+              "mechanism_verdict_not_constant": true,
+              "network_class_not_constant": true
+            },
+            "method": "per-target rows across the whole 5-target roster (not one flagship), COMPUTED live by collect_panel_rows() (see module docstring) rather than hand-typed: this skill's verdict-bearing card class (network_class, the ONLY card the resolver keys on) and its descriptive mechanism_verdict must differ meaningfully across archetypes (flagship surface, flagship intrinsic driver, amplified surface, pan-essential control, thin-coverage/non-oncology control) rather than collapsing to one constant reading, and the thin-coverage control (HTR1D, a non-oncology GPCR) must show a gap-shaped network_class where at least one oncology-roster target does not.",
+            "roster_source": "eval/SCORECARD_PANEL_ROSTER.md",
+            "rows": [
+              {
+                "mechanism_verdict": "partial",
+                "network_class": "partial",
+                "network_class_gap_shaped": false,
+                "source": "skills/mechanism-and-pharmacology/scripts/.panel_cache/EPCAM/decision.json",
+                "status": "OK",
+                "target": "EPCAM"
+              },
+              {
+                "mechanism_verdict": "well_characterized",
+                "network_class": "well_characterized",
+                "network_class_gap_shaped": false,
+                "source": "skills/mechanism-and-pharmacology/scripts/.panel_cache/KRAS/decision.json",
+                "status": "OK",
+                "target": "KRAS"
+              },
+              {
+                "mechanism_verdict": "well_characterized",
+                "network_class": "well_characterized",
+                "network_class_gap_shaped": false,
+                "source": "skills/mechanism-and-pharmacology/scripts/.panel_cache/ERBB2/decision.json",
+                "status": "OK",
+                "target": "ERBB2"
+              },
+              {
+                "mechanism_verdict": "well_characterized",
+                "network_class": "well_characterized",
+                "network_class_gap_shaped": false,
+                "source": "skills/mechanism-and-pharmacology/scripts/.panel_cache/PLK1/decision.json",
+                "status": "OK",
+                "target": "PLK1"
+              },
+              {
+                "mechanism_verdict": "partial",
+                "network_class": "partial",
+                "network_class_gap_shaped": false,
+                "source": "skills/mechanism-and-pharmacology/scripts/.panel_cache/HTR1D/decision.json",
+                "status": "OK",
+                "target": "HTR1D"
+              }
+            ],
+            "status_as_of": "2026-09-29"
+          },
+          "status": "GREEN"
         },
         "utilization": {
-          "evidence": null,
-          "status": "NULL"
+          "evidence": {
+            "coverage": "all 5 cards ledgered; every row reviewed:true (human-assigned, not auto-drafted).",
+            "method": "field_disposition.yaml ledger: every emitted summary_field of all 5 cards carries an explicit role (signal|context|provenance|display), _meta.reviewed:true for every row (a human read each field's producers/consumers). Enforced FLEET-WIDE (blind to this skill's own ledger) by skills/tests/test_field_disposition_ledgers.py: completeness vs run.py CARDS x each card's summary_fields, non-vacuous reach measurement, and zero un-reached/un-waived role:signal fields. All 5 of this skill's role:signal rows are reader-reached (exact census hit per the ledger's own _meta.waived_because note: 'no waivers are present').",
+            "status_as_of": "2026-09-29",
+            "tests": [
+              "skills/tests/test_field_disposition_ledgers.py::test_ledgered_skills_only_grow",
+              "skills/tests/test_field_disposition_ledgers.py::test_every_ledger_is_wellformed",
+              "skills/tests/test_field_disposition_ledgers.py::test_the_fleet_reach_measurement_is_not_vacuous",
+              "skills/tests/test_field_disposition_ledgers.py::test_signal_fields_are_reader_reached_or_waived"
+            ]
+          },
+          "status": "GREEN"
         }
       },
-      "notes": null
+      "notes": "L1 = the 5 cards (all tier:target, indication-independent; run.py has no CARD_CONTEXT map). mechanism-and-pharmacology is role:gating with the verdict resolved on network_class alone (polarity statically neutral). accuracy NULL per brief (re-derivation is a separate issue)."
     },
     "L2a": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -42,10 +115,10 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "mechanism-and-pharmacology exports NO source_properties/integrated_properties/l3d envelope section (no _skills_common.evidence_frame wiring in run.py, unlike tumor-presence's SK#1941/#1940 sections) \u2014 an architecture-scope fact, not an unmeasured gap. built=false; no criterion may be measured on an unbuilt layer."
     },
     "L2b": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -64,10 +137,10 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "mechanism-and-pharmacology exports NO source_properties/integrated_properties/l3d envelope section (no _skills_common.evidence_frame wiring in run.py, unlike tumor-presence's SK#1941/#1940 sections) \u2014 an architecture-scope fact, not an unmeasured gap. built=false; no criterion may be measured on an unbuilt layer."
     },
     "L3": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -86,10 +159,10 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "mechanism-and-pharmacology exports NO source_properties/integrated_properties/l3d envelope section (no _skills_common.evidence_frame wiring in run.py, unlike tumor-presence's SK#1941/#1940 sections) \u2014 an architecture-scope fact, not an unmeasured gap. built=false; no criterion may be measured on an unbuilt layer."
     },
     "L4": {
-      "built": null,
+      "built": false,
       "criteria": {
         "accuracy": {
           "evidence": null,
@@ -108,7 +181,7 @@
           "status": "NULL"
         }
       },
-      "notes": null
+      "notes": "mechanism-and-pharmacology exports NO source_properties/integrated_properties/l3d envelope section (no _skills_common.evidence_frame wiring in run.py, unlike tumor-presence's SK#1941/#1940 sections) \u2014 an architecture-scope fact, not an unmeasured gap. built=false; no criterion may be measured on an unbuilt layer."
     }
   },
   "schema_version": 1,
