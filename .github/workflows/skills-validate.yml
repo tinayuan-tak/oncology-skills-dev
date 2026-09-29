@@ -110,9 +110,13 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: oneTakeda/rnd-computational-biology-oncology-analysis-methods
-          # PINNED — main @ 2026-09-19T11:47:03Z. Bumped BY HAND to include depmap-predictability v4:
-          # DEFAULT_RELEASE_PIN 26q1-v3→v4 (#670) + the provenance-stamping reader (#672); see SIBLING PINS above.
-          ref: 507439fc0e3c83d0db369377b411a2a3fcc861d2
+          # PINNED — main @ 2026-09-29 (AM#857, AM PR#895). Bumped BY HAND for the AM#857 atomic pin unit:
+          # tcga_gtex_expression_distribution now RETAINS the five-number spread (p5/q1/q3/mean/sd_log2tpm)
+          # that _distribution_summary was dropping. Gap over prior pin (507439fc) = 8 intervening AM landings
+          # (T3 recomputation anchors #2043/#2044, gdc_somatic_hotspot degrade #888, xdist CI #892, ...) +
+          # this AM#857 emission — none verdict-affecting for the frozen-fixture skills replay. See SIBLING
+          # PINS above. Paired with the TC pin bump below (same commit) — the two halves of the AM#857 unit.
+          ref: b79a0a5464be34b544fc0b5c4c320630a3e39640
           path: rnd-computational-biology-oncology-analysis-methods
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 
@@ -445,7 +449,40 @@ jobs:
           # ceiling 729 holds on both — a numeric_anchors declaration earns EXACT credit (never a new
           # orphan), so the orphan census is UNCHANGED. Aperture-inert, no ceiling move; the two-sided
           # ratchet (this pin <-> APERTURE_CEILING in test_field_disposition.py) stays balanced.
-          ref: 5855ff7913ae4cc72c8cfd3aae33d5b79436cb1f
+          #
+          # BUMP 5855ff79 -> 36cfd74, "TC PR#981 (AM#857), MINIMAL". Bumped BY HAND, PAIRED with the AM pin
+          # bump above (same commit) — the two declaration/emission halves of the AM#857 atomic unit. TC#981
+          # declares the five-number SPREAD (p5/q1/q3/mean/sd_log2tpm) on tumor-rna-distribution summary_fields
+          # + the tumor-rna-distribution-by-subtype per_subgroup_metrics record_schema, so the AM emission has
+          # a contract home + the field-disposition ledger / fleet aperture can see the 5 new POOLED-card
+          # declared pairs.
+          #
+          # WHY 36cfd74 (the PR#981 PRE-MERGE commit, reachable via refs/pull/981/head) AND NOT the squash
+          # b8ffb1b on main: this is the framework's MINIMAL-bump discipline. TC main advanced during this
+          # unit — surface-localization-concordance (#966/#980) landed BETWEEN 5855ff79 and my squash, so the
+          # squash b8ffb1b non-minimally folds #980 in. #980 is a NEW card with NO skills consumer, so bumping
+          # to b8ffb1b would drag its 5 UNCONSUMED (card,field) pairs into the fleet-aperture domain and push
+          # candidate_orphans 729 -> 734, breaching the ceiling for a reason unrelated to AM#857 (the ceiling
+          # only ratchets DOWN — it may not be raised to launder another card's debt). 36cfd74's delta over
+          # 5855ff79 is EXACTLY my card change + 3 field-free commits (#979 ci, #976 comment, #975 an
+          # immune-context enum-vocab entry), so it isolates AM#857. #980's orphan debt is deferred to #966's
+          # own skills-consumption unit, which will bump the pin forward and bank the ceiling then.
+          #
+          # APERTURE: MEASURED 2x2 (census run from THIS branch against git-archive of each TC ref via
+          # TARGET_CONTRACTS_ROOT):
+          #                              TC 5855ff79 (old pin)     TC 36cfd74 (this pin)
+          #   skills trunk               domain 1854, orphans 729  domain 1859, orphans 734
+          #   skills THIS branch         domain 1854, orphans 729  domain 1859, orphans 729
+          # domain +5 (my 5 declared pooled-card pairs). The CONTRACTS axis on THIS branch is 729->729: the 5
+          # new pairs are consumed by claim A's evidence atom (presence_claims._patom, claim_passthrough
+          # reader), so they earn EXACT credit and never enter the orphan set. Trunk's +5 (729->734) is the
+          # instrument control — it is exactly the 5 pooled fields this branch's reader newly reaches.
+          # Aperture-INERT, no ceiling move; the two-sided ratchet (this pin <-> APERTURE_CEILING 729) stays
+          # balanced. (b8ffb1b would have read 734 on this branch — the +5 being #980's, not mine.)
+          # NB: PR#981 pre-merge commit (reachable via refs/pull/981/head, verified CI-fetchable by SHA);
+          # NOT a main tip, deliberately — see WHY above. #966/#980's consumer will move this to a main SHA.
+          ref: 36cfd74abe6c91e41ceeeda3c3cd7875e10ab3c6
+
           path: rnd-computational-biology-oncology-target-contracts
           token: ${{ secrets.CROSS_REPO_TOKEN || github.token }}
 

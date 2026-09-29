@@ -194,6 +194,16 @@ def _claim_A(h, c):
                 "allgene_percentile",
                 "median_log2tpm",
                 "p95_log2tpm",
+                # AM#857: cite the retained five-number SPREAD alongside the central tendency, so claim A's
+                # evidence atom documents the full distribution shape it rests on (quartiles + mean/sd, not
+                # just median/p95). VERDICT-INERT provenance — build_summary_atom keeps only non-None values
+                # and the ordinal signal is unchanged; these fields feed no rule/ladder. This is also the
+                # census-visible reader that earns EXACT aperture credit for the 5 newly-declared pairs.
+                "p5_log2tpm",
+                "q1_log2tpm",
+                "q3_log2tpm",
+                "mean_log2tpm",
+                "sd_log2tpm",
                 "distribution_pattern",
             ),
             {"measurement_type": "tumor_rna_expression", "sample_context": "tumor"},
