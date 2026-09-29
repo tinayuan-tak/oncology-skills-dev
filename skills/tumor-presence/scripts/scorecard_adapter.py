@@ -91,6 +91,7 @@ _L1_ACCURACY_EVIDENCE = {
     "batch_a_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_a.py",
     "batch_b_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_b.py",
     "batch_c_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_c.py",
+    "batch_d_test": "skills/tumor-presence/tests/test_scorecard_l1_accuracy_rederivation_batch_d.py",
     "cards_covered": [
         "cellline-rna-distribution",
         "tumor-scrna-celltype-expression",
@@ -99,6 +100,10 @@ _L1_ACCURACY_EVIDENCE = {
         "tumor-rna-vs-adjacent",
         "tumor-elevation-breadth",
         "tumor-protein-abundance-cptac",
+        "cellline-rna-protein-concordance",
+        "rna-protein-concordance-tumor",
+        "expression-purity-confound",
+        "hpa-pathology-cancer-ihc",
     ],
     "cards_not_yet_covered": [],
     "raw_substrate": {
@@ -139,6 +144,33 @@ _L1_ACCURACY_EVIDENCE = {
         "WITHIN-COHORT SEMANTICS (#1512/#1664): COADREAD is a LEAF indication -> a single CPTAC cohort "
         "(COAD), so the representative-cohort pick is over one candidate and NO cross-cohort aggregation "
         "of non-comparable TMT ratios occurs on this path; the all-gene percentile is a within-cohort rank.",
+        "cellline-rna-protein-concordance": "analysis-methods anchor "
+        "epcam_26q1.cellline_rna_protein_concordance.json (batch D, #2046) + rna_protein_concordance_vectors/"
+        "epcam_26q1.cellline_rna_protein_concordance.{rna,protein}.parquet (the gene's full per-ModelID "
+        "DepMap RNA log2(TPM+1) dict + the full Gygi TMT protein log2-abundance dict); re-derived through "
+        "methods.depmap_rna_protein_concordance.read.read_rna_protein_concordance (only the _paired_rna_protein "
+        "S3-load seam mocked), pinned at 26q1 to match the committed golden's DepMap vintage.",
+        "rna-protein-concordance-tumor": "analysis-methods anchor "
+        "epcam_coadread.tumor_rna_protein_concordance.json (batch D, #2046) + rna_protein_concordance_vectors/"
+        "epcam_coadread.tumor_rna_protein_concordance.parquet (the matched per-tumor CPTAC "
+        "(patient_id, gene, rna_log2tpm, protein_log2abundance, cohort) rows from "
+        "cptac-rna-protein-matched-per-sample-v1); re-derived through "
+        "methods.depmap_rna_protein_concordance.read.read_tumor_rna_protein_concordance (only the "
+        "_read_matched_cohort S3-load seam mocked).",
+        "expression-purity-confound": "analysis-methods anchor epcam_coadread.expression_purity_confound.json "
+        "(batch D, #2046) + purity_confound_vectors/epcam_coadread.expression_purity_confound.{expr,purity}.parquet "
+        "(per-sample recount3 tumor [case, log2_tpm] rows + per-case ABSOLUTE purity from the TCGA pancanatlas "
+        "static snapshot); re-derived through methods.expression_purity_confound.read.read_expression_purity_confound "
+        "(read_tumor_samples_with_case + _load_purity_by_case seams mocked). NO slope field is emitted (Pearson r, "
+        "Spearman r, Pearson p, median purity, IQR only).",
+        "hpa-pathology-cancer-ihc": "analysis-methods anchor epcam_coadread.hpa_pathology_cancer_ihc.json "
+        "(batch D, #2046) + hpa_ihc_rows/epcam.hpa_pathology_cancer_ihc.rows.parquet (the per-cancer-type product "
+        "rows for the gene from hpa-pathology-cancer-ihc-per-gene-v1); re-derived through "
+        "methods.hpa_pathology_cancer_ihc.read.read_target_summary (pyarrow read_table seam mocked). BOUNDARY: the "
+        "reader is a LOOKUP, not an aggregation — the n_*/fraction/protein_presence_class patient-count aggregation "
+        "is precomputed UPSTREAM in data-catalog's hpa-pathology-cancer-ihc-per-gene-v1 build (no aggregation "
+        "arithmetic exists in analysis-methods); the anchor validates the OncoTree->HPA cancer-type resolution + "
+        "gene predicate + cancer_type row selection + field projection path.",
     },
     "reconciliation": (
         "fraction_expressed, fraction_highly_expressed, expression_class (cellline-rna-distribution); "
@@ -158,9 +190,19 @@ _L1_ACCURACY_EVIDENCE = {
         "(tumor-elevation-breadth, batch B); cohort, protein_expression_class, protein_effect_size, "
         "allgene_percentile(_class/_context), protein_bh_q_value, protein_p_value, "
         "protein_median_log2_tumor/normal, n_tumor/normal_samples, protein_effect_size_se, "
-        "protein_effect_standardized_t/cohens_d/class/method (tumor-protein-abundance-cptac, batch C) "
+        "protein_effect_standardized_t/cohens_d/class/method (tumor-protein-abundance-cptac, batch C); "
+        "the derived-statistics quartet (batch D, #2046): rna_protein_r/rna_protein_spearman/n_paired_models/"
+        "protein_detection_fraction/rna_expressed_fraction/rna_high_protein_low_fraction/rna_as_biomarker/"
+        "rna_proxy_classified_on/rna_proxy_class_boundary_fragile (cellline-rna-protein-concordance) and the "
+        "cptac_cohort/substrate/rna_protein_r/rna_protein_spearman/n_paired_tumors/rna_as_biomarker/"
+        "rna_proxy_classified_on/rna_proxy_class_boundary_fragile (rna-protein-concordance-tumor); "
+        "purity_confound_class/n_paired_samples/n_expr_samples/median_purity (expression-purity-confound); "
+        "and the full protein_presence_class/fraction_detected/fraction_moderate_strong/staining_score/n_high/"
+        "n_medium/n_low/n_not_detected/n_patients_total/prognostic_* /hpa_cancer_type set "
+        "(hpa-pathology-cancer-ihc, byte-exact) "
         "all match at full precision between the independent "
-        "recompute and tests/fixtures/epcam_coadread_decision.json"
+        "recompute and tests/fixtures/epcam_coadread_decision.json (the two concordance ci95 bounds + the "
+        "purity correlation coefficients are honestly-pinned verdict-inert drifts, see boundary)"
     ),
     "boundary": (
         "Anchors validate the read/aggregation path, NOT the upstream DESeq2/DEG runs (that provenance "
@@ -182,7 +224,31 @@ _L1_ACCURACY_EVIDENCE = {
         "#1664-flagged aggregation is confined to the umbrella (NSCLC->LUAD+LSCC) and indication-FREE "
         "pan-cancer paths, where the #1664 F1 fix already ranks on the comparable |Cohen's d| axis "
         "(read.py read_target_summary). This card's within-cohort semantics are therefore sound; the "
-        "#1664 concern does not bite the leaf-indication card path."
+        "#1664 concern does not bite the leaf-indication card path. "
+        "#1510 ADJUDICATION (batch D, #2046 — SETTLED GREEN): #1510 flagged rna_proxy_classified_on as a "
+        "corpus-tell that shipped rna_as_biomarker classes MIGHT have been computed on Pearson, not the "
+        "intended Spearman. The re-derivation through the REAL reader reproduces rna_as_biomarker + "
+        "rna_proxy_classified_on='spearman' byte-exact against the golden for BOTH concordance grains, and "
+        "the reader provably classifies on the Spearman value (methods read.py G10). The AM half's KRAS "
+        "cell-line anchor is the decisive witness: Pearson r=0.5524 would classify partial_proxy but Spearman "
+        "r=0.3154 classifies poor_proxy, and the reader emits poor_proxy — so the class tracks Spearman, NOT "
+        "Pearson. The #1510 concern is resolved GREEN on this read path (#1650's consumer of "
+        "rna_proxy_class_boundary_fragile reads an accurate flag). "
+        "TWO HONESTLY-RECORDED verdict-inert DRIFTS (golden NOT regenerated, class byte-stable, NOT silently "
+        "normalized): (1) both concordance cards' ci95_low/high — the committed golden's Fisher-z CI used the "
+        "PEARSON SE coefficient (1.0); the current reader uses the SPEARMAN coefficient (1.06, ~6% wider — the "
+        "F3 fix), so the golden's ci95 predates F3 and the re-derived band is strictly WIDER on both bounds "
+        "while rna_proxy_class_boundary_fragile + rna_as_biomarker are unchanged (pinned by "
+        "test_cellline_ci95_drift_is_the_f3_prefix_wider_band_and_class_invariant + the tumor sibling, "
+        "cross-linked #1510). (2) expression-purity-confound's correlation coefficients "
+        "(expression_purity_pearson_r/_spearman_r/_pearson_p) drift at the ~4th decimal from the golden (the "
+        "recount3 tumor-expression snapshot advanced slightly since the golden was built); "
+        "purity_confound_class/n_paired_samples/n_expr_samples/median_purity are byte-exact, so the class is "
+        "stable (pinned bounded + class-invariant by "
+        "test_purity_correlation_drift_is_bounded_and_class_invariant). "
+        "hpa-pathology-cancer-ihc reconciles BYTE-EXACT — its reader is a LOOKUP (the patient-count "
+        "aggregation is precomputed upstream in data-catalog's hpa-pathology-cancer-ihc-per-gene-v1; the "
+        "anchor validates the OncoTree->HPA resolution + selection + projection path, NOT the aggregation)."
     ),
     "teeth": (
         "test_cellline_rna_distribution_teeth_mutated_input_breaks_the_golden_match, "
@@ -194,6 +260,11 @@ _L1_ACCURACY_EVIDENCE = {
         "breadth; flipping RNA direction collapses the RNA breadth) and the two batch-C CPTAC teeth "
         "(forcing the matched-cohort row's protein_effect_size to +Inf collapses the class to "
         "data_unavailable; shifting the all-gene null moves the within-cohort percentile off the golden) "
+        "and the batch-D (#2046) teeth — shuffling the protein values across models/tumors breaks the "
+        "RNA<->protein correlation for both concordance grains (n_paired unchanged); permuting purity "
+        "across cases breaks the expression<->purity correlation and forcing purity to track expression "
+        "flips the class to tumor_intrinsic; dropping the resolved HPA cancer-type row collapses the IHC "
+        "read to data_unavailable — "
         "mutate the raw input and assert the "
         "match breaks — proving the reconciliation is a live function of substrate, not a self-echo"
     ),
@@ -468,12 +539,15 @@ def build_shard() -> cs.SkillShard:
             "L1 = the 17 cards (OBSERVATIONAL_PROPERTY): 7 ladder-verdict-bearing + 3 L2b-island "
             "substrate + 3 corroboration/certainty-bearing + 1 verdict-adjacent (hpa-pathology-cancer-ihc) "
             "+ 2 safety-comparators + 1 (cellline-protein-abundance-procan, corroboration-bearing). "
-            "accuracy measured for 7 of the 17 cards with a landed analysis-methods T3 anchor bridged to "
+            "accuracy measured for 11 of the 17 cards with a landed analysis-methods T3 anchor bridged to "
             "the EPCAM/COADREAD golden (cellline-rna-distribution, tumor-scrna-celltype-expression; "
             "tumor-rna-distribution + cellline-protein-abundance — batch A, #2043; tumor-rna-vs-adjacent "
-            "+ tumor-elevation-breadth — batch B, #2044; tumor-protein-abundance-cptac — batch C, #2045). "
-            "That completes ALL 7 ladder-verdict-bearing cards; the remaining 10 of 17 (non-ladder "
-            "corroboration/certainty/safety-comparator/verdict-adjacent cards) have no anchor yet (see "
+            "+ tumor-elevation-breadth — batch B, #2044; tumor-protein-abundance-cptac — batch C, #2045; "
+            "cellline-rna-protein-concordance + rna-protein-concordance-tumor + expression-purity-confound "
+            "+ hpa-pathology-cancer-ihc — batch D, #2046). Batch D completes ALL 7 ladder-verdict-bearing "
+            "cards PLUS 4 non-verdict cards (2 rna-proxy concordance, the purity confounder, and the "
+            "verdict-adjacent HPA IHC), enrolling non-verdict cards into the accuracy ledger; the remaining "
+            "6 of 17 (corroboration/certainty/safety-comparator cards) have no anchor yet (see "
             "accuracy evidence cards_covered / cards_not_yet_covered)."
         ),
     )
